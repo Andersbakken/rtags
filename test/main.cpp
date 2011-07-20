@@ -8,7 +8,7 @@ using namespace CPlusPlus;
 
 static bool isWordChar(const QChar &ch)
 {
-    return (ch.isLetterOrNumber() || ch == '_');
+    return (ch.isLetterOrNumber() || ch == '_' || ch == ' ');
 }
 
 static inline QString wordAt(const QString &line, int idx)
@@ -16,14 +16,14 @@ static inline QString wordAt(const QString &line, int idx)
     int left = idx;
     while (left > 0 && isWordChar(line.at(left - 1)))
         --left;
-    while (idx + 1 < line.size() && isWordChar(idx + 1))
+    while (idx + 1 < line.size() && isWordChar(line.at(idx + 1)))
         ++idx;
-    return line.mid(left, idx - left);
+    return line.mid(left, idx + 1 - left);
 }
 
 int main(int argc, char **argv)
 {
-    QString file = "./main.cpp";
+    QString file = "./test.cpp";
     for (int i=1; i<argc; ++i) {
         file = argv[i];
     }
@@ -32,10 +32,12 @@ int main(int argc, char **argv)
     if (doc) {
         QFile f(file);
         if (f.open(QIODevice::ReadOnly)) {
-            QStringList lines;
-            QTextStream ts(&f);
-            lines = ts.readAll().split('\n');
-            qDebug() << lines;
+            QByteArray source = f.readAll();
+            doc->setSource(source);
+            doc->check();
+
+            QStringList lines = QString::fromLocal8Bit(source).split('\n');
+            //qDebug() << lines;
             const int count = lines.size();
             QSet<Symbol*> seen;
             for (int i=0; i<count; ++i) {
