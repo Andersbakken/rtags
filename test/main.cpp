@@ -1,5 +1,6 @@
 #include <QtCore>
 #include <CppDocument.h>
+#include <TypeOfExpression.h>
 #include <Symbol.h>
 #include <Name.h>
 #include <Literals.h>
@@ -21,6 +22,21 @@ static inline QString wordAt(const QString &line, int idx)
     return line.mid(left, idx + 1 - left);
 }
 
+static void checkLine(Document::Ptr& ptr, Snapshot& snapshot, Scope* scope, const QString& line)
+{
+    QString linecopy = line.simplified();
+    qDebug() << "checking line" << linecopy;
+
+    TypeOfExpression typeOfExpression;
+    typeOfExpression.init(ptr, snapshot);
+    QList<LookupItem> items = typeOfExpression.reference(linecopy, scope, TypeOfExpression::Preprocess);
+
+    qDebug() << "items looked up" << items.size();
+    foreach(const LookupItem& item, items) {
+        qDebug() << item.declaration() << item.declaration()->line() << item.declaration()->column();
+    }
+}
+
 int main(int argc, char **argv)
 {
     QString file = "./test.cpp";
@@ -28,8 +44,11 @@ int main(int argc, char **argv)
         file = argv[i];
     }
 
+    Snapshot snapshot;
     Document::Ptr doc = Document::create(file);
     if (doc) {
+        snapshot.insert(doc);
+
         QFile f(file);
         if (f.open(QIODevice::ReadOnly)) {
             QByteArray source = f.readAll();
@@ -42,6 +61,12 @@ int main(int argc, char **argv)
             QSet<Symbol*> seen;
             for (int i=0; i<count; ++i) {
                 const QString &line = lines.at(i);
+                Scope* scope = doc->scopeAt(i);
+                if (scope) {
+                    checkLine(doc, snapshot, scope, line);
+                }
+                continue;
+
                 // Symbol *lastVisibleSymbolAt(unsigned line, unsigned column = 0) const;
                 for (int j=0; j<line.size(); ++j) {
                     Symbol *s = doc->lastVisibleSymbolAt(i + 1, j);
@@ -51,6 +76,11 @@ int main(int argc, char **argv)
                             printf("%d %d => %s (%s)\n", i + 1, j, s->name()->identifier()->chars(),
                                    qPrintable(wordAt(line, j)));
                         }
+                    } else if (s) {
+                        // seen
+                        printf("seen symbol %p at %d.%d\n", s, i + 1, j);
+                        if (s->name() && s->name()->identifier())
+                            printf("  which is %s\n", s->name()->identifier()->chars());
                     }
                 }
             }

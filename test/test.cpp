@@ -15,6 +15,14 @@ private:
 
 int main()
 {
-    Foo f;
-    return f.bar();
+    Foo f1;
+    Foo f2;
+    int r;
+    r = f1.bar();
+    r = f2.bar();
+    f1.bar();
+    bar();
+    f1;
+    = f1;
+    return r;
 }
