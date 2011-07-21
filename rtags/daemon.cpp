@@ -1,20 +1,18 @@
 #include "daemon.h"
 #include "daemonadaptor.h"
-#include <CppDocument.h>
-#include <TypeOfExpression.h>
-#include <Symbol.h>
-#include <Name.h>
-#include <Literals.h>
 #include <QCoreApplication>
 
 Daemon::Daemon(QObject *parent)
-    : QObject(parent), m_snapshot(new CPlusPlus::Snapshot())
+    : QObject(parent), m_index(clang_createIndex(1, 0))
 {
 }
 
 Daemon::~Daemon()
 {
-    delete m_snapshot;
+    foreach(CXTranslationUnit unit, m_translationUnits) {
+        clang_disposeTranslationUnit(unit);
+    }
+    clang_disposeIndex(m_index);
 }
 
 bool Daemon::start()
@@ -65,33 +63,28 @@ QString Daemon::addSourceFile(const QStringList &args)
 {
     if (args.isEmpty())
         return QLatin1String("No file to add");
-    QFile file(args.first());
-    if (!file.open(QFile::ReadOnly))
-        return QLatin1String("File not found");
-
-    CPlusPlus::Document::Ptr doc = CPlusPlus::Document::create(file.fileName());
-    doc->setSource(file.readAll());
-    doc->check();
-    m_snapshot->insert(doc);
+    QString filename = args.first();
+    QFileInfo finfo(filename);
+    if (!finfo.exists())
+        return QLatin1String("File does not exist");
+    CXTranslationUnit unit = clang_parseTranslationUnit(m_index, filename.toLocal8Bit().constData(),
+                                                        0, 0, 0, 0,
+                                                        CXTranslationUnit_CacheCompletionResults);
+    m_translationUnits[filename] = unit;
 
     return QLatin1String("Added");
 }
 
-static CPlusPlus::Symbol* lookupSymbolString(CPlusPlus::Document::Ptr& doc, CPlusPlus::Snapshot& snapshot,
-                                             const QByteArray& linetext, int line, int column)
+struct VisitData
 {
-    CPlusPlus::Scope* scope = doc->scopeAt(line, column);
-    if (!scope)
-        return 0;
+    CXSourceLocation location;
+    CXCursor* cursor;
+};
 
-    QString exp = QString::fromLocal8Bit(linetext.constData());
-
-    CPlusPlus::TypeOfExpression typeOfExpression;
-    typeOfExpression.init(doc, snapshot);
-    QList<CPlusPlus::LookupItem> items = typeOfExpression.reference(exp, scope, CPlusPlus::TypeOfExpression::Preprocess);
-    if (items.isEmpty())
-        return 0;
-    return items.first().declaration();
+static bool isValidCursor(CXCursor cursor)
+{
+    CXCursorKind kind = clang_getCursorKind(cursor);
+    return !clang_isInvalid(kind);
 }
 
 QString Daemon::lookupLine(const QStringList &args)
@@ -109,22 +102,47 @@ QString Daemon::lookupLine(const QStringList &args)
     if (!ok)
         return QLatin1String("Argument 3 is not an int");
 
-    if (!m_snapshot->contains(filename))
+    if (!m_translationUnits.contains(filename))
         return QLatin1String("Document not found");
 
-    CPlusPlus::Document::Ptr doc = m_snapshot->document(filename);
+    CXTranslationUnit unit = m_translationUnits.value(filename);
+    CXFile file = clang_getFile(unit, filename.toLocal8Bit().constData());
 
-    QByteArray src = doc->source();
-    QList<QByteArray> lines = src.split('\n');
+    CXSourceLocation location = clang_getLocation(unit, file, line, column);
+    CXCursor cursor = clang_getCursor(unit, location);
+    if (!isValidCursor(cursor))
+        return QLatin1String("Unable to get cursor for location");
 
-    if (line < 1 || line > lines.size())
-        return QLatin1String("Line outside of document bounds");
+    if (clang_isCursorDefinition(cursor)) {
+        CXType type = clang_getCursorType(cursor);
+        if (type.kind == CXType_Invalid)
+            return QLatin1String("Invalid type for definition cursor");
+        CXCursor declaration = clang_getTypeDeclaration(type);
+        if (!isValidCursor(declaration))
+            return QLatin1String("Unable to get cursor for type declaration");
 
-    qDebug() << "Looking up symbol at" << filename << line << column << lines.at(line - 1);
-    // ### this function might need more context (more lines) to determine the symbol
-    CPlusPlus::Symbol* symbol = lookupSymbolString(doc, *m_snapshot, lines.at(line - 1), line - 1, column - 1);
-    if (!symbol)
-        return QLatin1String("Symbol not found");
+        location = clang_getCursorLocation(declaration);
 
-    return QString("Symbol found at %1:%2.%3").arg(symbol->fileName()).arg(symbol->line() + 1).arg(symbol->column() + 1);
+        unsigned int rline, rcolumn, roffset;
+        CXFile rfile;
+        clang_getInstantiationLocation(location, &rfile, &rline, &rcolumn, &roffset);
+        CXString rfilename = clang_getFileName(rfile);
+
+        return QString("Symbol (decl) at %1, line %2 column %3").arg(clang_getCString(rfilename)).arg(rline).arg(rcolumn);
+    } else {
+        CXCursor definition = clang_getCursorDefinition(cursor);
+        if (!isValidCursor(definition))
+            return QLatin1String("Unable to get cursor for definition");
+
+        location = clang_getCursorLocation(definition);
+
+        unsigned int rline, rcolumn, roffset;
+        CXFile rfile;
+        clang_getInstantiationLocation(location, &rfile, &rline, &rcolumn, &roffset);
+        CXString rfilename = clang_getFileName(rfile);
+
+        return QString("Symbol (def) at %1, line %2 column %3").arg(clang_getCString(rfilename)).arg(rline).arg(rcolumn);
+    }
+
+    return QLatin1String("Symbol not found");
 }

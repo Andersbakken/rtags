@@ -8,7 +8,6 @@ DEPENDPATH += .
 INCLUDEPATH += .
 
 macx:CONFIG -= app_bundle
-include(../3rdparty/cplusplus/cplusplus.pri)
 
 QT -= gui
 QT += dbus
@@ -27,6 +26,7 @@ HEADERS += \
     daemon.h \
     client.h
 
+LIBS += -lclang
 
 unix {
     debug:OBJECTS_DIR = $${OUT_PWD}/.obj/debug-shared

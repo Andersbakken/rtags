@@ -4,10 +4,8 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
-
-namespace CPlusPlus {
-class Snapshot;
-}
+#include <QHash>
+#include <clang-c/Index.h>
 
 class Daemon : public QObject
 {
@@ -26,7 +24,8 @@ private:
     Q_INVOKABLE QString runCommand(const QStringList& args);
 
 private:
-    CPlusPlus::Snapshot* m_snapshot;
+    CXIndex m_index;
+    QHash<QString, CXTranslationUnit> m_translationUnits;
 };
 
 #endif

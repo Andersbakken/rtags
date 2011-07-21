@@ -9,9 +9,16 @@ public:
     {
         return mRet;
     }
+
+    int baz();
 private:
     const int mRet;
 };
+
+int Foo::baz()
+{
+    return 42;
+}
 
 int main()
 {
