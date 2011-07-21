@@ -17,7 +17,7 @@ public:
     bool start();
 
 private:
-    QString addMakefile(const QStringList& args);
+    QString addMakefile(const QString& path, const QStringList& args);
     QString addSourceFile(const QStringList& args);
     QString removeSourceFile(const QStringList& args);
     QString lookupLine(const QStringList& args);

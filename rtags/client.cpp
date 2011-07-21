@@ -39,6 +39,7 @@ QString Client::exec(const QStringList& a)
 
     QStringList args = a;
     args.removeFirst();
+    args.prepend(QDir::currentPath());
 
     QDBusPendingReply<QString> reply = m_interface->runCommand(args);
     reply.waitForFinished();

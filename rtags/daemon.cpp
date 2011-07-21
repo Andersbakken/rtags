@@ -40,25 +40,27 @@ static QString syntax()
 
 QString Daemon::runCommand(const QStringList &a)
 {
-    if (a.isEmpty())
+    if (a.size() < 2)
         return QLatin1String("No arguments!");
 
     QStringList args = a;
-    QString arg0 = args.first();
+    QString path = args.first();
+    args.removeFirst();
+    QString cmd = args.first();
     args.removeFirst();
 
-    if (arg0 == QLatin1String("syntax"))
+    if (cmd == QLatin1String("syntax"))
         return syntax();
-    else if (arg0 == QLatin1String("quit"))
+    else if (cmd == QLatin1String("quit"))
         QCoreApplication::quit();
-    else if (arg0 == QLatin1String("add"))
+    else if (cmd == QLatin1String("add"))
         return addSourceFile(args);
-    else if (arg0 == QLatin1String("remove"))
+    else if (cmd == QLatin1String("remove"))
         return removeSourceFile(args);
-    else if (arg0 == QLatin1String("lookupline"))
+    else if (cmd == QLatin1String("lookupline"))
         return lookupLine(args);
-    else if (arg0 == QLatin1String("makefile"))
-        return addMakefile(args);
+    else if (cmd == QLatin1String("makefile"))
+        return addMakefile(path, args);
     else
         return QLatin1String("Unknown command");
     return QString();
@@ -114,25 +116,32 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
     return true;
 }
 
-QString Daemon::addMakefile(const QStringList &args)
+QString Daemon::addMakefile(const QString& path, const QStringList &args)
 {
-    if (args.isEmpty())
+    if (path.isEmpty() || args.isEmpty())
         return QLatin1String("No Makefile to add");
+
+    QString cwd = QDir::currentPath();
+    QDir::setCurrent(path);
+
     QString filename = args.first();
     QFileInfo finfo(filename);
-    if (!finfo.exists())
-        return QLatin1String("Makefile does not exist");
+    if (!finfo.exists()) {
+        QDir::setCurrent(cwd);
+        return QLatin1String("Makefile does not exist") + filename;
+    }
 
     QProcess proc;
     proc.setWorkingDirectory(finfo.absolutePath());
     proc.start(QLatin1String("make"), QStringList() << QLatin1String("-B") << QLatin1String("-n") << QLatin1String("-f") << finfo.fileName());
-    if (!proc.waitForFinished(-1))
+    if (!proc.waitForFinished(-1)) {
+        QDir::setCurrent(cwd);
         return QLatin1String("Unable to wait for make finish");
-    if (proc.exitCode() != 0 || !proc.readAllStandardError().isEmpty())
+    }
+    if (proc.exitCode() != 0 || !proc.readAllStandardError().isEmpty()) {
+        QDir::setCurrent(cwd);
         return QLatin1String("Make returned error");
-
-    QString cwd = QDir::currentPath();
-    QDir::setCurrent(finfo.absolutePath());
+    }
 
     QString error;
     QList<QByteArray> makeData = proc.readAllStandardOutput().split('\n');
