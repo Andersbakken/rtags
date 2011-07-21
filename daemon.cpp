@@ -241,40 +241,6 @@ static bool isValidCursor(CXCursor cursor)
     return !clang_isInvalid(kind);
 }
 
-struct FindParentVisitorData
-{
-    CXString find;
-    bool found;
-    CXCursor result;
-};
-
-static enum CXChildVisitResult findParentVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data)
-{
-    Q_UNUSED(parent);
-
-    FindParentVisitorData* data = reinterpret_cast<FindParentVisitorData*>(client_data);
-    CXString usr = clang_getCursorUSR(cursor);
-    if (!strcmp(clang_getCString(data->find), clang_getCString(usr))) {
-        data->result = cursor;
-        data->found = true;
-        clang_disposeString(usr);
-        return CXChildVisit_Break;
-    }
-    clang_disposeString(usr);
-    return CXChildVisit_Continue;
-}
-
-static CXCursor findParentUSRDecl(CXCursor parent, CXString usr)
-{
-    FindParentVisitorData data;
-    data.find = usr;
-    data.found = false;
-    clang_visitChildren(parent, findParentVisitor, &data);
-    if (data.found)
-        return data.result;
-    return clang_getNullCursor();
-}
-
 QString Daemon::lookupLine(const QStringList &args)
 {
     if (args.size() != 3)
@@ -301,21 +267,14 @@ QString Daemon::lookupLine(const QStringList &args)
     if (!isValidCursor(cursor))
         return QLatin1String("Unable to get cursor for location");
 
-    cursor = clang_getCanonicalCursor(cursor);
-
-    CXCursor referenced = clang_getCursorReferenced(cursor);
+    CXCursorKind kind = clang_getCursorKind(cursor);
+    CXCursor referenced;
+    if (kind == CXCursor_CXXMethod) // might need to add more here
+        referenced = clang_getCanonicalCursor(cursor);
+    else
+        referenced = clang_getCursorReferenced(cursor);
     if (!isValidCursor(referenced))
         return QLatin1String("No referenced cursor");
-
-    if (clang_equalCursors(cursor, referenced)) {
-        // hmm
-        CXString usr = clang_getCursorUSR(referenced);
-        CXCursor parent = clang_getCursorSemanticParent(referenced);
-        referenced = findParentUSRDecl(parent, usr);
-        clang_disposeString(usr);
-        if (!isValidCursor(referenced))
-            return QLatin1String("No referenced cursor");
-    }
 
     location = clang_getCursorLocation(referenced);
     unsigned int rline, rcolumn, roffset;
