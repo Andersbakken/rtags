@@ -131,8 +131,9 @@ QString Daemon::addMakefile(const QString& path, const QStringList &args)
         return QLatin1String("Makefile does not exist") + filename;
     }
 
+    QDir::setCurrent(finfo.absolutePath());
+
     QProcess proc;
-    proc.setWorkingDirectory(finfo.absolutePath());
     proc.start(QLatin1String("make"), QStringList() << QLatin1String("-B") << QLatin1String("-n") << QLatin1String("-f") << finfo.fileName());
     if (!proc.waitForFinished(-1)) {
         QDir::setCurrent(cwd);
