@@ -1,5 +1,6 @@
 #include "daemon.h"
 #include "daemonadaptor.h"
+#include "gccargs.h"
 #include <QCoreApplication>
 
 Daemon::Daemon(QObject *parent)
@@ -95,23 +96,22 @@ QString Daemon::addSourceFile(const QStringList &args)
     return QString();
 }
 
-void Daemon::addMakefileLine(const QList<QByteArray> &line)
+bool Daemon::addMakefileLine(const QList<QByteArray> &line)
 {
-    char const** cmdline = new char const* [line.size() - 1];
-    for (int i = 1; i < line.size(); ++i)
-        cmdline[i - 1] = line[i].constData();
-    CXTranslationUnit unit = clang_parseTranslationUnit(m_index, 0, cmdline, line.size() - 1, 0, 0,
+    // ### check if gcc/g++ really is the compiler used here
+    GccArguments args;
+    args.parse(line);
+    if (!args.hasInput())
+        return false;
+
+    QString filename = QString::fromLocal8Bit(args.input().constData());
+    if (m_translationUnits.contains(filename))
+        return false;
+
+    CXTranslationUnit unit = clang_parseTranslationUnit(m_index, args.input().constData(), 0, 0, 0, 0,
                                                         CXTranslationUnit_CacheCompletionResults);
-    delete[] cmdline;
-    CXString spelling = clang_getTranslationUnitSpelling(unit);
-    QString filename = QString::fromLocal8Bit(clang_getCString(spelling));
-    if (filename.isEmpty())
-        return;
-    if (m_translationUnits.contains(filename)) {
-        clang_disposeTranslationUnit(unit);
-        return;
-    }
     m_translationUnits[filename] = unit;
+    return true;
 }
 
 QString Daemon::addMakefile(const QStringList &args)
@@ -130,13 +130,20 @@ QString Daemon::addMakefile(const QStringList &args)
         return QLatin1String("Unable to wait for make finish");
     if (proc.exitCode() != 0 || !proc.readAllStandardError().isEmpty())
         return QLatin1String("Make returned error");
+
+    QString error;
     QList<QByteArray> makeData = proc.readAllStandardOutput().split('\n');
     foreach(const QByteArray& makeLine, makeData) {
+        if (makeLine.isEmpty())
+            continue;
         // ### this should be improved with quote support
         QList<QByteArray> lineOpts = makeLine.split(' ');
-        addMakefileLine(lineOpts);
+        if (!addMakefileLine(lineOpts))
+            error += QLatin1String("Unable to add") + makeLine + QLatin1String("\n");
     }
 
+    if (!error.isEmpty())
+        return error;
     return QLatin1String("Added");
 }
 

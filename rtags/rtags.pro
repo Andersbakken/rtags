@@ -18,13 +18,25 @@ SOURCES += \
     daemonadaptor.cpp \
     daemoninterface.cpp \
     daemon.cpp \
-    client.cpp
+    client.cpp \
+    gccargs.cpp
 
 HEADERS += \
     daemonadaptor.h \
     daemoninterface.h \
     daemon.h \
-    client.h
+    client.h \
+    gccargs.h
+
+OTHER_FILES += \
+    gccopts.gperf
+
+gccopts_gperf.commands = gperf -I -C -l -L C++ gccopts.gperf --output-file gccopts_gperf.cpp -Z gccopts_gperf
+gccopts_gperf.target = gccopts_gperf.cpp
+gccopts_gperf.depends = gccopts.gperf
+QMAKE_EXTRA_TARGETS += gccopts_gperf
+
+PRE_TARGETDEPS += gccopts_gperf.cpp
 
 LIBS += -lclang
 

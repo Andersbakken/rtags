@@ -23,7 +23,7 @@ private:
     QString lookupLine(const QStringList& args);
 
 private:
-    void addMakefileLine(const QList<QByteArray>& line);
+    bool addMakefileLine(const QList<QByteArray>& line);
 
 private:
     Q_INVOKABLE QString runCommand(const QStringList& args);
