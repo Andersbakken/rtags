@@ -1,6 +1,5 @@
 #include "gccargs.h"
 #include "gccopts_gperf.cpp"
-#include <QtCore>
 
 GccArguments::Data::Data()
     : input(-1), output(-1), x(-1), language(LangUndefined)
@@ -43,21 +42,21 @@ void GccArguments::Data::guessLanguage()
         language = LangObjCPlusPlus;
 }
 
-QString GccArguments::Data::languageString() const
+QByteArray GccArguments::Data::languageString() const
 {
     switch(language) {
     case LangUndefined:
-        return QString();
+        return QByteArray();
     case LangC:
-        return QLatin1String("c");
+        return "c";
     case LangCPlusPlus:
-        return QLatin1String("c++");
+        return "c++";
     case LangObjC:
-        return QLatin1String("objective-c");
+        return "objective-c";
     case LangObjCPlusPlus:
-        return QLatin1String("objective-c++");
+        return "objective-c++";
     }
-    return QString();
+    return QByteArray();
 }
 
 GccArguments::GccArguments()
@@ -126,13 +125,21 @@ QString GccArguments::errorString() const
     return m_ptr->error;
 }
 
-QStringList GccArguments::arguments() const
+QList<QByteArray> GccArguments::arguments() const
+{
+    return arguments(QByteArray());
+}
+
+QList<QByteArray> GccArguments::arguments(const QByteArray &prefix) const
 {
     const Data* data = m_ptr.constData();
-    QStringList args;
+    QList<QByteArray> args;
 
     foreach(const Data::Argument& arg, data->args) {
         if (arg.pos == 0) // skip the compiler
+            continue;
+
+        if (!prefix.isEmpty() && !arg.arg.startsWith(prefix))
             continue;
 
         if (arg.pos == data->input && !data->inputreplace.isEmpty())

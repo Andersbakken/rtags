@@ -3,7 +3,6 @@
 
 #include <QHash>
 #include <QByteArray>
-#include <QStringList>
 #include <QDataStream>
 #include <QSharedData>
 #include <QSharedDataPointer>
@@ -18,7 +17,8 @@ public:
     bool parse(const QList<QByteArray>& args);
     QString errorString() const;
 
-    QStringList arguments() const;
+    QList<QByteArray> arguments() const;
+    QList<QByteArray> arguments(const QByteArray& prefix) const;
 
     void setPreprocess(bool pre);
     void setLanguage(Language language);
@@ -39,7 +39,7 @@ private:
         Data();
 
         void guessLanguage();
-        QString languageString() const;
+        QByteArray languageString() const;
 
         struct Argument
         {
