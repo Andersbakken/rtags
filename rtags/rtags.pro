@@ -7,28 +7,40 @@ TARGET =
 DEPENDPATH += .
 INCLUDEPATH += .
 
-macx:CONFIG -= app_bundle
+macx {
+    CONFIG -= app_bundle
+    !dbus:CONFIG += ebus
+} else {
+    !ebus:CONFIG += dbus
+}
 
-QT -= gui
-QT += dbus network
+QT = core 
+dbus {
+    message("Using DBus. Run qmake -config ebus to use ebus")
+    QT += dbus
+    SOURCES += daemonadaptor.cpp \
+               daemoninterface.cpp
+    HEADERS += daemonadaptor.h \
+               daemoninterface.h
+} else {
+    message("Using EBus. Run qmake -config dbus to use dbus")
+    QT += network
+    DEFINES += EBUS
+    HEADERS += utils.h
+}
+
 
 # Input
 SOURCES += \
     main.cpp \
-    daemonadaptor.cpp \
-    daemoninterface.cpp \
     daemon.cpp \
     client.cpp \
-    gccargs.cpp \
-    ebus.cpp
+    gccargs.cpp
 
 HEADERS += \
-    daemonadaptor.h \
-    daemoninterface.h \
     daemon.h \
     client.h \
-    gccargs.h \
-    ebus.h
+    gccargs.h
 
 OTHER_FILES += \
     gccopts.gperf
@@ -52,3 +64,4 @@ unix {
     RCC_DIR = $${OUT_PWD}/.rcc/
     UI_DIR = $${OUT_PWD}/.uic/
 }
+

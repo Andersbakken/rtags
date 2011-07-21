@@ -6,6 +6,9 @@
 #include <QStringList>
 #include <QHash>
 #include <clang-c/Index.h>
+#ifdef EBUS
+#include <QtNetwork>
+#endif
 
 class Daemon : public QObject
 {
@@ -28,6 +31,17 @@ private:
 private:
     CXIndex m_index;
     QHash<QString, CXTranslationUnit> m_translationUnits;
+
+#ifdef EBUS
+    QTcpServer *m_server;
+    QHash<QTcpSocket*, qint16> m_connections;
+
+    void read(QTcpSocket *socket);
+    Q_SLOT void onNewConnection();
+    Q_SLOT void onReadyRead();
+    Q_SLOT void onDisconnected();
+#endif
+    
 };
 
 #endif

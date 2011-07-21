@@ -2,9 +2,15 @@
 #include "daemonadaptor.h"
 #include "gccargs.h"
 #include <QCoreApplication>
+#ifdef EBUS
+#include "utils.h"
+#endif
 
 Daemon::Daemon(QObject *parent)
     : QObject(parent), m_index(clang_createIndex(1, 0))
+#ifdef EBUS
+    , m_server(0)
+#endif
 {
 }
 
@@ -18,21 +24,32 @@ Daemon::~Daemon()
 
 bool Daemon::start()
 {
+#ifndef EBUS
     DaemonAdaptor* adaptor = new DaemonAdaptor(this);
 
     QDBusConnection dbus = QDBusConnection::sessionBus();
     if (!dbus.registerObject(QLatin1String("/"), this)) {
-        printf("%s %d: if (!dbus.registerObject(QLatin1String(\"/\"), this)) {\n", __FILE__, __LINE__);
         delete adaptor;
         return false;
     }
     if (!dbus.registerService(QLatin1String("rtags.Daemon"))) {
-        printf("%s %d: if (!dbus.registerService(QLatin1String(\"rtags.Daemon\"))) {\n", __FILE__, __LINE__);
         delete adaptor;
         return false;
     }
 
     return true;
+#else
+    m_server = new QTcpServer(this);
+    connect(m_server, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
+    printf("%s %d: if (!m_server->listen(QHostAddress::LocalHost, DefaultPort)) {\n", __FILE__, __LINE__);
+    if (!m_server->listen(QHostAddress::LocalHost, ::port())) {
+        printf("%s %d: if (!m_server->listen(QHostAddress::LocalHost, DefaultPort)) {\n", __FILE__, __LINE__);
+        delete m_server;
+        m_server = 0;
+        return false;
+    }
+    return true;
+#endif
 }
 
 static QString syntax()
@@ -42,6 +59,7 @@ static QString syntax()
 
 QString Daemon::runCommand(const QStringList &a)
 {
+    qDebug() << a;
     if (a.size() < 2)
         return QLatin1String("No arguments!");
 
@@ -243,3 +261,49 @@ QString Daemon::lookupLine(const QStringList &args)
 
     return QLatin1String("Symbol not found");
 }
+
+#ifdef EBUS
+void Daemon::onNewConnection()
+{
+    Q_ASSERT(m_server->hasPendingConnections());
+    QTcpSocket *sock = m_server->nextPendingConnection();
+    Q_ASSERT(sock);
+    m_connections[sock] = -1;
+    connect(sock, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
+    connect(sock, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
+    read(sock);
+}
+
+void Daemon::onReadyRead()
+{
+    read(qobject_cast<QTcpSocket*>(sender()));
+}
+
+void Daemon::onDisconnected()
+{
+    QTcpSocket *sock = qobject_cast<QTcpSocket*>(sender());
+    disconnect(sock, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
+    disconnect(sock, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
+    m_connections.remove(sock);
+    sock->deleteLater();
+}
+
+void Daemon::read(QTcpSocket *socket)
+{
+    Q_ASSERT(socket);
+    Q_ASSERT(m_connections.contains(socket));
+    QStringList arguments;
+    qint16 &size = m_connections[socket];
+    switch (::readFromSocket(socket, arguments, size)) {
+    case Error:
+        qWarning("Couldn't send message to daemon");
+        socket->disconnect();
+        break;
+    case WaitForData:
+        break;
+    case Finished:
+        ::writeToSocket(socket, runCommand(arguments));
+        break;
+    }
+}
+#endif

@@ -20,6 +20,9 @@ static QStringList buildArgs(const QStringList& args, const QString& cmd)
 int main(int argc, char** argv)
 {
     QCoreApplication app(argc, argv);
+    QCoreApplication::setOrganizationDomain("www.rtags.com");
+    QCoreApplication::setOrganizationName("RTags");
+    QCoreApplication::setApplicationName("rtags");
 
     QByteArray cmd;
     if (argc == 1) {
@@ -39,18 +42,23 @@ int main(int argc, char** argv)
         if (!client.connect()) {
             client.startDaemon(app.arguments());
             for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {
-                if (client.connect())
+                if (client.connect()) {
                     break;
+                }
                 sleep(CLIENT_CONNECT_DELAY);
             }
         }
-        if (client.connected()) {
-            QString reply = client.exec(buildArgs(app.arguments(), cmd));
-            if (!reply.isEmpty())
-                printf("%s\n", qPrintable(reply));
-            return 0;
+        for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {
+            if (client.connected()) {
+                QString reply = client.exec(buildArgs(app.arguments(), cmd));
+                if (!reply.isEmpty())
+                    printf("%s\n", qPrintable(reply));
+                return 0;
+            }
+            sleep(CLIENT_CONNECT_DELAY);
         }
     }
+    qWarning("Couldn't connect ot daemon");
 
     return -1;
 }
