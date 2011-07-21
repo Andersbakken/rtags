@@ -199,9 +199,9 @@ QString Daemon::addMakefile(const QString& path, const QStringList &args)
         QDir::setCurrent(cwd);
         return QLatin1String("Unable to wait for make finish");
     }
-    if (proc.exitCode() != 0 || !proc.readAllStandardError().isEmpty()) {
+    if (proc.exitCode() != 0) {
         QDir::setCurrent(cwd);
-        return QLatin1String("Make returned error");
+        return QLatin1String("Make returned error: " + proc.readAllStandardError());
     }
 
     QString error;
