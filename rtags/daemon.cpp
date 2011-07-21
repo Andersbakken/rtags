@@ -131,6 +131,9 @@ QString Daemon::addMakefile(const QStringList &args)
     if (proc.exitCode() != 0 || !proc.readAllStandardError().isEmpty())
         return QLatin1String("Make returned error");
 
+    QString cwd = QDir::currentPath();
+    QDir::setCurrent(finfo.path());
+
     QString error;
     QList<QByteArray> makeData = proc.readAllStandardOutput().split('\n');
     foreach(const QByteArray& makeLine, makeData) {
@@ -141,6 +144,8 @@ QString Daemon::addMakefile(const QStringList &args)
         if (!addMakefileLine(lineOpts))
             error += QLatin1String("Unable to add") + makeLine + QLatin1String("\n");
     }
+
+    QDir::setCurrent(cwd);
 
     if (!error.isEmpty())
         return error;
