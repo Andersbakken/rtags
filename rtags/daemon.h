@@ -15,7 +15,7 @@ public:
     ~Daemon();
 
     bool start();
-
+    Q_INVOKABLE QString runCommand(const QStringList& args);
 private:
     QString addMakefile(const QString& path, const QStringList& args);
     QString addSourceFile(const QStringList& args);
@@ -24,9 +24,6 @@ private:
 
 private:
     bool addMakefileLine(const QList<QByteArray>& line);
-
-private:
-    Q_INVOKABLE QString runCommand(const QStringList& args);
 
 private:
     CXIndex m_index;

@@ -22,10 +22,12 @@ bool Daemon::start()
 
     QDBusConnection dbus = QDBusConnection::sessionBus();
     if (!dbus.registerObject(QLatin1String("/"), this)) {
+        printf("%s %d: if (!dbus.registerObject(QLatin1String(\"/\"), this)) {\n", __FILE__, __LINE__);
         delete adaptor;
         return false;
     }
     if (!dbus.registerService(QLatin1String("rtags.Daemon"))) {
+        printf("%s %d: if (!dbus.registerService(QLatin1String(\"rtags.Daemon\"))) {\n", __FILE__, __LINE__);
         delete adaptor;
         return false;
     }

@@ -10,7 +10,7 @@ INCLUDEPATH += .
 macx:CONFIG -= app_bundle
 
 QT -= gui
-QT += dbus
+QT += dbus network
 
 # Input
 SOURCES += \
@@ -19,14 +19,16 @@ SOURCES += \
     daemoninterface.cpp \
     daemon.cpp \
     client.cpp \
-    gccargs.cpp
+    gccargs.cpp \
+    ebus.cpp
 
 HEADERS += \
     daemonadaptor.h \
     daemoninterface.h \
     daemon.h \
     client.h \
-    gccargs.h
+    gccargs.h \
+    ebus.h
 
 OTHER_FILES += \
     gccopts.gperf
