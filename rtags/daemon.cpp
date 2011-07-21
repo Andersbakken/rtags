@@ -52,6 +52,8 @@ QString Daemon::runCommand(const QStringList &a)
         QCoreApplication::quit();
     else if (arg0 == QLatin1String("add"))
         return addSourceFile(args);
+    else if (arg0 == QLatin1String("remove"))
+        return removeSourceFile(args);
     else if (arg0 == QLatin1String("lookupline"))
         return lookupLine(args);
     else
@@ -81,6 +83,20 @@ QString Daemon::addSourceFile(const QStringList &args)
     }
 
     return QString();
+}
+
+QString Daemon::removeSourceFile(const QStringList &args)
+{
+    if (args.isEmpty())
+        return QLatin1String("No file to remove");
+
+    QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.find(args.first());
+    if (it == m_translationUnits.end())
+        return QLatin1String("File is not parsed");
+    clang_disposeTranslationUnit(it.value());
+    m_translationUnits.erase(it);
+
+    return QLatin1String("Removed");
 }
 
 static bool isValidCursor(CXCursor cursor)

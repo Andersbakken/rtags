@@ -18,6 +18,7 @@ public:
 
 private:
     QString addSourceFile(const QStringList& args);
+    QString removeSourceFile(const QStringList& args);
     QString lookupLine(const QStringList& args);
 
 private:
