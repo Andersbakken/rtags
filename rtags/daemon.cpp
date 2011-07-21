@@ -75,12 +75,6 @@ QString Daemon::addSourceFile(const QStringList &args)
     return QLatin1String("Added");
 }
 
-struct VisitData
-{
-    CXSourceLocation location;
-    CXCursor* cursor;
-};
-
 static bool isValidCursor(CXCursor cursor)
 {
     CXCursorKind kind = clang_getCursorKind(cursor);
