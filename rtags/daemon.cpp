@@ -75,10 +75,13 @@ QString Daemon::addSourceFile(const QStringList &args)
         clang_reparseTranslationUnit(unit, 0, 0, 0);
         return QLatin1String("Reparsed");
     } else {
-        unsigned options = CXTranslationUnit_CacheCompletionResults;
+        unsigned options = 0;
         for (int i = 1; i < args.size(); ++i) {
-            if (args.at(i).toLower() == QLatin1String("incomplete"))
+            const QString curopt = args.at(i).toLower();
+            if (curopt == QLatin1String("incomplete"))
                 options |= CXTranslationUnit_Incomplete;
+            else if (curopt == QLatin1String("cachecompletion"))
+                options |= CXTranslationUnit_CacheCompletionResults;
         }
 
         CXTranslationUnit unit = clang_parseTranslationUnit(m_index, filename.toLocal8Bit().constData(),
