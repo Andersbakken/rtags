@@ -17,9 +17,13 @@ public:
     bool start();
 
 private:
+    QString addMakefile(const QStringList& args);
     QString addSourceFile(const QStringList& args);
     QString removeSourceFile(const QStringList& args);
     QString lookupLine(const QStringList& args);
+
+private:
+    void addMakefileLine(const QList<QByteArray>& line);
 
 private:
     Q_INVOKABLE QString runCommand(const QStringList& args);

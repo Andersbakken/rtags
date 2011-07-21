@@ -56,6 +56,8 @@ QString Daemon::runCommand(const QStringList &a)
         return removeSourceFile(args);
     else if (arg0 == QLatin1String("lookupline"))
         return lookupLine(args);
+    else if (arg0 == QLatin1String("makefile"))
+        return addMakefile(args);
     else
         return QLatin1String("Unknown command");
     return QString();
@@ -91,6 +93,51 @@ QString Daemon::addSourceFile(const QStringList &args)
     }
 
     return QString();
+}
+
+void Daemon::addMakefileLine(const QList<QByteArray> &line)
+{
+    char const** cmdline = new char const* [line.size() - 1];
+    for (int i = 1; i < line.size(); ++i)
+        cmdline[i - 1] = line[i].constData();
+    CXTranslationUnit unit = clang_parseTranslationUnit(m_index, 0, cmdline, line.size() - 1, 0, 0,
+                                                        CXTranslationUnit_CacheCompletionResults);
+    delete[] cmdline;
+    CXString spelling = clang_getTranslationUnitSpelling(unit);
+    QString filename = QString::fromLocal8Bit(clang_getCString(spelling));
+    if (filename.isEmpty())
+        return;
+    if (m_translationUnits.contains(filename)) {
+        clang_disposeTranslationUnit(unit);
+        return;
+    }
+    m_translationUnits[filename] = unit;
+}
+
+QString Daemon::addMakefile(const QStringList &args)
+{
+    if (args.isEmpty())
+        return QLatin1String("No Makefile to add");
+    QString filename = args.first();
+    QFileInfo finfo(filename);
+    if (!finfo.exists())
+        return QLatin1String("Makefile does not exist");
+
+    QProcess proc;
+    proc.setWorkingDirectory(finfo.path());
+    proc.start(QLatin1String("make"), QStringList() << QLatin1String("-B") << QLatin1String("-n") << QLatin1String("-f") << finfo.fileName());
+    if (!proc.waitForFinished(-1))
+        return QLatin1String("Unable to wait for make finish");
+    if (proc.exitCode() != 0 || !proc.readAllStandardError().isEmpty())
+        return QLatin1String("Make returned error");
+    QList<QByteArray> makeData = proc.readAllStandardOutput().split('\n');
+    foreach(const QByteArray& makeLine, makeData) {
+        // ### this should be improved with quote support
+        QList<QByteArray> lineOpts = makeLine.split(' ');
+        addMakefileLine(lineOpts);
+    }
+
+    return QLatin1String("Added");
 }
 
 QString Daemon::removeSourceFile(const QStringList &args)
@@ -129,7 +176,7 @@ QString Daemon::lookupLine(const QStringList &args)
         return QLatin1String("Argument 3 is not an int");
 
     if (!m_translationUnits.contains(filename))
-        return QLatin1String("Document not found");
+        return QLatin1String("Translation unit not found");
 
     CXTranslationUnit unit = m_translationUnits.value(filename);
     CXFile file = clang_getFile(unit, filename.toLocal8Bit().constData());
