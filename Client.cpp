@@ -1,7 +1,7 @@
-#include "client.h"
-#include "daemoninterface.h"
+#include "Client.h"
+#include "DaemonInterface.h"
 #ifdef EBUS
-#include "utils.h"
+#include "Utils.h"
 #endif
 
 Client::Client(QObject *parent)

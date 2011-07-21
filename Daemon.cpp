@@ -1,9 +1,9 @@
-#include "daemon.h"
-#include "daemonadaptor.h"
-#include "gccargs.h"
+#include "Daemon.h"
+#include "DaemonAdaptor.h"
+#include "GccArguments.h"
 #include <QCoreApplication>
 #ifdef EBUS
-#include "utils.h"
+#include "Utils.h"
 #endif
 
 Daemon::Daemon(QObject *parent)

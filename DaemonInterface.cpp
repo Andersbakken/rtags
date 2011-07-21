@@ -9,7 +9,7 @@
  * before re-generating it.
  */
 
-#include "daemoninterface.h"
+#include "DaemonInterface.h"
 
 /*
  * Implementation of interface class DaemonInterface

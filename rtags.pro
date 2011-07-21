@@ -18,29 +18,29 @@ QT = core
 dbus {
     message("Using DBus. Run qmake -config ebus to use ebus")
     QT += dbus
-    SOURCES += daemonadaptor.cpp \
-               daemoninterface.cpp
-    HEADERS += daemonadaptor.h \
-               daemoninterface.h
+    SOURCES += DaemonAdaptor.cpp \
+               DaemonInterface.cpp
+    HEADERS += DaemonAdaptor.h \
+               DaemonInterface.h
 } else {
     message("Using EBus. Run qmake -config dbus to use dbus")
     QT += network
     DEFINES += EBUS
-    HEADERS += utils.h
+    HEADERS += Utils.h
 }
 
 
 # Input
 SOURCES += \
     main.cpp \
-    daemon.cpp \
-    client.cpp \
-    gccargs.cpp
+    Daemon.cpp \
+    Client.cpp \
+    GccArguments.cpp
 
 HEADERS += \
-    daemon.h \
-    client.h \
-    gccargs.h
+    Daemon.h \
+    Client.h \
+    GccArguments.h
 
 OTHER_FILES += \
     gccopts.gperf

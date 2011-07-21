@@ -1,4 +1,4 @@
-#include "gccargs.h"
+#include "GccArguments.h"
 #include "gccopts_gperf.cpp"
 
 GccArguments::Data::Data()

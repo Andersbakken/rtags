@@ -1,8 +1,8 @@
 #include <QCoreApplication>
 #include <QString>
 #include <stdio.h>
-#include "daemon.h"
-#include "client.h"
+#include "Daemon.h"
+#include "Client.h"
 
 #define CLIENT_CONNECT_ATTEMPTS 5
 #define CLIENT_CONNECT_DELAY 1
