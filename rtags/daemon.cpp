@@ -75,9 +75,14 @@ QString Daemon::addSourceFile(const QStringList &args)
         clang_reparseTranslationUnit(unit, 0, 0, 0);
         return QLatin1String("Reparsed");
     } else {
+        unsigned options = CXTranslationUnit_CacheCompletionResults;
+        for (int i = 1; i < args.size(); ++i) {
+            if (args.at(i).toLower() == QLatin1String("incomplete"))
+                options |= CXTranslationUnit_Incomplete;
+        }
+
         CXTranslationUnit unit = clang_parseTranslationUnit(m_index, filename.toLocal8Bit().constData(),
-                                                            0, 0, 0, 0,
-                                                            CXTranslationUnit_CacheCompletionResults);
+                                                            0, 0, 0, 0, options);
         m_translationUnits[filename] = unit;
         return QLatin1String("Added");
     }
