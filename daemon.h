@@ -5,6 +5,8 @@
 #include <QString>
 #include <QStringList>
 #include <QHash>
+#include <QFileInfo>
+#include <QFileSystemWatcher>
 #include <clang-c/Index.h>
 #ifdef EBUS
 #include <QtNetwork>
