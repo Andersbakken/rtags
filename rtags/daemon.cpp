@@ -124,7 +124,7 @@ QString Daemon::addMakefile(const QStringList &args)
         return QLatin1String("Makefile does not exist");
 
     QProcess proc;
-    proc.setWorkingDirectory(finfo.path());
+    proc.setWorkingDirectory(finfo.absolutePath());
     proc.start(QLatin1String("make"), QStringList() << QLatin1String("-B") << QLatin1String("-n") << QLatin1String("-f") << finfo.fileName());
     if (!proc.waitForFinished(-1))
         return QLatin1String("Unable to wait for make finish");
@@ -132,7 +132,7 @@ QString Daemon::addMakefile(const QStringList &args)
         return QLatin1String("Make returned error");
 
     QString cwd = QDir::currentPath();
-    QDir::setCurrent(finfo.path());
+    QDir::setCurrent(finfo.absolutePath());
 
     QString error;
     QList<QByteArray> makeData = proc.readAllStandardOutput().split('\n');
