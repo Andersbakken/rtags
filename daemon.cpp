@@ -122,17 +122,32 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
 {
     // ### check if gcc/g++ really is the compiler used here
     GccArguments args;
-    args.parse(line);
-    if (!args.hasInput())
+    if (!args.parse(line) || !args.hasInput())
         return false;
 
     QString filename = QString::fromLocal8Bit(args.input().constData());
     if (m_translationUnits.contains(filename))
         return false;
 
-    CXTranslationUnit unit = clang_parseTranslationUnit(m_index, args.input().constData(), 0, 0, 0, 0,
+    QList<QByteArray> includes = args.arguments("-I");
+    QList<QByteArray> defines = args.arguments("-D");
+
+    const int parseargssize = includes.size() + defines.size();
+    char const ** parseargs = new char const *[parseargssize];
+    int pos = 0;
+    foreach(const QByteArray& inc, includes) {
+        parseargs[pos++] = inc.constData();
+    }
+    foreach(const QByteArray& def, defines) {
+        parseargs[pos++] = def.constData();
+    }
+
+    CXTranslationUnit unit = clang_parseTranslationUnit(m_index, args.input().constData(), parseargs, parseargssize, 0, 0,
                                                         CXTranslationUnit_CacheCompletionResults);
     m_translationUnits[filename] = unit;
+
+    delete[] parseargs;
+
     return true;
 }
 
@@ -172,7 +187,7 @@ QString Daemon::addMakefile(const QString& path, const QStringList &args)
         // ### this should be improved with quote support
         QList<QByteArray> lineOpts = makeLine.split(' ');
         if (!addMakefileLine(lineOpts))
-            error += QLatin1String("Unable to add") + makeLine + QLatin1String("\n");
+            error += QLatin1String("Unable to add ") + makeLine + QLatin1String("\n");
     }
 
     QDir::setCurrent(cwd);
@@ -202,6 +217,40 @@ static bool isValidCursor(CXCursor cursor)
     return !clang_isInvalid(kind);
 }
 
+struct FindParentVisitorData
+{
+    CXString find;
+    bool found;
+    CXCursor result;
+};
+
+static enum CXChildVisitResult findParentVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data)
+{
+    Q_UNUSED(parent);
+
+    FindParentVisitorData* data = reinterpret_cast<FindParentVisitorData*>(client_data);
+    CXString usr = clang_getCursorUSR(cursor);
+    if (!strcmp(clang_getCString(data->find), clang_getCString(usr))) {
+        data->result = cursor;
+        data->found = true;
+        clang_disposeString(usr);
+        return CXChildVisit_Break;
+    }
+    clang_disposeString(usr);
+    return CXChildVisit_Continue;
+}
+
+static CXCursor findParentUSRDecl(CXCursor parent, CXString usr)
+{
+    FindParentVisitorData data;
+    data.find = usr;
+    data.found = false;
+    clang_visitChildren(parent, findParentVisitor, &data);
+    if (data.found)
+        return data.result;
+    return clang_getNullCursor();
+}
+
 QString Daemon::lookupLine(const QStringList &args)
 {
     if (args.size() != 3)
@@ -228,38 +277,33 @@ QString Daemon::lookupLine(const QStringList &args)
     if (!isValidCursor(cursor))
         return QLatin1String("Unable to get cursor for location");
 
-    if (clang_isCursorDefinition(cursor)) {
-        CXType type = clang_getCursorType(cursor);
-        if (type.kind == CXType_Invalid)
-            return QLatin1String("Invalid type for definition cursor");
-        CXCursor declaration = clang_getTypeDeclaration(type);
-        if (!isValidCursor(declaration))
-            return QLatin1String("Unable to get cursor for type declaration");
+    cursor = clang_getCanonicalCursor(cursor);
 
-        location = clang_getCursorLocation(declaration);
+    CXCursor referenced = clang_getCursorReferenced(cursor);
+    if (!isValidCursor(referenced))
+        return QLatin1String("No referenced cursor");
 
-        unsigned int rline, rcolumn, roffset;
-        CXFile rfile;
-        clang_getInstantiationLocation(location, &rfile, &rline, &rcolumn, &roffset);
-        CXString rfilename = clang_getFileName(rfile);
-
-        return QString("Symbol (decl) at %1, line %2 column %3").arg(clang_getCString(rfilename)).arg(rline).arg(rcolumn);
-    } else {
-        CXCursor definition = clang_getCursorDefinition(cursor);
-        if (!isValidCursor(definition))
-            return QLatin1String("Unable to get cursor for definition");
-
-        location = clang_getCursorLocation(definition);
-
-        unsigned int rline, rcolumn, roffset;
-        CXFile rfile;
-        clang_getInstantiationLocation(location, &rfile, &rline, &rcolumn, &roffset);
-        CXString rfilename = clang_getFileName(rfile);
-
-        return QString("Symbol (def) at %1, line %2 column %3").arg(clang_getCString(rfilename)).arg(rline).arg(rcolumn);
+    if (clang_equalCursors(cursor, referenced)) {
+        // hmm
+        CXString usr = clang_getCursorUSR(referenced);
+        CXCursor parent = clang_getCursorSemanticParent(referenced);
+        referenced = findParentUSRDecl(parent, usr);
+        clang_disposeString(usr);
+        if (!isValidCursor(referenced))
+            return QLatin1String("No referenced cursor");
     }
 
-    return QLatin1String("Symbol not found");
+    location = clang_getCursorLocation(referenced);
+    unsigned int rline, rcolumn, roffset;
+    CXFile rfile;
+    clang_getInstantiationLocation(location, &rfile, &rline, &rcolumn, &roffset);
+    CXString rfilename = clang_getFileName(rfile);
+
+    QString ret = QString("Symbol (decl) at %1, line %2 column %3").arg(clang_getCString(rfilename)).arg(rline).arg(rcolumn);
+
+    clang_disposeString(rfilename);
+
+    return ret;
 }
 
 #ifdef EBUS
