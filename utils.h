@@ -42,6 +42,7 @@ static inline ReadState readFromSocket(QAbstractSocket *dev, T &t, qint16 &size)
     case QAbstractSocket::ConnectedState:
         break;
     default:
+        printf("%s %d: return Error; %d\n", __FILE__, __LINE__, dev->state());
         return Error;
     }
     int available = dev->bytesAvailable();
@@ -49,6 +50,7 @@ static inline ReadState readFromSocket(QAbstractSocket *dev, T &t, qint16 &size)
         if (available < SizeOfSize)
             return WaitForData;
         if (dev->read(reinterpret_cast<char*>(&size), SizeOfSize) != SizeOfSize) {
+            printf("%s %d: if (dev->read(reinterpret_cast<char*>(&size), SizeOfSize) != SizeOfSize) {\n", __FILE__, __LINE__);
             return Error;
         }
         available -= SizeOfSize;
@@ -56,8 +58,10 @@ static inline ReadState readFromSocket(QAbstractSocket *dev, T &t, qint16 &size)
     if (available < size)
         return WaitForData;
     const QByteArray ba = dev->read(size);
-    if (ba.size() != size)
+    if (ba.size() != size) {
+        printf("%s %d: if (ba.size() != size) {\n", __FILE__, __LINE__);
         return Error;
+    }
     QDataStream ds(ba);
     ds >> t;
     return Finished;

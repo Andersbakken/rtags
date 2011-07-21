@@ -70,7 +70,8 @@ QString Client::exec(const QStringList& a)
     QString ret;
 
     while (timer.elapsed() < 10000 && ret.isEmpty()) {
-        m_socket->waitForReadyRead(100);
+        if (!m_socket->bytesAvailable())
+            m_socket->waitForReadyRead(10);
         if (::readFromSocket(m_socket, ret, size) == Error) {
             ret = "Read error";
         }

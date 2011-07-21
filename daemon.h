@@ -19,19 +19,22 @@ public:
 
     bool start();
     Q_INVOKABLE QString runCommand(const QStringList& args);
+private slots:
+    void onFileChanged(const QString &path);
 private:
     QString addMakefile(const QString& path, const QStringList& args);
     QString addSourceFile(const QStringList& args);
-    QString removeSourceFile(const QStringList& args);
+    QString removeSourceFile(const QString& file);
     QString lookupLine(const QStringList& args);
-
-private:
+    bool addSourceFile(const QFileInfo& fi, unsigned options =
+                       CXTranslationUnit_CacheCompletionResults,
+                       QString* result = 0);
     bool addMakefileLine(const QList<QByteArray>& line);
 
 private:
     CXIndex m_index;
     QHash<QString, CXTranslationUnit> m_translationUnits;
-
+    QFileSystemWatcher m_fileSystemWatcher;
 #ifdef EBUS
     QTcpServer *m_server;
     QHash<QTcpSocket*, qint16> m_connections;

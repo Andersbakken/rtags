@@ -12,6 +12,7 @@ Daemon::Daemon(QObject *parent)
     , m_server(0)
 #endif
 {
+    connect(&m_fileSystemWatcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged(QString)));
 }
 
 Daemon::~Daemon()
@@ -41,9 +42,7 @@ bool Daemon::start()
 #else
     m_server = new QTcpServer(this);
     connect(m_server, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
-    printf("%s %d: if (!m_server->listen(QHostAddress::LocalHost, DefaultPort)) {\n", __FILE__, __LINE__);
     if (!m_server->listen(QHostAddress::LocalHost, ::port())) {
-        printf("%s %d: if (!m_server->listen(QHostAddress::LocalHost, DefaultPort)) {\n", __FILE__, __LINE__);
         delete m_server;
         m_server = 0;
         return false;
@@ -54,12 +53,22 @@ bool Daemon::start()
 
 static QString syntax()
 {
-    return QLatin1String("Syntax: rtags <command> [argument1, argument2, ...]");
+    return QLatin1String("Syntax: rtags <command> [argument1, argument2, ...]\n"
+                         "commands: syntax|quit|add|remove|lookupline|makefile|daemonize\n");
+}
+
+void Daemon::onFileChanged(const QString &path)
+{
+    const QFileInfo fi(path);
+    if (fi.exists()) {
+        addSourceFile(fi);
+    } else {
+        removeSourceFile(path);
+    }
 }
 
 QString Daemon::runCommand(const QStringList &a)
 {
-    qDebug() << a;
     if (a.size() < 2)
         return QLatin1String("No arguments!");
 
@@ -69,53 +78,63 @@ QString Daemon::runCommand(const QStringList &a)
     QString cmd = args.first();
     args.removeFirst();
 
-    if (cmd == QLatin1String("syntax"))
+    if (cmd == QLatin1String("syntax")) {
         return syntax();
-    else if (cmd == QLatin1String("quit"))
-        QCoreApplication::quit();
-    else if (cmd == QLatin1String("add"))
+    } else if (cmd == QLatin1String("quit")) {
+        QTimer::singleShot(100, QCoreApplication::instance(), SLOT(quit()));
+        // hack to make the quit command properly respond before the server goes down
+        return QLatin1String("quitting");
+    } else if (cmd == QLatin1String("add")) {
         return addSourceFile(args);
-    else if (cmd == QLatin1String("remove"))
-        return removeSourceFile(args);
-    else if (cmd == QLatin1String("lookupline"))
+    } else if (cmd == QLatin1String("remove")) {
+        return removeSourceFile(args.value(0));
+    } else if (cmd == QLatin1String("lookupline")) {
         return lookupLine(args);
-    else if (cmd == QLatin1String("makefile"))
+    } else if (cmd == QLatin1String("makefile")) {
         return addMakefile(path, args);
-    else
-        return QLatin1String("Unknown command");
-    return QString();
+    }
+    return QLatin1String("Unknown command");
+}
+
+bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QString *result)
+{
+    if (!fi.exists()) {
+        if (result)
+            *result = QLatin1String("File doesn't exist");
+        return false;
+    }
+    const QString absoluteFilePath = fi.absoluteFilePath();
+    CXTranslationUnit &unit = m_translationUnits[absoluteFilePath];
+    if (unit) {
+        clang_reparseTranslationUnit(unit, 0, 0, 0);
+        if (result)
+            *result = QLatin1String("Reparsed");
+    } else {
+        unit = clang_parseTranslationUnit(m_index, absoluteFilePath.toLocal8Bit().constData(),
+                                          0, 0, 0, 0, options);
+        m_fileSystemWatcher.addPath(absoluteFilePath);
+        if (result)
+            *result = QLatin1String("Added");
+    }
+    return true;
 }
 
 QString Daemon::addSourceFile(const QStringList &args)
 {
     if (args.isEmpty())
         return QLatin1String("No file to add");
-    QString filename = args.first();
-    QFileInfo finfo(filename);
-    if (!finfo.exists())
-        return QLatin1String("File does not exist");
-
-    if (m_translationUnits.contains(filename)) {
-        CXTranslationUnit unit = m_translationUnits.value(filename);
-        clang_reparseTranslationUnit(unit, 0, 0, 0);
-        return QLatin1String("Reparsed");
-    } else {
-        unsigned options = 0;
-        for (int i = 1; i < args.size(); ++i) {
-            const QString curopt = args.at(i).toLower();
-            if (curopt == QLatin1String("incomplete"))
-                options |= CXTranslationUnit_Incomplete;
-            else if (curopt == QLatin1String("cachecompletion"))
-                options |= CXTranslationUnit_CacheCompletionResults;
-        }
-
-        CXTranslationUnit unit = clang_parseTranslationUnit(m_index, filename.toLocal8Bit().constData(),
-                                                            0, 0, 0, 0, options);
-        m_translationUnits[filename] = unit;
-        return QLatin1String("Added");
+    const QFileInfo finfo(args.first());
+    unsigned options = 0;
+    for (int i = 1; i < args.size(); ++i) {
+        const QString curopt = args.at(i).toLower();
+        if (curopt == QLatin1String("incomplete"))
+            options |= CXTranslationUnit_Incomplete;
+        else if (curopt == QLatin1String("cachecompletion"))
+            options |= CXTranslationUnit_CacheCompletionResults;
     }
-
-    return QString();
+    QString result;
+    addSourceFile(finfo, options, &result);
+    return result;
 }
 
 bool Daemon::addMakefileLine(const QList<QByteArray> &line)
@@ -125,9 +144,13 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
     if (!args.parse(line) || !args.hasInput())
         return false;
 
-    QString filename = QString::fromLocal8Bit(args.input().constData());
-    if (m_translationUnits.contains(filename))
+    const QFileInfo fi(QString::fromLocal8Bit(args.input().constData()));
+    if (!fi.exists())
         return false;
+    const QString absoluteFilePath = fi.absoluteFilePath();
+    if (m_translationUnits.contains(absoluteFilePath)) {
+        removeSourceFile(absoluteFilePath);
+    }
 
     QList<QByteArray> includes = args.arguments("-I");
     QList<QByteArray> defines = args.arguments("-D");
@@ -142,12 +165,14 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
         parseargs[pos++] = def.constData();
     }
 
-    CXTranslationUnit unit = clang_parseTranslationUnit(m_index, args.input().constData(), parseargs, parseargssize, 0, 0,
+    CXTranslationUnit unit = clang_parseTranslationUnit(m_index,
+                                                        absoluteFilePath.toLocal8Bit().constData(),
+                                                        parseargs, parseargssize, 0, 0,
                                                         CXTranslationUnit_CacheCompletionResults);
-    m_translationUnits[filename] = unit;
+    m_translationUnits[absoluteFilePath] = unit;
+    m_fileSystemWatcher.addPath(absoluteFilePath);
 
     delete[] parseargs;
-
     return true;
 }
 
@@ -197,17 +222,16 @@ QString Daemon::addMakefile(const QString& path, const QStringList &args)
     return QLatin1String("Added");
 }
 
-QString Daemon::removeSourceFile(const QStringList &args)
+QString Daemon::removeSourceFile(const QString &file)
 {
-    if (args.isEmpty())
+    if (file.isEmpty())
         return QLatin1String("No file to remove");
-
-    QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.find(args.first());
+    QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.find(file);
     if (it == m_translationUnits.end())
         return QLatin1String("File is not parsed");
     clang_disposeTranslationUnit(it.value());
     m_translationUnits.erase(it);
-
+    m_fileSystemWatcher.removePath(file);
     return QLatin1String("Removed");
 }
 

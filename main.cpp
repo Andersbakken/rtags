@@ -58,7 +58,7 @@ int main(int argc, char** argv)
             sleep(CLIENT_CONNECT_DELAY);
         }
     }
-    qWarning("Couldn't connect ot daemon");
+    qWarning("Couldn't connect to daemon");
 
     return -1;
 }
