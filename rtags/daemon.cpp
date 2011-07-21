@@ -67,12 +67,20 @@ QString Daemon::addSourceFile(const QStringList &args)
     QFileInfo finfo(filename);
     if (!finfo.exists())
         return QLatin1String("File does not exist");
-    CXTranslationUnit unit = clang_parseTranslationUnit(m_index, filename.toLocal8Bit().constData(),
-                                                        0, 0, 0, 0,
-                                                        CXTranslationUnit_CacheCompletionResults);
-    m_translationUnits[filename] = unit;
 
-    return QLatin1String("Added");
+    if (m_translationUnits.contains(filename)) {
+        CXTranslationUnit unit = m_translationUnits.value(filename);
+        clang_reparseTranslationUnit(unit, 0, 0, 0);
+        return QLatin1String("Reparsed");
+    } else {
+        CXTranslationUnit unit = clang_parseTranslationUnit(m_index, filename.toLocal8Bit().constData(),
+                                                            0, 0, 0, 0,
+                                                            CXTranslationUnit_CacheCompletionResults);
+        m_translationUnits[filename] = unit;
+        return QLatin1String("Added");
+    }
+
+    return QString();
 }
 
 static bool isValidCursor(CXCursor cursor)
