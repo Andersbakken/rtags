@@ -40,6 +40,8 @@ int main(int argc, char** argv)
     } else {
         Client client;
         if (!client.connect()) {
+            if (cmd == "quit")
+                return 0;
             client.startDaemon(app.arguments());
             for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {
                 if (client.connect()) {

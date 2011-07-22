@@ -67,7 +67,6 @@ GccArguments::GccArguments()
 bool GccArguments::parse(const QList<QByteArray>& args)
 {
     const int argc = args.size();
-
     Data* data = m_ptr.data();
 
     data->args.clear();
@@ -83,9 +82,9 @@ bool GccArguments::parse(const QList<QByteArray>& args)
         if (a.startsWith('-')) { // option
             if (gccopts.in_word_set(a.data(), a.size()) && i + 1 < argc) {
                 if (a == "-o") {
-                    if (data->output == -1)
+                    if (data->output == -1) {
                         data->output = argpos;
-                    else {
+                    } else {
                         data->error = QString("Multiple output arguments found ('%1' and '%2')")
                                   .arg(QString::fromLocal8Bit(data->args.at(data->output).value.constData()))
                                   .arg(args.at(i + 1).constData());

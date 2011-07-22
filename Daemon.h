@@ -32,6 +32,7 @@ private:
                        CXTranslationUnit_CacheCompletionResults,
                        QString* result = 0);
     bool addMakefileLine(const QList<QByteArray>& line);
+    QString fileList(const QStringList &args);
 
 private:
     CXIndex m_index;

@@ -69,13 +69,13 @@ QString Client::exec(const QStringList& a)
     QEventLoop loop;
     QString ret;
 
-    while (timer.elapsed() < 10000 && ret.isEmpty()) {
+    do {
         if (!m_socket->bytesAvailable())
-            m_socket->waitForReadyRead(10);
+            m_socket->waitForReadyRead(1000);
         if (::readFromSocket(m_socket, ret, size) == Error) {
-            ret = "Read error";
+            ret = "Read error " + m_socket->errorString();
         }
-    }
+    } while (ret.isEmpty());
     if (ret.isEmpty())
         ret = "Timeout while waiting for response";
     return ret;

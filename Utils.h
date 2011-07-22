@@ -42,7 +42,6 @@ static inline ReadState readFromSocket(QAbstractSocket *dev, T &t, qint16 &size)
     case QAbstractSocket::ConnectedState:
         break;
     default:
-        printf("%s %d: return Error; %d\n", __FILE__, __LINE__, dev->state());
         return Error;
     }
     int available = dev->bytesAvailable();

@@ -6,6 +6,24 @@
 #include "Utils.h"
 #endif
 
+class Timer : public QElapsedTimer
+{
+public:
+    Timer(const char *func, int line)
+        : mFunc(func), mLine(line)
+    {
+        start();
+    }
+    ~Timer()
+    {
+        const int e = elapsed();
+        qDebug() << mFunc << mLine << e;
+    }
+private:
+    const char *mFunc;
+    const int mLine;
+};
+
 Daemon::Daemon(QObject *parent)
     : QObject(parent), m_index(clang_createIndex(1, 0))
 #ifdef EBUS
@@ -54,7 +72,7 @@ bool Daemon::start()
 static QString syntax()
 {
     return QLatin1String("Syntax: rtags <command> [argument1, argument2, ...]\n"
-                         "commands: syntax|quit|add|remove|lookupline|makefile|daemonize\n");
+                         "commands: syntax|quit|add|remove|lookupline|makefile|daemonize|files\n");
 }
 
 void Daemon::onFileChanged(const QString &path)
@@ -92,12 +110,65 @@ QString Daemon::runCommand(const QStringList &a)
         return lookupLine(args);
     } else if (cmd == QLatin1String("makefile")) {
         return addMakefile(path, args);
+    } else if (cmd == QLatin1String("files")) {
+        return fileList(args);
     }
     return QLatin1String("Unknown command");
 }
 
+template <typename T>
+static QStringList matches(const QHash<QString, CXTranslationUnit> &translationUnits, const T &t)
+{
+    // use QStringBuilder???
+    QStringList matches;
+    QHash<QString, CXTranslationUnit>::const_iterator it = translationUnits.begin();
+    while (it != translationUnits.end()) {
+        const QString &key = it.key();
+        if (key.contains(t))
+            matches += key;
+        ++it;
+    }
+    return matches;
+}
+
+
+QString Daemon::fileList(const QStringList &args)
+{
+    bool seenDashDash = false;
+    QString pattern;
+    bool regexp = false;
+    for (int i=0; i<args.size(); ++i) {
+        const QString &arg = args.at(i);
+        if (!seenDashDash && arg.startsWith("-")) {
+            if (arg == "--") {
+                seenDashDash = true;
+            } else if (arg == QLatin1String("-r") || arg == QLatin1String("--regexp")) {
+                regexp = true;
+            } else {
+                return QLatin1String("Unknown option ") + arg;
+            }// absolute vs relative?
+        } else if (pattern.isEmpty()) {
+            pattern = arg;
+        } else {
+            return QLatin1String("Too many args");
+        }
+    }
+    QStringList out;
+    if (pattern.isEmpty()) {
+        out = m_translationUnits.keys();
+    } else if (regexp) {
+        QRegExp rx(pattern);
+        out = matches(m_translationUnits, rx);
+    } else {
+        out = matches(m_translationUnits, pattern);
+    }
+    return out.join(QLatin1String("\n"));
+}
+
+
 bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QString *result)
 {
+    // Timer t(__FUNCTION__, __LINE__);
     if (!fi.exists()) {
         if (result)
             *result = QLatin1String("File doesn't exist");
@@ -139,14 +210,22 @@ QString Daemon::addSourceFile(const QStringList &args)
 
 bool Daemon::addMakefileLine(const QList<QByteArray> &line)
 {
-    // ### check if gcc/g++ really is the compiler used here
     GccArguments args;
-    if (!args.parse(line) || !args.hasInput())
+    if (!args.parse(line) || !args.hasInput()) {
+        QByteArray joined;
+        foreach(const QByteArray &l, line) {
+            joined += l + ' ';
+        }
+        joined.chop(1);
+        qWarning("Can't parse line %s [%s]", joined.constData(), qPrintable(args.errorString()));
         return false;
+    }
 
-    const QFileInfo fi(QString::fromLocal8Bit(args.input().constData()));
-    if (!fi.exists())
+    const QFileInfo fi(QString::fromLocal8Bit(args.input()));
+    if (!fi.exists()) {
+        qWarning("%s doesn't exist", args.input().constData());
         return false;
+    }
     const QString absoluteFilePath = fi.absoluteFilePath();
     if (m_translationUnits.contains(absoluteFilePath)) {
         removeSourceFile(absoluteFilePath);
@@ -165,19 +244,35 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
         parseargs[pos++] = def.constData();
     }
 
-    CXTranslationUnit unit = clang_parseTranslationUnit(m_index,
-                                                        absoluteFilePath.toLocal8Bit().constData(),
-                                                        parseargs, parseargssize, 0, 0,
-                                                        CXTranslationUnit_CacheCompletionResults);
-    m_translationUnits[absoluteFilePath] = unit;
-    m_fileSystemWatcher.addPath(absoluteFilePath);
+    // qDebug() << "parsing" << absoluteFilePath << defines << includes;
+    {
+        // Timer t(__FUNCTION__, __LINE__);
+        CXTranslationUnit unit = clang_parseTranslationUnit(m_index,
+                                                            absoluteFilePath.toLocal8Bit().constData(),
+                                                            parseargs, parseargssize, 0, 0,
+                                                            CXTranslationUnit_CacheCompletionResults);
+        m_translationUnits[absoluteFilePath] = unit;
+        m_fileSystemWatcher.addPath(absoluteFilePath);
+    }
+    // printf("Done\n");
 
     delete[] parseargs;
     return true;
 }
 
+static inline bool isLinkLine(const QList<QByteArray>& args)
+{
+    for (int i=0; i<args.size(); ++i) {
+        if (i > 1 && args.at(i).endsWith(".o") && args.at(i - 1) != "-o") {
+            return true;
+        }
+    }
+    return false;
+}
+
 QString Daemon::addMakefile(const QString& path, const QStringList &args)
 {
+    // Timer (t, __FUNCTION__, __LINE__);
     if (path.isEmpty() || args.isEmpty())
         return QLatin1String("No Makefile to add");
 
@@ -211,8 +306,11 @@ QString Daemon::addMakefile(const QString& path, const QStringList &args)
             continue;
         // ### this should be improved with quote support
         QList<QByteArray> lineOpts = makeLine.split(' ');
-        if (!addMakefileLine(lineOpts))
+        const QByteArray& first = lineOpts.first();
+        if ((first.contains("gcc") || first.contains("g++")) && !isLinkLine(lineOpts)
+            && !addMakefileLine(lineOpts)) {
             error += QLatin1String("Unable to add ") + makeLine + QLatin1String("\n");
+        }
     }
 
     QDir::setCurrent(cwd);
