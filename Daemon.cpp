@@ -115,7 +115,7 @@ bool Daemon::start()
 static QString syntax()
 {
     return QLatin1String("Syntax: rtags <command> [argument1, argument2, ...]\n"
-                         "commands: syntax|quit|add|remove|lookupline|makefile|daemonize|files\n");
+                         "commands: syntax|quit|add|remove|lookupline|makefile|daemonize|files|lookup\n");
 }
 
 void Daemon::onFileChanged(const QString &path)
@@ -155,6 +155,8 @@ QString Daemon::runCommand(const QStringList &a)
         return addMakefile(path, args);
     } else if (cmd == QLatin1String("files")) {
         return fileList(args);
+    } else if (cmd == QLatin1String("lookup")) {
+        return lookup(cmd, Declaration);
     }
     return QLatin1String("Unknown command");
 }
@@ -441,9 +443,23 @@ struct UserData {
 static enum CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor parent, CXClientData client_data)
 {
     UserData *data = reinterpret_cast<UserData*>(client_data);
-    CXString usr = clang_getCursorUSR(cursor);
-    printf("clang_getCursorUSR %s %s\n", clang_getCString(usr), qPrintable(data->symbol));
+    CXString usr = clang_getCursorDisplayName(cursor);
+    CXString usr2 = clang_getCursorSpelling(cursor);
+    CXSourceLocation location = clang_getCursorLocation(cursor);
+    unsigned int rline, rcolumn, roffset;
+    CXFile rfile;
+    clang_getInstantiationLocation(location, &rfile, &rline, &rcolumn, &roffset);
+    CXString rfilename = clang_getFileName(rfile);
+    QString ret = QString("Symbol (decl) at %1, line %2 column %3").
+        arg(clang_getCString(rfilename)).
+        arg(rline).arg(rcolumn);
+
+    printf("%s => %s => %s\n", clang_getCString(usr), clang_getCString(usr2),
+           qPrintable(ret));
     clang_disposeString(usr);
+    clang_disposeString(usr2);
+    clang_disposeString(rfilename);
+    
 
     // if (!strcmp(clang_getCString(data->find), clang_getCString(usr))) {
     //     data->result = cursor;
@@ -459,9 +475,12 @@ QString Daemon::lookup(const QString &name, LookupType type)
 {
     UserData userData = { name, QStringList(), type };
     QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.begin();
-    while (it == m_translationUnits.end()) {
+    qDebug() << m_translationUnits.keys();
+    while (it != m_translationUnits.end()) {
+        qDebug() << it.key();
         CXCursor cursor = clang_getTranslationUnitCursor(it.value());
         clang_visitChildren(cursor, lookupSymbol, &userData);
+        ++it;
     }
     return userData.results.join("\n");
 }

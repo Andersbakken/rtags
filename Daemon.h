@@ -23,8 +23,8 @@ public:
     Q_INVOKABLE QString runCommand(const QStringList& args);
 
     enum LookupType {
-        Definition,
         Declaration,
+        Definition,
         Reference
     };
 private slots:
