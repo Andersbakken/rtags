@@ -21,13 +21,21 @@ public:
 
     bool start();
     Q_INVOKABLE QString runCommand(const QStringList& args);
+
+    enum LookupType {
+        Definition,
+        Declaration,
+        Reference
+    };
 private slots:
     void onFileChanged(const QString &path);
 private:
+    QString lookup(const QString &name, LookupType type);
+    QString lookupLine(const QStringList& args);
     QString addMakefile(const QString& path, const QStringList& args);
     QString addSourceFile(const QStringList& args);
     QString removeSourceFile(const QString& file);
-    QString lookupLine(const QStringList& args);
+    bool writeAST(const QHash<QString, CXTranslationUnit>::const_iterator &it);
     bool addSourceFile(const QFileInfo& fi, unsigned options =
                        CXTranslationUnit_CacheCompletionResults,
                        QString* result = 0);

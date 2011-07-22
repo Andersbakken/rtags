@@ -4,6 +4,49 @@
 #include <QCoreApplication>
 #ifdef EBUS
 #include "Utils.h"
+void Daemon::onNewConnection()
+{
+    Q_ASSERT(m_server->hasPendingConnections());
+    QTcpSocket *sock = m_server->nextPendingConnection();
+    Q_ASSERT(sock);
+    m_connections[sock] = -1;
+    connect(sock, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
+    connect(sock, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
+    read(sock);
+}
+
+void Daemon::onReadyRead()
+{
+    read(qobject_cast<QTcpSocket*>(sender()));
+}
+
+void Daemon::onDisconnected()
+{
+    QTcpSocket *sock = qobject_cast<QTcpSocket*>(sender());
+    disconnect(sock, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
+    disconnect(sock, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
+    m_connections.remove(sock);
+    sock->deleteLater();
+}
+
+void Daemon::read(QTcpSocket *socket)
+{
+    Q_ASSERT(socket);
+    Q_ASSERT(m_connections.contains(socket));
+    QStringList arguments;
+    qint16 &size = m_connections[socket];
+    switch (::readFromSocket(socket, arguments, size)) {
+    case Error:
+        qWarning("Couldn't send message to daemon");
+        socket->disconnect();
+        break;
+    case WaitForData:
+        break;
+    case Finished:
+        ::writeToSocket(socket, runCommand(arguments));
+        break;
+    }
+}
 #endif
 
 class Timer : public QElapsedTimer
@@ -380,55 +423,50 @@ QString Daemon::lookupLine(const QStringList &args)
     clang_getInstantiationLocation(location, &rfile, &rline, &rcolumn, &roffset);
     CXString rfilename = clang_getFileName(rfile);
 
-    QString ret = QString("Symbol (decl) at %1, line %2 column %3").arg(clang_getCString(rfilename)).arg(rline).arg(rcolumn);
+    QString ret = QString("Symbol (decl) at %1, line %2 column %3").
+        arg(clang_getCString(rfilename)).
+        arg(rline).arg(rcolumn);
 
     clang_disposeString(rfilename);
 
     return ret;
 }
 
-#ifdef EBUS
-void Daemon::onNewConnection()
+struct UserData {
+    const QString &symbol;
+    QStringList results;
+    Daemon::LookupType type;
+};
+
+static enum CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor parent, CXClientData client_data)
 {
-    Q_ASSERT(m_server->hasPendingConnections());
-    QTcpSocket *sock = m_server->nextPendingConnection();
-    Q_ASSERT(sock);
-    m_connections[sock] = -1;
-    connect(sock, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
-    connect(sock, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
-    read(sock);
+    UserData *data = reinterpret_cast<UserData*>(client_data);
+    CXString usr = clang_getCursorUSR(cursor);
+    printf("clang_getCursorUSR %s %s\n", clang_getCString(usr), qPrintable(data->symbol));
+    clang_disposeString(usr);
+
+    // if (!strcmp(clang_getCString(data->find), clang_getCString(usr))) {
+    //     data->result = cursor;
+    //     data->found = true;
+    //     clang_disposeString(usr);
+    //     return CXChildVisit_Break;
+    // }
+    // clang_disposeString(usr);
+    return CXChildVisit_Recurse;
 }
 
-void Daemon::onReadyRead()
+QString Daemon::lookup(const QString &name, LookupType type)
 {
-    read(qobject_cast<QTcpSocket*>(sender()));
-}
-
-void Daemon::onDisconnected()
-{
-    QTcpSocket *sock = qobject_cast<QTcpSocket*>(sender());
-    disconnect(sock, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
-    disconnect(sock, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
-    m_connections.remove(sock);
-    sock->deleteLater();
-}
-
-void Daemon::read(QTcpSocket *socket)
-{
-    Q_ASSERT(socket);
-    Q_ASSERT(m_connections.contains(socket));
-    QStringList arguments;
-    qint16 &size = m_connections[socket];
-    switch (::readFromSocket(socket, arguments, size)) {
-    case Error:
-        qWarning("Couldn't send message to daemon");
-        socket->disconnect();
-        break;
-    case WaitForData:
-        break;
-    case Finished:
-        ::writeToSocket(socket, runCommand(arguments));
-        break;
+    UserData userData = { name, QStringList(), type };
+    QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.begin();
+    while (it == m_translationUnits.end()) {
+        CXCursor cursor = clang_getTranslationUnitCursor(it.value());
+        clang_visitChildren(cursor, lookupSymbol, &userData);
     }
+    return userData.results.join("\n");
 }
-#endif
+
+bool Daemon::writeAST(const QHash<QString, CXTranslationUnit>::const_iterator &it)
+{
+    
+}
