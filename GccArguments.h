@@ -26,11 +26,14 @@ public:
     void setReplaceOutput(const QByteArray& output = QByteArray());
 
     QByteArray compiler() const;
-    QByteArray input() const;
+    QList<QByteArray> input() const;
+    QByteArray firstInput() const;
     QByteArray output() const;
 
     bool hasInput() const;
     bool hasOutput() const;
+
+    bool isCompile() const;
 
 private:
     class Data : public QSharedData
@@ -51,9 +54,10 @@ private:
             QByteArray value;
         };
 
-        int input;
+        QList<int> input;
         int output;
         int x;
+        int c;
         QList<Argument> args;
         QString error;
         Language language;

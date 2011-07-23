@@ -265,10 +265,12 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
         qWarning("Can't parse line %s [%s]", joined.constData(), qPrintable(args.errorString()));
         return false;
     }
+    if (!args.isCompile()) // Just accept link lines without doing anything
+        return true;
 
-    const QFileInfo fi(QString::fromLocal8Bit(args.input()));
+    const QFileInfo fi(QString::fromLocal8Bit(args.firstInput()));
     if (!fi.exists()) {
-        qWarning("%s doesn't exist", args.input().constData());
+        qWarning("%s doesn't exist", args.firstInput().constData());
         return false;
     }
     const QString absoluteFilePath = fi.absoluteFilePath();
@@ -303,16 +305,6 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
 
     delete[] parseargs;
     return true;
-}
-
-static inline bool isLinkLine(const QList<QByteArray>& args)
-{
-    for (int i=0; i<args.size(); ++i) {
-        if (i > 1 && args.at(i).endsWith(".o") && args.at(i - 1) != "-o") {
-            return true;
-        }
-    }
-    return false;
 }
 
 QString Daemon::addMakefile(const QString& path, const QStringList &args)
@@ -352,7 +344,7 @@ QString Daemon::addMakefile(const QString& path, const QStringList &args)
         // ### this should be improved with quote support
         QList<QByteArray> lineOpts = makeLine.split(' ');
         const QByteArray& first = lineOpts.first();
-        if ((first.contains("gcc") || first.contains("g++")) && !isLinkLine(lineOpts)
+        if ((first.contains("gcc") || first.contains("g++"))
             && !addMakefileLine(lineOpts)) {
             error += QLatin1String("Unable to add ") + makeLine + QLatin1String("\n");
         }

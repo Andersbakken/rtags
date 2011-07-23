@@ -2,7 +2,7 @@
 #include "gccopts_gperf.cpp"
 
 GccArguments::Data::Data()
-    : input(-1), output(-1), x(-1), language(LangUndefined)
+    : output(-1), x(-1), c(-1), language(LangUndefined)
 {
 }
 
@@ -23,10 +23,10 @@ void GccArguments::Data::guessLanguage()
         return;
     }
 
-    if (input == -1)
+    if (input.size() != 1)
         return;
 
-    const QByteArray inputfile = args.at(input).arg;
+    const QByteArray inputfile = args.at(input.first()).arg;
     const int lastdot = inputfile.lastIndexOf('.');
     if (lastdot == -1)
         return;
@@ -70,7 +70,9 @@ bool GccArguments::parse(const QList<QByteArray>& args)
     Data* data = m_ptr.data();
 
     data->args.clear();
-    data->input = data->output = -1;
+    data->input.clear();
+    data->output = -1;
+    data->x = data->c = -1;
 
     gccopts_gperf gccopts;
 
@@ -99,19 +101,13 @@ bool GccArguments::parse(const QList<QByteArray>& args)
                                   .arg(args.at(i + 1).constData());
                         return false;
                     }
-                }
+                } else if (a == "-c")
+                    data->c = argpos;
                 data->args.append(Data::Argument(argpos, a, args.at(++i)));
             } else
                 data->args.append(Data::Argument(argpos, a));
         } else { // input file?
-            if (data->input == -1)
-                data->input = argpos;
-            else {
-                data->error = QString("Multiple input arguments found ('%1' and '%2')")
-                          .arg(QString::fromLocal8Bit(data->args.at(data->input).arg.constData()))
-                          .arg(QString::fromLocal8Bit(a.constData()));
-                return false;
-            }
+            data->input.append(argpos);
             data->args.append(Data::Argument(argpos, a));
         }
     }
@@ -134,6 +130,8 @@ QList<QByteArray> GccArguments::arguments(const QByteArray &prefix) const
     const Data* data = m_ptr.constData();
     QList<QByteArray> args;
 
+    int inputpos = (data->input.size() == 1) ? data->input.first() : -1;
+
     foreach(const Data::Argument& arg, data->args) {
         if (arg.pos == 0) // skip the compiler
             continue;
@@ -141,7 +139,7 @@ QList<QByteArray> GccArguments::arguments(const QByteArray &prefix) const
         if (!prefix.isEmpty() && !arg.arg.startsWith(prefix))
             continue;
 
-        if (arg.pos == data->input && !data->inputreplace.isEmpty())
+        if (arg.pos == inputpos && !data->inputreplace.isEmpty())
             args << data->inputreplace;
         else
             args << arg.arg;
@@ -158,7 +156,7 @@ QList<QByteArray> GccArguments::arguments(const QByteArray &prefix) const
         args << "-o" << data->outputreplace;
     if (data->x == -1 && data->language != LangUndefined)
         args << "-x" << data->languageString();
-    if (data->input == -1 && !data->inputreplace.isEmpty())
+    if (data->input.isEmpty() && !data->inputreplace.isEmpty())
         args << data->inputreplace;
 
     return args;
@@ -189,15 +187,26 @@ QByteArray GccArguments::compiler() const
     return data->args.at(0).arg;
 }
 
-QByteArray GccArguments::input() const
+QList<QByteArray> GccArguments::input() const
 {
     const Data* data = m_ptr.constData();
 
-    if (!data->inputreplace.isEmpty())
-        return data->inputreplace;
-    else if (data->input == -1)
+    if (!data->inputreplace.isEmpty() && data->input.size() <= 1)
+        return QList<QByteArray>() << data->inputreplace;
+
+    QList<QByteArray> ret;
+    foreach(int pos, data->input) {
+        ret << data->args.at(pos).arg;
+    }
+    return ret;
+}
+
+QByteArray GccArguments::firstInput() const
+{
+    QList<QByteArray> inputs = input();
+    if (inputs.isEmpty())
         return QByteArray();
-    return data->args.at(data->input).arg;
+    return inputs.first();
 }
 
 QByteArray GccArguments::output() const
@@ -214,12 +223,21 @@ QByteArray GccArguments::output() const
 
 bool GccArguments::hasInput() const
 {
-    return (m_ptr->input != -1);
+    return !m_ptr->input.isEmpty();
 }
 
 bool GccArguments::hasOutput() const
 {
-    return (m_ptr->output != -1);
+    return m_ptr->output != -1;
+}
+
+bool GccArguments::isCompile() const
+{
+    // ### This should perhaps account for gcc commands that both compile and link at once
+    if ((m_ptr->c != -1 && m_ptr->output != -1 && m_ptr->input.size() == 1)
+        || (m_ptr->c != -1 && m_ptr->output == -1 && !m_ptr->input.isEmpty()))
+        return true;
+    return false;
 }
 
 QDataStream& operator<<(QDataStream& stream, const GccArguments& args)
