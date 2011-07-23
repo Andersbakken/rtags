@@ -265,18 +265,9 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
         qWarning("Can't parse line %s [%s]", joined.constData(), qPrintable(args.errorString()));
         return false;
     }
+
     if (!args.isCompile()) // Just accept link lines without doing anything
         return true;
-
-    const QFileInfo fi(QString::fromLocal8Bit(args.firstInput()));
-    if (!fi.exists()) {
-        qWarning("%s doesn't exist", args.firstInput().constData());
-        return false;
-    }
-    const QString absoluteFilePath = fi.absoluteFilePath();
-    if (m_translationUnits.contains(absoluteFilePath)) {
-        removeSourceFile(absoluteFilePath);
-    }
 
     QList<QByteArray> includes = args.arguments("-I");
     QList<QByteArray> defines = args.arguments("-D");
@@ -291,15 +282,27 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
         parseargs[pos++] = def.constData();
     }
 
-    // qDebug() << "parsing" << absoluteFilePath << defines << includes;
-    {
-        // Timer t(__FUNCTION__, __LINE__);
-        CXTranslationUnit unit = clang_parseTranslationUnit(m_index,
-                                                            absoluteFilePath.toLocal8Bit().constData(),
-                                                            parseargs, parseargssize, 0, 0,
-                                                            CXTranslationUnit_CacheCompletionResults);
-        m_translationUnits[absoluteFilePath] = unit;
-        m_fileSystemWatcher.addPath(absoluteFilePath);
+    foreach(const QByteArray& filename, args.input()) {
+        const QFileInfo fi(QString::fromLocal8Bit(filename));
+        if (!fi.exists()) {
+            qWarning("%s doesn't exist", filename.constData());
+            return false;
+        }
+        const QString absoluteFilePath = fi.absoluteFilePath();
+        if (m_translationUnits.contains(absoluteFilePath)) {
+            removeSourceFile(absoluteFilePath);
+        }
+
+        // qDebug() << "parsing" << absoluteFilePath << defines << includes;
+        {
+            // Timer t(__FUNCTION__, __LINE__);
+            CXTranslationUnit unit = clang_parseTranslationUnit(m_index,
+                                                                absoluteFilePath.toLocal8Bit().constData(),
+                                                                parseargs, parseargssize, 0, 0,
+                                                                CXTranslationUnit_CacheCompletionResults);
+            m_translationUnits[absoluteFilePath] = unit;
+            m_fileSystemWatcher.addPath(absoluteFilePath);
+        }
     }
     // printf("Done\n");
 
