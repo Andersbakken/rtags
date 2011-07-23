@@ -246,6 +246,7 @@ QDataStream& operator<<(QDataStream& stream, const GccArguments& args)
 
     stream << data->input << data->output << data->error
            << data->inputreplace << data->outputreplace
+           << data->c << data->x
            << data->args.size();
     foreach(const GccArguments::Data::Argument& arg, data->args) {
         stream << arg.pos << arg.arg << arg.value;
@@ -261,6 +262,7 @@ QDataStream& operator>>(QDataStream& stream, GccArguments& args)
     int argsize;
     stream >> data->input >> data->output >> data->error
            >> data->inputreplace >> data->outputreplace
+           >> data->c >> data->x
            >> argsize;
     int pos;
     QByteArray arg, value;
