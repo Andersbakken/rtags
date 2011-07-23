@@ -2,70 +2,10 @@
 #include "DaemonAdaptor.h"
 #include "GccArguments.h"
 #include <QCoreApplication>
+#include "Daemon_p.h"
 #ifdef EBUS
-#include "Utils.h"
-void Daemon::onNewConnection()
-{
-    Q_ASSERT(m_server->hasPendingConnections());
-    QTcpSocket *sock = m_server->nextPendingConnection();
-    Q_ASSERT(sock);
-    m_connections[sock] = -1;
-    connect(sock, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
-    connect(sock, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
-    read(sock);
-}
-
-void Daemon::onReadyRead()
-{
-    read(qobject_cast<QTcpSocket*>(sender()));
-}
-
-void Daemon::onDisconnected()
-{
-    QTcpSocket *sock = qobject_cast<QTcpSocket*>(sender());
-    disconnect(sock, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
-    disconnect(sock, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
-    m_connections.remove(sock);
-    sock->deleteLater();
-}
-
-void Daemon::read(QTcpSocket *socket)
-{
-    Q_ASSERT(socket);
-    Q_ASSERT(m_connections.contains(socket));
-    QStringList arguments;
-    qint16 &size = m_connections[socket];
-    switch (::readFromSocket(socket, arguments, size)) {
-    case Error:
-        qWarning("Couldn't send message to daemon");
-        socket->disconnect();
-        break;
-    case WaitForData:
-        break;
-    case Finished:
-        ::writeToSocket(socket, runCommand(arguments));
-        break;
-    }
-}
+#include "Ebus.h"
 #endif
-
-class Timer : public QElapsedTimer
-{
-public:
-    Timer(const char *func, int line)
-        : mFunc(func), mLine(line)
-    {
-        start();
-    }
-    ~Timer()
-    {
-        const int e = elapsed();
-        qDebug() << mFunc << mLine << e;
-    }
-private:
-    const char *mFunc;
-    const int mLine;
-};
 
 Daemon::Daemon(QObject *parent)
     : QObject(parent), m_index(clang_createIndex(1, 0))
@@ -73,11 +13,13 @@ Daemon::Daemon(QObject *parent)
     , m_server(0)
 #endif
 {
+    FUNC;
     connect(&m_fileSystemWatcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged(QString)));
 }
 
 Daemon::~Daemon()
 {
+    FUNC;
     foreach(CXTranslationUnit unit, m_translationUnits) {
         clang_disposeTranslationUnit(unit);
     }
@@ -86,6 +28,7 @@ Daemon::~Daemon()
 
 bool Daemon::start()
 {
+    FUNC;
 #ifndef EBUS
     DaemonAdaptor* adaptor = new DaemonAdaptor(this);
 
@@ -114,22 +57,25 @@ bool Daemon::start()
 
 static QString syntax()
 {
+    FUNC;
     return QLatin1String("Syntax: rtags <command> [argument1, argument2, ...]\n"
                          "commands: syntax|quit|add|remove|lookupline|makefile|daemonize|files|lookup\n");
 }
 
 void Daemon::onFileChanged(const QString &path)
 {
+    FUNC;
     const QFileInfo fi(path);
     if (fi.exists()) {
         addSourceFile(fi);
     } else {
-        removeSourceFile(path);
+        removeSourceFile(QStringList() << path);
     }
 }
 
 QString Daemon::runCommand(const QStringList &a)
 {
+    FUNC;
     if (a.size() < 2)
         return QLatin1String("No arguments!");
 
@@ -148,7 +94,7 @@ QString Daemon::runCommand(const QStringList &a)
     } else if (cmd == QLatin1String("add")) {
         return addSourceFile(args);
     } else if (cmd == QLatin1String("remove")) {
-        return removeSourceFile(args.value(0));
+        return removeSourceFile(args);
     } else if (cmd == QLatin1String("lookupline")) {
         return lookupLine(args);
     } else if (cmd == QLatin1String("makefile")) {
@@ -164,6 +110,7 @@ QString Daemon::runCommand(const QStringList &a)
 template <typename T>
 static QStringList matches(const QHash<QString, CXTranslationUnit> &translationUnits, const T &t)
 {
+    FUNC;
     // use QStringBuilder???
     QStringList matches;
     QHash<QString, CXTranslationUnit>::const_iterator it = translationUnits.begin();
@@ -176,9 +123,9 @@ static QStringList matches(const QHash<QString, CXTranslationUnit> &translationU
     return matches;
 }
 
-
 QString Daemon::fileList(const QStringList &args)
 {
+    FUNC;
     bool seenDashDash = false;
     QString pattern;
     bool regexp = false;
@@ -213,7 +160,7 @@ QString Daemon::fileList(const QStringList &args)
 
 bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QString *result)
 {
-    // Timer t(__FUNCTION__, __LINE__);
+    FUNC;
     if (!fi.exists()) {
         if (result)
             *result = QLatin1String("File doesn't exist");
@@ -237,6 +184,7 @@ bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QString *resul
 
 QString Daemon::addSourceFile(const QStringList &args)
 {
+    FUNC;
     if (args.isEmpty())
         return QLatin1String("No file to add");
     const QFileInfo finfo(args.first());
@@ -255,6 +203,7 @@ QString Daemon::addSourceFile(const QStringList &args)
 
 bool Daemon::addMakefileLine(const QList<QByteArray> &line)
 {
+    FUNC;
     GccArguments args;
     if (!args.parse(line) || !args.hasInput()) {
         QByteArray joined;
@@ -289,9 +238,9 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
             return false;
         }
         const QString absoluteFilePath = fi.absoluteFilePath();
-        if (m_translationUnits.contains(absoluteFilePath)) {
-            removeSourceFile(absoluteFilePath);
-        }
+        QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.find(absoluteFilePath);
+        if (it != m_translationUnits.end())
+            m_translationUnits.erase(it);
 
         // qDebug() << "parsing" << absoluteFilePath << defines << includes;
         {
@@ -312,7 +261,7 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
 
 QString Daemon::addMakefile(const QString& path, const QStringList &args)
 {
-    // Timer (t, __FUNCTION__, __LINE__);
+    FUNC;
     if (path.isEmpty() || args.isEmpty())
         return QLatin1String("No Makefile to add");
 
@@ -360,27 +309,50 @@ QString Daemon::addMakefile(const QString& path, const QStringList &args)
     return QLatin1String("Added");
 }
 
-QString Daemon::removeSourceFile(const QString &file)
+QString Daemon::removeSourceFile(const QStringList &args)
 {
-    if (file.isEmpty())
+    FUNC;
+    QString pattern;
+    bool regexp = false;
+    bool seenDashDash = false;
+    foreach(const QString &arg, args) {
+        if (!seenDashDash && arg.startsWith(QLatin1Char('-'))) {
+            if (arg == QLatin1String("--")) {
+                seenDashDash = true;
+                continue;
+            } else if (arg == QLatin1String("-r") || arg == QLatin1String("--regexp")) {
+                regexp = true;
+                continue;
+            }
+        }
+        if (!pattern.isEmpty())
+            qWarning("Invalid arguments to removeSourceFile");
+        pattern = arg;
+    }
+
+    // ### need to use regexp and match partial and all that good stuff. Maybe
+    // ### make it use the same code path as fileList
+    if (pattern.isEmpty())
         return QLatin1String("No file to remove");
-    QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.find(file);
+    QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.find(pattern);
     if (it == m_translationUnits.end())
-        return QLatin1String("File is not parsed");
+        return QLatin1String("No matches for ") + pattern;
     clang_disposeTranslationUnit(it.value());
+    m_fileSystemWatcher.removePath(it.key());
     m_translationUnits.erase(it);
-    m_fileSystemWatcher.removePath(file);
     return QLatin1String("Removed");
 }
 
 static bool isValidCursor(CXCursor cursor)
 {
+    FUNC;
     CXCursorKind kind = clang_getCursorKind(cursor);
     return !clang_isInvalid(kind);
 }
 
 QString Daemon::lookupLine(const QStringList &args)
 {
+    FUNC;
     if (args.size() != 3)
         return QLatin1String("Invalid argument count");
 
@@ -437,6 +409,7 @@ struct UserData {
 
 static enum CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor parent, CXClientData client_data)
 {
+    FUNC;
     UserData *data = reinterpret_cast<UserData*>(client_data);
     CXString usr = clang_getCursorDisplayName(cursor);
     CXString usr2 = clang_getCursorSpelling(cursor);
@@ -468,6 +441,7 @@ static enum CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor parent, CX
 
 QString Daemon::lookup(const QString &name, LookupType type)
 {
+    FUNC;
     UserData userData = { name, QStringList(), type };
     QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.begin();
     qDebug() << m_translationUnits.keys();
@@ -482,5 +456,5 @@ QString Daemon::lookup(const QString &name, LookupType type)
 
 bool Daemon::writeAST(const QHash<QString, CXTranslationUnit>::const_iterator &it)
 {
-    
+    FUNC;
 }

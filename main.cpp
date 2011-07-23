@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "Daemon.h"
 #include "Client.h"
+#include <syslog.h>
 
 #define CLIENT_CONNECT_ATTEMPTS 5
 #define CLIENT_CONNECT_DELAY 1
@@ -16,6 +17,29 @@ static QStringList buildArgs(const QStringList& args, const QString& cmd)
         ret[1] = cmd;
     return ret;
 }
+
+void syslogMsgHandler(QtMsgType t, const char* str)
+{
+    int priority = LOG_WARNING;
+    static const char *names[] = { "DEBUG", "WARNING", "CRITICAL", "FATAL" };
+    switch (t) {
+    case QtDebugMsg:
+        priority = LOG_DEBUG;
+        break;
+    case QtWarningMsg:
+        priority = LOG_WARNING;
+        break;
+    case QtCriticalMsg:
+        priority = LOG_CRIT;
+        break;
+    case QtFatalMsg:
+        priority = LOG_CRIT;
+        break;
+    }
+    fprintf(stderr, "%s: %s\n", names[t], str);
+    syslog(priority, "%s\n", str);
+}
+
 
 int main(int argc, char** argv)
 {
@@ -33,6 +57,7 @@ int main(int argc, char** argv)
 
     if (cmd == "daemonize") {
         Daemon daemon;
+        qInstallMsgHandler(syslogMsgHandler);
         if (daemon.start())
             return app.exec();
         else

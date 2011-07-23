@@ -26,7 +26,8 @@ dbus {
     message("Using EBus. Run qmake -config dbus to use dbus")
     QT += network
     DEFINES += EBUS
-    HEADERS += Utils.h
+    HEADERS += EBus.h
+    SOURCES += Daemon_ebus.cpp
 }
 
 
@@ -40,7 +41,8 @@ SOURCES += \
 HEADERS += \
     Daemon.h \
     Client.h \
-    GccArguments.h
+    GccArguments.h \
+    Daemon_p.h
 
 OTHER_FILES += \
     gccopts.gperf
