@@ -35,7 +35,7 @@ void Daemon::onDisconnected()
 
 void Daemon::read(QTcpSocket *socket)
 {
-    FUNC;
+    FUNC1(socket);
     Q_ASSERT(socket);
     Q_ASSERT(m_connections.contains(socket));
     QStringList arguments;

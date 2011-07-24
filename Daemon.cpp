@@ -13,7 +13,7 @@ Daemon::Daemon(QObject *parent)
     , m_server(0)
 #endif
 {
-    FUNC;
+    FUNC1(parent);
     connect(&m_fileSystemWatcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged(QString)));
 }
 
@@ -64,7 +64,7 @@ static QString syntax()
 
 void Daemon::onFileChanged(const QString &path)
 {
-    FUNC;
+    FUNC1(path);
     const QFileInfo fi(path);
     if (fi.exists()) {
         addSourceFile(fi);
@@ -75,7 +75,7 @@ void Daemon::onFileChanged(const QString &path)
 
 QString Daemon::runCommand(const QStringList &a)
 {
-    FUNC;
+    FUNC1(a);
     if (a.size() < 2)
         return QLatin1String("No arguments!");
 
@@ -110,7 +110,7 @@ QString Daemon::runCommand(const QStringList &a)
 template <typename T>
 static QStringList matches(const QHash<QString, CXTranslationUnit> &translationUnits, const T &t)
 {
-    FUNC;
+    FUNC2(translationUnits, t);
     // use QStringBuilder???
     QStringList matches;
     QHash<QString, CXTranslationUnit>::const_iterator it = translationUnits.begin();
@@ -125,7 +125,7 @@ static QStringList matches(const QHash<QString, CXTranslationUnit> &translationU
 
 QString Daemon::fileList(const QStringList &args)
 {
-    FUNC;
+    FUNC1(args);
     bool seenDashDash = false;
     QString pattern;
     bool regexp = false;
@@ -160,7 +160,7 @@ QString Daemon::fileList(const QStringList &args)
 
 bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QString *result)
 {
-    FUNC;
+    FUNC2(fi, options);
     if (!fi.exists()) {
         if (result)
             *result = QLatin1String("File doesn't exist");
@@ -184,7 +184,7 @@ bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QString *resul
 
 QString Daemon::addSourceFile(const QStringList &args)
 {
-    FUNC;
+    FUNC1(args);
     if (args.isEmpty())
         return QLatin1String("No file to add");
     const QFileInfo finfo(args.first());
@@ -203,7 +203,7 @@ QString Daemon::addSourceFile(const QStringList &args)
 
 bool Daemon::addMakefileLine(const QList<QByteArray> &line)
 {
-    FUNC;
+    FUNC1(line);
     GccArguments args;
     if (!args.parse(line) || !args.hasInput()) {
         QByteArray joined;
@@ -261,7 +261,7 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
 
 QString Daemon::addMakefile(const QString& path, const QStringList &args)
 {
-    FUNC;
+    FUNC2(path, args);
     if (path.isEmpty() || args.isEmpty())
         return QLatin1String("No Makefile to add");
 
@@ -311,7 +311,7 @@ QString Daemon::addMakefile(const QString& path, const QStringList &args)
 
 QString Daemon::removeSourceFile(const QStringList &args)
 {
-    FUNC;
+    FUNC1(args);
     QString pattern;
     bool regexp = false;
     bool seenDashDash = false;
@@ -352,7 +352,7 @@ static bool isValidCursor(CXCursor cursor)
 
 QString Daemon::lookupLine(const QStringList &args)
 {
-    FUNC;
+    FUNC1(args);
     if (args.size() != 3)
         return QLatin1String("Invalid argument count");
 
@@ -410,7 +410,7 @@ struct UserData {
 static enum CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor parent, CXClientData client_data)
 {
     FUNC;
-    UserData *data = reinterpret_cast<UserData*>(client_data);
+    Userdata *data = reinterpret_cast<UserData*>(client_data);
     CXString usr = clang_getCursorDisplayName(cursor);
     CXString usr2 = clang_getCursorSpelling(cursor);
     CXSourceLocation location = clang_getCursorLocation(cursor);
@@ -441,7 +441,7 @@ static enum CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor parent, CX
 
 QString Daemon::lookup(const QString &name, LookupType type)
 {
-    FUNC;
+    FUNC2(name, type);
     UserData userData = { name, QStringList(), type };
     QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.begin();
     qDebug() << m_translationUnits.keys();

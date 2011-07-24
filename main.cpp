@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include "Daemon.h"
 #include "Client.h"
+#include "Daemon_p.h"
 #include <syslog.h>
 
 #define CLIENT_CONNECT_ATTEMPTS 5
@@ -10,6 +11,7 @@
 
 static QStringList buildArgs(const QStringList& args, const QString& cmd)
 {
+    FUNC;
     QStringList ret = args;
     if (ret.size() == 1)
         ret << cmd;
@@ -37,12 +39,19 @@ void syslogMsgHandler(QtMsgType t, const char* str)
         break;
     }
     fprintf(stderr, "%s: %s\n", names[t], str);
+    QFile file("/tmp/rtags.log");
+    file.open(QIODevice::WriteOnly|QIODevice::Append);
+    file.write(names[t]);
+    file.write(": ");
+    file.write(str);
+    file.putChar('\n');
     syslog(priority, "%s\n", str);
 }
 
 
 int main(int argc, char** argv)
 {
+    FUNC;
     QCoreApplication app(argc, argv);
     QCoreApplication::setOrganizationDomain("www.rtags.com");
     QCoreApplication::setOrganizationName("RTags");

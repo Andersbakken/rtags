@@ -1,6 +1,6 @@
 #include "Client.h"
 #ifdef EBUS
-#include "Utils.h"
+#include "EBus.h"
 #else
 #include "DaemonInterface.h"
 #endif
@@ -18,10 +18,9 @@ Client::Client(QObject *parent)
 bool Client::connect()
 {
 #ifdef EBUS
-    if (!m_socket) {
-        m_socket = new QTcpSocket(this);
-        m_socket->connectToHost(QHostAddress::LocalHost, ::port()); // ### from settings
-    }
+    delete m_socket;
+    m_socket = new QTcpSocket(this);
+    m_socket->connectToHost(QHostAddress::LocalHost, ::port()); // ### from settings
     return connected() || m_socket->waitForConnected(100); // slightly nasty
 #else
     m_interface = new DaemonInterface(DaemonInterface::staticInterfaceName(), "/", QDBusConnection::sessionBus(), this);
