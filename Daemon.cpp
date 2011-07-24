@@ -410,7 +410,7 @@ struct UserData {
 static enum CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor parent, CXClientData client_data)
 {
     FUNC;
-    Userdata *data = reinterpret_cast<UserData*>(client_data);
+    UserData *data = reinterpret_cast<UserData*>(client_data);
     CXString usr = clang_getCursorDisplayName(cursor);
     CXString usr2 = clang_getCursorSpelling(cursor);
     CXSourceLocation location = clang_getCursorLocation(cursor);
