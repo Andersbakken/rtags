@@ -1,5 +1,6 @@
 #include "GccArguments.h"
 #include "gccopts_gperf.cpp"
+#include <QDebug>
 
 GccArguments::Data::Data()
     : output(-1), x(-1), c(-1), language(LangUndefined)
@@ -233,10 +234,14 @@ bool GccArguments::hasOutput() const
 
 bool GccArguments::isCompile() const
 {
+#ifdef Q_OS_MAC
+    return true;
+#endif
     // ### This should perhaps account for gcc commands that both compile and link at once
     if ((m_ptr->c != -1 && m_ptr->output != -1 && m_ptr->input.size() == 1)
-        || (m_ptr->c != -1 && m_ptr->output == -1 && !m_ptr->input.isEmpty()))
+        || (m_ptr->c != -1 && m_ptr->output == -1 && !m_ptr->input.isEmpty())) {
         return true;
+    }
     return false;
 }
 

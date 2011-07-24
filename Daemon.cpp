@@ -166,13 +166,19 @@ bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QString *resul
     const QString absoluteFilePath = fi.absoluteFilePath();
     CXTranslationUnit &unit = m_translationUnits[absoluteFilePath];
     if (unit) {
-        clang_reparseTranslationUnit(unit, 0, 0, 0);
+        if (clang_reparseTranslationUnit(unit, 0, 0, 0) != 0) {
+            if (result)
+                *result = QLatin1String("Failed");
+            return false;
+        }
         if (result)
             *result = QLatin1String("Reparsed");
     } else {
-        unit = clang_parseTranslationUnit(m_index, absoluteFilePath.toLocal8Bit().constData(),
-                                          0, 0, 0, 0, options);
-        m_fileSystemWatcher.addPath(absoluteFilePath);
+        if (!addTranslationUnit(absoluteFilePath, options)) {
+            if (result)
+                *result = QLatin1String("Failed");
+            return false;
+        }
         if (result)
             *result = QLatin1String("Added");
     }
@@ -212,21 +218,11 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
         return false;
     }
 
-    if (!args.isCompile()) // Just accept link lines without doing anything
+    if (!args.isCompile()) { // Just accept link lines without doing anything
         return true;
-
-    QList<QByteArray> includes = args.arguments("-I");
-    QList<QByteArray> defines = args.arguments("-D");
-
-    const int parseargssize = includes.size() + defines.size();
-    char const ** parseargs = new char const *[parseargssize];
-    int pos = 0;
-    foreach(const QByteArray& inc, includes) {
-        parseargs[pos++] = inc.constData();
     }
-    foreach(const QByteArray& def, defines) {
-        parseargs[pos++] = def.constData();
-    }
+
+    const QList<QByteArray> options = args.arguments("-I") + args.arguments("-D");
 
     foreach(const QByteArray& filename, args.input()) {
         const QFileInfo fi(QString::fromLocal8Bit(filename));
@@ -241,18 +237,15 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
 
         // qDebug() << "parsing" << absoluteFilePath << defines << includes;
         {
-            // Timer t(__FUNCTION__, __LINE__);
-            CXTranslationUnit unit = clang_parseTranslationUnit(m_index,
-                                                                absoluteFilePath.toLocal8Bit().constData(),
-                                                                parseargs, parseargssize, 0, 0,
-                                                                CXTranslationUnit_CacheCompletionResults);
-            m_translationUnits[absoluteFilePath] = unit;
-            m_fileSystemWatcher.addPath(absoluteFilePath);
+            if (!addTranslationUnit(absoluteFilePath,
+                                    CXTranslationUnit_CacheCompletionResults,
+                                    options)) {
+                return false;
+            }
         }
+        // printf("Done %s\n", qPrintable(absoluteFilePath));
     }
-    // printf("Done\n");
 
-    delete[] parseargs;
     return true;
 }
 
@@ -303,7 +296,7 @@ QString Daemon::addMakefile(const QString& path, const QStringList &args)
 
     if (!error.isEmpty())
         return error;
-    return QLatin1String("Added");
+    return QString::fromLocal8Bit("Added %1 translation units").arg(m_translationUnits.size());
 }
 
 QString Daemon::removeSourceFile(const QStringList &args)
@@ -424,7 +417,7 @@ static enum CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor parent, CX
     clang_disposeString(usr);
     clang_disposeString(usr2);
     clang_disposeString(rfilename);
-    
+
 
     // if (!strcmp(clang_getCString(data->find), clang_getCString(usr))) {
     //     data->result = cursor;
@@ -454,4 +447,27 @@ QString Daemon::lookup(const QString &name, LookupType type)
 bool Daemon::writeAST(const QHash<QString, CXTranslationUnit>::const_iterator &it)
 {
     FUNC;
+}
+bool Daemon::addTranslationUnit(const QString &absoluteFilePath,
+                                unsigned options,
+                                const QList<QByteArray> &compilerOptions)
+{
+    FUNC3(absoluteFilePath, options, compilerOptions);
+    const int size = compilerOptions.size();
+    QVarLengthArray<const char*, 32> args(size);
+    for (int i=0; i<size; ++i) {
+        args[i] = compilerOptions.at(i).constData();
+    }
+
+    CXTranslationUnit unit = clang_parseTranslationUnit(m_index,
+                                                        absoluteFilePath.toLocal8Bit().constData(),
+                                                        args.constData(), size, 0, 0,
+                                                        options);
+    if (!unit) {
+        return false;
+    }
+
+    m_fileSystemWatcher.addPath(absoluteFilePath);
+    m_translationUnits[absoluteFilePath] = unit;
+    return true;
 }

@@ -78,13 +78,15 @@ public:
     Timer(const char *func, const QString &args = QString())
         : mFunc(func), mArgs(args)
     {
-        qDebug("%s(%s) called", func, qPrintable(mArgs));
+        if (qVariantValue<bool>(QCoreApplication::instance()->property("verbose")))
+            qDebug("%s(%s) called", func, qPrintable(mArgs));
         start();
     }
     ~Timer()
     {
         const int e = elapsed();
-        qDebug("%s(%s) returns (%d ms)", mFunc, qPrintable(mArgs), e);
+        if (qVariantValue<bool>(QCoreApplication::instance()->property("verbose")))
+            qDebug("%s(%s) returns (%d ms)", mFunc, qPrintable(mArgs), e);
     }
 private:
     const char *mFunc;

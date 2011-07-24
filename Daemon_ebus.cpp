@@ -4,7 +4,6 @@
 #include "Utils.h"
 #include "Daemon.h"
 
-using namespace EBus;
 void Daemon::onNewConnection()
 {
     FUNC;
@@ -40,15 +39,17 @@ void Daemon::read(QTcpSocket *socket)
     Q_ASSERT(m_connections.contains(socket));
     QStringList arguments;
     qint16 &size = m_connections[socket];
-    switch (readFromSocket(socket, arguments, size)) {
-    case Error:
+    switch (EBus::readFromSocket(socket, arguments, size)) {
+    case EBus::Error:
         qWarning("Couldn't send message to daemon");
         socket->disconnect();
         break;
-    case WaitForData:
+    case EBus::WaitForData:
         break;
-    case Finished:
-        ::writeToSocket(socket, runCommand(arguments));
+    case EBus::Finished:
+        printf("%s %d: EBus::writeToSocket(socket, runCommand(arguments));\n", __FILE__, __LINE__);
+        EBus::writeToSocket(socket, runCommand(arguments));
+        printf("%s %d: EBus::writeToSocket(socket, runCommand(arguments));\n", __FILE__, __LINE__);
         break;
     }
 }

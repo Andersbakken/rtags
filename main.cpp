@@ -51,20 +51,28 @@ void syslogMsgHandler(QtMsgType t, const char* str)
 
 int main(int argc, char** argv)
 {
-    FUNC;
     QCoreApplication app(argc, argv);
+    QStringList args = app.arguments();
+    if (args.contains("--verbose")) {
+        args.removeAll("--verbose");
+        app.setProperty("verbose", true);
+    }
+    if (args.contains("-v")) {
+        args.removeAll("-v");
+        app.setProperty("verbose", true);
+    }
+
+    if (args.size() == 1)
+        args.append("syntax");
+
+    const QString &cmd = args[1];
+    FUNC;
     QCoreApplication::setOrganizationDomain("www.rtags.com");
     QCoreApplication::setOrganizationName("RTags");
     QCoreApplication::setApplicationName("rtags");
 
-    QByteArray cmd;
-    if (argc == 1) {
-        cmd = "syntax";
-    } else {
-        cmd = argv[1];
-    }
 
-    if (cmd == "daemonize") {
+    if (cmd == QLatin1String("daemonize")) {
         Daemon daemon;
         qInstallMsgHandler(syslogMsgHandler);
         if (daemon.start())
@@ -74,7 +82,7 @@ int main(int argc, char** argv)
     } else {
         Client client;
         if (!client.connect()) {
-            if (cmd == "quit")
+            if (cmd == QLatin1String("quit"))
                 return 0;
             client.startDaemon(app.arguments());
             for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {

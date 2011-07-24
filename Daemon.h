@@ -41,7 +41,9 @@ private:
                        QString* result = 0);
     bool addMakefileLine(const QList<QByteArray>& line);
     QString fileList(const QStringList &args);
-
+    bool addTranslationUnit(const QString &absoluteFilePath,
+                            unsigned options = 0,
+                            const QList<QByteArray> &compilerOptions = QList<QByteArray>());
 private:
     CXIndex m_index;
     QHash<QString, CXTranslationUnit> m_translationUnits;
@@ -55,7 +57,7 @@ private:
     Q_SLOT void onReadyRead();
     Q_SLOT void onDisconnected();
 #endif
-    
+
 };
 
 #endif
