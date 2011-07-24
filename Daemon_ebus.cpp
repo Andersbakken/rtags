@@ -3,7 +3,6 @@
 #endif
 #include "Utils.h"
 #include "Daemon.h"
-#include "Daemon_p.h"
 
 using namespace EBus;
 void Daemon::onNewConnection()

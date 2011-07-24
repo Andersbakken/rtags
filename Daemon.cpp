@@ -2,7 +2,6 @@
 #include "DaemonAdaptor.h"
 #include "GccArguments.h"
 #include <QCoreApplication>
-#include "Daemon_p.h"
 #include "Utils.h"
 
 Daemon::Daemon(QObject *parent)

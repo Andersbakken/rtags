@@ -42,7 +42,6 @@ HEADERS += \
     Daemon.h \
     Client.h \
     GccArguments.h \
-    Daemon_p.h \
     Utils.h
 
 OTHER_FILES += \

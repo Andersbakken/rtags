@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include "Daemon.h"
 #include "Client.h"
-#include "Daemon_p.h"
+#include "Utils.h"
 #include <syslog.h>
 
 #define CLIENT_CONNECT_ATTEMPTS 5
