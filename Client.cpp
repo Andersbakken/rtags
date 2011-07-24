@@ -12,10 +12,12 @@ Client::Client(QObject *parent)
     , m_interface(0)
 #endif
 {
+    FUNC1(parent);
 }
 
 bool Client::connect()
 {
+    FUNC;
 #ifdef EBUS_ENABLED
     using namespace EBus;
     delete m_socket;
@@ -37,6 +39,7 @@ bool Client::connect()
 
 bool Client::connected() const
 {
+    FUNC;
 #ifdef EBUS_ENABLED
     return (m_socket && m_socket->state() == QAbstractSocket::ConnectedState);
 #else
@@ -46,12 +49,14 @@ bool Client::connected() const
 
 void Client::startDaemon(const QStringList &args)
 {
-    QString path = QDir::currentPath();
+    FUNC1(args);
+    const QString path = QDir::currentPath();
     QProcess::startDetached(args.first(), QStringList() << QLatin1String("daemonize"), path);
 }
 
 QString Client::exec(const QStringList& a)
 {
+    FUNC1(a);
     if (!connected())
         return QString();
 
