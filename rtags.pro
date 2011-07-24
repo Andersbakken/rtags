@@ -22,11 +22,11 @@ dbus {
                DaemonInterface.cpp
     HEADERS += DaemonAdaptor.h \
                DaemonInterface.h
+    DEFINES += DBUS_ENABLED
 } else {
     message("Using EBus. Run qmake -config dbus to use dbus")
     QT += network
-    DEFINES += EBUS
-    HEADERS += EBus.h
+    DEFINES += EBUS_ENABLED
     SOURCES += Daemon_ebus.cpp
 }
 
@@ -42,7 +42,8 @@ HEADERS += \
     Daemon.h \
     Client.h \
     GccArguments.h \
-    Daemon_p.h
+    Daemon_p.h \
+    Utils.h
 
 OTHER_FILES += \
     gccopts.gperf

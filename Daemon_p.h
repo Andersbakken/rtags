@@ -2,7 +2,7 @@
 #define Daemon_p_h
 
 #include <QElapsedTimer>
-// #define DEBUG_FUNCTION_CALLS
+#define DEBUG_FUNCTION_CALLS
 #ifdef DEBUG_FUNCTION_CALLS
 class Timer : public QElapsedTimer
 {
@@ -22,7 +22,7 @@ private:
     const char *mFunc;
     const QString mArgs;
 };
-static QDebug operator<<(QDebug dbg, const QFileInfo &fi)
+static inline QDebug operator<<(QDebug dbg, const QFileInfo &fi)
 {
     dbg << QString("QFileInfo(" + fi.absoluteFilePath() + ")");
     return dbg;

@@ -4,6 +4,8 @@
 #include <QtNetwork>
 #include <QtCore>
 
+#ifdef EBUS_ENABLED
+namespace EBus {
 enum { SizeOfSize = sizeof(qint16) };
 static inline int port()
 {
@@ -65,5 +67,7 @@ static inline ReadState readFromSocket(QAbstractSocket *dev, T &t, qint16 &size)
     ds >> t;
     return Finished;
 }
+}
+#endif
 
 #endif

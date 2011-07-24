@@ -2,7 +2,7 @@
 #define CLIENT_H
 
 #include <QtCore>
-#ifdef EBUS
+#ifdef EBUS_ENABLED
 #include <QtNetwork>
 class QTcpSocket;
 #else
@@ -21,7 +21,7 @@ public:
 
     QString exec(const QStringList& args);
 private:
-#ifdef EBUS
+#ifdef EBUS_ENABLED
     QTcpSocket *m_socket;
 #else
     DaemonInterface* m_interface;

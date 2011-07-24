@@ -8,7 +8,7 @@
 #include <QFileInfo>
 #include <QFileSystemWatcher>
 #include <clang-c/Index.h>
-#ifdef EBUS
+#ifdef EBUS_ENABLED
 #include <QtNetwork>
 #endif
 
@@ -46,7 +46,7 @@ private:
     CXIndex m_index;
     QHash<QString, CXTranslationUnit> m_translationUnits;
     QFileSystemWatcher m_fileSystemWatcher;
-#ifdef EBUS
+#ifdef EBUS_ENABLED
     QTcpServer *m_server;
     QHash<QTcpSocket*, qint16> m_connections;
 

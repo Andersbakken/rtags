@@ -1,13 +1,12 @@
 #include "Client.h"
-#ifdef EBUS
-#include "EBus.h"
-#else
+#ifdef DBUS_ENABLED
 #include "DaemonInterface.h"
 #endif
+#include "Utils.h"
 
 Client::Client(QObject *parent)
     : QObject(parent)
-#ifdef EBUS
+#ifdef EBUS_ENABLED
     , m_socket(0)
 #else
     , m_interface(0)
@@ -17,10 +16,11 @@ Client::Client(QObject *parent)
 
 bool Client::connect()
 {
-#ifdef EBUS
+#ifdef EBUS_ENABLED
+    using namespace EBus;
     delete m_socket;
     m_socket = new QTcpSocket(this);
-    m_socket->connectToHost(QHostAddress::LocalHost, ::port()); // ### from settings
+    m_socket->connectToHost(QHostAddress::LocalHost, EBus::port()); // ### from settings
     return connected() || m_socket->waitForConnected(100); // slightly nasty
 #else
     m_interface = new DaemonInterface(DaemonInterface::staticInterfaceName(), "/", QDBusConnection::sessionBus(), this);
@@ -37,7 +37,7 @@ bool Client::connect()
 
 bool Client::connected() const
 {
-#ifdef EBUS
+#ifdef EBUS_ENABLED
     return (m_socket && m_socket->state() == QAbstractSocket::ConnectedState);
 #else
     return (m_interface && m_interface->isValid());
@@ -58,8 +58,8 @@ QString Client::exec(const QStringList& a)
     QStringList args = a;
     args.removeFirst();
     args.prepend(QDir::currentPath());
-#ifdef EBUS
-    if (!::writeToSocket(m_socket, args)) {
+#ifdef EBUS_ENABLED
+    if (!EBus::writeToSocket(m_socket, args)) {
         return QLatin1String("Couldn't write to socket");
     }
     QElapsedTimer timer;
@@ -72,7 +72,7 @@ QString Client::exec(const QStringList& a)
     do {
         if (!m_socket->bytesAvailable())
             m_socket->waitForReadyRead(1000);
-        if (::readFromSocket(m_socket, ret, size) == Error) {
+        if (EBus::readFromSocket(m_socket, ret, size) == EBus::Error) {
             ret = "Read error " + m_socket->errorString();
         }
     } while (ret.isEmpty());

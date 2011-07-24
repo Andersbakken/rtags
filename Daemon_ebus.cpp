@@ -1,10 +1,11 @@
-#ifndef EBUS
+#ifndef EBUS_ENABLED
 #error This file should only be included if EBUS is defined
 #endif
-
-#include "EBus.h"
+#include "Utils.h"
 #include "Daemon.h"
 #include "Daemon_p.h"
+
+using namespace EBus;
 void Daemon::onNewConnection()
 {
     FUNC;
@@ -40,7 +41,7 @@ void Daemon::read(QTcpSocket *socket)
     Q_ASSERT(m_connections.contains(socket));
     QStringList arguments;
     qint16 &size = m_connections[socket];
-    switch (::readFromSocket(socket, arguments, size)) {
+    switch (readFromSocket(socket, arguments, size)) {
     case Error:
         qWarning("Couldn't send message to daemon");
         socket->disconnect();

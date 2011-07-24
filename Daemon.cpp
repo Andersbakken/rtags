@@ -3,13 +3,11 @@
 #include "GccArguments.h"
 #include <QCoreApplication>
 #include "Daemon_p.h"
-#ifdef EBUS
-#include "Ebus.h"
-#endif
+#include "Utils.h"
 
 Daemon::Daemon(QObject *parent)
     : QObject(parent), m_index(clang_createIndex(1, 0))
-#ifdef EBUS
+#ifdef EBUS_ENABLED
     , m_server(0)
 #endif
 {
@@ -29,7 +27,7 @@ Daemon::~Daemon()
 bool Daemon::start()
 {
     FUNC;
-#ifndef EBUS
+#ifndef EBUS_ENABLED
     DaemonAdaptor* adaptor = new DaemonAdaptor(this);
 
     QDBusConnection dbus = QDBusConnection::sessionBus();
@@ -46,7 +44,7 @@ bool Daemon::start()
 #else
     m_server = new QTcpServer(this);
     connect(m_server, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
-    if (!m_server->listen(QHostAddress::LocalHost, ::port())) {
+    if (!m_server->listen(QHostAddress::LocalHost, EBus::port())) {
         delete m_server;
         m_server = 0;
         return false;
