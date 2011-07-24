@@ -5,6 +5,7 @@
 #include "Utils.h"
 #include "ClangThread.h"
 
+#define USE_THREAD
 Daemon::Daemon(QObject *parent)
     : QObject(parent), m_index(clang_createIndex(1, 0))
 #ifdef EBUS_ENABLED
@@ -168,11 +169,16 @@ bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QString *resul
     const QString absoluteFilePath = fi.absoluteFilePath();
     CXTranslationUnit &unit = m_translationUnits[absoluteFilePath];
     if (unit) {
+#ifdef USE_THREAD
+        ClangThread *thread = new ClangThread(unit, absoluteFilePath, this);
+        thread->start();
+#else
         if (clang_reparseTranslationUnit(unit, 0, 0, 0) != 0) {
             if (result)
                 *result = QLatin1String("Failed");
             return false;
         }
+#endif
         if (result)
             *result = QLatin1String("Reparsed");
     } else {
@@ -446,7 +452,6 @@ bool Daemon::writeAST(const QHash<QString, CXTranslationUnit>::const_iterator &i
 {
     FUNC;
 }
-#define USE_THREAD
 void Daemon::addTranslationUnit(const QString &absoluteFilePath,
                                 unsigned options,
                                 const QList<QByteArray> &compilerOptions)
