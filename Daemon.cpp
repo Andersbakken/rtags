@@ -3,6 +3,7 @@
 #include "GccArguments.h"
 #include <QCoreApplication>
 #include "Utils.h"
+#include "ClangThread.h"
 
 Daemon::Daemon(QObject *parent)
     : QObject(parent), m_index(clang_createIndex(1, 0))
@@ -10,6 +11,7 @@ Daemon::Daemon(QObject *parent)
     , m_server(0)
 #endif
 {
+    qRegisterMetaType<CXTranslationUnit>("CXTranslationUnit");
     FUNC1(parent);
     connect(&m_fileSystemWatcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged(QString)));
 }
@@ -174,11 +176,7 @@ bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QString *resul
         if (result)
             *result = QLatin1String("Reparsed");
     } else {
-        if (!addTranslationUnit(absoluteFilePath, options)) {
-            if (result)
-                *result = QLatin1String("Failed");
-            return false;
-        }
+        addTranslationUnit(absoluteFilePath, options);
         if (result)
             *result = QLatin1String("Added");
     }
@@ -236,13 +234,9 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
             m_translationUnits.erase(it);
 
         // qDebug() << "parsing" << absoluteFilePath << defines << includes;
-        {
-            if (!addTranslationUnit(absoluteFilePath,
-                                    CXTranslationUnit_CacheCompletionResults,
-                                    options)) {
-                return false;
-            }
-        }
+        addTranslationUnit(absoluteFilePath,
+                           CXTranslationUnit_CacheCompletionResults,
+                           options);
         // printf("Done %s\n", qPrintable(absoluteFilePath));
     }
 
@@ -395,12 +389,15 @@ struct UserData {
     const QString &symbol;
     QStringList results;
     Daemon::LookupType type;
+    int count;
 };
 
 static enum CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor parent, CXClientData client_data)
 {
-    FUNC;
     UserData *data = reinterpret_cast<UserData*>(client_data);
+    ++data->count;
+    return CXChildVisit_Continue;
+    FUNC;
     CXString usr = clang_getCursorDisplayName(cursor);
     CXString usr2 = clang_getCursorSpelling(cursor);
     CXSourceLocation location = clang_getCursorLocation(cursor);
@@ -432,7 +429,7 @@ static enum CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor parent, CX
 QString Daemon::lookup(const QString &name, LookupType type)
 {
     FUNC2(name, type);
-    UserData userData = { name, QStringList(), type };
+    UserData userData = { name, QStringList(), type, 0 };
     QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.begin();
     qDebug() << m_translationUnits.keys();
     while (it != m_translationUnits.end()) {
@@ -441,6 +438,7 @@ QString Daemon::lookup(const QString &name, LookupType type)
         clang_visitChildren(cursor, lookupSymbol, &userData);
         ++it;
     }
+    qDebug() << "FOOOOO" << noCollisions.elapsed() << userData.count;
     return userData.results.join("\n");
 }
 
@@ -448,11 +446,13 @@ bool Daemon::writeAST(const QHash<QString, CXTranslationUnit>::const_iterator &i
 {
     FUNC;
 }
-bool Daemon::addTranslationUnit(const QString &absoluteFilePath,
+#define USE_THREAD
+void Daemon::addTranslationUnit(const QString &absoluteFilePath,
                                 unsigned options,
                                 const QList<QByteArray> &compilerOptions)
 {
     FUNC3(absoluteFilePath, options, compilerOptions);
+#ifndef USE_THREAD
     const int size = compilerOptions.size();
     QVarLengthArray<const char*, 32> args(size);
     for (int i=0; i<size; ++i) {
@@ -463,11 +463,24 @@ bool Daemon::addTranslationUnit(const QString &absoluteFilePath,
                                                         absoluteFilePath.toLocal8Bit().constData(),
                                                         args.constData(), size, 0, 0,
                                                         options);
-    if (!unit) {
-        return false;
-    }
+    onFileParsed(absoluteFilePath, unit);
+#else
+    ClangThread *thread = new ClangThread(absoluteFilePath, options, compilerOptions, m_index, this);
+    connect(thread, SIGNAL(error(QString)), this, SLOT(onParseError(QString)));
+    connect(thread, SIGNAL(fileParsed(QString, CXTranslationUnit)),
+            this, SLOT(onFileParsed(QString, CXTranslationUnit)));
+    thread->start();
+#endif
+}
+void Daemon::onParseError(const QString &absoluteFilePath)
+{
+    FUNC1(absoluteFilePath);
+    qWarning("Failed to add %s", qPrintable(absoluteFilePath));
+}
 
+void Daemon::onFileParsed(const QString &absoluteFilePath, CXTranslationUnit unit)
+{
+    FUNC2(absoluteFilePath, unit);
     m_fileSystemWatcher.addPath(absoluteFilePath);
     m_translationUnits[absoluteFilePath] = unit;
-    return true;
 }

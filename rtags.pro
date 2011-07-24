@@ -36,13 +36,15 @@ SOURCES += \
     main.cpp \
     Daemon.cpp \
     Client.cpp \
-    GccArguments.cpp
+    GccArguments.cpp \
+    Utils.cpp
 
 HEADERS += \
     Daemon.h \
     Client.h \
     GccArguments.h \
-    Utils.h
+    Utils.h \
+    ClangThread.h
 
 OTHER_FILES += \
     gccopts.gperf

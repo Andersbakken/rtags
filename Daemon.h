@@ -12,10 +12,12 @@
 #include <QtNetwork>
 #endif
 
+Q_DECLARE_METATYPE(CXTranslationUnit)
+
 class Daemon : public QObject
 {
     Q_OBJECT
-public:
+    public:
     Daemon(QObject* parent = 0);
     ~Daemon();
 
@@ -29,6 +31,8 @@ public:
     };
 private slots:
     void onFileChanged(const QString &path);
+    void onParseError(const QString &absoluteFilePath);
+    void onFileParsed(const QString &absoluteFilePath, CXTranslationUnit unit);
 private:
     QString lookup(const QString &name, LookupType type);
     QString lookupLine(const QStringList& args);
@@ -41,7 +45,7 @@ private:
                        QString* result = 0);
     bool addMakefileLine(const QList<QByteArray>& line);
     QString fileList(const QStringList &args);
-    bool addTranslationUnit(const QString &absoluteFilePath,
+    void addTranslationUnit(const QString &absoluteFilePath,
                             unsigned options = 0,
                             const QList<QByteArray> &compilerOptions = QList<QByteArray>());
 private:

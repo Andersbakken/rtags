@@ -38,28 +38,28 @@ void syslogMsgHandler(QtMsgType t, const char* str)
         priority = LOG_CRIT;
         break;
     }
-    fprintf(stderr, "%s: %s\n", names[t], str);
+    fprintf(stderr, "%s (%s)\n", str, names[t]);
     QFile file("/tmp/rtags.log");
     file.open(QIODevice::WriteOnly|QIODevice::Append);
-    file.write(names[t]);
-    file.write(": ");
-    file.write(str);
-    file.putChar('\n');
-    syslog(priority, "%s\n", str);
+    char buf[1024];
+    const int s = snprintf(buf, 1023, "%s (%s)\n", str, names[t]);
+    file.write(buf, s);
+    syslog(priority, "%s (%s)\n", str, names[t]);
 }
 
 
 int main(int argc, char** argv)
 {
     QCoreApplication app(argc, argv);
+    QThread::currentThread()->setObjectName("main");
     QStringList args = app.arguments();
     if (args.contains("--verbose")) {
+        Options::s_verbose = true;
         args.removeAll("--verbose");
-        app.setProperty("verbose", true);
     }
     if (args.contains("-v")) {
         args.removeAll("-v");
-        app.setProperty("verbose", true);
+        Options::s_verbose = true;
     }
 
     if (args.size() == 1)

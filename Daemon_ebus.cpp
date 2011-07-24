@@ -47,9 +47,7 @@ void Daemon::read(QTcpSocket *socket)
     case EBus::WaitForData:
         break;
     case EBus::Finished:
-        printf("%s %d: EBus::writeToSocket(socket, runCommand(arguments));\n", __FILE__, __LINE__);
         EBus::writeToSocket(socket, runCommand(arguments));
-        printf("%s %d: EBus::writeToSocket(socket, runCommand(arguments));\n", __FILE__, __LINE__);
         break;
     }
 }

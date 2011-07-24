@@ -69,28 +69,47 @@ static inline ReadState readFromSocket(QAbstractSocket *dev, T &t, qint16 &size)
 }
 }
 #endif
+class Options {
+public:
+    static bool s_verbose;
+};
 #include <QElapsedTimer>
 #define DEBUG_FUNCTION_CALLS
-#ifdef DEBUG_FUNCTION_CALLS
+#ifdef DEBUG_FUNCTION_CALLS // make this match a regexp in environment or something
 class Timer : public QElapsedTimer
 {
 public:
     Timer(const char *func, const QString &args = QString())
-        : mFunc(func), mArgs(args)
+        : m_func(func), m_args(args)
     {
-        if (qVariantValue<bool>(QCoreApplication::instance()->property("verbose")))
-            qDebug("%s(%s) called", func, qPrintable(mArgs));
+        QMutexLocker lock(&s_mutex);
+        if (Options::s_verbose) {
+            qDebug("%s%s(%s) called (%s)",
+                   indent().constData(), func, qPrintable(m_args),
+                   qPrintable(QThread::currentThread()->objectName()));
+        }
+        s_indent += 4;
         start();
     }
     ~Timer()
     {
+        QMutexLocker lock(&s_mutex);
+        s_indent -= 4;
         const int e = elapsed();
-        if (qVariantValue<bool>(QCoreApplication::instance()->property("verbose")))
-            qDebug("%s(%s) returns (%d ms)", mFunc, qPrintable(mArgs), e);
+        if (Options::s_verbose) {
+            qDebug("%s%s(%s) returns (%d ms)",
+                   indent().constData(), m_func, qPrintable(m_args), e);
+        }
+    }
+    QByteArray indent() const
+    {
+        return QByteArray(s_indent, ' ');
     }
 private:
-    const char *mFunc;
-    const QString mArgs;
+    const char *m_func;
+    const QString m_args;
+    static int s_indent;
+    static QMutex s_mutex;
 };
 static inline QDebug operator<<(QDebug dbg, const QFileInfo &fi)
 {
