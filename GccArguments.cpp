@@ -102,11 +102,13 @@ bool GccArguments::parse(const QList<QByteArray>& args)
                                   .arg(args.at(i + 1).constData());
                         return false;
                     }
-                } else if (a == "-c")
-                    data->c = argpos;
+                }
                 data->args.append(Data::Argument(argpos, a, args.at(++i)));
-            } else
+            } else {
+                if (a == "-c")
+                    data->c = argpos;
                 data->args.append(Data::Argument(argpos, a));
+            }
         } else { // input file?
             data->input.append(argpos);
             data->args.append(Data::Argument(argpos, a));
@@ -234,9 +236,6 @@ bool GccArguments::hasOutput() const
 
 bool GccArguments::isCompile() const
 {
-#ifdef Q_OS_MAC
-    return true;
-#endif
     // ### This should perhaps account for gcc commands that both compile and link at once
     if ((m_ptr->c != -1 && m_ptr->output != -1 && m_ptr->input.size() == 1)
         || (m_ptr->c != -1 && m_ptr->output == -1 && !m_ptr->input.isEmpty())) {
