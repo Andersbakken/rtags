@@ -8,6 +8,7 @@
 #include "ClangThread.h"
 
 #define USE_THREAD
+
 Daemon::Daemon(QObject *parent)
     : QObject(parent), m_index(clang_createIndex(1, 0))
 #ifdef EBUS_ENABLED
@@ -105,6 +106,10 @@ QString Daemon::runCommand(const QStringList &a)
         return fileList(args);
     } else if (cmd == QLatin1String("lookup")) {
         return lookup(cmd, Declaration);
+    } else if (cmd == QLatin1String("saveast")) {
+        return saveAST(args);
+    } else if (cmd == QLatin1String("loadast")) {
+        return loadAST(args);
     }
     return QLatin1String("Unknown command");
 }
@@ -450,10 +455,52 @@ QString Daemon::lookup(const QString &name, LookupType type)
     return userData.results.join("\n");
 }
 
+QString Daemon::loadAST(const QStringList &args)
+{
+    if (args.isEmpty())
+        return QLatin1String("No filename specified");
+    QString filename = args.first();
+    if (m_translationUnits.contains(filename))
+        return QLatin1String("File already loaded");
+    QString prefix = QCoreApplication::applicationDirPath() + QLatin1String("/ast");
+    QFileInfo finfo(prefix + filename);
+    if (!finfo.exists())
+        return QLatin1String("AST file does not exist");
+    CXTranslationUnit unit = clang_createTranslationUnit(m_index, finfo.absoluteFilePath().toLocal8Bit().constData());
+    m_translationUnits[filename] = unit;
+    return QLatin1String("AST file loaded");
+}
+
+QString Daemon::saveAST(const QStringList &args)
+{
+    if (args.isEmpty())
+        return QLatin1String("No filename specified");
+    QString filename = args.first();
+    QHash<QString, CXTranslationUnit>::const_iterator it = m_translationUnits.find(filename);
+    if (it == m_translationUnits.end())
+        return QLatin1String("No translation unit for filename found");
+    if (writeAST(it))
+        return QLatin1String("Saved");
+    return QLatin1String("Unable to save translation unit");
+}
+
 bool Daemon::writeAST(const QHash<QString, CXTranslationUnit>::const_iterator &it)
 {
     FUNC;
+    QString filename = it.key();
+    CXTranslationUnit unit = it.value();
+
+    QFileInfo finfo(QCoreApplication::applicationDirPath() + QLatin1String("/ast") + filename);
+    QDir dir(finfo.absolutePath());
+    if (!dir.exists())
+        dir.mkpath(finfo.absolutePath());
+
+    QByteArray outname = finfo.absoluteFilePath().toLocal8Bit();
+    const int ret = clang_saveTranslationUnit(unit, outname.constData(),
+                                              clang_defaultSaveOptions(unit));
+    return (ret == 0);
 }
+
 void Daemon::addTranslationUnit(const QString &absoluteFilePath,
                                 unsigned options,
                                 const QList<QByteArray> &compilerOptions)

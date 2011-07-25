@@ -39,6 +39,8 @@ private:
     QString addMakefile(const QString& path, const QStringList& args);
     QString addSourceFile(const QStringList& args);
     QString removeSourceFile(const QStringList& args);
+    QString loadAST(const QStringList& args);
+    QString saveAST(const QStringList& args);
     bool writeAST(const QHash<QString, CXTranslationUnit>::const_iterator &it);
     bool addSourceFile(const QFileInfo& fi, unsigned options =
                        CXTranslationUnit_CacheCompletionResults,
