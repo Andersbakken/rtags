@@ -8,7 +8,6 @@
 #include "ClangThread.h"
 
 #define USE_THREAD
-
 Daemon::Daemon(QObject *parent)
     : QObject(parent), m_index(clang_createIndex(1, 0))
 #ifdef EBUS_ENABLED
@@ -405,29 +404,61 @@ struct UserData {
     int count;
 };
 
+static inline QString path(CXCursor cursor)
+{
+    QString path;
+    bool done = false;
+    CXString tmp;
+    do {
+        cursor = clang_getCursorLexicalParent(cursor);
+        switch (clang_getCursorKind(cursor)) {
+        case CXCursor_ClassDecl:
+        case CXCursor_Namespace:
+            tmp = clang_getCursorDisplayName(cursor);
+            path.prepend(clang_getCString(tmp) + QLatin1String("::"));
+            clang_disposeString(tmp);
+            break;
+        default:
+            done = true;
+            break;
+        }
+    } while (!done);
+    return path;
+}
+
+static inline QString cursorData(CXCursor cursor)
+{
+   CXString a = clang_getCursorDisplayName(cursor);
+   QString ret = path(cursor) + clang_getCString(a);
+   ret += ' ';
+   ret += kindToString(clang_getCursorKind(cursor));
+   clang_disposeString(a);
+   if (clang_isDeclaration(clang_getCursorKind(cursor))) {
+       ret += " decl";
+   }
+
+   return ret;
+}
+
+
 static enum CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor parent, CXClientData client_data)
 {
+    FUNC;
     UserData *data = reinterpret_cast<UserData*>(client_data);
     ++data->count;
-    return CXChildVisit_Continue;
-    FUNC;
-    CXString usr = clang_getCursorDisplayName(cursor);
-    CXString usr2 = clang_getCursorSpelling(cursor);
     CXSourceLocation location = clang_getCursorLocation(cursor);
-    unsigned int rline, rcolumn, roffset;
-    CXFile rfile;
-    clang_getInstantiationLocation(location, &rfile, &rline, &rcolumn, &roffset);
-    CXString rfilename = clang_getFileName(rfile);
-    QString ret = QString("Symbol (decl) at %1, line %2 column %3").
-        arg(clang_getCString(rfilename)).
-        arg(rline).arg(rcolumn);
-
-    printf("%s => %s => %s\n", clang_getCString(usr), clang_getCString(usr2),
-           qPrintable(ret));
-    clang_disposeString(usr);
-    clang_disposeString(usr2);
-    clang_disposeString(rfilename);
-
+    unsigned int line, column, offset;
+    CXFile file;
+    clang_getInstantiationLocation(location, &file, &line, &column, &offset);
+    CXString fileName = clang_getFileName(file);
+    QString ret = QString("%1:%2(%3) ").arg(clang_getCString(fileName)).arg(line).arg(column);
+    clang_disposeString(fileName);
+    ret += cursorData(cursor);
+    if (clang_getCursorKind(cursor) == CXCursor_CallExpr) {
+        ret += cursorData(clang_getCursorReferenced(cursor));
+    }
+    qWarning("%s", qPrintable(ret));
+    return CXChildVisit_Recurse;
 
     // if (!strcmp(clang_getCString(data->find), clang_getCString(usr))) {
     //     data->result = cursor;

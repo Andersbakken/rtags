@@ -4,6 +4,7 @@
 #include <QtNetwork>
 #include <QtCore>
 
+const char *kindToString(int kind);
 #ifdef EBUS_ENABLED
 namespace EBus {
 enum { SizeOfSize = sizeof(qint16) };
@@ -88,13 +89,13 @@ public:
                    indent().constData(), func, qPrintable(m_args),
                    qPrintable(QThread::currentThread()->objectName()));
         }
-        s_indent += 4;
+        s_indent += 2;
         start();
     }
     ~Timer()
     {
         QMutexLocker lock(&s_mutex);
-        s_indent -= 4;
+        s_indent -= 2;
         const int e = elapsed();
         if (Options::s_verbose) {
             qDebug("%s%s(%s) returns (%d ms)",

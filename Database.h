@@ -23,7 +23,7 @@ enum LookupType {
     
 struct Location {
     QFileInfo file;
-    int line, column;
+    int line, column, fileId; // either fileId or file must be valid
 };
 
 struct Result {
@@ -43,12 +43,17 @@ struct Filter {
     };
 };
 
-int addFile(const QFileInfo &file);
+void clearMemoryCaches();
+int addFile(const QFileInfo &file, const QByteArray &compilerOptions);
 int fileId(const QFileInfo &file);
-void addSymbol(const QString &symbolName, LookupType type, const Location &location);
+bool removeFile(int fileId);
+
+int addSymbol(const QString &symbolName, const Location &location);
+int symbolId(const QString &symbolName);
+void addSymbolReference(int symbolId, LookupType type, const Location &location);
+
 Result lookup(const QString &symbolName, LookupType type, unsigned flags,
               const QList<Filter> &filters = QList<Filter>());
-void remove(const QFileInfo &file);
 enum CacheStatus {
     CacheInvalid = 0x0,
     SqlCacheValid = 0x1,

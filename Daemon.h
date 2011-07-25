@@ -16,8 +16,8 @@ Q_DECLARE_METATYPE(CXTranslationUnit)
 
 class Daemon : public QObject
 {
-    Q_OBJECT
-    public:
+    Q_OBJECT;
+public:
     Daemon(QObject* parent = 0);
     ~Daemon();
 

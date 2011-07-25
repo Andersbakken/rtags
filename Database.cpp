@@ -18,7 +18,28 @@ static bool exec(QSqlQuery &query, const QString &queryString = QString())
     return true;
 }
 
+static inline uint qHash(const QFileInfo &fi)
+{
+    return qHash(fi.absoluteFilePath());
+}
+
+static QHash<QFileInfo, int> s_fileIds;
+static QHash<QString, int> s_symbols;
+
+static inline int fileId(const Database::Location &location)
+{
+    if (location.fileId > 0)
+        return location.fileId;
+    return Database::fileId(location.file);
+}
+
 namespace Database {
+void clearMemoryCaches()
+{
+    s_fileIds.clear();
+    s_symbols.clear();
+}
+
 bool init(const QString &dbFile)
 {
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
@@ -31,20 +52,27 @@ bool init(const QString &dbFile)
     struct Statement {
         const char *a, *b;
     } const statements[] = {
-        { "CREATE TABLE DatabaseInfo(version INT);", "INSERT INTO DatabaseInfo VALUES('1')" },
+        { "CREATE TABLE DatabaseInfo(version INT);",
+          "INSERT INTO DatabaseInfo VALUES('1')" },
+
         { "CREATE TABLE File("
           "id INTEGER PRIMARY KEY,"
           "fileName TEXT,"
           "options TEXT,"
           "lastModified INTEGER,"
           "astFile TEXT);", 0 },
+
         { "CREATE TABLE Symbol("
           "id INTEGER PRIMARY KEY,"
-          "name TEXT,"
-          "path TEXT);", 0 },
-        { "CREATE TABLE Location("
+          "fileId INTEGER," // declaration
+          "line INTEGER," // declaration
+          "column INTEGER," // declaration
+          "name TEXT," // fully qualified e.g. namespace1::namespace2::Class::function
+          "FOREIGN KEY(fileId) REFERENCES File(id));", 0 },
+
+        { "CREATE TABLE Reference(" // need primary key?
           "symbolId INTEGER,"
-          "type INTEGER,"
+          "type INTEGER," // maps to LookupType (should never be 0|Declaration)
           "fileId INTEGER,"
           "line INTEGER,"
           "column INTEGER,"
@@ -74,42 +102,26 @@ static inline bool extractLocation(QSqlQuery &query, int index, Location &loc)
     return true;
 }
 
-Result lookup(const QString &fullSymbolName, LookupType type,
-                                  unsigned lookupFlags, const QList<Filter> &filters)
+Result lookup(const QString &symbolName, LookupType type,
+              unsigned lookupFlags, const QList<Filter> &filters)
 {
     Result r;
     r.type = type;
     Q_ASSERT_X(filters.isEmpty(), __FUNCTION__, "Filters not implemented yet");
-    QString q = QString::fromAscii("SELECT Symbol.name, Symbol.path, File.filename, Location.line, Location.column "
+    QString q = QString::fromAscii("SELECT Symbol.name, File.filename, "
+                                   "Location.line, Location.column "
                                    "FROM(File, Symbol, Location) "
                                    "WHERE Location.type=? AND File.id=Location.fileId AND "
                                    "Symbol.id=Location.symbolId ");
     
-    const int colonColon = fullSymbolName.lastIndexOf(QLatin1String("::"));
-    QString symbolName, path;
-    if (colonColon != -1) {
-        symbolName = fullSymbolName.mid(colonColon + 2);
-        path = fullSymbolName.left(colonColon);
-    } else {
-        symbolName = fullSymbolName;
-    }
     if (!symbolName.isEmpty()) {
         q += QLatin1String("AND Symbol.name ");
         if (lookupFlags & IncludeContains) {
-            q += QLatin1String("LIKE ");
+            q += QLatin1String("LIKE '%") + symbolName + QLatin1String("%'");
         } else {
-            q += QLatin1String("= ");
+            q += QLatin1String("= ") + symbolName;
         }
         q += symbolName;
-    }
-    if (!path.isEmpty()) {
-        q += QLatin1String("AND Symbol.path ");
-        if (lookupFlags & IncludeContains) {
-            q += QLatin1String("LIKE ");
-        } else {
-            q += QLatin1String("= ");
-        }
-        q += path;
     }
     q += QLatin1Char(';'); // ### is this necessary?
     QSqlQuery query;
@@ -209,35 +221,79 @@ unsigned validateCache(const QFileInfo &file, const QByteArray &compilerOptions)
 
 int fileId(const QFileInfo &file)
 {
-    QSqlQuery q;
-    q.prepare("SELECT id FROM File WHERE fileName = ?;");
-    q.addBindValue(file.absoluteFilePath());
-    if (q.exec() && q.next()) {
-        return q.value(0).toInt();
-    } else {
-        return 0;
+    int &ref = s_fileIds[file];
+    if (!ref) {
+        QSqlQuery q;
+        q.prepare("SELECT id FROM File WHERE fileName = ?;");
+        q.addBindValue(file.absoluteFilePath());
+        if (q.exec() && q.next()) {
+            ref = q.value(0).toInt();
+        }
     }
+    return ref;
 }
 
-// int addSymbol(const QString &symbolName, LookupType type, const Location &location)
-// {
-//     const int fid = fileId(location.file);
-//     Q_ASSERT_X(fid, __FUNCTION__,
-//                qPrintable("File not in database " + location.file.absoluteFilePath()));
-//     QSqlQuery query;
-//     // query.addBindValue(
-// }
+int addSymbol(const QString &symbolName, const Location &location)
+{
+    const int fileId = ::fileId(location);
+    Q_ASSERT_X(fileId, __FUNCTION__,
+               qPrintable("File not in database " + location.file.absoluteFilePath()));
+    Q_ASSERT(!s_symbols.contains(symbolName));
+    QSqlQuery query;
+    query.prepare("INSERT INTO Symbol(fileId, line, column, name) "
+                  "VALUES(?, ?, ?, ?);");
+    query.addBindValue(fileId);
+    query.addBindValue(location.line);
+    query.addBindValue(location.column);
+    query.addBindValue(symbolName);
+    ::exec(query);
+    int id = query.lastInsertId().toInt();
+    if (id > 0)
+        s_symbols[symbolName] = id;
+    return id;
+}
 
-// int addFile(const QFileInfo &file, const QString)
-// {
-//     QSqlQuery q;
-//     q.prepare("INSERT INTO File(fileName) VALUES(?);");
-//     q.addFile(file.absoluteFilePath());
-//     if (exec(q)) {
-//         return q.lastInsertId().toInt();
-//     }
-//     return 0;
+int addFile(const QFileInfo &file, const QString)
+{
+    QSqlQuery q;
+    q.prepare("INSERT INTO File(fileName) VALUES(?);");
+    q.addBindValue(file.absoluteFilePath());
+    if (exec(q)) {
+        const int id = q.lastInsertId().toInt();
+        s_fileIds[file] = id;
+        return id;
+    }
+    return 0;
+}
 
-// }
+int symbolId(const QString &symbolName)
+{
+    int &ref = s_symbols[symbolName];
+    if (!ref) {
+        QSqlQuery q;
+        q.prepare("SELECT id FROM Symbol WHERE name = ?;");
+        q.addBindValue(symbolName);
+        if (q.exec() && q.next()) {
+            ref = q.value(0).toInt();
+        }
+    }
+    return ref;
+}
 
+void addSymbolReference(int symbolId, LookupType type, const Location &location)
+{
+    const int fileId = ::fileId(location);
+    Q_ASSERT_X(fileId, __FUNCTION__,
+               qPrintable("File not in database " + location.file.absoluteFilePath()));
+    
+    QSqlQuery query;
+    query.prepare("INSERT INTO Reference(symbolId, type, fileId, line, column) "
+                  "VALUES(?, ?, ?, ?, ?);");
+    query.addBindValue(symbolId);
+    query.addBindValue(type);
+    query.addBindValue(fileId);
+    query.addBindValue(location.line);
+    query.addBindValue(location.column);
+    ::exec(query);
+}
 }

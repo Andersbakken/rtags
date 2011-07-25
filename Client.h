@@ -11,7 +11,7 @@ class DaemonInterface;
 
 class Client : public QObject
 {
-    Q_OBJECT
+    Q_OBJECT;
 public:
     Client(QObject* parent = 0);
     bool connect();
