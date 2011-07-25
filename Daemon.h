@@ -12,8 +12,6 @@
 #include <QtNetwork>
 #endif
 
-Q_DECLARE_METATYPE(CXTranslationUnit)
-
 class Daemon : public QObject
 {
     Q_OBJECT;
@@ -32,7 +30,7 @@ public:
 private slots:
     void onFileChanged(const QString &path);
     void onParseError(const QString &absoluteFilePath);
-    void onFileParsed(const QString &absoluteFilePath, CXTranslationUnit unit);
+    void onFileParsed(const QString &absoluteFilePath, void *unit);
 private:
     // ### need to add a function for code completion
     QString lookup(const QString &name, LookupType type);

@@ -23,7 +23,6 @@ Daemon::Daemon(QObject *parent)
 #endif
 {
     Database::init("database.db"); // needs to be added for each command likely
-    qRegisterMetaType<CXTranslationUnit>("CXTranslationUnit");
     FUNC1(parent);
     connect(&m_fileSystemWatcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged(QString)));
 }
@@ -671,9 +670,10 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
     return CXChildVisit_Recurse;
 }
 
-void Daemon::onFileParsed(const QString &absoluteFilePath, CXTranslationUnit unit)
+void Daemon::onFileParsed(const QString &absoluteFilePath, void *u)
 {
-    FUNC2(absoluteFilePath, unit);
+    FUNC2(absoluteFilePath, u);
+    CXTranslationUnit unit = reinterpret_cast<CXTranslationUnit>(u);
     m_fileSystemWatcher.addPath(absoluteFilePath);
     m_translationUnits[absoluteFilePath] = unit;
 

@@ -1,11 +1,11 @@
 #ifndef utils_h
 #define utils_h
 
-#include <QtNetwork>
 #include <QtCore>
 
 const char *kindToString(int kind);
 #ifdef EBUS_ENABLED
+#include <QtNetwork>
 namespace EBus {
 enum { SizeOfSize = sizeof(qint16) };
 static inline int port()
