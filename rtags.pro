@@ -14,7 +14,7 @@ macx {
     !ebus:CONFIG += dbus
 }
 
-QT = core 
+QT = core sql
 dbus {
     message("Using DBus. Run qmake -config ebus to use ebus")
     QT += dbus
@@ -37,14 +37,16 @@ SOURCES += \
     Daemon.cpp \
     Client.cpp \
     GccArguments.cpp \
-    Utils.cpp
+    Utils.cpp \
+    Database.cpp
 
 HEADERS += \
     Daemon.h \
     Client.h \
     GccArguments.h \
     Utils.h \
-    ClangThread.h
+    ClangThread.h \
+    Database.h
 
 OTHER_FILES += \
     gccopts.gperf
