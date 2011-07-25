@@ -10,12 +10,16 @@ public:
 class B : public NM::A
 {
 public:
-    B() {}
+    B();
     void bar()
     {
         foo();
     }
 };
+
+B::B()
+{
+}
 
 using namespace NM;
 void A::foo()

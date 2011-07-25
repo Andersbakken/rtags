@@ -24,7 +24,7 @@ static inline uint qHash(const QFileInfo &fi)
 }
 
 static QHash<QFileInfo, int> s_fileIds;
-static QHash<QString, int> s_symbols;
+static QHash<QByteArray, int> s_symbols;
 
 static inline int fileId(const Database::Location &location)
 {
@@ -42,6 +42,7 @@ void clearMemoryCaches()
 
 bool init(const QString &dbFile)
 {
+    clearMemoryCaches(); // needs a removedatabase
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName(dbFile);
     if (!db.open()) {
@@ -49,43 +50,52 @@ bool init(const QString &dbFile)
         return false;
     }
 
-    struct Statement {
-        const char *a, *b;
-    } const statements[] = {
-        { "CREATE TABLE DatabaseInfo(version INT);",
-          "INSERT INTO DatabaseInfo VALUES('1')" },
+    enum { Version = 1 };
+    const char *statements[] = {
+        "CREATE TABLE DatabaseInfo(version INT);",
 
-        { "CREATE TABLE File("
-          "id INTEGER PRIMARY KEY,"
-          "fileName TEXT,"
-          "options TEXT,"
-          "lastModified INTEGER,"
-          "astFile TEXT);", 0 },
+        "INSERT INTO DatabaseInfo VALUES(1)",
 
-        { "CREATE TABLE Symbol("
-          "id INTEGER PRIMARY KEY,"
-          "fileId INTEGER," // declaration
-          "line INTEGER," // declaration
-          "column INTEGER," // declaration
-          "name TEXT," // fully qualified e.g. namespace1::namespace2::Class::function
-          "FOREIGN KEY(fileId) REFERENCES File(id));", 0 },
+        "CREATE TABLE File("
+        "id INTEGER PRIMARY KEY,"
+        "fileName TEXT,"
+        "options TEXT,"
+        "lastModified INTEGER,"
+        "astFile TEXT);",
 
-        { "CREATE TABLE Reference(" // need primary key?
-          "symbolId INTEGER,"
-          "type INTEGER," // maps to LookupType (should never be 0|Declaration)
-          "fileId INTEGER,"
-          "line INTEGER,"
-          "column INTEGER,"
-          "FOREIGN KEY(symbolId) REFERENCES Symbol(id),"
-          "FOREIGN KEY(fileId) REFERENCES File(id));", 0 },
-        { 0, 0 }
+        "CREATE TABLE Symbol("
+        "id INTEGER PRIMARY KEY,"
+        "fileId INTEGER," // declaration
+        "line INTEGER," // declaration
+        "column INTEGER," // declaration
+        "name TEXT," // fully qualified e.g. namespace1::namespace2::Class::function
+        "FOREIGN KEY(fileId) REFERENCES File(id));",
+
+        "CREATE TABLE Reference(" // need primary key?
+        "symbolId INTEGER,"
+        "type INTEGER," // maps to LookupType (should never be 0|Declaration)
+        "fileId INTEGER,"
+        "line INTEGER,"
+        "column INTEGER,"
+        "FOREIGN KEY(symbolId) REFERENCES Symbol(id),"
+        "FOREIGN KEY(fileId) REFERENCES File(id));",
+
+        0
     };
     QSqlQuery query;
-    for (int i=0; statements[i].a; ++i) {
-        if (query.exec(QString::fromLocal8Bit(statements[i].a)) && statements[i].b) {
-            query.exec(QString::fromLocal8Bit(statements[i].b));
-        }
+    for (int i=0; statements[i]; ++i) {
+        if (!query.exec(QString::fromLocal8Bit(statements[i])))
+            break;
     }
+    if (!query.exec("SELECT version FROM DatabaseInfo") || !query.next()) {
+        qWarning("Couldn't read version from database");
+        return false;
+    } else if (query.value(0).toInt() != Version) {
+        qWarning("Incompatible database got %d, expected %d",
+                 query.value(0).toInt(), Version);
+        return false;
+    }
+
     return true;
 }
 
@@ -102,7 +112,7 @@ static inline bool extractLocation(QSqlQuery &query, int index, Location &loc)
     return true;
 }
 
-Result lookup(const QString &symbolName, LookupType type,
+Result lookup(const QByteArray &symbolName, LookupType type,
               unsigned lookupFlags, const QList<Filter> &filters)
 {
     Result r;
@@ -135,12 +145,10 @@ Result lookup(const QString &symbolName, LookupType type,
         return r;
     bool first = true;
     while (query.next()) {
-        if (first) {
-            r.symbolName = query.value(0).toString();
-            r.path = query.value(1).toString();
-        }
+        if (first)
+            r.symbolName = query.value(0).toByteArray();
         Location loc;
-        if (!extractLocation(query, 2, loc)) {
+        if (!extractLocation(query, 1, loc)) {
             qWarning("Can't extract location from query");
             continue;
         }
@@ -233,8 +241,9 @@ int fileId(const QFileInfo &file)
     return ref;
 }
 
-int addSymbol(const QString &symbolName, const Location &location)
+int addSymbol(const QByteArray &symbolName, const Location &location)
 {
+    qDebug() << "addSymbol" << symbolName << location.line;
     const int fileId = ::fileId(location);
     Q_ASSERT_X(fileId, __FUNCTION__,
                qPrintable("File not in database " + location.file.absoluteFilePath()));
@@ -253,11 +262,12 @@ int addSymbol(const QString &symbolName, const Location &location)
     return id;
 }
 
-int addFile(const QFileInfo &file, const QString)
+int addFile(const QFileInfo &file, const QByteArray &compilerOptions)
 {
     QSqlQuery q;
-    q.prepare("INSERT INTO File(fileName) VALUES(?);");
+    q.prepare("INSERT INTO File(fileName, options) VALUES(?, ?);");
     q.addBindValue(file.absoluteFilePath());
+    q.addBindValue(compilerOptions);
     if (exec(q)) {
         const int id = q.lastInsertId().toInt();
         s_fileIds[file] = id;
@@ -266,7 +276,7 @@ int addFile(const QFileInfo &file, const QString)
     return 0;
 }
 
-int symbolId(const QString &symbolName)
+int symbolId(const QByteArray &symbolName)
 {
     int &ref = s_symbols[symbolName];
     if (!ref) {
@@ -282,6 +292,8 @@ int symbolId(const QString &symbolName)
 
 void addSymbolReference(int symbolId, LookupType type, const Location &location)
 {
+    qDebug() << "addSymbolReference" << symbolId << type << location.line;
+
     const int fileId = ::fileId(location);
     Q_ASSERT_X(fileId, __FUNCTION__,
                qPrintable("File not in database " + location.file.absoluteFilePath()));

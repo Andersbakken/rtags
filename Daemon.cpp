@@ -6,6 +6,14 @@
 #include <QCoreApplication>
 #include "Utils.h"
 #include "ClangThread.h"
+#include "Database.h"
+
+static QByteArray eatString(CXString string)
+{
+    const QByteArray ret = clang_getCString(string);
+    clang_disposeString(string);
+    return ret;
+}
 
 #define USE_THREAD
 Daemon::Daemon(QObject *parent)
@@ -14,6 +22,7 @@ Daemon::Daemon(QObject *parent)
     , m_server(0)
 #endif
 {
+    Database::init("database.db"); // needs to be added for each command likely
     qRegisterMetaType<CXTranslationUnit>("CXTranslationUnit");
     FUNC1(parent);
     connect(&m_fileSystemWatcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged(QString)));
@@ -441,7 +450,7 @@ static inline QString cursorData(CXCursor cursor)
 }
 
 
-static enum CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor parent, CXClientData client_data)
+static CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor, CXClientData client_data)
 {
     FUNC;
     UserData *data = reinterpret_cast<UserData*>(client_data);
@@ -563,9 +572,117 @@ void Daemon::onParseError(const QString &absoluteFilePath)
     qWarning("Failed to add %s", qPrintable(absoluteFilePath));
 }
 
+static inline QByteArray symbolName(CXCursor cursor)
+{
+    QByteArray name;
+    bool done = false;
+    forever {
+        switch (clang_getCursorKind(cursor)) {
+        case CXCursor_CXXMethod:
+        case CXCursor_Constructor:
+            Q_ASSERT(name.isEmpty());
+            name = eatString(clang_getCursorDisplayName(cursor));
+            break;
+        case CXCursor_ClassDecl:
+        case CXCursor_Namespace:
+            if (!name.isEmpty())
+                name.prepend("::");
+            name.prepend(eatString(clang_getCursorDisplayName(cursor)));
+            break;
+        default:
+            if (name.isEmpty())
+                name = eatString(clang_getCursorDisplayName(cursor));
+            done = true;
+            break;
+        }
+        if (done)
+            break;
+        cursor = clang_getCursorLexicalParent(cursor);
+    }
+    return name;
+}
+
+static inline Database::Location location(CXCursor cursor)
+{
+    CXSourceLocation location = clang_getCursorLocation(cursor);
+    unsigned int line, column, offset;
+    CXFile file;
+    clang_getInstantiationLocation(location, &file, &line, &column, &offset);
+    QByteArray fileName = eatString(clang_getFileName(file));
+
+    const Database::Location loc = {
+        QFileInfo(QString::fromLocal8Bit(fileName)),
+        line,
+        column,
+        0
+    };
+    return loc;
+}
+
+struct ProcessFileUserData {
+    QSet<unsigned> seen;
+    int count;
+};
+
+static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData data)
+{
+    ProcessFileUserData &userData = *reinterpret_cast<ProcessFileUserData*>(data);
+    CXCursor canonical = clang_getCanonicalCursor(cursor);
+    const unsigned hash = clang_hashCursor(canonical);
+    // printf(".");
+    // static int count = 0;
+    // if (++count == 82) {
+    //     printf("\n");
+    //     count = 0;
+    // }
+
+    if (!userData.seen.contains(hash)) {
+        userData.seen.insert(hash);
+        // printf("%s %s\n", kindToString(clang_getCursorKind(cursor)),
+        //        symbolName(cursor).constData());
+        switch (clang_getCursorKind(cursor)) {
+        case CXCursor_CXXMethod:
+        case CXCursor_Constructor:
+        case CXCursor_ClassDecl: {
+            const QByteArray symbol = symbolName(cursor);
+            if (!Database::symbolId(symbol)) {
+                Database::addSymbol(symbol, location(cursor));
+                ++userData.count;
+            }
+            break; }
+        case CXCursor_CallExpr: {
+            CXCursor method = clang_getCursorReferenced(cursor);
+            QByteArray symbol = symbolName(method);
+            int symbolId = Database::symbolId(symbol);
+            if (!symbolId) {
+                symbolId = Database::addSymbol(symbol, location(method));
+                ++userData.count;
+            }
+            Q_ASSERT(symbolId != 0);
+            Database::addSymbolReference(symbolId, Database::Reference,
+                                         location(cursor));
+            ++userData.count;
+            break; }
+        default:
+            break;
+        }
+    }
+    
+    return CXChildVisit_Recurse;
+}
+
 void Daemon::onFileParsed(const QString &absoluteFilePath, CXTranslationUnit unit)
 {
     FUNC2(absoluteFilePath, unit);
     m_fileSystemWatcher.addPath(absoluteFilePath);
     m_translationUnits[absoluteFilePath] = unit;
+
+    // crashes right now with some issue with autoincrement primary key on Symbol
+    return;
+    Database::addFile(absoluteFilePath, QByteArray()); // ### must pass on compiler options
+    CXCursor cursor = clang_getTranslationUnitCursor(unit);
+    ProcessFileUserData userData;
+    userData.count = 0;
+    clang_visitChildren(cursor, processFile, &userData);
+    qDebug("Added %d entries for %s", userData.count, qPrintable(absoluteFilePath));
 }

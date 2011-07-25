@@ -27,7 +27,7 @@ struct Location {
 };
 
 struct Result {
-    QString symbolName, path;
+    QByteArray symbolName;
     LookupType type;
     QList<Location> locations;
 };
@@ -48,11 +48,11 @@ int addFile(const QFileInfo &file, const QByteArray &compilerOptions);
 int fileId(const QFileInfo &file);
 bool removeFile(int fileId);
 
-int addSymbol(const QString &symbolName, const Location &location);
-int symbolId(const QString &symbolName);
+int addSymbol(const QByteArray &symbolName, const Location &location);
+int symbolId(const QByteArray &symbolName);
 void addSymbolReference(int symbolId, LookupType type, const Location &location);
 
-Result lookup(const QString &symbolName, LookupType type, unsigned flags,
+Result lookup(const QByteArray &symbolName, LookupType type, unsigned flags,
               const QList<Filter> &filters = QList<Filter>());
 enum CacheStatus {
     CacheInvalid = 0x0,
