@@ -1,5 +1,7 @@
 #include "Daemon.h"
+#ifndef EBUS_ENABLED
 #include "DaemonAdaptor.h"
+#endif
 #include "GccArguments.h"
 #include <QCoreApplication>
 #include "Utils.h"
