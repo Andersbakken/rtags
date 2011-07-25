@@ -34,6 +34,7 @@ private slots:
     void onParseError(const QString &absoluteFilePath);
     void onFileParsed(const QString &absoluteFilePath, CXTranslationUnit unit);
 private:
+    // ### need to add a function for code completion
     QString lookup(const QString &name, LookupType type);
     QString lookupLine(const QStringList& args);
     QString addMakefile(const QString& path, const QStringList& args);

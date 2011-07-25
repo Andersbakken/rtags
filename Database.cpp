@@ -5,12 +5,21 @@
 #include <QTextStream>
 #include <QStringList>
 #include <QVariant>
+#include <QDateTime>
 
-Database::Database()
+static bool exec(QSqlQuery &query, const QString &queryString = QString())
 {
+    if (!(queryString.isEmpty() ? query.exec() : !query.exec(queryString))) {
+        qWarning("Can't execute query %s (%s)",
+                 qPrintable(query.lastQuery()),
+                 qPrintable(query.lastError().text()));
+        return false;
+    }
+    return true;
 }
 
-bool Database::init(const QString &dbFile)
+namespace Database {
+bool init(const QString &dbFile)
 {
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
     db.setDatabaseName(dbFile);
@@ -18,23 +27,41 @@ bool Database::init(const QString &dbFile)
         qWarning("Can't open database");
         return false;
     }
-    QFile file("db.sql");
-    file.open(QIODevice::ReadOnly);
-    Q_ASSERT(file.isOpen());
-    QTextStream ts(&file);
-    const QStringList statements = ts.readAll().split(QLatin1String("###"), QString::SkipEmptyParts);
+
+    struct Statement {
+        const char *a, *b;
+    } const statements[] = {
+        { "CREATE TABLE DatabaseInfo(version INT);", "INSERT INTO DatabaseInfo VALUES('1')" },
+        { "CREATE TABLE File("
+          "id INTEGER PRIMARY KEY,"
+          "fileName TEXT,"
+          "options TEXT,"
+          "lastModified INTEGER,"
+          "astFile TEXT);", 0 },
+        { "CREATE TABLE Symbol("
+          "id INTEGER PRIMARY KEY,"
+          "name TEXT,"
+          "path TEXT);", 0 },
+        { "CREATE TABLE Location("
+          "symbolId INTEGER,"
+          "type INTEGER,"
+          "fileId INTEGER,"
+          "line INTEGER,"
+          "column INTEGER,"
+          "FOREIGN KEY(symbolId) REFERENCES Symbol(id),"
+          "FOREIGN KEY(fileId) REFERENCES File(id));", 0 },
+        { 0, 0 }
+    };
     QSqlQuery query;
-    foreach(const QString &statement, statements) {
-        if (!query.exec(statement)) {
-            qWarning("Can't execute statement [%s] %s",
-                     qPrintable(statement), qPrintable(query.lastError().text()));
-            return false;
+    for (int i=0; statements[i].a; ++i) {
+        if (query.exec(QString::fromLocal8Bit(statements[i].a)) && statements[i].b) {
+            query.exec(QString::fromLocal8Bit(statements[i].b));
         }
     }
     return true;
 }
 
-static inline bool extractLocation(QSqlQuery &query, int index, Database::Location &loc)
+static inline bool extractLocation(QSqlQuery &query, int index, Location &loc)
 {
     loc.file = query.value(index).toString();
     bool ok = true;
@@ -47,7 +74,7 @@ static inline bool extractLocation(QSqlQuery &query, int index, Database::Locati
     return true;
 }
 
-Database::Result Database::lookup(const QString &fullSymbolName, LookupType type,
+Result lookup(const QString &fullSymbolName, LookupType type,
                                   unsigned lookupFlags, const QList<Filter> &filters)
 {
     Result r;
@@ -92,12 +119,8 @@ Database::Result Database::lookup(const QString &fullSymbolName, LookupType type
         return r;
     }
     query.addBindValue(type);
-    if (!query.exec()) {
-        qWarning("Can't execute query %s (%s)",
-                 qPrintable(query.lastQuery()),
-                 qPrintable(query.lastError().text()));
+    if (!exec(query))
         return r;
-    }
     bool first = true;
     while (query.next()) {
         if (first) {
@@ -114,10 +137,10 @@ Database::Result Database::lookup(const QString &fullSymbolName, LookupType type
     return r;
 }
 
-void Database::remove(const QFileInfo &file)
+void remove(const QFileInfo &file)
 {
     QSqlQuery query;
-    query.prepare("SELECT id FROM File WHERE fileName = ?");
+    query.prepare("SELECT id, astFile FROM File WHERE fileName = ?");
     query.addBindValue(file.absoluteFilePath());
     if (!query.exec() || !query.next()) {
         qWarning("Can't get results for %s (%s)",
@@ -126,11 +149,95 @@ void Database::remove(const QFileInfo &file)
         return;
     }
     const int fileId = query.value(0).toInt();
+    QFile::remove(query.value(1).toString()); // remove ast file
+    query.prepare("SELECT DISTINCT symbolId FROM Location WHERE fileId=?");
+    query.addBindValue(fileId);
+    exec(query);
+    QSqlQuery q;
+    q.prepare("DELETE FROM Symbol WHERE id = :id");
+    while (query.next()) {
+        q.bindValue(QLatin1String(":id"), query.value(0).toInt());
+        if (!exec(q))
+            continue;
+    }
+    
     query.prepare("DELETE FROM Location WHERE fileId=?");
     query.addBindValue(fileId);
-    if (!query.exec()) {
-        qWarning("Can't execute query %s (%s)",
-                 qPrintable(query.lastQuery()),
-                 qPrintable(query.lastError().text()));
+    exec(query);
+    query.prepare("DELETE FROM File WHERE id=?");
+    query.addBindValue(fileId);
+    exec(query);
+}
+
+unsigned validateCache(const QFileInfo &file, const QByteArray &compilerOptions)
+{
+    if (!file.exists()) {
+        remove(file);
+        return CacheInvalid;
     }
+
+    const QString absoluteFilePath = file.absoluteFilePath();
+
+    QSqlQuery query;
+    query.prepare("SELECT lastModified, options, astFile, id FROM File WHERE fileName = ?");
+    query.addBindValue(absoluteFilePath);
+    if (!exec(query) || !query.next()) {
+        remove(file);
+        return CacheInvalid;
+    }
+    if (file.lastModified() != query.value(0).toDateTime()) { // does this work or should I do time_t myself?
+        remove(file);
+        return CacheInvalid;
+    }
+
+    if (query.value(1).toByteArray() != compilerOptions) {
+        remove(file);
+        return CacheInvalid;
+    }
+
+    unsigned ret = SqlCacheValid;
+    if (QFile::exists(query.value(2).toString())) {
+        ret |= AstCacheValid;
+    } else {
+        const int fileId = query.value(3).toInt();
+        query.prepare("UPDATE File SET astFile = NULL WHERE id = ?");
+        query.addBindValue(fileId);
+        exec(query);
+    }
+    return ret;
+}
+
+int fileId(const QFileInfo &file)
+{
+    QSqlQuery q;
+    q.prepare("SELECT id FROM File WHERE fileName = ?;");
+    q.addBindValue(file.absoluteFilePath());
+    if (q.exec() && q.next()) {
+        return q.value(0).toInt();
+    } else {
+        return 0;
+    }
+}
+
+// int addSymbol(const QString &symbolName, LookupType type, const Location &location)
+// {
+//     const int fid = fileId(location.file);
+//     Q_ASSERT_X(fid, __FUNCTION__,
+//                qPrintable("File not in database " + location.file.absoluteFilePath()));
+//     QSqlQuery query;
+//     // query.addBindValue(
+// }
+
+// int addFile(const QFileInfo &file, const QString)
+// {
+//     QSqlQuery q;
+//     q.prepare("INSERT INTO File(fileName) VALUES(?);");
+//     q.addFile(file.absoluteFilePath());
+//     if (exec(q)) {
+//         return q.lastInsertId().toInt();
+//     }
+//     return 0;
+
+// }
+
 }
