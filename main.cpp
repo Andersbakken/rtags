@@ -13,21 +13,34 @@ void syslogMsgHandler(QtMsgType t, const char* str)
 {
     int priority = LOG_WARNING;
     static const char *names[] = { "DEBUG", "WARNING", "CRITICAL", "FATAL" };
+    const bool noColors = getenv("RTAGS_CONSOLE_NO_COLOR");
+    const char *colorStart = "";
+    const char *colorEnd = "";
+
     switch (t) {
     case QtDebugMsg:
+        colorStart = "\x1b[36m"; // cyan
         priority = LOG_DEBUG;
         break;
     case QtWarningMsg:
+        colorStart = "\x1b[31m"; // red
         priority = LOG_WARNING;
         break;
     case QtCriticalMsg:
+        colorStart = "\x1b[31m";
         priority = LOG_CRIT;
         break;
     case QtFatalMsg:
+        colorStart = "\x1b[41;37m";
         priority = LOG_CRIT;
         break;
     }
-    fprintf(stderr, "%s (%s)\n", str, names[t]);
+    if (noColors) {
+        colorStart = "";
+    } else if (colorStart) {
+        colorEnd = "\x1b[0m";
+    }
+    fprintf(stderr, "%s%s (%s)%s\n", colorStart, str, names[t], colorEnd);
     QFile file("/tmp/rtags.log");
     file.open(QIODevice::WriteOnly|QIODevice::Append);
     char buf[1024];
