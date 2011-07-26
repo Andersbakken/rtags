@@ -1,9 +1,13 @@
 namespace NM {
+class A;
 class A
 {
 public:
-    A() {}
+    A()
+        : oof(0)
+    {}
     void foo();
+    int oof;
 };
 };
 

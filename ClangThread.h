@@ -58,7 +58,7 @@ public:
 signals:
     void fileReparsed(const QString &absoluteFilePath);
     void error(const QString &absoluteFilePath);
-    void fileParsed(const QString &absoluteFilePath, CXTranslationUnit unit);
+    void fileParsed(const QString &absoluteFilePath, void *unit);
 private:
     const QString m_absoluteFilePath;
     const unsigned m_options;

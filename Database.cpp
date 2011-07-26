@@ -112,36 +112,39 @@ static inline bool extractLocation(QSqlQuery &query, int index, Location &loc)
     return true;
 }
 
-Result lookup(const QByteArray &symbolName, LookupType type,
-              unsigned lookupFlags, const QList<Filter> &filters)
+Result lookup(const QByteArray &symbolName, unsigned lookupFlags, const QList<Filter> &filters)
 {
+    const unsigned lookupTypes = lookupFlags & (Declaration|Definition|Reference);
+    Q_ASSERT_X(lookupTypes, __FUNCTION__,
+               "lookupFlags must contain at least one of Declaration, Definition or Reference");
     Result r;
-    r.type = type;
     Q_ASSERT_X(filters.isEmpty(), __FUNCTION__, "Filters not implemented yet");
-    QString q = QString::fromAscii("SELECT Symbol.name, File.filename, "
-                                   "Location.line, Location.column "
-                                   "FROM(File, Symbol, Location) "
-                                   "WHERE Location.type=? AND File.id=Location.fileId AND "
-                                   "Symbol.id=Location.symbolId ");
-    
+    QByteArray select;
+    select = "SELECT Symbol.id, Symbol.name";
+    QByteArray from = " FROM Symbol";
+    QByteArray where;
     if (!symbolName.isEmpty()) {
-        q += QLatin1String("AND Symbol.name ");
+        where = " Symbol.name ";
         if (lookupFlags & IncludeContains) {
-            q += QLatin1String("LIKE '%") + symbolName + QLatin1String("%'");
+            where += "LIKE '%" + symbolName + "%'";
         } else {
-            q += QLatin1String("= ") + symbolName;
+            where += "= " + symbolName;
         }
-        q += symbolName;
     }
-    q += QLatin1Char(';'); // ### is this necessary?
+    
+    if (lookupTypes & Declaration) {
+        select += ", File.fileName, Symbol.fileId, Symbol.line, Symbol.column";
+        from += ", File";
+        if (!where.isEmpty())
+            where += " AND ";
+        where += "File.id = Symbol.fileId";
+    }
+
+    if (!where.isEmpty())
+        where.prepend(" WHERE");
+    QString q = select + from + where;
     QSqlQuery query;
-    if (!query.prepare(q)) {
-        qWarning("Can't prepare SQL statement %s [%s]",
-                 qPrintable(q), qPrintable(query.lastError().text()));
-        return r;
-    }
-    query.addBindValue(type);
-    if (!exec(query))
+    if (!exec(query, q))
         return r;
     bool first = true;
     while (query.next()) {
@@ -152,7 +155,7 @@ Result lookup(const QByteArray &symbolName, LookupType type,
             qWarning("Can't extract location from query");
             continue;
         }
-        r.locations.append(loc);
+        // r.matches.append(loc);
     }
     return r;
 }
@@ -243,7 +246,6 @@ int fileId(const QFileInfo &file)
 
 int addSymbol(const QByteArray &symbolName, const Location &location)
 {
-    qDebug() << "addSymbol" << symbolName << location.line;
     const int fileId = ::fileId(location);
     Q_ASSERT_X(fileId, __FUNCTION__,
                qPrintable("File not in database " + location.file.absoluteFilePath()));
@@ -276,8 +278,9 @@ int addFile(const QFileInfo &file, const QByteArray &compilerOptions)
     return 0;
 }
 
-int symbolId(const QByteArray &symbolName)
+int symbolId(const QByteArray &symbolName, Qt::MatchFlags flags)
 {
+    // if (flags == Qt::MatchExactly) {
     int &ref = s_symbols[symbolName];
     if (!ref) {
         QSqlQuery q;
@@ -290,10 +293,8 @@ int symbolId(const QByteArray &symbolName)
     return ref;
 }
 
-void addSymbolReference(int symbolId, LookupType type, const Location &location)
+static void addSymbol(int symbolId, LookupFlag type, const Location &location)
 {
-    qDebug() << "addSymbolReference" << symbolId << type << location.line;
-
     const int fileId = ::fileId(location);
     Q_ASSERT_X(fileId, __FUNCTION__,
                qPrintable("File not in database " + location.file.absoluteFilePath()));
@@ -307,5 +308,16 @@ void addSymbolReference(int symbolId, LookupType type, const Location &location)
     query.addBindValue(location.line);
     query.addBindValue(location.column);
     ::exec(query);
+}
+
+void addSymbolDefinition(int symbolId, const Location &location)
+{
+    qDebug() << symbolId << location;
+    addSymbol(symbolId, Definition, location);
+}
+
+void addSymbolReference(int symbolId, const Location &location)
+{
+    addSymbol(symbolId, Reference, location);
 }
 }

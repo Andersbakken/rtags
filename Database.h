@@ -8,28 +8,31 @@ namespace Database
 {
 bool init(const QString &file);
 
-enum LookupFlags {
+enum LookupFlag {
     None = 0x000,
     // IncludeStartsWith = 0x001,
     // IncludeEndsWith = 0x002,
-    IncludeContains = 0x004
+    IncludeContains = 0x004,
+    Declaration = 0x008,
+    Definition = 0x010,
+    Reference = 0x020
 };
 
-enum LookupType {
-    Definition,
-    Declaration,
-    Reference
-};
-    
 struct Location {
     QFileInfo file;
     int line, column, fileId; // either fileId or file must be valid
 };
 
+static inline QDebug operator<<(QDebug dbg, const Location &loc)
+{
+    dbg << loc.file.absoluteFilePath() << "line" << loc.line
+        << "column" << loc.column << "fileId" << loc.fileId;
+    return dbg;
+}
+
 struct Result {
     QByteArray symbolName;
-    LookupType type;
-    QList<Location> locations;
+    QList<QPair<Location, LookupFlag> > matches;
 };
 
 struct Filter {
@@ -49,10 +52,11 @@ int fileId(const QFileInfo &file);
 bool removeFile(int fileId);
 
 int addSymbol(const QByteArray &symbolName, const Location &location);
-int symbolId(const QByteArray &symbolName);
-void addSymbolReference(int symbolId, LookupType type, const Location &location);
+int symbolId(const QByteArray &symbolName, Qt::MatchFlags = Qt::MatchExactly);
+void addSymbolDefinition(int symbolId, const Location &location);
+void addSymbolReference(int symbolId, const Location &location);
 
-Result lookup(const QByteArray &symbolName, LookupType type, unsigned flags,
+Result lookup(const QByteArray &symbolName, unsigned flags,
               const QList<Filter> &filters = QList<Filter>());
 enum CacheStatus {
     CacheInvalid = 0x0,

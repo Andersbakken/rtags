@@ -560,8 +560,8 @@ void Daemon::addTranslationUnit(const QString &absoluteFilePath,
 #else
     ClangThread *thread = new ClangThread(absoluteFilePath, options, compilerOptions, m_index, this);
     connect(thread, SIGNAL(error(QString)), this, SLOT(onParseError(QString)));
-    connect(thread, SIGNAL(fileParsed(QString, CXTranslationUnit)),
-            this, SLOT(onFileParsed(QString, CXTranslationUnit)));
+    connect(thread, SIGNAL(fileParsed(QString, void*)),
+            this, SLOT(onFileParsed(QString, void*)));
     thread->start();
 #endif
 }
@@ -571,7 +571,7 @@ void Daemon::onParseError(const QString &absoluteFilePath)
     qWarning("Failed to add %s", qPrintable(absoluteFilePath));
 }
 
-static inline QByteArray symbolName(CXCursor cursor)
+static inline QByteArray symbolName(CXCursor cursor, bool noWarning = false)
 {
     QByteArray name;
     bool done = false;
@@ -588,15 +588,24 @@ static inline QByteArray symbolName(CXCursor cursor)
                 name.prepend("::");
             name.prepend(eatString(clang_getCursorDisplayName(cursor)));
             break;
+        case CXCursor_TranslationUnit:
+        case CXCursor_FirstInvalid:
+            done = true;
+            break;
+        case CXCursor_UnexposedDecl:
+            break;
         default:
+            if (!noWarning)
+                qWarning("Got unexpected parent %s %s",
+                         kindToString(clang_getCursorKind(cursor)),
+                         eatString(clang_getCursorDisplayName(cursor)).constData());
             if (name.isEmpty())
                 name = eatString(clang_getCursorDisplayName(cursor));
-            done = true;
             break;
         }
         if (done)
             break;
-        cursor = clang_getCursorLexicalParent(cursor);
+        cursor = clang_getCursorSemanticParent(cursor);
     }
     return name;
 }
@@ -636,17 +645,29 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
     // }
 
     if (!userData.seen.contains(hash)) {
-        userData.seen.insert(hash);
-        // printf("%s %s\n", kindToString(clang_getCursorKind(cursor)),
-        //        symbolName(cursor).constData());
-        switch (clang_getCursorKind(cursor)) {
+        // userData.seen.insert(hash);
+        printf("%s %s %d\n", kindToString(clang_getCursorKind(cursor)),
+               symbolName(cursor, true).constData(), clang_isCursorDefinition(cursor));
+        const CXCursorKind kind = clang_getCursorKind(cursor);
+        switch (kind) {
+        case CXCursor_ClassDecl:
+            if (!clang_isCursorDefinition(cursor)) // forward declaration
+                break;
         case CXCursor_CXXMethod:
-        case CXCursor_Constructor:
-        case CXCursor_ClassDecl: {
+        case CXCursor_Constructor: {
             const QByteArray symbol = symbolName(cursor);
-            if (!Database::symbolId(symbol)) {
-                Database::addSymbol(symbol, location(cursor));
+            int symbolId = Database::symbolId(symbol);
+            Database::Location loc = { QFileInfo(), -1, -1, -1 };
+            if (!symbolId) {
+                loc = location(cursor);
+                symbolId = Database::addSymbol(symbol, location(cursor));
                 ++userData.count;
+            }
+            Q_ASSERT(symbolId);
+            if (kind != CXCursor_ClassDecl && clang_isCursorDefinition(cursor)) {
+                if (loc.line == -1)
+                    loc = location(cursor);
+                Database::addSymbolDefinition(symbolId, loc);
             }
             break; }
         case CXCursor_CallExpr: {
@@ -658,8 +679,7 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
                 ++userData.count;
             }
             Q_ASSERT(symbolId != 0);
-            Database::addSymbolReference(symbolId, Database::Reference,
-                                         location(cursor));
+            Database::addSymbolReference(symbolId, location(cursor));
             ++userData.count;
             break; }
         default:
@@ -676,9 +696,7 @@ void Daemon::onFileParsed(const QString &absoluteFilePath, void *u)
     CXTranslationUnit unit = reinterpret_cast<CXTranslationUnit>(u);
     m_fileSystemWatcher.addPath(absoluteFilePath);
     m_translationUnits[absoluteFilePath] = unit;
-
     // crashes right now with some issue with autoincrement primary key on Symbol
-    return;
     Database::addFile(absoluteFilePath, QByteArray()); // ### must pass on compiler options
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
     ProcessFileUserData userData;
