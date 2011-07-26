@@ -34,8 +34,9 @@ static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
     CXFile file;
     clang_getInstantiationLocation(location, &file, &line, &column, &offset);
     const QByteArray fileName = eatString(clang_getFileName(file));
-    if (!fileName.isEmpty()) {
-        text += QString(", %1:%2(%3)").arg(QString::fromLocal8Bit(fileName)).arg(line).arg(column);
+    QFileInfo fi(fileName);
+    if (fi.exists()) {
+        text += QString(", %1:%2:%3").arg(fi.absoluteFilePath()).arg(line).arg(column);
     }
     text += ")";
     dbg << text;
@@ -626,32 +627,20 @@ static inline QByteArray symbolName(CXCursor cursor)
 }
 
 struct ProcessFileUserData {
-    QSet<unsigned> seen;
     int count;
 };
 
 static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData data)
 {
     ProcessFileUserData &userData = *reinterpret_cast<ProcessFileUserData*>(data);
-    // CXCursor canonical = clang_getCanonicalCursor(cursor);
-    // const unsigned hash = clang_hashCursor(canonical);
-    // printf(".");
-    // static int count = 0;
-    // if (++count == 82) {
-    //     printf("\n");
-    //     count = 0;
-    // }
-
-    // if (!userData.seen.contains(hash)) {
-    // userData.seen.insert(hash);
-    // printf("%s %s %d\n", kindToString(clang_getCursorKind(cursor)),
-    //        symbolName(cursor, true).constData(), clang_isCursorDefinition(cursor));
     const CXCursorKind kind = clang_getCursorKind(cursor);
     switch (kind) {
     case CXCursor_ClassDecl:
-        if (!clang_isCursorDefinition(cursor)) {// forward declaration
-            qDebug() << "dropping forward declaration of" << eatString(clang_getCursorDisplayName(cursor))
-                     << __LINE__;
+        if (!clang_isCursorDefinition(cursor)) {
+            if (Options::s_verbose) {
+                qDebug() << "dropping forward declaration of" << eatString(clang_getCursorDisplayName(cursor))
+                         << __LINE__;
+            }
             break;
         }
         // fallthrough
@@ -690,9 +679,11 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
         }
         CXCursor method = clang_getCursorReferenced(cursor);
         if (!isValidCursor(method)) {
-            qDebug() << "dropping" << eatString(clang_getCursorDisplayName(method))
-                     << kindToString(clang_getCursorKind(method))
-                     << "because of invalid reference" << cursor << method << __LINE__;
+            if (Options::s_verbose) {
+                qDebug() << "dropping" << eatString(clang_getCursorDisplayName(method))
+                         << kindToString(clang_getCursorKind(method))
+                         << "because of invalid reference" << cursor << method << __LINE__;
+            }
             break;
         }
         const QByteArray symbol = symbolName(method);

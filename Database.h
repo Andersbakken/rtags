@@ -18,6 +18,9 @@ struct Location {
         CXFile file;
         clang_getInstantiationLocation(location, &file, &line, &column, 0);
         fileName = eatString(clang_getFileName(file));
+        if (fileName.isEmpty()) { // This seems to happen
+            line = column = 0 ;
+        }
         Q_ASSERT(fileName.isEmpty() == (line == 0 && column == 0));
     }
 
@@ -41,7 +44,7 @@ static inline QDebug operator<<(QDebug dbg, const Location &loc)
     if (!loc.exists()) {
         dbg << "Location(null)";
     } else {
-        dbg << QString("Location(%1:%2(%3))").
+        dbg << QString("Location(%1:%2:%3)").
             arg(QString::fromLocal8Bit(loc.fileName)).arg(loc.line).arg(loc.column);
     }
     return dbg;
