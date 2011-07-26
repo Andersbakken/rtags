@@ -142,6 +142,14 @@ bool ArgParser::parse(int argc, char **argv)
 
 int main(int argc, char** argv)
 {
+    QHash<int, int> foo;
+    foo.insertMulti(12, 1);
+    foo.insertMulti(12, 2);
+    foo.insertMulti(13, 2);
+    // QMultiHash<int, int>::iterator it = foo.find(12);
+    // foo.erase(it);
+    qDebug() << foo.remove(12);
+    qDebug() << foo;
     QCoreApplication app(argc, argv);
     QThread::currentThread()->setObjectName("main");
     ArgParser args(argc, argv);
@@ -166,7 +174,7 @@ int main(int argc, char** argv)
     QCoreApplication::setApplicationName("rtags");
 
     if (Options::s_verbose)
-        qDebug() << argsmap;    
+        qDebug() << argsmap;
 
     if (cmd == QLatin1String("daemonize")) {
         Daemon daemon;

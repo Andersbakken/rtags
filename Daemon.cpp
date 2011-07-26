@@ -23,7 +23,7 @@ static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
         dbg << text;
         return dbg;
     }
-    
+
     QByteArray name = eatString(clang_getCursorSpelling(cursor));
     if (!name.isEmpty()) {
         text += name + ", ";

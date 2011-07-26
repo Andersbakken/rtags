@@ -53,12 +53,23 @@ static inline QDebug operator<<(QDebug dbg, const Location &loc)
 class Database
 {
 public:
-    static void setSymbolDefinition(const QByteArray &symbolName, const Location &location);
+    static void clear();
+
     static void setSymbolDeclaration(const QByteArray &symbolName, const Location &location);
-    static void addSymbolReference(const QByteArray &symbolName, const Location &location);
+    static bool clearSymbolDeclaration(const QByteArray &symbolName);
     static Location lookupDeclaration(const QByteArray &symbolName);
+    static int symbolDeclarationSize();
+
+    static void setSymbolDefinition(const QByteArray &symbolName, const Location &location);
     static Location lookupDefinition(const QByteArray &symbolName);
+    static bool clearSymbolDefinition(const QByteArray &symbolName);
+    static int symbolDefinitionSize();
+
+    static void addSymbolReference(const QByteArray &symbolName, const Location &location);
     static QList<Location> lookupReferences(const QByteArray &symbolName);
+    static int clearSymbolReferences(const QByteArray &symbolName);
+    static int symbolReferencesSize();
+
 };
 
 #endif
