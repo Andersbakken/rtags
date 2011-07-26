@@ -44,8 +44,8 @@ bool init(const QString &dbFile)
 {
     clearMemoryCaches(); // needs a removedatabase
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
-    db.setDatabaseName(":memory:");
-    // db.setDatabaseName(dbFile);
+    // db.setDatabaseName(":memory:");
+    db.setDatabaseName(dbFile);
     if (!db.open()) {
         qWarning("Can't open database");
         return false;
@@ -81,9 +81,9 @@ bool init(const QString &dbFile)
         "FOREIGN KEY(symbolId) REFERENCES Symbol(id),"
         "FOREIGN KEY(fileId) REFERENCES File(id));",
 
-        // "DELETE FROM Reference",
-        // "DELETE FROM Symbol",
-        // "DELETE FROM File",
+        "DELETE FROM Reference",
+        "DELETE FROM Symbol",
+        "DELETE FROM File",
 
         0
     };
@@ -237,16 +237,17 @@ unsigned validateCache(const QFileInfo &file, const QByteArray &compilerOptions)
 
 int fileId(const QFileInfo &file)
 {
-    int &ref = s_fileIds[file];
-    if (!ref) {
+    int ret = s_fileIds.value(file, 0);
+    if (!ret) {
         QSqlQuery q;
         q.prepare("SELECT id FROM File WHERE fileName = ?;");
         q.addBindValue(file.absoluteFilePath());
         if (q.exec() && q.next()) {
-            ref = q.value(0).toInt();
+            ret = q.value(0).toInt();
+            s_fileIds[file] = ret;
         }
     }
-    return ref;
+    return ret;
 }
 
 int addSymbolDeclaration(const QByteArray &symbolName, const Location &location)
@@ -255,13 +256,10 @@ int addSymbolDeclaration(const QByteArray &symbolName, const Location &location)
     if (!fileId) {
         fileId = addFile(location.file, QByteArray());
     }
-    qDebug() << "adding symbol declaration" << symbolName << "at" << location;
+    // qDebug() << "adding symbol declaration" << symbolName << "at" << location;
 
     Q_ASSERT_X(fileId, __FUNCTION__,
                qPrintable("File not in database " + location.file.absoluteFilePath()));
-    if (s_symbols.contains(symbolName)) {
-        qDebug() << s_symbols.value(symbolName) << symbolName << location;
-    }
     Q_ASSERT(!s_symbols.contains(symbolName));
     QSqlQuery query;
     query.prepare("INSERT INTO Symbol(fileId, line, column, name) "
@@ -338,7 +336,11 @@ QByteArray symbolName(int symbolId)
 
 static void addSymbol(int symbolId, LookupFlag type, const Location &location)
 {
-    const int fileId = ::fileId(location);
+    int fileId = ::fileId(location);
+    if (!fileId) {
+        fileId = addFile(location.file, QByteArray());
+    }
+    
     Q_ASSERT_X(fileId, __FUNCTION__,
                qPrintable("File not in database " + location.file.absoluteFilePath()));
     
@@ -351,9 +353,9 @@ static void addSymbol(int symbolId, LookupFlag type, const Location &location)
     query.addBindValue(location.line);
     query.addBindValue(location.column);
     ::exec(query);
-    qDebug() << "adding symbol" << symbolName(symbolId)
-             << (type == Reference ? "Reference" : "Definition")
-             << "at" << location;
+    // qDebug() << "adding symbol" << symbolName(symbolId)
+    //          << (type == Reference ? "Reference" : "Definition")
+    //          << "at" << location;
 }
 
 void addSymbolDefinition(int symbolId, const Location &location)

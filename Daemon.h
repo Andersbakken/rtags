@@ -12,6 +12,7 @@
 #include <QtNetwork>
 #endif
 
+class ClangThread;
 class Daemon : public QObject
 {
     Q_OBJECT;

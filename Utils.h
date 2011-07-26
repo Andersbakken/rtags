@@ -75,16 +75,15 @@ public:
     static bool s_verbose;
 };
 #include <QElapsedTimer>
-#define DEBUG_FUNCTION_CALLS
-#ifdef DEBUG_FUNCTION_CALLS // make this match a regexp in environment or something
 class Timer : public QElapsedTimer
 {
 public:
-    Timer(const char *func, const QString &args = QString())
+    Timer(const char *func, const QString &args = QString(),
+          bool override = false)
         : m_func(func), m_args(args)
     {
         QMutexLocker lock(&s_mutex);
-        if (Options::s_verbose) {
+        if (Options::s_verbose || override) {
             qDebug("%s%s(%s) called (%s)",
                    indent().constData(), func, qPrintable(m_args),
                    qPrintable(QThread::currentThread()->objectName()));
@@ -112,6 +111,9 @@ private:
     static int s_indent;
     static QMutex s_mutex;
 };
+
+#define DEBUG_FUNCTION_CALLS
+#ifdef DEBUG_FUNCTION_CALLS // make this match a regexp in environment or something
 static inline QDebug operator<<(QDebug dbg, const QFileInfo &fi)
 {
     dbg << QString("QFileInfo(" + fi.absoluteFilePath() + ")");
