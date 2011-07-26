@@ -9,11 +9,11 @@
 #include <QFileSystemWatcher>
 #include <QVariantMap>
 #include <clang-c/Index.h>
+#include "ThreadPool.h"
 #ifdef EBUS_ENABLED
 #include <QtNetwork>
 #endif
 
-class ClangThread;
 class Daemon : public QObject
 {
     Q_OBJECT;
@@ -55,6 +55,7 @@ private:
     CXIndex m_index;
     QHash<QString, CXTranslationUnit> m_translationUnits;
     QFileSystemWatcher m_fileSystemWatcher;
+    ThreadPool m_threadPool;
 #ifdef EBUS_ENABLED
     QTcpServer *m_server;
     QHash<QTcpSocket*, qint16> m_connections;

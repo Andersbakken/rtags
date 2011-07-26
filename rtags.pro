@@ -38,15 +38,17 @@ SOURCES += \
     Client.cpp \
     GccArguments.cpp \
     Utils.cpp \
-    Database.cpp
+    Database.cpp \
+    ThreadPool.cpp
 
 HEADERS += \
     Daemon.h \
     Client.h \
     GccArguments.h \
     Utils.h \
-    ClangThread.h \
-    Database.h
+    ClangJob.h \
+    Database.h \
+    ThreadPool.h
 
 OTHER_FILES += \
     gccopts.gperf

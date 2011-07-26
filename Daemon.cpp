@@ -5,7 +5,7 @@
 #include "GccArguments.h"
 #include <QCoreApplication>
 #include "Utils.h"
-#include "ClangThread.h"
+#include "ClangJob.h"
 #include "Database.h"
 
 static QVariantMap createResultMap(const QString& result)
@@ -51,6 +51,7 @@ Daemon::Daemon(QObject *parent)
     , m_server(0)
 #endif
 {
+    m_threadPool.init(8); // ### configurable?
     // Database::init("database.db"); // needs to be added for each command likely
     FUNC1(parent);
     connect(&m_fileSystemWatcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged(QString)));
@@ -200,15 +201,13 @@ bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QVariantMap *r
     const QString absoluteFilePath = fi.absoluteFilePath();
     CXTranslationUnit &unit = m_translationUnits[absoluteFilePath];
     if (unit) {
+        ClangJob *job = new ClangJob(unit, absoluteFilePath);
+        // reparsed signal somehow?
 #ifdef USE_THREAD
-        ClangThread *thread = new ClangThread(unit, absoluteFilePath, this);
-        thread->start();
+        m_threadPool.post(job);
 #else
-        if (clang_reparseTranslationUnit(unit, 0, 0, 0) != 0) {
-            if (result)
-                *result = QLatin1String("Failed");
-            return false;
-        }
+        job->execute();
+        delete job;
 #endif
         if (result)
             result->insert(QLatin1String("result"), QLatin1String("Reparsed"));
@@ -579,11 +578,11 @@ void Daemon::addTranslationUnit(const QString &absoluteFilePath,
                                                         options);
     onFileParsed(absoluteFilePath, unit);
 #else
-    ClangThread *thread = new ClangThread(absoluteFilePath, options, compilerOptions, m_index, this);
-    connect(thread, SIGNAL(error(QString)), this, SLOT(onParseError(QString)));
-    connect(thread, SIGNAL(fileParsed(QString, void*)),
+    ClangJob *job = new ClangJob(absoluteFilePath, options, compilerOptions, m_index);
+    connect(job, SIGNAL(error(QString)), this, SLOT(onParseError(QString)));
+    connect(job, SIGNAL(fileParsed(QString, void*)),
             this, SLOT(onFileParsed(QString, void*)));
-    thread->start();
+    m_threadPool.post(job);
 #endif
 }
 void Daemon::onParseError(const QString &absoluteFilePath)

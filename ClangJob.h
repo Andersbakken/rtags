@@ -1,39 +1,39 @@
-#ifndef ClangThread_h
-#define ClangThread_h
+#ifndef ClangJob_h
+#define ClangJob_h
 
 #include <QtCore>
 #include <clang-c/Index.h>
 #include "Utils.h"
+#include "ThreadPool.h"
 
-class ClangThread : public QThread
+class ClangJob : public QObject, public ThreadPoolJob
 {
     Q_OBJECT;
 public:
-    ClangThread(const QString &absoluteFilePath,
-                unsigned options,
-                const QList<QByteArray> &compilerOptions,
-                CXIndex index,
-                QObject *parent = 0)
-        : QThread(parent), m_absoluteFilePath(absoluteFilePath),
+    ClangJob(const QString &absoluteFilePath,
+             unsigned options,
+             const QList<QByteArray> &compilerOptions,
+             CXIndex index)
+        : m_absoluteFilePath(absoluteFilePath),
           m_options(options),
           m_compilerOptions(compilerOptions),
           m_index(index),
           m_reparseUnit(0)
     {
-        setObjectName("ClangThread (parse) " + absoluteFilePath);
+        setObjectName("ClangJob (parse) " + absoluteFilePath);
         // qDebug() << "creating a thread" << objectName();
     }
 
-    ClangThread(CXTranslationUnit unit, const QString &absoluteFilePath, QObject *parent = 0)
-        : QThread(parent), m_absoluteFilePath(absoluteFilePath), m_options(0),
+    ClangJob(CXTranslationUnit unit, const QString &absoluteFilePath)
+        : m_absoluteFilePath(absoluteFilePath), m_options(0),
           m_index(0), m_reparseUnit(unit)
     {
         FUNC1(absoluteFilePath);
-        setObjectName("ClangThread (reparse) " + absoluteFilePath);
+        setObjectName("ClangJob (reparse) " + absoluteFilePath);
         // qDebug() << "creating a thread" << objectName();
     }
 
-    void run()
+    void execute()
     {
         // Timer timer(__FUNCTION__, objectName(), true);
         FUNC;
