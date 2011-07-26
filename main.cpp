@@ -95,16 +95,23 @@ bool ArgParser::parse(int argc, char **argv)
         current = QLatin1String(*argv);
         if (current.startsWith(QLatin1Char('-'))) {
             const int eqpos = current.indexOf(QLatin1Char('='));
-            if (eqpos == -1) { // take next argument
+            if (eqpos == -1) { // add argument and take the next if it doesn't start with a '-'
                 ++argv;
-                if (argv == end)
-                    return false;
                 while (!current.isEmpty() && current.at(0) == QLatin1Char('-'))
                     current = current.mid(1);
-                QString value = QLatin1String(*argv);
-                if (current.isEmpty() || value.isEmpty())
+                if (current.isEmpty())
                     return false;
-                addValue(current, value);
+                if (argv == end) {
+                    m_args[current] = QVariant();
+                    return true;
+                }
+                QString value = QLatin1String(*argv);
+                if (value.startsWith(QLatin1Char('-'))) {
+                    // next argument is an option as well, don't take it
+                    --argv;
+                    m_args[current] = QVariant();
+                } else
+                    addValue(current, value);
             } else { // use everything past '='
                 QString value = current.mid(eqpos + 1);
                 current = current.left(eqpos);
