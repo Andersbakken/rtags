@@ -136,7 +136,7 @@ Result lookup(const QByteArray &symbolName, unsigned lookupFlags, const QList<Fi
             where += "= " + symbolName;
         }
     }
-    
+
     if (lookupTypes & Declaration) {
         select += ", File.fileName, Symbol.fileId, Symbol.line, Symbol.column";
         from += ", File";
@@ -188,7 +188,7 @@ void remove(const QFileInfo &file)
         if (!exec(q))
             continue;
     }
-    
+
     query.prepare("DELETE FROM Location WHERE fileId=?");
     query.addBindValue(fileId);
     exec(query);
@@ -340,10 +340,10 @@ static void addSymbol(int symbolId, LookupFlag type, const Location &location)
     if (!fileId) {
         fileId = addFile(location.file, QByteArray());
     }
-    
+
     Q_ASSERT_X(fileId, __FUNCTION__,
                qPrintable("File not in database " + location.file.absoluteFilePath()));
-    
+
     QSqlQuery query;
     query.prepare("INSERT INTO Reference(symbolId, type, fileId, line, column) "
                   "VALUES(?, ?, ?, ?, ?);");
