@@ -199,7 +199,7 @@ bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QVariantMap *r
         return false;
     }
     const QString absoluteFilePath = fi.absoluteFilePath();
-    CXTranslationUnit &unit = m_translationUnits[absoluteFilePath];
+    CXTranslationUnit unit = m_translationUnits.value(absoluteFilePath);
     if (unit) {
         ClangJob *job = new ClangJob(unit, absoluteFilePath);
         // reparsed signal somehow?
@@ -699,9 +699,11 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
                 Database::setSymbolDeclaration(symbol, methodLoc);
                 ++userData.count;
             } else {
-                qDebug() << "dropping" << eatString(clang_getCursorDisplayName(method))
-                         << kindToString(clang_getCursorKind(method))
-                         << "because we can't find file" << __LINE__;
+                if (Options::s_verbose || symbol != "__va_list_tag()") {
+                    qDebug() << "dropping" << symbol
+                             << kindToString(clang_getCursorKind(method))
+                             << "because we can't find file" << __LINE__;
+                }
                 break;
             }
         }
