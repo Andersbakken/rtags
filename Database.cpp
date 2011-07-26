@@ -80,6 +80,10 @@ bool init(const QString &dbFile)
         "FOREIGN KEY(symbolId) REFERENCES Symbol(id),"
         "FOREIGN KEY(fileId) REFERENCES File(id));",
 
+        "DELETE FROM Reference",
+        "DELETE FROM Symbol",
+        "DELETE FROM File",
+
         0
     };
     QSqlQuery query;
@@ -246,9 +250,16 @@ int fileId(const QFileInfo &file)
 
 int addSymbol(const QByteArray &symbolName, const Location &location)
 {
-    const int fileId = ::fileId(location);
+    qDebug() << symbolName;
+    int fileId = ::fileId(location);
+    if (!fileId) {
+        fileId = addFile(location.file, QByteArray());
+    }
     Q_ASSERT_X(fileId, __FUNCTION__,
                qPrintable("File not in database " + location.file.absoluteFilePath()));
+    if (s_symbols.contains(symbolName)) {
+        qDebug() << s_symbols.value(symbolName) << symbolName << location;
+    }
     Q_ASSERT(!s_symbols.contains(symbolName));
     QSqlQuery query;
     query.prepare("INSERT INTO Symbol(fileId, line, column, name) "
@@ -266,14 +277,25 @@ int addSymbol(const QByteArray &symbolName, const Location &location)
 
 int addFile(const QFileInfo &file, const QByteArray &compilerOptions)
 {
-    QSqlQuery q;
-    q.prepare("INSERT INTO File(fileName, options) VALUES(?, ?);");
-    q.addBindValue(file.absoluteFilePath());
-    q.addBindValue(compilerOptions);
-    if (exec(q)) {
-        const int id = q.lastInsertId().toInt();
-        s_fileIds[file] = id;
-        return id;
+    Q_ASSERT(file.exists());
+    const int existing = fileId(file);
+    if (existing) {
+        QSqlQuery q;
+        q.prepare("UPDATE File SET options = ?");
+        q.addBindValue(compilerOptions);
+        if (exec(q)) {
+            return existing;
+        }
+    } else {
+        QSqlQuery q;
+        q.prepare("INSERT INTO File(fileName, options) VALUES(?, ?);");
+        q.addBindValue(file.absoluteFilePath());
+        q.addBindValue(compilerOptions);
+        if (exec(q)) {
+            const int id = q.lastInsertId().toInt();
+            s_fileIds[file] = id;
+            return id;
+        }
     }
     return 0;
 }
@@ -281,16 +303,17 @@ int addFile(const QFileInfo &file, const QByteArray &compilerOptions)
 int symbolId(const QByteArray &symbolName, Qt::MatchFlags flags)
 {
     // if (flags == Qt::MatchExactly) {
-    int &ref = s_symbols[symbolName];
-    if (!ref) {
+    int ret = s_symbols.value(symbolName, 0);
+    if (!ret) {
         QSqlQuery q;
         q.prepare("SELECT id FROM Symbol WHERE name = ?;");
         q.addBindValue(symbolName);
         if (q.exec() && q.next()) {
-            ref = q.value(0).toInt();
+            ret = q.value(0).toInt();
+            s_symbols[symbolName] = ret;
         }
     }
-    return ref;
+    return ret;
 }
 
 static void addSymbol(int symbolId, LookupFlag type, const Location &location)
@@ -312,7 +335,6 @@ static void addSymbol(int symbolId, LookupFlag type, const Location &location)
 
 void addSymbolDefinition(int symbolId, const Location &location)
 {
-    qDebug() << symbolId << location;
     addSymbol(symbolId, Definition, location);
 }
 
