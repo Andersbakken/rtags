@@ -742,12 +742,15 @@ void Daemon::onFileParsed(const QString &absoluteFilePath, void *u)
     FUNC2(absoluteFilePath, u);
     CXTranslationUnit unit = reinterpret_cast<CXTranslationUnit>(u);
     m_fileSystemWatcher.addPath(absoluteFilePath);
+    Q_ASSERT(!m_translationUnits.contains(unit));
     m_translationUnits[absoluteFilePath] = unit;
     // crashes right now with some issue with autoincrement primary key on Symbol
     Database::addFile(absoluteFilePath, QByteArray()); // ### must pass on compiler options
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
     ProcessFileUserData userData;
     userData.count = 0;
+    QElapsedTimer timer;
+    timer.start();
     clang_visitChildren(cursor, processFile, &userData);
-    qDebug("Added %d entries for %s", userData.count, qPrintable(absoluteFilePath));
+    qDebug("Added %d entries for %s (%lld ms)", userData.count, qPrintable(absoluteFilePath), timer.elapsed());
 }

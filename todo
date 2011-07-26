@@ -1,0 +1,4 @@
+Replace sqlite with homegrown format
+write elisp bindings
+Make database more persisten (e.g. know if a file has changed)
+Use AST file caching
