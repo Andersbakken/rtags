@@ -4,6 +4,8 @@
     <method name="runCommand">
       <arg type="a{sv}" direction="out"/>
       <arg name="args" type="a{sv}" direction="in"/>
+      <annotation name="com.trolltech.QtDBus.QtTypeName.Out0" value="QVariantMap"/>
+      <annotation name="com.trolltech.QtDBus.QtTypeName.In0" value="QVariantMap"/>
     </method>
   </interface>
 </node>

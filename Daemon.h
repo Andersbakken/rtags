@@ -7,6 +7,7 @@
 #include <QHash>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
+#include <QVariantMap>
 #include <clang-c/Index.h>
 #ifdef EBUS_ENABLED
 #include <QtNetwork>
