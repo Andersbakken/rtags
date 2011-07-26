@@ -144,6 +144,7 @@ int main(int argc, char** argv)
 
     if (argsmap.isEmpty())
         argsmap.insert(QLatin1String("command"), QLatin1String("syntax"));
+    qDebug() << argsmap;
 
     QString cmd = argsmap.value(QLatin1String("command")).toString();
     FUNC;
@@ -151,6 +152,8 @@ int main(int argc, char** argv)
     QCoreApplication::setOrganizationName("RTags");
     QCoreApplication::setApplicationName("rtags");
 
+    if (Options::s_verbose)
+        qDebug() << argsmap;    
 
     if (cmd == QLatin1String("daemonize")) {
         Daemon daemon;
