@@ -189,8 +189,7 @@ bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QVariantMap *r
         }
 #endif
         if (result)
-            if (result)
-                result->insert(QLatin1String("result"), QLatin1String("Reparsed"));
+            result->insert(QLatin1String("result"), QLatin1String("Reparsed"));
     } else {
         addTranslationUnit(absoluteFilePath, options);
         if (result)
