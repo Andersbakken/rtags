@@ -142,7 +142,7 @@ QVariantMap Daemon::runCommand(const QVariantMap &args)
     } else if (cmd == QLatin1String("files")) {
         return fileList(args);
     } else if (cmd == QLatin1String("lookup")) {
-        return lookup(cmd, Declaration);
+        return lookup(args);
     } else if (cmd == QLatin1String("saveast")) {
         return saveAST(args);
     } else if (cmd == QLatin1String("loadast")) {
@@ -422,13 +422,6 @@ QVariantMap Daemon::lookupLine(const QVariantMap &args)
     return createResultMap(ret);
 }
 
-struct UserData {
-    const QString &symbol;
-    QStringList results;
-    Daemon::LookupType type;
-    int count;
-};
-
 static inline QString path(CXCursor cursor)
 {
     QString path;
@@ -466,52 +459,17 @@ static inline QString cursorData(CXCursor cursor)
 }
 
 
-static CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor, CXClientData client_data)
+QVariantMap Daemon::lookup(const QVariantMap &args)
 {
-    FUNC;
-    UserData *data = reinterpret_cast<UserData*>(client_data);
-    ++data->count;
-    CXSourceLocation location = clang_getCursorLocation(cursor);
-    unsigned int line, column, offset;
-    CXFile file;
-    clang_getInstantiationLocation(location, &file, &line, &column, &offset);
-    CXString fileName = clang_getFileName(file);
-    QString ret = QString("%1:%2(%3) ").arg(clang_getCString(fileName)).arg(line).arg(column);
-    clang_disposeString(fileName);
-    ret += cursorData(cursor);
-    if (clang_getCursorKind(cursor) == CXCursor_CallExpr) {
-        CXCursor referenced = clang_getCursorReferenced(cursor);
-        if (!isValidCursor(referenced))
-            return CXChildVisit_Recurse;
-        ret += cursorData(referenced);
-    }
-    qWarning("%s", qPrintable(ret));
-    return CXChildVisit_Recurse;
+    const QByteArray symbol = args.value(QLatin1String("symbol")).toByteArray();
+    if (symbol.isEmpty()) 
+        return createResultMap(QLatin1String("No symbol in lookup request"));
 
-    // if (!strcmp(clang_getCString(data->find), clang_getCString(usr))) {
-    //     data->result = cursor;
-    //     data->found = true;
-    //     clang_disposeString(usr);
-    //     return CXChildVisit_Break;
-    // }
-    // clang_disposeString(usr);
-    return CXChildVisit_Recurse;
-}
-
-QVariantMap Daemon::lookup(const QString &name, LookupType type)
-{
-    FUNC2(name, type);
-    UserData userData = { name, QStringList(), type, 0 };
-    QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.begin();
-    qDebug() << m_translationUnits.keys();
-    while (it != m_translationUnits.end()) {
-        qDebug() << it.key();
-        CXCursor cursor = clang_getTranslationUnitCursor(it.value());
-        clang_visitChildren(cursor, lookupSymbol, &userData);
-        ++it;
+    const QList<QByteArray> symbolTypes = args.value(QLatin1String("types")).toByteArray().split(',');
+    if (symbolTypes.isEmpty() || symbolTypes.contains("declaration")) {
+        
     }
-    // qDebug() << "FOOOOO" << noCollisions.elapsed() << userData.count;
-    return createResultMap(userData.results.join("\n"));
+    
 }
 
 QVariantMap Daemon::loadAST(const QVariantMap &args)

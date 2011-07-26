@@ -24,18 +24,13 @@ public:
     bool start();
     Q_INVOKABLE QVariantMap runCommand(const QVariantMap& args);
 
-    enum LookupType {
-        Declaration,
-        Definition,
-        Reference
-    };
 private slots:
     void onFileChanged(const QString &path);
     void onParseError(const QString &absoluteFilePath);
     void onFileParsed(const QString &absoluteFilePath, void *unit);
 private:
     // ### need to add a function for code completion
-    QVariantMap lookup(const QString &name, LookupType type);
+    QVariantMap lookup(const QVariantMap& args);
     QVariantMap lookupLine(const QVariantMap& args);
     QVariantMap addMakefile(const QString& path, const QVariantMap& args);
     QVariantMap addSourceFile(const QVariantMap& args);
