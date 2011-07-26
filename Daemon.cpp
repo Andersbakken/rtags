@@ -712,7 +712,6 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
     default:
         break;
     }
-    // }
 
     return CXChildVisit_Recurse;
 }
