@@ -3,69 +3,59 @@
 
 #include <QtCore>
 #include <QtSql>
-
-namespace Database
-{
-bool init(const QString &file);
-
-enum LookupFlag {
-    None = 0x000,
-    // IncludeStartsWith = 0x001,
-    // IncludeEndsWith = 0x002,
-    IncludeContains = 0x004,
-    Declaration = 0x008,
-    Definition = 0x010,
-    Reference = 0x020
-};
+#include <sys/stat.h>
+#include <clang-c/Index.h>
+#include "Utils.h"
 
 struct Location {
-    QFileInfo file;
-    int line, column, fileId; // either fileId or file must be valid
+    Location()
+        : line(0), column(0)
+    {}
+    Location(CXCursor cursor)
+        : line(0), column(0)
+    {
+        CXSourceLocation location = clang_getCursorLocation(cursor);
+        CXFile file;
+        clang_getInstantiationLocation(location, &file, &line, &column, 0);
+        fileName = eatString(clang_getFileName(file));
+        Q_ASSERT(fileName.isEmpty() == (line == 0 && column == 0));
+    }
+
+    bool exists() const
+    {
+        bool ret = false;
+        if (!fileName.isEmpty()) {
+            // ### symlinks?
+            struct stat st;
+            ret = !stat(fileName.constData(), &st) && S_ISREG(st.st_mode);
+        }
+        return ret;
+    }
+
+    QByteArray fileName;
+    unsigned line, column;
 };
 
 static inline QDebug operator<<(QDebug dbg, const Location &loc)
 {
-    dbg << loc.file.absoluteFilePath() << "line" << loc.line
-        << "column" << loc.column << "fileId" << loc.fileId;
+    if (!loc.exists()) {
+        dbg << "Location(null)";
+    } else {
+        dbg << QString("Location(%1:%2(%3))").
+            arg(QString::fromLocal8Bit(loc.fileName)).arg(loc.line).arg(loc.column);
+    }
     return dbg;
 }
 
-struct Result {
-    QByteArray symbolName;
-    QList<QPair<Location, LookupFlag> > matches;
-};
-
-struct Filter {
-    QRegExp regExp;
-    QString text;
-    enum Flag {
-        None = 0x000,
-        FilterOut = 0x001,
-        ExactMatch = 0x002,
-        RegExp = 0x004
-    };
-};
-
-void clearMemoryCaches();
-int addFile(const QFileInfo &file, const QByteArray &compilerOptions);
-int fileId(const QFileInfo &file);
-bool removeFile(int fileId);
-
-int addSymbolDeclaration(const QByteArray &symbolName, const Location &location);
-QByteArray symbolName(int symbolId);
-int symbolId(const QByteArray &symbolName, Qt::MatchFlags = Qt::MatchExactly);
-void addSymbolDefinition(int symbolId, const Location &location);
-void addSymbolReference(int symbolId, const Location &location);
-
-Result lookup(const QByteArray &symbolName, unsigned flags,
-              const QList<Filter> &filters = QList<Filter>());
-enum CacheStatus {
-    CacheInvalid = 0x0,
-    SqlCacheValid = 0x1,
-    AstCacheValid = 0x2
-};
-
-unsigned validateCache(const QFileInfo &file, const QByteArray &compilerOptions);
+class Database
+{
+public:
+    static void setSymbolDefinition(const QByteArray &symbolName, const Location &location);
+    static void setSymbolDeclaration(const QByteArray &symbolName, const Location &location);
+    static void addSymbolReference(const QByteArray &symbolName, const Location &location);
+    static Location lookupDeclaration(const QByteArray &symbolName);
+    static Location lookupDefinition(const QByteArray &symbolName);
+    static QList<Location> lookupReferences(const QByteArray &symbolName);
 };
 
 #endif

@@ -15,13 +15,6 @@ static QVariantMap createResultMap(const QString& result)
     return ret;
 }
 
-static QByteArray eatString(CXString string)
-{
-    const QByteArray ret = clang_getCString(string);
-    clang_disposeString(string);
-    return ret;
-}
-
 static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
 {
     QString text = "CXCursor(";
@@ -57,7 +50,7 @@ Daemon::Daemon(QObject *parent)
     , m_server(0)
 #endif
 {
-    Database::init("database.db"); // needs to be added for each command likely
+    // Database::init("database.db"); // needs to be added for each command likely
     FUNC1(parent);
     connect(&m_fileSystemWatcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged(QString)));
 }
@@ -632,23 +625,6 @@ static inline QByteArray symbolName(CXCursor cursor)
     return name;
 }
 
-static inline Database::Location location(CXCursor cursor)
-{
-    CXSourceLocation location = clang_getCursorLocation(cursor);
-    unsigned int line, column, offset;
-    CXFile file;
-    clang_getInstantiationLocation(location, &file, &line, &column, &offset);
-    const QByteArray fileName = eatString(clang_getFileName(file));
-
-    const Database::Location loc = {
-        fileName.isEmpty() ? QFileInfo() : QFileInfo(QString::fromLocal8Bit(fileName)),
-        line,
-        column,
-        0
-    };
-    return loc;
-}
-
 struct ProcessFileUserData {
     QSet<unsigned> seen;
     int count;
@@ -674,59 +650,73 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
     switch (kind) {
     case CXCursor_ClassDecl:
         if (!clang_isCursorDefinition(cursor)) {// forward declaration
-            qDebug() << "dropping forward declaration of" << eatString(clang_getCursorDisplayName(cursor));
+            qDebug() << "dropping forward declaration of" << eatString(clang_getCursorDisplayName(cursor))
+                     << __LINE__;
             break;
         }
         // fallthrough
     case CXCursor_Namespace:
     case CXCursor_CXXMethod:
     case CXCursor_Constructor: {
-        const Database::Location loc = location(cursor);
-        if (!loc.file.exists()) {
+        const Location loc(cursor);
+        if (!loc.exists()) {
             qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
-                     << kind << "because of missing file" << cursor;
+                     << kindToString(clang_getCursorKind(cursor))
+                     << "because of missing file" << cursor << __LINE__;
             break;
         }
         const QByteArray symbol = symbolName(cursor);
-        int symbolId = Database::symbolId(symbol);
-        if (!symbolId) {
-            ++userData.count;
-            symbolId = Database::addSymbolDeclaration(symbol, loc);
-            ++userData.count;
-        }
-        Q_ASSERT(symbolId);
-        ++userData.count;
-        Database::addSymbolDefinition(symbolId, loc);
-        break; }
-    case CXCursor_CallExpr: {
-        CXCursor method = clang_getCursorReferenced(cursor);
-        if (!isValidCursor(method)) {
+        if (symbol.isEmpty()) {
             qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
-                     << "because of invalid reference" << cursor;
-            break;
-        }
-        const Database::Location callLoc = location(cursor);
-        if (!callLoc.file.exists()) {
-            qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
-                     << "because of missing file" << cursor << "reference" << method;
+                     << kindToString(clang_getCursorKind(cursor))
+                     << "because of empty symbolName" << __LINE__;
             break;
         }
 
+        if (clang_isCursorDefinition(cursor)) {
+            Database::setSymbolDefinition(symbol, loc);
+        } else {
+            Database::setSymbolDeclaration(symbol, loc);
+        }
+        ++userData.count;
+        break; }
+    case CXCursor_CallExpr: {
+        const Location callLoc(cursor);
+        if (!callLoc.exists()) {
+            qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
+                     << kindToString(clang_getCursorKind(cursor))
+                     << "because of we can't find location" << __LINE__;
+            break;
+        }
+        CXCursor method = clang_getCursorReferenced(cursor);
+        if (!isValidCursor(method)) {
+            qDebug() << "dropping" << eatString(clang_getCursorDisplayName(method))
+                     << kindToString(clang_getCursorKind(method))
+                     << "because of invalid reference" << cursor << method << __LINE__;
+            break;
+        }
         const QByteArray symbol = symbolName(method);
-        int symbolId = Database::symbolId(symbol);
-        if (!symbolId) {
-            const Database::Location loc = location(method);
-            if (!loc.file.exists()) { // can't find the file of the method that's being called
-                qDebug() << "dropping" << symbol
-                         << "because of missing file for reference"
-                         << cursor << "method" << method;
+        if (symbol.isEmpty()) {
+            qDebug() << "dropping" << eatString(clang_getCursorDisplayName(method))
+                     << kindToString(clang_getCursorKind(method))
+                     << "because of empty symbolName" << __LINE__;
+            break;
+        }
+        Location methodLoc = Database::lookupDeclaration(symbol);
+        if (!methodLoc.exists()) {
+            methodLoc = Location(method);
+            if (methodLoc.exists()) {
+                Database::setSymbolDeclaration(symbol, methodLoc);
+                ++userData.count;
+            } else {
+                qDebug() << "dropping" << eatString(clang_getCursorDisplayName(method))
+                         << kindToString(clang_getCursorKind(method))
+                         << "because we can't find file" << __LINE__;
                 break;
             }
-            symbolId = Database::addSymbolDeclaration(symbol, loc);
-            ++userData.count;
         }
-        Q_ASSERT(symbolId != 0);
-        Database::addSymbolReference(symbolId, callLoc);
+
+        Database::addSymbolReference(symbol, callLoc);
         ++userData.count;
         break; }
     default:
@@ -745,7 +735,6 @@ void Daemon::onFileParsed(const QString &absoluteFilePath, void *u)
     Q_ASSERT(!m_translationUnits.contains(unit));
     m_translationUnits[absoluteFilePath] = unit;
     // crashes right now with some issue with autoincrement primary key on Symbol
-    Database::addFile(absoluteFilePath, QByteArray()); // ### must pass on compiler options
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
     ProcessFileUserData userData;
     userData.count = 0;

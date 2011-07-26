@@ -2,8 +2,16 @@
 #define utils_h
 
 #include <QtCore>
+#include <clang-c/Index.h>
 
 const char *kindToString(int kind);
+static inline QByteArray eatString(CXString string)
+{
+    const QByteArray ret = clang_getCString(string);
+    clang_disposeString(string);
+    return ret;
+}
+
 #ifdef EBUS_ENABLED
 #include <QtNetwork>
 namespace EBus {
