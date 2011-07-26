@@ -574,7 +574,7 @@ void Daemon::onParseError(const QString &absoluteFilePath)
     qWarning("Failed to add %s", qPrintable(absoluteFilePath));
 }
 
-static inline QByteArray symbolName(CXCursor cursor, bool noWarning = false)
+static inline QByteArray symbolName(CXCursor cursor)
 {
     QByteArray name;
     bool done = false;
@@ -595,16 +595,7 @@ static inline QByteArray symbolName(CXCursor cursor, bool noWarning = false)
                 name.prepend("::");
             name.prepend(eatString(clang_getCursorDisplayName(cursor)));
             break;
-        case CXCursor_TranslationUnit:
-        case CXCursor_FirstInvalid:
-        case CXCursor_UnexposedDecl:
-            done = true;
-            break;
         default:
-            if (!noWarning)
-                qWarning("Got unexpected parent %s %s",
-                         kindToString(clang_getCursorKind(cursor)),
-                         eatString(clang_getCursorDisplayName(cursor)).constData());
             if (name.isEmpty())
                 name = eatString(clang_getCursorDisplayName(cursor));
             done = true;
@@ -623,10 +614,10 @@ static inline Database::Location location(CXCursor cursor)
     unsigned int line, column, offset;
     CXFile file;
     clang_getInstantiationLocation(location, &file, &line, &column, &offset);
-    QByteArray fileName = eatString(clang_getFileName(file));
+    const QByteArray fileName = eatString(clang_getFileName(file));
 
     const Database::Location loc = {
-        QFileInfo(QString::fromLocal8Bit(fileName)),
+        fileName.isEmpty() ? QFileInfo() : QFileInfo(QString::fromLocal8Bit(fileName)),
         line,
         column,
         0
@@ -660,22 +651,22 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
     case CXCursor_ClassDecl:
         if (!clang_isCursorDefinition(cursor)) // forward declaration
             break;
+        // fallthrough
     case CXCursor_Namespace:
     case CXCursor_CXXMethod:
     case CXCursor_Constructor: {
+        const Database::Location loc = location(cursor);
+        if (!loc.file.exists())
+            break;
         const QByteArray symbol = symbolName(cursor);
         int symbolId = Database::symbolId(symbol);
-        Database::Location loc = { QFileInfo(), -1, -1, -1 };
         if (!symbolId) {
-            loc = location(cursor);
             ++userData.count;
-            symbolId = Database::addSymbolDeclaration(symbol, location(cursor));
+            symbolId = Database::addSymbolDeclaration(symbol, loc);
             ++userData.count;
         }
         Q_ASSERT(symbolId);
         if (kind != CXCursor_ClassDecl && clang_isCursorDefinition(cursor)) {
-            if (loc.line == -1)
-                loc = location(cursor);
             ++userData.count;
             Database::addSymbolDefinition(symbolId, loc);
         }
@@ -684,14 +675,21 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
         CXCursor method = clang_getCursorReferenced(cursor);
         if (!isValidCursor(method))
             break;
-        QByteArray symbol = symbolName(method);
+        const Database::Location callLoc = location(cursor);
+        if (!callLoc.file.exists())
+            break;
+
+        const QByteArray symbol = symbolName(method);
         int symbolId = Database::symbolId(symbol);
         if (!symbolId) {
-            symbolId = Database::addSymbolDeclaration(symbol, location(method));
+            const Database::Location loc = location(method);
+            if (!loc.file.exists()) // can't find the file of the method that's being called
+                break;
+            symbolId = Database::addSymbolDeclaration(symbol, loc);
             ++userData.count;
         }
         Q_ASSERT(symbolId != 0);
-        Database::addSymbolReference(symbolId, location(cursor));
+        Database::addSymbolReference(symbolId, callLoc);
         ++userData.count;
         break; }
     default:
