@@ -732,7 +732,7 @@ void Daemon::onFileParsed(const QString &absoluteFilePath, void *u)
     FUNC2(absoluteFilePath, u);
     CXTranslationUnit unit = reinterpret_cast<CXTranslationUnit>(u);
     m_fileSystemWatcher.addPath(absoluteFilePath);
-    Q_ASSERT(!m_translationUnits.contains(unit));
+    Q_ASSERT(!m_translationUnits.contains(absoluteFilePath));
     m_translationUnits[absoluteFilePath] = unit;
     // crashes right now with some issue with autoincrement primary key on Symbol
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
