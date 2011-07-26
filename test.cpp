@@ -17,6 +17,7 @@ public:
     B();
     void bar()
     {
+        A a;
         foo();
     }
 };

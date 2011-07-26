@@ -51,7 +51,8 @@ int addFile(const QFileInfo &file, const QByteArray &compilerOptions);
 int fileId(const QFileInfo &file);
 bool removeFile(int fileId);
 
-int addSymbol(const QByteArray &symbolName, const Location &location);
+int addSymbolDeclaration(const QByteArray &symbolName, const Location &location);
+QByteArray symbolName(int symbolId);
 int symbolId(const QByteArray &symbolName, Qt::MatchFlags = Qt::MatchExactly);
 void addSymbolDefinition(int symbolId, const Location &location);
 void addSymbolReference(int symbolId, const Location &location);

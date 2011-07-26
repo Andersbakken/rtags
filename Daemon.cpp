@@ -490,7 +490,7 @@ QString Daemon::lookup(const QString &name, LookupType type)
         clang_visitChildren(cursor, lookupSymbol, &userData);
         ++it;
     }
-    qDebug() << "FOOOOO" << noCollisions.elapsed() << userData.count;
+    // qDebug() << "FOOOOO" << noCollisions.elapsed() << userData.count;
     return userData.results.join("\n");
 }
 
@@ -579,6 +579,10 @@ static inline QByteArray symbolName(CXCursor cursor, bool noWarning = false)
         switch (clang_getCursorKind(cursor)) {
         case CXCursor_CXXMethod:
         case CXCursor_Constructor:
+            if (!name.isEmpty()) {
+                qDebug() << "name was" << name << "will be set to"
+                         << eatString(clang_getCursorDisplayName(cursor));
+            }
             Q_ASSERT(name.isEmpty());
             name = eatString(clang_getCursorDisplayName(cursor));
             break;
@@ -590,9 +594,8 @@ static inline QByteArray symbolName(CXCursor cursor, bool noWarning = false)
             break;
         case CXCursor_TranslationUnit:
         case CXCursor_FirstInvalid:
-            done = true;
-            break;
         case CXCursor_UnexposedDecl:
+            done = true;
             break;
         default:
             if (!noWarning)
@@ -601,6 +604,7 @@ static inline QByteArray symbolName(CXCursor cursor, bool noWarning = false)
                          eatString(clang_getCursorDisplayName(cursor)).constData());
             if (name.isEmpty())
                 name = eatString(clang_getCursorDisplayName(cursor));
+            done = true;
             break;
         }
         if (done)
@@ -635,8 +639,8 @@ struct ProcessFileUserData {
 static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData data)
 {
     ProcessFileUserData &userData = *reinterpret_cast<ProcessFileUserData*>(data);
-    CXCursor canonical = clang_getCanonicalCursor(cursor);
-    const unsigned hash = clang_hashCursor(canonical);
+    // CXCursor canonical = clang_getCanonicalCursor(cursor);
+    // const unsigned hash = clang_hashCursor(canonical);
     // printf(".");
     // static int count = 0;
     // if (++count == 82) {
@@ -644,49 +648,52 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
     //     count = 0;
     // }
 
-    if (!userData.seen.contains(hash)) {
-        // userData.seen.insert(hash);
-        printf("%s %s %d\n", kindToString(clang_getCursorKind(cursor)),
-               symbolName(cursor, true).constData(), clang_isCursorDefinition(cursor));
-        const CXCursorKind kind = clang_getCursorKind(cursor);
-        switch (kind) {
-        case CXCursor_ClassDecl:
-            if (!clang_isCursorDefinition(cursor)) // forward declaration
-                break;
-        case CXCursor_CXXMethod:
-        case CXCursor_Constructor: {
-            const QByteArray symbol = symbolName(cursor);
-            int symbolId = Database::symbolId(symbol);
-            Database::Location loc = { QFileInfo(), -1, -1, -1 };
-            if (!symbolId) {
-                loc = location(cursor);
-                symbolId = Database::addSymbol(symbol, location(cursor));
-                ++userData.count;
-            }
-            Q_ASSERT(symbolId);
-            if (kind != CXCursor_ClassDecl && clang_isCursorDefinition(cursor)) {
-                if (loc.line == -1)
-                    loc = location(cursor);
-                Database::addSymbolDefinition(symbolId, loc);
-            }
-            break; }
-        case CXCursor_CallExpr: {
-            CXCursor method = clang_getCursorReferenced(cursor);
-            QByteArray symbol = symbolName(method);
-            int symbolId = Database::symbolId(symbol);
-            if (!symbolId) {
-                symbolId = Database::addSymbol(symbol, location(method));
-                ++userData.count;
-            }
-            Q_ASSERT(symbolId != 0);
-            Database::addSymbolReference(symbolId, location(cursor));
-            ++userData.count;
-            break; }
-        default:
+    // if (!userData.seen.contains(hash)) {
+    // userData.seen.insert(hash);
+    // printf("%s %s %d\n", kindToString(clang_getCursorKind(cursor)),
+    //        symbolName(cursor, true).constData(), clang_isCursorDefinition(cursor));
+    const CXCursorKind kind = clang_getCursorKind(cursor);
+    switch (kind) {
+    case CXCursor_ClassDecl:
+        if (!clang_isCursorDefinition(cursor)) // forward declaration
             break;
+    case CXCursor_Namespace:
+    case CXCursor_CXXMethod:
+    case CXCursor_Constructor: {
+        const QByteArray symbol = symbolName(cursor);
+        int symbolId = Database::symbolId(symbol);
+        Database::Location loc = { QFileInfo(), -1, -1, -1 };
+        if (!symbolId) {
+            loc = location(cursor);
+            ++userData.count;
+            symbolId = Database::addSymbolDeclaration(symbol, location(cursor));
+            ++userData.count;
         }
+        Q_ASSERT(symbolId);
+        if (kind != CXCursor_ClassDecl && clang_isCursorDefinition(cursor)) {
+            if (loc.line == -1)
+                loc = location(cursor);
+            ++userData.count;
+            Database::addSymbolDefinition(symbolId, loc);
+        }
+        break; }
+    case CXCursor_CallExpr: {
+        CXCursor method = clang_getCursorReferenced(cursor);
+        QByteArray symbol = symbolName(method);
+        int symbolId = Database::symbolId(symbol);
+        if (!symbolId) {
+            symbolId = Database::addSymbolDeclaration(symbol, location(method));
+            ++userData.count;
+        }
+        Q_ASSERT(symbolId != 0);
+        Database::addSymbolReference(symbolId, location(cursor));
+        ++userData.count;
+        break; }
+    default:
+        break;
     }
-    
+    // }
+
     return CXChildVisit_Recurse;
 }
 

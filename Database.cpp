@@ -44,7 +44,8 @@ bool init(const QString &dbFile)
 {
     clearMemoryCaches(); // needs a removedatabase
     QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
-    db.setDatabaseName(dbFile);
+    db.setDatabaseName(":memory:");
+    // db.setDatabaseName(dbFile);
     if (!db.open()) {
         qWarning("Can't open database");
         return false;
@@ -80,9 +81,9 @@ bool init(const QString &dbFile)
         "FOREIGN KEY(symbolId) REFERENCES Symbol(id),"
         "FOREIGN KEY(fileId) REFERENCES File(id));",
 
-        "DELETE FROM Reference",
-        "DELETE FROM Symbol",
-        "DELETE FROM File",
+        // "DELETE FROM Reference",
+        // "DELETE FROM Symbol",
+        // "DELETE FROM File",
 
         0
     };
@@ -248,13 +249,14 @@ int fileId(const QFileInfo &file)
     return ref;
 }
 
-int addSymbol(const QByteArray &symbolName, const Location &location)
+int addSymbolDeclaration(const QByteArray &symbolName, const Location &location)
 {
-    qDebug() << symbolName;
     int fileId = ::fileId(location);
     if (!fileId) {
         fileId = addFile(location.file, QByteArray());
     }
+    qDebug() << "adding symbol declaration" << symbolName << "at" << location;
+
     Q_ASSERT_X(fileId, __FUNCTION__,
                qPrintable("File not in database " + location.file.absoluteFilePath()));
     if (s_symbols.contains(symbolName)) {
@@ -316,6 +318,24 @@ int symbolId(const QByteArray &symbolName, Qt::MatchFlags flags)
     return ret;
 }
 
+QByteArray symbolName(int symbolId)
+{
+    for (QHash<QByteArray, int>::const_iterator it = s_symbols.begin();
+         it != s_symbols.end(); ++it) {
+        if (it.value() == symbolId)
+            return it.key();
+    }
+    QSqlQuery q;
+    q.prepare("SELECT name FROM Symbol WHERE id = ?;");
+    q.addBindValue(symbolId);
+    if (q.exec() && q.next()) {
+        const QByteArray name = q.value(0).toByteArray();
+        s_symbols[name] = symbolId;
+        return name;
+    }
+    return QByteArray();
+}
+
 static void addSymbol(int symbolId, LookupFlag type, const Location &location)
 {
     const int fileId = ::fileId(location);
@@ -331,6 +351,9 @@ static void addSymbol(int symbolId, LookupFlag type, const Location &location)
     query.addBindValue(location.line);
     query.addBindValue(location.column);
     ::exec(query);
+    qDebug() << "adding symbol" << symbolName(symbolId)
+             << (type == Reference ? "Reference" : "Definition")
+             << "at" << location;
 }
 
 void addSymbolDefinition(int symbolId, const Location &location)
