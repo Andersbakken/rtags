@@ -463,7 +463,10 @@ static CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor, CXClientData c
     clang_disposeString(fileName);
     ret += cursorData(cursor);
     if (clang_getCursorKind(cursor) == CXCursor_CallExpr) {
-        ret += cursorData(clang_getCursorReferenced(cursor));
+        CXCursor referenced = clang_getCursorReferenced(cursor);
+        if (!isValidCursor(referenced))
+            return CXChildVisit_Recurse;
+        ret += cursorData(referenced);
     }
     qWarning("%s", qPrintable(ret));
     return CXChildVisit_Recurse;
@@ -679,6 +682,8 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
         break; }
     case CXCursor_CallExpr: {
         CXCursor method = clang_getCursorReferenced(cursor);
+        if (!isValidCursor(method))
+            break;
         QByteArray symbol = symbolName(method);
         int symbolId = Database::symbolId(symbol);
         if (!symbolId) {
