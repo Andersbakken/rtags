@@ -77,7 +77,8 @@ void Daemon::onFileChanged(const QString &path)
     FUNC1(path);
     const QFileInfo fi(path);
     if (fi.exists()) {
-        addSourceFile(fi);
+        qWarning("Not reparsing since it seems to crash");
+        // addSourceFile(fi);
     } else {
         removeSourceFile(QStringList() << path);
     }
@@ -171,7 +172,6 @@ QString Daemon::fileList(const QStringList &args)
     return out.join(QLatin1String("\n"));
 }
 
-
 bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QString *result)
 {
     FUNC2(fi, options);
@@ -250,12 +250,19 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
         }
         const QString absoluteFilePath = fi.absoluteFilePath();
         QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.find(absoluteFilePath);
-        if (it != m_translationUnits.end())
+        if (it != m_translationUnits.end()) {
+            // ### need to check if it was parsed with the same flags, and if so reparse
+            clang_disposeTranslationUnit(it.value());
             m_translationUnits.erase(it);
+        }
+
+        const unsigned defaultFlags = (CXTranslationUnit_PrecompiledPreamble
+                                       |CXTranslationUnit_CXXPrecompiledPreamble
+                                       |CXTranslationUnit_CXXChainedPCH);
 
         // qDebug() << "parsing" << absoluteFilePath << defines << includes;
         addTranslationUnit(absoluteFilePath,
-                           CXTranslationUnit_CacheCompletionResults,
+                           defaultFlags,
                            options);
         // printf("Done %s\n", qPrintable(absoluteFilePath));
     }

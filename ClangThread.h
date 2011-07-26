@@ -21,6 +21,7 @@ public:
           m_reparseUnit(0)
     {
         setObjectName("ClangThread (parse) " + absoluteFilePath);
+        // qDebug() << "creating a thread" << objectName();
     }
 
     ClangThread(CXTranslationUnit unit, const QString &absoluteFilePath, QObject *parent = 0)
@@ -29,10 +30,12 @@ public:
     {
         FUNC1(absoluteFilePath);
         setObjectName("ClangThread (reparse) " + absoluteFilePath);
+        // qDebug() << "creating a thread" << objectName();
     }
 
     void run()
     {
+        // Timer timer(__FUNCTION__, objectName(), true);
         FUNC;
         if (m_reparseUnit) {
             clang_reparseTranslationUnit(m_reparseUnit, 0, 0, 0);
