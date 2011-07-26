@@ -2,8 +2,8 @@
 <node>
   <interface name="rtags.Daemon">
     <method name="runCommand">
-      <arg type="s" direction="out"/>
-      <arg name="args" type="as" direction="in"/>
+      <arg type="a{sv}" direction="out"/>
+      <arg name="args" type="a{sv}" direction="in"/>
     </method>
   </interface>
 </node>

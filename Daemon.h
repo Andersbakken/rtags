@@ -20,7 +20,7 @@ public:
     ~Daemon();
 
     bool start();
-    Q_INVOKABLE QString runCommand(const QStringList& args);
+    Q_INVOKABLE QVariantMap runCommand(const QVariantMap& args);
 
     enum LookupType {
         Declaration,
@@ -33,19 +33,19 @@ private slots:
     void onFileParsed(const QString &absoluteFilePath, void *unit);
 private:
     // ### need to add a function for code completion
-    QString lookup(const QString &name, LookupType type);
-    QString lookupLine(const QStringList& args);
-    QString addMakefile(const QString& path, const QStringList& args);
-    QString addSourceFile(const QStringList& args);
-    QString removeSourceFile(const QStringList& args);
-    QString loadAST(const QStringList& args);
-    QString saveAST(const QStringList& args);
+    QVariantMap lookup(const QString &name, LookupType type);
+    QVariantMap lookupLine(const QVariantMap& args);
+    QVariantMap addMakefile(const QString& path, const QVariantMap& args);
+    QVariantMap addSourceFile(const QVariantMap& args);
+    QVariantMap removeSourceFile(const QVariantMap& args);
+    QVariantMap loadAST(const QVariantMap& args);
+    QVariantMap saveAST(const QVariantMap& args);
     bool writeAST(const QHash<QString, CXTranslationUnit>::const_iterator &it);
     bool addSourceFile(const QFileInfo& fi, unsigned options =
                        CXTranslationUnit_CacheCompletionResults,
-                       QString* result = 0);
+                       QVariantMap* result = 0);
     bool addMakefileLine(const QList<QByteArray>& line);
-    QString fileList(const QStringList &args);
+    QVariantMap fileList(const QVariantMap &args);
     void addTranslationUnit(const QString &absoluteFilePath,
                             unsigned options = 0,
                             const QList<QByteArray> &compilerOptions = QList<QByteArray>());

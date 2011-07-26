@@ -8,6 +8,13 @@
 #include "ClangThread.h"
 #include "Database.h"
 
+static QVariantMap createResultMap(const QString& result)
+{
+    QVariantMap ret;
+    ret.insert(QLatin1String("result"), result);
+    return ret;
+}
+
 static QByteArray eatString(CXString string)
 {
     const QByteArray ret = clang_getCString(string);
@@ -65,11 +72,11 @@ bool Daemon::start()
 #endif
 }
 
-static QString syntax()
+static QVariantMap syntax()
 {
     FUNC;
-    return QLatin1String("Syntax: rtags <command> [argument1, argument2, ...]\n"
-                         "commands: syntax|quit|add|remove|lookupline|makefile|daemonize|files|lookup\n");
+    return createResultMap(QLatin1String("Syntax: rtags <command> [argument1, argument2, ...]\n"
+                                         "commands: syntax|quit|add|remove|lookupline|makefile|daemonize|files|lookup\n"));
 }
 
 void Daemon::onFileChanged(const QString &path)
@@ -79,28 +86,27 @@ void Daemon::onFileChanged(const QString &path)
     if (fi.exists()) {
         addSourceFile(fi);
     } else {
-        removeSourceFile(QStringList() << path);
+        QVariantMap args;
+        args.insert(QLatin1String("file"), path);
+        removeSourceFile(args);
     }
 }
 
-QString Daemon::runCommand(const QStringList &a)
+QVariantMap Daemon::runCommand(const QVariantMap &args)
 {
-    FUNC1(a);
-    if (a.size() < 2)
-        return QLatin1String("No arguments!");
+    FUNC1(args);
 
-    QStringList args = a;
-    QString path = args.first();
-    args.removeFirst();
-    QString cmd = args.first();
-    args.removeFirst();
+    QString cmd = args.value(QLatin1String("command")).toString();
+    QString path = args.value(QLatin1String("currentpath")).toString();
+    if (path.isEmpty() || cmd.isEmpty())
+        return createResultMap(QLatin1String("No command or path specified"));
 
     if (cmd == QLatin1String("syntax")) {
         return syntax();
     } else if (cmd == QLatin1String("quit")) {
         QTimer::singleShot(100, QCoreApplication::instance(), SLOT(quit()));
         // hack to make the quit command properly respond before the server goes down
-        return QLatin1String("quitting");
+        return createResultMap(QLatin1String("quitting"));
     } else if (cmd == QLatin1String("add")) {
         return addSourceFile(args);
     } else if (cmd == QLatin1String("remove")) {
@@ -118,7 +124,7 @@ QString Daemon::runCommand(const QStringList &a)
     } else if (cmd == QLatin1String("loadast")) {
         return loadAST(args);
     }
-    return QLatin1String("Unknown command");
+    return createResultMap(QLatin1String("Unknown command"));
 }
 
 template <typename T>
@@ -137,27 +143,16 @@ static QStringList matches(const QHash<QString, CXTranslationUnit> &translationU
     return matches;
 }
 
-QString Daemon::fileList(const QStringList &args)
+QVariantMap Daemon::fileList(const QVariantMap &args)
 {
     FUNC1(args);
-    bool seenDashDash = false;
-    QString pattern;
-    bool regexp = false;
-    for (int i=0; i<args.size(); ++i) {
-        const QString &arg = args.at(i);
-        if (!seenDashDash && arg.startsWith("-")) {
-            if (arg == "--") {
-                seenDashDash = true;
-            } else if (arg == QLatin1String("-r") || arg == QLatin1String("--regexp")) {
-                regexp = true;
-            } else {
-                return QLatin1String("Unknown option ") + arg;
-            }// absolute vs relative?
-        } else if (pattern.isEmpty()) {
-            pattern = arg;
-        } else {
-            return QLatin1String("Too many args");
-        }
+    bool regexp = true;
+    QString pattern = args.value(QLatin1String("r")).toString();
+    if (pattern.isEmpty())
+        pattern = args.value(QLatin1String("regexp")).toString();
+    if (pattern.isEmpty()) {
+        pattern = args.value(QLatin1String("match")).toString();
+        regexp = false;
     }
     QStringList out;
     if (pattern.isEmpty()) {
@@ -168,16 +163,16 @@ QString Daemon::fileList(const QStringList &args)
     } else {
         out = matches(m_translationUnits, pattern);
     }
-    return out.join(QLatin1String("\n"));
+    return createResultMap(out.join(QLatin1String("\n")));
 }
 
 
-bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QString *result)
+bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QVariantMap *result)
 {
     FUNC2(fi, options);
     if (!fi.exists()) {
         if (result)
-            *result = QLatin1String("File doesn't exist");
+            result->insert(QLatin1String("result"), QLatin1String("File doesn't exist"));
         return false;
     }
     const QString absoluteFilePath = fi.absoluteFilePath();
@@ -194,30 +189,32 @@ bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QString *resul
         }
 #endif
         if (result)
-            *result = QLatin1String("Reparsed");
+            if (result)
+                result->insert(QLatin1String("result"), QLatin1String("Reparsed"));
     } else {
         addTranslationUnit(absoluteFilePath, options);
         if (result)
-            *result = QLatin1String("Added");
+            result->insert(QLatin1String("result"), QLatin1String("Added"));
     }
     return true;
 }
 
-QString Daemon::addSourceFile(const QStringList &args)
+QVariantMap Daemon::addSourceFile(const QVariantMap &args)
 {
     FUNC1(args);
-    if (args.isEmpty())
-        return QLatin1String("No file to add");
-    const QFileInfo finfo(args.first());
+
+    QString file = args.value("file").toString();
+    if (file.isEmpty())
+        return createResultMap(QLatin1String("No file to add (use --file=<file>)"));
+    const QFileInfo finfo(file);
     unsigned options = 0;
     for (int i = 1; i < args.size(); ++i) {
-        const QString curopt = args.at(i).toLower();
-        if (curopt == QLatin1String("incomplete"))
+        if (args.contains("incomplete"))
             options |= CXTranslationUnit_Incomplete;
-        else if (curopt == QLatin1String("cachecompletion"))
+        if (args.contains("cachecompletion"))
             options |= CXTranslationUnit_CacheCompletionResults;
     }
-    QString result;
+    QVariantMap result;
     addSourceFile(finfo, options, &result);
     return result;
 }
@@ -263,20 +260,22 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
     return true;
 }
 
-QString Daemon::addMakefile(const QString& path, const QStringList &args)
+QVariantMap Daemon::addMakefile(const QString& path, const QVariantMap &args)
 {
     FUNC2(path, args);
     if (path.isEmpty() || args.isEmpty())
-        return QLatin1String("No Makefile to add");
+        return createResultMap(QLatin1String("No Makefile to add"));
 
     QString cwd = QDir::currentPath();
     QDir::setCurrent(path);
 
-    QString filename = args.first();
+    QString filename = args.value(QLatin1String("file")).toString();
+    if (filename.isEmpty())
+        filename = QLatin1String("Makefile");
     QFileInfo finfo(filename);
     if (!finfo.exists()) {
         QDir::setCurrent(cwd);
-        return QLatin1String("Makefile does not exist") + filename;
+        return createResultMap(QLatin1String("Makefile does not exist") + filename);
     }
 
     QDir::setCurrent(finfo.absolutePath());
@@ -285,11 +284,11 @@ QString Daemon::addMakefile(const QString& path, const QStringList &args)
     proc.start(QLatin1String("make"), QStringList() << QLatin1String("-B") << QLatin1String("-n") << QLatin1String("-f") << finfo.fileName());
     if (!proc.waitForFinished(-1)) {
         QDir::setCurrent(cwd);
-        return QLatin1String("Unable to wait for make finish");
+        return createResultMap(QLatin1String("Unable to wait for make finish"));
     }
     if (proc.exitCode() != 0) {
         QDir::setCurrent(cwd);
-        return QLatin1String("Make returned error: " + proc.readAllStandardError());
+        return createResultMap(QLatin1String("Make returned error: " + proc.readAllStandardError()));
     }
 
     QString error;
@@ -308,43 +307,35 @@ QString Daemon::addMakefile(const QString& path, const QStringList &args)
 
     QDir::setCurrent(cwd);
 
-    if (!error.isEmpty())
-        return error;
-    return QString::fromLocal8Bit("Added %1 translation units").arg(m_translationUnits.size());
+    if (!error.isEmpty()) // ### createErrorMap()?
+        return createResultMap(error);
+    return createResultMap(QString::fromLocal8Bit("Added %1 translation units").arg(m_translationUnits.size()));
 }
 
-QString Daemon::removeSourceFile(const QStringList &args)
+QVariantMap Daemon::removeSourceFile(const QVariantMap &args)
 {
     FUNC1(args);
-    QString pattern;
-    bool regexp = false;
-    bool seenDashDash = false;
-    foreach(const QString &arg, args) {
-        if (!seenDashDash && arg.startsWith(QLatin1Char('-'))) {
-            if (arg == QLatin1String("--")) {
-                seenDashDash = true;
-                continue;
-            } else if (arg == QLatin1String("-r") || arg == QLatin1String("--regexp")) {
-                regexp = true;
-                continue;
-            }
-        }
-        if (!pattern.isEmpty())
-            qWarning("Invalid arguments to removeSourceFile");
-        pattern = arg;
+    bool regexp = true;
+    QString pattern = args.value(QLatin1String("r")).toString();
+    if (pattern.isEmpty())
+        pattern = args.value(QLatin1String("regexp")).toString();
+    if (pattern.isEmpty()) {
+        pattern = args.value(QLatin1String("file")).toString();
+        regexp = false;
     }
 
     // ### need to use regexp and match partial and all that good stuff. Maybe
     // ### make it use the same code path as fileList
     if (pattern.isEmpty())
-        return QLatin1String("No file to remove");
+        return createResultMap(QLatin1String("No file to remove (use --file=<filename>"));
     QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.find(pattern);
     if (it == m_translationUnits.end())
-        return QLatin1String("No matches for ") + pattern;
+        return createResultMap(QLatin1String("No matches for ") + pattern);
     clang_disposeTranslationUnit(it.value());
     m_fileSystemWatcher.removePath(it.key());
     m_translationUnits.erase(it);
-    return QLatin1String("Removed");
+
+    return createResultMap(QLatin1String("Removed"));
 }
 
 static bool isValidCursor(CXCursor cursor)
@@ -354,24 +345,23 @@ static bool isValidCursor(CXCursor cursor)
     return !clang_isInvalid(kind);
 }
 
-QString Daemon::lookupLine(const QStringList &args)
+QVariantMap Daemon::lookupLine(const QVariantMap &args)
 {
     FUNC1(args);
-    if (args.size() != 3)
-        return QLatin1String("Invalid argument count");
+    if (!args.contains(QLatin1String("line"))
+        || !args.contains(QLatin1String("line"))
+        || !args.contains(QLatin1String("column")))
+        return createResultMap(QLatin1String("Invalid argument count"));
 
-    bool ok;
+    QString filename = args.value(QLatin1String("file")).toString();
+    int line = args.value(QLatin1String("line")).toInt();
+    int column = args.value(QLatin1String("column")).toInt();
 
-    QString filename = args.at(0);
-    int line = args.at(1).toInt(&ok);
-    if (!ok)
-        return QLatin1String("Argument 2 is not an int");
-    int column = args.at(2).toInt(&ok);
-    if (!ok)
-        return QLatin1String("Argument 3 is not an int");
+    if (filename.isEmpty() || line == 0 || column == 0)
+        return createResultMap(QLatin1String("Invalid argument type"));
 
     if (!m_translationUnits.contains(filename))
-        return QLatin1String("Translation unit not found");
+        return createResultMap(QLatin1String("Translation unit not found"));
 
     CXTranslationUnit unit = m_translationUnits.value(filename);
     CXFile file = clang_getFile(unit, filename.toLocal8Bit().constData());
@@ -379,7 +369,7 @@ QString Daemon::lookupLine(const QStringList &args)
     CXSourceLocation location = clang_getLocation(unit, file, line, column);
     CXCursor cursor = clang_getCursor(unit, location);
     if (!isValidCursor(cursor))
-        return QLatin1String("Unable to get cursor for location");
+        return createResultMap(QLatin1String("Unable to get cursor for location"));
 
     CXCursorKind kind = clang_getCursorKind(cursor);
     CXCursor referenced;
@@ -388,7 +378,7 @@ QString Daemon::lookupLine(const QStringList &args)
     else
         referenced = clang_getCursorReferenced(cursor);
     if (!isValidCursor(referenced))
-        return QLatin1String("No referenced cursor");
+        return createResultMap(QLatin1String("No referenced cursor"));
 
     location = clang_getCursorLocation(referenced);
     unsigned int rline, rcolumn, roffset;
@@ -402,7 +392,7 @@ QString Daemon::lookupLine(const QStringList &args)
 
     clang_disposeString(rfilename);
 
-    return ret;
+    return createResultMap(ret);
 }
 
 struct UserData {
@@ -481,7 +471,7 @@ static CXChildVisitResult lookupSymbol(CXCursor cursor, CXCursor, CXClientData c
     return CXChildVisit_Recurse;
 }
 
-QString Daemon::lookup(const QString &name, LookupType type)
+QVariantMap Daemon::lookup(const QString &name, LookupType type)
 {
     FUNC2(name, type);
     UserData userData = { name, QStringList(), type, 0 };
@@ -494,36 +484,36 @@ QString Daemon::lookup(const QString &name, LookupType type)
         ++it;
     }
     // qDebug() << "FOOOOO" << noCollisions.elapsed() << userData.count;
-    return userData.results.join("\n");
+    return createResultMap(userData.results.join("\n"));
 }
 
-QString Daemon::loadAST(const QStringList &args)
+QVariantMap Daemon::loadAST(const QVariantMap &args)
 {
-    if (args.isEmpty())
-        return QLatin1String("No filename specified");
-    QString filename = args.first();
+    QString filename = args.value(QLatin1String("file")).toString();
+    if (filename.isEmpty())
+        return createResultMap(QLatin1String("No filename specified (use --file=<filename>)"));
     if (m_translationUnits.contains(filename))
-        return QLatin1String("File already loaded");
+        return createResultMap(QLatin1String("File already loaded"));
     QString prefix = QCoreApplication::applicationDirPath() + QLatin1String("/ast");
     QFileInfo finfo(prefix + filename);
     if (!finfo.exists())
-        return QLatin1String("AST file does not exist");
+        return createResultMap(QLatin1String("AST file does not exist"));
     CXTranslationUnit unit = clang_createTranslationUnit(m_index, finfo.absoluteFilePath().toLocal8Bit().constData());
     m_translationUnits[filename] = unit;
-    return QLatin1String("AST file loaded");
+    return createResultMap(QLatin1String("AST file loaded"));
 }
 
-QString Daemon::saveAST(const QStringList &args)
+QVariantMap Daemon::saveAST(const QVariantMap &args)
 {
-    if (args.isEmpty())
-        return QLatin1String("No filename specified");
-    QString filename = args.first();
+    QString filename = args.value(QLatin1String("file")).toString();
+    if (filename.isEmpty())
+        return createResultMap(QLatin1String("No filename specified (use --file=<filename>)"));
     QHash<QString, CXTranslationUnit>::const_iterator it = m_translationUnits.find(filename);
     if (it == m_translationUnits.end())
-        return QLatin1String("No translation unit for filename found");
+        return createResultMap(QLatin1String("No translation unit for filename found"));
     if (writeAST(it))
-        return QLatin1String("Saved");
-    return QLatin1String("Unable to save translation unit");
+        return createResultMap(QLatin1String("Saved"));
+    return createResultMap(QLatin1String("Unable to save translation unit"));
 }
 
 bool Daemon::writeAST(const QHash<QString, CXTranslationUnit>::const_iterator &it)

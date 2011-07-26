@@ -51,46 +51,47 @@ void Client::startDaemon(const QStringList &args)
 {
     FUNC1(args);
     const QString path = QDir::currentPath();
-    QProcess::startDetached(args.first(), QStringList() << QLatin1String("daemonize"), path);
+    QProcess::startDetached(args.first(), QStringList() << QLatin1String("--command=daemonize"), path);
 }
 
-QString Client::exec(const QStringList& a)
+QVariantMap Client::exec(const QVariantMap& a)
 {
     FUNC1(a);
     if (!connected())
-        return QString();
+        return QVariantMap();
 
-    QStringList args = a;
-    args.removeFirst();
-    args.prepend(QDir::currentPath());
+    QVariantMap args = a;
+    args.insert(QLatin1String("currentpath"), QDir::currentPath());
 #ifdef EBUS_ENABLED
     if (!EBus::writeToSocket(m_socket, args)) {
-        return QLatin1String("Couldn't write to socket");
+        QVariantMap ret;
+        ret.insert(QLatin1String("result"), QLatin1String("Couldn't write to socket"));
+        return ret;
     }
     QElapsedTimer timer;
     timer.start();
     qint16 size = -1;
     enum { SizeSize = sizeof(size) };
-    QEventLoop loop;
-    QString ret;
+    QVariantMap ret;
 
     do {
         if (!m_socket->bytesAvailable())
             m_socket->waitForReadyRead(1000);
-        if (EBus::readFromSocket(m_socket, ret, size) == EBus::Error) {
-            ret = "Read error " + m_socket->errorString();
-        }
+        if (EBus::readFromSocket(m_socket, ret, size) == EBus::Error)
+            ret.insert(QLatin1String("result"), "Read error " + m_socket->errorString());
     } while (ret.isEmpty());
     if (ret.isEmpty())
-        ret = "Timeout while waiting for response";
+        ret.insert(QLatin1String("result"), QLatin1String("Timeout while waiting for response"));
     return ret;
 #else
-    QDBusPendingReply<QString> reply = m_interface->runCommand(args);
+    QDBusPendingReply<QVariantMap> reply = m_interface->runCommand(args);
     reply.waitForFinished();
 
-    if (reply.isError())
-        return QDBusError::errorString(reply.error().type()) + QLatin1String(": ") + reply.error().message();
-    else
+    if (reply.isError()) {
+        QVariantMap ret;
+        ret.insert(QLatin1String("result"), QDBusError::errorString(reply.error().type()) + QLatin1String(": ") + reply.error().message());
+        return ret;
+    } else
         return reply.value();
 #endif
 }

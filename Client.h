@@ -19,7 +19,7 @@ public:
     bool connected() const;
     void startDaemon(const QStringList& args);
 
-    QString exec(const QStringList& args);
+    QVariantMap exec(const QVariantMap& args);
 private:
 #ifdef EBUS_ENABLED
     QTcpSocket *m_socket;
