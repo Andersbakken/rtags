@@ -155,6 +155,11 @@ int main(int argc, char** argv)
         Options::s_verbose = true;
     }
 
+    if (argsmap.contains("trace-function-calls")) {
+        argsmap.remove("trace-function-calls");
+        Options::s_traceFunctionCalls = true;
+    }
+
     if (argsmap.isEmpty())
         argsmap.insert(QLatin1String("command"), QLatin1String("syntax"));
 

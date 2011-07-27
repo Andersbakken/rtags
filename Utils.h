@@ -81,6 +81,7 @@ static inline ReadState readFromSocket(QAbstractSocket *dev, T &t, qint16 &size)
 class Options {
 public:
     static bool s_verbose;
+    static bool s_traceFunctionCalls;
 };
 #include <QElapsedTimer>
 class Timer : public QElapsedTimer
@@ -91,7 +92,7 @@ public:
         : m_func(func), m_args(args)
     {
         QMutexLocker lock(&s_mutex);
-        if (Options::s_verbose || override) {
+        if (Options::s_traceFunctionCalls || override) {
             qDebug("%s%s(%s) called (%s)",
                    indent().constData(), func, qPrintable(m_args),
                    qPrintable(QThread::currentThread()->objectName()));
@@ -104,7 +105,7 @@ public:
         QMutexLocker lock(&s_mutex);
         s_indent -= 2;
         const int e = elapsed();
-        if (Options::s_verbose) {
+        if (Options::s_traceFunctionCalls) {
             qDebug("%s%s(%s) returns (%d ms)",
                    indent().constData(), m_func, qPrintable(m_args), e);
         }

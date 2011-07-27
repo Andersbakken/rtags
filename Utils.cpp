@@ -6,6 +6,7 @@ int Timer::s_indent = 0;
 QMutex Timer::s_mutex;
 #endif
 bool Options::s_verbose = false;
+bool Options::s_traceFunctionCalls = false;
 
 const char *kindToString(int kind)
 {
