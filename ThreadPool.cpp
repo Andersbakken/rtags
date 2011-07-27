@@ -62,7 +62,7 @@ private:
 
 ThreadPool::ThreadPool()
     : mMutex(QMutex::NonRecursive), mShutdown(false), mWaiting(0), mActive(0),
-      mExited(0), mBacklogFirst(0), mBacklogLast(0)
+      mExited(0), mBacklogFirst(0), mBacklogLast(0), mBacklogSize(0)
 {
 }
 

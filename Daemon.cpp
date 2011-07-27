@@ -458,6 +458,20 @@ static inline QString cursorData(CXCursor cursor)
    return ret;
 }
 
+enum Type {
+    Declaration = 'd',
+    Definition = 'f',
+    Reference = 'r'
+};
+
+static void add(QByteArray &list, char *buf, const Location &location, Type type)
+{
+    if (location.exists()) {
+        const int count = snprintf(buf, 511, "%c \"%s:%d:%d\"\n", type, location.fileName.constData(),
+                                   location.line, location.column);
+        list += QByteArray::fromRawData(buf, count);
+    }
+}
 
 QVariantMap Daemon::lookup(const QVariantMap &args)
 {
@@ -465,11 +479,29 @@ QVariantMap Daemon::lookup(const QVariantMap &args)
     if (symbol.isEmpty()) 
         return createResultMap(QLatin1String("No symbol in lookup request"));
 
-    const QList<QByteArray> symbolTypes = args.value(QLatin1String("types")).toByteArray().split(',');
-    if (symbolTypes.isEmpty() || symbolTypes.contains("declaration")) {
-        
-    }
+
+    char buffer[512];
+    QByteArray results;
+    const QStringList symbolTypes = args.value(QLatin1String("types")).toString().
+        split(',', QString::SkipEmptyParts);
+    // ### uglehack
+
+    qDebug() << symbol << symbolTypes;
+    // qDebug() << symbol << args << symbolTypes << Database::symbolDeclarationSize()
+    //          << Database::symbolDefinitionSize() << Database::symbolReferencesSize();
     
+    if (symbolTypes.isEmpty() || symbolTypes.contains("declaration")) {
+        add(results, buffer, Database::lookupDeclaration(symbol), Declaration);
+    }
+    if (symbolTypes.isEmpty() || symbolTypes.contains("definition")) {
+        add(results, buffer, Database::lookupDefinition(symbol), Definition);
+    }
+    if (symbolTypes.isEmpty() || symbolTypes.contains("reference")) {
+        foreach(const Location &loc, Database::lookupReferences(symbol)) {
+            add(results, buffer, loc, Reference);
+        }
+    }
+    return createResultMap(results);
 }
 
 QVariantMap Daemon::loadAST(const QVariantMap &args)

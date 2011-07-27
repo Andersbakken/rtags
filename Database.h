@@ -20,6 +20,12 @@ struct Location {
         fileName = eatString(clang_getFileName(file));
         if (fileName.isEmpty()) { // This seems to happen
             line = column = 0 ;
+        } else {
+            char *resolved = realpath(fileName.constData(), 0);
+            if (resolved) {
+                fileName = resolved;
+                free(resolved);
+            }
         }
         Q_ASSERT(fileName.isEmpty() == (line == 0 && column == 0));
     }
