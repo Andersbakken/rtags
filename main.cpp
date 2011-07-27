@@ -146,12 +146,12 @@ int main(int argc, char** argv)
     QThread::currentThread()->setObjectName("main");
     ArgParser args(argc, argv);
     QVariantMap argsmap = args.arguments();
-    if (argsmap.contains("--verbose")) {
+    if (argsmap.contains("verbose")) {
         Options::s_verbose = true;
-        argsmap.remove("--verbose");
+        argsmap.remove("verbose");
     }
-    if (argsmap.contains("-v")) {
-        argsmap.remove("-v");
+    if (argsmap.contains("v")) {
+        argsmap.remove("v");
         Options::s_verbose = true;
     }
 
