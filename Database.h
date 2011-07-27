@@ -21,24 +21,14 @@ struct Location {
         if (fileName.isEmpty()) { // This seems to happen
             line = column = 0 ;
         } else {
-            char *resolved = realpath(fileName.constData(), 0);
-            if (resolved) {
-                fileName = resolved;
-                free(resolved);
-            }
+            resolvePath(fileName);
         }
         Q_ASSERT(fileName.isEmpty() == (line == 0 && column == 0));
     }
 
     bool exists() const
     {
-        bool ret = false;
-        if (!fileName.isEmpty()) {
-            // ### symlinks?
-            struct stat st;
-            ret = !stat(fileName.constData(), &st) && S_ISREG(st.st_mode);
-        }
-        return ret;
+        return fileExists(fileName);
     }
 
     QByteArray fileName;
@@ -61,6 +51,12 @@ class Database
 public:
     static void clear();
 
+    static void addFile(const QByteArray &file, const QList<QByteArray> &compilerOptions);
+    static bool removeFile(const QByteArray &file);
+    static QList<QByteArray> compilerOptions(const QByteArray &absoluteFilePath);
+    static QList<QByteArray> takeCompilerOptions(const QByteArray &absoluteFilePath);
+
+    static void removeReferences(const QByteArray &absoluteFilePath);
     static void setSymbolDeclaration(const QByteArray &symbolName, const Location &location);
     static bool clearSymbolDeclaration(const QByteArray &symbolName);
     static Location lookupDeclaration(const QByteArray &symbolName);

@@ -5,7 +5,6 @@
 #include <QString>
 #include <QStringList>
 #include <QHash>
-#include <QFileInfo>
 #include <QFileSystemWatcher>
 #include <QVariantMap>
 #include <clang-c/Index.h>
@@ -38,8 +37,8 @@ private:
     QVariantMap loadAST(const QVariantMap& args);
     QVariantMap saveAST(const QVariantMap& args);
     bool writeAST(const QHash<QString, CXTranslationUnit>::const_iterator &it);
-    bool addSourceFile(const QFileInfo& fi, unsigned options =
-                       CXTranslationUnit_CacheCompletionResults,
+    bool addSourceFile(const QByteArray& absoluteFilePath,
+                       unsigned options = CXTranslationUnit_CacheCompletionResults,
                        QVariantMap* result = 0);
     bool addMakefileLine(const QList<QByteArray>& line);
     QVariantMap fileList(const QVariantMap &args);

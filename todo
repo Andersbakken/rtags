@@ -6,3 +6,4 @@ write elisp bindings
 Make database more persistent (e.g. know if a file has changed)
 Use AST file caching
 Make Database api more friendly
+Don't use filesystemwatcher

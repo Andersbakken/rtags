@@ -6,6 +6,7 @@
 
 static QHash<QByteArray, Location> s_definitions, s_declarations;
 static QHash<QByteArray, QList<Location> > s_references;
+static QHash<QByteArray, QList<QByteArray> > s_files;
 
 static inline bool isValid(const Location &location)
 {
@@ -30,6 +31,27 @@ void Database::clear()
     s_definitions.clear();
     s_declarations.clear();
     s_references.clear();
+    s_files.clear();
+}
+
+void Database::addFile(const QByteArray &file, const QList<QByteArray> &compilerOptions)
+{
+    s_files[file] = compilerOptions;
+}
+
+bool Database::removeFile(const QByteArray &file)
+{
+    return s_files.remove(file);
+}
+
+QList<QByteArray> Database::compilerOptions(const QByteArray &absoluteFilePath)
+{
+    return s_files.value(absoluteFilePath);
+}
+
+QList<QByteArray> Database::takeCompilerOptions(const QByteArray &absoluteFilePath)
+{
+    return s_files.take(absoluteFilePath);
 }
 
 void Database::setSymbolDeclaration(const QByteArray &symbolName, const Location &location)
@@ -103,4 +125,9 @@ int Database::clearSymbolReferences(const QByteArray &symbolName)
 int Database::symbolReferencesSize()
 {
     return s_references.size();
+}
+
+void Database::removeReferences(const QByteArray &absoluteFilePath)
+{
+#warning needs to be done
 }

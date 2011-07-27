@@ -8,6 +8,12 @@
 #include "ClangJob.h"
 #include "Database.h"
 
+const QByteArray dirName(const QByteArray &filePath)
+{
+    Q_ASSERT(!filePath.endsWith('/'));
+    return filePath.left(filePath.lastIndexOf('/'));
+}
+
 static QVariantMap createResultMap(const QString& result)
 {
     QVariantMap ret;
@@ -33,10 +39,10 @@ static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
     unsigned int line, column, offset;
     CXFile file;
     clang_getInstantiationLocation(location, &file, &line, &column, &offset);
-    const QByteArray fileName = eatString(clang_getFileName(file));
-    QFileInfo fi(fileName);
-    if (fi.exists()) {
-        text += QString(", %1:%2:%3").arg(fi.absoluteFilePath()).arg(line).arg(column);
+    QByteArray fileName = eatString(clang_getFileName(file));
+    resolvePath(fileName);
+    if (fileExists(fileName)) {
+        text += QString(", %1:%2:%3").arg(QString::fromLocal8Bit(fileName)).arg(line).arg(column);
     }
     text += ")";
     dbg << text;
@@ -102,13 +108,13 @@ static QVariantMap syntax()
                                          "commands: syntax|quit|add|remove|lookupline|makefile|daemonize|files|lookup\n"));
 }
 
-void Daemon::onFileChanged(const QString &path)
+void Daemon::onFileChanged(const QString &p)
 {
-    FUNC1(path);
-    const QFileInfo fi(path);
-    if (fi.exists()) {
-        qWarning("Not reparsing since it seems to crash");
-        // addSourceFile(fi);
+    FUNC1(p);
+    QByteArray path = p.toLocal8Bit();
+    resolvePath(path);
+    if (fileExists(path)) {
+        addSourceFile(path);
     } else {
         QVariantMap args;
         args.insert(QLatin1String("file"), path);
@@ -190,32 +196,23 @@ QVariantMap Daemon::fileList(const QVariantMap &args)
     return createResultMap(out.join(QLatin1String("\n")));
 }
 
-bool Daemon::addSourceFile(const QFileInfo &fi, unsigned options, QVariantMap *result)
+bool Daemon::addSourceFile(const QByteArray &absoluteFilePath, unsigned options, QVariantMap *result)
 {
-    FUNC2(fi, options);
-    if (!fi.exists()) {
+    FUNC2(absoluteFilePath, options);
+    if (!fileExists(absoluteFilePath)) {
         if (result)
             result->insert(QLatin1String("result"), QLatin1String("File doesn't exist"));
         return false;
     }
-    const QString absoluteFilePath = fi.absoluteFilePath();
-    CXTranslationUnit unit = m_translationUnits.value(absoluteFilePath);
+    CXTranslationUnit unit = m_translationUnits.take(absoluteFilePath);
+    QList<QByteArray> compilerOptions;
     if (unit) {
-        ClangJob *job = new ClangJob(unit, absoluteFilePath);
-        // reparsed signal somehow?
-#ifdef USE_THREAD
-        m_threadPool.post(job);
-#else
-        job->execute();
-        delete job;
-#endif
-        if (result)
-            result->insert(QLatin1String("result"), QLatin1String("Reparsed"));
-    } else {
-        addTranslationUnit(absoluteFilePath, options);
-        if (result)
-            result->insert(QLatin1String("result"), QLatin1String("Added"));
+        clang_disposeTranslationUnit(unit);
+        compilerOptions = Database::takeCompilerOptions(absoluteFilePath);
     }
+    addTranslationUnit(absoluteFilePath, options, compilerOptions);
+    if (result)
+        result->insert(QLatin1String("result"), QLatin1String("Added"));
     return true;
 }
 
@@ -223,10 +220,12 @@ QVariantMap Daemon::addSourceFile(const QVariantMap &args)
 {
     FUNC1(args);
 
-    QString file = args.value("file").toString();
+    QByteArray file = args.value("file").toByteArray();
     if (file.isEmpty())
         return createResultMap(QLatin1String("No file to add (use --file=<file>)"));
-    const QFileInfo finfo(file);
+    resolvePath(file);
+    if (!fileExists(file))
+        return createResultMap(file + QLatin1String(" Doesn't exist"));
     unsigned options = 0;
     for (int i = 1; i < args.size(); ++i) {
         if (args.contains("incomplete"))
@@ -235,7 +234,7 @@ QVariantMap Daemon::addSourceFile(const QVariantMap &args)
             options |= CXTranslationUnit_CacheCompletionResults;
     }
     QVariantMap result;
-    addSourceFile(finfo, options, &result);
+    addSourceFile(file, options, &result);
     return result;
 }
 
@@ -259,14 +258,13 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
 
     const QList<QByteArray> options = args.arguments("-I") + args.arguments("-D");
 
-    foreach(const QByteArray& filename, args.input()) {
-        const QFileInfo fi(QString::fromLocal8Bit(filename));
-        if (!fi.exists()) {
+    foreach(QByteArray filename, args.input()) {
+        resolvePath(filename);
+        if (!fileExists(filename)) {
             qWarning("%s doesn't exist", filename.constData());
             return false;
         }
-        const QString absoluteFilePath = fi.absoluteFilePath();
-        QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.find(absoluteFilePath);
+        QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.find(filename);
         if (it != m_translationUnits.end()) {
             // ### need to check if it was parsed with the same flags, and if so reparse
             clang_disposeTranslationUnit(it.value());
@@ -278,7 +276,7 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
                                        |CXTranslationUnit_CXXChainedPCH);
 
         // qDebug() << "parsing" << absoluteFilePath << defines << includes;
-        addTranslationUnit(absoluteFilePath,
+        addTranslationUnit(filename,
                            defaultFlags,
                            options);
         // printf("Done %s\n", qPrintable(absoluteFilePath));
@@ -296,19 +294,25 @@ QVariantMap Daemon::addMakefile(const QString& path, const QVariantMap &args)
     QString cwd = QDir::currentPath();
     QDir::setCurrent(path);
 
-    QString filename = args.value(QLatin1String("file")).toString();
+    QByteArray filename = args.value(QLatin1String("file")).toByteArray();
     if (filename.isEmpty())
-        filename = QLatin1String("Makefile");
-    QFileInfo finfo(filename);
-    if (!finfo.exists()) {
+        filename = "Makefile";
+    resolvePath(filename);
+    if (!fileExists(filename)) {
         QDir::setCurrent(cwd);
         return createResultMap(QLatin1String("Makefile does not exist") + filename);
     }
 
-    QDir::setCurrent(finfo.absolutePath());
-
+    const QByteArray dirname = dirName(filename);
+    QDir::setCurrent(dirname);
+    const char *basename = filename.constData() + dirname.size() + 1;
     QProcess proc;
-    proc.start(QLatin1String("make"), QStringList() << QLatin1String("-B") << QLatin1String("-n") << QLatin1String("-f") << finfo.fileName());
+    proc.start(QLatin1String("make"),
+               QStringList()
+               << QLatin1String("-B")
+               << QLatin1String("-n")
+               << QLatin1String("-f")
+               << QLatin1String(basename));
     if (!proc.waitForFinished(-1)) {
         QDir::setCurrent(cwd);
         return createResultMap(QLatin1String("Unable to wait for make finish"));

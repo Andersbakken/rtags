@@ -12,6 +12,27 @@ static inline QByteArray eatString(CXString string)
     return ret;
 }
 
+static inline bool resolvePath(QByteArray &fileName)
+{
+    char *resolved = realpath(fileName.constData(), 0);
+    if (resolved) {
+        fileName = resolved;
+        free(resolved);
+        return true;
+    }
+    return false;
+}
+
+static inline bool fileExists(const QByteArray &fileName)
+{
+    if (!fileName.isEmpty()) {
+        // ### symlinks?
+        struct stat st;
+        return !stat(fileName.constData(), &st) && S_ISREG(st.st_mode);
+    }
+    return false;
+}
+
 #ifdef EBUS_ENABLED
 #include <QtNetwork>
 namespace EBus {
