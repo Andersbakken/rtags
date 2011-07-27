@@ -320,9 +320,23 @@ QVariantMap Daemon::addMakefile(const QString& path, const QVariantMap &args)
 
     QString error;
     QList<QByteArray> makeData = proc.readAllStandardOutput().split('\n');
+    QRegExp accept(args.value("accept").toString());
+    QRegExp reject(args.value("reject").toString());
     foreach(const QByteArray& makeLine, makeData) {
-        if (makeLine.isEmpty())
+        if (makeLine.isEmpty()) {
             continue;
+        }
+        if (reject.isValid() && !reject.isEmpty() && QString::fromLocal8Bit(makeLine).contains(reject)) {
+            if (Options::s_verbose) 
+                qDebug() << "rejecting" << makeLine << reject.pattern();
+            continue;
+        }
+        if (accept.isValid() && !accept.isEmpty() && !QString::fromLocal8Bit(makeLine).contains(accept)) {
+            if (Options::s_verbose) 
+                qDebug() << "not accepting" << makeLine << accept.pattern();
+            continue;
+        }
+        
         // ### this should be improved with quote support
         QList<QByteArray> lineOpts = makeLine.split(' ');
         const QByteArray& first = lineOpts.first();
