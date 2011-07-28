@@ -33,8 +33,8 @@ class DaemonAdaptor: public QDBusAbstractAdaptor
 "    <method name=\"runCommand\">\n"
 "      <arg direction=\"out\" type=\"a{sv}\"/>\n"
 "      <arg direction=\"in\" type=\"a{sv}\" name=\"args\"/>\n"
-"      <annotation value=\"QVariantMap\" name=\"com.trolltech.QtDBus.QtTypeName.Out0\"/>\n"
-"      <annotation value=\"QVariantMap\" name=\"com.trolltech.QtDBus.QtTypeName.In0\"/>\n"
+"      <annotation value=\"QHash<QByteArray, QVariant>\" name=\"com.trolltech.QtDBus.QtTypeName.Out0\"/>\n"
+"      <annotation value=\"QHash<QByteArray, QVariant>\" name=\"com.trolltech.QtDBus.QtTypeName.In0\"/>\n"
 "    </method>\n"
 "  </interface>\n"
         "")
@@ -44,7 +44,7 @@ public:
 
 public: // PROPERTIES
 public Q_SLOTS: // METHODS
-    QVariantMap runCommand(const QVariantMap &args);
+    QHash<QByteArray, QVariant> runCommand(const QHash<QByteArray, QVariant> &args);
 Q_SIGNALS: // SIGNALS
 };
 

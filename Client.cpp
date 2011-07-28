@@ -54,42 +54,42 @@ void Client::startDaemon(const QStringList &args)
     QProcess::startDetached(args.first(), QStringList() << QLatin1String("--command=daemonize"), path);
 }
 
-QVariantMap Client::exec(const QVariantMap& a)
+QHash<QByteArray, QVariant> Client::exec(const QHash<QByteArray, QVariant>& a)
 {
     FUNC1(a);
     if (!connected())
-        return QVariantMap();
+        return QHash<QByteArray, QVariant>();
 
-    QVariantMap args = a;
-    args.insert(QLatin1String("currentpath"), QDir::currentPath());
+    QHash<QByteArray, QVariant> args = a;
+    args.insert("currentpath", QDir::currentPath());
 #ifdef EBUS_ENABLED
     if (!EBus::writeToSocket(m_socket, args)) {
-        QVariantMap ret;
-        ret.insert(QLatin1String("result"), QLatin1String("Couldn't write to socket"));
+        QHash<QByteArray, QVariant> ret;
+        ret.insert("result", "Couldn't write to socket");
         return ret;
     }
     QElapsedTimer timer;
     timer.start();
     qint16 size = -1;
     enum { SizeSize = sizeof(size) };
-    QVariantMap ret;
+    QHash<QByteArray, QVariant> ret;
 
     do {
         if (!m_socket->bytesAvailable())
             m_socket->waitForReadyRead(1000);
         if (EBus::readFromSocket(m_socket, ret, size) == EBus::Error)
-            ret.insert(QLatin1String("result"), "Read error " + m_socket->errorString());
+            ret.insert("result", "Read error " + m_socket->errorString());
     } while (ret.isEmpty());
     if (ret.isEmpty())
-        ret.insert(QLatin1String("result"), QLatin1String("Timeout while waiting for response"));
+        ret.insert("result", "Timeout while waiting for response");
     return ret;
 #else
-    QDBusPendingReply<QVariantMap> reply = m_interface->runCommand(args);
+    QDBusPendingReply<QHash<QByteArray, QVariant>> reply = m_interface->runCommand(args);
     reply.waitForFinished();
 
     if (reply.isError()) {
-        QVariantMap ret;
-        ret.insert(QLatin1String("result"), QDBusError::errorString(reply.error().type()) + QLatin1String(": ") + reply.error().message());
+        QHash<QByteArray, QVariant> ret;
+        ret.insert("result", QDBusError::errorString(reply.error().type()) + ": " + reply.error().message());
         return ret;
     } else
         return reply.value();

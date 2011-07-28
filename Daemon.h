@@ -6,7 +6,6 @@
 #include <QStringList>
 #include <QHash>
 #include <QFileSystemWatcher>
-#include <QVariantMap>
 #include <clang-c/Index.h>
 #include "ThreadPool.h"
 #ifdef EBUS_ENABLED
@@ -21,7 +20,7 @@ public:
     ~Daemon();
 
     bool start();
-    Q_INVOKABLE QVariantMap runCommand(const QVariantMap& args);
+    Q_INVOKABLE QHash<QByteArray, QVariant> runCommand(const QHash<QByteArray, QVariant>& args);
 
 private slots:
     void onFileChanged(const QString &path);
@@ -29,19 +28,19 @@ private slots:
     void onFileParsed(const QByteArray &absoluteFilePath, void *unit);
 private:
     // ### need to add a function for code completion
-    QVariantMap lookup(const QVariantMap& args);
-    QVariantMap lookupLine(const QVariantMap& args);
-    QVariantMap addMakefile(const QByteArray& path, const QVariantMap& args);
-    QVariantMap addSourceFile(const QVariantMap& args);
-    QVariantMap removeSourceFile(const QVariantMap& args);
-    QVariantMap loadAST(const QVariantMap& args);
-    QVariantMap saveAST(const QVariantMap& args);
+    QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args);
+    QHash<QByteArray, QVariant> lookupLine(const QHash<QByteArray, QVariant>& args);
+    QHash<QByteArray, QVariant> addMakefile(const QByteArray& path, const QHash<QByteArray, QVariant>& args);
+    QHash<QByteArray, QVariant> addSourceFile(const QHash<QByteArray, QVariant>& args);
+    QHash<QByteArray, QVariant> removeSourceFile(const QHash<QByteArray, QVariant>& args);
+    QHash<QByteArray, QVariant> loadAST(const QHash<QByteArray, QVariant>& args);
+    QHash<QByteArray, QVariant> saveAST(const QHash<QByteArray, QVariant>& args);
     bool writeAST(const QHash<QByteArray, CXTranslationUnit>::const_iterator &it);
     bool addSourceFile(const QByteArray& absoluteFilePath,
                        unsigned options = CXTranslationUnit_CacheCompletionResults,
-                       QVariantMap* result = 0);
+                       QHash<QByteArray, QVariant>* result = 0);
     bool addMakefileLine(const QList<QByteArray>& line);
-    QVariantMap fileList(const QVariantMap &args);
+    QHash<QByteArray, QVariant> fileList(const QHash<QByteArray, QVariant> &args);
     void addTranslationUnit(const QByteArray &absoluteFilePath,
                             unsigned options = 0,
                             const QList<QByteArray> &compilerOptions = QList<QByteArray>());

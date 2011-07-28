@@ -37,7 +37,7 @@ void Daemon::read(QTcpSocket *socket)
     FUNC1(socket);
     Q_ASSERT(socket);
     Q_ASSERT(m_connections.contains(socket));
-    QVariantMap arguments;
+    QHash<QByteArray, QVariant> arguments;
     qint16 &size = m_connections[socket];
     switch (EBus::readFromSocket(socket, arguments, size)) {
     case EBus::Error:

@@ -57,15 +57,15 @@ public:
 
     bool isValid() const;
 
-    QVariantMap arguments() const;
+    QHash<QByteArray, QVariant> arguments() const;
 
 private:
     bool parse(int argc, char** argv);
-    void addValue(const QString& key, const QString& value);
+    void addValue(const QByteArray& key, const QByteArray& value);
 
 private:
     bool m_valid;
-    QVariantMap m_args;
+    QHash<QByteArray, QVariant> m_args;
 };
 
 ArgParser::ArgParser(int argc, char **argv)
@@ -78,12 +78,12 @@ bool ArgParser::isValid() const
     return m_valid;
 }
 
-QVariantMap ArgParser::arguments() const
+QHash<QByteArray, QVariant> ArgParser::arguments() const
 {
     return m_args;
 }
 
-void ArgParser::addValue(const QString &key, const QString &value)
+void ArgParser::addValue(const QByteArray &key, const QByteArray &value)
 {
     bool ok;
     int intvalue = value.toInt(&ok);
@@ -96,6 +96,7 @@ void ArgParser::addValue(const QString &key, const QString &value)
         m_args[key] = doublevalue;
         return;
     }
+
     m_args[key] = value;
 }
 
@@ -103,15 +104,15 @@ bool ArgParser::parse(int argc, char **argv)
 {
     m_args.clear();
 
-    QString current;
+    QByteArray current;
     const char** end = const_cast<const char**>(argv + argc);
     for (; argv != end; ++argv) {
-        current = QLatin1String(*argv);
-        if (current.startsWith(QLatin1Char('-'))) {
-            const int eqpos = current.indexOf(QLatin1Char('='));
+        current = *argv;
+        if (current.startsWith('-')) {
+            const int eqpos = current.indexOf('=');
             if (eqpos == -1) { // add argument and take the next if it doesn't start with a '-'
                 ++argv;
-                while (!current.isEmpty() && current.at(0) == QLatin1Char('-'))
+                while (!current.isEmpty() && current.at(0) == '-')
                     current = current.mid(1);
                 if (current.isEmpty())
                     return false;
@@ -119,17 +120,18 @@ bool ArgParser::parse(int argc, char **argv)
                     m_args[current] = QVariant();
                     return true;
                 }
-                QString value = QLatin1String(*argv);
-                if (value.startsWith(QLatin1Char('-'))) {
+                QByteArray value = *argv;
+                if (value.startsWith('-')) {
                     // next argument is an option as well, don't take it
                     --argv;
                     m_args[current] = QVariant();
-                } else
+                } else {
                     addValue(current, value);
+                }
             } else { // use everything past '='
-                QString value = current.mid(eqpos + 1);
+                QByteArray value = current.mid(eqpos + 1);
                 current = current.left(eqpos);
-                while (!current.isEmpty() && current.at(0) == QLatin1Char('-'))
+                while (!current.isEmpty() && current.at(0) == '-')
                     current = current.mid(1);
                 if (value.isEmpty() || current.isEmpty())
                     return false;
@@ -143,10 +145,32 @@ bool ArgParser::parse(int argc, char **argv)
 
 int main(int argc, char** argv)
 {
+    // QByteArray path = "/Users/abakken/dev";
+    // resolvePath(path);
+    // qDebug() << path;
+    // path = "/Users/abakken/.bashrc";
+    // resolvePath(path);
+    // qDebug() << path;
+    // path = "./Makefile";
+    // resolvePath(path);
+    // qDebug() << path;
+    // path = "Makefile";
+    // resolvePath(path);
+    // qDebug() << path;
+    // path = "../../.bashrc";
+    // qDebug() << resolvePath(path);
+    // qDebug() << path;
+    // path = "../../.bashrc2";
+    // qDebug() << resolvePath(path);
+    // qDebug() << path;
+    // qDebug() << resolvePath(path);
+    // qDebug() << path;
+    // return 0;
+
     QCoreApplication app(argc, argv);
     QThread::currentThread()->setObjectName("main");
     ArgParser args(argc, argv);
-    QVariantMap argsmap = args.arguments();
+    QHash<QByteArray, QVariant> argsmap = args.arguments();
     if (argsmap.contains("verbose")) {
         Options::s_verbose = true;
         argsmap.remove("verbose");
@@ -162,9 +186,9 @@ int main(int argc, char** argv)
     }
 
     if (argsmap.isEmpty())
-        argsmap.insert(QLatin1String("command"), QLatin1String("syntax"));
+        argsmap.insert("command", "syntax");
 
-    QString cmd = argsmap.value(QLatin1String("command")).toString();
+    QByteArray cmd = argsmap.value("command").toByteArray();
     FUNC;
     QCoreApplication::setOrganizationDomain("www.rtags.com");
     QCoreApplication::setOrganizationName("RTags");
@@ -173,7 +197,7 @@ int main(int argc, char** argv)
     if (Options::s_verbose)
         qDebug() << argsmap;
 
-    if (cmd == QLatin1String("daemonize")) {
+    if (cmd == "daemonize") {
         Daemon daemon;
         qInstallMsgHandler(syslogMsgHandler);
         if (daemon.start())
@@ -183,7 +207,7 @@ int main(int argc, char** argv)
     } else {
         Client client;
         if (!client.connect()) {
-            if (cmd == QLatin1String("quit"))
+            if (cmd == "quit")
                 return 0;
             client.startDaemon(app.arguments());
             for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {
@@ -195,8 +219,8 @@ int main(int argc, char** argv)
         }
         for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {
             if (client.connected()) {
-                QVariantMap replymap = client.exec(argsmap);
-                QString reply = replymap.value(QLatin1String("result")).toString();
+                QHash<QByteArray, QVariant> replymap = client.exec(argsmap);
+                QString reply = replymap.value("result").toString();
                 if (!reply.isEmpty())
                     printf("%s\n", qPrintable(reply));
                 return 0;

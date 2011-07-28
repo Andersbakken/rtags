@@ -36,7 +36,7 @@ public:
     ~DaemonInterface();
 
 public Q_SLOTS: // METHODS
-    inline QDBusPendingReply<QVariantMap> runCommand(const QVariantMap &args)
+    inline QDBusPendingReply<QHash<QByteArray, QVariant>> runCommand(const QHash<QByteArray, QVariant> &args)
     {
         QList<QVariant> argumentList;
         argumentList << qVariantFromValue(args);
