@@ -46,10 +46,14 @@ public:
                 args[i] = m_compilerOptions.at(i).constData();
             }
 
+            QElapsedTimer timer;
+            qDebug() << "parsing file" << m_absoluteFilePath;
+            timer.start();
             CXTranslationUnit unit = clang_parseTranslationUnit(m_index,
                                                                 m_absoluteFilePath.constData(),
                                                                 args.constData(), size, 0, 0,
                                                                 m_options);
+            qDebug() << "done parsing file" << m_absoluteFilePath << timer.elapsed();
             if (!unit) {
                 emit error(m_absoluteFilePath);
             } else {

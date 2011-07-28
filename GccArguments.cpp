@@ -1,6 +1,7 @@
 #include "GccArguments.h"
 #include "gccopts_gperf.cpp"
 #include <QDebug>
+#include "Utils.h"
 
 GccArguments::Data::Data()
     : output(-1), x(-1), c(-1), language(LangUndefined)
@@ -65,10 +66,23 @@ GccArguments::GccArguments()
 {
 }
 
-bool GccArguments::parse(const QList<QByteArray>& args)
+bool GccArguments::parse(const QByteArray& raw, const QByteArray &dirPath)
 {
-    const int argc = args.size();
     Data* data = m_ptr.data();
+    data->dirPath = dirPath;
+    if (!resolvePath(m_ptr->dirPath)) {
+        data->error = QString("Can't resolve makefile dirpath %1").arg(QString::fromLocal8Bit(dirPath));
+        return false;
+    }
+    data->raw = raw;
+    const QList<QByteArray> args = raw.split(' ');
+    Q_ASSERT(!args.isEmpty());
+    const QByteArray &first = args.first();
+    if (!first.contains("gcc") && first.contains("g++") && first.contains("c++")) {
+        return false; // not a compile line at all, just return without a warning
+    }
+    
+    const int argc = args.size();
 
     data->args.clear();
     data->input.clear();
@@ -89,8 +103,8 @@ bool GccArguments::parse(const QList<QByteArray>& args)
                         data->output = argpos;
                     } else {
                         data->error = QString("Multiple output arguments found ('%1' and '%2')")
-                                  .arg(QString::fromLocal8Bit(data->args.at(data->output).value.constData()))
-                                  .arg(args.at(i + 1).constData());
+                            .arg(QString::fromLocal8Bit(data->args.at(data->output).value.constData()))
+                            .arg(args.at(i + 1).constData());
                         return false;
                     }
                 } else if (a == "-x") {
@@ -98,8 +112,8 @@ bool GccArguments::parse(const QList<QByteArray>& args)
                         data->x = argpos;
                     else {
                         data->error = QString("Multiple language arguments found ('%1' and '%2')")
-                                  .arg(QString::fromLocal8Bit(data->args.at(data->x).value.constData()))
-                                  .arg(args.at(i + 1).constData());
+                            .arg(QString::fromLocal8Bit(data->args.at(data->x).value.constData()))
+                            .arg(args.at(i + 1).constData());
                         return false;
                     }
                 }
@@ -121,6 +135,16 @@ bool GccArguments::parse(const QList<QByteArray>& args)
 QString GccArguments::errorString() const
 {
     return m_ptr->error;
+}
+
+QByteArray GccArguments::raw() const
+{
+    return m_ptr->raw;
+}
+
+QByteArray GccArguments::dirPath() const
+{
+    return m_ptr->dirPath;
 }
 
 QList<QByteArray> GccArguments::arguments() const
@@ -276,4 +300,22 @@ QDataStream& operator>>(QDataStream& stream, GccArguments& args)
     }
 
     return stream;
+}
+QList<QByteArray> GccArguments::includePaths() const
+{
+    QList<QByteArray> includePaths = arguments("-I");
+    const int size = includePaths.size();
+    for (int i=0; i<size; ++i) {
+        QByteArray &arg = includePaths[i];
+#ifndef Q_OS_UNIX
+        Q_ASSERT(0 && "This stuff isn't ported to non-unix platforms");
+#endif
+        if (arg.size() >= 3 && arg.at(2) == '/') { // absolute path already
+            continue;
+        }
+        arg.replace(0, 2, m_ptr->dirPath + '/');
+        resolvePath(arg);
+        arg.insert(0, "-I");
+    }
+    return includePaths;
 }

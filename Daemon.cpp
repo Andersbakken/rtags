@@ -127,8 +127,7 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
     FUNC1(args);
 
     QString cmd = args.value("command").toString();
-    QByteArray path = args.value("currentpath").toByteArray();
-    if (path.isEmpty() || cmd.isEmpty())
+    if (cmd.isEmpty())
         return createResultMap("No command or path specified");
 
     if (cmd == "syntax") {
@@ -144,7 +143,7 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
     } else if (cmd == "lookupline") {
         return lookupLine(args);
     } else if (cmd == "makefile") {
-        return addMakefile(path, args);
+        return addMakefile(args);
     } else if (cmd == "files") {
         return fileList(args);
     } else if (cmd == "lookup") {
@@ -256,31 +255,28 @@ QHash<QByteArray, QVariant> Daemon::addSourceFile(const QHash<QByteArray, QVaria
     return result;
 }
 
-bool Daemon::addMakefileLine(const QList<QByteArray> &line)
+void Daemon::addMakefileLine(const QByteArray &makeLine, const QByteArray &dirpath)
 {
-    FUNC1(line);
+#ifdef Q_OS_UNIX
+    Q_ASSERT(dirpath.startsWith('/')); // this path should be absolute and verifie
+#endif
+    // qDebug() << "adding makefile line" << makeLine;
+    FUNC1(makeLine);
+    // ### this should be improved with quote support
+    // ### move this code into GccArguments
     GccArguments args;
-    if (!args.parse(line) || !args.hasInput()) {
-        QByteArray joined;
-        foreach(const QByteArray &l, line) {
-            joined += l + ' ';
-        }
-        joined.chop(1);
-        qWarning("Can't parse line %s [%s]", joined.constData(), qPrintable(args.errorString()));
-        return false;
+    if (!args.parse(makeLine, dirpath) || !args.hasInput() || !args.isCompile()) {
+        if (!args.errorString().isEmpty())
+            qWarning("Can't parse line %s (%s)", makeLine.constData(), qPrintable(args.errorString()));
+        return;
     }
 
-    if (!args.isCompile()) { // Just accept link lines without doing anything
-        return true;
-    }
-
-    const QList<QByteArray> options = args.arguments("-I") + args.arguments("-D");
+    const QList<QByteArray> options = args.includePaths() + args.arguments("-D");
 
     foreach(QByteArray filename, args.input()) {
-        resolvePath(filename);
-        if (!fileExists(filename)) {
+        if (!resolvePath(filename)) {
             qWarning("%s doesn't exist", filename.constData());
-            return false;
+            return;
         }
         QHash<QByteArray, CXTranslationUnit>::iterator it = m_translationUnits.find(filename);
         if (it != m_translationUnits.end()) {
@@ -299,26 +295,18 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
                            options);
         // printf("Done %s\n", qPrintable(absoluteFilePath));
     }
-
-    return true;
 }
 
-QHash<QByteArray, QVariant> Daemon::addMakefile(const QByteArray& path, const QHash<QByteArray, QVariant> &args)
+QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant> &args)
 {
-    FUNC2(path, args);
-    if (path.isEmpty() || args.isEmpty())
+    FUNC1(args);
+    if (args.isEmpty())
         return createResultMap("No Makefile to add");
-
-    QString cwd = QDir::currentPath();
-    QDir::setCurrent(path);
-    qDebug() << "setCurrent" << path << __LINE__;
 
     QByteArray filename = args.value("file").toByteArray();
     if (filename.isEmpty())
         filename = "Makefile";
-    resolvePath(filename);
-    if (!fileExists(filename)) {
-        qDebug() << "setCurrent" << cwd << __LINE__;
+    if (!resolvePath(filename)) {
         return createResultMap("Makefile does not exist " + filename);
     }
 
@@ -334,13 +322,9 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QByteArray& path, const QH
                << QLatin1String("-f")
                << QLatin1String(basename));
     if (!proc.waitForFinished(-1)) {
-        QDir::setCurrent(cwd);
-        qDebug() << "setCurrent" << cwd << __LINE__;
         return createResultMap("Unable to wait for make finish");
     }
     if (proc.exitCode() != 0) {
-        QDir::setCurrent(cwd);
-        qDebug() << "setCurrent" << cwd << __LINE__;
         return createResultMap("Make returned error: " + proc.readAllStandardError());
     }
 
@@ -362,18 +346,9 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QByteArray& path, const QH
                 qDebug() << "not accepting" << makeLine << accept.pattern();
             continue;
         }
-        
-        // ### this should be improved with quote support
-        QList<QByteArray> lineOpts = makeLine.split(' ');
-        const QByteArray& first = lineOpts.first();
-        if ((first.contains("gcc") || first.contains("g++") || first.contains("c++"))
-            && !addMakefileLine(lineOpts)) {
-            error += "Unable to add " + makeLine + "\n";
-        }
-    }
 
-    QDir::setCurrent(cwd);
-    qDebug() << "setCurrent" << cwd << __LINE__;
+        addMakefileLine(makeLine, dirname);
+    }
 
     if (!error.isEmpty()) // ### createErrorMap()?
         return createResultMap(error);

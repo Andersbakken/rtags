@@ -14,11 +14,14 @@ public:
 
     GccArguments();
 
-    bool parse(const QList<QByteArray>& args);
+    bool parse(const QByteArray& args, const QByteArray &dirPath);
+    QByteArray raw() const;
+    QByteArray dirPath() const;
     QString errorString() const;
 
     QList<QByteArray> arguments() const;
     QList<QByteArray> arguments(const QByteArray& prefix) const;
+    QList<QByteArray> includePaths() const;
 
     void setPreprocess(bool pre);
     void setLanguage(Language language);
@@ -64,6 +67,8 @@ private:
 
         QByteArray inputreplace;
         QByteArray outputreplace;
+        QByteArray raw;
+        QByteArray dirPath;
     };
 
     QSharedDataPointer<Data> m_ptr;

@@ -54,14 +54,12 @@ void Client::startDaemon(const QStringList &args)
     QProcess::startDetached(args.first(), QStringList() << QLatin1String("--command=daemonize"), path);
 }
 
-QHash<QByteArray, QVariant> Client::exec(const QHash<QByteArray, QVariant>& a)
+QHash<QByteArray, QVariant> Client::exec(const QHash<QByteArray, QVariant>& args)
 {
-    FUNC1(a);
+    FUNC1(args);
     if (!connected())
         return QHash<QByteArray, QVariant>();
 
-    QHash<QByteArray, QVariant> args = a;
-    args.insert("currentpath", QDir::currentPath());
 #ifdef EBUS_ENABLED
     if (!EBus::writeToSocket(m_socket, args)) {
         QHash<QByteArray, QVariant> ret;

@@ -30,7 +30,7 @@ private:
     // ### need to add a function for code completion
     QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args);
     QHash<QByteArray, QVariant> lookupLine(const QHash<QByteArray, QVariant>& args);
-    QHash<QByteArray, QVariant> addMakefile(const QByteArray& path, const QHash<QByteArray, QVariant>& args);
+    QHash<QByteArray, QVariant> addMakefile(const QHash<QByteArray, QVariant>& args);
     QHash<QByteArray, QVariant> addSourceFile(const QHash<QByteArray, QVariant>& args);
     QHash<QByteArray, QVariant> removeSourceFile(const QHash<QByteArray, QVariant>& args);
     QHash<QByteArray, QVariant> loadAST(const QHash<QByteArray, QVariant>& args);
@@ -39,7 +39,7 @@ private:
     bool addSourceFile(const QByteArray& absoluteFilePath,
                        unsigned options = CXTranslationUnit_CacheCompletionResults,
                        QHash<QByteArray, QVariant>* result = 0);
-    bool addMakefileLine(const QList<QByteArray>& line);
+    void addMakefileLine(const QByteArray& line, const QByteArray &dirpath);
     QHash<QByteArray, QVariant> fileList(const QHash<QByteArray, QVariant> &args);
     void addTranslationUnit(const QByteArray &absoluteFilePath,
                             unsigned options = 0,

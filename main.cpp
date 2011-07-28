@@ -85,6 +85,10 @@ QHash<QByteArray, QVariant> ArgParser::arguments() const
 
 void ArgParser::addValue(const QByteArray &key, const QByteArray &value)
 {
+    if (key == "command") { // don't want to resolve makefile to /some/path/Makefile on mac
+        m_args[key] = value;
+        return;
+    }
     bool ok;
     int intvalue = value.toInt(&ok);
     if (ok) {
