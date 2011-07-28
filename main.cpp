@@ -4,6 +4,7 @@
 #include "Daemon.h"
 #include "Client.h"
 #include "Utils.h"
+#include "Database.h"
 #include <syslog.h>
 
 #define CLIENT_CONNECT_ATTEMPTS 5

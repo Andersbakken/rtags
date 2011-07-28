@@ -482,11 +482,14 @@ enum Type {
     Reference = 'r'
 };
 
-static void add(QByteArray &list, char *buf, const Location &location, Type type)
+static void add(QByteArray &list, char *buf, const QList<Symbol> &symbols, Type type)
 {
-    if (location.exists()) {
-        const int count = snprintf(buf, 511, "%c \"%s:%d:%d\"\n", type, location.fileName.constData(),
-                                   location.line, location.column);
+    foreach(const Symbol &symbol, symbols) {
+        Q_ASSERT(symbol.location.exists());
+        const int count = snprintf(buf, 511, "%c %s \"%s:%d:%d\"\n", type,
+                                   symbol.symbolName.constData(),
+                                   symbol.location.fileName.constData(),
+                                   symbol.location.line, symbol.location.column);
         list += QByteArray::fromRawData(buf, count);
     }
 }
@@ -497,7 +500,9 @@ QVariantMap Daemon::lookup(const QVariantMap &args)
     if (symbol.isEmpty()) 
         return createResultMap(QLatin1String("No symbol in lookup request"));
 
-
+    bool exactMatch = false;
+    if (args.contains("exact"))
+        exactMatch = true;
     char buffer[512];
     QByteArray results;
     const QStringList symbolTypes = args.value(QLatin1String("types")).toString().
@@ -509,15 +514,13 @@ QVariantMap Daemon::lookup(const QVariantMap &args)
     //          << Database::symbolDefinitionSize() << Database::symbolReferencesSize();
     
     if (symbolTypes.isEmpty() || symbolTypes.contains("declaration")) {
-        add(results, buffer, Database::lookupDeclaration(symbol), Declaration);
+        add(results, buffer, Database::lookupDeclarations(symbol, exactMatch), Declaration);
     }
     if (symbolTypes.isEmpty() || symbolTypes.contains("definition")) {
-        add(results, buffer, Database::lookupDefinition(symbol), Definition);
+        add(results, buffer, Database::lookupDefinitions(symbol, exactMatch), Definition);
     }
     if (symbolTypes.isEmpty() || symbolTypes.contains("reference")) {
-        foreach(const Location &loc, Database::lookupReferences(symbol)) {
-            add(results, buffer, loc, Reference);
-        }
+        add(results, buffer, Database::lookupReferences(symbol, exactMatch), Reference);
     }
     return createResultMap(results);
 }
@@ -656,16 +659,20 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
     case CXCursor_Constructor: {
         const Location loc(cursor);
         if (!loc.exists()) {
-            qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
-                     << kindToString(clang_getCursorKind(cursor))
-                     << "because of missing file" << cursor << __LINE__;
+            if (Options::s_verbose) {
+                qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
+                         << kindToString(clang_getCursorKind(cursor))
+                         << "because of missing file" << cursor << __LINE__;
+            }
             break;
         }
         const QByteArray symbol = symbolName(cursor);
         if (symbol.isEmpty()) {
-            qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
-                     << kindToString(clang_getCursorKind(cursor))
-                     << "because of empty symbolName" << __LINE__;
+            if (Options::s_verbose) {
+                qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
+                         << kindToString(clang_getCursorKind(cursor))
+                         << "because of empty symbolName" << __LINE__;
+            }
             break;
         }
 
@@ -679,9 +686,11 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
     case CXCursor_CallExpr: {
         const Location callLoc(cursor);
         if (!callLoc.exists()) {
-            qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
-                     << kindToString(clang_getCursorKind(cursor))
-                     << "because of we can't find location" << __LINE__;
+            if (Options::s_verbose) {
+                qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
+                         << kindToString(clang_getCursorKind(cursor))
+                         << "because of we can't find location" << __LINE__;
+            }
             break;
         }
         CXCursor method = clang_getCursorReferenced(cursor);
@@ -695,19 +704,22 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
         }
         const QByteArray symbol = symbolName(method);
         if (symbol.isEmpty()) {
-            qDebug() << "dropping" << eatString(clang_getCursorDisplayName(method))
-                     << kindToString(clang_getCursorKind(method))
-                     << "because of empty symbolName" << __LINE__;
+            if (Options::s_verbose) {
+                qDebug() << "dropping" << eatString(clang_getCursorDisplayName(method))
+                         << kindToString(clang_getCursorKind(method))
+                         << "because of empty symbolName" << __LINE__;
+            }
             break;
         }
-        Location methodLoc = Database::lookupDeclaration(symbol);
+        // ### not the most efficient way to check this
+        Location methodLoc = Database::lookupDeclarations(symbol, true).value(0).location;
         if (!methodLoc.exists()) {
             methodLoc = Location(method);
             if (methodLoc.exists()) {
                 Database::setSymbolDeclaration(symbol, methodLoc);
                 ++userData.count;
             } else {
-                if (Options::s_verbose || symbol != "__va_list_tag()") {
+                if (Options::s_verbose && symbol != "__va_list_tag()") {
                     qDebug() << "dropping" << symbol
                              << kindToString(clang_getCursorKind(method))
                              << "because we can't find file" << __LINE__;
@@ -745,5 +757,7 @@ void Daemon::onFileParsed(const QString &absoluteFilePath, void *u)
     QElapsedTimer timer;
     timer.start();
     clang_visitChildren(cursor, processFile, &userData);
-    qDebug("Added %d entries for %s (%lld ms)", userData.count, qPrintable(absoluteFilePath), timer.elapsed());
+    qDebug("Added %d entries (total %d/%d/%d) for %s (%lld ms)", userData.count,
+           Database::symbolDeclarationSize(), Database::symbolDefinitionSize(),
+           Database::symbolReferencesSize(), qPrintable(absoluteFilePath), timer.elapsed());
 }

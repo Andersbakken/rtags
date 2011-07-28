@@ -12,6 +12,21 @@ static inline QByteArray eatString(CXString string)
     return ret;
 }
 
+static inline void removeWhitespace(QByteArray &ba)
+{
+    int size = ba.size();
+    int i = 0;
+    while (i < size) {
+        if (ba.at(i) == ' ') {
+            ba.remove(i, 1);
+            --size;
+        } else {
+            ++i;
+        }
+    }
+}
+
+
 static inline bool resolvePath(QByteArray &fileName)
 {
     char *resolved = realpath(fileName.constData(), 0);
