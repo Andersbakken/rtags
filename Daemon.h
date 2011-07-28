@@ -25,29 +25,29 @@ public:
 
 private slots:
     void onFileChanged(const QString &path);
-    void onParseError(const QString &absoluteFilePath);
-    void onFileParsed(const QString &absoluteFilePath, void *unit);
+    void onParseError(const QByteArray &absoluteFilePath);
+    void onFileParsed(const QByteArray &absoluteFilePath, void *unit);
 private:
     // ### need to add a function for code completion
     QVariantMap lookup(const QVariantMap& args);
     QVariantMap lookupLine(const QVariantMap& args);
-    QVariantMap addMakefile(const QString& path, const QVariantMap& args);
+    QVariantMap addMakefile(const QByteArray& path, const QVariantMap& args);
     QVariantMap addSourceFile(const QVariantMap& args);
     QVariantMap removeSourceFile(const QVariantMap& args);
     QVariantMap loadAST(const QVariantMap& args);
     QVariantMap saveAST(const QVariantMap& args);
-    bool writeAST(const QHash<QString, CXTranslationUnit>::const_iterator &it);
+    bool writeAST(const QHash<QByteArray, CXTranslationUnit>::const_iterator &it);
     bool addSourceFile(const QByteArray& absoluteFilePath,
                        unsigned options = CXTranslationUnit_CacheCompletionResults,
                        QVariantMap* result = 0);
     bool addMakefileLine(const QList<QByteArray>& line);
     QVariantMap fileList(const QVariantMap &args);
-    void addTranslationUnit(const QString &absoluteFilePath,
+    void addTranslationUnit(const QByteArray &absoluteFilePath,
                             unsigned options = 0,
                             const QList<QByteArray> &compilerOptions = QList<QByteArray>());
 private:
     CXIndex m_index;
-    QHash<QString, CXTranslationUnit> m_translationUnits;
+    QHash<QByteArray, CXTranslationUnit> m_translationUnits;
     QFileSystemWatcher m_fileSystemWatcher;
     ThreadPool m_threadPool;
 #ifdef EBUS_ENABLED

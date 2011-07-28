@@ -14,7 +14,7 @@ const QByteArray dirName(const QByteArray &filePath)
     return filePath.left(filePath.lastIndexOf('/'));
 }
 
-static QVariantMap createResultMap(const QString& result)
+static QVariantMap createResultMap(const QByteArray& result)
 {
     QVariantMap ret;
     ret.insert(QLatin1String("result"), result);
@@ -50,7 +50,6 @@ static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
 }
 
 
-#define USE_THREAD
 Daemon::Daemon(QObject *parent)
     : QObject(parent), m_index(clang_createIndex(1, 0))
 #ifdef EBUS_ENABLED
@@ -104,8 +103,8 @@ bool Daemon::start()
 static QVariantMap syntax()
 {
     FUNC;
-    return createResultMap(QLatin1String("Syntax: rtags <command> [argument1, argument2, ...]\n"
-                                         "commands: syntax|quit|add|remove|lookupline|makefile|daemonize|files|lookup\n"));
+    return createResultMap("Syntax: rtags --command=command [--argument1, --argument2=foo, ...]\n"
+                           "commands: syntax|quit|add|remove|lookupline|makefile|daemonize|files|lookup\n");
 }
 
 void Daemon::onFileChanged(const QString &p)
@@ -113,6 +112,7 @@ void Daemon::onFileChanged(const QString &p)
     FUNC1(p);
     QByteArray path = p.toLocal8Bit();
     resolvePath(path);
+    m_fileSystemWatcher.removePath(p);
     if (fileExists(path)) {
         addSourceFile(path);
     } else {
@@ -127,46 +127,57 @@ QVariantMap Daemon::runCommand(const QVariantMap &args)
     FUNC1(args);
 
     QString cmd = args.value(QLatin1String("command")).toString();
-    QString path = args.value(QLatin1String("currentpath")).toString();
+    QByteArray path = args.value(QLatin1String("currentpath")).toByteArray();
     if (path.isEmpty() || cmd.isEmpty())
-        return createResultMap(QLatin1String("No command or path specified"));
+        return createResultMap("No command or path specified");
 
-    if (cmd == QLatin1String("syntax")) {
+    if (cmd == "syntax") {
         return syntax();
-    } else if (cmd == QLatin1String("quit")) {
+    } else if (cmd == "quit") {
         QTimer::singleShot(100, QCoreApplication::instance(), SLOT(quit()));
         // hack to make the quit command properly respond before the server goes down
-        return createResultMap(QLatin1String("quitting"));
-    } else if (cmd == QLatin1String("add")) {
+        return createResultMap("quitting");
+    } else if (cmd == "add") {
         return addSourceFile(args);
-    } else if (cmd == QLatin1String("remove")) {
+    } else if (cmd == "remove") {
         return removeSourceFile(args);
-    } else if (cmd == QLatin1String("lookupline")) {
+    } else if (cmd == "lookupline") {
         return lookupLine(args);
-    } else if (cmd == QLatin1String("makefile")) {
+    } else if (cmd == "makefile") {
         return addMakefile(path, args);
-    } else if (cmd == QLatin1String("files")) {
+    } else if (cmd == "files") {
         return fileList(args);
-    } else if (cmd == QLatin1String("lookup")) {
+    } else if (cmd == "lookup") {
         return lookup(args);
-    } else if (cmd == QLatin1String("saveast")) {
+    } else if (cmd == "saveast") {
         return saveAST(args);
-    } else if (cmd == QLatin1String("loadast")) {
+    } else if (cmd == "loadast") {
         return loadAST(args);
     }
-    return createResultMap(QLatin1String("Unknown command"));
+    return createResultMap("Unknown command");
+}
+
+static bool contains(const QByteArray &key, const QRegExp &rx)
+{
+    return QString::fromLocal8Bit(key).contains(rx);
+}
+
+static bool contains(const QByteArray &key, const QByteArray &b)
+{
+    return key.contains(b);
 }
 
 template <typename T>
-static QStringList matches(const QHash<QString, CXTranslationUnit> &translationUnits, const T &t)
+static QList<QByteArray> matches(const QHash<QByteArray, CXTranslationUnit> &translationUnits,
+                                 const T &t)
 {
     FUNC2(translationUnits, t);
     // use QStringBuilder???
-    QStringList matches;
-    QHash<QString, CXTranslationUnit>::const_iterator it = translationUnits.begin();
+    QList<QByteArray> matches;
+    QHash<QByteArray, CXTranslationUnit>::const_iterator it = translationUnits.begin();
     while (it != translationUnits.end()) {
-        const QString &key = it.key();
-        if (key.contains(t))
+        const QByteArray &key = it.key();
+        if (contains(key, t))
             matches += key;
         ++it;
     }
@@ -177,14 +188,14 @@ QVariantMap Daemon::fileList(const QVariantMap &args)
 {
     FUNC1(args);
     bool regexp = true;
-    QString pattern = args.value(QLatin1String("r")).toString();
+    QByteArray pattern;
     if (pattern.isEmpty())
-        pattern = args.value(QLatin1String("regexp")).toString();
+        pattern = args.value(QLatin1String("regexp")).toByteArray();
     if (pattern.isEmpty()) {
-        pattern = args.value(QLatin1String("match")).toString();
+        pattern = args.value(QLatin1String("match")).toByteArray();
         regexp = false;
     }
-    QStringList out;
+    QList<QByteArray> out;
     if (pattern.isEmpty()) {
         out = m_translationUnits.keys();
     } else if (regexp) {
@@ -193,7 +204,14 @@ QVariantMap Daemon::fileList(const QVariantMap &args)
     } else {
         out = matches(m_translationUnits, pattern);
     }
-    return createResultMap(out.join(QLatin1String("\n")));
+    QByteArray joined;
+    joined.reserve(out.size() * 100);
+    foreach(const QByteArray &f, out) {
+        joined += f + '\n';
+    }
+    if (!joined.isEmpty())
+        joined.chop(1);
+    return createResultMap(joined);
 }
 
 bool Daemon::addSourceFile(const QByteArray &absoluteFilePath, unsigned options, QVariantMap *result)
@@ -222,10 +240,10 @@ QVariantMap Daemon::addSourceFile(const QVariantMap &args)
 
     QByteArray file = args.value("file").toByteArray();
     if (file.isEmpty())
-        return createResultMap(QLatin1String("No file to add (use --file=<file>)"));
+        return createResultMap("No file to add (use --file=<file>)");
     resolvePath(file);
     if (!fileExists(file))
-        return createResultMap(file + QLatin1String(" Doesn't exist"));
+        return createResultMap(file + " Doesn't exist");
     unsigned options = 0;
     for (int i = 1; i < args.size(); ++i) {
         if (args.contains("incomplete"))
@@ -264,7 +282,7 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
             qWarning("%s doesn't exist", filename.constData());
             return false;
         }
-        QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.find(filename);
+        QHash<QByteArray, CXTranslationUnit>::iterator it = m_translationUnits.find(filename);
         if (it != m_translationUnits.end()) {
             // ### need to check if it was parsed with the same flags, and if so reparse
             clang_disposeTranslationUnit(it.value());
@@ -285,11 +303,11 @@ bool Daemon::addMakefileLine(const QList<QByteArray> &line)
     return true;
 }
 
-QVariantMap Daemon::addMakefile(const QString& path, const QVariantMap &args)
+QVariantMap Daemon::addMakefile(const QByteArray& path, const QVariantMap &args)
 {
     FUNC2(path, args);
     if (path.isEmpty() || args.isEmpty())
-        return createResultMap(QLatin1String("No Makefile to add"));
+        return createResultMap("No Makefile to add");
 
     QString cwd = QDir::currentPath();
     QDir::setCurrent(path);
@@ -300,7 +318,7 @@ QVariantMap Daemon::addMakefile(const QString& path, const QVariantMap &args)
     resolvePath(filename);
     if (!fileExists(filename)) {
         QDir::setCurrent(cwd);
-        return createResultMap(QLatin1String("Makefile does not exist") + filename);
+        return createResultMap("Makefile does not exist " + filename);
     }
 
     const QByteArray dirname = dirName(filename);
@@ -315,14 +333,14 @@ QVariantMap Daemon::addMakefile(const QString& path, const QVariantMap &args)
                << QLatin1String(basename));
     if (!proc.waitForFinished(-1)) {
         QDir::setCurrent(cwd);
-        return createResultMap(QLatin1String("Unable to wait for make finish"));
+        return createResultMap("Unable to wait for make finish");
     }
     if (proc.exitCode() != 0) {
         QDir::setCurrent(cwd);
-        return createResultMap(QLatin1String("Make returned error: " + proc.readAllStandardError()));
+        return createResultMap("Make returned error: " + proc.readAllStandardError());
     }
 
-    QString error;
+    QByteArray error;
     QList<QByteArray> makeData = proc.readAllStandardOutput().split('\n');
     QRegExp accept(args.value("accept").toString());
     QRegExp reject(args.value("reject").toString());
@@ -354,33 +372,31 @@ QVariantMap Daemon::addMakefile(const QString& path, const QVariantMap &args)
 
     if (!error.isEmpty()) // ### createErrorMap()?
         return createResultMap(error);
-    return createResultMap(QString::fromLocal8Bit("Added %1 translation units").arg(m_translationUnits.size()));
+    return createResultMap("Added " + QByteArray::number(m_translationUnits.size()) + " translation units");
 }
 
 QVariantMap Daemon::removeSourceFile(const QVariantMap &args)
 {
     FUNC1(args);
     bool regexp = true;
-    QString pattern = args.value(QLatin1String("r")).toString();
-    if (pattern.isEmpty())
-        pattern = args.value(QLatin1String("regexp")).toString();
+    QByteArray pattern = args.value(QLatin1String("regexp")).toByteArray();
     if (pattern.isEmpty()) {
-        pattern = args.value(QLatin1String("file")).toString();
+        pattern = args.value(QLatin1String("file")).toByteArray();
         regexp = false;
     }
 
     // ### need to use regexp and match partial and all that good stuff. Maybe
     // ### make it use the same code path as fileList
     if (pattern.isEmpty())
-        return createResultMap(QLatin1String("No file to remove (use --file=<filename>"));
-    QHash<QString, CXTranslationUnit>::iterator it = m_translationUnits.find(pattern);
+        return createResultMap("No file to remove (use --file=<filename> or --regexp=.*file.*");
+    QHash<QByteArray, CXTranslationUnit>::iterator it = m_translationUnits.find(pattern);
     if (it == m_translationUnits.end())
-        return createResultMap(QLatin1String("No matches for ") + pattern);
+        return createResultMap("No matches for " + pattern);
     clang_disposeTranslationUnit(it.value());
     m_fileSystemWatcher.removePath(it.key());
     m_translationUnits.erase(it);
 
-    return createResultMap(QLatin1String("Removed"));
+    return createResultMap("Removed");
 }
 
 static bool isValidCursor(CXCursor cursor)
@@ -396,25 +412,25 @@ QVariantMap Daemon::lookupLine(const QVariantMap &args)
     if (!args.contains(QLatin1String("line"))
         || !args.contains(QLatin1String("line"))
         || !args.contains(QLatin1String("column")))
-        return createResultMap(QLatin1String("Invalid argument count"));
+        return createResultMap("Invalid argument count");
 
-    QString filename = args.value(QLatin1String("file")).toString();
+    QByteArray filename = args.value(QLatin1String("file")).toByteArray();
     int line = args.value(QLatin1String("line")).toInt();
     int column = args.value(QLatin1String("column")).toInt();
 
     if (filename.isEmpty() || line == 0 || column == 0)
-        return createResultMap(QLatin1String("Invalid argument type"));
+        return createResultMap("Invalid argument type");
 
     if (!m_translationUnits.contains(filename))
-        return createResultMap(QLatin1String("Translation unit not found"));
+        return createResultMap("Translation unit not found");
 
     CXTranslationUnit unit = m_translationUnits.value(filename);
-    CXFile file = clang_getFile(unit, filename.toLocal8Bit().constData());
+    CXFile file = clang_getFile(unit, filename.constData());
 
     CXSourceLocation location = clang_getLocation(unit, file, line, column);
     CXCursor cursor = clang_getCursor(unit, location);
     if (!isValidCursor(cursor))
-        return createResultMap(QLatin1String("Unable to get cursor for location"));
+        return createResultMap("Unable to get cursor for location");
 
     CXCursorKind kind = clang_getCursorKind(cursor);
     CXCursor referenced;
@@ -423,7 +439,7 @@ QVariantMap Daemon::lookupLine(const QVariantMap &args)
     else
         referenced = clang_getCursorReferenced(cursor);
     if (!isValidCursor(referenced))
-        return createResultMap(QLatin1String("No referenced cursor"));
+        return createResultMap("No referenced cursor");
 
     location = clang_getCursorLocation(referenced);
     unsigned int rline, rcolumn, roffset;
@@ -431,12 +447,10 @@ QVariantMap Daemon::lookupLine(const QVariantMap &args)
     clang_getInstantiationLocation(location, &rfile, &rline, &rcolumn, &roffset);
     CXString rfilename = clang_getFileName(rfile);
 
-    QString ret = QString("Symbol (decl) at %1, line %2 column %3").
-        arg(clang_getCString(rfilename)).
-        arg(rline).arg(rcolumn);
-
+    char ret[64];
+    snprintf(ret, 63, "Symbol (decl) at %s, line %u column %u",
+             clang_getCString(rfilename), rline, rcolumn);
     clang_disposeString(rfilename);
-
     return createResultMap(ret);
 }
 
@@ -498,7 +512,7 @@ QVariantMap Daemon::lookup(const QVariantMap &args)
 {
     const QByteArray symbol = args.value(QLatin1String("symbol")).toByteArray();
     if (symbol.isEmpty()) 
-        return createResultMap(QLatin1String("No symbol in lookup request"));
+        return createResultMap("No symbol in lookup request");
 
     bool exactMatch = false;
     if (args.contains("exact"))
@@ -527,34 +541,34 @@ QVariantMap Daemon::lookup(const QVariantMap &args)
 
 QVariantMap Daemon::loadAST(const QVariantMap &args)
 {
-    QString filename = args.value(QLatin1String("file")).toString();
+    QByteArray filename = args.value(QLatin1String("file")).toByteArray();
     if (filename.isEmpty())
-        return createResultMap(QLatin1String("No filename specified (use --file=<filename>)"));
+        return createResultMap("No filename specified (use --file=<filename>)");
     if (m_translationUnits.contains(filename))
-        return createResultMap(QLatin1String("File already loaded"));
+        return createResultMap("File already loaded");
     QString prefix = QCoreApplication::applicationDirPath() + QLatin1String("/ast");
     QFileInfo finfo(prefix + filename);
     if (!finfo.exists())
-        return createResultMap(QLatin1String("AST file does not exist"));
+        return createResultMap("AST file does not exist");
     CXTranslationUnit unit = clang_createTranslationUnit(m_index, finfo.absoluteFilePath().toLocal8Bit().constData());
     m_translationUnits[filename] = unit;
-    return createResultMap(QLatin1String("AST file loaded"));
+    return createResultMap("AST file loaded");
 }
 
 QVariantMap Daemon::saveAST(const QVariantMap &args)
 {
-    QString filename = args.value(QLatin1String("file")).toString();
+    QByteArray filename = args.value(QLatin1String("file")).toByteArray();
     if (filename.isEmpty())
-        return createResultMap(QLatin1String("No filename specified (use --file=<filename>)"));
-    QHash<QString, CXTranslationUnit>::const_iterator it = m_translationUnits.find(filename);
+        return createResultMap("No filename specified (use --file=<filename>)");
+    QHash<QByteArray, CXTranslationUnit>::const_iterator it = m_translationUnits.find(filename);
     if (it == m_translationUnits.end())
-        return createResultMap(QLatin1String("No translation unit for filename found"));
+        return createResultMap("No translation unit for filename found");
     if (writeAST(it))
-        return createResultMap(QLatin1String("Saved"));
-    return createResultMap(QLatin1String("Unable to save translation unit"));
+        return createResultMap("Saved");
+    return createResultMap("Unable to save translation unit");
 }
 
-bool Daemon::writeAST(const QHash<QString, CXTranslationUnit>::const_iterator &it)
+bool Daemon::writeAST(const QHash<QByteArray, CXTranslationUnit>::const_iterator &it)
 {
     FUNC;
     QString filename = it.key();
@@ -571,35 +585,21 @@ bool Daemon::writeAST(const QHash<QString, CXTranslationUnit>::const_iterator &i
     return (ret == 0);
 }
 
-void Daemon::addTranslationUnit(const QString &absoluteFilePath,
+void Daemon::addTranslationUnit(const QByteArray &absoluteFilePath,
                                 unsigned options,
                                 const QList<QByteArray> &compilerOptions)
 {
     FUNC3(absoluteFilePath, options, compilerOptions);
-#ifndef USE_THREAD
-    const int size = compilerOptions.size();
-    QVarLengthArray<const char*, 32> args(size);
-    for (int i=0; i<size; ++i) {
-        args[i] = compilerOptions.at(i).constData();
-    }
-
-    CXTranslationUnit unit = clang_parseTranslationUnit(m_index,
-                                                        absoluteFilePath.toLocal8Bit().constData(),
-                                                        args.constData(), size, 0, 0,
-                                                        options);
-    onFileParsed(absoluteFilePath, unit);
-#else
     ClangJob *job = new ClangJob(absoluteFilePath, options, compilerOptions, m_index);
-    connect(job, SIGNAL(error(QString)), this, SLOT(onParseError(QString)));
-    connect(job, SIGNAL(fileParsed(QString, void*)),
-            this, SLOT(onFileParsed(QString, void*)));
+    connect(job, SIGNAL(error(QByteArray)), this, SLOT(onParseError(QByteArray)));
+    connect(job, SIGNAL(fileParsed(QByteArray, void*)),
+            this, SLOT(onFileParsed(QByteArray, void*)));
     m_threadPool.post(job);
-#endif
 }
-void Daemon::onParseError(const QString &absoluteFilePath)
+void Daemon::onParseError(const QByteArray &absoluteFilePath)
 {
     FUNC1(absoluteFilePath);
-    qWarning("Failed to add %s", qPrintable(absoluteFilePath));
+    qWarning("Failed to add %s", absoluteFilePath.constData());
 }
 
 static inline QByteArray symbolName(CXCursor cursor)
@@ -637,6 +637,7 @@ static inline QByteArray symbolName(CXCursor cursor)
 }
 
 struct ProcessFileUserData {
+    QByteArray fileName;
     int count;
 };
 
@@ -686,14 +687,23 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
     case CXCursor_CallExpr: {
         const Location callLoc(cursor);
         if (!callLoc.exists()) {
-            if (Options::s_verbose) {
+            // if (Options::s_verbose) {
                 qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
                          << kindToString(clang_getCursorKind(cursor))
                          << "because of we can't find location" << __LINE__;
-            }
+            // }
             break;
         }
         CXCursor method = clang_getCursorReferenced(cursor);
+        if (!isValidCursor(method)) {
+            qDebug() << "trying stuff\n" << method << endl << cursor
+                     << endl << clang_getCanonicalCursor(cursor)
+                     << endl << eatString(clang_getCursorUSR(cursor));
+            // method = clang_getCanonicalCursor(cursor);
+            // qDebug() <
+            // printf("Referenced failed trying canonical %d %s\n", isValidCursor(method),
+            //        kindToString(clang_getCursorKind(method)));
+        }
         if (!isValidCursor(method)) {
             if (Options::s_verbose) {
                 qDebug() << "dropping" << eatString(clang_getCursorDisplayName(method))
@@ -704,11 +714,11 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
         }
         const QByteArray symbol = symbolName(method);
         if (symbol.isEmpty()) {
-            if (Options::s_verbose) {
+            // if (Options::s_verbose) {
                 qDebug() << "dropping" << eatString(clang_getCursorDisplayName(method))
                          << kindToString(clang_getCursorKind(method))
                          << "because of empty symbolName" << __LINE__;
-            }
+            // }
             break;
         }
         // ### not the most efficient way to check this
@@ -719,11 +729,11 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
                 Database::setSymbolDeclaration(symbol, methodLoc);
                 ++userData.count;
             } else {
-                if (Options::s_verbose && symbol != "__va_list_tag()") {
+                // if (Options::s_verbose && symbol != "__va_list_tag()") {
                     qDebug() << "dropping" << symbol
                              << kindToString(clang_getCursorKind(method))
                              << "because we can't find file" << __LINE__;
-                }
+                // }
                 break;
             }
         }
@@ -738,13 +748,13 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
     return CXChildVisit_Recurse;
 }
 
-void Daemon::onFileParsed(const QString &absoluteFilePath, void *u)
+void Daemon::onFileParsed(const QByteArray &absoluteFilePath, void *u)
 {
     FUNC2(absoluteFilePath, u);
     CXTranslationUnit unit = reinterpret_cast<CXTranslationUnit>(u);
     m_fileSystemWatcher.addPath(absoluteFilePath);
     if (m_translationUnits.contains(absoluteFilePath)) {
-        qWarning("We already have this file: %s", qPrintable(absoluteFilePath));
+        qWarning("We already have this file: %s", absoluteFilePath.constData());
         clang_disposeTranslationUnit(unit);
         return;
     }
@@ -753,11 +763,12 @@ void Daemon::onFileParsed(const QString &absoluteFilePath, void *u)
     // crashes right now with some issue with autoincrement primary key on Symbol
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
     ProcessFileUserData userData;
+    userData.fileName = absoluteFilePath;
     userData.count = 0;
     QElapsedTimer timer;
     timer.start();
     clang_visitChildren(cursor, processFile, &userData);
     qDebug("Added %d entries (total %d/%d/%d) for %s (%lld ms)", userData.count,
            Database::symbolDeclarationSize(), Database::symbolDefinitionSize(),
-           Database::symbolReferencesSize(), qPrintable(absoluteFilePath), timer.elapsed());
+           Database::symbolReferencesSize(), absoluteFilePath.constData(), timer.elapsed());
 }

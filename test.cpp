@@ -1,4 +1,7 @@
+#include "test.h"
+
 namespace NM {
+
 class A;
 class A
 {
@@ -8,6 +11,10 @@ public:
     {}
     void foo();
     int oof;
+    inline void balle()
+    {
+        return inlineFunc(this);
+    }
 };
 };
 
@@ -29,6 +36,8 @@ B::B()
 using namespace NM;
 void A::foo()
 {
+    int balle = 12;
+    double bb = double(balle);
     B b;
     b.bar();
 }

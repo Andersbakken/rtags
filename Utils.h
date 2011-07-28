@@ -26,7 +26,6 @@ static inline void removeWhitespace(QByteArray &ba)
     }
 }
 
-
 static inline bool resolvePath(QByteArray &fileName)
 {
     char *resolved = realpath(fileName.constData(), 0);

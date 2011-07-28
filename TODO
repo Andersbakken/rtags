@@ -10,3 +10,4 @@ Investige why Qt drops symbols
 Make database more persistent (e.g. know if a file has changed)
 write elisp bindings
 Process files in ClangJob
+Build depedencies using clang_getInclusions

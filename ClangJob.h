@@ -10,7 +10,7 @@ class ClangJob : public QObject, public ThreadPoolJob
 {
     Q_OBJECT;
 public:
-    ClangJob(const QString &absoluteFilePath,
+    ClangJob(const QByteArray &absoluteFilePath,
              unsigned options,
              const QList<QByteArray> &compilerOptions,
              CXIndex index)
@@ -24,7 +24,7 @@ public:
         // qDebug() << "creating a thread" << objectName();
     }
 
-    ClangJob(CXTranslationUnit unit, const QString &absoluteFilePath)
+    ClangJob(CXTranslationUnit unit, const QByteArray &absoluteFilePath)
         : m_absoluteFilePath(absoluteFilePath), m_options(0),
           m_index(0), m_reparseUnit(unit)
     {
@@ -47,7 +47,7 @@ public:
             }
 
             CXTranslationUnit unit = clang_parseTranslationUnit(m_index,
-                                                                m_absoluteFilePath.toLocal8Bit().constData(),
+                                                                m_absoluteFilePath.constData(),
                                                                 args.constData(), size, 0, 0,
                                                                 m_options);
             if (!unit) {
@@ -59,11 +59,11 @@ public:
         deleteLater();
     }
 signals:
-    void fileReparsed(const QString &absoluteFilePath);
-    void error(const QString &absoluteFilePath);
-    void fileParsed(const QString &absoluteFilePath, void *unit);
+    void fileReparsed(const QByteArray &absoluteFilePath);
+    void error(const QByteArray &absoluteFilePath);
+    void fileParsed(const QByteArray &absoluteFilePath, void *unit);
 private:
-    const QString m_absoluteFilePath;
+    const QByteArray m_absoluteFilePath;
     const unsigned m_options;
     const QList<QByteArray> m_compilerOptions;
     CXIndex m_index;
