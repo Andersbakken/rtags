@@ -683,21 +683,25 @@ struct Node {
 
 struct UD {
     Node *root, *invalid;
-    QHash<QByteArray, Node*> nodes;
+    QHash<unsigned, Node*> nodes;
 
     Node *createOrGet(CXCursor cursor)
     {
-        QByteArray usr = eatString(clang_getCursorUSR(cursor)) + kindToString(clang_getCursorKind(cursor));
-        if (nodes.contains(usr)) {
-            qDebug() << "dropping" << cursor << usr;
-            return nodes.value(usr);
+        // switch (clang_getCursorKind(cursor)) {
+        //     // case
+
+        // }
+        unsigned hash = clang_hashCursor(cursor);
+        if (nodes.contains(hash)) {
+            qDebug() << "dropping" << cursor;
+            return nodes.value(hash);
         }
         if (!isValidCursor(cursor)) {
             if (!invalid) {
                 invalid = new Node;
                 invalid->parent = 0;
                 invalid->cursor = cursor;
-                nodes[usr] = invalid;
+                nodes[hash] = invalid;
             }
             return invalid;
         }
@@ -707,7 +711,7 @@ struct UD {
             root = new Node;
             root->parent = 0;
             root->cursor = cursor;
-            nodes[usr] = root;
+            nodes[hash] = root;
             return root;
         }
         Node *parent = createOrGet(clang_getCursorSemanticParent(cursor));
@@ -715,7 +719,7 @@ struct UD {
         Node *node = new Node;
         node->cursor = cursor;
         node->parent = parent;
-        nodes[usr] = node;
+        nodes[hash] = node;
         parent->children.append(node);
         return node;
         // insert(
@@ -740,7 +744,7 @@ static CXChildVisitResult buildTree2(CXCursor cursor, CXCursor, CXClientData dat
     // return CXCursor_R
 }
 
-static CXChildVisitResult buildTree(CXCursor cursor, CXCursor, CXClientData)
+CXChildVisitResult buildTree(CXCursor cursor, CXCursor, CXClientData)
 {
     // QSet<QByteArray> &seen = *reinterpret_cast<QSet<QByteArray> *>(data);
     // QByteArray uniq = eatString(clang_getCursorUSR(cursor));
@@ -791,7 +795,7 @@ struct ProcessFileUserData {
     int count;
 };
 
-static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData data)
+CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData data)
 {
     ProcessFileUserData &userData = *reinterpret_cast<ProcessFileUserData*>(data);
     const CXCursorKind kind = clang_getCursorKind(cursor);
