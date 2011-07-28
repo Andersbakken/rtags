@@ -20,6 +20,8 @@ template<class Key, class Value> class QMap;
 class QString;
 class QStringList;
 class QVariant;
+typedef QHash<QByteArray, QVariant> ArgumentMap;
+Q_DECLARE_METATYPE(ArgumentMap);
 
 /*
  * Adaptor class for interface rtags.Daemon
@@ -33,8 +35,8 @@ class DaemonAdaptor: public QDBusAbstractAdaptor
 "    <method name=\"runCommand\">\n"
 "      <arg direction=\"out\" type=\"a{sv}\"/>\n"
 "      <arg direction=\"in\" type=\"a{sv}\" name=\"args\"/>\n"
-"      <annotation value=\"QHash<QByteArray, QVariant>\" name=\"com.trolltech.QtDBus.QtTypeName.Out0\"/>\n"
-"      <annotation value=\"QHash<QByteArray, QVariant>\" name=\"com.trolltech.QtDBus.QtTypeName.In0\"/>\n"
+"      <annotation value=\"ArgumentMap\" name=\"com.trolltech.QtDBus.QtTypeName.Out0\"/>\n"
+"      <annotation value=\"ArgumentMap\" name=\"com.trolltech.QtDBus.QtTypeName.In0\"/>\n"
 "    </method>\n"
 "  </interface>\n"
         "")
@@ -44,7 +46,7 @@ public:
 
 public: // PROPERTIES
 public Q_SLOTS: // METHODS
-    QHash<QByteArray, QVariant> runCommand(const QHash<QByteArray, QVariant> &args);
+    ArgumentMap runCommand(const ArgumentMap &args);
 Q_SIGNALS: // SIGNALS
 };
 

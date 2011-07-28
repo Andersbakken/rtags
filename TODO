@@ -13,3 +13,5 @@ Process files in ClangJob
 Build depedencies using clang_getInclusions
 make all paths everywhere absolute
 polling filesystemwatcher
+Fix dbus xml file, the generated files and the xml have diverged
+unbreak dbus

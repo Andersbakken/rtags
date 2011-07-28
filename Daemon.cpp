@@ -38,14 +38,16 @@ private:
 
 static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
 {
-    QString text = "CXCursor(";
+    QString text = "";
     if (clang_isInvalid(clang_getCursorKind(cursor))) {
-        text += ")";
+        text += "";
         dbg << text;
         return dbg;
     }
 
-    QByteArray name = eatString(clang_getCursorSpelling(cursor));
+    QByteArray name = eatString(clang_getCursorDisplayName(cursor));
+    if (name.isEmpty())
+        name = eatString(clang_getCursorSpelling(cursor));
     if (!name.isEmpty()) {
         text += name + ", ";
     }
@@ -57,9 +59,10 @@ static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
     QByteArray fileName = eatString(clang_getFileName(file));
     resolvePath(fileName);
     if (fileExists(fileName)) {
-        text += QString(", %1:%2:%3").arg(QString::fromLocal8Bit(fileName)).arg(line).arg(column);
+        text += QString(", %1:%2:%3").arg(QString::fromLocal8Bit(fileName).split('/', QString::SkipEmptyParts).last()).arg(line).arg(column);
     }
-    text += ")";
+    if (clang_isCursorDefinition(cursor))
+        text += ", def";
     dbg << text;
     return dbg;
 }
@@ -608,6 +611,7 @@ static inline QByteArray symbolName(CXCursor cursor)
     forever {
         switch (clang_getCursorKind(cursor)) {
         case CXCursor_CXXMethod:
+        case CXCursor_FunctionDecl:
         case CXCursor_Constructor:
             if (!name.isEmpty()) {
                 qDebug() << "name was" << name << "will be set to"
@@ -617,6 +621,7 @@ static inline QByteArray symbolName(CXCursor cursor)
             name = eatString(clang_getCursorDisplayName(cursor));
             break;
         case CXCursor_ClassDecl:
+        case CXCursor_StructDecl:
         case CXCursor_Namespace:
             if (!name.isEmpty())
                 name.prepend("::");
@@ -636,7 +641,7 @@ static inline QByteArray symbolName(CXCursor cursor)
 }
 
 struct FindInclusionsData {
-    QSet<CXFile> includeFiles;
+    QSet<QByteArray> includeFiles;
 };
 
 static inline void inclusionVisitor(CXFile includedFile,
@@ -644,15 +649,149 @@ static inline void inclusionVisitor(CXFile includedFile,
                                     unsigned /*includeLen*/,
                                     CXClientData userData)
 {
-    reinterpret_cast<FindInclusionsData*>(userData)->includeFiles.insert(includedFile);
+    QByteArray file = eatString(clang_getFileName(includedFile));
+    if (!resolvePath(file)) {
+        qWarning("Can't resolve %s", file.constData());
+    } else {
+        reinterpret_cast<FindInclusionsData*>(userData)->includeFiles.insert(file);
+    }
 }
+
+struct Node {
+    QList<Node*> children;
+    Node *parent;
+    CXCursor cursor;
+
+    void print() const
+    {
+        int lvl = 0;
+        for (Node *p=parent; p; p = p->parent) {
+            if (clang_getCursorKind(p->cursor) != CXCursor_UnexposedDecl)
+                ++lvl;
+        }
+        if (clang_getCursorKind(cursor) != CXCursor_UnexposedDecl) {
+            QString str;
+            str.fill(' ', lvl * 2);
+            QDebug(&str) << cursor;
+            printf("%s\n", qPrintable(str));
+        }
+        foreach(Node *child, children) {
+            child->print();
+        }
+    }
+};
+
+struct UD {
+    Node *root, *invalid;
+    QHash<QByteArray, Node*> nodes;
+
+    Node *createOrGet(CXCursor cursor)
+    {
+        QByteArray usr = eatString(clang_getCursorUSR(cursor)) + kindToString(clang_getCursorKind(cursor));
+        if (nodes.contains(usr)) {
+            qDebug() << "dropping" << cursor << usr;
+            return nodes.value(usr);
+        }
+        if (!isValidCursor(cursor)) {
+            if (!invalid) {
+                invalid = new Node;
+                invalid->parent = 0;
+                invalid->cursor = cursor;
+                nodes[usr] = invalid;
+            }
+            return invalid;
+        }
+
+        if (clang_getCursorKind(cursor) == CXCursor_TranslationUnit) {
+            Q_ASSERT(!root);
+            root = new Node;
+            root->parent = 0;
+            root->cursor = cursor;
+            nodes[usr] = root;
+            return root;
+        }
+        Node *parent = createOrGet(clang_getCursorSemanticParent(cursor));
+        Q_ASSERT(parent);
+        Node *node = new Node;
+        node->cursor = cursor;
+        node->parent = parent;
+        nodes[usr] = node;
+        parent->children.append(node);
+        return node;
+        // insert(
+    }
+};
+
+static CXChildVisitResult buildTree2(CXCursor cursor, CXCursor, CXClientData data)
+{
+    UD &ud = *reinterpret_cast<UD*>(data);
+    qDebug() << ud.createOrGet(cursor) << cursor;
+    return CXChildVisit_Recurse;
+    // CXCursor cursors[5] = {
+    //     cursor,
+    //     parent,
+    //     clang_getCursorSemanticParent(cursor),
+    //     clang_getCursorLexicalParent(cursor),
+    //     clang_getCursorReferenced(cursor)
+    // };
+    // for (int i=0; i<5; ++i) {
+    //     ud.insert(cursors[i]);
+    // }
+    // return CXCursor_R
+}
+
+static CXChildVisitResult buildTree(CXCursor cursor, CXCursor, CXClientData)
+{
+    // QSet<QByteArray> &seen = *reinterpret_cast<QSet<QByteArray> *>(data);
+    // QByteArray uniq = eatString(clang_getCursorUSR(cursor));
+    // seen.insert(uniq);
+    int count = 0;
+    CXCursor foo = clang_getCursorLexicalParent(cursor);
+    while (isValidCursor(foo)) {
+        ++count;
+        // uniq = eatString(clang_getCursorUSR(foo));
+        // if (!seen.contains(uniq)) {
+        //     qDebug() << "unseen parent" << foo;
+        //     seen.insert(uniq);
+        // }
+        
+        foo = clang_getCursorLexicalParent(foo);
+    }
+    // if (!clang_equalCursors(parent, clang_getCursorLexicalParent(cursor)))
+    //     qDebug() << "different parent" << parent << clang_getCursorLexicalParent(cursor) << count;
+    // QVector<CXCursor> *u = reinterpret_cast<QVector<CXCursor> *>(data);
+    // if (u->isEmpty()) {
+    //     u->append(parent);
+    // } else if (!clang_equalCursors(u->last(), parent)) {
+    //     bool found = false;
+    //     for (int i=u->size() - 2; i>=0; --i) {
+    //         if (clang_equalCursors(u->at(i), parent)) {
+    //             found = true;
+    //             u->resize(i);
+    //         }
+    //     }
+    //     if (!found) {
+    //         u->append(parent);
+    //     }
+    // }
+    QString str;
+    // str.fill(' ', u->size() * 2);
+    str.fill(' ', count * 2);
+    QDebug(&str) << cursor << clang_getCanonicalCursor(cursor)
+                 << clang_getCursorReferenced(cursor)
+                 << clang_getCanonicalCursor(clang_getCursorReferenced(cursor));
+    printf("%s\n", qPrintable(str));
+    return CXChildVisit_Recurse;
+}
+
+
 
 struct ProcessFileUserData {
     QByteArray fileName;
     int count;
 };
 
-static CXChildVisitResult processFile(CXCursor cursor, CXCursor parent, CXClientData data)
+static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData data)
 {
     ProcessFileUserData &userData = *reinterpret_cast<ProcessFileUserData*>(data);
     const CXCursorKind kind = clang_getCursorKind(cursor);
@@ -660,6 +799,7 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor parent, CXClient
     // ### the inline calls that mess us up
     switch (kind) {
     case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
         if (!clang_isCursorDefinition(cursor)) {
             if (Options::s_verbose) {
                 qDebug() << "dropping forward declaration of" << eatString(clang_getCursorDisplayName(cursor))
@@ -670,6 +810,7 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor parent, CXClient
         // fallthrough
     case CXCursor_Namespace:
     case CXCursor_CXXMethod:
+    case CXCursor_FunctionDecl:
     case CXCursor_Constructor: {
         const Location loc(cursor);
         if (!loc.exists()) {
@@ -698,35 +839,16 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor parent, CXClient
         ++userData.count;
         break; }
     case CXCursor_CallExpr: {
-        const Location callLoc(cursor);
-        if (!callLoc.exists()) {
+        const CXCursor method = clang_getCursorReferenced(cursor);
+        if (!isValidCursor(method))
+            break;
+        
+        const Location cursorLocation(cursor);
+        if (!cursorLocation.exists()) {
             if (Options::s_verbose) {
                 qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
                          << kindToString(clang_getCursorKind(cursor))
                          << "because of we can't find location" << __LINE__;
-            }
-            break;
-        }
-        CXCursor method = clang_getCursorReferenced(cursor);
-        if (!isValidCursor(method)) {
-            // if (Options::s_verbose) {
-                qDebug() << "clang_getCursorReferenced failed for" << cursor
-                         // << endl << clang_getCanonicalCursor(cursor)
-                         // << endl << eatString(clang_getCursorUSR(cursor))
-                         << parent
-                         << clang_getCursorLexicalParent(cursor)
-                         << clang_getCursorSemanticParent(cursor);
-                // method = clang_getCanonicalCursor(cursor);
-                // qDebug() <
-                // printf("Referenced failed trying canonical %d %s\n", isValidCursor(method),
-                //        kindToString(clang_getCursorKind(method)));
-            // }
-        }
-        if (!isValidCursor(method)) {
-            if (Options::s_verbose) {
-                qDebug() << "dropping" << eatString(clang_getCursorDisplayName(method))
-                         << kindToString(clang_getCursorKind(method))
-                         << "because of invalid reference" << cursor << method << __LINE__;
             }
             break;
         }
@@ -739,29 +861,33 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor parent, CXClient
             }
             break;
         }
-        // // ### not the most efficient way to check this
-        // Location methodLoc = Database::lookupDeclarations(symbol, true).value(0).location;
-        // if (!methodLoc.exists()) {
-        //     methodLoc = Location(method);
-        //     if (methodLoc.exists()) {
-        //         Database::setSymbolDeclaration(symbol, methodLoc);
-        //         ++userData.count;
-        //     } else {
-        //         if (Options::s_verbose && symbol != "__va_list_tag()") {
-        //             qDebug() << "dropping" << symbol
-        //                      << kindToString(clang_getCursorKind(method))
-        //                      << "because we can't find file" << __LINE__;
-        //         }
-        //         break;
-        //     }
-        // }
+        // ### not the most efficient way to check this
+        Location methodLoc = Database::lookupDeclarations(symbol, true).value(0).location;
+        if (!methodLoc.exists()) {
+            methodLoc = Location(method);
+            if (methodLoc.exists()) {
+                if (clang_isCursorDefinition(method)) {
+                    Database::setSymbolDefinition(symbol, methodLoc);
+                } else {
+                    Database::setSymbolDeclaration(symbol, methodLoc);
+                }
+                ++userData.count;
+            } else {
+                if (Options::s_verbose && symbol != "__va_list_tag()") {
+                    qDebug() << "dropping" << symbol
+                             << kindToString(clang_getCursorKind(method))
+                             << "because we can't find file" << __LINE__;
+                }
+                break;
+            }
+        }
 
-        Database::addSymbolReference(symbol, callLoc);
+        Database::addSymbolReference(symbol, cursorLocation);
         ++userData.count;
         break; }
-    default:
-        break;
-    }
+default:
+    break;
+}
 
     return CXChildVisit_Recurse;
 }
@@ -776,17 +902,11 @@ void Daemon::onFileParsed(const QByteArray &absoluteFilePath, void *u)
         clang_disposeTranslationUnit(unit);
         return;
     }
-    FindInclusionsData data;
-    clang_getInclusions(unit, inclusionVisitor, &data);
-    QVector<QByteArray> includeFiles(data.includeFiles.size());
-    int i = 0;
-    foreach(CXFile file, data.includeFiles) {
-        includeFiles[i++] = eatString(clang_getFileName(file));
-        Q_ASSERT(includeFiles.count(includeFiles[i]) == 1);
-    }
-    qDebug() << absoluteFilePath << includeFiles;
-    Q_ASSERT(!m_translationUnits.contains(absoluteFilePath));
-    m_translationUnits[absoluteFilePath] = unit;
+    // FindInclusionsData data;
+    // clang_getInclusions(unit, inclusionVisitor, &data);
+    // qDebug() << absoluteFilePath << data.includeFiles;
+    // Q_ASSERT(!m_translationUnits.contains(absoluteFilePath));
+    // m_translationUnits[absoluteFilePath] = unit;
 
     m_threadPool.start(new ProcessFileRunnable(absoluteFilePath, unit));
 }
@@ -800,10 +920,24 @@ void ProcessFileRunnable::run()
     userData.count = 0;
     QElapsedTimer timer;
     timer.start();
-    clang_visitChildren(cursor, processFile, &userData);
-    qDebug("Added %d entries (total %d/%d/%d) for %s (%lld ms)", userData.count,
-           Database::symbolDeclarationSize(), Database::symbolDefinitionSize(),
-           Database::symbolReferencesSize(), m_absoluteFilePath.constData(), timer.elapsed());
+    // QVector<CXCursor> stack;
+    QSet<QByteArray> seen;
+    UD ud;
+    ud.root = ud.invalid = 0;
+    printf("%s\n", m_absoluteFilePath.constData());
+    // clang_visitChildren(cursor, buildTree, &seen);
+    clang_visitChildren(cursor, buildTree2, &ud);
+    if (ud.root)
+        ud.root->print();
+    if (ud.invalid) {
+        printf("Invalid\n");
+        ud.invalid->print();
+    }
+
+    // clang_visitChildren(cursor, processFile, &userData);
+    // qDebug("Added %d entries (total %d/%d/%d) for %s (%lld ms)", userData.count,
+    //        Database::symbolDeclarationSize(), Database::symbolDefinitionSize(),
+    //        Database::symbolReferencesSize(), m_absoluteFilePath.constData(), timer.elapsed());
 
 
 }

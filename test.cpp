@@ -1,5 +1,3 @@
-#include "test.h"
-
 namespace NM {
 
 class A;

@@ -33,11 +33,11 @@ DaemonAdaptor::~DaemonAdaptor()
     // destructor
 }
 
-QHash<QByteArray, QVariant> DaemonAdaptor::runCommand(const QHash<QByteArray, QVariant> &args)
+ArgumentMap DaemonAdaptor::runCommand(const ArgumentMap &args)
 {
     // handle method call rtags.Daemon.runCommand
-    QHash<QByteArray, QVariant> out0;
-    QMetaObject::invokeMethod(parent(), "runCommand", Q_RETURN_ARG(QHash<QByteArray, QVariant>, out0), Q_ARG(QHash<QByteArray, QVariant>, args));
+    ArgumentMap out0;
+    QMetaObject::invokeMethod(parent(), "runCommand", Q_RETURN_ARG(ArgumentMap, out0), Q_ARG(ArgumentMap, args));
     return out0;
 }
 

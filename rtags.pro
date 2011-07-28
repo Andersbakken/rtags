@@ -11,7 +11,8 @@ macx {
     CONFIG -= app_bundle
     !dbus:CONFIG += ebus
 } else {
-    !ebus:CONFIG += dbus
+    !dbus:CONFIG += ebus
+    #!ebus:CONFIG += dbus
 }
 
 QT = core

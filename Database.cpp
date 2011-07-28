@@ -83,7 +83,7 @@ QList<QByteArray> Database::takeCompilerOptions(const QByteArray &absoluteFilePa
 void Database::setSymbolDeclaration(const QByteArray &symbolName, const Location &location)
 {
     QWriteLocker lock(&s_declarationsLock);
-    // qDebug() << "setSymbolDeclaration" << symbolName << location;
+    qDebug() << "setSymbolDeclaration" << symbolName << location;
     Q_ASSERT(isValid(location));
     const int idx = findExact(symbolName, s_declarations);
     if (idx != -1) {
@@ -125,6 +125,7 @@ int Database::symbolDeclarationSize()
 
 void Database::setSymbolDefinition(const QByteArray &symbolName, const Location &location)
 {
+    qDebug() << "setSymbolDefinition" << symbolName << location;
     QWriteLocker lock(&s_definitionsLock);
     Q_ASSERT(isValid(location));
     const int idx = findExact(symbolName, s_definitions);
@@ -168,7 +169,7 @@ int Database::symbolDefinitionSize()
 void Database::addSymbolReference(const QByteArray &symbolName, const Location &location)
 {
     QWriteLocker lock(&s_referencesLock);
-    // qDebug() << "addSymbolReference" << symbolName << location;
+    qDebug() << "addSymbolReference" << symbolName << location;
     Q_ASSERT(isValid(location));
     s_references.append(Symbol(symbolName, location));
 }
