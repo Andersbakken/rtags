@@ -97,7 +97,12 @@ void ArgParser::addValue(const QByteArray &key, const QByteArray &value)
         return;
     }
 
-    m_args[key] = value;
+    QByteArray copy = value;
+    if (resolvePath(copy)) { // make all valid paths absolute
+        m_args[key] = copy;
+    } else {
+        m_args[key] = value;
+    }
 }
 
 bool ArgParser::parse(int argc, char **argv)
