@@ -216,8 +216,10 @@ int main(int argc, char** argv)
     } else {
         Client client;
         if (!client.connect()) {
-            if (cmd == "quit")
+            if (cmd == "quit") {
+                qWarning("Can't connect to rtags daemon");
                 return 0;
+            }
             client.startDaemon(app.arguments());
             for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {
                 if (client.connect()) {
