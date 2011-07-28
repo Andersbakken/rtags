@@ -21,6 +21,19 @@ static QHash<QByteArray, QVariant> createResultMap(const QByteArray& result)
     return ret;
 }
 
+class ProcessFileJob : public ThreadPoolJob
+{
+public:
+    ProcessFileJob(const QByteArray &absoluteFilePath, CXTranslationUnit unit)
+        : m_absoluteFilePath(absoluteFilePath), m_unit(unit)
+    {}
+
+    virtual void execute();
+private:
+    const QByteArray m_absoluteFilePath;
+    CXTranslationUnit m_unit;
+};
+
 static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
 {
     QString text = "CXCursor(";
@@ -742,15 +755,22 @@ void Daemon::onFileParsed(const QByteArray &absoluteFilePath, void *u)
     }
     Q_ASSERT(!m_translationUnits.contains(absoluteFilePath));
     m_translationUnits[absoluteFilePath] = unit;
+    m_threadPool.post(new ProcessFileJob(absoluteFilePath, unit));
+}
+
+void ProcessFileJob::execute()
+{
     // crashes right now with some issue with autoincrement primary key on Symbol
-    CXCursor cursor = clang_getTranslationUnitCursor(unit);
+    CXCursor cursor = clang_getTranslationUnitCursor(m_unit);
     ProcessFileUserData userData;
-    userData.fileName = absoluteFilePath;
+    userData.fileName = m_absoluteFilePath;
     userData.count = 0;
     QElapsedTimer timer;
     timer.start();
     clang_visitChildren(cursor, processFile, &userData);
     qDebug("Added %d entries (total %d/%d/%d) for %s (%lld ms)", userData.count,
            Database::symbolDeclarationSize(), Database::symbolDefinitionSize(),
-           Database::symbolReferencesSize(), absoluteFilePath.constData(), timer.elapsed());
+           Database::symbolReferencesSize(), m_absoluteFilePath.constData(), timer.elapsed());
+
+
 }
