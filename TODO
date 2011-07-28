@@ -1,1 +1,10 @@
 Add regexp matching or at least some heuristics for remove so you don't have to pass the whole path
+Don't use filesystemwatcher
+Investige issue with duplicate files (qt_core_pch.h)
+Investige why Qt drops symbols
+Make Database api more friendly
+Make database more persistent (e.g. know if a file has changed)
+Replace sqlite with homegrown format => Donish
+Use AST file caching
+reparse crashes in c-lang?
+write elisp bindings

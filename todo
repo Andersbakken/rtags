@@ -1,9 +1,0 @@
-Replace sqlite with homegrown format => Donish
-Investige why Qt drops symbols
-Investige issue with duplicate files (qt_core_pch.h)
-reparse crashes in c-lang?
-write elisp bindings
-Make database more persistent (e.g. know if a file has changed)
-Use AST file caching
-Make Database api more friendly
-Don't use filesystemwatcher
