@@ -46,7 +46,7 @@ HEADERS += \
     Client.h \
     GccArguments.h \
     Utils.h \
-    ClangJob.h \
+    ClangRunnable.h \
     Database.h \
     ThreadPool.h
 

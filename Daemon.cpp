@@ -5,7 +5,7 @@
 #include "GccArguments.h"
 #include <QCoreApplication>
 #include "Utils.h"
-#include "ClangJob.h"
+#include "ClangRunnable.h"
 #include "Database.h"
 
 const QByteArray dirName(const QByteArray &filePath)
@@ -21,14 +21,16 @@ static QHash<QByteArray, QVariant> createResultMap(const QByteArray& result)
     return ret;
 }
 
-class ProcessFileJob : public ThreadPoolJob
+class ProcessFileRunnable : public QRunnable
 {
 public:
-    ProcessFileJob(const QByteArray &absoluteFilePath, CXTranslationUnit unit)
+    ProcessFileRunnable(const QByteArray &absoluteFilePath, CXTranslationUnit unit)
         : m_absoluteFilePath(absoluteFilePath), m_unit(unit)
-    {}
+    {
+        setAutoDelete(true);
+    }
 
-    virtual void execute();
+    virtual void run();
 private:
     const QByteArray m_absoluteFilePath;
     CXTranslationUnit m_unit;
@@ -69,10 +71,10 @@ Daemon::Daemon(QObject *parent)
     , m_server(0)
 #endif
 {
-    m_threadPool.init(8); // ### configurable?
     // Database::init("database.db"); // needs to be added for each command likely
     FUNC1(parent);
     connect(&m_fileSystemWatcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged(QString)));
+    m_threadPool.setExpiryTimeout(60000); // ### is this enough?
 }
 
 Daemon::~Daemon()
@@ -268,7 +270,7 @@ QHash<QByteArray, QVariant> Daemon::addSourceFile(const QHash<QByteArray, QVaria
     return result;
 }
 
-void Daemon::addMakefileLine(const QByteArray &makeLine, const QByteArray &dirpath)
+void Daemon::addMakefileLine(const QByteArray &makeLine, const QByteArray &dirpath, QSet<QByteArray> &seen)
 {
 #ifdef Q_OS_UNIX
     Q_ASSERT(dirpath.startsWith('/')); // this path should be absolute and verifie
@@ -291,6 +293,9 @@ void Daemon::addMakefileLine(const QByteArray &makeLine, const QByteArray &dirpa
             qWarning("%s doesn't exist", filename.constData());
             return;
         }
+        if (seen.contains(filename))
+            continue;
+        seen.insert(filename);
         QHash<QByteArray, CXTranslationUnit>::iterator it = m_translationUnits.find(filename);
         if (it != m_translationUnits.end()) {
             // ### need to check if it was parsed with the same flags, and if so reparse
@@ -341,6 +346,7 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
         return createResultMap("Make returned error: " + proc.readAllStandardError());
     }
 
+    QSet<QByteArray> seen;
     QByteArray error;
     QList<QByteArray> makeData = proc.readAllStandardOutput().split('\n');
     QRegExp accept(args.value("accept").toString());
@@ -360,7 +366,7 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
             continue;
         }
 
-        addMakefileLine(makeLine, dirname);
+        addMakefileLine(makeLine, dirname, seen);
     }
 
     if (!error.isEmpty()) // ### createErrorMap()?
@@ -583,11 +589,11 @@ void Daemon::addTranslationUnit(const QByteArray &absoluteFilePath,
                                 const QList<QByteArray> &compilerOptions)
 {
     FUNC3(absoluteFilePath, options, compilerOptions);
-    ClangJob *job = new ClangJob(absoluteFilePath, options, compilerOptions, m_index);
-    connect(job, SIGNAL(error(QByteArray)), this, SLOT(onParseError(QByteArray)));
-    connect(job, SIGNAL(fileParsed(QByteArray, void*)),
+    ClangRunnable *runnable = new ClangRunnable(absoluteFilePath, options, compilerOptions, m_index);
+    connect(runnable, SIGNAL(error(QByteArray)), this, SLOT(onParseError(QByteArray)));
+    connect(runnable, SIGNAL(fileParsed(QByteArray, void*)),
             this, SLOT(onFileParsed(QByteArray, void*)));
-    m_threadPool.post(job);
+    m_threadPool.start(runnable);
 }
 void Daemon::onParseError(const QByteArray &absoluteFilePath)
 {
@@ -629,15 +635,29 @@ static inline QByteArray symbolName(CXCursor cursor)
     return name;
 }
 
+struct FindInclusionsData {
+    QSet<CXFile> includeFiles;
+};
+
+static inline void inclusionVisitor(CXFile includedFile,
+                                    CXSourceLocation* /*inclusionStack*/,
+                                    unsigned /*includeLen*/,
+                                    CXClientData userData)
+{
+    reinterpret_cast<FindInclusionsData*>(userData)->includeFiles.insert(includedFile);
+}
+
 struct ProcessFileUserData {
     QByteArray fileName;
     int count;
 };
 
-static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData data)
+static CXChildVisitResult processFile(CXCursor cursor, CXCursor parent, CXClientData data)
 {
     ProcessFileUserData &userData = *reinterpret_cast<ProcessFileUserData*>(data);
     const CXCursorKind kind = clang_getCursorKind(cursor);
+    // ### figure out how to dump the whole tree and analyze what we have for
+    // ### the inline calls that mess us up
     switch (kind) {
     case CXCursor_ClassDecl:
         if (!clang_isCursorDefinition(cursor)) {
@@ -689,15 +709,18 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
         }
         CXCursor method = clang_getCursorReferenced(cursor);
         if (!isValidCursor(method)) {
-            if (Options::s_verbose) {
-                qDebug() << "trying stuff\n" << method << endl << cursor
-                         << endl << clang_getCanonicalCursor(cursor)
-                         << endl << eatString(clang_getCursorUSR(cursor));
+            // if (Options::s_verbose) {
+                qDebug() << "clang_getCursorReferenced failed for" << cursor
+                         // << endl << clang_getCanonicalCursor(cursor)
+                         // << endl << eatString(clang_getCursorUSR(cursor))
+                         << parent
+                         << clang_getCursorLexicalParent(cursor)
+                         << clang_getCursorSemanticParent(cursor);
                 // method = clang_getCanonicalCursor(cursor);
                 // qDebug() <
                 // printf("Referenced failed trying canonical %d %s\n", isValidCursor(method),
                 //        kindToString(clang_getCursorKind(method)));
-            }
+            // }
         }
         if (!isValidCursor(method)) {
             if (Options::s_verbose) {
@@ -753,12 +776,22 @@ void Daemon::onFileParsed(const QByteArray &absoluteFilePath, void *u)
         clang_disposeTranslationUnit(unit);
         return;
     }
+    FindInclusionsData data;
+    clang_getInclusions(unit, inclusionVisitor, &data);
+    QVector<QByteArray> includeFiles(data.includeFiles.size());
+    int i = 0;
+    foreach(CXFile file, data.includeFiles) {
+        includeFiles[i++] = eatString(clang_getFileName(file));
+        Q_ASSERT(includeFiles.count(includeFiles[i]) == 1);
+    }
+    qDebug() << absoluteFilePath << includeFiles;
     Q_ASSERT(!m_translationUnits.contains(absoluteFilePath));
     m_translationUnits[absoluteFilePath] = unit;
-    m_threadPool.post(new ProcessFileJob(absoluteFilePath, unit));
+
+    m_threadPool.start(new ProcessFileRunnable(absoluteFilePath, unit));
 }
 
-void ProcessFileJob::execute()
+void ProcessFileRunnable::run()
 {
     // crashes right now with some issue with autoincrement primary key on Symbol
     CXCursor cursor = clang_getTranslationUnitCursor(m_unit);

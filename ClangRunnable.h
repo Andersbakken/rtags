@@ -1,39 +1,40 @@
-#ifndef ClangJob_h
-#define ClangJob_h
+#ifndef ClangRunnable_h
+#define ClangRunnable_h
 
 #include <QtCore>
 #include <clang-c/Index.h>
 #include "Utils.h"
 #include "ThreadPool.h"
 
-class ClangJob : public QObject, public ThreadPoolJob
+class ClangRunnable : public QObject, public QRunnable
 {
     Q_OBJECT;
 public:
-    ClangJob(const QByteArray &absoluteFilePath,
-             unsigned options,
-             const QList<QByteArray> &compilerOptions,
-             CXIndex index)
+    ClangRunnable(const QByteArray &absoluteFilePath,
+                  unsigned options,
+                  const QList<QByteArray> &compilerOptions,
+                  CXIndex index)
         : m_absoluteFilePath(absoluteFilePath),
           m_options(options),
           m_compilerOptions(compilerOptions),
           m_index(index),
           m_reparseUnit(0)
     {
-        setObjectName("ClangJob (parse) " + absoluteFilePath);
+        setAutoDelete(true);
+        setObjectName("ClangRunnable (parse) " + absoluteFilePath);
         // qDebug() << "creating a thread" << objectName();
     }
 
-    ClangJob(CXTranslationUnit unit, const QByteArray &absoluteFilePath)
+    ClangRunnable(CXTranslationUnit unit, const QByteArray &absoluteFilePath)
         : m_absoluteFilePath(absoluteFilePath), m_options(0),
           m_index(0), m_reparseUnit(unit)
     {
         FUNC1(absoluteFilePath);
-        setObjectName("ClangJob (reparse) " + absoluteFilePath);
+        setObjectName("ClangRunnable (reparse) " + absoluteFilePath);
         // qDebug() << "creating a thread" << objectName();
     }
 
-    void execute()
+    void run()
     {
         // Timer timer(__FUNCTION__, objectName(), true);
         FUNC;
@@ -47,7 +48,6 @@ public:
             }
 
             QElapsedTimer timer;
-            qDebug() << "parsing file" << m_absoluteFilePath;
             timer.start();
             CXTranslationUnit unit = clang_parseTranslationUnit(m_index,
                                                                 m_absoluteFilePath.constData(),
@@ -60,7 +60,6 @@ public:
                 emit fileParsed(m_absoluteFilePath, unit);
             }
         }
-        deleteLater();
     }
 signals:
     void fileReparsed(const QByteArray &absoluteFilePath);

@@ -5,9 +5,9 @@
 #include <QString>
 #include <QStringList>
 #include <QHash>
+#include <QThreadPool>
 #include <QFileSystemWatcher>
 #include <clang-c/Index.h>
-#include "ThreadPool.h"
 #ifdef EBUS_ENABLED
 #include <QtNetwork>
 #endif
@@ -39,16 +39,17 @@ private:
     bool addSourceFile(const QByteArray& absoluteFilePath,
                        unsigned options = CXTranslationUnit_CacheCompletionResults,
                        QHash<QByteArray, QVariant>* result = 0);
-    void addMakefileLine(const QByteArray& line, const QByteArray &dirpath);
+    void addMakefileLine(const QByteArray& line, const QByteArray &dirpath,
+                         QSet<QByteArray> &seen);
     QHash<QByteArray, QVariant> fileList(const QHash<QByteArray, QVariant> &args);
     void addTranslationUnit(const QByteArray &absoluteFilePath,
                             unsigned options = 0,
                             const QList<QByteArray> &compilerOptions = QList<QByteArray>());
 private:
+    QThreadPool m_threadPool;
     CXIndex m_index;
     QHash<QByteArray, CXTranslationUnit> m_translationUnits;
     QFileSystemWatcher m_fileSystemWatcher;
-    ThreadPool m_threadPool;
 #ifdef EBUS_ENABLED
     QTcpServer *m_server;
     QHash<QTcpSocket*, qint16> m_connections;
