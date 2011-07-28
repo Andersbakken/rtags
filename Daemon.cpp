@@ -703,22 +703,22 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
             }
             break;
         }
-        // ### not the most efficient way to check this
-        Location methodLoc = Database::lookupDeclarations(symbol, true).value(0).location;
-        if (!methodLoc.exists()) {
-            methodLoc = Location(method);
-            if (methodLoc.exists()) {
-                Database::setSymbolDeclaration(symbol, methodLoc);
-                ++userData.count;
-            } else {
-                if (Options::s_verbose && symbol != "__va_list_tag()") {
-                    qDebug() << "dropping" << symbol
-                             << kindToString(clang_getCursorKind(method))
-                             << "because we can't find file" << __LINE__;
-                }
-                break;
-            }
-        }
+        // // ### not the most efficient way to check this
+        // Location methodLoc = Database::lookupDeclarations(symbol, true).value(0).location;
+        // if (!methodLoc.exists()) {
+        //     methodLoc = Location(method);
+        //     if (methodLoc.exists()) {
+        //         Database::setSymbolDeclaration(symbol, methodLoc);
+        //         ++userData.count;
+        //     } else {
+        //         if (Options::s_verbose && symbol != "__va_list_tag()") {
+        //             qDebug() << "dropping" << symbol
+        //                      << kindToString(clang_getCursorKind(method))
+        //                      << "because we can't find file" << __LINE__;
+        //         }
+        //         break;
+        //     }
+        // }
 
         Database::addSymbolReference(symbol, callLoc);
         ++userData.count;
