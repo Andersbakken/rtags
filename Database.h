@@ -2,7 +2,6 @@
 #define Database_h
 
 #include <QtCore>
-#include <QtSql>
 #include <sys/stat.h>
 #include <clang-c/Index.h>
 #include "Utils.h"

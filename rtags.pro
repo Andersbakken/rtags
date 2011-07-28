@@ -14,7 +14,7 @@ macx {
     !ebus:CONFIG += dbus
 }
 
-QT = core sql
+QT = core
 dbus {
     message("Using DBus. Run qmake -config ebus to use ebus")
     QT += dbus
