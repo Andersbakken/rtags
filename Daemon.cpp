@@ -688,21 +688,23 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
         const Location callLoc(cursor);
         if (!callLoc.exists()) {
             // if (Options::s_verbose) {
-                qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
-                         << kindToString(clang_getCursorKind(cursor))
-                         << "because of we can't find location" << __LINE__;
+            qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
+                     << kindToString(clang_getCursorKind(cursor))
+                     << "because of we can't find location" << __LINE__;
             // }
             break;
         }
         CXCursor method = clang_getCursorReferenced(cursor);
         if (!isValidCursor(method)) {
-            qDebug() << "trying stuff\n" << method << endl << cursor
-                     << endl << clang_getCanonicalCursor(cursor)
-                     << endl << eatString(clang_getCursorUSR(cursor));
-            // method = clang_getCanonicalCursor(cursor);
-            // qDebug() <
-            // printf("Referenced failed trying canonical %d %s\n", isValidCursor(method),
-            //        kindToString(clang_getCursorKind(method)));
+            if (Options::s_verbose) {
+                qDebug() << "trying stuff\n" << method << endl << cursor
+                         << endl << clang_getCanonicalCursor(cursor)
+                         << endl << eatString(clang_getCursorUSR(cursor));
+                // method = clang_getCanonicalCursor(cursor);
+                // qDebug() <
+                // printf("Referenced failed trying canonical %d %s\n", isValidCursor(method),
+                //        kindToString(clang_getCursorKind(method)));
+            }
         }
         if (!isValidCursor(method)) {
             if (Options::s_verbose) {
@@ -715,9 +717,9 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
         const QByteArray symbol = symbolName(method);
         if (symbol.isEmpty()) {
             // if (Options::s_verbose) {
-                qDebug() << "dropping" << eatString(clang_getCursorDisplayName(method))
-                         << kindToString(clang_getCursorKind(method))
-                         << "because of empty symbolName" << __LINE__;
+            qDebug() << "dropping" << eatString(clang_getCursorDisplayName(method))
+                     << kindToString(clang_getCursorKind(method))
+                     << "because of empty symbolName" << __LINE__;
             // }
             break;
         }
@@ -730,9 +732,9 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
                 ++userData.count;
             } else {
                 // if (Options::s_verbose && symbol != "__va_list_tag()") {
-                    qDebug() << "dropping" << symbol
-                             << kindToString(clang_getCursorKind(method))
-                             << "because we can't find file" << __LINE__;
+                qDebug() << "dropping" << symbol
+                         << kindToString(clang_getCursorKind(method))
+                         << "because we can't find file" << __LINE__;
                 // }
                 break;
             }
