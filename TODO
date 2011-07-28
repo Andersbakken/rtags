@@ -1,10 +1,12 @@
+Replace sqlite with homegrown format => Done
+Reparse crashes in c-lang? => Done (we're not calling reparse, but rather parse it again)
+Make Database api more friendly => Done
+
+Use AST file caching
 Add regexp matching or at least some heuristics for remove so you don't have to pass the whole path
 Don't use filesystemwatcher
 Investige issue with duplicate files (qt_core_pch.h)
 Investige why Qt drops symbols
-Make Database api more friendly
 Make database more persistent (e.g. know if a file has changed)
-Replace sqlite with homegrown format => Donish
-Use AST file caching
-reparse crashes in c-lang?
 write elisp bindings
+Process files in ClangJob
