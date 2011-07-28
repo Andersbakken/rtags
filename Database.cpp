@@ -3,7 +3,9 @@
 #include <QStringList>
 #include <QVariant>
 #include <QDateTime>
+#include <QReadWriteLock>
 
+static QReadWriteLock s_definitionsLock, s_declarationsLock, s_referencesLock, s_filesLock;
 static QList<Symbol> s_definitions, s_declarations, s_references;
 static QHash<QByteArray, QList<QByteArray> > s_files;
 
@@ -36,34 +38,51 @@ typedef int (*FindFunc)(const QByteArray &, const QList<Symbol> &, int);
 
 void Database::clear()
 {
-    s_definitions.clear();
-    s_declarations.clear();
-    s_references.clear();
-    s_files.clear();
+    {
+        QWriteLocker lock(&s_definitionsLock);
+        s_definitions.clear();
+    }
+    {
+        QWriteLocker lock(&s_declarationsLock);
+        s_declarations.clear();
+    }
+    {
+        QWriteLocker lock(&s_referencesLock);
+        s_references.clear();
+    }
+    {
+        QWriteLocker lock(&s_filesLock);
+        s_files.clear();
+    }
 }
 
 void Database::addFile(const QByteArray &file, const QList<QByteArray> &compilerOptions)
 {
+    QWriteLocker lock(&s_filesLock);
     s_files[file] = compilerOptions;
 }
 
 bool Database::removeFile(const QByteArray &file)
 {
+    QWriteLocker lock(&s_filesLock);
     return s_files.remove(file);
 }
 
 QList<QByteArray> Database::compilerOptions(const QByteArray &absoluteFilePath)
 {
+    QReadLocker lock(&s_filesLock);
     return s_files.value(absoluteFilePath);
 }
 
 QList<QByteArray> Database::takeCompilerOptions(const QByteArray &absoluteFilePath)
 {
+    QWriteLocker lock(&s_filesLock);
     return s_files.take(absoluteFilePath);
 }
 
 void Database::setSymbolDeclaration(const QByteArray &symbolName, const Location &location)
 {
+    QWriteLocker lock(&s_declarationsLock);
     // qDebug() << "setSymbolDeclaration" << symbolName << location;
     Q_ASSERT(isValid(location));
     const int idx = findExact(symbolName, s_declarations);
@@ -76,6 +95,7 @@ void Database::setSymbolDeclaration(const QByteArray &symbolName, const Location
 
 bool Database::clearSymbolDeclaration(const QByteArray &symbolName)
 {
+    QWriteLocker lock(&s_declarationsLock);
     // ### is it better to use a linkedlist
     const int idx = findExact(symbolName, s_declarations);
     if (idx != -1) {
@@ -87,6 +107,7 @@ bool Database::clearSymbolDeclaration(const QByteArray &symbolName)
 
 QList<Symbol> Database::lookupDeclarations(const QByteArray &symbolName, bool exactMatch)
 {
+    QReadLocker lock(&s_declarationsLock);
     QList<Symbol> symbols;
     FindFunc func = exactMatch ? findExact : findContains;
     int idx = 0;
@@ -98,11 +119,13 @@ QList<Symbol> Database::lookupDeclarations(const QByteArray &symbolName, bool ex
 
 int Database::symbolDeclarationSize()
 {
+    QReadLocker lock(&s_declarationsLock);
     return s_declarations.size();
 }
 
 void Database::setSymbolDefinition(const QByteArray &symbolName, const Location &location)
 {
+    QWriteLocker lock(&s_definitionsLock);
     Q_ASSERT(isValid(location));
     const int idx = findExact(symbolName, s_definitions);
     if (idx != -1) {
@@ -114,6 +137,7 @@ void Database::setSymbolDefinition(const QByteArray &symbolName, const Location 
 
 bool Database::clearSymbolDefinition(const QByteArray &symbolName)
 {
+    QWriteLocker lock(&s_definitionsLock);
     // ### is it better to use a linkedlist
     const int idx = findExact(symbolName, s_definitions);
     if (idx != -1) {
@@ -125,6 +149,7 @@ bool Database::clearSymbolDefinition(const QByteArray &symbolName)
 
 QList<Symbol> Database::lookupDefinitions(const QByteArray &symbolName, bool exactMatch)
 {
+    QReadLocker lock(&s_definitionsLock);
     QList<Symbol> symbols;
     FindFunc func = exactMatch ? findExact : findContains;
     int idx = 0;
@@ -136,11 +161,13 @@ QList<Symbol> Database::lookupDefinitions(const QByteArray &symbolName, bool exa
 
 int Database::symbolDefinitionSize()
 {
+    QReadLocker lock(&s_definitionsLock);
     return s_definitions.size();
 }
 
 void Database::addSymbolReference(const QByteArray &symbolName, const Location &location)
 {
+    QWriteLocker lock(&s_referencesLock);
     // qDebug() << "addSymbolReference" << symbolName << location;
     Q_ASSERT(isValid(location));
     s_references.append(Symbol(symbolName, location));
@@ -148,6 +175,7 @@ void Database::addSymbolReference(const QByteArray &symbolName, const Location &
 
 QList<Symbol> Database::lookupReferences(const QByteArray &symbolName, bool exactMatch)
 {
+    QReadLocker lock(&s_referencesLock);
     QList<Symbol> symbols;
     FindFunc func = exactMatch ? findExact : findContains;
     int idx = 0;
@@ -159,6 +187,7 @@ QList<Symbol> Database::lookupReferences(const QByteArray &symbolName, bool exac
 
 int Database::clearSymbolReferences(const QByteArray &symbolName)
 {
+    QWriteLocker lock(&s_referencesLock);
     int idx = 0;
     int count = 0;
     while ((idx = findExact(symbolName, s_references, idx)) != -1) {
@@ -170,11 +199,13 @@ int Database::clearSymbolReferences(const QByteArray &symbolName)
 
 int Database::symbolReferencesSize()
 {
+    QReadLocker lock(&s_referencesLock);
     return s_references.size();
 }
 
 void Database::removeReferences(const QByteArray &absoluteFilePath)
 {
+    QWriteLocker lock(&s_referencesLock);
     // ### leave compiler options stored for this file in database
     QList<Symbol> *lists[] = { &s_definitions, &s_declarations, &s_references };
     for (int i=0; i<3; ++i) {
