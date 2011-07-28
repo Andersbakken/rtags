@@ -731,11 +731,11 @@ static CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData da
                 Database::setSymbolDeclaration(symbol, methodLoc);
                 ++userData.count;
             } else {
-                // if (Options::s_verbose && symbol != "__va_list_tag()") {
-                qDebug() << "dropping" << symbol
-                         << kindToString(clang_getCursorKind(method))
-                         << "because we can't find file" << __LINE__;
-                // }
+                if (/*Options::s_verbose && */symbol != "__va_list_tag()") {
+                    qDebug() << "dropping" << symbol
+                             << kindToString(clang_getCursorKind(method))
+                             << "because we can't find file" << __LINE__;
+                }
                 break;
             }
         }
