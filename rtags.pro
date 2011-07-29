@@ -39,7 +39,6 @@ SOURCES += \
     Client.cpp \
     GccArguments.cpp \
     Utils.cpp \
-    Database.cpp \
     ThreadPool.cpp
 
 HEADERS += \
@@ -48,7 +47,6 @@ HEADERS += \
     GccArguments.h \
     Utils.h \
     ClangRunnable.h \
-    Database.h \
     ThreadPool.h
 
 OTHER_FILES += \

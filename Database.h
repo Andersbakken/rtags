@@ -33,6 +33,17 @@ struct Location {
     QByteArray fileName;
     unsigned line, column;
 };
+static inline QDebug operator<<(QDebug dbg, const Location &loc)
+{
+    if (!loc.exists()) {
+        dbg << "Location(null)";
+    } else {
+        dbg << QString("Location(%1:%2:%3)").
+            arg(QString::fromLocal8Bit(loc.fileName)).arg(loc.line).arg(loc.column);
+    }
+    return dbg;
+}
+
 
 struct Symbol {
     Symbol(const QByteArray &n = QByteArray(),
@@ -44,16 +55,6 @@ struct Symbol {
     Location location;
 };
 
-static inline QDebug operator<<(QDebug dbg, const Location &loc)
-{
-    if (!loc.exists()) {
-        dbg << "Location(null)";
-    } else {
-        dbg << QString("Location(%1:%2:%3)").
-            arg(QString::fromLocal8Bit(loc.fileName)).arg(loc.line).arg(loc.column);
-    }
-    return dbg;
-}
 
 static inline QDebug operator<<(QDebug dbg, const Symbol &s)
 {

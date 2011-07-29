@@ -1,6 +1,5 @@
 #include "Utils.h"
 #include <clang-c/Index.h>
-#include "Database.h"
 
 #ifdef DEBUG_FUNCTION_CALLS
 int Timer::s_indent = 0;

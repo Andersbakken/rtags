@@ -6,7 +6,124 @@
 #include <QCoreApplication>
 #include "Utils.h"
 #include "ClangRunnable.h"
-#include "Database.h"
+
+// ### might be worth optimizing
+static uint qHash(const CXCursor &c, const Location &l)
+{
+    QByteArray u = eatString(clang_getCursorUSR(c));
+    u.reserve(u.size() + 32);
+    u += char(clang_getCursorKind(c)); // ### is this guaranteed to fit in a byte?
+    u += l.fileName;
+    u += QByteArray::number(l.line);
+    u += QByteArray::number(l.column);
+    return qHash(u);
+}
+
+Node::Node()
+    : parent(0), nextSibling(0), firstChild(0), type(Root), hash(0)
+{}
+
+Node::Node(Node *p, CXCursor c, const Location &l, uint h)
+    : parent(p), nextSibling(0), firstChild(0), location(l), hash(h)
+{
+    const CXCursorKind kind = clang_getCursorKind(c);
+    switch (kind) {
+    case CXCursor_StructDecl:
+        Q_ASSERT(clang_isCursorDefinition(c));
+        type = Struct;
+        break;
+    case CXCursor_ClassDecl:
+        Q_ASSERT(clang_isCursorDefinition(c));
+        type = Class;
+        break;
+    case CXCursor_CallExpr:
+        type = MethodCall;
+        break;
+    case CXCursor_FieldDecl:
+        type = VariableDeclaration;
+        break;
+    case CXCursor_MemberRef:
+        type = VariableReference;
+        break;
+    case CXCursor_CXXMethod:
+    case CXCursor_FunctionDecl:
+    case CXCursor_Constructor:
+    case CXCursor_FunctionTemplate:
+        type = clang_isCursorDefinition(c) ? MethodDefinition : MethodDeclaration;
+        break;
+    case CXCursor_Namespace:
+        type = Namespace;
+        break;
+        type = Namespace;
+        break;
+    default:
+        qDebug() << c << l << kindToString(clang_getCursorKind(c));
+        Q_ASSERT(0 && "Can't find type for this cursor");
+        break;
+    }
+    symbolName = clang_getCursorDisplayName(c);
+    if (parent) {
+        nextSibling = parent->firstChild;
+        parent->firstChild = this;
+    }
+}
+
+
+Node::~Node()
+{
+    clang_disposeString(symbolName);
+    while (firstChild) {
+        Node *n = firstChild;
+        firstChild = firstChild->nextSibling;
+        delete n;
+    }
+}
+
+QByteArray Node::toString() const
+{
+    if (type == Root)
+        return "Root";
+    QByteArray buf(128, ' ');
+    char *b = buf.data();
+    int length = buf.length() - 1;
+    for (Node *p=parent; p; p = p->parent) {
+        length -= 2;
+        b += 2;
+    }
+    const int count = snprintf(b, length, "%s %s [%s:%d:%d]",
+                               typeToName(type), clang_getCString(symbolName),
+                               location.fileName.constData(), location.line, location.column);
+    Q_ASSERT(count < length);
+    buf.resize(count + (buf.size() - length));
+    return buf;
+}
+
+void Node::print() const
+{
+    printf("%s\n", toString().constData());
+    Node *child = firstChild;
+    while (child) {
+        child->print();
+        child = child->nextSibling;
+    }
+}
+
+const char *Node::typeToName(Type type)
+{
+    switch (type) {
+    case Root: return "Root";
+    case MethodDeclaration: return "MethodDeclaration";
+    case MethodDefinition: return "MethodDefinition";
+    case Class: return "Class";
+    case Struct: return "Struct";
+    case MethodCall: return "MethodCall";
+    case Namespace: return "Namespace";
+    case VariableDeclaration: return "VariableDeclaration";
+    case VariableReference: return "VariableReference";
+    }
+    Q_ASSERT(0 && "Invalid type");
+    return "Invalid";
+}
 
 const QByteArray dirName(const QByteArray &filePath)
 {
@@ -20,21 +137,6 @@ static QHash<QByteArray, QVariant> createResultMap(const QByteArray& result)
     ret.insert("result", result);
     return ret;
 }
-
-class ProcessFileRunnable : public QRunnable
-{
-public:
-    ProcessFileRunnable(const QByteArray &absoluteFilePath, CXTranslationUnit unit)
-        : m_absoluteFilePath(absoluteFilePath), m_unit(unit)
-    {
-        setAutoDelete(true);
-    }
-
-    virtual void run();
-private:
-    const QByteArray m_absoluteFilePath;
-    CXTranslationUnit m_unit;
-};
 
 static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
 {
@@ -69,7 +171,7 @@ static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
 
 
 Daemon::Daemon(QObject *parent)
-    : QObject(parent), m_index(clang_createIndex(1, 0))
+    : QObject(parent), m_index(clang_createIndex(1, 0)), m_root(new Node)
 #ifdef EBUS_ENABLED
     , m_server(0)
 #endif
@@ -87,6 +189,7 @@ Daemon::~Daemon()
         clang_disposeTranslationUnit(unit);
     }
     clang_disposeIndex(m_index);
+    delete m_root;
 }
 
 bool Daemon::start()
@@ -130,7 +233,6 @@ void Daemon::onFileChanged(const QString &p)
     FUNC1(p);
     QByteArray path = p.toLocal8Bit();
     resolvePath(path);
-    m_fileSystemWatcher.removePath(p);
     if (fileExists(path)) {
         addSourceFile(path);
     } else {
@@ -243,7 +345,8 @@ bool Daemon::addSourceFile(const QByteArray &absoluteFilePath, unsigned options,
     QList<QByteArray> compilerOptions;
     if (unit) {
         clang_disposeTranslationUnit(unit);
-        compilerOptions = Database::takeCompilerOptions(absoluteFilePath);
+        m_fileSystemWatcher.removePath(absoluteFilePath);
+        // compilerOptions = Database::takeCompilerOptions(absoluteFilePath);
     }
     addTranslationUnit(absoluteFilePath, options, compilerOptions);
     if (result)
@@ -481,16 +584,16 @@ static inline QByteArray path(CXCursor cursor)
 
 static inline QString cursorData(CXCursor cursor)
 {
-   CXString a = clang_getCursorDisplayName(cursor);
-   QString ret = path(cursor) + clang_getCString(a);
-   ret += ' ';
-   ret += kindToString(clang_getCursorKind(cursor));
-   clang_disposeString(a);
-   if (clang_isDeclaration(clang_getCursorKind(cursor))) {
-       ret += " decl";
-   }
+    CXString a = clang_getCursorDisplayName(cursor);
+    QString ret = path(cursor) + clang_getCString(a);
+    ret += ' ';
+    ret += kindToString(clang_getCursorKind(cursor));
+    clang_disposeString(a);
+    if (clang_isDeclaration(clang_getCursorKind(cursor))) {
+        ret += " decl";
+    }
 
-   return ret;
+    return ret;
 }
 
 enum Type {
@@ -499,47 +602,36 @@ enum Type {
     Reference = 'r'
 };
 
-static void add(QByteArray &list, char *buf, const QList<Symbol> &symbols, Type type)
-{
-    foreach(const Symbol &symbol, symbols) {
-        Q_ASSERT(symbol.location.exists());
-        const int count = snprintf(buf, 511, "%c %s \"%s:%d:%d\"\n", type,
-                                   symbol.symbolName.constData(),
-                                   symbol.location.fileName.constData(),
-                                   symbol.location.line, symbol.location.column);
-        list += QByteArray::fromRawData(buf, count);
-    }
-}
 
 QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &args)
 {
-    const QByteArray symbol = args.value("symbol").toByteArray();
-    if (symbol.isEmpty()) 
-        return createResultMap("No symbol in lookup request");
+    // const QByteArray symbol = args.value("symbol").toByteArray();
+    // if (symbol.isEmpty()) 
+    //     return createResultMap("No symbol in lookup request");
 
-    bool exactMatch = false;
-    if (args.contains("exact"))
-        exactMatch = true;
-    char buffer[512];
-    QByteArray results;
-    const QStringList symbolTypes = args.value("types").toString().
-        split(',', QString::SkipEmptyParts);
-    // ### uglehack
+    // bool exactMatch = false;
+    // if (args.contains("exact"))
+    //     exactMatch = true;
+    // char buffer[512];
+    // QByteArray results;
+    // const QStringList symbolTypes = args.value("types").toString().
+    //     split(',', QString::SkipEmptyParts);
+    // // ### uglehack
 
-    qDebug() << symbol << symbolTypes;
-    // qDebug() << symbol << args << symbolTypes << Database::symbolDeclarationSize()
-    //          << Database::symbolDefinitionSize() << Database::symbolReferencesSize();
+    // qDebug() << symbol << symbolTypes;
+    // // qDebug() << symbol << args << symbolTypes << Database::symbolDeclarationSize()
+    // //          << Database::symbolDefinitionSize() << Database::symbolReferencesSize();
     
-    if (symbolTypes.isEmpty() || symbolTypes.contains("declaration")) {
-        add(results, buffer, Database::lookupDeclarations(symbol, exactMatch), Declaration);
-    }
-    if (symbolTypes.isEmpty() || symbolTypes.contains("definition")) {
-        add(results, buffer, Database::lookupDefinitions(symbol, exactMatch), Definition);
-    }
-    if (symbolTypes.isEmpty() || symbolTypes.contains("reference")) {
-        add(results, buffer, Database::lookupReferences(symbol, exactMatch), Reference);
-    }
-    return createResultMap(results);
+    // if (symbolTypes.isEmpty() || symbolTypes.contains("declaration")) {
+    //     add(results, buffer, Database::lookupDeclarations(symbol, exactMatch), Declaration);
+    // }
+    // if (symbolTypes.isEmpty() || symbolTypes.contains("definition")) {
+    //     add(results, buffer, Database::lookupDefinitions(symbol, exactMatch), Definition);
+    // }
+    // if (symbolTypes.isEmpty() || symbolTypes.contains("reference")) {
+    //     add(results, buffer, Database::lookupReferences(symbol, exactMatch), Reference);
+    // }
+    // return createResultMap(results);
 }
 
 QHash<QByteArray, QVariant> Daemon::loadAST(const QHash<QByteArray, QVariant> &args)
@@ -657,198 +749,73 @@ static inline void inclusionVisitor(CXFile includedFile,
     }
 }
 
-struct Node
+static inline bool operator==(const CXCursor &left, const CXCursor &right)
 {
-    QList<Node*> children;
-    Node *parent;
-    CXCursor cursor;
-    Location location;
-
-    Node(Node *p, CXCursor c, const Location &l)
-        : parent(p), cursor(c), location(l)
-    {
-        if (parent)
-            parent->children.append(this);
-    }
-    ~Node()
-    {
-        qDeleteAll(children);
-    }
-
-    void print() const
-    {
-        int lvl = 0;
-        for (Node *p=parent; p; p = p->parent)
-            ++lvl;
-        QString str;
-        str.fill(' ', lvl * 2);
-        QDebug(&str) << cursor;
-        printf("%s\n", qPrintable(str));
-        foreach(Node *child, children) {
-            child->print();
-        }
-    }
-};
-
-struct Tree
-{
-    Tree()
-        : root(new Node(0, clang_getNullCursor(), Location()))
-    {}
-
-    ~Tree()
-    {
-        delete root;
-    }
-
-    Node *root;
-    QHash<unsigned, Node*> nodes;
-
-    Node *createOrGet(CXCursor cursor)
-    {
-        const CXCursorKind kind = clang_getCursorKind(cursor);
-        switch (kind) {
-        case CXCursor_FirstStmt:
-        case CXCursor_FirstExpr:
-        case CXCursor_UnexposedDecl:
-        case CXCursor_TypedefDecl:
-        case CXCursor_TypeRef:
-        case CXCursor_DeclRefExpr:
-        case CXCursor_MemberRefExpr:
-        case CXCursor_ParmDecl:
-        case CXCursor_UsingDirective:
-        case CXCursor_NamespaceRef:
-        case CXCursor_TemplateTypeParameter:
-        case CXCursor_OverloadedDeclRef:
-            return createOrGet(clang_getCursorSemanticParent(cursor));
-        case CXCursor_TranslationUnit:
-            return root;
-        default:
-            break;
-        }
-        if (clang_isInvalid(kind))
-            return root;
-        Location location(cursor);
-        if (!location.exists())
-            return createOrGet(clang_getCursorSemanticParent(cursor));
-        const unsigned hash = clang_hashCursor(cursor);
-        Node *&node = nodes[hash];
-        if (!node) {
-            node = new Node(createOrGet(clang_getCursorSemanticParent(cursor)), cursor, location);
-            Q_ASSERT(node->parent);
-        }
-        return node;
-    }
-};
-
-static CXChildVisitResult buildTree(CXCursor cursor, CXCursor, CXClientData data)
-{
-    Tree &tree = *reinterpret_cast<Tree*>(data);
-    tree.createOrGet(cursor);
-    return CXChildVisit_Recurse;
+    return clang_equalCursors(left, right);
 }
 
+Node *Daemon::createOrGet(CXCursor cursor)
+{
+    const CXCursorKind kind = clang_getCursorKind(cursor);
+    switch (kind) {
+    case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
+        if (clang_isCursorDefinition(cursor))
+            break;
+        // forward declaration, fall through
+    case CXCursor_FirstStmt:
+    case CXCursor_FirstExpr:
+    case CXCursor_UnexposedDecl:
+    case CXCursor_TypedefDecl:
+    case CXCursor_TypeRef:
+    case CXCursor_VarDecl:
+    case CXCursor_DeclRefExpr:
+    case CXCursor_MemberRefExpr:
+    case CXCursor_ParmDecl:
+    case CXCursor_UsingDirective:
+    case CXCursor_NamespaceRef:
+    case CXCursor_TemplateTypeParameter:
+    case CXCursor_OverloadedDeclRef:
+    case CXCursor_CXXBaseSpecifier:
+        return createOrGet(clang_getCursorSemanticParent(cursor));
+    case CXCursor_TranslationUnit:
+        return m_root;
+    default:
+        break;
+    }
+    if (clang_isInvalid(kind))
+        return m_root;
+    const Location location(cursor);
+    if (!location.exists())
+        return createOrGet(clang_getCursorSemanticParent(cursor));
 
-// CXChildVisitResult processFile(CXCursor cursor, CXCursor, CXClientData data)
-// {
-//     ProcessFileUserData &userData = *reinterpret_cast<ProcessFileUserData*>(data);
-//     const CXCursorKind kind = clang_getCursorKind(cursor);
-//     // ### figure out how to dump the whole tree and analyze what we have for
-//     // ### the inline calls that mess us up
-//     switch (kind) {
-//     case CXCursor_ClassDecl:
-//     case CXCursor_StructDecl:
-//         if (!clang_isCursorDefinition(cursor)) {
-//             if (Options::s_verbose) {
-//                 qDebug() << "dropping forward declaration of" << eatString(clang_getCursorDisplayName(cursor))
-//                          << __LINE__;
-//             }
-//             break;
-//         }
-//         // fallthrough
-//     case CXCursor_Namespace:
-//     case CXCursor_CXXMethod:
-//     case CXCursor_FunctionDecl:
-//     case CXCursor_Constructor: {
-//         const Location loc(cursor);
-//         if (!loc.exists()) {
-//             if (Options::s_verbose) {
-//                 qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
-//                          << kindToString(clang_getCursorKind(cursor))
-//                          << "because of missing file" << cursor << __LINE__;
-//             }
-//             break;
-//         }
-//         const QByteArray symbol = symbolName(cursor);
-//         if (symbol.isEmpty()) {
-//             if (Options::s_verbose) {
-//                 qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
-//                          << kindToString(clang_getCursorKind(cursor))
-//                          << "because of empty symbolName" << __LINE__;
-//             }
-//             break;
-//         }
+    const uint hash = qHash(cursor, location);
+    if (kind == CXCursor_CallExpr || kind == CXCursor_MemberRef) {
+        if (m_nodes.contains(hash))
+            return m_nodes.value(hash);
+        CXCursor ref = clang_getCursorReferenced(cursor);
+        if (isValidCursor(ref)) {
+            const PendingReference p = { cursor, ref, location, hash };
+            m_pendingReferences.append(p);
+            Q_ASSERT(!clang_equalCursors(ref, cursor));
+        }
+        return createOrGet(clang_getCursorSemanticParent(cursor));
+    }
 
-//         if (clang_isCursorDefinition(cursor)) {
-//             Database::setSymbolDefinition(symbol, loc);
-//         } else {
-//             Database::setSymbolDeclaration(symbol, loc);
-//         }
-//         ++userData.count;
-//         break; }
-//     case CXCursor_CallExpr: {
-//         const CXCursor method = clang_getCursorReferenced(cursor);
-//         if (!isValidCursor(method))
-//             break;
-        
-//         const Location cursorLocation(cursor);
-//         if (!cursorLocation.exists()) {
-//             if (Options::s_verbose) {
-//                 qDebug() << "dropping" << eatString(clang_getCursorDisplayName(cursor))
-//                          << kindToString(clang_getCursorKind(cursor))
-//                          << "because of we can't find location" << __LINE__;
-//             }
-//             break;
-//         }
-//         const QByteArray symbol = symbolName(method);
-//         if (symbol.isEmpty()) {
-//             if (Options::s_verbose) {
-//                 qDebug() << "dropping" << eatString(clang_getCursorDisplayName(method))
-//                          << kindToString(clang_getCursorKind(method))
-//                          << "because of empty symbolName" << __LINE__;
-//             }
-//             break;
-//         }
-//         // ### not the most efficient way to check this
-//         Location methodLoc = Database::lookupDeclarations(symbol, true).value(0).location;
-//         if (!methodLoc.exists()) {
-//             methodLoc = Location(method);
-//             if (methodLoc.exists()) {
-//                 if (clang_isCursorDefinition(method)) {
-//                     Database::setSymbolDefinition(symbol, methodLoc);
-//                 } else {
-//                     Database::setSymbolDeclaration(symbol, methodLoc);
-//                 }
-//                 ++userData.count;
-//             } else {
-//                 if (Options::s_verbose && symbol != "__va_list_tag()") {
-//                     qDebug() << "dropping" << symbol
-//                              << kindToString(clang_getCursorKind(method))
-//                              << "because we can't find file" << __LINE__;
-//                 }
-//                 break;
-//             }
-//         }
+    Node *&node = m_nodes[hash];
+    if (!node) {
+        node = new Node(createOrGet(clang_getCursorSemanticParent(cursor)), cursor, location, hash);
+        Q_ASSERT(node->parent);
+    }
+    return node;
+}
 
-//         Database::addSymbolReference(symbol, cursorLocation);
-//         ++userData.count;
-//         break; }
-//     default:
-//         break;
-//     }
-
-//     return CXChildVisit_Recurse;
-// }
+CXChildVisitResult Daemon::buildTree(CXCursor cursor, CXCursor, CXClientData data)
+{
+    Daemon *daemon = reinterpret_cast<Daemon*>(data);
+    daemon->createOrGet(cursor);
+    return CXChildVisit_Recurse;
+}
 
 void Daemon::onFileParsed(const QByteArray &absoluteFilePath, void *u)
 {
@@ -866,15 +833,14 @@ void Daemon::onFileParsed(const QByteArray &absoluteFilePath, void *u)
     // Q_ASSERT(!m_translationUnits.contains(absoluteFilePath));
     // m_translationUnits[absoluteFilePath] = unit;
 
-    m_threadPool.start(new ProcessFileRunnable(absoluteFilePath, unit));
+    CXCursor cursor = clang_getTranslationUnitCursor(unit);
+    clang_visitChildren(cursor, buildTree, this);
+    foreach(const PendingReference &p, m_pendingReferences) {
+        m_nodes[p.hash] = new Node(createOrGet(p.reference), p.cursor, p.location, p.hash);
+    }
+    m_pendingReferences.clear();
+    m_root->print();
+
+    // m_threadPool.start(new ProcessFileRunnable(absoluteFilePath, unit));
 }
 
-void ProcessFileRunnable::run()
-{
-    // crashes right now with some issue with autoincrement primary key on Symbol
-    CXCursor cursor = clang_getTranslationUnitCursor(m_unit);
-    Tree tree;
-    clang_visitChildren(cursor, buildTree, &tree);
-    Q_ASSERT(tree.root);
-    tree.root->print();
-}

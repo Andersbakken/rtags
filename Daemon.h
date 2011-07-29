@@ -8,9 +8,74 @@
 #include <QThreadPool>
 #include <QFileSystemWatcher>
 #include <clang-c/Index.h>
+#include "Utils.h"
 #ifdef EBUS_ENABLED
 #include <QtNetwork>
 #endif
+
+struct Location {
+    Location()
+        : line(0), column(0)
+    {}
+    Location(CXCursor cursor)
+        : line(0), column(0)
+    {
+        CXSourceLocation location = clang_getCursorLocation(cursor);
+        CXFile file;
+        clang_getInstantiationLocation(location, &file, &line, &column, 0);
+        fileName = eatString(clang_getFileName(file));
+        if (fileName.isEmpty()) { // This seems to happen
+            line = column = 0 ;
+        } else {
+            resolvePath(fileName);
+        }
+        Q_ASSERT(fileName.isEmpty() == (line == 0 && column == 0));
+    }
+
+    bool exists() const
+    {
+        return fileExists(fileName);
+    }
+
+    QByteArray fileName;
+    unsigned line, column;
+};
+static inline QDebug operator<<(QDebug dbg, const Location &loc)
+{
+    if (!loc.exists()) {
+        dbg << "Location(null)";
+    } else {
+        dbg << QString("Location(%1:%2:%3)").
+            arg(QString::fromLocal8Bit(loc.fileName)).arg(loc.line).arg(loc.column);
+    }
+    return dbg;
+}
+
+struct Node
+{
+    Node *parent, *nextSibling, *firstChild; // doubly-linked?
+    CXString symbolName;
+    enum Type {
+        Root,
+        MethodDeclaration,
+        MethodDefinition,
+        Class,
+        Struct,
+        Namespace,
+        MethodCall, // Reference?
+        VariableDeclaration,
+        VariableReference
+    } type;
+    Location location;
+    uint hash;
+
+    Node();
+    Node(Node *p, CXCursor c, const Location &l, uint hash);
+    ~Node();
+    QByteArray toString() const;
+    void print() const;
+    static const char *typeToName(Type type);
+};
 
 class Daemon : public QObject
 {
@@ -50,6 +115,18 @@ private:
     CXIndex m_index;
     QHash<QByteArray, CXTranslationUnit> m_translationUnits;
     QFileSystemWatcher m_fileSystemWatcher;
+    Node *m_root;
+    QHash<unsigned, Node*> m_nodes;
+    struct PendingReference {
+        CXCursor cursor;
+        CXCursor reference;
+        Location location;
+        unsigned hash;
+    };
+    QList<PendingReference> m_pendingReferences;
+    Node *createOrGet(CXCursor cursor);
+    static CXChildVisitResult buildTree(CXCursor cursor, CXCursor, CXClientData data);
+
 #ifdef EBUS_ENABLED
     QTcpServer *m_server;
     QHash<QTcpSocket*, qint16> m_connections;
