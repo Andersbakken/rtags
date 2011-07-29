@@ -39,7 +39,8 @@ SOURCES += \
     Client.cpp \
     GccArguments.cpp \
     Utils.cpp \
-    ThreadPool.cpp
+    ThreadPool.cpp \
+    PreCompile.cpp
 
 HEADERS += \
     Daemon.h \
@@ -47,7 +48,8 @@ HEADERS += \
     GccArguments.h \
     Utils.h \
     ClangRunnable.h \
-    ThreadPool.h
+    ThreadPool.h \
+    PreCompile.h
 
 OTHER_FILES += \
     gccopts.gperf

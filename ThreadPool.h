@@ -15,7 +15,7 @@ class ThreadPoolThread;
 
 class ThreadPoolJob
 {
-    Q_DISABLE_COPY(ThreadPoolJob);
+    Q_DISABLE_COPY(ThreadPoolJob)
 public:
     ThreadPoolJob() {}
     virtual ~ThreadPoolJob() {}

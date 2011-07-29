@@ -8,7 +8,7 @@
 
 class ClangRunnable : public QObject, public QRunnable
 {
-    Q_OBJECT;
+    Q_OBJECT
 public:
     ClangRunnable(const QByteArray &absoluteFilePath,
                   unsigned options,
@@ -57,14 +57,14 @@ public:
             if (!unit) {
                 emit error(m_absoluteFilePath);
             } else {
-                emit fileParsed(m_absoluteFilePath, unit);
+                emit fileParsed(m_absoluteFilePath, m_compilerOptions, unit);
             }
         }
     }
 signals:
     void fileReparsed(const QByteArray &absoluteFilePath);
     void error(const QByteArray &absoluteFilePath);
-    void fileParsed(const QByteArray &absoluteFilePath, void *unit);
+    void fileParsed(const QByteArray &absoluteFilePath, const QList<QByteArray> &options, void *unit);
 private:
     const QByteArray m_absoluteFilePath;
     const unsigned m_options;

@@ -6,6 +6,7 @@
 #include <QCoreApplication>
 #include "Utils.h"
 #include "ClangRunnable.h"
+#include "PreCompile.h"
 
 // ### might be worth optimizing
 static uint qHash(const CXCursor &c, const Location &l)
@@ -189,6 +190,9 @@ Daemon::Daemon(QObject *parent)
     , m_server(0)
 #endif
 {
+    // ### for now
+    PreCompile::setPath("/tmp");
+
     // Database::init("database.db"); // needs to be added for each command likely
     FUNC1(parent);
     connect(&m_fileSystemWatcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged(QString)));
@@ -697,10 +701,18 @@ void Daemon::addTranslationUnit(const QByteArray &absoluteFilePath,
 {
     ++m_pendingTranslationUnits;
     FUNC3(absoluteFilePath, options, compilerOptions);
-    ClangRunnable *runnable = new ClangRunnable(absoluteFilePath, options, compilerOptions, m_index);
+
+    QList<QByteArray> pchoptions = compilerOptions;
+
+    PreCompile* precompile = PreCompile::get(pchoptions);
+    QString prefilename = precompile->filename();
+    if (!prefilename.isEmpty())
+        pchoptions << "-include-pch" << prefilename.toLocal8Bit();
+
+    ClangRunnable *runnable = new ClangRunnable(absoluteFilePath, options, pchoptions, m_index);
     connect(runnable, SIGNAL(error(QByteArray)), this, SLOT(onParseError(QByteArray)));
-    connect(runnable, SIGNAL(fileParsed(QByteArray, void*)),
-            this, SLOT(onFileParsed(QByteArray, void*)));
+    connect(runnable, SIGNAL(fileParsed(QByteArray, QList<QByteArray>, void*)),
+            this, SLOT(onFileParsed(QByteArray, QList<QByteArray>, void*)));
     m_threadPool.start(runnable);
 }
 void Daemon::onParseError(const QByteArray &absoluteFilePath)
@@ -806,7 +818,29 @@ CXChildVisitResult Daemon::buildTree(CXCursor cursor, CXCursor, CXClientData dat
     return CXChildVisit_Recurse;
 }
 
-void Daemon::onFileParsed(const QByteArray &absoluteFilePath, void *u)
+struct PrecompileData
+{
+    QList<QByteArray> direct;
+    QList<QByteArray> all;
+};
+
+static void precompileHeaders(CXFile included_file, CXSourceLocation*,
+                              unsigned include_len, CXClientData client_data)
+{
+    if (!include_len)
+        return;
+
+    CXString filename = clang_getFileName(included_file);
+
+    PrecompileData* data = reinterpret_cast<PrecompileData*>(client_data);
+    QByteArray rfn = clang_getCString(filename);
+    if (include_len == 1)
+        data->direct.append(rfn);
+    data->all.append(rfn);
+    clang_disposeString(filename);
+}
+
+void Daemon::onFileParsed(const QByteArray &absoluteFilePath, const QList<QByteArray> &options, void *u)
 {
     FUNC2(absoluteFilePath, u);
     CXTranslationUnit unit = reinterpret_cast<CXTranslationUnit>(u);
@@ -822,6 +856,11 @@ void Daemon::onFileParsed(const QByteArray &absoluteFilePath, void *u)
     // Q_ASSERT(!m_translationUnits.contains(absoluteFilePath));
     // m_translationUnits[absoluteFilePath] = unit;
 
+    PrecompileData pre;
+    clang_getInclusions(unit, precompileHeaders, &pre);
+    PreCompile* precompile = PreCompile::get(options);
+    precompile->add(pre.direct, pre.all);
+
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
     clang_visitChildren(cursor, buildTree, this);
     for (QHash<uint, PendingReference>::const_iterator it = m_pendingReferences.begin();
@@ -832,8 +871,8 @@ void Daemon::onFileParsed(const QByteArray &absoluteFilePath, void *u)
     }
     m_pendingReferences.clear();
     qDebug() << m_nodes.size();
-    if (!--m_pendingTranslationUnits)
-        m_root->print();
+    //if (!--m_pendingTranslationUnits)
+    //    m_root->print();
 
     // m_threadPool.start(new ProcessFileRunnable(absoluteFilePath, unit));
 }

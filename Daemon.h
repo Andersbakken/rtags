@@ -92,7 +92,7 @@ public:
 private slots:
     void onFileChanged(const QString &path);
     void onParseError(const QByteArray &absoluteFilePath);
-    void onFileParsed(const QByteArray &absoluteFilePath, void *unit);
+    void onFileParsed(const QByteArray &absoluteFilePath, const QList<QByteArray> &options, void *unit);
 private:
     // ### need to add a function for code completion
     QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args);

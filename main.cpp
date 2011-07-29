@@ -1,10 +1,13 @@
 #include <QCoreApplication>
 #include <QString>
+#include <QList>
 #include <stdio.h>
 #include "Daemon.h"
 #include "Client.h"
 #include "Utils.h"
 #include <syslog.h>
+
+Q_DECLARE_METATYPE(QList<QByteArray>)
 
 #define CLIENT_CONNECT_ATTEMPTS 5
 #define CLIENT_CONNECT_DELAY 1
@@ -177,6 +180,7 @@ int main(int argc, char** argv)
 
     QCoreApplication app(argc, argv);
     QThread::currentThread()->setObjectName("main");
+    qRegisterMetaType<QList<QByteArray> >();
     ArgParser args(argc, argv);
     QHash<QByteArray, QVariant> argsmap = args.arguments();
     if (argsmap.contains("verbose")) {
