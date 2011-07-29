@@ -76,7 +76,10 @@ PreCompile::~PreCompile()
     foreach(char* arg, m_args) {
         ::free(arg);
     }
-    QFile file(m_filename);
+    QFile file;
+    file.setFileName(m_filename);
+    file.remove();
+    file.setFileName(m_filename + QLatin1String(".h"));
     file.remove();
 }
 
@@ -130,22 +133,18 @@ void PreCompile::compile(const QByteArray headers)
 
     QByteArray outfile = m_filename.toLocal8Bit();
     QByteArray infile = outfile + ".h";
-    /*
-    CXUnsavedFile unsaved;
-    unsaved.Filename = infile.constData();
-    unsaved.Contents = m_headers.constData();
-    unsaved.Length = m_headers.size();
-    */
     QFile inp(infile);
-    inp.open(QFile::WriteOnly);
+    if (!inp.open(QFile::WriteOnly)) {
+        // ### ow!
+        m_included.clear();
+        return;
+    }
     inp.write(m_headers);
-    inp.flush();
     inp.close();
     CXIndex idx = clang_createIndex(0, 0);
     //qDebug() << "trying to precompile" << m_headers << "with" << m_args;
     CXTranslationUnit unit = clang_parseTranslationUnit(idx, infile.constData(), m_args.data(), m_args.size(),
                                                         0, 0, CXTranslationUnit_Incomplete);
-    //inp.remove();
     if (!unit) {
         clang_disposeIndex(idx);
         return;
