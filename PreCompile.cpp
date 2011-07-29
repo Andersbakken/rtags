@@ -9,14 +9,9 @@
 QString PreCompile::s_path;
 QHash<QByteArray, PreCompile*> PreCompile::s_precompiles;
 
-void PreCompile::setPath(const QString &path)
+static QByteArray key(const QList<QByteArray>& args)
 {
-    s_path = path;
-}
-
-PreCompile* PreCompile::get(const QList<QByteArray> &args)
-{
-    QByteArray key;
+    QByteArray k;
     int skip = 0;
     foreach(const QByteArray& a, args) {
         // not cool
@@ -24,8 +19,19 @@ PreCompile* PreCompile::get(const QList<QByteArray> &args)
             skip = 2;
         if (skip && skip--)
             continue;
-        key += a + " ";
+        k += a + " ";
     }
+    return k;
+}
+
+void PreCompile::setPath(const QString &path)
+{
+    s_path = path;
+}
+
+PreCompile* PreCompile::get(const QList<QByteArray> &args)
+{
+    QByteArray key = ::key(args);
     QHash<QByteArray, PreCompile*>::const_iterator it = s_precompiles.find(key);
     if (it == s_precompiles.end()) {
         PreCompile* pre = new PreCompile(args);
@@ -35,12 +41,34 @@ PreCompile* PreCompile::get(const QList<QByteArray> &args)
     return it.value();
 }
 
-void PreCompile::clear()
+void PreCompile::clearAll()
 {
     foreach(PreCompile* pre, s_precompiles) {
         delete pre;
     }
     s_precompiles.clear();
+}
+
+void PreCompile::clear(const QByteArray &header)
+{
+    QHash<QByteArray, PreCompile*>::iterator it = s_precompiles.begin();
+    while (it != s_precompiles.end()) {
+        if (it.value()->m_included.contains(header)) {
+            delete it.value();
+            it = s_precompiles.erase(it);
+        } else
+            ++it;
+    }
+}
+
+void PreCompile::clear(const QList<QByteArray> &args)
+{
+    QByteArray key = ::key(args);
+    QHash<QByteArray, PreCompile*>::iterator it = s_precompiles.find(key);
+    if (it != s_precompiles.end()) {
+        delete it.value();
+        s_precompiles.erase(it);
+    }
 }
 
 PreCompile::PreCompile(const QList<QByteArray> &args)

@@ -14,7 +14,9 @@ public:
 
     static void setPath(const QString& path);
     static PreCompile* get(const QList<QByteArray>& args);
-    static void clear();
+    static void clearAll();
+    static void clear(const QByteArray& header);
+    static void clear(const QList<QByteArray>& args);
 
     void add(const QList<QByteArray>& direct, const QList<QByteArray>& all);
     QString filename() const;
