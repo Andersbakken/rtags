@@ -1,4 +1,4 @@
-// #include "testtemplate.h"
+#include "testtemplate.h"
 
 struct Struct {
     int a;
