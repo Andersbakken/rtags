@@ -76,7 +76,7 @@ PreCompile::PreCompile(const QList<QByteArray> &args)
     foreach(const QByteArray& arg, args) {
         m_args.append(::strndup(arg.constData(), arg.size()));
     }
-    m_args << strdup("-x") << strdup("c++");
+    m_args << ::strdup("-x") << ::strdup("c++");
 
     // ### not very safe, files could still be overwritten
 
