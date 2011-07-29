@@ -9,6 +9,7 @@
 #include <QFileSystemWatcher>
 #include <clang-c/Index.h>
 #include "Utils.h"
+#include "GccArguments.h"
 #ifdef EBUS_ENABLED
 #include <QtNetwork>
 #endif
@@ -77,9 +78,10 @@ struct Node
     Node();
     Node(Node *p, CXCursor c, const Location &l, uint hash);
     ~Node();
+    void remove(Node *child);
     QByteArray toString() const;
     void print() const;
-    static const char *typeToName(Type type);
+    static const char *typeToName(Type type, bool abbrev = false);
 };
 
 class Daemon : public QObject
@@ -109,16 +111,18 @@ private:
     bool addSourceFile(const QByteArray& absoluteFilePath,
                        unsigned options = CXTranslationUnit_CacheCompletionResults,
                        QHash<QByteArray, QVariant>* result = 0);
-    void addMakefileLine(const QByteArray& line, const QByteArray &dirpath,
+    bool addMakefileLine(const QByteArray& line, const QByteArray &dirpath,
                          QSet<QByteArray> &seen);
     QHash<QByteArray, QVariant> fileList(const QHash<QByteArray, QVariant> &args);
     void addTranslationUnit(const QByteArray &absoluteFilePath,
-                            unsigned options = 0,
-                            const QList<QByteArray> &compilerOptions = QList<QByteArray>());
+                            const GccArguments &args,
+                            unsigned options = 0);
+    void reparseFile(const QByteArray &absoluteFilePath);
+    void removeReferences(const QByteArray &absoluteFilePath);
 private:
     QThreadPool m_threadPool;
     CXIndex m_index;
-    QHash<QByteArray, CXTranslationUnit> m_translationUnits;
+    QHash<QByteArray, GccArguments> m_files;
     QFileSystemWatcher m_fileSystemWatcher;
     Node *m_root;
     QHash<unsigned, Node*> m_nodes;

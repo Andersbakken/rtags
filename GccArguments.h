@@ -6,6 +6,7 @@
 #include <QDataStream>
 #include <QSharedData>
 #include <QSharedDataPointer>
+#include <QDebug>
 
 class GccArguments
 {
@@ -76,6 +77,12 @@ private:
     friend QDataStream& operator<<(QDataStream& stream, const GccArguments& args);
     friend QDataStream& operator>>(QDataStream& stream, GccArguments& args);
 };
+
+static inline QDebug operator<<(QDebug dbg, const GccArguments &args)
+{
+    dbg.nospace() << "GccArguments(" << args.raw() << ")";
+    return dbg.maybeSpace();
+}
 
 QDataStream& operator<<(QDataStream& stream, const GccArguments& args);
 QDataStream& operator>>(QDataStream& stream, GccArguments& args);
