@@ -39,12 +39,14 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
         break;
     case CXCursor_CallExpr:
         type = MethodReference;
+        symbolName = p->symbolName;
         break;
     case CXCursor_FieldDecl:
         type = VariableDeclaration;
         break;
     case CXCursor_MemberRef:
         type = VariableReference;
+        symbolName = p->symbolName;
         break;
     case CXCursor_CXXMethod:
     case CXCursor_FunctionDecl:
@@ -70,7 +72,8 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
         Q_ASSERT(0 && "Can't find type for this cursor");
         break;
     }
-    symbolName = eatString(clang_getCursorDisplayName(c));
+    if (symbolName.isEmpty())
+        symbolName = eatString(clang_getCursorDisplayName(c));
     if (parent) {
         nextSibling = parent->firstChild;
         parent->firstChild = this;
@@ -642,7 +645,7 @@ static int add(QByteArray &results, const QByteArray &symbol, QByteArray path, c
         return 0;
     int ret = 0;
     if (node->type & flags) {
-        const QByteArray full = path + symbol;
+        const QByteArray full = path + node->symbolName;
         // ### this could maybe be optimized to reuse the same buffer again and again
         if (exactMatch) {
             if (symbol == full)
@@ -657,7 +660,7 @@ static int add(QByteArray &results, const QByteArray &symbol, QByteArray path, c
                                        node->location.fileName.constData(),
                                        node->location.line, node->location.column);
             Q_ASSERT(count < bufferLength);
-
+            results += QByteArray::fromRawData(buffer, count);
         }
     }
 
@@ -934,8 +937,8 @@ void Daemon::onFileParsed(const QByteArray &absoluteFilePath, const QList<QByteA
     }
     m_pendingReferences.clear();
     qDebug() << m_nodes.size();
-    //if (!--m_pendingTranslationUnits)
-    //    m_root->print();
+    if (!--m_pendingTranslationUnits)
+        m_root->print();
 
     // m_threadPool.start(new ProcessFileRunnable(absoluteFilePath, unit));
 }
