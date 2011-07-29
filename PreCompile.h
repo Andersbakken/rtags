@@ -32,7 +32,7 @@ private:
 private:
     QByteArray m_headers;
     QVector<char*> m_args;
-    QHash<QByteArray, int> m_seen;
+    QList<QPair<QByteArray, int> > m_seen;
     QSet<QByteArray> m_seenAll;
     QSet<QByteArray> m_included;
     QString m_filename;

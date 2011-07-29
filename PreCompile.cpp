@@ -4,7 +4,7 @@
 #include <clang-c/Index.h>
 #include <string.h>
 
-#define PRECOMPILE_SEEN_TRESHOLD 3
+#define PRECOMPILE_SEEN_TRESHOLD 10
 
 QString PreCompile::s_path;
 QHash<QByteArray, PreCompile*> PreCompile::s_precompiles;
@@ -96,7 +96,19 @@ void PreCompile::add(const QList<QByteArray> &headers, const QList<QByteArray> &
     foreach(const QByteArray& header, headers) {
         if (header.isEmpty() || m_included.contains(header))
             continue;
-        ++m_seen[header];
+        bool found = false;
+        QList<QPair<QByteArray, int> >::iterator it = m_seen.begin();
+        QList<QPair<QByteArray, int> >::const_iterator itend = m_seen.end();
+        while (it != itend) {
+            if ((*it).first == header) {
+                ++(*it).second;
+                found = true;
+                break;
+            }
+            ++it;
+        }
+        if (!found)
+            m_seen.append(QPair<QByteArray, int>(header, 1));
     }
     m_seenAll += all.toSet();
     if (!m_seen.isEmpty())
@@ -109,13 +121,17 @@ void PreCompile::precompileIfNeeded(bool needed)
     QSet<QByteArray> included;
     int max = 0;
 
-    QHash<QByteArray, int>::const_iterator it = m_seen.begin();
-    QHash<QByteArray, int>::const_iterator itend = m_seen.end();
+    QList<QPair<QByteArray, int> >::const_iterator it = m_seen.begin();
+    QList<QPair<QByteArray, int> >::const_iterator itend = m_seen.end();
     while (it != itend) {
-        inc += "#include <" + it.key() + ">\n";
-        included.insert(it.key());
-        if (it.value() > max)
-            max = it.value();
+        inc += "#include <" + (*it).first + ">\n";
+        included.insert((*it).first);
+        if ((*it).second > max) {
+            max = (*it).second;
+            if (max >= PRECOMPILE_SEEN_TRESHOLD) {
+                qDebug() << "re-pch because of" << (*it).first;
+            }
+        }
         ++it;
     }
 
