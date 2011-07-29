@@ -156,28 +156,6 @@ bool ArgParser::parse(int argc, char **argv)
 
 int main(int argc, char** argv)
 {
-    // QByteArray path = "/Users/abakken/dev";
-    // resolvePath(path);
-    // qDebug() << path;
-    // path = "/Users/abakken/.bashrc";
-    // resolvePath(path);
-    // qDebug() << path;
-    // path = "./Makefile";
-    // resolvePath(path);
-    // qDebug() << path;
-    // path = "Makefile";
-    // resolvePath(path);
-    // qDebug() << path;
-    // path = "../../.bashrc";
-    // qDebug() << resolvePath(path);
-    // qDebug() << path;
-    // path = "../../.bashrc2";
-    // qDebug() << resolvePath(path);
-    // qDebug() << path;
-    // qDebug() << resolvePath(path);
-    // qDebug() << path;
-    // return 0;
-
     QCoreApplication app(argc, argv);
     QThread::currentThread()->setObjectName("main");
     qRegisterMetaType<QList<QByteArray> >();

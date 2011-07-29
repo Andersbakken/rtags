@@ -38,7 +38,7 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
         type = Class;
         break;
     case CXCursor_CallExpr:
-        type = MethodCall;
+        type = MethodReference;
         break;
     case CXCursor_FieldDecl:
         type = VariableDeclaration;
@@ -70,7 +70,7 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
         Q_ASSERT(0 && "Can't find type for this cursor");
         break;
     }
-    symbolName = clang_getCursorDisplayName(c);
+    symbolName = eatString(clang_getCursorDisplayName(c));
     if (parent) {
         nextSibling = parent->firstChild;
         parent->firstChild = this;
@@ -80,7 +80,6 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
 
 Node::~Node()
 {
-    clang_disposeString(symbolName);
     while (firstChild) {
         Node *n = firstChild;
         firstChild = firstChild->nextSibling;
@@ -99,7 +98,7 @@ QByteArray Node::toString() const
     QByteArray buf(indent, ' ');
     buf += typeToName(type);
     buf += ' ';
-    buf += clang_getCString(symbolName);
+    buf += symbolName;
     buf += " [";
     buf += location.fileName;
     buf += ':';
@@ -130,10 +129,13 @@ const char *Node::typeToName(Type type)
     case MethodDefinition: return "MethodDefinition";
     case Class: return "Class";
     case Struct: return "Struct";
-    case MethodCall: return "MethodCall";
+    case MethodReference: return "MethodReference";
     case Namespace: return "Namespace";
     case VariableDeclaration: return "VariableDeclaration";
     case VariableReference: return "VariableReference";
+    case None:
+    case All:
+        break;
     }
     Q_ASSERT(0 && "Invalid type");
     return "Invalid";
@@ -613,41 +615,102 @@ static inline QString cursorData(CXCursor cursor)
 }
 
 enum Type {
-    Declaration = 'd',
-    Definition = 'f',
-    Reference = 'r'
+    DeclarationName = 'd',
+    DefinitionName = 'f',
+    ReferenceName = 'r',
 };
 
+static inline bool modifiesPath(const Node *node)
+{
+    switch (node->type) {
+    case Node::Namespace:
+    case Node::Class:
+    case Node::Struct:
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
+
+enum { ExactMatch = 0x100000 };
+static int add(QByteArray &results, const QByteArray &symbol, QByteArray path, char *buffer, int bufferLength, const Node *node, uint flags)
+{
+    Q_ASSERT(node);
+    const bool exactMatch = (flags & ExactMatch);
+    if (exactMatch && !path.isEmpty() && !symbol.startsWith(path) && modifiesPath(node->parent))
+        return 0;
+    int ret = 0;
+    if (node->type & flags) {
+        const QByteArray full = path + symbol;
+        // ### this could maybe be optimized to reuse the same buffer again and again
+        if (exactMatch) {
+            if (symbol == full)
+                ++ret;
+        } else if (full.contains(symbol)) {
+            ++ret;
+        }
+        if (ret) {
+            const int count = snprintf(buffer, bufferLength, "%s %s \"%s:%d:%d\"\n",
+                                       Node::typeToName(node->type),
+                                       full.constData(),
+                                       node->location.fileName.constData(),
+                                       node->location.line, node->location.column);
+            Q_ASSERT(count < bufferLength);
+
+        }
+    }
+
+    if (::modifiesPath(node)) {
+        path.append(node->symbolName + "::");
+    }
+    // ### could consider short circuiting here if for example we know this node
+    // ### only has MethodReference children and !(types & MethodReference) || !ret
+    for (Node *c = node->firstChild; c; c = c->nextSibling) {
+        ret += add(results, symbol, path, buffer, bufferLength, c, flags);
+    }
+    return ret;
+}
+
+static Node::Type stringToType(const QByteArray &in)
+{
+    for (int i=Node::MethodDeclaration; i<=Node::EnumValue; i <<= 1) {
+        Node::Type type = static_cast<Node::Type>(i);
+        const char *name = Node::typeToName(type);
+        if (!strcasecmp(name, in.constData())) {
+            return type;
+        }
+    }
+    return Node::None;
+}
 
 QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &args)
 {
-    // const QByteArray symbol = args.value("symbol").toByteArray();
-    // if (symbol.isEmpty()) 
-    //     return createResultMap("No symbol in lookup request");
+    const QByteArray symbol = args.value("symbol").toByteArray();
+    if (symbol.isEmpty()) 
+        return createResultMap("No symbol in lookup request");
 
-    // bool exactMatch = false;
-    // if (args.contains("exact"))
-    //     exactMatch = true;
-    // char buffer[512];
-    // QByteArray results;
-    // const QStringList symbolTypes = args.value("types").toString().
-    //     split(',', QString::SkipEmptyParts);
-    // // ### uglehack
+    enum { BufferLength = 512 };
+    char buffer[BufferLength + 1];
+    QByteArray results;
+    uint flags = 0;
+    foreach(const QByteArray &type, args.value("types").toByteArray().split(',')) {
+        if (type.isEmpty())
+            continue;
+        const Node::Type t = stringToType(type);
+        if (t) {
+            flags |= t;
+        } else {
+            qWarning("Can't parse type %s", type.constData());
+        }
+    }
+    if (!flags)
+        flags = (Node::All & ~Node::Root);
+    if (args.contains("exact"))
+        flags |= ExactMatch;
 
-    // qDebug() << symbol << symbolTypes;
-    // // qDebug() << symbol << args << symbolTypes << Database::symbolDeclarationSize()
-    // //          << Database::symbolDefinitionSize() << Database::symbolReferencesSize();
-    
-    // if (symbolTypes.isEmpty() || symbolTypes.contains("declaration")) {
-    //     add(results, buffer, Database::lookupDeclarations(symbol, exactMatch), Declaration);
-    // }
-    // if (symbolTypes.isEmpty() || symbolTypes.contains("definition")) {
-    //     add(results, buffer, Database::lookupDefinitions(symbol, exactMatch), Definition);
-    // }
-    // if (symbolTypes.isEmpty() || symbolTypes.contains("reference")) {
-    //     add(results, buffer, Database::lookupReferences(symbol, exactMatch), Reference);
-    // }
-    // return createResultMap(results);
+    ::add(results, symbol, QByteArray(), buffer, BufferLength, m_root, flags);
+    return createResultMap(results);
 }
 
 QHash<QByteArray, QVariant> Daemon::loadAST(const QHash<QByteArray, QVariant> &args)
