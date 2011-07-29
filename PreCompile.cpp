@@ -89,9 +89,8 @@ PreCompile::PreCompile(const QList<QByteArray> &args)
         ok = !info.exists();
         ++cnt;
     } while (!ok);
-    m_filename = fn;
 
-    QFile file(m_filename);
+    QFile file(fn);
     if (!file.open(QFile::WriteOnly | QFile::Truncate))
         return;
     file.close();
