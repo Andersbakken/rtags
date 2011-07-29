@@ -64,7 +64,9 @@ struct Node
         Namespace,
         MethodCall, // Reference?
         VariableDeclaration,
-        VariableReference
+        VariableReference,
+        Enum,
+        EnumValue
     } type;
     Location location;
     uint hash;
@@ -121,9 +123,8 @@ private:
         CXCursor cursor;
         CXCursor reference;
         Location location;
-        unsigned hash;
     };
-    QList<PendingReference> m_pendingReferences;
+    QHash<uint, PendingReference> m_pendingReferences;
     Node *createOrGet(CXCursor cursor);
     static CXChildVisitResult buildTree(CXCursor cursor, CXCursor, CXClientData data);
 

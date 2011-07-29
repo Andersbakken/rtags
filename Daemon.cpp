@@ -48,13 +48,21 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
     case CXCursor_CXXMethod:
     case CXCursor_FunctionDecl:
     case CXCursor_Constructor:
+    case CXCursor_Destructor:
     case CXCursor_FunctionTemplate:
+    case CXCursor_ConversionFunction:
         type = clang_isCursorDefinition(c) ? MethodDefinition : MethodDeclaration;
         break;
     case CXCursor_Namespace:
         type = Namespace;
         break;
         type = Namespace;
+        break;
+    case CXCursor_EnumDecl:
+        type = Enum;
+        break;
+    case CXCursor_EnumConstantDecl:
+        type = EnumValue;
         break;
     default:
         qDebug() << c << l << kindToString(clang_getCursorKind(c));
@@ -83,18 +91,21 @@ QByteArray Node::toString() const
 {
     if (type == Root)
         return "Root";
-    QByteArray buf(128, ' ');
-    char *b = buf.data();
-    int length = buf.length() - 1;
+    int indent = 0;
     for (Node *p=parent; p; p = p->parent) {
-        length -= 2;
-        b += 2;
+        indent += 2;
     }
-    const int count = snprintf(b, length, "%s %s [%s:%d:%d]",
-                               typeToName(type), clang_getCString(symbolName),
-                               location.fileName.constData(), location.line, location.column);
-    Q_ASSERT(count < length);
-    buf.resize(count + (buf.size() - length));
+    QByteArray buf(indent, ' ');
+    buf += typeToName(type);
+    buf += ' ';
+    buf += clang_getCString(symbolName);
+    buf += " [";
+    buf += location.fileName;
+    buf += ':';
+    buf += QByteArray::number(location.line);
+    buf += ':';
+    buf += QByteArray::number(location.column);
+    buf += ']';
     return buf;
 }
 
@@ -111,6 +122,8 @@ void Node::print() const
 const char *Node::typeToName(Type type)
 {
     switch (type) {
+    case Enum: return "Enum";
+    case EnumValue: return "EnumValue";
     case Root: return "Root";
     case MethodDeclaration: return "MethodDeclaration";
     case MethodDefinition: return "MethodDefinition";
@@ -436,7 +449,6 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
 
     const QByteArray dirname = dirName(filename);
     QDir::setCurrent(dirname);
-    qDebug() << "setCurrent" << dirname << __LINE__;
     const char *basename = filename.constData() + dirname.size() + 1;
     QProcess proc;
     proc.start(QLatin1String("make"),
@@ -696,42 +708,6 @@ void Daemon::onParseError(const QByteArray &absoluteFilePath)
     qWarning("Failed to add %s", absoluteFilePath.constData());
 }
 
-static inline QByteArray symbolName(CXCursor cursor)
-{
-    QByteArray name;
-    bool done = false;
-    forever {
-        switch (clang_getCursorKind(cursor)) {
-        case CXCursor_CXXMethod:
-        case CXCursor_FunctionDecl:
-        case CXCursor_Constructor:
-            if (!name.isEmpty()) {
-                qDebug() << "name was" << name << "will be set to"
-                         << eatString(clang_getCursorDisplayName(cursor));
-            }
-            Q_ASSERT(name.isEmpty());
-            name = eatString(clang_getCursorDisplayName(cursor));
-            break;
-        case CXCursor_ClassDecl:
-        case CXCursor_StructDecl:
-        case CXCursor_Namespace:
-            if (!name.isEmpty())
-                name.prepend("::");
-            name.prepend(eatString(clang_getCursorDisplayName(cursor)));
-            break;
-        default:
-            if (name.isEmpty())
-                name = eatString(clang_getCursorDisplayName(cursor));
-            done = true;
-            break;
-        }
-        if (done)
-            break;
-        cursor = clang_getCursorSemanticParent(cursor);
-    }
-    return name;
-}
-
 struct FindInclusionsData {
     QSet<QByteArray> includeFiles;
 };
@@ -757,6 +733,7 @@ static inline bool operator==(const CXCursor &left, const CXCursor &right)
 Node *Daemon::createOrGet(CXCursor cursor)
 {
     const CXCursorKind kind = clang_getCursorKind(cursor);
+    // blacklist
     switch (kind) {
     case CXCursor_ClassDecl:
     case CXCursor_StructDecl:
@@ -777,6 +754,15 @@ Node *Daemon::createOrGet(CXCursor cursor)
     case CXCursor_TemplateTypeParameter:
     case CXCursor_OverloadedDeclRef:
     case CXCursor_CXXBaseSpecifier:
+    case CXCursor_ClassTemplate:
+    case CXCursor_NonTypeTemplateParameter:
+    case CXCursor_TemplateRef:
+    case CXCursor_UnionDecl:
+    case CXCursor_ClassTemplatePartialSpecialization:
+    case CXCursor_LabelStmt:
+    case CXCursor_LabelRef:
+    case CXCursor_UsingDeclaration:
+    case CXCursor_TemplateTemplateParameter:
         return createOrGet(clang_getCursorSemanticParent(cursor));
     case CXCursor_TranslationUnit:
         return m_root;
@@ -794,9 +780,9 @@ Node *Daemon::createOrGet(CXCursor cursor)
         if (m_nodes.contains(hash))
             return m_nodes.value(hash);
         CXCursor ref = clang_getCursorReferenced(cursor);
-        if (isValidCursor(ref)) {
-            const PendingReference p = { cursor, ref, location, hash };
-            m_pendingReferences.append(p);
+        if (isValidCursor(ref) && !m_pendingReferences.contains(hash)) {
+            const PendingReference p = { cursor, ref, location };
+            m_pendingReferences[hash] = p;
             Q_ASSERT(!clang_equalCursors(ref, cursor));
         }
         return createOrGet(clang_getCursorSemanticParent(cursor));
@@ -835,11 +821,15 @@ void Daemon::onFileParsed(const QByteArray &absoluteFilePath, void *u)
 
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
     clang_visitChildren(cursor, buildTree, this);
-    foreach(const PendingReference &p, m_pendingReferences) {
-        m_nodes[p.hash] = new Node(createOrGet(p.reference), p.cursor, p.location, p.hash);
+    for (QHash<uint, PendingReference>::const_iterator it = m_pendingReferences.begin();
+         it != m_pendingReferences.end(); ++it) {
+        const PendingReference &p = it.value();
+        Q_ASSERT(!m_nodes.contains(it.key()));
+        m_nodes[it.key()] = new Node(createOrGet(p.reference), p.cursor, p.location, it.key());
     }
     m_pendingReferences.clear();
     m_root->print();
+    qDebug() << m_nodes.size();
 
     // m_threadPool.start(new ProcessFileRunnable(absoluteFilePath, unit));
 }
