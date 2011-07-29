@@ -1,4 +1,4 @@
-#include "testtemplate.h"
+#include "test.h"
 
 struct Struct {
     int a;
@@ -35,5 +35,6 @@ using namespace NM;
 
 int Class::outerFunc()
 {
+    InlineClass::inlineFunc(0);
     return 1;
 }

@@ -254,12 +254,19 @@ static QHash<QByteArray, QVariant> syntax()
 
 void Daemon::onFileChanged(const QString &p)
 {
+    qDebug() << p;
     FUNC1(p);
     QByteArray path = p.toLocal8Bit();
-    resolvePath(path);
-    if (fileExists(path)) {
+    const QSet<QByteArray> deps = m_dependencies.value(path);
+    foreach(const QByteArray &dep, deps)
+        removeReferences(dep);
+    removeReferences(path);
+    if (m_files.contains(path))
         reparseFile(path);
-    } else {
+    foreach(const QByteArray &dep, deps)
+        reparseFile(dep);
+    if (m_files.contains(path) && !fileExists(path)) {
+        // ### this needs some love
         QHash<QByteArray, QVariant> args;
         args.insert("file", path);
         removeSourceFile(args);
@@ -284,6 +291,9 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         return addSourceFile(args);
     } else if (cmd == "remove") {
         return removeSourceFile(args);
+    } else if (cmd == "printtree") {
+        m_root->print();
+        return createResultMap("Done");;
     } else if (cmd == "lookupline") {
         return lookupLine(args);
     } else if (cmd == "makefile") {
@@ -780,28 +790,6 @@ void Daemon::onParseError(const QByteArray &absoluteFilePath)
     qWarning("Failed to add %s", absoluteFilePath.constData());
 }
 
-struct FindInclusionsData {
-    QSet<QByteArray> includeFiles;
-};
-
-static inline void inclusionVisitor(CXFile includedFile,
-                                    CXSourceLocation* /*inclusionStack*/,
-                                    unsigned /*includeLen*/,
-                                    CXClientData userData)
-{
-    QByteArray file = eatString(clang_getFileName(includedFile));
-    if (!resolvePath(file)) {
-        qWarning("Can't resolve %s", file.constData());
-    } else {
-        reinterpret_cast<FindInclusionsData*>(userData)->includeFiles.insert(file);
-    }
-}
-
-static inline bool operator==(const CXCursor &left, const CXCursor &right)
-{
-    return clang_equalCursors(left, right);
-}
-
 Node *Daemon::createOrGet(CXCursor cursor)
 {
     const CXCursorKind kind = clang_getCursorKind(cursor);
@@ -901,14 +889,13 @@ void Daemon::onFileParsed(const QByteArray &absoluteFilePath, const QList<QByteA
 {
     FUNC2(absoluteFilePath, u);
     CXTranslationUnit unit = reinterpret_cast<CXTranslationUnit>(u);
-    // FindInclusionsData data;
-    // clang_getInclusions(unit, inclusionVisitor, &data);
-    // qDebug() << absoluteFilePath << data.includeFiles;
-    // Q_ASSERT(!m_files.contains(absoluteFilePath));
-    // m_files[absoluteFilePath] = unit;
-
     PrecompileData pre;
     clang_getInclusions(unit, precompileHeaders, &pre);
+    foreach(const QByteArray &header, pre.all) {
+        if (!m_dependencies.contains(header))
+            m_fileSystemWatcher.addPath(header);
+        m_dependencies[header].insert(absoluteFilePath);
+    }
     PreCompile* precompile = PreCompile::get(options);
     precompile->add(pre.direct, pre.all);
 
@@ -932,7 +919,6 @@ void Daemon::onFileParsed(const QByteArray &absoluteFilePath, const QList<QByteA
 void Daemon::reparseFile(const QByteArray &absoluteFilePath)
 {
     m_fileSystemWatcher.removePath(absoluteFilePath);
-    removeReferences(absoluteFilePath);
     addTranslationUnit(absoluteFilePath, m_files.value(absoluteFilePath), defaultFlags);
 }
 
@@ -944,33 +930,46 @@ int count(Node *node)
     return ret;
 }
 
-static void removeChildren(Node *node, const QByteArray &absoluteFilePath, int *num)
+static int recursiveDelete(Node *node, QHash<unsigned, Node*> &nodes)
+{
+    int ret = 1;
+    for (Node *c = node->firstChild; c; c = c->nextSibling)
+        ret += recursiveDelete(c, nodes);
+
+    node->firstChild = 0;
+    Q_ASSERT(nodes.contains(node->hash));
+    nodes.remove(node->hash);
+    delete node;
+    return ret;
+}
+
+static int removeChildren(Node *node, const QByteArray &absoluteFilePath, QHash<unsigned, Node*> &nodes)
 {
     Node *prev = 0;
     Node *child = node->firstChild;
+    int ret = 0;
     while (child) {
         if (child->location.fileName == absoluteFilePath) {
-            if (num)
-                *num += ::count(child);
             if (!prev) {
                 node->firstChild = child->nextSibling;
-                delete child;
+                ret += recursiveDelete(child, nodes);
                 child = node->firstChild;
             } else {
                 prev->nextSibling = child->nextSibling;
-                delete child;
+                ret += recursiveDelete(child, nodes);
                 child = prev->nextSibling;
             }
         } else {
-            removeChildren(child, absoluteFilePath, num);
+            removeChildren(child, absoluteFilePath, nodes);
+            prev = child;
             child = child->nextSibling;
         }
     }
+    return ret;
 }
 
 void Daemon::removeReferences(const QByteArray &absoluteFilePath)
 {
-    int count = 0;
-    removeChildren(m_root, absoluteFilePath, &count);
-    qDebug("Removed %d nodes", count);
+    int count = removeChildren(m_root, absoluteFilePath, m_nodes);
+    qDebug("Removed %d nodes %d", count, m_nodes.size());
 }

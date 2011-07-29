@@ -78,7 +78,6 @@ struct Node
     Node();
     Node(Node *p, CXCursor c, const Location &l, uint hash);
     ~Node();
-    void remove(Node *child);
     QByteArray toString() const;
     void print() const;
     static const char *typeToName(Type type, bool abbrev = false);
@@ -123,6 +122,7 @@ private:
     QThreadPool m_threadPool;
     CXIndex m_index;
     QHash<QByteArray, GccArguments> m_files;
+    QHash<QByteArray, QSet<QByteArray> > m_dependencies;
     QFileSystemWatcher m_fileSystemWatcher;
     Node *m_root;
     QHash<unsigned, Node*> m_nodes;
