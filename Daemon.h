@@ -127,6 +127,7 @@ private:
     QHash<uint, PendingReference> m_pendingReferences;
     Node *createOrGet(CXCursor cursor);
     static CXChildVisitResult buildTree(CXCursor cursor, CXCursor, CXClientData data);
+    int m_pendingTranslationUnits;
 
 #ifdef EBUS_ENABLED
     QTcpServer *m_server;

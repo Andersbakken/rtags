@@ -184,7 +184,7 @@ static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
 
 
 Daemon::Daemon(QObject *parent)
-    : QObject(parent), m_index(clang_createIndex(1, 0)), m_root(new Node)
+    : QObject(parent), m_index(clang_createIndex(1, 0)), m_root(new Node), m_pendingTranslationUnits(0)
 #ifdef EBUS_ENABLED
     , m_server(0)
 #endif
@@ -695,6 +695,7 @@ void Daemon::addTranslationUnit(const QByteArray &absoluteFilePath,
                                 unsigned options,
                                 const QList<QByteArray> &compilerOptions)
 {
+    ++m_pendingTranslationUnits;
     FUNC3(absoluteFilePath, options, compilerOptions);
     ClangRunnable *runnable = new ClangRunnable(absoluteFilePath, options, compilerOptions, m_index);
     connect(runnable, SIGNAL(error(QByteArray)), this, SLOT(onParseError(QByteArray)));
@@ -704,6 +705,8 @@ void Daemon::addTranslationUnit(const QByteArray &absoluteFilePath,
 }
 void Daemon::onParseError(const QByteArray &absoluteFilePath)
 {
+    if (!--m_pendingTranslationUnits)
+        m_root->print();
     FUNC1(absoluteFilePath);
     qWarning("Failed to add %s", absoluteFilePath.constData());
 }
@@ -828,8 +831,9 @@ void Daemon::onFileParsed(const QByteArray &absoluteFilePath, void *u)
         m_nodes[it.key()] = new Node(createOrGet(p.reference), p.cursor, p.location, it.key());
     }
     m_pendingReferences.clear();
-    m_root->print();
     qDebug() << m_nodes.size();
+    if (!--m_pendingTranslationUnits)
+        m_root->print();
 
     // m_threadPool.start(new ProcessFileRunnable(absoluteFilePath, unit));
 }
