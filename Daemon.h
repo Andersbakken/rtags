@@ -125,6 +125,7 @@ private:
     QHash<QByteArray, QSet<QByteArray> > m_dependencies;
     QFileSystemWatcher m_fileSystemWatcher;
     Node *m_root;
+    QReadWriteLock m_readWriteLock;
     QHash<unsigned, Node*> m_nodes;
     struct PendingReference {
         CXCursor cursor;

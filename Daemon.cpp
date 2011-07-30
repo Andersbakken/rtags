@@ -284,6 +284,7 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
     if (cmd == "syntax") {
         return syntax();
     } else if (cmd == "quit") {
+        ClangRunnable::abort();
         QTimer::singleShot(100, QCoreApplication::instance(), SLOT(quit()));
         // hack to make the quit command properly respond before the server goes down
         return createResultMap("quitting");
