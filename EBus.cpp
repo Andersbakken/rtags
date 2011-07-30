@@ -62,7 +62,7 @@ bool EBus::hasData() const
 bool EBus::connected() const
 {
     return (m_socket->state() == QTcpSocket::ConnectedState
-            || isConnecting(m_socket) && m_socket->waitForConnected(100));
+            || (isConnecting(m_socket) && m_socket->waitForConnected(100)));
 }
 
 void EBus::push(const QVariant &arg)

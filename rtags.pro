@@ -39,17 +39,24 @@ SOURCES += \
     GccArguments.cpp \
     Utils.cpp \
     PreCompile.cpp \
-    ClangRunnable.cpp \
-    EBus.cpp
+    EBus.cpp \
+    Node.cpp \
+    Path.cpp \
+    ParseThread.cpp \
+    VisitThread.cpp
 
 HEADERS += \
     Daemon.h \
     Client.h \
     GccArguments.h \
     Utils.h \
-    ClangRunnable.h \
     PreCompile.h \
-    EBus.h
+    EBus.h \
+    Path.h \
+    Node.h \
+    Location.h \
+    ParseThread.h \
+    VisitThread.h
 
 OTHER_FILES += \
     gccopts.gperf

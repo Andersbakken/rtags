@@ -1,0 +1,268 @@
+#include "ParseThread.h"
+#include "PreCompile.h"
+
+static ParseThread *sParseThreadInstance = 0; // ### hack
+class MakefileManager : public QObject
+{
+    Q_OBJECT;
+public:
+    MakefileManager()
+        : QObject(QCoreApplication::instance())
+    {}
+    static MakefileManager *instance()
+    {
+        static MakefileManager *inst = new MakefileManager;
+        return inst;
+    }
+public slots:
+    void onMakeFinished(int statusCode)
+    {
+        QProcess *proc = qobject_cast<QProcess*>(sender());
+        if (statusCode != 0) {
+            qWarning("make error: %s", proc->readAllStandardError().constData());
+        }
+        mMakefiles.remove(proc);
+        proc->deleteLater();
+    }
+
+    void onMakeOutput()
+    {
+        QProcess *proc = qobject_cast<QProcess*>(sender());
+        MakefileData &data = mMakefiles[proc];
+        int i = data.buffer.size();
+        data.buffer += proc->readAllStandardOutput();
+        int last = 0;
+        const int size = data.buffer.size();
+        while (i < size) {
+            if (data.buffer.at(i) == '\n') {
+                const QByteArray line = data.buffer.mid(last, i - last);
+                if (!line.isEmpty()) {
+                    if (data.reject.isValid() && !data.reject.isEmpty() && QString::fromLocal8Bit(line).contains(data.reject)) { // ### use other regexp lib
+                        if (Options::s_verbose)
+                            qDebug() << "rejecting" << line << data.reject.pattern();
+                    } else if (data.accept.isValid() && !data.accept.isEmpty() && !QString::fromLocal8Bit(line).contains(data.accept)) {
+                        if (Options::s_verbose)
+                            qDebug() << "not accepting" << line << data.accept.pattern();
+                    } else {
+                        GccArguments args;
+                        if (args.parse(line, data.directory) && args.hasInput() && args.isCompile()) {
+                            foreach(Path file, args.input()) {
+                                if (!file.resolve()) {
+                                    qWarning("%s doesn't exist", file.constData());
+                                } else if (!data.seen.contains(file)) {
+                                    data.seen.insert(file);
+                                    sParseThreadInstance->addFile(file, args);
+                                }
+                            }
+                        } else if (!args.errorString().isEmpty()) {
+                            qWarning("Can't parse line %s (%s)", line.constData(), qPrintable(args.errorString()));
+                        }
+
+                    }
+
+                }
+                last = i + 1;
+            }
+            ++i;
+        }
+        if (i < size) {
+            data.buffer.remove(0, last);
+        } else {
+            data.buffer.clear();
+        }
+    }
+    
+    void onMakeError(QProcess::ProcessError error)
+    {
+        qDebug() << error << qobject_cast<QProcess*>(sender())->errorString();
+    }
+public:
+    struct MakefileData {
+        Path path, directory;
+        QRegExp accept, reject;
+        QByteArray buffer;
+        QSet<Path> seen;
+    };
+    QHash<QProcess *, MakefileData> mMakefiles;
+};
+#include "ParseThread.moc"
+
+ParseThread::ParseThread()
+    : mAborted(false), mFirst(0), mLast(0), mIndex(clang_createIndex(1, 0))
+{
+    Q_ASSERT(!sParseThreadInstance);
+    sParseThreadInstance = this;
+    moveToThread(this); // we have a slot
+    // ### for now
+    PreCompile::setPath("/tmp");
+}
+
+ParseThread::~ParseThread()
+{
+    while (mFirst) {
+        File *f = mFirst->next;
+        delete mFirst;
+        mFirst = f;
+    }
+    clang_disposeIndex(mIndex);
+    Q_ASSERT(sParseThreadInstance == this);
+    sParseThreadInstance = 0;
+    // ### clean up
+}
+
+void ParseThread::abort()
+{
+    mAborted = true;
+    mWaitCondition.wakeOne();
+}
+
+void ParseThread::addMakefile(const Path &p, const QRegExp &accept, const QRegExp &reject)
+{
+    Path path = p;
+    if (!path.resolve()) {
+        qWarning("%s doesn't exist", path.constData());
+        return;
+    }
+    Path workingDir = path.parentDir();
+    qDebug() << p << path << workingDir;
+    QDir::setCurrent(workingDir); // ### hmmmm
+    QProcess *proc = new QProcess(MakefileManager::instance());
+    proc->setWorkingDirectory(workingDir);
+    // proc->moveToThread(this);
+    connect(proc, SIGNAL(finished(int)), MakefileManager::instance(), SLOT(onMakeFinished(int)));
+    connect(proc, SIGNAL(error(QProcess::ProcessError)), MakefileManager::instance(), SLOT(onMakeError(QProcess::ProcessError)));
+    connect(proc, SIGNAL(readyReadStandardOutput()), MakefileManager::instance(), SLOT(onMakeOutput()));
+    MakefileManager::MakefileData data = { path, workingDir, accept, reject, QByteArray(), QSet<Path>() };
+    MakefileManager::instance()->mMakefiles[proc] = data;
+    proc->start(QLatin1String("make"), // some way to specify which make to use?
+                QStringList()
+                << QLatin1String("-B")
+                << QLatin1String("-n")
+                << QLatin1String("-f")
+                << path);
+}
+
+void ParseThread::addFile(const Path &path, const GccArguments &args)
+{
+    qDebug() << "adding file" << path;
+    QMutexLocker lock(&mMutex);
+    if (mLast) {
+        mLast->next = new File;
+        mLast = mLast->next;
+    } else {
+        mFirst = mLast = new File;
+    }
+    mLast->next = 0;
+    mLast->path = path;
+    mLast->arguments = args;
+    mWaitCondition.wakeOne();
+}
+
+void ParseThread::onFileChanged(const QString &path)
+{
+    Path p = path.toLocal8Bit();
+    emit invalidated(p);
+    foreach(const Path &pp, mDependencies.value(p)) {
+        emit invalidated(pp);
+    }
+    if (p.exists() && mFiles.contains(p)) {
+        reparse(p);
+    }
+}
+
+struct PrecompileData
+{
+    QList<Path> direct;
+    QList<Path> all;
+};
+
+static inline void precompileHeaders(CXFile included_file, CXSourceLocation*,
+                                     unsigned include_len, CXClientData client_data)
+{
+    if (!include_len)
+        return;
+
+    CXString filename = clang_getFileName(included_file);
+
+    PrecompileData* data = reinterpret_cast<PrecompileData*>(client_data);
+    Path rfn = Path::resolved(clang_getCString(filename));
+    if (include_len == 1)
+        data->direct.append(rfn);
+    data->all.append(rfn);
+    clang_disposeString(filename);
+}
+
+
+void ParseThread::run()
+{
+    QFileSystemWatcher watcher;
+    connect(&watcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged(QString)));
+    QVector<const char*> args;
+    while (!mAborted) {
+        File *f = 0;
+        {
+            QMutexLocker lock(&mMutex);
+            if (!mFirst) {
+                mWaitCondition.wait(&mMutex);
+                if (!mFirst) {
+                    Q_ASSERT(mAborted);
+                    break;
+                }
+            }
+            Q_ASSERT(mFirst);
+            f = mFirst;
+            mFirst = mFirst->next;
+            if (!mFirst)
+                mLast = 0;
+        }
+        Q_ASSERT(f);
+        const QList<QByteArray> compilerOptions = f->arguments.includePaths() + f->arguments.arguments("-D");
+        // ### this allocates more than it needs to strictly speaking. In fact a
+        // ### lot of files will have identical options so we could even reuse
+        // ### the actual QVarLengthArray a lot of times.
+        const int size = compilerOptions.size();
+        if (args.size() < size)
+            args.resize(size);
+        for (int i=0; i<size; ++i) {
+            args[i] = compilerOptions.at(i).constData();
+        }
+        QElapsedTimer timer;
+        timer.start();
+        time_t before;
+        CXTranslationUnit unit = 0;
+        do {
+            before = f->path.lastModified();
+            unit = clang_parseTranslationUnit(mIndex, f->path.constData(),
+                                              args.constData(), size, 0, 0,
+                                              0); // ### for options?
+        } while (unit && before != f->path.lastModified());
+        if (!unit) {
+            emit parseError(f->path); // ### any way to get the parse error?
+        } else {
+            PrecompileData pre;
+            clang_getInclusions(unit, precompileHeaders, &pre);
+            foreach(const Path &header, pre.all) {
+                if (!mDependencies.contains(header))
+                    watcher.addPath(header);
+                mDependencies[header].insert(f->path);
+            }
+            
+            if (mFiles.contains(f->path)) {
+                mFiles[f->path] = f->arguments;
+            } else {
+                watcher.addPath(f->path);
+            }
+            emit fileParsed(f->path, unit);
+            qDebug() << "file was parsed" << f->path;
+
+        }
+        delete f;
+    }
+}
+
+void ParseThread::reparse(const Path &path)
+{
+    Q_ASSERT(mFiles.contains(path));
+    addFile(path, mFiles.value(path));
+}
+

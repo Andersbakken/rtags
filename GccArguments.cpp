@@ -69,8 +69,10 @@ GccArguments::GccArguments()
 bool GccArguments::parse(const QByteArray& raw, const QByteArray &dirPath)
 {
     Data* data = m_ptr.data();
-    data->dirPath = dirPath;
-    if (!resolvePath(m_ptr->dirPath)) {
+    data->dir = dirPath;
+    qDebug() << dirPath << data->dir.exists() << data->dir.type();
+    if (!data->dir.resolve() || !data->dir.isDir()) {
+        qDebug() << data->dir.isDir() << data->dir.exists();
         data->error = QString("Can't resolve makefile dirpath %1").arg(QString::fromLocal8Bit(dirPath));
         return false;
     }
@@ -142,9 +144,9 @@ QByteArray GccArguments::raw() const
     return m_ptr->raw;
 }
 
-QByteArray GccArguments::dirPath() const
+Path GccArguments::dir() const
 {
-    return m_ptr->dirPath;
+    return m_ptr->dir;
 }
 
 QList<QByteArray> GccArguments::arguments() const
@@ -214,14 +216,14 @@ QByteArray GccArguments::compiler() const
     return data->args.at(0).arg;
 }
 
-QList<QByteArray> GccArguments::input() const
+QList<Path> GccArguments::input() const
 {
     const Data* data = m_ptr.constData();
 
     if (!data->inputreplace.isEmpty() && data->input.size() <= 1)
-        return QList<QByteArray>() << data->inputreplace;
+        return QList<Path>() << data->inputreplace;
 
-    QList<QByteArray> ret;
+    QList<Path> ret;
     foreach(int pos, data->input) {
         ret << data->args.at(pos).arg;
     }
@@ -230,10 +232,7 @@ QList<QByteArray> GccArguments::input() const
 
 QByteArray GccArguments::firstInput() const
 {
-    QList<QByteArray> inputs = input();
-    if (inputs.isEmpty())
-        return QByteArray();
-    return inputs.first();
+    return input().value(0);
 }
 
 QByteArray GccArguments::output() const
@@ -313,8 +312,9 @@ QList<QByteArray> GccArguments::includePaths() const
         if (arg.size() >= 3 && arg.at(2) == '/') { // absolute path already
             continue;
         }
-        arg.replace(0, 2, m_ptr->dirPath + '/');
-        resolvePath(arg);
+        arg.replace(0, 2, m_ptr->dir + '/');
+        Path p(arg);
+        p.resolve();
         arg.insert(0, "-I");
     }
     return includePaths;

@@ -18,6 +18,13 @@ static inline QByteArray eatString(CXString string)
     return ret;
 }
 
+static inline bool isValidCursor(CXCursor cursor)
+{
+    CXCursorKind kind = clang_getCursorKind(cursor);
+    return !clang_isInvalid(kind);
+}
+
+
 static inline void removeWhitespace(QByteArray &ba)
 {
     int size = ba.size();
@@ -32,26 +39,27 @@ static inline void removeWhitespace(QByteArray &ba)
     }
 }
 
-static inline bool resolvePath(QByteArray &fileName)
-{
-    char *resolved = realpath(fileName.constData(), 0);
-    if (resolved) {
-        fileName = resolved;
-        free(resolved);
-        return true;
-    }
-    return false;
-}
+// static inline bool resolvePath(QByteArray &fileName)
+// {
+//     char *resolved = realpath(fileName.constData(), 0);
+//     if (resolved) {
+//         fileName = resolved;
+//         free(resolved);
+//         return true;
+//     }
+//     return false;
+// }
 
-static inline bool fileExists(const QByteArray &fileName)
-{
-    if (!fileName.isEmpty()) {
-        // ### symlinks?
-        struct stat st;
-        return !stat(fileName.constData(), &st) && S_ISREG(st.st_mode);
-    }
-    return false;
-}
+// static inline bool fileExists(const QByteArray &fileName)
+// {
+
+//     if (!fileName.isEmpty()) {
+//         // ### symlinks?
+//         struct stat st;
+//         return !stat(fileName.constData(), &st) && S_ISREG(st.st_mode);
+//     }
+//     return false;
+// }
 
 class Options {
 public:

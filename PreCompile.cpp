@@ -74,7 +74,7 @@ void PreCompile::clear(const QList<QByteArray> &args)
 PreCompile::PreCompile(const QList<QByteArray> &args)
 {
     foreach(const QByteArray& arg, args) {
-        m_args.append(::strndup(arg.constData(), arg.size()));
+        m_args.append(::strdup(arg.constData()));
     }
     m_args << ::strdup("-x") << ::strdup("c++");
 

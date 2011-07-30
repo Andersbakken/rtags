@@ -108,8 +108,8 @@ void ArgParser::addValue(const QByteArray &key, const QByteArray &value)
         return;
     }
 
-    QByteArray copy = value;
-    if (resolvePath(copy)) { // make all valid paths absolute
+    Path copy = value;
+    if (copy.resolve()) {
         m_dash[key] = copy;
     } else {
         m_dash[key] = value;
@@ -203,12 +203,16 @@ int main(int argc, char** argv)
                 qWarning("Can't connect to rtags daemon");
                 return 0;
             }
-            client.startDaemon(app.arguments());
-            for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {
-                if (client.connect()) {
-                    break;
+            if (!getenv("RTAGS_NO_AUTOSTART")) {
+                client.startDaemon(app.arguments());
+                for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {
+                    if (client.connect()) {
+                        break;
+                    }
+                    sleep(CLIENT_CONNECT_DELAY);
                 }
-                sleep(CLIENT_CONNECT_DELAY);
+                qWarning("Can't connect ot rtags daemon");
+                return 1;
             }
         }
         for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {

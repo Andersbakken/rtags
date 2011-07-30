@@ -7,6 +7,7 @@
 #include <QSharedData>
 #include <QSharedDataPointer>
 #include <QDebug>
+#include "Path.h"
 
 class GccArguments
 {
@@ -17,7 +18,7 @@ public:
 
     bool parse(const QByteArray& args, const QByteArray &dirPath);
     QByteArray raw() const;
-    QByteArray dirPath() const;
+    Path dir() const;
     QString errorString() const;
 
     QList<QByteArray> arguments() const;
@@ -30,7 +31,7 @@ public:
     void setReplaceOutput(const QByteArray& output = QByteArray());
 
     QByteArray compiler() const;
-    QList<QByteArray> input() const;
+    QList<Path> input() const;
     QByteArray firstInput() const;
     QByteArray output() const;
 
@@ -69,7 +70,7 @@ private:
         QByteArray inputreplace;
         QByteArray outputreplace;
         QByteArray raw;
-        QByteArray dirPath;
+        Path dir;
     };
 
     QSharedDataPointer<Data> m_ptr;
