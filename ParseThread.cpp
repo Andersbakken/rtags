@@ -135,6 +135,7 @@ void ParseThread::addMakefile(const Path &path, const QRegExp &accept, const QRe
                 << QLatin1String("-n")
                 << QLatin1String("-f")
                 << path);
+    qDebug() << "addMakefile" << path << accept << reject;
 }
 
 void ParseThread::addFile(const Path &path, const GccArguments &args)

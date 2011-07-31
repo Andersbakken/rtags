@@ -41,7 +41,8 @@ void syslogMsgHandler(QtMsgType t, const char* str)
     } else if (colorStart) {
         colorEnd = "\x1b[0m";
     }
-    fprintf(stderr, "%s%s%s\n", colorStart, str, colorEnd);
+    fprintf(stderr, "%s%s: %s%s\n", colorStart, qPrintable(QDateTime::currentDateTime().toString()),
+            str, colorEnd);
     QFile file("/tmp/rtags.log");
     file.open(QIODevice::WriteOnly|QIODevice::Append);
     char buf[1024];
