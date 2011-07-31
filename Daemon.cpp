@@ -228,6 +228,7 @@ QHash<QByteArray, QVariant> Daemon::fileList(const QHash<QByteArray, QVariant> &
 
 QHash<QByteArray, QVariant> Daemon::addSourceFile(const QHash<QByteArray, QVariant> &args)
 {
+    // ### should use free args
     FUNC1(args);
 
     Path file = args.value("file").toByteArray();
@@ -384,6 +385,7 @@ void visitCallback(const Node *node, const QByteArray &qualifiedSymbolName, void
     snprintf(data->buffer, VisitData::BufferLength, "%s %s \"%s:%d:%d\"\n",
              Node::typeToName(node->type, true), qualifiedSymbolName.constData(),
              node->location.path.constData(), node->location.line, node->location.column);
+    data->output.append(data->buffer);
 }
 
 QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &args)

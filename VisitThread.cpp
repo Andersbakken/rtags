@@ -11,6 +11,7 @@ VisitThread::VisitThread()
 void VisitThread::onFileParsed(const Path &path, void *u)
 {
     QMutexLocker lock(&mMutex);
+    QWriteLocker writeLock(&mLock);
     mFiles.insert(path);
     CXTranslationUnit unit = reinterpret_cast<CXTranslationUnit>(u);
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
@@ -138,13 +139,17 @@ static int removeChildren(Node *node, const Path &path, QHash<unsigned, Node*> &
 
 void VisitThread::invalidate(const Path &path)
 {
-    QMutexLocker lock(&mMutex);
-    mFiles.remove(path);
+    {
+        QMutexLocker lock(&mMutex);
+        mFiles.remove(path);
+    }
+    QWriteLocker writeLock(&mLock);
     const int count = removeChildren(mRoot, path, mNodes);
     qDebug("Removed %d nodes %d", count, mNodes.size());
 }
 void VisitThread::printTree()
 {
+    QReadLocker lock(&mLock);
     mRoot->print();
 }
 
@@ -190,6 +195,7 @@ static int recurse(const T &t, QByteArray path, const Node *node, uint nodeTypes
 
 int VisitThread::lookup(const QByteArray &pattern, uint flags, uint nodeTypes, HandleResult handler, void *userdata)
 {
+    QReadLocker lock(&mLock);
     Q_ASSERT(handler);
     if (flags & RegExp) {
         QRegExp rx(pattern);
