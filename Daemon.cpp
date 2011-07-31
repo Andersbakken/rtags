@@ -13,14 +13,6 @@
 //                                |CXTranslationUnit_CXXChainedPCH);
 const unsigned defaultFlags = 0;
 
-// ### might be worth optimizing
-
-const QByteArray dirName(const QByteArray &filePath)
-{
-    Q_ASSERT(!filePath.endsWith('/'));
-    return filePath.left(filePath.lastIndexOf('/'));
-}
-
 static QHash<QByteArray, QVariant> createResultMap(const QByteArray& result)
 {
     QHash<QByteArray, QVariant> ret;
@@ -28,35 +20,35 @@ static QHash<QByteArray, QVariant> createResultMap(const QByteArray& result)
     return ret;
 }
 
-static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
-{
-    QString text = "";
-    if (clang_isInvalid(clang_getCursorKind(cursor))) {
-        text += "";
-        dbg << text;
-        return dbg;
-    }
+// static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
+// {
+//     QString text = "";
+//     if (clang_isInvalid(clang_getCursorKind(cursor))) {
+//         text += "";
+//         dbg << text;
+//         return dbg;
+//     }
 
-    QByteArray name = eatString(clang_getCursorDisplayName(cursor));
-    if (name.isEmpty())
-        name = eatString(clang_getCursorSpelling(cursor));
-    if (!name.isEmpty()) {
-        text += name + ", ";
-    }
-    text += kindToString(clang_getCursorKind(cursor));
-    CXSourceLocation location = clang_getCursorLocation(cursor);
-    unsigned int line, column, offset;
-    CXFile file;
-    clang_getInstantiationLocation(location, &file, &line, &column, &offset);
-    Path path = eatString(clang_getFileName(file));
-    if (path.resolve()) {
-        text += QString(", %1:%2:%3").arg(QString::fromLocal8Bit(path).split('/', QString::SkipEmptyParts).last()).arg(line).arg(column);
-    }
-    if (clang_isCursorDefinition(cursor))
-        text += ", def";
-    dbg << text;
-    return dbg;
-}
+//     QByteArray name = eatString(clang_getCursorDisplayName(cursor));
+//     if (name.isEmpty())
+//         name = eatString(clang_getCursorSpelling(cursor));
+//     if (!name.isEmpty()) {
+//         text += name + ", ";
+//     }
+//     text += kindToString(clang_getCursorKind(cursor));
+//     CXSourceLocation location = clang_getCursorLocation(cursor);
+//     unsigned int line, column, offset;
+//     CXFile file;
+//     clang_getInstantiationLocation(location, &file, &line, &column, &offset);
+//     Path path = eatString(clang_getFileName(file));
+//     if (path.resolve()) {
+//         text += QString(", %1:%2:%3").arg(QString::fromLocal8Bit(path).split('/', QString::SkipEmptyParts).last()).arg(line).arg(column);
+//     }
+//     if (clang_isCursorDefinition(cursor))
+//         text += ", def";
+//     dbg << text;
+//     return dbg;
+// }
 
 
 Daemon::Daemon(QObject *parent)
@@ -335,30 +327,6 @@ QHash<QByteArray, QVariant> Daemon::lookupLine(const QHash<QByteArray, QVariant>
     // return createResultMap(ret);
 }
 
-static inline QByteArray path(CXCursor cursor)
-{
-    QByteArray path;
-    bool done = false;
-    CXString tmp;
-    do {
-        cursor = clang_getCursorLexicalParent(cursor);
-        switch (clang_getCursorKind(cursor)) {
-        case CXCursor_ClassDecl:
-        case CXCursor_Namespace:
-            tmp = clang_getCursorDisplayName(cursor);
-            path.prepend("::");
-            path.prepend(clang_getCString(tmp));
-            clang_disposeString(tmp);
-            break;
-        default:
-            done = true;
-            break;
-        }
-    } while (!done);
-    return path;
-}
-
-
 
 static Node::Type stringToType(const QByteArray &in)
 {
@@ -391,10 +359,8 @@ void visitCallback(const Node *node, const QByteArray &qualifiedSymbolName, void
 QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &args)
 {
     const QByteArray symbol = args.value("symbol").toByteArray();
-    if (symbol.isEmpty()) 
-        return createResultMap("No symbol in lookup request");
-
     uint nodeTypes = 0;
+    qDebug() << args;
     foreach(const QByteArray &type, args.value("types").toByteArray().split(',')) {
         if (type.isEmpty())
             continue;
@@ -402,7 +368,7 @@ QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &ar
         if (t) {
             nodeTypes |= t;
         } else {
-            qWarning("Can't parse type %s", type.constData());
+            return createResultMap("Can't parse type " + type);
         }
     }
     if (!nodeTypes)

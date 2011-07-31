@@ -163,6 +163,11 @@ static bool match(const QByteArray &qualifiedSymbolName, const QByteArray &match
     return qualifiedSymbolName.contains(match);
 }
 
+static bool match(const QByteArray &, bool)
+{
+    return true;
+}
+
 template <typename T>
 static int recurse(const T &t, QByteArray path, const Node *node, uint nodeTypes,
                    HandleResult handler, void *userdata)
@@ -200,6 +205,8 @@ int VisitThread::lookup(const QByteArray &pattern, uint flags, uint nodeTypes, H
     if (flags & RegExp) {
         QRegExp rx(pattern);
         return recurse(rx, QByteArray(), mRoot, nodeTypes, handler, userdata);
+    } else if (pattern.isEmpty()) {
+        return recurse(true, QByteArray(), mRoot, nodeTypes, handler, userdata);
     } else {
         return recurse(pattern, QByteArray(), mRoot, nodeTypes, handler, userdata);
     }
