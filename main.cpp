@@ -63,7 +63,6 @@ public:
 private:
     bool parse(int argc, char** argv);
     void addValue(const QByteArray& key, const QByteArray& value);
-
 private:
     bool m_valid;
     QHash<QByteArray, QVariant> m_dash;
@@ -109,7 +108,7 @@ void ArgParser::addValue(const QByteArray &key, const QByteArray &value)
     }
 
     Path copy = value;
-    if (copy.resolve()) {
+    if (!copy.isResolved() && copy.resolve()) {
         m_dash[key] = copy;
     } else {
         m_dash[key] = value;
@@ -146,8 +145,14 @@ bool ArgParser::parse(int argc, char **argv)
                 addValue(current, value);
             }
         } else { // doesn't start with a '-', add as a free argument
-            if (!current.isEmpty())
-                m_free.append(current);
+            if (!current.isEmpty()) {
+                Path copy = current;
+                if (!copy.isResolved() && copy.resolve()) {
+                    m_free.append(copy);
+                } else {
+                    m_free.append(current);
+                }
+            }
         }
     }
     return true;

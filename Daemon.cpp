@@ -246,14 +246,12 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
 
     Q_UNUSED(dashArgs);
 
-    Path makefile;
-    if (freeArgs.isEmpty()) {
-        makefile = Path::resolved("Makefile");
-    } else {
-        makefile = freeArgs.first();
-        if (!makefile.isResolved())
-            makefile.resolve();
-    }
+    if (freeArgs.isEmpty())
+        return createResultMap("No Makefile passed");
+
+    Path makefile = freeArgs.first();
+    if (!makefile.isResolved())
+        makefile.resolve();
     if (!makefile.isFile()) {
         return createResultMap("Makefile does not exist: " + makefile);
     }
