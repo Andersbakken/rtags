@@ -16,7 +16,7 @@ public:
         None = 0x0,
         RegExp = 0x1
     };
-    int lookup(const QByteArray &pattern, uint flags, uint nodeTypes, HandleResult handler, void *userdata);
+    int lookup(const QList<QByteArray> &patterns, uint flags, uint nodeTypes, HandleResult handler, void *userdata);
     void printTree();
     QSet<Path> files() const;
 protected:

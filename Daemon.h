@@ -31,7 +31,7 @@ public:
                                                        const QList<QByteArray>& freeArgs);
 private:
     // ### need to add a function for code completion
-    QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args);
+    QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args, const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> lookupLine(const QHash<QByteArray, QVariant>& args);
     QHash<QByteArray, QVariant> addMakefile(const QHash<QByteArray, QVariant>& dashArgs, const QList<QByteArray>& freeArgs);
     QHash<QByteArray, QVariant> addSourceFile(const QHash<QByteArray, QVariant>& args);
@@ -42,6 +42,7 @@ private:
 private:
     ParseThread mParseThread;
     VisitThread mVisitThread;
+    QHash<Path, CXTranslationUnit> mTranslationUnits;
 #ifdef EBUS_ENABLED
     EBusDaemon m_ebus;
 private slots:

@@ -12,6 +12,7 @@ void VisitThread::onFileParsed(const Path &path, void *u)
 {
     QMutexLocker lock(&mMutex);
     QWriteLocker writeLock(&mLock);
+    const int old = mNodes.size();
     mFiles.insert(path);
     CXTranslationUnit unit = reinterpret_cast<CXTranslationUnit>(u);
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
@@ -24,7 +25,7 @@ void VisitThread::onFileParsed(const Path &path, void *u)
     }
     mPendingReferences.clear();
     clang_disposeTranslationUnit(unit);
-    qDebug() << mNodes.size();
+    qDebug() << mNodes.size() - old << "nodes added";
 }
 Node * VisitThread::createOrGet(CXCursor cursor)
 {
@@ -153,14 +154,24 @@ void VisitThread::printTree()
     mRoot->print();
 }
 
-static bool match(const QByteArray &qualifiedSymbolName, const QRegExp &rx)
+static bool match(const QByteArray &qualifiedSymbolName, const QList<QRegExp> &rxs)
 {
-    return QString::fromLocal8Bit(qualifiedSymbolName).contains(rx);
+    QString str = QString::fromLocal8Bit(qualifiedSymbolName);
+    foreach(const QRegExp &rx, rxs) {
+        qDebug() << str << rx << str.contains(rx);
+        if (str.contains(rx))
+            return true;
+    }
+    return false;
 }
 
-static bool match(const QByteArray &qualifiedSymbolName, const QByteArray &match)
+static bool match(const QByteArray &qualifiedSymbolName, const QList<QByteArray> &match)
 {
-    return qualifiedSymbolName.contains(match);
+    foreach(const QByteArray &m, match) {
+        if (qualifiedSymbolName.contains(m))
+            return true;
+    }
+    return false;
 }
 
 static bool match(const QByteArray &, bool)
@@ -198,18 +209,26 @@ static int recurse(const T &t, QByteArray path, const Node *node, uint nodeTypes
     return ret;
 }
 
-int VisitThread::lookup(const QByteArray &pattern, uint flags, uint nodeTypes, HandleResult handler, void *userdata)
+int VisitThread::lookup(const QList<QByteArray> &patterns, uint flags, uint nodeTypes, HandleResult handler, void *userdata)
 {
     QReadLocker lock(&mLock);
     Q_ASSERT(handler);
     if (flags & RegExp) {
-        QRegExp rx(pattern);
-        return recurse(rx, QByteArray(), mRoot, nodeTypes, handler, userdata);
-    } else if (pattern.isEmpty()) {
-        return recurse(true, QByteArray(), mRoot, nodeTypes, handler, userdata);
-    } else {
-        return recurse(pattern, QByteArray(), mRoot, nodeTypes, handler, userdata);
+        QList<QRegExp> rxs;
+        foreach(const QByteArray &pattern, patterns) {
+            if (!pattern.isEmpty()) {
+                QRegExp rx(pattern);
+                if (rx.isValid() && !rx.isEmpty()) {
+                    rxs.append(rx);
+                }
+            }
+        }
+        if (!rxs.isEmpty())
+            return recurse(rxs, QByteArray(), mRoot, nodeTypes, handler, userdata);
+    } else if (!patterns.isEmpty()) {
+        return recurse(patterns, QByteArray(), mRoot, nodeTypes, handler, userdata);
     }
+    return recurse(true, QByteArray(), mRoot, nodeTypes, handler, userdata);
 }
 
 QSet<Path> VisitThread::files() const

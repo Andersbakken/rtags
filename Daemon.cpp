@@ -159,7 +159,7 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
     } else if (cmd == "files") {
         return fileList(dashArgs);
     } else if (cmd == "lookup") {
-        return lookup(dashArgs);
+        return lookup(dashArgs, freeArgs);
     } else if (cmd == "loadast") {
         return loadAST(dashArgs);
     }
@@ -356,11 +356,9 @@ void visitCallback(const Node *node, const QByteArray &qualifiedSymbolName, void
     data->output.append(data->buffer);
 }
 
-QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &args)
+QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &args, const QList<QByteArray> &freeArgs)
 {
-    const QByteArray symbol = args.value("symbol").toByteArray();
     uint nodeTypes = 0;
-    qDebug() << args;
     foreach(const QByteArray &type, args.value("types").toByteArray().split(',')) {
         if (type.isEmpty())
             continue;
@@ -379,7 +377,7 @@ QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &ar
         flags |= VisitThread::RegExp;
 
     VisitData visitData;
-    mVisitThread.lookup(symbol, flags, nodeTypes, ::visitCallback, &visitData);
+    mVisitThread.lookup(freeArgs, flags, nodeTypes, ::visitCallback, &visitData);
     return createResultMap(visitData.output);
 }
 
