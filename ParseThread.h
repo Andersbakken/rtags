@@ -14,8 +14,9 @@ public:
     ~ParseThread();
     void abort();
     void addMakefile(const Path &path, const QRegExp &accept, const QRegExp &reject);
-    void addFile(const Path &path, const GccArguments &args);
+    void addFile(const Path &path, const GccArguments &args, QObject *receiver = 0, const char *member = 0);
     void reparse(const Path &path);
+    void loadTranslationUnit(const Path &path, QObject *receiver, const char *member);
 signals:
     void invalidated(const Path &path);
     void fileParsed(const Path &path, void *translationUnit);
@@ -31,6 +32,8 @@ private:
     struct File {
         Path path;
         GccArguments arguments;
+        QObject *receiver;
+        const char *member;
         File *next;
     } *mFirst, *mLast;
     QHash<Path, QSet<Path> > mDependencies;

@@ -138,7 +138,7 @@ void ParseThread::addMakefile(const Path &path, const QRegExp &accept, const QRe
     qDebug() << "addMakefile" << path << accept << reject;
 }
 
-void ParseThread::addFile(const Path &path, const GccArguments &args)
+void ParseThread::addFile(const Path &path, const GccArguments &args, QObject *receiver, const char *member)
 {
     qDebug() << "adding file" << path;
     QMutexLocker lock(&mMutex);
@@ -148,6 +148,9 @@ void ParseThread::addFile(const Path &path, const GccArguments &args)
     } else {
         mFirst = mLast = new File;
     }
+    mLast->receiver = receiver;
+    mLast->member = member;
+    Q_ASSERT(!receiver == !member);
     mLast->next = 0;
     mLast->path = path;
     mLast->arguments = args;
@@ -262,7 +265,14 @@ void ParseThread::run()
             } else {
                 watcher.addPath(f->path);
             }
-            emit fileParsed(f->path, unit);
+            if (f->receiver) {
+                Q_ASSERT(f->member);
+                QMetaObject::invokeMethod(f->receiver, f->member, Qt::AutoConnection,
+                                          Q_ARG(Path, f->path),
+                                          Q_ARG(void*, unit));
+            } else {
+                emit fileParsed(f->path, unit);
+            }
             qDebug() << "file was parsed" << f->path;
 
         }
@@ -276,3 +286,8 @@ void ParseThread::reparse(const Path &path)
     addFile(path, mFiles.value(path));
 }
 
+void ParseThread::loadTranslationUnit(const Path &path, QObject *receiver, const char *member)
+{
+    Q_ASSERT(mFiles.contains(path));
+    addFile(path, mFiles.value(path), receiver, member);
+}

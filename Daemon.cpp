@@ -55,6 +55,7 @@ Daemon::Daemon(QObject *parent)
     : QObject(parent)
 {
     qRegisterMetaType<Path>("Path");
+    qRegisterMetaType<CXTranslationUnit>("CXTranslationUnit");
     mParseThread.start();
     mVisitThread.start();
     connect(&mParseThread, SIGNAL(fileParsed(Path, void*)), &mVisitThread, SLOT(onFileParsed(Path, void*)));
@@ -160,8 +161,8 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         return fileList(dashArgs);
     } else if (cmd == "lookup") {
         return lookup(dashArgs, freeArgs);
-    } else if (cmd == "loadast") {
-        return loadAST(dashArgs);
+    } else if (cmd == "load") {
+        return load(dashArgs, freeArgs);
     }
     return createResultMap("Unknown command");
 }
@@ -281,50 +282,53 @@ QHash<QByteArray, QVariant> Daemon::removeSourceFile(const QHash<QByteArray, QVa
 
 QHash<QByteArray, QVariant> Daemon::lookupLine(const QHash<QByteArray, QVariant> &args)
 {
-    // FUNC1(args);
-    // if (!args.contains("line")
-    //     || !args.contains("line")
-    //     || !args.contains("column"))
-    //     return createResultMap("Invalid argument count");
+    FUNC1(args);
+    if (!args.contains("file")
+        || !args.contains("line")
+        || !args.contains("column"))
+        return createResultMap("Invalid argument count");
 
-    // QByteArray filename = args.value("file").toByteArray();
-    // int line = args.value("line").toInt();
-    // int column = args.value("column").toInt();
+    Path file = args.value("file").toByteArray();
+    if (file.isResolved())
+        file.resolve();
+    int line = args.value("line").toInt();
+    int column = args.value("column").toInt();
 
-    // if (filename.isEmpty() || line == 0 || column == 0)
-    //     return createResultMap("Invalid argument type");
+    qDebug() << file << line << column;
+    if (!file.isFile() || line == 0 || column == 0)
+        return createResultMap("Invalid argument type");
 
-    // if (!m_files.contains(filename))
-    //     return createResultMap("Translation unit not found");
+    if (!mTranslationUnits.contains(file))
+        return createResultMap("Translation unit not found");
 
-    // CXTranslationUnit unit = m_files.value(filename);
-    // CXFile file = clang_getFile(unit, filename.constData());
+    CXTranslationUnit unit = mTranslationUnits.value(file);
+    CXFile f = clang_getFile(unit, file.constData());
 
-    // CXSourceLocation location = clang_getLocation(unit, file, line, column);
-    // CXCursor cursor = clang_getCursor(unit, location);
-    // if (!isValidCursor(cursor))
-    //     return createResultMap("Unable to get cursor for location");
+    CXSourceLocation location = clang_getLocation(unit, f, line, column);
+    CXCursor cursor = clang_getCursor(unit, location);
+    if (!isValidCursor(cursor))
+        return createResultMap("Unable to get cursor for location");
 
-    // CXCursorKind kind = clang_getCursorKind(cursor);
-    // CXCursor referenced;
-    // if (kind == CXCursor_CXXMethod) // might need to add more here
-    //     referenced = clang_getCanonicalCursor(cursor);
-    // else
-    //     referenced = clang_getCursorReferenced(cursor);
-    // if (!isValidCursor(referenced))
-    //     return createResultMap("No referenced cursor");
+    CXCursorKind kind = clang_getCursorKind(cursor);
+    CXCursor referenced;
+    if (kind == CXCursor_CXXMethod) // might need to add more here
+        referenced = clang_getCanonicalCursor(cursor);
+    else
+        referenced = clang_getCursorReferenced(cursor);
+    if (!isValidCursor(referenced))
+        return createResultMap("No referenced cursor");
 
-    // location = clang_getCursorLocation(referenced);
-    // unsigned int rline, rcolumn, roffset;
-    // CXFile rfile;
-    // clang_getInstantiationLocation(location, &rfile, &rline, &rcolumn, &roffset);
-    // CXString rfilename = clang_getFileName(rfile);
+    location = clang_getCursorLocation(referenced);
+    unsigned int rline, rcolumn, roffset;
+    CXFile rfile;
+    clang_getInstantiationLocation(location, &rfile, &rline, &rcolumn, &roffset);
+    CXString rfilename = clang_getFileName(rfile);
 
-    // char ret[64];
-    // snprintf(ret, 63, "Symbol (decl) at %s, line %u column %u",
-    //          clang_getCString(rfilename), rline, rcolumn);
-    // clang_disposeString(rfilename);
-    // return createResultMap(ret);
+    char ret[64];
+    snprintf(ret, 63, "Symbol (decl) at %s, line %u column %u",
+             clang_getCString(rfilename), rline, rcolumn);
+    clang_disposeString(rfilename);
+    return createResultMap(ret);
 }
 
 
@@ -347,7 +351,7 @@ struct VisitData {
     QByteArray output;
 };
 
-void visitCallback(const Node *node, const QByteArray &qualifiedSymbolName, void *userData)
+static inline void visitCallback(const Node *node, const QByteArray &qualifiedSymbolName, void *userData)
 {
     VisitData *data = reinterpret_cast<VisitData*>(userData);
     snprintf(data->buffer, VisitData::BufferLength, "%s %s \"%s:%d:%d\"\n",
@@ -381,22 +385,6 @@ QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &ar
     return createResultMap(visitData.output);
 }
 
-QHash<QByteArray, QVariant> Daemon::loadAST(const QHash<QByteArray, QVariant> &args)
-{
-    // QByteArray filename = args.value("file").toByteArray();
-    // if (filename.isEmpty())
-    //     return createResultMap("No filename specified (use --file=<filename>)");
-    // if (m_files.contains(filename))
-    //     return createResultMap("File already loaded");
-    // QByteArray file = QCoreApplication::applicationDirPath().toLocal8Bit() + "/ast" + filename;
-    // if (!resolvePath(file))
-    //     return createResultMap("AST file does not exist");
-    // CXTranslationUnit unit = clang_createTranslationUnit(m_index, file.constData());
-    // // m_files[filename] = unit;
-    // clang_disposeTranslationUnit(unit);
-    // return createResultMap("AST file loaded");
-}
-
 bool Daemon::writeAST(const Path &path, CXTranslationUnit unit)
 {
     // FUNC;
@@ -410,4 +398,23 @@ bool Daemon::writeAST(const Path &path, CXTranslationUnit unit)
     // const int ret = clang_saveTranslationUnit(unit, outname.constData(),
     //                                           clang_defaultSaveOptions(unit));
     // return (ret == 0);
+}
+void Daemon::onFileParsed(const Path &path, void *translationUnit)
+{
+    if (mTranslationUnits.contains(path))
+        clang_disposeTranslationUnit(mTranslationUnits.value(path));
+    mTranslationUnits[path] = reinterpret_cast<CXTranslationUnit>(translationUnit);
+}
+QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>& args, const QList<QByteArray> &freeArgs)
+{
+    Path filename = freeArgs.value(0);
+    if (!filename.isResolved())
+        filename.resolve();
+    if (!filename.isFile())
+        return createResultMap("No filename specified (use --file=<filename>)");
+    if (mTranslationUnits.contains(filename))
+        return createResultMap("File already loaded");
+    qDebug() << args << freeArgs << filename;
+    mParseThread.loadTranslationUnit(filename, this, "onFileParsed");
+    return createResultMap("Loading");
 }
