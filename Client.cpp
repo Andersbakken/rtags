@@ -4,6 +4,10 @@
 #endif
 #include "Utils.h"
 
+#ifdef EBUS_ENABLED
+#define CLIENT_TIMEOUT 30000
+#endif
+
 Client::Client(QObject *parent)
     : QObject(parent)
 #ifndef EBUS_ENABLED
@@ -61,12 +65,14 @@ QHash<QByteArray, QVariant> Client::exec(const QHash<QByteArray, QVariant>& dash
 
     QElapsedTimer timer;
     timer.start();
-    qint16 size = -1;
-    enum { SizeSize = sizeof(size) };
     QHash<QByteArray, QVariant> ret;
 
-    if (!ebus.hasData())
-        ebus.waitForReply(1000);
+    do {
+        if (!ebus.hasData())
+            ebus.waitForReply(1000);
+        if (ebus.hasData() || timer.elapsed() > CLIENT_TIMEOUT)
+            break;
+    } while (ebus.connected());
     if (!ebus.hasData()) {
         ret.insert("result", "Unable to read from EBus");
         return ret;
