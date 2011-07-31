@@ -7,8 +7,6 @@
 #include "Utils.h"
 #include <syslog.h>
 
-Q_DECLARE_METATYPE(QList<QByteArray>)
-
 #define CLIENT_CONNECT_ATTEMPTS 5
 #define CLIENT_CONNECT_DELAY 1
 
@@ -59,7 +57,8 @@ public:
 
     bool isValid() const;
 
-    QHash<QByteArray, QVariant> arguments() const;
+    QHash<QByteArray, QVariant> dashArguments() const;
+    QList<QByteArray> freeArguments() const;
 
 private:
     bool parse(int argc, char** argv);
@@ -67,7 +66,8 @@ private:
 
 private:
     bool m_valid;
-    QHash<QByteArray, QVariant> m_args;
+    QHash<QByteArray, QVariant> m_dash;
+    QList<QByteArray> m_free;
 };
 
 ArgParser::ArgParser(int argc, char **argv)
@@ -80,40 +80,49 @@ bool ArgParser::isValid() const
     return m_valid;
 }
 
-QHash<QByteArray, QVariant> ArgParser::arguments() const
+QHash<QByteArray, QVariant> ArgParser::dashArguments() const
 {
-    return m_args;
+    return m_dash;
+}
+
+QList<QByteArray> ArgParser::freeArguments() const
+{
+    return m_free;
 }
 
 void ArgParser::addValue(const QByteArray &key, const QByteArray &value)
 {
     if (key == "command") { // don't want to resolve makefile to /some/path/Makefile on mac
-        m_args[key] = value;
+        m_dash[key] = value;
         return;
     }
     bool ok;
     int intvalue = value.toInt(&ok);
     if (ok) {
-        m_args[key] = intvalue;
+        m_dash[key] = intvalue;
         return;
     }
     double doublevalue = value.toDouble(&ok);
     if (ok) {
-        m_args[key] = doublevalue;
+        m_dash[key] = doublevalue;
         return;
     }
 
     QByteArray copy = value;
     if (resolvePath(copy)) { // make all valid paths absolute
-        m_args[key] = copy;
+        m_dash[key] = copy;
     } else {
-        m_args[key] = value;
+        m_dash[key] = value;
     }
 }
 
 bool ArgParser::parse(int argc, char **argv)
 {
-    m_args.clear();
+    Q_ASSERT(argc > 0);
+    ++argv; // skip the application name
+
+    m_dash.clear();
+    m_free.clear();
 
     QByteArray current;
     const char** end = const_cast<const char**>(argv + argc);
@@ -121,24 +130,12 @@ bool ArgParser::parse(int argc, char **argv)
         current = *argv;
         if (current.startsWith('-')) {
             const int eqpos = current.indexOf('=');
-            if (eqpos == -1) { // add argument and take the next if it doesn't start with a '-'
-                ++argv;
+            if (eqpos == -1) { // no '=' present, just add the argument
                 while (!current.isEmpty() && current.at(0) == '-')
                     current = current.mid(1);
                 if (current.isEmpty())
                     return false;
-                if (argv == end) {
-                    m_args[current] = QVariant();
-                    return true;
-                }
-                QByteArray value = *argv;
-                if (value.startsWith('-')) {
-                    // next argument is an option as well, don't take it
-                    --argv;
-                    m_args[current] = QVariant();
-                } else {
-                    addValue(current, value);
-                }
+                m_dash[current] = QVariant();
             } else { // use everything past '='
                 QByteArray value = current.mid(eqpos + 1);
                 current = current.left(eqpos);
@@ -148,7 +145,9 @@ bool ArgParser::parse(int argc, char **argv)
                     return false;
                 addValue(current, value);
             }
-        } else { // doesn't start with a '-', ignore for now
+        } else { // doesn't start with a '-', add as a free argument
+            if (!current.isEmpty())
+                m_free.append(current);
         }
     }
     return true;
@@ -159,8 +158,11 @@ int main(int argc, char** argv)
     QCoreApplication app(argc, argv);
     QThread::currentThread()->setObjectName("main");
     qRegisterMetaType<QList<QByteArray> >();
+    qRegisterMetaType<ByteArrayHash>();
+    qRegisterMetaTypeStreamOperators<QList<QByteArray> >("QList<QByteArray>");
+    qRegisterMetaTypeStreamOperators<ByteArrayHash>("ByteArrayHash");
     ArgParser args(argc, argv);
-    QHash<QByteArray, QVariant> argsmap = args.arguments();
+    QHash<QByteArray, QVariant> argsmap = args.dashArguments();
     if (argsmap.contains("verbose")) {
         Options::s_verbose = true;
         argsmap.remove("verbose");
@@ -211,7 +213,7 @@ int main(int argc, char** argv)
         }
         for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {
             if (client.connected()) {
-                QHash<QByteArray, QVariant> replymap = client.exec(argsmap);
+                QHash<QByteArray, QVariant> replymap = client.exec(argsmap, args.freeArguments());
                 QString reply = replymap.value("result").toString();
                 if (!reply.isEmpty())
                     printf("%s\n", qPrintable(reply));

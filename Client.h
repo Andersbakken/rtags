@@ -3,8 +3,7 @@
 
 #include <QtCore>
 #ifdef EBUS_ENABLED
-#include <QtNetwork>
-class QTcpSocket;
+#include "EBus.h"
 #else
 class DaemonInterface;
 #endif
@@ -19,10 +18,10 @@ public:
     bool connected() const;
     void startDaemon(const QStringList& args);
 
-    QHash<QByteArray, QVariant> exec(const QHash<QByteArray, QVariant>& args);
+    QHash<QByteArray, QVariant> exec(const QHash<QByteArray, QVariant>& dashArgs, const QList<QByteArray>& freeArgs);
 private:
 #ifdef EBUS_ENABLED
-    QTcpSocket *m_socket;
+    EBus ebus;
 #else
     DaemonInterface* m_interface;
 #endif

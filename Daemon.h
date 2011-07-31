@@ -11,7 +11,7 @@
 #include "Utils.h"
 #include "GccArguments.h"
 #ifdef EBUS_ENABLED
-#include <QtNetwork>
+#include "EBus.h"
 #endif
 
 struct Location {
@@ -85,13 +85,14 @@ struct Node
 
 class Daemon : public QObject
 {
-    Q_OBJECT;
+    Q_OBJECT
 public:
     Daemon(QObject* parent = 0);
     ~Daemon();
 
     bool start();
-    Q_INVOKABLE QHash<QByteArray, QVariant> runCommand(const QHash<QByteArray, QVariant>& args);
+    Q_INVOKABLE QHash<QByteArray, QVariant> runCommand(const QHash<QByteArray, QVariant>& dashArgs,
+                                                       const QList<QByteArray>& freeArgs);
 
 private slots:
     void onFileChanged(const QString &path);
@@ -101,7 +102,7 @@ private:
     // ### need to add a function for code completion
     QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args);
     QHash<QByteArray, QVariant> lookupLine(const QHash<QByteArray, QVariant>& args);
-    QHash<QByteArray, QVariant> addMakefile(const QHash<QByteArray, QVariant>& args);
+    QHash<QByteArray, QVariant> addMakefile(const QHash<QByteArray, QVariant>& dashArgs, const QList<QByteArray>& freeArgs);
     QHash<QByteArray, QVariant> addSourceFile(const QHash<QByteArray, QVariant>& args);
     QHash<QByteArray, QVariant> removeSourceFile(const QHash<QByteArray, QVariant>& args);
     QHash<QByteArray, QVariant> loadAST(const QHash<QByteArray, QVariant>& args);
@@ -138,13 +139,11 @@ private:
     int m_pendingTranslationUnits;
 
 #ifdef EBUS_ENABLED
-    QTcpServer *m_server;
-    QHash<QTcpSocket*, qint16> m_connections;
+    EBusDaemon m_ebus;
 
-    void read(QTcpSocket *socket);
-    Q_SLOT void onNewConnection();
-    Q_SLOT void onReadyRead();
-    Q_SLOT void onDisconnected();
+private slots:
+    void ebusConnected(EBus* ebus);
+    void ebusDataReady();
 #endif
 
 };

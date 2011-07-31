@@ -6,9 +6,7 @@
 
 Client::Client(QObject *parent)
     : QObject(parent)
-#ifdef EBUS_ENABLED
-    , m_socket(0)
-#else
+#ifndef EBUS_ENABLED
     , m_interface(0)
 #endif
 {
@@ -19,11 +17,7 @@ bool Client::connect()
 {
     FUNC;
 #ifdef EBUS_ENABLED
-    using namespace EBus;
-    delete m_socket;
-    m_socket = new QTcpSocket(this);
-    m_socket->connectToHost(QHostAddress::LocalHost, EBus::port()); // ### from settings
-    return connected() || m_socket->waitForConnected(100); // slightly nasty
+    return ebus.connected();
 #else
     m_interface = new DaemonInterface(DaemonInterface::staticInterfaceName(), "/", QDBusConnection::sessionBus(), this);
 
@@ -41,7 +35,7 @@ bool Client::connected() const
 {
     FUNC;
 #ifdef EBUS_ENABLED
-    return (m_socket && m_socket->state() == QAbstractSocket::ConnectedState);
+    return ebus.connected();
 #else
     return (m_interface && m_interface->isValid());
 #endif
@@ -54,30 +48,30 @@ void Client::startDaemon(const QStringList &args)
     QProcess::startDetached(args.first(), QStringList() << QLatin1String("--command=daemonize"), path);
 }
 
-QHash<QByteArray, QVariant> Client::exec(const QHash<QByteArray, QVariant>& args)
+QHash<QByteArray, QVariant> Client::exec(const QHash<QByteArray, QVariant>& dashArgs, const QList<QByteArray>& freeArgs)
 {
-    FUNC1(args);
+    FUNC2(dashArgs, freeArgs);
     if (!connected())
         return QHash<QByteArray, QVariant>();
 
 #ifdef EBUS_ENABLED
-    if (!EBus::writeToSocket(m_socket, args)) {
-        QHash<QByteArray, QVariant> ret;
-        ret.insert("result", "Couldn't write to socket");
-        return ret;
-    }
+    ebus.push(qVariantFromValue(dashArgs));
+    ebus.push(qVariantFromValue(freeArgs));
+    ebus.send();
+
     QElapsedTimer timer;
     timer.start();
     qint16 size = -1;
     enum { SizeSize = sizeof(size) };
     QHash<QByteArray, QVariant> ret;
 
-    do {
-        if (!m_socket->bytesAvailable())
-            m_socket->waitForReadyRead(1000);
-        if (EBus::readFromSocket(m_socket, ret, size) == EBus::Error)
-            ret.insert("result", "Read error " + m_socket->errorString());
-    } while (ret.isEmpty());
+    if (!ebus.hasData())
+        ebus.waitForReply(1000);
+    if (!ebus.hasData()) {
+        ret.insert("result", "Unable to read from EBus");
+        return ret;
+    }
+    ret = ebus.pop().value<QHash<QByteArray, QVariant> >();
     if (ret.isEmpty())
         ret.insert("result", "Timeout while waiting for response");
     return ret;

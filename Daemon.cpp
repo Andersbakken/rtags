@@ -196,9 +196,6 @@ static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
 
 Daemon::Daemon(QObject *parent)
     : QObject(parent), m_index(clang_createIndex(1, 0)), m_root(new Node), m_pendingTranslationUnits(0)
-#ifdef EBUS_ENABLED
-    , m_server(0)
-#endif
 {
     // ### for now
     PreCompile::setPath("/tmp");
@@ -234,16 +231,39 @@ bool Daemon::start()
 
     return true;
 #else
-    m_server = new QTcpServer(this);
-    connect(m_server, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
-    if (!m_server->listen(QHostAddress::LocalHost, EBus::port())) {
-        delete m_server;
-        m_server = 0;
+    if (!m_ebus.start())
         return false;
-    }
+    connect(&m_ebus, SIGNAL(ebusConnected(EBus*)), this, SLOT(ebusConnected(EBus*)));
     return true;
 #endif
 }
+
+#ifdef EBUS_ENABLED
+void Daemon::ebusConnected(EBus *ebus)
+{
+    connect(ebus, SIGNAL(ready()), this, SLOT(ebusDataReady()));
+}
+
+void Daemon::ebusDataReady()
+{
+    EBus* ebus = qobject_cast<EBus*>(sender());
+    if (!ebus)
+        return;
+
+    static int bytearrayhash = QMetaType::type("ByteArrayHash");
+    static int bytearraylist = QMetaType::type("QList<QByteArray>");
+    Q_ASSERT(ebus->peek() == bytearrayhash);
+    QHash<QByteArray, QVariant> args = ebus->pop().value<QHash<QByteArray, QVariant> >();
+    Q_ASSERT(ebus->peek() == bytearraylist);
+    QList<QByteArray> list = ebus->pop().value<QList<QByteArray> >();
+
+    QHash<QByteArray, QVariant> ret = runCommand(args, list);
+
+    QVariant ebusarg = qVariantFromValue(ret);
+    ebus->push(ebusarg);
+    ebus->send();
+}
+#endif
 
 static QHash<QByteArray, QVariant> syntax()
 {
@@ -273,11 +293,12 @@ void Daemon::onFileChanged(const QString &p)
     }
 }
 
-QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant> &args)
+QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant> &dashArgs,
+                                               const QList<QByteArray>& freeArgs)
 {
-    FUNC1(args);
+    FUNC2(dashArgs, freeArgs);
 
-    QString cmd = args.value("command").toString();
+    QString cmd = dashArgs.value("command").toString();
     if (cmd.isEmpty())
         return createResultMap("No command or path specified");
 
@@ -289,24 +310,24 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         // hack to make the quit command properly respond before the server goes down
         return createResultMap("quitting");
     } else if (cmd == "add") {
-        return addSourceFile(args);
+        return addSourceFile(dashArgs);
     } else if (cmd == "remove") {
-        return removeSourceFile(args);
+        return removeSourceFile(dashArgs);
     } else if (cmd == "printtree") {
         m_root->print();
         return createResultMap("Done");;
     } else if (cmd == "lookupline") {
-        return lookupLine(args);
+        return lookupLine(dashArgs);
     } else if (cmd == "makefile") {
-        return addMakefile(args);
+        return addMakefile(dashArgs, freeArgs);
     } else if (cmd == "files") {
-        return fileList(args);
+        return fileList(dashArgs);
     } else if (cmd == "lookup") {
-        return lookup(args);
+        return lookup(dashArgs);
     } else if (cmd == "saveast") {
-        return saveAST(args);
+        return saveAST(dashArgs);
     } else if (cmd == "loadast") {
-        return loadAST(args);
+        return loadAST(dashArgs);
     }
     return createResultMap("Unknown command");
 }
@@ -437,17 +458,20 @@ bool Daemon::addMakefileLine(const QByteArray &makeLine, const QByteArray &dirpa
     return true;
 }
 
-QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant> &args)
+QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant>& dashArgs,
+                                                const QList<QByteArray>& freeArgs)
 {
-    FUNC1(args);
-    if (args.isEmpty())
-        return createResultMap("No Makefile to add");
+    FUNC2(dashArgs, freeArgs);
 
-    QByteArray filename = args.value("file").toByteArray();
-    if (filename.isEmpty())
+    Q_UNUSED(dashArgs)
+
+    QByteArray filename;
+    if (freeArgs.isEmpty())
         filename = "Makefile";
+    else
+        filename = freeArgs.first();
     if (!resolvePath(filename)) {
-        return createResultMap("Makefile does not exist " + filename);
+        return createResultMap("Makefile does not exist: " + filename);
     }
 
     const QByteArray dirname = dirName(filename);
@@ -470,8 +494,8 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
     QSet<QByteArray> seen;
     QByteArray error;
     QList<QByteArray> makeData = proc.readAllStandardOutput().split('\n');
-    QRegExp accept(args.value("accept").toString());
-    QRegExp reject(args.value("reject").toString());
+    QRegExp accept(dashArgs.value("accept").toString());
+    QRegExp reject(dashArgs.value("reject").toString());
     int count = 0;
     foreach(const QByteArray& makeLine, makeData) {
         if (makeLine.isEmpty()) {

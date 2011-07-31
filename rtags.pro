@@ -28,7 +28,6 @@ dbus {
     message("Using EBus. Run qmake -config dbus to use dbus")
     QT += network
     DEFINES += EBUS_ENABLED
-    SOURCES += Daemon_ebus.cpp
 }
 
 
@@ -40,7 +39,8 @@ SOURCES += \
     GccArguments.cpp \
     Utils.cpp \
     PreCompile.cpp \
-    ClangRunnable.cpp
+    ClangRunnable.cpp \
+    EBus.cpp
 
 HEADERS += \
     Daemon.h \
@@ -48,7 +48,8 @@ HEADERS += \
     GccArguments.h \
     Utils.h \
     ClangRunnable.h \
-    PreCompile.h
+    PreCompile.h \
+    EBus.h
 
 OTHER_FILES += \
     gccopts.gperf
@@ -72,4 +73,3 @@ unix {
     RCC_DIR = $${OUT_PWD}/.rcc/
     UI_DIR = $${OUT_PWD}/.uic/
 }
-
