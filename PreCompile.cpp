@@ -117,15 +117,15 @@ QString PreCompile::filename() const
     return m_filename;
 }
 
-void PreCompile::add(const QList<QByteArray> &headers, const QList<QByteArray> &all)
+void PreCompile::add(const QList<Path> &headers, const QList<Path> &all)
 {
     const bool needed = m_seen.isEmpty() && m_included.isEmpty();
-    foreach(const QByteArray& header, headers) {
+    foreach(const Path& header, headers) {
         if (header.isEmpty() || m_included.contains(header))
             continue;
         bool found = false;
-        QList<QPair<QByteArray, int> >::iterator it = m_seen.begin();
-        QList<QPair<QByteArray, int> >::const_iterator itend = m_seen.end();
+        QList<QPair<Path, int> >::iterator it = m_seen.begin();
+        QList<QPair<Path, int> >::const_iterator itend = m_seen.end();
         while (it != itend) {
             if ((*it).first == header) {
                 ++(*it).second;
@@ -135,7 +135,7 @@ void PreCompile::add(const QList<QByteArray> &headers, const QList<QByteArray> &
             ++it;
         }
         if (!found)
-            m_seen.append(QPair<QByteArray, int>(header, 1));
+            m_seen.append(QPair<Path, int>(header, 1));
     }
     m_seenAll += all.toSet();
     if (!m_seen.isEmpty())
@@ -145,11 +145,11 @@ void PreCompile::add(const QList<QByteArray> &headers, const QList<QByteArray> &
 void PreCompile::precompileIfNeeded(bool needed)
 {
     QByteArray inc;
-    QSet<QByteArray> included;
+    QSet<Path> included;
     int max = 0;
 
-    QList<QPair<QByteArray, int> >::const_iterator it = m_seen.begin();
-    QList<QPair<QByteArray, int> >::const_iterator itend = m_seen.end();
+    QList<QPair<Path, int> >::const_iterator it = m_seen.begin();
+    QList<QPair<Path, int> >::const_iterator itend = m_seen.end();
     while (it != itend) {
         inc += "#include <" + (*it).first + ">\n";
         included.insert((*it).first);

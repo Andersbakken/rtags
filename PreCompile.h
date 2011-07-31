@@ -1,7 +1,7 @@
 #ifndef PRECOMPILE_H
 #define PRECOMPILE_H
 
-#include <QByteArray>
+#include "Path.h"
 #include <QHash>
 #include <QSet>
 #include <QList>
@@ -20,7 +20,7 @@ public:
 
     static void setPath(const QString& path);
 
-    void add(const QList<QByteArray>& direct, const QList<QByteArray>& all);
+    void add(const QList<Path>& direct, const QList<Path>& all);
     QString filename() const;
 
 private:
@@ -36,9 +36,9 @@ private:
 private:
     QByteArray m_headers;
     QVector<char*> m_args;
-    QList<QPair<QByteArray, int> > m_seen;
-    QSet<QByteArray> m_seenAll;
-    QSet<QByteArray> m_included;
+    QList<QPair<Path, int> > m_seen;
+    QSet<Path> m_seenAll;
+    QSet<Path> m_included;
     QString m_filename;
 };
 

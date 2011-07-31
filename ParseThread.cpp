@@ -217,15 +217,26 @@ void ParseThread::run()
         }
         Q_ASSERT(f);
         const QList<QByteArray> compilerOptions = f->arguments.includePaths() + f->arguments.arguments("-D");
+
+        PreCompile* precompile = PreCompile::get(compilerOptions);
+        const QByteArray pchfile = precompile->filename().toLocal8Bit();
+
         // ### this allocates more than it needs to strictly speaking. In fact a
         // ### lot of files will have identical options so we could even reuse
         // ### the actual QVarLengthArray a lot of times.
         const int size = compilerOptions.size();
-        if (args.size() < size)
-            args.resize(size);
+        const int extra = pchfile.isEmpty() ? 0 : 2;
+        if (args.size() < size + extra)
+            args.resize(size + extra);
         for (int i=0; i<size; ++i) {
             args[i] = compilerOptions.at(i).constData();
         }
+
+        if (extra) {
+            args[size] = "-include-pch";
+            args[size + 1] = pchfile.constData();
+        }
+
         QElapsedTimer timer;
         timer.start();
         time_t before;
@@ -233,7 +244,7 @@ void ParseThread::run()
         do {
             before = f->path.lastModified();
             unit = clang_parseTranslationUnit(mIndex, f->path.constData(),
-                                              args.constData(), size, 0, 0,
+                                              args.constData(), size + extra, 0, 0,
                                               0); // ### for options?
         } while (unit && before != f->path.lastModified());
         if (!unit) {
@@ -245,6 +256,8 @@ void ParseThread::run()
                 if (!mDependencies.contains(header))
                     watcher.addPath(header);
                 mDependencies[header].insert(f->path);
+
+                precompile->add(pre.direct, pre.all);
             }
             
             if (mFiles.contains(f->path)) {
