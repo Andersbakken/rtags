@@ -6,20 +6,19 @@ Investige issue with duplicate files (qt_core_pch.h) => Done
 Investige why Qt drops symbols => Done
 make all paths everywhere absolute => Done
 Make database more persistent (e.g. know if a file has changed) >= Done
+Make a Path class => Done
+threads: => Done
+        main, only read only access to tree => Done
+        clang, clang_parsing and pch => Done
+        processing, clang_visit and write access to tree => Done
+Fix raise conditions with filesystemwatcher, don't add until parsed. => Done
 
-Make a Path class
 Use AST file caching
 Add regexp matching or at least some heuristics for remove so you don't have to pass the whole path
 Don't use filesystemwatcher
-Fix raise conditions with filesystemwatcher, don't add until parsed.
-threads:
-        main, only read only access to tree
-        clang, clang_parsing and pch
-        processing, clang_visit and write access to tree
 completion api
 unsaved-file generalizing
 write elisp bindings
-Process files in ClangJob
 lookup-line reintroduce
 Fix dbus xml file, the generated files and the xml have diverged
 unbreak dbus
