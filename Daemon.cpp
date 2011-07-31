@@ -247,11 +247,14 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
     Q_UNUSED(dashArgs);
 
     Path makefile;
-    if (freeArgs.isEmpty())
-        makefile = "Makefile";
-    else
+    if (freeArgs.isEmpty()) {
+        makefile = Path::resolved("Makefile");
+    } else {
         makefile = freeArgs.first();
-    if (!makefile.resolve()) {
+        if (!makefile.isResolved())
+            makefile.resolve();
+    }
+    if (!makefile.isFile()) {
         return createResultMap("Makefile does not exist: " + makefile);
     }
     QRegExp accept(dashArgs.value("accept").toString());
@@ -284,7 +287,6 @@ QHash<QByteArray, QVariant> Daemon::removeSourceFile(const QHash<QByteArray, QVa
 
     // return createResultMap("Removed");
 }
-
 
 QHash<QByteArray, QVariant> Daemon::lookupLine(const QHash<QByteArray, QVariant> &args)
 {

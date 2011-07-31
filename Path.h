@@ -46,6 +46,7 @@ public:
     inline bool isDir() const { return type() == Directory; }
     inline bool isFile() const { return type() == File; }
     inline bool isAbsolute() const { return (!isEmpty() && at(0) == '/'); }
+    bool isResolved() const;
     Path parentDir() const;
     Type type() const;
     bool resolve();
@@ -53,6 +54,8 @@ public:
     qint64 fileSize() const;
     static Path resolved(const QByteArray &path, bool *ok = 0);
     static Path eatCXString(CXString string) { return eatString(string); }
+
+    static void initStaticData();
 };
 Q_DECLARE_METATYPE(Path);
 

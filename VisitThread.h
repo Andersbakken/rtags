@@ -19,6 +19,8 @@ public:
     int lookup(const QByteArray &pattern, uint flags, uint nodeTypes, HandleResult handler, void *userdata);
     void printTree();
     QSet<Path> files() const;
+protected:
+    virtual void run();
 public slots:
     void invalidate(const Path &path);
     void onFileParsed(const Path &path, void *unit);

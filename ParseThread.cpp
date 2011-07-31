@@ -116,15 +116,10 @@ void ParseThread::abort()
     mWaitCondition.wakeOne();
 }
 
-void ParseThread::addMakefile(const Path &p, const QRegExp &accept, const QRegExp &reject)
+void ParseThread::addMakefile(const Path &path, const QRegExp &accept, const QRegExp &reject)
 {
-    Path path = p;
-    if (!path.resolve()) {
-        qWarning("%s doesn't exist", path.constData());
-        return;
-    }
     Path workingDir = path.parentDir();
-    qDebug() << p << path << workingDir;
+    Q_ASSERT(path.isFile() && path.isResolved() && workingDir.isDir());
     QDir::setCurrent(workingDir); // ### hmmmm
     QProcess *proc = new QProcess(MakefileManager::instance());
     proc->setWorkingDirectory(workingDir);
@@ -195,6 +190,7 @@ static inline void precompileHeaders(CXFile included_file, CXSourceLocation*,
 
 void ParseThread::run()
 {
+    Path::initStaticData();
     QFileSystemWatcher watcher;
     connect(&watcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged(QString)));
     QVector<const char*> args;

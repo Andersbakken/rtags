@@ -156,6 +156,7 @@ bool ArgParser::parse(int argc, char **argv)
 int main(int argc, char** argv)
 {
     QCoreApplication app(argc, argv);
+    Path::initStaticData();
     QThread::currentThread()->setObjectName("main");
     qRegisterMetaType<QList<QByteArray> >();
     qRegisterMetaType<ByteArrayHash>();

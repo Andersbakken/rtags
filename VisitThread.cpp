@@ -204,3 +204,9 @@ QSet<Path> VisitThread::files() const
     QMutexLocker lock(&mMutex);
     return mFiles;
 }
+
+void VisitThread::run()
+{
+    Path::initStaticData();
+    exec();
+}

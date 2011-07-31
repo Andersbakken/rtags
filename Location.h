@@ -15,8 +15,9 @@ struct Location {
         CXSourceLocation location = clang_getCursorLocation(cursor);
         CXFile file;
         clang_getInstantiationLocation(location, &file, &line, &column, 0);
-        path = eatString(clang_getFileName(file));
-        if (!path.resolve()) { // This seems to happen
+        bool ok;
+        path = Path::resolved(eatString(clang_getFileName(file)), &ok);
+        if (!ok) {
             line = column = 0 ;
         }
         Q_ASSERT((!path.exists()) == (line == 0 && column == 0));

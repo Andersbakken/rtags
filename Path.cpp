@@ -3,7 +3,7 @@
 Path Path::parentDir() const
 {
     Path copy = *this;
-    if (copy.resolve()) {
+    if (copy.isResolved() || copy.resolve()) {
         if (isDir()) {
             int i = copy.size() - 1;
             while (copy.at(i) == '/')
@@ -65,35 +65,14 @@ qint64 Path::fileSize() const
     return -1;
 }
 
-bool Path::resolve()
-{
-    bool resolve = !isAbsolute();
-    if (!resolve) {
-        const int count = size();
-        for (int i=1; i<count - 1; ++i) {
-            if (at(i) == '.' && at(++i) == '.') {
-                resolve = true;
-                break;
-            }
-        }
-    }
-
-    if (!resolve)
-        return exists();
-
-    // ### consider using thread-local static buffer of PATH_MAX
-    char *resolved = realpath(constData(), 0);
-    if (resolved) {
-        QByteArray::operator=(resolved);
-        return true;
-    }
-    return false;
-}
-
 Path Path::resolved(const QByteArray &path, bool *ok)
 {
     Path ret(path);
-    if (ret.resolve() && ok) {
+    if (ret.isResolved() && ret.exists()) {
+        if (ok)
+            *ok = true;
+        return ret;
+    } else if (ret.resolve() && ok) {
         *ok = true;
     } else if (ok) {
         *ok = false;
@@ -101,3 +80,41 @@ Path Path::resolved(const QByteArray &path, bool *ok)
     return ret;
 }
 
+bool Path::isResolved() const
+{
+    if (!isAbsolute())
+        return false;
+    const int count = size();
+    for (int i=1; i<count - 1; ++i) {
+        if (at(i) == '.' && at(++i) == '.') {
+            return false;
+        }
+    }
+    return true;
+}
+static QHash<QThread*, QByteArray> sThreadStorage;
+static void cleanup()
+{
+    sThreadStorage.clear();
+}
+
+bool Path::resolve()
+{
+    Q_ASSERT(!isResolved()); // probably best to avoid re-resolving
+    // ### consider using thread-local static buffer of PATH_MAX
+    Q_ASSERT(sThreadStorage.contains(QThread::currentThread()));
+    char *buffer = sThreadStorage[QThread::currentThread()].data();
+    char *resolved = realpath(constData(), buffer);
+    if (resolved) {
+        QByteArray::operator=(resolved);
+        return true;
+    }
+    return false;
+}
+
+
+void Path::initStaticData()
+{
+    qAddPostRoutine(cleanup);
+    sThreadStorage[QThread::currentThread()] = QByteArray(PATH_MAX + 1, ' ');
+}

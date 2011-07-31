@@ -66,16 +66,11 @@ GccArguments::GccArguments()
 {
 }
 
-bool GccArguments::parse(const QByteArray& raw, const QByteArray &dirPath)
+bool GccArguments::parse(const QByteArray& raw, const Path &path)
 {
+    Q_ASSERT(path.isResolved() && path.isDir());
     Data* data = m_ptr.data();
-    data->dir = dirPath;
-    qDebug() << dirPath << data->dir.exists() << data->dir.type();
-    if (!data->dir.resolve() || !data->dir.isDir()) {
-        qDebug() << data->dir.isDir() << data->dir.exists();
-        data->error = QString("Can't resolve makefile dirpath %1").arg(QString::fromLocal8Bit(dirPath));
-        return false;
-    }
+    data->dir = path;
     data->raw = raw;
     const QList<QByteArray> args = raw.split(' ');
     Q_ASSERT(!args.isEmpty());
@@ -314,7 +309,8 @@ QList<QByteArray> GccArguments::includePaths() const
         }
         arg.replace(0, 2, m_ptr->dir + '/');
         Path p(arg);
-        p.resolve();
+        if (!p.isResolved())
+            p.resolve();
         arg.insert(0, "-I");
     }
     return includePaths;

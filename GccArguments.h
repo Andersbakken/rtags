@@ -16,7 +16,7 @@ public:
 
     GccArguments();
 
-    bool parse(const QByteArray& args, const QByteArray &dirPath);
+    bool parse(const QByteArray& args, const Path &resolvedPath);
     QByteArray raw() const;
     Path dir() const;
     QString errorString() const;
