@@ -141,7 +141,8 @@ void ParseThread::addMakefile(const Path &path, const QRegExp &accept, const QRe
 
 void ParseThread::addFile(const Path &path, const GccArguments &args, QObject *receiver, const char *member)
 {
-    qDebug() << "adding file" << path << ++mCount;
+    qDebug() << "adding file" << path;
+    ++mCount;
     QMutexLocker lock(&mMutex);
     if (mLast) {
         mLast->next = new File;
@@ -205,6 +206,8 @@ void ParseThread::run()
             QMutexLocker lock(&mMutex);
             if (!mFirst) {
                 qDebug() << "Waiting because !mFirst";
+                if (mCount)
+                    qWarning("mCount shouldn't be %d, it should be 0", mCount);
                 Q_ASSERT(!mCount);
                 mWaitCondition.wait(&mMutex);
                 if (!mFirst) {
