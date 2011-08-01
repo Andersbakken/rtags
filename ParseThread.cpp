@@ -155,6 +155,7 @@ void ParseThread::addFile(const Path &path, const GccArguments &args, QObject *r
     mLast->next = 0;
     mLast->path = path;
     mLast->arguments = args;
+    qDebug() << "Waking up thread";
     mWaitCondition.wakeOne();
 }
 
@@ -214,6 +215,7 @@ void ParseThread::run()
         {
             QMutexLocker lock(&mMutex);
             if (!mFirst) {
+                qDebug() << "Waiting because !mFirst";
                 mWaitCondition.wait(&mMutex);
                 if (!mFirst) {
                     Q_ASSERT(mAborted);
