@@ -100,7 +100,7 @@ static void cleanup()
 
 bool Path::resolve()
 {
-    Q_ASSERT(!isResolved()); // probably best to avoid re-resolving
+    // Q_ASSERT(!isResolved()); // probably best to avoid re-resolving
     // ### consider using thread-local static buffer of PATH_MAX
     Q_ASSERT(sThreadStorage.contains(QThread::currentThread()));
     char *buffer = sThreadStorage[QThread::currentThread()].data();

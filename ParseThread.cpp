@@ -88,7 +88,7 @@ public:
 #include "ParseThread.moc"
 
 ParseThread::ParseThread()
-    : mAborted(false), mFirst(0), mLast(0), mIndex(clang_createIndex(1, 0))
+    : mAborted(false), mFirst(0), mLast(0), mCount(0), mIndex(clang_createIndex(1, 0))
 {
     setObjectName("ParseThread");
     Q_ASSERT(!sParseThreadInstance);
@@ -141,7 +141,7 @@ void ParseThread::addMakefile(const Path &path, const QRegExp &accept, const QRe
 
 void ParseThread::addFile(const Path &path, const GccArguments &args, QObject *receiver, const char *member)
 {
-    qDebug() << "adding file" << path;
+    qDebug() << "adding file" << path << ++mCount;
     QMutexLocker lock(&mMutex);
     if (mLast) {
         mLast->next = new File;
@@ -193,17 +193,6 @@ static inline void precompileHeaders(CXFile included_file, CXSourceLocation*,
     clang_disposeString(filename);
 }
 
-template <typename T>
-static inline int count(T *t)
-{
-    int ret = 0;
-    while (t) {
-        ++ret;
-        t = t->next;
-    }
-    return ret;
-}
-
 void ParseThread::run()
 {
     Path::initStaticData();
@@ -216,6 +205,7 @@ void ParseThread::run()
             QMutexLocker lock(&mMutex);
             if (!mFirst) {
                 qDebug() << "Waiting because !mFirst";
+                Q_ASSERT(!mCount);
                 mWaitCondition.wait(&mMutex);
                 if (!mFirst) {
                     Q_ASSERT(mAborted);
@@ -225,8 +215,11 @@ void ParseThread::run()
             Q_ASSERT(mFirst);
             f = mFirst;
             mFirst = mFirst->next;
-            if (!mFirst)
+            --mCount;
+            if (!mFirst) {
                 mLast = 0;
+                Q_ASSERT(!mCount);
+            }
         }
         QElapsedTimer timer;
         timer.start();
@@ -287,7 +280,7 @@ void ParseThread::run()
             } else {
                 emit fileParsed(f->path, unit);
             }
-            qDebug() << "file was parsed" << f->path << count(mFirst) << "left" << timer.elapsed() << "ms";
+            qDebug() << "file was parsed" << f->path << mCount<< "left" << timer.elapsed() << "ms";
         }
         delete f;
     }

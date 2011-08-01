@@ -36,6 +36,7 @@ private:
         const char *member;
         File *next;
     } *mFirst, *mLast;
+    int mCount;
     QHash<Path, QSet<Path> > mDependencies;
     QHash<Path, GccArguments> mFiles;
     CXIndex mIndex;
