@@ -61,6 +61,21 @@ Node * VisitThread::createOrGet(CXCursor cursor)
     case CXCursor_LabelRef:
     case CXCursor_UsingDeclaration:
     case CXCursor_TemplateTemplateParameter:
+    case CXCursor_ObjCSuperClassRef:
+    case CXCursor_ObjCInterfaceDecl:
+    case CXCursor_ObjCCategoryDecl:
+    case CXCursor_ObjCProtocolDecl:
+    case CXCursor_ObjCPropertyDecl:
+    case CXCursor_ObjCIvarDecl:
+    case CXCursor_ObjCInstanceMethodDecl:
+    case CXCursor_ObjCClassMethodDecl:
+    case CXCursor_ObjCImplementationDecl:
+    case CXCursor_ObjCCategoryImplDecl:
+    case CXCursor_ObjCSynthesizeDecl:
+    case CXCursor_ObjCDynamicDecl:
+    case CXCursor_ObjCProtocolRef:
+    case CXCursor_ObjCClassRef:
+    case CXCursor_ObjCMessageExpr:
         return createOrGet(clang_getCursorSemanticParent(cursor));
     case CXCursor_TranslationUnit:
         return mRoot;
