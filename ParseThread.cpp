@@ -262,6 +262,15 @@ void ParseThread::run()
         } while (unit && before != f->path.lastModified());
         if (!unit) {
             qWarning("Couldn't parse %s", f->path.constData());
+            QByteArray clangLine = "clang";
+            if (f->arguments.language() == GccArguments::LangCPlusPlus)
+                clangLine += "++";
+            for (int i=0; i<size + extra; ++i) {
+                clangLine += ' ';
+                clangLine += args.at(i);
+            }
+            clangLine += ' ' + f->path;
+            qWarning("[%s]", clangLine.constData());
             emit parseError(f->path); // ### any way to get the parse error?
         } else {
             PrecompileData pre;
