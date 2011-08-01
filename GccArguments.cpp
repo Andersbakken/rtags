@@ -8,40 +8,44 @@ GccArguments::Data::Data()
 {
 }
 
-void GccArguments::Data::guessLanguage()
+GccArguments::Language GccArguments::Data::guessLanguage() const
 {
-    Q_ASSERT(language == LangUndefined);
+    if (language != LangUndefined)
+        return language;
 
+    Language guesslang = LangUndefined;
     if (x != -1) {
         const QByteArray xarg = args.at(x).arg;
         if (xarg == "c")
-            language = LangC;
+            guesslang = LangC;
         else if (xarg == "c++")
-            language = LangCPlusPlus;
+            guesslang = LangCPlusPlus;
         else if (xarg == "objective-c")
-            language = LangObjC;
+            guesslang = LangObjC;
         else if (xarg == "objective-c++")
-            language = LangObjCPlusPlus;
-        return;
+            guesslang = LangObjCPlusPlus;
+        return guesslang;
     }
 
     if (input.size() != 1)
-        return;
+        return guesslang;
 
     const QByteArray inputfile = args.at(input.first()).arg;
     const int lastdot = inputfile.lastIndexOf('.');
     if (lastdot == -1)
-        return;
+        return guesslang;
 
     const QByteArray ext = inputfile.mid(lastdot);
     if (ext == ".c")
-        language = LangC;
+        guesslang = LangC;
     else if (ext == ".cpp" || ext == ".cc" || ext == ".cxx")
-        language = LangCPlusPlus;
+        guesslang = LangCPlusPlus;
     else if (ext == ".m")
-        language = LangObjC;
+        guesslang = LangObjC;
     else if (ext == ".mm")
-        language = LangObjCPlusPlus;
+        guesslang = LangObjCPlusPlus;
+
+    return guesslang;
 }
 
 QByteArray GccArguments::Data::languageString() const
@@ -189,7 +193,7 @@ QList<QByteArray> GccArguments::arguments(const QByteArray &prefix) const
 bool GccArguments::setReplaceInput(const QByteArray &input)
 {
     if (input == "-" && m_ptr->language == LangUndefined) {
-        m_ptr->guessLanguage();
+        m_ptr->language = m_ptr->guessLanguage();
         if (m_ptr->language == LangUndefined)
             return false;
     }
@@ -240,6 +244,14 @@ QByteArray GccArguments::output() const
         return QByteArray();
     Q_ASSERT(data->args.at(data->output).arg == "-o");
     return data->args.at(data->output).value;
+}
+
+GccArguments::Language GccArguments::language() const
+{
+    const Data* data = m_ptr.constData();
+    if (data->language == LangUndefined)
+        return data->guessLanguage();
+    return data->language;
 }
 
 bool GccArguments::hasInput() const

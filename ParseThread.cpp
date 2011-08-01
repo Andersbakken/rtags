@@ -234,7 +234,7 @@ void ParseThread::run()
         // ### lot of files will have identical options so we could even reuse
         // ### the actual QVarLengthArray a lot of times.
         const int size = compilerOptions.size();
-        const int extra = pchfile.isEmpty() ? 0 : 2;
+        const int extra = (pchfile.isEmpty() || f->arguments.language() != GccArguments::LangCPlusPlus) ? 0 : 2;
         if (args.size() < size + extra)
             args.resize(size + extra);
         for (int i=0; i<size; ++i) {

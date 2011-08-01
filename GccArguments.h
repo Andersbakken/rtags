@@ -34,6 +34,7 @@ public:
     QList<Path> input() const;
     QByteArray firstInput() const;
     QByteArray output() const;
+    Language language() const;
 
     bool hasInput() const;
     bool hasOutput() const;
@@ -46,7 +47,7 @@ private:
     public:
         Data();
 
-        void guessLanguage();
+        GccArguments::Language guessLanguage() const;
         QByteArray languageString() const;
 
         struct Argument
