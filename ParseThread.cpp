@@ -90,6 +90,7 @@ public:
 ParseThread::ParseThread()
     : mAborted(false), mFirst(0), mLast(0), mIndex(clang_createIndex(1, 0))
 {
+    setObjectName("ParseThread");
     Q_ASSERT(!sParseThreadInstance);
     sParseThreadInstance = this;
     moveToThread(this); // we have a slot
@@ -191,6 +192,16 @@ static inline void precompileHeaders(CXFile included_file, CXSourceLocation*,
     clang_disposeString(filename);
 }
 
+template <typename T>
+static inline int count(T *t)
+{
+    int ret = 0;
+    while (t) {
+        ++ret;
+        t = t->next;
+    }
+    return ret;
+}
 
 void ParseThread::run()
 {
@@ -215,6 +226,9 @@ void ParseThread::run()
             if (!mFirst)
                 mLast = 0;
         }
+        QElapsedTimer timer;
+        timer.start();
+        
         Q_ASSERT(f);
         const QList<QByteArray> compilerOptions = f->arguments.includePaths() + f->arguments.arguments("-D");
 
@@ -237,8 +251,6 @@ void ParseThread::run()
             args[size + 1] = pchfile.constData();
         }
 
-        QElapsedTimer timer;
-        timer.start();
         time_t before;
         CXTranslationUnit unit = 0;
         do {
@@ -273,8 +285,7 @@ void ParseThread::run()
             } else {
                 emit fileParsed(f->path, unit);
             }
-            qDebug() << "file was parsed" << f->path;
-
+            qDebug() << "file was parsed" << f->path << count(mFirst) << "left" << timer.elapsed() << "ms";
         }
         delete f;
     }

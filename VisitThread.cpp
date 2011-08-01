@@ -5,6 +5,7 @@
 VisitThread::VisitThread()
     : QThread(0), mRoot(new Node)
 {
+    setObjectName("VisitThread");
     moveToThread(this);
 }
 
@@ -25,7 +26,7 @@ void VisitThread::onFileParsed(const Path &path, void *u)
     }
     mPendingReferences.clear();
     clang_disposeTranslationUnit(unit);
-    qDebug() << mNodes.size() - old << "nodes added";
+    qDebug() << mNodes.size() - old << "nodes added for" << path;
 }
 Node * VisitThread::createOrGet(CXCursor cursor)
 {
