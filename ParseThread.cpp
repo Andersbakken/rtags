@@ -249,6 +249,11 @@ void ParseThread::run()
         time_t before;
         CXTranslationUnit unit = 0;
         do {
+            if (unit) {
+                clang_disposeTranslationUnit(unit);
+                qDebug() << "file was modified underneath us" << before << f->path.lastModified();
+            }
+            
             before = f->path.lastModified();
             unit = clang_parseTranslationUnit(mIndex, f->path.constData(),
                                               args.constData(), size + extra, 0, 0,
