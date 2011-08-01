@@ -119,6 +119,10 @@ QString PreCompile::filename() const
 
 void PreCompile::add(const QList<Path> &headers, const QList<Path> &all)
 {
+    if (headers.isEmpty())
+        return;
+    Q_ASSERT(!all.isEmpty());
+
     const bool needed = m_seen.isEmpty() && m_included.isEmpty();
     foreach(const Path& header, headers) {
         if (header.isEmpty() || m_included.contains(header))

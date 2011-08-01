@@ -266,12 +266,11 @@ void ParseThread::run()
         } else {
             PrecompileData pre;
             clang_getInclusions(unit, precompileHeaders, &pre);
+            precompile->add(pre.direct, pre.all);
             foreach(const Path &header, pre.all) {
                 if (!mDependencies.contains(header))
                     watcher.addPath(header);
                 mDependencies[header].insert(f->path);
-
-                precompile->add(pre.direct, pre.all);
             }
             
             if (mFiles.contains(f->path)) {
