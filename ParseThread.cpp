@@ -255,11 +255,13 @@ void ParseThread::run()
             }
             
             before = f->path.lastModified();
+            qDebug() << "parsing file" << f->path;
             unit = clang_parseTranslationUnit(mIndex, f->path.constData(),
                                               args.constData(), size + extra, 0, 0,
                                               0); // ### for options?
         } while (unit && before != f->path.lastModified());
         if (!unit) {
+            qWarning("Couldn't parse %s", f->path.constData());
             emit parseError(f->path); // ### any way to get the parse error?
         } else {
             PrecompileData pre;
