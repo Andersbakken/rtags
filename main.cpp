@@ -167,6 +167,12 @@ bool ArgParser::parse(int argc, char **argv)
 
 int main(int argc, char** argv)
 {
+    if (QFile::exists("/tmp/rtags.log")) {
+        int idx = 1;
+        while (QFile::exists(QString("/tmp/rtags.log.%1").arg(idx)))
+            ++idx;
+        QFile::rename("/tmp/rtags.log", QString("/tmp/rtags.log.%1").arg(idx));
+    }
     QCoreApplication app(argc, argv);
     Path::initStaticData();
     QThread::currentThread()->setObjectName("main");
