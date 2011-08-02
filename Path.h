@@ -49,7 +49,7 @@ public:
     bool isResolved() const;
     Path parentDir() const;
     Type type() const;
-    bool resolve();
+    bool resolve(const Path &cwd = Path());
     time_t lastModified() const;
     qint64 fileSize() const;
     static Path resolved(const QByteArray &path, bool *ok = 0);

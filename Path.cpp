@@ -98,7 +98,7 @@ static void cleanup()
     sThreadStorage.clear();
 }
 
-bool Path::resolve()
+bool Path::resolve(const Path &cwd)
 {
     // Q_ASSERT(!isResolved()); // probably best to avoid re-resolving
     // ### consider using thread-local static buffer of PATH_MAX
@@ -108,6 +108,13 @@ bool Path::resolve()
     if (resolved) {
         QByteArray::operator=(resolved);
         return true;
+    }
+    if (!cwd.isEmpty()) {
+        Copy copy = cwd + '/' + *this;
+        if (copy.resolve()) {
+            operator=(cpy);
+            return true;
+        }
     }
     return false;
 }
