@@ -110,9 +110,9 @@ bool Path::resolve(const Path &cwd)
         return true;
     }
     if (!cwd.isEmpty()) {
-        Copy copy = cwd + '/' + *this;
+        Path copy = cwd + '/' + *this;
         if (copy.resolve()) {
-            operator=(cpy);
+            operator=(copy);
             return true;
         }
     }

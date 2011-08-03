@@ -48,7 +48,7 @@ public slots:
                         if (args.parse(line, data.directory) && args.hasInput() && args.isCompile()) {
                             foreach(Path file, args.input()) {
                                 if (!file.resolve()) {
-                                    qWarning("%s doesn't exist", file.constData());
+                                    qWarning("%s doesn't exist %s", file.constData(), line.constData());
                                 } else if (!data.seen.contains(file)) {
                                     data.seen.insert(file);
                                     sParseThreadInstance->addFile(file, args);
@@ -74,7 +74,7 @@ public slots:
     
     void onMakeError(QProcess::ProcessError error)
     {
-        qDebug() << error << qobject_cast<QProcess*>(sender())->errorString();
+        qWarning() << error << qobject_cast<QProcess*>(sender())->errorString();
     }
 public:
     struct MakefileData {
@@ -156,7 +156,6 @@ void ParseThread::addFile(const Path &path, const GccArguments &args, QObject *r
     mLast->next = 0;
     mLast->path = path;
     mLast->arguments = args;
-    qDebug() << "Waking up thread";
     mWaitCondition.wakeOne();
 }
 
@@ -196,6 +195,7 @@ static inline void precompileHeaders(CXFile included_file, CXSourceLocation*,
 
 void ParseThread::run()
 {
+    static const bool disablePch = getenv("RTAGS_NO_PCH");
     Path::initStaticData();
     QFileSystemWatcher watcher;
     connect(&watcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged(QString)));
@@ -205,7 +205,6 @@ void ParseThread::run()
         {
             QMutexLocker lock(&mMutex);
             if (!mFirst) {
-                qDebug() << "Waiting because !mFirst";
                 if (mCount)
                     qWarning("mCount shouldn't be %d, it should be 0", mCount);
                 Q_ASSERT(!mCount);
@@ -229,76 +228,82 @@ void ParseThread::run()
         
         Q_ASSERT(f);
         const QList<QByteArray> compilerOptions = f->arguments.includePaths() + f->arguments.arguments("-D");
+        const int compilerOptionsCount = compilerOptions.count();
 
-        PreCompile* precompile = PreCompile::get(compilerOptions);
-        const QByteArray pchfile = precompile->filename().toLocal8Bit();
-
-        // ### this allocates more than it needs to strictly speaking. In fact a
-        // ### lot of files will have identical options so we could even reuse
-        // ### the actual QVarLengthArray a lot of times.
-        const int size = compilerOptions.size();
-        const int extra = (pchfile.isEmpty() || f->arguments.language() != GccArguments::LangCPlusPlus) ? 0 : 2;
-        if (args.size() < size + extra)
-            args.resize(size + extra);
-        for (int i=0; i<size; ++i) {
-            args[i] = compilerOptions.at(i).constData();
-        }
-
-        if (extra) {
-            args[size] = "-include-pch";
-            args[size + 1] = pchfile.constData();
-        }
-
-        time_t before;
         CXTranslationUnit unit = 0;
-        do {
-            if (unit) {
-                clang_disposeTranslationUnit(unit);
-                qDebug() << "file was modified underneath us" << before << f->path.lastModified();
+        enum { WithPCH, WithoutPCH };
+        for (int i=0; i<2; ++i) {
+            PreCompile *precompile = 0;
+            Path pchfile;
+            int argCount = compilerOptions.size();
+            if (i == WithPCH) {
+                if (disablePch || f->arguments.language() != GccArguments::LangCPlusPlus)
+                    continue;
+                precompile = PreCompile::get(compilerOptions);
+                pchfile = precompile->filename().toLocal8Bit();
+                if (!pchfile.isFile()) // ### resolve?
+                    continue;
+                argCount += 2;
             }
-            
-            before = f->path.lastModified();
-            qDebug() << "parsing file" << f->path;
-            unit = clang_parseTranslationUnit(mIndex, f->path.constData(),
-                                              args.constData(), size + extra, 0, 0,
-                                              0); // ### for options?
-        } while (unit && before != f->path.lastModified());
-        if (!unit) {
-            qWarning("Couldn't parse %s", f->path.constData());
-            QByteArray clangLine = "clang";
-            if (f->arguments.language() == GccArguments::LangCPlusPlus)
-                clangLine += "++";
-            for (int i=0; i<size + extra; ++i) {
-                clangLine += ' ';
-                clangLine += args.at(i);
+
+            // ### this allocates more than it needs to strictly speaking. In fact a
+            // ### lot of files will have identical options so we could even reuse
+            // ### the actual QVarLengthArray a lot of times.
+            if (args.size() < argCount)
+                args.resize(argCount);
+            for (int a=0; a<compilerOptionsCount; ++a) {
+                args[a] = compilerOptions.at(a).constData();
             }
-            clangLine += ' ' + f->path;
-            qWarning("[%s]", clangLine.constData());
-            emit parseError(f->path); // ### any way to get the parse error?
-        } else {
-            PrecompileData pre;
-            clang_getInclusions(unit, precompileHeaders, &pre);
-            precompile->add(pre.direct, pre.all);
-            foreach(const Path &header, pre.all) {
-                if (!mDependencies.contains(header))
-                    watcher.addPath(header);
-                mDependencies[header].insert(f->path);
-            }
-            
-            if (mFiles.contains(f->path)) {
-                mFiles[f->path] = f->arguments;
+
+            int argsCount = -1;
+            do {
+                const time_t before = f->path.lastModified();
+                qDebug() << "parsing file" << f->path << (i == WithPCH ? "with PCH" : "without PCH");
+                unit = clang_parseTranslationUnit(mIndex, f->path.constData(),
+                                                  args.constData(), argsCount, 0, 0,
+                                                  0); // ### for options?
+                if (unit && before != f->path.lastModified())
+                    continue;
+            } while (false);
+            if (!unit) {
+                qWarning("Couldn't parse %s", f->path.constData());
+                QByteArray clangLine = "clang";
+                if (f->arguments.language() == GccArguments::LangCPlusPlus)
+                    clangLine += "++";
+                for (int j=0; j<argCount; ++j) {
+                    clangLine += ' ';
+                    clangLine += args.at(j);
+                }
+                clangLine += ' ' + f->path;
+                qWarning("[%s]", clangLine.constData());
+                emit parseError(f->path); // ### any way to get the parse error?
             } else {
-                watcher.addPath(f->path);
+                PrecompileData pre;
+                clang_getInclusions(unit, precompileHeaders, &pre);
+                if (!disablePch) {
+                    precompile->add(pre.direct, pre.all);
+                }
+                foreach(const Path &header, pre.all) {
+                    if (!mDependencies.contains(header))
+                        watcher.addPath(header);
+                    mDependencies[header].insert(f->path);
+                }
+            
+                if (mFiles.contains(f->path)) {
+                    mFiles[f->path] = f->arguments;
+                } else {
+                    watcher.addPath(f->path);
+                }
+                if (f->receiver) {
+                    Q_ASSERT(f->member);
+                    QMetaObject::invokeMethod(f->receiver, f->member, Qt::AutoConnection,
+                                              Q_ARG(Path, f->path),
+                                              Q_ARG(void*, unit));
+                } else {
+                    emit fileParsed(f->path, unit);
+                }
+                qDebug() << "file was parsed" << f->path << mCount<< "left" << timer.elapsed() << "ms";
             }
-            if (f->receiver) {
-                Q_ASSERT(f->member);
-                QMetaObject::invokeMethod(f->receiver, f->member, Qt::AutoConnection,
-                                          Q_ARG(Path, f->path),
-                                          Q_ARG(void*, unit));
-            } else {
-                emit fileParsed(f->path, unit);
-            }
-            qDebug() << "file was parsed" << f->path << mCount<< "left" << timer.elapsed() << "ms";
         }
         delete f;
     }
