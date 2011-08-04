@@ -34,36 +34,73 @@ public slots:
         int last = 0;
         const int size = data.buffer.size();
         while (i < size) {
-            if (data.buffer.at(i) == '\n') {
-                const QByteArray line = data.buffer.mid(last, i - last);
+            if (data.buffer.at(i++) == '\n') {
+                const QByteArray line = QByteArray::fromRawData(data.buffer.constData() + last,
+                                                                i - last - 1);
+                last = i;
+                // printf("%s\n", line.constData());
                 if (!line.isEmpty()) {
-                    if (data.reject.isValid() && !data.reject.isEmpty() && QString::fromLocal8Bit(line).contains(data.reject)) { // ### use other regexp lib
+                    if (data.reject.isValid()
+                        && !data.reject.isEmpty()
+                        && QString::fromLocal8Bit(line).contains(data.reject)) {
+                        // ### use other regexp lib
                         if (Options::s_verbose)
                             qDebug() << "rejecting" << line << data.reject.pattern();
-                    } else if (data.accept.isValid() && !data.accept.isEmpty() && !QString::fromLocal8Bit(line).contains(data.accept)) {
-                        if (Options::s_verbose)
-                            qDebug() << "not accepting" << line << data.accept.pattern();
-                    } else {
-                        GccArguments args;
-                        if (args.parse(line, data.directory) && args.hasInput() && args.isCompile()) {
-                            foreach(Path file, args.input()) {
-                                if (!file.resolve()) {
-                                    qWarning("%s doesn't exist %s", file.constData(), line.constData());
-                                } else if (!data.seen.contains(file)) {
-                                    data.seen.insert(file);
-                                    sParseThreadInstance->addFile(file, args);
-                                }
-                            }
-                        } else if (!args.errorString().isEmpty()) {
-                            qWarning("Can't parse line %s (%s)", line.constData(), qPrintable(args.errorString()));
-                        }
-
+                        continue;
                     }
 
+                    if (data.accept.isValid()
+                        && !data.accept.isEmpty()
+                        && !QString::fromLocal8Bit(line).contains(data.accept)) {
+                        if (Options::s_verbose)
+                            qDebug() << "not accepting" << line << data.accept.pattern();
+                        continue;
+                    }
+
+                    if (line.startsWith("cd ")) {
+                        const int slash = line.indexOf('/', 3);
+                        if (slash == -1) {
+                            qWarning("Can't parse this line. Seems like a cd but no slash [%s]",
+                                     line.constData());
+                            continue;
+                        }
+                        Path p = line.mid(3, slash - 3);
+                        if (!p.resolve(data.directory)) {
+                            qWarning("Can't resolve directory %s with %s",
+                                     line.mid(3, slash - 3).constData(),
+                                     data.directory.constData());
+                        } else {
+                            if (Options::s_verbose) {
+                                qDebug() << "setting workingDirectory to" << p << "from"
+                                         << data.workingDirectory;
+                            }
+                            data.workingDirectory = p;
+                        }
+                        continue;
+                    }
+
+                    GccArguments args;
+                    if (!args.parse(line, data.workingDirectory)) {
+                        qWarning("Can't parse line %s (%s)", line.constData(),
+                                 qPrintable(args.errorString()));
+                        continue;
+                    }
+                    if (!args.hasInput() || !args.isCompile()) {
+                        // qWarning("No input here or maybe this isn't a compile %d %d %s",
+                        //          args.hasInput(), args.isCompile(),
+                        //          line.constData());
+                        continue;
+                    }
+
+                    foreach(const Path &file, args.input()) { // already resolved
+                        Q_ASSERT(file.exists());
+                        if (!data.seen.contains(file)) {
+                            data.seen.insert(file);
+                            sParseThreadInstance->addFile(file, args);
+                        }
+                    }
                 }
-                last = i + 1;
             }
-            ++i;
         }
         if (i < size) {
             data.buffer.remove(0, last);
@@ -82,10 +119,15 @@ public:
         QRegExp accept, reject;
         QByteArray buffer;
         QSet<Path> seen;
+#ifdef Q_OS_MAC
+        Path workingDirectory;
+// #else
+// #warning need to handle this on linux. I am like 99% sure it's different there, what with the whole entering and leaving directory stuff
+//         QStack<Path> workingDirectories;
+#endif
     };
     QHash<QProcess *, MakefileData> mMakefiles;
 };
-#include "ParseThread.moc"
 
 ParseThread::ParseThread()
     : mAborted(false), mFirst(0), mLast(0), mCount(0), mIndex(clang_createIndex(1, 0))
@@ -128,20 +170,28 @@ void ParseThread::addMakefile(const Path &path, const QRegExp &accept, const QRe
     connect(proc, SIGNAL(finished(int)), MakefileManager::instance(), SLOT(onMakeFinished(int)));
     connect(proc, SIGNAL(error(QProcess::ProcessError)), MakefileManager::instance(), SLOT(onMakeError(QProcess::ProcessError)));
     connect(proc, SIGNAL(readyReadStandardOutput()), MakefileManager::instance(), SLOT(onMakeOutput()));
-    MakefileManager::MakefileData data = { path, workingDir, accept, reject, QByteArray(), QSet<Path>() };
+    MakefileManager::MakefileData data = { path, workingDir, accept, reject, QByteArray(),
+                                           QSet<Path>(), workingDir };
     MakefileManager::instance()->mMakefiles[proc] = data;
     proc->start(QLatin1String("make"), // some way to specify which make to use?
                 QStringList()
                 << QLatin1String("-B")
                 << QLatin1String("-n")
                 << QLatin1String("-f")
+                // << QLatin1String("-j1") // ### why doesn't this work?
                 << path);
+    // qDebug() << QLatin1String("make")
+    //          << (QStringList()
+    //              << QLatin1String("-B")
+    //              << QLatin1String("-n")
+    //              << QLatin1String("-f")
+    //              // << QLatin1String("-j1") // ### why doesn't this work?
+    //              << path);
     qDebug() << "addMakefile" << path << accept << reject;
 }
 
 void ParseThread::addFile(const Path &path, const GccArguments &args, QObject *receiver, const char *member)
 {
-    qDebug() << "adding file" << path;
     ++mCount;
     QMutexLocker lock(&mMutex);
     if (mLast) {
@@ -234,15 +284,20 @@ void ParseThread::run()
         enum { WithPCH, WithoutPCH };
         for (int i=0; i<2; ++i) {
             PreCompile *precompile = 0;
+            if (!disablePch)
+                precompile = PreCompile::get(compilerOptions);
             Path pchfile;
             int argCount = compilerOptions.size();
             if (i == WithPCH) {
-                if (disablePch || f->arguments.language() != GccArguments::LangCPlusPlus)
+                if (!precompile)
                     continue;
-                precompile = PreCompile::get(compilerOptions);
+                if (f->arguments.language() != GccArguments::LangCPlusPlus) {
+                    continue;
+                }
                 pchfile = precompile->filename().toLocal8Bit();
-                if (!pchfile.isFile()) // ### resolve?
+                if (!pchfile.isFile()) {
                     continue;
+                }
                 argCount += 2;
             }
 
@@ -254,13 +309,21 @@ void ParseThread::run()
             for (int a=0; a<compilerOptionsCount; ++a) {
                 args[a] = compilerOptions.at(a).constData();
             }
+            if (i == WithPCH) {
+                args[compilerOptionsCount] = "-pch";
+                args[compilerOptionsCount + 1] = pchfile.constData();
+            }
 
-            int argsCount = -1;
             do {
                 const time_t before = f->path.lastModified();
-                qDebug() << "parsing file" << f->path << (i == WithPCH ? "with PCH" : "without PCH");
+                // qDebug() << "parsing file" << f->path << (i == WithPCH ? "with PCH" : "without PCH");
+                Q_ASSERT(!args.contains(0));
+                // for (int i=0; i<argCount; ++i) {
+                //     printf("%d [%s]\n", i, args.constData()[i]);
+                // }
+
                 unit = clang_parseTranslationUnit(mIndex, f->path.constData(),
-                                                  args.constData(), argsCount, 0, 0,
+                                                  args.constData(), argCount, 0, 0,
                                                   0); // ### for options?
                 if (unit && before != f->path.lastModified())
                     continue;
@@ -280,7 +343,7 @@ void ParseThread::run()
             } else {
                 PrecompileData pre;
                 clang_getInclusions(unit, precompileHeaders, &pre);
-                if (!disablePch) {
+                if (precompile) {
                     precompile->add(pre.direct, pre.all);
                 }
                 foreach(const Path &header, pre.all) {
@@ -302,7 +365,8 @@ void ParseThread::run()
                 } else {
                     emit fileParsed(f->path, unit);
                 }
-                qDebug() << "file was parsed" << f->path << mCount<< "left" << timer.elapsed() << "ms";
+                qDebug() << "file was parsed" << f->path << mCount<< "left" << timer.elapsed() << "ms"
+                         << (i == WithPCH ? "with PCH" : "without PCH");
             }
         }
         delete f;
@@ -320,3 +384,5 @@ void ParseThread::loadTranslationUnit(const Path &path, QObject *receiver, const
     Q_ASSERT(mFiles.contains(path));
     addFile(path, mFiles.value(path), receiver, member);
 }
+
+#include "ParseThread.moc"

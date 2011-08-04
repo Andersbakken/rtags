@@ -225,7 +225,7 @@ QList<Path> GccArguments::input() const
     QList<Path> ret;
     foreach(int pos, data->input) {
         Path p = data->args.at(pos).arg;
-        if (p.resolve())
+        if (p.resolve(data->dir))
             ret << p;
     }
     return ret;

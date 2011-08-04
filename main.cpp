@@ -167,6 +167,7 @@ bool ArgParser::parse(int argc, char **argv)
 
 int main(int argc, char** argv)
 {
+    unsetenv("MAKEFLAGS"); // ### ???
     if (QFile::exists("/tmp/rtags.log")) {
         int idx = 1;
         while (QFile::exists(QString("/tmp/rtags.log.%1").arg(idx)))
