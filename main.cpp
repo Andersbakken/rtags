@@ -167,7 +167,7 @@ bool ArgParser::parse(int argc, char **argv)
 
 int main(int argc, char** argv)
 {
-    unsetenv("MAKEFLAGS"); // ### ???
+    unsetenv("MAKEFLAGS");
     if (QFile::exists("/tmp/rtags.log")) {
         int idx = 1;
         while (QFile::exists(QString("/tmp/rtags.log.%1").arg(idx)))
@@ -210,6 +210,21 @@ int main(int argc, char** argv)
         qDebug() << argsmap;
 
     if (cmd == "daemonize") {
+        {
+            Client client;
+            if (client.connect()) {
+                for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {
+                    if (client.connected()) {
+                        QHash<QByteArray, QVariant> args;
+                        args["command"] = "quit";
+                        client.exec(args, QList<QByteArray>());
+                        break;
+                    }
+                }
+                sleep(CLIENT_CONNECT_DELAY);
+            }
+        }
+
         Daemon daemon;
         qInstallMsgHandler(syslogMsgHandler);
         if (daemon.start())
