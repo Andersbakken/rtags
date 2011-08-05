@@ -14,15 +14,15 @@ public:
     ~ParseThread();
     void abort();
     void addMakefile(const Path &path, const QRegExp &accept, const QRegExp &reject);
-    void addFile(const Path &path, const GccArguments &args, QObject *receiver = 0, const char *member = 0);
+    void addFile(const Path &path, const GccArguments &args = GccArguments(),
+                 QObject *receiver = 0, const char *member = 0);
     void reparse(const Path &path);
+    void handleFileChanged(const Path &path);
     void loadTranslationUnit(const Path &path, QObject *receiver, const char *member);
 signals:
     void invalidated(const Path &path);
     void fileParsed(const Path &path, void *translationUnit);
     void parseError(const Path &path);
-public slots:
-    void onFileChanged(const QString &path);
 protected:
     void run();
 private:

@@ -8,13 +8,38 @@ class MakefileManager : public QObject
 public:
     MakefileManager()
         : QObject(QCoreApplication::instance())
-    {}
+    {
+        connect(&mFileSystemWatcher, SIGNAL(fileChanged(QString)),
+                this, SLOT(onFileChanged(QString)));
+    }
     static MakefileManager *instance()
     {
         static MakefileManager *inst = new MakefileManager;
         return inst;
     }
 public slots:
+    void watchPath(const Path &path)
+    {
+        // qDebug() << "watchPath" << path << mWatchedFiles.contains(path);
+        Q_ASSERT(path.exists());
+        if (mWatchedFiles.contains(path))
+            return;
+        mWatchedFiles[path] = path.lastModified();
+        mFileSystemWatcher.addPath(path);
+    }
+    void onFileChanged(const QString &path)
+    {
+        const Path p = path.toLocal8Bit();
+        // qDebug() << "onFileChanged" << p << p.lastModified()
+        //          << mWatchedFiles.value(p) << p.exists();
+        if (!p.exists()) {
+            mWatchedFiles.remove(p);
+            mFileSystemWatcher.removePath(path);
+        } else if (p.lastModified() != mWatchedFiles.value(p)) {
+            mWatchedFiles[p] = p.lastModified();
+            sParseThreadInstance->handleFileChanged(p);
+        }
+    }
     void onMakeFinished(int statusCode)
     {
         QProcess *proc = qobject_cast<QProcess*>(sender());
@@ -85,10 +110,16 @@ public slots:
                                  qPrintable(args.errorString()));
                         continue;
                     }
+
                     if (!args.hasInput() || !args.isCompile()) {
-                        // qWarning("No input here or maybe this isn't a compile %d %d %s",
-                        //          args.hasInput(), args.isCompile(),
-                        //          line.constData());
+                        if (line.contains(".cpp")) {
+                            qWarning("No input here or maybe this isn't a compile %d %d %s",
+                                     args.hasInput(), args.isCompile(),
+                                     line.constData());
+                            if (args.input().size() > 1) {
+                                qWarning() << args.input();
+                            }
+                        }
                         continue;
                     }
 
@@ -127,6 +158,8 @@ public:
 #endif
     };
     QHash<QProcess *, MakefileData> mMakefiles;
+    QFileSystemWatcher mFileSystemWatcher;
+    QHash<Path, time_t> mWatchedFiles;
 };
 
 ParseThread::ParseThread()
@@ -180,17 +213,11 @@ void ParseThread::addMakefile(const Path &path, const QRegExp &accept, const QRe
                 << QLatin1String("-f")
                 // << QLatin1String("-j1") // ### why doesn't this work?
                 << path);
-    // qDebug() << QLatin1String("make")
-    //          << (QStringList()
-    //              << QLatin1String("-B")
-    //              << QLatin1String("-n")
-    //              << QLatin1String("-f")
-    //              // << QLatin1String("-j1") // ### why doesn't this work?
-    //              << path);
-    qDebug() << "addMakefile" << path << accept << reject;
+    qDebug() << "addMakefile" << path << accept.pattern() << reject.pattern();
 }
 
-void ParseThread::addFile(const Path &path, const GccArguments &args, QObject *receiver, const char *member)
+void ParseThread::addFile(const Path &path, const GccArguments &args,
+                          QObject *receiver, const char *member)
 {
     ++mCount;
     QMutexLocker lock(&mMutex);
@@ -205,13 +232,13 @@ void ParseThread::addFile(const Path &path, const GccArguments &args, QObject *r
     Q_ASSERT(!receiver == !member);
     mLast->next = 0;
     mLast->path = path;
-    mLast->arguments = args;
+    mLast->arguments = args.raw().isEmpty() ? mFiles.value(path) : args;
     mWaitCondition.wakeOne();
 }
 
-void ParseThread::onFileChanged(const QString &path)
+void ParseThread::handleFileChanged(const Path &p)
 {
-    Path p = path.toLocal8Bit();
+    qDebug() << p << "was modified";
     emit invalidated(p);
     foreach(const Path &pp, mDependencies.value(p)) {
         emit invalidated(pp);
@@ -247,8 +274,6 @@ void ParseThread::run()
 {
     static const bool disablePch = getenv("RTAGS_NO_PCH");
     Path::initStaticData();
-    QFileSystemWatcher watcher;
-    connect(&watcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged(QString)));
     QVector<const char*> args;
     while (!mAborted) {
         File *f = 0;
@@ -273,6 +298,7 @@ void ParseThread::run()
                 Q_ASSERT(!mCount);
             }
         }
+        qDebug() << "about to parse" << f->path;
         QElapsedTimer timer;
         timer.start();
         
@@ -282,7 +308,7 @@ void ParseThread::run()
 
         CXTranslationUnit unit = 0;
         enum { WithPCH, WithoutPCH };
-        for (int i=0; i<2; ++i) {
+        for (int i=0; i<2 && !unit; ++i) {
             PreCompile *precompile = 0;
             if (!disablePch)
                 precompile = PreCompile::get(compilerOptions);
@@ -347,16 +373,16 @@ void ParseThread::run()
                     precompile->add(pre.direct, pre.all);
                 }
                 foreach(const Path &header, pre.all) {
-                    if (!mDependencies.contains(header))
-                        watcher.addPath(header);
+                    if (!mDependencies.contains(header)) {
+                        QMetaObject::invokeMethod(MakefileManager::instance(), "watchPath", Q_ARG(Path, header));
+                    }
                     mDependencies[header].insert(f->path);
                 }
             
-                if (mFiles.contains(f->path)) {
-                    mFiles[f->path] = f->arguments;
-                } else {
-                    watcher.addPath(f->path);
+                if (!mFiles.contains(f->path)) {
+                    QMetaObject::invokeMethod(MakefileManager::instance(), "watchPath", Q_ARG(Path, f->path));
                 }
+                mFiles[f->path] = f->arguments;
                 if (f->receiver) {
                     Q_ASSERT(f->member);
                     QMetaObject::invokeMethod(f->receiver, f->member, Qt::AutoConnection,
@@ -375,8 +401,12 @@ void ParseThread::run()
 
 void ParseThread::reparse(const Path &path)
 {
+    if (!mFiles.contains(path)) {
+        qWarning("Can't reparse %s", path.constData());
+        return;
+    }
     Q_ASSERT(mFiles.contains(path));
-    addFile(path, mFiles.value(path));
+    addFile(path);
 }
 
 void ParseThread::loadTranslationUnit(const Path &path, QObject *receiver, const char *member)

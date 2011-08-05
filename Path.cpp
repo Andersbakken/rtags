@@ -1,32 +1,17 @@
 #include "Path.h"
 
+// this doesn't check if *this actually is a real file
 Path Path::parentDir() const
 {
     Path copy = *this;
-    if (copy.isResolved() || copy.resolve()) {
-        if (isDir()) {
-            int i = copy.size() - 1;
-            while (copy.at(i) == '/')
-                --i;
-            while (i > 0 && copy.at(i) != '/')
-                --i;
-            if (i > 0)
-                copy.truncate(i);
-        } else {
-            Q_ASSERT(!copy.endsWith('/'));
-            for (int i=copy.size() - 1; i>=0; --i) {
-                if (copy.at(i) == '/') {
-                    copy.truncate(i);
-                    break;
-                }
-            }
-        }
-    }
-    if (copy.isDir()) {
-        return copy;
-    } else {
-        return Path();
-    }
+    int i = copy.size() - 1;
+    while (copy.at(i) == '/')
+        --i;
+    while (i > 0 && copy.at(i) != '/')
+        --i;
+    if (i > 0)
+        copy.truncate(i);
+    return copy;
 }
 
 Path::Type Path::type() const

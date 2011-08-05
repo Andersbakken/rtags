@@ -40,7 +40,7 @@ private:
     QHash<QByteArray, QVariant> removeSourceFile(const QHash<QByteArray, QVariant>& args,
                                                  const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> load(const QHash<QByteArray, QVariant>& args, const QList<QByteArray> &freeArgs);
-    bool writeAST(const Path &path, CXTranslationUnit unit);
+    bool writeAST(const QHash<Path, CXTranslationUnit>::const_iterator it);
     QHash<QByteArray, QVariant> fileList(const QHash<QByteArray, QVariant> &args);
 private:
     ParseThread mParseThread;
