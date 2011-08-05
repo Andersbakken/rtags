@@ -124,7 +124,7 @@ bool GccArguments::parse(const QByteArray& raw, const Path &path)
                     data->c = argpos;
                 data->args.append(Data::Argument(argpos, a));
             }
-        } else { // input file?
+        } else if (!a.isEmpty()) { // input file?
             data->input.append(argpos);
             data->args.append(Data::Argument(argpos, a));
         }
@@ -225,8 +225,9 @@ QList<Path> GccArguments::input() const
     QList<Path> ret;
     foreach(int pos, data->input) {
         Path p = data->args.at(pos).arg;
-        if (p.resolve(data->dir))
+        if (p.resolve(data->dir)) { // ### inconsistent with isCompile which doesn't check this
             ret << p;
+        }
     }
     return ret;
 }
