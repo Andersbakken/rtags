@@ -84,9 +84,9 @@ bool Daemon::start()
 
     return true;
 #else
-    if (!m_ebus.start())
+    if (!mEbus.start())
         return false;
-    connect(&m_ebus, SIGNAL(ebusConnected(EBus*)), this, SLOT(ebusConnected(EBus*)));
+    connect(&mEbus, SIGNAL(ebusConnected(EBus*)), this, SLOT(ebusConnected(EBus*)));
     return true;
 #endif
 }
@@ -149,7 +149,7 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
     } else if (cmd == "add") {
         return addSourceFile(dashArgs);
     } else if (cmd == "remove") {
-        return removeSourceFile(dashArgs);
+        return removeSourceFile(dashArgs, freeArgs);
     } else if (cmd == "printtree") {
         mVisitThread.printTree();
         return createResultMap("Done");;
@@ -188,6 +188,19 @@ static QSet<Path> matches(const QSet<Path> &files, const T &t)
     return matches;
 }
 
+template <typename T>
+static inline QByteArray joined(const T &container, const char joinCharacter = '\n')
+{
+    QByteArray joined;
+    joined.reserve(container.size() * 100);
+    foreach(const QByteArray &f, container) {
+        joined += f + joinCharacter;
+    }
+    if (!joined.isEmpty())
+        joined.chop(1);
+    return joined;
+}
+
 QHash<QByteArray, QVariant> Daemon::fileList(const QHash<QByteArray, QVariant> &args)
 {
     FUNC1(args);
@@ -209,14 +222,7 @@ QHash<QByteArray, QVariant> Daemon::fileList(const QHash<QByteArray, QVariant> &
     } else {
         out = matches(files, pattern);
     }
-    QByteArray joined;
-    joined.reserve(out.size() * 100);
-    foreach(const QByteArray &f, out) {
-        joined += f + '\n';
-    }
-    if (!joined.isEmpty())
-        joined.chop(1);
-    return createResultMap(joined);
+    return createResultMap(joined(out));
 }
 
 QHash<QByteArray, QVariant> Daemon::addSourceFile(const QHash<QByteArray, QVariant> &args)
@@ -256,30 +262,41 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
     return createResultMap("Added makefile");
 }
 
-QHash<QByteArray, QVariant> Daemon::removeSourceFile(const QHash<QByteArray, QVariant> &args)
+QHash<QByteArray, QVariant> Daemon::removeSourceFile(const QHash<QByteArray, QVariant> &args,
+                                                     const QList<QByteArray> &freeArgs)
 {
-    // FUNC1(args);
-    // bool regexp = true;
-    // QByteArray pattern = args.value("regexp").toByteArray();
-    // if (pattern.isEmpty()) {
-    //     pattern = args.value("file").toByteArray();
-    //     regexp = false;
-    // }
+    FUNC1(args);
+    const bool regexp = (args.contains("regexp") || args.contains("r"));
+    if (freeArgs.size() != 1 || freeArgs.first().isEmpty())
+        return createResultMap("Invalid arguments. I need exactly one free arg");
+    QRegExp rx;
+    QByteArray match;
+    if (regexp) {
+        rx.setPattern(freeArgs.first());
+        if (!rx.isValid() || rx.isEmpty())
+            return createResultMap("Invalid arguments. Bad regexp");
+    } else {
+        match = freeArgs.first();
+    }
 
-    // // ### need to use regexp and match partial and all that good stuff. Maybe
-    // // ### make it use the same code path as fileList
-    // if (pattern.isEmpty())
-    //     return createResultMap("No file to remove (use --file=<filename> or --regexp=.*file.*");
-    // QHash<QByteArray, CXTranslationUnit>::iterator it = m_files.find(pattern);
-    // if (it == m_files.end())
-    //     return createResultMap("No matches for " + pattern);
-    // clang_disposeTranslationUnit(it.value());
-    // m_fileSystemWatcher.removePath(it.key());
-    // m_files.erase(it);
+    QList<QByteArray> removed;
+    QHash<Path, CXTranslationUnit>::iterator it = mTranslationUnits.begin();
+    while (it != mTranslationUnits.end()) {
+        if ((regexp && QString::fromLocal8Bit(it.key()).contains(rx))
+            || (!regexp && it.key().contains(match))) {
+            clang_disposeTranslationUnit(it.value());
+            it = mTranslationUnits.erase(it);
+            removed.append(it.key());
+        } else {
+            ++it;
+        }
+    }
 
-    // return createResultMap("Removed");
+    if (removed.isEmpty())
+        return createResultMap("No matches for " + freeArgs.first());
+
+    return createResultMap("Removed " + joined(removed));
 }
-
 QHash<QByteArray, QVariant> Daemon::lookupLine(const QHash<QByteArray, QVariant> &args)
 {
     FUNC1(args);
@@ -385,20 +402,7 @@ QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &ar
     return createResultMap(visitData.output);
 }
 
-bool Daemon::writeAST(const Path &path, CXTranslationUnit unit)
-{
-    // FUNC;
-
-    // QFileInfo finfo(QCoreApplication::applicationDirPath() + "/ast" + filename);
-    // QDir dir(finfo.absolutePath());
-    // if (!dir.exists())
-    //     dir.mkpath(finfo.absolutePath());
-
-    // QByteArray outname = finfo.absoluteFilePath().toLocal8Bit();
-    // const int ret = clang_saveTranslationUnit(unit, outname.constData(),
-    //                                           clang_defaultSaveOptions(unit));
-    // return (ret == 0);
-}
+// ### nasty hack
 void Daemon::onFileParsed(const Path &path, void *translationUnit)
 {
     if (mTranslationUnits.contains(path))
