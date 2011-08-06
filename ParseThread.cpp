@@ -112,14 +112,14 @@ public slots:
                     }
 
                     if (!args.hasInput() || !args.isCompile()) {
-                        if (line.contains(".cpp")) {
-                            qWarning("No input here or maybe this isn't a compile %d %d %s",
-                                     args.hasInput(), args.isCompile(),
-                                     line.constData());
-                            if (args.input().size() > 1) {
-                                qWarning() << args.input();
-                            }
-                        }
+                        // if (line.contains(".cpp")) {
+                        //     qWarning("No input here or maybe this isn't a compile %d %d %s",
+                        //              args.hasInput(), args.isCompile(),
+                        //              line.constData());
+                        //     if (args.input().size() > 1) {
+                        //         qWarning() << args.input();
+                        //     }
+                        // }
                         continue;
                     }
 
@@ -150,12 +150,7 @@ public:
         QRegExp accept, reject;
         QByteArray buffer;
         QSet<Path> seen;
-#ifdef Q_OS_MAC
         Path workingDirectory;
-// #else
-// #warning need to handle this on linux. I am like 99% sure it's different there, what with the whole entering and leaving directory stuff
-//         QStack<Path> workingDirectories;
-#endif
     };
     QHash<QProcess *, MakefileData> mMakefiles;
     QFileSystemWatcher mFileSystemWatcher;
