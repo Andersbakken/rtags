@@ -293,7 +293,6 @@ void ParseThread::run()
                 Q_ASSERT(!mCount);
             }
         }
-        qDebug() << "about to parse" << f->path;
         QElapsedTimer timer;
         timer.start();
         

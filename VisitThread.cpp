@@ -178,21 +178,20 @@ void VisitThread::printTree()
     mRoot->print();
 }
 
-static bool match(const QByteArray &qualifiedSymbolName, const QList<QRegExp> &rxs)
+static bool match(const QByteArray &name, const QList<QRegExp> &rxs)
 {
-    QString str = QString::fromLocal8Bit(qualifiedSymbolName);
+    QString str = QString::fromLocal8Bit(name);
     foreach(const QRegExp &rx, rxs) {
-        qDebug() << str << rx << str.contains(rx);
         if (str.contains(rx))
             return true;
     }
     return false;
 }
 
-static bool match(const QByteArray &qualifiedSymbolName, const QList<QByteArray> &match)
+static bool match(const QByteArray &name, const QList<QByteArray> &match)
 {
     foreach(const QByteArray &m, match) {
-        if (qualifiedSymbolName.contains(m))
+        if (name.contains(m))
             return true;
     }
     return false;
@@ -204,18 +203,30 @@ static bool match(const QByteArray &, bool)
 }
 
 template <typename T>
-static int recurse(const T &t, QByteArray path, const Node *node, uint nodeTypes,
+static int recurse(const T &t, QByteArray path, const Node *node, uint flags, uint nodeTypes,
                    HandleResult handler, void *userdata)
 {
     Q_ASSERT(node);
     int ret = 0;
     if (node->type & nodeTypes) {
-        const QByteArray full = path + node->symbolName;
-        // ### this could maybe be optimized to reuse the same buffer again and again
-        if (match(full, t)) {
-            handler(node, full, userdata);
-            ++ret;
+        QByteArray full;
+        if (flags & VisitThread::MatchSymbolName) {
+            full = path + node->symbolName;
+            // ### this could maybe be optimized to reuse the same buffer again and again
+            if (match(full, t)) {
+                handler(node, full, userdata);
+                ++ret;
+            }
         }
+        if (!ret && flags & VisitThread::MatchFileNames) {
+            if (match(node->location.path, t)) {
+                if (full.isEmpty())
+                    full = path + node->symbolName;
+                handler(node, full, userdata);
+                ++ret;
+            }
+        }
+
     }
     switch (node->type) {
     case Node::Namespace:
@@ -228,7 +239,7 @@ static int recurse(const T &t, QByteArray path, const Node *node, uint nodeTypes
     // ### could consider short circuiting here if for example we know this node
     // ### only has MethodReference children and !(types & MethodReference) || !ret
     for (Node *c = node->firstChild; c; c = c->nextSibling) {
-        ret += recurse(t, path, c, nodeTypes, handler, userdata);
+        ret += recurse(t, path, c, flags, nodeTypes, handler, userdata);
     }
     return ret;
 }
@@ -248,11 +259,11 @@ int VisitThread::lookup(const QList<QByteArray> &patterns, uint flags, uint node
             }
         }
         if (!rxs.isEmpty())
-            return recurse(rxs, QByteArray(), mRoot, nodeTypes, handler, userdata);
+            return recurse(rxs, QByteArray(), mRoot, flags, nodeTypes, handler, userdata);
     } else if (!patterns.isEmpty()) {
-        return recurse(patterns, QByteArray(), mRoot, nodeTypes, handler, userdata);
+        return recurse(patterns, QByteArray(), mRoot, flags, nodeTypes, handler, userdata);
     }
-    return recurse(true, QByteArray(), mRoot, nodeTypes, handler, userdata);
+    return recurse(true, QByteArray(), mRoot, flags, nodeTypes, handler, userdata);
 }
 
 QSet<Path> VisitThread::files() const

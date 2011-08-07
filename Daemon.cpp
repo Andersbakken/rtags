@@ -398,6 +398,10 @@ QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &ar
     uint flags = 0;
     if (args.contains("regexp"))
         flags |= VisitThread::RegExp;
+    if (args.contains("filename"))
+        flags |= VisitThread::MatchFileNames;
+    if (args.contains("symbolname") || !(flags & (VisitThread::MatchFileNames)))
+        flags |= VisitThread::MatchSymbolName;
 
     VisitData visitData;
     mVisitThread.lookup(freeArgs, flags, nodeTypes, ::visitCallback, &visitData);
