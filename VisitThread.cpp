@@ -96,8 +96,8 @@ Node * VisitThread::createOrGet(CXCursor cursor)
 
     const uint hash = qHash(cursor, location);
     if (kind == CXCursor_CallExpr || kind == CXCursor_MemberRef) {
-        if (mNodes.contains(hash))
-            return mNodes.value(hash);
+        if (Node *n = mNodes.value(hash))
+            return n;
         CXCursor ref = clang_getCursorReferenced(cursor);
         if (isValidCursor(ref) && !mPendingReferences.contains(hash)) {
             const PendingReference p = { cursor, ref, location };
