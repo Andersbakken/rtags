@@ -38,14 +38,12 @@ struct Node
     int size() const;
 };
 
-static inline uint qHash(const CXCursor &c, const Location &l)
+static inline uint qHash(const CXCursor &c)
 {
     QByteArray u = eatString(clang_getCursorUSR(c));
     u.reserve(u.size() + 32);
     u += char(clang_getCursorKind(c)); // ### is this guaranteed to fit in a byte?
-    u += l.path;
-    u += QByteArray::number(l.line);
-    u += QByteArray::number(l.column);
+    u += clang_isCursorDefinition(c) ? 'd' : ' ';
     return qHash(u);
 }
 

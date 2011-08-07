@@ -94,7 +94,7 @@ Node * VisitThread::createOrGet(CXCursor cursor)
     if (!location.exists())
         return createOrGet(clang_getCursorSemanticParent(cursor));
 
-    const uint hash = qHash(cursor, location);
+    const uint hash = qHash(cursor);
     if (kind == CXCursor_CallExpr || kind == CXCursor_MemberRef) {
         if (Node *n = mNodes.value(hash))
             return n;
