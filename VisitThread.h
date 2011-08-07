@@ -38,6 +38,7 @@ private:
     Node *mRoot;
     QReadWriteLock mLock;
     QHash<unsigned, Node*> mNodes;
+    int mBytes;
 };
 
 #endif

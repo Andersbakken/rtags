@@ -123,3 +123,14 @@ const char *Node::typeToName(Type type, bool abbrev)
     Q_ASSERT(0 && "Invalid type");
     return "Invalid";
 }
+
+int Node::size() const
+{
+    int ret = sizeof(*this);
+    ret += symbolName.capacity() + 1;
+    ret += location.path.capacity() + 1;
+    for (Node *n=firstChild; n; n = n->nextSibling) {
+        ret += n->size();
+    }
+    return ret;
+}

@@ -5,6 +5,7 @@
 VisitThread::VisitThread()
     : QThread(0), mRoot(new Node)
 {
+    mBytes = mRoot->size();
     setObjectName("VisitThread");
     moveToThread(this);
 }
@@ -18,15 +19,20 @@ void VisitThread::onFileParsed(const Path &path, void *u)
     CXTranslationUnit unit = reinterpret_cast<CXTranslationUnit>(u);
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
     clang_visitChildren(cursor, buildTree, this);
+    int added = 0;
     for (QHash<uint, PendingReference>::const_iterator it = mPendingReferences.begin();
          it != mPendingReferences.end(); ++it) {
         const PendingReference &p = it.value();
         Q_ASSERT(!mNodes.contains(it.key()));
-        mNodes[it.key()] = new Node(createOrGet(p.reference), p.cursor, p.location, it.key());
+        Node *n = new Node(createOrGet(p.reference), p.cursor, p.location, it.key());
+        const int s = n->size();
+        added += s;
+        mBytes += s;
+        mNodes[it.key()] = n;
     }
     mPendingReferences.clear();
     clang_disposeTranslationUnit(unit);
-    qDebug() << mNodes.size() - old << "nodes added for" << path;
+    qDebug() << mNodes.size() - old << "nodes added for" << path << added << "bytes added total is" << mBytes;
 }
 Node * VisitThread::createOrGet(CXCursor cursor)
 {
@@ -116,20 +122,21 @@ CXChildVisitResult VisitThread::buildTree(CXCursor cursor, CXCursor, CXClientDat
     return CXChildVisit_Recurse;
 }
 
-static int recursiveDelete(Node *node, QHash<unsigned, Node*> &nodes)
+static int recursiveDelete(Node *node, QHash<unsigned, Node*> &nodes, int &size)
 {
     int ret = 1;
     for (Node *c = node->firstChild; c; c = c->nextSibling)
-        ret += recursiveDelete(c, nodes);
+        ret += recursiveDelete(c, nodes, size);
 
     node->firstChild = 0;
     Q_ASSERT(nodes.contains(node->hash));
     nodes.remove(node->hash);
+    size -= node->size();
     delete node;
     return ret;
 }
 
-static int removeChildren(Node *node, const Path &path, QHash<unsigned, Node*> &nodes)
+static int removeChildren(Node *node, const Path &path, QHash<unsigned, Node*> &nodes, int &mSize)
 {
     Node *prev = 0;
     Node *child = node->firstChild;
@@ -138,15 +145,15 @@ static int removeChildren(Node *node, const Path &path, QHash<unsigned, Node*> &
         if (child->location.path == path) {
             if (!prev) {
                 node->firstChild = child->nextSibling;
-                ret += recursiveDelete(child, nodes);
+                ret += recursiveDelete(child, nodes, mSize);
                 child = node->firstChild;
             } else {
                 prev->nextSibling = child->nextSibling;
-                ret += recursiveDelete(child, nodes);
+                ret += recursiveDelete(child, nodes, mSize);
                 child = prev->nextSibling;
             }
         } else {
-            removeChildren(child, path, nodes);
+            removeChildren(child, path, nodes, mSize);
             prev = child;
             child = child->nextSibling;
         }
@@ -161,8 +168,9 @@ void VisitThread::invalidate(const Path &path)
         mFiles.remove(path);
     }
     QWriteLocker writeLock(&mLock);
-    const int count = removeChildren(mRoot, path, mNodes);
-    qDebug("Removed %d nodes %d", count, mNodes.size());
+    const int old = mBytes;
+    const int count = removeChildren(mRoot, path, mNodes, mBytes);
+    qDebug("Removed %d nodes %d (removed %d bytes, current %d bytes)", count, mNodes.size(), mBytes - old, mBytes);
 }
 void VisitThread::printTree()
 {

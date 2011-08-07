@@ -34,6 +34,8 @@ struct Node
     QByteArray toString() const;
     void print() const;
     static const char *typeToName(Type type, bool abbrev = false);
+
+    int size() const;
 };
 
 static inline uint qHash(const CXCursor &c, const Location &l)
