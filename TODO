@@ -12,9 +12,9 @@ threads: => Done
         clang, clang_parsing and pch => Done
         processing, clang_visit and write access to tree => Done
 Fix raise conditions with filesystemwatcher, don't add until parsed. => Done
+Add regexp matching or at least some heuristics for remove so you don't have to pass the whole path => Done
 
 Use AST file caching
-Add regexp matching or at least some heuristics for remove so you don't have to pass the whole path
 Don't use filesystemwatcher
 completion api
 unsaved-file generalizing
