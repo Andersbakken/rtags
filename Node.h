@@ -40,23 +40,10 @@ struct Node
 
 static inline uint qHash(const CXCursor &c, const Location &loc)
 {
-    QByteArray u = eatString(clang_getCursorUSR(c));
-    u.reserve(u.size() + 32);
-    const CXCursorKind kind = clang_getCursorKind(c); // ### is this guaranteed to fit in a byte?
-    u += char(kind);
-    u += clang_isCursorDefinition(c) ? 'd' : ' ';
-    switch (kind) {
-    case CXCursor_CallExpr:
-    case CXCursor_MemberRef: {
-        char buf[512];
-        const int len = snprintf(buf, 511, "%s%d%d", loc.path.constData(), loc.line, loc.column);
-        u += QByteArray::fromRawData(buf, len);
-        break; }
-    default:
-        break;
-
-    }
-    return qHash(u);
+    QVarLengthArray<char, 128> buf(loc.path.size() + 32);
+    char *buffer = buf.data();
+    const int l = snprintf(buffer, buf.size() - 1, "%s%x%x%x", loc.path.constData(), loc.line, loc.column, clang_getCursorKind(c));
+    return qHash(QByteArray::fromRawData(buffer, l));
 }
 
 
