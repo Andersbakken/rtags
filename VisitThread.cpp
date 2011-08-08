@@ -170,7 +170,8 @@ void VisitThread::invalidate(const Path &path)
     QWriteLocker writeLock(&mLock);
     const int old = mBytes;
     const int count = removeChildren(mRoot, path, mNodes, mBytes);
-    qDebug("Removed %d nodes %d (removed %d bytes, current %d bytes)", count, mNodes.size(), mBytes - old, mBytes);
+    qDebug("Removed %d nodes %d (removed %d bytes, current %d bytes) for %s",
+           count, mNodes.size(), old - mBytes, mBytes, path.constData());
 }
 void VisitThread::printTree()
 {

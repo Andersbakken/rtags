@@ -238,8 +238,10 @@ void ParseThread::handleFileChanged(const Path &p)
     foreach(const Path &pp, mDependencies.value(p)) {
         emit invalidated(pp);
     }
-    if (p.exists() && mFiles.contains(p)) {
+    if (p.exists() && mFiles.contains(p))
         reparse(p);
+    foreach(const Path &pp, mDependencies.value(p)) {
+        reparse(pp);
     }
 }
 
@@ -399,6 +401,7 @@ void ParseThread::reparse(const Path &path)
         qWarning("Can't reparse %s", path.constData());
         return;
     }
+    qDebug() << "reparsing" << path;
     Q_ASSERT(mFiles.contains(path));
     addFile(path);
 }

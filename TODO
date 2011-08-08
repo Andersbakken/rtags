@@ -23,3 +23,10 @@ lookup-line reintroduce
 Fix dbus xml file, the generated files and the xml have diverged
 unbreak dbus
 live syntax checking
+
+### Currently the data structure doesn't allow for multiple
+definitions, declarations of the same class, function etc. Imagine
+adding all of Qt and wanting every main() function.
+
+### Two consecutive changes to a file will cause two reparses even if
+they both happen before parsing begins again
