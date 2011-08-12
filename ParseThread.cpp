@@ -234,10 +234,7 @@ void ParseThread::addFile(const Path &path, const GccArguments &args,
 void ParseThread::handleFileChanged(const Path &p)
 {
     qDebug() << p << "was modified";
-    emit invalidated(p);
-    foreach(const Path &pp, mDependencies.value(p)) {
-        emit invalidated(pp);
-    }
+
     if (p.exists() && mFiles.contains(p))
         reparse(p);
     foreach(const Path &pp, mDependencies.value(p)) {
@@ -401,6 +398,16 @@ void ParseThread::reparse(const Path &path)
         qWarning("Can't reparse %s", path.constData());
         return;
     }
+    {
+        QMutexLocker lock(&mMutex);
+        for (File *f = mFirst; f; f = f->next) {
+            if (f->path == path) {
+                qDebug() << "already queued for reparse" << path;
+                return; // already in the queue, raise condition? ###
+            }
+        }
+    }
+    emit invalidated(path);
     qDebug() << "reparsing" << path;
     Q_ASSERT(mFiles.contains(path));
     addFile(path);
