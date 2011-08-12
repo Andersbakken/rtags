@@ -29,3 +29,4 @@ live syntax checking
 definitions, declarations of the same class, function etc. Imagine
 adding all of Qt and wanting every main() function.
 
+### Is that loop in removeChildren right?

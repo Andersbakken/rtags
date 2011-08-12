@@ -7,7 +7,7 @@
 
 struct Node
 {
-    Node *parent, *nextSibling, *firstChild; // doubly-linked?
+    Node *parent, *nextSibling, *firstChild;
     QByteArray symbolName;
     enum Type {
         None = 0x000000,
@@ -25,7 +25,7 @@ struct Node
         All = (None|Root|MethodDeclaration|MethodDefinition|MethodReference|Class|
                Struct|Namespace|VariableDeclaration|VariableReference|Enum|EnumValue)
     } type;
-    Location location;
+    Location location; // should be a QSet probably (or a QList)
     uint hash;
 
     Node();
