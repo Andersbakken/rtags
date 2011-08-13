@@ -12,6 +12,8 @@ VisitThread::VisitThread()
 
 void VisitThread::onFileParsed(const Path &path, void *u)
 {
+    QElapsedTimer timer;
+    timer.start();
     QMutexLocker lock(&mMutex);
     QWriteLocker writeLock(&mLock);
     const int old = mNodes.size();
@@ -32,7 +34,7 @@ void VisitThread::onFileParsed(const Path &path, void *u)
     }
     mPendingReferences.clear();
     clang_disposeTranslationUnit(unit);
-    qDebug() << mNodes.size() - old << "nodes added for" << path << added << "bytes added total is" << mBytes;
+    qDebug() << mNodes.size() - old << "nodes added for" << path << added << "bytes added total is" << mBytes << timer.elapsed() << "ms";
 }
 Node * VisitThread::createOrGet(CXCursor cursor)
 {
