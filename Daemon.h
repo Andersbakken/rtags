@@ -33,6 +33,7 @@ public slots:
     void onFileParsed(const Path &path, void *translationUnit);
 private:
     // ### need to add a function for code completion
+    QHash<QByteArray, QVariant> complete(const QHash<QByteArray, QVariant>& args, const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args, const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> lookupLine(const QHash<QByteArray, QVariant>& args);
     QHash<QByteArray, QVariant> addMakefile(const QHash<QByteArray, QVariant>& dashArgs, const QList<QByteArray>& freeArgs);

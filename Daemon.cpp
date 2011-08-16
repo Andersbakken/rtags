@@ -177,6 +177,8 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         return lookup(dashArgs, freeArgs);
     } else if (cmd == "load") {
         return load(dashArgs, freeArgs);
+    } else if (cmd == "complete") {
+        return complete(dashArgs, freeArgs);
     }
     return createResultMap("Unknown command");
 }
@@ -449,4 +451,43 @@ QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
     mTranslationUnits[filename] = 0;
     mParseThread.loadTranslationUnit(filename, this, "onFileParsed");
     return createResultMap("Loading");
+}
+QHash<QByteArray, QVariant> Daemon::complete(const QHash<QByteArray, QVariant>& args,
+                                             const QList<QByteArray> &freeArgs)
+{
+    const Path file = freeArgs.value(0);
+    if (!file.isFile())
+        return createResultMap("Invalid file " + freeArgs.value(0));
+    CXTranslationUnit unit = mTranslationUnits.value(file);
+    if (!unit)
+        return createResultMap(file + " is not loaded");
+
+    const unsigned line = args.value("line", UINT_MAX).toUInt();
+    const unsigned column = args.value("column", UINT_MAX).toUInt();
+    if (line == UINT_MAX || column == UINT_MAX)
+        return createResultMap("Invalid args. Need both column and line");
+
+    CXCodeCompleteResults *res = clang_codeCompleteAt(unit, file.constData(),
+                                                      line, column, 0, 0,
+                                                      clang_defaultCodeCompleteOptions());
+    if (!res)
+        return createResultMap("Can't complete here for this. You'd probably want a better error message");
+    QByteArray results;
+    for (unsigned i=0; i<res->NumResults; ++i) {
+        CXCompletionResult r = res->Results[i];
+        const unsigned count = clang_getNumCompletionChunks(r.CompletionString);
+        QByteArray result;
+        for (unsigned j=0; j<count; ++j) {
+            if (j)
+                result += ' ';
+            result += eatString(clang_getCompletionChunkText(r.CompletionString, j));
+        }
+        if (!results.isEmpty())
+            results += '\n';
+        results += result;
+    }
+
+    clang_disposeCodeCompleteResults(res);
+    // ### need to allow for unsaved files
+    return createResultMap(results);
 }
