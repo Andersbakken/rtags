@@ -160,6 +160,7 @@ public:
 ParseThread::ParseThread()
     : mAborted(false), mFirst(0), mLast(0), mCount(0), mIndex(clang_createIndex(1, 0))
 {
+    MakefileManager::instance();
     setObjectName("ParseThread");
     Q_ASSERT(!sParseThreadInstance);
     sParseThreadInstance = this;
@@ -228,6 +229,24 @@ void ParseThread::addFile(const Path &path, const GccArguments &args,
     mLast->next = 0;
     mLast->path = path;
     mLast->arguments = args.raw().isEmpty() ? mFiles.value(path) : args;
+    QSettings settings(QSettings::IniFormat, QSettings::UserScope,
+                       QCoreApplication::organizationName());
+    settings.beginGroup("GccArguments");
+    const QString key = QString::fromLocal8Bit(path);
+    if (mLast->arguments.raw().isEmpty()) {
+        const QList<QByteArray> line = qVariantValue<QList<QByteArray> >(settings.value(key));
+        Q_ASSERT(line.size() == 0 || line.size() == 2);
+        if (!line.isEmpty()) {
+            if (!mLast->arguments.parse(line.at(0), line.at(1))) {
+                qWarning("Can't parse this %s %s",
+                         line.at(0).constData(), line.at(1).constData());
+            }
+        }
+    } else {
+        QList<QByteArray> list;
+        list << mLast->arguments.raw() << mLast->arguments.dir();
+        settings.setValue(key, qVariantFromValue<QList<QByteArray> >(list));
+    }
     mWaitCondition.wakeOne();
 }
 
@@ -415,7 +434,6 @@ void ParseThread::reparse(const Path &path)
 
 void ParseThread::loadTranslationUnit(const Path &path, QObject *receiver, const char *member)
 {
-    Q_ASSERT(mFiles.contains(path));
     addFile(path, mFiles.value(path), receiver, member);
 }
 
