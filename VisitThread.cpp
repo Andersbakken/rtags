@@ -36,6 +36,7 @@ void VisitThread::onFileParsed(const Path &path, void *u)
 }
 Node * VisitThread::createOrGet(CXCursor cursor)
 {
+    static const bool verbose = getenv("VERBOSE");
     const CXCursorKind kind = clang_getCursorKind(cursor);
     // blacklist
     switch (kind) {
@@ -82,6 +83,11 @@ Node * VisitThread::createOrGet(CXCursor cursor)
     case CXCursor_ObjCProtocolRef:
     case CXCursor_ObjCClassRef:
     case CXCursor_ObjCMessageExpr:
+        if (verbose) {
+            const Location l(cursor);
+            printf("Ignoring %s at %s:%d:%d\n", kindToString(kind),
+                   l.path.constData(), l.line, l.column);
+        }
         return createOrGet(clang_getCursorSemanticParent(cursor));
     case CXCursor_TranslationUnit:
         return mRoot;
