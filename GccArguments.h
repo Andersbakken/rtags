@@ -39,16 +39,11 @@ public:
     bool hasOutput() const;
 
     bool isCompile() const;
-    QDataStream &operator>>(QDataStream &ds);
-    QDataStream &operator<<(QDataStream &ds) const;
 private:
     class Data : public QSharedData
     {
     public:
         Data();
-
-        QByteArray save() const;
-        bool load(const QByteArray &data);
 
         GccArguments::Language guessLanguage() const;
         QByteArray languageString() const;

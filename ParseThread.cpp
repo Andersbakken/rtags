@@ -234,18 +234,14 @@ void ParseThread::addFile(const Path &path, const GccArguments &args,
     settings.beginGroup("GccArguments");
     const QString key = QString::fromLocal8Bit(path);
     if (mLast->arguments.raw().isEmpty()) {
-        const QList<QByteArray> line = qVariantValue<QList<QByteArray> >(settings.value(key));
-        Q_ASSERT(line.size() == 0 || line.size() == 2);
-        if (!line.isEmpty()) {
-            if (!mLast->arguments.parse(line.at(0), line.at(1))) {
-                qWarning("Can't parse this %s %s",
-                         line.at(0).constData(), line.at(1).constData());
-            }
-        }
+        const QByteArray in = settings.value(key).toByteArray();
+        QDataStream ds(in);
+        ds >> mLast->arguments;
     } else {
-        QList<QByteArray> list;
-        list << mLast->arguments.raw() << mLast->arguments.dir();
-        settings.setValue(key, qVariantFromValue<QList<QByteArray> >(list));
+        QByteArray out;
+        QDataStream ds(&out, QIODevice::WriteOnly);
+        ds << mLast->arguments;
+        settings.setValue(key, out);
     }
     mWaitCondition.wakeOne();
 }
