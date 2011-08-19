@@ -25,3 +25,4 @@ Fix dbus xml file, the generated files and the xml have diverged
 unbreak dbus
 live syntax checking
 ### Is that loop in removeChildren right?
+
