@@ -480,8 +480,15 @@ QHash<QByteArray, QVariant> Daemon::complete(const QHash<QByteArray, QVariant>& 
         for (unsigned j=0; j<count; ++j) {
             if (j)
                 result += ' ';
-            result += eatString(clang_getCompletionChunkText(r.CompletionString, j));
+            result += eatString(clang_getCompletionChunkText(r.CompletionString, j)); // copies unnecessarily
+            result += '(';
+            result += clang_getCompletionChunkKind(r.CompletionString, j);
+            result += ')';
+
         }
+        results += " (";
+        results += kindToString(r.CursorKind);
+        results += ')';
         if (!results.isEmpty())
             results += '\n';
         results += result;
