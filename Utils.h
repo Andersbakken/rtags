@@ -11,6 +11,7 @@ Q_DECLARE_METATYPE(QList<QByteArray>)
 #endif
 
 const char *kindToString(int kind);
+const char *completionChunkKindToString(int kind);
 static inline QByteArray eatString(CXString string)
 {
     const QByteArray ret = clang_getCString(string);
