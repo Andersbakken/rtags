@@ -235,8 +235,10 @@ void ParseThread::addFile(const Path &path, const GccArguments &args,
     const QString key = QString::fromLocal8Bit(path);
     if (mLast->arguments.raw().isEmpty()) {
         const QByteArray in = settings.value(key).toByteArray();
-        QDataStream ds(in);
-        ds >> mLast->arguments;
+        if (!in.isEmpty()) {
+            QDataStream ds(in);
+            ds >> mLast->arguments;
+        }
     } else {
         QByteArray out;
         QDataStream ds(&out, QIODevice::WriteOnly);
