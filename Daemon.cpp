@@ -12,6 +12,12 @@
 //                                |CXTranslationUnit_CXXPrecompiledPreamble
 //                                |CXTranslationUnit_CXXChainedPCH);
 
+struct VisitData {
+    enum { BufferLength = 1024 };
+    char buffer[BufferLength];
+    QByteArray output;
+};
+
 template <typename T>
 static inline QByteArray joined(const T &container, const char joinCharacter = '\n')
 {
@@ -301,6 +307,30 @@ QHash<QByteArray, QVariant> Daemon::removeSourceFile(const QHash<QByteArray, QVa
     return createResultMap("Removed " + joined(removed));
 }
 
+static inline void visitCallbackLocation(const Node *node, const QByteArray &qualifiedSymbolName, void *userData)
+{
+    switch (node->type) {
+    case Node::MethodDeclaration:
+        node = node->methodDefinition();
+        break;
+    case Node::MethodDefinition:
+        node = node->methodDeclaration();
+        break;
+    case Node::MethodReference:
+        node = node->methodDefinition();
+        break;
+    default:
+        break;
+    }
+    Q_ASSERT(node);
+    VisitData *data = reinterpret_cast<VisitData*>(userData);
+    snprintf(data->buffer, VisitData::BufferLength, "%s %s \"%s:%d:%d\"\n",
+             Node::typeToName(node->type, true), qualifiedSymbolName.constData(),
+             node->location.path.constData(), node->location.line, node->location.column);
+    data->output.append(data->buffer);
+}
+
+
 QHash<QByteArray, QVariant> Daemon::lookupLine(const QHash<QByteArray, QVariant> &args)
 {
     FUNC1(args);
@@ -318,8 +348,13 @@ QHash<QByteArray, QVariant> Daemon::lookupLine(const QHash<QByteArray, QVariant>
     if (!file.isFile() || line == 0 || column == 0)
         return createResultMap("Invalid argument type");
 
-    if (!mTranslationUnits.value(file))
-        return createResultMap("Translation unit not found");
+    if (!mTranslationUnits.value(file)) {
+        VisitData visitData;
+        mVisitThread.lookup((QList<QByteArray>() << file << QByteArray::number(line) << QByteArray::number(column)),
+                            VisitThread::MatchLocation, (Node::All & ~Node::Root),
+                            ::visitCallbackLocation, &visitData);
+        return createResultMap(visitData.output);
+    }
 
     CXTranslationUnit unit = mTranslationUnits.value(file);
     CXFile f = clang_getFile(unit, file.constData());
@@ -366,11 +401,6 @@ static Node::Type stringToType(const QByteArray &in)
     return Node::None;
 }
 
-struct VisitData {
-    enum { BufferLength = 1024 };
-    char buffer[BufferLength];
-    QByteArray output;
-};
 
 static inline void visitCallback(const Node *node, const QByteArray &qualifiedSymbolName, void *userData)
 {
@@ -396,15 +426,6 @@ QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &ar
     }
     if (!nodeTypes)
         nodeTypes = (Node::All & ~Node::Root);
-
-    const QByteArray location = args.value("location").toByteArray();
-    if (!location.isEmpty()) {
-        if (!locationFromString(location))
-            return createResultMap("Can't parse location");
-
-        mVisitThread.lookup(QList<QByteArray>() << location, VisitThread::MatchLocation, nodeTypes, 0, 0);
-        return createResultMap("Gotta return something");
-    }
 
     uint flags = 0;
     if (args.contains("regexp"))
