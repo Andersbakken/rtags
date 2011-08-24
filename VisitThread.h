@@ -13,10 +13,11 @@ class VisitThread : public QThread
 public:
     VisitThread();
     enum LookupFlags {
-        None = 0x0,
+        MatchNone = 0x0,
         MatchSymbolName = 0x1,
         MatchFileNames = 0x2,
-        RegExp = 0x4
+        MatchRegExp = 0x4,
+        MatchLocation = 0x8
     };
     int lookup(const QList<QByteArray> &patterns, uint flags, uint nodeTypes, HandleResult handler, void *userdata);
     void printTree();

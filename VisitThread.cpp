@@ -242,6 +242,7 @@ static int recurse(const T &t, QByteArray path, const Node *node, uint flags, ui
     case Node::Class:
     case Node::Struct:
         path.append(node->symbolName + "::");
+        break;
     default:
         break;
     }
@@ -257,7 +258,7 @@ int VisitThread::lookup(const QList<QByteArray> &patterns, uint flags, uint node
 {
     QReadLocker lock(&mLock);
     Q_ASSERT(handler);
-    if (flags & RegExp) {
+    if (flags & MatchRegExp) {
         QList<QRegExp> rxs;
         foreach(const QByteArray &pattern, patterns) {
             if (!pattern.isEmpty()) {
@@ -269,6 +270,7 @@ int VisitThread::lookup(const QList<QByteArray> &patterns, uint flags, uint node
         }
         if (!rxs.isEmpty())
             return recurse(rxs, QByteArray(), mRoot, flags, nodeTypes, handler, userdata);
+    } else if (flags & MatchLocation) {
     } else if (!patterns.isEmpty()) {
         return recurse(patterns, QByteArray(), mRoot, flags, nodeTypes, handler, userdata);
     }

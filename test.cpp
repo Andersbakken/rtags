@@ -37,7 +37,7 @@ void A::foo()
     int balle = 12;
     double bb = double(balle);
     B b;
-    b.bar();
+    in
 }
 
 

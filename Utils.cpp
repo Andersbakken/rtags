@@ -1,5 +1,6 @@
 #include "Utils.h"
 #include <clang-c/Index.h>
+#include "Path.h"
 
 #ifdef DEBUG_FUNCTION_CALLS
 int Timer::s_indent = 0;
@@ -126,4 +127,21 @@ const char *completionChunkKindToString(int kind)
     case CXCompletionChunk_VerticalSpace: return "VerticalSpace";
     }
     return "";
-};
+}
+
+
+bool locationFromString(const QByteArray &string, Path *path, int *line, int *column)
+{
+    QRegExp locationRegExp = QRegExp("(.*):([0-9]+):([0-9]+)");
+    if (!locationRegExp.exactMatch(QString::fromLocal8Bit(string)))
+        return false;
+
+    if (path)
+        *path = Path::resolved(locationRegExp.cap(1).toLocal8Bit());
+    if (line)
+        *line = locationRegExp.cap(2).toInt();
+    if (column)
+        *column = locationRegExp.cap(3).toInt();
+    return true;
+}
+

@@ -38,7 +38,12 @@ private:
     } *mFirst, *mLast;
     int mCount;
     QHash<Path, QSet<Path> > mDependencies;
-    QHash<Path, GccArguments> mFiles;
+    struct ParsedFileData {
+        GccArguments arguments;
+        QObject *receiver;
+        const char *member;
+    };
+    QHash<Path, ParsedFileData> mFiles;
     CXIndex mIndex;
 };
 

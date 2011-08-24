@@ -397,9 +397,18 @@ QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &ar
     if (!nodeTypes)
         nodeTypes = (Node::All & ~Node::Root);
 
+    const QByteArray location = args.value("location").toByteArray();
+    if (!location.isEmpty()) {
+        if (!locationFromString(location))
+            return createResultMap("Can't parse location");
+
+        mVisitThread.lookup(QList<QByteArray>() << location, VisitThread::MatchLocation, nodeTypes, 0, 0);
+        return createResultMap("Gotta return something");
+    }
+
     uint flags = 0;
     if (args.contains("regexp"))
-        flags |= VisitThread::RegExp;
+        flags |= VisitThread::MatchRegExp;
     if (args.contains("filename"))
         flags |= VisitThread::MatchFileNames;
     if (args.contains("symbolname") || !(flags & (VisitThread::MatchFileNames)))
@@ -429,8 +438,12 @@ bool Daemon::writeAST(const QHash<Path, CXTranslationUnit>::const_iterator it)
 
 void Daemon::onFileParsed(const Path &path, void *translationUnit)
 {
-    if (mTranslationUnits.contains(path))
+    if (mTranslationUnits.contains(path)) {
         clang_disposeTranslationUnit(mTranslationUnits.value(path));
+        qDebug() << "reparsed for completion" << path;
+    } else {
+        qDebug() << "parsed" << path << "for completion";
+    }
     mTranslationUnits[path] = reinterpret_cast<CXTranslationUnit>(translationUnit);
 }
 QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
@@ -455,6 +468,8 @@ QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
 QHash<QByteArray, QVariant> Daemon::complete(const QHash<QByteArray, QVariant>& args,
                                              const QList<QByteArray> &freeArgs)
 {
+    QElapsedTimer timer;
+    timer.start();
     const Path file = freeArgs.value(0);
     if (!file.isFile())
         return createResultMap("Invalid file " + freeArgs.value(0));
@@ -467,14 +482,22 @@ QHash<QByteArray, QVariant> Daemon::complete(const QHash<QByteArray, QVariant>& 
     if (line == UINT_MAX || column == UINT_MAX)
         return createResultMap("Invalid args. Need both column and line");
 
+    static const unsigned options = CXCompletionContext_ObjCInterface; //CXCompletionContext_DotMemberAccess;
     CXCodeCompleteResults *res = clang_codeCompleteAt(unit, file.constData(),
                                                       line, column, 0, 0,
-                                                      clang_defaultCodeCompleteOptions());
+                                                      options);
     if (!res)
         return createResultMap("Can't complete here for this. You'd probably want a better error message");
     QByteArray results;
     for (unsigned i=0; i<res->NumResults; ++i) {
         CXCompletionResult r = res->Results[i];
+        // switch (r.CursorKind) {
+        // case CXCursor_NotImplemented:
+        // case CXCursor_MacroDefinition:
+        //     continue;
+        // default:
+        //     break;
+        // }
         const unsigned count = clang_getNumCompletionChunks(r.CompletionString);
         QByteArray result;
         for (unsigned j=0; j<count; ++j) {
@@ -489,6 +512,8 @@ QHash<QByteArray, QVariant> Daemon::complete(const QHash<QByteArray, QVariant>& 
         results += " (";
         results += kindToString(r.CursorKind);
         results += ')';
+        results += " ";
+        results += QByteArray::number(clang_getCompletionPriority(r.CompletionString));
         if (!results.isEmpty())
             results += '\n';
         results += result;
@@ -496,5 +521,6 @@ QHash<QByteArray, QVariant> Daemon::complete(const QHash<QByteArray, QVariant>& 
 
     clang_disposeCodeCompleteResults(res);
     // ### need to allow for unsaved files
+    qDebug() << "completion took" << timer.elapsed();
     return createResultMap(results);
 }

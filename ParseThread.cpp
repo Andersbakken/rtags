@@ -228,7 +228,7 @@ void ParseThread::addFile(const Path &path, const GccArguments &args,
     Q_ASSERT(!receiver == !member);
     mLast->next = 0;
     mLast->path = path;
-    mLast->arguments = args.raw().isEmpty() ? mFiles.value(path) : args;
+    mLast->arguments = args.raw().isEmpty() ? mFiles.value(path).arguments : args;
     QSettings settings(QSettings::IniFormat, QSettings::UserScope,
                        QCoreApplication::organizationName());
     settings.beginGroup("GccArguments");
@@ -392,7 +392,8 @@ void ParseThread::run()
                 if (!mFiles.contains(f->path)) {
                     QMetaObject::invokeMethod(MakefileManager::instance(), "watchPath", Q_ARG(Path, f->path));
                 }
-                mFiles[f->path] = f->arguments;
+                struct ParsedFileData data = { f->arguments, f->receiver, f->member };
+                mFiles[f->path] = data;
                 if (f->receiver) {
                     Q_ASSERT(f->member);
                     QMetaObject::invokeMethod(f->receiver, f->member, Qt::AutoConnection,
@@ -427,12 +428,13 @@ void ParseThread::reparse(const Path &path)
     emit invalidated(path);
     qDebug() << "reparsing" << path;
     Q_ASSERT(mFiles.contains(path));
-    addFile(path);
+    const ParsedFileData &data = mFiles[path];
+    addFile(path, data.arguments, data.receiver, data.member);
 }
 
 void ParseThread::loadTranslationUnit(const Path &path, QObject *receiver, const char *member)
 {
-    addFile(path, mFiles.value(path), receiver, member);
+    addFile(path, mFiles.value(path).arguments, receiver, member);
 }
 
 #include "ParseThread.moc"

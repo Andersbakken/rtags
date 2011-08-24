@@ -1,5 +1,5 @@
-#ifndef utils_h
-#define utils_h
+#ifndef Utils_h
+#define Utils_h
 
 #include <QtCore>
 #include <clang-c/Index.h>
@@ -12,6 +12,8 @@ Q_DECLARE_METATYPE(QList<QByteArray>)
 
 const char *kindToString(int kind);
 const char *completionChunkKindToString(int kind);
+class Path;
+bool locationFromString(const QByteArray &string, Path *path = 0, int *line = 0, int *column = 0);
 static inline QByteArray eatString(CXString string)
 {
     const QByteArray ret = clang_getCString(string);
@@ -150,4 +152,5 @@ void appendArg(QString &string, const T &t)
 #define FUNC3(a, b, c)
 #define FUNC4(a, b, c, d)
 #endif
+
 #endif
