@@ -245,18 +245,18 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         // hack to make the quit command properly respond before the server goes down
         return createResultMap("quitting");
     } else if (cmd == "add") {
-        return addSourceFile(dashArgs);
+        return addSourceFile(dashArgs, freeArgs);
     } else if (cmd == "remove") {
         return removeSourceFile(dashArgs, freeArgs);
     } else if (cmd == "printtree") {
         mVisitThread.printTree();
         return createResultMap("Done");;
     } else if (cmd == "lookupline") {
-        return lookupLine(dashArgs);
+        return lookupLine(dashArgs, freeArgs);
     } else if (cmd == "makefile") {
         return addMakefile(dashArgs, freeArgs);
     } else if (cmd == "files") {
-        return fileList(dashArgs);
+        return fileList(dashArgs, freeArgs);
     } else if (cmd == "lookup") {
         return lookup(dashArgs, freeArgs);
     } else if (cmd == "load") {
@@ -288,7 +288,8 @@ static QSet<Path> matches(const QSet<Path> &files, const T &t)
     return matches;
 }
 
-QHash<QByteArray, QVariant> Daemon::fileList(const QHash<QByteArray, QVariant> &args)
+QHash<QByteArray, QVariant> Daemon::fileList(const QHash<QByteArray, QVariant> &args,
+                                             const QList<QByteArray> &)
 {
     FUNC1(args);
     bool regexp = true;
@@ -312,7 +313,9 @@ QHash<QByteArray, QVariant> Daemon::fileList(const QHash<QByteArray, QVariant> &
     return createResultMap(joined(out));
 }
 
-QHash<QByteArray, QVariant> Daemon::addSourceFile(const QHash<QByteArray, QVariant> &args)
+QHash<QByteArray, QVariant> Daemon::addSourceFile(const QHash<QByteArray, QVariant> &args,
+                                                  const QList<QByteArray> &)
+
 {
     // ### should use free args
     FUNC1(args);
@@ -385,15 +388,16 @@ QHash<QByteArray, QVariant> Daemon::removeSourceFile(const QHash<QByteArray, QVa
     return createResultMap("Removed " + joined(removed));
 }
 
-QHash<QByteArray, QVariant> Daemon::lookupLine(const QHash<QByteArray, QVariant> &args)
+QHash<QByteArray, QVariant> Daemon::lookupLine(const QHash<QByteArray, QVariant> &args,
+                                               const QList<QByteArray> &freeArgs)
 {
     FUNC1(args);
-    if (!args.contains("file")
+    if (freeArgs.size() != 1
         || !args.contains("line")
         || !args.contains("column"))
         return createResultMap("Invalid argument count");
 
-    Path file = args.value("file").toByteArray();
+    Path file = freeArgs.first();
     if (file.isResolved())
         file.resolve();
     int line = args.value("line").toInt();

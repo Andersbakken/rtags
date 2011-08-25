@@ -22,7 +22,7 @@ struct Node;
 class Daemon : public QObject
 {
     Q_OBJECT
-public:
+    public:
     Daemon(QObject* parent = 0);
     ~Daemon();
 
@@ -33,16 +33,23 @@ public slots:
     void onFileParsed(const Path &path, void *translationUnit);
 private:
     // ### need to add a function for code completion
-    QHash<QByteArray, QVariant> complete(const QHash<QByteArray, QVariant>& args, const QList<QByteArray> &freeArgs);
-    QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args, const QList<QByteArray> &freeArgs);
-    QHash<QByteArray, QVariant> lookupLine(const QHash<QByteArray, QVariant>& args);
-    QHash<QByteArray, QVariant> addMakefile(const QHash<QByteArray, QVariant>& dashArgs, const QList<QByteArray>& freeArgs);
-    QHash<QByteArray, QVariant> addSourceFile(const QHash<QByteArray, QVariant>& args);
+    QHash<QByteArray, QVariant> complete(const QHash<QByteArray, QVariant>& args,
+                                         const QList<QByteArray> &freeArgs);
+    QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args,
+                                       const QList<QByteArray> &freeArgs);
+    QHash<QByteArray, QVariant> lookupLine(const QHash<QByteArray, QVariant>& args,
+                                           const QList<QByteArray> &freeArgs);
+    QHash<QByteArray, QVariant> addMakefile(const QHash<QByteArray, QVariant>& dashArgs,
+                                            const QList<QByteArray>& freeArgs);
+    QHash<QByteArray, QVariant> addSourceFile(const QHash<QByteArray, QVariant>& args,
+                                              const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> removeSourceFile(const QHash<QByteArray, QVariant>& args,
                                                  const QList<QByteArray> &freeArgs);
-    QHash<QByteArray, QVariant> load(const QHash<QByteArray, QVariant>& args, const QList<QByteArray> &freeArgs);
+    QHash<QByteArray, QVariant> load(const QHash<QByteArray, QVariant>& args,
+                                     const QList<QByteArray> &freeArgs);
+    QHash<QByteArray, QVariant> fileList(const QHash<QByteArray, QVariant> &args,
+                                         const QList<QByteArray> &freeArgs);
     bool writeAST(const QHash<Path, CXTranslationUnit>::const_iterator it);
-    QHash<QByteArray, QVariant> fileList(const QHash<QByteArray, QVariant> &args);
 private:
     ParseThread mParseThread;
     VisitThread mVisitThread;
