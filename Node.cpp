@@ -134,3 +134,49 @@ int Node::size() const
     }
     return ret;
 }
+
+Node *Node::methodDeclaration() const
+{
+    switch (type) {
+    case MethodReference:
+        Q_ASSERT(parent && parent->type == MethodDefinition);
+        return parent->methodDeclaration();
+    case MethodDeclaration:
+        return const_cast<Node*>(this);
+    case MethodDefinition:
+        Q_ASSERT(parent);
+        for (Node *n = parent->firstChild; n; n = n->nextSibling) {
+            if (n->type == MethodDeclaration && n->symbolName == symbolName)
+                return n;
+
+        }
+        return 0;
+    default:
+        break;
+    }
+    Q_ASSERT(0 && "This doesn't make any sense");
+    return 0;
+}
+
+Node *Node::methodDefinition() const
+{
+    switch (type) {
+    case MethodReference:
+        Q_ASSERT(parent && parent->type == MethodDefinition);
+        return parent;
+    case MethodDefinition:
+        return const_cast<Node*>(this);
+    case MethodDeclaration:
+        Q_ASSERT(parent);
+        for (Node *n = parent->firstChild; n; n = n->nextSibling) {
+            if (n->type == MethodDefinition && n->symbolName == symbolName)
+                return n;
+
+        }
+        return 0;
+    default:
+        break;
+    }
+    Q_ASSERT(0 && "This doesn't make any sense");
+    return 0;
+}

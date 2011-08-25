@@ -35,6 +35,8 @@ struct Node
     void print() const;
     static const char *typeToName(Type type, bool abbrev = false);
 
+    Node *methodDeclaration() const;
+    Node *methodDefinition() const;
     int size() const;
 };
 

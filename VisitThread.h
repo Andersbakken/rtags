@@ -6,20 +6,25 @@
 #include "Location.h"
 
 struct Node;
-typedef void (*HandleResult)(const Node *node, const QByteArray &qualifiedSymbolName, void *userData);
+struct Match
+{
+    Match(uint nodeTypes)
+        : nodeTypes(nodeTypes)
+    {}
+    virtual ~Match() {}
+
+    // path means e.g. namespace::class:: (including trailing double colons)
+    virtual bool match(const QByteArray &path, const Node *node) = 0;
+
+    const uint nodeTypes;
+};
+
 class VisitThread : public QThread
 {
     Q_OBJECT
 public:
     VisitThread();
-    enum LookupFlags {
-        MatchNone = 0x0,
-        MatchSymbolName = 0x1,
-        MatchFileNames = 0x2,
-        MatchRegExp = 0x4,
-        MatchLocation = 0x8
-    };
-    int lookup(const QList<QByteArray> &patterns, uint flags, uint nodeTypes, HandleResult handler, void *userdata);
+    int lookup(Match *match);
     void printTree();
     QSet<Path> files() const;
 protected:

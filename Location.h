@@ -9,6 +9,9 @@ struct Location {
     Location()
         : line(0), column(0)
     {}
+    Location(const Path &p, unsigned l, unsigned c)
+        : path(p), line(l), column(c)
+    {}
     Location(CXCursor cursor)
         : line(0), column(0)
     {
@@ -31,6 +34,16 @@ struct Location {
     Path path;
     unsigned line, column;
 };
+
+static inline bool operator==(const Location &l, const Location &r)
+{
+    return (l.line == r.line && l.column == r.column && l.path == r.path);
+}
+
+static inline bool operator!=(const Location &l, const Location &r)
+{
+    return (l.line != r.line || l.column != r.column || l.path != r.path);
+}
 
 static inline QDebug operator<<(QDebug dbg, const Location &loc)
 {

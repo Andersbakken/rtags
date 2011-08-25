@@ -12,10 +12,88 @@
 //                                |CXTranslationUnit_CXXPrecompiledPreamble
 //                                |CXTranslationUnit_CXXChainedPCH);
 
-struct VisitData {
+struct MatchBase : public Match
+{
+    MatchBase(uint nodeTypes)
+        : Match(nodeTypes)
+    {}
+    virtual bool match(const QByteArray &path, const Node *node)
+    {
+        if (accept(path, node)) {
+            snprintf(buffer, BufferLength, "%s %s%s \"%s:%d:%d\"\n",
+                     Node::typeToName(node->type, true), path.constData(), node->symbolName.constData(),
+                     node->location.path.constData(), node->location.line, node->location.column);
+            output.append(buffer);
+            return true;
+        }
+        return false;
+    }
+
+    virtual bool accept(const QByteArray &path, const Node *node) = 0;
+
     enum { BufferLength = 1024 };
     char buffer[BufferLength];
     QByteArray output;
+};
+
+struct MatchLocation : public MatchBase
+{
+    MatchLocation(uint nodeTypes, const Location &loc)
+        : MatchBase(nodeTypes), location(loc)
+    {}
+    virtual bool accept(const QByteArray &, const Node *node)
+    {
+        //     switch (node->type) {
+        //     case Node::MethodDeclaration:
+        //         node = node->methodDefinition();
+        //         break;
+        //     case Node::MethodDefinition:
+        //         node = node->methodDeclaration();
+        //         break;
+        //     case Node::MethodReference:
+        //         node = node->methodDefinition();
+        //         break;
+        //     default:
+        //         break;
+        //     }
+
+        return (node->location == location);
+    }
+    const Location &location;
+};
+
+struct GenericMatch : public MatchBase
+{
+    enum Flags {
+        MatchSymbolName = 0x1,
+        MatchFileNames = 0x2,
+        MatchRegExp = 0x4
+    };
+    GenericMatch(uint nodeTypes, uint f, const QRegExp &r, const QByteArray &m)
+        : MatchBase(nodeTypes), flags(f), regexp(r), match(m)
+    {
+        qDebug() << nodeTypes << f << r << m;
+    }
+    virtual bool accept(const QByteArray &path, const Node *node)
+    {
+        if (flags & MatchFileNames) {
+            if (!match.isEmpty() && node->location.path.contains(match))
+                return true;
+            if (flags & MatchRegExp && QString::fromLocal8Bit(node->location.path).contains(regexp))
+                return true;
+        }
+        if (flags & MatchSymbolName) {
+            const QByteArray full = path + node->symbolName;
+            if (!match.isEmpty() && full.contains(match)) 
+                return true;
+            if (flags & MatchRegExp && QString::fromLocal8Bit(full).contains(regexp))
+                return true;
+        }
+        return false;
+    }
+    const uint flags;
+    const QRegExp &regexp;
+    const QByteArray &match;
 };
 
 template <typename T>
@@ -307,30 +385,6 @@ QHash<QByteArray, QVariant> Daemon::removeSourceFile(const QHash<QByteArray, QVa
     return createResultMap("Removed " + joined(removed));
 }
 
-static inline void visitCallbackLocation(const Node *node, const QByteArray &qualifiedSymbolName, void *userData)
-{
-    switch (node->type) {
-    case Node::MethodDeclaration:
-        node = node->methodDefinition();
-        break;
-    case Node::MethodDefinition:
-        node = node->methodDeclaration();
-        break;
-    case Node::MethodReference:
-        node = node->methodDefinition();
-        break;
-    default:
-        break;
-    }
-    Q_ASSERT(node);
-    VisitData *data = reinterpret_cast<VisitData*>(userData);
-    snprintf(data->buffer, VisitData::BufferLength, "%s %s \"%s:%d:%d\"\n",
-             Node::typeToName(node->type, true), qualifiedSymbolName.constData(),
-             node->location.path.constData(), node->location.line, node->location.column);
-    data->output.append(data->buffer);
-}
-
-
 QHash<QByteArray, QVariant> Daemon::lookupLine(const QHash<QByteArray, QVariant> &args)
 {
     FUNC1(args);
@@ -349,11 +403,10 @@ QHash<QByteArray, QVariant> Daemon::lookupLine(const QHash<QByteArray, QVariant>
         return createResultMap("Invalid argument type");
 
     if (!mTranslationUnits.value(file)) {
-        VisitData visitData;
-        mVisitThread.lookup((QList<QByteArray>() << file << QByteArray::number(line) << QByteArray::number(column)),
-                            VisitThread::MatchLocation, (Node::All & ~Node::Root),
-                            ::visitCallbackLocation, &visitData);
-        return createResultMap(visitData.output);
+        const Location loc(file, line, column);
+        MatchLocation ml((Node::All & ~Node::Root), loc);
+        mVisitThread.lookup(&ml);
+        return createResultMap(ml.output);
     }
 
     CXTranslationUnit unit = mTranslationUnits.value(file);
@@ -401,16 +454,6 @@ static Node::Type stringToType(const QByteArray &in)
     return Node::None;
 }
 
-
-static inline void visitCallback(const Node *node, const QByteArray &qualifiedSymbolName, void *userData)
-{
-    VisitData *data = reinterpret_cast<VisitData*>(userData);
-    snprintf(data->buffer, VisitData::BufferLength, "%s %s \"%s:%d:%d\"\n",
-             Node::typeToName(node->type, true), qualifiedSymbolName.constData(),
-             node->location.path.constData(), node->location.line, node->location.column);
-    data->output.append(data->buffer);
-}
-
 QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &args, const QList<QByteArray> &freeArgs)
 {
     uint nodeTypes = 0;
@@ -427,17 +470,26 @@ QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &ar
     if (!nodeTypes)
         nodeTypes = (Node::All & ~Node::Root);
 
+    QRegExp rx;
+    QByteArray ba;
     uint flags = 0;
-    if (args.contains("regexp"))
-        flags |= VisitThread::MatchRegExp;
-    if (args.contains("filename"))
-        flags |= VisitThread::MatchFileNames;
-    if (args.contains("symbolname") || !(flags & (VisitThread::MatchFileNames)))
-        flags |= VisitThread::MatchSymbolName;
+    if (args.contains("regexp")) {
+        rx = QRegExp(QString::fromLocal8Bit(freeArgs.value(0)));
+        if (!rx.isEmpty() && rx.isValid())
+            flags |= GenericMatch::MatchRegExp;
+    } else {
+        ba = freeArgs.value(0);
+    }
 
-    VisitData visitData;
-    mVisitThread.lookup(freeArgs, flags, nodeTypes, ::visitCallback, &visitData);
-    return createResultMap(visitData.output);
+    if (args.contains("filename"))
+        flags |= GenericMatch::MatchFileNames;
+    if (args.contains("symbolname") || !(flags & (GenericMatch::MatchFileNames)))
+        flags |= GenericMatch::MatchSymbolName;
+    
+    GenericMatch match(nodeTypes, flags, rx, ba);
+    mVisitThread.lookup(&match);
+
+    return createResultMap(match.output);
 }
 
 bool Daemon::writeAST(const QHash<Path, CXTranslationUnit>::const_iterator it)
@@ -467,6 +519,7 @@ void Daemon::onFileParsed(const Path &path, void *translationUnit)
     }
     mTranslationUnits[path] = reinterpret_cast<CXTranslationUnit>(translationUnit);
 }
+
 QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
                                          const QList<QByteArray> &freeArgs)
 {
@@ -486,6 +539,7 @@ QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
     mParseThread.loadTranslationUnit(filename, this, "onFileParsed");
     return createResultMap("Loading");
 }
+
 QHash<QByteArray, QVariant> Daemon::complete(const QHash<QByteArray, QVariant>& args,
                                              const QList<QByteArray> &freeArgs)
 {

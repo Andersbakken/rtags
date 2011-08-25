@@ -187,56 +187,14 @@ void VisitThread::printTree()
     mRoot->print();
 }
 
-static bool match(const QByteArray &name, const QList<QRegExp> &rxs)
+static int recurse(Match *match, const Node *node, QByteArray path)
 {
-    QString str = QString::fromLocal8Bit(name);
-    foreach(const QRegExp &rx, rxs) {
-        if (str.contains(rx))
-            return true;
-    }
-    return false;
-}
-
-static bool match(const QByteArray &name, const QList<QByteArray> &match)
-{
-    foreach(const QByteArray &m, match) {
-        if (name.contains(m))
-            return true;
-    }
-    return false;
-}
-
-static bool match(const QByteArray &, bool)
-{
-    return true;
-}
-
-template <typename T>
-static int recurse(const T &t, QByteArray path, const Node *node, uint flags, uint nodeTypes,
-                   HandleResult handler, void *userdata)
-{
+    Q_ASSERT(match);
     Q_ASSERT(node);
     int ret = 0;
-    if (node->type & nodeTypes) {
-        QByteArray full;
-        if (flags & VisitThread::MatchSymbolName) {
-            full = path + node->symbolName;
-            // ### this could maybe be optimized to reuse the same buffer again and again
-            if (match(full, t)) {
-                handler(node, full, userdata);
-                ++ret;
-            }
-        }
-        if (!ret && flags & VisitThread::MatchFileNames) {
-            if (match(node->location.path, t)) {
-                if (full.isEmpty())
-                    full = path + node->symbolName;
-                handler(node, full, userdata);
-                ++ret;
-            }
-        }
+    if (node->type & match->nodeTypes && match->match(path, node))
+        ++ret;
 
-    }
     switch (node->type) {
     case Node::Namespace:
     case Node::Class:
@@ -248,33 +206,16 @@ static int recurse(const T &t, QByteArray path, const Node *node, uint flags, ui
     }
     // ### could consider short circuiting here if for example we know this node
     // ### only has MethodReference children and !(types & MethodReference) || !ret
-    for (Node *c = node->firstChild; c; c = c->nextSibling) {
-        ret += recurse(t, path, c, flags, nodeTypes, handler, userdata);
-    }
+    for (Node *c = node->firstChild; c; c = c->nextSibling)
+        ret += recurse(match, c, path);
     return ret;
 }
 
-int VisitThread::lookup(const QList<QByteArray> &patterns, uint flags, uint nodeTypes, HandleResult handler, void *userdata)
+int VisitThread::lookup(Match *match)
 {
     QReadLocker lock(&mLock);
-    Q_ASSERT(handler);
-    if (flags & MatchRegExp) {
-        QList<QRegExp> rxs;
-        foreach(const QByteArray &pattern, patterns) {
-            if (!pattern.isEmpty()) {
-                QRegExp rx(pattern);
-                if (rx.isValid() && !rx.isEmpty()) {
-                    rxs.append(rx);
-                }
-            }
-        }
-        if (!rxs.isEmpty())
-            return recurse(rxs, QByteArray(), mRoot, flags, nodeTypes, handler, userdata);
-    } else if (flags & MatchLocation) {
-    } else if (!patterns.isEmpty()) {
-        return recurse(patterns, QByteArray(), mRoot, flags, nodeTypes, handler, userdata);
-    }
-    return recurse(true, QByteArray(), mRoot, flags, nodeTypes, handler, userdata);
+    Q_ASSERT(match);
+    return recurse(match, mRoot, QByteArray());
 }
 
 QSet<Path> VisitThread::files() const
