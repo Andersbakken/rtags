@@ -23,6 +23,7 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
         break;
     case CXCursor_FieldDecl:
     case CXCursor_VarDecl:
+    case CXCursor_ParmDecl:
         type = VariableDeclaration;
         break;
     case CXCursor_MemberRef:

@@ -54,7 +54,6 @@ Node * VisitThread::createOrGet(CXCursor cursor)
     case CXCursor_TypeRef:
     case CXCursor_DeclRefExpr:
     case CXCursor_MemberRefExpr:
-    case CXCursor_ParmDecl:
     case CXCursor_UsingDirective:
     case CXCursor_NamespaceRef:
     case CXCursor_TemplateTypeParameter:
