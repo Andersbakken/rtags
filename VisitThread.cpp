@@ -52,7 +52,6 @@ Node * VisitThread::createOrGet(CXCursor cursor)
     case CXCursor_UnexposedDecl:
     case CXCursor_TypedefDecl:
     case CXCursor_TypeRef:
-    case CXCursor_VarDecl:
     case CXCursor_DeclRefExpr:
     case CXCursor_MemberRefExpr:
     case CXCursor_ParmDecl:

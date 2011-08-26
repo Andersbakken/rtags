@@ -314,15 +314,15 @@ QHash<QByteArray, QVariant> Daemon::fileList(const QHash<QByteArray, QVariant> &
 }
 
 QHash<QByteArray, QVariant> Daemon::addSourceFile(const QHash<QByteArray, QVariant> &args,
-                                                  const QList<QByteArray> &)
+                                                  const QList<QByteArray> &freeArgs)
 
 {
     // ### should use free args
     FUNC1(args);
 
-    Path file = args.value("file").toByteArray();
-    if (file.isEmpty())
-        return createResultMap("No file to add (use --file=<file>)");
+    if (freeArgs.isEmpty())
+        return createResultMap("No file to add");
+    Path file = freeArgs.first();
     if (!file.resolve())
         return createResultMap(file + " Doesn't exist");
     mParseThread.addFile(file, GccArguments());

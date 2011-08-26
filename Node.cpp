@@ -22,6 +22,7 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
         symbolName = p->symbolName;
         break;
     case CXCursor_FieldDecl:
+    case CXCursor_VarDecl:
         type = VariableDeclaration;
         break;
     case CXCursor_MemberRef:
