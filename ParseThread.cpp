@@ -14,6 +14,8 @@ public:
     }
     static MakefileManager *instance()
     {
+        static QMutex mutex;
+        QMutexLocker lock(&mutex);
         static MakefileManager *inst = new MakefileManager;
         return inst;
     }
