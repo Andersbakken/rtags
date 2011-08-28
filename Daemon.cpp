@@ -7,6 +7,7 @@
 #include "Utils.h"
 #include "PreCompile.h"
 #include "Node.h"
+#include "FileManager.h"
 
 // const unsigned defaultFlags = (CXTranslationUnit_PrecompiledPreamble
 //                                |CXTranslationUnit_CXXPrecompiledPreamble
