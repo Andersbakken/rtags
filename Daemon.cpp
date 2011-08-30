@@ -15,16 +15,28 @@
 
 struct MatchBase : public Match
 {
-    MatchBase(uint nodeTypes)
-        : Match(nodeTypes)
+    enum Flags {
+        MatchSymbolName = 0x1,
+        MatchFileNames = 0x2,
+        MatchRegExp = 0x4,
+        SymbolOnly = 0x8
+    };
+    
+    MatchBase(uint nodeTypes, uint f)
+        : Match(nodeTypes), flags(f)
     {}
     virtual bool match(const QByteArray &path, const Node *node)
     {
         if (accept(path, node)) {
-            snprintf(buffer, BufferLength, "%s %s%s \"%s:%d:%d\"\n",
-                     Node::typeToName(node->type, true), path.constData(), node->symbolName.constData(),
-                     node->location.path.constData(), node->location.line, node->location.column);
-            output.append(buffer);
+            int len;
+            if (flags & SymbolOnly) {
+                len = snprintf(buffer, BufferLength, "%s\n", node->symbolName.constData());
+            } else {
+                len = snprintf(buffer, BufferLength, "%s %s%s \"%s:%d:%d\"\n",
+                               Node::typeToName(node->type, true), path.constData(), node->symbolName.constData(),
+                               node->location.path.constData(), node->location.line, node->location.column);
+            }
+            output.append(buffer); // ### use len and QByteArray::fromRawData
             return true;
         }
         return false;
@@ -32,6 +44,7 @@ struct MatchBase : public Match
 
     virtual bool accept(const QByteArray &path, const Node *node) = 0;
 
+    const uint flags;
     enum { BufferLength = 1024 };
     char buffer[BufferLength];
     QByteArray output;
@@ -40,7 +53,7 @@ struct MatchBase : public Match
 struct MatchLocation : public MatchBase
 {
     MatchLocation(uint nodeTypes, const Location &loc)
-        : MatchBase(nodeTypes), location(loc)
+        : MatchBase(nodeTypes, 0), location(loc)
     {}
     virtual bool accept(const QByteArray &, const Node *node)
     {
@@ -65,15 +78,9 @@ struct MatchLocation : public MatchBase
 
 struct GenericMatch : public MatchBase
 {
-    enum Flags {
-        MatchSymbolName = 0x1,
-        MatchFileNames = 0x2,
-        MatchRegExp = 0x4
-    };
-    GenericMatch(uint nodeTypes, uint f, const QRegExp &r, const QByteArray &m)
-        : MatchBase(nodeTypes), flags(f), regexp(r), match(m)
+    GenericMatch(uint nodeTypes, uint flags, const QRegExp &r, const QByteArray &m)
+        : MatchBase(nodeTypes, flags), regexp(r), match(m)
     {
-        qDebug() << nodeTypes << f << r << m;
     }
     virtual bool accept(const QByteArray &path, const Node *node)
     {
@@ -92,7 +99,6 @@ struct GenericMatch : public MatchBase
         }
         return false;
     }
-    const uint flags;
     const QRegExp &regexp;
     const QByteArray &match;
 };
@@ -469,15 +475,17 @@ QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &ar
     if (args.contains("regexp")) {
         rx = QRegExp(QString::fromLocal8Bit(freeArgs.value(0)));
         if (!rx.isEmpty() && rx.isValid())
-            flags |= GenericMatch::MatchRegExp;
+            flags |= MatchBase::MatchRegExp;
     } else {
         ba = freeArgs.value(0);
     }
+    if (args.contains("symbolonly"))
+        flags |= MatchBase::SymbolOnly;
 
     if (args.contains("filename"))
-        flags |= GenericMatch::MatchFileNames;
-    if (args.contains("symbolname") || !(flags & (GenericMatch::MatchFileNames)))
-        flags |= GenericMatch::MatchSymbolName;
+        flags |= MatchBase::MatchFileNames;
+    if (args.contains("symbolname") || !(flags & (MatchBase::MatchFileNames)))
+        flags |= MatchBase::MatchSymbolName;
     
     GenericMatch match(nodeTypes, flags, rx, ba);
     mVisitThread.lookup(&match);
