@@ -167,7 +167,6 @@ Daemon::~Daemon()
 
 bool Daemon::start()
 {
-    FUNC;
 #ifndef EBUS_ENABLED
     DaemonAdaptor* adaptor = new DaemonAdaptor(this);
 
@@ -221,7 +220,6 @@ void Daemon::ebusDataReady()
 
 static QHash<QByteArray, QVariant> syntax()
 {
-    FUNC;
     return createResultMap("Syntax: rtags --command=command [--argument1, --argument2=foo, ...]\n"
                            "commands: syntax|quit|add|remove|lookupline|makefile|daemonize|files|lookup\n");
 }
@@ -229,8 +227,6 @@ static QHash<QByteArray, QVariant> syntax()
 QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant> &dashArgs,
                                                const QList<QByteArray>& freeArgs)
 {
-    FUNC2(dashArgs, freeArgs);
-
     QString cmd = dashArgs.value("command").toString();
     if (cmd.isEmpty())
         return createResultMap("No command or path specified");
@@ -292,7 +288,6 @@ static QSet<Path> matches(const QSet<Path> &files, const T &t)
 QHash<QByteArray, QVariant> Daemon::fileList(const QHash<QByteArray, QVariant> &args,
                                              const QList<QByteArray> &)
 {
-    FUNC1(args);
     bool regexp = true;
     QByteArray pattern;
     if (pattern.isEmpty())
@@ -314,13 +309,10 @@ QHash<QByteArray, QVariant> Daemon::fileList(const QHash<QByteArray, QVariant> &
     return createResultMap(joined(out));
 }
 
-QHash<QByteArray, QVariant> Daemon::addSourceFile(const QHash<QByteArray, QVariant> &args,
+QHash<QByteArray, QVariant> Daemon::addSourceFile(const QHash<QByteArray, QVariant> &,
                                                   const QList<QByteArray> &freeArgs)
 
 {
-    // ### should use free args
-    FUNC1(args);
-
     if (freeArgs.isEmpty())
         return createResultMap("No file to add");
     Path file = freeArgs.first();
@@ -333,8 +325,6 @@ QHash<QByteArray, QVariant> Daemon::addSourceFile(const QHash<QByteArray, QVaria
 QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant>& dashArgs,
                                                 const QList<QByteArray>& freeArgs)
 {
-    FUNC2(dashArgs, freeArgs);
-
     Q_UNUSED(dashArgs);
 
     if (freeArgs.isEmpty())
@@ -356,7 +346,6 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
 QHash<QByteArray, QVariant> Daemon::removeSourceFile(const QHash<QByteArray, QVariant> &args,
                                                      const QList<QByteArray> &freeArgs)
 {
-    FUNC1(args);
     const bool regexp = (args.contains("regexp") || args.contains("r"));
     if (freeArgs.size() != 1 || freeArgs.first().isEmpty())
         return createResultMap("Invalid arguments. I need exactly one free arg");
@@ -392,7 +381,6 @@ QHash<QByteArray, QVariant> Daemon::removeSourceFile(const QHash<QByteArray, QVa
 QHash<QByteArray, QVariant> Daemon::lookupLine(const QHash<QByteArray, QVariant> &args,
                                                const QList<QByteArray> &freeArgs)
 {
-    FUNC1(args);
     if (freeArgs.size() != 1
         || !args.contains("line")
         || !args.contains("column"))
@@ -501,7 +489,6 @@ bool Daemon::writeAST(const QHash<Path, CXTranslationUnit>::const_iterator it)
 {
     if (it == mTranslationUnits.end())
         return false;
-    // FUNC;
 
     Path full = QCoreApplication::applicationDirPath().toLocal8Bit() + "/ast" + it.key();
     Path parentDir = full.parentDir();

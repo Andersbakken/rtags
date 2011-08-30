@@ -192,16 +192,10 @@ int main(int argc, char** argv)
         Options::s_verbose = true;
     }
 
-    if (argsmap.contains("trace-function-calls")) {
-        argsmap.remove("trace-function-calls");
-        Options::s_traceFunctionCalls = true;
-    }
-
     if (argsmap.isEmpty())
         argsmap.insert("command", "syntax");
 
     QByteArray cmd = argsmap.value("command").toByteArray();
-    FUNC;
     QCoreApplication::setOrganizationDomain("www.rtags.com");
     QCoreApplication::setOrganizationName("RTags");
     QCoreApplication::setApplicationName("rtags");
@@ -238,7 +232,7 @@ int main(int argc, char** argv)
                 qWarning("Can't connect to rtags daemon");
                 return 0;
             }
-            if (!getenv("RTAGS_NO_AUTOSTART")) {
+            if (!getenv("RTAGS_NO_AUTOSTART") || argsmap.contains("autostart")) {
                 client.startDaemon(app.arguments());
                 for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {
                     if (client.connect()) {

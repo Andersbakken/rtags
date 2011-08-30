@@ -14,12 +14,10 @@ Client::Client(QObject *parent)
     , m_interface(0)
 #endif
 {
-    FUNC1(parent);
 }
 
 bool Client::connect()
 {
-    FUNC;
 #ifdef EBUS_ENABLED
     return ebus.connected();
 #else
@@ -37,7 +35,6 @@ bool Client::connect()
 
 bool Client::connected() const
 {
-    FUNC;
 #ifdef EBUS_ENABLED
     return ebus.connected();
 #else
@@ -47,14 +44,12 @@ bool Client::connected() const
 
 void Client::startDaemon(const QStringList &args)
 {
-    FUNC1(args);
     const QString path = QDir::currentPath();
     QProcess::startDetached(args.first(), QStringList() << QLatin1String("--command=daemonize"), path);
 }
 
 QHash<QByteArray, QVariant> Client::exec(const QHash<QByteArray, QVariant>& dashArgs, const QList<QByteArray>& freeArgs)
 {
-    FUNC2(dashArgs, freeArgs);
     if (!connected())
         return QHash<QByteArray, QVariant>();
 
