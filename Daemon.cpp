@@ -21,7 +21,7 @@ struct MatchBase : public Match
         MatchRegExp = 0x4,
         SymbolOnly = 0x8
     };
-    
+
     MatchBase(uint nodeTypes, uint f)
         : Match(nodeTypes), flags(f)
     {}
@@ -92,7 +92,7 @@ struct GenericMatch : public MatchBase
         }
         if (flags & MatchSymbolName) {
             const QByteArray full = path + node->symbolName;
-            if (!match.isEmpty() && full.contains(match)) 
+            if (!match.isEmpty() && full.contains(match))
                 return true;
             if (flags & MatchRegExp && QString::fromLocal8Bit(full).contains(regexp))
                 return true;
@@ -124,36 +124,6 @@ static QHash<QByteArray, QVariant> createResultMap(const QByteArray& result)
     ret.insert("result", result);
     return ret;
 }
-
-// static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
-// {
-//     QString text = "";
-//     if (clang_isInvalid(clang_getCursorKind(cursor))) {
-//         text += "";
-//         dbg << text;
-//         return dbg;
-//     }
-
-//     QByteArray name = eatString(clang_getCursorDisplayName(cursor));
-//     if (name.isEmpty())
-//         name = eatString(clang_getCursorSpelling(cursor));
-//     if (!name.isEmpty()) {
-//         text += name + ", ";
-//     }
-//     text += kindToString(clang_getCursorKind(cursor));
-//     CXSourceLocation location = clang_getCursorLocation(cursor);
-//     unsigned int line, column, offset;
-//     CXFile file;
-//     clang_getInstantiationLocation(location, &file, &line, &column, &offset);
-//     Path path = eatString(clang_getFileName(file));
-//     if (path.resolve()) {
-//         text += QString(", %1:%2:%3").arg(QString::fromLocal8Bit(path).split('/', QString::SkipEmptyParts).last()).arg(line).arg(column);
-//     }
-//     if (clang_isCursorDefinition(cursor))
-//         text += ", def";
-//     dbg << text;
-//     return dbg;
-// }
 
 
 Daemon::Daemon(QObject *parent)
@@ -344,7 +314,7 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
     }
     QRegExp accept(dashArgs.value("accept").toString());
     QRegExp reject(dashArgs.value("reject").toString());
-    
+
     mParseThread.addMakefile(makefile, accept, reject);
     return createResultMap("Added makefile");
 }
@@ -432,8 +402,8 @@ QHash<QByteArray, QVariant> Daemon::lookupLine(const QHash<QByteArray, QVariant>
     clang_getInstantiationLocation(location, &rfile, &rline, &rcolumn, &roffset);
     CXString rfilename = clang_getFileName(rfile);
 
-    char ret[64];
-    snprintf(ret, 63, "Symbol (decl) at %s, line %u column %u",
+    char ret[128];
+    snprintf(ret, 127, "Symbol (decl) at %s:%u:%u",
              clang_getCString(rfilename), rline, rcolumn);
     clang_disposeString(rfilename);
     return createResultMap(ret);
@@ -486,7 +456,7 @@ QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &ar
         flags |= MatchBase::MatchFileNames;
     if (args.contains("symbolname") || !(flags & (MatchBase::MatchFileNames)))
         flags |= MatchBase::MatchSymbolName;
-    
+
     GenericMatch match(nodeTypes, flags, rx, ba);
     mVisitThread.lookup(&match);
 
@@ -598,4 +568,34 @@ QHash<QByteArray, QVariant> Daemon::complete(const QHash<QByteArray, QVariant>& 
     // ### need to allow for unsaved files
     qDebug() << "completion took" << timer.elapsed();
     return createResultMap(results);
+}
+
+QDebug operator<<(QDebug dbg, CXCursor cursor)
+{
+    QString text = "";
+    if (clang_isInvalid(clang_getCursorKind(cursor))) {
+        text += "";
+        dbg << text;
+        return dbg;
+    }
+
+    QByteArray name = eatString(clang_getCursorDisplayName(cursor));
+    if (name.isEmpty())
+        name = eatString(clang_getCursorSpelling(cursor));
+    if (!name.isEmpty()) {
+        text += name + ", ";
+    }
+    text += kindToString(clang_getCursorKind(cursor));
+    CXSourceLocation location = clang_getCursorLocation(cursor);
+    unsigned int line, column, offset;
+    CXFile file;
+    clang_getInstantiationLocation(location, &file, &line, &column, &offset);
+    Path path = eatString(clang_getFileName(file));
+    if (path.resolve()) {
+        text += QString(", %1:%2:%3").arg(QString::fromLocal8Bit(path).split('/', QString::SkipEmptyParts).last()).arg(line).arg(column);
+    }
+    if (clang_isCursorDefinition(cursor))
+        text += ", def";
+    dbg << text;
+    return dbg;
 }

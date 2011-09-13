@@ -42,6 +42,8 @@ static inline void removeWhitespace(QByteArray &ba)
     }
 }
 
+QDebug operator<<(QDebug dbg, CXCursor cursor);
+
 class Options {
 public:
     static bool s_verbose;

@@ -17,6 +17,7 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
         Q_ASSERT(clang_isCursorDefinition(c));
         type = Class;
         break;
+    case CXCursor_MemberRefExpr:
     case CXCursor_CallExpr:
         type = MethodReference;
         symbolName = p->symbolName;
@@ -27,6 +28,7 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
         type = VariableDeclaration;
         break;
     case CXCursor_MemberRef:
+    case CXCursor_DeclRefExpr:
         type = VariableReference;
         symbolName = p->symbolName;
         break;

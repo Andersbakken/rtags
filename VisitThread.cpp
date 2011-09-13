@@ -26,7 +26,10 @@ void VisitThread::onFileParsed(const Path &path, void *u)
          it != mPendingReferences.end(); ++it) {
         const PendingReference &p = it.value();
         Q_ASSERT(!mNodes.contains(it.key()));
-        Node *n = new Node(createOrGet(p.reference), p.cursor, p.location, it.key());
+        // qDebug() << "pending" << p.cursor << p.reference;
+        CXCursor def = clang_getCursorDefinition(p.reference);
+        Node *n = new Node(createOrGet(isValidCursor(def) ? def : p.reference),
+                           p.cursor, p.location, it.key());
         const int s = n->size();
         added += s;
         mBytes += s;
@@ -38,8 +41,14 @@ void VisitThread::onFileParsed(const Path &path, void *u)
 }
 Node * VisitThread::createOrGet(CXCursor cursor)
 {
-    static const bool verbose = getenv("VERBOSE");
     const CXCursorKind kind = clang_getCursorKind(cursor);
+    static const bool verbose = getenv("VERBOSE");
+    if (verbose) {
+        const Location l(cursor);
+        printf("%s at %s:%d:%d\n", kindToString(kind),
+               l.path.constData(), l.line, l.column);
+    }
+
     // blacklist
     switch (kind) {
     case CXCursor_ClassDecl:
@@ -52,8 +61,6 @@ Node * VisitThread::createOrGet(CXCursor cursor)
     case CXCursor_UnexposedDecl:
     case CXCursor_TypedefDecl:
     case CXCursor_TypeRef:
-    case CXCursor_DeclRefExpr:
-    case CXCursor_MemberRefExpr:
     case CXCursor_UsingDirective:
     case CXCursor_NamespaceRef:
     case CXCursor_TemplateTypeParameter:
@@ -91,7 +98,40 @@ Node * VisitThread::createOrGet(CXCursor cursor)
         return createOrGet(clang_getCursorSemanticParent(cursor));
     case CXCursor_TranslationUnit:
         return mRoot;
-    default:
+    case CXCursor_DeclRefExpr:
+    case CXCursor_MemberRefExpr:
+    case CXCursor_EnumDecl:
+    case CXCursor_FieldDecl:
+    case CXCursor_EnumConstantDecl:
+    case CXCursor_FunctionDecl:
+    case CXCursor_VarDecl:
+    case CXCursor_ParmDecl:
+    case CXCursor_CXXMethod:
+    case CXCursor_Namespace:
+    case CXCursor_LinkageSpec:
+    case CXCursor_Constructor:
+    case CXCursor_Destructor:
+    case CXCursor_ConversionFunction:
+    case CXCursor_FunctionTemplate:
+    case CXCursor_NamespaceAlias:
+    case CXCursor_TypeAliasDecl:
+    case CXCursor_MemberRef:
+        // case CXCursor_FirstInvalid:
+    case CXCursor_InvalidFile:
+    case CXCursor_NoDeclFound:
+    case CXCursor_NotImplemented:
+    case CXCursor_InvalidCode:
+        // case CXCursor_LastInvalid:
+    case CXCursor_CallExpr:
+    case CXCursor_BlockExpr:
+    case CXCursor_FirstAttr:
+    case CXCursor_IBActionAttr:
+    case CXCursor_IBOutletAttr:
+    case CXCursor_IBOutletCollectionAttr:
+    case CXCursor_PreprocessingDirective:
+    case CXCursor_MacroDefinition:
+    case CXCursor_MacroExpansion:
+    case CXCursor_InclusionDirective:
         break;
     }
     if (clang_isInvalid(kind))
@@ -101,11 +141,18 @@ Node * VisitThread::createOrGet(CXCursor cursor)
         return createOrGet(clang_getCursorSemanticParent(cursor));
 
     const uint hash = qHash(cursor, location);
-    if (kind == CXCursor_CallExpr || kind == CXCursor_MemberRef) {
+    if (kind == CXCursor_CallExpr || kind == CXCursor_MemberRef
+        || kind == CXCursor_MemberRefExpr || kind == CXCursor_DeclRefExpr) {
         if (Node *n = mNodes.value(hash))
             return n;
         CXCursor ref = clang_getCursorReferenced(cursor);
-        if (isValidCursor(ref) && !mPendingReferences.contains(hash)) {
+        bool doPending = isValidCursor(ref) && !mPendingReferences.contains(hash);
+        if (kind == CXCursor_CallExpr && clang_getCursorKind(ref) == CXCursor_CXXMethod) {
+            doPending = false;
+        } else if (kind == CXCursor_DeclRefExpr && clang_getCursorKind(ref) != CXCursor_CXXMethod) {
+            doPending = false;
+        }
+        if (doPending) {
             const PendingReference p = { cursor, ref, location };
             mPendingReferences[hash] = p;
             Q_ASSERT(!clang_equalCursors(ref, cursor));

@@ -82,7 +82,7 @@ bool GccArguments::parse(const QByteArray& raw, const Path &path)
     if (!first.contains("gcc") && first.contains("g++") && first.contains("c++")) {
         return false; // not a compile line at all, just return without a warning
     }
-    
+
     const int argc = args.size();
 
     data->args.clear();

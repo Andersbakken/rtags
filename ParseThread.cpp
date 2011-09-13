@@ -141,7 +141,7 @@ public slots:
             data.buffer.clear();
         }
     }
-    
+
     void onMakeError(QProcess::ProcessError error)
     {
         qWarning() << error << qobject_cast<QProcess*>(sender())->errorString();
@@ -313,7 +313,7 @@ void ParseThread::run()
         }
         QElapsedTimer timer;
         timer.start();
-        
+
         Q_ASSERT(f);
         const QList<QByteArray> compilerOptions = f->arguments.includePaths() + f->arguments.arguments("-D");
         const int compilerOptionsCount = compilerOptions.count();
@@ -390,7 +390,7 @@ void ParseThread::run()
                     }
                     mDependencies[header].insert(f->path);
                 }
-            
+
                 if (!mFiles.contains(f->path)) {
                     QMetaObject::invokeMethod(MakefileManager::instance(), "watchPath", Q_ARG(Path, f->path));
                 }

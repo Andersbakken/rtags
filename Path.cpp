@@ -95,7 +95,7 @@ bool Path::resolve(const Path &cwd)
             return true;
         }
     }
-        
+
     char *resolved = realpath(constData(), buffer);
     if (resolved) {
         QByteArray::operator=(resolved);
