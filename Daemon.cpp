@@ -142,6 +142,7 @@ Daemon::~Daemon()
 {
     FileManager::instance()->quit();
     FileManager::instance()->wait();
+    delete FileManager::instance();
 }
 
 bool Daemon::start()
