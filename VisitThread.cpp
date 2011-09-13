@@ -90,6 +90,22 @@ Node * VisitThread::createOrGet(CXCursor cursor)
     case CXCursor_ObjCProtocolRef:
     case CXCursor_ObjCClassRef:
     case CXCursor_ObjCMessageExpr:
+    case CXCursor_InvalidFile:
+    case CXCursor_NoDeclFound:
+    case CXCursor_NotImplemented:
+    case CXCursor_InvalidCode:
+    case CXCursor_LinkageSpec:
+    case CXCursor_BlockExpr:
+    case CXCursor_FirstAttr:
+    case CXCursor_IBActionAttr:
+    case CXCursor_IBOutletAttr:
+    case CXCursor_IBOutletCollectionAttr:
+    case CXCursor_PreprocessingDirective:
+    case CXCursor_MacroDefinition:
+    case CXCursor_MacroExpansion:
+    case CXCursor_InclusionDirective:
+    case CXCursor_TypeAliasDecl:
+    case CXCursor_NamespaceAlias:
         if (verbose) {
             const Location l(cursor);
             printf("Ignoring %s at %s:%d:%d\n", kindToString(kind),
@@ -108,30 +124,14 @@ Node * VisitThread::createOrGet(CXCursor cursor)
     case CXCursor_ParmDecl:
     case CXCursor_CXXMethod:
     case CXCursor_Namespace:
-    case CXCursor_LinkageSpec:
     case CXCursor_Constructor:
     case CXCursor_Destructor:
     case CXCursor_ConversionFunction:
     case CXCursor_FunctionTemplate:
-    case CXCursor_NamespaceAlias:
-    case CXCursor_TypeAliasDecl:
     case CXCursor_MemberRef:
         // case CXCursor_FirstInvalid:
-    case CXCursor_InvalidFile:
-    case CXCursor_NoDeclFound:
-    case CXCursor_NotImplemented:
-    case CXCursor_InvalidCode:
         // case CXCursor_LastInvalid:
     case CXCursor_CallExpr:
-    case CXCursor_BlockExpr:
-    case CXCursor_FirstAttr:
-    case CXCursor_IBActionAttr:
-    case CXCursor_IBOutletAttr:
-    case CXCursor_IBOutletCollectionAttr:
-    case CXCursor_PreprocessingDirective:
-    case CXCursor_MacroDefinition:
-    case CXCursor_MacroExpansion:
-    case CXCursor_InclusionDirective:
         break;
     }
     if (clang_isInvalid(kind))
