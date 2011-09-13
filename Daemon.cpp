@@ -135,10 +135,13 @@ Daemon::Daemon(QObject *parent)
     mVisitThread.start();
     connect(&mParseThread, SIGNAL(fileParsed(Path, void*)), &mVisitThread, SLOT(onFileParsed(Path, void*)));
     connect(&mParseThread, SIGNAL(invalidated(Path)), &mVisitThread, SLOT(invalidate(Path)));
+    FileManager::instance()->start();
 }
 
 Daemon::~Daemon()
 {
+    FileManager::instance()->quit();
+    FileManager::instance()->wait();
 }
 
 bool Daemon::start()
@@ -217,10 +220,6 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         QTimer::singleShot(100, QCoreApplication::instance(), SLOT(quit()));
         // hack to make the quit command properly respond before the server goes down
         return createResultMap("quitting");
-    } else if (cmd == "add") {
-        return addSourceFile(dashArgs, freeArgs);
-    } else if (cmd == "remove") {
-        return removeSourceFile(dashArgs, freeArgs);
     } else if (cmd == "printtree") {
         mVisitThread.printTree();
         return createResultMap("Done");;
@@ -285,19 +284,6 @@ QHash<QByteArray, QVariant> Daemon::fileList(const QHash<QByteArray, QVariant> &
     return createResultMap(joined(out));
 }
 
-QHash<QByteArray, QVariant> Daemon::addSourceFile(const QHash<QByteArray, QVariant> &,
-                                                  const QList<QByteArray> &freeArgs)
-
-{
-    if (freeArgs.isEmpty())
-        return createResultMap("No file to add");
-    Path file = freeArgs.first();
-    if (!file.resolve())
-        return createResultMap(file + " Doesn't exist");
-    mParseThread.addFile(file, GccArguments());
-    return createResultMap("File added");
-}
-
 QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant>& dashArgs,
                                                 const QList<QByteArray>& freeArgs)
 {
@@ -312,46 +298,8 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
     if (!makefile.isFile()) {
         return createResultMap("Makefile does not exist: " + makefile);
     }
-    QRegExp accept(dashArgs.value("accept").toString());
-    QRegExp reject(dashArgs.value("reject").toString());
-
-    mParseThread.addMakefile(makefile, accept, reject);
+    FileManager::instance()->addMakefile(makefile);
     return createResultMap("Added makefile");
-}
-
-QHash<QByteArray, QVariant> Daemon::removeSourceFile(const QHash<QByteArray, QVariant> &args,
-                                                     const QList<QByteArray> &freeArgs)
-{
-    const bool regexp = (args.contains("regexp") || args.contains("r"));
-    if (freeArgs.size() != 1 || freeArgs.first().isEmpty())
-        return createResultMap("Invalid arguments. I need exactly one free arg");
-    QRegExp rx;
-    QByteArray match;
-    if (regexp) {
-        rx.setPattern(freeArgs.first());
-        if (!rx.isValid() || rx.isEmpty())
-            return createResultMap("Invalid arguments. Bad regexp");
-    } else {
-        match = freeArgs.first();
-    }
-
-    QList<QByteArray> removed;
-    QHash<Path, CXTranslationUnit>::iterator it = mTranslationUnits.begin();
-    while (it != mTranslationUnits.end()) {
-        if ((regexp && QString::fromLocal8Bit(it.key()).contains(rx))
-            || (!regexp && it.key().contains(match))) {
-            clang_disposeTranslationUnit(it.value());
-            it = mTranslationUnits.erase(it);
-            removed.append(it.key());
-        } else {
-            ++it;
-        }
-    }
-
-    if (removed.isEmpty())
-        return createResultMap("No matches for " + freeArgs.first());
-
-    return createResultMap("Removed " + joined(removed));
 }
 
 QHash<QByteArray, QVariant> Daemon::lookupLine(const QHash<QByteArray, QVariant> &args,
@@ -493,21 +441,19 @@ void Daemon::onFileParsed(const Path &path, void *translationUnit)
 QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
                                          const QList<QByteArray> &freeArgs)
 {
-    Path filename = freeArgs.value(0);
-    if (!filename.isResolved())
-        filename.resolve();
-    if (!filename.isFile())
-        return createResultMap("No filename specified");
-    const QHash<Path, CXTranslationUnit>::iterator it = mTranslationUnits.find(filename);
-    if (it != mTranslationUnits.end()) {
-        if (!it.value())
-            return createResultMap("File already loading " + filename);
-        clang_disposeTranslationUnit(it.value());
-        mTranslationUnits.erase(it);
+    int added = 0;
+    foreach(const QByteArray &arg, freeArgs) {
+        Path filename = arg;
+        if (!filename.isResolved())
+            filename.resolve();
+        if (!filename.isFile()) {
+            qWarning("Can't find %s", arg.constData());
+        } else {
+            mParseThread.load(filename);
+            ++added;
+        }
     }
-    mTranslationUnits[filename] = 0;
-    mParseThread.loadTranslationUnit(filename, this, "onFileParsed");
-    return createResultMap("Loading");
+    return createResultMap("Loading " + QByteArray::number(added) + " files");
 }
 
 QHash<QByteArray, QVariant> Daemon::complete(const QHash<QByteArray, QVariant>& args,

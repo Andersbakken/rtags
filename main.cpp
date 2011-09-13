@@ -175,7 +175,6 @@ int main(int argc, char** argv)
         QFile::rename("/tmp/rtags.log", QString("/tmp/rtags.log.%1").arg(idx));
     }
     QCoreApplication app(argc, argv);
-    Path::initStaticData();
     QThread::currentThread()->setObjectName("main");
     qRegisterMetaType<QList<QByteArray> >();
     qRegisterMetaType<ByteArrayHash>();

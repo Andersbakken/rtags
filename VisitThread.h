@@ -27,8 +27,6 @@ public:
     int lookup(Match *match);
     void printTree();
     QSet<Path> files() const;
-protected:
-    virtual void run();
 public slots:
     void invalidate(const Path &path);
     void onFileParsed(const Path &path, void *unit);

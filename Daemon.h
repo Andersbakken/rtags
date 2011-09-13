@@ -41,10 +41,6 @@ private:
                                            const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> addMakefile(const QHash<QByteArray, QVariant>& dashArgs,
                                             const QList<QByteArray>& freeArgs);
-    QHash<QByteArray, QVariant> addSourceFile(const QHash<QByteArray, QVariant>& args,
-                                              const QList<QByteArray> &freeArgs);
-    QHash<QByteArray, QVariant> removeSourceFile(const QHash<QByteArray, QVariant>& args,
-                                                 const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> load(const QHash<QByteArray, QVariant>& args,
                                      const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> fileList(const QHash<QByteArray, QVariant> &args,

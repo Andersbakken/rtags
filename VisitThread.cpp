@@ -49,7 +49,9 @@ Node * VisitThread::createOrGet(CXCursor cursor)
                l.path.constData(), l.line, l.column);
     }
 
-    // blacklist
+    if (clang_isInvalid(kind))
+        return mRoot;
+    
     switch (kind) {
     case CXCursor_ClassDecl:
     case CXCursor_StructDecl:
@@ -134,8 +136,6 @@ Node * VisitThread::createOrGet(CXCursor cursor)
     case CXCursor_CallExpr:
         break;
     }
-    if (clang_isInvalid(kind))
-        return mRoot;
     const Location location(cursor);
     if (!location.exists())
         return createOrGet(clang_getCursorSemanticParent(cursor));
@@ -267,10 +267,4 @@ QSet<Path> VisitThread::files() const
 {
     QMutexLocker lock(&mMutex);
     return mFiles;
-}
-
-void VisitThread::run()
-{
-    Path::initStaticData();
-    exec();
 }

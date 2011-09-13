@@ -77,17 +77,10 @@ bool Path::isResolved() const
     }
     return true;
 }
-static QHash<QThread*, QByteArray> sThreadStorage;
-static void cleanup()
-{
-    sThreadStorage.clear();
-}
 
 bool Path::resolve(const Path &cwd)
 {
     // Q_ASSERT(!isResolved()); // probably best to avoid re-resolving
-    Q_ASSERT(sThreadStorage.contains(QThread::currentThread()));
-    char *buffer = sThreadStorage[QThread::currentThread()].data();
     if (!cwd.isEmpty() && !isAbsolute()) {
         Path copy = cwd + '/' + *this;
         if (copy.resolve()) {
@@ -96,17 +89,13 @@ bool Path::resolve(const Path &cwd)
         }
     }
 
-    char *resolved = realpath(constData(), buffer);
-    if (resolved) {
-        QByteArray::operator=(resolved);
-        return true;
+    {
+        char buffer[PATH_MAX + 1];
+        char *resolved = realpath(constData(), buffer);
+        if (resolved) {
+            QByteArray::operator=(resolved);
+            return true;
+        }
     }
     return false;
-}
-
-
-void Path::initStaticData()
-{
-    qAddPostRoutine(cleanup);
-    sThreadStorage[QThread::currentThread()] = QByteArray(PATH_MAX + 1, ' ');
 }

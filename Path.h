@@ -54,8 +54,6 @@ public:
     qint64 fileSize() const;
     static Path resolved(const QByteArray &path, bool *ok = 0);
     static Path eatCXString(CXString string) { return eatString(string); }
-
-    static void initStaticData();
 };
 Q_DECLARE_METATYPE(Path);
 
