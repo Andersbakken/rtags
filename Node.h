@@ -14,18 +14,17 @@ struct Node
         Root = 0x000001,
         MethodDeclaration = 0x000002,
         MethodDefinition = 0x000004,
-        MethodReference = 0x000008, // Reference?
+        ParentReference = 0x000008,
         Class = 0x000010,
         Struct = 0x000020,
         Namespace = 0x000040,
         VariableDeclaration = 0x000080,
-        VariableReference = 0x000100,
-        Enum = 0x000200,
-        EnumValue = 0x000400,
-        All = (None|Root|MethodDeclaration|MethodDefinition|MethodReference|Class|
-               Struct|Namespace|VariableDeclaration|VariableReference|Enum|EnumValue)
+        Enum = 0x000100,
+        EnumValue = 0x000200,
+        All = (None|Root|MethodDeclaration|MethodDefinition|Class|
+               Struct|Namespace|VariableDeclaration|Enum|EnumValue|ParentReference)
     } type;
-    Location location; // should be a QSet probably (or a QList)
+    Location location;
     uint hash;
 
     Node();

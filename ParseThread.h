@@ -14,10 +14,7 @@ public:
     ~ParseThread();
     void abort();
     void load(const Path &path);
-    void reparse(const Path &path);
-    void handleFileChanged(const Path &path);
 signals:
-    void invalidated(const Path &path);
     void fileParsed(const Path &path, void *translationUnit);
     void parseError(const Path &path);
 protected:
@@ -29,12 +26,9 @@ private:
     struct File {
         Path path;
         GccArguments arguments;
-        QObject *receiver;
-        const char *member;
         File *next;
     } *mFirst, *mLast;
     int mCount;
-    QHash<Path, QSet<Path> > mDependencies;
     CXIndex mIndex;
 };
 

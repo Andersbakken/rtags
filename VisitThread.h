@@ -13,8 +13,13 @@ struct Match
     {}
     virtual ~Match() {}
 
+    enum MatchResult {
+        Finish,
+        Recurse,
+        Skip
+    };
     // path means e.g. namespace::class:: (including trailing double colons)
-    virtual bool match(const QByteArray &path, const Node *node) = 0;
+    virtual MatchResult match(const QByteArray &path, const Node *node) = 0;
 
     const uint nodeTypes;
 };
@@ -35,7 +40,6 @@ private:
     static CXChildVisitResult buildTree(CXCursor cursor, CXCursor, CXClientData data);
     struct PendingReference {
         CXCursor cursor;
-        CXCursor reference;
         Location location;
     };
     mutable QMutex mMutex;

@@ -24,11 +24,15 @@ void VisitThread::onFileParsed(const Path &path, void *u)
     int added = 0;
     for (QHash<uint, PendingReference>::const_iterator it = mPendingReferences.begin();
          it != mPendingReferences.end(); ++it) {
-        const PendingReference &p = it.value();
         Q_ASSERT(!mNodes.contains(it.key()));
-        // qDebug() << "pending" << p.cursor << p.reference;
-        CXCursor def = clang_getCursorDefinition(p.reference);
-        Node *n = new Node(createOrGet(isValidCursor(def) ? def : p.reference),
+        const PendingReference &p = it.value();
+        CXCursor ref = clang_getCursorReferenced(p.cursor);
+        if (!isValidCursor(ref)) {
+            qWarning() << "Can't find referenced cursor for" << p.cursor;
+            continue;
+        }
+        CXCursor def = clang_getCursorDefinition(ref);
+        Node *n = new Node(createOrGet(isValidCursor(def) ? def : ref),
                            p.cursor, p.location, it.key());
         const int s = n->size();
         added += s;
@@ -51,18 +55,13 @@ Node * VisitThread::createOrGet(CXCursor cursor)
 
     if (clang_isInvalid(kind))
         return mRoot;
-    
+
+    bool delay = false;
     switch (kind) {
-    case CXCursor_ClassDecl:
-    case CXCursor_StructDecl:
-        if (clang_isCursorDefinition(cursor))
-            break;
-        // forward declaration, fall through
     case CXCursor_FirstStmt:
     case CXCursor_FirstExpr:
     case CXCursor_UnexposedDecl:
     case CXCursor_TypedefDecl:
-    case CXCursor_TypeRef:
     case CXCursor_UsingDirective:
     case CXCursor_NamespaceRef:
     case CXCursor_TemplateTypeParameter:
@@ -116,8 +115,17 @@ Node * VisitThread::createOrGet(CXCursor cursor)
         return createOrGet(clang_getCursorSemanticParent(cursor));
     case CXCursor_TranslationUnit:
         return mRoot;
+    case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
+        if (!clang_isCursorDefinition(cursor))
+            delay = true;
+        break;
     case CXCursor_DeclRefExpr:
+    case CXCursor_CallExpr:
+    case CXCursor_TypeRef:
     case CXCursor_MemberRefExpr:
+        delay = true;
+        break;
     case CXCursor_EnumDecl:
     case CXCursor_FieldDecl:
     case CXCursor_EnumConstantDecl:
@@ -133,7 +141,6 @@ Node * VisitThread::createOrGet(CXCursor cursor)
     case CXCursor_MemberRef:
         // case CXCursor_FirstInvalid:
         // case CXCursor_LastInvalid:
-    case CXCursor_CallExpr:
         break;
     }
     const Location location(cursor);
@@ -141,22 +148,32 @@ Node * VisitThread::createOrGet(CXCursor cursor)
         return createOrGet(clang_getCursorSemanticParent(cursor));
 
     const uint hash = qHash(cursor, location);
-    if (kind == CXCursor_CallExpr || kind == CXCursor_MemberRef
-        || kind == CXCursor_MemberRefExpr || kind == CXCursor_DeclRefExpr) {
+    if (delay) {
         if (Node *n = mNodes.value(hash))
             return n;
-        CXCursor ref = clang_getCursorReferenced(cursor);
-        bool doPending = isValidCursor(ref) && !mPendingReferences.contains(hash);
-        if (kind == CXCursor_CallExpr && clang_getCursorKind(ref) == CXCursor_CXXMethod) {
-            doPending = false;
-        } else if (kind == CXCursor_DeclRefExpr && clang_getCursorKind(ref) != CXCursor_CXXMethod) {
-            doPending = false;
-        }
-        if (doPending) {
-            const PendingReference p = { cursor, ref, location };
-            mPendingReferences[hash] = p;
-            Q_ASSERT(!clang_equalCursors(ref, cursor));
-        }
+        const PendingReference p = { cursor, location };
+        mPendingReferences[hash] = p;
+        // CXCursor ref = clang_getCursorReferenced(cursor);
+        // bool doPending = isValidCursor(ref) && !mPendingReferences.contains(hash);
+        // if (kind == CXCursor_CallExpr && clang_getCursorKind(ref) == CXCursor_CXXMethod) {
+        //     doPending = false;
+        // } else if (kind == CXCursor_DeclRefExpr && clang_getCursorKind(ref) != CXCursor_CXXMethod) {
+        //     doPending = false;
+        // }
+        // if (doPending) {
+        //     qDebug() << "gonna do pending" << cursor << ref;
+        //     if (clang_equalCursors(ref, cursor)) {
+        //         printf("%s %d: if (clang_equalCursors(ref, cursor)) {\n", __FILE__, __LINE__);
+        //         ref = CXCursor();
+        //         // For forward declarations of structs ref and cursor is the
+        //         // same, probably because at the time we parse this we haven't
+        //         // seen the definition of the class, delay initializing ref
+        //         // until the end
+        //     }
+
+        //     if (!mPendingReferences.contains(hash)) {
+        //     mPendingReferences[hash] = p;
+        // }
         return createOrGet(clang_getCursorSemanticParent(cursor));
     }
 

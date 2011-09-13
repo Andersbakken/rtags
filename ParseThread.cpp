@@ -41,17 +41,6 @@ void ParseThread::load(const Path &path)
     mWaitCondition.wakeOne();
 }
 
-void ParseThread::handleFileChanged(const Path &p)
-{
-    // qDebug() << p << "was modified";
-
-    // if (p.exists() && mFiles.contains(p))
-    //     reparse(p);
-    // foreach(const Path &pp, mDependencies.value(p)) {
-    //     reparse(pp);
-    // }
-}
-
 struct PrecompileData
 {
     QList<Path> direct;
@@ -182,26 +171,4 @@ void ParseThread::run()
         }
         delete f;
     }
-}
-
-void ParseThread::reparse(const Path &path)
-{
-    // if (!mFiles.contains(path)) {
-    //     qWarning("Can't reparse %s", path.constData());
-    //     return;
-    // }
-    // {
-    //     QMutexLocker lock(&mMutex);
-    //     for (File *f = mFirst; f; f = f->next) {
-    //         if (f->path == path) {
-    //             qDebug() << "already queued for reparse" << path;
-    //             return; // already in the queue, raise condition? ###
-    //         }
-    //     }
-    // }
-    // emit invalidated(path);
-    // qDebug() << "reparsing" << path;
-    // Q_ASSERT(mFiles.contains(path));
-    // const ParsedFileData &data = mFiles[path];
-    // addFile(path, data.arguments, data.receiver, data.member);
 }

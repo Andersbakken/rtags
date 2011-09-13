@@ -16,16 +16,17 @@
 struct MatchBase : public Match
 {
     enum Flags {
-        MatchSymbolName = 0x1,
-        MatchFileNames = 0x2,
-        MatchRegExp = 0x4,
-        SymbolOnly = 0x8
+        MatchSymbolName = 0x01,
+        MatchFileNames = 0x02,
+        MatchRegExp = 0x04,
+        SymbolOnly = 0x08,
+        OneMatch = 0x10
     };
 
     MatchBase(uint nodeTypes, uint f)
         : Match(nodeTypes), flags(f)
     {}
-    virtual bool match(const QByteArray &path, const Node *node)
+    virtual MatchResult match(const QByteArray &path, const Node *node)
     {
         if (accept(path, node)) {
             int len;
@@ -37,9 +38,9 @@ struct MatchBase : public Match
                                node->location.path.constData(), node->location.line, node->location.column);
             }
             output.append(buffer); // ### use len and QByteArray::fromRawData
-            return true;
+            return (flags & OneMatch ? Finish : Recurse);
         }
-        return false;
+        return Skip;
     }
 
     virtual bool accept(const QByteArray &path, const Node *node) = 0;
@@ -50,28 +51,44 @@ struct MatchBase : public Match
     QByteArray output;
 };
 
-struct MatchLocation : public MatchBase
+struct FollowSymbolMatch : public Match
 {
-    MatchLocation(uint nodeTypes, const Location &loc)
-        : MatchBase(nodeTypes, 0), location(loc)
+    FollowSymbolMatch(const Location &loc)
+        : Match(Node::All), location(loc)
     {}
-    virtual bool accept(const QByteArray &, const Node *node)
+    virtual MatchResult match(const QByteArray &symbol, const Node *node)
     {
-        //     switch (node->type) {
-        //     case Node::MethodDeclaration:
-        //         node = node->methodDefinition();
-        //         break;
-        //     case Node::MethodDefinition:
-        //         node = node->methodDeclaration();
-        //         break;
-        //     case Node::MethodReference:
-        //         node = node->methodDefinition();
-        //         break;
-        //     default:
-        //         break;
-        //     }
+        if (node->location == location) {
+            Node *other = 0;
+            switch (node->type) {
+            case Node::All:
+            case Node::None:
+            case Node::Root:
+                break;
+            case Node::MethodDeclaration:
+                other = node->methodDefinition();
+                break;
+            case Node::ParentReference:
+                other = node->parent;
+                break;
+            case Node::MethodDefinition:
+                other = node->methodDeclaration();
+                break;
+            case Node::Class:
+            case Node::Struct:
+            case Node::Namespace:
+            case Node::VariableDeclaration:
+            case Node::Enum:
+                // can we know when an enum type is referenced
+                break;
+            case Node::EnumValue:
+                // can we know when an EnumValue is referenced
+                break;
+            }
+            return Finish;
+        }
 
-        return (node->location == location);
+        return Recurse;
     }
     const Location &location;
 };
@@ -134,7 +151,6 @@ Daemon::Daemon(QObject *parent)
     mParseThread.start();
     mVisitThread.start();
     connect(&mParseThread, SIGNAL(fileParsed(Path, void*)), &mVisitThread, SLOT(onFileParsed(Path, void*)));
-    connect(&mParseThread, SIGNAL(invalidated(Path)), &mVisitThread, SLOT(invalidate(Path)));
     FileManager::instance()->start();
 }
 
@@ -224,65 +240,16 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
     } else if (cmd == "printtree") {
         mVisitThread.printTree();
         return createResultMap("Done");;
-    } else if (cmd == "lookupline") {
-        return lookupLine(dashArgs, freeArgs);
+    } else if (cmd == "followsymbol") {
+        return followSymbol(dashArgs, freeArgs);
     } else if (cmd == "makefile") {
         return addMakefile(dashArgs, freeArgs);
-    } else if (cmd == "files") {
-        return fileList(dashArgs, freeArgs);
     } else if (cmd == "lookup") {
         return lookup(dashArgs, freeArgs);
     } else if (cmd == "load") {
         return load(dashArgs, freeArgs);
-    } else if (cmd == "complete") {
-        return complete(dashArgs, freeArgs);
     }
     return createResultMap("Unknown command");
-}
-
-static bool contains(const Path &key, const QRegExp &rx)
-{
-    return QString::fromLocal8Bit(key).contains(rx);
-}
-
-static bool contains(const Path &key, const QByteArray &b)
-{
-    return key.contains(b);
-}
-
-template <typename T>
-static QSet<Path> matches(const QSet<Path> &files, const T &t)
-{
-    QSet<Path> matches;
-    foreach(const Path &path, files) {
-        if (contains(path, t))
-            matches += path;
-    }
-    return matches;
-}
-
-QHash<QByteArray, QVariant> Daemon::fileList(const QHash<QByteArray, QVariant> &args,
-                                             const QList<QByteArray> &)
-{
-    bool regexp = true;
-    QByteArray pattern;
-    if (pattern.isEmpty())
-        pattern = args.value("regexp").toByteArray();
-    if (pattern.isEmpty()) {
-        pattern = args.value("match").toByteArray();
-        regexp = false;
-    }
-    QSet<Path> files = mVisitThread.files();
-    QSet<Path> out;
-    if (pattern.isEmpty()) {
-        out = files;
-    } else if (regexp) {
-        QRegExp rx(pattern);
-        out = matches(files, rx);
-    } else {
-        out = matches(files, pattern);
-    }
-    return createResultMap(joined(out));
 }
 
 QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant>& dashArgs,
@@ -302,62 +269,6 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
     FileManager::instance()->addMakefile(makefile);
     return createResultMap("Added makefile");
 }
-
-QHash<QByteArray, QVariant> Daemon::lookupLine(const QHash<QByteArray, QVariant> &args,
-                                               const QList<QByteArray> &freeArgs)
-{
-    if (freeArgs.size() != 1
-        || !args.contains("line")
-        || !args.contains("column"))
-        return createResultMap("Invalid argument count");
-
-    Path file = freeArgs.first();
-    if (file.isResolved())
-        file.resolve();
-    int line = args.value("line").toInt();
-    int column = args.value("column").toInt();
-
-    if (!file.isFile() || line == 0 || column == 0)
-        return createResultMap("Invalid argument type");
-
-    if (!mTranslationUnits.value(file)) {
-        const Location loc(file, line, column);
-        MatchLocation ml((Node::All & ~Node::Root), loc);
-        mVisitThread.lookup(&ml);
-        return createResultMap(ml.output);
-    }
-
-    CXTranslationUnit unit = mTranslationUnits.value(file);
-    CXFile f = clang_getFile(unit, file.constData());
-
-    CXSourceLocation location = clang_getLocation(unit, f, line, column);
-    CXCursor cursor = clang_getCursor(unit, location);
-    if (!isValidCursor(cursor))
-        return createResultMap("Unable to get cursor for location");
-
-    CXCursorKind kind = clang_getCursorKind(cursor);
-    CXCursor referenced;
-    if (kind == CXCursor_CXXMethod) { // might need to add more here
-        referenced = clang_getCanonicalCursor(cursor);
-    } else {
-        referenced = clang_getCursorReferenced(cursor);
-    }
-    if (!isValidCursor(referenced))
-        return createResultMap("No referenced cursor");
-
-    location = clang_getCursorLocation(referenced);
-    unsigned int rline, rcolumn, roffset;
-    CXFile rfile;
-    clang_getInstantiationLocation(location, &rfile, &rline, &rcolumn, &roffset);
-    CXString rfilename = clang_getFileName(rfile);
-
-    char ret[128];
-    snprintf(ret, 127, "Symbol (decl) at %s:%u:%u",
-             clang_getCString(rfilename), rline, rcolumn);
-    clang_disposeString(rfilename);
-    return createResultMap(ret);
-}
-
 
 static Node::Type stringToType(const QByteArray &in)
 {
@@ -412,33 +323,6 @@ QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &ar
     return createResultMap(match.output);
 }
 
-bool Daemon::writeAST(const QHash<Path, CXTranslationUnit>::const_iterator it)
-{
-    if (it == mTranslationUnits.end())
-        return false;
-
-    Path full = QCoreApplication::applicationDirPath().toLocal8Bit() + "/ast" + it.key();
-    Path parentDir = full.parentDir();
-    QDir dir(parentDir);
-    if (!dir.exists())
-        dir.mkpath(QString::fromLocal8Bit(parentDir));
-
-    const int ret = clang_saveTranslationUnit(it.value(), full.constData(),
-                                              clang_defaultSaveOptions(it.value()));
-    return (ret == 0);
-}
-
-void Daemon::onFileParsed(const Path &path, void *translationUnit)
-{
-    if (mTranslationUnits.contains(path)) {
-        clang_disposeTranslationUnit(mTranslationUnits.value(path));
-        qDebug() << "reparsed for completion" << path;
-    } else {
-        qDebug() << "parsed" << path << "for completion";
-    }
-    mTranslationUnits[path] = reinterpret_cast<CXTranslationUnit>(translationUnit);
-}
-
 QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
                                          const QList<QByteArray> &freeArgs)
 {
@@ -450,6 +334,7 @@ QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
         if (!filename.isFile()) {
             qWarning("Can't find %s", arg.constData());
         } else {
+            mVisitThread.invalidate(filename);
             mParseThread.load(filename);
             ++added;
         }
@@ -457,64 +342,23 @@ QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
     return createResultMap("Loading " + QByteArray::number(added) + " files");
 }
 
-QHash<QByteArray, QVariant> Daemon::complete(const QHash<QByteArray, QVariant>& args,
-                                             const QList<QByteArray> &freeArgs)
+QHash<QByteArray, QVariant> Daemon::followSymbol(const QHash<QByteArray, QVariant>& args,
+                                                 const QList<QByteArray> &freeArgs)
 {
-    QElapsedTimer timer;
-    timer.start();
-    const Path file = freeArgs.value(0);
-    if (!file.isFile())
-        return createResultMap("Invalid file " + freeArgs.value(0));
-    CXTranslationUnit unit = mTranslationUnits.value(file);
-    if (!unit)
-        return createResultMap(file + " is not loaded");
-
-    const unsigned line = args.value("line", UINT_MAX).toUInt();
-    const unsigned column = args.value("column", UINT_MAX).toUInt();
-    if (line == UINT_MAX || column == UINT_MAX)
-        return createResultMap("Invalid args. Need both column and line");
-
-    static const unsigned options = CXCompletionContext_ObjCInterface; //CXCompletionContext_DotMemberAccess;
-    CXCodeCompleteResults *res = clang_codeCompleteAt(unit, file.constData(),
-                                                      line, column, 0, 0,
-                                                      options);
-    if (!res)
-        return createResultMap("Can't complete here for this. You'd probably want a better error message");
-    QByteArray results;
-    for (unsigned i=0; i<res->NumResults; ++i) {
-        CXCompletionResult r = res->Results[i];
-        // switch (r.CursorKind) {
-        // case CXCursor_NotImplemented:
-        // case CXCursor_MacroDefinition:
-        //     continue;
-        // default:
-        //     break;
-        // }
-        const unsigned count = clang_getNumCompletionChunks(r.CompletionString);
-        QByteArray result;
-        for (unsigned j=0; j<count; ++j) {
-            if (j)
-                result += ' ';
-            result += eatString(clang_getCompletionChunkText(r.CompletionString, j)); // copies unnecessarily
-            result += '(';
-            result += clang_getCompletionChunkKind(r.CompletionString, j);
-            result += ')';
-
-        }
-        results += " (";
-        results += kindToString(r.CursorKind);
-        results += ')';
-        results += " ";
-        results += QByteArray::number(clang_getCompletionPriority(r.CompletionString));
-        if (!results.isEmpty())
-            results += '\n';
-        results += result;
-    }
-
-    clang_disposeCodeCompleteResults(res);
-    // ### need to allow for unsaved files
-    qDebug() << "completion took" << timer.elapsed();
-    return createResultMap(results);
+    if (freeArgs.size() != 1)
+        return createResultMap("Invalid args");
+    Path path = freeArgs.first();
+    if (!path.resolve())
+        return createResultMap("Invalid file " + freeArgs.first());
+    bool ok;
+    const int line = args.value("line").toUInt(&ok);
+    if (!ok)
+        return createResultMap("Invalid line arg");
+    const int col = args.value("column").toUInt(&ok);
+    if (!ok)
+        return createResultMap("Invalid column arg");
+    FollowSymbolMatch match(Location(path, line, col));
+    const int ret = mVisitThread.lookup(&match);
 }
 
 QDebug operator<<(QDebug dbg, CXCursor cursor)

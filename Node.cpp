@@ -9,17 +9,18 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
 {
     const CXCursorKind kind = clang_getCursorKind(c);
     switch (kind) {
+    case CXCursor_TypeRef:
+        type = ParentReference; // This is more of a typeref than a forward declararion, rename?
+        break;
     case CXCursor_StructDecl:
-        Q_ASSERT(clang_isCursorDefinition(c));
-        type = Struct;
+        type = clang_isCursorDefinition(c) ? Struct : ParentReference;
         break;
     case CXCursor_ClassDecl:
-        Q_ASSERT(clang_isCursorDefinition(c));
-        type = Class;
+        type = clang_isCursorDefinition(c) ? Class : ParentReference;
         break;
     case CXCursor_MemberRefExpr:
     case CXCursor_CallExpr:
-        type = MethodReference;
+        type = ParentReference;
         symbolName = p->symbolName;
         break;
     case CXCursor_FieldDecl:
@@ -29,8 +30,7 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
         break;
     case CXCursor_MemberRef:
     case CXCursor_DeclRefExpr:
-        type = VariableReference;
-        symbolName = p->symbolName;
+        type = ParentReference;
         break;
     case CXCursor_CXXMethod:
     case CXCursor_FunctionDecl:
@@ -41,8 +41,6 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
         type = clang_isCursorDefinition(c) ? MethodDefinition : MethodDeclaration;
         break;
     case CXCursor_Namespace:
-        type = Namespace;
-        break;
         type = Namespace;
         break;
     case CXCursor_EnumDecl:
@@ -61,6 +59,10 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
     if (parent) {
         nextSibling = parent->firstChild;
         parent->firstChild = this;
+        if (type == ParentReference) {
+            qDebug() << "doing parent reference" << c;
+            symbolName = parent->symbolName;
+        }
     }
 }
 
@@ -116,10 +118,9 @@ const char *Node::typeToName(Type type, bool abbrev)
     case MethodDefinition: return abbrev ? "md" : "MethodDefinition";
     case Class: return abbrev ? "c" : "Class";
     case Struct: return abbrev ? "s" : "Struct";
-    case MethodReference: return abbrev ? "mr" : "MethodReference";
+    case ParentReference: return abbrev ? "pr" : "ParentReference";
     case Namespace: return abbrev ? "n" : "Namespace";
     case VariableDeclaration: return abbrev ? "vd" : "VariableDeclaration";
-    case VariableReference: return abbrev ? "vr" : "VariableReference";
     case None:
     case All:
         break;
@@ -142,7 +143,7 @@ int Node::size() const
 Node *Node::methodDeclaration() const
 {
     switch (type) {
-    case MethodReference:
+    case ParentReference:
         Q_ASSERT(parent && parent->type == MethodDefinition);
         return parent->methodDeclaration();
     case MethodDeclaration:
@@ -165,7 +166,7 @@ Node *Node::methodDeclaration() const
 Node *Node::methodDefinition() const
 {
     switch (type) {
-    case MethodReference:
+    case ParentReference:
         Q_ASSERT(parent && parent->type == MethodDefinition);
         return parent;
     case MethodDefinition:
@@ -175,7 +176,6 @@ Node *Node::methodDefinition() const
         for (Node *n = parent->firstChild; n; n = n->nextSibling) {
             if (n->type == MethodDefinition && n->symbolName == symbolName)
                 return n;
-
         }
         return 0;
     default:

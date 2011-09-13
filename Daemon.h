@@ -29,27 +29,20 @@ class Daemon : public QObject
     bool start();
     Q_INVOKABLE QHash<QByteArray, QVariant> runCommand(const QHash<QByteArray, QVariant>& dashArgs,
                                                        const QList<QByteArray>& freeArgs);
-public slots:
-    void onFileParsed(const Path &path, void *translationUnit);
 private:
     // ### need to add a function for code completion
-    QHash<QByteArray, QVariant> complete(const QHash<QByteArray, QVariant>& args,
-                                         const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args,
                                        const QList<QByteArray> &freeArgs);
-    QHash<QByteArray, QVariant> lookupLine(const QHash<QByteArray, QVariant>& args,
-                                           const QList<QByteArray> &freeArgs);
+    QHash<QByteArray, QVariant> followSymbol(const QHash<QByteArray, QVariant>& args,
+                                             const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> addMakefile(const QHash<QByteArray, QVariant>& dashArgs,
                                             const QList<QByteArray>& freeArgs);
     QHash<QByteArray, QVariant> load(const QHash<QByteArray, QVariant>& args,
                                      const QList<QByteArray> &freeArgs);
-    QHash<QByteArray, QVariant> fileList(const QHash<QByteArray, QVariant> &args,
-                                         const QList<QByteArray> &freeArgs);
     bool writeAST(const QHash<Path, CXTranslationUnit>::const_iterator it);
 private:
     ParseThread mParseThread;
     VisitThread mVisitThread;
-    QHash<Path, CXTranslationUnit> mTranslationUnits;
 #ifdef EBUS_ENABLED
     EBusDaemon mEbus;
 private slots:

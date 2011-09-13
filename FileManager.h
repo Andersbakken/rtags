@@ -26,6 +26,7 @@ class FileManager : public QThread
 {
     Q_OBJECT;
 public:
+    ~FileManager();
     static FileManager *instance();
     void watchPath(const Path &path);
     void addMakefile(const Path &makefile);
@@ -47,8 +48,7 @@ private slots:
     void onMakeError(QProcess::ProcessError error);
 private:
     FileManager();
-    ~FileManager();
-    
+
     struct MakefileData {
         Path path, directory;
         QByteArray buffer;
