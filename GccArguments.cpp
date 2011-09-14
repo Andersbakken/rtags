@@ -80,7 +80,7 @@ bool GccArguments::parse(const QByteArray& raw, const Path &path)
     if (!first.contains("gcc") && !first.contains("g++")
         && !first.contains("c++") && !first.contains("cc")) {
         // ### TODO might need to revisit this
-        return false; // not a compile line at all, just return without a warning
+        return true; // not a compile line at all, just return without a warning
     }
     data->dir = path;
     data->raw = raw;

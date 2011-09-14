@@ -12,11 +12,6 @@ FileManager::FileManager()
         qDebug() << "got" << cached.size() << "of cache";
         QDataStream ds(&cached, QIODevice::ReadOnly);
         ds >> mFiles;
-        for (QHash<Path, GccArguments>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
-            qDebug() << it.key() << it.value();
-        }
-
-        qDebug() << "got" << mFiles.size() << "items";
     }
 }
 FileManager::~FileManager()
@@ -52,7 +47,6 @@ void FileManager::setArguments(const Path &path, const GccArguments &args)
 {
     QWriteLocker lock(&mFilesLock);
     mFiles[path] = args;
-    qDebug() << "setting" << path << mFiles.value(path).raw();
 }
 
 void FileManager::clearArguments(const Path &path)
@@ -112,10 +106,8 @@ void FileManager::onMakeOutput()
     const int size = data.buffer.size();
     while (i < size) {
         if (data.buffer.at(i++) == '\n') {
-            const QByteArray line = QByteArray::fromRawData(data.buffer.constData() + last,
-                                                            i - last - 1);
+            const QByteArray line(data.buffer.constData() + last, i - last - 1);
             last = i;
-            // printf("%s\n", line.constData());
             if (!line.isEmpty()) {
                 if (line.startsWith("cd ")) {
                     const int slash = line.indexOf('/', 3);
