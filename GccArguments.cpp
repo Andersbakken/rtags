@@ -282,37 +282,40 @@ QDataStream& operator<<(QDataStream& stream, const GccArguments& args)
     const GccArguments::Data* data = args.m_ptr.constData();
 
     stream << data->input << data->output << data->x << data->c
-           << data->error << data->language
+           << data->error << qint8(data->language)
            << data->inputreplace << data->outputreplace
            << data->raw << data->dir
-           << data->args.size();
-    foreach(const GccArguments::Data::Argument &arg, data->args) {
-        stream << arg.pos << arg.arg << arg.value;
-    }
-
+           << data->args;
     return stream;
 }
 
 QDataStream& operator>>(QDataStream& stream, GccArguments& args)
 {
+    args.m_ptr.detach();
     GccArguments::Data* data = args.m_ptr.data();
 
     qint8 lang;
     stream >> data->input >> data->output >> data->x >> data->c
            >> data->error >> lang
            >> data->inputreplace >> data->outputreplace
-           >> data->raw >> data->dir;
+           >> data->raw >> data->dir << data->args;
     data->language = static_cast<GccArguments::Language>(lang);
-    int count;
-    stream >> count;
-    for (int i=0; i<count; ++i) {
-        GccArguments::Data::Argument argument;
-        stream >> argument.pos >> argument.arg >> argument.value;
-        data->args.append(argument);
-    }
-
     return stream;
 }
+
+QDataStream& operator<<(QDataStream& stream, const GccArguments::Data::Argument &arg)
+{
+    stream << arg.pos << arg.arg << arg.value;
+    return stream;
+}
+QDataStream& operator>>(QDataStream& stream, GccArguments::Data::Argument &arg)
+{
+    stream >> arg.pos >> arg.arg >> arg.value;
+    return stream;
+}
+
+
+
 QList<QByteArray> GccArguments::includePaths() const
 {
     QList<QByteArray> includePaths = arguments("-I");

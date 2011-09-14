@@ -77,6 +77,8 @@ private:
 
     friend QDataStream& operator<<(QDataStream& stream, const GccArguments& args);
     friend QDataStream& operator>>(QDataStream& stream, GccArguments& args);
+    friend QDataStream& operator<<(QDataStream& stream, const GccArguments::Data::Argument& args);
+    friend QDataStream& operator>>(QDataStream& stream, GccArguments::Data::Argument& args);
 };
 
 static inline QDebug operator<<(QDebug dbg, const GccArguments &args)
@@ -87,5 +89,8 @@ static inline QDebug operator<<(QDebug dbg, const GccArguments &args)
 
 QDataStream& operator<<(QDataStream& stream, const GccArguments& args);
 QDataStream& operator>>(QDataStream& stream, GccArguments& args);
+
+QDataStream& operator<<(QDataStream& stream, const GccArguments::Data::Argument &arg);
+QDataStream& operator>>(QDataStream& stream, GccArguments::Data::Argument &arg);
 
 #endif
