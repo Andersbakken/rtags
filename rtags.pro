@@ -3,6 +3,7 @@ TEMPLATE = app
 TARGET = 
 DEPENDPATH += .
 INCLUDEPATH += .
+CONFIG += debug
 
 macx {
     CONFIG -= app_bundle

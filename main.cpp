@@ -47,8 +47,8 @@ void syslogMsgHandler(QtMsgType t, const char* str)
             str, colorEnd);
     QFile file("/tmp/rtags.log");
     file.open(QIODevice::WriteOnly|QIODevice::Append);
-    char buf[1024];
-    const int s = snprintf(buf, 1023, "%s (%s): %s (%s)\n",
+    char buf[16384];
+    const int s = snprintf(buf, 16383, "%s (%s): %s (%s)\n",
                            qPrintable(QDateTime::currentDateTime().toString()),
                            qPrintable(QThread::currentThread()->objectName()),
                            str,
@@ -196,7 +196,7 @@ int main(int argc, char** argv)
 
     QByteArray cmd = argsmap.value("command").toByteArray();
     QCoreApplication::setOrganizationDomain("www.rtags.com");
-    QCoreApplication::setOrganizationName("RTags");
+    QCoreApplication::setOrganizationName("rtags");
     QCoreApplication::setApplicationName("rtags");
 
     if (Options::s_verbose)
@@ -218,8 +218,8 @@ int main(int argc, char** argv)
             }
         }
 
-        Daemon daemon;
         qInstallMsgHandler(syslogMsgHandler);
+        Daemon daemon;
         if (daemon.start())
             return app.exec();
         else

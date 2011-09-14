@@ -1,5 +1,5 @@
-#ifndef ClangRunnable_h
-#define ClangRunnable_h
+#ifndef ParseThread_h
+#define ParseThread_h
 
 #include <QtCore>
 #include <clang-c/Index.h>

@@ -1,25 +1,22 @@
 #include "FileManager.h"
 
 FileManager::FileManager()
-    : QThread(), mFileSystemWatcher(0), mFilesLock(QReadWriteLock::Recursive)
+    : QThread(), mFilesLock(QReadWriteLock::Recursive)
 {
     setObjectName("FileManager");
     moveToThread(this);
     QSettings settings(QSettings::IniFormat, QSettings::UserScope,
                        QCoreApplication::organizationName());
-    const QByteArray cached = settings.value("cachedGccArguments").toByteArray();
+    QByteArray cached = settings.value("cachedGccArguments").toByteArray();
     if (!cached.isEmpty()) {
         qDebug() << "got" << cached.size() << "of cache";
-        QDataStream ds(cached);
-        QHash<QByteArray, QPair<QByteArray, QByteArray> > hash;
-        ds >> hash;
-        qDebug() << "got" << hash.size() << "items";
-        for (QHash<QByteArray, QPair<QByteArray, QByteArray> >::const_iterator it = hash.begin(); it != hash.end(); ++it) {
-            GccArguments args;
-            args.parse(it.value().first, it.value().second);
-            mFiles[it.key()] = FileData(args);
+        QDataStream ds(&cached, QIODevice::ReadOnly);
+        ds >> mFiles;
+        for (QHash<Path, GccArguments>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
             qDebug() << it.key() << it.value();
         }
+
+        qDebug() << "got" << mFiles.size() << "items";
     }
 }
 FileManager::~FileManager()
@@ -37,11 +34,6 @@ FileManager *FileManager::instance()
     return ptr.data();
 }
 
-void FileManager::watchPath(const Path &path)
-{
-    QCoreApplication::postEvent(this, new FileManagerEvent(FileManagerEvent::WatchPathEvent, path));
-}
-
 void FileManager::addMakefile(const Path &makefile)
 {
     Q_ASSERT(makefile.exists());
@@ -53,45 +45,25 @@ GccArguments FileManager::arguments(const Path &path, bool *ok) const
     QReadLocker lock(&mFilesLock);
     if (ok)
         *ok = mFiles.contains(path);
-    return mFiles.value(path).arguments;
+    return mFiles.value(path);
 }
 
 void FileManager::setArguments(const Path &path, const GccArguments &args)
 {
     QWriteLocker lock(&mFilesLock);
-    mFiles[path].arguments = args;
-    qDebug() << "setting" << path << mFiles.value(path).arguments.raw();
+    mFiles[path] = args;
+    qDebug() << "setting" << path << mFiles.value(path).raw();
 }
 
 void FileManager::clearArguments(const Path &path)
 {
     QWriteLocker lock(&mFilesLock);
-    mFiles[path].arguments = GccArguments();
-}
-
-void FileManager::run()
-{
-    QFileSystemWatcher fileSystemWatcher;
-    mFileSystemWatcher = &fileSystemWatcher;
-    connect(&fileSystemWatcher, SIGNAL(fileChanged(QString)),
-            this, SLOT(onFileChanged(QString)));
-    exec();
-    mFileSystemWatcher = 0; // ### protect?
+    mFiles.remove(path);
 }
 
 bool FileManager::event(QEvent *event)
 {
-    switch (event->type()) {
-    case FileManagerEvent::WatchPathEvent: {
-        // QWriteLocker lock(&mFilesLock);
-        // const Path &path = static_cast<FileManagerEvent*>(event)->path();
-        // FileData &data = mFiles[path];
-        // if (mFiles.contains(path) || !path.exists())
-        //     return true;
-        // mWatchedFiles[path] = path.lastModified();
-        // mFileSystemWatcher->addPath(path);
-        return true; }
-    case FileManagerEvent::MakefileEvent: {
+    if (event->type() == int(FileManagerEvent::MakefileEvent)) {
         const Path &path = static_cast<FileManagerEvent*>(event)->path();
         const Path workingDir = path.parentDir();
         Q_ASSERT((path.isFile() && path.isResolved() && workingDir.isDir()) || !path.exists());
@@ -114,25 +86,9 @@ bool FileManager::event(QEvent *event)
                     // << QLatin1String("-j1") // ### why doesn't this work?
                     << path);
         qDebug() << "addMakefile" << path;
-        return true; }
-    default:
-        break;
+        return true;
     }
     return QThread::event(event);
-}
-
-void FileManager::onFileChanged(const QString &path)
-{
-    const Path p = path.toLocal8Bit();
-    // qDebug() << "onFileChanged" << p << p.lastModified()
-    //          << mWatchedFiles.value(p) << p.exists();
-    if (!p.exists()) {
-        // mWatchedFiles.remove(p);
-        // mFileSystemWatcher->removePath(path);
-    // } else if (p.lastModified() != mWatchedFiles.value(p)) {
-        // mWatchedFiles[p] = p.lastModified();
-        // emit fileChanged(p);
-    }
 }
 
 void FileManager::onMakeFinished(int statusCode)
@@ -230,22 +186,11 @@ void FileManager::store()
     QSettings settings(QSettings::IniFormat, QSettings::UserScope,
                        QCoreApplication::organizationName());
 
-    QHash<QByteArray, QPair<QByteArray, QByteArray> > hash;
-    {
-        QReadLocker lock(&mFilesLock);
-        for (QHash<Path, FileData>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
-            // qDebug() << it.key() << it.value().arguments.raw();
-            hash[it.key()] = qMakePair(it.value().arguments.raw(), QByteArray(it.value().arguments.dir()));
-            // qDebug() << "storing" << it.key() << it.value().arguments.raw();
-        }
-    }
-    // qDebug() << hash;
     QByteArray out;
     {
         QDataStream ds(&out, QIODevice::WriteOnly);
-        ds << hash;
+        ds << mFiles;
     }
     qDebug() << "writing" << out.size() << "of cache";
-   
     settings.setValue("cachedGccArguments", out);
 }

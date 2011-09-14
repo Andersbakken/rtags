@@ -9,7 +9,6 @@ class FileManagerEvent : public QEvent
 {
 public:
     enum Type {
-        WatchPathEvent = User + 1,
         MakefileEvent
     };
     FileManagerEvent(Type type, const Path &path)
@@ -28,22 +27,14 @@ class FileManager : public QThread
 public:
     ~FileManager();
     static FileManager *instance();
-    void watchPath(const Path &path);
     void addMakefile(const Path &makefile);
     GccArguments arguments(const Path &path, bool *ok = 0) const;
     void setArguments(const Path &path, const GccArguments &args);
     void clearArguments(const Path &path);
-    void addDependency(const Path &path, const Path &dependent);
-    void removeDependency(const Path &path, const Path &dependent);
-    QSet<Path> dependencies(const Path &path);
     void store();
-signals:
-    void fileChanged(const Path &path);
 protected:
-    void run();
     bool event(QEvent *event);
 private slots:
-    void onFileChanged(const QString &path);
     void onMakeFinished(int statusCode);
     void onMakeOutput();
     void onMakeError(QProcess::ProcessError error);
@@ -57,18 +48,9 @@ private:
         Path workingDirectory;
     };
     QHash<QProcess *, MakefileData> mMakefiles;
-    QFileSystemWatcher *mFileSystemWatcher;
-
-    struct FileData {
-        FileData(const GccArguments &args = GccArguments()) : arguments(args), lastModified(0) {}
-        GccArguments arguments;
-        time_t lastModified;
-        QSet<Path> dependencies;
-        bool watched;
-    };
 
     mutable QReadWriteLock mFilesLock;
-    QHash<Path, FileData> mFiles;
+    QHash<Path, GccArguments> mFiles;
 };
 
 #endif

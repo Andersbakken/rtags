@@ -166,7 +166,7 @@ void ParseThread::run()
                 emit fileParsed(f->path, unit);
                 // }
                 qDebug() << "file was parsed" << f->path << mCount<< "left" << timer.elapsed() << "ms"
-                         << (i == WithPCH ? "with PCH" : "without PCH");
+                         << (i == WithPCH ? "with PCH" : "without PCH") << compilerOptions;
             }
         }
         delete f;
