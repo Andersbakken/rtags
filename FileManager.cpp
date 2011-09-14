@@ -55,6 +55,7 @@ void FileManager::setArguments(const Path &path, const GccArguments &args)
 {
     QWriteLocker lock(&mFilesLock);
     mFiles[path].arguments = args;
+    qDebug() << "setting" << path << mFiles.value(path).arguments.raw();
 }
 
 void FileManager::clearArguments(const Path &path)
@@ -200,7 +201,7 @@ void FileManager::onMakeOutput()
                     Q_ASSERT(file.exists());
                     if (!data.seen.contains(file)) {
                         data.seen.insert(file);
-                        qDebug() << "settings arguments for" << file << "to" << args.raw();
+                        // qDebug() << "settings arguments for" << file << "to" << args.raw();
                         setArguments(file, args);
                     }
                 }
@@ -225,9 +226,13 @@ void FileManager::store()
                        QCoreApplication::organizationName());
 
     QHash<Path, GccArguments> hash;
-    QReadLocker lock(&mFilesLock);
-    for (QHash<Path, FileData>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
-        hash[it.key()] = it.value().arguments;
+    {
+        QReadLocker lock(&mFilesLock);
+        for (QHash<Path, FileData>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
+            qDebug() << it.key() << it.value().arguments.raw();
+            hash[it.key()] = it.value().arguments;
+            // qDebug() << "storing" << it.key() << it.value().arguments.raw();
+        }
     }
     QByteArray out;
     {

@@ -60,7 +60,7 @@ private:
     QFileSystemWatcher *mFileSystemWatcher;
 
     struct FileData {
-        FileData(const GccArguments &args = GccArguments()) : lastModified(0) {}
+        FileData(const GccArguments &args = GccArguments()) : arguments(args), lastModified(0) {}
         GccArguments arguments;
         time_t lastModified;
         QSet<Path> dependencies;
