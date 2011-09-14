@@ -12,17 +12,16 @@ struct Node
     enum Type {
         None = 0x000000,
         Root = 0x000001,
-        MethodDeclaration = 0x000002,
-        MethodDefinition = 0x000004,
-        Reference = 0x000008,
-        Class = 0x000010,
-        Struct = 0x000020,
-        Namespace = 0x000040,
-        Variable = 0x000080,
-        Enum = 0x000100,
-        EnumValue = 0x000200,
-        All = (None|Root|MethodDeclaration|MethodDefinition|Class|
-               Struct|Namespace|Variable|Enum|EnumValue|Reference)
+        Namespace = 0x000002,
+        Class = 0x000004,
+        Struct = 0x000008,
+        MethodDefinition = 0x000010,
+        MethodDeclaration = 0x000020,
+        Variable = 0x000040,
+        Enum = 0x000080,
+        EnumValue = 0x000100,
+        Reference = 0x000200,
+        All = 0xffffff
     } type;
     Location location;
     uint hash;
@@ -30,8 +29,6 @@ struct Node
     Node();
     Node(Node *p, CXCursor c, const Location &l, uint hash);
     ~Node();
-    void add(Node *child);
-    void remove(Node *child);
     QByteArray toString() const;
     void print() const;
     static const char *typeToName(Type type, bool abbrev = false);

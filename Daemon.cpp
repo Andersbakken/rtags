@@ -54,35 +54,34 @@ struct MatchBase : public Match
 struct FollowSymbolMatch : public Match
 {
     FollowSymbolMatch(const Location &loc)
-        : Match(Node::All), location(loc)
+        : Match(Node::All), location(loc), found(0)
     {}
-    virtual MatchResult match(const QByteArray &symbol, const Node *node)
+    virtual MatchResult match(const QByteArray &, const Node *node)
     {
         if (node->location == location) {
-            Node *other = 0;
+            Node *found = 0;
             switch (node->type) {
             case Node::All:
             case Node::None:
             case Node::Root:
                 break;
             case Node::MethodDeclaration:
-                other = node->methodDefinition();
+                found = node->methodDefinition();
                 break;
             case Node::Reference:
-                other = node->parent;
+                found = node->parent;
                 break;
             case Node::MethodDefinition:
-                other = node->methodDeclaration();
+                found = node->methodDeclaration();
                 break;
             case Node::Class:
             case Node::Struct:
             case Node::Namespace:
             case Node::Variable:
             case Node::Enum:
-                // can we know when an enum type is referenced
                 break;
             case Node::EnumValue:
-                // can we know when an EnumValue is referenced
+                node = node->parent; // parent is Enum
                 break;
             }
             return Finish;
@@ -91,6 +90,7 @@ struct FollowSymbolMatch : public Match
         return Recurse;
     }
     const Location &location;
+    Node *found;
 };
 
 struct GenericMatch : public MatchBase
@@ -357,8 +357,16 @@ QHash<QByteArray, QVariant> Daemon::followSymbol(const QHash<QByteArray, QVarian
     const int col = args.value("column").toUInt(&ok);
     if (!ok)
         return createResultMap("Invalid column arg");
-    FollowSymbolMatch match(Location(path, line, col));
+    const Location loc(path, line, col);
+    FollowSymbolMatch match(loc);
     const int ret = mVisitThread.lookup(&match);
+    if (match.found) {
+        return createResultMap(match.found->location.toString());
+    } else if (!ret) {
+        return createResultMap("No symbol at " + loc.toString());
+    } else {
+        return createResultMap("Can't follow symbol at " + loc.toString());
+    }
 }
 
 QDebug operator<<(QDebug dbg, CXCursor cursor)

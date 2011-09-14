@@ -4,6 +4,11 @@ Node::Node()
     : parent(0), nextSibling(0), firstChild(0), type(Root), hash(0)
 {}
 
+static inline bool lessThan(const Node *left, const Node *right)
+{
+    return (left->type < right->type || (left->type == right->type && left->symbolName < right->symbolName));
+}
+
 Node::Node(Node *p, CXCursor c, const Location &l, uint h)
     : parent(p), nextSibling(0), firstChild(0), location(l), hash(h)
 {
@@ -53,16 +58,34 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
         Q_ASSERT(0 && "Can't find type for this cursor");
         break;
     }
-    if (parent) {
-        nextSibling = parent->firstChild;
-        parent->firstChild = this;
-        if (type == Reference && parent->type != Root) {
-            // qDebug() << "doing parent reference" << c;
-            symbolName = parent->symbolName;
-        }
+    Q_ASSERT(parent || type != Reference);
+    if (type == Reference && parent->type != Root) {
+        // qDebug() << "doing parent reference" << c;
+        symbolName = parent->symbolName;
     }
+
     if (symbolName.isEmpty())
         symbolName = eatString(clang_getCursorDisplayName(c));
+   
+    if (parent) {
+#ifdef QT_NO_DEBUG
+        nextSibling = parent->firstChild;
+        parent->firstChild = this;
+#else
+        if (!parent->firstChild || lessThan(this, parent->firstChild)) {
+            nextSibling = parent->firstChild;
+            parent->firstChild = this;
+        } else {
+            Node *last = parent->firstChild;
+            Node *tmp = last->nextSibling;
+            while (tmp && lessThan(tmp, this))
+                tmp = tmp->nextSibling;
+            Q_ASSERT(last);
+            nextSibling = tmp;
+            last->nextSibling = this;
+        }
+#endif
+    }
 }
 
 
@@ -182,14 +205,4 @@ Node *Node::methodDefinition() const
     }
     Q_ASSERT(0 && "This doesn't make any sense");
     return 0;
-}
-
-void Node::add(Node *child)
-{
-#warning TODO, add inserted in debug mode
-}
-
-void Node::remove(Node *child)
-{
-#warning TODO
 }

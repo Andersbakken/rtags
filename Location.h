@@ -31,6 +31,15 @@ struct Location {
         return path.exists();
     }
 
+    QByteArray toString() const
+    {
+        QByteArray buffer;
+        buffer.resize(1024);
+        int len = snprintf(buffer.data(), 1023, "%s:%d:%d", path.constData(), line, column);
+        buffer.truncate(len + 1);
+        return buffer;
+    }
+
     Path path;
     unsigned line, column;
 };
