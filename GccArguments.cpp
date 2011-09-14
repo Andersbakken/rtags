@@ -281,13 +281,15 @@ QDataStream& operator<<(QDataStream& stream, const GccArguments& args)
 {
     const GccArguments::Data* data = args.m_ptr.constData();
 
-    stream << data->input << data->output << data->error
+    stream << data->raw << data->input << data->output << data->error
            << data->inputreplace << data->outputreplace
            << data->c << data->x
            << data->args.size();
     foreach(const GccArguments::Data::Argument& arg, data->args) {
         stream << arg.pos << arg.arg << arg.value;
     }
+
+    stream << data->raw << data->dir;
 
     return stream;
 }
@@ -307,6 +309,7 @@ QDataStream& operator>>(QDataStream& stream, GccArguments& args)
         stream >> pos >> arg >> value;
         data->args.append(GccArguments::Data::Argument(pos, arg, value));
     }
+    stream >> data->raw >> data->dir;
 
     return stream;
 }
