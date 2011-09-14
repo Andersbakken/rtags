@@ -222,7 +222,8 @@ void VisitThread::invalidate(const Path &path)
 {
     {
         QMutexLocker lock(&mMutex);
-        mFiles.remove(path);
+        if (!mFiles.remove(path))
+            return;
     }
     QWriteLocker writeLock(&mLock);
     const int old = mBytes;

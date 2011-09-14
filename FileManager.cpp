@@ -18,7 +18,7 @@ FileManager::FileManager()
             GccArguments args;
             args.parse(it.value().first, it.value().second);
             mFiles[it.key()] = FileData(args);
-            // qDebug() << it.key() << it.value();
+            qDebug() << it.key() << it.value();
         }
     }
 }

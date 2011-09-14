@@ -238,8 +238,7 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         // hack to make the quit command properly respond before the server goes down
         return createResultMap("quitting");
     } else if (cmd == "printtree") {
-        mVisitThread.printTree();
-        return createResultMap("Done");;
+        return printTree(dashArgs, freeArgs);
     } else if (cmd == "followsymbol") {
         return followSymbol(dashArgs, freeArgs);
     } else if (cmd == "makefile") {
@@ -397,4 +396,23 @@ QDebug operator<<(QDebug dbg, CXCursor cursor)
         text += ", def";
     dbg << text;
     return dbg;
+}
+
+
+QHash<QByteArray, QVariant> Daemon::printTree(const QHash<QByteArray, QVariant>&, const QList<QByteArray> &)
+{
+    struct TreeMatch : public Match
+    {
+        TreeMatch()
+            : Match(Node::All)
+        {}
+        QByteArray out;
+        virtual MatchResult match(const QByteArray &, const Node *node)
+        {
+            out += node->toString() + '\n';
+            return Recurse;
+        }
+    } match;
+    mVisitThread.lookup(&match);
+    return createResultMap(match.out);
 }

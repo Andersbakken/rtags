@@ -102,7 +102,7 @@ QByteArray Node::toString() const
 {
     if (type == Root)
         return "Root";
-    int indent = 0;
+    int indent = 0; // ### ugly
     for (Node *p=parent; p; p = p->parent) {
         indent += 2;
     }

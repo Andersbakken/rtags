@@ -43,9 +43,9 @@ const char *kindToString(int kind)
     case CXCursor_NamespaceAlias: return "CXCursor_NamespaceAlias";
     case CXCursor_UsingDirective: return "CXCursor_UsingDirective";
     case CXCursor_UsingDeclaration: return "CXCursor_UsingDeclaration";
-    case CXCursor_TypeAliasDecl: return "CXCursor_TypeAliasDecl";
-    case CXCursor_ObjCSynthesizeDecl: return "CXCursor_ObjCSynthesizeDecl";
-    case CXCursor_ObjCDynamicDecl: return "CXCursor_ObjCDynamicDecl";
+    // case CXCursor_TypeAliasDecl: return "CXCursor_TypeAliasDecl";
+    // case CXCursor_ObjCSynthesizeDecl: return "CXCursor_ObjCSynthesizeDecl";
+    // case CXCursor_ObjCDynamicDecl: return "CXCursor_ObjCDynamicDecl";
         // case CXCursor_FirstDecl: return "CXCursor_FirstDecl";
         // case CXCursor_LastDecl: return "CXCursor_LastDecl";
     case CXCursor_FirstRef: return "CXCursor_FirstRef";
@@ -87,7 +87,7 @@ const char *kindToString(int kind)
         // case CXCursor_LastAttr: return "CXCursor_LastAttr";
     case CXCursor_PreprocessingDirective: return "CXCursor_PreprocessingDirective";
     case CXCursor_MacroDefinition: return "CXCursor_MacroDefinition";
-    case CXCursor_MacroExpansion: return "CXCursor_MacroExpansion";
+    // case CXCursor_MacroExpansion: return "CXCursor_MacroExpansion";
         // case CXCursor_MacroInstantiation: return "CXCursor_MacroInstantiation";
     case CXCursor_InclusionDirective: return "CXCursor_InclusionDirective";
         // case CXCursor_FirstPreprocessing: return "CXCursor_FirstPreprocessing";

@@ -33,6 +33,8 @@ private:
     // ### need to add a function for code completion
     QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args,
                                        const QList<QByteArray> &freeArgs);
+    QHash<QByteArray, QVariant> printTree(const QHash<QByteArray, QVariant>& args,
+                                          const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> followSymbol(const QHash<QByteArray, QVariant>& args,
                                              const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> addMakefile(const QHash<QByteArray, QVariant>& dashArgs,
