@@ -29,7 +29,7 @@ class VisitThread : public QThread
     Q_OBJECT
 public:
     VisitThread();
-    int lookup(Match *match);
+    void lookup(Match *match);
     void printTree();
     QSet<Path> files() const;
 public slots:

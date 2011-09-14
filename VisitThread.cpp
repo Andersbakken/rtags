@@ -237,13 +237,13 @@ void VisitThread::printTree()
     mRoot->print();
 }
 
-static int recurse(Match *match, const Node *node, QByteArray path)
+static Match::MatchResult recurse(Match *match, const Node *node, QByteArray path)
 {
     Q_ASSERT(match);
     Q_ASSERT(node);
-    int ret = 0;
-    if (node->type & match->nodeTypes && match->match(path, node))
-        ++ret;
+    Match::MatchResult result = Match::Recurse;
+    if (node->type & match->nodeTypes)
+        result = match->match(path, node);
 
     switch (node->type) {
     case Node::Namespace:
@@ -256,16 +256,22 @@ static int recurse(Match *match, const Node *node, QByteArray path)
     }
     // ### could consider short circuiting here if for example we know this node
     // ### only has MethodReference children and !(types & MethodReference) || !ret
-    for (Node *c = node->firstChild; c; c = c->nextSibling)
-        ret += recurse(match, c, path);
-    return ret;
+    if (result == Match::Recurse) {
+        for (Node *c = node->firstChild; c; c = c->nextSibling) {
+            if (recurse(match, c, path) == Match::Finish) {
+                result = Match::Finish;
+                break;
+            }
+        }
+    }
+    return result;
 }
 
-int VisitThread::lookup(Match *match)
+void VisitThread::lookup(Match *match)
 {
     QReadLocker lock(&mLock);
     Q_ASSERT(match);
-    return recurse(match, mRoot, QByteArray());
+    recurse(match, mRoot, QByteArray());
 }
 
 QSet<Path> VisitThread::files() const

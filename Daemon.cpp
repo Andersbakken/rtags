@@ -58,8 +58,8 @@ struct FollowSymbolMatch : public Match
     {}
     virtual MatchResult match(const QByteArray &, const Node *node)
     {
+        // qDebug() << node->location << location << (node->location == location);
         if (node->location == location) {
-            Node *found = 0;
             switch (node->type) {
             case Node::All:
             case Node::None:
@@ -358,11 +358,9 @@ QHash<QByteArray, QVariant> Daemon::followSymbol(const QHash<QByteArray, QVarian
         return createResultMap("Invalid column arg");
     const Location loc(path, line, col);
     FollowSymbolMatch match(loc);
-    const int ret = mVisitThread.lookup(&match);
+    mVisitThread.lookup(&match);
     if (match.found) {
         return createResultMap(match.found->location.toString());
-    } else if (!ret) {
-        return createResultMap("No symbol at " + loc.toString());
     } else {
         return createResultMap("Can't follow symbol at " + loc.toString());
     }
