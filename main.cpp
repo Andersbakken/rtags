@@ -192,7 +192,7 @@ int main(int argc, char** argv)
     }
 
     if (argsmap.isEmpty())
-        argsmap.insert("command", "syntax");
+        argsmap.insert("command", "daemonize");
 
     QByteArray cmd = argsmap.value("command").toByteArray();
     QCoreApplication::setOrganizationDomain("www.rtags.com");
