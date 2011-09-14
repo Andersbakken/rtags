@@ -74,14 +74,16 @@ bool GccArguments::parse(const QByteArray& raw, const Path &path)
 {
     Q_ASSERT(path.isResolved() && path.isDir());
     Data* data = m_ptr.data();
-    data->dir = path;
-    data->raw = raw;
     const QList<QByteArray> args = raw.split(' ');
     Q_ASSERT(!args.isEmpty());
     const QByteArray &first = args.first();
-    if (!first.contains("gcc") && first.contains("g++") && first.contains("c++")) {
+    if (!first.contains("gcc") && !first.contains("g++")
+        && !first.contains("c++") && !first.contains("cc")) {
+        // ### TODO might need to revisit this
         return false; // not a compile line at all, just return without a warning
     }
+    data->dir = path;
+    data->raw = raw;
 
     const int argc = args.size();
 
@@ -298,7 +300,7 @@ QDataStream& operator>>(QDataStream& stream, GccArguments& args)
     stream >> data->input >> data->output >> data->x >> data->c
            >> data->error >> lang
            >> data->inputreplace >> data->outputreplace
-           >> data->raw >> data->dir << data->args;
+           >> data->raw >> data->dir >> data->args;
     data->language = static_cast<GccArguments::Language>(lang);
     return stream;
 }
