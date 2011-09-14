@@ -68,7 +68,7 @@ struct FollowSymbolMatch : public Match
             case Node::MethodDeclaration:
                 other = node->methodDefinition();
                 break;
-            case Node::ParentReference:
+            case Node::Reference:
                 other = node->parent;
                 break;
             case Node::MethodDefinition:

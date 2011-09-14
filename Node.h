@@ -14,7 +14,7 @@ struct Node
         Root = 0x000001,
         MethodDeclaration = 0x000002,
         MethodDefinition = 0x000004,
-        ParentReference = 0x000008,
+        Reference = 0x000008,
         Class = 0x000010,
         Struct = 0x000020,
         Namespace = 0x000040,
@@ -22,7 +22,7 @@ struct Node
         Enum = 0x000100,
         EnumValue = 0x000200,
         All = (None|Root|MethodDeclaration|MethodDefinition|Class|
-               Struct|Namespace|VariableDeclaration|Enum|EnumValue|ParentReference)
+               Struct|Namespace|VariableDeclaration|Enum|EnumValue|Reference)
     } type;
     Location location;
     uint hash;

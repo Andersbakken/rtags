@@ -36,6 +36,7 @@ public:
     void addDependency(const Path &path, const Path &dependent);
     void removeDependency(const Path &path, const Path &dependent);
     QSet<Path> dependencies(const Path &path);
+    void store();
 signals:
     void fileChanged(const Path &path);
 protected:
@@ -59,7 +60,7 @@ private:
     QFileSystemWatcher *mFileSystemWatcher;
 
     struct FileData {
-        FileData() : lastModified(0) {}
+        FileData(const GccArguments &args = GccArguments()) : lastModified(0) {}
         GccArguments arguments;
         time_t lastModified;
         QSet<Path> dependencies;

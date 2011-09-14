@@ -6,30 +6,20 @@ FileManager::FileManager()
     moveToThread(this);
     QSettings settings(QSettings::IniFormat, QSettings::UserScope,
                        QCoreApplication::organizationName());
-    settings.beginGroup("GccArguments");
-    foreach(const QString &key, settings.childKeys()) {
-        const QByteArray in = settings.value(key).toByteArray();
-        if (!in.isEmpty()) {
-            QDataStream ds(in);
-            GccArguments args;
-            ds >> args;
-            qDebug() << key << args.raw() << "from settings";
+    const QByteArray cached = settings.value("cachedGccArguments").toByteArray();
+    if (!cached.isEmpty()) {
+        QDataStream ds(cached);
+        QHash<Path, GccArguments> hash;
+        ds >> hash;
+        for (QHash<Path, GccArguments>::const_iterator it = hash.begin(); it != hash.end(); ++it) {
+            mFiles[it.key()] = it.value();
+            qDebug() << it.key() << it.value();
         }
     }
 }
 FileManager::~FileManager()
 {
-    QSettings settings(QSettings::IniFormat, QSettings::UserScope,
-                       QCoreApplication::organizationName());
-    settings.beginGroup("GccArguments");
-    for (QHash<Path, FileData>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
-        QByteArray ba;
-        {
-            QDataStream ds(&ba, QIODevice::WriteOnly);
-            ds << it.value().arguments;
-        }
-        settings.setValue(it.key(), ba);
-    }
+    store();
 }
 
 FileManager *FileManager::instance()
@@ -147,6 +137,7 @@ void FileManager::onMakeFinished(int statusCode)
     }
     mMakefiles.remove(proc);
     proc->deleteLater();
+    store();
 }
 
 void FileManager::onMakeOutput()
@@ -226,4 +217,23 @@ void FileManager::onMakeOutput()
 void FileManager::onMakeError(QProcess::ProcessError error)
 {
     qWarning() << error << qobject_cast<QProcess*>(sender())->errorString();
+}
+
+void FileManager::store()
+{
+    QSettings settings(QSettings::IniFormat, QSettings::UserScope,
+                       QCoreApplication::organizationName());
+
+    QHash<Path, GccArguments> hash;
+    QReadLocker lock(&mFilesLock);
+    for (QHash<Path, FileData>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
+        hash[it.key()] = it.value().arguments;
+    }
+    QByteArray out;
+    {
+        QDataStream ds(&out, QIODevice::WriteOnly);
+        ds << hash;
+    }
+   
+    settings.setValue("cachedGccArguments", out);
 }
