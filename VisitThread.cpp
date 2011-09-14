@@ -31,6 +31,14 @@ void VisitThread::onFileParsed(const Path &path, void *u)
             qWarning() << "Can't find referenced cursor for" << p.cursor;
             continue;
         }
+        const CXCursorKind kind = clang_getCursorKind(p.cursor);
+        const CXCursorKind refKind = clang_getCursorKind(ref);
+        if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
+            continue; // these have the wrong Location, we get the right one from CXCursor_DeclRefExpr
+        } else if (kind == CXCursor_DeclRefExpr && refKind != CXCursor_CXXMethod) {
+            continue;
+        }
+
         CXCursor def = clang_getCursorDefinition(ref);
         Node *n = new Node(createOrGet(isValidCursor(def) ? def : ref),
                            p.cursor, p.location, it.key());
@@ -153,27 +161,6 @@ Node * VisitThread::createOrGet(CXCursor cursor)
             return n;
         const PendingReference p = { cursor, location };
         mPendingReferences[hash] = p;
-        // CXCursor ref = clang_getCursorReferenced(cursor);
-        // bool doPending = isValidCursor(ref) && !mPendingReferences.contains(hash);
-        // if (kind == CXCursor_CallExpr && clang_getCursorKind(ref) == CXCursor_CXXMethod) {
-        //     doPending = false;
-        // } else if (kind == CXCursor_DeclRefExpr && clang_getCursorKind(ref) != CXCursor_CXXMethod) {
-        //     doPending = false;
-        // }
-        // if (doPending) {
-        //     qDebug() << "gonna do pending" << cursor << ref;
-        //     if (clang_equalCursors(ref, cursor)) {
-        //         printf("%s %d: if (clang_equalCursors(ref, cursor)) {\n", __FILE__, __LINE__);
-        //         ref = CXCursor();
-        //         // For forward declarations of structs ref and cursor is the
-        //         // same, probably because at the time we parse this we haven't
-        //         // seen the definition of the class, delay initializing ref
-        //         // until the end
-        //     }
-
-        //     if (!mPendingReferences.contains(hash)) {
-        //     mPendingReferences[hash] = p;
-        // }
         return createOrGet(clang_getCursorSemanticParent(cursor));
     }
 

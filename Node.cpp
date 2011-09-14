@@ -21,12 +21,11 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
     case CXCursor_MemberRefExpr:
     case CXCursor_CallExpr:
         type = Reference;
-        symbolName = p->symbolName;
         break;
     case CXCursor_FieldDecl:
     case CXCursor_VarDecl:
     case CXCursor_ParmDecl:
-        type = VariableDeclaration;
+        type = Variable;
         break;
     case CXCursor_MemberRef:
     case CXCursor_DeclRefExpr:
@@ -54,16 +53,16 @@ Node::Node(Node *p, CXCursor c, const Location &l, uint h)
         Q_ASSERT(0 && "Can't find type for this cursor");
         break;
     }
-    if (symbolName.isEmpty())
-        symbolName = eatString(clang_getCursorDisplayName(c));
     if (parent) {
         nextSibling = parent->firstChild;
         parent->firstChild = this;
-        if (type == Reference) {
-            qDebug() << "doing parent reference" << c;
+        if (type == Reference && parent->type != Root) {
+            // qDebug() << "doing parent reference" << c;
             symbolName = parent->symbolName;
         }
     }
+    if (symbolName.isEmpty())
+        symbolName = eatString(clang_getCursorDisplayName(c));
 }
 
 
@@ -120,7 +119,7 @@ const char *Node::typeToName(Type type, bool abbrev)
     case Struct: return abbrev ? "s" : "Struct";
     case Reference: return abbrev ? "pr" : "Reference";
     case Namespace: return abbrev ? "n" : "Namespace";
-    case VariableDeclaration: return abbrev ? "vd" : "VariableDeclaration";
+    case Variable: return abbrev ? "vd" : "Variable";
     case None:
     case All:
         break;
@@ -183,4 +182,14 @@ Node *Node::methodDefinition() const
     }
     Q_ASSERT(0 && "This doesn't make any sense");
     return 0;
+}
+
+void Node::add(Node *child)
+{
+#warning TODO, add inserted in debug mode
+}
+
+void Node::remove(Node *child)
+{
+#warning TODO
 }

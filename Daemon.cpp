@@ -77,7 +77,7 @@ struct FollowSymbolMatch : public Match
             case Node::Class:
             case Node::Struct:
             case Node::Namespace:
-            case Node::VariableDeclaration:
+            case Node::Variable:
             case Node::Enum:
                 // can we know when an enum type is referenced
                 break;

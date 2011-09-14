@@ -11,12 +11,14 @@ FileManager::FileManager()
     if (!cached.isEmpty()) {
         qDebug() << "got" << cached.size() << "of cache";
         QDataStream ds(cached);
-        QHash<Path, GccArguments> hash;
+        QHash<QByteArray, QPair<QByteArray, QByteArray> > hash;
         ds >> hash;
         qDebug() << "got" << hash.size() << "items";
-        for (QHash<Path, GccArguments>::const_iterator it = hash.begin(); it != hash.end(); ++it) {
-            mFiles[it.key()] = it.value();
-            qDebug() << it.key() << it.value();
+        for (QHash<QByteArray, QPair<QByteArray, QByteArray> >::const_iterator it = hash.begin(); it != hash.end(); ++it) {
+            GccArguments args;
+            args.parse(it.value().first, it.value().second);
+            mFiles[it.key()] = FileData(args);
+            // qDebug() << it.key() << it.value();
         }
     }
 }
@@ -228,12 +230,12 @@ void FileManager::store()
     QSettings settings(QSettings::IniFormat, QSettings::UserScope,
                        QCoreApplication::organizationName());
 
-    QHash<Path, GccArguments> hash;
+    QHash<QByteArray, QPair<QByteArray, QByteArray> > hash;
     {
         QReadLocker lock(&mFilesLock);
         for (QHash<Path, FileData>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
             // qDebug() << it.key() << it.value().arguments.raw();
-            hash[it.key()] = it.value().arguments;
+            hash[it.key()] = qMakePair(it.value().arguments.raw(), QByteArray(it.value().arguments.dir()));
             // qDebug() << "storing" << it.key() << it.value().arguments.raw();
         }
     }
