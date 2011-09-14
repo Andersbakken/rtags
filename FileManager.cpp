@@ -1,16 +1,19 @@
 #include "FileManager.h"
 
 FileManager::FileManager()
-    : QThread(), mFileSystemWatcher(0)
+    : QThread(), mFileSystemWatcher(0), mFilesLock(QReadWriteLock::Recursive)
 {
+    setObjectName("FileManager");
     moveToThread(this);
     QSettings settings(QSettings::IniFormat, QSettings::UserScope,
                        QCoreApplication::organizationName());
     const QByteArray cached = settings.value("cachedGccArguments").toByteArray();
     if (!cached.isEmpty()) {
+        qDebug() << "got" << cached.size() << "of cache";
         QDataStream ds(cached);
         QHash<Path, GccArguments> hash;
         ds >> hash;
+        qDebug() << "got" << hash.size() << "items";
         for (QHash<Path, GccArguments>::const_iterator it = hash.begin(); it != hash.end(); ++it) {
             mFiles[it.key()] = it.value();
             qDebug() << it.key() << it.value();
@@ -229,16 +232,18 @@ void FileManager::store()
     {
         QReadLocker lock(&mFilesLock);
         for (QHash<Path, FileData>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
-            qDebug() << it.key() << it.value().arguments.raw();
+            // qDebug() << it.key() << it.value().arguments.raw();
             hash[it.key()] = it.value().arguments;
             // qDebug() << "storing" << it.key() << it.value().arguments.raw();
         }
     }
+    // qDebug() << hash;
     QByteArray out;
     {
         QDataStream ds(&out, QIODevice::WriteOnly);
         ds << hash;
     }
+    qDebug() << "writing" << out.size() << "of cache";
    
     settings.setValue("cachedGccArguments", out);
 }

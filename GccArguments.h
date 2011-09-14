@@ -50,8 +50,9 @@ private:
 
         struct Argument
         {
-            Argument(int p, const QByteArray& a) : pos(p), arg(a) {}
-            Argument(int p, const QByteArray& a, const QByteArray& v) : pos(p), arg(a), value(v) {}
+            Argument(int p = 0, const QByteArray& a = QByteArray(), const QByteArray& v = QByteArray())
+                : pos(p), arg(a), value(v)
+            {}
 
             int pos;
             QByteArray arg;
@@ -62,7 +63,6 @@ private:
         int output;
         int x;
         int c;
-        QList<Argument> args;
         QString error;
         Language language;
 
@@ -70,6 +70,7 @@ private:
         QByteArray outputreplace;
         QByteArray raw;
         Path dir;
+        QList<Argument> args;
     };
 
     QSharedDataPointer<Data> m_ptr;

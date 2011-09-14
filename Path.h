@@ -57,4 +57,21 @@ public:
 };
 Q_DECLARE_METATYPE(Path);
 
+static inline QDataStream &operator<<(QDataStream &ds, const Path &path)
+{
+    ds << QByteArray::fromRawData(path.constData(), path.size());
+    return ds;
+}
+
+static inline QDataStream &operator>>(QDataStream &ds, Path &path)
+{
+    QByteArray in;
+    ds >> in;
+    path = in;
+    return ds;
+}
+
+
+
+
 #endif
