@@ -110,7 +110,7 @@ int main(int argc, char** argv)
         }
 
         // Ensure that the TemporaryFiles singleton gets initialized in a thread safe manner
-        (void)TemporaryFiles::instance();
+        TemporaryFiles::instance()->init();
 
         qInstallMsgHandler(syslogMsgHandler);
         Daemon daemon;

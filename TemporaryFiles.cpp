@@ -7,10 +7,14 @@ TemporaryFiles::TemporaryFiles()
 {
 }
 
-TemporaryFiles* TemporaryFiles::instance()
+void TemporaryFiles::init()
 {
     if (!s_instance)
         s_instance = new TemporaryFiles;
+}
+
+TemporaryFiles* TemporaryFiles::instance()
+{
     return s_instance;
 }
 

@@ -16,6 +16,7 @@ struct TemporaryFile : public CXUnsavedFile
 class TemporaryFiles
 {
 public:
+    static void init();
     static TemporaryFiles* instance();
 
     void addFile(const QByteArray& filename, const QByteArray& content);
