@@ -44,15 +44,20 @@ void syslogMsgHandler(QtMsgType t, const char* str)
             qPrintable(QDateTime::currentDateTime().toString()),
             qPrintable(QThread::currentThread()->objectName()),
             str, colorEnd);
-    QFile file("/tmp/rtags.log");
-    file.open(QIODevice::WriteOnly|QIODevice::Append);
     char buf[16384];
     const int s = snprintf(buf, 16383, "%s (%s): %s (%s)\n",
                            qPrintable(QDateTime::currentDateTime().toString()),
                            qPrintable(QThread::currentThread()->objectName()),
                            str,
                            names[t]);
-    file.write(buf, s);
+    
+    static QMutex sFileLock;
+    {
+        QMutexLocker lock(&sFileLock);
+        QFile file("/tmp/rtags.log");
+        file.open(QIODevice::WriteOnly|QIODevice::Append);
+        file.write(buf, s);
+    }
     syslog(priority, "%s (%s)\n", str, names[t]);
 }
 
