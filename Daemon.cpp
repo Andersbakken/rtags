@@ -202,6 +202,7 @@ static QHash<QByteArray, QVariant> syntax()
 QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant> &dashArgs,
                                                const QList<QByteArray>& freeArgs)
 {
+    qDebug() << "runCommand" << dashArgs << freeArgs;
     QString cmd = dashArgs.value("command").toString();
     if (cmd.isEmpty())
         return createResultMap("No command or path specified");

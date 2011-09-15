@@ -1,3 +1,4 @@
+
 #include "VisitThread.h"
 #include <clang-c/Index.h>
 #include "Node.h"
@@ -24,11 +25,15 @@ void VisitThread::onFileParsed(const Path &path, void *u)
     int added = 0;
     for (QHash<uint, PendingReference>::const_iterator it = mPendingReferences.begin();
          it != mPendingReferences.end(); ++it) {
+        if (mNodes.contains(it.key())) {
+            qWarning() << "somehow this node now exists" << it.value().cursor;
+            continue;
+        }
         Q_ASSERT(!mNodes.contains(it.key()));
         const PendingReference &p = it.value();
         CXCursor ref = clang_getCursorReferenced(p.cursor);
         if (!isValidCursor(ref)) {
-            qWarning() << "Can't find referenced cursor for" << p.cursor;
+            // qWarning() << "Can't find referenced cursor for" << p.cursor;
             continue;
         }
         const CXCursorKind kind = clang_getCursorKind(p.cursor);

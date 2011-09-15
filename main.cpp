@@ -8,7 +8,6 @@
 #include <syslog.h>
 #include "ArgParser.h"
 
-
 void syslogMsgHandler(QtMsgType t, const char* str)
 {
     int priority = LOG_WARNING;

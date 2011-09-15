@@ -1,6 +1,11 @@
 (defun rtags-load-file () (interactive)
   (start-process "rtags-load" nil "rtags" "--timeout=1000" "--autostart" "--command=load" (buffer-file-name)))
 
+(defun rtags-conditional-load-file () (interactive)
+  (if (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
+      (rtags-load-file))
+  )
+
 (defun rtags-goto-symbol-at-point()
   (interactive)
   (save-excursion
@@ -31,3 +36,4 @@
                     (forward-line (- line 1))
                     (forward-char column)))))))))
 
+(provide 'rtags)
