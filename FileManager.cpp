@@ -14,9 +14,13 @@ FileManager::FileManager()
         if (cacheVersion != CacheVersion) {
             qWarning("Ignoring incompatible cache %d vs %d", cacheVersion, CacheVersion);
         } else {
-            qDebug() << "got" << cached.size() << "of cache";
             QDataStream ds(&cached, QIODevice::ReadOnly);
             ds >> mFiles;
+            qDebug() << "got" << cached.size() << "of cache" << mFiles.size() << "files";
+            for (QHash<Path, FileData>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
+                if (!it.value().arguments.isNull())
+                    qDebug() << it.key() << !it.value().arguments.isNull();
+            }
         }
     }
 }
@@ -201,8 +205,18 @@ QDataStream &operator>>(QDataStream &ds, FileManager::FileData &fd)
     return ds;
 }
 
-QSet<Path> FileManager::dependencies(const Path &path) const
+bool FileManager::getInfo(const Path &path, GccArguments *args, QSet<Path> *dependents, QSet<Path> *dependees) const
 {
     QMutexLocker lock(&mFilesMutex);
-    return mFiles.value(path).dependents;
+    const QHash<Path, FileData>::const_iterator it = mFiles.find(path);
+    if (it != mFiles.end()) {
+        if (args)
+            *args = (*it).arguments;
+        if (dependents)
+            *dependents = (*it).dependents;
+        if (dependees)
+            *dependees = (*it).dependees;
+        return true;
+    }
+    return false;
 }

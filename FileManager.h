@@ -30,7 +30,8 @@ public:
     void addMakefile(const Path &makefile);
     GccArguments arguments(const Path &path, bool *ok = 0) const;
     void store();
-    QSet<Path> dependencies(const Path &path) const;
+    bool getInfo(const Path &path, GccArguments *args,
+                 QSet<Path> *dependents, QSet<Path> *dependees) const;
 protected:
     bool event(QEvent *event);
 private slots:

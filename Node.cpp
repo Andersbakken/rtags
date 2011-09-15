@@ -199,6 +199,7 @@ Node *Node::methodDefinition() const
             if (n->type == MethodDefinition && n->symbolName == symbolName)
                 return n;
         }
+        qDebug() << "somehow not finding definition for" << symbolName;
         return 0;
     default:
         break;

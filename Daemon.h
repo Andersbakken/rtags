@@ -42,7 +42,7 @@ private:
                                      const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> addTemporaryFile(const QHash<QByteArray, QVariant>& args,
                                                  const QList<QByteArray> &freeArgs);
-    bool writeAST(const QHash<Path, CXTranslationUnit>::const_iterator it);
+    void addDeps(const Path &path, QHash<Path, GccArguments> &deps, QSet<Path> &seen);
 private slots:
     void ebusConnected(EBus* ebus);
     void ebusDataReady();

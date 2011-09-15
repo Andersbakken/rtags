@@ -56,8 +56,9 @@ struct FollowSymbolMatch : public Match
     {}
     virtual MatchResult match(const QByteArray &, const Node *node)
     {
-        // qDebug() << node->location << location << (node->location == location);
         if (node->location == location) {
+            qDebug() << "found our location" << node->location << node->symbolName
+                     << Node::typeToName(node->type);
             switch (node->type) {
             case Node::All:
             case Node::None:
@@ -349,36 +350,51 @@ static inline bool isSource(const Path &path) // ### could check if we have GccA
     return false;
 }
 
+void Daemon::addDeps(const Path &path, QHash<Path, GccArguments> &deps, QSet<Path> &seen)
+{
+    if (path.isFile() && !seen.contains(path)) {
+        qDebug() << path << (path.lastModified() != mFiles.value(path));
+        seen.insert(path);
+        time_t &lastModified = mFiles[path];
+        const time_t current = path.lastModified();
+        if (lastModified == current) {
+            return;
+        }
+        lastModified = current;
+        GccArguments &args = deps[path];
+        QSet<Path> dependees;
+        if (mFileManager.getInfo(path, &args, 0, &dependees)) {
+            foreach(const Path &dep, dependees) {
+                QSet<Path> dependents;
+                mFileManager.getInfo(dep, 0, &dependents, 0);
+                foreach(const Path &dependent, dependents) {
+                    addDeps(dependent, deps, seen);
+                }
+                addDeps(dep, deps, seen);
+            }
+        }
+    }
+}
+
 QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
                                          const QList<QByteArray> &freeArgs)
 {
-    QSet<Path> files;
+    QSet<Path> seen;
+    QHash<Path, GccArguments> files;
     foreach(const QByteArray &arg, freeArgs) {
-        Path file = arg;
-        if (!file.isResolved())
-            file.resolve();
-        if (!file.isFile()) {
-            qWarning("Can't find %s", arg.constData());
-        } else {
-            time_t &lastModified = mFiles[file];
-            const time_t current = file.lastModified();
-            if (lastModified == current)
-                continue;
-            mFiles[file] = current;
-            files.insert(file);
-            files += mFileManager.dependencies(file);
-        }
+        addDeps(Path::resolved(arg), files, seen);
     }
+
     int added = 0;
     if (!files.isEmpty()) {
-        mVisitThread.invalidate(files);
-        foreach(const Path &file, files) {
-            const GccArguments args = mFileManager.arguments(file);
+        mVisitThread.invalidate(files.keys().toSet()); // ### not the nicest thing ever
+        for (QHash<Path, GccArguments>::const_iterator it = files.begin(); it != files.end(); ++it) {
+            const GccArguments &args = it.value();
             if (!args.isNull()) {
-                mParseThread.load(file, args);
+                mParseThread.load(it.key(), args);
                 ++added;
-            } else if (isSource(file)) {
-                qWarning("We don't seem to have GccArguments for %s", file.constData());
+            } else if (isSource(it.key())) {
+                qWarning("We don't seem to have GccArguments for %s", it.key().constData());
             }
         }
     }

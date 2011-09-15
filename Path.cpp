@@ -71,8 +71,17 @@ bool Path::isResolved() const
         return false;
     const int count = size();
     for (int i=1; i<count - 1; ++i) {
-        if (at(i) == '.' && at(++i) == '.') {
-            return false;
+        if (at(i) == '.') {
+            switch (at(i + 1)) {
+            case '.':
+                return false;
+            case '/':
+                if (at(i - 1) == '/')
+                    return false;
+            default:
+                break;
+            }
+            ++i;
         }
     }
     return true;
