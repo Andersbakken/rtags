@@ -42,7 +42,8 @@ SOURCES += \
     Path.cpp \
     ParseThread.cpp \
     VisitThread.cpp \
-    FileManager.cpp
+    FileManager.cpp \
+    ArgParser.cpp
 
 HEADERS += \
     Daemon.h \
@@ -56,7 +57,8 @@ HEADERS += \
     Location.h \
     ParseThread.h \
     VisitThread.h \
-    FileManager.h
+    FileManager.h \
+    ArgParser.h
 
 OTHER_FILES += \
     gccopts.gperf
