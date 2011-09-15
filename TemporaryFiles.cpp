@@ -20,10 +20,10 @@ void TemporaryFiles::addFile(const QByteArray &filename, const QByteArray &conte
     m_files[filename] = content;
 }
 
-void TemporaryFiles::removeFile(const QByteArray &filename)
+bool TemporaryFiles::removeFile(const QByteArray &filename)
 {
     QMutexLocker locker(&m_mutex);
-    m_files.remove(filename);
+    return m_files.remove(filename);
 }
 
 QVector<TemporaryFile> TemporaryFiles::unsavedFiles() const

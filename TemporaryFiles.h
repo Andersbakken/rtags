@@ -19,7 +19,7 @@ public:
     static TemporaryFiles* instance();
 
     void addFile(const QByteArray& filename, const QByteArray& content);
-    void removeFile(const QByteArray& filename);
+    bool removeFile(const QByteArray& filename);
 
     QVector<TemporaryFile> unsavedFiles() const;
 

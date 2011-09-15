@@ -261,16 +261,21 @@ QHash<QByteArray, QVariant> Daemon::addTemporaryFile(const QHash<QByteArray, QVa
     QByteArray filename = freeArgs.first();
 
     if (dashArgs.contains("remove")) {
-        TemporaryFiles::instance()->removeFile(filename);
-    } else {
-        QByteArray content;
-        QFile stdinfile;
-        stdinfile.open(STDIN_FILENO, QFile::ReadOnly);
-        while (!stdinfile.atEnd())
-            content += stdinfile.read(8192);
-
-        TemporaryFiles::instance()->addFile(filename, content);
+        if (TemporaryFiles::instance()->removeFile(filename))
+            return createResultMap("Temporary file removed");
+        else
+            return createResultMap("Temporary file does not exist: " + filename);
     }
+
+    QByteArray content;
+    QFile stdinfile;
+    stdinfile.open(STDIN_FILENO, QFile::ReadOnly);
+    while (!stdinfile.atEnd())
+        content += stdinfile.read(8192);
+
+    TemporaryFiles::instance()->addFile(filename, content);
+
+    return createResultMap("Temporary file added");
 }
 
 static Node::Type stringToType(const QByteArray &in)
