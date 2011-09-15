@@ -17,7 +17,6 @@ void VisitThread::onFileParsed(const Path &path, void *u)
     QMutexLocker lock(&mMutex);
     QWriteLocker writeLock(&mLock);
     const int old = mNodes.size();
-    mFiles.insert(path);
     CXTranslationUnit unit = reinterpret_cast<CXTranslationUnit>(u);
     CXCursor cursor = clang_getTranslationUnitCursor(unit);
     clang_visitChildren(cursor, buildTree, this);
@@ -207,13 +206,13 @@ static int recursiveDelete(Node *node, QHash<unsigned, Node*> &nodes, int &size)
     return ret;
 }
 
-static int removeChildren(Node *node, const Path &path, QHash<unsigned, Node*> &nodes, int &mSize)
+static int removeChildren(Node *node, const QSet<Path> &paths, QHash<unsigned, Node*> &nodes, int &mSize)
 {
     Node *prev = 0;
     Node *child = node->firstChild;
     int ret = 0;
     while (child) {
-        if (child->location.path == path) {
+        if (paths.contains(child->location.path)) {
             if (!prev) {
                 node->firstChild = child->nextSibling;
                 ret += recursiveDelete(child, nodes, mSize);
@@ -224,7 +223,7 @@ static int removeChildren(Node *node, const Path &path, QHash<unsigned, Node*> &
                 child = prev->nextSibling;
             }
         } else {
-            removeChildren(child, path, nodes, mSize);
+            removeChildren(child, paths, nodes, mSize);
             prev = child;
             child = child->nextSibling;
         }
@@ -232,18 +231,21 @@ static int removeChildren(Node *node, const Path &path, QHash<unsigned, Node*> &
     return ret;
 }
 
-void VisitThread::invalidate(const Path &path)
+void VisitThread::invalidate(const QSet<Path> &paths)
 {
-    {
-        QMutexLocker lock(&mMutex);
-        if (!mFiles.remove(path))
-            return;
-    }
+    Q_ASSERT(!paths.isEmpty());
     QWriteLocker writeLock(&mLock);
     const int old = mBytes;
-    const int count = removeChildren(mRoot, path, mNodes, mBytes);
+    const int count = removeChildren(mRoot, paths, mNodes, mBytes);
+#ifndef QT_NO_DEBUG
+    QByteArray out;
+    foreach(const Path &path, paths) {
+        out += path + ' ';
+    }
+    out.chop(1);
     qDebug("Removed %d nodes %d (removed %d bytes, current %d bytes) for %s",
-           count, mNodes.size(), old - mBytes, mBytes, path.constData());
+           count, mNodes.size(), old - mBytes, mBytes, out.constData());
+#endif
 }
 void VisitThread::printTree()
 {
@@ -286,10 +288,4 @@ void VisitThread::lookup(Match *match)
     QReadLocker lock(&mLock);
     Q_ASSERT(match);
     recurse(match, mRoot, QByteArray());
-}
-
-QSet<Path> VisitThread::files() const
-{
-    QMutexLocker lock(&mMutex);
-    return mFiles;
 }

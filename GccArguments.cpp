@@ -338,3 +338,11 @@ QList<QByteArray> GccArguments::includePaths() const
     }
     return includePaths;
 }
+bool GccArguments::isNull() const
+{
+    return m_ptr.data()->raw.isEmpty();
+}
+bool GccArguments::isEmpty() const
+{
+    return m_ptr.data()->raw.isEmpty();
+}

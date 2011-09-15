@@ -29,9 +29,8 @@ public:
     ~FileManager();
     void addMakefile(const Path &makefile);
     GccArguments arguments(const Path &path, bool *ok = 0) const;
-    void setArguments(const Path &path, const GccArguments &args);
-    void clearArguments(const Path &path);
     void store();
+    QSet<Path> dependencies(const Path &path) const;
 protected:
     bool event(QEvent *event);
 private slots:
@@ -47,8 +46,18 @@ private:
     };
     QHash<QProcess *, MakefileData> mMakefiles;
 
-    mutable QReadWriteLock mFilesLock;
-    QHash<Path, GccArguments> mFiles;
+    mutable QMutex mFilesMutex;
+    struct FileData {
+        GccArguments arguments;
+        QSet<Path> dependents;
+        QSet<Path> dependees;
+        // If this is Foo.cpp, dependees contains Foo.h,
+        // If this is Foo.h, dependents contains Foo.cpp
+    };
+    friend QDataStream &operator<<(QDataStream &ds, const FileData &fd);
+    friend QDataStream &operator>>(QDataStream &ds, FileData &fd);
+
+    QHash<Path, FileData> mFiles;
 };
 
 #endif

@@ -18,6 +18,8 @@ public:
     bool parse(const QByteArray& args, const Path &resolvedPath);
     QByteArray raw() const;
     Path dir() const;
+    bool isNull() const;
+    bool isEmpty() const;
     QString errorString() const;
 
     QList<QByteArray> arguments() const;

@@ -1,4 +1,4 @@
-/* C++ code produced by gperf version 3.0.4 */
+/* C++ code produced by gperf version 3.0.3 */
 /* Command-line: gperf -I -C -l -L C++ --output-file gccopts_gperf.cpp -Z gccopts_gperf gccopts.gperf  */
 /* Computed positions: -k'$' */
 

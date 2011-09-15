@@ -50,14 +50,14 @@ qint64 Path::fileSize() const
     return -1;
 }
 
-Path Path::resolved(const QByteArray &path, bool *ok)
+Path Path::resolved(const QByteArray &path, const Path &cwd, bool *ok)
 {
     Path ret(path);
     if (ret.isResolved() && ret.exists()) {
         if (ok)
             *ok = true;
         return ret;
-    } else if (ret.resolve() && ok) {
+    } else if (ret.resolve(cwd) && ok) {
         *ok = true;
     } else if (ok) {
         *ok = false;

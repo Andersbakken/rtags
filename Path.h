@@ -52,7 +52,7 @@ public:
     bool resolve(const Path &cwd = Path());
     time_t lastModified() const;
     qint64 fileSize() const;
-    static Path resolved(const QByteArray &path, bool *ok = 0);
+    static Path resolved(const QByteArray &path, const Path &cwd = Path(), bool *ok = 0);
     static Path eatCXString(CXString string) { return eatString(string); }
 };
 Q_DECLARE_METATYPE(Path);

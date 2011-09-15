@@ -33,7 +33,7 @@ public:
     void printTree();
     QSet<Path> files() const;
 public slots:
-    void invalidate(const Path &path);
+    void invalidate(const QSet<Path> &paths);
     void onFileParsed(const Path &path, void *unit);
 private:
     Node *createOrGet(CXCursor cursor);
@@ -43,7 +43,6 @@ private:
         Location location;
     };
     mutable QMutex mMutex;
-    QSet<Path> mFiles;
     QHash<uint, PendingReference> mPendingReferences;
     Node *mRoot;
     QReadWriteLock mLock;

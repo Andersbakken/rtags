@@ -334,20 +334,52 @@ QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &ar
     return createResultMap(match.output);
 }
 
+static inline bool isSource(const Path &path) // ### could check if we have GccArguments
+{
+    const int dot = path.lastIndexOf('.');
+    const int len = path.size() - dot - 1;
+    if (dot != -1 && len > 0) {
+        const char *sourceExtensions[] = { "c", "cpp", "cxx", "cc", 0 };
+        for (int i=0; sourceExtensions[i]; ++i) {
+            if (!strncasecmp(sourceExtensions[i], path.constData() + dot + 1, len)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
                                          const QList<QByteArray> &freeArgs)
 {
-    int added = 0;
+    QSet<Path> files;
     foreach(const QByteArray &arg, freeArgs) {
-        Path filename = arg;
-        if (!filename.isResolved())
-            filename.resolve();
-        if (!filename.isFile()) {
+        Path file = arg;
+        if (!file.isResolved())
+            file.resolve();
+        if (!file.isFile()) {
             qWarning("Can't find %s", arg.constData());
         } else {
-            mVisitThread.invalidate(filename);
-            mParseThread.load(filename, mFileManager.arguments(filename));
-            ++added;
+            time_t &lastModified = mFiles[file];
+            const time_t current = file.lastModified();
+            if (lastModified == current)
+                continue;
+            mFiles[file] = current;
+            files.insert(file);
+            files += mFileManager.dependencies(file);
+        }
+    }
+    int added = 0;
+    if (!files.isEmpty()) {
+        mVisitThread.invalidate(files);
+        foreach(const Path &file, files) {
+            const GccArguments args = mFileManager.arguments(file);
+            if (!args.isNull()) {
+                mParseThread.load(file, args);
+                ++added;
+            } else if (isSource(file)) {
+                qWarning("We don't seem to have GccArguments for %s", file.constData());
+            }
         }
     }
     return createResultMap("Loading " + QByteArray::number(added) + " files");

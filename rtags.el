@@ -1,9 +1,30 @@
+(defun rtags-setup-hooks () (interactive)
+  (remove-hook 'after-save-hook 'rtags-sync-all-open-files)
+  (remove-hook 'find-file-hooks 'rtags-sync-all-open-files)
+  (add-hook 'after-save-hook 'rtags-sync-all-open-files)
+  (add-hook 'find-file-hooks 'rtags-sync-all-open-files)
+  )
+
 (defun rtags-load-file () (interactive)
   (start-process "rtags-load" nil "rtags" "--timeout=1000" "--autostart" "--command=load" (buffer-file-name)))
 
-(defun rtags-conditional-load-file () (interactive)
+(defun rtags-conditional-load-file (&optional buffer) (interactive)
   (if (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
       (rtags-load-file))
+  )
+
+(defun rtags-sync-all-open-files() (interactive)
+  (let (paths)
+    (dolist (buffer (buffer-list))
+      (with-current-buffer buffer
+        (if (and
+             (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
+             (not (string-match "\\.\\(hxx\\|hpp\\|tcc\\|h\\)?$" (buffer-file-name))))
+            (add-to-list 'paths (buffer-file-name)))))
+    (if paths
+        (apply 'start-process "rtags-load" nil "rtags" "--timeout=1000" "--autostart" "--command=load" paths))
+    )
+  nil
   )
 
 (defun rtags-goto-symbol-at-point()

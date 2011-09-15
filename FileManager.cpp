@@ -1,7 +1,8 @@
 #include "FileManager.h"
 
+enum { CacheVersion = 1 };
 FileManager::FileManager()
-    : QThread(), mFilesLock(QReadWriteLock::Recursive)
+    : QThread(), mFilesMutex(QMutex::Recursive)
 {
     setObjectName("FileManager");
     moveToThread(this);
@@ -9,9 +10,14 @@ FileManager::FileManager()
                        QCoreApplication::organizationName());
     QByteArray cached = settings.value("cachedGccArguments").toByteArray();
     if (!cached.isEmpty()) {
-        qDebug() << "got" << cached.size() << "of cache";
-        QDataStream ds(&cached, QIODevice::ReadOnly);
-        ds >> mFiles;
+        const int cacheVersion = settings.value("cacheVersion").toInt();
+        if (cacheVersion != CacheVersion) {
+            qWarning("Ignoring incompatible cache %d vs %d", cacheVersion, CacheVersion);
+        } else {
+            qDebug() << "got" << cached.size() << "of cache";
+            QDataStream ds(&cached, QIODevice::ReadOnly);
+            ds >> mFiles;
+        }
     }
 }
 FileManager::~FileManager()
@@ -27,22 +33,10 @@ void FileManager::addMakefile(const Path &makefile)
 
 GccArguments FileManager::arguments(const Path &path, bool *ok) const
 {
-    QReadLocker lock(&mFilesLock);
+    QMutexLocker lock(&mFilesMutex);
     if (ok)
         *ok = mFiles.contains(path);
-    return mFiles.value(path);
-}
-
-void FileManager::setArguments(const Path &path, const GccArguments &args)
-{
-    QWriteLocker lock(&mFilesLock);
-    mFiles[path] = args;
-}
-
-void FileManager::clearArguments(const Path &path)
-{
-    QWriteLocker lock(&mFilesLock);
-    mFiles.remove(path);
+    return mFiles.value(path).arguments;
 }
 
 bool FileManager::event(QEvent *event)
@@ -66,8 +60,9 @@ bool FileManager::event(QEvent *event)
                     QStringList()
                     << QLatin1String("-B")
                     << QLatin1String("-n")
+                    << QLatin1String("-j1")
+                    << QLatin1String("-p")
                     << QLatin1String("-f")
-                    // << QLatin1String("-j1") // ### why doesn't this work?
                     << path);
         qDebug() << "addMakefile" << path;
         return true;
@@ -127,8 +122,24 @@ void FileManager::onMakeOutput()
                              qPrintable(args.errorString()));
                     continue;
                 }
-
+                QMutexLocker lock(&mFilesMutex);
                 if (!args.hasInput() || !args.isCompile()) {
+                    QStringList strings = QString::fromLocal8Bit(line).split(' ');
+                    const int size = strings.size();
+                    if (size >= 3 && strings.first().endsWith(":")) {
+                        const Path sourceFile = Path::resolved(strings.at(1).toLocal8Bit(), data.directory);
+                        if (sourceFile.isFile()) {
+                            FileData &fd = mFiles[sourceFile];
+                            for (int i=2; i<size; ++i) {
+                                const Path header = Path::resolved(strings.at(i).toLocal8Bit(), data.directory);
+                                if (header.isFile()) {
+                                    mFiles[header].dependents.insert(sourceFile);
+                                    fd.dependees.insert(header);
+                                }
+                            }
+                        }
+                    }
+
                     // if (line.contains(".cpp")) {
                     //     qWarning("No input here or maybe this isn't a compile %d %d %s",
                     //              args.hasInput(), args.isCompile(),
@@ -144,8 +155,8 @@ void FileManager::onMakeOutput()
                     Q_ASSERT(file.exists());
                     if (!data.seen.contains(file)) {
                         data.seen.insert(file);
-                        // qDebug() << "settings arguments for" << file << "to" << args.raw();
-                        setArguments(file, args);
+                        // qDebug() << "setting arguments for" << file << "to" << args.raw();
+                        mFiles[file].arguments = args;
                     }
                 }
             }
@@ -173,6 +184,25 @@ void FileManager::store()
         QDataStream ds(&out, QIODevice::WriteOnly);
         ds << mFiles;
     }
+    settings.setValue("cacheVersion", CacheVersion);
     qDebug() << "writing" << out.size() << "of cache";
     settings.setValue("cachedGccArguments", out);
+}
+
+QDataStream &operator<<(QDataStream &ds, const FileManager::FileData &fd)
+{
+    ds << fd.arguments << fd.dependents << fd.dependees;
+    return ds;
+}
+
+QDataStream &operator>>(QDataStream &ds, FileManager::FileData &fd)
+{
+    ds >> fd.arguments >> fd.dependents >> fd.dependees;
+    return ds;
+}
+
+QSet<Path> FileManager::dependencies(const Path &path) const
+{
+    QMutexLocker lock(&mFilesMutex);
+    return mFiles.value(path).dependents;
 }

@@ -19,7 +19,7 @@ struct Location {
         CXFile file;
         clang_getInstantiationLocation(location, &file, &line, &column, 0);
         bool ok;
-        path = Path::resolved(eatString(clang_getFileName(file)), &ok);
+        path = Path::resolved(eatString(clang_getFileName(file)), Path(), &ok);
         if (!ok) {
             line = column = 0 ;
         }
