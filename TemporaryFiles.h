@@ -21,7 +21,6 @@ public:
     void addFile(const QByteArray& filename, const QByteArray& content);
     void removeFile(const QByteArray& filename);
 
-    QByteArray content(const QByteArray& filename) const;
     QVector<TemporaryFile> unsavedFiles() const;
 
 private:

@@ -26,12 +26,6 @@ void TemporaryFiles::removeFile(const QByteArray &filename)
     m_files.remove(filename);
 }
 
-QByteArray TemporaryFiles::content(const QByteArray &filename) const
-{
-    QMutexLocker locker(&m_mutex);
-    return m_files.value(filename);
-}
-
 QVector<TemporaryFile> TemporaryFiles::unsavedFiles() const
 {
     QVector<TemporaryFile> unsaved;
