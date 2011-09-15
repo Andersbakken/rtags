@@ -1,7 +1,4 @@
 #include "Daemon.h"
-#ifndef EBUS_ENABLED
-#include "DaemonAdaptor.h"
-#endif
 #include "GccArguments.h"
 #include <QCoreApplication>
 #include "Utils.h"
@@ -164,29 +161,12 @@ Daemon::~Daemon()
 
 bool Daemon::start()
 {
-#ifndef EBUS_ENABLED
-    DaemonAdaptor* adaptor = new DaemonAdaptor(this);
-
-    QDBusConnection dbus = QDBusConnection::sessionBus();
-    if (!dbus.registerObject(QLatin1String("/"), this)) {
-        delete adaptor;
-        return false;
-    }
-    if (!dbus.registerService(QLatin1String("rtags.Daemon"))) {
-        delete adaptor;
-        return false;
-    }
-
-    return true;
-#else
     if (!mEbus.start())
         return false;
     connect(&mEbus, SIGNAL(ebusConnected(EBus*)), this, SLOT(ebusConnected(EBus*)));
     return true;
-#endif
 }
 
-#ifdef EBUS_ENABLED
 void Daemon::ebusConnected(EBus *ebus)
 {
     connect(ebus, SIGNAL(ready()), this, SLOT(ebusDataReady()));
@@ -213,7 +193,6 @@ void Daemon::ebusDataReady()
     ebus->push(ebusarg);
     ebus->send();
 }
-#endif
 
 static QHash<QByteArray, QVariant> syntax()
 {
@@ -224,6 +203,7 @@ static QHash<QByteArray, QVariant> syntax()
 QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant> &dashArgs,
                                                const QList<QByteArray>& freeArgs)
 {
+    qDebug() << "runCommand" << dashArgs << freeArgs;
     QString cmd = dashArgs.value("command").toString();
     if (cmd.isEmpty())
         return createResultMap("No command or path specified");
@@ -386,7 +366,7 @@ QHash<QByteArray, QVariant> Daemon::followSymbol(const QHash<QByteArray, QVarian
     if (match.found) {
         return createResultMap(match.found->location.toString());
     } else {
-        return createResultMap("Can't follow symbol at " + loc.toString());
+        return createResultMap("Can't follow symbol");
     }
 }
 

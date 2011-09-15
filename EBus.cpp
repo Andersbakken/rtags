@@ -7,19 +7,17 @@
 #include <arpa/inet.h>
 
 EBus::EBus(QObject *parent)
-    : QObject(parent), m_socket(new QTcpSocket(this)), m_pending(-1), m_loop(0)
+    : QObject(parent), m_socket(0), m_pending(-1), m_loop(0)
 {
-    m_socket->connectToHost(QHostAddress::LocalHost, port());
-    connect(m_socket, SIGNAL(readyRead()), this, SLOT(readData()));
-    connect(m_socket, SIGNAL(disconnected()), this, SIGNAL(disconnected()));
 }
 
-EBus::EBus(QTcpSocket* socket, QObject *parent)
+EBus::EBus(QTcpSocket* socket, QObject* parent)
     : QObject(parent), m_socket(socket), m_pending(-1), m_loop(0)
 {
     connect(m_socket, SIGNAL(readyRead()), this, SLOT(readData()));
     connect(m_socket, SIGNAL(disconnected()), this, SIGNAL(disconnected()));
 }
+
 
 quint16 EBus::port()
 {
@@ -57,12 +55,6 @@ bool EBus::waitForReply(int msec)
 bool EBus::hasData() const
 {
     return !m_toread.isEmpty();
-}
-
-bool EBus::connected() const
-{
-    return (m_socket->state() == QTcpSocket::ConnectedState
-            || (isConnecting(m_socket) && m_socket->waitForConnected(100)));
 }
 
 void EBus::push(const QVariant &arg)
@@ -184,4 +176,25 @@ void EBusDaemon::clientDisconnected()
         }
         ++it;
     }
+}
+bool EBus::connect(int timeout)
+{
+    if (isConnected())
+        return true;
+    delete m_socket;
+    m_socket = new QTcpSocket;
+    m_socket->connectToHost(QHostAddress::LocalHost, port());
+    connect(m_socket, SIGNAL(readyRead()), this, SLOT(readData()));
+    connect(m_socket, SIGNAL(disconnected()), this, SIGNAL(disconnected()));
+    if (!m_socket->waitForConnected(timeout)) {
+        delete m_socket;
+        m_socket = 0;
+        return false;
+    }
+    return true;
+}
+
+bool EBus::isConnected() const
+{
+    return m_socket && m_socket->state() == QAbstractSocket::ConnectedState;
 }

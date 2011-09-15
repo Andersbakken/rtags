@@ -14,15 +14,13 @@
 #include "Location.h"
 #include "ParseThread.h"
 #include "VisitThread.h"
-#ifdef EBUS_ENABLED
 #include "EBus.h"
-#endif
 
 struct Node;
 class Daemon : public QObject
 {
-    Q_OBJECT
-    public:
+    Q_OBJECT;
+public:
     Daemon(QObject* parent = 0);
     ~Daemon();
 
@@ -47,13 +45,10 @@ private:
 private:
     ParseThread mParseThread;
     VisitThread mVisitThread;
-#ifdef EBUS_ENABLED
     EBusDaemon mEbus;
 private slots:
     void ebusConnected(EBus* ebus);
     void ebusDataReady();
-#endif
-
 };
 
 #endif

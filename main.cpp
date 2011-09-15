@@ -9,9 +9,6 @@
 #include "ArgParser.h"
 #include "TemporaryFiles.h"
 
-#define CLIENT_CONNECT_ATTEMPTS 5
-#define CLIENT_CONNECT_DELAY_MS 1000
-
 void syslogMsgHandler(QtMsgType t, const char* str)
 {
     int priority = LOG_WARNING;
@@ -85,6 +82,11 @@ int main(int argc, char** argv)
         Options::s_verbose = true;
     }
 
+    bool ok;
+    int timeout = argsmap.value("timeout").toUInt(&ok);
+    if (!ok)
+        timeout = 1000;
+
     if (argsmap.isEmpty())
         argsmap.insert("command", "daemonize");
 
@@ -99,16 +101,11 @@ int main(int argc, char** argv)
     if (cmd == "daemonize") {
         {
             Client client;
-            if (client.connect()) {
-                for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {
-                    if (client.connected()) {
-                        QHash<QByteArray, QVariant> args;
-                        args["command"] = "quit";
-                        client.exec(args, QList<QByteArray>());
-                        break;
-                    }
-                }
-                usleep(CLIENT_CONNECT_DELAY_MS * 1000);
+            if (client.connect(timeout)) {
+                QHash<QByteArray, QVariant> args;
+                args["command"] = "quit";
+                client.exec(args, QList<QByteArray>());
+                usleep(1000); // wait for other daemon to die?
             }
         }
 
@@ -117,41 +114,35 @@ int main(int argc, char** argv)
 
         qInstallMsgHandler(syslogMsgHandler);
         Daemon daemon;
-        if (daemon.start())
+        if (daemon.start()) {
             return app.exec();
-        else
+        } else {
             return -2;
+        }
     } else {
         Client client;
-        if (!client.connect()) {
+        if (!client.connect(timeout)) {
             if (cmd == "quit") {
                 qWarning("Can't connect to rtags daemon");
                 return 0;
             }
             if (!getenv("RTAGS_NO_AUTOSTART") || argsmap.contains("autostart")) {
                 client.startDaemon(app.arguments());
-                for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {
-                    if (client.connect()) {
-                        break;
-                    }
-                    usleep(CLIENT_CONNECT_DELAY_MS * 1000);
+                sleep(1); // ### hmmmm
+                if (!client.connect(timeout)) {
+                    qWarning("Can't connect to rtags daemon");
+                    return 1;
                 }
-                qWarning("Can't connect ot rtags daemon");
-                return 1;
             }
         }
-        for (int i = 0; i < CLIENT_CONNECT_ATTEMPTS; ++i) {
-            if (client.connected()) {
-                QHash<QByteArray, QVariant> replymap = client.exec(argsmap, args.freeArguments());
-                QString reply = replymap.value("result").toString();
-                if (!reply.isEmpty())
-                    printf("%s\n", qPrintable(reply));
-                return 0;
-            }
-            usleep(CLIENT_CONNECT_DELAY_MS * 1000);
+        if (client.isConnected()) {
+            QHash<QByteArray, QVariant> replymap = client.exec(argsmap, args.freeArguments());
+            QByteArray reply = replymap.value("result").toByteArray();
+            if (!reply.isEmpty())
+                printf("%s\n", reply.constData());
+            return 0;
         }
     }
     qWarning("Couldn't connect to daemon");
-
     return -1;
 }

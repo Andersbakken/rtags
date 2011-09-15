@@ -4,11 +4,9 @@
 #include <QtCore>
 #include <clang-c/Index.h>
 
-#ifdef EBUS_ENABLED
 typedef QHash<QByteArray, QVariant> ByteArrayHash;
 Q_DECLARE_METATYPE(ByteArrayHash)
 Q_DECLARE_METATYPE(QList<QByteArray>)
-#endif
 
 const char *kindToString(int kind);
 const char *completionChunkKindToString(int kind);
