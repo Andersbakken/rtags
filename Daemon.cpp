@@ -154,8 +154,12 @@ Daemon::Daemon(QObject *parent)
 
 Daemon::~Daemon()
 {
+    mParseThread.abort();
+    mVisitThread.quit();
     FileManager::instance()->quit();
-    FileManager::instance()->wait();
+    QThread *threads[] = { &mParseThread, &mVisitThread, FileManager::instance(), 0 };
+    for (int i=0; threads[i]; ++i)
+        threads[i]->wait();
     delete FileManager::instance();
 }
 
