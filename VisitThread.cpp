@@ -180,6 +180,7 @@ Node * VisitThread::createOrGet(CXCursor cursor)
     Node *&node = mNodes[hash];
     if (!node) {
         node = new Node(createOrGet(clang_getCursorSemanticParent(cursor)), cursor, location, hash);
+        mPendingReferences.remove(hash);
         Q_ASSERT(node->parent);
     }
     return node;

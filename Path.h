@@ -6,7 +6,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <QByteArray>
+#include <qbytearray.h>
 #include "Utils.h"
 #include <clang-c/Index.h>
 
