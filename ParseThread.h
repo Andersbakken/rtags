@@ -6,17 +6,19 @@
 #include "Path.h"
 #include "GccArguments.h"
 
+class FileManager;
 class ParseThread : public QThread
 {
     Q_OBJECT
 public:
-    ParseThread();
+    ParseThread(FileManager *fm);
     ~ParseThread();
     void abort();
     void load(const Path &path, const GccArguments &arguments);
 signals:
     void fileParsed(const Path &path, void *translationUnit);
     void parseError(const Path &path);
+    void dependenciesAdded(const Path &path);
 protected:
     void run();
 private:
@@ -30,6 +32,7 @@ private:
     } *mFirst, *mLast;
     int mCount;
     CXIndex mIndex;
+    FileManager *mFileManager;
 };
 
 #endif

@@ -32,6 +32,7 @@ public:
     void lookup(Match *match);
     void printTree();
     QSet<Path> files() const;
+    void abort();
 public slots:
     void invalidate(const QSet<Path> &paths);
     void onFileParsed(const Path &path, void *unit);
@@ -48,6 +49,7 @@ private:
     QReadWriteLock mLock;
     QHash<unsigned, Node*> mNodes;
     int mBytes;
+    bool mQuitting;
 };
 
 #endif

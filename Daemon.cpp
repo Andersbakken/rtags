@@ -143,11 +143,12 @@ static QHash<QByteArray, QVariant> createResultMap(const QByteArray& result)
 
 
 Daemon::Daemon(QObject *parent)
-    : QObject(parent)
+    : QObject(parent), mParseThread(&mFileManager)
 {
     qRegisterMetaType<Path>("Path");
     qRegisterMetaType<CXTranslationUnit>("CXTranslationUnit");
     connect(&mParseThread, SIGNAL(fileParsed(Path, void*)), &mVisitThread, SLOT(onFileParsed(Path, void*)));
+    connect(&mParseThread, SIGNAL(dependenciesAdded(Path)), this, SLOT(reload(Path)));
     mParseThread.start();
     mVisitThread.start();
     mFileManager.start();
@@ -216,9 +217,11 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         return syntax();
     } else if (cmd == "quit") {
         mParseThread.abort();
-        mVisitThread.quit();
+        mVisitThread.abort();
+        mFileManager.quit();
         mParseThread.wait();
         mVisitThread.wait();
+        mFileManager.wait();
         QTimer::singleShot(100, QCoreApplication::instance(), SLOT(quit()));
         // hack to make the quit command properly respond before the server goes down
         return createResultMap("quitting");
@@ -232,6 +235,8 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         return lookup(dashArgs, freeArgs);
     } else if (cmd == "load") {
         return load(dashArgs, freeArgs);
+    } else if (cmd == "dependencies") {
+        return createResultMap(mFileManager.dependencyMap());
     } else if (cmd == "temporaryfile") {
         return addTemporaryFile(dashArgs, freeArgs);
     }
@@ -352,22 +357,22 @@ static inline bool isSource(const Path &path) // ### could check if we have GccA
 
 void Daemon::addDeps(const Path &path, QHash<Path, GccArguments> &deps, QSet<Path> &seen)
 {
+    GccArguments hack;
     if (path.isFile() && !seen.contains(path)) {
         qDebug() << path << (path.lastModified() != mFiles.value(path));
         seen.insert(path);
         time_t &lastModified = mFiles[path];
         const time_t current = path.lastModified();
-        if (lastModified == current) {
-            return;
-        }
+        GccArguments &args = lastModified == current ? hack : deps[path];
         lastModified = current;
-        GccArguments &args = deps[path];
         QSet<Path> dependees;
         if (mFileManager.getInfo(path, &args, 0, &dependees)) {
             foreach(const Path &dep, dependees) {
                 QSet<Path> dependents;
                 mFileManager.getInfo(dep, 0, &dependents, 0);
                 foreach(const Path &dependent, dependents) {
+                    if (dependent.contains("qt-47"))
+                        qDebug() << dependents << path;
                     addDeps(dependent, deps, seen);
                 }
                 addDeps(dep, deps, seen);
@@ -473,4 +478,10 @@ QHash<QByteArray, QVariant> Daemon::printTree(const QHash<QByteArray, QVariant>&
     } match;
     mVisitThread.lookup(&match);
     return createResultMap(match.out);
+}
+
+void Daemon::reload(const Path &path)
+{
+    qWarning() << "reloading" << path;
+    load(QHash<QByteArray, QVariant>(), QList<QByteArray>() << path);
 }

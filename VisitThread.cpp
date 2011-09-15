@@ -3,65 +3,74 @@
 #include "Node.h"
 
 VisitThread::VisitThread()
-    : QThread(0), mRoot(new Node)
+    : QThread(0), mRoot(new Node), mQuitting(false)
 {
     mBytes = mRoot->size();
     setObjectName("VisitThread");
     moveToThread(this);
 }
 
+void VisitThread::abort()
+{
+    mQuitting = true;
+    quit();
+}
+
 void VisitThread::onFileParsed(const Path &path, void *u)
 {
-    QElapsedTimer timer;
-    timer.start();
-    QMutexLocker lock(&mMutex);
-    QWriteLocker writeLock(&mLock);
-    const int old = mNodes.size();
     CXTranslationUnit unit = reinterpret_cast<CXTranslationUnit>(u);
-    CXCursor cursor = clang_getTranslationUnitCursor(unit);
-    clang_visitChildren(cursor, buildTree, this);
-    int added = 0;
-    for (QHash<uint, PendingReference>::const_iterator it = mPendingReferences.begin();
-         it != mPendingReferences.end(); ++it) {
-        if (mNodes.contains(it.key())) {
-            qWarning() << "somehow this node now exists" << it.value().cursor;
-            continue;
-        }
-        Q_ASSERT(!mNodes.contains(it.key()));
-        const PendingReference &p = it.value();
-        CXCursor ref = clang_getCursorReferenced(p.cursor);
-        if (!isValidCursor(ref)) {
-            qWarning() << "Can't find referenced cursor for" << p.cursor;
-            continue;
-        }
-        const CXCursorKind kind = clang_getCursorKind(p.cursor);
-        const CXCursorKind refKind = clang_getCursorKind(ref);
-        if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
-            continue; // these have the wrong Location, we get the right one from CXCursor_DeclRefExpr
-        } else if (kind == CXCursor_DeclRefExpr) {
-            switch (refKind) {
-            case CXCursor_ParmDecl:
-            case CXCursor_VarDecl:
-            case CXCursor_CXXMethod:
-            case CXCursor_EnumConstantDecl:
-                break;
-            default:
-                qDebug() << "throwing out this pending one" << p.cursor << ref;
+    if (!mQuitting) {
+        QElapsedTimer timer;
+        timer.start();
+        QMutexLocker lock(&mMutex);
+        QWriteLocker writeLock(&mLock);
+        const int old = mNodes.size();
+        CXCursor cursor = clang_getTranslationUnitCursor(unit);
+        clang_visitChildren(cursor, buildTree, this);
+        int added = 0;
+        for (QHash<uint, PendingReference>::const_iterator it = mPendingReferences.begin();
+             it != mPendingReferences.end(); ++it) {
+            if (mNodes.contains(it.key())) {
+                qWarning() << "somehow this node now exists" << it.value().cursor;
                 continue;
             }
-        }
+            Q_ASSERT(!mNodes.contains(it.key()));
+            const PendingReference &p = it.value();
+            CXCursor ref = clang_getCursorReferenced(p.cursor);
+            if (!isValidCursor(ref)) {
+                // qWarning() << "Can't find referenced cursor for" << p.cursor;
+                continue;
+            }
+            const CXCursorKind kind = clang_getCursorKind(p.cursor);
+            const CXCursorKind refKind = clang_getCursorKind(ref);
+            if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
+                continue; // these have the wrong Location, we get the right one from CXCursor_DeclRefExpr
+            } else if (kind == CXCursor_DeclRefExpr) {
+                switch (refKind) {
+                case CXCursor_ParmDecl:
+                case CXCursor_VarDecl:
+                case CXCursor_CXXMethod:
+                case CXCursor_EnumConstantDecl:
+                    break;
+                default:
+                    // qDebug() << "throwing out this pending one" << p.cursor << ref;
+                    continue;
+                }
+            }
 
-        CXCursor def = clang_getCursorDefinition(ref);
-        Node *n = new Node(createOrGet(isValidCursor(def) ? def : ref),
-                           p.cursor, p.location, it.key());
-        const int s = n->size();
-        added += s;
-        mBytes += s;
-        mNodes[it.key()] = n;
+            CXCursor def = clang_getCursorDefinition(ref);
+            Node *n = new Node(createOrGet(isValidCursor(def) ? def : ref),
+                               p.cursor, p.location, it.key());
+            const int s = n->size();
+            added += s;
+            mBytes += s;
+            mNodes[it.key()] = n;
+        }
+        mPendingReferences.clear();
+        qDebug() << mNodes.size() - old << "nodes added for" << path << added << "bytes added total is"
+                 << mBytes << timer.elapsed() << "ms";
     }
-    mPendingReferences.clear();
     clang_disposeTranslationUnit(unit);
-    qDebug() << mNodes.size() - old << "nodes added for" << path << added << "bytes added total is" << mBytes << timer.elapsed() << "ms";
 }
 Node * VisitThread::createOrGet(CXCursor cursor)
 {

@@ -32,6 +32,8 @@ public:
     void store();
     bool getInfo(const Path &path, GccArguments *args,
                  QSet<Path> *dependents, QSet<Path> *dependees) const;
+    QByteArray dependencyMap() const;
+    bool addDependencies(const Path &source, const QSet<Path> &headers);
 protected:
     bool event(QEvent *event);
 private slots:

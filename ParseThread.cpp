@@ -3,8 +3,9 @@
 #include "FileManager.h"
 #include "TemporaryFiles.h"
 
-ParseThread::ParseThread()
-    : mAborted(false), mFirst(0), mLast(0), mCount(0), mIndex(clang_createIndex(1, 0))
+ParseThread::ParseThread(FileManager *fm)
+    : mAborted(false), mFirst(0), mLast(0), mCount(0),
+      mIndex(clang_createIndex(1, 0)), mFileManager(fm)
 {
     setObjectName("ParseThread");
     PreCompile::setPath("/tmp");
@@ -28,18 +29,20 @@ void ParseThread::abort()
 
 void ParseThread::load(const Path &path, const GccArguments &args)
 {
-    ++mCount;
-    QMutexLocker lock(&mMutex);
-    if (mLast) {
-        mLast->next = new File;
-        mLast = mLast->next;
-    } else {
-        mFirst = mLast = new File;
+    if (!mAborted) {
+        ++mCount;
+        QMutexLocker lock(&mMutex);
+        if (mLast) {
+            mLast->next = new File;
+            mLast = mLast->next;
+        } else {
+            mFirst = mLast = new File;
+        }
+        mLast->next = 0;
+        mLast->path = path;
+        mLast->arguments = args;
+        mWaitCondition.wakeOne();
     }
-    mLast->next = 0;
-    mLast->path = path;
-    mLast->arguments = args;
-    mWaitCondition.wakeOne();
 }
 
 struct PrecompileData
@@ -163,9 +166,12 @@ void ParseThread::run()
             } else {
                 PrecompileData pre;
                 clang_getInclusions(unit, precompileHeaders, &pre);
+                qDebug() << f->path << pre.direct << pre.all;
                 if (precompile) {
                     precompile->add(pre.direct, pre.all);
                 }
+                if (mFileManager->addDependencies(f->path, pre.all.toSet()))
+                    emit dependenciesAdded(f->path);
                 emit fileParsed(f->path, unit);
                 // }
                 qDebug() << "file was parsed" << f->path << mCount<< "left" << timer.elapsed() << "ms"

@@ -220,3 +220,42 @@ bool FileManager::getInfo(const Path &path, GccArguments *args, QSet<Path> *depe
     }
     return false;
 }
+
+QByteArray FileManager::dependencyMap() const
+{
+    QByteArray ret;
+    QMutexLocker lock(&mFilesMutex);
+    for (QHash<Path, FileData>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
+        ret += it.key() + "\n  dependents:\n";
+        foreach(const Path &d, it.value().dependents) {
+            ret += "    " + d + '\n';
+        }
+        ret += " dependees:\n";
+        foreach(const Path &d, it.value().dependees) {
+            ret += "    " + d + '\n';
+        }
+        ret += '\n';
+    }
+    return ret;
+}
+
+bool FileManager::addDependencies(const Path &source, const QSet<Path> &headers)
+{
+    QMutexLocker lock(&mFilesMutex);
+    bool ret = false;
+    FileData &fd = mFiles[source];
+    {
+        int old = fd.dependees.size();
+        fd.dependees += headers;
+        if (old != fd.dependees.size())
+            ret = true;
+    }
+    foreach(const Path &header, headers) {
+        fd = mFiles[header];
+        if (!fd.dependents.contains(source)) {
+            fd.dependents.insert(source);
+            ret = true;
+        }
+    }
+    return ret;
+}

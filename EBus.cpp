@@ -1,5 +1,5 @@
 #include "EBus.h"
-#include <QCoreApplication>
+#include "qcoreapplication.h"
 #include <QSettings>
 #include <QDataStream>
 #include <QEventLoop>

@@ -28,6 +28,8 @@ public:
     bool start();
     Q_INVOKABLE QHash<QByteArray, QVariant> runCommand(const QHash<QByteArray, QVariant>& dashArgs,
                                                        const QList<QByteArray>& freeArgs);
+public slots:
+    void reload(const Path &path);
 private:
     // ### need to add a function for code completion
     QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args,
@@ -38,7 +40,7 @@ private:
                                              const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> addMakefile(const QHash<QByteArray, QVariant>& dashArgs,
                                             const QList<QByteArray>& freeArgs);
-    QHash<QByteArray, QVariant> load(const QHash<QByteArray, QVariant>& args,
+    QHash<QByteArray, QVariant> load(const QHash<QByteArray, QVariant>&,
                                      const QList<QByteArray> &freeArgs);
     QHash<QByteArray, QVariant> addTemporaryFile(const QHash<QByteArray, QVariant>& args,
                                                  const QList<QByteArray> &freeArgs);
