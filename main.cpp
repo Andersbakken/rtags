@@ -110,7 +110,6 @@ int main(int argc, char** argv)
                 QHash<QByteArray, QVariant> args;
                 args["command"] = "quit";
                 client.exec(args, QList<QByteArray>());
-                usleep(1000); // wait for other daemon to die?
             }
         }
 
@@ -119,11 +118,13 @@ int main(int argc, char** argv)
 
         qInstallMsgHandler(syslogMsgHandler);
         Daemon daemon;
-        if (daemon.start()) {
-            return app.exec();
-        } else {
-            return -2;
+        for (int i=0; i<10; ++i) {
+            if (daemon.start()) {
+                return app.exec();
+            }
+            usleep(timeout * 1000);
         }
+        return -2;
     } else {
         Client client;
         if (!client.connect(timeout)) {
