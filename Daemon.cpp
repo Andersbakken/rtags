@@ -342,7 +342,7 @@ QHash<QByteArray, QVariant> Daemon::followSymbol(const QHash<QByteArray, QVarian
     if (match.found) {
         return createResultMap(match.found->location.toString());
     } else {
-        return createResultMap("Can't follow symbol at " + loc.toString());
+        return createResultMap("Can't follow symbol");
     }
 }
 
