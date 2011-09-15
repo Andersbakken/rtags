@@ -1,7 +1,4 @@
 #include "Daemon.h"
-#ifndef EBUS_ENABLED
-#include "DaemonAdaptor.h"
-#endif
 #include "GccArguments.h"
 #include <QCoreApplication>
 #include "Utils.h"
@@ -163,29 +160,12 @@ Daemon::~Daemon()
 
 bool Daemon::start()
 {
-#ifndef EBUS_ENABLED
-    DaemonAdaptor* adaptor = new DaemonAdaptor(this);
-
-    QDBusConnection dbus = QDBusConnection::sessionBus();
-    if (!dbus.registerObject(QLatin1String("/"), this)) {
-        delete adaptor;
-        return false;
-    }
-    if (!dbus.registerService(QLatin1String("rtags.Daemon"))) {
-        delete adaptor;
-        return false;
-    }
-
-    return true;
-#else
     if (!mEbus.start())
         return false;
     connect(&mEbus, SIGNAL(ebusConnected(EBus*)), this, SLOT(ebusConnected(EBus*)));
     return true;
-#endif
 }
 
-#ifdef EBUS_ENABLED
 void Daemon::ebusConnected(EBus *ebus)
 {
     connect(ebus, SIGNAL(ready()), this, SLOT(ebusDataReady()));
@@ -212,7 +192,6 @@ void Daemon::ebusDataReady()
     ebus->push(ebusarg);
     ebus->send();
 }
-#endif
 
 static QHash<QByteArray, QVariant> syntax()
 {

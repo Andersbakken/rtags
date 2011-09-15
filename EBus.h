@@ -17,7 +17,9 @@ public:
 
     EBus(QObject* parent = 0);
 
-    bool connected() const;
+    using QObject::connect;
+    bool connect(int timeout);
+    bool isConnected() const;
 
     void push(const QVariant &arg);
     void send();

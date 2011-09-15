@@ -13,21 +13,7 @@ macx {
     #!ebus:CONFIG += dbus
 }
 
-QT = core
-dbus {
-    message("Using DBus. Run qmake -config ebus to use ebus")
-    QT += dbus
-    SOURCES += DaemonAdaptor.cpp \
-               DaemonInterface.cpp
-    HEADERS += DaemonAdaptor.h \
-               DaemonInterface.h
-    DEFINES += DBUS_ENABLED
-} else {
-    message("Using EBus. Run qmake -config dbus to use dbus")
-    QT += network
-    DEFINES += EBUS_ENABLED
-}
-
+QT = core network
 
 # Input
 SOURCES += \
