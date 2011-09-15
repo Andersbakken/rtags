@@ -7,6 +7,7 @@
 #include "Utils.h"
 #include <syslog.h>
 #include "ArgParser.h"
+#include "TemporaryFiles.h"
 
 #define CLIENT_CONNECT_ATTEMPTS 5
 #define CLIENT_CONNECT_DELAY_MS 1000
@@ -110,6 +111,9 @@ int main(int argc, char** argv)
                 usleep(CLIENT_CONNECT_DELAY_MS * 1000);
             }
         }
+
+        // Ensure that the TemporaryFiles singleton gets initialized in a thread safe manner
+        (void)TemporaryFiles::instance();
 
         qInstallMsgHandler(syslogMsgHandler);
         Daemon daemon;

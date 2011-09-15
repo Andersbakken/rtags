@@ -8,6 +8,7 @@
 #include "PreCompile.h"
 #include "Node.h"
 #include "FileManager.h"
+#include "TemporaryFiles.h"
 
 // const unsigned defaultFlags = (CXTranslationUnit_PrecompiledPreamble
 //                                |CXTranslationUnit_CXXPrecompiledPreamble
@@ -247,6 +248,8 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         return lookup(dashArgs, freeArgs);
     } else if (cmd == "load") {
         return load(dashArgs, freeArgs);
+    } else if (cmd == "temporaryfile") {
+        return addTemporaryFile(dashArgs, freeArgs);
     }
     return createResultMap("Unknown command");
 }
@@ -267,6 +270,27 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
     }
     FileManager::instance()->addMakefile(makefile);
     return createResultMap("Added makefile");
+}
+
+QHash<QByteArray, QVariant> Daemon::addTemporaryFile(const QHash<QByteArray, QVariant>& dashArgs,
+                                                     const QList<QByteArray>& freeArgs)
+{
+    if (freeArgs.isEmpty())
+        return createResultMap("No temporary file specified");
+
+    QByteArray filename = freeArgs.first();
+
+    if (dashArgs.contains("remove")) {
+        TemporaryFiles::instance()->removeFile(filename);
+    } else {
+        QByteArray content;
+        QFile stdinfile;
+        stdinfile.open(STDIN_FILENO, QFile::ReadOnly);
+        while (!stdinfile.atEnd())
+            content += stdinfile.read(8192);
+
+        TemporaryFiles::instance()->addFile(filename, content);
+    }
 }
 
 static Node::Type stringToType(const QByteArray &in)

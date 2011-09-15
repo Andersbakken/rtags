@@ -1,6 +1,7 @@
 #include "ParseThread.h"
 #include "PreCompile.h"
 #include "FileManager.h"
+#include "TemporaryFiles.h"
 
 ParseThread::ParseThread()
     : mAborted(false), mFirst(0), mLast(0), mCount(0), mIndex(clang_createIndex(1, 0))
@@ -139,8 +140,9 @@ void ParseThread::run()
                 //     printf("%d [%s]\n", i, args.constData()[i]);
                 // }
 
+                QVector<TemporaryFile> temps = TemporaryFiles::instance()->unsavedFiles();
                 unit = clang_parseTranslationUnit(mIndex, f->path.constData(),
-                                                  args.constData(), argCount, 0, 0,
+                                                  args.constData(), argCount, temps.data(), temps.size(),
                                                   0); // ### for options?
                 if (unit && before != f->path.lastModified())
                     continue;
