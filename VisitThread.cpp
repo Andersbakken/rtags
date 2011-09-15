@@ -1,4 +1,3 @@
-
 #include "VisitThread.h"
 #include <clang-c/Index.h>
 #include "Node.h"
@@ -40,8 +39,15 @@ void VisitThread::onFileParsed(const Path &path, void *u)
         const CXCursorKind refKind = clang_getCursorKind(ref);
         if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
             continue; // these have the wrong Location, we get the right one from CXCursor_DeclRefExpr
-        } else if (kind == CXCursor_DeclRefExpr && refKind != CXCursor_CXXMethod) {
-            continue;
+        } else if (kind == CXCursor_DeclRefExpr) {
+            switch (refKind) {
+            case CXCursor_ParmDecl:
+            case CXCursor_VarDecl:
+            case CXCursor_CXXMethod:
+                break;
+            default:
+                continue;
+            }
         }
 
         CXCursor def = clang_getCursorDefinition(ref);
@@ -120,6 +126,8 @@ Node * VisitThread::createOrGet(CXCursor cursor)
     case CXCursor_InclusionDirective:
     case CXCursor_TypeAliasDecl:
     case CXCursor_NamespaceAlias:
+    case CXCursor_CXXFinalAttr:
+    case CXCursor_CXXOverrideAttr:
         if (verbose) {
             const Location l(cursor);
             printf("Ignoring %s at %s:%d:%d\n", kindToString(kind),
