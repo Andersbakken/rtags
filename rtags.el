@@ -29,7 +29,7 @@
 
 (defun rtags-goto-symbol-at-point()
   (interactive)
-  (let ((bufname (buffer-name))
+  (let ((bufname (buffer-file-name))
         (line (int-to-string (line-number-at-pos)))
         (column nil))
     (save-excursion

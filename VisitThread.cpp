@@ -31,7 +31,7 @@ void VisitThread::onFileParsed(const Path &path, void *u)
         const PendingReference &p = it.value();
         CXCursor ref = clang_getCursorReferenced(p.cursor);
         if (!isValidCursor(ref)) {
-            // qWarning() << "Can't find referenced cursor for" << p.cursor;
+            qWarning() << "Can't find referenced cursor for" << p.cursor;
             continue;
         }
         const CXCursorKind kind = clang_getCursorKind(p.cursor);
@@ -43,8 +43,10 @@ void VisitThread::onFileParsed(const Path &path, void *u)
             case CXCursor_ParmDecl:
             case CXCursor_VarDecl:
             case CXCursor_CXXMethod:
+            case CXCursor_EnumConstantDecl:
                 break;
             default:
+                qDebug() << "throwing out this pending one" << p.cursor << ref;
                 continue;
             }
         }

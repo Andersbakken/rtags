@@ -142,8 +142,9 @@ void ParseThread::run()
 
                 QVector<TemporaryFile> temps = TemporaryFiles::instance()->unsavedFiles();
                 unit = clang_parseTranslationUnit(mIndex, f->path.constData(),
-                                                  args.constData(), argCount, temps.data(), temps.size(),
-                                                  0); // ### for options?
+                                                  args.constData(), argCount, temps.data(), temps.size(), 0);
+                                                  // CXTranslationUnit_NestedMacroExpansions
+                                                  // |CXTranslationUnit_DetailedPreprocessingRecord);
                 if (unit && before != f->path.lastModified())
                     continue;
             } while (false);
