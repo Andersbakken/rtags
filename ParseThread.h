@@ -13,7 +13,7 @@ public:
     ParseThread();
     ~ParseThread();
     void abort();
-    void load(const Path &path);
+    void load(const Path &path, const GccArguments &arguments);
 signals:
     void fileParsed(const Path &path, void *translationUnit);
     void parseError(const Path &path);

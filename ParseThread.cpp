@@ -26,7 +26,7 @@ void ParseThread::abort()
     mWaitCondition.wakeOne();
 }
 
-void ParseThread::load(const Path &path)
+void ParseThread::load(const Path &path, const GccArguments &args)
 {
     ++mCount;
     QMutexLocker lock(&mMutex);
@@ -38,7 +38,7 @@ void ParseThread::load(const Path &path)
     }
     mLast->next = 0;
     mLast->path = path;
-    mLast->arguments = FileManager::instance()->arguments(path);
+    mLast->arguments = args;
     mWaitCondition.wakeOne();
 }
 

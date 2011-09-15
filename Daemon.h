@@ -15,6 +15,7 @@
 #include "ParseThread.h"
 #include "VisitThread.h"
 #include "EBus.h"
+#include "FileManager.h"
 
 struct Node;
 class Daemon : public QObject
@@ -42,13 +43,14 @@ private:
     QHash<QByteArray, QVariant> addTemporaryFile(const QHash<QByteArray, QVariant>& args,
                                                  const QList<QByteArray> &freeArgs);
     bool writeAST(const QHash<Path, CXTranslationUnit>::const_iterator it);
-private:
-    ParseThread mParseThread;
-    VisitThread mVisitThread;
-    EBusDaemon mEbus;
 private slots:
     void ebusConnected(EBus* ebus);
     void ebusDataReady();
+private:
+    ParseThread mParseThread;
+    VisitThread mVisitThread;
+    FileManager mFileManager;
+    EBusDaemon mEbus;
 };
 
 #endif

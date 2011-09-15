@@ -146,21 +146,20 @@ Daemon::Daemon(QObject *parent)
 {
     qRegisterMetaType<Path>("Path");
     qRegisterMetaType<CXTranslationUnit>("CXTranslationUnit");
+    connect(&mParseThread, SIGNAL(fileParsed(Path, void*)), &mVisitThread, SLOT(onFileParsed(Path, void*)));
     mParseThread.start();
     mVisitThread.start();
-    connect(&mParseThread, SIGNAL(fileParsed(Path, void*)), &mVisitThread, SLOT(onFileParsed(Path, void*)));
-    FileManager::instance()->start();
+    mFileManager.start();
 }
 
 Daemon::~Daemon()
 {
     mParseThread.abort();
     mVisitThread.quit();
-    FileManager::instance()->quit();
-    QThread *threads[] = { &mParseThread, &mVisitThread, FileManager::instance(), 0 };
+    mFileManager.quit();
+    QThread *threads[] = { &mParseThread, &mVisitThread, &mFileManager, 0 };
     for (int i=0; threads[i]; ++i)
         threads[i]->wait();
-    delete FileManager::instance();
 }
 
 bool Daemon::start()
@@ -252,7 +251,7 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
     if (!makefile.isFile()) {
         return createResultMap("Makefile does not exist: " + makefile);
     }
-    FileManager::instance()->addMakefile(makefile);
+    mFileManager.addMakefile(makefile);
     return createResultMap("Added makefile");
 }
 
@@ -347,7 +346,7 @@ QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
             qWarning("Can't find %s", arg.constData());
         } else {
             mVisitThread.invalidate(filename);
-            mParseThread.load(filename);
+            mParseThread.load(filename, mFileManager.arguments(filename));
             ++added;
         }
     }

@@ -19,16 +19,6 @@ FileManager::~FileManager()
     store();
 }
 
-FileManager *FileManager::instance()
-{
-    static QMutex mutex;
-    static QWeakPointer<FileManager> ptr;
-    if (!ptr) {
-        ptr = new FileManager;
-    }
-    return ptr.data();
-}
-
 void FileManager::addMakefile(const Path &makefile)
 {
     Q_ASSERT(makefile.exists());
