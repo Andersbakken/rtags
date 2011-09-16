@@ -482,6 +482,7 @@ QHash<QByteArray, QVariant> Daemon::printTree(const QHash<QByteArray, QVariant>&
 
 void Daemon::reload(const Path &path)
 {
+    return;
     qWarning() << "reloading" << path;
     load(QHash<QByteArray, QVariant>(), QList<QByteArray>() << path);
 }

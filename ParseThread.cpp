@@ -170,8 +170,8 @@ void ParseThread::run()
                 if (precompile) {
                     precompile->add(pre.direct, pre.all);
                 }
-                if (mFileManager->addDependencies(f->path, pre.all.toSet()))
-                    emit dependenciesAdded(f->path);
+                // if (mFileManager->addDependencies(f->path, pre.all.toSet()))
+                //     emit dependenciesAdded(f->path);
                 emit fileParsed(f->path, unit);
                 // }
                 qDebug() << "file was parsed" << f->path << mCount<< "left" << timer.elapsed() << "ms"
