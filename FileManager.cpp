@@ -152,15 +152,14 @@ void FileManager::onMakeOutput()
                     //         qWarning() << args.input();
                     //     }
                     // }
-                    continue;
-                }
-
-                foreach(const Path &file, args.input()) { // already resolved
-                    Q_ASSERT(file.exists());
-                    if (!data.seen.contains(file)) {
-                        data.seen.insert(file);
-                        // qDebug() << "setting arguments for" << file << "to" << args.raw();
-                        mFiles[file].arguments = args;
+                } else {
+                    foreach(const Path &file, args.input()) { // already resolved
+                        Q_ASSERT(file.exists());
+                        if (!data.seen.contains(file)) {
+                            data.seen.insert(file);
+                            // qDebug() << "setting arguments for" << file << "to" << args.raw();
+                            mFiles[file].arguments = args;
+                        }
                     }
                 }
             }
@@ -189,7 +188,7 @@ void FileManager::store()
         ds << mFiles;
     }
     settings.setValue("cacheVersion", CacheVersion);
-    qDebug() << "writing" << out.size() << "of cache";
+    qDebug() << "writing" << out.size() << "of cache" << mFiles.size() << "files";
     settings.setValue("cachedGccArguments", out);
 }
 
@@ -244,6 +243,7 @@ bool FileManager::addDependencies(const Path &source, const QSet<Path> &headers)
     QMutexLocker lock(&mFilesMutex);
     bool ret = false;
     FileData &fd = mFiles[source];
+    // qDebug() << "addDependencies" << source << headers;
     {
         int old = fd.dependees.size();
         fd.dependees += headers;

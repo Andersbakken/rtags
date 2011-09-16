@@ -18,7 +18,7 @@ public:
 signals:
     void fileParsed(const Path &path, void *translationUnit);
     void parseError(const Path &path);
-    void dependenciesAdded(const Path &path);
+    void dependenciesAdded(const QSet<Path> &path);
 protected:
     void run();
 private:

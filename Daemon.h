@@ -29,7 +29,7 @@ public:
     Q_INVOKABLE QHash<QByteArray, QVariant> runCommand(const QHash<QByteArray, QVariant>& dashArgs,
                                                        const QList<QByteArray>& freeArgs);
 public slots:
-    void reload(const Path &path);
+    void onDependenciesAdded(const QSet<Path> &path);
 private:
     // ### need to add a function for code completion
     QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args,

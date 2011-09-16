@@ -57,8 +57,8 @@ struct FollowSymbolMatch : public Match
     virtual MatchResult match(const QByteArray &, const Node *node)
     {
         if (node->location == location) {
-            qDebug() << "found our location" << node->location << node->symbolName
-                     << Node::typeToName(node->type);
+            // qDebug() << "found our location" << node->location << node->symbolName
+            //          << Node::typeToName(node->type);
             switch (node->type) {
             case Node::All:
             case Node::None:
@@ -141,14 +141,15 @@ static QHash<QByteArray, QVariant> createResultMap(const QByteArray& result)
     return ret;
 }
 
-
+#warning should be able to get signature of current function we're on and we could display it in the modeline or something (or some popup while typing)
 Daemon::Daemon(QObject *parent)
     : QObject(parent), mParseThread(&mFileManager)
 {
     qRegisterMetaType<Path>("Path");
+    qRegisterMetaType<QSet<Path> >("QSet<Path>");
     qRegisterMetaType<CXTranslationUnit>("CXTranslationUnit");
     connect(&mParseThread, SIGNAL(fileParsed(Path, void*)), &mVisitThread, SLOT(onFileParsed(Path, void*)));
-    connect(&mParseThread, SIGNAL(dependenciesAdded(Path)), this, SLOT(reload(Path)));
+    connect(&mParseThread, SIGNAL(dependenciesAdded(QSet<Path>)), this, SLOT(onDependenciesAdded(QSet<Path>)));
     mParseThread.start();
     mVisitThread.start();
     mFileManager.start();
@@ -359,7 +360,7 @@ void Daemon::addDeps(const Path &path, QHash<Path, GccArguments> &deps, QSet<Pat
 {
     GccArguments hack;
     if (path.isFile() && !seen.contains(path)) {
-        qDebug() << path << (path.lastModified() != mFiles.value(path));
+        // qDebug() << path << (path.lastModified() != mFiles.value(path));
         seen.insert(path);
         time_t &lastModified = mFiles[path];
         const time_t current = path.lastModified();
@@ -371,8 +372,6 @@ void Daemon::addDeps(const Path &path, QHash<Path, GccArguments> &deps, QSet<Pat
                 QSet<Path> dependents;
                 mFileManager.getInfo(dep, 0, &dependents, 0);
                 foreach(const Path &dependent, dependents) {
-                    if (dependent.contains("qt-47"))
-                        qDebug() << dependents << path;
                     addDeps(dependent, deps, seen);
                 }
                 addDeps(dep, deps, seen);
@@ -480,9 +479,14 @@ QHash<QByteArray, QVariant> Daemon::printTree(const QHash<QByteArray, QVariant>&
     return createResultMap(match.out);
 }
 
-void Daemon::reload(const Path &path)
+void Daemon::onDependenciesAdded(const QSet<Path> &paths)
 {
-    return;
-    qWarning() << "reloading" << path;
-    load(QHash<QByteArray, QVariant>(), QList<QByteArray>() << path);
+    QList<QByteArray> sources;
+    foreach(const Path &p, paths) {
+        QSet<Path> extraSources;
+        mFileManager.getInfo(p, 0, &extraSources, 0);
+        foreach(const Path &extraSource, extraSources)
+            sources += extraSource;
+    }
+    load(QHash<QByteArray, QVariant>(), sources);
 }

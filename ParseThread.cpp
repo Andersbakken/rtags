@@ -166,14 +166,14 @@ void ParseThread::run()
             } else {
                 PrecompileData pre;
                 clang_getInclusions(unit, precompileHeaders, &pre);
-                qDebug() << f->path << pre.direct << pre.all;
+                // qDebug() << f->path << pre.direct << pre.all;
                 if (precompile) {
                     precompile->add(pre.direct, pre.all);
                 }
-                // if (mFileManager->addDependencies(f->path, pre.all.toSet()))
-                //     emit dependenciesAdded(f->path);
                 emit fileParsed(f->path, unit);
-                // }
+                const QSet<Path> deps = pre.all.toSet();
+                if (mFileManager->addDependencies(f->path, deps))
+                    emit dependenciesAdded(deps);
                 qDebug() << "file was parsed" << f->path << mCount<< "left" << timer.elapsed() << "ms"
                          << (i == WithPCH ? "with PCH" : "without PCH") << compilerOptions;
             }

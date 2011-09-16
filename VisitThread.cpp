@@ -74,6 +74,7 @@ void VisitThread::onFileParsed(const Path &path, void *u)
 }
 Node * VisitThread::createOrGet(CXCursor cursor)
 {
+#warning can short circuit if cursor is a cursor we know we've done, e.g. one that has a known location, might be faster than the hashing
     const CXCursorKind kind = clang_getCursorKind(cursor);
     static const bool verbose = getenv("VERBOSE");
     if (verbose) {
