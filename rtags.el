@@ -15,6 +15,11 @@
   :type 'boolean
   :group 'rtags)
 
+(defcustom rtags-enable t
+  "Whether or rtags is enabled"
+  :type 'boolean
+  :group 'rtags)
+
 (defun rtags-autostart-arg()
   (if rtags-autostart
       "--autostart"
@@ -29,18 +34,18 @@
   )
 
 (defun rtags-sync-all-open-files() (interactive)
-  (if (executable-find "rtags")
-      (let (paths)
-        (dolist (buffer (buffer-list))
-          (with-current-buffer buffer
-            (if (and
-                 (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
-                 (not (string-match "\\.\\(hxx\\|hpp\\|tcc\\|h\\)?$" (buffer-file-name))))
-                (add-to-list 'paths (buffer-file-name)))))
-        (if paths
-            (apply 'start-process "rtags-load" nil "rtags" "--timeout=1000" (rtags-autostart-arg) "--command=load" paths))
-        )
-    )
+  ;; (if (and rtags-enable (executable-find "rtags"))
+  ;;     (let (paths)
+  ;;       (dolist (buffer (buffer-list))
+  ;;         (with-current-buffer buffer
+  ;;           (if (and
+  ;;                (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
+  ;;                (not (string-match "\\.\\(hxx\\|hpp\\|tcc\\|h\\)?$" (buffer-file-name))))
+  ;;               (add-to-list 'paths (buffer-file-name)))))
+  ;;       (if paths
+  ;;           (apply 'start-process "rtags-load" nil "rtags" "--timeout=1000" (rtags-autostart-arg) "--command=load" paths))
+  ;;       )
+  ;;   )
   nil
   )
 

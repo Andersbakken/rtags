@@ -9,32 +9,31 @@ static inline bool lessThan(const Node *left, const Node *right)
     return (left->type < right->type || (left->type == right->type && left->symbolName < right->symbolName));
 }
 
-Node::Node(Node *p, CXCursor c, const Location &l, const QByteArray &i)
-    : parent(p), nextSibling(0), firstChild(0), location(l), id(i)
+Node::Type Node::typeFromCursor(const CXCursor &c)
 {
     const CXCursorKind kind = clang_getCursorKind(c);
     switch (kind) {
     case CXCursor_TypeRef:
-        type = Reference; // This is more of a typeref than a forward declararion, rename?
+        return Reference; // This is more of a typeref than a forward declararion, rename?
         break;
     case CXCursor_StructDecl:
-        type = clang_isCursorDefinition(c) ? Struct : Reference;
+        return clang_isCursorDefinition(c) ? Struct : Reference;
         break;
     case CXCursor_ClassDecl:
-        type = clang_isCursorDefinition(c) ? Class : Reference;
+        return clang_isCursorDefinition(c) ? Class : Reference;
         break;
     case CXCursor_MemberRefExpr:
     case CXCursor_CallExpr:
-        type = Reference;
+        return Reference;
         break;
     case CXCursor_FieldDecl:
     case CXCursor_VarDecl:
     case CXCursor_ParmDecl:
-        type = Variable;
+        return Variable;
         break;
     case CXCursor_MemberRef:
     case CXCursor_DeclRefExpr:
-        type = Reference;
+        return Reference;
         break;
     case CXCursor_CXXMethod:
     case CXCursor_FunctionDecl:
@@ -42,22 +41,29 @@ Node::Node(Node *p, CXCursor c, const Location &l, const QByteArray &i)
     case CXCursor_Destructor:
     case CXCursor_FunctionTemplate:
     case CXCursor_ConversionFunction:
-        type = clang_isCursorDefinition(c) ? MethodDefinition : MethodDeclaration;
+        return clang_isCursorDefinition(c) ? MethodDefinition : MethodDeclaration;
         break;
     case CXCursor_Namespace:
-        type = Namespace;
+        return Namespace;
         break;
     case CXCursor_EnumDecl:
-        type = Enum;
+        return Enum;
         break;
     case CXCursor_EnumConstantDecl:
-        type = EnumValue;
+        return EnumValue;
         break;
     default:
-        qDebug() << c << l << kindToString(clang_getCursorKind(c));
-        Q_ASSERT(0 && "Can't find type for this cursor");
+        qWarning() << "Can't find type for this cursor" << c;
+        Q_ASSERT(0);
         break;
     }
+    return None;
+}
+
+
+Node::Node(Node *p, Type t, const CXCursor &c, const Location &l, const QByteArray &i)
+    : parent(p), nextSibling(0), firstChild(0), type(t), location(l), id(i)
+{
     Q_ASSERT(parent || type != Reference);
     if (type == Reference && parent->type != Root) {
         // qDebug() << "doing parent reference" << c;

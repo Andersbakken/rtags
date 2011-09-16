@@ -27,8 +27,9 @@ struct Node
     QByteArray id; // ### we don't really need to store this
 
     Node();
-    Node(Node *p, CXCursor c, const Location &l, const QByteArray &id);
+    Node(Node *p, Type t, const CXCursor &c, const Location &l, const QByteArray &id);
     ~Node();
+    static Type typeFromCursor(const CXCursor &c);
     QByteArray toString() const;
     void print() const;
     static const char *typeToName(Type type, bool abbrev = false);
@@ -40,10 +41,18 @@ struct Node
 
 static inline QByteArray cursorId(const CXCursor &c, const Location &loc)
 {
-    QByteArray buf(loc.path.size() + 32, '\0');
-    snprintf(buf.data(), buf.size() - 1, "%s%x%x%x", loc.path.constData(), loc.line, loc.column, clang_getCursorKind(c));
+    Q_ASSERT(isValidCursor(c));
+    QByteArray buf(loc.path.size() + 64, '\0');
+    snprintf(buf.data(), buf.size() - 1, "%s:%x:%x:%x", loc.path.constData(), loc.line, loc.column,
+             Node::typeFromCursor(c));
     return buf;
 }
+
+static inline QByteArray cursorId(const CXCursor &c)
+{
+    return cursorId(c, Location(c));
+}
+
 
 
 #endif

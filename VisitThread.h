@@ -37,8 +37,6 @@ public slots:
     void invalidate(const QSet<Path> &paths);
     void onFileParsed(const Path &path, void *unit);
 private:
-    // Node *createOrGet(CXCursor cursor);
-    static CXChildVisitResult buildTree(CXCursor cursor, CXCursor, CXClientData data);
     mutable QMutex mMutex;
     Node *mRoot;
     QReadWriteLock mLock;
