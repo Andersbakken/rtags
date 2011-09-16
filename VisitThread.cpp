@@ -37,6 +37,12 @@ struct C {
             child->dump(indent + 2);
         }
     }
+
+    void compact()
+    {
+
+
+    }
 };
 struct UserData {
     C *root;
@@ -48,7 +54,7 @@ struct UserData {
 int foo = 0;
 CXChildVisitResult count(CXCursor cursor, CXCursor parent, CXClientData data)
 {
-    qDebug() << cursor << parent;
+    // qDebug() << cursor << parent;
     UserData *u = reinterpret_cast<UserData*>(data);
     C *p = 0;
     bool recursed = false;
@@ -56,7 +62,6 @@ CXChildVisitResult count(CXCursor cursor, CXCursor parent, CXClientData data)
         u->root = new C(parent);
         p = u->root;
         u->parents.append(qMakePair(parent, u->root));
-        u->lastCursor = cursor;
     } else {
         Q_ASSERT(u->last);
         if (clang_equalCursors(parent, u->lastCursor)) {
@@ -93,11 +98,16 @@ CXChildVisitResult count(CXCursor cursor, CXCursor parent, CXClientData data)
                    << clang_equalCursors(parent, parent);
     }
     Q_ASSERT(p);
-    u->last = new C(cursor, p);
+    if (clang_getCursorKind(cursor) == CXCursor_FirstExpr
+        || clang_getCursorKind(cursor) == CXCursor_FirstStmt) {
+        u->last = p;
+    } else {
+        u->last = new C(cursor, p);
+        p->children.append(u->last);
+    }
     if (recursed)
         u->parents.append(qMakePair(parent, p));
 
-    p->children.append(u->last);
     u->lastCursor = cursor;
     return CXChildVisit_Recurse;
 }
