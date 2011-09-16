@@ -37,17 +37,12 @@ public slots:
     void invalidate(const QSet<Path> &paths);
     void onFileParsed(const Path &path, void *unit);
 private:
-    Node *createOrGet(CXCursor cursor);
+    // Node *createOrGet(CXCursor cursor);
     static CXChildVisitResult buildTree(CXCursor cursor, CXCursor, CXClientData data);
-    struct PendingReference {
-        CXCursor cursor;
-        Location location;
-    };
     mutable QMutex mMutex;
-    QHash<uint, PendingReference> mPendingReferences;
     Node *mRoot;
     QReadWriteLock mLock;
-    QHash<unsigned, Node*> mNodes;
+    QHash<QByteArray, Node*> mNodes;
     int mBytes;
     bool mQuitting;
 };

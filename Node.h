@@ -24,10 +24,10 @@ struct Node
         All = 0xffffff
     } type;
     Location location;
-    uint hash;
+    QByteArray id; // ### we don't really need to store this
 
     Node();
-    Node(Node *p, CXCursor c, const Location &l, uint hash);
+    Node(Node *p, CXCursor c, const Location &l, const QByteArray &id);
     ~Node();
     QByteArray toString() const;
     void print() const;
@@ -38,12 +38,11 @@ struct Node
     int size() const;
 };
 
-static inline uint qHash(const CXCursor &c, const Location &loc)
+static inline QByteArray cursorId(const CXCursor &c, const Location &loc)
 {
-    QVarLengthArray<char, 128> buf(loc.path.size() + 32);
-    char *buffer = buf.data();
-    const int l = snprintf(buffer, buf.size() - 1, "%s%x%x%x", loc.path.constData(), loc.line, loc.column, clang_getCursorKind(c));
-    return qHash(QByteArray::fromRawData(buffer, l));
+    QByteArray buf(loc.path.size() + 32, '\0');
+    snprintf(buf.data(), buf.size() - 1, "%s%x%x%x", loc.path.constData(), loc.line, loc.column, clang_getCursorKind(c));
+    return buf;
 }
 
 

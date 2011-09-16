@@ -1,7 +1,7 @@
 #include "Node.h"
 
 Node::Node()
-    : parent(0), nextSibling(0), firstChild(0), type(Root), hash(0)
+    : parent(0), nextSibling(0), firstChild(0), type(Root)
 {}
 
 static inline bool lessThan(const Node *left, const Node *right)
@@ -9,8 +9,8 @@ static inline bool lessThan(const Node *left, const Node *right)
     return (left->type < right->type || (left->type == right->type && left->symbolName < right->symbolName));
 }
 
-Node::Node(Node *p, CXCursor c, const Location &l, uint h)
-    : parent(p), nextSibling(0), firstChild(0), location(l), hash(h)
+Node::Node(Node *p, CXCursor c, const Location &l, const QByteArray &i)
+    : parent(p), nextSibling(0), firstChild(0), location(l), id(i)
 {
     const CXCursorKind kind = clang_getCursorKind(c);
     switch (kind) {

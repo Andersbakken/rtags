@@ -141,7 +141,7 @@ static QHash<QByteArray, QVariant> createResultMap(const QByteArray& result)
     return ret;
 }
 
-#warning should be able to get signature of current function we're on and we could display it in the modeline or something (or some popup while typing)
+#warning should be able to get signature of current function were on and we could display it in the modeline or something (or some popup while typing)
 Daemon::Daemon(QObject *parent)
     : QObject(parent), mParseThread(&mFileManager)
 {

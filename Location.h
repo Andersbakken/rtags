@@ -15,6 +15,7 @@ struct Location {
     Location(CXCursor cursor)
         : line(0), column(0)
     {
+        // ### should probably keep CXSourceLocation around rather than eating the string
         CXSourceLocation location = clang_getCursorLocation(cursor);
         CXFile file;
         clang_getInstantiationLocation(location, &file, &line, &column, 0);
