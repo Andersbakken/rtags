@@ -5,8 +5,23 @@
   (add-hook 'find-file-hooks 'rtags-sync-all-open-files)
   )
 
+(defgroup gtags nil
+  "Minor mode for rtags."
+  :group 'tools
+  :prefix "gtags-")
+
+(defcustom rtags-autostart nil
+  "Whether or not to autostart rtags from emacs"
+  :type 'boolean
+  :group 'rtags)
+
+(defun rtags-autostart-arg()
+  (if rtags-autostart
+      "--autostart"
+    ""))
+
 (defun rtags-load-file () (interactive)
-  (start-process "rtags-load" nil "rtags" "--timeout=1000" "--autostart" "--command=load" (buffer-file-name)))
+  (start-process "rtags-load" nil "rtags" "--timeout=1000" (rtags-autostart-arg) "--command=load" (buffer-file-name)))
 
 (defun rtags-conditional-load-file (&optional buffer) (interactive)
   (if (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
@@ -14,15 +29,17 @@
   )
 
 (defun rtags-sync-all-open-files() (interactive)
-  (let (paths)
-    (dolist (buffer (buffer-list))
-      (with-current-buffer buffer
-        (if (and
-             (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
-             (not (string-match "\\.\\(hxx\\|hpp\\|tcc\\|h\\)?$" (buffer-file-name))))
-            (add-to-list 'paths (buffer-file-name)))))
-    (if paths
-        (apply 'start-process "rtags-load" nil "rtags" "--timeout=1000" "--autostart" "--command=load" paths))
+  (if (executable-find "rtags")
+      (let (paths)
+        (dolist (buffer (buffer-list))
+          (with-current-buffer buffer
+            (if (and
+                 (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
+                 (not (string-match "\\.\\(hxx\\|hpp\\|tcc\\|h\\)?$" (buffer-file-name))))
+                (add-to-list 'paths (buffer-file-name)))))
+        (if paths
+            (apply 'start-process "rtags-load" nil "rtags" "--timeout=1000" (rtags-autostart-arg) "--command=load" paths))
+        )
     )
   nil
   )

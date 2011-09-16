@@ -131,7 +131,7 @@ int main(int argc, char** argv)
                 qWarning("Can't connect to rtags daemon");
                 return 0;
             }
-            if (!getenv("RTAGS_NO_AUTOSTART") || argsmap.contains("autostart")) {
+            if (getenv("RTAGS_AUTOSTART") || argsmap.contains("autostart")) {
                 client.startDaemon(app.arguments());
                 sleep(1); // ### hmmmm
                 if (!client.connect(timeout)) {

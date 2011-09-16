@@ -2,6 +2,8 @@
 #include <clang-c/Index.h>
 #include "Node.h"
 
+int tot = 0;
+
 VisitThread::VisitThread()
     : QThread(0), mRoot(new Node), mQuitting(false)
 {
@@ -16,6 +18,90 @@ void VisitThread::abort()
     quit();
 }
 
+struct C {
+    C(CXCursor c, C *p = 0) : parent(p), cursor(c) {}
+    C *parent;
+    QList<C*> children;
+    CXCursor cursor;
+    void dump(int indent)
+    {
+        for (int i=0; i<indent; ++i) {
+            printf(" ");
+        }
+
+        QString str;
+        QDebug(&str) << cursor;
+        str.remove("\"");
+        printf("%s\n", str.toLocal8Bit().constData());
+        foreach(C *child, children) {
+            child->dump(indent + 2);
+        }
+    }
+};
+struct UserData {
+    C *root;
+    C *last;
+    QVector<QPair<CXCursor, C*> > parents;
+    CXCursor lastCursor;
+};
+
+int foo = 0;
+CXChildVisitResult count(CXCursor cursor, CXCursor parent, CXClientData data)
+{
+    qDebug() << cursor << parent;
+    UserData *u = reinterpret_cast<UserData*>(data);
+    C *p = 0;
+    bool recursed = false;
+    if (!u->root) {
+        u->root = new C(parent);
+        p = u->root;
+        u->parents.append(qMakePair(parent, u->root));
+        u->lastCursor = cursor;
+    } else {
+        Q_ASSERT(u->last);
+        if (clang_equalCursors(parent, u->lastCursor)) {
+            p = u->last;
+            recursed = true;
+        } else {
+            for (int i=u->parents.size() - 1; i>=0; --i) {
+                if (clang_equalCursors(parent, u->parents.at(i).first)) {
+                    p = u->parents.at(i).second;
+                    u->parents.resize(i + 1);
+                    break;
+                }
+            }
+            if (!p) {
+                qDebug() << "fucked" << parent;
+                for (int i=u->parents.size() - 1; i>=0; --i) {
+                    qDebug() << "comparing" << i << u->parents.size()
+                             << u->parents.at(i).first;
+                    // if (clang_equalCursors(parent, u->parents.at(i).first)) {
+                    //     p = u->parents.at(i).second;
+                    //     u->parents.resize(i + 1);
+                    //     break;
+                    // }
+                }
+
+
+            }
+        }
+    }
+    ++foo;
+    if (!p) {
+        qDebug() << "crashing" << foo << cursor << parent;
+        qWarning() << u->root->cursor << clang_equalCursors(u->root->cursor, parent)
+                   << clang_equalCursors(parent, parent);
+    }
+    Q_ASSERT(p);
+    u->last = new C(cursor, p);
+    if (recursed)
+        u->parents.append(qMakePair(parent, p));
+
+    p->children.append(u->last);
+    u->lastCursor = cursor;
+    return CXChildVisit_Recurse;
+}
+
 void VisitThread::onFileParsed(const Path &path, void *u)
 {
     CXTranslationUnit unit = reinterpret_cast<CXTranslationUnit>(u);
@@ -26,7 +112,18 @@ void VisitThread::onFileParsed(const Path &path, void *u)
         QWriteLocker writeLock(&mLock);
         const int old = mNodes.size();
         CXCursor cursor = clang_getTranslationUnitCursor(unit);
+        int c = 0;
+        UserData u;
+        u.last = u.root = 0;
+        u.lastCursor = clang_getNullCursor();
+        clang_visitChildren(cursor, count, &u);
+        u.root->dump(0);
+        qDebug() << foo;
+        exit(0);
+
         clang_visitChildren(cursor, buildTree, this);
+        qDebug() << "We have" << c << "cursors"
+                 << "tot" << tot;
         int added = 0;
         for (QHash<uint, PendingReference>::const_iterator it = mPendingReferences.begin();
              it != mPendingReferences.end(); ++it) {
@@ -74,7 +171,8 @@ void VisitThread::onFileParsed(const Path &path, void *u)
 }
 Node * VisitThread::createOrGet(CXCursor cursor)
 {
-#warning can short circuit if cursor is a cursor we know we've done, e.g. one that has a known location, might be faster than the hashing
+    ++tot;
+#warning can short circuit if cursor is a cursor we know weve done, e.g. one that has a known location, might be faster than the hashing
     const CXCursorKind kind = clang_getCursorKind(cursor);
     static const bool verbose = getenv("VERBOSE");
     if (verbose) {
@@ -199,8 +297,128 @@ Node * VisitThread::createOrGet(CXCursor cursor)
 
 CXChildVisitResult VisitThread::buildTree(CXCursor cursor, CXCursor, CXClientData data)
 {
-    VisitThread *visitThread = reinterpret_cast<VisitThread*>(data);
-    visitThread->createOrGet(cursor);
+    // VisitThread *visitThread = reinterpret_cast<VisitThread*>(data);
+    // const CXCursorKind kind = clang_getCursorKind(cursor);
+    // static const bool verbose = getenv("VERBOSE");
+    // if (verbose) {
+    //     const Location l(cursor);
+    //     printf("%s at %s:%d:%d\n", kindToString(kind),
+    //            l.path.constData(), l.line, l.column);
+    // }
+
+    // if (clang_isInvalid(kind))
+    //     return mRoot;
+
+    // bool delay = false;
+    // switch (kind) {
+    // case CXCursor_FirstStmt:
+    // case CXCursor_FirstExpr:
+    // case CXCursor_UnexposedDecl:
+    // case CXCursor_TypedefDecl:
+    // case CXCursor_UsingDirective:
+    // case CXCursor_NamespaceRef:
+    // case CXCursor_TemplateTypeParameter:
+    // case CXCursor_OverloadedDeclRef:
+    // case CXCursor_CXXBaseSpecifier:
+    // case CXCursor_ClassTemplate:
+    // case CXCursor_NonTypeTemplateParameter:
+    // case CXCursor_TemplateRef:
+    // case CXCursor_UnionDecl:
+    // case CXCursor_ClassTemplatePartialSpecialization:
+    // case CXCursor_LabelStmt:
+    // case CXCursor_LabelRef:
+    // case CXCursor_UsingDeclaration:
+    // case CXCursor_TemplateTemplateParameter:
+    // case CXCursor_ObjCSuperClassRef:
+    // case CXCursor_ObjCInterfaceDecl:
+    // case CXCursor_ObjCCategoryDecl:
+    // case CXCursor_ObjCProtocolDecl:
+    // case CXCursor_ObjCPropertyDecl:
+    // case CXCursor_ObjCIvarDecl:
+    // case CXCursor_ObjCInstanceMethodDecl:
+    // case CXCursor_ObjCClassMethodDecl:
+    // case CXCursor_ObjCImplementationDecl:
+    // case CXCursor_ObjCCategoryImplDecl:
+    // case CXCursor_ObjCSynthesizeDecl:
+    // case CXCursor_ObjCDynamicDecl:
+    // case CXCursor_ObjCProtocolRef:
+    // case CXCursor_ObjCClassRef:
+    // case CXCursor_ObjCMessageExpr:
+    // case CXCursor_InvalidFile:
+    // case CXCursor_NoDeclFound:
+    // case CXCursor_NotImplemented:
+    // case CXCursor_InvalidCode:
+    // case CXCursor_LinkageSpec:
+    // case CXCursor_BlockExpr:
+    // case CXCursor_FirstAttr:
+    // case CXCursor_IBActionAttr:
+    // case CXCursor_IBOutletAttr:
+    // case CXCursor_IBOutletCollectionAttr:
+    // case CXCursor_PreprocessingDirective:
+    // case CXCursor_MacroDefinition:
+    // case CXCursor_MacroExpansion:
+    // case CXCursor_InclusionDirective:
+    // case CXCursor_TypeAliasDecl:
+    // case CXCursor_NamespaceAlias:
+    // case CXCursor_CXXFinalAttr:
+    // case CXCursor_CXXOverrideAttr:
+    //     if (verbose) {
+    //         const Location l(cursor);
+    //         printf("Ignoring %s at %s:%d:%d\n", kindToString(kind),
+    //                l.path.constData(), l.line, l.column);
+    //     }
+    //     return createOrGet(clang_getCursorSemanticParent(cursor));
+    // case CXCursor_TranslationUnit:
+    //     return mRoot;
+    // case CXCursor_ClassDecl:
+    // case CXCursor_StructDecl:
+    //     if (!clang_isCursorDefinition(cursor))
+    //         delay = true;
+    //     break;
+    // case CXCursor_DeclRefExpr:
+    // case CXCursor_CallExpr:
+    // case CXCursor_TypeRef:
+    // case CXCursor_MemberRefExpr:
+    //     delay = true;
+    //     break;
+    // case CXCursor_EnumDecl:
+    // case CXCursor_FieldDecl:
+    // case CXCursor_EnumConstantDecl:
+    // case CXCursor_FunctionDecl:
+    // case CXCursor_VarDecl:
+    // case CXCursor_ParmDecl:
+    // case CXCursor_CXXMethod:
+    // case CXCursor_Namespace:
+    // case CXCursor_Constructor:
+    // case CXCursor_Destructor:
+    // case CXCursor_ConversionFunction:
+    // case CXCursor_FunctionTemplate:
+    // case CXCursor_MemberRef:
+    //     // case CXCursor_FirstInvalid:
+    //     // case CXCursor_LastInvalid:
+    //     break;
+    // }
+    // const Location location(cursor);
+    // if (!location.exists())
+    //     return createOrGet(clang_getCursorSemanticParent(cursor));
+
+    // const uint hash = qHash(cursor, location);
+    // if (delay) {
+    //     if (Node *n = mNodes.value(hash))
+    //         return n;
+    //     const PendingReference p = { cursor, location };
+    //     mPendingReferences[hash] = p;
+    //     return createOrGet(clang_getCursorSemanticParent(cursor));
+    // }
+
+    // Node *&node = mNodes[hash];
+    // if (!node) {
+    //     node = new Node(createOrGet(clang_getCursorSemanticParent(cursor)), cursor, location, hash);
+    //     mPendingReferences.remove(hash);
+    //     Q_ASSERT(node->parent);
+    // }
+    // return node;
+    
     return CXChildVisit_Recurse;
 }
 
