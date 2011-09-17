@@ -154,16 +154,139 @@ static inline CXChildVisitResult buildList(CXCursor cursor, CXCursor parent, CXC
     return CXChildVisit_Recurse;
 }
 
+struct C {
+    C(CXCursor c, C *p = 0)
+        : cursor(c), parent(p), firstChild(0), nextSibling(0), lastChild(0)
+    {
+        if (p) {
+            p->append(this);
+        }
+    }
+    CXCursor cursor;
+    C *parent, *firstChild, *nextSibling, *lastChild;
+    void dump(int indent)
+    {
+        for (int i=0; i<indent; ++i) {
+            printf(" ");
+        }
+
+        QString str;
+        QDebug(&str) << cursor;
+        str.remove("\"");
+        printf("%s\n", str.toLocal8Bit().constData());
+        for (C *c=firstChild; c; c = c->nextSibling) {
+            c->dump(indent + 2);
+        }
+    }
+    void compact()
+    {
+        Q_ASSERT(!parent || actionForKind(cursor) != Ignore);
+        C *c = firstChild;
+        C *prev = 0;
+        while (c) {
+            if (actionForKind(c->cursor) == Ignore) {
+                if (!prev) {
+                    firstChild = c->nextSibling;
+                } else {
+                    prev->nextSibling = c->nextSibling;
+                }
+                if (c->firstChild) {
+                    append(c->firstChild);
+                }
+                C *tmp = c;
+                c = c->nextSibling;
+                delete tmp;
+            } else {
+                c->compact();
+                prev = c;
+                c = c->nextSibling;
+            }
+        }
+    }
+    void append(C *c)
+    {
+        c->parent = this;
+        if (lastChild) {
+            lastChild->nextSibling = c;
+            lastChild = c;
+        } else {
+            lastChild = firstChild = c;
+        }
+    }
+    void clear()
+    {
+        for (C *c=firstChild; c; c = c->nextSibling) {
+            c->clear();
+        }
+        delete this;
+    }
+};
+struct ComprehensiveTreeUserData {
+    C *root;
+    C *last;
+    QVector<QPair<CXCursor, C*> > parents;
+    CXCursor lastCursor;
+};
+
+CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor parent, CXClientData data)
+{
+    // qDebug() << cursor << parent;
+    ComprehensiveTreeUserData *u = reinterpret_cast<ComprehensiveTreeUserData*>(data);
+    C *p = 0;
+    bool recursed = false;
+    if (!u->root) {
+        u->root = new C(parent);
+        p = u->root;
+        u->parents.append(qMakePair(parent, u->root));
+        u->lastCursor = cursor;
+    } else {
+        Q_ASSERT(u->last);
+        if (clang_equalCursors(parent, u->lastCursor)) {
+            p = u->last;
+            recursed = true;
+        } else {
+            for (int i=u->parents.size() - 1; i>=0; --i) {
+                if (clang_equalCursors(parent, u->parents.at(i).first)) {
+                    p = u->parents.at(i).second;
+                    u->parents.resize(i + 1);
+                    break;
+                }
+            }
+        }
+    }
+    if (!p) {
+        qDebug() << "crashing" << cursor << parent;
+        qWarning() << u->root->cursor << clang_equalCursors(u->root->cursor, parent)
+                   << clang_equalCursors(parent, parent);
+    }
+    Q_ASSERT(p);
+    u->last = new C(cursor, p);
+    if (recursed)
+        u->parents.append(qMakePair(parent, p));
+
+    u->lastCursor = cursor;
+    return CXChildVisit_Recurse;
+}
+
 void VisitThread::onFileParsed(const Path &path, void *u)
 {
     CXTranslationUnit unit = reinterpret_cast<CXTranslationUnit>(u);
     if (!mQuitting) {
+        CXCursor rootCursor = clang_getTranslationUnitCursor(unit);
+        ComprehensiveTreeUserData ud;
+        ud.last = ud.root = 0;
+        ud.lastCursor = clang_getNullCursor();
+        clang_visitChildren(rootCursor, buildComprehensiveTree, &ud);
+        ud.root->dump(0);
+        // ud.root->compact();
+        ud.root->dump(1);
+        ud.root->clear();
+#if 0
         QElapsedTimer timer;
         timer.start();
         QMutexLocker lock(&mMutex);
         QWriteLocker writeLock(&mLock);
         // const int old = mNodes.size();
-        CXCursor rootCursor = clang_getTranslationUnitCursor(unit);
         UserData u;
         u.ignoredLast = false;
         u.lastParent = rootCursor;
@@ -244,6 +367,7 @@ void VisitThread::onFileParsed(const Path &path, void *u)
                 lastRealNode = node = new Node(p, type, cursor, location, id);
             }
         }
+#endif
     }
     clang_disposeTranslationUnit(unit);
 }
