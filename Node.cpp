@@ -13,9 +13,6 @@ Node::Type Node::typeFromCursor(const CXCursor &c)
 {
     const CXCursorKind kind = clang_getCursorKind(c);
     switch (kind) {
-    case CXCursor_TypeRef:
-        return Reference; // This is more of a typeref than a forward declararion, rename?
-        break;
     case CXCursor_StructDecl:
         return clang_isCursorDefinition(c) ? Struct : Reference;
         break;
@@ -24,16 +21,15 @@ Node::Type Node::typeFromCursor(const CXCursor &c)
         break;
     case CXCursor_MemberRefExpr:
     case CXCursor_CallExpr:
+    case CXCursor_TypeRef:
+    case CXCursor_MemberRef:
+    case CXCursor_DeclRefExpr:
         return Reference;
         break;
     case CXCursor_FieldDecl:
     case CXCursor_VarDecl:
     case CXCursor_ParmDecl:
         return Variable;
-        break;
-    case CXCursor_MemberRef:
-    case CXCursor_DeclRefExpr:
-        return Reference;
         break;
     case CXCursor_CXXMethod:
     case CXCursor_FunctionDecl:
@@ -53,11 +49,9 @@ Node::Type Node::typeFromCursor(const CXCursor &c)
         return EnumValue;
         break;
     default:
-        qWarning() << "Can't find type for this cursor" << c;
-        Q_ASSERT(0);
         break;
     }
-    return None;
+    return Invalid;
 }
 
 
@@ -149,7 +143,7 @@ const char *Node::typeToName(Type type, bool abbrev)
     case Reference: return abbrev ? "pr" : "Reference";
     case Namespace: return abbrev ? "n" : "Namespace";
     case Variable: return abbrev ? "vd" : "Variable";
-    case None:
+    case Invalid:
     case All:
         break;
     }

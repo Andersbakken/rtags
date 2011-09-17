@@ -61,7 +61,7 @@ struct FollowSymbolMatch : public Match
             //          << Node::typeToName(node->type);
             switch (node->type) {
             case Node::All:
-            case Node::None:
+            case Node::Invalid:
             case Node::Root:
                 break;
             case Node::MethodDeclaration:
@@ -298,7 +298,7 @@ static Node::Type stringToType(const QByteArray &in)
             return static_cast<Node::Type>(i);
         }
     }
-    return Node::None;
+    return Node::Invalid;
 }
 
 QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &args, const QList<QByteArray> &freeArgs)
@@ -452,7 +452,7 @@ QDebug operator<<(QDebug dbg, CXCursor cursor)
     clang_getInstantiationLocation(location, &file, &line, &column, &offset);
     Path path = eatString(clang_getFileName(file));
     if (path.resolve()) {
-        text += QString(", %1:%2:%3").arg(QString::fromLocal8Bit(path).split('/', QString::SkipEmptyParts).last()).arg(line).arg(column);
+        text += QString(", %1:%2:%3").arg(QString::fromLocal8Bit(path)).arg(line).arg(column);
     }
     if (clang_isCursorDefinition(cursor))
         text += ", def";

@@ -10,7 +10,7 @@ struct Node
     Node *parent, *nextSibling, *firstChild;
     QByteArray symbolName;
     enum Type {
-        None = 0x000000,
+        Invalid = 0x000000,
         Root = 0x000001,
         Namespace = 0x000002,
         Class = 0x000004,
