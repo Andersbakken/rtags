@@ -171,11 +171,22 @@ CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor parent, CXCl
     return CXChildVisit_Recurse;
 }
 
-void VisitThread::buildTree(Node *parent, CursorNode *c, QList<CursorNode*> &references)
+void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, PendingReference> &references)
 {
+    Location l(c->cursor);
+    if (l.path == "/home/anders/dev/rtags/Daemon.cpp"
+        && l.line == 223 && l.column == 9) {
+        qWarning() << "yo yo yo";
+    }
+
     const Node::Type type = Node::typeFromCursor(c->cursor);
     if (type == Node::Reference) {
-        references.append(c);
+        const Location loc(c->cursor);
+        const QByteArray id = cursorId(c->cursor, loc);
+        if (!mNodes.contains(id)) {
+            const PendingReference r = { c, loc };
+            references[id] = r;
+        }
     } else {
         if (c->parent && type != Node::Invalid) {
             const Location loc(c->cursor);
@@ -193,9 +204,15 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QList<CursorNode*> &ref
 
 /* This function intentionally ignores children of c. So far I haven't seen any
  * children of References that we want */
-void VisitThread::addReference(CursorNode *c)
+void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Location &loc)
 {
-    if (Node::typeFromCursor(c->cursor) != Node::Invalid) {
+    if (mNodes.contains(id)) {
+        qWarning() << "Turns out" << c->cursor << "already exists"
+                   << mNodes.value(id)->symbolName << Node::typeToName(mNodes.value(id)->type)
+                   << mNodes.value(id)->location;
+        return;
+    }
+    if (Node::typeFromCursor(c->cursor) != Node::Invalid && loc.exists()) {
         const CXCursorKind kind = clang_getCursorKind(c->cursor);
 
         CXCursor ref = clang_getCursorReferenced(c->cursor);
@@ -204,7 +221,7 @@ void VisitThread::addReference(CursorNode *c)
         }
 
         if (!isValidCursor(ref)) {
-            if (kind != CXCursor_CallExpr)
+            if (kind != CXCursor_CallExpr && kind != CXCursor_ClassDecl && kind != CXCursor_StructDecl)
                 qWarning() << "Can't get valid cursor for" << c->cursor << "child of" << c->parent->cursor;
             return;
         }
@@ -216,37 +233,31 @@ void VisitThread::addReference(CursorNode *c)
             switch (refKind) {
             case CXCursor_ParmDecl:
             case CXCursor_VarDecl:
+            case CXCursor_FieldDecl:
             case CXCursor_CXXMethod:
             case CXCursor_EnumConstantDecl:
+            case CXCursor_FunctionDecl:
                 break;
+            case CXCursor_NonTypeTemplateParameter:
+                return;
             default:
                 qDebug() << "throwing out this pending CXCursor_DeclRefExpr" << c->cursor << ref;
                 return;
             }
         }
 #warning gotta do typedefs
-        const Location loc(c->cursor);
-        if (!loc.exists()) {
-            qWarning() << "Can't find location for" << c->cursor;
-            return;
-        }
         const QByteArray refId = cursorId(ref);
         Node *refNode = mNodes.value(refId);
         if (!refNode) {
             // qWarning() << "Can't find referenced node" << c->cursor << ref << refId;
             return;
         }
-        const QByteArray id = cursorId(c->cursor, loc);
-        Node *&node = mNodes[id];
-        if (node) {
-            qWarning() << "Someone has already made this one" << c->cursor << ref;
-            return;
-        }
-        node = new Node(refNode, Node::Reference, c->cursor, loc, id);
+        mNodes[id] = new Node(refNode, Node::Reference, c->cursor, loc, id);
     }
 
     for (CursorNode *child=c->firstChild; child; child = child->nextSibling) {
-        addReference(child);
+        const Location l(child->cursor);
+        addReference(child, cursorId(child->cursor, l), l);
         // if (Node::typeFromCursor(child->cursor) != Node::Invalid) {
         //     qWarning() << "This node is a child of a ref" << child->cursor
         //                << c->cursor << ref;
@@ -268,12 +279,14 @@ void VisitThread::onFileParsed(const Path &path, void *u)
         // ud.root->compact();
         // ud.root->dump(0);
         // ::exit(0);
-        QList<CursorNode*> references;
+        QHash<QByteArray, PendingReference> references;
         QMutexLocker lock(&mMutex);
         const int old = mNodes.size();
         buildTree(mRoot, ud.root, references);
-        foreach(CursorNode *ref, references)
-            addReference(ref);
+        for (QHash<QByteArray, PendingReference>::const_iterator it = references.begin(); it != references.end(); ++it) {
+            const PendingReference &p = it.value();
+            addReference(p.node, it.key(), p.location);
+        }
         ud.root->clear();
         qDebug() << "added" << (mNodes.size() - old) << "nodes for" << path << ". Total" << mNodes.size();
     }

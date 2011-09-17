@@ -38,8 +38,13 @@ public slots:
     void invalidate(const QSet<Path> &paths);
     void onFileParsed(const Path &path, void *unit);
 private:
-    void buildTree(Node *node, CursorNode *c, QList<CursorNode*> &references);
-    void addReference(CursorNode *c);
+    struct PendingReference {
+        CursorNode *node;
+        Location location;
+    };
+    
+    void buildTree(Node *node, CursorNode *c, QHash<QByteArray, PendingReference> &references);
+    void addReference(CursorNode *c, const QByteArray &id, const Location &location);
 
     mutable QMutex mMutex;
     Node *mRoot;
