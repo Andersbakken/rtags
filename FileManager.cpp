@@ -132,7 +132,7 @@ void FileManager::onMakeOutput()
                     const int size = strings.size();
                     if (size >= 3 && strings.first().endsWith(":")) {
                         const Path sourceFile = Path::resolved(strings.at(1).toLocal8Bit(), data.directory);
-                        if (sourceFile.isFile()) {
+                        if (sourceFile.isSource()) { // using extension to determine if this is a source file
                             FileData &fd = mFiles[sourceFile];
                             for (int i=2; i<size; ++i) {
                                 const Path header = Path::resolved(strings.at(i).toLocal8Bit(), data.directory);

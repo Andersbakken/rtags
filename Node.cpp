@@ -20,7 +20,6 @@ Node::Type Node::typeFromCursor(const CXCursor &c)
         return clang_isCursorDefinition(c) ? Class : Reference;
         break;
     case CXCursor_MemberRefExpr:
-    case CXCursor_CallExpr:
     case CXCursor_TypeRef:
     case CXCursor_MemberRef:
     case CXCursor_DeclRefExpr:

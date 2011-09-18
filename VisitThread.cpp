@@ -51,32 +51,6 @@ struct CursorNode {
             c->dump(indent + 2);
         }
     }
-    void compact()
-    {
-        Q_ASSERT(!parent || Node::typeFromCursor(cursor) != Node::Invalid);
-        CursorNode *c = firstChild;
-        CursorNode *prev = 0;
-        while (c) {
-            if (Node::typeFromCursor(c->cursor) == Node::Invalid) {
-                CursorNode *tmp = c;
-                if (!prev) {
-                    firstChild = tmp->nextSibling;
-                } else {
-                    prev->nextSibling = c->nextSibling;
-                }
-                for (CursorNode *nkotb=c->firstChild; nkotb; nkotb = nkotb->nextSibling) {
-                    append(nkotb);
-                }
-
-                delete tmp;
-                c = c->nextSibling;
-            } else {
-                c->compact();
-                prev = c;
-                c = c->nextSibling;
-            }
-        }
-    }
     void append(CursorNode *c)
     {
         c->parent = this;
@@ -221,15 +195,13 @@ void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Locati
         }
 
         if (!isValidCursor(ref)) {
-            if (kind != CXCursor_CallExpr && kind != CXCursor_ClassDecl && kind != CXCursor_StructDecl)
+            if (/*kind != CXCursor_CallExpr && */kind != CXCursor_ClassDecl && kind != CXCursor_StructDecl)
                 qWarning() << "Can't get valid cursor for" << c->cursor << "child of" << c->parent->cursor;
             return;
         }
 
         const CXCursorKind refKind = clang_getCursorKind(ref);
-        if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
-            return; // these have the wrong Location, we get the right one from CXCursor_DeclRefExpr
-        } else if (kind == CXCursor_DeclRefExpr) {
+        if (kind == CXCursor_DeclRefExpr) {
             switch (refKind) {
             case CXCursor_ParmDecl:
             case CXCursor_VarDecl:
@@ -276,9 +248,6 @@ void VisitThread::onFileParsed(const Path &path, void *u)
         ud.lastCursor = clang_getNullCursor();
         clang_visitChildren(rootCursor, buildComprehensiveTree, &ud);
         // ud.root->dump(0);
-        // ud.root->compact();
-        // ud.root->dump(0);
-        // ::exit(0);
         QHash<QByteArray, PendingReference> references;
         QMutexLocker lock(&mMutex);
         const int old = mNodes.size();
