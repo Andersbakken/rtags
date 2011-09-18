@@ -13,6 +13,8 @@ Node::Type Node::typeFromCursor(const CXCursor &c)
 {
     const CXCursorKind kind = clang_getCursorKind(c);
     switch (kind) {
+    case CXCursor_TypedefDecl:
+        return Typedef;
     case CXCursor_StructDecl:
         return clang_isCursorDefinition(c) ? Struct : Reference;
         break;
@@ -141,6 +143,7 @@ const char *Node::typeToName(Type type, bool abbrev)
     case Struct: return abbrev ? "s" : "Struct";
     case Reference: return abbrev ? "pr" : "Reference";
     case Namespace: return abbrev ? "n" : "Namespace";
+    case Typedef: return abbrev ? "t" : "Typedef";
     case Variable: return abbrev ? "vd" : "Variable";
     case Invalid:
     case All:

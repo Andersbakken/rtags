@@ -20,7 +20,8 @@ struct Node
         Variable = 0x000040,
         Enum = 0x000080,
         EnumValue = 0x000100,
-        Reference = 0x000200,
+        Typedef = 0x000200,
+        Reference = 0x000400,
         All = 0xffffff
     } type;
     Location location;

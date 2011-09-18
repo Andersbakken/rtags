@@ -219,7 +219,6 @@ void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Locati
                 return;
             }
         }
-#warning gotta do typedefs
         const QByteArray refId = cursorId(ref);
         Node *refNode = mNodes.value(refId);
         if (!refNode) {
