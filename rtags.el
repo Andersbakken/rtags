@@ -70,7 +70,6 @@
     (with-temp-buffer
       (call-process (executable-find "rtags") nil t nil "--timeout=50" "followsymbol"
                     bufname (concat "--line=" line) (concat "--column=" column))
-      (message (buffer-string))
       (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" (buffer-string))
       (if (match-beginning 1)
           (progn

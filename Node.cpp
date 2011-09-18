@@ -59,7 +59,8 @@ Node::Type Node::typeFromCursor(const CXCursor &c)
 Node::Node(Node *p, Type t, const CXCursor &c, const Location &l, const QByteArray &i)
     : parent(p), nextSibling(0), firstChild(0), type(t), location(l), id(i)
 {
-    Q_ASSERT(parent || type != Reference);
+    Q_ASSERT(t != Invalid);
+    Q_ASSERT(t == Root || parent);
     if (type == Reference && parent->type != Root) {
         // qDebug() << "doing parent reference" << c;
         symbolName = parent->symbolName;

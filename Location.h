@@ -35,7 +35,7 @@ struct Location {
     {
         QByteArray buffer;
         buffer.resize(path.size() + 32);
-        int len = snprintf(buffer.data(), 1023, "%s:%d:%d (%d)", path.constData(), line, column, offset);
+        int len = snprintf(buffer.data(), 1023, "%s:%d:%d", path.constData(), line, column);
         Q_ASSERT(len < buffer.size());
         buffer.truncate(len + 1);
         return buffer;
