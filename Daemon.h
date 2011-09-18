@@ -27,7 +27,7 @@ public:
 
     bool start();
     Q_INVOKABLE QHash<QByteArray, QVariant> runCommand(const QHash<QByteArray, QVariant>& dashArgs,
-                                                       const QList<QByteArray>& freeArgs);
+                                                       QList<QByteArray> freeArgs);
 public slots:
     void onDependenciesAdded(const QSet<Path> &path);
 private:

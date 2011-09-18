@@ -78,6 +78,7 @@ struct FollowSymbolMatch : public Match
             case Node::Namespace:
             case Node::Variable:
             case Node::Enum:
+            case Node::Typedef:
                 break;
             case Node::EnumValue:
                 node = node->parent; // parent is Enum
@@ -207,12 +208,22 @@ static QHash<QByteArray, QVariant> syntax()
 }
 
 QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant> &dashArgs,
-                                               const QList<QByteArray>& freeArgs)
+                                               QList<QByteArray> freeArgs)
 {
     qDebug() << "runCommand" << dashArgs << freeArgs;
     QByteArray cmd = freeArgs.value(0);
     if (cmd.isEmpty())
         return createResultMap("No command or path specified");
+
+    const Path cwd = dashArgs.value("cwd").toByteArray();
+    freeArgs.removeFirst();
+    const int size = freeArgs.size();
+    for (int i=0; i<size; ++i) {
+        bool ok;
+        Path p = Path::resolved(freeArgs.at(i), cwd, &ok);
+        if (ok)
+            freeArgs[i] = p;
+    }
 
     if (cmd == "syntax") {
         return syntax();
