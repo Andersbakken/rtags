@@ -27,6 +27,15 @@ struct CursorNode {
             p->append(this);
         }
     }
+    ~CursorNode()
+    {
+        CursorNode *c = firstChild;
+        while (c) {
+            CursorNode *tmp = c;
+            c = c->nextSibling;
+            delete tmp;
+        }
+    }
     int count() const
     {
         int ret = 1;
@@ -61,13 +70,6 @@ struct CursorNode {
             lastChild = firstChild = c;
         }
         nextSibling = 0;
-    }
-    void clear()
-    {
-        for (CursorNode *c=firstChild; c; c = c->nextSibling) {
-            c->clear();
-        }
-        delete this;
     }
 };
 struct ComprehensiveTreeUserData {
@@ -254,7 +256,7 @@ void VisitThread::onFileParsed(const Path &path, void *u)
             const PendingReference &p = it.value();
             addReference(p.node, it.key(), p.location);
         }
-        ud.root->clear();
+        delete ud.root;
         qDebug() << "added" << (mNodes.size() - old) << "nodes for" << path << ". Total" << mNodes.size();
     }
     clang_disposeTranslationUnit(unit);
