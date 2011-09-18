@@ -1,5 +1,4 @@
 #include "ArgParser.h"
-#include "Path.h"
 
 ArgParser::ArgParser(int argc, char **argv)
 {
@@ -23,10 +22,6 @@ QList<QByteArray> ArgParser::freeArguments() const
 
 void ArgParser::addValue(const QByteArray &key, const QByteArray &value)
 {
-    if (key == "command") { // don't want to resolve makefile to /some/path/Makefile on mac
-        m_dash[key] = value;
-        return;
-    }
     bool ok;
     int intvalue = value.toInt(&ok);
     if (ok) {
@@ -39,12 +34,7 @@ void ArgParser::addValue(const QByteArray &key, const QByteArray &value)
         return;
     }
 
-    Path copy = value;
-    if (!copy.isResolved() && copy.resolve()) {
-        m_dash[key] = copy;
-    } else {
-        m_dash[key] = value;
-    }
+    m_dash[key] = value;
 }
 
 bool ArgParser::parse(int argc, char **argv)
@@ -78,12 +68,7 @@ bool ArgParser::parse(int argc, char **argv)
             }
         } else { // doesn't start with a '-', add as a free argument
             if (!current.isEmpty()) {
-                Path copy = current;
-                if (!copy.isResolved() && copy.resolve()) {
-                    m_free.append(copy);
-                } else {
-                    m_free.append(current);
-                }
+                m_free.append(current);
             }
         }
     }

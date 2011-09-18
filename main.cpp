@@ -77,6 +77,8 @@ int main(int argc, char** argv)
     qRegisterMetaTypeStreamOperators<ByteArrayHash>("ByteArrayHash");
     ArgParser args(argc, argv);
     QHash<QByteArray, QVariant> argsmap = args.dashArguments();
+    if (!argsmap.contains("cwd"))
+        argsmap["cwd"] = QDir::currentPath().toLocal8Bit();
     if (argsmap.contains("verbose")) {
         Options::s_verbose = true;
         argsmap.remove("verbose");
