@@ -21,7 +21,7 @@ bool Client::isConnected() const
 void Client::startDaemon(const QStringList &args)
 {
     const QString path = QDir::currentPath();
-    QProcess::startDetached(args.first(), QStringList() << QLatin1String("--command=daemonize"), path);
+    QProcess::startDetached(args.first(), QStringList() << QLatin1String("daemonize"), path);
 }
 
 QHash<QByteArray, QVariant> Client::exec(const QHash<QByteArray, QVariant>& dashArgs, const QList<QByteArray>& freeArgs)

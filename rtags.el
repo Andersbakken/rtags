@@ -26,7 +26,7 @@
     ""))
 
 (defun rtags-load-file () (interactive)
-  (start-process "rtags-load" nil "rtags" "--timeout=1000" (rtags-autostart-arg) "--command=load" (buffer-file-name)))
+  (start-process "rtags-load" nil "rtags" "load" (buffer-file-name) "--timeout=1000" (rtags-autostart-arg)))
 
 (defun rtags-conditional-load-file (&optional buffer) (interactive)
   (if (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
@@ -43,7 +43,7 @@
   ;;                (not (string-match "\\.\\(hxx\\|hpp\\|tcc\\|h\\)?$" (buffer-file-name))))
   ;;               (add-to-list 'paths (buffer-file-name)))))
   ;;       (if paths
-  ;;           (apply 'start-process "rtags-load" nil "rtags" "--timeout=1000" (rtags-autostart-arg) "--command=load" paths))
+  ;;           (apply 'start-process "rtags-load" nil "rtags" "load" "--timeout=1000" (rtags-autostart-arg) paths))
   ;;       )
   ;;   )
   nil
@@ -68,7 +68,7 @@
 
             ;; /foo/bar:12:13
     (with-temp-buffer
-      (call-process (executable-find "rtags") nil t nil "--timeout=50" "--command=followsymbol"
+      (call-process (executable-find "rtags") nil t nil "--timeout=50" "followsymbol"
                     bufname (concat "--line=" line) (concat "--column=" column))
       (message (buffer-string))
       (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" (buffer-string))

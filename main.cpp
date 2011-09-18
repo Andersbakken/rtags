@@ -91,10 +91,11 @@ int main(int argc, char** argv)
     if (!ok)
         timeout = 1000;
 
-    if (argsmap.isEmpty())
-        argsmap.insert("command", "daemonize");
+    QList<QByteArray> freeArgs = args.freeArguments();
+    if (freeArgs.isEmpty())
+        freeArgs.append("daemonize");
 
-    QByteArray cmd = argsmap.value("command").toByteArray();
+    QByteArray cmd = freeArgs.first();
     QCoreApplication::setOrganizationDomain("www.rtags.com");
     QCoreApplication::setOrganizationName("rtags");
     QCoreApplication::setApplicationName("rtags");
@@ -106,9 +107,7 @@ int main(int argc, char** argv)
         {
             Client client;
             if (client.connect(timeout)) {
-                QHash<QByteArray, QVariant> args;
-                args["command"] = "quit";
-                client.exec(args, QList<QByteArray>());
+                client.exec(QHash<QByteArray, QVariant>(), QList<QByteArray>() << "quit");
             }
         }
 
@@ -141,8 +140,8 @@ int main(int argc, char** argv)
             }
         }
         if (client.isConnected()) {
-            QHash<QByteArray, QVariant> replymap = client.exec(argsmap, args.freeArguments());
-            QByteArray reply = replymap.value("result").toByteArray();
+            QHash<QByteArray, QVariant> replymap = client.exec(argsmap, freeArgs);
+            const QByteArray reply = replymap.value("result").toByteArray();
             if (!reply.isEmpty())
                 printf("%s\n", reply.constData());
             return 0;

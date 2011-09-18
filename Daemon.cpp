@@ -210,7 +210,7 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
                                                const QList<QByteArray>& freeArgs)
 {
     qDebug() << "runCommand" << dashArgs << freeArgs;
-    QString cmd = dashArgs.value("command").toString();
+    QByteArray cmd = freeArgs.value(0);
     if (cmd.isEmpty())
         return createResultMap("No command or path specified");
 
