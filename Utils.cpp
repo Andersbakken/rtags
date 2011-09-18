@@ -90,10 +90,8 @@ const char *kindToString(CXCursorKind kind)
     case CXCursor_MacroExpansion: return "CXCursor_MacroExpansion";
     // case CXCursor_MacroInstantiation: return "CXCursor_MacroInstantiation";
     case CXCursor_InclusionDirective: return "CXCursor_InclusionDirective";
-#if 0
     case CXCursor_CXXFinalAttr: return "CXCursor_CXXFinalAttr";
     case CXCursor_CXXOverrideAttr: return "CXCursor_CXXOverrideAttr";
-#endif
         // case CXCursor_FirstPreprocessing: return "CXCursor_FirstPreprocessing";
         // case CXCursor_LastPreprocessing: return "CXCursor_LastPreprocessing";
     }
