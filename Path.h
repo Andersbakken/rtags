@@ -46,6 +46,7 @@ public:
     inline bool isDir() const { return type() == Directory; }
     inline bool isFile() const { return type() == File; }
     inline bool isAbsolute() const { return (!isEmpty() && at(0) == '/'); }
+    bool isSource() const;
     bool isResolved() const;
     Path parentDir() const;
     Type type() const;

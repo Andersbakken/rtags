@@ -108,3 +108,23 @@ bool Path::resolve(const Path &cwd)
     }
     return false;
 }
+
+bool Path::isSource() const
+{
+    if (isFile()) {
+        const int lastDot = lastIndexOf('.');
+        const int len = size() - lastDot;
+        if (lastDot != -1 && len > 0) {
+            const char *sourceFileExtensions[] = {
+                "c", "h", "cpp", "hpp", "cxx", "hxx", "moc", "cc", "hh", 0
+            };
+            const char *str = constData() + lastDot + 1;
+            for (int i=0; sourceFileExtensions[i]; ++i) {
+                if (!strncasecmp(str, sourceFileExtensions[i], len)) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
