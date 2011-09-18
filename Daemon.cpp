@@ -255,6 +255,8 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
     Path makefile = freeArgs.first();
     if (!makefile.isResolved())
         makefile.resolve();
+    if (makefile.isDir())
+        makefile = makefile + "/Makefile";
     if (!makefile.isFile()) {
         return createResultMap("Makefile does not exist: " + makefile);
     }
@@ -398,7 +400,8 @@ QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
                 mParseThread.load(it.key(), args);
                 ++added;
             } else if (isSource(it.key())) {
-                qWarning("We don't seem to have GccArguments for %s", it.key().constData());
+                qWarning() << "We don't seem to have GccArguments for" << it.key()
+                           << mFileManager.arguments(it.key()).isNull();
             }
         }
     }

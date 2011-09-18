@@ -17,12 +17,9 @@ FileManager::FileManager()
             QDataStream ds(&cached, QIODevice::ReadOnly);
             ds >> mFiles;
             qDebug() << "got" << cached.size() << "of cache" << mFiles.size() << "files";
-            for (QHash<Path, FileData>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
-                if (!it.value().arguments.isNull())
-                    qDebug() << it.key() << !it.value().arguments.isNull();
-            }
         }
     }
+    qDebug() << arguments("/home/anders/temp/mini/main.cpp");
 }
 FileManager::~FileManager()
 {

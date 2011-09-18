@@ -138,6 +138,8 @@ CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor parent, CXCl
     u->lastCursor = cursor;
     switch (clang_getCursorKind(cursor)) {
     case CXCursor_EnumConstantDecl:
+    case CXCursor_MemberRefExpr:
+    case CXCursor_DeclRefExpr:
         return CXChildVisit_Continue; //
     default:
         break;
@@ -247,7 +249,8 @@ void VisitThread::onFileParsed(const Path &path, void *u)
         ud.last = ud.root = 0;
         ud.lastCursor = clang_getNullCursor();
         clang_visitChildren(rootCursor, buildComprehensiveTree, &ud);
-        // ud.root->dump(0);
+        if (qgetenv("RTAGS_DUMP").contains(path.fileName()))
+            ud.root->dump(0);
         QHash<QByteArray, PendingReference> references;
         QMutexLocker lock(&mMutex);
         const int old = mNodes.size();

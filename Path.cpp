@@ -128,3 +128,12 @@ bool Path::isSource() const
     }
     return false;
 }
+const char * Path::fileName() const
+{
+    return constData() + lastIndexOf('/') + 1;
+}
+
+const char * Path::extension() const
+{
+    return constData() + lastIndexOf('.') + 1;
+}

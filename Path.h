@@ -19,6 +19,9 @@ public:
     Path(const QByteArray &other)
         : QByteArray(other)
     {}
+    Path(const char *path)
+        : QByteArray(path)
+    {}
     Path() {}
     Path &operator=(const Path &other)
     {
@@ -46,6 +49,8 @@ public:
     inline bool isDir() const { return type() == Directory; }
     inline bool isFile() const { return type() == File; }
     inline bool isAbsolute() const { return (!isEmpty() && at(0) == '/'); }
+    const char *fileName() const;
+    const char *extension() const;
     bool isSource() const;
     bool isResolved() const;
     Path parentDir() const;

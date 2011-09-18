@@ -21,10 +21,9 @@ struct Location {
         clang_getInstantiationLocation(location, &file, &line, &column, 0);
         bool ok;
         path = Path::resolved(eatString(clang_getFileName(file)), Path(), &ok);
-        if (!ok) {
+        if (!ok || !path.exists()) {
             line = column = 0 ;
         }
-        Q_ASSERT((!path.exists()) == (line == 0 && column == 0));
     }
 
     bool exists() const
