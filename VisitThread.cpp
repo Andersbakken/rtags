@@ -149,28 +149,26 @@ CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor parent, CXCl
 
 void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, PendingReference> &references)
 {
-    Location l(c->cursor);
-    if (l.path == "/home/anders/dev/rtags/Daemon.cpp"
-        && l.line == 223 && l.column == 9) {
-        qWarning() << "yo yo yo";
-    }
-
     const Node::Type type = Node::typeFromCursor(c->cursor);
     if (type == Node::Reference) {
         const Location loc(c->cursor);
-        const QByteArray id = cursorId(c->cursor, loc);
-        if (!mNodes.contains(id)) {
-            const PendingReference r = { c, loc };
-            references[id] = r;
+        if (loc.exists()) {
+            const QByteArray id = cursorId(c->cursor, loc);
+            if (!mNodes.contains(id)) {
+                const PendingReference r = { c, loc };
+                references[id] = r;
+            }
         }
     } else {
         if (c->parent && type != Node::Invalid) {
             const Location loc(c->cursor);
-            const QByteArray id = cursorId(c->cursor, loc);
-            Node *&node = mNodes[id];
-            if (node)
-                return; // we've seen this whole branch
-            parent = node = new Node(parent, type, c->cursor, loc, id);
+            if (loc.exists()) {
+                const QByteArray id = cursorId(c->cursor, loc);
+                Node *&node = mNodes[id];
+                if (node)
+                    return; // we've seen this whole branch
+                parent = node = new Node(parent, type, c->cursor, loc, id);
+            }
         }
         for (CursorNode *child=c->firstChild; child; child = child->nextSibling) {
             buildTree(parent, child, references);
@@ -178,8 +176,6 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
     }
 }
 
-/* This function intentionally ignores children of c. So far I haven't seen any
- * children of References that we want */
 void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Location &loc)
 {
     if (mNodes.contains(id)) {
