@@ -19,11 +19,9 @@ FileManager::FileManager()
             qDebug() << "got" << cached.size() << "of cache" << mFiles.size() << "files";
         }
     }
-    qDebug() << arguments("/home/anders/temp/mini/main.cpp");
 }
 FileManager::~FileManager()
 {
-    store();
 }
 
 void FileManager::addMakefile(const Path &makefile)
