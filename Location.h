@@ -7,10 +7,10 @@
 
 struct Location {
     Location()
-        : line(0), column(0)
+        : line(0), column(0), offset(0)
     {}
     Location(const Path &p, unsigned l, unsigned c)
-        : path(p), line(l), column(c)
+        : path(p), line(l), column(c), offset(0)
     {}
     Location(CXCursor cursor)
         : line(0), column(0)
@@ -18,7 +18,7 @@ struct Location {
         // ### should probably keep CXSourceLocation around rather than eating the string
         CXSourceLocation location = clang_getCursorLocation(cursor);
         CXFile file;
-        clang_getInstantiationLocation(location, &file, &line, &column, 0);
+        clang_getSpellingLocation(location, &file, &line, &column, &offset);
         bool ok;
         path = Path::resolved(eatString(clang_getFileName(file)), Path(), &ok);
         if (!ok || !path.exists()) {
@@ -34,14 +34,15 @@ struct Location {
     QByteArray toString() const
     {
         QByteArray buffer;
-        buffer.resize(1024);
-        int len = snprintf(buffer.data(), 1023, "%s:%d:%d", path.constData(), line, column);
+        buffer.resize(path.size() + 32);
+        int len = snprintf(buffer.data(), 1023, "%s:%d:%d (%d)", path.constData(), line, column, offset);
+        Q_ASSERT(len < buffer.size());
         buffer.truncate(len + 1);
         return buffer;
     }
 
     Path path;
-    unsigned line, column;
+    unsigned line, column, offset;
 };
 
 static inline bool operator==(const Location &l, const Location &r)
