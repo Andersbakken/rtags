@@ -7,10 +7,8 @@ CONFIG += debug
 
 macx {
     CONFIG -= app_bundle
-    !dbus:CONFIG += ebus
-} else {
-    !dbus:CONFIG += ebus
-    #!ebus:CONFIG += dbus
+    INCLUDEPATH += /opt/local/include
+    LIBS += -L/opt/local/lib
 }
 
 QT = core network
@@ -58,7 +56,10 @@ QMAKE_EXTRA_TARGETS += gccopts_gperf
 
 PRE_TARGETDEPS += gccopts_gperf.cpp
 
-LIBS += -lclang
+### If you don't have libmagic on mac you can install the file package in ports
+### or something along the lines of file-shlibs and file-dev on fink
+
+LIBS += -lclang -lmagic 
 
 unix {
     debug:OBJECTS_DIR = $${OUT_PWD}/.obj/debug-shared
