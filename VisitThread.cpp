@@ -283,15 +283,17 @@ static int removeChildren(Node *node, const QSet<Path> &paths, QHash<QByteArray,
     int ret = 0;
     while (child) {
         if (paths.contains(child->location.path)) {
-            if (!prev) {
-                node->firstChild = child->nextSibling;
-                ret += recursiveDelete(child, nodes, mSize);
-                child = node->firstChild;
+            Node *next = child->nextSibling;
+            qDebug() << "Found a node" << child->location.path << child << child->symbolName
+                     << Node::typeToName(child->type);
+            ret += recursiveDelete(child, nodes, mSize);
+            Q_ASSERT(!prev == (node->firstChild == child));
+            if (node->firstChild == child) {
+                node->firstChild = next;
             } else {
-                prev->nextSibling = child->nextSibling;
-                ret += recursiveDelete(child, nodes, mSize);
-                child = prev->nextSibling;
+                prev->nextSibling = next;
             }
+            child = next;
         } else {
             removeChildren(child, paths, nodes, mSize);
             prev = child;

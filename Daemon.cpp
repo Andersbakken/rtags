@@ -213,12 +213,30 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
                                                QList<QByteArray> freeArgs)
 {
     qDebug() << "runCommand" << dashArgs << freeArgs;
-    const QByteArray cmd = freeArgs.value(0);
+    QByteArray cmd = freeArgs.value(0);
     if (cmd.isEmpty())
         return createResultMap("No command or path specified");
 
     const Path cwd = dashArgs.value("cwd").toByteArray();
-    freeArgs.removeFirst();
+    bool removeFirst = true;
+    if (cmd != "makefile") {
+        Path p = Path::resolved(cmd, cwd);
+        if (p.isFile()) {
+            magic_t m = magic_open(MAGIC_CONTINUE|MAGIC_ERROR|MAGIC_MIME);
+            magic_load(m, 0);
+            const char *out = magic_file(m, cmd.constData());
+            if (strstr(out, "x-makefile")) {
+                removeFirst = false;
+                cmd = "makefile";
+            } else if (strstr(out, "x-c")) {
+                removeFirst = false;
+                cmd = "load";
+            }
+            magic_close(m);
+        }
+    }
+    if (removeFirst)
+        freeArgs.removeFirst();
     const int size = freeArgs.size();
     for (int i=0; i<size; ++i) {
         bool ok;
@@ -263,46 +281,6 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         return createResultMap(ret);
     } else if (cmd == "temporaryfile") {
         return addTemporaryFile(dashArgs, freeArgs);
-    } else {
-#if 0
-        printf("%s %d: } else {\n", __FILE__, __LINE__);
-        QByteArray results;
-        printf("%s %d: QByteArray results;\n", __FILE__, __LINE__);
-        foreach(const QByteArray &file, freeArgs) {
-            printf("%s %d: foreach(const QByteArray &file, freeArgs) {\n", __FILE__, __LINE__);
-            bool ok = false;
-            const Path path = Path::resolved(file, cwd, &ok);
-            if (!ok) {
-                printf("%s %d: if (!ok) {\n", __FILE__, __LINE__);
-                qDebug() << file << cwd;
-                break;
-            }
-            magic_t m = magic_open(MAGIC_CONTINUE|MAGIC_ERROR|MAGIC_MIME);
-            magic_load(m, 0);
-            const char *out = magic_file(m, path.constData());
-            printf("balle %s\n", out);
-            magic_t m2 = magic_open(MAGIC_CONTINUE|MAGIC_ERROR|MAGIC_MIME);
-            magic_load(m2, 0);
-            int fd = open(path.constData(), O_RDONLY);
-            const char *out2 = magic_descriptor(m2, fd);
-            qWarning() << path << out2 << out;
-            continue;
-
-            if (strstr(out, "x-makefile")) {
-                if (!results.isEmpty())
-                    results += '\n';
-                results += runCommand(dashArgs, QList<QByteArray>() << "makefile" << path).value("result").toByteArray();
-            }
-            printf("%s %d: }\n", __FILE__, __LINE__);
-
-            // int fd = open(path.constData(), O_RDONLY);
-            // printf("magic output: '%s' '\n",
-            //        magic_file(m, path.constData()));
-            //        // magic_descriptor(m, fd));
-
-            // magic_close(m);
-        }
-#endif
     }
     return createResultMap("Unknown command");
 }
@@ -456,6 +434,7 @@ QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
 
     int added = 0;
     if (!files.isEmpty()) {
+        qDebug() << files;
         mVisitThread.invalidate(files.keys().toSet()); // ### not the nicest thing ever
         for (QHash<Path, GccArguments>::const_iterator it = files.begin(); it != files.end(); ++it) {
             const GccArguments &args = it.value();

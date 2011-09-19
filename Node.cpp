@@ -95,6 +95,7 @@ Node::~Node()
 {
     while (firstChild) {
         Node *n = firstChild;
+        n->parent = 0;
         firstChild = firstChild->nextSibling;
         delete n;
     }
