@@ -8,9 +8,14 @@ QList<CXCursor> all;
 VisitThread::VisitThread()
     : QThread(0), mRoot(new Node), mQuitting(false)
 {
-    mBytes = mRoot->size();
+    Node::sNodes = &mNodes;
     setObjectName("VisitThread");
     moveToThread(this);
+}
+
+VisitThread::~VisitThread()
+{
+    Node::sNodes = 0;
 }
 
 void VisitThread::abort()
@@ -262,61 +267,48 @@ void VisitThread::onFileParsed(const Path &path, void *u)
     clang_disposeTranslationUnit(unit);
 }
 
-static int recursiveDelete(Node *node, QHash<QByteArray, Node*> &nodes, int &size)
-{
-    int ret = 1;
-    for (Node *c = node->firstChild; c; c = c->nextSibling)
-        ret += recursiveDelete(c, nodes, size);
-
-    node->firstChild = 0;
-    Q_ASSERT(nodes.contains(node->id));
-    nodes.remove(node->id);
-    size -= node->size();
-    delete node;
-    return ret;
-}
-
-static int removeChildren(Node *node, const QSet<Path> &paths, QHash<QByteArray, Node*> &nodes, int &mSize)
+static void removeChildren(Node *node, const QSet<Path> &paths)
 {
     Node *prev = 0;
     Node *child = node->firstChild;
-    int ret = 0;
     while (child) {
         if (paths.contains(child->location.path)) {
             Node *next = child->nextSibling;
-            qDebug() << "Found a node" << child->location.path << child << child->symbolName
-                     << Node::typeToName(child->type);
-            ret += recursiveDelete(child, nodes, mSize);
             Q_ASSERT(!prev == (node->firstChild == child));
             if (node->firstChild == child) {
                 node->firstChild = next;
             } else {
                 prev->nextSibling = next;
             }
+            delete child;
             child = next;
         } else {
-            removeChildren(child, paths, nodes, mSize);
+            removeChildren(child, paths);
             prev = child;
             child = child->nextSibling;
         }
     }
-    return ret;
 }
 
 void VisitThread::invalidate(const QSet<Path> &paths)
 {
     Q_ASSERT(!paths.isEmpty());
     QMutexLocker writeLock(&mMutex);
-    const int old = mBytes;
-    const int count = removeChildren(mRoot, paths, mNodes, mBytes);
+    const int oldCount = mNodes.size();
+    Q_UNUSED(oldCount);
+    const int oldSize = mRoot->size();
+    Q_UNUSED(oldSize);
+    removeChildren(mRoot, paths);
 #ifndef QT_NO_DEBUG
     QByteArray out;
     foreach(const Path &path, paths) {
         out += path + ' ';
     }
     out.chop(1);
-    qDebug("Removed %d nodes %d (removed %d bytes, current %d bytes) for %s",
-           count, mNodes.size(), old - mBytes, mBytes, out.constData());
+    const int currentSize = mRoot->size();
+    qDebug("Removed %d nodes (%d) and %d bytes (%d) for %s",
+           oldCount - mNodes.size(), mNodes.size(),
+           oldSize - currentSize, currentSize, out.constData());
 #endif
 }
 void VisitThread::printTree()

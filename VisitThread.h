@@ -30,6 +30,7 @@ class VisitThread : public QThread
     Q_OBJECT
 public:
     VisitThread();
+    ~VisitThread();
     void lookup(Match *match);
     void printTree();
     QSet<Path> files() const;
@@ -49,7 +50,6 @@ private:
     mutable QMutex mMutex;
     Node *mRoot;
     QHash<QByteArray, Node*> mNodes;
-    int mBytes;
     bool mQuitting;
 };
 

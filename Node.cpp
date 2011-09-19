@@ -1,9 +1,25 @@
 #include "Node.h"
 
+QHash<QByteArray, Node*> *Node::sNodes = 0;
+
 Node::Node()
     : parent(0), nextSibling(0), firstChild(0), type(Root)
 {}
 
+Node::~Node()
+{
+    if (!id.isEmpty()) {
+        const int removed = sNodes->remove(id);
+        (void)removed;
+        Q_ASSERT(removed > 0);
+    }
+    while (firstChild) {
+        Node *n = firstChild;
+        n->parent = 0;
+        firstChild = firstChild->nextSibling;
+        delete n;
+    }
+}
 static inline bool lessThan(const Node *left, const Node *right)
 {
     return (left->type < right->type || (left->type == right->type && left->symbolName < right->symbolName));
@@ -91,15 +107,6 @@ Node::Node(Node *p, Type t, const CXCursor &c, const Location &l, const QByteArr
 }
 
 
-Node::~Node()
-{
-    while (firstChild) {
-        Node *n = firstChild;
-        n->parent = 0;
-        firstChild = firstChild->nextSibling;
-        delete n;
-    }
-}
 
 QByteArray Node::toString() const
 {
