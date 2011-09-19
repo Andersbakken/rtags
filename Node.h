@@ -40,6 +40,12 @@ struct Node
     int size() const;
 };
 
+struct NodeData {
+    char symbolName[128]; // ### is this enough?
+    quint8 type, column;
+    quint16 fileId, line, index, childCount; // which child am I
+};
+
 static inline QByteArray cursorId(const CXCursor &c, const Location &loc)
 {
     Q_ASSERT(isValidCursor(c));
