@@ -61,6 +61,28 @@ void syslogMsgHandler(QtMsgType t, const char* str)
     syslog(priority, "%s (%s)\n", str, names[t]);
 }
 
+static inline bool daemonize(Daemon *daemon, int timeout)
+{
+    {
+        Client client;
+        if (client.connect(timeout)) {
+            client.exec(QHash<QByteArray, QVariant>(), QList<QByteArray>() << "quit");
+        }
+    }
+
+    // Ensure that the TemporaryFiles singleton gets initialized in a thread safe manner
+    TemporaryFiles::instance()->init();
+
+    qInstallMsgHandler(syslogMsgHandler);
+    for (int i=0; i<10; ++i) {
+        if (daemon->start()) {
+            return true;
+        }
+        usleep(timeout * 1000);
+    }
+    return false;
+}
+
 int main(int argc, char** argv)
 {
     if (QFile::exists("/tmp/rtags.log")) {
@@ -106,25 +128,23 @@ int main(int argc, char** argv)
         qDebug() << argsmap;
 
     if (cmd == "daemonize") {
-        {
-            Client client;
-            if (client.connect(timeout)) {
-                client.exec(QHash<QByteArray, QVariant>(), QList<QByteArray>() << "quit");
-            }
-        }
-
-        // Ensure that the TemporaryFiles singleton gets initialized in a thread safe manner
-        TemporaryFiles::instance()->init();
-
-        qInstallMsgHandler(syslogMsgHandler);
         Daemon daemon;
-        for (int i=0; i<10; ++i) {
-            if (daemon.start()) {
-                return app.exec();
-            }
-            usleep(timeout * 1000);
+        if (daemonize(&daemon, timeout)) {
+            return app.exec();
+        } else {
+            return -2;
         }
-        return -2;
+    } else if (argsmap.contains("replace")) {
+        Daemon daemon;
+        if (!daemonize(&daemon, timeout)) {
+            return -2;
+        }
+        
+        const QHash<QByteArray, QVariant> replymap = daemon.runCommand(argsmap, freeArgs);
+        const QByteArray reply = replymap.value("result").toByteArray();
+        if (!reply.isEmpty())
+            printf("%s\n", reply.constData());
+        return app.exec();
     } else {
         Client client;
         if (!client.connect(timeout)) {
@@ -142,7 +162,7 @@ int main(int argc, char** argv)
             }
         }
         if (client.isConnected()) {
-            QHash<QByteArray, QVariant> replymap = client.exec(argsmap, freeArgs);
+            const QHash<QByteArray, QVariant> replymap = client.exec(argsmap, freeArgs);
             const QByteArray reply = replymap.value("result").toByteArray();
             if (!reply.isEmpty())
                 printf("%s\n", reply.constData());

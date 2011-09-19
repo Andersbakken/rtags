@@ -211,7 +211,7 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
                                                QList<QByteArray> freeArgs)
 {
     qDebug() << "runCommand" << dashArgs << freeArgs;
-    QByteArray cmd = freeArgs.value(0);
+    QByteArray cmd = freeArgs.value(0).toLower();
     if (cmd.isEmpty())
         return createResultMap("No command or path specified");
 
@@ -249,6 +249,16 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         return load(dashArgs, freeArgs);
     } else if (cmd == "dependencies") {
         return createResultMap(mFileManager.dependencyMap());
+    } else if (cmd == "gccarguments") {
+        const Path cwd = dashArgs.value("cwd").toByteArray();
+        QByteArray ret;
+        for (int i=1; i<freeArgs.size(); ++i) {
+            const Path p = Path::resolved(freeArgs.at(i), cwd);
+            ret.append(p + ": " + mFileManager.arguments(p).raw() + '\n');
+        }
+        if (!ret.isEmpty())
+            ret.chop(1);
+        return createResultMap(ret);
     } else if (cmd == "temporaryfile") {
         return addTemporaryFile(dashArgs, freeArgs);
     }
@@ -459,6 +469,8 @@ QDebug operator<<(QDebug dbg, CXCursor cursor)
     if (!name.isEmpty()) {
         text += name + ", ";
     }
+    if (clang_isCursorDefinition(cursor))
+        text += "(def), ";
     text += kindToString(clang_getCursorKind(cursor));
     CXSourceLocation location = clang_getCursorLocation(cursor);
     unsigned int line, column, offset;
