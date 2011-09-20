@@ -157,7 +157,7 @@ void FileManager::onMakeOutput()
         data.buffer.clear();
     }
 }
-    
+
 void FileManager::onMakeError(QProcess::ProcessError error)
 {
     qWarning() << error << qobject_cast<QProcess*>(sender())->errorString();

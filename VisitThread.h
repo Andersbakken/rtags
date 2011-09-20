@@ -43,7 +43,7 @@ private:
         CursorNode *node;
         Location location;
     };
-    
+
     void buildTree(Node *node, CursorNode *c, QHash<QByteArray, PendingReference> &references);
     void addReference(CursorNode *c, const QByteArray &id, const Location &location);
 

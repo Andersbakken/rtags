@@ -1,8 +1,8 @@
 (defun rtags-setup-hooks () (interactive)
   (remove-hook 'after-save-hook 'rtags-sync-all-open-files)
   (remove-hook 'find-file-hooks 'rtags-sync-all-open-files)
-  ;; (add-hook 'after-save-hook 'rtags-sync-all-open-files)
-  ;; (add-hook 'find-file-hooks 'rtags-sync-all-open-files)
+  (add-hook 'after-save-hook 'rtags-sync-all-open-files)
+  (add-hook 'find-file-hooks 'rtags-sync-all-open-files)
   )
 
 (defgroup gtags nil
@@ -34,18 +34,18 @@
   )
 
 (defun rtags-sync-all-open-files() (interactive)
-  ;; (if (and rtags-enable (executable-find "rtags"))
-  ;;     (let (paths)
-  ;;       (dolist (buffer (buffer-list))
-  ;;         (with-current-buffer buffer
-  ;;           (if (and
-  ;;                (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
-  ;;                (not (string-match "\\.\\(hxx\\|hpp\\|tcc\\|h\\)?$" (buffer-file-name))))
-  ;;               (add-to-list 'paths (buffer-file-name)))))
-  ;;       (if paths
-  ;;           (apply 'start-process "rtags-load" nil "rtags" "load" "--timeout=1000" (rtags-autostart-arg) paths))
-  ;;       )
-  ;;   )
+  (if (and rtags-enable (executable-find "rtags"))
+      (let (paths)
+        (dolist (buffer (buffer-list))
+          (with-current-buffer buffer
+            (if (and
+                 (or (eq major-mode 'c++-mode) (eq major-mode 'c-mode))
+                 (not (string-match "\\.\\(hxx\\|hpp\\|tcc\\|h\\)?$" (buffer-file-name))))
+                (add-to-list 'paths (buffer-file-name)))))
+        (if paths
+            (apply 'start-process "rtags-load" nil "rtags" "load" "--timeout=1000" (rtags-autostart-arg) paths))
+        )
+    )
   nil
   )
 
@@ -71,6 +71,7 @@
       (call-process (executable-find "rtags") nil t nil "--timeout=50" "followsymbol"
                     bufname (concat "--line=" line) (concat "--column=" column))
       (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" (buffer-string))
+      (message (buffer-string))
       (if (match-beginning 1)
           (progn
             (setq line (string-to-int (match-string 2 (buffer-string))))

@@ -29,22 +29,6 @@ void ParseThread::abort()
     mWaitCondition.wakeOne();
 }
 
-
-// static inline bool isSource(const Path &path) // ### could check if we have GccArguments
-// {
-//     const int dot = path.lastIndexOf('.');
-//     const int len = path.size() - dot - 1;
-//     if (dot != -1 && len > 0) {
-//         const char *sourceExtensions[] = { "c", "cpp", "cxx", "cc", 0 };
-//         for (int i=0; sourceExtensions[i]; ++i) {
-//             if (!strncasecmp(sourceExtensions[i], path.constData() + dot + 1, len)) {
-//                 return true;
-//             }
-//         }
-//     }
-//     return false;
-// }
-
 // void Daemon::addDeps(const Path &path, QHash<Path, GccArguments> &deps, QSet<Path> &seen)
 // {
 //     GccArguments hack;
@@ -69,34 +53,15 @@ void ParseThread::abort()
 //     }
 // }
 
-    // int added = 0;
-    // if (!files.isEmpty()) {
-    //     mVisitThread.invalidate(files.keys().toSet()); // ### not the nicest thing ever
-    // }
-    // // We have to invalidate before we add files back in
-    // if (!files.isEmpty()) {
-    //     for (QHash<Path, GccArguments>::const_iterator it = files.begin(); it != files.end(); ++it) {
-    //         const GccArguments &args = it.value();
-    //         if (!args.isNull()) {
-    //             mParseThread.load(it.key(), args);
-    //             ++added;
-    //         } else if (isSource(it.key())) {
-    //             qWarning() << "We don't seem to have GccArguments for" << it.key()
-    //                        << mFileManager.arguments(it.key()).isNull();
-    //         }
-    //     }
-    // }
-
-
 void ParseThread::load(const Path &path)
 {
     if (!mAborted) {
-        ++mCount;
         QMutexLocker lock(&mMutex);
         for (File *f=mFirst; f; f = f->next) {
             if (f->path == path)
                 return;
         }
+        ++mCount;
         if (mLast) {
             mLast->next = new File;
             mLast = mLast->next;
@@ -140,8 +105,6 @@ void ParseThread::run()
         {
             QMutexLocker lock(&mMutex);
             if (!mFirst) {
-                if (mCount)
-                    qWarning("mCount shouldn't be %d, it should be 0", mCount);
                 Q_ASSERT(!mCount);
                 mWaitCondition.wait(&mMutex);
                 if (!mFirst) {

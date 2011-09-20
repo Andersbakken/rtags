@@ -6,6 +6,43 @@ Node::Node()
     : parent(0), nextSibling(0), firstChild(0), type(Root)
 {}
 
+Node::Node(Node *p, Type t, const CXCursor &c, const Location &l, const QByteArray &i)
+    : parent(p), nextSibling(0), firstChild(0), type(t), location(l), id(i)
+{
+    if (l.toString() == "/home/abakken/dev/rtags/GccArguments.cpp:73:20") {
+        qWarning() << p->toString();
+        Q_ASSERT(0);
+    }
+    Q_ASSERT(t != Invalid);
+    Q_ASSERT(t == Root || parent);
+    if (type == Reference && parent->type != Root) {
+        symbolName = parent->symbolName;
+    }
+
+    if (symbolName.isEmpty())
+        symbolName = eatString(clang_getCursorDisplayName(c));
+
+    if (parent) {
+// #ifdef QT_NO_DEBUG
+        nextSibling = parent->firstChild;
+        parent->firstChild = this;
+// #else // ### buggy
+//         if (!parent->firstChild || lessThan(this, parent->firstChild)) {
+//             nextSibling = parent->firstChild;
+//             parent->firstChild = this;
+//         } else {
+//             Node *last = parent->firstChild;
+//             Node *tmp = last->nextSibling;
+//             while (tmp && lessThan(tmp, this))
+//                 tmp = tmp->nextSibling;
+//             Q_ASSERT(last);
+//             nextSibling = tmp;
+//             last->nextSibling = this;
+//         }
+// #endif
+    }
+}
+
 Node::~Node()
 {
     if (!id.isEmpty()) {
@@ -70,43 +107,6 @@ Node::Type Node::typeFromCursor(const CXCursor &c)
     }
     return Invalid;
 }
-
-
-Node::Node(Node *p, Type t, const CXCursor &c, const Location &l, const QByteArray &i)
-    : parent(p), nextSibling(0), firstChild(0), type(t), location(l), id(i)
-{
-    Q_ASSERT(t != Invalid);
-    Q_ASSERT(t == Root || parent);
-    if (type == Reference && parent->type != Root) {
-        // qDebug() << "doing parent reference" << c;
-        symbolName = parent->symbolName;
-    }
-
-    if (symbolName.isEmpty())
-        symbolName = eatString(clang_getCursorDisplayName(c));
-   
-    if (parent) {
-// #ifdef QT_NO_DEBUG
-        nextSibling = parent->firstChild;
-        parent->firstChild = this;
-// #else // ### buggy
-//         if (!parent->firstChild || lessThan(this, parent->firstChild)) {
-//             nextSibling = parent->firstChild;
-//             parent->firstChild = this;
-//         } else {
-//             Node *last = parent->firstChild;
-//             Node *tmp = last->nextSibling;
-//             while (tmp && lessThan(tmp, this))
-//                 tmp = tmp->nextSibling;
-//             Q_ASSERT(last);
-//             nextSibling = tmp;
-//             last->nextSibling = this;
-//         }
-// #endif
-    }
-}
-
-
 
 QByteArray Node::toString() const
 {
@@ -207,6 +207,9 @@ Node *Node::methodDefinition() const
     case MethodDeclaration:
         Q_ASSERT(parent);
         for (Node *n = parent->firstChild; n; n = n->nextSibling) {
+            if (n->symbolName == symbolName) {
+                qDebug() << Node::typeToName(n->type) << symbolName;
+            }
             if (n->type == MethodDefinition && n->symbolName == symbolName)
                 return n;
         }

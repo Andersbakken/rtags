@@ -50,7 +50,7 @@ void syslogMsgHandler(QtMsgType t, const char* str)
                            qPrintable(QThread::currentThread()->objectName()),
                            str,
                            names[t]);
-    
+
     static QMutex sFileLock;
     {
         QMutexLocker lock(&sFileLock);
@@ -139,7 +139,7 @@ int main(int argc, char** argv)
         if (!daemonize(&daemon, timeout)) {
             return -2;
         }
-        
+
         const QHash<QByteArray, QVariant> replymap = daemon.runCommand(argsmap, freeArgs);
         const QByteArray reply = replymap.value("result").toByteArray();
         if (!reply.isEmpty())

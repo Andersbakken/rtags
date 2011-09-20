@@ -2,9 +2,6 @@
 #include <clang-c/Index.h>
 #include "Node.h"
 
-int tot = 0;
-QList<CXCursor> all;
-
 VisitThread::VisitThread()
     : QThread(0), mRoot(new Node), mQuitting(false)
 {
@@ -64,6 +61,7 @@ struct CursorNode {
         for (CursorNode *c=firstChild; c; c = c->nextSibling) {
             c->dump(indent + 2);
         }
+        fflush(stdout);
     }
     void append(CursorNode *c)
     {
@@ -126,7 +124,7 @@ CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor parent, CXCl
                  << parent.data[0] << u->lastCursor.data[0]
                  << parent.data[1] << u->lastCursor.data[1]
                  << parent.data[2] << u->lastCursor.data[2];
-        
+
         qWarning() << "crashing cursor is" << cursor
                    << "\nparent is" << parent
                    << "\nlastCursor is" << u->lastCursor
@@ -134,11 +132,6 @@ CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor parent, CXCl
                    << "\nparent and lastCursor are equal" << clang_equalCursors(parent, u->lastCursor)
                    << "\ncursorId(parent)" << cursorId(parent)
                    << "\ncursorId(u->lastCursor)" << cursorId(u->lastCursor);
-
-        // qWarning
-        // qWarning() << u->root->cursor << clang_equalCursors(u->root->cursor, parent)
-        //            << clang_equalCursors(parent, u->last);
-        // u->root->dump(0);
     }
     Q_ASSERT(p);
     u->last = new CursorNode(cursor, p);
@@ -174,7 +167,31 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
                 Node *&node = mNodes[id];
                 if (node)
                     return; // we've seen this whole branch
-                parent = node = new Node(parent, type, c->cursor, loc, id);
+                // ### may not need to do this for all types of nodes
+                CXCursor realParent = clang_getCursorSemanticParent(c->cursor);
+                if (!clang_equalCursors(realParent, c->parent->cursor)) {
+                    const QByteArray parentId = cursorId(realParent);
+                    if (mNodes.contains(parentId)) {
+                        qWarning() << "changing parent from" << c->parent->cursor << "to" << mNodes.value(parentId)->toString()
+                                   << "for" << c->cursor;
+                    }
+                    parent = mNodes.value(parentId, parent);
+                    // Node *p = mNodes.value(parentId);
+                    // if (p)
+                    //     parent p
+                    // if (!mNodes.contains(parentId)) {
+                    //     while (isValidCursor(realParent)) {
+                    //         qWarning() << "We don't seem to have the real parent for" << c->cursor
+                    //                    << realParent << c->parent->cursor;
+                    //         realParent = clang_getCursorSemanticParent(realParent);
+                    //     }
+                    // } else {
+                    //     parent = mNodes.value(parentId);
+                    // }
+                }
+
+                node = new Node(parent, type, c->cursor, loc, id);
+                parent = node;
             }
         }
         for (CursorNode *child=c->firstChild; child; child = child->nextSibling) {
@@ -228,6 +245,11 @@ void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Locati
             // qWarning() << "Can't find referenced node" << c->cursor << ref << refId;
             return;
         }
+        if (refNode->type == Node::MethodDefinition) {
+            Node *decl = refNode->methodDeclaration();
+            if (decl)
+                refNode = decl;
+        }
         mNodes[id] = new Node(refNode, Node::Reference, c->cursor, loc, id);
     }
 
@@ -239,7 +261,7 @@ void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Locati
         //                << c->cursor << ref;
         // }
     }
-    
+
 }
 
 void VisitThread::onFileParsed(const Path &path, void *u)
@@ -251,8 +273,15 @@ void VisitThread::onFileParsed(const Path &path, void *u)
         ud.last = ud.root = 0;
         ud.lastCursor = clang_getNullCursor();
         clang_visitChildren(rootCursor, buildComprehensiveTree, &ud);
-        if (qgetenv("RTAGS_DUMP").contains(path.fileName()))
+#ifndef QT_NO_DEBUG
+        const QByteArray dump = qgetenv("RTAGS_DUMP");
+        if (dump == "1" || dump.contains(path.fileName())) {
             ud.root->dump(0);
+            printf("Tree done\n");
+            fflush(stdout);
+            sleep(1);
+        }
+#endif
         QHash<QByteArray, PendingReference> references;
         QMutexLocker lock(&mMutex);
         const int old = mNodes.size();
