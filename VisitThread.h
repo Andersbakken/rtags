@@ -35,6 +35,9 @@ public:
     void printTree();
     QSet<Path> files() const;
     void abort();
+    void lockMutex() { mMutex.lock(); }
+    void unlockMutex() { mMutex.unlock(); }
+    Node *nodeForLocation(const Location &loc) const;
 public slots:
     void invalidate(const QSet<Path> &paths);
     void onFileParsed(const Path &path, void *unit);

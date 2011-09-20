@@ -13,22 +13,27 @@ struct Location {
         : path(p), line(l), column(c), offset(0)
     {}
     Location(CXCursor cursor)
-        : line(0), column(0)
+        : line(0), column(0), offset(0)
     {
         // ### should probably keep CXSourceLocation around rather than eating the string
         CXSourceLocation location = clang_getCursorLocation(cursor);
-        CXFile file;
-        clang_getSpellingLocation(location, &file, &line, &column, &offset);
+        CXFile file = 0;
+        clang_getInstantiationLocation(location, &file, &line, &column, &offset);
         bool ok;
         path = Path::resolved(eatString(clang_getFileName(file)), Path(), &ok);
         if (!ok || !path.exists()) {
-            line = column = 0 ;
+            line = column = offset = 0;
         }
     }
 
     bool exists() const
     {
         return path.exists();
+    }
+
+    bool isNull() const
+    {
+        return path.isEmpty();
     }
 
     QByteArray toString() const

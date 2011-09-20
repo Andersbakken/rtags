@@ -3,7 +3,7 @@
 #include "Node.h"
 
 VisitThread::VisitThread()
-    : QThread(0), mRoot(new Node), mQuitting(false)
+    : QThread(0), mRoot(new Node), mMutex(QMutex::Recursive), mQuitting(false)
 {
     Node::sNodes = &mNodes;
     setObjectName("VisitThread");
@@ -95,6 +95,13 @@ static bool operator==(const CXCursor &left, const CXCursor &right)
 
 CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor parent, CXClientData data)
 {
+    CXSourceLocation location = clang_getCursorLocation(cursor);
+    CXFile file = 0;
+    clang_getInstantiationLocation(location, &file, 0, 0, 0);
+    // ### is this safe?
+    if (!file)
+        return CXChildVisit_Continue;
+
 #warning needs to short circuit when encounting a header it has seen
     // qDebug() << cursor << parent;
     ComprehensiveTreeUserData *u = reinterpret_cast<ComprehensiveTreeUserData*>(data);
@@ -150,11 +157,28 @@ CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor parent, CXCl
 
 void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, PendingReference> &references)
 {
+    if (clang_getCursorKind(c->cursor) == CXCursor_MacroExpansion) {
+        const Location loc(c->cursor);
+        Q_ASSERT(!loc.isNull());
+        const QByteArray symbolName = eatString(clang_getCursorSpelling(c->cursor));
+        for (CursorNode *cn = c->parent->firstChild; cn; cn = cn->nextSibling) {
+            if (clang_getCursorKind(cn->cursor) == CXCursor_MacroDefinition
+                && symbolName == eatString(clang_getCursorSpelling(cn->cursor))) {
+                const QByteArray macroDefinitionId = cursorId(cn->cursor);
+                Node *parent = mNodes.value(macroDefinitionId);
+                Q_ASSERT(parent);
+                const QByteArray id = cursorId(loc);
+                mNodes[id] = new Node(parent, Node::Reference, c->cursor, loc, id);
+                return;
+            }
+        }
+    }
+
     const Node::Type type = Node::typeFromCursor(c->cursor);
     if (type == Node::Reference) {
         const Location loc(c->cursor);
         if (loc.exists()) {
-            const QByteArray id = cursorId(c->cursor, loc);
+            const QByteArray id = cursorId(loc);
             if (!mNodes.contains(id)) {
                 const PendingReference r = { c, loc };
                 references[id] = r;
@@ -164,13 +188,13 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
         if (c->parent && type != Node::Invalid) {
             const Location loc(c->cursor);
             if (loc.exists()) {
-                const QByteArray id = cursorId(c->cursor, loc);
+                const QByteArray id = cursorId(loc);
                 Node *&node = mNodes[id];
                 if (node)
                     return; // we've seen this whole branch
                 // ### may not need to do this for all types of nodes
                 CXCursor realParent = clang_getCursorSemanticParent(c->cursor);
-                if (!clang_equalCursors(realParent, c->parent->cursor)) {
+                if (isValidCursor(realParent) && !clang_equalCursors(realParent, c->parent->cursor)) {
                     const QByteArray parentId = cursorId(realParent);
                     parent = mNodes.value(parentId, parent);
                 }
@@ -240,7 +264,7 @@ void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Locati
 
     for (CursorNode *child=c->firstChild; child; child = child->nextSibling) {
         const Location l(child->cursor);
-        addReference(child, cursorId(child->cursor, l), l);
+        addReference(child, cursorId(l), l);
         // if (Node::typeFromCursor(child->cursor) != Node::Invalid) {
         //     qWarning() << "This node is a child of a ref" << child->cursor
         //                << c->cursor << ref;
@@ -366,4 +390,9 @@ void VisitThread::lookup(Match *match)
     QMutexLocker lock(&mMutex);
     Q_ASSERT(match);
     recurse(match, mRoot, QByteArray());
+}
+Node * VisitThread::nodeForLocation(const Location &loc) const
+{
+    QMutexLocker lock(&mMutex);
+    return mNodes.value(cursorId(loc));
 }

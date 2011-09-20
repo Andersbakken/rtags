@@ -81,6 +81,7 @@ struct FollowSymbolMatch : public Match
             case Node::Variable:
             case Node::Enum:
             case Node::Typedef:
+            case Node::MacroDefinition:
                 break;
             case Node::EnumValue:
                 node = node->parent; // parent is Enum
@@ -342,7 +343,7 @@ QHash<QByteArray, QVariant> Daemon::addTemporaryFile(const QHash<QByteArray, QVa
 
 static Node::Type stringToType(const QByteArray &in)
 {
-    for (int i=Node::MethodDeclaration; i<=Node::EnumValue; i <<= 1) {
+    for (int i=Node::MethodDeclaration; i<=Node::Reference; i <<= 1) {
         const Node::Type type = static_cast<Node::Type>(i);
         const char *name = Node::typeToName(type, true);
         Q_ASSERT(name);
@@ -428,13 +429,34 @@ QHash<QByteArray, QVariant> Daemon::followSymbol(const QHash<QByteArray, QVarian
     if (!ok)
         return createResultMap("Invalid column arg");
     const Location loc(path, line, col);
-    FollowSymbolMatch match(loc);
-    mVisitThread.lookup(&match);
-    if (match.found) {
-        return createResultMap(match.found->location.toString());
-    } else {
-        return createResultMap("Can't follow symbol");
+    mVisitThread.lockMutex();
+    Node *node = mVisitThread.nodeForLocation(loc);
+    QHash<QByteArray, QVariant> ret;
+    if (node) {
+        switch (node->type) {
+        case Node::MethodDeclaration:
+            node = node->methodDefinition();
+            break;
+        case Node::Reference:
+            node = node->parent;
+            break;
+        case Node::MethodDefinition:
+            node = node->methodDeclaration();
+            break;
+        case Node::EnumValue:
+            node = node->parent; // parent is Enum
+            break;
+        default:
+            node = 0;
+        }
     }
+    if (node) {
+        ret = createResultMap(node->location.toString());
+    } else {
+        ret = createResultMap("Can't follow symbol");
+    }
+    mVisitThread.unlockMutex();
+    return ret;
 }
 
 QDebug operator<<(QDebug dbg, CXCursor cursor)

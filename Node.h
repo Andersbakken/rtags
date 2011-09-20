@@ -21,7 +21,9 @@ struct Node
         Enum = 0x000080,
         EnumValue = 0x000100,
         Typedef = 0x000200,
-        Reference = 0x000400,
+        MacroDefinition = 0x000400,
+        Reference = 0x000800,
+        // update stringToType when adding types
         All = 0xffffff
     } type;
     Location location;
@@ -47,18 +49,17 @@ struct NodeData {
     quint16 fileId, line, index, childCount; // which child am I
 };
 
-static inline QByteArray cursorId(const CXCursor &c, const Location &loc)
+static inline QByteArray cursorId(const Location &loc)
 {
-    Q_ASSERT(isValidCursor(c));
     QByteArray buf(loc.path.size() + 64, '\0');
-    snprintf(buf.data(), buf.size() - 1, "%s:%x:%x:%x", loc.path.constData(), loc.line, loc.column,
-             Node::typeFromCursor(c));
+    snprintf(buf.data(), buf.size() - 1, "%s:%x:%x", loc.path.constData(), loc.line, loc.column);
     return buf;
 }
 
 static inline QByteArray cursorId(const CXCursor &c)
 {
-    return cursorId(c, Location(c));
+    Q_ASSERT(isValidCursor(c));
+    return cursorId(Location(c));
 }
 
 

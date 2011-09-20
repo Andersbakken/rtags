@@ -2,8 +2,9 @@
 #include <clang-c/Index.h>
 #include "Path.h"
 
+#warning add a string class around CXString
+
 bool Options::s_verbose = false;
-bool Options::s_traceFunctionCalls = false;
 
 const char *kindToString(CXCursorKind kind)
 {

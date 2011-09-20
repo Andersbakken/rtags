@@ -9,10 +9,6 @@ Node::Node()
 Node::Node(Node *p, Type t, const CXCursor &c, const Location &l, const QByteArray &i)
     : parent(p), nextSibling(0), firstChild(0), type(t), location(l), id(i)
 {
-    if (l.toString() == "/home/abakken/dev/rtags/GccArguments.cpp:73:20") {
-        qWarning() << p->toString();
-        Q_ASSERT(0);
-    }
     Q_ASSERT(t != Invalid);
     Q_ASSERT(t == Root || parent);
     if (type == Reference && parent->type != Root) {
@@ -78,6 +74,7 @@ Node::Type Node::typeFromCursor(const CXCursor &c)
     case CXCursor_TypeRef:
     case CXCursor_MemberRef:
     case CXCursor_DeclRefExpr:
+    case CXCursor_MacroExpansion:
         return Reference;
         break;
     case CXCursor_FieldDecl:
@@ -102,6 +99,8 @@ Node::Type Node::typeFromCursor(const CXCursor &c)
     case CXCursor_EnumConstantDecl:
         return EnumValue;
         break;
+    case CXCursor_MacroDefinition:
+        return MacroDefinition;
     default:
         break;
     }
@@ -154,6 +153,7 @@ const char *Node::typeToName(Type type, bool abbrev)
     case Namespace: return abbrev ? "n" : "Namespace";
     case Typedef: return abbrev ? "t" : "Typedef";
     case Variable: return abbrev ? "vd" : "Variable";
+    case MacroDefinition: return abbrev ? "m" : "MacroDefinition";
     case Invalid:
     case All:
         break;
