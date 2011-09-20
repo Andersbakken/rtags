@@ -218,23 +218,34 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         return createResultMap("No command or path specified");
 
     const Path cwd = dashArgs.value("cwd").toByteArray();
+    bool removeFirst = true;
     if (cmd != "makefile") { // makefile will resolve to Makefile on Mac so in that case we skip this
         Path p = Path::resolved(cmd, cwd);
-        switch (p.magicType()) {
-        case Path::Source:
-        case Path::Header:
-            cmd = "load";
-            break;
-        case Path::Makefile:
-            cmd = "makefile";
-            break;
-        case Path::Other:
-            freeArgs.removeFirst();
-            break;
+        if (p.isDir()) {
+            p = p + "/Makefile";
+            if (p.magicType() == Path::Makefile) {
+                removeFirst = false;
+                cmd = "makefile";
+                freeArgs[0] = p;
+            }
+        } else if (p.isFile()) {
+            switch (p.magicType()) {
+            case Path::Source:
+            case Path::Header:
+                removeFirst = false;
+                cmd = "load";
+                break;
+            case Path::Makefile:
+                removeFirst = false;
+                cmd = "makefile";
+                break;
+            case Path::Other:
+                break;
+            }
         }
-    } else {
-        freeArgs.removeFirst();
     }
+    if (removeFirst)
+        freeArgs.removeFirst();
     const int size = freeArgs.size();
     for (int i=0; i<size; ++i) {
         bool ok;
