@@ -426,7 +426,7 @@ void Daemon::addDeps(const Path &path, QHash<Path, GccArguments> &deps, QSet<Pat
 QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
                                          const QList<QByteArray> &freeArgs)
 {
-#warning We have a problem here, when a header gets implicitly parsed because of a source file it should end up in mFiles with the right time_t. Also, we shouldn't warn when we unset the GccArguments of a file because it wasn't dirty saying we don't have the GccArguments for it.
+#warning We have a problem here, when a header gets implicitly parsed because of a source file it should end up in mFiles with the right time_t. Also, we shouldnt warn when we unset the GccArguments of a file because it wasnt dirty saying we dont have the GccArguments for it.
     QSet<Path> seen;
     QHash<Path, GccArguments> files;
     foreach(const QByteArray &arg, freeArgs) {
