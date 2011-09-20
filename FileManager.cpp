@@ -235,11 +235,13 @@ bool FileManager::addDependencies(const Path &source, const QSet<Path> &headers)
             ret = true;
     }
     foreach(const Path &header, headers) {
-        fd = mFiles[header];
-        if (!fd.dependents.contains(source)) {
-            fd.dependents.insert(source);
+        FileData &hd = mFiles[header];
+        if (!hd.dependents.contains(source)) {
+            hd.dependents.insert(source);
             ret = true;
         }
     }
+    if (ret)
+        store();
     return ret;
 }
