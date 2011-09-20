@@ -231,6 +231,8 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
             freeArgs.removeFirst();
             break;
         }
+    } else {
+        freeArgs.removeFirst();
     }
     const int size = freeArgs.size();
     for (int i=0; i<size; ++i) {
