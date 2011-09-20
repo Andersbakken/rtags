@@ -293,7 +293,7 @@ static void removeChildren(Node *node, const QSet<Path> &paths)
 void VisitThread::invalidate(const QSet<Path> &paths)
 {
     Q_ASSERT(!paths.isEmpty());
-    QMutexLocker writeLock(&mMutex);
+    QMutexLocker lock(&mMutex);
     const int oldCount = mNodes.size();
     Q_UNUSED(oldCount);
     const int oldSize = mRoot->size();

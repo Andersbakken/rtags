@@ -7,14 +7,15 @@
 #include "GccArguments.h"
 
 class FileManager;
+class VisitThread;
 class ParseThread : public QThread
 {
     Q_OBJECT
 public:
-    ParseThread(FileManager *fm);
+    ParseThread(FileManager *fm, VisitThread *vt);
     ~ParseThread();
     void abort();
-    void load(const Path &path, const GccArguments &arguments);
+    void load(const Path &path);
 signals:
     void fileParsed(const Path &path, void *translationUnit);
     void parseError(const Path &path);
@@ -27,12 +28,13 @@ private:
     bool mAborted;
     struct File {
         Path path;
-        GccArguments arguments;
         File *next;
     } *mFirst, *mLast;
+    QHash<Path, time_t> mFiles;
     int mCount;
     CXIndex mIndex;
     FileManager *mFileManager;
+    VisitThread *mVisitThread;
 };
 
 #endif

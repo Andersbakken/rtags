@@ -1,4 +1,5 @@
 #include "Path.h"
+#include <magic.h>
 
 // this doesn't check if *this actually is a real file
 Path Path::parentDir() const
@@ -111,6 +112,9 @@ bool Path::resolve(const Path &cwd)
 
 bool Path::isSource() const
 {
+#if 1
+    return magicType() == SourceFile;
+#else
     if (isFile()) {
         const int lastDot = lastIndexOf('.');
         const int len = size() - lastDot;
@@ -127,6 +131,7 @@ bool Path::isSource() const
         }
     }
     return false;
+#endif
 }
 const char * Path::fileName() const
 {
@@ -136,4 +141,23 @@ const char * Path::fileName() const
 const char * Path::extension() const
 {
     return constData() + lastIndexOf('.') + 1;
+}
+
+Path::MagicType Path::magicType() const
+{
+    MagicType ret = Other;
+    if (isFile()) {
+        magic_t m = magic_open(MAGIC_CONTINUE|MAGIC_ERROR|MAGIC_MIME);
+        magic_load(m, 0);
+        const char *out = magic_file(m, constData());
+        if (out) {
+            if (strstr(out, "/x-makefile;")) {
+                ret = Makefile;
+            } else if (strstr(out, "/x-c;")) {
+                ret = SourceFile;
+            }
+        }
+        magic_close(m);
+    }
+    return ret;
 }

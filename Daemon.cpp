@@ -146,7 +146,7 @@ static QHash<QByteArray, QVariant> createResultMap(const QByteArray& result)
 
 #warning should be able to get signature of current function were on and we could display it in the modeline or something (or some popup while typing)
 Daemon::Daemon(QObject *parent)
-    : QObject(parent), mParseThread(&mFileManager)
+    : QObject(parent), mParseThread(&mFileManager, &mVisitThread)
 {
     qRegisterMetaType<Path>("Path");
     qRegisterMetaType<QSet<Path> >("QSet<Path>");
@@ -218,25 +218,20 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         return createResultMap("No command or path specified");
 
     const Path cwd = dashArgs.value("cwd").toByteArray();
-    bool removeFirst = true;
-    if (cmd != "makefile") {
+    if (cmd != "makefile") { // makefile will resolve to Makefile on Mac so in that case we skip this
         Path p = Path::resolved(cmd, cwd);
-        if (p.isFile()) {
-            magic_t m = magic_open(MAGIC_CONTINUE|MAGIC_ERROR|MAGIC_MIME);
-            magic_load(m, 0);
-            const char *out = magic_file(m, cmd.constData());
-            if (strstr(out, "x-makefile")) {
-                removeFirst = false;
-                cmd = "makefile";
-            } else if (strstr(out, "x-c")) {
-                removeFirst = false;
-                cmd = "load";
-            }
-            magic_close(m);
+        switch (p.magicType()) {
+        case Path::SourceFile:
+            cmd = "load";
+            break;
+        case Path::Makefile:
+            cmd = "makefile";
+            break;
+        case Path::Other:
+            freeArgs.removeFirst();
+            break;
         }
     }
-    if (removeFirst)
-        freeArgs.removeFirst();
     const int size = freeArgs.size();
     for (int i=0; i<size; ++i) {
         bool ok;
@@ -384,73 +379,23 @@ QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &ar
     return createResultMap(match.output);
 }
 
-static inline bool isSource(const Path &path) // ### could check if we have GccArguments
-{
-    const int dot = path.lastIndexOf('.');
-    const int len = path.size() - dot - 1;
-    if (dot != -1 && len > 0) {
-        const char *sourceExtensions[] = { "c", "cpp", "cxx", "cc", 0 };
-        for (int i=0; sourceExtensions[i]; ++i) {
-            if (!strncasecmp(sourceExtensions[i], path.constData() + dot + 1, len)) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-void Daemon::addDeps(const Path &path, QHash<Path, GccArguments> &deps, QSet<Path> &seen)
-{
-    GccArguments hack;
-    if (path.isFile() && !seen.contains(path)) {
-        // qDebug() << path << (path.lastModified() != mFiles.value(path));
-        seen.insert(path);
-        time_t &lastModified = mFiles[path];
-        const time_t current = path.lastModified();
-        GccArguments &args = lastModified == current ? hack : deps[path];
-        lastModified = current;
-        QSet<Path> dependees;
-        if (mFileManager.getInfo(path, &args, 0, &dependees)) {
-            foreach(const Path &dep, dependees) {
-                QSet<Path> dependents;
-                mFileManager.getInfo(dep, 0, &dependents, 0);
-                foreach(const Path &dependent, dependents) {
-                    addDeps(dependent, deps, seen);
-                }
-                addDeps(dep, deps, seen);
-            }
-        }
-    }
-}
-
-QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&,
+QHash<QByteArray, QVariant> Daemon::load(const QHash<QByteArray, QVariant>&dashArgs,
                                          const QList<QByteArray> &freeArgs)
 {
-#warning We have a problem here, when a header gets implicitly parsed because of a source file it should end up in mFiles with the right time_t. Also, we shouldnt warn when we unset the GccArguments of a file because it wasnt dirty saying we dont have the GccArguments for it.
-    QSet<Path> seen;
-    QHash<Path, GccArguments> files;
+    Path cwd = dashArgs.value("cwd").toByteArray();
+    int count = 0;
     foreach(const QByteArray &arg, freeArgs) {
-        addDeps(Path::resolved(arg), files, seen);
-    }
-
-    int added = 0;
-    if (!files.isEmpty()) {
-        mVisitThread.invalidate(files.keys().toSet()); // ### not the nicest thing ever
-    }
-    // We have to invalidate before we add files back in
-    if (!files.isEmpty()) {
-        for (QHash<Path, GccArguments>::const_iterator it = files.begin(); it != files.end(); ++it) {
-            const GccArguments &args = it.value();
-            if (!args.isNull()) {
-                mParseThread.load(it.key(), args);
-                ++added;
-            } else if (isSource(it.key())) {
-                qWarning() << "We don't seem to have GccArguments for" << it.key()
-                           << mFileManager.arguments(it.key()).isNull();
-            }
+        bool ok;
+        const Path p = Path::resolved(arg, cwd, &ok);
+        if (!ok) {
+            qWarning() << p << arg << "doesn't seem to exist";
+        } else {
+            ++count;
+            mParseThread.load(p);
         }
     }
-    return createResultMap("Loading " + QByteArray::number(added) + " files");
+
+    return createResultMap("Loading " + QByteArray::number(count) + " files");
 }
 
 QHash<QByteArray, QVariant> Daemon::followSymbol(const QHash<QByteArray, QVariant>& args,
@@ -531,6 +476,9 @@ QHash<QByteArray, QVariant> Daemon::printTree(const QHash<QByteArray, QVariant>&
 
 void Daemon::onDependenciesAdded(const QSet<Path> &paths)
 {
+#warning do this
+    // qWarning() << "Not adding dependencies right now" << paths;
+    return;
     QList<QByteArray> sources;
     foreach(const Path &p, paths) {
         QSet<Path> extraSources;

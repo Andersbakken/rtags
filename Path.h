@@ -42,8 +42,16 @@ public:
         BlockDevice,
         NamedPipe,
         SymLink,
-        Socket,
+        Socket
     };
+
+    enum MagicType {
+        SourceFile,
+        Makefile,
+        Other
+    };
+
+    MagicType magicType() const;
 
     inline bool exists() const { return type() != Invalid; }
     inline bool isDir() const { return type() == Directory; }

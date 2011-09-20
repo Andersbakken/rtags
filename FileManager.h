@@ -30,8 +30,8 @@ public:
     void addMakefile(const Path &makefile);
     GccArguments arguments(const Path &path, bool *ok = 0) const;
     void store();
-    bool getInfo(const Path &path, GccArguments *args,
-                 QSet<Path> *dependents, QSet<Path> *dependees) const;
+    void getInfo(const Path &path, GccArguments *args,
+                 QSet<Path> *dependents, QSet<Path> *dependsOn) const;
     QByteArray dependencyMap() const;
     bool addDependencies(const Path &source, const QSet<Path> &headers);
 protected:
@@ -53,8 +53,8 @@ private:
     struct FileData {
         GccArguments arguments;
         QSet<Path> dependents;
-        QSet<Path> dependees;
-        // If this is Foo.cpp, dependees contains Foo.h,
+        QSet<Path> dependsOn;
+        // If this is Foo.cpp, dependsOn contains Foo.h,
         // If this is Foo.h, dependents contains Foo.cpp
     };
     friend QDataStream &operator<<(QDataStream &ds, const FileData &fd);

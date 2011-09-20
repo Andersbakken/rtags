@@ -49,7 +49,6 @@ private slots:
     void ebusConnected(EBus* ebus);
     void ebusDataReady();
 private:
-    QHash<Path, time_t> mFiles;
     ParseThread mParseThread;
     VisitThread mVisitThread;
     FileManager mFileManager;

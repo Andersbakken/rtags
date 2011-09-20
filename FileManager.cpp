@@ -131,22 +131,13 @@ void FileManager::onMakeOutput()
                             FileData &fd = mFiles[sourceFile];
                             for (int i=2; i<size; ++i) {
                                 const Path header = Path::resolved(strings.at(i).toLocal8Bit(), data.directory);
-                                if (header.isFile()) {
+                                if (header.isSource()) {
                                     mFiles[header].dependents.insert(sourceFile);
-                                    fd.dependees.insert(header);
+                                    fd.dependsOn.insert(header);
                                 }
                             }
                         }
                     }
-
-                    // if (line.contains(".cpp")) {
-                    //     qWarning("No input here or maybe this isn't a compile %d %d %s",
-                    //              args.hasInput(), args.isCompile(),
-                    //              line.constData());
-                    //     if (args.input().size() > 1) {
-                    //         qWarning() << args.input();
-                    //     }
-                    // }
                 } else {
                     foreach(const Path &file, args.input()) { // already resolved
                         Q_ASSERT(file.exists());
@@ -189,17 +180,17 @@ void FileManager::store()
 
 QDataStream &operator<<(QDataStream &ds, const FileManager::FileData &fd)
 {
-    ds << fd.arguments << fd.dependents << fd.dependees;
+    ds << fd.arguments << fd.dependents << fd.dependsOn;
     return ds;
 }
 
 QDataStream &operator>>(QDataStream &ds, FileManager::FileData &fd)
 {
-    ds >> fd.arguments >> fd.dependents >> fd.dependees;
+    ds >> fd.arguments >> fd.dependents >> fd.dependsOn;
     return ds;
 }
 
-bool FileManager::getInfo(const Path &path, GccArguments *args, QSet<Path> *dependents, QSet<Path> *dependees) const
+void FileManager::getInfo(const Path &path, GccArguments *args, QSet<Path> *dependents, QSet<Path> *dependsOn) const
 {
     QMutexLocker lock(&mFilesMutex);
     const QHash<Path, FileData>::const_iterator it = mFiles.find(path);
@@ -208,11 +199,9 @@ bool FileManager::getInfo(const Path &path, GccArguments *args, QSet<Path> *depe
             *args = (*it).arguments;
         if (dependents)
             *dependents = (*it).dependents;
-        if (dependees)
-            *dependees = (*it).dependees;
-        return true;
+        if (dependsOn)
+            *dependsOn = (*it).dependsOn;
     }
-    return false;
 }
 
 QByteArray FileManager::dependencyMap() const
@@ -224,8 +213,8 @@ QByteArray FileManager::dependencyMap() const
         foreach(const Path &d, it.value().dependents) {
             ret += "    " + d + '\n';
         }
-        ret += " dependees:\n";
-        foreach(const Path &d, it.value().dependees) {
+        ret += "  dependsOn:\n";
+        foreach(const Path &d, it.value().dependsOn) {
             ret += "    " + d + '\n';
         }
         ret += '\n';
@@ -240,9 +229,9 @@ bool FileManager::addDependencies(const Path &source, const QSet<Path> &headers)
     FileData &fd = mFiles[source];
     // qDebug() << "addDependencies" << source << headers;
     {
-        int old = fd.dependees.size();
-        fd.dependees += headers;
-        if (old != fd.dependees.size())
+        int old = fd.dependsOn.size();
+        fd.dependsOn += headers;
+        if (old != fd.dependsOn.size())
             ret = true;
     }
     foreach(const Path &header, headers) {

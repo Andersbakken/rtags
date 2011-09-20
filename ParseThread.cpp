@@ -2,10 +2,12 @@
 #include "PreCompile.h"
 #include "FileManager.h"
 #include "TemporaryFiles.h"
+#include "VisitThread.h"
 
-ParseThread::ParseThread(FileManager *fm)
+ParseThread::ParseThread(FileManager *fm, VisitThread *vt)
     : mAborted(false), mFirst(0), mLast(0), mCount(0),
-      mIndex(clang_createIndex(1, 0)), mFileManager(fm)
+      mIndex(clang_createIndex(1, 0)), mFileManager(fm),
+      mVisitThread(vt)
 {
     setObjectName("ParseThread");
     PreCompile::setPath("/tmp");
@@ -27,11 +29,74 @@ void ParseThread::abort()
     mWaitCondition.wakeOne();
 }
 
-void ParseThread::load(const Path &path, const GccArguments &args)
+
+// static inline bool isSource(const Path &path) // ### could check if we have GccArguments
+// {
+//     const int dot = path.lastIndexOf('.');
+//     const int len = path.size() - dot - 1;
+//     if (dot != -1 && len > 0) {
+//         const char *sourceExtensions[] = { "c", "cpp", "cxx", "cc", 0 };
+//         for (int i=0; sourceExtensions[i]; ++i) {
+//             if (!strncasecmp(sourceExtensions[i], path.constData() + dot + 1, len)) {
+//                 return true;
+//             }
+//         }
+//     }
+//     return false;
+// }
+
+// void Daemon::addDeps(const Path &path, QHash<Path, GccArguments> &deps, QSet<Path> &seen)
+// {
+//     GccArguments hack;
+//     if (path.isFile() && !seen.contains(path)) {
+//         // qDebug() << path << (path.lastModified() != mFiles.value(path));
+//         seen.insert(path);
+//         time_t &lastModified = mFiles[path];
+//         const time_t current = path.lastModified();
+//         GccArguments &args = lastModified == current ? hack : deps[path];
+//         lastModified = current;
+//         QSet<Path> dependsOn;
+//         if (mFileManager.getInfo(path, &args, 0, &dependsOn)) {
+//             foreach(const Path &dep, dependsOn) {
+//                 QSet<Path> dependents;
+//                 mFileManager.getInfo(dep, 0, &dependents, 0);
+//                 foreach(const Path &dependent, dependents) {
+//                     addDeps(dependent, deps, seen);
+//                 }
+//                 addDeps(dep, deps, seen);
+//             }
+//         }
+//     }
+// }
+
+    // int added = 0;
+    // if (!files.isEmpty()) {
+    //     mVisitThread.invalidate(files.keys().toSet()); // ### not the nicest thing ever
+    // }
+    // // We have to invalidate before we add files back in
+    // if (!files.isEmpty()) {
+    //     for (QHash<Path, GccArguments>::const_iterator it = files.begin(); it != files.end(); ++it) {
+    //         const GccArguments &args = it.value();
+    //         if (!args.isNull()) {
+    //             mParseThread.load(it.key(), args);
+    //             ++added;
+    //         } else if (isSource(it.key())) {
+    //             qWarning() << "We don't seem to have GccArguments for" << it.key()
+    //                        << mFileManager.arguments(it.key()).isNull();
+    //         }
+    //     }
+    // }
+
+
+void ParseThread::load(const Path &path)
 {
     if (!mAborted) {
         ++mCount;
         QMutexLocker lock(&mMutex);
+        for (File *f=mFirst; f; f = f->next) {
+            if (f->path == path)
+                return;
+        }
         if (mLast) {
             mLast->next = new File;
             mLast = mLast->next;
@@ -40,7 +105,6 @@ void ParseThread::load(const Path &path, const GccArguments &args)
         }
         mLast->next = 0;
         mLast->path = path;
-        mLast->arguments = args;
         mWaitCondition.wakeOne();
     }
 }
@@ -98,7 +162,31 @@ void ParseThread::run()
         timer.start();
 
         Q_ASSERT(f);
-        const QList<QByteArray> compilerOptions = f->arguments.includePaths() + f->arguments.arguments("-D");
+        GccArguments gccArguments;
+        QSet<Path> dependsOn;
+        mFileManager->getInfo(f->path, &gccArguments, 0, &dependsOn);
+        if (gccArguments.isNull()) {
+            qWarning() << "We don't seem to have GccArguments for" << f->path;
+            delete f;
+            continue;
+        }
+
+
+        bool hasChanged = (mFiles.value(f->path) != f->path.lastModified());
+        if (!hasChanged) {
+            foreach(const Path &header, dependsOn) {
+                if (header.lastModified() != mFiles.value(header)) {
+                    hasChanged = true;
+                    break;
+                }
+            }
+        }
+        if (!hasChanged) {
+            delete f;
+            continue;
+        }
+        mVisitThread->invalidate(QSet<Path>() << f->path); // ### hairy
+        const QList<QByteArray> compilerOptions = gccArguments.includePaths() + gccArguments.arguments("-D");
         const int compilerOptionsCount = compilerOptions.count();
 
         CXTranslationUnit unit = 0;
@@ -112,7 +200,7 @@ void ParseThread::run()
             if (i == WithPCH) {
                 if (!precompile)
                     continue;
-                if (f->arguments.language() != GccArguments::LangCPlusPlus) {
+                if (gccArguments.language() != GccArguments::LangCPlusPlus) {
                     continue;
                 }
                 pchfile = precompile->filename().toLocal8Bit();
@@ -154,7 +242,7 @@ void ParseThread::run()
             if (!unit) {
                 qWarning("Couldn't parse %s", f->path.constData());
                 QByteArray clangLine = "clang";
-                if (f->arguments.language() == GccArguments::LangCPlusPlus)
+                if (gccArguments.language() == GccArguments::LangCPlusPlus)
                     clangLine += "++";
                 for (int j=0; j<argCount; ++j) {
                     clangLine += ' ';
@@ -170,8 +258,12 @@ void ParseThread::run()
                 if (precompile) {
                     precompile->add(pre.direct, pre.all);
                 }
+                mFiles[f->path] = f->path.lastModified();
                 emit fileParsed(f->path, unit);
                 const QSet<Path> deps = pre.all.toSet();
+                foreach(const Path &dep, deps) {
+                    mFiles[dep] = dep.lastModified();
+                }
                 if (mFileManager->addDependencies(f->path, deps))
                     emit dependenciesAdded(deps);
                 qDebug() << "file was parsed" << f->path << mCount<< "left" << timer.elapsed() << "ms"
