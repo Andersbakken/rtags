@@ -110,29 +110,6 @@ bool Path::resolve(const Path &cwd)
     return false;
 }
 
-bool Path::isSource() const
-{
-#if 1
-    return magicType() == SourceFile;
-#else
-    if (isFile()) {
-        const int lastDot = lastIndexOf('.');
-        const int len = size() - lastDot;
-        if (lastDot != -1 && len > 0) {
-            const char *sourceFileExtensions[] = {
-                "c", "h", "cpp", "hpp", "cxx", "hxx", "moc", "cc", "hh", 0
-            };
-            const char *str = constData() + lastDot + 1;
-            for (int i=0; sourceFileExtensions[i]; ++i) {
-                if (!strncasecmp(str, sourceFileExtensions[i], len)) {
-                    return true;
-                }
-            }
-        }
-    }
-    return false;
-#endif
-}
 const char * Path::fileName() const
 {
     return constData() + lastIndexOf('/') + 1;
@@ -154,7 +131,21 @@ Path::MagicType Path::magicType() const
             if (strstr(out, "/x-makefile;")) {
                 ret = Makefile;
             } else if (strstr(out, "/x-c;")) {
-                ret = SourceFile;
+                ret = Source;
+                const int lastDot = lastIndexOf('.');
+                const int len = size() - lastDot;
+                if (lastDot != -1 && len > 0) {
+                    const char *sourceFileExtensions[] = {
+                        "h", "hpp", "hxx", "moc", "hh", 0
+                    };
+                    const char *str = constData() + lastDot + 1;
+                    for (int i=0; sourceFileExtensions[i]; ++i) {
+                        if (!strncasecmp(str, sourceFileExtensions[i], len)) {
+                            ret = Header;
+                            break;
+                        }
+                    }
+                }
             }
         }
         magic_close(m);

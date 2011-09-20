@@ -221,7 +221,8 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
     if (cmd != "makefile") { // makefile will resolve to Makefile on Mac so in that case we skip this
         Path p = Path::resolved(cmd, cwd);
         switch (p.magicType()) {
-        case Path::SourceFile:
+        case Path::Source:
+        case Path::Header:
             cmd = "load";
             break;
         case Path::Makefile:

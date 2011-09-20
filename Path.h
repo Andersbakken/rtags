@@ -46,7 +46,8 @@ public:
     };
 
     enum MagicType {
-        SourceFile,
+        Source,
+        Header,
         Makefile,
         Other
     };
@@ -59,7 +60,8 @@ public:
     inline bool isAbsolute() const { return (!isEmpty() && at(0) == '/'); }
     const char *fileName() const;
     const char *extension() const;
-    bool isSource() const;
+    bool isSource() const { return magicType() == Source; }
+    bool isHeader() const { return magicType() == Header; }
     bool isResolved() const;
     Path parentDir() const;
     Type type() const;

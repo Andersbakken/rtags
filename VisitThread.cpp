@@ -95,6 +95,7 @@ static bool operator==(const CXCursor &left, const CXCursor &right)
 
 CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor parent, CXClientData data)
 {
+#warning needs to short circuit when encounting a header it has seen
     // qDebug() << cursor << parent;
     ComprehensiveTreeUserData *u = reinterpret_cast<ComprehensiveTreeUserData*>(data);
     CursorNode *p = 0;
@@ -171,23 +172,7 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
                 CXCursor realParent = clang_getCursorSemanticParent(c->cursor);
                 if (!clang_equalCursors(realParent, c->parent->cursor)) {
                     const QByteArray parentId = cursorId(realParent);
-                    if (mNodes.contains(parentId)) {
-                        qWarning() << "changing parent from" << c->parent->cursor << "to" << mNodes.value(parentId)->toString()
-                                   << "for" << c->cursor;
-                    }
                     parent = mNodes.value(parentId, parent);
-                    // Node *p = mNodes.value(parentId);
-                    // if (p)
-                    //     parent p
-                    // if (!mNodes.contains(parentId)) {
-                    //     while (isValidCursor(realParent)) {
-                    //         qWarning() << "We don't seem to have the real parent for" << c->cursor
-                    //                    << realParent << c->parent->cursor;
-                    //         realParent = clang_getCursorSemanticParent(realParent);
-                    //     }
-                    // } else {
-                    //     parent = mNodes.value(parentId);
-                    // }
                 }
 
                 node = new Node(parent, type, c->cursor, loc, id);

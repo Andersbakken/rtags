@@ -126,10 +126,15 @@ void ParseThread::run()
 
         Q_ASSERT(f);
         GccArguments gccArguments;
-        QSet<Path> dependsOn;
-        mFileManager->getInfo(f->path, &gccArguments, 0, &dependsOn);
+        QSet<Path> dependsOn, dependents;
+        mFileManager->getInfo(f->path, &gccArguments, &dependents, &dependsOn);
         if (gccArguments.isNull()) {
-            qWarning() << "We don't seem to have GccArguments for" << f->path;
+            foreach(const Path &dependent, dependents) {
+                load(dependent);
+            }
+
+            if (f->path.isSource())
+                qWarning() << "We don't seem to have GccArguments for" << f->path;
             delete f;
             continue;
         }
