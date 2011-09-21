@@ -34,7 +34,7 @@ struct MatchBase : public Match
                 len = snprintf(buffer, BufferLength, "%s\n", node->symbolName.constData());
             } else {
                 len = snprintf(buffer, BufferLength, "%s %s%s \"%s:%d:%d\"\n",
-                               Node::typeToName(node->type, true), path.constData(), node->symbolName.constData(),
+                               nodeTypeToName(node->type, true), path.constData(), node->symbolName.constData(),
                                node->location.path.constData(), node->location.line, node->location.column);
             }
             output.append(buffer); // ### use len and QByteArray::fromRawData
@@ -60,7 +60,7 @@ struct FollowSymbolMatch : public Match
     {
         if (node->location == location) {
             // qDebug() << "found our location" << node->location << node->symbolName
-            //          << Node::typeToName(node->type);
+            //          << nodeTypeToName(node->type);
             switch (node->type) {
             case Node::All:
             case Node::Invalid:
@@ -345,7 +345,7 @@ static Node::Type stringToType(const QByteArray &in)
 {
     for (int i=Node::MethodDeclaration; i<=Node::Reference; i <<= 1) {
         const Node::Type type = static_cast<Node::Type>(i);
-        const char *name = Node::typeToName(type, true);
+        const char *name = nodeTypeToName(type, true);
         Q_ASSERT(name);
         if (!strcasecmp(name, in.constData())) {
             return static_cast<Node::Type>(i);

@@ -225,7 +225,7 @@ void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Locati
 {
     if (mNodes.contains(id)) {
         qWarning() << "Turns out" << c->cursor << "already exists"
-                   << mNodes.value(id)->symbolName << Node::typeToName(mNodes.value(id)->type)
+                   << mNodes.value(id)->symbolName << nodeTypeToName(mNodes.value(id)->type)
                    << mNodes.value(id)->location;
         return;
     }
@@ -422,7 +422,7 @@ static int nodeSize(Node *node)
 {
     // zero termination for each string => 2
     //
-    return (sizeof(quint8) /* type */
+    return (sizeof(qint32) /* type */
             + sizeof(qint32) /* Location pos */
             + sizeof(qint32) /* parent pos */
             + sizeof(qint32) /* nextSibling pos */
@@ -468,18 +468,17 @@ bool VisitThread::save(const QByteArray &path)
     int entry = 0;
     qWarning() << "entryLength" << entryLength << mLongestId;
     for (QMap<QByteArray, Node*>::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it) {
-        out = header.data() + entryLength * end;
         Node *node = it.value();
         const QByteArray &key = it.key();
         qint32 tmp = positions.value(node, -1);
         Q_ASSERT(tmp > 0);
         file.seek(tmp);
         memcpy(out, reinterpret_cast<const char *>(&tmp), sizeof(qint32));
-        out += sizeof(qint32);        
-        strncpy(out, key.constData(), key.size());
-        out += mLongestId + 1;
-        quint8 type = node->type;
-        file.write(reinterpret_cast<const char*>(&type), sizeof(quint8));
+        strncpy(out + sizeof(qint32), key.constData(), key.size());
+        out += entryLength;
+        qint32 type = node->type;
+        qDebug() << "writing type at" << file.pos() << type << "for" << node->symbolName << nodeTypeToName(node->type);
+        file.write(reinterpret_cast<const char*>(&type), sizeof(qint32));
         tmp = (entry * entryLength) + FirstId;
 #warning this must be fixed, it shouldn't point to the start of the entry anymore, and there's some bug somehow
         file.write(reinterpret_cast<const char*>(&tmp), sizeof(qint32)); // pointer to where the location sits in the index
@@ -514,4 +513,3 @@ bool VisitThread::save(const QByteArray &path)
     // device->
     return true;
 }
-/home/anders/temp/mini/main.cpp:30:37

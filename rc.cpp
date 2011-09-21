@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include "NodeType.h"
 
 int32_t locationLength = -1;
 
@@ -14,27 +15,27 @@ static int find(const void *l, const void *r)
 {
     const char *left = reinterpret_cast<const char*>(l) + sizeof(int32_t);
     const char *right = reinterpret_cast<const char*>(r) + sizeof(int32_t);
-    printf("%s %s\n", left, right);
+    // printf("%s %s\n", left, right);
     return strncmp(reinterpret_cast<const char*>(left),
                    reinterpret_cast<const char*>(right),
                    locationLength);
 }
 
-static inline void readNode(const char *base, uint8_t *type, int32_t *location, int32_t *parent,
+static inline void readNode(const char *base, int32_t *type, int32_t *location, int32_t *parent,
                             int32_t *nextSibling, int32_t *firstChild, const char **symbolName)
 {
     if (type)
-        memcpy(type, base, sizeof(uint8_t));
+        memcpy(type, base, sizeof(int32_t));
     if (location)
-        memcpy(location, base + sizeof(uint8_t), sizeof(int32_t));
+        memcpy(location, base + sizeof(int32_t), sizeof(int32_t));
     if (parent)
-        memcpy(parent, base + sizeof(uint8_t) + sizeof(int32_t), sizeof(int32_t));
+        memcpy(parent, base + sizeof(int32_t) + sizeof(int32_t), sizeof(int32_t));
     if (nextSibling)
-        memcpy(nextSibling, base + sizeof(uint8_t) + (sizeof(int32_t) * 2), sizeof(int32_t));
+        memcpy(nextSibling, base + sizeof(int32_t) + (sizeof(int32_t) * 2), sizeof(int32_t));
     if (firstChild)
-        memcpy(firstChild, base + sizeof(uint8_t) + (sizeof(int32_t) * 3), sizeof(int32_t));
+        memcpy(firstChild, base + sizeof(int32_t) + (sizeof(int32_t) * 3), sizeof(int32_t));
     if (symbolName)
-        *symbolName = reinterpret_cast<const char*>(base + sizeof(uint8_t) + (sizeof(int32_t) * 4));
+        *symbolName = reinterpret_cast<const char*>(base + sizeof(int32_t) + (sizeof(int32_t) * 4));
 }
 
 int main(int argc, char **argv)
@@ -98,11 +99,12 @@ int main(int argc, char **argv)
                                  find);
         delete []arg;
         if (bs) {
+            int32_t idx = *reinterpret_cast<const int32_t*>(bs);
             const char *symbolName;
-            uint8_t type;
+            int32_t type;
             int32_t parent;
-            readNode(reinterpret_cast<const char*>(bs), &type, 0, &parent, 0, 0, &symbolName);
-            printf("Found %p %s %d %d\n", bs, symbolName, type, parent);
+            readNode(ch + idx, &type, 0, &parent, 0, 0, &symbolName);
+            printf("Found %s %d %d\n", symbolName, type, parent);
         }
     }
 

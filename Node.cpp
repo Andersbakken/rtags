@@ -6,7 +6,7 @@ Node::Node()
     : parent(0), nextSibling(0), firstChild(0), type(Root)
 {}
 
-Node::Node(Node *p, Type t, const CXCursor &c, const Location &l, const QByteArray &i)
+Node::Node(Node *p, NodeType t, const CXCursor &c, const Location &l, const QByteArray &i)
     : parent(p), nextSibling(0), firstChild(0), type(t), location(l), id(i)
 {
     Q_ASSERT(t != Invalid);
@@ -58,7 +58,7 @@ static inline bool lessThan(const Node *left, const Node *right)
     return (left->type < right->type || (left->type == right->type && left->symbolName < right->symbolName));
 }
 
-Node::Type Node::typeFromCursor(const CXCursor &c)
+NodeType Node::typeFromCursor(const CXCursor &c)
 {
     const CXCursorKind kind = clang_getCursorKind(c);
     switch (kind) {
@@ -139,29 +139,6 @@ void Node::print() const
     }
 }
 
-const char *Node::typeToName(Type type, bool abbrev)
-{
-    switch (type) {
-    case Enum: return abbrev ? "e" : "Enum";
-    case EnumValue: return abbrev ? "ev" : "EnumValue";
-    case Root: return abbrev ? "r" : "Root";
-    case MethodDeclaration: return abbrev ? "ml" : "MethodDeclaration";
-    case MethodDefinition: return abbrev ? "md" : "MethodDefinition";
-    case Class: return abbrev ? "c" : "Class";
-    case Struct: return abbrev ? "s" : "Struct";
-    case Reference: return abbrev ? "pr" : "Reference";
-    case Namespace: return abbrev ? "n" : "Namespace";
-    case Typedef: return abbrev ? "t" : "Typedef";
-    case Variable: return abbrev ? "vd" : "Variable";
-    case MacroDefinition: return abbrev ? "m" : "MacroDefinition";
-    case Invalid:
-    case All:
-        break;
-    }
-    Q_ASSERT(0 && "Invalid type");
-    return "Invalid";
-}
-
 int Node::size() const
 {
     int ret = sizeof(*this);
@@ -208,7 +185,7 @@ Node *Node::methodDefinition() const
         Q_ASSERT(parent);
         for (Node *n = parent->firstChild; n; n = n->nextSibling) {
             if (n->symbolName == symbolName) {
-                qDebug() << Node::typeToName(n->type) << symbolName;
+                qDebug() << nodeTypeToName(n->type) << symbolName;
             }
             if (n->type == MethodDefinition && n->symbolName == symbolName)
                 return n;
