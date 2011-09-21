@@ -38,16 +38,7 @@ public:
     void lockMutex() { mMutex.lock(); }
     void unlockMutex() { mMutex.unlock(); }
     Node *nodeForLocation(const Location &loc) const;
-    void save(QIODevice *device);
-    bool save(const QByteArray &file)
-    {
-        QFile f(file);
-        if (f.open(QIODevice::WriteOnly)) {
-            save(&f);
-            return true;
-        }
-        return false;
-    }
+    bool save(const QByteArray &file);
 public slots:
     void invalidate(const QSet<Path> &paths);
     void onFileParsed(const Path &path, void *unit);
@@ -64,7 +55,7 @@ private:
     mutable QMutex mMutex;
     QMap<QByteArray, Node*> mNodes;
     bool mQuitting;
-    int mLongestId;
+    qint32 mLongestId;
 };
 
 #endif

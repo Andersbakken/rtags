@@ -139,8 +139,8 @@ CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor parent, CXCl
                    << "\nlastCursor is" << u->lastCursor
             // << "\nparents are" << u->parents
                    << "\nparent and lastCursor are equal" << clang_equalCursors(parent, u->lastCursor)
-                   << "\ncursorId(parent)" << cursorId(parent)
-                   << "\ncursorId(u->lastCursor)" << cursorId(u->lastCursor);
+                   << "\ncursorId(parent)" << Location(parent).toString()
+                   << "\ncursorId(u->lastCursor)" << Location(u->lastCursor).toString();
     }
     Q_ASSERT(p);
     u->last = new CursorNode(cursor, p);
@@ -165,11 +165,15 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
         for (CursorNode *cn = c->parent->firstChild; cn; cn = cn->nextSibling) {
             if (clang_getCursorKind(cn->cursor) == CXCursor_MacroDefinition
                 && symbolName == eatString(clang_getCursorSpelling(cn->cursor))) {
-                const QByteArray macroDefinitionId = cursorId(cn->cursor);
+                const QByteArray macroDefinitionId = Location(cn->cursor).toString();
                 Node *parent = mNodes.value(macroDefinitionId);
                 Q_ASSERT(parent);
-                const QByteArray id = cursorId(loc);
+                const QByteArray id = loc.toString();
+                qint32 old = mLongestId;
                 mLongestId = qMax(id.size(), mLongestId);
+                if (old != mLongestId) {
+                    qDebug() << "new longest" << id << old << mLongestId;
+                }
                 mNodes[id] = new Node(parent, Node::Reference, c->cursor, loc, id);
                 return;
             }
@@ -180,7 +184,7 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
     if (type == Node::Reference) {
         const Location loc(c->cursor);
         if (loc.exists()) {
-            const QByteArray id = cursorId(loc);
+            const QByteArray id = loc.toString();
             if (!mNodes.contains(id)) {
                 const PendingReference r = { c, loc };
                 references[id] = r;
@@ -190,19 +194,24 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
         if (c->parent && type != Node::Invalid) {
             const Location loc(c->cursor);
             if (loc.exists()) {
-                const QByteArray id = cursorId(loc);
+                const QByteArray id = loc.toString();
                 Node *&node = mNodes[id];
                 if (node)
                     return; // we've seen this whole branch
                 // ### may not need to do this for all types of nodes
                 CXCursor realParent = clang_getCursorSemanticParent(c->cursor);
                 if (isValidCursor(realParent) && !clang_equalCursors(realParent, c->parent->cursor)) {
-                    const QByteArray parentId = cursorId(realParent);
+                    const QByteArray parentId = Location(realParent).toString();
                     parent = mNodes.value(parentId, parent);
                 }
 
                 node = new Node(parent, type, c->cursor, loc, id);
+                qint32 old = mLongestId;
                 mLongestId = qMax(id.size(), mLongestId);
+                if (old != mLongestId) {
+                    qDebug() << "new longest" << id << old << mLongestId;
+                }
+                
                 parent = node;
             }
         }
@@ -251,7 +260,7 @@ void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Locati
                 return;
             }
         }
-        const QByteArray refId = cursorId(ref);
+        const QByteArray refId = Location(ref).toString();
         Node *refNode = mNodes.value(refId);
         if (!refNode) {
             // qWarning() << "Can't find referenced node" << c->cursor << ref << refId;
@@ -263,12 +272,17 @@ void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Locati
                 refNode = decl;
         }
         mNodes[id] = new Node(refNode, Node::Reference, c->cursor, loc, id);
+        qint32 old = mLongestId;
         mLongestId = qMax(id.size(), mLongestId);
+        if (old != mLongestId) {
+            qDebug() << "new longest" << id << old << mLongestId;
+        }
+        
     }
 
     for (CursorNode *child=c->firstChild; child; child = child->nextSibling) {
         const Location l(child->cursor);
-        addReference(child, cursorId(l), l);
+        addReference(child, l.toString(), l);
         // if (Node::typeFromCursor(child->cursor) != Node::Invalid) {
         //     qWarning() << "This node is a child of a ref" << child->cursor
         //                << c->cursor << ref;
@@ -307,6 +321,9 @@ void VisitThread::onFileParsed(const Path &path, void *u)
         qDebug() << "added" << (mNodes.size() - old) << "nodes for" << path << ". Total" << mNodes.size();
     }
     clang_disposeTranslationUnit(unit);
+    printf("%s %d: clang_disposeTranslationUnit(unit);\n", __FILE__, __LINE__);
+    if (!save("/tmp/balle2"))
+        printf("%s %d: if (!save(\"/tmp/balle\"))\n", __FILE__, __LINE__);
 }
 
 static void removeChildren(Node *node, const QSet<Path> &paths)
@@ -398,25 +415,121 @@ void VisitThread::lookup(Match *match)
 Node * VisitThread::nodeForLocation(const Location &loc) const
 {
     QMutexLocker lock(&mMutex);
-    return mNodes.value(cursorId(loc));
+    return mNodes.value(loc.toString());
 }
 
-static inline void writeNodeRecursive(QIODevice *device, Node *node, QHash<Node*, int> &nodes)
+static int nodeSize(Node *node)
 {
-    nodes[node] = device->pos();
-    // device->write(
-    // writeNode(device, node);
+    // zero termination for each string => 2
+    //
+    return (node->symbolName.size() + node->location.path.size() + (sizeof(quint32) * 3) + 2
+            + (sizeof(qint32) * 4));
 }
 
-void VisitThread::save(QIODevice *device)
+// Format
+// 2 * char => Rt
+// qint32 => number of Nodes
+// qint32 => length of each id
+// first id ...
+
+enum { FirstId = (sizeof(char) * 2) + sizeof(qint32) + sizeof(qint32) };
+
+bool VisitThread::save(const QByteArray &path)
 {
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly)) {
+        return false;
+    }
+    
+    // ### error checking?
+    QMutexLocker lock(&mMutex);
     // longest plus \0
-    QByteArray hash(mLongestId + 1 * mNodes.size() + sizeof(mLongestId) + sizeof(int), '\0');
-    device->write(hash); //reinterpret_cast<char*>(&mLongestId), sizeof(mLongestId));
-    // QList<QPair<Node*, int> >
-    // QHash<Node*, int> written;
-    // for (QMap<QByteArray, Node*>::const_iterator it = map.begin(); it != map.end(); ++it) {
-        // written[
-        // qDebug() << it.key() << it.value();
+    QByteArray header(FirstId + (mLongestId + 1 + sizeof(qint32)) * mNodes.size() + sizeof(mLongestId) + sizeof(qint32), 'X');
+    // device->write(hash);
+    int pos = header.size() + 2;
+    QHash<Node*, qint32> positions;
+    for (QMap<QByteArray, Node*>::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it) {
+        positions[it.value()] = pos;
+        pos += nodeSize(it.value());
+    }
+    file.resize(pos);
+    // device->write("Rt", 2);
+    QBuffer buf(&header);
+    buf.open(QIODevice::WriteOnly);
+    qint32 size = mNodes.size();
+    buf.write("Rt", 2);
+    qDebug() << mLongestId << size;
+    buf.write(reinterpret_cast<const char *>(&size), sizeof(qint32));
+    buf.write(reinterpret_cast<const char *>(&mLongestId), sizeof(qint32));
+    QVarLengthArray<char, 64> nulls(mLongestId + 1);
+    memset(nulls.data(), '\0', nulls.size());
+    char *out = header.data();
+    out[0] = 'R';
+    out[1] = 't';
+    memcpy(out + 2, reinterpret_cast<const char *>(&size), sizeof(qint32));
+    memcpy(out + 2 + sizeof(qint32), reinterpret_cast<const char *>(&mLongestId), sizeof(qint32));
+    int p = (2 + (sizeof(qint32) * 2));
+    for (QMap<QByteArray, Node*>::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it) {
+        const QByteArray &key = it.key();
+        strncpy(out + p, key.constData(), key.size());
+        p += key.size() + 1; // for \0
+        memset(out + p, '\0', 5); //(mLongestId - key.size()));
+        p += (mLongestId - key.size());
+        Node *node = it.value();
+        const qint32 nodePos = positions.value(node, -1);
+        Q_ASSERT(nodePos > 0);
+        memcpy(out, reinterpret_cast<const char *>(&size), sizeof(qint32));
+        p += sizeof(qint32);
+        // buf.write(reinterpret_cast<const char *>(&nodePos), 4); //sizeof(qint32));
+        // file.seek(nodePos);
+        // file.write(node->symbolName);
+        // quint8 type = node->type;
+        // file.write(reinterpret_cast<const char*>(&type), sizeof(quint8));
+        // buf.seek(FirstId + (c++ * (mLongestId + 1 + sizeof(qint32))));
+
+        // buf.seek(buf.pos() + mLongestId - it.key().size() + 1);
+        // Node *node = it.value();
+        // qint32 p = positions.value(node, -1);
+        // Q_ASSERT(p > 0);
+        // device->seek(p);
+        // device->write(node->symbolName);
+        // device->seek(p + mLongestId + 1);
+        // device->write(node->location.path
+        // positions[it.value()] = pos;
+        // pos += nodeSize(it.value());
+    }
+    buf.close();
+    for (int i=0; i<FirstId; ++i) {
+        printf("%d: 0x%x %c\n", i, header.at(i), header.at(i));
+    }
+    int pp = FirstId;
+    for (int i=0; i<size; ++i) {
+        for (quint32 j=0; j<mLongestId + sizeof(qint32); ++j) {
+            char ch = header.at(pp++);
+            if (ch == '\0') {
+                printf("_");
+            } else if (ch < 32) {
+                printf("-");
+            } else {
+                printf("%c", ch);
+            }
+        }
+        printf("\n");
+    }
+
+
+    // for (int i=FirstId; i<header.size(); ++i) {
+    //     if (header.at(i) == '\0') {
+    //         printf("_");
+    //     } else {
+    //         printf("%c", header.at(i));
+    //     }
+    //     if (i > FirstId && (i - FirstId) % (mLongestId + 1) == 0) {
+    //         printf("\n");
+    //     }
     // }
+   
+
+    // device->
+    return true;
 }

@@ -49,19 +49,4 @@ struct NodeData {
     quint16 fileId, line, index, childCount; // which child am I
 };
 
-static inline QByteArray cursorId(const Location &loc)
-{
-    QByteArray buf(loc.path.size() + 64, '\0');
-    snprintf(buf.data(), buf.size() - 1, "%s:%x:%x", loc.path.constData(), loc.line, loc.column);
-    return buf;
-}
-
-static inline QByteArray cursorId(const CXCursor &c)
-{
-    Q_ASSERT(isValidCursor(c));
-    return cursorId(Location(c));
-}
-
-
-
 #endif
