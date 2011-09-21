@@ -38,6 +38,16 @@ public:
     void lockMutex() { mMutex.lock(); }
     void unlockMutex() { mMutex.unlock(); }
     Node *nodeForLocation(const Location &loc) const;
+    void save(QIODevice *device);
+    bool save(const QByteArray &file)
+    {
+        QFile f(file);
+        if (f.open(QIODevice::WriteOnly)) {
+            save(&f);
+            return true;
+        }
+        return false;
+    }
 public slots:
     void invalidate(const QSet<Path> &paths);
     void onFileParsed(const Path &path, void *unit);
@@ -50,10 +60,11 @@ private:
     void buildTree(Node *node, CursorNode *c, QHash<QByteArray, PendingReference> &references);
     void addReference(CursorNode *c, const QByteArray &id, const Location &location);
 
-    mutable QMutex mMutex;
     Node *mRoot;
-    QHash<QByteArray, Node*> mNodes;
+    mutable QMutex mMutex;
+    QMap<QByteArray, Node*> mNodes;
     bool mQuitting;
+    int mLongestId;
 };
 
 #endif

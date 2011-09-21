@@ -40,7 +40,7 @@ struct Node
     Node *methodDeclaration() const;
     Node *methodDefinition() const;
     int size() const;
-    static QHash<QByteArray, Node*> *sNodes;
+    static QMap<QByteArray, Node*> *sNodes;
 };
 
 struct NodeData {

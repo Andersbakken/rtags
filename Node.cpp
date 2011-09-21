@@ -1,6 +1,6 @@
 #include "Node.h"
 
-QHash<QByteArray, Node*> *Node::sNodes = 0;
+QMap<QByteArray, Node*> *Node::sNodes = 0;
 
 Node::Node()
     : parent(0), nextSibling(0), firstChild(0), type(Root)

@@ -3,7 +3,8 @@
 #include "Node.h"
 
 VisitThread::VisitThread()
-    : QThread(0), mRoot(new Node), mMutex(QMutex::Recursive), mQuitting(false)
+    : QThread(0), mRoot(new Node), mMutex(QMutex::Recursive), mQuitting(false),
+      mLongestId(0)
 {
     Node::sNodes = &mNodes;
     setObjectName("VisitThread");
@@ -168,6 +169,7 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
                 Node *parent = mNodes.value(macroDefinitionId);
                 Q_ASSERT(parent);
                 const QByteArray id = cursorId(loc);
+                mLongestId = qMax(id.size(), mLongestId);
                 mNodes[id] = new Node(parent, Node::Reference, c->cursor, loc, id);
                 return;
             }
@@ -200,6 +202,7 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
                 }
 
                 node = new Node(parent, type, c->cursor, loc, id);
+                mLongestId = qMax(id.size(), mLongestId);
                 parent = node;
             }
         }
@@ -260,6 +263,7 @@ void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Locati
                 refNode = decl;
         }
         mNodes[id] = new Node(refNode, Node::Reference, c->cursor, loc, id);
+        mLongestId = qMax(id.size(), mLongestId);
     }
 
     for (CursorNode *child=c->firstChild; child; child = child->nextSibling) {
@@ -395,4 +399,24 @@ Node * VisitThread::nodeForLocation(const Location &loc) const
 {
     QMutexLocker lock(&mMutex);
     return mNodes.value(cursorId(loc));
+}
+
+static inline void writeNodeRecursive(QIODevice *device, Node *node, QHash<Node*, int> &nodes)
+{
+    nodes[node] = device->pos();
+    // device->write(
+    // writeNode(device, node);
+}
+
+void VisitThread::save(QIODevice *device)
+{
+    // longest plus \0
+    QByteArray hash(mLongestId + 1 * mNodes.size() + sizeof(mLongestId) + sizeof(int), '\0');
+    device->write(hash); //reinterpret_cast<char*>(&mLongestId), sizeof(mLongestId));
+    // QList<QPair<Node*, int> >
+    // QHash<Node*, int> written;
+    // for (QMap<QByteArray, Node*>::const_iterator it = map.begin(); it != map.end(); ++it) {
+        // written[
+        // qDebug() << it.key() << it.value();
+    // }
 }
