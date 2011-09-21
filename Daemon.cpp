@@ -34,7 +34,7 @@ struct MatchBase : public Match
                 len = snprintf(buffer, BufferLength, "%s\n", node->symbolName.constData());
             } else {
                 len = snprintf(buffer, BufferLength, "%s %s%s \"%s:%d:%d\"\n",
-                               nodeTypeToName(node->type, true), path.constData(), node->symbolName.constData(),
+                               nodeTypeToName(node->type, Abbreviated), path.constData(), node->symbolName.constData(),
                                node->location.path.constData(), node->location.line, node->location.column);
             }
             output.append(buffer); // ### use len and QByteArray::fromRawData
@@ -54,7 +54,7 @@ struct MatchBase : public Match
 struct FollowSymbolMatch : public Match
 {
     FollowSymbolMatch(const Location &loc)
-        : Match(Node::All), location(loc), found(0)
+        : Match(All), location(loc), found(0)
     {}
     virtual MatchResult match(const QByteArray &, const Node *node)
     {
@@ -62,28 +62,28 @@ struct FollowSymbolMatch : public Match
             // qDebug() << "found our location" << node->location << node->symbolName
             //          << nodeTypeToName(node->type);
             switch (node->type) {
-            case Node::All:
-            case Node::Invalid:
-            case Node::Root:
+            case All:
+            case Invalid:
+            case Root:
                 break;
-            case Node::MethodDeclaration:
+            case MethodDeclaration:
                 found = node->methodDefinition();
                 break;
-            case Node::Reference:
+            case Reference:
                 found = node->parent;
                 break;
-            case Node::MethodDefinition:
+            case MethodDefinition:
                 found = node->methodDeclaration();
                 break;
-            case Node::Class:
-            case Node::Struct:
-            case Node::Namespace:
-            case Node::Variable:
-            case Node::Enum:
-            case Node::Typedef:
-            case Node::MacroDefinition:
+            case Class:
+            case Struct:
+            case Namespace:
+            case Variable:
+            case Enum:
+            case Typedef:
+            case MacroDefinition:
                 break;
-            case Node::EnumValue:
+            case EnumValue:
                 node = node->parent; // parent is Enum
                 break;
             }
@@ -341,26 +341,13 @@ QHash<QByteArray, QVariant> Daemon::addTemporaryFile(const QHash<QByteArray, QVa
     return createResultMap("Temporary file added");
 }
 
-static Node::Type stringToType(const QByteArray &in)
-{
-    for (int i=Node::MethodDeclaration; i<=Node::Reference; i <<= 1) {
-        const Node::Type type = static_cast<Node::Type>(i);
-        const char *name = nodeTypeToName(type, true);
-        Q_ASSERT(name);
-        if (!strcasecmp(name, in.constData())) {
-            return static_cast<Node::Type>(i);
-        }
-    }
-    return Node::Invalid;
-}
-
 QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &args, const QList<QByteArray> &freeArgs)
 {
     uint nodeTypes = 0;
     foreach(const QByteArray &type, args.value("types").toByteArray().split(',')) {
         if (type.isEmpty())
             continue;
-        const Node::Type t = stringToType(type);
+        const NodeType t = stringToNodeType(type);
         if (t) {
             nodeTypes |= t;
         } else {
@@ -368,7 +355,7 @@ QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &ar
         }
     }
     if (!nodeTypes)
-        nodeTypes = (Node::All & ~Node::Root);
+        nodeTypes = (All & ~Root);
 
     QRegExp rx;
     QByteArray ba;
@@ -434,16 +421,16 @@ QHash<QByteArray, QVariant> Daemon::followSymbol(const QHash<QByteArray, QVarian
     QHash<QByteArray, QVariant> ret;
     if (node) {
         switch (node->type) {
-        case Node::MethodDeclaration:
+        case MethodDeclaration:
             node = node->methodDefinition();
             break;
-        case Node::Reference:
+        case Reference:
             node = node->parent;
             break;
-        case Node::MethodDefinition:
+        case MethodDefinition:
             node = node->methodDeclaration();
             break;
-        case Node::EnumValue:
+        case EnumValue:
             node = node->parent; // parent is Enum
             break;
         default:
@@ -497,7 +484,7 @@ QHash<QByteArray, QVariant> Daemon::printTree(const QHash<QByteArray, QVariant>&
     struct TreeMatch : public Match
     {
         TreeMatch()
-            : Match(Node::All)
+            : Match(All)
         {}
         QByteArray out;
         virtual MatchResult match(const QByteArray &, const Node *node)

@@ -1,8 +1,11 @@
 #include "NodeType.h"
 #include <assert.h>
+#include <string.h>
 
-const char *nodeTypeToName(NodeType type, bool abbrev)
+const char *nodeTypeToName(int t, NodeTypeToNameMode mode)
 {
+    const bool abbrev = (mode == Abbreviated);
+    NodeType type = static_cast<NodeType>(t);
     switch (type) {
     case Enum: return abbrev ? "e" : "Enum";
     case EnumValue: return abbrev ? "ev" : "EnumValue";
@@ -22,4 +25,19 @@ const char *nodeTypeToName(NodeType type, bool abbrev)
     }
     assert(0 && "Invalid type");
     return "Invalid";
+}
+
+NodeType stringToNodeType(const char *in)
+{
+    if (in) {
+        for (int i=MethodDeclaration; i<=Reference; i <<= 1) {
+            const NodeType type = static_cast<NodeType>(i);
+            const char *name = nodeTypeToName(type, Abbreviated);
+            assert(name);
+            if (!strcasecmp(name, in)) {
+                return static_cast<NodeType>(i);
+            }
+        }
+    }
+    return Invalid;
 }

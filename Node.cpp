@@ -58,7 +58,7 @@ static inline bool lessThan(const Node *left, const Node *right)
     return (left->type < right->type || (left->type == right->type && left->symbolName < right->symbolName));
 }
 
-NodeType Node::typeFromCursor(const CXCursor &c)
+NodeType Node::nodeTypeFromCursor(const CXCursor &c)
 {
     const CXCursorKind kind = clang_getCursorKind(c);
     switch (kind) {
@@ -116,7 +116,7 @@ QByteArray Node::toString() const
         indent += 2;
     }
     QByteArray buf(indent, ' ');
-    buf += typeToName(type);
+    buf += nodeTypeToName(type);
     buf += ' ';
     buf += symbolName;
     buf += " [";

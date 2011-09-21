@@ -174,14 +174,14 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
                 if (old != mLongestId) {
                     qDebug() << "new longest" << id << old << mLongestId;
                 }
-                mNodes[id] = new Node(parent, Node::Reference, c->cursor, loc, id);
+                mNodes[id] = new Node(parent, Reference, c->cursor, loc, id);
                 return;
             }
         }
     }
 
-    const Node::Type type = Node::typeFromCursor(c->cursor);
-    if (type == Node::Reference) {
+    const NodeType type = Node::nodeTypeFromCursor(c->cursor);
+    if (type == Reference) {
         const Location loc(c->cursor);
         if (loc.exists()) {
             const QByteArray id = loc.toString();
@@ -191,7 +191,7 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
             }
         }
     } else {
-        if (c->parent && type != Node::Invalid) {
+        if (c->parent && type != Invalid) {
             const Location loc(c->cursor);
             if (loc.exists()) {
                 const QByteArray id = loc.toString();
@@ -229,7 +229,7 @@ void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Locati
                    << mNodes.value(id)->location;
         return;
     }
-    if (Node::typeFromCursor(c->cursor) != Node::Invalid && loc.exists()) {
+    if (Node::nodeTypeFromCursor(c->cursor) != Invalid && loc.exists()) {
         const CXCursorKind kind = clang_getCursorKind(c->cursor);
 
         CXCursor ref = clang_getCursorReferenced(c->cursor);
@@ -266,12 +266,12 @@ void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Locati
             // qWarning() << "Can't find referenced node" << c->cursor << ref << refId;
             return;
         }
-        if (refNode->type == Node::MethodDefinition) {
+        if (refNode->type == MethodDefinition) {
             Node *decl = refNode->methodDeclaration();
             if (decl)
                 refNode = decl;
         }
-        mNodes[id] = new Node(refNode, Node::Reference, c->cursor, loc, id);
+        mNodes[id] = new Node(refNode, Reference, c->cursor, loc, id);
         qint32 old = mLongestId;
         mLongestId = qMax(id.size(), mLongestId);
         if (old != mLongestId) {
@@ -283,7 +283,7 @@ void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Locati
     for (CursorNode *child=c->firstChild; child; child = child->nextSibling) {
         const Location l(child->cursor);
         addReference(child, l.toString(), l);
-        // if (Node::typeFromCursor(child->cursor) != Node::Invalid) {
+        // if (typeFromCursor(child->cursor) != Invalid) {
         //     qWarning() << "This node is a child of a ref" << child->cursor
         //                << c->cursor << ref;
         // }
@@ -385,9 +385,9 @@ static Match::MatchResult recurse(Match *match, const Node *node, QByteArray pat
         result = match->match(path, node);
 
     switch (node->type) {
-    case Node::Namespace:
-    case Node::Class:
-    case Node::Struct:
+    case Namespace:
+    case Class:
+    case Struct:
         path.append(node->symbolName + "::");
         break;
     default:
@@ -435,8 +435,30 @@ static int nodeSize(Node *node)
 // qint32 => number of Nodes
 // qint32 => length of each id
 // first id ...
+// [qint32][location padded to length]
 
 enum { FirstId = (sizeof(char) * 2) + sizeof(qint32) + sizeof(qint32) };
+static qint32 writeNode(QIODevice *device, Node *node, const QHash<Node*, qint32> &positions,
+                        int entryIdx, int entryLength)
+{
+    const qint32 nodePosition = positions.value(node, -1);
+    Q_ASSERT(nodePosition > 0);
+    device->seek(nodePosition);
+    const qint32 type = node->type;
+    qDebug() << "writing type at" << device->pos() << type << "for" << node->symbolName << nodeTypeToName(node->type);
+    device->write(reinterpret_cast<const char*>(&type), sizeof(qint32));
+    const qint32 location = (entryIdx * entryLength) + FirstId + sizeof(qint32);
+    device->write(reinterpret_cast<const char*>(&location), sizeof(qint32)); // pointer to where the location sits in the index
+    const qint32 parent = positions.value(node->parent, 0);
+    device->write(reinterpret_cast<const char*>(&parent), sizeof(qint32));
+    const qint32 nextSibling = positions.value(node->nextSibling, 0);
+    device->write(reinterpret_cast<const char*>(&nextSibling), sizeof(qint32));
+    const qint32 firstChild = positions.value(node->firstChild, 0);
+    device->write(reinterpret_cast<const char*>(&firstChild), sizeof(qint32));
+    device->write(node->symbolName);
+    device->write('\0');
+    return nodePosition;
+}
 
 bool VisitThread::save(const QByteArray &path)
 {
@@ -449,9 +471,11 @@ bool VisitThread::save(const QByteArray &path)
     QMutexLocker lock(&mMutex);
     const qint32 nodeCount = mNodes.size();
     const int entryLength = mLongestId + 1 + sizeof(qint32);
-    QByteArray header(FirstId + entryLength * nodeCount + 16, '\0');
-    int pos = header.size() + 2;
+    QByteArray header(FirstId + entryLength * nodeCount, '\0');
+    int pos = header.size();
     QHash<Node*, qint32> positions;
+    positions[mRoot] = pos;
+    pos += nodeSize(mRoot);
     for (QMap<QByteArray, Node*>::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it) {
         positions[it.value()] = pos;
         pos += nodeSize(it.value());
@@ -470,25 +494,25 @@ bool VisitThread::save(const QByteArray &path)
     for (QMap<QByteArray, Node*>::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it) {
         Node *node = it.value();
         const QByteArray &key = it.key();
-        qint32 tmp = positions.value(node, -1);
-        Q_ASSERT(tmp > 0);
-        file.seek(tmp);
-        memcpy(out, reinterpret_cast<const char *>(&tmp), sizeof(qint32));
+        qint32 nodePosition = positions.value(node, -1);
+        Q_ASSERT(nodePosition > 0);
+        file.seek(nodePosition);
+        memcpy(out, reinterpret_cast<const char *>(&nodePosition), sizeof(qint32));
         strncpy(out + sizeof(qint32), key.constData(), key.size());
         out += entryLength;
         qint32 type = node->type;
         qDebug() << "writing type at" << file.pos() << type << "for" << node->symbolName << nodeTypeToName(node->type);
         file.write(reinterpret_cast<const char*>(&type), sizeof(qint32));
-        tmp = (entry * entryLength) + FirstId;
-#warning this must be fixed, it shouldn't point to the start of the entry anymore, and there's some bug somehow
-        file.write(reinterpret_cast<const char*>(&tmp), sizeof(qint32)); // pointer to where the location sits in the index
-        tmp = positions.value(node->parent, 0);
-        file.write(reinterpret_cast<const char*>(&tmp), sizeof(qint32));
-        tmp = positions.value(node->nextSibling, 0);
-        file.write(reinterpret_cast<const char*>(&tmp), sizeof(qint32));
-        tmp = positions.value(node->firstChild, 0);
-        file.write(reinterpret_cast<const char*>(&tmp), sizeof(qint32));
-        file.write(node->symbolName); // should we avoid Qt's file io for this? Why does this thing zero terminate?
+        const qint32 location = (entry++ * entryLength) + FirstId + sizeof(qint32);
+        file.write(reinterpret_cast<const char*>(&location), sizeof(qint32)); // pointer to where the location sits in the index
+        const qint32 parent = positions.value(node->parent, 0);
+        file.write(reinterpret_cast<const char*>(&parent), sizeof(qint32));
+        const qint32 nextSibling = positions.value(node->nextSibling, 0);
+        file.write(reinterpret_cast<const char*>(&nextSibling), sizeof(qint32));
+        const qint32 firstChild = positions.value(node->firstChild, 0);
+        file.write(reinterpret_cast<const char*>(&firstChild), sizeof(qint32));
+        file.write(node->symbolName);
+        file.write('\0');
     }
     file.seek(0);
     file.write(header);

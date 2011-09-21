@@ -15,10 +15,14 @@ enum NodeType {
     Typedef = 0x000200,
     MacroDefinition = 0x000400,
     Reference = 0x000800,
-    // update stringToType when adding types
+    // update stringToNodeType when adding types
     All = 0xffffff
 };
-const char *nodeTypeToName(NodeType type, bool abbrev);
-
+enum NodeTypeToNameMode {
+    Normal,
+    Abbreviated
+};
+const char *nodeTypeToName(int type, NodeTypeToNameMode mode = Normal);
+NodeType stringToNodeType(const char *in);
 
 #endif
