@@ -466,26 +466,29 @@ bool VisitThread::save(const QByteArray &path)
     memcpy(out, reinterpret_cast<const char *>(&mLongestId), sizeof(qint32));
     out += sizeof(qint32);
     int entry = 0;
+    qWarning() << "entryLength" << entryLength << mLongestId;
     for (QMap<QByteArray, Node*>::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it) {
-        const QByteArray &key = it.key();
-        strncpy(out, key.constData(), key.size());
-        out += mLongestId + 1;
+        out = header.data() + entryLength * end;
         Node *node = it.value();
+        const QByteArray &key = it.key();
         qint32 tmp = positions.value(node, -1);
         Q_ASSERT(tmp > 0);
-        memcpy(out, reinterpret_cast<const char *>(&tmp), sizeof(qint32));
-        out += sizeof(qint32);
         file.seek(tmp);
+        memcpy(out, reinterpret_cast<const char *>(&tmp), sizeof(qint32));
+        out += sizeof(qint32);        
+        strncpy(out, key.constData(), key.size());
+        out += mLongestId + 1;
         quint8 type = node->type;
         file.write(reinterpret_cast<const char*>(&type), sizeof(quint8));
         tmp = (entry * entryLength) + FirstId;
+#warning this must be fixed, it shouldn't point to the start of the entry anymore, and there's some bug somehow
         file.write(reinterpret_cast<const char*>(&tmp), sizeof(qint32)); // pointer to where the location sits in the index
         tmp = positions.value(node->parent, 0);
-        file.write(reinterpret_cast<const char*>(&tmp), sizeof(qint32)); // pointer to where the location sits in the index
+        file.write(reinterpret_cast<const char*>(&tmp), sizeof(qint32));
         tmp = positions.value(node->nextSibling, 0);
-        file.write(reinterpret_cast<const char*>(&tmp), sizeof(qint32)); // pointer to where the location sits in the index
+        file.write(reinterpret_cast<const char*>(&tmp), sizeof(qint32));
         tmp = positions.value(node->firstChild, 0);
-        file.write(reinterpret_cast<const char*>(&tmp), sizeof(qint32)); // pointer to where the location sits in the index
+        file.write(reinterpret_cast<const char*>(&tmp), sizeof(qint32));
         file.write(node->symbolName); // should we avoid Qt's file io for this? Why does this thing zero terminate?
     }
     file.seek(0);
@@ -511,3 +514,4 @@ bool VisitThread::save(const QByteArray &path)
     // device->
     return true;
 }
+/home/anders/temp/mini/main.cpp:30:37
