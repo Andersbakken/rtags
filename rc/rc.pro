@@ -11,7 +11,7 @@ INCLUDEPATH += .
 SOURCES += main.cpp
 CONFIG += debug
 CONFIG -= app_bundle
-QT = core
+QT = 
 unix {
     debug:OBJECTS_DIR = $${OUT_PWD}/.obj/debug-shared
     release:OBJECTS_DIR = $${OUT_PWD}/.obj/release-shared
