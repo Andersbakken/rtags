@@ -1,39 +1,40 @@
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <stdlib.h>
 #include <string.h>
-#include <QtCore>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
-qint32 locationLength = -1;
+int32_t locationLength = -1;
 
-static int find(const void *left, const void *right)
+static int find(const void *l, const void *r)
 {
-    printf("%s %s\n",
-           reinterpret_cast<const char*>(left),
-           reinterpret_cast<const char*>(right));
+    const char *left = reinterpret_cast<const char*>(l) + sizeof(int32_t);
+    const char *right = reinterpret_cast<const char*>(r) + sizeof(int32_t);
+    printf("%s %s\n", left, right);
     return strncmp(reinterpret_cast<const char*>(left),
                    reinterpret_cast<const char*>(right),
                    locationLength);
 }
 
-static inline void readNode(const char *base, quint8 *type, qint32 *location, qint32 *parent,
-                            qint32 *nextSibling, qint32 *firstChild, const char **symbolName)
+static inline void readNode(const char *base, uint8_t *type, int32_t *location, int32_t *parent,
+                            int32_t *nextSibling, int32_t *firstChild, const char **symbolName)
 {
     if (type)
-        memcpy(type, base, sizeof(quint8));
+        memcpy(type, base, sizeof(uint8_t));
     if (location)
-        memcpy(location, base + sizeof(quint8), sizeof(qint32));
+        memcpy(location, base + sizeof(uint8_t), sizeof(int32_t));
     if (parent)
-        memcpy(parent, base + sizeof(quint8) + sizeof(qint32), sizeof(qint32));
+        memcpy(parent, base + sizeof(uint8_t) + sizeof(int32_t), sizeof(int32_t));
     if (nextSibling)
-        memcpy(nextSibling, base + sizeof(quint8) + (sizeof(qint32) * 2), sizeof(qint32));
+        memcpy(nextSibling, base + sizeof(uint8_t) + (sizeof(int32_t) * 2), sizeof(int32_t));
     if (firstChild)
-        memcpy(firstChild, base + sizeof(quint8) + (sizeof(qint32) * 3), sizeof(qint32));
+        memcpy(firstChild, base + sizeof(uint8_t) + (sizeof(int32_t) * 3), sizeof(int32_t));
     if (symbolName)
-        *symbolName = reinterpret_cast<const char*>(base + sizeof(quint8) + (sizeof(qint32) * 4));
+        *symbolName = reinterpret_cast<const char*>(base + sizeof(uint8_t) + (sizeof(int32_t) * 4));
 }
 
 int main(int argc, char **argv)
@@ -77,25 +78,29 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    for (int i=0; i<12; ++i) {
+    for (int i=0; i<10; ++i) {
         printf("%d %x %c\n", i, ch[i], ch[i]);
     }
 
-    qint32 nodeCount = -1;
-    memcpy(&nodeCount, ch + 2, sizeof(qint32));
-    memcpy(&locationLength, ch + 2 + sizeof(qint32), sizeof(qint32));
+    int32_t nodeCount = -1;
+    memcpy(&nodeCount, ch + 2, sizeof(int32_t));
+    memcpy(&locationLength, ch + 2 + sizeof(int32_t), sizeof(int32_t));
     // printf("%d %d\n", locationLength, nodeCount);
-    // qDebug() << (locationLength + 1 + sizeof(qint32));
+    // qDebug() << (locationLength + 1 + sizeof(int32_t));
     if (locationLength > 0) {
-        const void *bs = bsearch(argv[2],
-                                 ch + (sizeof(qint32) * 2) + 2,
+        const int argv2Len = strlen(argv[2]);
+        char *arg = new char[argv2Len + sizeof(int32_t)];
+        strncpy(arg + sizeof(int32_t), argv[2], argv2Len);
+        const void *bs = bsearch(arg,
+                                 ch + (sizeof(int32_t) * 2) + 2,
                                  nodeCount,
-                                 locationLength + 1 + sizeof(qint32),
+                                 locationLength + 1 + sizeof(int32_t),
                                  find);
+        delete []arg;
         if (bs) {
             const char *symbolName;
-            quint8 type;
-            qint32 parent;
+            uint8_t type;
+            int32_t parent;
             readNode(reinterpret_cast<const char*>(bs), &type, 0, &parent, 0, 0, &symbolName);
             printf("Found %p %s %d %d\n", bs, symbolName, type, parent);
         }

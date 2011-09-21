@@ -8,7 +8,7 @@ DEPENDPATH += .
 INCLUDEPATH += .
 
 # Input
-SOURCES += main.cpp
+SOURCES += rc.cpp
 CONFIG += debug
 CONFIG -= app_bundle
 QT = 

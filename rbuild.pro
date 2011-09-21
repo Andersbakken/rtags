@@ -1,6 +1,6 @@
 #qmake INCLUDEPATH+=/usr/local/llvm/include/ "LIBS+=-L/usr/local/llvm/lib -Wl,-rpath,/usr/local/llvm/lib"
 TEMPLATE = app
-TARGET = 
+TARGET = rtags
 DEPENDPATH += .
 INCLUDEPATH += .
 CONFIG += debug
