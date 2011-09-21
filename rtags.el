@@ -69,9 +69,10 @@
             ;; /foo/bar:12:13
     (with-temp-buffer
       (message (executable-find "rc"))
+      (message (concat (executable-find "rc") " --follow-symbol " bufname ":" line ":" column))
       (call-process (executable-find "rc") nil t nil "--follow-symbol" (concat bufname ":" line ":" column))
       (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" (buffer-string))
-      (message (concat "balle " (buffer-string)))
+;      (message (concat "balle " (buffer-string)))
       (if (match-beginning 1)
           (progn
             (setq line (string-to-int (match-string 2 (buffer-string))))

@@ -77,6 +77,7 @@ static inline void usage(FILE *f)
             "rc [options]...\n"
             "  --help|-h                Display this help\n"
             "  --follow-symbol|-s [arg] Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
+            "  --references|-r [arg]    Print references of symbol at arg\n"
             "  --print-tree|-t          Print out the node tree to stdout\n"
             "  --db-file|-f [arg]       Use this database file\n");
 }
@@ -88,13 +89,19 @@ int main(int argc, char **argv)
         { "follow-symbol", 1, 0, 's' },
         { "print-tree", 0, 0, 't' },
         { "db-file", 1, 0, 'f' },
+        { "references", 1, 0, 'r' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hs:tf:";
+    const char *shortOptions = "hs:tf:r:";
     int idx;
     int longIndex;
-    const char *symbolName = 0;
+    const char *arg = 0;
     const char *dbFile = 0;
+    enum Mode {
+        None,
+        FollowSymbol,
+        References
+    } mode = None;
     char dbFileBuffer[PATH_MAX + 10];
     bool showTree = false;
     // for (int i=0; i<argc; ++i) {
@@ -110,7 +117,12 @@ int main(int argc, char **argv)
             usage(stdout);
             return 0;
         case 's':
-            symbolName = optarg;
+            arg = optarg;
+            mode = FollowSymbol;
+            break;
+        case 'r':
+            arg = optarg;
+            mode = References;
             break;
         case 't':
             showTree = true;
@@ -147,8 +159,8 @@ int main(int argc, char **argv)
         }
     }
 
-    if (!symbolName && !showTree) {
-        printf("%s %d: if (!symbolName && !showTree) {\n", __FILE__, __LINE__);
+    if (mode == None && !showTree) {
+        printf("%s %d: if (mode == None && !showTree) {\n", __FILE__, __LINE__);
         return 1;
     }
         
@@ -204,58 +216,68 @@ int main(int argc, char **argv)
         recurse(ch, 2 + (sizeof(int32_t) * 2) + ((locationLength + 1 + sizeof(int32_t)) * nodeCount), 0);
     }
 
-    if (symbolName) {
-        const int symbolNameLen = strlen(symbolName) + 1;
-        char *arg = new char[symbolNameLen + sizeof(int32_t)];
-        strncpy(arg + sizeof(int32_t), symbolName, symbolNameLen);
-        const void *bs = bsearch(arg,
+    if (arg) {
+        const int argLen = strlen(arg) + 1;
+        char *padded = new char[argLen + sizeof(int32_t)];
+        strncpy(padded + sizeof(int32_t), arg, argLen);
+        const void *bs = bsearch(padded,
                                  ch + (sizeof(int32_t) * 2) + 2,
                                  nodeCount,
                                  locationLength + 1 + sizeof(int32_t),
                                  find);
         // printf("Found a match %p\n", bs);
-        delete []arg;
+        delete []padded;
         if (bs) {
             int32_t idx = *reinterpret_cast<const int32_t*>(bs);
             const char *symbolName;
             int32_t type;
             int32_t parent;
-            readNode(ch + idx, &type, 0, &parent, 0, 0, &symbolName);
-            // printf("Found node %s %s\n", nodeTypeToName(type), symbolName);
-            int32_t found = 0;
-            NodeType targetType = MethodDeclaration;
-            switch (type) {
-            case MethodDeclaration:
-                targetType = MethodDefinition;
-            case MethodDefinition: {
-                int32_t firstChild;
-                const char *f;
-                readNode(ch + parent, &type, 0, 0, 0, &firstChild, &f);
-                assert(firstChild);
-                int32_t next = firstChild;
-                do {
-                    const char *symbol;
-                    int32_t nextSibling, location;
-                    readNode(ch + next, &type, &location, 0, &nextSibling, 0, &symbol);
-                    // printf("%s %s %s\n", symbolName, symbol, nodeTypeToName(type));
-                    if (type == targetType && !strcmp(symbolName, symbol)) {
-                        found = location;
-                        break;
+            int32_t nextSibling;
+            int32_t location;
+            readNode(ch + idx, &type, &location, &parent, 0, &nextSibling, &symbolName);
+            if (mode == References) {
+                while (nextSibling) {
+                    if (type == Reference && location) {
+                        printf("%s\n", ch + location);
                     }
-                    next = nextSibling;
-                } while (next);
-                break; }
-            case Reference:
-            case EnumValue:
-                readNode(ch + parent, 0, &found, 0, 0, 0, &symbolName);
-                break;
-            default:
-                break;
-            }
-            if (found) {
-                printf("%s\n", ch + found);
+                    readNode(ch + nextSibling, &type, &location, 0, &nextSibling, 0, 0);
+                }
             } else {
-                printf("Couldn't find it\n");
+                // printf("Found node %s %s\n", nodeTypeToName(type), symbolName);
+                int32_t found = 0;
+                NodeType targetType = MethodDeclaration;
+                switch (type) {
+                case MethodDeclaration:
+                    targetType = MethodDefinition;
+                case MethodDefinition: {
+                    const char *f;
+                    int32_t firstChild;
+                    readNode(ch + parent, &type, 0, 0, 0, &firstChild, &f);
+                    assert(firstChild);
+                    int32_t next = firstChild;
+                    do {
+                        const char *symbol;
+                        readNode(ch + next, &type, &location, 0, &nextSibling, 0, &symbol);
+                        // printf("%s %s %s\n", symbolName, symbol, nodeTypeToName(type));
+                        if (type == targetType && !strcmp(symbolName, symbol)) {
+                            found = location;
+                            break;
+                        }
+                        next = nextSibling;
+                    } while (next);
+                    break; }
+                case Reference:
+                case EnumValue:
+                    readNode(ch + parent, 0, &found, 0, 0, 0, &symbolName);
+                    break;
+                default:
+                    break;
+                }
+                if (found) {
+                    printf("%s\n", ch + found);
+                } else {
+                    printf("Couldn't find it\n");
+                }
             }
         }
     }
