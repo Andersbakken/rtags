@@ -39,6 +39,13 @@ public:
     void unlockMutex() { mMutex.unlock(); }
     Node *nodeForLocation(const Location &loc) const;
     bool save(const QByteArray &file);
+    void timerEvent(QTimerEvent *e)
+    {
+        if (e->timerId() == timer.timerId()) {
+            save("/tmp/balle2");
+            timer.stop();
+        }
+    }
 public slots:
     void invalidate(const QSet<Path> &paths);
     void onFileParsed(const Path &path, void *unit);
@@ -48,6 +55,7 @@ private:
         Location location;
     };
 
+
     void buildTree(Node *node, CursorNode *c, QHash<QByteArray, PendingReference> &references);
     void addReference(CursorNode *c, const QByteArray &id, const Location &location);
 
@@ -56,6 +64,7 @@ private:
     QMap<QByteArray, Node*> mNodes;
     bool mQuitting;
     qint32 mLongestId;
+    QBasicTimer timer;
 };
 
 #endif

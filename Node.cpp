@@ -3,7 +3,7 @@
 QMap<QByteArray, Node*> *Node::sNodes = 0;
 
 Node::Node()
-    : parent(0), nextSibling(0), firstChild(0), type(Root)
+    : parent(0), nextSibling(0), firstChild(0), type(Root), symbolName("RootNode")
 {}
 
 Node::Node(Node *p, NodeType t, const CXCursor &c, const Location &l, const QByteArray &i)

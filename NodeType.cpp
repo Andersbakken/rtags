@@ -1,6 +1,7 @@
 #include "NodeType.h"
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
 
 const char *nodeTypeToName(int t, NodeTypeToNameMode mode)
 {
@@ -23,6 +24,7 @@ const char *nodeTypeToName(int t, NodeTypeToNameMode mode)
     case All:
         break;
     }
+    printf("Invalid node type %d (%d)\n", t, abbrev);
     assert(0 && "Invalid type");
     return "Invalid";
 }

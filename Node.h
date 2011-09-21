@@ -9,10 +9,10 @@
 struct Node
 {
     Node *parent, *nextSibling, *firstChild;
-    QByteArray symbolName;
     NodeType type;
     Location location;
     QByteArray id; // ### we don't really need to store this
+    QByteArray symbolName;
 
     Node();
     Node(Node *p, NodeType t, const CXCursor &c, const Location &l, const QByteArray &id);

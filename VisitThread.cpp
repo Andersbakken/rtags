@@ -171,9 +171,6 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
                 const QByteArray id = loc.toString();
                 qint32 old = mLongestId;
                 mLongestId = qMax(id.size(), mLongestId);
-                if (old != mLongestId) {
-                    qDebug() << "new longest" << id << old << mLongestId;
-                }
                 mNodes[id] = new Node(parent, Reference, c->cursor, loc, id);
                 return;
             }
@@ -208,10 +205,6 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
                 node = new Node(parent, type, c->cursor, loc, id);
                 qint32 old = mLongestId;
                 mLongestId = qMax(id.size(), mLongestId);
-                if (old != mLongestId) {
-                    qDebug() << "new longest" << id << old << mLongestId;
-                }
-                
                 parent = node;
             }
         }
@@ -238,7 +231,7 @@ void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Locati
         }
 
         if (!isValidCursor(ref)) {
-            if (/*kind != CXCursor_CallExpr && */kind != CXCursor_ClassDecl && kind != CXCursor_StructDecl)
+            if (kind != CXCursor_MacroExpansion && kind != CXCursor_ClassDecl && kind != CXCursor_StructDecl)
                 qWarning() << "Can't get valid cursor for" << c->cursor << "child of" << c->parent->cursor;
             return;
         }
@@ -321,9 +314,7 @@ void VisitThread::onFileParsed(const Path &path, void *u)
         qDebug() << "added" << (mNodes.size() - old) << "nodes for" << path << ". Total" << mNodes.size();
     }
     clang_disposeTranslationUnit(unit);
-    printf("%s %d: clang_disposeTranslationUnit(unit);\n", __FILE__, __LINE__);
-    if (!save("/tmp/balle2"))
-        printf("%s %d: if (!save(\"/tmp/balle\"))\n", __FILE__, __LINE__);
+    timer.start(3000, this);
 }
 
 static void removeChildren(Node *node, const QSet<Path> &paths)
@@ -442,12 +433,13 @@ static qint32 writeNode(QIODevice *device, Node *node, const QHash<Node*, qint32
                         int entryIdx, int entryLength)
 {
     const qint32 nodePosition = positions.value(node, -1);
+    // printf("Writing node %s %s at %d\n", nodeTypeToName(node->type), node->symbolName.constData(), nodePosition);
     Q_ASSERT(nodePosition > 0);
     device->seek(nodePosition);
     const qint32 type = node->type;
-    qDebug() << "writing type at" << device->pos() << type << "for" << node->symbolName << nodeTypeToName(node->type);
+    // qDebug() << "writing type at" << device->pos() << type << "for" << node->symbolName << nodeTypeToName(node->type);
     device->write(reinterpret_cast<const char*>(&type), sizeof(qint32));
-    const qint32 location = (entryIdx * entryLength) + FirstId + sizeof(qint32);
+    const qint32 location = (entryIdx == -1 ? 0 : (entryIdx * entryLength) + FirstId + sizeof(qint32));
     device->write(reinterpret_cast<const char*>(&location), sizeof(qint32)); // pointer to where the location sits in the index
     const qint32 parent = positions.value(node->parent, 0);
     device->write(reinterpret_cast<const char*>(&parent), sizeof(qint32));
@@ -489,50 +481,37 @@ bool VisitThread::save(const QByteArray &path)
     out += sizeof(qint32);
     memcpy(out, reinterpret_cast<const char *>(&mLongestId), sizeof(qint32));
     out += sizeof(qint32);
-    int entry = 0;
-    qWarning() << "entryLength" << entryLength << mLongestId;
+    // qWarning() << "entryLength" << entryLength << mLongestId << nodeCount
+    //            << (nodeCount * entryLength) + FirstId;
+    writeNode(&file, mRoot, positions, -1, entryLength);
+    int entryIdx = 0;
     for (QMap<QByteArray, Node*>::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it) {
         Node *node = it.value();
         const QByteArray &key = it.key();
-        qint32 nodePosition = positions.value(node, -1);
-        Q_ASSERT(nodePosition > 0);
-        file.seek(nodePosition);
+        const qint32 nodePosition = writeNode(&file, node, positions, entryIdx++, entryLength);
         memcpy(out, reinterpret_cast<const char *>(&nodePosition), sizeof(qint32));
         strncpy(out + sizeof(qint32), key.constData(), key.size());
         out += entryLength;
-        qint32 type = node->type;
-        qDebug() << "writing type at" << file.pos() << type << "for" << node->symbolName << nodeTypeToName(node->type);
-        file.write(reinterpret_cast<const char*>(&type), sizeof(qint32));
-        const qint32 location = (entry++ * entryLength) + FirstId + sizeof(qint32);
-        file.write(reinterpret_cast<const char*>(&location), sizeof(qint32)); // pointer to where the location sits in the index
-        const qint32 parent = positions.value(node->parent, 0);
-        file.write(reinterpret_cast<const char*>(&parent), sizeof(qint32));
-        const qint32 nextSibling = positions.value(node->nextSibling, 0);
-        file.write(reinterpret_cast<const char*>(&nextSibling), sizeof(qint32));
-        const qint32 firstChild = positions.value(node->firstChild, 0);
-        file.write(reinterpret_cast<const char*>(&firstChild), sizeof(qint32));
-        file.write(node->symbolName);
-        file.write('\0');
     }
     file.seek(0);
     file.write(header);
-    for (int i=0; i<FirstId; ++i) {
-        printf("%d: 0x%x %c\n", i, header.at(i), header.at(i));
-    }
-    int p = FirstId;
-    for (int i=0; i<nodeCount; ++i) {
-        for (int j=0; j<entryLength; ++j) {
-            char ch = header.at(p++);
-            if (ch == '\0') {
-                printf("_");
-            } else if (ch < 32) {
-                printf("-");
-            } else {
-                printf("%c", ch);
-            }
-        }
-        printf("\n");
-    }
+    // for (int i=0; i<FirstId; ++i) {
+    //     printf("%d: 0x%x %c\n", i, header.at(i), header.at(i));
+    // }
+    // int p = FirstId;
+    // for (int i=0; i<nodeCount; ++i) {
+    //     for (int j=0; j<entryLength; ++j) {
+    //         char ch = header.at(p++);
+    //         if (ch == '\0') {
+    //             printf("_");
+    //         } else if (ch < 32) {
+    //             printf("-");
+    //         } else {
+    //             printf("%c", ch);
+    //         }
+    //     }
+    //     printf("\n");
+    // }
 
     // device->
     return true;

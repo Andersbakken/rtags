@@ -68,10 +68,10 @@
 
             ;; /foo/bar:12:13
     (with-temp-buffer
-      (call-process (executable-find "rtags") nil t nil "--timeout=50" "followsymbol"
-                    bufname (concat "--line=" line) (concat "--column=" column))
+      (message (executable-find "rc"))
+      (call-process (executable-find "rc") nil t nil "--follow-symbol" (concat bufname ":" line ":" column))
       (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" (buffer-string))
-      (message (buffer-string))
+      (message (concat "balle " (buffer-string)))
       (if (match-beginning 1)
           (progn
             (setq line (string-to-int (match-string 2 (buffer-string))))

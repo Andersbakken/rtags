@@ -7,16 +7,19 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <limits.h>
 #include <assert.h>
 #include "NodeType.h"
+#include <getopt.h>
+#include <string>
 
-int32_t locationLength = -1;
+static int32_t locationLength = -1;
 
 static int find(const void *l, const void *r)
 {
     const char *left = reinterpret_cast<const char*>(l) + sizeof(int32_t);
     const char *right = reinterpret_cast<const char*>(r) + sizeof(int32_t);
-    // printf("%s %s\n", left, right);
+    // printf("%s %s %s\n", left, right, std::string(left, locationLength).c_str());
     return strncmp(reinterpret_cast<const char*>(left),
                    reinterpret_cast<const char*>(right),
                    locationLength);
@@ -53,20 +56,103 @@ struct Cleanup {
     void **mapped;
 };
 
-void recurse(int32_t pos, int indent = 0)
+void recurse(const char *ch, int32_t pos, int indent)
 {
+    int32_t type, location, nextSibling, firstChild;
+    const char *symbolName;
+    readNode(ch + pos, &type, &location, 0, &nextSibling, &firstChild, &symbolName);
     for (int i=0; i<indent; ++i) {
         printf(" ");
     }
-    int32_t type, location, nextSibling, firstChild;
-    const char *symbolName;
-    // readNode(pos, &type, &location, 0, &nextSibling, &firstChild, &symbolName);
-    // if (location) {
-    // printf("%s %s
+    printf("%s %s %s\n", nodeTypeToName(type), symbolName, location ? ch + location : "");
+    if (firstChild)
+        recurse(ch, firstChild, indent + 2);
+    if (nextSibling)
+        recurse(ch, nextSibling, indent);
+}
+
+static inline void usage(FILE *f)
+{
+    fprintf(f,
+            "rc [options]...\n"
+            "  --help|-h                Display this help\n"
+            "  --follow-symbol|-s [arg] Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
+            "  --print-tree|-t          Print out the node tree to stdout\n"
+            "  --db-file|-f [arg]       Use this database file\n");
 }
 
 int main(int argc, char **argv)
 {
+    struct option longOptions[] = {
+        { "help", 0, 0, 'h' },
+        { "follow-symbol", 1, 0, 's' },
+        { "print-tree", 0, 0, 't' },
+        { "db-file", 1, 0, 'f' },
+        { 0, 0, 0, 0 },
+    };
+    const char *shortOptions = "hs:tf:";
+    int idx;
+    int longIndex;
+    const char *symbolName = 0;
+    const char *dbFile = 0;
+    char dbFileBuffer[PATH_MAX + 10];
+    bool showTree = false;
+    // for (int i=0; i<argc; ++i) {
+    //     printf("%d %s\n", i, argv[i]);
+    // }
+
+    while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
+        switch (idx) {
+        case '?':
+            usage(stderr);
+            return 1;
+        case 'h':
+            usage(stdout);
+            return 0;
+        case 's':
+            symbolName = optarg;
+            break;
+        case 't':
+            showTree = true;
+            break;
+        case 'f':
+            dbFile = optarg;
+            break;
+        }
+    }
+
+    if (!dbFile) {
+        if (getcwd(dbFileBuffer, PATH_MAX)) {
+            const int len = strlen(dbFileBuffer);
+            if (len > 0 && dbFileBuffer[len - 1] != '/') {
+                dbFileBuffer[len] = '/';
+                dbFileBuffer[len + 1] = '\0';
+            }
+            char *slash;
+            while ((slash = strrchr(dbFileBuffer, '/'))) {
+                // ### this is awful
+                strcpy(slash + 1, ".rtags.db");
+                struct stat s;
+                // printf("Testing [%s]\n", dbFileBuffer);
+                if (stat(dbFileBuffer, &s) >= 0) {
+                    dbFile = dbFileBuffer;
+                    break;
+                }
+                *slash = '\0';
+            }
+        }
+        if (!dbFile) {
+            printf("%s %d: if (!dbFile) {\n", __FILE__, __LINE__);
+            return 1;
+        }
+    }
+
+    if (!symbolName && !showTree) {
+        printf("%s %d: if (!symbolName && !showTree) {\n", __FILE__, __LINE__);
+        return 1;
+    }
+        
+
     int fd = 0;
     struct stat st;
     void *mapped = 0;
@@ -74,13 +160,8 @@ int main(int argc, char **argv)
     // Cleanup cleanup = { .fd = &fd, .st = &st, .mapped = &mapped };
     Cleanup cleanup = { &fd, &st, &mapped };
     (void)cleanup;
-
-    if (argc < 3) {
-        printf("%s %d: if (argc < 3) {\n", __FILE__, __LINE__);
-        return 1;
-    }
-
-    fd = open(argv[1], O_RDONLY);
+    
+    fd = open(dbFile, O_RDONLY);
     if (fd <= 0) {
         printf("%s %d: if (fd <= 0)\n", __FILE__, __LINE__);
         return 1;
@@ -105,9 +186,9 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    for (int i=0; i<10; ++i) {
-        printf("%d %x %c\n", i, ch[i], ch[i]);
-    }
+    // for (int i=0; i<10; ++i) {
+    //     printf("%d %x %c\n", i, ch[i], ch[i]);
+    // }
 
     int32_t nodeCount = -1;
     memcpy(&nodeCount, ch + 2, sizeof(int32_t));
@@ -119,59 +200,64 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (!strcmp(argv[2], "printtree")) {
-
+    if (showTree) {
+        recurse(ch, 2 + (sizeof(int32_t) * 2) + ((locationLength + 1 + sizeof(int32_t)) * nodeCount), 0);
     }
 
-    const int argv2Len = strlen(argv[2]);
-    char *arg = new char[argv2Len + sizeof(int32_t)];
-    strncpy(arg + sizeof(int32_t), argv[2], argv2Len);
-    const void *bs = bsearch(arg,
-                             ch + (sizeof(int32_t) * 2) + 2,
-                             nodeCount,
-                             locationLength + 1 + sizeof(int32_t),
-                             find);
-    delete []arg;
-    if (bs) {
-        int32_t idx = *reinterpret_cast<const int32_t*>(bs);
-        const char *symbolName;
-        int32_t type;
-        int32_t parent;
-        readNode(ch + idx, &type, 0, &parent, 0, 0, &symbolName);
-        printf("Found node %s %s\n", nodeTypeToName(type), symbolName);
-        int32_t found = 0;
-        NodeType targetType = MethodDeclaration;
-        switch (type) {
-        case MethodDeclaration:
-            targetType = MethodDefinition;
-        case MethodDefinition: {
-            int32_t firstChild;
-            readNode(ch + parent, 0, 0, 0, &firstChild, 0, 0);
-            assert(firstChild);
-            int32_t next = firstChild;
-            do {
-                const char *symbol;
-                int32_t nextSibling, location;
-                readNode(ch + next, &type, &location, 0, &nextSibling, 0, &symbol);
-                printf("%s %s %s\n", symbolName, symbol, nodeTypeToName(type));
-                if (type == targetType && !strcmp(symbolName, symbol)) {
-                    found = location;
-                    break;
-                }
-                next = nextSibling;
-            } while (next);
-            break; }
-        case Reference:
-        case EnumValue:
-            readNode(ch + parent, 0, &found, 0, 0, 0, 0);
-            break;
+    if (symbolName) {
+        const int symbolNameLen = strlen(symbolName) + 1;
+        char *arg = new char[symbolNameLen + sizeof(int32_t)];
+        strncpy(arg + sizeof(int32_t), symbolName, symbolNameLen);
+        const void *bs = bsearch(arg,
+                                 ch + (sizeof(int32_t) * 2) + 2,
+                                 nodeCount,
+                                 locationLength + 1 + sizeof(int32_t),
+                                 find);
+        // printf("Found a match %p\n", bs);
+        delete []arg;
+        if (bs) {
+            int32_t idx = *reinterpret_cast<const int32_t*>(bs);
+            const char *symbolName;
+            int32_t type;
+            int32_t parent;
+            readNode(ch + idx, &type, 0, &parent, 0, 0, &symbolName);
+            // printf("Found node %s %s\n", nodeTypeToName(type), symbolName);
+            int32_t found = 0;
+            NodeType targetType = MethodDeclaration;
+            switch (type) {
+            case MethodDeclaration:
+                targetType = MethodDefinition;
+            case MethodDefinition: {
+                int32_t firstChild;
+                const char *f;
+                readNode(ch + parent, &type, 0, 0, 0, &firstChild, &f);
+                assert(firstChild);
+                int32_t next = firstChild;
+                do {
+                    const char *symbol;
+                    int32_t nextSibling, location;
+                    readNode(ch + next, &type, &location, 0, &nextSibling, 0, &symbol);
+                    // printf("%s %s %s\n", symbolName, symbol, nodeTypeToName(type));
+                    if (type == targetType && !strcmp(symbolName, symbol)) {
+                        found = location;
+                        break;
+                    }
+                    next = nextSibling;
+                } while (next);
+                break; }
+            case Reference:
+            case EnumValue:
+                readNode(ch + parent, 0, &found, 0, 0, 0, &symbolName);
+                break;
+            default:
+                break;
+            }
+            if (found) {
+                printf("%s\n", ch + found);
+            } else {
+                printf("Couldn't find it\n");
+            }
         }
-        if (found) {
-            printf("%s\n", ch + found);
-        } else {
-            printf("Couldn't find it\n");
-        }
-        // printf("Found %s %d %d\n", symbolName, type, parent);
     }
     return 0;
 }
