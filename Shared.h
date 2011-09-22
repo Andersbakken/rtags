@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 #include <string.h>
+#ifdef QT
+#include <QByteArray>
+#include <QIODevice>
+#endif
 
 enum Offsets {
     Int32Length = 4,
