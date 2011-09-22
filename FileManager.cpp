@@ -93,7 +93,6 @@ void FileManager::onMakeOutput()
             const QByteArray line(data.buffer.constData() + last, i - last - 1);
             last = i;
             if (!line.isEmpty()) {
-#warning we need to listen for leaving directory and maintain a stack
                 if (line.startsWith("cd ")) {
                     const int slash = line.indexOf('/', 3);
                     if (slash == -1) {

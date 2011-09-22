@@ -103,7 +103,6 @@ CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor parent, CXCl
     if (!file)
         return CXChildVisit_Continue;
 
-#warning needs to short circuit when encounting a header it has seen
     // qDebug() << cursor << parent;
     ComprehensiveTreeUserData *u = reinterpret_cast<ComprehensiveTreeUserData*>(data);
     CursorNode *p = 0;
@@ -443,6 +442,46 @@ static int32_t writeNode(QIODevice *device, Node *node, const QHash<Node*, int32
     return nodePosition;
 }
 
+static inline void addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> > &map, const QHash<Node*, qint32> &positions)
+{
+    switch (node->type) {
+    case All:
+    case Invalid:
+    case Root:
+    case Reference:
+        return;
+    case Namespace:
+    case Class:
+    case Struct:
+    case MethodDefinition:
+    case MethodDeclaration:
+    case Variable:
+    case Enum:
+    case EnumValue:
+    case Typedef:
+    case MacroDefinition:
+        break;
+    }
+
+    const int location = positions.value(node);
+    map[node->symbolName].insert(location);
+    Node *parent = node->parent;
+    QByteArray symbolName = node->symbolName;
+    while (parent) {
+        switch (parent->type) {
+        case Struct:
+        case Class:
+        case Namespace:
+            symbolName.prepend("::");
+            symbolName.prepend(parent->symbolName);
+            map[symbolName].insert(location);
+            break;
+        default:
+            break;
+        }
+    }
+}
+
 bool VisitThread::save(const QByteArray &path)
 {
     QFile file(path);
@@ -471,6 +510,7 @@ bool VisitThread::save(const QByteArray &path)
     writeInt32(out + IdLengthPos, idLengthLength);
     writeInt32(out + DictionaryPosPos, pos);
     writeNode(&file, mRoot, positions, -1, idLengthLength);
+    QMap<QByteArray, int> symbols;
     int entryIdx = 0;
     for (QMap<QByteArray, Node*>::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it) {
         Node *node = it.value();
@@ -482,6 +522,17 @@ bool VisitThread::save(const QByteArray &path)
     }
     file.seek(0);
     file.write(header);
+    file.seek(pos);
+    QMap<QByteArray, QSet<int32_t> > dictionary;
+    for (QMap<QByteArray, Node*>::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it) {
+        addToDictionary(it.value(), dictionary, positions);
+    }
+    for (QMap<QByteArray, QSet<int32_t> >::const_iterator it = dictionary.begin(); it != dictionary.end(); ++it) {
+#warning how should we store these
+        // qDebug() << it.key() << it.value();
+    }
+
+
 #if 0
     for (int i=0; i<FirstId; ++i) {
         printf("%d: 0x%x %c\n", i, header.at(i), header.at(i));
