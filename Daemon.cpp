@@ -5,7 +5,6 @@
 #include "PreCompile.h"
 #include "Node.h"
 #include "FileManager.h"
-#include "TemporaryFiles.h"
 #include <magic.h>
 #include <fcntl.h>
 
@@ -154,6 +153,8 @@ Daemon::Daemon(QObject *parent)
     connect(&mParseThread, SIGNAL(fileParsed(Path, void*)), &mVisitThread, SLOT(onFileParsed(Path, void*)));
     connect(&mParseThread, SIGNAL(parseError(Path)), &mVisitThread, SLOT(onParseError(Path)));
     connect(&mParseThread, SIGNAL(dependenciesAdded(QSet<Path>)), this, SLOT(onDependenciesAdded(QSet<Path>)));
+    connect(&mFileManager, SIGNAL(done()), this, SLOT(quit()));
+    connect(&mVisitThread, SIGNAL(done()), this, SLOT(quit()));
     mParseThread.start();
     mVisitThread.start();
     mFileManager.start();
@@ -169,45 +170,22 @@ Daemon::~Daemon()
         threads[i]->wait();
 }
 
-bool Daemon::start()
-{
-    if (!mEbus.start())
-        return false;
-    connect(&mEbus, SIGNAL(ebusConnected(EBus*)), this, SLOT(ebusConnected(EBus*)));
-    return true;
-}
-
-void Daemon::ebusConnected(EBus *ebus)
-{
-    connect(ebus, SIGNAL(ready()), this, SLOT(ebusDataReady()));
-}
-
-void Daemon::ebusDataReady()
-{
-    EBus* ebus = qobject_cast<EBus*>(sender());
-    if (!ebus)
-        return;
-
-    static int bytearrayhash = QMetaType::type("ByteArrayHash");
-    static int bytearraylist = QMetaType::type("QList<QByteArray>");
-    Q_UNUSED(bytearrayhash);
-    Q_ASSERT(ebus->peek() == bytearrayhash);
-    QHash<QByteArray, QVariant> args = ebus->pop().value<QHash<QByteArray, QVariant> >();
-    Q_ASSERT(ebus->peek() == bytearraylist);
-    Q_UNUSED(bytearraylist);
-    QList<QByteArray> list = ebus->pop().value<QList<QByteArray> >();
-
-    QHash<QByteArray, QVariant> ret = runCommand(args, list);
-
-    QVariant ebusarg = qVariantFromValue(ret);
-    ebus->push(ebusarg);
-    ebus->send();
-}
-
 static QHash<QByteArray, QVariant> syntax()
 {
     return createResultMap("Syntax: rtags --command=command [--argument1, --argument2=foo, ...]\n"
                            "commands: syntax|quit|add|remove|lookupline|makefile|daemonize|files|lookup\n");
+}
+
+void Daemon::quit()
+{
+    mParseThread.abort();
+    mVisitThread.abort();
+    mFileManager.quit();
+    mParseThread.wait();
+    mVisitThread.wait();
+    mFileManager.wait();
+    QTimer::singleShot(100, QCoreApplication::instance(), SLOT(quit()));
+    // hack to make the quit command properly respond before the server goes down
 }
 
 QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant> &dashArgs,
@@ -256,16 +234,10 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
     }
 
     if (cmd == "syntax") {
+        quit();
         return syntax();
     } else if (cmd == "quit") {
-        mParseThread.abort();
-        mVisitThread.abort();
-        mFileManager.quit();
-        mParseThread.wait();
-        mVisitThread.wait();
-        mFileManager.wait();
-        QTimer::singleShot(100, QCoreApplication::instance(), SLOT(quit()));
-        // hack to make the quit command properly respond before the server goes down
+        quit();
         return createResultMap("quitting");
     } else if (cmd == "printtree") {
         return printTree(dashArgs, freeArgs);
@@ -289,8 +261,6 @@ QHash<QByteArray, QVariant> Daemon::runCommand(const QHash<QByteArray, QVariant>
         if (!ret.isEmpty())
             ret.chop(1);
         return createResultMap(ret);
-    } else if (cmd == "temporaryfile") {
-        return addTemporaryFile(dashArgs, freeArgs);
     }
     return createResultMap("Unknown command");
 }
@@ -313,32 +283,6 @@ QHash<QByteArray, QVariant> Daemon::addMakefile(const QHash<QByteArray, QVariant
     }
     mFileManager.addMakefile(makefile);
     return createResultMap("Added makefile");
-}
-
-QHash<QByteArray, QVariant> Daemon::addTemporaryFile(const QHash<QByteArray, QVariant>& dashArgs,
-                                                     const QList<QByteArray>& freeArgs)
-{
-    if (freeArgs.isEmpty())
-        return createResultMap("No temporary file specified");
-
-    QByteArray filename = freeArgs.first();
-
-    if (dashArgs.contains("remove")) {
-        if (TemporaryFiles::instance()->removeFile(filename))
-            return createResultMap("Temporary file removed");
-        else
-            return createResultMap("Temporary file does not exist: " + filename);
-    }
-
-    QByteArray content;
-    QFile stdinfile;
-    stdinfile.open(STDIN_FILENO, QFile::ReadOnly);
-    while (!stdinfile.atEnd())
-        content += stdinfile.read(8192);
-
-    TemporaryFiles::instance()->addFile(filename, content);
-
-    return createResultMap("Temporary file added");
 }
 
 QHash<QByteArray, QVariant> Daemon::lookup(const QHash<QByteArray, QVariant> &args, const QList<QByteArray> &freeArgs)

@@ -79,6 +79,8 @@ void FileManager::onMakeFinished(int statusCode)
     mMakefiles.remove(proc);
     proc->deleteLater();
     store();
+
+    emit done();
 }
 
 void FileManager::onMakeOutput()

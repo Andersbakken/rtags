@@ -3,11 +3,9 @@
 #include <QList>
 #include <stdio.h>
 #include "Daemon.h"
-#include "Client.h"
 #include "Utils.h"
 #include <syslog.h>
 #include "ArgParser.h"
-#include "TemporaryFiles.h"
 
 void syslogMsgHandler(QtMsgType t, const char* str)
 {
@@ -61,28 +59,6 @@ void syslogMsgHandler(QtMsgType t, const char* str)
     syslog(priority, "%s (%s)\n", str, names[t]);
 }
 
-static inline bool daemonize(Daemon *daemon, int timeout)
-{
-    {
-        Client client;
-        if (client.connect(timeout)) {
-            client.exec(QHash<QByteArray, QVariant>(), QList<QByteArray>() << "quit");
-        }
-    }
-
-    // Ensure that the TemporaryFiles singleton gets initialized in a thread safe manner
-    TemporaryFiles::instance()->init();
-
-    qInstallMsgHandler(syslogMsgHandler);
-    for (int i=0; i<10; ++i) {
-        if (daemon->start()) {
-            return true;
-        }
-        usleep(timeout * 1000);
-    }
-    return false;
-}
-
 int main(int argc, char** argv)
 {
     if (QFile::exists("/tmp/rtags.log")) {
@@ -117,16 +93,17 @@ int main(int argc, char** argv)
 
     QList<QByteArray> freeArgs = args.freeArguments();
     if (freeArgs.isEmpty())
-        freeArgs.append("daemonize");
+        freeArgs.append("syntax");
 
-    QByteArray cmd = freeArgs.first();
     QCoreApplication::setOrganizationDomain("www.rtags.com");
     QCoreApplication::setOrganizationName("rtags");
     QCoreApplication::setApplicationName("rtags");
 
     qInstallMsgHandler(syslogMsgHandler);
     Daemon daemon;
-    TemporaryFiles::instance()->init();
+    if (Options::s_verbose)
+        qDebug() << argsmap << freeArgs;
+
     const QHash<QByteArray, QVariant> replymap = daemon.runCommand(argsmap, freeArgs);
     const QByteArray reply = replymap.value("result").toByteArray();
     if (!reply.isEmpty())

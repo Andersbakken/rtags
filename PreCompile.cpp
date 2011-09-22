@@ -1,5 +1,4 @@
 #include "PreCompile.h"
-#include "TemporaryFiles.h"
 #include <QFileInfo>
 #include <QDebug>
 #include <clang-c/Index.h>
@@ -191,9 +190,8 @@ void PreCompile::compile(const QByteArray headers)
     inp.close();
     CXIndex idx = clang_createIndex(0, 0);
     //qDebug() << "trying to precompile" << m_headers << "with" << m_args;
-    QVector<TemporaryFile> temps = TemporaryFiles::instance()->unsavedFiles();
     CXTranslationUnit unit = clang_parseTranslationUnit(idx, infile.constData(), m_args.data(), m_args.size(),
-                                                        temps.data(), temps.size(), CXTranslationUnit_Incomplete);
+                                                        0, 0, CXTranslationUnit_Incomplete);
     if (!unit) {
         clang_disposeIndex(idx);
         return;

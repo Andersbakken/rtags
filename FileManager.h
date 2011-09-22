@@ -34,6 +34,8 @@ public:
                  QSet<Path> *dependents, QSet<Path> *dependsOn) const;
     QByteArray dependencyMap() const;
     bool addDependencies(const Path &source, const QSet<Path> &headers);
+signals:
+    void done();
 protected:
     bool event(QEvent *event);
 private slots:

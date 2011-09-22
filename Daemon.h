@@ -14,7 +14,6 @@
 #include "Location.h"
 #include "ParseThread.h"
 #include "VisitThread.h"
-#include "EBus.h"
 #include "FileManager.h"
 
 struct Node;
@@ -25,11 +24,11 @@ public:
     Daemon(QObject* parent = 0);
     ~Daemon();
 
-    bool start();
-    Q_INVOKABLE QHash<QByteArray, QVariant> runCommand(const QHash<QByteArray, QVariant>& dashArgs,
-                                                       QList<QByteArray> freeArgs);
+    QHash<QByteArray, QVariant> runCommand(const QHash<QByteArray, QVariant>& dashArgs,
+                                           QList<QByteArray> freeArgs);
 public slots:
     void onDependenciesAdded(const QSet<Path> &path);
+    void quit();
 private:
     // ### need to add a function for code completion
     QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args,
@@ -42,17 +41,11 @@ private:
                                             const QList<QByteArray>& freeArgs);
     QHash<QByteArray, QVariant> load(const QHash<QByteArray, QVariant>&,
                                      const QList<QByteArray> &freeArgs);
-    QHash<QByteArray, QVariant> addTemporaryFile(const QHash<QByteArray, QVariant>& args,
-                                                 const QList<QByteArray> &freeArgs);
     void addDeps(const Path &path, QHash<Path, GccArguments> &deps, QSet<Path> &seen);
-private slots:
-    void ebusConnected(EBus* ebus);
-    void ebusDataReady();
 private:
     ParseThread mParseThread;
     VisitThread mVisitThread;
     FileManager mFileManager;
-    EBusDaemon mEbus;
 };
 
 #endif

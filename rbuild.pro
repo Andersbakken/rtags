@@ -18,27 +18,22 @@ DEFINES += QT
 SOURCES += \
     main.cpp \
     Daemon.cpp \
-    Client.cpp \
     GccArguments.cpp \
     Utils.cpp \
     PreCompile.cpp \
-    EBus.cpp \
     Node.cpp \
     Path.cpp \
     ParseThread.cpp \
     VisitThread.cpp \
     FileManager.cpp \
     ArgParser.cpp \
-    TemporaryFiles.cpp \
     Shared.c
 
 HEADERS += \
     Daemon.h \
-    Client.h \
     GccArguments.h \
     Utils.h \
     PreCompile.h \
-    EBus.h \
     Path.h \
     Node.h \
     Location.h \
@@ -46,7 +41,6 @@ HEADERS += \
     VisitThread.h \
     FileManager.h \
     ArgParser.h \
-    TemporaryFiles.h \
     Shared.h
 
 OTHER_FILES += \
