@@ -24,3 +24,4 @@ unix {
     UI_DIR = $${OUT_PWD}/.uic/
 }
  
+QMAKE_LINK = $$QMAKE_LINK_C
