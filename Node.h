@@ -4,7 +4,7 @@
 #include "Location.h"
 #include "Path.h"
 #include <QByteArray>
-#include "NodeType.h"
+#include "Shared.h"
 
 struct Node
 {

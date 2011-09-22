@@ -29,7 +29,7 @@ SOURCES += \
     FileManager.cpp \
     ArgParser.cpp \
     TemporaryFiles.cpp \
-    NodeType.cpp
+    Shared.cpp
 
 HEADERS += \
     Daemon.h \
@@ -46,7 +46,7 @@ HEADERS += \
     FileManager.h \
     ArgParser.h \
     TemporaryFiles.h \
-    NodeType.h
+    Shared.h
 
 OTHER_FILES += \
     gccopts.gperf

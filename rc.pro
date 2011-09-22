@@ -8,8 +8,8 @@ DEPENDPATH += .
 INCLUDEPATH += .
 
 # Input
-SOURCES += rc.cpp NodeType.cpp
-HEADERS += NodeType.h
+SOURCES += rc.cpp Shared.cpp
+HEADERS += Shared.h
 CONFIG += debug
 CONFIG -= app_bundle
 QT = 

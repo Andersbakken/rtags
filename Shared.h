@@ -1,5 +1,5 @@
-#ifndef NodeType_h
-#define NodeType_h
+#ifndef Shared_h
+#define Shared_h
 
 enum NodeType {
     Invalid = 0x000000,

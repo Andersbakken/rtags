@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <assert.h>
-#include "NodeType.h"
+#include "Shared.h"
 #include <getopt.h>
 #include <string>
 
