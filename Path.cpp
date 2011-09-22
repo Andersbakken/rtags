@@ -43,7 +43,7 @@ time_t Path::lastModified() const
     return st.st_mtime;
 }
 
-qint64 Path::fileSize() const
+int64_t Path::fileSize() const
 {
     struct stat st;
     if (!stat(constData(), &st) && st.st_mode == S_IFREG)

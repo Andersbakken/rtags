@@ -284,7 +284,7 @@ QDataStream& operator<<(QDataStream& stream, const GccArguments& args)
     const GccArguments::Data* data = args.m_ptr.constData();
 
     stream << data->input << data->output << data->x << data->c
-           << data->error << qint8(data->language)
+           << data->error << int8_t(data->language)
            << data->inputreplace << data->outputreplace
            << data->raw << data->dir
            << data->args;
@@ -296,7 +296,7 @@ QDataStream& operator>>(QDataStream& stream, GccArguments& args)
     args.m_ptr.detach();
     GccArguments::Data* data = args.m_ptr.data();
 
-    qint8 lang;
+    int8_t lang;
     stream >> data->input >> data->output >> data->x >> data->c
            >> data->error >> lang
            >> data->inputreplace >> data->outputreplace

@@ -63,7 +63,7 @@ private:
     mutable QMutex mMutex;
     QMap<QByteArray, Node*> mNodes;
     bool mQuitting;
-    qint32 mLongestId;
+    int32_t mLongestId;
     QBasicTimer timer;
 };
 
