@@ -169,7 +169,6 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
                 Node *parent = mNodes.value(macroDefinitionId);
                 Q_ASSERT(parent);
                 const QByteArray id = loc.toString();
-                qint32 old = mLongestId;
                 mLongestId = qMax(id.size(), mLongestId);
                 mNodes[id] = new Node(parent, Reference, c->cursor, loc, id);
                 return;
@@ -203,7 +202,6 @@ void VisitThread::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pendi
                 }
 
                 node = new Node(parent, type, c->cursor, loc, id);
-                qint32 old = mLongestId;
                 mLongestId = qMax(id.size(), mLongestId);
                 parent = node;
             }
@@ -428,7 +426,7 @@ static int nodeSize(Node *node)
 // first id ...
 // [qint32][location padded to length]
 
-enum { FirstId = (sizeof(char) * 2) + sizeof(qint32) + sizeof(qint32) };
+enum { FirstId = (sizeof(char) * 2) + (sizeof(qint32) * 3) };
 static qint32 writeNode(QIODevice *device, Node *node, const QHash<Node*, qint32> &positions,
                         int entryIdx, int entryLength)
 {
@@ -463,8 +461,8 @@ bool VisitThread::save(const QByteArray &path)
     QMutexLocker lock(&mMutex);
     const qint32 nodeCount = mNodes.size();
     const int entryLength = mLongestId + 1 + sizeof(qint32);
-    QByteArray header(FirstId + entryLength * nodeCount, '\0');
-    int pos = header.size();
+    QByteArray header(FirstId + (entryLength * (nodeCount + 1)), '\0');
+    qint32 pos = header.size();
     QHash<Node*, qint32> positions;
     positions[mRoot] = pos;
     pos += nodeSize(mRoot);
@@ -473,7 +471,6 @@ bool VisitThread::save(const QByteArray &path)
         pos += nodeSize(it.value());
     }
     file.resize(pos);
-    // device->write("Rt", 2);
     char *out = header.data();
     *out++ = 'R';
     *out++ = 't';
@@ -481,8 +478,9 @@ bool VisitThread::save(const QByteArray &path)
     out += sizeof(qint32);
     memcpy(out, reinterpret_cast<const char *>(&mLongestId), sizeof(qint32));
     out += sizeof(qint32);
-    // qWarning() << "entryLength" << entryLength << mLongestId << nodeCount
-    //            << (nodeCount * entryLength) + FirstId;
+    memcpy(out, reinterpret_cast<const char *>(&pos), sizeof(qint32));
+    out += sizeof(qint32);
+    qWarning() << "entryLength" << entryLength << mLongestId << nodeCount << pos;
     writeNode(&file, mRoot, positions, -1, entryLength);
     int entryIdx = 0;
     for (QMap<QByteArray, Node*>::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it) {
@@ -495,23 +493,23 @@ bool VisitThread::save(const QByteArray &path)
     }
     file.seek(0);
     file.write(header);
-    // for (int i=0; i<FirstId; ++i) {
-    //     printf("%d: 0x%x %c\n", i, header.at(i), header.at(i));
-    // }
-    // int p = FirstId;
-    // for (int i=0; i<nodeCount; ++i) {
-    //     for (int j=0; j<entryLength; ++j) {
-    //         char ch = header.at(p++);
-    //         if (ch == '\0') {
-    //             printf("_");
-    //         } else if (ch < 32) {
-    //             printf("-");
-    //         } else {
-    //             printf("%c", ch);
-    //         }
-    //     }
-    //     printf("\n");
-    // }
+    for (int i=0; i<FirstId; ++i) {
+        printf("%d: 0x%x %c\n", i, header.at(i), header.at(i));
+    }
+    int p = FirstId;
+    for (int i=0; i<nodeCount; ++i) {
+        for (int j=0; j<entryLength; ++j) {
+            char ch = header.at(p++);
+            if (ch == '\0') {
+                printf("_");
+            } else if (ch < 32) {
+                printf("-");
+            } else {
+                printf("%c", ch);
+            }
+        }
+        printf("\n");
+    }
 
     // device->
     return true;

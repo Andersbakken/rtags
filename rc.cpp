@@ -15,6 +15,8 @@
 
 static int32_t locationLength = -1;
 
+enum { FirstId = 2 + sizeof(int32_t) * 3 };
+
 static int find(const void *l, const void *r)
 {
     const char *left = reinterpret_cast<const char*>(l) + sizeof(int32_t);
@@ -203,9 +205,11 @@ int main(int argc, char **argv)
     // }
 
     int32_t nodeCount = -1;
+    int32_t dictionaryPosition = -1;
     memcpy(&nodeCount, ch + 2, sizeof(int32_t));
     memcpy(&locationLength, ch + 2 + sizeof(int32_t), sizeof(int32_t));
-    // printf("%d %d\n", locationLength, nodeCount);
+    memcpy(&dictionaryPosition, ch + 2 + sizeof(int32_t) + sizeof(int32_t), sizeof(int32_t));
+    printf("%d %d %d\n", locationLength, nodeCount, dictionaryPosition);
     // qDebug() << (locationLength + 1 + sizeof(int32_t));
     if (locationLength <= 0 || nodeCount <= 0) {
         printf("%s %d: if (locationLength <= 0 || nodeCount <= 0)\n", __FILE__, __LINE__);
@@ -213,7 +217,7 @@ int main(int argc, char **argv)
     }
 
     if (showTree) {
-        recurse(ch, 2 + (sizeof(int32_t) * 2) + ((locationLength + 1 + sizeof(int32_t)) * nodeCount), 0);
+        recurse(ch, FirstId + ((locationLength + 1 + sizeof(int32_t)) * nodeCount), 0);
     }
 
     if (arg) {
@@ -221,7 +225,7 @@ int main(int argc, char **argv)
         char *padded = new char[argLen + sizeof(int32_t)];
         strncpy(padded + sizeof(int32_t), arg, argLen);
         const void *bs = bsearch(padded,
-                                 ch + (sizeof(int32_t) * 2) + 2,
+                                 ch + FirstId,
                                  nodeCount,
                                  locationLength + 1 + sizeof(int32_t),
                                  find);
