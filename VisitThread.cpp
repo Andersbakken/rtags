@@ -482,6 +482,7 @@ bool VisitThread::save(const QByteArray &path)
     }
     file.seek(0);
     file.write(header);
+#if 0
     for (int i=0; i<FirstId; ++i) {
         printf("%d: 0x%x %c\n", i, header.at(i), header.at(i));
     }
@@ -499,7 +500,6 @@ bool VisitThread::save(const QByteArray &path)
         }
         printf("\n");
     }
-
-    // device->
+#endif
     return true;
 }
