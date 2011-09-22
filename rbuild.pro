@@ -13,6 +13,7 @@ macx {
 
 QT = core network
 
+DEFINES += QT
 # Input
 SOURCES += \
     main.cpp \

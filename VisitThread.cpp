@@ -411,11 +411,11 @@ static int nodeSize(Node *node)
 {
     // zero termination for each string => 2
     //
-    return (sizeof(qint32) /* type */
-            + sizeof(qint32) /* Location pos */
-            + sizeof(qint32) /* parent pos */
-            + sizeof(qint32) /* nextSibling pos */
-            + sizeof(qint32) /* firstChild pos */
+    return (Int32Length /* type */
+            + Int32Length /* Location pos */
+            + Int32Length /* parent pos */
+            + Int32Length /* nextSibling pos */
+            + Int32Length /* firstChild pos */
             + node->symbolName.size() + 1); /*symbolName*/
 }
 
@@ -426,7 +426,6 @@ static int nodeSize(Node *node)
 // first id ...
 // [qint32][location padded to length]
 
-enum { FirstId = (sizeof(char) * 2) + (sizeof(qint32) * 3) };
 static qint32 writeNode(QIODevice *device, Node *node, const QHash<Node*, qint32> &positions,
                         int entryIdx, int entryLength)
 {
@@ -434,19 +433,13 @@ static qint32 writeNode(QIODevice *device, Node *node, const QHash<Node*, qint32
     // printf("Writing node %s %s at %d\n", nodeTypeToName(node->type), node->symbolName.constData(), nodePosition);
     Q_ASSERT(nodePosition > 0);
     device->seek(nodePosition);
-    const qint32 type = node->type;
-    // qDebug() << "writing type at" << device->pos() << type << "for" << node->symbolName << nodeTypeToName(node->type);
-    device->write(reinterpret_cast<const char*>(&type), sizeof(qint32));
-    const qint32 location = (entryIdx == -1 ? 0 : (entryIdx * entryLength) + FirstId + sizeof(qint32));
-    device->write(reinterpret_cast<const char*>(&location), sizeof(qint32)); // pointer to where the location sits in the index
-    const qint32 parent = positions.value(node->parent, 0);
-    device->write(reinterpret_cast<const char*>(&parent), sizeof(qint32));
-    const qint32 nextSibling = positions.value(node->nextSibling, 0);
-    device->write(reinterpret_cast<const char*>(&nextSibling), sizeof(qint32));
-    const qint32 firstChild = positions.value(node->firstChild, 0);
-    device->write(reinterpret_cast<const char*>(&firstChild), sizeof(qint32));
-    device->write(node->symbolName);
-    device->write('\0');
+    writeInt32(device, node->type);
+    const qint32 location = (entryIdx == -1 ? 0 : (entryIdx * entryLength) + FirstId + Int32Length);
+    writeInt32(device, location);
+    writeInt32(device, positions.value(node->parent, 0));
+    writeInt32(device, positions.value(node->nextSibling, 0));
+    writeInt32(device, positions.value(node->firstChild, 0));
+    writeString(device, node->symbolName);
     return nodePosition;
 }
 
@@ -460,8 +453,8 @@ bool VisitThread::save(const QByteArray &path)
     // ### error checking?
     QMutexLocker lock(&mMutex);
     const qint32 nodeCount = mNodes.size();
-    const int entryLength = mLongestId + 1 + sizeof(qint32);
-    QByteArray header(FirstId + (entryLength * (nodeCount + 1)), '\0');
+    const int entryLength = mLongestId + 1 + Int32Length;
+    QByteArray header(rootNodePosition(nodeCount, entryLength), '\0');
     qint32 pos = header.size();
     QHash<Node*, qint32> positions;
     positions[mRoot] = pos;
@@ -472,24 +465,20 @@ bool VisitThread::save(const QByteArray &path)
     }
     file.resize(pos);
     char *out = header.data();
-    *out++ = 'R';
-    *out++ = 't';
-    memcpy(out, reinterpret_cast<const char *>(&nodeCount), sizeof(qint32));
-    out += sizeof(qint32);
-    memcpy(out, reinterpret_cast<const char *>(&mLongestId), sizeof(qint32));
-    out += sizeof(qint32);
-    memcpy(out, reinterpret_cast<const char *>(&pos), sizeof(qint32));
-    out += sizeof(qint32);
-    qWarning() << "entryLength" << entryLength << mLongestId << nodeCount << pos;
-    writeNode(&file, mRoot, positions, -1, entryLength);
+    writeString(out + MagicPos, "Rt");
+    writeInt32(out + NodeCountPos, nodeCount);
+    const int idLengthLength = (mLongestId + 1 + Int32Length);
+    writeInt32(out + IdLengthPos, idLengthLength);
+    writeInt32(out + DictionaryPosPos, pos);
+    writeNode(&file, mRoot, positions, -1, idLengthLength);
     int entryIdx = 0;
     for (QMap<QByteArray, Node*>::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it) {
         Node *node = it.value();
         const QByteArray &key = it.key();
-        const qint32 nodePosition = writeNode(&file, node, positions, entryIdx++, entryLength);
-        memcpy(out, reinterpret_cast<const char *>(&nodePosition), sizeof(qint32));
-        strncpy(out + sizeof(qint32), key.constData(), key.size());
-        out += entryLength;
+        const qint32 nodePosition = writeNode(&file, node, positions, entryIdx, entryLength);
+        char *s = writeInt32(out + FirstId + (entryIdx * entryLength), nodePosition);
+        writeString(s, key);
+        ++entryIdx;
     }
     file.seek(0);
     file.write(header);

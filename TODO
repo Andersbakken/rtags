@@ -1,28 +1,7 @@
-Replace sqlite with homegrown format => Done
-Reparse crashes in c-lang? => Done (we're not calling reparse, but rather parse it again)
-Make Database api more friendly => Done
-Build depedencies using clang_getInclusions => Done
-Investige issue with duplicate files (qt_core_pch.h) => Done
-Investige why Qt drops symbols => Done
-make all paths everywhere absolute => Done
-Make database more persistent (e.g. know if a file has changed) >= Done
-Make a Path class => Done
-threads: => Done
-        main, only read only access to tree => Done
-        clang, clang_parsing and pch => Done
-        processing, clang_visit and write access to tree => Done
-Fix raise conditions with filesystemwatcher, don't add until parsed. => Done
-Add regexp matching or at least some heuristics for remove so you don't have to pass the whole path => Done
-Two consecutive changes to a file will cause two reparses even if they both happen before parsing begins again => Done
-
-Use AST file caching
-Don't use filesystemwatcher
-completion api
-unsaved-file generalizing
-write elisp bindings
-lookup-line reintroduce
-Fix dbus xml file, the generated files and the xml have diverged
-unbreak dbus
-live syntax checking
-### Is that loop in removeChildren right?
-
+Kill EBus
+Make makefile load files
+Make rtags -u|--update
+Make rtags create rtags.db (-o | or default to .rtags.db in same dir as Makefile).
+Add symbolName dictionary 
+Add filenames, lastModified, dependencies, GccArguments etc to rtags.db
+make rc C, not c++
