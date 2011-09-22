@@ -4,4 +4,3 @@ Make rtags -u|--update
 Make rtags create rtags.db (-o | or default to .rtags.db in same dir as Makefile).
 Add symbolName dictionary 
 Add filenames, lastModified, dependencies, GccArguments etc to rtags.db
-make rc C, not c++

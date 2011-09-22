@@ -3,10 +3,9 @@
 #include <string.h>
 #include <stdio.h>
 
-const char *nodeTypeToName(int t, NodeTypeToNameMode mode)
+const char *nodeTypeToName(int t, NodeTypeToNameMode abbrev)
 {
-    const bool abbrev = (mode == Abbreviated);
-    NodeType type = static_cast<NodeType>(t);
+    NodeType type = (NodeType)t;
     switch (type) {
     case Enum: return abbrev ? "e" : "Enum";
     case EnumValue: return abbrev ? "ev" : "EnumValue";
@@ -32,12 +31,13 @@ const char *nodeTypeToName(int t, NodeTypeToNameMode mode)
 NodeType stringToNodeType(const char *in)
 {
     if (in) {
-        for (int i=MethodDeclaration; i<=Reference; i <<= 1) {
-            const NodeType type = static_cast<NodeType>(i);
+        int i;
+        for (i=MethodDeclaration; i<=Reference; i <<= 1) {
+            const NodeType type = (NodeType)i;
             const char *name = nodeTypeToName(type, Abbreviated);
             assert(name);
             if (!strcasecmp(name, in)) {
-                return static_cast<NodeType>(i);
+                return (NodeType)i;
             }
         }
     }

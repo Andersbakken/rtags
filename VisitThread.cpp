@@ -216,7 +216,7 @@ void VisitThread::addReference(CursorNode *c, const QByteArray &id, const Locati
 {
     if (mNodes.contains(id)) {
         qWarning() << "Turns out" << c->cursor << "already exists"
-                   << mNodes.value(id)->symbolName << nodeTypeToName(mNodes.value(id)->type)
+                   << mNodes.value(id)->symbolName << nodeTypeToName(mNodes.value(id)->type, Normal)
                    << mNodes.value(id)->location;
         return;
     }

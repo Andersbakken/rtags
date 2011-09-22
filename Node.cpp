@@ -116,7 +116,7 @@ QByteArray Node::toString() const
         indent += 2;
     }
     QByteArray buf(indent, ' ');
-    buf += nodeTypeToName(type);
+    buf += nodeTypeToName(type, Normal);
     buf += ' ';
     buf += symbolName;
     buf += " [";
@@ -185,7 +185,7 @@ Node *Node::methodDefinition() const
         Q_ASSERT(parent);
         for (Node *n = parent->firstChild; n; n = n->nextSibling) {
             if (n->symbolName == symbolName) {
-                qDebug() << nodeTypeToName(n->type) << symbolName;
+                qDebug() << nodeTypeToName(n->type, Normal) << symbolName;
             }
             if (n->type == MethodDefinition && n->symbolName == symbolName)
                 return n;

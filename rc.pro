@@ -8,7 +8,7 @@ DEPENDPATH += .
 INCLUDEPATH += .
 
 # Input
-SOURCES += rc.cpp Shared.cpp
+SOURCES += rc.c Shared.c
 HEADERS += Shared.h
 CONFIG += debug
 CONFIG -= app_bundle

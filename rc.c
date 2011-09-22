@@ -11,42 +11,40 @@
 #include <assert.h>
 #include "Shared.h"
 #include <getopt.h>
-#include <string>
 
 static int32_t locationLength = -1;
 
 static int find(const void *l, const void *r)
 {
-    const char *left = reinterpret_cast<const char*>(l) + Int32Length;
-    const char *right = reinterpret_cast<const char*>(r) + Int32Length;
+    const char *left = ((const char*)l) + Int32Length;
+    const char *right = ((const char*)r) + Int32Length;
     // printf("%s %s %s\n", left, right, std::string(left, locationLength).c_str());
-    return strncmp(reinterpret_cast<const char*>(left),
-                   reinterpret_cast<const char*>(right),
-                   locationLength - Int32Length);
+    return strncmp(left, right, locationLength - Int32Length);
 }
 
 
-struct Cleanup {
-    ~Cleanup()
-    {
-        if (*mapped)
-            munmap(*mapped, st->st_size);
-        if (*fd)
-            close(*fd);
-    }
+/* struct Cleanup { */
+/*     ~Cleanup() */
+/*     { */
+/*         if (*mapped) */
+/*             munmap(*mapped, st->st_size); */
+/*         if (*fd) */
+/*             close(*fd); */
+/*     } */
 
-    int *fd;
-    struct stat *st;
-    void **mapped;
-};
+/*     int *fd; */
+/*     struct stat *st; */
+/*     void **mapped; */
+/* }; */
 
 void recurse(const char *ch, int32_t pos, int indent)
 {
-    const NodeData node = NodeData::read(ch + pos);
-    for (int i=0; i<indent; ++i) {
+    struct NodeData node = readNodeData(ch + pos);
+    int i;
+    for (i=0; i<indent; ++i) {
         printf(" ");
     }
-    printf("%s %s %s\n", nodeTypeToName(node.type), node.symbolName,
+    printf("%s %s %s\n", nodeTypeToName(node.type, Normal), node.symbolName,
            node.location ? ch + node.location : "");
     if (node.firstChild)
         recurse(ch, node.firstChild, indent + 2);
@@ -86,7 +84,7 @@ int main(int argc, char **argv)
         References
     } mode = None;
     char dbFileBuffer[PATH_MAX + 10];
-    bool showTree = false;
+    int showTree = 0;
     // for (int i=0; i<argc; ++i) {
     //     printf("%d %s\n", i, argv[i]);
     // }
@@ -108,7 +106,7 @@ int main(int argc, char **argv)
             mode = References;
             break;
         case 't':
-            showTree = true;
+            showTree = 1;
             break;
         case 'f':
             dbFile = optarg;
@@ -152,10 +150,7 @@ int main(int argc, char **argv)
     struct stat st;
     void *mapped = 0;
     const char *ch = 0;
-    // Cleanup cleanup = { .fd = &fd, .st = &st, .mapped = &mapped };
-    Cleanup cleanup = { &fd, &st, &mapped };
-    (void)cleanup;
-    
+
     fd = open(dbFile, O_RDONLY);
     if (fd <= 0) {
         printf("%s %d: if (fd <= 0)\n", __FILE__, __LINE__);
@@ -164,20 +159,25 @@ int main(int argc, char **argv)
 
     if (fstat(fd, &st) < 0) {
         printf("%s %d: if (fstat(fdin, &st) < 0) \n", __FILE__, __LINE__);
+        close(fd);
         return 1;
     }
     if (st.st_size < 10) {
         printf("%s %d: if (st.st_size < 10) {\n", __FILE__, __LINE__);
+        close(fd);
         return 1;
     }
         
     if ((mapped = mmap(0, st.st_size, PROT_READ, MAP_SHARED, fd, 0)) == MAP_FAILED) {
         printf("%s %d: if ((src = mmap(0, st.st_size, PROT_READ, MAP_SHARED, fd, 0)) == MAP_FAILED) {\n", __FILE__, __LINE__);
+        close(fd);
         return 1;
     }
-    ch = reinterpret_cast<char*>(mapped);
+    ch = (char*)mapped;
     if (memcmp(mapped, "Rt", 2)) {
         printf("%s %d: if (memcmp(mapped, \"Rt\", 2)) {\n", __FILE__, __LINE__);
+        munmap(mapped, st.st_size);
+        close(fd);
         return 1;
     }
 
@@ -191,6 +191,8 @@ int main(int argc, char **argv)
     // printf("%d %d %d\n", locationLength, nodeCount, dictionaryPosition);
     // qDebug() << (locationLength + 1 + Int32Length);
     if (locationLength <= 0 || nodeCount <= 0) {
+        munmap(mapped, st.st_size);
+        close(fd);
         printf("%s %d: if (locationLength <= 0 || nodeCount <= 0)\n", __FILE__, __LINE__);
         return 1;
     }
@@ -201,24 +203,24 @@ int main(int argc, char **argv)
 
     if (arg) {
         const int argLen = strlen(arg) + 1;
-        char *padded = new char[argLen + Int32Length];
+        char *padded = (char*)malloc(argLen + Int32Length);
         strncpy(padded + Int32Length, arg, argLen);
-        const char *bs = reinterpret_cast<const char*>(bsearch(padded, ch + FirstId, nodeCount, locationLength, find));
+        const char *bs = (const char*)bsearch(padded, ch + FirstId, nodeCount, locationLength, find);
         // printf("Found a match %p\n", bs);
-        delete []padded;
+        free(padded);
         if (bs) {
             const int32_t idx = readInt32(bs);
-            NodeData node = NodeData::read(ch + idx);
+            struct NodeData node = readNodeData(ch + idx);
             if (mode == References) {
                 if (node.firstChild) {
-                    node = NodeData::read(ch + node.firstChild);
-                    while (true) {
+                    node = readNodeData(ch + node.firstChild);
+                    while (1) {
                         if (node.type == Reference && node.location) {
                             printf("%s\n", ch + node.location);
                         }
                         if (!node.nextSibling)
                             break;
-                        node = NodeData::read(ch + node.nextSibling);
+                        node = readNodeData(ch + node.nextSibling);
                     }
                 }
             } else {
@@ -229,22 +231,22 @@ int main(int argc, char **argv)
                 case MethodDeclaration:
                     targetType = MethodDefinition;
                 case MethodDefinition: {
-                    NodeData parent = NodeData::read(ch + node.parent);
+                    struct NodeData parent = readNodeData(ch + node.parent);
                     assert(parent.firstChild);
-                    NodeData sibling = NodeData::read(ch + parent.firstChild);
-                    while (true) {
-                        if (sibling.type == targetType && !strcmp(node.symbolName, sibling.symbolName)) {
+                    struct NodeData sibling = readNodeData(ch + parent.firstChild);
+                    while (1) {
+                        if (sibling.type == (int)targetType && !strcmp(node.symbolName, sibling.symbolName)) {
                             found = sibling.location;
                             break;
                         }
                         if (!sibling.nextSibling)
                             break;
-                        sibling = NodeData::read(ch + sibling.nextSibling);
+                        sibling = readNodeData(ch + sibling.nextSibling);
                     }
                     break; }
                 case Reference:
                 case EnumValue:
-                    found = NodeData::read(ch + node.parent).location;
+                    found = readNodeData(ch + node.parent).location;
                     break;
                 default:
                     break;
@@ -257,6 +259,8 @@ int main(int argc, char **argv)
             }
         }
     }
+    munmap(mapped, st.st_size);
+    close(fd);
     return 0;
 }
 

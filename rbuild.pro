@@ -30,7 +30,7 @@ SOURCES += \
     FileManager.cpp \
     ArgParser.cpp \
     TemporaryFiles.cpp \
-    Shared.cpp
+    Shared.c
 
 HEADERS += \
     Daemon.h \
