@@ -2,8 +2,10 @@
 #include <QString>
 #include <QList>
 #include <stdio.h>
-#include "Daemon.h"
+#include "RBuild.h"
 #include "Utils.h"
+#include "PreCompile.h"
+#include "ClangRunnable.h"
 #include <syslog.h>
 
 void syslogMsgHandler(QtMsgType t, const char* str)
@@ -72,11 +74,16 @@ int main(int argc, char** argv)
     QCoreApplication::setOrganizationName("rtags");
     QCoreApplication::setApplicationName("rtags");
 
+    PreCompile::setPath("/tmp");
+
+    ClangRunnable::init();
     qInstallMsgHandler(syslogMsgHandler);
-    Daemon daemon;
+    RBuild rbuild;
     for (int i=1; i<argc; ++i) {
-        daemon.addMakefile(argv[i]);
+        rbuild.addMakefile(argv[i]);
     }
 
-    return app.exec();
+    const bool ret = app.exec();
+    ClangRunnable::cleanup();
+    return ret;
 }

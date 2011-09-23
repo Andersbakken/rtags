@@ -17,28 +17,24 @@ DEFINES += QT
 # Input
 SOURCES += \
     main.cpp \
-    Daemon.cpp \
+    RBuild.cpp \
     GccArguments.cpp \
     Utils.cpp \
     PreCompile.cpp \
     Node.cpp \
     Path.cpp \
-    ParseThread.cpp \
-    VisitThread.cpp \
-    FileManager.cpp \
+    ClangRunnable.cpp \
     Shared.c
 
 HEADERS += \
-    Daemon.h \
+    RBuild.h \
     GccArguments.h \
     Utils.h \
     PreCompile.h \
     Path.h \
     Node.h \
     Location.h \
-    ParseThread.h \
-    VisitThread.h \
-    FileManager.h \
+    ClangRunnable.h \
     Shared.h
 
 OTHER_FILES += \

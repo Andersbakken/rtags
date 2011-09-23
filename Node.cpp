@@ -1,6 +1,7 @@
 #include "Node.h"
 
-QMap<QByteArray, Node*> *Node::sNodes = 0;
+QMap<QByteArray, Node*> Node::sNodes;
+int32_t Node::sLongestId = 0;
 
 Node::Node()
     : parent(0), nextSibling(0), firstChild(0), type(Root), symbolName("RootNode")
@@ -9,6 +10,10 @@ Node::Node()
 Node::Node(Node *p, NodeType t, const CXCursor &c, const Location &l, const QByteArray &i)
     : parent(p), nextSibling(0), firstChild(0), type(t), location(l), id(i)
 {
+    Q_ASSERT(!sNodes.contains(id));
+    Q_ASSERT(id == l.toString());
+    sNodes[id] = this;
+    sLongestId = qMax(sLongestId, id.size());
     Q_ASSERT(t != Invalid);
     Q_ASSERT(t == Root || parent);
     if (type == Reference && parent->type != Root) {
@@ -42,7 +47,7 @@ Node::Node(Node *p, NodeType t, const CXCursor &c, const Location &l, const QByt
 Node::~Node()
 {
     if (!id.isEmpty()) {
-        const int removed = sNodes->remove(id);
+        const int removed = sNodes.remove(id);
         (void)removed;
         Q_ASSERT(removed > 0);
     }

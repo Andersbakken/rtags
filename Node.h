@@ -9,9 +9,9 @@
 struct Node
 {
     Node *parent, *nextSibling, *firstChild;
-    NodeType type;
-    Location location;
-    QByteArray id; // ### we don't really need to store this
+    const NodeType type;
+    const Location location;
+    const QByteArray id; // ### we don't really need to store this
     QByteArray symbolName;
 
     Node();
@@ -24,7 +24,8 @@ struct Node
     Node *methodDeclaration() const;
     Node *methodDefinition() const;
     int size() const;
-    static QMap<QByteArray, Node*> *sNodes;
+    static QMap<QByteArray, Node*> sNodes;
+    static int32_t sLongestId;
 };
 
 #endif
