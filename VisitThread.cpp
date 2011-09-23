@@ -501,7 +501,7 @@ static inline int32_t addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> 
 
 bool VisitThread::save(const QByteArray &path)
 {
-    qDebug() << "saving to" << path;
+    // qDebug() << "saving to" << path;
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {
         qWarning() << "Can't open" << path;
@@ -525,10 +525,12 @@ bool VisitThread::save(const QByteArray &path)
     char *out = header.data();
     writeString(out + MagicPos, "Rt");
     writeInt32(out + NodeCountPos, nodeCount);
-    qDebug() << "writing nodeCount to" << NodeCountPos << nodeCount;
+    // qDebug() << "writing nodeCount to" << NodeCountPos << nodeCount;
     const int idLengthLength = (mLongestId + 1 + Int32Length);
     writeInt32(out + IdLengthPos, idLengthLength);
-    qDebug() << "writing IdLengthPos to" << IdLengthPos << idLengthLength;
+    // qDebug() << "writing IdLengthPos to" << IdLengthPos << idLengthLength
+    //          << readInt32(out + IdLengthPos);
+
 
     writeInt32(out + DictionaryPosPos, pos);
     qDebug() << "writing DictionaryPosPos to" << DictionaryPosPos << pos;
@@ -568,6 +570,7 @@ bool VisitThread::save(const QByteArray &path)
             writeInt32(&file, 0); // pad with zeroes for the symbol names that have fewer matches than others
         }
         const QByteArray &symbolName = it.key();
+        // qDebug() << "symbolName" << symbolName << locs;
         writeString(&file, symbolName);
         const int diff = longestSymbolName - symbolName.size();
         if (diff < 0)

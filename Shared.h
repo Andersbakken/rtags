@@ -28,7 +28,7 @@ typedef enum {
     DictionarySymbolNameLengthPosLength = Int32Length,
     DictionaryMaxSynonymsPos = DictionarySymbolNameLengthPos + DictionarySymbolNameLengthPosLength,
     DictionaryMaxSynonymsPosLength = Int32Length,
-    FirstId = DictionaryMaxSynonymsPosLength + DictionaryMaxSynonymsPosLength,
+    FirstId = DictionaryMaxSynonymsPos + DictionaryMaxSynonymsPosLength,
     HeaderSize = FirstId
 } Offset;
 
@@ -36,6 +36,7 @@ static inline int32_t rootNodePosition(int nodeCount, int idLength)
 {
     return HeaderSize + (nodeCount * idLength);
 }
+
 
 static inline char *writeInt32(char *dest, int32_t value)
 {
@@ -94,8 +95,8 @@ typedef enum {
     All = 0xffffff
 } NodeType;
 typedef enum {
-    Abbreviated,
-    Normal
+    Normal,
+    Abbreviated
 } NodeTypeToNameMode;
 const char *nodeTypeToName(int type, NodeTypeToNameMode mode);
 NodeType stringToNodeType(const char *in);
