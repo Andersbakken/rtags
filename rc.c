@@ -191,7 +191,7 @@ int main(int argc, char **argv)
     const int32_t dictionaryCount = readInt32(ch + DictionaryCountPos);
     const int32_t dictionarySymbolLengthPos = readInt32(ch + DictionarySymbolNameLengthPos);
     const int32_t dictionaryMaxSynonyms = readInt32(ch + DictionaryMaxSynonymsPos);
-    printf("%d %d - %d %d %d %d\n", locationLength, nodeCount, dictionaryPosition, dictionaryCount, dictionarySymbolLengthPos, dictionaryMaxSynonyms);
+    /* printf("%d %d - %d %d %d %d\n", locationLength, nodeCount, dictionaryPosition, dictionaryCount, dictionarySymbolLengthPos, dictionaryMaxSynonyms); */
     // qDebug() << (locationLength + 1 + Int32Length);
     if (locationLength <= 0 || nodeCount <= 0) {
         munmap(mapped, st.st_size);

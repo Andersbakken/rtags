@@ -56,7 +56,20 @@ struct CursorNode {
         }
 
         QString str;
-        QDebug(&str) << cursor;
+        {
+            QDebug dbg(&str);
+            dbg << cursor;
+            // CXCursor ref = clang_getCursorReferenced(cursor);
+            // if (isValidCursor(ref))
+            //     dbg << ref;
+            // CXCursor can = clang_getCanonicalCursor(cursor);
+            // if (isValidCursor(can))
+            //     dbg << can;
+            CXCursor p = clang_getCursorSemanticParent(cursor);
+            if (isValidCursor(p))
+                dbg << p;
+        }
+
         str.remove("\"");
         printf("%s\n", str.toLocal8Bit().constData());
         for (CursorNode *c=firstChild; c; c = c->nextSibling) {
