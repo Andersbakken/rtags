@@ -174,7 +174,7 @@ int main(int argc, char **argv)
         return 1;
     }
     ch = (char*)mapped;
-    if (memcmp(mapped, "Rt", 2)) {
+    if (strncmp(mapped, "Rt", 3)) {
         printf("%s %d: if (memcmp(mapped, \"Rt\", 2)) {\n", __FILE__, __LINE__);
         munmap(mapped, st.st_size);
         close(fd);
@@ -188,7 +188,10 @@ int main(int argc, char **argv)
     const int32_t nodeCount = readInt32(ch + NodeCountPos);
     locationLength = readInt32(ch + IdLengthPos);
     const int32_t dictionaryPosition = readInt32(ch + DictionaryPosPos);
-    // printf("%d %d %d\n", locationLength, nodeCount, dictionaryPosition);
+    const int32_t dictionaryCount = readInt32(ch + DictionaryCountPos);
+    const int32_t dictionarySymbolLengthPos = readInt32(ch + DictionarySymbolNameLengthPos);
+    const int32_t dictionaryMaxSynonyms = readInt32(ch + DictionaryMaxSynonymsPos);
+    printf("%d %d - %d %d %d %d\n", locationLength, nodeCount, dictionaryPosition, dictionaryCount, dictionarySymbolLengthPos, dictionaryMaxSynonyms);
     // qDebug() << (locationLength + 1 + Int32Length);
     if (locationLength <= 0 || nodeCount <= 0) {
         munmap(mapped, st.st_size);

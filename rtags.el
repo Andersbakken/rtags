@@ -1,9 +1,9 @@
-(defun rtags-setup-hooks () (interactive)
-  (remove-hook 'after-save-hook 'rtags-sync-all-open-files)
-  (remove-hook 'find-file-hooks 'rtags-sync-all-open-files)
+;; (defun rtags-setup-hooks () (interactive)
+;;   (remove-hook 'after-save-hook 'rtags-sync-all-open-files)
+;;   (remove-hook 'find-file-hooks 'rtags-sync-all-open-files)
   ;; (add-hook 'after-save-hook 'rtags-sync-all-open-files)
   ;; (add-hook 'find-file-hooks 'rtags-sync-all-open-files)
-  )
+  ;; )
 
 (defgroup gtags nil
   "Minor mode for rtags."

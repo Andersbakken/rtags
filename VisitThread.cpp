@@ -429,10 +429,11 @@ static int nodeSize(Node *node)
 // [int32_t][location padded to length]
 
 static int32_t writeNode(QIODevice *device, Node *node, const QHash<Node*, int32_t> &positions,
-                        int entryIdx, int entryLength)
+                         int entryIdx, int entryLength)
 {
     const int32_t nodePosition = positions.value(node, -1);
-    // printf("Writing node %s %s at %d\n", nodeTypeToName(node->type), node->symbolName.constData(), nodePosition);
+    if (!node->parent)
+        printf("Writing node %s %s at %d\n", nodeTypeToName(node->type, Normal), node->symbolName.constData(), nodePosition);
     Q_ASSERT(nodePosition > 0);
     device->seek(nodePosition);
     writeInt32(device, node->type);
@@ -466,7 +467,6 @@ static inline int32_t addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> 
         break;
     }
 
-    map[node->symbolName].insert(pos);
     Node *parent = node->parent;
     QByteArray symbolName = node->symbolName;
     if (node->type == MethodDeclaration || node->type == MethodDefinition) {
@@ -474,6 +474,8 @@ static inline int32_t addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> 
         Q_ASSERT(paren != -1);
         symbolName.truncate(paren); // we don't want functions to have to be referenced with full argument list
     }
+    map[symbolName].insert(pos);
+    Q_ASSERT(!symbolName.contains("("));
     longestSymbolName = qMax(symbolName.size(), longestSymbolName);
     int count = 1;
     while (parent) {
@@ -492,6 +494,7 @@ static inline int32_t addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> 
         default:
             break;
         }
+        parent = parent->parent;
     }
     return count;
 }
@@ -522,9 +525,13 @@ bool VisitThread::save(const QByteArray &path)
     char *out = header.data();
     writeString(out + MagicPos, "Rt");
     writeInt32(out + NodeCountPos, nodeCount);
+    qDebug() << "writing nodeCount to" << NodeCountPos << nodeCount;
     const int idLengthLength = (mLongestId + 1 + Int32Length);
     writeInt32(out + IdLengthPos, idLengthLength);
+    qDebug() << "writing IdLengthPos to" << IdLengthPos << idLengthLength;
+
     writeInt32(out + DictionaryPosPos, pos);
+    qDebug() << "writing DictionaryPosPos to" << DictionaryPosPos << pos;
     writeNode(&file, mRoot, positions, -1, idLengthLength);
     QMap<QByteArray, int> symbols;
     int entryIdx = 0;
@@ -563,6 +570,8 @@ bool VisitThread::save(const QByteArray &path)
         const QByteArray &symbolName = it.key();
         writeString(&file, symbolName);
         const int diff = longestSymbolName - symbolName.size();
+        if (diff < 0)
+            qWarning() << longestSymbolName << symbolName;
         if (diff)
             writeString(&file, nulls.constData(), diff);
     }
@@ -586,7 +595,6 @@ bool VisitThread::save(const QByteArray &path)
         printf("\n");
     }
 #endif
-    printf("%s %d: QCoreApplication::quit();\n", __FILE__, __LINE__);
     QCoreApplication::quit();
     return true;
 }

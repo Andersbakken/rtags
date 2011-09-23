@@ -117,6 +117,7 @@ static inline void writeString(QIODevice *dev, const char *src, int len = -1) //
 {
     if (len == -1)
         len = strlen(src) + 1;
+    Q_ASSERT(len >= 0);
     dev->write(src, len);
 }
 
