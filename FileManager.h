@@ -29,7 +29,6 @@ public:
     ~FileManager();
     void addMakefile(const Path &makefile);
     GccArguments arguments(const Path &path, bool *ok = 0) const;
-    void store();
     void getInfo(const Path &path, GccArguments *args,
                  QSet<Path> *dependents, QSet<Path> *dependsOn) const;
     QByteArray dependencyMap() const;

@@ -611,7 +611,7 @@ bool VisitThread::save(const QByteArray &path)
         printf("\n");
     }
 #endif
-    QCoreApplication::quit();
+    emit done();
     return true;
 }
 

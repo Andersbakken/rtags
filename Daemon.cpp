@@ -153,7 +153,6 @@ Daemon::Daemon(QObject *parent)
     connect(&mParseThread, SIGNAL(fileParsed(Path, void*)), &mVisitThread, SLOT(onFileParsed(Path, void*)));
     connect(&mParseThread, SIGNAL(parseError(Path)), &mVisitThread, SLOT(onParseError(Path)));
     connect(&mParseThread, SIGNAL(dependenciesAdded(QSet<Path>)), this, SLOT(onDependenciesAdded(QSet<Path>)));
-    connect(&mFileManager, SIGNAL(done()), this, SLOT(quit()));
     connect(&mVisitThread, SIGNAL(done()), this, SLOT(quit()));
     mParseThread.start();
     mVisitThread.start();

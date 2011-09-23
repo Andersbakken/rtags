@@ -7,19 +7,6 @@ FileManager::FileManager(ParseThread *pt)
 {
     setObjectName("FileManager");
     moveToThread(this);
-    QSettings settings(QSettings::IniFormat, QSettings::UserScope,
-                       QCoreApplication::organizationName());
-    QByteArray cached = settings.value("cachedGccArguments").toByteArray();
-    if (!cached.isEmpty()) {
-        const int cacheVersion = settings.value("cacheVersion").toInt();
-        if (cacheVersion != CacheVersion) {
-            qWarning("Ignoring incompatible cache %d vs %d", cacheVersion, CacheVersion);
-        } else {
-            QDataStream ds(&cached, QIODevice::ReadOnly);
-            ds >> mFiles;
-            qDebug() << "got" << cached.size() << "of cache" << mFiles.size() << "files";
-        }
-    }
 }
 FileManager::~FileManager()
 {
@@ -78,8 +65,6 @@ void FileManager::onMakeFinished(int statusCode)
     }
     mMakefiles.remove(proc);
     proc->deleteLater();
-    store();
-
     emit done();
 }
 
@@ -167,21 +152,6 @@ void FileManager::onMakeError(QProcess::ProcessError error)
     qWarning() << error << qobject_cast<QProcess*>(sender())->errorString();
 }
 
-void FileManager::store()
-{
-    QSettings settings(QSettings::IniFormat, QSettings::UserScope,
-                       QCoreApplication::organizationName());
-
-    QByteArray out;
-    {
-        QDataStream ds(&out, QIODevice::WriteOnly);
-        ds << mFiles;
-    }
-    settings.setValue("cacheVersion", CacheVersion);
-    qDebug() << "writing" << out.size() << "of cache" << mFiles.size() << "files";
-    settings.setValue("cachedGccArguments", out);
-}
-
 QDataStream &operator<<(QDataStream &ds, const FileManager::FileData &fd)
 {
     ds << fd.arguments << fd.dependents << fd.dependsOn;
@@ -245,7 +215,5 @@ bool FileManager::addDependencies(const Path &source, const QSet<Path> &headers)
             ret = true;
         }
     }
-    if (ret)
-        store();
     return ret;
 }
