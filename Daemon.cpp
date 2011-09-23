@@ -8,32 +8,6 @@
 #include <magic.h>
 #include <fcntl.h>
 
-// const unsigned defaultFlags = (CXTranslationUnit_PrecompiledPreamble
-//                                |CXTranslationUnit_CXXPrecompiledPreamble
-//                                |CXTranslationUnit_CXXChainedPCH);
-
-template <typename T>
-static inline QByteArray joined(const T &container, const char joinCharacter = '\n')
-{
-    QByteArray joined;
-    joined.reserve(container.size() * 100);
-    foreach(const QByteArray &f, container) {
-        joined += f + joinCharacter;
-    }
-    if (!joined.isEmpty())
-        joined.chop(1);
-    return joined;
-}
-
-const unsigned defaultFlags = 0;
-
-static QHash<QByteArray, QVariant> createResultMap(const QByteArray& result)
-{
-    QHash<QByteArray, QVariant> ret;
-    ret.insert("result", result);
-    return ret;
-}
-
 Daemon::Daemon(QObject *parent)
     : QObject(parent), mParseThread(&mFileManager, &mVisitThread), mFileManager(&mParseThread)
 {
@@ -56,12 +30,6 @@ Daemon::~Daemon()
     QThread *threads[] = { &mParseThread, &mVisitThread, 0 };
     for (int i=0; threads[i]; ++i)
         threads[i]->wait();
-}
-
-static QHash<QByteArray, QVariant> syntax()
-{
-    return createResultMap("Syntax: rtags --command=command [--argument1, --argument2=foo, ...]\n"
-                           "commands: syntax|quit|add|remove|lookupline|makefile|daemonize|files|lookup\n");
 }
 
 void Daemon::quit()
