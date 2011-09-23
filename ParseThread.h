@@ -15,7 +15,7 @@ public:
     ParseThread(FileManager *fm, VisitThread *vt);
     ~ParseThread();
     void abort();
-    void load(const Path &path);
+    void load(const Path &path, const GccArguments &args = GccArguments());
 signals:
     void fileParsed(const Path &path, void *translationUnit);
     void parseError(const Path &path);
@@ -28,6 +28,7 @@ private:
     bool mAborted;
     struct File {
         Path path;
+        GccArguments args;
         File *next;
     } *mFirst, *mLast;
     QHash<Path, time_t> mFiles;

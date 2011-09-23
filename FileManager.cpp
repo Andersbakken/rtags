@@ -1,8 +1,9 @@
 #include "FileManager.h"
+#include "ParseThread.h"
 
 enum { CacheVersion = 1 };
-FileManager::FileManager()
-    : QThread(), mFilesMutex(QMutex::Recursive)
+FileManager::FileManager(ParseThread *pt)
+    : QThread(), mFilesMutex(QMutex::Recursive), mParseThread(pt)
 {
     setObjectName("FileManager");
     moveToThread(this);
@@ -145,6 +146,7 @@ void FileManager::onMakeOutput()
                             data.seen.insert(file);
                             // qDebug() << "setting arguments for" << file << "to" << args.raw();
                             mFiles[file].arguments = args;
+                            mParseThread->load(file, args);
                         }
                     }
                 }

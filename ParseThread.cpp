@@ -53,7 +53,8 @@ void ParseThread::abort()
 //     }
 // }
 
-void ParseThread::load(const Path &path)
+int addedFiles = 0;
+void ParseThread::load(const Path &path, const GccArguments &args)
 {
     if (!mAborted) {
         QMutexLocker lock(&mMutex);
@@ -68,8 +69,10 @@ void ParseThread::load(const Path &path)
         } else {
             mFirst = mLast = new File;
         }
+        mLast->args = args;
         mLast->next = 0;
         mLast->path = path;
+        ++addedFiles;
         mWaitCondition.wakeOne();
     }
 }
@@ -95,6 +98,7 @@ static inline void precompileHeaders(CXFile included_file, CXSourceLocation*,
     data->all.append(rfn);
     clang_disposeString(filename);
 }
+
 
 void ParseThread::run()
 {
@@ -125,35 +129,34 @@ void ParseThread::run()
         timer.start();
 
         Q_ASSERT(f);
-        GccArguments gccArguments;
-        QSet<Path> dependsOn, dependents;
-        mFileManager->getInfo(f->path, &gccArguments, &dependents, &dependsOn);
-        if (gccArguments.isNull()) {
-            foreach(const Path &dependent, dependents) {
-                load(dependent);
-            }
+        GccArguments gccArguments = f->args;
+        // QSet<Path> dependsOn, dependents;
+        // mFileManager->getInfo(f->path, &gccArguments, &dependents, &dependsOn);
+        // if (gccArguments.isNull()) {
+        //     foreach(const Path &dependent, dependents) {
+        //         load(dependent);
+        //     }
 
-            if (f->path.isSource())
-                qWarning() << "We don't seem to have GccArguments for" << f->path;
-            delete f;
-            continue;
-        }
+        //     if (f->path.isSource())
+        //         qWarning() << "We don't seem to have GccArguments for" << f->path;
+        //     delete f;
+        //     continue;
+        // }
 
-
-        bool hasChanged = (mFiles.value(f->path) != f->path.lastModified());
-        if (!hasChanged) {
-            foreach(const Path &header, dependsOn) {
-                if (header.lastModified() != mFiles.value(header)) {
-                    hasChanged = true;
-                    break;
-                }
-            }
-        }
-        if (!hasChanged) {
-            delete f;
-            continue;
-        }
-        mVisitThread->invalidate(QSet<Path>() << f->path); // ### hairy
+        // bool hasChanged = (mFiles.value(f->path) != f->path.lastModified());
+        // if (!hasChanged) {
+        //     foreach(const Path &header, dependsOn) {
+        //         if (header.lastModified() != mFiles.value(header)) {
+        //             hasChanged = true;
+        //             break;
+        //         }
+        //     }
+        // }
+        // if (!hasChanged) {
+        //     delete f;
+        //     continue;
+        // }
+        // mVisitThread->invalidate(QSet<Path>() << f->path); // ### hairy
         const QList<QByteArray> compilerOptions = gccArguments.includePaths() + gccArguments.arguments("-D");
         const int compilerOptionsCount = compilerOptions.count();
 

@@ -20,12 +20,12 @@ private:
     const Path mPath;
 };
 
-
+class ParseThread;
 class FileManager : public QThread
 {
     Q_OBJECT;
 public:
-    FileManager();
+    FileManager(ParseThread *parseThread);
     ~FileManager();
     void addMakefile(const Path &makefile);
     GccArguments arguments(const Path &path, bool *ok = 0) const;
@@ -61,6 +61,7 @@ private:
     friend QDataStream &operator>>(QDataStream &ds, FileData &fd);
 
     QHash<Path, FileData> mFiles;
+    ParseThread *mParseThread;
 };
 
 #endif

@@ -3,12 +3,12 @@
 
 #include <stdint.h>
 #include <string.h>
+
+#ifdef __cplusplus
 #ifdef QT
 #include <QByteArray>
 #include <QIODevice>
 #endif
-
-#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -22,8 +22,14 @@ typedef enum {
     IdLengthPos = (NodeCountPos + NodeCountLength),
     DictionaryPosPos = IdLengthPos + IdLengthLength,
     DictionaryPosLength = Int32Length,
-    FirstId = DictionaryPosPos + DictionaryPosLength,
-    HeaderSize = FirstId,
+    DictionaryCountPos = DictionaryPosPos + DictionaryPosLength,
+    DictionaryCountPosLength = Int32Length,
+    DictionarySymbolNameLengthPos = DictionaryCountPos + DictionaryCountPosLength,
+    DictionarySymbolNameLengthPosLength = Int32Length,
+    DictionaryMaxSynonymsPos = DictionarySymbolNameLengthPos + DictionarySymbolNameLengthPosLength,
+    DictionaryMaxSynonymsPosLength = Int32Length,
+    FirstId = DictionaryMaxSynonymsPosLength + DictionaryMaxSynonymsPosLength,
+    HeaderSize = FirstId
 } Offset;
 
 static inline int32_t rootNodePosition(int nodeCount, int idLength)
@@ -96,8 +102,6 @@ NodeType stringToNodeType(const char *in);
 
 #ifdef __cplusplus
 }
-#endif
-
 #ifdef QT
 static inline void writeInt32(QIODevice *dev, int32_t value)
 {
@@ -120,6 +124,6 @@ static inline void writeString(QIODevice *dev, const QByteArray &data)
 {
     writeString(dev, data.constData(), data.length() + 1);
 }
-
+#endif
 #endif
 #endif

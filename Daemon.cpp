@@ -146,12 +146,13 @@ static QHash<QByteArray, QVariant> createResultMap(const QByteArray& result)
 }
 
 Daemon::Daemon(QObject *parent)
-    : QObject(parent), mParseThread(&mFileManager, &mVisitThread)
+    : QObject(parent), mParseThread(&mFileManager, &mVisitThread), mFileManager(&mParseThread)
 {
     qRegisterMetaType<Path>("Path");
     qRegisterMetaType<QSet<Path> >("QSet<Path>");
     qRegisterMetaType<CXTranslationUnit>("CXTranslationUnit");
     connect(&mParseThread, SIGNAL(fileParsed(Path, void*)), &mVisitThread, SLOT(onFileParsed(Path, void*)));
+    connect(&mParseThread, SIGNAL(parseError(Path)), &mVisitThread, SLOT(onParseError(Path)));
     connect(&mParseThread, SIGNAL(dependenciesAdded(QSet<Path>)), this, SLOT(onDependenciesAdded(QSet<Path>)));
     mParseThread.start();
     mVisitThread.start();
@@ -498,7 +499,6 @@ QHash<QByteArray, QVariant> Daemon::printTree(const QHash<QByteArray, QVariant>&
 
 void Daemon::onDependenciesAdded(const QSet<Path> &paths)
 {
-#warning do this
     // qWarning() << "Not adding dependencies right now" << paths;
     return;
     QList<QByteArray> sources;

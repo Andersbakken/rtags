@@ -311,7 +311,10 @@ void VisitThread::onFileParsed(const Path &path, void *u)
         qDebug() << "added" << (mNodes.size() - old) << "nodes for" << path << ". Total" << mNodes.size();
     }
     clang_disposeTranslationUnit(unit);
-    timer.start(3000, this);
+    extern int addedFiles;
+    qWarning() << "got here and shit" << addedFiles;
+    if (!--addedFiles)
+        save(QCoreApplication::instance()->property("output").toByteArray());
 }
 
 static void removeChildren(Node *node, const QSet<Path> &paths)
@@ -442,14 +445,14 @@ static int32_t writeNode(QIODevice *device, Node *node, const QHash<Node*, int32
     return nodePosition;
 }
 
-static inline void addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> > &map, const QHash<Node*, qint32> &positions)
+static inline int32_t addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> > &map, int32_t pos, int32_t &longestSymbolName)
 {
     switch (node->type) {
     case All:
     case Invalid:
     case Root:
     case Reference:
-        return;
+        return 0;
     case Namespace:
     case Class:
     case Struct:
@@ -463,29 +466,42 @@ static inline void addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> > &
         break;
     }
 
-    const int location = positions.value(node);
-    map[node->symbolName].insert(location);
+    map[node->symbolName].insert(pos);
     Node *parent = node->parent;
     QByteArray symbolName = node->symbolName;
+    if (node->type == MethodDeclaration || node->type == MethodDefinition) {
+        int paren = symbolName.indexOf('(');
+        Q_ASSERT(paren != -1);
+        symbolName.truncate(paren); // we don't want functions to have to be referenced with full argument list
+    }
+    longestSymbolName = qMax(symbolName.size(), longestSymbolName);
+    int count = 1;
     while (parent) {
         switch (parent->type) {
+            // ### should local variables declared in a function be possible to reference like this:
+            // main::a
         case Struct:
         case Class:
         case Namespace:
+            ++count;
             symbolName.prepend("::");
             symbolName.prepend(parent->symbolName);
-            map[symbolName].insert(location);
+            longestSymbolName = qMax(symbolName.size(), longestSymbolName);
+            map[symbolName].insert(pos);
             break;
         default:
             break;
         }
     }
+    return count;
 }
 
 bool VisitThread::save(const QByteArray &path)
 {
+    qDebug() << "saving to" << path;
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly)) {
+        qWarning() << "Can't open" << path;
         return false;
     }
     
@@ -520,18 +536,36 @@ bool VisitThread::save(const QByteArray &path)
         writeString(s, key);
         ++entryIdx;
     }
+    QMap<QByteArray, QSet<int32_t> > dictionary;
+    int32_t maxSynonyms = 0;
+    int32_t longestSymbolName = 0;
+    for (QHash<Node*, int32_t>::const_iterator it = positions.begin(); it != positions.end(); ++it) {
+        maxSynonyms = qMax(maxSynonyms, addToDictionary(it.key(), dictionary, it.value(), longestSymbolName));
+    }
+    writeInt32(out + DictionaryPosPos, pos);
+    writeInt32(out + DictionaryCountPos, dictionary.size());
+    writeInt32(out + DictionarySymbolNameLengthPos, longestSymbolName);
+    writeInt32(out + DictionaryMaxSynonymsPos, maxSynonyms);
+
     file.seek(0);
     file.write(header);
     file.seek(pos);
-    QMap<QByteArray, QSet<int32_t> > dictionary;
-    for (QMap<QByteArray, Node*>::const_iterator it = mNodes.begin(); it != mNodes.end(); ++it) {
-        addToDictionary(it.value(), dictionary, positions);
-    }
-    for (QMap<QByteArray, QSet<int32_t> >::const_iterator it = dictionary.begin(); it != dictionary.end(); ++it) {
-#warning how should we store these
-        // qDebug() << it.key() << it.value();
-    }
 
+    QVarLengthArray<char, 64> nulls(longestSymbolName);
+    memset(nulls.data(), '\0', longestSymbolName);
+    for (QMap<QByteArray, QSet<int32_t> >::const_iterator it = dictionary.begin(); it != dictionary.end(); ++it) {
+        const QSet<int32_t> &locs = it.value();
+        foreach(int32_t l, locs)
+            writeInt32(&file, l);
+        for (int i=locs.size(); i>0; --i) {
+            writeInt32(&file, 0); // pad with zeroes for the symbol names that have fewer matches than others
+        }
+        const QByteArray &symbolName = it.key();
+        writeString(&file, symbolName);
+        const int diff = longestSymbolName - symbolName.size();
+        if (diff)
+            writeString(&file, nulls.constData(), diff);
+    }
 
 #if 0
     for (int i=0; i<FirstId; ++i) {
@@ -552,5 +586,15 @@ bool VisitThread::save(const QByteArray &path)
         printf("\n");
     }
 #endif
+    printf("%s %d: QCoreApplication::quit();\n", __FILE__, __LINE__);
+    QCoreApplication::quit();
     return true;
+}
+
+void VisitThread::onParseError(const Path &path)
+{
+    qWarning() << "parse error" << path;
+    extern int addedFiles;
+    if (!--addedFiles)
+        save(QCoreApplication::instance()->property("output").toByteArray());
 }

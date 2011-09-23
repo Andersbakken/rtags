@@ -124,51 +124,17 @@ int main(int argc, char** argv)
     QCoreApplication::setOrganizationName("rtags");
     QCoreApplication::setApplicationName("rtags");
 
-    if (Options::s_verbose)
-        qDebug() << argsmap;
-
-    if (cmd == "daemonize") {
-        Daemon daemon;
-        if (daemonize(&daemon, timeout)) {
-            return app.exec();
-        } else {
-            return -2;
-        }
-    } else if (argsmap.contains("replace")) {
-        Daemon daemon;
-        if (!daemonize(&daemon, timeout)) {
-            return -2;
-        }
-
-        const QHash<QByteArray, QVariant> replymap = daemon.runCommand(argsmap, freeArgs);
-        const QByteArray reply = replymap.value("result").toByteArray();
-        if (!reply.isEmpty())
-            printf("%s\n", reply.constData());
-        return app.exec();
+    qInstallMsgHandler(syslogMsgHandler);
+    Daemon daemon;
+    TemporaryFiles::instance()->init();
+    const QHash<QByteArray, QVariant> replymap = daemon.runCommand(argsmap, freeArgs);
+    const QByteArray reply = replymap.value("result").toByteArray();
+    if (!reply.isEmpty())
+        printf("%s\n", reply.constData());
+    if (argsmap.contains("o")) {
+        app.setProperty("output", argsmap.value("o"));
     } else {
-        Client client;
-        if (!client.connect(timeout)) {
-            if (cmd == "quit") {
-                qWarning("Can't connect to rtags daemon");
-                return 0;
-            }
-            if (getenv("RTAGS_AUTOSTART") || argsmap.contains("autostart")) {
-                client.startDaemon(app.arguments());
-                sleep(1); // ### hmmmm
-                if (!client.connect(timeout)) {
-                    qWarning("Can't connect to rtags daemon");
-                    return 1;
-                }
-            }
-        }
-        if (client.isConnected()) {
-            const QHash<QByteArray, QVariant> replymap = client.exec(argsmap, freeArgs);
-            const QByteArray reply = replymap.value("result").toByteArray();
-            if (!reply.isEmpty())
-                printf("%s\n", reply.constData());
-            return 0;
-        }
+        app.setProperty("output", ".rtags.db");
     }
-    qWarning("Couldn't connect to daemon");
-    return -1;
+    return app.exec();
 }
