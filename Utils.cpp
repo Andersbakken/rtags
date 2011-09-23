@@ -2,8 +2,6 @@
 #include <clang-c/Index.h>
 #include "Path.h"
 
-bool Options::s_verbose = false;
-
 const char *kindToString(CXCursorKind kind)
 {
     switch (kind) {

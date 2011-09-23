@@ -24,24 +24,10 @@ public:
     Daemon(QObject* parent = 0);
     ~Daemon();
 
-    QHash<QByteArray, QVariant> runCommand(const QHash<QByteArray, QVariant>& dashArgs,
-                                           QList<QByteArray> freeArgs);
+    void addMakefile(Path makefile);
 public slots:
-    void onDependenciesAdded(const QSet<Path> &path);
     void quit();
-private:
-    // ### need to add a function for code completion
-    QHash<QByteArray, QVariant> lookup(const QHash<QByteArray, QVariant>& args,
-                                       const QList<QByteArray> &freeArgs);
-    QHash<QByteArray, QVariant> printTree(const QHash<QByteArray, QVariant>& args,
-                                          const QList<QByteArray> &freeArgs);
-    QHash<QByteArray, QVariant> followSymbol(const QHash<QByteArray, QVariant>& args,
-                                             const QList<QByteArray> &freeArgs);
-    QHash<QByteArray, QVariant> addMakefile(const QHash<QByteArray, QVariant>& dashArgs,
-                                            const QList<QByteArray>& freeArgs);
-    QHash<QByteArray, QVariant> load(const QHash<QByteArray, QVariant>&,
-                                     const QList<QByteArray> &freeArgs);
-    void addDeps(const Path &path, QHash<Path, GccArguments> &deps, QSet<Path> &seen);
+    void onMaybeDone();
 private:
     ParseThread mParseThread;
     VisitThread mVisitThread;

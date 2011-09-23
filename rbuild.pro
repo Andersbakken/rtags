@@ -26,7 +26,6 @@ SOURCES += \
     ParseThread.cpp \
     VisitThread.cpp \
     FileManager.cpp \
-    ArgParser.cpp \
     Shared.c
 
 HEADERS += \
@@ -40,7 +39,6 @@ HEADERS += \
     ParseThread.h \
     VisitThread.h \
     FileManager.h \
-    ArgParser.h \
     Shared.h
 
 OTHER_FILES += \

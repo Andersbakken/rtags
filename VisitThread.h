@@ -6,24 +6,6 @@
 #include "Location.h"
 
 struct Node;
-struct Match
-{
-    Match(uint nodeTypes)
-        : nodeTypes(nodeTypes)
-    {}
-    virtual ~Match() {}
-
-    enum MatchResult {
-        Finish,
-        Recurse,
-        Skip
-    };
-    // path means e.g. namespace::class:: (including trailing double colons)
-    virtual MatchResult match(const QByteArray &path, const Node *node) = 0;
-
-    const uint nodeTypes;
-};
-
 struct CursorNode;
 class VisitThread : public QThread
 {
@@ -31,7 +13,6 @@ class VisitThread : public QThread
 public:
     VisitThread();
     ~VisitThread();
-    void lookup(Match *match);
     void printTree();
     QSet<Path> files() const;
     void abort();

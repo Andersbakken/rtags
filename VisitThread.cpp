@@ -327,7 +327,7 @@ void VisitThread::onFileParsed(const Path &path, void *u)
     extern int addedFiles;
     qWarning() << "got here and shit" << addedFiles;
     if (!--addedFiles)
-        save(QCoreApplication::instance()->property("output").toByteArray());
+        save(".rtags.db");
 }
 
 static void removeChildren(Node *node, const QSet<Path> &paths)
@@ -380,42 +380,6 @@ void VisitThread::printTree()
     mRoot->print();
 }
 
-static Match::MatchResult recurse(Match *match, const Node *node, QByteArray path)
-{
-    Q_ASSERT(match);
-    Q_ASSERT(node);
-    Match::MatchResult result = Match::Recurse;
-    if (node->type & match->nodeTypes)
-        result = match->match(path, node);
-
-    switch (node->type) {
-    case Namespace:
-    case Class:
-    case Struct:
-        path.append(node->symbolName + "::");
-        break;
-    default:
-        break;
-    }
-    // ### could consider short circuiting here if for example we know this node
-    // ### only has MethodReference children and !(types & MethodReference) || !ret
-    if (result == Match::Recurse) {
-        for (Node *c = node->firstChild; c; c = c->nextSibling) {
-            if (recurse(match, c, path) == Match::Finish) {
-                result = Match::Finish;
-                break;
-            }
-        }
-    }
-    return result;
-}
-
-void VisitThread::lookup(Match *match)
-{
-    QMutexLocker lock(&mMutex);
-    Q_ASSERT(match);
-    recurse(match, mRoot, QByteArray());
-}
 Node * VisitThread::nodeForLocation(const Location &loc) const
 {
     QMutexLocker lock(&mMutex);

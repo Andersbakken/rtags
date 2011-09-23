@@ -5,23 +5,8 @@
 #include "Path.h"
 #include "GccArguments.h"
 
-class FileManagerEvent : public QEvent
-{
-public:
-    enum Type {
-        MakefileEvent
-    };
-    FileManagerEvent(Type type, const Path &path)
-        : QEvent(static_cast<QEvent::Type>(type)), mPath(path)
-    {
-    }
-    const Path &path() const { return mPath; }
-private:
-    const Path mPath;
-};
-
 class ParseThread;
-class FileManager : public QThread
+class FileManager : public QObject
 {
     Q_OBJECT;
 public:
@@ -33,10 +18,9 @@ public:
                  QSet<Path> *dependents, QSet<Path> *dependsOn) const;
     QByteArray dependencyMap() const;
     bool addDependencies(const Path &source, const QSet<Path> &headers);
+    bool isDone() const;
 signals:
     void done();
-protected:
-    bool event(QEvent *event);
 private slots:
     void onMakeFinished(int statusCode);
     void onMakeOutput();
@@ -50,7 +34,6 @@ private:
     };
     QHash<QProcess *, MakefileData> mMakefiles;
 
-    mutable QMutex mFilesMutex;
     struct FileData {
         GccArguments arguments;
         QSet<Path> dependents;

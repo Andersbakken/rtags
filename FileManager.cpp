@@ -3,58 +3,38 @@
 
 enum { CacheVersion = 1 };
 FileManager::FileManager(ParseThread *pt)
-    : QThread(), mFilesMutex(QMutex::Recursive), mParseThread(pt)
+    : QObject(), mParseThread(pt)
 {
     setObjectName("FileManager");
-    moveToThread(this);
 }
 FileManager::~FileManager()
 {
 }
 
-void FileManager::addMakefile(const Path &makefile)
+void FileManager::addMakefile(const Path &path)
 {
-    Q_ASSERT(makefile.exists());
-    QCoreApplication::postEvent(this, new FileManagerEvent(FileManagerEvent::MakefileEvent, makefile));
-}
-
-GccArguments FileManager::arguments(const Path &path, bool *ok) const
-{
-    QMutexLocker lock(&mFilesMutex);
-    if (ok)
-        *ok = mFiles.contains(path);
-    return mFiles.value(path).arguments;
-}
-
-bool FileManager::event(QEvent *event)
-{
-    if (event->type() == int(FileManagerEvent::MakefileEvent)) {
-        const Path &path = static_cast<FileManagerEvent*>(event)->path();
-        const Path workingDir = path.parentDir();
-        Q_ASSERT((path.isFile() && path.isResolved() && workingDir.isDir()) || !path.exists());
-        if (!path.exists())
-            return true;
-        QDir::setCurrent(workingDir); // ### hmmmm
-        QProcess *proc = new QProcess(this);
-        proc->setWorkingDirectory(workingDir);
-        // proc->moveToThread(this);
-        connect(proc, SIGNAL(finished(int)), this, SLOT(onMakeFinished(int)));
-        connect(proc, SIGNAL(error(QProcess::ProcessError)), this, SLOT(onMakeError(QProcess::ProcessError)));
-        connect(proc, SIGNAL(readyReadStandardOutput()), this, SLOT(onMakeOutput()));
-        MakefileData data = { path, workingDir, QByteArray(), QSet<Path>(), workingDir };
-        mMakefiles[proc] = data;
-        proc->start(QLatin1String("make"), // some way to specify which make to use?
-                    QStringList()
-                    << QLatin1String("-B")
-                    << QLatin1String("-n")
-                    << QLatin1String("-j1")
-                    << QLatin1String("-p")
-                    << QLatin1String("-f")
-                    << path);
-        qDebug() << "addMakefile" << path;
-        return true;
-    }
-    return QThread::event(event);
+    const Path workingDir = path.parentDir();
+    Q_ASSERT((path.isFile() && path.isResolved() && workingDir.isDir()) || !path.exists());
+    if (!path.exists())
+        return;
+    QDir::setCurrent(workingDir); // ### hmmmm
+    QProcess *proc = new QProcess(this);
+    proc->setWorkingDirectory(workingDir);
+    // proc->moveToThread(this);
+    connect(proc, SIGNAL(finished(int)), this, SLOT(onMakeFinished(int)));
+    connect(proc, SIGNAL(error(QProcess::ProcessError)), this, SLOT(onMakeError(QProcess::ProcessError)));
+    connect(proc, SIGNAL(readyReadStandardOutput()), this, SLOT(onMakeOutput()));
+    MakefileData data = { path, workingDir, QByteArray(), QSet<Path>(), workingDir };
+    mMakefiles[proc] = data;
+    proc->start(QLatin1String("make"), // some way to specify which make to use?
+                QStringList()
+                << QLatin1String("-B")
+                << QLatin1String("-n")
+                << QLatin1String("-j1")
+                << QLatin1String("-p")
+                << QLatin1String("-f")
+                << path);
+    qDebug() << "addMakefile" << path;
 }
 
 void FileManager::onMakeFinished(int statusCode)
@@ -65,7 +45,8 @@ void FileManager::onMakeFinished(int statusCode)
     }
     mMakefiles.remove(proc);
     proc->deleteLater();
-    emit done();
+    if (isDone())
+        emit done();
 }
 
 void FileManager::onMakeOutput()
@@ -94,10 +75,6 @@ void FileManager::onMakeOutput()
                                  line.mid(3, slash - 3).constData(),
                                  data.directory.constData());
                     } else {
-                        if (Options::s_verbose) {
-                            qDebug() << "setting workingDirectory to" << p << "from"
-                                     << data.workingDirectory;
-                        }
                         data.workingDirectory = p;
                     }
                     continue;
@@ -109,7 +86,6 @@ void FileManager::onMakeOutput()
                              qPrintable(args.errorString()));
                     continue;
                 }
-                QMutexLocker lock(&mFilesMutex);
                 if (!args.hasInput() || !args.isCompile()) {
                     QStringList strings = QString::fromLocal8Bit(line).split(' ');
                     const int size = strings.size();
@@ -166,7 +142,6 @@ QDataStream &operator>>(QDataStream &ds, FileManager::FileData &fd)
 
 void FileManager::getInfo(const Path &path, GccArguments *args, QSet<Path> *dependents, QSet<Path> *dependsOn) const
 {
-    QMutexLocker lock(&mFilesMutex);
     const QHash<Path, FileData>::const_iterator it = mFiles.find(path);
     if (it != mFiles.end()) {
         if (args)
@@ -181,7 +156,6 @@ void FileManager::getInfo(const Path &path, GccArguments *args, QSet<Path> *depe
 QByteArray FileManager::dependencyMap() const
 {
     QByteArray ret;
-    QMutexLocker lock(&mFilesMutex);
     for (QHash<Path, FileData>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
         ret += it.key() + "\n  dependents:\n";
         foreach(const Path &d, it.value().dependents) {
@@ -198,7 +172,6 @@ QByteArray FileManager::dependencyMap() const
 
 bool FileManager::addDependencies(const Path &source, const QSet<Path> &headers)
 {
-    QMutexLocker lock(&mFilesMutex);
     bool ret = false;
     FileData &fd = mFiles[source];
     // qDebug() << "addDependencies" << source << headers;
@@ -216,4 +189,14 @@ bool FileManager::addDependencies(const Path &source, const QSet<Path> &headers)
         }
     }
     return ret;
+}
+
+bool FileManager::isDone() const
+{
+    for (QHash<QProcess*, MakefileData>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
+        if (it.key() && it.key()->state() != QProcess::NotRunning) {
+            return false;
+        }
+    }
+    return true;
 }
