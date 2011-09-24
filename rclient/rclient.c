@@ -23,20 +23,6 @@ static int find(const void *l, const void *r)
 }
 
 
-/* struct Cleanup { */
-/*     ~Cleanup() */
-/*     { */
-/*         if (*mapped) */
-/*             munmap(*mapped, st->st_size); */
-/*         if (*fd) */
-/*             close(*fd); */
-/*     } */
-
-/*     int *fd; */
-/*     struct stat *st; */
-/*     void **mapped; */
-/* }; */
-
 void recurse(const char *ch, int32_t pos, int indent)
 {
     struct NodeData node = readNodeData(ch + pos);
@@ -212,9 +198,8 @@ int main(int argc, char **argv)
     locationLength = readInt32(ch + IdLengthPos);
     const int32_t dictionaryPosition = readInt32(ch + DictionaryPosPos);
     const int32_t dictionaryCount = readInt32(ch + DictionaryCountPos);
-    const int32_t dictionarySymbolLength = readInt32(ch + DictionarySymbolNameLengthPos);
-    const int32_t dictionaryMaxSynonyms = readInt32(ch + DictionaryMaxSynonymsPos);
-    printf("%d %d - %d %d %d %d\n", locationLength, nodeCount, dictionaryPosition, dictionaryCount, dictionarySymbolLength, dictionaryMaxSynonyms);
+    printf("locationLength %d nodeCount %d\n"
+           "dictionaryPosition %d dictionaryCount %d\n", locationLength, nodeCount, dictionaryPosition, dictionaryCount);
     // qDebug() << (locationLength + 1 + Int32Length);
     if (locationLength <= 0 || nodeCount <= 0) {
         munmap(mapped, st.st_size);
@@ -292,31 +277,20 @@ int main(int argc, char **argv)
         break; }
     case ListSymbols: {
         int i;
-        /* for (i=dictionaryPosition; i<dictionaryPosition + 100; ++i) { */
-        /*     char c = ch[i]; */
-        /*     if (!c) */
-        /*         c = '_'; */
-        /*     if (c < 30) */
-        /*         c = '-'; */
-        /*     printf("%d %c %x\n", i, c, c); */
-        /* } */
-
-        const int32_t symbolSize = (dictionarySymbolLength + 1 + dictionaryMaxSynonyms * Int32Length);
-        const int symbolNameOffset = (dictionaryMaxSynonyms * Int32Length);
-        printf("symbolSize %d\n", symbolSize);
+        int32_t pos = dictionaryPosition;
         for (i=0; i<dictionaryCount; ++i) {
-            int32_t pos = dictionaryPosition + (i * symbolSize);
-            const char *symbolName = ch + pos + symbolNameOffset;
-            /* printf("%s (%d)\n", symbolName, pos + symbolNameOffset); */
-            int j;
-            for (j=0; j<dictionaryMaxSynonyms; ++j) {
-                int32_t loc = readInt32(ch + pos);
-                if (!loc)
+            int len = strlen(ch + pos); // include \0
+            printf("Found symbol %s %d %d\n", ch + pos, len, pos);
+            int count = 0;
+            while (1) {
+                int32_t loc = readInt32(ch + pos + len + 1 + (count * Int32Length));
+                printf("Found loc %d at %d\n", loc, pos + len + (count * Int32Length));
+                ++count;
+                if (loc)
                     break;
-                pos += Int32Length;
-                printf("%s %s\n", symbolName, ch + loc, dictionaryMaxSynonyms);
-                break;
+                printf("%s s\n", ch + pos); //, ch + loc);
             }
+            pos += len + (count * Int32Length);
         }
         break; }
     }

@@ -481,7 +481,7 @@ static int32_t writeNode(QIODevice *device, Node *node, const QHash<Node*, int32
     return nodePosition;
 }
 
-static inline void addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> > &map, int32_t pos, int32_t &longestSymbolName)
+static inline void addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> > &map, int32_t locationPos)
 {
     switch (node->type) {
     case All:
@@ -509,9 +509,8 @@ static inline void addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> > &
             Q_ASSERT(paren != -1);
             symbolName.truncate(paren); // we don't want functions to have to be referenced with full argument list
         }
-        map[symbolName].insert(pos);
+        map[symbolName].insert(locationPos);
         Q_ASSERT(!symbolName.contains("("));
-        longestSymbolName = qMax(symbolName.size() + 1, longestSymbolName);
         while (parent) {
             switch (parent->type) {
                 // ### should local variables declared in a function be possible to reference like this:
@@ -521,8 +520,7 @@ static inline void addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> > &
             case Namespace:
                 symbolName.prepend("::");
                 symbolName.prepend(parent->symbolName);
-                longestSymbolName = qMax(symbolName.size() + 1, longestSymbolName);
-                map[symbolName].insert(pos);
+                map[symbolName].insert(locationPos);
                 break;
             default:
                 break;
@@ -540,14 +538,14 @@ bool ClangRunnable::save(const QByteArray &path)
         qWarning() << "Can't open" << path;
         return false;
     }
-    
+
     // ### error checking?
     QMutexLocker lock(&sTreeMutex);
     const int32_t nodeCount = Node::sNodes.size();
     const int entryLength = Node::sLongestId + 1 + Int32Length;
     QByteArray header(rootNodePosition(nodeCount, entryLength), '\0');
     int32_t pos = header.size();
-    QHash<Node*, int32_t> positions;
+    QHash<Node*, int32_t> positions, locationsForNode;
     positions[sRoot] = pos;
     pos += nodeSize(sRoot);
     for (QMap<QByteArray, Node*>::const_iterator it = Node::sNodes.begin(); it != Node::sNodes.end(); ++it) {
@@ -555,6 +553,7 @@ bool ClangRunnable::save(const QByteArray &path)
         pos += nodeSize(it.value());
     }
     file.resize(pos);
+    qDebug() << "file is" << pos;
     char *out = header.data();
     writeString(out + MagicPos, "Rt");
     writeInt32(out + NodeCountPos, nodeCount);
@@ -576,45 +575,30 @@ bool ClangRunnable::save(const QByteArray &path)
         const int32_t nodePosition = writeNode(&file, node, positions, entryIdx, entryLength);
         char *s = writeInt32(out + FirstId + (entryIdx * entryLength), nodePosition);
         writeString(s, key);
+        const int32_t location = ((entryIdx * entryLength) + FirstId + Int32Length);
+        locationsForNode[node] = location;
         ++entryIdx;
     }
     QMap<QByteArray, QSet<int32_t> > dictionary;
-    int32_t longestSymbolName = 0;
-    for (QHash<Node*, int32_t>::const_iterator it = positions.begin(); it != positions.end(); ++it) {
-        addToDictionary(it.key(), dictionary, it.value(), longestSymbolName);
+    for (QHash<Node*, int32_t>::const_iterator it = locationsForNode.begin(); it != locationsForNode.end(); ++it) {
+        addToDictionary(it.key(), dictionary, it.value());
     }
-    int32_t maxSynonyms = 0;
-    for (QMap<QByteArray, QSet<int32_t> >::const_iterator it = dictionary.begin(); it != dictionary.end(); ++it)
-        maxSynonyms = qMax(it.value().size(), maxSynonyms);
 
-    // printf("Writing maxSynonyms %d at %d\n", maxSynonyms, DictionaryMaxSynonymsPos);
     writeInt32(out + DictionaryPosPos, pos);
     writeInt32(out + DictionaryCountPos, dictionary.size());
-    writeInt32(out + DictionarySymbolNameLengthPos, longestSymbolName);
-    writeInt32(out + DictionaryMaxSynonymsPos, maxSynonyms);
 
     file.seek(0);
     file.write(header);
     file.seek(pos);
 
-    QVarLengthArray<char, 64> nulls(longestSymbolName);
-    memset(nulls.data(), '\0', longestSymbolName);
     for (QMap<QByteArray, QSet<int32_t> >::const_iterator it = dictionary.begin(); it != dictionary.end(); ++it) {
-        const QSet<int32_t> &locs = it.value();
-        foreach(int32_t l, locs)
+        qDebug() << file.pos() << it.key() << it.value();
+        writeString(&file, it.key());
+        foreach(int32_t l, it.value()) {
+            qDebug() << "writing location" << l << "at" << file.pos();
             writeInt32(&file, l);
-        for (int i=maxSynonyms - locs.size(); i>0; --i) {
-            writeInt32(&file, 0); // pad with zeroes for the symbol names that have fewer matches than others
         }
-        const QByteArray &symbolName = it.key();
-        qDebug() << "symbolName" << symbolName << file.pos() << longestSymbolName - symbolName.size()
-                 << locs.size() << maxSynonyms;
-        writeString(&file, symbolName);
-        const int diff = longestSymbolName - symbolName.size();
-        if (diff < 0)
-            qWarning() << longestSymbolName << symbolName;
-        if (diff)
-            writeString(&file, nulls.constData(), diff);
+        writeInt32(&file, 0);
     }
 
 #if 0

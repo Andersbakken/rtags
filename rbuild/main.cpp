@@ -39,9 +39,8 @@ void syslogMsgHandler(QtMsgType t, const char* str)
     } else if (colorStart) {
         colorEnd = "\x1b[0m";
     }
-    fprintf(stderr, "%s%s (%s): %s%s\n", colorStart,
+    fprintf(stderr, "%s%s: %s%s\n", colorStart,
             qPrintable(QDateTime::currentDateTime().toString()),
-            qPrintable(QThread::currentThread()->objectName()),
             str, colorEnd);
     char buf[16384];
     const int s = snprintf(buf, 16383, "%s (%s): %s (%s)\n",
