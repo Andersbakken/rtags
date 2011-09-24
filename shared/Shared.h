@@ -24,11 +24,7 @@ typedef enum {
     DictionaryPosLength = Int32Length,
     DictionaryCountPos = DictionaryPosPos + DictionaryPosLength,
     DictionaryCountPosLength = Int32Length,
-    DictionarySymbolNameLengthPos = DictionaryCountPos + DictionaryCountPosLength,
-    DictionarySymbolNameLengthPosLength = Int32Length,
-    DictionaryMaxSynonymsPos = DictionarySymbolNameLengthPos + DictionarySymbolNameLengthPosLength,
-    DictionaryMaxSynonymsPosLength = Int32Length,
-    FirstId = DictionaryMaxSynonymsPos + DictionaryMaxSynonymsPosLength,
+    FirstId = DictionaryCountPos + DictionaryCountPosLength,
     HeaderSize = FirstId
 } Offset;
 
