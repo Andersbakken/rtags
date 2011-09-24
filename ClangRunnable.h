@@ -33,9 +33,6 @@ private:
     static QMutex sPchMutex;
     static QMutex sTreeMutex;
     static Node *sRoot;
-    static int32_t sLongestId;
-
-
 };
 
 

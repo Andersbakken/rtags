@@ -178,6 +178,7 @@ void RBuild::maybeDone()
                 return;
             }
         }
+        ClangRunnable::save(".rtags.db");
         QCoreApplication::quit();
     }
 }
