@@ -296,7 +296,7 @@ void ClangRunnable::run()
         clang_visitChildren(rootCursor, buildComprehensiveTree, &ud);
 #ifndef QT_NO_DEBUG
         const QByteArray dump = qgetenv("RTAGS_DUMP");
-        if (ud.root && dump == "1" || dump.contains(mFile.fileName())) {
+        if (ud.root && (dump == "1" || dump.contains(mFile.fileName()))) {
             ud.root->dump(0);
             printf("Tree done\n");
             fflush(stdout);
