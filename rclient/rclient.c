@@ -279,18 +279,20 @@ int main(int argc, char **argv)
         int i;
         int32_t pos = dictionaryPosition;
         for (i=0; i<dictionaryCount; ++i) {
-            int len = strlen(ch + pos); // include \0
-            printf("Found symbol %s %d %d\n", ch + pos, len, pos);
-            int count = 0;
+            int32_t symbolName = pos;
+            assert(ch[pos] > 32); // should be a printable character
+            int len = strlen(ch + pos);
+            assert(len > 0);
+            /* printf("Found symbol %s %d %d\n", ch + pos, len, pos); */
+            pos += len + 1;
             while (1) {
-                int32_t loc = readInt32(ch + pos + len + 1 + (count * Int32Length));
-                printf("Found loc %d at %d\n", loc, pos + len + (count * Int32Length));
-                ++count;
-                if (loc)
+                int32_t loc = readInt32(ch + pos);
+                pos += Int32Length;
+                if (!loc)
                     break;
-                printf("%s s\n", ch + pos); //, ch + loc);
+                /* printf("Found loc %d at %d\n", loc, pos + len + (count * Int32Length)); */
+                printf("%s %s\n", ch + symbolName, ch + loc);
             }
-            pos += len + (count * Int32Length);
         }
         break; }
     }

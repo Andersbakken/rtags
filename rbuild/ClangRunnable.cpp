@@ -553,7 +553,7 @@ bool ClangRunnable::save(const QByteArray &path)
         pos += nodeSize(it.value());
     }
     file.resize(pos);
-    qDebug() << "file is" << pos;
+    // qDebug() << "file is" << pos;
     char *out = header.data();
     writeString(out + MagicPos, "Rt");
     writeInt32(out + NodeCountPos, nodeCount);
@@ -565,7 +565,7 @@ bool ClangRunnable::save(const QByteArray &path)
 
 
     writeInt32(out + DictionaryPosPos, pos);
-    qDebug() << "writing DictionaryPosPos" << pos;
+    // qDebug() << "writing DictionaryPosPos" << pos;
     writeNode(&file, sRoot, positions, -1, idLengthLength);
     QMap<QByteArray, int> symbols;
     int entryIdx = 0;
@@ -592,10 +592,10 @@ bool ClangRunnable::save(const QByteArray &path)
     file.seek(pos);
 
     for (QMap<QByteArray, QSet<int32_t> >::const_iterator it = dictionary.begin(); it != dictionary.end(); ++it) {
-        qDebug() << file.pos() << it.key() << it.value();
+        // qDebug() << file.pos() << it.key() << it.value();
         writeString(&file, it.key());
         foreach(int32_t l, it.value()) {
-            qDebug() << "writing location" << l << "at" << file.pos();
+            // qDebug() << "writing location" << l << "at" << file.pos();
             writeInt32(&file, l);
         }
         writeInt32(&file, 0);
