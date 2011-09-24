@@ -71,9 +71,10 @@ int main(int argc, char **argv)
         { "print-tree", 0, 0, 't' },
         { "db-file", 1, 0, 'f' },
         { "references", 1, 0, 'r' },
+        { "list-symbols", 1, 0, 'l' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hs:tf:r:";
+    const char *shortOptions = "hs:tf:r:l:";
     int idx;
     int longIndex;
     const char *arg = 0;
@@ -81,10 +82,11 @@ int main(int argc, char **argv)
     enum Mode {
         None,
         FollowSymbol,
-        References
+        References,
+        ListSymbols,
+        ShowTree
     } mode = None;
     char dbFileBuffer[PATH_MAX + 10];
-    int showTree = 0;
     // for (int i=0; i<argc; ++i) {
     //     printf("%d %s\n", i, argv[i]);
     // }
@@ -98,18 +100,38 @@ int main(int argc, char **argv)
             usage(stdout);
             return 0;
         case 's':
+            if (mode != None) {
+                printf("%s %d: if (mode != None) {\n", __FILE__, __LINE__);
+                return 1;
+            }
             arg = optarg;
             mode = FollowSymbol;
             break;
         case 'r':
             arg = optarg;
+            if (mode != None) {
+                printf("%s %d: if (mode != None) {\n", __FILE__, __LINE__);
+                return 1;
+            }
             mode = References;
             break;
         case 't':
-            showTree = 1;
+            if (mode != None) {
+                printf("%s %d: if (mode != None) {\n", __FILE__, __LINE__);
+                return 1;
+            }
+            mode = ShowTree;
             break;
         case 'f':
             dbFile = optarg;
+            break;
+        case 'l':
+            if (mode != None) {
+                printf("%s %d: if (mode != None) {\n", __FILE__, __LINE__);
+                return 1;
+            }
+            mode = ListSymbols;
+            arg = optarg;
             break;
         }
     }
@@ -140,8 +162,8 @@ int main(int argc, char **argv)
         }
     }
 
-    if (mode == None && !showTree) {
-        printf("%s %d: if (mode == None && !showTree) {\n", __FILE__, __LINE__);
+    if (mode == None) {
+        printf("%s %d: if (mode == None) {\n", __FILE__, __LINE__);
         return 1;
     }
         
@@ -189,9 +211,9 @@ int main(int argc, char **argv)
     locationLength = readInt32(ch + IdLengthPos);
     const int32_t dictionaryPosition = readInt32(ch + DictionaryPosPos);
     const int32_t dictionaryCount = readInt32(ch + DictionaryCountPos);
-    const int32_t dictionarySymbolLengthPos = readInt32(ch + DictionarySymbolNameLengthPos);
+    const int32_t dictionarySymbolLength = readInt32(ch + DictionarySymbolNameLengthPos);
     const int32_t dictionaryMaxSynonyms = readInt32(ch + DictionaryMaxSynonymsPos);
-    /* printf("%d %d - %d %d %d %d\n", locationLength, nodeCount, dictionaryPosition, dictionaryCount, dictionarySymbolLengthPos, dictionaryMaxSynonyms); */
+    /* printf("%d %d - %d %d %d %d\n", locationLength, nodeCount, dictionaryPosition, dictionaryCount, dictionarySymbolLength, dictionaryMaxSynonyms); */
     // qDebug() << (locationLength + 1 + Int32Length);
     if (locationLength <= 0 || nodeCount <= 0) {
         munmap(mapped, st.st_size);
@@ -200,11 +222,16 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (showTree) {
+    switch (mode) {
+    case None:
+        assert(0);
+        break;
+    case ShowTree:
         recurse(ch, rootNodePosition(nodeCount, locationLength), 0);
-    }
-
-    if (arg) {
+        break;
+    case References:
+    case FollowSymbol: {
+        assert(arg);
         const int argLen = strlen(arg) + 1;
         char *padded = (char*)malloc(argLen + Int32Length);
         strncpy(padded + Int32Length, arg, argLen);
@@ -261,6 +288,22 @@ int main(int argc, char **argv)
                 }
             }
         }
+        break; }
+    case ListSymbols: {
+        int i;
+        for (i=0; i<dictionaryCount; ++i) {
+            int32_t pos = dictionaryPosition + (i * (dictionarySymbolLength + (dictionaryMaxSynonyms * Int32Length)));
+            const char *symbolName = ch + (pos + (dictionaryMaxSynonyms * Int32Length));
+            int j;
+            for (j=0; j<dictionaryMaxSynonyms; ++j) {
+                int32_t loc = readInt32(ch + pos);
+                if (!loc)
+                    break;
+                pos += Int32Length;
+                printf("%s %s\n", symbolName, ch + loc);
+            }
+        }
+        break; }
     }
     munmap(mapped, st.st_size);
     close(fd);

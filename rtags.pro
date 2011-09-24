@@ -1,2 +1,2 @@
 TEMPLATE = subdirs
-SUBDIRS = rbuild.pro rc.pro
+SUBDIRS = rbuild rclient

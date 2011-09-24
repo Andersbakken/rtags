@@ -1,6 +1,7 @@
 #qmake INCLUDEPATH+=/usr/local/llvm/include/ "LIBS+=-L/usr/local/llvm/lib -Wl,-rpath,/usr/local/llvm/lib"
 TEMPLATE = app
-TARGET = rbuild
+TARGET = rb
+DESTDIR = ..
 DEPENDPATH += .
 INCLUDEPATH += .
 CONFIG += debug
@@ -23,8 +24,7 @@ SOURCES += \
     PreCompile.cpp \
     Node.cpp \
     Path.cpp \
-    ClangRunnable.cpp \
-    Shared.c
+    ClangRunnable.cpp
 
 HEADERS += \
     RBuild.h \
@@ -34,8 +34,9 @@ HEADERS += \
     Path.h \
     Node.h \
     Location.h \
-    ClangRunnable.h \
-    Shared.h
+    ClangRunnable.h
+
+include(../shared/shared.pri)
 
 OTHER_FILES += \
     gccopts.gperf

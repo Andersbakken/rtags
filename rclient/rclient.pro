@@ -3,25 +3,19 @@
 ######################################################################
 
 TEMPLATE = app
-TARGET = 
+TARGET = rc
+DESTDIR = ..
 DEPENDPATH += .
 INCLUDEPATH += .
 
 # Input
-SOURCES += rc.c Shared.c
-HEADERS += Shared.h
+SOURCES += rclient.c 
 CONFIG += debug
 CONFIG -= app_bundle
 QT = 
 unix {
-    debug:OBJECTS_DIR = $${OUT_PWD}/.obj/debug-shared
-    release:OBJECTS_DIR = $${OUT_PWD}/.obj/release-shared
-
-    debug:MOC_DIR = $${OUT_PWD}/.moc/debug-shared
-    release:MOC_DIR = $${OUT_PWD}/.moc/release-shared
-
-    RCC_DIR = $${OUT_PWD}/.rcc/
-    UI_DIR = $${OUT_PWD}/.uic/
+    OBJECTS_DIR = .obj
 }
  
 QMAKE_LINK = $$QMAKE_LINK_C
+include(../shared/shared.pri)

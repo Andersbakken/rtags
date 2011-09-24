@@ -511,7 +511,7 @@ static inline int32_t addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> 
     }
     map[symbolName].insert(pos);
     Q_ASSERT(!symbolName.contains("("));
-    longestSymbolName = qMax(symbolName.size(), longestSymbolName);
+    longestSymbolName = qMax(symbolName.size() + 1, longestSymbolName);
     int count = 1;
     while (parent) {
         switch (parent->type) {
@@ -523,7 +523,7 @@ static inline int32_t addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> 
             ++count;
             symbolName.prepend("::");
             symbolName.prepend(parent->symbolName);
-            longestSymbolName = qMax(symbolName.size(), longestSymbolName);
+            longestSymbolName = qMax(symbolName.size() + 1, longestSymbolName);
             map[symbolName].insert(pos);
             break;
         default:
