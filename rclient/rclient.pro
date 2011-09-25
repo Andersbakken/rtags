@@ -8,6 +8,7 @@ DESTDIR = ..
 DEPENDPATH += .
 INCLUDEPATH += .
 
+DEFINES += _GNU_SOURCE
 # Input
 SOURCES += rclient.c 
 CONFIG += debug

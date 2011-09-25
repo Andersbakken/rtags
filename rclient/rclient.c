@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -13,13 +12,16 @@
 #include <getopt.h>
 
 static int32_t locationLength = -1;
+static int caseInsensitive = 0;
 
 static int find(const void *l, const void *r)
 {
     const char *left = ((const char*)l) + Int32Length;
     const char *right = ((const char*)r) + Int32Length;
     // printf("%s %s %s\n", left, right, std::string(left, locationLength).c_str());
-    return strncmp(left, right, locationLength - Int32Length);
+    return (caseInsensitive
+            ? strncasecmp(left, right, locationLength - Int32Length)
+            : strncmp(left, right, locationLength - Int32Length));
 }
 
 
@@ -42,12 +44,15 @@ static inline void usage(FILE *f)
 {
     fprintf(f,
             "rc [options]...\n"
-            "  --help|-h                Display this help\n"
-            "  --follow-symbol|-s [arg] Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
-            "  --references|-r [arg]    Print references of symbol at arg\n"
-            "  --print-tree|-t          Print out the node tree to stdout\n"
-            "  --list-symbols|-l [arg]  Print out symbols matching arg\n"
-            "  --db-file|-f [arg]       Use this database file\n");
+            "  --help|-h                  Display this help\n"
+            "  --follow-symbol|-s [arg]   Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
+            "  --references|-r [arg]      Print references of symbol at arg\n"
+            "  --print-tree|-t            Print out the node tree to stdout\n"
+            "  --list-symbols|-l [arg]    Print out symbols matching arg\n"
+            "  --db-file|-f [arg]         Use this database file\n"
+            "  --match-complete-symbol|-c Match only complete symbols (for --list-symbols)\n"
+            "  --match-starts-with|-S     Match symbols that starts with the search term (for --list-symbols)\n"
+            "  --case-insensitive|-i      Case insensitive matching\n");
 }
 
 int main(int argc, char **argv)
@@ -59,13 +64,20 @@ int main(int argc, char **argv)
         { "db-file", 1, 0, 'f' },
         { "references", 1, 0, 'r' },
         { "list-symbols", 1, 0, 'l' },
+        { "match-complete-symbol", 0, 0, 'c' },
+        { "match-starts-with", 0, 0, 'S' },
+        { "case-insensitive", 0, 0, 'i' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hs:tf:r:l:";
-    int idx;
-    int longIndex;
+    const char *shortOptions = "hs:tf:r:l:cSi";
+    int idx, longIndex;
     const char *arg = 0;
     const char *dbFile = 0;
+    enum MatchType {
+        MatchAnywhere,
+        MatchStartsWith,
+        MatchCompleteSymbol
+    } matchType = MatchAnywhere;
     enum Mode {
         None,
         FollowSymbol,
@@ -83,6 +95,9 @@ int main(int argc, char **argv)
         case '?':
             usage(stderr);
             return 1;
+        case 'i':
+            caseInsensitive = 1;
+            break;
         case 'h':
             usage(stdout);
             return 0;
@@ -120,7 +135,25 @@ int main(int argc, char **argv)
             mode = ListSymbols;
             arg = optarg;
             break;
+        case 'S':
+            if (matchType != MatchAnywhere) {
+                printf("%s %d: if (matchType != MatchAnywhere) {\n", __FILE__, __LINE__);
+                return 1;
+            }
+            matchType = MatchStartsWith;
+            break;
+        case 'c':
+            if (matchType != MatchAnywhere) {
+                printf("%s %d: if (matchType != MatchAnywhere) {\n", __FILE__, __LINE__);
+                return 1;
+            }
+            matchType = MatchCompleteSymbol;
+            break;
         }
+    }
+    if (matchType != MatchAnywhere && mode != ListSymbols) {
+        printf("%s %d: if (matchType != MatchAnywhere && mode != ListSymbols)\n", __FILE__, __LINE__);
+        return 1;
     }
 
     if (!dbFile) {
@@ -278,20 +311,40 @@ int main(int argc, char **argv)
     case ListSymbols: {
         int i;
         int32_t pos = dictionaryPosition;
+        const int argLen = matchType == MatchStartsWith ? strlen(arg) : 0;
         for (i=0; i<dictionaryCount; ++i) {
             int32_t symbolName = pos;
             assert(ch[pos] > 32); // should be a printable character
-            int len = strlen(ch + pos);
+            const int len = strlen(ch + pos);
             assert(len > 0);
             /* printf("Found symbol %s %d %d\n", ch + pos, len, pos); */
+            int matched = 0;
+            switch (matchType) { // ### case-insensitive
+            case MatchAnywhere:
+                matched = ((caseInsensitive
+                            ? strcasestr(ch + symbolName, arg)
+                            : strstr(ch + symbolName, arg)) == 0 ? 1 : 0);
+                break;
+            case MatchCompleteSymbol:
+                matched = ((caseInsensitive
+                            ? strcasecmp(ch + symbolName, arg)
+                            : strcmp(ch + symbolName, arg)) == 0 ? 1 : 0);
+                break;
+            case MatchStartsWith:
+                matched = ((caseInsensitive
+                            ? strncasecmp(ch + symbolName, arg, argLen)
+                            : strncmp(ch + symbolName, arg, argLen)) == 0 ? 1 : 0);
+                break;
+            }
+
             pos += len + 1;
             while (1) {
                 int32_t loc = readInt32(ch + pos);
                 pos += Int32Length;
                 if (!loc)
                     break;
-                /* printf("Found loc %d at %d\n", loc, pos + len + (count * Int32Length)); */
-                printf("%s %s\n", ch + symbolName, ch + loc);
+                if (matched)
+                    printf("%s %s\n", ch + symbolName, ch + loc);
             }
         }
         break; }
