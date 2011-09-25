@@ -223,17 +223,12 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    // for (int i=0; i<10; ++i) {
-    //     printf("%d %x %c\n", i, ch[i], ch[i]);
-    // }
-
     const int32_t nodeCount = readInt32(ch + NodeCountPos);
     locationLength = readInt32(ch + IdLengthPos);
     const int32_t dictionaryPosition = readInt32(ch + DictionaryPosPos);
     const int32_t dictionaryCount = readInt32(ch + DictionaryCountPos);
-    printf("locationLength %d nodeCount %d\n"
-           "dictionaryPosition %d dictionaryCount %d\n", locationLength, nodeCount, dictionaryPosition, dictionaryCount);
-    // qDebug() << (locationLength + 1 + Int32Length);
+    /* printf("locationLength %d nodeCount %d\n" */
+    /*        "dictionaryPosition %d dictionaryCount %d\n", locationLength, nodeCount, dictionaryPosition, dictionaryCount); */
     if (locationLength <= 0 || nodeCount <= 0) {
         munmap(mapped, st.st_size);
         close(fd);
@@ -311,40 +306,48 @@ int main(int argc, char **argv)
     case ListSymbols: {
         int i;
         int32_t pos = dictionaryPosition;
-        const int argLen = matchType == MatchStartsWith ? strlen(arg) : 0;
-        for (i=0; i<dictionaryCount; ++i) {
-            int32_t symbolName = pos;
-            assert(ch[pos] > 32); // should be a printable character
-            const int len = strlen(ch + pos);
-            assert(len > 0);
-            /* printf("Found symbol %s %d %d\n", ch + pos, len, pos); */
-            int matched = 0;
-            switch (matchType) { // ### case-insensitive
-            case MatchAnywhere:
-                matched = ((caseInsensitive
-                            ? strcasestr(ch + symbolName, arg)
-                            : strstr(ch + symbolName, arg)) == 0 ? 1 : 0);
-                break;
-            case MatchCompleteSymbol:
-                matched = ((caseInsensitive
-                            ? strcasecmp(ch + symbolName, arg)
-                            : strcmp(ch + symbolName, arg)) == 0 ? 1 : 0);
-                break;
-            case MatchStartsWith:
-                matched = ((caseInsensitive
-                            ? strncasecmp(ch + symbolName, arg, argLen)
-                            : strncmp(ch + symbolName, arg, argLen)) == 0 ? 1 : 0);
-                break;
-            }
-
-            pos += len + 1;
-            while (1) {
-                int32_t loc = readInt32(ch + pos);
-                pos += Int32Length;
-                if (!loc)
+        const int argLen = strlen(arg);
+        if (argLen) {
+            for (i=0; i<dictionaryCount; ++i) {
+                int32_t symbolName = pos;
+                assert(ch[pos] > 32); // should be a printable character
+                const int len = strlen(ch + pos);
+                assert(len > 0);
+                /* printf("Found symbol %s %d %d\n", ch + pos, len, pos); */
+                int matched = 0;
+                switch (matchType) { // ### case-insensitive
+                case MatchAnywhere:
+                    if (caseInsensitive
+                        ? strcasestr(ch + symbolName, arg)
+                        : strstr(ch + symbolName, arg)) {
+                        matched = 1;
+                    }
                     break;
-                if (matched)
-                    printf("%s %s\n", ch + symbolName, ch + loc);
+                case MatchCompleteSymbol:
+                    if ((caseInsensitive
+                         ? strcasecmp(ch + symbolName, arg)
+                         : strcmp(ch + symbolName, arg)) == 0) {
+                        matched = 1;
+                    }
+                    break;
+                case MatchStartsWith:
+                    if ((caseInsensitive
+                         ? strncasecmp(ch + symbolName, arg, argLen)
+                         : strncmp(ch + symbolName, arg, argLen)) == 0) {
+                        matched = 1;
+                    }
+                    break;
+                }
+
+                pos += len + 1;
+                while (1) {
+                    int32_t loc = readInt32(ch + pos);
+                    pos += Int32Length;
+                    if (!loc)
+                        break;
+                    if (matched)
+                        printf("%s %s\n", ch + symbolName, ch + loc);
+                }
             }
         }
         break; }
