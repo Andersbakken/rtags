@@ -42,7 +42,13 @@ bool RBuild::addMakefile(Path makefile)
         connect(proc, SIGNAL(readyReadStandardOutput()), this, SLOT(onMakeOutput()));
         MakefileData data = { makefile, workingDir, QByteArray(), workingDir };
         mMakefiles[proc] = data;
-        proc->start(QLatin1String("make"), // some way to specify which make to use?
+        QString make;
+        if (Path("/opt/local/bin/gmake").isFile()) {
+            make = QLatin1String("/opt/local/bin/gmake");
+        } else {
+            make = QLatin1String("make");
+        }
+        proc->start(make, // some way to specify which make to use?
                     QStringList()
                     << QLatin1String("-B")
                     << QLatin1String("-n")
