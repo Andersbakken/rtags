@@ -8,6 +8,7 @@
 #include "ClangRunnable.h"
 #include <syslog.h>
 #include <getopt.h>
+#include "Shared.h"
 
 void syslogMsgHandler(QtMsgType t, const char* str)
 {
@@ -70,12 +71,12 @@ int main(int argc, char** argv)
     }
     struct option longOptions[] = {
         { "help", 0, 0, 'h' },
-        { "update-db", 1, 0, 'u' },
-        { "output", 1, 0, 'o' },
+        { "update-db", 0, 0, 'u' },
         { "srcdir", 1, 0, 's' },
+        { "db-file", 1, 0, 'f' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hu:o:s:";
+    const char *shortOptions = "huf:s:";
     int idx, longIndex;
     
     QCoreApplication app(argc, argv);
@@ -86,14 +87,35 @@ int main(int argc, char** argv)
 
     PreCompile::setPath("/tmp");
 
+    RBuild rbuild;
+    while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
+        switch (idx) {
+        case 'h':
+        case 's':
+            break;
+        case 'u':
+            if (rbuild.databaseFile().isEmpty()) {
+                char buf[PATH_MAX + 1];
+                if (!findDB(buf, PATH_MAX)) {
+                    printf("%s %d: if (!findDB(buf, PATH_MAX)) {\n", __FILE__, __LINE__);
+                    return 1;
+                }
+                rbuild.setDatabaseFile(buf);
+            }
+            break;
+        case 'f':
+            break;
+        }
+    }
+
     ClangRunnable::init();
     qInstallMsgHandler(syslogMsgHandler);
-    RBuild rbuild;
-    // while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
-    //     switch (idx) {
-    
+        
     for (int i=1; i<argc; ++i) {
-        rbuild.addMakefile(argv[i]);
+        if (!rbuild.addMakefile(argv[i])) {
+            printf("%s %d: if (!rbuild.addMakefile(argv[i]))\n", __FILE__, __LINE__);
+            return 1;
+        }
     }
 
     const bool ret = app.exec();

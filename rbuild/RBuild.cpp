@@ -16,7 +16,7 @@ RBuild::RBuild(QObject *parent)
     mThreadPool.setMaxThreadCount(qMax(4, QThread::idealThreadCount() * 2));
 }
 
-void RBuild::addMakefile(Path makefile)
+bool RBuild::addMakefile(Path makefile)
 {
     if (!makefile.isResolved())
         makefile.resolve();
@@ -30,7 +30,7 @@ void RBuild::addMakefile(Path makefile)
             sourceDir = makefile.parentDir();
         const Path workingDir = makefile.parentDir();
         if (!makefile.exists())
-            return;
+            return false;
         QDir::setCurrent(workingDir); // ### hmmmm
         QProcess *proc = new QProcess(this);
         proc->setWorkingDirectory(workingDir);
@@ -49,10 +49,13 @@ void RBuild::addMakefile(Path makefile)
                     << QLatin1String("-f")
                     << makefile);
         qDebug() << "addMakefile" << makefile;
+    } else {
+        return false;
     }
     if (sourceDir.isDir()) {
         recurseDir(sourceDir);
     }
+    return true;
 }
 
 QDebug operator<<(QDebug dbg, CXCursor cursor)
@@ -216,4 +219,13 @@ void RBuild::recurseDir(const Path &path)
     }
     
     closedir(dir);
+}
+void RBuild::setDatabaseFile(const Path &path)
+{
+    mDatabaseFile = path;
+}
+
+Path RBuild::databaseFile() const
+{
+    return mDatabaseFile;
 }

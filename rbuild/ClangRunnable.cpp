@@ -466,8 +466,8 @@ static int32_t writeNode(QIODevice *device, Node *node, const QHash<Node*, int32
                          int entryIdx, int entryLength)
 {
     const int32_t nodePosition = positions.value(node, -1);
-    if (!node->parent)
-        printf("Writing node %s %s at %d\n", nodeTypeToName(node->type, Normal), node->symbolName.constData(), nodePosition);
+    // if (node->parent)
+    //     printf("Writing node %s %s at %d\n", nodeTypeToName(node->type, Normal), node->symbolName.constData(), nodePosition);
     Q_ASSERT(nodePosition > 0);
     device->seek(nodePosition);
     writeInt32(device, node->type);

@@ -18,8 +18,10 @@ class RBuild : public QObject
     Q_OBJECT;
 public:
     RBuild(QObject* parent = 0);
-    void addMakefile(Path makefile);
+    bool addMakefile(Path makefile);
     void recurseDir(const Path &path);
+    void setDatabaseFile(const Path &path);
+    Path databaseFile() const;
 private slots:
     void maybeDone();
     void onMakeFinished(int statusCode);
@@ -36,6 +38,7 @@ private:
     QHash<QProcess *, MakefileData> mMakefiles;
     QThreadPool mThreadPool;
     int mPendingRunnables;
+    Path mDatabaseFile;
 };
 
 #endif
