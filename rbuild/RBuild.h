@@ -34,14 +34,6 @@ private:
         Path workingDirectory;
     };
     QHash<QProcess *, MakefileData> mMakefiles;
-
-    // struct FileData {
-    //     GccArguments arguments;
-    //     QSet<Path> dependents, dependsOn;
-    //     // If this is Foo.cpp, dependsOn contains Foo.h,
-    //     // If this is Foo.h, dependents contains Foo.cpp
-    // };
-    // QHash<Path, FileData> mFiles;
     QThreadPool mThreadPool;
     int mPendingRunnables;
 };

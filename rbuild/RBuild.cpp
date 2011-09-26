@@ -135,34 +135,18 @@ void RBuild::onMakeOutput()
                              qPrintable(args.errorString()));
                     continue;
                 }
-                if (!args.hasInput() || !args.isCompile()) {
-#if 0
-                    QStringList strings = QString::fromLocal8Bit(line).split(' ');
-                    const int size = strings.size();
-                    if (size >= 3 && strings.first().endsWith(":")) {
-                        const Path sourceFile = Path::resolved(strings.at(1).toLocal8Bit(), data.directory);
-                        if (sourceFile.isSource()) { // using extension to determine if this is a source file
-                            FileData &fd = mFiles[sourceFile];
-                            for (int i=2; i<size; ++i) {
-                                const Path header = Path::resolved(strings.at(i).toLocal8Bit(), data.directory);
-                                if (header.isSource()) {
-                                    mFiles[header].dependents.insert(sourceFile);
-                                    fd.dependsOn.insert(header);
-                                }
-                            }
-                        }
-                    }
-#endif
-                } else {
+                if (args.hasInput() && args.isCompile()) {
                     foreach(const Path &file, args.input()) { // already resolved
                         Q_ASSERT(file.exists());
-                        if (!data.seen.contains(file)) {
+                        if (!data.seen.contains(file)) { // is this necessary?
                             data.seen.insert(file);
                             // qDebug() << "setting arguments for" << file << "to" << args.raw();
                             ClangRunnable *runnable = new ClangRunnable(file, args);
                             ++mPendingRunnables;
                             connect(runnable, SIGNAL(finished()), this, SLOT(onClangRunnableFinished()));
                             mThreadPool.start(runnable);
+                        } else {
+                            qWarning() << "seeing file again" << file << args;
                         }
                     }
                 }

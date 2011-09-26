@@ -7,7 +7,7 @@ static const bool disablePch = getenv("RTAGS_NO_PCH");
 Node *ClangRunnable::sRoot = 0;
 QMutex ClangRunnable::sPchMutex;
 QMutex ClangRunnable::sTreeMutex;
-QMap<Path, ClangRunnable::DependencyData> ClangRunnable::sDependencies;
+QMap<Path, ClangRunnable::FileData> ClangRunnable::sFiles;
 
 struct PrecompileData {
     QList<Path> direct, all;
@@ -243,8 +243,9 @@ void ClangRunnable::run()
             args[compilerOptionsCount + 1] = pchfile.constData();
         }
 
+        time_t before;
         do {
-            const time_t before = mFile.lastModified();
+            before = mFile.lastModified();
             // qDebug() << "parsing file" << mFile << (i == WithPCH ? "with PCH" : "without PCH");
             Q_ASSERT(!args.contains(0));
             // for (int i=0; i<argCount; ++i) {
@@ -274,19 +275,16 @@ void ClangRunnable::run()
             PrecompileData pre;
             clang_getInclusions(unit, precompileHeaders, &pre);
             // qDebug() << mFile << pre.direct << pre.all;
+            QMutexLocker lock(&sPchMutex);
             if (precompile) {
                 precompile->add(pre.direct, pre.all);
             }
-            // mFiles[mFile] = mFile.lastModified();
-            // emit fileParsed(mFile, unit);
-            // const QSet<Path> deps = pre.all.toSet();
-            // foreach(const Path &dep, deps) {
-            //     mFiles[dep] = dep.lastModified();
-            // }
-            // if (mFileManager->addDependencies(mFile, deps))
-            //     emit dependenciesAdded(deps);
-            qDebug() << "file was parsed" << mFile << timer.elapsed() << "ms"
-                     << (i == WithPCH ? "with PCH" : "without PCH") << compilerOptions;
+            FileData data;
+            data.lastModified = before;
+            data.arguments = mArgs;
+            foreach(const Path &dependency, pre.all) {
+                data.dependencies[dependency] = dependency.lastModified(); // ### raise condition, only checking time after parsing
+            }
         }
     }
     if (unit) {
@@ -604,10 +602,12 @@ bool ClangRunnable::save(const QByteArray &path)
     file.seek(0);
     file.write(header);
     file.seek(pos);
-    for (QMap<Path, DependencyData>::const_iterator it = sDependencies.begin(); it != sDependencies.end(); ++it) {
+    for (QMap<Path, FileData>::const_iterator it = sFiles.begin(); it != sFiles.end(); ++it) {
         writeString(&file, it.key());
-        const DependencyData &data = it.value();
+        const FileData &data = it.value();
         writeInt64(&file, data.lastModified);
+        QDataStream ds(&file);
+        ds << data.arguments;
         const QHash<Path, time_t> &headers = data.dependencies;
         writeInt32(&file, headers.size());
         for (QHash<Path, time_t>::const_iterator it = headers.begin(); it != headers.end(); ++it) {

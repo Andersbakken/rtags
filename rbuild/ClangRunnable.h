@@ -32,11 +32,12 @@ private:
     static QMutex sPchMutex;
     static QMutex sTreeMutex;
     static Node *sRoot;
-    struct DependencyData {
+    struct FileData {
         QHash<Path, time_t> dependencies;
+        GccArguments arguments;
         time_t lastModified;
     };
-    static QMap<Path, DependencyData> sDependencies;
+    static QMap<Path, FileData> sFiles;
 };
 
 
