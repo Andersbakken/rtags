@@ -6,3 +6,5 @@ add a string class around CXString
 we need to listen for leaving directory and maintain a stack in FileManager
 implement a symbol at current pos which could be used for a dynamic modeline thing for emacs
 nicer output from rbuild
+
+Bugs:

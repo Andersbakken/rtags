@@ -34,7 +34,8 @@ HEADERS += \
     Path.h \
     Node.h \
     Location.h \
-    ClangRunnable.h
+    ClangRunnable.h \
+    Shared.h
 
 include(../shared/shared.pri)
 
