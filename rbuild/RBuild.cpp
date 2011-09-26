@@ -45,7 +45,6 @@ bool RBuild::addMakefile(Path makefile)
                     << QLatin1String("-B")
                     << QLatin1String("-n")
                     << QLatin1String("-j1")
-                    << QLatin1String("-p")
                     << QLatin1String("-f")
                     << makefile);
         qDebug() << "addMakefile" << makefile;
