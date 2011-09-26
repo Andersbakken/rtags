@@ -102,7 +102,7 @@ int loadDb(const char *dbFile, struct MMapData *data)
     ch = (char*)data->memory;
     if (strncmp(data->memory, "Rt", 3)) {
         printf("%s %d: if (memcmp(data->memory, \"Rt\", 2)) {\n", __FILE__, __LINE__);
-        munmap(data->memory, st.st_size);
+        munmap((void*)data->memory, st.st_size);
         return 0;
     }
 
@@ -113,12 +113,17 @@ int loadDb(const char *dbFile, struct MMapData *data)
     /* printf("locationLength %d nodeCount %d\n" */
     /*        "dictionaryPosition %d dictionaryCount %d\n", locationLength, nodeCount, dictionaryPosition, dictionaryCount); */
     if (data->idLength <= 0 || data->nodeCount <= 0) {
-        munmap(data->memory, st.st_size);
+        munmap((void*)data->memory, st.st_size);
         printf("%s %d: if (locationLength <= 0 || nodeCount <= 0)\n", __FILE__, __LINE__);
         return 0;
     }
     data->fileDataPosition = readInt32(ch + FileDataPosPos);
-    data->fileDataCount = readInt32(ch + FileDataCountPos);
     data->mappedSize = st.st_size;
+    if (data->fileDataPosition >= st.st_size
+        || data->dictionaryCount >= st.st_size) { // sanity check
+        munmap((void*)data->memory, st.st_size);
+        return 0;
+    }
+    data->rootNodePosition = rootNodePosition(data->nodeCount, data->idLength);
     return 1;
 }

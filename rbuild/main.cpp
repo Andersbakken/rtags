@@ -151,6 +151,8 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    if (rbuild.pendingWork())
+        return app.exec();
 
-    return app.exec();
+    return 0;
 }

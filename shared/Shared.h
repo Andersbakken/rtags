@@ -29,9 +29,7 @@ typedef enum {
     DictionaryCountPosLength = Int32Length,
     FileDataPosPos = DictionaryCountPos + DictionaryCountPosLength,
     FileDataPosPosLength = Int32Length,
-    FileDataCountPos = FileDataPosPos + FileDataPosPosLength,
-    FileDataCountPosLength = Int32Length,
-    FirstId = FileDataCountPos + FileDataCountPosLength,
+    FirstId = FileDataPosPos + FileDataPosPosLength,
     HeaderSize = FirstId
 } Offset;
 
@@ -69,9 +67,9 @@ static inline int64_t readInt64(const char *src)
 }
 
 struct MMapData {
-    void *memory;
+    const char *memory;
     size_t mappedSize;
-    int32_t nodeCount, idLength, dictionaryPosition, dictionaryCount, fileDataPosition, fileDataCount;
+    int32_t nodeCount, idLength, dictionaryPosition, dictionaryCount, fileDataPosition, rootNodePosition;
 };
 
 int loadDb(const char *dbfile, struct MMapData *data);
@@ -142,6 +140,16 @@ static inline void writeString(QIODevice *dev, const char *src, int len = -1) //
         len = strlen(src) + 1;
     Q_ASSERT(len >= 0);
     dev->write(src, len);
+}
+
+static inline int readString(const char *data, QByteArray *string) // ### does not allocate memory
+{
+    Q_ASSERT(string);
+    for (int i=0; data[i] && data[i] != '\0'; ++i) {
+        *string = QByteArray::fromRawData(data, i + 1);
+        return i;
+    }
+    return -1;
 }
 
 static inline void writeString(QIODevice *dev, const QByteArray &data)

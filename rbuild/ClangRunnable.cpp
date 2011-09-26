@@ -5,9 +5,9 @@
 
 static const bool disablePch = getenv("RTAGS_NO_PCH");
 Node *ClangRunnable::sRoot = 0;
-QMutex ClangRunnable::sPchMutex;
-QMutex ClangRunnable::sTreeMutex;
-QMap<Path, ClangRunnable::FileData> ClangRunnable::sFiles;
+QMutex ClangRunnable::sPchMutex(QMutex::Recursive);
+QMutex ClangRunnable::sTreeMutex(QMutex::Recursive);
+QHash<Path, ClangRunnable::FileData> ClangRunnable::sFiles;
 
 struct PrecompileData {
     QList<Path> direct, all;
@@ -279,7 +279,7 @@ void ClangRunnable::run()
             if (precompile) {
                 precompile->add(pre.direct, pre.all);
             }
-            FileData data;
+            FileData &data = sFiles[mFile];
             data.lastModified = before;
             data.arguments = mArgs;
             foreach(const Path &dependency, pre.all) {
@@ -339,7 +339,7 @@ void ClangRunnable::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pen
                 const QByteArray macroDefinitionId = Location(cn->cursor).toString();
                 Node *parent = Node::sNodes.value(macroDefinitionId);
                 Q_ASSERT(parent);
-                new Node(parent, Reference, c->cursor, loc, id);
+                new Node(parent, Reference, parent->symbolName, loc, id);
                 return;
             }
         }
@@ -369,7 +369,11 @@ void ClangRunnable::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pen
                     parent = Node::sNodes.value(parentId, parent);
                 }
 
-                parent = new Node(parent, type, c->cursor, loc, id);
+                parent = new Node(parent, type,
+                                  (type == Reference
+                                   ? parent->symbolName
+                                   : eatString(clang_getCursorDisplayName(c->cursor))),
+                                  loc, id);
             }
         }
         for (CursorNode *child=c->firstChild; child; child = child->nextSibling) {
@@ -429,7 +433,7 @@ void ClangRunnable::addReference(CursorNode *c, const QByteArray &id, const Loca
                 refNode = decl;
         }
         Q_ASSERT(!Node::sNodes.contains(id));
-        new Node(refNode, Reference, c->cursor, loc, id);
+        new Node(refNode, Reference, refNode->symbolName, loc, id);
         Q_ASSERT(Node::sNodes.contains(id));
     }
 
@@ -599,23 +603,27 @@ bool ClangRunnable::save(const QByteArray &path)
     }
     pos = file.pos();
     writeInt32(out + FileDataPosPos, pos);
-    writeInt32(out + FileDataCountPos, sFiles.size());
     file.seek(0);
     file.write(header);
     file.seek(pos);
-    for (QMap<Path, FileData>::const_iterator it = sFiles.begin(); it != sFiles.end(); ++it) {
-        writeString(&file, it.key());
-        const FileData &data = it.value();
-        writeInt64(&file, data.lastModified);
+    {
         QDataStream ds(&file);
-        ds << data.arguments;
-        const QHash<Path, time_t> &headers = data.dependencies;
-        writeInt32(&file, headers.size());
-        for (QHash<Path, time_t>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
-            writeString(&file, it.key());
-            writeInt64(&file, it.value());
-        }
+        qDebug() << "saved" << sFiles.size() << "files at" << file.pos();
+        ds << sFiles;
     }
+    // for (QMap<Path, FileData>::const_iterator it = sFiles.begin(); it != sFiles.end(); ++it) {
+    //     writeString(&file, it.key());
+    //     const FileData &data = it.value();
+    //     writeInt64(&file, data.lastModified);
+    //     QDataStream ds(&file);
+    //     ds << data.arguments;
+    //     const QHash<Path, time_t> &headers = data.dependencies;
+    //     writeInt32(&file, headers.size());
+    //     for (QHash<Path, time_t>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
+    //         writeString(&file, it.key());
+    //         writeInt64(&file, it.value());
+    //     }
+    // }
 
 #if 0
     for (int i=0; i<FirstId; ++i) {
@@ -637,4 +645,45 @@ bool ClangRunnable::save(const QByteArray &path)
     }
 #endif
     return true;
+}
+
+QDataStream &operator<<(QDataStream &ds, const ClangRunnable::FileData &fd)
+{
+    ds << fd.arguments << fd.lastModified << fd.dependencies;
+    return ds;
+}
+
+QDataStream &operator>>(QDataStream &ds, ClangRunnable::FileData &fd)
+{
+    ds >> fd.arguments >> fd.lastModified >> fd.dependencies;
+    return ds;
+}
+
+void ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPaths)
+{
+    QMutexLocker lock(&sTreeMutex);
+    Q_ASSERT(sRoot);
+    // qDebug() << modifiedPaths;
+    const NodeData nodeData = readNodeData(data->memory + data->rootNodePosition);
+    initTree(data, modifiedPaths, sRoot, nodeData);
+}
+
+
+void ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPaths,
+                             Node *parent, const NodeData &nodeData)
+{
+    // int child = node.firstChild;
+    // while (child) {
+    //     NodeData c = readNodeData(data->memory + child);
+    //     Node *node = new Node
+    // }
+    //     initTree(data, modifiedPaths, parent,
+    //     recurse(ch, node.firstChild, indent + 2);
+
+    // }
+    // if (node.nextSibling)
+        // recurse(ch, node.nextSibling, indent);
+    
+
+    // initTree(data, modifiedPaths,
 }

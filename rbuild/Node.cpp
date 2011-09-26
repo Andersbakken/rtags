@@ -7,8 +7,8 @@ Node::Node()
     : parent(0), nextSibling(0), firstChild(0), type(Root), symbolName("RootNode")
 {}
 
-Node::Node(Node *p, NodeType t, const CXCursor &c, const Location &l, const QByteArray &i)
-    : parent(p), nextSibling(0), firstChild(0), type(t), location(l), id(i)
+Node::Node(Node *p, NodeType t, const QByteArray &symbol, const Location &l, const QByteArray &i)
+    : parent(p), nextSibling(0), firstChild(0), type(t), location(l), id(i), symbolName(symbol)
 {
     Q_ASSERT(!sNodes.contains(id));
     Q_ASSERT(id == l.toString());
@@ -16,12 +16,7 @@ Node::Node(Node *p, NodeType t, const CXCursor &c, const Location &l, const QByt
     sLongestId = qMax(sLongestId, id.size());
     Q_ASSERT(t != Invalid);
     Q_ASSERT(t == Root || parent);
-    if (type == Reference && parent->type != Root) {
-        symbolName = parent->symbolName;
-    }
-
-    if (symbolName.isEmpty())
-        symbolName = eatString(clang_getCursorDisplayName(c));
+    Q_ASSERT(type != Reference || parent->type != Root);
 
     if (parent) {
 // #ifdef QT_NO_DEBUG

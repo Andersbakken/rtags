@@ -316,8 +316,6 @@ QDataStream& operator>>(QDataStream& stream, GccArguments::Data::Argument &arg)
     return stream;
 }
 
-
-
 QList<QByteArray> GccArguments::includePaths() const
 {
     QList<QByteArray> includePaths = arguments("-I");

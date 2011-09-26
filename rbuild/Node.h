@@ -15,7 +15,7 @@ struct Node
     QByteArray symbolName;
 
     Node();
-    Node(Node *p, NodeType t, const CXCursor &c, const Location &l, const QByteArray &id);
+    Node(Node *p, NodeType t, const QByteArray &symbolName, const Location &l, const QByteArray &id);
     ~Node();
     static NodeType nodeTypeFromCursor(const CXCursor &c);
     QByteArray toString() const;

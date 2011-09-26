@@ -86,7 +86,6 @@ int main(int argc, char **argv)
         ShowTree
     } mode = None;
     struct MMapData mmapData;
-    const char *ch = 0;
     char dbFileBuffer[PATH_MAX + 10];
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
         switch (idx) {
@@ -172,7 +171,6 @@ int main(int argc, char **argv)
         printf("%s %d: if (!loadDb(dbFile)) {\n", __FILE__, __LINE__);
         return 1;
     }
-    ch = (const char*)(mmapData.memory);
     idLength = mmapData.idLength;
 
     switch (mode) {
@@ -180,7 +178,7 @@ int main(int argc, char **argv)
         assert(0);
         break;
     case ShowTree:
-        recurse(ch, rootNodePosition(mmapData.nodeCount, idLength), 0);
+        recurse(mmapData.memory, rootNodePosition(mmapData.nodeCount, idLength), 0);
         break;
     case References:
     case FollowSymbol: {
@@ -188,22 +186,22 @@ int main(int argc, char **argv)
         const int argLen = strlen(arg) + 1;
         char *padded = (char*)malloc(argLen + Int32Length);
         strncpy(padded + Int32Length, arg, argLen);
-        const char *bs = (const char*)bsearch(padded, ch + FirstId, mmapData.nodeCount, idLength, find);
+        const char *bs = (const char*)bsearch(padded, mmapData.memory + FirstId, mmapData.nodeCount, idLength, find);
         // printf("Found a match %p\n", bs);
         free(padded);
         if (bs) {
             const int32_t idx = readInt32(bs);
-            struct NodeData node = readNodeData(ch + idx);
+            struct NodeData node = readNodeData(mmapData.memory + idx);
             if (mode == References) {
                 if (node.firstChild) {
-                    node = readNodeData(ch + node.firstChild);
+                    node = readNodeData(mmapData.memory + node.firstChild);
                     while (1) {
                         if (node.type == Reference && node.location) {
-                            printf("%s\n", ch + node.location);
+                            printf("%s\n", mmapData.memory + node.location);
                         }
                         if (!node.nextSibling)
                             break;
-                        node = readNodeData(ch + node.nextSibling);
+                        node = readNodeData(mmapData.memory + node.nextSibling);
                     }
                 }
             } else {
@@ -214,9 +212,9 @@ int main(int argc, char **argv)
                 case MethodDeclaration:
                     targetType = MethodDefinition;
                 case MethodDefinition: {
-                    struct NodeData parent = readNodeData(ch + node.parent);
+                    struct NodeData parent = readNodeData(mmapData.memory + node.parent);
                     assert(parent.firstChild);
-                    struct NodeData sibling = readNodeData(ch + parent.firstChild);
+                    struct NodeData sibling = readNodeData(mmapData.memory + parent.firstChild);
                     while (1) {
                         if (sibling.type == (int)targetType && !strcmp(node.symbolName, sibling.symbolName)) {
                             found = sibling.location;
@@ -224,18 +222,18 @@ int main(int argc, char **argv)
                         }
                         if (!sibling.nextSibling)
                             break;
-                        sibling = readNodeData(ch + sibling.nextSibling);
+                        sibling = readNodeData(mmapData.memory + sibling.nextSibling);
                     }
                     break; }
                 case Reference:
                 case EnumValue:
-                    found = readNodeData(ch + node.parent).location;
+                    found = readNodeData(mmapData.memory + node.parent).location;
                     break;
                 default:
                     break;
                 }
                 if (found) {
-                    printf("%s\n", ch + found);
+                    printf("%s\n", mmapData.memory + found);
                 } else {
                     printf("Couldn't find it\n");
                 }
@@ -248,10 +246,10 @@ int main(int argc, char **argv)
         const int argLen = strlen(arg);
         for (i=0; i<mmapData.dictionaryCount; ++i) {
             int32_t symbolName = pos;
-            assert(ch[pos] > 32); // should be a printable character
-            const int len = strlen(ch + pos);
+            assert(mmapData.memory[pos] > 32); // should be a printable character
+            const int len = strlen(mmapData.memory + pos);
             assert(len > 0);
-            /* printf("Found symbol %s %d %d\n", ch + pos, len, pos); */
+            /* printf("Found symbol %s %d %d\n", mmapData.memory + pos, len, pos); */
             int matched = 0;
             if (!argLen) {
                 matched = 1;
@@ -259,22 +257,22 @@ int main(int argc, char **argv)
                 switch (matchType) { // ### case-insensitive
                 case MatchAnywhere:
                     if (caseInsensitive
-                        ? strcasestr(ch + symbolName, arg)
-                        : strstr(ch + symbolName, arg)) {
+                        ? strcasestr(mmapData.memory + symbolName, arg)
+                        : strstr(mmapData.memory + symbolName, arg)) {
                         matched = 1;
                     }
                     break;
                 case MatchCompleteSymbol:
                     if ((caseInsensitive
-                         ? strcasecmp(ch + symbolName, arg)
-                         : strcmp(ch + symbolName, arg)) == 0) {
+                         ? strcasecmp(mmapData.memory + symbolName, arg)
+                         : strcmp(mmapData.memory + symbolName, arg)) == 0) {
                         matched = 1;
                     }
                     break;
                 case MatchStartsWith:
                     if ((caseInsensitive
-                         ? strncasecmp(ch + symbolName, arg, argLen)
-                         : strncmp(ch + symbolName, arg, argLen)) == 0) {
+                         ? strncasecmp(mmapData.memory + symbolName, arg, argLen)
+                         : strncmp(mmapData.memory + symbolName, arg, argLen)) == 0) {
                         matched = 1;
                     }
                     break;
@@ -283,17 +281,17 @@ int main(int argc, char **argv)
 
             pos += len + 1;
             while (1) {
-                int32_t loc = readInt32(ch + pos);
+                int32_t loc = readInt32(mmapData.memory + pos);
                 pos += Int32Length;
                 if (!loc)
                     break;
                 if (matched)
-                    printf("%s %s\n", ch + symbolName, ch + loc);
+                    printf("%s %s\n", mmapData.memory + symbolName, mmapData.memory + loc);
             }
         }
         break; }
     }
-    munmap(mmapData.memory, mmapData.mappedSize);
+    munmap((void*)mmapData.memory, mmapData.mappedSize);
     return 0;
 }
 

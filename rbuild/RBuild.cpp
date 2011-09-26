@@ -9,9 +9,10 @@
 #include <fcntl.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <sys/mman.h>
 
 RBuild::RBuild(QObject *parent)
-    : QObject(parent), mPendingRunnables(0), mDatabaseMode(Build)
+    : QObject(parent), mPendingRunnables(0), mDatabaseMode(Build), mPendingWork(false)
 {
     mThreadPool.setMaxThreadCount(qMax(4, QThread::idealThreadCount() * 2));
 }
@@ -54,6 +55,7 @@ bool RBuild::addMakefile(Path makefile)
     if (sourceDir.isDir()) {
         recurseDir(sourceDir);
     }
+    mPendingWork = true;
     return true;
 }
 
@@ -139,16 +141,7 @@ void RBuild::onMakeOutput()
                 }
                 if (args.hasInput() && args.isCompile()) {
                     foreach(const Path &file, args.input()) { // already resolved
-                        Q_ASSERT(file.exists());
-                        QList<GccArguments> &fileArgs = mSeen[file];
-                        if (!fileArgs.contains(args)) {
-                            fileArgs.append(args);
-                            // qDebug() << "setting arguments for" << file << "to" << args.raw();
-                            ClangRunnable *runnable = new ClangRunnable(file, args);
-                            ++mPendingRunnables;
-                            connect(runnable, SIGNAL(finished()), this, SLOT(onClangRunnableFinished()));
-                            mThreadPool.start(runnable);
-                        }
+                        addFile(file, args);
                     }
                 }
             }
@@ -218,15 +211,21 @@ void RBuild::recurseDir(const Path &path)
     
     closedir(dir);
 }
-void RBuild::setDatabaseFile(const Path &path, DatabaseMode mode)
+bool RBuild::setDatabaseFile(const Path &path, DatabaseMode mode)
 {
     mDatabaseFile = path;
     mDatabaseMode = mode;
     if (mode == Update) {
+        MMapData data;
+        if (!loadDb(path.constData(), &data))
+            return false;
 
-
-        printf("%s %d: if (mode == Update) {\n", __FILE__, __LINE__);
+        const bool success = initFromDb(&data);
+        munmap(const_cast<char*>(data.memory), data.mappedSize);
+        return success;
     }
+
+    return true;
 }
 
 Path RBuild::databaseFile() const
@@ -238,12 +237,79 @@ bool RBuild::findDatabaseFile(DatabaseMode mode)
 {
     char buf[PATH_MAX + 1];
     if (findDB(buf, PATH_MAX)) {
-        setDatabaseFile(buf, mode);
-        return true;
+        return setDatabaseFile(buf, mode);
     } else if (mode == Build) {
-        setDatabaseFile(".rtags.db", mode);
-        return true;
+        return setDatabaseFile(".rtags.db", mode);
     } else {
         return false;
     }
+}
+bool RBuild::initFromDb(const MMapData *data)
+{
+    const QByteArray mapped = QByteArray::fromRawData(reinterpret_cast<const char*>(data->memory), data->mappedSize);
+    QBuffer buffer;
+    buffer.setData(mapped);
+    buffer.open(QIODevice::ReadOnly);
+    if (buffer.buffer().constData() != data->memory) {
+        printf("%p %p\n", buffer.buffer().constData(), data->memory);
+    }
+    Q_ASSERT(buffer.buffer().constData() == data->memory); // this is not ever copied right?
+    QDataStream ds(&buffer);
+    buffer.seek(data->fileDataPosition);
+
+    ds >> ClangRunnable::sFiles;
+    qDebug() << "read files" << ClangRunnable::sFiles.size() << "at" << data->fileDataPosition;
+    QSet<Path> modifiedPaths;
+    QMutexLocker lock(&ClangRunnable::sTreeMutex);
+    for (QHash<Path, ClangRunnable::FileData>::const_iterator it = ClangRunnable::sFiles.begin();
+         it != ClangRunnable::sFiles.end(); ++it) {
+        const Path &key = it.key();
+        const ClangRunnable::FileData &value = it.value();
+        bool modified = (key.lastModified() != value.lastModified);
+        // qDebug() << "checking" << key << key.lastModified() << value.lastModified;
+        // ### this code needs to know about headers included with different #defines
+        for (QHash<Path, int64_t>::const_iterator it = value.dependencies.begin();
+             it != value.dependencies.end(); ++it) {
+            if (modifiedPaths.contains(it.key())) {
+                modified = true;
+            } else if (it.key().lastModified() != it.value()) {
+                modified = true;
+                modifiedPaths.insert(it.key());
+            }
+        }
+        if (modified) {
+            modifiedPaths.insert(key);
+            if (addFile(key, value.arguments)) {
+                mPendingWork = true;
+            }
+        }
+    }
+    if (mPendingWork) {
+        ClangRunnable::initTree(data, modifiedPaths);
+    }
+
+    munmap(const_cast<char*>(data->memory), data->mappedSize);
+    return true;
+}
+
+bool RBuild::addFile(const Path &file, const GccArguments &args)
+{
+    if (file.exists()) {
+        QList<GccArguments> &fileArgs = mSeen[file];
+        if (!fileArgs.contains(args)) {
+            fileArgs.append(args);
+            // qDebug() << "setting arguments for" << file << "to" << args.raw();
+            ClangRunnable *runnable = new ClangRunnable(file, args);
+            ++mPendingRunnables;
+            connect(runnable, SIGNAL(finished()), this, SLOT(onClangRunnableFinished()));
+            mThreadPool.start(runnable);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool RBuild::pendingWork() const
+{
+    return mPendingWork;
 }

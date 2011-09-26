@@ -13,6 +13,7 @@
 #include "Location.h"
 
 struct Node;
+struct MMapData;
 class RBuild : public QObject
 {
     Q_OBJECT;
@@ -24,9 +25,12 @@ public:
         Build,
         Update
     };
-    void setDatabaseFile(const Path &path, DatabaseMode mode);
+    bool setDatabaseFile(const Path &path, DatabaseMode mode);
     bool findDatabaseFile(DatabaseMode mode);
     Path databaseFile() const;
+    bool initFromDb(const MMapData *data);
+    bool addFile(const Path &path, const GccArguments &args);
+    bool pendingWork() const;
 private slots:
     void maybeDone();
     void onMakeFinished(int statusCode);
@@ -45,6 +49,7 @@ private:
     int mPendingRunnables;
     Path mDatabaseFile;
     DatabaseMode mDatabaseMode;
+    bool mPendingWork;
 };
 
 #endif
