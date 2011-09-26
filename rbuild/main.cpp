@@ -61,6 +61,16 @@ void syslogMsgHandler(QtMsgType t, const char* str)
     syslog(priority, "%s (%s)\n", str, names[t]);
 }
 
+static inline void usage(FILE *f)
+{
+    fprintf(f,
+            "rc [options]...\n"
+            "  --help|-h                  Display this help\n"
+            "  --update|-u [optional arg] Update database, using heuristics to find the file if arg is not supplied\n"
+            "  --srcdir|-s [arg]          Build list of files from this directory\n");
+}
+
+
 int main(int argc, char** argv)
 {
     if (QFile::exists("/tmp/rtags.log")) {
@@ -94,8 +104,11 @@ int main(int argc, char** argv)
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
         switch (idx) {
         case 'h':
+            usage(stdout);
+            return 0;
         case 's':
-            break;
+            printf("%s %d: case 's':\n", __FILE__, __LINE__);
+            return 2;
         case 'u':
             update = true;
             if (optarg) {
