@@ -40,7 +40,9 @@ bool RBuild::addMakefile(Path makefile)
         connect(proc, SIGNAL(finished(int)), this, SLOT(onMakeFinished(int)));
         connect(proc, SIGNAL(error(QProcess::ProcessError)), this, SLOT(onMakeError(QProcess::ProcessError)));
         connect(proc, SIGNAL(readyReadStandardOutput()), this, SLOT(onMakeOutput()));
-        MakefileData data = { makefile, workingDir, QByteArray(), workingDir };
+        QStack<Path> pathStack;
+        pathStack.push(workingDir);
+        MakefileData data = { makefile, workingDir, QByteArray(), pathStack };
         mMakefiles[proc] = data;
         QString make;
         if (Path("/opt/local/bin/gmake").isFile()) {
@@ -53,6 +55,7 @@ bool RBuild::addMakefile(Path makefile)
                     << QLatin1String("-B")
                     << QLatin1String("-n")
                     << QLatin1String("-j1")
+                    << QLatin1String("-w")
                     << QLatin1String("-f")
                     << makefile);
         qDebug() << "addMakefile" << makefile;
@@ -109,6 +112,29 @@ void RBuild::onMakeFinished(int statusCode)
     maybeDone();
 }
 
+enum DirectoryStatus {
+    None,
+    Entering,
+    Leaving,
+    CD
+};
+static inline DirectoryStatus parseDirectoryLine(const QByteArray &ba, Path &dir)
+{
+    if (ba.endsWith('\'')) {
+        int pos = ba.indexOf("Entering directory `");
+        if (pos != -1) {
+            dir = ba.mid(pos + 20, ba.size() - pos - 21);
+            return Entering;
+        }
+        pos = ba.indexOf("Leaving directory `");
+        if (pos != -1) {
+            dir = ba.mid(pos + 19, ba.size() - pos - 20);
+            return Leaving;
+        }
+    }
+    return None;
+}
+
 void RBuild::onMakeOutput()
 {
     QProcess *proc = qobject_cast<QProcess*>(sender());
@@ -123,34 +149,32 @@ void RBuild::onMakeOutput()
             printf("%s\n", line.constData());
             last = i;
             if (!line.isEmpty()) {
-                if (line.startsWith("cd ")) {
-                    const int slash = line.indexOf('/', 3);
-                    if (slash == -1) {
-                        qWarning("Can't parse this line. Seems like a cd but no slash [%s]",
-                                 line.constData());
-                        continue;
-                    }
-                    Path p = line.mid(3, slash - 3);
-                    if (!p.resolve(data.directory)) {
-                        qWarning("Can't resolve directory %s with %s",
-                                 line.mid(3, slash - 3).constData(),
-                                 data.directory.constData());
-                    } else {
-                        data.workingDirectory = p;
-                    }
-                    continue;
-                }
+                Path dir;
+                switch (parseDirectoryLine(line, dir)) {
+                case Entering:
+                    data.dirStack.push(dir);
+                    break;
 
-                GccArguments args;
-                if (!args.parse(line, data.workingDirectory)) {
-                    qWarning("Can't parse line %s (%s)", line.constData(),
-                             qPrintable(args.errorString()));
-                    continue;
-                }
-                if (args.hasInput() && args.isCompile()) {
-                    foreach(const Path &file, args.input()) { // already resolved
-                        addFile(file, args);
+                case Leaving:
+#ifdef QT_DEBUG
+                    if (data.dirStack.top() != dir) {
+                        qWarning() << "Strange make output"
+                                   << data.dirStack << dir;
                     }
+#endif
+                    data.dirStack.pop();
+                    break;
+                case None: {
+                    GccArguments args;
+                    if (!args.parse(line, data.dirStack.top())) {
+                        qWarning("Can't parse line %s (%s)", line.constData(),
+                                 qPrintable(args.errorString()));
+                    } else if (args.hasInput() && args.isCompile()) {
+                        foreach(const Path &file, args.input()) { // already resolved
+                            addFile(file, args);
+                        }
+                    }
+                    break; }
                 }
             }
         }

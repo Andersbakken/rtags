@@ -41,7 +41,7 @@ private:
     struct MakefileData {
         Path path, directory;
         QByteArray buffer;
-        Path workingDirectory;
+        QStack<Path> dirStack;
     };
     QHash<QProcess *, MakefileData> mMakefiles;
     QHash<Path, QList<GccArguments> > mSeen;
