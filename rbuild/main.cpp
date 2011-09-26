@@ -7,6 +7,7 @@
 #include "PreCompile.h"
 #include "ClangRunnable.h"
 #include <syslog.h>
+#include <getopt.h>
 
 void syslogMsgHandler(QtMsgType t, const char* str)
 {
@@ -67,6 +68,16 @@ int main(int argc, char** argv)
             ++idx;
         QFile::rename("/tmp/rtags.log", QString("/tmp/rtags.log.%1").arg(idx));
     }
+    struct option longOptions[] = {
+        { "help", 0, 0, 'h' },
+        { "update-db", 1, 0, 'u' },
+        { "output", 1, 0, 'o' },
+        { "srcdir", 1, 0, 's' },
+        { 0, 0, 0, 0 },
+    };
+    const char *shortOptions = "hu:o:s:";
+    int idx, longIndex;
+    
     QCoreApplication app(argc, argv);
     QThread::currentThread()->setObjectName("main");
     QCoreApplication::setOrganizationDomain("www.rtags.com");
@@ -78,6 +89,9 @@ int main(int argc, char** argv)
     ClangRunnable::init();
     qInstallMsgHandler(syslogMsgHandler);
     RBuild rbuild;
+    // while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
+    //     switch (idx) {
+    
     for (int i=1; i<argc; ++i) {
         rbuild.addMakefile(argv[i]);
     }
