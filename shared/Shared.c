@@ -2,6 +2,33 @@
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+int findDB(char *dbFileBuffer, int max)
+{
+    if (getcwd(dbFileBuffer, max)) {
+        const int len = strlen(dbFileBuffer);
+        if (len > 0 && dbFileBuffer[len - 1] != '/') {
+            dbFileBuffer[len] = '/';
+            dbFileBuffer[len + 1] = '\0';
+        }
+        char *slash;
+        while ((slash = strrchr(dbFileBuffer, '/'))) {
+            // ### this is awful
+            strcpy(slash + 1, ".rtags.db");
+            struct stat s;
+            // printf("Testing [%s]\n", dbFileBuffer);
+            if (stat(dbFileBuffer, &s) >= 0) {
+                return 1;
+            }
+            *slash = '\0';
+        }
+    }
+    return 0;
+}
+
 
 const char *nodeTypeToName(int t, NodeTypeToNameMode abbrev)
 {

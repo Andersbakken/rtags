@@ -157,28 +157,11 @@ int main(int argc, char **argv)
     }
 
     if (!dbFile) {
-        if (getcwd(dbFileBuffer, PATH_MAX)) {
-            const int len = strlen(dbFileBuffer);
-            if (len > 0 && dbFileBuffer[len - 1] != '/') {
-                dbFileBuffer[len] = '/';
-                dbFileBuffer[len + 1] = '\0';
-            }
-            char *slash;
-            while ((slash = strrchr(dbFileBuffer, '/'))) {
-                // ### this is awful
-                strcpy(slash + 1, ".rtags.db");
-                struct stat s;
-                // printf("Testing [%s]\n", dbFileBuffer);
-                if (stat(dbFileBuffer, &s) >= 0) {
-                    dbFile = dbFileBuffer;
-                    break;
-                }
-                *slash = '\0';
-            }
-        }
-        if (!dbFile) {
+        if (!findDB(dbFileBuffer, sizeof(dbFileBuffer) - 1)) {
             printf("%s %d: if (!dbFile) {\n", __FILE__, __LINE__);
             return 1;
+        } else {
+            dbFile = dbFileBuffer;
         }
     }
 

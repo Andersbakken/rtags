@@ -12,6 +12,8 @@
 extern "C" {
 #endif
 
+int findDB(char *buf, int max);
+
 typedef enum {
     Int32Length = 4,
     Int64Length = 8,
@@ -35,7 +37,6 @@ static inline int32_t rootNodePosition(int nodeCount, int idLength)
 {
     return HeaderSize + (nodeCount * idLength);
 }
-
 
 static inline char *writeInt32(char *dest, int32_t value)
 {
