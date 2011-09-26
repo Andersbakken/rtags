@@ -69,14 +69,15 @@ int main(int argc, char** argv)
             ++idx;
         QFile::rename("/tmp/rtags.log", QString("/tmp/rtags.log.%1").arg(idx));
     }
+    qInstallMsgHandler(syslogMsgHandler);
+
     struct option longOptions[] = {
         { "help", 0, 0, 'h' },
-        { "update-db", 0, 0, 'u' },
-        { "srcdir", 1, 0, 's' },
-        { "db-file", 1, 0, 'f' },
+        { "update-db", optional_argument, 0, 'u' },
+        { "srcdir", required_argument, 0, 's' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "huf:s:";
+    const char *shortOptions = "hu::s:";
     int idx, longIndex;
     
     QCoreApplication app(argc, argv);
@@ -88,37 +89,55 @@ int main(int argc, char** argv)
     PreCompile::setPath("/tmp");
 
     RBuild rbuild;
+    bool update = false;
+    const char *dbFile = 0;
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
         switch (idx) {
         case 'h':
         case 's':
             break;
         case 'u':
-            if (rbuild.databaseFile().isEmpty()) {
-                char buf[PATH_MAX + 1];
-                if (!findDB(buf, PATH_MAX)) {
-                    printf("%s %d: if (!findDB(buf, PATH_MAX)) {\n", __FILE__, __LINE__);
-                    return 1;
-                }
-                rbuild.setDatabaseFile(buf);
+            update = true;
+            if (optarg) {
+                dbFile = *optarg == '=' ? optarg + 1 : optarg;
+            } else if (optind < argc && *argv[optind] != '-') { // ### optind is off by one for some reason
+                dbFile = argv[optind];
+                argv[optind] = 0;
             }
             break;
-        case 'f':
+        default:
             break;
         }
     }
 
-    ClangRunnable::init();
-    qInstallMsgHandler(syslogMsgHandler);
-        
+    class ClangRunnableScope
+    {
+    public:
+        ClangRunnableScope() { ClangRunnable::init(); }
+        ~ClangRunnableScope() { ClangRunnable::cleanup(); }
+    } scope;
+
     for (int i=1; i<argc; ++i) {
-        if (!rbuild.addMakefile(argv[i])) {
-            printf("%s %d: if (!rbuild.addMakefile(argv[i]))\n", __FILE__, __LINE__);
-            return 1;
+        if (argv[i] && *argv[i] != '-') {
+            if (update) {
+                printf("%s %d: if (update) {\n", __FILE__, __LINE__);
+                return 1;
+            } else {
+                if (!rbuild.addMakefile(argv[i])) {
+                    printf("%s %d: if (!rbuild.addMakefile(argv[i]))\n", __FILE__, __LINE__);
+                    return 1;
+                }
+            }
         }
     }
 
-    const bool ret = app.exec();
-    ClangRunnable::cleanup();
-    return ret;
+    if (dbFile) {
+        rbuild.setDatabaseFile(dbFile, update ? RBuild::Update : RBuild::Build);
+    } else if (!rbuild.findDatabaseFile(update ? RBuild::Update : RBuild::Build)) {
+        printf("%s %d: } else if (!rbuild.detectDatabaseFile(update ? RBuild::Update : RBuild::Build)) {\n", __FILE__, __LINE__);
+        return 1;
+    }
+
+
+    return app.exec();
 }

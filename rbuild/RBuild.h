@@ -20,7 +20,12 @@ public:
     RBuild(QObject* parent = 0);
     bool addMakefile(Path makefile);
     void recurseDir(const Path &path);
-    void setDatabaseFile(const Path &path);
+    enum DatabaseMode {
+        Build,
+        Update
+    };
+    void setDatabaseFile(const Path &path, DatabaseMode mode);
+    bool findDatabaseFile(DatabaseMode mode);
     Path databaseFile() const;
 private slots:
     void maybeDone();
@@ -32,13 +37,14 @@ private:
     struct MakefileData {
         Path path, directory;
         QByteArray buffer;
-        QHash<Path, QList<GccArguments> > seen;
         Path workingDirectory;
     };
     QHash<QProcess *, MakefileData> mMakefiles;
+    QHash<Path, QList<GccArguments> > mSeen;
     QThreadPool mThreadPool;
     int mPendingRunnables;
     Path mDatabaseFile;
+    DatabaseMode mDatabaseMode;
 };
 
 #endif

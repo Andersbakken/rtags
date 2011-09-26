@@ -11,7 +11,7 @@
 #include <dirent.h>
 
 RBuild::RBuild(QObject *parent)
-    : QObject(parent), mPendingRunnables(0)
+    : QObject(parent), mPendingRunnables(0), mDatabaseMode(Build)
 {
     mThreadPool.setMaxThreadCount(qMax(4, QThread::idealThreadCount() * 2));
 }
@@ -38,7 +38,7 @@ bool RBuild::addMakefile(Path makefile)
         connect(proc, SIGNAL(finished(int)), this, SLOT(onMakeFinished(int)));
         connect(proc, SIGNAL(error(QProcess::ProcessError)), this, SLOT(onMakeError(QProcess::ProcessError)));
         connect(proc, SIGNAL(readyReadStandardOutput()), this, SLOT(onMakeOutput()));
-        MakefileData data = { makefile, workingDir, QByteArray(), QHash<Path, QList<GccArguments> >(), workingDir };
+        MakefileData data = { makefile, workingDir, QByteArray(), workingDir };
         mMakefiles[proc] = data;
         proc->start(QLatin1String("make"), // some way to specify which make to use?
                     QStringList()
@@ -140,7 +140,7 @@ void RBuild::onMakeOutput()
                 if (args.hasInput() && args.isCompile()) {
                     foreach(const Path &file, args.input()) { // already resolved
                         Q_ASSERT(file.exists());
-                        QList<GccArguments> &fileArgs = data.seen[file];
+                        QList<GccArguments> &fileArgs = mSeen[file];
                         if (!fileArgs.contains(args)) {
                             fileArgs.append(args);
                             // qDebug() << "setting arguments for" << file << "to" << args.raw();
@@ -218,12 +218,27 @@ void RBuild::recurseDir(const Path &path)
     
     closedir(dir);
 }
-void RBuild::setDatabaseFile(const Path &path)
+void RBuild::setDatabaseFile(const Path &path, DatabaseMode mode)
 {
     mDatabaseFile = path;
+    mDatabaseMode = mode;
 }
 
 Path RBuild::databaseFile() const
 {
     return mDatabaseFile;
+}
+
+bool RBuild::findDatabaseFile(DatabaseMode mode)
+{
+    char buf[PATH_MAX + 1];
+    if (findDB(buf, PATH_MAX)) {
+        setDatabaseFile(buf, mode);
+        return true;
+    } else if (mode == Build) {
+        setDatabaseFile(".rtags.db", mode);
+        return true;
+    } else {
+        return false;
+    }
 }
