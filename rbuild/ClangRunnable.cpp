@@ -7,6 +7,7 @@ static const bool disablePch = getenv("RTAGS_NO_PCH");
 Node *ClangRunnable::sRoot = 0;
 QMutex ClangRunnable::sPchMutex;
 QMutex ClangRunnable::sTreeMutex;
+QMap<Path, ClangRunnable::DependencyData> ClangRunnable::sDependencies;
 
 struct PrecompileData {
     QList<Path> direct, all;
@@ -587,8 +588,6 @@ bool ClangRunnable::save(const QByteArray &path)
     writeInt32(out + DictionaryPosPos, pos);
     writeInt32(out + DictionaryCountPos, dictionary.size());
 
-    file.seek(0);
-    file.write(header);
     file.seek(pos);
 
     for (QMap<QByteArray, QSet<int32_t> >::const_iterator it = dictionary.begin(); it != dictionary.end(); ++it) {
@@ -599,6 +598,22 @@ bool ClangRunnable::save(const QByteArray &path)
             writeInt32(&file, l);
         }
         writeInt32(&file, 0);
+    }
+    pos = file.pos();
+    writeInt32(out + DependenciesPos, pos);
+    file.seek(0);
+    file.write(header);
+    file.seek(pos);
+    for (QMap<Path, DependencyData>::const_iterator it = sDependencies.begin(); it != sDependencies.end(); ++it) {
+        writeString(&file, it.key());
+        const DependencyData &data = it.value();
+        writeInt64(&file, data.lastModified);
+        const QHash<Path, time_t> &headers = data.dependencies;
+        writeInt32(&file, headers.size());
+        for (QHash<Path, time_t>::const_iterator it = headers.begin(); it != headers.end(); ++it) {
+            writeString(&file, it.key());
+            writeInt64(&file, it.value());
+        }
     }
 
 #if 0

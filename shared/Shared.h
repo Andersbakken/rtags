@@ -14,6 +14,7 @@ extern "C" {
 
 typedef enum {
     Int32Length = 4,
+    Int64Length = 8,
     MagicPos = 0,
     MagicLength = 3,
     NodeCountLength = Int32Length,
@@ -24,7 +25,9 @@ typedef enum {
     DictionaryPosLength = Int32Length,
     DictionaryCountPos = DictionaryPosPos + DictionaryPosLength,
     DictionaryCountPosLength = Int32Length,
-    FirstId = DictionaryCountPos + DictionaryCountPosLength,
+    DependenciesPos = DictionaryCountPos + DictionaryCountPosLength,
+    DependenciesPosLength = Int32Length,
+    FirstId = DependenciesPos + DependenciesPosLength,
     HeaderSize = FirstId
 } Offset;
 
@@ -54,6 +57,14 @@ static inline int32_t readInt32(const char *src)
     memcpy(&ret, src, Int32Length);
     return ret;
 }
+
+static inline int64_t readInt64(const char *src)
+{
+    int64_t ret;
+    memcpy(&ret, src, Int64Length);
+    return ret;
+}
+
 
 struct NodeData {
     int32_t type, location, parent, nextSibling, firstChild;
@@ -103,6 +114,11 @@ NodeType stringToNodeType(const char *in);
 static inline void writeInt32(QIODevice *dev, int32_t value)
 {
     dev->write(reinterpret_cast<const char *>(&value), Int32Length);
+}
+
+static inline void writeInt64(QIODevice *dev, int64_t value)
+{
+    dev->write(reinterpret_cast<const char *>(&value), Int64Length);
 }
 
 static inline char *writeString(char *dest, const QByteArray &data)

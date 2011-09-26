@@ -136,6 +136,7 @@ void RBuild::onMakeOutput()
                     continue;
                 }
                 if (!args.hasInput() || !args.isCompile()) {
+#if 0
                     QStringList strings = QString::fromLocal8Bit(line).split(' ');
                     const int size = strings.size();
                     if (size >= 3 && strings.first().endsWith(":")) {
@@ -151,6 +152,7 @@ void RBuild::onMakeOutput()
                             }
                         }
                     }
+#endif
                 } else {
                     foreach(const Path &file, args.input()) { // already resolved
                         Q_ASSERT(file.exists());

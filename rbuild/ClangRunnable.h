@@ -26,13 +26,17 @@ private:
     };
     void buildTree(Node *node, CursorNode *c, QHash<QByteArray, PendingReference> &references);
     void addReference(CursorNode *c, const QByteArray &id, const Location &location);
-    
 
     const Path mFile;
     const GccArguments mArgs;
     static QMutex sPchMutex;
     static QMutex sTreeMutex;
     static Node *sRoot;
+    struct DependencyData {
+        QHash<Path, time_t> dependencies;
+        time_t lastModified;
+    };
+    static QMap<Path, DependencyData> sDependencies;
 };
 
 
