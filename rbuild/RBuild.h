@@ -19,6 +19,7 @@ class RBuild : public QObject
 public:
     RBuild(QObject* parent = 0);
     void addMakefile(Path makefile);
+    void recurseDir(const Path &path);
 private slots:
     void maybeDone();
     void onMakeFinished(int statusCode);

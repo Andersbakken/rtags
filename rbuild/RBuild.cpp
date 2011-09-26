@@ -7,21 +7,27 @@
 #include "ClangRunnable.h"
 #include <magic.h>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 RBuild::RBuild(QObject *parent)
     : QObject(parent), mPendingRunnables(0)
 {
-    qDebug() << QThread::idealThreadCount();
-    mThreadPool.setMaxThreadCount(QThread::idealThreadCount());
+    mThreadPool.setMaxThreadCount(qMax(4, QThread::idealThreadCount() * 2));
 }
 
 void RBuild::addMakefile(Path makefile)
 {
     if (!makefile.isResolved())
         makefile.resolve();
-    if (makefile.isDir())
+    Path sourceDir;
+    if (makefile.isDir()) {
+        sourceDir = makefile;
         makefile = makefile + "/Makefile";
+    }
     if (makefile.isFile()) {
+        if (sourceDir.isEmpty())
+            sourceDir = makefile.parentDir();
         const Path workingDir = makefile.parentDir();
         if (!makefile.exists())
             return;
@@ -43,6 +49,9 @@ void RBuild::addMakefile(Path makefile)
                     << QLatin1String("-f")
                     << makefile);
         qDebug() << "addMakefile" << makefile;
+    }
+    if (sourceDir.isDir()) {
+        recurseDir(sourceDir);
     }
 }
 
@@ -186,4 +195,39 @@ void RBuild::onClangRunnableFinished()
 {
     --mPendingRunnables;
     maybeDone();
+}
+
+void RBuild::recurseDir(const Path &path)
+{
+    DIR *dir = opendir(path.constData());
+    if (!dir) {
+        qWarning("Can't read directory [%s]", path.constData());
+        return;
+    }
+    struct dirent d, *dret;
+    struct stat s;
+
+    char fileBuffer[PATH_MAX + 1];
+    memcpy(fileBuffer, path.constData(), path.size());
+    fileBuffer[path.size()] = '/';
+    char *file = fileBuffer + path.size() + 1;
+
+    while (readdir_r(dir, &d, &dret) == 0 && dret) {
+        Q_ASSERT(int(strlen(d.d_name)) < 1024 - path.size());
+        if (d.d_type == DT_DIR && strcmp(".", d.d_name) && strcmp("..", d.d_name)) { // follow symlinks to dirs?
+            recurseDir(path + '/' + reinterpret_cast<const char *>(d.d_name));
+        } else if (d.d_type == DT_REG || d.d_type == DT_LNK) {
+            strcpy(file, d.d_name);
+            if (!stat(fileBuffer, &s)) {
+                if (s.st_mode & S_IXOTH) {
+                    // const Model::Item item = { fileBuffer, findIconPath(fileBuffer), name(fileBuffer), QStringList() };
+                    // mLocalItems.append(item);
+                }
+            } else {
+                qWarning("Can't stat [%s]", fileBuffer);
+            }
+        }
+    }
+    
+    closedir(dir);
 }
