@@ -12,6 +12,32 @@ struct Location {
     Location(const Path &p, unsigned l, unsigned c)
         : path(p), line(l), column(c), offset(0)
     {}
+    Location(const char *locationString)
+        : line(0), column(0), offset(0)
+    {
+        const int len = strlen(locationString);
+        unsigned *ptrs[] = { &column, &line, 0u };
+        int idx = 0;
+        for (int i=len - 1; i>0; --i) {
+            if (locationString[i] == ':') {
+                *ptrs[idx] = atoi(locationString + i + 1);
+#ifdef QT_DEBUG
+                if (!*ptrs[idx])
+                    qWarning("%s %s %d\n", locationString, locationString + i, i);
+#endif
+                Q_ASSERT(*ptrs[idx]);
+                if (!ptrs[++idx]) {
+                    path = QByteArray(locationString, i);
+                    break;
+                }
+            }
+        }
+#ifdef QT_DEBUG
+        if (!column || !line)
+            qWarning("%s\n", locationString);
+#endif
+        Q_ASSERT(column && line);
+    }
     Location(CXCursor cursor)
         : line(0), column(0), offset(0)
     {

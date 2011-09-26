@@ -208,7 +208,12 @@ void ClangRunnable::run()
     for (int i=0; i<2 && !unit; ++i) {
         PreCompile *precompile = 0;
         if (!disablePch && i == WithPCH) {
+            // QElapsedTimer timer;
+            // timer.start();
             sPchMutex.lock();
+            // int elapsed = timer.elapsed();
+            // if (elapsed > 1)
+            //     qDebug() << "Waited a long-ass time" << __LINE__ << mFile << elapsed;
             precompile = PreCompile::get(compilerOptions);
         }
         Path pchfile;
@@ -275,7 +280,12 @@ void ClangRunnable::run()
             PrecompileData pre;
             clang_getInclusions(unit, precompileHeaders, &pre);
             // qDebug() << mFile << pre.direct << pre.all;
+            QElapsedTimer timer;
+            timer.start();
             QMutexLocker lock(&sPchMutex);
+            int elapsed = timer.elapsed();
+            if (elapsed > 1)
+                qDebug() << "Waited a long-ass time" << __LINE__ << mFile << elapsed;
             if (precompile) {
                 precompile->add(pre.direct, pre.all);
             }
@@ -306,7 +316,14 @@ void ClangRunnable::run()
         if (ud.root) {
             int old;
             {
+                // QElapsedTimer timer;
+                // timer.start();
+
                 QMutexLocker lock(&sTreeMutex);
+                // int elapsed = timer.elapsed();
+                // if (elapsed > 1)
+                //     qDebug() << "Waited a long-ass time" << __LINE__ << mFile << elapsed;
+                
                 old = Node::sNodes.size();
                 buildTree(sRoot, ud.root, references);
                 for (QHash<QByteArray, PendingReference>::const_iterator it = references.begin(); it != references.end(); ++it) {
@@ -608,7 +625,8 @@ bool ClangRunnable::save(const QByteArray &path)
     file.seek(pos);
     {
         QDataStream ds(&file);
-        qDebug() << "saved" << sFiles.size() << "files at" << file.pos();
+        qDebug() << "saved" << sFiles.size() << "files at" << file.pos()
+                 << Node::sNodes.size() << "nodes";
         ds << sFiles;
     }
     // for (QMap<Path, FileData>::const_iterator it = sFiles.begin(); it != sFiles.end(); ++it) {
@@ -672,18 +690,17 @@ void ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPat
 void ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPaths,
                              Node *parent, const NodeData &nodeData)
 {
-    // int child = node.firstChild;
-    // while (child) {
-    //     NodeData c = readNodeData(data->memory + child);
-    //     Node *node = new Node
-    // }
-    //     initTree(data, modifiedPaths, parent,
-    //     recurse(ch, node.firstChild, indent + 2);
-
-    // }
-    // if (node.nextSibling)
-        // recurse(ch, node.nextSibling, indent);
-    
-
-    // initTree(data, modifiedPaths,
+    int child = nodeData.firstChild;
+    while (child) {
+        const NodeData c = readNodeData(data->memory + child);
+        const Location loc(data->memory + c.location);
+        if (!modifiedPaths.contains(loc.path)) {
+            const QByteArray id = loc.toString();
+            Node *node = Node::sNodes.value(id);
+            if (!node)
+                node = new Node(parent, static_cast<NodeType>(c.type), QByteArray(c.symbolName), loc, id);
+            initTree(data, modifiedPaths, node, c);
+        }
+        child = c.nextSibling;
+    }
 }

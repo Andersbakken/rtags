@@ -15,6 +15,7 @@ RBuild::RBuild(QObject *parent)
     : QObject(parent), mPendingRunnables(0), mDatabaseMode(Build), mPendingWork(false)
 {
     mThreadPool.setMaxThreadCount(qMax(4, QThread::idealThreadCount() * 2));
+    qDebug() << mThreadPool.maxThreadCount();
 }
 
 bool RBuild::addMakefile(Path makefile)

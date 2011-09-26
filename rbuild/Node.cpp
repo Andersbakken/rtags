@@ -10,6 +10,7 @@ Node::Node()
 Node::Node(Node *p, NodeType t, const QByteArray &symbol, const Location &l, const QByteArray &i)
     : parent(p), nextSibling(0), firstChild(0), type(t), location(l), id(i), symbolName(symbol)
 {
+    Q_ASSERT(!l.path.isEmpty());
     Q_ASSERT(!sNodes.contains(id));
     Q_ASSERT(id == l.toString());
     sNodes[id] = this;
