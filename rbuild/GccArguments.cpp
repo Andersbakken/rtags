@@ -340,9 +340,14 @@ QList<QByteArray> GccArguments::includePaths() const
 }
 bool GccArguments::isNull() const
 {
-    return m_ptr.data()->raw.isEmpty();
+    return m_ptr->raw.isEmpty();
 }
 bool GccArguments::isEmpty() const
 {
-    return m_ptr.data()->raw.isEmpty();
+    return m_ptr->raw.isEmpty();
+}
+
+bool GccArguments::operator==(const GccArguments &other) const
+{
+    return m_ptr == other.m_ptr || m_ptr->raw == other.m_ptr->raw;
 }

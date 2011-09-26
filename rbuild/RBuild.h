@@ -32,7 +32,7 @@ private:
     struct MakefileData {
         Path path, directory;
         QByteArray buffer;
-        QSet<Path> seen;
+        QHash<Path, QList<GccArguments> > seen;
         Path workingDirectory;
     };
     QHash<QProcess *, MakefileData> mMakefiles;

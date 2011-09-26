@@ -41,7 +41,8 @@ public:
     bool hasOutput() const;
 
     bool isCompile() const;
-private:
+    bool operator==(const GccArguments &other) const;
+ private:
     class Data : public QSharedData
     {
     public:

@@ -38,7 +38,7 @@ bool RBuild::addMakefile(Path makefile)
         connect(proc, SIGNAL(finished(int)), this, SLOT(onMakeFinished(int)));
         connect(proc, SIGNAL(error(QProcess::ProcessError)), this, SLOT(onMakeError(QProcess::ProcessError)));
         connect(proc, SIGNAL(readyReadStandardOutput()), this, SLOT(onMakeOutput()));
-        MakefileData data = { makefile, workingDir, QByteArray(), QSet<Path>(), workingDir };
+        MakefileData data = { makefile, workingDir, QByteArray(), QHash<Path, QList<GccArguments> >(), workingDir };
         mMakefiles[proc] = data;
         proc->start(QLatin1String("make"), // some way to specify which make to use?
                     QStringList()
@@ -141,15 +141,14 @@ void RBuild::onMakeOutput()
                 if (args.hasInput() && args.isCompile()) {
                     foreach(const Path &file, args.input()) { // already resolved
                         Q_ASSERT(file.exists());
-                        if (!data.seen.contains(file)) { // is this necessary?
-                            data.seen.insert(file);
+                        QList<GccArguments> &fileArgs = data.seen[file];
+                        if (!fileArgs.contains(args)) {
+                            fileArgs.append(args);
                             // qDebug() << "setting arguments for" << file << "to" << args.raw();
                             ClangRunnable *runnable = new ClangRunnable(file, args);
                             ++mPendingRunnables;
                             connect(runnable, SIGNAL(finished()), this, SLOT(onClangRunnableFinished()));
                             mThreadPool.start(runnable);
-                        } else {
-                            qWarning() << "seeing file again" << file << args;
                         }
                     }
                 }
