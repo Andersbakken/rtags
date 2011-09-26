@@ -11,17 +11,17 @@
 #include "Shared.h"
 #include <getopt.h>
 
-static int32_t locationLength = -1;
+static int32_t idLength = -1;
 static int caseInsensitive = 0;
 
 static int find(const void *l, const void *r)
 {
     const char *left = ((const char*)l) + Int32Length;
     const char *right = ((const char*)r) + Int32Length;
-    // printf("%s %s %s\n", left, right, std::string(left, locationLength).c_str());
+    // printf("%s %s %s\n", left, right, std::string(left, idLength).c_str());
     return (caseInsensitive
-            ? strncasecmp(left, right, locationLength - Int32Length)
-            : strncmp(left, right, locationLength - Int32Length));
+            ? strncasecmp(left, right, idLength - Int32Length)
+            : strncmp(left, right, idLength - Int32Length));
 }
 
 
@@ -85,11 +85,9 @@ int main(int argc, char **argv)
         ListSymbols,
         ShowTree
     } mode = None;
+    struct MMapData mmapData;
+    const char *ch = 0;
     char dbFileBuffer[PATH_MAX + 10];
-    // for (int i=0; i<argc; ++i) {
-    //     printf("%d %s\n", i, argv[i]);
-    // }
-
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
         switch (idx) {
         case '?':
@@ -169,62 +167,20 @@ int main(int argc, char **argv)
         printf("%s %d: if (mode == None) {\n", __FILE__, __LINE__);
         return 1;
     }
-        
 
-    int fd = 0;
-    struct stat st;
-    void *mapped = 0;
-    const char *ch = 0;
-
-    fd = open(dbFile, O_RDONLY);
-    if (fd <= 0) {
-        printf("%s %d: if (fd <= 0)\n", __FILE__, __LINE__);
+    if (!loadDb(dbFile, &mmapData)) {
+        printf("%s %d: if (!loadDb(dbFile)) {\n", __FILE__, __LINE__);
         return 1;
     }
-
-    if (fstat(fd, &st) < 0) {
-        printf("%s %d: if (fstat(fdin, &st) < 0) \n", __FILE__, __LINE__);
-        close(fd);
-        return 1;
-    }
-    if (st.st_size < 10) {
-        printf("%s %d: if (st.st_size < 10) {\n", __FILE__, __LINE__);
-        close(fd);
-        return 1;
-    }
-        
-    if ((mapped = mmap(0, st.st_size, PROT_READ, MAP_SHARED, fd, 0)) == MAP_FAILED) {
-        printf("%s %d: if ((src = mmap(0, st.st_size, PROT_READ, MAP_SHARED, fd, 0)) == MAP_FAILED) {\n", __FILE__, __LINE__);
-        close(fd);
-        return 1;
-    }
-    ch = (char*)mapped;
-    if (strncmp(mapped, "Rt", 3)) {
-        printf("%s %d: if (memcmp(mapped, \"Rt\", 2)) {\n", __FILE__, __LINE__);
-        munmap(mapped, st.st_size);
-        close(fd);
-        return 1;
-    }
-
-    const int32_t nodeCount = readInt32(ch + NodeCountPos);
-    locationLength = readInt32(ch + IdLengthPos);
-    const int32_t dictionaryPosition = readInt32(ch + DictionaryPosPos);
-    const int32_t dictionaryCount = readInt32(ch + DictionaryCountPos);
-    /* printf("locationLength %d nodeCount %d\n" */
-    /*        "dictionaryPosition %d dictionaryCount %d\n", locationLength, nodeCount, dictionaryPosition, dictionaryCount); */
-    if (locationLength <= 0 || nodeCount <= 0) {
-        munmap(mapped, st.st_size);
-        close(fd);
-        printf("%s %d: if (locationLength <= 0 || nodeCount <= 0)\n", __FILE__, __LINE__);
-        return 1;
-    }
+    ch = (const char*)(mmapData.memory);
+    idLength = mmapData.idLength;
 
     switch (mode) {
     case None:
         assert(0);
         break;
     case ShowTree:
-        recurse(ch, rootNodePosition(nodeCount, locationLength), 0);
+        recurse(ch, rootNodePosition(mmapData.nodeCount, idLength), 0);
         break;
     case References:
     case FollowSymbol: {
@@ -232,7 +188,7 @@ int main(int argc, char **argv)
         const int argLen = strlen(arg) + 1;
         char *padded = (char*)malloc(argLen + Int32Length);
         strncpy(padded + Int32Length, arg, argLen);
-        const char *bs = (const char*)bsearch(padded, ch + FirstId, nodeCount, locationLength, find);
+        const char *bs = (const char*)bsearch(padded, ch + FirstId, mmapData.nodeCount, idLength, find);
         // printf("Found a match %p\n", bs);
         free(padded);
         if (bs) {
@@ -288,9 +244,9 @@ int main(int argc, char **argv)
         break; }
     case ListSymbols: {
         int i;
-        int32_t pos = dictionaryPosition;
+        int32_t pos = mmapData.dictionaryPosition;
         const int argLen = strlen(arg);
-        for (i=0; i<dictionaryCount; ++i) {
+        for (i=0; i<mmapData.dictionaryCount; ++i) {
             int32_t symbolName = pos;
             assert(ch[pos] > 32); // should be a printable character
             const int len = strlen(ch + pos);
@@ -337,8 +293,7 @@ int main(int argc, char **argv)
         }
         break; }
     }
-    munmap(mapped, st.st_size);
-    close(fd);
+    munmap(mmapData.memory, mmapData.mappedSize);
     return 0;
 }
 

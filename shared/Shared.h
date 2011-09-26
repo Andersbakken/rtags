@@ -27,9 +27,11 @@ typedef enum {
     DictionaryPosLength = Int32Length,
     DictionaryCountPos = DictionaryPosPos + DictionaryPosLength,
     DictionaryCountPosLength = Int32Length,
-    FileDataPos = DictionaryCountPos + DictionaryCountPosLength,
-    FileDataPosLength = Int32Length,
-    FirstId = FileDataPos + FileDataPosLength,
+    FileDataPosPos = DictionaryCountPos + DictionaryCountPosLength,
+    FileDataPosPosLength = Int32Length,
+    FileDataCountPos = FileDataPosPos + FileDataPosPosLength,
+    FileDataCountPosLength = Int32Length,
+    FirstId = FileDataCountPos + FileDataCountPosLength,
     HeaderSize = FirstId
 } Offset;
 
@@ -66,6 +68,13 @@ static inline int64_t readInt64(const char *src)
     return ret;
 }
 
+struct MMapData {
+    void *memory;
+    size_t mappedSize;
+    int32_t nodeCount, idLength, dictionaryPosition, dictionaryCount, fileDataPosition, fileDataCount;
+};
+
+int loadDb(const char *dbfile, struct MMapData *data);
 
 struct NodeData {
     int32_t type, location, parent, nextSibling, firstChild;

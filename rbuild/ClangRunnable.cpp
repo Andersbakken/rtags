@@ -598,7 +598,8 @@ bool ClangRunnable::save(const QByteArray &path)
         writeInt32(&file, 0);
     }
     pos = file.pos();
-    writeInt32(out + FileDataPos, pos);
+    writeInt32(out + FileDataPosPos, pos);
+    writeInt32(out + FileDataCountPos, sFiles.size());
     file.seek(0);
     file.write(header);
     file.seek(pos);

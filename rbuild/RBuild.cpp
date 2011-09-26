@@ -222,6 +222,11 @@ void RBuild::setDatabaseFile(const Path &path, DatabaseMode mode)
 {
     mDatabaseFile = path;
     mDatabaseMode = mode;
+    if (mode == Update) {
+
+
+        printf("%s %d: if (mode == Update) {\n", __FILE__, __LINE__);
+    }
 }
 
 Path RBuild::databaseFile() const
