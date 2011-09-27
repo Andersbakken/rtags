@@ -115,7 +115,8 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &path)
             cmdpos = (semipos != -1 && semipos < amppos) ? semipos : amppos;
             sublen = (cmdpos == semipos) ? 1 : 2;
         }
-    }
+    } else
+        raw = cmd;
 
     const QList<QByteArray> args = raw.split(' ');
     Q_ASSERT(!args.isEmpty());
