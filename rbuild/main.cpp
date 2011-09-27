@@ -61,13 +61,14 @@ void syslogMsgHandler(QtMsgType t, const char* str)
     syslog(priority, "%s (%s)\n", str, names[t]);
 }
 
-static inline void usage(FILE *f)
+static inline void usage(const char* argv0, FILE *f)
 {
     fprintf(f,
-            "rc [options]...\n"
+            "%s [options]...\n"
             "  --help|-h                  Display this help\n"
             "  --update|-u [optional arg] Update database, using heuristics to find the file if arg is not supplied\n"
-            "  --srcdir|-s [arg]          Build list of files from this directory\n");
+            "  --srcdir|-s [arg]          Build list of files from this directory\n",
+            argv0);
 }
 
 
@@ -104,7 +105,7 @@ int main(int argc, char** argv)
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
         switch (idx) {
         case 'h':
-            usage(stdout);
+            usage(argv[0], stdout);
             return 0;
         case 's':
             printf("%s %d: case 's':\n", __FILE__, __LINE__);

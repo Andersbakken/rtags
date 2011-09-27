@@ -40,10 +40,10 @@ void recurse(const char *ch, int32_t pos, int indent)
         recurse(ch, node.nextSibling, indent);
 }
 
-static inline void usage(FILE *f)
+static inline void usage(const char* argv0, FILE *f)
 {
     fprintf(f,
-            "rc [options]...\n"
+            "%s [options]...\n"
             "  --help|-h                  Display this help\n"
             "  --follow-symbol|-s [arg]   Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
             "  --references|-r [arg]      Print references of symbol at arg\n"
@@ -52,7 +52,8 @@ static inline void usage(FILE *f)
             "  --db-file|-f [arg]         Use this database file\n"
             "  --match-complete-symbol|-c Match only complete symbols (for --list-symbols)\n"
             "  --match-starts-with|-S     Match symbols that starts with the search term (for --list-symbols)\n"
-            "  --case-insensitive|-i      Case insensitive matching\n");
+            "  --case-insensitive|-i      Case insensitive matching\n",
+            argv0);
 }
 
 int main(int argc, char **argv)
@@ -90,13 +91,13 @@ int main(int argc, char **argv)
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
         switch (idx) {
         case '?':
-            usage(stderr);
+            usage(argv[0], stderr);
             return 1;
         case 'i':
             caseInsensitive = 1;
             break;
         case 'h':
-            usage(stdout);
+            usage(argv[0], stdout);
             return 0;
         case 's':
             if (mode != None) {
