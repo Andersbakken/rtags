@@ -294,15 +294,14 @@ int main(int argc, char **argv)
 
             pos += len + 1;
             while (1) {
-                int32_t loc = readInt32(mmapData.memory + pos);
+                int32_t nodePos = readInt32(mmapData.memory + pos);
                 pos += Int32Length;
-                if (!loc)
+                if (!nodePos)
                     break;
                 if (matched) {
+                    struct NodeData node = readNodeData(mmapData.memory + nodePos);
                     if (!completionMode) {
-                        struct NodeData node = readNodeData(mmapData.memory + loc - Int32Length);
-                        printf("%s:%s\n", mmapData.memory + loc, node.symbolName);
-                               /* mmapData.memory + symbolName); */
+                        printf("%s:%s\n", mmapData.memory + node.location, node.symbolName);
                     } else if (matched++ == 1) { // we only want the first match in completion mode
                         printf("%s\n", mmapData.memory + symbolName);
                     }

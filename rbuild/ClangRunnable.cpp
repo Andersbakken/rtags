@@ -527,7 +527,7 @@ bool ClangRunnable::save(const QByteArray &path)
     const int entryLength = Node::sLongestId + 1 + Int32Length;
     QByteArray header(rootNodePosition(nodeCount, entryLength), '\0');
     int32_t pos = header.size();
-    QHash<Node*, int32_t> positions, locationsForNode;
+    QHash<Node*, int32_t> positions;
     positions[sRoot] = pos;
     pos += nodeSize(sRoot);
     for (QMap<QByteArray, Node*>::const_iterator it = Node::sNodes.begin(); it != Node::sNodes.end(); ++it) {
@@ -557,12 +557,10 @@ bool ClangRunnable::save(const QByteArray &path)
         const int32_t nodePosition = writeNode(&file, node, positions, entryIdx, entryLength);
         char *s = writeInt32(out + FirstId + (entryIdx * entryLength), nodePosition);
         writeString(s, key);
-        const int32_t location = ((entryIdx * entryLength) + FirstId + Int32Length);
-        locationsForNode[node] = location;
         ++entryIdx;
     }
     QMap<QByteArray, QSet<int32_t> > dictionary;
-    for (QHash<Node*, int32_t>::const_iterator it = locationsForNode.begin(); it != locationsForNode.end(); ++it) {
+    for (QHash<Node*, int32_t>::const_iterator it = positions.begin(); it != positions.end(); ++it) {
         addToDictionary(it.key(), dictionary, it.value());
     }
 
