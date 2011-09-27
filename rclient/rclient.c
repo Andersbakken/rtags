@@ -25,7 +25,7 @@ static int find(const void *l, const void *r)
 }
 
 
-void recurse(const char *ch, int32_t pos, int indent)
+void recurse(const char *ch, int32_t pos, int indent, int printLocation)
 {
     struct NodeData node = readNodeData(ch + pos);
     int i;
@@ -33,11 +33,11 @@ void recurse(const char *ch, int32_t pos, int indent)
         printf(" ");
     }
     printf("%s %s %s\n", nodeTypeToName(node.type, Normal), node.symbolName,
-           node.location ? ch + node.location : "");
+           node.location && printLocation ? ch + node.location : "");
     if (node.firstChild)
-        recurse(ch, node.firstChild, indent + 2);
+        recurse(ch, node.firstChild, indent + 2, printLocation);
     if (node.nextSibling)
-        recurse(ch, node.nextSibling, indent);
+        recurse(ch, node.nextSibling, indent, printLocation);
 }
 
 static inline void usage(const char* argv0, FILE *f)
@@ -52,7 +52,8 @@ static inline void usage(const char* argv0, FILE *f)
             "  --db-file|-f [arg]         Use this database file\n"
             "  --match-complete-symbol|-c Match only complete symbols (for --list-symbols)\n"
             "  --match-starts-with|-S     Match symbols that starts with the search term (for --list-symbols)\n"
-            "  --case-insensitive|-i      Case insensitive matching\n",
+            "  --case-insensitive|-i      Case insensitive matching\n"
+            "  --no-location|-n           Don't print out the location\n",
             argv0);
 }
 
@@ -68,9 +69,10 @@ int main(int argc, char **argv)
         { "match-complete-symbol", 0, 0, 'c' },
         { "match-starts-with", 0, 0, 'S' },
         { "case-insensitive", 0, 0, 'i' },
+        { "no-location", 0, 0, 'n' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hs:tf:r:l:cSi";
+    const char *shortOptions = "hs:tf:r:l:cSin";
     int idx, longIndex;
     const char *arg = 0;
     const char *dbFile = 0;
@@ -86,6 +88,7 @@ int main(int argc, char **argv)
         ListSymbols,
         ShowTree
     } mode = None;
+    int printLocation = 1;
     struct MMapData mmapData;
     char dbFileBuffer[PATH_MAX + 10];
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
@@ -95,6 +98,9 @@ int main(int argc, char **argv)
             return 1;
         case 'i':
             caseInsensitive = 1;
+            break;
+        case 'n':
+            printLocation = 0;
             break;
         case 'h':
             usage(argv[0], stdout);
@@ -179,7 +185,7 @@ int main(int argc, char **argv)
         assert(0);
         break;
     case ShowTree:
-        recurse(mmapData.memory, rootNodePosition(mmapData.nodeCount, idLength), 0);
+        recurse(mmapData.memory, rootNodePosition(mmapData.nodeCount, idLength), 0, printLocation);
         break;
     case References:
     case FollowSymbol: {
@@ -286,8 +292,14 @@ int main(int argc, char **argv)
                 pos += Int32Length;
                 if (!loc)
                     break;
-                if (matched)
-                    printf("%s %s\n", mmapData.memory + symbolName, mmapData.memory + loc);
+                if (matched) {
+                    printf("%s", mmapData.memory + symbolName);
+                    if (printLocation) {
+                        printf(" %s\n", mmapData.memory + loc);
+                    } else {
+                        printf("\n");
+                    }
+                }
             }
         }
         break; }
