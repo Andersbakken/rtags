@@ -14,8 +14,18 @@
 RBuild::RBuild(QObject *parent)
     : QObject(parent), mPendingRunnables(0), mDatabaseMode(Build), mPendingWork(false)
 {
-    mThreadPool.setMaxThreadCount(qMax(4, QThread::idealThreadCount() * 2));
-    qDebug() << mThreadPool.maxThreadCount();
+    mThreadPool.setMaxThreadCount(qMax<int>(4, QThread::idealThreadCount() * 1.5));
+}
+
+RBuild::~RBuild()
+{
+    for (QHash<QProcess*, MakefileData>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
+        if (it.key()->state() != QProcess::NotRunning) {
+            disconnect(it.key(), 0, this, 0); // don't want it to change mMakefiles upon exit
+            it.key()->kill();
+            it.key()->waitForFinished(2000); // ### ???
+        }
+    }
 }
 
 bool RBuild::addMakefile(Path makefile)

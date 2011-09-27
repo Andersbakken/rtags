@@ -19,6 +19,7 @@ class RBuild : public QObject
     Q_OBJECT;
 public:
     RBuild(QObject* parent = 0);
+    ~RBuild();
     bool addMakefile(Path makefile);
     void recurseDir(const Path &path);
     enum DatabaseMode {

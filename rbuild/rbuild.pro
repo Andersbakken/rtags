@@ -37,6 +37,10 @@ HEADERS += \
 
 include(../shared/shared.pri)
 
+release {
+    QMAKE_CXXFLAGS += -g
+    QMAKE_CFLAGS += -g
+}
 OTHER_FILES += \
     gccopts.gperf
 

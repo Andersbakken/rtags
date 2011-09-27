@@ -138,7 +138,7 @@ int main(int argc, char** argv)
                 return 1;
             } else {
                 if (!rbuild.addMakefile(argv[i])) {
-                    printf("%s %d: if (!rbuild.addMakefile(argv[i]))\n", __FILE__, __LINE__);
+                    qWarning("Couldn't add makefile \"%s\"", argv[i]);
                     return 1;
                 }
             }
@@ -152,8 +152,10 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (rbuild.pendingWork())
+    if (rbuild.pendingWork()) {
         return app.exec();
+    }
 
+    printf("%s %d: return 0;\n", __FILE__, __LINE__);
     return 0;
 }

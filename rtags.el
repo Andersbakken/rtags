@@ -15,6 +15,15 @@
 ;;   :type 'boolean
 ;;   :group 'rtags)
 
+(defvar last-rtags-update-process nil)
+(defun update-rtags () (interactive)
+  (if (and last-rtags-update-process (eq (process-status last-rtags-update-process) 'run))
+      (kill-process last-rtags-update-process))
+  (setq last-rtags-update-process (start-process "rtags-update" nil "rc" "-u"))
+  nil
+  )
+
+
 (defun rtags-goto-location(location)
   (let (line column)
     (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" location)
@@ -27,7 +36,7 @@
           (forward-line (- line 1))
           (forward-char (- column 1))))))
 
-(defun rtags-goto-symbol-at-point()
+(defun rtags-follow-symbol-at-point()
   (interactive)
   (let ((bufname (buffer-file-name))
         (line (int-to-string (line-number-at-pos)))
