@@ -226,7 +226,8 @@ void ClangRunnable::run()
                 sPchMutex.unlock();
                 continue;
             }
-            pchfile = precompile->filename().toLocal8Bit();
+            pchfile = precompile->filename();
+            qWarning() << pchfile << mFile;
             if (!pchfile.isFile()) {
                 sPchMutex.unlock();
                 continue;
@@ -258,11 +259,11 @@ void ClangRunnable::run()
             //     printf("%d [%s]\n", i, args.constData()[i]);
             // }
 
-            // qDebug() << "calling parse" << mFile << args;
+            qDebug() << "calling parse" << mFile << args;
             unit = clang_parseTranslationUnit(index, mFile.constData(),
                                               args.constData(), argCount, 0, 0,
                                               // CXTranslationUnit_NestedMacroExpansions
-                                              CXTranslationUnit_DetailedPreprocessingRecord);
+                                              CXTranslationUnit_DetailedPreprocessingRecord); // ### do we need this?
             if (unit && before != mFile.lastModified())
                 continue;
         } while (false);

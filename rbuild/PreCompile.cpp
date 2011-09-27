@@ -6,7 +6,7 @@
 
 #define PRECOMPILE_SEEN_TRESHOLD 10
 
-QString PreCompile::s_path;
+Path PreCompile::s_path;
 QHash<QByteArray, PreCompile*> PreCompile::s_precompiles;
 
 static QByteArray key(const QList<QByteArray>& args)
@@ -24,7 +24,7 @@ static QByteArray key(const QList<QByteArray>& args)
     return k;
 }
 
-void PreCompile::setPath(const QString &path)
+void PreCompile::setPath(const Path &path)
 {
     s_path = path;
 }
@@ -82,11 +82,12 @@ PreCompile::PreCompile(const QList<QByteArray> &args)
 
     int cnt = 0;
     bool ok = false;
-    QString fn;
+    Path fn;
+    char buf[32];
     do {
-        fn = s_path + QString("/rtags_header%1.pch").arg(cnt);
-        QFileInfo info(fn);
-        ok = !info.exists();
+        const int len = snprintf(buf, 32, "/rtags_header%d.pch", cnt);
+        fn = s_path + QByteArray::fromRawData(buf, len);
+        ok = !fn.exists();
         ++cnt;
     } while (!ok);
 
@@ -110,10 +111,10 @@ PreCompile::~PreCompile()
     file.remove();
 }
 
-QString PreCompile::filename() const
+Path PreCompile::filename() const
 {
     if (m_included.isEmpty())
-        return QString();
+        return Path();
     return m_filename;
 }
 
@@ -174,12 +175,12 @@ void PreCompile::precompileIfNeeded(bool needed)
     }
 }
 
-void PreCompile::compile(const QByteArray headers)
+void PreCompile::compile(const QByteArray &headers)
 {
     m_headers += headers;
 
-    QByteArray outfile = m_filename.toLocal8Bit();
-    QByteArray infile = outfile + ".h";
+    Path outfile = m_filename;
+    Path infile = outfile + ".h";
     QFile inp(infile);
     if (!inp.open(QFile::WriteOnly)) {
         // ### ow!
