@@ -101,8 +101,18 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &path)
     if (cmdpos != -1) {
         while (prevpos != -1) {
             subcmd = cmd.mid(prevpos, (cmdpos == -1) ? -1 : cmdpos - prevpos).trimmed();
-            if (subcmd.contains("gcc") || subcmd.contains("g++")
-                    || subcmd.contains("c++") || subcmd.contains("cc")) {
+            const int firstSpace = subcmd.indexOf(' ');
+            QByteArray first;
+            if (firstSpace != -1) {
+                first = cmd.left(firstSpace);
+            } else {
+                first = subcmd;
+            }
+
+            if (first.contains("gcc") || first.contains("g++")
+                || first.contains("c++") || first.contains("cc")) {
+                if (!raw.isEmpty())
+                    qDebug() << cmd << path << raw;
                 Q_ASSERT(raw.isEmpty());
                 raw = subcmd;
             } else {
