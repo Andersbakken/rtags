@@ -54,7 +54,7 @@ static inline void usage(const char* argv0, FILE *f)
             "  --match-starts-with|-S     Match symbols that starts with the search term (for --list-symbols)\n"
             "  --case-insensitive|-i      Case insensitive matching\n"
             "  --no-location|-n           Don't print out the location\n"
-            "  --completions|-C [arg]     Output usable for completions from say emacs\n",
+            "  --completion-mode|-C       Output usable for completions from say emacs\n",
             argv0);
 }
 
@@ -67,14 +67,14 @@ int main(int argc, char **argv)
         { "db-file", 1, 0, 'f' },
         { "references", 1, 0, 'r' },
         { "list-symbols", 1, 0, 'l' },
-        { "completions", 1, 0, 'C' },
+        { "completion-mode", 0, 0, 'C' },
         { "match-complete-symbol", 0, 0, 'c' },
         { "match-starts-with", 0, 0, 'S' },
         { "case-insensitive", 0, 0, 'i' },
         { "no-location", 0, 0, 'n' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hs:tf:r:l:cSinC:";
+    const char *shortOptions = "hs:tf:r:l:cSinC";
     int idx, longIndex;
     const char *arg = 0;
     const char *dbFile = 0;
@@ -88,10 +88,10 @@ int main(int argc, char **argv)
         FollowSymbol,
         References,
         ListSymbols,
-        Completions,
         ShowTree
     } mode = None;
     int printLocation = 1;
+    int completionMode = 0;
     struct MMapData mmapData;
     char dbFileBuffer[PATH_MAX + 10];
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
@@ -143,12 +143,7 @@ int main(int argc, char **argv)
             arg = optarg;
             break;
         case 'C':
-            if (mode != None) {
-                printf("%s %d: if (mode != None) {\n", __FILE__, __LINE__);
-                return 1;
-            }
-            mode = Completions;
-            arg = optarg;
+            completionMode = 1;
             break;
         case 'S':
             if (matchType != MatchAnywhere) {
@@ -168,6 +163,11 @@ int main(int argc, char **argv)
     }
     if (matchType != MatchAnywhere && mode != ListSymbols) {
         printf("%s %d: if (matchType != MatchAnywhere && mode != ListSymbols)\n", __FILE__, __LINE__);
+        return 1;
+    }
+
+    if (completionMode && mode != ListSymbols) {
+        printf("%s %d: if (completionMode && mode != ListSymbols) {\n", __FILE__, __LINE__);
         return 1;
     }
 
@@ -258,10 +258,8 @@ int main(int argc, char **argv)
             }
         }
         break; }
-    case ListSymbols:
-    case Completions: {
+    case ListSymbols: {
         int i;
-        const char *lastSymbolName = 0;
         int32_t pos = mmapData.dictionaryPosition;
         const int argLen = strlen(arg);
         for (i=0; i<mmapData.dictionaryCount; ++i) {
@@ -306,19 +304,15 @@ int main(int argc, char **argv)
                 if (!loc)
                     break;
                 if (matched) {
-                    if (mode == ListSymbols) {
+                    if (!completionMode) {
                         printf("%s", mmapData.memory + symbolName);
                         if (printLocation) {
                             printf(" %s\n", mmapData.memory + loc);
                         } else {
                             printf("\n");
                         }
-                    } else {
-                        if (!lastSymbolName || strcmp(mmapData.memory + symbolName, lastSymbolName)) {
-                            lastSymbolName = mmapData.memory + symbolName;
-                            printf("%s\n", lastSymbolName);
-                        }
-                        break;
+                    } else if (matched++ == 1) { // we only want the first match in completion mode
+                        printf("%s\n", mmapData.memory + symbolName);
                     }
                 }
             }
