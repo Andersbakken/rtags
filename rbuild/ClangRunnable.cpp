@@ -203,103 +203,64 @@ void ClangRunnable::run()
     const QList<QByteArray> compilerOptions = mArgs.includePaths() + mArgs.arguments("-D");
     const int compilerOptionsCount = compilerOptions.count();
 
-    CXTranslationUnit unit = 0;
-    enum { WithPCH, WithoutPCH };
-    int i;
-    for (i=0; i<2 && !unit; ++i) {
-        PreCompile *precompile = 0;
-        if (!disablePch && i == WithPCH) {
-            // QElapsedTimer timer;
-            // timer.start();
-            sPchMutex.lock();
-            // int elapsed = timer.elapsed();
-            // if (elapsed > 1)
-            //     qDebug() << "Waited a long-ass time" << __LINE__ << mFile << elapsed;
-            precompile = PreCompile::get(compilerOptions);
-        }
-        Path pchfile;
-        int argCount = compilerOptions.size();
-        if (i == WithPCH) {
-            if (!precompile)
-                continue;
-            if (mArgs.language() != GccArguments::LangCPlusPlus) {
-                sPchMutex.unlock();
-                continue;
-            }
-            pchfile = precompile->filename();
-            qWarning() << pchfile << mFile;
-            if (!pchfile.isFile()) {
-                sPchMutex.unlock();
-                continue;
-            }
+    Path pchfile;
+    int argCount = compilerOptions.size();
+    PreCompile *precompile = 0;
+    if (!disablePch && mArgs.language() == GccArguments::LangCPlusPlus) {
+        QMutexLocker lock(&sPchMutex);
+        precompile = PreCompile::get(compilerOptions);
+        pchfile = precompile->filename();
+        if (pchfile.isFile())
             argCount += 2;
-        }
-        if (!disablePch && i == WithPCH)
-            sPchMutex.unlock();
+    }
+    args.resize(argCount);
+    for (int a=0; a<compilerOptionsCount; ++a) {
+        args[a] = compilerOptions.at(a).constData();
+    }
+    if (argCount > compilerOptionsCount) {
+        Q_ASSERT(argCount - compilerOptionsCount == 2);
+        Q_ASSERT(!pchfile.isEmpty());
+        args[compilerOptionsCount] = "-pch";
+        args[compilerOptionsCount + 1] = pchfile.constData();
+    }
 
-        // ### this allocates more than it needs to strictly speaking. In fact a
-        // ### lot of files will have identical options so we could even reuse
-        // ### the actual QVarLengthArray a lot of times.
-        if (args.size() < argCount)
-            args.resize(argCount);
-        for (int a=0; a<compilerOptionsCount; ++a) {
-            args[a] = compilerOptions.at(a).constData();
-        }
-        if (i == WithPCH) {
-            args[compilerOptionsCount] = "-pch";
-            args[compilerOptionsCount + 1] = pchfile.constData();
-        }
+    const time_t lastModified = mFile.lastModified();
+    // qDebug() << "parsing file" << mFile << (i == WithPCH ? "with PCH" : "without PCH");
+    Q_ASSERT(!args.contains(0));
+    // for (int i=0; i<argCount; ++i) {
+    //     printf("%d [%s]\n", i, args.constData()[i]);
+    // }
 
-        time_t before;
-        do {
-            before = mFile.lastModified();
-            // qDebug() << "parsing file" << mFile << (i == WithPCH ? "with PCH" : "without PCH");
-            Q_ASSERT(!args.contains(0));
-            // for (int i=0; i<argCount; ++i) {
-            //     printf("%d [%s]\n", i, args.constData()[i]);
-            // }
-
-            qDebug() << "calling parse" << mFile << args;
-            unit = clang_parseTranslationUnit(index, mFile.constData(),
-                                              args.constData(), argCount, 0, 0,
-                                              // CXTranslationUnit_NestedMacroExpansions
-                                              CXTranslationUnit_DetailedPreprocessingRecord); // ### do we need this?
-            if (unit && before != mFile.lastModified())
-                continue;
-        } while (false);
-        if (!unit) {
-            qWarning("Couldn't parse %s", mFile.constData());
-            QByteArray clangLine = "clang";
-            if (mArgs.language() == GccArguments::LangCPlusPlus)
-                clangLine += "++";
-            for (int j=0; j<argCount; ++j) {
-                clangLine += ' ';
-                clangLine += args.at(j);
-            }
-            clangLine += ' ' + mFile;
-            qWarning("[%s]", clangLine.constData());
-        } else {
-            PrecompileData pre;
-            clang_getInclusions(unit, precompileHeaders, &pre);
-            // qDebug() << mFile << pre.direct << pre.all;
-            // QElapsedTimer timer;
-            // timer.start();
+    // qDebug() << "calling parse" << mFile << args;
+    CXTranslationUnit unit = clang_parseTranslationUnit(index, mFile.constData(),
+                                                        args.constData(), argCount, 0, 0,
+                                                        // CXTranslationUnit_NestedMacroExpansions
+                                                        CXTranslationUnit_DetailedPreprocessingRecord); // ### do we need this?
+    if (!unit) {
+        qWarning("Couldn't parse %s", mFile.constData());
+        QByteArray clangLine = "clang";
+        if (mArgs.language() == GccArguments::LangCPlusPlus)
+            clangLine += "++";
+        for (int j=0; j<argCount; ++j) {
+            clangLine += ' ';
+            clangLine += args.at(j);
+        }
+        clangLine += ' ' + mFile;
+        qWarning("[%s]", clangLine.constData());
+    } else {
+        PrecompileData pre;
+        clang_getInclusions(unit, precompileHeaders, &pre);
+        {
             QMutexLocker lock(&sPchMutex);
-            // int elapsed = timer.elapsed();
-            // if (elapsed > 1)
-            //     qDebug() << "Waited a long-ass time" << __LINE__ << mFile << elapsed;
-            if (precompile) {
+            if (precompile)
                 precompile->add(pre.direct, pre.all);
-            }
             FileData &data = sFiles[mFile];
-            data.lastModified = before;
+            data.lastModified = lastModified;
             data.arguments = mArgs;
             foreach(const Path &dependency, pre.all) {
                 data.dependencies[dependency] = dependency.lastModified(); // ### raise condition, only checking time after parsing
             }
         }
-    }
-    if (unit) {
         CXCursor rootCursor = clang_getTranslationUnitCursor(unit);
         ComprehensiveTreeUserData ud;
         ud.last = ud.root = 0;
@@ -318,14 +279,7 @@ void ClangRunnable::run()
         if (ud.root) {
             int old;
             {
-                // QElapsedTimer timer;
-                // timer.start();
-
                 QMutexLocker lock(&sTreeMutex);
-                // int elapsed = timer.elapsed();
-                // if (elapsed > 1)
-                //     qDebug() << "Waited a long-ass time" << __LINE__ << mFile << elapsed;
-                
                 old = Node::sNodes.size();
                 buildTree(sRoot, ud.root, references);
                 for (QHash<QByteArray, PendingReference>::const_iterator it = references.begin(); it != references.end(); ++it) {
@@ -335,7 +289,7 @@ void ClangRunnable::run()
             }
             delete ud.root;
             qDebug() << "added" << (Node::sNodes.size() - old) << "nodes for" << mFile << ". Total" << Node::sNodes.size()
-                     << timer.elapsed() << "ms" << (i == WithPCH ? "with PCH" : "without PCH");
+                     << timer.elapsed() << "ms" << (argCount != compilerOptionsCount ? "with PCH" : "without PCH");
         }
         clang_disposeTranslationUnit(unit);
     }

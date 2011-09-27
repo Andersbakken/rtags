@@ -205,7 +205,7 @@ void PreCompile::compile(const QByteArray &headers)
         clang_disposeDiagnostic(diag);
     }
     int res = clang_saveTranslationUnit(unit, outfile.constData(), 0);
-    qDebug() << "saved?" << res;
+    qDebug() << "saved pch" << res;
     clang_disposeTranslationUnit(unit);
     clang_disposeIndex(idx);
 }
