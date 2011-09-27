@@ -139,15 +139,15 @@ static CXChildVisitResult dumpTree(CXCursor cursor, CXCursor parent, CXClientDat
     return CXChildVisit_Recurse;
 }
 
-static CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor, CXClientData data)
+static CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor parent, CXClientData data)
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
     CXFile file = 0;
     clang_getInstantiationLocation(location, &file, 0, 0, 0);
     // ### is this safe?
-    if (!file)
+    if (!file || clang_getCursorKind(cursor) == CXCursor_FirstExpr) // ### is this safe?
         return CXChildVisit_Continue;
-    CXCursor parent = clang_getCursorSemanticParent(cursor);
+    // CXCursor parent = clang_getCursorSemanticParent(cursor);
 
     // qDebug() << cursor << parent;
     ComprehensiveTreeUserData *u = reinterpret_cast<ComprehensiveTreeUserData*>(data);
@@ -448,8 +448,8 @@ void ClangRunnable::addReference(CursorNode *c, const QByteArray &id, const Loca
         const Location l(child->cursor);
         const QByteArray id = l.toString();
         if (Node::sNodes.contains(id)) {
-            printf("These got thrown out %s\n", id.constData());
-            child->dump(0);
+            // printf("These got thrown out %s\n", id.constData());
+            // child->dump(0);
             break;
         }
         addReference(child, l.toString(), l);

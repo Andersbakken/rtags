@@ -1,2 +1,2 @@
 TEMPLATE = subdirs
-SUBDIRS = rbuild rclient
+SUBDIRS = rbuild rclient rdump

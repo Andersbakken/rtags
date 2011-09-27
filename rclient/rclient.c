@@ -58,6 +58,21 @@ static inline void usage(const char* argv0, FILE *f)
             argv0);
 }
 
+static inline void findReferences(struct NodeData *parent, struct MMapData *mmapData)
+{
+    if (parent->firstChild) {
+        struct NodeData child = readNodeData(mmapData->memory + parent->firstChild);
+        while (1) {
+            if (child.type == Reference && child.location) {
+                printf("%s:%s\n", mmapData->memory + child.location, child.symbolName);
+            }
+            if (!child.nextSibling)
+                break;
+            child = readNodeData(mmapData->memory + child.nextSibling);
+        }
+    }
+}
+
 int main(int argc, char **argv)
 {
     struct option longOptions[] = {
@@ -105,7 +120,7 @@ int main(int argc, char **argv)
             return 0;
         case 's':
             if (mode != None) {
-                printf("%s %d: if (mode != None) {\n", __FILE__, __LINE__);
+                fprintf(stderr, "%s %d: if (mode != None) {\n", __FILE__, __LINE__);
                 return 1;
             }
             arg = optarg;
@@ -114,14 +129,14 @@ int main(int argc, char **argv)
         case 'r':
             arg = optarg;
             if (mode != None) {
-                printf("%s %d: if (mode != None) {\n", __FILE__, __LINE__);
+                fprintf(stderr, "%s %d: if (mode != None) {\n", __FILE__, __LINE__);
                 return 1;
             }
             mode = References;
             break;
         case 't':
             if (mode != None) {
-                printf("%s %d: if (mode != None) {\n", __FILE__, __LINE__);
+                fprintf(stderr, "%s %d: if (mode != None) {\n", __FILE__, __LINE__);
                 return 1;
             }
             mode = ShowTree;
@@ -131,7 +146,7 @@ int main(int argc, char **argv)
             break;
         case 'l':
             if (mode != None) {
-                printf("%s %d: if (mode != None) {\n", __FILE__, __LINE__);
+                fprintf(stderr, "%s %d: if (mode != None) {\n", __FILE__, __LINE__);
                 return 1;
             }
             mode = ListSymbols;
@@ -142,14 +157,14 @@ int main(int argc, char **argv)
             break;
         case 'S':
             if (matchType != MatchAnywhere) {
-                printf("%s %d: if (matchType != MatchAnywhere) {\n", __FILE__, __LINE__);
+                fprintf(stderr, "%s %d: if (matchType != MatchAnywhere) {\n", __FILE__, __LINE__);
                 return 1;
             }
             matchType = MatchStartsWith;
             break;
         case 'c':
             if (matchType != MatchAnywhere) {
-                printf("%s %d: if (matchType != MatchAnywhere) {\n", __FILE__, __LINE__);
+                fprintf(stderr, "%s %d: if (matchType != MatchAnywhere) {\n", __FILE__, __LINE__);
                 return 1;
             }
             matchType = MatchCompleteSymbol;
@@ -157,18 +172,18 @@ int main(int argc, char **argv)
         }
     }
     if (matchType != MatchAnywhere && mode != ListSymbols) {
-        printf("%s %d: if (matchType != MatchAnywhere && mode != ListSymbols)\n", __FILE__, __LINE__);
+        fprintf(stderr, "%s %d: if (matchType != MatchAnywhere && mode != ListSymbols)\n", __FILE__, __LINE__);
         return 1;
     }
 
     if (completionMode && mode != ListSymbols) {
-        printf("%s %d: if (completionMode && mode != ListSymbols) {\n", __FILE__, __LINE__);
+        fprintf(stderr, "%s %d: if (completionMode && mode != ListSymbols) {\n", __FILE__, __LINE__);
         return 1;
     }
 
     if (!dbFile) {
         if (!findDB(dbFileBuffer, sizeof(dbFileBuffer) - 1)) {
-            printf("%s %d: if (!dbFile) {\n", __FILE__, __LINE__);
+            fprintf(stderr, "%s %d: if (!dbFile) {\n", __FILE__, __LINE__);
             return 1;
         } else {
             dbFile = dbFileBuffer;
@@ -176,12 +191,12 @@ int main(int argc, char **argv)
     }
 
     if (mode == None) {
-        printf("%s %d: if (mode == None) {\n", __FILE__, __LINE__);
+        fprintf(stderr, "%s %d: if (mode == None) {\n", __FILE__, __LINE__);
         return 1;
     }
 
     if (!loadDb(dbFile, &mmapData)) {
-        printf("%s %d: if (!loadDb(dbFile)) {\n", __FILE__, __LINE__);
+        fprintf(stderr, "%s %d: if (!loadDb(dbFile)) {\n", __FILE__, __LINE__);
         return 1;
     }
     idLength = mmapData.idLength;
@@ -200,25 +215,29 @@ int main(int argc, char **argv)
         char *padded = (char*)malloc(argLen + Int32Length);
         strncpy(padded + Int32Length, arg, argLen);
         const char *bs = (const char*)bsearch(padded, mmapData.memory + FirstId, mmapData.nodeCount, idLength, find);
-        // printf("Found a match %p\n", bs);
+        // fprintf(stderr, "Found a match %p\n", bs);
         free(padded);
         if (bs) {
             const int32_t idx = readInt32(bs);
             struct NodeData node = readNodeData(mmapData.memory + idx);
             if (mode == References) {
-                if (node.firstChild) {
-                    node = readNodeData(mmapData.memory + node.firstChild);
+                findReferences(&node, &mmapData);
+                if (node.type == MethodDefinition) {
+                    struct NodeData parent = readNodeData(mmapData.memory + node.parent);
+                    assert(parent.firstChild);
+                    struct NodeData declaration = readNodeData(mmapData.memory + parent.firstChild);
                     while (1) {
-                        if (node.type == Reference && node.location) {
-                            printf("%s:%s\n", mmapData.memory + node.location, node.symbolName);
-                        }
-                        if (!node.nextSibling)
+                        if (declaration.type == MethodDeclaration && !strcmp(node.symbolName, declaration.symbolName)) {
+                            findReferences(&declaration, &mmapData);
                             break;
-                        node = readNodeData(mmapData.memory + node.nextSibling);
+                        }
+                        if (!declaration.nextSibling)
+                            break;
+                        declaration = readNodeData(mmapData.memory + declaration.nextSibling);
                     }
                 }
             } else {
-                // printf("Found node %s %s\n", nodeTypeToName(type), symbolName);
+                // fprintf(stderr, "Found node %s %s\n", nodeTypeToName(type), symbolName);
                 int32_t found = 0;
                 NodeType targetType = MethodDeclaration;
                 switch (node.type) {
@@ -246,9 +265,9 @@ int main(int argc, char **argv)
                     break;
                 }
                 if (found) {
-                    printf("%s\n", mmapData.memory + found);
+                    fprintf("%s\n", mmapData.memory + found);
                 } else {
-                    printf("Couldn't find it\n");
+                    fprintf(stderr, "Couldn't find it\n");
                 }
             }
         }
@@ -262,7 +281,7 @@ int main(int argc, char **argv)
             assert(mmapData.memory[pos] > 32); // should be a printable character
             const int len = strlen(mmapData.memory + pos);
             assert(len > 0);
-            /* printf("Found symbol %s %d %d\n", mmapData.memory + pos, len, pos); */
+            /* fprintf(stderr, "Found symbol %s %d %d\n", mmapData.memory + pos, len, pos); */
             int matched = 0;
             if (!argLen) {
                 matched = 1;
@@ -301,7 +320,7 @@ int main(int argc, char **argv)
                 if (matched) {
                     struct NodeData node = readNodeData(mmapData.memory + nodePos);
                     if (!completionMode) {
-                        printf("%s:%s\n", mmapData.memory + node.location, node.symbolName);
+                        fprintf("%s:%s\n", mmapData.memory + node.location, node.symbolName);
                     } else if (matched++ == 1) { // we only want the first match in completion mode
                         printf("%s\n", mmapData.memory + symbolName);
                     }
