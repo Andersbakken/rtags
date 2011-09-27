@@ -97,20 +97,24 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &path)
     int semipos = cmd.indexOf(';');
     int amppos = cmd.indexOf("&&");
     int cmdpos = (semipos != -1 && semipos < amppos) ? semipos : amppos, prevpos = 0;
-    while (cmdpos != -1) {
-        subcmd = cmd.mid(prevpos, cmdpos);
-        if (subcmd.contains("gcc") || subcmd.contains("g++")
-            || subcmd.contains("c++") || subcmd.contains("cc")) {
-            Q_ASSERT(raw.isEmpty());
-            raw = subcmd;
-        } else {
-            if (subcmd.startsWith("cd "))
-                parseCD(subcmd, path);
+    int sublen = (cmdpos == semipos) ? 1 : 2;
+    if (cmdpos != -1) {
+        while (prevpos != -1) {
+            subcmd = cmd.mid(prevpos, (cmdpos == -1) ? -1 : cmdpos - prevpos).trimmed();
+            if (subcmd.contains("gcc") || subcmd.contains("g++")
+                    || subcmd.contains("c++") || subcmd.contains("cc")) {
+                Q_ASSERT(raw.isEmpty());
+                raw = subcmd;
+            } else {
+                if (subcmd.startsWith("cd "))
+                    parseCD(subcmd, path);
+            }
+            prevpos = (cmdpos != -1) ? cmdpos + sublen : -1;
+            semipos = cmd.indexOf(';', cmdpos + 1);
+            amppos = cmd.indexOf("&&", cmdpos + 1);
+            cmdpos = (semipos != -1 && semipos < amppos) ? semipos : amppos;
+            sublen = (cmdpos == semipos) ? 1 : 2;
         }
-        prevpos = cmdpos;
-        semipos = cmd.indexOf(';', cmdpos + 1);
-        amppos = cmd.indexOf("&&", cmdpos + 1);
-        cmdpos = (semipos != -1 && semipos < amppos) ? semipos : amppos;
     }
 
     const QList<QByteArray> args = raw.split(' ');
