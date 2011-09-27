@@ -15,6 +15,18 @@
 ;;   :type 'boolean
 ;;   :group 'rtags)
 
+(defun rtags-goto-location(location)
+  (let (line column)
+    (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" location)
+    (if (match-beginning 1)
+        (progn
+          (setq line (string-to-int (match-string 2 location)))
+          (setq column (string-to-int (match-string 3 location)))
+          (find-file (match-string 1 location))
+          (goto-char (point-min))
+          (forward-line (- line 1))
+          (forward-char (- column 1))))))
+
 (defun rtags-goto-symbol-at-point()
   (interactive)
   (let ((bufname (buffer-file-name))
@@ -32,17 +44,7 @@
       ;; (message (executable-find "rc"))
       ;; (message (concat (executable-find "rc") " --follow-symbol " bufname ":" line ":" column))
       (call-process (executable-find "rc") nil t nil "--follow-symbol" (concat bufname ":" line ":" column))
-      (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" (buffer-string))
-      (if (match-beginning 1)
-          (progn
-            (setq line (string-to-int (match-string 2 (buffer-string))))
-            (setq column (string-to-int (match-string 3 (buffer-string))))
-            (find-file (match-string 1 (buffer-string)))
-            (goto-char (point-min))
-            (forward-line (- line 1))
-            (forward-char (- column 1)))
-        (message "Can't follow symbol"))
-      )
+      (rtags-goto-location (buffer-string)))
     )
   )
 
@@ -50,7 +52,8 @@
   (interactive)
   (let ((bufname (buffer-file-name))
         (line (int-to-string (line-number-at-pos)))
-        (column nil))
+        (column nil)
+        (previous (current-buffer)))
     (save-excursion
       (if (looking-at "[0-9A-Za-z_]")
           (progn
@@ -65,9 +68,16 @@
       ;; (message (executable-find "rc"))
       ;; (message (concat (executable-find "rc") " --follow-symbol " bufname ":" line ":" column))
     (call-process (executable-find "rc") nil t nil "--references" (concat bufname ":" line ":" column))
-    (goto-char (point-min))
-    (grep-mode))
-  )
+    (if (= (point-min) (point-max))
+        (progn
+          (kill-buffer "*Rtags-Complete*")
+          (switch-to-buffer previous))
+      (if (= (count-lines (point-min) (point-max)) 1)
+          (rtags-goto-location (buffer-string))
+        (progn
+          (goto-char (point-min))
+          (compilation-mode))))
+  ))
 
 
 (defun rtags-complete (string predicate code)
@@ -84,13 +94,14 @@
       ;;        (if (intern-soft string completions) t nil))))))
 
 
-(defun rtags-find-tag ()
+(defun rtags-find-symbol ()
   (interactive)
-  (let (tagname prompt input completions)
+  (let (tagname prompt input completions previous)
     (setq tagname (gtags-current-token))
+    (setq previous (current-buffer))
     (if tagname
-        (setq prompt (concat "Find tag: (default " tagname ") "))
-      (setq prompt "Find tag: "))
+        (setq prompt (concat "Find symbol: (default " tagname ") "))
+      (setq prompt "Find symbol: "))
     (with-temp-buffer
       (call-process "rc" nil t nil "-S" "-C" "-l" "")
       (setq completions (split-string (buffer-string))))
@@ -101,31 +112,15 @@
         (kill-buffer "*Rtags-Complete*"))
     (switch-to-buffer (generate-new-buffer "*Rtags-Complete*"))
     (call-process "rc" nil t nil "-S" "-l" tagname)
-    (goto-char (point-min))
-    (grep-mode)
+    (if (= (point-min) (point-max))
+        (progn
+          (kill-buffer "*Rtags-Complete*")
+          (switch-to-buffer previous))
+      (if (= (count-lines (point-min) (point-max)) 1)
+          (rtags-goto-location (buffer-string))
+        (progn
+          (goto-char (point-min))
+          (compilation-mode))))
     ))
-
-(defun rtags-find-references-from-here ()
-  (interactive)
-  (let (tagname prompt input completions)
-    (setq tagname (gtags-current-token))
-    (if tagname
-        (setq prompt (concat "Find references: (default " tagname ") "))
-      (setq prompt "Find tag: "))
-    (with-temp-buffer
-      (call-process "rc" nil t nil "-S" "-C" "-l" "")
-      (setq completions (split-string (buffer-string))))
-    (setq input (completing-read prompt completions nil nil nil gtags-history-list))
-    (if (not (equal "" input))
-        (setq tagname input))
-    (if (get-buffer "*Rtags-Complete*")
-        (kill-buffer "*Rtags-Complete*"))
-    (switch-to-buffer (generate-new-buffer "*Rtags-Complete*"))
-    (call-process "rc" nil t nil "-S" "-l" tagname)
-    (goto-char (point-min))
-    (grep-mode)
-    ))
-
-
 
 (provide 'rtags)

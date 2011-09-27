@@ -4,7 +4,6 @@ TARGET = rb
 DESTDIR = ..
 DEPENDPATH += .
 INCLUDEPATH += .
-CONFIG += debug
 
 macx {
     CONFIG -= app_bundle
@@ -34,8 +33,7 @@ HEADERS += \
     Path.h \
     Node.h \
     Location.h \
-    ClangRunnable.h \
-    Shared.h
+    ClangRunnable.h
 
 include(../shared/shared.pri)
 

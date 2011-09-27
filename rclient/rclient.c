@@ -210,7 +210,7 @@ int main(int argc, char **argv)
                     node = readNodeData(mmapData.memory + node.firstChild);
                     while (1) {
                         if (node.type == Reference && node.location) {
-                            printf("%s\n", mmapData.memory + node.location);
+                            printf("%s:%s\n", mmapData.memory + node.location, node.symbolName);
                         }
                         if (!node.nextSibling)
                             break;

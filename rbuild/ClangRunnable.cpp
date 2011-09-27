@@ -205,7 +205,8 @@ void ClangRunnable::run()
 
     CXTranslationUnit unit = 0;
     enum { WithPCH, WithoutPCH };
-    for (int i=0; i<2 && !unit; ++i) {
+    int i;
+    for (i=0; i<2 && !unit; ++i) {
         PreCompile *precompile = 0;
         if (!disablePch && i == WithPCH) {
             // QElapsedTimer timer;
@@ -280,12 +281,12 @@ void ClangRunnable::run()
             PrecompileData pre;
             clang_getInclusions(unit, precompileHeaders, &pre);
             // qDebug() << mFile << pre.direct << pre.all;
-            QElapsedTimer timer;
-            timer.start();
+            // QElapsedTimer timer;
+            // timer.start();
             QMutexLocker lock(&sPchMutex);
-            int elapsed = timer.elapsed();
-            if (elapsed > 1)
-                qDebug() << "Waited a long-ass time" << __LINE__ << mFile << elapsed;
+            // int elapsed = timer.elapsed();
+            // if (elapsed > 1)
+            //     qDebug() << "Waited a long-ass time" << __LINE__ << mFile << elapsed;
             if (precompile) {
                 precompile->add(pre.direct, pre.all);
             }
@@ -332,7 +333,8 @@ void ClangRunnable::run()
                 }
             }
             delete ud.root;
-            qDebug() << "added" << (Node::sNodes.size() - old) << "nodes for" << mFile << ". Total" << Node::sNodes.size();
+            qDebug() << "added" << (Node::sNodes.size() - old) << "nodes for" << mFile << ". Total" << Node::sNodes.size()
+                     << timer.elapsed() << "ms" << (i == WithPCH ? "with PCH" : "without PCH");
         }
         clang_disposeTranslationUnit(unit);
     }

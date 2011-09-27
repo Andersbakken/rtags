@@ -145,7 +145,7 @@ void RBuild::onMakeOutput()
     while (i < size) {
         if (data.buffer.at(i++) == '\n') {
             const QByteArray line(data.buffer.constData() + last, i - last - 1);
-            printf("%s\n", line.constData());
+            // printf("%s\n", line.constData());
             last = i;
             if (!line.isEmpty()) {
                 Path dir;
