@@ -25,7 +25,7 @@ static int find(const void *l, const void *r)
 }
 
 
-void recurse(const char *ch, int32_t pos, int indent, int printLocation)
+void recurse(const char *ch, int32_t pos, int indent)
 {
     struct NodeData node = readNodeData(ch + pos);
     int i;
@@ -33,11 +33,11 @@ void recurse(const char *ch, int32_t pos, int indent, int printLocation)
         printf(" ");
     }
     printf("%s %s %s\n", nodeTypeToName(node.type, Normal), node.symbolName,
-           node.location && printLocation ? ch + node.location : "");
+           node.location ? ch + node.location : "");
     if (node.firstChild)
-        recurse(ch, node.firstChild, indent + 2, printLocation);
+        recurse(ch, node.firstChild, indent + 2);
     if (node.nextSibling)
-        recurse(ch, node.nextSibling, indent, printLocation);
+        recurse(ch, node.nextSibling, indent);
 }
 
 static inline void usage(const char* argv0, FILE *f)
@@ -71,7 +71,6 @@ int main(int argc, char **argv)
         { "match-complete-symbol", 0, 0, 'c' },
         { "match-starts-with", 0, 0, 'S' },
         { "case-insensitive", 0, 0, 'i' },
-        { "no-location", 0, 0, 'n' },
         { 0, 0, 0, 0 },
     };
     const char *shortOptions = "hs:tf:r:l:cSinC";
@@ -90,7 +89,6 @@ int main(int argc, char **argv)
         ListSymbols,
         ShowTree
     } mode = None;
-    int printLocation = 1;
     int completionMode = 0;
     struct MMapData mmapData;
     char dbFileBuffer[PATH_MAX + 10];
@@ -101,9 +99,6 @@ int main(int argc, char **argv)
             return 1;
         case 'i':
             caseInsensitive = 1;
-            break;
-        case 'n':
-            printLocation = 0;
             break;
         case 'h':
             usage(argv[0], stdout);
@@ -196,7 +191,7 @@ int main(int argc, char **argv)
         assert(0);
         break;
     case ShowTree:
-        recurse(mmapData.memory, rootNodePosition(mmapData.nodeCount, idLength), 0, printLocation);
+        recurse(mmapData.memory, rootNodePosition(mmapData.nodeCount, idLength), 0);
         break;
     case References:
     case FollowSymbol: {
@@ -305,12 +300,7 @@ int main(int argc, char **argv)
                     break;
                 if (matched) {
                     if (!completionMode) {
-                        printf("%s", mmapData.memory + symbolName);
-                        if (printLocation) {
-                            printf(" %s\n", mmapData.memory + loc);
-                        } else {
-                            printf("\n");
-                        }
+                        printf("%s:%s\n", mmapData.memory + loc, mmapData.memory + symbolName);
                     } else if (matched++ == 1) { // we only want the first match in completion mode
                         printf("%s\n", mmapData.memory + symbolName);
                     }
