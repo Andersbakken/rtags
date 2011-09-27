@@ -300,7 +300,9 @@ int main(int argc, char **argv)
                     break;
                 if (matched) {
                     if (!completionMode) {
-                        printf("%s:%s\n", mmapData.memory + loc, mmapData.memory + symbolName);
+                        struct NodeData node = readNodeData(mmapData.memory + loc - Int32Length);
+                        printf("%s:%s\n", mmapData.memory + loc, node.symbolName);
+                               /* mmapData.memory + symbolName); */
                     } else if (matched++ == 1) { // we only want the first match in completion mode
                         printf("%s\n", mmapData.memory + symbolName);
                     }

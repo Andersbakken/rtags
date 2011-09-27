@@ -44,6 +44,7 @@ private:
     static QMutex sPchMutex;
     static QMutex sTreeMutex;
     static Node *sRoot;
+    static QMutex sFilesMutex;
     static QHash<Path, FileData> sFiles;
 
     friend QDataStream& operator<<(QDataStream& stream, const ClangRunnable::FileData& args);

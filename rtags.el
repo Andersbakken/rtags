@@ -120,7 +120,7 @@
     (if (get-buffer "*Rtags-Complete*")
         (kill-buffer "*Rtags-Complete*"))
     (switch-to-buffer (generate-new-buffer "*Rtags-Complete*"))
-    (call-process "rc" nil t nil "-S" "-l" tagname)
+    (call-process "rc" nil t nil "-c" "-l" tagname)
     (if (= (point-min) (point-max))
         (progn
           (kill-buffer "*Rtags-Complete*")

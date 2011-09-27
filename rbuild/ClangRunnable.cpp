@@ -7,6 +7,7 @@ static const bool disablePch = getenv("RTAGS_NO_PCH");
 Node *ClangRunnable::sRoot = 0;
 QMutex ClangRunnable::sPchMutex(QMutex::Recursive);
 QMutex ClangRunnable::sTreeMutex(QMutex::Recursive);
+QMutex ClangRunnable::sFilesMutex(QMutex::Recursive);
 QHash<Path, ClangRunnable::FileData> ClangRunnable::sFiles;
 
 struct PrecompileData {
@@ -251,9 +252,11 @@ void ClangRunnable::run()
         PrecompileData pre;
         clang_getInclusions(unit, precompileHeaders, &pre);
         {
-            QMutexLocker lock(&sPchMutex);
-            if (precompile)
+            if (precompile) {
+                QMutexLocker lock(&sPchMutex);
                 precompile->add(pre.direct, pre.all);
+            }
+            QMutexLocker lock(&sFilesMutex);
             FileData &data = sFiles[mFile];
             data.lastModified = lastModified;
             data.arguments = mArgs;
@@ -495,9 +498,11 @@ static inline void addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> > &
             case Struct:
             case Class:
             case Namespace:
-                symbolName.prepend("::");
-                symbolName.prepend(parent->symbolName);
-                map[symbolName].insert(locationPos);
+                if (!symbolName.isEmpty()) {
+                    symbolName.prepend("::");
+                    symbolName.prepend(parent->symbolName);
+                    map[symbolName].insert(locationPos);
+                }
                 break;
             default:
                 break;
