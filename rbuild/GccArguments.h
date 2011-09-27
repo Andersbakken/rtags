@@ -15,7 +15,7 @@ public:
     enum Language { LangUndefined, LangC, LangCPlusPlus, LangObjC, LangObjCPlusPlus };
 
     GccArguments();
-    bool parse(const QByteArray& args, const Path &resolvedPath);
+    bool parse(const QByteArray& cmd, const Path &resolvedPath);
     QByteArray raw() const;
     Path dir() const;
     bool isNull() const;
@@ -43,6 +43,8 @@ public:
     bool isCompile() const;
     bool operator==(const GccArguments &other) const;
  private:
+    void parseCD(const QByteArray& cmd, const Path& path);
+
     class Data : public QSharedData
     {
     public:

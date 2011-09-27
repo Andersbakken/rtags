@@ -70,19 +70,60 @@ GccArguments::GccArguments()
 {
 }
 
-bool GccArguments::parse(const QByteArray& raw, const Path &path)
+void GccArguments::parseCD(const QByteArray &cmd, const Path& path)
+{
+    const QList<QByteArray> args = cmd.split(' ');
+    Q_ASSERT(args.size() > 1);
+    const QByteArray& argspath = args.at(1);
+    Q_ASSERT(!argspath.isEmpty());
+    Path cmdpath(argspath);
+    if (argspath.at(1) != '/')
+        cmdpath.resolve(path);
+    Data* data = m_ptr.data();
+    data->dir = cmdpath;
+}
+
+bool GccArguments::parse(const QByteArray& cmd, const Path &path)
 {
     Q_ASSERT(path.isResolved() && path.isDir());
     Data* data = m_ptr.data();
+    data->dir.clear();
+
+    QByteArray raw, subcmd;
+
+    // ### should support quoted paths with spaces in them
+
+    // check for multiple commands on the same line
+    int semipos = cmd.indexOf(';');
+    int amppos = cmd.indexOf("&&");
+    int cmdpos = (semipos != -1 && semipos < amppos) ? semipos : amppos, prevpos = 0;
+    while (cmdpos != -1) {
+        subcmd = cmd.mid(prevpos, cmdpos);
+        if (subcmd.contains("gcc") || subcmd.contains("g++")
+            || subcmd.contains("c++") || subcmd.contains("cc")) {
+            Q_ASSERT(raw.isEmpty());
+            raw = subcmd;
+        } else {
+            if (subcmd.startsWith("cd "))
+                parseCD(subcmd, path);
+        }
+        prevpos = cmdpos;
+        semipos = cmd.indexOf(';', cmdpos + 1);
+        amppos = cmd.indexOf("&&", cmdpos + 1);
+        cmdpos = (semipos != -1 && semipos < amppos) ? semipos : amppos;
+    }
+
     const QList<QByteArray> args = raw.split(' ');
     Q_ASSERT(!args.isEmpty());
+
     const QByteArray &first = args.first();
     if (!first.contains("gcc") && !first.contains("g++")
         && !first.contains("c++") && !first.contains("cc")) {
         // ### TODO might need to revisit this
         return true; // not a compile line at all, just return without a warning
     }
-    data->dir = path;
+    if (data->dir.isEmpty())
+        data->dir = path;
     data->raw = raw;
 
     const int argc = args.size();

@@ -115,8 +115,7 @@ void RBuild::onMakeFinished(int statusCode)
 enum DirectoryStatus {
     None,
     Entering,
-    Leaving,
-    CD
+    Leaving
 };
 static inline DirectoryStatus parseDirectoryLine(const QByteArray &ba, Path &dir)
 {
