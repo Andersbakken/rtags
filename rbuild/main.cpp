@@ -9,11 +9,30 @@
 #include <syslog.h>
 #include <getopt.h>
 #include "Shared.h"
+#include <QtCore>
+
+static CXChildVisitResult dumpTree(CXCursor cursor, CXCursor parent, CXClientData)
+{
+    for (CXCursor p=clang_getCursorSemanticParent(cursor); isValidCursor(p); p = clang_getCursorSemanticParent(p)) {
+        printf("  ");
+    }
+    QString str;
+    {
+        QDebug dbg(&str);
+        dbg << cursor << (clang_equalCursors(parent, clang_getCursorSemanticParent(cursor)))
+            << (clang_equalCursors(parent, clang_getCursorLexicalParent(cursor)))
+            << parent << clang_getCursorSemanticParent(cursor)
+            << clang_getCursorSemanticParent(clang_getCursorSemanticParent(cursor));
+    }
+    str.remove("\"");
+    printf("%s\n", qPrintable(str));
+    return CXChildVisit_Recurse;
+}
 
 static inline void gatherHeaders(CXFile includedFile, CXSourceLocation*,
                                  unsigned includeLen, CXClientData userData)
 {
-    if (!includeLen)
+    if (includeLen != 1)
         return;
 
     const Path path = Path::resolved(eatString(clang_getFileName(includedFile)));
@@ -35,16 +54,19 @@ static inline int findIncludes(const Path &path, CXIndex idx, QSet<Path> &includ
 
     QByteArray unsaved;
     unsaved.reserve(f.size() / 2);
-    foreach(const QByteArray &line, f.readAll().split('\n')) {
-        int i = 0;
-        while (i<line.size() && line.at(i) == ' ')
-            ++i;
-        if (i < line.size() && line.at(i) == '#') {
+    const QList<QByteArray> lines = f.readAll().split('\n');
+    for (int i=0; i<lines.size(); ++i) {
+        QByteArray line = lines.at(i).trimmed();
+        if (line.startsWith('#')) {
+            while (line.endsWith('\\') && i + 1 < lines.size()) {
+                line.chop(1);
+                line += lines.at(++i).trimmed();
+            }
             unsaved.append(line);
             unsaved.append('\n');
         }
     }
-    qDebug() << unsaved;
+    printf("%s\n", unsaved.constData());
     CXUnsavedFile unsavedFile = { path.constData(), unsaved.constData(), unsaved.size() };
     CXTranslationUnit unit = clang_parseTranslationUnit(idx, path.constData(), args, argCount,
                                                         &unsavedFile, 1, CXTranslationUnit_Incomplete);
@@ -191,16 +213,59 @@ int main(int argc, char** argv)
             break;
         }
     }
+    QElapsedTimer timer;
+    timer.start();
     QSet<Path> includes;
 
     CXIndex index = clang_createIndex(1, 1);
+    if (!getenv("NO_PCH")) {
+        for (int i=1; i<argc; ++i) {
+            if (argv[i] && *argv[i] != '-') {
+                if (update) {
+                    printf("%s %d: if (update) {\n", __FILE__, __LINE__);
+                    return 1;
+                } else if (strlen(argv[i])) {
+                    findIncludes(Path::resolved(argv[i]), index, includes, clangArgs.constData(), clangArgs.size());
+                    // if (!rbuild.addMakefile(argv[i])) {
+                    //     qWarning("Couldn't add makefile \"%s\"", argv[i]);
+                    //     return 1;
+                    // }
+                }
+            }
+        }
+        qDebug() << includes;
+
+        QByteArray pchHeader;
+        // inc += "#include \"/home/abakken/dev/qt-47/include/QtCore/qhash.h\"\n";
+        foreach(const Path &header, includes) {
+            pchHeader += "#include \"" + header + "\"\n";
+        }
+        CXUnsavedFile unsavedFile = { "/tmp/magic.pch.h", pchHeader.constData(), pchHeader.size() };
+
+        clangArgs.append("-x");
+        clangArgs.append("c++");
+    
+        CXTranslationUnit unit = clang_parseTranslationUnit(index, "/tmp/magic.pch.h", clangArgs.constData(),
+                                                            clangArgs.size(), &unsavedFile, 1,
+                                                            CXTranslationUnit_Incomplete);
+        // clang_visitChildren(clang_getTranslationUnitCursor(unit), dumpTree, 0);
+        clang_saveTranslationUnit(unit, "/tmp/magic.pch", clang_defaultSaveOptions(unit));
+        clang_disposeTranslationUnit(unit);
+        qDebug() << "made a pch";
+    }
     for (int i=1; i<argc; ++i) {
         if (argv[i] && *argv[i] != '-') {
             if (update) {
                 printf("%s %d: if (update) {\n", __FILE__, __LINE__);
                 return 1;
-            } else {
-                findIncludes(Path::resolved(argv[i]), index, includes, clangArgs.constData(), clangArgs.size());
+            } else if (strlen(argv[i])) {
+                CXTranslationUnit unit = clang_parseTranslationUnit(index, Path::resolved(argv[i]),
+                                                                    clangArgs.constData(), clangArgs.size(),
+                                                                    0, 0, 0);
+                printf("%p\n", unit);
+                // clang_visitChildren(clang_getTranslationUnitCursor(unit), dumpTree, 0);
+                clang_disposeTranslationUnit(unit);
+
                 // if (!rbuild.addMakefile(argv[i])) {
                 //     qWarning("Couldn't add makefile \"%s\"", argv[i]);
                 //     return 1;
@@ -208,24 +273,9 @@ int main(int argc, char** argv)
             }
         }
     }
-    qDebug() << includes;
 
-    QByteArray pchHeader;
-    // inc += "#include \"/home/abakken/dev/qt-47/include/QtCore/qhash.h\"\n";
-    foreach(const Path &header, includes) {
-        pchHeader += "#include \"" + header + "\"\n";
-    }
-    CXUnsavedFile unsavedFile = { "/tmp/magic.pch.h", pchHeader.constData(), pchHeader.size() };
-
-    clangArgs.append("-x");
-    clangArgs.append("c++");
-    
-    CXTranslationUnit unit = clang_parseTranslationUnit(index, "/tmp/magic.pch.h", clangArgs.constData(),
-                                                        clangArgs.size(), &unsavedFile, 1,
-                                                        CXTranslationUnit_Incomplete);
-    qDebug() << unit;
-    clang_disposeTranslationUnit(unit);
     clang_disposeIndex(index);
+    qDebug() << timer.elapsed();
     return 0;
 
     if (dbFile) {
