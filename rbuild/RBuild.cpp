@@ -34,6 +34,11 @@ bool RBuild::addMakefile(Path makefile)
 {
     if (!makefile.isResolved())
         makefile.resolve();
+
+    // if (makefile.isFile()) {
+        // qDebug() << makefile << findIncludes(makefile, mIndex, mIncludeFiles);
+        // return true;
+    // }
     Path sourceDir;
     if (makefile.isDir()) {
         sourceDir = makefile;
@@ -344,25 +349,6 @@ static CXChildVisitResult dumpTree(CXCursor cursor, CXCursor, CXClientData inclu
     return CXChildVisit_Continue;
 }
 
-static inline void gatherHeaders(CXFile includedFile, CXSourceLocation*,
-                                 unsigned includeLen, CXClientData userData)
-{
-    const QByteArray filename = eatString(clang_getFileName(includedFile));
-    qWarning() << filename << includeLen;
-
-    if (!includeLen)
-        return;
-
-#warning fix
-    if (!filename.contains("/bits/")) {
-        QSet<Path> *includes = reinterpret_cast<QSet<Path>*>(userData);
-        includes->insert(Path::resolved(filename));
-    }
-    // if (include_len == 1)
-    //     data->direct.append(rfn);
-    // data->all.append(rfn);
-}
-
 static Path buildPCH(const QSet<Path> &headers, const GccArguments &args, CXIndex idx)
 {
     qDebug() << "buildPCH" << headers;
@@ -371,7 +357,6 @@ static Path buildPCH(const QSet<Path> &headers, const GccArguments &args, CXInde
     foreach(const Path &header, headers) {
         inc += "#include \"" + header + "\"\n";
     }
-
 
     int cnt = 0;
     Path fn;
@@ -401,7 +386,7 @@ static Path buildPCH(const QSet<Path> &headers, const GccArguments &args, CXInde
     for (int i=0; i<pchArgs.size(); ++i) {
         qDebug() << pchArgs[i];
     }
-    
+
     CXTranslationUnit unit = clang_parseTranslationUnit(idx, fn.constData(), pchArgs.constData(), pchArgs.size(),
                                                         0, 0, CXTranslationUnit_Incomplete);
     if (!unit) {
@@ -448,7 +433,7 @@ bool RBuild::addFile(const Path &file, const GccArguments &args)
             return false;
         }
         const QSet<Path> old = mIncludeFiles;
-        clang_getInclusions(unit, gatherHeaders, &mIncludeFiles);
+        // clang_getInclusions(unit, gatherHeaders, &mIncludeFiles);
         clang_disposeTranslationUnit(unit);
         bool doPCH = false;
         if (old.size() == mIncludeFiles.size()) {

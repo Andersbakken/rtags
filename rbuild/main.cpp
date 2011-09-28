@@ -10,6 +10,55 @@
 #include <getopt.h>
 #include "Shared.h"
 
+static inline void gatherHeaders(CXFile includedFile, CXSourceLocation*,
+                                 unsigned includeLen, CXClientData userData)
+{
+    if (!includeLen)
+        return;
+
+    const Path path = Path::resolved(eatString(clang_getFileName(includedFile)));
+    // qWarning() << filename << includeLen;
+
+    if (!path.contains("/bits/")) {
+        QSet<Path> *includes = reinterpret_cast<QSet<Path>*>(userData);
+        includes->insert(path);
+    }
+}
+
+static inline int findIncludes(const Path &path, CXIndex idx, QSet<Path> &includes, const char *const *args, int argCount)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) {
+        qWarning("Can't open %s", path.constData());
+        return -1;
+    }
+
+    QByteArray unsaved;
+    unsaved.reserve(f.size() / 2);
+    foreach(const QByteArray &line, f.readAll().split('\n')) {
+        int i = 0;
+        while (i<line.size() && line.at(i) == ' ')
+            ++i;
+        if (i < line.size() && line.at(i) == '#') {
+            unsaved.append(line);
+            unsaved.append('\n');
+        }
+    }
+    qDebug() << unsaved;
+    CXUnsavedFile unsavedFile = { path.constData(), unsaved.constData(), unsaved.size() };
+    CXTranslationUnit unit = clang_parseTranslationUnit(idx, path.constData(), args, argCount,
+                                                        &unsavedFile, 1, CXTranslationUnit_Incomplete);
+    if (!unit) {
+        qWarning("Can't parse file %s", path.constData());
+        return -1;
+    }
+    const int count = includes.size();
+    clang_getInclusions(unit, gatherHeaders, &includes);
+    clang_disposeTranslationUnit(unit);
+    return includes.size() - count;
+}
+
+
 void syslogMsgHandler(QtMsgType t, const char* str)
 {
     int priority = LOG_WARNING;
@@ -74,6 +123,13 @@ static inline void usage(const char* argv0, FILE *f)
 
 int main(int argc, char** argv)
 {
+    class ClangRunnableScope
+    {
+    public:
+        ClangRunnableScope() { ClangRunnable::init(); }
+        ~ClangRunnableScope() { ClangRunnable::cleanup(); }
+    } scope;
+    
     if (QFile::exists("/tmp/rtags.log")) {
         int idx = 1;
         while (QFile::exists(QString("/tmp/rtags.log.%1").arg(idx)))
@@ -99,6 +155,18 @@ int main(int argc, char** argv)
 
     PreCompile::setPath("/tmp");
 
+    QList<QByteArray> compilerOptions;
+    QVector<const char*> clangArgs;
+    QByteArray empty("");
+    for (int i=1; i<argc; ++i) {
+        if (argv[i] && (!strncmp(argv[i], "-I", 2) || (!strncmp(argv[i], "-D", 2)))) {
+            Path p = Path::resolved(argv[i] + 2);
+            compilerOptions.append("-I" + p);
+            clangArgs.append(compilerOptions.last().constData());
+            argv[i] = empty.data();
+        }
+    }
+
     RBuild rbuild;
     bool update = false;
     const char *dbFile = 0;
@@ -123,27 +191,42 @@ int main(int argc, char** argv)
             break;
         }
     }
+    QSet<Path> includes;
 
-    class ClangRunnableScope
-    {
-    public:
-        ClangRunnableScope() { ClangRunnable::init(); }
-        ~ClangRunnableScope() { ClangRunnable::cleanup(); }
-    } scope;
-
+    CXIndex index = clang_createIndex(1, 1);
     for (int i=1; i<argc; ++i) {
         if (argv[i] && *argv[i] != '-') {
             if (update) {
                 printf("%s %d: if (update) {\n", __FILE__, __LINE__);
                 return 1;
             } else {
-                if (!rbuild.addMakefile(argv[i])) {
-                    qWarning("Couldn't add makefile \"%s\"", argv[i]);
-                    return 1;
-                }
+                findIncludes(Path::resolved(argv[i]), index, includes, clangArgs.constData(), clangArgs.size());
+                // if (!rbuild.addMakefile(argv[i])) {
+                //     qWarning("Couldn't add makefile \"%s\"", argv[i]);
+                //     return 1;
+                // }
             }
         }
     }
+    qDebug() << includes;
+
+    QByteArray pchHeader;
+    // inc += "#include \"/home/abakken/dev/qt-47/include/QtCore/qhash.h\"\n";
+    foreach(const Path &header, includes) {
+        pchHeader += "#include \"" + header + "\"\n";
+    }
+    CXUnsavedFile unsavedFile = { "/tmp/magic.pch.h", pchHeader.constData(), pchHeader.size() };
+
+    clangArgs.append("-x");
+    clangArgs.append("c++");
+    
+    CXTranslationUnit unit = clang_parseTranslationUnit(index, "/tmp/magic.pch.h", clangArgs.constData(),
+                                                        clangArgs.size(), &unsavedFile, 1,
+                                                        CXTranslationUnit_Incomplete);
+    qDebug() << unit;
+    clang_disposeTranslationUnit(unit);
+    clang_disposeIndex(index);
+    return 0;
 
     if (dbFile) {
         rbuild.setDatabaseFile(dbFile, update ? RBuild::Update : RBuild::Build);

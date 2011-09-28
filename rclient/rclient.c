@@ -265,7 +265,7 @@ int main(int argc, char **argv)
                     break;
                 }
                 if (found) {
-                    fprintf("%s\n", mmapData.memory + found);
+                    printf("%s\n", mmapData.memory + found);
                 } else {
                     fprintf(stderr, "Couldn't find it\n");
                 }
@@ -320,7 +320,7 @@ int main(int argc, char **argv)
                 if (matched) {
                     struct NodeData node = readNodeData(mmapData.memory + nodePos);
                     if (!completionMode) {
-                        fprintf("%s:%s\n", mmapData.memory + node.location, node.symbolName);
+                        printf("%s:%s\n", mmapData.memory + node.location, node.symbolName);
                     } else if (matched++ == 1) { // we only want the first match in completion mode
                         printf("%s\n", mmapData.memory + symbolName);
                     }
