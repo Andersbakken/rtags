@@ -12,7 +12,8 @@
 #include <sys/mman.h>
 
 RBuild::RBuild(QObject *parent)
-    : QObject(parent), mPendingRunnables(0), mDatabaseMode(Build), mPendingWork(false)
+    : QObject(parent), mPendingRunnables(0), mDatabaseMode(Build), mPendingWork(false),
+      mIndex(clang_createIndex(0, 0)), mPCHDirty(false)
 {
     mThreadPool.setMaxThreadCount(qMax<int>(4, QThread::idealThreadCount() * 1.5));
 }
@@ -26,6 +27,7 @@ RBuild::~RBuild()
             it.key()->waitForFinished(2000); // ### ???
         }
     }
+    clang_disposeIndex(mIndex);
 }
 
 bool RBuild::addMakefile(Path makefile)
@@ -209,7 +211,7 @@ void RBuild::maybeDone()
             }
         }
         ClangRunnable::save(".rtags.db");
-        QCoreApplication::quit();
+        // QCoreApplication::quit();
     }
 }
 void RBuild::onClangRunnableFinished()
@@ -333,18 +335,148 @@ bool RBuild::initFromDb(const MMapData *data)
     return true;
 }
 
+static CXChildVisitResult dumpTree(CXCursor cursor, CXCursor, CXClientData includes)
+{
+    if (clang_getCursorKind(cursor) == CXCursor_InclusionDirective) {
+        QByteArray p = eatString(clang_getCursorSpelling(cursor));
+        reinterpret_cast<QSet<QByteArray>*>(includes)->insert(p);
+    }
+    return CXChildVisit_Continue;
+}
+
+static inline void gatherHeaders(CXFile includedFile, CXSourceLocation*,
+                                 unsigned includeLen, CXClientData userData)
+{
+    const QByteArray filename = eatString(clang_getFileName(includedFile));
+    qWarning() << filename << includeLen;
+
+    if (!includeLen)
+        return;
+
+#warning fix
+    if (!filename.contains("/bits/")) {
+        QSet<Path> *includes = reinterpret_cast<QSet<Path>*>(userData);
+        includes->insert(Path::resolved(filename));
+    }
+    // if (include_len == 1)
+    //     data->direct.append(rfn);
+    // data->all.append(rfn);
+}
+
+static Path buildPCH(const QSet<Path> &headers, const GccArguments &args, CXIndex idx)
+{
+    qDebug() << "buildPCH" << headers;
+    QByteArray inc;
+    // inc += "#include \"/home/abakken/dev/qt-47/include/QtCore/qhash.h\"\n";
+    foreach(const Path &header, headers) {
+        inc += "#include \"" + header + "\"\n";
+    }
+
+
+    int cnt = 0;
+    Path fn;
+    char buf[32];
+    do {
+        const int len = snprintf(buf, 32, "/tmp/rtags_header%d.pch", cnt);
+        fn = QByteArray(buf, len);
+        ++cnt;
+    } while (fn.exists());
+    fn += ".h";
+
+    QFile inp(fn);
+    if (!inp.open(QFile::WriteOnly)) {
+        return Path();
+    }
+    inp.write(inc);
+    inp.close();
+    const QList<QByteArray> arguments = args.arguments("-D") + args.includePaths();
+    QVarLengthArray<const char*, 32> pchArgs(arguments.size() + 2);
+    int i = 0;
+    foreach(const QByteArray &arg, arguments) {
+        pchArgs[i++] = arg.constData();
+    }
+    pchArgs[i++] = "-x";
+    pchArgs[i++] = "c++";
+
+    for (int i=0; i<pchArgs.size(); ++i) {
+        qDebug() << pchArgs[i];
+    }
+    
+    CXTranslationUnit unit = clang_parseTranslationUnit(idx, fn.constData(), pchArgs.constData(), pchArgs.size(),
+                                                        0, 0, CXTranslationUnit_Incomplete);
+    if (!unit) {
+        for (int i=0; i<pchArgs.size(); ++i) {
+            qDebug() << pchArgs[i];
+        }
+
+        // qDebug() << fn << pchArgs << pchArgs.size();
+        // printf("%s %d: if (!unit) {\n", __FILE__, __LINE__);
+        return Path();
+    }
+   
+    for (unsigned int i = 0; i < clang_getNumDiagnostics(unit); ++i) {
+        CXDiagnostic diag = clang_getDiagnostic(unit, i);
+        CXString diagstr = clang_getDiagnosticSpelling(diag);
+        qDebug() << clang_getCString(diagstr);
+        clang_disposeString(diagstr);
+        clang_disposeDiagnostic(diag);
+    }
+
+    Path ret(buf);
+    const int res = clang_saveTranslationUnit(unit, buf, 0);
+    qDebug() << "saved pch" << res << buf;
+    ClangRunnable::processTranslationUnit(ret, unit);
+    clang_disposeTranslationUnit(unit);
+    return ret;
+}
+
+void RBuild::startRunnable(const Path &file, const GccArguments &args)
+{
+    ClangRunnable *runnable = new ClangRunnable(file, args, mLastPCH);
+    ++mPendingRunnables;
+    connect(runnable, SIGNAL(finished()), this, SLOT(onClangRunnableFinished()));
+    mThreadPool.start(runnable);
+}
+
 bool RBuild::addFile(const Path &file, const GccArguments &args)
 {
     if (file.exists()) {
-        QList<GccArguments> &fileArgs = mSeen[file];
-        if (!fileArgs.contains(args)) {
-            fileArgs.append(args);
-            // qDebug() << "setting arguments for" << file << "to" << args.raw();
-            ClangRunnable *runnable = new ClangRunnable(file, args);
-            ++mPendingRunnables;
-            connect(runnable, SIGNAL(finished()), this, SLOT(onClangRunnableFinished()));
-            mThreadPool.start(runnable);
-            return true;
+        CXTranslationUnit unit = clang_parseTranslationUnit(mIndex, file.constData(),
+                                                            0, 0, 0, 0, 0);
+        if (!unit) {
+            qWarning("Couldn't parse %s", file.constData());
+            return false;
+        }
+        const QSet<Path> old = mIncludeFiles;
+        clang_getInclusions(unit, gatherHeaders, &mIncludeFiles);
+        clang_disposeTranslationUnit(unit);
+        bool doPCH = false;
+        if (old.size() == mIncludeFiles.size()) {
+            if (!mPCHDirty) {
+                Q_ASSERT(mPendingFiles.isEmpty());
+                startRunnable(file, args);
+                return true;
+            } else {
+                if (mPendingFiles.size() + 1 >= 10) {
+                    doPCH = true;
+                } else {
+                    mPendingFiles[file] = args;
+                }
+            }
+        } else if (++mPCHDirty >= 3) {
+            doPCH = true;
+        }
+
+        if (doPCH) {
+            mLastPCH = buildPCH(mIncludeFiles, args, mIndex);
+            mPCHDirty = 0;
+            startRunnable(file, args);
+            for (QHash<Path, GccArguments>::const_iterator it = mPendingFiles.begin(); it != mPendingFiles.end(); ++it) {
+                startRunnable(it.key(), it.value());
+            }
+            mPendingFiles.clear();
+        } else {
+            qDebug() << mPendingFiles << mIncludeFiles << mPCHDirty;
         }
     }
     return false;

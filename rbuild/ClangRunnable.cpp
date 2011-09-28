@@ -199,8 +199,8 @@ static CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor paren
     return CXChildVisit_Recurse;
 }
 
-ClangRunnable::ClangRunnable(const Path &file, const GccArguments &args)
-    : mFile(file), mArgs(args)
+ClangRunnable::ClangRunnable(const Path &file, const GccArguments &args, const Path &pch)
+    : mFile(file), mPCH(pch), mArgs(args)
 {
     setAutoDelete(true);
 }
@@ -223,28 +223,22 @@ void ClangRunnable::run()
     QElapsedTimer timer;
     timer.start();
     QVector<const char*> args;
-    const QList<QByteArray> compilerOptions = mArgs.includePaths() + mArgs.arguments("-D");
+    const QList<QByteArray> compilerOptions = mArgs.arguments("-D");
     const int compilerOptionsCount = compilerOptions.count();
 
-    Path pchfile;
     int argCount = compilerOptions.size();
-    PreCompile *precompile = 0;
-    if (!disablePch && mArgs.language() == GccArguments::LangCPlusPlus) {
-        QMutexLocker lock(&sPchMutex);
-        precompile = PreCompile::get(compilerOptions);
-        pchfile = precompile->filename();
-        if (pchfile.isFile())
-            argCount += 2;
-    }
+    // PreCompile *precompile = 0;
+    if (mPCH.isFile())
+        argCount += 2;
     args.resize(argCount);
     for (int a=0; a<compilerOptionsCount; ++a) {
         args[a] = compilerOptions.at(a).constData();
     }
     if (argCount > compilerOptionsCount) {
         Q_ASSERT(argCount - compilerOptionsCount == 2);
-        Q_ASSERT(!pchfile.isEmpty());
+        Q_ASSERT(!mPCH.isEmpty());
         args[compilerOptionsCount] = "-pch";
-        args[compilerOptionsCount + 1] = pchfile.constData();
+        args[compilerOptionsCount + 1] = mPCH.constData();
     }
 
     const time_t lastModified = mFile.lastModified();
@@ -274,10 +268,11 @@ void ClangRunnable::run()
         PrecompileData pre;
         clang_getInclusions(unit, precompileHeaders, &pre);
         {
-            if (precompile) {
-                QMutexLocker lock(&sPchMutex);
-                precompile->add(pre.direct, pre.all);
-            }
+#warning we already have the dependencies in RBuild
+            // if (precompile) {
+            //     QMutexLocker lock(&sPchMutex);
+            //     precompile->add(pre.direct, pre.all);
+            // }
             QMutexLocker lock(&sFilesMutex);
             FileData &data = sFiles[mFile];
             data.lastModified = lastModified;
@@ -286,44 +281,7 @@ void ClangRunnable::run()
                 data.dependencies[dependency] = dependency.lastModified(); // ### raise condition, only checking time after parsing
             }
         }
-        CXCursor rootCursor = clang_getTranslationUnitCursor(unit);
-        ComprehensiveTreeUserData ud;
-        ud.last = ud.root = 0;
-        ud.lastCursor = clang_getNullCursor();
-#ifndef QT_NO_DEBUG
-        const QByteArray dump = qgetenv("RTAGS_DUMP");
-        if (dump == "1" || dump.contains(mFile.fileName())) {
-            clang_visitChildren(rootCursor, dumpTree, 0);
-            fflush(stdout);
-            sleep(1);
-        }
-#endif
-        clang_visitChildren(rootCursor, buildComprehensiveTree, &ud);
-#ifndef QT_NO_DEBUG
-        if (ud.root && (dump == "1" || dump.contains(mFile.fileName()))) {
-            ud.root->dump(1);
-            printf("Tree done\n");
-            fflush(stdout);
-            sleep(1);
-        }
-#endif
-        QHash<QByteArray, PendingReference> references;
-        if (ud.root) {
-            int old;
-            {
-                QMutexLocker lock(&sTreeMutex);
-                old = Node::sNodes.size();
-                buildTree(sRoot, ud.root, references);
-                for (QHash<QByteArray, PendingReference>::const_iterator it = references.begin(); it != references.end(); ++it) {
-                    const PendingReference &p = it.value();
-                    // qDebug("%s %d: addReference(p.node, it.key(), p.location);", __FILE__, __LINE__);
-                    addReference(p.node, it.key(), p.location);
-                }
-            }
-            delete ud.root;
-            qDebug() << "added" << (Node::sNodes.size() - old) << "nodes for" << mFile << ". Total" << Node::sNodes.size()
-                     << timer.elapsed() << "ms" << (argCount != compilerOptionsCount ? "with PCH" : "without PCH");
-        }
+        processTranslationUnit(mFile, unit);
         clang_disposeTranslationUnit(unit);
     }
     clang_disposeIndex(index);
@@ -694,5 +652,45 @@ void ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPat
             initTree(data, modifiedPaths, node, c);
         }
         child = c.nextSibling;
+    }
+}
+
+void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit unit)
+{
+    CXCursor rootCursor = clang_getTranslationUnitCursor(unit);
+    ComprehensiveTreeUserData ud;
+    ud.last = ud.root = 0;
+    ud.lastCursor = clang_getNullCursor();
+#ifndef QT_NO_DEBUG
+    const QByteArray dump = qgetenv("RTAGS_DUMP");
+    if (dump == "1" || dump.contains(file.fileName())) {
+        clang_visitChildren(rootCursor, dumpTree, 0);
+        fflush(stdout);
+        sleep(1);
+    }
+#endif
+    clang_visitChildren(rootCursor, buildComprehensiveTree, &ud);
+#ifndef QT_NO_DEBUG
+    if (ud.root && (dump == "1" || dump.contains(file.fileName()))) {
+        ud.root->dump(1);
+        printf("Tree done\n");
+        fflush(stdout);
+        sleep(1);
+    }
+#endif
+    QHash<QByteArray, PendingReference> references;
+    if (ud.root) {
+        int old;
+        {
+            QMutexLocker lock(&sTreeMutex);
+            old = Node::sNodes.size();
+            buildTree(sRoot, ud.root, references);
+            for (QHash<QByteArray, PendingReference>::const_iterator it = references.begin(); it != references.end(); ++it) {
+                const PendingReference &p = it.value();
+                // qDebug("%s %d: addReference(p.node, it.key(), p.location);", __FILE__, __LINE__);
+                addReference(p.node, it.key(), p.location);
+            }
+        }
+        delete ud.root;
     }
 }

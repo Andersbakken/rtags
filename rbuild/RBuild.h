@@ -39,6 +39,7 @@ private slots:
     void onMakeError(QProcess::ProcessError error);
     void onClangRunnableFinished();
 private:
+    void startRunnable(const Path &path, const GccArguments &args);
     struct MakefileData {
         Path path, directory;
         QByteArray buffer;
@@ -46,11 +47,16 @@ private:
     };
     QHash<QProcess *, MakefileData> mMakefiles;
     QHash<Path, QList<GccArguments> > mSeen;
+    QHash<Path, GccArguments> mPendingFiles;
     QThreadPool mThreadPool;
     int mPendingRunnables;
     Path mDatabaseFile;
     DatabaseMode mDatabaseMode;
     bool mPendingWork;
+    QSet<Path> mIncludeFiles;
+    CXIndex mIndex;
+    bool mPCHDirty;
+    Path mLastPCH;
 };
 
 #endif
