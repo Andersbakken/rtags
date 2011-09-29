@@ -24,7 +24,7 @@ public:
 
     QList<QByteArray> arguments() const;
     QList<QByteArray> arguments(const QByteArray& prefix) const;
-    QList<QByteArray> includePaths() const;
+    QList<Path> includePaths() const;
 
     void setPreprocess(bool pre);
     void setLanguage(Language language);
@@ -85,6 +85,8 @@ public:
     friend QDataStream& operator<<(QDataStream& stream, const GccArguments::Data::Argument& args);
     friend QDataStream& operator>>(QDataStream& stream, GccArguments::Data::Argument& args);
 };
+
+Q_DECLARE_METATYPE(GccArguments)
 
 static inline QDebug operator<<(QDebug dbg, const GccArguments &args)
 {

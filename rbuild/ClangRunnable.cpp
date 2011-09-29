@@ -1,11 +1,9 @@
 #include "ClangRunnable.h"
 #include "Node.h"
-#include "PreCompile.h"
 #include <clang-c/Index.h>
 
 static const bool disablePch = getenv("RTAGS_NO_PCH");
 Node *ClangRunnable::sRoot = 0;
-QMutex ClangRunnable::sPchMutex(QMutex::Recursive);
 QMutex ClangRunnable::sTreeMutex(QMutex::Recursive);
 QMutex ClangRunnable::sFilesMutex(QMutex::Recursive);
 QHash<Path, ClangRunnable::FileData> ClangRunnable::sFiles;
@@ -199,8 +197,10 @@ static CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor paren
     return CXChildVisit_Recurse;
 }
 
-ClangRunnable::ClangRunnable(const Path &file, const GccArguments &args, const Path &pch)
-    : mFile(file), mPCH(pch), mArgs(args)
+ClangRunnable::ClangRunnable(const Path &file, const GccArguments &args,
+                             const char *const* clangArgs, int clangArgCount, CXUnsavedFile *unsavedFile)
+    : mFile(file), mArgs(args), mClangArgs(clangArgs),
+      mClangArgCount(clangArgCount), mUnsavedFile(unsavedFile)
 {
     setAutoDelete(true);
 }
@@ -218,39 +218,21 @@ void ClangRunnable::cleanup()
 
 void ClangRunnable::run()
 {
-    CXIndex index = clang_createIndex(1, 0);
+    CXIndex index = clang_createIndex(1, 1);
 
     QElapsedTimer timer;
     timer.start();
-    QVector<const char*> args;
-    const QList<QByteArray> compilerOptions = mArgs.arguments("-D");
-    const int compilerOptionsCount = compilerOptions.count();
-
-    int argCount = compilerOptions.size();
-    // PreCompile *precompile = 0;
-    if (mPCH.isFile())
-        argCount += 2;
-    args.resize(argCount);
-    for (int a=0; a<compilerOptionsCount; ++a) {
-        args[a] = compilerOptions.at(a).constData();
-    }
-    if (argCount > compilerOptionsCount) {
-        Q_ASSERT(argCount - compilerOptionsCount == 2);
-        Q_ASSERT(!mPCH.isEmpty());
-        args[compilerOptionsCount] = "-pch";
-        args[compilerOptionsCount + 1] = mPCH.constData();
-    }
-
     const time_t lastModified = mFile.lastModified();
     // qDebug() << "parsing file" << mFile << (i == WithPCH ? "with PCH" : "without PCH");
-    Q_ASSERT(!args.contains(0));
-    // for (int i=0; i<argCount; ++i) {
-    //     printf("%d [%s]\n", i, args.constData()[i]);
+    // for (int i=0; i<mClangArgCount; ++i) {
+    //     printf("%s ", mClangArgs[i]);
     // }
+    // printf("\n");
+    // printf("%s\n", mUnsavedFile->Contents);
 
-    // qDebug() << "calling parse" << mFile << args;
+    // qDebug() << "calling parse" << mFile << mClangArgs;
     CXTranslationUnit unit = clang_parseTranslationUnit(index, mFile.constData(),
-                                                        args.constData(), argCount, 0, 0,
+                                                        mClangArgs, mClangArgCount, mUnsavedFile, 0, //mUnsavedFile ? 1 : 0,
                                                         // CXTranslationUnit_NestedMacroExpansions
                                                         CXTranslationUnit_DetailedPreprocessingRecord); // ### do we need this?
     if (!unit) {
@@ -258,9 +240,9 @@ void ClangRunnable::run()
         QByteArray clangLine = "clang";
         if (mArgs.language() == GccArguments::LangCPlusPlus)
             clangLine += "++";
-        for (int j=0; j<argCount; ++j) {
+        for (int j=0; j<mClangArgCount; ++j) {
             clangLine += ' ';
-            clangLine += args.at(j);
+            clangLine += mClangArgs[j];
         }
         clangLine += ' ' + mFile;
         qWarning("[%s]", clangLine.constData());
@@ -657,6 +639,7 @@ void ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPat
 
 void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit unit)
 {
+    Q_ASSERT(unit);
     CXCursor rootCursor = clang_getTranslationUnitCursor(unit);
     ComprehensiveTreeUserData ud;
     ud.last = ud.root = 0;
@@ -664,6 +647,7 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
 #ifndef QT_NO_DEBUG
     const QByteArray dump = qgetenv("RTAGS_DUMP");
     if (dump == "1" || dump.contains(file.fileName())) {
+        printf("%s %d: clang_visitChildren(rootCursor, dumpTree, 0);\n", __FILE__, __LINE__);
         clang_visitChildren(rootCursor, dumpTree, 0);
         fflush(stdout);
         sleep(1);

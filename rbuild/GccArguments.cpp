@@ -372,25 +372,15 @@ QDataStream& operator>>(QDataStream& stream, GccArguments::Data::Argument &arg)
     return stream;
 }
 
-QList<QByteArray> GccArguments::includePaths() const
+QList<Path> GccArguments::includePaths() const
 {
+    QList<Path> ret;
     QList<QByteArray> includePaths = arguments("-I");
     const int size = includePaths.size();
     for (int i=0; i<size; ++i) {
-        QByteArray &arg = includePaths[i];
-#ifndef Q_OS_UNIX
-        Q_ASSERT(0 && "This stuff isn't ported to non-unix platforms");
-#endif
-        if (arg.size() >= 3 && arg.at(2) == '/') { // absolute path already
-            continue;
-        }
-        arg.replace(0, 2, m_ptr->dir + '/');
-        Path p(arg);
-        if (!p.isResolved())
-            p.resolve();
-        arg.insert(0, "-I");
+        ret.append(Path::resolved(includePaths.at(i).mid(2), m_ptr->dir));
     }
-    return includePaths;
+    return ret;
 }
 bool GccArguments::isNull() const
 {

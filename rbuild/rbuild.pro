@@ -20,20 +20,20 @@ SOURCES += \
     RBuild.cpp \
     GccArguments.cpp \
     Utils.cpp \
-    PreCompile.cpp \
     Node.cpp \
     Path.cpp \
-    ClangRunnable.cpp
+    ClangRunnable.cpp \
+    PreprocessorRunnable.cpp
 
 HEADERS += \
     RBuild.h \
     GccArguments.h \
     Utils.h \
-    PreCompile.h \
     Path.h \
     Node.h \
     Location.h \
-    ClangRunnable.h
+    ClangRunnable.h \
+    PreprocessorRunnable.h
 
 include(../shared/shared.pri)
 

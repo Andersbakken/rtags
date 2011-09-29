@@ -136,7 +136,7 @@ Path::MagicType Path::magicType() const
                 const int len = size() - lastDot;
                 if (lastDot != -1 && len > 0) {
                     const char *sourceFileExtensions[] = {
-                        "h", "hpp", "hxx", "moc", "hh", 0
+                        "h", "hpp", "hxx", "moc", "hh", "tcc", 0
                     };
                     const char *str = constData() + lastDot + 1;
                     for (int i=0; sourceFileExtensions[i]; ++i) {
@@ -145,6 +145,8 @@ Path::MagicType Path::magicType() const
                             break;
                         }
                     }
+                } else {
+                    ret = Header; // Have to make things like QtCore be a header
                 }
             }
         }

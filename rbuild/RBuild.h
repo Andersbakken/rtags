@@ -30,33 +30,36 @@ public:
     bool findDatabaseFile(DatabaseMode mode);
     Path databaseFile() const;
     bool initFromDb(const MMapData *data);
-    bool addFile(const Path &path, const GccArguments &args);
-    bool pendingWork() const;
+    bool isFinished() const;
+    void preprocess(const Path &sourceFile, const GccArguments &args);
+    void parseFile(const Path &path, const GccArguments &args);
+    void maybePCH();
 private slots:
     void maybeDone();
+    void onPreprocessorError(const Path &sourceFile, const GccArguments &args, const QByteArray &error);
+    void onPreprocessorHeadersFound(const Path &sourceFile, const GccArguments &args, const QList<Path> &headers);
     void onMakeFinished(int statusCode);
     void onMakeOutput();
     void onMakeError(QProcess::ProcessError error);
     void onClangRunnableFinished();
 private:
-    void startRunnable(const Path &path, const GccArguments &args);
     struct MakefileData {
         Path path, directory;
         QByteArray buffer;
         QStack<Path> dirStack;
     };
+
     QHash<QProcess *, MakefileData> mMakefiles;
-    QHash<Path, QList<GccArguments> > mSeen;
-    QHash<Path, GccArguments> mPendingFiles;
     QThreadPool mThreadPool;
-    int mPendingRunnables;
     Path mDatabaseFile;
     DatabaseMode mDatabaseMode;
-    bool mPendingWork;
-    QSet<Path> mIncludeFiles;
-    CXIndex mIndex;
-    bool mPCHDirty;
-    Path mLastPCH;
+    int mPreprocessing, mParsing, mFileCount;
+    QHash<Path, GccArguments> mPreprocessed;
+    QList<Path> mAllHeaders;
+    QByteArray mUnsavedPCHHeader;
+    QSet<QByteArray> mPCHCompilerSwitches;
+    QVector<const char*> mClangArgs;
+    CXUnsavedFile mUnsavedFile;
 };
 
 #endif

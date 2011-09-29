@@ -4,34 +4,34 @@
 #include <stdio.h>
 #include "RBuild.h"
 #include "Utils.h"
-#include "PreCompile.h"
 #include "ClangRunnable.h"
 #include <syslog.h>
 #include <getopt.h>
 #include "Shared.h"
+#include "PreprocessorRunnable.h"
 #include <QtCore>
 
-static CXChildVisitResult dumpTree(CXCursor cursor, CXCursor parent, CXClientData)
-{
-    if (clang_getCursorKind(cursor) == CXCursor_InclusionDirective) {
-        qDebug() << cursor;
-    }
-    return CXChildVisit_Continue;
-    for (CXCursor p=clang_getCursorSemanticParent(cursor); isValidCursor(p); p = clang_getCursorSemanticParent(p)) {
-        printf("  ");
-    }
-    QString str;
-    {
-        QDebug dbg(&str);
-        dbg << cursor << (clang_equalCursors(parent, clang_getCursorSemanticParent(cursor)))
-            << (clang_equalCursors(parent, clang_getCursorLexicalParent(cursor)))
-            << parent << clang_getCursorSemanticParent(cursor)
-            << clang_getCursorSemanticParent(clang_getCursorSemanticParent(cursor));
-    }
-    str.remove("\"");
-    printf("%s\n", qPrintable(str));
-    return CXChildVisit_Recurse;
-}
+// static CXChildVisitResult dumpTree(CXCursor cursor, CXCursor parent, CXClientData)
+// {
+//     if (clang_getCursorKind(cursor) == CXCursor_InclusionDirective) {
+//         qDebug() << cursor;
+//     }
+//     return CXChildVisit_Continue;
+//     for (CXCursor p=clang_getCursorSemanticParent(cursor); isValidCursor(p); p = clang_getCursorSemanticParent(p)) {
+//         printf("  ");
+//     }
+//     QString str;
+//     {
+//         QDebug dbg(&str);
+//         dbg << cursor << (clang_equalCursors(parent, clang_getCursorSemanticParent(cursor)))
+//             << (clang_equalCursors(parent, clang_getCursorLexicalParent(cursor)))
+//             << parent << clang_getCursorSemanticParent(cursor)
+//             << clang_getCursorSemanticParent(clang_getCursorSemanticParent(cursor));
+//     }
+//     str.remove("\"");
+//     printf("%s\n", qPrintable(str));
+//     return CXChildVisit_Recurse;
+// }
 
 
 static QList<Path> findStdIncludePaths()
@@ -52,106 +52,106 @@ static QList<Path> findStdIncludePaths()
     return paths;
 }
 
-static inline void gatherHeaders(CXFile includedFile, CXSourceLocation*,
-                                 unsigned includeLen, CXClientData userData)
-{
-    if (includeLen != 1)
-        return;
+// static inline void gatherHeaders(CXFile includedFile, CXSourceLocation*,
+//                                  unsigned includeLen, CXClientData userData)
+// {
+//     if (includeLen != 1)
+//         return;
 
-    qDebug() << eatString(clang_getFileName(includedFile));
-    const Path path = eatString(clang_getFileName(includedFile));// = Path::resolved(eatString(clang_getFileName(includedFile)));
-    // qWarning() << filename << includeLen;
-    if (!path.contains("/bits/")) {
-        QSet<Path> *includes = reinterpret_cast<QSet<Path>*>(userData);
-        includes->insert(path);
-    }
-}
+//     qDebug() << eatString(clang_getFileName(includedFile));
+//     const Path path = eatString(clang_getFileName(includedFile));// = Path::resolved(eatString(clang_getFileName(includedFile)));
+//     // qWarning() << filename << includeLen;
+//     if (!path.contains("/bits/")) {
+//         QSet<Path> *includes = reinterpret_cast<QSet<Path>*>(userData);
+//         includes->insert(path);
+//     }
+// }
 
-static inline QList<Path> findIncludes(const Path &path, const QList<Path> &includePaths, const QList<Path> &stdSearchPaths)
-{
-    QElapsedTimer timer;
-    timer.start();
-    QList<Path> ret;
-    QFile f(path);
-    if (!f.open(QIODevice::ReadOnly)) {
-        qWarning("Can't open %s", path.constData());
-        return ret;
-    }
-    // qDebug() << __LINE__ << timer.restart() << path;
+// static inline QList<Path> findIncludes(const Path &path, const QList<Path> &includePaths, const QList<Path> &stdSearchPaths)
+// {
+//     QElapsedTimer timer;
+//     timer.start();
+//     QList<Path> ret;
+//     QFile f(path);
+//     if (!f.open(QIODevice::ReadOnly)) {
+//         qWarning("Can't open %s", path.constData());
+//         return ret;
+//     }
+//     // qDebug() << __LINE__ << timer.restart() << path;
 
-    QByteArray unsaved;
-    unsaved.reserve(f.size() / 2);
-    const QList<QByteArray> lines = f.readAll().split('\n');
-    for (int i=0; i<lines.size(); ++i) {
-        QByteArray line = lines.at(i).trimmed();
-        if (line.startsWith('#')) {
-            while (line.endsWith('\\') && i + 1 < lines.size()) {
-                line.chop(1);
-                line += lines.at(++i).trimmed();
-            }
-            if (line.startsWith("#include ")) {
-                line.remove(0, 9);
-            }
+//     QByteArray unsaved;
+//     unsaved.reserve(f.size() / 2);
+//     const QList<QByteArray> lines = f.readAll().split('\n');
+//     for (int i=0; i<lines.size(); ++i) {
+//         QByteArray line = lines.at(i).trimmed();
+//         if (line.startsWith('#')) {
+//             while (line.endsWith('\\') && i + 1 < lines.size()) {
+//                 line.chop(1);
+//                 line += lines.at(++i).trimmed();
+//             }
+//             if (line.startsWith("#include ")) {
+//                 line.remove(0, 9);
+//             }
 
-            unsaved.append(line);
-            unsaved.append('\n');
-        }
-    }
-    QProcess process;
-    process.start("/usr/local/llvm/bin/clang", QStringList() << "-E" << "-");
-    process.write(unsaved);
-    process.closeWriteChannel();
-    process.waitForFinished();
-    const Path sourceFileDir = path.parentDir();
-    foreach(QByteArray line, process.readAllStandardOutput().split('\n')) {
-        if (!line.isEmpty()) {
-            bool quote = true;
-            switch (line.at(0)) {
-            case '"':
-                if (line.at(line.size() - 1) != '"') { // flag error?
-                    qWarning() << "Weird include" << line;
-                    continue;
-                }
-                break;
-            case '<':
-                if (line.at(line.size() - 1) != '>') { // flag error?
-                    qWarning() << "Weird include" << line;
-                    continue;
-                }
-                quote = false;
-                break;
-            default:
-                continue;
-            }
-            line.remove(0, 1);
-            line.chop(1);
-            if (quote) {
-                const Path resolved = Path::resolved(line, sourceFileDir);
-                if (resolved.isHeader()) {
-                    ret.append(resolved);
-                    continue;
-                }
-            }
-            const QList<Path> *lists[] = { &includePaths, &stdSearchPaths };
-            bool found = false;
-            for (int i=0; i<2 && !found; ++i) {
-                foreach(const Path &dir, *lists[i]) {
-                    const Path resolved = Path::resolved(line, dir);
-                    if (resolved.isHeader()) {
-                        ret.append(resolved);
-                        found = true;
-                        break;
-                    }
-                }
-            }
-            if (!found) {
-                qDebug() << "Couldn't resolve" << line << includePaths << stdSearchPaths;
-            }
-        }
-    }
-    qDebug() << "returning" << ret << "for" << path;
-    return ret;
-}
+//             unsaved.append(line);
+//             unsaved.append('\n');
+//         }
+//     }
+//     QProcess process;
+//     process.start("/usr/local/llvm/bin/clang", QStringList() << "-E" << "-");
+//     process.write(unsaved);
+//     process.closeWriteChannel();
+//     process.waitForFinished();
+//     const Path sourceFileDir = path.parentDir();
+//     foreach(QByteArray line, process.readAllStandardOutput().split('\n')) {
+//         if (!line.isEmpty()) {
+//             bool quote = true;
+//             switch (line.at(0)) {
+//             case '"':
+//                 if (line.at(line.size() - 1) != '"') { // flag error?
+//                     qWarning() << "Weird include" << line;
+//                     continue;
+//                 }
+//                 break;
+//             case '<':
+//                 if (line.at(line.size() - 1) != '>') { // flag error?
+//                     qWarning() << "Weird include" << line;
+//                     continue;
+//                 }
+//                 quote = false;
+//                 break;
+//             default:
+//                 continue;
+//             }
+//             line.remove(0, 1);
+//             line.chop(1);
+//             if (quote) {
+//                 const Path resolved = Path::resolved(line, sourceFileDir);
+//                 if (resolved.isHeader()) {
+//                     ret.append(resolved);
+//                     continue;
+//                 }
+//             }
+//             const QList<Path> *lists[] = { &includePaths, &stdSearchPaths };
+//             bool found = false;
+//             for (int i=0; i<2 && !found; ++i) {
+//                 foreach(const Path &dir, *lists[i]) {
+//                     const Path resolved = Path::resolved(line, dir);
+//                     if (resolved.isHeader()) {
+//                         ret.append(resolved);
+//                         found = true;
+//                         break;
+//                     }
+//                 }
+//             }
+//             if (!found) {
+//                 qDebug() << "Couldn't resolve" << line << includePaths << stdSearchPaths;
+//             }
+//         }
+//     }
+//     qDebug() << "returning" << ret << "for" << path;
+//     return ret;
+// }
 
 
 void syslogMsgHandler(QtMsgType t, const char* str)
@@ -218,6 +218,9 @@ static inline void usage(const char* argv0, FILE *f)
 
 int main(int argc, char** argv)
 {
+    qRegisterMetaType<Path>("Path");
+    qRegisterMetaType<GccArguments>("GccArguments");
+    qRegisterMetaType<QList<Path> >("QList<Path>");
     class ClangRunnableScope
     {
     public:
@@ -248,27 +251,25 @@ int main(int argc, char** argv)
     QCoreApplication::setOrganizationName("rtags");
     QCoreApplication::setApplicationName("rtags");
 
-    PreCompile::setPath("/tmp");
-
-    QList<QByteArray> compilerOptions;
-    QVector<const char*> clangArgs;
-    QList<Path> includePaths;
-    QByteArray empty("");
-    for (int i=1; i<argc; ++i) {
-        if (argv[i]) {
-            if (!strncmp(argv[i], "-I", 2)) {
-                Path p = Path::resolved(argv[i] + 2);
-                if (p.isDir())
-                    includePaths.append(p);
-                compilerOptions.append("-I" + p);
-                clangArgs.append(compilerOptions.last().constData());
-                argv[i] = empty.data();
-            } else if (!strncmp(argv[i], "-D", 2)) {
-                clangArgs.append(argv[i]);
-                argv[i] = empty.data();
-            }
-        }
-    }
+    // QList<QByteArray> compilerOptions;
+    // QVector<const char*> clangArgs;
+    // QList<Path> includePaths;
+    // QByteArray empty("");
+    // for (int i=1; i<argc; ++i) {
+    //     if (argv[i]) {
+    //         if (!strncmp(argv[i], "-I", 2)) {
+    //             Path p = Path::resolved(argv[i] + 2);
+    //             if (p.isDir())
+    //                 includePaths.append(p);
+    //             compilerOptions.append("-I" + p);
+    //             clangArgs.append(compilerOptions.last().constData());
+    //             argv[i] = empty.data();
+    //         } else if (!strncmp(argv[i], "-D", 2)) {
+    //             clangArgs.append(argv[i]);
+    //             argv[i] = empty.data();
+    //         }
+    //     }
+    // }
 
     RBuild rbuild;
     bool update = false;
@@ -294,82 +295,79 @@ int main(int argc, char** argv)
             break;
         }
     }
-    QElapsedTimer timer;
-    timer.start();
-    QList<Path> includes;
 
-    const QList<Path> stdSearchPaths = findStdIncludePaths();
-    CXIndex index = clang_createIndex(1, 1);
+    PreprocessorRunnable::init(findStdIncludePaths());
+    // QElapsedTimer timer;
+    // timer.start();
+    // QList<Path> includes;
+
+    // const QList<Path> stdSearchPaths = findStdIncludePaths();
+    // CXIndex index = clang_createIndex(1, 1);
     for (int i=1; i<argc; ++i) {
         if (argv[i] && *argv[i] != '-') {
             if (update) {
                 printf("%s %d: if (update) {\n", __FILE__, __LINE__);
                 return 1;
-            } else if (strlen(argv[i])) {
-                const Path sourceFile = Path::resolved(argv[i]);
-                if (sourceFile.isFile()) {
-                    includes += findIncludes(sourceFile, includePaths, stdSearchPaths);
-
-                    // if (!rbuild.addMakefile(argv[i])) {
-                    //     qWarning("Couldn't add makefile \"%s\"", argv[i]);
-                    //     return 1;
-                    // }
+            } else {
+                if (!rbuild.addMakefile(argv[i])) {
+                    qWarning("Couldn't add makefile \"%s\"", argv[i]);
+                    return 1;
                 }
             }
         }
     }
-    qDebug() << includes;
+    // qDebug() << includes;
 
-    QByteArray pchHeader;
-    // inc += "#include \"/home/abakken/dev/qt-47/include/QtCore/qhash.h\"\n";
-    foreach(const Path &header, includes) {
-        pchHeader += "#include \"" + header + "\"\n";
-    }
-    CXUnsavedFile unsavedFile = { "/tmp/magic.pch.h", pchHeader.constData(), pchHeader.size() };
+    // QByteArray pchHeader;
+    // // inc += "#include \"/home/abakken/dev/qt-47/include/QtCore/qhash.h\"\n";
+    // foreach(const Path &header, includes) {
+    //     pchHeader += "#include \"" + header + "\"\n";
+    // }
+    // CXUnsavedFile unsavedFile = { "/tmp/magic.pch.h", pchHeader.constData(), pchHeader.size() };
 
-    clangArgs.append("-x");
-    clangArgs.append("c++");
+    // clangArgs.append("-x");
+    // clangArgs.append("c++");
 
-    qDebug() << clangArgs;
-    CXTranslationUnit unit = clang_parseTranslationUnit(index, "/tmp/magic.pch.h", clangArgs.constData(),
-                                                        clangArgs.size(), &unsavedFile, 1,
-                                                        CXTranslationUnit_Incomplete);
-    ClangRunnable::processTranslationUnit("/tmp/magic.pch.h", unit);
-    // clang_visitChildren(clang_getTranslationUnitCursor(unit), dumpTree, 0);
-    clang_saveTranslationUnit(unit, "/tmp/magic.pch", clang_defaultSaveOptions(unit));
-    clang_disposeTranslationUnit(unit);
-    qDebug() << "made a pch" << includes << timer.elapsed();
-    clangArgs.append("-include-pch");
-    clangArgs.append("/tmp/magic.pch");
-    for (int i=1; i<argc; ++i) {
-        if (argv[i] && *argv[i] != '-') {
-            if (update) {
-                printf("%s %d: if (update) {\n", __FILE__, __LINE__);
-                return 1;
-            } else if (strlen(argv[i])) {
-                Path p = Path::resolved(argv[i]);
-                CXTranslationUnit unit = clang_parseTranslationUnit(index, p,
-                                                                    clangArgs.constData(), clangArgs.size(),
-                                                                    &unsavedFile, 1, 0);
-                QElapsedTimer tm;
-                tm.start();
-                ClangRunnable::processTranslationUnit(p, unit);
+    // qDebug() << clangArgs;
+    // CXTranslationUnit unit = clang_parseTranslationUnit(index, "/tmp/magic.pch.h", clangArgs.constData(),
+    //                                                     clangArgs.size(), &unsavedFile, 1,
+    //                                                     CXTranslationUnit_Incomplete);
+    // ClangRunnable::processTranslationUnit("/tmp/magic.pch.h", unit);
+    // // clang_visitChildren(clang_getTranslationUnitCursor(unit), dumpTree, 0);
+    // clang_saveTranslationUnit(unit, "/tmp/magic.pch", clang_defaultSaveOptions(unit));
+    // clang_disposeTranslationUnit(unit);
+    // qDebug() << "made a pch" << includes << timer.elapsed();
+    // clangArgs.append("-include-pch");
+    // clangArgs.append("/tmp/magic.pch");
+    // for (int i=1; i<argc; ++i) {
+    //     if (argv[i] && *argv[i] != '-') {
+    //         if (update) {
+    //             printf("%s %d: if (update) {\n", __FILE__, __LINE__);
+    //             return 1;
+    //         } else if (strlen(argv[i])) {
+    //             Path p = Path::resolved(argv[i]);
+    //             CXTranslationUnit unit = clang_parseTranslationUnit(index, p,
+    //                                                                 clangArgs.constData(), clangArgs.size(),
+    //                                                                 &unsavedFile, 1, 0);
+    //             QElapsedTimer tm;
+    //             tm.start();
+    //             ClangRunnable::processTranslationUnit(p, unit);
 
-                qDebug() << tm.elapsed() << p;
-                // clang_visitChildren(clang_getTranslationUnitCursor(unit), dumpTree, 0);
-                clang_disposeTranslationUnit(unit);
+    //             qDebug() << tm.elapsed() << p;
+    //             // clang_visitChildren(clang_getTranslationUnitCursor(unit), dumpTree, 0);
+    //             clang_disposeTranslationUnit(unit);
 
-                // if (!rbuild.addMakefile(argv[i])) {
-                //     qWarning("Couldn't add makefile \"%s\"", argv[i]);
-                //     return 1;
-                // }
-            }
-        }
-    }
+    //             // if (!rbuild.addMakefile(argv[i])) {
+    //             //     qWarning("Couldn't add makefile \"%s\"", argv[i]);
+    //             //     return 1;
+    //             // }
+    //         }
+    //     }
+    // }
 
-    clang_disposeIndex(index);
-    qDebug() << timer.elapsed();
-    return 0;
+    // clang_disposeIndex(index);
+    // qDebug() << timer.elapsed();
+    // return 0;
 
     if (dbFile) {
         rbuild.setDatabaseFile(dbFile, update ? RBuild::Update : RBuild::Build);
@@ -378,7 +376,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (rbuild.pendingWork()) {
+    if (!rbuild.isFinished()) {
         return app.exec();
     }
 
