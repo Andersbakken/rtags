@@ -198,9 +198,8 @@ static CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor paren
 }
 
 ClangRunnable::ClangRunnable(const Path &file, const GccArguments &args,
-                             const char *const* clangArgs, int clangArgCount, CXUnsavedFile *unsavedFile)
-    : mFile(file), mArgs(args), mClangArgs(clangArgs),
-      mClangArgCount(clangArgCount), mUnsavedFile(unsavedFile)
+                             const char *const* clangArgs, int clangArgCount)
+    : mFile(file), mArgs(args), mClangArgs(clangArgs), mClangArgCount(clangArgCount)
 {
     setAutoDelete(true);
 }
@@ -232,11 +231,11 @@ void ClangRunnable::run()
 
     // qDebug() << "calling parse" << mFile << mClangArgs;
     CXTranslationUnit unit = clang_parseTranslationUnit(index, mFile.constData(),
-                                                        mClangArgs, mClangArgCount, mUnsavedFile, 0, //mUnsavedFile ? 1 : 0,
-                                                        // CXTranslationUnit_NestedMacroExpansions
+                                                        mClangArgs, mClangArgCount, 0, 0,
                                                         CXTranslationUnit_DetailedPreprocessingRecord); // ### do we need this?
     if (!unit) {
         qWarning("Couldn't parse %s", mFile.constData());
+
         QByteArray clangLine = "clang";
         if (mArgs.language() == GccArguments::LangCPlusPlus)
             clangLine += "++";
@@ -640,6 +639,7 @@ void ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPat
 void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit unit)
 {
     Q_ASSERT(unit);
+    Q_UNUSED(file);
     CXCursor rootCursor = clang_getTranslationUnitCursor(unit);
     ComprehensiveTreeUserData ud;
     ud.last = ud.root = 0;

@@ -56,10 +56,8 @@ private:
     int mPreprocessing, mParsing, mFileCount;
     QHash<Path, GccArguments> mPreprocessed;
     QList<Path> mAllHeaders;
-    QByteArray mUnsavedPCHHeader;
     QSet<QByteArray> mPCHCompilerSwitches;
     QVector<const char*> mClangArgs;
-    CXUnsavedFile mUnsavedFile;
 };
 
 #endif

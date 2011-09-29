@@ -35,7 +35,7 @@ void PreprocessorRunnable::run()
                 line += lines.at(++i).trimmed();
             }
             if (line.startsWith("#error")) {
-#warning hack for some Qt things where defines arent defined we have to fix this properly
+// #warning hack for some Qt things where defines arent defined we have to fix this properly
                 continue;
             }
             if (line.startsWith("#include ")) {

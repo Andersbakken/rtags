@@ -15,7 +15,6 @@ RBuild::RBuild(QObject *parent)
     : QObject(parent), mDatabaseMode(Build), mPreprocessing(0),
       mParsing(0), mFileCount(0)
 {
-    memset(&mUnsavedFile, 0, sizeof(CXUnsavedFile));
     mThreadPool.setMaxThreadCount(qMax<int>(4, QThread::idealThreadCount() * 1.5));
 }
 
@@ -354,7 +353,7 @@ void RBuild::parseFile(const Path &file, const GccArguments &args)
     if (!strcmp(file.extension(), "c")) {
         count -= 2; // no pch here
     }
-    ClangRunnable *runnable = new ClangRunnable(file, args, mClangArgs.constData(), count, &mUnsavedFile);
+    ClangRunnable *runnable = new ClangRunnable(file, args, mClangArgs.constData(), count);
     ++mParsing;
     connect(runnable, SIGNAL(finished()), this, SLOT(onClangRunnableFinished()));
     mThreadPool.start(runnable);
@@ -410,17 +409,15 @@ void RBuild::maybePCH()
             return;
         }
 
-        mUnsavedPCHHeader.reserve(mAllHeaders.size() * 48); // ###?
-        mUnsavedPCHHeader.append("#ifndef RTAGS_PCH_H\n#define RTAGS_PCH_H\n");
+        QByteArray pchHeader;
+        pchHeader.reserve(mAllHeaders.size() * 48); // ###?
+        pchHeader.append("#ifndef RTAGS_PCH_H\n#define RTAGS_PCH_H\n");
         foreach(const Path &header, mAllHeaders) {
-            mUnsavedPCHHeader.append("#include \"" + header + "\"\n");
+            pchHeader.append("#include \"" + header + "\"\n");
         }
-        mUnsavedPCHHeader.append("#endif");
+        pchHeader.append("#endif");
 
         CXIndex index = clang_createIndex(1, 1);
-        mUnsavedFile.Filename = "/tmp/rtags_pch.h";
-        mUnsavedFile.Contents = mUnsavedPCHHeader.constData();
-        mUnsavedFile.Length = mUnsavedPCHHeader.size();
 
         mClangArgs.resize(mPCHCompilerSwitches.size() + 2);
         int idx = 0;
@@ -432,21 +429,40 @@ void RBuild::maybePCH()
         {
             QFile f("/tmp/rtags_pch.h");
             f.open(QIODevice::WriteOnly);
-            f.write(mUnsavedPCHHeader);
+            f.write(pchHeader);
         }
         CXTranslationUnit unit = clang_parseTranslationUnit(index, "/tmp/rtags_pch.h", mClangArgs.constData(),
-                                                            mClangArgs.size(), &mUnsavedFile, 0,
+                                                            mClangArgs.size(), 0, 0,
                                                             CXTranslationUnit_Incomplete);
-        // qDebug() << mAllHeaders << mUnsavedPCHHeader;
+        // qDebug() << mAllHeaders << pchHeader;
         if (!unit) {
-            qWarning() << mClangArgs << mUnsavedPCHHeader;
+            qWarning() << mClangArgs << pchHeader;
             qFatal("Can't PCH this. That's no good");
         }
+        qDebug() << pchHeader;
         ClangRunnable::processTranslationUnit("/tmp/rtags_pch.h", unit);
         mClangArgs[idx - 1] = "-include-pch";
-        clang_saveTranslationUnit(unit, "/tmp/rtags.pch", clang_defaultSaveOptions(unit));
+        const int ret = clang_saveTranslationUnit(unit, "/tmp/rtags.pch", clang_defaultSaveOptions(unit));
+        if (ret) {
+            qWarning("Couldn't save translation unit %d", ret);
+            const int count = clang_getNumDiagnostics(unit);
+            for (int i=0; i<count; ++i) {
+                CXDiagnostic diagnostic = clang_getDiagnostic(unit, i);
+                CXString diagStr = clang_getDiagnosticSpelling(diagnostic);
+                const unsigned diagnosticFormattingOptions = (CXDiagnostic_DisplaySourceLocation|CXDiagnostic_DisplayColumn|
+                                                              CXDiagnostic_DisplaySourceRanges|CXDiagnostic_DisplayOption|
+                                                              CXDiagnostic_DisplayCategoryId|CXDiagnostic_DisplayCategoryName);
+                
+                CXString diagStr2 = clang_formatDiagnostic(diagnostic, diagnosticFormattingOptions);
+                qWarning() << clang_getCString(diagStr) << clang_getCString(diagStr2);
+                clang_disposeString(diagStr);
+                clang_disposeString(diagStr2);
+                clang_disposeDiagnostic(diagnostic);
+            }
+
+        }
         clang_disposeTranslationUnit(unit);
-        mClangArgs[idx] = "/tmp/rtags.pch"; // ### Find non-colliding name maybe
+        mClangArgs[idx] = "/tmp/rtags.pch"; // ### Find unique temp name
         for (QHash<Path, GccArguments>::const_iterator it = mPreprocessed.begin(); it != mPreprocessed.end(); ++it) {
             parseFile(it.key(), it.value());
         }
