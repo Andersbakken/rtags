@@ -13,6 +13,10 @@
 
 static CXChildVisitResult dumpTree(CXCursor cursor, CXCursor parent, CXClientData)
 {
+    if (clang_getCursorKind(cursor) == CXCursor_InclusionDirective) {
+        qDebug() << cursor;
+    }
+    return CXChildVisit_Continue;
     for (CXCursor p=clang_getCursorSemanticParent(cursor); isValidCursor(p); p = clang_getCursorSemanticParent(p)) {
         printf("  ");
     }
@@ -29,28 +33,51 @@ static CXChildVisitResult dumpTree(CXCursor cursor, CXCursor parent, CXClientDat
     return CXChildVisit_Recurse;
 }
 
+
+static QList<Path> findStdIncludePaths()
+{
+    QProcess process;
+    process.start("cpp", QStringList() << "-v" << "-");
+    process.closeWriteChannel();
+    process.waitForFinished();
+    QList<Path> paths;
+    foreach(const QByteArray &line, process.readAllStandardError().split('\n')) {
+        if (line.startsWith(" /")) {
+            Path p = Path::resolved(line.mid(1));
+            if (p.isDir())
+                paths.append(p);
+        }
+    }
+
+    return paths;
+}
+
 static inline void gatherHeaders(CXFile includedFile, CXSourceLocation*,
                                  unsigned includeLen, CXClientData userData)
 {
     if (includeLen != 1)
         return;
 
-    const Path path = Path::resolved(eatString(clang_getFileName(includedFile)));
+    qDebug() << eatString(clang_getFileName(includedFile));
+    const Path path = eatString(clang_getFileName(includedFile));// = Path::resolved(eatString(clang_getFileName(includedFile)));
     // qWarning() << filename << includeLen;
-
     if (!path.contains("/bits/")) {
         QSet<Path> *includes = reinterpret_cast<QSet<Path>*>(userData);
         includes->insert(path);
     }
 }
 
-static inline int findIncludes(const Path &path, CXIndex idx, QSet<Path> &includes, const char *const *args, int argCount)
+static inline QList<Path> findIncludes(const Path &path, const QList<Path> &includePaths, const QList<Path> &stdSearchPaths)
 {
+    QElapsedTimer timer;
+    timer.start();
+    QList<Path> ret;
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
         qWarning("Can't open %s", path.constData());
-        return -1;
+        return ret;
     }
+    // qDebug() << __LINE__ << timer.restart() << path;
 
     QByteArray unsaved;
     unsaved.reserve(f.size() / 2);
@@ -62,22 +89,68 @@ static inline int findIncludes(const Path &path, CXIndex idx, QSet<Path> &includ
                 line.chop(1);
                 line += lines.at(++i).trimmed();
             }
+            if (line.startsWith("#include ")) {
+                line.remove(0, 9);
+            }
+
             unsaved.append(line);
             unsaved.append('\n');
         }
     }
-    printf("%s\n", unsaved.constData());
-    CXUnsavedFile unsavedFile = { path.constData(), unsaved.constData(), unsaved.size() };
-    CXTranslationUnit unit = clang_parseTranslationUnit(idx, path.constData(), args, argCount,
-                                                        &unsavedFile, 1, CXTranslationUnit_Incomplete);
-    if (!unit) {
-        qWarning("Can't parse file %s", path.constData());
-        return -1;
+    QProcess process;
+    process.start("/usr/local/llvm/bin/clang", QStringList() << "-E" << "-");
+    process.write(unsaved);
+    process.closeWriteChannel();
+    process.waitForFinished();
+    const Path sourceFileDir = path.parentDir();
+    foreach(QByteArray line, process.readAllStandardOutput().split('\n')) {
+        if (!line.isEmpty()) {
+            bool quote = true;
+            switch (line.at(0)) {
+            case '"':
+                if (line.at(line.size() - 1) != '"') { // flag error?
+                    qWarning() << "Weird include" << line;
+                    continue;
+                }
+                break;
+            case '<':
+                if (line.at(line.size() - 1) != '>') { // flag error?
+                    qWarning() << "Weird include" << line;
+                    continue;
+                }
+                quote = false;
+                break;
+            default:
+                continue;
+            }
+            line.remove(0, 1);
+            line.chop(1);
+            if (quote) {
+                const Path resolved = Path::resolved(line, sourceFileDir);
+                if (resolved.isHeader()) {
+                    ret.append(resolved);
+                    continue;
+                }
+            }
+            const QList<Path> *lists[] = { &includePaths, &stdSearchPaths };
+            bool found = false;
+            for (int i=0; i<2 && !found; ++i) {
+                foreach(const Path &dir, *lists[i]) {
+                    const Path resolved = Path::resolved(line, dir);
+                    if (resolved.isHeader()) {
+                        ret.append(resolved);
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            if (!found) {
+                qDebug() << "Couldn't resolve" << line << includePaths << stdSearchPaths;
+            }
+        }
     }
-    const int count = includes.size();
-    clang_getInclusions(unit, gatherHeaders, &includes);
-    clang_disposeTranslationUnit(unit);
-    return includes.size() - count;
+    qDebug() << "returning" << ret << "for" << path;
+    return ret;
 }
 
 
@@ -179,13 +252,21 @@ int main(int argc, char** argv)
 
     QList<QByteArray> compilerOptions;
     QVector<const char*> clangArgs;
+    QList<Path> includePaths;
     QByteArray empty("");
     for (int i=1; i<argc; ++i) {
-        if (argv[i] && (!strncmp(argv[i], "-I", 2) || (!strncmp(argv[i], "-D", 2)))) {
-            Path p = Path::resolved(argv[i] + 2);
-            compilerOptions.append("-I" + p);
-            clangArgs.append(compilerOptions.last().constData());
-            argv[i] = empty.data();
+        if (argv[i]) {
+            if (!strncmp(argv[i], "-I", 2)) {
+                Path p = Path::resolved(argv[i] + 2);
+                if (p.isDir())
+                    includePaths.append(p);
+                compilerOptions.append("-I" + p);
+                clangArgs.append(compilerOptions.last().constData());
+                argv[i] = empty.data();
+            } else if (!strncmp(argv[i], "-D", 2)) {
+                clangArgs.append(argv[i]);
+                argv[i] = empty.data();
+            }
         }
     }
 
@@ -215,17 +296,20 @@ int main(int argc, char** argv)
     }
     QElapsedTimer timer;
     timer.start();
-    QSet<Path> includes;
+    QList<Path> includes;
 
+    const QList<Path> stdSearchPaths = findStdIncludePaths();
     CXIndex index = clang_createIndex(1, 1);
-    if (!getenv("NO_PCH")) {
-        for (int i=1; i<argc; ++i) {
-            if (argv[i] && *argv[i] != '-') {
-                if (update) {
-                    printf("%s %d: if (update) {\n", __FILE__, __LINE__);
-                    return 1;
-                } else if (strlen(argv[i])) {
-                    findIncludes(Path::resolved(argv[i]), index, includes, clangArgs.constData(), clangArgs.size());
+    for (int i=1; i<argc; ++i) {
+        if (argv[i] && *argv[i] != '-') {
+            if (update) {
+                printf("%s %d: if (update) {\n", __FILE__, __LINE__);
+                return 1;
+            } else if (strlen(argv[i])) {
+                const Path sourceFile = Path::resolved(argv[i]);
+                if (sourceFile.isFile()) {
+                    includes += findIncludes(sourceFile, includePaths, stdSearchPaths);
+
                     // if (!rbuild.addMakefile(argv[i])) {
                     //     qWarning("Couldn't add makefile \"%s\"", argv[i]);
                     //     return 1;
@@ -233,36 +317,45 @@ int main(int argc, char** argv)
                 }
             }
         }
-        qDebug() << includes;
-
-        QByteArray pchHeader;
-        // inc += "#include \"/home/abakken/dev/qt-47/include/QtCore/qhash.h\"\n";
-        foreach(const Path &header, includes) {
-            pchHeader += "#include \"" + header + "\"\n";
-        }
-        CXUnsavedFile unsavedFile = { "/tmp/magic.pch.h", pchHeader.constData(), pchHeader.size() };
-
-        clangArgs.append("-x");
-        clangArgs.append("c++");
-    
-        CXTranslationUnit unit = clang_parseTranslationUnit(index, "/tmp/magic.pch.h", clangArgs.constData(),
-                                                            clangArgs.size(), &unsavedFile, 1,
-                                                            CXTranslationUnit_Incomplete);
-        // clang_visitChildren(clang_getTranslationUnitCursor(unit), dumpTree, 0);
-        clang_saveTranslationUnit(unit, "/tmp/magic.pch", clang_defaultSaveOptions(unit));
-        clang_disposeTranslationUnit(unit);
-        qDebug() << "made a pch";
     }
+    qDebug() << includes;
+
+    QByteArray pchHeader;
+    // inc += "#include \"/home/abakken/dev/qt-47/include/QtCore/qhash.h\"\n";
+    foreach(const Path &header, includes) {
+        pchHeader += "#include \"" + header + "\"\n";
+    }
+    CXUnsavedFile unsavedFile = { "/tmp/magic.pch.h", pchHeader.constData(), pchHeader.size() };
+
+    clangArgs.append("-x");
+    clangArgs.append("c++");
+
+    qDebug() << clangArgs;
+    CXTranslationUnit unit = clang_parseTranslationUnit(index, "/tmp/magic.pch.h", clangArgs.constData(),
+                                                        clangArgs.size(), &unsavedFile, 1,
+                                                        CXTranslationUnit_Incomplete);
+    ClangRunnable::processTranslationUnit("/tmp/magic.pch.h", unit);
+    // clang_visitChildren(clang_getTranslationUnitCursor(unit), dumpTree, 0);
+    clang_saveTranslationUnit(unit, "/tmp/magic.pch", clang_defaultSaveOptions(unit));
+    clang_disposeTranslationUnit(unit);
+    qDebug() << "made a pch" << includes << timer.elapsed();
+    clangArgs.append("-include-pch");
+    clangArgs.append("/tmp/magic.pch");
     for (int i=1; i<argc; ++i) {
         if (argv[i] && *argv[i] != '-') {
             if (update) {
                 printf("%s %d: if (update) {\n", __FILE__, __LINE__);
                 return 1;
             } else if (strlen(argv[i])) {
-                CXTranslationUnit unit = clang_parseTranslationUnit(index, Path::resolved(argv[i]),
+                Path p = Path::resolved(argv[i]);
+                CXTranslationUnit unit = clang_parseTranslationUnit(index, p,
                                                                     clangArgs.constData(), clangArgs.size(),
-                                                                    0, 0, 0);
-                printf("%p\n", unit);
+                                                                    &unsavedFile, 1, 0);
+                QElapsedTimer tm;
+                tm.start();
+                ClangRunnable::processTranslationUnit(p, unit);
+
+                qDebug() << tm.elapsed() << p;
                 // clang_visitChildren(clang_getTranslationUnitCursor(unit), dumpTree, 0);
                 clang_disposeTranslationUnit(unit);
 
