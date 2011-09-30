@@ -4,6 +4,14 @@
 #include <stdint.h>
 #include <string.h>
 
+#ifndef CLANG_PREFIX
+#error CLANG_PREFIX must be defined
+#endif
+
+#ifndef CLANG_EXECUTABLE
+#error CLANG_EXECUTABLE must be defined
+#endif
+
 #ifdef __cplusplus
 #ifdef QT
 #include <QByteArray>

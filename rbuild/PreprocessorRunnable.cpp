@@ -1,4 +1,8 @@
 #include "PreprocessorRunnable.h"
+#include <Shared.h>
+
+#define QUOTE_NX(A) #A
+#define QUOTE(A) QUOTE_NX(A)
 
 QList<Path> PreprocessorRunnable::sStdIncludePaths;
 void PreprocessorRunnable::init(const QList<Path> &stdIncludePaths)
@@ -49,10 +53,7 @@ void PreprocessorRunnable::run()
     }
     // qDebug() << mSourceFile << unsaved;
     QProcess process;
-    // Q_ASSERT_X(CLANG_PREFIX, __FUNCTION__, "CLANG_ROOT not defined");
-    process.start("/usr/local/bin/clang", QStringList() << "-E" << "-");
-
-    // process.start(CLANG_PREFIX ## "/bin/clang", QStringList() << "-E" << "-");
+    process.start(QUOTE(CLANG_EXECUTABLE), QStringList() << "-E" << "-");
     process.write(unsaved);
     process.closeWriteChannel();
     process.waitForFinished();

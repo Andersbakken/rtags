@@ -39,15 +39,6 @@ OTHER_FILES += gccopts.gperf
 
 include(../shared/shared.pri)
 
-CLANG_PREFIX=$$(CLANG_PREFIX)
-isEmpty(CLANG_PREFIX):CLANG_PREFIX=/usr/local/
-DEFINES += CLANG_PREFIX=$$CLANG_PREFIX
-INCLUDEPATHS += $$(CLANG_PREFIX)/include
-release {
-    QMAKE_CXXFLAGS += -g
-    QMAKE_CFLAGS += -g
-}
-
 gccopts_gperf.commands = gperf -I -C -l -L C++ gccopts.gperf --output-file gccopts_gperf.cpp -Z gccopts_gperf
 gccopts_gperf.target = gccopts_gperf.cpp
 gccopts_gperf.depends = gccopts.gperf
@@ -58,7 +49,7 @@ PRE_TARGETDEPS += gccopts_gperf.cpp
 ### If you don't have libmagic on mac you can install the file package in ports
 ### or something along the lines of file-shlibs and file-dev on fink
 
-LIBS += -lclang -lmagic 
+LIBS += -lclang -lmagic -L$$(CLANG_PREFIX)/lib
 
 unix {
     debug:OBJECTS_DIR = $${OUT_PWD}/.obj/debug-shared
