@@ -1,4 +1,4 @@
-#qmake INCLUDEPATH+=/usr/local/llvm/include/ "LIBS+=-L/usr/local/llvm/lib -Wl,-rpath,/usr/local/llvm/lib"
+#qmake INCLUDEPATH+=/usr/local/llvm/include/ "CLANG_ROOT LIBS+=-L/usr/local/lib -Wl,-rpath,/usr/local/lib"
 TEMPLATE = app
 TARGET = rb
 DESTDIR = ..
@@ -42,6 +42,7 @@ include(../shared/shared.pri)
 CLANG_PREFIX=$$(CLANG_PREFIX)
 isEmpty(CLANG_PREFIX):CLANG_PREFIX=/usr/local/
 DEFINES += CLANG_PREFIX=$$CLANG_PREFIX
+INCLUDEPATHS += $$(CLANG_PREFIX)/include
 release {
     QMAKE_CXXFLAGS += -g
     QMAKE_CFLAGS += -g

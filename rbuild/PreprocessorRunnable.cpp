@@ -49,8 +49,10 @@ void PreprocessorRunnable::run()
     }
     // qDebug() << mSourceFile << unsaved;
     QProcess process;
-    Q_ASSERT_X(CLANG_ROOT, __FUNCTION__, "CLANG_ROOT not defined");
-    process.start(CLANG_ROOT ## "/bin/clang", QStringList() << "-E" << "-");
+    // Q_ASSERT_X(CLANG_PREFIX, __FUNCTION__, "CLANG_ROOT not defined");
+    process.start("/usr/local/bin/clang", QStringList() << "-E" << "-");
+
+    // process.start(CLANG_PREFIX ## "/bin/clang", QStringList() << "-E" << "-");
     process.write(unsaved);
     process.closeWriteChannel();
     process.waitForFinished();
