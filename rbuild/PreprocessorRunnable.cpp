@@ -34,10 +34,10 @@ void PreprocessorRunnable::run()
                 line.chop(1);
                 line += lines.at(++i).trimmed();
             }
-            if (line.startsWith("#error")) {
-// #warning hack for some Qt things where defines arent defined we have to fix this properly
-                continue;
-            }
+//             if (line.startsWith("#error")) {
+// // #warning hack for some Qt things where defines arent defined we have to fix this properly
+//                 continue;
+//             }
             if (line.startsWith("#include ")) {
                 line.remove(0, 9);
             }
@@ -49,23 +49,8 @@ void PreprocessorRunnable::run()
     }
     // qDebug() << mSourceFile << unsaved;
     QProcess process;
-    const char *clangPaths[] = {
-        "/usr/local/llvm/bin/clang",
-        "/usr/local/bin/clang",
-        "/usr/bin/clang",
-        0
-    };
-    const char *clang = 0;
-    for (int i=0; clangPaths[i]; ++i) {
-        struct stat st;
-        if (!stat(clangPaths[i], &st)) {
-            clang = clangPaths[i];
-            break;
-        }
-    }
-    Q_ASSERT_X(clang, __FUNCTION__, "Can't find clang executable");
-
-    process.start(clang, QStringList() << "-E" << "-");
+    Q_ASSERT_X(CLANG_ROOT, __FUNCTION__, "CLANG_ROOT not defined");
+    process.start(CLANG_ROOT ## "/bin/clang", QStringList() << "-E" << "-");
     process.write(unsaved);
     process.closeWriteChannel();
     process.waitForFinished();

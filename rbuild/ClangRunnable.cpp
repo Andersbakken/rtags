@@ -331,9 +331,14 @@ void ClangRunnable::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pen
 void ClangRunnable::addReference(CursorNode *c, const QByteArray &id, const Location &loc)
 {
     if (Node::sNodes.contains(id)) {
-        qWarning() << "Turns out" << c->cursor << "already exists"
-                   << Node::sNodes.value(id)->symbolName << nodeTypeToName(Node::sNodes.value(id)->type, Normal)
-                   << Node::sNodes.value(id)->location;
+#ifdef QT_DEBUG
+        if (clang_getCursorKind(c->cursor) != CXCursor_TypeRef
+            || clang_getCursorKind(clang_getCursorReferenced(c->cursor)) != CXCursor_TemplateTypeParameter) {
+            qWarning() << "Turns out" << c->cursor << "already exists"
+                       << Node::sNodes.value(id)->symbolName << nodeTypeToName(Node::sNodes.value(id)->type, Normal)
+                       << Node::sNodes.value(id)->location << clang_getCursorReferenced(c->cursor);
+        }
+#endif
         return;
     }
     if (Node::nodeTypeFromCursor(c->cursor) != Invalid && loc.exists()) {

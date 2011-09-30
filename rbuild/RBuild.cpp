@@ -186,8 +186,13 @@ void RBuild::onMakeOutput()
                         qWarning("Can't parse line %s (%s)", line.constData(),
                                  qPrintable(args.errorString()));
                     } else if (args.hasInput() && args.isCompile()) {
+                        ++mFileCount;
                         foreach(const Path &file, args.input()) { // already resolved
+                            // if (args.language() == GccArguments::LangCPlusPlus) {
                             preprocess(file, args);
+                            // } else {
+                            // parseFile(file, args);
+                            // }
                         }
                     }
                     break; }
@@ -366,7 +371,8 @@ bool RBuild::isFinished() const
 
 void RBuild::preprocess(const Path &sourceFile, const GccArguments &args)
 {
-    // qDebug() << "calling preprocess" << sourceFile;
+    ++mPreprocessing;
+    // qDebug() << "calling preprocess" << sourceFile << mPreprocessing;
     PreprocessorRunnable *runnable = new PreprocessorRunnable(sourceFile, args);
     connect(runnable, SIGNAL(error(Path, GccArguments, QByteArray)),
             this, SLOT(onPreprocessorError(Path, GccArguments, QByteArray)));
@@ -375,8 +381,6 @@ void RBuild::preprocess(const Path &sourceFile, const GccArguments &args)
     mThreadPool.start(runnable);
     if (mFileCount == -1)
         mFileCount = 0;
-    ++mFileCount;
-    ++mPreprocessing;
 }
 
 void RBuild::onPreprocessorError(const Path &sourceFile, const GccArguments &args, const QByteArray &error)
@@ -396,6 +400,8 @@ void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArgumen
     }
     mPreprocessed[sourceFile] = args;
     --mPreprocessing;
+    // qDebug() << "onPreprocessorHeadersFound" << sourceFile << mPreprocessing;
+    printf("Preprocessed %s, added %d headers\n", sourceFile.constData(), added);
     maybePCH();
     mPCHCompilerSwitches += args.arguments("-I").toSet();
     mPCHCompilerSwitches += args.arguments("-D").toSet();
@@ -408,6 +414,8 @@ void RBuild::maybePCH()
             maybeDone();
             return;
         }
+        QElapsedTimer timer;
+        timer.start();
 
         QByteArray pchHeader;
         pchHeader.reserve(mAllHeaders.size() * 48); // ###?
@@ -439,7 +447,8 @@ void RBuild::maybePCH()
             qWarning() << mClangArgs << pchHeader;
             qFatal("Can't PCH this. That's no good");
         }
-        qDebug() << pchHeader;
+        printf("Created precompiled header (%d headers) %lldms\n", mAllHeaders.size(), timer.elapsed());
+        // qDebug() << pchHeader;
         ClangRunnable::processTranslationUnit("/tmp/rtags_pch.h", unit);
         mClangArgs[idx - 1] = "-include-pch";
         const int ret = clang_saveTranslationUnit(unit, "/tmp/rtags.pch", clang_defaultSaveOptions(unit));

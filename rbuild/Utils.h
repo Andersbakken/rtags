@@ -8,6 +8,9 @@ typedef QHash<QByteArray, QVariant> ByteArrayHash;
 Q_DECLARE_METATYPE(ByteArrayHash)
 Q_DECLARE_METATYPE(QList<QByteArray>)
 
+#ifndef CLANG_EXECUTABLE
+#define CLANG_EXECUTABLE## /bin/clang
+#endif
 const char *kindToString(CXCursorKind kind);
 const char *completionChunkKindToString(int kind);
 class Path;

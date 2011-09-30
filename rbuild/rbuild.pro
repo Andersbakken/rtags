@@ -35,14 +35,17 @@ HEADERS += \
     ClangRunnable.h \
     PreprocessorRunnable.h
 
+OTHER_FILES += gccopts.gperf
+
 include(../shared/shared.pri)
 
+CLANG_PREFIX=$$(CLANG_PREFIX)
+isEmpty(CLANG_PREFIX):CLANG_PREFIX=/usr/local/
+DEFINES += CLANG_PREFIX=$$CLANG_PREFIX
 release {
     QMAKE_CXXFLAGS += -g
     QMAKE_CFLAGS += -g
 }
-OTHER_FILES += \
-    gccopts.gperf
 
 gccopts_gperf.commands = gperf -I -C -l -L C++ gccopts.gperf --output-file gccopts_gperf.cpp -Z gccopts_gperf
 gccopts_gperf.target = gccopts_gperf.cpp
