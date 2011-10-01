@@ -143,11 +143,12 @@ static CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor paren
     CXFile file = 0;
     clang_getInstantiationLocation(location, &file, 0, 0, 0);
     // ### is this safe?
-    if (!file || clang_getCursorKind(cursor) == CXCursor_FirstExpr) // ### is this safe?
+// || clang_getCursorKind(cursor) == CXCursor_FirstExpr) // ### is this safe?    
+    if (!file)
         return CXChildVisit_Continue;
-    // CXCursor parent = clang_getCursorSemanticParent(cursor);
+// CXCursor parent = clang_getCursorSemanticParent(cursor);
 
-    // qDebug() << cursor << parent;
+// qDebug() << cursor << parent;
     ComprehensiveTreeUserData *u = reinterpret_cast<ComprehensiveTreeUserData*>(data);
     CursorNode *p = 0;
     if (!u->root) {
@@ -187,10 +188,11 @@ static CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor paren
     }
     Q_ASSERT(p);
     u->last = new CursorNode(cursor, p);
+    qDebug() << "created cursornode" << cursor << "child of" << p->cursor;
     u->lastCursor = cursor;
     switch (clang_getCursorKind(cursor)) {
     case CXCursor_EnumConstantDecl:
-        return CXChildVisit_Continue;
+        // return CXChildVisit_Continue;
     default:
         break;
     }
@@ -263,6 +265,7 @@ void ClangRunnable::run()
             }
         }
         processTranslationUnit(mFile, unit);
+        printf("Parsed %s\n", mFile.constData());
         clang_disposeTranslationUnit(unit);
     }
     clang_disposeIndex(index);
@@ -294,6 +297,7 @@ void ClangRunnable::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pen
     const NodeType type = Node::nodeTypeFromCursor(c->cursor);
     if (type == Reference) {
         const Location loc(c->cursor);
+        qDebug() << "about to add a reference" << c->cursor << loc.exists();
         if (loc.exists()) {
             const QByteArray id = loc.toString();
             if (!Node::sNodes.contains(id)) {
@@ -331,14 +335,14 @@ void ClangRunnable::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, Pen
 void ClangRunnable::addReference(CursorNode *c, const QByteArray &id, const Location &loc)
 {
     if (Node::sNodes.contains(id)) {
-#ifdef QT_DEBUG
+// #ifdef QT_DEBUG
         if (clang_getCursorKind(c->cursor) != CXCursor_TypeRef
             || clang_getCursorKind(clang_getCursorReferenced(c->cursor)) != CXCursor_TemplateTypeParameter) {
             qWarning() << "Turns out" << c->cursor << "already exists"
                        << Node::sNodes.value(id)->symbolName << nodeTypeToName(Node::sNodes.value(id)->type, Normal)
                        << Node::sNodes.value(id)->location << clang_getCursorReferenced(c->cursor);
         }
-#endif
+// #endif
         return;
     }
     if (Node::nodeTypeFromCursor(c->cursor) != Invalid && loc.exists()) {
@@ -368,14 +372,14 @@ void ClangRunnable::addReference(CursorNode *c, const QByteArray &id, const Loca
             case CXCursor_NonTypeTemplateParameter:
                 return;
             default:
-                qDebug() << "throwing out this pending CXCursor_DeclRefExpr" << c->cursor << ref;
+                qDebug() << "throwing out this pending cursor" << c->cursor << ref;
                 return;
             }
         }
         const QByteArray refId = Location(ref).toString();
         Node *refNode = Node::sNodes.value(refId);
         if (!refNode) {
-            // qWarning() << "Can't find referenced node" << c->cursor << ref << refId;
+            qWarning() << "Can't find referenced node" << c->cursor << ref << refId;
             return;
         }
         if (refNode->type == MethodDefinition) {
@@ -383,9 +387,7 @@ void ClangRunnable::addReference(CursorNode *c, const QByteArray &id, const Loca
             if (decl)
                 refNode = decl;
         }
-        Q_ASSERT(!Node::sNodes.contains(id));
         new Node(refNode, Reference, refNode->symbolName, loc, id);
-        Q_ASSERT(Node::sNodes.contains(id));
     }
 
     for (CursorNode *child=c->firstChild; child; child = child->nextSibling) {
@@ -649,24 +651,24 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
     ComprehensiveTreeUserData ud;
     ud.last = ud.root = 0;
     ud.lastCursor = clang_getNullCursor();
-#ifndef QT_NO_DEBUG
+// #ifndef QT_NO_DEBUG
     const QByteArray dump = qgetenv("RTAGS_DUMP");
-    if (dump == "1" || dump.contains(file.fileName())) {
-        printf("%s %d: clang_visitChildren(rootCursor, dumpTree, 0);\n", __FILE__, __LINE__);
-        clang_visitChildren(rootCursor, dumpTree, 0);
-        fflush(stdout);
-        sleep(1);
-    }
-#endif
+    // if (dump == "1" || dump.contains(file.fileName())) {
+    //     printf("%s %d: clang_visitChildren(rootCursor, dumpTree, 0);\n", __FILE__, __LINE__);
+    //     clang_visitChildren(rootCursor, dumpTree, 0);
+    //     fflush(stdout);
+    //     sleep(1);
+    // }
+// #endif
     clang_visitChildren(rootCursor, buildComprehensiveTree, &ud);
-#ifndef QT_NO_DEBUG
+// #ifndef QT_NO_DEBUG
     if (ud.root && (dump == "1" || dump.contains(file.fileName()))) {
         ud.root->dump(1);
         printf("Tree done\n");
         fflush(stdout);
         sleep(1);
     }
-#endif
+// #endif
     QHash<QByteArray, PendingReference> references;
     if (ud.root) {
         int old;
