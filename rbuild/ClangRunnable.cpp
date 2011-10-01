@@ -530,6 +530,7 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
                             referenced = decl;
                     }
                 }
+#warning TODO if parent is a function, store that and use it when printing out the references from rc
                 new Node(referenced, Reference, referenced->symbolName, node.loc, node.id);
                 it = ud.hash.erase(it);
                 continue;
@@ -538,8 +539,6 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
                 if (!node.parentId.isEmpty()) {
                     p = Node::sNodes.value(node.parentId);
                     if (!p) {
-                        if (node.id == "/home/anders/dev/rtags/rclient/rclient.c:98:9")
-                            qDebug() << "checking shit" << node.cursor;
                         // if (i)
                         //     qWarning() << "Can't find parent" << node.cursor << node.parent;
                         ++it;
