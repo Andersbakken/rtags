@@ -221,6 +221,8 @@ int main(int argc, char **argv)
             const int32_t idx = readInt32(bs);
             struct NodeData node = readNodeData(mmapData.memory + idx);
             if (mode == References) {
+                if (node.type == Reference)
+                    node = readNodeData(mmapData.memory + node.parent);
                 findReferences(&node, &mmapData);
                 if (node.type == MethodDefinition) {
                     struct NodeData parent = readNodeData(mmapData.memory + node.parent);
