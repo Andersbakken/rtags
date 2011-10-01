@@ -5,7 +5,8 @@ int32_t Node::sLongestId = 0;
 
 Node::Node()
     : parent(0), nextSibling(0), firstChild(0), type(Root), symbolName("RootNode")
-{}
+{
+}
 
 Node::Node(Node *p, NodeType t, const QByteArray &symbol, const Location &l, const QByteArray &i)
     : parent(p), nextSibling(0), firstChild(0), type(t), location(l), id(i), symbolName(symbol)

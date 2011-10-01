@@ -61,7 +61,7 @@ void PreprocessorRunnable::run()
     const QList<Path> includePaths = mArgs.includePaths();
     const QList<Path> *lists[] = { &includePaths, &PreprocessorRunnable::sStdIncludePaths };
     foreach(QByteArray line, process.readAllStandardOutput().split('\n')) {
-        qDebug() << mSourceFile << unsaved << line;
+        // qDebug() << mSourceFile << unsaved << line;
         if (!line.isEmpty()) {
             bool quote = true;
             switch (line.at(0)) {
