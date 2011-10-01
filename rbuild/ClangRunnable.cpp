@@ -694,30 +694,25 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
     QMutexLocker lock(&sTreeMutex);
 
     // ### nasty data structures here
-    bool repeat;
-    int iteration = 0;
-    const int before = Node::sNodes.size();
-    bool doReferences = false;
-    do {
-        repeat = false;
-        qDebug() << iteration++ << Node::sNodes.size() << ud.hash.size() << before;
+    enum { FirstRun, SecondRun, References };
+    for (int i=0; i<3; ++i) {
+        // qDebug() << iteration++ << Node::sNodes.size() << ud.hash.size() << before;
 
         QHash<QByteArray, ComprehensiveTreeUserDataNode>::iterator it = ud.hash.begin();
         while (it != ud.hash.end()) {
             ComprehensiveTreeUserDataNode &node = *it;
-            const NodeType type = Node::nodeTypeFromCursor(node.cursor);
-            if (type == Reference && !doReferences) {
-                ++it;
-                continue;
-            }
-        
             if (Node::sNodes.contains(node.id)) {
                 // qWarning() << node.cursor << "already exists";
                 it = ud.hash.erase(it);
                 continue;
             }
 
+            const NodeType type = Node::nodeTypeFromCursor(node.cursor);
             if (type == Reference) {
+                if (i != References) {
+                    ++it;
+                    continue;
+                }
                 Node *referenced = 0;
                 if (clang_getCursorKind(node.cursor) == CXCursor_MacroExpansion) {
                     const QByteArray symbolName = eatString(clang_getCursorSpelling(node.cursor));
@@ -727,11 +722,16 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
                             break;
                         }
                     }
+                    if (!referenced) {
+                        it = ud.hash.erase(it);
+                        continue;
+                    }
                 } else {
                     const CXCursorKind kind = clang_getCursorKind(node.cursor);
 
                     CXCursor ref = clang_getCursorReferenced(node.cursor);
-                    if (clang_equalCursors(ref, node.cursor) && (kind == CXCursor_ClassDecl || kind == CXCursor_StructDecl)) { // ### namespace too?
+                    if (clang_equalCursors(ref, node.cursor) && (kind == CXCursor_ClassDecl || kind == CXCursor_StructDecl)) {
+                        // ### namespace too?
                         ref = clang_getCursorDefinition(ref);
                     }
 
@@ -742,27 +742,46 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
                         continue;
                     }
 
+                    const QByteArray refId = Location(ref).toString();
                     const CXCursorKind refKind = clang_getCursorKind(ref);
-                    if (kind == CXCursor_DeclRefExpr || kind == CXCursor_TypeRef) {
+                    switch (kind) {
+                    case CXCursor_TypeRef:
                         switch (refKind) {
-                        case CXCursor_ParmDecl:
-                        case CXCursor_VarDecl:
-                        case CXCursor_FieldDecl:
-                        case CXCursor_CXXMethod:
-                        case CXCursor_EnumConstantDecl:
-                        case CXCursor_FunctionDecl:
-                            break;
-                        default:
-                            qDebug() << "throwing out this pending cursor" << node.cursor << ref;
-                            // fall through
-                        case CXCursor_NonTypeTemplateParameter:
+                        case CXCursor_ClassDecl:
+                        case CXCursor_StructDecl:
+                            if (Node::sNodes.contains(refId))
+                                break;
                         case CXCursor_TemplateTypeParameter:
-                        case CXCursor_TypedefDecl:
+                        case CXCursor_TemplateTemplateParameter:
+                        case CXCursor_TemplateRef:
                             it = ud.hash.erase(it);
                             continue;
+                        default:
+                            break;
                         }
+                    default:
+                        break;
                     }
-                    const QByteArray refId = Location(ref).toString();
+                    // if (kind == CXCursor_DeclRefExpr || kind == CXCursor_TypeRef) {
+                    //     switch (refKind) {
+                    //     case CXCursor_ParmDecl:
+                    //     case CXCursor_VarDecl:
+                    //     case CXCursor_FieldDecl:
+                    //     case CXCursor_CXXMethod:
+                    //     case CXCursor_EnumConstantDecl:
+                    //     case CXCursor_FunctionDecl:
+                    //     case CXCursor_TypeRef:
+                    //         break;
+                    //     default:
+                    //         qDebug() << "throwing out this pending cursor" << node.cursor << ref;
+                    //         // fall through
+                    //     case CXCursor_NonTypeTemplateParameter:
+                    //     case CXCursor_TemplateTypeParameter:
+                    //     case CXCursor_TypedefDecl:
+                    //         it = ud.hash.erase(it);
+                    //         continue;
+                    //     }
+                    // }
                     referenced = Node::sNodes.value(refId);
                     if (!referenced) {
                         qWarning() << "Can't find referenced node" << node.cursor << ref << refId;
@@ -775,7 +794,6 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
                             referenced = decl;
                     }
                 }
-                printf("%s %d: new Node(referenced, Reference, referenced->symbolName, node.loc, node.id);\n", __FILE__, __LINE__);
                 new Node(referenced, Reference, referenced->symbolName, node.loc, node.id);
                 it = ud.hash.erase(it);
                 continue;
@@ -784,10 +802,9 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
                 if (!node.parentId.isEmpty()) {
                     p = Node::sNodes.value(node.parentId);
                     if (!p) {
-                        // qDebug() << "Can't find parent" << node.cursor << node.parent;
+                        // if (i)
+                        //     qWarning() << "Can't find parent" << node.cursor << node.parent;
                         ++it;
-                        // printf("%s %d: repeat = true;\n", __FILE__, __LINE__);
-                        repeat = true;
                         continue;
                     }
                 } else {
@@ -799,10 +816,5 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
                 it = ud.hash.erase(it);
             }
         }
-        if (!repeat && !doReferences) {
-            printf("%s %d: if (!repeat && !doReferences) {\n", __FILE__, __LINE__);
-            doReferences = true;
-            repeat = true;
-        }
-    } while (repeat);
+    }
 }
