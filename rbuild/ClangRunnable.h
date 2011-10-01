@@ -27,13 +27,6 @@ private:
     static void initTree(const MMapData *data, const QSet<Path> &modifiedPaths,
                          Node *node, const NodeData &nodeData);
 
-    struct PendingReference {
-        CursorNode *node;
-        Location location;
-    };
-    static void buildTree(Node *node, CursorNode *c, QHash<QByteArray, PendingReference> &references);
-    static void addReference(CursorNode *c, const QByteArray &id, const Location &location);
-
     struct FileData {
         GccArguments arguments;
         int64_t lastModified;

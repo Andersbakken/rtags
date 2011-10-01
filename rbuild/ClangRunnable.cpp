@@ -2,7 +2,6 @@
 #include "Node.h"
 #include <clang-c/Index.h>
 
-static const bool disablePch = getenv("RTAGS_NO_PCH");
 Node *ClangRunnable::sRoot = 0;
 QMutex ClangRunnable::sTreeMutex(QMutex::Recursive);
 QMutex ClangRunnable::sFilesMutex(QMutex::Recursive);
@@ -28,79 +27,6 @@ static inline void precompileHeaders(CXFile included_file, CXSourceLocation*,
     clang_disposeString(filename);
 }
 
-
-struct CursorNode {
-    CursorNode(CXCursor c, CursorNode *p = 0)
-        : cursor(c), parent(p), firstChild(0), nextSibling(0), lastChild(0)
-    {
-        if (p) {
-            p->append(this);
-        }
-    }
-    ~CursorNode()
-    {
-        CursorNode *c = firstChild;
-        while (c) {
-            CursorNode *tmp = c;
-            c = c->nextSibling;
-            delete tmp;
-        }
-    }
-    int count() const
-    {
-        int ret = 1;
-        for (CursorNode *c=firstChild; c; c = c->nextSibling) {
-            ret += c->count();
-        }
-        return ret;
-    }
-    CXCursor cursor;
-    CursorNode *parent, *firstChild, *nextSibling, *lastChild;
-    Location location;
-    QByteArray id;
-    void dump(int indent)
-    {
-        for (int i=0; i<indent; ++i) {
-            printf(" ");
-        }
-
-        QString str;
-        {
-            QDebug dbg(&str);
-            dbg << cursor;
-            CXCursor ref = clang_getCursorReferenced(cursor);
-            if (isValidCursor(ref))
-                dbg << ref;
-            // CXCursor can = clang_getCanonicalCursor(cursor);
-            // if (isValidCursor(can))
-            //     dbg << can;
-            // CXCursor p1 = clang_getCursorLexicalParent(cursor);
-            // if (isValidCursor(p1))
-            //     dbg << p1;
-            // CXCursor p = clang_getCursorSemanticParent(cursor);
-            // if (isValidCursor(p))
-            //     dbg << p;
-        }
-
-        str.remove("\"");
-        printf("%s\n", str.toLocal8Bit().constData());
-        for (CursorNode *c=firstChild; c; c = c->nextSibling) {
-            c->dump(indent + 2);
-        }
-        fflush(stdout);
-    }
-    void append(CursorNode *c)
-    {
-        c->parent = this;
-        if (lastChild) {
-            lastChild->nextSibling = c;
-            lastChild = c;
-        } else {
-            lastChild = firstChild = c;
-        }
-        nextSibling = 0;
-    }
-};
 struct ComprehensiveTreeUserDataNode {
     QByteArray id;
     Location loc;
@@ -143,68 +69,6 @@ static CXChildVisitResult dumpTree(CXCursor cursor, CXCursor parent, CXClientDat
     printf("%s\n", qPrintable(str));
     return CXChildVisit_Recurse;
 }
-
-// static CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor parent, CXClientData data)
-// {
-//     CXSourceLocation location = clang_getCursorLocation(cursor);
-//     CXFile file = 0;
-//     clang_getInstantiationLocation(location, &file, 0, 0, 0);
-//     // ### is this safe?
-// // || clang_getCursorKind(cursor) == CXCursor_FirstExpr) // ### is this safe?    
-//     if (!file)
-//         return CXChildVisit_Recurse;
-// // CXCursor parent = clang_getCursorSemanticParent(cursor);
-
-// // qDebug() << cursor << parent;
-//     ComprehensiveTreeUserData *u = reinterpret_cast<ComprehensiveTreeUserData*>(data);
-//     CursorNode *p = 0;
-//     if (!u->root) {
-//         u->root = new CursorNode(parent);
-//         p = u->root;
-//         u->parents.append(qMakePair(parent, u->root));
-//         u->lastCursor = cursor;
-//     } else {
-//         Q_ASSERT(u->last);
-//         if (parent == u->lastCursor) {
-//             p = u->last;
-//             Q_ASSERT(p);
-//             u->parents.append(qMakePair(parent, p));
-//         } else {
-//             for (int i=u->parents.size() - 1; i>=0; --i) {
-//                 if (parent == u->parents.at(i).first) {
-//                     p = u->parents.at(i).second;
-//                     u->parents.resize(i + 1);
-//                     break;
-//                 }
-//             }
-//         }
-//     }
-//     if (!p) {
-//         qDebug() << parent.kind << u->lastCursor.kind
-//                  << parent.data[0] << u->lastCursor.data[0]
-//                  << parent.data[1] << u->lastCursor.data[1]
-//                  << parent.data[2] << u->lastCursor.data[2];
-
-//         qWarning() << "crashing cursor is" << cursor
-//                    << "\nparent is" << parent
-//                    << "\nlastCursor is" << u->lastCursor
-//             // << "\nparents are" << u->parents
-//                    << "\nparent and lastCursor are equal" << clang_equalCursors(parent, u->lastCursor)
-//                    << "\ncursorId(parent)" << Location(parent).toString()
-//                    << "\ncursorId(u->lastCursor)" << Location(u->lastCursor).toString();
-//     }
-//     Q_ASSERT(p);
-//     u->last = new CursorNode(cursor, p);
-//     qDebug() << "created cursornode" << cursor << "child of" << p->cursor;
-//     u->lastCursor = cursor;
-//     switch (clang_getCursorKind(cursor)) {
-//     case CXCursor_EnumConstantDecl:
-//         // return CXChildVisit_Continue;
-//     default:
-//         break;
-//     }
-//     return CXChildVisit_Recurse;
-// }
 
 static CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor, CXClientData data)
 {
@@ -302,136 +166,6 @@ void ClangRunnable::run()
     }
     clang_disposeIndex(index);
     emit finished();
-}
-
-void ClangRunnable::buildTree(Node *parent, CursorNode *c, QHash<QByteArray, PendingReference> &references)
-{
-    Q_ASSERT(c);
-    if (clang_getCursorKind(c->cursor) == CXCursor_MacroExpansion) {
-        const Location loc(c->cursor);
-        Q_ASSERT(!loc.isNull());
-        const QByteArray id = loc.toString();
-        if (Node::sNodes.contains(id))
-            return;
-        const QByteArray symbolName = eatString(clang_getCursorSpelling(c->cursor));
-        for (CursorNode *cn = c->parent->firstChild; cn; cn = cn->nextSibling) {
-            if (clang_getCursorKind(cn->cursor) == CXCursor_MacroDefinition
-                && symbolName == eatString(clang_getCursorSpelling(cn->cursor))) {
-                const QByteArray macroDefinitionId = Location(cn->cursor).toString();
-                Node *parent = Node::sNodes.value(macroDefinitionId);
-                Q_ASSERT(parent);
-                new Node(parent, Reference, parent->symbolName, loc, id);
-                return;
-            }
-        }
-    }
-
-    const NodeType type = Node::nodeTypeFromCursor(c->cursor);
-    if (type == Reference) {
-        const Location loc(c->cursor);
-        qDebug() << "about to add a reference" << c->cursor << loc.exists();
-        if (loc.exists()) {
-            const QByteArray id = loc.toString();
-            if (!Node::sNodes.contains(id)) {
-                const PendingReference r = { c, loc };
-                references[id] = r;
-            }
-        }
-    } else {
-        if (c->parent && type != Invalid) {
-            const Location loc(c->cursor);
-            if (loc.exists()) {
-                const QByteArray id = loc.toString();
-                if (Node::sNodes.contains(id))
-                    return;
-                // ### may not need to do this for all types of nodes
-                CXCursor realParent = clang_getCursorSemanticParent(c->cursor);
-                if (isValidCursor(realParent) && !clang_equalCursors(realParent, c->parent->cursor)) {
-                    const QByteArray parentId = Location(realParent).toString();
-                    parent = Node::sNodes.value(parentId, parent);
-                }
-
-                parent = new Node(parent, type,
-                                  (type == Reference
-                                   ? parent->symbolName
-                                   : eatString(clang_getCursorDisplayName(c->cursor))),
-                                  loc, id);
-            }
-        }
-        for (CursorNode *child=c->firstChild; child; child = child->nextSibling) {
-            buildTree(parent, child, references);
-        }
-    }
-}
-
-void ClangRunnable::addReference(CursorNode *c, const QByteArray &id, const Location &loc)
-{
-    if (Node::sNodes.contains(id)) {
-// #ifdef QT_DEBUG
-        if (clang_getCursorKind(c->cursor) != CXCursor_TypeRef
-            || clang_getCursorKind(clang_getCursorReferenced(c->cursor)) != CXCursor_TemplateTypeParameter) {
-            qWarning() << "Turns out" << c->cursor << "already exists"
-                       << Node::sNodes.value(id)->symbolName << nodeTypeToName(Node::sNodes.value(id)->type, Normal)
-                       << Node::sNodes.value(id)->location << clang_getCursorReferenced(c->cursor);
-        }
-// #endif
-        return;
-    }
-    if (Node::nodeTypeFromCursor(c->cursor) != Invalid && loc.exists()) {
-        const CXCursorKind kind = clang_getCursorKind(c->cursor);
-
-        CXCursor ref = clang_getCursorReferenced(c->cursor);
-        if (clang_equalCursors(ref, c->cursor) && (kind == CXCursor_ClassDecl || kind == CXCursor_StructDecl)) { // ### namespace too?
-            ref = clang_getCursorDefinition(ref);
-        }
-
-        if (!isValidCursor(ref)) {
-            if (kind != CXCursor_MacroExpansion && kind != CXCursor_ClassDecl && kind != CXCursor_StructDecl)
-                qWarning() << "Can't get valid cursor for" << c->cursor << "child of" << c->parent->cursor;
-            return;
-        }
-
-        const CXCursorKind refKind = clang_getCursorKind(ref);
-        if (kind == CXCursor_DeclRefExpr) {
-            switch (refKind) {
-            case CXCursor_ParmDecl:
-            case CXCursor_VarDecl:
-            case CXCursor_FieldDecl:
-            case CXCursor_CXXMethod:
-            case CXCursor_EnumConstantDecl:
-            case CXCursor_FunctionDecl:
-                break;
-            case CXCursor_NonTypeTemplateParameter:
-                return;
-            default:
-                qDebug() << "throwing out this pending cursor" << c->cursor << ref;
-                return;
-            }
-        }
-        const QByteArray refId = Location(ref).toString();
-        Node *refNode = Node::sNodes.value(refId);
-        if (!refNode) {
-            qWarning() << "Can't find referenced node" << c->cursor << ref << refId;
-            return;
-        }
-        if (refNode->type == MethodDefinition) {
-            Node *decl = refNode->methodDeclaration();
-            if (decl)
-                refNode = decl;
-        }
-        new Node(refNode, Reference, refNode->symbolName, loc, id);
-    }
-
-    for (CursorNode *child=c->firstChild; child; child = child->nextSibling) {
-        const Location l(child->cursor);
-        const QByteArray id = l.toString();
-        if (Node::sNodes.contains(id)) {
-            // printf("These got thrown out %s\n", id.constData());
-            // child->dump(0);
-            break;
-        }
-        addReference(child, l.toString(), l);
-    }
 }
 
 static int nodeSize(Node *node)
@@ -694,8 +428,10 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
     QMutexLocker lock(&sTreeMutex);
 
     // ### nasty data structures here
-    enum { FirstRun, SecondRun, References };
-    for (int i=0; i<3; ++i) {
+    bool doReferences = false;
+    forever {
+
+        bool createdNodes = false;
         // qDebug() << iteration++ << Node::sNodes.size() << ud.hash.size() << before;
 
         QHash<QByteArray, ComprehensiveTreeUserDataNode>::iterator it = ud.hash.begin();
@@ -709,7 +445,7 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
 
             const NodeType type = Node::nodeTypeFromCursor(node.cursor);
             if (type == Reference) {
-                if (i != References) {
+                if (!doReferences) {
                     ++it;
                     continue;
                 }
@@ -784,7 +520,7 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
                     // }
                     referenced = Node::sNodes.value(refId);
                     if (!referenced) {
-                        qWarning() << "Can't find referenced node" << node.cursor << ref << refId;
+                        // qWarning() << "Can't find referenced node" << node.cursor << ref << refId;
                         it = ud.hash.erase(it);
                         continue;
                     }
@@ -802,6 +538,8 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
                 if (!node.parentId.isEmpty()) {
                     p = Node::sNodes.value(node.parentId);
                     if (!p) {
+                        if (node.id == "/home/anders/dev/rtags/rclient/rclient.c:98:9")
+                            qDebug() << "checking shit" << node.cursor;
                         // if (i)
                         //     qWarning() << "Can't find parent" << node.cursor << node.parent;
                         ++it;
@@ -813,8 +551,13 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
 
                 new Node(p, type, eatString(clang_getCursorDisplayName(node.cursor)),
                          node.loc, node.id);
+                createdNodes = true;
                 it = ud.hash.erase(it);
             }
         }
+        if (doReferences)
+            break;
+        if (!createdNodes)
+            doReferences = true;
     }
 }
