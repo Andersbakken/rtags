@@ -276,7 +276,7 @@ static inline void addToDictionary(Node *node, QMap<QByteArray, QSet<qint32> > &
             case Struct:
             case Class:
             case Namespace:
-                if (!symbolName.isEmpty()) {
+                if (!parent->symbolName.isEmpty()) {
                     symbolName.prepend("::");
                     symbolName.prepend(parent->symbolName);
                     map[symbolName].insert(locationPos);
@@ -592,10 +592,8 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
 
                 Q_ASSERT(type != Reference);
                 QByteArray symbolName = eatString(clang_getCursorDisplayName(node.cursor));
-                qDebug() << node.cursor << node.hackParent;
                 if (symbolName.isEmpty() && (type == Struct || type == Class)
                     && clang_getCursorKind(node.hackParent) == CXCursor_TypedefDecl) {
-                    // qDebug() << node.hackParent;
                     symbolName = eatString(clang_getCursorDisplayName(node.hackParent));
                 }
                 new Node(p, type, symbolName, node.loc, node.id);
