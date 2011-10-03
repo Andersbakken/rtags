@@ -193,7 +193,6 @@ void RBuild::onMakeOutput()
                                 if (args.language() == GccArguments::LangCPlusPlus) {
                                     preprocess(file, args);
                                 } else {
-                                    qDebug() << "parseFile" << file << data.seen;
                                     parseFile(file, args, 0);
                                 }
                             }

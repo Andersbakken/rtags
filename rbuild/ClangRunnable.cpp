@@ -119,10 +119,10 @@ void ClangRunnable::run()
     QElapsedTimer timer;
     timer.start();
     const time_t lastModified = mFile.lastModified();
-    QVarLengthArray<const char *, 32> clangArgs(mArgs.argumentCount() + (mPCHFile ? 2 : 0));
+    QVarLengthArray<const char *, 32> clangArgs(mArgs.argumentCount() + (mPCHFile ? 0 : 0));
     int used = mArgs.getClangArgs(clangArgs.data(), clangArgs.size(), GccArguments::Defines|GccArguments::IncludePaths);
     // mPCHFile ? GccArguments::Defines : GccArguments::Defines|GccArguments::IncludePaths);
-    clangArgs[used++] = "-Xclang";
+    // clangArgs[used++] = "-Xclang";
     if (mPCHFile) {
         clangArgs[used++] = "-include-pch";
         clangArgs[used++] = mPCHFile;
