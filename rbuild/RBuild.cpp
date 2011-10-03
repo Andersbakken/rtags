@@ -459,7 +459,7 @@ void RBuild::maybePCH()
                 qWarning("PCH header write failure %s", pchHeaderName);
                 return;
             }
-            // qDebug() << clangArgs;
+            // qWarning() << "building pch" << clangArgs;
             CXTranslationUnit unit = clang_parseTranslationUnit(index, pchHeaderName, clangArgs.constData(),
                                                                 clangArgs.size(), 0, 0,
                                                                 CXTranslationUnit_Incomplete);
