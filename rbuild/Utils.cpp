@@ -44,7 +44,7 @@ const char *kindToString(CXCursorKind kind)
     case CXCursor_ObjCSynthesizeDecl: return "CXCursor_ObjCSynthesizeDecl";
     case CXCursor_ObjCDynamicDecl: return "CXCursor_ObjCDynamicDecl";
         // case CXCursor_FirstDecl: return "CXCursor_FirstDecl";
-    // case CXCursor_LastDecl: return "CXCursor_LastDecl";
+        // case CXCursor_LastDecl: return "CXCursor_LastDecl";
     case CXCursor_FirstRef: return "CXCursor_FirstRef";
         // case CXCursor_ObjCSuperClassRef: return "CXCursor_ObjCSuperClassRef";
     case CXCursor_ObjCProtocolRef: return "CXCursor_ObjCProtocolRef";
@@ -91,6 +91,7 @@ const char *kindToString(CXCursorKind kind)
     case CXCursor_CXXOverrideAttr: return "CXCursor_CXXOverrideAttr";
         // case CXCursor_FirstPreprocessing: return "CXCursor_FirstPreprocessing";
         // case CXCursor_LastPreprocessing: return "CXCursor_LastPreprocessing";
+    case CXCursor_CXXAccessSpecifier: return "CXCursor_CXXAccessSpecifier";
     }
     return "";
 }
