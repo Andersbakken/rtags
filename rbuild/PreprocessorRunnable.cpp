@@ -35,14 +35,9 @@ void PreprocessorRunnable::run()
                 line.chop(1);
                 line += lines.at(++i).trimmed();
             }
-//             if (line.startsWith("#error")) {
-// // #warning hack for some Qt things where defines arent defined we have to fix this properly
-//                 continue;
-//             }
             if (line.startsWith("#include ")) {
                 line.remove(0, 9);
             }
-
 
             unsaved.append(line);
             unsaved.append('\n');

@@ -120,12 +120,14 @@ QDebug operator<<(QDebug dbg, CXCursor cursor)
 
 void RBuild::onMakeFinished(int statusCode)
 {
+    printf("%s %d: void RBuild::onMakeFinished(int statusCode)\n", __FILE__, __LINE__);
     QProcess *proc = qobject_cast<QProcess*>(sender());
     if (statusCode != 0) {
         qWarning("make error: %s", proc->readAllStandardError().constData());
     }
     mMakefiles.remove(proc);
     proc->deleteLater();
+    maybePCH();
     maybeDone();
 }
 
@@ -400,16 +402,23 @@ void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArgumen
     mParsePending[sourceFile] = args;
     --mPreprocessing;
     // qDebug() << "onPreprocessorHeadersFound" << sourceFile << mPreprocessing;
-    // printf("Preprocessed %s, added %d headers\n", sourceFile.constData(), added);
-    maybePCH();
-    mPCHCompilerSwitches += args.arguments("-I").toSet();
+    printf("Preprocessed %s, added %d headers\n", sourceFile.constData(), added);
+    foreach(const QByteArray &includePath, args.arguments("-I")) {
+        const Path resolved = Path::resolved(includePath.constData() + 2, args.dir());
+        if (!resolved.isDir()) {
+            qWarning("Can't resolve %s", includePath.constData());
+            continue;
+        }
+        mPCHCompilerSwitches.insert("-I" + resolved);
+    }
     mPCHCompilerSwitches += args.arguments("-D").toSet();
+    maybePCH();
     // qDebug() << sourceFile << mPCHCompilerSwitches << args.arguments();
     // qDebug() << "onPreprocessorHeadersFound" << sourceFile << args << headers << "Added" << added << "headers";
 }
 void RBuild::maybePCH()
 {
-    if (!mPreprocessing) {
+    if (!mPreprocessing && mMakefiles.isEmpty()) {
         if (mParsePending.isEmpty()) {
             maybeDone();
             return;
@@ -443,6 +452,7 @@ void RBuild::maybePCH()
             qWarning("PCH header write failure %s", pchHeaderName);
             return;
         }
+        qDebug() << clangArgs;
         CXTranslationUnit unit = clang_parseTranslationUnit(index, pchHeaderName, clangArgs.constData(),
                                                             clangArgs.size(), 0, 0,
                                                             CXTranslationUnit_Incomplete);
