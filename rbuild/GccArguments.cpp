@@ -104,7 +104,7 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &path)
             const int firstSpace = subcmd.indexOf(' ');
             QByteArray first;
             if (firstSpace != -1) {
-                first = cmd.left(firstSpace);
+                first = subcmd.left(firstSpace);
             } else {
                 first = subcmd;
             }
