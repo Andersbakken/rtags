@@ -424,12 +424,12 @@ void RBuild::maybePCH()
 
         CXIndex index = clang_createIndex(1, 1);
 
-        QVector<const char*> clangArgs(mPCHCompilerSwitches.size() + 3);
+        QVector<const char*> clangArgs(mPCHCompilerSwitches.size() + 2);
         int idx = 0;
         foreach(const QByteArray &s, mPCHCompilerSwitches) {
             clangArgs[idx++] = s.constData();
         }
-        clangArgs[idx++] = "-Xclang";
+        // clangArgs[idx++] = "-Xclang";
         clangArgs[idx++] = "-x";
         clangArgs[idx] = "c++";
         char pchHeaderName[PATH_MAX] = { 0 };
