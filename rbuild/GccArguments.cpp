@@ -211,6 +211,11 @@ QList<QByteArray> GccArguments::arguments() const
     return arguments(QByteArray());
 }
 
+int GccArguments::argumentCount() const
+{
+    return qMax(0, m_ptr->args.size() - 1);
+}
+
 QList<QByteArray> GccArguments::arguments(const QByteArray &prefix) const
 {
     const Data* data = m_ptr.constData();
@@ -394,4 +399,23 @@ bool GccArguments::isEmpty() const
 bool GccArguments::operator==(const GccArguments &other) const
 {
     return m_ptr == other.m_ptr || m_ptr->raw == other.m_ptr->raw;
+}
+
+int GccArguments::getClangArgs(const char **args, int max) const
+{
+    const Data* data = m_ptr.constData();
+
+    int added = 0;
+    const int count = data->args.size();
+    for (int i=1; i<count && max > 0; ++i) {
+        const Data::Argument& arg = data->args.at(i);
+        // ### is i the same as data.argpos?
+        if (arg.pos == data->output)
+            continue;
+        if (data->input.contains(arg.pos))
+            continue;
+        args[added++] = arg.arg.constData();
+        --max;
+    }
+    return added;
 }

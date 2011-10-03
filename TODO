@@ -3,8 +3,8 @@ Make rtags create rtags.db (-o | or default to .rtags.db in same dir as Makefile
 Add filenames, lastModified, dependencies, GccArguments etc to rtags.db
 Look into short-circuiting when encounting a header we have seen before in VisitThread
 add a string class around CXString
-we need to listen for leaving directory and maintain a stack in FileManager
 implement a symbol at current pos which could be used for a dynamic modeline thing for emacs
 nicer output from rbuild
+rename symbol
 
 Bugs:

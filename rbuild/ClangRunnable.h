@@ -16,11 +16,11 @@ class ClangRunnable : public QObject, public QRunnable
 public:
     static void init();
     static void cleanup();
-    ClangRunnable(const Path &file, const GccArguments &args, const char *const* clangArgs, int argCount);
+    ClangRunnable(const Path &file, const GccArguments &args, const char *pchFile);
     void run();
     static bool save(const QByteArray &file);
     static void initTree(const MMapData *data, const QSet<Path> &modifiedPaths);
-    static void processTranslationUnit(const Path &file, CXTranslationUnit unit);
+    static int processTranslationUnit(const Path &file, CXTranslationUnit unit);
 signals:
     void finished();
 private:
@@ -35,8 +35,7 @@ private:
 
     const Path mFile;
     const GccArguments mArgs;
-    const char *const *mClangArgs;
-    const int mClangArgCount;
+    const char *mPchFile;
     static QMutex sTreeMutex;
     static Node *sRoot;
     static QMutex sFilesMutex;

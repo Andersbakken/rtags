@@ -32,7 +32,7 @@ public:
     bool initFromDb(const MMapData *data);
     bool isFinished() const;
     void preprocess(const Path &sourceFile, const GccArguments &args);
-    void parseFile(const Path &path, const GccArguments &args);
+    void parseFile(const Path &path, const GccArguments &args, const char *pchFile);
     void maybePCH();
 private slots:
     void maybeDone();
@@ -54,7 +54,7 @@ private:
     Path mDatabaseFile;
     DatabaseMode mDatabaseMode;
     int mPreprocessing, mParsing, mFileCount;
-    QHash<Path, GccArguments> mPreprocessed;
+    QHash<Path, GccArguments> mParsePending;
     QList<Path> mAllHeaders;
     QSet<QByteArray> mPCHCompilerSwitches;
     QVector<const char*> mClangArgs;

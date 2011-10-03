@@ -95,9 +95,8 @@ static CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor, CXCl
 }
 
 
-ClangRunnable::ClangRunnable(const Path &file, const GccArguments &args,
-                             const char *const* clangArgs, int clangArgCount)
-    : mFile(file), mArgs(args), mClangArgs(clangArgs), mClangArgCount(clangArgCount)
+ClangRunnable::ClangRunnable(const Path &file, const GccArguments &args, const char *pchFile)
+    : mFile(file), mArgs(args), mPchFile(pchFile)
 {
     setAutoDelete(true);
 }
@@ -120,16 +119,21 @@ void ClangRunnable::run()
     QElapsedTimer timer;
     timer.start();
     const time_t lastModified = mFile.lastModified();
-    // qDebug() << "parsing file" << mFile << (i == WithPCH ? "with PCH" : "without PCH");
-    // for (int i=0; i<mClangArgCount; ++i) {
-    //     printf("%s ", mClangArgs[i]);
+    QVarLengthArray<const char *, 32> clangArgs(mArgs.argumentCount() + (mPchFile ? 2 : 0));
+    int used = mArgs.getClangArgs(clangArgs.data(), clangArgs.size());
+    // Q_ASSERT(used == clangArgs.size() - (mPchFile ? 2 : 0));
+    if (mPchFile) {
+        clangArgs[used++] = "-pch";
+        clangArgs[used++] = mPchFile;
+    }
+    // for (int i=0; i<used; ++i) {
+    //     printf("%s ", clangArgs[i]);
     // }
-    // printf("\n");
-    // printf("%s\n", mUnsavedFile->Contents);
+    // printf(" %s\n", mFile.constData());
+    // qDebug() << mArgs;
 
-    // qDebug() << "calling parse" << mFile << mClangArgs;
     CXTranslationUnit unit = clang_parseTranslationUnit(index, mFile.constData(),
-                                                        mClangArgs, mClangArgCount, 0, 0,
+                                                        clangArgs.constData(), used, 0, 0,
                                                         CXTranslationUnit_DetailedPreprocessingRecord); // ### do we need this?
     if (!unit) {
         qWarning("Couldn't parse %s", mFile.constData());
@@ -137,9 +141,9 @@ void ClangRunnable::run()
         QByteArray clangLine = "clang";
         if (mArgs.language() == GccArguments::LangCPlusPlus)
             clangLine += "++";
-        for (int j=0; j<mClangArgCount; ++j) {
+        for (int j=0; j<used; ++j) {
             clangLine += ' ';
-            clangLine += mClangArgs[j];
+            clangLine += clangArgs[j];
         }
         clangLine += ' ' + mFile;
         qWarning("[%s]", clangLine.constData());
@@ -161,7 +165,6 @@ void ClangRunnable::run()
             }
         }
         processTranslationUnit(mFile, unit);
-        printf("Parsed %s\n", mFile.constData());
         clang_disposeTranslationUnit(unit);
     }
     clang_disposeIndex(index);
@@ -409,21 +412,21 @@ void ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPat
     }
 }
 
-void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit unit)
+int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit unit)
 {
+    QElapsedTimer timer;
+    timer.start();
+    int ret = 0;
     Q_ASSERT(unit);
     Q_UNUSED(file);
     CXCursor rootCursor = clang_getTranslationUnitCursor(unit);
     ComprehensiveTreeUserData ud;
-// #ifndef QT_NO_DEBUG
     const QByteArray dump = qgetenv("RTAGS_DUMP");
-    // if (dump == "1" || dump.contains(file.fileName())) {
-    //     printf("%s %d: clang_visitChildren(rootCursor, dumpTree, 0);\n", __FILE__, __LINE__);
-    //     clang_visitChildren(rootCursor, dumpTree, 0);
-    //     fflush(stdout);
-    //     sleep(1);
-    // }
-// #endif
+    if (dump == "1" || dump.contains(file.fileName())) {
+        clang_visitChildren(rootCursor, dumpTree, 0);
+        fflush(stdout);
+        sleep(1);
+    }
     clang_visitChildren(rootCursor, buildComprehensiveTree, &ud);
     QMutexLocker lock(&sTreeMutex);
 
@@ -498,26 +501,6 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
                     default:
                         break;
                     }
-                    // if (kind == CXCursor_DeclRefExpr || kind == CXCursor_TypeRef) {
-                    //     switch (refKind) {
-                    //     case CXCursor_ParmDecl:
-                    //     case CXCursor_VarDecl:
-                    //     case CXCursor_FieldDecl:
-                    //     case CXCursor_CXXMethod:
-                    //     case CXCursor_EnumConstantDecl:
-                    //     case CXCursor_FunctionDecl:
-                    //     case CXCursor_TypeRef:
-                    //         break;
-                    //     default:
-                    //         qDebug() << "throwing out this pending cursor" << node.cursor << ref;
-                    //         // fall through
-                    //     case CXCursor_NonTypeTemplateParameter:
-                    //     case CXCursor_TemplateTypeParameter:
-                    //     case CXCursor_TypedefDecl:
-                    //         it = ud.hash.erase(it);
-                    //         continue;
-                    //     }
-                    // }
                     referenced = Node::sNodes.value(refId);
                     if (!referenced) {
                         // qWarning() << "Can't find referenced node" << node.cursor << ref << refId;
@@ -532,6 +515,7 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
                 }
 #warning TODO if parent is a function, store that and use it when printing out the references from rc
                 new Node(referenced, Reference, referenced->symbolName, node.loc, node.id);
+                ++ret;
                 it = ud.hash.erase(it);
                 continue;
             } else {
@@ -548,8 +532,10 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
                     p = sRoot;
                 }
 
+                Q_ASSERT(type != Reference);
                 new Node(p, type, eatString(clang_getCursorDisplayName(node.cursor)),
                          node.loc, node.id);
+                ++ret;
                 createdNodes = true;
                 it = ud.hash.erase(it);
             }
@@ -559,4 +545,7 @@ void ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit u
         if (!createdNodes)
             doReferences = true;
     }
+    int elapsed = timer.elapsed();
+    printf("Processed %s, %d new nodes\n", file.constData(), ret);
+    return ret;
 }

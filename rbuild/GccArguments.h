@@ -24,7 +24,9 @@ public:
 
     QList<QByteArray> arguments() const;
     QList<QByteArray> arguments(const QByteArray& prefix) const;
+    int argumentCount() const;
     QList<Path> includePaths() const;
+    int getClangArgs(const char **args, int max) const;
 
     void setPreprocess(bool pre);
     void setLanguage(Language language);

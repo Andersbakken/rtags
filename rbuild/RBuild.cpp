@@ -188,11 +188,11 @@ void RBuild::onMakeOutput()
                     } else if (args.hasInput() && args.isCompile()) {
                         ++mFileCount;
                         foreach(const Path &file, args.input()) { // already resolved
-                            // if (args.language() == GccArguments::LangCPlusPlus) {
-                            preprocess(file, args);
-                            // } else {
-                            // parseFile(file, args);
-                            // }
+                            if (args.language() == GccArguments::LangCPlusPlus) {
+                                preprocess(file, args);
+                            } else {
+                                parseFile(file, args, 0);
+                            }
                         }
                     }
                     break; }
@@ -352,13 +352,9 @@ bool RBuild::initFromDb(const MMapData *data)
 //     return CXChildVisit_Continue;
 // }
 
-void RBuild::parseFile(const Path &file, const GccArguments &args)
+void RBuild::parseFile(const Path &file, const GccArguments &args, const char *pchFile)
 {
-    int count = mClangArgs.size();
-    if (!strcmp(file.extension(), "c")) {
-        count -= 2; // no pch here
-    }
-    ClangRunnable *runnable = new ClangRunnable(file, args, mClangArgs.constData(), count);
+    ClangRunnable *runnable = new ClangRunnable(file, args, pchFile);
     ++mParsing;
     connect(runnable, SIGNAL(finished()), this, SLOT(onClangRunnableFinished()));
     mThreadPool.start(runnable);
@@ -372,7 +368,7 @@ bool RBuild::isFinished() const
 void RBuild::preprocess(const Path &sourceFile, const GccArguments &args)
 {
     ++mPreprocessing;
-    // qDebug() << "calling preprocess" << sourceFile << mPreprocessing;
+    // qDebug() << "calling preprocess" << sourceFile << args;
     PreprocessorRunnable *runnable = new PreprocessorRunnable(sourceFile, args);
     connect(runnable, SIGNAL(error(Path, GccArguments, QByteArray)),
             this, SLOT(onPreprocessorError(Path, GccArguments, QByteArray)));
@@ -398,19 +394,20 @@ void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArgumen
             ++added;
         }
     }
-    mPreprocessed[sourceFile] = args;
+    mParsePending[sourceFile] = args;
     --mPreprocessing;
     // qDebug() << "onPreprocessorHeadersFound" << sourceFile << mPreprocessing;
-    printf("Preprocessed %s, added %d headers\n", sourceFile.constData(), added);
+    // printf("Preprocessed %s, added %d headers\n", sourceFile.constData(), added);
     maybePCH();
     mPCHCompilerSwitches += args.arguments("-I").toSet();
     mPCHCompilerSwitches += args.arguments("-D").toSet();
+    // qDebug() << sourceFile << mPCHCompilerSwitches << args.arguments();
     // qDebug() << "onPreprocessorHeadersFound" << sourceFile << args << headers << "Added" << added << "headers";
 }
 void RBuild::maybePCH()
 {
     if (!mPreprocessing) {
-        if (mPreprocessed.isEmpty()) {
+        if (mParsePending.isEmpty()) {
             maybeDone();
             return;
         }
@@ -442,7 +439,7 @@ void RBuild::maybePCH()
         CXTranslationUnit unit = clang_parseTranslationUnit(index, "/tmp/rtags_pch.h", mClangArgs.constData(),
                                                             mClangArgs.size(), 0, 0,
                                                             CXTranslationUnit_Incomplete);
-        // qDebug() << mAllHeaders << pchHeader;
+        // qDebug() << mAllHeaders << mClangArgs << pchHeader;
         if (!unit) {
             qWarning() << mClangArgs << pchHeader;
             qFatal("Can't PCH this. That's no good");
@@ -472,8 +469,8 @@ void RBuild::maybePCH()
         }
         clang_disposeTranslationUnit(unit);
         mClangArgs[idx] = "/tmp/rtags.pch"; // ### Find unique temp name
-        for (QHash<Path, GccArguments>::const_iterator it = mPreprocessed.begin(); it != mPreprocessed.end(); ++it) {
-            parseFile(it.key(), it.value());
+        for (QHash<Path, GccArguments>::const_iterator it = mParsePending.begin(); it != mParsePending.end(); ++it) {
+            parseFile(it.key(), it.value(), "/tmp/rtags.pch");
         }
     }
 }
