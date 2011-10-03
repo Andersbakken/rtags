@@ -153,6 +153,20 @@ static inline DirectoryStatus parseDirectoryLine(const QByteArray &ba, Path &dir
     return None;
 }
 
+static inline bool isSupportedLanguage(GccArguments::Language l)
+{
+    switch (l) {
+    case GccArguments::LangCPlusPlus:
+    case GccArguments::LangC:
+        return true;
+    case GccArguments::LangUndefined:
+    case GccArguments::LangObjC:
+    case GccArguments::LangObjCPlusPlus:
+        break;
+    }
+    return false;
+
+}
 void RBuild::onMakeOutput()
 {
     QProcess *proc = qobject_cast<QProcess*>(sender());
@@ -187,7 +201,7 @@ void RBuild::onMakeOutput()
                     if (!args.parse(line, data.dirStack.top())) {
                         qWarning("Can't parse line %s (%s)", line.constData(),
                                  qPrintable(args.errorString()));
-                    } else if (args.hasInput() && args.isCompile()) {
+                    } else if (args.hasInput() && args.isCompile() && ::isSupportedLanguage(args.language())) {
                         ++mFileCount;
                         foreach(const Path &file, args.input()) { // already resolved
                             if (!data.seen.contains(file)) {
