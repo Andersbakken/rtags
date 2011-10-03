@@ -417,14 +417,7 @@ void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArgumen
     --mPreprocessing;
     // qDebug() << "onPreprocessorHeadersFound" << sourceFile << mPreprocessing;
     printf("Preprocessed %s, added %d headers\n", sourceFile.constData(), added);
-    foreach(const QByteArray &includePath, args.arguments("-I")) {
-        const Path resolved = Path::resolved(includePath.constData() + 2, args.dir());
-        if (!resolved.isDir()) {
-            mPCHCompilerSwitches.insert(includePath);
-        } else {
-            mPCHCompilerSwitches.insert("-I" + resolved);
-        }
-    }
+    mPCHCompilerSwitches += args.arguments("-I").toSet();
     mPCHCompilerSwitches += args.arguments("-D").toSet();
     maybePCH();
     // qDebug() << sourceFile << mPCHCompilerSwitches << args.arguments();

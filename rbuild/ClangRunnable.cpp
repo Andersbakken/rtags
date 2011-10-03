@@ -127,6 +127,13 @@ void ClangRunnable::run()
         clangArgs[used++] = mPCHFile;
     }
 
+    if (!strcmp(mFile.fileName(), "rclient.c")) {
+        printf("%s%s ", QUOTE(CLANG_EXECUTABLE), mArgs.language() == GccArguments::LangCPlusPlus ? "++" : "");
+        for (int i=0; i<used; ++i) {
+            printf(" %s", clangArgs[i]);
+        }
+        printf(" %s\n", mFile.constData());
+    }
     CXTranslationUnit unit = clang_parseTranslationUnit(index, mFile.constData(),
                                                         clangArgs.constData(), used, 0, 0,
                                                         CXTranslationUnit_DetailedPreprocessingRecord); // ### do we need this?

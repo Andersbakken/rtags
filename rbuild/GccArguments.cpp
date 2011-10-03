@@ -70,7 +70,7 @@ GccArguments::GccArguments()
 {
 }
 
-void GccArguments::parseCD(const QByteArray &cmd, const Path& path)
+Path GccArguments::parseCD(const QByteArray &cmd, const Path& path) const
 {
     const QList<QByteArray> args = cmd.split(' ');
     Q_ASSERT(args.size() > 1);
@@ -79,15 +79,14 @@ void GccArguments::parseCD(const QByteArray &cmd, const Path& path)
     Path cmdpath(argspath);
     if (argspath.at(1) != '/')
         cmdpath.resolve(path);
-    Data* data = m_ptr.data();
-    data->dir = cmdpath;
+    return cmdpath;
 }
 
-bool GccArguments::parse(const QByteArray& cmd, const Path &path)
+bool GccArguments::parse(const QByteArray& cmd, const Path &p)
 {
     Q_ASSERT(path.isResolved() && path.isDir());
     Data* data = m_ptr.data();
-    data->dir.clear();
+    Path path = p;
 
     QByteArray raw, subcmd;
 
@@ -117,7 +116,7 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &path)
                 raw = subcmd;
             } else {
                 if (subcmd.startsWith("cd "))
-                    parseCD(subcmd, path);
+                    path = parseCD(subcmd, path);
             }
             prevpos = (cmdpos != -1) ? cmdpos + sublen : -1;
             semipos = cmd.indexOf(';', cmdpos + 1);
@@ -125,8 +124,9 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &path)
             cmdpos = (semipos != -1 && semipos < amppos) ? semipos : amppos;
             sublen = (cmdpos == semipos) ? 1 : 2;
         }
-    } else
+    } else {
         raw = cmd;
+    }
 
     const QList<QByteArray> args = raw.split(' ');
     Q_ASSERT(!args.isEmpty());
@@ -137,8 +137,6 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &path)
         // ### TODO might need to revisit this
         return true; // not a compile line at all, just return without a warning
     }
-    if (data->dir.isEmpty())
-        data->dir = path;
     data->raw = raw;
 
     const int argc = args.size();
@@ -180,11 +178,15 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &path)
             } else {
                 if (a == "-c")
                     data->c = argpos;
+                if (a.startsWith("-I")) {
+                    a = Path::resolved(a.mid(2), path);
+                    a.prepend("-I");
+                }
                 data->args.append(Data::Argument(argpos, a));
             }
         } else if (!a.isEmpty()) { // input file?
             data->input.append(argpos);
-            data->args.append(Data::Argument(argpos, a));
+            data->args.append(Data::Argument(argpos, Path::resolved(a, path)));
         }
     }
 
@@ -199,11 +201,6 @@ QString GccArguments::errorString() const
 QByteArray GccArguments::raw() const
 {
     return m_ptr->raw;
-}
-
-Path GccArguments::dir() const
-{
-    return m_ptr->dir;
 }
 
 QList<QByteArray> GccArguments::arguments() const
@@ -221,8 +218,6 @@ QList<QByteArray> GccArguments::arguments(const QByteArray &prefix) const
     const Data* data = m_ptr.constData();
     QList<QByteArray> args;
 
-    int inputpos = (data->input.size() == 1) ? data->input.first() : -1;
-
     foreach(const Data::Argument& arg, data->args) {
         if (arg.pos == 0) // skip the compiler
             continue;
@@ -230,43 +225,18 @@ QList<QByteArray> GccArguments::arguments(const QByteArray &prefix) const
         if (!prefix.isEmpty() && !arg.arg.startsWith(prefix))
             continue;
 
-        if (arg.pos == inputpos && !data->inputreplace.isEmpty())
-            args << data->inputreplace;
-        else
-            args << arg.arg;
+        args << arg.arg;
 
-        if (arg.pos == data->output && !data->outputreplace.isEmpty())
-            args << data->outputreplace;
-        else if (arg.pos == data->x && data->language != LangUndefined)
+        if (arg.pos == data->x && data->language != LangUndefined)
             args << data->languageString();
         else if (!arg.value.isEmpty())
             args << arg.value;
     }
 
-    if (data->output == -1 && !data->outputreplace.isEmpty())
-        args << "-o" << data->outputreplace;
     if (data->x == -1 && data->language != LangUndefined)
         args << "-x" << data->languageString();
-    if (data->input.isEmpty() && !data->inputreplace.isEmpty())
-        args << data->inputreplace;
 
     return args;
-}
-
-bool GccArguments::setReplaceInput(const QByteArray &input)
-{
-    if (input == "-" && m_ptr->language == LangUndefined) {
-        m_ptr->language = m_ptr->guessLanguage();
-        if (m_ptr->language == LangUndefined)
-            return false;
-    }
-    m_ptr->inputreplace = input;
-    return true;
-}
-
-void GccArguments::setReplaceOutput(const QByteArray &output)
-{
-    m_ptr->outputreplace = output;
 }
 
 QByteArray GccArguments::compiler() const
@@ -282,15 +252,9 @@ QList<Path> GccArguments::input() const
 {
     const Data* data = m_ptr.constData();
 
-    if (!data->inputreplace.isEmpty() && data->input.size() <= 1)
-        return QList<Path>() << data->inputreplace;
-
     QList<Path> ret;
-    foreach(int pos, data->input) {
-        Path p = data->args.at(pos).arg;
-        if (p.resolve(data->dir)) { // ### inconsistent with isCompile which doesn't check this
-            ret << p;
-        }
+    foreach (int pos, data->input) {
+        ret << data->args.at(pos).arg;
     }
     return ret;
 }
@@ -304,9 +268,7 @@ QByteArray GccArguments::output() const
 {
     const Data* data = m_ptr.constData();
 
-    if (!data->outputreplace.isEmpty())
-        return data->outputreplace;
-    else if (data->output == -1)
+    if (data->output == -1)
         return QByteArray();
     Q_ASSERT(data->args.at(data->output).arg == "-o");
     return data->args.at(data->output).value;
@@ -346,9 +308,7 @@ QDataStream& operator<<(QDataStream& stream, const GccArguments& args)
 
     stream << data->input << data->output << data->x << data->c
            << data->error << int8_t(data->language)
-           << data->inputreplace << data->outputreplace
-           << data->raw << data->dir
-           << data->args;
+           << data->raw << data->args;
     return stream;
 }
 
@@ -360,8 +320,7 @@ QDataStream& operator>>(QDataStream& stream, GccArguments& args)
     int8_t lang;
     stream >> data->input >> data->output >> data->x >> data->c
            >> data->error >> lang
-           >> data->inputreplace >> data->outputreplace
-           >> data->raw >> data->dir >> data->args;
+           >> data->raw >> data->args;
     data->language = static_cast<GccArguments::Language>(lang);
     return stream;
 }
@@ -383,7 +342,7 @@ QList<Path> GccArguments::includePaths() const
     QList<QByteArray> includePaths = arguments("-I");
     const int size = includePaths.size();
     for (int i=0; i<size; ++i) {
-        ret.append(Path::resolved(includePaths.at(i).mid(2), m_ptr->dir));
+        ret.append(Path(includePaths.at(i).mid(2)));
     }
     return ret;
 }

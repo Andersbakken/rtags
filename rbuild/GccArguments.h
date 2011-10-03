@@ -17,7 +17,6 @@ public:
     GccArguments();
     bool parse(const QByteArray& cmd, const Path &resolvedPath);
     QByteArray raw() const;
-    Path dir() const;
     bool isNull() const;
     bool isEmpty() const;
     QString errorString() const;
@@ -36,8 +35,6 @@ public:
 
     void setPreprocess(bool pre);
     void setLanguage(Language language);
-    bool setReplaceInput(const QByteArray& input = QByteArray());
-    void setReplaceOutput(const QByteArray& output = QByteArray());
 
     QByteArray compiler() const;
     QList<Path> input() const;
@@ -51,7 +48,7 @@ public:
     bool isCompile() const;
     bool operator==(const GccArguments &other) const;
  private:
-    void parseCD(const QByteArray& cmd, const Path& path);
+    Path parseCD(const QByteArray& cmd, const Path& path) const;
 
     class Data : public QSharedData
     {
@@ -79,10 +76,7 @@ public:
         QString error;
         Language language;
 
-        QByteArray inputreplace;
-        QByteArray outputreplace;
         QByteArray raw;
-        Path dir;
         QList<Argument> args;
     };
 
