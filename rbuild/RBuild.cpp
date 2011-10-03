@@ -424,13 +424,14 @@ void RBuild::maybePCH()
 
         CXIndex index = clang_createIndex(1, 1);
 
-        mClangArgs.resize(mPCHCompilerSwitches.size() + 2);
+        QVector<const char*> clangArgs(mPCHCompilerSwitches.size() + 3);
         int idx = 0;
         foreach(const QByteArray &s, mPCHCompilerSwitches) {
-            mClangArgs[idx++] = s.constData();
+            clangArgs[idx++] = s.constData();
         }
-        mClangArgs[idx++] = "-x";
-        mClangArgs[idx] = "c++";
+        clangArgs[idx++] = "-Xclang";
+        clangArgs[idx++] = "-x";
+        clangArgs[idx] = "c++";
         char pchHeaderName[PATH_MAX] = { 0 };
         const char *tmpl = "/tmp/rtags.pch.h.XXXXXX";
         memcpy(pchHeaderName, tmpl, strlen(tmpl));
@@ -439,18 +440,17 @@ void RBuild::maybePCH()
             qWarning("PCH header write failure %s", pchHeaderName);
             return;
         }
-        CXTranslationUnit unit = clang_parseTranslationUnit(index, pchHeaderName, mClangArgs.constData(),
-                                                            mClangArgs.size(), 0, 0,
+        CXTranslationUnit unit = clang_parseTranslationUnit(index, pchHeaderName, clangArgs.constData(),
+                                                            clangArgs.size(), 0, 0,
                                                             CXTranslationUnit_Incomplete);
-        // qDebug() << mAllHeaders << mClangArgs << pchHeader;
+        // qDebug() << mAllHeaders << clangArgs << pchHeader;
         if (!unit) {
-            qWarning() << mClangArgs << pchHeader;
+            qWarning() << clangArgs << pchHeader;
             qFatal("Can't PCH this. That's no good");
         }
         printf("Created precompiled header (%d headers) %lldms\n", mAllHeaders.size(), timer.elapsed());
         // qDebug() << pchHeader;
         ClangRunnable::processTranslationUnit(pchHeaderName, unit);
-        qDebug() << pchHeaderName;
         mPCHFile = "/tmp/rtags.pch.XXXXXX";
         if (mkstemp(mPCHFile.data()) <= 0) {
             qWarning("PCH write failure %s", mPCHFile.constData());
@@ -477,8 +477,6 @@ void RBuild::maybePCH()
 
         }
         clang_disposeTranslationUnit(unit);
-        mClangArgs[idx - 1] = "-include-pch";
-        mClangArgs[idx] = mPCHFile.constData();
         for (QHash<Path, GccArguments>::const_iterator it = mParsePending.begin(); it != mParsePending.end(); ++it) {
             parseFile(it.key(), it.value(), mPCHFile.constData());
         }

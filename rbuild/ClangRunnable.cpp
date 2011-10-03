@@ -122,6 +122,7 @@ void ClangRunnable::run()
     QVarLengthArray<const char *, 32> clangArgs(mArgs.argumentCount() + (mPCHFile ? 2 : 0));
     int used = mArgs.getClangArgs(clangArgs.data(), clangArgs.size(), GccArguments::Defines|GccArguments::IncludePaths);
     // mPCHFile ? GccArguments::Defines : GccArguments::Defines|GccArguments::IncludePaths);
+    clangArgs[used++] = "-Xclang";
     if (mPCHFile) {
         clangArgs[used++] = "-include-pch";
         clangArgs[used++] = mPCHFile;

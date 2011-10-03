@@ -57,7 +57,6 @@ private:
     QHash<Path, GccArguments> mParsePending;
     QList<Path> mAllHeaders;
     QSet<QByteArray> mPCHCompilerSwitches;
-    QVector<const char*> mClangArgs;
     QByteArray mPCHFile;
 };
 
