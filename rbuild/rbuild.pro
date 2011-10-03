@@ -49,7 +49,7 @@ PRE_TARGETDEPS += gccopts_gperf.cpp
 ### If you don't have libmagic on mac you can install the file package in ports
 ### or something along the lines of file-shlibs and file-dev on fink
 
-LIBS += -lclang -lmagic -L$$(CLANG_PREFIX)/lib
+LIBS += -lclang -lmagic -L$${CLANG_PREFIX}/lib
 
 unix {
     debug:OBJECTS_DIR = $${OUT_PWD}/.obj/debug-shared
