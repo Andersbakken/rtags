@@ -8,7 +8,7 @@
 
 struct Node
 {
-    Node *parent, *nextSibling, *firstChild;
+    Node *parent, *nextSibling, *firstChild, *containingFunction;
     const NodeType type;
     const Location location;
     const QByteArray id; // ### we don't really need to store this

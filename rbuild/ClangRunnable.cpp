@@ -206,7 +206,13 @@ static int32_t writeNode(QIODevice *device, Node *node, const QHash<Node*, int32
     writeInt32(device, location);
     writeInt32(device, positions.value(node->parent, 0));
     writeInt32(device, positions.value(node->nextSibling, 0));
-    writeInt32(device, positions.value(node->firstChild, 0));
+    Q_ASSERT(!(node->firstChild && node->containingFunction));
+    Q_ASSERT(!node->containingFunction || node->type == Reference);
+    if (node->type == Reference) {
+        writeInt32(device, positions.value(node->containingFunction, 0));
+    } else {
+        writeInt32(device, positions.value(node->firstChild, 0));
+    }
     writeString(device, node->symbolName);
     return nodePosition;
 }
@@ -415,6 +421,22 @@ void ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPat
     }
 }
 
+static inline Node *findContainingFunction(CXCursor cursor)
+{
+    CXCursor parent = clang_getCursorSemanticParent(cursor);
+    while (isValidCursor(parent)) {
+        switch (clang_getCursorKind(parent)) {
+        case CXCursor_FunctionDecl:
+        case CXCursor_CXXMethod:
+            return Node::sNodes.value(Location(parent).toString());
+        default:
+            break;
+        }
+        parent = clang_getCursorSemanticParent(parent);
+    }
+    return 0;
+}
+
 int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit unit)
 {
     QElapsedTimer timer;
@@ -517,7 +539,8 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
                     }
                 }
 #warning TODO if parent is a function, store that and use it when printing out the references from rc
-                new Node(referenced, Reference, referenced->symbolName, node.loc, node.id);
+                Node *n = new Node(referenced, Reference, referenced->symbolName, node.loc, node.id);
+                n->containingFunction = findContainingFunction(node.cursor);
                 ++ret;
                 it = ud.hash.erase(it);
                 continue;

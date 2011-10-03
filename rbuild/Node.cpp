@@ -4,12 +4,12 @@ QMap<QByteArray, Node*> Node::sNodes;
 int32_t Node::sLongestId = 0;
 
 Node::Node()
-    : parent(0), nextSibling(0), firstChild(0), type(Root), symbolName("RootNode")
+    : parent(0), nextSibling(0), firstChild(0), containingFunction(0), type(Root), symbolName("RootNode")
 {
 }
 
 Node::Node(Node *p, NodeType t, const QByteArray &symbol, const Location &l, const QByteArray &i)
-    : parent(p), nextSibling(0), firstChild(0), type(t), location(l), id(i), symbolName(symbol)
+    : parent(p), nextSibling(0), firstChild(0), containingFunction(0), type(t), location(l), id(i), symbolName(symbol)
 {
     Q_ASSERT(!l.path.isEmpty());
     Q_ASSERT(!sNodes.contains(id));
@@ -186,9 +186,6 @@ Node *Node::methodDefinition() const
     case MethodDeclaration:
         Q_ASSERT(parent);
         for (Node *n = parent->firstChild; n; n = n->nextSibling) {
-            if (n->symbolName == symbolName) {
-                qDebug() << nodeTypeToName(n->type, Normal) << symbolName;
-            }
             if (n->type == MethodDefinition && n->symbolName == symbolName)
                 return n;
         }

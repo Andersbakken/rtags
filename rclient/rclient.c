@@ -34,7 +34,7 @@ void recurse(const char *ch, int32_t pos, int indent)
     }
     printf("%s %s %s\n", nodeTypeToName(node.type, Normal), node.symbolName,
            node.location ? ch + node.location : "");
-    if (node.firstChild)
+    if (node.type != Reference && node.firstChild) // reuse firstChild as containingFunction for references
         recurse(ch, node.firstChild, indent + 2);
     if (node.nextSibling)
         recurse(ch, node.nextSibling, indent);
@@ -64,7 +64,14 @@ static inline void findReferences(struct NodeData *parent, struct MMapData *mmap
         struct NodeData child = readNodeData(mmapData->memory + parent->firstChild);
         while (1) {
             if (child.type == Reference && child.location) {
-                printf("%s:%s\n", mmapData->memory + child.location, child.symbolName);
+                const char *name;
+                if (child.containingFunction) {
+                    struct NodeData containingFunction = readNodeData(mmapData->memory + child.containingFunction);
+                    name = containingFunction.symbolName;
+                } else {
+                    name = child.symbolName;
+                }
+                printf("%s:%s\n", mmapData->memory + child.location, name);
             }
             if (!child.nextSibling)
                 break;

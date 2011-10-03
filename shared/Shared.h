@@ -86,7 +86,11 @@ struct MMapData {
 int loadDb(const char *dbfile, struct MMapData *data);
 
 struct NodeData {
-    int32_t type, location, parent, nextSibling, firstChild;
+    int32_t type, location, parent, nextSibling;
+    union {
+        int32_t firstChild;
+        int32_t containingFunction;
+    };
     const char *symbolName;
 };
 
