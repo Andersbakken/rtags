@@ -120,34 +120,35 @@ void ClangRunnable::run()
     timer.start();
     const time_t lastModified = mFile.lastModified();
     QVarLengthArray<const char *, 32> clangArgs(mArgs.argumentCount() + (mPCHFile ? 2 : 0));
-    int used = mArgs.getClangArgs(clangArgs.data(), clangArgs.size(),
-                                  mPCHFile ? GccArguments::Defines : GccArguments::Defines|GccArguments::IncludePaths);
+    int used = mArgs.getClangArgs(clangArgs.data(), clangArgs.size(), GccArguments::Defines|GccArguments::IncludePaths);
+    // mPCHFile ? GccArguments::Defines : GccArguments::Defines|GccArguments::IncludePaths);
     if (mPCHFile) {
         clangArgs[used++] = "-include-pch";
         clangArgs[used++] = mPCHFile;
     }
-    printf("%s%s ", QUOTE(CLANG_EXECUTABLE), mArgs.language() == GccArguments::LangCPlusPlus ? "++" : "");
-    for (int i=0; i<used; ++i) {
-        printf(" %s", clangArgs[i]);
-    }
-    printf(" %s\n", mFile.constData());
-    // qDebug() << mArgs;
 
     CXTranslationUnit unit = clang_parseTranslationUnit(index, mFile.constData(),
                                                         clangArgs.constData(), used, 0, 0,
                                                         CXTranslationUnit_DetailedPreprocessingRecord); // ### do we need this?
     if (!unit) {
         qWarning("Couldn't parse %s", mFile.constData());
-
-        QByteArray clangLine = "clang";
-        if (mArgs.language() == GccArguments::LangCPlusPlus)
-            clangLine += "++";
-        for (int j=0; j<used; ++j) {
-            clangLine += ' ';
-            clangLine += clangArgs[j];
+        printf("%s%s ", QUOTE(CLANG_EXECUTABLE), mArgs.language() == GccArguments::LangCPlusPlus ? "++" : "");
+        for (int i=0; i<used; ++i) {
+            printf(" %s", clangArgs[i]);
         }
-        clangLine += ' ' + mFile;
-        qWarning("[%s]", clangLine.constData());
+        printf(" %s\n", mFile.constData());
+        // qDebug() << mArgs;
+        
+
+        // QByteArray clangLine = "clang";
+        // if (mArgs.language() == GccArguments::LangCPlusPlus)
+        //     clangLine += "++";
+        // for (int j=0; j<used; ++j) {
+        //     clangLine += ' ';
+        //     clangLine += clangArgs[j];
+        // }
+        // clangLine += ' ' + mFile;
+        // qWarning("[%s]", clangLine.constData());
     } else {
         PrecompileData pre;
         clang_getInclusions(unit, precompileHeaders, &pre);
