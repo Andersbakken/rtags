@@ -120,7 +120,6 @@ QDebug operator<<(QDebug dbg, CXCursor cursor)
 
 void RBuild::onMakeFinished(int statusCode)
 {
-    printf("%s %d: void RBuild::onMakeFinished(int statusCode)\n", __FILE__, __LINE__);
     QProcess *proc = qobject_cast<QProcess*>(sender());
     if (statusCode != 0) {
         qWarning("make error: %s", proc->readAllStandardError().constData());
@@ -437,73 +436,75 @@ void RBuild::maybePCH()
             maybeDone();
             return;
         }
-        QElapsedTimer timer;
-        timer.start();
+        if (!mAllHeaders.isEmpty()) {
+            QElapsedTimer timer;
+            timer.start();
 
-        QByteArray pchHeader;
-        pchHeader.reserve(mAllHeaders.size() * 48); // ###?
-        pchHeader.append("#ifndef RTAGS_PCH_H\n#define RTAGS_PCH_H\n");
-        foreach(const Path &header, mAllHeaders) {
-            pchHeader.append("#include \"" + header + "\"\n");
-        }
-        pchHeader.append("#endif");
-
-        CXIndex index = clang_createIndex(1, 1);
-
-        QVector<const char*> clangArgs(mPCHCompilerSwitches.size() + 2);
-        int idx = 0;
-        foreach(const QByteArray &s, mPCHCompilerSwitches) {
-            clangArgs[idx++] = s.constData();
-        }
-        // clangArgs[idx++] = "-Xclang";
-        clangArgs[idx++] = "-x";
-        clangArgs[idx] = "c++";
-        char pchHeaderName[PATH_MAX] = { 0 };
-        const char *tmpl = "/tmp/rtags.pch.h.XXXXXX";
-        memcpy(pchHeaderName, tmpl, strlen(tmpl));
-        const int pchHeaderFd = mkstemp(pchHeaderName);
-        if (pchHeaderFd <= 0 || write(pchHeaderFd, pchHeader.constData(), pchHeader.size()) != pchHeader.size()) {
-            qWarning("PCH header write failure %s", pchHeaderName);
-            return;
-        }
-        qDebug() << clangArgs;
-        CXTranslationUnit unit = clang_parseTranslationUnit(index, pchHeaderName, clangArgs.constData(),
-                                                            clangArgs.size(), 0, 0,
-                                                            CXTranslationUnit_Incomplete);
-        // qDebug() << mAllHeaders << clangArgs << pchHeader;
-        if (!unit) {
-            qWarning() << clangArgs << pchHeader;
-            qFatal("Can't PCH this. That's no good");
-        }
-        printf("Created precompiled header (%d headers) %lldms\n", mAllHeaders.size(), timer.elapsed());
-        // qDebug() << pchHeader;
-        ClangRunnable::processTranslationUnit(pchHeaderName, unit);
-        mPCHFile = "/tmp/rtags.pch.XXXXXX";
-        if (mkstemp(mPCHFile.data()) <= 0) {
-            qWarning("PCH write failure %s", mPCHFile.constData());
-            clang_disposeTranslationUnit(unit);
-            return;
-        }
-        const int ret = clang_saveTranslationUnit(unit, mPCHFile.constData(), clang_defaultSaveOptions(unit));
-        if (ret) {
-            qWarning("Couldn't save translation unit %d", ret);
-            const int count = clang_getNumDiagnostics(unit);
-            for (int i=0; i<count; ++i) {
-                CXDiagnostic diagnostic = clang_getDiagnostic(unit, i);
-                CXString diagStr = clang_getDiagnosticSpelling(diagnostic);
-                const unsigned diagnosticFormattingOptions = (CXDiagnostic_DisplaySourceLocation|CXDiagnostic_DisplayColumn|
-                                                              CXDiagnostic_DisplaySourceRanges|CXDiagnostic_DisplayOption|
-                                                              CXDiagnostic_DisplayCategoryId|CXDiagnostic_DisplayCategoryName);
-                
-                CXString diagStr2 = clang_formatDiagnostic(diagnostic, diagnosticFormattingOptions);
-                qWarning() << clang_getCString(diagStr) << clang_getCString(diagStr2);
-                clang_disposeString(diagStr);
-                clang_disposeString(diagStr2);
-                clang_disposeDiagnostic(diagnostic);
+            QByteArray pchHeader;
+            pchHeader.reserve(mAllHeaders.size() * 48); // ###?
+            pchHeader.append("#ifndef RTAGS_PCH_H\n#define RTAGS_PCH_H\n");
+            foreach(const Path &header, mAllHeaders) {
+                pchHeader.append("#include \"" + header + "\"\n");
             }
+            pchHeader.append("#endif");
 
+            CXIndex index = clang_createIndex(1, 1);
+
+            QVector<const char*> clangArgs(mPCHCompilerSwitches.size() + 2);
+            int idx = 0;
+            foreach(const QByteArray &s, mPCHCompilerSwitches) {
+                clangArgs[idx++] = s.constData();
+            }
+            // clangArgs[idx++] = "-Xclang";
+            clangArgs[idx++] = "-x";
+            clangArgs[idx] = "c++";
+            char pchHeaderName[PATH_MAX] = { 0 };
+            const char *tmpl = "/tmp/rtags.pch.h.XXXXXX";
+            memcpy(pchHeaderName, tmpl, strlen(tmpl));
+            const int pchHeaderFd = mkstemp(pchHeaderName);
+            if (pchHeaderFd <= 0 || write(pchHeaderFd, pchHeader.constData(), pchHeader.size()) != pchHeader.size()) {
+                qWarning("PCH header write failure %s", pchHeaderName);
+                return;
+            }
+            // qDebug() << clangArgs;
+            CXTranslationUnit unit = clang_parseTranslationUnit(index, pchHeaderName, clangArgs.constData(),
+                                                                clangArgs.size(), 0, 0,
+                                                                CXTranslationUnit_Incomplete);
+            // qDebug() << mAllHeaders << clangArgs << pchHeader;
+            if (!unit) {
+                qWarning() << clangArgs << pchHeader;
+                qFatal("Can't PCH this. That's no good");
+            }
+            printf("Created precompiled header (%d headers) %lldms\n", mAllHeaders.size(), timer.elapsed());
+            // qDebug() << pchHeader;
+            ClangRunnable::processTranslationUnit(pchHeaderName, unit);
+            mPCHFile = "/tmp/rtags.pch.XXXXXX";
+            if (mkstemp(mPCHFile.data()) <= 0) {
+                qWarning("PCH write failure %s", mPCHFile.constData());
+                clang_disposeTranslationUnit(unit);
+                return;
+            }
+            const int ret = clang_saveTranslationUnit(unit, mPCHFile.constData(), clang_defaultSaveOptions(unit));
+            if (ret) {
+                qWarning("Couldn't save translation unit %d", ret);
+                const int count = clang_getNumDiagnostics(unit);
+                for (int i=0; i<count; ++i) {
+                    CXDiagnostic diagnostic = clang_getDiagnostic(unit, i);
+                    CXString diagStr = clang_getDiagnosticSpelling(diagnostic);
+                    const unsigned diagnosticFormattingOptions = (CXDiagnostic_DisplaySourceLocation|CXDiagnostic_DisplayColumn|
+                                                                  CXDiagnostic_DisplaySourceRanges|CXDiagnostic_DisplayOption|
+                                                                  CXDiagnostic_DisplayCategoryId|CXDiagnostic_DisplayCategoryName);
+                
+                    CXString diagStr2 = clang_formatDiagnostic(diagnostic, diagnosticFormattingOptions);
+                    qWarning() << clang_getCString(diagStr) << clang_getCString(diagStr2);
+                    clang_disposeString(diagStr);
+                    clang_disposeString(diagStr2);
+                    clang_disposeDiagnostic(diagnostic);
+                }
+
+            }
+            clang_disposeTranslationUnit(unit);
         }
-        clang_disposeTranslationUnit(unit);
         for (QHash<Path, GccArguments>::const_iterator it = mParsePending.begin(); it != mParsePending.end(); ++it) {
             parseFile(it.key(), it.value(), mPCHFile.constData());
         }
