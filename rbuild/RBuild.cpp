@@ -114,6 +114,7 @@ QDebug operator<<(QDebug dbg, CXCursor cursor)
     }
     if (clang_isCursorDefinition(cursor))
         text += ", def";
+    text += "|";
     dbg << text;
     return dbg;
 }
