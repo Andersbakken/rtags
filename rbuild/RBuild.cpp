@@ -58,7 +58,7 @@ bool RBuild::addMakefile(Path makefile)
         connect(proc, SIGNAL(readyReadStandardOutput()), this, SLOT(onMakeOutput()));
         QStack<Path> pathStack;
         pathStack.push(workingDir);
-        MakefileData data = { makefile, workingDir, QByteArray(), pathStack };
+        MakefileData data = { makefile, workingDir, QByteArray(), pathStack, QSet<Path>() };
         mMakefiles[proc] = data;
         QString make;
         if (Path("/opt/local/bin/gmake").isFile()) {
@@ -188,10 +188,14 @@ void RBuild::onMakeOutput()
                     } else if (args.hasInput() && args.isCompile()) {
                         ++mFileCount;
                         foreach(const Path &file, args.input()) { // already resolved
-                            if (args.language() == GccArguments::LangCPlusPlus) {
-                                preprocess(file, args);
-                            } else {
-                                parseFile(file, args, 0);
+                            if (!data.seen.contains(file)) {
+                                data.seen.insert(file);
+                                if (args.language() == GccArguments::LangCPlusPlus) {
+                                    preprocess(file, args);
+                                } else {
+                                    qDebug() << "parseFile" << file << data.seen;
+                                    parseFile(file, args, 0);
+                                }
                             }
                         }
                     }

@@ -47,6 +47,7 @@ private:
         Path path, directory;
         QByteArray buffer;
         QStack<Path> dirStack;
+        QSet<Path> seen;
     };
 
     QHash<QProcess *, MakefileData> mMakefiles;
