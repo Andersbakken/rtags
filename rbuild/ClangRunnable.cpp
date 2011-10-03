@@ -406,15 +406,22 @@ void ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPat
 void ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPaths,
                              Node *parent, const NodeData &nodeData)
 {
-    int child = nodeData.firstChild;
+    int child = nodeData.type == Reference ? 0 : nodeData.firstChild;
     while (child) {
         const NodeData c = readNodeData(data->memory + child);
         const Location loc(data->memory + c.location);
         if (!modifiedPaths.contains(loc.path)) {
             const QByteArray id = loc.toString();
             Node *node = Node::sNodes.value(id);
-            if (!node)
+            if (!node) {
                 node = new Node(parent, static_cast<NodeType>(c.type), QByteArray(c.symbolName), loc, id);
+                if (c.type == Reference && c.containingFunction) {
+                    const NodeData containingFunction = readNodeData(data->memory + c.containingFunction);
+                    const Location cfl(data->memory + containingFunction.location);
+                    node->containingFunction = Node::sNodes.value(cfl.toString());
+                    Q_ASSERT(node->containingFunction); // ### if this comes in in the wrong order then what?
+                }
+            }
             initTree(data, modifiedPaths, node, c);
         }
         child = c.nextSibling;
