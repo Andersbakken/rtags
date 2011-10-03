@@ -410,12 +410,15 @@ int GccArguments::getClangArgs(const char **args, int max, unsigned flags) const
     for (int i=1; i<count && max > 0; ++i) {
         const Data::Argument& arg = data->args.at(i);
         // ### is i the same as data.argpos?
-        if (arg.pos == data->output)
+        if (arg.arg.startsWith("-I")) {
+            if (!(flags & IncludePaths))
+                continue;
+        } else if (arg.arg.startsWith("-D")) {
+            if (!(flags & Defines))
+                continue;
+        } else if (!(flags & OtherArgs)) {
             continue;
-        if (flags & ExcludeIncludePaths && arg.arg.startsWith("-I"))
-            continue;
-        if (data->input.contains(arg.pos))
-            continue;
+        }
         args[added++] = arg.arg.constData();
         --max;
     }

@@ -27,8 +27,10 @@ public:
     int argumentCount() const;
     QList<Path> includePaths() const;
     enum ClangArgFlag {
-        AllArgs = 0x00,
-        ExcludeIncludePaths = 0x01
+        IncludePaths = 0x01,
+        Defines = 0x02,
+        OtherArgs = 0x04,
+        AllArgs = IncludePaths|Defines|OtherArgs
     };
     int getClangArgs(const char **args, int max, unsigned flags) const;
 

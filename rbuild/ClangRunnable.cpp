@@ -120,9 +120,8 @@ void ClangRunnable::run()
     timer.start();
     const time_t lastModified = mFile.lastModified();
     QVarLengthArray<const char *, 32> clangArgs(mArgs.argumentCount() + (mPCHFile ? 2 : 0));
-    int used = mArgs.getClangArgs(clangArgs.data(), clangArgs.size(), GccArguments::AllArgs);
-                                  // mPCHFile ? GccArguments::ExcludeIncludePaths : GccArguments::AllArgs);
-    // Q_ASSERT(used == clangArgs.size() - (mPCHFile ? 2 : 0));
+    int used = mArgs.getClangArgs(clangArgs.data(), clangArgs.size(),
+                                  mPCHFile ? GccArguments::Defines : GccArguments::Defines|GccArguments::IncludePaths);
     if (mPCHFile) {
         clangArgs[used++] = "-include-pch";
         clangArgs[used++] = mPCHFile;
@@ -478,7 +477,7 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
 
                     if (!isValidCursor(ref)) {
                         if (kind != CXCursor_MacroExpansion && kind != CXCursor_ClassDecl && kind != CXCursor_StructDecl)
-                            qWarning() << "Can't get valid cursor for" << node.cursor;
+                            qWarning() << "Can't get valid cursor for" << node.cursor << clang_getCursorSemanticParent(node.cursor);
                         it = ud.hash.erase(it);
                         continue;
                     }
