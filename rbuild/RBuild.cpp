@@ -205,7 +205,8 @@ void RBuild::onMakeOutput()
                         foreach(const Path &file, args.input()) { // already resolved
                             if (!data.seen.contains(file)) {
                                 data.seen.insert(file);
-                                if (args.language() == GccArguments::LangCPlusPlus) {
+                                static const bool nopch = getenv("RTAGS_NO_PCH");
+                                if (!nopch && args.language() == GccArguments::LangCPlusPlus) {
                                     preprocess(file, args);
                                 } else {
                                     parseFile(file, args, 0);
