@@ -1,9 +1,6 @@
 #include "PreprocessorRunnable.h"
 #include <Shared.h>
 
-#define QUOTE_NX(A) #A
-#define QUOTE(A) QUOTE_NX(A)
-
 QList<Path> PreprocessorRunnable::sStdIncludePaths;
 void PreprocessorRunnable::init(const QList<Path> &stdIncludePaths)
 {

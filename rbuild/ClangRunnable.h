@@ -35,7 +35,7 @@ private:
 
     const Path mFile;
     const GccArguments mArgs;
-    const char *mPchFile;
+    const char *mPCHFile;
     static QMutex sTreeMutex;
     static Node *sRoot;
     static QMutex sFilesMutex;

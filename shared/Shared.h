@@ -12,6 +12,9 @@
 #error CLANG_EXECUTABLE must be defined
 #endif
 
+#define QUOTE_NX(A) #A
+#define QUOTE(A) QUOTE_NX(A)
+
 #ifdef __cplusplus
 #ifdef QT
 #include <QByteArray>

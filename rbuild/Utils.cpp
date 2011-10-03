@@ -139,4 +139,3 @@ bool locationFromString(const QByteArray &string, Path *path, int *line, int *co
         *column = locationRegExp.cap(3).toInt();
     return true;
 }
-

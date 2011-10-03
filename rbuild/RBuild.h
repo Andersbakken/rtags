@@ -58,6 +58,7 @@ private:
     QList<Path> mAllHeaders;
     QSet<QByteArray> mPCHCompilerSwitches;
     QVector<const char*> mClangArgs;
+    QByteArray mPCHFile;
 };
 
 #endif

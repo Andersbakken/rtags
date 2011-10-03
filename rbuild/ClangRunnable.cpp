@@ -96,7 +96,7 @@ static CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor, CXCl
 
 
 ClangRunnable::ClangRunnable(const Path &file, const GccArguments &args, const char *pchFile)
-    : mFile(file), mArgs(args), mPchFile(pchFile)
+    : mFile(file), mArgs(args), mPCHFile(pchFile)
 {
     setAutoDelete(true);
 }
@@ -119,17 +119,19 @@ void ClangRunnable::run()
     QElapsedTimer timer;
     timer.start();
     const time_t lastModified = mFile.lastModified();
-    QVarLengthArray<const char *, 32> clangArgs(mArgs.argumentCount() + (mPchFile ? 2 : 0));
-    int used = mArgs.getClangArgs(clangArgs.data(), clangArgs.size());
-    // Q_ASSERT(used == clangArgs.size() - (mPchFile ? 2 : 0));
-    if (mPchFile) {
-        clangArgs[used++] = "-pch";
-        clangArgs[used++] = mPchFile;
+    QVarLengthArray<const char *, 32> clangArgs(mArgs.argumentCount() + (mPCHFile ? 2 : 0));
+    int used = mArgs.getClangArgs(clangArgs.data(), clangArgs.size(), GccArguments::AllArgs);
+                                  // mPCHFile ? GccArguments::ExcludeIncludePaths : GccArguments::AllArgs);
+    // Q_ASSERT(used == clangArgs.size() - (mPCHFile ? 2 : 0));
+    if (mPCHFile) {
+        clangArgs[used++] = "-include-pch";
+        clangArgs[used++] = mPCHFile;
     }
-    // for (int i=0; i<used; ++i) {
-    //     printf("%s ", clangArgs[i]);
-    // }
-    // printf(" %s\n", mFile.constData());
+    printf("%s%s ", QUOTE(CLANG_EXECUTABLE), mArgs.language() == GccArguments::LangCPlusPlus ? "++" : "");
+    for (int i=0; i<used; ++i) {
+        printf(" %s", clangArgs[i]);
+    }
+    printf(" %s\n", mFile.constData());
     // qDebug() << mArgs;
 
     CXTranslationUnit unit = clang_parseTranslationUnit(index, mFile.constData(),
@@ -153,7 +155,7 @@ void ClangRunnable::run()
         {
 #warning we already have the dependencies in RBuild
             // if (precompile) {
-            //     QMutexLocker lock(&sPchMutex);
+            //     QMutexLocker lock(&sPCHMutex);
             //     precompile->add(pre.direct, pre.all);
             // }
             QMutexLocker lock(&sFilesMutex);
@@ -546,6 +548,6 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
             doReferences = true;
     }
     int elapsed = timer.elapsed();
-    printf("Processed %s, %d new nodes\n", file.constData(), ret);
+    printf("Processed %s, %d new nodes in %dms\n", file.constData(), ret, elapsed);
     return ret;
 }

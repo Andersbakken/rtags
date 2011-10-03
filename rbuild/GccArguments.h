@@ -26,7 +26,11 @@ public:
     QList<QByteArray> arguments(const QByteArray& prefix) const;
     int argumentCount() const;
     QList<Path> includePaths() const;
-    int getClangArgs(const char **args, int max) const;
+    enum ClangArgFlag {
+        AllArgs = 0x00,
+        ExcludeIncludePaths = 0x01
+    };
+    int getClangArgs(const char **args, int max, unsigned flags) const;
 
     void setPreprocess(bool pre);
     void setLanguage(Language language);

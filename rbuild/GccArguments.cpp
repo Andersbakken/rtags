@@ -401,7 +401,7 @@ bool GccArguments::operator==(const GccArguments &other) const
     return m_ptr == other.m_ptr || m_ptr->raw == other.m_ptr->raw;
 }
 
-int GccArguments::getClangArgs(const char **args, int max) const
+int GccArguments::getClangArgs(const char **args, int max, unsigned flags) const
 {
     const Data* data = m_ptr.constData();
 
@@ -412,10 +412,13 @@ int GccArguments::getClangArgs(const char **args, int max) const
         // ### is i the same as data.argpos?
         if (arg.pos == data->output)
             continue;
+        if (flags & ExcludeIncludePaths && arg.arg.startsWith("-I"))
+            continue;
         if (data->input.contains(arg.pos))
             continue;
         args[added++] = arg.arg.constData();
         --max;
     }
+
     return added;
 }

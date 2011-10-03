@@ -431,12 +431,15 @@ void RBuild::maybePCH()
         }
         mClangArgs[idx++] = "-x";
         mClangArgs[idx] = "c++";
-        {
-            QFile f("/tmp/rtags_pch.h");
-            f.open(QIODevice::WriteOnly);
-            f.write(pchHeader);
+        char pchHeaderName[PATH_MAX] = { 0 };
+        const char *tmpl = "/tmp/rtags.pch.h.XXXXXX";
+        memcpy(pchHeaderName, tmpl, strlen(tmpl));
+        const int pchHeaderFd = mkstemp(pchHeaderName);
+        if (pchHeaderFd <= 0 || write(pchHeaderFd, pchHeader.constData(), pchHeader.size()) != pchHeader.size()) {
+            qWarning("PCH header write failure %s", pchHeaderName);
+            return;
         }
-        CXTranslationUnit unit = clang_parseTranslationUnit(index, "/tmp/rtags_pch.h", mClangArgs.constData(),
+        CXTranslationUnit unit = clang_parseTranslationUnit(index, pchHeaderName, mClangArgs.constData(),
                                                             mClangArgs.size(), 0, 0,
                                                             CXTranslationUnit_Incomplete);
         // qDebug() << mAllHeaders << mClangArgs << pchHeader;
@@ -446,9 +449,15 @@ void RBuild::maybePCH()
         }
         printf("Created precompiled header (%d headers) %lldms\n", mAllHeaders.size(), timer.elapsed());
         // qDebug() << pchHeader;
-        ClangRunnable::processTranslationUnit("/tmp/rtags_pch.h", unit);
-        mClangArgs[idx - 1] = "-include-pch";
-        const int ret = clang_saveTranslationUnit(unit, "/tmp/rtags.pch", clang_defaultSaveOptions(unit));
+        ClangRunnable::processTranslationUnit(pchHeaderName, unit);
+        qDebug() << pchHeaderName;
+        mPCHFile = "/tmp/rtags.pch.XXXXXX";
+        if (mkstemp(mPCHFile.data()) <= 0) {
+            qWarning("PCH write failure %s", mPCHFile.constData());
+            clang_disposeTranslationUnit(unit);
+            return;
+        }
+        const int ret = clang_saveTranslationUnit(unit, mPCHFile.constData(), clang_defaultSaveOptions(unit));
         if (ret) {
             qWarning("Couldn't save translation unit %d", ret);
             const int count = clang_getNumDiagnostics(unit);
@@ -468,9 +477,10 @@ void RBuild::maybePCH()
 
         }
         clang_disposeTranslationUnit(unit);
-        mClangArgs[idx] = "/tmp/rtags.pch"; // ### Find unique temp name
+        mClangArgs[idx - 1] = "-include-pch";
+        mClangArgs[idx] = mPCHFile.constData();
         for (QHash<Path, GccArguments>::const_iterator it = mParsePending.begin(); it != mParsePending.end(); ++it) {
-            parseFile(it.key(), it.value(), "/tmp/rtags.pch");
+            parseFile(it.key(), it.value(), mPCHFile.constData());
         }
     }
 }
