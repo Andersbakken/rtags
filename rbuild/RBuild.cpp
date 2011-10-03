@@ -419,10 +419,10 @@ void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArgumen
     foreach(const QByteArray &includePath, args.arguments("-I")) {
         const Path resolved = Path::resolved(includePath.constData() + 2, args.dir());
         if (!resolved.isDir()) {
-            qWarning("Can't resolve %s", includePath.constData());
-            continue;
+            mPCHCompilerSwitches.insert(includePath);
+        } else {
+            mPCHCompilerSwitches.insert("-I" + resolved);
         }
-        mPCHCompilerSwitches.insert("-I" + resolved);
     }
     mPCHCompilerSwitches += args.arguments("-D").toSet();
     maybePCH();
