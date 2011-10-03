@@ -496,12 +496,12 @@ void RBuild::maybePCH()
                                                                   CXDiagnostic_DisplayCategoryId|CXDiagnostic_DisplayCategoryName);
                 
                     CXString diagStr2 = clang_formatDiagnostic(diagnostic, diagnosticFormattingOptions);
-                    qWarning() << clang_getCString(diagStr) << clang_getCString(diagStr2);
+                    qWarning() << clang_getCString(diagStr) << clang_getCString(diagStr2) << clang_getDiagnosticSeverity(diagnostic);
                     clang_disposeString(diagStr);
                     clang_disposeString(diagStr2);
                     clang_disposeDiagnostic(diagnostic);
                 }
-
+                mPCHFile.clear();
             }
             clang_disposeTranslationUnit(unit);
         }
