@@ -122,7 +122,6 @@ void ClangRunnable::run()
     QVarLengthArray<const char *, 32> clangArgs(mArgs.argumentCount() + (mPCHFile ? 0 : 0));
     int used = mArgs.getClangArgs(clangArgs.data(), clangArgs.size(), GccArguments::Defines|GccArguments::IncludePaths);
     // mPCHFile ? GccArguments::Defines : GccArguments::Defines|GccArguments::IncludePaths);
-    // clangArgs[used++] = "-Xclang";
     if (mPCHFile) {
         clangArgs[used++] = "-include-pch";
         clangArgs[used++] = mPCHFile;
@@ -545,7 +544,6 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
                             referenced = decl;
                     }
                 }
-#warning TODO if parent is a function, store that and use it when printing out the references from rc
                 Node *n = new Node(referenced, Reference, referenced->symbolName, node.loc, node.id);
                 n->containingFunction = findContainingFunction(node.cursor);
                 ++ret;

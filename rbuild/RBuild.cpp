@@ -456,7 +456,6 @@ void RBuild::maybePCH()
             foreach(const QByteArray &s, mPCHCompilerSwitches) {
                 clangArgs[idx++] = s.constData();
             }
-            // clangArgs[idx++] = "-Xclang";
             clangArgs[idx++] = "-x";
             clangArgs[idx] = "c++";
             char pchHeaderName[PATH_MAX] = { 0 };
