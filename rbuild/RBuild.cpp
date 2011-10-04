@@ -13,8 +13,7 @@
 #include <string.h>
 
 RBuild::RBuild(const QList<Path> &stdIncludePaths, QObject *parent)
-    : QObject(parent), mDatabaseMode(Build), mPreprocessing(0),
-      mParsing(0), mFileCount(0)
+    : QObject(parent), mDatabaseMode(Build), mPreprocessing(0), mParsing(0)
 {
     foreach(const Path &p, stdIncludePaths)
         mPCHCompilerSwitches.insert("-I" + p);
@@ -84,8 +83,6 @@ bool RBuild::addMakefile(Path makefile)
     // if (sourceDir.isDir()) {
     //     recurseDir(sourceDir);
     // }
-    if (!mFileCount)
-        mFileCount = -1; // flag that we have work to do
     return true;
 }
 
@@ -205,16 +202,10 @@ void RBuild::onMakeOutput()
                         qWarning("Can't parse line %s (%s)", line.constData(),
                                  qPrintable(args.errorString()));
                     } else if (args.hasInput() && args.isCompile() && ::isSupportedLanguage(args.language())) {
-                        ++mFileCount;
                         foreach(const Path &file, args.input()) { // already resolved
                             if (!data.seen.contains(file)) {
                                 data.seen.insert(file);
-                                static const bool nopch = getenv("RTAGS_NO_PCH");
-                                if (!nopch && args.language() == GccArguments::LangCPlusPlus) {
-                                    preprocess(file, args);
-                                } else {
-                                    parseFile(file, args, 0);
-                                }
+                                load(file, args);
                             }
                         }
                     }
@@ -337,6 +328,7 @@ bool RBuild::initFromDb(const MMapData *data)
     qDebug() << "read files" << ClangRunnable::sFiles.size() << "at" << data->fileDataPosition;
     QSet<Path> modifiedPaths;
     QMutexLocker lock(&ClangRunnable::sTreeMutex);
+    bool doInitTree = false;
     for (QHash<Path, ClangRunnable::FileData>::const_iterator it = ClangRunnable::sFiles.begin();
          it != ClangRunnable::sFiles.end(); ++it) {
         const Path &key = it.key();
@@ -354,13 +346,15 @@ bool RBuild::initFromDb(const MMapData *data)
             }
         }
         if (modified) {
+            doInitTree = true;
             modifiedPaths.insert(key);
-            preprocess(key, value.arguments);
+            load(key, value.arguments);
+        } else {
+            qDebug() << "not loading" << key;
         }
     }
-    if (mFileCount) {
+    if (doInitTree)
         ClangRunnable::initTree(data, modifiedPaths);
-    }
 
     munmap(const_cast<char*>(data->memory), data->mappedSize);
     return true;
@@ -385,7 +379,7 @@ void RBuild::parseFile(const Path &file, const GccArguments &args, const char *p
 
 bool RBuild::isFinished() const
 {
-    return !mPreprocessing && !mParsing && mFileCount != -1;
+    return !mPreprocessing && !mParsing && mMakefiles.isEmpty();
 }
 
 void RBuild::preprocess(const Path &sourceFile, const GccArguments &args)
@@ -398,8 +392,6 @@ void RBuild::preprocess(const Path &sourceFile, const GccArguments &args)
     connect(runnable, SIGNAL(headersFound(Path, GccArguments, QList<Path>)),
             this, SLOT(onPreprocessorHeadersFound(Path, GccArguments, QList<Path>)));
     mThreadPool.start(runnable);
-    if (mFileCount == -1)
-        mFileCount = 0;
 }
 
 void RBuild::onPreprocessorError(const Path &sourceFile, const GccArguments &args, const QByteArray &error)
@@ -415,7 +407,6 @@ void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArgumen
         if (header.contains("/private"))
             continue;
         QList<Path> &headers = (strcasestr(header.constData(), "x11")
-                                // || strcasestr(header.constData(), "/private/")
                                 ? mPostHeaders : mAllHeaders);
         if (!headers.contains(header)) {
             headers.append(header);
@@ -522,5 +513,15 @@ void RBuild::maybePCH()
         for (QHash<Path, GccArguments>::const_iterator it = mParsePending.begin(); it != mParsePending.end(); ++it) {
             parseFile(it.key(), it.value(), mPCHFile.constData());
         }
+    }
+}
+
+void RBuild::load(const Path &file, const GccArguments &args)
+{
+    static const bool nopch = getenv("RTAGS_NO_PCH");
+    if (!nopch && args.language() == GccArguments::LangCPlusPlus) {
+        preprocess(file, args);
+    } else {
+        parseFile(file, args, 0);
     }
 }

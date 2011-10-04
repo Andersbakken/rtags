@@ -33,6 +33,7 @@ public:
     bool isFinished() const;
     void preprocess(const Path &sourceFile, const GccArguments &args);
     void parseFile(const Path &path, const GccArguments &args, const char *pchFile);
+    void load(const Path &path, const GccArguments &args);
     void maybePCH();
 private slots:
     void maybeDone();
@@ -54,7 +55,7 @@ private:
     QThreadPool mThreadPool;
     Path mDatabaseFile;
     DatabaseMode mDatabaseMode;
-    int mPreprocessing, mParsing, mFileCount;
+    int mPreprocessing, mParsing;
     QHash<Path, GccArguments> mParsePending;
     QList<Path> mAllHeaders, mPostHeaders;
     QSet<QByteArray> mPCHCompilerSwitches;
