@@ -37,9 +37,6 @@ struct ComprehensiveTreeUserDataNode {
 
 static CXChildVisitResult dumpTree(CXCursor cursor, CXCursor, CXClientData)
 {
-    for (CXCursor p=clang_getCursorSemanticParent(cursor); isValidCursor(p); p = clang_getCursorSemanticParent(p)) {
-        printf("  ");
-    }
     QString str;
     {
         QDebug dbg(&str);
