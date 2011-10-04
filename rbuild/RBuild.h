@@ -18,7 +18,7 @@ class RBuild : public QObject
 {
     Q_OBJECT;
 public:
-    RBuild(QObject* parent = 0);
+    RBuild(const QList<Path> &stdIncludePaths, QObject* parent = 0);
     ~RBuild();
     bool addMakefile(Path makefile);
     void recurseDir(const Path &path);
@@ -56,7 +56,7 @@ private:
     DatabaseMode mDatabaseMode;
     int mPreprocessing, mParsing, mFileCount;
     QHash<Path, GccArguments> mParsePending;
-    QList<Path> mAllHeaders;
+    QList<Path> mAllHeaders, mPostHeaders;
     QSet<QByteArray> mPCHCompilerSwitches;
     QByteArray mPCHFile;
 };

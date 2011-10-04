@@ -10,11 +10,14 @@
 #include <dirent.h>
 #include <sys/mman.h>
 #include "PreprocessorRunnable.h"
+#include <string.h>
 
-RBuild::RBuild(QObject *parent)
+RBuild::RBuild(const QList<Path> &stdIncludePaths, QObject *parent)
     : QObject(parent), mDatabaseMode(Build), mPreprocessing(0),
       mParsing(0), mFileCount(0)
 {
+    foreach(const Path &p, stdIncludePaths)
+        mPCHCompilerSwitches.insert("-I" + p);
     mThreadPool.setMaxThreadCount(qMax<int>(4, QThread::idealThreadCount() * 1.5));
 }
 
@@ -409,8 +412,13 @@ void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArgumen
 {
     int added = 0;
     foreach(const Path &header, headers) {
-        if (!mAllHeaders.contains(header)) {
-            mAllHeaders.append(header); // ### is this worth it? Should I keep a set as well?
+        if (header.contains("/private"))
+            continue;
+        QList<Path> &headers = (strcasestr(header.constData(), "x11")
+                                // || strcasestr(header.constData(), "/private/")
+                                ? mPostHeaders : mAllHeaders);
+        if (!headers.contains(header)) {
+            headers.append(header);
             ++added;
         }
     }
@@ -431,7 +439,7 @@ void RBuild::maybePCH()
             maybeDone();
             return;
         }
-        if (!mAllHeaders.isEmpty()) {
+        if (!mAllHeaders.isEmpty() || !mPostHeaders.isEmpty()) {
             QElapsedTimer timer;
             timer.start();
 
@@ -441,6 +449,10 @@ void RBuild::maybePCH()
             foreach(const Path &header, mAllHeaders) {
                 pchHeader.append("#include \"" + header + "\"\n");
             }
+            foreach(const Path &header, mPostHeaders) {
+                pchHeader.append("#include \"" + header + "\"\n");
+            }
+            
             pchHeader.append("#endif");
 
             CXIndex index = clang_createIndex(1, 1);
@@ -450,8 +462,9 @@ void RBuild::maybePCH()
             foreach(const QByteArray &s, mPCHCompilerSwitches) {
                 clangArgs[idx++] = s.constData();
             }
+
             clangArgs[idx++] = "-x";
-            clangArgs[idx] = "c++";
+            clangArgs[idx++] = "c++";
             char pchHeaderName[PATH_MAX] = { 0 };
             const char *tmpl = "/tmp/rtags.pch.h.XXXXXX";
             memcpy(pchHeaderName, tmpl, strlen(tmpl));
@@ -462,7 +475,7 @@ void RBuild::maybePCH()
             }
             // qWarning() << "building pch" << clangArgs;
             CXTranslationUnit unit = clang_parseTranslationUnit(index, pchHeaderName, clangArgs.constData(),
-                                                                clangArgs.size(), 0, 0,
+                                                                idx, 0, 0,
                                                                 CXTranslationUnit_Incomplete);
             // qDebug() << mAllHeaders << clangArgs << pchHeader;
             if (!unit) {
@@ -471,7 +484,6 @@ void RBuild::maybePCH()
             }
             printf("Created precompiled header (%d headers) %lldms\n", mAllHeaders.size(), timer.elapsed());
             // qDebug() << pchHeader;
-            ClangRunnable::processTranslationUnit(pchHeaderName, unit);
             mPCHFile = "/tmp/rtags.pch.XXXXXX";
             if (mkstemp(mPCHFile.data()) <= 0) {
                 qWarning("PCH write failure %s", mPCHFile.constData());
@@ -481,6 +493,12 @@ void RBuild::maybePCH()
             const int ret = clang_saveTranslationUnit(unit, mPCHFile.constData(), clang_defaultSaveOptions(unit));
             if (ret) {
                 qWarning("Couldn't save translation unit %d", ret);
+                printf("%s", QUOTE(CLANG_EXECUTABLE));
+                for (int i=0; i<idx; ++i) {
+                    printf(" %s", clangArgs.at(i));
+                }
+                printf(" %s\n", pchHeaderName);
+
                 const int count = clang_getNumDiagnostics(unit);
                 for (int i=0; i<count; ++i) {
                     CXDiagnostic diagnostic = clang_getDiagnostic(unit, i);
@@ -496,6 +514,8 @@ void RBuild::maybePCH()
                     clang_disposeDiagnostic(diagnostic);
                 }
                 mPCHFile.clear();
+            } else {
+                ClangRunnable::processTranslationUnit(pchHeaderName, unit);
             }
             clang_disposeTranslationUnit(unit);
         }

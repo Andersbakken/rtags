@@ -13,16 +13,33 @@
 
 static QList<Path> findStdIncludePaths()
 {
-    QProcess process;
-    process.start("cpp", QStringList() << "-v" << "-");
-    process.closeWriteChannel();
-    process.waitForFinished();
     QList<Path> paths;
-    foreach(const QByteArray &line, process.readAllStandardError().split('\n')) {
-        if (line.startsWith(" /")) {
-            Path p = Path::resolved(line.mid(1));
-            if (p.isDir())
-                paths.append(p);
+    {
+        QProcess process;
+        process.start(QUOTE(CLANG_EXECUTABLE), QStringList() << "-v");
+        process.waitForFinished();
+        foreach(const QByteArray &line, process.readAllStandardError().split('\n')) {
+            if (line.startsWith("clang version ")) {
+                int space = line.indexOf(' ', 14);
+                if (space == -1)
+                    space = line.size();
+                paths.append("/usr/local/lib/clang/" + line.mid(14, space - 14) + "/include");
+                break;
+            }
+        }
+    }
+    {
+        QProcess process;
+        process.start("cpp", QStringList() << "-v" << "-");
+        process.closeWriteChannel();
+        process.waitForFinished();
+        foreach(const QByteArray &line, process.readAllStandardError().split('\n')) {
+            if (line.startsWith(" /")) {
+                Path p = Path::resolved(line.mid(1));
+                if (p.isDir() && !p.startsWith("/usr/lib/")) { // these headers cause problems for clang
+                    paths.append(p);
+                }
+            }
         }
     }
 
@@ -126,27 +143,6 @@ int main(int argc, char** argv)
     QCoreApplication::setOrganizationName("rtags");
     QCoreApplication::setApplicationName("rtags");
 
-    // QList<QByteArray> compilerOptions;
-    // QVector<const char*> clangArgs;
-    // QList<Path> includePaths;
-    // QByteArray empty("");
-    // for (int i=1; i<argc; ++i) {
-    //     if (argv[i]) {
-    //         if (!strncmp(argv[i], "-I", 2)) {
-    //             Path p = Path::resolved(argv[i] + 2);
-    //             if (p.isDir())
-    //                 includePaths.append(p);
-    //             compilerOptions.append("-I" + p);
-    //             clangArgs.append(compilerOptions.last().constData());
-    //             argv[i] = empty.data();
-    //         } else if (!strncmp(argv[i], "-D", 2)) {
-    //             clangArgs.append(argv[i]);
-    //             argv[i] = empty.data();
-    //         }
-    //     }
-    // }
-
-    RBuild rbuild;
     bool update = false;
     const char *dbFile = 0;
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
@@ -171,11 +167,14 @@ int main(int argc, char** argv)
         }
     }
 
-    PreprocessorRunnable::init(findStdIncludePaths());
+    const QList<Path> stdIncludePaths = findStdIncludePaths();
+    PreprocessorRunnable::init(stdIncludePaths);
+    RBuild rbuild(stdIncludePaths);
+
     for (int i=1; i<argc; ++i) {
         if (argv[i] && *argv[i] != '-') {
             if (update) {
-                printf("%s %d: if (update) {\n", __FILE__, __LINE__);
+                fprintf(stderr, "%s %d: if (update) {\n", __FILE__, __LINE__);
                 return 1;
             } else {
                 if (!rbuild.addMakefile(argv[i])) {
@@ -189,7 +188,7 @@ int main(int argc, char** argv)
     if (dbFile) {
         rbuild.setDatabaseFile(dbFile, update ? RBuild::Update : RBuild::Build);
     } else if (!rbuild.findDatabaseFile(update ? RBuild::Update : RBuild::Build)) {
-        printf("%s %d: } else if (!rbuild.detectDatabaseFile(update ? RBuild::Update : RBuild::Build)) {\n", __FILE__, __LINE__);
+        fprintf(stderr, "%s %d: } else if (!rbuild.detectDatabaseFile(update ? RBuild::Update : RBuild::Build)) {\n", __FILE__, __LINE__);
         return 1;
     }
 
