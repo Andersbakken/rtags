@@ -86,6 +86,7 @@ struct MMapData {
 int loadDb(const char *dbfile, struct MMapData *data);
 
 struct NodeData {
+    const char *address;
     int32_t type, location, parent, nextSibling;
     union {
         int32_t firstChild;
@@ -97,6 +98,7 @@ struct NodeData {
 static inline struct NodeData readNodeData(const char *base)
 {
     struct NodeData n;
+    n.address = base;
     int i;
     int32_t *ints[] = { &n.type, &n.location, &n.parent, &n.nextSibling, &n.firstChild, 0 };
     for (i=0; ints[i]; ++i) {

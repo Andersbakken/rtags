@@ -9,21 +9,8 @@
 #include <limits.h>
 #include <assert.h>
 #include "Shared.h"
+#include "RClient.h"
 #include <getopt.h>
-
-static int32_t idLength = -1;
-static int caseInsensitive = 0;
-
-static int find(const void *l, const void *r)
-{
-    const char *left = ((const char*)l) + Int32Length;
-    const char *right = ((const char*)r) + Int32Length;
-    // printf("%s %s %s\n", left, right, std::string(left, idLength).c_str());
-    return (caseInsensitive
-            ? strncasecmp(left, right, idLength - Int32Length)
-            : strncmp(left, right, idLength - Int32Length));
-}
-
 
 void recurse(const char *ch, int32_t pos, int indent)
 {
@@ -58,20 +45,38 @@ static inline void usage(const char* argv0, FILE *f)
             argv0);
 }
 
-static inline void findReferences(struct NodeData *parent, struct MMapData *mmapData)
+static inline void findReferences(struct NodeData *parent, struct MMapData *mmapData, const char **seen, int maxRecursionDepth)
 {
+    int indent = 0;
+    if (seen) {
+        while (seen[indent] && indent < maxRecursionDepth) {
+            if (parent->address == seen[indent])
+                return;
+            ++indent;
+        }
+        if (indent == maxRecursionDepth)
+            return;
+        seen[indent] = parent->address;
+    }
     if (parent->firstChild) {
         struct NodeData child = readNodeData(mmapData->memory + parent->firstChild);
         while (1) {
             if (child.type == Reference && child.location) {
+                int i;
                 const char *name;
+                struct NodeData containingFunction;
                 if (child.containingFunction) {
-                    struct NodeData containingFunction = readNodeData(mmapData->memory + child.containingFunction);
+                    containingFunction = readNodeData(mmapData->memory + child.containingFunction);
                     name = containingFunction.symbolName;
                 } else {
                     name = child.symbolName;
                 }
+                for (i=0; i<indent; ++i)
+                    printf(" ");
                 printf("%s:%s\n", mmapData->memory + child.location, name);
+                if (seen && child.containingFunction) {
+                    findReferences(&containingFunction, mmapData, seen, maxRecursionDepth);
+                }
             }
             if (!child.nextSibling)
                 break;
@@ -88,6 +93,8 @@ int main(int argc, char **argv)
         { "print-tree", 0, 0, 't' },
         { "db-file", 1, 0, 'f' },
         { "references", 1, 0, 'r' },
+        { "recursive-references", 1, 0, 'R' },
+        { "max-recursion-reference-depth", 1, 0, 'x' },
         { "list-symbols", 1, 0, 'l' },
         { "completion-mode", 0, 0, 'C' },
         { "match-complete-symbol", 0, 0, 'c' },
@@ -95,10 +102,11 @@ int main(int argc, char **argv)
         { "case-insensitive", 0, 0, 'i' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hs:tf:r:l:cSinC";
+    const char *shortOptions = "hs:tf:r:R:l:cSinCx:";
     int idx, longIndex;
     const char *arg = 0;
     const char *dbFile = 0;
+    int maxRecursionDepth = -1;
     enum MatchType {
         MatchAnywhere,
         MatchStartsWith,
@@ -108,23 +116,32 @@ int main(int argc, char **argv)
         None,
         FollowSymbol,
         References,
+        RecursiveReferences,
         ListSymbols,
         ShowTree
     } mode = None;
     int completionMode = 0;
     struct MMapData mmapData;
     char dbFileBuffer[PATH_MAX + 10];
+    unsigned flags = 0;
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
         switch (idx) {
         case '?':
             usage(argv[0], stderr);
             return 1;
         case 'i':
-            caseInsensitive = 1;
+            flags |= CaseInsensitive;
             break;
         case 'h':
             usage(argv[0], stdout);
             return 0;
+        case 'x':
+            maxRecursionDepth = atoi(optarg);
+            if (maxRecursionDepth <= 0) {
+                fprintf(stderr, "%s %d: if (!maxRecursionDepth) {\n", __FILE__, __LINE__);
+                return 1;
+            }
+            break;
         case 's':
             if (mode != None) {
                 fprintf(stderr, "%s %d: if (mode != None) {\n", __FILE__, __LINE__);
@@ -134,12 +151,13 @@ int main(int argc, char **argv)
             mode = FollowSymbol;
             break;
         case 'r':
+        case 'R':
             arg = optarg;
             if (mode != None) {
                 fprintf(stderr, "%s %d: if (mode != None) {\n", __FILE__, __LINE__);
                 return 1;
             }
-            mode = References;
+            mode = (idx == 'r' ? References : RecursiveReferences);
             break;
         case 't':
             if (mode != None) {
@@ -178,6 +196,11 @@ int main(int argc, char **argv)
             break;
         }
     }
+    if (mode != RecursiveReferences && maxRecursionDepth != -1) {
+        fprintf(stderr, "%s %d: if (mode != RecursiveReferences && maxRecursionDepth != -1) {\n", __FILE__, __LINE__);
+        return 1;
+    }
+
     if (matchType != MatchAnywhere && mode != ListSymbols) {
         fprintf(stderr, "%s %d: if (matchType != MatchAnywhere && mode != ListSymbols)\n", __FILE__, __LINE__);
         return 1;
@@ -206,79 +229,64 @@ int main(int argc, char **argv)
         fprintf(stderr, "%s %d: if (!loadDb(dbFile)) {\n", __FILE__, __LINE__);
         return 1;
     }
-    idLength = mmapData.idLength;
+    initRClient(&mmapData, flags);
 
     switch (mode) {
     case None:
         assert(0);
         break;
     case ShowTree:
-        recurse(mmapData.memory, rootNodePosition(mmapData.nodeCount, idLength), 0);
+        recurse(mmapData.memory, rootNodePosition(mmapData.nodeCount, mmapData.idLength), 0);
         break;
-    case References:
     case FollowSymbol: {
-        assert(arg);
-        const int argLen = strlen(arg) + 1;
-        char *padded = (char*)malloc(argLen + Int32Length);
-        strncpy(padded + Int32Length, arg, argLen);
-        const char *bs = (const char*)bsearch(padded, mmapData.memory + FirstId, mmapData.nodeCount, idLength, find);
-        // fprintf(stderr, "Found a match %p\n", bs);
-        free(padded);
-        if (bs) {
-            const int32_t idx = readInt32(bs);
-            struct NodeData node = readNodeData(mmapData.memory + idx);
-            if (mode == References) {
-                if (node.type == Reference)
-                    node = readNodeData(mmapData.memory + node.parent);
-                findReferences(&node, &mmapData);
-                if (node.type == MethodDefinition) {
-                    struct NodeData parent = readNodeData(mmapData.memory + node.parent);
-                    assert(parent.firstChild);
-                    struct NodeData declaration = readNodeData(mmapData.memory + parent.firstChild);
-                    while (1) {
-                        if (declaration.type == MethodDeclaration && !strcmp(node.symbolName, declaration.symbolName)) {
-                            findReferences(&declaration, &mmapData);
-                            break;
-                        }
-                        if (!declaration.nextSibling)
-                            break;
-                        declaration = readNodeData(mmapData.memory + declaration.nextSibling);
-                    }
-                }
-            } else {
-                // fprintf(stderr, "Found node %s %s\n", nodeTypeToName(type), symbolName);
-                int32_t found = 0;
-                NodeType targetType = MethodDeclaration;
-                switch (node.type) {
-                case MethodDeclaration:
-                    targetType = MethodDefinition;
-                case MethodDefinition: {
-                    struct NodeData parent = readNodeData(mmapData.memory + node.parent);
-                    assert(parent.firstChild);
-                    struct NodeData sibling = readNodeData(mmapData.memory + parent.firstChild);
-                    while (1) {
-                        if (sibling.type == (int)targetType && !strcmp(node.symbolName, sibling.symbolName)) {
-                            found = sibling.location;
-                            break;
-                        }
-                        if (!sibling.nextSibling)
-                            break;
-                        sibling = readNodeData(mmapData.memory + sibling.nextSibling);
-                    }
-                    break; }
-                case Reference:
-                case EnumValue:
-                    found = readNodeData(mmapData.memory + node.parent).location;
-                    break;
-                default:
-                    break;
-                }
-                if (found) {
-                    printf("%s\n", mmapData.memory + found);
-                } else {
-                    fprintf(stderr, "Couldn't find it\n");
-                }
+        struct NodeData node;
+        if (findByLocation(arg, &node)) {
+            struct NodeData target;
+            memset(&target, 0, sizeof(struct NodeData));
+            switch (node.type) {
+            case MethodDeclaration: 
+                findSibling(&node, &target, MethodDefinition);
+                break;
+            case MethodDefinition:
+                findSibling(&node, &target, MethodDeclaration);
+                break;
+            case Reference:
+            case EnumValue:
+                target = readNode(node.parent);
+                break;
+            default:
+                break;
             }
+            if (target.address) {
+                printf("%s\n", mmapData.memory + target.location);
+            } else {
+                fprintf(stderr, "Couldn't find it\n");
+            }
+        }
+        break; }
+    case RecursiveReferences:
+    case References: {
+        struct NodeData node;
+        if (findByLocation(arg, &node)) {
+            const char **seen = 0;
+            if (mode == RecursiveReferences) {
+                if (maxRecursionDepth == -1)
+                    maxRecursionDepth = 10;
+                seen = malloc(sizeof(const char*) * maxRecursionDepth);
+            }
+            if (node.type == Reference)
+                node = readNodeData(mmapData.memory + node.parent);
+            findReferences(&node, &mmapData, seen, maxRecursionDepth);
+            if (node.type == MethodDefinition || node.type == MethodDeclaration) { // find declaration
+                const int targetType = (node.type == MethodDeclaration
+                                        ? MethodDefinition
+                                        : MethodDeclaration);
+                struct NodeData sibling;
+                if (findSibling(&node, &sibling, targetType))
+                    findReferences(&sibling, &mmapData, seen, maxRecursionDepth);
+            }
+            if (seen)
+                free(seen);
         }
         break; }
     case ListSymbols: {
@@ -297,21 +305,21 @@ int main(int argc, char **argv)
             } else {
                 switch (matchType) { // ### case-insensitive
                 case MatchAnywhere:
-                    if (caseInsensitive
+                    if (flags & CaseInsensitive
                         ? strcasestr(mmapData.memory + symbolName, arg)
                         : strstr(mmapData.memory + symbolName, arg)) {
                         matched = 1;
                     }
                     break;
                 case MatchCompleteSymbol:
-                    if ((caseInsensitive
+                    if ((flags & CaseInsensitive
                          ? strcasecmp(mmapData.memory + symbolName, arg)
                          : strcmp(mmapData.memory + symbolName, arg)) == 0) {
                         matched = 1;
                     }
                     break;
                 case MatchStartsWith:
-                    if ((caseInsensitive
+                    if ((flags & CaseInsensitive
                          ? strncasecmp(mmapData.memory + symbolName, arg, argLen)
                          : strncmp(mmapData.memory + symbolName, arg, argLen)) == 0) {
                         matched = 1;

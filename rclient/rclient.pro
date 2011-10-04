@@ -10,7 +10,8 @@ INCLUDEPATH += .
 
 DEFINES += _GNU_SOURCE
 # Input
-SOURCES += rclient.c 
+SOURCES += main.c RClient.c
+HEADERS += RClient.h
 CONFIG += debug
 CONFIG -= app_bundle
 QT = 
