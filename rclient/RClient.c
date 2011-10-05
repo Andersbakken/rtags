@@ -1,7 +1,12 @@
 #include "RClient.h"
 #include <assert.h>
-#include <stdlib.h>
+#include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/mman.h>
 
 static struct MMapData *sDB = 0;
 static unsigned sFlags = 0;
@@ -64,44 +69,59 @@ int findSibling(const struct NodeData *nodeData, struct NodeData *sibling, int t
 
 int loadConfigFile(const char *path, char **args)
 {
-/*     struct stat st; */
-/*     const int fd = open(path, O_RDONLY); */
-/*     if (fd <= 0) { */
-/*         printf("%s %d: if (fd <= 0)\n", __FILE__, __LINE__); */
-/*         return -1; */
-/*     } */
+    struct stat st;
+    const int fd = open(path, O_RDONLY);
+    if (fd <= 0) {
+        printf("%s %d: if (fd <= 0)\n", __FILE__, __LINE__);
+        return -1;
+    }
 
-/*     if (fstat(fd, &st) < 0) { */
-/*         close(fd); */
-/*         printf("%s %d: if (fstat(fdin, &st) < 0) \n", __FILE__, __LINE__); */
-/*         return -1; */
-/*     } */
-/*     const void *memory = mmap(0, st.st_size, PROT_READ, MAP_SHARED, fd, 0); */
-/*     if (memory == MAP_FAILED) { */
-/*         close(fd); */
-/*     } */
-/*     const char *ch = (const char*)memory; */
-/*     int pos = 0; */
-/*     int last = 0; */
-/*     int colon = -1; */
-/*     while (pos < st.st_size) { */
-/*         switch (ch[pos]) { */
-/*         case ':': */
-/*             if (colon == -1) */
-/*                 colon = pos; */
-/*             break; */
-/*         case '\n': */
-/*             if (pos - last > 1) { */
+    if (fstat(fd, &st) < 0) {
+        close(fd);
+        printf("%s %d: if (fstat(fdin, &st) < 0) \n", __FILE__, __LINE__);
+        return -1;
+    }
+    const void *memory = mmap(0, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+    if (memory == MAP_FAILED) {
+        close(fd);
+    }
+    const char *ch = (const char*)memory;
+    int pos = 0;
+    int last = 0;
+    int lines = 0;
+    while (pos < st.st_size) {
+        if (ch[pos] == '\n') {
+            if (pos - last > 1)
+                ++lines;
+            last = pos;
+        }
+        ++pos;
+    }
+    args = malloc(sizeof(char*) * ((2 * lines) + 1)); // use realloc instead of running through twice
+    args[lines] = 0;
+    int colon = -1;
+    int line = 0;
+    while (pos < st.st_size) {
+        switch (ch[pos]) {
+        case '\n': {
+            const int len = (pos - last - 1);
+            if (len > 0) {
+                args[(line * 2)] = strndup(ch + last, colon == -1 ? len : colon - last);
+                /* if (colon */
+            }
 
-/*             } */
-/*             last = pos; */
-/*         } */
-
-/*     } */
-
-
-
-
-/*     return 0; */
+            last = pos;
+            break; }
+        case ':':
+            if (colon == -1)
+                colon = pos;
+            break;
+        default:
+            break;
+        }
+        ++pos;
+    }
+    
+    return 0;
 }
 
