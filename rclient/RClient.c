@@ -1,6 +1,7 @@
 #include "RClient.h"
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 static struct MMapData *sDB = 0;
 static unsigned sFlags = 0;
@@ -60,3 +61,47 @@ int findSibling(const struct NodeData *nodeData, struct NodeData *sibling, int t
     }
     return 0;
 }
+
+int loadConfigFile(const char *path, char **args)
+{
+/*     struct stat st; */
+/*     const int fd = open(path, O_RDONLY); */
+/*     if (fd <= 0) { */
+/*         printf("%s %d: if (fd <= 0)\n", __FILE__, __LINE__); */
+/*         return -1; */
+/*     } */
+
+/*     if (fstat(fd, &st) < 0) { */
+/*         close(fd); */
+/*         printf("%s %d: if (fstat(fdin, &st) < 0) \n", __FILE__, __LINE__); */
+/*         return -1; */
+/*     } */
+/*     const void *memory = mmap(0, st.st_size, PROT_READ, MAP_SHARED, fd, 0); */
+/*     if (memory == MAP_FAILED) { */
+/*         close(fd); */
+/*     } */
+/*     const char *ch = (const char*)memory; */
+/*     int pos = 0; */
+/*     int last = 0; */
+/*     int colon = -1; */
+/*     while (pos < st.st_size) { */
+/*         switch (ch[pos]) { */
+/*         case ':': */
+/*             if (colon == -1) */
+/*                 colon = pos; */
+/*             break; */
+/*         case '\n': */
+/*             if (pos - last > 1) { */
+
+/*             } */
+/*             last = pos; */
+/*         } */
+
+/*     } */
+
+
+
+
+/*     return 0; */
+}
+

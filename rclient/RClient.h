@@ -10,5 +10,6 @@ struct NodeData readNode(int32_t address);
 void initRClient(struct MMapData *mmapData, unsigned flags);
 int findByLocation(const char *location, struct NodeData *nodeData);
 int findSibling(const struct NodeData *nodeData, struct NodeData *sibling, int type);
+int loadConfigFile(const char *path, char **args);
 
 #endif
