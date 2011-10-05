@@ -91,7 +91,7 @@ const char *kindToString(CXCursorKind kind)
     case CXCursor_CXXOverrideAttr: return "CXCursor_CXXOverrideAttr";
         // case CXCursor_FirstPreprocessing: return "CXCursor_FirstPreprocessing";
         // case CXCursor_LastPreprocessing: return "CXCursor_LastPreprocessing";
-    case CXCursor_CXXAccessSpecifier: return "CXCursor_CXXAccessSpecifier";
+    // case CXCursor_CXXAccessSpecifier: return "CXCursor_CXXAccessSpecifier";
     }
     return "";
 }
