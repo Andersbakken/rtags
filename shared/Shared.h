@@ -23,6 +23,7 @@
 extern "C" {
 #endif
 
+int findConfiguration(char *buf, int max);
 int findDB(char *buf, int max);
 
 typedef enum {

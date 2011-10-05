@@ -8,21 +8,21 @@
 #include <unistd.h>
 #include <sys/mman.h>
 
-int findDB(char *dbFileBuffer, int max)
+static int findFile(const char *name, char *buffer, int max)
 {
-    if (getcwd(dbFileBuffer, max)) {
-        const int len = strlen(dbFileBuffer);
-        if (len > 0 && dbFileBuffer[len - 1] != '/') {
-            dbFileBuffer[len] = '/';
-            dbFileBuffer[len + 1] = '\0';
+    if (getcwd(buffer, max)) {
+        const int len = strlen(buffer);
+        if (len > 0 && buffer[len - 1] != '/') {
+            buffer[len] = '/';
+            buffer[len + 1] = '\0';
         }
         char *slash;
-        while ((slash = strrchr(dbFileBuffer, '/'))) {
+        while ((slash = strrchr(buffer, '/'))) {
             // ### this is awful
-            strcpy(slash + 1, ".rtags.db");
+            strcpy(slash + 1, name);
             struct stat s;
-            // printf("Testing [%s]\n", dbFileBuffer);
-            if (stat(dbFileBuffer, &s) >= 0) {
+            // printf("Testing [%s]\n", buffer);
+            if (stat(buffer, &s) >= 0) {
                 return 1;
             }
             *slash = '\0';
@@ -31,6 +31,15 @@ int findDB(char *dbFileBuffer, int max)
     return 0;
 }
 
+int findConfiguration(char *buf, int max)
+{
+    return findFile(".rtags.conf", buf, max);
+}
+
+int findDB(char *buf, int max)
+{
+    return findFile(".rtags.db", buf, max);
+}
 
 const char *nodeTypeToName(int t, NodeTypeToNameMode abbrev)
 {

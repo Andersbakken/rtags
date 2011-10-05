@@ -16,7 +16,8 @@
 ;;   :group 'rtags)
 
 (defvar last-rtags-update-process nil)
-(defun update-rtags () (interactive)
+(defun rtags-update ()
+  (interactive)
   (if (executable-find "rc")
       (progn
         (if (and last-rtags-update-process (eq (process-status last-rtags-update-process) 'run))
@@ -80,7 +81,7 @@
     (call-process (executable-find "rc") nil t nil mode (concat bufname ":" line ":" column))
     (if (= (point-min) (point-max))
         (progn
-          (kill-buffer "*Rtags-Complete*")
+;          (kill-buffer "*Rtags-Complete*")
           (switch-to-buffer previous))
       (if (= (count-lines (point-min) (point-max)) 1)
           (rtags-goto-location (buffer-string))
@@ -133,7 +134,7 @@
     (call-process "rc" nil t nil "-c" "-l" tagname)
     (if (= (point-min) (point-max))
         (progn
-          (kill-buffer "*Rtags-Complete*")
+;          (kill-buffer "*Rtags-Complete*")
           (switch-to-buffer previous))
       (if (= (count-lines (point-min) (point-max)) 1)
           (rtags-goto-location (buffer-string))
