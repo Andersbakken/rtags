@@ -132,21 +132,28 @@ int main(int argc, char **argv)
     struct MMapData mmapData;
     char dbFileBuffer[PATH_MAX + 10];
     unsigned flags = 0;
+    Configuration *configuration = 0;
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
         switch (idx) {
         case '?':
             usage(argv[0], stderr);
             return 1;
         case 'c': {
+            configuration = loadConfiguration(optarg);
             int i = 0;
-            char buf[1024];
-            while (1) {
-                if (loadConfiguration(optarg, "foo", buf, 1024, i)) {
-                    printf("Got value: [%s]\n", buf);
+            if (configuration) {
+                do {
+                    const char *key = configurationKey(configuration, i);
+                    if (!key)
+                        break;
+                    const char *value = configurationValue(configuration, i);
+                    if (value) {
+                        printf("%d [%s] [%s]\n", i, key, value);
+                    } else {
+                        printf("%d [%s]\n", i, key);
+                    }
                     ++i;
-                } else {
-                    break;
-                }
+                } while (1);
             }
             return 0; }
         case 'i':
@@ -368,6 +375,7 @@ int main(int argc, char **argv)
         break; }
     }
     munmap((void*)mmapData.memory, mmapData.mappedSize);
+    unloadConfiguration(configuration);
     return 0;
 }
 

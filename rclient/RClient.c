@@ -93,7 +93,7 @@ const char *strnstr(const char *haystack, const char *needle, int len)
 
 }
 
-int loadConfiguration(const char *path, const char *key, char *buf, int bufLen, int idx)
+Configuration *loadConfiguration(const char *path)
 {
     struct stat st;
 
@@ -106,40 +106,61 @@ int loadConfiguration(const char *path, const char *key, char *buf, int bufLen, 
         fprintf(stderr, "%s %d: if (f) {\n", __FILE__, __LINE__);
         return 0;
     }
-    
-    char *fileData = malloc(st.st_size + 1);
-    if (fread(fileData, sizeof(char), st.st_size, f) != (size_t)st.st_size) {
+    Configuration *conf = malloc(sizeof(Configuration));
+    memset(conf, 0, sizeof(Configuration));
+    conf->buffer = malloc(st.st_size + 1);
+    if (fread(conf->buffer, sizeof(char), st.st_size, f) != (size_t)st.st_size) {
         fprintf(stderr, "%s %d: if (fread(file, sizeof(char), st.st_size, f) != st.st_size) {\n", __FILE__, __LINE__);
-        free(fileData);
+        free(conf->buffer);
+        free(conf);
         fclose(f);
         return 0;
     }
-    fileData[st.st_size] = '\0';
+    conf->buffer[st.st_size] = '\0';
     fclose(f);
 
-    assert(key);
-    const int keyLen = strlen(key);
-    assert(keyLen);
-    
-    int found = 0;
+    conf->count = 0;
     int first = 1;
-    do {
-        char *line = strtok(first ? fileData : 0, "\n");
+    while (1) {
+        char *line = strtok(first ? conf->buffer : 0, "\n");
         first = 0;
         if (!line)
             break;
+        ++conf->count;
+        conf->keys = realloc(conf->keys, sizeof(const char*) * conf->count);
+        conf->values = realloc(conf->values, sizeof(const char*) * conf->count);
+        conf->keys[conf->count - 1] = line;
+        char *colon = strchr(line, ':');
+        conf->values[conf->count - 1] = colon ? colon + 1 : 0;
+        if (colon)
+            *colon = '\0';
+    }
+    return conf;
+}
+const char *configurationKey(Configuration *conf, int idx)
+{
+    return (conf && idx >= 0 && idx < conf->count ? conf->keys[idx] : 0);
+}
 
-        const int lineLen = strlen(line);
-        if (lineLen - keyLen > 2 && !strncmp(line, key, keyLen)
-            && line[keyLen] == ':' && !idx--) {
-            int valueLen = lineLen - keyLen - 1;
-            if (valueLen > bufLen - 1)
-                valueLen = bufLen - 1;
-            strncpy(buf, line + keyLen + 1, valueLen);
-            buf[valueLen] = '\0';
-            found = 1;
-        }
-    } while (!found);
-    free(fileData);
-    return found;
+const char *configurationValue(Configuration *conf, int idx)
+{
+    return (conf && idx >= 0 && idx < conf->count ? conf->values[idx] : 0);
+}
+
+int configurationCount(Configuration *conf)
+{
+    return conf ? conf->count : 0;
+}
+
+void unloadConfiguration(Configuration *conf)
+{
+    if (conf) {
+        if (conf->values)
+            free(conf->values);
+        if (conf->keys)
+            free(conf->keys);
+        if (conf->buffer)
+            free(conf->buffer);
+        free(conf);
+    }
 }
