@@ -17,9 +17,11 @@
 
 (defvar last-rtags-update-process nil)
 (defun update-rtags () (interactive)
-  (if (and last-rtags-update-process (eq (process-status last-rtags-update-process) 'run))
-      (kill-process last-rtags-update-process))
-  (setq last-rtags-update-process (start-process "rtags-update" nil "rc" "-u"))
+  (if (executable-find "rc")
+      (progn
+        (if (and last-rtags-update-process (eq (process-status last-rtags-update-process) 'run))
+            (kill-process last-rtags-update-process))
+        (setq last-rtags-update-process (start-process "rtags-update" nil "rc" "-u"))))
   nil
   )
 

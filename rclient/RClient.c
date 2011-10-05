@@ -67,61 +67,79 @@ int findSibling(const struct NodeData *nodeData, struct NodeData *sibling, int t
     return 0;
 }
 
-int loadConfigFile(const char *path, char **args)
+const char *strnstr(const char *haystack, const char *needle, int len)
 {
-    struct stat st;
-    const int fd = open(path, O_RDONLY);
-    if (fd <= 0) {
-        printf("%s %d: if (fd <= 0)\n", __FILE__, __LINE__);
-        return -1;
-    }
+    assert(haystack);
+    assert(needle);
+    if (!len)
+        return 0;
+    const int needleLen = strlen(needle);
+    assert(needleLen);
 
-    if (fstat(fd, &st) < 0) {
-        close(fd);
-        printf("%s %d: if (fstat(fdin, &st) < 0) \n", __FILE__, __LINE__);
-        return -1;
-    }
-    const void *memory = mmap(0, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
-    if (memory == MAP_FAILED) {
-        close(fd);
-    }
-    const char *ch = (const char*)memory;
-    int pos = 0;
-    int last = 0;
-    int lines = 0;
-    while (pos < st.st_size) {
-        if (ch[pos] == '\n') {
-            if (pos - last > 1)
-                ++lines;
-            last = pos;
+    int state = 0;
+    int i = 0;
+    while (i < len) {
+        if (haystack[i] == needle[state]) {
+            ++state;
+            if (state == needleLen)
+                return haystack + (i - needleLen);
+        } else if (state > 0) {
+            state = 0;
+            continue;
         }
-        ++pos;
+        ++i;
     }
-    args = malloc(sizeof(char*) * ((2 * lines) + 1)); // use realloc instead of running through twice
-    args[lines] = 0;
-    int colon = -1;
-    int line = 0;
-    while (pos < st.st_size) {
-        switch (ch[pos]) {
-        case '\n': {
-            const int len = (pos - last - 1);
-            if (len > 0) {
-                args[(line * 2)] = strndup(ch + last, colon == -1 ? len : colon - last);
-                /* if (colon */
-            }
-
-            last = pos;
-            break; }
-        case ':':
-            if (colon == -1)
-                colon = pos;
-            break;
-        default:
-            break;
-        }
-        ++pos;
-    }
-    
     return 0;
+
 }
 
+int loadConfiguration(const char *path, const char *key, char *buf, int bufLen, int idx)
+{
+    struct stat st;
+
+    if (stat(path, &st) < 0) {
+        fprintf(stderr, "%s %d: if (stat(path, &st) < 0) {\n", __FILE__, __LINE__);
+        return 0;
+    }
+    FILE *f = fopen(path, "r");
+    if (!f) {
+        fprintf(stderr, "%s %d: if (f) {\n", __FILE__, __LINE__);
+        return 0;
+    }
+    
+    char *fileData = malloc(st.st_size + 1);
+    if (fread(fileData, sizeof(char), st.st_size, f) != (size_t)st.st_size) {
+        fprintf(stderr, "%s %d: if (fread(file, sizeof(char), st.st_size, f) != st.st_size) {\n", __FILE__, __LINE__);
+        free(fileData);
+        fclose(f);
+        return 0;
+    }
+    fileData[st.st_size] = '\0';
+    fclose(f);
+
+    assert(key);
+    const int keyLen = strlen(key);
+    assert(keyLen);
+    
+    int found = 0;
+    int first = 1;
+    do {
+        char *line = strtok(first ? fileData : 0, "\n");
+        first = 0;
+        if (!line)
+            break;
+
+        const int lineLen = strlen(line);
+        if (lineLen - keyLen > 2 && !strncmp(line, key, keyLen)
+            && line[keyLen] == ':' && !idx--) {
+            int valueLen = lineLen - keyLen - 1;
+            if (valueLen > bufLen - 1)
+                valueLen = bufLen - 1;
+            strncpy(buf, line + keyLen + 1, valueLen);
+            buf[valueLen] = '\0';
+            found = 1;
+        }
+    } while (!found);
+    free(fileData);
+    return found;
+}

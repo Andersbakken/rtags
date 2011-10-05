@@ -103,12 +103,14 @@ int main(int argc, char **argv)
         { "max-recursion-reference-depth", 1, 0, 'x' },
         { "list-symbols", 1, 0, 'l' },
         { "completion-mode", 0, 0, 'C' },
-        { "match-complete-symbol", 0, 0, 'c' },
+        { "match-complete-symbol", 0, 0, 'm' },
         { "match-starts-with", 0, 0, 'S' },
         { "case-insensitive", 0, 0, 'i' },
+        { "case-insensitive", 0, 0, 'i' },
+        { "config", 1, 0, 'c' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hs:tf:r:R:l:cSinCx:";
+    const char *shortOptions = "hs:tf:r:R:l:mSinCx:c:";
     int idx, longIndex;
     const char *arg = 0;
     const char *dbFile = 0;
@@ -135,6 +137,18 @@ int main(int argc, char **argv)
         case '?':
             usage(argv[0], stderr);
             return 1;
+        case 'c': {
+            int i = 0;
+            char buf[1024];
+            while (1) {
+                if (loadConfiguration(optarg, "foo", buf, 1024, i)) {
+                    printf("Got value: [%s]\n", buf);
+                    ++i;
+                } else {
+                    break;
+                }
+            }
+            return 0; }
         case 'i':
             flags |= CaseInsensitive;
             break;
@@ -193,7 +207,7 @@ int main(int argc, char **argv)
             }
             matchType = MatchStartsWith;
             break;
-        case 'c':
+        case 'm':
             if (matchType != MatchAnywhere) {
                 fprintf(stderr, "%s %d: if (matchType != MatchAnywhere) {\n", __FILE__, __LINE__);
                 return 1;
