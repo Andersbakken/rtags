@@ -57,8 +57,7 @@
     )
   )
 
-(defun rtags-find-references-at-point()
-  (interactive)
+(defun rtags-find-references-at-point-internal(mode)
   (let ((bufname (buffer-file-name))
         (line (int-to-string (line-number-at-pos)))
         (column nil)
@@ -76,7 +75,7 @@
     (switch-to-buffer (generate-new-buffer "*Rtags-Complete*"))
       ;; (message (executable-find "rc"))
       ;; (message (concat (executable-find "rc") " --follow-symbol " bufname ":" line ":" column))
-    (call-process (executable-find "rc") nil t nil "--references" (concat bufname ":" line ":" column))
+    (call-process (executable-find "rc") nil t nil mode (concat bufname ":" line ":" column))
     (if (= (point-min) (point-max))
         (progn
           (kill-buffer "*Rtags-Complete*")
@@ -88,6 +87,15 @@
           (compilation-mode))))
   ))
 
+(defun rtags-find-references-at-point()
+  (interactive)
+  (rtags-find-references-at-point-internal "-r")
+  )
+
+(defun rtags-find-references-at-point-recursive()
+  (interactive)
+  (rtags-find-references-at-point-internal "-R")
+  )
 
 (defun rtags-complete (string predicate code)
   (let ((completions))

@@ -45,8 +45,10 @@ static inline void usage(const char* argv0, FILE *f)
             argv0);
 }
 
-static inline void findReferences(struct NodeData *parent, struct MMapData *mmapData, const char **seen, int maxRecursionDepth)
+static inline void findReferences(struct NodeData *parent, struct MMapData *mmapData,
+                                  const char **seen, int maxRecursionDepth)
 {
+    static int idx = 0;
     int indent = 0;
     if (seen) {
         while (seen[indent] && indent < maxRecursionDepth) {
@@ -73,7 +75,11 @@ static inline void findReferences(struct NodeData *parent, struct MMapData *mmap
                 }
                 for (i=0; i<indent; ++i)
                     printf(" ");
-                printf("%s:%s\n", mmapData->memory + child.location, name);
+                if (indent) {
+                    printf("%s:%s\n", mmapData->memory + child.location, name);
+                } else {
+                    printf("%s:%s %d\n", mmapData->memory + child.location, name, ++idx);
+                }
                 if (seen && child.containingFunction) {
                     findReferences(&containingFunction, mmapData, seen, maxRecursionDepth);
                 }
@@ -273,6 +279,7 @@ int main(int argc, char **argv)
                 if (maxRecursionDepth == -1)
                     maxRecursionDepth = 10;
                 seen = malloc(sizeof(const char*) * maxRecursionDepth);
+                memset(seen, 0, sizeof(const char *) * maxRecursionDepth);
             }
             if (node.type == Reference)
                 node = readNodeData(mmapData.memory + node.parent);
