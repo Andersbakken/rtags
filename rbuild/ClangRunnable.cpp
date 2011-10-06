@@ -605,6 +605,8 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
             doReferences = true;
     }
     const int elapsed = timer.elapsed();
-    printf("Compiled %s, %d new nodes in %dms\n", file.constData(), ret, elapsed);
+    extern bool verbose;
+    if (verbose)
+        printf("Compiled %s, %d new nodes in %dms\n", file.constData(), ret, elapsed);
     return ret;
 }

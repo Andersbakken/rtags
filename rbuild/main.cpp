@@ -107,9 +107,25 @@ static inline void usage(const char* argv0, FILE *f)
             argv0);
 }
 
+bool verbose = false;
+
+class Timer : public QElapsedTimer
+{
+public:
+    Timer()
+    {
+        start();
+    }
+    ~Timer()
+    {
+        qDebug() << "rbuild took" << elapsed() << "ms";
+    }
+
+};
 
 int main(int argc, char** argv)
 {
+    Timer timer;
     qRegisterMetaType<Path>("Path");
     qRegisterMetaType<GccArguments>("GccArguments");
     qRegisterMetaType<QList<Path> >("QList<Path>");
@@ -132,9 +148,10 @@ int main(int argc, char** argv)
         { "help", 0, 0, 'h' },
         { "update-db", optional_argument, 0, 'u' },
         { "srcdir", required_argument, 0, 's' },
+        { "verbose", 0, 0, 'v' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hu::s:";
+    const char *shortOptions = "hu::s:v";
     int idx, longIndex;
     
     QCoreApplication app(argc, argv);
@@ -150,6 +167,9 @@ int main(int argc, char** argv)
         case 'h':
             usage(argv[0], stdout);
             return 0;
+        case 'v':
+            verbose = true;
+            break;
         case 's':
             printf("%s %d: case 's':\n", __FILE__, __LINE__);
             return 2;
