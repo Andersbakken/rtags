@@ -375,7 +375,8 @@ int main(int argc, char **argv)
         break; }
     }
     munmap((void*)mmapData.memory, mmapData.mappedSize);
-    unloadConfiguration(configuration);
+    if (configuration)
+        unloadConfiguration(configuration);
     return 0;
 }
 

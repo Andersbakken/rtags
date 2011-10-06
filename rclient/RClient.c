@@ -98,7 +98,7 @@ Configuration *loadConfiguration(const char *path)
     struct stat st;
 
     if (stat(path, &st) < 0) {
-        fprintf(stderr, "%s %d: if (stat(path, &st) < 0) {\n", __FILE__, __LINE__);
+        fprintf(stderr, "%s %d: if (stat(path, &st) < 0) { %s\n", __FILE__, __LINE__, path);
         return 0;
     }
     FILE *f = fopen(path, "r");
