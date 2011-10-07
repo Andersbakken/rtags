@@ -181,7 +181,7 @@ int main(int argc, char** argv)
                 fprintf(stderr, "%s %d: if (!threadPoolCount) {\n", __FILE__, __LINE__);
                 return 1;
             }
-            argv[optind - 1] = "";
+            argv[optind - 1] = 0;
             break;
         case 'v':
             ++verbose;
