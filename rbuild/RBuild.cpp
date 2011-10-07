@@ -17,7 +17,7 @@ RBuild::RBuild(int threadPoolCount, const QList<Path> &stdIncludePaths, QObject 
 {
     foreach(const Path &p, stdIncludePaths)
         mPCHCompilerSwitches.insert("-I" + p);
-    mThreadPool.setMaxThreadCount(qMax<int>(4, QThread::idealThreadCount() * 1.5));
+    mThreadPool.setMaxThreadCount(threadPoolCount);
 }
 
 RBuild::~RBuild()
