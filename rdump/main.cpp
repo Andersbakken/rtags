@@ -115,15 +115,9 @@ void printCursor(CXCursor cursor)
         printf("(def)");
 }
 
-static inline bool isValidCursor(CXCursor cursor)
-{
-    CXCursorKind kind = clang_getCursorKind(cursor);
-    return !clang_isInvalid(kind);
-}
-
 static CXChildVisitResult dumpTree(CXCursor cursor, CXCursor, CXClientData)
 {
-    for (CXCursor p=clang_getCursorSemanticParent(cursor); isValidCursor(p); p = clang_getCursorSemanticParent(p)) {
+    for (CXCursor p=clang_getCursorSemanticParent(cursor); !clang_isInvalid(clang_getCursorKind(cursor)); p = clang_getCursorSemanticParent(p)) {
         printf("  ");
     }
     printCursor(cursor);
