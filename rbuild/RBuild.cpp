@@ -12,7 +12,7 @@
 #include "PreprocessorRunnable.h"
 #include <string.h>
 
-RBuild::RBuild(const QList<Path> &stdIncludePaths, QObject *parent)
+RBuild::RBuild(int threadPoolCount, const QList<Path> &stdIncludePaths, QObject *parent)
     : QObject(parent), mDatabaseMode(Build), mPreprocessing(0), mParsing(0)
 {
     foreach(const Path &p, stdIncludePaths)

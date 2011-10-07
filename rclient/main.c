@@ -11,6 +11,7 @@
 #include "Shared.h"
 #include "RClient.h"
 #include <getopt.h>
+#include <string.h>
 
 void recurse(const char *ch, int32_t pos, int indent)
 {

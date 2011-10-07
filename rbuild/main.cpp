@@ -101,9 +101,11 @@ static inline void usage(const char* argv0, FILE *f)
 {
     fprintf(f,
             "%s [options]...\n"
-            "  --help|-h                  Display this help\n"
-            "  --update|-u [optional arg] Update database, using heuristics to find the file if arg is not supplied\n"
-            "  --srcdir|-s [arg]          Build list of files from this directory\n",
+            "  --help|-h                    Display this help\n"
+            "  --update|-u [optional arg]   Update database, using heuristics to find the file if arg is not supplied\n"
+            "  --srcdir|-s [arg]            Build list of files from this directory\n"
+            "  --verbose|-v                 Be more verbose\n"
+            "  --thread-pool-count|-t [arg] Use this many threads for thread pool\n",
             argv0);
 }
 
@@ -148,10 +150,11 @@ int main(int argc, char** argv)
         { "help", 0, 0, 'h' },
         { "update-db", optional_argument, 0, 'u' },
         { "srcdir", required_argument, 0, 's' },
+        { "thread-pool-count", required_argument, 0, 't' },
         { "verbose", 0, 0, 'v' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hu::s:v";
+    const char *shortOptions = "hu::s:vt:";
     int idx, longIndex;
     
     QCoreApplication app(argc, argv);
@@ -162,11 +165,24 @@ int main(int argc, char** argv)
 
     bool update = false;
     const char *dbFile = 0;
+    int threadPoolCount = qMax<int>(4, QThread::idealThreadCount() * 1.5);
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
         switch (idx) {
+        case '?':
+            usage(argv[0], stderr);
+            return 1;
         case 'h':
             usage(argv[0], stdout);
             return 0;
+        case 't':
+            printf("%s\n", optarg);
+            threadPoolCount = atoi(optarg);
+            if (threadPoolCount <= 0) {
+                fprintf(stderr, "%s %d: if (!threadPoolCount) {\n", __FILE__, __LINE__);
+                return 1;
+            }
+            argv[optind - 1] = "";
+            break;
         case 'v':
             ++verbose;
             break;
@@ -189,10 +205,10 @@ int main(int argc, char** argv)
 
     const QList<Path> stdIncludePaths = findStdIncludePaths();
     PreprocessorRunnable::init(stdIncludePaths);
-    RBuild rbuild(stdIncludePaths);
+    RBuild rbuild(threadPoolCount, stdIncludePaths);
 
     for (int i=1; i<argc; ++i) {
-        if (argv[i] && *argv[i] != '-') {
+        if (argv[i] && strlen(argv[i]) && *argv[i] != '-') {
             if (update) {
                 fprintf(stderr, "%s %d: if (update) {\n", __FILE__, __LINE__);
                 return 1;

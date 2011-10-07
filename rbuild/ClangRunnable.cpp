@@ -111,7 +111,7 @@ void ClangRunnable::run()
     QElapsedTimer timer;
     timer.start();
     const time_t lastModified = mFile.lastModified();
-    QVarLengthArray<const char *, 32> clangArgs(mPCHFile ? 2 : mArgs.argumentCount());
+    QVarLengthArray<const char *, 32> clangArgs(mArgs.argumentCount() + 2);
     int used = 0;
     // mPCHFile ? GccArguments::Defines : GccArguments::Defines|GccArguments::IncludePaths);
     if (mPCHFile) {
@@ -119,9 +119,8 @@ void ClangRunnable::run()
         clangArgs[1] = mPCHFile;
         used = 2;
     } else {
-        used = mArgs.getClangArgs(clangArgs.data(), clangArgs.size(), GccArguments::Defines|GccArguments::IncludePaths);
+        used += mArgs.getClangArgs(clangArgs.data() + used, clangArgs.size() - used, GccArguments::IncludePaths);
     }
-
     extern int verbose;
     if (verbose > 1) {
         printf("%s%s ", QUOTE(CLANG_EXECUTABLE), mArgs.language() == GccArguments::LangCPlusPlus ? "++" : "");
