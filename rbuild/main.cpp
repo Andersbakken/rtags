@@ -107,7 +107,7 @@ static inline void usage(const char* argv0, FILE *f)
             argv0);
 }
 
-bool verbose = false;
+int verbose = 0;
 
 class Timer : public QElapsedTimer
 {
@@ -168,7 +168,7 @@ int main(int argc, char** argv)
             usage(argv[0], stdout);
             return 0;
         case 'v':
-            verbose = true;
+            ++verbose;
             break;
         case 's':
             printf("%s %d: case 's':\n", __FILE__, __LINE__);

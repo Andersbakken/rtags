@@ -402,6 +402,7 @@ void RBuild::onPreprocessorError(const Path &sourceFile, const GccArguments &arg
 }
 void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArguments &args, const QList<Path> &headers)
 {
+    extern int verbose;
     int added = 0;
     foreach(const Path &header, headers) {
         if (header.contains("/private"))
@@ -409,6 +410,8 @@ void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArgumen
         QList<Path> &headers = (strcasestr(header.constData(), "x11")
                                 ? mPostHeaders : mAllHeaders);
         if (!headers.contains(header)) {
+            if (verbose > 2)
+                printf("Adding %s for %s\n", header.constData(), sourceFile.constData());
             headers.append(header);
             ++added;
         }
@@ -416,7 +419,6 @@ void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArgumen
     mParsePending[sourceFile] = args;
     --mPreprocessing;
     // qDebug() << "onPreprocessorHeadersFound" << sourceFile << mPreprocessing;
-    extern bool verbose;
     if (verbose)
         printf("Preprocessed %s, added %d headers\n", sourceFile.constData(), added);
     mPCHCompilerSwitches += args.arguments("-I").toSet();
@@ -510,7 +512,9 @@ void RBuild::maybePCH()
                     qWarning() << clangArgs << pchHeader;
                     qFatal("Can't PCH this. That's no good");
                 }
-                printf("Created precompiled header (%d headers) %lldms\n", mAllHeaders.size(), timer.elapsed());
+                extern int verbose;
+                if (verbose)
+                    printf("Created precompiled header (%d headers) %lldms\n", mAllHeaders.size(), timer.elapsed());
                 // qDebug() << pchHeader;
                 mPCHFile = "/tmp/rtags.pch.XXXXXX";
                 if (mkstemp(mPCHFile.data()) <= 0) {

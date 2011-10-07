@@ -122,11 +122,14 @@ void ClangRunnable::run()
         used = mArgs.getClangArgs(clangArgs.data(), clangArgs.size(), GccArguments::Defines|GccArguments::IncludePaths);
     }
 
-    // printf("%s%s ", QUOTE(CLANG_EXECUTABLE), mArgs.language() == GccArguments::LangCPlusPlus ? "++" : "");
-    // for (int i=0; i<used; ++i) {
-    //     printf(" %s", clangArgs[i]);
-    // }
-    // printf(" %s\n", mFile.constData());
+    extern int verbose;
+    if (verbose > 1) {
+        printf("%s%s ", QUOTE(CLANG_EXECUTABLE), mArgs.language() == GccArguments::LangCPlusPlus ? "++" : "");
+        for (int i=0; i<used; ++i) {
+            printf(" %s", clangArgs[i]);
+        }
+        printf(" %s\n", mFile.constData());
+    }
     CXTranslationUnit unit = clang_parseTranslationUnit(index, mFile.constData(),
                                                         clangArgs.constData(), used, 0, 0,
                                                         CXTranslationUnit_DetailedPreprocessingRecord
@@ -605,7 +608,7 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
             doReferences = true;
     }
     const int elapsed = timer.elapsed();
-    extern bool verbose;
+    extern int verbose;
     if (verbose)
         printf("Compiled %s, %d new nodes in %dms\n", file.constData(), ret, elapsed);
     return ret;
