@@ -175,7 +175,7 @@ int main(int argc, char** argv)
             usage(argv[0], stdout);
             return 0;
         case 't':
-            printf("%s\n", optarg);
+            qDebug("%s", optarg);
             threadPoolCount = atoi(optarg);
             if (threadPoolCount <= 0) {
                 fprintf(stderr, "%s %d: if (!threadPoolCount) {\n", __FILE__, __LINE__);
@@ -187,7 +187,7 @@ int main(int argc, char** argv)
             ++verbose;
             break;
         case 's':
-            printf("%s %d: case 's':\n", __FILE__, __LINE__);
+            qDebug("%s %d: case 's':", __FILE__, __LINE__);
             return 2;
         case 'u':
             update = true;
@@ -232,6 +232,5 @@ int main(int argc, char** argv)
         return app.exec();
     }
 
-    printf("%s %d: return 0;\n", __FILE__, __LINE__);
     return 0;
 }

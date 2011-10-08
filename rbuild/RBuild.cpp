@@ -178,7 +178,7 @@ void RBuild::onMakeOutput()
     while (i < size) {
         if (data.buffer.at(i++) == '\n') {
             const QByteArray line(data.buffer.constData() + last, i - last - 1);
-            // printf("%s\n", line.constData());
+            // qDebug("%s", line.constData());
             last = i;
             if (!line.isEmpty()) {
                 Path dir;
@@ -318,7 +318,7 @@ bool RBuild::initFromDb(const MMapData *data)
     buffer.setData(mapped);
     buffer.open(QIODevice::ReadOnly);
     if (buffer.buffer().constData() != data->memory) {
-        printf("%p %p\n", buffer.buffer().constData(), data->memory);
+        qDebug("%p %p", buffer.buffer().constData(), data->memory);
     }
     Q_ASSERT(buffer.buffer().constData() == data->memory); // this is not ever copied right?
     QDataStream ds(&buffer);
@@ -411,7 +411,7 @@ void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArgumen
                                 ? mPostHeaders : mAllHeaders);
         if (!headers.contains(header)) {
             if (verbose > 2)
-                printf("Adding %s for %s\n", header.constData(), sourceFile.constData());
+                qDebug("Adding %s for %s", header.constData(), sourceFile.constData());
             headers.append(header);
             ++added;
         }
@@ -420,7 +420,7 @@ void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArgumen
     --mPreprocessing;
     // qDebug() << "onPreprocessorHeadersFound" << sourceFile << mPreprocessing;
     if (verbose)
-        printf("Preprocessed %s, added %d headers\n", sourceFile.constData(), added);
+        qDebug("Preprocessed %s, added %d headers", sourceFile.constData(), added);
     mPCHCompilerSwitches += args.arguments("-I").toSet();
     mPCHCompilerSwitches += args.arguments("-D").toSet();
     maybePCH();
@@ -514,7 +514,7 @@ void RBuild::maybePCH()
                 }
                 extern int verbose;
                 if (verbose)
-                    printf("Created precompiled header (%d headers) %lldms\n", mAllHeaders.size(), timer.elapsed());
+                    qDebug("Created precompiled header (%d headers) %lldms", mAllHeaders.size(), timer.elapsed());
                 // qDebug() << pchHeader;
                 mPCHFile = "/tmp/rtags.pch.XXXXXX";
                 if (mkstemp(mPCHFile.data()) <= 0) {
@@ -526,12 +526,16 @@ void RBuild::maybePCH()
                 if (ret) {
                     FindIncludersData findIncludersData;
                     qWarning("Couldn't save translation unit %d", ret);
-                    printf("%s", QUOTE(CLANG_EXECUTABLE));
+                    QByteArray out;
+                    out.reserve(256);
+                    out += QUOTE(CLANG_EXECUTABLE);
                     for (int i=0; i<idx; ++i) {
-                        printf(" %s", clangArgs.at(i));
+                        out += ' ';
+                        out += clangArgs.at(i);
                     }
-                    printf(" %s\n", pchHeaderName);
-
+                    out += ' ';
+                    out += pchHeaderName;
+                    qDebug("%s", out.constData());
                     const int count = clang_getNumDiagnostics(unit);
                     for (int i=0; i<count; ++i) {
                         CXDiagnostic diagnostic = clang_getDiagnostic(unit, i);
@@ -585,12 +589,12 @@ void RBuild::maybePCH()
     }
 }
 
-void RBuild::load(const Path &file, const GccArguments &args)
-{
-    static const bool nopch = getenv("RTAGS_NO_PCH");
-    if (!nopch && args.language() == GccArguments::LangCPlusPlus) {
-        preprocess(file, args);
-    } else {
-        parseFile(file, args, 0);
+    void RBuild::load(const Path &file, const GccArguments &args)
+    {
+        static const bool nopch = getenv("RTAGS_NO_PCH");
+        if (!nopch && args.language() == GccArguments::LangCPlusPlus) {
+            preprocess(file, args);
+        } else {
+            parseFile(file, args, 0);
+        }
     }
-}

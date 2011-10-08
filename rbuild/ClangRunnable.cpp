@@ -44,7 +44,7 @@ static CXChildVisitResult dumpTree(CXCursor cursor, CXCursor, CXClientData)
         // << parent << clang_getCursorLexicalParent(cursor);
     }
     str.remove("\"");
-    printf("%s\n", qPrintable(str));
+    qDebug("%s", qPrintable(str));
     return CXChildVisit_Recurse;
 }
 
@@ -123,11 +123,19 @@ void ClangRunnable::run()
     }
     extern int verbose;
     if (verbose > 1) {
-        printf("%s%s ", QUOTE(CLANG_EXECUTABLE), mArgs.language() == GccArguments::LangCPlusPlus ? "++" : "");
+        QByteArray out;
+        out.reserve(256);
+        out += QUOTE(CLANG_EXECUTABLE);
+        if (mArgs.language() == GccArguments::LangCPlusPlus)
+            out += "++";
+        out += ' ';
         for (int i=0; i<used; ++i) {
-            printf(" %s", clangArgs[i]);
+            out += ' ';
+            out += clangArgs[i];
         }
-        printf(" %s\n", mFile.constData());
+        out += ' ';
+        out += mFile;
+        qDebug("%s", out.constData());
     }
     CXTranslationUnit unit = clang_parseTranslationUnit(index, mFile.constData(),
                                                         clangArgs.constData(), used, 0, 0,
@@ -135,11 +143,19 @@ void ClangRunnable::run()
                                                         |CXTranslationUnit_Incomplete); // ### do we need this?
     if (!unit) {
         qWarning("Couldn't parse %s", mFile.constData());
-        printf("%s%s ", QUOTE(CLANG_EXECUTABLE), mArgs.language() == GccArguments::LangCPlusPlus ? "++" : "");
+        QByteArray out;
+        out.reserve(256);
+        out += QUOTE(CLANG_EXECUTABLE);
+        if (mArgs.language() == GccArguments::LangCPlusPlus)
+            out += "++";
+        out += ' ';
         for (int i=0; i<used; ++i) {
-            printf(" %s", clangArgs[i]);
+            out += ' ';
+            out += clangArgs[i];
         }
-        printf(" %s\n", mFile.constData());
+        out += ' ';
+        out += mFile;
+        qDebug("%s", out.constData());
         // qDebug() << mArgs;
         
 
@@ -218,8 +234,6 @@ static int32_t writeNode(QIODevice *device, Node *node, const QHash<Node*, int32
                          int entryIdx, int entryLength)
 {
     const int32_t nodePosition = positions.value(node, -1);
-    // if (node->parent)
-    //     printf("Writing node %s %s at %d\n", nodeTypeToName(node->type, Normal), node->symbolName.constData(), nodePosition);
     Q_ASSERT(nodePosition > 0);
     device->seek(nodePosition);
     writeInt32(device, node->type);
@@ -609,6 +623,6 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
     const int elapsed = timer.elapsed();
     extern int verbose;
     if (verbose)
-        printf("Compiled %s, %d new nodes in %dms\n", file.constData(), ret, elapsed);
+        qDebug("Compiled %s, %d new nodes in %dms", file.constData(), ret, elapsed);
     return ret;
 }

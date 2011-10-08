@@ -133,7 +133,7 @@ QByteArray Node::toString() const
 
 void Node::print() const
 {
-    printf("%s\n", toString().constData());
+    qDebug("%s", toString().constData());
     Node *child = firstChild;
     while (child) {
         child->print();
