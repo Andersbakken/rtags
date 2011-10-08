@@ -67,7 +67,8 @@ int findSibling(const struct NodeData *nodeData, struct NodeData *sibling, int t
     return 0;
 }
 
-const char *strnstr(const char *haystack, const char *needle, int len)
+#ifdef NO_STRNSTR
+static inline const char *strnstr(const char *haystack, const char *needle, int len)
 {
     assert(haystack);
     assert(needle);
@@ -90,8 +91,8 @@ const char *strnstr(const char *haystack, const char *needle, int len)
         ++i;
     }
     return 0;
-
 }
+#endif
 
 Configuration *loadConfiguration(const char *path)
 {

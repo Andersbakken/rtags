@@ -18,6 +18,7 @@ QT =
 unix {
     OBJECTS_DIR = .obj
 }
- 
+
+linux: DEFINES += NO_STRNSTR
 QMAKE_LINK = $$QMAKE_LINK_C
 include(../shared/shared.pri)
