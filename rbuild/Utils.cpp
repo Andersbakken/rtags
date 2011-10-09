@@ -3,7 +3,7 @@
 #include "Path.h"
 
 #ifdef OLDASS_CLANG
-enum { CXCursor_CXXAccessSpecifier,
+enum { CXCursor_CXXAccessSpecifier = 1000,
        CXCursor_IntegerLiteral,
        CXCursor_FloatingLiteral,
        CXCursor_ImaginaryLiteral,
