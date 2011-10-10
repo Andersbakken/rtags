@@ -119,7 +119,8 @@ void ClangRunnable::run()
         clangArgs[1] = mPCHFile;
         used = 2;
     } else {
-        used += mArgs.getClangArgs(clangArgs.data() + used, clangArgs.size() - used, GccArguments::IncludePaths);
+        used += mArgs.getClangArgs(clangArgs.data() + used, clangArgs.size() - used,
+                                   GccArguments::IncludePaths|GccArguments::Defines);
     }
     extern int verbose;
     if (verbose > 1) {
@@ -180,7 +181,7 @@ void ClangRunnable::run()
                                                               CXDiagnostic_DisplayCategoryId|CXDiagnostic_DisplayCategoryName);
                 
                 CXString diagStr2 = clang_formatDiagnostic(diagnostic, diagnosticFormattingOptions);
-                qWarning() << clang_getCString(diagStr) << clang_getCString(diagStr2) << clang_getDiagnosticSeverity(diagnostic);
+                qWarning() << mFile << clang_getCString(diagStr) << clang_getCString(diagStr2) << clang_getDiagnosticSeverity(diagnostic);
                 clang_disposeString(diagStr);
                 clang_disposeString(diagStr2);
             }
