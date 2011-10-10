@@ -40,7 +40,7 @@ static CXChildVisitResult dumpTree(CXCursor cursor, CXCursor, CXClientData)
     QString str;
     {
         QDebug dbg(&str);
-        dbg << cursor;// << clang_getCursorSemanticParent(cursor)
+        dbg << cursor << clang_getCursorReferenced(cursor);// << clang_getCursorSemanticParent(cursor)
         // << parent << clang_getCursorLexicalParent(cursor);
     }
     str.remove("\"");
@@ -477,7 +477,6 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
                     continue;
                 }
                 Node *referenced = 0;
-                qDebug() << "doing" << node.cursor;
                 if (clang_getCursorKind(node.cursor) == CXCursor_MacroExpansion) {
                     const QByteArray symbolName = eatString(clang_getCursorSpelling(node.cursor));
                     for (Node *n = sRoot->firstChild; n; n = n->nextSibling) {
@@ -574,6 +573,9 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
                         // if (i)
                         //     qWarning() << "Can't find parent" << node.cursor << node.parent;
                         ++it;
+                        continue;
+                    } else if (p->type == Reference) {
+                        it = hash.erase(it);
                         continue;
                     }
                 } else {
