@@ -86,7 +86,6 @@ static CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor hackP
     return CXChildVisit_Recurse;
 }
 
-
 ClangRunnable::ClangRunnable(const Path &file, const ClangArgs &args)
     : mFile(file), mArgs(args)
 {
@@ -478,11 +477,13 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
                     continue;
                 }
                 Node *referenced = 0;
+                qDebug() << "doing" << node.cursor;
                 if (clang_getCursorKind(node.cursor) == CXCursor_MacroExpansion) {
                     const QByteArray symbolName = eatString(clang_getCursorSpelling(node.cursor));
                     for (Node *n = sRoot->firstChild; n; n = n->nextSibling) {
                         if (n->type == MacroDefinition && n->symbolName == symbolName) {
                             referenced = n;
+                            Q_ASSERT(referenced->type != Reference);
                             break;
                         }
                     }
@@ -557,14 +558,15 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
                         if (decl)
                             referenced = decl;
                     }
+                    if (referenced->type == Reference)
+                        qWarning() << "this is gonna blow up" << node.cursor << "refers to" << ref;
                 }
                 Q_ASSERT(referenced->location != node.loc);
                 Node *n = new Node(referenced, Reference, referenced->symbolName, node.loc, node.id);
                 n->containingFunction = findContainingFunction(node.cursor);
                 ++ret;
                 it = hash.erase(it);
-                continue;
-            } else {
+            } else { // non-references
                 Node *p = 0;
                 if (!node.parentId.isEmpty()) {
                     p = Node::sNodes.value(node.parentId);
