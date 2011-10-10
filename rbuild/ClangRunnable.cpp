@@ -114,18 +114,44 @@ void ClangRunnable::run()
     if (verbose >= 2) {
         qDebug("%s", mArgs.toString(mFile.constData()).constData());
     }
-    CXTranslationUnit unit = clang_parseTranslationUnit(index, mFile.constData(),
-                                                        mArgs.clangArgs.constData(), mArgs.clangArgs.size(),
-                                                        0, 0, CXTranslationUnit_DetailedPreprocessingRecord
-                                                        |CXTranslationUnit_Incomplete); // ### do we need this?
-    if (!unit) {
-        qWarning("Couldn't parse %s\n%s", mFile.constData(),
-                 mArgs.toString(mFile.constData()).constData());
-    } else {
+    const bool hasPch = !mArgs.pchFile.isEmpty();
+    CXTranslationUnit unit = 0;
+    for (int i=0; i<2; ++i) {
+        const int count = ((i == 1 && hasPch) ? mArgs.clangArgs.size() - 2 : mArgs.clangArgs.size());
+        unit = clang_parseTranslationUnit(index, mFile.constData(),
+                                          mArgs.clangArgs.constData(), count,
+                                          0, 0, CXTranslationUnit_DetailedPreprocessingRecord
+                                          |CXTranslationUnit_Incomplete); // ### do we need this?
+        if (!unit) {
+            if (i == 1 || !hasPch) {
+                qWarning("Couldn't parse %s\n%s", mFile.constData(),
+                         mArgs.toString(mFile.constData()).constData());
+                break;
+            }
+            qDebug() << "retrying without pch" << mFile;
+            continue;
+        }
+        Q_ASSERT(unit);
+        const int diagnosticsCount = clang_getNumDiagnostics(unit);
+        if (i == 0 && hasPch) {
+            bool retry = false;
+            for (int j=0; j<diagnosticsCount; ++j) {
+                CXDiagnostic diagnostic = clang_getDiagnostic(unit, j);
+                const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diagnostic);
+                clang_disposeDiagnostic(diagnostic);
+                if (severity >= CXDiagnostic_Warning) {
+                    retry = true;
+                    break;
+                }
+            }
+            if (retry) {
+                qDebug() << "retrying without pch" << mFile;
+                continue;
+            }
+        }
 #ifdef QT_DEBUG
-        const int count = clang_getNumDiagnostics(unit);
-        for (int i=0; i<count; ++i) {
-            CXDiagnostic diagnostic = clang_getDiagnostic(unit, i);
+        for (int j=0; j<diagnosticsCount; ++j) {
+            CXDiagnostic diagnostic = clang_getDiagnostic(unit, j);
             if (clang_getDiagnosticSeverity(diagnostic) > (verbose ? CXDiagnostic_Note : CXDiagnostic_Warning)) {
                 CXString diagStr = clang_getDiagnosticSpelling(diagnostic);
                 const unsigned diagnosticFormattingOptions = (CXDiagnostic_DisplaySourceLocation|CXDiagnostic_DisplayColumn|
@@ -140,7 +166,10 @@ void ClangRunnable::run()
             clang_disposeDiagnostic(diagnostic);
         }
 #endif
+        break;
+    }
 
+    if (unit) {
         PrecompileData pre;
         clang_getInclusions(unit, precompileHeaders, &pre);
         {
@@ -557,8 +586,10 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
                         if (decl)
                             referenced = decl;
                     }
-                    if (referenced->type == Reference)
-                        qWarning() << "this is gonna blow up" << node.cursor << "refers to" << ref;
+                    if (referenced->type == Reference) {
+                        it = hash.erase(it);
+                        continue;
+                    }
                 }
                 Q_ASSERT(referenced->location != node.loc);
                 Node *n = new Node(referenced, Reference, referenced->symbolName, node.loc, node.id);
