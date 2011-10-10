@@ -3,8 +3,7 @@
 #include "Path.h"
 
 #ifdef OLDASS_CLANG
-enum { CXCursor_CXXAccessSpecifier = 1000,
-       CXCursor_IntegerLiteral,
+enum { CXCursor_IntegerLiteral = 1024,
        CXCursor_FloatingLiteral,
        CXCursor_ImaginaryLiteral,
        CXCursor_StringLiteral,
@@ -42,7 +41,7 @@ enum { CXCursor_CXXAccessSpecifier = 1000,
        CXCursor_ObjCBridgedCastExpr,
        CXCursor_PackExpansionExpr,
        CXCursor_SizeOfPackExpr,
-       CXCursor_LastExpr,
+       // CXCursor_LastExpr,
        CXCursor_CompoundStmt,
        CXCursor_CaseStmt,
        CXCursor_DefaultStmt,
@@ -71,8 +70,7 @@ enum { CXCursor_CXXAccessSpecifier = 1000,
        CXCursor_SEHExceptStmt,
        CXCursor_SEHFinallyStmt,
        CXCursor_NullStmt,
-       CXCursor_DeclStmt,
-       CXCursor_LastStmt
+       CXCursor_DeclStmt
 };
 #endif
 const char *kindToString(CXCursorKind kind)
