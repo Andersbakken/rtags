@@ -6,6 +6,7 @@
 #include "Path.h"
 #include "Location.h"
 #include "Shared.h"
+#include "ClangArgs.h"
 
 struct Node;
 struct CursorNode;
@@ -16,7 +17,7 @@ class ClangRunnable : public QObject, public QRunnable
 public:
     static void init();
     static void cleanup();
-    ClangRunnable(const Path &file, const GccArguments &args, const char *pchFile);
+    ClangRunnable(const Path &file, const ClangArgs &args);
     void run();
     static bool save(const QByteArray &file);
     static void initTree(const MMapData *data, const QSet<Path> &modifiedPaths);
@@ -34,8 +35,7 @@ private:
     };
 
     const Path mFile;
-    const GccArguments mArgs;
-    const char *mPCHFile;
+    const ClangArgs mArgs;
     static QMutex sTreeMutex;
     static Node *sRoot;
     static QMutex sFilesMutex;

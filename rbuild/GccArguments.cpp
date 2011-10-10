@@ -48,23 +48,6 @@ GccArguments::Language GccArguments::Data::guessLanguage() const
     return guesslang;
 }
 
-QByteArray GccArguments::Data::languageString() const
-{
-    switch(language) {
-    case LangUndefined:
-        return QByteArray();
-    case LangC:
-        return "c";
-    case LangCPlusPlus:
-        return "c++";
-    case LangObjC:
-        return "objective-c";
-    case LangObjCPlusPlus:
-        return "objective-c++";
-    }
-    return QByteArray();
-}
-
 GccArguments::GccArguments()
     : m_ptr(new Data)
 {
@@ -228,13 +211,13 @@ QList<QByteArray> GccArguments::arguments(const QByteArray &prefix) const
         args << arg.arg;
 
         if (arg.pos == data->x && data->language != LangUndefined)
-            args << data->languageString();
+            args << languageString(data->language);
         else if (!arg.value.isEmpty())
             args << arg.value;
     }
 
     if (data->x == -1 && data->language != LangUndefined)
-        args << "-x" << data->languageString();
+        args << "-x" << languageString(data->language);
 
     return args;
 }
@@ -383,4 +366,20 @@ int GccArguments::getClangArgs(const char **args, int max, unsigned flags) const
     }
 
     return added;
+}
+const char* GccArguments::languageString(Language language)
+{
+    switch(language) {
+    case LangUndefined:
+        break;
+    case LangC:
+        return "c";
+    case LangCPlusPlus:
+        return "c++";
+    case LangObjC:
+        return "objective-c";
+    case LangObjCPlusPlus:
+        return "objective-c++";
+    }
+    return "";
 }

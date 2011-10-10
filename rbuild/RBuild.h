@@ -11,6 +11,7 @@
 #include "GccArguments.h"
 #include "Path.h"
 #include "Location.h"
+#include "ClangArgs.h"
 
 struct Node;
 struct MMapData;
@@ -32,7 +33,7 @@ public:
     bool initFromDb(const MMapData *data);
     bool isFinished() const;
     void preprocess(const Path &sourceFile, const GccArguments &args);
-    void parseFile(const Path &path, const GccArguments &args, const char *pchFile);
+    void parseFile(const Path &path, const ClangArgs &args);
     void load(const Path &path, const GccArguments &args);
     void maybePCH();
 private slots:
@@ -56,10 +57,13 @@ private:
     Path mDatabaseFile;
     DatabaseMode mDatabaseMode;
     int mPreprocessing, mParsing;
-    QHash<Path, GccArguments> mParsePending;
-    QList<Path> mAllHeaders, mPostHeaders;
-    QSet<QByteArray> mPCHCompilerSwitches;
-    QByteArray mPCHFile;
+    QSet<QByteArray> mStdIncludePaths;
+
+    struct Pch {
+        QList<Path> allHeaders, postHeaders, sources;
+        ClangArgs clangArgs;
+    };
+    QList<Pch> mPCHFiles;
 };
 
 #endif

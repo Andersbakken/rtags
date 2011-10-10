@@ -47,6 +47,7 @@ public:
 
     bool isCompile() const;
     bool operator==(const GccArguments &other) const;
+    static const char* languageString(Language language);
  private:
     Path parseCD(const QByteArray& cmd, const Path& path) const;
 
@@ -56,7 +57,6 @@ public:
         Data();
 
         GccArguments::Language guessLanguage() const;
-        QByteArray languageString() const;
 
         struct Argument
         {

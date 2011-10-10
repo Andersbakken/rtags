@@ -190,6 +190,7 @@ int main(int argc, char** argv)
             qDebug("%s %d: case 's':", __FILE__, __LINE__);
             return 2;
         case 'u':
+            fprintf(stderr, "-u is currently busted\n");
             update = true;
             if (optarg) {
                 dbFile = *optarg == '=' ? optarg + 1 : optarg;

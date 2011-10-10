@@ -87,8 +87,8 @@ static CXChildVisitResult buildComprehensiveTree(CXCursor cursor, CXCursor hackP
 }
 
 
-ClangRunnable::ClangRunnable(const Path &file, const GccArguments &args, const char *pchFile)
-    : mFile(file), mArgs(args), mPCHFile(pchFile)
+ClangRunnable::ClangRunnable(const Path &file, const ClangArgs &args)
+    : mFile(file), mArgs(args)
 {
     setAutoDelete(true);
 }
@@ -111,63 +111,17 @@ void ClangRunnable::run()
     QElapsedTimer timer;
     timer.start();
     const time_t lastModified = mFile.lastModified();
-    QVarLengthArray<const char *, 32> clangArgs(mArgs.argumentCount() + 2);
-    int used = 0;
-    // mPCHFile ? GccArguments::Defines : GccArguments::Defines|GccArguments::IncludePaths);
-    if (mPCHFile) {
-        clangArgs[0] = "-include-pch";
-        clangArgs[1] = mPCHFile;
-        used = 2;
-    }
-    used += mArgs.getClangArgs(clangArgs.data() + used, clangArgs.size() - used,
-                               GccArguments::IncludePaths|GccArguments::Defines);
     extern int verbose;
     if (verbose >= 2) {
-        QByteArray out;
-        out.reserve(256);
-        out += QUOTE(CLANG_EXECUTABLE);
-        if (mArgs.language() == GccArguments::LangCPlusPlus)
-            out += "++";
-        out += ' ';
-        for (int i=0; i<used; ++i) {
-            out += ' ';
-            out += clangArgs[i];
-        }
-        out += ' ';
-        out += mFile;
-        qDebug("%s", out.constData());
+        qDebug("%s%s", mArgs.toString().constData(), mFile.constData());
     }
     CXTranslationUnit unit = clang_parseTranslationUnit(index, mFile.constData(),
-                                                        clangArgs.constData(), used, 0, 0,
-                                                        CXTranslationUnit_DetailedPreprocessingRecord
+                                                        mArgs.clangArgs.constData(), mArgs.clangArgs.size(),
+                                                        0, 0, CXTranslationUnit_DetailedPreprocessingRecord
                                                         |CXTranslationUnit_Incomplete); // ### do we need this?
     if (!unit) {
-        qWarning("Couldn't parse %s", mFile.constData());
-        QByteArray out;
-        out.reserve(256);
-        out += QUOTE(CLANG_EXECUTABLE);
-        if (mArgs.language() == GccArguments::LangCPlusPlus)
-            out += "++";
-        out += ' ';
-        for (int i=0; i<used; ++i) {
-            out += ' ';
-            out += clangArgs[i];
-        }
-        out += ' ';
-        out += mFile;
-        qDebug("%s", out.constData());
-        // qDebug() << mArgs;
-        
-
-        // QByteArray clangLine = "clang";
-        // if (mArgs.language() == GccArguments::LangCPlusPlus)
-        //     clangLine += "++";
-        // for (int j=0; j<used; ++j) {
-        //     clangLine += ' ';
-        //     clangLine += clangArgs[j];
-        // }
-        // clangLine += ' ' + mFile;
-        // qWarning("[%s]", clangLine.constData());
+        qWarning("Couldn't parse %s\n%s%s", mFile.constData(),
+                 mArgs.toString().constData(), mFile.constData());
     } else {
 #ifdef QT_DEBUG
         const int count = clang_getNumDiagnostics(unit);
@@ -199,7 +153,8 @@ void ClangRunnable::run()
             QMutexLocker lock(&sFilesMutex);
             FileData &data = sFiles[mFile];
             data.lastModified = lastModified;
-            data.arguments = mArgs;
+#warning need a solution for this too
+            // data.arguments = mArgs;
             foreach(const Path &dependency, pre.all) {
                 data.dependencies[dependency] = dependency.lastModified(); // ### raise condition, only checking time after parsing
             }

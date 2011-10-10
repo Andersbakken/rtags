@@ -16,7 +16,7 @@ RBuild::RBuild(int threadPoolCount, const QList<Path> &stdIncludePaths, QObject 
     : QObject(parent), mDatabaseMode(Build), mPreprocessing(0), mParsing(0)
 {
     foreach(const Path &p, stdIncludePaths)
-        mPCHCompilerSwitches.insert("-I" + p);
+        mStdIncludePaths.insert("-I" + p);
     mThreadPool.setMaxThreadCount(threadPoolCount);
 }
 
@@ -369,9 +369,9 @@ bool RBuild::initFromDb(const MMapData *data)
 //     return CXChildVisit_Continue;
 // }
 
-void RBuild::parseFile(const Path &file, const GccArguments &args, const char *pchFile)
+void RBuild::parseFile(const Path &file, const ClangArgs &args)
 {
-    ClangRunnable *runnable = new ClangRunnable(file, args, pchFile);
+    ClangRunnable *runnable = new ClangRunnable(file, args);
     ++mParsing;
     connect(runnable, SIGNAL(finished()), this, SLOT(onClangRunnableFinished()));
     mThreadPool.start(runnable);
@@ -400,29 +400,81 @@ void RBuild::onPreprocessorError(const Path &sourceFile, const GccArguments &arg
     maybePCH();
     qWarning() << "onPreprocessorError" << sourceFile << args << error;
 }
+
+// ### should this one be stricter?
+static inline bool matches(const QSet<QByteArray> &haystack, const QList<QByteArray> &needles)
+{
+    foreach(const QByteArray &needle, needles) {
+        if (!haystack.contains(needle))
+            return false;
+    }
+    return true;
+}
+
+static inline QSet<QByteArray> &operator +=(QSet<QByteArray> &set, const QList<QByteArray> &list)
+{
+    foreach(const QByteArray &l, list) {
+        set.insert(l);
+    }
+    return set;
+}
+
 void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArguments &args, const QList<Path> &headers)
 {
+    --mPreprocessing;
+    if (headers.isEmpty()) {
+        ClangArgs c;
+        c.language = args.language();
+        c.compilerSwitches += mStdIncludePaths;
+        c.compilerSwitches += args.arguments("-I");
+        c.compilerSwitches += args.arguments("-D");
+        c.fillClangArgs();
+        parseFile(sourceFile, c);
+        return;
+    }
     extern int verbose;
     int added = 0;
+    
+    Pch *pch = 0;
+    bool newPch = false;
+    const int count = mPCHFiles.size();
+    const QList<QByteArray> defines = args.arguments("-D");
+    for (int i=0; i<count; ++i) {
+        Pch &p = mPCHFiles[i];
+        if (args.language() == p.clangArgs.language
+            && ::matches(p.clangArgs.compilerSwitches, defines)) {
+            pch = &p;
+            break;
+        }
+    }
+    if (!pch) {
+        Pch p;
+        p.clangArgs.language = args.language();
+        qDebug() << int(p.clangArgs.language) << GccArguments::languageString(p.clangArgs.language) << sourceFile;
+        p.clangArgs.compilerSwitches += defines;
+        p.clangArgs.compilerSwitches += mStdIncludePaths;
+        mPCHFiles.append(p);
+        pch = &mPCHFiles.last();
+        newPch = true;
+    }
+    pch->clangArgs.compilerSwitches += args.arguments("-I");
+    pch->sources += sourceFile;
+
     foreach(const Path &header, headers) {
         if (header.contains("/private"))
             continue;
         QList<Path> &headers = (strcasestr(header.constData(), "x11")
-                                ? mPostHeaders : mAllHeaders);
-        if (!headers.contains(header)) {
+                                ? pch->postHeaders : pch->allHeaders);
+        if (newPch || !headers.contains(header)) {
             if (verbose > 2)
                 qDebug("Adding %s for %s", header.constData(), sourceFile.constData());
             headers.append(header);
             ++added;
         }
     }
-    mParsePending[sourceFile] = args;
-    --mPreprocessing;
     // qDebug() << "onPreprocessorHeadersFound" << sourceFile << mPreprocessing;
     if (verbose)
         qDebug("Preprocessed %s, added %d headers", sourceFile.constData(), added);
-    mPCHCompilerSwitches += args.arguments("-I").toSet();
-    mPCHCompilerSwitches += args.arguments("-D").toSet();
     maybePCH();
     // qDebug() << sourceFile << mPCHCompilerSwitches << args.arguments();
     // qDebug() << "onPreprocessorHeadersFound" << sourceFile << args << headers << "Added" << added << "headers";
@@ -461,94 +513,70 @@ static inline void findIncluders(CXFile includedFile, CXSourceLocation* inclusio
 void RBuild::maybePCH()
 {
     if (!mPreprocessing && mMakefiles.isEmpty()) {
-        if (mParsePending.isEmpty()) {
+        if (mPCHFiles.isEmpty()) {
             maybeDone();
             return;
         }
-        if (!mAllHeaders.isEmpty() || !mPostHeaders.isEmpty()) {
+        CXIndex index = clang_createIndex(1, 1);
+        for (int i=mPCHFiles.size() - 1; i>=0; --i) {
+            Pch &p = mPCHFiles[i];
             QElapsedTimer timer;
             timer.start();
             bool retry;
             do {
                 retry = false;
                 QByteArray pchHeader;
-                pchHeader.reserve(mAllHeaders.size() * 48); // ###?
+                pchHeader.reserve(p.allHeaders.size() * 48); // ###?
                 pchHeader.append("#ifndef RTAGS_PCH_H\n#define RTAGS_PCH_H\n");
-                foreach(const Path &header, mAllHeaders) {
+                foreach(const Path &header, p.allHeaders) {
                     pchHeader.append("#include \"" + header + "\"\n");
                 }
 
-                foreach(const Path &header, mPostHeaders) {
+                foreach(const Path &header, p.postHeaders) {
                     pchHeader.append("#include \"" + header + "\"\n");
                 }
 
-                pchHeader.append("#endif");
+                pchHeader.append("#endif\n");
                 // qDebug() << pchHeader;
 
-                CXIndex index = clang_createIndex(1, 1);
-
-                QVector<const char*> clangArgs(mPCHCompilerSwitches.size() + 2);
-                int idx = 0;
-                foreach(const QByteArray &s, mPCHCompilerSwitches) {
-                    clangArgs[idx++] = s.constData();
-                }
-
-                clangArgs[idx++] = "-x";
-                clangArgs[idx++] = "c++";
                 char pchHeaderName[PATH_MAX] = { 0 };
                 const char *tmpl = "/tmp/rtags.pch.h.XXXXXX";
                 memcpy(pchHeaderName, tmpl, strlen(tmpl));
                 const int pchHeaderFd = mkstemp(pchHeaderName);
                 if (pchHeaderFd <= 0 || write(pchHeaderFd, pchHeader.constData(), pchHeader.size()) != pchHeader.size()) {
                     qWarning("PCH header write failure %s", pchHeaderName);
-                    return;
+                    continue;
                 }
-                // qWarning() << "building pch" << clangArgs;
-                CXTranslationUnit unit = clang_parseTranslationUnit(index, pchHeaderName, clangArgs.constData(),
-                                                                    idx, 0, 0,
-                                                                    CXTranslationUnit_Incomplete);
-                // qDebug() << mAllHeaders << clangArgs << pchHeader;
+                close(pchHeaderFd);
+
+                p.clangArgs.pchFile = QByteArray("/tmp/rtags.pch.XXXXXX");
+                if (mkstemp(p.clangArgs.pchFile.data()) <= 0) {
+                    qWarning("PCH write failure %s", p.clangArgs.pchFile.constData());
+                    continue;
+                }
+
+                p.clangArgs.fillClangArgs();
+                CXTranslationUnit unit = clang_parseTranslationUnit(index, pchHeaderName, p.clangArgs.clangArgs.constData(),
+                                                                    p.clangArgs.clangArgs.size() - 2, // don't include -include-pch stuff
+                                                                    0, 0, CXTranslationUnit_Incomplete);
                 if (!unit) {
-                    qWarning() << clangArgs << pchHeader;
+                    p.clangArgs.clangArgs.resize(p.clangArgs.clangArgs.size() - 2);
+                    qWarning("%s%s", p.clangArgs.toString().constData(), pchHeaderName);
                     qFatal("Can't PCH this. That's no good");
                 }
                 extern int verbose;
                 if (verbose) {
-                    qDebug("Created precompiled header (%d headers) %lldms", mAllHeaders.size(), timer.elapsed());
+                    qDebug("Created precompiled header (%d headers) %lldms",
+                           p.allHeaders.size() + p.postHeaders.size(), timer.elapsed());
                     if (verbose >= 2) {
-                        QByteArray out;
-                        out.reserve(256);
-                        out += QUOTE(CLANG_EXECUTABLE);
-                        for (int i=0; i<idx; ++i) {
-                            out += ' ';
-                            out += clangArgs.at(i);
-                        }
-                        out += ' ';
-                        out += pchHeaderName;
-                        qDebug("%s", out.constData());
+                        qDebug("%s%s", p.clangArgs.toString().constData(), pchHeaderName);
                     }
                 }
-                // qDebug() << pchHeader;
-                mPCHFile = "/tmp/rtags.pch.XXXXXX";
-                if (mkstemp(mPCHFile.data()) <= 0) {
-                    qWarning("PCH write failure %s", mPCHFile.constData());
-                    clang_disposeTranslationUnit(unit);
-                    return;
-                }
-                const int ret = clang_saveTranslationUnit(unit, mPCHFile.constData(), clang_defaultSaveOptions(unit));
+                const int ret = clang_saveTranslationUnit(unit, p.clangArgs.pchFile.constData(),
+                                                          clang_defaultSaveOptions(unit));
                 if (ret) {
                     FindIncludersData findIncludersData;
-                    qWarning("Couldn't save translation unit %d", ret);
-                    QByteArray out;
-                    out.reserve(256);
-                    out += QUOTE(CLANG_EXECUTABLE);
-                    for (int i=0; i<idx; ++i) {
-                        out += ' ';
-                        out += clangArgs.at(i);
-                    }
-                    out += ' ';
-                    out += pchHeaderName;
-                    qDebug("%s", out.constData());
+                    qWarning("Couldn't save translation unit %d %s%s", ret, p.clangArgs.toString().constData(), pchHeaderName);
                     const int count = clang_getNumDiagnostics(unit);
                     for (int i=0; i<count; ++i) {
                         CXDiagnostic diagnostic = clang_getDiagnostic(unit, i);
@@ -560,7 +588,7 @@ void RBuild::maybePCH()
                             if (idx != -1) {
                                 Location loc(file.left(idx).constData());
                                 qDebug() << loc << file.left(idx) << loc.path;
-                                if (!mPostHeaders.removeOne(loc.path) && !mAllHeaders.removeOne(loc.path)) {
+                                if (!p.allHeaders.removeOne(loc.path) || !p.postHeaders.removeOne(loc.path)) {
                                     findIncludersData.errorLocations.insert(loc.path);
                                 } else {
                                     retry = true;
@@ -582,32 +610,40 @@ void RBuild::maybePCH()
                         clang_getInclusions(unit, findIncluders, &findIncludersData);
                         qDebug() << "we have some files to remove" << findIncludersData.includers;
                         foreach(const Path &includer, findIncludersData.includers) {
-                            const bool found = (mPostHeaders.removeOne(includer) || mAllHeaders.removeOne(includer));
+                            const bool found = (p.allHeaders.removeOne(includer) || p.postHeaders.removeOne(includer));
                             (void)found;
                             qDebug() << found;
                             Q_ASSERT(found);
                             retry = true;
                         }
                     }
-                    mPCHFile.clear();
+                    p.clangArgs.pchFile.clear();
                 } else {
                     ClangRunnable::processTranslationUnit(pchHeaderName, unit);
                 }
                 clang_disposeTranslationUnit(unit);
             } while (retry);
+            foreach(const Path &source, p.sources) {
+                parseFile(source, p.clangArgs);
+            }
+            mPCHFiles.removeLast();
         }
-        for (QHash<Path, GccArguments>::const_iterator it = mParsePending.begin(); it != mParsePending.end(); ++it) {
-            parseFile(it.key(), it.value(), mPCHFile.constData());
-        }
+        clang_disposeIndex(index);
     }
 }
 
-    void RBuild::load(const Path &file, const GccArguments &args)
-    {
-        static const bool nopch = getenv("RTAGS_NO_PCH");
-        if (!nopch && args.language() == GccArguments::LangCPlusPlus) {
-            preprocess(file, args);
-        } else {
-            parseFile(file, args, 0);
-        }
+void RBuild::load(const Path &file, const GccArguments &a)
+{
+    static const bool nopch = getenv("RTAGS_NO_PCH");
+    if (nopch) {
+        ClangArgs args;
+        args.language = a.language();
+        args.compilerSwitches += mStdIncludePaths;
+        args.compilerSwitches += a.arguments("-I");
+        args.compilerSwitches += a.arguments("-D");
+        args.fillClangArgs();
+        parseFile(file, args);
+    } else {
+        preprocess(file, a);
     }
+}

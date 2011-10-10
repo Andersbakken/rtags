@@ -33,7 +33,8 @@ HEADERS += \
     Node.h \
     Location.h \
     ClangRunnable.h \
-    PreprocessorRunnable.h
+    PreprocessorRunnable.h \
+    ClangArgs.h
 
 OTHER_FILES += gccopts.gperf
 
