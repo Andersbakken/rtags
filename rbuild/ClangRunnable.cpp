@@ -543,11 +543,19 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
                     }
 
                     if (!isValidCursor(ref)) {
-                        if (kind != CXCursor_MacroExpansion
-                            && kind != CXCursor_ClassDecl
-                            && kind != CXCursor_StructDecl
-                            && kind != CXCursor_DeclRefExpr) {
-                            qWarning() << "Can't get valid cursor for" << node.cursor << clang_getCursorSemanticParent(node.cursor);
+                        switch (kind) {
+                        case CXCursor_MacroExpansion:
+                        case CXCursor_ClassDecl:
+                        case CXCursor_StructDecl:
+                        case CXCursor_DeclRefExpr:
+                        case CXCursor_MemberRefExpr: // ### these annoy me, not
+                                                     // ### sure why they so
+                                                     // ### often don't work
+                            break;
+                        default:
+                            break;
+                            qWarning() << "Can't get valid cursor for" << node.cursor
+                                       << "parent" << clang_getCursorSemanticParent(node.cursor);
                         }
                         it = hash.erase(it);
                         continue;
