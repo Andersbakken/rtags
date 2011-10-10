@@ -118,12 +118,11 @@ void ClangRunnable::run()
         clangArgs[0] = "-include-pch";
         clangArgs[1] = mPCHFile;
         used = 2;
-    } else {
-        used += mArgs.getClangArgs(clangArgs.data() + used, clangArgs.size() - used,
-                                   GccArguments::IncludePaths|GccArguments::Defines);
     }
+    used += mArgs.getClangArgs(clangArgs.data() + used, clangArgs.size() - used,
+                               GccArguments::IncludePaths|GccArguments::Defines);
     extern int verbose;
-    if (verbose > 1) {
+    if (verbose >= 2) {
         QByteArray out;
         out.reserve(256);
         out += QUOTE(CLANG_EXECUTABLE);

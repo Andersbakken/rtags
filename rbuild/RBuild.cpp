@@ -513,8 +513,21 @@ void RBuild::maybePCH()
                     qFatal("Can't PCH this. That's no good");
                 }
                 extern int verbose;
-                if (verbose)
+                if (verbose) {
                     qDebug("Created precompiled header (%d headers) %lldms", mAllHeaders.size(), timer.elapsed());
+                    if (verbose >= 2) {
+                        QByteArray out;
+                        out.reserve(256);
+                        out += QUOTE(CLANG_EXECUTABLE);
+                        for (int i=0; i<idx; ++i) {
+                            out += ' ';
+                            out += clangArgs.at(i);
+                        }
+                        out += ' ';
+                        out += pchHeaderName;
+                        qDebug("%s", out.constData());
+                    }
+                }
                 // qDebug() << pchHeader;
                 mPCHFile = "/tmp/rtags.pch.XXXXXX";
                 if (mkstemp(mPCHFile.data()) <= 0) {
