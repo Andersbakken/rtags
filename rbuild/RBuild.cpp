@@ -450,7 +450,6 @@ void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArgumen
     if (!pch) {
         Pch p;
         p.clangArgs.language = args.language();
-        qDebug() << int(p.clangArgs.language) << GccArguments::languageString(p.clangArgs.language) << sourceFile;
         p.clangArgs.compilerSwitches += defines;
         p.clangArgs.compilerSwitches += mStdIncludePaths;
         mPCHFiles.append(p);
@@ -527,6 +526,13 @@ void RBuild::maybePCH()
                 retry = false;
                 QByteArray pchHeader;
                 pchHeader.reserve(p.allHeaders.size() * 48); // ###?
+#ifdef QT_DEBUG
+                foreach(const Path &path, p.sources) {
+                    pchHeader.append("// ");
+                    pchHeader.append(path);
+                    pchHeader.append('\n');
+                }
+#endif
                 pchHeader.append("#ifndef RTAGS_PCH_H\n#define RTAGS_PCH_H\n");
                 foreach(const Path &header, p.allHeaders) {
                     pchHeader.append("#include \"" + header + "\"\n");
@@ -561,7 +567,7 @@ void RBuild::maybePCH()
                                                                     0, 0, CXTranslationUnit_Incomplete);
                 if (!unit) {
                     p.clangArgs.clangArgs.resize(p.clangArgs.clangArgs.size() - 2);
-                    qWarning("%s%s", p.clangArgs.toString().constData(), pchHeaderName);
+                    qWarning("%s", p.clangArgs.toString(pchHeaderName).constData());
                     qFatal("Can't PCH this. That's no good");
                 }
                 extern int verbose;
@@ -569,14 +575,14 @@ void RBuild::maybePCH()
                     qDebug("Created precompiled header (%d headers) %lldms",
                            p.allHeaders.size() + p.postHeaders.size(), timer.elapsed());
                     if (verbose >= 2) {
-                        qDebug("%s%s", p.clangArgs.toString().constData(), pchHeaderName);
+                        qDebug("%s", p.clangArgs.toString(pchHeaderName).constData());
                     }
                 }
                 const int ret = clang_saveTranslationUnit(unit, p.clangArgs.pchFile.constData(),
                                                           clang_defaultSaveOptions(unit));
                 if (ret) {
                     FindIncludersData findIncludersData;
-                    qWarning("Couldn't save translation unit %d %s%s", ret, p.clangArgs.toString().constData(), pchHeaderName);
+                    qWarning("Couldn't save translation unit %d\n%s", ret, p.clangArgs.toString(pchHeaderName).constData());;
                     const int count = clang_getNumDiagnostics(unit);
                     for (int i=0; i<count; ++i) {
                         CXDiagnostic diagnostic = clang_getDiagnostic(unit, i);
@@ -587,7 +593,6 @@ void RBuild::maybePCH()
                             const int idx = file.indexOf(severity == CXDiagnostic_Error ? ": error: " : ": fatal: ");
                             if (idx != -1) {
                                 Location loc(file.left(idx).constData());
-                                qDebug() << loc << file.left(idx) << loc.path;
                                 if (!p.allHeaders.removeOne(loc.path) || !p.postHeaders.removeOne(loc.path)) {
                                     findIncludersData.errorLocations.insert(loc.path);
                                 } else {

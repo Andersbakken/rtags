@@ -113,21 +113,21 @@ void ClangRunnable::run()
     const time_t lastModified = mFile.lastModified();
     extern int verbose;
     if (verbose >= 2) {
-        qDebug("%s%s", mArgs.toString().constData(), mFile.constData());
+        qDebug("%s", mArgs.toString(mFile.constData()).constData());
     }
     CXTranslationUnit unit = clang_parseTranslationUnit(index, mFile.constData(),
                                                         mArgs.clangArgs.constData(), mArgs.clangArgs.size(),
                                                         0, 0, CXTranslationUnit_DetailedPreprocessingRecord
                                                         |CXTranslationUnit_Incomplete); // ### do we need this?
     if (!unit) {
-        qWarning("Couldn't parse %s\n%s%s", mFile.constData(),
-                 mArgs.toString().constData(), mFile.constData());
+        qWarning("Couldn't parse %s\n%s", mFile.constData(),
+                 mArgs.toString(mFile.constData()).constData());
     } else {
 #ifdef QT_DEBUG
         const int count = clang_getNumDiagnostics(unit);
         for (int i=0; i<count; ++i) {
             CXDiagnostic diagnostic = clang_getDiagnostic(unit, i);
-            if (clang_getDiagnosticSeverity(diagnostic) > CXDiagnostic_Note) {
+            if (clang_getDiagnosticSeverity(diagnostic) > (verbose ? CXDiagnostic_Note : CXDiagnostic_Warning)) {
                 CXString diagStr = clang_getDiagnosticSpelling(diagnostic);
                 const unsigned diagnosticFormattingOptions = (CXDiagnostic_DisplaySourceLocation|CXDiagnostic_DisplayColumn|
                                                               CXDiagnostic_DisplaySourceRanges|CXDiagnostic_DisplayOption|
@@ -196,6 +196,10 @@ static int32_t writeNode(QIODevice *device, Node *node, const QHash<Node*, int32
     writeInt32(device, location);
     writeInt32(device, positions.value(node->parent, 0));
     writeInt32(device, positions.value(node->nextSibling, 0));
+    if (node->firstChild && node->containingFunction) {
+        qWarning() << "bug here" << node->toString() << node->firstChild->toString()
+                   << node->containingFunction->toString();
+    }
     Q_ASSERT(!(node->firstChild && node->containingFunction));
     Q_ASSERT(!node->containingFunction || node->type == Reference);
     if (node->type == Reference) {
