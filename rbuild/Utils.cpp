@@ -73,6 +73,28 @@ enum { CXCursor_IntegerLiteral = 1024,
        CXCursor_DeclStmt
 };
 #endif
+
+enum Outside {
+    Three, Four
+};
+
+class ClangObject : public QObject
+{
+    Q_OBJECT
+    Q_ENUMS(Self)
+    Q_ENUMS(Outside)
+    Q_ENUMS(CXCursorKind)
+    Q_FLAGS(CXCursorKind)
+    Q_PROPERTY(CXCursorKind kind READ kind)
+public:
+    enum Self {
+        One, Two
+    };
+    ClangObject() {}
+    CXCursorKind kind() const { return CXCursor_NullStmt; }
+};
+#include "Utils.moc"
+
 const char *kindToString(CXCursorKind kind)
 {
     switch (kind) {

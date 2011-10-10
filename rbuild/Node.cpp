@@ -21,23 +21,12 @@ Node::Node(Node *p, NodeType t, const QByteArray &symbol, const Location &l, con
     Q_ASSERT(type != Reference || parent->type != Root);
 
     if (parent) {
-// #ifdef QT_NO_DEBUG
         nextSibling = parent->firstChild;
         parent->firstChild = this;
-// #else // ### buggy
-//         if (!parent->firstChild || lessThan(this, parent->firstChild)) {
-//             nextSibling = parent->firstChild;
-//             parent->firstChild = this;
-//         } else {
-//             Node *last = parent->firstChild;
-//             Node *tmp = last->nextSibling;
-//             while (tmp && lessThan(tmp, this))
-//                 tmp = tmp->nextSibling;
-//             Q_ASSERT(last);
-//             nextSibling = tmp;
-//             last->nextSibling = this;
-//         }
-// #endif
+        if (parent->type == Reference) {
+            qWarning() << parent->toString() << "should not have children, getting this one" << toString();
+        }
+        Q_ASSERT(parent->type != Reference);
     }
 }
 

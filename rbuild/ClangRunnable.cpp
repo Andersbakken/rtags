@@ -459,7 +459,6 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
     // ### nasty data structures here
     bool doReferences = false;
     forever {
-
         bool createdNodes = false;
         // qDebug() << iteration++ << Node::sNodes.size() << hash.size() << before;
 
@@ -495,9 +494,17 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
                     const CXCursorKind kind = clang_getCursorKind(node.cursor);
 
                     CXCursor ref = clang_getCursorReferenced(node.cursor);
-                    if (clang_equalCursors(ref, node.cursor) && (kind == CXCursor_ClassDecl || kind == CXCursor_StructDecl)) {
-                        // ### namespace too?
-                        ref = clang_getCursorDefinition(ref);
+                    if (clang_equalCursors(ref, node.cursor)) {
+                        bool selfRef = true;
+                        if (kind == CXCursor_ClassDecl || kind == CXCursor_StructDecl) {
+                            // ### namespace too?
+                            ref = clang_getCursorDefinition(ref);
+                            selfRef = clang_equalCursors(ref, node.cursor);
+                        }
+                        if (selfRef) {
+                            qWarning() << "This cursor references itself" << node.cursor;
+                            continue;
+                        }
                     }
 
                     if (!isValidCursor(ref)) {
@@ -511,9 +518,9 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
                                                      // ### often don't work
                             break;
                         default:
-                            break;
                             qWarning() << "Can't get valid cursor for" << node.cursor
                                        << "parent" << clang_getCursorSemanticParent(node.cursor);
+                            break;
                         }
                         it = hash.erase(it);
                         continue;
@@ -551,6 +558,7 @@ int ClangRunnable::processTranslationUnit(const Path &file, CXTranslationUnit un
                             referenced = decl;
                     }
                 }
+                Q_ASSERT(referenced->location != node.loc);
                 Node *n = new Node(referenced, Reference, referenced->symbolName, node.loc, node.id);
                 n->containingFunction = findContainingFunction(node.cursor);
                 ++ret;
