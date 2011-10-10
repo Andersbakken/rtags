@@ -44,7 +44,7 @@ struct Location {
         // ### should probably keep CXSourceLocation around rather than eating the string
         CXSourceLocation location = clang_getCursorLocation(cursor);
         CXFile file = 0;
-        clang_getExpansionLocation(location, &file, &line, &column, &offset);
+        clang_getInstantiationLocation(location, &file, &line, &column, &offset);
         bool ok;
         path = Path::resolved(eatString(clang_getFileName(file)), Path(), &ok);
         if (!ok || !path.exists()) {

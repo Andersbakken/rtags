@@ -107,7 +107,7 @@ QDebug operator<<(QDebug dbg, CXCursor cursor)
     CXSourceLocation location = clang_getCursorLocation(cursor);
     unsigned int line, column, offset;
     CXFile file;
-    clang_getExpansionLocation(location, &file, &line, &column, &offset);
+    clang_getInstantiationLocation(location, &file, &line, &column, &offset);
     Path path = eatString(clang_getFileName(file));
     if (path.resolve()) {
         text += QString(", %1:%2:%3").arg(QString::fromLocal8Bit(path)).arg(line).arg(column);
@@ -496,12 +496,12 @@ static inline void findIncluders(CXFile includedFile, CXSourceLocation* inclusio
     if (data->errorLocations.contains(file)) {
         CXFile file;
         unsigned l, c, o;
-        clang_getExpansionLocation(inclusionStack[includeIdx - 2], &file, &l, &c, &o);
+        clang_getInstantiationLocation(inclusionStack[includeIdx - 2], &file, &l, &c, &o);
         data->includers.insert(eatString(clang_getFileName(file)));
         for (uint i=0; i<includeIdx; ++i) {
             CXFile file;
             unsigned l, c, o;
-            clang_getExpansionLocation(inclusionStack[i], &file, &l, &c, &o);
+            clang_getInstantiationLocation(inclusionStack[i], &file, &l, &c, &o);
             qDebug() << i << eatString(clang_getFileName(file));
         }
         qDebug() << "found a file" << file << "adding"
