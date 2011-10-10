@@ -423,19 +423,29 @@ QDataStream &operator>>(QDataStream &ds, ClangRunnable::FileData &fd)
     return ds;
 }
 
-void ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPaths)
+int ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPaths)
 {
     QMutexLocker lock(&sTreeMutex);
     Q_ASSERT(sRoot);
     // qDebug() << modifiedPaths;
     const NodeData nodeData = readNodeData(data->memory + data->rootNodePosition);
-    initTree(data, modifiedPaths, sRoot, nodeData);
+    QHash<Node*, QByteArray> pendingContainingFunctions;
+    const int ret = initTree(data, modifiedPaths, sRoot, nodeData, pendingContainingFunctions);
+    for (QHash<Node*, QByteArray>::const_iterator it = pendingContainingFunctions.begin();
+         it != pendingContainingFunctions.end(); ++it) {
+        it.key()->containingFunction = Node::sNodes.value(it.value());
+        if (!it.key()->containingFunction) {
+            qWarning() << "Couldn't restore containingFunction for" << it.key()->toString();
+        }
+    }
+    return ret;
 }
 
-
-void ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPaths,
-                             Node *parent, const NodeData &nodeData)
+int ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPaths,
+                            Node *parent, const NodeData &nodeData,
+                            QHash<Node*, QByteArray> &pendingContainingFunctions)
 {
+    int ret = 0;
     int child = nodeData.type == Reference ? 0 : nodeData.firstChild;
     while (child) {
         const NodeData c = readNodeData(data->memory + child);
@@ -444,18 +454,26 @@ void ClangRunnable::initTree(const MMapData *data, const QSet<Path> &modifiedPat
             const QByteArray id = loc.toString();
             Node *node = Node::sNodes.value(id);
             if (!node) {
+                extern int verbose;
                 node = new Node(parent, static_cast<NodeType>(c.type), QByteArray(c.symbolName), loc, id);
+                if (verbose)
+                    qDebug() << "creating node from database" << node->toString();
+                ++ret;
                 if (c.type == Reference && c.containingFunction) {
                     const NodeData containingFunction = readNodeData(data->memory + c.containingFunction);
                     const Location cfl(data->memory + containingFunction.location);
-                    node->containingFunction = Node::sNodes.value(cfl.toString());
-                    Q_ASSERT(node->containingFunction); // ### if this comes in in the wrong order then what?
+                    const QByteArray cfid = cfl.toString();
+                    node->containingFunction = Node::sNodes.value(cfid);
+                    if (!node->containingFunction) {
+                        pendingContainingFunctions[node] = cfid;
+                    }
                 }
             }
-            initTree(data, modifiedPaths, node, c);
+            ret += initTree(data, modifiedPaths, node, c, pendingContainingFunctions);
         }
         child = c.nextSibling;
     }
+    return ret;
 }
 
 static inline Node *findContainingFunction(CXCursor cursor)

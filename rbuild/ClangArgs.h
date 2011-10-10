@@ -53,4 +53,19 @@ struct ClangArgs {
     }
 };
 
+static inline QDataStream &operator<<(QDataStream &ds, const ClangArgs &args)
+{
+    ds << quint8(args.language) << args.compilerSwitches; // ### not doing pchFile << args.pchFile;
+    return ds;
+}
+
+static inline QDataStream &operator>>(QDataStream &ds, ClangArgs &args)
+{
+    quint8 tmp;
+    ds >> tmp >> args.compilerSwitches; // >> args.pchFile;
+    args.language = static_cast<GccArguments::Language>(tmp);
+    args.fillClangArgs();
+    return ds;
+}
+
 #endif

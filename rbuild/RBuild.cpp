@@ -348,13 +348,15 @@ bool RBuild::initFromDb(const MMapData *data)
         if (modified) {
             doInitTree = true;
             modifiedPaths.insert(key);
-            load(key, value.arguments);
+            parseFile(key, value.arguments);
         } else {
             qDebug() << "not loading" << key;
         }
     }
-    if (doInitTree)
-        ClangRunnable::initTree(data, modifiedPaths);
+    if (doInitTree) {
+        int added = ClangRunnable::initTree(data, modifiedPaths);
+        qDebug() << "Added" << added << "nodes from db";
+    }
 
     munmap(const_cast<char*>(data->memory), data->mappedSize);
     return true;

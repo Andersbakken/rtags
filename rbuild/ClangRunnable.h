@@ -20,16 +20,17 @@ public:
     ClangRunnable(const Path &file, const ClangArgs &args);
     void run();
     static bool save(const QByteArray &file);
-    static void initTree(const MMapData *data, const QSet<Path> &modifiedPaths);
+    static int initTree(const MMapData *data, const QSet<Path> &modifiedPaths);
     static int processTranslationUnit(const Path &file, CXTranslationUnit unit);
 signals:
     void finished();
 private:
-    static void initTree(const MMapData *data, const QSet<Path> &modifiedPaths,
-                         Node *node, const NodeData &nodeData);
+    static int initTree(const MMapData *data, const QSet<Path> &modifiedPaths,
+                        Node *node, const NodeData &nodeData,
+                        QHash<Node*, QByteArray> &pendingContainingFunctions);
 
     struct FileData {
-        GccArguments arguments;
+        ClangArgs arguments;
         int64_t lastModified;
         QHash<Path, int64_t> dependencies;
     };
