@@ -275,7 +275,7 @@ void RBuild::recurseDir(const Path &path)
             }
         }
     }
-    
+
     closedir(dir);
 }
 bool RBuild::setDatabaseFile(const Path &path, DatabaseMode mode)
@@ -434,7 +434,7 @@ void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArgumen
     }
     extern int verbose;
     int added = 0;
-    
+
     Pch *pch = 0;
     bool newPch = false;
     const int count = mPCHFiles.size();
@@ -604,7 +604,7 @@ void RBuild::maybePCH()
                         const unsigned diagnosticFormattingOptions = (CXDiagnostic_DisplaySourceLocation|CXDiagnostic_DisplayColumn|
                                                                       CXDiagnostic_DisplaySourceRanges|CXDiagnostic_DisplayOption|
                                                                       CXDiagnostic_DisplayCategoryId|CXDiagnostic_DisplayCategoryName);
-                
+
                         CXString diagStr2 = clang_formatDiagnostic(diagnostic, diagnosticFormattingOptions);
                         qWarning() << "pch" << clang_getCString(diagStr) << clang_getCString(diagStr2) << clang_getDiagnosticSeverity(diagnostic);
                         clang_disposeString(diagStr);

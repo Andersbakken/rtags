@@ -135,14 +135,22 @@ void ClangRunnable::run()
         const int diagnosticsCount = clang_getNumDiagnostics(unit);
         if (i == 0 && hasPch) {
             bool retry = false;
-            for (int j=0; j<diagnosticsCount; ++j) {
+            for (int j=0; j<diagnosticsCount && !retry; ++j) {
                 CXDiagnostic diagnostic = clang_getDiagnostic(unit, j);
                 const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diagnostic);
-                clang_disposeDiagnostic(diagnostic);
-                if (severity >= CXDiagnostic_Warning) {
+                if (severity >= CXDiagnostic_Error) {
+                    if (verbose) {
+                        const unsigned diagnosticFormattingOptions = (CXDiagnostic_DisplaySourceLocation|CXDiagnostic_DisplayColumn|
+                                                                      CXDiagnostic_DisplaySourceRanges|CXDiagnostic_DisplayOption|
+                                                                      CXDiagnostic_DisplayCategoryId|CXDiagnostic_DisplayCategoryName);
+
+                        CXString diagStr = clang_formatDiagnostic(diagnostic, diagnosticFormattingOptions);
+                        qWarning() << mFile << clang_getCString(diagStr);
+                        clang_disposeString(diagStr);
+                    }
                     retry = true;
-                    break;
                 }
+                clang_disposeDiagnostic(diagnostic);
             }
             if (retry) {
                 qDebug() << "retrying without pch" << mFile;
@@ -157,7 +165,7 @@ void ClangRunnable::run()
                 const unsigned diagnosticFormattingOptions = (CXDiagnostic_DisplaySourceLocation|CXDiagnostic_DisplayColumn|
                                                               CXDiagnostic_DisplaySourceRanges|CXDiagnostic_DisplayOption|
                                                               CXDiagnostic_DisplayCategoryId|CXDiagnostic_DisplayCategoryName);
-                
+
                 CXString diagStr2 = clang_formatDiagnostic(diagnostic, diagnosticFormattingOptions);
                 qWarning() << mFile << clang_getCString(diagStr) << clang_getCString(diagStr2) << clang_getDiagnosticSeverity(diagnostic);
                 clang_disposeString(diagStr);

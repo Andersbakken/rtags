@@ -137,7 +137,7 @@ int main(int argc, char** argv)
         ClangRunnableScope() { ClangRunnable::init(); }
         ~ClangRunnableScope() { ClangRunnable::cleanup(); }
     } scope;
-    
+
     if (QFile::exists("/tmp/rtags.log")) {
         int idx = 1;
         while (QFile::exists(QString("/tmp/rtags.log.%1").arg(idx)))
@@ -156,7 +156,7 @@ int main(int argc, char** argv)
     };
     const char *shortOptions = "hu::s:vt:";
     int idx, longIndex;
-    
+
     QCoreApplication app(argc, argv);
     QThread::currentThread()->setObjectName("main");
     QCoreApplication::setOrganizationDomain("www.rtags.com");
