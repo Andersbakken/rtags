@@ -182,6 +182,7 @@ const char *kindToString(CXCursorKind kind)
     case CXCursor_InclusionDirective: return "CXCursor_InclusionDirective";
     case CXCursor_CXXFinalAttr: return "CXCursor_CXXFinalAttr";
     case CXCursor_CXXOverrideAttr: return "CXCursor_CXXOverrideAttr";
+    case CXCursor_AnnotateAttr: return "CXCursor_AnnotateAttr";
         // case CXCursor_FirstPreprocessing: return "CXCursor_FirstPreprocessing";
         // case CXCursor_LastPreprocessing: return "CXCursor_LastPreprocessing";
     case CXCursor_CXXAccessSpecifier: return "CXCursor_CXXAccessSpecifier";

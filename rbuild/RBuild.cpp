@@ -1,656 +1,416 @@
 #include "RBuild.h"
-#include "GccArguments.h"
 #include <QCoreApplication>
-#include "Utils.h"
-#include "Node.h"
-#include "ClangRunnable.h"
-#include <magic.h>
-#include <fcntl.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <sys/mman.h>
-#include "PreprocessorRunnable.h"
-#include <string.h>
+#include <QtAlgorithms>
+#include <clang-c/Index.h>
+#include <stdio.h>
 
-RBuild::RBuild(int threadPoolCount, const QList<Path> &stdIncludePaths, QObject *parent)
-    : QObject(parent), mDatabaseMode(Build), mPreprocessing(0), mParsing(0)
+RBuild::Entry::Entry()
 {
-    foreach(const Path &p, stdIncludePaths)
-        mStdIncludePaths.insert("-I" + p);
-    mThreadPool.setMaxThreadCount(threadPoolCount);
 }
 
-RBuild::~RBuild()
+RBuild::Entry::~Entry()
 {
-    for (QHash<QProcess*, MakefileData>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
-        if (it.key()->state() != QProcess::NotRunning) {
-            disconnect(it.key(), 0, this, 0); // don't want it to change mMakefiles upon exit
-            it.key()->kill();
-            it.key()->waitForFinished(2000); // ### ???
-        }
+    if (parent) {
+        QList<Entry*>::iterator it = qFind(parent->children.begin(), parent->children.end(), this);
+        Q_ASSERT(it != parent->children.end());
+        parent->children.erase(it);
+    }
+    qDeleteAll(children);
+}
+
+RBuild::RBuild(QObject *parent)
+    : QObject(parent)
+{
+}
+
+void RBuild::init(const Path& makefile)
+{
+    connect(&mParser, SIGNAL(fileReady(const MakefileItem&)),
+            this, SLOT(makefileFileReady(const MakefileItem&)));
+    connect(&mParser, SIGNAL(done()), this, SLOT(makefileDone()));
+    mParser.run(makefile);
+}
+
+static inline void printTree(const QList<RBuild::Entry*>& tree)
+{
+    static int indent = 0;
+    foreach(const RBuild::Entry* entry, tree) {
+        for (int i = 0; i < (indent * 4); ++i)
+            printf(" ");
+        CXString kindstr = clang_getCursorKindSpelling(static_cast<CXCursorKind>(entry->cxKind));
+        printf("%s at %s:%u:%u with kind %s (%p)\n",
+               entry->field.constData(),
+               entry->file.constData(),
+               entry->line, entry->column, clang_getCString(kindstr),
+               entry);
+        clang_disposeString(kindstr);
+        ++indent;
+        //printTree(entry->children);
+        --indent;
     }
 }
 
-bool RBuild::addMakefile(Path makefile)
+void RBuild::makefileDone()
 {
-    if (!makefile.isResolved())
-        makefile.resolve();
+    printf("printTree\n");
+    printTree(mEntries);
+    fprintf(stderr, "Done.\n");
 
-    // if (makefile.isFile()) {
-    // qDebug() << makefile << findIncludes(makefile, mIndex, mIncludeFiles);
-    // return true;
-    // }
-    Path sourceDir;
-    if (makefile.isDir()) {
-        sourceDir = makefile;
-        makefile = makefile + "/Makefile";
-    }
-    if (makefile.isFile()) {
-        if (sourceDir.isEmpty())
-            sourceDir = makefile.parentDir();
-        const Path workingDir = makefile.parentDir();
-        if (!makefile.exists())
-            return false;
-        QDir::setCurrent(workingDir); // ### hmmmm
-        QProcess *proc = new QProcess(this);
-        proc->setWorkingDirectory(workingDir);
-        // proc->moveToThread(this);
-        connect(proc, SIGNAL(finished(int)), this, SLOT(onMakeFinished(int)));
-        connect(proc, SIGNAL(error(QProcess::ProcessError)), this, SLOT(onMakeError(QProcess::ProcessError)));
-        connect(proc, SIGNAL(readyReadStandardOutput()), this, SLOT(onMakeOutput()));
-        QStack<Path> pathStack;
-        pathStack.push(workingDir);
-        MakefileData data = { makefile, workingDir, QByteArray(), pathStack, QSet<Path>() };
-        mMakefiles[proc] = data;
-        QString make;
-        if (Path("/opt/local/bin/gmake").isFile()) {
-            make = QLatin1String("/opt/local/bin/gmake");
-        } else {
-            make = QLatin1String("make");
-        }
-        proc->start(make, // some way to specify which make to use?
-                    QStringList()
-                    << QLatin1String("-B")
-                    << QLatin1String("-n")
-                    << QLatin1String("-j1")
-                    << QLatin1String("-w")
-                    << QLatin1String("-f")
-                    << makefile);
-        qDebug() << "addMakefile" << makefile;
-    } else {
-        return false;
-    }
-    // if (sourceDir.isDir()) {
-    //     recurseDir(sourceDir);
-    // }
-    return true;
+    qDeleteAll(mEntries);
+    qApp->quit();
 }
 
-QDebug operator<<(QDebug dbg, CXCursor cursor)
+void RBuild::makefileFileReady(const MakefileItem& file)
 {
-    QString text = "";
-    if (clang_isInvalid(clang_getCursorKind(cursor))) {
-        text += "";
-        dbg << text;
-        return dbg;
-    }
+    compile(file.arguments);
+}
 
-    QByteArray name = eatString(clang_getCursorDisplayName(cursor));
-    if (name.isEmpty())
-        name = eatString(clang_getCursorSpelling(cursor));
-    if (!name.isEmpty()) {
-        text += name + ", ";
-    }
-    if (clang_isCursorDefinition(cursor))
-        text += "(def), ";
-    text += kindToString(clang_getCursorKind(cursor));
-    CXSourceLocation location = clang_getCursorLocation(cursor);
-    unsigned int line, column, offset;
+struct CollectData
+{
+    CXCursor unitCursor;
+    QHash<QByteArray, CXCursor> cursors;
+};
+
+static inline QByteArray cursorKey(const CXCursor& cursor)
+{
+    CXSourceLocation loc = clang_getCursorLocation(cursor);
+    CXString usr = clang_getCursorUSR(cursor);
     CXFile file;
-    clang_getInstantiationLocation(location, &file, &line, &column, &offset);
-    Path path = eatString(clang_getFileName(file));
-    if (path.resolve()) {
-        text += QString(", %1:%2:%3").arg(QString::fromLocal8Bit(path)).arg(line).arg(column);
+    unsigned int line, col, off;
+    clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+    CXString filename = clang_getFileName(file);
+
+    /*CXCursorKind kind = clang_getCursorKind(cursor);
+    QByteArray data(clang_getCString(filename));
+    data += QByteArray::number(line) + "-" + QByteArray::number(col) + "-" + QByteArray::number(off) + "-" + QByteArray::number(kind);
+    clang_disposeString(filename);
+    return data;*/
+
+    QByteArray key;
+    const char* str = clang_getCString(usr);
+    if (str && (strcmp(str, "") != 0))
+        key += QByteArray(str) + "-";
+    else {
+        CXString spelling = clang_getCursorSpelling(cursor);
+        str = clang_getCString(spelling);
+        if (str && (strcmp(str, "") != 0))
+            key += QByteArray(str) + "-";
+        clang_disposeString(spelling);
     }
-    if (clang_isCursorDefinition(cursor))
-        text += ", def";
-    text += "|";
-    dbg << text;
-    return dbg;
+    key += QByteArray(clang_getCString(filename)) + "-";
+    key += QByteArray::number(line) + "-" + QByteArray::number(col) + "-" + QByteArray::number(off);
+
+    clang_disposeString(filename);
+    clang_disposeString(usr);
+
+    return key;
 }
 
-void RBuild::onMakeFinished(int statusCode)
+static inline bool equalCursor(const CXCursor& c1, const CXCursor& c2)
 {
-    QProcess *proc = qobject_cast<QProcess*>(sender());
-    if (statusCode != 0) {
-        qWarning("make error: %s", proc->readAllStandardError().constData());
-    }
-    mMakefiles.remove(proc);
-    proc->deleteLater();
-    maybePCH();
-    maybeDone();
+    return (cursorKey(c1) == cursorKey(c2));
 }
 
-enum DirectoryStatus {
-    None,
-    Entering,
-    Leaving
-};
-static inline DirectoryStatus parseDirectoryLine(const QByteArray &ba, Path &dir)
+static inline void addCursor(const CXCursor& cursor, CollectData* data)
 {
-    if (ba.endsWith('\'')) {
-        int pos = ba.indexOf("Entering directory `");
-        if (pos != -1) {
-            dir = ba.mid(pos + 20, ba.size() - pos - 21);
-            return Entering;
-        }
-        pos = ba.indexOf("Leaving directory `");
-        if (pos != -1) {
-            dir = ba.mid(pos + 19, ba.size() - pos - 20);
-            return Leaving;
-        }
-    }
-    return None;
+    const QByteArray key = cursorKey(cursor);
+    if (!data->cursors.contains(key))
+        data->cursors[key] = cursor;
 }
 
-static inline bool isSupportedLanguage(GccArguments::Language l)
+static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
 {
-    switch (l) {
-    case GccArguments::LangCPlusPlus:
-    case GccArguments::LangC:
-        return true;
-    case GccArguments::LangUndefined:
-    case GccArguments::LangObjC:
-    case GccArguments::LangObjCPlusPlus:
-        break;
-    }
-    return false;
-
+    CollectData* data = reinterpret_cast<CollectData*>(client_data);
+    addCursor(cursor, data);
+    addCursor(clang_getCursorDefinition(cursor), data);
+    addCursor(clang_getCursorReferenced(cursor), data);
+    const unsigned int decl = clang_getNumOverloadedDecls(cursor);
+    for (unsigned int i = 0; i < decl; ++i)
+        addCursor(clang_getOverloadedDecl(cursor, i), data);
+    return CXChildVisit_Recurse;
 }
-void RBuild::onMakeOutput()
-{
-    QProcess *proc = qobject_cast<QProcess*>(sender());
-    MakefileData &data = mMakefiles[proc];
-    int i = data.buffer.size();
-    data.buffer += proc->readAllStandardOutput();
-    int last = 0;
-    const int size = data.buffer.size();
-    while (i < size) {
-        if (data.buffer.at(i++) == '\n') {
-            const QByteArray line(data.buffer.constData() + last, i - last - 1);
-            // qDebug("%s", line.constData());
-            last = i;
-            if (!line.isEmpty()) {
-                Path dir;
-                switch (parseDirectoryLine(line, dir)) {
-                case Entering:
-                    data.dirStack.push(dir);
-                    break;
 
-                case Leaving:
-#ifdef QT_DEBUG
-                    if (data.dirStack.top() != dir) {
-                        qWarning() << "Strange make output"
-                                   << data.dirStack << dir;
-                    }
-#endif
-                    data.dirStack.pop();
-                    break;
-                case None: {
-                    GccArguments args;
-                    if (!args.parse(line, data.dirStack.top())) {
-                        qWarning("Can't parse line %s (%s)", line.constData(),
-                                 qPrintable(args.errorString()));
-                    } else if (args.hasInput() && args.isCompile() && ::isSupportedLanguage(args.language())) {
-                        foreach(const Path &file, args.input()) { // already resolved
-                            if (!data.seen.contains(file)) {
-                                data.seen.insert(file);
-                                load(file, args);
-                            }
-                        }
-                    }
-                    break; }
-                }
+static inline void debugCursor(FILE* out, const CXCursor& cursor)
+{
+    CXFile file;
+    unsigned int line, col, off;
+    CXSourceLocation loc = clang_getCursorLocation(cursor);
+    clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+    CXString name = clang_getCursorSpelling(cursor);
+    CXString filename = clang_getFileName(file);
+    CXString kind = clang_getCursorKindSpelling(clang_getCursorKind(cursor));
+    fprintf(out, "cursor name %s, kind %s, loc %s:%u:%u\n",
+            clang_getCString(name), clang_getCString(kind), clang_getCString(filename), line, col);
+    clang_disposeString(name);
+    clang_disposeString(kind);
+    clang_disposeString(filename);
+}
+
+static inline void verifyTree(const QList<RBuild::Entry*> toplevels, const QHash<QByteArray, RBuild::Entry*>& seen)
+{
+    printf("verify!\n");
+    const RBuild::Entry* top;
+    foreach(const RBuild::Entry* entry, seen) {
+        // verify parents
+        top = entry;
+        while (top->parent) {
+            if (top == top->parent) {
+                fprintf(stderr, "parent is itself, %s (%s:%u:%u)\n",
+                        top->field.constData(),
+                        top->file.constData(),
+                        top->line, top->column);
             }
+            Q_ASSERT(top != top->parent);
+            top = top->parent;
         }
-    }
-    if (i < size) {
-        data.buffer.remove(0, last);
-    } else {
-        data.buffer.clear();
-    }
-}
-
-void RBuild::onMakeError(QProcess::ProcessError error)
-{
-    qWarning() << error << qobject_cast<QProcess*>(sender())->errorString();
-}
-
-void RBuild::maybeDone()
-{
-    if (isFinished()) {
-        for (QHash<QProcess*, MakefileData>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
-            if (it.key() && it.key()->state() != QProcess::NotRunning) {
-                return;
-            }
+        Q_ASSERT(top != 0);
+        QList<RBuild::Entry*>::const_iterator it = qFind(toplevels, top);
+        if (it == toplevels.end()) {
+            fprintf(stderr, "verify failure, %s (%s:%u:%u) has %s (%s:%u:%u) as parent\n",
+                    entry->field.constData(),
+                    entry->file.constData(),
+                    entry->line, entry->column,
+                    top->field.constData(),
+                    top->file.constData(),
+                    top->line, top->column);
         }
-        ClangRunnable::save(".rtags.db");
-        QCoreApplication::quit();
+        Q_ASSERT(it != toplevels.end());
     }
 }
-void RBuild::onClangRunnableFinished()
+
+static inline CXCursor parentForCursor(const CXCursor& cursor)
 {
-    --mParsing;
-    maybeDone();
-}
+    if (!clang_isCursorDefinition(cursor)) {
+        /*
+        CXCursor def = clang_getCursorDefinition(cursor);
+        if (isValidCursor(def) && !equalCursor(def, cursor))
+            return def;
+            */
 
-void RBuild::recurseDir(const Path &path)
-{
-    DIR *dir = opendir(path.constData());
-    if (!dir) {
-        qWarning("Can't read directory [%s]", path.constData());
-        return;
-    }
-    struct dirent d, *dret;
-    struct stat s;
+        //CXCursor def = clang_getCursorDefinition(cursor);
+        CXCursor ref = clang_getCursorReferenced(cursor);
+        CXCursor can = clang_getCanonicalCursor(cursor);
+        CXCursorKind cxkind = clang_getCursorKind(cursor);
+        //const bool hasDef = isValidCursor(def) && !equalCursor(cursor, def);
+        const bool hasRef = isValidCursor(ref) && !equalCursor(cursor, ref);
+        const bool hasCan = isValidCursor(can) && !equalCursor(cursor, can)
+                            && (cxkind != CXCursor_ClassDecl && cxkind != CXCursor_StructDecl)
+                            && clang_isCursorDefinition(can);
+        const bool hasOverloads = (clang_getNumOverloadedDecls(cursor) > 0) && false;
 
-    char fileBuffer[PATH_MAX + 1];
-    memcpy(fileBuffer, path.constData(), path.size());
-    fileBuffer[path.size()] = '/';
-    char *file = fileBuffer + path.size() + 1;
-
-    while (readdir_r(dir, &d, &dret) == 0 && dret) {
-        Q_ASSERT(int(strlen(d.d_name)) < 1024 - path.size());
-        if (d.d_type == DT_DIR && strcmp(".", d.d_name) && strcmp("..", d.d_name)) { // follow symlinks to dirs?
-            recurseDir(path + '/' + reinterpret_cast<const char *>(d.d_name));
-        } else if (d.d_type == DT_REG || d.d_type == DT_LNK) {
-            strcpy(file, d.d_name);
-            if (!stat(fileBuffer, &s)) {
-                if (s.st_mode & S_IXOTH) {
-                    // const Model::Item item = { fileBuffer, findIconPath(fileBuffer), name(fileBuffer), QStringList() };
-                    // mLocalItems.append(item);
-                }
-            } else {
-                qWarning("Can't stat [%s]", fileBuffer);
-            }
-        }
-    }
-
-    closedir(dir);
-}
-bool RBuild::setDatabaseFile(const Path &path, DatabaseMode mode)
-{
-    mDatabaseFile = path;
-    mDatabaseMode = mode;
-    if (mode == Update) {
-        MMapData data;
-        if (!loadDb(path.constData(), &data))
-            return false;
-
-        const bool success = initFromDb(&data);
-        munmap(const_cast<char*>(data.memory), data.mappedSize);
-        return success;
-    }
-
-    return true;
-}
-
-Path RBuild::databaseFile() const
-{
-    return mDatabaseFile;
-}
-
-bool RBuild::findDatabaseFile(DatabaseMode mode)
-{
-    char buf[PATH_MAX + 1];
-    if (findDB(buf, PATH_MAX)) {
-        return setDatabaseFile(buf, mode);
-    } else if (mode == Build) {
-        return setDatabaseFile(".rtags.db", mode);
-    } else {
-        return false;
-    }
-}
-bool RBuild::initFromDb(const MMapData *data)
-{
-    const QByteArray mapped = QByteArray::fromRawData(reinterpret_cast<const char*>(data->memory), data->mappedSize);
-    QBuffer buffer;
-    buffer.setData(mapped);
-    buffer.open(QIODevice::ReadOnly);
-    if (buffer.buffer().constData() != data->memory) {
-        qDebug("%p %p", buffer.buffer().constData(), data->memory);
-    }
-    Q_ASSERT(buffer.buffer().constData() == data->memory); // this is not ever copied right?
-    QDataStream ds(&buffer);
-    buffer.seek(data->fileDataPosition);
-
-    ds >> ClangRunnable::sFiles;
-    qDebug() << "read files" << ClangRunnable::sFiles.size() << "at" << data->fileDataPosition;
-    QSet<Path> modifiedPaths;
-    QMutexLocker lock(&ClangRunnable::sTreeMutex);
-    bool doInitTree = false;
-    for (QHash<Path, ClangRunnable::FileData>::const_iterator it = ClangRunnable::sFiles.begin();
-         it != ClangRunnable::sFiles.end(); ++it) {
-        const Path &key = it.key();
-        const ClangRunnable::FileData &value = it.value();
-        bool modified = (key.lastModified() != value.lastModified);
-        // qDebug() << "checking" << key << key.lastModified() << value.lastModified;
-        // ### this code needs to know about headers included with different #defines
-        for (QHash<Path, int64_t>::const_iterator it = value.dependencies.begin();
-             it != value.dependencies.end(); ++it) {
-            if (modifiedPaths.contains(it.key())) {
-                modified = true;
-            } else if (it.key().lastModified() != it.value()) {
-                modified = true;
-                modifiedPaths.insert(it.key());
-            }
-        }
-        if (modified) {
-            doInitTree = true;
-            modifiedPaths.insert(key);
-            parseFile(key, value.arguments);
-        } else {
-            qDebug() << "not loading" << key;
-        }
-    }
-    if (doInitTree) {
-        int added = ClangRunnable::initTree(data, modifiedPaths);
-        qDebug() << "Added" << added << "nodes from db";
-    }
-
-    munmap(const_cast<char*>(data->memory), data->mappedSize);
-    return true;
-}
-
-// static CXChildVisitResult dumpTree(CXCursor cursor, CXCursor, CXClientData includes)
-// {
-//     if (clang_getCursorKind(cursor) == CXCursor_InclusionDirective) {
-//         QByteArray p = eatString(clang_getCursorSpelling(cursor));
-//         reinterpret_cast<QSet<QByteArray>*>(includes)->insert(p);
-//     }
-//     return CXChildVisit_Continue;
-// }
-
-void RBuild::parseFile(const Path &file, const ClangArgs &args)
-{
-    ClangRunnable *runnable = new ClangRunnable(file, args);
-    ++mParsing;
-    connect(runnable, SIGNAL(finished()), this, SLOT(onClangRunnableFinished()));
-    mThreadPool.start(runnable);
-}
-
-bool RBuild::isFinished() const
-{
-    return !mPreprocessing && !mParsing && mMakefiles.isEmpty();
-}
-
-void RBuild::preprocess(const Path &sourceFile, const GccArguments &args)
-{
-    ++mPreprocessing;
-    // qDebug() << "calling preprocess" << sourceFile << args;
-    PreprocessorRunnable *runnable = new PreprocessorRunnable(sourceFile, args);
-    connect(runnable, SIGNAL(error(Path, GccArguments, QByteArray)),
-            this, SLOT(onPreprocessorError(Path, GccArguments, QByteArray)));
-    connect(runnable, SIGNAL(headersFound(Path, GccArguments, QList<Path>)),
-            this, SLOT(onPreprocessorHeadersFound(Path, GccArguments, QList<Path>)));
-    mThreadPool.start(runnable);
-}
-
-void RBuild::onPreprocessorError(const Path &sourceFile, const GccArguments &args, const QByteArray &error)
-{
-    --mPreprocessing;
-    maybePCH();
-    qWarning() << "onPreprocessorError" << sourceFile << args << error;
-}
-
-// ### should this one be stricter?
-static inline bool matches(const QSet<QByteArray> &haystack, const QList<QByteArray> &needles)
-{
-    foreach(const QByteArray &needle, needles) {
-        if (!haystack.contains(needle))
-            return false;
-    }
-    return true;
-}
-
-static inline QSet<QByteArray> &operator +=(QSet<QByteArray> &set, const QList<QByteArray> &list)
-{
-    foreach(const QByteArray &l, list) {
-        set.insert(l);
-    }
-    return set;
-}
-
-void RBuild::onPreprocessorHeadersFound(const Path &sourceFile, const GccArguments &args, const QList<Path> &headers)
-{
-    --mPreprocessing;
-    if (headers.isEmpty()) {
-        ClangArgs c;
-        c.language = args.language();
-        c.compilerSwitches += mStdIncludePaths;
-        c.compilerSwitches += args.arguments("-I");
-        c.compilerSwitches += args.arguments("-D");
-        c.fillClangArgs();
-        parseFile(sourceFile, c);
-        return;
-    }
-    extern int verbose;
-    int added = 0;
-
-    Pch *pch = 0;
-    bool newPch = false;
-    const int count = mPCHFiles.size();
-    const QList<QByteArray> defines = args.arguments("-D");
-    for (int i=0; i<count; ++i) {
-        Pch &p = mPCHFiles[i];
-        if (args.language() == p.clangArgs.language
-            && ::matches(p.clangArgs.compilerSwitches, defines)) {
-            pch = &p;
-            break;
-        }
-    }
-    if (!pch) {
-        Pch p;
-        p.clangArgs.language = args.language();
-        p.clangArgs.compilerSwitches += defines;
-        p.clangArgs.compilerSwitches += mStdIncludePaths;
-        mPCHFiles.append(p);
-        pch = &mPCHFiles.last();
-        newPch = true;
-    }
-    pch->clangArgs.compilerSwitches += args.arguments("-I");
-    pch->sources += sourceFile;
-
-    foreach(const Path &header, headers) {
-        if (header.contains("/private"))
-            continue;
-        QList<Path> &headers = (strcasestr(header.constData(), "x11")
-                                ? pch->postHeaders : pch->allHeaders);
-        if (newPch || !headers.contains(header)) {
-            if (verbose > 2)
-                qDebug("Adding %s for %s", header.constData(), sourceFile.constData());
-            headers.append(header);
-            ++added;
-        }
-    }
-    // qDebug() << "onPreprocessorHeadersFound" << sourceFile << mPreprocessing;
-    if (verbose)
-        qDebug("Preprocessed %s, added %d headers", sourceFile.constData(), added);
-    maybePCH();
-    // qDebug() << sourceFile << mPCHCompilerSwitches << args.arguments();
-    // qDebug() << "onPreprocessorHeadersFound" << sourceFile << args << headers << "Added" << added << "headers";
-}
-
-struct FindIncludersData {
-    QSet<Path> errorLocations;
-    QSet<Path> includers;
-};
-
-static inline void findIncluders(CXFile includedFile, CXSourceLocation* inclusionStack,
-                                 unsigned includeIdx, CXClientData clientData)
-{
-    if (includeIdx <= 1) {
-        return;
-    }
-
-    const Path file = eatString(clang_getFileName(includedFile));
-    FindIncludersData *data = reinterpret_cast<FindIncludersData*>(clientData);
-    if (data->errorLocations.contains(file)) {
+#if 1
+        QByteArray name = eatString(clang_getCursorSpelling(cursor));
+        CXSourceLocation loc;
         CXFile file;
-        unsigned l, c, o;
-        clang_getInstantiationLocation(inclusionStack[includeIdx - 2], &file, &l, &c, &o);
-        data->includers.insert(eatString(clang_getFileName(file)));
-        for (uint i=0; i<includeIdx; ++i) {
-            CXFile file;
-            unsigned l, c, o;
-            clang_getInstantiationLocation(inclusionStack[i], &file, &l, &c, &o);
-            qDebug() << i << eatString(clang_getFileName(file));
+        unsigned int line, col, off;
+        loc = clang_getCursorLocation(cursor);
+        clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+        QByteArray filename = eatString(clang_getFileName(file));
+
+        if (name == "compile" && (filename.contains("RBuild"))) {
+            fprintf(stderr, "Putting cursor %d %d %d\n", hasRef, hasCan, hasOverloads);
+            debugCursor(stderr, cursor);
         }
-        qDebug() << "found a file" << file << "adding"
-                 << eatString(clang_getFileName(file));
+#endif
+
+        if (hasRef || hasOverloads || hasCan) {
+            CXCursor parent;
+            if (hasCan) {
+                parent = can;
+            } else if (hasRef) {
+                parent = ref;
+            } else {
+                Q_ASSERT(hasOverloads);
+                parent = clang_getOverloadedDecl(cursor, 0);
+            }
+            /*
+            if (!clang_isCursorDefinition(parent)) {
+                CXCursor def = clang_getCursorDefinition(parent);
+                if (isValidCursor(def)) {
+                    parent = def;
+                } else if (hasCan) {
+                    return clang_getNullCursor();
+                }
+            }
+            */
+            // we have a valid definition, put this one under that one
+            return parent;
+        }
     }
+    return clang_getNullCursor();
 }
 
-void RBuild::maybePCH()
+static inline void resolveData(const CollectData& data, QList<RBuild::Entry*>& entries, QHash<QByteArray, RBuild::Entry*>& seen)
 {
-    if (!mPreprocessing && mMakefiles.isEmpty()) {
-        if (mPCHFiles.isEmpty()) {
-            maybeDone();
-            return;
-        }
-        CXIndex index = clang_createIndex(1, 1);
-        for (int i=mPCHFiles.size() - 1; i>=0; --i) {
-            Pch &p = mPCHFiles[i];
-            QElapsedTimer timer;
-            timer.start();
-            bool retry;
-            do {
-                retry = false;
-                QByteArray pchHeader;
-                pchHeader.reserve(p.allHeaders.size() * 48); // ###?
-#ifdef QT_DEBUG
-                foreach(const Path &path, p.sources) {
-                    pchHeader.append("// ");
-                    pchHeader.append(path);
-                    pchHeader.append('\n');
+    CXString cxkindstr, cxfilestr, cxnamestr;
+    CXCursorKind cxkind;
+    CXSourceLocation loc;
+    CXFile file;
+    unsigned int line, col, off;
+
+    QList<QPair<CXCursor, RBuild::Entry*> > tryLater;
+
+    foreach(const CXCursor& cursor, data.cursors) {
+        QByteArray key = cursorKey(cursor);
+        if (seen.contains(key))
+            continue;
+
+        loc = clang_getCursorLocation(cursor);
+        clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+
+        cxkind = clang_getCursorKind(cursor);
+        cxkindstr = clang_getCursorKindSpelling(cxkind);
+        cxnamestr = clang_getCursorSpelling(cursor);
+        cxfilestr = clang_getFileName(file);
+
+        QByteArray name = QByteArray(clang_getCString(cxnamestr));
+        QByteArray filename = QByteArray(clang_getCString(cxfilestr));
+
+        if (!key.isEmpty() && !name.isEmpty() && !filename.isEmpty()) {
+            CXCursor parent = parentForCursor(cursor);
+            if (name == "operator<<" && filename.contains("qeasingcurve")) {
+                fprintf(stderr, "key %s %d\n", key.constData(), isValidCursor(parent));
+            }
+            if (isValidCursor(parent)) {
+#if 1
+                QByteArray name = eatString(clang_getCursorSpelling(cursor));
+                CXSourceLocation loc;
+                CXFile file;
+                unsigned int line, col, off;
+                loc = clang_getCursorLocation(cursor);
+                clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+                QByteArray filename = eatString(clang_getFileName(file));
+
+                if (name == "compile" && (filename.contains("RBuild"))) {
+                    fprintf(stderr, "Putting cursor\n");
+                    debugCursor(stderr, cursor);
+                    debugCursor(stderr, parent);
                 }
 #endif
-                pchHeader.append("#ifndef RTAGS_PCH_H\n#define RTAGS_PCH_H\n");
-                foreach(const Path &header, p.allHeaders) {
-                    pchHeader.append("#include \"" + header + "\"\n");
-                }
 
-                foreach(const Path &header, p.postHeaders) {
-                    pchHeader.append("#include \"" + header + "\"\n");
-                }
+                RBuild::Entry* entry = new RBuild::Entry;
+                entry->parent = 0;
+                entry->field = name;
+                entry->file = filename;
+                entry->line = line;
+                entry->column = col;
+                entry->cxKind = cxkind;
+                seen[key] = entry;
 
-                pchHeader.append("#endif\n");
-                // qDebug() << pchHeader;
-
-                char pchHeaderName[PATH_MAX] = { 0 };
-                const char *tmpl = "/tmp/rtags.pch.h.XXXXXX";
-                memcpy(pchHeaderName, tmpl, strlen(tmpl));
-                const int pchHeaderFd = mkstemp(pchHeaderName);
-                if (pchHeaderFd <= 0 || write(pchHeaderFd, pchHeader.constData(), pchHeader.size()) != pchHeader.size()) {
-                    qWarning("PCH header write failure %s", pchHeaderName);
-                    continue;
+                QByteArray parentKey = cursorKey(parent);
+                QHash<QByteArray, RBuild::Entry*>::iterator it = seen.find(parentKey);
+                if (it != seen.end()) {
+                    it.value()->children.append(entry);
+                    entry->parent = it.value();
+                } else { // punt
+                    tryLater.append(qMakePair(cursor, entry));
                 }
-                close(pchHeaderFd);
+            } else { // assume that we are a definition?
+                if ((cxkind >= CXCursor_FirstDecl && cxkind <= CXCursor_LastDecl)
+                    || cxkind == CXCursor_CXXBaseSpecifier
+                    || cxkind == CXCursor_LabelStmt) {
+                    RBuild::Entry* entry = new RBuild::Entry;
+                    entry->parent = 0;
+                    entry->field = name;
+                    entry->file = filename;
+                    entry->line = line;
+                    entry->column = col;
+                    entry->cxKind = cxkind;
+                    seen[key] = entry;
 
-                p.clangArgs.pchFile = QByteArray("/tmp/rtags.pch.XXXXXX");
-                if (mkstemp(p.clangArgs.pchFile.data()) <= 0) {
-                    qWarning("PCH write failure %s", p.clangArgs.pchFile.constData());
-                    continue;
-                }
-
-                p.clangArgs.fillClangArgs();
-                CXTranslationUnit unit = clang_parseTranslationUnit(index, pchHeaderName, p.clangArgs.clangArgs.constData(),
-                                                                    p.clangArgs.clangArgs.size() - 2, // don't include -include-pch stuff
-                                                                    0, 0, CXTranslationUnit_Incomplete);
-                if (!unit) {
-                    p.clangArgs.clangArgs.resize(p.clangArgs.clangArgs.size() - 2);
-                    qWarning("%s", p.clangArgs.toString(pchHeaderName).constData());
-                    qFatal("Can't PCH this. That's no good");
-                }
-                extern int verbose;
-                if (verbose) {
-                    qDebug("Created precompiled header (%d headers) %lldms",
-                           p.allHeaders.size() + p.postHeaders.size(), timer.elapsed());
-                    if (verbose >= 2) {
-                        qDebug("%s", p.clangArgs.toString(pchHeaderName).constData());
-                    }
-                }
-                const int ret = clang_saveTranslationUnit(unit, p.clangArgs.pchFile.constData(),
-                                                          clang_defaultSaveOptions(unit));
-                if (ret) {
-                    FindIncludersData findIncludersData;
-                    qWarning("Couldn't save translation unit %d\n%s", ret, p.clangArgs.toString(pchHeaderName).constData());;
-                    const int count = clang_getNumDiagnostics(unit);
-                    for (int i=0; i<count; ++i) {
-                        CXDiagnostic diagnostic = clang_getDiagnostic(unit, i);
-                        const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diagnostic);
-                        if (severity >= CXDiagnostic_Error) {
-                            QByteArray file = eatString(clang_formatDiagnostic(diagnostic, CXDiagnostic_DisplaySourceLocation
-                                                                               |CXDiagnostic_DisplayColumn));
-                            const int idx = file.indexOf(severity == CXDiagnostic_Error ? ": error: " : ": fatal: ");
-                            if (idx != -1) {
-                                Location loc(file.left(idx).constData());
-                                if (!p.allHeaders.removeOne(loc.path) || !p.postHeaders.removeOne(loc.path)) {
-                                    findIncludersData.errorLocations.insert(loc.path);
-                                } else {
-                                    retry = true;
-                                }
-                            }
-                        }
-                        CXString diagStr = clang_getDiagnosticSpelling(diagnostic);
-                        const unsigned diagnosticFormattingOptions = (CXDiagnostic_DisplaySourceLocation|CXDiagnostic_DisplayColumn|
-                                                                      CXDiagnostic_DisplaySourceRanges|CXDiagnostic_DisplayOption|
-                                                                      CXDiagnostic_DisplayCategoryId|CXDiagnostic_DisplayCategoryName);
-
-                        CXString diagStr2 = clang_formatDiagnostic(diagnostic, diagnosticFormattingOptions);
-                        qWarning() << "pch" << clang_getCString(diagStr) << clang_getCString(diagStr2) << clang_getDiagnosticSeverity(diagnostic);
-                        clang_disposeString(diagStr);
-                        clang_disposeString(diagStr2);
-                        clang_disposeDiagnostic(diagnostic);
-                    }
-                    if (!findIncludersData.errorLocations.isEmpty()) {
-                        clang_getInclusions(unit, findIncluders, &findIncludersData);
-                        qDebug() << "we have some files to remove" << findIncludersData.includers;
-                        foreach(const Path &includer, findIncludersData.includers) {
-                            const bool found = (p.allHeaders.removeOne(includer) || p.postHeaders.removeOne(includer));
-                            (void)found;
-                            qDebug() << found;
-                            Q_ASSERT(found);
-                            retry = true;
-                        }
-                    }
-                    p.clangArgs.pchFile.clear();
+                    entries.append(entry);
                 } else {
-                    ClangRunnable::processTranslationUnit(pchHeaderName, unit);
+                    //fprintf(stderr, "No definition %s %s at %s:%u:%u\n", name.constData(), clang_getCString(cxkindstr),
+                    //        filename.constData(), line, col);
+                    if (cxkind != CXCursor_OverloadedDeclRef && cxkind != CXCursor_TypeRef) {
+                        Q_ASSERT(false && "No definition!");
+                    }
                 }
-                clang_disposeTranslationUnit(unit);
-            } while (retry);
-            foreach(const Path &source, p.sources) {
-                parseFile(source, p.clangArgs);
             }
-            mPCHFiles.removeLast();
         }
-        clang_disposeIndex(index);
+
+        clang_disposeString(cxnamestr);
+        clang_disposeString(cxfilestr);
+        clang_disposeString(cxkindstr);
     }
+
+    QList<QPair<CXCursor, RBuild::Entry*> >::iterator it = tryLater.begin();
+    while (it != tryLater.end()) {
+        CXCursor parent = parentForCursor((*it).first);
+        if (isValidCursor(parent)) {
+            QByteArray key = cursorKey(parent);
+            QHash<QByteArray, RBuild::Entry*>::iterator it2 = seen.find(key);
+            if (it2 != seen.end()) {
+                // append as child
+                it2.value()->children.append((*it).second);
+                (*it).second->parent = it2.value();
+                it = tryLater.erase(it);
+                continue;
+            }
+        }
+        ++it;
+    }
+
+#ifdef QT_DEBUG
+    it = tryLater.begin();
+    while (it != tryLater.end()) {
+        printf("remaining %s\n", (*it).second->field.constData());
+        debugCursor(stdout, (*it).first);
+        printf("----\n\n");
+        ++it;
+    }
+
+    verifyTree(entries, seen);
+#endif
+
+    Q_ASSERT(tryLater.isEmpty());
 }
 
-void RBuild::load(const Path &file, const GccArguments &a)
+void RBuild::compile(const GccArguments& arguments)
 {
-    static const bool nopch = getenv("RTAGS_NO_PCH");
-    if (nopch) {
-        ClangArgs args;
-        args.language = a.language();
-        args.compilerSwitches += mStdIncludePaths;
-        args.compilerSwitches += a.arguments("-I");
-        args.compilerSwitches += a.arguments("-D");
-        args.fillClangArgs();
-        parseFile(file, args);
-    } else {
-        preprocess(file, a);
+    CXIndex idx = clang_createIndex(0, 1);
+    foreach(const Path& input, arguments.input()) {
+        if (!input.endsWith("/RBuild.cpp")
+            && !input.endsWith("/main.cpp")) {
+            printf("skipping %s\n", input.constData());
+            continue;
+        }
+        fprintf(stderr, "parsing %s\n", input.constData());
+
+        QList<QByteArray> arglist;
+        arglist += arguments.arguments("-I");
+        arglist += arguments.arguments("-D");
+        // ### not very efficient
+        QVector<const char*> argvector;
+        foreach(const QByteArray& arg, arglist) {
+            argvector.append(arg.constData());
+        }
+
+        CXTranslationUnit unit = clang_parseTranslationUnit(idx, input.constData(), argvector.constData(), argvector.size(), 0, 0, 0);
+        if (!unit) {
+            fprintf(stderr, "Unable to parse unit for %s\n", input.constData());
+            continue;
+        }
+
+        const unsigned int numDiags = clang_getNumDiagnostics(unit);
+        for (unsigned int i = 0; i < numDiags; ++i) {
+            CXDiagnostic diag = clang_getDiagnostic(unit, i);
+            CXString diagString = clang_formatDiagnostic(diag,
+                                                         CXDiagnostic_DisplaySourceLocation |
+                                                         CXDiagnostic_DisplayColumn |
+                                                         CXDiagnostic_DisplayCategoryName);
+            fprintf(stderr, "%s\n", clang_getCString(diagString));
+            clang_disposeString(diagString);
+            clang_disposeDiagnostic(diag);
+        }
+
+        CollectData data;
+        data.unitCursor = clang_getTranslationUnitCursor(unit);
+        clang_visitChildren(data.unitCursor, collectSymbols, &data);
+
+        resolveData(data, mEntries, mSeen);
+
+        clang_disposeTranslationUnit(unit);
     }
+    clang_disposeIndex(idx);
 }

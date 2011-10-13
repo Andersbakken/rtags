@@ -22,7 +22,21 @@ static inline QByteArray eatString(CXString string)
 static inline bool isValidCursor(CXCursor cursor)
 {
     CXCursorKind kind = clang_getCursorKind(cursor);
-    return !clang_isInvalid(kind);
+    if (!clang_isInvalid(kind)) {
+        CXSourceLocation loc = clang_getCursorLocation(cursor);
+        CXFile file;
+        unsigned int line, col, off;
+        clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+        CXString filename = clang_getFileName(file);
+        const char* str = clang_getCString(filename);
+        if (!str || !strcmp(str, "")) {
+            clang_disposeString(filename);
+            return false;
+        }
+        clang_disposeString(filename);
+        return true;
+    }
+    return false;
 }
 
 
