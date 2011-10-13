@@ -3,7 +3,8 @@
 ######################################################################
 
 TEMPLATE = app
-TARGET = 
+TARGET = rb
+DESTDIR = ..
 DEPENDPATH += .
 INCLUDEPATH += .
 
