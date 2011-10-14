@@ -4,6 +4,88 @@
 #include <clang-c/Index.h>
 #include <stdio.h>
 
+class CursorKey
+{
+public:
+    CursorKey()
+        : kind(CXCursor_FirstInvalid), file(0)
+    {}
+    CursorKey(const CXCursor &cursor)
+        : kind(clang_getCursorKind(cursor)), file(0)
+    {
+        if (!clang_isInvalid(kind)) {
+            CXSourceLocation loc = clang_getCursorLocation(cursor);
+            clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+            if (file)
+                fileName = clang_getFileName(file);
+        }
+    }
+
+    ~CursorKey()
+    {
+        if (file)
+            clang_disposeString(fileName);
+    }
+
+    bool isNull() const
+    {
+        return !file;
+    }
+    bool operator<(const CursorKey &other) const
+    {
+        if (isNull())
+            return true;
+        if (other.isNull())
+            return false;
+        const int ret = strcmp(clang_getCString(fileName), clang_getCString(other.fileName));
+        if (ret < 0)
+            return true;
+        if (ret > 0)
+            return false;
+        return kind < other.kind;
+    }
+
+    bool operator==(const CursorKey &other) const
+    {
+        if (isNull())
+            return other.isNull();
+        return kind == other.kind && !strcmp(clang_getCString(fileName), clang_getCString(other.fileName));
+    }
+
+    CXCursorKind kind;
+    CXFile file;
+    CXString fileName;
+    unsigned line, col, off;
+};
+
+static inline uint qHash(const CursorKey &key)
+{
+    uint h = 0;
+    if (!key.isNull()) {
+#define HASHCHAR(ch)                            \
+        h = (h << 4) + ch;                      \
+        h ^= (h & 0xf0000000) >> 23;            \
+        h &= 0x0fffffff;                        \
+        ++h;
+
+        const char *ch = clang_getCString(key.fileName);
+        Q_ASSERT(ch);
+        while (*ch) {
+            HASHCHAR(*ch);
+            ++ch;
+        }
+        const uint16_t uints[] = { key.kind, key.line, key.col };
+        for (int i=0; i<3; ++i) {
+            ch = reinterpret_cast<const char*>(&uints[i]);
+            for (int j=0; j<2; ++j) {
+                HASHCHAR(*ch);
+                ++ch;
+            }
+        }
+    }
+    return h;
+}
+
 RBuild::Entry::Entry()
 {
 }
@@ -92,7 +174,7 @@ static inline QByteArray cursorKey(const CXCursor& cursor)
         clang_disposeString(spelling);
     }
     key += QByteArray(clang_getCString(filename)) + "-";
-    key += QByteArray::number(line) + "-" + QByteArray::number(col) + "-" + QByteArray::number(off);
+    key += QByteArray::number(line) + ":" + QByteArray::number(col) + ":" + QByteArray::number(off);
 
     clang_disposeString(filename);
     clang_disposeString(usr);
