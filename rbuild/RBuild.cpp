@@ -320,6 +320,7 @@ static inline RBuild::Entry* createEntry(const CXCursor& cursor, QHash<QByteArra
                 if (seen.contains(canonicalKey)) {
                     parentEntry = seen.value(canonicalKey);
                     replaceEntry(parentEntry, definition);
+
                     seen[definitionKey] = parentEntry;
                     parentEntry->container = findContainer(definition, seen, entries);
                 } else {
@@ -337,22 +338,27 @@ static inline RBuild::Entry* createEntry(const CXCursor& cursor, QHash<QByteArra
             if (!seen.contains(canonicalKey)) {
                 parentEntry = new RBuild::Entry;
                 replaceEntry(parentEntry, canonical);
+
                 seen[canonicalKey] = parentEntry;
                 entries.append(parentEntry);
                 parentEntry->container = findContainer(canonical, seen, entries);
             } else
                 parentEntry = seen.value(canonicalKey);
         }
+
         RBuild::Entry* entry = new RBuild::Entry;
         replaceEntry(entry, cursor);
+
         if (parentEntry) {
             parentEntry->children.append(entry);
             entry->parent = parentEntry;
         } else {
             entries.append(entry);
         }
+
         seen[key] = entry;
         entry->container = findContainer(cursor, seen, entries);
+
         return entry;
     } else {
         if (!filename.isEmpty()) {
