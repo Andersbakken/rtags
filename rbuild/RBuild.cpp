@@ -293,13 +293,6 @@ static inline void replaceEntry(RBuild::Entry* entry, const CXCursor& cursor)
     entry->cxKind = clang_getCursorKind(cursor);
 }
 
-static inline RBuild::Entry* createEntry(const CXCursor& cursor)
-{
-    RBuild::Entry* entry = new RBuild::Entry;
-    replaceEntry(entry, cursor);
-    return entry;
-}
-
 static inline RBuild::Entry *findContainer(CXCursor cursor, QHash<QByteArray, RBuild::Entry*> &seen, QList<RBuild::Entry*> &entries);
 
 static inline RBuild::Entry* createEntry(const CXCursor& cursor, QHash<QByteArray, RBuild::Entry*> &seen, QList<RBuild::Entry*> &entries)
@@ -330,7 +323,9 @@ static inline RBuild::Entry* createEntry(const CXCursor& cursor, QHash<QByteArra
                     seen[definitionKey] = parentEntry;
                     parentEntry->container = findContainer(definition, seen, entries);
                 } else {
-                    parentEntry = createEntry(definition);
+                    parentEntry = new RBuild::Entry;
+                    replaceEntry(parentEntry, definition);
+
                     seen[definitionKey] = parentEntry;
                     entries.append(parentEntry);
                     parentEntry->container = findContainer(definition, seen, entries);
@@ -340,14 +335,16 @@ static inline RBuild::Entry* createEntry(const CXCursor& cursor, QHash<QByteArra
         } else if (!equalCursor(cursor, canonical)) {
             QByteArray canonicalKey = cursorKey(canonical);
             if (!seen.contains(canonicalKey)) {
-                parentEntry = createEntry(canonical);
+                parentEntry = new RBuild::Entry;
+                replaceEntry(parentEntry, canonical);
                 seen[canonicalKey] = parentEntry;
                 entries.append(parentEntry);
                 parentEntry->container = findContainer(canonical, seen, entries);
             } else
                 parentEntry = seen.value(canonicalKey);
         }
-        RBuild::Entry* entry = createEntry(cursor);
+        RBuild::Entry* entry = new RBuild::Entry;
+        replaceEntry(entry, cursor);
         if (parentEntry) {
             parentEntry->children.append(entry);
             entry->parent = parentEntry;
