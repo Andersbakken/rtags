@@ -45,7 +45,7 @@ static inline void printTree(const QList<RBuild::Entry*>& tree)
                entry);
         clang_disposeString(kindstr);
         ++indent;
-        //printTree(entry->children);
+        printTree(entry->children);
         --indent;
     }
 }
@@ -312,7 +312,7 @@ static inline void resolveData(const CollectData& data, QList<RBuild::Entry*>& e
         if (!key.isEmpty() && !name.isEmpty() && !filename.isEmpty()) {
             CXCursor parent = parentForCursor(cursor);
             if (isValidCursor(parent)) {
-#if 1
+#if 0
                 QByteArray name = eatString(clang_getCursorDisplayName(cursor));
                 CXSourceLocation loc;
                 CXFile file;
