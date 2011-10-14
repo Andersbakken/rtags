@@ -101,7 +101,7 @@ void printCursor(CXCursor cursor)
     clang_getInstantiationLocation(loc, &file, &line, &column, &offset);
     CXString fileName = clang_getFileName(file);
     // const char *fileNameStr = clang_getCString(fileName);
-    CXString symbolName = clang_getCursorSpelling(cursor);
+    CXString symbolName = clang_getCursorDisplayName(cursor);
     const bool isDef = clang_isCursorDefinition(cursor);
     printf("%s %s ", clang_getCString(symbolName), kindToString(clang_getCursorKind(cursor)));
     clang_disposeString(symbolName);
