@@ -115,8 +115,10 @@ struct CollectData
 static inline void addCursor(const CXCursor& cursor, CollectData* data)
 {
     const QByteArray key = cursorKey(cursor);
-    if (!data->seen.contains(key))
+    if (!data->seen.contains(key)) {
         data->cursors.append(cursor);
+        data->seen.insert(key);
+    }
 }
 
 static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
