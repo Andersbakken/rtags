@@ -9,7 +9,11 @@ DEPENDPATH += .
 INCLUDEPATH += .
 
 QT -= gui
-
+macx {
+    CONFIG -= app_bundle
+    LIBS += -L/opt/local/lib
+    INCLUDEPATH += /opt/local/include
+}
 # Input
 SOURCES += main.cpp \
     RBuild.cpp \
