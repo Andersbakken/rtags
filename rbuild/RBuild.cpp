@@ -65,12 +65,6 @@ void RBuild::makefileFileReady(const MakefileItem& file)
     compile(file.arguments);
 }
 
-struct CollectData
-{
-    CXCursor unitCursor;
-    QHash<QByteArray, CXCursor> cursors;
-};
-
 static inline QByteArray cursorKey(const CXCursor& cursor)
 {
     CXSourceLocation loc = clang_getCursorLocation(cursor);
@@ -111,11 +105,18 @@ static inline bool equalCursor(const CXCursor& c1, const CXCursor& c2)
     return (cursorKey(c1) == cursorKey(c2));
 }
 
+struct CollectData
+{
+    CXCursor unitCursor;
+    QSet<QByteArray> seen;
+    QList<CXCursor> cursors;
+};
+
 static inline void addCursor(const CXCursor& cursor, CollectData* data)
 {
     const QByteArray key = cursorKey(cursor);
-    if (!data->cursors.contains(key))
-        data->cursors[key] = cursor;
+    if (!data->seen.contains(key))
+        data->cursors.append(cursor);
 }
 
 static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
