@@ -240,6 +240,24 @@ static inline CXCursor parentForCursor(const CXCursor& cursor)
     return clang_getNullCursor();
 }
 
+static inline RBuild::Entry *findContainer(CXCursor cursor, const QHash<QByteArray, RBuild::Entry*> &seen)
+{
+    do {
+        cursor = clang_getCursorSemanticParent(cursor);
+        switch (clang_getCursorKind(cursor)) {
+        case CXCursor_StructDecl:
+        case CXCursor_ClassDecl:
+        case CXCursor_Namespace:
+            Q_ASSERT(seen.contains(cursorKey(cursor)));
+            return seen[cursorKey(cursor)];
+        default:
+            break;
+        }
+    } while (isValidCursor(cursor));
+    // ### add functions as possible containers
+    return 0;
+}
+
 static inline void resolveData(const CollectData& data, QList<RBuild::Entry*>& entries, QHash<QByteArray, RBuild::Entry*>& seen)
 {
     CXString cxkindstr, cxfilestr, cxnamestr;
@@ -289,6 +307,7 @@ static inline void resolveData(const CollectData& data, QList<RBuild::Entry*>& e
 #endif
 
                 RBuild::Entry* entry = new RBuild::Entry;
+                entry->container = findContainer(cursor, seen);
                 entry->parent = 0;
                 entry->field = name;
                 entry->file = filename;
@@ -310,6 +329,7 @@ static inline void resolveData(const CollectData& data, QList<RBuild::Entry*>& e
                     || cxkind == CXCursor_CXXBaseSpecifier
                     || cxkind == CXCursor_LabelStmt) {
                     RBuild::Entry* entry = new RBuild::Entry;
+                    entry->container = findContainer(cursor, seen);
                     entry->parent = 0;
                     entry->field = name;
                     entry->file = filename;

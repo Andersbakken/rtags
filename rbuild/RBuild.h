@@ -26,7 +26,7 @@ public:
         int cxKind;
 
         QList<Entry*> children;
-        Entry* parent;
+        Entry* parent, *container;
     };
 
 private slots:
