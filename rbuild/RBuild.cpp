@@ -309,6 +309,16 @@ static inline RBuild::Entry* createEntry(const CXCursor& cursor, QHash<QByteArra
     clang_getInstantiationLocation(loc, &file, &line, &col, &off);
     QByteArray filename = eatString(clang_getFileName(file));
 
+    /*
+      How this works:
+      1. There needs to be a canonical cursor for our current cursor. If not, we bail out.
+      2. If there is a cursor definition, use that. Replace an existing top-level canonical cursor if needed
+      3. If there is no cursor definition, use the canonical cursor as the parent cursor.
+      4. Create the parent cursor.
+      5. If our cursor is the canonical cursor, we are a top-level cursor.
+      6. Create our cursor with a parent or as top-level as required.
+    */
+
     CXCursor canonical = clang_getCanonicalCursor(cursor);
     if (isValidCursor(canonical)) {
         RBuild::Entry* parentEntry = 0;
