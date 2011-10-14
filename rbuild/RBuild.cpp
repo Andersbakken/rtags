@@ -3,6 +3,7 @@
 #include <QtAlgorithms>
 #include <clang-c/Index.h>
 #include <stdio.h>
+#include <stdint.h>
 
 class CursorKey
 {
