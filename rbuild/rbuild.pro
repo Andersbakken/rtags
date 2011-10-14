@@ -20,14 +20,16 @@ SOURCES += main.cpp \
     MakefileParser.cpp \
     GccArguments.cpp \
     Path.cpp \
-    Utils.cpp
+    Utils.cpp \
+    SystemInformation.cpp
 
 HEADERS += \
     RBuild.h \
     MakefileParser.h \
     GccArguments.h \
     Path.h \
-    Utils.h
+    Utils.h \
+    SystemInformation.h
 
 QMAKE_CXXFLAGS += -O2
 

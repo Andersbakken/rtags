@@ -108,10 +108,17 @@ RBuild::RBuild(QObject *parent)
 
 void RBuild::init(const Path& makefile)
 {
+    connect(&mSysInfo, SIGNAL(done()), this, SLOT(startParse()));
+    mSysInfo.init();
+    mMakefile = makefile;
+}
+
+void RBuild::startParse()
+{
     connect(&mParser, SIGNAL(fileReady(const MakefileItem&)),
             this, SLOT(makefileFileReady(const MakefileItem&)));
     connect(&mParser, SIGNAL(done()), this, SLOT(makefileDone()));
-    mParser.run(makefile);
+    mParser.run(mMakefile);
 }
 
 static inline void printTree(const QList<RBuild::Entry*>& tree)
@@ -414,23 +421,30 @@ static inline void resolveData(const CollectData& data, QList<RBuild::Entry*>& e
 
 void RBuild::compile(const GccArguments& arguments)
 {
-    CXIndex idx = clang_createIndex(0, 1);
+    CXIndex idx = clang_createIndex(0, 0);
     foreach(const Path& input, arguments.input()) {
-        if (!input.endsWith("/RBuild.cpp")
+        /*if (!input.endsWith("/RBuild.cpp")
             && !input.endsWith("/main.cpp")) {
             printf("skipping %s\n", input.constData());
             continue;
-        }
+        }*/
         fprintf(stderr, "parsing %s\n", input.constData());
+
+        const bool verbose = (getenv("VERBOSE") != 0);
 
         QList<QByteArray> arglist;
         arglist += arguments.arguments("-I");
         arglist += arguments.arguments("-D");
+        arglist += mSysInfo.systemIncludes();
         // ### not very efficient
         QVector<const char*> argvector;
         foreach(const QByteArray& arg, arglist) {
             argvector.append(arg.constData());
+            if (verbose)
+                fprintf(stderr, "%s ", arg.constData());
         }
+        if (verbose)
+            fprintf(stderr, "\n");
 
         CXTranslationUnit unit = clang_parseTranslationUnit(idx, input.constData(), argvector.constData(), argvector.size(), 0, 0, 0);
         if (!unit) {
@@ -441,12 +455,21 @@ void RBuild::compile(const GccArguments& arguments)
         const unsigned int numDiags = clang_getNumDiagnostics(unit);
         for (unsigned int i = 0; i < numDiags; ++i) {
             CXDiagnostic diag = clang_getDiagnostic(unit, i);
-            CXString diagString = clang_formatDiagnostic(diag,
-                                                         CXDiagnostic_DisplaySourceLocation |
-                                                         CXDiagnostic_DisplayColumn |
-                                                         CXDiagnostic_DisplayCategoryName);
-            fprintf(stderr, "%s\n", clang_getCString(diagString));
-            clang_disposeString(diagString);
+            CXSourceLocation loc = clang_getDiagnosticLocation(diag);
+            CXFile file;
+            unsigned int line, col, off;
+
+            clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+            CXString fn = clang_getFileName(file);
+            CXString txt = clang_getDiagnosticSpelling(diag);
+            const char* fnstr = clang_getCString(fn);
+
+            // Suppress diagnostic messages that doesn't have a filename
+            if (fnstr && (strcmp(fnstr, "") != 0))
+                fprintf(stderr, "%s:%u:%u %s\n", fnstr, line, col, clang_getCString(txt));
+
+            clang_disposeString(txt);
+            clang_disposeString(fn);
             clang_disposeDiagnostic(diag);
         }
 

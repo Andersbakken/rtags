@@ -4,6 +4,7 @@
 #include "MakefileParser.h"
 #include "Path.h"
 #include "GccArguments.h"
+#include "SystemInformation.h"
 #include <QObject>
 
 class RBuild : public QObject
@@ -32,14 +33,17 @@ public:
 private slots:
     void makefileDone();
     void makefileFileReady(const MakefileItem& file);
+    void startParse();
 
 private:
     void compile(const GccArguments& arguments);
 
 private:
+    Path mMakefile;
     MakefileParser mParser;
     QList<Entry*> mEntries;
     QHash<QByteArray, RBuild::Entry*> mSeen;
+    SystemInformation mSysInfo;
 };
 
 #endif // RBUILD_H
