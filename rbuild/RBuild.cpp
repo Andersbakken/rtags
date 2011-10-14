@@ -274,69 +274,98 @@ static inline void verifyTree(const QList<RBuild::Entry*> toplevels, const QHash
 }
 #endif
 
-static inline CXCursor parentForCursor(const CXCursor& cursor)
+static inline void replaceEntry(RBuild::Entry* entry, const CXCursor& cursor)
 {
-    if (!clang_isCursorDefinition(cursor)) {
-        /*
-        CXCursor def = clang_getCursorDefinition(cursor);
-        if (isValidCursor(def) && !equalCursor(def, cursor))
-            return def;
-            */
+    CXSourceLocation loc;
+    CXFile file;
+    unsigned int line, col, off;
 
-        //CXCursor def = clang_getCursorDefinition(cursor);
-        CXCursor ref = clang_getCursorReferenced(cursor);
-        CXCursor can = clang_getCanonicalCursor(cursor);
-        CXCursorKind cxkind = clang_getCursorKind(cursor);
-        //const bool hasDef = isValidCursor(def) && !equalCursor(cursor, def);
-        const bool hasRef = isValidCursor(ref) && !equalCursor(cursor, ref);
-        const bool hasCan = isValidCursor(can) && !equalCursor(cursor, can)
-                            && (cxkind != CXCursor_ClassDecl && cxkind != CXCursor_StructDecl)
-                            && clang_isCursorDefinition(can);
-        const bool hasOverloads = (clang_getNumOverloadedDecls(cursor) > 0) && false;
+    loc = clang_getCursorLocation(cursor);
+    clang_getInstantiationLocation(loc, &file, &line, &col, &off);
 
-#if 0
-        QByteArray name = eatString(clang_getCursorSpelling(cursor));
-        CXSourceLocation loc;
-        CXFile file;
-        unsigned int line, col, off;
-        loc = clang_getCursorLocation(cursor);
-        clang_getInstantiationLocation(loc, &file, &line, &col, &off);
-        QByteArray filename = eatString(clang_getFileName(file));
-
-        if (name == "compile" && (filename.contains("RBuild"))) {
-            fprintf(stderr, "Putting cursor %d %d %d\n", hasRef, hasCan, hasOverloads);
-            debugCursor(stderr, cursor);
-        }
-#endif
-
-        if (hasRef || hasOverloads || hasCan) {
-            CXCursor parent;
-            if (hasCan) {
-                parent = can;
-            } else if (hasRef) {
-                parent = ref;
-            } else {
-                Q_ASSERT(hasOverloads);
-                parent = clang_getOverloadedDecl(cursor, 0);
-            }
-            /*
-            if (!clang_isCursorDefinition(parent)) {
-                CXCursor def = clang_getCursorDefinition(parent);
-                if (isValidCursor(def)) {
-                    parent = def;
-                } else if (hasCan) {
-                    return clang_getNullCursor();
-                }
-            }
-            */
-            // we have a valid definition, put this one under that one
-            return parent;
-        }
-    }
-    return clang_getNullCursor();
+    entry->container = 0;
+    entry->parent = 0;
+    entry->field = eatString(clang_getCursorDisplayName(cursor));
+    entry->file = eatString(clang_getFileName(file));
+    entry->line = line;
+    entry->column = col;
+    entry->cxKind = clang_getCursorKind(cursor);
 }
 
-static inline RBuild::Entry *findContainer(CXCursor cursor, const QHash<QByteArray, RBuild::Entry*> &seen)
+static inline RBuild::Entry* createEntry(const CXCursor& cursor)
+{
+    RBuild::Entry* entry = new RBuild::Entry;
+    replaceEntry(entry, cursor);
+    return entry;
+}
+
+static inline RBuild::Entry *findContainer(CXCursor cursor, QHash<QByteArray, RBuild::Entry*> &seen, QList<RBuild::Entry*> &entries);
+
+static inline RBuild::Entry* createEntry(const CXCursor& cursor, QHash<QByteArray, RBuild::Entry*> &seen, QList<RBuild::Entry*> &entries)
+{
+    CXSourceLocation loc;
+    CXFile file;
+    unsigned int line, col, off;
+
+    QByteArray key = cursorKey(cursor);
+    if (seen.contains(key))
+        return 0;
+
+    loc = clang_getCursorLocation(cursor);
+    clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+    QByteArray filename = eatString(clang_getFileName(file));
+
+    CXCursor canonical = clang_getCanonicalCursor(cursor);
+    if (isValidCursor(canonical)) {
+        RBuild::Entry* parentEntry = 0;
+        CXCursor definition = clang_isCursorDefinition(cursor) ? clang_getNullCursor() : clang_getCursorDefinition(canonical);
+        if (isValidCursor(definition) && !equalCursor(canonical, definition)) {
+            QByteArray definitionKey = cursorKey(definition);
+            if (!seen.contains(definitionKey)) {
+                QByteArray canonicalKey = cursorKey(canonical);
+                if (seen.contains(canonicalKey)) {
+                    parentEntry = seen.value(canonicalKey);
+                    replaceEntry(parentEntry, definition);
+                    seen[definitionKey] = parentEntry;
+                    parentEntry->container = findContainer(definition, seen, entries);
+                } else {
+                    parentEntry = createEntry(definition);
+                    seen[definitionKey] = parentEntry;
+                    entries.append(parentEntry);
+                    parentEntry->container = findContainer(definition, seen, entries);
+                }
+            } else
+                parentEntry = seen.value(definitionKey);
+        } else if (!equalCursor(cursor, canonical)) {
+            QByteArray canonicalKey = cursorKey(canonical);
+            if (!seen.contains(canonicalKey)) {
+                parentEntry = createEntry(canonical);
+                seen[canonicalKey] = parentEntry;
+                entries.append(parentEntry);
+                parentEntry->container = findContainer(canonical, seen, entries);
+            } else
+                parentEntry = seen.value(canonicalKey);
+        }
+        RBuild::Entry* entry = createEntry(cursor);
+        if (parentEntry) {
+            parentEntry->children.append(entry);
+            entry->parent = parentEntry;
+        } else {
+            entries.append(entry);
+        }
+        seen[key] = entry;
+        entry->container = findContainer(cursor, seen, entries);
+        return entry;
+    } else {
+        if (!filename.isEmpty()) {
+            debugCursor(stderr, cursor);
+            qFatal("non-canonical");
+        }
+    }
+    return 0;
+}
+
+static inline RBuild::Entry *findContainer(CXCursor cursor, QHash<QByteArray, RBuild::Entry*> &seen, QList<RBuild::Entry*> &entries)
 {
     CXCursor parent = cursor;
     do {
@@ -344,19 +373,16 @@ static inline RBuild::Entry *findContainer(CXCursor cursor, const QHash<QByteArr
         switch (clang_getCursorKind(parent)) {
         case CXCursor_StructDecl:
         case CXCursor_ClassDecl:
-        case CXCursor_Namespace:
+        case CXCursor_Namespace: {
             if (eatString(clang_getCursorDisplayName(parent)).isEmpty())
                 break;
-#if 0
-            if (!seen.contains(cursorKey(parent))) {
-                fprintf(stderr, "not seen cursor! %s\n", cursorKey(cursor).constData());
-                debugCursor(stderr, cursor);
-                fprintf(stderr, "not seen parent! %s\n", cursorKey(parent).constData());
-                debugCursor(stderr, parent);
+            const QByteArray containerKey = cursorKey(parent);
+            if (!seen.contains(containerKey)) {
+                RBuild::Entry* entry = createEntry(parent, seen, entries);
+                Q_ASSERT(entry && seen.value(containerKey) == entry);
+                return entry;
             }
-#endif
-            Q_ASSERT(seen.contains(cursorKey(parent)));
-            return seen[cursorKey(parent)];
+            return seen[containerKey]; }
         default:
             break;
         }
@@ -367,134 +393,8 @@ static inline RBuild::Entry *findContainer(CXCursor cursor, const QHash<QByteArr
 
 static inline void resolveData(const CollectData& data, QList<RBuild::Entry*>& entries, QHash<QByteArray, RBuild::Entry*>& seen)
 {
-    CXString cxkindstr, cxfilestr, cxnamestr;
-    CXCursorKind cxkind;
-    CXSourceLocation loc;
-    CXFile file;
-    unsigned int line, col, off;
-
-    QList<QPair<CXCursor, RBuild::Entry*> > tryLater, resolves;
-
     foreach(const CXCursor& cursor, data.cursors) {
-        QByteArray key = cursorKey(cursor);
-        if (seen.contains(key))
-            continue;
-
-        loc = clang_getCursorLocation(cursor);
-        clang_getInstantiationLocation(loc, &file, &line, &col, &off);
-
-        cxkind = clang_getCursorKind(cursor);
-        cxkindstr = clang_getCursorKindSpelling(cxkind);
-        cxnamestr = clang_getCursorDisplayName(cursor);
-        cxfilestr = clang_getFileName(file);
-
-        QByteArray name = QByteArray(clang_getCString(cxnamestr));
-        QByteArray filename = QByteArray(clang_getCString(cxfilestr));
-
-        if (!key.isEmpty() && !name.isEmpty() && !filename.isEmpty()) {
-            CXCursor parent = parentForCursor(cursor);
-            if (isValidCursor(parent)) {
-#if 0
-                QByteArray name = eatString(clang_getCursorDisplayName(cursor));
-                CXSourceLocation loc;
-                CXFile file;
-                unsigned int line, col, off;
-                loc = clang_getCursorLocation(cursor);
-                clang_getInstantiationLocation(loc, &file, &line, &col, &off);
-                QByteArray filename = eatString(clang_getFileName(file));
-
-                if (name == "compile" && (filename.contains("RBuild"))) {
-                    fprintf(stderr, "Putting cursor\n");
-                    debugCursor(stderr, cursor);
-                    debugCursor(stderr, parent);
-                }
-#endif
-
-                RBuild::Entry* entry = new RBuild::Entry;
-                entry->container = 0;
-                entry->parent = 0;
-                entry->field = name;
-                entry->file = filename;
-                entry->line = line;
-                entry->column = col;
-                entry->cxKind = cxkind;
-                seen[key] = entry;
-                resolves.append(qMakePair(cursor, entry));
-
-                QByteArray parentKey = cursorKey(parent);
-                QHash<QByteArray, RBuild::Entry*>::iterator it = seen.find(parentKey);
-                if (it != seen.end()) {
-                    it.value()->children.append(entry);
-                    entry->parent = it.value();
-                } else { // punt
-                    tryLater.append(qMakePair(cursor, entry));
-                }
-            } else { // assume that we are a definition?
-                if ((cxkind >= CXCursor_FirstDecl && cxkind <= CXCursor_LastDecl)
-                    || cxkind == CXCursor_CXXBaseSpecifier
-                    || cxkind == CXCursor_LabelStmt) {
-                    RBuild::Entry* entry = new RBuild::Entry;
-                    entry->container = 0;
-                    entry->parent = 0;
-                    entry->field = name;
-                    entry->file = filename;
-                    entry->line = line;
-                    entry->column = col;
-                    entry->cxKind = cxkind;
-                    seen[key] = entry;
-                    resolves.append(qMakePair(cursor, entry));
-
-                    entries.append(entry);
-                } else {
-                    //fprintf(stderr, "No definition %s %s at %s:%u:%u\n", name.constData(), clang_getCString(cxkindstr),
-                    //        filename.constData(), line, col);
-                    if (cxkind != CXCursor_OverloadedDeclRef && cxkind != CXCursor_TypeRef) {
-                        Q_ASSERT(false && "No definition!");
-                    }
-                }
-            }
-        }
-
-        clang_disposeString(cxnamestr);
-        clang_disposeString(cxfilestr);
-        clang_disposeString(cxkindstr);
-    }
-
-    QList<QPair<CXCursor, RBuild::Entry*> >::iterator it = tryLater.begin();
-    while (it != tryLater.end()) {
-        CXCursor parent = parentForCursor((*it).first);
-        if (isValidCursor(parent)) {
-            QByteArray key = cursorKey(parent);
-            QHash<QByteArray, RBuild::Entry*>::iterator it2 = seen.find(key);
-            if (it2 != seen.end()) {
-                // append as child
-                it2.value()->children.append((*it).second);
-                (*it).second->parent = it2.value();
-                it = tryLater.erase(it);
-                continue;
-            }
-        }
-        ++it;
-    }
-
-#ifdef QT_DEBUG
-    it = tryLater.begin();
-    while (it != tryLater.end()) {
-        printf("remaining %s\n", (*it).second->field.constData());
-        debugCursor(stdout, (*it).first);
-        printf("----\n\n");
-        ++it;
-    }
-
-    verifyTree(entries, seen);
-#endif
-
-    Q_ASSERT(tryLater.isEmpty());
-
-    it = resolves.begin();
-    while (it != resolves.end()) {
-        (*it).second->container = findContainer((*it).first, seen);
-        ++it;
+        (void)createEntry(cursor, seen, entries);
     }
 }
 
