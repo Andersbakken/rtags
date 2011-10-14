@@ -158,36 +158,20 @@ void RBuild::makefileFileReady(const MakefileItem& file)
 static inline QByteArray cursorKey(const CXCursor& cursor)
 {
     CXSourceLocation loc = clang_getCursorLocation(cursor);
-    CXString usr = clang_getCursorUSR(cursor);
     CXFile file;
     unsigned int line, col, off;
     clang_getInstantiationLocation(loc, &file, &line, &col, &off);
     CXString filename = clang_getFileName(file);
+    CXString displayname = clang_getCursorDisplayName(cursor);
+    CXCursorKind kind = clang_getCursorKind(cursor);
 
-    /*CXCursorKind kind = clang_getCursorKind(cursor);
-    QByteArray data(clang_getCString(filename));
-    data += QByteArray::number(line) + "-" + QByteArray::number(col) + "-" + QByteArray::number(off) + "-" + QByteArray::number(kind);
+    QByteArray data = Path::resolved(QByteArray(clang_getCString(filename)));
+    data += "-" + QByteArray(clang_getCString(displayname));
+    data += "-" + QByteArray::number(line) + "-" + QByteArray::number(col) + "-" + QByteArray::number(off) + "-" + QByteArray::number(kind);
+
+    clang_disposeString(displayname);
     clang_disposeString(filename);
-    return data;*/
-
-    QByteArray key;
-    const char* str = clang_getCString(usr);
-    if (str && (strcmp(str, "") != 0))
-        key += QByteArray(str) + "-";
-    else {
-        CXString spelling = clang_getCursorDisplayName(cursor);
-        str = clang_getCString(spelling);
-        if (str && (strcmp(str, "") != 0))
-            key += QByteArray(str) + "-";
-        clang_disposeString(spelling);
-    }
-    key += QByteArray(clang_getCString(filename)) + "-";
-    key += QByteArray::number(line) + ":" + QByteArray::number(col) + ":" + QByteArray::number(off);
-
-    clang_disposeString(filename);
-    clang_disposeString(usr);
-
-    return key;
+    return data;
 }
 
 static inline bool equalCursor(const CXCursor& c1, const CXCursor& c2)
