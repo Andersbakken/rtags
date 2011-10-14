@@ -195,6 +195,22 @@ static inline bool equalCursor(const CXCursor& c1, const CXCursor& c2)
     return (cursorKey(c1) == cursorKey(c2));
 }
 
+static inline void debugCursor(FILE* out, const CXCursor& cursor)
+{
+    CXFile file;
+    unsigned int line, col, off;
+    CXSourceLocation loc = clang_getCursorLocation(cursor);
+    clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+    CXString name = clang_getCursorDisplayName(cursor);
+    CXString filename = clang_getFileName(file);
+    CXString kind = clang_getCursorKindSpelling(clang_getCursorKind(cursor));
+    fprintf(out, "cursor name %s, kind %s, loc %s:%u:%u\n",
+            clang_getCString(name), clang_getCString(kind), clang_getCString(filename), line, col);
+    clang_disposeString(name);
+    clang_disposeString(kind);
+    clang_disposeString(filename);
+}
+
 struct CollectData
 {
     CXCursor unitCursor;
@@ -230,22 +246,6 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     for (unsigned int i = 0; i < decl; ++i)
         addCursor(clang_getOverloadedDecl(cursor, i), data);
     return CXChildVisit_Recurse;
-}
-
-static inline void debugCursor(FILE* out, const CXCursor& cursor)
-{
-    CXFile file;
-    unsigned int line, col, off;
-    CXSourceLocation loc = clang_getCursorLocation(cursor);
-    clang_getInstantiationLocation(loc, &file, &line, &col, &off);
-    CXString name = clang_getCursorDisplayName(cursor);
-    CXString filename = clang_getFileName(file);
-    CXString kind = clang_getCursorKindSpelling(clang_getCursorKind(cursor));
-    fprintf(out, "cursor name %s, kind %s, loc %s:%u:%u\n",
-            clang_getCString(name), clang_getCString(kind), clang_getCString(filename), line, col);
-    clang_disposeString(name);
-    clang_disposeString(kind);
-    clang_disposeString(filename);
 }
 
 #ifdef QT_DEBUG
@@ -304,6 +304,19 @@ static inline RBuild::Entry *findContainer(CXCursor cursor, QHash<QByteArray, RB
 
 static inline RBuild::Entry* createEntry(const CXCursor& cursor, QHash<QByteArray, RBuild::Entry*> &seen, QList<RBuild::Entry*> &entries)
 {
+    /*
+      How this works:
+      1.  If we've seen the cursor before, bail out.
+      2.  If the cursor doesn't have a display name, bail out.
+      3.  Check if we want a canonical cursor for our current cursor and get it if needed.
+      4.  If our canonical cursor is not a declaration, make it one. If this fails, bail out.
+      5.  If there is a cursor definition, use that as the parent. Replace an existing top-level canonical cursor if needed.
+      6.  If there is no cursor definition, use the canonical cursor as the parent cursor.
+      7.  Create the parent cursor.
+      8.  If our cursor is the canonical cursor, we are a top-level cursor.
+      9.  Create our cursor with a parent or as top-level as required.
+    */
+
     CXSourceLocation loc;
     CXFile file;
     unsigned int line, col, off;
@@ -314,20 +327,31 @@ static inline RBuild::Entry* createEntry(const CXCursor& cursor, QHash<QByteArra
 
     loc = clang_getCursorLocation(cursor);
     clang_getInstantiationLocation(loc, &file, &line, &col, &off);
-    QByteArray filename = eatString(clang_getFileName(file));
 
-    /*
-      How this works:
-      1. There needs to be a canonical cursor for our current cursor. If not, we bail out.
-      2. If there is a cursor definition, use that. Replace an existing top-level canonical cursor if needed
-      3. If there is no cursor definition, use the canonical cursor as the parent cursor.
-      4. Create the parent cursor.
-      5. If our cursor is the canonical cursor, we are a top-level cursor.
-      6. Create our cursor with a parent or as top-level as required.
-    */
+    if (eatString(clang_getCursorDisplayName(cursor)).isEmpty())
+        return 0;
 
-    CXCursor canonical = clang_getCanonicalCursor(cursor);
+    //const bool verbose = (eatString(clang_getFileName(file)).contains("/main.cpp") && line == 16 && col == 43);
+
+    CXCursorKind kind = clang_getCursorKind(cursor);
+
+    CXCursor canonical;
+    if (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr) {
+        canonical = cursor;
+    } else {
+        canonical = clang_getCanonicalCursor(cursor);
+        if (isValidCursor(canonical) && !clang_isDeclaration(clang_getCursorKind(canonical))) {
+            CXType type = clang_getCursorType(canonical);
+            canonical = clang_getTypeDeclaration(type);
+        }
+    }
+
     if (isValidCursor(canonical)) {
+        /*if (verbose) {
+            fprintf(stderr, "foo\n");
+            debugCursor(stderr, cursor);
+            debugCursor(stderr, canonical);
+        }*/
         RBuild::Entry* parentEntry = 0;
         CXCursor definition = clang_isCursorDefinition(cursor) ? clang_getNullCursor() : clang_getCursorDefinition(canonical);
         if (isValidCursor(definition) && !equalCursor(canonical, definition)) {
@@ -345,6 +369,7 @@ static inline RBuild::Entry* createEntry(const CXCursor& cursor, QHash<QByteArra
                     replaceEntry(parentEntry, definition);
 
                     seen[definitionKey] = parentEntry;
+                    seen[canonicalKey] = parentEntry;
                     entries.append(parentEntry);
                     parentEntry->container = findContainer(definition, seen, entries);
                 }
@@ -377,11 +402,6 @@ static inline RBuild::Entry* createEntry(const CXCursor& cursor, QHash<QByteArra
         entry->container = findContainer(cursor, seen, entries);
 
         return entry;
-    } else {
-        if (!filename.isEmpty()) {
-            debugCursor(stderr, cursor);
-            qFatal("non-canonical");
-        }
     }
     return 0;
 }
