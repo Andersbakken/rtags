@@ -146,6 +146,7 @@ static inline void debugCursor(FILE* out, const CXCursor& cursor)
     clang_disposeString(filename);
 }
 
+#ifdef QT_DEBUG
 static inline void verifyTree(const QList<RBuild::Entry*> toplevels, const QHash<QByteArray, RBuild::Entry*>& seen)
 {
     printf("verify!\n");
@@ -177,6 +178,7 @@ static inline void verifyTree(const QList<RBuild::Entry*> toplevels, const QHash
         Q_ASSERT(it != toplevels.end());
     }
 }
+#endif
 
 static inline CXCursor parentForCursor(const CXCursor& cursor)
 {
@@ -198,7 +200,7 @@ static inline CXCursor parentForCursor(const CXCursor& cursor)
                             && clang_isCursorDefinition(can);
         const bool hasOverloads = (clang_getNumOverloadedDecls(cursor) > 0) && false;
 
-#if 1
+#if 0
         QByteArray name = eatString(clang_getCursorSpelling(cursor));
         CXSourceLocation loc;
         CXFile file;
@@ -286,9 +288,6 @@ static inline void resolveData(const CollectData& data, QList<RBuild::Entry*>& e
 
         if (!key.isEmpty() && !name.isEmpty() && !filename.isEmpty()) {
             CXCursor parent = parentForCursor(cursor);
-            if (name == "operator<<" && filename.contains("qeasingcurve")) {
-                fprintf(stderr, "key %s %d\n", key.constData(), isValidCursor(parent));
-            }
             if (isValidCursor(parent)) {
 #if 1
                 QByteArray name = eatString(clang_getCursorSpelling(cursor));
