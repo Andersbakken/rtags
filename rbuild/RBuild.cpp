@@ -383,9 +383,9 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
 {
     CollectData* data = reinterpret_cast<CollectData*>(client_data);
 
-    CursorKey key(cursor);
+    const CursorKey key(cursor);
     CollectData::DataEntry* entry = 0;
-    QHash<CursorKey, CollectData::DataEntry*>::iterator it = data->seen.find(key);
+    const QHash<CursorKey, CollectData::DataEntry*>::iterator it = data->seen.find(key);
     if (it != data->seen.end()) {
         entry = it.value();
         if (entry->hasDefinition)
@@ -400,13 +400,17 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         // addCursor(clang_getCanonicalCursor(cursor), &entry->canonical);
     }
 
-    CXCursor definition = clang_getCursorDefinition(cursor);
-    if (clang_isCursorDefinition(cursor) || !isValidCursor(definition)) {
+    const CXCursor definition = clang_getCursorDefinition(cursor);
+    const bool cursorIsDefinition = (clang_isCursorDefinition(cursor) != 0);
+    if (cursorIsDefinition || !isValidCursor(definition)) {
         if (entry->reference.cursor.isNull()) {
-            CXCursor reference = clang_getCursorReferenced(cursor);
+            if (cursorIsDefinition)
+                entry->hasDefinition = true;
+            const CXCursor reference = clang_getCursorReferenced(cursor);
             addCursor(reference, CursorKey(reference), &entry->reference);
         }
     } else {
+        Q_ASSERT(clang_isCursorDefinition(definition) != 0);
         entry->hasDefinition = true;
         addCursor(definition, CursorKey(definition), &entry->reference);
     }
