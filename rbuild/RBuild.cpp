@@ -389,6 +389,11 @@ static inline void addCursor(const CXCursor& cursor, const CursorKey& key, Colle
     }
 }
 
+static inline bool equalLocation(const CursorKey& key1, const CursorKey& key2)
+{
+    return (key1.off == key2.off && key1.fileName == key2.fileName);
+}
+
 static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
 {
     CollectData* data = reinterpret_cast<CollectData*>(client_data);
@@ -412,7 +417,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
 
     const CXCursor definition = clang_getCursorDefinition(cursor);
     const bool cursorIsDefinition = (clang_isCursorDefinition(cursor) != 0);
-    if (cursorIsDefinition || !isValidCursor(definition)) {
+    if (cursorIsDefinition || !isValidCursor(definition) || equalLocation(key, CursorKey(definition))) {
         if (entry->reference.cursor.isNull()) {
             if (cursorIsDefinition)
                 entry->hasDefinition = true;
