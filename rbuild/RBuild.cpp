@@ -341,6 +341,9 @@ static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
 
 void RBuild::writeData(const QByteArray& filename)
 {
+    if (!mData)
+        return;
+
     leveldb::DB* db = 0;
     leveldb::Options dbOptions;
     leveldb::WriteOptions writeOptions;
