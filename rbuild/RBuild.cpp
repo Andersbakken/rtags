@@ -419,7 +419,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     const bool cursorIsDefinition = (clang_isCursorDefinition(cursor) != 0);
     if (cursorIsDefinition || !isValidCursor(definition) || equalLocation(key, CursorKey(definition))) {
         if (entry->reference.cursor.isNull()) {
-            if (cursorIsDefinition)
+            if (cursorIsDefinition || clang_isCursorDefinition(definition))
                 entry->hasDefinition = true;
             const CXCursor reference = clang_getCursorReferenced(cursor);
             addCursor(reference, CursorKey(reference), &entry->reference);
