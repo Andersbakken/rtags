@@ -2,9 +2,14 @@ TEMPLATE = lib
 QT = 
 CONFIG += static
 #g++ -c -I. -I./include -fno-builtin-memcmp -DLEVELDB_PLATFORM_POSIX -DLEVELDB_CSTDATOMIC_PRESENT -std=c++0x -pthread -DOS_LINUX -O2 -DNDEBUG         db/memtable.cc -o db/memtable.o
-DEFINES += LEVELDB_PLATFORM_POSIX LEVELDB_CSTDATOMIC_PRESENT NDEBUG
+DEFINES += LEVELDB_PLATFORM_POSIX NDEBUG
 linux {
-    DEFINES += OS_LINUX
+    DEFINES += OS_LINUX LEVELDB_CSTDATOMIC_PRESENT
+    QMAKE_CXXFLAGS += -std=c++0x
+}
+mac {
+    DEFINES += OS_MACOSX
+    QMAKE_CXXFLAGS += -fno-builtin-memcmp
 }
 exists($$PWD/snappy) {
     message("using snappy")
@@ -16,7 +21,6 @@ exists($$PWD/snappy) {
                $$PWD/snappy/snappy-sinksource.cc
 }
 OBJECTS_DIR=.objects_leveldb
-QMAKE_CXXFLAGS += -std=c++0x
 INCLUDEPATH += $$PWD/leveldb $$PWD/leveldb/include
 SOURCES += $$PWD/leveldb/db/builder.cc \
            $$PWD/leveldb/db/c.cc \
