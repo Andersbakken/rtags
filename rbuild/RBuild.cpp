@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-//#define THREADSAFE_ATOMICSTRING
+//#define REENTRANT_ATOMICSTRING
 
 class AtomicString
 {
@@ -48,13 +48,13 @@ private:
     Data* mData;
 
     static QHash<QByteArray, Data*> sData;
-#ifdef THREADSAFE_ATOMICSTRING
+#ifdef REENTRANT_ATOMICSTRING
     static QMutex sMutex;
 #endif
 };
 
 QHash<QByteArray, AtomicString::Data*> AtomicString::sData;
-#ifdef THREADSAFE_ATOMICSTRING
+#ifdef REENTRANT_ATOMICSTRING
 QMutex AtomicString::sMutex;
 #endif
 
@@ -74,7 +74,7 @@ inline void AtomicString::init(const QByteArray& str)
 
 AtomicString::AtomicString(const CXString& string)
 {
-#ifdef THREADSAFE_ATOMICSTRING
+#ifdef REENTRANT_ATOMICSTRING
     QMutexLocker locker(&sMutex);
 #endif
     QByteArray ba(clang_getCString(string));
@@ -83,7 +83,7 @@ AtomicString::AtomicString(const CXString& string)
 
 AtomicString::AtomicString(const QByteArray& string)
 {
-#ifdef THREADSAFE_ATOMICSTRING
+#ifdef REENTRANT_ATOMICSTRING
     QMutexLocker locker(&sMutex);
 #endif
     init(string);
@@ -91,7 +91,7 @@ AtomicString::AtomicString(const QByteArray& string)
 
 AtomicString::AtomicString(const QString& string)
 {
-#ifdef THREADSAFE_ATOMICSTRING
+#ifdef REENTRANT_ATOMICSTRING
     QMutexLocker locker(&sMutex);
 #endif
     init(string.toUtf8());
@@ -99,7 +99,7 @@ AtomicString::AtomicString(const QString& string)
 
 AtomicString::AtomicString(const AtomicString& other)
 {
-#ifdef THREADSAFE_ATOMICSTRING
+#ifdef REENTRANT_ATOMICSTRING
     QMutexLocker locker(&sMutex);
 #endif
     mData = other.mData;
@@ -109,7 +109,7 @@ AtomicString::AtomicString(const AtomicString& other)
 
 AtomicString::~AtomicString()
 {
-#ifdef THREADSAFE_ATOMICSTRING
+#ifdef REENTRANT_ATOMICSTRING
     QMutexLocker locker(&sMutex);
 #endif
     if (mData && !--mData->ref) {
@@ -121,7 +121,7 @@ AtomicString::~AtomicString()
 
 int AtomicString::strcmp(const AtomicString& other) const
 {
-#ifdef THREADSAFE_ATOMICSTRING
+#ifdef REENTRANT_ATOMICSTRING
     QMutexLocker locker(&sMutex);
 #endif
     if (!mData)
@@ -133,7 +133,7 @@ int AtomicString::strcmp(const AtomicString& other) const
 
 AtomicString& AtomicString::operator=(const AtomicString& other)
 {
-#ifdef THREADSAFE_ATOMICSTRING
+#ifdef REENTRANT_ATOMICSTRING
     QMutexLocker locker(&sMutex);
 #endif
     if (mData && !--mData->ref) {
