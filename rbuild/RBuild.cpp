@@ -7,6 +7,150 @@
 #include <stdio.h>
 #include <stdint.h>
 
+//#define THREADSAFE_ATOMICSTRING
+
+class AtomicString
+{
+public:
+    AtomicString() : mData(0) {}
+    AtomicString(const CXString& string);
+    AtomicString(const QByteArray& string);
+    AtomicString(const QString& string);
+    AtomicString(const AtomicString& other);
+    ~AtomicString();
+
+    AtomicString& operator=(const AtomicString& other);
+    QByteArray operator*() const { return mData ? mData->data : QByteArray(); }
+    bool operator==(const AtomicString& other) const { return mData == other.mData; }
+    bool operator==(const QByteArray& string) const { return mData ? mData->data == string : false; }
+    bool operator!=(const QByteArray& string) const { return mData ? mData->data != string : false; }
+    bool operator<(const QByteArray& string) const { return mData ? mData->data < string : false; }
+    bool operator>(const QByteArray& string) const { return mData ? mData->data > string : false; }
+    bool operator<=(const QByteArray& string) const { return mData ? mData->data <= string : false; }
+    bool operator>=(const QByteArray& string) const { return mData ? mData->data >= string : false; }
+
+    bool isEmpty() const { return mData ? mData->data.isEmpty() : true; }
+    int strcmp(const AtomicString& other) const;
+
+    QByteArray toByteArray() const { return mData ? mData->data : QByteArray(); }
+    QString toString() const { return QString::fromUtf8(mData ? mData->data.constData() : 0); }
+
+private:
+    void init(const QByteArray& str);
+
+private:
+    struct Data
+    {
+        QByteArray data;
+        int ref;
+    };
+
+    Data* mData;
+
+    static QHash<QByteArray, Data*> sData;
+#ifdef THREADSAFE_ATOMICSTRING
+    static QMutex sMutex;
+#endif
+};
+
+QHash<QByteArray, AtomicString::Data*> AtomicString::sData;
+#ifdef THREADSAFE_ATOMICSTRING
+QMutex AtomicString::sMutex;
+#endif
+
+inline void AtomicString::init(const QByteArray& str)
+{
+    QHash<QByteArray, Data*>::iterator it = sData.find(str);
+    if (it != sData.end()) {
+        mData = it.value();
+        ++mData->ref;
+    } else {
+        mData = new Data;
+        mData->data = str;
+        mData->ref = 1;
+        sData[str] = mData;
+    }
+}
+
+AtomicString::AtomicString(const CXString& string)
+{
+#ifdef THREADSAFE_ATOMICSTRING
+    QMutexLocker locker(&sMutex);
+#endif
+    QByteArray ba(clang_getCString(string));
+    init(ba);
+}
+
+AtomicString::AtomicString(const QByteArray& string)
+{
+#ifdef THREADSAFE_ATOMICSTRING
+    QMutexLocker locker(&sMutex);
+#endif
+    init(string);
+}
+
+AtomicString::AtomicString(const QString& string)
+{
+#ifdef THREADSAFE_ATOMICSTRING
+    QMutexLocker locker(&sMutex);
+#endif
+    init(string.toUtf8());
+}
+
+AtomicString::AtomicString(const AtomicString& other)
+{
+#ifdef THREADSAFE_ATOMICSTRING
+    QMutexLocker locker(&sMutex);
+#endif
+    mData = other.mData;
+    if (mData)
+        ++mData->ref;
+}
+
+AtomicString::~AtomicString()
+{
+#ifdef THREADSAFE_ATOMICSTRING
+    QMutexLocker locker(&sMutex);
+#endif
+    if (mData && !--mData->ref) {
+        sData.remove(mData->data);
+        delete mData;
+        mData = 0;
+    }
+}
+
+int AtomicString::strcmp(const AtomicString& other) const
+{
+#ifdef THREADSAFE_ATOMICSTRING
+    QMutexLocker locker(&sMutex);
+#endif
+    if (!mData)
+        return !other.mData ? 0 : -1;
+    if (!other.mData)
+        return 1;
+    return qstrcmp(mData->data, other.mData->data);
+}
+
+AtomicString& AtomicString::operator=(const AtomicString& other)
+{
+#ifdef THREADSAFE_ATOMICSTRING
+    QMutexLocker locker(&sMutex);
+#endif
+    if (mData && !--mData->ref) {
+        sData.remove(mData->data);
+        delete mData;
+    }
+    mData = other.mData;
+    if (mData)
+        ++mData->ref;
+    return *this;
+}
+
+static inline uint qHash(const AtomicString& string)
+{
+    return qHash(string.toByteArray());
+}
+
 class CursorKey
 {
 public:
@@ -41,7 +185,7 @@ public:
             return true;
         if (!other.isValid())
             return false;
-        int ret = qstrcmp(fileName, other.fileName);
+        int ret = fileName.strcmp(other.fileName);
         if (ret < 0)
             return true;
         if (ret > 0)
@@ -50,7 +194,7 @@ public:
             return true;
         if (off > other.off)
             return false;
-        ret = qstrcmp(symbolName, other.symbolName);
+        ret = symbolName.strcmp(other.symbolName);
         if (ret < 0)
             return true;
         if (ret > 0)
@@ -69,8 +213,8 @@ public:
     }
 
     CXCursorKind kind;
-    QByteArray fileName;
-    QByteArray symbolName;
+    AtomicString fileName;
+    AtomicString symbolName;
     unsigned line, col, off;
 };
 
@@ -84,13 +228,15 @@ static inline uint qHash(const CursorKey &key)
         h &= 0x0fffffff;                        \
         ++h;
 
-        const char *ch = key.fileName.constData();
+        QByteArray name = key.fileName.toByteArray();
+        const char *ch = name.constData();
         Q_ASSERT(ch);
         while (*ch) {
             HASHCHAR(*ch);
             ++ch;
         }
-        ch = key.symbolName.constData();
+        name = key.symbolName.toByteArray();
+        ch = name.constData();
         Q_ASSERT(ch);
         while (*ch) {
             HASHCHAR(*ch);
@@ -110,6 +256,9 @@ static inline uint qHash(const CursorKey &key)
 
 struct CollectData
 {
+    CollectData() {}
+    ~CollectData() { qDeleteAll(data); }
+
     struct Data
     {
         CursorKey cursor;
@@ -117,13 +266,14 @@ struct CollectData
     };
     struct DataEntry
     {
+        bool hasDefinition;
         Data cursor;
         Data reference;
         Data canonical;
     };
 
-    QSet<CursorKey> seen;
-    QList<DataEntry> data;
+    QHash<CursorKey, DataEntry*> seen;
+    QList<DataEntry*> data;
 };
 
 RBuild::RBuild(QObject *parent)
@@ -168,7 +318,7 @@ void RBuild::makefileFileReady(const MakefileItem& file)
 static inline std::string cursorKeyToString(const CursorKey& key)
 {
     std::stringstream stream;
-    stream << key.fileName.constData();
+    stream << key.fileName.toByteArray().constData();
     stream << ":" << key.line << ":" << key.col;
     return stream.str();
 }
@@ -193,8 +343,8 @@ void RBuild::writeData(const QByteArray& filename)
     }
     Q_ASSERT(db);
 
-    foreach(const CollectData::DataEntry& entry, mData->data) {
-        writeEntry(db, writeOptions, entry);
+    foreach(const CollectData::DataEntry* entry, mData->data) {
+        writeEntry(db, writeOptions, *entry);
     }
 
     delete db;
@@ -216,9 +366,9 @@ static inline void debugCursor(FILE* out, const CXCursor& cursor)
     clang_disposeString(filename);
 }
 
-static inline void addCursor(const CXCursor& cursor, CollectData::Data* data)
+static inline void addCursor(const CXCursor& cursor, const CursorKey& key, CollectData::Data* data)
 {
-    data->cursor = CursorKey(cursor);
+    data->cursor = key;
     CXCursor parent = cursor;
     for (;;) {
         parent = clang_getCursorSemanticParent(parent);
@@ -233,22 +383,33 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
 {
     CollectData* data = reinterpret_cast<CollectData*>(client_data);
 
-    CollectData::DataEntry entry;
-    addCursor(cursor, &entry.cursor);
-    if (data->seen.contains(entry.cursor.cursor))
-        return CXChildVisit_Recurse; // ### Continue?
+    CursorKey key(cursor);
+    CollectData::DataEntry* entry = 0;
+    QHash<CursorKey, CollectData::DataEntry*>::iterator it = data->seen.find(key);
+    if (it != data->seen.end()) {
+        entry = it.value();
+        if (entry->hasDefinition)
+            return CXChildVisit_Recurse; // ### Continue?
+    } else {
+        entry = new CollectData::DataEntry;
+        entry->hasDefinition = false;
+        data->seen[key] = entry;
+        data->data.append(entry);
+        addCursor(cursor, key, &entry->cursor);
+        // ### not used yet so don't add for now
+        // addCursor(clang_getCanonicalCursor(cursor), &entry->canonical);
+    }
 
     CXCursor definition = clang_getCursorDefinition(cursor);
-    if (clang_isCursorDefinition(cursor) || !isValidCursor(definition))
-        addCursor(clang_getCursorReferenced(cursor), &entry.reference);
-    else
-        addCursor(definition, &entry.reference);
-    addCursor(clang_getCanonicalCursor(cursor), &entry.canonical);
-
-    if (isValidCursor(definition))
-        data->seen.insert(entry.cursor.cursor);
-
-    data->data.append(entry);
+    if (clang_isCursorDefinition(cursor) || !isValidCursor(definition)) {
+        if (entry->reference.cursor.isNull()) {
+            CXCursor reference = clang_getCursorReferenced(cursor);
+            addCursor(reference, CursorKey(reference), &entry->reference);
+        }
+    } else {
+        entry->hasDefinition = true;
+        addCursor(definition, CursorKey(definition), &entry->reference);
+    }
 
     return CXChildVisit_Recurse;
 }
