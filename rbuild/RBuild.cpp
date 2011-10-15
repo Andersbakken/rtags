@@ -9,6 +9,11 @@
 
 //#define REENTRANT_ATOMICSTRING
 
+static inline bool cursorDefinition(const CXCursor& c)
+{
+    return (clang_isCursorDefinition(c) != 0) || clang_getCursorKind(c) == CXCursor_MacroDefinition;
+}
+
 class AtomicString
 {
 public:
@@ -371,7 +376,7 @@ static inline void debugCursor(FILE* out, const CXCursor& cursor)
     CXString kind = clang_getCursorKindSpelling(clang_getCursorKind(cursor));
     fprintf(out, "cursor name %s, kind %s%s, loc %s:%u:%u\n",
             clang_getCString(name), clang_getCString(kind),
-            clang_isCursorDefinition(cursor) ? " def" : "",
+            cursorDefinition(cursor) ? " def" : "",
             clang_getCString(filename), line, col);
     clang_disposeString(name);
     clang_disposeString(kind);
@@ -422,16 +427,16 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     }
 
     const CXCursor definition = clang_getCursorDefinition(cursor);
-    const bool cursorIsDefinition = (clang_isCursorDefinition(cursor) != 0);
+    const bool cursorIsDefinition = (cursorDefinition(cursor) != 0);
     if (cursorIsDefinition || !isValidCursor(definition) || equalLocation(key, CursorKey(definition))) {
         if (entry->reference.cursor.isNull()) {
-            if (cursorIsDefinition || clang_isCursorDefinition(definition))
+            if (cursorIsDefinition || cursorDefinition(definition))
                 entry->hasDefinition = true;
             const CXCursor reference = clang_getCursorReferenced(cursor);
             addCursor(reference, CursorKey(reference), &entry->reference);
         }
     } else {
-        Q_ASSERT(clang_isCursorDefinition(definition) != 0);
+        Q_ASSERT(cursorDefinition(definition) != 0);
         entry->hasDefinition = true;
         addCursor(definition, CursorKey(definition), &entry->reference);
     }
