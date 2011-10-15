@@ -5,6 +5,11 @@ DEFINES += LEVELDB_PLATFORM_POSIX LEVELDB_CSTDATOMIC_PRESENT NDEBUG
 linux {
     DEFINES += OS_LINUX
 }
+exists($$PWD/snappy/lib/libsnappy.a) {
+    DEFINES += SNAPPY
+    LIBS += $$PWD/snappy/lib/libsnappy.a
+    INCLUDEPATH += $$PWD/snappy/include
+}
 OBJECTS_DIR=.objects_leveldb
 QMAKE_CXXFLAGS += -std=c++0x
 INCLUDEPATH += $$PWD/leveldb $$PWD/leveldb/include
