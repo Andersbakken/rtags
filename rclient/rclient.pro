@@ -8,10 +8,8 @@ DESTDIR = ..
 DEPENDPATH += .
 INCLUDEPATH += .
 
-DEFINES += _GNU_SOURCE
 # Input
-SOURCES += main.c RClient.c
-HEADERS += RClient.h
+SOURCES += main.cpp
 CONFIG += debug
 CONFIG -= app_bundle
 QT = 
@@ -19,6 +17,5 @@ unix {
     OBJECTS_DIR = .obj
 }
 
-linux: DEFINES += NO_STRNSTR
-QMAKE_LINK = $$QMAKE_LINK_C
-include(../shared/shared.pri)
+LIBS += -L/usr/local/lib -lleveldb
+

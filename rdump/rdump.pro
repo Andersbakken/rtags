@@ -12,7 +12,7 @@ macx {
 
 QT =
 
-LIBS += -lclang
+LIBS += -lleveldb
 SOURCES += main.cpp
 
 release {

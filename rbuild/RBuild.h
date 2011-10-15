@@ -7,28 +7,16 @@
 #include "SystemInformation.h"
 #include <QObject>
 
+class CollectData;
+
 class RBuild : public QObject
 {
     Q_OBJECT
 public:
     RBuild(QObject *parent = 0);
+    ~RBuild();
 
     void init(const Path& makefile);
-
-    struct Entry
-    {
-        Entry();
-        ~Entry();
-
-        Path file;
-        unsigned int line, column;
-        QByteArray field;
-
-        int cxKind;
-
-        QList<Entry*> children;
-        Entry* parent, *container;
-    };
 
 private slots:
     void makefileDone();
@@ -37,13 +25,13 @@ private slots:
 
 private:
     void compile(const GccArguments& arguments);
+    void writeData(const QByteArray& filename);
 
 private:
     Path mMakefile;
     MakefileParser mParser;
-    QList<Entry*> mEntries;
-    QHash<QByteArray, RBuild::Entry*> mSeen;
     SystemInformation mSysInfo;
+    CollectData* mData;
 };
 
 #endif // RBUILD_H
