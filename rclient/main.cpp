@@ -2,6 +2,8 @@
 #include <leveldb/db.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 std::string fetchValue(const std::string& filename, const std::string& key)
 {
@@ -16,18 +18,34 @@ std::string fetchValue(const std::string& filename, const std::string& key)
     return value;
 }
 
+static inline std::string findRtagsDb(const std::string& filename)
+{
+    char buffer[500];
+    if (getcwd(buffer, 500)) {
+        char *slash;
+        while ((slash = strrchr(buffer, '/'))) {
+            // ### this is awful
+            struct ::stat s;
+            std::string path(buffer);
+            path += filename;
+            //printf("Testing [%s]\n", path.c_str());
+            if (stat(path.c_str(), &s) >= 0)
+                return path;
+            *slash = '\0';
+        }
+    }
+    return std::string();
+}
+
 int main(int argc, char** argv)
 {
-    std::string filename;
-    std::string key;
     if (argc < 3)
         return 1;
 
-    char dir[500];
-    if (!getcwd(dir, 500))
-        return 1;
-    filename = dir + std::string("/.rtags.db");
-    key = argv[2];
+    std::string filename = findRtagsDb("/.rtags.db");
+    if (filename.empty())
+        return 2;
+    std::string key = argv[2];
 
     std::string val = fetchValue(filename, key);
     if (!val.empty())
