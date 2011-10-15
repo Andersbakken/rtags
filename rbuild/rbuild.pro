@@ -40,8 +40,10 @@ QMAKE_EXTRA_TARGETS += gccopts_gperf
 
 PRE_TARGETDEPS += gccopts_gperf.cpp
 
-LIBS += -lmagic -lclang -lleveldb
+LIBS += -lmagic -lclang
 unix {
     MOC_DIR = .moc
     OBJECTS_DIR = .obj
 }
+
+include(../3rdparty/leveldb.pri)

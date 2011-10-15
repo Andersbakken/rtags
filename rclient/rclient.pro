@@ -12,10 +12,9 @@ INCLUDEPATH += .
 SOURCES += main.cpp
 CONFIG += debug
 CONFIG -= app_bundle
-QT = 
+QT =
 unix {
     OBJECTS_DIR = .obj
 }
 
-LIBS += -L/usr/local/lib -lleveldb
-
+include(../3rdparty/leveldb.pri)

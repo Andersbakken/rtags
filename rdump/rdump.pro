@@ -30,3 +30,4 @@ unix {
     RCC_DIR = $${OUT_PWD}/.rcc/
     UI_DIR = $${OUT_PWD}/.uic/
 }
+include(../3rdparty/leveldb.pri)
