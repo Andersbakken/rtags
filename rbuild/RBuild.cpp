@@ -369,8 +369,10 @@ static inline void debugCursor(FILE* out, const CXCursor& cursor)
     CXString name = clang_getCursorDisplayName(cursor);
     CXString filename = clang_getFileName(file);
     CXString kind = clang_getCursorKindSpelling(clang_getCursorKind(cursor));
-    fprintf(out, "cursor name %s, kind %s, loc %s:%u:%u\n",
-            clang_getCString(name), clang_getCString(kind), clang_getCString(filename), line, col);
+    fprintf(out, "cursor name %s, kind %s%s, loc %s:%u:%u\n",
+            clang_getCString(name), clang_getCString(kind),
+            clang_isCursorDefinition(cursor) ? " def" : "",
+            clang_getCString(filename), line, col);
     clang_disposeString(name);
     clang_disposeString(kind);
     clang_disposeString(filename);
@@ -400,7 +402,11 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
 
     const CursorKey key(cursor);
     CollectData::DataEntry* entry = 0;
-    const QHash<CursorKey, CollectData::DataEntry*>::iterator it = data->seen.find(key);
+    const QHash<CursorKey, CollectData::DataEntry*>::const_iterator it = data->seen.find(key);
+    static const bool verbose = getenv("VERBOSE");
+    if (verbose) {
+        debugCursor(stderr, cursor);
+    }
     if (it != data->seen.end()) {
         entry = it.value();
         if (entry->hasDefinition)
@@ -438,10 +444,10 @@ void RBuild::compile(const GccArguments& arguments)
     CXIndex idx = clang_createIndex(0, 0);
     foreach(const Path& input, arguments.input()) {
         /*if (!input.endsWith("/RBuild.cpp")
-            && !input.endsWith("/main.cpp")) {
-            printf("skipping %s\n", input.constData());
-            continue;
-        }*/
+          && !input.endsWith("/main.cpp")) {
+          printf("skipping %s\n", input.constData());
+          continue;
+          }*/
         fprintf(stderr, "parsing %s\n", input.constData());
 
         const bool verbose = (getenv("VERBOSE") != 0);
@@ -460,7 +466,10 @@ void RBuild::compile(const GccArguments& arguments)
         if (verbose)
             fprintf(stderr, "\n");
 
-        CXTranslationUnit unit = clang_parseTranslationUnit(idx, input.constData(), argvector.constData(), argvector.size(), 0, 0, 0);
+        CXTranslationUnit unit = clang_parseTranslationUnit(idx, input.constData(),
+                                                            argvector.constData(), argvector.size(),
+                                                            0, 0,
+                                                            CXTranslationUnit_DetailedPreprocessingRecord);
         if (!unit) {
             fprintf(stderr, "Unable to parse unit for %s\n", input.constData());
             continue;
