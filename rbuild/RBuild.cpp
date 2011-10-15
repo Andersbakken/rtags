@@ -327,9 +327,16 @@ static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
 {
     const CursorKey& key = entry.cursor.cursor;
     const CursorKey& val = entry.reference.cursor;
-    if (!key.isValid() || !val.isValid())
+    if (!key.isValid() || !val.isValid() || key == val)
         return;
-    db->Put(opt, cursorKeyToString(key), cursorKeyToString(val));
+    const std::string k = cursorKeyToString(key);
+    const std::string v = cursorKeyToString(val);
+    db->Put(opt, k, v);
+
+    if (key.kind == val.kind && (key.kind == CXCursor_CXXMethod
+                                 || key.kind == CXCursor_Constructor)) {
+        db->Put(opt, v, k);
+    }
 }
 
 void RBuild::writeData(const QByteArray& filename)
