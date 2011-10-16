@@ -3,16 +3,13 @@ TARGET = rd
 DESTDIR = ..
 DEPENDPATH += .
 INCLUDEPATH += . ../shared
-
+QT = core
 macx {
     CONFIG -= app_bundle
     INCLUDEPATH += /opt/local/include
     LIBS += -L/opt/local/lib
 }
 
-QT =
-
-LIBS += -lleveldb
 SOURCES += main.cpp
 
 release {

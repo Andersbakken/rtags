@@ -3,6 +3,20 @@
 
 #include <string>
 #include <stdlib.h>
+#include <QtCore>
+
+static inline QDataStream &operator<<(QDataStream &ds, time_t t)
+{
+    return (ds << quint64(t));
+}
+
+static inline QDataStream &operator>>(QDataStream &ds, time_t &t)
+{
+    qint64 tmp;
+    ds >> tmp;
+    t = tmp;
+    return ds;
+}
 
 static inline bool parseLocation(const std::string &string,
                                  std::string &file, unsigned &line, unsigned &col)
@@ -24,4 +38,5 @@ static inline bool parseLocation(const std::string &string,
     file.resize(colon);
     return true;
 }
+
 #endif

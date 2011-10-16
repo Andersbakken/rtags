@@ -6,7 +6,7 @@ TEMPLATE = app
 TARGET = rb
 DESTDIR = ..
 DEPENDPATH += .
-INCLUDEPATH += .
+INCLUDEPATH += . ../shared
 
 QT -= gui
 macx {

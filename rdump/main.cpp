@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <limits.h>
 #include <Shared.h>
+#include <QtCore>
 
 static inline int readLine(FILE *f, char *buf, int max)
 {
@@ -52,11 +53,34 @@ static inline void dumpDatabase(const std::string& filename)
         // std::string mod = it->key().ToString();
         // printf("%d\n", parseLocation(it->key().ToString(), mod, line, col));
         // printf("%s %d %d\n", mod.c_str(), line, col);
-        printf("%s (%s) maps to %s (%s)\n",
-               it->key().ToString().c_str(),
-               symbolAt(it->key().ToString()).c_str(),
-               it->value().ToString().c_str(),
-               symbolAt(it->value().ToString()).c_str());
+        const std::string key = it->key().ToString();
+        std::string fileName;
+        unsigned line, col;
+        if (parseLocation(key, fileName, line, col)) {
+            // printf("%s (%s) maps to %s (%s)\n",
+            //        key.c_str(),
+            //        symbolAt(key).c_str(),
+            //        it->value().ToString().c_str(),
+            //        symbolAt(it->value().ToString()).c_str());
+            printf("%s maps to %s\n",
+                   key.c_str(),
+                   it->value().ToString().c_str());
+
+        } else { // must be dependencies
+            const QByteArray ba = QByteArray::fromRawData(it->value().data(),
+                                                          it->value().size());
+            QDataStream ds(ba);
+            time_t lastModified;
+            ds >> lastModified;
+            printf("%s %s", key.c_str(), ctime(&lastModified));
+            QHash<QByteArray, time_t> dependencies;
+            ds >> dependencies;
+            for (QHash<QByteArray, time_t>::const_iterator it = dependencies.begin();
+                 it != dependencies.end(); ++it) {
+                printf("  %s %s", it.key().constData(), ctime(&it.value()));
+            }
+
+        }
     }
     delete it;
     delete db;

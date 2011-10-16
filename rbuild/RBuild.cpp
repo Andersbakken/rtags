@@ -1,4 +1,5 @@
 #include "RBuild.h"
+#include "Shared.h"
 #include <QCoreApplication>
 #include <QtAlgorithms>
 #include <sstream>
@@ -6,6 +7,7 @@
 #include <leveldb/db.h>
 #include <stdio.h>
 #include <stdint.h>
+
 
 //#define REENTRANT_ATOMICSTRING
 
@@ -318,6 +320,12 @@ struct CollectData
 
     QHash<QByteArray, DataEntry*> seen;
     QList<DataEntry*> data;
+    struct Dependencies {
+        Path file;
+        time_t lastModified;
+        QHash<Path, time_t> dependencies;
+    };
+    QList<Dependencies> dependencies;
 };
 
 RBuild::RBuild(QObject *parent)
@@ -357,6 +365,19 @@ void RBuild::makefileDone()
 void RBuild::makefileFileReady(const MakefileItem& file)
 {
     compile(file.arguments);
+}
+
+static inline void writeDependencies(leveldb::DB* db, const leveldb::WriteOptions& opt,
+                                     const Path &path, time_t lastModified,
+                                     const QHash<Path, time_t> &dependencies)
+{
+    QByteArray out;
+    {
+        QDataStream ds(&out, QIODevice::WriteOnly);
+        ds << lastModified << dependencies;
+    }
+    db->Put(opt, leveldb::Slice(path.constData(), path.size()),
+            leveldb::Slice(out.constData(), out.size()));
 }
 
 static inline std::string cursorKeyToString(const CursorKey& key)
@@ -399,6 +420,10 @@ void RBuild::writeData(const QByteArray& filename)
 
     foreach(const CollectData::DataEntry* entry, mData->data) {
         writeEntry(db, writeOptions, *entry);
+    }
+
+    foreach(const CollectData::Dependencies &dep, mData->dependencies) {
+        writeDependencies(db, writeOptions, dep.file, dep.lastModified, dep.dependencies);
     }
 
     delete db;
@@ -486,6 +511,8 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         addCursor(cursor, key, &entry->cursor);
         addCursor(clang_getNullCursor(), inclusion, &entry->reference);
         entry->hasDefinition = true;
+        Path header = Path::resolved(inclusion.fileName.toByteArray());
+        data->dependencies.last().dependencies[header] = header.lastModified();
         return CXChildVisit_Continue;
     }
 
@@ -590,8 +617,10 @@ void RBuild::compile(const GccArguments& arguments)
             mData = new CollectData;
 
         CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
+        CollectData::Dependencies deps = { input, input.lastModified(),
+                                           QHash<Path, time_t>() };
+        mData->dependencies.append(deps);
         clang_visitChildren(unitCursor, collectSymbols, mData);
-
         clang_disposeTranslationUnit(unit);
     }
     clang_disposeIndex(idx);
