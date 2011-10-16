@@ -23,6 +23,17 @@ static inline bool cursorDefinition(const CXCursor& c)
     return (clang_isCursorDefinition(c) != 0);
 }
 
+static inline bool cursorDefinitionFor(const CXCursor& d, const CXCursor c)
+{
+    switch (clang_getCursorKind(c)) {
+    case CXCursor_CallExpr:
+        return false;
+    default:
+        break;
+    }
+    return cursorDefinition(d);
+}
+
 class AtomicString
 {
 public:
