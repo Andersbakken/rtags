@@ -20,7 +20,7 @@ static inline int readLine(FILE *f, char *buf, int max)
     return -1;
 }
 
-std::string symbolAt(const std::string &location)
+static inline std::string symbolAt(const std::string &location)
 {
     std::string fileName, ret;
     unsigned line = 0, col = 0;
@@ -38,7 +38,8 @@ std::string symbolAt(const std::string &location)
     }
     return ret;
 }
-void dumpDatabase(const std::string& filename)
+
+static inline void dumpDatabase(const std::string& filename)
 {
     leveldb::DB* db;
     if (!leveldb::DB::Open(leveldb::Options(), filename, &db).ok()) {
@@ -61,16 +62,80 @@ void dumpDatabase(const std::string& filename)
     delete db;
 }
 
+static inline std::string removePath(const std::string& line)
+{
+    std::string::size_type slash = line.rfind('/');
+    if (slash == std::string::npos)
+        return line;
+    return line.substr(slash + 1);
+}
+
+static inline bool writeExpect(const std::string& filename)
+{
+    leveldb::DB* db;
+    if (!leveldb::DB::Open(leveldb::Options(), filename, &db).ok()) {
+        fprintf(stderr, "Unable to open db %s\n", filename.c_str());
+        return false;
+    }
+
+    FILE* f = fopen("expect.txt", "w");
+    if (!f) {
+        fprintf(stderr, "Unable to open expect.txt for writing\n");
+        return false;
+    }
+
+    leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
+    for (it->SeekToFirst(); it->Valid(); it->Next()) {
+        fprintf(f, "%s\n%s\n\n",
+                removePath(it->key().ToString()).c_str(),
+                removePath(it->value().ToString()).c_str());
+    }
+
+    fclose(f);
+
+    delete it;
+    delete db;
+
+    printf("expect.txt written\n");
+
+    return true;
+}
+
+static inline int syntax(int opt, const char* app)
+{
+    fprintf(stderr, "Syntax: %s [-e] <database>\n", app);
+    return opt == 'h' ? 0 : 1;
+}
+
 int main(int argc, char** argv)
 {
+    bool createExpect = false;
+    int opt;
+    while ((opt = getopt(argc, argv, "eh")) != -1) {
+        switch (opt) {
+        case 'e':
+            createExpect = true;
+            break;
+        case '?':
+        case 'h':
+        default:
+            return syntax(opt, argv[0]);
+        }
+    }
+
     std::string filename;
-    if (argc < 2) {
+    if (optind >= argc) {
         char dir[500];
         if (!getcwd(dir, 500))
             return 1;
         filename = dir + std::string("/.rtags.db");
     } else
-        filename = argv[1];
-    dumpDatabase(filename);
+        filename = argv[optind];
+
+    if (createExpect)
+        return writeExpect(filename) ? 0 : 2;
+    else
+        dumpDatabase(filename);
+
     return 0;
 }
