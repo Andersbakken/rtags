@@ -11,7 +11,16 @@
 
 static inline bool cursorDefinition(const CXCursor& c)
 {
-    return (clang_isCursorDefinition(c) != 0) || clang_getCursorKind(c) == CXCursor_MacroDefinition;
+    switch (clang_getCursorKind(c)) {
+    case CXCursor_MacroDefinition:
+        return true;
+    case CXCursor_VarDecl:
+        //return false;
+    default:
+        break;
+    }
+
+    return (clang_isCursorDefinition(c) != 0);
 }
 
 class AtomicString
@@ -216,12 +225,31 @@ public:
                 && fileName == other.fileName
                 && symbolName == other.symbolName);
     }
+    bool operator!=(const CursorKey &other) const
+    {
+        return !operator==(other);
+    }
+
+    QByteArray locationKey() const
+    {
+        QByteArray key(fileName.toByteArray());
+        key += ":" + QByteArray::number(off);
+        return key;
+    }
 
     CXCursorKind kind;
     AtomicString fileName;
     AtomicString symbolName;
     unsigned line, col, off;
 };
+
+QDebug operator<<(QDebug d, const CursorKey& key)
+{
+    d.nospace() << eatString(clang_getCursorKindSpelling(key.kind)).constData() << ", "
+                << (key.symbolName.isEmpty() ? "(no symbol)" : key.symbolName.toByteArray().constData()) << ", "
+                << key.fileName.toByteArray().constData() << ':' << key.line << ':' << key.col;
+    return d.space();
+}
 
 static inline uint qHash(const CursorKey &key)
 {
@@ -277,7 +305,7 @@ struct CollectData
         Data canonical;
     };
 
-    QHash<CursorKey, DataEntry*> seen;
+    QHash<QByteArray, DataEntry*> seen;
     QList<DataEntry*> data;
 };
 
@@ -406,39 +434,72 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     CollectData* data = reinterpret_cast<CollectData*>(client_data);
 
     const CursorKey key(cursor);
+
     CollectData::DataEntry* entry = 0;
-    const QHash<CursorKey, CollectData::DataEntry*>::const_iterator it = data->seen.find(key);
+    const QHash<QByteArray, CollectData::DataEntry*>::const_iterator it = data->seen.find(key.locationKey());
     static const bool verbose = getenv("VERBOSE");
     if (verbose) {
         debugCursor(stderr, cursor);
     }
+
+    //const bool dodebug = (key.fileName.endsWith("/rbuild/main.cpp") && key.line == 18 && key.col == 12);
     if (it != data->seen.end()) {
         entry = it.value();
-        if (entry->hasDefinition)
+        if (entry->hasDefinition) {
+            /*if (dodebug) {
+                fprintf(stdout, "already got a def\n");
+                qDebug() << key;
+            }*/
             return CXChildVisit_Recurse; // ### Continue?
+        }
     } else {
         entry = new CollectData::DataEntry;
         entry->hasDefinition = false;
-        data->seen[key] = entry;
+        data->seen[key.locationKey()] = entry;
         data->data.append(entry);
+        //entry->canonical = findCanonical(cursor);
+    }
+
+    if (key.kind == CXCursor_InclusionDirective) {
+        CursorKey inclusion;
+        inclusion.fileName = eatString(clang_getFileName(clang_getIncludedFile(cursor)));
+        inclusion.symbolName = inclusion.fileName;
+        inclusion.line = inclusion.col = 1;
+        inclusion.off = 0;
         addCursor(cursor, key, &entry->cursor);
-        // ### not used yet so don't add for now
-        // addCursor(clang_getCanonicalCursor(cursor), &entry->canonical);
+        addCursor(clang_getNullCursor(), inclusion, &entry->reference);
+        entry->hasDefinition = true;
+        return CXChildVisit_Continue;
     }
 
     const CXCursor definition = clang_getCursorDefinition(cursor);
-    const bool cursorIsDefinition = (cursorDefinition(cursor) != 0);
-    if (cursorIsDefinition || !isValidCursor(definition) || equalLocation(key, CursorKey(definition))) {
+    /*if (dodebug) {
+        debugCursor(stdout, cursor);
+        debugCursor(stdout, definition);
+        fprintf(stdout, "(%d %d)\n", !isValidCursor(definition), equalLocation(key, CursorKey(definition)));
+    }*/
+    if (!cursorDefinition(definition) || equalLocation(key, CursorKey(definition))) {
         if (entry->reference.cursor.isNull()) {
-            if (cursorIsDefinition || cursorDefinition(definition))
-                entry->hasDefinition = true;
             const CXCursor reference = clang_getCursorReferenced(cursor);
-            addCursor(reference, CursorKey(reference), &entry->reference);
+            const CursorKey referenceKey(reference);
+            if (referenceKey.isValid() && referenceKey != key) {
+                /*if (dodebug) {
+                    debugCursor(stdout, reference);
+                    fprintf(stdout, "ref %p\n", entry);
+                }*/
+                addCursor(cursor, key, &entry->cursor);
+                addCursor(reference, referenceKey, &entry->reference);
+            }
         }
     } else {
-        Q_ASSERT(cursorDefinition(definition) != 0);
         entry->hasDefinition = true;
         addCursor(definition, CursorKey(definition), &entry->reference);
+        addCursor(cursor, key, &entry->cursor);
+        /*if (dodebug) {
+            debugCursor(stdout, definition);
+            fprintf(stdout, "def %p\n", entry);
+            qDebug() << entry->reference.cursor;
+        }*/
     }
 
     return CXChildVisit_Recurse;

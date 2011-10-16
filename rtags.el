@@ -45,11 +45,11 @@
         (line (int-to-string (line-number-at-pos)))
         (column nil))
     (save-excursion
-      (if (looking-at "[0-9A-Za-z_~]")
+      (if (looking-at "[0-9A-Za-z_~#]")
           (progn
-            (while (and (> (point) 0) (looking-at "[0-9A-Za-z_~]"))
+            (while (and (> (point) 1) (looking-at "[0-9A-Za-z_~#]"))
               (backward-char))
-            (if (not (looking-at "[0-9A-Za-z_~]"))
+            (if (not (looking-at "[0-9A-Za-z_~#]"))
                 (forward-char))
             (setq column (int-to-string (- (point) (point-at-bol) -1))))))
     (with-temp-buffer
@@ -66,11 +66,11 @@
         (column nil)
         (previous (current-buffer)))
     (save-excursion
-      (if (looking-at "[0-9A-Za-z_~]")
+      (if (looking-at "[0-9A-Za-z_~#]")
           (progn
-            (while (and (> (point) 0) (looking-at "[0-9A-Za-z_~]"))
+            (while (and (> (point) 1) (looking-at "[0-9A-Za-z_~#]"))
               (backward-char))
-            (if (not (looking-at "[0-9A-Za-z_~]"))
+            (if (not (looking-at "[0-9A-Za-z_~#]"))
                 (forward-char))
             (setq column (int-to-string (- (point) (point-at-bol) -1))))))
     (if (get-buffer "*Rtags-Complete*")
