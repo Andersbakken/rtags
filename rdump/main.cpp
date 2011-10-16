@@ -105,6 +105,7 @@ static inline bool writeExpect(const std::string& filename)
     FILE* f = fopen("expect.txt", "w");
     if (!f) {
         fprintf(stderr, "Unable to open expect.txt for writing\n");
+        delete db;
         return false;
     }
 
