@@ -2,7 +2,7 @@ TEMPLATE = app
 TARGET = rd
 DESTDIR = ..
 DEPENDPATH += .
-INCLUDEPATH += .
+INCLUDEPATH += . ../shared
 
 macx {
     CONFIG -= app_bundle
