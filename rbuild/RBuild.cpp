@@ -429,6 +429,8 @@ static inline bool equalLocation(const CursorKey& key1, const CursorKey& key2)
     return (key1.off == key2.off && key1.fileName == key2.fileName);
 }
 
+//#define COLLECTDEBUG
+
 static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
 {
     CollectData* data = reinterpret_cast<CollectData*>(client_data);
@@ -442,14 +444,18 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         debugCursor(stderr, cursor);
     }
 
-    //const bool dodebug = (key.fileName.endsWith("/rbuild/main.cpp") && key.line == 18 && key.col == 12);
+#ifdef COLLECTDEBUG
+    const bool dodebug = (key.fileName.toByteArray().endsWith("main.cpp") && key.line == 5 && key.col == 15);
+#endif
     if (it != data->seen.end()) {
         entry = it.value();
         if (entry->hasDefinition) {
-            /*if (dodebug) {
+#ifdef COLLECTDEBUG
+            if (dodebug) {
                 fprintf(stdout, "already got a def\n");
                 qDebug() << key;
-            }*/
+            }
+#endif
             return CXChildVisit_Recurse; // ### Continue?
         }
     } else {
@@ -473,33 +479,40 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     }
 
     const CXCursor definition = clang_getCursorDefinition(cursor);
-    /*if (dodebug) {
+#ifdef COLLECTDEBUG
+    if (dodebug) {
         debugCursor(stdout, cursor);
         debugCursor(stdout, definition);
         fprintf(stdout, "(%d %d)\n", !isValidCursor(definition), equalLocation(key, CursorKey(definition)));
-    }*/
+    }
+#endif
     if (!cursorDefinition(definition) || equalLocation(key, CursorKey(definition))) {
         if (entry->reference.cursor.isNull()) {
             const CXCursor reference = clang_getCursorReferenced(cursor);
             const CursorKey referenceKey(reference);
             if (referenceKey.isValid() && referenceKey != key) {
-                /*if (dodebug) {
+#ifdef COLLECTDEBUG
+                if (dodebug) {
                     debugCursor(stdout, reference);
                     fprintf(stdout, "ref %p\n", entry);
-                }*/
+                }
+#endif
                 addCursor(cursor, key, &entry->cursor);
                 addCursor(reference, referenceKey, &entry->reference);
             }
         }
     } else {
-        entry->hasDefinition = true;
+        if (cursorDefinitionFor(definition, cursor))
+            entry->hasDefinition = true;
         addCursor(definition, CursorKey(definition), &entry->reference);
         addCursor(cursor, key, &entry->cursor);
-        /*if (dodebug) {
+#ifdef COLLECTDEBUG
+        if (dodebug) {
             debugCursor(stdout, definition);
             fprintf(stdout, "def %p\n", entry);
             qDebug() << entry->reference.cursor;
-        }*/
+        }
+#endif
     }
 
     return CXChildVisit_Recurse;
