@@ -313,6 +313,7 @@ struct CollectData
     struct RefData
     {
         QSet<CursorKey> references;
+        CursorKey referenced;
     };
 
     struct DataEntry
@@ -398,16 +399,13 @@ static inline std::string cursorKeyToString(const CursorKey& key)
 
 static inline std::string makeRefValue(const std::string& value, const CollectData::DataEntry& entry)
 {
-    static char buf[100];
-    int bufsize = snprintf(buf, 100, "%p", entry.refData);
-    Q_ASSERT(bufsize > 0);
-
+    QByteArray locationKey = entry.refData->referenced.locationKey();
     std::string out;
-    out.resize(value.size() + bufsize + 2);
+    out.resize(value.size() + locationKey.size() + 2);
     if (value.size())
         memcpy(&out[0], value.c_str(), value.size() + 1);
 
-    memcpy(&out[value.size() + 1], buf, bufsize + 1);
+    memcpy(&out[value.size() + 1], locationKey.constData(), locationKey.size() + 1);
     // for (int i=0; i<out.size(); ++i) {
     //     printf("%c", out.at(i));
     // }
@@ -437,10 +435,6 @@ static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
 
 static inline void writeRefData(leveldb::DB* db, const leveldb::WriteOptions& opt, const CollectData::RefData* ref)
 {
-    static char key[100];
-    int keysize = snprintf(key, 100, "ref:%p", ref);
-    Q_ASSERT(keysize > 4);
-
     QByteArray out;
     {
         QDataStream ds(&out, QIODevice::WriteOnly);
@@ -452,7 +446,8 @@ static inline void writeRefData(leveldb::DB* db, const leveldb::WriteOptions& op
         }
     }
 
-    db->Put(opt, leveldb::Slice(key, keysize), leveldb::Slice(out.constData(), out.size()));
+    const QByteArray r = ref->referenced.locationKey();
+    db->Put(opt, leveldb::Slice(r.constData(), r.size()), leveldb::Slice(out.constData(), out.size()));
 }
 
 void RBuild::writeData(const QByteArray& filename)
@@ -646,6 +641,7 @@ static inline CollectData::RefData* findRefData(CollectData* data, const CXCurso
     const QHash<CursorKey, CollectData::RefData*>::iterator ref = data->refs.find(cckey);
     if (ref == data->refs.end()) {
         CollectData::RefData* rdata = new CollectData::RefData;
+        rdata->referenced = cc;
         data->refs[cc] = rdata;
         return rdata;
     }

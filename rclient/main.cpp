@@ -79,10 +79,8 @@ int main(int argc, char** argv)
         db->Get(leveldb::ReadOptions(), key, &val);
         if (!val.empty()) {
             const char *refPtr = val.c_str() + strlen(val.c_str()) + 1;
-            char buf[100];
-            snprintf(buf, 100, "ref:%s", refPtr);
             std::string refs;
-            db->Get(leveldb::ReadOptions(), buf, &refs);
+            db->Get(leveldb::ReadOptions(), refPtr, &refs);
             if (refs.size()) {
                 QByteArray data = QByteArray::fromRawData(refs.c_str(), refs.size());
                 QDataStream ds(data);
