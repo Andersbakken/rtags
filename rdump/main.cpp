@@ -74,7 +74,7 @@ static inline void dumpDatabase(const std::string& filename, int type)
         } else if (key.substr(0, 4) == "ref:") { // reference
             if (type & Reference) {
                 int num;
-                char* entry;
+                QByteArray entry;
                 leveldb::Slice val = it->value();
                 QByteArray data = QByteArray::fromRawData(val.data(), val.size());
                 QDataStream ds(data);
@@ -84,8 +84,7 @@ static inline void dumpDatabase(const std::string& filename, int type)
                     printf("refs for %s\n", key.substr(4).c_str());
                 for (int i = 0; i < num; ++i) {
                     ds >> entry;
-                    printf("  ref: %s\n", entry);
-                    delete[] entry;
+                    printf("  ref: %s\n", entry.constData());
                 }
                 if (num > 0)
                     printf("---\n");

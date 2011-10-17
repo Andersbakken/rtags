@@ -6,18 +6,18 @@
 #include <sys/stat.h>
 #include <QtCore>
 
-std::string fetchValue(const std::string& filename, const std::string& key)
-{
-    leveldb::DB* db;
-    if (!leveldb::DB::Open(leveldb::Options(), filename, &db).ok()) {
-        fprintf(stderr, "Unable to open db %s\n", filename.c_str());
-        return std::string();
-    }
-    std::string value;
-    db->Get(leveldb::ReadOptions(), key, &value);
-    delete db;
-    return value;
-}
+// std::string fetchValue(const std::string& filename, const std::string& key)
+// {
+//     leveldb::DB* db;
+//     if (!leveldb::DB::Open(leveldb::Options(), filename, &db).ok()) {
+//         fprintf(stderr, "Unable to open db %s\n", filename.c_str());
+//         return std::string();
+//     }
+//     std::string value;
+//     db->Get(leveldb::ReadOptions(), key, &value);
+//     delete db;
+//     return value;
+// }
 
 static inline std::string findRtagsDb(const std::string& filename)
 {
@@ -38,6 +38,20 @@ static inline std::string findRtagsDb(const std::string& filename)
     return std::string();
 }
 
+class Scope
+{
+public:
+    Scope(leveldb::DB *d)
+        : db(d)
+    {}
+    ~Scope()
+    {
+        delete db;
+    }
+private:
+    leveldb::DB *db;
+};
+
 int main(int argc, char** argv)
 {
     if (argc < 3)
@@ -46,35 +60,44 @@ int main(int argc, char** argv)
     std::string filename = findRtagsDb("/.rtags.db");
     if (filename.empty())
         return 2;
+    leveldb::DB* db;
+    if (!leveldb::DB::Open(leveldb::Options(), filename, &db).ok()) {
+        fprintf(stderr, "Unable to open db %s\n", filename.c_str());
+        return 1;
+    }
+    Scope scope(db);
+   
     std::string cmd = argv[1];
     std::string key = argv[2];
-    if (cmd == "--follow-symbol") {
-        std::string val = fetchValue(filename, key);
-        if (!val.empty())
+    if (cmd == "--follow-symbol" || cmd == "-f") {
+        std::string val;
+        db->Get(leveldb::ReadOptions(), key, &val);
+        if (!val.empty() && strlen(val.c_str()))
             printf("%s\n", val.c_str());
     } else if (cmd == "--find-references" || cmd == "-r") {
-        std::string val = fetchValue(filename, key);
+        std::string val;
+        db->Get(leveldb::ReadOptions(), key, &val);
         if (!val.empty()) {
             const char *refPtr = val.c_str() + strlen(val.c_str()) + 1;
             char buf[100];
             snprintf(buf, 100, "ref:%s", refPtr);
-            const leveldb::Slice refs = fetchValue(filename, buf);
-            QByteArray data = QByteArray::fromRawData(refs.data(), refs.size());
-            QDataStream ds(data);
-            int num;
-            char *entry;
-            ds >> num;
-            Q_ASSERT(num >= 0);
-            // if (num > 0)
-            //     printf("refs for %s\n", key.substr(4).c_str());
-            for (int i = 0; i < num; ++i) {
-                ds >> entry;
-                printf("%s\n", entry);
-                delete[] entry;
+            std::string refs;
+            db->Get(leveldb::ReadOptions(), buf, &refs);
+            if (refs.size()) {
+                QByteArray data = QByteArray::fromRawData(refs.c_str(), refs.size());
+                QDataStream ds(data);
+                int num;
+                QByteArray entry;
+                ds >> num;
+                for (int i = 0; i < num; ++i) {
+                    ds >> entry;
+                    if (!entry.isEmpty()) {
+                        printf("%s\n", entry.constData());
+                    } else {
+                        printf("%s %d: } else {\n", __FILE__, __LINE__);
+                    }
+                }
             }
-            // if (num > 0)
-            //     printf("---\n");
-            // printf("%s\n", refPtr);
         }
     }
     return 0;

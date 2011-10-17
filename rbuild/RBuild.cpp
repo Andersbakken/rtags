@@ -403,18 +403,16 @@ static inline std::string makeRefValue(const std::string& value, const CollectDa
     Q_ASSERT(bufsize > 0);
 
     std::string out;
-    out.resize(value.size() + bufsize + 1);
-    memcpy(&out[0], value.c_str(), value.size());
-    out[value.size()] = '\0';
-    // printf("%ul %ul\n", out.size(), value.size());
+    out.resize(value.size() + bufsize + 2);
+    if (value.size())
+        memcpy(&out[0], value.c_str(), value.size() + 1);
 
-    memcpy(&out[value.size() + 1], buf, bufsize);
+    memcpy(&out[value.size() + 1], buf, bufsize + 1);
     // for (int i=0; i<out.size(); ++i) {
     //     printf("%c", out.at(i));
     // }
     // printf("\n");
     // printf("%s\n", buf);
-
 
     return out;
 }
@@ -426,12 +424,14 @@ static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
     if (!key.isValid() || !val.isValid() || key == val)
         return;
     const std::string k = cursorKeyToString(key);
-    const std::string v = cursorKeyToString(val);
+    std::string v = cursorKeyToString(val);
     db->Put(opt, k, makeRefValue(v, entry));
 
     if (key.kind == val.kind && (key.kind == CXCursor_CXXMethod
                                  || key.kind == CXCursor_Constructor)) {
         db->Put(opt, v, makeRefValue(k, entry));
+    } else {
+        db->Put(opt, v, makeRefValue(std::string(), entry));
     }
 }
 
@@ -446,7 +446,9 @@ static inline void writeRefData(leveldb::DB* db, const leveldb::WriteOptions& op
         QDataStream ds(&out, QIODevice::WriteOnly);
         ds << ref->references.size();
         foreach(const CursorKey& val, ref->references) {
-            ds << cursorKeyToString(val).c_str();
+            std::string v = cursorKeyToString(val);
+            QByteArray b = QByteArray::fromRawData(v.c_str(), v.size());
+            ds << b;
         }
     }
 
