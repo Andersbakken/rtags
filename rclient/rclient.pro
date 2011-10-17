@@ -12,7 +12,7 @@ INCLUDEPATH += .
 SOURCES += main.cpp
 CONFIG += debug
 CONFIG -= app_bundle
-QT =
+QT = core
 unix {
     OBJECTS_DIR = .obj
 }

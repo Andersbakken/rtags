@@ -77,7 +77,7 @@
         (kill-buffer "*Rtags-Complete*"))
     (switch-to-buffer (generate-new-buffer "*Rtags-Complete*"))
       ;; (message (executable-find "rc"))
-      ;; (message (concat (executable-find "rc") " --follow-symbol " bufname ":" line ":" column))
+    (message (concat (executable-find "rc") (concat " " mode " " bufname ":" line ":" column)))
     (call-process (executable-find "rc") nil t nil mode (concat bufname ":" line ":" column))
     (if (= (point-min) (point-max))
         (progn
@@ -144,3 +144,4 @@
     ))
 
 (provide 'rtags)
+

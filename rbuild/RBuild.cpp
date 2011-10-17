@@ -406,7 +406,15 @@ static inline std::string makeRefValue(const std::string& value, const CollectDa
     out.resize(value.size() + bufsize + 1);
     memcpy(&out[0], value.c_str(), value.size());
     out[value.size()] = '\0';
+    // printf("%ul %ul\n", out.size(), value.size());
+
     memcpy(&out[value.size() + 1], buf, bufsize);
+    // for (int i=0; i<out.size(); ++i) {
+    //     printf("%c", out.at(i));
+    // }
+    // printf("\n");
+    // printf("%s\n", buf);
+
 
     return out;
 }

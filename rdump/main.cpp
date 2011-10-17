@@ -21,7 +21,7 @@ static inline int readLine(FILE *f, char *buf, int max)
     return -1;
 }
 
-static inline std::string symbolAt(const std::string &location)
+static inline std::string symbolNameAt(const std::string &location)
 {
     std::string fileName, ret;
     unsigned line = 0, col = 0;
@@ -61,13 +61,15 @@ static inline void dumpDatabase(const std::string& filename, int type)
         if (parseLocation(key, fileName, line, col)) {
             // printf("%s (%s) maps to %s (%s)\n",
             //        key.c_str(),
-            //        symbolAt(key).c_str(),
+            //        symbolNameAt(key).c_str(),
             //        it->value().ToString().c_str(),
-            //        symbolAt(it->value().ToString()).c_str());
+            //        symbolNameAt(it->value().ToString()).c_str());
             if (type & Symbol) {
-                printf("%s maps to %s\n",
+                const std::string val = it->value().ToString();
+                const char *refPtr = val.c_str() + strlen(val.c_str()) + 1;
+                printf("%s maps to %s (%s)\n",
                        key.c_str(),
-                       it->value().ToString().c_str());
+                       it->value().ToString().c_str(), refPtr);
             }
         } else if (key.substr(0, 4) == "ref:") { // reference
             if (type & Reference) {
