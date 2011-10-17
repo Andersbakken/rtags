@@ -40,7 +40,9 @@ static inline std::string symbolAt(const std::string &location)
     return ret;
 }
 
-static inline void dumpDatabase(const std::string& filename)
+enum Type { Symbol = 1, Reference = 2, Dependency = 4, All = 7 };
+
+static inline void dumpDatabase(const std::string& filename, int type)
 {
     leveldb::DB* db;
     if (!leveldb::DB::Open(leveldb::Options(), filename, &db).ok()) {
@@ -62,24 +64,45 @@ static inline void dumpDatabase(const std::string& filename)
             //        symbolAt(key).c_str(),
             //        it->value().ToString().c_str(),
             //        symbolAt(it->value().ToString()).c_str());
-            printf("%s maps to %s\n",
-                   key.c_str(),
-                   it->value().ToString().c_str());
-
-        } else { // must be dependencies
-            const QByteArray ba = QByteArray::fromRawData(it->value().data(),
-                                                          it->value().size());
-            QDataStream ds(ba);
-            time_t lastModified;
-            ds >> lastModified;
-            printf("%s %s", key.c_str(), ctime(&lastModified));
-            QHash<QByteArray, time_t> dependencies;
-            ds >> dependencies;
-            for (QHash<QByteArray, time_t>::const_iterator it = dependencies.begin();
-                 it != dependencies.end(); ++it) {
-                printf("  %s %s", it.key().constData(), ctime(&it.value()));
+            if (type & Symbol) {
+                printf("%s maps to %s\n",
+                       key.c_str(),
+                       it->value().ToString().c_str());
             }
-
+        } else if (key.substr(0, 4) == "ref:") { // reference
+            if (type & Reference) {
+                int num;
+                char* entry;
+                leveldb::Slice val = it->value();
+                QByteArray data = QByteArray::fromRawData(val.data(), val.size());
+                QDataStream ds(data);
+                ds >> num;
+                Q_ASSERT(num >= 0);
+                if (num > 0)
+                    printf("refs for %s\n", key.substr(4).c_str());
+                for (int i = 0; i < num; ++i) {
+                    ds >> entry;
+                    printf("  ref: %s\n", entry);
+                    delete[] entry;
+                }
+                if (num > 0)
+                    printf("---\n");
+            }
+        } else { // must be dependencies
+            if (type & Dependency) {
+                const QByteArray ba = QByteArray::fromRawData(it->value().data(),
+                                                              it->value().size());
+                QDataStream ds(ba);
+                time_t lastModified;
+                ds >> lastModified;
+                printf("%s %s", key.c_str(), ctime(&lastModified));
+                QHash<QByteArray, time_t> dependencies;
+                ds >> dependencies;
+                for (QHash<QByteArray, time_t>::const_iterator it = dependencies.begin();
+                     it != dependencies.end(); ++it) {
+                    printf("  %s %s", it.key().constData(), ctime(&it.value()));
+                }
+            }
         }
     }
     delete it;
@@ -111,9 +134,14 @@ static inline bool writeExpect(const std::string& filename)
 
     leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
     for (it->SeekToFirst(); it->Valid(); it->Next()) {
-        fprintf(f, "%s\n%s\n\n",
-                removePath(it->key().ToString()).c_str(),
-                removePath(it->value().ToString()).c_str());
+        const std::string key = it->key().ToString();
+        std::string fileName;
+        unsigned line, col;
+        if (parseLocation(key, fileName, line, col)) {
+            fprintf(f, "%s\n%s\n\n",
+                    removePath(key).c_str(),
+                    removePath(it->value().ToString()).c_str());
+        }
     }
 
     fclose(f);
@@ -128,19 +156,46 @@ static inline bool writeExpect(const std::string& filename)
 
 static inline int syntax(int opt, const char* app)
 {
-    fprintf(stderr, "Syntax: %s [-e] <database>\n", app);
+    fprintf(stderr, "Syntax: %s [-e] [-t type] <database>\n", app);
     return opt == 'h' ? 0 : 1;
+}
+
+static inline bool parseType(const char* a, int* type)
+{
+    *type = 0;
+    const char* t = a;
+    const char* end = t + strlen(t);
+    for (; t != end; ++t) {
+        switch (*t) {
+        case 's':
+            *type |= Symbol;
+            break;
+        case 'r':
+            *type |= Reference;
+            break;
+        case 'd':
+            *type |= Dependency;
+            break;
+        default:
+            return false;
+        }
+    }
+    return true;
 }
 
 int main(int argc, char** argv)
 {
     bool createExpect = false;
-    int opt;
-    while ((opt = getopt(argc, argv, "eh")) != -1) {
+    int opt, type = All;
+    while ((opt = getopt(argc, argv, "eht:")) != -1) {
         switch (opt) {
         case 'e':
             createExpect = true;
             break;
+        case 't': {
+            if (parseType(optarg, &type))
+                break;
+            fprintf(stderr, "Unable to parse type '%s'\n", optarg); }
         case '?':
         case 'h':
         default:
@@ -160,7 +215,7 @@ int main(int argc, char** argv)
     if (createExpect)
         return writeExpect(filename) ? 0 : 2;
     else
-        dumpDatabase(filename);
+        dumpDatabase(filename, type);
 
     return 0;
 }

@@ -303,21 +303,29 @@ static inline uint qHash(const CursorKey &key)
 struct CollectData
 {
     CollectData() {}
-    ~CollectData() { qDeleteAll(data); }
+    ~CollectData() { qDeleteAll(data); qDeleteAll(refs); }
 
     struct Data
     {
         CursorKey cursor;
         QList<CursorKey> parents;
     };
+    struct RefData
+    {
+        QSet<CursorKey> references;
+    };
+
     struct DataEntry
     {
+        DataEntry() : hasDefinition(false), refData(0) {}
+
         bool hasDefinition;
         Data cursor;
         Data reference;
-        Data canonical;
+        RefData* refData;
     };
 
+    QHash<CursorKey, RefData*> refs;
     QHash<QByteArray, DataEntry*> seen;
     QList<DataEntry*> data;
     struct Dependencies {
@@ -388,6 +396,21 @@ static inline std::string cursorKeyToString(const CursorKey& key)
     return stream.str();
 }
 
+static inline std::string makeRefValue(const std::string& value, const CollectData::DataEntry& entry)
+{
+    static char buf[100];
+    int bufsize = snprintf(buf, 100, "%p", entry.refData);
+    Q_ASSERT(bufsize > 0);
+
+    std::string out;
+    out.resize(value.size() + bufsize + 1);
+    memcpy(&out[0], value.c_str(), value.size());
+    out[value.size()] = '\0';
+    memcpy(&out[value.size() + 1], buf, bufsize);
+
+    return out;
+}
+
 static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt, const CollectData::DataEntry& entry)
 {
     const CursorKey& key = entry.cursor.cursor;
@@ -396,12 +419,30 @@ static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
         return;
     const std::string k = cursorKeyToString(key);
     const std::string v = cursorKeyToString(val);
-    db->Put(opt, k, v);
+    db->Put(opt, k, makeRefValue(v, entry));
 
     if (key.kind == val.kind && (key.kind == CXCursor_CXXMethod
                                  || key.kind == CXCursor_Constructor)) {
-        db->Put(opt, v, k);
+        db->Put(opt, v, makeRefValue(k, entry));
     }
+}
+
+static inline void writeRefData(leveldb::DB* db, const leveldb::WriteOptions& opt, const CollectData::RefData* ref)
+{
+    static char key[100];
+    int keysize = snprintf(key, 100, "ref:%p", ref);
+    Q_ASSERT(keysize > 4);
+
+    QByteArray out;
+    {
+        QDataStream ds(&out, QIODevice::WriteOnly);
+        ds << ref->references.size();
+        foreach(const CursorKey& val, ref->references) {
+            ds << cursorKeyToString(val).c_str();
+        }
+    }
+
+    db->Put(opt, leveldb::Slice(key, keysize), leveldb::Slice(out.constData(), out.size()));
 }
 
 void RBuild::writeData(const QByteArray& filename)
@@ -420,6 +461,10 @@ void RBuild::writeData(const QByteArray& filename)
 
     foreach(const CollectData::DataEntry* entry, mData->data) {
         writeEntry(db, writeOptions, *entry);
+    }
+
+    foreach(const CollectData::RefData* ref, mData->refs) {
+        writeRefData(db, writeOptions, ref);
     }
 
     foreach(const CollectData::Dependencies &dep, mData->dependencies) {
@@ -460,6 +505,143 @@ static inline void addCursor(const CXCursor& cursor, const CursorKey& key, Colle
     }
 }
 
+//#define REFERENCEDEBUG
+
+static inline bool useCursor(CXCursorKind kind)
+{
+    switch (kind) {
+    case CXCursor_CallExpr:
+        return false;
+    default:
+        break;
+    }
+    return true;
+}
+
+static inline CXCursor referencedCursor(const CXCursor& cursor)
+{
+#ifdef REFERENCEDEBUG
+    CursorKey key(cursor);
+    const bool dodebug = (key.fileName.toByteArray().endsWith("GccArguments.cpp") && key.line == 74);
+#endif
+
+    CXCursor ret;
+    const CXCursorKind kind = clang_getCursorKind(cursor);
+
+    if (!useCursor(kind)) {
+#ifdef REFERENCEDEBUG
+        if (dodebug) {
+            printf("making ref, throwing out\n");
+            debugCursor(stdout, cursor);
+        }
+#endif
+        return clang_getNullCursor();
+    }
+
+    if (kind >= CXCursor_FirstRef && kind <= CXCursor_LastRef) {
+#ifdef REFERENCEDEBUG
+        if (dodebug) {
+            printf("making ref, ref\n");
+            debugCursor(stdout, cursor);
+        }
+#endif
+        const CXType type = clang_getCursorType(cursor);
+        if (type.kind == CXType_Invalid)
+            ret = clang_getCursorReferenced(cursor);
+        else
+            ret = clang_getTypeDeclaration(type);
+        if (isValidCursor(ret)) {
+#ifdef REFERENCEDEBUG
+            if (dodebug)
+                debugCursor(stdout, ret);
+#endif
+        } else
+            ret = cursor;
+    } else if (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr) {
+#ifdef REFERENCEDEBUG
+        if (dodebug) {
+            printf("making ref, expr\n");
+            debugCursor(stdout, cursor);
+        }
+#endif
+        ret = clang_getCursorReferenced(cursor);
+#ifdef REFERENCEDEBUG
+        if (dodebug)
+            debugCursor(stdout, ret);
+#endif
+    } else if (kind >= CXCursor_FirstStmt && kind <= CXCursor_LastStmt) {
+#ifdef REFERENCEDEBUG
+        if (dodebug) {
+            printf("making ref, stmt\n");
+            debugCursor(stdout, cursor);
+        }
+#endif
+        ret = clang_getCursorReferenced(cursor);
+        if (isValidCursor(ret)) {
+#ifdef REFERENCEDEBUG
+            if (dodebug)
+                debugCursor(stdout, ret);
+#endif
+        } else
+            ret = cursor;
+    } else if (kind >= CXCursor_FirstDecl && kind <= CXCursor_LastDecl) {
+#ifdef REFERENCEDEBUG
+        if (dodebug) {
+            printf("making ref, decl\n");
+            debugCursor(stdout, cursor);
+        }
+#endif
+        ret = clang_getCursorReferenced(cursor);
+#ifdef REFERENCEDEBUG
+        if (dodebug)
+            debugCursor(stdout, ret);
+#endif
+    } else if (kind == CXCursor_MacroDefinition || kind == CXCursor_MacroExpansion) {
+#ifdef REFERENCEDEBUG
+        if (dodebug) {
+            printf("making ref, macro\n");
+            debugCursor(stdout, cursor);
+        }
+#endif
+        if (kind == CXCursor_MacroExpansion) {
+            ret = clang_getCursorReferenced(cursor);
+#ifdef REFERENCEDEBUG
+            if (dodebug)
+                debugCursor(stdout, ret);
+#endif
+        } else
+            ret = cursor;
+    } else {
+#ifdef REFERENCEDEBUG
+        if (!key.symbolName.isEmpty()) {
+            if (kind != CXCursor_InclusionDirective) {
+                fprintf(stderr, "unhandled reference %s\n", eatString(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).constData());
+                debugCursor(stderr, cursor);
+            }
+        }
+#endif
+        ret = clang_getNullCursor();
+    }
+    return ret;
+}
+
+static inline CollectData::RefData* findRefData(CollectData* data, const CXCursor& cursor)
+{
+    const CXCursor cc = referencedCursor(cursor);
+    if (!isValidCursor(cc))
+        return 0;
+
+    const CursorKey cckey(cc);
+    //qDebug() << "findRefData for" << CursorKey(cursor) << "==>>" << cckey;
+    const QHash<CursorKey, CollectData::RefData*>::iterator ref = data->refs.find(cckey);
+    if (ref == data->refs.end()) {
+        CollectData::RefData* rdata = new CollectData::RefData;
+        data->refs[cc] = rdata;
+        return rdata;
+    }
+    return ref.value();
+}
+
 static inline bool equalLocation(const CursorKey& key1, const CursorKey& key2)
 {
     return (key1.off == key2.off && key1.fileName == key2.fileName);
@@ -481,7 +663,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     }
 
 #ifdef COLLECTDEBUG
-    const bool dodebug = (key.fileName.toByteArray().endsWith("main.cpp") && key.line == 5 && key.col == 15);
+    const bool dodebug = (key.fileName.toByteArray().endsWith("GccArguments.cpp") && key.line == 74);
 #endif
     if (it != data->seen.end()) {
         entry = it.value();
@@ -496,11 +678,11 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         }
     } else {
         entry = new CollectData::DataEntry;
-        entry->hasDefinition = false;
         data->seen[key.locationKey()] = entry;
         data->data.append(entry);
-        //entry->canonical = findCanonical(cursor);
     }
+    if (!entry->refData)
+        entry->refData = findRefData(data, cursor);
 
     if (key.kind == CXCursor_InclusionDirective) {
         CursorKey inclusion;
@@ -537,13 +719,23 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
 #endif
                 addCursor(cursor, key, &entry->cursor);
                 addCursor(reference, referenceKey, &entry->reference);
+                if (entry->refData) {
+                    entry->refData->references.insert(entry->cursor.cursor);
+                    if (useCursor(entry->reference.cursor.kind))
+                        entry->refData->references.insert(entry->reference.cursor);
+                }
             }
         }
     } else {
         if (cursorDefinitionFor(definition, cursor))
             entry->hasDefinition = true;
-        addCursor(definition, CursorKey(definition), &entry->reference);
         addCursor(cursor, key, &entry->cursor);
+        addCursor(definition, CursorKey(definition), &entry->reference);
+        if (entry->refData) {
+            entry->refData->references.insert(entry->cursor.cursor);
+            if (useCursor(entry->reference.cursor.kind))
+                entry->refData->references.insert(entry->reference.cursor);
+        }
 #ifdef COLLECTDEBUG
         if (dodebug) {
             debugCursor(stdout, definition);
