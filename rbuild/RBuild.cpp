@@ -309,7 +309,7 @@ struct CollectData
     struct Data
     {
         CursorKey cursor;
-        QList<CursorKey> parents;
+        QList<AtomicString> parentNames;
     };
     struct RefData
     {
@@ -416,12 +416,39 @@ static inline std::string makeRefValue(const std::string& value, const CollectDa
     return out;
 }
 
+static inline void writeDict(leveldb::DB* db, const leveldb::WriteOptions& opt, const CollectData::Data& data)
+{
+    const CursorKey& key = data.cursor;
+    //qDebug() << "dict" << key;
+
+    const QList<AtomicString>& parents = data.parentNames;
+
+    const QByteArray name = key.symbolName.toByteArray();
+    const std::string loc = cursorKeyToString(key);
+
+    // write symbolname -> location
+    db->Put(opt, ("d:" + name).constData(), loc);
+
+    // write namespace/class/struct::symbolname -> location
+    QByteArray current;
+    QListIterator<AtomicString> it(parents);
+    it.toBack();
+    while (it.hasPrevious()) {
+        current += it.previous().toByteArray() + "::";
+        db->Put(opt, ("d:" + current + name).constData(), loc);
+    }
+}
+
 static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt, const CollectData::DataEntry& entry)
 {
     const CursorKey& key = entry.cursor.cursor;
     const CursorKey& val = entry.reference.cursor;
     if (!key.isValid() || !val.isValid() || key == val)
         return;
+
+    writeDict(db, opt, entry.cursor);
+    writeDict(db, opt, entry.reference);
+
     const std::string k = cursorKeyToString(key);
     std::string v = cursorKeyToString(val);
     db->Put(opt, k, makeRefValue(v, entry));
@@ -508,7 +535,16 @@ static inline void addCursor(const CXCursor& cursor, const CursorKey& key, Colle
         CursorKey parentKey(parent);
         if (!parentKey.isValid())
             break;
-        data->parents.append(parentKey);
+        switch (parentKey.kind) {
+        case CXCursor_StructDecl:
+        case CXCursor_ClassDecl:
+        case CXCursor_Namespace:
+            Q_ASSERT(!parentKey.symbolName.isEmpty());
+            data->parentNames.append(parentKey.symbolName);
+            break;
+        default:
+            break;
+        }
     }
 }
 

@@ -40,7 +40,7 @@ static inline std::string symbolNameAt(const std::string &location)
     return ret;
 }
 
-enum Type { Symbol = 1, Reference = 2, Dependency = 4, All = 7 };
+enum Type { Symbol = 0x01, Reference = 0x02, Dependency = 0x04, Dict = 0x08, All = 0x0f };
 
 static inline void dumpDatabase(const std::string& filename, int type)
 {
@@ -88,6 +88,11 @@ static inline void dumpDatabase(const std::string& filename, int type)
                 }
                 if (num > 0)
                     printf("---\n");
+            }
+        } else if (key.substr(0, 2) == "d:") { // dict
+            if (type & Dict) {
+                const std::string val = it->value().ToString();
+                printf("dict entry %s: %s\n", key.substr(2).c_str(), val.c_str());
             }
         } else { // must be dependencies
             if (type & Dependency) {
@@ -176,6 +181,9 @@ static inline bool parseType(const char* a, int* type)
             break;
         case 'd':
             *type |= Dependency;
+            break;
+        case 'i':
+            *type |= Dict;
             break;
         default:
             return false;
