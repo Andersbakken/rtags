@@ -427,7 +427,8 @@ static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
     db->Put(opt, k, makeRefValue(v, entry));
 
     if (key.kind == val.kind && (key.kind == CXCursor_CXXMethod
-                                 || key.kind == CXCursor_Constructor)) {
+                                 || key.kind == CXCursor_Constructor
+                                 || key.kind == CXCursor_Destructor)) {
         db->Put(opt, v, makeRefValue(k, entry));
     } else {
         db->Put(opt, v, makeRefValue(std::string(), entry));
