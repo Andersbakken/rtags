@@ -91,8 +91,11 @@ static inline void dumpDatabase(const std::string& filename, int type)
             }
         } else if (key.substr(0, 2) == "d:") { // dict
             if (type & Dict) {
-                const std::string val = it->value().ToString();
-                printf("dict entry %s: %s\n", key.substr(2).c_str(), val.c_str());
+                QByteArray val(it->value().data(), it->value().size());
+                if (val.endsWith('\0'))
+                    val.chop(1);
+                val.replace('\0', " :: ");
+                printf("dict entry %s: %s\n", key.substr(2).c_str(), val.constData());
             }
         } else { // must be dependencies
             if (type & Dependency) {

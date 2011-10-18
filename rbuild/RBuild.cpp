@@ -44,6 +44,7 @@ public:
     AtomicString(const QByteArray& string);
     AtomicString(const QString& string);
     AtomicString(const AtomicString& other);
+    AtomicString(const char* string, int size);
     ~AtomicString();
 
     AtomicString& operator=(const AtomicString& other);
@@ -123,6 +124,14 @@ AtomicString::AtomicString(const QString& string)
     QMutexLocker locker(&sMutex);
 #endif
     init(string.toUtf8());
+}
+
+AtomicString::AtomicString(const char* string, int size)
+{
+#ifdef REENTRANT_ATOMICSTRING
+    QMutexLocker locker(&sMutex);
+#endif
+    init(QByteArray(string, size));
 }
 
 AtomicString::AtomicString(const AtomicString& other)
@@ -416,26 +425,70 @@ static inline std::string makeRefValue(const std::string& value, const CollectDa
     return out;
 }
 
-static inline void writeDict(leveldb::DB* db, const leveldb::WriteOptions& opt, const CollectData::Data& data)
+static inline void writeDict(leveldb::DB* db, const leveldb::WriteOptions& opt, const QHash<AtomicString, QSet<AtomicString> >& dict)
 {
-    const CursorKey& key = data.cursor;
-    //qDebug() << "dict" << key;
+    QHash<AtomicString, QSet<AtomicString> >::const_iterator it = dict.begin();
+    const QHash<AtomicString, QSet<AtomicString> >::const_iterator end = dict.end();
+    while (it != end) {
+        std::string locs;
+        const QSet<AtomicString>& set = it.value();
+        QSet<AtomicString>::const_iterator dit = set.begin();
+        const QSet<AtomicString>::const_iterator dend = set.end();
+        while (dit != dend) {
+            locs += (*dit).toByteArray().constData();
+            locs += '\0';
+            ++dit;
+        }
+        db->Put(opt, ("d:" + it.key().toByteArray()).constData(), locs);
+        ++it;
+    }
+}
 
-    const QList<AtomicString>& parents = data.parentNames;
+static inline void collectDict(const CollectData::DataEntry& entry, QHash<AtomicString, QSet<AtomicString> >& dict)
+{
+    const CollectData::Data* datas[] = { &entry.cursor, &entry.reference };
+    for (int i = 0; i < 2; ++i) {
+        const CursorKey& key = datas[i]->cursor;
+        if (!key.isValid())
+            continue;
 
-    const QByteArray name = key.symbolName.toByteArray();
-    const std::string loc = cursorKeyToString(key);
+        qDebug() << "dict" << key;
 
-    // write symbolname -> location
-    db->Put(opt, ("d:" + name).constData(), loc);
+        const int& kind = key.kind;
+        if ((kind >= CXCursor_FirstRef && kind <= CXCursor_LastRef)
+            || (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr))
+            continue;
 
-    // write namespace/class/struct::symbolname -> location
-    QByteArray current;
-    QListIterator<AtomicString> it(parents);
-    it.toBack();
-    while (it.hasPrevious()) {
-        current += it.previous().toByteArray() + "::";
-        db->Put(opt, ("d:" + current + name).constData(), loc);
+        const QList<AtomicString>& parents = datas[i]->parentNames;
+
+        const QByteArray name = key.symbolName.toByteArray();
+        const std::string loc = cursorKeyToString(key);
+        const AtomicString location(loc.c_str(), loc.size());
+
+        // add symbolname -> location
+        dict[name].insert(location);
+
+        switch (kind) {
+        case CXCursor_Namespace:
+        case CXCursor_ClassDecl:
+        case CXCursor_StructDecl:
+        case CXCursor_FieldDecl:
+        case CXCursor_CXXMethod:
+        case CXCursor_Constructor:
+        case CXCursor_Destructor:
+            break;
+        default:
+            continue;
+        }
+
+        // write namespace/class/struct::symbolname -> location
+        QByteArray current;
+        QListIterator<AtomicString> it(parents);
+        it.toBack();
+        while (it.hasPrevious()) {
+            current += it.previous().toByteArray() + "::";
+            dict[AtomicString(current + name)].insert(location);
+        }
     }
 }
 
@@ -445,9 +498,6 @@ static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
     const CursorKey& val = entry.reference.cursor;
     if (!key.isValid() || !val.isValid() || key == val)
         return;
-
-    writeDict(db, opt, entry.cursor);
-    writeDict(db, opt, entry.reference);
 
     const std::string k = cursorKeyToString(key);
     std::string v = cursorKeyToString(val);
@@ -493,9 +543,13 @@ void RBuild::writeData(const QByteArray& filename)
     }
     Q_ASSERT(db);
 
+    QHash<AtomicString, QSet<AtomicString> > dict;
     foreach(const CollectData::DataEntry* entry, mData->data) {
         writeEntry(db, writeOptions, *entry);
+        collectDict(*entry, dict);
     }
+
+    writeDict(db, writeOptions, dict);
 
     foreach(const CollectData::RefData* ref, mData->refs) {
         writeRefData(db, writeOptions, ref);
