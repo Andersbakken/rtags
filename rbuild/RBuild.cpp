@@ -508,7 +508,10 @@ static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
                                  || key.kind == CXCursor_Destructor)) {
         db->Put(opt, v, makeRefValue(k, entry));
     } else {
-        db->Put(opt, v, makeRefValue(std::string(), entry));
+        std::string existing;
+        db->Get(leveldb::ReadOptions(), v, &existing);
+        if (existing.empty())
+            db->Put(opt, v, makeRefValue(std::string(), entry));
     }
 }
 
