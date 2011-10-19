@@ -33,6 +33,12 @@ HEADERS += \
 
 QMAKE_CXXFLAGS += -O2
 
+valgrind {
+  CONFIG += debug
+  QMAKE_CXXFLAGS -= -O2
+  QMAKE_CXXFLAGS += -fno-inline
+}
+
 gccopts_gperf.commands = gperf -I -C -l -L C++ gccopts.gperf --output-file gccopts_gperf.cpp -Z gccopts_gperf
 gccopts_gperf.target = gccopts_gperf.cpp
 gccopts_gperf.depends = gccopts.gperf
