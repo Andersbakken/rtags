@@ -488,6 +488,7 @@ void RBuild::writeData(const QByteArray& filename)
     leveldb::Options dbOptions;
     leveldb::WriteOptions writeOptions;
     dbOptions.create_if_missing = true;
+    unlink(filename.constData());
     if (!leveldb::DB::Open(dbOptions, filename.constData(), &db).ok()) {
         return;
     }
