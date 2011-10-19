@@ -15,7 +15,7 @@ function runtest {
             if [ -z "$prev" ]; then
                 prev=$line
             else
-                result=`../../rc foo ${pwd}/${prev}`
+                result=`../../rc --follow-symbol ${pwd}/${prev}`
                 #echo "${prev} => ${line} and result=${result}"
                 if [ "${pwd}/${line}" != "${result}" ]; then
                     result=$(echo $result | awk 'BEGIN { FS = "/"} ; { print $NF }')
