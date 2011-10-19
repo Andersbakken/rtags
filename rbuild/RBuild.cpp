@@ -409,7 +409,7 @@ static inline std::string cursorKeyToString(const CursorKey& key)
 
 static inline std::string makeRefValue(const std::string& value, const CollectData::DataEntry& entry)
 {
-    QByteArray locationKey = entry.refData->referenced.locationKey();
+    QByteArray locationKey = entry.refData ? entry.refData->referenced.locationKey() : QByteArray();
     std::string out;
     out.resize(value.size() + locationKey.size() + 2);
     if (value.size())
