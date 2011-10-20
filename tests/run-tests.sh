@@ -33,5 +33,5 @@ function runtest {
 }
 
 for test in `find . -maxdepth 1 -mindepth 1 -type d`; do
-    runtest $test
+    test -f $test/expect.txt && runtest $test
 done
