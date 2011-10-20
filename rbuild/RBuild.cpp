@@ -753,9 +753,11 @@ static inline bool equalLocation(const CursorKey& key1, const CursorKey& key2)
 
 static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
 {
-    CollectData* data = reinterpret_cast<CollectData*>(client_data);
-
     const CursorKey key(cursor);
+    if (!key.isValid())
+        return CXChildVisit_Recurse;
+
+    CollectData* data = reinterpret_cast<CollectData*>(client_data);
 
     CollectData::DataEntry* entry = 0;
     const QHash<QByteArray, CollectData::DataEntry*>::const_iterator it = data->seen.find(key.locationKey());
