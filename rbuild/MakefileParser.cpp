@@ -30,7 +30,7 @@ void DirectoryTracker::init(const Path& path)
 
 void DirectoryTracker::track(const QByteArray& line)
 {
-    printf("Tracking %s\n", line.constData());
+    // printf("Tracking %s\n", line.constData());
     static QRegExp drx(QLatin1String("make[^:]*: ([^ ]+) directory `([^']+)'"));
     if (drx.indexIn(QString::fromLocal8Bit(line.constData())) != -1) {
         if (drx.cap(1) == QLatin1String("Entering"))
@@ -51,7 +51,7 @@ void DirectoryTracker::enterDirectory(const QByteArray& dir)
     Path newPath = Path::resolved(dir, mPath, &ok);
     if (ok) {
         mPath = newPath;
-        printf("New directory resolved: %s\n", mPath.constData());
+        // printf("New directory resolved: %s\n", mPath.constData());
     } else
         qFatal("Unable to resolve path %s (%s)", dir.constData(), mPath.constData());
 }

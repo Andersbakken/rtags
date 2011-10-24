@@ -52,6 +52,56 @@ private:
     leveldb::DB *db;
 };
 
+static inline void maybeDict(leveldb::DB *db, const std::string &key,
+                             bool (*func)(leveldb::DB *db, const std::string &key))
+{
+    std::string val;
+    std::string key2;
+    db->Get(leveldb::ReadOptions(), "d:" + key, &key2);
+    if (!key2.empty()) {
+        db->Get(leveldb::ReadOptions(), key2, &val);
+        foreach(const QByteArray &k, QByteArray::fromRawData(val.c_str(), val.size()).split('\0')) {
+            func(db, std::string(k.constData(), k.size()));
+        }
+    }
+}
+
+static inline bool followSymbol(leveldb::DB *db, const std::string &key)
+{
+    std::string val;
+    db->Get(leveldb::ReadOptions(), key, &val);
+    if (!val.empty()) {
+        QByteArray referredTo;
+        const QByteArray v = QByteArray::fromRawData(val.c_str(), val.size());
+        QDataStream ds(v);
+        ds >> referredTo;
+        if (!referredTo.isEmpty()) {
+            printf("%s\n", referredTo.constData());
+        }
+        return true;
+    }
+    return false;
+}
+
+static inline bool findReferences(leveldb::DB *db, const std::string &key)
+{
+    std::string val;
+    db->Get(leveldb::ReadOptions(), key, &val);
+    if (!val.empty()) {
+        QByteArray referredTo;
+        const QByteArray v = QByteArray::fromRawData(val.c_str(), val.size());
+        QDataStream ds(v);
+        QSet<QByteArray> references;
+        ds >> referredTo >> references;
+        foreach(const QByteArray &r, references) {
+            printf("%s\n", r.constData());
+        }
+        return true;
+    }
+    return false;
+}
+
+
 int main(int argc, char** argv)
 {
     if (argc < 3)
@@ -70,30 +120,34 @@ int main(int argc, char** argv)
     std::string cmd = argv[1];
     std::string key = argv[2];
     if (cmd == "--follow-symbol" || cmd == "-f") {
-        std::string val;
-        db->Get(leveldb::ReadOptions(), key, &val);
-        if (!val.empty()) {
-            QByteArray referredTo;
-            const QByteArray v = QByteArray::fromRawData(val.c_str(), val.size());
-            QDataStream ds(v);
-            ds >> referredTo;
-            if (!referredTo.isEmpty()) {
-                printf("%s\n", referredTo.constData());
-            }
-        }
+        if (!followSymbol(db, key))
+            maybeDict(db, key, followSymbol);
     } else if (cmd == "--find-references" || cmd == "-r") {
+        if (!findReferences(db, key))
+            maybeDict(db, key, findReferences);
+    } else if (cmd == "--symbol-names" || cmd == "-S") {
         std::string val;
-        db->Get(leveldb::ReadOptions(), key, &val);
-        if (!val.empty()) {
-            QByteArray referredTo;
-            QSet<QByteArray> references;
-            const QByteArray v = QByteArray::fromRawData(val.c_str(), val.size());
-            QDataStream ds(v);
-            ds >> referredTo >> references;
-            foreach(const QByteArray &r, references) {
-                printf("%s\n", r.constData());
+        leveldb::Iterator *it = db->NewIterator(leveldb::ReadOptions());
+        it->Seek("d:");
+        while (it->Valid()) {
+            std::string k = it->key().ToString();
+            // leveldb::Slice k = it->key();
+            // leveldb::Slice v = it->value();
+            // for (int i=0; i<k.size(); ++i) {
+            //     printf("'%c'(%d)", k.data()[i], i);
+            // }
+            // printf("\n");
+
+            // printf("%s:%s\n", k.data(), v.data());
+            if (k.empty() || strncmp(k.c_str(), "d:", 2))
+                break;
+            if (key.empty() || strstr(k.c_str(), key.c_str())) {
+                printf("%s\n", k.c_str() + 2);
             }
+            it->Next();
         }
+        delete it;
     }
+
     return 0;
 }

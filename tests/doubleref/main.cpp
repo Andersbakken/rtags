@@ -1,13 +1,13 @@
 class Foo
 {
 public:
-    Foo(int)
-    {
-    }
-    void foo()
-    {
-    }
+    Foo(int);
+    void foo();
 };
+
+Foo::Foo(int)
+{
+}
 
 int main()
 {
@@ -22,3 +22,8 @@ int main()
 //     void *ptr = (void*)&main;
 //     return main();
 // }
+
+void Foo::foo()
+{
+
+}

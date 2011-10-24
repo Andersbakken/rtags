@@ -10,10 +10,10 @@
   :group 'tools
   :prefix "rtags-")
 
-;; (defcustom rtags-enable t
-;;   "Whether or rtags is enabled"
-;;   :type 'boolean
-;;   :group 'rtags)
+(defcustom rtags-enable t
+  "Whether or rtags is enabled"
+  :type 'boolean
+  :group 'rtags)
 
 (defvar last-rtags-update-process nil)
 (defun rtags-update ()
@@ -123,7 +123,7 @@
         (setq prompt (concat "Find symbol: (default " tagname ") "))
       (setq prompt "Find symbol: "))
     (with-temp-buffer
-      (call-process "rc" nil t nil "-S" "-C" "-l" "")
+      (call-process "rc" nil t nil "-S" "")
       (setq completions (split-string (buffer-string))))
     (setq input (completing-read prompt completions nil nil nil gtags-history-list))
     (if (not (equal "" input))
@@ -131,7 +131,7 @@
     (if (get-buffer "*Rtags-Complete*")
         (kill-buffer "*Rtags-Complete*"))
     (switch-to-buffer (generate-new-buffer "*Rtags-Complete*"))
-    (call-process "rc" nil t nil "-m" "-l" tagname)
+    (call-process "rc" nil t nil "-f" tagname)
     (if (= (point-min) (point-max))
         (progn
 ;          (kill-buffer "*Rtags-Complete*")

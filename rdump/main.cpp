@@ -58,6 +58,7 @@ static inline void dumpDatabase(const std::string& filename, int type)
         const std::string key = it->key().ToString();
         std::string fileName;
         unsigned line, col;
+        // qDebug() << key.c_str();
         if (parseLocation(key, fileName, line, col)) {
             leveldb::Slice val = it->value();
             const QByteArray v = QByteArray::fromRawData(val.data(), val.size());
@@ -76,6 +77,8 @@ static inline void dumpDatabase(const std::string& filename, int type)
                        mapsTo.constData());
             }
             if (type & Reference) {
+                // printf("Balle %d %d %d %d\n", references.size(), v.size(), val.size(),
+                //        it->value().ToString().size());
                 foreach(const QByteArray &r, references) {
                     printf("%s refers to %s\n", r.constData(), key.c_str());
                 }

@@ -192,10 +192,10 @@ class CursorKey
 {
 public:
     CursorKey()
-        : kind(CXCursor_FirstInvalid)
+        : kind(CXCursor_FirstInvalid), line(0), col(0), off(0), def(false)
     {}
     CursorKey(const CXCursor &cursor)
-        : kind(clang_getCursorKind(cursor))
+        : kind(clang_getCursorKind(cursor)), line(0), col(0), off(0), def(false)
     {
         if (!clang_isInvalid(kind)) {
             CXSourceLocation loc = clang_getCursorLocation(cursor);
@@ -203,6 +203,7 @@ public:
             clang_getInstantiationLocation(loc, &file, &line, &col, &off);
             fileName = Path::resolved(eatString(clang_getFileName(file)));
             symbolName = eatString(clang_getCursorDisplayName(cursor));
+            def = cursorDefinition(cursor);
         }
     }
 
@@ -214,6 +215,11 @@ public:
     bool isNull() const
     {
         return !isValid();
+    }
+
+    bool isDefinition() const
+    {
+        return def;
     }
 
     bool operator<(const CursorKey &other) const
@@ -264,6 +270,7 @@ public:
     AtomicString fileName;
     AtomicString symbolName;
     unsigned line, col, off;
+    bool def;
 };
 
 QDebug operator<<(QDebug d, const CursorKey& key)
@@ -405,14 +412,6 @@ static inline QByteArray cursorKeyToString(const CursorKey& key)
     return out;
 }
 
-// static inline QSet<QByteArray> convertRefs(const QSet<QByteArray> &theseStayAlive)
-// {
-//     QSet<QByteArray> ret;
-//     foreach(const std::string &s, theseStayAlive) {
-//         ret.insert(QByteArray::fromRawData(&s[0], s.size()));
-//     }
-//     return ret;
-// }
 static inline QByteArray makeRefValue(const CollectData::DataEntry& entry)
 {
     QByteArray out;
@@ -425,7 +424,6 @@ static inline QByteArray makeRefValue(const CollectData::DataEntry& entry)
         // ds << QByteArray::fromRawData(&v[0], v.size()) << convertRefs(entry.references);
     }
     return out;
-    // return std::string(out.constData(), out.size());
 }
 
 static inline void writeDict(leveldb::DB* db, const leveldb::WriteOptions& opt, const QHash<AtomicString, QSet<AtomicString> >& dict)
@@ -433,6 +431,7 @@ static inline void writeDict(leveldb::DB* db, const leveldb::WriteOptions& opt, 
     QHash<AtomicString, QSet<AtomicString> >::const_iterator it = dict.begin();
     const QHash<AtomicString, QSet<AtomicString> >::const_iterator end = dict.end();
     while (it != end) {
+        // qDebug() << it.key().toByteArray();
         std::string locs;
         const QSet<AtomicString>& set = it.value();
         QSet<AtomicString>::const_iterator dit = set.begin();
@@ -495,46 +494,23 @@ static inline void collectDict(const CollectData::DataEntry& entry, QHash<Atomic
     }
 }
 
-static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt, const CollectData::DataEntry& entry)
+static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
+                              const CollectData::DataEntry& entry)
 {
     const CursorKey& key = entry.cursor.cursor;
     const CursorKey& val = entry.reference.cursor;
-    if (!key.isValid() || !val.isValid() || key == val)
+    if (!key.isValid()/* || !val.isValid() || key == val*/) {
+        qDebug() << (key == val) << key.isValid() << val.isValid() << key << val;
         return;
+    }
 
-    const QByteArray k = cursorKeyToString(key);
-    const QByteArray v = makeRefValue(entry);
-    db->Put(opt,
-            std::string(k.constData(), k.size()),
-            std::string(v.constData(), v.size()));
-    // if (key.kind == val.kind && (key.kind == CXCursor_CXXMethod
-    //                              || key.kind == CXCursor_Constructor
-    //                              || key.kind == CXCursor_Destructor)) {
-    //     db->Put(opt, v, makeRefValue(entry));
-    // } else {
-    //     std::string existing;
-    //     db->Get(leveldb::ReadOptions(), v, &existing);
-    //     if (existing.empty())
-    //         db->Put(opt, v, makeRefValue(std::string(), entry));
-    // }
+    QByteArray k = cursorKeyToString(key);
+    QByteArray v = makeRefValue(entry);
+    db->Put(opt, std::string(k.constData(), k.size()), std::string(v.constData(), v.size()));
+    // qDebug() << "writing" << k << kindToString(key.kind) << entry.references.size()
+    //          << v.size() << std::string(v.constData(), v.size()).size()
+    //          << cursorKeyToString(val);
 }
-
-// static inline void writeRefData(leveldb::DB* db, const leveldb::WriteOptions& opt, const CollectData::RefData* ref)
-// {
-//     QByteArray out;
-//     {
-//         QDataStream ds(&out, QIODevice::WriteOnly);
-//         ds << ref->references.size();
-//         foreach(const CursorKey& val, ref->references) {
-//             std::string v = cursorKeyToString(val);
-//             QByteArray b = QByteArray::fromRawData(v.c_str(), v.size());
-//             ds << b;
-//         }
-//     }
-
-//     const QByteArray r = ref->referenced.locationKey();
-//     db->Put(opt, leveldb::Slice(r.constData(), r.size()), leveldb::Slice(out.constData(), out.size()));
-// }
 
 void RBuild::writeData(const QByteArray& filename)
 {
@@ -552,18 +528,31 @@ void RBuild::writeData(const QByteArray& filename)
     Q_ASSERT(db);
 
     QHash<AtomicString, QSet<AtomicString> > dict;
-    foreach(const CollectData::DataEntry* entry, mData->data) {
+    foreach(CollectData::DataEntry* entry, mData->data) {
+        const CursorKey key = entry->cursor.cursor;
+        const CursorKey ref = entry->reference.cursor;
+        if (key.kind == CXCursor_CXXMethod
+            || key.kind == CXCursor_Constructor
+            || key.kind == CXCursor_Destructor) {
+            if (key != ref && !key.isDefinition()) {
+                CollectData::DataEntry *def = mData->seen.value(ref.locationKey());
+                Q_ASSERT(def && def != entry);
+                def->reference = entry->cursor;
+            }
+            continue;
+        }
+
         CollectData::DataEntry *r = mData->seen.value(entry->reference.cursor.locationKey());
-        // printf("[%s] [%s] => [%s] [%s] => %p\n",
-        //        entry->cursor.cursor.symbolName.toByteArray().constData(),
-        //        entry->cursor.cursor.locationKey().constData(),
-        //        entry->reference.cursor.symbolName.toByteArray().constData(),
-        //        entry->reference.cursor.locationKey().constData(),
-        //        r);
+        if (r == entry)
+            continue;
         if (r) {
             r->references.insert(cursorKeyToString(entry->cursor.cursor));
             // qDebug() << "adding reference" << cursorKeyToString(entry->cursor.cursor)
             //          << "refers to" << cursorKeyToString(entry->reference.cursor);
+        // } else {
+        //     qDebug() << "can't find r" << cursorKeyToString(entry->reference.cursor)
+        //              << "for" << cursorKeyToString(entry->cursor.cursor)
+        //              << entry->cursor.cursor.isValid();
         }
     }
 
@@ -571,12 +560,7 @@ void RBuild::writeData(const QByteArray& filename)
         writeEntry(db, writeOptions, *entry);
         collectDict(*entry, dict);
     }
-
     writeDict(db, writeOptions, dict);
-
-    // foreach(const CollectData::RefData* ref, mData->refs) {
-    //     writeRefData(db, writeOptions, ref);
-    // }
 
     foreach(const CollectData::Dependencies &dep, mData->dependencies) {
         writeDependencies(db, writeOptions, dep.file, dep.lastModified, dep.dependencies);
@@ -605,6 +589,7 @@ static inline void debugCursor(FILE* out, const CXCursor& cursor)
 
 static inline void addCursor(const CXCursor& cursor, const CursorKey& key, CollectData::Data* data)
 {
+    Q_ASSERT(key.isValid());
     data->cursor = key;
     CXCursor parent = cursor;
     for (;;) {
@@ -745,36 +730,19 @@ static inline CXCursor referencedCursor(const CXCursor& cursor)
     return ret;
 }
 
-// static inline CollectData::RefData* findRefData(CollectData* data, const CXCursor& cursor)
-// {
-//     const CXCursor cc = referencedCursor(cursor);
-//     if (!isValidCursor(cc))
-//         return 0;
-
-//     const CursorKey cckey(cc);
-//     //qDebug() << "findRefData for" << CursorKey(cursor) << "==>>" << cckey;
-//     const QHash<CursorKey, CollectData::RefData*>::iterator ref = data->refs.find(cckey);
-//     if (ref == data->refs.end()) {
-//         CollectData::RefData* rdata = new CollectData::RefData;
-//         rdata->referenced = cc;
-//         data->refs[cc] = rdata;
-//         return rdata;
-//     }
-//     return ref.value();
-// }
-
 static inline bool equalLocation(const CursorKey& key1, const CursorKey& key2)
 {
     return (key1.off == key2.off && key1.fileName == key2.fileName);
 }
 
-//#define COLLECTDEBUG
+#define COLLECTDEBUG
 
 static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
 {
     const CursorKey key(cursor);
     if (!key.isValid())
         return CXChildVisit_Recurse;
+    // qDebug() << key << kindToString(key.kind);
 
     CollectData* data = reinterpret_cast<CollectData*>(client_data);
 
@@ -786,9 +754,13 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     }
 
 #ifdef COLLECTDEBUG
-    const bool dodebug = (key.fileName.toByteArray().endsWith("GccArguments.cpp") && key.line == 74);
+    const bool dodebug = (key.fileName.toByteArray().endsWith("main.cpp") && key.line == 10 && key.col == 6);
 #endif
     if (it != data->seen.end()) {
+        if (key.kind == CXCursor_TypeRef) {
+            // qDebug() << "balle" << it.value()->cursor.cursor << it.value()->reference.cursor;
+            return CXChildVisit_Recurse; // ### Continue?
+        }
         entry = it.value();
         if (entry->hasDefinition) {
 #ifdef COLLECTDEBUG
@@ -833,32 +805,37 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         if (entry->reference.cursor.isNull()) {
             const CXCursor reference = clang_getCursorReferenced(cursor);
             const CursorKey referenceKey(reference);
-            if (referenceKey.isValid() && referenceKey != key) {
+            if (referenceKey.isValid()/* && referenceKey != key*/) {
 #ifdef COLLECTDEBUG
                 if (dodebug) {
                     debugCursor(stdout, reference);
                     fprintf(stdout, "ref %p\n", entry);
                 }
 #endif
+                // if (referenceKey == key
+                //     && (key.kind == CXCursor_CXXMethod
+                //         || key.kind == CXCursor_Constructor
+                //         || key.kind == CXCursor_Destructor)) {
+                //     const CXType type = clang_getCursorType(cursor);
+                //     if (type.kind != CXType_Invalid) {
+                //         CXCursor decl = clang_getTypeDeclaration(type);
+                //         qDebug() << "trying to do this for" << key << CursorKey(decl);
+                //     }
+                // }
                 addCursor(cursor, key, &entry->cursor);
                 addCursor(reference, referenceKey, &entry->reference);
-                // if (entry->refData) {
-                //     entry->refData->references.insert(entry->cursor.cursor);
-                //     if (useCursor(entry->reference.cursor.kind))
-                //         entry->refData->references.insert(entry->reference.cursor);
-                // }
             }
         }
     } else {
         if (cursorDefinitionFor(definition, cursor))
             entry->hasDefinition = true;
         addCursor(cursor, key, &entry->cursor);
-        addCursor(definition, CursorKey(definition), &entry->reference);
-        // if (entry->refData) {
-        //     entry->refData->references.insert(entry->cursor.cursor);
-        //     if (useCursor(entry->reference.cursor.kind))
-        //         entry->refData->references.insert(entry->reference.cursor);
-        // }
+        const CursorKey definitionKey(definition);
+        if (definitionKey.isValid()) {
+            addCursor(definition, definitionKey, &entry->reference);
+        } else {
+            printf("%s:%d } else {\n", __FILE__, __LINE__);
+        }
 #ifdef COLLECTDEBUG
         if (dodebug) {
             debugCursor(stdout, definition);
