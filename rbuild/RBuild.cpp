@@ -500,7 +500,7 @@ static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
     const CursorKey& key = entry.cursor.cursor;
     const CursorKey& val = entry.reference.cursor;
     if (!key.isValid()/* || !val.isValid() || key == val*/) {
-        qDebug() << (key == val) << key.isValid() << val.isValid() << key << val;
+        // qDebug() << (key == val) << key.isValid() << val.isValid() << key << val;
         return;
     }
 
@@ -735,7 +735,7 @@ static inline bool equalLocation(const CursorKey& key1, const CursorKey& key2)
     return (key1.off == key2.off && key1.fileName == key2.fileName);
 }
 
-#define COLLECTDEBUG
+// #define COLLECTDEBUG
 
 static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
 {
@@ -812,16 +812,6 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
                     fprintf(stdout, "ref %p\n", entry);
                 }
 #endif
-                // if (referenceKey == key
-                //     && (key.kind == CXCursor_CXXMethod
-                //         || key.kind == CXCursor_Constructor
-                //         || key.kind == CXCursor_Destructor)) {
-                //     const CXType type = clang_getCursorType(cursor);
-                //     if (type.kind != CXType_Invalid) {
-                //         CXCursor decl = clang_getTypeDeclaration(type);
-                //         qDebug() << "trying to do this for" << key << CursorKey(decl);
-                //     }
-                // }
                 addCursor(cursor, key, &entry->cursor);
                 addCursor(reference, referenceKey, &entry->reference);
             }
@@ -833,8 +823,6 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         const CursorKey definitionKey(definition);
         if (definitionKey.isValid()) {
             addCursor(definition, definitionKey, &entry->reference);
-        } else {
-            printf("%s:%d } else {\n", __FILE__, __LINE__);
         }
 #ifdef COLLECTDEBUG
         if (dodebug) {
