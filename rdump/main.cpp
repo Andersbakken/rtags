@@ -59,35 +59,26 @@ static inline void dumpDatabase(const std::string& filename, int type)
         std::string fileName;
         unsigned line, col;
         if (parseLocation(key, fileName, line, col)) {
+            leveldb::Slice val = it->value();
+            const QByteArray v = QByteArray::fromRawData(val.data(), val.size());
+            QByteArray mapsTo;
+            QSet<QByteArray> references;
+            QDataStream ds(v);
+            ds >> mapsTo >> references;
             // printf("%s (%s) maps to %s (%s)\n",
             //        key.c_str(),
             //        symbolNameAt(key).c_str(),
             //        it->value().ToString().c_str(),
             //        symbolNameAt(it->value().ToString()).c_str());
             if (type & Symbol) {
-                const std::string val = it->value().ToString();
-                const char *refPtr = val.c_str() + strlen(val.c_str()) + 1;
-                printf("%s maps to %s (%s)\n",
+                printf("%s maps to %s\n",
                        key.c_str(),
-                       it->value().ToString().c_str(), refPtr);
+                       mapsTo.constData());
             }
-        } else if (key.substr(0, 4) == "ref:") { // reference
             if (type & Reference) {
-                int num;
-                QByteArray entry;
-                leveldb::Slice val = it->value();
-                QByteArray data = QByteArray::fromRawData(val.data(), val.size());
-                QDataStream ds(data);
-                ds >> num;
-                Q_ASSERT(num >= 0);
-                if (num > 0)
-                    printf("refs for %s\n", key.substr(4).c_str());
-                for (int i = 0; i < num; ++i) {
-                    ds >> entry;
-                    printf("  ref: %s\n", entry.constData());
+                foreach(const QByteArray &r, references) {
+                    printf("%s refers to %s\n", r.constData(), key.c_str());
                 }
-                if (num > 0)
-                    printf("---\n");
             }
         } else if (key.substr(0, 2) == "d:") { // dict
             if (type & Dict) {

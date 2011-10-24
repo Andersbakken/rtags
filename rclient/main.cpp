@@ -72,29 +72,26 @@ int main(int argc, char** argv)
     if (cmd == "--follow-symbol" || cmd == "-f") {
         std::string val;
         db->Get(leveldb::ReadOptions(), key, &val);
-        if (!val.empty() && strlen(val.c_str()))
-            printf("%s\n", val.c_str());
+        if (!val.empty()) {
+            QByteArray referredTo;
+            const QByteArray v = QByteArray::fromRawData(val.c_str(), val.size());
+            QDataStream ds(v);
+            ds >> referredTo;
+            if (!referredTo.isEmpty()) {
+                printf("%s\n", referredTo.constData());
+            }
+        }
     } else if (cmd == "--find-references" || cmd == "-r") {
         std::string val;
         db->Get(leveldb::ReadOptions(), key, &val);
         if (!val.empty()) {
-            const char *refPtr = val.c_str() + strlen(val.c_str()) + 1;
-            std::string refs;
-            db->Get(leveldb::ReadOptions(), refPtr, &refs);
-            if (refs.size()) {
-                QByteArray data = QByteArray::fromRawData(refs.c_str(), refs.size());
-                QDataStream ds(data);
-                int num;
-                QByteArray entry;
-                ds >> num;
-                for (int i = 0; i < num; ++i) {
-                    ds >> entry;
-                    if (!entry.isEmpty()) {
-                        printf("%s\n", entry.constData());
-                    } else {
-                        printf("%s %d: } else {\n", __FILE__, __LINE__);
-                    }
-                }
+            QByteArray referredTo;
+            QSet<QByteArray> references;
+            const QByteArray v = QByteArray::fromRawData(val.c_str(), val.size());
+            QDataStream ds(v);
+            ds >> referredTo >> references;
+            foreach(const QByteArray &r, references) {
+                printf("%s\n", r.constData());
             }
         }
     }
