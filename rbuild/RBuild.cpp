@@ -840,8 +840,6 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         addCursor(cursor, key, &entry->cursor);
         addCursor(clang_getNullCursor(), inclusion, &entry->reference);
         entry->hasDefinition = true;
-        Path header = Path::resolved(inclusion.fileName.toByteArray());
-        data->dependencies.last().dependencies[header] = header.lastModified();
         return CXChildVisit_Continue;
     }
 
@@ -887,6 +885,32 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
 
     return CXChildVisit_Recurse;
 }
+
+static inline void getInclusions(CXFile includedFile,
+                                 CXSourceLocation* inclusionStack,
+                                 unsigned includeLen,
+                                 CXClientData userData)
+{
+    CollectData::Dependencies *deps = reinterpret_cast<CollectData::Dependencies*>(userData);
+    CXString str = clang_getFileName(includedFile);
+    Path p = Path::resolved(clang_getCString(str));
+    deps->dependencies[p] = p.lastModified();
+    clang_disposeString(str);
+    // printf("Included file %s\n", eatString(clang_getFileName(includedFile)).constData());
+    // qDebug() << includeLen;
+    if (includeLen > 1) {
+        for (unsigned i=0; i<includeLen - 1; ++i) {
+            CXFile f;
+            clang_getSpellingLocation(inclusionStack[i], &f, 0, 0, 0);
+            str = clang_getFileName(f);
+            p = Path::resolved(clang_getCString(str));
+            deps->dependencies[p] = p.lastModified();
+            clang_disposeString(str);
+            // printf("    %d %s\n", i, eatString(clang_getFileName(f)).constData());
+        }
+    }
+}
+
 
 void RBuild::compile(const GccArguments& arguments)
 {
@@ -949,10 +973,11 @@ void RBuild::compile(const GccArguments& arguments)
             mData = new CollectData;
 
         CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
+        clang_visitChildren(unitCursor, collectSymbols, mData);
         CollectData::Dependencies deps = { input, arguments, input.lastModified(),
                                            QHash<Path, time_t>() };
         mData->dependencies.append(deps);
-        clang_visitChildren(unitCursor, collectSymbols, mData);
+        clang_getInclusions(unit, getInclusions, &mData->dependencies.last());
         clang_disposeTranslationUnit(unit);
     }
     clang_disposeIndex(idx);
