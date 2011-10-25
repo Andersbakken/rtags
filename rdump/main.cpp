@@ -144,7 +144,7 @@ static inline bool writeExpect(const std::string& filename)
         std::string fileName;
         unsigned line, col;
         if (parseLocation(key, fileName, line, col)) {
-            fprintf(f, "%s\n%s\n\n",
+            fprintf(f, "--follow-symbol\n%s\n%s\n\n",
                     removePath(key).c_str(),
                     removePath(it->value().ToString()).c_str());
         }
