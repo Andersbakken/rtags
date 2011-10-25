@@ -84,6 +84,12 @@ private:
 #endif
 };
 
+static QDebug &operator<<(QDebug &dbg, const AtomicString &string)
+{
+    dbg << string.toByteArray();
+    return dbg;
+}
+
 QHash<QByteArray, AtomicString::Data*> AtomicString::sData;
 #ifdef REENTRANT_ATOMICSTRING
 QMutex AtomicString::sMutex;
@@ -467,12 +473,15 @@ static inline void collectDict(const CollectData::DataEntry& entry, QHash<Atomic
 
         const QList<AtomicString>& parents = datas[i]->parentNames;
 
-        const QByteArray name = key.symbolName.toByteArray();
+        QByteArray name = key.symbolName.toByteArray();
         const QByteArray loc = cursorKeyToString(key);
         const AtomicString location(loc.constData(), loc.size());
 
         // add symbolname -> location
         dict[name].insert(location);
+        int colon = name.indexOf('(');
+        if (colon != -1)
+            dict[name.left(colon)].insert(location);
 
         switch (kind) {
         case CXCursor_Namespace:
@@ -487,13 +496,16 @@ static inline void collectDict(const CollectData::DataEntry& entry, QHash<Atomic
             continue;
         }
 
-        // write namespace/class/struct::symbolname -> location
-        QByteArray current;
-        QListIterator<AtomicString> it(parents);
-        it.toBack();
-        while (it.hasPrevious()) {
-            current += it.previous().toByteArray() + "::";
-            dict[AtomicString(current + name)].insert(location);
+        foreach(const AtomicString &cur, parents) {
+            const int old = name.size();
+            name.prepend("::");
+            name.prepend(cur.toByteArray());
+            if (colon != -1) {
+                colon += (name.size() - old);
+                dict[AtomicString(name.constData(), colon)].insert(location);
+            }
+
+            dict[AtomicString(name)].insert(location);
         }
     }
 }
@@ -637,7 +649,7 @@ void RBuild::writeData(const QByteArray& filename)
     }
 
     QByteArray entries;
-    QDataStream ds(&entries, QIODevice::WriteOnly);    
+    QDataStream ds(&entries, QIODevice::WriteOnly);
     foreach(const CollectData::DataEntry* entry, mData->data) {
         writeEntry(db, writeOptions, *entry);
         collectDict(*entry, dict);
@@ -650,7 +662,7 @@ void RBuild::writeData(const QByteArray& filename)
                           dep.lastModified, dep.dependencies);
     }
 
-    db->Put(writeOptions, " ", leveldb::Slice(entries.constData(), entries.size())); 
+    db->Put(writeOptions, " ", leveldb::Slice(entries.constData(), entries.size()));
     delete db;
 }
 
@@ -693,6 +705,8 @@ static inline void addCursor(const CXCursor& cursor, const CursorKey& key, Colle
             break;
         }
     }
+    if (data->parentNames.size())
+        qDebug() << key << data->parentNames;
 }
 
 //#define REFERENCEDEBUG
