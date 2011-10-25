@@ -15,7 +15,9 @@ public:
     enum Language { LangUndefined, LangC, LangCPlusPlus, LangObjC, LangObjCPlusPlus };
 
     GccArguments();
+#ifdef WITH_GPERF
     bool parse(const QByteArray& cmd, const Path &resolvedPath);
+#endif
     QByteArray raw() const;
     bool isNull() const;
     bool isEmpty() const;
@@ -87,8 +89,6 @@ public:
     friend QDataStream& operator<<(QDataStream& stream, const GccArguments::Data::Argument& args);
     friend QDataStream& operator>>(QDataStream& stream, GccArguments::Data::Argument& args);
 };
-
-Q_DECLARE_METATYPE(GccArguments)
 
 static inline QDebug operator<<(QDebug dbg, const GccArguments &args)
 {
