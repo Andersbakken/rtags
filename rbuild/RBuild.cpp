@@ -565,6 +565,31 @@ int remove_directory(const char *path)
     return r;
 }
 
+static QDataStream &operator<<(QDataStream &ds, const AtomicString &string)
+{
+    ds << string.toByteArray();
+    return ds;
+}
+
+static QDataStream &operator<<(QDataStream &ds, const CursorKey &key)
+{
+    ds << qint32(key.kind) << key.fileName << key.symbolName
+       << key.line << key.col << key.off << key.def;
+    return ds;
+}
+
+static QDataStream &operator<<(QDataStream &ds, const CollectData::Data &data)
+{
+    ds << data.cursor << data.parentNames;
+    return ds;
+}
+
+static QDataStream &operator<<(QDataStream &ds, const CollectData::DataEntry &entry)
+{
+    ds << entry.hasDefinition << entry.cursor << entry.references << entry.references;
+    return ds;
+}
+
 void RBuild::writeData(const QByteArray& filename)
 {
     if (!mData)
@@ -611,9 +636,12 @@ void RBuild::writeData(const QByteArray& filename)
         }
     }
 
+    QByteArray entries;
+    QDataStream ds(&entries, QIODevice::WriteOnly);    
     foreach(const CollectData::DataEntry* entry, mData->data) {
         writeEntry(db, writeOptions, *entry);
         collectDict(*entry, dict);
+        ds << *entry;
     }
     writeDict(db, writeOptions, dict);
 
@@ -622,6 +650,7 @@ void RBuild::writeData(const QByteArray& filename)
                           dep.lastModified, dep.dependencies);
     }
 
+    db->Put(writeOptions, " ", leveldb::Slice(entries.constData(), entries.size())); 
     delete db;
 }
 
