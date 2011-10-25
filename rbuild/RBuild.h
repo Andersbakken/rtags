@@ -18,7 +18,7 @@ public:
 
     void setDBPath(const Path &path);
     void buildDB(const Path& makefile);
-    void updateDB();
+    bool updateDB();
 private slots:
     void makefileDone();
     void makefileFileReady(const MakefileItem& file);
@@ -33,7 +33,7 @@ private:
     MakefileParser mParser;
     SystemInformation mSysInfo;
     CollectData* mData;
-    Path mDBFile;
+    Path mDBPath;
 };
 
 #endif // RBUILD_H

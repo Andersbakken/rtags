@@ -10,9 +10,9 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <Utils.h>
+#include "AtomicString.h"
 
 using namespace RTags;
-//#define REENTRANT_ATOMICSTRING
 
 static inline bool cursorDefinition(const CXCursor& c)
 {
@@ -37,164 +37,6 @@ static inline bool cursorDefinitionFor(const CXCursor& d, const CXCursor c)
         break;
     }
     return cursorDefinition(d);
-}
-
-class AtomicString
-{
-public:
-    AtomicString() : mData(0) {}
-    AtomicString(const CXString& string);
-    AtomicString(const QByteArray& string);
-    AtomicString(const QString& string);
-    AtomicString(const AtomicString& other);
-    AtomicString(const char* string, int size);
-    ~AtomicString();
-
-    AtomicString& operator=(const AtomicString& other);
-    QByteArray operator*() const { return mData ? mData->data : QByteArray(); }
-    bool operator==(const AtomicString& other) const { return mData == other.mData; }
-    bool operator==(const QByteArray& string) const { return mData ? mData->data == string : false; }
-    bool operator!=(const QByteArray& string) const { return mData ? mData->data != string : false; }
-    bool operator<(const QByteArray& string) const { return mData ? mData->data < string : false; }
-    bool operator>(const QByteArray& string) const { return mData ? mData->data > string : false; }
-    bool operator<=(const QByteArray& string) const { return mData ? mData->data <= string : false; }
-    bool operator>=(const QByteArray& string) const { return mData ? mData->data >= string : false; }
-
-    bool isEmpty() const { return mData ? mData->data.isEmpty() : true; }
-    int strcmp(const AtomicString& other) const;
-
-    QByteArray toByteArray() const { return mData ? mData->data : QByteArray(); }
-    QString toString() const { return QString::fromUtf8(mData ? mData->data.constData() : 0); }
-    const char* constData() const { return mData ? mData->data.constData() : 0; }
-
-private:
-    void init(const QByteArray& str);
-
-private:
-    struct Data
-    {
-        QByteArray data;
-        int ref;
-    };
-
-    Data* mData;
-
-    static QHash<QByteArray, Data*> sData;
-#ifdef REENTRANT_ATOMICSTRING
-    static QMutex sMutex;
-#endif
-};
-
-static QDebug &operator<<(QDebug &dbg, const AtomicString &string)
-{
-    dbg << string.toByteArray();
-    return dbg;
-}
-
-QHash<QByteArray, AtomicString::Data*> AtomicString::sData;
-#ifdef REENTRANT_ATOMICSTRING
-QMutex AtomicString::sMutex;
-#endif
-
-inline void AtomicString::init(const QByteArray& str)
-{
-    QHash<QByteArray, Data*>::iterator it = sData.find(str);
-    if (it != sData.end()) {
-        mData = it.value();
-        ++mData->ref;
-    } else {
-        mData = new Data;
-        mData->data = str;
-        mData->ref = 1;
-        sData[str] = mData;
-    }
-}
-
-AtomicString::AtomicString(const CXString& string)
-{
-#ifdef REENTRANT_ATOMICSTRING
-    QMutexLocker locker(&sMutex);
-#endif
-    QByteArray ba(clang_getCString(string));
-    init(ba);
-}
-
-AtomicString::AtomicString(const QByteArray& string)
-{
-#ifdef REENTRANT_ATOMICSTRING
-    QMutexLocker locker(&sMutex);
-#endif
-    init(string);
-}
-
-AtomicString::AtomicString(const QString& string)
-{
-#ifdef REENTRANT_ATOMICSTRING
-    QMutexLocker locker(&sMutex);
-#endif
-    init(string.toUtf8());
-}
-
-AtomicString::AtomicString(const char* string, int size)
-{
-#ifdef REENTRANT_ATOMICSTRING
-    QMutexLocker locker(&sMutex);
-#endif
-    init(QByteArray(string, size));
-}
-
-AtomicString::AtomicString(const AtomicString& other)
-{
-#ifdef REENTRANT_ATOMICSTRING
-    QMutexLocker locker(&sMutex);
-#endif
-    mData = other.mData;
-    if (mData)
-        ++mData->ref;
-}
-
-AtomicString::~AtomicString()
-{
-#ifdef REENTRANT_ATOMICSTRING
-    QMutexLocker locker(&sMutex);
-#endif
-    if (mData && !--mData->ref) {
-        sData.remove(mData->data);
-        delete mData;
-        mData = 0;
-    }
-}
-
-int AtomicString::strcmp(const AtomicString& other) const
-{
-#ifdef REENTRANT_ATOMICSTRING
-    QMutexLocker locker(&sMutex);
-#endif
-    if (!mData)
-        return !other.mData ? 0 : -1;
-    if (!other.mData)
-        return 1;
-    return qstrcmp(mData->data, other.mData->data);
-}
-
-AtomicString& AtomicString::operator=(const AtomicString& other)
-{
-#ifdef REENTRANT_ATOMICSTRING
-    QMutexLocker locker(&sMutex);
-#endif
-    if (mData && !--mData->ref) {
-        sData.remove(mData->data);
-        delete mData;
-    }
-    mData = other.mData;
-    if (mData)
-        ++mData->ref;
-    return *this;
-}
-
-static inline uint qHash(const AtomicString& string)
-{
-    return qHash(string.toByteArray());
 }
 
 class CursorKey
@@ -359,7 +201,7 @@ struct CollectData
 };
 
 RBuild::RBuild(QObject *parent)
-    : QObject(parent), mData(0)
+    : QObject(parent), mData(new CollectData)
 {
 }
 
@@ -370,7 +212,7 @@ RBuild::~RBuild()
 
 void RBuild::setDBPath(const Path &path)
 {
-    mDBFile = path;
+    mDBPath = path;
     mSysInfo.init();
 }
 
@@ -380,9 +222,59 @@ void RBuild::buildDB(const Path& makefile)
     startParse();
 }
 
-void RBuild::updateDB()
+bool RBuild::updateDB()
 {
+    leveldb::DB* db = 0;
+    leveldb::Options dbOptions;
+    if (!leveldb::DB::Open(dbOptions, mDBPath.constData(), &db).ok()) {
+        fprintf(stderr, "Can't open db [%s]\n", mDBPath.constData());
+        return false;
+    }
+    LevelDBScope scope(db);
+    QHash<Path, GccArguments> dirty;
+    leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
+    for (it->Seek("f:"); it->Valid(); it->Next()) {
+        const leveldb::Slice key = it->key();
+        if (strncmp(key.data(), "f:", 2))
+            break;
+        GccArguments args;
+        time_t lastModified;
+        QHash<Path, time_t> dependencies;
 
+        const leveldb::Slice value = it->value();
+        const QByteArray data = QByteArray::fromRawData(value.data(), value.size());
+        QDataStream ds(data);
+        ds >> args >> lastModified >> dependencies;
+        const CollectData::Dependencies dep = { Path(key.data() + 2), args, lastModified, dependencies };
+        if (lastModified != dep.file.lastModified())
+            dirty.insert(dep.file, args);
+        for (QHash<Path, time_t>::const_iterator it = dependencies.constBegin(); it != dependencies.constEnd(); ++it) {
+            if (!dirty.contains(it.key()) && it.key().lastModified() != it.value())
+                dirty.insert(it.key(), GccArguments());
+        }
+
+        mData->dependencies.append(dep);
+        // qDebug() << file << args.raw() << ctime(&lastModified) << dependencies;
+    }
+    delete it;
+
+    std::string value;
+    if (!db->Get(leveldb::ReadOptions(), " ", &value).ok()) {
+        fprintf(stderr, "Can't read existing data\n");
+        return false;
+    }
+    const QByteArray data = QByteArray::fromRawData(value.c_str(), value.size());
+    QDataStream ds(data);
+    int count;
+    ds >> count;
+    for (int i=0; i<count; ++i) {
+        CollectData::DataEntry *entry = new CollectData::DataEntry;
+        // ds >> *entry;
+#warning back to this
+        mData->data.append(entry);
+    }
+
+    return true;
 }
 
 void RBuild::startParse()
@@ -396,7 +288,7 @@ void RBuild::startParse()
 void RBuild::makefileDone()
 {
     fprintf(stderr, "Done parsing, now writing.\n");
-    writeData(".rtags.db");
+    writeData(mDBPath);
     fprintf(stderr, "All done.\n");
 
     qApp->quit();
@@ -537,7 +429,7 @@ static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
     //          << cursorKeyToString(val);
 }
 
-int remove_directory(const char *path)
+static inline int removeDirectory(const char *path)
 {
     DIR *d = opendir(path);
     size_t path_len = strlen(path);
@@ -566,7 +458,7 @@ int remove_directory(const char *path)
                 snprintf(buf, len, "%s/%s", path, p->d_name);
                 if (!stat(buf, &statbuf)) {
                     if (S_ISDIR(statbuf.st_mode)) {
-                        r2 = remove_directory(buf);
+                        r2 = removeDirectory(buf);
                     } else {
                         r2 = unlink(buf);
                     }
@@ -623,8 +515,8 @@ void RBuild::writeData(const QByteArray& filename)
     leveldb::WriteOptions writeOptions;
     dbOptions.create_if_missing = true;
 
-    Q_ASSERT(filename.endsWith(".rtags.db"));
-    remove_directory(filename.constData());
+    // Q_ASSERT(filename.endsWith(".rtags.db"));
+    removeDirectory(filename.constData());
     if (!leveldb::DB::Open(dbOptions, filename.constData(), &db).ok()) {
         return;
     }
@@ -661,11 +553,13 @@ void RBuild::writeData(const QByteArray& filename)
 
     QByteArray entries;
     QDataStream ds(&entries, QIODevice::WriteOnly);
+    ds << mData->data.size();
     foreach(const CollectData::DataEntry* entry, mData->data) {
         writeEntry(db, writeOptions, *entry);
         collectDict(*entry, dict);
         ds << *entry;
     }
+
     writeDict(db, writeOptions, dict);
 
     foreach(const CollectData::Dependencies &dep, mData->dependencies) {
@@ -716,8 +610,6 @@ static inline void addCursor(const CXCursor& cursor, const CursorKey& key, Colle
             break;
         }
     }
-    if (data->parentNames.size())
-        qDebug() << key << data->parentNames;
 }
 
 //#define REFERENCEDEBUG
@@ -942,18 +834,19 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
 
 static inline void getInclusions(CXFile includedFile,
                                  CXSourceLocation* inclusionStack,
-                                 unsigned includeLen,
+                                 unsigned evilUnsigned,
                                  CXClientData userData)
 {
-    CollectData::Dependencies *deps = reinterpret_cast<CollectData::Dependencies*>(userData);
-    CXString str = clang_getFileName(includedFile);
-    Path p = Path::resolved(clang_getCString(str));
-    deps->dependencies[p] = p.lastModified();
-    clang_disposeString(str);
-    // printf("Included file %s\n", eatString(clang_getFileName(includedFile)).constData());
-    // qDebug() << includeLen;
-    if (includeLen > 1) {
-        for (unsigned i=0; i<includeLen - 1; ++i) {
+    int includeLen = evilUnsigned;
+    if (includeLen) {
+        CollectData::Dependencies *deps = reinterpret_cast<CollectData::Dependencies*>(userData);
+        CXString str = clang_getFileName(includedFile);
+        Path p = Path::resolved(clang_getCString(str));
+        deps->dependencies[p] = p.lastModified();
+        clang_disposeString(str);
+        // printf("Included file %s %d\n", eatString(clang_getFileName(includedFile)).constData(), includeLen);
+        // qDebug() << includeLen;
+        for (int i=0; i<includeLen - 1; ++i) {
             CXFile f;
             clang_getSpellingLocation(inclusionStack[i], &f, 0, 0, 0);
             str = clang_getFileName(f);
@@ -1022,9 +915,6 @@ void RBuild::compile(const GccArguments& arguments)
             clang_disposeString(fn);
             clang_disposeDiagnostic(diag);
         }
-
-        if (!mData)
-            mData = new CollectData;
 
         CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
         clang_visitChildren(unitCursor, collectSymbols, mData);

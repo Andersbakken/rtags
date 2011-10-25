@@ -13,13 +13,13 @@ QDataStream &operator>>(QDataStream &ds, time_t &t);
 bool parseLocation(const std::string &string,
                    std::string &file, unsigned &line, unsigned &col);
 Path findRtagsDb();
-class Scope
+class LevelDBScope
 {
 public:
-    Scope(leveldb::DB *d)
+    LevelDBScope(leveldb::DB *d)
         : db(d)
     {}
-    ~Scope()
+    ~LevelDBScope()
     {
         delete db;
     }

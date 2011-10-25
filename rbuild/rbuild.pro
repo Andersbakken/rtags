@@ -20,13 +20,15 @@ SOURCES += main.cpp \
     RBuild.cpp \
     MakefileParser.cpp \
     SystemInformation.cpp \
-    Utils.cpp
+    Utils.cpp \
+    AtomicString.cpp
 
 HEADERS += \
     RBuild.h \
     MakefileParser.h \
     SystemInformation.h \
-    Utils.h
+    Utils.h \
+    AtomicString.h
 
 QMAKE_CXXFLAGS += -O2
 

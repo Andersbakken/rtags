@@ -144,7 +144,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "Unable to open db %s\n", dbFile.constData());
         return 1;
     }
-    Scope scope(db);
+    LevelDBScope scope(db);
 
     switch (mode) {
     case None:
