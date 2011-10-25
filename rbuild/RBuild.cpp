@@ -7,7 +7,8 @@
 #include <leveldb/db.h>
 #include <stdio.h>
 #include <stdint.h>
-
+#include <sys/types.h>
+#include <dirent.h>
 
 //#define REENTRANT_ATOMICSTRING
 
@@ -498,9 +499,7 @@ static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
                               const CollectData::DataEntry& entry)
 {
     const CursorKey& key = entry.cursor.cursor;
-    const CursorKey& val = entry.reference.cursor;
-    if (!key.isValid()/* || !val.isValid() || key == val*/) {
-        // qDebug() << (key == val) << key.isValid() << val.isValid() << key << val;
+    if (!key.isValid()) {
         return;
     }
 
@@ -512,6 +511,57 @@ static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
     //          << cursorKeyToString(val);
 }
 
+int remove_directory(const char *path)
+{
+    DIR *d = opendir(path);
+    size_t path_len = strlen(path);
+    int r = -1;
+
+    if (d) {
+        struct dirent *p;
+
+        r = 0;
+
+        while (!r && (p=readdir(d))) {
+            int r2 = -1;
+            char *buf;
+            size_t len;
+
+            /* Skip the names "." and ".." as we don't want to recurse on them. */
+            if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) {
+                continue;
+            }
+
+            len = path_len + strlen(p->d_name) + 2;
+            buf = static_cast<char*>(malloc(len));
+
+            if (buf) {
+                struct stat statbuf;
+                snprintf(buf, len, "%s/%s", path, p->d_name);
+                if (!stat(buf, &statbuf)) {
+                    if (S_ISDIR(statbuf.st_mode)) {
+                        r2 = remove_directory(buf);
+                    } else {
+                        r2 = unlink(buf);
+                    }
+                }
+
+                free(buf);
+            }
+
+            r = r2;
+        }
+
+        closedir(d);
+    }
+
+    if (!r) {
+        r = rmdir(path);
+    }
+
+    return r;
+}
+
 void RBuild::writeData(const QByteArray& filename)
 {
     if (!mData)
@@ -521,7 +571,9 @@ void RBuild::writeData(const QByteArray& filename)
     leveldb::Options dbOptions;
     leveldb::WriteOptions writeOptions;
     dbOptions.create_if_missing = true;
-    unlink(filename.constData());
+
+    Q_ASSERT(filename.endsWith(".rtags.db"));
+    remove_directory(filename.constData());
     if (!leveldb::DB::Open(dbOptions, filename.constData(), &db).ok()) {
         return;
     }
