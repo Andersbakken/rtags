@@ -113,6 +113,11 @@ public:
     bool def;
 };
 
+struct Cursor {
+    CursorKey key;
+    QList<AtomicString> parentNames;
+};
+
 static inline QDataStream &operator<<(QDataStream &ds, const CursorKey &key)
 {
     ds << qint32(key.kind) << key.fileName << key.symbolName
@@ -126,6 +131,18 @@ static inline QDataStream &operator>>(QDataStream &ds, CursorKey &key)
     ds >> kind >> key.fileName >> key.symbolName
        >> key.line >> key.col >> key.off >> key.def;
     key.kind = static_cast<CXCursorKind>(kind);
+    return ds;
+}
+
+static inline QDataStream &operator<<(QDataStream &ds, const Cursor &cursor)
+{
+    ds << cursor.key << cursor.parentNames;
+    return ds;
+}
+
+static inline QDataStream &operator>>(QDataStream &ds, Cursor &cursor)
+{
+    ds >> cursor.key >> cursor.parentNames;
     return ds;
 }
 

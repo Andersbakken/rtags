@@ -163,7 +163,7 @@ static inline void writeDict(leveldb::DB* db, const leveldb::WriteOptions& opt, 
 
 static inline void collectDict(const RBuildPrivate::DataEntry& entry, QHash<AtomicString, QSet<AtomicString> >& dict)
 {
-    const RBuildPrivate::Cursor* datas[] = { &entry.cursor, &entry.reference };
+    const Cursor* datas[] = { &entry.cursor, &entry.reference };
     for (int i = 0; i < 2; ++i) {
         const CursorKey& key = datas[i]->key;
         if (!key.isValid())
@@ -359,7 +359,7 @@ static inline void debugCursor(FILE* out, const CXCursor& cursor)
     clang_disposeString(filename);
 }
 
-static inline void addCursor(const CXCursor& cursor, const CursorKey& key, RBuildPrivate::Cursor* data)
+static inline void addCursor(const CXCursor& cursor, const CursorKey& key, Cursor* data)
 {
     Q_ASSERT(key.isValid());
     data->key = key;
