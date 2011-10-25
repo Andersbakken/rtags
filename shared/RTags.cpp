@@ -44,8 +44,8 @@ Path findRtagsDb()
             // ### this is awful
             struct ::stat s;
             std::string path(buffer);
-            path += ".rtags.db";
-            printf("Testing [%s]\n", path.c_str());
+            path += "/.rtags.db";
+            // printf("Testing [%s]\n", path.c_str());
             if (stat(path.c_str(), &s) >= 0)
                 return QByteArray(path.c_str(), path.size());
             *slash = '\0';
