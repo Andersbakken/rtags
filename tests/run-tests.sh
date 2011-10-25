@@ -8,21 +8,25 @@ function runtest {
     make > /dev/null 2> /dev/null
     rb Makefile > /dev/null 2> /dev/null
 
-    prev=
+    type=
+    input=
     fail=0
-    while read line; do
-        if [ ! -z "$line" ]; then
-            if [ -z "$prev" ]; then
-                prev=$line
+    while read expect; do
+        if [ ! -z "$expect" ]; then
+	    if [ -z "$type" ]; then
+		type=$expect
+            elif [ -z "$input" ]; then
+                input=$expect
             else
-                result=`../../rc --follow-symbol ${pwd}/${prev}`
-                #echo "${prev} => ${line} and result=${result}"
-                if [ "${pwd}/${line}" != "${result}" ]; then
+                result=`../../rc ${type} ${pwd}/${input}`
+                #echo "${input} => ${expect} and result=${result}"
+                if [ "${pwd}/${expect}" != "${result}" ]; then
                     result=$(echo $result | awk 'BEGIN { FS = "/"} ; { print $NF }')
-                    echo "Test ${1} failed, ${prev} is ${result}, expected ${line}"
+                    echo "Test ${1} failed, ${input} is ${result}, expected ${expect}"
                     fail=1
                 fi
-                prev=
+                input=
+		type=
             fi
         fi
     done < expect.txt
