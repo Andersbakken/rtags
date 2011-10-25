@@ -398,7 +398,8 @@ static inline void writeDependencies(leveldb::DB* db, const leveldb::WriteOption
         QDataStream ds(&out, QIODevice::WriteOnly);
         ds << args << lastModified << dependencies;
     }
-    db->Put(opt, leveldb::Slice(path.constData(), path.size()),
+    const QByteArray p = "f:" + path;
+    db->Put(opt, leveldb::Slice(p.constData(), p.size()),
             leveldb::Slice(out.constData(), out.size()));
 }
 
