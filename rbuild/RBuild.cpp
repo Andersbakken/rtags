@@ -1,5 +1,5 @@
 #include "RBuild.h"
-#include "Shared.h"
+#include <RTags.h>
 #include <QCoreApplication>
 #include <QtAlgorithms>
 #include <sstream>
@@ -11,6 +11,7 @@
 #include <dirent.h>
 #include <Utils.h>
 
+using namespace RTags;
 //#define REENTRANT_ATOMICSTRING
 
 static inline bool cursorDefinition(const CXCursor& c)
@@ -367,11 +368,21 @@ RBuild::~RBuild()
     delete mData;
 }
 
-void RBuild::init(const Path& makefile)
+void RBuild::setDBPath(const Path &path)
 {
-    connect(&mSysInfo, SIGNAL(done()), this, SLOT(startParse()));
+    mDBFile = path;
     mSysInfo.init();
+}
+
+void RBuild::buildDB(const Path& makefile)
+{
     mMakefile = makefile;
+    startParse();
+}
+
+void RBuild::updateDB()
+{
+
 }
 
 void RBuild::startParse()

@@ -3,9 +3,11 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <limits.h>
-#include <Shared.h>
+#include <RTags.h>
 #include <QtCore>
 #include <GccArguments.h>
+
+using namespace RTags;
 
 static inline int readLine(FILE *f, char *buf, int max)
 {

@@ -16,8 +16,9 @@ public:
     RBuild(QObject *parent = 0);
     ~RBuild();
 
-    void init(const Path& makefile);
-
+    void setDBPath(const Path &path);
+    void buildDB(const Path& makefile);
+    void updateDB();
 private slots:
     void makefileDone();
     void makefileFileReady(const MakefileItem& file);
@@ -32,6 +33,7 @@ private:
     MakefileParser mParser;
     SystemInformation mSysInfo;
     CollectData* mData;
+    Path mDBFile;
 };
 
 #endif // RBUILD_H

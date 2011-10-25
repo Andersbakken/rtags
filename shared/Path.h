@@ -33,6 +33,12 @@ public:
         return *this;
     }
 
+    Path &operator=(const char *path)
+    {
+        QByteArray::operator=(path);
+        return *this;
+    }
+
     enum Type {
         Invalid,
         File,

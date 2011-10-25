@@ -16,6 +16,7 @@ void SystemInformation::init()
     connect(proc, SIGNAL(finished(int)), this, SLOT(parseSystemIncludes()));
     proc->start(QLatin1String("cpp"), QStringList() << QLatin1String("-v"));
     proc->closeWriteChannel();
+    proc->waitForFinished();
 }
 
 QList<QByteArray> SystemInformation::systemIncludes()

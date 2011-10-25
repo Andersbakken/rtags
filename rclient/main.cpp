@@ -6,39 +6,9 @@
 #include <sys/stat.h>
 #include <QtCore>
 #include <getopt.h>
+#include <RTags.h>
 
-static inline std::string findRtagsDb(const std::string& filename)
-{
-    char buffer[500];
-    if (getcwd(buffer, 500)) {
-        char *slash;
-        while ((slash = strrchr(buffer, '/'))) {
-            // ### this is awful
-            struct ::stat s;
-            std::string path(buffer);
-            path += filename;
-            //printf("Testing [%s]\n", path.c_str());
-            if (stat(path.c_str(), &s) >= 0)
-                return path;
-            *slash = '\0';
-        }
-    }
-    return std::string();
-}
-
-class Scope
-{
-public:
-    Scope(leveldb::DB *d)
-        : db(d)
-    {}
-    ~Scope()
-    {
-        delete db;
-    }
-private:
-    leveldb::DB *db;
-};
+using namespace RTags;
 
 static inline void maybeDict(leveldb::DB *db, const std::string &key,
                              bool (*func)(leveldb::DB *db, const std::string &key))
@@ -109,7 +79,7 @@ int main(int argc, char** argv)
     struct option longOptions[] = {
         { "help", 0, 0, 'h' },
         { "follow-symbol", 1, 0, 'f' },
-        { "db-file", 1, 0, 'f' },
+        { "db-file", 1, 0, 'd' },
         { "find-references", 1, 0, 'r' },
         // { "recursive-references", 1, 0, 'R' },
         // { "max-recursion-reference-depth", 1, 0, 'x' },
@@ -118,7 +88,7 @@ int main(int argc, char** argv)
     };
     const char *shortOptions = "hf:d:r:l:";
 
-    std::string dbFile = findRtagsDb("/.rtags.db");
+    QByteArray dbFile = findRtagsDb();
 
     enum Mode {
         None,
@@ -167,11 +137,11 @@ int main(int argc, char** argv)
         }
     }
 
-    if (dbFile.empty())
+    if (dbFile.isEmpty())
         return 1;
     leveldb::DB* db;
-    if (!leveldb::DB::Open(leveldb::Options(), dbFile, &db).ok()) {
-        fprintf(stderr, "Unable to open db %s\n", dbFile.c_str());
+    if (!leveldb::DB::Open(leveldb::Options(), dbFile.constData(), &db).ok()) {
+        fprintf(stderr, "Unable to open db %s\n", dbFile.constData());
         return 1;
     }
     Scope scope(db);

@@ -17,4 +17,4 @@ unix {
     OBJECTS_DIR = .obj
 }
 
-include(../3rdparty/leveldb.pri)
+include(../shared/shared.pri)
