@@ -6,7 +6,8 @@ TEMPLATE = app
 TARGET = rb
 DESTDIR = ..
 DEPENDPATH += .
-INCLUDEPATH += . ../shared
+DEFINES += WITH_GPERF
+include(../shared/shared.pri)
 
 QT -= gui
 macx {
@@ -18,18 +19,14 @@ macx {
 SOURCES += main.cpp \
     RBuild.cpp \
     MakefileParser.cpp \
-    GccArguments.cpp \
-    Path.cpp \
-    Utils.cpp \
-    SystemInformation.cpp
+    SystemInformation.cpp \
+    Utils.cpp
 
 HEADERS += \
     RBuild.h \
     MakefileParser.h \
-    GccArguments.h \
-    Path.h \
-    Utils.h \
-    SystemInformation.h
+    SystemInformation.h \
+    Utils.h
 
 QMAKE_CXXFLAGS += -O2
 
@@ -46,7 +43,7 @@ QMAKE_EXTRA_TARGETS += gccopts_gperf
 
 PRE_TARGETDEPS += gccopts_gperf.cpp
 
-LIBS += -lmagic -lclang
+LIBS += -lclang
 unix {
     MOC_DIR = .moc
     OBJECTS_DIR = .obj

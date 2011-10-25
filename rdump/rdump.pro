@@ -2,7 +2,7 @@ TEMPLATE = app
 TARGET = rd
 DESTDIR = ..
 DEPENDPATH += .
-INCLUDEPATH += . ../shared
+include(../shared/shared.pri)
 QT = core
 macx {
     CONFIG -= app_bundle
@@ -10,7 +10,7 @@ macx {
     LIBS += -L/opt/local/lib
 }
 
-SOURCES += main.cpp
+SOURCES += main.cpp 
 
 release {
     QMAKE_CXXFLAGS += -g

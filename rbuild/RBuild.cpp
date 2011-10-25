@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <dirent.h>
+#include <Utils.h>
 
 //#define REENTRANT_ATOMICSTRING
 

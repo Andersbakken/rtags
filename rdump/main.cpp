@@ -5,6 +5,7 @@
 #include <limits.h>
 #include <Shared.h>
 #include <QtCore>
+#include <GccArguments.h>
 
 static inline int readLine(FILE *f, char *buf, int max)
 {
@@ -91,14 +92,16 @@ static inline void dumpDatabase(const std::string& filename, int type)
                 val.replace('\0', " :: ");
                 printf("dict entry %s: %s\n", key.substr(2).c_str(), val.constData());
             }
-        } else { // must be dependencies
+        } else if (key.substr(0, 2) == "f:") { // dependency
             if (type & Dependency) {
                 const QByteArray ba = QByteArray::fromRawData(it->value().data(),
                                                               it->value().size());
                 QDataStream ds(ba);
+                GccArguments args;
+                ds >> args;
                 time_t lastModified;
                 ds >> lastModified;
-                printf("%s %s", key.c_str(), ctime(&lastModified));
+                printf("%s %s %s", key.c_str() + 2, args.raw().constData(), ctime(&lastModified));
                 QHash<QByteArray, time_t> dependencies;
                 ds >> dependencies;
                 for (QHash<QByteArray, time_t>::const_iterator it = dependencies.begin();

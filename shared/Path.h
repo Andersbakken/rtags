@@ -7,8 +7,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <qbytearray.h>
-#include "Utils.h"
-#include <clang-c/Index.h>
+#include <QMetaObject>
 
 class Path : public QByteArray
 {
@@ -69,9 +68,7 @@ public:
     time_t lastModified() const;
     int64_t fileSize() const;
     static Path resolved(const QByteArray &path, const Path &cwd = Path(), bool *ok = 0);
-    static Path eatCXString(CXString string) { return eatString(string); }
 };
-Q_DECLARE_METATYPE(Path);
 
 static inline QDataStream &operator<<(QDataStream &ds, const Path &path)
 {
