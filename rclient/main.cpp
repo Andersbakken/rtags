@@ -106,9 +106,6 @@ static inline void usage(const char* argv0, FILE *f)
 
 int main(int argc, char** argv)
 {
-    if (argc < 3)
-        return 1;
-
     struct option longOptions[] = {
         { "help", 0, 0, 'h' },
         { "follow-symbol", 1, 0, 'f' },
@@ -122,7 +119,6 @@ int main(int argc, char** argv)
     const char *shortOptions = "hf:d:r:l:";
 
     std::string dbFile = findRtagsDb("/.rtags.db");
-
 
     enum Mode {
         None,
