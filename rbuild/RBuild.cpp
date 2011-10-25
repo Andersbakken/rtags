@@ -343,6 +343,7 @@ struct CollectData
     QList<DataEntry*> data;
     struct Dependencies {
         Path file;
+        GccArguments arguments;
         time_t lastModified;
         QHash<Path, time_t> dependencies;
     };
@@ -389,13 +390,13 @@ void RBuild::makefileFileReady(const MakefileItem& file)
 }
 
 static inline void writeDependencies(leveldb::DB* db, const leveldb::WriteOptions& opt,
-                                     const Path &path, time_t lastModified,
-                                     const QHash<Path, time_t> &dependencies)
+                                     const Path &path, const GccArguments &args,
+                                     time_t lastModified, const QHash<Path, time_t> &dependencies)
 {
     QByteArray out;
     {
         QDataStream ds(&out, QIODevice::WriteOnly);
-        ds << lastModified << dependencies;
+        ds << args << lastModified << dependencies;
     }
     db->Put(opt, leveldb::Slice(path.constData(), path.size()),
             leveldb::Slice(out.constData(), out.size()));
@@ -615,7 +616,8 @@ void RBuild::writeData(const QByteArray& filename)
     writeDict(db, writeOptions, dict);
 
     foreach(const CollectData::Dependencies &dep, mData->dependencies) {
-        writeDependencies(db, writeOptions, dep.file, dep.lastModified, dep.dependencies);
+        writeDependencies(db, writeOptions, dep.file, dep.arguments,
+                          dep.lastModified, dep.dependencies);
     }
 
     delete db;
@@ -945,7 +947,7 @@ void RBuild::compile(const GccArguments& arguments)
             mData = new CollectData;
 
         CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
-        CollectData::Dependencies deps = { input, input.lastModified(),
+        CollectData::Dependencies deps = { input, arguments, input.lastModified(),
                                            QHash<Path, time_t>() };
         mData->dependencies.append(deps);
         clang_visitChildren(unitCursor, collectSymbols, mData);
