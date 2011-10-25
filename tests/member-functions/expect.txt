@@ -98,7 +98,7 @@ test1.cpp:9:1
 test1.h:6:7
 
 test1.cpp:9:8
-test1.h:6:7
+test1.h:9:5
 
 test1.h:11:9
 test1.cpp:14:12
