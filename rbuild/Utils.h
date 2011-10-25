@@ -54,6 +54,32 @@ static inline void removeWhitespace(QByteArray &ba)
     }
 }
 
+
+static inline bool cursorDefinition(const CXCursor& c)
+{
+    switch (clang_getCursorKind(c)) {
+    case CXCursor_MacroDefinition:
+        return true;
+    case CXCursor_VarDecl:
+        //return false;
+    default:
+        break;
+    }
+
+    return (clang_isCursorDefinition(c) != 0);
+}
+
+static inline bool cursorDefinitionFor(const CXCursor& d, const CXCursor c)
+{
+    switch (clang_getCursorKind(c)) {
+    case CXCursor_CallExpr:
+        return false;
+    default:
+        break;
+    }
+    return cursorDefinition(d);
+}
+
 QDebug operator<<(QDebug dbg, CXCursor cursor);
 
 #endif

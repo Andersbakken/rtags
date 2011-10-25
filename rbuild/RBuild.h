@@ -7,8 +7,7 @@
 #include "SystemInformation.h"
 #include <QObject>
 
-class CollectData;
-
+struct RBuildPrivate;
 class RBuild : public QObject
 {
     Q_OBJECT
@@ -32,7 +31,7 @@ private:
     Path mMakefile;
     MakefileParser mParser;
     SystemInformation mSysInfo;
-    CollectData* mData;
+    RBuildPrivate* mData;
     Path mDBPath;
 };
 

@@ -11,197 +11,13 @@
 #include <dirent.h>
 #include <Utils.h>
 #include "AtomicString.h"
+#include "CursorKey.h"
+#include "RBuild_p.h"
 
 using namespace RTags;
 
-static inline bool cursorDefinition(const CXCursor& c)
-{
-    switch (clang_getCursorKind(c)) {
-    case CXCursor_MacroDefinition:
-        return true;
-    case CXCursor_VarDecl:
-        //return false;
-    default:
-        break;
-    }
-
-    return (clang_isCursorDefinition(c) != 0);
-}
-
-static inline bool cursorDefinitionFor(const CXCursor& d, const CXCursor c)
-{
-    switch (clang_getCursorKind(c)) {
-    case CXCursor_CallExpr:
-        return false;
-    default:
-        break;
-    }
-    return cursorDefinition(d);
-}
-
-class CursorKey
-{
-public:
-    CursorKey()
-        : kind(CXCursor_FirstInvalid), line(0), col(0), off(0), def(false)
-    {}
-    CursorKey(const CXCursor &cursor)
-        : kind(clang_getCursorKind(cursor)), line(0), col(0), off(0), def(false)
-    {
-        if (!clang_isInvalid(kind)) {
-            CXSourceLocation loc = clang_getCursorLocation(cursor);
-            CXFile file;
-            clang_getInstantiationLocation(loc, &file, &line, &col, &off);
-            fileName = Path::resolved(eatString(clang_getFileName(file)));
-            symbolName = eatString(clang_getCursorDisplayName(cursor));
-            def = cursorDefinition(cursor);
-        }
-    }
-
-    bool isValid() const
-    {
-        return !fileName.isEmpty() && !symbolName.isEmpty();
-    }
-
-    bool isNull() const
-    {
-        return !isValid();
-    }
-
-    bool isDefinition() const
-    {
-        return def;
-    }
-
-    bool operator<(const CursorKey &other) const
-    {
-        if (!isValid())
-            return true;
-        if (!other.isValid())
-            return false;
-        int ret = fileName.strcmp(other.fileName);
-        if (ret < 0)
-            return true;
-        if (ret > 0)
-            return false;
-        if (off < other.off)
-            return true;
-        if (off > other.off)
-            return false;
-        ret = symbolName.strcmp(other.symbolName);
-        if (ret < 0)
-            return true;
-        if (ret > 0)
-            return false;
-        return kind < other.kind;
-    }
-
-    bool operator==(const CursorKey &other) const
-    {
-        if (isNull())
-            return other.isNull();
-        return (kind == other.kind
-                && off == other.off
-                && fileName == other.fileName
-                && symbolName == other.symbolName);
-    }
-    bool operator!=(const CursorKey &other) const
-    {
-        return !operator==(other);
-    }
-
-    QByteArray locationKey() const
-    {
-        QByteArray key(fileName.toByteArray());
-        key += ":" + QByteArray::number(off);
-        return key;
-    }
-
-    CXCursorKind kind;
-    AtomicString fileName;
-    AtomicString symbolName;
-    unsigned line, col, off;
-    bool def;
-};
-
-QDebug operator<<(QDebug d, const CursorKey& key)
-{
-    d.nospace() << eatString(clang_getCursorKindSpelling(key.kind)).constData() << ", "
-                << (key.symbolName.isEmpty() ? "(no symbol)" : key.symbolName.toByteArray().constData()) << ", "
-                << key.fileName.toByteArray().constData() << ':' << key.line << ':' << key.col;
-    return d.space();
-}
-
-static inline uint qHash(const CursorKey &key)
-{
-    uint h = 0;
-    if (!key.isNull()) {
-#define HASHCHAR(ch)                            \
-        h = (h << 4) + ch;                      \
-        h ^= (h & 0xf0000000) >> 23;            \
-        h &= 0x0fffffff;                        \
-        ++h;
-
-        QByteArray name = key.fileName.toByteArray();
-        const char *ch = name.constData();
-        Q_ASSERT(ch);
-        while (*ch) {
-            HASHCHAR(*ch);
-            ++ch;
-        }
-        name = key.symbolName.toByteArray();
-        ch = name.constData();
-        Q_ASSERT(ch);
-        while (*ch) {
-            HASHCHAR(*ch);
-            ++ch;
-        }
-        const uint16_t uints[] = { key.kind, key.off };
-        for (int i=0; i<2; ++i) {
-            ch = reinterpret_cast<const char*>(&uints[i]);
-            for (int j=0; j<2; ++j) {
-                HASHCHAR(*ch);
-                ++ch;
-            }
-        }
-    }
-    return h;
-}
-
-struct CollectData
-{
-    CollectData() {}
-    ~CollectData() { qDeleteAll(data); }
-
-    struct Data
-    {
-        CursorKey cursor;
-        QList<AtomicString> parentNames;
-    };
-
-    struct DataEntry
-    {
-        DataEntry() : hasDefinition(false) {}
-
-        bool hasDefinition;
-        Data cursor;
-        Data reference;
-        QSet<QByteArray> references;
-    };
-
-    QHash<QByteArray, DataEntry*> seen;
-    QList<DataEntry*> data;
-    struct Dependencies {
-        Path file;
-        GccArguments arguments;
-        time_t lastModified;
-        QHash<Path, time_t> dependencies;
-    };
-    QList<Dependencies> dependencies;
-};
-
 RBuild::RBuild(QObject *parent)
-    : QObject(parent), mData(new CollectData)
+    : QObject(parent), mData(new RBuildPrivate)
 {
 }
 
@@ -245,7 +61,7 @@ bool RBuild::updateDB()
         const QByteArray data = QByteArray::fromRawData(value.data(), value.size());
         QDataStream ds(data);
         ds >> args >> lastModified >> dependencies;
-        const CollectData::Dependencies dep = { Path(key.data() + 2), args, lastModified, dependencies };
+        const RBuildPrivate::Dependencies dep = { Path(key.data() + 2), args, lastModified, dependencies };
         if (lastModified != dep.file.lastModified())
             dirty.insert(dep.file, args);
         for (QHash<Path, time_t>::const_iterator it = dependencies.constBegin(); it != dependencies.constEnd(); ++it) {
@@ -268,9 +84,8 @@ bool RBuild::updateDB()
     int count;
     ds >> count;
     for (int i=0; i<count; ++i) {
-        CollectData::DataEntry *entry = new CollectData::DataEntry;
-        // ds >> *entry;
-#warning back to this
+        RBuildPrivate::DataEntry *entry = new RBuildPrivate::DataEntry;
+        ds >> *entry;
         mData->data.append(entry);
     }
 
@@ -325,7 +140,7 @@ static inline QByteArray cursorKeyToString(const CursorKey& key)
     return out;
 }
 
-static inline QByteArray makeRefValue(const CollectData::DataEntry& entry)
+static inline QByteArray makeRefValue(const RBuildPrivate::DataEntry& entry)
 {
     QByteArray out;
     {
@@ -359,9 +174,9 @@ static inline void writeDict(leveldb::DB* db, const leveldb::WriteOptions& opt, 
     }
 }
 
-static inline void collectDict(const CollectData::DataEntry& entry, QHash<AtomicString, QSet<AtomicString> >& dict)
+static inline void collectDict(const RBuildPrivate::DataEntry& entry, QHash<AtomicString, QSet<AtomicString> >& dict)
 {
-    const CollectData::Data* datas[] = { &entry.cursor, &entry.reference };
+    const RBuildPrivate::Cursor* datas[] = { &entry.cursor, &entry.reference };
     for (int i = 0; i < 2; ++i) {
         const CursorKey& key = datas[i]->cursor;
         if (!key.isValid())
@@ -414,7 +229,7 @@ static inline void collectDict(const CollectData::DataEntry& entry, QHash<Atomic
 }
 
 static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
-                              const CollectData::DataEntry& entry)
+                              const RBuildPrivate::DataEntry& entry)
 {
     const CursorKey& key = entry.cursor.cursor;
     if (!key.isValid()) {
@@ -480,31 +295,6 @@ static inline int removeDirectory(const char *path)
     return r;
 }
 
-static QDataStream &operator<<(QDataStream &ds, const AtomicString &string)
-{
-    ds << string.toByteArray();
-    return ds;
-}
-
-static QDataStream &operator<<(QDataStream &ds, const CursorKey &key)
-{
-    ds << qint32(key.kind) << key.fileName << key.symbolName
-       << key.line << key.col << key.off << key.def;
-    return ds;
-}
-
-static QDataStream &operator<<(QDataStream &ds, const CollectData::Data &data)
-{
-    ds << data.cursor << data.parentNames;
-    return ds;
-}
-
-static QDataStream &operator<<(QDataStream &ds, const CollectData::DataEntry &entry)
-{
-    ds << entry.hasDefinition << entry.cursor << entry.references << entry.references;
-    return ds;
-}
-
 void RBuild::writeData(const QByteArray& filename)
 {
     if (!mData)
@@ -523,21 +313,21 @@ void RBuild::writeData(const QByteArray& filename)
     Q_ASSERT(db);
 
     QHash<AtomicString, QSet<AtomicString> > dict;
-    foreach(CollectData::DataEntry* entry, mData->data) {
+    foreach(RBuildPrivate::DataEntry* entry, mData->data) {
         const CursorKey key = entry->cursor.cursor;
         const CursorKey ref = entry->reference.cursor;
         if (key.kind == CXCursor_CXXMethod
             || key.kind == CXCursor_Constructor
             || key.kind == CXCursor_Destructor) {
             if (key != ref && !key.isDefinition()) {
-                CollectData::DataEntry *def = mData->seen.value(ref.locationKey());
+                RBuildPrivate::DataEntry *def = mData->seen.value(ref.locationKey());
                 Q_ASSERT(def && def != entry);
                 def->reference = entry->cursor;
             }
             continue;
         }
 
-        CollectData::DataEntry *r = mData->seen.value(entry->reference.cursor.locationKey());
+        RBuildPrivate::DataEntry *r = mData->seen.value(entry->reference.cursor.locationKey());
         if (r == entry)
             continue;
         if (r) {
@@ -554,7 +344,7 @@ void RBuild::writeData(const QByteArray& filename)
     QByteArray entries;
     QDataStream ds(&entries, QIODevice::WriteOnly);
     ds << mData->data.size();
-    foreach(const CollectData::DataEntry* entry, mData->data) {
+    foreach(const RBuildPrivate::DataEntry* entry, mData->data) {
         writeEntry(db, writeOptions, *entry);
         collectDict(*entry, dict);
         ds << *entry;
@@ -562,7 +352,7 @@ void RBuild::writeData(const QByteArray& filename)
 
     writeDict(db, writeOptions, dict);
 
-    foreach(const CollectData::Dependencies &dep, mData->dependencies) {
+    foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
         writeDependencies(db, writeOptions, dep.file, dep.arguments,
                           dep.lastModified, dep.dependencies);
     }
@@ -589,7 +379,7 @@ static inline void debugCursor(FILE* out, const CXCursor& cursor)
     clang_disposeString(filename);
 }
 
-static inline void addCursor(const CXCursor& cursor, const CursorKey& key, CollectData::Data* data)
+static inline void addCursor(const CXCursor& cursor, const CursorKey& key, RBuildPrivate::Cursor* data)
 {
     Q_ASSERT(key.isValid());
     data->cursor = key;
@@ -746,10 +536,10 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         return CXChildVisit_Recurse;
     // qDebug() << key << kindToString(key.kind);
 
-    CollectData* data = reinterpret_cast<CollectData*>(client_data);
+    RBuildPrivate* data = reinterpret_cast<RBuildPrivate*>(client_data);
 
-    CollectData::DataEntry* entry = 0;
-    const QHash<QByteArray, CollectData::DataEntry*>::const_iterator it = data->seen.find(key.locationKey());
+    RBuildPrivate::DataEntry* entry = 0;
+    const QHash<QByteArray, RBuildPrivate::DataEntry*>::const_iterator it = data->seen.find(key.locationKey());
     static const bool verbose = getenv("VERBOSE");
     if (verbose) {
         debugCursor(stderr, cursor);
@@ -770,7 +560,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
             return CXChildVisit_Recurse; // ### Continue?
         }
     } else {
-        entry = new CollectData::DataEntry;
+        entry = new RBuildPrivate::DataEntry;
         data->seen[key.locationKey()] = entry;
         data->data.append(entry);
     }
@@ -839,7 +629,7 @@ static inline void getInclusions(CXFile includedFile,
 {
     int includeLen = evilUnsigned;
     if (includeLen) {
-        CollectData::Dependencies *deps = reinterpret_cast<CollectData::Dependencies*>(userData);
+        RBuildPrivate::Dependencies *deps = reinterpret_cast<RBuildPrivate::Dependencies*>(userData);
         CXString str = clang_getFileName(includedFile);
         Path p = Path::resolved(clang_getCString(str));
         deps->dependencies[p] = p.lastModified();
@@ -918,8 +708,8 @@ void RBuild::compile(const GccArguments& arguments)
 
         CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
         clang_visitChildren(unitCursor, collectSymbols, mData);
-        CollectData::Dependencies deps = { input, arguments, input.lastModified(),
-                                           QHash<Path, time_t>() };
+        RBuildPrivate::Dependencies deps = { input, arguments, input.lastModified(),
+                                             QHash<Path, time_t>() };
         mData->dependencies.append(deps);
         clang_getInclusions(unit, getInclusions, &mData->dependencies.last());
         clang_disposeTranslationUnit(unit);

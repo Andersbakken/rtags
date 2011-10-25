@@ -17,18 +17,19 @@ macx {
 }
 # Input
 SOURCES += main.cpp \
-    RBuild.cpp \
-    MakefileParser.cpp \
-    SystemInformation.cpp \
-    Utils.cpp \
-    AtomicString.cpp
+           RBuild.cpp \
+           MakefileParser.cpp \
+           SystemInformation.cpp \
+           Utils.cpp \
+           AtomicString.cpp
 
-HEADERS += \
-    RBuild.h \
-    MakefileParser.h \
-    SystemInformation.h \
-    Utils.h \
-    AtomicString.h
+HEADERS += RBuild.h \
+           RBuild_p.h \
+           MakefileParser.h \
+           SystemInformation.h \
+           Utils.h \
+           AtomicString.h \
+           CursorKey.h
 
 QMAKE_CXXFLAGS += -O2
 

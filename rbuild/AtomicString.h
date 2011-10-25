@@ -54,6 +54,19 @@ private:
 #endif
 };
 
+static inline QDataStream &operator<<(QDataStream &ds, const AtomicString &string)
+{
+    ds << string.toByteArray();
+    return ds;
+}
+static inline QDataStream &operator>>(QDataStream &ds, AtomicString &string)
+{
+    QByteArray tmp;
+    ds >> tmp;
+    string = tmp;
+    return ds;
+}
+
 static inline uint qHash(const AtomicString& string)
 {
     return qHash(string.toByteArray());
