@@ -68,13 +68,13 @@ int main(int argc, char** argv)
     build.setDBPath(db);
     if (update) {
         build.updateDB();
+        return 0;
     } else {
         bool ok;
         Path appPath = Path::resolved(QDir::currentPath().toLocal8Bit(), Path(), &ok);
         if (!ok)
             qFatal("Unable to resolve initial path");
         build.buildDB(Path::resolved("Makefile", appPath));
+        return app.exec();
     }
-
-    return app.exec();
 }

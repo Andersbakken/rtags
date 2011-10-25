@@ -33,13 +33,13 @@ struct RBuildPrivate
 
 static inline QDataStream &operator<<(QDataStream &ds, const RBuildPrivate::DataEntry &entry)
 {
-    ds << entry.hasDefinition << entry.cursor << entry.references << entry.references;
+    ds << entry.hasDefinition << entry.cursor << entry.reference << entry.references;
     return ds;
 }
 
 static inline QDataStream &operator>>(QDataStream &ds, RBuildPrivate::DataEntry &entry)
 {
-    ds >> entry.hasDefinition >> entry.cursor >> entry.references >> entry.references;
+    ds >> entry.hasDefinition >> entry.cursor >> entry.reference >> entry.references;
     return ds;
 }
 

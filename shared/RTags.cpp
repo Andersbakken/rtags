@@ -1,4 +1,5 @@
 #include "RTags.h"
+#include "CursorKey.h"
 
 namespace RTags {
 QDataStream &operator<<(QDataStream &ds, time_t t)
@@ -101,5 +102,11 @@ bool locationFromString(const QByteArray &string, Path *path, int *line, int *co
     if (column)
         *column = locationRegExp.cap(3).toInt();
     return true;
+}
+
+QDebug operator<<(QDebug dbg, CXCursor cursor)
+{
+    dbg << CursorKey(cursor);
+    return dbg;
 }
 }

@@ -6,6 +6,7 @@
 #include "GccArguments.h"
 #include "SystemInformation.h"
 #include <QObject>
+#include <clang-c/Index.h>
 
 struct RBuildPrivate;
 class RBuild : public QObject
@@ -19,7 +20,7 @@ public:
     void buildDB(const Path& makefile);
     bool updateDB();
 private slots:
-    void makefileDone();
+    void save();
     void makefileFileReady(const MakefileItem& file);
     void startParse();
 
@@ -33,6 +34,7 @@ private:
     SystemInformation mSysInfo;
     RBuildPrivate* mData;
     Path mDBPath;
+    CXIndex mIndex;
 };
 
 #endif // RBUILD_H

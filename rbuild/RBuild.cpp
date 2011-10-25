@@ -16,12 +16,13 @@
 using namespace RTags;
 
 RBuild::RBuild(QObject *parent)
-    : QObject(parent), mData(new RBuildPrivate)
+    : QObject(parent), mData(new RBuildPrivate), mIndex(clang_createIndex(0, 0))
 {
 }
 
 RBuild::~RBuild()
 {
+    clang_disposeIndex(mIndex);
     delete mData;
 }
 
@@ -43,15 +44,20 @@ static inline bool contains(const QHash<Path, GccArguments> &dirty, const Atomic
     return dirty.contains(p);
 }
 
-static inline bool filter(const RBuildPrivate::DataEntry &entry, const QHash<Path, GccArguments> &dirty)
+static inline bool filter(RBuildPrivate::DataEntry &entry, const QHash<Path, GccArguments> &dirty)
 {
     if (::contains(dirty, entry.cursor.key.fileName)
         || ::contains(dirty, entry.reference.key.fileName)) {
         return false;
     }
-    foreach(const Cursor &ref, entry.references) {
-        if (::contains(dirty, ref.key.fileName))
-            return false;
+    QSet<Cursor>::iterator it = entry.references.begin();
+    while (it != entry.references.end()) {
+        if (::contains(dirty, (*it).key.fileName)) {
+            // qDebug() << "throwing out reference" << (*it).key;
+            it = entry.references.erase(it);
+        } else {
+            ++it;
+        }
     }
 
     return true;
@@ -80,11 +86,9 @@ bool RBuild::updateDB()
         const QByteArray data = QByteArray::fromRawData(value.data(), value.size());
         QDataStream ds(data);
         ds >> args >> lastModified >> dependencies;
-        const RBuildPrivate::Dependencies dep = { Path(key.data() + 2, key.size() - 2),
-                                                  args, lastModified, dependencies };
+        const Path file(key.data() + 2, key.size() - 2);
         bool append = true;
-        if (lastModified != dep.file.lastModified()) {
-            dirty.insert(dep.file, args);
+        if (lastModified != file.lastModified()) {
             append = false;
             // time_t lm = dep.file.lastModified();
             // qDebug() << dep.file << "has changed" << ctime(&lm) << ctime(&lastModified);
@@ -99,16 +103,19 @@ bool RBuild::updateDB()
         }
 
         if (append) {
+            const RBuildPrivate::Dependencies dep = { file, args, lastModified, dependencies };
             mData->dependencies.append(dep);
+        } else {
+            dirty.insert(file, args);
         }
         // qDebug() << file << args.raw() << ctime(&lastModified) << dependencies;
     }
     delete it;
     if (dirty.isEmpty()) {
         printf("Nothing has changed\n");
-         return true;
+        return true;
     }
-    qDebug() << dirty;
+    // qDebug() << dirty;
 
     std::string value;
     if (!db->Get(leveldb::ReadOptions(), " ", &value).ok()) {
@@ -122,16 +129,22 @@ bool RBuild::updateDB()
     for (int i=0; i<count; ++i) {
         RBuildPrivate::DataEntry *entry = new RBuildPrivate::DataEntry;
         ds >> *entry;
-        qDebug() << "filtering" << entry->cursor.key << dirty;
         if (::filter(*entry, dirty)) {
+            // qDebug() << "filtering in" << entry->cursor.key << "\n    "
+            //          << entry->reference.key;
             mData->data.append(entry);
+            Q_ASSERT(!mData->seen.contains(entry->cursor.key.locationKey()));
+            mData->seen[entry->cursor.key.locationKey()] = entry;
         } else {
-            qDebug() << "filtering out" << entry->cursor.key;
+            // qDebug() << "filtering out" << entry->cursor.key;
             delete entry;
         }
-
+    }
+    for (QHash<Path, GccArguments>::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
+        compile(it.value());
     }
 
+    save();
     return true;
 }
 
@@ -139,11 +152,11 @@ void RBuild::startParse()
 {
     connect(&mParser, SIGNAL(fileReady(const MakefileItem&)),
             this, SLOT(makefileFileReady(const MakefileItem&)));
-    connect(&mParser, SIGNAL(done()), this, SLOT(makefileDone()));
+    connect(&mParser, SIGNAL(done()), this, SLOT(save()));
     mParser.run(mMakefile);
 }
 
-void RBuild::makefileDone()
+void RBuild::save()
 {
     fprintf(stderr, "Done parsing, now writing.\n");
     writeData(mDBPath);
@@ -351,6 +364,13 @@ void RBuild::writeData(const QByteArray& filename)
             || key.kind == CXCursor_Destructor) {
             if (key != ref && !key.isDefinition()) {
                 RBuildPrivate::DataEntry *def = mData->seen.value(ref.locationKey());
+                if (!def) {
+                    qDebug() << "no def for" << key.toString() << ref.toString();
+                } else if (def == entry) {
+                    qDebug() << "wrong def for" << ref.toString()
+                             << "got" << entry->cursor.key.toString();
+                }
+
                 Q_ASSERT(def && def != entry);
                 def->reference = entry->cursor;
             }
@@ -379,7 +399,7 @@ void RBuild::writeData(const QByteArray& filename)
     writeDict(db, writeOptions, dict);
 
     foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
-        qDebug() << dep.file << ctime(&dep.lastModified);
+        // qDebug() << dep.file << ctime(&dep.lastModified);
         writeDependencies(db, writeOptions, dep.file, dep.arguments,
                           dep.lastModified, dep.dependencies);
     }
@@ -556,6 +576,29 @@ static inline bool equalLocation(const CursorKey& key1, const CursorKey& key2)
 
 // #define COLLECTDEBUG
 
+class VerifyEntry
+{
+public:
+    VerifyEntry(RBuildPrivate::DataEntry *&e, CXCursor &c)
+        : entry(e), cursor(c)
+    {}
+    ~VerifyEntry()
+    {
+        if (entry) {
+            if (!entry->cursor.key.isValid()) {
+                qDebug() << cursor << entry->cursor.key << "is not valid";
+            }
+            if (!entry->reference.key.isValid()) {
+                qDebug() << cursor << entry->reference.key << "is not valid";
+            }
+            Q_ASSERT(entry->reference.key.isValid() && entry->cursor.key.isValid());
+        }
+    }
+
+    RBuildPrivate::DataEntry *&entry;
+    CXCursor &cursor;
+};
+
 static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
 {
     const CursorKey key(cursor);
@@ -565,7 +608,8 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     RBuildPrivate* data = reinterpret_cast<RBuildPrivate*>(client_data);
 
     RBuildPrivate::DataEntry* entry = 0;
-    const QHash<QByteArray, RBuildPrivate::DataEntry*>::const_iterator it = data->seen.find(key.locationKey());
+    const QByteArray locationKey = key.locationKey();
+    const QHash<QByteArray, RBuildPrivate::DataEntry*>::const_iterator it = data->seen.find(locationKey);
     static const bool verbose = getenv("VERBOSE");
     if (verbose) {
         debugCursor(stderr, cursor);
@@ -587,8 +631,6 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         }
     } else {
         entry = new RBuildPrivate::DataEntry;
-        data->seen[key.locationKey()] = entry;
-        data->data.append(entry);
     }
 
     if (key.kind == CXCursor_InclusionDirective) {
@@ -600,8 +642,14 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         addCursor(cursor, key, &entry->cursor);
         addCursor(clang_getNullCursor(), inclusion, &entry->reference);
         entry->hasDefinition = true;
+        if (it == data->seen.end()) {
+            data->seen[locationKey] = entry;
+            data->data.append(entry);
+        }
         return CXChildVisit_Continue;
     }
+
+    VerifyEntry v(entry, cursor);
 
     const bool isMacroDefinition = (key.kind == CXCursor_MacroDefinition);
     CXCursor definition = isMacroDefinition ? cursor : clang_getCursorDefinition(cursor);
@@ -628,9 +676,13 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
                 addCursor(reference, referenceKey, &entry->reference);
             } else {
                 qWarning() << "no place for this. This should never happen" << key << __LINE__;
+                delete entry;
+                return CXChildVisit_Recurse;
             }
         } else {
             qWarning() << "no place for this. This should never happen" << key << __LINE__;
+            delete entry;
+            return CXChildVisit_Recurse;
         }
     } else {
         if (cursorDefinitionFor(definition, cursor))
@@ -647,6 +699,10 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
             qDebug() << entry->reference.cursor;
         }
 #endif
+    }
+    if (it == data->seen.end()) {
+        data->seen[locationKey] = entry;
+        data->data.append(entry);
     }
 
     return CXChildVisit_Recurse;
@@ -681,7 +737,6 @@ static inline void getInclusions(CXFile includedFile,
 
 void RBuild::compile(const GccArguments& arguments)
 {
-    CXIndex idx = clang_createIndex(0, 0);
     foreach(const Path& input, arguments.input()) {
         /*if (!input.endsWith("/RBuild.cpp")
           && !input.endsWith("/main.cpp")) {
@@ -706,7 +761,7 @@ void RBuild::compile(const GccArguments& arguments)
         if (verbose)
             fprintf(stderr, "\n");
 
-        CXTranslationUnit unit = clang_parseTranslationUnit(idx, input.constData(),
+        CXTranslationUnit unit = clang_parseTranslationUnit(mIndex, input.constData(),
                                                             argvector.constData(), argvector.size(),
                                                             0, 0,
                                                             CXTranslationUnit_DetailedPreprocessingRecord);
@@ -744,5 +799,4 @@ void RBuild::compile(const GccArguments& arguments)
         clang_getInclusions(unit, getInclusions, &mData->dependencies.last());
         clang_disposeTranslationUnit(unit);
     }
-    clang_disposeIndex(idx);
 }
