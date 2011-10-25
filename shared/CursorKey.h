@@ -3,6 +3,8 @@
 
 #include <clang-c/Index.h>
 #include <QByteArray>
+#include "AtomicString.h"
+#include "RTags.h"
 
 class CursorKey
 {
@@ -17,9 +19,13 @@ public:
             CXSourceLocation loc = clang_getCursorLocation(cursor);
             CXFile file;
             clang_getInstantiationLocation(loc, &file, &line, &col, &off);
-            fileName = Path::resolved(eatString(clang_getFileName(file)));
-            symbolName = eatString(clang_getCursorDisplayName(cursor));
-            def = cursorDefinition(cursor);
+            CXString str = clang_getFileName(file);
+            fileName = Path::resolved(clang_getCString(str));
+            clang_disposeString(str);
+            str = clang_getCursorDisplayName(cursor);
+            symbolName = clang_getCString(str);
+            clang_disposeString(str);
+            def = RTags::cursorDefinition(cursor);
         }
     }
 
@@ -82,6 +88,24 @@ public:
         return key;
     }
 
+    QByteArray toString() const
+    {
+        QByteArray out;
+        int ints[] = { line, col };
+        int intsSize = 4; // two for :, two for the first digit
+        for (int i=0; i<2; ++i) {
+            int v = ints[i];
+            while (v >= 10) {
+                v /= 10;
+                ++intsSize;
+            }
+        }
+
+        out.resize(fileName.size() + intsSize);
+        snprintf(out.data(), out.size() + 1, "%s:%d:%d", fileName.constData(), line, col);
+        return out;
+    }
+
     CXCursorKind kind;
     AtomicString fileName;
     AtomicString symbolName;
@@ -107,7 +131,7 @@ static inline QDataStream &operator>>(QDataStream &ds, CursorKey &key)
 
 static inline QDebug operator<<(QDebug d, const CursorKey& key)
 {
-    d.nospace() << eatString(clang_getCursorKindSpelling(key.kind)).constData() << ", "
+    d.nospace() << RTags::eatString(clang_getCursorKindSpelling(key.kind)).constData() << ", "
                 << (key.symbolName.isEmpty() ? "(no symbol)" : key.symbolName.toByteArray().constData()) << ", "
                 << key.fileName.toByteArray().constData() << ':' << key.line << ':' << key.col;
     return d.space();

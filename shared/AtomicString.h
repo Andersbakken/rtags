@@ -16,7 +16,7 @@ public:
     AtomicString(const QByteArray& string);
     AtomicString(const QString& string);
     AtomicString(const AtomicString& other);
-    AtomicString(const char* string, int size);
+    AtomicString(const char* string, int size = -1);
     ~AtomicString();
 
     AtomicString& operator=(const AtomicString& other);
@@ -36,6 +36,7 @@ public:
     QString toString() const { return QString::fromUtf8(mData ? mData->data.constData() : 0); }
     const char* constData() const { return mData ? mData->data.constData() : 0; }
 
+    int size() const { return mData ? mData->data.size() : 0; }
 private:
     void init(const QByteArray& str);
 

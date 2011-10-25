@@ -50,7 +50,11 @@ AtomicString::AtomicString(const char* string, int size)
 #ifdef REENTRANT_ATOMICSTRING
     QMutexLocker locker(&sMutex);
 #endif
-    init(QByteArray(string, size));
+    if (size == -1) {
+        init(QByteArray(string));
+    } else {
+        init(QByteArray(string, size));
+    }
 }
 
 AtomicString::AtomicString(const AtomicString& other)

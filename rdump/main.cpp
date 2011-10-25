@@ -5,6 +5,7 @@
 #include <limits.h>
 #include <RTags.h>
 #include <QtCore>
+#include <CursorKey.h>
 #include <GccArguments.h>
 
 using namespace RTags;
@@ -43,7 +44,7 @@ static inline std::string symbolNameAt(const std::string &location)
     return ret;
 }
 
-enum Type { Symbol = 0x01, Reference = 0x02, Dependency = 0x04, Dict = 0x08, All = 0x0f };
+enum Type { Symbol = 0x01, Reference = 0x02, Dependency = 0x04, Dict = 0x08, All = 0x0f, Raw = 0x10 };
 
 static inline void dumpDatabase(const std::string& filename, int type)
 {
@@ -62,11 +63,14 @@ static inline void dumpDatabase(const std::string& filename, int type)
         std::string fileName;
         unsigned line, col;
         // qDebug() << key.c_str();
+        if (type & Raw) {
+            printf("[%s]\n", key.c_str());
+        }
         if (parseLocation(key, fileName, line, col)) {
             leveldb::Slice val = it->value();
             const QByteArray v = QByteArray::fromRawData(val.data(), val.size());
             QByteArray mapsTo;
-            QSet<QByteArray> references;
+            QSet<CursorKey> references;
             QDataStream ds(v);
             ds >> mapsTo >> references;
             // printf("%s (%s) maps to %s (%s)\n",
@@ -82,8 +86,8 @@ static inline void dumpDatabase(const std::string& filename, int type)
             if (type & Reference) {
                 // printf("Balle %d %d %d %d\n", references.size(), v.size(), val.size(),
                 //        it->value().ToString().size());
-                foreach(const QByteArray &r, references) {
-                    printf("%s refers to %s\n", r.constData(), key.c_str());
+                foreach(const CursorKey &r, references) {
+                    printf("%s refers to %s\n", r.toString().constData(), key.c_str());
                 }
             }
         } else if (key.substr(0, 2) == "d:") { // dict
@@ -186,6 +190,12 @@ static inline bool parseType(const char* a, int* type)
             break;
         case 'i':
             *type |= Dict;
+            break;
+        case 'a':
+            *type |= All;
+            break;
+        case 'R':
+            *type |= Raw;
             break;
         default:
             return false;

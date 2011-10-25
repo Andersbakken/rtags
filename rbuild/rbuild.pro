@@ -19,17 +19,12 @@ macx {
 SOURCES += main.cpp \
            RBuild.cpp \
            MakefileParser.cpp \
-           SystemInformation.cpp \
-           Utils.cpp \
-           AtomicString.cpp
+           SystemInformation.cpp 
 
 HEADERS += RBuild.h \
            RBuild_p.h \
            MakefileParser.h \
-           SystemInformation.h \
-           Utils.h \
-           AtomicString.h \
-           CursorKey.h
+           SystemInformation.h 
 
 QMAKE_CXXFLAGS += -O2
 
@@ -46,7 +41,6 @@ QMAKE_EXTRA_TARGETS += gccopts_gperf
 
 PRE_TARGETDEPS += gccopts_gperf.cpp
 
-LIBS += -lclang
 unix {
     MOC_DIR = .moc
     OBJECTS_DIR = .obj

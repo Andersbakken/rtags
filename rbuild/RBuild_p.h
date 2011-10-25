@@ -12,7 +12,7 @@ struct RBuildPrivate
     ~RBuildPrivate() { qDeleteAll(data); }
 
     struct Cursor {
-        CursorKey cursor;
+        CursorKey key;
         QList<AtomicString> parentNames;
     };
 
@@ -22,7 +22,7 @@ struct RBuildPrivate
         bool hasDefinition;
         Cursor cursor;
         Cursor reference;
-        QSet<QByteArray> references;
+        QSet<CursorKey> references;
     };
 
     struct Dependencies {
@@ -39,13 +39,13 @@ struct RBuildPrivate
 
 static inline QDataStream &operator<<(QDataStream &ds, const RBuildPrivate::Cursor &data)
 {
-    ds << data.cursor << data.parentNames;
+    ds << data.key << data.parentNames;
     return ds;
 }
 
 static inline QDataStream &operator>>(QDataStream &ds, RBuildPrivate::Cursor &data)
 {
-    ds >> data.cursor >> data.parentNames;
+    ds >> data.key >> data.parentNames;
     return ds;
 }
 

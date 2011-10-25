@@ -7,6 +7,7 @@
 #include <QtCore>
 #include <getopt.h>
 #include <RTags.h>
+#include <CursorKey.h>
 
 using namespace RTags;
 
@@ -49,13 +50,13 @@ static inline bool findReferences(leveldb::DB *db, const std::string &key)
         QByteArray referredTo;
         const QByteArray v = QByteArray::fromRawData(val.c_str(), val.size());
         QDataStream ds(v);
-        QSet<QByteArray> references;
+        QSet<CursorKey> references;
         ds >> referredTo >> references;
         if (referredTo != key.c_str() && references.isEmpty()) {
             return findReferences(db, std::string(referredTo.constData(), referredTo.size()));
         }
-        foreach(const QByteArray &r, references) {
-            printf("%s\n", r.constData());
+        foreach(const CursorKey &r, references) {
+            printf("%s\n", r.toString().constData());
         }
         return true;
     }

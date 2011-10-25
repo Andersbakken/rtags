@@ -9,7 +9,6 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <dirent.h>
-#include <Utils.h>
 #include "AtomicString.h"
 #include "CursorKey.h"
 #include "RBuild_p.h"
@@ -128,26 +127,14 @@ static inline void writeDependencies(leveldb::DB* db, const leveldb::WriteOption
             leveldb::Slice(out.constData(), out.size()));
 }
 
-static inline QByteArray cursorKeyToString(const CursorKey& key)
-{
-    // ### this should probably use snprintf
-    QByteArray out = key.fileName.toByteArray();
-    out.reserve(out.size() + 32);
-    out.append(':');
-    out.append(QByteArray::number(key.line));
-    out.append(':');
-    out.append(QByteArray::number(key.col));
-    return out;
-}
-
 static inline QByteArray makeRefValue(const RBuildPrivate::DataEntry& entry)
 {
     QByteArray out;
     {
         QDataStream ds(&out, QIODevice::WriteOnly);
-        ds << cursorKeyToString(entry.reference.cursor) << entry.references;
-        // qDebug() << "writing out value for" << cursorKeyToString(entry.cursor.cursor)
-        //          << cursorKeyToString(entry.reference.cursor) << entry.references;
+        ds << entry.reference.key.toString() << entry.references;
+        // qDebug() << "writing out value for" << entry.key.cursor.toString()
+        //          << entry.reference.key.toString() << entry.references;
         // const QByteArray v =
         // ds << QByteArray::fromRawData(&v[0], v.size()) << convertRefs(entry.references);
     }
@@ -178,7 +165,7 @@ static inline void collectDict(const RBuildPrivate::DataEntry& entry, QHash<Atom
 {
     const RBuildPrivate::Cursor* datas[] = { &entry.cursor, &entry.reference };
     for (int i = 0; i < 2; ++i) {
-        const CursorKey& key = datas[i]->cursor;
+        const CursorKey& key = datas[i]->key;
         if (!key.isValid())
             continue;
 
@@ -192,7 +179,7 @@ static inline void collectDict(const RBuildPrivate::DataEntry& entry, QHash<Atom
         const QList<AtomicString>& parents = datas[i]->parentNames;
 
         QByteArray name = key.symbolName.toByteArray();
-        const QByteArray loc = cursorKeyToString(key);
+        const QByteArray loc = key.toString();
         const AtomicString location(loc.constData(), loc.size());
 
         // add symbolname -> location
@@ -231,17 +218,16 @@ static inline void collectDict(const RBuildPrivate::DataEntry& entry, QHash<Atom
 static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
                               const RBuildPrivate::DataEntry& entry)
 {
-    const CursorKey& key = entry.cursor.cursor;
+    const CursorKey& key = entry.cursor.key;
     if (!key.isValid()) {
         return;
     }
 
-    QByteArray k = cursorKeyToString(key);
+    QByteArray k = key.toString();
     QByteArray v = makeRefValue(entry);
     db->Put(opt, std::string(k.constData(), k.size()), std::string(v.constData(), v.size()));
     // qDebug() << "writing" << k << kindToString(key.kind) << entry.references.size()
-    //          << v.size() << std::string(v.constData(), v.size()).size()
-    //          << cursorKeyToString(val);
+    //          << v.size() << std::string(v.constData(), v.size()).size();
 }
 
 static inline int removeDirectory(const char *path)
@@ -314,8 +300,8 @@ void RBuild::writeData(const QByteArray& filename)
 
     QHash<AtomicString, QSet<AtomicString> > dict;
     foreach(RBuildPrivate::DataEntry* entry, mData->data) {
-        const CursorKey key = entry->cursor.cursor;
-        const CursorKey ref = entry->reference.cursor;
+        const CursorKey key = entry->cursor.key;
+        const CursorKey ref = entry->reference.key;
         if (key.kind == CXCursor_CXXMethod
             || key.kind == CXCursor_Constructor
             || key.kind == CXCursor_Destructor) {
@@ -327,17 +313,11 @@ void RBuild::writeData(const QByteArray& filename)
             continue;
         }
 
-        RBuildPrivate::DataEntry *r = mData->seen.value(entry->reference.cursor.locationKey());
+        RBuildPrivate::DataEntry *r = mData->seen.value(entry->reference.key.locationKey());
         if (r == entry)
             continue;
         if (r) {
-            r->references.insert(cursorKeyToString(entry->cursor.cursor));
-            // qDebug() << "adding reference" << cursorKeyToString(entry->cursor.cursor)
-            //          << "refers to" << cursorKeyToString(entry->reference.cursor);
-        // } else {
-        //     qDebug() << "can't find r" << cursorKeyToString(entry->reference.cursor)
-        //              << "for" << cursorKeyToString(entry->cursor.cursor)
-        //              << entry->cursor.cursor.isValid();
+            r->references.insert(entry->cursor.key);
         }
     }
 
@@ -382,7 +362,7 @@ static inline void debugCursor(FILE* out, const CXCursor& cursor)
 static inline void addCursor(const CXCursor& cursor, const CursorKey& key, RBuildPrivate::Cursor* data)
 {
     Q_ASSERT(key.isValid());
-    data->cursor = key;
+    data->key = key;
     CXCursor parent = cursor;
     for (;;) {
         parent = clang_getCursorSemanticParent(parent);
@@ -588,7 +568,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     }
 #endif
     if (!cursorDefinition(definition) || equalLocation(key, CursorKey(definition))) {
-        if (entry->reference.cursor.isNull() || entry->reference.cursor == entry->cursor.cursor) {
+        if (entry->reference.key.isNull() || entry->reference.key == entry->cursor.key) {
             const CXCursor reference = clang_getCursorReferenced(cursor);
             const CursorKey referenceKey(reference);
             if (referenceKey.isValid()/* && referenceKey != key*/) {
