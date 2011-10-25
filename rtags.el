@@ -123,7 +123,7 @@
         (setq prompt (concat "Find symbol: (default " tagname ") "))
       (setq prompt "Find symbol: "))
     (with-temp-buffer
-      (call-process "rc" nil t nil "-S" "")
+      (call-process "rc" nil t nil "-l" "")
       (setq completions (split-string (buffer-string))))
     (setq input (completing-read prompt completions nil nil nil gtags-history-list))
     (if (not (equal "" input))
