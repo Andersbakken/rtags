@@ -809,10 +809,6 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     const bool dodebug = (key.fileName.toByteArray().endsWith("main.cpp") && key.line == 10 && key.col == 6);
 #endif
     if (it != data->seen.end()) {
-        if (key.kind == CXCursor_TypeRef) {
-            // qDebug() << "balle" << it.value()->cursor.cursor << it.value()->reference.cursor;
-            return CXChildVisit_Recurse; // ### Continue?
-        }
         entry = it.value();
         if (entry->hasDefinition) {
 #ifdef COLLECTDEBUG
