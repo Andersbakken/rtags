@@ -1,4 +1,4 @@
-#include "foo.h"
+// #include "foo.h"
 
 class Foo
 {
@@ -14,8 +14,8 @@ Foo::Foo(int)
 int main()
 {
     char buf[1024];
-         strcpy(buf, "foo");
-    strcpy(buf, "foo");
+    // strcpy(buf, "foo");
+    // strcpy(buf, "foo");
     Foo f(12);
     f.foo();
     f.foo();

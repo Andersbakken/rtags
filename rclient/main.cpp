@@ -56,12 +56,12 @@ static inline void maybeDict(leveldb::DB *db, const std::string &key,
                              bool (*func)(leveldb::DB *db, const std::string &key))
 {
     std::string val;
-    std::string key2;
-    db->Get(leveldb::ReadOptions(), "d:" + key, &key2);
-    if (!key2.empty()) {
-        db->Get(leveldb::ReadOptions(), key2, &val);
+    db->Get(leveldb::ReadOptions(), "d:" + key, &val);
+    if (!val.empty()) {
         foreach(const QByteArray &k, QByteArray::fromRawData(val.c_str(), val.size()).split('\0')) {
-            func(db, std::string(k.constData(), k.size()));
+            if (!k.isEmpty()) {
+                func(db, std::string(k.constData(), k.size()));
+            }
         }
     }
 }
