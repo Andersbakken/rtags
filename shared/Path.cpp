@@ -38,8 +38,10 @@ Path::Type Path::type() const
 time_t Path::lastModified() const
 {
     struct stat st;
-    if (stat(constData(), &st) == -1)
+    if (stat(constData(), &st) == -1) {
+        qWarning("Stat failed for %s", constData());
         return 0;
+    }
     return st.st_mtime;
 }
 

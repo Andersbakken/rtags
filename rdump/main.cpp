@@ -70,7 +70,7 @@ static inline void dumpDatabase(const std::string& filename, int type)
             leveldb::Slice val = it->value();
             const QByteArray v = QByteArray::fromRawData(val.data(), val.size());
             QByteArray mapsTo;
-            QSet<CursorKey> references;
+            QSet<Cursor> references;
             QDataStream ds(v);
             ds >> mapsTo >> references;
             // printf("%s (%s) maps to %s (%s)\n",
@@ -86,8 +86,8 @@ static inline void dumpDatabase(const std::string& filename, int type)
             if (type & Reference) {
                 // printf("Balle %d %d %d %d\n", references.size(), v.size(), val.size(),
                 //        it->value().ToString().size());
-                foreach(const CursorKey &r, references) {
-                    printf("%s refers to %s\n", r.toString().constData(), key.c_str());
+                foreach(const Cursor &r, references) {
+                    printf("%s refers to %s\n", r.key.toString().constData(), key.c_str());
                 }
             }
         } else if (key.substr(0, 2) == "d:") { // dict

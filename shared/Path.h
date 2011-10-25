@@ -21,6 +21,9 @@ public:
     Path(const char *path)
         : QByteArray(path)
     {}
+    Path(const char *path, int size)
+        : QByteArray(path, size)
+    {}
     Path() {}
     Path &operator=(const Path &other)
     {

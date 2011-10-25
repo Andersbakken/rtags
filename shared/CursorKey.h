@@ -115,11 +115,17 @@ public:
 
 struct Cursor {
     CursorKey key;
-    QList<AtomicString> parentNames;
+    QVector<AtomicString> parentNames;
 };
+
+static bool operator==(const Cursor &left, const Cursor &right)
+{
+    return left.key == right.key && left.parentNames == right.parentNames;
+}
 
 static inline QDataStream &operator<<(QDataStream &ds, const CursorKey &key)
 {
+    Q_ASSERT(key.isValid());
     ds << qint32(key.kind) << key.fileName << key.symbolName
        << key.line << key.col << key.off << key.def;
     return ds;
@@ -131,6 +137,7 @@ static inline QDataStream &operator>>(QDataStream &ds, CursorKey &key)
     ds >> kind >> key.fileName >> key.symbolName
        >> key.line >> key.col >> key.off >> key.def;
     key.kind = static_cast<CXCursorKind>(kind);
+    Q_ASSERT(key.isValid());
     return ds;
 }
 
@@ -146,6 +153,7 @@ static inline QDataStream &operator>>(QDataStream &ds, Cursor &cursor)
     return ds;
 }
 
+
 static inline QDebug operator<<(QDebug d, const CursorKey& key)
 {
     d.nospace() << RTags::eatString(clang_getCursorKindSpelling(key.kind)).constData() << ", "
@@ -154,7 +162,7 @@ static inline QDebug operator<<(QDebug d, const CursorKey& key)
     return d.space();
 }
 
-static inline uint qHash(const CursorKey &key)
+static inline uint qHashHelper(const CursorKey &key, const AtomicString *strings, int stringCount)
 {
     uint h = 0;
     if (!key.isNull()) {
@@ -187,7 +195,27 @@ static inline uint qHash(const CursorKey &key)
             }
         }
     }
+    for (int i=0; i<stringCount; ++i) {
+        const char *ch = strings[i].constData();
+        while (*ch) {
+            HASHCHAR(*ch);
+            ++ch;
+        }
+    }
+#undef HASHCHAR
     return h;
 }
+
+static inline uint qHash(const CursorKey &key)
+{
+    return qHashHelper(key, 0, 0);
+}
+
+static inline uint qHash(const Cursor &cursor)
+{
+    return qHashHelper(cursor.key, cursor.parentNames.constData(), cursor.parentNames.size());
+}
+
+
 
 #endif

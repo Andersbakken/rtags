@@ -17,7 +17,7 @@ struct RBuildPrivate
         bool hasDefinition;
         Cursor cursor;
         Cursor reference;
-        QSet<CursorKey> references;
+        QSet<Cursor> references;
     };
 
     struct Dependencies {

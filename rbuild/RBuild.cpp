@@ -37,6 +37,26 @@ void RBuild::buildDB(const Path& makefile)
     startParse();
 }
 
+static inline bool contains(const QHash<Path, GccArguments> &dirty, const AtomicString &fileName)
+{
+    const Path p = QByteArray::fromRawData(fileName.constData(), fileName.size());
+    return dirty.contains(p);
+}
+
+static inline bool filter(const RBuildPrivate::DataEntry &entry, const QHash<Path, GccArguments> &dirty)
+{
+    if (::contains(dirty, entry.cursor.key.fileName)
+        || ::contains(dirty, entry.reference.key.fileName)) {
+        return false;
+    }
+    foreach(const Cursor &ref, entry.references) {
+        if (::contains(dirty, ref.key.fileName))
+            return false;
+    }
+
+    return true;
+}
+
 bool RBuild::updateDB()
 {
     leveldb::DB* db = 0;
@@ -60,18 +80,35 @@ bool RBuild::updateDB()
         const QByteArray data = QByteArray::fromRawData(value.data(), value.size());
         QDataStream ds(data);
         ds >> args >> lastModified >> dependencies;
-        const RBuildPrivate::Dependencies dep = { Path(key.data() + 2), args, lastModified, dependencies };
-        if (lastModified != dep.file.lastModified())
+        const RBuildPrivate::Dependencies dep = { Path(key.data() + 2, key.size() - 2),
+                                                  args, lastModified, dependencies };
+        bool append = true;
+        if (lastModified != dep.file.lastModified()) {
             dirty.insert(dep.file, args);
-        for (QHash<Path, time_t>::const_iterator it = dependencies.constBegin(); it != dependencies.constEnd(); ++it) {
-            if (!dirty.contains(it.key()) && it.key().lastModified() != it.value())
-                dirty.insert(it.key(), GccArguments());
+            append = false;
+            // time_t lm = dep.file.lastModified();
+            // qDebug() << dep.file << "has changed" << ctime(&lm) << ctime(&lastModified);
+        } else {
+            for (QHash<Path, time_t>::const_iterator it = dependencies.constBegin(); it != dependencies.constEnd(); ++it) {
+                if (!dirty.contains(it.key()) && it.key().lastModified() != it.value()) {
+                    dirty.insert(it.key(), GccArguments());
+                    append = false;
+                    break; // can I break here?
+                }
+            }
         }
 
-        mData->dependencies.append(dep);
+        if (append) {
+            mData->dependencies.append(dep);
+        }
         // qDebug() << file << args.raw() << ctime(&lastModified) << dependencies;
     }
     delete it;
+    if (dirty.isEmpty()) {
+        printf("Nothing has changed\n");
+         return true;
+    }
+    qDebug() << dirty;
 
     std::string value;
     if (!db->Get(leveldb::ReadOptions(), " ", &value).ok()) {
@@ -85,7 +122,14 @@ bool RBuild::updateDB()
     for (int i=0; i<count; ++i) {
         RBuildPrivate::DataEntry *entry = new RBuildPrivate::DataEntry;
         ds >> *entry;
-        mData->data.append(entry);
+        qDebug() << "filtering" << entry->cursor.key << dirty;
+        if (::filter(*entry, dirty)) {
+            mData->data.append(entry);
+        } else {
+            qDebug() << "filtering out" << entry->cursor.key;
+            delete entry;
+        }
+
     }
 
     return true;
@@ -176,7 +220,7 @@ static inline void collectDict(const RBuildPrivate::DataEntry& entry, QHash<Atom
             || (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr))
             continue;
 
-        const QList<AtomicString>& parents = datas[i]->parentNames;
+        const QVector<AtomicString>& parents = datas[i]->parentNames;
 
         QByteArray name = key.symbolName.toByteArray();
         const QByteArray loc = key.toString();
@@ -317,7 +361,9 @@ void RBuild::writeData(const QByteArray& filename)
         if (r == entry)
             continue;
         if (r) {
-            r->references.insert(entry->cursor.key);
+            Q_ASSERT(entry->reference.key.isValid());
+            Q_ASSERT(entry->cursor.key.isValid());
+            r->references.insert(entry->cursor);
         }
     }
 
@@ -333,6 +379,7 @@ void RBuild::writeData(const QByteArray& filename)
     writeDict(db, writeOptions, dict);
 
     foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
+        qDebug() << dep.file << ctime(&dep.lastModified);
         writeDependencies(db, writeOptions, dep.file, dep.arguments,
                           dep.lastModified, dep.dependencies);
     }
@@ -514,7 +561,6 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     const CursorKey key(cursor);
     if (!key.isValid())
         return CXChildVisit_Recurse;
-    // qDebug() << key << kindToString(key.kind);
 
     RBuildPrivate* data = reinterpret_cast<RBuildPrivate*>(client_data);
 
@@ -544,8 +590,6 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         data->seen[key.locationKey()] = entry;
         data->data.append(entry);
     }
-    // if (!entry->refData)
-    //     entry->refData = findRefData(data, cursor);
 
     if (key.kind == CXCursor_InclusionDirective) {
         CursorKey inclusion;
@@ -559,7 +603,8 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         return CXChildVisit_Continue;
     }
 
-    const CXCursor definition = clang_getCursorDefinition(cursor);
+    const bool isMacroDefinition = (key.kind == CXCursor_MacroDefinition);
+    CXCursor definition = isMacroDefinition ? cursor : clang_getCursorDefinition(cursor);
 #ifdef COLLECTDEBUG
     if (dodebug) {
         debugCursor(stdout, cursor);
@@ -567,7 +612,8 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         fprintf(stdout, "(%d %d)\n", !isValidCursor(definition), equalLocation(key, CursorKey(definition)));
     }
 #endif
-    if (!cursorDefinition(definition) || equalLocation(key, CursorKey(definition))) {
+    if (!isMacroDefinition
+        && (!cursorDefinition(definition) || equalLocation(key, CursorKey(definition)))) {
         if (entry->reference.key.isNull() || entry->reference.key == entry->cursor.key) {
             const CXCursor reference = clang_getCursorReferenced(cursor);
             const CursorKey referenceKey(reference);
@@ -580,7 +626,11 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
 #endif
                 addCursor(cursor, key, &entry->cursor);
                 addCursor(reference, referenceKey, &entry->reference);
+            } else {
+                qWarning() << "no place for this. This should never happen" << key << __LINE__;
             }
+        } else {
+            qWarning() << "no place for this. This should never happen" << key << __LINE__;
         }
     } else {
         if (cursorDefinitionFor(definition, cursor))
