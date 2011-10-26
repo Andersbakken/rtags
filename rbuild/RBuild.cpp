@@ -681,15 +681,19 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
                 addCursor(cursor, key, &entry->cursor);
                 addCursor(reference, referenceKey, &entry->reference);
             } else {
+                if (it == data->seen.end()) {
+                    qWarning() << "no place for this. This should never happen" << key << __LINE__;
+                    delete entry;
+                    entry = 0;
+                }
+                return CXChildVisit_Recurse;
+            }
+        } else { 
+            if (it == data->seen.end()) {
                 qWarning() << "no place for this. This should never happen" << key << __LINE__;
                 delete entry;
                 entry = 0;
-                return CXChildVisit_Recurse;
             }
-        } else {
-            qWarning() << "no place for this. This should never happen" << key << __LINE__;
-            delete entry;
-            entry = 0;
             return CXChildVisit_Recurse;
         }
     } else {
