@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <errno.h>
 #include <dirent.h>
 #include "AtomicString.h"
 #include "CursorKey.h"
@@ -350,9 +351,10 @@ void RBuild::writeData(const QByteArray& filename)
     leveldb::WriteOptions writeOptions;
     dbOptions.create_if_missing = true;
 
+    QByteArray tempFile = filename + ".tmp";
+
     // Q_ASSERT(filename.endsWith(".rtags.db"));
-    removeDirectory(filename.constData());
-    if (!leveldb::DB::Open(dbOptions, filename.constData(), &db).ok()) {
+    if (!leveldb::DB::Open(dbOptions, tempFile.constData(), &db).ok()) {
         return;
     }
     Q_ASSERT(db);
@@ -408,6 +410,13 @@ void RBuild::writeData(const QByteArray& filename)
 
     db->Put(writeOptions, " ", leveldb::Slice(entries.constData(), entries.size()));
     delete db;
+    removeDirectory(filename.constData());
+    if (rename(tempFile.constData(), filename.constData())) {
+        char buf[1024];
+        fprintf(stderr, "Failed to write database (%s to %s) %s\n",
+                tempFile.constData(), filename.constData(), strerror_r(errno, buf, 1024));
+    }
+
 }
 
 static inline void debugCursor(FILE* out, const CXCursor& cursor)
