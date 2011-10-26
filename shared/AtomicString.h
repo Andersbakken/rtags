@@ -37,6 +37,7 @@ public:
     const char* constData() const { return mData ? mData->data.constData() : 0; }
 
     int size() const { return mData ? mData->data.size() : 0; }
+    void clear();
 private:
     void init(const QByteArray& str);
 
@@ -70,6 +71,7 @@ static inline QDataStream &operator>>(QDataStream &ds, AtomicString &string)
 
 static inline uint qHash(const AtomicString& string)
 {
+    // ### consider storing the hash value
     return qHash(string.toByteArray());
 }
 

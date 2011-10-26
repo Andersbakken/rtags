@@ -4,6 +4,7 @@
 #include <QDir>
 #include <getopt.h>
 #include <RTags.h>
+#include <AtomicString.h>
 
 static inline void usage(const char* argv0, FILE *f)
 {
@@ -19,6 +20,19 @@ using namespace RTags;
 
 int main(int argc, char** argv)
 {
+    // {
+    //     AtomicString *foo = new AtomicString("bar");
+    //     AtomicString bar = "bar";
+    //     bar.clear();
+    //     delete foo;
+    //     // bar = foo;
+    //     // // bar = "123";
+    //     // // bar = "bar";
+    //     // // foo = bar;
+    //     // foo.clear();
+    //     // bar.clear();
+    // }
+    // return 0;
     QCoreApplication app(argc, argv);
     Path db;
     bool update = false;

@@ -109,4 +109,15 @@ QDebug operator<<(QDebug dbg, CXCursor cursor)
     dbg << CursorKey(cursor);
     return dbg;
 }
+bool cursorDefinitionFor(const CursorKey &d, const CursorKey &c)
+{
+    switch (c.kind) {
+    case CXCursor_CallExpr:
+        return false;
+    default:
+        break;
+    }
+    return d.isDefinition();
+}
+
 }

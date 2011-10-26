@@ -5,9 +5,10 @@
 #include <stdlib.h>
 #include <QtCore>
 #include <leveldb/db.h>
-#include <Path.h>
+#include "Path.h"
 #include <clang-c/Index.h>
 
+class CursorKey;
 namespace RTags {
 QDataStream &operator<<(QDataStream &ds, time_t t);
 QDataStream &operator>>(QDataStream &ds, time_t &t);
@@ -73,32 +74,7 @@ static inline void removeWhitespace(QByteArray &ba)
     }
 }
 
-
-static inline bool cursorDefinition(const CXCursor& c)
-{
-    switch (clang_getCursorKind(c)) {
-    case CXCursor_MacroDefinition:
-        return true;
-    case CXCursor_VarDecl:
-        //return false;
-    default:
-        break;
-    }
-
-    return (clang_isCursorDefinition(c) != 0);
-}
-
-static inline bool cursorDefinitionFor(const CXCursor& d, const CXCursor &c)
-{
-    switch (clang_getCursorKind(c)) {
-    case CXCursor_CallExpr:
-        return false;
-    default:
-        break;
-    }
-    return cursorDefinition(d);
-}
-
+bool cursorDefinitionFor(const CursorKey& d, const CursorKey &c);
 QDebug operator<<(QDebug dbg, CXCursor cursor);
 }
 

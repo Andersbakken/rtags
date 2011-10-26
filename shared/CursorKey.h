@@ -25,8 +25,19 @@ public:
             str = clang_getCursorDisplayName(cursor);
             symbolName = clang_getCString(str);
             clang_disposeString(str);
-            def = RTags::cursorDefinition(cursor);
+            def = (kind == CXCursor_MacroDefinition || clang_isCursorDefinition(cursor));
+            // if (!isValid())
+            //     clear();
         }
+    }
+
+    void clear()
+    {
+        kind = CXCursor_FirstInvalid;
+        line = col = off = 0;
+        def = false;
+        symbolName.clear();
+        fileName.clear();
     }
 
     bool isValid() const
@@ -41,7 +52,7 @@ public:
 
     bool isDefinition() const
     {
-        return def;
+        return isValid() && def;
     }
 
     bool operator<(const CursorKey &other) const
@@ -118,7 +129,7 @@ struct Cursor {
     QVector<AtomicString> parentNames;
 };
 
-static bool operator==(const Cursor &left, const Cursor &right)
+static inline bool operator==(const Cursor &left, const Cursor &right)
 {
     return left.key == right.key && left.parentNames == right.parentNames;
 }

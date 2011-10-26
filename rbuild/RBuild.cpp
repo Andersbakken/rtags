@@ -258,6 +258,7 @@ static inline void collectDict(const RBuildPrivate::DataEntry& entry, QHash<Atom
             continue;
         }
 
+        // qDebug() << name << parents;
         foreach(const AtomicString &cur, parents) {
             const int old = name.size();
             name.prepend("::");
@@ -267,6 +268,7 @@ static inline void collectDict(const RBuildPrivate::DataEntry& entry, QHash<Atom
                 dict[AtomicString(name.constData(), colon)].insert(location);
             }
 
+            // qDebug() << "inserting" << name;
             dict[AtomicString(name)].insert(location);
         }
     }
@@ -419,7 +421,7 @@ static inline void debugCursor(FILE* out, const CXCursor& cursor)
     CXString kind = clang_getCursorKindSpelling(clang_getCursorKind(cursor));
     fprintf(out, "cursor name %s, kind %s%s, loc %s:%u:%u\n",
             clang_getCString(name), clang_getCString(kind),
-            cursorDefinition(cursor) ? " def" : "",
+            CursorKey(cursor).isDefinition() ? " def" : "",
             clang_getCString(filename), line, col);
     clang_disposeString(name);
     clang_disposeString(kind);
@@ -429,22 +431,25 @@ static inline void debugCursor(FILE* out, const CXCursor& cursor)
 static inline void addCursor(const CXCursor& cursor, const CursorKey& key, Cursor* data)
 {
     Q_ASSERT(key.isValid());
-    data->key = key;
-    CXCursor parent = cursor;
-    for (;;) {
-        parent = clang_getCursorSemanticParent(parent);
-        CursorKey parentKey(parent);
-        if (!parentKey.isValid())
-            break;
-        switch (parentKey.kind) {
-        case CXCursor_StructDecl:
-        case CXCursor_ClassDecl:
-        case CXCursor_Namespace:
-            Q_ASSERT(!parentKey.symbolName.isEmpty());
-            data->parentNames.append(parentKey.symbolName);
-            break;
-        default:
-            break;
+    if (data->key != key) {
+        data->key = key;
+        data->parentNames.clear();
+        CXCursor parent = cursor;
+        for (;;) {
+            parent = clang_getCursorSemanticParent(parent);
+            CursorKey parentKey(parent);
+            if (!parentKey.isValid())
+                break;
+            switch (parentKey.kind) {
+            case CXCursor_StructDecl:
+            case CXCursor_ClassDecl:
+            case CXCursor_Namespace:
+                Q_ASSERT(!parentKey.symbolName.isEmpty());
+                data->parentNames.append(parentKey.symbolName);
+                break;
+            default:
+                break;
+            }
         }
     }
 }
@@ -576,28 +581,28 @@ static inline bool equalLocation(const CursorKey& key1, const CursorKey& key2)
 
 // #define COLLECTDEBUG
 
-class VerifyEntry
-{
-public:
-    VerifyEntry(RBuildPrivate::DataEntry *&e, CXCursor &c)
-        : entry(e), cursor(c)
-    {}
-    ~VerifyEntry()
-    {
-        if (entry) {
-            if (!entry->cursor.key.isValid()) {
-                qDebug() << cursor << entry->cursor.key << "is not valid";
-            }
-            if (!entry->reference.key.isValid()) {
-                qDebug() << cursor << entry->reference.key << "is not valid";
-            }
-            Q_ASSERT(entry->reference.key.isValid() && entry->cursor.key.isValid());
-        }
-    }
+// class VerifyEntry
+// {
+// public:
+//     VerifyEntry(RBuildPrivate::DataEntry *&e, CXCursor &c)
+//         : entry(e), cursor(c)
+//     {}
+//     ~VerifyEntry()
+//     {
+//         if (entry) {
+//             if (!entry->cursor.key.isValid()) {
+//                 qDebug() << cursor << entry->cursor.key << "is not valid";
+//             }
+//             if (!entry->reference.key.isValid()) {
+//                 qDebug() << cursor << entry->reference.key << "is not valid";
+//             }
+//             Q_ASSERT(entry->reference.key.isValid() && entry->cursor.key.isValid());
+//         }
+//     }
 
-    RBuildPrivate::DataEntry *&entry;
-    CXCursor &cursor;
-};
+//     RBuildPrivate::DataEntry *&entry;
+//     CXCursor &cursor;
+// };
 
 static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
 {
@@ -649,10 +654,11 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         return CXChildVisit_Continue;
     }
 
-    VerifyEntry v(entry, cursor);
+    // VerifyEntry v(entry, cursor);
 
     const bool isMacroDefinition = (key.kind == CXCursor_MacroDefinition);
     CXCursor definition = isMacroDefinition ? cursor : clang_getCursorDefinition(cursor);
+    const CursorKey definitionKey(definition);
 #ifdef COLLECTDEBUG
     if (dodebug) {
         debugCursor(stdout, cursor);
@@ -661,7 +667,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     }
 #endif
     if (!isMacroDefinition
-        && (!cursorDefinition(definition) || equalLocation(key, CursorKey(definition)))) {
+        && (!definitionKey.isDefinition() || equalLocation(key, CursorKey(definition)))) {
         if (entry->reference.key.isNull() || entry->reference.key == entry->cursor.key) {
             const CXCursor reference = clang_getCursorReferenced(cursor);
             const CursorKey referenceKey(reference);
@@ -677,18 +683,26 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
             } else {
                 qWarning() << "no place for this. This should never happen" << key << __LINE__;
                 delete entry;
+                entry = 0;
                 return CXChildVisit_Recurse;
             }
         } else {
             qWarning() << "no place for this. This should never happen" << key << __LINE__;
             delete entry;
+            entry = 0;
             return CXChildVisit_Recurse;
         }
     } else {
+        // qDebug() << definitionKey << cursor;
+        // printf("hvorfor %d %d %d\n",
+        //        isMacroDefinition,
+        //        definitionKey.isDefinition(),
+        //        equalLocation(key, CursorKey(definition)));
+
+        // printf("%s:%d } else {\n", __FILE__, __LINE__);
         if (cursorDefinitionFor(definition, cursor))
             entry->hasDefinition = true;
         addCursor(cursor, key, &entry->cursor);
-        const CursorKey definitionKey(definition);
         if (definitionKey.isValid()) {
             addCursor(definition, definitionKey, &entry->reference);
         }
@@ -700,11 +714,13 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         }
 #endif
     }
+    // printf("%s:%d }\n", __FILE__, __LINE__);
     if (it == data->seen.end()) {
         data->seen[locationKey] = entry;
         data->data.append(entry);
     }
 
+    // printf("%s:%d return CXChildVisit_Recurse;\n", __FILE__, __LINE__);
     return CXChildVisit_Recurse;
 }
 

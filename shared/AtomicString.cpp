@@ -69,12 +69,19 @@ AtomicString::AtomicString(const AtomicString& other)
 
 AtomicString::~AtomicString()
 {
+    clear();
+}
+
+void AtomicString::clear()
+{
 #ifdef REENTRANT_ATOMICSTRING
     QMutexLocker locker(&sMutex);
 #endif
-    if (mData && !--mData->ref) {
-        sData.remove(mData->data);
-        delete mData;
+    if (mData) {
+        if (!--mData->ref) {
+            sData.remove(mData->data);
+            delete mData;
+        }
         mData = 0;
     }
 }
@@ -96,10 +103,7 @@ AtomicString& AtomicString::operator=(const AtomicString& other)
 #ifdef REENTRANT_ATOMICSTRING
     QMutexLocker locker(&sMutex);
 #endif
-    if (mData && !--mData->ref) {
-        sData.remove(mData->data);
-        delete mData;
-    }
+    clear();
     mData = other.mData;
     if (mData)
         ++mData->ref;
