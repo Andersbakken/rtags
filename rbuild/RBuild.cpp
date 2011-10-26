@@ -656,8 +656,9 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
 
     // VerifyEntry v(entry, cursor);
 
-    const bool isMacroDefinition = (key.kind == CXCursor_MacroDefinition);
-    CXCursor definition = isMacroDefinition ? cursor : clang_getCursorDefinition(cursor);
+    const bool isSpecialDefinition = (key.kind == CXCursor_MacroDefinition
+                                      || key.kind == CXCursor_LabelStmt);
+    CXCursor definition = isSpecialDefinition ? cursor : clang_getCursorDefinition(cursor);
     const CursorKey definitionKey(definition);
 #ifdef COLLECTDEBUG
     if (dodebug) {
@@ -666,7 +667,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         fprintf(stdout, "(%d %d)\n", !isValidCursor(definition), equalLocation(key, CursorKey(definition)));
     }
 #endif
-    if (!isMacroDefinition
+    if (!isSpecialDefinition
         && (!definitionKey.isDefinition() || equalLocation(key, CursorKey(definition)))) {
         if (entry->reference.key.isNull() || entry->reference.key == entry->cursor.key) {
             const CXCursor reference = clang_getCursorReferenced(cursor);
@@ -714,7 +715,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         if (dodebug) {
             debugCursor(stdout, definition);
             fprintf(stdout, "def %p\n", entry);
-            qDebug() << entry->reference.cursor;
+            qDebug() << entry->reference.key;
         }
 #endif
     }
