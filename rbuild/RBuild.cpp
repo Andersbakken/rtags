@@ -95,7 +95,10 @@ bool RBuild::updateDB()
             // qDebug() << dep.file << "has changed" << ctime(&lm) << ctime(&lastModified);
         } else {
             for (QHash<Path, time_t>::const_iterator it = dependencies.constBegin(); it != dependencies.constEnd(); ++it) {
-                if (!dirty.contains(it.key()) && it.key().lastModified() != it.value()) {
+                if (dirty.contains(it.key())) {
+                    append = true;
+                    break;
+                } else if (it.key().lastModified() != it.value()) {
                     dirty.insert(it.key(), GccArguments());
                     append = false;
                     break; // can I break here?
