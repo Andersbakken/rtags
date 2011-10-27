@@ -5,8 +5,11 @@ namespace RTags {
 bool parseLocation(const std::string &string,
                    std::string &file, unsigned &line, unsigned &col)
 {
+    assert(!string.empty());
     file = string;
     size_t colon = file.find_last_of(':');
+    if (colon == string.size() - 1)
+        colon = file.find_last_of(':', colon - 1);
     if (colon == std::string::npos)
         return false;
     col = atoi(string.c_str() + colon + 1);

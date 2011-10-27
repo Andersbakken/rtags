@@ -10,19 +10,28 @@
 #include <CursorKey.h>
 
 using namespace RTags;
-
-static inline void maybeDict(leveldb::DB *db, const std::string &key,
+QSet<QByteArray> printed;
+static inline void print(const QByteArray &out)
+{
+    if (!printed.contains(out)) {
+        printed.insert(out);
+        printf("%s\n", out.constData());
+    }
+}
+static inline bool maybeDict(leveldb::DB *db, const std::string &key,
                              bool (*func)(leveldb::DB *db, const std::string &key))
 {
+    bool ret = false;
     std::string val;
     db->Get(leveldb::ReadOptions(), "d:" + key, &val);
     if (!val.empty()) {
         foreach(const QByteArray &k, QByteArray::fromRawData(val.c_str(), val.size()).split('\0')) {
             if (!k.isEmpty()) {
-                func(db, std::string(k.constData(), k.size()));
+                ret = func(db, std::string(k.constData(), k.size())) || ret;
             }
         }
     }
+    return ret;
 }
 
 static inline bool followSymbol(leveldb::DB *db, const std::string &key)
@@ -35,7 +44,7 @@ static inline bool followSymbol(leveldb::DB *db, const std::string &key)
         QDataStream ds(v);
         ds >> referredTo;
         if (!referredTo.isEmpty()) {
-            printf("%s\n", referredTo.constData());
+            print(referredTo);
         }
         return true;
     }
@@ -56,7 +65,7 @@ static inline bool findReferences(leveldb::DB *db, const std::string &key)
             return findReferences(db, std::string(referredTo.constData(), referredTo.size()));
         }
         foreach(const Cursor &r, references) {
-            printf("%s\n", r.key.toString().constData());
+            print(r.key.toString());
         }
         return true;
     }
@@ -71,7 +80,9 @@ static inline void usage(const char* argv0, FILE *f)
             "  --follow-symbol|-f [arg]   Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
             "  --references|-r [arg]      Print references of symbol at arg\n"
             "  --list-symbols|-l [arg]    Print out symbols matching arg\n"
-            "  --db-file|-d [arg]         Use this database file\n",
+            "  --db-file|-d [arg]         Use this database file\n"
+            "  --detect-db|-D             Find .rtags.db based on path\n"
+            "                             (default when no -d options are specified)\n",
             argv0);
 }
 
@@ -81,16 +92,16 @@ int main(int argc, char** argv)
         { "help", 0, 0, 'h' },
         { "follow-symbol", 1, 0, 'f' },
         { "db", 1, 0, 'd' },
-        { "maybe-db", 1, 0, 'D' },
+        { "detect-db", 0, 0, 'D' },
         { "find-references", 1, 0, 'r' },
         // { "recursive-references", 1, 0, 'R' },
         // { "max-recursion-reference-depth", 1, 0, 'x' },
         { "list-symbols", 1, 0, 'l' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hf:d:r:l:D:";
+    const char *shortOptions = "hf:d:r:l:D";
 
-    QByteArray dbPath = findRtagsDb();
+    QList<QByteArray> dbPaths;
 
     enum Mode {
         None,
@@ -125,11 +136,14 @@ int main(int argc, char** argv)
             }
             mode = References;
             break;
-        case 'D':
-            if (!dbPath.isEmpty())
-                break;
+        case 'D': {
+            const QByteArray db = findRtagsDb();
+            if (!db.isEmpty()) {
+                dbPaths.append(db);
+            }
+            break; }
         case 'd':
-            dbPath = optarg;
+            dbPaths.append(optarg);
             break;
         case 'l':
             if (mode != None) {
@@ -141,50 +155,56 @@ int main(int argc, char** argv)
             break;
         }
     }
+    if (dbPaths.isEmpty())
+        dbPaths.append(findRtagsDb());
 
-    if (dbPath.isEmpty())
-        return 1;
-    leveldb::DB* db;
-    if (!leveldb::DB::Open(leveldb::Options(), dbPath.constData(), &db).ok()) {
-        fprintf(stderr, "Unable to open db %s\n", dbPath.constData());
+    if (dbPaths.isEmpty()) {
+        fprintf(stderr, "No databases specified\n");
         return 1;
     }
-    LevelDBScope scope(db);
-
-    switch (mode) {
-    case None:
-        return 1;
-    case FollowSymbol:
-        if (!followSymbol(db, arg))
-            maybeDict(db, arg, followSymbol);
-        break;
-    case References:
-        if (!findReferences(db, arg))
-            maybeDict(db, arg, findReferences);
-        break;
-    case ListSymbols: {
-        std::string val;
-        leveldb::Iterator *it = db->NewIterator(leveldb::ReadOptions());
-        it->Seek("d:");
-        while (it->Valid()) {
-            std::string k = it->key().ToString();
-            // leveldb::Slice k = it->key();
-            // leveldb::Slice v = it->value();
-            // for (int i=0; i<k.size(); ++i) {
-            //     printf("'%c'(%d)", k.data()[i], i);
-            // }
-            // printf("\n");
-
-            // printf("%s:%s\n", k.data(), v.data());
-            if (k.empty() || strncmp(k.c_str(), "d:", 2))
-                break;
-            if (arg.empty() || strstr(k.c_str(), arg.c_str())) {
-                printf("%s\n", k.c_str() + 2);
-            }
-            it->Next();
+    foreach(const QByteArray &dbPath, dbPaths) {
+        leveldb::DB* db;
+        if (!leveldb::DB::Open(leveldb::Options(), dbPath.constData(), &db).ok()) {
+            fprintf(stderr, "Unable to open db %s\n", dbPath.constData());
+            continue;
         }
-        delete it;
-        break; }
+        LevelDBScope scope(db);
+
+        switch (mode) {
+        case None:
+            return 1;
+        case FollowSymbol:
+            if (followSymbol(db, arg) || maybeDict(db, arg, followSymbol))
+                return 0;
+            break;
+        case References:
+            if (!findReferences(db, arg))
+                maybeDict(db, arg, findReferences);
+            break;
+        case ListSymbols: {
+            std::string val;
+            leveldb::Iterator *it = db->NewIterator(leveldb::ReadOptions());
+            it->Seek("d:");
+            while (it->Valid()) {
+                std::string k = it->key().ToString();
+                // leveldb::Slice k = it->key();
+                // leveldb::Slice v = it->value();
+                // for (int i=0; i<k.size(); ++i) {
+                //     printf("'%c'(%d)", k.data()[i], i);
+                // }
+                // printf("\n");
+
+                // printf("%s:%s\n", k.data(), v.data());
+                if (k.empty() || strncmp(k.c_str(), "d:", 2))
+                    break;
+                if (arg.empty() || strstr(k.c_str(), arg.c_str())) {
+                    printf("%s\n", k.c_str() + 2);
+                }
+                it->Next();
+            }
+            delete it;
+            break; }
+        }
     }
 
     return 0;

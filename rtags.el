@@ -56,8 +56,8 @@
             (setq column (int-to-string (- (point) (point-at-bol) -1))))))
     (with-temp-buffer
       ;; (message (executable-find "rc"))
-      ;; (message (concat (executable-find "rc") " --follow-symbol " bufname ":" line ":" column))
-      (call-process (executable-find "rc") nil t nil "--follow-symbol" (concat bufname ":" line ":" column))
+      (message (concat (executable-find "rc") " --follow-symbol " bufname ":" line ":" column ":"))
+      (call-process (executable-find "rc") nil t nil "--follow-symbol" (concat bufname ":" line ":" column ":"))
       (rtags-goto-location (buffer-string)))
     )
   )
@@ -79,8 +79,8 @@
         (kill-buffer "*Rtags-Complete*"))
     (switch-to-buffer (generate-new-buffer "*Rtags-Complete*"))
       ;; (message (executable-find "rc"))
-    (message (concat (executable-find "rc") (concat " " mode " " bufname ":" line ":" column)))
-    (call-process (executable-find "rc") nil t nil mode (concat bufname ":" line ":" column))
+    (message (concat (executable-find "rc") (concat " " mode " " bufname ":" line ":" column ":")))
+    (call-process (executable-find "rc") nil t nil mode (concat bufname ":" line ":" column ":"))
     (if (= (point-min) (point-max))
         (progn
 ;          (kill-buffer "*Rtags-Complete*")
