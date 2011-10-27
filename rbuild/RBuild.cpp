@@ -616,6 +616,34 @@ static inline bool equalLocation(const CursorKey& key1, const CursorKey& key2)
 //     CXCursor &cursor;
 // };
 
+static bool shouldMergeCursors(const CursorKey& oldcurrent, const CursorKey& newcurrent,
+                               const CursorKey& oldref, const CursorKey& newref, bool dodebug)
+{
+#ifdef COLLECTDEBUG
+    if (dodebug) {
+        qDebug() << "merge?" << oldcurrent << "vs" << newcurrent;
+        qDebug() << oldref << "vs" << newref;
+        qDebug() << "------";
+    }
+#else
+    Q_UNUSED(dodebug)
+#endif
+    if (oldref.kind == CXCursor_Constructor && newref.kind == CXCursor_ClassDecl)
+        return false;
+    if (oldref.kind == CXCursor_ClassDecl && newref.kind == CXCursor_Constructor)
+        return true;
+    if (oldcurrent.isValid() && oldref.isValid() && oldref.isDefinition()) {
+        if ((oldcurrent.kind == CXCursor_CallExpr && (newcurrent.kind == CXCursor_TypeRef || newcurrent.kind == CXCursor_DeclRefExpr))
+            || (oldref.locationKey() == oldcurrent.locationKey())) {
+            return true;
+        }
+        return false;
+    }
+    if (newref.isValid())
+        return true;
+    return false;
+}
+
 static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
 {
     const CursorKey key(cursor);
@@ -633,22 +661,14 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     }
 
 #ifdef COLLECTDEBUG
-    const bool dodebug = (key.fileName.toByteArray().endsWith("main.cpp") && key.line == 10 && key.col == 6);
+    const bool dodebug = (key.fileName.toByteArray().endsWith("main.cpp") && key.line == 10 && key.col == 1);
+#else
+    const bool dodebug = false;
 #endif
-    if (it != data->seen.end()) {
+    if (it != data->seen.end())
         entry = it.value();
-        if (entry->hasDefinition) {
-#ifdef COLLECTDEBUG
-            if (dodebug) {
-                fprintf(stdout, "already got a def\n");
-                qDebug() << key;
-            }
-#endif
-            return CXChildVisit_Recurse; // ### Continue?
-        }
-    } else {
+    else
         entry = new RBuildPrivate::DataEntry;
-    }
 
     if (key.kind == CXCursor_InclusionDirective) {
         CursorKey inclusion;
@@ -658,7 +678,6 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         inclusion.off = 0;
         addCursor(cursor, key, &entry->cursor);
         addCursor(clang_getNullCursor(), inclusion, &entry->reference);
-        entry->hasDefinition = true;
         if (it == data->seen.end()) {
             data->seen[locationKey] = entry;
             data->data.append(entry);
@@ -668,70 +687,52 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
 
     // VerifyEntry v(entry, cursor);
 
-    const bool isSpecialDefinition = (key.kind == CXCursor_MacroDefinition
-                                      || key.kind == CXCursor_LabelStmt);
-    const bool isSpecialReference = (key.kind == CXCursor_CallExpr);
-    CXCursor definition = isSpecialDefinition ? cursor : clang_getCursorDefinition(cursor);
-    const CursorKey definitionKey(definition);
 #ifdef COLLECTDEBUG
     if (dodebug) {
         debugCursor(stdout, cursor);
-        debugCursor(stdout, definition);
-        fprintf(stdout, "(%d %d)\n", !isValidCursor(definition), equalLocation(key, CursorKey(definition)));
+        fprintf(stdout, "cursor %p\n", entry);
     }
 #endif
-    if (!isSpecialDefinition
-        && (!definitionKey.isDefinition() || equalLocation(key, CursorKey(definition)))) {
-        if (entry->reference.key.isNull() || entry->reference.key == entry->cursor.key || isSpecialReference) {
-            const CXCursor reference = clang_getCursorReferenced(cursor);
-            const CursorKey referenceKey(reference);
-            if (referenceKey.isValid()/* && referenceKey != key*/) {
+    const CXCursor definition = key.isDefinition() ? cursor : clang_getCursorDefinition(cursor);
+    const CursorKey definitionKey(definition);
+    if (!definitionKey.isDefinition()) {
 #ifdef COLLECTDEBUG
-                if (dodebug) {
-                    debugCursor(stdout, reference);
-                    fprintf(stdout, "ref %p\n", entry);
-                }
+        if (dodebug)
+            printf("no definition:\n");
 #endif
-                addCursor(cursor, key, &entry->cursor);
-                addCursor(reference, referenceKey, &entry->reference);
-            } else {
-                if (it == data->seen.end()) {
-                    switch (key.kind) {
-                    case CXCursor_MacroExpansion:
-                    case CXCursor_TypeRef:
-                    case CXCursor_CXXBaseSpecifier:
-                        break;
-                    default:
-                        qWarning() << "no place for this. This should never happen" << key << __LINE__;
-                        break;
-                    }
-
-                    delete entry;
-                    entry = 0;
-                }
-                return CXChildVisit_Recurse;
-            }
-        } else { 
+        const CXCursor reference = clang_getCursorReferenced(cursor);
+        const CursorKey referenceKey(reference);
+        if (shouldMergeCursors(entry->cursor.key, key, entry->reference.key, referenceKey, dodebug)) {
+            addCursor(cursor, key, &entry->cursor);
+            addCursor(reference, referenceKey, &entry->reference);
+        } else {
             if (it == data->seen.end()) {
-                qWarning() << "no place for this. This should never happen" << key << __LINE__;
                 delete entry;
                 entry = 0;
             }
             return CXChildVisit_Recurse;
         }
+#ifdef COLLECTDEBUG
+        if (dodebug) {
+            debugCursor(stdout, reference);
+            fprintf(stdout, "ref %p\n", entry);
+            qDebug() << entry->reference.key;
+        }
+#endif
     } else {
-        // qDebug() << definitionKey << cursor;
-        // printf("hvorfor %d %d %d\n",
-        //        isMacroDefinition,
-        //        definitionKey.isDefinition(),
-        //        equalLocation(key, CursorKey(definition)));
-
-        // printf("%s:%d } else {\n", __FILE__, __LINE__);
-        if (cursorDefinitionFor(definition, cursor))
-            entry->hasDefinition = true;
-        addCursor(cursor, key, &entry->cursor);
-        if (definitionKey.isValid()) {
+#ifdef COLLECTDEBUG
+        if (dodebug)
+            printf("has definition:\n");
+#endif
+        if (shouldMergeCursors(entry->cursor.key, key, entry->reference.key, definitionKey, dodebug)) {
+            addCursor(cursor, key, &entry->cursor);
             addCursor(definition, definitionKey, &entry->reference);
+        } else {
+            if (it == data->seen.end()) {
+                delete entry;
+                entry = 0;
+            }
+            return CXChildVisit_Recurse;
         }
 #ifdef COLLECTDEBUG
         if (dodebug) {
@@ -741,6 +742,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         }
 #endif
     }
+
     // printf("%s:%d }\n", __FILE__, __LINE__);
     if (it == data->seen.end()) {
         data->seen[locationKey] = entry;

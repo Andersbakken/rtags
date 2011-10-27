@@ -25,7 +25,7 @@ public:
             str = clang_getCursorDisplayName(cursor);
             symbolName = clang_getCString(str);
             clang_disposeString(str);
-            def = (kind == CXCursor_MacroDefinition || clang_isCursorDefinition(cursor));
+            def = (kind == CXCursor_MacroDefinition || kind == CXCursor_LabelStmt || clang_isCursorDefinition(cursor));
             // if (!isValid())
             //     clear();
         }
@@ -169,7 +169,7 @@ static inline QDebug operator<<(QDebug d, const CursorKey& key)
 {
     d.nospace() << RTags::eatString(clang_getCursorKindSpelling(key.kind)).constData() << ", "
                 << (key.symbolName.isEmpty() ? "(no symbol)" : key.symbolName.toByteArray().constData()) << ", "
-                << key.fileName.toByteArray().constData() << ':' << key.line << ':' << key.col;
+                << key.fileName.toByteArray().constData() << ':' << key.line << ':' << key.col << (key.def ? " def" : " nodef");
     return d.space();
 }
 

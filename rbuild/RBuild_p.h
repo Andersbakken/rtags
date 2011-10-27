@@ -12,9 +12,8 @@ struct RBuildPrivate
     ~RBuildPrivate() { qDeleteAll(data); }
 
     struct DataEntry {
-        DataEntry() : hasDefinition(false) {}
+        DataEntry() {}
 
-        bool hasDefinition;
         Cursor cursor;
         Cursor reference;
         QSet<Cursor> references;
@@ -33,13 +32,13 @@ struct RBuildPrivate
 
 static inline QDataStream &operator<<(QDataStream &ds, const RBuildPrivate::DataEntry &entry)
 {
-    ds << entry.hasDefinition << entry.cursor << entry.reference << entry.references;
+    ds << entry.cursor << entry.reference << entry.references;
     return ds;
 }
 
 static inline QDataStream &operator>>(QDataStream &ds, RBuildPrivate::DataEntry &entry)
 {
-    ds >> entry.hasDefinition >> entry.cursor >> entry.reference >> entry.references;
+    ds >> entry.cursor >> entry.reference >> entry.references;
     return ds;
 }
 
