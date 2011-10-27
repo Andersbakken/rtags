@@ -26,8 +26,8 @@ public:
             symbolName = clang_getCString(str);
             clang_disposeString(str);
             def = (kind == CXCursor_MacroDefinition || kind == CXCursor_LabelStmt || clang_isCursorDefinition(cursor));
-            // if (!isValid())
-            //     clear();
+            if (!isValid())
+                clear();
         }
     }
 
@@ -103,7 +103,7 @@ public:
     {
         QByteArray out;
         int ints[] = { line, col };
-        int intsSize = 4; // two for :, two for the first digit
+        int intsSize = 5; // two for :, two for the first digit
         for (int i=0; i<2; ++i) {
             int v = ints[i];
             while (v >= 10) {
@@ -113,7 +113,7 @@ public:
         }
 
         out.resize(fileName.size() + intsSize);
-        snprintf(out.data(), out.size() + 1, "%s:%d:%d", fileName.constData(), line, col);
+        snprintf(out.data(), out.size() + 1, "%s:%d:%d:", fileName.constData(), line, col);
         return out;
     }
 

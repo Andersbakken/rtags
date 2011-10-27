@@ -80,16 +80,17 @@ int main(int argc, char** argv)
     struct option longOptions[] = {
         { "help", 0, 0, 'h' },
         { "follow-symbol", 1, 0, 'f' },
-        { "db-file", 1, 0, 'd' },
+        { "db", 1, 0, 'd' },
+        { "maybe-db", 1, 0, 'D' },
         { "find-references", 1, 0, 'r' },
         // { "recursive-references", 1, 0, 'R' },
         // { "max-recursion-reference-depth", 1, 0, 'x' },
         { "list-symbols", 1, 0, 'l' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hf:d:r:l:";
+    const char *shortOptions = "hf:d:r:l:D:";
 
-    QByteArray dbFile = findRtagsDb();
+    QByteArray dbPath = findRtagsDb();
 
     enum Mode {
         None,
@@ -124,8 +125,11 @@ int main(int argc, char** argv)
             }
             mode = References;
             break;
+        case 'D':
+            if (!dbPath.isEmpty())
+                break;
         case 'd':
-            dbFile = optarg;
+            dbPath = optarg;
             break;
         case 'l':
             if (mode != None) {
@@ -138,11 +142,11 @@ int main(int argc, char** argv)
         }
     }
 
-    if (dbFile.isEmpty())
+    if (dbPath.isEmpty())
         return 1;
     leveldb::DB* db;
-    if (!leveldb::DB::Open(leveldb::Options(), dbFile.constData(), &db).ok()) {
-        fprintf(stderr, "Unable to open db %s\n", dbFile.constData());
+    if (!leveldb::DB::Open(leveldb::Options(), dbPath.constData(), &db).ok()) {
+        fprintf(stderr, "Unable to open db %s\n", dbPath.constData());
         return 1;
     }
     LevelDBScope scope(db);

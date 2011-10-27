@@ -848,7 +848,7 @@ void RBuild::compile(const GccArguments& arguments)
         mData->dependencies.append(deps);
         clang_getInclusions(unit, getInclusions, &mData->dependencies.last());
         clang_disposeTranslationUnit(unit);
-        fprintf(stderr, "parsed %s new %d items\n", input.constData(), mData->data.size() - old);
+        fprintf(stderr, "parsed %s, %d new items\n", input.constData(), mData->data.size() - old);
 
     }
 }
