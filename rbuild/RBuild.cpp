@@ -692,7 +692,16 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
                 addCursor(reference, referenceKey, &entry->reference);
             } else {
                 if (it == data->seen.end()) {
-                    qWarning() << "no place for this. This should never happen" << key << __LINE__;
+                    switch (key.kind) {
+                    case CXCursor_MacroExpansion:
+                    case CXCursor_TypeRef:
+                    case CXCursor_CXXBaseSpecifier:
+                        break;
+                    default:
+                        qWarning() << "no place for this. This should never happen" << key << __LINE__;
+                        break;
+                    }
+
                     delete entry;
                     entry = 0;
                 }
