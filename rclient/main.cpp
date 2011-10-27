@@ -76,13 +76,14 @@ static inline void usage(const char* argv0, FILE *f)
 {
     fprintf(f,
             "%s [options]...\n"
-            "  --help|-h                  Display this help\n"
-            "  --follow-symbol|-f [arg]   Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
-            "  --references|-r [arg]      Print references of symbol at arg\n"
-            "  --list-symbols|-l [arg]    Print out symbols matching arg\n"
-            "  --db-file|-d [arg]         Use this database file\n"
-            "  --detect-db|-D             Find .rtags.db based on path\n"
-            "                             (default when no -d options are specified)\n",
+            "  --help|-h                   Display this help\n"
+            "  --follow-symbol|-f [arg]    Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
+            "  --references|-r [arg]       Print references of symbol at arg\n"
+            "  --list-symbols|-l [arg]     Print out symbols matching arg\n"
+            "  --db-file|-d [arg]          Use this database file\n"
+            "  --print-detected-db-path|-p Print out the detected database path\n"
+            "  --detect-db|-D              Find .rtags.db based on path\n"
+            "                              (default when no -d options are specified)\n",
             argv0);
 }
 
@@ -92,14 +93,15 @@ int main(int argc, char** argv)
         { "help", 0, 0, 'h' },
         { "follow-symbol", 1, 0, 'f' },
         { "db", 1, 0, 'd' },
-        { "detect-db", 0, 0, 'D' },
+        { "print-detected-db-path", 0, 0, 'p' },
         { "find-references", 1, 0, 'r' },
         // { "recursive-references", 1, 0, 'R' },
         // { "max-recursion-reference-depth", 1, 0, 'x' },
+        { "find-db", 0, 0, 'F' },
         { "list-symbols", 1, 0, 'l' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hf:d:r:l:D";
+    const char *shortOptions = "hf:d:r:l:Dp";
 
     QList<QByteArray> dbPaths;
 
@@ -117,6 +119,16 @@ int main(int argc, char** argv)
         case '?':
             usage(argv[0], stderr);
             return 1;
+        case 'p': {
+            const QByteArray db = findRtagsDb();
+            if (!db.isEmpty()) {
+                printf("%s\n", db.constData());
+            } else {
+                char buffer[500];
+                getcwd(buffer, 500);
+                fprintf(stderr, "No db found for %s\n", buffer);
+            }
+            return 0; }
         case 'h':
             usage(argv[0], stdout);
             return 0;
