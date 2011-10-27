@@ -26,21 +26,26 @@ bool parseLocation(const std::string &string,
     return true;
 }
 
-Path findRtagsDb()
+Path findRtagsDb(const char *path)
 {
-    char buffer[500];
-    if (getcwd(buffer, 500)) {
-        char *slash;
-        while ((slash = strrchr(buffer, '/'))) {
-            // ### this is awful
-            struct ::stat s;
-            std::string path(buffer);
-            path += "/.rtags.db";
-            // printf("Testing [%s]\n", path.c_str());
-            if (stat(path.c_str(), &s) >= 0)
-                return QByteArray(path.c_str(), path.size());
-            *slash = '\0';
-        }
+    char buffer[1024];
+    if (path) {
+        strncpy(buffer, path, 1023);
+        buffer[1023] = '\0';
+    } else if (!getcwd(buffer, 1024)) {
+        return Path();
+    }
+
+    char *slash;
+    while ((slash = strrchr(buffer, '/'))) {
+        // ### this is awful
+        struct ::stat s;
+        std::string path(buffer);
+        path += "/.rtags.db";
+        // printf("Testing [%s]\n", path.c_str());
+        if (stat(path.c_str(), &s) >= 0)
+            return QByteArray(path.c_str(), path.size());
+        *slash = '\0';
     }
     return Path();
 }

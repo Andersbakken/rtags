@@ -12,7 +12,7 @@ class CursorKey;
 namespace RTags {
 bool parseLocation(const std::string &string,
                    std::string &file, unsigned &line, unsigned &col);
-Path findRtagsDb();
+Path findRtagsDb(const char *path = 0);
 class LevelDBScope
 {
 public:

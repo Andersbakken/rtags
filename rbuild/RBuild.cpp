@@ -681,7 +681,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         inclusion.symbolName = removePath(inclusion.fileName.toByteArray());
         inclusion.line = inclusion.col = 1;
         inclusion.off = 0;
-        qDebug() << "found include thing" << inclusion.symbolName << key.toString() << inclusion.toString();
+        // qDebug() << "found include thing" << inclusion.symbolName << key.toString() << inclusion.toString();
         addCursor(cursor, key, &entry->cursor);
         addCursor(clang_getNullCursor(), inclusion, &entry->reference);
         if (it == data->seen.end()) {

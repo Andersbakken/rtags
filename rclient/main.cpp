@@ -172,7 +172,8 @@ int main(int argc, char** argv)
             }
             break; }
         case 'd':
-            dbPaths.append(optarg);
+            if (optarg && strlen(optarg))
+                dbPaths.append(optarg);
             break;
         case 'l':
             if (mode != None) {
@@ -192,8 +193,13 @@ int main(int argc, char** argv)
             break;
         }
     }
-    if (dbPaths.isEmpty())
-        dbPaths.append(findRtagsDb());
+    if (dbPaths.isEmpty()) {
+        QByteArray db = findRtagsDb();
+        if (db.isEmpty() && !arg.empty())
+            db = findRtagsDb(arg.c_str());
+        if (!db.isEmpty())
+            dbPaths.append(db);
+    }
 
     if (dbPaths.isEmpty()) {
         fprintf(stderr, "No databases specified\n");
