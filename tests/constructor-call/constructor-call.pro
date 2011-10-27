@@ -10,5 +10,5 @@ INCLUDEPATH += .
 CONFIG -= qt
 
 # Input
-HEADERS += test1.h
-SOURCES += main.cpp test1.cpp
+HEADERS += test1.h test2.h
+SOURCES += main.cpp test1.cpp test2.cpp
