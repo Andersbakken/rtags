@@ -215,7 +215,7 @@ static inline void writeDict(leveldb::DB* db, const leveldb::WriteOptions& opt, 
         const QSet<AtomicString>& set = it.value();
         QSet<AtomicString>::const_iterator dit = set.begin();
         const QSet<AtomicString>::const_iterator dend = set.end();
-        qDebug() << "writing dict" << it.key().toByteArray() << set;
+        // qDebug() << "writing dict" << it.key().toByteArray() << set;
         while (dit != dend) {
             locs += (*dit).toByteArray().constData();
             locs += '\0';
@@ -653,7 +653,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     const CursorKey key(cursor);
     if (!key.isValid())
         return CXChildVisit_Recurse;
-    qDebug() << key;
+    // qDebug() << key;
 
     RBuildPrivate* data = reinterpret_cast<RBuildPrivate*>(client_data);
 
