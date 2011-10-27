@@ -1,0 +1,8 @@
+--follow-symbol
+main.cpp:5:11
+test1.h:7:5
+
+--follow-symbol
+main.cpp:6:13
+test1.h:8:5
+
