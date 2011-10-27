@@ -670,6 +670,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
 
     const bool isSpecialDefinition = (key.kind == CXCursor_MacroDefinition
                                       || key.kind == CXCursor_LabelStmt);
+    const bool isSpecialReference = (key.kind == CXCursor_CallExpr);
     CXCursor definition = isSpecialDefinition ? cursor : clang_getCursorDefinition(cursor);
     const CursorKey definitionKey(definition);
 #ifdef COLLECTDEBUG
@@ -681,7 +682,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
 #endif
     if (!isSpecialDefinition
         && (!definitionKey.isDefinition() || equalLocation(key, CursorKey(definition)))) {
-        if (entry->reference.key.isNull() || entry->reference.key == entry->cursor.key) {
+        if (entry->reference.key.isNull() || entry->reference.key == entry->cursor.key || isSpecialReference) {
             const CXCursor reference = clang_getCursorReferenced(cursor);
             const CursorKey referenceKey(reference);
             if (referenceKey.isValid()/* && referenceKey != key*/) {

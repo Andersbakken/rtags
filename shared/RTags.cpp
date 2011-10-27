@@ -113,6 +113,7 @@ bool cursorDefinitionFor(const CursorKey &d, const CursorKey &c)
 {
     switch (c.kind) {
     case CXCursor_CallExpr:
+    case CXCursor_TypeRef:
         return false;
     default:
         break;
