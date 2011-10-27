@@ -111,4 +111,9 @@ bool cursorDefinitionFor(const CursorKey &d, const CursorKey &c)
     return d.isDefinition();
 }
 
+QDebug operator<<(QDebug dbg, const std::string &str)
+{
+    dbg << str.c_str();
+    return dbg;
+}
 }

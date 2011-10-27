@@ -23,7 +23,7 @@ public:
             fileName = Path::resolved(clang_getCString(str));
             clang_disposeString(str);
             str = clang_getCursorDisplayName(cursor);
-            symbolName = clang_getCString(str);
+            symbolName = (clang_getCString(str));
             clang_disposeString(str);
             def = (kind == CXCursor_MacroDefinition || kind == CXCursor_LabelStmt || clang_isCursorDefinition(cursor));
             if (!isValid())
@@ -103,7 +103,7 @@ public:
     {
         QByteArray out;
         int ints[] = { line, col };
-        int intsSize = 5; // two for :, two for the first digit
+        int intsSize = 5; // three for :, two for the first digit in line and col
         for (int i=0; i<2; ++i) {
             int v = ints[i];
             while (v >= 10) {

@@ -25,6 +25,9 @@ static inline bool maybeDict(leveldb::DB *db, const std::string &key,
     std::string val;
     db->Get(leveldb::ReadOptions(), "d:" + key, &val);
     if (!val.empty()) {
+        // QByteArray hackfoo(val.c_str(), val.size());
+        // hackfoo.replace('\0', '\n');
+        // qDebug() << "hackfoo" << key.c_str() << hackfoo;
         foreach(const QByteArray &k, QByteArray::fromRawData(val.c_str(), val.size()).split('\0')) {
             if (!k.isEmpty()) {
                 ret = func(db, std::string(k.constData(), k.size())) || ret;
@@ -34,10 +37,20 @@ static inline bool maybeDict(leveldb::DB *db, const std::string &key,
     return ret;
 }
 
+static inline bool printSymbol(leveldb::DB *, const std::string &loc)
+{
+    if (!loc.empty()) {
+        print(QByteArray(loc.c_str()));
+        return true;
+    }
+    return false;
+}
+
 static inline bool followSymbol(leveldb::DB *db, const std::string &key)
 {
     std::string val;
     db->Get(leveldb::ReadOptions(), key, &val);
+    // qDebug() << key.c_str() << val.size();
     if (!val.empty()) {
         QByteArray referredTo;
         const QByteArray v = QByteArray::fromRawData(val.c_str(), val.size());
@@ -77,13 +90,15 @@ static inline void usage(const char* argv0, FILE *f)
     fprintf(f,
             "%s [options]...\n"
             "  --help|-h                   Display this help\n"
-            "  --follow-symbol|-f [arg]    Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
-            "  --references|-r [arg]       Print references of symbol at arg\n"
-            "  --list-symbols|-l [arg]     Print out symbols matching arg\n"
             "  --db-file|-d [arg]          Use this database file\n"
             "  --print-detected-db-path|-p Print out the detected database path\n"
             "  --detect-db|-D              Find .rtags.db based on path\n"
-            "                              (default when no -d options are specified)\n",
+            "                              (default when no -d options are specified)\n"
+            "  Modes\n"
+            "  --follow-symbol|-f [arg]    Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
+            "  --references|-r [arg]       Print references of symbol at arg\n"
+            "  --list-symbols|-l [arg]     Print out symbols matching arg\n"
+            "  --find-symbols|-s [arg]    Print out symbols matching arg\n",
             argv0);
 }
 
@@ -95,13 +110,14 @@ int main(int argc, char** argv)
         { "db", 1, 0, 'd' },
         { "print-detected-db-path", 0, 0, 'p' },
         { "find-references", 1, 0, 'r' },
+        { "find-symbols", 1, 0, 's' },
         // { "recursive-references", 1, 0, 'R' },
         // { "max-recursion-reference-depth", 1, 0, 'x' },
         { "find-db", 0, 0, 'F' },
         { "list-symbols", 1, 0, 'l' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hf:d:r:l:Dp";
+    const char *shortOptions = "hf:d:r:l:Dps:";
 
     QList<QByteArray> dbPaths;
 
@@ -109,8 +125,9 @@ int main(int argc, char** argv)
         None,
         FollowSymbol,
         References,
-        // RecursiveReferences,
+        FindSymbols,
         ListSymbols
+        // RecursiveReferences,
     } mode = None;
     int idx, longIndex;
     std::string arg;
@@ -165,6 +182,14 @@ int main(int argc, char** argv)
             mode = ListSymbols;
             arg = optarg;
             break;
+        case 's':
+            if (mode != None) {
+                fprintf(stderr, "Mode is already set\n");
+                return 1;
+            }
+            mode = FindSymbols;
+            arg = optarg;
+            break;
         }
     }
     if (dbPaths.isEmpty())
@@ -187,11 +212,14 @@ int main(int argc, char** argv)
             return 1;
         case FollowSymbol:
             if (followSymbol(db, arg) || maybeDict(db, arg, followSymbol))
-                return 0;
+                return 0; // we only want the first one here
             break;
         case References:
             if (!findReferences(db, arg))
                 maybeDict(db, arg, findReferences);
+            break;
+        case FindSymbols:
+            maybeDict(db, arg, printSymbol);
             break;
         case ListSymbols: {
             std::string val;
@@ -205,7 +233,6 @@ int main(int argc, char** argv)
                 //     printf("'%c'(%d)", k.data()[i], i);
                 // }
                 // printf("\n");
-
                 // printf("%s:%s\n", k.data(), v.data());
                 if (k.empty() || strncmp(k.c_str(), "d:", 2))
                     break;

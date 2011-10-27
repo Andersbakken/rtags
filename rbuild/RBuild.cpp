@@ -215,6 +215,7 @@ static inline void writeDict(leveldb::DB* db, const leveldb::WriteOptions& opt, 
         const QSet<AtomicString>& set = it.value();
         QSet<AtomicString>::const_iterator dit = set.begin();
         const QSet<AtomicString>::const_iterator dend = set.end();
+        qDebug() << "writing dict" << it.key().toByteArray() << set;
         while (dit != dend) {
             locs += (*dit).toByteArray().constData();
             locs += '\0';
@@ -652,6 +653,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     const CursorKey key(cursor);
     if (!key.isValid())
         return CXChildVisit_Recurse;
+    qDebug() << key;
 
     RBuildPrivate* data = reinterpret_cast<RBuildPrivate*>(client_data);
 
@@ -676,9 +678,10 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     if (key.kind == CXCursor_InclusionDirective) {
         CursorKey inclusion;
         inclusion.fileName = eatString(clang_getFileName(clang_getIncludedFile(cursor)));
-        inclusion.symbolName = inclusion.fileName;
+        inclusion.symbolName = removePath(inclusion.fileName.toByteArray());
         inclusion.line = inclusion.col = 1;
         inclusion.off = 0;
+        qDebug() << "found include thing" << inclusion.symbolName << key.toString() << inclusion.toString();
         addCursor(cursor, key, &entry->cursor);
         addCursor(clang_getNullCursor(), inclusion, &entry->reference);
         if (it == data->seen.end()) {

@@ -123,14 +123,6 @@ static inline void dumpDatabase(const std::string& filename, int type)
     delete db;
 }
 
-static inline std::string removePath(const std::string& line)
-{
-    std::string::size_type slash = line.rfind('/');
-    if (slash == std::string::npos)
-        return line;
-    return line.substr(slash + 1);
-}
-
 static inline bool writeExpect(const std::string& filename)
 {
     leveldb::DB* db;

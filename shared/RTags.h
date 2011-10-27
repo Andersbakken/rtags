@@ -71,9 +71,26 @@ static inline void removeWhitespace(QByteArray &ba)
         }
     }
 }
+static inline std::string removePath(const std::string& line)
+{
+    const std::string::size_type slash = line.rfind('/');
+    if (slash == std::string::npos)
+        return line;
+    return line.substr(slash + 1);
+}
+
+static inline QByteArray removePath(const QByteArray& line)
+{
+    const int slash = line.lastIndexOf('/');
+    if (slash == -1)
+        return line;
+    return line.mid(slash + 1);
+}
+
 
 bool cursorDefinitionFor(const CursorKey& d, const CursorKey &c);
 QDebug operator<<(QDebug dbg, CXCursor cursor);
+QDebug operator<<(QDebug dbg, const std::string &str);
 }
 
 #endif

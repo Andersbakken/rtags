@@ -132,13 +132,14 @@
     (with-temp-buffer
       (call-process "rc" nil t nil "-l" "")
       (setq completions (split-string (buffer-string))))
+      ;; (setq completions (split-string "test1" "test1()")))
     (setq input (completing-read prompt completions nil nil nil gtags-history-list))
     (if (not (equal "" input))
         (setq tagname input))
     (if (get-buffer "*Rtags-Complete*")
         (kill-buffer "*Rtags-Complete*"))
     (switch-to-buffer (generate-new-buffer "*Rtags-Complete*"))
-    (call-process "rc" nil t nil "-f" tagname)
+    (call-process "rc" nil t nil "-s" tagname)
     (if (= (point-min) (point-max))
         (progn
 ;          (kill-buffer "*Rtags-Complete*")
