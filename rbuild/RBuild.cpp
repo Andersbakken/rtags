@@ -80,8 +80,8 @@ bool RBuild::updateDB()
         if (strncmp(key.data(), "f:", 2))
             break;
         GccArguments args;
-        time_t lastModified;
-        QHash<Path, time_t> dependencies;
+        quint64 lastModified;
+        QHash<Path, quint64> dependencies;
 
         const leveldb::Slice value = it->value();
         const QByteArray data = QByteArray::fromRawData(value.data(), value.size());
@@ -91,10 +91,10 @@ bool RBuild::updateDB()
         bool append = true;
         if (lastModified != file.lastModified()) {
             append = false;
-            // time_t lm = dep.file.lastModified();
+            // quint64 lm = dep.file.lastModified();
             // qDebug() << dep.file << "has changed" << ctime(&lm) << ctime(&lastModified);
         } else {
-            for (QHash<Path, time_t>::const_iterator it = dependencies.constBegin(); it != dependencies.constEnd(); ++it) {
+            for (QHash<Path, quint64>::const_iterator it = dependencies.constBegin(); it != dependencies.constEnd(); ++it) {
                 if (dirty.contains(it.key())) {
                     append = false;
                     break;
@@ -147,6 +147,9 @@ bool RBuild::updateDB()
     for (QHash<Path, GccArguments>::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
         compile(it.value());
     }
+    if (count != mData->data.size())
+        fprintf(stderr, "Item count changed from %d to %d\n",
+                count, mData->data.size());
 
     save();
     return true;
@@ -176,7 +179,7 @@ void RBuild::makefileFileReady(const MakefileItem& file)
 
 static inline void writeDependencies(leveldb::DB* db, const leveldb::WriteOptions& opt,
                                      const Path &path, const GccArguments &args,
-                                     time_t lastModified, const QHash<Path, time_t> &dependencies)
+                                     quint64 lastModified, const QHash<Path, quint64> &dependencies)
 {
     QByteArray out;
     {
@@ -788,8 +791,8 @@ void RBuild::compile(const GccArguments& arguments)
           printf("skipping %s\n", input.constData());
           continue;
           }*/
-        fprintf(stderr, "parsing %s\n", input.constData());
 
+        const int old = mData->data.size();
         const bool verbose = (getenv("VERBOSE") != 0);
 
         QList<QByteArray> arglist;
@@ -818,30 +821,34 @@ void RBuild::compile(const GccArguments& arguments)
         const unsigned int numDiags = clang_getNumDiagnostics(unit);
         for (unsigned int i = 0; i < numDiags; ++i) {
             CXDiagnostic diag = clang_getDiagnostic(unit, i);
-            CXSourceLocation loc = clang_getDiagnosticLocation(diag);
-            CXFile file;
-            unsigned int line, col, off;
+            if (verbose || clang_getDiagnosticSeverity(diag) >= CXDiagnostic_Error) {
+                CXSourceLocation loc = clang_getDiagnosticLocation(diag);
+                CXFile file;
+                unsigned int line, col, off;
 
-            clang_getInstantiationLocation(loc, &file, &line, &col, &off);
-            CXString fn = clang_getFileName(file);
-            CXString txt = clang_getDiagnosticSpelling(diag);
-            const char* fnstr = clang_getCString(fn);
+                clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+                CXString fn = clang_getFileName(file);
+                CXString txt = clang_getDiagnosticSpelling(diag);
+                const char* fnstr = clang_getCString(fn);
 
-            // Suppress diagnostic messages that doesn't have a filename
-            if (fnstr && (strcmp(fnstr, "") != 0))
-                fprintf(stderr, "%s:%u:%u %s\n", fnstr, line, col, clang_getCString(txt));
+                // Suppress diagnostic messages that doesn't have a filename
+                if (fnstr && (strcmp(fnstr, "") != 0))
+                    fprintf(stderr, "%s:%u:%u %s\n", fnstr, line, col, clang_getCString(txt));
 
-            clang_disposeString(txt);
-            clang_disposeString(fn);
+                clang_disposeString(txt);
+                clang_disposeString(fn);
+            }
             clang_disposeDiagnostic(diag);
         }
 
         CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
         clang_visitChildren(unitCursor, collectSymbols, mData);
         RBuildPrivate::Dependencies deps = { input, arguments, input.lastModified(),
-                                             QHash<Path, time_t>() };
+                                             QHash<Path, quint64>() };
         mData->dependencies.append(deps);
         clang_getInclusions(unit, getInclusions, &mData->dependencies.last());
         clang_disposeTranslationUnit(unit);
+        fprintf(stderr, "parsed %s new %d items\n", input.constData(), mData->data.size() - old);
+
     }
 }

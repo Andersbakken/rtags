@@ -2,19 +2,6 @@
 #include "CursorKey.h"
 
 namespace RTags {
-QDataStream &operator<<(QDataStream &ds, time_t t)
-{
-    return (ds << quint64(t));
-}
-
-QDataStream &operator>>(QDataStream &ds, time_t &t)
-{
-    qint64 tmp;
-    ds >> tmp;
-    t = tmp;
-    return ds;
-}
-
 bool parseLocation(const std::string &string,
                    std::string &file, unsigned &line, unsigned &col)
 {

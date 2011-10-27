@@ -22,8 +22,8 @@ struct RBuildPrivate
     struct Dependencies {
         Path file;
         GccArguments arguments;
-        time_t lastModified;
-        QHash<Path, time_t> dependencies;
+        quint64 lastModified;
+        QHash<Path, quint64> dependencies;
     };
     QHash<QByteArray, DataEntry*> seen;
     QList<DataEntry*> data;

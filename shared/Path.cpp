@@ -35,7 +35,7 @@ Path::Type Path::type() const
     return Invalid;
 }
 
-time_t Path::lastModified() const
+quint64 Path::lastModified() const
 {
     struct stat st;
     if (stat(constData(), &st) == -1) {

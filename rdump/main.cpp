@@ -105,14 +105,16 @@ static inline void dumpDatabase(const std::string& filename, int type)
                 QDataStream ds(ba);
                 GccArguments args;
                 ds >> args;
-                time_t lastModified;
+                quint64 lastModified;
                 ds >> lastModified;
-                printf("%s %s %s", key.c_str() + 2, args.raw().constData(), ctime(&lastModified));
-                QHash<QByteArray, time_t> dependencies;
+                time_t tt = static_cast<time_t>(lastModified);
+                printf("%s %s %s", key.c_str() + 2, args.raw().constData(), ctime(&tt));
+                QHash<QByteArray, quint64> dependencies;
                 ds >> dependencies;
-                for (QHash<QByteArray, time_t>::const_iterator it = dependencies.begin();
+                for (QHash<QByteArray, quint64>::const_iterator it = dependencies.begin();
                      it != dependencies.end(); ++it) {
-                    printf("  %s %s", it.key().constData(), ctime(&it.value()));
+                    tt = static_cast<time_t>(it.value());
+                    printf("  %s %s", it.key().constData(), ctime(&tt));
                 }
             }
         }

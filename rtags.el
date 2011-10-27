@@ -18,14 +18,12 @@
 (defvar last-rtags-update-process nil)
 (defun rtags-update ()
   (interactive)
-  (if (executable-find "rc")
+  (if (executable-find "rb")
       (progn
         (if (and last-rtags-update-process (eq (process-status last-rtags-update-process) 'run))
             (kill-process last-rtags-update-process))
-        (setq last-rtags-update-process (start-process "rtags-update" nil "rc" "-u"))))
-  nil
-  )
-
+        (setq last-rtags-update-process (start-process "rtags-update" nil "rb" "-u"))))
+  nil)
 
 (defun rtags-goto-location(location)
   (let (line column)
@@ -37,7 +35,11 @@
           (find-file (match-string 1 location))
           (goto-char (point-min))
           (forward-line (- line 1))
-          (forward-char (- column 1))))))
+          (forward-char (- column 1))
+          t)
+      nil)
+    )
+  )
 
 (defun rtags-follow-symbol-at-point()
   (interactive)
@@ -82,22 +84,27 @@
     (if (= (point-min) (point-max))
         (progn
 ;          (kill-buffer "*Rtags-Complete*")
-          (switch-to-buffer previous))
-      (if (= (count-lines (point-min) (point-max)) 1)
-          (rtags-goto-location (buffer-string))
-        (progn
-          (goto-char (point-min))
-          (compilation-mode))))
-  ))
+          (switch-to-buffer previous)
+          nil)
+      (progn
+        (if (= (count-lines (point-min) (point-max)) 1)
+            (rtags-goto-location (buffer-string))
+          (progn
+            (goto-char (point-min))
+            (compilation-mode)
+            t))
+        ))
+    ))
 
 (defun rtags-find-references-at-point()
   (interactive)
   (rtags-find-references-at-point-internal "-r")
   )
 
-(defun rtags-find-references-at-point-recursive()
+(defun rtags-find-references ()
   (interactive)
-  (rtags-find-references-at-point-internal "-R")
+  (unless (rtags-find-references-at-point)
+    (message "no"))
   )
 
 (defun rtags-complete (string predicate code)
@@ -144,4 +151,3 @@
     ))
 
 (provide 'rtags)
-

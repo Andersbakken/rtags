@@ -10,8 +10,6 @@
 
 class CursorKey;
 namespace RTags {
-QDataStream &operator<<(QDataStream &ds, time_t t);
-QDataStream &operator>>(QDataStream &ds, time_t &t);
 bool parseLocation(const std::string &string,
                    std::string &file, unsigned &line, unsigned &col);
 Path findRtagsDb();
