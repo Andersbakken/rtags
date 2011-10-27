@@ -57,7 +57,7 @@
     (with-temp-buffer
       ;; (message (executable-find "rc"))
       (message (concat (executable-find "rc") " --follow-symbol " bufname ":" line ":" column ":"))
-      (call-process (executable-find "rc") nil t nil "--follow-symbol" (concat bufname ":" line ":" column ":"))
+      (call-process (executable-find "rc") nil (list t nil) nil "--follow-symbol" (concat bufname ":" line ":" column ":"))
       (rtags-goto-location (buffer-string)))
     )
   )
@@ -80,7 +80,7 @@
     (switch-to-buffer (generate-new-buffer "*Rtags-Complete*"))
       ;; (message (executable-find "rc"))
     (message (concat (executable-find "rc") (concat " " mode " " bufname ":" line ":" column ":")))
-    (call-process (executable-find "rc") nil t nil mode (concat bufname ":" line ":" column ":"))
+    (call-process (executable-find "rc") nil (list t nil) nil mode (concat bufname ":" line ":" column ":"))
     (if (= (point-min) (point-max))
         (progn
 ;          (kill-buffer "*Rtags-Complete*")
@@ -110,7 +110,7 @@
 (defun rtags-complete (string predicate code)
   (let ((completions))
     (with-temp-buffer
-      (call-process "rc" nil t nil "-S" "-n" "-l" string)
+      (call-process "rc" nil (list t nil) nil "-S" "-n" "-l" string)
       (setq 'completions (split-string (buffer-string))))))
       ;; (all-completion string completions))))
       ;; (cond ((eq code nil)
@@ -130,7 +130,7 @@
         (setq prompt (concat "Find symbol: (default " tagname ") "))
       (setq prompt "Find symbol: "))
     (with-temp-buffer
-      (call-process "rc" nil t nil "-l" "")
+      (call-process "rc" nil (list t nil) nil "-l" "")
       (setq completions (split-string (buffer-string))))
       ;; (setq completions (split-string "test1" "test1()")))
     (setq input (completing-read prompt completions nil nil nil gtags-history-list))
@@ -139,7 +139,7 @@
     (if (get-buffer "*Rtags-Complete*")
         (kill-buffer "*Rtags-Complete*"))
     (switch-to-buffer (generate-new-buffer "*Rtags-Complete*"))
-    (call-process "rc" nil t nil "-s" tagname)
+    (call-process "rc" nil (list t nil) nil "-s" tagname)
     (if (= (point-min) (point-max))
         (progn
 ;          (kill-buffer "*Rtags-Complete*")
