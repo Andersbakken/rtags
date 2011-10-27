@@ -682,7 +682,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
 #endif
     if (!isSpecialDefinition
         && (!definitionKey.isDefinition() || equalLocation(key, CursorKey(definition)))) {
-        if (entry->reference.key.isNull() || entry->reference.key == entry->cursor.key || isSpecialReference) {
+        if (isSpecialReference || entry->reference.key.isNull() || entry->reference.key == entry->cursor.key) {
             const CXCursor reference = clang_getCursorReferenced(cursor);
             const CursorKey referenceKey(reference);
             if (referenceKey.isValid()/* && referenceKey != key*/) {
