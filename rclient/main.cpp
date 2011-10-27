@@ -50,13 +50,13 @@ static inline bool findReferences(leveldb::DB *db, const std::string &key)
         QByteArray referredTo;
         const QByteArray v = QByteArray::fromRawData(val.c_str(), val.size());
         QDataStream ds(v);
-        QSet<CursorKey> references;
+        QSet<Cursor> references;
         ds >> referredTo >> references;
         if (referredTo != key.c_str() && references.isEmpty()) {
             return findReferences(db, std::string(referredTo.constData(), referredTo.size()));
         }
-        foreach(const CursorKey &r, references) {
-            printf("%s\n", r.toString().constData());
+        foreach(const Cursor &r, references) {
+            printf("%s\n", r.key.toString().constData());
         }
         return true;
     }
