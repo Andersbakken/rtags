@@ -17,7 +17,7 @@ GccArguments::Language GccArguments::Data::guessLanguage() const
 
     Language guesslang = LangUndefined;
     if (x != -1) {
-        const QByteArray xarg = args.at(x).arg;
+        const QByteArray xarg = args.at(x).value;
         if (xarg == "c")
             guesslang = LangC;
         else if (xarg == "c++")
@@ -26,6 +26,8 @@ GccArguments::Language GccArguments::Data::guessLanguage() const
             guesslang = LangObjC;
         else if (xarg == "objective-c++")
             guesslang = LangObjCPlusPlus;
+        else if (xarg == "c++-header")
+            guesslang = LangCPlusPlusHeader;
         return guesslang;
     }
 
@@ -46,6 +48,10 @@ GccArguments::Language GccArguments::Data::guessLanguage() const
         guesslang = LangObjC;
     else if (ext == ".mm")
         guesslang = LangObjCPlusPlus;
+    else if (ext == ".hpp" || ext == ".hxx")
+        guesslang = LangCPlusPlusHeader;
+    else if (ext == ".h")
+        guesslang = LangHeader;
 
     return guesslang;
 }
@@ -284,7 +290,13 @@ bool GccArguments::isCompile() const
     // ### This should perhaps account for gcc commands that both compile and link at once
     if ((m_ptr->c != -1 && m_ptr->output != -1 && m_ptr->input.size() == 1)
         || (m_ptr->c != -1 && m_ptr->output == -1 && !m_ptr->input.isEmpty())) {
-        return true;
+        switch (language()) {
+        case LangCPlusPlusHeader:
+        case LangHeader:
+            return false;
+        default:
+            return true;
+        }
     }
     return false;
 }
@@ -384,6 +396,10 @@ const char* GccArguments::languageString(Language language)
         return "objective-c";
     case LangObjCPlusPlus:
         return "objective-c++";
+    case LangCPlusPlusHeader:
+        return "c++-header";
+    case LangHeader:
+        return "c-header"; // ### ???
     }
     return "";
 }

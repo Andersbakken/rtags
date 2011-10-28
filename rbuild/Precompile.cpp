@@ -81,7 +81,6 @@ void Precompile::clear()
 
 Precompile* Precompile::precompiler(const GccArguments& args)
 {
-    qDebug() << args.raw() << args.input();
     Q_ASSERT(args.isCompile());
 
     const QByteArray key = keyFromArguments(args);
@@ -157,7 +156,6 @@ void Precompile::precompile(const QList<QByteArray>& systemIncludes)
     CXIndex idx = clang_createIndex(1, 1);
     CXTranslationUnit unit = clang_parseTranslationUnit(idx, headerFilename.constData(), clangArgs.data(), clangArgs.size(), 0, 0,
                                                         CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
-    qDebug() << headerFilename << clangArgs;
     if (!unit) {
         fprintf(stderr, "unable to parse pch\n");
         clear();

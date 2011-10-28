@@ -12,7 +12,8 @@
 class GccArguments
 {
 public:
-    enum Language { LangUndefined, LangC, LangCPlusPlus, LangObjC, LangObjCPlusPlus };
+    enum Language { LangUndefined, LangC, LangCPlusPlus, LangObjC,
+                    LangObjCPlusPlus, LangCPlusPlusHeader, LangHeader };
 
     GccArguments();
 #ifdef WITH_GPERF

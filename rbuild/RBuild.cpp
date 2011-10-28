@@ -17,6 +17,8 @@
 
 using namespace RTags;
 
+static const bool pchEnabled = !getenv("RTAGS_NO_PCH");
+
 RBuild::RBuild(QObject *parent)
     : QObject(parent), mData(new RBuildPrivate), mIndex(clang_createIndex(0, 0))
 {
@@ -806,7 +808,7 @@ static inline void getInclusions(CXFile includedFile,
             clang_getSpellingLocation(inclusionStack[i], &f, 0, 0, 0);
             str = clang_getFileName(f);
             p = Path::resolved(clang_getCString(str));
-            if (i == includeLen - 2)
+            if (pchEnabled && i == includeLen - 2)
                 u->directIncludes.append(p);
             deps->dependencies[p] = p.lastModified();
             clang_disposeString(str);
@@ -840,16 +842,18 @@ void RBuild::compile(const GccArguments& arguments)
         arglist += arguments.arguments("-D");
         arglist += mSysInfo.systemIncludes();
 
-        Precompile* pre = Precompile::precompiler(arguments);
-        Q_ASSERT(pre);
-        const QByteArray pchFile = pre->filename();
         bool pch = false;
-        if (!pchFile.isEmpty()) {
-            Q_ASSERT(pre->isCompiled());
-            pch = true;
-            arglist += "-include-pch";
-            arglist += pchFile;
-            //qDebug() << "compiling" << input << "using pch" << arglist;
+        if (pchEnabled) {
+            Precompile* pre = Precompile::precompiler(arguments);
+            Q_ASSERT(pre);
+            const QByteArray pchFile = pre->filename();
+            if (!pchFile.isEmpty()) {
+                Q_ASSERT(pre->isCompiled());
+                pch = true;
+                arglist += "-include-pch";
+                arglist += pchFile;
+                //qDebug() << "compiling" << input << "using pch" << arglist;
+            }
         }
 
         // ### not very efficient
@@ -920,8 +924,9 @@ void RBuild::compile(const GccArguments& arguments)
         clang_getInclusions(unit, getInclusions, &u);
         clang_disposeTranslationUnit(unit);
 
-        qDebug() << arguments.raw() << arguments.language();
-        updatePch(arguments, u.directIncludes, mSysInfo);
+        // qDebug() << arguments.raw() << arguments.language();
+        if (pchEnabled)
+            updatePch(arguments, u.directIncludes, mSysInfo);
 
         fprintf(stderr, "parsed %s, %d new items\n", input.constData(), mData->data.size() - old);
 
