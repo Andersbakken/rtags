@@ -20,14 +20,23 @@ public:
             CXFile file;
             clang_getInstantiationLocation(loc, &file, &line, &col, &off);
             CXString str = clang_getFileName(file);
-            fileName = Path::resolved(clang_getCString(str));
+            const char *cstr = clang_getCString(str);
+            if (!cstr || !strlen(cstr)) {
+                clang_disposeString(str);
+                clear();
+                return;
+            }
+            fileName = Path::resolved(cstr);
             clang_disposeString(str);
             str = clang_getCursorDisplayName(cursor);
-            symbolName = (clang_getCString(str));
+            if (!cstr || !strlen(cstr)) {
+                clang_disposeString(str);
+                clear();
+                return;
+            }
+            symbolName = clang_getCString(str);
             clang_disposeString(str);
             def = (kind == CXCursor_MacroDefinition || kind == CXCursor_LabelStmt || clang_isCursorDefinition(cursor));
-            if (!isValid())
-                clear();
         }
     }
 
