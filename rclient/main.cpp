@@ -234,6 +234,8 @@ int main(int argc, char** argv)
 
         switch (mode) {
         case None:
+            usage(argv[0], stderr);
+            fprintf(stderr, "No mode selected\n");
             return 1;
         case FollowSymbol:
             if (run(db, arg, followSymbol))
