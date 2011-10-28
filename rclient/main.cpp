@@ -11,30 +11,49 @@
 
 using namespace RTags;
 QSet<QByteArray> printed;
+typedef bool (*Handler)(leveldb::DB *db, const std::string &key);
+static inline bool maybeDict(leveldb::DB *db, const std::string &key, Handler handler)
+{
+    bool ret = false;
+    std::string val;
+    db->Get(leveldb::ReadOptions(), "d:" + key, &val);
+    if (!val.empty()) {
+        foreach(const QByteArray &k, QByteArray::fromRawData(val.c_str(), val.size()).split('\0')) {
+            if (!k.isEmpty()) {
+                ret = handler(db, std::string(k.constData(), k.size())) || ret;
+            }
+        }
+    }
+    return ret;
+}
+
+static bool run(leveldb::DB *db, const std::string &key, Handler handler)
+{
+    if (handler(db, key))
+        return true;
+    if (!key.empty() && key.at(0) != '/') {
+        std::string file;
+        unsigned l, c;
+        if (parseLocation(key, file, l, c)) {
+            const Path resolved = Path::resolved(file.c_str());
+            if (resolved.exists()) {
+                QVarLengthArray<char, 256> buf(resolved.size() + 32);
+                snprintf(buf.data(), buf.size(), "%s:%d:%d:", resolved.constData(), l, c);
+                if (handler(db, buf.constData())) {
+                    return true;
+                }
+            }
+        }
+    }
+    return maybeDict(db, key, handler);
+}
+
 static inline void print(const QByteArray &out)
 {
     if (!printed.contains(out)) {
         printed.insert(out);
         printf("%s\n", out.constData());
     }
-}
-static inline bool maybeDict(leveldb::DB *db, const std::string &key,
-                             bool (*func)(leveldb::DB *db, const std::string &key))
-{
-    bool ret = false;
-    std::string val;
-    db->Get(leveldb::ReadOptions(), "d:" + key, &val);
-    if (!val.empty()) {
-        // QByteArray hackfoo(val.c_str(), val.size());
-        // hackfoo.replace('\0', '\n');
-        // qDebug() << "hackfoo" << key.c_str() << hackfoo;
-        foreach(const QByteArray &k, QByteArray::fromRawData(val.c_str(), val.size()).split('\0')) {
-            if (!k.isEmpty()) {
-                ret = func(db, std::string(k.constData(), k.size())) || ret;
-            }
-        }
-    }
-    return ret;
 }
 
 static inline bool printSymbol(leveldb::DB *, const std::string &loc)
@@ -217,12 +236,11 @@ int main(int argc, char** argv)
         case None:
             return 1;
         case FollowSymbol:
-            if (followSymbol(db, arg) || maybeDict(db, arg, followSymbol))
+            if (run(db, arg, followSymbol))
                 return 0; // we only want the first one here
             break;
         case References:
-            if (!findReferences(db, arg))
-                maybeDict(db, arg, findReferences);
+            run(db, arg, findReferences);
             break;
         case FindSymbols:
             maybeDict(db, arg, printSymbol);
