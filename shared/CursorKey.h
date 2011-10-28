@@ -127,11 +127,14 @@ public:
 struct Cursor {
     CursorKey key;
     QVector<AtomicString> parentNames;
+    AtomicString containingFunction;
 };
 
 static inline bool operator==(const Cursor &left, const Cursor &right)
 {
-    return left.key == right.key && left.parentNames == right.parentNames;
+    return (left.key == right.key
+            && left.containingFunction == right.containingFunction
+            && left.parentNames == right.parentNames);
 }
 
 static inline QDataStream &operator<<(QDataStream &ds, const CursorKey &key)
@@ -154,13 +157,13 @@ static inline QDataStream &operator>>(QDataStream &ds, CursorKey &key)
 
 static inline QDataStream &operator<<(QDataStream &ds, const Cursor &cursor)
 {
-    ds << cursor.key << cursor.parentNames;
+    ds << cursor.key << cursor.parentNames << cursor.containingFunction;
     return ds;
 }
 
 static inline QDataStream &operator>>(QDataStream &ds, Cursor &cursor)
 {
-    ds >> cursor.key >> cursor.parentNames;
+    ds >> cursor.key >> cursor.parentNames >> cursor.containingFunction;
     return ds;
 }
 

@@ -450,24 +450,45 @@ static inline void addCursor(const CXCursor& cursor, const CursorKey& key, Curso
     if (data->key != key) {
         data->key = key;
         data->parentNames.clear();
+        data->containingFunction.clear();
         CXCursor parent = cursor;
+        QByteArray containingFunction;
         for (;;) {
             parent = clang_getCursorSemanticParent(parent);
-            CursorKey parentKey(parent);
-            if (!parentKey.isValid())
+            const CXCursorKind kind = clang_getCursorKind(parent);
+            if (clang_isInvalid(kind))
                 break;
-            switch (parentKey.kind) {
+            CXString str = clang_getCursorDisplayName(parent);
+            const char *cstr = clang_getCString(str);
+            if (!cstr || !strlen(cstr)) {
+                clang_disposeString(str);
+                break;
+            }
+            switch (kind) {
+            case CXCursor_CXXMethod:
+            case CXCursor_FunctionDecl:
+            case CXCursor_Constructor:
+            case CXCursor_Destructor:
+                containingFunction = cstr;
+                break;
             case CXCursor_StructDecl:
             case CXCursor_ClassDecl:
+                if (!containingFunction.isEmpty()) {
+                    containingFunction.prepend("::");
+                    containingFunction.prepend(cstr);
+                }
+                // fall through
             case CXCursor_Namespace:
-                Q_ASSERT(!parentKey.symbolName.isEmpty());
-                data->parentNames.append(parentKey.symbolName);
+                data->parentNames.append(cstr);
                 break;
             default:
                 break;
             }
+            clang_disposeString(str);
         }
-    }
+        if (!containingFunction.isEmpty()) 
+            data->containingFunction = containingFunction;
+    }    
 }
 
 //#define REFERENCEDEBUG
