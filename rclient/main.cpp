@@ -27,7 +27,7 @@ static inline bool maybeDict(leveldb::DB *db, const std::string &key, Handler ha
     return ret;
 }
 
-static bool run(leveldb::DB *db, const std::string &key, Handler handler)
+static bool maybeResolveAndMaybeDict(leveldb::DB *db, const std::string &key, Handler handler)
 {
     if (handler(db, key))
         return true;
@@ -244,11 +244,11 @@ int main(int argc, char** argv)
             fprintf(stderr, "No mode selected\n");
             return 1;
         case FollowSymbol:
-            if (run(db, arg, followSymbol))
+            if (maybeResolveAndMaybeDict(db, arg, followSymbol))
                 return 0; // we only want the first one here
             break;
         case References:
-            run(db, arg, findReferences);
+            maybeResolveAndMaybeDict(db, arg, findReferences);
             break;
         case FindSymbols:
             maybeDict(db, arg, printSymbol);

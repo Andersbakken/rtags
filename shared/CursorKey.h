@@ -6,6 +6,9 @@
 #include "AtomicString.h"
 #include "RTags.h"
 
+#ifndef CACHE_CURSORKEY
+#define CACHE_CURSORKEY
+#endif
 class CursorKey
 {
 public:
@@ -20,14 +23,23 @@ public:
             CXFile file;
             clang_getInstantiationLocation(loc, &file, &line, &col, &off);
             CXString str = clang_getFileName(file);
-            fileName = Path::resolved(clang_getCString(str));
+            const char *cstr = clang_getCString(str);
+            if (!cstr || !strlen(cstr)) {
+                clang_disposeString(str);
+                clear();
+                return;
+            }
+            fileName = Path::resolved(cstr);
             clang_disposeString(str);
             str = clang_getCursorDisplayName(cursor);
-            symbolName = (clang_getCString(str));
+            if (!cstr || !strlen(cstr)) {
+                clang_disposeString(str);
+                clear();
+                return;
+            }
+            symbolName = clang_getCString(str);
             clang_disposeString(str);
             def = (kind == CXCursor_MacroDefinition || kind == CXCursor_LabelStmt || clang_isCursorDefinition(cursor));
-            if (!isValid())
-                clear();
         }
     }
 
@@ -94,27 +106,49 @@ public:
 
     QByteArray locationKey() const
     {
-        QByteArray key(fileName.toByteArray());
-        key += ":" + QByteArray::number(off);
-        return key;
-    }
-
-    QByteArray toString() const
-    {
-        QByteArray out;
-        int ints[] = { line, col };
-        int intsSize = 5; // three for :, two for the first digit in line and col
-        for (int i=0; i<2; ++i) {
-            int v = ints[i];
+#ifndef CACHE_CURSORKEY
+        QByteArray mCachedLocationKey;
+#else            
+        if (mCachedLocationKey.isEmpty()) 
+#endif
+        {
+            int intsSize = 2;
+            int v = off;
             while (v >= 10) {
                 v /= 10;
                 ++intsSize;
             }
-        }
 
-        out.resize(fileName.size() + intsSize);
-        snprintf(out.data(), out.size() + 1, "%s:%d:%d:", fileName.constData(), line, col);
-        return out;
+            mCachedLocationKey.resize(fileName.size() + intsSize);
+            snprintf(mCachedLocationKey.data(), mCachedLocationKey.size() + 1, "%s:%d",
+                     fileName.constData(), off);
+        }
+        return mCachedLocationKey;
+    }
+
+    QByteArray toString() const
+    {
+#ifndef CACHE_CURSORKEY
+        QByteArray mCachedToString;
+#else            
+        if (mCachedToString.isEmpty()) 
+#endif
+        {
+            int ints[] = { line, col };
+            int intsSize = 5; // three for :, two for the first digit in line and col
+            for (int i=0; i<2; ++i) {
+                int v = ints[i];
+                while (v >= 10) {
+                    v /= 10;
+                    ++intsSize;
+                }
+            }
+
+            mCachedToString.resize(fileName.size() + intsSize);
+            snprintf(mCachedToString.data(), mCachedToString.size() + 1, "%s:%d:%d:",
+                     fileName.constData(), line, col);
+        }
+        return mCachedToString;
     }
 
     CXCursorKind kind;
@@ -122,6 +156,10 @@ public:
     AtomicString symbolName;
     unsigned line, col, off;
     bool def;
+
+#ifdef CACHE_CURSORKEY
+    mutable QByteArray mCachedToString, mCachedLocationKey;
+#endif
 };
 
 struct Cursor {

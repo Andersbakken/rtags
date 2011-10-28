@@ -1,5 +1,7 @@
 #include "Path.h"
 #include <magic.h>
+#include <QCoreApplication>
+#include <QThread>
 
 // this doesn't check if *this actually is a real file
 Path Path::parentDir() const
@@ -102,7 +104,8 @@ bool Path::resolve(const Path &cwd)
     }
 
     {
-        char buffer[PATH_MAX + 1];
+        Q_ASSERT(QThread::currentThread() == QCoreApplication::instance()->thread());
+        static char buffer[PATH_MAX + 1];
         char *resolved = realpath(constData(), buffer);
         if (resolved) {
             QByteArray::operator=(resolved);
