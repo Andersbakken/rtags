@@ -144,9 +144,14 @@ static inline bool writeExpect(const std::string& filename)
         std::string fileName;
         unsigned line, col;
         if (parseLocation(key, fileName, line, col)) {
+            const leveldb::Slice value = it->value();
+            const QByteArray data = QByteArray::fromRawData(value.data(), value.size());
+            QDataStream ds(data);
+            QByteArray v;
+            ds >> v;
             fprintf(f, "--follow-symbol\n%s\n%s\n\n",
                     removePath(key).c_str(),
-                    removePath(it->value().ToString()).c_str());
+                    removePath(v).constData());
         }
     }
 
