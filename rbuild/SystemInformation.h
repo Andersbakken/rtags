@@ -16,7 +16,7 @@ public:
 
     void init();
 
-    QList<QByteArray> systemIncludes();
+    QList<QByteArray> systemIncludes() const;
 
 signals:
     void done();

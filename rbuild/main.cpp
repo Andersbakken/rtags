@@ -1,5 +1,6 @@
 #include "RBuild.h"
 #include "Path.h"
+#include "Precompile.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <getopt.h>
@@ -17,6 +18,13 @@ static inline void usage(const char* argv0, FILE *f)
 }
 
 using namespace RTags;
+
+class PrecompileScope
+{
+public:
+    PrecompileScope() {}
+    ~PrecompileScope() { Precompile::cleanup(); }
+};
 
 int main(int argc, char** argv)
 {
@@ -36,6 +44,8 @@ int main(int argc, char** argv)
     QCoreApplication app(argc, argv);
     Path db;
     bool update = false;
+
+    PrecompileScope prescope;
 
     struct option longOptions[] = {
         { "help", 0, 0, 'h' },

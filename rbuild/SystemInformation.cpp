@@ -19,7 +19,7 @@ void SystemInformation::init()
     proc->waitForFinished();
 }
 
-QList<QByteArray> SystemInformation::systemIncludes()
+QList<QByteArray> SystemInformation::systemIncludes() const
 {
     return mSystemIncludes;
 }

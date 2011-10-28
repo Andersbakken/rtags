@@ -19,12 +19,14 @@ macx {
 SOURCES += main.cpp \
            RBuild.cpp \
            MakefileParser.cpp \
-           SystemInformation.cpp 
+           SystemInformation.cpp \ 
+    Precompile.cpp
 
 HEADERS += RBuild.h \
            RBuild_p.h \
            MakefileParser.h \
-           SystemInformation.h 
+           SystemInformation.h \ 
+    Precompile.h
 
 QMAKE_CXXFLAGS += -O2
 
@@ -45,3 +47,5 @@ unix {
     MOC_DIR = .moc
     OBJECTS_DIR = .obj
 }
+
+

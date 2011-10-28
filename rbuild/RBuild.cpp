@@ -1,4 +1,5 @@
 #include "RBuild.h"
+#include "Precompile.h"
 #include <RTags.h>
 #include <QCoreApplication>
 #include <QtAlgorithms>
@@ -806,6 +807,13 @@ static inline void getInclusions(CXFile includedFile,
     }
 }
 
+static inline void updatePch(const RBuildPrivate::Dependencies& dep, const SystemInformation& sysInfo)
+{
+    Precompile* pre = Precompile::precompiler(dep.arguments);
+    Q_ASSERT(pre);
+    pre->addHeaders(dep.dependencies.keys());
+    pre->precompile(sysInfo.systemIncludes());
+}
 
 void RBuild::compile(const GccArguments& arguments)
 {
@@ -823,6 +831,17 @@ void RBuild::compile(const GccArguments& arguments)
         arglist += arguments.arguments("-I");
         arglist += arguments.arguments("-D");
         arglist += mSysInfo.systemIncludes();
+
+        Precompile* pre = Precompile::precompiler(arguments);
+        Q_ASSERT(pre);
+        const QByteArray pchFile = pre->filename();
+        if (!pchFile.isEmpty()) {
+            Q_ASSERT(pre->isCompiled());
+            arglist += "-include-pch";
+            arglist += pchFile;
+            //qDebug() << "compiling" << input << "using pch" << arglist;
+        }
+
         // ### not very efficient
         QVector<const char*> argvector;
         foreach(const QByteArray& arg, arglist) {
@@ -838,7 +857,7 @@ void RBuild::compile(const GccArguments& arguments)
                                                             0, 0,
                                                             CXTranslationUnit_DetailedPreprocessingRecord);
         if (!unit) {
-            fprintf(stderr, "Unable to parse unit for %s\n", input.constData());
+            qWarning() << "Unable to parse unit for" << input << arglist;
             continue;
         }
 
@@ -872,6 +891,9 @@ void RBuild::compile(const GccArguments& arguments)
         mData->dependencies.append(deps);
         clang_getInclusions(unit, getInclusions, &mData->dependencies.last());
         clang_disposeTranslationUnit(unit);
+
+        updatePch(mData->dependencies.last(), mSysInfo);
+
         fprintf(stderr, "parsed %s, %d new items\n", input.constData(), mData->data.size() - old);
 
     }
