@@ -97,7 +97,13 @@ static inline bool findReferences(leveldb::DB *db, const std::string &key)
             return findReferences(db, std::string(referredTo.constData(), referredTo.size()));
         }
         foreach(const Cursor &r, references) {
-            print(r.key.toString());
+            QByteArray out = r.key.toString();
+            if (!r.containingFunction.isEmpty()) {
+                out += ' ';
+                out += r.containingFunction.toByteArray();
+            }
+
+            print(out);
         }
         return true;
     }
