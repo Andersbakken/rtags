@@ -73,14 +73,15 @@ void Precompile::clear()
 {
     m_compiled = false;
     if (!m_filename.isEmpty()) {
-        removeFile(m_filename);
-        removeFile(m_filename + ".h");
+        // removeFile(m_filename);
+        // removeFile(m_filename + ".h");
         m_filename.clear();
     }
 }
 
 Precompile* Precompile::precompiler(const GccArguments& args)
 {
+    qDebug() << args.raw() << args.input();
     Q_ASSERT(args.isCompile());
 
     const QByteArray key = keyFromArguments(args);
@@ -153,9 +154,10 @@ void Precompile::precompile(const QList<QByteArray>& systemIncludes)
         clangArgs << arg.constData();
     //qDebug() << "about to pch" << m_filename << clangArgs;
 
-    CXIndex idx = clang_createIndex(0, 0);
+    CXIndex idx = clang_createIndex(1, 1);
     CXTranslationUnit unit = clang_parseTranslationUnit(idx, headerFilename.constData(), clangArgs.data(), clangArgs.size(), 0, 0,
                                                         CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+    qDebug() << headerFilename << clangArgs;
     if (!unit) {
         fprintf(stderr, "unable to parse pch\n");
         clear();

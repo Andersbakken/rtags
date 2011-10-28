@@ -781,6 +781,11 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     return CXChildVisit_Recurse;
 }
 
+struct InclusionUserData {
+    QList<Path> directIncludes;
+    RBuildPrivate::Dependencies *dependencies;
+};
+
 static inline void getInclusions(CXFile includedFile,
                                  CXSourceLocation* inclusionStack,
                                  unsigned evilUnsigned,
@@ -788,7 +793,8 @@ static inline void getInclusions(CXFile includedFile,
 {
     int includeLen = evilUnsigned;
     if (includeLen) {
-        RBuildPrivate::Dependencies *deps = reinterpret_cast<RBuildPrivate::Dependencies*>(userData);
+        InclusionUserData *u = reinterpret_cast<InclusionUserData*>(userData);
+        RBuildPrivate::Dependencies *deps = u->dependencies;
         CXString str = clang_getFileName(includedFile);
         Path p = Path::resolved(clang_getCString(str));
         deps->dependencies[p] = p.lastModified();
@@ -800,6 +806,8 @@ static inline void getInclusions(CXFile includedFile,
             clang_getSpellingLocation(inclusionStack[i], &f, 0, 0, 0);
             str = clang_getFileName(f);
             p = Path::resolved(clang_getCString(str));
+            if (i == includeLen - 2)
+                u->directIncludes.append(p);
             deps->dependencies[p] = p.lastModified();
             clang_disposeString(str);
             // printf("    %d %s\n", i, eatString(clang_getFileName(f)).constData());
@@ -807,11 +815,11 @@ static inline void getInclusions(CXFile includedFile,
     }
 }
 
-static inline void updatePch(const RBuildPrivate::Dependencies& dep, const SystemInformation& sysInfo)
+static inline void updatePch(const GccArguments &args, const QList<Path> &headers, const SystemInformation& sysInfo)
 {
-    Precompile* pre = Precompile::precompiler(dep.arguments);
+    Precompile* pre = Precompile::precompiler(args);
     Q_ASSERT(pre);
-    pre->addHeaders(dep.dependencies.keys());
+    pre->addHeaders(headers);
     pre->precompile(sysInfo.systemIncludes());
 }
 
@@ -907,10 +915,13 @@ void RBuild::compile(const GccArguments& arguments)
         RBuildPrivate::Dependencies deps = { input, arguments, input.lastModified(),
                                              QHash<Path, quint64>() };
         mData->dependencies.append(deps);
-        clang_getInclusions(unit, getInclusions, &mData->dependencies.last());
+        InclusionUserData u;
+        u.dependencies = &mData->dependencies.last();
+        clang_getInclusions(unit, getInclusions, &u);
         clang_disposeTranslationUnit(unit);
 
-        updatePch(mData->dependencies.last(), mSysInfo);
+        qDebug() << arguments.raw() << arguments.language();
+        updatePch(arguments, u.directIncludes, mSysInfo);
 
         fprintf(stderr, "parsed %s, %d new items\n", input.constData(), mData->data.size() - old);
 
