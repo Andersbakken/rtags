@@ -1,20 +1,20 @@
 --follow-symbol
-main.cpp:6:11
-test1.h:10:5
+main.cpp:6:11:
+test1.h:10:5:
 
 --follow-symbol
-main.cpp:7:13
-test1.h:11:5
+main.cpp:7:13:
+test1.h:11:5:
 
 --follow-symbol
-main.cpp:8:13
-test1.h:9:12
+main.cpp:8:13:
+test1.h:9:12:
 
 --follow-symbol
-main.cpp:9:11
-test2.h:9:5
+main.cpp:9:11:
+test2.h:9:5:
 
 --follow-symbol
-main.cpp:10:13
-test2.h:10:5
+main.cpp:10:13:
+test2.h:10:5:
 

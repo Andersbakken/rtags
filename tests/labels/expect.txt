@@ -1,40 +1,40 @@
 --follow-symbol
-main.cpp:10:1
-main.cpp:10:1
+main.cpp:10:1:
+main.cpp:10:1:
 
 --follow-symbol
-main.cpp:1:14
-main.cpp:1:14
+main.cpp:1:14:
+main.cpp:1:14:
 
 --follow-symbol
-main.cpp:1:27
-main.cpp:1:27
+main.cpp:1:27:
+main.cpp:1:27:
 
 --follow-symbol
-main.cpp:1:5
-main.cpp:1:5
+main.cpp:1:5:
+main.cpp:1:5:
 
 --follow-symbol
-main.cpp:3:10
-main.cpp:3:10
+main.cpp:3:10:
+main.cpp:3:10:
 
 --follow-symbol
-main.cpp:4:9
-main.cpp:4:9
+main.cpp:4:9:
+main.cpp:4:9:
 
 --follow-symbol
-main.cpp:5:12
-main.cpp:3:10
+main.cpp:5:12:
+main.cpp:3:10:
 
 --follow-symbol
-main.cpp:6:15
-main.cpp:4:9
+main.cpp:6:15:
+main.cpp:4:9:
 
 --follow-symbol
-main.cpp:7:18
-main.cpp:10:1
+main.cpp:7:18:
+main.cpp:10:1:
 
 --follow-symbol
-main.cpp:9:10
-main.cpp:10:1
+main.cpp:9:10:
+main.cpp:10:1:
 
