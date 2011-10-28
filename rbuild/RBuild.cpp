@@ -835,8 +835,10 @@ void RBuild::compile(const GccArguments& arguments)
         Precompile* pre = Precompile::precompiler(arguments);
         Q_ASSERT(pre);
         const QByteArray pchFile = pre->filename();
+        bool pch = false;
         if (!pchFile.isEmpty()) {
             Q_ASSERT(pre->isCompiled());
+            pch = true;
             arglist += "-include-pch";
             arglist += pchFile;
             //qDebug() << "compiling" << input << "using pch" << arglist;
@@ -852,36 +854,52 @@ void RBuild::compile(const GccArguments& arguments)
         if (verbose)
             fprintf(stderr, "\n");
 
-        CXTranslationUnit unit = clang_parseTranslationUnit(mIndex, input.constData(),
-                                                            argvector.constData(), argvector.size(),
-                                                            0, 0,
-                                                            CXTranslationUnit_DetailedPreprocessingRecord);
+        CXTranslationUnit unit = 0;
+        for (int i = 0; i < (pch ? 2 : 1); ++i) {
+            unit = clang_parseTranslationUnit(mIndex, input.constData(),
+                                              argvector.constData(), argvector.size() - (i * 2),
+                                              0, 0,
+                                              CXTranslationUnit_DetailedPreprocessingRecord);
+            if (!unit) // retry with no pch
+                continue;
+
+            bool retry = false;
+
+            const unsigned int numDiags = clang_getNumDiagnostics(unit);
+            for (unsigned int i = 0; i < numDiags; ++i) {
+                CXDiagnostic diag = clang_getDiagnostic(unit, i);
+                const bool error = clang_getDiagnosticSeverity(diag) >= CXDiagnostic_Error;
+                if (verbose || error) {
+                    CXSourceLocation loc = clang_getDiagnosticLocation(diag);
+                    CXFile file;
+                    unsigned int line, col, off;
+
+                    clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+                    CXString fn = clang_getFileName(file);
+                    CXString txt = clang_getDiagnosticSpelling(diag);
+                    const char* fnstr = clang_getCString(fn);
+
+                    // Suppress diagnostic messages that doesn't have a filename
+                    if (fnstr && (strcmp(fnstr, "") != 0))
+                        fprintf(stderr, "%s:%u:%u %s\n", fnstr, line, col, clang_getCString(txt));
+
+                    clang_disposeString(txt);
+                    clang_disposeString(fn);
+
+                    if (pch && !retry && error && !i) // retry with no pch
+                        retry = error;
+                }
+                clang_disposeDiagnostic(diag);
+            }
+
+            if (!retry)
+                break;
+            clang_disposeTranslationUnit(unit);
+        }
+
         if (!unit) {
             qWarning() << "Unable to parse unit for" << input << arglist;
             continue;
-        }
-
-        const unsigned int numDiags = clang_getNumDiagnostics(unit);
-        for (unsigned int i = 0; i < numDiags; ++i) {
-            CXDiagnostic diag = clang_getDiagnostic(unit, i);
-            if (verbose || clang_getDiagnosticSeverity(diag) >= CXDiagnostic_Error) {
-                CXSourceLocation loc = clang_getDiagnosticLocation(diag);
-                CXFile file;
-                unsigned int line, col, off;
-
-                clang_getInstantiationLocation(loc, &file, &line, &col, &off);
-                CXString fn = clang_getFileName(file);
-                CXString txt = clang_getDiagnosticSpelling(diag);
-                const char* fnstr = clang_getCString(fn);
-
-                // Suppress diagnostic messages that doesn't have a filename
-                if (fnstr && (strcmp(fnstr, "") != 0))
-                    fprintf(stderr, "%s:%u:%u %s\n", fnstr, line, col, clang_getCString(txt));
-
-                clang_disposeString(txt);
-                clang_disposeString(fn);
-            }
-            clang_disposeDiagnostic(diag);
         }
 
         CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
