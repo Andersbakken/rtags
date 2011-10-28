@@ -486,9 +486,9 @@ static inline void addCursor(const CXCursor& cursor, const CursorKey& key, Curso
             }
             clang_disposeString(str);
         }
-        if (!containingFunction.isEmpty()) 
+        if (!containingFunction.isEmpty())
             data->containingFunction = containingFunction;
-    }    
+    }
 }
 
 //#define REFERENCEDEBUG
