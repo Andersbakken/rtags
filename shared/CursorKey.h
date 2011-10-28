@@ -103,9 +103,17 @@ public:
 
     QByteArray locationKey() const
     {
-        QByteArray key(fileName.toByteArray());
-        key += ":" + QByteArray::number(off);
-        return key;
+        QByteArray out;
+        int intsSize = 2;
+        int v = off;
+        while (v >= 10) {
+            v /= 10;
+            ++intsSize;
+        }
+
+        out.resize(fileName.size() + intsSize);
+        snprintf(out.data(), out.size() + 1, "%s:%d", fileName.constData(), off);
+        return out;
     }
 
     QByteArray toString() const
