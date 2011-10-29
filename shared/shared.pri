@@ -11,3 +11,7 @@ HEADERS += $$PWD/GccArguments.h \
            $$PWD/AtomicString.h
 LIBS += -lmagic -lleveldb -lclang
 include($$PWD/../3rdparty/leveldb.pri)
+mac {
+    LIBS += -L/opt/local/lib
+    INCLUDEPATH += /opt/local/include
+}
