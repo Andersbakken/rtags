@@ -648,6 +648,8 @@ static inline bool equalLocation(const CursorKey& key1, const CursorKey& key2)
 static bool shouldMergeCursors(const CursorKey& oldcurrent, const CursorKey& newcurrent,
                                const CursorKey& oldref, const CursorKey& newref, bool dodebug)
 {
+    if (!newcurrent.isValid() || !newref.isValid())
+        return false;
 #ifdef COLLECTDEBUG
     if (dodebug) {
         qDebug() << "merge?" << oldcurrent << "vs" << newcurrent;
