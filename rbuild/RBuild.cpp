@@ -423,8 +423,9 @@ void RBuild::writeData(const QByteArray& filename)
     removeDirectory(filename.constData());
     if (rename(tempFile.constData(), filename.constData())) {
         char buf[1024];
+        strerror_r(errno, buf, 1024);
         fprintf(stderr, "Failed to write database (%s to %s) %s\n",
-                tempFile.constData(), filename.constData(), strerror_r(errno, buf, 1024));
+                tempFile.constData(), filename.constData(), buf);
     }
 
 }

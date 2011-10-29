@@ -121,14 +121,13 @@
       ;;        (if (intern-soft string completions) t nil))))))
 
 
-(defun rtags-find-symbol ()
-  (interactive)
+(defun rtags-find-symbol-internal (p switch)
   (let (tagname prompt input completions previous)
     (setq tagname (gtags-current-token))
     (setq previous (current-buffer))
     (if tagname
-        (setq prompt (concat "Find symbol: (default " tagname ") "))
-      (setq prompt "Find symbol: "))
+        (setq prompt (concat p ": (default " tagname ") "))
+      (setq prompt (concat p ": ")))
     (with-temp-buffer
       (call-process "rc" nil (list t nil) nil "-l" "")
       (setq completions (split-string (buffer-string))))
@@ -139,7 +138,7 @@
     (if (get-buffer "*Rtags-Complete*")
         (kill-buffer "*Rtags-Complete*"))
     (switch-to-buffer (generate-new-buffer "*Rtags-Complete*"))
-    (call-process "rc" nil (list t nil) nil "-s" tagname)
+    (call-process "rc" nil (list t nil) nil switch tagname)
     (if (= (point-min) (point-max))
         (progn
 ;          (kill-buffer "*Rtags-Complete*")
@@ -150,5 +149,14 @@
           (goto-char (point-min))
           (compilation-mode))))
     ))
+
+(defun rtags-find-symbol-prompt ()
+  (interactive)
+  (rtags-find-symbol-internal "Find symbol" "-s"))
+
+(defun rtags-find-refererences-prompt ()
+  (interactive)
+  (rtags-find-symbol-internal "Find references" "-r"))
+
 
 (provide 'rtags)
