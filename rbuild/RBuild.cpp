@@ -20,7 +20,7 @@ using namespace RTags;
 static const bool pchEnabled = !getenv("RTAGS_NO_PCH");
 
 RBuild::RBuild(QObject *parent)
-    : QObject(parent), mData(new RBuildPrivate), mIndex(clang_createIndex(0, 0))
+    : QObject(parent), mData(new RBuildPrivate), mIndex(clang_createIndex(1, 1))
 {
 }
 
@@ -215,7 +215,7 @@ static void collectHeaders(const GccArguments& arguments)
         }
     }
 
-    pre->setData(unsaved);
+    pre->addData(unsaved);
 }
 
 void RBuild::processFile(const GccArguments& arguments)

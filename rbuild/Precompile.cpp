@@ -221,19 +221,20 @@ void Precompile::precompile(const QList<QByteArray>& systemIncludes)
 
     const QByteArray headerFilename = m_filename + ".h";
 
-    //qDebug() << "about to preprocess for pch" << m_data;
+    // qDebug() << "about to preprocess for pch" << m_data;
     if (!preprocessHeaders(m_data, m_args, systemIncludes)) {
         fprintf(stderr, "failed to preprocess headers for pch\n");
         clear();
         return;
     }
-    //qDebug() << "done preprocessing for pch" << m_data;
+    // qDebug() << "done preprocessing for pch" << m_data;
 
     if (!writeFile(headerFilename, m_data)) {
         fprintf(stderr, "precompile failed to write header file '%s'\n", headerFilename.constData());
         clear();
         return;
     }
+    printf("Wrote pch header %s\n", headerFilename.constData());
 
     removeFile(m_filename);
 
@@ -275,9 +276,9 @@ QByteArray Precompile::filename() const
     return m_filename;
 }
 
-void Precompile::setData(const QByteArray& data)
+void Precompile::addData(const QByteArray& data)
 {
-    m_data = data;
+    m_data += data;
 }
 
 /*

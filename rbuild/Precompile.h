@@ -17,7 +17,7 @@ public:
     ~Precompile();
 
     void clear();
-    void setData(const QByteArray& data);
+    void addData(const QByteArray& data);
     void precompile(const QList<QByteArray>& systemIncludes);
 
     QByteArray filename() const;
