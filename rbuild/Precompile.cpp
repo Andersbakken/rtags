@@ -114,7 +114,7 @@ static inline void printDiagnostics(CXTranslationUnit unit)
 
 static inline bool preprocessHeaders(QByteArray& headerData, const GccArguments& args, QList<QByteArray> systemIncludes)
 {
-    Q_ASSERT(args.isCompile() && !args.input.isEmpty());
+    Q_ASSERT(args.isCompile() && !args.input().isEmpty());
     Q_ASSERT(!headerData.isEmpty());
 
     const QList<QByteArray> includePaths = args.arguments("-I");

@@ -900,7 +900,7 @@ void RBuild::compile(const GccArguments& arguments)
             Q_ASSERT(pre);
             const QByteArray pchFile = pre->filename();
             if (!pchFile.isEmpty()) {
-                Q_ASSERT(pre->isCompiled());
+                Q_ASSERT(arguments.isCompile());
                 pch = true;
                 arglist += "-include-pch";
                 arglist += pchFile;
