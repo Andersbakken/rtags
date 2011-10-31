@@ -162,7 +162,7 @@ void RBuild::startParse()
 {
     connect(&mParser, SIGNAL(fileReady(const MakefileItem&)),
             this, SLOT(makefileFileReady(const MakefileItem&)));
-    connect(&mParser, SIGNAL(done()), this, SLOT(save()));
+    connect(&mParser, SIGNAL(done()), this, SLOT(makefileDone()));
     mParser.run(mMakefile);
 }
 
@@ -175,9 +175,66 @@ void RBuild::save()
     qApp->quit();
 }
 
+void RBuild::compileAll()
+{
+    foreach(const GccArguments& args, mFiles) {
+        compile(args);
+    }
+    mFiles.clear();
+}
+
+static void collectHeaders(const GccArguments& arguments)
+{
+    if (!arguments.isCompile())
+        return;
+    Precompile* pre = Precompile::precompiler(arguments);
+    Q_ASSERT(pre);
+    QList<Path> inputs = arguments.input();
+    Q_ASSERT(inputs.size() == 1);
+    const Path& input = inputs.front();
+    QFile f(input);
+    if (!f.open(QFile::ReadOnly))
+        qFatal("unable to open file '%s' for header collection", input.constData());
+
+    QByteArray unsaved;
+    unsaved.reserve(f.size() / 2);
+    const QList<QByteArray> lines = f.readAll().split('\n');
+    for (int i=0; i<lines.size(); ++i) {
+        QByteArray line = lines.at(i).trimmed();
+        if (line.startsWith('#')) {
+            while (line.endsWith('\\') && i + 1 < lines.size()) {
+                line.chop(1);
+                line += lines.at(++i).trimmed();
+            }
+            if (line.startsWith("#include ")) {
+                line.remove(0, 9);
+            }
+
+            unsaved.append(line);
+            unsaved.append('\n');
+        }
+    }
+
+    pre->setData(unsaved);
+}
+
+void RBuild::processFile(const GccArguments& arguments)
+{
+    collectHeaders(arguments);
+    mFiles.append(arguments);
+}
+
 void RBuild::makefileFileReady(const MakefileItem& file)
 {
-    compile(file.arguments);
+    processFile(file.arguments);
+    //compile(file.arguments);
+}
+
+void RBuild::makefileDone()
+{
+    Precompile::precompileAll(mSysInfo.systemIncludes());
+    compileAll();
+    save();
 }
 
 static inline void writeDependencies(leveldb::DB* db, const leveldb::WriteOptions& opt,
@@ -820,14 +877,6 @@ static inline void getInclusions(CXFile includedFile,
     }
 }
 
-static inline void updatePch(const GccArguments &args, const QList<Path> &headers, const SystemInformation& sysInfo)
-{
-    Precompile* pre = Precompile::precompiler(args);
-    Q_ASSERT(pre);
-    pre->addHeaders(headers);
-    pre->precompile(sysInfo.systemIncludes());
-}
-
 void RBuild::compile(const GccArguments& arguments)
 {
     foreach(const Path& input, arguments.input()) {
@@ -928,8 +977,6 @@ void RBuild::compile(const GccArguments& arguments)
         clang_disposeTranslationUnit(unit);
 
         // qDebug() << arguments.raw() << arguments.language();
-        if (pchEnabled)
-            updatePch(arguments, u.directIncludes, mSysInfo);
 
         fprintf(stderr, "parsed %s, %d new items\n", input.constData(), mData->data.size() - old);
 

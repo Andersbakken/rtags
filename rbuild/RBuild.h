@@ -20,11 +20,14 @@ public:
     void buildDB(const Path& makefile);
     bool updateDB();
 private slots:
-    void save();
     void makefileFileReady(const MakefileItem& file);
+    void makefileDone();
     void startParse();
 
 private:
+    void save();
+    void compileAll();
+    void processFile(const GccArguments& arguments);
     void compile(const GccArguments& arguments);
     void writeData(const QByteArray& filename);
 
@@ -35,6 +38,7 @@ private:
     RBuildPrivate* mData;
     Path mDBPath;
     CXIndex mIndex;
+    QList<GccArguments> mFiles;
 };
 
 #endif // RBUILD_H

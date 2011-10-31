@@ -5,7 +5,6 @@
 #include <Path.h>
 #include <QObject>
 #include <QList>
-#include <QHash>
 
 class Precompile : public QObject
 {
@@ -13,23 +12,21 @@ class Precompile : public QObject
 public:
     static Precompile* precompiler(const GccArguments& args);
     static void cleanup();
+    static void precompileAll(const QList<QByteArray>& systemIncludes);
 
     ~Precompile();
 
     void clear();
-    void addHeaders(const QList<Path>& headers);
+    void setData(const QByteArray& data);
     void precompile(const QList<QByteArray>& systemIncludes);
 
-    bool isCompiled() const;
     QByteArray filename() const;
 
 private:
     Precompile(const GccArguments& args, QObject* parent = 0);
 
-    bool m_compiled;
     QByteArray m_filename;
-    QList<Path> m_headers;
-    QHash<Path, int> m_seen;
+    QByteArray m_data;
     GccArguments m_args;
 
     static QHash<QByteArray, Precompile*> s_precompiles;

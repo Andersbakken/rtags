@@ -60,7 +60,7 @@ static inline bool fileAvailable(const QByteArray& filename)
 }
 
 Precompile::Precompile(const GccArguments& args, QObject* parent)
-    : QObject(parent), m_compiled(false), m_args(args)
+    : QObject(parent), m_args(args)
 {
 }
 
@@ -71,11 +71,11 @@ Precompile::~Precompile()
 
 void Precompile::clear()
 {
-    m_compiled = false;
     if (!m_filename.isEmpty()) {
         // removeFile(m_filename);
         // removeFile(m_filename + ".h");
         m_filename.clear();
+        m_data.clear();
     }
 }
 
@@ -112,9 +112,99 @@ static inline void printDiagnostics(CXTranslationUnit unit)
     }
 }
 
+static inline bool preprocessHeaders(QByteArray& headerData, const GccArguments& args, QList<QByteArray> systemIncludes)
+{
+    Q_ASSERT(args.isCompile() && !args.input.isEmpty());
+    Q_ASSERT(!headerData.isEmpty());
+
+    const QList<QByteArray> includePaths = args.arguments("-I");
+    QStringList procArgs;
+    procArgs << "-E" << "-"
+            << byteArrayListToStringList(includePaths)
+            << byteArrayListToStringList(systemIncludes)
+            << byteArrayListToStringList(args.arguments("-D"))
+            << QLatin1String("-x") << QLatin1String(GccArguments::languageString(args.language()));
+
+    QProcess process;
+    process.start(QLatin1String("clang"), procArgs);
+    process.write(headerData);
+    process.closeWriteChannel();
+    process.waitForFinished();
+    headerData.clear();
+
+    //qDebug() << procArgs;
+
+    const Path sourceFileDir = args.input().front().parentDir();
+    const QList<QByteArray> *lists[] = { &includePaths, &systemIncludes };
+    foreach(QByteArray line, process.readAllStandardOutput().split('\n')) {
+        // qDebug() << mSourceFile << unsaved << line;
+        if (!line.isEmpty()) {
+            bool quote = true;
+            switch (line.at(0)) {
+            case '"':
+                if (line.at(line.size() - 1) != '"') { // flag error?
+                    qWarning() << "Weird include" << line;
+                    continue;
+                }
+                break;
+            case '<':
+                if (line.at(line.size() - 1) != '>') { // flag error?
+                    qWarning() << "Weird include" << line;
+                    continue;
+                }
+                quote = false;
+                break;
+            default:
+                continue;
+            }
+            line.remove(0, 1);
+            line.chop(1);
+            // qWarning() << "looking for" << line;
+            if (quote) {
+                const Path resolved = Path::resolved(line, sourceFileDir);
+                if (resolved.isHeader()) {
+                    headerData += "#include <" + resolved + ">\n";
+                    continue;
+                }
+            }
+            enum { Found, DidntFind, DidntWant } state = DidntWant;
+            for (int i=0; i<2 && state == DidntWant; ++i) {
+                Path dir;
+                foreach(const QByteArray &listEntry, *lists[i]) {
+                    dir = listEntry.mid(2);
+                    dir.resolve(sourceFileDir);
+                    const Path resolved = Path::resolved(line, dir);
+                    switch (resolved.magicType()) {
+                    case Path::Header:
+                        headerData += "#include <" + resolved + ">\n";
+                        state = Found;
+                        break;
+                    case Path::Source:
+                        state = DidntWant;
+                    default:
+                        break;
+                    }
+                }
+            }
+            if (state == DidntFind) {
+                qWarning() << "Couldn't resolve" << line << includePaths << systemIncludes;
+            }
+        }
+    }
+
+    return !headerData.isEmpty();
+}
+
+void Precompile::precompileAll(const QList<QByteArray>& systemIncludes)
+{
+    foreach(Precompile* pch, s_precompiles) {
+        pch->precompile(systemIncludes);
+    }
+}
+
 void Precompile::precompile(const QList<QByteArray>& systemIncludes)
 {
-    if (m_compiled || m_headers.isEmpty())
+    if (m_data.isEmpty())
         return;
 
     if (m_filename.isEmpty()) {
@@ -130,11 +220,16 @@ void Precompile::precompile(const QList<QByteArray>& systemIncludes)
     Q_ASSERT(!m_filename.isEmpty());
 
     const QByteArray headerFilename = m_filename + ".h";
-    QByteArray headerData;
-    foreach(const Path& line, m_headers) {
-        headerData += "#include <" + line + ">\n";
+
+    //qDebug() << "about to preprocess for pch" << m_data;
+    if (!preprocessHeaders(m_data, m_args, systemIncludes)) {
+        fprintf(stderr, "failed to preprocess headers for pch\n");
+        clear();
+        return;
     }
-    if (!writeFile(headerFilename, headerData)) {
+    //qDebug() << "done preprocessing for pch" << m_data;
+
+    if (!writeFile(headerFilename, m_data)) {
         fprintf(stderr, "precompile failed to write header file '%s'\n", headerFilename.constData());
         clear();
         return;
@@ -173,8 +268,6 @@ void Precompile::precompile(const QList<QByteArray>& systemIncludes)
     }
     clang_disposeTranslationUnit(unit);
     clang_disposeIndex(idx);
-
-    m_compiled = true;
 }
 
 QByteArray Precompile::filename() const
@@ -182,44 +275,16 @@ QByteArray Precompile::filename() const
     return m_filename;
 }
 
-bool Precompile::isCompiled() const
+void Precompile::setData(const QByteArray& data)
 {
-    return m_compiled;
+    m_data = data;
 }
 
+/*
 static inline bool filter(const Path& header)
 {
     if (header.contains("/bits/") || header.endsWith("_p.h") || header.endsWith("_impl.h") || header.contains("/private/"))
         return true;
     return false;
 }
-
-static inline bool calcSeen(QHash<Path, int>& seen)
-{
-    bool recompile = false;
-    QHash<Path, int>::iterator it = seen.begin();
-    const QHash<Path, int>::const_iterator end = seen.end();
-    while (it != end) {
-        if (it.value() >= SEEN_THRESHOLD) {
-            it.value() = 0;
-            recompile = true;
-            // don't break here, we need to set all values >= the threshold to 0
-        }
-        ++it;
-    }
-    return recompile;
-}
-
-void Precompile::addHeaders(const QList<Path>& headers)
-{
-    const bool wasEmpty = m_headers.isEmpty();
-    foreach (const Path& header, headers) {
-        if (filter(header))
-            continue;
-        m_seen[header] += 1;
-        if (m_headers.contains(header))
-            continue;
-        m_headers.append(header);
-    }
-    m_compiled = !(wasEmpty || calcSeen(m_seen));
-}
+*/
