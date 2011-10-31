@@ -18,10 +18,12 @@
 using namespace RTags;
 
 static const bool pchEnabled = !getenv("RTAGS_NO_PCH");
+static QElapsedTimer timer;
 
 RBuild::RBuild(QObject *parent)
     : QObject(parent), mData(new RBuildPrivate), mIndex(clang_createIndex(1, 1))
 {
+    timer.start();
 }
 
 RBuild::~RBuild()
@@ -173,7 +175,7 @@ void RBuild::save()
 {
     fprintf(stderr, "Done parsing, now writing.\n");
     writeData(mDBPath);
-    fprintf(stderr, "All done.\n");
+    fprintf(stderr, "All done. (%lld ms)\n", timer.elapsed());
 
     qApp->quit();
 }
