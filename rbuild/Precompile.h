@@ -11,6 +11,7 @@ class Precompile : public QObject
 {
     Q_OBJECT
 public:
+    static void init(const Path &path);
     static Precompile* precompiler(const GccArguments& args);
     static void cleanup();
     static QList<Precompile*> precompiles();    
@@ -31,6 +32,7 @@ private:
     GccArguments m_args;
 
     static QHash<QByteArray, Precompile*> s_precompiles;
+    static Path s_path;
 };
 
 #endif // PRECOMPILE_H

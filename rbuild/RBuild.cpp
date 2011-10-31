@@ -34,6 +34,9 @@ RBuild::~RBuild()
 
 void RBuild::setDBPath(const Path &path)
 {
+    mode_t t;
+    mkdir(path.constData(), 0x775);
+    Precompile::init(path);
     mDBPath = path;
     mSysInfo.init();
 }
@@ -182,8 +185,16 @@ void RBuild::save()
 
 void RBuild::compileAll()
 {
+    int i = 0;
     foreach(const GccArguments& args, mFiles) {
+        const int old = mData->data.size();
+        const qint64 before = timer.elapsed();
         compile(args);
+        const qint64 elapsed = timer.elapsed();
+        fprintf(stderr, "parsed %s (%d/%d), %d new items (%lld ms)\n",
+                args.input().value(0).constData(), ++i, mFiles.size(),
+                mData->data.size() - old, elapsed - before);
+        
     }
     mFiles.clear();
 }
@@ -895,7 +906,6 @@ void RBuild::compile(const GccArguments& arguments)
           continue;
           }*/
 
-        const int old = mData->data.size();
         const bool verbose = (getenv("VERBOSE") != 0);
 
         QList<QByteArray> arglist;
@@ -986,23 +996,24 @@ void RBuild::compile(const GccArguments& arguments)
         clang_disposeTranslationUnit(unit);
 
         // qDebug() << arguments.raw() << arguments.language();
-
-        fprintf(stderr, "parsed %s, %d new items\n", input.constData(), mData->data.size() - old);
-
     }
 }
 
 void RBuild::precompileAll()
 {
-    foreach(Precompile *pch, Precompile::precompiles()) {
+    int i = 0;
+    const QList<Precompile*> precompiles = Precompile::precompiles();
+    foreach(Precompile *pch, precompiles) {
+        const qint64 before = timer.elapsed();
         CXTranslationUnit unit = pch->precompile(mSysInfo.systemIncludes(), mIndex);
         if (unit) {
             CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
             const int old = mData->data.size();
             clang_visitChildren(unitCursor, collectSymbols, mData);
             clang_disposeTranslationUnit(unit);
-            fprintf(stderr, "parsed pch header, %d new items\n",
-                    mData->data.size() - old);
+            const qint64 elapsed = timer.elapsed() - before;
+            fprintf(stderr, "parsed pch header (%d/%d), %d new items (%lld ms)\n",
+                    ++i, precompiles.size(), mData->data.size() - old, elapsed);
         }
     }
 }

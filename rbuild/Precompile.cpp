@@ -7,8 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define SEEN_THRESHOLD 10
-
+Path Precompile::s_path;
 QHash<QByteArray, Precompile*> Precompile::s_precompiles;
 
 static inline QByteArray keyFromArguments(const GccArguments& args)
@@ -206,10 +205,13 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
         return 0;
 
     if (m_filename.isEmpty()) {
+        m_filename = s_path + "/rtagspch_XXXXXX";
         m_filename = "/tmp/rtagspch_XXXXXX";
+
         int fd = mkstemp(m_filename.data());
         if (fd == -1) {
-            fprintf(stderr, "precompile failed to open tempfile\n");
+            fprintf(stderr, "precompile failed to open tempfile %s\n",
+                    m_filename.constData());
             m_filename.clear();
             return 0;
         }
@@ -285,3 +287,8 @@ static inline bool filter(const Path& header)
     return false;
 }
 */
+
+void Precompile::init(const Path &path)
+{
+    s_path = path;
+}
