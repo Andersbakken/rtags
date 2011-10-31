@@ -195,17 +195,15 @@ static inline bool preprocessHeaders(QByteArray& headerData, const GccArguments&
     return !headerData.isEmpty();
 }
 
-void Precompile::precompileAll(const QList<QByteArray>& systemIncludes)
+QList<Precompile*> Precompile::precompiles()
 {
-    foreach(Precompile* pch, s_precompiles) {
-        pch->precompile(systemIncludes);
-    }
+    return s_precompiles.values();
 }
 
-void Precompile::precompile(const QList<QByteArray>& systemIncludes)
+CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes, CXIndex idx)
 {
     if (m_data.isEmpty())
-        return;
+        return 0;
 
     if (m_filename.isEmpty()) {
         m_filename = "/tmp/rtagspch_XXXXXX";
@@ -213,7 +211,7 @@ void Precompile::precompile(const QList<QByteArray>& systemIncludes)
         if (fd == -1) {
             fprintf(stderr, "precompile failed to open tempfile\n");
             m_filename.clear();
-            return;
+            return 0;
         }
         close(fd);
     }
@@ -225,14 +223,14 @@ void Precompile::precompile(const QList<QByteArray>& systemIncludes)
     if (!preprocessHeaders(m_data, m_args, systemIncludes)) {
         fprintf(stderr, "failed to preprocess headers for pch\n");
         clear();
-        return;
+        return 0;
     }
     // qDebug() << "done preprocessing for pch" << m_data;
 
     if (!writeFile(headerFilename, m_data)) {
         fprintf(stderr, "precompile failed to write header file '%s'\n", headerFilename.constData());
         clear();
-        return;
+        return 0;
     }
     printf("Wrote pch header %s\n", headerFilename.constData());
 
@@ -249,14 +247,14 @@ void Precompile::precompile(const QList<QByteArray>& systemIncludes)
         clangArgs << arg.constData();
     //qDebug() << "about to pch" << m_filename << clangArgs;
 
-    CXIndex idx = clang_createIndex(1, 1);
-    CXTranslationUnit unit = clang_parseTranslationUnit(idx, headerFilename.constData(), clangArgs.data(), clangArgs.size(), 0, 0,
-                                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+    CXTranslationUnit unit = clang_parseTranslationUnit(idx, headerFilename.constData(),
+                                                        clangArgs.data(), clangArgs.size(), 0, 0,
+                                                        CXTranslationUnit_Incomplete
+                                                        | CXTranslationUnit_DetailedPreprocessingRecord);
     if (!unit) {
         fprintf(stderr, "unable to parse pch\n");
         clear();
-        clang_disposeIndex(idx);
-        return;
+        return 0;
     }
     int saved = clang_saveTranslationUnit(unit, m_filename.constData(), clang_defaultSaveOptions(unit));
     if (saved != CXSaveError_None) {
@@ -264,11 +262,9 @@ void Precompile::precompile(const QList<QByteArray>& systemIncludes)
         clear();
         printDiagnostics(unit);
         clang_disposeTranslationUnit(unit);
-        clang_disposeIndex(idx);
-        return;
+        return 0;
     }
-    clang_disposeTranslationUnit(unit);
-    clang_disposeIndex(idx);
+    return unit;
 }
 
 QByteArray Precompile::filename() const

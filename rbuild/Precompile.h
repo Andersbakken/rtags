@@ -5,6 +5,7 @@
 #include <Path.h>
 #include <QObject>
 #include <QList>
+#include <clang-c/Index.h>
 
 class Precompile : public QObject
 {
@@ -12,13 +13,13 @@ class Precompile : public QObject
 public:
     static Precompile* precompiler(const GccArguments& args);
     static void cleanup();
-    static void precompileAll(const QList<QByteArray>& systemIncludes);
+    static QList<Precompile*> precompiles();    
 
     ~Precompile();
 
     void clear();
     void addData(const QByteArray& data);
-    void precompile(const QList<QByteArray>& systemIncludes);
+    CXTranslationUnit precompile(const QList<QByteArray>& systemIncludes, CXIndex idx);
 
     QByteArray filename() const;
 

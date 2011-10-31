@@ -27,6 +27,7 @@ private slots:
 private:
     void save();
     void compileAll();
+    void precompileAll();
     void processFile(const GccArguments& arguments);
     void compile(const GccArguments& arguments);
     void writeData(const QByteArray& filename);

@@ -148,8 +148,11 @@ bool RBuild::updateDB()
         }
     }
     for (QHash<Path, GccArguments>::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
-        compile(it.value());
+        processFile(it.value());
     }
+    precompileAll();
+    compileAll();
+
     if (count != mData->data.size())
         fprintf(stderr, "Item count changed from %d to %d\n",
                 count, mData->data.size());
@@ -220,8 +223,12 @@ static void collectHeaders(const GccArguments& arguments)
 
 void RBuild::processFile(const GccArguments& arguments)
 {
-    collectHeaders(arguments);
-    mFiles.append(arguments);
+    if (pchEnabled) {
+        collectHeaders(arguments);
+        mFiles.append(arguments);
+    } else {
+        compile(arguments);
+    }
 }
 
 void RBuild::makefileFileReady(const MakefileItem& file)
@@ -232,7 +239,7 @@ void RBuild::makefileFileReady(const MakefileItem& file)
 
 void RBuild::makefileDone()
 {
-    Precompile::precompileAll(mSysInfo.systemIncludes());
+    precompileAll();
     compileAll();
     save();
 }
@@ -980,5 +987,20 @@ void RBuild::compile(const GccArguments& arguments)
 
         fprintf(stderr, "parsed %s, %d new items\n", input.constData(), mData->data.size() - old);
 
+    }
+}
+
+void RBuild::precompileAll()
+{
+    foreach(Precompile *pch, Precompile::precompiles()) {
+        CXTranslationUnit unit = pch->precompile(mSysInfo.systemIncludes(), mIndex);
+        if (unit) {
+            CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
+            const int old = mData->data.size();
+            clang_visitChildren(unitCursor, collectSymbols, mData);
+            clang_disposeTranslationUnit(unit);
+            fprintf(stderr, "parsed pch header, %d new items\n",
+                    mData->data.size() - old);
+        }
     }
 }
