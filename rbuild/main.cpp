@@ -41,6 +41,9 @@ int main(int argc, char** argv)
     //     // bar.clear();
     // }
     // return 0;
+    QCoreApplication::setOrganizationName("RTags");
+    QCoreApplication::setOrganizationDomain("https://github.com/Andersbakken/rtags");
+    QCoreApplication::setApplicationName("RTags");
     QCoreApplication app(argc, argv);
     Path db;
     bool update = false;
