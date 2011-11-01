@@ -209,8 +209,10 @@ static void collectHeaders(const GccArguments& arguments)
     Q_ASSERT(inputs.size() == 1);
     const Path& input = inputs.front();
     QFile f(input);
-    if (!f.open(QFile::ReadOnly))
-        qFatal("unable to open file '%s' for header collection", input.constData());
+    if (!f.open(QFile::ReadOnly)) {
+        qWarning("unable to open file '%s' for header collection", input.constData());
+        return;
+    }
 
     QByteArray unsaved;
     unsaved.reserve(f.size() / 2);
