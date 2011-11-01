@@ -206,7 +206,7 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
 
     if (m_filename.isEmpty()) {
         m_filename = s_path + "/rtagspch_XXXXXX";
-        m_filename = "/tmp/rtagspch_XXXXXX";
+        // m_filename = "/tmp/rtagspch_XXXXXX";
 
         int fd = mkstemp(m_filename.data());
         if (fd == -1) {

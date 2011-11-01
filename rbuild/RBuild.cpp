@@ -34,8 +34,7 @@ RBuild::~RBuild()
 
 void RBuild::setDBPath(const Path &path)
 {
-    mode_t t;
-    mkdir(path.constData(), 0x775);
+    mkdir(path.constData(), S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP);
     Precompile::init(path);
     mDBPath = path;
     mSysInfo.init();
