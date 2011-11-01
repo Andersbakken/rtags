@@ -22,12 +22,12 @@ public:
     void addData(const QByteArray& data);
     CXTranslationUnit precompile(const QList<QByteArray>& systemIncludes, CXIndex idx);
 
-    QByteArray filename() const;
-
+    QByteArray filePath() const;
+    QByteArray headerFilePath() const;
 private:
     Precompile(const GccArguments& args, QObject* parent = 0);
 
-    QByteArray m_filename;
+    QByteArray m_filePath;
     QByteArray m_data;
     GccArguments m_args;
 

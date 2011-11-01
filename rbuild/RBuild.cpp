@@ -35,8 +35,9 @@ RBuild::~RBuild()
 void RBuild::setDBPath(const Path &path)
 {
     mkdir(path.constData(), S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IWGRP|S_IXGRP);
-    Precompile::init(path);
     mDBPath = path;
+    mDBPath.resolve();
+    Precompile::init(mDBPath);
     mSysInfo.init();
 }
 
@@ -916,7 +917,7 @@ void RBuild::compile(const GccArguments& arguments)
         if (pchEnabled) {
             Precompile* pre = Precompile::precompiler(arguments);
             Q_ASSERT(pre);
-            const QByteArray pchFile = pre->filename();
+            const QByteArray pchFile = pre->filePath();
             if (!pchFile.isEmpty()) {
                 Q_ASSERT(arguments.isCompile());
                 pch = true;
@@ -1011,8 +1012,9 @@ void RBuild::precompileAll()
             clang_visitChildren(unitCursor, collectSymbols, mData);
             clang_disposeTranslationUnit(unit);
             const qint64 elapsed = timer.elapsed() - before;
-            fprintf(stderr, "parsed pch header (%d/%d), %d new items (%lld ms)\n",
-                    ++i, precompiles.size(), mData->data.size() - old, elapsed);
+            fprintf(stderr, "parsed pch header (%s) (%d/%d), %d new items (%lld ms)\n",
+                    pch->headerFilePath().constData(), ++i, precompiles.size(),
+                    mData->data.size() - old, elapsed);
         }
     }
 }

@@ -25,13 +25,22 @@ static inline QByteArray keyFromArguments(const GccArguments& args)
     return key;
 }
 
-static inline bool writeFile(const QByteArray& filename, const QByteArray& data)
+static inline bool writeFile(const QByteArray& filename, const QVector<const char *> &args,
+                             const QByteArray& data)
 {
     QFile f(filename);
     if (!f.open(QFile::WriteOnly))
         return false;
-    const qint64 len = f.write(data);
-    return (len == data.size());
+    if (f.write("// ") != 3)
+        return false;
+    foreach(const char *arg, args) {
+        const QByteArray a = QByteArray::fromRawData(arg, strlen(arg));
+        if (f.write(a) != a.size())
+            return false;
+    }
+    if (f.write("\n") != 1)
+        return false;
+    return f.write(data) == data.size();
 }
 
 static inline QStringList byteArrayListToStringList(const QList<QByteArray>& input)
@@ -70,10 +79,10 @@ Precompile::~Precompile()
 
 void Precompile::clear()
 {
-    if (!m_filename.isEmpty()) {
-        // removeFile(m_filename);
-        // removeFile(m_filename + ".h");
-        m_filename.clear();
+    if (!m_filePath.isEmpty()) {
+        // removeFile(m_filePath);
+        // removeFile(m_filePath + ".h");
+        m_filePath.clear();
         m_data.clear();
     }
 }
@@ -204,22 +213,22 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
     if (m_data.isEmpty())
         return 0;
 
-    if (m_filename.isEmpty()) {
-        m_filename = s_path + "/rtagspch_XXXXXX";
-        // m_filename = "/tmp/rtagspch_XXXXXX";
+    if (m_filePath.isEmpty()) {
+        m_filePath = s_path + "/rtagspch_XXXXXX";
+        // m_filePath = "/tmp/rtagspch_XXXXXX";
 
-        int fd = mkstemp(m_filename.data());
+        int fd = mkstemp(m_filePath.data());
         if (fd == -1) {
             fprintf(stderr, "precompile failed to open tempfile %s\n",
-                    m_filename.constData());
-            m_filename.clear();
+                    m_filePath.constData());
+            m_filePath.clear();
             return 0;
         }
         close(fd);
     }
-    Q_ASSERT(!m_filename.isEmpty());
+    Q_ASSERT(!m_filePath.isEmpty());
 
-    const QByteArray headerFilename = m_filename + ".h";
+    const QByteArray headerFilename = headerFilePath();;
 
     // qDebug() << "about to preprocess for pch" << m_data;
     if (!preprocessHeaders(m_data, m_args, systemIncludes)) {
@@ -228,15 +237,6 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
         return 0;
     }
     // qDebug() << "done preprocessing for pch" << m_data;
-
-    if (!writeFile(headerFilename, m_data)) {
-        fprintf(stderr, "precompile failed to write header file '%s'\n", headerFilename.constData());
-        clear();
-        return 0;
-    }
-    printf("Wrote pch header %s\n", headerFilename.constData());
-
-    removeFile(m_filename);
 
     QVector<const char*> clangArgs;
     clangArgs << "-x" << GccArguments::languageString(m_args.language());
@@ -247,7 +247,16 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
         clangArgs << arg.constData();
     foreach(const QByteArray& arg, systemIncludes)
         clangArgs << arg.constData();
-    //qDebug() << "about to pch" << m_filename << clangArgs;
+    //qDebug() << "about to pch" << m_filePath << clangArgs;
+
+    if (!writeFile(headerFilename, clangArgs, m_data)) {
+        fprintf(stderr, "precompile failed to write header file '%s'\n", headerFilename.constData());
+        clear();
+        return 0;
+    }
+    // printf("Wrote pch header %s\n", headerFilename.constData());
+
+    removeFile(m_filePath);
 
     CXTranslationUnit unit = clang_parseTranslationUnit(idx, headerFilename.constData(),
                                                         clangArgs.data(), clangArgs.size(), 0, 0,
@@ -258,7 +267,7 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
         clear();
         return 0;
     }
-    int saved = clang_saveTranslationUnit(unit, m_filename.constData(), clang_defaultSaveOptions(unit));
+    int saved = clang_saveTranslationUnit(unit, m_filePath.constData(), clang_defaultSaveOptions(unit));
     if (saved != CXSaveError_None) {
         fprintf(stderr, "unable to save pch\n");
         clear();
@@ -269,9 +278,14 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
     return unit;
 }
 
-QByteArray Precompile::filename() const
+QByteArray Precompile::filePath() const
 {
-    return m_filename;
+    return m_filePath;
+}
+
+QByteArray Precompile::headerFilePath() const
+{
+    return m_filePath + ".h";
 }
 
 void Precompile::addData(const QByteArray& data)
