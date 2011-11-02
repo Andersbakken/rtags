@@ -41,7 +41,7 @@
     )
   )
 
-(defun rtags-follow-symbol-at-point()
+(defun rtags-find-symbol-at-point()
   (interactive)
   (let ((bufname (buffer-file-name))
         (line (int-to-string (line-number-at-pos)))
@@ -152,6 +152,12 @@
 (defun rtags-find-symbol-prompt ()
   (interactive)
   (rtags-find-symbol-internal "Find symbol" "-s"))
+
+(defun rtags-find-symbol ()
+  (interactive)
+  (unless (rtags-find-symbol-at-point)
+    (rtags-find-symbol-prompt))
+  )
 
 (defun rtags-find-refererences-prompt ()
   (interactive)

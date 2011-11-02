@@ -10,7 +10,39 @@
 #include <CursorKey.h>
 
 using namespace RTags;
-QSet<QByteArray> printed;
+static inline int readLine(FILE *f, char *buf, int max)
+{
+    assert(!buf == (max == -1));
+    if (max == -1)
+        max = INT_MAX;
+    for (int i=0; i<max; ++i) {
+        const int ch = fgetc(f);
+        if (ch == '\n' || ch == EOF)
+            return i;
+        if (buf)
+            *buf++ = *reinterpret_cast<const char*>(&ch);
+    }
+    return -1;
+}
+
+static inline std::string lineForLocation(const std::string &location)
+{
+    std::string fileName, ret;
+    unsigned line = 0, col = 0;
+    if (parseLocation(location, fileName, line, col)) {
+        FILE *f = fopen(fileName.c_str(), "r");
+        if (f) {
+            for (unsigned i=0; i<line - 1; ++i)
+                readLine(f, 0, -1);
+            char line[1024] = { 0 };
+            readLine(f, line, 1024);
+            ret = line;
+            fclose(f);
+        }
+    }
+    return ret;
+}
+
 typedef bool (*Handler)(leveldb::DB *db, const std::string &key);
 static inline bool maybeDict(leveldb::DB *db, const std::string &key, Handler handler)
 {
@@ -50,6 +82,7 @@ static bool maybeResolveAndMaybeDict(leveldb::DB *db, const std::string &key, Ha
 
 static inline void print(const QByteArray &out)
 {
+    static QSet<QByteArray> printed;
     if (!printed.contains(out)) {
         printed.insert(out);
         printf("%s\n", out.constData());
@@ -59,7 +92,8 @@ static inline void print(const QByteArray &out)
 static inline bool printSymbol(leveldb::DB *, const std::string &loc)
 {
     if (!loc.empty()) {
-        print(QByteArray(loc.c_str()));
+        const std::string line = lineForLocation(loc);
+        print(QByteArray((loc + " " + line).c_str()));
         return true;
     }
     return false;

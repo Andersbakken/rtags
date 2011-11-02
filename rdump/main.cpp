@@ -10,40 +10,6 @@
 
 using namespace RTags;
 
-static inline int readLine(FILE *f, char *buf, int max)
-{
-    assert(!buf == (max == -1));
-    if (max == -1)
-        max = INT_MAX;
-    for (int i=0; i<max; ++i) {
-        const int ch = fgetc(f);
-        if (ch == '\n' || ch == EOF)
-            return i;
-        if (buf)
-            *buf++ = *reinterpret_cast<const char*>(&ch);
-    }
-    return -1;
-}
-
-static inline std::string symbolNameAt(const std::string &location)
-{
-    std::string fileName, ret;
-    unsigned line = 0, col = 0;
-    if (parseLocation(location, fileName, line, col)) {
-        FILE *f = fopen(fileName.c_str(), "r");
-        if (f) {
-            for (unsigned i=0; i<line - 1; ++i)
-                readLine(f, 0, -1);
-            char line[1024] = { 0 };
-            readLine(f, line, 1024);
-            // ### strip out parts that likely aren't part of the symbol
-            ret = line + (col - 1);
-            fclose(f);
-        }
-    }
-    return ret;
-}
-
 enum Type { Symbol = 0x01, Reference = 0x02, Dependency = 0x04, Dict = 0x08, All = 0x0f, Raw = 0x10 };
 
 static inline void dumpDatabase(const std::string& filename, int type)
