@@ -103,6 +103,22 @@ Precompile* Precompile::precompiler(const GccArguments& args)
     return compile;
 }
 
+void Precompile::create(const GccArguments &args,
+                        const QByteArray &filePath,
+                        const QHash<Path, quint64> &deps)
+{
+    const QByteArray key = keyFromArguments(args);
+    Q_ASSERT(!key.isEmpty());
+    Precompile* &compile = s_precompiles[key];
+    Q_ASSERT(!compile);
+    compile = new Precompile(args);
+    compile->m_filePath = filePath;
+    compile->m_dependencies = deps;
+    s_precompiles[key] = compile;
+    // qDebug() << "creating Precompile" << filePath;
+}
+
+
 void Precompile::cleanup()
 {
     qDeleteAll(s_precompiles);
@@ -143,6 +159,7 @@ bool Precompile::preprocessHeaders(QList<QByteArray> systemIncludes)
 
     //qDebug() << procArgs;
 
+    QSet<Path> headers;
     const Path sourceFileDir = m_args.input().front().parentDir();
     const QList<QByteArray> *lists[] = { &includePaths, &systemIncludes };
     foreach(QByteArray line, process.readAllStandardOutput().split('\n')) {
@@ -171,13 +188,9 @@ bool Precompile::preprocessHeaders(QList<QByteArray> systemIncludes)
             // qWarning() << "looking for" << line;
             if (quote) {
                 const Path resolved = Path::resolved(line, sourceFileDir);
-                if (resolved.isHeader()) {
-                    qint64 &lastMod = m_headers[resolved];
-                    // qDebug() << resolved << lastMod << resolved.lastModified();
-                    if (!lastMod) {
-                        lastMod = resolved.lastModified();
-                        m_data += "#include <" + resolved + ">\n";
-                    }
+                if (resolved.isHeader() && !headers.contains(resolved)) {
+                    m_data += "#include <" + resolved + ">\n";
+                    headers.insert(resolved);
                     continue;
                 }
             }
@@ -189,15 +202,13 @@ bool Precompile::preprocessHeaders(QList<QByteArray> systemIncludes)
                     dir.resolve(sourceFileDir);
                     const Path resolved = Path::resolved(line, dir);
                     switch (resolved.magicType()) {
-                    case Path::Header: {
-                        qint64 &lastMod = m_headers[resolved];
-                        // qDebug() << resolved << lastMod << resolved.lastModified();
-                        if (!lastMod) {
-                            lastMod = resolved.lastModified();
+                    case Path::Header:
+                        if (!headers.contains(resolved)) {
+                            headers.insert(resolved);
                             m_data += "#include <" + resolved + ">\n";
                         }
                         state = Found;
-                        break; }
+                        break;
                     case Path::Source:
                         state = DidntWant;
                         break;
@@ -222,8 +233,9 @@ QList<Precompile*> Precompile::precompiles()
 
 CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes, CXIndex idx)
 {
-    if (m_data.isEmpty())
+    if (m_data.isEmpty()) {
         return 0;
+    }
 
     if (m_filePath.isEmpty()) {
         m_filePath = "/tmp/rtagspch_XXXXXX";
@@ -317,10 +329,10 @@ void Precompile::addData(const QByteArray& data)
 }
 
 /*
-static inline bool filter(const Path& header)
-{
-    if (header.contains("/bits/") || header.endsWith("_p.h") || header.endsWith("_impl.h") || header.contains("/private/"))
-        return true;
-    return false;
-}
+  static inline bool filter(const Path& header)
+  {
+  if (header.contains("/bits/") || header.endsWith("_p.h") || header.endsWith("_impl.h") || header.contains("/private/"))
+  return true;
+  return false;
+  }
 */

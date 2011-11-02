@@ -11,6 +11,9 @@ class Precompile : public QObject
 {
     Q_OBJECT
 public:
+    static void create(const GccArguments &args,
+                       const QByteArray &filePath,
+                       const QHash<Path, quint64> &deps);
     static Precompile* precompiler(const GccArguments& args);
     static void cleanup();
     static QList<Precompile*> precompiles();    
@@ -24,7 +27,8 @@ public:
     QByteArray filePath() const;
     QByteArray headerFilePath() const;
     GccArguments arguments() const { return m_args; }
-    QHash<Path, qint64> headers() const { return m_headers; }
+    void setDependencies(const QHash<Path, quint64> &deps) { m_dependencies = deps; }
+    QHash<Path, quint64> dependencies() const { return m_dependencies; }
 private:
     Precompile(const GccArguments& args, QObject* parent = 0);
     bool preprocessHeaders(QList<QByteArray> systemIncludes);
@@ -33,7 +37,7 @@ private:
     QByteArray m_data;
     GccArguments m_args;
 
-    QHash<Path, qint64> m_headers;
+    QHash<Path, quint64> m_dependencies;
 
     static QHash<QByteArray, Precompile*> s_precompiles;
     static Path s_path;
