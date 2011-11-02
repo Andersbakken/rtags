@@ -62,6 +62,30 @@
     )
   )
 
+(defun rtags-find-references-at-point()
+  (interactive)
+  (rtags-find-references-at-point-internal "-r")
+  )
+
+(defun rtags-find-references ()
+  (interactive)
+  (unless (rtags-find-references-at-point)
+    (message "no"))
+  )
+
+(defun rtags-complete (string predicate code)
+  (let ((completions))
+    (with-temp-buffer
+      (call-process "rc" nil (list t nil) nil "-S" "-n" "-l" string)
+      (setq 'completions (split-string (buffer-string))))))
+      ;; (all-completion string completions))))
+      ;; (cond ((eq code nil)
+      ;;        (try-completion string completions predicate))
+      ;;       ((eq code t)
+      ;;        (all-completions string completions predicate))
+      ;;       ((eq code 'lambda)
+      ;;        (if (intern-soft string completions) t nil))))))
+
 (defun rtags-find-references-at-point-internal(mode)
   (let ((bufname (buffer-file-name))
         (line (int-to-string (line-number-at-pos)))
@@ -95,31 +119,6 @@
             t))
         ))
     ))
-
-(defun rtags-find-references-at-point()
-  (interactive)
-  (rtags-find-references-at-point-internal "-r")
-  )
-
-(defun rtags-find-references ()
-  (interactive)
-  (unless (rtags-find-references-at-point)
-    (message "no"))
-  )
-
-(defun rtags-complete (string predicate code)
-  (let ((completions))
-    (with-temp-buffer
-      (call-process "rc" nil (list t nil) nil "-S" "-n" "-l" string)
-      (setq 'completions (split-string (buffer-string))))))
-      ;; (all-completion string completions))))
-      ;; (cond ((eq code nil)
-      ;;        (try-completion string completions predicate))
-      ;;       ((eq code t)
-      ;;        (all-completions string completions predicate))
-      ;;       ((eq code 'lambda)
-      ;;        (if (intern-soft string completions) t nil))))))
-
 
 (defun rtags-find-symbol-internal (p switch)
   (let (tagname prompt input completions previous)

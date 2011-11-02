@@ -12,8 +12,8 @@ mac {
     QMAKE_CXXFLAGS += -fno-builtin-memcmp
 }
 exists($$PWD/snappy) {
-    message("using snappy")
-    system(cd $$PWD/snappy && $$PWD/snappy/autogen.sh && $$PWD/snappy/configure)
+    #message("using snappy")
+    #system(cd $$PWD/snappy && $$PWD/snappy/autogen.sh && $$PWD/snappy/configure)
     DEFINES += SNAPPY
     INCLUDEPATH += $$PWD/snappy
     SOURCES += $$PWD/snappy/snappy-c.cc \
