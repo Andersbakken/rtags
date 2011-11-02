@@ -14,6 +14,7 @@
 #include "AtomicString.h"
 #include "CursorKey.h"
 #include "RBuild_p.h"
+#include <leveldb/write_batch.h>
 
 using namespace RTags;
 
@@ -311,8 +312,7 @@ void RBuild::makefileDone()
     save();
 }
 
-static inline void writeDependencies(leveldb::DB* db, const leveldb::WriteOptions& opt,
-                                     const Path &path, const GccArguments &args,
+static inline void writeDependencies(leveldb::WriteBatch* batch, const Path &path, const GccArguments &args,
                                      quint64 lastModified, const QHash<Path, quint64> &dependencies)
 {
     QByteArray out;
@@ -321,8 +321,8 @@ static inline void writeDependencies(leveldb::DB* db, const leveldb::WriteOption
         ds << args << lastModified << dependencies;
     }
     const QByteArray p = "f:" + path;
-    db->Put(opt, leveldb::Slice(p.constData(), p.size()),
-            leveldb::Slice(out.constData(), out.size()));
+    batch->Put(leveldb::Slice(p.constData(), p.size()),
+               leveldb::Slice(out.constData(), out.size()));
 }
 
 static inline QByteArray makeRefValue(const RBuildPrivate::DataEntry& entry)
@@ -339,7 +339,7 @@ static inline QByteArray makeRefValue(const RBuildPrivate::DataEntry& entry)
     return out;
 }
 
-static inline void writeDict(leveldb::DB* db, const leveldb::WriteOptions& opt, const QHash<AtomicString, QSet<AtomicString> >& dict)
+static inline void writeDict(leveldb::WriteBatch* batch, const QHash<AtomicString, QSet<AtomicString> >& dict)
 {
     QHash<AtomicString, QSet<AtomicString> >::const_iterator it = dict.begin();
     const QHash<AtomicString, QSet<AtomicString> >::const_iterator end = dict.end();
@@ -355,7 +355,7 @@ static inline void writeDict(leveldb::DB* db, const leveldb::WriteOptions& opt, 
             locs += '\0';
             ++dit;
         }
-        db->Put(opt, ("d:" + it.key().toByteArray()).constData(), locs);
+        batch->Put(("d:" + it.key().toByteArray()).constData(), locs);
         ++it;
     }
 }
@@ -416,8 +416,7 @@ static inline void collectDict(const RBuildPrivate::DataEntry& entry, QHash<Atom
     }
 }
 
-static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
-                              const RBuildPrivate::DataEntry& entry)
+static inline void writeEntry(leveldb::WriteBatch* batch, const RBuildPrivate::DataEntry& entry)
 {
     const CursorKey& key = entry.cursor.key;
     if (!key.isValid()) {
@@ -426,7 +425,7 @@ static inline void writeEntry(leveldb::DB* db, const leveldb::WriteOptions& opt,
 
     QByteArray k = key.toString();
     QByteArray v = makeRefValue(entry);
-    db->Put(opt, std::string(k.constData(), k.size()), std::string(v.constData(), v.size()));
+    batch->Put(std::string(k.constData(), k.size()), std::string(v.constData(), v.size()));
     // qDebug() << "writing" << k << kindToString(key.kind) << entry.references.size()
     //          << v.size() << std::string(v.constData(), v.size()).size();
 }
@@ -498,6 +497,9 @@ void RBuild::writeData(const QByteArray& filename)
     if (!leveldb::DB::Open(dbOptions, tempFile.constData(), &db).ok()) {
         return;
     }
+
+    leveldb::WriteBatch batch;
+
     Q_ASSERT(db);
 
     QHash<AtomicString, QSet<AtomicString> > dict;
@@ -536,20 +538,20 @@ void RBuild::writeData(const QByteArray& filename)
     QDataStream ds(&entries, QIODevice::WriteOnly);
     ds << mData->data.size();
     foreach(const RBuildPrivate::DataEntry* entry, mData->data) {
-        writeEntry(db, writeOptions, *entry);
+        writeEntry(&batch, *entry);
         collectDict(*entry, dict);
         ds << *entry;
     }
 
-    writeDict(db, writeOptions, dict);
+    writeDict(&batch, dict);
 
     foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
         // qDebug() << dep.file << ctime(&dep.lastModified);
-        writeDependencies(db, writeOptions, dep.file, dep.arguments,
+        writeDependencies(&batch, dep.file, dep.arguments,
                           dep.lastModified, dep.dependencies);
     }
 
-    db->Put(writeOptions, " ", leveldb::Slice(entries.constData(), entries.size()));
+    batch.Put(" ", leveldb::Slice(entries.constData(), entries.size()));
     QByteArray pchData;
     int idx = 0;
     {
@@ -566,8 +568,9 @@ void RBuild::writeData(const QByteArray& filename)
         ds << idx;
     }
     if (idx)
-        db->Put(writeOptions, "pch", leveldb::Slice(pchData.constData(), pchData.size()));
+        batch.Put("pch", leveldb::Slice(pchData.constData(), pchData.size()));
 
+    db->Write(writeOptions, &batch);
     delete db;
     removeDirectory(filename.constData());
     if (rename(tempFile.constData(), filename.constData())) {
