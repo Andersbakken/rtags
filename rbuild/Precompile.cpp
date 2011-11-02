@@ -36,6 +36,8 @@ static inline bool writeFile(const QByteArray& filename, const QVector<const cha
         const QByteArray a = QByteArray::fromRawData(arg, strlen(arg));
         if (f.write(a) != a.size())
             return false;
+        if (f.write(" ", 1) != 1)
+            return false;
     }
     if (f.write("\n") != 1)
         return false;
@@ -119,29 +121,29 @@ static inline void printDiagnostics(CXTranslationUnit unit)
     }
 }
 
-static inline bool preprocessHeaders(QByteArray& headerData, const GccArguments& args, QList<QByteArray> systemIncludes)
+bool Precompile::preprocessHeaders(QList<QByteArray> systemIncludes)
 {
-    Q_ASSERT(args.isCompile() && !args.input().isEmpty());
-    Q_ASSERT(!headerData.isEmpty());
+    Q_ASSERT(m_args.isCompile() && !m_args.input().isEmpty());
+    Q_ASSERT(!m_data.isEmpty());
 
-    const QList<QByteArray> includePaths = args.arguments("-I");
+    const QList<QByteArray> includePaths = m_args.arguments("-I");
     QStringList procArgs;
     procArgs << "-E" << "-"
-            << byteArrayListToStringList(includePaths)
-            << byteArrayListToStringList(systemIncludes)
-            << byteArrayListToStringList(args.arguments("-D"))
-            << QLatin1String("-x") << QLatin1String(GccArguments::languageString(args.language()));
+             << byteArrayListToStringList(includePaths)
+             << byteArrayListToStringList(systemIncludes)
+             << byteArrayListToStringList(m_args.arguments("-D"))
+             << QLatin1String("-x") << QLatin1String(GccArguments::languageString(m_args.language()));
 
     QProcess process;
     process.start(QLatin1String("clang"), procArgs);
-    process.write(headerData);
+    process.write(m_data);
     process.closeWriteChannel();
     process.waitForFinished();
-    headerData.clear();
+    m_data.clear();
 
     //qDebug() << procArgs;
 
-    const Path sourceFileDir = args.input().front().parentDir();
+    const Path sourceFileDir = m_args.input().front().parentDir();
     const QList<QByteArray> *lists[] = { &includePaths, &systemIncludes };
     foreach(QByteArray line, process.readAllStandardOutput().split('\n')) {
         // qDebug() << mSourceFile << unsaved << line;
@@ -170,7 +172,12 @@ static inline bool preprocessHeaders(QByteArray& headerData, const GccArguments&
             if (quote) {
                 const Path resolved = Path::resolved(line, sourceFileDir);
                 if (resolved.isHeader()) {
-                    headerData += "#include <" + resolved + ">\n";
+                    qint64 &lastMod = m_headers[resolved];
+                    // qDebug() << resolved << lastMod << resolved.lastModified();
+                    if (!lastMod) {
+                        lastMod = resolved.lastModified();
+                        m_data += "#include <" + resolved + ">\n";
+                    }
                     continue;
                 }
             }
@@ -182,12 +189,18 @@ static inline bool preprocessHeaders(QByteArray& headerData, const GccArguments&
                     dir.resolve(sourceFileDir);
                     const Path resolved = Path::resolved(line, dir);
                     switch (resolved.magicType()) {
-                    case Path::Header:
-                        headerData += "#include <" + resolved + ">\n";
+                    case Path::Header: {
+                        qint64 &lastMod = m_headers[resolved];
+                        // qDebug() << resolved << lastMod << resolved.lastModified();
+                        if (!lastMod) {
+                            lastMod = resolved.lastModified();
+                            m_data += "#include <" + resolved + ">\n";
+                        }
                         state = Found;
-                        break;
+                        break; }
                     case Path::Source:
                         state = DidntWant;
+                        break;
                     default:
                         break;
                     }
@@ -199,7 +212,7 @@ static inline bool preprocessHeaders(QByteArray& headerData, const GccArguments&
         }
     }
 
-    return !headerData.isEmpty();
+    return !m_data.isEmpty();
 }
 
 QList<Precompile*> Precompile::precompiles()
@@ -241,7 +254,7 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
     Q_ASSERT(!m_headerFilePath.isEmpty());
 
     // qDebug() << "about to preprocess for pch" << m_data;
-    if (!preprocessHeaders(m_data, m_args, systemIncludes)) {
+    if (!preprocessHeaders(systemIncludes)) {
         fprintf(stderr, "failed to preprocess headers for pch\n");
         clear();
         return 0;

@@ -503,6 +503,28 @@ void RBuild::writeData(const QByteArray& filename)
         fprintf(stderr, "Failed to write database (%s to %s) %s\n",
                 tempFile.constData(), filename.constData(), buf);
     }
+    int idx = 1;
+    char buf[1024];
+    foreach(const Precompile *pch, Precompile::precompiles()) {
+        const int written = snprintf(buf, 1024, "%s/pch_%d.pch", mDBPath.constData(), idx);
+        if (rename(pch->filePath().constData(), buf)) {
+            char errBuf[1024];
+            strerror_r(errno, errBuf, 1024);
+            fprintf(stderr, "Failed to rename pch file (%s to %s) %s\n",
+                    pch->filePath().constData(), buf, errBuf);
+            continue;
+        }
+        buf[written - 3] = 'h';
+        buf[written - 2] = '\0';
+        if (rename(pch->headerFilePath().constData(), buf)) {
+            char errBuf[1024];
+            strerror_r(errno, errBuf, 1024);
+            fprintf(stderr, "Failed to rename pch header (%s to %s) %s\n",
+                    pch->headerFilePath().constData(), buf, errBuf);
+            continue;
+        }
+        ++idx;
+    }
 
 }
 
