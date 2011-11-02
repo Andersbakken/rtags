@@ -49,8 +49,9 @@ enum Type { Symbol = 0x01, Reference = 0x02, Dependency = 0x04, Dict = 0x08, All
 static inline void dumpDatabase(const std::string& filename, int type)
 {
     leveldb::DB* db;
-    if (!leveldb::DB::Open(leveldb::Options(), filename, &db).ok()) {
-        fprintf(stderr, "Unable to open db %s\n", filename.c_str());
+    const leveldb::Status status = leveldb::DB::Open(leveldb::Options(), filename, &db);
+    if (!status.ok()) {
+        fprintf(stderr, "Unable to open db [%s]: %s\n", filename.c_str(), status.ToString().c_str());
         return;
     }
     leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());

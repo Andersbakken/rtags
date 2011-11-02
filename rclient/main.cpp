@@ -232,8 +232,9 @@ int main(int argc, char** argv)
     }
     foreach(const QByteArray &dbPath, dbPaths) {
         leveldb::DB* db;
-        if (!leveldb::DB::Open(leveldb::Options(), dbPath.constData(), &db).ok()) {
-            fprintf(stderr, "Unable to open db %s\n", dbPath.constData());
+        const leveldb::Status status = leveldb::DB::Open(leveldb::Options(), dbPath.constData(), &db);
+        if (!status.ok()) {
+            fprintf(stderr, "Unable to open db [%s]: %s\n", dbPath.constData(), status.ToString().c_str());
             continue;
         }
         LevelDBScope scope(db);
