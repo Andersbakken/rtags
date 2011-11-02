@@ -11,7 +11,6 @@ class Precompile : public QObject
 {
     Q_OBJECT
 public:
-    static void init(const Path &path);
     static Precompile* precompiler(const GccArguments& args);
     static void cleanup();
     static QList<Precompile*> precompiles();    
@@ -27,7 +26,7 @@ public:
 private:
     Precompile(const GccArguments& args, QObject* parent = 0);
 
-    QByteArray m_filePath;
+    QByteArray m_filePath, m_headerFilePath;
     QByteArray m_data;
     GccArguments m_args;
 

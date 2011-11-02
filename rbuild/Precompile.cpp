@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-Path Precompile::s_path;
 QHash<QByteArray, Precompile*> Precompile::s_precompiles;
 
 static inline QByteArray keyFromArguments(const GccArguments& args)
@@ -214,8 +213,7 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
         return 0;
 
     if (m_filePath.isEmpty()) {
-        m_filePath = s_path + "/rtagspch_XXXXXX";
-        // m_filePath = "/tmp/rtagspch_XXXXXX";
+        m_filePath = "/tmp/rtagspch_XXXXXX";
 
         int fd = mkstemp(m_filePath.data());
         if (fd == -1) {
@@ -228,7 +226,19 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
     }
     Q_ASSERT(!m_filePath.isEmpty());
 
-    const QByteArray headerFilename = headerFilePath();;
+    if (m_headerFilePath.isEmpty()) {
+        m_headerFilePath = "/tmp/rtagspch_XXXXXX";
+
+        int fd = mkstemp(m_headerFilePath.data());
+        if (fd == -1) {
+            fprintf(stderr, "precompile failed to open tempfile %s\n",
+                    m_headerFilePath.constData());
+            m_headerFilePath.clear();
+            return 0;
+        }
+        close(fd);
+    }
+    Q_ASSERT(!m_headerFilePath.isEmpty());
 
     // qDebug() << "about to preprocess for pch" << m_data;
     if (!preprocessHeaders(m_data, m_args, systemIncludes)) {
@@ -249,8 +259,8 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
         clangArgs << arg.constData();
     //qDebug() << "about to pch" << m_filePath << clangArgs;
 
-    if (!writeFile(headerFilename, clangArgs, m_data)) {
-        fprintf(stderr, "precompile failed to write header file '%s'\n", headerFilename.constData());
+    if (!writeFile(headerFilePath(), clangArgs, m_data)) {
+        fprintf(stderr, "precompile failed to write header file '%s'\n", headerFilePath().constData());
         clear();
         return 0;
     }
@@ -258,7 +268,7 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
 
     removeFile(m_filePath);
 
-    CXTranslationUnit unit = clang_parseTranslationUnit(idx, headerFilename.constData(),
+    CXTranslationUnit unit = clang_parseTranslationUnit(idx, headerFilePath().constData(),
                                                         clangArgs.data(), clangArgs.size(), 0, 0,
                                                         CXTranslationUnit_Incomplete
                                                         | CXTranslationUnit_DetailedPreprocessingRecord);
@@ -285,7 +295,7 @@ QByteArray Precompile::filePath() const
 
 QByteArray Precompile::headerFilePath() const
 {
-    return m_filePath + ".h";
+    return m_headerFilePath;
 }
 
 void Precompile::addData(const QByteArray& data)
@@ -301,8 +311,3 @@ static inline bool filter(const Path& header)
     return false;
 }
 */
-
-void Precompile::init(const Path &path)
-{
-    s_path = path;
-}
