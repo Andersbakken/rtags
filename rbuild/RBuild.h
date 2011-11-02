@@ -17,7 +17,7 @@ public:
     ~RBuild();
 
     void setDBPath(const Path &path);
-    void buildDB(const Path& makefile);
+    bool buildDB(const Path& makefile);
     bool updateDB();
 private slots:
     void makefileFileReady(const MakefileItem& file);

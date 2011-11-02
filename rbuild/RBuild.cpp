@@ -38,10 +38,15 @@ void RBuild::setDBPath(const Path &path)
     mSysInfo.init();
 }
 
-void RBuild::buildDB(const Path& makefile)
+bool RBuild::buildDB(const Path& makefile)
 {
+    if (!makefile.exists()) {
+        fprintf(stderr, "%s doesn't exist\n", makefile.constData());
+        return false;
+    }
     mMakefile = makefile;
     startParse();
+    return true;
 }
 
 static inline bool contains(const QHash<Path, GccArguments> &dirty, const AtomicString &fileName)
