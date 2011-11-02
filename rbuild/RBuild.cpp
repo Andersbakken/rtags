@@ -76,6 +76,7 @@ static inline bool filter(RBuildPrivate::DataEntry &entry, const QHash<Path, Gcc
 
 bool RBuild::updateDB()
 {
+    const qint64 beforeLoad = timer.elapsed();
     leveldb::DB* db = 0;
     leveldb::Options dbOptions;
     if (!leveldb::DB::Open(dbOptions, mDBPath.constData(), &db).ok()) {
@@ -127,6 +128,7 @@ bool RBuild::updateDB()
         // qDebug() << file << args.raw() << ctime(&lastModified) << dependencies;
     }
     delete it;
+    printf("Loading data took %lld ms\n", timer.elapsed() - beforeLoad);
     if (!sourceFiles) {
         printf("Nothing has changed (%lld ms)\n", timer.elapsed());
         return true;
@@ -166,26 +168,26 @@ bool RBuild::updateDB()
             int pchCount;
             ds >> pchCount;
             for (int i=0; i<pchCount; ++i) {
+                Path pch, header;
                 GccArguments args;
                 QHash<Path, quint64> dependencies;
-                QByteArray pchFileName; // this doesn't include directory
-                ds >> args >> dependencies >> pchFileName;
-                bool ok = true;
-                for (QHash<Path, quint64>::const_iterator it = dependencies.constBegin();
-                     it != dependencies.constEnd(); ++it) {
-                    if (dirty.contains(it.key())) {
-                        ok = false;
-                        break;
-                    } else if (it.key().lastModified() != it.value()) {
-                        dirty.insert(it.key(), GccArguments());
-                        ok = false;
-                        break;
+                ds >> pch >> header >> args >> dependencies;
+                if (pch.exists() && header.exists()) {
+                    bool ok = true;
+                    for (QHash<Path, quint64>::const_iterator it = dependencies.constBegin();
+                         it != dependencies.constEnd(); ++it) {
+                        if (dirty.contains(it.key())) {
+                            ok = false;
+                            break;
+                        } else if (it.key().lastModified() != it.value()) {
+                            dirty.insert(it.key(), GccArguments());
+                            ok = false;
+                            break;
+                        }
                     }
-                }
-                if (ok) {
-                    pchFileName.prepend(mDBPath + '/');
-                    // qDebug() << "loading pch" << pchFileName;
-                    Precompile::create(args, pchFileName, dependencies);
+                    if (ok) {
+                        Precompile::create(args, pch, header, dependencies);
+                    }
                 }
             }
         }
@@ -552,31 +554,12 @@ void RBuild::writeData(const QByteArray& filename)
     int idx = 0;
     {
         QDataStream ds(&pchData, QIODevice::WriteOnly);
-        char buf[1024];
         ds << idx; // will seek back and set to the right value
         foreach(const Precompile *pch, Precompile::precompiles()) {
             if (pch->filePath().isEmpty())
                 continue;
-            const int written = snprintf(buf, 1024, "%s/pch_%d.pch", tempFile.constData(), idx + 1);
-            if (rename(pch->filePath().constData(), buf)) {
-                char errBuf[1024];
-                strerror_r(errno, errBuf, 1024);
-                fprintf(stderr, "Failed to rename pch file (%s to %s) %s\n",
-                        pch->filePath().constData(), buf, errBuf);
-                continue;
-            }
-            ds << pch->arguments() << pch->dependencies()
-               << QByteArray::fromRawData(buf + tempFile.size(), written - tempFile.size());
-            // qDebug() << "writing out" << QByteArray::fromRawData(buf + tempFile.size(),
-            //                                                      written - tempFile.size());
-            // buf[written - 3] = 'h';
-            // buf[written - 2] = '\0';
-            // if (rename(pch->headerFilePath().constData(), buf)) {
-            //     char errBuf[1024];
-            //     strerror_r(errno, errBuf, 1024);
-            //     fprintf(stderr, "Failed to rename pch header (%s to %s) %s\n",
-            //             pch->headerFilePath().constData(), buf, errBuf);
-            // }
+
+            ds << pch->filePath() << pch->headerFilePath() << pch->arguments() << pch->dependencies();
             ++idx;
         }
         ds.device()->seek(0);

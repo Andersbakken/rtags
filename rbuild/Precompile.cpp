@@ -104,7 +104,7 @@ Precompile* Precompile::precompiler(const GccArguments& args)
 }
 
 void Precompile::create(const GccArguments &args,
-                        const QByteArray &filePath,
+                        const Path &pch, const Path &header,
                         const QHash<Path, quint64> &deps)
 {
     const QByteArray key = keyFromArguments(args);
@@ -112,7 +112,8 @@ void Precompile::create(const GccArguments &args,
     Precompile* &compile = s_precompiles[key];
     Q_ASSERT(!compile);
     compile = new Precompile(args);
-    compile->m_filePath = filePath;
+    compile->m_filePath = pch;
+    compile->m_headerFilePath = header;
     compile->m_dependencies = deps;
     s_precompiles[key] = compile;
     // qDebug() << "creating Precompile" << filePath;
@@ -238,7 +239,7 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
     }
 
     if (m_filePath.isEmpty()) {
-        m_filePath = "/tmp/rtagspch_XXXXXX";
+        m_filePath = "/tmp/rtagspch_pch_XXXXXX";
 
         int fd = mkstemp(m_filePath.data());
         if (fd == -1) {
@@ -252,7 +253,7 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
     Q_ASSERT(!m_filePath.isEmpty());
 
     if (m_headerFilePath.isEmpty()) {
-        m_headerFilePath = "/tmp/rtagspch_XXXXXX";
+        m_headerFilePath = "/tmp/rtagspch_h_XXXXXX";
 
         int fd = mkstemp(m_headerFilePath.data());
         if (fd == -1) {
@@ -313,12 +314,12 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
     return unit;
 }
 
-QByteArray Precompile::filePath() const
+Path Precompile::filePath() const
 {
     return m_filePath;
 }
 
-QByteArray Precompile::headerFilePath() const
+Path Precompile::headerFilePath() const
 {
     return m_headerFilePath;
 }

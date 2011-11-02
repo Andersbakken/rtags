@@ -12,7 +12,7 @@ class Precompile : public QObject
     Q_OBJECT
 public:
     static void create(const GccArguments &args,
-                       const QByteArray &filePath,
+                       const Path &pch, const Path &header,
                        const QHash<Path, quint64> &deps);
     static Precompile* precompiler(const GccArguments& args);
     static void cleanup();
@@ -24,8 +24,8 @@ public:
     void addData(const QByteArray& data);
     CXTranslationUnit precompile(const QList<QByteArray>& systemIncludes, CXIndex idx);
 
-    QByteArray filePath() const;
-    QByteArray headerFilePath() const;
+    Path filePath() const;
+    Path headerFilePath() const;
     GccArguments arguments() const { return m_args; }
     void setDependencies(const QHash<Path, quint64> &deps) { m_dependencies = deps; }
     QHash<Path, quint64> dependencies() const { return m_dependencies; }
@@ -33,7 +33,7 @@ private:
     Precompile(const GccArguments& args, QObject* parent = 0);
     bool preprocessHeaders(QList<QByteArray> systemIncludes);
 
-    QByteArray m_filePath, m_headerFilePath;
+    Path m_filePath, m_headerFilePath;
     QByteArray m_data;
     GccArguments m_args;
 
