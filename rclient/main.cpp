@@ -156,8 +156,8 @@ static inline void usage(const char* argv0, FILE *f)
             "  Modes\n"
             "  --follow-symbol|-f [arg]    Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
             "  --references|-r [arg]       Print references of symbol at arg\n"
-            "  --list-symbols|-l [arg]     Print out symbols matching arg\n"
-            "  --find-symbols|-s [arg]    Print out symbols matching arg\n",
+            "  --list-symbols|-l [arg]     Print out symbols names matching arg\n"
+            "  --find-symbols|-s [arg]     Print out symbols matching arg\n",
             argv0);
 }
 
@@ -170,8 +170,6 @@ int main(int argc, char** argv)
         { "print-detected-db-path", 0, 0, 'p' },
         { "find-references", 1, 0, 'r' },
         { "find-symbols", 1, 0, 's' },
-        // { "recursive-references", 1, 0, 'R' },
-        // { "max-recursion-reference-depth", 1, 0, 'x' },
         { "find-db", 0, 0, 'F' },
         { "list-symbols", 1, 0, 'l' },
         { 0, 0, 0, 0 },
