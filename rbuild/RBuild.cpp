@@ -123,7 +123,7 @@ bool RBuild::updateDB()
     }
     delete it;
     if (!sourceFiles) {
-        printf("Nothing has changed\n");
+        printf("Nothing has changed (%lld ms)\n", timer.elapsed());
         return true;
     }
     // qDebug() << dirty;
