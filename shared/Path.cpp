@@ -104,8 +104,7 @@ bool Path::resolve(const Path &cwd)
     }
 
     {
-        Q_ASSERT(QThread::currentThread() == QCoreApplication::instance()->thread());
-        static char buffer[PATH_MAX + 1];
+        char buffer[PATH_MAX + 1];
         char *resolved = realpath(constData(), buffer);
         if (resolved) {
             QByteArray::operator=(resolved);
