@@ -994,7 +994,7 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
                                           argvector.constData(), argvector.size() - (i * 2),
                                           0, 0,
                                           CXTranslationUnit_DetailedPreprocessingRecord);
-        if (!unit) // retry with no pch
+        if (!unit && !i && pch) // retry with no pch
             continue;
 
         bool retry = false;
