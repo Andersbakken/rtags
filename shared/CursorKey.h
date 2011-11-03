@@ -43,11 +43,11 @@ public:
             clang_disposeString(sn);
             if (kind == CXCursor_InclusionDirective) {
                 const int last = s.lastIndexOf('/');
-                if (last == -1) {
-                    clear();
-                    return;
+                if (last != -1) {
+                    s.replace(0, last + 1, "include_");
+                } else {
+                    s.prepend("include_");
                 }
-                s.replace(0, last + 1, "include_");
             }
             symbolName = s;
 
