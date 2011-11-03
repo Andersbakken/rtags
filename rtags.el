@@ -77,7 +77,7 @@
   (let ((completions))
     (with-temp-buffer
       (call-process "rc" nil (list t nil) nil "-S" "-n" "-l" string)
-      (setq 'completions (split-string (buffer-string))))))
+      (setq 'completions (split-string (buffer-string) "\n" t)))))
       ;; (all-completion string completions))))
       ;; (cond ((eq code nil)
       ;;        (try-completion string completions predicate))
@@ -129,7 +129,7 @@
       (setq prompt (concat p ": ")))
     (with-temp-buffer
       (call-process "rc" nil (list t nil) nil "-l" "")
-      (setq completions (split-string (buffer-string))))
+      (setq completions (split-string (buffer-string) "\n" t)))
       ;; (setq completions (split-string "test1" "test1()")))
     (setq input (completing-read prompt completions nil nil nil gtags-history-list))
     (if (not (equal "" input))
