@@ -41,24 +41,27 @@
     )
   )
 
-(defun rtags-find-symbol-at-point()
+(defun rtags-find-symbol-at-point(&optional p)
   (interactive)
-  (let ((bufname (buffer-file-name))
-        (line (int-to-string (line-number-at-pos)))
-        (column nil))
-    (save-excursion
+  (save-excursion
+    (if p
+        (goto-char p))
+    (let ((bufname (buffer-file-name))
+          (line (int-to-string (line-number-at-pos)))
+          (column nil))
       (if (looking-at "[0-9A-Za-z_~#]")
           (progn
             (while (and (> (point) 1) (looking-at "[0-9A-Za-z_~#]"))
               (backward-char))
             (if (not (looking-at "[0-9A-Za-z_~#]"))
                 (forward-char))
-            (setq column (int-to-string (- (point) (point-at-bol) -1))))))
+            (setq column (int-to-string (- (point) (point-at-bol) -1)))))
     (with-temp-buffer
       ;; (message (executable-find "rc"))
       (message (concat (executable-find "rc") " --follow-symbol " bufname ":" line ":" column ":"))
       (call-process (executable-find "rc") nil (list t nil) nil "--follow-symbol" (concat bufname ":" line ":" column ":"))
       (rtags-goto-location (buffer-string)))
+    )
     )
   )
 
@@ -155,8 +158,11 @@
 
 (defun rtags-find-symbol ()
   (interactive)
-  (unless (rtags-find-symbol-at-point)
-    (rtags-find-symbol-prompt))
+  (cond ((rtags-find-symbol-at-point) t)
+        ((and (string-equal "#include " (buffer-substring (point-at-bol) (+ (point-at-bol) 9)))
+              (rtags-find-symbol-at-point (+ (point-at-bol) 1)))
+         t)
+        (t (rtags-find-symbol-prompt)))
   )
 
 (defun rtags-find-refererences-prompt ()
