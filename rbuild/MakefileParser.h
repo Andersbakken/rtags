@@ -8,12 +8,6 @@
 class QProcess;
 class DirectoryTracker;
 
-struct MakefileItem
-{
-    Path filename;
-    GccArguments arguments;
-};
-
 class MakefileParser : public QObject
 {
     Q_OBJECT
@@ -25,7 +19,7 @@ public:
 
 signals:
     void done();
-    void fileReady(const MakefileItem& makefile);
+    void fileReady(const GccArguments& args);
 
 private slots:
     void processMakeOutput();

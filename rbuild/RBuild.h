@@ -20,15 +20,13 @@ public:
     bool buildDB(const Path& makefile);
     bool updateDB();
 private slots:
-    void makefileFileReady(const MakefileItem& file);
+    void processFile(const GccArguments& arguments);
     void makefileDone();
     void startParse();
-
 private:
     void save();
     void compileAll();
     void precompileAll();
-    void processFile(const GccArguments& arguments);
     void compile(const GccArguments& arguments, bool *usedPch = 0);
     void writeData(const QByteArray& filename);
 

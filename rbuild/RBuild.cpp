@@ -219,8 +219,8 @@ bool RBuild::updateDB()
 
 void RBuild::startParse()
 {
-    connect(&mParser, SIGNAL(fileReady(const MakefileItem&)),
-            this, SLOT(makefileFileReady(const MakefileItem&)));
+    connect(&mParser, SIGNAL(fileReady(const GccArguments&)),
+            this, SLOT(processFile(const GccArguments&)));
     connect(&mParser, SIGNAL(done()), this, SLOT(makefileDone()));
     mParser.run(mMakefile);
 }
@@ -291,23 +291,15 @@ static void collectHeaders(const GccArguments& arguments)
 
 void RBuild::processFile(const GccArguments& arguments)
 {
-    if (pchEnabled) {
+    if (pchEnabled)
         collectHeaders(arguments);
-        mFiles.append(arguments);
-    } else {
-        compile(arguments);
-    }
-}
-
-void RBuild::makefileFileReady(const MakefileItem& file)
-{
-    processFile(file.arguments);
-    //compile(file.arguments);
+    mFiles.append(arguments);
 }
 
 void RBuild::makefileDone()
 {
-    precompileAll();
+    if (pchEnabled)
+        precompileAll();
     compileAll();
     save();
 }

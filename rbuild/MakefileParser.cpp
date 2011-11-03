@@ -102,11 +102,7 @@ void MakefileParser::processMakeLine(const QByteArray& line)
     if (args.parse(line, mTracker->path()) && args.isCompile()) {
         Q_ASSERT(!args.input().isEmpty());
 
-        MakefileItem mf;
-        mf.arguments = args;
-        mf.filename = args.input().first();
-
-        emit fileReady(mf);
+        emit fileReady(args);
     } else {
         mTracker->track(line);
     }
