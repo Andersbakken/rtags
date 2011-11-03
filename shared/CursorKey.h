@@ -22,24 +22,28 @@ public:
             CXSourceLocation loc = clang_getCursorLocation(cursor);
             CXFile file;
             clang_getInstantiationLocation(loc, &file, &line, &col, &off);
-            CXString str = clang_getFileName(file);
-            const char *cstr = clang_getCString(str);
-            if (!cstr || !strlen(cstr)) {
-                clang_disposeString(str);
+            CXString fn = clang_getFileName(file);
+            const char *fnStr = clang_getCString(fn);
+            if (!fnStr || !strlen(fnStr)) {
+                clang_disposeString(fn);
                 clear();
                 return;
             }
-            fileName = Path::resolved(cstr);
-            clang_disposeString(str);
-            str = clang_getCursorDisplayName(cursor);
-            if (!cstr || !strlen(cstr)) {
-                clang_disposeString(str);
+            CXString sn = clang_getCursorDisplayName(cursor);
+            const char *snStr = clang_getCString(sn);
+            if (!snStr || !strlen(snStr)) {
+                clang_disposeString(sn);
+                clang_disposeString(fn);
                 clear();
                 return;
             }
-            symbolName = clang_getCString(str);
-            clang_disposeString(str);
-            def = (kind == CXCursor_MacroDefinition || kind == CXCursor_LabelStmt || clang_isCursorDefinition(cursor));
+            fileName = Path::resolved(fnStr);
+            clang_disposeString(fn);
+            symbolName = snStr;
+            clang_disposeString(sn);
+            def = (kind == CXCursor_MacroDefinition
+                   || kind == CXCursor_LabelStmt
+                   || clang_isCursorDefinition(cursor));
         }
     }
 
