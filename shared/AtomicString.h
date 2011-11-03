@@ -4,14 +4,17 @@
 #include <clang-c/Index.h>
 #include <QByteArray>
 #include <QHash>
+#include <QDebug>
 #ifndef REENTRANT_ATOMICSTRING
 // #define REENTRANT_ATOMICSTRING
 #endif
 
+class AtomicString;
+static uint qHash(const AtomicString& string);
 class AtomicString
 {
 public:
-    AtomicString() : mData(0) {}
+    AtomicString() : mData(0), mHash(0) {}
     AtomicString(const CXString& string);
     AtomicString(const QByteArray& string);
     AtomicString(const QString& string);
@@ -38,6 +41,11 @@ public:
 
     int size() const { return mData ? mData->data.size() : 0; }
     void clear();
+
+    inline uint hash() const
+    {
+        return mHash;
+    }
 private:
     void init(const QByteArray& str);
 
@@ -49,6 +57,7 @@ private:
     };
 
     Data* mData;
+    mutable int mHash;
 
     static QHash<QByteArray, Data*> sData;
 #ifdef REENTRANT_ATOMICSTRING
@@ -71,8 +80,7 @@ static inline QDataStream &operator>>(QDataStream &ds, AtomicString &string)
 
 static inline uint qHash(const AtomicString& string)
 {
-    // ### consider storing the hash value
-    return qHash(string.toByteArray());
+    return string.hash();
 }
 
 static inline QDebug &operator<<(QDebug &dbg, const AtomicString &string)

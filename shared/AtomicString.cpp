@@ -8,6 +8,7 @@ QMutex AtomicString::sMutex;
 
 inline void AtomicString::init(const QByteArray& str)
 {
+    mHash = qHash(str);
     QHash<QByteArray, Data*>::iterator it = sData.find(str);
     if (it != sData.end()) {
         mData = it.value();
@@ -63,6 +64,7 @@ AtomicString::AtomicString(const AtomicString& other)
     QMutexLocker locker(&sMutex);
 #endif
     mData = other.mData;
+    mHash = other.mHash;
     if (mData)
         ++mData->ref;
 }
@@ -105,6 +107,7 @@ AtomicString& AtomicString::operator=(const AtomicString& other)
 #endif
     clear();
     mData = other.mData;
+    mHash = other.mHash;
     if (mData)
         ++mData->ref;
     return *this;
