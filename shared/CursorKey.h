@@ -39,8 +39,18 @@ public:
             }
             fileName = Path::resolved(fnStr);
             clang_disposeString(fn);
-            symbolName = snStr;
+            QByteArray s = snStr;
             clang_disposeString(sn);
+            if (kind == CXCursor_InclusionDirective) {
+                const int last = s.lastIndexOf('/');
+                if (last == -1) {
+                    clear();
+                    return;
+                }
+                s.replace(0, last + 1, "include_");
+            }
+            symbolName = s;
+
             def = (kind == CXCursor_MacroDefinition
                    || kind == CXCursor_LabelStmt
                    || clang_isCursorDefinition(cursor));
