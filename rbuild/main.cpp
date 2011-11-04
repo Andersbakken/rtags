@@ -101,7 +101,13 @@ int main(int argc, char** argv)
         Path appPath = Path::resolved(QDir::currentPath().toLocal8Bit(), Path(), &ok);
         if (!ok)
             qFatal("Unable to resolve initial path");
-        if (!build.buildDB(Path::resolved("Makefile", appPath)))
+        const char *makefile = "Makefile";
+        if (optind < argc)
+            makefile = argv[optind];
+        Path p = Path::resolved(makefile, appPath);
+        if (p.isDir())
+            p += "/Makefile";
+        if (!build.buildDB(p))
             return 1;
         return app.exec();
     }

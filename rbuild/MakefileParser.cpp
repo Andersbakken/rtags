@@ -82,7 +82,8 @@ void MakefileParser::run(const Path& makefile)
     mTracker->init(makefile.parentDir());
     mProc->start(QLatin1String("make"), QStringList() << QLatin1String("-B")
                  << QLatin1String("-n") << QLatin1String("-w") << QLatin1String("-f")
-                 << QString::fromLocal8Bit(makefile.constData()));
+                 << QString::fromLocal8Bit(makefile.constData())
+                 << QLatin1String("-C") << mTracker->path());
 }
 
 void MakefileParser::processMakeOutput()
