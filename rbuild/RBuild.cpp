@@ -18,6 +18,29 @@
 
 using namespace RTags;
 
+template <typename T> void writeEncoded(leveldb::WriteBatch *batch, const QByteArray &key, const T &value)
+{
+    QByteArray v;
+    {
+        QDataStream ds(&v, QIODevice::WriteOnly);
+        ds << value;
+    }
+    batch->Put(leveldb::Slice(key.constData(), key.size()),
+               leveldb::Slice(v.constData(), v.size()));
+}
+
+template <typename T> bool readEncoded(leveldb::DB *db, const QByteArray &key, T &value)
+{
+    std::string val;
+    if (!db->Get(leveldb::ReadOptions(), leveldb::Slice(key.constData(), key.size()), &val).ok()) {
+        return false;
+    }
+    const QByteArray data = QByteArray::fromRawData(val.c_str(), val.size());
+    QDataStream ds(data);
+    ds >> value;
+    return true;
+}
+
 static const bool pchEnabled = !getenv("RTAGS_NO_PCH");
 static QElapsedTimer timer;
 
@@ -39,13 +62,14 @@ void RBuild::setDBPath(const Path &path)
     mSysInfo.init();
 }
 
-bool RBuild::buildDB(const Path& makefile)
+bool RBuild::buildDB(const Path& makefile, const QSet<Path> &sourceDirs)
 {
     if (!makefile.exists()) {
         fprintf(stderr, "%s doesn't exist\n", makefile.constData());
         return false;
     }
     mMakefile = makefile;
+    mSourceDirs = sourceDirs;
     startParse();
     return true;
 }
@@ -160,6 +184,10 @@ bool RBuild::updateDB()
                 delete entry;
             }
         }
+    }
+    if (!readEncoded(db, "sourceDirs", mSourceDirs)) {
+        fprintf(stderr, "Can't read existing data for src dirs\n");
+        return false;
     }
     {
         std::string value;
@@ -305,13 +333,19 @@ void RBuild::makefileDone()
 }
 
 static inline void writeDependencies(leveldb::WriteBatch* batch, const Path &path, const GccArguments &args,
-                                     quint64 lastModified, const QHash<Path, quint64> &dependencies)
+                                     quint64 lastModified, const QHash<Path, quint64> &dependencies,
+                                     QSet<Path> *allFiles)
 {
     QByteArray out;
     {
         QDataStream ds(&out, QIODevice::WriteOnly);
         ds << args << lastModified << dependencies;
     }
+    for (QHash<Path, quint64>::const_iterator it = dependencies.begin(); it != dependencies.end(); ++it) {
+        allFiles->insert(it.key());
+    }
+    allFiles->insert(path);
+
     const QByteArray p = "f:" + path;
     batch->Put(leveldb::Slice(p.constData(), p.size()),
                leveldb::Slice(out.constData(), out.size()));
@@ -473,6 +507,40 @@ static inline int removeDirectory(const char *path)
     return r;
 }
 
+static void recurseDir(QSet<Path> *allFiles, Path path)
+{
+#ifndef _DIRENT_HAVE_D_TYPE
+#warning "Can't use --source-dir on this platform"
+#else
+    DIR *d = opendir(path.constData());
+    char fileBuffer[PATH_MAX];
+    if (d) {
+        if (!path.endsWith('/'))
+            path.append('/');
+        dirent *p;
+        while ((p=readdir(d))) {
+            switch (p->d_type) {
+            case DT_DIR:
+                if (strcmp(".", p->d_name) && strcmp("..", p->d_name))
+                    recurseDir(allFiles, path + QByteArray::fromRawData(p->d_name, strlen(p->d_name)));
+                break;
+            case DT_REG: {
+                const int w = snprintf(fileBuffer, PATH_MAX, "%s%s", path.constData(), p->d_name);
+                if (w >= PATH_MAX) {
+                    fprintf(stderr, "Path too long: %d, max is %d\n", w, PATH_MAX);
+                } else {
+                    allFiles->insert(Path(fileBuffer, w));
+                }
+                break; }
+            // case DT_LNK: not following links
+            }
+
+        }
+        closedir(d);
+    }
+#endif
+}
+
 void RBuild::writeData(const QByteArray& filename)
 {
     if (!mData)
@@ -537,10 +605,11 @@ void RBuild::writeData(const QByteArray& filename)
 
     writeDict(&batch, dict);
 
+    QSet<Path> allFiles;
     foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
         // qDebug() << dep.file << ctime(&dep.lastModified);
         writeDependencies(&batch, dep.file, dep.arguments,
-                          dep.lastModified, dep.dependencies);
+                          dep.lastModified, dep.dependencies, &allFiles);
     }
 
     batch.Put(" ", leveldb::Slice(entries.constData(), entries.size()));
@@ -561,6 +630,16 @@ void RBuild::writeData(const QByteArray& filename)
     }
     if (idx)
         batch.Put("pch", leveldb::Slice(pchData.constData(), pchData.size()));
+
+    foreach(Path dir, mSourceDirs) {
+        if (dir.isDir()) {
+            recurseDir(&allFiles, dir);
+        } else {
+            fprintf(stderr, "%s is not a directory\n", dir.constData());
+        }
+    }
+    writeEncoded(&batch, "sourceDirs", mSourceDirs);
+    writeEncoded(&batch, "files", allFiles);
 
     db->Write(writeOptions, &batch);
     delete db;

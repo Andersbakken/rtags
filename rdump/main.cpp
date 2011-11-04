@@ -10,7 +10,15 @@
 
 using namespace RTags;
 
-enum Type { Symbol = 0x01, Reference = 0x02, Dependency = 0x04, Dict = 0x08, All = 0x0f, Raw = 0x10 };
+enum Type {
+    Symbol = 0x01,
+    Reference = 0x02,
+    Dependency = 0x04,
+    Dict = 0x08,
+    File = 0x10,
+    All = 0x0f,
+    Raw = 0x10
+};
 
 static inline void dumpDatabase(const std::string& filename, int type)
 {
@@ -84,6 +92,10 @@ static inline void dumpDatabase(const std::string& filename, int type)
                     printf("  %s %s", it.key().constData(), ctime(&tt));
                 }
             }
+        } else if (key.substr(0, 2) == "F:") { // file
+            if (type & File) {
+                printf("File: %s\n", key.c_str());
+            }
         }
     }
     delete it;
@@ -153,6 +165,9 @@ static inline bool parseType(const char* a, int* type)
             break;
         case 'd':
             *type |= Dependency;
+            break;
+        case 'f':
+            *type |= File;
             break;
         case 'i':
             *type |= Dict;

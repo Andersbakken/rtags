@@ -28,24 +28,12 @@ public:
 
 int main(int argc, char** argv)
 {
-    // {
-    //     AtomicString *foo = new AtomicString("bar");
-    //     AtomicString bar = "bar";
-    //     bar.clear();
-    //     delete foo;
-    //     // bar = foo;
-    //     // // bar = "123";
-    //     // // bar = "bar";
-    //     // // foo = bar;
-    //     // foo.clear();
-    //     // bar.clear();
-    // }
-    // return 0;
     QCoreApplication::setOrganizationName("RTags");
     QCoreApplication::setOrganizationDomain("https://github.com/Andersbakken/rtags");
     QCoreApplication::setApplicationName("RTags");
     QCoreApplication app(argc, argv);
     Path db;
+    QSet<Path> srcDirs;
     bool update = false;
 
     PrecompileScope prescope;
@@ -54,9 +42,10 @@ int main(int argc, char** argv)
         { "help", 0, 0, 'h' },
         { "db-file", 1, 0, 'd' },
         { "update", 0, 0, 'u' },
+        { "source-dir", 1, 0, 's' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hud:";
+    const char *shortOptions = "hud:s:";
 
     int idx, longIndex;
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
@@ -64,6 +53,9 @@ int main(int argc, char** argv)
         case '?':
             usage(argv[0], stderr);
             return 1;
+        case 's':
+            srcDirs.insert(Path::resolved(optarg));
+            break;
         case 'h':
             usage(argv[0], stdout);
             return 0;
@@ -79,6 +71,11 @@ int main(int argc, char** argv)
         }
     }
 
+    if (update && !srcDirs.isEmpty()) {
+        fprintf(stderr, "Can't use --source-dir with --update");
+        return 1;
+
+    }
     if (db.isEmpty()) {
         if (update) {
             db = findRtagsDb();
@@ -107,7 +104,7 @@ int main(int argc, char** argv)
         Path p = Path::resolved(makefile, appPath);
         if (p.isDir())
             p += "/Makefile";
-        if (!build.buildDB(p))
+        if (!build.buildDB(p, srcDirs))
             return 1;
         return app.exec();
     }
