@@ -148,16 +148,18 @@ static inline void usage(const char* argv0, FILE *f)
 {
     fprintf(f,
             "%s [options]...\n"
-            "  --help|-h                   Display this help\n"
-            "  --db-file|-d [arg]          Use this database file\n"
-            "  --print-detected-db-path|-p Print out the detected database path\n"
-            "  --detect-db|-D              Find .rtags.db based on path\n"
-            "                              (default when no -d options are specified)\n"
+            "  --help|-h                     Display this help\n"
+            "  --db-file|-d [arg]            Use this database file\n"
+            "  --print-detected-db-path|-p   Print out the detected database path\n"
+            "  --detect-db|-D                Find .rtags.db based on path\n"
+            "                                (default when no -d options are specified)\n"
             "  Modes\n"
-            "  --follow-symbol|-f [arg]    Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
-            "  --references|-r [arg]       Print references of symbol at arg\n"
-            "  --list-symbols|-l [arg]     Print out symbols names matching arg\n"
-            "  --find-symbols|-s [arg]     Print out symbols matching arg\n",
+            "  --follow-symbol|-f [arg]      Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
+            "  --references|-r [arg]         Print references of symbol at arg\n"
+            "  --list-symbols|-l [arg]       Print out symbols names matching arg\n"
+            "  --files|-P [arg]              Print out files matching arg\n"
+            "    --paths-relative-to-root|-n Print out files matching arg\n"
+            "  --find-symbols|-s [arg]       Print out symbols matching arg\n",
             argv0);
 }
 
@@ -172,10 +174,11 @@ int main(int argc, char** argv)
         { "find-symbols", 1, 0, 's' },
         { "find-db", 0, 0, 'F' },
         { "list-symbols", 1, 0, 'l' },
-        { "files", 0, 0, 'P' },
+        { "files", 1, 0, 'P' }, // some of these should have optional args
+        { "paths-relative-to-root", 0, 0, 'n' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hf:d:r:l:Dps:P";
+    const char *shortOptions = "hf:d:r:l:Dps:P:n";
 
     QList<QByteArray> dbPaths;
 
@@ -188,13 +191,20 @@ int main(int argc, char** argv)
         Files
         // RecursiveReferences,
     } mode = None;
+    enum Flag {
+        PathsRelativeToRoot = 0x1
+    };
+    unsigned flags = 0;
     int idx, longIndex;
-    std::string arg;
+    QByteArray arg;
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
         switch (idx) {
         case '?':
             usage(argv[0], stderr);
             return 1;
+        case 'n':
+            flags |= PathsRelativeToRoot;
+            break;
         case 'p': {
             const QByteArray db = findRtagsDb();
             if (!db.isEmpty()) {
@@ -221,6 +231,7 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Mode is already set\n");
                 return 1;
             }
+            arg = optarg;
             mode = Files;
             break;
         case 'r':
@@ -261,14 +272,18 @@ int main(int argc, char** argv)
     }
     if (dbPaths.isEmpty()) {
         QByteArray db = findRtagsDb();
-        if (db.isEmpty() && !arg.empty())
-            db = findRtagsDb(arg.c_str());
+        if (db.isEmpty() && !arg.isEmpty())
+            db = findRtagsDb(arg);
         if (!db.isEmpty())
             dbPaths.append(db);
     }
 
     if (dbPaths.isEmpty()) {
         fprintf(stderr, "No databases specified\n");
+        return 1;
+    }
+    if ((flags & PathsRelativeToRoot) && mode != Files) {
+        fprintf(stderr, "-n only makes sense with -P\n");
         return 1;
     }
     foreach(const QByteArray &dbPath, dbPaths) {
@@ -286,14 +301,14 @@ int main(int argc, char** argv)
             fprintf(stderr, "No mode selected\n");
             return 1;
         case FollowSymbol:
-            if (maybeResolveAndMaybeDict(db, arg, followSymbol))
+            if (maybeResolveAndMaybeDict(db, arg.constData(), followSymbol))
                 return 0; // we only want the first one here
             break;
         case References:
-            maybeResolveAndMaybeDict(db, arg, findReferences);
+            maybeResolveAndMaybeDict(db, arg.constData(), findReferences);
             break;
         case FindSymbols:
-            maybeDict(db, arg, printSymbol);
+            maybeDict(db, arg.constData(), printSymbol);
             break;
         case ListSymbols: {
             std::string val;
@@ -301,16 +316,9 @@ int main(int argc, char** argv)
             it->Seek("d:");
             while (it->Valid()) {
                 std::string k = it->key().ToString();
-                // leveldb::Slice k = it->key();
-                // leveldb::Slice v = it->value();
-                // for (int i=0; i<k.size(); ++i) {
-                //     printf("'%c'(%d)", k.data()[i], i);
-                // }
-                // printf("\n");
-                // printf("%s:%s\n", k.data(), v.data());
                 if (k.empty() || strncmp(k.c_str(), "d:", 2))
                     break;
-                if (arg.empty() || strstr(k.c_str(), arg.c_str())) {
+                if (arg.isEmpty() || strstr(k.c_str(), arg.constData())) {
                     printf("%s\n", k.c_str() + 2);
                 }
                 it->Next();
@@ -319,9 +327,17 @@ int main(int argc, char** argv)
             break; }
         case Files: {
             QSet<Path> paths;
-            if (readEncoded(db, "files", paths)) {
+            if (readFromDB(db, "files", paths)) {
+                const bool empty = arg.isEmpty();
+                const char *root = "./";
+                Path srcDir;
+                if (!(flags & PathsRelativeToRoot) && readFromDB(db, "sourceDir", srcDir)) {
+                    root = srcDir.constData();
+                }
                 foreach(const Path &path, paths) {
-                    printf("%s\n", path.constData());
+                    if (empty || path.contains(arg)) {
+                        printf("%s%s\n", root, path.constData());
+                    }
                 }
             }
             break; }

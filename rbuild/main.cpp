@@ -33,7 +33,7 @@ int main(int argc, char** argv)
     QCoreApplication::setApplicationName("RTags");
     QCoreApplication app(argc, argv);
     Path db;
-    QSet<Path> srcDirs;
+    Path srcDir;
     bool update = false;
 
     PrecompileScope prescope;
@@ -54,7 +54,7 @@ int main(int argc, char** argv)
             usage(argv[0], stderr);
             return 1;
         case 's':
-            srcDirs.insert(Path::resolved(optarg));
+            srcDir = optarg;
             break;
         case 'h':
             usage(argv[0], stdout);
@@ -71,7 +71,7 @@ int main(int argc, char** argv)
         }
     }
 
-    if (update && !srcDirs.isEmpty()) {
+    if (update && !srcDir.isEmpty()) {
         fprintf(stderr, "Can't use --source-dir with --update");
         return 1;
 
@@ -104,7 +104,7 @@ int main(int argc, char** argv)
         Path p = Path::resolved(makefile, appPath);
         if (p.isDir())
             p += "/Makefile";
-        if (!build.buildDB(p, srcDirs))
+        if (!build.buildDB(p, srcDir))
             return 1;
         return app.exec();
     }

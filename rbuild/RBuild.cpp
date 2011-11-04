@@ -39,14 +39,24 @@ void RBuild::setDBPath(const Path &path)
     mSysInfo.init();
 }
 
-bool RBuild::buildDB(const Path& makefile, const QSet<Path> &sourceDirs)
+bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
 {
     if (!makefile.exists()) {
         fprintf(stderr, "%s doesn't exist\n", makefile.constData());
         return false;
     }
     mMakefile = makefile;
-    mSourceDirs = sourceDirs;
+    mSourceDir = sourceDir;
+    if (!mSourceDir.isEmpty()) {
+        mSourceDir.resolve();
+        if (!mSourceDir.isDir()) {
+            fprintf(stderr, "%s is not a directory\n", sourceDir.constData());
+            return false;
+        }
+        if (!mSourceDir.endsWith('/'))
+            mSourceDir.append('/');
+    }
+
     startParse();
     return true;
 }
@@ -162,8 +172,8 @@ bool RBuild::updateDB()
             }
         }
     }
-    if (!readEncoded(db, "sourceDirs", mSourceDirs)) {
-        fprintf(stderr, "Can't read existing data for src dirs\n");
+    if (!readFromDB(db, "sourceDir", mSourceDir)) {
+        fprintf(stderr, "Can't read existing data for src dir\n");
         return false;
     }
     {
@@ -318,10 +328,12 @@ static inline void writeDependencies(leveldb::WriteBatch* batch, const Path &pat
         QDataStream ds(&out, QIODevice::WriteOnly);
         ds << args << lastModified << dependencies;
     }
-    for (QHash<Path, quint64>::const_iterator it = dependencies.begin(); it != dependencies.end(); ++it) {
-        allFiles->insert(it.key());
+    if (allFiles) {
+        for (QHash<Path, quint64>::const_iterator it = dependencies.begin(); it != dependencies.end(); ++it) {
+            allFiles->insert(it.key());
+        }
+        allFiles->insert(path);
     }
-    allFiles->insert(path);
 
     const QByteArray p = "f:" + path;
     batch->Put(leveldb::Slice(p.constData(), p.size()),
@@ -484,7 +496,7 @@ static inline int removeDirectory(const char *path)
     return r;
 }
 
-static void recurseDir(QSet<Path> *allFiles, Path path)
+static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 {
 #ifndef _DIRENT_HAVE_D_TYPE
 #warning "Can't use --source-dir on this platform"
@@ -498,11 +510,12 @@ static void recurseDir(QSet<Path> *allFiles, Path path)
         while ((p=readdir(d))) {
             switch (p->d_type) {
             case DT_DIR:
-                if (strcmp(".", p->d_name) && strcmp("..", p->d_name))
-                    recurseDir(allFiles, path + QByteArray::fromRawData(p->d_name, strlen(p->d_name)));
+                if (p->d_name[0] != '.') {
+                    recurseDir(allFiles, path + QByteArray::fromRawData(p->d_name, strlen(p->d_name)), rootDirLen);
+                }
                 break;
             case DT_REG: {
-                const int w = snprintf(fileBuffer, PATH_MAX, "%s%s", path.constData(), p->d_name);
+                const int w = snprintf(fileBuffer, PATH_MAX, "%s%s", path.constData() + rootDirLen, p->d_name);
                 if (w >= PATH_MAX) {
                     fprintf(stderr, "Path too long: %d, max is %d\n", w, PATH_MAX);
                 } else {
@@ -586,7 +599,7 @@ void RBuild::writeData(const QByteArray& filename)
     foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
         // qDebug() << dep.file << ctime(&dep.lastModified);
         writeDependencies(&batch, dep.file, dep.arguments,
-                          dep.lastModified, dep.dependencies, &allFiles);
+                          dep.lastModified, dep.dependencies, 0); //&allFiles);
     }
 
     batch.Put(" ", leveldb::Slice(entries.constData(), entries.size()));
@@ -608,15 +621,17 @@ void RBuild::writeData(const QByteArray& filename)
     if (idx)
         batch.Put("pch", leveldb::Slice(pchData.constData(), pchData.size()));
 
-    foreach(Path dir, mSourceDirs) {
-        if (dir.isDir()) {
-            recurseDir(&allFiles, dir);
+    qDebug() << mSourceDir;
+    if (!mSourceDir.isEmpty()) {
+        Q_ASSERT(mSourceDir.endsWith('/'));
+        if (mSourceDir.isDir()) {
+            recurseDir(&allFiles, mSourceDir, mSourceDir.size());
         } else {
-            fprintf(stderr, "%s is not a directory\n", dir.constData());
+            fprintf(stderr, "%s is not a directory\n", mSourceDir.constData());
         }
     }
-    writeEncoded(&batch, "sourceDirs", mSourceDirs);
-    writeEncoded(&batch, "files", allFiles);
+    writeToBatch(&batch, "sourceDir", mSourceDir);
+    writeToBatch(&batch, "files", allFiles);
 
     db->Write(writeOptions, &batch);
     delete db;

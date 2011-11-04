@@ -12,26 +12,49 @@
 class CursorKey;
 namespace RTags {
 
-template <typename T> void writeEncoded(leveldb::WriteBatch *batch, const QByteArray &key, const T &value)
+template <typename T> static inline QByteArray encode(const T &t)
 {
     QByteArray v;
     {
         QDataStream ds(&v, QIODevice::WriteOnly);
-        ds << value;
+        ds << t;
     }
+    return v;
+}
+
+template <> QByteArray encode<QByteArray>(const QByteArray &ba)
+{
+    return ba;
+}
+
+template <typename T> static inline T decode(const QByteArray &encoded)
+{
+    T t;
+    QDataStream ds(encoded);
+    ds >> t;
+    return t;
+}
+
+template <> QByteArray decode<QByteArray>(const QByteArray &ba)
+{
+    return ba;
+}
+
+template <typename T> void writeToBatch(leveldb::WriteBatch *batch, const QByteArray &key, const T &value)
+{
+    const QByteArray v = encode<T>(value);
     batch->Put(leveldb::Slice(key.constData(), key.size()),
                leveldb::Slice(v.constData(), v.size()));
 }
 
-template <typename T> bool readEncoded(leveldb::DB *db, const QByteArray &key, T &value)
+template <typename T> bool readFromDB(leveldb::DB *db, const QByteArray &key, T &value)
 {
     std::string val;
     if (!db->Get(leveldb::ReadOptions(), leveldb::Slice(key.constData(), key.size()), &val).ok()) {
         return false;
     }
     const QByteArray data = QByteArray::fromRawData(val.c_str(), val.size());
-    QDataStream ds(data);
-    ds >> value;
+    value = decode<T>(data);
     return true;
 }
 

@@ -17,7 +17,7 @@ public:
     ~RBuild();
 
     void setDBPath(const Path &path);
-    bool buildDB(const Path& makefile, const QSet<Path> &sourceDirs);
+    bool buildDB(const Path& makefile, const Path &sourceDir);
     bool updateDB();
 private slots:
     void processFile(const GccArguments& arguments);
@@ -30,8 +30,7 @@ private:
     void compile(const GccArguments& arguments, bool *usedPch = 0);
     void writeData(const QByteArray& filename);
 private:
-    Path mMakefile;
-    QSet<Path> mSourceDirs;
+    Path mMakefile, mSourceDir;
     MakefileParser mParser;
     SystemInformation mSysInfo;
     RBuildPrivate* mData;
