@@ -184,4 +184,20 @@
   (rtags-find-symbol-internal "Find references" "-r"))
 
 
+;; (defun rtags-find-files ()
+;;   (interactive)
+;;   (let (completions)
+;;     (setq tagname (gtags-current-token))
+;;     (setq previous (current-buffer))
+;;     (if tagname
+;;         (setq prompt (concat p ": (default " tagname ") "))
+;;       (setq prompt (concat p ": ")))
+;;     (with-temp-buffer
+;;       (rtags-log (concat (executable-find "rc") " -l \"\""))
+;;       (call-process (executable-find "rc") nil (list t nil) nil "-l" "")
+;;       (rtags-log (buffer-string))
+;;       (setq completions (split-string (buffer-string) "\n" t)))
+;;       ;; (setq completions (split-string "test1" "test1()")))
+;;     (setq input (completing-read prompt completions nil nil nil gtags-history-list))
+
 (provide 'rtags)

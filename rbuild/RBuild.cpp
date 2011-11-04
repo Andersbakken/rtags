@@ -18,29 +18,6 @@
 
 using namespace RTags;
 
-template <typename T> void writeEncoded(leveldb::WriteBatch *batch, const QByteArray &key, const T &value)
-{
-    QByteArray v;
-    {
-        QDataStream ds(&v, QIODevice::WriteOnly);
-        ds << value;
-    }
-    batch->Put(leveldb::Slice(key.constData(), key.size()),
-               leveldb::Slice(v.constData(), v.size()));
-}
-
-template <typename T> bool readEncoded(leveldb::DB *db, const QByteArray &key, T &value)
-{
-    std::string val;
-    if (!db->Get(leveldb::ReadOptions(), leveldb::Slice(key.constData(), key.size()), &val).ok()) {
-        return false;
-    }
-    const QByteArray data = QByteArray::fromRawData(val.c_str(), val.size());
-    QDataStream ds(data);
-    ds >> value;
-    return true;
-}
-
 static const bool pchEnabled = !getenv("RTAGS_NO_PCH");
 static QElapsedTimer timer;
 

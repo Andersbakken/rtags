@@ -15,9 +15,9 @@ enum Type {
     Reference = 0x02,
     Dependency = 0x04,
     Dict = 0x08,
-    File = 0x10,
-    All = 0x0f,
-    Raw = 0x10
+    Files = 0x10,
+    Raw = 0x20,
+    All = 0xff
 };
 
 static inline void dumpDatabase(const std::string& filename, int type)
@@ -92,9 +92,16 @@ static inline void dumpDatabase(const std::string& filename, int type)
                     printf("  %s %s", it.key().constData(), ctime(&tt));
                 }
             }
-        } else if (key.substr(0, 2) == "F:") { // file
-            if (type & File) {
-                printf("File: %s\n", key.c_str());
+        } else if (key == "files") {
+            if (type & Files) {
+                QSet<Path> files;
+                const QByteArray ba = QByteArray::fromRawData(it->value().data(),
+                                                              it->value().size());
+                QDataStream ds(ba);
+                ds >> files;
+                foreach(const Path &path, files) {
+                    printf("%s\n", path.constData());
+                }
             }
         }
     }
@@ -167,7 +174,7 @@ static inline bool parseType(const char* a, int* type)
             *type |= Dependency;
             break;
         case 'f':
-            *type |= File;
+            *type |= Files;
             break;
         case 'i':
             *type |= Dict;

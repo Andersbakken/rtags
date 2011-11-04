@@ -172,9 +172,10 @@ int main(int argc, char** argv)
         { "find-symbols", 1, 0, 's' },
         { "find-db", 0, 0, 'F' },
         { "list-symbols", 1, 0, 'l' },
+        { "files", 0, 0, 'P' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hf:d:r:l:Dps:";
+    const char *shortOptions = "hf:d:r:l:Dps:P";
 
     QList<QByteArray> dbPaths;
 
@@ -183,7 +184,8 @@ int main(int argc, char** argv)
         FollowSymbol,
         References,
         FindSymbols,
-        ListSymbols
+        ListSymbols,
+        Files
         // RecursiveReferences,
     } mode = None;
     int idx, longIndex;
@@ -213,6 +215,13 @@ int main(int argc, char** argv)
             }
             arg = optarg;
             mode = FollowSymbol;
+            break;
+        case 'P':
+            if (mode != None) {
+                fprintf(stderr, "Mode is already set\n");
+                return 1;
+            }
+            mode = Files;
             break;
         case 'r':
             arg = optarg;
@@ -307,6 +316,14 @@ int main(int argc, char** argv)
                 it->Next();
             }
             delete it;
+            break; }
+        case Files: {
+            QSet<Path> paths;
+            if (readEncoded(db, "files", paths)) {
+                foreach(const Path &path, paths) {
+                    printf("%s\n", path.constData());
+                }
+            }
             break; }
         }
     }
