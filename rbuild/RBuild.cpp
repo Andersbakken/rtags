@@ -209,20 +209,15 @@ bool RBuild::updateDB()
         }
     }
 
-    int i = 0;
     for (QHash<Path, GccArguments>::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
         const GccArguments &args = it.value();
         if (args.isCompile()) {
-            const int old = mData->data.size();
-            const qint64 before = timer.elapsed();
-            bool usedPch;
-            compile(args, &usedPch);
-            const qint64 elapsed = timer.elapsed();
-            fprintf(stderr, "parsed %s (%d/%d), %d new items (%lld ms) %s\n",
-                    args.input().value(0).constData(), ++i, sourceFiles,
-                    mData->data.size() - old, elapsed - before, usedPch ? "pch" : "");
+            processFile(args);
         }
     }
+    if (pchEnabled)
+        precompileAll();
+    compileAll();
 
     if (count != mData->data.size())
         fprintf(stderr, "Item count changed from %d to %d\n",
@@ -306,7 +301,7 @@ static void collectHeaders(const GccArguments& arguments)
 
 void RBuild::processFile(const GccArguments& arguments)
 {
-    if (pchEnabled)
+    if (pchEnabled && !Precompile::precompiler(arguments)->isCompiled())
         collectHeaders(arguments);
     mFiles.append(arguments);
 }
@@ -621,7 +616,6 @@ void RBuild::writeData(const QByteArray& filename)
     if (idx)
         batch.Put("pch", leveldb::Slice(pchData.constData(), pchData.size()));
 
-    qDebug() << mSourceDir;
     if (!mSourceDir.isEmpty()) {
         Q_ASSERT(mSourceDir.endsWith('/'));
         if (mSourceDir.isDir()) {
@@ -1132,22 +1126,24 @@ void RBuild::precompileAll()
     int i = 0;
     const QList<Precompile*> precompiles = Precompile::precompiles();
     foreach(Precompile *pch, precompiles) {
-        const qint64 before = timer.elapsed();
-        CXTranslationUnit unit = pch->precompile(mSysInfo.systemIncludes(), mIndex);
-        if (unit) {
-            CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
-            const int old = mData->data.size();
-            clang_visitChildren(unitCursor, collectSymbols, mData);
-            QHash<Path, quint64> dependencies;
-            InclusionUserData u(dependencies);
-            clang_getInclusions(unit, getInclusions, &u);
-            // qDebug() << dependencies;
-            pch->setDependencies(dependencies);
-            clang_disposeTranslationUnit(unit);
-            const qint64 elapsed = timer.elapsed() - before;
-            fprintf(stderr, "parsed pch header (%s) (%d/%d), %d new items (%lld ms)\n",
-                    pch->headerFilePath().constData(), ++i, precompiles.size(),
-                    mData->data.size() - old, elapsed);
+        if (!pch->isCompiled()) {
+            const qint64 before = timer.elapsed();
+            CXTranslationUnit unit = pch->precompile(mSysInfo.systemIncludes(), mIndex);
+            if (unit) {
+                CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
+                const int old = mData->data.size();
+                clang_visitChildren(unitCursor, collectSymbols, mData);
+                QHash<Path, quint64> dependencies;
+                InclusionUserData u(dependencies);
+                clang_getInclusions(unit, getInclusions, &u);
+                // qDebug() << dependencies;
+                pch->setDependencies(dependencies);
+                clang_disposeTranslationUnit(unit);
+                const qint64 elapsed = timer.elapsed() - before;
+                fprintf(stderr, "parsed pch header (%s) (%d/%d), %d new items (%lld ms)\n",
+                        pch->headerFilePath().constData(), ++i, precompiles.size(),
+                        mData->data.size() - old, elapsed);
+            }
         }
     }
 }

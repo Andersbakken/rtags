@@ -9,21 +9,6 @@
 
 QHash<QByteArray, Precompile*> Precompile::s_precompiles;
 
-static inline QByteArray keyFromArguments(const GccArguments& args)
-{
-    QByteArray key;
-    foreach(const QByteArray& entry, args.arguments("-D")) {
-        key += entry;
-    }
-    foreach(const QByteArray& entry, args.arguments("-I")) {
-        key += entry;
-    }
-
-    Q_ASSERT(!key.isEmpty());
-
-    return key;
-}
-
 static inline bool writeFile(const QByteArray& filename, const QVector<const char *> &args,
                              const QByteArray& data)
 {
@@ -93,7 +78,7 @@ Precompile* Precompile::precompiler(const GccArguments& args)
 {
     Q_ASSERT(args.isCompile());
 
-    const QByteArray key = keyFromArguments(args);
+    const QByteArray key = args.key();
     Q_ASSERT(!key.isEmpty());
     const QHash<QByteArray, Precompile*>::const_iterator it = s_precompiles.find(key);
     if (it != s_precompiles.end())
@@ -108,7 +93,7 @@ void Precompile::create(const GccArguments &args,
                         const Path &pch, const Path &header,
                         const QHash<Path, quint64> &deps)
 {
-    const QByteArray key = keyFromArguments(args);
+    const QByteArray key = args.key();
     Q_ASSERT(!key.isEmpty());
     Precompile* &compile = s_precompiles[key];
     Q_ASSERT(!compile);

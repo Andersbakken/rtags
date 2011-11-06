@@ -51,7 +51,8 @@ public:
     bool isCompile() const;
     bool operator==(const GccArguments &other) const;
     static const char* languageString(Language language);
- private:
+    QByteArray key() const;
+private:
     Path parseCD(const QByteArray& cmd, const Path& path) const;
 
     class Data : public QSharedData
@@ -81,6 +82,7 @@ public:
 
         QByteArray raw;
         QList<Argument> args;
+        mutable QByteArray key;
     };
 
     QSharedDataPointer<Data> m_ptr;

@@ -403,3 +403,17 @@ const char* GccArguments::languageString(Language language)
     }
     return "";
 }
+QByteArray GccArguments::key() const
+{
+    const Data* data = m_ptr.constData();
+    if (data->key.isEmpty()) {
+        foreach(const QByteArray& entry, arguments("-D")) {
+            data->key += entry;
+        }
+        foreach(const QByteArray& entry, arguments("-I")) {
+            data->key += entry;
+        }
+    }
+
+    return data->key;
+}
