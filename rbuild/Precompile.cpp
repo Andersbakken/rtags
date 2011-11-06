@@ -69,7 +69,7 @@ static inline bool fileAvailable(const QByteArray& filename)
 }
 
 Precompile::Precompile(const GccArguments& args, QObject* parent)
-    : QObject(parent), m_args(args)
+    : QObject(parent), m_args(args), m_compiled(false)
 {
 }
 
@@ -80,6 +80,7 @@ Precompile::~Precompile()
 
 void Precompile::clear()
 {
+    m_compiled = false;
     if (!m_filePath.isEmpty()) {
         // removeFile(m_filePath);
         // removeFile(m_filePath + ".h");
@@ -112,6 +113,7 @@ void Precompile::create(const GccArguments &args,
     Precompile* &compile = s_precompiles[key];
     Q_ASSERT(!compile);
     compile = new Precompile(args);
+    compile->m_compiled = true;
     compile->m_filePath = pch;
     compile->m_headerFilePath = header;
     compile->m_dependencies = deps;
@@ -234,6 +236,7 @@ QList<Precompile*> Precompile::precompiles()
 
 CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes, CXIndex idx)
 {
+    Q_ASSERT(!m_compiled);
     if (m_data.isEmpty()) {
         return 0;
     }
@@ -311,6 +314,7 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
         clang_disposeTranslationUnit(unit);
         return 0;
     }
+    m_compiled = true;
     return unit;
 }
 

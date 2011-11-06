@@ -29,6 +29,7 @@ public:
     GccArguments arguments() const { return m_args; }
     void setDependencies(const QHash<Path, quint64> &deps) { m_dependencies = deps; }
     QHash<Path, quint64> dependencies() const { return m_dependencies; }
+    bool isCompiled() const { return m_compiled; }
 private:
     Precompile(const GccArguments& args, QObject* parent = 0);
     bool preprocessHeaders(QList<QByteArray> systemIncludes);
@@ -38,6 +39,8 @@ private:
     GccArguments m_args;
 
     QHash<Path, quint64> m_dependencies;
+
+    bool m_compiled;
 
     static QHash<QByteArray, Precompile*> s_precompiles;
     static Path s_path;
