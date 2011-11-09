@@ -340,7 +340,13 @@ static inline QByteArray makeRefValue(const RBuildPrivate::DataEntry& entry)
     QByteArray out;
     {
         QDataStream ds(&out, QIODevice::WriteOnly);
-        ds << entry.reference.key.toString() << entry.references;
+        if (entry.reference.key != entry.cursor.key) {
+            ds << entry.reference.key.toString();
+        } else {
+            ds << QByteArray();
+
+        }
+        ds << entry.references;
         // qDebug() << "writing out value for" << entry.key.cursor.toString()
         //          << entry.reference.key.toString() << entry.references;
         // const QByteArray v =
@@ -570,9 +576,7 @@ void RBuild::writeData(const QByteArray& filename)
         }
 
         RBuildPrivate::DataEntry *r = mData->seen.value(entry->reference.key.locationKey());
-        if (r == entry)
-            continue;
-        if (r) {
+        if (r && r != entry) {
             Q_ASSERT(entry->reference.key.isValid());
             Q_ASSERT(entry->cursor.key.isValid());
             r->references.insert(entry->cursor);
@@ -580,12 +584,12 @@ void RBuild::writeData(const QByteArray& filename)
     }
 
     QByteArray entries;
-    QDataStream ds(&entries, QIODevice::WriteOnly);
-    ds << mData->data.size();
+    // QDataStream ds(&entries, QIODevice::WriteOnly);
+    // ds << mData->data.size();
     foreach(const RBuildPrivate::DataEntry* entry, mData->data) {
         writeEntry(&batch, *entry);
         collectDict(*entry, dict);
-        ds << *entry;
+        // ds << *entry;
     }
 
     writeDict(&batch, dict);
@@ -597,7 +601,7 @@ void RBuild::writeData(const QByteArray& filename)
                           dep.lastModified, dep.dependencies, 0); //&allFiles);
     }
 
-    batch.Put(" ", leveldb::Slice(entries.constData(), entries.size()));
+    // batch.Put(" ", leveldb::Slice(entries.constData(), entries.size()));
     QByteArray pchData;
     int idx = 0;
     {
