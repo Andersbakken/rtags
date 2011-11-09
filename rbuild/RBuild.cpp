@@ -435,7 +435,7 @@ static inline void writeEntry(leveldb::WriteBatch* batch, const RBuildPrivate::D
 
     QByteArray k = key.toString();
     QByteArray v = makeRefValue(entry);
-    batch->Put(std::string(k.constData(), k.size()), std::string(v.constData(), v.size()));
+    batch->Put(leveldb::Slice(k.constData(), k.size()), leveldb::Slice(v.constData(), v.size()));
     // qDebug() << "writing" << k << kindToString(key.kind) << entry.references.size()
     //          << v.size() << std::string(v.constData(), v.size()).size();
 }
