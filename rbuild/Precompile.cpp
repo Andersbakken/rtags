@@ -189,22 +189,18 @@ bool Precompile::preprocessHeaders(QList<QByteArray> systemIncludes)
                     dir = listEntry.mid(2);
                     dir.resolve(sourceFileDir);
                     const Path resolved = Path::resolved(line, dir);
-                    switch (resolved.magicType()) {
-                    case Path::Header:
+                    if (resolved.isHeader()) {
                         if (!headers.contains(resolved)) {
                             headers.insert(resolved);
                             m_data += "#include <" + resolved + ">\n";
                         }
                         state = Found;
-                        break;
-                    case Path::Source:
+                    } else if (resolved.isSource()) {
                         state = DidntWant;
-                        break;
-                    default:
-                        break;
                     }
                 }
             }
+            // qDebug() << state << line;
             if (state == DidntFind) {
                 qWarning() << "Couldn't resolve" << line << includePaths << systemIncludes;
             }

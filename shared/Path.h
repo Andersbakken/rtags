@@ -53,23 +53,14 @@ public:
         Socket
     };
 
-    enum MagicType {
-        Source,
-        Header,
-        Makefile,
-        Other
-    };
-
-    MagicType magicType() const;
-
     inline bool exists() const { return type() != Invalid; }
     inline bool isDir() const { return type() == Directory; }
     inline bool isFile() const { return type() == File; }
     inline bool isAbsolute() const { return (!isEmpty() && at(0) == '/'); }
     const char *fileName() const;
     const char *extension() const;
-    bool isSource() const { return magicType() == Source; }
-    bool isHeader() const { return magicType() == Header; }
+    bool isSource() const;
+    bool isHeader() const;
     bool isResolved() const;
     Path parentDir() const;
     Type type() const;

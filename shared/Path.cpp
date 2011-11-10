@@ -1,5 +1,4 @@
 #include "Path.h"
-#include <magic.h>
 #include <QCoreApplication>
 #include <QThread>
 
@@ -121,40 +120,36 @@ const char * Path::fileName() const
 
 const char * Path::extension() const
 {
-    return constData() + lastIndexOf('.') + 1;
+    const int dot = lastIndexOf('.');
+    if (dot == -1 || dot + 1 == size())
+        return 0;
+    return constData() + dot + 1;
 }
 
-Path::MagicType Path::magicType() const
+bool Path::isSource() const
 {
-    MagicType ret = Other;
-    if (isFile()) {
-        magic_t m = magic_open(MAGIC_CONTINUE|MAGIC_ERROR|MAGIC_MIME);
-        magic_load(m, 0);
-        const char *out = magic_file(m, constData());
-        if (out) {
-            if (strstr(out, "/x-makefile;")) {
-                ret = Makefile;
-            } else if (strstr(out, "/x-c;")) {
-                ret = Source;
-                const int lastDot = lastIndexOf('.');
-                const int len = size() - lastDot;
-                if (lastDot != -1 && len > 0) {
-                    const char *sourceFileExtensions[] = {
-                        "h", "hpp", "hxx", "moc", "hh", "tcc", 0
-                    };
-                    const char *str = constData() + lastDot + 1;
-                    for (int i=0; sourceFileExtensions[i]; ++i) {
-                        if (!strncasecmp(str, sourceFileExtensions[i], len)) {
-                            ret = Header;
-                            break;
-                        }
-                    }
-                } else {
-                    ret = Header; // Have to make things like QtCore be a header
-                }
-            }
+    const char *ext = extension();
+    if (ext) {
+        const char *sources[] = { "c", "cpp", "cxx", "cc", 0 };
+        const int len = strlen(ext);
+        for (int i=0; sources[i]; ++i) {
+            if (!strncasecmp(ext, sources[i], len))
+                return true;
         }
-        magic_close(m);
     }
-    return ret;
+    return false;
+}
+
+bool Path::isHeader() const
+{
+    const char *ext = extension();
+    if (ext) {
+        const char *headers[] = { "h", "hpp", "hxx", "moc", "hh", "tcc", 0 };
+        const int len = strlen(ext);
+        for (int i=0; headers[i]; ++i) {
+            if (!strncasecmp(ext, headers[i], len))
+                return true;
+        }
+    }
+    return false;
 }

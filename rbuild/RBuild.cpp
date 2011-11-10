@@ -195,6 +195,8 @@ bool RBuild::updateDB()
             }
         }
         if (changed) {
+            // ### could really hang on to this whole thing since we're
+            // ### quite likely to make an additional change to it
             QByteArray out;
             {
                 QDataStream d(&out, QIODevice::WriteOnly);
@@ -648,8 +650,14 @@ void RBuild::writeData(leveldb::WriteBatch *batch)
                 r->references.insert(entry->cursor);
             }
         } else {
-            // qDebug() << "nowhere to add this reference"
-            //          << entry->cursor.key << entry->reference.key;
+            if (entry->cursor.key.kind != CXCursor_InclusionDirective) {
+                // switch (entry->reference.key.kind) {
+                // case CXCursor_InclusionDirective:
+                //     break;
+                // default:
+                qDebug() << "nowhere to add this reference"
+                         << entry->cursor.key << entry->reference.key;
+            }
 #warning gotta fix in case of references that arent in memory. Maybe even keep the ones that were modified in memory
         }
     }
