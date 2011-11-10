@@ -22,7 +22,7 @@ template <typename T> static inline QByteArray encode(const T &t)
     return v;
 }
 
-template <> QByteArray encode<QByteArray>(const QByteArray &ba)
+template <> static inline QByteArray encode<QByteArray>(const QByteArray &ba)
 {
     return ba;
 }
@@ -35,7 +35,7 @@ template <typename T> static inline T decode(const QByteArray &encoded)
     return t;
 }
 
-template <> QByteArray decode<QByteArray>(const QByteArray &ba)
+template <> QByteArray static inline decode<QByteArray>(const QByteArray &ba)
 {
     return ba;
 }
