@@ -650,13 +650,38 @@ void RBuild::writeData(leveldb::WriteBatch *batch)
                 r->references.insert(entry->cursor);
             }
         } else {
-            if (entry->cursor.key.kind != CXCursor_InclusionDirective) {
-                // switch (entry->reference.key.kind) {
-                // case CXCursor_InclusionDirective:
-                //     break;
-                // default:
-                qDebug() << "nowhere to add this reference"
-                         << entry->cursor.key << entry->reference.key;
+            bool warn = true;
+            switch (entry->cursor.key.kind) {
+            case CXCursor_InclusionDirective:
+                warn = false;
+                break;
+            default:
+                break;
+            }
+            switch (entry->reference.key.kind) {
+            case CXCursor_TemplateTypeParameter:
+            case CXCursor_NonTypeTemplateParameter:
+                warn = false;
+            case CXCursor_ClassDecl:
+            case CXCursor_StructDecl:
+                if (!entry->reference.key.isDefinition())
+                    warn = false;
+                break;
+            default:
+                break;
+            }
+
+            if (warn && entry->cursor.key == entry->reference.key)
+                warn = false;
+
+            if (warn && !strncmp("operator", entry->cursor.key.symbolName.constData(), 8))
+                warn = false;
+
+
+            if (warn) {
+                qWarning() << "nowhere to add this reference"
+                           << entry->cursor.key << "references" << entry->reference.key
+                           << entry->cursor.key.symbolName.constData();
             }
 #warning gotta fix in case of references that arent in memory. Maybe even keep the ones that were modified in memory
         }
