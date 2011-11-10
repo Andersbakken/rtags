@@ -47,10 +47,9 @@ typedef bool (*Handler)(leveldb::DB *db, const std::string &key);
 static inline bool maybeDict(leveldb::DB *db, const std::string &key, Handler handler)
 {
     bool ret = false;
-    std::string val;
-    db->Get(leveldb::ReadOptions(), "d:" + key, &val);
-    if (!val.empty()) {
-        foreach(const QByteArray &k, QByteArray::fromRawData(val.c_str(), val.size()).split('\0')) {
+    QSet<QByteArray> keys;
+    if (RTags::readFromDB(db, QByteArray::fromRawData(key.c_str(), key.size()), keys)) {
+        foreach(const QByteArray &k, keys) {
             if (!k.isEmpty()) {
                 ret = handler(db, std::string(k.constData(), k.size())) || ret;
             }

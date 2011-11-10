@@ -121,4 +121,10 @@ QDebug operator<<(QDebug dbg, const std::string &str)
     dbg << str.c_str();
     return dbg;
 }
+
+QDebug operator<<(QDebug dbg, const leveldb::Slice &slice)
+{
+    dbg << QByteArray::fromRawData(slice.data(), slice.size());
+    return dbg;
+}
 }

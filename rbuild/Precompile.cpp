@@ -326,3 +326,24 @@ void Precompile::addData(const QByteArray& data)
   return false;
   }
 */
+QByteArray Precompile::pchData()
+{
+    QByteArray pchData;
+    int idx = 0;
+    {
+        QDataStream ds(&pchData, QIODevice::WriteOnly);
+        ds << idx; // will seek back and set to the right value
+        foreach(const Precompile *pch, Precompile::precompiles()) {
+            if (pch->filePath().isEmpty())
+                continue;
+
+            ds << pch->filePath() << pch->headerFilePath() << pch->arguments() << pch->dependencies();
+            ++idx;
+        }
+        ds.device()->seek(0);
+        ds << idx;
+    }
+    if (!idx)
+        pchData.clear();
+    return pchData;
+}

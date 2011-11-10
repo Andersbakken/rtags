@@ -7,14 +7,6 @@ main.cpp:10:6:
 main.cpp:6:5:
 
 --follow-symbol
-main.cpp:14:5:
-main.cpp:14:5:
-
---follow-symbol
-main.cpp:16:10:
-main.cpp:16:10:
-
---follow-symbol
 main.cpp:19:5:
 main.cpp:3:7:
 
@@ -44,10 +36,6 @@ main.cpp:7:10:
 
 --follow-symbol
 main.cpp:31:6:
-main.cpp:3:7:
-
---follow-symbol
-main.cpp:3:7:
 main.cpp:3:7:
 
 --follow-symbol

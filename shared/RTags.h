@@ -40,11 +40,15 @@ template <> QByteArray decode<QByteArray>(const QByteArray &ba)
     return ba;
 }
 
-template <typename T> void writeToBatch(leveldb::WriteBatch *batch, const QByteArray &key, const T &value)
+template <typename T> void writeToBatch(leveldb::WriteBatch *batch, const leveldb::Slice &key, const T &value)
 {
     const QByteArray v = encode<T>(value);
-    batch->Put(leveldb::Slice(key.constData(), key.size()),
-               leveldb::Slice(v.constData(), v.size()));
+    batch->Put(key, leveldb::Slice(v.constData(), v.size()));
+}
+
+template <typename T> void writeToBatch(leveldb::WriteBatch *batch, const QByteArray &key, const T &value)
+{
+    writeToBatch(batch, leveldb::Slice(key.constData(), key.size()), value);
 }
 
 template <typename T> bool readFromDB(leveldb::DB *db, const QByteArray &key, T &value)
@@ -57,6 +61,13 @@ template <typename T> bool readFromDB(leveldb::DB *db, const QByteArray &key, T 
     value = decode<T>(data);
     return true;
 }
+
+template <typename T> T readFromSlice(const leveldb::Slice &val)
+{
+    const QByteArray data = QByteArray::fromRawData(val.data(), val.size());
+    return decode<T>(data);
+}
+
 
 bool parseLocation(const std::string &string,
                    std::string &file, unsigned &line, unsigned &col);
@@ -139,6 +150,7 @@ static inline QByteArray removePath(const QByteArray& line)
 bool cursorDefinitionFor(const CursorKey& d, const CursorKey &c);
 QDebug operator<<(QDebug dbg, CXCursor cursor);
 QDebug operator<<(QDebug dbg, const std::string &str);
+QDebug operator<<(QDebug dbg, const leveldb::Slice &slice);
 }
 
 #endif

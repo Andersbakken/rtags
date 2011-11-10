@@ -87,6 +87,20 @@ static inline bool filter(RBuildPrivate::DataEntry &entry, const QHash<Path, Gcc
     return true;
 }
 
+static inline int fileNameLength(const char *data, int len)
+{
+    Q_ASSERT(len > 1);
+    const char *c = data + len - 1;
+    int colons = 3;
+    forever {
+        if (*c == ':' && !--colons)
+            break;
+        --c;
+        Q_ASSERT(c != data);
+    }
+    return (c - data);
+}
+
 bool RBuild::updateDB()
 {
     const qint64 beforeLoad = timer.elapsed();
@@ -143,72 +157,89 @@ bool RBuild::updateDB()
     printf("Loading data took %lld ms\n", timer.elapsed() - beforeLoad);
     if (!dirtySourceFiles) {
         printf("Nothing has changed (%lld ms)\n", timer.elapsed());
-        // return true;
+        return true;
     }
-    {
-        leveldb::WriteBatch batch;
-        for (it->Seek("/"); it->Valid(); it->Next()) {
-            const leveldb::Slice key = it->key();
-            Q_ASSERT(!key.empty());
-            if (key.data()[0] != '/')
-                break;
-            const char *c = key.data() + (key.size() - 1);
-            int colons = 3;
-            forever {
-                if (*c == ':' && !--colons)
-                    break;
-                --c;
-            }
-            {
-                const Path p = QByteArray::fromRawData(key.data(), c - key.data());
-                if (dirty.contains(p)) {
-                    batch.Delete(key);
-                    qDebug() << "ditching" << QByteArray::fromRawData(key.data(), key.size());
-                    continue;
-                }
-            }
-            {
-                const leveldb::Slice value = it->value();
-                const QByteArray v = QByteArray::fromRawData(value.data(), value.size());
-                QDataStream ds(v);
-                QByteArray referredTo;
-                ds >> referredTo; // read referred to
-                QSet<Cursor> references;
-                ds >> references;
-                bool changed = false;
-                qDebug() << "looking at key" << QByteArray::fromRawData(key.data(), key.size()) << references.size();
-
-                QSet<Cursor>::iterator it = references.begin();
-                while (it != references.end()) {
-                    const QByteArray fileName = (*it).key.fileName.toByteArray();
-                    if (dirty.contains(*static_cast<const Path*>(&fileName))) {
-                        qDebug() << "ditched reference to" << referredTo << "from" << (*it).key;
-                        it = references.erase(it);
-                        changed = true;
-                    } else {
-                        ++it;
-                    }
-                }
-                if (changed) {
-                    QByteArray out;
-                    {
-                        QDataStream d(&out, QIODevice::WriteOnly);
-                        d << referredTo << references;
-                    }
-                    batch.Put(key, leveldb::Slice(out.constData(), out.size()));
-                }
-            }
-        }
-        db->Write(leveldb::WriteOptions(), &batch);
-    }
-    return true;
-    // qDebug() << dirty;
-
-
     if (!readFromDB(db, "sourceDir", mSourceDir)) {
         fprintf(stderr, "Can't read existing data for src dir\n");
         return false;
     }
+    
+    leveldb::WriteBatch batch;
+    for (it->Seek("/"); it->Valid(); it->Next()) {
+        const leveldb::Slice key = it->key();
+        Q_ASSERT(!key.empty());
+        if (key.data()[0] != '/')
+            break;
+        const Path p = QByteArray::fromRawData(key.data(), fileNameLength(key.data(), key.size()));
+        if (dirty.contains(p)) {
+            batch.Delete(key);
+            // qDebug() << "ditching" << QByteArray::fromRawData(key.data(), key.size());
+            continue;
+        }
+        const leveldb::Slice value = it->value();
+        const QByteArray v = QByteArray::fromRawData(value.data(), value.size());
+        QDataStream ds(v);
+        QByteArray referredTo;
+        ds >> referredTo; // read referred to
+        QSet<Cursor> references;
+        ds >> references;
+        bool changed = false;
+        // qDebug() << "looking at key" << QByteArray::fromRawData(key.data(), key.size()) << references.size();
+
+        QSet<Cursor>::iterator sit = references.begin();
+        while (sit != references.end()) {
+            const QByteArray fileName = (*sit).key.fileName.toByteArray();
+            if (dirty.contains(*static_cast<const Path*>(&fileName))) {
+                // qDebug() << "ditched reference to" << key << "from" << (*sit).key;
+                sit = references.erase(sit);
+                changed = true;
+            } else {
+                ++sit;
+            }
+        }
+        if (changed) {
+            QByteArray out;
+            {
+                QDataStream d(&out, QIODevice::WriteOnly);
+                d << referredTo << references;
+            }
+            batch.Put(key, leveldb::Slice(out.constData(), out.size()));
+        }
+    }
+    for (it->Seek("d:"); it->Valid(); it->Next()) {
+        const leveldb::Slice key = it->key();
+        Q_ASSERT(!key.empty());
+        if (strncmp(key.data(), "d:", 2))
+            break;
+        QSet<AtomicString> locations = readFromSlice<QSet<AtomicString> >(it->value());
+        bool foundDirty = false;
+        QSet<AtomicString>::iterator it = locations.begin();
+        while (it != locations.end()) {
+            const AtomicString &k = (*it);
+            const Path p = QByteArray::fromRawData(k.constData(), fileNameLength(k.constData(), k.size()));
+            if (dirty.contains(p)) {
+                foundDirty = true;
+                // qDebug() << "ditching" << k;
+                it = locations.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        if (foundDirty) {
+            // qDebug() << "Found dirty for" << QByteArray::fromRawData(key.data(), key.size());
+            if (locations.isEmpty()) {
+                batch.Delete(key);
+            } else {
+                writeToBatch(&batch, key, locations);
+            }
+
+        }
+    }
+
+    // return true;
+    // qDebug() << dirty;
+
+    bool pchDirty = false;
     {
         std::string value;
         if (db->Get(leveldb::ReadOptions(), "pch", &value).ok()) {
@@ -236,6 +267,8 @@ bool RBuild::updateDB()
                     }
                     if (ok) {
                         Precompile::create(args, pch, header, dependencies);
+                    } else {
+                        pchDirty = false;
                     }
                 }
             }
@@ -248,15 +281,24 @@ bool RBuild::updateDB()
             processFile(args);
         }
     }
-    if (pchEnabled)
+    if (pchEnabled && pchDirty)
         precompileAll();
     compileAll();
+    if (pchDirty) {
+        const QByteArray pchData = Precompile::pchData();
+        if (!pchData.isEmpty()) {
+            batch.Put("pch", leveldb::Slice(pchData.constData(), pchData.size()));
+        } else {
+            batch.Delete("pch");
+        }
+    }
 
     // if (count != mData->data.size())
     //     fprintf(stderr, "Item count changed from %d to %d\n",
     //             count, mData->data.size());
 
-    save();
+    writeData(&batch, WriteDependencies);
+    db->Write(leveldb::WriteOptions(), &batch);
     return true;
 }
 
@@ -268,11 +310,75 @@ void RBuild::startParse()
     mParser.run(mMakefile);
 }
 
+static inline int removeDirectory(const char *path)
+{
+    DIR *d = opendir(path);
+    size_t path_len = strlen(path);
+    int r = -1;
+
+    if (d) {
+        struct dirent *p;
+
+        r = 0;
+
+        while (!r && (p=readdir(d))) {
+            int r2 = -1;
+            char *buf;
+            size_t len;
+
+            /* Skip the names "." and ".." as we don't want to recurse on them. */
+            if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) {
+                continue;
+            }
+
+            len = path_len + strlen(p->d_name) + 2;
+            buf = static_cast<char*>(malloc(len));
+
+            if (buf) {
+                struct stat statbuf;
+                snprintf(buf, len, "%s/%s", path, p->d_name);
+                if (!stat(buf, &statbuf)) {
+                    if (S_ISDIR(statbuf.st_mode)) {
+                        r2 = removeDirectory(buf);
+                    } else {
+                        r2 = unlink(buf);
+                    }
+                }
+
+                free(buf);
+            }
+
+            r = r2;
+        }
+
+        closedir(d);
+    }
+
+    if (!r) {
+        r = rmdir(path);
+    }
+
+    return r;
+}
+
 void RBuild::save()
 {
     fprintf(stderr, "Done parsing, now writing.\n");
     const qint64 beforeWriting = timer.elapsed();
-    writeData(mDBPath);
+
+    leveldb::DB *db = 0;
+    leveldb::Options dbOptions;
+    leveldb::WriteOptions writeOptions;
+    dbOptions.create_if_missing = true;
+    removeDirectory(mDBPath.constData());
+    // Q_ASSERT(filename.endsWith(".rtags.db"));
+    if (!leveldb::DB::Open(dbOptions, mDBPath.constData(), &db).ok()) {
+        return;
+    }
+    leveldb::WriteBatch batch;
+    writeData(&batch, WriteDependencies);
+    db->Write(leveldb::WriteOptions(), &batch);
+    delete db;
     const qint64 elapsed = timer.elapsed();
     fprintf(stderr, "All done. (total/saving %lld/%lld ms)\n", elapsed, elapsed - beforeWriting);
     qApp->quit();
@@ -372,8 +478,10 @@ static inline QByteArray makeRefValue(const RBuildPrivate::DataEntry& entry)
 {
     QByteArray out;
     const bool refersToSelf = entry.reference.key == entry.cursor.key;
-    if (refersToSelf && entry.references.isEmpty())
+    if (refersToSelf && entry.references.isEmpty()) {
+        // qDebug() << "should not be written" << entry.cursor.key;
         return out;
+    }
     {
         QDataStream ds(&out, QIODevice::WriteOnly);
         if (!refersToSelf) {
@@ -395,18 +503,7 @@ static inline void writeDict(leveldb::WriteBatch* batch, const QHash<AtomicStrin
     QHash<AtomicString, QSet<AtomicString> >::const_iterator it = dict.begin();
     const QHash<AtomicString, QSet<AtomicString> >::const_iterator end = dict.end();
     while (it != end) {
-        // qDebug() << it.key().toByteArray();
-        std::string locs;
-        const QSet<AtomicString>& set = it.value();
-        QSet<AtomicString>::const_iterator dit = set.begin();
-        const QSet<AtomicString>::const_iterator dend = set.end();
-        // qDebug() << "writing dict" << it.key().toByteArray() << set;
-        while (dit != dend) {
-            locs += (*dit).toByteArray().constData();
-            locs += '\0';
-            ++dit;
-        }
-        batch->Put(("d:" + it.key().toByteArray()).constData(), locs);
+        writeToBatch(batch, ("d:" + it.key().toByteArray()), it.value());
         ++it;
     }
 }
@@ -476,61 +573,10 @@ static inline void writeEntry(leveldb::WriteBatch* batch, const RBuildPrivate::D
 
     QByteArray k = key.toString();
     QByteArray v = makeRefValue(entry);
-    // if (!v.isEmpty())
-    batch->Put(leveldb::Slice(k.constData(), k.size()), leveldb::Slice(v.constData(), v.size()));
+    if (!v.isEmpty())
+        batch->Put(leveldb::Slice(k.constData(), k.size()), leveldb::Slice(v.constData(), v.size()));
     // qDebug() << "writing" << k << kindToString(key.kind) << entry.references.size()
     //          << v.size() << std::string(v.constData(), v.size()).size();
-}
-
-static inline int removeDirectory(const char *path)
-{
-    DIR *d = opendir(path);
-    size_t path_len = strlen(path);
-    int r = -1;
-
-    if (d) {
-        struct dirent *p;
-
-        r = 0;
-
-        while (!r && (p=readdir(d))) {
-            int r2 = -1;
-            char *buf;
-            size_t len;
-
-            /* Skip the names "." and ".." as we don't want to recurse on them. */
-            if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) {
-                continue;
-            }
-
-            len = path_len + strlen(p->d_name) + 2;
-            buf = static_cast<char*>(malloc(len));
-
-            if (buf) {
-                struct stat statbuf;
-                snprintf(buf, len, "%s/%s", path, p->d_name);
-                if (!stat(buf, &statbuf)) {
-                    if (S_ISDIR(statbuf.st_mode)) {
-                        r2 = removeDirectory(buf);
-                    } else {
-                        r2 = unlink(buf);
-                    }
-                }
-
-                free(buf);
-            }
-
-            r = r2;
-        }
-
-        closedir(d);
-    }
-
-    if (!r) {
-        r = rmdir(path);
-    }
-
-    return r;
 }
 
 static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
@@ -559,7 +605,7 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
                     allFiles->insert(Path(fileBuffer, w));
                 }
                 break; }
-            // case DT_LNK: not following links
+                // case DT_LNK: not following links
             }
 
         }
@@ -568,26 +614,12 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 #endif
 }
 
-void RBuild::writeData(const QByteArray& filename)
+void RBuild::writeData(leveldb::WriteBatch *batch, uint flags)
 {
     if (!mData)
         return;
 
-    leveldb::DB* db = 0;
-    leveldb::Options dbOptions;
-    leveldb::WriteOptions writeOptions;
-    dbOptions.create_if_missing = true;
-
-    QByteArray tempFile = filename + ".tmp";
-
-    // Q_ASSERT(filename.endsWith(".rtags.db"));
-    if (!leveldb::DB::Open(dbOptions, tempFile.constData(), &db).ok()) {
-        return;
-    }
-
-    leveldb::WriteBatch batch;
-
-    Q_ASSERT(db);
+    Q_ASSERT(batch);
 
     QHash<AtomicString, QSet<AtomicString> > dict;
     foreach(RBuildPrivate::DataEntry* entry, mData->data) {
@@ -619,42 +651,30 @@ void RBuild::writeData(const QByteArray& filename)
         }
     }
 
-    QByteArray entries;
+    // QByteArray entries;
     // QDataStream ds(&entries, QIODevice::WriteOnly);
     // ds << mData->data.size();
     foreach(const RBuildPrivate::DataEntry* entry, mData->data) {
-        writeEntry(&batch, *entry);
+        writeEntry(batch, *entry);
         collectDict(*entry, dict);
         // ds << *entry;
     }
 
-    writeDict(&batch, dict);
+    writeDict(batch, dict);
 
     QSet<Path> allFiles;
-    foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
-        // qDebug() << dep.file << ctime(&dep.lastModified);
-        writeDependencies(&batch, dep.file, dep.arguments,
-                          dep.lastModified, dep.dependencies, 0); //&allFiles);
+    if (flags & WriteDependencies) {
+        foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
+            // qDebug() << dep.file << ctime(&dep.lastModified);
+            writeDependencies(batch, dep.file, dep.arguments,
+                              dep.lastModified, dep.dependencies, 0);
+        }
     }
 
     // batch.Put(" ", leveldb::Slice(entries.constData(), entries.size()));
-    QByteArray pchData;
-    int idx = 0;
-    {
-        QDataStream ds(&pchData, QIODevice::WriteOnly);
-        ds << idx; // will seek back and set to the right value
-        foreach(const Precompile *pch, Precompile::precompiles()) {
-            if (pch->filePath().isEmpty())
-                continue;
-
-            ds << pch->filePath() << pch->headerFilePath() << pch->arguments() << pch->dependencies();
-            ++idx;
-        }
-        ds.device()->seek(0);
-        ds << idx;
-    }
-    if (idx)
-        batch.Put("pch", leveldb::Slice(pchData.constData(), pchData.size()));
+    const QByteArray pchData = Precompile::pchData();
+    if (!pchData.isEmpty())
+        batch->Put("pch", leveldb::Slice(pchData.constData(), pchData.size()));
 
     if (!mSourceDir.isEmpty()) {
         Q_ASSERT(mSourceDir.endsWith('/'));
@@ -664,20 +684,8 @@ void RBuild::writeData(const QByteArray& filename)
             fprintf(stderr, "%s is not a directory\n", mSourceDir.constData());
         }
     }
-    writeToBatch(&batch, "sourceDir", mSourceDir);
-    writeToBatch(&batch, "files", allFiles);
-
-    db->Write(writeOptions, &batch);
-    delete db;
-    removeDirectory(filename.constData());
-    if (rename(tempFile.constData(), filename.constData())) {
-        char buf[1024];
-        strerror_r(errno, buf, 1024);
-        fprintf(stderr, "Failed to write database (%s to %s) %s\n",
-                tempFile.constData(), filename.constData(), buf);
-    }
-
-
+    writeToBatch(batch, leveldb::Slice("sourceDir"), mSourceDir);
+    writeToBatch(batch, leveldb::Slice("files"), allFiles);
 }
 
 static inline void debugCursor(FILE* out, const CXCursor& cursor)
@@ -1049,6 +1057,39 @@ static inline void getInclusions(CXFile includedFile,
     }
 }
 
+static inline bool diagnose(CXTranslationUnit unit)
+{
+    if (!unit)
+        return false;
+    const bool verbose = (getenv("VERBOSE") != 0);
+    bool foundError = false;
+    const unsigned int numDiags = clang_getNumDiagnostics(unit);
+    for (unsigned int i = 0; i < numDiags; ++i) {
+        CXDiagnostic diag = clang_getDiagnostic(unit, i);
+        const bool error = clang_getDiagnosticSeverity(diag) >= CXDiagnostic_Error;
+        foundError = foundError || error;
+        if (verbose || error) {
+            CXSourceLocation loc = clang_getDiagnosticLocation(diag);
+            CXFile file;
+            unsigned int line, col, off;
+
+            clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+            CXString fn = clang_getFileName(file);
+            CXString txt = clang_getDiagnosticSpelling(diag);
+            const char* fnstr = clang_getCString(fn);
+
+            // Suppress diagnostic messages that doesn't have a filename
+            if (fnstr && (strcmp(fnstr, "") != 0))
+                fprintf(stderr, "%s:%u:%u %s\n", fnstr, line, col, clang_getCString(txt));
+
+            clang_disposeString(txt);
+            clang_disposeString(fn);
+        }
+        clang_disposeDiagnostic(diag);
+    }
+    return !foundError;
+}
+
 void RBuild::compile(const GccArguments& arguments, bool *usedPch)
 {
     Q_ASSERT(arguments.input().size() == 1);
@@ -1094,46 +1135,22 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
         fprintf(stderr, "\n");
 
     CXTranslationUnit unit = 0;
-    for (int i = 0; i < (pch ? 2 : 1); ++i) {
+    if (pch) {
         unit = clang_parseTranslationUnit(mIndex, input.constData(),
-                                          argvector.constData(), argvector.size() - (i * 2),
-                                          0, 0,
-                                          CXTranslationUnit_DetailedPreprocessingRecord);
-        if (!unit && !i && pch) // retry with no pch
-            continue;
-
-        bool retry = false;
-
-        const unsigned int numDiags = clang_getNumDiagnostics(unit);
-        for (unsigned int i = 0; i < numDiags; ++i) {
-            CXDiagnostic diag = clang_getDiagnostic(unit, i);
-            const bool error = clang_getDiagnosticSeverity(diag) >= CXDiagnostic_Error;
-            if (verbose || error) {
-                CXSourceLocation loc = clang_getDiagnosticLocation(diag);
-                CXFile file;
-                unsigned int line, col, off;
-
-                clang_getInstantiationLocation(loc, &file, &line, &col, &off);
-                CXString fn = clang_getFileName(file);
-                CXString txt = clang_getDiagnosticSpelling(diag);
-                const char* fnstr = clang_getCString(fn);
-
-                // Suppress diagnostic messages that doesn't have a filename
-                if (fnstr && (strcmp(fnstr, "") != 0))
-                    fprintf(stderr, "%s:%u:%u %s\n", fnstr, line, col, clang_getCString(txt));
-
-                clang_disposeString(txt);
-                clang_disposeString(fn);
-
-                if (pch && !retry && error && !i) // retry with no pch
-                    retry = error;
-            }
-            clang_disposeDiagnostic(diag);
+                                          argvector.constData(), argvector.size(),
+                                          0, 0, CXTranslationUnit_DetailedPreprocessingRecord);
+        if (!diagnose(unit)) {
+            clang_disposeTranslationUnit(unit);
+            unit = 0;
+            argvector.resize(argvector.size() - 2);
+            pch = false;
         }
-
-        if (!retry)
-            break;
-        clang_disposeTranslationUnit(unit);
+    }
+    if (!unit) {
+        unit = clang_parseTranslationUnit(mIndex, input.constData(),
+                                          argvector.constData(), argvector.size(),
+                                          0, 0, CXTranslationUnit_DetailedPreprocessingRecord);
+        diagnose(unit);
     }
 
     if (!unit) {

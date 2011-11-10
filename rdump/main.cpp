@@ -53,7 +53,7 @@ static inline void dumpDatabase(const std::string& filename, int type)
             //        symbolNameAt(key).c_str(),
             //        it->value().ToString().c_str(),
             //        symbolNameAt(it->value().ToString()).c_str());
-            if (type & Symbol) {
+            if (type & Symbol && !mapsTo.isEmpty()) {
                 printf("%s maps to %s\n",
                        key.c_str(),
                        mapsTo.constData());
@@ -67,11 +67,25 @@ static inline void dumpDatabase(const std::string& filename, int type)
             }
         } else if (key.substr(0, 2) == "d:") { // dict
             if (type & Dict) {
-                QByteArray val(it->value().data(), it->value().size());
-                if (val.endsWith('\0'))
-                    val.chop(1);
-                val.replace('\0', " :: ");
-                printf("dict entry %s: %s\n", key.substr(2).c_str(), val.constData());
+                leveldb::Slice val = it->value();
+                const QByteArray v = QByteArray::fromRawData(val.data(), val.size());
+                QSet<QByteArray> strings; // these are streamed out as
+                                          // AtomicString but they're streamed
+                                          // as a single QByteArray so it should
+                                          // be fine
+                QDataStream ds(v);
+                ds >> strings;
+                printf("dict entry %s:", key.substr(2).c_str());
+                bool first = true;
+                foreach(const QByteArray &loc, strings) {
+                    if (!first) {
+                        printf(" ::");
+                    } else {
+                        first = false;
+                    }
+                    printf(" %s", loc.constData());
+                }
+                printf("\n");
             }
         } else if (key.substr(0, 2) == "f:") { // dependency
             if (type & Dependency) {
@@ -135,9 +149,11 @@ static inline bool writeExpect(const std::string& filename)
             QDataStream ds(data);
             QByteArray v;
             ds >> v;
-            fprintf(f, "--follow-symbol\n%s\n%s\n\n",
-                    removePath(key).c_str(),
-                    removePath(v).constData());
+            if (!v.isEmpty()) {
+                fprintf(f, "--follow-symbol\n%s\n%s\n\n",
+                        removePath(key).c_str(),
+                        removePath(v).constData());
+            }
         }
     }
 

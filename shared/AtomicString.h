@@ -67,6 +67,7 @@ private:
 
 static inline QDataStream &operator<<(QDataStream &ds, const AtomicString &string)
 {
+    // this exact format is relied upon
     ds << string.toByteArray();
     return ds;
 }

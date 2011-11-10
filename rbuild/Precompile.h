@@ -16,7 +16,8 @@ public:
                        const QHash<Path, quint64> &deps);
     static Precompile* precompiler(const GccArguments& args);
     static void cleanup();
-    static QList<Precompile*> precompiles();    
+    static QList<Precompile*> precompiles();
+    static QByteArray pchData();
 
     ~Precompile();
 

@@ -7,6 +7,7 @@
 #include "SystemInformation.h"
 #include <QObject>
 #include <clang-c/Index.h>
+#include <leveldb/write_batch.h>
 
 struct RBuildPrivate;
 class RBuild : public QObject
@@ -28,7 +29,11 @@ private:
     void compileAll();
     void precompileAll();
     void compile(const GccArguments& arguments, bool *usedPch = 0);
-    void writeData(const QByteArray& filename);
+    enum WriteDataFlag {
+        None = 0x0,
+        WriteDependencies = 0x1
+    };
+    void writeData(leveldb::WriteBatch *batch, uint flags);
 private:
     Path mMakefile, mSourceDir;
     MakefileParser mParser;
