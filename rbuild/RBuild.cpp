@@ -641,10 +641,16 @@ void RBuild::writeData(leveldb::WriteBatch *batch)
         }
 
         RBuildPrivate::DataEntry *r = mData->seen.value(entry->reference.key.locationKey());
-        if (r && r != entry) {
-            Q_ASSERT(entry->reference.key.isValid());
-            Q_ASSERT(entry->cursor.key.isValid());
-            r->references.insert(entry->cursor);
+        if (r) {
+            if (r != entry) {
+                Q_ASSERT(entry->reference.key.isValid());
+                Q_ASSERT(entry->cursor.key.isValid());
+                r->references.insert(entry->cursor);
+            }
+        } else {
+            // qDebug() << "nowhere to add this reference"
+            //          << entry->cursor.key << entry->reference.key;
+#warning gotta fix in case of references that arent in memory. Maybe even keep the ones that were modified in memory
         }
     }
 
