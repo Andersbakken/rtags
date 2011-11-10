@@ -578,9 +578,7 @@ static inline void writeEntry(leveldb::WriteBatch* batch, const RBuildPrivate::D
 
 static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 {
-#ifndef _DIRENT_HAVE_D_TYPE
-#warning "Can't use --source-dir on this platform"
-#else
+#if defined(_DIRENT_HAVE_D_TYPE) || defined(Q_OS_BSD4) || defined(Q_OS_SYMBIAN)
     DIR *d = opendir(path.constData());
     char fileBuffer[PATH_MAX];
     if (d) {
@@ -608,6 +606,8 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
         }
         closedir(d);
     }
+#else
+#warning "Can't use --source-dir on this platform"
 #endif
 }
 
