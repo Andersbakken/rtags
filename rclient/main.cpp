@@ -48,7 +48,7 @@ static inline bool maybeDict(leveldb::DB *db, const std::string &key, Handler ha
 {
     bool ret = false;
     QSet<QByteArray> keys;
-    if (RTags::readFromDB(db, QByteArray::fromRawData(key.c_str(), key.size()), keys)) {
+    if (RTags::readFromDB(db, ("d:" + key).c_str(), keys)) {
         foreach(const QByteArray &k, keys) {
             if (!k.isEmpty()) {
                 ret = handler(db, std::string(k.constData(), k.size())) || ret;
