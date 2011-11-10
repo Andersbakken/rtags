@@ -127,28 +127,25 @@ bool RBuild::updateDB()
         QDataStream ds(data);
         ds >> args >> lastModified >> dependencies;
         const Path file(key.data() + 2, key.size() - 2);
-        bool append = true;
+        bool recompile = false;
         if (lastModified != file.lastModified()) {
-            append = false;
+            recompile = true;
             // quint64 lm = dep.file.lastModified();
             // qDebug() << dep.file << "has changed" << ctime(&lm) << ctime(&lastModified);
         } else {
             for (QHash<Path, quint64>::const_iterator it = dependencies.constBegin(); it != dependencies.constEnd(); ++it) {
                 if (dirty.contains(it.key())) {
-                    append = false;
+                    recompile = true;
                     break;
                 } else if (it.key().lastModified() != it.value()) {
                     dirty.insert(it.key(), GccArguments());
-                    append = false;
+                    recompile = true;
                     break;
                 }
             }
         }
 
-        if (append) {
-            const RBuildPrivate::Dependencies dep = { file, args, lastModified, dependencies };
-            mData->dependencies.append(dep);
-        } else {
+        if (recompile) {
             ++dirtySourceFiles;
             dirty.insert(file, args);
         }
@@ -297,7 +294,7 @@ bool RBuild::updateDB()
     //     fprintf(stderr, "Item count changed from %d to %d\n",
     //             count, mData->data.size());
 
-    writeData(&batch, WriteDependencies);
+    writeData(&batch);
     db->Write(leveldb::WriteOptions(), &batch);
     return true;
 }
@@ -376,7 +373,7 @@ void RBuild::save()
         return;
     }
     leveldb::WriteBatch batch;
-    writeData(&batch, WriteDependencies);
+    writeData(&batch);
     db->Write(leveldb::WriteOptions(), &batch);
     delete db;
     const qint64 elapsed = timer.elapsed();
@@ -614,7 +611,7 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 #endif
 }
 
-void RBuild::writeData(leveldb::WriteBatch *batch, uint flags)
+void RBuild::writeData(leveldb::WriteBatch *batch)
 {
     if (!mData)
         return;
@@ -663,12 +660,10 @@ void RBuild::writeData(leveldb::WriteBatch *batch, uint flags)
     writeDict(batch, dict);
 
     QSet<Path> allFiles;
-    if (flags & WriteDependencies) {
-        foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
-            // qDebug() << dep.file << ctime(&dep.lastModified);
-            writeDependencies(batch, dep.file, dep.arguments,
-                              dep.lastModified, dep.dependencies, 0);
-        }
+    foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
+        // qDebug() << dep.file << ctime(&dep.lastModified);
+        writeDependencies(batch, dep.file, dep.arguments,
+                          dep.lastModified, dep.dependencies, 0);
     }
 
     // batch.Put(" ", leveldb::Slice(entries.constData(), entries.size()));

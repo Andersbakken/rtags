@@ -29,11 +29,7 @@ private:
     void compileAll();
     void precompileAll();
     void compile(const GccArguments& arguments, bool *usedPch = 0);
-    enum WriteDataFlag {
-        None = 0x0,
-        WriteDependencies = 0x1
-    };
-    void writeData(leveldb::WriteBatch *batch, uint flags);
+    void writeData(leveldb::WriteBatch *batch);
 private:
     Path mMakefile, mSourceDir;
     MakefileParser mParser;
