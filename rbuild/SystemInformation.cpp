@@ -2,6 +2,7 @@
 #include "Path.h"
 #include <QProcess>
 #include <QEventLoop>
+#include <QDebug>
 
 SystemInformation::SystemInformation(QObject *parent)
     : QObject(parent)
@@ -33,7 +34,7 @@ void SystemInformation::parseSystemIncludes()
     foreach(const QByteArray& line, lines) {
         if (line.startsWith(" /")) {
             Path path = Path::resolved(line.mid(1));
-            if (path.isResolved() && !path.contains("/gcc/")) {
+            if (path.isResolved()/* && !path.contains("/gcc/")*/) {
                 mSystemIncludes.append("-I" + path);
             }
         }

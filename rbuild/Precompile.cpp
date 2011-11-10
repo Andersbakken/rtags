@@ -15,7 +15,7 @@ static inline bool writeFile(const QByteArray& filename, const QVector<const cha
     QFile f(filename);
     if (!f.open(QFile::WriteOnly))
         return false;
-    if (f.write("// ") != 3)
+    if (f.write("#if 0\n") != 6)
         return false;
     foreach(const char *arg, args) {
         const QByteArray a = QByteArray::fromRawData(arg, strlen(arg));
@@ -24,7 +24,7 @@ static inline bool writeFile(const QByteArray& filename, const QVector<const cha
         if (f.write(" ", 1) != 1)
             return false;
     }
-    if (f.write("\n") != 1)
+    if (f.write("\n#endif\n") != 8)
         return false;
     return f.write(data) == data.size();
 }
@@ -145,7 +145,11 @@ bool Precompile::preprocessHeaders(QList<QByteArray> systemIncludes)
     process.waitForFinished();
     m_data.clear();
 
-    //qDebug() << procArgs;
+    // printf("clang ");
+    // foreach(const QString &str, procArgs) {
+    //     printf("%s ", qPrintable(str));
+    // }
+    // printf("\n");
 
     QSet<Path> headers;
     const Path sourceFileDir = m_args.input().front().parentDir();

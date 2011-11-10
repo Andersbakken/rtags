@@ -132,7 +132,7 @@ bool Path::isSource() const
     if (exists()) {
         const char *ext = extension();
         if (ext) {
-            const char *sources[] = { "c", "cpp", "cxx", "cc", 0 };
+            const char *sources[] = { "c", "cpp", "cxx", "cc", "moc", 0 };
             const int len = strlen(ext);
             for (int i=0; sources[i]; ++i) {
                 if (!strncasecmp(ext, sources[i], len))
@@ -148,7 +148,7 @@ bool Path::isHeader() const
     if (exists()) {
         const char *ext = extension();
         if (ext) {
-            const char *headers[] = { "h", "hpp", "hxx", "moc", "hh", "tcc", 0 };
+            const char *headers[] = { "h", "hpp", "hxx", "hh", "tcc", 0 };
             const int len = strlen(ext);
             for (int i=0; headers[i]; ++i) {
                 if (!strncasecmp(ext, headers[i], len))

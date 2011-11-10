@@ -28,6 +28,8 @@ GccArguments::Language GccArguments::Data::guessLanguage() const
             guesslang = LangObjCPlusPlus;
         else if (xarg == "c++-header")
             guesslang = LangCPlusPlusHeader;
+        else if (xarg == "c-header")
+            guesslang = LangHeader;
         return guesslang;
     }
 
