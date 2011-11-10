@@ -29,7 +29,10 @@ private:
     void compileAll();
     void precompileAll();
     void compile(const GccArguments& arguments, bool *usedPch = 0);
-    void writeData(leveldb::WriteBatch *batch);
+    enum WriteDataFlag {
+        ExcludePCH = 0x1
+    };
+    void writeData(leveldb::WriteBatch *batch, unsigned flags);
 private:
     Path mMakefile, mSourceDir;
     MakefileParser mParser;

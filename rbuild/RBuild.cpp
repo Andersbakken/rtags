@@ -280,23 +280,19 @@ bool RBuild::updateDB()
             processFile(args);
         }
     }
-    if (pchEnabled && pchDirty)
-        precompileAll();
-    compileAll();
+    unsigned writeDataFlags = 0;
     if (pchDirty) {
-        const QByteArray pchData = Precompile::pchData();
-        if (!pchData.isEmpty()) {
-            batch.Put("pch", leveldb::Slice(pchData.constData(), pchData.size()));
-        } else {
-            batch.Delete("pch");
-        }
+        precompileAll();
+    } else {
+        writeDataFlags |= ExcludePCH;
     }
+    compileAll();
 
     // if (count != mData->data.size())
     //     fprintf(stderr, "Item count changed from %d to %d\n",
     //             count, mData->data.size());
 
-    writeData(&batch);
+    writeData(&batch, writeDataFlags);
     db->Write(leveldb::WriteOptions(), &batch);
     return true;
 }
@@ -375,7 +371,7 @@ void RBuild::save()
         return;
     }
     leveldb::WriteBatch batch;
-    writeData(&batch);
+    writeData(&batch, 0);
     db->Write(leveldb::WriteOptions(), &batch);
     delete db;
     const qint64 elapsed = timer.elapsed();
@@ -613,7 +609,7 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 #endif
 }
 
-void RBuild::writeData(leveldb::WriteBatch *batch)
+void RBuild::writeData(leveldb::WriteBatch *batch, unsigned flags)
 {
     if (!mData)
         return;
@@ -705,10 +701,12 @@ void RBuild::writeData(leveldb::WriteBatch *batch)
                           dep.lastModified, dep.dependencies, 0);
     }
 
-    // batch.Put(" ", leveldb::Slice(entries.constData(), entries.size()));
-    const QByteArray pchData = Precompile::pchData();
-    if (!pchData.isEmpty())
-        batch->Put("pch", leveldb::Slice(pchData.constData(), pchData.size()));
+    if (!(flags & ExcludePCH)) {
+        // batch.Put(" ", leveldb::Slice(entries.constData(), entries.size()));
+        const QByteArray pchData = Precompile::pchData();
+        if (!pchData.isEmpty())
+            batch->Put("pch", leveldb::Slice(pchData.constData(), pchData.size()));
+    }
 
     if (!mSourceDir.isEmpty()) {
         Q_ASSERT(mSourceDir.endsWith('/'));
