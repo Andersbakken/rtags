@@ -4,10 +4,10 @@
 
 TEMPLATE = app
 TARGET = rb
-DESTDIR = ..
-DEPENDPATH += .
+DESTDIR = $$PWD/..
+DEPENDPATH += $$PWD
 DEFINES += WITH_GPERF
-include(../shared/shared.pri)
+include($$PWD/../shared/shared.pri)
 
 QT -= gui
 macx {
@@ -16,24 +16,24 @@ macx {
     INCLUDEPATH += /opt/local/include
 }
 # Input
-SOURCES += main.cpp \
-           RBuild.cpp \
-           MakefileParser.cpp \
-           SystemInformation.cpp \ 
-    Precompile.cpp
+SOURCES += $$PWD/main.cpp \
+           $$PWD/RBuild.cpp \
+           $$PWD/MakefileParser.cpp \
+           $$PWD/SystemInformation.cpp \
+           $$PWD/Precompile.cpp
 
-HEADERS += RBuild.h \
-           RBuild_p.h \
-           MakefileParser.h \
-           SystemInformation.h \ 
-    Precompile.h
+HEADERS += $$PWD/RBuild.h \
+           $$PWD/RBuild_p.h \
+           $$PWD/MakefileParser.h \
+           $$PWD/SystemInformation.h \
+           $$PWD/Precompile.h
 
 QMAKE_CXXFLAGS += -O2
 
 valgrind {
-  CONFIG += debug
-  QMAKE_CXXFLAGS -= -O2
-  QMAKE_CXXFLAGS += -fno-inline
+    CONFIG += debug
+    QMAKE_CXXFLAGS -= -O2
+    QMAKE_CXXFLAGS += -fno-inline
 }
 
 gccopts_gperf.commands = gperf -I -C -l -L C++ gccopts.gperf --output-file gccopts_gperf.cpp -Z gccopts_gperf

@@ -9,7 +9,7 @@ HEADERS += $$PWD/GccArguments.h \
            $$PWD/RTags.h \
            $$PWD/CursorKey.h \
            $$PWD/AtomicString.h
-LIBS += -lleveldb -lclang
+LIBS += -lclang
 include($$PWD/../3rdparty/leveldb.pri)
 mac {
     LIBS += -L/opt/local/lib

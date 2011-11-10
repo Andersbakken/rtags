@@ -151,7 +151,6 @@ bool RBuild::updateDB()
         }
         // qDebug() << file << args.raw() << ctime(&lastModified) << dependencies;
     }
-    printf("Loading data took %lld ms\n", timer.elapsed() - beforeLoad);
     if (!dirtySourceFiles) {
         printf("Nothing has changed (%lld ms)\n", timer.elapsed());
         return true;
@@ -274,6 +273,8 @@ bool RBuild::updateDB()
         }
     }
 
+    printf("Loading data took %lld ms\n", timer.elapsed() - beforeLoad);
+
     for (QHash<Path, GccArguments>::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
         const GccArguments &args = it.value();
         if (args.isCompile()) {
@@ -294,6 +295,7 @@ bool RBuild::updateDB()
 
     writeData(db, &batch, writeDataFlags);
     db->Write(leveldb::WriteOptions(), &batch);
+    printf("Updated db %lld ms\n", timer.elapsed());
     return true;
 }
 
@@ -659,6 +661,7 @@ void RBuild::writeData(leveldb::DB *db, leveldb::WriteBatch *batch, unsigned fla
                     ds << refs;
                 }
                 batch->Put(it->key(), leveldb::Slice(data.constData(), data.size()));
+                // qDebug() << "successfully looked up" << refKey << "and added ref" << entry->cursor.key;
                 continue;
             }
         }
