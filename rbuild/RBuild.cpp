@@ -15,6 +15,7 @@
 #include "CursorKey.h"
 #include "RBuild_p.h"
 #include <leveldb/write_batch.h>
+#include <memory>
 
 using namespace RTags;
 
@@ -97,8 +98,8 @@ bool RBuild::updateDB()
     }
     LevelDBScope scope(db);
     QHash<Path, GccArguments> dirty;
-    int sourceFiles = 0;
-    leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
+    int dirtySourceFiles = 0;
+    std::auto_ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
     for (it->Seek("f:"); it->Valid(); it->Next()) {
         const leveldb::Slice key = it->key();
         if (strncmp(key.data(), "f:", 2))
@@ -134,44 +135,76 @@ bool RBuild::updateDB()
             const RBuildPrivate::Dependencies dep = { file, args, lastModified, dependencies };
             mData->dependencies.append(dep);
         } else {
-            ++sourceFiles;
+            ++dirtySourceFiles;
             dirty.insert(file, args);
         }
         // qDebug() << file << args.raw() << ctime(&lastModified) << dependencies;
     }
-    delete it;
     printf("Loading data took %lld ms\n", timer.elapsed() - beforeLoad);
-    if (!sourceFiles) {
+    if (!dirtySourceFiles) {
         printf("Nothing has changed (%lld ms)\n", timer.elapsed());
-        return true;
+        // return true;
     }
-    // qDebug() << dirty;
-
-    int count;
     {
-        std::string value;
-        if (!db->Get(leveldb::ReadOptions(), " ", &value).ok()) {
-            fprintf(stderr, "Can't read existing data\n");
-            return false;
-        }
-        const QByteArray data = QByteArray::fromRawData(value.c_str(), value.size());
-        QDataStream ds(data);
-        ds >> count;
-        for (int i=0; i<count; ++i) {
-            RBuildPrivate::DataEntry *entry = new RBuildPrivate::DataEntry;
-            ds >> *entry;
-            if (::filter(*entry, dirty)) {
-                // qDebug() << "filtering in" << entry->cursor.key << "\n    "
-                //          << entry->reference.key;
-                mData->data.append(entry);
-                Q_ASSERT(!mData->seen.contains(entry->cursor.key.locationKey()));
-                mData->seen[entry->cursor.key.locationKey()] = entry;
-            } else {
-                // qDebug() << "filtering out" << entry->cursor.key;
-                delete entry;
+        leveldb::WriteBatch batch;
+        for (it->Seek("/"); it->Valid(); it->Next()) {
+            const leveldb::Slice key = it->key();
+            Q_ASSERT(!key.empty());
+            if (key.data()[0] != '/')
+                break;
+            const char *c = key.data() + (key.size() - 1);
+            int colons = 3;
+            forever {
+                if (*c == ':' && !--colons)
+                    break;
+                --c;
+            }
+            {
+                const Path p = QByteArray::fromRawData(key.data(), c - key.data());
+                if (dirty.contains(p)) {
+                    batch.Delete(key);
+                    qDebug() << "ditching" << QByteArray::fromRawData(key.data(), key.size());
+                    continue;
+                }
+            }
+            {
+                const leveldb::Slice value = it->value();
+                const QByteArray v = QByteArray::fromRawData(value.data(), value.size());
+                QDataStream ds(v);
+                QByteArray referredTo;
+                ds >> referredTo; // read referred to
+                QSet<Cursor> references;
+                ds >> references;
+                bool changed = false;
+                qDebug() << "looking at key" << QByteArray::fromRawData(key.data(), key.size()) << references.size();
+
+                QSet<Cursor>::iterator it = references.begin();
+                while (it != references.end()) {
+                    const QByteArray fileName = (*it).key.fileName.toByteArray();
+                    if (dirty.contains(*static_cast<const Path*>(&fileName))) {
+                        qDebug() << "ditched reference to" << referredTo << "from" << (*it).key;
+                        it = references.erase(it);
+                        changed = true;
+                    } else {
+                        ++it;
+                    }
+                }
+                if (changed) {
+                    QByteArray out;
+                    {
+                        QDataStream d(&out, QIODevice::WriteOnly);
+                        d << referredTo << references;
+                    }
+                    batch.Put(key, leveldb::Slice(out.constData(), out.size()));
+                }
             }
         }
+        db->Write(leveldb::WriteOptions(), &batch);
     }
+    return true;
+    // qDebug() << dirty;
+
+
     if (!readFromDB(db, "sourceDir", mSourceDir)) {
         fprintf(stderr, "Can't read existing data for src dir\n");
         return false;
@@ -219,9 +252,9 @@ bool RBuild::updateDB()
         precompileAll();
     compileAll();
 
-    if (count != mData->data.size())
-        fprintf(stderr, "Item count changed from %d to %d\n",
-                count, mData->data.size());
+    // if (count != mData->data.size())
+    //     fprintf(stderr, "Item count changed from %d to %d\n",
+    //             count, mData->data.size());
 
     save();
     return true;
@@ -338,13 +371,15 @@ static inline void writeDependencies(leveldb::WriteBatch* batch, const Path &pat
 static inline QByteArray makeRefValue(const RBuildPrivate::DataEntry& entry)
 {
     QByteArray out;
+    const bool refersToSelf = entry.reference.key == entry.cursor.key;
+    if (refersToSelf && entry.references.isEmpty())
+        return out;
     {
         QDataStream ds(&out, QIODevice::WriteOnly);
-        if (entry.reference.key != entry.cursor.key) {
+        if (!refersToSelf) {
             ds << entry.reference.key.toString();
         } else {
             ds << QByteArray();
-
         }
         ds << entry.references;
         // qDebug() << "writing out value for" << entry.key.cursor.toString()
@@ -441,6 +476,7 @@ static inline void writeEntry(leveldb::WriteBatch* batch, const RBuildPrivate::D
 
     QByteArray k = key.toString();
     QByteArray v = makeRefValue(entry);
+    // if (!v.isEmpty())
     batch->Put(leveldb::Slice(k.constData(), k.size()), leveldb::Slice(v.constData(), v.size()));
     // qDebug() << "writing" << k << kindToString(key.kind) << entry.references.size()
     //          << v.size() << std::string(v.constData(), v.size()).size();
