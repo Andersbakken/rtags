@@ -24,7 +24,7 @@ public:
             clang_getInstantiationLocation(loc, &file, &line, &col, &off);
             CXString fn = clang_getFileName(file);
             const char *fnStr = clang_getCString(fn);
-            if (!fnStr || !strlen(fnStr)) {
+            if (!fnStr || !strlen(fnStr) || !strncmp(fnStr, "/tmp/rtagspch_h", 15)) {
                 clang_disposeString(fn);
                 clear();
                 return;

@@ -7,6 +7,7 @@
 #include "SystemInformation.h"
 #include <QObject>
 #include <clang-c/Index.h>
+#include <leveldb/db.h>
 #include <leveldb/write_batch.h>
 
 struct RBuildPrivate;
@@ -30,9 +31,10 @@ private:
     void precompileAll();
     void compile(const GccArguments& arguments, bool *usedPch = 0);
     enum WriteDataFlag {
-        ExcludePCH = 0x1
+        ExcludePCH = 0x1,
+        LookupReferencesFromDatabase = 0x2
     };
-    void writeData(leveldb::WriteBatch *batch, unsigned flags);
+    void writeData(leveldb::DB *db, leveldb::WriteBatch *batch, unsigned flags);
 private:
     Path mMakefile, mSourceDir;
     MakefileParser mParser;

@@ -280,7 +280,7 @@ bool RBuild::updateDB()
             processFile(args);
         }
     }
-    unsigned writeDataFlags = 0;
+    unsigned writeDataFlags = LookupReferencesFromDatabase;
     if (pchDirty) {
         precompileAll();
     } else {
@@ -292,7 +292,7 @@ bool RBuild::updateDB()
     //     fprintf(stderr, "Item count changed from %d to %d\n",
     //             count, mData->data.size());
 
-    writeData(&batch, writeDataFlags);
+    writeData(db, &batch, writeDataFlags);
     db->Write(leveldb::WriteOptions(), &batch);
     return true;
 }
@@ -371,7 +371,7 @@ void RBuild::save()
         return;
     }
     leveldb::WriteBatch batch;
-    writeData(&batch, 0);
+    writeData(db, &batch, 0);
     db->Write(leveldb::WriteOptions(), &batch);
     delete db;
     const qint64 elapsed = timer.elapsed();
@@ -609,7 +609,7 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 #endif
 }
 
-void RBuild::writeData(leveldb::WriteBatch *batch, unsigned flags)
+void RBuild::writeData(leveldb::DB *db, leveldb::WriteBatch *batch, unsigned flags)
 {
     if (!mData)
         return;
@@ -638,7 +638,30 @@ void RBuild::writeData(leveldb::WriteBatch *batch, unsigned flags)
             continue;
         }
 
-        RBuildPrivate::DataEntry *r = mData->seen.value(entry->reference.key.locationKey());
+        const QByteArray refKey = entry->reference.key.locationKey();
+        // qWarning() << entry->cursor.key << "references" << entry->reference.key;
+        RBuildPrivate::DataEntry *r = mData->seen.value(refKey);
+        if (!r && (flags & LookupReferencesFromDatabase)) {
+            std::auto_ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
+            it->Seek(refKey.constData());
+            if (it->Valid()) {
+                leveldb::Slice val = it->value();
+                QByteArray data(val.data(), val.size());
+                {
+                    QDataStream ds(&data, QIODevice::ReadWrite);
+                    QByteArray mapsTo;
+                    ds >> mapsTo;
+                    const int pos = ds.device()->pos();
+                    QSet<Cursor> refs;
+                    ds >> refs;
+                    refs.insert(entry->cursor);
+                    ds.device()->seek(pos);
+                    ds << refs;
+                }
+                batch->Put(it->key(), leveldb::Slice(data.constData(), data.size()));
+                continue;
+            }
+        }
         if (r) {
             if (r != entry) {
                 Q_ASSERT(entry->reference.key.isValid());
@@ -667,19 +690,17 @@ void RBuild::writeData(leveldb::WriteBatch *batch, unsigned flags)
                 break;
             }
 
-            if (warn && entry->cursor.key == entry->reference.key)
-                warn = false;
+            // if (warn && entry->cursor.key == entry->reference.key)
+            //     warn = false;
 
             if (warn && !strncmp("operator", entry->cursor.key.symbolName.constData(), 8))
                 warn = false;
 
-
+            // warn = true;
             if (warn) {
                 qWarning() << "nowhere to add this reference"
-                           << entry->cursor.key << "references" << entry->reference.key
-                           << entry->cursor.key.symbolName.constData();
+                           << entry->cursor.key << "references" << entry->reference.key;
             }
-#warning gotta fix in case of references that arent in memory. Maybe even keep the ones that were modified in memory
         }
     }
 
