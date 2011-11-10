@@ -1,6 +1,7 @@
 #include "Path.h"
 #include <QCoreApplication>
 #include <QThread>
+#include <stdio.h>
 
 // this doesn't check if *this actually is a real file
 Path Path::parentDir() const
@@ -128,13 +129,15 @@ const char * Path::extension() const
 
 bool Path::isSource() const
 {
-    const char *ext = extension();
-    if (ext) {
-        const char *sources[] = { "c", "cpp", "cxx", "cc", 0 };
-        const int len = strlen(ext);
-        for (int i=0; sources[i]; ++i) {
-            if (!strncasecmp(ext, sources[i], len))
-                return true;
+    if (exists()) {
+        const char *ext = extension();
+        if (ext) {
+            const char *sources[] = { "c", "cpp", "cxx", "cc", 0 };
+            const int len = strlen(ext);
+            for (int i=0; sources[i]; ++i) {
+                if (!strncasecmp(ext, sources[i], len))
+                    return true;
+            }
         }
     }
     return false;
@@ -142,13 +145,15 @@ bool Path::isSource() const
 
 bool Path::isHeader() const
 {
-    const char *ext = extension();
-    if (ext) {
-        const char *headers[] = { "h", "hpp", "hxx", "moc", "hh", "tcc", 0 };
-        const int len = strlen(ext);
-        for (int i=0; headers[i]; ++i) {
-            if (!strncasecmp(ext, headers[i], len))
-                return true;
+    if (exists()) {
+        const char *ext = extension();
+        if (ext) {
+            const char *headers[] = { "h", "hpp", "hxx", "moc", "hh", "tcc", 0 };
+            const int len = strlen(ext);
+            for (int i=0; headers[i]; ++i) {
+                if (!strncasecmp(ext, headers[i], len))
+                    return true;
+            }
         }
     }
     return false;
