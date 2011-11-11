@@ -1,29 +1,15 @@
 #ifndef SYSTEMINFORMATION_H
 #define SYSTEMINFORMATION_H
 
-#include <QObject>
 #include <QList>
-#include <QMutex>
 #include <QByteArray>
 
-class QEventLoop;
-
-class SystemInformation : public QObject
+class SystemInformation
 {
-    Q_OBJECT
 public:
-    SystemInformation(QObject *parent = 0);
-
+    SystemInformation();
     void init();
-
     QList<QByteArray> systemIncludes() const;
-
-signals:
-    void done();
-
-private slots:
-    void parseSystemIncludes();
-
 private:
     QList<QByteArray> mSystemIncludes;
 };

@@ -4,8 +4,7 @@
 #include <QEventLoop>
 #include <QDebug>
 
-SystemInformation::SystemInformation(QObject *parent)
-    : QObject(parent)
+SystemInformation::SystemInformation()
 {
 }
 
@@ -13,26 +12,19 @@ void SystemInformation::init()
 {
     mSystemIncludes.clear();
 
-    QProcess* proc = new QProcess(this);
-    connect(proc, SIGNAL(finished(int)), this, SLOT(parseSystemIncludes()));
-    proc->start(QLatin1String("cpp"), QStringList() << QLatin1String("-v"));
-    proc->closeWriteChannel();
-    proc->waitForFinished();
-}
-
-QList<QByteArray> SystemInformation::systemIncludes() const
-{
-    return mSystemIncludes;
-}
-
-void SystemInformation::parseSystemIncludes()
-{
-    QProcess* proc = qobject_cast<QProcess*>(sender());
-    Q_ASSERT(proc);
-
-    QList<QByteArray> lines = proc->readAllStandardError().split('\n');
+    QProcess proc;
+    proc.start(QLatin1String("cpp"), QStringList() << QLatin1String("-v"));
+    proc.closeWriteChannel();
+    proc.waitForFinished();
+    QList<QByteArray> lines = proc.readAllStandardError().split('\n');
     bool seenInclude = false;
     foreach(const QByteArray& line, lines) {
+        const int idx = line.indexOf("--with-gxx-include-dir=");
+        if (!seenInclude && idx != -1) {
+            const int space = line.indexOf(' ', idx);
+            mSystemIncludes.append("-I" + line.mid(idx + 23, space - idx - 23));
+            continue;
+        }
         if (!seenInclude && line.startsWith("#include ")) {
             seenInclude = true;
             continue;
@@ -44,8 +36,9 @@ void SystemInformation::parseSystemIncludes()
             }
         }
     }
+}
 
-    proc->deleteLater();
-
-    emit done();
+QList<QByteArray> SystemInformation::systemIncludes() const
+{
+    return mSystemIncludes;
 }

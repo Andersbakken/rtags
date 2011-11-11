@@ -143,19 +143,17 @@ bool Precompile::preprocessHeaders(QList<QByteArray> systemIncludes)
     process.write(m_data);
     process.closeWriteChannel();
     process.waitForFinished();
-    m_data.clear();
-
     // printf("clang ");
     // foreach(const QString &str, procArgs) {
     //     printf("%s ", qPrintable(str));
     // }
-    // printf("\n");
+    // printf(" < %s\n", m_data.constData());
+    m_data.clear();
 
     QSet<Path> headers;
     const Path sourceFileDir = m_args.input().front().parentDir();
     const QList<QByteArray> *lists[] = { &includePaths, &systemIncludes };
     foreach(QByteArray line, process.readAllStandardOutput().split('\n')) {
-        // qDebug() << mSourceFile << unsaved << line;
         if (!line.isEmpty()) {
             bool quote = true;
             switch (line.at(0)) {
@@ -186,21 +184,23 @@ bool Precompile::preprocessHeaders(QList<QByteArray> systemIncludes)
                     continue;
                 }
             }
-            enum { Found, DidntFind, DidntWant } state = DidntWant;
-            for (int i=0; i<2 && state == DidntWant; ++i) {
+            enum { Found, DidntFind, DidntWant } state = DidntFind;
+            for (int i=0; i<2 && state == DidntFind; ++i) {
                 Path dir;
                 foreach(const QByteArray &listEntry, *lists[i]) {
                     dir = listEntry.mid(2);
                     dir.resolve(sourceFileDir);
                     const Path resolved = Path::resolved(line, dir);
-                    if (resolved.isHeader()) {
-                        if (!headers.contains(resolved)) {
-                            headers.insert(resolved);
-                            m_data += "#include <" + resolved + ">\n";
+                    if (resolved.exists()) {
+                        if (!resolved.isSource()) {
+                            if (!headers.contains(resolved)) {
+                                headers.insert(resolved);
+                                m_data += "#include <" + resolved + ">\n";
+                            }
+                            state = Found;
+                        } else {
+                            state = DidntWant;
                         }
-                        state = Found;
-                    } else if (resolved.isSource()) {
-                        state = DidntWant;
                     }
                 }
             }

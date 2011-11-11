@@ -28,6 +28,7 @@ struct RBuildPrivate
     QHash<QByteArray, DataEntry*> seen;
     QList<DataEntry*> data;
     QList<Dependencies> dependencies;
+    AtomicString restrictFile;
 };
 
 static inline QDataStream &operator<<(QDataStream &ds, const RBuildPrivate::DataEntry &entry)
