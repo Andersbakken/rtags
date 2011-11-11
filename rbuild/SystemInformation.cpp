@@ -31,10 +31,15 @@ void SystemInformation::parseSystemIncludes()
     Q_ASSERT(proc);
 
     QList<QByteArray> lines = proc->readAllStandardError().split('\n');
+    bool seenInclude = false;
     foreach(const QByteArray& line, lines) {
-        if (line.startsWith(" /")) {
+        if (!seenInclude && line.startsWith("#include ")) {
+            seenInclude = true;
+            continue;
+        }
+        if (seenInclude && line.startsWith(" /")) {
             Path path = Path::resolved(line.mid(1));
-            if (path.isResolved()/* && !path.contains("/gcc/")*/) {
+            if (path.isResolved()) {
                 mSystemIncludes.append("-I" + path);
             }
         }
