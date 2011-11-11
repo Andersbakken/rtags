@@ -29,6 +29,7 @@ public:
     AtomicString& operator=(const AtomicString& other);
     QByteArray operator*() const { return mData ? mData->data : QByteArray(); }
     bool operator==(const AtomicString& other) const { return mData == other.mData; }
+    bool operator!=(const AtomicString& other) const { return mData != other.mData; }
     bool operator==(const QByteArray& string) const { return mData ? mData->data == string : false; }
     bool operator!=(const QByteArray& string) const { return mData ? mData->data != string : false; }
     bool operator<(const QByteArray& string) const { return mData ? mData->data < string : false; }
