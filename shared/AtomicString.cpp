@@ -2,7 +2,7 @@
 
 QHash<QByteArray, AtomicString::Data*> AtomicString::sData;
 #ifdef REENTRANT_ATOMICSTRING
-QMutex AtomicString::sMutex;
+QMutex AtomicString::sMutex(QMutex::Recursive);
 #endif
 
 

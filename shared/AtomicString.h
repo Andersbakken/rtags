@@ -9,6 +9,10 @@
 // #define REENTRANT_ATOMICSTRING
 #endif
 
+#ifdef REENTRANT_ATOMICSTRING
+#include <QMutex>
+#endif
+
 class AtomicString;
 static uint qHash(const AtomicString& string);
 class AtomicString
