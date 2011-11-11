@@ -224,9 +224,16 @@ static inline QDebug operator<<(QDebug d, const CursorKey& key)
 {
     d.nospace() << RTags::eatString(clang_getCursorKindSpelling(key.kind)).constData() << ", "
                 << (key.symbolName.isEmpty() ? "(no symbol)" : key.symbolName.toByteArray().constData()) << ", "
-                << key.fileName.toByteArray().constData() << ':' << key.line << ':' << key.col << (key.def ? " def" : " nodef");
+                << key.fileName.toByteArray().constData() << ':' << key.line << ':' << key.col << ':' << (key.def ? " def" : " nodef");
     return d.space();
 }
+
+static inline QDebug operator<<(QDebug d, const Cursor& cursor)
+{
+    d << cursor.key << cursor.parentNames << cursor.containingFunction.toByteArray();
+    return d.space();
+}
+
 
 static inline uint qHashHelper(const CursorKey &key, const AtomicString *strings, int stringCount)
 {
