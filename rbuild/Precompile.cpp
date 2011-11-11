@@ -271,6 +271,13 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
         clangArgs << arg.constData();
     foreach(const QByteArray& arg, systemIncludes)
         clangArgs << arg.constData();
+
+    // printf("clang ");
+    // foreach(const char *arg, clangArgs) {
+    //     printf("%s ", arg);
+    // }
+    // printf("%s\n", headerFilePath().constData());
+
     //qDebug() << "about to pch" << m_filePath << clangArgs;
 
     if (!writeFile(headerFilePath(), clangArgs, m_data)) {
