@@ -1179,8 +1179,10 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
 
     bool pch = false;
     Precompile *pre = 0;
+    qDebug() << "pchEnabled" << pchEnabled;
     if (pchEnabled) {
         pre = Precompile::precompiler(arguments);
+        qDebug() << pre;
         Q_ASSERT(pre);
         const QByteArray pchFile = pre->filePath();
         if (!pchFile.isEmpty()) {
@@ -1211,7 +1213,10 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
         unit = clang_parseTranslationUnit(mIndex, input.constData(),
                                           argvector.constData(), argvector.size(),
                                           0, 0, CXTranslationUnit_DetailedPreprocessingRecord);
+        qDebug() << "unit" << unit;
+        printf("%s:%d if (!diagnose(unit)) {\n", __FILE__, __LINE__);
         if (!diagnose(unit)) {
+            printf("%s:%d if (!diagnose(unit)) {\n", __FILE__, __LINE__);
             clang_disposeTranslationUnit(unit);
             unit = 0;
             argvector.resize(argvector.size() - 3);
@@ -1234,9 +1239,11 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
     }
 
     CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
-    mData->restrictFile = input;
+    if (pchEnabled)
+        mData->restrictFile = input;
     clang_visitChildren(unitCursor, collectSymbols, mData);
-    mData->restrictFile.clear();
+    if (pchEnabled)
+        mData->restrictFile.clear();
     RBuildPrivate::Dependencies deps = { input, arguments, input.lastModified(),
                                          QHash<Path, quint64>() };
     if (usedPch)

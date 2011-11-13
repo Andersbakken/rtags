@@ -178,7 +178,7 @@ bool Precompile::preprocessHeaders(QList<QByteArray> systemIncludes)
             // qWarning() << "looking for" << line;
             if (quote) {
                 const Path resolved = Path::resolved(line, sourceFileDir);
-                if (resolved.isHeader() && !headers.contains(resolved)) {
+                if (resolved.isFile() && !resolved.isSource() && !headers.contains(resolved)) {
                     m_data += "#include <" + resolved + ">\n";
                     headers.insert(resolved);
                     continue;
@@ -191,7 +191,7 @@ bool Precompile::preprocessHeaders(QList<QByteArray> systemIncludes)
                     dir = listEntry.mid(2);
                     dir.resolve(sourceFileDir);
                     const Path resolved = Path::resolved(line, dir);
-                    if (resolved.exists()) {
+                    if (resolved.isFile()) {
                         if (!resolved.isSource()) {
                             if (!headers.contains(resolved)) {
                                 headers.insert(resolved);
