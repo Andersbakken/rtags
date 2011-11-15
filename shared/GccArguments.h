@@ -36,7 +36,6 @@ public:
     };
     int getClangArgs(const char **args, int max, unsigned flags) const;
 
-    void setPreprocess(bool pre);
     void setLanguage(Language language);
 
     QByteArray compiler() const;

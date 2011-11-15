@@ -423,3 +423,7 @@ const char * GccArguments::languageString() const
 {
     return GccArguments::languageString(language());
 }
+void GccArguments::setLanguage(Language language)
+{
+    m_ptr->language = language;
+}
