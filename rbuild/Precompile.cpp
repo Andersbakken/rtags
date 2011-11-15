@@ -63,8 +63,11 @@ Precompile::Precompile(const GccArguments& args, QObject* parent)
     case GccArguments::LangCPlusPlus:
         m_args.setLanguage(GccArguments::LangCPlusPlusHeader);
         break;
+    case GccArguments::LangCPlusPlusHeader:
+    case GccArguments::LangHeader:
+        break;
     default:
-        qWarning("Not sure what to do with this");
+        qWarning("Not sure what to do with this %s %d", args.languageString(), args.language());
         break;
     }
 }
