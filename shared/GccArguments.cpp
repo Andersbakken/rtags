@@ -3,10 +3,10 @@
 #include "gccopts_gperf.cpp"
 #endif
 #include <QDebug>
-// #include "Utils.h"
+#include <RTags.h>
 
 GccArguments::Data::Data()
-    : input(-1), output(-1), x(-1), c(-1), language(LangUndefined)
+    : output(-1), x(-1), c(-1), language(LangUndefined)
 {
 }
 
@@ -33,10 +33,9 @@ GccArguments::Language GccArguments::Data::guessLanguage() const
         return guesslang;
     }
 
-    if (input == -1)
-        return guesslang;
-    const Path i(args.at(input).arg);
-    const char *ext = i.extension();
+    if (input.isEmpty())
+        return LangUndefined;
+    const char *ext = input.extension();
     if (!ext)
         return guesslang;
 
@@ -134,7 +133,8 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &p)
     const int argc = args.size();
 
     data->args.clear();
-    data->output = data->input = data->x = data->c = -1;
+    data->input.clear();
+    data->output = data->x = data->c = -1;
 
     gccopts_gperf gccopts;
 
@@ -174,12 +174,13 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &p)
                 }
                 data->args.append(Data::Argument(argpos, a));
             }
-        } else if (!a.isEmpty() && data->input == -1) { // input file?
-            Path p = Path::resolved(a, path);
-            if (!p.isFile())
+        } else if (!a.isEmpty() && data->input.isEmpty()) { // input file?
+            data->input = Path::resolved(a, path);
+            if (!data->input.isFile()) {
                 qWarning() << "couldn't resolve" << a << path;
-            data->input = argpos;
-            data->args.append(Data::Argument(argpos, Path::resolved(a, path)));
+            } else {
+                data->inputParentDir = data->input.parentDir();
+            }
         }
     }
 
@@ -245,9 +246,7 @@ QByteArray GccArguments::compiler() const
 Path GccArguments::input() const
 {
     const Data* data = m_ptr.constData();
-    if (data->input != -1)
-        return Path(data->args.at(data->input).arg);
-    return Path();
+    return data->input;
 }
 
 QByteArray GccArguments::output() const
@@ -270,7 +269,7 @@ GccArguments::Language GccArguments::language() const
 
 bool GccArguments::hasInput() const
 {
-    return m_ptr->input != -1;
+    return !m_ptr->input.isEmpty();
 }
 
 bool GccArguments::hasOutput() const
@@ -281,8 +280,8 @@ bool GccArguments::hasOutput() const
 bool GccArguments::isCompile() const
 {
     // ### This should perhaps account for gcc commands that both compile and link at once
-    if ((m_ptr->c != -1 && m_ptr->output != -1 && m_ptr->input != -1)
-        || (m_ptr->c != -1 && m_ptr->output == -1 && m_ptr->input != -1)) {
+    if ((m_ptr->c != -1 && m_ptr->output != -1 && !m_ptr->input.isEmpty())
+        || (m_ptr->c != -1 && m_ptr->output == -1 && !m_ptr->input.isEmpty())) {
         switch (language()) {
         case LangCPlusPlusHeader:
         case LangHeader:
@@ -417,4 +416,20 @@ const char * GccArguments::languageString() const
 void GccArguments::setLanguage(Language language)
 {
     m_ptr->language = language;
+}
+
+Path GccArguments::resolve(const QByteArray &file, ResolveMode mode) const
+{
+    Path p = file;
+    if (mode == Quotes && p.resolve(m_ptr->inputParentDir))
+        return p;
+    foreach(const Data::Argument &arg, m_ptr->args) {
+        if (arg.arg.startsWith("-I") && p.resolve(Path::fromRawData(arg.arg.constData() + 2, arg.arg.size() - 2)))
+            return p;
+    }
+    foreach(const QByteArray &systemInclude, RTags::systemIncludes()) {
+        if (p.resolve(Path::fromRawData(systemInclude.constData() + 2, systemInclude.size() - 2)))
+            return p;
+    }
+    return Path();
 }

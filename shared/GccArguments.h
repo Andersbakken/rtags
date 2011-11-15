@@ -51,6 +51,11 @@ public:
     bool operator==(const GccArguments &other) const;
     static const char* languageString(Language language);
     QByteArray key() const;
+    enum ResolveMode {
+        Quotes,
+        Brackets
+    };
+    Path resolve(const QByteArray &file, ResolveMode mode) const;
 private:
     Path parseCD(const QByteArray& cmd, const Path& path) const;
 
@@ -72,7 +77,6 @@ private:
             QByteArray value;
         };
 
-        int input;
         int output;
         int x;
         int c;
@@ -82,6 +86,7 @@ private:
         QByteArray raw;
         QList<Argument> args;
         mutable QByteArray key;
+        Path input, inputParentDir;
     };
 
     QSharedDataPointer<Data> m_ptr;

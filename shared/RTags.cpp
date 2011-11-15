@@ -127,4 +127,45 @@ QDebug operator<<(QDebug dbg, const leveldb::Slice &slice)
     dbg << QByteArray::fromRawData(slice.data(), slice.size());
     return dbg;
 }
+QList<QByteArray> systemIncludes()
+{
+    static QList<QByteArray> sSystemIncludes;
+    if (sSystemIncludes.isEmpty()) {
+        QProcess proc;
+        proc.start(QLatin1String("cpp"), QStringList() << QLatin1String("-v"));
+        proc.closeWriteChannel();
+        proc.waitForFinished();
+        QList<QByteArray> lines = proc.readAllStandardError().split('\n');
+        bool seenInclude = false;
+        QByteArray gxxIncludeDir, target;
+        foreach(const QByteArray& line, lines) {
+            if (gxxIncludeDir.isEmpty()) {
+                int idx = line.indexOf("--with-gxx-include-dir=");
+                if (idx != -1) {
+                    const int space = line.indexOf(' ', idx);
+                    gxxIncludeDir = line.mid(idx + 23, space - idx - 23);
+                }
+                idx = line.indexOf("--target=");
+                if (idx != -1) {
+                    const int space = line.indexOf(' ', idx);
+                    target = line.mid(idx + 9, space - idx - 9);
+                }
+            } else if (!seenInclude && line.startsWith("#include ")) {
+                seenInclude = true;
+            } else if (seenInclude && line.startsWith(" /")) {
+                Path path = Path::resolved(line.mid(1));
+                if (path.isResolved()) {
+                    sSystemIncludes.append("-I" + path);
+                }
+            }
+        }
+        if (!gxxIncludeDir.isEmpty()) {
+            sSystemIncludes.append("-I" + gxxIncludeDir);
+            if (!target.isEmpty()) {
+                sSystemIncludes.append("-I" + gxxIncludeDir + "/" + target);
+            }
+        }
+    }
+    return sSystemIncludes;
+}
 }

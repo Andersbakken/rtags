@@ -19,13 +19,11 @@ macx {
 SOURCES += $$PWD/main.cpp \
            $$PWD/RBuild.cpp \
            $$PWD/MakefileParser.cpp \
-           $$PWD/SystemInformation.cpp \
            $$PWD/Precompile.cpp
 
 HEADERS += $$PWD/RBuild.h \
            $$PWD/RBuild_p.h \
            $$PWD/MakefileParser.h \
-           $$PWD/SystemInformation.h \
            $$PWD/Precompile.h
 
 QMAKE_CXXFLAGS += -O2

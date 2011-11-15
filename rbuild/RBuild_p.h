@@ -42,9 +42,8 @@ class PrecompileRunnable : public QObject, public QRunnable
 public:
     PrecompileRunnable(Precompile *pch,
                        RBuildPrivate *rbp,
-                       const QList<QByteArray> &systemIncludes,
                        CXIndex index) // ### is this threadsafe?
-        : mPch(pch), mRBP(rbp), mSystemIncludes(systemIncludes), mIndex(index)
+        : mPch(pch), mRBP(rbp), mIndex(index)
     {
         setAutoDelete(true);
     }
@@ -55,7 +54,6 @@ signals:
 private:
     Precompile *mPch;
     RBuildPrivate *mRBP;
-    const QList<QByteArray> mSystemIncludes;
     CXIndex mIndex;
 };
 

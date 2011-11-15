@@ -4,7 +4,6 @@
 #include "MakefileParser.h"
 #include "Path.h"
 #include "GccArguments.h"
-#include "SystemInformation.h"
 #include <QObject>
 #include <clang-c/Index.h>
 #include <leveldb/db.h>
@@ -45,7 +44,6 @@ private:
 private:
     Path mMakefile, mSourceDir;
     MakefileParser mParser;
-    SystemInformation mSysInfo;
     RBuildPrivate* mData;
     Path mDBPath;
     CXIndex mIndex;

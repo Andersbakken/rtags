@@ -23,8 +23,9 @@ static const bool pchEnabled = !getenv("RTAGS_NO_PCH");
 static QElapsedTimer timer;
 
 RBuild::RBuild(QObject *parent)
-    : QObject(parent), mData(new RBuildPrivate), mIndex(clang_createIndex(1, 1)), mPendingJobs(0)
+    : QObject(parent), mData(new RBuildPrivate), mIndex(clang_createIndex(1, 0)), mPendingJobs(0)
 {
+    RTags::systemIncludes(); // force creation before any threads are spawned
     connect(this, SIGNAL(compileFinished()), this, SLOT(onCompileFinished())); // this is async when THREADED_COLLECT_SYMBOLS is defined
     timer.start();
 }
@@ -38,7 +39,6 @@ RBuild::~RBuild()
 void RBuild::setDBPath(const Path &path)
 {
     mDBPath = path;
-    mSysInfo.init();
 }
 
 bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
@@ -441,33 +441,7 @@ static void collectHeaders(const GccArguments& arguments)
         return;
     Precompile* pre = Precompile::precompiler(arguments);
     Q_ASSERT(pre);
-    const Path input = arguments.input();
-    QFile f(input);
-    if (!f.open(QFile::ReadOnly)) {
-        qWarning("unable to open file '%s' for header collection", input.constData());
-        return;
-    }
-
-    QByteArray unsaved;
-    unsaved.reserve(f.size() / 2);
-    const QList<QByteArray> lines = f.readAll().split('\n');
-    for (int i=0; i<lines.size(); ++i) {
-        QByteArray line = lines.at(i).trimmed();
-        if (line.startsWith('#')) {
-            while (line.endsWith('\\') && i + 1 < lines.size()) {
-                line.chop(1);
-                line += lines.at(++i).trimmed();
-            }
-            if (line.startsWith("#include ")) {
-                line.remove(0, 9);
-            }
-
-            unsaved.append(line);
-            unsaved.append('\n');
-        }
-    }
-
-    pre->addData(unsaved, input.parentDir());
+    pre->collectHeaders(arguments);
 }
 
 void RBuild::processFile(const GccArguments& arguments)
@@ -1239,7 +1213,7 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
 
     arglist += arguments.arguments("-I");
     arglist += arguments.arguments("-D");
-    arglist += mSysInfo.systemIncludes();
+    arglist += RTags::systemIncludes();
 
     if (pchEnabled) {
         pre = Precompile::precompiler(arguments);
@@ -1333,8 +1307,7 @@ void RBuild::precompileAll()
     int pending = 0;
     foreach(Precompile *pch, precompiles) {
         if (!pch->isCompiled()) {
-            PrecompileRunnable *runnable = new PrecompileRunnable(pch, mData,
-                                                                  mSysInfo.systemIncludes(), mIndex);
+            PrecompileRunnable *runnable = new PrecompileRunnable(pch, mData, mIndex);
             ++pending;
             connect(runnable, SIGNAL(done()), &loop, SLOT(quit()));
             mThreadPool.start(runnable);
@@ -1385,7 +1358,7 @@ void PrecompileRunnable::run()
 {
 #ifdef THREADED_COLLECT_SYMBOLS
     const qint64 before = timer.elapsed();
-    CXTranslationUnit unit = mPch->precompile(mSystemIncludes, mIndex);
+    CXTranslationUnit unit = mPch->precompile(mIndex);
     if (unit) {
         CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
         CollectSymbolsUserData userData = {

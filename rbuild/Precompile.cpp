@@ -6,6 +6,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <RTags.h>
+
+using namespace RTags;
 
 QHash<QByteArray, Precompile*> Precompile::s_precompiles;
 
@@ -26,7 +29,11 @@ static inline bool writeFile(const QByteArray& filename, const QVector<const cha
     }
     if (f.write("\n#endif\n") != 8)
         return false;
-    return f.write(data) == data.size();
+    if (f.write(data) == data.size()) {
+        f.flush();
+        return true;
+    }
+    return false;
 }
 
 static inline QStringList byteArrayListToStringList(const QList<QByteArray>& input)
@@ -132,111 +139,13 @@ static inline void printDiagnostics(CXTranslationUnit unit)
     unsigned int num = clang_getNumDiagnostics(unit);
     for (unsigned int i = 0; i < num; ++i) {
         CXDiagnostic diag = clang_getDiagnostic(unit, i);
-        CXString txt = clang_getDiagnosticSpelling(diag);
-        fprintf(stderr, "%s\n", clang_getCString(txt));
-        clang_disposeString(txt);
+        if (clang_getDiagnosticSeverity(diag) >= CXDiagnostic_Error) {
+            CXString txt = clang_getDiagnosticSpelling(diag);
+            fprintf(stderr, "%s\n", clang_getCString(txt));
+            clang_disposeString(txt);
+        }
         clang_disposeDiagnostic(diag);
     }
-}
-
-bool Precompile::preprocessHeaders(const QList<QByteArray> &systemIncludes)
-{
-    Q_ASSERT(!m_data.isEmpty());
-
-    const QList<QByteArray> includePaths = m_args.arguments("-I");
-    QStringList procArgs;
-    procArgs << "-E" << "-"
-             << byteArrayListToStringList(includePaths)
-             << byteArrayListToStringList(systemIncludes)
-             << byteArrayListToStringList(m_args.arguments("-D"))
-             << QLatin1String("-x") << QLatin1String(GccArguments::languageString(m_args.language()));
-
-    QProcess process;
-    process.start(QLatin1String("clang"), procArgs);
-    process.write(m_data);
-    process.closeWriteChannel();
-    process.waitForFinished();
-    // printf("clang ");
-    // foreach(const QString &str, procArgs) {
-    //     printf("%s ", qPrintable(str));
-    // }
-    // printf(" < %s\n", m_data.constData());
-    m_data.clear();
-
-    QSet<Path> headers;
-    const QSet<Path> sourceFileDirs = m_dataPaths;
-    const QList<QByteArray> *lists[] = { &includePaths, &systemIncludes };
-    foreach(QByteArray line, process.readAllStandardOutput().split('\n')) {
-        if (!line.isEmpty()) {
-            bool quote = true;
-            switch (line.at(0)) {
-            case '"':
-                if (line.at(line.size() - 1) != '"') { // flag error?
-                    qWarning() << "Weird include" << line;
-                    continue;
-                }
-                break;
-            case '<':
-                if (line.at(line.size() - 1) != '>') { // flag error?
-                    qWarning() << "Weird include" << line;
-                    continue;
-                }
-                quote = false;
-                break;
-            default:
-                continue;
-            }
-            line.remove(0, 1);
-            line.chop(1);
-            // qWarning() << "looking for" << line;
-            if (quote) {
-                Path resolved;
-                bool found = false;
-                foreach(const Path &sourceDir, sourceFileDirs) {
-                    resolved = Path::resolved(line, sourceDir);
-                    found = resolved.isFile();
-                    if (found)
-                        break;
-                }
-                if (found && !resolved.isSource()) {
-                    if (!headers.contains(resolved)) {
-                        m_data += "#include <" + resolved + ">\n";
-                        headers.insert(resolved);
-                    }
-                    continue;
-                }
-            }
-            enum { Found, DidntFind, DidntWant } state = DidntFind;
-            for (int i=0; i<2 && state == DidntFind; ++i) {
-                Path dir;
-                foreach(const QByteArray &listEntry, *lists[i]) {
-                    dir = listEntry.mid(2);
-                    foreach(const Path &sourceFileDir, sourceFileDirs) {
-                        if (dir.resolve(sourceFileDir))
-                            break;
-                    }
-                    const Path resolved = Path::resolved(line, dir);
-                    if (resolved.isFile()) {
-                        if (!resolved.isSource()) {
-                            if (!headers.contains(resolved)) {
-                                headers.insert(resolved);
-                                m_data += "#include <" + resolved + ">\n";
-                            }
-                            state = Found;
-                        } else {
-                            state = DidntWant;
-                        }
-                    }
-                }
-            }
-            // qDebug() << state << line;
-            if (state == DidntFind) {
-                qWarning() << "Couldn't resolve" << line << includePaths << systemIncludes;
-            }
-        }
-    }
-
-    return !m_data.isEmpty();
 }
 
 QList<Precompile*> Precompile::precompiles()
@@ -244,12 +153,68 @@ QList<Precompile*> Precompile::precompiles()
     return s_precompiles.values();
 }
 
-CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes, CXIndex idx)
+struct FindIncludeOriginUserData {
+    QSet<QByteArray> errors;
+    QSet<QByteArray> removed;
+    QByteArray &data;
+
+    bool recordError(CXFile file)
+    {
+        // ### ugly
+        CXString fileName = clang_getFileName(file);
+        const char *fn = clang_getCString(fileName);
+        const Path err = QByteArray::fromRawData(fn, strlen(fn));
+        qDebug() << err << errors.contains(err)
+                 << errors << err.fileName();
+        const bool ret = fn && errors.contains(err.fileName());
+        if (ret)
+            removed.insert(err);
+        clang_disposeString(fileName);
+        return ret;
+    }
+};
+
+static inline void findIncludeOrigin(CXFile includedFile,
+                                     CXSourceLocation* inclusionStack,
+                                     unsigned evilUnsigned,
+                                     CXClientData userData)
+{
+    const int includeLen = evilUnsigned;
+    if (includeLen || true) {
+        FindIncludeOriginUserData *u = reinterpret_cast<FindIncludeOriginUserData*>(userData);
+        bool error = u->recordError(includedFile);
+        if (!error) {
+            for (int i=0; i<includeLen - 1; ++i) {
+                CXFile f;
+                clang_getSpellingLocation(inclusionStack[i], &f, 0, 0, 0);
+                if (u->recordError(f)) {
+                    error = true;
+                    break;
+                }
+            }
+        }
+        if (error) {
+            unsigned o, c;
+            clang_getSpellingLocation(inclusionStack[includeLen - 1], 0, 0, &c, &o);
+            qDebug() << "found shit" << u->data.mid(o - c + 1, 30);
+            if (u->data.at(o) != ' ') {
+                int idx = o - c + 1;
+                while (u->data.at(idx) != '\n') {
+                    u->data[idx++] = ' ';
+                }
+            }
+        }
+    }
+}
+
+
+CXTranslationUnit Precompile::precompile(CXIndex idx)
 {
     Q_ASSERT(!m_compiled);
     if (m_data.isEmpty()) {
         return 0;
     }
+    const QList<QByteArray> systemIncludes = RTags::systemIncludes();
 
     if (m_filePath.isEmpty()) {
         m_filePath = "/tmp/rtagspch_pch_XXXXXX";
@@ -279,16 +244,9 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
     }
     Q_ASSERT(!m_headerFilePath.isEmpty());
 
-    // qDebug() << "about to preprocess for pch" << m_data;
-    if (!preprocessHeaders(systemIncludes)) {
-        fprintf(stderr, "failed to preprocess headers for pch\n");
-        clear();
-        return 0;
-    }
-    // qDebug() << "done preprocessing for pch" << m_data;
 
     QVector<const char*> clangArgs;
-    clangArgs << "-cc1" << "-x" << m_args.languageString();
+    clangArgs << "-cc1" << "-x" << m_args.languageString() << "-ferror-limit=0";
     QList<QByteArray> defines = m_args.arguments("-D"), includes = m_args.arguments("-I");
     foreach(const QByteArray& arg, defines)
         clangArgs << arg.constData();
@@ -297,42 +255,131 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
     foreach(const QByteArray& arg, systemIncludes)
         clangArgs << arg.constData();
 
-    // printf("clang ");
-    // foreach(const char *arg, clangArgs) {
-    //     printf("%s ", arg);
+    // if (!m_args.raw().contains("harfbuzz-buffer.c")) {
+    //     printf("clang ");
+    //     foreach(const char *arg, clangArgs) {
+    //         printf("%s ", arg);
+    //     }
+    //     printf("%s\n", headerFilePath().constData());
     // }
-    // printf("%s\n", headerFilePath().constData());
 
     //qDebug() << "about to pch" << m_filePath << clangArgs;
 
-    if (!writeFile(headerFilePath(), clangArgs, m_data)) {
-        fprintf(stderr, "precompile failed to write header file '%s'\n", headerFilePath().constData());
-        clear();
-        return 0;
-    }
-    // printf("Wrote pch header %s\n", headerFilename.constData());
+    forever {
+        if (!writeFile(headerFilePath(), clangArgs, m_data)) {
+            fprintf(stderr, "precompile failed to write header file '%s'\n", headerFilePath().constData());
+            clear();
+            return 0;
+        }
+        // printf("Wrote pch header %s\n", headerFilename.constData());
 
-    removeFile(m_filePath);
+        removeFile(m_filePath);
 
-    CXTranslationUnit unit = clang_parseTranslationUnit(idx, headerFilePath().constData(),
-                                                        clangArgs.data(), clangArgs.size(), 0, 0,
-                                                        CXTranslationUnit_Incomplete
-                                                        | CXTranslationUnit_DetailedPreprocessingRecord);
-    if (!unit) {
-        fprintf(stderr, "unable to parse pch\n");
-        clear();
-        return 0;
+        CXTranslationUnit unit = clang_parseTranslationUnit(idx, headerFilePath().constData(),
+                                                            clangArgs.data(), clangArgs.size(), 0, 0,
+                                                            CXTranslationUnit_Incomplete
+                                                            | CXTranslationUnit_DetailedPreprocessingRecord);
+        if (!unit) {
+            fprintf(stderr, "unable to parse pch\n");
+            clear();
+            return 0;
+        }
+        const bool verbose = (getenv("VERBOSE") != 0);
+        enum {
+            Proceed,
+            Abort,
+            Retry
+        } state = Proceed;
+        const unsigned int numDiags = clang_getNumDiagnostics(unit);
+        QSet<QByteArray> errors;
+        for (unsigned int i = 0; i < numDiags; ++i) {
+            CXDiagnostic diag = clang_getDiagnostic(unit, i);
+            if (clang_getDiagnosticSeverity(diag) >= CXDiagnostic_Error) { // ### error?
+                CXSourceLocation loc = clang_getDiagnosticLocation(diag);
+                CXFile file;
+                unsigned int line, col, off;
+                clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+                CXString fn = clang_getFileName(file);
+                const char* fnstr = clang_getCString(fn);
+                if (fnstr) {
+                    int lastSlash = -1;
+                    int i = 0;
+                    forever {
+                        if (!fnstr[i]) {
+                            break;
+                        } else if (fnstr[i] == '/') {
+                            lastSlash = i;
+                        }
+                        ++i;
+                    }
+                    Q_ASSERT(lastSlash != -1);
+                    const QByteArray fileName = QByteArray::fromRawData(fnstr + lastSlash + 1, i - lastSlash - 1);
+                    errors.insert(fileName);
+                }
+                clang_disposeString(fn);
+            }
+            clang_disposeDiagnostic(diag);
+        }
+        QSet<QByteArray>::iterator it = errors.begin();
+        qDebug() << errors;
+        while (it != errors.end()) {
+            const QByteArray errorFile = *it;
+            int idx = 0;
+            bool found = false;
+            while ((idx = m_data.indexOf(errorFile, idx)) != -1) {
+                idx += errorFile.size() + 1;
+                qDebug() << errorFile << idx << m_data.mid(idx, 20);
+                if (idx + m_data.size() && m_data.at(idx) == '\n') {
+                    while (idx > 0) {
+                        if (m_data[--idx] == '\n')
+                            break;
+                        m_data[idx] = ' ';
+                    }
+                    qDebug() << "found it setting to retry" << errorFile;
+                    found = true;
+                    state = Retry;
+                }
+            }
+            if (found) {
+                it = errors.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        if (!errors.isEmpty()) {
+            const int old = errors.size();
+            FindIncludeOriginUserData userData = { errors, QSet<QByteArray>(), m_data };
+            clang_getInclusions(unit, findIncludeOrigin, &userData);
+            if (!userData.removed.isEmpty()) {
+                state = Retry;
+            }
+            qDebug() << userData.removed << errors;
+        }
+
+        switch (state) {
+        case Proceed: {
+            const int saved = clang_saveTranslationUnit(unit, m_filePath.constData(), clang_defaultSaveOptions(unit));
+            if (saved != CXSaveError_None) {
+                fprintf(stderr, "unable to save pch %s\n", headerFilePath().constData());
+                clear();
+                printDiagnostics(unit);
+                clang_disposeTranslationUnit(unit);
+                return 0;
+            }
+            m_compiled = true;
+            return unit; }
+        case Retry:
+            Q_ASSERT(unit);
+            qDebug() << "retrying";
+            clang_disposeTranslationUnit(unit);
+            break;
+        case Abort:
+            if (unit) {
+                clang_disposeTranslationUnit(unit);
+            }
+            return 0;
+        }
     }
-    int saved = clang_saveTranslationUnit(unit, m_filePath.constData(), clang_defaultSaveOptions(unit));
-    if (saved != CXSaveError_None) {
-        fprintf(stderr, "unable to save pch\n");
-        clear();
-        printDiagnostics(unit);
-        clang_disposeTranslationUnit(unit);
-        return 0;
-    }
-    m_compiled = true;
-    return unit;
 }
 
 Path Precompile::filePath() const
@@ -345,20 +392,6 @@ Path Precompile::headerFilePath() const
     return m_headerFilePath;
 }
 
-void Precompile::addData(const QByteArray& data, const Path &path)
-{
-    m_dataPaths.insert(path);
-    m_data += data;
-}
-
-/*
-  static inline bool filter(const Path& header)
-  {
-  if (header.contains("/bits/") || header.endsWith("_p.h") || header.endsWith("_impl.h") || header.contains("/private/"))
-  return true;
-  return false;
-  }
-*/
 QByteArray Precompile::pchData()
 {
     QByteArray pchData;
@@ -379,4 +412,80 @@ QByteArray Precompile::pchData()
     if (!idx)
         pchData.clear();
     return pchData;
+}
+static inline bool filterHeader(const QByteArray &header)
+{
+    if (header.contains("_win") || header.contains("_symbian"))
+        return false;
+#ifdef Q_OS_MAC
+    if (header.contains("_x11") || header.contains("_qws"))
+        return false;
+#elif defined Q_OS_UNIX
+    if (header.contains("_mac"))
+        return false;
+#endif
+    return true;
+}
+
+void Precompile::collectHeaders(const GccArguments &arguments)
+{
+    QFile file(arguments.input());
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning("Can't open %s for header gathering", arguments.input().constData());
+        return;
+    }
+
+    enum { MaxLineSize = 1024 };
+    char line[1024];
+    qint64 read = -1;
+    while ((read = file.readLine(line, MaxLineSize)) > 0) {
+        if (line[0] == '#') {
+            int idx = 1;
+            while (isspace(line[idx]))
+                ++idx;
+            if (strncmp(line + idx, "include", 7))
+                continue;
+            idx += 7;
+            while (isspace(line[idx]))
+                ++idx;
+            char search;
+            switch (line[idx]) {
+            case '<':
+                search = '>';
+                break;
+            case '"':
+                search = '"';
+                break;
+            default:
+                fprintf(stderr, "I Don't understand this line: %s", line);
+                continue;
+            }
+            int i;
+            for (i=idx + 1; i<read; ++i) {
+                if (line[i] == search) {
+                    // printf("Found include %s\n", Path(line + idx + 1, i - idx - 1).constData());
+                    break;
+                }
+            }
+            if (i == read) {
+                fprintf(stderr, "I Don't understand this line. Couldn't find %c: %s", search, line);
+            } else {
+                const QByteArray name = QByteArray::fromRawData(line + idx + 1, i - idx - 1);
+                if (filterHeader(name)) {
+                    const Path header = arguments.resolve(name, search == '"' ? GccArguments::Quotes : GccArguments::Brackets);
+                    if (!header.isFile()) {
+                        qWarning("Can't resolve %s for %s",
+                                 QByteArray(line + idx + 1, i - idx - 1).constData(),
+                                 arguments.input().parentDir().constData());
+                    } else if (!header.isSource() && !m_headers.contains(header)) {
+                        m_headers.insert(header);
+                        m_data += "#include \"";
+                        m_data += header;
+                        m_data += "\"\n";
+                    }
+                }
+            }
+
+        }
+    }
 }

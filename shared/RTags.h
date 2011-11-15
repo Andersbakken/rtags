@@ -212,6 +212,7 @@ bool cursorDefinitionFor(const CursorKey& d, const CursorKey &c);
 QDebug operator<<(QDebug dbg, CXCursor cursor);
 QDebug operator<<(QDebug dbg, const std::string &str);
 QDebug operator<<(QDebug dbg, const leveldb::Slice &slice);
+QList<QByteArray> systemIncludes();
 }
 
 #endif

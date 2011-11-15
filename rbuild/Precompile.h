@@ -22,8 +22,7 @@ public:
     ~Precompile();
 
     void clear();
-    void addData(const QByteArray& data, const Path &path);
-    CXTranslationUnit precompile(const QList<QByteArray>& systemIncludes, CXIndex idx);
+    CXTranslationUnit precompile(CXIndex idx);
 
     Path filePath() const;
     Path headerFilePath() const;
@@ -31,14 +30,14 @@ public:
     void setDependencies(const QHash<Path, quint64> &deps) { m_dependencies = deps; }
     QHash<Path, quint64> dependencies() const { return m_dependencies; }
     bool isCompiled() const { return m_compiled; }
+    void collectHeaders(const GccArguments &args);
 private:
     Precompile(const GccArguments& args, QObject* parent = 0);
-    bool preprocessHeaders(const QList<QByteArray> &systemIncludes);
 
     Path m_filePath, m_headerFilePath;
     QByteArray m_data;
     GccArguments m_args;
-    QSet<Path> m_dataPaths;
+    QSet<Path> m_headers;
 
     QHash<Path, quint64> m_dependencies;
 
