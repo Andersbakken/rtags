@@ -981,6 +981,13 @@ static inline bool isSource(const AtomicString &str)
     return (dot != -1 && len > 0 && Path::isSource(b.constData() + dot + 1, len));
 }
 
+struct CollectSymbolsUserData {
+    QMutex &mutex;
+    QHash<QByteArray, RBuildPrivate::DataEntry*> &seen;
+    QList<RBuildPrivate::DataEntry*> &data;
+    const AtomicString *file;
+};
+
 static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
 {
     ++symbols;
@@ -990,10 +997,10 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     const CursorKey key(cursor, kind);
     if (!key.isValid())
         return CXChildVisit_Recurse;
-    RBuildPrivate* data = reinterpret_cast<RBuildPrivate*>(client_data);
+    CollectSymbolsUserData* data = reinterpret_cast<CollectSymbolsUserData*>(client_data);
     ++validSymbols;
-    if (!data->restrictFile.isEmpty() && key.fileName != data->restrictFile && !::isSource(key.fileName)) {
-        // qDebug() << "ditched" << key << "for" << data->restrictFile;
+    if (data->file && key.fileName != *data->file && !::isSource(key.fileName)) {
+        // qDebug() << "ditched" << key << "for" << data->file;
         return CXChildVisit_Continue;
     }
     ++visitedSymbols;
@@ -1256,11 +1263,15 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
     }
 
     CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
-    if (pchEnabled)
-        mData->restrictFile = input;
-    clang_visitChildren(unitCursor, collectSymbols, mData);
-    if (pchEnabled)
-        mData->restrictFile.clear();
+    const AtomicString file(pchEnabled ? input : Path());
+    CollectSymbolsUserData userData = {
+        mData->entryMutex,
+        mData->seen,
+        mData->data,
+        pchEnabled ? &file : 0
+    };
+
+    clang_visitChildren(unitCursor, collectSymbols, &userData);
     RBuildPrivate::Dependencies deps = { input, arguments, input.lastModified(),
                                          QHash<Path, quint64>() };
     if (usedPch)
@@ -1291,7 +1302,14 @@ void RBuild::precompileAll()
                 CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
                 const int old = mData->data.size();
                 symbols = validSymbols = visitedSymbols = 0;
-                clang_visitChildren(unitCursor, collectSymbols, mData);
+                CollectSymbolsUserData userData = {
+                    mData->entryMutex,
+                    mData->seen,
+                    mData->data,
+                    0
+                };
+                
+                clang_visitChildren(unitCursor, collectSymbols, &userData);
                 QHash<Path, quint64> dependencies;
                 InclusionUserData u(dependencies);
                 clang_getInclusions(unit, getInclusions, &u);

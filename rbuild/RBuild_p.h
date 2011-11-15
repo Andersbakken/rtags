@@ -25,10 +25,10 @@ struct RBuildPrivate
         quint64 lastModified;
         QHash<Path, quint64> dependencies;
     };
+    QMutex entryMutex;
     QHash<QByteArray, DataEntry*> seen;
     QList<DataEntry*> data;
     QList<Dependencies> dependencies;
-    AtomicString restrictFile;
 };
 
 static inline QDataStream &operator<<(QDataStream &ds, const RBuildPrivate::DataEntry &entry)
