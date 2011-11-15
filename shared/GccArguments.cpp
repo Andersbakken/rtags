@@ -6,7 +6,7 @@
 // #include "Utils.h"
 
 GccArguments::Data::Data()
-    : output(-1), x(-1), c(-1), language(LangUndefined)
+    : input(-1), output(-1), x(-1), c(-1), language(LangUndefined)
 {
 }
 
@@ -33,26 +33,24 @@ GccArguments::Language GccArguments::Data::guessLanguage() const
         return guesslang;
     }
 
-    if (input.size() != 1)
+    if (input == -1)
+        return guesslang;
+    const Path i(args.at(input).arg);
+    const char *ext = i.extension();
+    if (!ext)
         return guesslang;
 
-    const QByteArray inputfile = args.at(input.first()).arg;
-    const int lastdot = inputfile.lastIndexOf('.');
-    if (lastdot == -1)
-        return guesslang;
-
-    const QByteArray ext = inputfile.mid(lastdot);
-    if (ext == ".c")
+    if (!strcasecmp(ext, "c"))
         guesslang = LangC;
-    else if (ext == ".cpp" || ext == ".cc" || ext == ".cxx")
+    else if (!strcasecmp(ext, "cpp") || !strcasecmp(ext, "cc") || !strcasecmp(ext, "cxx"))
         guesslang = LangCPlusPlus;
-    else if (ext == ".m")
+    else if (!strcasecmp(ext, "m"))
         guesslang = LangObjC;
-    else if (ext == ".mm")
+    else if (!strcasecmp(ext, "mm"))
         guesslang = LangObjCPlusPlus;
-    else if (ext == ".hpp" || ext == ".hxx")
+    else if (!strcasecmp(ext, "hpp") || !strcasecmp(ext, "hxx"))
         guesslang = LangCPlusPlusHeader;
-    else if (ext == ".h")
+    else if (!strcasecmp(ext, "h"))
         guesslang = LangHeader;
 
     return guesslang;
@@ -136,9 +134,7 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &p)
     const int argc = args.size();
 
     data->args.clear();
-    data->input.clear();
-    data->output = -1;
-    data->x = data->c = -1;
+    data->output = data->input = data->x = data->c = -1;
 
     gccopts_gperf gccopts;
 
@@ -178,15 +174,12 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &p)
                 }
                 data->args.append(Data::Argument(argpos, a));
             }
-        } else if (!a.isEmpty()) { // input file?
+        } else if (!a.isEmpty() && data->input == -1) { // input file?
             Path p = Path::resolved(a, path);
-            if (p.isFile()) {
-                // qDebug() << a << path << Path::resolved(a, path);
-                data->input.append(argpos);
-                data->args.append(Data::Argument(argpos, Path::resolved(a, path)));
-            } else {
-                qDebug() << "couldn't resolve" << a << path;
-            }
+            if (!p.isFile())
+                qWarning() << "couldn't resolve" << a << path;
+            data->input = argpos;
+            data->args.append(Data::Argument(argpos, Path::resolved(a, path)));
         }
     }
 
@@ -249,22 +242,12 @@ QByteArray GccArguments::compiler() const
     return data->args.at(0).arg;
 }
 
-QList<Path> GccArguments::input() const
+Path GccArguments::input() const
 {
     const Data* data = m_ptr.constData();
-
-    QList<Path> ret;
-    foreach (int pos, data->input) {
-        const Path p = data->args.at(pos).arg;
-        Q_ASSERT(p.isResolved());
-        ret << p;
-    }
-    return ret;
-}
-
-QByteArray GccArguments::firstInput() const
-{
-    return input().value(0);
+    if (data->input != -1)
+        return Path(data->args.at(data->input).arg);
+    return Path();
 }
 
 QByteArray GccArguments::output() const
@@ -287,7 +270,7 @@ GccArguments::Language GccArguments::language() const
 
 bool GccArguments::hasInput() const
 {
-    return !m_ptr->input.isEmpty();
+    return m_ptr->input != -1;
 }
 
 bool GccArguments::hasOutput() const
@@ -298,8 +281,8 @@ bool GccArguments::hasOutput() const
 bool GccArguments::isCompile() const
 {
     // ### This should perhaps account for gcc commands that both compile and link at once
-    if ((m_ptr->c != -1 && m_ptr->output != -1 && m_ptr->input.size() == 1)
-        || (m_ptr->c != -1 && m_ptr->output == -1 && !m_ptr->input.isEmpty())) {
+    if ((m_ptr->c != -1 && m_ptr->output != -1 && m_ptr->input != -1)
+        || (m_ptr->c != -1 && m_ptr->output == -1 && m_ptr->input != -1)) {
         switch (language()) {
         case LangCPlusPlusHeader:
         case LangHeader:

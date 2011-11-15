@@ -396,7 +396,7 @@ void RBuild::compileAll()
         compile(args, &usedPch);
         const qint64 elapsed = timer.elapsed();
         fprintf(stderr, "parsed %s (%d/%d), %d new items (%lld ms) (%d, %d, %d) %s\n",
-                args.input().value(0).constData(), ++i, mFiles.size(),
+                args.input().constData(), ++i, mFiles.size(),
                 mData->data.size() - old, elapsed - before,
                 symbols, validSymbols, visitedSymbols, usedPch ? "pch" : "");
 
@@ -410,9 +410,7 @@ static void collectHeaders(const GccArguments& arguments)
         return;
     Precompile* pre = Precompile::precompiler(arguments);
     Q_ASSERT(pre);
-    QList<Path> inputs = arguments.input();
-    Q_ASSERT(inputs.size() == 1);
-    const Path& input = inputs.front();
+    const Path input = arguments.input();
     QFile f(input);
     if (!f.open(QFile::ReadOnly)) {
         qWarning("unable to open file '%s' for header collection", input.constData());
@@ -1191,8 +1189,7 @@ static inline bool diagnose(CXTranslationUnit unit)
 
 void RBuild::compile(const GccArguments& arguments, bool *usedPch)
 {
-    Q_ASSERT(arguments.input().size() == 1);
-    const Path input = arguments.input().first();
+    const Path input = arguments.input();
     bool verbose = (getenv("VERBOSE") != 0);
 
     QList<QByteArray> arglist;

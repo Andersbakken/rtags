@@ -39,8 +39,7 @@ public:
     void setLanguage(Language language);
 
     QByteArray compiler() const;
-    QList<Path> input() const;
-    QByteArray firstInput() const;
+    Path input() const;
     QByteArray output() const;
     Language language() const;
     const char *languageString() const;
@@ -73,7 +72,7 @@ private:
             QByteArray value;
         };
 
-        QList<int> input;
+        int input;
         int output;
         int x;
         int c;
