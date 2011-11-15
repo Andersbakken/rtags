@@ -22,7 +22,7 @@ public:
     ~Precompile();
 
     void clear();
-    void addData(const QByteArray& data);
+    void addData(const QByteArray& data, const Path &path);
     CXTranslationUnit precompile(const QList<QByteArray>& systemIncludes, CXIndex idx);
 
     Path filePath() const;
@@ -38,6 +38,7 @@ private:
     Path m_filePath, m_headerFilePath;
     QByteArray m_data;
     GccArguments m_args;
+    QSet<Path> m_dataPaths;
 
     QHash<Path, quint64> m_dependencies;
 

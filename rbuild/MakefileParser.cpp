@@ -1,5 +1,6 @@
 #include "MakefileParser.h"
 #include <QProcess>
+#include <QStack>
 
 class DirectoryTracker
 {
@@ -9,14 +10,14 @@ public:
     void init(const Path& path);
     void track(const QByteArray& line);
 
-    const Path& path() const { return mPath; }
+    const Path& path() const { return mPaths.top(); }
 
 private:
     void enterDirectory(const QByteArray& dir);
     void leaveDirectory(const QByteArray& dir);
 
 private:
-    Path mPath;
+    QStack<Path> mPaths;
 };
 
 DirectoryTracker::DirectoryTracker()
@@ -25,7 +26,7 @@ DirectoryTracker::DirectoryTracker()
 
 void DirectoryTracker::init(const Path& path)
 {
-    mPath = path;
+    mPaths.push(path);
 }
 
 void DirectoryTracker::track(const QByteArray& line)
@@ -48,18 +49,21 @@ void DirectoryTracker::track(const QByteArray& line)
 void DirectoryTracker::enterDirectory(const QByteArray& dir)
 {
     bool ok;
-    Path newPath = Path::resolved(dir, mPath, &ok);
+    Path newPath = Path::resolved(dir, path(), &ok);
     if (ok) {
-        mPath = newPath;
-        // printf("New directory resolved: %s\n", mPath.constData());
-    } else
-        qFatal("Unable to resolve path %s (%s)", dir.constData(), mPath.constData());
+        mPaths.push(newPath);
+        // printf("New directory resolved: %s\n", newPath.constData());
+    } else {
+        qFatal("Unable to resolve path %s (%s)", dir.constData(), path().constData());
+    }
 }
 
-void DirectoryTracker::leaveDirectory(const QByteArray& dir)
+void DirectoryTracker::leaveDirectory(const QByteArray& /*dir*/)
 {
+    // qDebug() << "leaveDirectory" << dir;
     // enter and leave share the same code for now
-    enterDirectory(dir);
+    mPaths.pop();
+    // enterDirectory(dir);
 }
 
 MakefileParser::MakefileParser(QObject* parent)
@@ -81,8 +85,8 @@ void MakefileParser::run(const Path& makefile)
 
     mTracker->init(makefile.parentDir());
     mProc->start(QLatin1String("make"), QStringList() << QLatin1String("-B")
-                 << QLatin1String("-n") << QLatin1String("-w") << QLatin1String("-f")
-                 << QString::fromLocal8Bit(makefile.constData())
+                 << QLatin1String("-j1") << QLatin1String("-n") << QLatin1String("-w")
+                 << QLatin1String("-f") << QString::fromLocal8Bit(makefile)
                  << QLatin1String("-C") << mTracker->path());
 }
 

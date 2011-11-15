@@ -165,7 +165,7 @@ bool Precompile::preprocessHeaders(QList<QByteArray> systemIncludes)
     m_data.clear();
 
     QSet<Path> headers;
-    const Path sourceFileDir = m_args.input().front().parentDir();
+    const QSet<Path> sourceFileDirs = m_dataPaths;
     const QList<QByteArray> *lists[] = { &includePaths, &systemIncludes };
     foreach(QByteArray line, process.readAllStandardOutput().split('\n')) {
         if (!line.isEmpty()) {
@@ -191,10 +191,19 @@ bool Precompile::preprocessHeaders(QList<QByteArray> systemIncludes)
             line.chop(1);
             // qWarning() << "looking for" << line;
             if (quote) {
-                const Path resolved = Path::resolved(line, sourceFileDir);
-                if (resolved.isFile() && !resolved.isSource() && !headers.contains(resolved)) {
-                    m_data += "#include <" + resolved + ">\n";
-                    headers.insert(resolved);
+                Path resolved;
+                bool found = false;
+                foreach(const Path &sourceDir, sourceFileDirs) {
+                    resolved = Path::resolved(line, sourceDir);
+                    found = resolved.isFile();
+                    if (found)
+                        break;
+                }
+                if (found && !resolved.isSource()) {
+                    if (!headers.contains(resolved)) {
+                        m_data += "#include <" + resolved + ">\n";
+                        headers.insert(resolved);
+                    }
                     continue;
                 }
             }
@@ -203,7 +212,10 @@ bool Precompile::preprocessHeaders(QList<QByteArray> systemIncludes)
                 Path dir;
                 foreach(const QByteArray &listEntry, *lists[i]) {
                     dir = listEntry.mid(2);
-                    dir.resolve(sourceFileDir);
+                    foreach(const Path &sourceFileDir, sourceFileDirs) {
+                        if (dir.resolve(sourceFileDir))
+                            break;
+                    }
                     const Path resolved = Path::resolved(line, dir);
                     if (resolved.isFile()) {
                         if (!resolved.isSource()) {
@@ -334,8 +346,9 @@ Path Precompile::headerFilePath() const
     return m_headerFilePath;
 }
 
-void Precompile::addData(const QByteArray& data)
+void Precompile::addData(const QByteArray& data, const Path &path)
 {
+    m_dataPaths.insert(path);
     m_data += data;
 }
 

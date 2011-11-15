@@ -438,7 +438,7 @@ static void collectHeaders(const GccArguments& arguments)
         }
     }
 
-    pre->addData(unsaved);
+    pre->addData(unsaved, input.parentDir());
 }
 
 void RBuild::processFile(const GccArguments& arguments)
