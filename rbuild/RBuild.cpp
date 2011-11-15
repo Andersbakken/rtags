@@ -986,7 +986,10 @@ static inline bool isSource(const AtomicString &str)
 static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
 {
     ++symbols;
-    const CursorKey key(cursor);
+    CXCursorKind kind = clang_getCursorKind(cursor);
+    if (!isValidKind(kind))
+        return CXChildVisit_Recurse;
+    const CursorKey key(cursor, kind);
     if (!key.isValid())
         return CXChildVisit_Recurse;
     RBuildPrivate* data = reinterpret_cast<RBuildPrivate*>(client_data);
@@ -1039,19 +1042,37 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
         fprintf(stdout, "cursor %p\n", entry);
     }
 #endif
-    const CXCursor definition = key.isDefinition() ? cursor : clang_getCursorDefinition(cursor);
-    const CursorKey definitionKey(definition);
+    CXCursor definition;
+    CursorKey definitionKey;
+    if (key.isDefinition()) {
+        definitionKey = key;
+        definition = cursor;
+    } else {
+        definition = clang_getCursorDefinition(cursor);
+        const CXCursorKind k = clang_getCursorKind(definition);
+        if (isValidKind(k)) {
+            definitionKey = CursorKey(definition, k);
+        } else {
+            definition = clang_getNullCursor();
+        }
+    }
     if (!definitionKey.isDefinition()) {
 #ifdef COLLECTDEBUG
         if (dodebug)
             printf("no definition:\n");
 #endif
         const CXCursor reference = clang_getCursorReferenced(cursor);
-        const CursorKey referenceKey(reference);
-        if (shouldMergeCursors(entry->cursor.key, key, entry->reference.key, referenceKey, dodebug)) {
-            addCursor(cursor, key, &entry->cursor);
-            addCursor(reference, referenceKey, &entry->reference);
-        } else {
+        const CXCursorKind k = clang_getCursorKind(reference);
+        bool cleanup = true;
+        if (isValidKind(k)) {
+            const CursorKey referenceKey(reference, k);
+            if (shouldMergeCursors(entry->cursor.key, key, entry->reference.key, referenceKey, dodebug)) {
+                addCursor(cursor, key, &entry->cursor);
+                addCursor(reference, referenceKey, &entry->reference);
+                cleanup = false;
+            }
+        }
+        if (cleanup) {
             if (it == data->seen.end()) {
                 delete entry;
                 entry = 0;

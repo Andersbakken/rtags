@@ -33,7 +33,7 @@ public:
     bool isCompiled() const { return m_compiled; }
 private:
     Precompile(const GccArguments& args, QObject* parent = 0);
-    bool preprocessHeaders(QList<QByteArray> systemIncludes);
+    bool preprocessHeaders(const QList<QByteArray> &systemIncludes);
 
     Path m_filePath, m_headerFilePath;
     QByteArray m_data;

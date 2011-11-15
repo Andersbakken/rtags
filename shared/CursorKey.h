@@ -9,52 +9,53 @@
 #ifndef CACHE_CURSORKEY
 #define CACHE_CURSORKEY
 #endif
+
 class CursorKey
 {
 public:
     CursorKey()
         : kind(CXCursor_FirstInvalid), line(0), col(0), off(0), def(false)
     {}
-    CursorKey(const CXCursor &cursor)
-        : kind(clang_getCursorKind(cursor)), line(0), col(0), off(0), def(false)
+    CursorKey(const CXCursor &cursor, int k = -1)
+        : kind(k == -1 ? clang_getCursorKind(cursor) : static_cast<CXCursorKind>(k)),
+          line(0), col(0), off(0), def(false)
     {
-        if (!clang_isInvalid(kind)) {
-            CXSourceLocation loc = clang_getCursorLocation(cursor);
-            CXFile file;
-            clang_getInstantiationLocation(loc, &file, &line, &col, &off);
-            CXString fn = clang_getFileName(file);
-            const char *fnStr = clang_getCString(fn);
-            if (!fnStr || !strlen(fnStr) || !strncmp(fnStr, "/tmp/rtagspch_h", 15)) {
-                clang_disposeString(fn);
-                clear();
-                return;
-            }
-            CXString sn = clang_getCursorDisplayName(cursor);
-            const char *snStr = clang_getCString(sn);
-            if (!snStr || !strlen(snStr)) {
-                clang_disposeString(sn);
-                clang_disposeString(fn);
-                clear();
-                return;
-            }
-            fileName = Path::resolved(fnStr);
-            clang_disposeString(fn);
-            QByteArray s = snStr;
+        Q_ASSERT(RTags::isValidKind(kind));
+        CXString sn = clang_getCursorDisplayName(cursor);
+        const char *snStr = clang_getCString(sn);
+        if (!snStr || !strlen(snStr)) {
             clang_disposeString(sn);
-            if (kind == CXCursor_InclusionDirective) {
-                const int last = s.lastIndexOf('/');
-                if (last != -1) {
-                    s.replace(0, last + 1, "include_");
-                } else {
-                    s.prepend("include_");
-                }
-            }
-            symbolName = s;
-
-            def = (kind == CXCursor_MacroDefinition
-                   || kind == CXCursor_LabelStmt
-                   || clang_isCursorDefinition(cursor));
+            clear();
+            return;
         }
+        CXSourceLocation loc = clang_getCursorLocation(cursor);
+        CXFile file;
+        clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+        CXString fn = clang_getFileName(file);
+        const char *fnStr = clang_getCString(fn);
+        if (!fnStr || !strlen(fnStr) || !strncmp(fnStr, "/tmp/rtagspch_h", 15)) {
+            clang_disposeString(fn);
+            clang_disposeString(sn);
+            clear();
+            return;
+        }
+        fileName = Path::resolved(fnStr);
+        clang_disposeString(fn);
+        QByteArray s = snStr;
+        clang_disposeString(sn);
+        if (kind == CXCursor_InclusionDirective) {
+            const int last = s.lastIndexOf('/');
+            if (last != -1) {
+                s.replace(0, last + 1, "include_");
+            } else {
+                s.prepend("include_");
+            }
+        }
+        symbolName = s;
+
+        def = (kind == CXCursor_MacroDefinition
+               || kind == CXCursor_LabelStmt
+               || clang_isCursorDefinition(cursor));
     }
 
     void clear()
@@ -78,7 +79,7 @@ public:
 
     bool isDefinition() const
     {
-        return isValid() && def;
+        return def;
     }
 
     bool operator<(const CursorKey &other) const

@@ -139,9 +139,8 @@ static inline void printDiagnostics(CXTranslationUnit unit)
     }
 }
 
-bool Precompile::preprocessHeaders(QList<QByteArray> systemIncludes)
+bool Precompile::preprocessHeaders(const QList<QByteArray> &systemIncludes)
 {
-    Q_ASSERT(m_args.isCompile() && !m_args.input().isEmpty());
     Q_ASSERT(!m_data.isEmpty());
 
     const QList<QByteArray> includePaths = m_args.arguments("-I");

@@ -154,6 +154,59 @@ static inline QByteArray removePath(const QByteArray& line)
     return line.mid(slash + 1);
 }
 
+static inline bool isValidKind(CXCursorKind kind)
+{
+    switch (kind) {
+    case CXCursor_InvalidFile:
+    case CXCursor_NoDeclFound:
+    case CXCursor_InitListExpr:
+    case CXCursor_StmtExpr:
+    case CXCursor_UnexposedDecl:
+    case CXCursor_UsingDirective:
+    case CXCursor_CXXAccessSpecifier:
+    case CXCursor_IntegerLiteral:
+    case CXCursor_FloatingLiteral:
+    case CXCursor_StringLiteral:
+    case CXCursor_CharacterLiteral:
+    case CXCursor_ParenExpr:
+    case CXCursor_UnaryOperator:
+    case CXCursor_ArraySubscriptExpr:
+    case CXCursor_BinaryOperator:
+    case CXCursor_CompoundAssignOperator:
+    case CXCursor_ConditionalOperator:
+    case CXCursor_CStyleCastExpr:
+    case CXCursor_GNUNullExpr:
+    case CXCursor_CXXStaticCastExpr:
+    case CXCursor_CXXDynamicCastExpr:
+    case CXCursor_CXXReinterpretCastExpr:
+    case CXCursor_CXXConstCastExpr:
+    case CXCursor_CXXFunctionalCastExpr:
+    case CXCursor_CXXBoolLiteralExpr:
+    case CXCursor_CXXThisExpr:
+    case CXCursor_CXXThrowExpr:
+    case CXCursor_CXXNewExpr:
+    case CXCursor_CXXDeleteExpr:
+    case CXCursor_CompoundStmt:
+    case CXCursor_IfStmt:
+    case CXCursor_WhileStmt:
+    case CXCursor_DoStmt:
+    case CXCursor_ForStmt:
+    case CXCursor_GotoStmt:
+    case CXCursor_ContinueStmt:
+    case CXCursor_BreakStmt:
+    case CXCursor_ReturnStmt:
+    case CXCursor_AsmStmt:
+    case CXCursor_CXXCatchStmt:
+    case CXCursor_CXXTryStmt:
+    case CXCursor_NullStmt:
+    case CXCursor_DeclStmt:
+    case CXCursor_UnexposedAttr:
+        return false;
+    default:
+        break;
+    }
+    return true;
+}
 
 bool cursorDefinitionFor(const CursorKey& d, const CursorKey &c);
 QDebug operator<<(QDebug dbg, CXCursor cursor);
