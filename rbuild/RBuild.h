@@ -9,6 +9,9 @@
 #include <clang-c/Index.h>
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
+#ifdef THREADED_COLLECT_SYMBOLS
+#include <QThreadPool>
+#endif
 
 struct RBuildPrivate;
 class RBuild : public QObject
@@ -21,12 +24,16 @@ public:
     void setDBPath(const Path &path);
     bool buildDB(const Path& makefile, const Path &sourceDir);
     bool updateDB();
+signals:
+    void compileFinished();
+    void finishedCompiling();
 private slots:
     void processFile(const GccArguments& arguments);
     void makefileDone();
     void startParse();
-private:
+    void onCompileFinished();
     void save();
+private:
     void compileAll();
     void precompileAll();
     void compile(const GccArguments& arguments, bool *usedPch = 0);
@@ -43,6 +50,11 @@ private:
     Path mDBPath;
     CXIndex mIndex;
     QList<GccArguments> mFiles;
+    int mPendingJobs;
+#ifdef THREADED_COLLECT_SYMBOLS
+    QThreadPool mThreadPool;
+    friend class CompileRunnable;
+#endif
 };
 
 #endif // RBUILD_H

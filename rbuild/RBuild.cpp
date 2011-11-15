@@ -21,13 +21,11 @@ using namespace RTags;
 
 static const bool pchEnabled = !getenv("RTAGS_NO_PCH");
 static QElapsedTimer timer;
-static int symbols = 0;
-static int validSymbols = 0;
-static int visitedSymbols = 0;
 
 RBuild::RBuild(QObject *parent)
-    : QObject(parent), mData(new RBuildPrivate), mIndex(clang_createIndex(1, 1))
+    : QObject(parent), mData(new RBuildPrivate), mIndex(clang_createIndex(1, 1)), mPendingJobs(0)
 {
+    connect(this, SIGNAL(compileFinished()), this, SLOT(onCompileFinished())); // this is async when THREADED_COLLECT_SYMBOLS is defined
     timer.start();
 }
 
@@ -291,7 +289,10 @@ bool RBuild::updateDB()
     } else {
         writeDataFlags |= ExcludePCH;
     }
+    QEventLoop loop;
+    connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
     compileAll();
+    loop.exec();
 
     // if (count != mData->data.size())
     //     fprintf(stderr, "Item count changed from %d to %d\n",
@@ -364,7 +365,7 @@ static inline int removeDirectory(const char *path)
 
 void RBuild::save()
 {
-    fprintf(stderr, "Done parsing, now writing.\n");
+    printf("Done parsing, now writing.\n");
     const qint64 beforeWriting = timer.elapsed();
 
     leveldb::DB *db = 0;
@@ -385,22 +386,52 @@ void RBuild::save()
     qApp->quit();
 }
 
+#ifdef THREADED_COLLECT_SYMBOLS
+class CompileRunnable : public QRunnable
+{
+public:
+    CompileRunnable(RBuild *rbuild, const GccArguments &args)
+        : mRbuild(rbuild), mArgs(args)
+    {
+        setAutoDelete(true);
+    }
+
+    virtual void run()
+    {
+        const qint64 before = timer.elapsed();
+        bool usedPch;
+        mRbuild->compile(mArgs, &usedPch);
+        const qint64 elapsed = timer.elapsed();
+        fprintf(stderr, "parsed %s, (%lld ms) %s\n",
+                mArgs.input().constData(), elapsed - before, usedPch ? "pch" : "");
+    }
+private:
+    RBuild *mRbuild;
+    const GccArguments mArgs;
+};
+#endif
+
 void RBuild::compileAll()
 {
+    mPendingJobs = mFiles.size();
+#ifdef THREADED_COLLECT_SYMBOLS
+    foreach(const GccArguments &args, mFiles) {
+        mThreadPool.start(new CompileRunnable(this, args));
+    }
+#else
     int i = 0;
     foreach(const GccArguments& args, mFiles) {
         const int old = mData->data.size();
         const qint64 before = timer.elapsed();
         bool usedPch;
-        symbols = validSymbols = visitedSymbols = 0;
         compile(args, &usedPch);
         const qint64 elapsed = timer.elapsed();
-        fprintf(stderr, "parsed %s (%d/%d), %d new items (%lld ms) (%d, %d, %d) %s\n",
+        fprintf(stderr, "parsed %s (%d/%d), %d new items (%lld ms) %s\n",
                 args.input().constData(), ++i, mFiles.size(),
                 mData->data.size() - old, elapsed - before,
-                symbols, validSymbols, visitedSymbols, usedPch ? "pch" : "");
-
+                usedPch ? "pch" : "");
     }
+#endif
     mFiles.clear();
 }
 
@@ -450,8 +481,8 @@ void RBuild::makefileDone()
 {
     if (pchEnabled)
         precompileAll();
+    connect(this, SIGNAL(finishedCompiling()), this, SLOT(save()));
     compileAll();
-    save();
 }
 
 static inline void writeDependencies(leveldb::WriteBatch* batch, const Path &path, const GccArguments &args,
@@ -982,7 +1013,9 @@ static inline bool isSource(const AtomicString &str)
 }
 
 struct CollectSymbolsUserData {
+#ifdef THREADED_COLLECT_SYMBOLS
     QMutex &mutex;
+#endif
     QHash<QByteArray, RBuildPrivate::DataEntry*> &seen;
     QList<RBuildPrivate::DataEntry*> &data;
     const AtomicString *file;
@@ -990,7 +1023,6 @@ struct CollectSymbolsUserData {
 
 static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
 {
-    ++symbols;
     CXCursorKind kind = clang_getCursorKind(cursor);
     if (!isValidKind(kind))
         return CXChildVisit_Recurse;
@@ -998,15 +1030,15 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     if (!key.isValid())
         return CXChildVisit_Recurse;
     CollectSymbolsUserData* data = reinterpret_cast<CollectSymbolsUserData*>(client_data);
-    ++validSymbols;
     if (data->file && key.fileName != *data->file && !::isSource(key.fileName)) {
         // qDebug() << "ditched" << key << "for" << data->file;
         return CXChildVisit_Continue;
     }
-    ++visitedSymbols;
-
     RBuildPrivate::DataEntry* entry = 0;
     const QByteArray locationKey = key.locationKey();
+#ifdef THREADED_COLLECT_SYMBOLS
+    QMutexLocker locker(&data->mutex);
+#endif
     const QHash<QByteArray, RBuildPrivate::DataEntry*>::const_iterator it = data->seen.find(locationKey);
     static const bool verbose = getenv("VERBOSE");
     if (verbose) {
@@ -1265,7 +1297,9 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
     CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
     const AtomicString file(pchEnabled ? input : Path());
     CollectSymbolsUserData userData = {
+#ifdef THREADED_COLLECT_SYMBOLS
         mData->entryMutex,
+#endif
         mData->seen,
         mData->data,
         pchEnabled ? &file : 0
@@ -1287,6 +1321,7 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
     // qDebug() << input << mData->dependencies.last().dependencies.keys();
     clang_disposeTranslationUnit(unit);
 
+    emit compileFinished();
     // qDebug() << arguments.raw() << arguments.language();
 }
 
@@ -1301,9 +1336,10 @@ void RBuild::precompileAll()
             if (unit) {
                 CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
                 const int old = mData->data.size();
-                symbols = validSymbols = visitedSymbols = 0;
                 CollectSymbolsUserData userData = {
+#ifdef THREADED_COLLECT_SYMBOLS
                     mData->entryMutex,
+#endif
                     mData->seen,
                     mData->data,
                     0
@@ -1317,11 +1353,16 @@ void RBuild::precompileAll()
                 pch->setDependencies(dependencies);
                 clang_disposeTranslationUnit(unit);
                 const qint64 elapsed = timer.elapsed() - before;
-                fprintf(stderr, "parsed pch header (%s) (%d/%d), %d new items (%lld ms) (%d, %d, %d)\n",
+                fprintf(stderr, "parsed pch header (%s) (%d/%d), %d new items (%lld ms)\n",
                         pch->headerFilePath().constData(), ++i, precompiles.size(),
-                        mData->data.size() - old, elapsed,
-                        symbols, validSymbols, visitedSymbols);
+                        mData->data.size() - old, elapsed);
             }
         }
     }
+}
+
+void RBuild::onCompileFinished()
+{
+    if (!--mPendingJobs)
+        emit finishedCompiling();
 }

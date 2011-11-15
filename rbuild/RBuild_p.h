@@ -3,6 +3,8 @@
 
 #include "CursorKey.h"
 #include "AtomicString.h"
+#include "GccArguments.h"
+#include "RBuild.h"
 #include <QList>
 #include <QHash>
 
@@ -25,7 +27,9 @@ struct RBuildPrivate
         quint64 lastModified;
         QHash<Path, quint64> dependencies;
     };
+#ifdef THREADED_COLLECT_SYMBOLS
     QMutex entryMutex;
+#endif
     QHash<QByteArray, DataEntry*> seen;
     QList<DataEntry*> data;
     QList<Dependencies> dependencies;
