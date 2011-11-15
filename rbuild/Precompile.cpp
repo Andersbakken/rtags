@@ -56,6 +56,17 @@ static inline bool fileAvailable(const QByteArray& filename)
 Precompile::Precompile(const GccArguments& args, QObject* parent)
     : QObject(parent), m_args(args), m_compiled(false)
 {
+    switch (m_args.language()) {
+    case GccArguments::LangC:
+        m_args.setLanguage(GccArguments::LangHeader);
+        break;
+    case GccArguments::LangCPlusPlus:
+        m_args.setLanguage(GccArguments::LangCPlusPlusHeader);
+        break;
+    default:
+        qWarning("Not sure what to do with this");
+        break;
+    }
 }
 
 Precompile::~Precompile()
@@ -263,7 +274,7 @@ CXTranslationUnit Precompile::precompile(const QList<QByteArray>& systemIncludes
     // qDebug() << "done preprocessing for pch" << m_data;
 
     QVector<const char*> clangArgs;
-    clangArgs << "-x" << GccArguments::languageString(m_args.language());
+    clangArgs << "-cc1" << "-x" << m_args.languageString();
     QList<QByteArray> defines = m_args.arguments("-D"), includes = m_args.arguments("-I");
     foreach(const QByteArray& arg, defines)
         clangArgs << arg.constData();
