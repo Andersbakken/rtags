@@ -60,6 +60,7 @@ public:
     const char *fileName() const;
     const char *extension() const;
     bool isSource() const;
+    static bool isSource(const char *extension, int len);
     bool isHeader() const;
     bool isResolved() const;
     Path parentDir() const;
