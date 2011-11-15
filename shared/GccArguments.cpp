@@ -419,3 +419,7 @@ QByteArray GccArguments::key() const
 
     return data->key;
 }
+const char * GccArguments::languageString() const
+{
+    return GccArguments::languageString(language());
+}

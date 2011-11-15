@@ -44,6 +44,7 @@ public:
     QByteArray firstInput() const;
     QByteArray output() const;
     Language language() const;
+    const char *languageString() const;
 
     bool hasInput() const;
     bool hasOutput() const;
