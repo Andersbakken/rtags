@@ -227,7 +227,7 @@ QList<QByteArray> GccArguments::arguments(const QByteArray &prefix) const
             args << arg.value;
     }
 
-    if (data->x == -1 && data->language != LangUndefined)
+    if (data->x == -1 && data->language != LangUndefined && (prefix.isEmpty() || prefix == "-x"))
         args << "-x" << languageString(data->language);
 
     return args;
