@@ -21,8 +21,9 @@ using namespace RTags;
 
 static const bool pchEnabled = !getenv("RTAGS_NO_PCH");
 static QElapsedTimer timer;
-Path currentSource, currentPCH;
-bool doingPch = false;
+static int symbols = 0;
+static int validSymbols = 0;
+static int visitedSymbols = 0;
 
 RBuild::RBuild(QObject *parent)
     : QObject(parent), mData(new RBuildPrivate), mIndex(clang_createIndex(1, 1))
@@ -188,7 +189,7 @@ bool RBuild::updateDB()
         while (sit != references.end()) {
             const QByteArray fileName = (*sit).key.fileName.toByteArray();
             if (dirty.contains(*static_cast<const Path*>(&fileName))) {
-                qDebug() << "ditched reference to" << key << "from" << (*sit).key;
+                // qDebug() << "ditched reference to" << key << "from" << (*sit).key;
                 sit = references.erase(sit);
                 changed = true;
             } else {
@@ -203,7 +204,7 @@ bool RBuild::updateDB()
                 QDataStream d(&out, QIODevice::WriteOnly);
                 d << referredTo << references;
             }
-            qDebug() << "writing to key" << key;
+            // qDebug() << "writing to key" << key;
             batch.Put(key, leveldb::Slice(out.constData(), out.size()));
         }
     }
@@ -391,11 +392,13 @@ void RBuild::compileAll()
         const int old = mData->data.size();
         const qint64 before = timer.elapsed();
         bool usedPch;
+        symbols = validSymbols = visitedSymbols = 0;
         compile(args, &usedPch);
         const qint64 elapsed = timer.elapsed();
-        fprintf(stderr, "parsed %s (%d/%d), %d new items (%lld ms) %s\n",
+        fprintf(stderr, "parsed %s (%d/%d), %d new items (%lld ms) (%d, %d, %d) %s\n",
                 args.input().value(0).constData(), ++i, mFiles.size(),
-                mData->data.size() - old, elapsed - before, usedPch ? "pch" : "");
+                mData->data.size() - old, elapsed - before,
+                symbols, validSymbols, visitedSymbols, usedPch ? "pch" : "");
 
     }
     mFiles.clear();
@@ -972,16 +975,27 @@ static bool shouldMergeCursors(const CursorKey& oldcurrent, const CursorKey& new
     return false;
 }
 
+static inline bool isSource(const AtomicString &str)
+{
+    const QByteArray b = str.toByteArray();
+    const int dot = b.lastIndexOf('.');
+    const int len = b.size() - dot - 1;
+    return (dot != -1 && len > 0 && Path::isSource(b.constData() + dot + 1, len));
+}
+
 static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
 {
+    ++symbols;
     const CursorKey key(cursor);
     if (!key.isValid())
         return CXChildVisit_Recurse;
     RBuildPrivate* data = reinterpret_cast<RBuildPrivate*>(client_data);
-    if (!data->restrictFile.isEmpty() && key.fileName != data->restrictFile) {
+    ++validSymbols;
+    if (!data->restrictFile.isEmpty() && key.fileName != data->restrictFile && !::isSource(key.fileName)) {
         // qDebug() << "ditched" << key << "for" << data->restrictFile;
         return CXChildVisit_Continue;
     }
+    ++visitedSymbols;
 
     RBuildPrivate::DataEntry* entry = 0;
     const QByteArray locationKey = key.locationKey();
@@ -1078,11 +1092,6 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     // printf("%s:%d }\n", __FILE__, __LINE__);
     if (it == data->seen.end()) {
         data->seen[locationKey] = entry;
-        // if (!doingPch) {
-        //     qDebug() << "inserting item" << key.toString() << "for" << currentSource << currentPCH;
-        // } else {
-        //     qDebug() << "inserting item" << key << "for pch";
-        // }
         data->data.append(entry);
     }
 
@@ -1162,39 +1171,31 @@ static inline bool diagnose(CXTranslationUnit unit)
 void RBuild::compile(const GccArguments& arguments, bool *usedPch)
 {
     Q_ASSERT(arguments.input().size() == 1);
-    currentSource = arguments.input().first();
     const Path input = arguments.input().first();
-    /*if (!input.endsWith("/RBuild.cpp")
-      && !input.endsWith("/main.cpp")) {
-      printf("skipping %s\n", input.constData());
-      continue;
-      }*/
-
-    const bool verbose = (getenv("VERBOSE") != 0);
+    bool verbose = (getenv("VERBOSE") != 0);
 
     QList<QByteArray> arglist;
+    bool pch = false;
+    Precompile *pre = 0;
+    // qDebug() << "pchEnabled" << pchEnabled;
+    arglist << "-cc1" << "-x" << arguments.languageString() << "-fsyntax-only";
+
     arglist += arguments.arguments("-I");
     arglist += arguments.arguments("-D");
     arglist += mSysInfo.systemIncludes();
 
-    bool pch = false;
-    Precompile *pre = 0;
-    qDebug() << "pchEnabled" << pchEnabled;
     if (pchEnabled) {
         pre = Precompile::precompiler(arguments);
-        qDebug() << pre;
         Q_ASSERT(pre);
         const QByteArray pchFile = pre->filePath();
         if (!pchFile.isEmpty()) {
             Q_ASSERT(arguments.isCompile());
             pch = true;
-            arglist += "-Xclang";
             arglist += "-include-pch";
             arglist += pchFile;
-            //qDebug() << "compiling" << input << "using pch" << arglist;
-            currentPCH = pre->headerFilePath();
         }
     }
+
 
     // ### not very efficient
     QVector<const char*> argvector;
@@ -1213,13 +1214,11 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
         unit = clang_parseTranslationUnit(mIndex, input.constData(),
                                           argvector.constData(), argvector.size(),
                                           0, 0, CXTranslationUnit_DetailedPreprocessingRecord);
-        qDebug() << "unit" << unit;
-        printf("%s:%d if (!diagnose(unit)) {\n", __FILE__, __LINE__);
         if (!diagnose(unit)) {
-            printf("%s:%d if (!diagnose(unit)) {\n", __FILE__, __LINE__);
+            qWarning("Couldn't compile with pch %p, Falling back to no pch", unit);
             clang_disposeTranslationUnit(unit);
             unit = 0;
-            argvector.resize(argvector.size() - 3);
+            argvector.resize(argvector.size() - 2);
             pch = false;
         }
     }
@@ -1266,7 +1265,6 @@ void RBuild::precompileAll()
 {
     int i = 0;
     const QList<Precompile*> precompiles = Precompile::precompiles();
-    doingPch = true;
     foreach(Precompile *pch, precompiles) {
         if (!pch->isCompiled()) {
             const qint64 before = timer.elapsed();
@@ -1274,6 +1272,7 @@ void RBuild::precompileAll()
             if (unit) {
                 CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
                 const int old = mData->data.size();
+                symbols = validSymbols = visitedSymbols = 0;
                 clang_visitChildren(unitCursor, collectSymbols, mData);
                 QHash<Path, quint64> dependencies;
                 InclusionUserData u(dependencies);
@@ -1282,11 +1281,11 @@ void RBuild::precompileAll()
                 pch->setDependencies(dependencies);
                 clang_disposeTranslationUnit(unit);
                 const qint64 elapsed = timer.elapsed() - before;
-                fprintf(stderr, "parsed pch header (%s) (%d/%d), %d new items (%lld ms)\n",
+                fprintf(stderr, "parsed pch header (%s) (%d/%d), %d new items (%lld ms) (%d, %d, %d)\n",
                         pch->headerFilePath().constData(), ++i, precompiles.size(),
-                        mData->data.size() - old, elapsed);
+                        mData->data.size() - old, elapsed,
+                        symbols, validSymbols, visitedSymbols);
             }
         }
     }
-    doingPch = false;
 }
