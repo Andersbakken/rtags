@@ -160,7 +160,7 @@ bool RBuild::updateDB()
         fprintf(stderr, "Can't read existing data for src dir\n");
         return false;
     }
-    
+
     leveldb::WriteBatch batch;
     for (it->Seek("/"); it->Valid(); it->Next()) {
         const leveldb::Slice key = it->key();
@@ -1327,8 +1327,24 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
 
 void RBuild::precompileAll()
 {
-    int i = 0;
     const QList<Precompile*> precompiles = Precompile::precompiles();
+#ifdef THREADED_COLLECT_SYMBOLS
+    QEventLoop loop;
+    int pending = 0;
+    foreach(Precompile *pch, precompiles) {
+        if (!pch->isCompiled()) {
+            PrecompileRunnable *runnable = new PrecompileRunnable(pch, mData,
+                                                                  mSysInfo.systemIncludes(), mIndex);
+            ++pending;
+            connect(runnable, SIGNAL(done()), &loop, SLOT(quit()));
+            mThreadPool.start(runnable);
+        }
+    }
+    while (pending--) {
+        loop.exec();
+    }
+#else
+    int i = 0;
     foreach(Precompile *pch, precompiles) {
         if (!pch->isCompiled()) {
             const qint64 before = timer.elapsed();
@@ -1337,14 +1353,11 @@ void RBuild::precompileAll()
                 CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
                 const int old = mData->data.size();
                 CollectSymbolsUserData userData = {
-#ifdef THREADED_COLLECT_SYMBOLS
-                    mData->entryMutex,
-#endif
                     mData->seen,
                     mData->data,
                     0
                 };
-                
+
                 clang_visitChildren(unitCursor, collectSymbols, &userData);
                 QHash<Path, quint64> dependencies;
                 InclusionUserData u(dependencies);
@@ -1359,10 +1372,37 @@ void RBuild::precompileAll()
             }
         }
     }
+#endif
 }
 
 void RBuild::onCompileFinished()
 {
     if (!--mPendingJobs)
         emit finishedCompiling();
+}
+
+void PrecompileRunnable::run()
+{
+#ifdef THREADED_COLLECT_SYMBOLS
+    const qint64 before = timer.elapsed();
+    CXTranslationUnit unit = mPch->precompile(mSystemIncludes, mIndex);
+    if (unit) {
+        CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
+        CollectSymbolsUserData userData = {
+            mRBP->entryMutex, mRBP->seen, mRBP->data, 0
+        };
+
+        clang_visitChildren(unitCursor, collectSymbols, &userData);
+        QHash<Path, quint64> dependencies;
+        InclusionUserData u(dependencies);
+        clang_getInclusions(unit, getInclusions, &u);
+        // qDebug() << dependencies;
+        mPch->setDependencies(dependencies);
+        clang_disposeTranslationUnit(unit);
+        const qint64 elapsed = timer.elapsed() - before;
+        fprintf(stderr, "parsed pch header (%s) (%lld ms)\n",
+                mPch->headerFilePath().constData(), elapsed);
+    }
+    emit done();
+#endif
 }
