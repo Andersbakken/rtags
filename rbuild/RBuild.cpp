@@ -1343,7 +1343,6 @@ void RBuild::precompileAll()
 {
     const QList<Precompile*> precompiles = Precompile::precompiles();
 #ifdef THREADED_COLLECT_SYMBOLS
-    QEventLoop loop;
     foreach(Precompile *pch, precompiles) {
         if (!pch->isCompiled()) {
             PrecompileRunnable *runnable = new PrecompileRunnable(pch, mData, mIndex);
@@ -1384,6 +1383,15 @@ void RBuild::precompileAll()
 
 void RBuild::onCompileFinished()
 {
-    if (!--mPendingJobs)
+    if (!--mPendingJobs) {
+#ifdef THREADED_COLLECT_SYMBOLS
+        QEventLoop loop;
+        while (mThreadPool.activeThreadCount()) {
+            // ### hacky
+            printf("Waiting for last pch to finish\n");
+            loop.processEvents(QEventLoop::AllEvents, 250);
+        }
+#endif
         emit finishedCompiling();
+    }
 }
