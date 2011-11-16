@@ -1218,9 +1218,9 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
     if (pchEnabled) {
         pre = Precompile::precompiler(arguments);
         Q_ASSERT(pre);
-        const QByteArray pchFile = pre->filePath();
-        if (!pchFile.isEmpty()) {
-            Q_ASSERT(arguments.isCompile());
+        if (pre->isCompiled()) {
+            const QByteArray pchFile = pre->filePath();
+            Q_ASSERT(!pchFile.isEmpty());
             pch = true;
             arglist += "-include-pch";
             arglist += pchFile;
