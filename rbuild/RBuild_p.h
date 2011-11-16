@@ -35,28 +35,6 @@ struct RBuildPrivate
     QList<Dependencies> dependencies;
 };
 
-class Precompile;
-class PrecompileRunnable : public QObject, public QRunnable
-{
-    Q_OBJECT
-public:
-    PrecompileRunnable(Precompile *pch,
-                       RBuildPrivate *rbp,
-                       CXIndex index) // ### is this threadsafe?
-        : mPch(pch), mRBP(rbp), mIndex(index)
-    {
-        setAutoDelete(true);
-    }
-
-    virtual void run();
-signals:
-    void done();
-private:
-    Precompile *mPch;
-    RBuildPrivate *mRBP;
-    CXIndex mIndex;
-};
-
 static inline QDataStream &operator<<(QDataStream &ds, const RBuildPrivate::DataEntry &entry)
 {
     ds << entry.cursor << entry.reference << entry.references;

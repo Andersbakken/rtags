@@ -361,6 +361,9 @@ CXTranslationUnit Precompile::precompile(CXIndex idx)
                 return 0;
             }
             m_compiled = true;
+            // ### should we allow other compiles to use the pch from here or
+            // ### should we let them go without pch until it's been properly
+            // ### processed?
             return unit; }
         case Retry:
             Q_ASSERT(unit);
@@ -468,9 +471,9 @@ void Precompile::collectHeaders(const GccArguments &arguments)
                 if (filterHeader(name)) {
                     const Path header = arguments.resolve(name, search == '"' ? GccArguments::Quotes : GccArguments::Brackets);
                     if (!header.isFile()) {
-                        qWarning("Can't resolve %s for %s",
-                                 QByteArray(line + idx + 1, i - idx - 1).constData(),
-                                 arguments.input().parentDir().constData());
+                        // qWarning("Can't resolve %s for %s",
+                        //          QByteArray(line + idx + 1, i - idx - 1).constData(),
+                        //          arguments.input().parentDir().constData());
                     } else if (!header.isSource() && !m_headers.contains(header)) {
                         m_headers.insert(header);
                         m_data += "#include \"";
