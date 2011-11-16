@@ -413,7 +413,7 @@ private:
 
 void RBuild::compileAll()
 {
-    mPendingJobs = mFiles.size();
+    mPendingJobs += mFiles.size();
 #ifdef THREADED_COLLECT_SYMBOLS
     foreach(const GccArguments &args, mFiles) {
         mThreadPool.start(new CompileRunnable(this, args));
@@ -1300,43 +1300,29 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
 }
 
 #ifdef THREADED_COLLECT_SYMBOLS
-class PrecompileRunnable : public QRunnable
+void PrecompileRunnable::run()
 {
-public:
-    PrecompileRunnable(Precompile *pch,
-                       RBuildPrivate *rbp,
-                       CXIndex index) // ### is this threadsafe?
-        : mPch(pch), mRBP(rbp), mIndex(index)
-    {
-        setAutoDelete(true);
-    }
-    virtual void run()
-    {
-        const qint64 before = timer.elapsed();
-        CXTranslationUnit unit = mPch->precompile(mIndex);
-        if (unit) {
-            CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
-            CollectSymbolsUserData userData = {
-                mRBP->entryMutex, mRBP->seen, mRBP->data, 0
-            };
+    const qint64 before = timer.elapsed();
+    CXTranslationUnit unit = mPch->precompile(mIndex);
+    if (unit) {
+        CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
+        CollectSymbolsUserData userData = {
+            mRBP->entryMutex, mRBP->seen, mRBP->data, 0
+        };
 
-            clang_visitChildren(unitCursor, collectSymbols, &userData);
-            QHash<Path, quint64> dependencies;
-            InclusionUserData u(dependencies);
-            clang_getInclusions(unit, getInclusions, &u);
-            // qDebug() << dependencies;
-            mPch->setDependencies(dependencies);
-            clang_disposeTranslationUnit(unit);
-            const qint64 elapsed = timer.elapsed() - before;
-            fprintf(stderr, "parsed pch header (%s) (%lld ms)\n",
-                    mPch->headerFilePath().constData(), elapsed);
-        }
+        clang_visitChildren(unitCursor, collectSymbols, &userData);
+        QHash<Path, quint64> dependencies;
+        InclusionUserData u(dependencies);
+        clang_getInclusions(unit, getInclusions, &u);
+        // qDebug() << dependencies;
+        mPch->setDependencies(dependencies);
+        clang_disposeTranslationUnit(unit);
+        const qint64 elapsed = timer.elapsed() - before;
+        fprintf(stderr, "parsed pch header (%s) (%lld ms)\n",
+                mPch->headerFilePath().constData(), elapsed);
     }
-private:
-    Precompile *mPch;
-    RBuildPrivate *mRBP;
-    CXIndex mIndex;
-};
+    emit finished();
+}
 #endif
 
 void RBuild::precompileAll()
@@ -1346,6 +1332,8 @@ void RBuild::precompileAll()
     foreach(Precompile *pch, precompiles) {
         if (!pch->isCompiled()) {
             PrecompileRunnable *runnable = new PrecompileRunnable(pch, mData, mIndex);
+            connect(runnable, SIGNAL(finished()), this, SLOT(onCompileFinished()));
+            ++mPendingJobs;
             mThreadPool.start(runnable);
         }
     }
@@ -1384,14 +1372,6 @@ void RBuild::precompileAll()
 void RBuild::onCompileFinished()
 {
     if (!--mPendingJobs) {
-#ifdef THREADED_COLLECT_SYMBOLS
-        QEventLoop loop;
-        while (mThreadPool.activeThreadCount()) {
-            // ### hacky
-            printf("Waiting for last pch to finish\n");
-            loop.processEvents(QEventLoop::AllEvents, 250);
-        }
-#endif
         emit finishedCompiling();
     }
 }
