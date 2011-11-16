@@ -1024,10 +1024,11 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
 #else
     const bool dodebug = false;
 #endif
-    if (it != data->seen.end())
+    if (it != data->seen.end()) {
         entry = it.value();
-    else
+    } else {
         entry = new RBuildPrivate::DataEntry;
+    }
 
     if (key.kind == CXCursor_InclusionDirective) {
         CursorKey inclusion;
@@ -1276,7 +1277,7 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
 #endif
         mData->seen,
         mData->data,
-        pchEnabled ? &file : 0
+        pre ? &file : 0 // if we're waiting for a precompile to finish we still want to ignore these
     };
 
     clang_visitChildren(unitCursor, collectSymbols, &userData);
