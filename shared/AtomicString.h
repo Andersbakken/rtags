@@ -5,10 +5,7 @@
 #include <QByteArray>
 #include <QHash>
 #include <QDebug>
-#if !defined REENTRANT_ATOMICSTRING && defined THREADED_COLLECT_SYMBOLS
 #define REENTRANT_ATOMICSTRING
-#endif
-
 #ifdef REENTRANT_ATOMICSTRING
 #include <QMutex>
 #endif

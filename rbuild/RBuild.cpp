@@ -26,7 +26,7 @@ RBuild::RBuild(QObject *parent)
     : QObject(parent), mData(new RBuildPrivate), mIndex(clang_createIndex(1, 0)), mPendingJobs(0)
 {
     RTags::systemIncludes(); // force creation before any threads are spawned
-    connect(this, SIGNAL(compileFinished()), this, SLOT(onCompileFinished())); // this is async when THREADED_COLLECT_SYMBOLS is defined
+    connect(this, SIGNAL(compileFinished()), this, SLOT(onCompileFinished()));
     timer.start();
 }
 
@@ -59,7 +59,10 @@ bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
             mSourceDir.append('/');
     }
 
-    startParse();
+    connect(&mParser, SIGNAL(fileReady(const GccArguments&)),
+            this, SLOT(processFile(const GccArguments&)));
+    connect(&mParser, SIGNAL(done()), this, SLOT(makefileDone()));
+    mParser.run(mMakefile);
     return true;
 }
 
@@ -304,14 +307,6 @@ bool RBuild::updateDB()
     return true;
 }
 
-void RBuild::startParse()
-{
-    connect(&mParser, SIGNAL(fileReady(const GccArguments&)),
-            this, SLOT(processFile(const GccArguments&)));
-    connect(&mParser, SIGNAL(done()), this, SLOT(makefileDone()));
-    mParser.run(mMakefile);
-}
-
 static inline int removeDirectory(const char *path)
 {
     DIR *d = opendir(path);
@@ -386,12 +381,11 @@ void RBuild::save()
     qApp->quit();
 }
 
-#ifdef THREADED_COLLECT_SYMBOLS
 class CompileRunnable : public QRunnable
 {
 public:
-    CompileRunnable(RBuild *rbuild, const GccArguments &args)
-        : mRbuild(rbuild), mArgs(args)
+    CompileRunnable(RBuild *rbuild, const GccArguments &args, Precompile *pch)
+        : mRbuild(rbuild), mArgs(args), mPch(pch)
     {
         setAutoDelete(true);
     }
@@ -400,7 +394,7 @@ public:
     {
         const qint64 before = timer.elapsed();
         bool usedPch;
-        mRbuild->compile(mArgs, &usedPch);
+        mRbuild->compile(mArgs, mPch, &usedPch);
         const qint64 elapsed = timer.elapsed();
         fprintf(stderr, "parsed %s, (%lld ms) %s\n",
                 mArgs.input().constData(), elapsed - before, usedPch ? "pch" : "");
@@ -408,55 +402,49 @@ public:
 private:
     RBuild *mRbuild;
     const GccArguments mArgs;
+    Precompile *mPch;
 };
-#endif
 
 void RBuild::compileAll()
 {
     mPendingJobs += mFiles.size();
-#ifdef THREADED_COLLECT_SYMBOLS
     foreach(const GccArguments &args, mFiles) {
-        mThreadPool.start(new CompileRunnable(this, args));
+        mThreadPool.start(new CompileRunnable(this, args, 0));
     }
-#else
-    int i = 0;
-    foreach(const GccArguments& args, mFiles) {
-        const int old = mData->data.size();
-        const qint64 before = timer.elapsed();
-        bool usedPch;
-        compile(args, &usedPch);
-        const qint64 elapsed = timer.elapsed();
-        fprintf(stderr, "parsed %s (%d/%d), %d new items (%lld ms) %s\n",
-                args.input().constData(), ++i, mFiles.size(),
-                mData->data.size() - old, elapsed - before,
-                usedPch ? "pch" : "");
-    }
-#endif
-    mFiles.clear();
-}
+    // for (QHash<Precompile*, QList<GccArguments> >::const_iterator it = mFilesByPrecompile.begin();
+    //      it != mFilesByPrecompile.end(); ++it) {
+    //     Precompile *pre = it.key();
+    //     foreach(const GccArguments &args, it.value())
+    //         mThreadPool.start(new CompileRunnable(this, args, pre));
+    // }
 
-static void collectHeaders(const GccArguments& arguments)
-{
-    if (!arguments.isCompile())
-        return;
-    Precompile* pre = Precompile::precompiler(arguments);
-    Q_ASSERT(pre);
-    pre->collectHeaders(arguments);
+    mFiles.clear();
 }
 
 void RBuild::processFile(const GccArguments& arguments)
 {
-    if (pchEnabled && !Precompile::precompiler(arguments)->isCompiled())
-        collectHeaders(arguments);
-    mFiles.append(arguments);
+    if (!pchEnabled) {
+        mFiles.append(arguments);
+    } else {
+        Precompile *precompiler = Precompile::precompiler(arguments);
+        Q_ASSERT(precompiler);
+        if (precompiler->isCompiled()) {
+            compile(arguments, precompiler);
+        } else {
+            mFilesByPrecompile[precompiler].append(arguments);
+            precompiler->collectHeaders(arguments);
+        }
+    }
 }
 
 void RBuild::makefileDone()
 {
-    if (pchEnabled)
-        precompileAll();
     connect(this, SIGNAL(finishedCompiling()), this, SLOT(save()));
-    compileAll();
+    if (pchEnabled) {
+        precompileAll();
+    } else {
+        compileAll();
+    }
 }
 
 static inline void writeDependencies(leveldb::WriteBatch* batch, const Path &path, const GccArguments &args,
@@ -987,9 +975,7 @@ static inline bool isSource(const AtomicString &str)
 }
 
 struct CollectSymbolsUserData {
-#ifdef THREADED_COLLECT_SYMBOLS
     QMutex &mutex;
-#endif
     QHash<QByteArray, RBuildPrivate::DataEntry*> &seen;
     QList<RBuildPrivate::DataEntry*> &data;
     const AtomicString *file;
@@ -1010,9 +996,7 @@ static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData
     }
     RBuildPrivate::DataEntry* entry = 0;
     const QByteArray locationKey = key.locationKey();
-#ifdef THREADED_COLLECT_SYMBOLS
     QMutexLocker locker(&data->mutex);
-#endif
     const QHash<QByteArray, RBuildPrivate::DataEntry*>::const_iterator it = data->seen.find(locationKey);
     static const bool verbose = getenv("VERBOSE");
     if (verbose) {
@@ -1201,14 +1185,13 @@ static inline bool diagnose(CXTranslationUnit unit)
     return !foundError;
 }
 
-void RBuild::compile(const GccArguments& arguments, bool *usedPch)
+void RBuild::compile(const GccArguments& arguments, Precompile *pre, bool *usedPch)
 {
     const Path input = arguments.input();
     bool verbose = (getenv("VERBOSE") != 0);
 
     QList<QByteArray> arglist;
     bool pch = false;
-    Precompile *pre = 0;
     // qDebug() << "pchEnabled" << pchEnabled;
     arglist << "-cc1" << "-x" << arguments.languageString() << "-fsyntax-only";
 
@@ -1216,16 +1199,15 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
     arglist += arguments.arguments("-D");
     arglist += RTags::systemIncludes();
 
-    if (pchEnabled) {
-        pre = Precompile::precompiler(arguments);
-        Q_ASSERT(pre);
-        if (pre->isCompiled()) {
-            const QByteArray pchFile = pre->filePath();
-            Q_ASSERT(!pchFile.isEmpty());
-            pch = true;
-            arglist += "-include-pch";
-            arglist += pchFile;
-        }
+    Q_ASSERT(pchEnabled || !pre);
+    Q_ASSERT(!pre || pre->isCompiled());
+    Q_ASSERT(pre);
+    if (pre) {
+        const QByteArray pchFile = pre->filePath();
+        Q_ASSERT(!pchFile.isEmpty());
+        pch = true;
+        arglist += "-include-pch";
+        arglist += pchFile;
     }
 
 
@@ -1272,9 +1254,7 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
     CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
     const AtomicString file(pchEnabled ? input : Path());
     CollectSymbolsUserData userData = {
-#ifdef THREADED_COLLECT_SYMBOLS
         mData->entryMutex,
-#endif
         mData->seen,
         mData->data,
         pre ? &file : 0 // if we're waiting for a precompile to finish we still want to ignore these
@@ -1300,7 +1280,6 @@ void RBuild::compile(const GccArguments& arguments, bool *usedPch)
     // qDebug() << arguments.raw() << arguments.language();
 }
 
-#ifdef THREADED_COLLECT_SYMBOLS
 void PrecompileRunnable::run()
 {
     const qint64 before = timer.elapsed();
@@ -1322,52 +1301,19 @@ void PrecompileRunnable::run()
         fprintf(stderr, "parsed pch header (%s) (%lld ms)\n",
                 mPch->headerFilePath().constData(), elapsed);
     }
-    emit finished();
+    emit finished(mPch);
 }
-#endif
 
 void RBuild::precompileAll()
 {
     const QList<Precompile*> precompiles = Precompile::precompiles();
-#ifdef THREADED_COLLECT_SYMBOLS
     foreach(Precompile *pch, precompiles) {
         if (!pch->isCompiled()) {
             PrecompileRunnable *runnable = new PrecompileRunnable(pch, mData, mIndex);
-            connect(runnable, SIGNAL(finished()), this, SLOT(onCompileFinished()));
-            ++mPendingJobs;
+            connect(runnable, SIGNAL(finished(Precompile*)), this, SLOT(onPrecompileFinished(Precompile*)));
             mThreadPool.start(runnable);
         }
     }
-#else
-    int i = 0;
-    foreach(Precompile *pch, precompiles) {
-        if (!pch->isCompiled()) {
-            const qint64 before = timer.elapsed();
-            CXTranslationUnit unit = pch->precompile(mSysInfo.systemIncludes(), mIndex);
-            if (unit) {
-                CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
-                const int old = mData->data.size();
-                CollectSymbolsUserData userData = {
-                    mData->seen,
-                    mData->data,
-                    0
-                };
-
-                clang_visitChildren(unitCursor, collectSymbols, &userData);
-                QHash<Path, quint64> dependencies;
-                InclusionUserData u(dependencies);
-                clang_getInclusions(unit, getInclusions, &u);
-                // qDebug() << dependencies;
-                pch->setDependenciesg(dependencies);
-                clang_disposeTranslationUnit(unit);
-                const qint64 elapsed = timer.elapsed() - before;
-                fprintf(stderr, "parsed pch header (%s) (%d/%d), %d new items (%lld ms)\n",
-                        pch->headerFilePath().constData(), ++i, precompiles.size(),
-                        mData->data.size() - old, elapsed);
-            }
-        }
-    }
-#endif
 }
 
 void RBuild::onCompileFinished()
@@ -1376,3 +1322,13 @@ void RBuild::onCompileFinished()
         emit finishedCompiling();
     }
 }
+
+void RBuild::onPrecompileFinished(Precompile *pch)
+{
+    Precompile *p = pch->isCompiled() ? pch : 0;
+    foreach(const GccArguments &args, mFilesByPrecompile[pch]) {
+        ++mPendingJobs;
+        mThreadPool.start(new CompileRunnable(this, args, p));
+    }
+}
+

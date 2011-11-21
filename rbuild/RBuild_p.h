@@ -27,14 +27,11 @@ struct RBuildPrivate
         quint64 lastModified;
         QHash<Path, quint64> dependencies;
     };
-#ifdef THREADED_COLLECT_SYMBOLS
     QMutex entryMutex;
-#endif
     QHash<QByteArray, DataEntry*> seen;
     QList<DataEntry*> data;
     QList<Dependencies> dependencies;
 };
-#ifdef THREADED_COLLECT_SYMBOLS
 class Precompile;
 class PrecompileRunnable : public QObject, public QRunnable
 {
@@ -49,14 +46,12 @@ public:
     }
     virtual void run();
 signals:
-    void finished();
+    void finished(Precompile *pre);
 private:
     Precompile *mPch;
     RBuildPrivate *mRBP;
     CXIndex mIndex;
 };
-#endif
-
 
 static inline QDataStream &operator<<(QDataStream &ds, const RBuildPrivate::DataEntry &entry)
 {

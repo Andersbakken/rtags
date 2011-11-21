@@ -6,7 +6,7 @@ TEMPLATE = app
 TARGET = rb
 DESTDIR = $$PWD/..
 DEPENDPATH += $$PWD
-DEFINES += WITH_GPERF THREADED_COLLECT_SYMBOLS
+DEFINES += WITH_GPERF
 include($$PWD/../shared/shared.pri)
 
 QT -= gui

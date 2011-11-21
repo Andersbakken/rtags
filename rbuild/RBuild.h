@@ -1,18 +1,17 @@
 #ifndef RBUILD_H
 #define RBUILD_H
 
+#include "GccArguments.h"
 #include "MakefileParser.h"
 #include "Path.h"
-#include "GccArguments.h"
 #include <QObject>
+#include <QThreadPool>
 #include <clang-c/Index.h>
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
-#ifdef THREADED_COLLECT_SYMBOLS
-#include <QThreadPool>
-#endif
 
 struct RBuildPrivate;
+class Precompile;
 class RBuild : public QObject
 {
     Q_OBJECT
@@ -29,13 +28,13 @@ signals:
 private slots:
     void processFile(const GccArguments& arguments);
     void makefileDone();
-    void startParse();
     void onCompileFinished();
+    void onPrecompileFinished(Precompile *pch);
     void save();
 private:
     void compileAll();
     void precompileAll();
-    void compile(const GccArguments& arguments, bool *usedPch = 0);
+    void compile(const GccArguments& arguments, Precompile *pch, bool *usedPch = 0);
     enum WriteDataFlag {
         ExcludePCH = 0x1,
         LookupReferencesFromDatabase = 0x2
@@ -47,12 +46,11 @@ private:
     RBuildPrivate* mData;
     Path mDBPath;
     CXIndex mIndex;
+    QHash<Precompile*, QList<GccArguments> > mFilesByPrecompile;
     QList<GccArguments> mFiles;
     int mPendingJobs;
-#ifdef THREADED_COLLECT_SYMBOLS
     QThreadPool mThreadPool;
     friend class CompileRunnable;
-#endif
 };
 
 #endif // RBUILD_H
