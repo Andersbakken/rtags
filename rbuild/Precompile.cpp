@@ -249,7 +249,7 @@ CXTranslationUnit Precompile::precompile(CXIndex idx)
 
 
     QVector<const char*> clangArgs;
-    clangArgs << "-cc1" << "-x" << m_args.languageString() << "-ferror-limit=0";
+    clangArgs << "-cc1" << "-x" << m_args.languageString();
     QList<QByteArray> defines = m_args.arguments("-D"), includes = m_args.arguments("-I");
     foreach(const QByteArray& arg, defines)
         clangArgs << arg.constData();
@@ -257,6 +257,11 @@ CXTranslationUnit Precompile::precompile(CXIndex idx)
         clangArgs << arg.constData();
     foreach(const QByteArray& arg, systemIncludes)
         clangArgs << arg.constData();
+    // printf("clang");
+    // foreach(const char *arg, clangArgs) {
+    //     printf(" %s", arg);
+    // }
+    // printf(" %s\n", m_headerFilePath.constData());
 
     forever {
         {
@@ -315,9 +320,13 @@ CXTranslationUnit Precompile::precompile(CXIndex idx)
             clang_disposeDiagnostic(diag);
         }
         QSet<QByteArray>::iterator it = errors.begin();
+        QByteArray errorString;
         // qDebug() << errors << m_headerFilePath;
         while (it != errors.end()) {
             const QByteArray errorFile = *it;
+            if (!errorString.isEmpty())
+                errorString += ", ";
+            errorString += errorFile;
             int idx = 0;
             bool found = false;
             while ((idx = m_data.indexOf(errorFile, idx)) != -1) {
@@ -367,7 +376,7 @@ CXTranslationUnit Precompile::precompile(CXIndex idx)
             return unit; }
         case Retry:
             Q_ASSERT(unit);
-            qDebug() << "retrying" << m_headerFilePath;
+            qDebug() << "retrying" << m_headerFilePath << errorString;
             clang_disposeTranslationUnit(unit);
             break;
         case Abort:
@@ -482,7 +491,6 @@ void Precompile::collectHeaders(const GccArguments &arguments)
                     }
                 }
             }
-
         }
     }
 }

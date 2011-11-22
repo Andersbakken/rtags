@@ -25,6 +25,11 @@ static QElapsedTimer timer;
 RBuild::RBuild(QObject *parent)
     : QObject(parent), mData(new RBuildPrivate), mIndex(clang_createIndex(1, 0)), mPendingJobs(0)
 {
+    if (const char *env = getenv("RTAGS_THREAD_COUNT")) {
+        const int threads = atoi(env);
+        if (threads > 0)
+            mThreadPool.setMaxThreadCount(threads);
+    }
     RTags::systemIncludes(); // force creation before any threads are spawned
     connect(this, SIGNAL(compileFinished()), this, SLOT(onCompileFinished()));
     timer.start();
@@ -1230,6 +1235,12 @@ void RBuild::compile(const GccArguments& arguments, Precompile *pre, bool *usedP
                                           0, 0, CXTranslationUnit_DetailedPreprocessingRecord);
         if (!diagnose(unit)) {
             qWarning("Couldn't compile with pch %p, Falling back to no pch", unit);
+            // fprintf(stderr, "clang ");
+            // foreach(const QByteArray& arg, arglist) {
+            //     fprintf(stderr, "%s ", arg.constData());
+            // }
+            // fprintf(stderr, "%s\n", input.constData());
+
             clang_disposeTranslationUnit(unit);
             unit = 0;
             argvector.resize(argvector.size() - 2);
