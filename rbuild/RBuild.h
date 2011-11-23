@@ -34,7 +34,7 @@ private slots:
 private:
     void compileAll();
     void precompileAll();
-    void compile(const GccArguments& arguments, Precompile *pch, bool *usedPch = 0);
+    void compile(const QList<QByteArray> &args, const Path &file, Precompile *precompile);
     enum WriteDataFlag {
         ExcludePCH = 0x1,
         LookupReferencesFromDatabase = 0x2
@@ -51,6 +51,7 @@ private:
     int mPendingJobs;
     QThreadPool mThreadPool;
     friend class CompileRunnable;
+    friend class PrecompileRunnable;
 };
 
 #endif // RBUILD_H

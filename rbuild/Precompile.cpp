@@ -388,7 +388,7 @@ CXTranslationUnit Precompile::precompile(CXIndex idx)
     }
 }
 
-Path Precompile::filePath() const
+const Path &Precompile::filePath() const
 {
     return m_filePath;
 }

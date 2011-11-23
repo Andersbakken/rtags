@@ -26,6 +26,7 @@ public:
 
     QList<QByteArray> arguments() const;
     QList<QByteArray> arguments(const QByteArray& prefix) const;
+    QList<QByteArray> clangArgs() const;
     int argumentCount() const;
     QList<Path> includePaths() const;
     enum ClangArgFlag {

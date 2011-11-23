@@ -19,7 +19,7 @@
 
 using namespace RTags;
 
-static const bool pchEnabled = !getenv("RTAGS_NO_PCH");
+static const bool pchEnabled = false; //!getenv("RTAGS_NO_PCH") && false;
 static QElapsedTimer timer;
 
 RBuild::RBuild(QObject *parent)
@@ -77,24 +77,24 @@ static inline bool contains(const QHash<Path, GccArguments> &dirty, const Atomic
     return dirty.contains(p);
 }
 
-static inline bool filter(RBuildPrivate::DataEntry &entry, const QHash<Path, GccArguments> &dirty)
-{
-    if (::contains(dirty, entry.cursor.key.fileName)
-        || ::contains(dirty, entry.reference.key.fileName)) {
-        return false;
-    }
-    QSet<Cursor>::iterator it = entry.references.begin();
-    while (it != entry.references.end()) {
-        if (::contains(dirty, (*it).key.fileName)) {
-            // qDebug() << "throwing out reference" << (*it).key;
-            it = entry.references.erase(it);
-        } else {
-            ++it;
-        }
-    }
+// static inline bool filter(RBuildPrivate::DataEntry &entry, const QHash<Path, GccArguments> &dirty)
+// {
+//     if (::contains(dirty, entry.cursor.key.fileName)
+//         || ::contains(dirty, entry.reference.key.fileName)) {
+//         return false;
+//     }
+//     QSet<Cursor>::iterator it = entry.references.begin();
+//     while (it != entry.references.end()) {
+//         if (::contains(dirty, (*it).key.fileName)) {
+//             // qDebug() << "throwing out reference" << (*it).key;
+//             it = entry.references.erase(it);
+//         } else {
+//             ++it;
+//         }
+//     }
 
-    return true;
-}
+//     return true;
+// }
 
 static inline int fileNameLength(const char *data, int len)
 {
@@ -398,11 +398,10 @@ public:
     virtual void run()
     {
         const qint64 before = timer.elapsed();
-        bool usedPch;
-        mRbuild->compile(mArgs, mPch, &usedPch);
+        mRbuild->compile(mArgs.clangArgs(), mArgs.input(), mPch);
         const qint64 elapsed = timer.elapsed();
-        fprintf(stderr, "parsed %s, (%lld ms) %s\n",
-                mArgs.input().constData(), elapsed - before, usedPch ? "pch" : "");
+        fprintf(stderr, "parsed %s, (%lld ms)\n",
+                mArgs.input().constData(), elapsed - before);
     }
 private:
     RBuild *mRbuild;
@@ -433,12 +432,12 @@ void RBuild::processFile(const GccArguments& arguments)
     } else {
         Precompile *precompiler = Precompile::precompiler(arguments);
         Q_ASSERT(precompiler);
-        if (precompiler->isCompiled()) {
-            compile(arguments, precompiler);
-        } else {
+        // if (precompiler->isCompiled()) {
+        //     compile(arguments, precompiler);
+        // } else {
             mFilesByPrecompile[precompiler].append(arguments);
             precompiler->collectHeaders(arguments);
-        }
+        // }
     }
 }
 
@@ -473,110 +472,110 @@ static inline void writeDependencies(leveldb::WriteBatch* batch, const Path &pat
                leveldb::Slice(out.constData(), out.size()));
 }
 
-static inline QByteArray makeRefValue(const RBuildPrivate::DataEntry& entry)
-{
-    QByteArray out;
-    const bool refersToSelf = entry.reference.key == entry.cursor.key;
-    if (refersToSelf && entry.references.isEmpty()) {
-        // qDebug() << "should not be written" << entry.cursor.key;
-        return out;
-    }
-    {
-        QDataStream ds(&out, QIODevice::WriteOnly);
-        if (!refersToSelf) {
-            ds << entry.reference.key.toString();
-        } else {
-            ds << QByteArray();
-        }
-        ds << entry.references;
-        // qDebug() << "writing out value for" << entry.key.cursor.toString()
-        //          << entry.reference.key.toString() << entry.references;
-        // const QByteArray v =
-        // ds << QByteArray::fromRawData(&v[0], v.size()) << convertRefs(entry.references);
-    }
-    return out;
-}
+// static inline QByteArray makeRefValue(const RBuildPrivate::DataEntry& entry)
+// {
+//     QByteArray out;
+//     const bool refersToSelf = entry.reference.key == entry.cursor.key;
+//     if (refersToSelf && entry.references.isEmpty()) {
+//         // qDebug() << "should not be written" << entry.cursor.key;
+//         return out;
+//     }
+//     {
+//         QDataStream ds(&out, QIODevice::WriteOnly);
+//         if (!refersToSelf) {
+//             ds << entry.reference.key.toString();
+//         } else {
+//             ds << QByteArray();
+//         }
+//         ds << entry.references;
+//         // qDebug() << "writing out value for" << entry.key.cursor.toString()
+//         //          << entry.reference.key.toString() << entry.references;
+//         // const QByteArray v =
+//         // ds << QByteArray::fromRawData(&v[0], v.size()) << convertRefs(entry.references);
+//     }
+//     return out;
+// }
 
-static inline void writeDict(leveldb::WriteBatch* batch, const QHash<AtomicString, QSet<AtomicString> >& dict)
-{
-    QHash<AtomicString, QSet<AtomicString> >::const_iterator it = dict.begin();
-    const QHash<AtomicString, QSet<AtomicString> >::const_iterator end = dict.end();
-    while (it != end) {
-        writeToBatch(batch, ("d:" + it.key().toByteArray()), it.value());
-        ++it;
-    }
-}
+// static inline void writeDict(leveldb::WriteBatch* batch, const QHash<AtomicString, QSet<AtomicString> >& dict)
+// {
+//     QHash<AtomicString, QSet<AtomicString> >::const_iterator it = dict.begin();
+//     const QHash<AtomicString, QSet<AtomicString> >::const_iterator end = dict.end();
+//     while (it != end) {
+//         writeToBatch(batch, ("d:" + it.key().toByteArray()), it.value());
+//         ++it;
+//     }
+// }
 
-static inline void collectDict(const RBuildPrivate::DataEntry& entry, QHash<AtomicString, QSet<AtomicString> >& dict)
-{
-    const Cursor* datas[] = { &entry.cursor, &entry.reference };
-    for (int i = 0; i < 2; ++i) {
-        const CursorKey& key = datas[i]->key;
-        if (!key.isValid())
-            continue;
+// static inline void collectDict(const RBuildPrivate::DataEntry& entry, QHash<AtomicString, QSet<AtomicString> >& dict)
+// {
+//     const Cursor* datas[] = { &entry.cursor, &entry.reference };
+//     for (int i = 0; i < 2; ++i) {
+//         const CursorKey& key = datas[i]->key;
+//         if (!key.isValid())
+//             continue;
 
-        // qDebug() << "dict" << key;
+//         // qDebug() << "dict" << key;
 
-        const int& kind = key.kind;
-        if ((kind >= CXCursor_FirstRef && kind <= CXCursor_LastRef)
-            || (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr))
-            continue;
+//         const int& kind = key.kind;
+//         if ((kind >= CXCursor_FirstRef && kind <= CXCursor_LastRef)
+//             || (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr))
+//             continue;
 
-        const QVector<AtomicString>& parents = datas[i]->parentNames;
+//         const QVector<AtomicString>& parents = datas[i]->parentNames;
 
-        QByteArray name = key.symbolName.toByteArray();
-        const QByteArray loc = key.toString();
-        const AtomicString location(loc.constData(), loc.size());
+//         QByteArray name = key.symbolName.toByteArray();
+//         const QByteArray loc = key.toString();
+//         const AtomicString location(loc.constData(), loc.size());
 
-        // add symbolname -> location
-        dict[name].insert(location);
-        int colon = name.indexOf('(');
-        if (colon != -1)
-            dict[name.left(colon)].insert(location);
+//         // add symbolname -> location
+//         dict[name].insert(location);
+//         int colon = name.indexOf('(');
+//         if (colon != -1)
+//             dict[name.left(colon)].insert(location);
 
-        switch (kind) {
-        case CXCursor_Namespace:
-        case CXCursor_ClassDecl:
-        case CXCursor_StructDecl:
-        case CXCursor_FieldDecl:
-        case CXCursor_CXXMethod:
-        case CXCursor_Constructor:
-        case CXCursor_Destructor:
-            break;
-        default:
-            continue;
-        }
+//         switch (kind) {
+//         case CXCursor_Namespace:
+//         case CXCursor_ClassDecl:
+//         case CXCursor_StructDecl:
+//         case CXCursor_FieldDecl:
+//         case CXCursor_CXXMethod:
+//         case CXCursor_Constructor:
+//         case CXCursor_Destructor:
+//             break;
+//         default:
+//             continue;
+//         }
 
-        // qDebug() << name << parents;
-        foreach(const AtomicString &cur, parents) {
-            const int old = name.size();
-            name.prepend("::");
-            name.prepend(cur.toByteArray());
-            if (colon != -1) {
-                colon += (name.size() - old);
-                dict[AtomicString(name.constData(), colon)].insert(location);
-            }
+//         // qDebug() << name << parents;
+//         foreach(const AtomicString &cur, parents) {
+//             const int old = name.size();
+//             name.prepend("::");
+//             name.prepend(cur.toByteArray());
+//             if (colon != -1) {
+//                 colon += (name.size() - old);
+//                 dict[AtomicString(name.constData(), colon)].insert(location);
+//             }
 
-            // qDebug() << "inserting" << name;
-            dict[AtomicString(name)].insert(location);
-        }
-    }
-}
+//             // qDebug() << "inserting" << name;
+//             dict[AtomicString(name)].insert(location);
+//         }
+//     }
+// }
 
-static inline void writeEntry(leveldb::WriteBatch* batch, const RBuildPrivate::DataEntry& entry)
-{
-    const CursorKey& key = entry.cursor.key;
-    if (!key.isValid()) {
-        return;
-    }
+// static inline void writeEntry(leveldb::WriteBatch* batch, const RBuildPrivate::DataEntry& entry)
+// {
+//     const CursorKey& key = entry.cursor.key;
+//     if (!key.isValid()) {
+//         return;
+//     }
 
-    QByteArray k = key.toString();
-    QByteArray v = makeRefValue(entry);
-    if (!v.isEmpty())
-        batch->Put(leveldb::Slice(k.constData(), k.size()), leveldb::Slice(v.constData(), v.size()));
-    // qDebug() << "writing" << k << kindToString(key.kind) << entry.references.size()
-    //          << v.size() << std::string(v.constData(), v.size()).size();
-}
+//     QByteArray k = key.toString();
+//     QByteArray v = makeRefValue(entry);
+//     if (!v.isEmpty())
+//         batch->Put(leveldb::Slice(k.constData(), k.size()), leveldb::Slice(v.constData(), v.size()));
+//     // qDebug() << "writing" << k << kindToString(key.kind) << entry.references.size()
+//     //          << v.size() << std::string(v.constData(), v.size()).size();
+// }
 
 static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 {
@@ -615,138 +614,160 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 
 void RBuild::writeData(leveldb::DB *db, leveldb::WriteBatch *batch, unsigned flags)
 {
-    if (!mData)
-        return;
-
     Q_ASSERT(batch);
+    foreach(const RBuildPrivate::Entity &entity, mData->entities) {
+        const QByteArray key = entity.location.key();
+        QByteArray val;
+        {
+            QDataStream ds(&val, QIODevice::WriteOnly);
+            // ds <<
+// -        QDataStream ds(&out, QIODevice::WriteOnly);
+// -        if (!refersToSelf) {
+// -            ds << entry.reference.key.toString();
+// -        } else {
+// -            ds << QByteArray();
+// -        }
+// -        ds << entry.references;
+// -        // qDebug() << "writing out value for" << entry.key.cursor.toString()
+// -        //          << entry.reference.key.toString() << entry.references;
+// -        // const QByteArray v =
+// -        // ds << QByteArray::fromRawData(&v[0], v.size()) << convertRefs(entry.references);
+// -    }
 
-    QHash<AtomicString, QSet<AtomicString> > dict;
-    foreach(RBuildPrivate::DataEntry* entry, mData->data) {
-        const CursorKey key = entry->cursor.key;
-        const CursorKey ref = entry->reference.key;
-        if (key.kind == CXCursor_CXXMethod
-            || key.kind == CXCursor_Constructor
-            || key.kind == CXCursor_Destructor) {
-            if (key != ref && !key.isDefinition()) {
-                RBuildPrivate::DataEntry *def = mData->seen.value(ref.locationKey());
-                if (!def) {
-                    qDebug() << "no def for" << key.toString() << ref.toString();
-                } else if (def == entry) {
-                    qDebug() << "wrong def for" << ref.toString()
-                             << "got" << entry->cursor.key.toString();
-                }
-
-                Q_ASSERT(def && def != entry);
-                def->reference = entry->cursor;
-            }
-            continue;
         }
 
-        const QByteArray refKey = ref.locationKey();
-        // qWarning() << entry->cursor.key << "references" << entry->reference.key;
-        RBuildPrivate::DataEntry *r = mData->seen.value(refKey);
-        // if (flags & LookupReferencesFromDatabase) {
-        //     qDebug() << key << ref << r;
-        // }
-        if (!r && (flags & LookupReferencesFromDatabase)) {
-            std::auto_ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
-            it->Seek(refKey.constData());
-            if (it->Valid()) {
-                leveldb::Slice val = it->value();
-                QByteArray data(val.data(), val.size());
-                {
-                    QDataStream ds(&data, QIODevice::ReadWrite);
-                    QByteArray mapsTo;
-                    ds >> mapsTo;
-                    const int pos = ds.device()->pos();
-                    QSet<Cursor> refs;
-                    ds >> refs;
-                    refs.insert(entry->cursor);
-                    ds.device()->seek(pos);
-                    ds << refs;
-                }
-                batch->Put(it->key(), leveldb::Slice(data.constData(), data.size()));
-                // qDebug() << "successfully looked up" << refKey << "and added ref" << entry->cursor.key;
-                continue;
-            }
-        }
-        if (r) {
-            if (r != entry) {
-                Q_ASSERT(entry->reference.key.isValid());
-                Q_ASSERT(entry->cursor.key.isValid());
-                r->references.insert(entry->cursor);
-            }
-        } else {
-            bool warn = true;
-            switch (entry->cursor.key.kind) {
-            case CXCursor_InclusionDirective:
-                warn = false;
-                break;
-            default:
-                break;
-            }
-            switch (entry->reference.key.kind) {
-            case CXCursor_TemplateTypeParameter:
-            case CXCursor_NonTypeTemplateParameter:
-                warn = false;
-            case CXCursor_ClassDecl:
-            case CXCursor_StructDecl:
-                if (!entry->reference.key.isDefinition())
-                    warn = false;
-                break;
-            default:
-                break;
-            }
+        // batch->Put(leveldb::Slice(key.constData(), key.size()),
 
-            // if (warn && entry->cursor.key == entry->reference.key)
-            //     warn = false;
 
-            if (warn && !strncmp("operator", entry->cursor.key.symbolName.constData(), 8))
-                warn = false;
-
-            // warn = true;
-            if (warn) {
-                qWarning() << "nowhere to add this reference"
-                           << entry->cursor.key << "references" << entry->reference.key;
-            }
-        }
     }
 
-    // QByteArray entries;
-    // QDataStream ds(&entries, QIODevice::WriteOnly);
-    // ds << mData->data.size();
-    foreach(const RBuildPrivate::DataEntry* entry, mData->data) {
-        writeEntry(batch, *entry);
-        collectDict(*entry, dict);
-        // ds << *entry;
-    }
+    // QHash<AtomicString, QSet<AtomicString> > dict;
+    // foreach(RBuildPrivate::DataEntry* entry, mData->data) {
+    //     const CursorKey key = entry->cursor.key;
+    //     const CursorKey ref = entry->reference.key;
+    //     if (key.kind == CXCursor_CXXMethod
+    //         || key.kind == CXCursor_Constructor
+    //         || key.kind == CXCursor_Destructor) {
+    //         if (key != ref && !key.isDefinition()) {
+    //             RBuildPrivate::DataEntry *def = mData->seen.value(ref.locationKey());
+    //             if (!def) {
+    //                 qDebug() << "no def for" << key.toString() << ref.toString();
+    //             } else if (def == entry) {
+    //                 qDebug() << "wrong def for" << ref.toString()
+    //                          << "got" << entry->cursor.key.toString();
+    //             }
 
-    writeDict(batch, dict);
+    //             Q_ASSERT(def && def != entry);
+    //             def->reference = entry->cursor;
+    //         }
+    //         continue;
+    //     }
 
-    QSet<Path> allFiles;
-    foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
-        // qDebug() << dep.file << ctime(&dep.lastModified);
-        writeDependencies(batch, dep.file, dep.arguments,
-                          dep.lastModified, dep.dependencies, 0);
-    }
+    //     const QByteArray refKey = ref.locationKey();
+    //     // qWarning() << entry->cursor.key << "references" << entry->reference.key;
+    //     RBuildPrivate::DataEntry *r = mData->seen.value(refKey);
+    //     // if (flags & LookupReferencesFromDatabase) {
+    //     //     qDebug() << key << ref << r;
+    //     // }
+    //     if (!r && (flags & LookupReferencesFromDatabase)) {
+    //         std::auto_ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
+    //         it->Seek(refKey.constData());
+    //         if (it->Valid()) {
+    //             leveldb::Slice val = it->value();
+    //             QByteArray data(val.data(), val.size());
+    //             {
+    //                 QDataStream ds(&data, QIODevice::ReadWrite);
+    //                 QByteArray mapsTo;
+    //                 ds >> mapsTo;
+    //                 const int pos = ds.device()->pos();
+    //                 QSet<Cursor> refs;
+    //                 ds >> refs;
+    //                 refs.insert(entry->cursor);
+    //                 ds.device()->seek(pos);
+    //                 ds << refs;
+    //             }
+    //             batch->Put(it->key(), leveldb::Slice(data.constData(), data.size()));
+    //             // qDebug() << "successfully looked up" << refKey << "and added ref" << entry->cursor.key;
+    //             continue;
+    //         }
+    //     }
+    //     if (r) {
+    //         if (r != entry) {
+    //             Q_ASSERT(entry->reference.key.isValid());
+    //             Q_ASSERT(entry->cursor.key.isValid());
+    //             r->references.insert(entry->cursor);
+    //         }
+    //     } else {
+    //         bool warn = true;
+    //         switch (entry->cursor.key.kind) {
+    //         case CXCursor_InclusionDirective:
+    //             warn = false;
+    //             break;
+    //         default:
+    //             break;
+    //         }
+    //         switch (entry->reference.key.kind) {
+    //         case CXCursor_TemplateTypeParameter:
+    //         case CXCursor_NonTypeTemplateParameter:
+    //             warn = false;
+    //         case CXCursor_ClassDecl:
+    //         case CXCursor_StructDecl:
+    //             if (!entry->reference.key.isDefinition())
+    //                 warn = false;
+    //             break;
+    //         default:
+    //             break;
+    //         }
 
-    if (!(flags & ExcludePCH)) {
-        // batch.Put(" ", leveldb::Slice(entries.constData(), entries.size()));
-        const QByteArray pchData = Precompile::pchData();
-        if (!pchData.isEmpty())
-            batch->Put("pch", leveldb::Slice(pchData.constData(), pchData.size()));
-    }
+    //         // if (warn && entry->cursor.key == entry->reference.key)
+    //         //     warn = false;
 
-    if (!mSourceDir.isEmpty()) {
-        Q_ASSERT(mSourceDir.endsWith('/'));
-        if (mSourceDir.isDir()) {
-            recurseDir(&allFiles, mSourceDir, mSourceDir.size());
-        } else {
-            fprintf(stderr, "%s is not a directory\n", mSourceDir.constData());
-        }
-    }
-    writeToBatch(batch, leveldb::Slice("sourceDir"), mSourceDir);
-    writeToBatch(batch, leveldb::Slice("files"), allFiles);
+    //         if (warn && !strncmp("operator", entry->cursor.key.symbolName.constData(), 8))
+    //             warn = false;
+
+    //         // warn = true;
+    //         if (warn) {
+    //             qWarning() << "nowhere to add this reference"
+    //                        << entry->cursor.key << "references" << entry->reference.key;
+    //         }
+    //     }
+    // }
+
+    // // QByteArray entries;
+    // // QDataStream ds(&entries, QIODevice::WriteOnly);
+    // // ds << mData->data.size();
+    // foreach(const RBuildPrivate::DataEntry* entry, mData->data) {
+    //     writeEntry(batch, *entry);
+    //     collectDict(*entry, dict);
+    //     // ds << *entry;
+    // }
+
+    // writeDict(batch, dict);
+
+    // QSet<Path> allFiles;
+    // foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
+    //     // qDebug() << dep.file << ctime(&dep.lastModified);
+    //     writeDependencies(batch, dep.file, dep.arguments,
+    //                       dep.lastModified, dep.dependencies, 0);
+    // }
+
+    // if (!(flags & ExcludePCH)) {
+    //     // batch.Put(" ", leveldb::Slice(entries.constData(), entries.size()));
+    //     const QByteArray pchData = Precompile::pchData();
+    //     if (!pchData.isEmpty())
+    //         batch->Put("pch", leveldb::Slice(pchData.constData(), pchData.size()));
+    // }
+
+    // if (!mSourceDir.isEmpty()) {
+    //     Q_ASSERT(mSourceDir.endsWith('/'));
+    //     if (mSourceDir.isDir()) {
+    //         recurseDir(&allFiles, mSourceDir, mSourceDir.size());
+    //     } else {
+    //         fprintf(stderr, "%s is not a directory\n", mSourceDir.constData());
+    //     }
+    // }
+    // writeToBatch(batch, leveldb::Slice("sourceDir"), mSourceDir);
+    // writeToBatch(batch, leveldb::Slice("files"), allFiles);
 }
 
 static inline void debugCursor(FILE* out, const CXCursor& cursor)
@@ -827,112 +848,112 @@ static inline bool useCursor(CXCursorKind kind)
     return true;
 }
 
-static inline CXCursor referencedCursor(const CXCursor& cursor)
-{
-#ifdef REFERENCEDEBUG
-    CursorKey key(cursor);
-    const bool dodebug = (key.fileName.toByteArray().endsWith("GccArguments.cpp") && key.line == 74);
-#endif
+// static inline CXCursor referencedCursor(const CXCursor& cursor)
+// {
+// #ifdef REFERENCEDEBUG
+//     CursorKey key(cursor);
+//     const bool dodebug = (key.fileName.toByteArray().endsWith("GccArguments.cpp") && key.line == 74);
+// #endif
 
-    CXCursor ret;
-    const CXCursorKind kind = clang_getCursorKind(cursor);
+//     CXCursor ret;
+//     const CXCursorKind kind = clang_getCursorKind(cursor);
 
-    if (!useCursor(kind)) {
-#ifdef REFERENCEDEBUG
-        if (dodebug) {
-            printf("making ref, throwing out\n");
-            debugCursor(stdout, cursor);
-        }
-#endif
-        return clang_getNullCursor();
-    }
+//     if (!useCursor(kind)) {
+// #ifdef REFERENCEDEBUG
+//         if (dodebug) {
+//             printf("making ref, throwing out\n");
+//             debugCursor(stdout, cursor);
+//         }
+// #endif
+//         return clang_getNullCursor();
+//     }
 
-    if (kind >= CXCursor_FirstRef && kind <= CXCursor_LastRef) {
-#ifdef REFERENCEDEBUG
-        if (dodebug) {
-            printf("making ref, ref\n");
-            debugCursor(stdout, cursor);
-        }
-#endif
-        const CXType type = clang_getCursorType(cursor);
-        if (type.kind == CXType_Invalid)
-            ret = clang_getCursorReferenced(cursor);
-        else
-            ret = clang_getTypeDeclaration(type);
-        if (isValidCursor(ret)) {
-#ifdef REFERENCEDEBUG
-            if (dodebug)
-                debugCursor(stdout, ret);
-#endif
-        } else
-            ret = cursor;
-    } else if (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr) {
-#ifdef REFERENCEDEBUG
-        if (dodebug) {
-            printf("making ref, expr\n");
-            debugCursor(stdout, cursor);
-        }
-#endif
-        ret = clang_getCursorReferenced(cursor);
-#ifdef REFERENCEDEBUG
-        if (dodebug)
-            debugCursor(stdout, ret);
-#endif
-    } else if (kind >= CXCursor_FirstStmt && kind <= CXCursor_LastStmt) {
-#ifdef REFERENCEDEBUG
-        if (dodebug) {
-            printf("making ref, stmt\n");
-            debugCursor(stdout, cursor);
-        }
-#endif
-        ret = clang_getCursorReferenced(cursor);
-        if (isValidCursor(ret)) {
-#ifdef REFERENCEDEBUG
-            if (dodebug)
-                debugCursor(stdout, ret);
-#endif
-        } else
-            ret = cursor;
-    } else if (kind >= CXCursor_FirstDecl && kind <= CXCursor_LastDecl) {
-#ifdef REFERENCEDEBUG
-        if (dodebug) {
-            printf("making ref, decl\n");
-            debugCursor(stdout, cursor);
-        }
-#endif
-        ret = clang_getCursorReferenced(cursor);
-#ifdef REFERENCEDEBUG
-        if (dodebug)
-            debugCursor(stdout, ret);
-#endif
-    } else if (kind == CXCursor_MacroDefinition || kind == CXCursor_MacroExpansion) {
-#ifdef REFERENCEDEBUG
-        if (dodebug) {
-            printf("making ref, macro\n");
-            debugCursor(stdout, cursor);
-        }
-#endif
-        if (kind == CXCursor_MacroExpansion) {
-            ret = clang_getCursorReferenced(cursor);
-#ifdef REFERENCEDEBUG
-            if (dodebug)
-                debugCursor(stdout, ret);
-#endif
-        } else
-            ret = cursor;
-    } else {
-#ifdef REFERENCEDEBUG
-        if (!key.symbolName.isEmpty()) {
-            if (kind != CXCursor_InclusionDirective) {
-                fprintf(stderr, "unhandled reference %s\n", eatString(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).constData());
-                debugCursor(stderr, cursor);
-            }
-        }
-#endif
-        ret = clang_getNullCursor();
-    }
-    return ret;
-}
+//     if (kind >= CXCursor_FirstRef && kind <= CXCursor_LastRef) {
+// #ifdef REFERENCEDEBUG
+//         if (dodebug) {
+//             printf("making ref, ref\n");
+//             debugCursor(stdout, cursor);
+//         }
+// #endif
+//         const CXType type = clang_getCursorType(cursor);
+//         if (type.kind == CXType_Invalid)
+//             ret = clang_getCursorReferenced(cursor);
+//         else
+//             ret = clang_getTypeDeclaration(type);
+//         if (isValidCursor(ret)) {
+// #ifdef REFERENCEDEBUG
+//             if (dodebug)
+//                 debugCursor(stdout, ret);
+// #endif
+//         } else
+//             ret = cursor;
+//     } else if (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr) {
+// #ifdef REFERENCEDEBUG
+//         if (dodebug) {
+//             printf("making ref, expr\n");
+//             debugCursor(stdout, cursor);
+//         }
+// #endif
+//         ret = clang_getCursorReferenced(cursor);
+// #ifdef REFERENCEDEBUG
+//         if (dodebug)
+//             debugCursor(stdout, ret);
+// #endif
+//     } else if (kind >= CXCursor_FirstStmt && kind <= CXCursor_LastStmt) {
+// #ifdef REFERENCEDEBUG
+//         if (dodebug) {
+//             printf("making ref, stmt\n");
+//             debugCursor(stdout, cursor);
+//         }
+// #endif
+//         ret = clang_getCursorReferenced(cursor);
+//         if (isValidCursor(ret)) {
+// #ifdef REFERENCEDEBUG
+//             if (dodebug)
+//                 debugCursor(stdout, ret);
+// #endif
+//         } else
+//             ret = cursor;
+//     } else if (kind >= CXCursor_FirstDecl && kind <= CXCursor_LastDecl) {
+// #ifdef REFERENCEDEBUG
+//         if (dodebug) {
+//             printf("making ref, decl\n");
+//             debugCursor(stdout, cursor);
+//         }
+// #endif
+//         ret = clang_getCursorReferenced(cursor);
+// #ifdef REFERENCEDEBUG
+//         if (dodebug)
+//             debugCursor(stdout, ret);
+// #endif
+//     } else if (kind == CXCursor_MacroDefinition || kind == CXCursor_MacroExpansion) {
+// #ifdef REFERENCEDEBUG
+//         if (dodebug) {
+//             printf("making ref, macro\n");
+//             debugCursor(stdout, cursor);
+//         }
+// #endif
+//         if (kind == CXCursor_MacroExpansion) {
+//             ret = clang_getCursorReferenced(cursor);
+// #ifdef REFERENCEDEBUG
+//             if (dodebug)
+//                 debugCursor(stdout, ret);
+// #endif
+//         } else
+//             ret = cursor;
+//     } else {
+// #ifdef REFERENCEDEBUG
+//         if (!key.symbolName.isEmpty()) {
+//             if (kind != CXCursor_InclusionDirective) {
+//                 fprintf(stderr, "unhandled reference %s\n", eatString(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).constData());
+//                 debugCursor(stderr, cursor);
+//             }
+//         }
+// #endif
+//         ret = clang_getNullCursor();
+//     }
+//     return ret;
+// }
 
 static inline bool equalLocation(const CursorKey& key1, const CursorKey& key2)
 {
@@ -977,148 +998,6 @@ static inline bool isSource(const AtomicString &str)
     const int dot = b.lastIndexOf('.');
     const int len = b.size() - dot - 1;
     return (dot != -1 && len > 0 && Path::isSource(b.constData() + dot + 1, len));
-}
-
-struct CollectSymbolsUserData {
-    QMutex &mutex;
-    QHash<QByteArray, RBuildPrivate::DataEntry*> &seen;
-    QList<RBuildPrivate::DataEntry*> &data;
-    const AtomicString *file;
-};
-
-static CXChildVisitResult collectSymbols(CXCursor cursor, CXCursor, CXClientData client_data)
-{
-    CXCursorKind kind = clang_getCursorKind(cursor);
-    if (!isValidKind(kind))
-        return CXChildVisit_Recurse;
-    const CursorKey key(cursor, kind);
-    if (!key.isValid())
-        return CXChildVisit_Recurse;
-    CollectSymbolsUserData* data = reinterpret_cast<CollectSymbolsUserData*>(client_data);
-    if (data->file && key.fileName != *data->file && !::isSource(key.fileName)) {
-        // qDebug() << "ditched" << key << "for" << data->file;
-        return CXChildVisit_Continue;
-    }
-    RBuildPrivate::DataEntry* entry = 0;
-    const QByteArray locationKey = key.locationKey();
-    QMutexLocker locker(&data->mutex);
-    const QHash<QByteArray, RBuildPrivate::DataEntry*>::const_iterator it = data->seen.find(locationKey);
-    static const bool verbose = getenv("VERBOSE");
-    if (verbose) {
-        debugCursor(stderr, cursor);
-    }
-
-#ifdef COLLECTDEBUG
-    const bool dodebug = (key.fileName.toByteArray().endsWith("main.cpp") && key.line == 10 && key.col == 1);
-#else
-    const bool dodebug = false;
-#endif
-    if (it != data->seen.end()) {
-        entry = it.value();
-    } else {
-        entry = new RBuildPrivate::DataEntry;
-    }
-
-    if (key.kind == CXCursor_InclusionDirective) {
-        CursorKey inclusion;
-        inclusion.fileName = eatString(clang_getFileName(clang_getIncludedFile(cursor)));
-        inclusion.symbolName = removePath(inclusion.fileName.toByteArray());
-        inclusion.line = inclusion.col = 1;
-        inclusion.off = 0;
-        // qDebug() << "found include thing" << inclusion.symbolName << key.toString() << inclusion.toString();
-        addCursor(cursor, key, &entry->cursor);
-        addCursor(clang_getNullCursor(), inclusion, &entry->reference);
-        if (it == data->seen.end()) {
-            data->seen[locationKey] = entry;
-            data->data.append(entry);
-        }
-        return CXChildVisit_Continue;
-    }
-
-    // VerifyEntry v(entry, cursor);
-
-#ifdef COLLECTDEBUG
-    if (dodebug) {
-        debugCursor(stdout, cursor);
-        fprintf(stdout, "cursor %p\n", entry);
-    }
-#endif
-    CXCursor definition;
-    CursorKey definitionKey;
-    if (key.isDefinition()) {
-        definitionKey = key;
-        definition = cursor;
-    } else {
-        definition = clang_getCursorDefinition(cursor);
-        const CXCursorKind k = clang_getCursorKind(definition);
-        if (isValidKind(k)) {
-            definitionKey = CursorKey(definition, k);
-        } else {
-            definition = clang_getNullCursor();
-        }
-    }
-    if (!definitionKey.isDefinition()) {
-#ifdef COLLECTDEBUG
-        if (dodebug)
-            printf("no definition:\n");
-#endif
-        const CXCursor reference = clang_getCursorReferenced(cursor);
-        const CXCursorKind k = clang_getCursorKind(reference);
-        bool cleanup = true;
-        if (isValidKind(k)) {
-            const CursorKey referenceKey(reference, k);
-            if (shouldMergeCursors(entry->cursor.key, key, entry->reference.key, referenceKey, dodebug)) {
-                addCursor(cursor, key, &entry->cursor);
-                addCursor(reference, referenceKey, &entry->reference);
-                cleanup = false;
-            }
-        }
-        if (cleanup) {
-            if (it == data->seen.end()) {
-                delete entry;
-                entry = 0;
-            }
-            return CXChildVisit_Recurse;
-        }
-#ifdef COLLECTDEBUG
-        if (dodebug) {
-            debugCursor(stdout, reference);
-            fprintf(stdout, "ref %p\n", entry);
-            qDebug() << entry->reference.key;
-        }
-#endif
-    } else {
-#ifdef COLLECTDEBUG
-        if (dodebug)
-            printf("has definition:\n");
-#endif
-        if (shouldMergeCursors(entry->cursor.key, key, entry->reference.key, definitionKey, dodebug)) {
-            addCursor(cursor, key, &entry->cursor);
-            addCursor(definition, definitionKey, &entry->reference);
-        } else {
-            if (it == data->seen.end()) {
-                delete entry;
-                entry = 0;
-            }
-            return CXChildVisit_Recurse;
-        }
-#ifdef COLLECTDEBUG
-        if (dodebug) {
-            debugCursor(stdout, definition);
-            fprintf(stdout, "def %p\n", entry);
-            qDebug() << entry->reference.key;
-        }
-#endif
-    }
-
-    // printf("%s:%d }\n", __FILE__, __LINE__);
-    if (it == data->seen.end()) {
-        data->seen[locationKey] = entry;
-        data->data.append(entry);
-    }
-
-    // printf("%s:%d return CXChildVisit_Recurse;\n", __FILE__, __LINE__);
-    return CXChildVisit_Recurse;
 }
 
 struct InclusionUserData {
@@ -1190,129 +1069,245 @@ static inline bool diagnose(CXTranslationUnit unit)
     return !foundError;
 }
 
-void RBuild::compile(const GccArguments& arguments, Precompile *pre, bool *usedPch)
+
+static inline Location createLocation(const CXIdxLoc &l)
 {
-    const Path input = arguments.input();
-    bool verbose = (getenv("VERBOSE") != 0);
+    Location loc;
+    CXFile f;
+    clang_indexLoc_getFileLocation(l, 0, &f, &loc.line, &loc.column, 0);
+    CXString str = clang_getFileName(f);
+    loc.fileName = Path::resolved(clang_getCString(str));
+    clang_disposeString(str);
+    return loc;
+}
 
-    QList<QByteArray> arglist;
-    bool pch = false;
-    // qDebug() << "pchEnabled" << pchEnabled;
-    arglist << "-cc1" << "-x" << arguments.languageString() << "-fsyntax-only";
+static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
+{
+    RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(userData);
+    RBuildPrivate::Entity e;
+    e.name = decl->entityInfo->name;
+    e.kind = decl->entityInfo->kind;
+    e.location = createLocation(decl->loc);
+    p->entities[decl->entityInfo->USR] = e;
+}
 
-    arglist += arguments.arguments("-I");
-    arglist += arguments.arguments("-D");
-    arglist += RTags::systemIncludes();
+static inline void indexEntityReference(CXClientData userData, const CXIdxEntityRefInfo *ref)
+{
+    RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(userData);
+    const AtomicString key(ref->referencedEntity->USR);
+    const Location loc = createLocation(ref->loc);
+    QMutexLocker lock(&p->entryMutex); // ### is this the right place to lock?
+    p->entities[key].references.insert(loc);
+}
 
-    Q_ASSERT(pchEnabled || !pre);
-    Q_ASSERT(!pre || pre->isCompiled());
-    Q_ASSERT(pre);
-    if (pre) {
-        const QByteArray pchFile = pre->filePath();
-        Q_ASSERT(!pchFile.isEmpty());
-        pch = true;
-        arglist += "-include-pch";
-        arglist += pchFile;
+template <typename T>
+QDebug operator<<(QDebug dbg, const QVarLengthArray<T> &arr)
+{
+    dbg.nospace() << "QVarLengthArray(";
+    for (int i=0; i<arr.size(); ++i) {
+        if (i > 0)
+            dbg.nospace() << ", ";
+        dbg.nospace() << arr.at(i);
+    }
+    dbg.nospace() << ")";
+    return dbg.space();
+}
+
+void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile *precompile)
+{
+    QVarLengthArray<const char *, 64> clangArgs(args.size() + (file.isEmpty() ? 0 : 2));
+    int argCount = 0;
+    foreach(const QByteArray& arg, args) {
+        clangArgs[argCount++] = arg.constData();
+    }
+    if (precompile) {
+        Q_ASSERT(precompile->isCompiled());
+        clangArgs[argCount++] = "-include-pch";
+        clangArgs[argCount++] = precompile->filePath().constData();
     }
 
+    IndexerCallbacks cb;
+    memset(&cb, 0, sizeof(IndexerCallbacks));
+    cb.indexDeclaration = indexDeclaration;
+    cb.indexEntityReference = indexEntityReference;
 
-    // ### not very efficient
-    QVector<const char*> argvector;
-    if (verbose)
-        fprintf(stderr, "clang ");
-    foreach(const QByteArray& arg, arglist) {
-        argvector.append(arg.constData());
-        if (verbose)
-            fprintf(stderr, "%s ", arg.constData());
-    }
-    if (verbose)
-        fprintf(stderr, "%s\n", input.constData());
-
+    CXIndexAction action = clang_IndexAction_create(mIndex);
     CXTranslationUnit unit = 0;
-    if (pch) {
-        unit = clang_parseTranslationUnit(mIndex, input.constData(),
-                                          argvector.constData(), argvector.size(),
-                                          0, 0, CXTranslationUnit_DetailedPreprocessingRecord);
-        if (!diagnose(unit)) {
-            qWarning("Couldn't compile with pch %p, Falling back to no pch", unit);
-            // fprintf(stderr, "clang ");
-            // foreach(const QByteArray& arg, arglist) {
-            //     fprintf(stderr, "%s ", arg.constData());
-            // }
-            // fprintf(stderr, "%s\n", input.constData());
+    fprintf(stderr, "clang ");
+    for (int i=0; i<argCount; ++i) {
+        fprintf(stderr, "%s ", clangArgs[i]);
+    }
+    fprintf(stderr, "%s\n", file.constData());
+    
 
+    if (precompile && clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
+                                            CXIndexOpt_None, file.constData(), clangArgs.constData(),
+                                            argCount, 0, 0, &unit,
+                                            clang_defaultEditingTranslationUnitOptions())) {
+        qWarning("Couldn't compile %s with pch %p, Falling back to no pch", file.constData(), unit);
+        // fprintf(stderr, "clang ");
+        // foreach(const QByteArray& arg, arglist) {
+        //     fprintf(stderr, "%s ", arg.constData());
+        // }
+        // fprintf(stderr, "%s\n", input.constData());
+
+        if (unit)
             clang_disposeTranslationUnit(unit);
-            unit = 0;
-            argvector.resize(argvector.size() - 2);
-            pch = false;
-        }
+        unit = 0;
+        argCount -= 2;
+        precompile = 0;
     }
-    if (!unit) {
-        unit = clang_parseTranslationUnit(mIndex, input.constData(),
-                                          argvector.constData(), argvector.size(),
-                                          0, 0, CXTranslationUnit_DetailedPreprocessingRecord);
-        diagnose(unit);
+    if (!unit && clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
+                                       CXIndexOpt_None, file.constData(),
+                                       clangArgs.constData(), argCount,
+                                       0, 0, &unit, clang_defaultEditingTranslationUnitOptions())) {
+        if (unit)
+            clang_disposeTranslationUnit(unit);
+        unit = 0;
     }
 
-    if (usedPch)
-        *usedPch = pch;
-
     if (!unit) {
-        qWarning() << "Unable to parse unit for" << input << arglist;
+        qWarning() << "Unable to parse unit for" << file; // << clangArgs;
         return;
     }
 
-    CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
-    const AtomicString file(pchEnabled ? input : Path());
-    CollectSymbolsUserData userData = {
-        mData->entryMutex,
-        mData->seen,
-        mData->data,
-        pre ? &file : 0 // if we're waiting for a precompile to finish we still want to ignore these
-    };
-
-    clang_visitChildren(unitCursor, collectSymbols, &userData);
-    RBuildPrivate::Dependencies deps = { input, arguments, input.lastModified(),
+    RBuildPrivate::Dependencies deps = { file, args, file.lastModified(),
                                          QHash<Path, quint64>() };
-    if (usedPch)
-        *usedPch = pch;
-    if (pch) {
-        deps.dependencies = pre->dependencies();
+    if (precompile) {
+        deps.dependencies = precompile->dependencies();
     } else {
         InclusionUserData u(deps.dependencies);
         clang_getInclusions(unit, getInclusions, &u);
     }
 
+    QMutexLocker lock(&mData->entryMutex); // ### is this the right place to lock?
     mData->dependencies.append(deps);
     // qDebug() << input << mData->dependencies.last().dependencies.keys();
     clang_disposeTranslationUnit(unit);
 
     emit compileFinished();
-    // qDebug() << arguments.raw() << arguments.language();
+
 }
+
+// void RBuild::compile(const GccArguments& arguments, Precompile *pre, bool *usedPch)
+// {
+//     const Path input = arguments.input();
+//     bool verbose = (getenv("VERBOSE") != 0);
+
+//     QList<QByteArray> arglist;
+//     bool pch = false;
+//     // qDebug() << "pchEnabled" << pchEnabled;
+//     arglist << "-cc1" << "-x" << arguments.languageString() << "-fsyntax-only";
+
+//     arglist += arguments.arguments("-I");
+//     arglist += arguments.arguments("-D");
+//     arglist += RTags::systemIncludes();
+
+//     Q_ASSERT(pchEnabled || !pre);
+//     Q_ASSERT(!pre || pre->isCompiled());
+//     Q_ASSERT(pre);
+//     if (pre) {
+//         const QByteArray pchFile = pre->filePath();
+//         Q_ASSERT(!pchFile.isEmpty());
+//         pch = true;
+//         arglist += "-include-pch";
+//         arglist += pchFile;
+//     }
+
+
+//     // ### not very efficient
+//     QVector<const char*> argvector;
+//     if (verbose)
+//         fprintf(stderr, "clang ");
+//     foreach(const QByteArray& arg, arglist) {
+//         argvector.append(arg.constData());
+//         if (verbose)
+//             fprintf(stderr, "%s ", arg.constData());
+//     }
+//     if (verbose)
+//         fprintf(stderr, "%s\n", input.constData());
+
+//     IndexerCallbacks cb;
+//     memset(&cb, 0, sizeof(IndexerCallbacks));
+//     cb.indexDeclaration = indexDeclaration;
+//     cb.indexEntityReference = indexEntityReference;
+
+//     CXIndexAction action = clang_IndexAction_create(mIndex);
+//     CXTranslationUnit unit = 0;
+//     if (pch && clang_indexSourceFile(action, 0, &cb, sizeof(IndexerCallbacks),
+//                                      CXIndexOpt_None, input.constData(), argvector.constData(), argvector.size(),
+//                                      0, 0, &unit, clang_defaultEditingTranslationUnitOptions())) {
+//         qWarning("Couldn't compile with pch %p, Falling back to no pch", unit);
+//         // fprintf(stderr, "clang ");
+//         // foreach(const QByteArray& arg, arglist) {
+//         //     fprintf(stderr, "%s ", arg.constData());
+//         // }
+//         // fprintf(stderr, "%s\n", input.constData());
+
+//         if (unit)
+//             clang_disposeTranslationUnit(unit);
+//         unit = 0;
+//         argvector.resize(argvector.size() - 2);
+//         pch = false;
+//     }
+//     if (!unit && clang_indexSourceFile(action, 0, &cb, sizeof(IndexerCallbacks),
+//                                        CXIndexOpt_None, input.constData(), argvector.constData(), argvector.size(),
+//                                        0, 0, &unit, clang_defaultEditingTranslationUnitOptions())) {
+//         if (unit)
+//             clang_disposeTranslationUnit(unit);
+//         unit = 0;
+//     }
+
+//     if (usedPch)
+//         *usedPch = pch;
+
+//     if (!unit) {
+//         qWarning() << "Unable to parse unit for" << input << arglist;
+//         return;
+//     }
+
+
+//     RBuildPrivate::Dependencies deps = { input, arguments, input.lastModified(),
+//                                          QHash<Path, quint64>() };
+//     if (usedPch)
+//         *usedPch = pch;
+//     if (pch) {
+//         deps.dependencies = pre->dependencies();
+//     } else {
+//         InclusionUserData u(deps.dependencies);
+//         clang_getInclusions(unit, getInclusions, &u);
+//     }
+
+//     mData->dependencies.append(deps);
+//     // qDebug() << input << mData->dependencies.last().dependencies.keys();
+//     clang_disposeTranslationUnit(unit);
+
+//     emit compileFinished();
+//     // qDebug() << arguments.raw() << arguments.language();
+// }
 
 void PrecompileRunnable::run()
 {
-    const qint64 before = timer.elapsed();
-    CXTranslationUnit unit = mPch->precompile(mIndex);
-    if (unit) {
-        CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
-        CollectSymbolsUserData userData = {
-            mRBP->entryMutex, mRBP->seen, mRBP->data, 0
-        };
+    // const qint64 before = timer.elapsed();
+    // CXTranslationUnit unit = mPch->precompile(mIndex);
+    // if (unit) {
+    //     CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
+    //     CollectSymbolsUserData userData = {
+    //         mRBP->entryMutex, mRBP->seen, mRBP->data, 0
+    //     };
 
-        clang_visitChildren(unitCursor, collectSymbols, &userData);
-        QHash<Path, quint64> dependencies;
-        InclusionUserData u(dependencies);
-        clang_getInclusions(unit, getInclusions, &u);
-        // qDebug() << dependencies;
-        mPch->setDependencies(dependencies);
-        clang_disposeTranslationUnit(unit);
-        const qint64 elapsed = timer.elapsed() - before;
-        fprintf(stderr, "parsed pch header (%s) (%lld ms)\n",
-                mPch->headerFilePath().constData(), elapsed);
-    }
-    emit finished(mPch);
+    //     clang_visitChildren(unitCursor, collectSymbols, &userData);
+    //     QHash<Path, quint64> dependencies;
+    //     InclusionUserData u(dependencies);
+    //     clang_getInclusions(unit, getInclusions, &u);
+    //     // qDebug() << dependencies;
+    //     mPch->setDependencies(dependencies);
+    //     clang_disposeTranslationUnit(unit);
+    //     const qint64 elapsed = timer.elapsed() - before;
+    //     fprintf(stderr, "parsed pch header (%s) (%lld ms)\n",
+    //             mPch->headerFilePath().constData(), elapsed);
+    // }
+    // emit finished(mPch);
 }
 
 void RBuild::precompileAll()

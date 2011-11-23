@@ -1,4 +1,39 @@
 #include <clang-c/Index.h>
+#include <string.h>
+
+const char *kindToString(CXIdxEntityKind kind)
+{
+    switch (kind) {
+    case CXIdxEntity_Unexposed: return "Unexposed";
+    case CXIdxEntity_Typedef: return "Typedef";
+    case CXIdxEntity_Function: return "Function";
+    case CXIdxEntity_Variable: return "Variable";
+    case CXIdxEntity_Field: return "Field";
+    case CXIdxEntity_EnumConstant: return "EnumConstant";
+    case CXIdxEntity_ObjCClass: return "ObjCClass";
+    case CXIdxEntity_ObjCProtocol: return "ObjCProtocol";
+    case CXIdxEntity_ObjCCategory: return "ObjCCategory";
+    case CXIdxEntity_ObjCInstanceMethod: return "ObjCInstanceMethod";
+    case CXIdxEntity_ObjCClassMethod: return "ObjCClassMethod";
+    case CXIdxEntity_ObjCProperty: return "ObjCProperty";
+    case CXIdxEntity_ObjCIvar: return "ObjCIvar";
+    case CXIdxEntity_Enum: return "Enum";
+    case CXIdxEntity_Struct: return "Struct";
+    case CXIdxEntity_Union: return "Union";
+    case CXIdxEntity_CXXClass: return "CXXClass";
+    case CXIdxEntity_CXXNamespace: return "CXXNamespace";
+    case CXIdxEntity_CXXNamespaceAlias: return "CXXNamespaceAlias";
+    case CXIdxEntity_CXXStaticVariable: return "CXXStaticVariable";
+    case CXIdxEntity_CXXStaticMethod: return "CXXStaticMethod";
+    case CXIdxEntity_CXXInstanceMethod: return "CXXInstanceMethod";
+    case CXIdxEntity_CXXConstructor: return "CXXConstructor";
+    case CXIdxEntity_CXXDestructor: return "CXXDestructor";
+    case CXIdxEntity_CXXConversionFunction: return "CXXConversionFunction";
+    case CXIdxEntity_CXXTypeAlias: return "CXXTypeAlias";
+    }
+    return "";
+}
+
 
 class String
 {
@@ -34,57 +69,34 @@ static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData)
     return CXChildVisit_Recurse;
 }
 
+/**
+ * \brief Called periodically to check whether indexing should be aborted.
+ * Should return 0 to continue, and non-zero to abort.
+ */
+// int abortQuery(CXClientData client_data, void *reserved)
+// {
+// }
 
 /**
- * \brief Called when a diagnostic is emitted.
+ * \brief Called at the end of indexing; passes the complete diagnostic set.
  */
-static void diagnostic(CXClientData client_data, CXDiagnostic diagnostic, void *reserved)
-{
-    printf("%s:%d void diagnostic(CXClientData client_data, CXDiagnostic diagnostic, void *reserved)\n", __FILE__, __LINE__);
-}
+// void diagnostic(CXClientData client_data,
+//                 CXDiagnosticSet, void *reserved)
+// {
+// }
 
-/**
- * \brief Called for the purpose of associating a client's CXIdxFile with
- * a CXFile.
- */
-static CXIdxFile recordFile(CXClientData client_data, CXFile file, void *reserved)
-{
-    printf("%s:%d CXIdxFile recordFile(CXClientData client_data, CXFile file, void *reserved)\n", __FILE__, __LINE__);
-    return 0;
-}
-
+// CXIdxClientFile enteredMainFile(CXClientData client_data,
+//                                 CXFile mainFile, void *reserved)
+// {
+// }
+  
 /**
  * \brief Called when a file gets #included/#imported.
  */
-static void ppIncludedFile(CXClientData client_data, CXIdxIncludedFileInfo *)
-{
-    printf("%s:%d void ppIncludedFile(CXClientData client_data, CXIdxIncludedFileInfo *)\n", __FILE__, __LINE__);
-}
-
-/**
- * \brief Called when a macro gets #defined.
- */
-static CXIdxMacro ppMacroDefined(CXClientData client_data, CXIdxMacroDefinedInfo *)
-{
-    printf("%s:%d CXIdxMacro ppMacroDefined(CXClientData client_data, CXIdxMacroDefinedInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called when a macro gets undefined.
- */
-static void ppMacroUndefined(CXClientData client_data, CXIdxMacroUndefinedInfo *)
-{
-    printf("%s:%d void ppMacroUndefined(CXClientData client_data, CXIdxMacroUndefinedInfo *)\n", __FILE__, __LINE__);
-}
-
-/**
- * \brief Called when a macro gets expanded.
- */
-static void ppMacroExpanded(CXClientData client_data, CXIdxMacroExpandedInfo *)
-{
-    printf("%s:%d void ppMacroExpanded(CXClientData client_data, CXIdxMacroExpandedInfo *)\n", __FILE__, __LINE__);
-}
+// CXIdxClientFile ppIncludedFile(CXClientData client_data,
+//                                const CXIdxIncludedFileInfo *)
+// {
+// }
   
 /**
  * \brief Called when a AST file (PCH or module) gets imported.
@@ -92,246 +104,96 @@ static void ppMacroExpanded(CXClientData client_data, CXIdxMacroExpandedInfo *)
  * AST files will not get indexed (there will not be callbacks to index all
  * the entities in an AST file). The recommended action is that, if the AST
  * file is not already indexed, to block further indexing and initiate a new
- * indexing job specific to the AST file, so that references of entities of
- * the AST file can be later associated with CXIdxEntities returned by
- * \see importedEntity callbacks.
+ * indexing job specific to the AST file.
  */
-static CXIdxASTFile importedASTFile(CXClientData client_data, CXIdxImportedASTFileInfo *)
-{
-    printf("%s:%d CXIdxASTFile importedASTFile(CXClientData client_data, CXIdxImportedASTFileInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called when an entity gets imported from an AST file. This generally
- * happens when an entity from a PCH/module is referenced for the first time.
- */
-static CXIdxEntity importedEntity(CXClientData client_data, CXIdxImportedEntityInfo *)
-{
-    printf("%s:%d CXIdxEntity importedEntity(CXClientData client_data, CXIdxImportedEntityInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called when a macro gets imported from an AST file. This generally
- * happens when a macro from a PCH/module is referenced for the first time.
- */
-static CXIdxEntity importedMacro(CXClientData client_data, CXIdxImportedMacroInfo *)
-{
-    printf("%s:%d CXIdxEntity importedMacro(CXClientData client_data, CXIdxImportedMacroInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
+// CXIdxClientASTFile importedASTFile(CXClientData client_data,
+//                                    const CXIdxImportedASTFileInfo *)
+// {
+// }
 
 /**
  * \brief Called at the beginning of indexing a translation unit.
  */
-static CXIdxContainer startedTranslationUnit(CXClientData client_data, void *reserved)
+// CXIdxClientContainer startedTranslationUnit(CXClientData client_data,
+//                                             void *reserved)
+// {
+// }
+
+static inline void debugCursor(FILE* out, const CXCursor& cursor)
 {
-    printf("%s:%d CXIdxContainer startedTranslationUnit(CXClientData client_data, void *reserved)\n", __FILE__, __LINE__);
-    return 0;
+    CXFile file;
+    unsigned int line, col, off;
+    CXSourceLocation loc = clang_getCursorLocation(cursor);
+    clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+    CXString name = clang_getCursorDisplayName(cursor);
+    CXString filename = clang_getFileName(file);
+    CXString kind = clang_getCursorKindSpelling(clang_getCursorKind(cursor));
+    fprintf(out, "cursor name %s, kind %s, loc %s:%u:%u\n",
+            clang_getCString(name), clang_getCString(kind),
+            clang_getCString(filename), line, col);
+    clang_disposeString(name);
+    clang_disposeString(kind);
+    clang_disposeString(filename);
 }
 
-/**
- * \brief Called to index a typedef entity.
- */
-static CXIdxEntity indexTypedef(CXClientData client_data, CXIdxTypedefInfo *)
+void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
 {
-    printf("%s:%d CXIdxEntity indexTypedef(CXClientData client_data, CXIdxTypedefInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called to index a function entity.
- */
-static CXIdxEntity indexFunction(CXClientData client_data, CXIdxFunctionInfo *)
-{
-    printf("%s:%d CXIdxEntity indexFunction(CXClientData client_data, CXIdxFunctionInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called to index a function redeclaration.
- */
-static void indexFunctionRedeclaration(CXClientData client_data, CXIdxFunctionRedeclInfo *)
-{
-    printf("%s:%d void indexFunctionRedeclaration(CXClientData client_data, CXIdxFunctionRedeclInfo *)\n", __FILE__, __LINE__);
-}
-
-/**
- * \brief Called to index a file-scope variable (not field or ivar).
- */
-static CXIdxEntity indexVariable(CXClientData client_data, CXIdxVariableInfo *)
-{
-    printf("%s:%d CXIdxEntity indexVariable(CXClientData client_data, CXIdxVariableInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called to index a variable redeclaration.
- */
-static void indexVariableRedeclaration(CXClientData client_data, CXIdxVariableRedeclInfo *)
-{
-    printf("%s:%d void indexVariableRedeclaration(CXClientData client_data, CXIdxVariableRedeclInfo *)\n", __FILE__, __LINE__);
-}
-
-/**
- * \brief Called to index a tag entity (struct/union/enum/class).
- */
-static CXIdxEntity indexTagType(CXClientData client_data, CXIdxTagTypeInfo *)
-{
-    printf("%s:%d CXIdxEntity indexTagType(CXClientData client_data, CXIdxTagTypeInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called to index a tag redeclaration.
- */
-static void indexTagTypeRedeclaration(CXClientData client_data, CXIdxTagTypeRedeclInfo *)
-{
-    printf("%s:%d void indexTagTypeRedeclaration(CXClientData client_data, CXIdxTagTypeRedeclInfo *)\n", __FILE__, __LINE__);
-}
-
-/**
- * \brief Called to index a tag type's field entity.
- */
-static CXIdxEntity indexField(CXClientData client_data, CXIdxFieldInfo *)
-{
-    printf("%s:%d CXIdxEntity indexField(CXClientData client_data, CXIdxFieldInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called to index an enumerator entity.
- */
-static CXIdxEntity indexEnumerator(CXClientData client_data, CXIdxEnumeratorInfo *)
-{
-    printf("%s:%d CXIdxEntity indexEnumerator(CXClientData client_data, CXIdxEnumeratorInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called to initiate a tag type's container context.
- */
-static CXIdxContainer startedTagTypeDefinition(CXClientData client_data, CXIdxTagTypeDefinitionInfo *)
-{
-    printf("%s:%d CXIdxContainer startedTagTypeDefinition(CXClientData client_data, CXIdxTagTypeDefinitionInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called to index an ObjC class entity.
- */
-static CXIdxEntity indexObjCClass(CXClientData client_data, CXIdxObjCClassInfo *)
-{
-    printf("%s:%d CXIdxEntity indexObjCClass(CXClientData client_data, CXIdxObjCClassInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called to index an ObjC protocol entity.
- */
-static CXIdxEntity indexObjCProtocol(CXClientData client_data, CXIdxObjCProtocolInfo *)
-{
-    printf("%s:%d CXIdxEntity indexObjCProtocol(CXClientData client_data, CXIdxObjCProtocolInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called to index an ObjC category entity.
- */
-static CXIdxEntity indexObjCCategory(CXClientData client_data, CXIdxObjCCategoryInfo *)
-{
-    printf("%s:%d CXIdxEntity indexObjCCategory(CXClientData client_data, CXIdxObjCCategoryInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called to index an ObjC method entity.
- */
-static CXIdxEntity indexObjCMethod(CXClientData client_data, CXIdxObjCMethodInfo *)
-{
-    printf("%s:%d CXIdxEntity indexObjCMethod(CXClientData client_data, CXIdxObjCMethodInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called to index an ObjC property entity.
- */
-static CXIdxEntity indexObjCProperty(CXClientData client_data, CXIdxObjCPropertyInfo *)
-{
-    printf("%s:%d CXIdxEntity indexObjCProperty(CXClientData client_data, CXIdxObjCPropertyInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called to index an ObjC method redeclaration.
- */
-static void indexObjCMethodRedeclaration(CXClientData client_data, CXIdxObjCMethodRedeclInfo *)
-{
-    printf("%s:%d void indexObjCMethodRedeclaration(CXClientData client_data, CXIdxObjCMethodRedeclInfo *)\n", __FILE__, __LINE__);
-}
-
-/**
- * \brief Called to initiate a statement body container context for a
- * function/ObjC method/C++ member function/block.
- */
-static CXIdxContainer startedStatementBody(CXClientData client_data, CXIdxStmtBodyInfo *)
-{
-    printf("%s:%d CXIdxContainer startedStatementBody(CXClientData client_data, CXIdxStmtBodyInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called to initiate an ObjC container context for
- * @interface/@implementation/@protocol.
- */
-static CXIdxContainer startedObjCContainer(CXClientData client_data, CXIdxObjCContainerInfo *)
-{
-    printf("%s:%d CXIdxContainer startedObjCContainer(CXClientData client_data, CXIdxObjCContainerInfo *)\n", __FILE__, __LINE__);
-    return 0;
-}
-
-/**
- * \brief Called to define an ObjC class via its @interface.
- */
-static void defineObjCClass(CXClientData client_data, CXIdxObjCClassDefineInfo *)
-{
-    printf("%s:%d void defineObjCClass(CXClientData client_data, CXIdxObjCClassDefineInfo *)\n", __FILE__, __LINE__);
-}
-
-/**
- * \brief Called when a container context is ended.
- */
-static void endedContainer(CXClientData client_data, CXIdxEndContainerInfo *)
-{
-    printf("%s:%d void endedContainer(CXClientData client_data, CXIdxEndContainerInfo *)\n", __FILE__, __LINE__);
+    if (decl->isImplicit)
+        return;
+    CXFile f;
+    unsigned l, c;
+    clang_indexLoc_getFileLocation(decl->loc, 0, &f, &l, &c, 0);
+    printf("%s:%d:%d: %s %s def: %d redecl: %d cont: %d (%s)\n", String(clang_getFileName(f)).data(),
+           l, c, decl->entityInfo->name, kindToString(decl->entityInfo->kind),
+           decl->isDefinition, decl->isRedeclaration, decl->isContainer, decl->entityInfo->USR);
+    debugCursor(stdout, decl->cursor);
+    if (decl->isContainer)
+        debugCursor(stdout, decl->container->cursor);
+    debugCursor(stdout, decl->entityInfo->cursor);
 }
 
 /**
  * \brief Called to index a reference of an entity.
  */
-static void indexEntityReference(CXClientData client_data, CXIdxEntityRefInfo *)
+void indexEntityReference(CXClientData, const CXIdxEntityRefInfo *ref)
 {
-    printf("%s:%d void indexEntityReference(CXClientData client_data, CXIdxEntityRefInfo *)\n", __FILE__, __LINE__);
+    CXFile f;
+    unsigned l, c;
+    clang_indexLoc_getFileLocation(ref->loc, 0, &f, &l, &c, 0);
+    printf("%s:%d:%d: ref of %s (%s)\n", String(clang_getFileName(f)).data(),
+           l, c, ref->referencedEntity->name, ref->referencedEntity->USR);
 }
 
-int main(int argc, char **argv)
+
+int main(int, char **)
 {
     CXIndex index = clang_createIndex(1, 1);
-
-
+    CXIndexAction action = clang_IndexAction_create(index);
 
     // int ret = clang_indexTranslationUnit(index, 0, 0,
     // const char *args[] = { "-cc1", "-include-pch", "foo.h.pch", "-I.", "-x", "c++" };
-    // const char *args[] = { "-cc1", "-I.", "-x", "c++" };
+    const char *args[] = { "-cc1", "-I.", "-x", "c++" };
+    IndexerCallbacks cb;
+    memset(&cb, 0, sizeof(IndexerCallbacks));
+    cb.indexDeclaration = indexDeclaration;
+    cb.indexEntityReference = indexEntityReference;
+    CXTranslationUnit unit = 0;
+    int ret = clang_indexSourceFile(action, 0, &cb, sizeof(IndexerCallbacks),
+                                    CXIndexOpt_None,
+                                    "test.cpp", args, sizeof(args) / 4,
+                                    0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
+    printf("%d %p\n", ret, unit);
+
     // CXTranslationUnit unit = clang_parseTranslationUnit(index, "test.cpp", args, sizeof(args) / 4,
     //                                                     0, 0, clang_defaultEditingTranslationUnitOptions());
 
-    // if (unit) {
-    //     clang_visitChildren(clang_getTranslationUnitCursor(unit), visitor, 0);
-    // } else {
-    //     printf("fucked\n");
-    // }
+    if (unit) {
+        // clang_visitChildren(clang_getTranslationUnitCursor(unit), visitor, 0);
+    } else {
+        printf("fucked\n");
+    }
+    clang_disposeTranslationUnit(unit);
+    clang_IndexAction_dispose(action);
     clang_disposeIndex(index);
     return 0;
 }

@@ -24,7 +24,7 @@ public:
     void clear();
     CXTranslationUnit precompile(CXIndex idx);
 
-    Path filePath() const;
+    const Path &filePath() const;
     Path headerFilePath() const;
     GccArguments arguments() const { return m_args; }
     void setDependencies(const QHash<Path, quint64> &deps) { m_dependencies = deps; }

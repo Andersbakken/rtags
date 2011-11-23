@@ -433,3 +433,22 @@ Path GccArguments::resolve(const QByteArray &file, ResolveMode mode) const
     }
     return Path();
 }
+
+QList<QByteArray> GccArguments::clangArgs() const
+{
+    QList<QByteArray> ret;
+    ret << "-cc1" << "-x" << languageString();
+    foreach(const Data::Argument &arg, m_ptr->args) {
+        if (arg.arg.size() > 2 && arg.arg.at(0) == '-') {
+            switch (arg.arg.at(1)) {
+            case 'I':
+            case 'D':
+                ret.append(arg.arg);
+                break;
+            default:
+                break;
+            }
+        }
+    }
+    return ret + RTags::systemIncludes();
+}
