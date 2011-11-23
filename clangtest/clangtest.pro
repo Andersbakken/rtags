@@ -10,3 +10,4 @@ LIBS += -lclang -L/usr/local/lib
 
 # Input
 SOURCES += main.cpp
+CONFIG -= app_bundle
