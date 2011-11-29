@@ -365,6 +365,10 @@ static inline int removeDirectory(const char *path)
 
 void RBuild::save()
 {
+    foreach(const Entity &e, mData->entities) {
+        qDebug() << e.name.toByteArray() << kindToString(e.kind) << e.location << e.redeclaration << e.references;
+    }
+    
     printf("Done parsing, now writing.\n");
     const qint64 beforeWriting = timer.elapsed();
 
@@ -1090,14 +1094,23 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
         //     qDebug() << decl->container->cursor << createLocation(decl->loc);
         e.name = decl->entityInfo->name;
         e.kind = decl->entityInfo->kind;
+        if (decl->isRedeclaration) {
+            e.redeclaration = createLocation(decl->loc);
+            // qDebug() << "getting redeclaration first" << e.location;
+        } else {
+            e.location = createLocation(decl->loc);
+        }
+    } else if (decl->isRedeclaration) {
+        if (e.redeclaration.isNull())
+            e.redeclaration = createLocation(decl->loc);
+    } else if (e.location.isNull()) {
         e.location = createLocation(decl->loc);
-    } else if (decl->isRedeclaration && e.redeclaration.isNull()) {
-        e.redeclaration = createLocation(decl->loc);
-        // qDebug() << "getting something again here"
-        //          << decl->entityInfo->name
-        //          << kindToString(decl->entityInfo->kind)
-        //          << createLocation(decl->loc);
     }
+    // } else {
+    //     qDebug() << "getting something again here" << decl->isRedeclaration
+    //              << decl->entityInfo->name
+    //              << kindToString(decl->entityInfo->kind)
+    //              << createLocation(decl->loc);
 }
 
 static inline void indexEntityReference(CXClientData userData, const CXIdxEntityRefInfo *ref)
@@ -1180,10 +1193,6 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
         qWarning() << "Unable to parse unit for" << file; // << clangArgs;
         return;
     }
-    foreach(const Entity &e, mData->entities) {
-        qDebug() << e.name.toByteArray() << kindToString(e.kind) << e.location << e.redeclaration << e.references;
-    }
-
     RBuildPrivate::Dependencies deps = { file, args, file.lastModified(),
                                          QHash<Path, quint64>() };
     if (precompile) {
