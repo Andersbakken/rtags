@@ -20,15 +20,37 @@ struct Location
                 && fileName == other.fileName);
     }
 
+    inline bool isNull() const { return fileName.isEmpty(); }
     inline QByteArray key() const
     {
         if (fileName.isEmpty())
             return QByteArray();
         char buf[1024];
         const int ret = snprintf(buf, 1024, "%s:%d:%d", fileName.constData(), line, column);
-        return QByteArray(buf, ret + 1);
+        return QByteArray(buf, ret);
     }
 };
+
+static inline QDebug operator<<(QDebug dbg, const Location &location)
+{
+    QString str = "Location(";
+    if (location.fileName.isEmpty()) {
+        str += ")";
+    } else {
+        str += location.key() + ")";
+    }
+    dbg << str;
+    return dbg;
+}
+
+struct Entity {
+    Entity() : kind(CXIdxEntity_Unexposed) {}
+    AtomicString name;
+    CXIdxEntityKind kind;
+    Location location, redeclaration;
+    QSet<Location> references;
+};
+
 
 static inline uint qHash(const Location &l)
 {
@@ -63,15 +85,6 @@ static inline uint qHash(const Location &l)
 struct RBuildPrivate
 {
     RBuildPrivate() {}
-
-    struct Entity {
-        Entity() : kind(CXIdxEntity_Unexposed) {}
-        AtomicString name;
-        CXIdxEntityKind kind;
-        Location location;
-        QSet<Location> references;
-    };
-    
 
     QHash<AtomicString, Entity> entities;
     QHash<AtomicString, QList<Location> > references;

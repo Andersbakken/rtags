@@ -615,7 +615,7 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 void RBuild::writeData(leveldb::DB *db, leveldb::WriteBatch *batch, unsigned flags)
 {
     Q_ASSERT(batch);
-    foreach(const RBuildPrivate::Entity &entity, mData->entities) {
+    foreach(const Entity &entity, mData->entities) {
         const QByteArray key = entity.location.key();
         QByteArray val;
         {
@@ -1069,7 +1069,6 @@ static inline bool diagnose(CXTranslationUnit unit)
     return !foundError;
 }
 
-
 static inline Location createLocation(const CXIdxLoc &l)
 {
     Location loc;
@@ -1084,11 +1083,21 @@ static inline Location createLocation(const CXIdxLoc &l)
 static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
 {
     RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(userData);
-    RBuildPrivate::Entity e;
-    e.name = decl->entityInfo->name;
-    e.kind = decl->entityInfo->kind;
-    e.location = createLocation(decl->loc);
-    p->entities[decl->entityInfo->USR] = e;
+    QMutexLocker lock(&p->entryMutex); // ### is this the right place to lock?
+    Entity &e = p->entities[decl->entityInfo->USR];
+    if (e.name.isEmpty()) {
+        // if (decl->isContainer && isValidKind(clang_getCursorKind(decl->container->cursor)))
+        //     qDebug() << decl->container->cursor << createLocation(decl->loc);
+        e.name = decl->entityInfo->name;
+        e.kind = decl->entityInfo->kind;
+        e.location = createLocation(decl->loc);
+    } else if (decl->isRedeclaration && e.redeclaration.isNull()) {
+        e.redeclaration = createLocation(decl->loc);
+        // qDebug() << "getting something again here"
+        //          << decl->entityInfo->name
+        //          << kindToString(decl->entityInfo->kind)
+        //          << createLocation(decl->loc);
+    }
 }
 
 static inline void indexEntityReference(CXClientData userData, const CXIdxEntityRefInfo *ref)
@@ -1096,6 +1105,7 @@ static inline void indexEntityReference(CXClientData userData, const CXIdxEntity
     RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(userData);
     const AtomicString key(ref->referencedEntity->USR);
     const Location loc = createLocation(ref->loc);
+    // qDebug() << loc << kindToString(clang_getCursorKind(ref->cursor));
     QMutexLocker lock(&p->entryMutex); // ### is this the right place to lock?
     p->entities[key].references.insert(loc);
 }
@@ -1169,6 +1179,9 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
     if (!unit) {
         qWarning() << "Unable to parse unit for" << file; // << clangArgs;
         return;
+    }
+    foreach(const Entity &e, mData->entities) {
+        qDebug() << e.name.toByteArray() << kindToString(e.kind) << e.location << e.redeclaration << e.references;
     }
 
     RBuildPrivate::Dependencies deps = { file, args, file.lastModified(),

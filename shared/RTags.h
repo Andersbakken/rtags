@@ -94,6 +94,39 @@ private:
     leveldb::DB *db;
 };
 
+static inline const char *kindToString(CXIdxEntityKind kind)
+{
+    switch (kind) {
+    case CXIdxEntity_Unexposed: return "Unexposed";
+    case CXIdxEntity_Typedef: return "Typedef";
+    case CXIdxEntity_Function: return "Function";
+    case CXIdxEntity_Variable: return "Variable";
+    case CXIdxEntity_Field: return "Field";
+    case CXIdxEntity_EnumConstant: return "EnumConstant";
+    case CXIdxEntity_ObjCClass: return "ObjCClass";
+    case CXIdxEntity_ObjCProtocol: return "ObjCProtocol";
+    case CXIdxEntity_ObjCCategory: return "ObjCCategory";
+    case CXIdxEntity_ObjCInstanceMethod: return "ObjCInstanceMethod";
+    case CXIdxEntity_ObjCClassMethod: return "ObjCClassMethod";
+    case CXIdxEntity_ObjCProperty: return "ObjCProperty";
+    case CXIdxEntity_ObjCIvar: return "ObjCIvar";
+    case CXIdxEntity_Enum: return "Enum";
+    case CXIdxEntity_Struct: return "Struct";
+    case CXIdxEntity_Union: return "Union";
+    case CXIdxEntity_CXXClass: return "CXXClass";
+    case CXIdxEntity_CXXNamespace: return "CXXNamespace";
+    case CXIdxEntity_CXXNamespaceAlias: return "CXXNamespaceAlias";
+    case CXIdxEntity_CXXStaticVariable: return "CXXStaticVariable";
+    case CXIdxEntity_CXXStaticMethod: return "CXXStaticMethod";
+    case CXIdxEntity_CXXInstanceMethod: return "CXXInstanceMethod";
+    case CXIdxEntity_CXXConstructor: return "CXXConstructor";
+    case CXIdxEntity_CXXDestructor: return "CXXDestructor";
+    case CXIdxEntity_CXXConversionFunction: return "CXXConversionFunction";
+    case CXIdxEntity_CXXTypeAlias: return "CXXTypeAlias";
+    }
+    return "";
+}
+
 QByteArray kindToString(CXCursorKind kind);
 const char *completionChunkKindToString(int kind);
 bool locationFromString(const QByteArray &string, Path *path = 0, int *line = 0, int *column = 0);
