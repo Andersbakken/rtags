@@ -59,7 +59,6 @@ public:
     int strcmp(const AtomicString& other) const;
 
     QByteArray toByteArray() const { return mData ? mData->data : QByteArray(); }
-    QString toString() const { return QString::fromUtf8(mData ? mData->data.constData() : 0); }
     const char* constData() const { return mData ? mData->data.constData() : 0; }
 
     int size() const { return mData ? mData->data.size() : 0; }

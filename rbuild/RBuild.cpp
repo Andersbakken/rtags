@@ -449,7 +449,7 @@ void RBuild::makefileDone()
     }
 }
 
-static inline void writeDependencies(leveldb::WriteBatch* batch, const Path &path, const GccArguments &args,
+static inline void writeDependencies(leveldb::WriteBatch* batch, const Path &path, const QList<QByteArray> &args,
                                      quint64 lastModified, const QHash<Path, quint64> &dependencies,
                                      QSet<Path> *allFiles)
 {
@@ -610,6 +610,37 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 #endif
 }
 
+static inline void addLocations(const Entity &entity, const QByteArray &key,
+                                QHash<AtomicString, QSet<Location> >& dict)
+{
+    QSet<Location> &locations = dict[key];
+    if (entity.definition.file)
+        locations.insert(entity.definition);
+    foreach(const Location &declaration, entity.declarations)
+        locations.insert(declaration);
+}
+
+static inline void collectDict(const Entity& entity, QHash<AtomicString, QSet<Location> >& dict)
+{
+    QByteArray name = entity.name.toByteArray();
+    // int colon = name.indexOf('('); // the name we have doesn't include args which kind sorta sucks a little
+    // if (colon != -1)
+    //     addLocations(entity, AtomicString(name.constData(), colon), dict);
+    
+    addLocations(entity, name, dict);
+    foreach(const AtomicString &cur, entity.parentNames) {
+        // const int old = name.size();
+        name.prepend("::");
+        name.prepend(cur.toByteArray());
+        // if (colon != -1) {
+        //     colon += (name.size() - old);
+        //     addLocations(entity, AtomicString(name.constData(), colon), dict);
+        // }
+
+        // qDebug() << "inserting" << name;
+        addLocations(entity, name, dict);
+    }
+}
 
 void RBuild::writeData(leveldb::WriteBatch *batch, unsigned flags)
 {
@@ -621,6 +652,7 @@ void RBuild::writeData(leveldb::WriteBatch *batch, unsigned flags)
         qDebug() << "files:" << it.value() << it.key();
     }
 
+    QHash<AtomicString, QSet<Location> > dict;
     for (QHash<AtomicString, Entity>::const_iterator it = mData->entities.begin(); it != mData->entities.end(); ++it) {
         const Entity &entity = it.value();
         QByteArray refs;
@@ -637,7 +669,8 @@ void RBuild::writeData(leveldb::WriteBatch *batch, unsigned flags)
                     decl = *entity.declarations.begin();
                 }
                 ds << decl << refs;
-                qDebug() << "writing entry" << entity.name << entity.parentNames
+                qDebug() << "writing entry" << kindToString(entity.kind)
+                         << entity.name << entity.parentNames
                          << entity.definition << entity.declarations
                          << entity.references << it.key();
             }
@@ -656,7 +689,15 @@ void RBuild::writeData(leveldb::WriteBatch *batch, unsigned flags)
                      << declaration << entity.definition << entity.references
                      << it.key();
         }
+        collectDict(entity, dict);
     }
+    QHash<AtomicString, QSet<Location> >::const_iterator it = dict.begin();
+    const QHash<AtomicString, QSet<Location> >::const_iterator end = dict.end();
+    while (it != end) {
+        writeToBatch(batch, ("d:" + it.key().toByteArray()), it.value());
+        ++it;
+    }
+    
     //     RBuildPrivate::DataEntry *r = mData->seen.value(refKey);
     //     // if (flags & LookupReferencesFromDatabase) {
     //     //     qDebug() << key << ref << r;
@@ -736,12 +777,12 @@ void RBuild::writeData(leveldb::WriteBatch *batch, unsigned flags)
 
     // writeDict(batch, dict);
 
-    // QSet<Path> allFiles;
-    // foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
-    //     // qDebug() << dep.file << ctime(&dep.lastModified);
-    //     writeDependencies(batch, dep.file, dep.arguments,
-    //                       dep.lastModified, dep.dependencies, 0);
-    // }
+    QSet<Path> allFiles;
+    foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
+        // qDebug() << dep.file << ctime(&dep.lastModified);
+        writeDependencies(batch, dep.file, dep.arguments,
+                          dep.lastModified, dep.dependencies, 0);
+    }
 
     // if (!(flags & ExcludePCH)) {
     //     // batch.Put(" ", leveldb::Slice(entries.constData(), entries.size()));
@@ -750,16 +791,16 @@ void RBuild::writeData(leveldb::WriteBatch *batch, unsigned flags)
     //         batch->Put("pch", leveldb::Slice(pchData.constData(), pchData.size()));
     // }
 
-    // if (!mData->mSourceDir.isEmpty()) {
-    //     Q_ASSERT(mData->mSourceDir.endsWith('/'));
-    //     if (mData->mSourceDir.isDir()) {
-    //         recurseDir(&allFiles, mData->mSourceDir, mData->mSourceDir.size());
-    //     } else {
-    //         fprintf(stderr, "%s is not a directory\n", mData->mSourceDir.constData());
-    //     }
-    // }
-    // writeToBatch(batch, leveldb::Slice("sourceDir"), mData->mSourceDir);
-    // writeToBatch(batch, leveldb::Slice("files"), allFiles);
+    if (!mData->mSourceDir.isEmpty()) {
+        Q_ASSERT(mData->mSourceDir.endsWith('/'));
+        if (mData->mSourceDir.isDir()) {
+            recurseDir(&allFiles, mData->mSourceDir, mData->mSourceDir.size());
+        } else {
+            fprintf(stderr, "%s is not a directory\n", mData->mSourceDir.constData());
+        }
+    }
+    writeToBatch(batch, leveldb::Slice("sourceDir"), mData->mSourceDir);
+    writeToBatch(batch, leveldb::Slice("files"), allFiles);
 }
 
 static inline void debugCursor(FILE* out, const CXCursor& cursor)
