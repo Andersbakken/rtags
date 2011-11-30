@@ -88,13 +88,14 @@ static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData)
 // CXIdxClientFile enteredMainFile(CXClientData client_data,
 //                                 CXFile mainFile, void *reserved)
 // {
+//     printf("enteredMainFile %s\n", String(clang_getFileName(mainFile)).constData());
 // }
   
 /**
  * \brief Called when a file gets #included/#imported.
  */
 // CXIdxClientFile ppIncludedFile(CXClientData client_data,
-//                                const CXIdxIncludedFileInfo *)
+//                                const CXIdxIncludedFileInfo *info)
 // {
 // }
   
@@ -149,7 +150,7 @@ void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
     debugCursor(stdout, decl->cursor);
     if (decl->isContainer)
         debugCursor(stdout, decl->container->cursor);
-    debugCursor(stdout, decl->entityInfo->cursor);
+    // debugCursor(stdout, decl->entityInfo->cursor);
 }
 
 /**

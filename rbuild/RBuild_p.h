@@ -68,10 +68,11 @@ static inline QDebug operator<<(QDebug dbg, const Location &location)
 struct Entity {
     Entity() : kind(CXIdxEntity_Unexposed) {}
     AtomicString name;
+    QList<AtomicString> parentNames;
     CXIdxEntityKind kind;
     Location definition;
     QSet<Location> declarations;
-    QSet<Location> references;
+    QHash<Location, AtomicString> references; // value is containingFunction
 };
 
 struct Data {

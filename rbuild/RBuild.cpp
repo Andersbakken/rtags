@@ -637,8 +637,9 @@ void RBuild::writeData(leveldb::WriteBatch *batch, unsigned flags)
                     decl = *entity.declarations.begin();
                 }
                 ds << decl << refs;
-                qDebug() << "writing entry" << entity.name << entity.definition << entity.declarations << entity.references
-                         << it.key();
+                qDebug() << "writing entry" << entity.name << entity.parentNames
+                         << entity.definition << entity.declarations
+                         << entity.references << it.key();
             }
             const int ret = snprintf(buf, 512, "%d:%d:%d", entity.definition.file, entity.definition.line, entity.definition.column);
             writeToBatch(batch, leveldb::Slice(buf, ret), def);
@@ -651,7 +652,8 @@ void RBuild::writeData(leveldb::WriteBatch *batch, unsigned flags)
             }
             const int ret = snprintf(buf, 512, "%d:%d:%d", declaration.file, declaration.line, declaration.column);
             writeToBatch(batch, leveldb::Slice(buf, ret), def);
-            qDebug() << "writing entry" << entity.name << declaration << entity.definition << entity.references
+            qDebug() << "writing entry" << entity.name << entity.parentNames
+                     << declaration << entity.definition << entity.references
                      << it.key();
         }
     }
@@ -952,36 +954,6 @@ static inline bool equalLocation(const CursorKey& key1, const CursorKey& key2)
 
 // #define COLLECTDEBUG
 
-static bool shouldMergeCursors(const CursorKey& oldcurrent, const CursorKey& newcurrent,
-                               const CursorKey& oldref, const CursorKey& newref, bool dodebug)
-{
-    if (!newcurrent.isValid() || !newref.isValid())
-        return false;
-#ifdef COLLECTDEBUG
-    if (dodebug) {
-        qDebug() << "merge?" << oldcurrent << "vs" << newcurrent;
-        qDebug() << oldref << "vs" << newref;
-        qDebug() << "------";
-    }
-#else
-    Q_UNUSED(dodebug);
-#endif
-    if (oldref.kind == CXCursor_Constructor && newref.kind == CXCursor_ClassDecl)
-        return false;
-    if (oldref.kind == CXCursor_ClassDecl && newref.kind == CXCursor_Constructor)
-        return true;
-    if (oldcurrent.isValid() && oldref.isValid() && oldref.isDefinition()) {
-        if ((oldcurrent.kind == CXCursor_CallExpr && (newcurrent.kind == CXCursor_TypeRef || newcurrent.kind == CXCursor_DeclRefExpr))
-            || (oldref.locationKey() == oldcurrent.locationKey())) {
-            return true;
-        }
-        return false;
-    }
-    if (newref.isValid())
-        return true;
-    return false;
-}
-
 static inline bool isSource(const AtomicString &str)
 {
     const QByteArray b = str.toByteArray();
@@ -1084,6 +1056,29 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
         //     qDebug() << decl->container->cursor << createLocation(decl->loc);
         e.name = decl->entityInfo->name;
         e.kind = decl->entityInfo->kind;
+        CXCursor parent = decl->cursor;
+        forever {
+            parent = clang_getCursorSemanticParent(parent);
+            const CXCursorKind kind = clang_getCursorKind(parent);
+            if (clang_isInvalid(kind))
+                break;
+            CXString str = clang_getCursorDisplayName(parent);
+            const char *cstr = clang_getCString(str);
+            if (!cstr || !strlen(cstr)) {
+                clang_disposeString(str);
+                break;
+            }
+            switch (kind) {
+            case CXCursor_StructDecl:
+            case CXCursor_ClassDecl:
+            case CXCursor_Namespace:
+                e.parentNames.append(cstr);
+                break;
+            default:
+                break;
+            }
+            clang_disposeString(str);
+        }
     }
 
     if (decl->isDefinition) {
@@ -1100,12 +1095,51 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
     //              << createLocation(decl->loc);
 }
 
+static AtomicString findContainingFunction(const CXIdxEntityRefInfo *ref)
+{
+    CXCursor parent = ref->cursor;
+    QByteArray containingFunction;
+    forever {
+        parent = clang_getCursorSemanticParent(parent);
+        const CXCursorKind kind = clang_getCursorKind(parent);
+        if (clang_isInvalid(kind))
+            break;
+        CXString str = clang_getCursorDisplayName(parent);
+        const char *cstr = clang_getCString(str);
+        if (!cstr || !strlen(cstr)) {
+            clang_disposeString(str);
+            break;
+        }
+        switch (kind) {
+        case CXCursor_CXXMethod:
+        case CXCursor_FunctionDecl:
+        case CXCursor_Constructor:
+        case CXCursor_Destructor:
+            containingFunction = cstr;
+            break;
+        case CXCursor_StructDecl:
+        case CXCursor_ClassDecl:
+            if (!containingFunction.isEmpty()) {
+                containingFunction.prepend("::");
+                containingFunction.prepend(cstr);
+            }
+            break;
+        default:
+            break;
+        }
+        clang_disposeString(str);
+    }
+    return containingFunction;
+}
+
 static inline void indexEntityReference(CXClientData userData, const CXIdxEntityRefInfo *ref)
 {
     RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(userData);
     const AtomicString key(ref->referencedEntity->USR);
     const Location loc = createLocation(ref->loc, p->files);
-    // qDebug() << loc << kindToString(clang_getCursorKind(ref->cursor));
+    // qDebug() << loc << kindToString(clang_getCursorKind(ref->cursor))
+    //          << (ref->parentEntity ? ref->parentEntity->name : "no parent")
+    //          << ref->container->cursor;
     QMutexLocker lock(&p->entryMutex); // ### is this the right place to lock?
     if (!p->entities.contains(key)) {
         static QSet<Location> warned;
@@ -1124,7 +1158,7 @@ static inline void indexEntityReference(CXClientData userData, const CXIdxEntity
     Q_ASSERT(!e.name.isEmpty() &&
              "This needs to be fixed. In case of PCH it needs to "
              "potentially modify references to both the declaration and the definition");
-    e.references.insert(loc);
+    e.references.insert(loc, findContainingFunction(ref));
 }
 
 template <typename T>

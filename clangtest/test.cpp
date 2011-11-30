@@ -1,3 +1,4 @@
+namespace N {
 class A
 {
 public:
@@ -7,16 +8,17 @@ public:
     int foo();
     int bar;
 };
+};
 
-void foobar();
+// void foobar();
 int main()
 {
-    foobar();
-    A a;
-    a.bar = 12;
+    // foobar();
+    N::A a;
+    // a.bar = 12;
     return a.foo();
 }
-
+using namespace N;
 int A::foo()
 {
     return bar;
