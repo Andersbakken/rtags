@@ -39,17 +39,11 @@ private:
         ExcludePCH = 0x1,
         LookupReferencesFromDatabase = 0x2
     };
-    void writeData(leveldb::DB *db, leveldb::WriteBatch *batch, unsigned flags);
+    void writeData(leveldb::WriteBatch *batch, unsigned flags);
+    bool openDB();
+    void closeDB();
 private:
-    Path mMakefile, mSourceDir;
-    MakefileParser mParser;
     RBuildPrivate* mData;
-    Path mDBPath;
-    CXIndex mIndex;
-    QHash<Precompile*, QList<GccArguments> > mFilesByPrecompile;
-    QList<GccArguments> mFiles;
-    int mPendingJobs;
-    QThreadPool mThreadPool;
     friend class CompileRunnable;
     friend class PrecompileRunnable;
 };

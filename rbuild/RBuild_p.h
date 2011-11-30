@@ -10,31 +10,53 @@
 
 struct Location
 {
-    Location() : line(0), column(0) {}
-    AtomicString fileName;
-    unsigned line, column;
-    inline bool operator==(const Location &other) const
-    {
-        return (line == other.line
-                && column == other.column
-                && fileName == other.fileName);
-    }
+    static QMap<AtomicString, unsigned> *sFiles;
+    Location()
+        : file(0), line(0), column(0)
+    {}
 
-    inline bool isNull() const { return fileName.isEmpty(); }
+    unsigned file, line, column;
+    inline AtomicString fileName() const
+    {
+        if (file) {
+            for (QMap<AtomicString, unsigned>::const_iterator it = sFiles->begin(); it != sFiles->end(); ++it) {
+                if (it.value() == file)
+                    return it.key();
+            }
+        }
+        return AtomicString();
+    }
     inline QByteArray key() const
     {
-        if (fileName.isEmpty())
+        if (!file)
             return QByteArray();
         char buf[1024];
-        const int ret = snprintf(buf, 1024, "%s:%d:%d", fileName.constData(), line, column);
+        const int ret = snprintf(buf, 1024, "%s:%d:%d", fileName().constData(), line, column);
         return QByteArray(buf, ret);
     }
+    inline bool operator==(const Location &other) const
+    {
+        return file == other.file && line == other.line && column == other.column;
+    }
 };
+
+static inline QDataStream &operator<<(QDataStream &ds, const Location &loc)
+{
+    ds << loc.file << loc.line << loc.column;
+    return ds;
+}
+
+static inline QDataStream &operator>>(QDataStream &ds, Location &loc)
+{
+    ds >> loc.file >> loc.line >> loc.column;
+    return ds;
+}
+
 
 static inline QDebug operator<<(QDebug dbg, const Location &location)
 {
     QString str = "Location(";
-    if (location.fileName.isEmpty()) {
+    if (!location.file) {
         str += ")";
     } else {
         str += location.key() + ")";
@@ -47,47 +69,52 @@ struct Entity {
     Entity() : kind(CXIdxEntity_Unexposed) {}
     AtomicString name;
     CXIdxEntityKind kind;
-    Location location, redeclaration;
+    Location definition;
+    QSet<Location> declarations;
     QSet<Location> references;
 };
 
+struct Data {
+    QByteArray name, target;
+    QSet<QByteArray> references;
+};
+
+static inline QDataStream &operator<<(QDataStream &ds, const Data &data)
+{
+    ds << data.name << data.target << data.references;
+    return ds;
+}
+static inline QDataStream &operator>>(QDataStream &ds, Data &data)
+{
+    ds >> data.name >> data.target >> data.references;
+    return ds;
+}
 
 static inline uint qHash(const Location &l)
 {
-    uint h = 0;
-    if (!l.fileName.isEmpty()) {
-#define HASHCHAR(ch)                            \
-        h = (h << 4) + ch;                      \
-        h ^= (h & 0xf0000000) >> 23;            \
-        h &= 0x0fffffff;                        \
-        ++h;
-
-        QByteArray name = l.fileName.toByteArray();
-        const char *ch = name.constData();
-        Q_ASSERT(ch);
-        while (*ch) {
-            HASHCHAR(*ch);
-            ++ch;
-        }
-        const unsigned uints[] = { l.line, l.column };
-        for (int i=0; i<2; ++i) {
-            ch = reinterpret_cast<const char*>(&uints[i]);
-            for (int j=0; j<2; ++j) {
-                HASHCHAR(*ch);
-                ++ch;
-            }
-        }
-    }
-#undef HASHCHAR
-    return h;
+    // ### is this good?
+    return (l.file << 1) + (l.line << 2) + (l.column << 3);
 }
 
 struct RBuildPrivate
 {
-    RBuildPrivate() {}
+    RBuildPrivate()
+        : db(0), mPendingJobs(0), mIndex(0)
+    {
+        Location::sFiles = &files;
+    }
 
     QHash<AtomicString, Entity> entities;
+    QMap<AtomicString, unsigned> files;
     QHash<AtomicString, QList<Location> > references;
+    leveldb::DB *db;
+    Path mMakefile, mSourceDir, mDBPath;
+    MakefileParser mParser;
+    int mPendingJobs;
+    CXIndex mIndex;
+    QHash<Precompile*, QList<GccArguments> > mFilesByPrecompile;
+    QList<GccArguments> mFiles;
+    QThreadPool mThreadPool;
 
     struct Dependencies {
         Path file;
@@ -97,6 +124,14 @@ struct RBuildPrivate
     };
     QList<Dependencies> dependencies;
     QMutex entryMutex;
+
+    inline int locationKey(const Location &loc, char buf[512]) const
+    {
+        if (!loc.file)
+            return 0;
+        const int ret = snprintf(buf, 512, "%d:%d:%d", loc.file, loc.line, loc.column);
+        return ret;
+    }
 };
 
 class Precompile;

@@ -8,8 +8,10 @@ public:
     int bar;
 };
 
+void foobar();
 int main()
 {
+    foobar();
     A a;
     a.bar = 12;
     return a.foo();

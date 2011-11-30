@@ -27,6 +27,27 @@ public:
     QByteArray operator*() const { return mData ? mData->data : QByteArray(); }
     bool operator==(const AtomicString& other) const { return mData == other.mData; }
     bool operator!=(const AtomicString& other) const { return mData != other.mData; }
+    bool operator<(const AtomicString& other) const
+    {
+        if (mData == other.mData)
+            return false;
+        if (mData && !other.mData)
+            return false;
+        if (!mData)
+            return true;
+        return operator<(other.mData->data);
+    }
+    bool operator>(const AtomicString& other) const
+    {
+        if (mData == other.mData)
+            return false;
+        if (mData && !other.mData)
+            return true;
+        if (!mData)
+            return false;
+        return operator>(other.mData->data);
+    }
+    
     bool operator==(const QByteArray& string) const { return mData ? mData->data == string : false; }
     bool operator!=(const QByteArray& string) const { return mData ? mData->data != string : false; }
     bool operator<(const QByteArray& string) const { return mData ? mData->data < string : false; }
@@ -86,7 +107,7 @@ static inline uint qHash(const AtomicString& string)
     return string.hash();
 }
 
-static inline QDebug &operator<<(QDebug &dbg, const AtomicString &string)
+static inline QDebug operator<<(QDebug dbg, const AtomicString &string)
 {
     dbg << string.toByteArray();
     return dbg;
