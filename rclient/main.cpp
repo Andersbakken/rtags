@@ -48,10 +48,11 @@ typedef bool (*Handler)(leveldb::DB *db, const std::string &key);
 static inline bool maybeDict(leveldb::DB *db, const std::string &key, Handler handler)
 {
     bool ret = false;
-    QSet<QByteArray> keys;
-    if (RTags::readFromDB(db, ("d:" + key).c_str(), keys)) {
-        foreach(const QByteArray &k, keys) {
-            if (!k.isEmpty()) {
+    QSet<Location> locations;
+    if (RTags::readFromDB(db, ("d:" + key).c_str(), locations)) {
+        foreach(const Location &l, locations) {
+            if (l.file) {
+                const QByteArray k = l.key(db);
                 ret = handler(db, std::string(k.constData(), k.size())) || ret;
             }
         }
