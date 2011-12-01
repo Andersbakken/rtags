@@ -597,6 +597,7 @@ void RBuild::writeData(leveldb::WriteBatch *batch, unsigned /*flags*/)
     const QHash<AtomicString, QSet<Location> >::const_iterator end = dict.end();
     while (it != end) {
         writeToBatch(batch, ("d:" + it.key().toByteArray()), it.value());
+        qDebug() << ("d:" + it.key().toByteArray()) << it.value();
         ++it;
     }
     
