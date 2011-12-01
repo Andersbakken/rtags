@@ -510,21 +510,18 @@ static inline void addLocations(const Entity &entity, const QByteArray &key,
 static inline void collectDict(const Entity& entity, QHash<AtomicString, QSet<Location> >& dict)
 {
     QByteArray name = entity.name.toByteArray();
-    // int colon = name.indexOf('('); // the name we have doesn't include args which kind sorta sucks a little
-    // if (colon != -1)
-    //     addLocations(entity, AtomicString(name.constData(), colon), dict);
-    
+    int colon = name.indexOf('('); // the name we have doesn't include args which kind sorta sucks a little
+    if (colon != -1)
+        addLocations(entity, QByteArray::fromRawData(name.constData(), colon), dict);
     addLocations(entity, name, dict);
     foreach(const AtomicString &cur, entity.parentNames) {
-        // const int old = name.size();
+        const int old = name.size();
         name.prepend("::");
         name.prepend(cur.toByteArray());
-        // if (colon != -1) {
-        //     colon += (name.size() - old);
-        //     addLocations(entity, AtomicString(name.constData(), colon), dict);
-        // }
-
-        // qDebug() << "inserting" << name;
+        if (colon != -1) {
+            colon += (name.size() - old);
+            addLocations(entity, QByteArray::fromRawData(name.constData(), colon), dict);
+        }
         addLocations(entity, name, dict);
     }
 }
@@ -551,7 +548,8 @@ void RBuild::writeData(leveldb::WriteBatch *batch, unsigned /*flags*/)
             const int ret = snprintf(buf, 512, "r:%d", refIdx);
             writeToBatch(batch, leveldb::Slice(buf, ret), entity.references);
             const Location loc = (entity.definition.file ? entity.definition : *entity.declarations.begin());
-            for (QHash<Location, AtomicString>::const_iterator it = entity.references.begin(); it != entity.references.end(); ++it) {
+            for (QHash<Location, AtomicString>::const_iterator it = entity.references.begin();
+                 it != entity.references.end(); ++it) {
                 QByteArray ref;
                 const int ret = snprintf(buf, 512, "%d:%d:%d", it.key().file, it.key().line, it.key().column);
                 {
@@ -825,7 +823,10 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
     if (e.name.isEmpty()) {
         // if (decl->isContainer && isValidKind(clang_getCursorKind(decl->container->cursor)))
         //     qDebug() << decl->container->cursor << createLocation(decl->loc);
-        e.name = decl->entityInfo->name;
+        // e.name = decl->entityInfo->name;
+        CXString name = clang_getCursorDisplayName(decl->cursor); // this one gives us args
+        e.name = clang_getCString(name);
+        clang_disposeString(name);
         e.kind = decl->entityInfo->kind;
         CXCursor parent = decl->cursor;
         forever {
@@ -853,17 +854,10 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
     }
 
     if (decl->isDefinition) {
-        // qDebug() << "getting definition"
-        //          << eatString(clang_getCursorUSR(decl->cursor));
         e.definition = createLocation(decl->loc, p->files);
     } else {
         e.declarations.insert(createLocation(decl->loc, p->files));
     }
-    // } else {
-    //     qDebug() << "getting something again here" << decl->isRedeclaration
-    //              << decl->entityInfo->name
-    //              << kindToString(decl->entityInfo->kind)
-    //              << createLocation(decl->loc);
 }
 
 static AtomicString findContainingFunction(const CXIdxEntityRefInfo *ref)
