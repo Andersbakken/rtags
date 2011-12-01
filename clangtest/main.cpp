@@ -147,9 +147,9 @@ void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
     printf("%s:%d:%d: %s %s def: %d redecl: %d cont: %d (%s)\n", String(clang_getFileName(f)).data(),
            l, c, decl->entityInfo->name, kindToString(decl->entityInfo->kind),
            decl->isDefinition, decl->isRedeclaration, decl->isContainer, decl->entityInfo->USR);
-    debugCursor(stdout, decl->cursor);
-    if (decl->isContainer)
-        debugCursor(stdout, decl->container->cursor);
+    // debugCursor(stdout, decl->cursor);
+    // if (decl->isContainer)
+    //     debugCursor(stdout, decl->container->cursor);
     // debugCursor(stdout, decl->entityInfo->cursor);
 }
 

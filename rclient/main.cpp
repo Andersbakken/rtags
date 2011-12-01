@@ -7,7 +7,8 @@
 #include <QtCore>
 #include <getopt.h>
 #include <RTags.h>
-#include <CursorKey.h>
+#include <Location.h>
+#include <AtomicString.h>
 
 using namespace RTags;
 static inline int readLine(FILE *f, char *buf, int max)
@@ -98,42 +99,75 @@ static inline bool printSymbol(leveldb::DB *, const std::string &loc)
     return false;
 }
 
-static inline bool followSymbol(leveldb::DB *db, const std::string &key)
+static inline unsigned fileId(leveldb::DB *db, const std::string &file)
 {
+    unsigned id = 0;
+    readFromDB(db, ("F:" + file).c_str(), id);
+    return id;
+}
+
+static QByteArray convertArg(leveldb::DB *db, const std::string &arg)
+{
+    std::string file;
+    unsigned l, c;
+    if (parseLocation(arg, file, l, c)) {
+        file = Path::resolved(file.c_str()).constData();
+        const unsigned fileId = ::fileId(db, file);
+        char buf[32];
+        snprintf(buf, 32, "%d:%d:%d", fileId, l, c);
+        return buf;
+    }
+    return QByteArray();
+}
+
+static inline bool followSymbol(leveldb::DB *db, const std::string &k)
+{
+    QByteArray key = convertArg(db, k);
     std::string val;
-    db->Get(leveldb::ReadOptions(), key, &val);
-    // qDebug() << key.c_str() << val.size();
+    
+    db->Get(leveldb::ReadOptions(), key.constData(), &val);
+    // qDebug() << key.constData() << val.size();
     if (!val.empty()) {
-        QByteArray referredTo;
         const QByteArray v = QByteArray::fromRawData(val.c_str(), val.size());
         QDataStream ds(v);
-        ds >> referredTo;
-        if (!referredTo.isEmpty()) {
-            print(referredTo);
+        Location target;
+        ds >> target;
+        if (target.file) {
+            print(target.key(db));
         }
         return true;
     }
     return false;
 }
 
-static inline bool findReferences(leveldb::DB *db, const std::string &key)
+static inline bool findReferences(leveldb::DB *db, const std::string &k)
 {
+    QByteArray key = convertArg(db, k);
     std::string val;
-    db->Get(leveldb::ReadOptions(), key, &val);
+    db->Get(leveldb::ReadOptions(), key.constData(), &val);
+    // printf("findReferences %s %d\n", key.constData(), val.size());
     if (!val.empty()) {
-        QByteArray referredTo;
         const QByteArray v = QByteArray::fromRawData(val.c_str(), val.size());
+        Location target;
+        int referencesId = -1;
+
         QDataStream ds(v);
-        QSet<Cursor> references;
-        ds >> referredTo >> references;
-        if (referredTo != key.c_str() && references.isEmpty()) {
-            return findReferences(db, std::string(referredTo.constData(), referredTo.size()));
+        ds >> target >> referencesId;
+        if (referencesId == -1 && target.file) {
+            const QByteArray t = target.key(db);
+            if (t != key) {
+                return findReferences(db, std::string(t.constData(), t.size()));
+            }
         }
-        foreach(const Cursor &r, references) {
-            QByteArray out = r.key.toString();
-            if (!r.containingFunction.isEmpty()) {
+        QHash<Location, AtomicString> references;
+        char buf[16];
+        snprintf(buf, 16, "r:%d", referencesId);
+        readFromDB(db, buf, references);
+        for (QHash<Location, AtomicString>::const_iterator it = references.begin(); it != references.end(); ++it) {
+            QByteArray out = it.key().key(db);
+            if (!it.value().isEmpty()) {
                 out += ' ';
-                out += r.containingFunction.toByteArray();
+                out += it.value().toByteArray();
             }
 
             print(out);
@@ -157,7 +191,7 @@ static inline void usage(const char* argv0, FILE *f)
             "  --references|-r [arg]         Print references of symbol at arg\n"
             "  --list-symbols|-l [arg]       Print out symbols names matching arg\n"
             "  --files|-P [arg]              Print out files matching arg\n"
-            "    --paths-relative-to-root|-n Print out files matching arg\n"
+            "  --paths-relative-to-root|-n   Print out files matching arg\n"
             "  --find-symbols|-s [arg]       Print out symbols matching arg\n",
             argv0);
 }
@@ -173,7 +207,7 @@ int main(int argc, char** argv)
         { "find-symbols", 1, 0, 's' },
         { "find-db", 0, 0, 'F' },
         { "list-symbols", 1, 0, 'l' },
-        { "files", 1, 0, 'P' }, // some of these should have optional args
+        { "filse", 1, 0, 'P' }, // some of these should have optional args
         { "paths-relative-to-root", 0, 0, 'n' },
         { 0, 0, 0, 0 },
     };

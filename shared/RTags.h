@@ -9,7 +9,6 @@
 #include "Path.h"
 #include <clang-c/Index.h>
 
-class CursorKey;
 namespace RTags {
 
 template <typename T> static inline QByteArray encode(const T &t)
@@ -241,7 +240,6 @@ static inline bool isValidKind(CXCursorKind kind)
     return true;
 }
 
-bool cursorDefinitionFor(const CursorKey& d, const CursorKey &c);
 QDebug operator<<(QDebug dbg, CXCursor cursor);
 QDebug operator<<(QDebug dbg, const std::string &str);
 QDebug operator<<(QDebug dbg, const leveldb::Slice &slice);

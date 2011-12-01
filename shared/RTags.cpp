@@ -1,5 +1,4 @@
 #include "RTags.h"
-#include "CursorKey.h"
 
 namespace RTags {
 bool parseLocation(const std::string &string,
@@ -99,23 +98,6 @@ bool locationFromString(const QByteArray &string, Path *path, int *line, int *co
     return true;
 }
 
-QDebug operator<<(QDebug dbg, CXCursor cursor)
-{
-    dbg << CursorKey(cursor);
-    return dbg;
-}
-bool cursorDefinitionFor(const CursorKey &d, const CursorKey &c)
-{
-    switch (c.kind) {
-    case CXCursor_CallExpr:
-    case CXCursor_TypeRef:
-        return false;
-    default:
-        break;
-    }
-    return d.isDefinition();
-}
-
 QDebug operator<<(QDebug dbg, const std::string &str)
 {
     dbg << str.c_str();
@@ -127,6 +109,24 @@ QDebug operator<<(QDebug dbg, const leveldb::Slice &slice)
     dbg << QByteArray::fromRawData(slice.data(), slice.size());
     return dbg;
 }
+
+QDebug operator<<(QDebug dbg, CXCursor cursor)
+{
+    CXFile file;
+    unsigned int line, col, off;
+    CXSourceLocation loc = clang_getCursorLocation(cursor);
+    clang_getInstantiationLocation(loc, &file, &line, &col, &off);
+    CXString name = clang_getCursorDisplayName(cursor);
+    CXString filename = clang_getFileName(file);
+    CXString kind = clang_getCursorKindSpelling(clang_getCursorKind(cursor));
+    dbg << clang_getCString(name) << clang_getCString(kind)
+        << QString("%1:%2:%3").arg(clang_getCString(filename)).arg(line).arg(col);
+    clang_disposeString(name);
+    clang_disposeString(kind);
+    clang_disposeString(filename);
+    return dbg;
+}
+
 QList<QByteArray> systemIncludes()
 {
     static QList<QByteArray> sSystemIncludes;

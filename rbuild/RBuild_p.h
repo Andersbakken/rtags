@@ -1,69 +1,13 @@
 #ifndef RBuild_p_h
 #define RBuild_p_h
 
-#include "CursorKey.h"
 #include "AtomicString.h"
 #include "GccArguments.h"
 #include "RBuild.h"
 #include <QList>
 #include <QHash>
-
-struct Location
-{
-    static QMap<AtomicString, unsigned> *sFiles;
-    Location()
-        : file(0), line(0), column(0)
-    {}
-
-    unsigned file, line, column;
-    inline AtomicString fileName() const
-    {
-        if (file) {
-            for (QMap<AtomicString, unsigned>::const_iterator it = sFiles->begin(); it != sFiles->end(); ++it) {
-                if (it.value() == file)
-                    return it.key();
-            }
-        }
-        return AtomicString();
-    }
-    inline QByteArray key() const
-    {
-        if (!file)
-            return QByteArray();
-        char buf[1024];
-        const int ret = snprintf(buf, 1024, "%s:%d:%d", fileName().constData(), line, column);
-        return QByteArray(buf, ret);
-    }
-    inline bool operator==(const Location &other) const
-    {
-        return file == other.file && line == other.line && column == other.column;
-    }
-};
-
-static inline QDataStream &operator<<(QDataStream &ds, const Location &loc)
-{
-    ds << loc.file << loc.line << loc.column;
-    return ds;
-}
-
-static inline QDataStream &operator>>(QDataStream &ds, Location &loc)
-{
-    ds >> loc.file >> loc.line >> loc.column;
-    return ds;
-}
-
-
-static inline QDebug operator<<(QDebug dbg, const Location &location)
-{
-    QString str = "Location(";
-    if (!location.file) {
-        str += ")";
-    } else {
-        str += location.key() + ")";
-    }
-    dbg << str;
-    return dbg;
-}
+#include "RTags.h"
+#include <Location.h>
 
 struct Entity {
     Entity() : kind(CXIdxEntity_Unexposed) {}
@@ -89,12 +33,6 @@ static inline QDataStream &operator>>(QDataStream &ds, Data &data)
 {
     ds >> data.name >> data.target >> data.references;
     return ds;
-}
-
-static inline uint qHash(const Location &l)
-{
-    // ### is this good?
-    return (l.file << 1) + (l.line << 2) + (l.column << 3);
 }
 
 struct RBuildPrivate

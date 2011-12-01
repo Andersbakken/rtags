@@ -3,23 +3,24 @@ class A
 {
 public:
     A()
-        : bar(13)
+        : member(13)
     {}
     int foo();
-    int bar;
+    int member;
 };
 };
 
 // void foobar();
 int main()
 {
+    int local;
     // foobar();
     N::A a;
-    // a.bar = 12;
+    a.member = 12;
     return a.foo();
 }
 using namespace N;
 int A::foo()
 {
-    return bar;
+    return member;
 }

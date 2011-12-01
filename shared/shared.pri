@@ -7,8 +7,8 @@ SOURCES += $$PWD/GccArguments.cpp \
 HEADERS += $$PWD/GccArguments.h \
            $$PWD/Path.h \
            $$PWD/RTags.h \
-           $$PWD/CursorKey.h \
-           $$PWD/AtomicString.h
+           $$PWD/AtomicString.h \
+           $$PWD/Location.h
 LIBS += -lclang
 include($$PWD/../3rdparty/leveldb.pri)
 mac {

@@ -5,7 +5,6 @@
 #include <limits.h>
 #include <RTags.h>
 #include <QtCore>
-#include <CursorKey.h>
 #include <GccArguments.h>
 
 using namespace RTags;
@@ -22,105 +21,105 @@ enum Type {
 
 static inline void dumpDatabase(const std::string& filename, int type)
 {
-    leveldb::DB* db;
-    const leveldb::Status status = leveldb::DB::Open(leveldb::Options(), filename, &db);
-    if (!status.ok()) {
-        fprintf(stderr, "Unable to open db [%s]: %s\n", filename.c_str(), status.ToString().c_str());
-        return;
-    }
-    leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
-    for (it->SeekToFirst(); it->Valid(); it->Next()) {
-        // unsigned line = 0, col = 0;;
-        // std::string mod = it->key().ToString();
-        // printf("%d\n", parseLocation(it->key().ToString(), mod, line, col));
-        // printf("%s %d %d\n", mod.c_str(), line, col);
-        const std::string key = it->key().ToString();
-        std::string fileName;
-        unsigned line, col;
-        // qDebug() << key.c_str();
-        if (type & Raw) {
-            printf("[%s]\n", key.c_str());
-        }
-        if (parseLocation(key, fileName, line, col)) {
-            leveldb::Slice val = it->value();
-            const QByteArray v = QByteArray::fromRawData(val.data(), val.size());
-            QByteArray mapsTo;
-            QSet<Cursor> references;
-            QDataStream ds(v);
-            ds >> mapsTo >> references;
-            // printf("%s (%s) maps to %s (%s)\n",
-            //        key.c_str(),
-            //        symbolNameAt(key).c_str(),
-            //        it->value().ToString().c_str(),
-            //        symbolNameAt(it->value().ToString()).c_str());
-            if (type & Symbol && !mapsTo.isEmpty()) {
-                printf("%s maps to %s\n",
-                       key.c_str(),
-                       mapsTo.constData());
-            }
-            if (type & Reference) {
-                // printf("Balle %d %d %d %d\n", references.size(), v.size(), val.size(),
-                //        it->value().ToString().size());
-                foreach(const Cursor &r, references) {
-                    printf("%s refers to %s\n", r.key.toString().constData(), key.c_str());
-                }
-            }
-        } else if (key.substr(0, 2) == "d:") { // dict
-            if (type & Dict) {
-                leveldb::Slice val = it->value();
-                const QByteArray v = QByteArray::fromRawData(val.data(), val.size());
-                QSet<QByteArray> strings; // these are streamed out as
-                                          // AtomicString but they're streamed
-                                          // as a single QByteArray so it should
-                                          // be fine
-                QDataStream ds(v);
-                ds >> strings;
-                printf("dict entry %s:", key.substr(2).c_str());
-                bool first = true;
-                foreach(const QByteArray &loc, strings) {
-                    if (!first) {
-                        printf(" ::");
-                    } else {
-                        first = false;
-                    }
-                    printf(" %s", loc.constData());
-                }
-                printf("\n");
-            }
-        } else if (key.substr(0, 2) == "f:") { // dependency
-            if (type & Dependency) {
-                const QByteArray ba = QByteArray::fromRawData(it->value().data(),
-                                                              it->value().size());
-                QDataStream ds(ba);
-                GccArguments args;
-                ds >> args;
-                quint64 lastModified;
-                ds >> lastModified;
-                time_t tt = static_cast<time_t>(lastModified);
-                printf("%s %s %s", key.c_str() + 2, args.raw().constData(), ctime(&tt));
-                QHash<QByteArray, quint64> dependencies;
-                ds >> dependencies;
-                for (QHash<QByteArray, quint64>::const_iterator it = dependencies.begin();
-                     it != dependencies.end(); ++it) {
-                    tt = static_cast<time_t>(it.value());
-                    printf("  %s %s", it.key().constData(), ctime(&tt));
-                }
-            }
-        } else if (key == "files") {
-            if (type & Files) {
-                QSet<Path> files;
-                const QByteArray ba = QByteArray::fromRawData(it->value().data(),
-                                                              it->value().size());
-                QDataStream ds(ba);
-                ds >> files;
-                foreach(const Path &path, files) {
-                    printf("%s\n", path.constData());
-                }
-            }
-        }
-    }
-    delete it;
-    delete db;
+//     leveldb::DB* db;
+//     const leveldb::Status status = leveldb::DB::Open(leveldb::Options(), filename, &db);
+//     if (!status.ok()) {
+//         fprintf(stderr, "Unable to open db [%s]: %s\n", filename.c_str(), status.ToString().c_str());
+//         return;
+//     }
+//     leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
+//     for (it->SeekToFirst(); it->Valid(); it->Next()) {
+//         // unsigned line = 0, col = 0;;
+//         // std::string mod = it->key().ToString();
+//         // printf("%d\n", parseLocation(it->key().ToString(), mod, line, col));
+//         // printf("%s %d %d\n", mod.c_str(), line, col);
+//         const std::string key = it->key().ToString();
+//         std::string fileName;
+//         unsigned line, col;
+//         // qDebug() << key.c_str();
+//         if (type & Raw) {
+//             printf("[%s]\n", key.c_str());
+//         }
+//         if (parseLocation(key, fileName, line, col)) {
+//             leveldb::Slice val = it->value();
+//             const QByteArray v = QByteArray::fromRawData(val.data(), val.size());
+//             QByteArray mapsTo;
+//             QSet<Cursor> references;
+//             QDataStream ds(v);
+//             ds >> mapsTo >> references;
+//             // printf("%s (%s) maps to %s (%s)\n",
+//             //        key.c_str(),
+//             //        symbolNameAt(key).c_str(),
+//             //        it->value().ToString().c_str(),
+//             //        symbolNameAt(it->value().ToString()).c_str());
+//             if (type & Symbol && !mapsTo.isEmpty()) {
+//                 printf("%s maps to %s\n",
+//                        key.c_str(),
+//                        mapsTo.constData());
+//             }
+//             if (type & Reference) {
+//                 // printf("Balle %d %d %d %d\n", references.size(), v.size(), val.size(),
+//                 //        it->value().ToString().size());
+//                 foreach(const Cursor &r, references) {
+//                     printf("%s refers to %s\n", r.key.toString().constData(), key.c_str());
+//                 }
+//             }
+//         } else if (key.substr(0, 2) == "d:") { // dict
+//             if (type & Dict) {
+//                 leveldb::Slice val = it->value();
+//                 const QByteArray v = QByteArray::fromRawData(val.data(), val.size());
+//                 QSet<QByteArray> strings; // these are streamed out as
+//                                           // AtomicString but they're streamed
+//                                           // as a single QByteArray so it should
+//                                           // be fine
+//                 QDataStream ds(v);
+//                 ds >> strings;
+//                 printf("dict entry %s:", key.substr(2).c_str());
+//                 bool first = true;
+//                 foreach(const QByteArray &loc, strings) {
+//                     if (!first) {
+//                         printf(" ::");
+//                     } else {
+//                         first = false;
+//                     }
+//                     printf(" %s", loc.constData());
+//                 }
+//                 printf("\n");
+//             }
+//         } else if (key.substr(0, 2) == "f:") { // dependency
+//             if (type & Dependency) {
+//                 const QByteArray ba = QByteArray::fromRawData(it->value().data(),
+//                                                               it->value().size());
+//                 QDataStream ds(ba);
+//                 GccArguments args;
+//                 ds >> args;
+//                 quint64 lastModified;
+//                 ds >> lastModified;
+//                 time_t tt = static_cast<time_t>(lastModified);
+//                 printf("%s %s %s", key.c_str() + 2, args.raw().constData(), ctime(&tt));
+//                 QHash<QByteArray, quint64> dependencies;
+//                 ds >> dependencies;
+//                 for (QHash<QByteArray, quint64>::const_iterator it = dependencies.begin();
+//                      it != dependencies.end(); ++it) {
+//                     tt = static_cast<time_t>(it.value());
+//                     printf("  %s %s", it.key().constData(), ctime(&tt));
+//                 }
+//             }
+//         } else if (key == "files") {
+//             if (type & Files) {
+//                 QSet<Path> files;
+//                 const QByteArray ba = QByteArray::fromRawData(it->value().data(),
+//                                                               it->value().size());
+//                 QDataStream ds(ba);
+//                 ds >> files;
+//                 foreach(const Path &path, files) {
+//                     printf("%s\n", path.constData());
+//                 }
+//             }
+//         }
+//     }
+//     delete it;
+//     delete db;
 }
 
 static inline bool writeExpect(const std::string& filename)
