@@ -105,6 +105,7 @@ QByteArray FileIndex::Entry::key() const
 
 bool FileIndex::Entry::operator<(const Entry& other) const
 {
+    // ### compare with other.partial before looking at key()
     if (partial.size() > PartialMax)
         return partial < other.key();
     else if (other.partial.size() > PartialMax)
@@ -271,10 +272,11 @@ QByteArray FileConnection::readData(const QByteArray &key) const
     if (idx.find(FileIndex::Exact, key, &offset, &size)) {
         if (size == 0)
             return QByteArray();
-        QByteArray value(size, '\0');
-        ::lseek(db, offset, SEEK_SET);
-        ssize_t r = ::read(db, value.data(), size);
-        Q_ASSERT(r == size);
+        ::lseek(db, offset + size, SEEK_SET);
+        int vsz;
+        ssize_t r = ::read(db, &vsz, sizeof(int));
+        QByteArray value(vsz, '\0');
+        r = ::read(db, value.data(), vsz);
         return value;
     }
     return QByteArray();
