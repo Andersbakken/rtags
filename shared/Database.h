@@ -38,7 +38,7 @@ public:
                      const QSet<Location> &declarations,
                      const QSet<Location> &references);
 
-    void markDirtyLocations(const QSet<Location> &location);
+    void markDirtyFiles(const QList<Path> &paths);
 
     Location createLocation(const QByteArray &arg, const Path &cwd = Path());
     QByteArray locationToString(const Location &location) const;
@@ -76,6 +76,11 @@ public:
     {
         write(General, key, t);
     }
+
+    void erase(const QByteArray &key)
+    {
+        erase(General, key);
+    }
     virtual iterator *createIterator(ConnectionType) const = 0;
 protected:
     virtual bool openDatabase(const Path &db, Mode mode) = 0;
@@ -89,6 +94,10 @@ private:
     template <typename T> void write(ConnectionType type, const QByteArray &key, const T &t)
     {
         mConnections[type]->writeData(key, encode<T>(t));
+    }
+    void erase(ConnectionType type, const QByteArray &key)
+    {
+        mConnections[type]->writeData(key, QByteArray());
     }
     
     template <typename T> static QByteArray encode(const T &t)

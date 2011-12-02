@@ -20,9 +20,14 @@ public:
     }
     virtual void writeData(const QByteArray &key, const QByteArray &value)
     {
-        mDB->Put(leveldb::WriteOptions(),
-                 leveldb::Slice((mPrefix + key).constData(), key.size() + 1),
-                 leveldb::Slice(value.constData(), value.size()));
+        if (value.isEmpty()) {
+            mDB->Delete(leveldb::WriteOptions(),
+                        leveldb::Slice((mPrefix + key).constData(), key.size() + 1));
+        } else {
+            mDB->Put(leveldb::WriteOptions(),
+                     leveldb::Slice((mPrefix + key).constData(), key.size() + 1),
+                     leveldb::Slice(value.constData(), value.size()));
+        }
     }
 private:
     leveldb::DB *mDB;

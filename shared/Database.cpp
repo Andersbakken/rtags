@@ -83,6 +83,98 @@ bool Database::open(const Path &db, Mode mode)
     return false;
 }
 
+struct PendingChange {
+    Database::ConnectionType connectionType;
+    QByteArray key;
+    QSet<Location> locations;
+};
+
+static inline bool filterLocations(Database::iterator *iterator, const QSet<int> &dirty,
+                                   QList<PendingChange> &changes)
+{
+    const QByteArray value = iterator->value();
+    QDataStream ds(value);
+    QSet<Location> locations;
+    ds >> locations;
+    QSet<Location>::iterator it = locations.begin();
+    bool changed = false;
+    while (it != locations.end()) {
+        if (dirty.contains((*it).file)) {
+            it = locations.erase(it);
+            changed = true;
+        } else {
+            ++it;
+        }
+    }
+    if (changed) {
+        const PendingChange ch = { iterator->type, iterator->key(), locations };
+        changes.append(ch);
+    }
+    return changed;
+}
+
+void Database::markDirtyFiles(const QList<Path> &paths)
+{
+    QSet<int> dirtyFileIds;
+    foreach(const Path &p, paths) {
+        Q_ASSERT(mFilesByName.contains(p));
+        dirtyFileIds.insert(mFilesByName.value(p));
+    }
+    Q_ASSERT(mMode == ReadWrite);
+    iterator *it = createIterator(References);
+    {
+        QList<PendingChange> changes;
+        if (it->isValid()) {
+            do {
+                const QByteArray key = it->key();
+                if (!key.endsWith(':')) {
+                    filterLocations(it, dirtyFileIds, changes);
+                    // ### remove empty reference ids?
+                }
+            } while (it->next());
+        }
+        delete it;
+        it = createIterator(Dictionary);
+        if (it->isValid()) {
+            do {
+                filterLocations(it, dirtyFileIds, changes);
+            } while (it->next());
+        }
+        delete it;
+        foreach(const PendingChange &change, changes) {
+            if (change.locations.isEmpty()) {
+                erase(change.connectionType, change.key);
+            } else {
+                write(change.connectionType, change.key, change.locations);
+            }
+        }
+    }
+    {
+        QList<QByteArray> removedKeys;
+        it = createIterator(Targets);
+        if (it->isValid()) {
+            Location location;
+            do {
+                const QByteArray key = it->value();
+                if (dirtyFileIds.contains(atoi(key.constData()))) {
+                    removedKeys.append(key);
+                } else {
+                    const QByteArray value = it->value();
+                    QDataStream ds(value);
+                    ds >> location;
+                    if (dirtyFileIds.contains(location.file)) {
+                        removedKeys.append(key);
+                    }
+                }
+            } while (it->next());
+        }
+        delete it;
+        foreach(const QByteArray &key, removedKeys) {
+            erase(Targets, key);
+        }
+    }
+}
+
 void Database::close()
 {
     switch (mMode) {
@@ -110,7 +202,7 @@ Location Database::followLocation(const Location &source) const
     Location ret;
     if (source.file) {
         char buf[32];
-        const int written = snprintf(buf, 32, "%d:%d:%d", source.file, source.line, source.column);
+        const int written = snprintf(buf, 32, "%d:%d:%d:", source.file, source.line, source.column);
         Q_ASSERT(written < 32);
         ret = read<Location>(Targets, QByteArray::fromRawData(buf, written));
     }
@@ -122,7 +214,7 @@ QSet<Location> Database::findReferences(const Location &source) const
     QSet<Location> ret;
     if (source.file) {
         char buf[32];
-        int written = snprintf(buf, 32, "%d:%d:%d", source.file, source.line, source.column);
+        int written = snprintf(buf, 32, "%d:%d:%d:", source.file, source.line, source.column);
         Q_ASSERT(written < 32);
 
         const int refId = read<int>(References, QByteArray::fromRawData(buf, written));
@@ -235,18 +327,18 @@ void Database::writeEntity(const QByteArray &symbolName,
         for (QSet<Location>::const_iterator it = references.begin();
              it != references.end(); ++it) {
             const Location &l = *it;
-            const int ret = snprintf(buf, 512, "%d:%d:%d", l.file, l.line, l.column);
+            const int ret = snprintf(buf, 512, "%d:%d:%d:", l.file, l.line, l.column);
             write(Targets, QByteArray::fromRawData(buf, ret), loc);
         }
         if (definition.file || refIdx) {
-            const int ret = snprintf(buf, 512, "%d:%d:%d", definition.file, definition.line, definition.column);
+            const int ret = snprintf(buf, 512, "%d:%d:%d:", definition.file, definition.line, definition.column);
             if (declarations.size() == 1) {
                 write(Targets, QByteArray::fromRawData(buf, ret), *declarations.begin());
             }
             write(References, QByteArray::fromRawData(buf, ret), refIdx);
 
             foreach(const Location &declaration, declarations) {
-                const int ret = snprintf(buf, 512, "%d:%d:%d", declaration.file, declaration.line, declaration.column);
+                const int ret = snprintf(buf, 512, "%d:%d:%d:", declaration.file, declaration.line, declaration.column);
                 if (definition.file) {
                     write(Targets, QByteArray::fromRawData(buf, ret), definition);
                 }
