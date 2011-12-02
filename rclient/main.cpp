@@ -1,5 +1,4 @@
 #include <sstream>
-#include <leveldb/db.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -9,7 +8,7 @@
 #include <RTags.h>
 #include <Location.h>
 #include <AtomicString.h>
-#include <FileDB.h>
+#include "Database.h"
 
 using namespace RTags;
 static inline int readLine(FILE *f, char *buf, int max)
@@ -188,8 +187,8 @@ int main(int argc, char** argv)
         return 1;
     }
     foreach(const QByteArray &dbPath, dbPaths) {
-        FileDB db;
-        if (!db.open(dbPath.constData(), Database::ReadOnly)) {
+        Database* db = Database::create();
+        if (!db->open(dbPath.constData(), Database::ReadOnly)) {
             continue;
         }
 
@@ -199,34 +198,34 @@ int main(int argc, char** argv)
             fprintf(stderr, "No mode selected\n");
             return 1;
         case FollowSymbol: {
-            Location loc = db.createLocation(arg);
+            Location loc = db->createLocation(arg);
             // printf("%s => %d:%d:%d\n", arg.constData(), loc.file, loc.line, loc.column);
             if (loc.file) {
-                const QByteArray out = db.locationToString(db.followLocation(loc));
+                const QByteArray out = db->locationToString(db->followLocation(loc));
                 if (!out.isEmpty())
                     printf("%s\n", out.constData());
             } else {
-                foreach(const Location &l, db.findSymbol(arg)) {
-                    const QByteArray out = db.locationToString(db.followLocation(l));
+                foreach(const Location &l, db->findSymbol(arg)) {
+                    const QByteArray out = db->locationToString(db->followLocation(l));
                     if (!out.isEmpty())
                         printf("%s\n", out.constData());
                 }
             }
             break; }
         case References: {
-            Location loc = db.createLocation(arg);
+            Location loc = db->createLocation(arg);
             // printf("%s => %d:%d:%d\n", arg.constData(), loc.file, loc.line, loc.column);
             if (loc.file) {
-                foreach(const Location &l, db.findReferences(loc)) {
-                    const QByteArray out = db.locationToString(l);
+                foreach(const Location &l, db->findReferences(loc)) {
+                    const QByteArray out = db->locationToString(l);
                     if (!out.isEmpty())
                         printf("%s\n", out.constData());
                 }
             } else {
                 QSet<QByteArray> printed;
-                foreach(const Location &l, db.findSymbol(arg)) {
-                    foreach(const Location &r, db.findReferences(l)) {
-                        const QByteArray out = db.locationToString(r);
+                foreach(const Location &l, db->findSymbol(arg)) {
+                    foreach(const Location &r, db->findReferences(l)) {
+                        const QByteArray out = db->locationToString(r);
                         if (!out.isEmpty() && !printed.contains(out)) {
                             printed.insert(out);
                             printf("%s\n", out.constData());
@@ -236,24 +235,24 @@ int main(int argc, char** argv)
             }
             break; }
         case FindSymbols:
-            foreach(const Location &loc, db.findSymbol(arg)) {
-                const QByteArray out = db.locationToString(loc);
+            foreach(const Location &loc, db->findSymbol(arg)) {
+                const QByteArray out = db->locationToString(loc);
                 if (!out.isEmpty())
                     printf("%s\n", out.constData());
             }
             break;
         case ListSymbols:
-            foreach(const QByteArray &symbol, db.symbolNames(arg)) {
+            foreach(const QByteArray &symbol, db->symbolNames(arg)) {
                 printf("%s\n", symbol.constData());
             }
             break;
         case Files: {
-            QSet<Path> paths = db.read<QSet<Path> >("files");
+            QSet<Path> paths = db->read<QSet<Path> >("files");
             const bool empty = arg.isEmpty();
             const char *root = "./";
             Path srcDir;
             if (!(flags & PathsRelativeToRoot)) {
-                srcDir = db.read<Path>("sourceDir");
+                srcDir = db->read<Path>("sourceDir");
                 root = srcDir.constData();
             }
             foreach(const Path &path, paths) {

@@ -1,12 +1,11 @@
 #include <sstream>
-#include <leveldb/db.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <limits.h>
 #include <RTags.h>
 #include <QtCore>
 #include <GccArguments.h>
-#include <FileDB.h>
+#include "Database.h"
 
 using namespace RTags;
 
@@ -240,9 +239,9 @@ int main(int argc, char** argv)
         filename = argv[optind];
     }
 
-    FileDB db;
-    if (db.open(filename.c_str(), Database::ReadOnly)) {
-        Database::iterator *it = db.createIterator(Database::All);
+    Database* db = Database::create();
+    if (db->open(filename.c_str(), Database::ReadOnly)) {
+        Database::iterator *it = db->createIterator(Database::All);
         if (it->isValid()) {
             do {
                 printf("%s:%d\n", it->key().constData(), it->value().size());

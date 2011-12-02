@@ -1,4 +1,6 @@
 #include "Database.h"
+#include "FileDB.h"
+#include "LevelDB.h"
 #include <dirent.h>
 
 Database::Database()
@@ -366,4 +368,18 @@ QByteArray Database::locationToString(const Location &location) const
         return ret;
     }
     return QByteArray();
+}
+
+Database *Database::create()
+{
+    QByteArray dbtype = qgetenv("RTAGS_DB_TYPE").toLower();
+    if (dbtype == "leveldb") {
+        printf("Using leveldb\n");
+        return new LevelDB;
+    } else if (dbtype == "filedb" || dbtype.isEmpty()) {
+        printf("Using filedb\n");
+        return new FileDB;
+    }
+    qFatal("Unknown db %s", dbtype.constData());
+    return 0;
 }

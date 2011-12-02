@@ -18,6 +18,8 @@ public:
 class Database
 {
 public:
+    static Database* create();
+
     Database();
     virtual ~Database();
     enum Mode {
