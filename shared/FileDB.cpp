@@ -58,6 +58,7 @@ class FileIndex
 {
 public:
     enum { PartialMax = 4 };
+    enum FindType { Exact, LowerBound, UpperBound };
 
     FileIndex();
     FileIndex(int i, int d);
@@ -69,8 +70,7 @@ public:
     void write();
 
     void add(const QByteArray& key, int offset);
-    bool find(const QByteArray& key, int* offset, int* size = 0);
-    bool lowerBound(const QByteArray& key, int* offset, int* size = 0);
+    bool find(FindType type, const QByteArray& key, int* offset, int* size = 0);
 
     void maybeSort();
 
@@ -158,10 +158,17 @@ void FileIndex::read()
     }
 }
 
-void FileIndex::write()
+void FileIndex::maybeSort()
 {
+    if (!dirty)
+        return;
     qSort(entries);
     dirty = false;
+}
+
+void FileIndex::write()
+{
+    maybeSort();
 
     FdDevice fddev(idx);
     QDataStream stream(&fddev);
@@ -179,15 +186,7 @@ void FileIndex::add(const QByteArray &key, int offset)
     dirty = true;
 }
 
-void FileIndex::maybeSort()
-{
-    if (!dirty)
-        return;
-    qSort(entries);
-    dirty = false;
-}
-
-bool FileIndex::find(const QByteArray &key, int *offset, int *size)
+bool FileIndex::find(FindType type, const QByteArray &key, int *offset, int *size)
 {
     maybeSort();
 
@@ -197,26 +196,19 @@ bool FileIndex::find(const QByteArray &key, int *offset, int *size)
     find.db = -1;
     find.size = key.size();
 
-    QVector<Entry>::const_iterator i = qBinaryFind(entries, find);
-    if (i == entries.end())
-        return false;
-    *offset = (*i).offset;
-    if (size)
-        *size = (*i).size;
-    return true;
-}
+    QVector<Entry>::const_iterator i;
+    switch (type) {
+    case LowerBound:
+        i = qLowerBound(entries, find);
+        break;
+    case UpperBound:
+        i = qUpperBound(entries, find);
+        break;
+    default:
+        i = qBinaryFind(entries, find);
+        break;
+    }
 
-bool FileIndex::lowerBound(const QByteArray &key, int *offset, int *size)
-{
-    maybeSort();
-
-    Entry find;
-    find.partial = key;
-    find.offset = -1;
-    find.db = -1;
-    find.size = key.size();
-
-    QVector<Entry>::const_iterator i = qLowerBound(entries, find);
     if (i == entries.end())
         return false;
     *offset = (*i).offset;
@@ -276,7 +268,7 @@ FileConnection::~FileConnection()
 QByteArray FileConnection::readData(const QByteArray &key) const
 {
     int offset, size;
-    if (idx.find(key, &offset, &size)) {
+    if (idx.find(FileIndex::Exact, key, &offset, &size)) {
         if (size == 0)
             return QByteArray();
         QByteArray value(size, '\0');
@@ -381,11 +373,9 @@ bool FileIterator::seek(const QByteArray &key)
         qFatal("FIXME: FileIterator::seek() does not work with Database::All");
 
     int offset;
-    if (idx.lowerBound(key, &offset)) {
-        offset -= sizeof(int);
-        ::lseek(db, offset, SEEK_SET);
-        pos = offset;
-        next();
+    if (idx.find(FileIndex::LowerBound, key, &offset)) {
+        pos = offset - sizeof(int);
+        next(); // next() will see to 'pos' before reading
     }
     return false;
 }
