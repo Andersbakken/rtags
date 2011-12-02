@@ -238,21 +238,11 @@ int main(int argc, char** argv)
         case FindSymbols:
             // maybeDict(db, arg.constData(), printSymbol);
             break;
-        case ListSymbols: {
-            // std::string val;
-            // leveldb::Iterator *it = db->NewIterator(leveldb::ReadOptions());
-            // it->Seek("d:");
-            // while (it->Valid()) {
-            //     std::string k = it->key().ToString();
-            //     if (k.empty() || strncmp(k.c_str(), "d:", 2))
-            //         break;
-            //     if (arg.isEmpty() || strstr(k.c_str(), arg.constData())) {
-            //         printf("%s\n", k.c_str() + 2);
-            //     }
-            //     it->Next();
-            // }
-            // delete it;
-            break; }
+        case ListSymbols:
+            foreach(const QByteArray &symbol, db.symbolNames(arg)) {
+                printf("%s\n", symbol.constData());
+            }
+            break;
         case Files: {
             // QSet<Path> paths;
             // if (readFromDB(db, "files", paths)) {

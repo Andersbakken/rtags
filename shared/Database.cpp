@@ -137,7 +137,7 @@ QSet<Location> Database::findReferences(const Location &source) const
 
 QSet<Location> Database::findSymbol(const QByteArray &symbolName) const
 {
-    return read<QSet<Location> >("d:" + symbolName);
+    return read<QSet<Location> >(char('a' + Dictionary) + symbolName);
 }
 
 QList<QByteArray> Database::symbolNames(const QByteArray &filter) const
@@ -145,11 +145,14 @@ QList<QByteArray> Database::symbolNames(const QByteArray &filter) const
     QList<QByteArray> ret;
     iterator *it = createIterator();
     Q_ASSERT(it);
-    if (it->seek("d:")) {
+    const char ch = ('a' + Dictionary);
+    const QByteArray pref = QByteArray(&ch, 1);
+    if (it->seek(pref)) {
         do {
             const QByteArray key = it->key();
-            if (key.size() < 3 || strncmp(key.constData(), "d:", 2))
+            if (key.size() < 2 || strncmp(key.constData(), pref, 1)) {
                 break;
+            }
             if (filter.isEmpty() || it->key().contains(filter))
                 ret.append(key.mid(2));
         } while (it->next());
