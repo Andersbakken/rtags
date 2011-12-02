@@ -52,7 +52,7 @@ bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
         return false;
     }
     mData->makefile = makefile;
-    mData->sourceDir = sourceDir;
+    mData->sourceDir = sourceDir.isEmpty() ? Path(".") : sourceDir;
     if (!mData->sourceDir.isEmpty()) {
         mData->sourceDir.resolve();
         if (!mData->sourceDir.isDir()) {

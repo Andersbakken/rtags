@@ -32,10 +32,16 @@ private:
 class LevelDBIterator : public Database::iterator
 {
 public:
-    LevelDBIterator(leveldb::DB *db)
-        : mDB(db), mIterator(db->NewIterator(leveldb::ReadOptions()))
+    LevelDBIterator(Database::ConnectionType t, leveldb::DB *db)
+        : Database::iterator(t), mDB(db), mIterator(db->NewIterator(leveldb::ReadOptions()))
     {
-        mIterator->SeekToFirst();
+        if (type == Database::All) {
+            mIterator->SeekToFirst();
+        } else {
+            char ch = 'a';
+            ch += type;
+            mIterator->Seek(leveldb::Slice(&ch, 1));
+        }
     }
     virtual ~LevelDBIterator()
     {
@@ -44,7 +50,7 @@ public:
     virtual QByteArray key() const
     {
         const leveldb::Slice k = mIterator->key();
-        return QByteArray(k.data(), k.size());
+        return QByteArray(k.data() + 1, k.size() - 1);
     }
     virtual QByteArray value() const
     {
@@ -59,12 +65,20 @@ public:
     virtual bool next()
     {
         mIterator->Next();
-        return mIterator->Valid();
+        return isValid();
     }
 
     virtual bool isValid() const
     {
-        return mIterator->Valid();
+        if (mIterator->Valid()) {
+            if (type != Database::All) {
+                const leveldb::Slice k = mIterator->key();
+                if (!k.size() || k.data()[0] != ('a' + type))
+                    return false;
+            }
+            return true;
+        }
+        return false;
     }
 private:
     leveldb::DB *mDB;
@@ -91,9 +105,9 @@ public:
         mDB = 0;
     }
 
-    virtual iterator *createIterator() const
+    virtual iterator *createIterator(ConnectionType type) const
     {
-        return new LevelDBIterator(mDB);
+        return new LevelDBIterator(type, mDB);
     }
 
     virtual Connection *createConnection(ConnectionType type)

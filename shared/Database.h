@@ -43,18 +43,30 @@ public:
     Location createLocation(const QByteArray &arg, const Path &cwd = Path());
     QByteArray locationToString(const Location &location) const;
 
+    enum ConnectionType {
+        General = 0,
+        Dictionary,
+        References,
+        Targets,
+        NumConnections,
+        All
+    };
+    
     class iterator
     {
     public:
+        iterator(ConnectionType t)
+            : type(t)
+        {}
         virtual ~iterator() {}
         virtual QByteArray value() const = 0;
         virtual QByteArray key() const = 0;
         virtual bool seek(const QByteArray &key) = 0;
         virtual bool next() = 0;
         virtual bool isValid() const = 0;
+        const ConnectionType type;
     };
 
-    virtual iterator *createIterator() const = 0;
 
     template <typename T> T read(const QByteArray &key) const
     {
@@ -64,17 +76,10 @@ public:
     {
         write(General, key, t);
     }
+    virtual iterator *createIterator(ConnectionType) const = 0;
 protected:
     virtual bool openDatabase(const Path &db, Mode mode) = 0;
     virtual void closeDatabase() = 0;
-    enum ConnectionType {
-        General = 0,
-        Dictionary,
-        References,
-        Targets,
-        NumConnections
-    };
-
     virtual Connection *createConnection(ConnectionType type) = 0;
 private:
     template <typename T> T read(ConnectionType type, const QByteArray &key) const

@@ -240,7 +240,7 @@ int main(int argc, char** argv)
 
     LevelDB db;
     if (db.open(filename.c_str(), Database::ReadOnly)) {
-        Database::iterator *it = db.createIterator();
+        Database::iterator *it = db.createIterator(Database::All);
         if (it->isValid()) {
             do {
                 printf("%s:%d\n", it->key().constData(), it->value().size());

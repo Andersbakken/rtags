@@ -45,25 +45,6 @@ static inline std::string lineForLocation(const std::string &location)
     return ret;
 }
 
-static inline void print(const QByteArray &out)
-{
-    static QSet<QByteArray> printed;
-    if (!printed.contains(out)) {
-        printed.insert(out);
-        printf("%s\n", out.constData());
-    }
-}
-
-static inline bool printSymbol(leveldb::DB *, const std::string &loc)
-{
-    if (!loc.empty()) {
-        const std::string line = lineForLocation(loc);
-        print(QByteArray((loc + " " + line).c_str()));
-        return true;
-    }
-    return false;
-}
-
 static inline void usage(const char* argv0, FILE *f)
 {
     fprintf(f,
@@ -94,7 +75,7 @@ int main(int argc, char** argv)
         { "find-symbols", 1, 0, 's' },
         { "find-db", 0, 0, 'F' },
         { "list-symbols", 1, 0, 'l' },
-        { "filse", 1, 0, 'P' }, // some of these should have optional args
+        { "files", 1, 0, 'P' }, // some of these should have optional args
         { "paths-relative-to-root", 0, 0, 'n' },
         { 0, 0, 0, 0 },
     };
@@ -232,11 +213,34 @@ int main(int argc, char** argv)
                 }
             }
             break; }
-        case References:
-            // maybeResolveAndMaybeDict(db, arg.constData(), findReferences);
-            break;
+        case References: {
+            Location loc = db.createLocation(arg);
+            // printf("%s => %d:%d:%d\n", arg.constData(), loc.file, loc.line, loc.column);
+            if (loc.file) {
+                foreach(const Location &l, db.findReferences(loc)) {
+                    const QByteArray out = db.locationToString(l);
+                    if (!out.isEmpty())
+                        printf("%s\n", out.constData());
+                }
+            } else {
+                QSet<QByteArray> printed;
+                foreach(const Location &l, db.findSymbol(arg)) {
+                    foreach(const Location &r, db.findReferences(l)) {
+                        const QByteArray out = db.locationToString(r);
+                        if (!out.isEmpty() && !printed.contains(out)) {
+                            printed.insert(out);
+                            printf("%s\n", out.constData());
+                        }
+                    }
+                }
+            }
+            break; }
         case FindSymbols:
-            // maybeDict(db, arg.constData(), printSymbol);
+            foreach(const Location &loc, db.findSymbol(arg)) {
+                const QByteArray out = db.locationToString(loc);
+                if (!out.isEmpty())
+                    printf("%s\n", out.constData());
+            }
             break;
         case ListSymbols:
             foreach(const QByteArray &symbol, db.symbolNames(arg)) {
@@ -244,20 +248,19 @@ int main(int argc, char** argv)
             }
             break;
         case Files: {
-            // QSet<Path> paths;
-            // if (readFromDB(db, "files", paths)) {
-            //     const bool empty = arg.isEmpty();
-            //     const char *root = "./";
-            //     Path srcDir;
-            //     if (!(flags & PathsRelativeToRoot) && readFromDB(db, "sourceDir", srcDir)) {
-            //         root = srcDir.constData();
-            //     }
-            //     foreach(const Path &path, paths) {
-            //         if (empty || path.contains(arg)) {
-            //             printf("%s%s\n", root, path.constData());
-            //         }
-            //     }
-            // }
+            QSet<Path> paths = db.read<QSet<Path> >("files");
+            const bool empty = arg.isEmpty();
+            const char *root = "./";
+            Path srcDir;
+            if (!(flags & PathsRelativeToRoot)) {
+                srcDir = db.read<Path>("sourceDir");
+                root = srcDir.constData();
+            }
+            foreach(const Path &path, paths) {
+                if (empty || path.contains(arg)) {
+                    printf("%s%s\n", root, path.constData());
+                }
+            }
             break; }
         }
     }
