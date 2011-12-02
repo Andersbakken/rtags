@@ -145,7 +145,7 @@ void Database::markDirtyFiles(const QList<Path> &paths)
         delete it;
         foreach(const PendingChange &change, changes) {
             if (change.locations.isEmpty()) {
-                erase(change.connectionType, change.key);
+                remove(change.connectionType, change.key);
             } else {
                 write(change.connectionType, change.key, change.locations);
             }
@@ -172,7 +172,7 @@ void Database::markDirtyFiles(const QList<Path> &paths)
         }
         delete it;
         foreach(const QByteArray &key, removedKeys) {
-            erase(Targets, key);
+            remove(Targets, key);
         }
     }
 }

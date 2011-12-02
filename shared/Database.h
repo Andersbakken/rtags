@@ -79,9 +79,9 @@ public:
         write(General, key, t);
     }
 
-    void erase(const QByteArray &key)
+    void remove(const QByteArray &key)
     {
-        erase(General, key);
+        remove(General, key);
     }
     virtual iterator *createIterator(ConnectionType) const = 0;
 protected:
@@ -97,7 +97,7 @@ private:
     {
         mConnections[type]->writeData(key, encode<T>(t));
     }
-    void erase(ConnectionType type, const QByteArray &key)
+    void remove(ConnectionType type, const QByteArray &key)
     {
         mConnections[type]->writeData(key, QByteArray());
     }
