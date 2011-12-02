@@ -10,11 +10,5 @@ INCLUDEPATH += .
 
 # Input
 SOURCES += main.cpp
-CONFIG += debug
-CONFIG -= app_bundle
-QT = core
-unix {
-    OBJECTS_DIR = .obj
-}
 
 include(../shared/shared.pri)

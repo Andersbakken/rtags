@@ -9,12 +9,6 @@ DEPENDPATH += $$PWD
 DEFINES += WITH_GPERF
 include($$PWD/../shared/shared.pri)
 
-QT -= gui
-macx {
-    CONFIG -= app_bundle
-    LIBS += -L/opt/local/lib
-    INCLUDEPATH += /opt/local/include
-}
 # Input
 SOURCES += $$PWD/main.cpp \
            $$PWD/RBuild.cpp \
@@ -26,24 +20,9 @@ HEADERS += $$PWD/RBuild.h \
            $$PWD/MakefileParser.h \
            $$PWD/Precompile.h
 
-QMAKE_CXXFLAGS += -O2
-
-valgrind {
-    CONFIG += debug
-    QMAKE_CXXFLAGS -= -O2
-    QMAKE_CXXFLAGS += -fno-inline
-}
-
 gccopts_gperf.commands = gperf -I -C -l -L C++ gccopts.gperf --output-file gccopts_gperf.cpp -Z gccopts_gperf
 gccopts_gperf.target = gccopts_gperf.cpp
 gccopts_gperf.depends = gccopts.gperf
 QMAKE_EXTRA_TARGETS += gccopts_gperf
 
 PRE_TARGETDEPS += gccopts_gperf.cpp
-
-unix {
-    MOC_DIR = .moc
-    OBJECTS_DIR = .obj
-}
-
-

@@ -22,3 +22,23 @@ mac {
     LIBS += -L/opt/local/lib
     INCLUDEPATH += /opt/local/include
 }
+
+QMAKE_CXXFLAGS += -O2
+
+valgrind {
+    CONFIG += debug
+    QMAKE_CXXFLAGS -= -O2
+    QMAKE_CXXFLAGS += -fno-inline
+}
+
+unix {
+    MOC_DIR = .moc
+    OBJECTS_DIR = .obj
+}
+
+QT -= gui
+macx {
+    CONFIG -= app_bundle
+    LIBS += -L/opt/local/lib
+    INCLUDEPATH += /opt/local/include
+}
