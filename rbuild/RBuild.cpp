@@ -5,7 +5,6 @@
 #include <QtAlgorithms>
 #include <sstream>
 #include <clang-c/Index.h>
-#include <leveldb/db.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -13,12 +12,12 @@
 #include <dirent.h>
 #include "AtomicString.h"
 #include "RBuild_p.h"
-#include <leveldb/write_batch.h>
+#include <LevelDB.h>
 #include <memory>
 
 using namespace RTags;
 
-QMap<AtomicString, unsigned> *Location::sFiles = 0;
+QHash<Path, unsigned> *Location::sFiles = 0;
 
 static const bool pchEnabled = false; //!getenv("RTAGS_NO_PCH") && false;
 static QElapsedTimer timer;
@@ -26,11 +25,11 @@ static QElapsedTimer timer;
 RBuild::RBuild(QObject *parent)
     : QObject(parent), mData(new RBuildPrivate)
 {
-    mData->mIndex = clang_createIndex(1, 0);
+    mData->index = clang_createIndex(1, 0);
     if (const char *env = getenv("RTAGS_THREAD_COUNT")) {
         const int threads = atoi(env);
         if (threads > 0)
-            mData->mThreadPool.setMaxThreadCount(threads);
+            mData->threadPool.setMaxThreadCount(threads);
     }
     RTags::systemIncludes(); // force creation before any threads are spawned
     connect(this, SIGNAL(compileFinished()), this, SLOT(onCompileFinished()));
@@ -39,13 +38,13 @@ RBuild::RBuild(QObject *parent)
 
 RBuild::~RBuild()
 {
-    clang_disposeIndex(mData->mIndex);
+    clang_disposeIndex(mData->index);
     delete mData;
 }
 
 void RBuild::setDBPath(const Path &path)
 {
-    mData->mDBPath = path;
+    mData->dbPath = path;
 }
 
 bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
@@ -54,22 +53,22 @@ bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
         fprintf(stderr, "%s doesn't exist\n", makefile.constData());
         return false;
     }
-    mData->mMakefile = makefile;
-    mData->mSourceDir = sourceDir;
-    if (!mData->mSourceDir.isEmpty()) {
-        mData->mSourceDir.resolve();
-        if (!mData->mSourceDir.isDir()) {
+    mData->makefile = makefile;
+    mData->sourceDir = sourceDir;
+    if (!mData->sourceDir.isEmpty()) {
+        mData->sourceDir.resolve();
+        if (!mData->sourceDir.isDir()) {
             fprintf(stderr, "%s is not a directory\n", sourceDir.constData());
             return false;
         }
-        if (!mData->mSourceDir.endsWith('/'))
-            mData->mSourceDir.append('/');
+        if (!mData->sourceDir.endsWith('/'))
+            mData->sourceDir.append('/');
     }
 
-    connect(&mData->mParser, SIGNAL(fileReady(const GccArguments&)),
+    connect(&mData->parser, SIGNAL(fileReady(const GccArguments&)),
             this, SLOT(processFile(const GccArguments&)));
-    connect(&mData->mParser, SIGNAL(done()), this, SLOT(makefileDone()));
-    mData->mParser.run(mData->mMakefile);
+    connect(&mData->parser, SIGNAL(done()), this, SLOT(makefileDone()));
+    mData->parser.run(mData->makefile);
     return true;
 }
 
@@ -142,7 +141,7 @@ bool RBuild::updateDB()
     //     printf("Nothing has changed (%lld ms)\n", timer.elapsed());
     //     return true;
     // }
-    // if (!readFromDB(mData->db, "sourceDir", mData->mSourceDir)) {
+    // if (!readFromDB(mData->db, "sourceDir", mData->sourceDir)) {
     //     fprintf(stderr, "Can't read existing data for src dir\n");
     //     return false;
     // }
@@ -347,14 +346,12 @@ void RBuild::save()
     printf("Done parsing, now writing.\n");
     const qint64 beforeWriting = timer.elapsed();
 
-    removeDirectory(mData->mDBPath.constData());
+    removeDirectory(mData->dbPath.constData());
     // Q_ASSERT(filename.endsWith(".rtags.db"));
-    if (!openDB()) {
+    if (!openDB(Create)) {
         return;
     }
-    leveldb::WriteBatch batch;
-    writeData(&batch, 0);
-    mData->db->Write(leveldb::WriteOptions(), &batch);
+    writeData();
     closeDB();
     const qint64 elapsed = timer.elapsed();
     fprintf(stderr, "All done. (total/saving %lld/%lld ms)\n", elapsed, elapsed - beforeWriting);
@@ -386,31 +383,31 @@ private:
 
 void RBuild::compileAll()
 {
-    mData->mPendingJobs += mData->mFiles.size();
-    foreach(const GccArguments &args, mData->mFiles) {
-        mData->mThreadPool.start(new CompileRunnable(this, args, 0));
+    mData->pendingJobs += mData->files.size();
+    foreach(const GccArguments &args, mData->files) {
+        mData->threadPool.start(new CompileRunnable(this, args, 0));
     }
-    // for (QHash<Precompile*, QList<GccArguments> >::const_iterator it = mData->mFilesByPrecompile.begin();
-    //      it != mData->mFilesByPrecompile.end(); ++it) {
+    // for (QHash<Precompile*, QList<GccArguments> >::const_iterator it = mData->filesByPrecompile.begin();
+    //      it != mData->filesByPrecompile.end(); ++it) {
     //     Precompile *pre = it.key();
     //     foreach(const GccArguments &args, it.value())
-    //         mData->mThreadPool.start(new CompileRunnable(this, args, pre));
+    //         mData->threadPool.start(new CompileRunnable(this, args, pre));
     // }
 
-    mData->mFiles.clear();
+    mData->files.clear();
 }
 
 void RBuild::processFile(const GccArguments& arguments)
 {
     if (!pchEnabled) {
-        mData->mFiles.append(arguments);
+        mData->files.append(arguments);
     } else {
         Precompile *precompiler = Precompile::precompiler(arguments);
         Q_ASSERT(precompiler);
         // if (precompiler->isCompiled()) {
         //     compile(arguments, precompiler);
         // } else {
-            mData->mFilesByPrecompile[precompiler].append(arguments);
+            mData->filesByPrecompile[precompiler].append(arguments);
             precompiler->collectHeaders(arguments);
         // }
     }
@@ -425,42 +422,6 @@ void RBuild::makefileDone()
         compileAll();
     }
 }
-
-static inline void writeDependencies(leveldb::WriteBatch* batch, const Path &path, const QList<QByteArray> &args,
-                                     quint64 lastModified, const QHash<Path, quint64> &dependencies,
-                                     QSet<Path> *allFiles)
-{
-    QByteArray out;
-    {
-        QDataStream ds(&out, QIODevice::WriteOnly);
-        ds << args << lastModified << dependencies;
-    }
-    if (allFiles) {
-        for (QHash<Path, quint64>::const_iterator it = dependencies.begin(); it != dependencies.end(); ++it) {
-            allFiles->insert(it.key());
-        }
-        allFiles->insert(path);
-    }
-
-    const QByteArray p = "f:" + path;
-    batch->Put(leveldb::Slice(p.constData(), p.size()),
-               leveldb::Slice(out.constData(), out.size()));
-}
-
-// static inline void writeEntry(leveldb::WriteBatch* batch, const RBuildPrivate::DataEntry& entry)
-// {
-//     const CursorKey& key = entry.cursor.key;
-//     if (!key.isValid()) {
-//         return;
-//     }
-
-//     QByteArray k = key.toString();
-//     QByteArray v = makeRefValue(entry);
-//     if (!v.isEmpty())
-//         batch->Put(leveldb::Slice(k.constData(), k.size()), leveldb::Slice(v.constData(), v.size()));
-//     // qDebug() << "writing" << k << kindToString(key.kind) << entry.references.size()
-//     //          << v.size() << std::string(v.constData(), v.size()).size();
-// }
 
 static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 {
@@ -497,211 +458,29 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 #endif
 }
 
-static inline void addLocations(const Entity &entity, const QByteArray &key,
-                                QHash<AtomicString, QSet<Location> >& dict)
-{
-    QSet<Location> &locations = dict[key];
-    if (entity.definition.file)
-        locations.insert(entity.definition);
-    foreach(const Location &declaration, entity.declarations)
-        locations.insert(declaration);
-}
-
-static inline void collectDict(const Entity& entity, QHash<AtomicString, QSet<Location> >& dict)
-{
-    QByteArray name = entity.name.toByteArray();
-    int colon = name.indexOf('('); // the name we have doesn't include args which kind sorta sucks a little
-    if (colon != -1)
-        addLocations(entity, QByteArray::fromRawData(name.constData(), colon), dict);
-    addLocations(entity, name, dict);
-    foreach(const AtomicString &cur, entity.parentNames) {
-        const int old = name.size();
-        name.prepend("::");
-        name.prepend(cur.toByteArray());
-        if (colon != -1) {
-            colon += (name.size() - old);
-            addLocations(entity, QByteArray::fromRawData(name.constData(), colon), dict);
-        }
-        addLocations(entity, name, dict);
-    }
-}
-
-void RBuild::writeData(leveldb::WriteBatch *batch, unsigned /*flags*/)
+void RBuild::writeData()
 {
     Q_ASSERT(batch);
-    char buf[512];
-    for (QMap<AtomicString, unsigned>::const_iterator it = mData->files.begin(); it != mData->files.end(); ++it) {
-        int ret = snprintf(buf, 512, "F:%d", it.value());
-        writeToBatch(batch, leveldb::Slice(buf, ret), it.key().toByteArray());
-        ret = snprintf(buf, 512, "F:%s", it.key().constData());
-        writeToBatch(batch, leveldb::Slice(buf, ret), it.value());
-        qDebug() << "files:" << it.value() << it.key();
-    }
 
-    QHash<AtomicString, QSet<Location> > dict;
-    int refIdxCounter = 0;
-    for (QHash<AtomicString, Entity>::const_iterator it = mData->entities.begin(); it != mData->entities.end(); ++it) {
-        int refIdx = -1;
+    mData->db->write("filesByName", mData->files);
+    for (QHash<QByteArray, Entity>::const_iterator it = mData->entities.begin(); it != mData->entities.end(); ++it) {
         const Entity &entity = it.value();
-        if (!entity.references.isEmpty()) {
-            refIdx = ++refIdxCounter;
-            const int ret = snprintf(buf, 512, "r:%d", refIdx);
-            writeToBatch(batch, leveldb::Slice(buf, ret), entity.references);
-            const Location loc = (entity.definition.file ? entity.definition : *entity.declarations.begin());
-            for (QHash<Location, AtomicString>::const_iterator it = entity.references.begin();
-                 it != entity.references.end(); ++it) {
-                QByteArray ref;
-                const int ret = snprintf(buf, 512, "%d:%d:%d", it.key().file, it.key().line, it.key().column);
-                {
-                    QDataStream ds(&ref, QIODevice::WriteOnly);
-                    ds << loc << -1;
-                }
-                qDebug() << "writing entry" << buf << "targets" << loc.key();
-                writeToBatch(batch, leveldb::Slice(buf, ret), ref);
-            }
-        }
-        if (entity.definition.file) {
-            QByteArray def;
-            const int ret = snprintf(buf, 512, "%d:%d:%d", entity.definition.file, entity.definition.line, entity.definition.column);
-            {
-                QDataStream ds(&def, QIODevice::WriteOnly);
-                Location decl;
-                if (entity.declarations.size() == 1) {
-                    decl = *entity.declarations.begin();
-                }
-                ds << decl << refIdx;
-                qDebug() << "writing entry" << buf << kindToString(entity.kind)
-                         << entity.name << entity.parentNames
-                         << entity.definition << entity.declarations
-                         << entity.references << it.key();
-            }
-            writeToBatch(batch, leveldb::Slice(buf, ret), def);
-        }
-        foreach(const Location &declaration, entity.declarations) {
-            QByteArray def;
-            {
-                QDataStream ds(&def, QIODevice::WriteOnly);
-                ds << entity.definition << refIdx;
-            }
-            const int ret = snprintf(buf, 512, "%d:%d:%d", declaration.file, declaration.line, declaration.column);
-            writeToBatch(batch, leveldb::Slice(buf, ret), def);
-            qDebug() << "writing entry" << buf << entity.name << entity.parentNames
-                     << declaration << entity.definition << entity.references
-                     << it.key();
-        }
-        collectDict(entity, dict);
+        mData->db->writeEntity(entity.name, entity.parentNames, entity.definition,
+                               entity.declarations, entity.references);
     }
-    QHash<AtomicString, QSet<Location> >::const_iterator it = dict.begin();
-    const QHash<AtomicString, QSet<Location> >::const_iterator end = dict.end();
-    while (it != end) {
-        writeToBatch(batch, ("d:" + it.key().toByteArray()), it.value());
-        qDebug() << ("d:" + it.key().toByteArray()) << it.value();
-        ++it;
-    }
-    
-    //     RBuildPrivate::DataEntry *r = mData->seen.value(refKey);
-    //     // if (flags & LookupReferencesFromDatabase) {
-    //     //     qDebug() << key << ref << r;
-    //     // }
-    //     if (!r && (flags & LookupReferencesFromDatabase)) {
-    //         std::auto_ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
-    //         it->Seek(refKey.constData());
-    //         if (it->Valid()) {
-    //             leveldb::Slice val = it->value();
-    //             QByteArray data(val.data(), val.size());
-    //             {
-    //                 QDataStream ds(&data, QIODevice::ReadWrite);
-    //                 QByteArray mapsTo;
-    //                 ds >> mapsTo;
-    //                 const int pos = ds.device()->pos();
-    //                 QSet<Cursor> refs;
-    //                 ds >> refs;
-    //                 refs.insert(entry->cursor);
-    //                 ds.device()->seek(pos);
-    //                 ds << refs;
-    //             }
-    //             batch->Put(it->key(), leveldb::Slice(data.constData(), data.size()));
-    //             // qDebug() << "successfully looked up" << refKey << "and added ref" << entry->cursor.key;
-    //             continue;
-    //         }
-    //     }
-    //     if (r) {
-    //         if (r != entry) {
-    //             Q_ASSERT(entry->reference.key.isValid());
-    //             Q_ASSERT(entry->cursor.key.isValid());
-    //             r->references.insert(entry->cursor);
-    //         }
-    //     } else {
-    //         bool warn = true;
-    //         switch (entry->cursor.key.kind) {
-    //         case CXCursor_InclusionDirective:
-    //             warn = false;
-    //             break;
-    //         default:
-    //             break;
-    //         }
-    //         switch (entry->reference.key.kind) {
-    //         case CXCursor_TemplateTypeParameter:
-    //         case CXCursor_NonTypeTemplateParameter:
-    //             warn = false;
-    //         case CXCursor_ClassDecl:
-    //         case CXCursor_StructDecl:
-    //             if (!entry->reference.key.isDefinition())
-    //                 warn = false;
-    //             break;
-    //         default:
-    //             break;
-    //         }
-
-    //         // if (warn && entry->cursor.key == entry->reference.key)
-    //         //     warn = false;
-
-    //         if (warn && !strncmp("operator", entry->cursor.key.symbolName.constData(), 8))
-    //             warn = false;
-
-    //         // warn = true;
-    //         if (warn) {
-    //             qWarning() << "nowhere to add this reference"
-    //                        << entry->cursor.key << "references" << entry->reference.key;
-    //         }
-    //     }
-    // }
-
-    // // QByteArray entries;
-    // // QDataStream ds(&entries, QIODevice::WriteOnly);
-    // // ds << mData->data.size();
-    // foreach(const RBuildPrivate::DataEntry* entry, mData->data) {
-    //     writeEntry(batch, *entry);
-    //     collectDict(*entry, dict);
-    //     // ds << *entry;
-    // }
-
-    // writeDict(batch, dict);
-
+    mData->db->write("sources", mData->sources);
     QSet<Path> allFiles;
-    foreach(const RBuildPrivate::Dependencies &dep, mData->dependencies) {
-        // qDebug() << dep.file << ctime(&dep.lastModified);
-        writeDependencies(batch, dep.file, dep.arguments,
-                          dep.lastModified, dep.dependencies, 0);
-    }
 
-    // if (!(flags & ExcludePCH)) {
-    //     // batch.Put(" ", leveldb::Slice(entries.constData(), entries.size()));
-    //     const QByteArray pchData = Precompile::pchData();
-    //     if (!pchData.isEmpty())
-    //         batch->Put("pch", leveldb::Slice(pchData.constData(), pchData.size()));
-    // }
-
-    if (!mData->mSourceDir.isEmpty()) {
-        Q_ASSERT(mData->mSourceDir.endsWith('/'));
-        if (mData->mSourceDir.isDir()) {
-            recurseDir(&allFiles, mData->mSourceDir, mData->mSourceDir.size());
+    if (!mData->sourceDir.isEmpty()) {
+        Q_ASSERT(mData->sourceDir.endsWith('/'));
+        if (mData->sourceDir.isDir()) {
+            recurseDir(&allFiles, mData->sourceDir, mData->sourceDir.size());
         } else {
-            fprintf(stderr, "%s is not a directory\n", mData->mSourceDir.constData());
+            fprintf(stderr, "%s is not a directory\n", mData->sourceDir.constData());
         }
     }
-    writeToBatch(batch, leveldb::Slice("sourceDir"), mData->mSourceDir);
-    writeToBatch(batch, leveldb::Slice("files"), allFiles);
+    mData->db->write("sourceDir", mData->sourceDir);
+    mData->db->write("files", allFiles);
 }
 
 static inline void debugCursor(FILE* out, const CXCursor& cursor)
@@ -800,13 +579,13 @@ static inline bool diagnose(CXTranslationUnit unit)
     return !foundError;
 }
 
-static inline Location createLocation(const CXIdxLoc &l, QMap<AtomicString, unsigned> &files)
+static inline Location createLocation(const CXIdxLoc &l, QHash<Path, unsigned> &files)
 {
     Location loc;
     CXFile f;
     clang_indexLoc_getFileLocation(l, 0, &f, &loc.line, &loc.column, 0);
     CXString str = clang_getFileName(f);
-    const AtomicString fileName = Path::resolved(clang_getCString(str));
+    const Path fileName = Path::resolved(clang_getCString(str));
     unsigned &file = files[fileName];
     if (!file)
         file = files.size();
@@ -854,54 +633,17 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
     }
 
     if (decl->isDefinition) {
-        e.definition = createLocation(decl->loc, p->files);
+        e.definition = createLocation(decl->loc, p->filesToIndex);
     } else {
-        e.declarations.insert(createLocation(decl->loc, p->files));
+        e.declarations.insert(createLocation(decl->loc, p->filesToIndex));
     }
-}
-
-static AtomicString findContainingFunction(const CXIdxEntityRefInfo *ref)
-{
-    CXCursor parent = ref->cursor;
-    QByteArray containingFunction;
-    forever {
-        parent = clang_getCursorSemanticParent(parent);
-        const CXCursorKind kind = clang_getCursorKind(parent);
-        if (clang_isInvalid(kind))
-            break;
-        CXString str = clang_getCursorDisplayName(parent);
-        const char *cstr = clang_getCString(str);
-        if (!cstr || !strlen(cstr)) {
-            clang_disposeString(str);
-            break;
-        }
-        switch (kind) {
-        case CXCursor_CXXMethod:
-        case CXCursor_FunctionDecl:
-        case CXCursor_Constructor:
-        case CXCursor_Destructor:
-            containingFunction = cstr;
-            break;
-        case CXCursor_StructDecl:
-        case CXCursor_ClassDecl:
-            if (!containingFunction.isEmpty()) {
-                containingFunction.prepend("::");
-                containingFunction.prepend(cstr);
-            }
-            break;
-        default:
-            break;
-        }
-        clang_disposeString(str);
-    }
-    return containingFunction;
 }
 
 static inline void indexEntityReference(CXClientData userData, const CXIdxEntityRefInfo *ref)
 {
     RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(userData);
-    const AtomicString key(ref->referencedEntity->USR);
-    const Location loc = createLocation(ref->loc, p->files);
+    const QByteArray key(ref->referencedEntity->USR);
+    const Location loc = createLocation(ref->loc, p->filesToIndex);
     // qDebug() << loc << kindToString(clang_getCursorKind(ref->cursor))
     //          << (ref->parentEntity ? ref->parentEntity->name : "no parent")
     //          << ref->container->cursor;
@@ -923,7 +665,7 @@ static inline void indexEntityReference(CXClientData userData, const CXIdxEntity
     Q_ASSERT(!e.name.isEmpty() &&
              "This needs to be fixed. In case of PCH it needs to "
              "potentially modify references to both the declaration and the definition");
-    e.references.insert(loc, findContainingFunction(ref));
+    e.references.insert(loc);
 }
 
 template <typename T>
@@ -957,7 +699,7 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
     cb.indexDeclaration = indexDeclaration;
     cb.indexEntityReference = indexEntityReference;
 
-    CXIndexAction action = clang_IndexAction_create(mData->mIndex);
+    CXIndexAction action = clang_IndexAction_create(mData->index);
     CXTranslationUnit unit = 0;
     // fprintf(stderr, "clang ");
     // for (int i=0; i<argCount; ++i) {
@@ -996,17 +738,16 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
         qWarning() << "Unable to parse unit for" << file; // << clangArgs;
         return;
     }
-    RBuildPrivate::Dependencies deps = { file, args, file.lastModified(),
-                                         QHash<Path, quint64>() };
+    Source src = { file, args, file.lastModified(), QHash<Path, quint64>() };
     if (precompile) {
-        deps.dependencies = precompile->dependencies();
+        src.dependencies = precompile->dependencies();
     } else {
-        InclusionUserData u(deps.dependencies);
+        InclusionUserData u(src.dependencies);
         clang_getInclusions(unit, getInclusions, &u);
     }
 
     QMutexLocker lock(&mData->entryMutex); // ### is this the right place to lock?
-    mData->dependencies.append(deps);
+    mData->sources.append(src);
     // qDebug() << input << mData->dependencies.last().dependencies.keys();
     clang_disposeTranslationUnit(unit);
 
@@ -1057,7 +798,7 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
 //     cb.indexDeclaration = indexDeclaration;
 //     cb.indexEntityReference = indexEntityReference;
 
-//     CXIndexAction action = clang_IndexAction_create(mData->mIndex);
+//     CXIndexAction action = clang_IndexAction_create(mData->index);
 //     CXTranslationUnit unit = 0;
 //     if (pch && clang_indexSourceFile(action, 0, &cb, sizeof(IndexerCallbacks),
 //                                      CXIndexOpt_None, input.constData(), argvector.constData(), argvector.size(),
@@ -1114,11 +855,11 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
 void PrecompileRunnable::run()
 {
     // const qint64 before = timer.elapsed();
-    // CXTranslationUnit unit = mData->mPch->precompile(mData->mIndex);
+    // CXTranslationUnit unit = mData->pch->precompile(mData->index);
     // if (unit) {
     //     CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
     //     CollectSymbolsUserData userData = {
-    //         mData->mRBP->entryMutex, mData->mRBP->seen, mData->mRBP->data, 0
+    //         mData->rBP->entryMutex, mData->rBP->seen, mData->rBP->data, 0
     //     };
 
     //     clang_visitChildren(unitCursor, collectSymbols, &userData);
@@ -1126,13 +867,13 @@ void PrecompileRunnable::run()
     //     InclusionUserData u(dependencies);
     //     clang_getInclusions(unit, getInclusions, &u);
     //     // qDebug() << dependencies;
-    //     mData->mPch->setDependencies(dependencies);
+    //     mData->pch->setDependencies(dependencies);
     //     clang_disposeTranslationUnit(unit);
     //     const qint64 elapsed = timer.elapsed() - before;
     //     fprintf(stderr, "parsed pch header (%s) (%lld ms)\n",
-    //             mData->mPch->headerFilePath().constData(), elapsed);
+    //             mData->pch->headerFilePath().constData(), elapsed);
     // }
-    // emit finished(mData->mPch);
+    // emit finished(mData->pch);
 }
 
 void RBuild::precompileAll()
@@ -1140,16 +881,16 @@ void RBuild::precompileAll()
     const QList<Precompile*> precompiles = Precompile::precompiles();
     foreach(Precompile *pch, precompiles) {
         if (!pch->isCompiled()) {
-            PrecompileRunnable *runnable = new PrecompileRunnable(pch, mData, mData->mIndex);
+            PrecompileRunnable *runnable = new PrecompileRunnable(pch, mData, mData->index);
             connect(runnable, SIGNAL(finished(Precompile*)), this, SLOT(onPrecompileFinished(Precompile*)));
-            mData->mThreadPool.start(runnable);
+            mData->threadPool.start(runnable);
         }
     }
 }
 
 void RBuild::onCompileFinished()
 {
-    if (!--mData->mPendingJobs) {
+    if (!--mData->pendingJobs) {
         emit finishedCompiling();
     }
 }
@@ -1157,26 +898,24 @@ void RBuild::onCompileFinished()
 void RBuild::onPrecompileFinished(Precompile *pch)
 {
     Precompile *p = pch->isCompiled() ? pch : 0;
-    foreach(const GccArguments &args, mData->mFilesByPrecompile[pch]) {
-        ++mData->mPendingJobs;
-        mData->mThreadPool.start(new CompileRunnable(this, args, p));
+    foreach(const GccArguments &args, mData->filesByPrecompile[pch]) {
+        ++mData->pendingJobs;
+        mData->threadPool.start(new CompileRunnable(this, args, p));
     }
 }
 
-bool RBuild::openDB()
+bool RBuild::openDB(Mode mode)
 {
     Q_ASSERT(!mData->db);
-    leveldb::Options dbOptions;
-    dbOptions.create_if_missing = true;
-    if (!leveldb::DB::Open(dbOptions, mData->mDBPath.constData(), &mData->db).ok()) {
-        fprintf(stderr, "Can't open db [%s]\n", mData->mDBPath.constData());
-        return false;
-    }
-    return true;
+    mData->db = new LevelDB;
+    return mData->db->open(mData->dbPath, mode == Update ? Database::ReadWrite : Database::WriteOnly);
 }
 
 void RBuild::closeDB()
 {
-    delete mData->db;
-    mData->db = 0;
+    if (mData->db) {
+        mData->db->close();
+        delete mData->db;
+        mData->db = 0;
+    }
 }

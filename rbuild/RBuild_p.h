@@ -8,60 +8,57 @@
 #include <QHash>
 #include "RTags.h"
 #include <Location.h>
+#include <Database.h>
 
 struct Entity {
     Entity() : kind(CXIdxEntity_Unexposed) {}
-    AtomicString name;
-    QList<AtomicString> parentNames;
+    QByteArray name;
+    QList<QByteArray> parentNames;
     CXIdxEntityKind kind;
     Location definition;
-    QSet<Location> declarations;
-    QHash<Location, AtomicString> references; // value is containingFunction
+    QSet<Location> declarations, references;
 };
 
-struct Data {
-    QByteArray name, target;
-    QSet<QByteArray> references;
+struct Source {
+    Path path;
+    QList<QByteArray> args;
+    quint64 lastModified;
+    QHash<Path, quint64> dependencies;
 };
 
-static inline QDataStream &operator<<(QDataStream &ds, const Data &data)
+static inline QDataStream &operator<<(QDataStream &ds, const Source &s)
 {
-    ds << data.name << data.target << data.references;
+    ds << s.path << s.args << s.lastModified << s.dependencies;
     return ds;
 }
-static inline QDataStream &operator>>(QDataStream &ds, Data &data)
+
+static inline QDataStream &operator>>(QDataStream &ds, Source &s)
 {
-    ds >> data.name >> data.target >> data.references;
+    ds >> s.path >> s.args >> s.lastModified >> s.dependencies;
     return ds;
 }
 
 struct RBuildPrivate
 {
     RBuildPrivate()
-        : db(0), mPendingJobs(0), mIndex(0)
+        : db(0), pendingJobs(0), index(0)
     {
-        Location::sFiles = &files;
+        Location::sFiles = &filesToIndex;
     }
 
-    QHash<AtomicString, Entity> entities;
-    QMap<AtomicString, unsigned> files;
-    QHash<AtomicString, QList<Location> > references;
-    leveldb::DB *db;
-    Path mMakefile, mSourceDir, mDBPath;
-    MakefileParser mParser;
-    int mPendingJobs;
-    CXIndex mIndex;
-    QHash<Precompile*, QList<GccArguments> > mFilesByPrecompile;
-    QList<GccArguments> mFiles;
-    QThreadPool mThreadPool;
+    QHash<QByteArray, Entity> entities;
+    QHash<Path, unsigned> filesToIndex;
+    QHash<QByteArray, QList<Location> > references;
+    Database *db;
+    Path makefile, sourceDir, dbPath;
+    MakefileParser parser;
+    int pendingJobs;
+    CXIndex index;
+    QHash<Precompile*, QList<GccArguments> > filesByPrecompile;
+    QList<GccArguments> files;
+    QThreadPool threadPool;
 
-    struct Dependencies {
-        Path file;
-        QList<QByteArray> arguments;
-        quint64 lastModified;
-        QHash<Path, quint64> dependencies;
-    };
-    QList<Dependencies> dependencies;
+    QList<Source> sources;
     QMutex entryMutex;
 
     inline int locationKey(const Location &loc, char buf[512]) const

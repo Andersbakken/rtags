@@ -3,10 +3,13 @@
 
 #include <QtCore>
 #include <AtomicString.h>
+#include <leveldb/db.h>
+#include <Path.h>
+#include <RTags.h>
 
 struct Location
 {
-    static QMap<AtomicString, unsigned> *sFiles;
+    static QHash<Path, unsigned> *sFiles;
     Location()
         : file(0), line(0), column(0)
     {}
@@ -15,7 +18,7 @@ struct Location
     inline AtomicString fileName() const
     {
         if (file) {
-            for (QMap<AtomicString, unsigned>::const_iterator it = sFiles->begin(); it != sFiles->end(); ++it) {
+            for (QHash<Path, unsigned>::const_iterator it = sFiles->begin(); it != sFiles->end(); ++it) {
                 if (it.value() == file)
                     return it.key();
             }

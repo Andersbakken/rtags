@@ -7,8 +7,6 @@
 #include <QObject>
 #include <QThreadPool>
 #include <clang-c/Index.h>
-#include <leveldb/db.h>
-#include <leveldb/write_batch.h>
 
 struct RBuildPrivate;
 class Precompile;
@@ -35,12 +33,12 @@ private:
     void compileAll();
     void precompileAll();
     void compile(const QList<QByteArray> &args, const Path &file, Precompile *precompile);
-    enum WriteDataFlag {
-        ExcludePCH = 0x1,
-        LookupReferencesFromDatabase = 0x2
+    void writeData();
+    enum Mode {
+        Create,
+        Update
     };
-    void writeData(leveldb::WriteBatch *batch, unsigned flags);
-    bool openDB();
+    bool openDB(Mode mode);
     void closeDB();
 private:
     RBuildPrivate* mData;
