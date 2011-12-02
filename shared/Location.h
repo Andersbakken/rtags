@@ -9,42 +9,32 @@
 
 struct Location
 {
-    static QHash<Path, unsigned> *sFiles;
+    static QHash<Path, unsigned> *&files()
+    {
+        static QHash<Path, unsigned> *sFiles = 0;
+        return sFiles;
+    }
+    
     Location()
         : file(0), line(0), column(0)
     {}
 
     unsigned file, line, column;
-    inline AtomicString fileName() const
-    {
-        if (file) {
-            for (QHash<Path, unsigned>::const_iterator it = sFiles->begin(); it != sFiles->end(); ++it) {
-                if (it.value() == file)
-                    return it.key();
-            }
-        }
-        return AtomicString();
-    }
     inline QByteArray key() const
     {
         if (!file)
             return QByteArray();
         char buf[1024];
-        const int ret = snprintf(buf, 1024, "%s:%d:%d", fileName().constData(), line, column);
-        return QByteArray(buf, ret);
-    }
-    inline QByteArray key(leveldb::DB *db) const
-    {
-        QByteArray ret;
-        if (file) {
-            char buf[32];
-            snprintf(buf, 32, "F:%d", file);
-            if (RTags::readFromDB(db, buf, ret)) {
-                snprintf(buf, 32, ":%d:%d:", line, column);
-                ret += buf;
+        QByteArray fn;
+        for (QHash<Path, unsigned>::const_iterator it = files()->begin(); it != files()->end(); ++it) {
+            if (it.value() == file) {
+                fn = it.key();
+                break;
             }
         }
-        return ret;
+
+        const int ret = snprintf(buf, 1024, "%s:%d:%d", fn.constData(), line, column);
+        return QByteArray(buf, ret);
     }
     inline bool operator==(const Location &other) const
     {
@@ -69,7 +59,6 @@ static inline QDataStream &operator>>(QDataStream &ds, Location &loc)
     ds >> loc.file >> loc.line >> loc.column;
     return ds;
 }
-
 
 static inline QDebug operator<<(QDebug dbg, const Location &location)
 {

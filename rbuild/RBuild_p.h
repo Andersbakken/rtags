@@ -26,6 +26,12 @@ struct Source {
     QHash<Path, quint64> dependencies;
 };
 
+static inline QDebug operator<<(QDebug dbg, const Source &s)
+{
+    dbg << s.path << s.args << s.lastModified << s.dependencies;
+    return dbg;
+}
+
 static inline QDataStream &operator<<(QDataStream &ds, const Source &s)
 {
     ds << s.path << s.args << s.lastModified << s.dependencies;
@@ -43,7 +49,7 @@ struct RBuildPrivate
     RBuildPrivate()
         : db(0), pendingJobs(0), index(0)
     {
-        Location::sFiles = &filesToIndex;
+        Location::files() = &filesToIndex;
     }
 
     QHash<QByteArray, Entity> entities;

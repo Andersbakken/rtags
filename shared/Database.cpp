@@ -1,4 +1,5 @@
 #include "Database.h"
+#include <dirent.h>
 
 Database::Database()
     : mMode(ReadOnly), mRefIdxCounter(0)
@@ -8,15 +9,76 @@ Database::~Database()
 {
 }
 
+static inline int removeDirectory(const char *path)
+{
+    DIR *d = opendir(path);
+    size_t path_len = strlen(path);
+    int r = -1;
+
+    if (d) {
+        struct dirent *p;
+
+        r = 0;
+
+        while (!r && (p=readdir(d))) {
+            int r2 = -1;
+            char *buf;
+            size_t len;
+
+            /* Skip the names "." and ".." as we don't want to recurse on them. */
+            if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) {
+                continue;
+            }
+
+            len = path_len + strlen(p->d_name) + 2;
+            buf = static_cast<char*>(malloc(len));
+
+            if (buf) {
+                struct stat statbuf;
+                snprintf(buf, len, "%s/%s", path, p->d_name);
+                if (!stat(buf, &statbuf)) {
+                    if (S_ISDIR(statbuf.st_mode)) {
+                        r2 = removeDirectory(buf);
+                    } else {
+                        r2 = unlink(buf);
+                    }
+                }
+
+                free(buf);
+            }
+
+            r = r2;
+        }
+
+        closedir(d);
+    }
+
+    if (!r) {
+        r = rmdir(path);
+    }
+
+    return r;
+}
+
+
 bool Database::open(const Path &db, Mode mode)
 {
     Q_ASSERT(!isOpened());
+    if (mode == WriteOnly)
+        removeDirectory(db);
     if (openDatabase(db, mode)) {
+        mMode = mode;
+        for (int i=0; i<NumConnections; ++i) {
+            mConnections[i] = createConnection(static_cast<ConnectionType>(i));
+            Q_ASSERT(mConnections[i]);
+        }
+
         mFilesByName = read<QHash<Path, unsigned> >("filesByName");
         for (QHash<Path, unsigned>::const_iterator it = mFilesByName.begin();
              it != mFilesByName.end(); ++it) {
             mFilesByIndex[it.value()] = it.key();
         }
+        return true;
     }
     return false;
 }
@@ -101,21 +163,26 @@ Location Database::createLocation(const QByteArray &arg, const Path &cwd)
     int colon = arg.lastIndexOf(':');
     if (colon == arg.size() - 1)
         colon = arg.lastIndexOf(':', colon - 1);
-    if (colon == -1)
+    if (colon == -1) {
         return Location();
+    }
     const unsigned col = atoi(arg.constData() + colon + 1);
-    if (!col)
+    if (!col) {
         return Location();
+    }
     colon = arg.lastIndexOf(':', colon - 1);
-    if (colon == -1)
+    if (colon == -1) {
         return Location();
+    }
     const unsigned line = atoi(arg.constData() + colon + 1);
-    if (!line)
+    if (!line) {
         return Location();
+    }
     Path file = Path::resolved(arg.left(colon), cwd);
     const int fileId = mFilesByName.value(file, 0);
-    if (!fileId)
+    if (!fileId) {
         return Location();
+    }
     Location loc;
     loc.file = fileId;
     loc.line = line;
@@ -177,18 +244,32 @@ void Database::writeEntity(const QByteArray &symbolName,
         }
         if (definition.file || refIdx) {
             const int ret = snprintf(buf, 512, "%d:%d:%d", definition.file, definition.line, definition.column);
-            if (declarations.size() == 1)
+            if (declarations.size() == 1) {
                 write(Targets, QByteArray::fromRawData(buf, ret), *declarations.begin());
+            }
             write(References, QByteArray::fromRawData(buf, ret), refIdx);
 
             foreach(const Location &declaration, declarations) {
                 const int ret = snprintf(buf, 512, "%d:%d:%d", declaration.file, declaration.line, declaration.column);
-                if (definition.file)
+                if (definition.file) {
                     write(Targets, QByteArray::fromRawData(buf, ret), definition);
+                }
                 if (refIdx)
-                    write(Targets, QByteArray::fromRawData(buf, ret), refIdx);
+                    write(References, QByteArray::fromRawData(buf, ret), refIdx);
             }
         }
     }
     collectDict(symbolName, parentNames, mDictionary, definition, declarations);
+}
+
+QByteArray Database::locationToString(const Location &location) const
+{
+    if (location.file) {
+        QByteArray ret = mFilesByIndex.value(location.file);
+        char buf[32];
+        snprintf(buf, 32, ":%d:%d:", location.line, location.column);
+        ret += buf;
+        return ret;
+    }
+    return QByteArray();
 }

@@ -61,6 +61,11 @@ public:
         mIterator->Next();
         return mIterator->Valid();
     }
+
+    virtual bool isValid() const
+    {
+        return mIterator->Valid();
+    }
 private:
     leveldb::DB *mDB;
     leveldb::Iterator *mIterator;
@@ -74,7 +79,6 @@ public:
     {}
     virtual ~LevelDB()
     {
-        Q_ASSERT(!mDB);
     }
 
     virtual bool isOpened() const

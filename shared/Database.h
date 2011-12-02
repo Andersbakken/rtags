@@ -41,6 +41,7 @@ public:
     void markDirtyLocations(const QSet<Location> &location);
 
     Location createLocation(const QByteArray &arg, const Path &cwd = Path());
+    QByteArray locationToString(const Location &location) const;
 
     class iterator
     {
@@ -50,6 +51,7 @@ public:
         virtual QByteArray key() const = 0;
         virtual bool seek(const QByteArray &key) = 0;
         virtual bool next() = 0;
+        virtual bool isValid() const = 0;
     };
 
     virtual iterator *createIterator() const = 0;
@@ -60,7 +62,7 @@ public:
     }
     template <typename T> void write(const QByteArray &key, const T &t)
     {
-        write(General, key, encode<T>(t));
+        write(General, key, t);
     }
 protected:
     virtual bool openDatabase(const Path &db, Mode mode) = 0;
@@ -68,7 +70,6 @@ protected:
     enum ConnectionType {
         General = 0,
         Dictionary,
-        Sources,
         References,
         Targets,
         NumConnections

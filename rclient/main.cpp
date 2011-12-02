@@ -9,6 +9,7 @@
 #include <RTags.h>
 #include <Location.h>
 #include <AtomicString.h>
+#include <LevelDB.h>
 
 using namespace RTags;
 static inline int readLine(FILE *f, char *buf, int max)
@@ -44,43 +45,6 @@ static inline std::string lineForLocation(const std::string &location)
     return ret;
 }
 
-typedef bool (*Handler)(leveldb::DB *db, const std::string &key);
-static inline bool maybeDict(leveldb::DB *db, const std::string &key, Handler handler)
-{
-    bool ret = false;
-    QSet<Location> locations;
-    if (RTags::readFromDB(db, ("d:" + key).c_str(), locations)) {
-        foreach(const Location &l, locations) {
-            if (l.file) {
-                const QByteArray k = l.key(db);
-                ret = handler(db, std::string(k.constData(), k.size())) || ret;
-            }
-        }
-    }
-    return ret;
-}
-
-static bool maybeResolveAndMaybeDict(leveldb::DB *db, const std::string &key, Handler handler)
-{
-    if (handler(db, key))
-        return true;
-    if (!key.empty() && key.at(0) != '/') {
-        std::string file;
-        unsigned l, c;
-        if (parseLocation(key, file, l, c)) {
-            const Path resolved = Path::resolved(file.c_str());
-            if (resolved.exists()) {
-                QVarLengthArray<char, 256> buf(resolved.size() + 32);
-                snprintf(buf.data(), buf.size(), "%s:%d:%d:", resolved.constData(), l, c);
-                if (handler(db, buf.constData())) {
-                    return true;
-                }
-            }
-        }
-    }
-    return maybeDict(db, key, handler);
-}
-
 static inline void print(const QByteArray &out)
 {
     static QSet<QByteArray> printed;
@@ -95,84 +59,6 @@ static inline bool printSymbol(leveldb::DB *, const std::string &loc)
     if (!loc.empty()) {
         const std::string line = lineForLocation(loc);
         print(QByteArray((loc + " " + line).c_str()));
-        return true;
-    }
-    return false;
-}
-
-static inline unsigned fileId(leveldb::DB *db, const std::string &file)
-{
-    unsigned id = 0;
-    readFromDB(db, ("F:" + file).c_str(), id);
-    return id;
-}
-
-static QByteArray convertArg(leveldb::DB *db, const std::string &arg)
-{
-    std::string file;
-    unsigned l, c;
-    if (parseLocation(arg, file, l, c)) {
-        file = Path::resolved(file.c_str()).constData();
-        const unsigned fileId = ::fileId(db, file);
-        char buf[32];
-        snprintf(buf, 32, "%d:%d:%d", fileId, l, c);
-        return buf;
-    }
-    return QByteArray();
-}
-
-static inline bool followSymbol(leveldb::DB *db, const std::string &k)
-{
-    QByteArray key = convertArg(db, k);
-    std::string val;
-    
-    db->Get(leveldb::ReadOptions(), key.constData(), &val);
-    // qDebug() << key.constData() << val.size();
-    if (!val.empty()) {
-        const QByteArray v = QByteArray::fromRawData(val.c_str(), val.size());
-        QDataStream ds(v);
-        Location target;
-        ds >> target;
-        if (target.file) {
-            print(target.key(db));
-        }
-        return true;
-    }
-    return false;
-}
-
-static inline bool findReferences(leveldb::DB *db, const std::string &k)
-{
-    QByteArray key = convertArg(db, k);
-    std::string val;
-    db->Get(leveldb::ReadOptions(), key.constData(), &val);
-    // printf("findReferences %s %d\n", key.constData(), val.size());
-    if (!val.empty()) {
-        const QByteArray v = QByteArray::fromRawData(val.c_str(), val.size());
-        Location target;
-        int referencesId = -1;
-
-        QDataStream ds(v);
-        ds >> target >> referencesId;
-        if (referencesId == -1 && target.file) {
-            const QByteArray t = target.key(db);
-            if (t != key) {
-                return findReferences(db, std::string(t.constData(), t.size()));
-            }
-        }
-        QHash<Location, AtomicString> references;
-        char buf[16];
-        snprintf(buf, 16, "r:%d", referencesId);
-        readFromDB(db, buf, references);
-        for (QHash<Location, AtomicString>::const_iterator it = references.begin(); it != references.end(); ++it) {
-            QByteArray out = it.key().key(db);
-            if (!it.value().isEmpty()) {
-                out += ' ';
-                out += it.value().toByteArray();
-            }
-
-            print(out);
-        }
         return true;
     }
     return false;
@@ -321,59 +207,67 @@ int main(int argc, char** argv)
         return 1;
     }
     foreach(const QByteArray &dbPath, dbPaths) {
-        leveldb::DB* db;
-        const leveldb::Status status = leveldb::DB::Open(leveldb::Options(), dbPath.constData(), &db);
-        if (!status.ok()) {
-            fprintf(stderr, "Unable to open db [%s]: %s\n", dbPath.constData(), status.ToString().c_str());
+        LevelDB db;
+        if (!db.open(dbPath.constData(), Database::ReadOnly)) {
             continue;
         }
-        LevelDBScope scope(db);
 
         switch (mode) {
         case None:
             usage(argv[0], stderr);
             fprintf(stderr, "No mode selected\n");
             return 1;
-        case FollowSymbol:
-            if (maybeResolveAndMaybeDict(db, arg.constData(), followSymbol))
-                return 0; // we only want the first one here
-            break;
+        case FollowSymbol: {
+            Location loc = db.createLocation(arg);
+            // printf("%s => %d:%d:%d\n", arg.constData(), loc.file, loc.line, loc.column);
+            if (loc.file) {
+                const QByteArray out = db.locationToString(db.followLocation(loc));
+                if (!out.isEmpty())
+                    printf("%s\n", out.constData());
+            } else {
+                foreach(const Location &l, db.findSymbol(arg)) {
+                    const QByteArray out = db.locationToString(db.followLocation(l));
+                    if (!out.isEmpty())
+                        printf("%s\n", out.constData());
+                }
+            }
+            break; }
         case References:
-            maybeResolveAndMaybeDict(db, arg.constData(), findReferences);
+            // maybeResolveAndMaybeDict(db, arg.constData(), findReferences);
             break;
         case FindSymbols:
-            maybeDict(db, arg.constData(), printSymbol);
+            // maybeDict(db, arg.constData(), printSymbol);
             break;
         case ListSymbols: {
-            std::string val;
-            leveldb::Iterator *it = db->NewIterator(leveldb::ReadOptions());
-            it->Seek("d:");
-            while (it->Valid()) {
-                std::string k = it->key().ToString();
-                if (k.empty() || strncmp(k.c_str(), "d:", 2))
-                    break;
-                if (arg.isEmpty() || strstr(k.c_str(), arg.constData())) {
-                    printf("%s\n", k.c_str() + 2);
-                }
-                it->Next();
-            }
-            delete it;
+            // std::string val;
+            // leveldb::Iterator *it = db->NewIterator(leveldb::ReadOptions());
+            // it->Seek("d:");
+            // while (it->Valid()) {
+            //     std::string k = it->key().ToString();
+            //     if (k.empty() || strncmp(k.c_str(), "d:", 2))
+            //         break;
+            //     if (arg.isEmpty() || strstr(k.c_str(), arg.constData())) {
+            //         printf("%s\n", k.c_str() + 2);
+            //     }
+            //     it->Next();
+            // }
+            // delete it;
             break; }
         case Files: {
-            QSet<Path> paths;
-            if (readFromDB(db, "files", paths)) {
-                const bool empty = arg.isEmpty();
-                const char *root = "./";
-                Path srcDir;
-                if (!(flags & PathsRelativeToRoot) && readFromDB(db, "sourceDir", srcDir)) {
-                    root = srcDir.constData();
-                }
-                foreach(const Path &path, paths) {
-                    if (empty || path.contains(arg)) {
-                        printf("%s%s\n", root, path.constData());
-                    }
-                }
-            }
+            // QSet<Path> paths;
+            // if (readFromDB(db, "files", paths)) {
+            //     const bool empty = arg.isEmpty();
+            //     const char *root = "./";
+            //     Path srcDir;
+            //     if (!(flags & PathsRelativeToRoot) && readFromDB(db, "sourceDir", srcDir)) {
+            //         root = srcDir.constData();
+            //     }
+            //     foreach(const Path &path, paths) {
+            //         if (empty || path.contains(arg)) {
+            //             printf("%s%s\n", root, path.constData());
+            //         }
+            //     }
+            // }
             break; }
         }
     }

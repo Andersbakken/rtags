@@ -17,8 +17,6 @@
 
 using namespace RTags;
 
-QHash<Path, unsigned> *Location::sFiles = 0;
-
 static const bool pchEnabled = false; //!getenv("RTAGS_NO_PCH") && false;
 static QElapsedTimer timer;
 
@@ -290,63 +288,11 @@ bool RBuild::updateDB()
     return true;
 }
 
-static inline int removeDirectory(const char *path)
-{
-    DIR *d = opendir(path);
-    size_t path_len = strlen(path);
-    int r = -1;
-
-    if (d) {
-        struct dirent *p;
-
-        r = 0;
-
-        while (!r && (p=readdir(d))) {
-            int r2 = -1;
-            char *buf;
-            size_t len;
-
-            /* Skip the names "." and ".." as we don't want to recurse on them. */
-            if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) {
-                continue;
-            }
-
-            len = path_len + strlen(p->d_name) + 2;
-            buf = static_cast<char*>(malloc(len));
-
-            if (buf) {
-                struct stat statbuf;
-                snprintf(buf, len, "%s/%s", path, p->d_name);
-                if (!stat(buf, &statbuf)) {
-                    if (S_ISDIR(statbuf.st_mode)) {
-                        r2 = removeDirectory(buf);
-                    } else {
-                        r2 = unlink(buf);
-                    }
-                }
-
-                free(buf);
-            }
-
-            r = r2;
-        }
-
-        closedir(d);
-    }
-
-    if (!r) {
-        r = rmdir(path);
-    }
-
-    return r;
-}
-
 void RBuild::save()
 {
     printf("Done parsing, now writing.\n");
     const qint64 beforeWriting = timer.elapsed();
 
-    removeDirectory(mData->dbPath.constData());
     // Q_ASSERT(filename.endsWith(".rtags.db"));
     if (!openDB(Create)) {
         return;
@@ -460,9 +406,7 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 
 void RBuild::writeData()
 {
-    Q_ASSERT(batch);
-
-    mData->db->write("filesByName", mData->files);
+    mData->db->write("filesByName", mData->filesToIndex);
     for (QHash<QByteArray, Entity>::const_iterator it = mData->entities.begin(); it != mData->entities.end(); ++it) {
         const Entity &entity = it.value();
         mData->db->writeEntity(entity.name, entity.parentNames, entity.definition,
