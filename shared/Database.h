@@ -91,14 +91,17 @@ protected:
 private:
     template <typename T> T read(ConnectionType type, const QByteArray &key) const
     {
+        Q_ASSERT(!key.isEmpty());
         return decode<T>(mConnections[type]->readData(key));
     }
     template <typename T> void write(ConnectionType type, const QByteArray &key, const T &t)
     {
+        Q_ASSERT(!key.isEmpty());
         mConnections[type]->writeData(key, encode<T>(t));
     }
     void remove(ConnectionType type, const QByteArray &key)
     {
+        Q_ASSERT(!key.isEmpty());
         mConnections[type]->writeData(key, QByteArray());
     }
     
