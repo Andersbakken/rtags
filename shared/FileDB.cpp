@@ -70,6 +70,7 @@ public:
     void write();
 
     void add(const QByteArray& key, int offset);
+    int remove(const QByteArray& key);
     bool find(FindType type, const QByteArray& key, int* offset, int* size = 0);
 
     void maybeSort();
@@ -218,6 +219,24 @@ bool FileIndex::find(FindType type, const QByteArray &key, int *offset, int *siz
     return true;
 }
 
+int FileIndex::remove(const QByteArray &key)
+{
+    maybeSort();
+
+    Entry find;
+    find.partial = key;
+    find.offset = -1;
+    find.db = -1;
+    find.size = key.size();
+
+    QVector<Entry>::const_iterator i = qBinaryFind(entries, find);
+    if (i == entries.end())
+        return -1;
+    const int at = (*i).offset;
+    entries.remove(i - entries.begin());
+    return at;
+}
+
 class FileConnection : public Connection
 {
 public:
@@ -284,6 +303,16 @@ QByteArray FileConnection::readData(const QByteArray &key) const
 
 void FileConnection::writeData(const QByteArray &key, const QByteArray &value)
 {
+    if (value.isEmpty()) {
+        int at = idx.remove(key);
+        if (at == -1)
+            return;
+        ::lseek(db, at, SEEK_SET);
+        ssize_t w = ::write(db, '\0', 1);
+        (void)w;
+        return;
+    }
+
     off_t pos = ::lseek(db, 0, SEEK_END);
     if (pos == -1) // ouch
         return;
@@ -386,33 +415,40 @@ bool FileIterator::next()
 {
     ::lseek(db, pos, SEEK_SET); // ### how efficient is this if the current position already is at 'pos'?
 
-    int sz;
-    ssize_t r = ::read(db, &sz, sizeof(int));
-    if (r < (int)sizeof(int)) {
-        if (all && current < FileDB::NumConnections - 1) {
-            current = static_cast<FileDB::ConnectionType>(current + 1);
-            open(current);
-            if (!isValid())
-                return next();
-            return true;
+    forever {
+        int sz;
+        ssize_t r = ::read(db, &sz, sizeof(int));
+        if (r < (int)sizeof(int)) {
+            if (all && current < FileDB::NumConnections - 1) {
+                current = static_cast<FileDB::ConnectionType>(current + 1);
+                open(current);
+                if (!isValid())
+                    return next();
+                return true;
+            }
+
+            k.clear();
+            v.clear();
+            return false;
         }
 
-        k.clear();
-        v.clear();
-        return false;
-    }
-    Q_ASSERT(r == sizeof(int));
-    k.resize(sz);
-    r = ::read(db, k.data(), sz);
-    Q_ASSERT(r == sz);
-    pos += sizeof(int) + sz;
+        Q_ASSERT(r == sizeof(int));
+        k.resize(sz);
+        r = ::read(db, k.data(), sz);
+        Q_ASSERT(r == sz);
+        pos += sizeof(int) + sz;
 
-    r = ::read(db, &sz, sizeof(int));
-    Q_ASSERT(r == sizeof(int));
-    v.resize(sz);
-    r = ::read(db, v.data(), sz);
-    Q_ASSERT(r == sz);
-    pos += sizeof(int) + sz;
+        r = ::read(db, &sz, sizeof(int));
+        Q_ASSERT(r == sizeof(int));
+        v.resize(sz);
+        r = ::read(db, v.data(), sz);
+        Q_ASSERT(r == sz);
+        pos += sizeof(int) + sz;
+
+        Q_ASSERT(!k.isEmpty());
+        if (k.at(0) != '\0')
+            break;
+    }
 
     return true;
 }
