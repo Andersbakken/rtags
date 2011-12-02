@@ -9,7 +9,7 @@
 #include <RTags.h>
 #include <Location.h>
 #include <AtomicString.h>
-#include <LevelDB.h>
+#include <FileDB.h>
 
 using namespace RTags;
 static inline int readLine(FILE *f, char *buf, int max)
@@ -188,7 +188,7 @@ int main(int argc, char** argv)
         return 1;
     }
     foreach(const QByteArray &dbPath, dbPaths) {
-        LevelDB db;
+        FileDB db;
         if (!db.open(dbPath.constData(), Database::ReadOnly)) {
             continue;
         }

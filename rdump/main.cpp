@@ -6,7 +6,7 @@
 #include <RTags.h>
 #include <QtCore>
 #include <GccArguments.h>
-#include <LevelDB.h>
+#include <FileDB.h>
 
 using namespace RTags;
 
@@ -123,6 +123,7 @@ static inline void dumpDatabase(const std::string& filename, int type)
 //     delete db;
 }
 
+/*
 static inline bool writeExpect(const std::string& filename)
 {
     leveldb::DB* db;
@@ -166,6 +167,7 @@ static inline bool writeExpect(const std::string& filename)
 
     return true;
 }
+*/
 
 static inline int syntax(int opt, const char* app)
 {
@@ -238,7 +240,7 @@ int main(int argc, char** argv)
         filename = argv[optind];
     }
 
-    LevelDB db;
+    FileDB db;
     if (db.open(filename.c_str(), Database::ReadOnly)) {
         Database::iterator *it = db.createIterator(Database::All);
         if (it->isValid()) {

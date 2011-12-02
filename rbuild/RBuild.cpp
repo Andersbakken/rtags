@@ -12,7 +12,7 @@
 #include <dirent.h>
 #include "AtomicString.h"
 #include "RBuild_p.h"
-#include <LevelDB.h>
+#include <FileDB.h>
 #include <memory>
 
 using namespace RTags;
@@ -851,7 +851,7 @@ void RBuild::onPrecompileFinished(Precompile *pch)
 bool RBuild::openDB(Mode mode)
 {
     Q_ASSERT(!mData->db);
-    mData->db = new LevelDB;
+    mData->db = new FileDB;
     return mData->db->open(mData->dbPath, mode == Update ? Database::ReadWrite : Database::WriteOnly);
 }
 

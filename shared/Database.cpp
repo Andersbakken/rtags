@@ -193,7 +193,13 @@ void Database::close()
         Q_ASSERT(0);
         break;
     }
+
     closeDatabase();
+
+    for (int i=0; i<NumConnections; ++i) {
+        delete mConnections[i];
+        mConnections[i] = 0;
+    }
 }
 
 
