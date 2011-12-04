@@ -15,6 +15,44 @@ public:
     virtual void writeData(const QByteArray &key, const QByteArray &value) = 0;
 };
 
+struct DictionaryEntry {
+    QList<QByteArray> scope;
+    QSet<Location> locations;
+#warning I need to add the args (for functions) into this structure and use only the name as the key
+};
+
+static inline QDebug operator<<(QDebug dbg, const DictionaryEntry &entry)
+{
+    dbg << "DictionaryEntry(";
+    dbg.nospace() << entry.scope << ", " << entry.locations << ")";
+    return dbg.maybeSpace();
+}
+
+static inline bool operator==(const DictionaryEntry &l, const DictionaryEntry &r)
+{
+    return (l.scope == r.scope && l.locations == r.locations);
+}
+
+static inline QDataStream &operator<<(QDataStream &ds, const DictionaryEntry &entry)
+{
+    return (ds << entry.scope << entry.locations);
+}
+static inline QDataStream &operator>>(QDataStream &ds, DictionaryEntry &entry)
+{
+    return (ds >> entry.scope >> entry.locations);
+}
+
+static inline uint qHash(const DictionaryEntry &entry)
+{
+    uint ret = 0;
+    int idx = 0;
+    foreach(const QByteArray &s, entry.scope) {
+        ret += (::qHash(s) << idx++);
+        // ### is this good?
+    }
+    return ret;
+}
+
 class Database
 {
 public:
@@ -138,7 +176,8 @@ private:
     Connection *mConnections[NumConnections];
     QHash<Path, unsigned> mFilesByName;
     QHash<unsigned, Path> mFilesByIndex;
-    QHash<QByteArray, QSet<Location> > mDictionary;
+
+    QHash<QByteArray, QSet<DictionaryEntry> > mDictionary;
     int mRefIdxCounter;
 };
 

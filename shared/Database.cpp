@@ -179,17 +179,21 @@ void Database::markDirtyFiles(const QList<Path> &paths)
 
 void Database::close()
 {
+    qDebug() << mDictionary;
     switch (mMode) {
     case ReadWrite:
-        for (QHash<QByteArray, QSet<Location> >::const_iterator it = mDictionary.begin(); it != mDictionary.end(); ++it) {
-            QSet<Location> l = read<QSet<Location> >(Dictionary, it.key());
+        for (QHash<QByteArray, QSet<DictionaryEntry> >::const_iterator it = mDictionary.begin();
+             it != mDictionary.end(); ++it) {
+            QSet<DictionaryEntry> l = read<QSet<DictionaryEntry> >(Dictionary, it.key());
             l += it.value();
             write(Dictionary, it.key(), l);
         }
         break;
     case WriteOnly:
-        for (QHash<QByteArray, QSet<Location> >::const_iterator it = mDictionary.begin(); it != mDictionary.end(); ++it)
+        for (QHash<QByteArray, QSet<DictionaryEntry> >::const_iterator it = mDictionary.begin();
+             it != mDictionary.end(); ++it) {
             write(Dictionary, it.key(), it.value());
+        }
         break;
     case ReadOnly:
         Q_ASSERT(0);
@@ -237,7 +241,46 @@ QSet<Location> Database::findReferences(const Location &source) const
 
 QSet<Location> Database::findSymbol(const QByteArray &symbolName) const
 {
+    // const int colons = symbolName.lastIndexOf("::");
+    // if (colons == -1) {
     return read<QSet<Location> >(Dictionary, symbolName);
+}
+
+enum State {
+    Out,
+    In,
+    InArgs
+};
+    
+static inline State maybeDict(const QByteArray &key, const QByteArray &filter, State state,
+                              int paren, QList<QByteArray> &keys)
+{
+    Q_ASSERT(!key.isEmpty());
+    if (state != In) {
+        const int idx = key.indexOf(filter);
+        if (idx != -1) {
+            if (idx + filter.size() <= paren) {
+                state = In;
+            } else {
+                state = InArgs;
+            }
+        } else {
+            state = Out;
+        }
+    }
+    switch (state) {
+    case In:
+        if (paren != -1)
+            keys.append(key.left(paren));
+        keys.append(key);
+        break;
+    case InArgs:
+        keys.append(key);
+        break;
+    case Out:
+        break;
+    }
+    return state;
 }
 
 QList<QByteArray> Database::symbolNames(const QByteArray &filter) const
@@ -247,8 +290,17 @@ QList<QByteArray> Database::symbolNames(const QByteArray &filter) const
     Q_ASSERT(it);
     do {
         const QByteArray key = it->key();
-        if (filter.isEmpty() || it->key().contains(filter))
-            ret.append(key);
+        int paren = key.lastIndexOf('(');
+        State state = maybeDict(key, filter, filter.isEmpty() ? In : Out, paren, ret);
+        foreach(const DictionaryEntry &e, decode<QSet<DictionaryEntry> >(it->value())) {
+            QByteArray k = key;
+            for (int i=e.scope.size() - 1; i>=0; --i) {
+                k.prepend(e.scope.at(i) + "::");
+                if (paren != -1)
+                    paren += e.scope.at(i).size() + 2;
+                maybeDict(k, filter, state, paren, ret);
+            }
+        }
     } while (it->next());
     return ret;
 }
@@ -284,38 +336,6 @@ Location Database::createLocation(const QByteArray &arg, const Path &cwd)
     loc.line = line;
     loc.column = col;
     return loc;
-}
-
-
-static inline void addLocations(const Location &definition, const QSet<Location> &declarations,
-                                const QByteArray &key, QHash<QByteArray, QSet<Location> >& dict)
-{
-    QSet<Location> &locations = dict[key];
-    if (definition.file)
-        locations.insert(definition);
-    foreach(const Location &declaration, declarations)
-        locations.insert(declaration);
-}
-
-static inline void collectDict(QByteArray name, const QList<QByteArray> &parentNames,
-                               QHash<QByteArray, QSet<Location> >& dict,
-                               const Location &definition,
-                               const QSet<Location> &declarations)
-{
-    int colon = name.indexOf('('); // the name we have doesn't include args which kind sorta sucks a little
-    if (colon != -1)
-        addLocations(definition, declarations, QByteArray::fromRawData(name.constData(), colon), dict);
-    addLocations(definition, declarations, name, dict);
-    foreach(const QByteArray &cur, parentNames) {
-        const int old = name.size();
-        name.prepend("::");
-        name.prepend(cur);
-        if (colon != -1) {
-            colon += (name.size() - old);
-            addLocations(definition, declarations, QByteArray::fromRawData(name.constData(), colon), dict);
-        }
-        addLocations(definition, declarations, name, dict);
-    }
 }
 
 void Database::writeEntity(const QByteArray &symbolName,
@@ -355,7 +375,13 @@ void Database::writeEntity(const QByteArray &symbolName,
             }
         }
     }
-    collectDict(symbolName, parentNames, mDictionary, definition, declarations);
+
+    DictionaryEntry entry;
+    entry.scope = parentNames;
+    entry.locations = declarations;
+    if (definition.file)
+        entry.locations.insert(definition);
+    mDictionary[symbolName].insert(entry);
 }
 
 QByteArray Database::locationToString(const Location &location) const
