@@ -567,7 +567,7 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
             case CXCursor_StructDecl:
             case CXCursor_ClassDecl:
             case CXCursor_Namespace:
-                e.parentNames.append(cstr);
+                e.parentNames.prepend(cstr);
                 break;
             default:
                 break;

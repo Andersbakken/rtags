@@ -87,7 +87,7 @@ public:
         Dictionary,
         References,
         Targets,
-        NumConnections,
+        NumConnectionTypes,
         All
     };
     
@@ -97,6 +97,8 @@ public:
         iterator(ConnectionType t)
             : type(t)
         {}
+
+        virtual ConnectionType currentType() const = 0;
         virtual ~iterator() {}
         virtual QByteArray value() const = 0;
         virtual QByteArray key() const = 0;
@@ -173,7 +175,7 @@ private:
     }
 
     Mode mMode;
-    Connection *mConnections[NumConnections];
+    Connection *mConnections[NumConnectionTypes];
     QHash<Path, unsigned> mFilesByName;
     QHash<unsigned, Path> mFilesByIndex;
 

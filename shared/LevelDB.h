@@ -48,6 +48,17 @@ public:
             mIterator->Seek(leveldb::Slice(&ch, 1));
         }
     }
+    virtual Database::ConnectionType currentType() const
+    {
+        if (type == Database::All) {
+            const QByteArray k = key();
+            if (!k.isEmpty()) {
+                return static_cast<Database::ConnectionType>(k.at(0) - 'a');
+            }
+        }
+        return type;
+    }
+
     virtual ~LevelDBIterator()
     {
         delete mIterator;

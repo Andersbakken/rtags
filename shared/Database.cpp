@@ -70,7 +70,7 @@ bool Database::open(const Path &db, Mode mode)
         removeDirectory(db);
     if (openDatabase(db, mode)) {
         mMode = mode;
-        for (int i=0; i<NumConnections; ++i) {
+        for (int i=0; i<NumConnectionTypes; ++i) {
             mConnections[i] = createConnection(static_cast<ConnectionType>(i));
             Q_ASSERT(mConnections[i]);
         }
@@ -202,7 +202,7 @@ void Database::close()
 
     closeDatabase();
 
-    for (int i=0; i<NumConnections; ++i) {
+    for (int i=0; i<NumConnectionTypes; ++i) {
         delete mConnections[i];
         mConnections[i] = 0;
     }
@@ -328,21 +328,24 @@ QList<QByteArray> Database::symbolNames(const QByteArray &filter) const
 {
     QList<QByteArray> ret;
     iterator *it = createIterator(Dictionary);
-    Q_ASSERT(it);
-    do {
-        const QByteArray key = it->key();
-        int paren = key.lastIndexOf('(');
-        State state = maybeDict(key, filter, filter.isEmpty() ? In : Out, paren, ret);
-        foreach(const DictionaryEntry &e, decode<QSet<DictionaryEntry> >(it->value())) {
-            QByteArray k = key;
-            for (int i=e.scope.size() - 1; i>=0; --i) {
-                k.prepend(e.scope.at(i) + "::");
-                if (paren != -1)
-                    paren += e.scope.at(i).size() + 2;
-                maybeDict(k, filter, state, paren, ret);
+    if (it->isValid()) {
+        Q_ASSERT(it);
+        do {
+            const QByteArray key = it->key();
+            int paren = key.lastIndexOf('(');
+            State state = maybeDict(key, filter, filter.isEmpty() ? In : Out, paren, ret);
+            foreach(const DictionaryEntry &e, decode<QSet<DictionaryEntry> >(it->value())) {
+                QByteArray k = key;
+                for (int i=e.scope.size() - 1; i>=0; --i) {
+                    k.prepend(e.scope.at(i) + "::");
+                    if (paren != -1)
+                        paren += e.scope.at(i).size() + 2;
+                    maybeDict(k, filter, state, paren, ret);
+                }
             }
-        }
-    } while (it->next());
+        } while (it->next());
+    }
+    delete it;
     return ret;
 }
 

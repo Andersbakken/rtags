@@ -339,7 +339,7 @@ public:
     virtual bool seek(const QByteArray &key);
     virtual bool next();
     virtual bool isValid() const;
-
+    virtual Database::ConnectionType currentType() const;
 private:
     void open(FileDB::ConnectionType t);
 
@@ -420,7 +420,7 @@ bool FileIterator::next()
         int sz;
         ssize_t r = ::read(db, &sz, sizeof(int));
         if (r < (int)sizeof(int)) {
-            if (all && current < FileDB::NumConnections - 1) {
+            if (all && current < FileDB::NumConnectionTypes - 1) {
                 current = static_cast<FileDB::ConnectionType>(current + 1);
                 open(current);
                 if (!isValid())
@@ -457,6 +457,11 @@ bool FileIterator::next()
 bool FileIterator::isValid() const
 {
     return !k.isEmpty();
+}
+
+Database::ConnectionType FileIterator::currentType() const
+{
+    return current;
 }
 
 FileDB::FileDB()
