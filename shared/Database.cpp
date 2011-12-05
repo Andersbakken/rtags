@@ -449,12 +449,12 @@ Database *Database::create(const Path &path, Mode mode)
         LevelDB *l = new LevelDB;
         l->open(path, mode);
         return l;
-    } else if (dbtype == "filedb") {
+    } else if (dbtype == "filedb" || (mode == WriteOnly && dbtype.isEmpty())) {
         fprintf(stderr, "Using filedb\n");
         FileDB *f = new FileDB;
         f->open(path, mode);
         return f;
-    } else if (mode != WriteOnly) {
+    } else {
         Path p = path + "/a.idx";
         if (p.exists()) {
             fprintf(stderr, "Using filedb\n");

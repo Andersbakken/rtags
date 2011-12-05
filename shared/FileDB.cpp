@@ -339,7 +339,6 @@ public:
     virtual bool seek(const QByteArray &key);
     virtual bool next();
     virtual bool isValid() const;
-    virtual Database::ConnectionType currentType() const;
 private:
     void open(FileDB::ConnectionType t);
 
@@ -348,24 +347,15 @@ private:
     FileIndex idx;
     int db;
     int pos;
-    bool all;
     FileDB::Mode mode;
-    FileDB::ConnectionType current;
 
     QByteArray k, v;
 };
 
 FileIterator::FileIterator(FileDB::ConnectionType t, FileDB::Mode m, const Path& p)
-    : Database::iterator(t), path(p), db(-1), pos(0), all(false), mode(m)
+    : Database::iterator(t), path(p), db(-1), pos(0), mode(m)
 {
-    if (t == FileDB::All) {
-        all = true;
-        current = FileDB::General;
-        open(current);
-    } else {
-        current = t;
-        open(t);
-    }
+    open(t);
 }
 
 void FileIterator::open(FileDB::ConnectionType t)
@@ -400,9 +390,6 @@ QByteArray FileIterator::key() const
 
 bool FileIterator::seek(const QByteArray &key)
 {
-    if (all)
-        qFatal("FIXME: FileIterator::seek() does not work with Database::All");
-
     int offset;
     if (idx.find(FileIndex::LowerBound, key, &offset)) {
         pos = offset - sizeof(int);
@@ -420,14 +407,6 @@ bool FileIterator::next()
         int sz;
         ssize_t r = ::read(db, &sz, sizeof(int));
         if (r < (int)sizeof(int)) {
-            if (all && current < FileDB::NumConnectionTypes - 1) {
-                current = static_cast<FileDB::ConnectionType>(current + 1);
-                open(current);
-                if (!isValid())
-                    return next();
-                return true;
-            }
-
             k.clear();
             v.clear();
             return false;
@@ -457,11 +436,6 @@ bool FileIterator::next()
 bool FileIterator::isValid() const
 {
     return !k.isEmpty();
-}
-
-Database::ConnectionType FileIterator::currentType() const
-{
-    return current;
 }
 
 FileDB::FileDB()

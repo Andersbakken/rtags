@@ -29,7 +29,7 @@ public:
                      leveldb::Slice(value.constData(), value.size()));
         }
     }
-private:
+
     leveldb::DB *mDB;
 };
 
@@ -39,23 +39,7 @@ public:
     LevelDBIterator(Database::ConnectionType t, leveldb::DB *db)
         : Database::iterator(t), mDB(db), mIterator(db->NewIterator(leveldb::ReadOptions()))
     {
-        if (type == Database::All) {
-            mIterator->SeekToFirst();
-        } else {
-            char ch = 'a';
-            ch += type;
-            mIterator->Seek(leveldb::Slice(&ch, 1));
-        }
-    }
-    virtual Database::ConnectionType currentType() const
-    {
-        if (type == Database::All) {
-            const QByteArray k = key();
-            if (!k.isEmpty()) {
-                return static_cast<Database::ConnectionType>(k.at(0) - 'a');
-            }
-        }
-        return type;
+        mIterator->SeekToFirst();
     }
 
     virtual ~LevelDBIterator()
@@ -65,7 +49,7 @@ public:
     virtual QByteArray key() const
     {
         const leveldb::Slice k = mIterator->key();
-        return QByteArray(k.data() + 1, k.size() - 1);
+        return QByteArray(k.data(), k.size());
     }
     virtual QByteArray value() const
     {
@@ -85,15 +69,7 @@ public:
 
     virtual bool isValid() const
     {
-        if (mIterator->Valid()) {
-            if (type != Database::All) {
-                const leveldb::Slice k = mIterator->key();
-                if (!k.size() || k.data()[0] != ('a' + type))
-                    return false;
-            }
-            return true;
-        }
-        return false;
+        return mIterator->Valid();
     }
 private:
     leveldb::DB *mDB;
@@ -104,55 +80,62 @@ class LevelDB : public Database
 {
 public:
     LevelDB()
-        : mDB(0)
-    {}
+    {
+        memset(mDatabases, 0, NumConnectionTypes * sizeof(leveldb::DB*));
+    }
     virtual ~LevelDB()
     {
     }
 
     virtual bool isOpened() const
     {
-        return mDB;
+        return mDatabases[0];
     }
     virtual void closeDatabase()
     {
-        delete mDB;
-        mDB = 0;
+        for (int i=0; i<NumConnectionTypes; ++i) {
+            delete mDatabases[i];
+            mDatabases[i] = 0;
+        }
     }
 
     virtual iterator *createIterator(ConnectionType type) const
     {
-        return new LevelDBIterator(type, mDB);
+        return new LevelDBIterator(type, mDatabases[type]);
     }
 
     virtual Connection *createConnection(ConnectionType type)
     {
-        Path p = path();
-        switch (type) {
-        case General: p += "/general"; break;
-        case Dictionary: p += "/dictionary"; break;
-        case References: p += "/references"; break;
-        case Targets: p += "/targets"; break;
-        default: Q_ASSERT(0); break;
-        }
-        leveldb::Options dbOptions;
-        if (mode() != ReadOnly)
-            dbOptions.create_if_missing = true;
-        const leveldb::Status status = leveldb::DB::Open(dbOptions, p.constData(), &mDB);
-        if (!status.ok()) {
-            fprintf(stderr, "Unable to open db [%s]: %s\n", p.constData(), status.ToString().c_str());
-            return 0;
-        }
-        return new LevelDBConnection(mDB);
+        return new LevelDBConnection(mDatabases[type]);
     }
 
-    virtual bool openDatabase(const Path &path, Mode)
+    virtual bool openDatabase(const Path &path, Mode mode)
     {
-        return !mkdir(path.constData(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) || errno == EEXIST;
+        if (!mkdir(path.constData(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) || errno == EEXIST) {
+            leveldb::Options dbOptions;
+            if (mode != ReadOnly)
+                dbOptions.create_if_missing = true;
+            for (int i=0; i<NumConnectionTypes; ++i) {
+                Path p = path;
+                switch (i) {
+                case General: p += "/general"; break;
+                case Dictionary: p += "/dictionary"; break;
+                case References: p += "/references"; break;
+                case Targets: p += "/targets"; break;
+                default: Q_ASSERT(0); break;
+                }
+                const leveldb::Status status = leveldb::DB::Open(dbOptions, p.constData(), &mDatabases[i]);
+                if (!status.ok()) {
+                    fprintf(stderr, "Unable to open db [%s]: %s\n", p.constData(), status.ToString().c_str());
+                    closeDatabase();
+                    break;
+                }
+            }
+        }
+        return isOpened();
     }
-
 private:
-    leveldb::DB *mDB;
+    leveldb::DB *mDatabases[NumConnectionTypes];
 };
 
 #endif

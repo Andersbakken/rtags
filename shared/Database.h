@@ -89,8 +89,7 @@ public:
         Dictionary,
         References,
         Targets,
-        NumConnectionTypes,
-        All
+        NumConnectionTypes
     };
     
     class iterator
@@ -100,7 +99,6 @@ public:
             : type(t)
         {}
 
-        virtual ConnectionType currentType() const = 0;
         virtual ~iterator() {}
         virtual QByteArray value() const = 0;
         virtual QByteArray key() const = 0;
