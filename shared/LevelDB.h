@@ -3,18 +3,18 @@
 
 #include "Database.h"
 #include <leveldb/db.h>
+#include <errno.h>
 
 class LevelDBConnection : public Connection
 {
 public:
-    LevelDBConnection(leveldb::DB *db, char prefix)
-        : mDB(db), mPrefix(prefix)
+    LevelDBConnection(leveldb::DB *db)
+        : mDB(db)
     {}
 
-    virtual QByteArray readData(const QByteArray &k) const
+    virtual QByteArray readData(const QByteArray &key) const
     {
         std::string val;
-        const QByteArray key = mPrefix + k;
         mDB->Get(leveldb::ReadOptions(), leveldb::Slice(key.constData(), key.size()), &val);
         return QByteArray(val.c_str(), val.size());
     }
@@ -22,16 +22,15 @@ public:
     {
         if (value.isEmpty()) {
             mDB->Delete(leveldb::WriteOptions(),
-                        leveldb::Slice((mPrefix + key).constData(), key.size() + 1));
+                        leveldb::Slice(key.constData(), key.size()));
         } else {
             mDB->Put(leveldb::WriteOptions(),
-                     leveldb::Slice((mPrefix + key).constData(), key.size() + 1),
+                     leveldb::Slice(key.constData(), key.size()),
                      leveldb::Slice(value.constData(), value.size()));
         }
     }
 private:
     leveldb::DB *mDB;
-    const char mPrefix;
 };
 
 class LevelDBIterator : public Database::iterator
@@ -128,21 +127,28 @@ public:
 
     virtual Connection *createConnection(ConnectionType type)
     {
-        return new LevelDBConnection(mDB, char('a' + type));
+        Path p = path();
+        switch (type) {
+        case General: p += "/general"; break;
+        case Dictionary: p += "/dictionary"; break;
+        case References: p += "/references"; break;
+        case Targets: p += "/targets"; break;
+        default: Q_ASSERT(0); break;
+        }
+        leveldb::Options dbOptions;
+        if (mode() != ReadOnly)
+            dbOptions.create_if_missing = true;
+        const leveldb::Status status = leveldb::DB::Open(dbOptions, p.constData(), &mDB);
+        if (!status.ok()) {
+            fprintf(stderr, "Unable to open db [%s]: %s\n", p.constData(), status.ToString().c_str());
+            return 0;
+        }
+        return new LevelDBConnection(mDB);
     }
 
-    virtual bool openDatabase(const Path &path, Mode mode)
+    virtual bool openDatabase(const Path &path, Mode)
     {
-        Q_ASSERT(!mDB);
-        leveldb::Options dbOptions;
-        if (mode != ReadOnly)
-            dbOptions.create_if_missing = true;
-        const leveldb::Status status = leveldb::DB::Open(dbOptions, path.constData(), &mDB);
-        if (!status.ok()) {
-            fprintf(stderr, "Unable to open db [%s]: %s\n", path.constData(), status.ToString().c_str());
-            return false;
-        }
-        return true;
+        return !mkdir(path.constData(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) || errno == EEXIST;
     }
 
 private:

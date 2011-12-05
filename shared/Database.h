@@ -64,6 +64,8 @@ public:
         WriteOnly,
         ReadWrite
     };
+    Mode mode() const { return mMode; }
+    Path path() const { return mPath; }
     bool open(const Path &db, Mode mode);
     void close();
     virtual bool isOpened() const = 0;
@@ -174,6 +176,7 @@ private:
         return data;
     }
 
+    Path mPath;
     Mode mMode;
     Connection *mConnections[NumConnectionTypes];
     QHash<Path, unsigned> mFilesByName;
