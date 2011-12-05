@@ -441,15 +441,34 @@ QByteArray Database::locationToString(const Location &location) const
     return QByteArray();
 }
 
-Database *Database::create()
+Database *Database::create(const Path &path, Mode mode)
 {
     QByteArray dbtype = qgetenv("RTAGS_DB_TYPE").toLower();
     if (dbtype == "leveldb") {
-        printf("Using leveldb\n");
-        return new LevelDB;
-    } else if (dbtype == "filedb" || dbtype.isEmpty()) {
-        printf("Using filedb\n");
-        return new FileDB;
+        fprintf(stderr, "Using leveldb\n");
+        LevelDB *l = new LevelDB;
+        l->open(path, mode);
+        return l;
+    } else if (dbtype == "filedb") {
+        fprintf(stderr, "Using filedb\n");
+        FileDB *f = new FileDB;
+        f->open(path, mode);
+        return f;
+    } else if (mode != WriteOnly) {
+        Path p = path + "/a.idx";
+        if (p.exists()) {
+            fprintf(stderr, "Using filedb\n");
+            FileDB *f = new FileDB;
+            f->open(path, mode);
+            return f;
+        }
+        p = path + "/references";
+        if (p.exists()) {
+            fprintf(stderr, "Using leveldb\n");
+            LevelDB *l = new LevelDB;
+            l->open(path, mode);
+            return l;
+        }
     }
     qFatal("Unknown db %s", dbtype.constData());
     return 0;

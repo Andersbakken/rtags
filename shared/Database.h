@@ -55,8 +55,6 @@ static inline uint qHash(const DictionaryEntry &entry)
 class Database
 {
 public:
-    static Database* create();
-
     Database();
     virtual ~Database();
     enum Mode {
@@ -64,6 +62,8 @@ public:
         WriteOnly,
         ReadWrite
     };
+    static Database* create(const Path &path, Mode mode);
+
     Mode mode() const { return mMode; }
     Path path() const { return mPath; }
     bool open(const Path &db, Mode mode);

@@ -80,18 +80,15 @@ int main(int argc, char** argv)
         }
     }
 
-    std::string filename;
+    QByteArray filename;
     if (optind >= argc) {
-        char dir[500];
-        if (!getcwd(dir, 500))
-            return 1;
-        filename = dir + std::string("/.rtags.db");
+        filename = findRtagsDb();
     } else {
         filename = argv[optind];
     }
 
-    Database* db = Database::create();
-    if (db->open(filename.c_str(), Database::ReadOnly)) {
+    Database* db = Database::create(filename, Database::ReadOnly);
+    if (db->isOpened()) {
         const char *names[] = { "General", "Dictionary", "References", 0 };
         for (int i=0; i<Database::NumConnectionTypes; ++i) {
             Database::iterator *it = db->createIterator(static_cast<Database::ConnectionType>(i));
@@ -109,5 +106,6 @@ int main(int argc, char** argv)
     // else
     //     dumpDatabase(filename, type);
 
+    delete db;
     return 0;
 }

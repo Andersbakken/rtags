@@ -851,8 +851,9 @@ void RBuild::onPrecompileFinished(Precompile *pch)
 bool RBuild::openDB(Mode mode)
 {
     Q_ASSERT(!mData->db);
-    mData->db = Database::create();
-    return mData->db->open(mData->dbPath, mode == Update ? Database::ReadWrite : Database::WriteOnly);
+    mData->db = Database::create(mData->dbPath,
+                                 mode == Update ? Database::ReadWrite : Database::WriteOnly);
+    return mData->db->isOpened();
 }
 
 void RBuild::closeDB()

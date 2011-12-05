@@ -187,8 +187,9 @@ int main(int argc, char** argv)
         return 1;
     }
     foreach(const QByteArray &dbPath, dbPaths) {
-        Database* db = Database::create();
-        if (!db->open(dbPath.constData(), Database::ReadOnly)) {
+        Database* db = Database::create(dbPath, Database::ReadOnly);
+        if (!db->isOpened()) {
+            delete db;
             continue;
         }
 
