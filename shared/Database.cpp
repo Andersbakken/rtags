@@ -392,33 +392,37 @@ void Database::writeEntity(const QByteArray &symbolName,
                            const QSet<Location> &references)
 {
     Q_ASSERT(definition.file || !declarations.isEmpty());
-    char buf[512];
+    QByteArray buf(512, Qt::Uninitialized);
     int refIdx = 0;
     if (!references.isEmpty()) {
         refIdx = ++mRefIdxCounter;
-        const int ret = snprintf(buf, 512, "%d", refIdx);
-        write(References, QByteArray::fromRawData(buf, ret), references);
+        const int ret = snprintf(buf.data(), 512, "%d", refIdx);
+        buf.resize(ret);
+        write(References, buf, references);
         const Location loc = (definition.file ? definition : *declarations.begin());
         for (QSet<Location>::const_iterator it = references.begin();
              it != references.end(); ++it) {
             const Location &l = *it;
-            const int ret = snprintf(buf, 512, "%d:%d:%d:", l.file, l.line, l.column);
-            write(Targets, QByteArray::fromRawData(buf, ret), loc);
+            const int ret = snprintf(buf.data(), 512, "%d:%d:%d:", l.file, l.line, l.column);
+            buf.resize(ret);
+            write(Targets, buf, loc);
         }
         if (definition.file || refIdx) {
-            const int ret = snprintf(buf, 512, "%d:%d:%d:", definition.file, definition.line, definition.column);
+            const int ret = snprintf(buf.data(), 512, "%d:%d:%d:", definition.file, definition.line, definition.column);
+            buf.resize(ret);
             if (declarations.size() == 1) {
-                write(Targets, QByteArray::fromRawData(buf, ret), *declarations.begin());
+                write(Targets, buf, *declarations.begin());
             }
-            write(References, QByteArray::fromRawData(buf, ret), refIdx);
+            write(References, buf, refIdx);
 
             foreach(const Location &declaration, declarations) {
-                const int ret = snprintf(buf, 512, "%d:%d:%d:", declaration.file, declaration.line, declaration.column);
+                const int ret = snprintf(buf.data(), 512, "%d:%d:%d:", declaration.file, declaration.line, declaration.column);
+                buf.resize(ret);
                 if (definition.file) {
-                    write(Targets, QByteArray::fromRawData(buf, ret), definition);
+                    write(Targets, buf, definition);
                 }
                 if (refIdx)
-                    write(References, QByteArray::fromRawData(buf, ret), refIdx);
+                    write(References, buf, refIdx);
             }
         }
     }
