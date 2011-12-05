@@ -443,33 +443,39 @@ QByteArray Database::locationToString(const Location &location) const
 
 Database *Database::create(const Path &path, Mode mode)
 {
-    QByteArray dbtype = qgetenv("RTAGS_DB_TYPE").toLower();
-    if (dbtype == "leveldb") {
+    enum Type { leveldb, filedb, error } type = error;
+    const QByteArray dbType = qgetenv("RTAGS_DB_TYPE").toLower();
+    if (dbType == "leveldb") {
+        type = leveldb;
+    } else if (dbType == "filedb") {
+        type = filedb;
+    } else if (mode == WriteOnly && dbType.isEmpty()) {
+        type = filedb;
+    } else if (dbType.isEmpty()) {
+        Path p = path + "/a.idx";
+        if (p.exists()) {
+            type = filedb;
+        } else {
+            p = path + "/references";
+            if (p.exists()) {
+                type = leveldb;
+            }
+        }
+    }
+    switch (type) {
+    case leveldb: {
         fprintf(stderr, "Using leveldb\n");
         LevelDB *l = new LevelDB;
         l->open(path, mode);
-        return l;
-    } else if (dbtype == "filedb" || (mode == WriteOnly && dbtype.isEmpty())) {
+        return l; }
+    case filedb: {
         fprintf(stderr, "Using filedb\n");
         FileDB *f = new FileDB;
         f->open(path, mode);
-        return f;
-    } else {
-        Path p = path + "/a.idx";
-        if (p.exists()) {
-            fprintf(stderr, "Using filedb\n");
-            FileDB *f = new FileDB;
-            f->open(path, mode);
-            return f;
-        }
-        p = path + "/references";
-        if (p.exists()) {
-            fprintf(stderr, "Using leveldb\n");
-            LevelDB *l = new LevelDB;
-            l->open(path, mode);
-            return l;
-        }
+        return f; }
+    case error:
+        break;
     }
-    qFatal("Unknown db %s", dbtype.constData());
+    qFatal("Unknown db %s", dbType.constData());
     return 0;
 }

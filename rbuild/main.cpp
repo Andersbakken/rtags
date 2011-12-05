@@ -43,9 +43,10 @@ int main(int argc, char** argv)
         { "db-file", 1, 0, 'd' },
         { "update", 0, 0, 'u' },
         { "source-dir", 1, 0, 's' },
+        { "db-type", 1, 0, 't' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hud:s:";
+    const char *shortOptions = "hud:s:t:";
 
     int idx, longIndex;
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
@@ -64,6 +65,9 @@ int main(int argc, char** argv)
             break;
         case 'd':
             db = QByteArray(optarg);
+            break;
+        case 't':
+            setenv("RTAGS_DB_TYPE", optarg, 1);
             break;
         default:
             printf("%s\n", optarg);

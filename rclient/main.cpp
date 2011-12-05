@@ -76,9 +76,10 @@ int main(int argc, char** argv)
         { "list-symbols", 1, 0, 'l' },
         { "files", 1, 0, 'P' }, // some of these should have optional args
         { "paths-relative-to-root", 0, 0, 'n' },
+        { "db-type", 1, 0, 't' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hf:d:r:l:Dps:P:n";
+    const char *shortOptions = "hf:d:r:l:Dps:P:nt:";
 
     QList<QByteArray> dbPaths;
 
@@ -111,10 +112,14 @@ int main(int argc, char** argv)
                 printf("%s\n", db.constData());
             } else {
                 char buffer[500];
-                getcwd(buffer, 500);
+                char *ign = getcwd(buffer, 500);
+                (void)ign;
                 fprintf(stderr, "No db found for %s\n", buffer);
             }
             return 0; }
+        case 't':
+            setenv("RTAGS_DB_TYPE", optarg, 1);
+            break;
         case 'h':
             usage(argv[0], stdout);
             return 0;
