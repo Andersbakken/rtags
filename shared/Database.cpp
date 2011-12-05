@@ -180,7 +180,7 @@ void Database::markDirtyFiles(const QList<Path> &paths)
 
 void Database::close()
 {
-    qDebug() << mDictionary;
+    // qDebug() << mDictionary;
     switch (mMode) {
     case ReadWrite:
         for (QHash<QByteArray, QSet<DictionaryEntry> >::const_iterator it = mDictionary.begin();
@@ -451,8 +451,6 @@ Database *Database::create(const Path &path, Mode mode)
         type = leveldb;
     } else if (dbType == "filedb") {
         type = filedb;
-    } else if (mode == WriteOnly && dbType.isEmpty()) {
-        type = filedb;
     } else if (dbType.isEmpty()) {
         Path p = path + "/a.idx";
         if (p.exists()) {
@@ -463,6 +461,8 @@ Database *Database::create(const Path &path, Mode mode)
                 type = leveldb;
             }
         }
+        if (type == error && mode == WriteOnly && dbType.isEmpty())
+            type = leveldb;
     }
     switch (type) {
     case leveldb: {

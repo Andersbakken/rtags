@@ -57,6 +57,7 @@ class Database
 public:
     Database();
     virtual ~Database();
+
     enum Mode {
         ReadOnly,
         WriteOnly,
@@ -106,6 +107,14 @@ public:
         virtual bool next() = 0;
         virtual bool isValid() const = 0;
         const ConnectionType type;
+
+        template <typename T> T value(const T &defaultValue = T()) const
+        {
+            const QByteArray val = value();
+            if (val.isEmpty())
+                return defaultValue;
+            return Database::decode<T>(val);
+        }
     };
 
 
@@ -122,32 +131,7 @@ public:
     {
         remove(General, key);
     }
-    virtual iterator *createIterator(ConnectionType) const = 0;
-protected:
-    virtual bool openDatabase(const Path &db, Mode mode) = 0;
-    virtual void closeDatabase() = 0;
-    virtual Connection *createConnection(ConnectionType type) = 0;
-private:
-    template <typename T> T read(ConnectionType type, const QByteArray &key, const T &defaultValue) const
-    {
-        if (key.isEmpty())
-            return T();
-        const QByteArray dat = mConnections[type]->readData(key);
-        if (dat.isEmpty())
-            return defaultValue;
-        return decode<T>(dat);
-    }
-    template <typename T> void write(ConnectionType type, const QByteArray &key, const T &t)
-    {
-        Q_ASSERT(!key.isEmpty());
-        mConnections[type]->writeData(key, encode<T>(t));
-    }
-    void remove(ConnectionType type, const QByteArray &key)
-    {
-        Q_ASSERT(!key.isEmpty());
-        mConnections[type]->writeData(key, QByteArray());
-    }
-    
+
     template <typename T> static QByteArray encode(const T &t)
     {
         QByteArray v;
@@ -176,6 +160,33 @@ private:
     {
         return data;
     }
+    
+    virtual iterator *createIterator(ConnectionType) const = 0;
+protected:
+    virtual bool openDatabase(const Path &db, Mode mode) = 0;
+    virtual void closeDatabase() = 0;
+    virtual Connection *createConnection(ConnectionType type) = 0;
+private:
+    template <typename T> T read(ConnectionType type, const QByteArray &key, const T &defaultValue) const
+    {
+        if (key.isEmpty())
+            return T();
+        const QByteArray dat = mConnections[type]->readData(key);
+        if (dat.isEmpty())
+            return defaultValue;
+        return decode<T>(dat);
+    }
+    template <typename T> void write(ConnectionType type, const QByteArray &key, const T &t)
+    {
+        Q_ASSERT(!key.isEmpty());
+        mConnections[type]->writeData(key, encode<T>(t));
+    }
+    void remove(ConnectionType type, const QByteArray &key)
+    {
+        Q_ASSERT(!key.isEmpty());
+        mConnections[type]->writeData(key, QByteArray());
+    }
+    
 
     Path mPath;
     Mode mMode;

@@ -102,6 +102,14 @@ int main(int argc, char** argv)
                         ds >> t;
                         printf(" (%d)\n", t);
                     } else {
+                        switch (i) {
+                        case Database::Targets: {
+                            Location loc = it->value<Location>();
+                            printf(" (%d:%d:%d)", loc.file, loc.line, loc.column);
+                            break; }
+                        default:
+                            break;
+                        }
                         printf("\n");
                     }
                 } while (it->next());
