@@ -407,6 +407,7 @@ bool FileIterator::seek(const QByteArray &key)
     if (idx.find(FileIndex::LowerBound, key, &offset)) {
         pos = offset - sizeof(int);
         next(); // next() will see to 'pos' before reading
+        return true;
     }
     return false;
 }
