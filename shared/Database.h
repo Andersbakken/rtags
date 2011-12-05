@@ -18,7 +18,6 @@ public:
 struct DictionaryEntry {
     QList<QByteArray> scope;
     QSet<Location> locations;
-#warning I need to add the args (for functions) into this structure and use only the name as the key
 };
 
 static inline QDebug operator<<(QDebug dbg, const DictionaryEntry &entry)
@@ -129,7 +128,8 @@ protected:
 private:
     template <typename T> T read(ConnectionType type, const QByteArray &key) const
     {
-        Q_ASSERT(!key.isEmpty());
+        if (key.isEmpty())
+            return T();
         return decode<T>(mConnections[type]->readData(key));
     }
     template <typename T> void write(ConnectionType type, const QByteArray &key, const T &t)

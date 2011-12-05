@@ -241,9 +241,47 @@ QSet<Location> Database::findReferences(const Location &source) const
 
 QSet<Location> Database::findSymbol(const QByteArray &symbolName) const
 {
-    // const int colons = symbolName.lastIndexOf("::");
-    // if (colons == -1) {
-    return read<QSet<Location> >(Dictionary, symbolName);
+    QSet<Location> ret;
+    if (!symbolName.isEmpty()) {
+        QList<QByteArray> split;
+
+        int idx = 0;
+        int l = 0;
+        while ((idx = symbolName.indexOf("::", idx)) != -1) {
+            split.append(QByteArray::fromRawData(symbolName.constData() + l, idx - l));
+            l = (idx += 2);
+        }
+        if (!l) {
+            split.append(symbolName);
+        } else {
+            split.append(QByteArray::fromRawData(symbolName.constData() + l, symbolName.size() - l));
+        }
+        iterator *it = createIterator(Dictionary);
+        while (it->isValid()) {
+            qDebug() << it->key();
+            it->next();
+        }
+        delete it;
+        it = createIterator(Dictionary);
+
+        const QByteArray last = split.last();
+        const bool hasArgs = last.contains('(');
+        if (it->seek(last)) {
+            const QByteArray key = it->key();
+            if (last == it->key()
+                || (hasArgs && key.startsWith(last) && key.at(last.size()) == '(')) {
+                // if (split.size() == 1) {
+            }
+
+            //     } while (match(name, it));
+            //     if (it->
+            //     qDebug() << it->key() << symbolName << name;
+            // } else {
+            //     printf("%s:%d } else {\n", __FILE__, __LINE__);
+        }
+        delete it;
+    }
+    return ret;
 }
 
 enum State {
