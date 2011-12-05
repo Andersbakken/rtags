@@ -251,33 +251,36 @@ QSet<Location> Database::findSymbol(const QByteArray &symbolName) const
             split.append(QByteArray::fromRawData(symbolName.constData() + l, idx - l));
             l = (idx += 2);
         }
-        if (!l) {
-            split.append(symbolName);
-        } else {
-            split.append(QByteArray::fromRawData(symbolName.constData() + l, symbolName.size() - l));
-        }
+        const QByteArray name = (l
+                                 ? QByteArray::fromRawData(symbolName.constData() + l, symbolName.size() - l)
+                                 : symbolName);
         iterator *it = createIterator(Dictionary);
-        while (it->isValid()) {
-            qDebug() << it->key();
-            it->next();
-        }
-        delete it;
-        it = createIterator(Dictionary);
-
-        const QByteArray last = split.last();
-        const bool hasArgs = last.contains('(');
-        if (it->seek(last)) {
+        if (it->seek(name)) {
             const QByteArray key = it->key();
-            if (last == it->key()
-                || (hasArgs && key.startsWith(last) && key.at(last.size()) == '(')) {
-                // if (split.size() == 1) {
+            if (name == key
+                || (!name.contains('(') && key.startsWith(name) && key.at(name.size()) == '(')) {
+                foreach(const DictionaryEntry &e, decode<QSet<DictionaryEntry> >(it->value())) {
+                    bool ok = true;
+                    if (!split.isEmpty()) {
+                        const int splitSize = split.size();
+                        const int scopeSize = e.scope.size();
+                        if (splitSize <= scopeSize) {
+                            const int diff = scopeSize - splitSize;
+                            for (int i=splitSize - 1; i>=0; --i) {
+                                if (split.at(i).isEmpty() || split.at(i) != e.scope.at(i + diff)) {
+                                    ok = false;
+                                    break;
+                                }
+                            }
+                        } else {
+                            ok = false;
+                        }
+                    }
+                    if (ok) {
+                        ret += e.locations;
+                    }
+                }
             }
-
-            //     } while (match(name, it));
-            //     if (it->
-            //     qDebug() << it->key() << symbolName << name;
-            // } else {
-            //     printf("%s:%d } else {\n", __FILE__, __LINE__);
         }
         delete it;
     }
