@@ -100,6 +100,7 @@ QByteArray FileIndex::Entry::key() const
     ::lseek(db, offset, SEEK_SET);
     QByteArray k(size, '\0');
     ssize_t r = ::read(db, k.data(), size);
+    (void)r;
     Q_ASSERT(r == size);
     return k;
 }

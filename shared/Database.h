@@ -109,9 +109,9 @@ public:
     };
 
 
-    template <typename T> T read(const QByteArray &key) const
+    template <typename T> T read(const QByteArray &key, const T &defaultValue = T()) const
     {
-        return read<T>(General, key);
+        return read<T>(General, key, defaultValue);
     }
     template <typename T> void write(const QByteArray &key, const T &t)
     {
@@ -128,11 +128,14 @@ protected:
     virtual void closeDatabase() = 0;
     virtual Connection *createConnection(ConnectionType type) = 0;
 private:
-    template <typename T> T read(ConnectionType type, const QByteArray &key) const
+    template <typename T> T read(ConnectionType type, const QByteArray &key, const T &defaultValue) const
     {
         if (key.isEmpty())
             return T();
-        return decode<T>(mConnections[type]->readData(key));
+        const QByteArray dat = mConnections[type]->readData(key);
+        if (dat.isEmpty())
+            return defaultValue;
+        return decode<T>(dat);
     }
     template <typename T> void write(ConnectionType type, const QByteArray &key, const T &t)
     {

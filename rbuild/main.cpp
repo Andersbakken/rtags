@@ -13,7 +13,9 @@ static inline void usage(const char* argv0, FILE *f)
             "%s [options]...\n"
             "  --help|-h                  Display this help\n"
             "  --db-file|-d [arg]         Use this database file\n"
-            "  --update|-u                Update database\n",
+            "  --update|-u                Update database\n"
+            "  --source-dir|-s [arg]      Recurse this directory\n"
+            "  --db-type|-t [arg]         Type of db (leveldb or filedb)\n",
             argv0);
 }
 

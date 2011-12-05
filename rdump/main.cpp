@@ -89,12 +89,21 @@ int main(int argc, char** argv)
 
     Database* db = Database::create(filename, Database::ReadOnly);
     if (db->isOpened()) {
-        const char *names[] = { "General", "Dictionary", "References", 0 };
+        const char *names[] = { "General", "Dictionary", "References", "Targets" };
         for (int i=0; i<Database::NumConnectionTypes; ++i) {
             Database::iterator *it = db->createIterator(static_cast<Database::ConnectionType>(i));
             if (it->isValid()) {
                 do {
-                    printf("%s %s:%d\n", names[i], it->key().constData(), it->value().size());
+                    printf("%s '%s' => %d bytes", names[i], it->key().constData(), it->value().size());
+                    if (it->value().size() == 4) {
+                        const QByteArray ba = it->value();
+                        QDataStream ds(ba);
+                        int t;
+                        ds >> t;
+                        printf(" (%d)\n", t);
+                    } else {
+                        printf("\n");
+                    }
                 } while (it->next());
             }
             delete it;

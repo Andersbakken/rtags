@@ -407,8 +407,13 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 void RBuild::writeData()
 {
     mData->db->write("filesByName", mData->filesToIndex);
-    for (QHash<QByteArray, Entity>::const_iterator it = mData->entities.begin(); it != mData->entities.end(); ++it) {
+    for (QHash<QByteArray, Entity>::const_iterator it = mData->entities.begin();
+         it != mData->entities.end(); ++it) {
         const Entity &entity = it.value();
+        // qDebug() << "writing entity" << entity.name
+        //          << entity.definition
+        //          << entity.declarations
+        //          << entity.references;
         mData->db->writeEntity(entity.name, entity.parentNames, entity.definition,
                                entity.declarations, entity.references);
     }
@@ -544,9 +549,6 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
     QMutexLocker lock(&p->entryMutex); // ### is this the right place to lock?
     Entity &e = p->entities[decl->entityInfo->USR];
     if (e.name.isEmpty()) {
-        // if (decl->isContainer && isValidKind(clang_getCursorKind(decl->container->cursor)))
-        //     qDebug() << decl->container->cursor << createLocation(decl->loc);
-        // e.name = decl->entityInfo->name;
         CXString name = clang_getCursorDisplayName(decl->cursor); // this one gives us args
         e.name = clang_getCString(name);
         clang_disposeString(name);
@@ -588,27 +590,10 @@ static inline void indexEntityReference(CXClientData userData, const CXIdxEntity
     RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(userData);
     const QByteArray key(ref->referencedEntity->USR);
     const Location loc = createLocation(ref->loc, p->filesToIndex);
-    // qDebug() << loc << kindToString(clang_getCursorKind(ref->cursor))
-    //          << (ref->parentEntity ? ref->parentEntity->name : "no parent")
-    //          << ref->container->cursor;
     QMutexLocker lock(&p->entryMutex); // ### is this the right place to lock?
-    if (!p->entities.contains(key)) {
-        static QSet<Location> warned;
-        if (!warned.contains(loc)) {
-            qDebug() << "couldn't find" << loc << key
-                     << ref->referencedEntity->cursor
-                     << eatString(clang_getCursorUSR(ref->referencedEntity->cursor));
-            warned.insert(loc);
-        }
-        return;
-    }
     Entity &e = p->entities[key];
-    if (e.name.isEmpty()) {
-        qDebug() << "couldn't find" << loc << key;
-    }
-    Q_ASSERT(!e.name.isEmpty() &&
-             "This needs to be fixed. In case of PCH it needs to "
-             "potentially modify references to both the declaration and the definition");
+    // ### in the case of inline functions the Entity for the referenced function
+    // may not have been processed yet
     e.references.insert(loc);
 }
 

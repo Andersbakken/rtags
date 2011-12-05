@@ -185,7 +185,8 @@ void Database::close()
     case ReadWrite:
         for (QHash<QByteArray, QSet<DictionaryEntry> >::const_iterator it = mDictionary.begin();
              it != mDictionary.end(); ++it) {
-            QSet<DictionaryEntry> l = read<QSet<DictionaryEntry> >(Dictionary, it.key());
+            QSet<DictionaryEntry> l = read<QSet<DictionaryEntry> >(Dictionary, it.key(),
+                                                                   QSet<DictionaryEntry>());
             l += it.value();
             write(Dictionary, it.key(), l);
         }
@@ -217,7 +218,7 @@ Location Database::followLocation(const Location &source) const
         char buf[32];
         const int written = snprintf(buf, 32, "%d:%d:%d:", source.file, source.line, source.column);
         Q_ASSERT(written < 32);
-        ret = read<Location>(Targets, QByteArray::fromRawData(buf, written));
+        ret = read<Location>(Targets, QByteArray::fromRawData(buf, written), Location());
     }
     return ret;
 }
@@ -225,16 +226,17 @@ Location Database::followLocation(const Location &source) const
 QSet<Location> Database::findReferences(const Location &source) const
 {
     QSet<Location> ret;
+    qDebug() << source.file << source.line << source.column;
     if (source.file) {
         char buf[32];
         int written = snprintf(buf, 32, "%d:%d:%d:", source.file, source.line, source.column);
         Q_ASSERT(written < 32);
 
-        const int refId = read<int>(References, QByteArray::fromRawData(buf, written));
+        const int refId = read<int>(References, QByteArray::fromRawData(buf, written), -1);
         if (refId > 0) {
             written = snprintf(buf, 32, "%d", refId);
             Q_ASSERT(written < 32);
-            ret = read<QSet<Location> >(References, QByteArray::fromRawData(buf, written));
+            ret = read<QSet<Location> >(References, QByteArray::fromRawData(buf, written), QSet<Location>());
         }
     }
     return ret;

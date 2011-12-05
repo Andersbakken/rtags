@@ -20,20 +20,23 @@ struct Location
     {}
 
     unsigned file, line, column;
-    inline QByteArray key() const
+    inline QByteArray key() const // this one should only be used in debug
     {
         if (!file)
             return QByteArray();
         char buf[1024];
         QByteArray fn;
-        for (QHash<Path, unsigned>::const_iterator it = files()->begin(); it != files()->end(); ++it) {
-            if (it.value() == file) {
-                fn = it.key();
-                break;
+        fn = QByteArray::number(file);
+        if (files()) {
+            for (QHash<Path, unsigned>::const_iterator it = files()->begin(); it != files()->end(); ++it) {
+                if (it.value() == file) {
+                    fn = it.key();
+                    break;
+                }
             }
         }
 
-        const int ret = snprintf(buf, 1024, "%s:%d:%d", fn.constData(), line, column);
+        const int ret = snprintf(buf, 1024, "%s:%d:%d:", fn.constData(), line, column);
         return QByteArray(buf, ret);
     }
     inline bool operator==(const Location &other) const
