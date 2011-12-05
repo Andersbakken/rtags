@@ -431,6 +431,8 @@ void Database::writeEntity(const QByteArray &symbolName,
     entry.locations = declarations;
     if (definition.file)
         entry.locations.insert(definition);
+    if (symbolName.isEmpty())
+        return;
     mDictionary[symbolName].insert(entry);
 }
 
