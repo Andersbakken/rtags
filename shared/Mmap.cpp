@@ -4,70 +4,106 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <math.h>
 #include <errno.h>
 
+unsigned long Mmap::s500k;
+unsigned long Mmap::s32m;
+unsigned long Mmap::sPageSize;
+
 Mmap::Mmap()
-    : m_size(0), m_bpd(0)
+    : mFileSize(0), mFileUsed(0), mOffset(0), mPageOffset(0), mPageNo(0)
 {
 }
 
 Mmap::Mmap(const QByteArray& filename)
-    : m_size(0), m_bpd(0)
+    : mFileSize(0), mFileUsed(0), mOffset(0), mPageOffset(0), mPageNo(0)
 {
     load(filename);
 }
 
 Mmap::~Mmap()
 {
-    clear();
+    clear(Async);
+}
+
+void Mmap::init()
+{
+    sPageSize = sysconf(_SC_PAGESIZE);
+    s500k = sPageSize;
+    const unsigned long k500 = 512 * 1024;
+    while (s500k < k500) {
+        s500k += sPageSize;
+    }
+    s32m = s500k * 64;
 }
 
 bool Mmap::load(const QByteArray& filename)
 {
-    clear();
+    if (filename.isEmpty()) {
+        mError = "Filename is empty";
+        return false;
+    }
 
-    const long int pageSize = sysconf(_SC_PAGESIZE);
-    Q_ASSERT(pageSize >= 1);
+    if (filename == mFileName)
+        clear(Sync);
+    else
+        clear(Async);
+    mFileName = filename;
 
-    const unsigned int bytesPerBlock = 10 * pageSize;
-    //qWarning("bpb is %u", bytesPerBlock);
+    return reload();
+}
 
-    const int fd = open(filename.constData(), O_RDWR);
+bool Mmap::reload(unsigned int trunc)
+{
+    const int fd = open(mFileName.constData(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH);
     if (fd == -1) {
-        m_error = "Unable to open " + filename;
+        mError = "Unable to open " + mFileName;
         return false;
     }
 
-    struct stat sb;
-    if (fstat(fd, &sb) == -1) {
-        close(fd);
-        m_error = "Unable to stat " + filename;
-        return false;
-    }
+    const int pagesize = sPageSize * 10;
 
-    const off_t fileSize = sb.st_size;
-    if (fileSize == 0) {
-        close(fd);
-        m_error = "File is empty " + filename;
-        return false;
-    }
-
-    const quint64 numBlocks = fileSize / bytesPerBlock;
-    const quint64 remBytes = fileSize % bytesPerBlock;
-
-    quint64 offset = 0;
-    Data data;
-    for (quint64 i = 0; i < numBlocks; ++i) {
-        data.size = bytesPerBlock;
-        data.data = (char*)mmap(0, bytesPerBlock, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
-        if (data.data == (void*)-1) {
+    off_t fileSize = 0;
+    if (!trunc) {
+        struct stat sb;
+        if (fstat(fd, &sb) == -1) {
             close(fd);
-            clear();
-            m_error = "Unable to mmap (bpb) " + filename + ": " + QByteArray::number(bytesPerBlock) + " at " + QByteArray::number(offset) + ", error " + QByteArray(strerror(errno));
+            mError = "Unable to stat " + mFileName;
             return false;
         }
-        m_data.append(data);
-        offset += bytesPerBlock;
+
+        fileSize = sb.st_size;
+        if (!fileSize) {
+            // resize
+            close(fd);
+            return reload(s500k);
+        }
+    } else {
+        if (ftruncate(fd, trunc) == -1) {
+            close(fd);
+            mError = "Failed to truncate " + mFileName;
+            return false;
+        }
+        fileSize = trunc;
+    }
+
+    const quint64 numBlocks = fileSize / pagesize;
+    const quint64 remBytes = fileSize % pagesize;
+
+    quint64 offset = 0;
+    Page data;
+    for (quint64 i = 0; i < numBlocks; ++i) {
+        data.size = pagesize;
+        data.data = (char*)mmap(0, pagesize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
+        if (data.data == (void*)-1) {
+            close(fd);
+            clear(Async);
+            mError = "Unable to mmap (bpb) " + mFileName + ": " + QByteArray::number(pagesize) + " at " + QByteArray::number(offset) + ", error " + QByteArray(strerror(errno));
+            return false;
+        }
+        mPages.append(data);
+        offset += pagesize;
     }
     Q_ASSERT(offset + remBytes == (quint64)fileSize);
 
@@ -75,98 +111,160 @@ bool Mmap::load(const QByteArray& filename)
     data.data = (char*)mmap(0, remBytes, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
     if (data.data == (void*)-1) {
         close(fd);
-        clear();
-        m_error = "Unable to mmap (rem) " + filename + ": " + QByteArray::number(remBytes) + " at " + QByteArray::number(offset) + ", error " + QByteArray(strerror(errno));
+        clear(Async);
+        mError = "Unable to mmap (rem) " + mFileName + ": " + QByteArray::number(remBytes) + " at " + QByteArray::number(offset) + ", error " + QByteArray(strerror(errno));
         return false;
     }
-    m_data.append(data);
+    mPages.append(data);
     close(fd);
 
-    m_size = fileSize;
-    m_bpd = bytesPerBlock;
+    mFileSize = fileSize;
+    mOffset = sizeof(int); // first int is reserved for mFileUsed
+    Q_ASSERT(mFileSize >= sizeof(int));
+    mFileUsed = *reinterpret_cast<const int*>(mPages.at(0).data);
+    if (!mFileUsed)
+        mFileUsed = sizeof(int);
+    seek(0);
 
     return true;
 }
 
-void Mmap::clear()
+void Mmap::clear(SyncType sync)
 {
+    if (mPages.empty())
+        return;
+
     int ret;
-    foreach(const Data& data, m_data) {
+    memcpy(mPages.at(0).data, &mFileUsed, sizeof(int));
+    foreach(const Page& data, mPages) {
+        ret = msync(data.data, data.size, (sync == Async) ? MS_ASYNC : MS_SYNC);
+        Q_ASSERT(ret == 0);
         ret = munmap(data.data, data.size);
         Q_ASSERT(ret == 0);
     }
-    m_data.clear();
-    m_size = 0;
-    m_bpd = 0;
-    m_error.clear();
+    mPages.clear();
+    mError.clear();
+    mFileSize = 0;
+    mOffset = mPageOffset = 0;
+    mFileUsed = 0;
+    mPageNo = 0;
 }
 
-void Mmap::sync()
+void Mmap::ensureSize(unsigned int size)
 {
-    int ret;
-    foreach(const Data& data, m_data) {
-        ret = msync(data.data, data.size, MS_ASYNC);
-        Q_ASSERT(ret == 0);
-    }
+    if (size < mFileSize)
+        return;
+
+    const unsigned int off = mOffset;
+    clear(Sync);
+    reload(size + qMin(qMax(static_cast<unsigned long>(mFileSize), s500k) * 2, s32m));
+    seek(off);
 }
 
-const QByteArray Mmap::data(quint64 offset, unsigned int size) const
+int Mmap::findPage(unsigned int fileOffset, unsigned int* pageOffset) const
 {
-    Q_ASSERT(offset + size <= m_size);
-
-    const int blockOffset = offset % m_bpd;
-    int blockNo = offset / m_bpd;
-    Q_ASSERT(blockNo < m_data.size());
-
-    const Data& d = m_data[blockNo];
-    if (blockOffset + size < d.size) // yay, easy way out
-        return QByteArray::fromRawData(d.data + blockOffset, size);
-
-    // boo!
-    QByteArray data(d.data + blockOffset, d.size - blockOffset);
-    size -= (d.size - blockOffset);
-    for (;;) {
-        Q_ASSERT(blockNo + 1 < m_data.size());
-        const Data& dn = m_data[++blockNo];
-        if (size > dn.size) {
-            data += QByteArray(dn.data, dn.size);
-            size -= dn.size;
-        } else {
-            data += QByteArray(dn.data, size);
-            break;
+    int curSize = 0, curPos = 0;
+    foreach(const Page& data, mPages) {
+        if (curSize + data.size > fileOffset) {
+            Q_ASSERT(fileOffset >= static_cast<unsigned int>(curSize));
+            if (pageOffset)
+                *pageOffset = fileOffset - curSize;
+            return curPos;
         }
+        curSize += data.size;
+        ++curPos;
     }
-    return data;
+    return -1;
 }
 
-void Mmap::update(quint64 offset, const char* data, unsigned int size)
+void Mmap::seek(unsigned int offset)
 {
-    Q_ASSERT(offset + size <= m_size);
+    if (offset == 0)
+        offset = sizeof(int);
+    mOffset = offset;
+    mPageNo = findPage(mOffset, &mPageOffset);
+    if (mPageNo == -1) {
+        ensureSize(offset);
+        mPageNo = findPage(mOffset, &mPageOffset);
+        Q_ASSERT(mPageNo != -1);
+    }
+}
 
-    const int blockOffset = offset % m_bpd;
-    int blockNo = offset / m_bpd;
-    Q_ASSERT(blockNo < m_data.size());
-
-    Data& d = m_data[blockNo];
-    if (blockOffset + size < d.size) { // yay, easy way out
-        memcpy(d.data + blockOffset, data, size);
+void Mmap::read(char* data, unsigned int size, bool* ok) const
+{
+    if (mOffset + size > mFileUsed) {
+        if (ok)
+            *ok = false;
         return;
     }
 
-    // boo!
-    memcpy(d.data + blockOffset, data, d.size - blockOffset);
-    size -= (d.size - blockOffset);
-    data += (d.size - blockOffset);
-    for (;;) {
-        Q_ASSERT(blockNo + 1 < m_data.size());
-        Data& dn = m_data[++blockNo];
-        if (size > dn.size) {
-            memcpy(dn.data, data, dn.size);
-            size -= dn.size;
-            data += dn.size;
-        } else {
-            memcpy(dn.data, data, size);
-            break;
+    if (ok)
+        *ok = true;
+
+    const Page* page = &mPages.at(mPageNo);
+    if (mPageOffset + size < page->size) {
+        memcpy(data, page->data + mPageOffset, size);
+        mPageOffset += size;
+        mOffset += size;
+        if (mPageOffset == page->size - 1) {
+            ++mPageNo;
+            mPageOffset = 0;
         }
+        return;
     }
+
+    // need to copy in blocks
+    unsigned int off = 0, max = 0;
+    while (size) {
+        max = qMax(size, page->size - mPageOffset);
+        Q_ASSERT(mOffset + max <= mFileUsed);
+        memcpy(data + off, page->data + mPageOffset, max);
+        mPageOffset = 0;
+        size -= max;
+        off += max;
+        ++mPageNo;
+        mOffset += max;
+
+        Q_ASSERT((unsigned int)mPages.size() > mPageNo);
+        page = &mPages.at(mPageNo);
+    }
+    mPageOffset = max;
+}
+
+void Mmap::write(const char* data, unsigned int size)
+{
+    ensureSize(mOffset + size);
+
+    const Page* page = &mPages.at(mPageNo);
+    if (mPageOffset + size < page->size) {
+        memcpy(page->data + mPageOffset, data, size);
+        mPageOffset += size;
+        mOffset += size;
+        if (mPageOffset == page->size - 1) {
+            ++mPageNo;
+            mPageOffset = 0;
+        }
+
+        if (mOffset > mFileUsed)
+            mFileUsed = mOffset;
+        return;
+    }
+
+    unsigned int off = 0, max = 0;
+    while (size) {
+        max = qMax(size, page->size - mPageOffset);
+        memcpy(page->data + mPageOffset, data + off, max);
+        mPageOffset = 0;
+        size -= max;
+        off += max;
+        ++mPageNo;
+        mOffset += max;
+
+        Q_ASSERT((unsigned int)mPages.size() > mPageNo);
+        page = &mPages.at(mPageNo);
+    }
+    mPageOffset = max;
+
+    if (mOffset > mFileUsed)
+        mFileUsed = mOffset;
 }

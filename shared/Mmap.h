@@ -3,6 +3,7 @@
 
 #include <QByteArray>
 #include <QVector>
+//#include <QDebug>
 
 class Mmap
 {
@@ -11,36 +12,107 @@ public:
     Mmap(const QByteArray& filename);
     ~Mmap();
 
+    static void init();
+
+    enum SyncType { Sync, Async };
+    void clear(SyncType sync);
     bool load(const QByteArray& filename);
-    void sync();
 
-    bool isValid() const { return m_size > 0; }
-    quint64 size() const { return m_size; }
+    void seek(unsigned int offset);
+    unsigned int offset() const { return mOffset; }
+    unsigned int size() const { return mFileUsed; }
 
-    const QByteArray data(quint64 offset, unsigned int size) const;
-    void update(quint64 offset, const QByteArray& data) { update(offset, data.constData(), data.size()); }
-    void update(quint64 offset, const char* data, unsigned int size);
+    QByteArray fileName() const { return mFileName; }
+    QByteArray lastError() const { return mError; }
 
-    QByteArray lastError() const { return m_error; }
+    template<typename T>
+    T get(bool* ok = 0) const;
+    template<typename T>
+    void set(const T& data);
 
 private:
-    void clear();
+    bool reload(unsigned int trunc = 0);
+
+    int findPage(unsigned int fileOffset, unsigned int* pageOffset) const;
+
+    void ensureSize(unsigned int size);
+    void read(char* data, unsigned int size, bool* ok) const;
+    void write(const char* data, unsigned int size);
+
+    Mmap(const Mmap& other);
+    Mmap& operator=(const Mmap& other);
 
 private:
-    struct Data
+    struct Page
     {
         char* data;
         unsigned int size;
     };
+    QVector<Page> mPages;
+    unsigned int mFileSize, mFileUsed;
+    mutable unsigned int mOffset, mPageOffset;
+    mutable int mPageNo;
+    QByteArray mFileName, mError;
 
-    QVector<Data> m_data;
-    quint64 m_size;
-    unsigned int m_bpd;
-    QByteArray m_error;
-
-private:
-    Mmap(const Mmap& other);
-    Mmap& operator=(const Mmap& other);
+    static unsigned long s500k, s32m, sPageSize;
 };
+
+template<typename T>
+inline T Mmap::get(bool* ok) const
+{
+    T data;
+    read(reinterpret_cast<char*>(&data), sizeof(T), ok);
+}
+
+template<typename T>
+inline void Mmap::set(const T& data)
+{
+    write(&data, sizeof(T));
+}
+
+template<>
+inline QByteArray Mmap::get<QByteArray>(bool* ok) const
+{
+    int size;
+    bool iok;
+    read(reinterpret_cast<char*>(&size), sizeof(int), &iok);
+    if (!iok) {
+        if (ok)
+            *ok = false;
+        return QByteArray();
+    }
+
+    //if (mFileName.endsWith("/a.db"))
+    //    qDebug() << "reading bytearray of size" << size << "at" << mOffset - sizeof(int) << "with filename" << mFileName;
+    QByteArray data(size, Qt::Uninitialized);
+    read(data.data(), size, &iok);
+    //if (mFileName.endsWith("/a.db"))
+    //    qDebug() << "read ok?" << iok;
+    if (ok)
+        *ok = iok;
+    return iok ? data : QByteArray();
+}
+
+template<>
+inline void Mmap::set<QByteArray>(const QByteArray& data)
+{
+    int size = data.size();
+    int oldsize = -1;
+
+    if (mOffset + sizeof(int) < mFileUsed) {
+        // assume that we're overwriting an existing QByteArray
+        // if this is not the case then this will likely fail miserably
+        const unsigned int off = offset();
+        read(reinterpret_cast<char*>(&oldsize), sizeof(int), 0);
+        seek(off);
+        Q_ASSERT(oldsize >= size);
+    }
+
+    //if (mFileName.endsWith("/a.db"))
+    //    qDebug() << "writing bytearray of size" << (oldsize != -1 ? oldsize : size) << "at" << mOffset << "with filename" << mFileName;
+
+    write(reinterpret_cast<const char*>(oldsize != -1 ? &oldsize : &size), sizeof(int));
+    write(data.constData(), size);
+}
 
 #endif // MMAP_H
