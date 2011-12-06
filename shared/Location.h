@@ -2,7 +2,6 @@
 #define Location_h
 
 #include <QtCore>
-#include <AtomicString.h>
 #include <leveldb/db.h>
 #include <Path.h>
 #include <RTags.h>

@@ -20,6 +20,29 @@ using namespace RTags;
 static const bool pchEnabled = false; //!getenv("RTAGS_NO_PCH") && false;
 static QElapsedTimer timer;
 
+class CompileRunnable : public QRunnable
+{
+public:
+    CompileRunnable(RBuild *rb, const Path &p, const QList<QByteArray> &a, Precompile *pc)
+        : rbuild(rb), path(p), args(a), pch(pc)
+    {
+        setAutoDelete(true);
+    }
+
+    virtual void run()
+    {
+        const qint64 before = timer.elapsed();
+        rbuild->compile(args, path, pch);
+        const qint64 elapsed = timer.elapsed();
+        fprintf(stderr, "parsed %s, (%lld ms)\n", path.constData(), elapsed - before);
+    }
+private:
+    RBuild *rbuild;
+    const Path path;
+    const QList<QByteArray> args;
+    Precompile *pch;
+};
+
 RBuild::RBuild(QObject *parent)
     : QObject(parent), mData(new RBuildPrivate)
 {
@@ -92,199 +115,58 @@ static inline int fileNameLength(const char *data, int len)
 
 bool RBuild::updateDB()
 {
-    // const qint64 beforeLoad = timer.elapsed();
-    // if (!openDB())
-    //     return false;
-    // QHash<Path, QList<QByteArray> > dirty;
-    // int dirtySourceFiles = 0;
-    // std::auto_ptr<leveldb::Iterator> it(mData->db->NewIterator(leveldb::ReadOptions()));
-    // for (it->Seek("f:"); it->Valid(); it->Next()) {
-    //     const leveldb::Slice key = it->key();
-    //     if (strncmp(key.data(), "f:", 2))
-    //         break;
-    //     QList<QByteArray> args;
-    //     quint64 lastModified;
-    //     QHash<Path, quint64> dependencies;
+    const qint64 beforeLoad = timer.elapsed();
+    if (!openDB(Update))
+        return false;
+    QList<Source> sources = mData->db->read<QList<Source> >("sources");
+    QList<Source*> reparse;
+    QSet<Path> dirty;
+    const int sourceCount = sources.size();
+    for (int i=0; i<sourceCount; ++i) {
+        const Source &source = sources.at(i);
+        bool dirtySource = (source.path.lastModified() != source.lastModified);
+        for (QHash<Path, quint64>::const_iterator it = source.dependencies.constBegin();
+             it != source.dependencies.constEnd(); ++it) {
+            if (dirty.contains(it.key())) {
+                dirtySource = true;
+            } else if (it.key().lastModified() != it.value()) {
+                dirty.insert(it.key());
+                dirtySource = true;
+            }
+        }
+        if (dirtySource) {
+            dirty.insert(source.path);
+            reparse.append(&sources[i]);
+        }
+    }
+    if (reparse.isEmpty()) {
+        printf("Nothing has changed (%lld ms)\n", timer.elapsed());
+        return true;
+    }
 
-    //     const leveldb::Slice value = it->value();
-    //     const QByteArray data = QByteArray::fromRawData(value.data(), value.size());
-    //     QDataStream ds(data);
-    //     ds >> args >> lastModified >> dependencies;
-    //     const Path file(key.data() + 2, key.size() - 2);
-    //     bool recompile = false;
-    //     if (lastModified != file.lastModified()) {
-    //         recompile = true;
-    //         // quint64 lm = dep.file.lastModified();
-    //         // qDebug() << dep.file << "has changed" << ctime(&lm) << ctime(&lastModified);
-    //     } else {
-    //         for (QHash<Path, quint64>::const_iterator it = dependencies.constBegin(); it != dependencies.constEnd(); ++it) {
-    //             if (dirty.contains(it.key())) {
-    //                 recompile = true;
-    //                 break;
-    //             } else if (it.key().lastModified() != it.value()) {
-    //                 dirty.insert(it.key(), QList<QByteArray>());
-    //                 recompile = true;
-    //                 break;
-    //             }
-    //         }
-    //     }
+    mData->db->invalidateEntries(dirty);
+    mData->pendingJobs += reparse.size();
+    foreach(Source *source, reparse) {
+        mData->threadPool.start(new CompileRunnable(this, source->path, source->args, 0));
+    }
+    QEventLoop loop;
+    connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
+    loop.exec();
 
-    //     if (recompile) {
-    //         ++dirtySourceFiles;
-    //         dirty.insert(file, args);
-    //     }
-    //     // qDebug() << file << args.raw() << ctime(&lastModified) << dependencies;
-    // }
-    // if (!dirtySourceFiles) {
-    //     printf("Nothing has changed (%lld ms)\n", timer.elapsed());
-    //     return true;
-    // }
-    // if (!readFromDB(mData->db, "sourceDir", mData->sourceDir)) {
-    //     fprintf(stderr, "Can't read existing data for src dir\n");
-    //     return false;
-    // }
+    for (QHash<QByteArray, Entity>::const_iterator it = mData->entities.begin();
+         it != mData->entities.end(); ++it) {
+        const Entity &entity = it.value();
+        // qDebug() << "writing entity" << entity.name
+        //          << entity.definition
+        //          << entity.declarations
+        //          << entity.references;
+        mData->db->writeEntity(entity.name, entity.parentNames, entity.definition,
+                               entity.declarations, entity.references);
+    }
+    mData->db->write("sources", mData->sources);
 
-    // leveldb::WriteBatch batch;
-    // for (it->Seek("/"); it->Valid(); it->Next()) {
-    //     const leveldb::Slice key = it->key();
-    //     Q_ASSERT(!key.empty());
-    //     if (key.data()[0] != '/')
-    //         break;
-    //     const Path p = QByteArray::fromRawData(key.data(), fileNameLength(key.data(), key.size()));
-    //     if (dirty.contains(p)) {
-    //         batch.Delete(key);
-    //         // qDebug() << "ditching" << QByteArray::fromRawData(key.data(), key.size());
-    //         continue;
-    //     }
-    //     const leveldb::Slice value = it->value();
-    //     const QByteArray v = QByteArray::fromRawData(value.data(), value.size());
-    //     QDataStream ds(v);
-    //     QByteArray referredTo;
-    //     ds >> referredTo; // read referred to
-    //     QSet<Cursor> references;
-    //     ds >> references;
-    //     bool changed = false;
-    //     // qDebug() << "looking at key" << QByteArray::fromRawData(key.data(), key.size()) << references.size();
-
-    //     QSet<Cursor>::iterator sit = references.begin();
-    //     while (sit != references.end()) {
-    //         const QByteArray fileName = (*sit).key.fileName.toByteArray();
-    //         if (dirty.contains(*static_cast<const Path*>(&fileName))) {
-    //             // qDebug() << "ditched reference to" << key << "from" << (*sit).key;
-    //             sit = references.erase(sit);
-    //             changed = true;
-    //         } else {
-    //             ++sit;
-    //         }
-    //     }
-    //     if (changed) {
-    //         // ### could really hang on to this whole thing since we're
-    //         // ### quite likely to make an additional change to it
-    //         QByteArray out;
-    //         {
-    //             QDataStream d(&out, QIODevice::WriteOnly);
-    //             d << referredTo << references;
-    //         }
-    //         // qDebug() << "writing to key" << key;
-    //         batch.Put(key, leveldb::Slice(out.constData(), out.size()));
-    //     }
-    // }
-    // for (it->Seek("d:"); it->Valid(); it->Next()) {
-    //     const leveldb::Slice key = it->key();
-    //     Q_ASSERT(!key.empty());
-    //     if (strncmp(key.data(), "d:", 2))
-    //         break;
-    //     QSet<AtomicString> locations = readFromSlice<QSet<AtomicString> >(it->value());
-    //     bool foundDirty = false;
-    //     QSet<AtomicString>::iterator it = locations.begin();
-    //     while (it != locations.end()) {
-    //         const AtomicString &k = (*it);
-    //         const Path p = QByteArray::fromRawData(k.constData(), fileNameLength(k.constData(), k.size()));
-    //         if (dirty.contains(p)) {
-    //             foundDirty = true;
-    //             // qDebug() << "ditching" << k;
-    //             it = locations.erase(it);
-    //         } else {
-    //             ++it;
-    //         }
-    //     }
-    //     if (foundDirty) {
-    //         // qDebug() << "Found dirty for" << QByteArray::fromRawData(key.data(), key.size());
-    //         if (locations.isEmpty()) {
-    //             batch.Delete(key);
-    //         } else {
-    //             writeToBatch(&batch, key, locations);
-    //         }
-
-    //     }
-    // }
-
-    // // return true;
-    // // qDebug() << dirty;
-
-    // bool pchDirty = false;
-    // {
-    //     std::string value;
-    //     if (mData->db->Get(leveldb::ReadOptions(), "pch", &value).ok()) {
-    //         const QByteArray data = QByteArray::fromRawData(value.c_str(), value.size());
-    //         QDataStream ds(data);
-    //         int pchCount;
-    //         ds >> pchCount;
-    //         for (int i=0; i<pchCount; ++i) {
-    //             Path pch, header;
-    //             GccArguments args;
-    //             QHash<Path, quint64> dependencies;
-    //             ds >> pch >> header >> args >> dependencies;
-    //             if (pch.exists() && header.exists()) {
-    //                 bool ok = true;
-    //                 for (QHash<Path, quint64>::const_iterator it = dependencies.constBegin();
-    //                      it != dependencies.constEnd(); ++it) {
-    //                     if (dirty.contains(it.key())) {
-    //                         ok = false;
-    //                         break;
-    //                     } else if (it.key().lastModified() != it.value()) {
-    //                         dirty.insert(it.key(), GccArguments());
-    //                         ok = false;
-    //                         break;
-    //                     }
-    //                 }
-    //                 if (ok) {
-    //                     Precompile::create(args, pch, header, dependencies);
-    //                 } else {
-    //                     pchDirty = false;
-    //                 }
-    //             }
-    //         }
-    //     }
-    // }
-
-    // printf("Loading data took %lld ms\n", timer.elapsed() - beforeLoad);
-
-    // for (QHash<Path, GccArguments>::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
-    //     const GccArguments &args = it.value();
-    //     if (args.isCompile()) {
-    //         processFile(args);
-    //     }
-    // }
-    // unsigned writeDataFlags = LookupReferencesFromDatabase;
-    // if (pchDirty) {
-    //     precompileAll();
-    // } else {
-    //     writeDataFlags |= ExcludePCH;
-    // }
-    // QEventLoop loop;
-    // connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
-    // compileAll();
-    // loop.exec();
-
-    // // if (count != mData->data.size())
-    // //     fprintf(stderr, "Item count changed from %d to %d\n",
-    // //             count, mData->data.size());
-
-    // writeData(&batch, writeDataFlags);
-    // mData->db->Write(leveldb::WriteOptions(), &batch);
-    // closeDB();
-    // printf("Updated db %lld ms\n", timer.elapsed());
+    closeDB();
+    printf("Updated db %lld ms\n", timer.elapsed());
     return true;
 }
 
@@ -304,34 +186,11 @@ void RBuild::save()
     qApp->quit();
 }
 
-class CompileRunnable : public QRunnable
-{
-public:
-    CompileRunnable(RBuild *rbuild, const GccArguments &args, Precompile *pch)
-        : mRbuild(rbuild), mArgs(args), mPch(pch)
-    {
-        setAutoDelete(true);
-    }
-
-    virtual void run()
-    {
-        const qint64 before = timer.elapsed();
-        mRbuild->compile(mArgs.clangArgs(), mArgs.input(), mPch);
-        const qint64 elapsed = timer.elapsed();
-        fprintf(stderr, "parsed %s, (%lld ms)\n",
-                mArgs.input().constData(), elapsed - before);
-    }
-private:
-    RBuild *mRbuild;
-    const GccArguments mArgs;
-    Precompile *mPch;
-};
-
 void RBuild::compileAll()
 {
     mData->pendingJobs += mData->files.size();
     foreach(const GccArguments &args, mData->files) {
-        mData->threadPool.start(new CompileRunnable(this, args, 0));
+        mData->threadPool.start(new CompileRunnable(this, args.input(), args.clangArgs(), 0));
     }
     // for (QHash<Precompile*, QList<GccArguments> >::const_iterator it = mData->filesByPrecompile.begin();
     //      it != mData->filesByPrecompile.end(); ++it) {
@@ -347,6 +206,7 @@ void RBuild::processFile(const GccArguments& arguments)
 {
     if (!pchEnabled) {
         mData->files.append(arguments);
+        // ### could start to compile now
     } else {
         Precompile *precompiler = Precompile::precompiler(arguments);
         Q_ASSERT(precompiler);
@@ -732,7 +592,7 @@ void RBuild::onPrecompileFinished(Precompile *pch)
     Precompile *p = pch->isCompiled() ? pch : 0;
     foreach(const GccArguments &args, mData->filesByPrecompile[pch]) {
         ++mData->pendingJobs;
-        mData->threadPool.start(new CompileRunnable(this, args, p));
+        mData->threadPool.start(new CompileRunnable(this, args.input(), args.clangArgs(), p));
     }
 }
 

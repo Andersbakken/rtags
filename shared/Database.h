@@ -80,7 +80,7 @@ public:
                      const QSet<Location> &declarations,
                      const QSet<Location> &references);
 
-    void markDirtyFiles(const QList<Path> &paths);
+    void invalidateEntries(const QSet<Path> &paths);
 
     Location createLocation(const QByteArray &arg, const Path &cwd = Path());
     QByteArray locationToString(const Location &location) const;
@@ -160,7 +160,7 @@ public:
     {
         return data;
     }
-    
+
     virtual iterator *createIterator(ConnectionType) const = 0;
 protected:
     virtual bool openDatabase(const Path &db, Mode mode) = 0;

@@ -430,7 +430,6 @@ bool FileIterator::next()
         if (k.at(0) != '\0')
             break;
     }
-
     return true;
 }
 

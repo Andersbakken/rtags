@@ -116,7 +116,7 @@ static inline bool filterLocations(Database::iterator *iterator, const QSet<int>
     return changed;
 }
 
-void Database::markDirtyFiles(const QList<Path> &paths)
+void Database::invalidateEntries(const QSet<Path> &paths)
 {
     QSet<int> dirtyFileIds;
     foreach(const Path &p, paths) {

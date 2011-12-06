@@ -3,3 +3,4 @@
 Makefile
 moc_*
 cplusplus-frontend/cplusplus0
+.rtags.db
