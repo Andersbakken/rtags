@@ -63,7 +63,7 @@ bool Mmap::reload(unsigned int trunc)
         return false;
     }
 
-    const int pagesize = sPageSize * 10;
+    const int pagesize = s500k;
 
     off_t fileSize = 0;
     if (!trunc) {

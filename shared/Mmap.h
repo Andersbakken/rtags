@@ -82,6 +82,20 @@ inline QByteArray Mmap::get<QByteArray>(bool* ok) const
         return QByteArray();
     }
 
+    Q_ASSERT(mPageNo < mPages.size());
+    const Page* page = &mPages.at(mPageNo);
+    if (mPageOffset + size <= page->size) { // do fromRawData() for efficiency
+        const unsigned int off = mPageOffset;
+        mPageOffset += size;
+        if (mPageOffset == page->size) {
+            ++mPageNo;
+            mPageOffset = 0;
+        }
+        if (ok)
+            *ok = true;
+        return QByteArray::fromRawData(page->data + off, size);
+    }
+
     //if (mFileName.endsWith("/a.db"))
     //    qDebug() << "reading bytearray of size" << size << "at" << mOffset - sizeof(int) << "with filename" << mFileName;
     QByteArray data(size, Qt::Uninitialized);

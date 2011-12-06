@@ -58,7 +58,7 @@ qint64 FdDevice::writeData(const char *data, qint64 len)
 class FileIndex
 {
 public:
-    enum { PartialMax = 4 };
+    enum { PartialMax = 16 };
     enum FindType { Exact, LowerBound, UpperBound };
 
     FileIndex();
