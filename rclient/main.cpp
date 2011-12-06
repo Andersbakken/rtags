@@ -9,6 +9,7 @@
 #include <Location.h>
 #include <AtomicString.h>
 #include "Database.h"
+#include "Mmap.h"
 
 using namespace RTags;
 static inline int readLine(FILE *f, char *buf, int max)
@@ -81,6 +82,8 @@ int main(int argc, char** argv)
         { 0, 0, 0, 0 },
     };
     const char *shortOptions = "hf:d:r:l:Dps:P:nt:";
+
+    Mmap::init();
 
     QList<QByteArray> dbPaths;
 

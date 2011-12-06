@@ -1,5 +1,6 @@
 #include "FileDB.h"
-#include <QVector>
+#include "Mmap.h"
+#include <QList>
 #include <QIODevice>
 #include <QDataStream>
 #include <sys/types.h>
@@ -61,9 +62,9 @@ public:
     enum FindType { Exact, LowerBound, UpperBound };
 
     FileIndex();
-    FileIndex(int i, int d);
+    FileIndex(int i, Mmap* m);
 
-    void init(int i, int d);
+    void init(int i, Mmap* m);
     void clear();
 
     void read();
@@ -80,15 +81,16 @@ public:
         QByteArray partial;
         int offset;
         int size;
-        int db;
+        Mmap* mmap;
 
         bool operator<(const Entry& other) const;
 
         QByteArray key() const;
     };
 
-    QVector<Entry> entries;
-    int idx, db;
+    QList<Entry> entries;
+    int idx;
+    Mmap* mmap;
     bool dirty;
 };
 
@@ -97,12 +99,8 @@ QByteArray FileIndex::Entry::key() const
     if (offset == -1)
         return partial;
 
-    ::lseek(db, offset, SEEK_SET);
-    QByteArray k(size, '\0');
-    ssize_t r = ::read(db, k.data(), size);
-    (void)r;
-    Q_ASSERT(r == size);
-    return k;
+    mmap->seek(offset);
+    return mmap->get<QByteArray>();
 }
 
 bool FileIndex::Entry::operator<(const Entry& other) const
@@ -120,31 +118,32 @@ bool FileIndex::Entry::operator<(const Entry& other) const
 }
 
 FileIndex::FileIndex()
-    : idx(-1), db(-1), dirty(false)
+    : idx(-1), mmap(0), dirty(false)
 {
 }
 
-FileIndex::FileIndex(int i, int d)
+FileIndex::FileIndex(int i, Mmap* m)
 {
-    init(i, d);
+    init(i, m);
 }
 
-void FileIndex::init(int i, int d)
+void FileIndex::init(int i, Mmap* m)
 {
     idx = i;
-    db = d;
+    mmap = m;
     dirty = false;
     read();
 }
 
 void FileIndex::clear()
 {
-    Q_ASSERT(idx != -1);
+    if (idx == -1)
+        return;
 
     ::close(idx);
     dirty = false;
     idx = -1;
-    db = -1;
+    mmap = 0;
     entries.clear();
 }
 
@@ -157,7 +156,7 @@ void FileIndex::read()
     stream >> entries;
 
     for (int i = 0; i < entries.size(); ++i) {
-        entries[i].db = db;
+        entries[i].mmap = mmap;
     }
 }
 
@@ -180,11 +179,14 @@ void FileIndex::write()
 
 void FileIndex::add(const QByteArray &key, int offset)
 {
+    //if (!(entries.size() % 1000))
+    //    qDebug() << "entries" << entries.size() << mmap->fileName();
+
     Entry e;
     e.partial = key.left(PartialMax);
     e.offset = offset;
     e.size = key.size();
-    e.db = db;
+    e.mmap = mmap;
     entries.append(e);
     dirty = true;
 }
@@ -196,19 +198,19 @@ bool FileIndex::find(FindType type, const QByteArray &key, int *offset, int *siz
     Entry find;
     find.partial = key;
     find.offset = -1;
-    find.db = -1;
+    find.mmap = 0;
     find.size = key.size();
 
-    QVector<Entry>::const_iterator i;
+    QList<Entry>::const_iterator i;
     switch (type) {
     case LowerBound:
-        i = qLowerBound(entries, find);
+        i = qLowerBound(entries.begin(), entries.end(), find);
         break;
     case UpperBound:
-        i = qUpperBound(entries, find);
+        i = qUpperBound(entries.begin(), entries.end(), find);
         break;
     default:
-        i = qBinaryFind(entries, find);
+        i = qBinaryFind(entries.begin(), entries.end(), find);
         break;
     }
 
@@ -227,14 +229,14 @@ int FileIndex::remove(const QByteArray &key)
     Entry find;
     find.partial = key;
     find.offset = -1;
-    find.db = -1;
+    find.mmap = 0;
     find.size = key.size();
 
-    QVector<Entry>::const_iterator i = qBinaryFind(entries, find);
+    QList<Entry>::iterator i = qBinaryFind(entries.begin(), entries.end(), find);
     if (i == entries.end())
         return -1;
     const int at = (*i).offset;
-    entries.remove(i - entries.begin());
+    entries.erase(i);
     return at;
 }
 
@@ -250,7 +252,7 @@ public:
 private:
     FileDB::ConnectionType type;
     FileDB::Mode mode;
-    int db;
+    mutable Mmap mmap;
     mutable FileIndex idx;
 };
 
@@ -275,9 +277,9 @@ FileConnection::FileConnection(FileDB::ConnectionType t, FileDB::Mode dbm, const
     const int f = modeToFlags(mode);
     const int m = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
     int idxfd = ::open((p + "/" + fn + ".idx").constData(), f, m);
-    db = ::open((p + "/" + fn + ".db").constData(), f, m);
+    mmap.load(p + "/" + fn + ".db");
 
-    idx.init(idxfd, db);
+    idx.init(idxfd, &mmap);
 }
 
 FileConnection::~FileConnection()
@@ -292,12 +294,9 @@ QByteArray FileConnection::readData(const QByteArray &key) const
     if (idx.find(FileIndex::Exact, key, &offset, &size)) {
         if (size == 0)
             return QByteArray();
-        ::lseek(db, offset + size, SEEK_SET);
-        int vsz;
-        ssize_t r = ::read(db, &vsz, sizeof(int));
-        QByteArray value(vsz, '\0');
-        r = ::read(db, value.data(), vsz);
-        return value;
+        mmap.seek(offset + size + sizeof(int));
+        QByteArray v = mmap.get<QByteArray>();
+        return v;
     }
     return QByteArray();
 }
@@ -308,26 +307,16 @@ void FileConnection::writeData(const QByteArray &key, const QByteArray &value)
         int at = idx.remove(key);
         if (at == -1)
             return;
-        ::lseek(db, at, SEEK_SET);
-        ssize_t w = ::write(db, '\0', 1);
-        (void)w;
+        mmap.seek(at);
+        mmap.set(QByteArray(1, '\0'));
         return;
     }
 
-    off_t pos = ::lseek(db, 0, SEEK_END);
-    if (pos == -1) // ouch
-        return;
-    int sz = key.size();
-    ssize_t w = ::write(db, &sz, sizeof(int));
-    Q_ASSERT(w == sizeof(int));
-    w = ::write(db, key.constData(), sz);
-    Q_ASSERT(w == sz);
-    sz = value.size();
-    w = ::write(db, &sz, sizeof(int));
-    Q_ASSERT(w == sizeof(int));
-    w = ::write(db, value.constData(), sz);
-    Q_ASSERT(w == sz);
-    idx.add(key, pos + sizeof(int));
+    const unsigned int pos = mmap.size();
+    mmap.seek(pos);
+    mmap.set(key);
+    mmap.set(value);
+    idx.add(key, pos);
 }
 
 class FileIterator : public Database::iterator
@@ -346,35 +335,31 @@ private:
 private:
     Path path;
     FileIndex idx;
+    Mmap mmap;
     int db;
-    int pos;
     FileDB::Mode mode;
 
     QByteArray k, v;
 };
 
 FileIterator::FileIterator(FileDB::ConnectionType t, FileDB::Mode m, const Path& p)
-    : Database::iterator(t), path(p), db(-1), pos(0), mode(m)
+    : Database::iterator(t), path(p), mode(m)
 {
     open(t);
 }
 
 void FileIterator::open(FileDB::ConnectionType t)
 {
-    if (db != -1) {
-        ::close(db);
-        idx.clear();
-    }
-
-    pos = 0;
+    mmap.clear(Mmap::Sync);
+    idx.clear();
 
     char fn = char('a' + t);
     const int f = modeToFlags(mode);
     const int m = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
     int idxfd = ::open((path + "/" + fn + ".idx").constData(), f, m);
-    db = ::open((path + "/" + fn + ".db").constData(), f, m);
+    mmap.load(path + "/" + fn + ".db");
 
-    idx.init(idxfd, db);
+    idx.init(idxfd, &mmap);
 
     next();
 }
@@ -393,8 +378,8 @@ bool FileIterator::seek(const QByteArray &key)
 {
     int offset;
     if (idx.find(FileIndex::LowerBound, key, &offset)) {
-        pos = offset - sizeof(int);
-        next(); // next() will see to 'pos' before reading
+        mmap.seek(offset);
+        next();
         return true;
     }
     return false;
@@ -402,29 +387,15 @@ bool FileIterator::seek(const QByteArray &key)
 
 bool FileIterator::next()
 {
-    ::lseek(db, pos, SEEK_SET); // ### how efficient is this if the current position already is at 'pos'?
-
+    bool ok;
     forever {
-        int sz;
-        ssize_t r = ::read(db, &sz, sizeof(int));
-        if (r < (int)sizeof(int)) {
+        k = mmap.get<QByteArray>(&ok);
+        if (!ok) {
             k.clear();
             v.clear();
             return false;
         }
-
-        Q_ASSERT(r == sizeof(int));
-        k.resize(sz);
-        r = ::read(db, k.data(), sz);
-        Q_ASSERT(r == sz);
-        pos += sizeof(int) + sz;
-
-        r = ::read(db, &sz, sizeof(int));
-        Q_ASSERT(r == sizeof(int));
-        v.resize(sz);
-        r = ::read(db, v.data(), sz);
-        Q_ASSERT(r == sz);
-        pos += sizeof(int) + sz;
+        v = mmap.get<QByteArray>();
 
         Q_ASSERT(!k.isEmpty());
         if (k.at(0) != '\0')

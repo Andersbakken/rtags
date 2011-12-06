@@ -1,6 +1,7 @@
 #include "RBuild.h"
 #include "Path.h"
 #include "Precompile.h"
+#include "Mmap.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <getopt.h>
@@ -37,6 +38,8 @@ int main(int argc, char** argv)
     Path db;
     Path srcDir;
     bool update = false;
+
+    Mmap::init();
 
     PrecompileScope prescope;
 

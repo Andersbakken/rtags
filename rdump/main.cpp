@@ -6,6 +6,7 @@
 #include <QtCore>
 #include <GccArguments.h>
 #include "Database.h"
+#include "Mmap.h"
 
 using namespace RTags;
 
@@ -62,6 +63,8 @@ static inline bool parseType(const char* a, int* type)
 
 int main(int argc, char** argv)
 {
+    Mmap::init();
+
     bool createExpect = false;
     int opt, type = All;
     while ((opt = getopt(argc, argv, "eht:")) != -1) {

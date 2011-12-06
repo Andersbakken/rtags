@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <math.h>
 #include <errno.h>
+//#include <QDebug>
 
 unsigned long Mmap::s500k;
 unsigned long Mmap::s32m;
@@ -80,6 +81,7 @@ bool Mmap::reload(unsigned int trunc)
             return reload(s500k);
         }
     } else {
+        //qDebug() << "trunc to" << trunc;
         if (ftruncate(fd, trunc) == -1) {
             close(fd);
             mError = "Failed to truncate " + mFileName;
@@ -87,6 +89,8 @@ bool Mmap::reload(unsigned int trunc)
         }
         fileSize = trunc;
     }
+
+    Q_ASSERT(!(fileSize % sPageSize));
 
     const quint64 numBlocks = fileSize / pagesize;
     const quint64 remBytes = fileSize % pagesize;
@@ -155,6 +159,9 @@ void Mmap::ensureSize(unsigned int size)
     if (size < mFileSize)
         return;
 
+    size -= (size % sPageSize);
+    size += sPageSize;
+
     const unsigned int off = mOffset;
     clear(Sync);
     reload(size + qMin(qMax(static_cast<unsigned long>(mFileSize), s500k) * 2, s32m));
@@ -215,25 +222,36 @@ void Mmap::read(char* data, unsigned int size, bool* ok) const
 
     // need to copy in blocks
     unsigned int off = 0, max = 0;
-    while (size) {
-        max = qMax(size, page->size - mPageOffset);
-        Q_ASSERT(mOffset + max <= mFileUsed);
+    for (;;) {
+        max = qMin(size, page->size - mPageOffset);
         memcpy(data + off, page->data + mPageOffset, max);
-        mPageOffset = 0;
+        mPageOffset += max;
+
+        Q_ASSERT(mPageOffset <= page->size);
+        Q_ASSERT(size >= max);
         size -= max;
         off += max;
-        ++mPageNo;
         mOffset += max;
 
-        Q_ASSERT((unsigned int)mPages.size() > mPageNo);
-        page = &mPages.at(mPageNo);
+        if (mPageOffset == page->size) {
+            mPageOffset = 0;
+            ++mPageNo;
+
+            Q_ASSERT((unsigned int)mPages.size() > mPageNo || !size);
+            if (size)
+                page = &mPages.at(mPageNo);
+        }
+
+        if (!size)
+            break;
     }
-    mPageOffset = max;
 }
 
 void Mmap::write(const char* data, unsigned int size)
 {
     ensureSize(mOffset + size);
+
+    Q_ASSERT(mPageNo < (unsigned int)mPages.size());
 
     const Page* page = &mPages.at(mPageNo);
     if (mPageOffset + size < page->size) {
@@ -251,19 +269,29 @@ void Mmap::write(const char* data, unsigned int size)
     }
 
     unsigned int off = 0, max = 0;
-    while (size) {
-        max = qMax(size, page->size - mPageOffset);
+    for (;;) {
+        max = qMin(size, page->size - mPageOffset);
         memcpy(page->data + mPageOffset, data + off, max);
-        mPageOffset = 0;
+        mPageOffset += max;
+
+        Q_ASSERT(mPageOffset <= page->size);
+        Q_ASSERT(size >= max);
         size -= max;
         off += max;
-        ++mPageNo;
         mOffset += max;
 
-        Q_ASSERT((unsigned int)mPages.size() > mPageNo);
-        page = &mPages.at(mPageNo);
+        if (mPageOffset == page->size) {
+            mPageOffset = 0;
+            ++mPageNo;
+
+            Q_ASSERT((unsigned int)mPages.size() > mPageNo || !size);
+            if (size)
+                page = &mPages.at(mPageNo);
+        }
+
+        if (!size)
+            break;
     }
-    mPageOffset = max;
 
     if (mOffset > mFileUsed)
         mFileUsed = mOffset;
