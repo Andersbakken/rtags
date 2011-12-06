@@ -116,7 +116,7 @@ static inline bool filterLocations(Database::iterator *iterator, const QSet<int>
     return changed;
 }
 
-void Database::markDirtyFiles(const QList<Path> &paths)
+void Database::invalidateEntries(const QSet<Path> &paths)
 {
     QSet<int> dirtyFileIds;
     foreach(const Path &p, paths) {
@@ -426,14 +426,14 @@ void Database::writeEntity(const QByteArray &symbolName,
         }
     }
 
-    DictionaryEntry entry;
-    entry.scope = parentNames;
-    entry.locations = declarations;
-    if (definition.file)
-        entry.locations.insert(definition);
-    if (symbolName.isEmpty())
-        return;
-    mDictionary[symbolName].insert(entry);
+    if (!symbolName.isEmpty()) {
+        DictionaryEntry entry;
+        entry.scope = parentNames;
+        entry.locations = declarations;
+        if (definition.file)
+            entry.locations.insert(definition);
+        mDictionary[symbolName].insert(entry);
+    }
 }
 
 QByteArray Database::locationToString(const Location &location) const

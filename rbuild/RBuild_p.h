@@ -6,7 +6,8 @@
 #include "RBuild.h"
 #include <QList>
 #include <QHash>
-#include "RTags.h"
+#include <RTags.h>
+#include <Source.h>
 #include <Location.h>
 #include <Database.h>
 
@@ -18,31 +19,6 @@ struct Entity {
     Location definition;
     QSet<Location> declarations, references;
 };
-
-struct Source {
-    Path path;
-    QList<QByteArray> args;
-    quint64 lastModified;
-    QHash<Path, quint64> dependencies;
-};
-
-static inline QDebug operator<<(QDebug dbg, const Source &s)
-{
-    dbg << s.path << s.args << s.lastModified << s.dependencies;
-    return dbg;
-}
-
-static inline QDataStream &operator<<(QDataStream &ds, const Source &s)
-{
-    ds << s.path << s.args << s.lastModified << s.dependencies;
-    return ds;
-}
-
-static inline QDataStream &operator>>(QDataStream &ds, Source &s)
-{
-    ds >> s.path >> s.args >> s.lastModified >> s.dependencies;
-    return ds;
-}
 
 struct RBuildPrivate
 {

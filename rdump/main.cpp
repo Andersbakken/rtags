@@ -5,6 +5,7 @@
 #include <RTags.h>
 #include <QtCore>
 #include <GccArguments.h>
+#include <Source.h>
 #include "Database.h"
 #include "Mmap.h"
 
@@ -61,6 +62,17 @@ static inline bool parseType(const char* a, int* type)
     return true;
 }
 
+static Location locationFromKey(const QByteArray &key)
+{
+    Location loc;
+    unsigned *uints[] = { &loc.file, &loc.line, &loc.column };
+    const QList<QByteArray> parts = key.split(':');
+    for (int i=0; i<qMin(3, parts.size()); ++i) {
+        *uints[i] = parts.at(i).toUInt();
+    }
+    return loc;
+}
+
 int main(int argc, char** argv)
 {
     Mmap::init();
@@ -106,14 +118,49 @@ int main(int argc, char** argv)
                         printf(" (%d)\n", t);
                     } else {
                         switch (i) {
-                        case Database::Targets: {
-                            Location loc = it->value<Location>();
-                            printf(" (%d:%d:%d)", loc.file, loc.line, loc.column);
-                            break; }
+                        case Database::Targets:
+                            printf(" (%s => %s)\n",
+                                   db->locationToString(locationFromKey(it->key())).constData(),
+                                   db->locationToString(it->value<Location>()).constData());
+                            break;
+                        case Database::General:
+                            if (it->key() == "files") {
+                                printf("\n");
+                                foreach(const Path &file, it->value<QSet<Path> >()) {
+                                    printf("    %s\n", file.constData());
+                                }
+                            } else if (it->key() == "filesByName") {
+                                printf("\n");
+                                const QHash<Path, int> filesToIndex = it->value<QHash<Path, int> >();
+                                for (QHash<Path, int>::const_iterator it = filesToIndex.begin();
+                                     it != filesToIndex.end(); ++it) {
+                                    printf("    %s (id: %d)\n", it.key().constData(), it.value());
+                                }
+                            } else if (it->key() == "sourceDir") {
+                                printf(" (%s)\n", it->value<Path>().constData());
+                            } else if (it->key() == "sources") {
+                                printf("\n");
+                                foreach(const Source &src, it->value<QList<Source> >()) {
+                                    printf("    %s (%s)", src.path.constData(),
+                                           qPrintable(QDateTime::fromTime_t(src.lastModified).toString()));
+                                    foreach(const QByteArray &arg, src.args) {
+                                        printf(" %s", arg.constData());
+                                    }
+                                    printf("\n");
+                                    for (QHash<Path, quint64>::const_iterator it = src.dependencies.begin();
+                                         it != src.dependencies.end(); ++it) {
+                                        printf("      %s (%s)\n", it.key().constData(),
+                                               qPrintable(QDateTime::fromTime_t(it.value()).toString()));
+                                    }
+                                }
+                            } else {
+                                fprintf(stderr, "Unknown key General: [%s]\n", it->key().constData());
+                            }
+                            break;
                         default:
+                            printf("\n");
                             break;
                         }
-                        printf("\n");
                     }
                 } while (it->next());
             }
