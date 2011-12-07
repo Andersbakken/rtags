@@ -79,15 +79,19 @@ int main(int argc, char** argv)
 
     bool createExpect = false;
     int opt, type = All;
-    while ((opt = getopt(argc, argv, "eht:")) != -1) {
+    char newLine = '\n';
+    while ((opt = getopt(argc, argv, "eht:n")) != -1) {
         switch (opt) {
         case 'e':
             createExpect = true;
             break;
-        case 't': {
+        case 'n':
+            newLine = ' ';
+            break;
+        case 't':
             if (parseType(optarg, &type))
                 break;
-            fprintf(stderr, "Unable to parse type '%s'\n", optarg); }
+            fprintf(stderr, "Unable to parse type '%s'\n", optarg); 
         case '?':
         case 'h':
         default:
@@ -109,58 +113,86 @@ int main(int argc, char** argv)
             Database::iterator *it = db->createIterator(static_cast<Database::ConnectionType>(i));
             if (it->isValid()) {
                 do {
-                    printf("%s '%s' => %d bytes", names[i], it->key().constData(), it->value().size());
+                    const QByteArray key(it->key().constData(), it->key().size());
+                    printf("%s '%s' => %d bytes", names[i], key.constData(), it->value().size());
                     if (it->value().size() == 4) {
                         const QByteArray ba = it->value();
                         QDataStream ds(ba);
                         int t;
                         ds >> t;
-                        printf(" (%d)\n", t);
+                        printf(" (%d)%c", t, newLine);
                     } else {
                         switch (i) {
                         case Database::Targets:
-                            printf(" (%s => %s)\n",
-                                   db->locationToString(locationFromKey(it->key())).constData(),
-                                   db->locationToString(it->value<Location>()).constData());
+                            printf(" (%s => %s)%c",
+                                   db->locationToString(locationFromKey(key)).constData(),
+                                   db->locationToString(it->value<Location>()).constData(), newLine);
                             break;
                         case Database::General:
-                            if (it->key() == "files") {
-                                printf("\n");
+                            if (key == "files") {
+                                printf("%c", newLine);
                                 foreach(const Path &file, it->value<QSet<Path> >()) {
-                                    printf("    %s\n", file.constData());
+                                    printf("    %s%c", file.constData(), newLine);
                                 }
-                            } else if (it->key() == "filesByName") {
-                                printf("\n");
+                            } else if (key == "filesByName") {
+                                printf("%c", newLine);
                                 const QHash<Path, int> filesToIndex = it->value<QHash<Path, int> >();
                                 for (QHash<Path, int>::const_iterator it = filesToIndex.begin();
                                      it != filesToIndex.end(); ++it) {
-                                    printf("    %s (id: %d)\n", it.key().constData(), it.value());
+                                    printf("    %s (id: %d)%c", key.constData(), it.value(), newLine);
                                 }
-                            } else if (it->key() == "sourceDir") {
-                                printf(" (%s)\n", it->value<Path>().constData());
-                            } else if (it->key() == "sources") {
-                                printf("\n");
+                            } else if (key == "sourceDir") {
+                                printf(" (%s)%c", it->value<Path>().constData(), newLine);
+                            } else if (key == "sources") {
+                                printf("%c", newLine);
                                 foreach(const Source &src, it->value<QList<Source> >()) {
                                     printf("    %s (%s)", src.path.constData(),
                                            qPrintable(QDateTime::fromTime_t(src.lastModified).toString()));
                                     foreach(const QByteArray &arg, src.args) {
                                         printf(" %s", arg.constData());
                                     }
-                                    printf("\n");
+                                    printf("%cDependencies:%c", newLine, newLine);
                                     for (QHash<Path, quint64>::const_iterator it = src.dependencies.begin();
                                          it != src.dependencies.end(); ++it) {
-                                        printf("      %s (%s)\n", it.key().constData(),
-                                               qPrintable(QDateTime::fromTime_t(it.value()).toString()));
+                                        printf("      %s (%s)%c", it.key().constData(),
+                                               qPrintable(QDateTime::fromTime_t(it.value()).toString()), newLine);
                                     }
                                 }
                             } else {
-                                fprintf(stderr, "Unknown key General: [%s]\n", it->key().constData());
+                                fprintf(stderr, "Unknown key General: [%s]\n", key.constData());
                             }
+                            break;
+                        case Database::Dictionary:
+                            printf("%c", newLine);
+                            foreach(const DictionaryEntry &entry, it->value<QSet<DictionaryEntry> >()) {
+                                printf("    ");
+                                for (int i=0; i<entry.scope.size(); ++i) {
+                                    printf("%s::", entry.scope.at(i).constData());
+                                }
+                                printf("%s ", key.constData());
+                                bool first = true;
+                                foreach(const Location &l, entry.locations) {
+                                    if (!first) {
+                                        printf(", ");
+                                    } else {
+                                        first = false;
+                                    }
+                                    printf("%s", db->locationToString(l).constData());
+                                }
+                                printf("%c", newLine);
+                            }
+                            break;
+                        case Database::References:
+                            printf("%c", newLine);
+                            foreach(const Location &l, it->value<QSet<Location> >())
+                                printf("    %s%c", db->locationToString(l).constData(), newLine);
                             break;
                         default:
                             printf("\n");
                             break;
                         }
+                        if (newLine != '\n')
+                            printf("\n");
                     }
                 } while (it->next());
             }
