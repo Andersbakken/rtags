@@ -11,57 +11,6 @@
 
 using namespace RTags;
 
-enum Type {
-    Symbol = 0x01,
-    Reference = 0x02,
-    Dependency = 0x04,
-    Dict = 0x08,
-    Files = 0x10,
-    Raw = 0x20,
-    All = 0xff
-};
-
-static inline int syntax(int opt, const char* app)
-{
-    fprintf(stderr, "Syntax: %s [-e] [-t type] <database>\n", app);
-    return opt == 'h' ? 0 : 1;
-}
-
-static inline bool parseType(const char* a, int* type)
-{
-    *type = 0;
-    const char* t = a;
-    const char* end = t + strlen(t);
-    for (; t != end; ++t) {
-        switch (*t) {
-        case 's':
-            *type |= Symbol;
-            break;
-        case 'r':
-            *type |= Reference;
-            break;
-        case 'd':
-            *type |= Dependency;
-            break;
-        case 'f':
-            *type |= Files;
-            break;
-        case 'i':
-            *type |= Dict;
-            break;
-        case 'a':
-            *type |= All;
-            break;
-        case 'R':
-            *type |= Raw;
-            break;
-        default:
-            return false;
-        }
-    }
-    return true;
-}
-
 static Location locationFromKey(const QByteArray &key)
 {
     Location loc;
@@ -73,29 +22,60 @@ static Location locationFromKey(const QByteArray &key)
     return loc;
 }
 
+static inline void raw(Database *db, const QByteArray &file)
+{
+    const char *names[] = { "General: [", "Dictionary: [", "References: [", "Targets: [" };
+    QFile f(file);
+    if (!f.open(QIODevice::WriteOnly)) {
+        fprintf(stderr, "Can't open %s for writing\n", file.constData());
+        return;
+    }
+    for (int i=0; i<Database::NumConnectionTypes; ++i) {
+        Database::iterator *it = db->createIterator(static_cast<Database::ConnectionType>(i));
+        if (it->isValid()) {
+            do {
+                f.write(names[i]);
+                f.write(it->key());
+                f.write("] [");
+                const QByteArray value = it->value();
+                char buf[16];
+                for (int i=0; i<value.size(); ++i) {
+                    char *b = buf;
+                    if (i > 0) {
+                        buf[0] = ',';
+                        buf[1] = ' ';
+                        b = buf + 2;
+                    }
+                    const int ret = snprintf(b, 15, "0x%x", value.at(i));
+                    f.write(buf, ret + (b - buf));
+                }
+                f.write("]\n");
+            } while (it->next());
+        }
+        delete it;
+    }
+}
+
 int main(int argc, char** argv)
 {
     Mmap::init();
 
-    bool createExpect = false;
-    int opt, type = All;
+    int opt;
     char newLine = '\n';
-    while ((opt = getopt(argc, argv, "eht:n")) != -1) {
+    QByteArray rawFile;
+    while ((opt = getopt(argc, argv, "hnr:")) != -1) {
         switch (opt) {
-        case 'e':
-            createExpect = true;
-            break;
         case 'n':
             newLine = ' ';
             break;
-        case 't':
-            if (parseType(optarg, &type))
-                break;
-            fprintf(stderr, "Unable to parse type '%s'\n", optarg); 
+        case 'r':
+            rawFile = optarg;
+            break;
         case '?':
         case 'h':
         default:
-            return syntax(opt, argv[0]);
+            fprintf(stderr, "rdump -[rn]\n");
+            return 0;
         }
     }
 
@@ -108,6 +88,11 @@ int main(int argc, char** argv)
 
     Database* db = Database::create(filename, Database::ReadOnly);
     if (db->isOpened()) {
+        if (!rawFile.isEmpty()) {
+            raw(db, rawFile);
+            delete db;
+            return 0;
+        }
         const char *names[] = { "General", "Dictionary", "References", "Targets" };
         for (int i=0; i<Database::NumConnectionTypes; ++i) {
             Database::iterator *it = db->createIterator(static_cast<Database::ConnectionType>(i));
