@@ -19,6 +19,7 @@ using namespace RTags;
 
 static const bool pchEnabled = false; //!getenv("RTAGS_NO_PCH") && false;
 static QElapsedTimer timer;
+int threadPoolSize = -1;
 
 class CompileRunnable : public QRunnable
 {
@@ -34,7 +35,8 @@ public:
         const qint64 before = timer.elapsed();
         rbuild->compile(args, path, pch);
         const qint64 elapsed = timer.elapsed();
-        fprintf(stderr, "parsed %s, (%lld ms)\n", path.constData(), elapsed - before);
+        fprintf(stderr, "parsed %s, (%lld ms) (%lld)\n", path.constData(),
+                elapsed - before, (elapsed - before) / threadPoolSize);
     }
 private:
     RBuild *rbuild;
@@ -52,6 +54,7 @@ RBuild::RBuild(QObject *parent)
         if (threads > 0)
             mData->threadPool.setMaxThreadCount(threads);
     }
+    threadPoolSize = mData->threadPool.maxThreadCount();
     RTags::systemIncludes(); // force creation before any threads are spawned
     connect(this, SIGNAL(compileFinished()), this, SLOT(onCompileFinished()));
     timer.start();
@@ -137,6 +140,8 @@ bool RBuild::updateDB()
         if (dirtySource) {
             dirty.insert(source.path);
             reparse.append(&sources[i]);
+        } else {
+            mData->sources.append(source);
         }
     }
     if (reparse.isEmpty()) {
