@@ -121,8 +121,11 @@ bool RBuild::updateDB()
     const qint64 beforeLoad = timer.elapsed();
     if (!openDB(Update))
         return false;
+    QMap<int, qint64> snapshots;
+    snapshots[__LINE__] = timer.elapsed();
     QList<Source> sources = mData->db->read<QList<Source> >("sources");
     mData->filesByName = mData->db->read<QHash<Path, unsigned> >("filesByName");
+    snapshots[__LINE__] = timer.elapsed();
 
     QList<Source*> reparse;
     QSet<Path> dirty;
@@ -150,8 +153,10 @@ bool RBuild::updateDB()
         printf("Nothing has changed (%lld ms)\n", timer.elapsed());
         return true;
     }
+    snapshots[__LINE__] = timer.elapsed();
 
     mData->db->invalidateEntries(dirty);
+    snapshots[__LINE__] = timer.elapsed();
     mData->pendingJobs += reparse.size();
     foreach(Source *source, reparse) {
         mData->threadPool.start(new CompileRunnable(this, source->path, source->args, 0));
@@ -159,6 +164,7 @@ bool RBuild::updateDB()
     QEventLoop loop;
     connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
     loop.exec();
+    snapshots[__LINE__] = timer.elapsed();
 
     for (QHash<QByteArray, Entity>::const_iterator it = mData->entities.begin();
          it != mData->entities.end(); ++it) {
@@ -171,9 +177,11 @@ bool RBuild::updateDB()
                                entity.declarations, entity.references);
     }
     mData->db->write("sources", mData->sources);
+    snapshots[__LINE__] = timer.elapsed();
 
     closeDB();
     printf("Updated db %lld ms\n", timer.elapsed());
+    qDebug() << snapshots;
     return true;
 }
 
