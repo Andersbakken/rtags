@@ -19,7 +19,7 @@ struct Location
     {}
 
     unsigned file, line, column;
-    inline QByteArray key() const // this one should only be used in debug
+    inline QByteArray keyDebug() const // this one should only be used in debug
     {
         if (!file)
             return QByteArray();
@@ -36,6 +36,14 @@ struct Location
         }
 
         const int ret = snprintf(buf, 1024, "%s:%d:%d:", fn.constData(), line, column);
+        return QByteArray(buf, ret);
+    }
+    inline QByteArray key() const
+    {
+        if (!file)
+            return QByteArray();
+        char buf[1024];
+        const int ret = snprintf(buf, 1024, "%d:%d:%d:", file, line, column);
         return QByteArray(buf, ret);
     }
     inline bool operator==(const Location &other) const

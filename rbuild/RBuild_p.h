@@ -25,11 +25,11 @@ struct RBuildPrivate
     RBuildPrivate()
         : db(0), pendingJobs(0), index(0)
     {
-        Location::files() = &filesToIndex;
+        Location::files() = &filesByName;
     }
 
     QHash<QByteArray, Entity> entities;
-    QHash<Path, unsigned> filesToIndex;
+    QHash<Path, unsigned> filesByName;
     QHash<QByteArray, QList<Location> > references;
     Database *db;
     Path makefile, sourceDir, dbPath;

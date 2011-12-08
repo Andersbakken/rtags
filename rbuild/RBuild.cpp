@@ -122,6 +122,8 @@ bool RBuild::updateDB()
     if (!openDB(Update))
         return false;
     QList<Source> sources = mData->db->read<QList<Source> >("sources");
+    mData->filesByName = mData->db->read<QHash<Path, unsigned> >("filesByName");
+
     QList<Source*> reparse;
     QSet<Path> dirty;
     const int sourceCount = sources.size();
@@ -271,7 +273,7 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 
 void RBuild::writeData()
 {
-    mData->db->write("filesByName", mData->filesToIndex);
+    mData->db->write("filesByName", mData->filesByName);
     for (QHash<QByteArray, Entity>::const_iterator it = mData->entities.begin();
          it != mData->entities.end(); ++it) {
         const Entity &entity = it.value();
@@ -444,9 +446,9 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
     }
 
     if (decl->isDefinition) {
-        e.definition = createLocation(decl->loc, p->filesToIndex);
+        e.definition = createLocation(decl->loc, p->filesByName);
     } else {
-        e.declarations.insert(createLocation(decl->loc, p->filesToIndex));
+        e.declarations.insert(createLocation(decl->loc, p->filesByName));
     }
 }
 
@@ -454,7 +456,7 @@ static inline void indexEntityReference(CXClientData userData, const CXIdxEntity
 {
     RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(userData);
     const QByteArray key(ref->referencedEntity->USR);
-    const Location loc = createLocation(ref->loc, p->filesToIndex);
+    const Location loc = createLocation(ref->loc, p->filesByName);
     QMutexLocker lock(&p->entryMutex); // ### is this the right place to lock?
     Entity &e = p->entities[key];
     // ### in the case of inline functions the Entity for the referenced function

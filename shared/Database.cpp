@@ -183,16 +183,19 @@ void Database::close()
     // qDebug() << mDictionary;
     switch (mMode) {
     case ReadWrite:
-        for (QHash<QByteArray, QSet<DictionaryEntry> >::const_iterator it = mDictionary.begin();
+        for (QHash<QByteArray, DictionaryHash>::const_iterator it = mDictionary.begin();
              it != mDictionary.end(); ++it) {
-            QSet<DictionaryEntry> l = read<QSet<DictionaryEntry> >(Dictionary, it.key(),
-                                                                   QSet<DictionaryEntry>());
-            l += it.value();
+            DictionaryHash l = read<DictionaryHash>(Dictionary, it.key(), DictionaryHash());
+            DictionaryHash old = l;
+            const DictionaryHash &dh = it.value();
+            for (DictionaryHash::const_iterator hit = dh.begin(); hit != dh.end(); ++hit) {
+                l[hit.key()] += hit.value();
+            }
             write(Dictionary, it.key(), l);
         }
         break;
     case WriteOnly:
-        for (QHash<QByteArray, QSet<DictionaryEntry> >::const_iterator it = mDictionary.begin();
+        for (QHash<QByteArray, DictionaryHash>::const_iterator it = mDictionary.begin();
              it != mDictionary.end(); ++it) {
             write(Dictionary, it.key(), it.value());
         }
@@ -226,7 +229,6 @@ Location Database::followLocation(const Location &source) const
 QSet<Location> Database::findReferences(const Location &source) const
 {
     QSet<Location> ret;
-    qDebug() << source.file << source.line << source.column;
     if (source.file) {
         char buf[32];
         int written = snprintf(buf, 32, "%d:%d:%d:", source.file, source.line, source.column);
@@ -262,15 +264,17 @@ QSet<Location> Database::findSymbol(const QByteArray &symbolName) const
             const QByteArray key = it->key();
             if (name == key
                 || (!name.contains('(') && key.startsWith(name) && key.at(name.size()) == '(')) {
-                foreach(const DictionaryEntry &e, decode<QSet<DictionaryEntry> >(it->value())) {
+                const DictionaryHash &dh = it->value<DictionaryHash>();
+                for (DictionaryHash::const_iterator hit = dh.begin(); hit != dh.end(); ++hit) {
                     bool ok = true;
+                    const QList<QByteArray> &scope = hit.key();
                     if (!split.isEmpty()) {
                         const int splitSize = split.size();
-                        const int scopeSize = e.scope.size();
+                        const int scopeSize = scope.size();
                         if (splitSize <= scopeSize) {
                             const int diff = scopeSize - splitSize;
                             for (int i=splitSize - 1; i>=0; --i) {
-                                if (split.at(i).isEmpty() || split.at(i) != e.scope.at(i + diff)) {
+                                if (split.at(i).isEmpty() || split.at(i) != scope.at(i + diff)) {
                                     ok = false;
                                     break;
                                 }
@@ -280,7 +284,7 @@ QSet<Location> Database::findSymbol(const QByteArray &symbolName) const
                         }
                     }
                     if (ok) {
-                        ret += e.locations;
+                        ret += hit.value();
                     }
                 }
             }
@@ -337,12 +341,14 @@ QList<QByteArray> Database::symbolNames(const QByteArray &filter) const
             const QByteArray key = it->key();
             int paren = key.lastIndexOf('(');
             State state = maybeDict(key, filter, filter.isEmpty() ? In : Out, paren, ret);
-            foreach(const DictionaryEntry &e, decode<QSet<DictionaryEntry> >(it->value())) {
+            const DictionaryHash &dh = it->value<DictionaryHash>();
+            for (DictionaryHash::const_iterator hit = dh.begin(); hit != dh.end(); ++hit) {
+                const QList<QByteArray> &scope = hit.key();
                 QByteArray k = key;
-                for (int i=e.scope.size() - 1; i>=0; --i) {
-                    k.prepend(e.scope.at(i) + "::");
+                for (int i=scope.size() - 1; i>=0; --i) {
+                    k.prepend(scope.at(i) + "::");
                     if (paren != -1)
-                        paren += e.scope.at(i).size() + 2;
+                        paren += scope.at(i).size() + 2;
                     maybeDict(k, filter, state, paren, ret);
                 }
             }
@@ -410,10 +416,11 @@ void Database::writeEntity(const QByteArray &symbolName,
         }
         if (definition.file || refIdx) {
             const int ret = snprintf(buf, BufSize, "%d:%d:%d:", definition.file, definition.line, definition.column);
-            if (declarations.size() == 1) {
+            if (declarations.size() == 1 && definition.file) {
                 write(Targets, QByteArray(buf, ret), *declarations.begin());
             }
-            write(References, QByteArray(buf, ret), refIdx);
+            if (definition.file)
+                write(References, QByteArray(buf, ret), refIdx);
 
             foreach(const Location &declaration, declarations) {
                 const int ret = snprintf(buf, BufSize, "%d:%d:%d:", declaration.file, declaration.line, declaration.column);
@@ -427,12 +434,11 @@ void Database::writeEntity(const QByteArray &symbolName,
     }
 
     if (!symbolName.isEmpty()) {
-        DictionaryEntry entry;
-        entry.scope = parentNames;
-        entry.locations = declarations;
+        QSet<Location> locations = declarations;
         if (definition.file)
-            entry.locations.insert(definition);
-        mDictionary[symbolName].insert(entry);
+            locations.insert(definition);
+        QByteArray out;
+        mDictionary[symbolName][parentNames] += locations;
     }
 }
 

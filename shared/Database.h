@@ -15,37 +15,13 @@ public:
     virtual void writeData(const QByteArray &key, const QByteArray &value) = 0;
 };
 
-struct DictionaryEntry {
-    QList<QByteArray> scope;
-    QSet<Location> locations;
-};
+typedef QHash<QList<QByteArray>, QSet<Location> > DictionaryHash;
 
-static inline QDebug operator<<(QDebug dbg, const DictionaryEntry &entry)
-{
-    dbg << "DictionaryEntry(";
-    dbg.nospace() << entry.scope << ", " << entry.locations << ")";
-    return dbg.maybeSpace();
-}
-
-static inline bool operator==(const DictionaryEntry &l, const DictionaryEntry &r)
-{
-    return (l.scope == r.scope && l.locations == r.locations);
-}
-
-static inline QDataStream &operator<<(QDataStream &ds, const DictionaryEntry &entry)
-{
-    return (ds << entry.scope << entry.locations);
-}
-static inline QDataStream &operator>>(QDataStream &ds, DictionaryEntry &entry)
-{
-    return (ds >> entry.scope >> entry.locations);
-}
-
-static inline uint qHash(const DictionaryEntry &entry)
+static inline uint qHash(const QList<QByteArray> &scope)
 {
     uint ret = 0;
     int idx = 0;
-    foreach(const QByteArray &s, entry.scope) {
+    foreach(const QByteArray &s, scope) {
         ret += (::qHash(s) << idx++);
         // ### is this good?
     }
@@ -194,7 +170,7 @@ private:
     QHash<Path, unsigned> mFilesByName;
     QHash<unsigned, Path> mFilesByIndex;
 
-    QHash<QByteArray, QSet<DictionaryEntry> > mDictionary;
+    QHash<QByteArray, DictionaryHash> mDictionary;
     int mRefIdxCounter;
 };
 

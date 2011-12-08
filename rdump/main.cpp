@@ -124,7 +124,7 @@ int main(int argc, char** argv)
                                 const QHash<Path, int> filesToIndex = it->value<QHash<Path, int> >();
                                 for (QHash<Path, int>::const_iterator it = filesToIndex.begin();
                                      it != filesToIndex.end(); ++it) {
-                                    printf("    %s (id: %d)%c", key.constData(), it.value(), newLine);
+                                    printf("    %s (id: %d)%c", it.key().constData(), it.value(), newLine);
                                 }
                             } else if (key == "sourceDir") {
                                 printf(" (%s)%c", it->value<Path>().constData(), newLine);
@@ -147,16 +147,18 @@ int main(int argc, char** argv)
                                 fprintf(stderr, "Unknown key General: [%s]\n", key.constData());
                             }
                             break;
-                        case Database::Dictionary:
+                        case Database::Dictionary: {
                             printf("%c", newLine);
-                            foreach(const DictionaryEntry &entry, it->value<QSet<DictionaryEntry> >()) {
+                            const DictionaryHash &dh = it->value<DictionaryHash>();
+                            for (DictionaryHash::const_iterator hit = dh.begin(); hit != dh.end(); ++hit) {
                                 printf("    ");
-                                for (int i=0; i<entry.scope.size(); ++i) {
-                                    printf("%s::", entry.scope.at(i).constData());
+                                const QList<QByteArray> &scope = hit.key();
+                                for (int i=0; i<scope.size(); ++i) {
+                                    printf("%s::", scope.at(i).constData());
                                 }
                                 printf("%s ", key.constData());
                                 bool first = true;
-                                foreach(const Location &l, entry.locations) {
+                                foreach(const Location &l, hit.value()) {
                                     if (!first) {
                                         printf(", ");
                                     } else {
@@ -166,7 +168,7 @@ int main(int argc, char** argv)
                                 }
                                 printf("%c", newLine);
                             }
-                            break;
+                            break; }
                         case Database::References:
                             printf("%c", newLine);
                             foreach(const Location &l, it->value<QSet<Location> >())
