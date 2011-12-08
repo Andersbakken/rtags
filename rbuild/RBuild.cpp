@@ -282,8 +282,10 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 void RBuild::writeData()
 {
     mData->db->write("filesByName", mData->filesByName);
-    for (QHash<QByteArray, Entity>::const_iterator it = mData->entities.begin();
-         it != mData->entities.end(); ++it) {
+
+    int size = mData->entities.size();
+    QHash<QByteArray, Entity>::iterator it = mData->entities.begin();
+    while (size--) {
         const Entity &entity = it.value();
         // qDebug() << "writing entity" << entity.name
         //          << entity.definition
@@ -291,6 +293,7 @@ void RBuild::writeData()
         //          << entity.references;
         mData->db->writeEntity(entity.name, entity.parentNames, entity.definition,
                                entity.declarations, entity.references);
+        it = mData->entities.erase(it);
     }
     mData->db->write("sources", mData->sources);
     QSet<Path> allFiles;
