@@ -86,12 +86,12 @@ public:
         bool operator<(const Entry& other) const;
 
         QByteArray key() const;
+        bool isEqual(const QByteArray& key) const;
     };
 
-    QList<Entry> entries;
+    QList<Entry> sorted, unsorted;
     int idx;
     Mmap* mmap;
-    bool dirty;
 };
 
 QByteArray FileIndex::Entry::key() const
@@ -103,22 +103,55 @@ QByteArray FileIndex::Entry::key() const
     return mmap->get<QByteArray>();
 }
 
+bool FileIndex::Entry::isEqual(const QByteArray& key) const
+{
+    if (key.size() != size)
+        return false;
+    if (partial.size() == FileIndex::PartialMax) {
+        if (key.left(FileIndex::PartialMax) != partial)
+            return false;
+        return (this->key() == key);
+    }
+    Q_ASSERT(partial.size() < FileIndex::PartialMax);
+    return (partial == key);
+}
+
 bool FileIndex::Entry::operator<(const Entry& other) const
 {
-    // ### compare with other.partial before looking at key()
-    if (partial.size() > PartialMax)
+    const int sz = partial.size();
+    const int os = other.partial.size();
+    if (sz > PartialMax) {
+        // lhs is a full key
+        if (os != PartialMax)
+            return partial < other.partial;
+        const QByteArray np = partial.left(PartialMax);
+        if (np < other.partial)
+            return true;
+        if (other.partial < np)
+            return false;
         return partial < other.key();
-    else if (other.partial.size() > PartialMax)
+    }
+
+    if (os > PartialMax) {
+        // rhs is a full key
+        if (sz != PartialMax)
+            return partial < other.partial;
+        const QByteArray np = other.partial.left(PartialMax);
+        if (partial < np)
+            return true;
+        if (np < partial)
+            return false;
         return key() < other.partial;
-    else if (partial < other.partial)
-        return true;
-    else if (partial > other.partial)
-        return false;
+    }
+
+    // no full keys or both full keys with size < PartialMax
+    if (sz < PartialMax || os < PartialMax)
+        return partial < other.partial;
     return key() < other.key();
 }
 
 FileIndex::FileIndex()
-    : idx(-1), mmap(0), dirty(false)
+    : idx(-1), mmap(0)
 {
 }
 
@@ -131,7 +164,6 @@ void FileIndex::init(int i, Mmap* m)
 {
     idx = i;
     mmap = m;
-    dirty = false;
     read();
 }
 
@@ -141,31 +173,33 @@ void FileIndex::clear()
         return;
 
     ::close(idx);
-    dirty = false;
     idx = -1;
     mmap = 0;
-    entries.clear();
+    sorted.clear();
+    unsorted.clear();
 }
 
 void FileIndex::read()
 {
-    entries.clear();
+    sorted.clear();
+    unsorted.clear();
 
     FdDevice fddev(idx);
     QDataStream stream(&fddev);
-    stream >> entries;
+    stream >> sorted;
 
-    for (int i = 0; i < entries.size(); ++i) {
-        entries[i].mmap = mmap;
+    for (int i = 0; i < sorted.size(); ++i) {
+        sorted[i].mmap = mmap;
     }
 }
 
 void FileIndex::maybeSort()
 {
-    if (!dirty)
+    if (unsorted.isEmpty())
         return;
-    qSort(entries);
-    dirty = false;
+    sorted += unsorted;
+    unsorted.clear();
+    qSort(sorted);
 }
 
 void FileIndex::write()
@@ -174,21 +208,61 @@ void FileIndex::write()
 
     FdDevice fddev(idx);
     QDataStream stream(&fddev);
-    stream << entries;
+    stream << sorted;
 }
 
 void FileIndex::add(const QByteArray &key, int offset)
 {
-    //if (!(entries.size() % 1000))
-    //    qDebug() << "entries" << entries.size() << mmap->fileName();
+    enum { SortThreshold = 1000 }; // number of entries 'unsorted' can hold before getting sorted
 
     Entry e;
-    e.partial = key.left(PartialMax);
-    e.offset = offset;
     e.size = key.size();
     e.mmap = mmap;
-    entries.append(e);
-    dirty = true;
+
+    if (!unsorted.isEmpty()) {
+        if (unsorted.size() >= SortThreshold) {
+            maybeSort();
+            Q_ASSERT(unsorted.isEmpty());
+        }
+
+        QList<Entry>::iterator i = unsorted.begin();
+        const QList<Entry>::const_iterator end = unsorted.end();
+        while (i != end) {
+            if ((*i).isEqual(key)) {
+                Entry& found = *i;
+
+                // 'erase' the existing key in the mmap data
+                mmap->seek(found.offset);
+                mmap->set(QByteArray(1, '\0'));
+
+                found.offset = offset;
+                Q_ASSERT(found.size == e.size && found.mmap == e.mmap);
+                return;
+            }
+            ++i;
+        }
+    }
+    if (!sorted.isEmpty()) {
+        e.partial = key;
+        e.offset = -1;
+
+        QList<Entry>::iterator i = qBinaryFind(sorted.begin(), sorted.end(), e);
+        if (i != sorted.end()) {
+            Entry& found = *i;
+
+            // 'erase' the existing key in the mmap data
+            mmap->seek(found.offset);
+            mmap->set(QByteArray(1, '\0'));
+
+            found.offset = offset;
+            Q_ASSERT(found.size == e.size && found.mmap == e.mmap);
+            return;
+        }
+    }
+
+    e.offset = offset;
+    e.partial = key.left(PartialMax);
+    unsorted.append(e);
 }
 
 bool FileIndex::find(FindType type, const QByteArray &key, int *offset, int *size)
@@ -204,17 +278,17 @@ bool FileIndex::find(FindType type, const QByteArray &key, int *offset, int *siz
     QList<Entry>::const_iterator i;
     switch (type) {
     case LowerBound:
-        i = qLowerBound(entries.begin(), entries.end(), find);
+        i = qLowerBound(sorted.begin(), sorted.end(), find);
         break;
     case UpperBound:
-        i = qUpperBound(entries.begin(), entries.end(), find);
+        i = qUpperBound(sorted.begin(), sorted.end(), find);
         break;
     default:
-        i = qBinaryFind(entries.begin(), entries.end(), find);
+        i = qBinaryFind(sorted.begin(), sorted.end(), find);
         break;
     }
 
-    if (i == entries.end())
+    if (i == sorted.end())
         return false;
     *offset = (*i).offset;
     if (size)
@@ -232,11 +306,11 @@ int FileIndex::remove(const QByteArray &key)
     find.mmap = 0;
     find.size = key.size();
 
-    QList<Entry>::iterator i = qBinaryFind(entries.begin(), entries.end(), find);
-    if (i == entries.end())
+    QList<Entry>::iterator i = qBinaryFind(sorted.begin(), sorted.end(), find);
+    if (i == sorted.end())
         return -1;
     const int at = (*i).offset;
-    entries.erase(i);
+    sorted.erase(i);
     return at;
 }
 
@@ -303,6 +377,8 @@ QByteArray FileConnection::readData(const QByteArray &key) const
 
 void FileConnection::writeData(const QByteArray &key, const QByteArray &value)
 {
+    Q_ASSERT(!key.isEmpty());
+
     if (value.isEmpty()) {
         int at = idx.remove(key);
         if (at == -1)
@@ -314,9 +390,10 @@ void FileConnection::writeData(const QByteArray &key, const QByteArray &value)
 
     const unsigned int pos = mmap.size();
     mmap.seek(pos);
+    const unsigned int off = mmap.offset();
     mmap.set(key);
     mmap.set(value);
-    idx.add(key, pos);
+    idx.add(key, off);
 }
 
 class FileIterator : public Database::iterator

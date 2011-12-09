@@ -82,6 +82,12 @@ inline QByteArray Mmap::get<QByteArray>(bool* ok) const
         return QByteArray();
     }
 
+    /*const bool dodebug = mFileName.endsWith("/a.db");
+    if (dodebug)
+        qDebug() << "reading bytearray of size" << size << "at" << mOffset - sizeof(int) << "which brings our offset to" << mOffset + size;
+    if (dodebug)
+        qDebug() << "offset is now" << mOffset;*/
+
     Q_ASSERT(mPageNo < mPages.size());
     const Page* page = &mPages.at(mPageNo);
     if (mPageOffset + size <= page->size) { // do fromRawData() for efficiency
@@ -91,15 +97,18 @@ inline QByteArray Mmap::get<QByteArray>(bool* ok) const
             ++mPageNo;
             mPageOffset = 0;
         }
+        mOffset += size;
+        //if (dodebug)
+        //    qDebug() << "offset is now" << mOffset;
         if (ok)
             *ok = true;
         return QByteArray::fromRawData(page->data + off, size);
     }
 
-    //if (mFileName.endsWith("/a.db"))
-    //    qDebug() << "reading bytearray of size" << size << "at" << mOffset - sizeof(int) << "with filename" << mFileName;
     QByteArray data(size, Qt::Uninitialized);
     read(data.data(), size, &iok);
+    //if (dodebug)
+    //    qDebug() << "offset is now" << mOffset;
     //if (mFileName.endsWith("/a.db"))
     //    qDebug() << "read ok?" << iok;
     if (ok)
@@ -122,11 +131,17 @@ inline void Mmap::set<QByteArray>(const QByteArray& data)
         Q_ASSERT(oldsize >= size);
     }
 
-    //if (mFileName.endsWith("/a.db"))
-    //    qDebug() << "writing bytearray of size" << (oldsize != -1 ? oldsize : size) << "at" << mOffset << "with filename" << mFileName;
-
+    /*const bool dodebug = mFileName.endsWith("/a.db");
+    if (dodebug)
+        qDebug() << "writing bytearray of size" << (oldsize != -1 ? oldsize : size) << "at" << mOffset << "with filename" << mFileName;
+    if (dodebug)
+        qDebug() << "offset is now" << mOffset;*/
     write(reinterpret_cast<const char*>(oldsize != -1 ? &oldsize : &size), sizeof(int));
+    //if (dodebug)
+    //    qDebug() << "offset is now" << mOffset;
     write(data.constData(), size);
+    //if (dodebug)
+    //    qDebug() << "offset is now" << mOffset;
 }
 
 #endif // MMAP_H
