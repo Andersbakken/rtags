@@ -154,7 +154,6 @@ void Database::invalidateEntries(const QSet<Path> &paths)
     Q_ASSERT(mMode == ReadWrite);
     iterator *it = createIterator(References);
     QHash<int, QSet<QByteArray> > refs;
-    QList<int> removedRefs;
     {
         if (it->isValid()) {
             do {
@@ -173,20 +172,32 @@ void Database::invalidateEntries(const QSet<Path> &paths)
                         if (!id) {
                             qWarning("Invalid ref %s", key.constData());
                         } else {
-                            removedRefs.append(id);
+                            mRemovedRefs.insert(id);
                             // qDebug() << "killed refs" << id;
                         }
                     }
                 }
             } while (it->next());
         }
-        foreach(int ref, removedRefs) {
-            foreach(const QByteArray &key, refs.value(ref)) {
-                remove(References, key);
-                qDebug() << "killing refs" << Location::fromKey(key) << ref;
+        for (QHash<int, QSet<QByteArray> >::const_iterator i = refs.begin(); i != refs.end(); ++i) {
+            if (mRemovedRefs.contains(i.key())) {
+                foreach(const QByteArray &key, i.value()) {
+                    remove(References, key);
+                    qDebug() << "killing refs" << Location::fromKey(key) << i.key();
+                }
+            } else {
+                foreach(const QByteArray &key, i.value()) {
+                    const Location loc = Location::fromKey(key);
+                    if (!loc.file) {
+                        qWarning("Invalid key %s", key.constData());
+                        continue;
+                    }
+                    mRefs[loc] = i.key();
+                }
             }
+            mRefIdxCounter = qMax(i.key(), mRefIdxCounter);
         }
-        // qDebug() << refs;
+
         delete it;
         it = createIterator(Dictionary);
         if (it->isValid()) {
@@ -439,7 +450,7 @@ void Database::writeEntity(const QByteArray &symbolName,
                            const QList<QByteArray> &parentNames,
                            const Location &definition,
                            const QSet<Location> &declarations,
-                           const QSet<Location> &references)
+                           QSet<Location> references)
 {
     if (!definition.file && declarations.isEmpty())
         return;
@@ -447,8 +458,33 @@ void Database::writeEntity(const QByteArray &symbolName,
     enum { BufSize = 32 };
     char buf[BufSize];
     int refIdx = 0;
+    if (mMode == ReadWrite) {
+        if (definition.file)
+            refIdx = mRefs.value(definition, 0);
+        if (!refIdx) {
+            foreach(const Location &l, declarations) {
+                refIdx = mRefs.value(l, 0);
+                if (refIdx)
+                    break;
+            }
+        }
+        if (refIdx) {
+            const int written = snprintf(buf, BufSize, "%d", refIdx);
+            Q_ASSERT(written < BufSize);
+            references += read<QSet<Location> >(References, QByteArray::fromRawData(buf, written),
+                                                QSet<Location>());
+        }
+    }
+
     if (!references.isEmpty()) {
-        refIdx = ++mRefIdxCounter;
+        if (!refIdx) {
+            if (mRemovedRefs.isEmpty()) {
+                refIdx = *mRemovedRefs.begin();
+                mRemovedRefs.erase(mRemovedRefs.begin());
+            } else {
+                refIdx = ++mRefIdxCounter;
+            }
+        }
         const int ret = snprintf(buf, BufSize, "%d", refIdx);
         write(References, QByteArray(buf, ret), references);
         const Location loc = (definition.file ? definition : *declarations.begin());
@@ -458,22 +494,25 @@ void Database::writeEntity(const QByteArray &symbolName,
             const int ret = snprintf(buf, BufSize, "%d:%d:%d:", l.file, l.line, l.column);
             write(Targets, QByteArray(buf, ret), loc);
         }
-        if (definition.file || refIdx) {
-            const int ret = snprintf(buf, BufSize, "%d:%d:%d:", definition.file, definition.line, definition.column);
-            if (declarations.size() == 1 && definition.file) {
-                write(Targets, QByteArray(buf, ret), *declarations.begin());
-            }
-            if (definition.file)
-                write(References, QByteArray(buf, ret), refIdx);
+    }
+    if (definition.file && (refIdx || declarations.size() == 1)) {
+        const int ret = snprintf(buf, BufSize, "%d:%d:%d:", definition.file, definition.line, definition.column);
+        if (declarations.size() == 1) {
+            write(Targets, QByteArray(buf, ret), *declarations.begin());
+        }
+        if (refIdx)
+            write(References, QByteArray(buf, ret), refIdx);
+    }
 
-            foreach(const Location &declaration, declarations) {
-                const int ret = snprintf(buf, BufSize, "%d:%d:%d:", declaration.file, declaration.line, declaration.column);
-                if (definition.file) {
-                    write(Targets, QByteArray(buf, ret), definition);
-                }
-                if (refIdx)
-                    write(References, QByteArray(buf, ret), refIdx);
-            }
+
+    if (definition.file || refIdx) {
+        foreach(const Location &declaration, declarations) {
+            const int ret = snprintf(buf, BufSize, "%d:%d:%d:",
+                                     declaration.file, declaration.line, declaration.column);
+            if (definition.file)
+                write(Targets, QByteArray(buf, ret), definition);
+            if (refIdx)
+                write(References, QByteArray(buf, ret), refIdx);
         }
     }
 

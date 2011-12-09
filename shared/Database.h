@@ -54,7 +54,7 @@ public:
                      const QList<QByteArray> &parentNames,
                      const Location &definition,
                      const QSet<Location> &declarations,
-                     const QSet<Location> &references);
+                     QSet<Location> references);
 
     void invalidateEntries(const QSet<Path> &paths);
 
@@ -174,6 +174,8 @@ private:
 
     QHash<QByteArray, DictionaryHash> mDictionary;
     int mRefIdxCounter;
+    QSet<int> mRemovedRefs;
+    QHash<Location, int> mRefs;
 
     friend class RBuild;
 };
