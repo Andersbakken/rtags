@@ -35,13 +35,11 @@ static inline void raw(Database *db, const QByteArray &file)
         Database::iterator *it = db->createIterator(static_cast<Database::ConnectionType>(i));
         if (it->isValid()) {
             do {
-                if (!it->key().isEmpty() && it->key().at(0) != '\0') {
-                    Q_ASSERT_X(!entries[names[i]].contains(it->key()), "raw()", (it->key() + " already exists in " + names[i]).constData());
-                    // the QByteArray instances returned by Database::iterator (for FileDB) are only valid as long as the
-                    // iterator is alive (due to the mmap being cleared). So we take a deep copy here.
-                    entries[names[i]][QByteArray(it->key().constData(), it->key().size())] =
-                            QByteArray(it->value().constData(), it->value().size());
-                }
+                Q_ASSERT_X(!entries[names[i]].contains(it->key()), "raw()", (it->key() + " already exists in " + names[i]).constData());
+                // the QByteArray instances returned by Database::iterator (for FileDB) are only valid as long as the
+                // iterator is alive (due to the mmap being cleared). So we take a deep copy here.
+                entries[names[i]][QByteArray(it->key().constData(), it->key().size())] =
+                        QByteArray(it->value().constData(), it->value().size());
             } while (it->next());
         }
         delete it;
