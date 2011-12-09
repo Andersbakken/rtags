@@ -167,7 +167,7 @@ private:
     Path mPath;
     Mode mMode;
     Connection *mConnections[NumConnectionTypes];
-    QHash<Path, unsigned> mFilesByName;
+    QHash<Path, unsigned> mFilesByName; // ### this is duplicated in RBuildPrivate::filesByName
     QHash<unsigned, Path> mFilesByIndex;
 
     QHash<QByteArray, DictionaryHash> mDictionary;

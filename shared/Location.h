@@ -13,37 +13,49 @@ struct Location
         static QHash<Path, unsigned> *sFiles = 0;
         return sFiles;
     }
-    
+
     Location()
         : file(0), line(0), column(0)
     {}
 
+    static Location fromKey(const QByteArray &key)
+    {
+        unsigned ints[3] = { -1, -1, -1 };
+        const char *data = key.constData();
+        for (int i=0; i<3; ++i) {
+            char *end = 0;
+            unsigned val = strtoul(data, &end, 10);
+            if (!val || (i < 2 && !end))
+                return Location();
+            ints[i] = val;
+            if (end) {
+                data = ++end;
+            }
+        }
+        Location loc;
+        loc.file = ints[0];
+        loc.line = ints[1];
+        loc.column = ints[2];
+        return loc;
+    }
+
     unsigned file, line, column;
-    inline QByteArray keyDebug() const // this one should only be used in debug
+    inline QByteArray key() const // this one should only be used in debug
     {
         if (!file)
             return QByteArray();
-        char buf[1024];
-        QByteArray fn;
-        fn = QByteArray::number(file);
+#ifdef QT_DEBUG
+        char buf[256];
         if (files()) {
             for (QHash<Path, unsigned>::const_iterator it = files()->begin(); it != files()->end(); ++it) {
                 if (it.value() == file) {
-                    fn = it.key();
-                    break;
+                    const int ret = snprintf(buf, 256, "%s:%d:%d:", it.key().constData(), line, column);
+                    return QByteArray(buf, ret);
                 }
             }
         }
-
-        const int ret = snprintf(buf, 1024, "%s:%d:%d:", fn.constData(), line, column);
-        return QByteArray(buf, ret);
-    }
-    inline QByteArray key() const
-    {
-        if (!file)
-            return QByteArray();
-        char buf[1024];
-        const int ret = snprintf(buf, 1024, "%d:%d:%d:", file, line, column);
+#endif
+        const int ret = snprintf(buf, 256, "%d:%d:%d:", file, line, column);
         return QByteArray(buf, ret);
     }
     inline bool operator==(const Location &other) const

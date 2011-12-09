@@ -125,6 +125,7 @@ void Database::invalidateEntries(const QSet<Path> &paths)
     }
     Q_ASSERT(mMode == ReadWrite);
     iterator *it = createIterator(References);
+    QHash<Location, int> refs;
     {
         QList<PendingChange> changes;
         if (it->isValid()) {
@@ -133,9 +134,18 @@ void Database::invalidateEntries(const QSet<Path> &paths)
                 if (!key.endsWith(':')) {
                     filterLocations(it, dirtyFileIds, changes);
                     // ### remove empty reference ids?
+                } else {
+                    const Location loc = Location::fromKey(key);
+                    const int id = it->value<int>(-1);
+                    if (!loc.file || id < 0) {
+                        qWarning("Can't decode %s or %s", key.constData(), it->value().constData());
+                        continue;
+                    }
+                    refs[loc] = id;
                 }
             } while (it->next());
         }
+        qDebug() << refs;
         delete it;
         it = createIterator(Dictionary);
         if (it->isValid()) {
