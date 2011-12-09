@@ -6,7 +6,6 @@
 #include <unistd.h>
 #include <math.h>
 #include <errno.h>
-//#include <QDebug>
 
 unsigned long Mmap::s500k;
 unsigned long Mmap::s32m;
@@ -82,6 +81,7 @@ bool Mmap::reload(unsigned int trunc)
         }
     } else {
         //qDebug() << "trunc to" << trunc;
+        Q_ASSERT(trunc >= s500k && !(trunc % sPageSize));
         if (ftruncate(fd, trunc) == -1) {
             close(fd);
             mError = "Failed to truncate " + mFileName;
@@ -159,13 +159,15 @@ void Mmap::ensureSize(unsigned int size)
     if (size < mFileSize)
         return;
 
-    size -= (size % sPageSize);
-    size += sPageSize;
+    if ((size % sPageSize) != 0) {
+        size -= (size % sPageSize);
+        size += sPageSize;
+    }
 
     const unsigned int off = mOffset;
     clear(Sync);
     reload(size + qMin(qMax(static_cast<unsigned long>(mFileSize), s500k) * 2, s32m));
-    seek(off);
+    seek(qMin(off, mFileUsed));
 }
 
 int Mmap::findPage(unsigned int fileOffset, unsigned int* pageOffset) const
@@ -195,6 +197,13 @@ void Mmap::seek(unsigned int offset)
         mPageNo = findPage(mOffset, &mPageOffset);
         Q_ASSERT(mPageNo != -1);
     }
+}
+
+void Mmap::trunc(unsigned int size)
+{
+    if (size < mFileUsed)
+        mFileUsed = size;
+    ensureSize(size);
 }
 
 void Mmap::read(char* data, unsigned int size, bool* ok) const

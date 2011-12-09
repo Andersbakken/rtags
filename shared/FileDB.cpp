@@ -1,5 +1,6 @@
 #include "FileDB.h"
 #include "Mmap.h"
+#include "MmapDevice.h"
 #include <QHash>
 #include <QMap>
 #include <QIODevice>
@@ -10,61 +11,15 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-class FdDevice : public QIODevice
-{
-public:
-    FdDevice(int f);
-
-    bool isSequential() const;
-    bool atEnd() const;
-
-protected:
-    qint64 readData(char *data, qint64 maxlen);
-    qint64 writeData(const char *data, qint64 len);
-
-private:
-    int fd;
-    bool end;
-};
-
-FdDevice::FdDevice(int f)
-    : fd(f), end(false)
-{
-    open(QIODevice::ReadWrite);
-}
-
-bool FdDevice::isSequential() const
-{
-    return true; // for ease of implementation
-}
-
-bool FdDevice::atEnd() const
-{
-    return end;
-}
-
-qint64 FdDevice::readData(char *data, qint64 maxlen)
-{
-    qint64 r = ::read(fd, data, maxlen);
-    if (r == 0)
-        end = true;
-    return r;
-}
-
-qint64 FdDevice::writeData(const char *data, qint64 len)
-{
-    return ::write(fd, data, len);
-}
-
 class FileIndex
 {
 public:
     enum FindType { Exact, LowerBound, UpperBound };
 
     FileIndex();
-    FileIndex(int i, Mmap* m);
+    FileIndex(Mmap* idx, Mmap* db);
 
-    void init(int i, Mmap* m);
+    void init(Mmap* idx, Mmap* db);
     void clear();
 
     void read();
@@ -88,8 +43,8 @@ public:
     QMap<QByteArray, Entry> sorted;
     QHash<QByteArray, Entry> unsorted;
     bool dirty;
-    int idx;
-    Mmap* mmap;
+    Mmap* dbm;
+    Mmap* idxm;
 };
 
 QByteArray FileIndex::Entry::key() const
@@ -100,31 +55,30 @@ QByteArray FileIndex::Entry::key() const
 }
 
 FileIndex::FileIndex()
-    : dirty(false), idx(-1), mmap(0)
+    : dirty(false), dbm(0), idxm(0)
 {
 }
 
-FileIndex::FileIndex(int i, Mmap* m)
+FileIndex::FileIndex(Mmap* idx, Mmap* db)
 {
-    init(i, m);
+    init(idx, db);
 }
 
-void FileIndex::init(int i, Mmap* m)
+void FileIndex::init(Mmap* idx, Mmap* db)
 {
     dirty = false;
-    idx = i;
-    mmap = m;
+    idxm = idx;
+    dbm = db;
     read();
 }
 
 void FileIndex::clear()
 {
-    if (idx == -1)
+    if (idxm == 0)
         return;
 
-    ::close(idx);
-    idx = -1;
-    mmap = 0;
+    idxm = 0;
+    dbm = 0;
     sorted.clear();
     unsorted.clear();
 }
@@ -134,14 +88,15 @@ void FileIndex::read()
     sorted.clear();
     unsorted.clear();
 
-    FdDevice fddev(idx);
-    QDataStream stream(&fddev);
+    idxm->seek(0);
+    MmapDevice dev(idxm);
+    QDataStream stream(&dev);
     stream >> sorted;
 
     QMap<QByteArray, Entry>::iterator i = sorted.begin();
     const QMap<QByteArray, Entry>::const_iterator end = sorted.end();
     while (i != end) {
-        i.value().mmap = mmap;
+        i.value().mmap = dbm;
         unsorted[i.key()] = i.value();
         ++i;
     }
@@ -164,15 +119,14 @@ void FileIndex::write()
 {
     maybeSort();
 
-    FdDevice fddev(idx);
-    QDataStream stream(&fddev);
+    idxm->trunc(0);
+    MmapDevice dev(idxm);
+    QDataStream stream(&dev);
     stream << sorted;
 }
 
 int FileIndex::add(const QByteArray &key, int offset)
 {
-    enum { SortThreshold = 1000 }; // number of entries 'unsorted' can hold before getting sorted
-
     QHash<QByteArray, Entry>::iterator i = unsorted.find(key);
     if (i != unsorted.end()) {
         Entry& e = i.value();
@@ -184,7 +138,7 @@ int FileIndex::add(const QByteArray &key, int offset)
 
     Entry e;
     e.size = key.size();
-    e.mmap = mmap;
+    e.mmap = dbm;
     e.offset = offset;
     unsorted[key] = e;
     dirty = true;
@@ -253,34 +207,18 @@ public:
 private:
     FileDB::ConnectionType type;
     FileDB::Mode mode;
-    mutable Mmap mmap;
+    mutable Mmap dbm, idxm;
     mutable FileIndex idx;
 };
 
-static int modeToFlags(FileDB::Mode mode)
-{
-    switch (mode) {
-    case FileDB::ReadOnly:
-        return O_RDONLY;
-    case FileDB::WriteOnly:
-    case FileDB::ReadWrite:
-        // open for RDWR even in write only since we want to read internally even
-        // if reads using the external API should not be allowed
-        return O_RDWR | O_CREAT;
-    }
-    return 0;
-}
-
-FileConnection::FileConnection(FileDB::ConnectionType t, FileDB::Mode dbm, const Path& p)
-    : type(t), mode(dbm)
+FileConnection::FileConnection(FileDB::ConnectionType t, FileDB::Mode m, const Path& p)
+    : type(t), mode(m)
 {
     char fn = char('a' + t);
-    const int f = modeToFlags(mode);
-    const int m = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-    int idxfd = ::open((p + "/" + fn + ".idx").constData(), f, m);
-    mmap.load(p + "/" + fn + ".db");
+    dbm.load(p + "/" + fn + ".db");
+    idxm.load(p + "/" + fn + ".idx");
 
-    idx.init(idxfd, &mmap);
+    idx.init(&idxm, &dbm);
 }
 
 FileConnection::~FileConnection()
@@ -295,8 +233,8 @@ QByteArray FileConnection::readData(const QByteArray &key) const
     if (idx.find(FileIndex::Exact, key, &offset, &size)) {
         if (size == 0)
             return QByteArray();
-        mmap.seek(offset + size + sizeof(int));
-        QByteArray v = mmap.get<QByteArray>();
+        dbm.seek(offset + size + sizeof(int));
+        QByteArray v = dbm.get<QByteArray>();
         return v;
     }
     return QByteArray();
@@ -310,21 +248,21 @@ void FileConnection::writeData(const QByteArray &key, const QByteArray &value)
         const int at = idx.remove(key);
         if (at == -1)
             return;
-        mmap.seek(at);
-        mmap.set(QByteArray(1, '\0'));
+        dbm.seek(at);
+        dbm.set(QByteArray(1, '\0'));
         return;
     }
 
-    const unsigned int pos = mmap.size();
-    mmap.seek(pos);
-    const unsigned int off = mmap.offset();
-    mmap.set(key);
-    mmap.set(value);
+    const unsigned int pos = dbm.size();
+    dbm.seek(pos);
+    const unsigned int off = dbm.offset();
+    dbm.set(key);
+    dbm.set(value);
     const int prev = idx.add(key, off);
     if (prev == -1)
         return;
-    mmap.seek(prev);
-    mmap.set(QByteArray(1, '\0'));
+    dbm.seek(prev);
+    dbm.set(QByteArray(1, '\0'));
 }
 
 class FileIterator : public Database::iterator
@@ -343,7 +281,7 @@ private:
 private:
     Path path;
     FileIndex idx;
-    Mmap mmap;
+    Mmap dbm, idxm;
     int db;
     FileDB::Mode mode;
 
@@ -358,16 +296,14 @@ FileIterator::FileIterator(FileDB::ConnectionType t, FileDB::Mode m, const Path&
 
 void FileIterator::open(FileDB::ConnectionType t)
 {
-    mmap.clear(Mmap::Sync);
+    dbm.clear(Mmap::Sync);
     idx.clear();
 
     char fn = char('a' + t);
-    const int f = modeToFlags(mode);
-    const int m = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
-    int idxfd = ::open((path + "/" + fn + ".idx").constData(), f, m);
-    mmap.load(path + "/" + fn + ".db");
+    idxm.load(path + "/" + fn + ".idx");
+    dbm.load(path + "/" + fn + ".db");
 
-    idx.init(idxfd, &mmap);
+    idx.init(&idxm, &dbm);
 
     next();
 }
@@ -386,7 +322,7 @@ bool FileIterator::seek(const QByteArray &key)
 {
     int offset;
     if (idx.find(FileIndex::LowerBound, key, &offset)) {
-        mmap.seek(offset);
+        dbm.seek(offset);
         next();
         return true;
     }
@@ -397,13 +333,13 @@ bool FileIterator::next()
 {
     bool ok;
     forever {
-        k = mmap.get<QByteArray>(&ok);
+        k = dbm.get<QByteArray>(&ok);
         if (!ok) {
             k.clear();
             v.clear();
             return false;
         }
-        v = mmap.get<QByteArray>();
+        v = dbm.get<QByteArray>();
 
         Q_ASSERT(!k.isEmpty());
         if (k.at(0) != '\0')

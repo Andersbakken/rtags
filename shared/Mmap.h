@@ -19,6 +19,7 @@ public:
     bool load(const QByteArray& filename);
 
     void seek(unsigned int offset);
+    void trunc(unsigned int size);
     unsigned int offset() const { return mOffset; }
     unsigned int size() const { return mFileUsed; }
 
@@ -55,6 +56,8 @@ private:
     QByteArray mFileName, mError;
 
     static unsigned long s500k, s32m, sPageSize;
+
+    friend class MmapDevice;
 };
 
 template<typename T>

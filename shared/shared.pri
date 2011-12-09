@@ -6,7 +6,8 @@ SOURCES += $$PWD/GccArguments.cpp \
            $$PWD/AtomicString.cpp \
            $$PWD/Database.cpp \
            $$PWD/Mmap.cpp \
-           $$PWD/FileDB.cpp
+           $$PWD/FileDB.cpp \
+           $$PWD/MmapDevice.cpp
 HEADERS += $$PWD/GccArguments.h \
            $$PWD/Path.h \
            $$PWD/RTags.h \
@@ -15,7 +16,8 @@ HEADERS += $$PWD/GccArguments.h \
            $$PWD/Database.h \
            $$PWD/LevelDB.h \
            $$PWD/Mmap.h \
-           $$PWD/FileDB.h
+           $$PWD/FileDB.h \
+           $$PWD/MmapDevice.h
 LIBS += -lclang
 include($$PWD/../3rdparty/leveldb.pri)
 mac {
