@@ -8,15 +8,17 @@
 class Mmap
 {
 public:
+    enum Mode { ReadOnly, ReadWrite };
+
     Mmap();
-    Mmap(const QByteArray& filename);
+    Mmap(const QByteArray& filename, Mode mode);
     ~Mmap();
 
     static void init();
 
     enum SyncType { Sync, ASync, NoSync };
     void clear(SyncType sync);
-    bool load(const QByteArray& filename);
+    bool load(const QByteArray& filename, Mode mode);
 
     void seek(unsigned int offset);
     void reset();
@@ -54,6 +56,7 @@ private:
     mutable unsigned int mOffset, mPageOffset;
     mutable int mPageNo;
     QByteArray mFileName, mError;
+    Mode mMode;
 
     static unsigned long s500k, s32m, sPageSize;
 
@@ -123,6 +126,9 @@ inline QByteArray Mmap::get<QByteArray>(bool* ok) const
 template<>
 inline void Mmap::set<QByteArray>(const QByteArray& data)
 {
+    if (mMode == ReadOnly)
+        return;
+
     int size = data.size();
     int oldsize = -1;
 

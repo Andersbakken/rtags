@@ -12,19 +12,20 @@ unsigned long Mmap::s32m;
 unsigned long Mmap::sPageSize;
 
 Mmap::Mmap()
-    : mFileSize(0), mFileUsed(0), mOffset(0), mPageOffset(0), mPageNo(0)
+    : mFileSize(0), mFileUsed(0), mOffset(0), mPageOffset(0), mPageNo(0), mMode(ReadOnly)
 {
 }
 
-Mmap::Mmap(const QByteArray& filename)
+Mmap::Mmap(const QByteArray& filename, Mode mode)
     : mFileSize(0), mFileUsed(0), mOffset(0), mPageOffset(0), mPageNo(0)
 {
-    load(filename);
+    load(filename, mode);
 }
 
 Mmap::~Mmap()
 {
-    clear(ASync);
+    if (mMode == ReadWrite)
+        clear(ASync);
 }
 
 void Mmap::init()
@@ -38,12 +39,14 @@ void Mmap::init()
     s32m = s500k * 64;
 }
 
-bool Mmap::load(const QByteArray& filename)
+bool Mmap::load(const QByteArray& filename, Mode mode)
 {
     if (filename.isEmpty()) {
         mError = "Filename is empty";
         return false;
     }
+
+    mMode = mode;
 
     if (filename == mFileName)
         clear(Sync);
@@ -95,11 +98,15 @@ bool Mmap::reload(unsigned int trunc)
     const quint64 numBlocks = fileSize / pagesize;
     const quint64 remBytes = fileSize % pagesize;
 
+    int prot = PROT_READ;
+    if (mMode == ReadWrite)
+        prot |= PROT_WRITE;
+
     quint64 offset = 0;
     Page data;
     for (quint64 i = 0; i < numBlocks; ++i) {
         data.size = pagesize;
-        data.data = (char*)mmap(0, pagesize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
+        data.data = (char*)mmap(0, pagesize, prot, MAP_SHARED, fd, offset);
         if (data.data == (void*)-1) {
             close(fd);
             clear(ASync);
@@ -167,9 +174,10 @@ void Mmap::ensureSize(unsigned int size)
     }
 
     const unsigned int off = mOffset;
+    const unsigned int sz = mFileSize;
     clear(Sync);
-    reload(size + qMin(qMax(static_cast<unsigned long>(mFileSize), s500k) * 2, s32m));
-    seek(qMin(off, mFileUsed));
+    reload(size + qMin(qMax(static_cast<unsigned long>(sz), s500k) * 2, s32m));
+    seek(off);
 }
 
 int Mmap::findPage(unsigned int fileOffset, unsigned int* pageOffset) const
@@ -197,7 +205,8 @@ void Mmap::seek(unsigned int offset)
     if (mPageNo == -1) {
         ensureSize(offset);
         mPageNo = findPage(mOffset, &mPageOffset);
-        Q_ASSERT(mPageNo != -1);
+        if (mPageNo == -1)
+            qFatal("Unable to find page at offset %u, file size is %u", offset, mFileSize);
     }
 }
 
@@ -260,6 +269,9 @@ void Mmap::read(char* data, unsigned int size, bool* ok) const
 
 void Mmap::write(const char* data, unsigned int size)
 {
+    if (mMode == ReadOnly)
+        return;
+
     ensureSize(mOffset + size);
 
     Q_ASSERT(mPageNo < (unsigned int)mPages.size());

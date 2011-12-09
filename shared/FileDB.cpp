@@ -216,8 +216,8 @@ FileConnection::FileConnection(FileDB::ConnectionType t, FileDB::Mode m, const P
     : type(t), mode(m)
 {
     char fn = char('a' + t);
-    dbm.load(p + "/" + fn + ".db");
-    idxm.load(p + "/" + fn + ".idx");
+    dbm.load(p + "/" + fn + ".db", Mmap::ReadWrite);
+    idxm.load(p + "/" + fn + ".idx", Mmap::ReadWrite);
 
     idx.init(&idxm, &dbm);
 }
@@ -301,8 +301,8 @@ void FileIterator::open(FileDB::ConnectionType t)
     idx.clear();
 
     char fn = char('a' + t);
-    idxm.load(path + "/" + fn + ".idx");
-    dbm.load(path + "/" + fn + ".db");
+    idxm.load(path + "/" + fn + ".idx", Mmap::ReadOnly);
+    dbm.load(path + "/" + fn + ".db", Mmap::ReadOnly);
 
     idx.init(&idxm, &dbm);
 
