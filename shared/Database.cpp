@@ -487,7 +487,14 @@ void Database::writeEntity(const QByteArray &symbolName,
         }
         const int ret = snprintf(buf, BufSize, "%d", refIdx);
         write(References, QByteArray(buf, ret), references);
-        const Location loc = (definition.file ? definition : *declarations.begin());
+        Location loc;
+        if (definition.file) {
+            loc = definition;
+        } else if (mMode == ReadWrite) {
+            loc = followLocation(*declarations.begin());
+            if (!loc.file)
+                loc = *declarations.begin();
+        }
         for (QSet<Location>::const_iterator it = references.begin();
              it != references.end(); ++it) {
             const Location &l = *it;
