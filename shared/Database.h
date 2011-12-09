@@ -162,7 +162,9 @@ private:
         Q_ASSERT(!key.isEmpty());
         mConnections[type]->writeData(key, QByteArray());
     }
-    
+
+    bool filterReferences(Database::iterator *iterator, const QSet<int> &dirty);
+    bool filterDictionary(Database::iterator *iterator, const QSet<int> &dirty);
 
     Path mPath;
     Mode mMode;
@@ -172,6 +174,8 @@ private:
 
     QHash<QByteArray, DictionaryHash> mDictionary;
     int mRefIdxCounter;
+
+    friend class RBuild;
 };
 
 #endif

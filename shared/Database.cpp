@@ -86,21 +86,13 @@ bool Database::open(const Path &db, Mode mode)
     return false;
 }
 
-struct PendingChange {
-    Database::ConnectionType connectionType;
-    QByteArray key;
-    QSet<Location> locations;
-};
-
-static inline bool filterLocations(Database::iterator *iterator, const QSet<int> &dirty,
-                                   QList<PendingChange> &changes)
+// true means all locations were filtered out
+bool Database::filterReferences(Database::iterator *iterator, const QSet<int> &dirty)
 {
-    const QByteArray value = iterator->value();
-    QDataStream ds(value);
-    QSet<Location> locations;
-    ds >> locations;
+    QSet<Location> locations = iterator->value<QSet<Location> >();
     QSet<Location>::iterator it = locations.begin();
     bool changed = false;
+    // qDebug() << iterator->key() << locations << dirty;
     while (it != locations.end()) {
         if (dirty.contains((*it).file)) {
             it = locations.erase(it);
@@ -109,15 +101,51 @@ static inline bool filterLocations(Database::iterator *iterator, const QSet<int>
             ++it;
         }
     }
-    if (changed) {
-        const PendingChange ch = { iterator->type, iterator->key(), locations };
-        changes.append(ch);
+    if (locations.isEmpty()) {
+        remove(References, iterator->key());
+        return true;
+    } else if (changed) {
+        write(References, iterator->key(), locations);
     }
-    return changed;
+    return false;
+}
+
+bool Database::filterDictionary(Database::iterator *iterator, const QSet<int> &dirty)
+{
+    DictionaryHash dict = iterator->value<DictionaryHash>();
+    DictionaryHash::iterator it = dict.begin();
+    bool changed = false;
+    // qDebug() << iterator->key() << locations << dirty;
+    while (it != dict.end()) {
+        QSet<Location> &locations = it.value();
+        QSet<Location>::iterator jj = locations.begin();
+        while (jj != locations.end()) {
+            if (dirty.contains((*jj).file)) {
+                jj = locations.erase(jj);
+                changed = true;
+            } else {
+                ++jj;
+            }
+        }
+        if (locations.isEmpty()) {
+            it = dict.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    if (dict.isEmpty()) {
+        remove(Dictionary, iterator->key());
+        // qDebug() << "killing" << iterator->key();
+        return true;
+    } else if (changed) {
+        write(Dictionary, iterator->key(), dict);
+    }
+    return false;
 }
 
 void Database::invalidateEntries(const QSet<Path> &paths)
 {
+    // qDebug() << mFilesByIndex;
     QSet<int> dirtyFileIds;
     foreach(const Path &p, paths) {
         Q_ASSERT(mFilesByName.contains(p));
@@ -125,42 +153,48 @@ void Database::invalidateEntries(const QSet<Path> &paths)
     }
     Q_ASSERT(mMode == ReadWrite);
     iterator *it = createIterator(References);
-    QHash<Location, int> refs;
+    QHash<int, QSet<QByteArray> > refs;
+    QList<int> removedRefs;
     {
-        QList<PendingChange> changes;
         if (it->isValid()) {
             do {
                 const QByteArray key = it->key();
-                if (!key.endsWith(':')) {
-                    filterLocations(it, dirtyFileIds, changes);
-                    // ### remove empty reference ids?
-                } else {
-                    const Location loc = Location::fromKey(key);
+                if (key.endsWith(':')) {
                     const int id = it->value<int>(-1);
-                    if (!loc.file || id < 0) {
-                        qWarning("Can't decode %s or %s", key.constData(), it->value().constData());
+                    if (id < 0) {
+                        qWarning("Can't decode index %s", it->value().constData());
                         continue;
                     }
-                    refs[loc] = id;
+                    refs[id].insert(key);
+                } else {
+                    if (filterReferences(it, dirtyFileIds)) {
+                        bool ok;
+                        int id = key.toInt(&ok);
+                        if (!id) {
+                            qWarning("Invalid ref %s", key.constData());
+                        } else {
+                            removedRefs.append(id);
+                            // qDebug() << "killed refs" << id;
+                        }
+                    }
                 }
             } while (it->next());
         }
-        qDebug() << refs;
+        foreach(int ref, removedRefs) {
+            foreach(const QByteArray &key, refs.value(ref)) {
+                remove(References, key);
+                qDebug() << "killing refs" << Location::fromKey(key) << ref;
+            }
+        }
+        // qDebug() << refs;
         delete it;
         it = createIterator(Dictionary);
         if (it->isValid()) {
             do {
-                filterLocations(it, dirtyFileIds, changes);
+                filterDictionary(it, dirtyFileIds);
             } while (it->next());
         }
         delete it;
-        foreach(const PendingChange &change, changes) {
-            if (change.locations.isEmpty()) {
-                remove(change.connectionType, change.key);
-            } else {
-                write(change.connectionType, change.key, change.locations);
-            }
-        }
     }
     {
         QList<QByteArray> removedKeys;
