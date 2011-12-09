@@ -119,7 +119,7 @@ void FileIndex::write()
 {
     maybeSort();
 
-    idxm->trunc(0);
+    idxm->reset();
     MmapDevice dev(idxm);
     QDataStream stream(&dev);
     stream << sorted;
@@ -131,6 +131,7 @@ int FileIndex::add(const QByteArray &key, int offset)
     if (i != unsorted.end()) {
         Entry& e = i.value();
         const int prev = e.offset;
+
         e.offset = offset;
         dirty = true;
         return prev;

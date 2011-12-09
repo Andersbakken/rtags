@@ -24,7 +24,7 @@ Mmap::Mmap(const QByteArray& filename)
 
 Mmap::~Mmap()
 {
-    clear(Async);
+    clear(ASync);
 }
 
 void Mmap::init()
@@ -48,7 +48,7 @@ bool Mmap::load(const QByteArray& filename)
     if (filename == mFileName)
         clear(Sync);
     else
-        clear(Async);
+        clear(ASync);
     mFileName = filename;
 
     return reload();
@@ -102,7 +102,7 @@ bool Mmap::reload(unsigned int trunc)
         data.data = (char*)mmap(0, pagesize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
         if (data.data == (void*)-1) {
             close(fd);
-            clear(Async);
+            clear(ASync);
             mError = "Unable to mmap (bpb) " + mFileName + ": " + QByteArray::number(pagesize) + " at " + QByteArray::number(offset) + ", error " + QByteArray(strerror(errno));
             return false;
         }
@@ -115,7 +115,7 @@ bool Mmap::reload(unsigned int trunc)
     data.data = (char*)mmap(0, remBytes, PROT_READ | PROT_WRITE, MAP_SHARED, fd, offset);
     if (data.data == (void*)-1) {
         close(fd);
-        clear(Async);
+        clear(ASync);
         mError = "Unable to mmap (rem) " + mFileName + ": " + QByteArray::number(remBytes) + " at " + QByteArray::number(offset) + ", error " + QByteArray(strerror(errno));
         return false;
     }
@@ -138,13 +138,15 @@ void Mmap::clear(SyncType sync)
     if (mPages.empty())
         return;
 
-    int ret;
-    memcpy(mPages.at(0).data, &mFileUsed, sizeof(int));
-    foreach(const Page& data, mPages) {
-        ret = msync(data.data, data.size, (sync == Async) ? MS_ASYNC : MS_SYNC);
-        Q_ASSERT(ret == 0);
-        ret = munmap(data.data, data.size);
-        Q_ASSERT(ret == 0);
+    if (sync != NoSync) {
+        int ret;
+        memcpy(mPages.at(0).data, &mFileUsed, sizeof(int));
+        foreach(const Page& data, mPages) {
+            ret = msync(data.data, data.size, (sync == ASync) ? MS_ASYNC : MS_SYNC);
+            Q_ASSERT(ret == 0);
+            ret = munmap(data.data, data.size);
+            Q_ASSERT(ret == 0);
+        }
     }
     mPages.clear();
     mError.clear();
@@ -156,7 +158,7 @@ void Mmap::clear(SyncType sync)
 
 void Mmap::ensureSize(unsigned int size)
 {
-    if (size < mFileSize)
+    if (size <= mFileSize)
         return;
 
     if ((size % sPageSize) != 0) {
@@ -199,11 +201,11 @@ void Mmap::seek(unsigned int offset)
     }
 }
 
-void Mmap::trunc(unsigned int size)
+void Mmap::reset()
 {
-    if (size < mFileUsed)
-        mFileUsed = size;
-    ensureSize(size);
+    clear(NoSync);
+    reload(s500k);
+    seek(0);
 }
 
 void Mmap::read(char* data, unsigned int size, bool* ok) const

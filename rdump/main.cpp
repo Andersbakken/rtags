@@ -30,28 +30,25 @@ static inline void raw(Database *db, const QByteArray &file)
         fprintf(stderr, "Can't open %s for writing\n", file.constData());
         return;
     }
-    QMap<QByteArray, QMap<QByteArray, QByteArray> > entries;
+    QMap<QByteArray, QByteArray> entries[Database::NumConnectionTypes];
     for (int i=0; i<Database::NumConnectionTypes; ++i) {
         Database::iterator *it = db->createIterator(static_cast<Database::ConnectionType>(i));
         if (it->isValid()) {
             do {
-                Q_ASSERT_X(!entries[names[i]].contains(it->key()), "raw()", (it->key() + " already exists in " + names[i]).constData());
-                // the QByteArray instances returned by Database::iterator (for FileDB) are only valid as long as the
-                // iterator is alive (due to the mmap being cleared). So we take a deep copy here.
-                entries[names[i]][QByteArray(it->key().constData(), it->key().size())] =
-                        QByteArray(it->value().constData(), it->value().size());
+                //Q_ASSERT_X(!entries[i].contains(it->key()), "raw()", (it->key() + " already exists in " + names[i]).constData());
+                if (entries[i].contains(it->key()))
+                    qDebug() << "already contains key" << it->key() << names[i];
+                entries[i][it->key()] = it->value();
             } while (it->next());
         }
         delete it;
     }
-    QMap<QByteArray, QMap<QByteArray, QByteArray> >::const_iterator e = entries.begin();
-    QMap<QByteArray, QMap<QByteArray, QByteArray> >::const_iterator eend = entries.end();
-    while (e != eend) {
-        const QMap<QByteArray, QByteArray> cat = e.value();
+    for (int i = 0; i < Database::NumConnectionTypes; ++i) {
+        const QMap<QByteArray, QByteArray>& cat = entries[i];
         QMap<QByteArray, QByteArray>::const_iterator d = cat.begin();
         QMap<QByteArray, QByteArray>::const_iterator dend = cat.end();
         while (d != dend) {
-            f.write(e.key());
+            f.write(names[i]);
             f.write(d.key());
             f.write("] [");
             const QByteArray value = d.value();
@@ -69,7 +66,6 @@ static inline void raw(Database *db, const QByteArray &file)
             f.write("]\n");
             ++d;
         }
-        ++e;
     }
 }
 

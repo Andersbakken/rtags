@@ -14,12 +14,12 @@ public:
 
     static void init();
 
-    enum SyncType { Sync, Async };
+    enum SyncType { Sync, ASync, NoSync };
     void clear(SyncType sync);
     bool load(const QByteArray& filename);
 
     void seek(unsigned int offset);
-    void trunc(unsigned int size);
+    void reset();
     unsigned int offset() const { return mOffset; }
     unsigned int size() const { return mFileUsed; }
 
@@ -32,7 +32,7 @@ public:
     void set(const T& data);
 
 private:
-    bool reload(unsigned int trunc = 0);
+    bool reload(unsigned int reset = 0);
 
     int findPage(unsigned int fileOffset, unsigned int* pageOffset) const;
 
@@ -105,7 +105,8 @@ inline QByteArray Mmap::get<QByteArray>(bool* ok) const
         //    qDebug() << "offset is now" << mOffset;
         if (ok)
             *ok = true;
-        return QByteArray::fromRawData(page->data + off, size);
+        //return QByteArray::fromRawData(page->data + off, size);
+        return QByteArray(page->data + off, size);
     }
 
     QByteArray data(size, Qt::Uninitialized);
