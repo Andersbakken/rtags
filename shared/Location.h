@@ -44,18 +44,19 @@ struct Location
     {
         if (!file)
             return QByteArray();
+        enum { BufSize = 256 };
+        char buf[BufSize];
 #ifdef QT_DEBUG
-        char buf[256];
         if (files()) {
             for (QHash<Path, unsigned>::const_iterator it = files()->begin(); it != files()->end(); ++it) {
                 if (it.value() == file) {
-                    const int ret = snprintf(buf, 256, "%s:%d:%d:", it.key().constData(), line, column);
+                    const int ret = snprintf(buf, BufSize, "%s:%d:%d:", it.key().constData(), line, column);
                     return QByteArray(buf, ret);
                 }
             }
         }
 #endif
-        const int ret = snprintf(buf, 256, "%d:%d:%d:", file, line, column);
+        const int ret = snprintf(buf, BufSize, "%d:%d:%d:", file, line, column);
         return QByteArray(buf, ret);
     }
     inline bool operator==(const Location &other) const

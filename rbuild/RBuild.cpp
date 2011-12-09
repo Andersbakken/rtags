@@ -118,7 +118,6 @@ static inline int fileNameLength(const char *data, int len)
 
 bool RBuild::updateDB()
 {
-    const qint64 beforeLoad = timer.elapsed();
     if (!openDB(Update))
         return false;
     QMap<int, qint64> snapshots;
@@ -559,7 +558,6 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
     clang_disposeTranslationUnit(unit);
 
     emit compileFinished();
-
 }
 
 void PrecompileRunnable::run()
