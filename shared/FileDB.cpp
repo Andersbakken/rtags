@@ -297,7 +297,6 @@ FileIterator::FileIterator(FileDB::ConnectionType t, FileDB::Mode m, const Path&
 
 void FileIterator::open(FileDB::ConnectionType t)
 {
-    dbm.clear(Mmap::Sync);
     idx.clear();
 
     char fn = char('a' + t);

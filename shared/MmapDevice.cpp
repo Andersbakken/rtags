@@ -4,7 +4,7 @@
 MmapDevice::MmapDevice(Mmap* mmap, QObject *parent)
     : QIODevice(parent), mMmap(mmap)
 {
-    QIODevice::open(QIODevice::ReadWrite);
+    QIODevice::open(mmap->mode() == Mmap::ReadOnly ? QIODevice::ReadOnly : QIODevice::ReadWrite);
 }
 
 bool MmapDevice::isSequential() const
