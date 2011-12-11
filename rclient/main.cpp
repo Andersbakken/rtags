@@ -78,6 +78,7 @@ static inline void usage(const char* argv0, FILE *f)
             "  --files|-P [arg]              Print out files matching arg\n"
             "  --paths-relative-to-root|-n   Print out files matching arg\n"
             "  --all-references|-a [arg]     Print all references/declarations/definitions that matches arg\n"
+            "  --rename-symbol|-R [loc] [to] Rename symbol. E.g. rc -R main.cpp:10:3 foobar\n"
             "  --find-symbols|-s [arg]       Print out symbols matching arg\n",
             argv0);
 }
@@ -97,9 +98,10 @@ int main(int argc, char** argv)
         { "paths-relative-to-root", 0, 0, 'n' },
         { "db-type", 1, 0, 't' },
         { "all-references", 1, 0, 'a' },
+        { "rename-symbol", 1, 0, 'R' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hf:d:r:l:Dps:P:nt:a:";
+    const char *shortOptions = "hf:d:r:l:Dps:P:nt:a:R:";
 
     Mmap::init();
 
@@ -112,7 +114,8 @@ int main(int argc, char** argv)
         FindSymbols,
         ListSymbols,
         Files,
-        AllReferences
+        AllReferences,
+        RenameSymbol
         // RecursiveReferences,
     } mode = None;
     enum Flag {
@@ -120,13 +123,31 @@ int main(int argc, char** argv)
     };
     unsigned flags = 0;
     int idx, longIndex;
-    QByteArray arg;
+    QByteArray arg, renameTo;
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
         switch (idx) {
         case '?':
             usage(argv[0], stderr);
             return 1;
+        case 'R':
+            if (mode != None) {
+                fprintf(stderr, "Mode is already set\n");
+                return 1;
+            }
+
+            if (optind >= argc) {
+                fprintf(stderr, "Invalid args for -R\n");
+                return 1;
+            }
+            mode = RenameSymbol;
+            renameTo = argv[optind];
+            ++optind;
+            break;
         case 'a':
+            if (mode != None) {
+                fprintf(stderr, "Mode is already set\n");
+                return 1;
+            }
             mode = AllReferences;
             arg = optarg;
             break;
@@ -230,6 +251,7 @@ int main(int argc, char** argv)
             usage(argv[0], stderr);
             fprintf(stderr, "No mode selected\n");
             return 1;
+        case RenameSymbol:
         case AllReferences: {
             const Location loc = db->createLocation(arg);
             if (!loc.file) {
@@ -238,8 +260,29 @@ int main(int argc, char** argv)
             }
             QList<Location> all = db->allLocations(loc).toList();
             qSort(all.begin(), all.end(), compareLoc);
-            foreach(const Location &l, all) {
-                printf("%s\n", db->locationToString(l).constData());
+            if (mode == AllReferences) {
+                foreach(const Location &l, all) {
+                    printf("%s\n", db->locationToString(l).constData());
+                }
+            } else {
+                foreach(const Location &l, all) {
+                    const Path p = db->file(l.file);
+                    FILE *f = fopen(p.constData(), "r+");
+                    if (!f) {
+                        fprintf(stderr, "Can't open %s for writing\n", p.constData());
+                        continue;
+                    }
+                    for (unsigned i=0; i<l.line - 1; ++i) {
+                        if (readLine(f, 0, 0) == -1) {
+                            fprintf(stderr, "Read error for %s. Can't read line %d\n",
+                                    p.constData(), i + 1);
+                        }
+                    }
+                    fseek(f, l.column - 1, SEEK_CUR);
+                    long old = ftell(f);
+                    fwrite(renameTo.constData(), sizeof(char), renameTo.size(), f);
+                    printf("fixed shit %ld %ld\n", old, ftell(f));
+                }
             }
             break; }
         case FollowSymbol: {

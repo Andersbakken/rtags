@@ -139,6 +139,7 @@ public:
     }
 
     virtual iterator *createIterator(ConnectionType) const = 0;
+    Path file(int id) const { return mFilesByIndex.value(id); }
 protected:
     virtual bool openDatabase(const Path &db, Mode mode) = 0;
     virtual void closeDatabase() = 0;

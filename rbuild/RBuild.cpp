@@ -512,7 +512,7 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
     //     fprintf(stderr, "%s ", clangArgs[i]);
     // }
     // fprintf(stderr, "%s\n", file.constData());
-    
+
 
     if (precompile && clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
                                             CXIndexOpt_None, file.constData(), clangArgs.constData(),

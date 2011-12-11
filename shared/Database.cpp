@@ -485,7 +485,6 @@ void Database::writeEntity(const QByteArray &symbolName,
                 refIdx = ++mRefIdxCounter;
             }
         }
-        qDebug() << refIdx << references;
         const int ret = snprintf(buf, BufSize, "%d", refIdx);
         write(References, QByteArray(buf, ret), references);
         Location loc;
