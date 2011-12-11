@@ -87,6 +87,7 @@ void FileIndex::read()
 {
     sorted.clear();
     unsorted.clear();
+    dirty = false;
 
     idxm->seek(0);
     MmapDevice dev(idxm);
@@ -131,9 +132,7 @@ int FileIndex::add(const QByteArray &key, int offset)
     if (i != unsorted.end()) {
         Entry& e = i.value();
         const int prev = e.offset;
-
         e.offset = offset;
-        dirty = true;
         return prev;
     }
 
@@ -192,7 +191,7 @@ int FileIndex::remove(const QByteArray &key)
         return -1;
     const int off = i.value().offset;
     unsorted.erase(i);
-    dirty = true;
+    dirty = true; // ### wouldn't need to flag 'dirty' here if we removed the entry outright from sorted as well
     return off;
 }
 
