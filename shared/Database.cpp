@@ -478,13 +478,14 @@ void Database::writeEntity(const QByteArray &symbolName,
 
     if (!references.isEmpty()) {
         if (!refIdx) {
-            if (mRemovedRefs.isEmpty()) {
+            if (!mRemovedRefs.isEmpty()) {
                 refIdx = *mRemovedRefs.begin();
                 mRemovedRefs.erase(mRemovedRefs.begin());
             } else {
                 refIdx = ++mRefIdxCounter;
             }
         }
+        qDebug() << refIdx << references;
         const int ret = snprintf(buf, BufSize, "%d", refIdx);
         write(References, QByteArray(buf, ret), references);
         Location loc;
@@ -585,4 +586,26 @@ Database *Database::create(const Path &path, Mode mode)
     }
     qFatal("Unknown db %s", dbType.constData());
     return 0;
+}
+
+QSet<Location> Database::allLocations(const Location &location) const
+{
+#warning what if this is a function with more than one declaration. How do we get to the other declarations?
+    Q_ASSERT(location.file);
+    QSet<Location> ret;
+    ret.insert(location);
+    foreach(const Location &l, findReferences(location))
+        ret.insert(l);
+    Location f = followLocation(location);
+    if (f.file) {
+        ret.insert(f);
+        foreach(const Location &l, findReferences(f))
+            ret.insert(l);
+        Location f = followLocation(f);
+        if (f.file && !ret.contains(f)) {
+            foreach(const Location &l, findReferences(f))
+                ret.insert(l);
+        }
+    }
+    return ret;
 }

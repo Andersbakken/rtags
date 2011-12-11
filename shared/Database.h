@@ -55,6 +55,7 @@ public:
                      const Location &definition,
                      const QSet<Location> &declarations,
                      QSet<Location> references);
+    QSet<Location> allLocations(const Location &locations) const;
 
     void invalidateEntries(const QSet<Path> &paths);
 

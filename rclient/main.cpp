@@ -11,6 +11,22 @@
 #include "Database.h"
 #include "Mmap.h"
 
+// This sorts in reverse order. Location with higher line, column comes first
+static inline bool compareLoc(const Location &l, const Location &r)
+{
+    if (l.file < r.file)
+        return true;
+    if (r.file > l.file)
+        return false;
+    if (l.line > r.line)
+        return true;
+    if (l.line < r.line)
+        return false;
+    if (l.column <= r.column)
+        return false;
+    return false;
+}
+
 using namespace RTags;
 static inline int readLine(FILE *f, char *buf, int max)
 {
@@ -61,6 +77,7 @@ static inline void usage(const char* argv0, FILE *f)
             "  --list-symbols|-l [arg]       Print out symbols names matching arg\n"
             "  --files|-P [arg]              Print out files matching arg\n"
             "  --paths-relative-to-root|-n   Print out files matching arg\n"
+            "  --all-references|-a [arg]     Print all references/declarations/definitions that matches arg\n"
             "  --find-symbols|-s [arg]       Print out symbols matching arg\n",
             argv0);
 }
@@ -79,9 +96,10 @@ int main(int argc, char** argv)
         { "files", 1, 0, 'P' }, // some of these should have optional args
         { "paths-relative-to-root", 0, 0, 'n' },
         { "db-type", 1, 0, 't' },
+        { "all-references", 1, 0, 'a' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hf:d:r:l:Dps:P:nt:";
+    const char *shortOptions = "hf:d:r:l:Dps:P:nt:a:";
 
     Mmap::init();
 
@@ -93,7 +111,8 @@ int main(int argc, char** argv)
         References,
         FindSymbols,
         ListSymbols,
-        Files
+        Files,
+        AllReferences
         // RecursiveReferences,
     } mode = None;
     enum Flag {
@@ -107,6 +126,10 @@ int main(int argc, char** argv)
         case '?':
             usage(argv[0], stderr);
             return 1;
+        case 'a':
+            mode = AllReferences;
+            arg = optarg;
+            break;
         case 'n':
             flags |= PathsRelativeToRoot;
             break;
@@ -207,6 +230,18 @@ int main(int argc, char** argv)
             usage(argv[0], stderr);
             fprintf(stderr, "No mode selected\n");
             return 1;
+        case AllReferences: {
+            const Location loc = db->createLocation(arg);
+            if (!loc.file) {
+                fprintf(stderr, "Invalid arg %s", arg.constData());
+                break;
+            }
+            QList<Location> all = db->allLocations(loc).toList();
+            qSort(all.begin(), all.end(), compareLoc);
+            foreach(const Location &l, all) {
+                printf("%s\n", db->locationToString(l).constData());
+            }
+            break; }
         case FollowSymbol: {
             Location loc = db->createLocation(arg);
             // printf("%s => %d:%d:%d\n", arg.constData(), loc.file, loc.line, loc.column);
