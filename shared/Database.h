@@ -143,7 +143,7 @@ protected:
     virtual void closeDatabase() = 0;
     virtual Connection *createConnection(ConnectionType type) = 0;
 private:
-    template <typename T> T read(ConnectionType type, const QByteArray &key, const T &defaultValue) const
+    template <typename T> T read(ConnectionType type, const QByteArray &key, const T &defaultValue = T()) const
     {
         if (key.isEmpty())
             return T();
