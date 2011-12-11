@@ -491,15 +491,19 @@ void Database::writeEntity(const QByteArray &symbolName,
         if (definition.file) {
             loc = definition;
         } else if (mMode == ReadWrite) {
+            Q_ASSERT(!declarations.isEmpty());
             loc = followLocation(*declarations.begin());
-            if (!loc.file)
-                loc = *declarations.begin();
         }
-        for (QSet<Location>::const_iterator it = references.begin();
-             it != references.end(); ++it) {
-            const Location &l = *it;
-            const int ret = snprintf(buf, BufSize, "%d:%d:%d:", l.file, l.line, l.column);
-            write(Targets, QByteArray(buf, ret), loc);
+        if (!loc.file && declarations.size() == 1) {
+            loc = *declarations.begin();
+        }
+        if (loc.file) {
+            for (QSet<Location>::const_iterator it = references.begin();
+                 it != references.end(); ++it) {
+                const Location &l = *it;
+                const int ret = snprintf(buf, BufSize, "%d:%d:%d:", l.file, l.line, l.column);
+                write(Targets, QByteArray(buf, ret), loc);
+            }
         }
     }
     if (definition.file && (refIdx || declarations.size() == 1)) {

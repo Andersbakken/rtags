@@ -22,7 +22,8 @@
     (insert "**********************************\n" log "\n")
     )
   )
-
+(defvar rtags-symbol-history nil)
+(defvar rtags-file-history nil)
 (defvar last-rtags-update-process nil)
 (defun rtags-update ()
   (interactive)
@@ -146,7 +147,7 @@
       (rtags-log (buffer-string))
       (setq completions (split-string (buffer-string) "\n" t)))
       ;; (setq completions (split-string "test1" "test1()")))
-    (setq input (completing-read prompt completions nil nil nil gtags-history-list))
+    (setq input (completing-read prompt completions nil nil nil rtags-symbol-history))
     (if (not (equal "" input))
         (setq tagname input))
     (if (get-buffer "*Rtags-Complete*")
@@ -227,7 +228,7 @@
 (defun rtags-find-files ()
    (interactive)
    (let ((tagname (gtags-current-token))
-         (input (completing-read "Find files: " 'rtags-complete-files nil nil nil gtags-history-list)))
+         (input (completing-read "Find files: " 'rtags-complete-files nil nil nil rtags-file-history)))
      (setq rtags-last-buffer (current-buffer))
      (unless (equal "" input)
        (progn
@@ -254,21 +255,3 @@
 
 (provide 'rtags)
 
-(defun compl (string predicate code)
-  (let ((complete-list (make-vector 63 0)))
-    (save-excursion
-      (goto-char (point-min))
-      (message (buffer-string))
-      (while (not (eobp))
-        (intern (buffer-substring (point-at-bol) (point-at-eol)) complete-list)
-        (forward-line)))
-    (cond ((eq code nil)
-           (try-completion string complete-list predicate))
-          ((eq code t)
-           (all-completions string complete-list predicate))
-          ((eq code 'lambda)
-           (if (intern-soft string complete-list) t nil)))))
-
-(defun foo() (interactive)
-  (message "got: " (completing-read "foo: " 'compl nil nil nil nil (word-at-point)))
-  )
