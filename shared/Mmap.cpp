@@ -203,7 +203,7 @@ void Mmap::seek(unsigned int offset)
     mOffset = offset;
     mPageNo = findPage(mOffset, &mPageOffset);
     if (mPageNo == -1) {
-        ensureSize(offset);
+        ensureSize(offset + 1);
         mPageNo = findPage(mOffset, &mPageOffset);
         if (mPageNo == -1)
             qFatal("Unable to find page at offset %u, file size is %u", offset, mFileSize);
