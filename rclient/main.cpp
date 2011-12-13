@@ -43,22 +43,35 @@ static inline int readLine(FILE *f, char *buf, int max)
     return -1;
 }
 
-static inline std::string lineForLocation(const std::string &location)
+static inline void printLocation(const Location &loc, const Database *db, QSet<Location> *filter = 0)
 {
-    std::string fileName, ret;
-    unsigned line = 0, col = 0;
-    if (parseLocation(location, fileName, line, col)) {
-        FILE *f = fopen(fileName.c_str(), "r");
-        if (f) {
-            for (unsigned i=0; i<line - 1; ++i)
-                readLine(f, 0, -1);
-            char line[1024] = { 0 };
-            readLine(f, line, 1024);
-            ret = line;
-            fclose(f);
-        }
+    if (filter) {
+        if (filter->contains(loc))
+            return;
+        filter->insert(loc);
     }
-    return ret;
+    const QByteArray out = db->locationToString(loc);
+    if (out.isEmpty())
+        return;
+
+    Path p = db->path(loc);
+    if (p.isEmpty())
+        return;
+
+    printf("%s", out.constData());
+
+    FILE *f = fopen(p.constData(), "r");
+    if (f) {
+        Q_ASSERT(loc.line > 0);
+        for (unsigned i=0; i<loc.line - 1; ++i)
+            readLine(f, 0, -1);
+        char buf[1024] = { 0 };
+        readLine(f, buf, 1024);
+        printf("\t%s\n", buf);
+        fclose(f);
+    } else {
+        printf("\n");
+    }
 }
 
 static inline void usage(const char* argv0, FILE *f)
@@ -262,7 +275,7 @@ int main(int argc, char** argv)
             qSort(all.begin(), all.end(), compareLoc);
             if (mode == AllReferences) {
                 foreach(const Location &l, all) {
-                    printf("%s\n", db->locationToString(l).constData());
+                    printLocation(l, db);
                 }
             } else {
                 foreach(const Location &l, all) {
@@ -289,44 +302,32 @@ int main(int argc, char** argv)
             Location loc = db->createLocation(arg);
             // printf("%s => %d:%d:%d\n", arg.constData(), loc.file, loc.line, loc.column);
             if (loc.file) {
-                const QByteArray out = db->locationToString(db->followLocation(loc));
-                if (!out.isEmpty())
-                    printf("%s\n", out.constData());
+                printLocation(db->followLocation(loc), db);
             } else {
+                QSet<Location> filter;
                 foreach(const Location &l, db->findSymbol(arg)) {
-                    const QByteArray out = db->locationToString(db->followLocation(l));
-                    if (!out.isEmpty())
-                        printf("%s\n", out.constData());
+                    printLocation(db->followLocation(l), db, &filter);
                 }
             }
             break; }
         case References: {
-            Location loc = db->createLocation(arg);
-            // printf("%s => %d:%d:%d\n", arg.constData(), loc.file, loc.line, loc.column);
+            const Location loc = db->createLocation(arg);
             if (loc.file) {
                 foreach(const Location &l, db->findReferences(loc)) {
-                    const QByteArray out = db->locationToString(l);
-                    if (!out.isEmpty())
-                        printf("%s\n", out.constData());
+                    printLocation(l, db);
                 }
             } else {
-                QSet<QByteArray> printed;
+                QSet<Location> filter;
                 foreach(const Location &l, db->findSymbol(arg)) {
                     foreach(const Location &r, db->findReferences(l)) {
-                        const QByteArray out = db->locationToString(r);
-                        if (!out.isEmpty() && !printed.contains(out)) {
-                            printed.insert(out);
-                            printf("%s\n", out.constData());
-                        }
+                        printLocation(r, db, &filter);
                     }
                 }
             }
             break; }
         case FindSymbols:
             foreach(const Location &loc, db->findSymbol(arg)) {
-                const QByteArray out = db->locationToString(loc);
-                if (!out.isEmpty())
-                    printf("%s\n", out.constData());
+                printLocation(loc, db);
             }
             break;
         case ListSymbols:
