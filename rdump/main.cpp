@@ -112,12 +112,13 @@ int main(int argc, char** argv)
             if (it->isValid()) {
                 do {
                     const QByteArray key(it->key().constData(), it->key().size());
-                    printf("%s '%s' => %d bytes", names[i], key.constData(), it->value().size());
+                    QByteArray coolKey;
+                    if (i == Database::Targets || (i == Database::References && key.endsWith(":"))) {
+                        coolKey = db->locationToString(locationFromKey(it->key())) + ' ';
+                    }
+                    printf("%s '%s' %s=> %d bytes", names[i], key.constData(), coolKey.constData(), it->value().size());
                     if (it->value().size() == 4) {
-                        const QByteArray ba = it->value();
-                        QDataStream ds(ba);
-                        int t;
-                        ds >> t;
+                        int t = it->value<int>();
                         printf(" (%d)%c", t, newLine);
                     } else {
                         switch (i) {
