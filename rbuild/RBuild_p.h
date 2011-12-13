@@ -30,7 +30,6 @@ struct RBuildPrivate
 
     QHash<QByteArray, Entity> entities;
     QHash<Path, unsigned> filesByName;
-    QHash<QByteArray, QList<Location> > references;
     Database *db;
     Path makefile, sourceDir, dbPath;
     MakefileParser parser;
