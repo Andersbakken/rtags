@@ -20,6 +20,15 @@ struct Entity {
     QSet<Location> declarations, references;
 };
 
+struct TemplateEntity
+{
+    TemplateEntity() : kind(CXIdxEntity_Unexposed) {}
+    QByteArray name;
+    QList<QByteArray> parentNames;
+    CXIdxEntityKind kind;
+    QSet<Location> references;
+};
+
 struct RBuildPrivate
 {
     RBuildPrivate()
@@ -29,6 +38,7 @@ struct RBuildPrivate
     }
 
     QHash<QByteArray, Entity> entities;
+    QHash<Location, TemplateEntity> templateEntities;
     QHash<Path, unsigned> filesByName;
     Database *db;
     Path makefile, sourceDir, dbPath;

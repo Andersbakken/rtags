@@ -180,7 +180,7 @@ bool RBuild::updateDB()
 
     closeDB();
     printf("Updated db %lld ms\n", timer.elapsed());
-    qDebug() << snapshots;
+    // qDebug() << snapshots;
     return true;
 }
 
@@ -282,17 +282,30 @@ void RBuild::writeData()
 {
     mData->db->write("filesByName", mData->filesByName);
 
-    int size = mData->entities.size();
-    QHash<QByteArray, Entity>::iterator it = mData->entities.begin();
-    while (size--) {
-        const Entity &entity = it.value();
-        // qDebug() << "writing entity" << entity.name
-        //          << entity.definition
-        //          << entity.declarations
-        //          << entity.references;
-        mData->db->writeEntity(entity.name, entity.parentNames, entity.definition,
-                               entity.declarations, entity.references);
-        it = mData->entities.erase(it);
+    {
+        int size = mData->entities.size();
+        QHash<QByteArray, Entity>::iterator it = mData->entities.begin();
+        while (size--) {
+            const Entity &entity = it.value();
+            // qDebug() << "writing entity" << entity.name
+            //          << entity.definition
+            //          << entity.declarations
+            //          << entity.references;
+            mData->db->writeEntity(entity.name, entity.parentNames, entity.definition,
+                                   entity.declarations, entity.references);
+            it = mData->entities.erase(it);
+        }
+    }
+    {
+        int size = mData->templateEntities.size();
+        QHash<Location, TemplateEntity>::iterator it = mData->templateEntities.begin();
+        while (size--) {
+            const TemplateEntity &entity = it.value();
+            // qDebug() << it.key() << entity.references << entity.name;
+            mData->db->writeEntity(entity.name, entity.parentNames, it.key(),
+                                   QSet<Location>(), entity.references);
+            it = mData->templateEntities.erase(it);
+        }
     }
     mData->db->write("sources", mData->sources);
     QSet<Path> allFiles;
@@ -420,16 +433,43 @@ static inline Location createLocation(const CXIdxLoc &l, QHash<Path, unsigned> &
     return loc;
 }
 
+static inline Location createLocation(const CXCursor &c, QHash<Path, unsigned> &files)
+{
+    Location loc;
+    CXFile f;
+    CXSourceLocation sl = clang_getCursorLocation(c);
+    clang_getInstantiationLocation(sl, &f, &loc.line, &loc.column, 0);
+    CXString str = clang_getFileName(f);
+    const Path fileName = Path::resolved(clang_getCString(str));
+    unsigned &file = files[fileName];
+    if (!file)
+        file = files.size();
+    loc.file = file;
+    clang_disposeString(str);
+    return loc;
+}
+
+
 static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
 {
     RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(userData);
     QMutexLocker lock(&p->entryMutex); // ### is this the right place to lock?
-    Entity &e = p->entities[decl->entityInfo->USR];
-    if (e.name.isEmpty()) {
-        CXString name = clang_getCursorDisplayName(decl->cursor); // this one gives us args
-        e.name = clang_getCString(name);
-        clang_disposeString(name);
-        e.kind = decl->entityInfo->kind;
+
+    Entity *e = 0;
+    TemplateEntity *te = 0;
+    if (decl->entityInfo->templateKind != CXIdxEntity_NonTemplate) {
+        te = &p->templateEntities[createLocation(decl->loc, p->filesByName)];
+    } else {
+        e = &p->entities[decl->entityInfo->USR];
+    }
+    QByteArray &name = (e ? e->name : te->name);
+    CXIdxEntityKind &kind = (e ? e->kind : te->kind);
+    QList<QByteArray> &parentNames = (e ? e->parentNames : te->parentNames);
+    if (name.isEmpty()) {
+        CXString nm = clang_getCursorDisplayName(decl->cursor); // this one gives us args
+        name = clang_getCString(nm);
+        clang_disposeString(nm);
+        kind = decl->entityInfo->kind;
         CXCursor parent = decl->cursor;
         forever {
             parent = clang_getCursorSemanticParent(parent);
@@ -446,7 +486,7 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
             case CXCursor_StructDecl:
             case CXCursor_ClassDecl:
             case CXCursor_Namespace:
-                e.parentNames.prepend(cstr);
+                parentNames.prepend(cstr);
                 break;
             default:
                 break;
@@ -455,23 +495,29 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
         }
     }
 
-    if (decl->isDefinition) {
-        e.definition = createLocation(decl->loc, p->filesByName);
-    } else {
-        e.declarations.insert(createLocation(decl->loc, p->filesByName));
+    if (e) {
+        if (decl->isDefinition) {
+            e->definition = createLocation(decl->loc, p->filesByName);
+        } else {
+            e->declarations.insert(createLocation(decl->loc, p->filesByName));
+        }
     }
 }
 
 static inline void indexEntityReference(CXClientData userData, const CXIdxEntityRefInfo *ref)
 {
     RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(userData);
-    const QByteArray key(ref->referencedEntity->USR);
+    Entity *e = 0;
+    TemplateEntity *te = 0;
+    QMutexLocker lock(&p->entryMutex);
+    if (ref->referencedEntity->templateKind != CXIdxEntity_NonTemplate) {
+        te = &p->templateEntities[createLocation(ref->referencedEntity->cursor, p->filesByName)];
+    } else {
+        e = &p->entities[ref->referencedEntity->USR];
+    }
+    QSet<Location> &references = (e ? e->references : te->references);
     const Location loc = createLocation(ref->loc, p->filesByName);
-    QMutexLocker lock(&p->entryMutex); // ### is this the right place to lock?
-    Entity &e = p->entities[key];
-    // ### in the case of inline functions the Entity for the referenced function
-    // may not have been processed yet
-    e.references.insert(loc);
+    references.insert(loc);
 }
 
 template <typename T>
