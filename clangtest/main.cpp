@@ -56,18 +56,18 @@ public:
     CXString str;
 };
 
-static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData)
-{
-    CXFile file;
-    unsigned line, col;
-    clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
-    printf("%s %s %s:%u:%u\n",
-           String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
-           String(clang_getCursorSpelling(cursor)).data(),
-           String(clang_getFileName(file)).data(),
-           line, col);
-    return CXChildVisit_Recurse;
-}
+// static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData)
+// {
+//     CXFile file;
+//     unsigned line, col;
+//     clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
+//     printf("%s %s %s:%u:%u\n",
+//            String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
+//            String(clang_getCursorSpelling(cursor)).data(),
+//            String(clang_getFileName(file)).data(),
+//            line, col);
+//     return CXChildVisit_Recurse;
+// }
 
 /**
  * \brief Called periodically to check whether indexing should be aborted.
@@ -80,10 +80,17 @@ static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData)
 /**
  * \brief Called at the end of indexing; passes the complete diagnostic set.
  */
-// void diagnostic(CXClientData client_data,
-//                 CXDiagnosticSet, void *reserved)
-// {
-// }
+void diagnostic(CXClientData, CXDiagnosticSet set, void *)
+{
+    for (unsigned i=0; i<clang_getNumDiagnosticsInSet(set); ++i) {
+        CXDiagnostic diagnostic = clang_getDiagnosticInSet(set, i);
+        if (clang_getDiagnosticSeverity(diagnostic) >= CXDiagnostic_Warning) {
+            printf("Diagnostic: %d %s\n", clang_getDiagnosticSeverity(diagnostic),
+                   String(clang_getDiagnosticSpelling(diagnostic)).data());
+        }
+        clang_disposeDiagnostic(diagnostic);
+    }
+}
 
 // CXIdxClientFile enteredMainFile(CXClientData client_data,
 //                                 CXFile mainFile, void *reserved)
@@ -161,8 +168,14 @@ void indexEntityReference(CXClientData, const CXIdxEntityRefInfo *ref)
     CXFile f;
     unsigned l, c;
     clang_indexLoc_getFileLocation(ref->loc, 0, &f, &l, &c, 0);
-    printf("%s:%d:%d: ref of %s (%s)\n", String(clang_getFileName(f)).data(),
-           l, c, ref->referencedEntity->name, ref->referencedEntity->USR);
+
+    CXSourceLocation loc = clang_getCursorLocation(ref->referencedEntity->cursor);
+    CXFile f2;
+    unsigned l2, c2;
+    clang_getInstantiationLocation(loc, &f2, &l2, &c2, 0);
+    printf("%s:%d:%d: ref of %s (%s) %s:%d:%d\n", String(clang_getFileName(f)).data(),
+           l, c, ref->referencedEntity->name, ref->referencedEntity->USR,
+           String(clang_getFileName(f2)).data(), l2, c2);
 }
 
 
