@@ -96,26 +96,6 @@ bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
     return true;
 }
 
-static inline bool contains(const QHash<Path, GccArguments> &dirty, const AtomicString &fileName)
-{
-    const Path p = QByteArray::fromRawData(fileName.constData(), fileName.size());
-    return dirty.contains(p);
-}
-
-static inline int fileNameLength(const char *data, int len)
-{
-    Q_ASSERT(len > 1);
-    const char *c = data + len - 1;
-    int colons = 3;
-    forever {
-        if (*c == ':' && !--colons)
-            break;
-        --c;
-        Q_ASSERT(c != data);
-    }
-    return (c - data);
-}
-
 bool RBuild::updateDB()
 {
     if (!openDB(Update))
