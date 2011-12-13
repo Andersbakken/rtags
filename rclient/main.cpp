@@ -43,7 +43,8 @@ static inline int readLine(FILE *f, char *buf, int max)
     return -1;
 }
 
-static inline void printLocation(const Location &loc, const Database *db, QSet<Location> *filter = 0)
+static inline void printLocation(const Location &loc, const Database *db,
+                                 bool noContext, QSet<Location> *filter = 0)
 {
     if (filter) {
         if (filter->contains(loc))
@@ -53,8 +54,12 @@ static inline void printLocation(const Location &loc, const Database *db, QSet<L
     const QByteArray out = db->locationToString(loc);
     if (out.isEmpty())
         return;
+    if (noContext) {
+        printf("%s\n", out.constData());
+        return;
+    }
 
-    Path p = db->path(loc);
+    const Path p = db->path(loc);
     if (p.isEmpty())
         return;
 
@@ -92,7 +97,8 @@ static inline void usage(const char* argv0, FILE *f)
             "  --paths-relative-to-root|-n   Print out files matching arg\n"
             "  --all-references|-a [arg]     Print all references/declarations/definitions that matches arg\n"
             "  --rename-symbol|-R [loc] [to] Rename symbol. E.g. rc -R main.cpp:10:3 foobar\n"
-            "  --find-symbols|-s [arg]       Print out symbols matching arg\n",
+            "  --find-symbols|-s [arg]       Print out symbols matching arg\n"
+            "  --no-context|-N               Don't print context from files when printing locations\n",
             argv0);
 }
 
@@ -111,10 +117,11 @@ int main(int argc, char** argv)
         { "paths-relative-to-root", no_argument, 0, 'n' },
         { "db-type", required_argument, 0, 't' },
         { "all-references", required_argument, 0, 'a' },
-        { "rename-symbol", 1, 0, 'R' },
+        { "rename-symbol", required_argument, 0, 'R' },
+        { "no-context", no_argument, 0, 'N' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hf:d:r:l::Dps:P::nt:a:R:";
+    const char *shortOptions = "hf:d:r:l::Dps:P::nt:a:R:N";
 
     Mmap::init();
 
@@ -132,7 +139,8 @@ int main(int argc, char** argv)
         // RecursiveReferences,
     } mode = None;
     enum Flag {
-        PathsRelativeToRoot = 0x1
+        PathsRelativeToRoot = 0x1,
+        NoContext = 0x2
     };
     unsigned flags = 0;
     int idx, longIndex;
@@ -144,6 +152,9 @@ int main(int argc, char** argv)
             usage(argv[0], stderr);
             fprintf(stderr, "rc: invalid option \"%s\"\n", argv[optind]);
             return 1;
+        case 'N':
+            flags |= NoContext;
+            break;
         case 'R':
             if (mode != None) {
                 fprintf(stderr, "Mode is already set\n");
@@ -277,7 +288,7 @@ int main(int argc, char** argv)
             qSort(all.begin(), all.end(), compareLoc);
             if (mode == AllReferences) {
                 foreach(const Location &l, all) {
-                    printLocation(l, db);
+                    printLocation(l, db, flags & NoContext);
                 }
             } else {
                 foreach(const Location &l, all) {
@@ -304,11 +315,11 @@ int main(int argc, char** argv)
             Location loc = db->createLocation(arg);
             // printf("%s => %d:%d:%d\n", arg.constData(), loc.file, loc.line, loc.column);
             if (loc.file) {
-                printLocation(db->followLocation(loc), db);
+                printLocation(db->followLocation(loc), db, flags & NoContext);
             } else {
                 QSet<Location> filter;
                 foreach(const Location &l, db->findSymbol(arg)) {
-                    printLocation(db->followLocation(l), db, &filter);
+                    printLocation(db->followLocation(l), db, flags & NoContext, &filter);
                 }
             }
             break; }
@@ -316,20 +327,20 @@ int main(int argc, char** argv)
             const Location loc = db->createLocation(arg);
             if (loc.file) {
                 foreach(const Location &l, db->findReferences(loc)) {
-                    printLocation(l, db);
+                    printLocation(l, db, flags & NoContext);
                 }
             } else {
                 QSet<Location> filter;
                 foreach(const Location &l, db->findSymbol(arg)) {
                     foreach(const Location &r, db->findReferences(l)) {
-                        printLocation(r, db, &filter);
+                        printLocation(r, db, flags & NoContext, &filter);
                     }
                 }
             }
             break; }
         case FindSymbols:
             foreach(const Location &loc, db->findSymbol(arg)) {
-                printLocation(loc, db);
+                printLocation(loc, db, flags & NoContext);
             }
             break;
         case ListSymbols:
