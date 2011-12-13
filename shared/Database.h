@@ -61,6 +61,7 @@ public:
 
     Location createLocation(const QByteArray &arg, const Path &cwd = Path());
     QByteArray locationToString(const Location &location) const;
+    Path path(const Location &location) const { return mFilesByIndex.value(location.file); }
 
     enum ConnectionType {
         General = 0,
