@@ -99,22 +99,22 @@ static inline void usage(const char* argv0, FILE *f)
 int main(int argc, char** argv)
 {
     struct option longOptions[] = {
-        { "help", 0, 0, 'h' },
-        { "follow-symbol", 1, 0, 'f' },
-        { "db", 1, 0, 'd' },
-        { "print-detected-db-path", 0, 0, 'p' },
-        { "find-references", 1, 0, 'r' },
-        { "find-symbols", 1, 0, 's' },
-        { "find-db", 0, 0, 'F' },
-        { "list-symbols", 1, 0, 'l' },
-        { "files", 1, 0, 'P' }, // some of these should have optional args
-        { "paths-relative-to-root", 0, 0, 'n' },
-        { "db-type", 1, 0, 't' },
-        { "all-references", 1, 0, 'a' },
+        { "help", no_argument, 0, 'h' },
+        { "follow-symbol", required_argument, 0, 'f' },
+        { "db", required_argument, 0, 'd' },
+        { "print-detected-db-path", no_argument, 0, 'p' },
+        { "find-references", required_argument, 0, 'r' },
+        { "find-symbols", required_argument, 0, 's' },
+        { "find-db", no_argument, 0, 'F' },
+        { "list-symbols", optional_argument, 0, 'l' },
+        { "files", optional_argument, 0, 'P' },
+        { "paths-relative-to-root", no_argument, 0, 'n' },
+        { "db-type", required_argument, 0, 't' },
+        { "all-references", required_argument, 0, 'a' },
         { "rename-symbol", 1, 0, 'R' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hf:d:r:l:Dps:P:nt:a:R:";
+    const char *shortOptions = "hf:d:r:l::Dps:P::nt:a:R:";
 
     Mmap::init();
 
@@ -137,10 +137,12 @@ int main(int argc, char** argv)
     unsigned flags = 0;
     int idx, longIndex;
     QByteArray arg, renameTo;
+    opterr = 0;
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
         switch (idx) {
         case '?':
             usage(argv[0], stderr);
+            fprintf(stderr, "rc: invalid option \"%s\"\n", argv[optind]);
             return 1;
         case 'R':
             if (mode != None) {
