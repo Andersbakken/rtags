@@ -180,7 +180,7 @@
         (t (rtags-find-symbol-prompt)))
   )
 
-(defun rtags-find-refererences-prompt ()
+(defun rtags-find-references-prompt ()
   (interactive)
   (rtags-find-symbol-internal "Find references" "-r"))
 
