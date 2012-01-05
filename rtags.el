@@ -19,7 +19,9 @@
   (save-excursion
     (set-buffer (get-buffer-create "*RTags Log*"))
     (goto-char (point-max))
+    (setq buffer-read-only nil)
     (insert "**********************************\n" log "\n")
+    (setq buffer-read-only t)
     )
   )
 (defvar rtags-symbol-history nil)
@@ -103,8 +105,7 @@
 (defun rtags-find-references-at-point-internal(mode)
   (let ((bufname (buffer-file-name))
         (line (int-to-string (line-number-at-pos)))
-        (column nil)
-        (previous (current-buffer)))
+        (column nil))
     (save-excursion
       (if (looking-at "[0-9A-Za-z_~#]")
           (progn
@@ -115,29 +116,25 @@
             (setq column (int-to-string (- (point) (point-at-bol) -1))))))
     (if (get-buffer "*RTags-Complete*")
         (kill-buffer "*RTags-Complete*"))
-    (set-buffer (generate-new-buffer "*RTags-Complete*"))
+    (setq rtags-last-buffer (current-buffer))
+    (switch-to-buffer (generate-new-buffer "*RTags-Complete*"))
     (rtags-log (concat (executable-find "rc") " " mode " " bufname ":" line ":" column ":"))
     (call-process (executable-find "rc") nil (list t nil) nil mode (concat bufname ":" line ":" column ":"))
     (rtags-log (buffer-string))
-    (if (= (point-min) (point-max))
-        (progn
-;          (kill-buffer "*RTags-Complete*")
-          (set-buffer previous)
-          nil)
-      (progn
-        (if (= (count-lines (point-min) (point-max)) 1)
-            (rtags-goto-location (buffer-string))
-          (progn
-            (goto-char (point-min))
-            (compilation-mode)
-            t))
-        ))
+    (rtags-log (concat "point-min "(int-to-string (point-min))
+                       "point-max "(int-to-string (point-max))
+                       "point-max "(int-to-string (count-lines (point-min) (point-max)))))
+
+    (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
+          ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
+          (t (progn (goto-char (point-min)) (compilation-mode))))
+    (not (= (point-min) (point-max)))
     ))
 
 (defun rtags-find-symbol-internal (p switch)
-  (let (tagname prompt input completions previous)
+  (let (tagname prompt input completions)
     (setq tagname (gtags-current-token))
-    (setq previous (current-buffer))
+    (setq rtags-last-buffer (current-buffer))
     (if tagname
         (setq prompt (concat p ": (default " tagname ") "))
       (setq prompt (concat p ": ")))
@@ -156,15 +153,10 @@
     (rtags-log (concat (executable-find "rc") " " switch " " tagname))
     (call-process (executable-find "rc") nil (list t nil) nil switch tagname)
     (rtags-log (buffer-string))
-    (if (= (point-min) (point-max))
-        (progn
-;          (kill-buffer "*RTags-Complete*")
-          (switch-to-buffer previous))
-      (if (= (count-lines (point-min) (point-max)) 1)
-          (rtags-goto-location (buffer-string))
-        (progn
-          (goto-char (point-min))
-          (compilation-mode))))
+    (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
+          ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
+          (t (progn (goto-char (point-min)) (compilation-mode))))
+    (not (= (point-min) (point-max)))
     ))
 
 (defun rtags-find-symbol-prompt ()
@@ -232,7 +224,7 @@
      (setq rtags-last-buffer (current-buffer))
      (unless (equal "" input)
        (progn
-         (set-buffer (generate-new-buffer "*Completions*"))
+         (switch-to-buffer (generate-new-buffer "*Completions*"))
          (call-process (executable-find "rc") nil t nil "-P" input)
          (if (= (point-min) (point-max))
              (rtags-remove-completions-buffer)
@@ -240,7 +232,6 @@
              (if (= (count-lines (point-min) (point-max)) 1)
                  (rtags-goto-file)
                (progn
-                 (switch-to-buffer (current-buffer))
                  (setq buffer-read-only t)
                  (goto-char (point-min))
                  (local-set-key (kbd "q") 'rtags-remove-completions-buffer)
