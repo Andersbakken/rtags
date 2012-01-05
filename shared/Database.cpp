@@ -354,263 +354,263 @@ QSet<Location> Database::findSymbol(const QByteArray &symbolName) const
     return ret;
 }
 
-    enum State {
-        Out,
-        In,
-        InArgs
-    };
+enum State {
+    Out,
+    In,
+    InArgs
+};
     
-    static inline State maybeDict(const QByteArray &key, const QByteArray &filter, State state,
-                                  int paren, QList<QByteArray> &keys)
-    {
-        Q_ASSERT(!key.isEmpty());
-        if (state != In) {
-            const int idx = key.indexOf(filter);
-            if (idx != -1) {
-                if (idx + filter.size() <= paren) {
-                    state = In;
-                } else {
-                    state = InArgs;
-                }
+static inline State maybeDict(const QByteArray &key, const QByteArray &filter, State state,
+                              int paren, QList<QByteArray> &keys)
+{
+    Q_ASSERT(!key.isEmpty());
+    if (state != In) {
+        const int idx = key.indexOf(filter);
+        if (idx != -1) {
+            if (idx + filter.size() <= paren) {
+                state = In;
             } else {
-                state = Out;
+                state = InArgs;
             }
+        } else {
+            state = Out;
         }
-        switch (state) {
-        case In:
-            if (paren != -1)
-                keys.append(key.left(paren));
-            keys.append(key);
-            break;
-        case InArgs:
-            keys.append(key);
-            break;
-        case Out:
-            break;
-        }
-        return state;
     }
+    switch (state) {
+    case In:
+        if (paren != -1)
+            keys.append(key.left(paren));
+        keys.append(key);
+        break;
+    case InArgs:
+        keys.append(key);
+        break;
+    case Out:
+        break;
+    }
+    return state;
+}
 
-    QList<QByteArray> Database::symbolNames(const QByteArray &filter) const
-    {
-        QList<QByteArray> ret;
-        iterator *it = createIterator(Dictionary);
-        if (it->isValid()) {
-            Q_ASSERT(it);
-            do {
-                const QByteArray key = it->key();
-                int paren = key.lastIndexOf('(');
-                State state = maybeDict(key, filter, filter.isEmpty() ? In : Out, paren, ret);
-                const DictionaryHash &dh = it->value<DictionaryHash>();
-                for (DictionaryHash::const_iterator hit = dh.begin(); hit != dh.end(); ++hit) {
-                    const QList<QByteArray> &scope = hit.key();
-                    QByteArray k = key;
-                    for (int i=scope.size() - 1; i>=0; --i) {
-                        k.prepend(scope.at(i) + "::");
-                        if (paren != -1)
-                            paren += scope.at(i).size() + 2;
-                        maybeDict(k, filter, state, paren, ret);
-                    }
+QList<QByteArray> Database::symbolNames(const QByteArray &filter) const
+{
+    QList<QByteArray> ret;
+    iterator *it = createIterator(Dictionary);
+    if (it->isValid()) {
+        Q_ASSERT(it);
+        do {
+            const QByteArray key = it->key();
+            int paren = key.lastIndexOf('(');
+            State state = maybeDict(key, filter, filter.isEmpty() ? In : Out, paren, ret);
+            const DictionaryHash &dh = it->value<DictionaryHash>();
+            for (DictionaryHash::const_iterator hit = dh.begin(); hit != dh.end(); ++hit) {
+                const QList<QByteArray> &scope = hit.key();
+                QByteArray k = key;
+                for (int i=scope.size() - 1; i>=0; --i) {
+                    k.prepend(scope.at(i) + "::");
+                    if (paren != -1)
+                        paren += scope.at(i).size() + 2;
+                    maybeDict(k, filter, state, paren, ret);
                 }
-            } while (it->next());
-        }
-        delete it;
-        return ret;
+            }
+        } while (it->next());
     }
+    delete it;
+    return ret;
+}
 
-    Location Database::createLocation(const QByteArray &arg, const Path &cwd)
-    {
-        assert(!arg.empty());
-        int colon = arg.lastIndexOf(':');
-        if (colon == arg.size() - 1)
-            colon = arg.lastIndexOf(':', colon - 1);
-        if (colon == -1) {
-            return Location();
-        }
-        const unsigned col = atoi(arg.constData() + colon + 1);
-        if (!col) {
-            return Location();
-        }
+Location Database::createLocation(const QByteArray &arg, const Path &cwd)
+{
+    assert(!arg.empty());
+    int colon = arg.lastIndexOf(':');
+    if (colon == arg.size() - 1)
         colon = arg.lastIndexOf(':', colon - 1);
-        if (colon == -1) {
-            return Location();
+    if (colon == -1) {
+        return Location();
+    }
+    const unsigned col = atoi(arg.constData() + colon + 1);
+    if (!col) {
+        return Location();
+    }
+    colon = arg.lastIndexOf(':', colon - 1);
+    if (colon == -1) {
+        return Location();
+    }
+    const unsigned line = atoi(arg.constData() + colon + 1);
+    if (!line) {
+        return Location();
+    }
+    Path file = Path::resolved(arg.left(colon), cwd);
+    const int fileId = mFilesByName.value(file, 0);
+    if (!fileId) {
+        return Location();
+    }
+    Location loc;
+    loc.file = fileId;
+    loc.line = line;
+    loc.column = col;
+    return loc;
+}
+
+void Database::writeEntity(const QByteArray &symbolName,
+                           const QList<QByteArray> &parentNames,
+                           const Location &definition,
+                           const QSet<Location> &declarations,
+                           QSet<Location> references)
+{
+    // qDebug() << symbolName << parentNames << definition << declarations << references;
+    if (!definition.file && declarations.isEmpty())
+        return;
+
+    enum { BufSize = 32 };
+    char buf[BufSize];
+    int refIdx = 0;
+    if (mMode == ReadWrite) {
+        if (definition.file)
+            refIdx = mRefs.value(definition, 0);
+        if (!refIdx) {
+            foreach(const Location &l, declarations) {
+                refIdx = mRefs.value(l, 0);
+                if (refIdx)
+                    break;
+            }
         }
-        const unsigned line = atoi(arg.constData() + colon + 1);
-        if (!line) {
-            return Location();
+        if (refIdx) {
+            const int written = snprintf(buf, BufSize, "%d", refIdx);
+            Q_ASSERT(written < BufSize);
+            references += read<QSet<Location> >(References, QByteArray::fromRawData(buf, written),
+                                                QSet<Location>());
         }
-        Path file = Path::resolved(arg.left(colon), cwd);
-        const int fileId = mFilesByName.value(file, 0);
-        if (!fileId) {
-            return Location();
-        }
-        Location loc;
-        loc.file = fileId;
-        loc.line = line;
-        loc.column = col;
-        return loc;
     }
 
-    void Database::writeEntity(const QByteArray &symbolName,
-                               const QList<QByteArray> &parentNames,
-                               const Location &definition,
-                               const QSet<Location> &declarations,
-                               QSet<Location> references)
-    {
-        // qDebug() << symbolName << parentNames << definition << declarations << references;
-        if (!definition.file && declarations.isEmpty())
-            return;
+    if (!references.isEmpty()) {
+        if (!refIdx) {
+            if (!mRemovedRefs.isEmpty()) {
+                refIdx = *mRemovedRefs.begin();
+                mRemovedRefs.erase(mRemovedRefs.begin());
+            } else {
+                refIdx = ++mRefIdxCounter;
+            }
+        }
+        const int ret = snprintf(buf, BufSize, "%d", refIdx);
+        write(References, QByteArray(buf, ret), references);
+        Location loc;
+        if (definition.file) {
+            loc = definition;
+        } else if (mMode == ReadWrite) {
+            Q_ASSERT(!declarations.isEmpty());
+            loc = followLocation(*declarations.begin());
+        }
+        if (!loc.file && declarations.size() == 1) {
+            loc = *declarations.begin();
+        }
+        if (loc.file) {
+            for (QSet<Location>::const_iterator it = references.begin();
+                 it != references.end(); ++it) {
+                const Location &l = *it;
+                const int ret = snprintf(buf, BufSize, "%d:%d:%d:", l.file, l.line, l.column);
+                write(Targets, QByteArray(buf, ret), loc);
+            }
+        }
+    }
+    if (definition.file && (refIdx || declarations.size() == 1)) {
+        const int ret = snprintf(buf, BufSize, "%d:%d:%d:", definition.file, definition.line, definition.column);
+        if (declarations.size() == 1) {
+            write(Targets, QByteArray(buf, ret), *declarations.begin());
+        }
+        if (refIdx)
+            write(References, QByteArray(buf, ret), refIdx);
+    }
 
-        enum { BufSize = 32 };
-        char buf[BufSize];
-        int refIdx = 0;
-        if (mMode == ReadWrite) {
+
+    if (definition.file || refIdx) {
+        foreach(const Location &declaration, declarations) {
+            const int ret = snprintf(buf, BufSize, "%d:%d:%d:",
+                                     declaration.file, declaration.line, declaration.column);
             if (definition.file)
-                refIdx = mRefs.value(definition, 0);
-            if (!refIdx) {
-                foreach(const Location &l, declarations) {
-                    refIdx = mRefs.value(l, 0);
-                    if (refIdx)
-                        break;
-                }
-            }
-            if (refIdx) {
-                const int written = snprintf(buf, BufSize, "%d", refIdx);
-                Q_ASSERT(written < BufSize);
-                references += read<QSet<Location> >(References, QByteArray::fromRawData(buf, written),
-                                                    QSet<Location>());
-            }
-        }
-
-        if (!references.isEmpty()) {
-            if (!refIdx) {
-                if (!mRemovedRefs.isEmpty()) {
-                    refIdx = *mRemovedRefs.begin();
-                    mRemovedRefs.erase(mRemovedRefs.begin());
-                } else {
-                    refIdx = ++mRefIdxCounter;
-                }
-            }
-            const int ret = snprintf(buf, BufSize, "%d", refIdx);
-            write(References, QByteArray(buf, ret), references);
-            Location loc;
-            if (definition.file) {
-                loc = definition;
-            } else if (mMode == ReadWrite) {
-                Q_ASSERT(!declarations.isEmpty());
-                loc = followLocation(*declarations.begin());
-            }
-            if (!loc.file && declarations.size() == 1) {
-                loc = *declarations.begin();
-            }
-            if (loc.file) {
-                for (QSet<Location>::const_iterator it = references.begin();
-                     it != references.end(); ++it) {
-                    const Location &l = *it;
-                    const int ret = snprintf(buf, BufSize, "%d:%d:%d:", l.file, l.line, l.column);
-                    write(Targets, QByteArray(buf, ret), loc);
-                }
-            }
-        }
-        if (definition.file && (refIdx || declarations.size() == 1)) {
-            const int ret = snprintf(buf, BufSize, "%d:%d:%d:", definition.file, definition.line, definition.column);
-            if (declarations.size() == 1) {
-                write(Targets, QByteArray(buf, ret), *declarations.begin());
-            }
+                write(Targets, QByteArray(buf, ret), definition);
             if (refIdx)
                 write(References, QByteArray(buf, ret), refIdx);
         }
-
-
-        if (definition.file || refIdx) {
-            foreach(const Location &declaration, declarations) {
-                const int ret = snprintf(buf, BufSize, "%d:%d:%d:",
-                                         declaration.file, declaration.line, declaration.column);
-                if (definition.file)
-                    write(Targets, QByteArray(buf, ret), definition);
-                if (refIdx)
-                    write(References, QByteArray(buf, ret), refIdx);
-            }
-        }
-
-        if (!symbolName.isEmpty()) {
-            QSet<Location> locations = declarations;
-            if (definition.file)
-                locations.insert(definition);
-            QByteArray out;
-            mDictionary[symbolName][parentNames] += locations;
-        }
     }
 
-    QByteArray Database::locationToString(const Location &location) const
-    {
-        if (location.file) {
-            QByteArray ret = mFilesByIndex.value(location.file);
-            char buf[32];
-            snprintf(buf, 32, ":%d:%d:", location.line, location.column);
-            ret += buf;
-            return ret;
-        }
-        return QByteArray();
+    if (!symbolName.isEmpty()) {
+        QSet<Location> locations = declarations;
+        if (definition.file)
+            locations.insert(definition);
+        QByteArray out;
+        mDictionary[symbolName][parentNames] += locations;
     }
+}
 
-    Database *Database::create(const Path &path, Mode mode)
-    {
-        enum Type { leveldb, filedb, error } type = error;
-        const QByteArray dbType = qgetenv("RTAGS_DB_TYPE").toLower();
-        if (dbType == "leveldb") {
-            type = leveldb;
-        } else if (dbType == "filedb") {
-            type = filedb;
-        } else if (dbType.isEmpty()) {
-            Path p = path + "/a.idx";
-            if (p.exists()) {
-                type = filedb;
-            } else {
-                p = path + "/references";
-                if (p.exists()) {
-                    type = leveldb;
-                }
-            }
-            if (type == error && mode == WriteOnly && dbType.isEmpty())
-                type = leveldb;
-        }
-        switch (type) {
-        case leveldb: {
-            fprintf(stderr, "Using leveldb\n");
-            LevelDB *l = new LevelDB;
-            l->open(path, mode);
-            return l; }
-        case filedb: {
-            fprintf(stderr, "Using filedb\n");
-            FileDB *f = new FileDB;
-            f->open(path, mode);
-            return f; }
-        case error:
-            break;
-        }
-        qFatal("Unknown db %s", dbType.constData());
-        return 0;
-    }
-
-    QSet<Location> Database::allLocations(const Location &location) const
-    {
-#warning what if this is a function with more than one declaration. How do we get to the other declarations?
-        Q_ASSERT(location.file);
-        QSet<Location> ret;
-        ret.insert(location);
-        foreach(const Location &l, findReferences(location))
-            ret.insert(l);
-        Location f = followLocation(location);
-        if (f.file) {
-            ret.insert(f);
-            foreach(const Location &l, findReferences(f))
-                ret.insert(l);
-            Location f = followLocation(f);
-            if (f.file && !ret.contains(f)) {
-                foreach(const Location &l, findReferences(f))
-                    ret.insert(l);
-            }
-        }
+QByteArray Database::locationToString(const Location &location) const
+{
+    if (location.file) {
+        QByteArray ret = mFilesByIndex.value(location.file);
+        char buf[32];
+        snprintf(buf, 32, ":%d:%d:", location.line, location.column);
+        ret += buf;
         return ret;
     }
+    return QByteArray();
+}
+
+Database *Database::create(const Path &path, Mode mode)
+{
+    enum Type { leveldb, filedb, error } type = error;
+    const QByteArray dbType = qgetenv("RTAGS_DB_TYPE").toLower();
+    if (dbType == "leveldb") {
+        type = leveldb;
+    } else if (dbType == "filedb") {
+        type = filedb;
+    } else if (dbType.isEmpty()) {
+        Path p = path + "/a.idx";
+        if (p.exists()) {
+            type = filedb;
+        } else {
+            p = path + "/references";
+            if (p.exists()) {
+                type = leveldb;
+            }
+        }
+        if (type == error && mode == WriteOnly && dbType.isEmpty())
+            type = leveldb;
+    }
+    switch (type) {
+    case leveldb: {
+        fprintf(stderr, "Using leveldb\n");
+        LevelDB *l = new LevelDB;
+        l->open(path, mode);
+        return l; }
+    case filedb: {
+        fprintf(stderr, "Using filedb\n");
+        FileDB *f = new FileDB;
+        f->open(path, mode);
+        return f; }
+    case error:
+        break;
+    }
+    qFatal("Unknown db %s", dbType.constData());
+    return 0;
+}
+
+QSet<Location> Database::allLocations(const Location &location) const
+{
+#warning what if this is a function with more than one declaration. How do we get to the other declarations?
+    Q_ASSERT(location.file);
+    QSet<Location> ret;
+    ret.insert(location);
+    foreach(const Location &l, findReferences(location))
+        ret.insert(l);
+    Location f = followLocation(location);
+    if (f.file) {
+        ret.insert(f);
+        foreach(const Location &l, findReferences(f))
+            ret.insert(l);
+        Location f = followLocation(f);
+        if (f.file && !ret.contains(f)) {
+            foreach(const Location &l, findReferences(f))
+                ret.insert(l);
+        }
+    }
+    return ret;
+}

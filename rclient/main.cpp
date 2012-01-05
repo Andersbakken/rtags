@@ -42,10 +42,13 @@ static inline int readLine(FILE *f, char *buf, int max)
     }
     return -1;
 }
-
+QHash<const Database*, QByteArray> sUsedDBs;
 static inline void printLocation(const Location &loc, const Database *db,
                                  bool noContext, QSet<Location> *filter = 0)
 {
+    QByteArray &ref = sUsedDBs[db];
+    if (ref.isEmpty())
+        ref = db->path();
     if (filter) {
         if (filter->contains(loc))
             return;
@@ -85,7 +88,7 @@ static inline void usage(const char* argv0, FILE *f)
             "%s [options]...\n"
             "  --help|-h                     Display this help\n"
             "  --db-file|-d [arg]            Use this database file\n"
-            "  --print-detected-db-path|-p   Print out the detected database path\n"
+            "  --print-db-path|-p            Print out the used database path(s)\n"
             "  --detect-db|-D                Find .rtags.db based on path\n"
             "                                (default when no -d options are specified)\n"
             "  --db-type|-t [arg]            Type of db (leveldb or filedb)\n"
@@ -108,7 +111,7 @@ int main(int argc, char** argv)
         { "help", no_argument, 0, 'h' },
         { "follow-symbol", required_argument, 0, 'f' },
         { "db", required_argument, 0, 'd' },
-        { "print-detected-db-path", no_argument, 0, 'p' },
+        { "print-db-path", no_argument, 0, 'p' },
         { "find-references", required_argument, 0, 'r' },
         { "find-symbols", required_argument, 0, 's' },
         { "find-db", no_argument, 0, 'F' },
@@ -140,7 +143,8 @@ int main(int argc, char** argv)
     } mode = None;
     enum Flag {
         PathsRelativeToRoot = 0x1,
-        NoContext = 0x2
+        NoContext = 0x2,
+        PrintDBPath = 0x4
     };
     unsigned flags = 0;
     int idx, longIndex;
@@ -180,17 +184,9 @@ int main(int argc, char** argv)
         case 'n':
             flags |= PathsRelativeToRoot;
             break;
-        case 'p': {
-            const QByteArray db = findRtagsDb();
-            if (!db.isEmpty()) {
-                printf("%s\n", db.constData());
-            } else {
-                char buffer[500];
-                char *ign = getcwd(buffer, 500);
-                (void)ign;
-                fprintf(stderr, "No db found for %s\n", buffer);
-            }
-            return 0; }
+        case 'p':
+            flags |= PrintDBPath;
+            break;
         case 't':
             setenv("RTAGS_DB_TYPE", optarg, 1);
             break;
@@ -343,13 +339,18 @@ int main(int argc, char** argv)
                 printLocation(loc, db, flags & NoContext);
             }
             break;
-        case ListSymbols:
-            foreach(const QByteArray &symbol, db->symbolNames(arg)) {
+        case ListSymbols: {
+            const QList<QByteArray> symbolNames = db->symbolNames(arg);
+            if (!symbolNames.isEmpty())
+                sUsedDBs[db] = db->path();
+            foreach(const QByteArray &symbol, symbolNames) {
                 printf("%s\n", symbol.constData());
             }
-            break;
+            break; }
         case Files: {
             QSet<Path> paths = db->read<QSet<Path> >("files");
+            if (!paths.isEmpty())
+                sUsedDBs[db] = db->path();
             const bool empty = arg.isEmpty();
             const char *root = "./";
             Path srcDir;
@@ -363,6 +364,11 @@ int main(int argc, char** argv)
                 }
             }
             break; }
+        }
+    }
+    if (flags & PrintDBPath) {
+        foreach(const QByteArray &db, sUsedDBs) {
+            printf("DB: %s\n", db.constData());
         }
     }
 
