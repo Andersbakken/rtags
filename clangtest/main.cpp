@@ -151,9 +151,10 @@ void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
     CXFile f;
     unsigned l, c;
     clang_indexLoc_getFileLocation(decl->loc, 0, &f, &l, &c, 0);
-    printf("%s:%d:%d: %s %s def: %d redecl: %d cont: %d (%s)\n", String(clang_getFileName(f)).data(),
+    printf("%s:%d:%d: %s %s def: %d redecl: %d cont: %d (%s) templateKind %d\n", String(clang_getFileName(f)).data(),
            l, c, decl->entityInfo->name, kindToString(decl->entityInfo->kind),
-           decl->isDefinition, decl->isRedeclaration, decl->isContainer, decl->entityInfo->USR);
+           decl->isDefinition, decl->isRedeclaration, decl->isContainer, decl->entityInfo->USR,
+           decl->entityInfo->templateKind);
     // debugCursor(stdout, decl->cursor);
     // if (decl->isContainer)
     //     debugCursor(stdout, decl->container->cursor);
@@ -173,9 +174,10 @@ void indexEntityReference(CXClientData, const CXIdxEntityRefInfo *ref)
     CXFile f2;
     unsigned l2, c2;
     clang_getInstantiationLocation(loc, &f2, &l2, &c2, 0);
-    printf("%s:%d:%d: ref of %s (%s) %s:%d:%d\n", String(clang_getFileName(f)).data(),
+    printf("%s:%d:%d: ref of %s (%s) %s:%d:%d templatekind %d cursor kind %d/%d\n", String(clang_getFileName(f)).data(),
            l, c, ref->referencedEntity->name, ref->referencedEntity->USR,
-           String(clang_getFileName(f2)).data(), l2, c2);
+           String(clang_getFileName(f2)).data(), l2, c2, ref->referencedEntity->templateKind,
+           clang_getCursorKind(ref->cursor), clang_getCursorKind(ref->referencedEntity->cursor));
 }
 
 
