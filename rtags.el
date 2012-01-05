@@ -24,6 +24,10 @@
     (setq buffer-read-only t)
     )
   )
+
+(defun rtags-rc-internal (&rest args)
+  (apply #'call-process (executable-find "rc") nil (list t nil) nil args))
+
 (defvar rtags-symbol-history nil)
 (defvar rtags-file-history nil)
 (defvar last-rtags-update-process nil)
@@ -70,7 +74,7 @@
             (setq column (int-to-string (- (point) (point-at-bol) -1))))))
     (with-temp-buffer
       (rtags-log (concat (executable-find "rc") " --follow-symbol " bufname ":" line ":" column ":"))
-      (call-process (executable-find "rc") nil (list t nil) nil "--follow-symbol" (concat bufname ":" line ":" column ":"))
+      (rtags-rc-internal "--follow-symbol" (concat bufname ":" line ":" column ":"))
       (rtags-log (buffer-string))
       (rtags-goto-location (buffer-string)))
     )
@@ -91,7 +95,8 @@
   (let ((completions))
     (with-temp-buffer
       (rtags-log (concat (executable-find "rc") " -S -n -l " string))
-      (call-process (executable-find "rc") nil (list t nil) nil "-S" "-n" "-l" string)
+      (rtags-rc-internal "-S" "-n" "-l" string)
+      ;; (call-process (executable-find "rc") nil (list t nil) nil "-S" "-n" "-l" string)
       (rtags-log (buffer-string))
       (setq 'completions (split-string (buffer-string) "\n" t)))))
       ;; (all-completion string completions))))
@@ -119,11 +124,8 @@
     (setq rtags-last-buffer (current-buffer))
     (switch-to-buffer (generate-new-buffer "*RTags-Complete*"))
     (rtags-log (concat (executable-find "rc") " " mode " " bufname ":" line ":" column ":"))
-    (call-process (executable-find "rc") nil (list t nil) nil mode (concat bufname ":" line ":" column ":"))
+    (rtags-rc-internal mode (concat bufname ":" line ":" column ":"))
     (rtags-log (buffer-string))
-    (rtags-log (concat "point-min "(int-to-string (point-min))
-                       "point-max "(int-to-string (point-max))
-                       "point-max "(int-to-string (count-lines (point-min) (point-max)))))
 
     (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
           ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
@@ -140,7 +142,7 @@
       (setq prompt (concat p ": ")))
     (with-temp-buffer
       (rtags-log (concat (executable-find "rc") " -l \"\""))
-      (call-process (executable-find "rc") nil (list t nil) nil "-l" "")
+      (rtags-rc-internal "-l" "")
       (rtags-log (buffer-string))
       (setq completions (split-string (buffer-string) "\n" t)))
       ;; (setq completions (split-string "test1" "test1()")))
@@ -151,7 +153,8 @@
         (kill-buffer "*RTags-Complete*"))
     (switch-to-buffer (generate-new-buffer "*RTags-Complete*"))
     (rtags-log (concat (executable-find "rc") " " switch " " tagname))
-    (call-process (executable-find "rc") nil (list t nil) nil switch tagname)
+    (rtags-rc-internal switch tagname)
+    ;; (call-process (executable-find "rc") nil (list t nil) nil switch tagname)
     (rtags-log (buffer-string))
     (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
           ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
@@ -176,15 +179,12 @@
   (interactive)
   (rtags-find-symbol-internal "Find references" "-r"))
 
-
-(defun get-match-string (n)
-  (buffer-substring (match-beginning n) (match-end n)))
-
 (defun rtags-complete-files (string predicate code)
   (let ((complete-list (make-vector 63 0)))
     (with-temp-buffer
       ;; (call-process (executable-find "rb") nil (list t nil) nil "-P" string)
-      (call-process (executable-find "rc") nil t nil "-n" "-P" string)
+      (rtags-rc-internal "-n" "-P" string)
+      ;; (call-process (executable-find "rc") nil t nil "-n" "-P" string)
       (goto-char (point-min))
       (let ((match (if (equal "" string) "\./\\(.*\\)" (concat ".*\\(" string ".*\\)"))))
         (while (not (eobp))
@@ -225,7 +225,8 @@
      (unless (equal "" input)
        (progn
          (switch-to-buffer (generate-new-buffer "*Completions*"))
-         (call-process (executable-find "rc") nil t nil "-P" input)
+         (rtags-rc-internal "-P" input)
+         ;; (call-process (executable-find "rc") nil t nil "-P" input)
          (if (= (point-min) (point-max))
              (rtags-remove-completions-buffer)
            (progn
