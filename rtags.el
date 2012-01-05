@@ -81,8 +81,8 @@
 
 (defun rtags-find-references ()
   (interactive)
-  (rtags-find-references-at-point)
-    (rtags-find-references-prompt)
+  (unless (rtags-find-references-at-point)
+    (rtags-find-references-prompt))
   )
 
 (defun rtags-complete (string predicate code)
