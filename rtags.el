@@ -15,6 +15,12 @@
   :type 'boolean
   :group 'rtags)
 
+(defun rtags-append-to-list (list element)
+  ;; (add-to-list list element t))
+  (let ((len (list-length (eval list))))
+    (add-to-list list element t)
+    (not (= len (list-length (eval list))))))
+
 (defun rtags-log (log)
   (save-excursion
     (set-buffer (get-buffer-create "*RTags Log*"))
@@ -25,11 +31,16 @@
     )
   )
 (defun rtags-rc-internal (&rest args)
-  (let ((dashd "-d"))
-    (if (local-variable-p 'rtags-source-buffer rtags-last-buffer)
-        (setq dashd (concat "-d" (buffer-local-value 'rtags-source-buffer rtags-last-buffer))))
-    (rtags-log (concat (executable-find "rc") " -D " dashd " " (combine-and-quote-strings args)))
-    (apply #'call-process (executable-find "rc") nil (list t nil) nil "-D" dashd args)
+  (let ((arguments args)
+        (buffer-chain rtags-last-buffer))
+    (rtags-append-to-list 'arguments "-D")
+    (while buffer-chain
+      (if (and (local-variable-p 'rtags-source-buffer buffer-chain)
+               (rtags-append-to-list 'arguments (concat "-d" (buffer-local-value 'rtags-source-buffer buffer-chain))))
+          (setq buffer-chain (get-file-buffer (buffer-local-value 'rtags-source-buffer buffer-chain)))
+        (setq buffer-chain nil)))
+    (rtags-log (concat (executable-find "rc") (combine-and-quote-strings arguments)))
+    (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
     (rtags-log (buffer-string))
     (goto-char (point-min))))
 
@@ -54,8 +65,18 @@
           (setq line (string-to-int (match-string 2 location)))
           (setq column (string-to-int (match-string 3 location)))
           (find-file (match-string 1 location))
-          (setq rtags-source-buffer (buffer-file-name rtags-last-buffer))
-          (make-local-variable 'rtags-source-buffer)
+          (message (concat "current " (buffer-file-name (current-buffer))
+                           " last " (buffer-file-name rtags-last-buffer)))
+          (unless (eq (current-buffer) rtags-last-buffer)
+            (progn
+              (message "setting shit")
+              (setq rtags-source-buffer (buffer-file-name rtags-last-buffer))
+              (make-local-variable 'rtags-source-buffer)
+              (if (local-variable-p 'rtags-source-buffer)
+                  (message "yes")
+                (message "no"))
+              (message (concat "this is the value " rtags-source-buffer))
+              ))
           (goto-char (point-min))
           (forward-line (- line 1))
           (forward-char (- column 1))
@@ -66,9 +87,9 @@
 
 (defun rtags-find-symbol-at-point(&optional pos)
   (interactive)
-  (let ((bufname (buffer-file-name))
-        (line (int-to-string (line-number-at-pos pos)))
+  (let ((line (int-to-string (line-number-at-pos pos)))
         (column nil))
+    (setq rtags-last-buffer (current-buffer))
     (save-excursion
       (if pos
           (goto-char pos))
@@ -80,7 +101,7 @@
                 (forward-char))
             (setq column (int-to-string (- (point) (point-at-bol) -1))))))
     (with-temp-buffer
-      (rtags-rc-internal "--follow-symbol" (concat bufname ":" line ":" column ":"))
+      (rtags-rc-internal "--follow-symbol" (concat (buffer-file-name rtags-last-buffer) ":" line ":" column ":"))
       (rtags-goto-location (buffer-string))
       )
     )
