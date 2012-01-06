@@ -91,6 +91,7 @@ static inline void usage(const char* argv0, FILE *f)
             "  --detect-db|-D                Find .rtags.db based on path\n"
             "                                (default when no -d options are specified)\n"
             "  --db-type|-t [arg]            Type of db (leveldb or filedb)\n"
+            "\n"
             "  Modes\n"
             "  --follow-symbol|-f [arg]      Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
             "  --references|-r [arg]         Print references of symbol at arg\n"
