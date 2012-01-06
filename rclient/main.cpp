@@ -1,4 +1,3 @@
-#include <sstream>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -107,6 +106,15 @@ static inline void usage(const char* argv0, FILE *f)
 
 int main(int argc, char** argv)
 {
+    {
+        QFile log("/tmp/rc.log");
+        log.open(QIODevice::Append);
+        for (int i=0; i<argc; ++i) {
+            log.write(argv[i]);
+            log.putChar(i + 1 == argc ? '\n' : ' ');
+        }
+    }
+
     struct option longOptions[] = {
         { "help", no_argument, 0, 'h' },
         { "follow-symbol", required_argument, 0, 'f' },
@@ -262,6 +270,8 @@ int main(int argc, char** argv)
         return 1;
     }
     foreach(const QByteArray &dbPath, dbPaths) {
+        if (dbPath.isEmpty())
+            continue;
         Database* db = Database::create(dbPath, Database::ReadOnly);
         if (!db->isOpened()) {
             delete db;
@@ -368,7 +378,7 @@ int main(int argc, char** argv)
     }
     if (flags & PrintDBPath) {
         foreach(const QByteArray &db, sUsedDBs) {
-            printf("DB: %s\n", db.constData());
+            printf("_[DB: %s]_\n", db.constData());
         }
     }
 

@@ -24,9 +24,21 @@
     (setq buffer-read-only t)
     )
   )
-
+(defvar rtags-last-db-path "")
 (defun rtags-rc-internal (&rest args)
-  (apply #'call-process (executable-find "rc") nil (list t nil) nil args))
+  (apply #'call-process (executable-find "rc") nil (list t nil) nil "-p" "-D" (concat "-d=" rtags-last-db-path) args)
+  (goto-char (point-min))
+  (while (not (eobp))
+    (if (looking-at "^_\\[DB: \\(.*\\)\\]_$")
+        (progn
+          (set 'rtags-last-db-path (match-string 1))
+          (goto-char (point-at-bol))
+          (if (< (point-at-eol) (point-max))
+              (delete-char (+ 1 (- (point-at-eol) (point-at-bol))))
+            (delete-char (- (point-at-eol) (point-at-bol))))
+          ))
+    (forward-line))
+  (goto-char (point-min)))
 
 (defvar rtags-symbol-history nil)
 (defvar rtags-file-history nil)
