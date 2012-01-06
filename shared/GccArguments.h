@@ -16,9 +16,7 @@ public:
                     LangObjCPlusPlus, LangCPlusPlusHeader, LangHeader };
 
     GccArguments();
-#ifdef WITH_GPERF
     bool parse(const QByteArray& cmd, const Path &resolvedPath);
-#endif
     QByteArray raw() const;
     bool isNull() const;
     bool isEmpty() const;

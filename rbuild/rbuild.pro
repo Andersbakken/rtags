@@ -6,7 +6,6 @@ TEMPLATE = app
 TARGET = rb
 DESTDIR = $$PWD/..
 DEPENDPATH += $$PWD
-DEFINES += WITH_GPERF
 include($$PWD/../shared/shared.pri)
 
 # Input
@@ -20,9 +19,3 @@ HEADERS += $$PWD/RBuild.h \
            $$PWD/MakefileParser.h \
            $$PWD/Precompile.h
 
-gccopts_gperf.commands = gperf -I -C -l -L C++ gccopts.gperf --output-file gccopts_gperf.cpp -Z gccopts_gperf
-gccopts_gperf.target = gccopts_gperf.cpp
-gccopts_gperf.depends = gccopts.gperf
-QMAKE_EXTRA_TARGETS += gccopts_gperf
-
-PRE_TARGETDEPS += gccopts_gperf.cpp

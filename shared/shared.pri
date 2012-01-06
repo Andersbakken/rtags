@@ -1,5 +1,11 @@
 INCLUDEPATH += $$PWD
 DEPENDPATH += $$PWD
+gccopts_gperf.commands = gperf -I -C -l -L C++ $$PWD/gccopts.gperf --output-file $$PWD/gccopts_gperf.h -Z gccopts_gperf
+gccopts_gperf.target = $$PWD/gccopts_gperf.h
+gccopts_gperf.depends = $$PWD/gccopts.gperf
+QMAKE_EXTRA_TARGETS += gccopts_gperf
+
+PRE_TARGETDEPS += $$PWD/gccopts_gperf.h
 SOURCES += $$PWD/GccArguments.cpp \
            $$PWD/Path.cpp \
            $$PWD/RTags.cpp \
@@ -17,7 +23,8 @@ HEADERS += $$PWD/GccArguments.h \
            $$PWD/LevelDB.h \
            $$PWD/Mmap.h \
            $$PWD/FileDB.h \
-           $$PWD/MmapDevice.h
+           $$PWD/MmapDevice.h \
+           $$PWD/gccopts_gperf.h
 LIBS += -lclang
 include($$PWD/../3rdparty/leveldb.pri)
 mac {
@@ -44,3 +51,4 @@ macx {
     LIBS += -L/opt/local/lib
     INCLUDEPATH += /opt/local/include
 }
+

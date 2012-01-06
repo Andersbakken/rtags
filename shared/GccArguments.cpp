@@ -1,9 +1,7 @@
 #include "GccArguments.h"
-#ifdef WITH_GPERF
-#include "gccopts_gperf.cpp"
-#endif
 #include <QDebug>
 #include <RTags.h>
+#include "gccopts_gperf.h"
 
 GccArguments::Data::Data()
     : output(-1), x(-1), c(-1), language(LangUndefined)
@@ -72,7 +70,6 @@ Path GccArguments::parseCD(const QByteArray &cmd, const Path& path) const
     return cmdpath;
 }
 
-#ifdef WITH_GPERF
 bool GccArguments::parse(const QByteArray& cmd, const Path &p)
 {
     Q_ASSERT(p.isResolved() && p.isDir());
@@ -186,7 +183,6 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &p)
 
     return true;
 }
-#endif
 
 QString GccArguments::errorString() const
 {
