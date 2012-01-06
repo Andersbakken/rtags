@@ -42,29 +42,30 @@ static inline int readLine(FILE *f, char *buf, int max)
     return -1;
 }
 QHash<const Database*, QByteArray> sUsedDBs;
-static inline void printLocation(const Location &loc, const Database *db,
+static inline bool printLocation(const Location &loc, const Database *db,
                                  bool noContext, QSet<Location> *filter = 0)
 {
-    QByteArray &ref = sUsedDBs[db];
-    if (ref.isEmpty())
-        ref = db->path();
     if (filter) {
         if (filter->contains(loc))
-            return;
+            return false;
         filter->insert(loc);
     }
     const QByteArray out = db->locationToString(loc);
     if (out.isEmpty())
-        return;
+        return false;
     if (noContext) {
         printf("%s\n", out.constData());
-        return;
+        return false;
     }
 
     const Path p = db->path(loc);
     if (p.isEmpty())
-        return;
+        return false;
 
+    QByteArray &ref = sUsedDBs[db];
+    if (ref.isEmpty())
+        ref = db->path();
+    
     printf("%s", out.constData());
 
     FILE *f = fopen(p.constData(), "r");
@@ -79,6 +80,7 @@ static inline void printLocation(const Location &loc, const Database *db,
     } else {
         printf("\n");
     }
+    return true;
 }
 
 static inline void usage(const char* argv0, FILE *f)
@@ -110,10 +112,21 @@ int main(int argc, char** argv)
     {
         QFile log("/tmp/rc.log");
         log.open(QIODevice::Append);
+        char buf[512];
+        const bool cwd = getcwd(buf, 512);
+        if (cwd) {
+            log.write("( cd");
+            log.write(buf);
+            log.write(" && ");
+        }
+        
         for (int i=0; i<argc; ++i) {
             log.write(argv[i]);
-            log.putChar(i + 1 == argc ? '\n' : ' ');
+            log.putChar(' ');
         }
+        if (cwd)
+            log.putChar('\n');
+        log.putChar('\n');
     }
 
     struct option longOptions[] = {
@@ -273,6 +286,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "-n only makes sense with -P\n");
         return 1;
     }
+    bool done = false;
     foreach(const QByteArray &dbPath, dbPaths) {
         if (dbPath.isEmpty())
             continue;
@@ -325,7 +339,8 @@ int main(int argc, char** argv)
             Location loc = db->createLocation(arg);
             // printf("%s => %d:%d:%d\n", arg.constData(), loc.file, loc.line, loc.column);
             if (loc.file) {
-                printLocation(db->followLocation(loc), db, flags & NoContext);
+                done = printLocation(db->followLocation(loc), db, flags & NoContext);
+                // we're not going to find more than one followLocation
             } else {
                 QSet<Location> filter;
                 foreach(const Location &l, db->findSymbol(arg)) {
@@ -379,6 +394,8 @@ int main(int argc, char** argv)
             }
             break; }
         }
+        if (done)
+            break;
     }
     if (flags & PrintDBPath) {
         foreach(const QByteArray &db, sUsedDBs) {
