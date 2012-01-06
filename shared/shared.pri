@@ -23,8 +23,7 @@ HEADERS += $$PWD/GccArguments.h \
            $$PWD/LevelDB.h \
            $$PWD/Mmap.h \
            $$PWD/FileDB.h \
-           $$PWD/MmapDevice.h \
-           $$PWD/gccopts_gperf.h
+           $$PWD/MmapDevice.h 
 LIBS += -lclang
 include($$PWD/../3rdparty/leveldb.pri)
 mac {
