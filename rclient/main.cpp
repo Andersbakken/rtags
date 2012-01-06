@@ -86,7 +86,7 @@ static inline void usage(const char* argv0, FILE *f)
     fprintf(f,
             "%s [options]...\n"
             "  --help|-h                     Display this help\n"
-            "  --db-file|-d [arg]            Use this database file\n"
+            "  --db-file|-d [arg]            Find database using this path\n"
             "  --print-db-path|-p            Print out the used database path(s)\n"
             "  --detect-db|-D                Find .rtags.db based on path\n"
             "                                (default when no -d options are specified)\n"
@@ -233,8 +233,11 @@ int main(int argc, char** argv)
             }
             break; }
         case 'd':
-            if (optarg && strlen(optarg))
-                dbPaths.append(optarg);
+            if (optarg && strlen(optarg)) {
+                const QByteArray db = findRtagsDb(optarg);
+                if (!db.isEmpty())
+                    dbPaths.append(db);
+            }
             break;
         case 'l':
             if (mode != None) {
