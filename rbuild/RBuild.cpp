@@ -196,10 +196,30 @@ void RBuild::compileAll()
     mData->files.clear();
 }
 
+static inline bool add(const GccArguments &args, QList<GccArguments> &list)
+{
+    const Path input = args.input();
+    QSet<QByteArray> defines;
+    foreach(const GccArguments &a, list) {
+        if (a.input() == input && args.language() == a.language()) {
+            if (defines.isEmpty())
+                defines = args.arguments("-D").toSet();
+            if (a.arguments("-D").toSet() == defines) {
+                return false;
+            }
+        }
+    }
+    list.append(args);
+    return true;
+}
+
 void RBuild::processFile(const GccArguments& arguments)
 {
     if (!pchEnabled) {
-        mData->files.append(arguments);
+        if (!add(arguments, mData->files)) {
+            // qDebug() << "ditched dupe" << arguments;
+        }
+        // mData->files.append(arguments);
         // ### could start to compile now
     } else {
         Precompile *precompiler = Precompile::precompiler(arguments);
@@ -207,9 +227,11 @@ void RBuild::processFile(const GccArguments& arguments)
         // if (precompiler->isCompiled()) {
         //     compile(arguments, precompiler);
         // } else {
-            mData->filesByPrecompile[precompiler].append(arguments);
+        if (add(arguments, mData->filesByPrecompile[precompiler])) {
             precompiler->collectHeaders(arguments);
-        // }
+        // } else {
+        //     qDebug() << "ditched dupe" << arguments;
+        }
     }
 }
 
