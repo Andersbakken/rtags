@@ -128,7 +128,7 @@ int main(int argc, char** argv)
         char buf[512];
         const bool cwd = getcwd(buf, 512);
         if (cwd) {
-            log.write("( cd");
+            log.write("( cd ");
             log.write(buf);
             log.write(" && ");
         }
@@ -138,7 +138,7 @@ int main(int argc, char** argv)
             log.putChar(' ');
         }
         if (cwd)
-            log.putChar('\n');
+            log.write(" )");
         log.putChar('\n');
     }
 

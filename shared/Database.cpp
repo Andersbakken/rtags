@@ -577,12 +577,12 @@ Database *Database::create(const Path &path, Mode mode)
     }
     switch (type) {
     case leveldb: {
-        fprintf(stderr, "Using leveldb\n");
+        // fprintf(stderr, "Using leveldb\n");
         LevelDB *l = new LevelDB;
         l->open(path, mode);
         return l; }
     case filedb: {
-        fprintf(stderr, "Using filedb\n");
+        // fprintf(stderr, "Using filedb\n");
         FileDB *f = new FileDB;
         f->open(path, mode);
         return f; }

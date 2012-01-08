@@ -22,6 +22,80 @@ static Location locationFromKey(const QByteArray &key)
     return loc;
 }
 
+static inline void writeExpect(Database *db)
+{
+    Q_ASSERT(db);
+    QFile f("expect.txt");
+    char buf[512];
+    const bool cwd = getcwd(buf, 512);
+    Q_ASSERT(cwd);
+    (void)cwd;
+    QByteArray path = buf;
+    if (!path.endsWith("/"))
+        path.append("/");
+    if (!f.open(QIODevice::WriteOnly)) {
+        fprintf(stderr, "Can't open expect.txt for writing\n");
+        return;
+    }
+    Database::iterator *it = db->createIterator(Database::Targets);
+    if (it->isValid()) {
+        do {
+            QByteArray s = it->key().constData();
+            int colon = s.indexOf(':');
+            {
+                Path src = db->file(atoi(s.constData()));
+                if (src.startsWith(path))
+                    src.remove(0, path.size());
+                s.replace(0, colon, src);
+            }
+            // src.append(it->key
+            QByteArray target = db->locationToString(it->value<Location>());
+            if (target.startsWith(path))
+                target.remove(0, path.size());
+            f.write("rc --no-context --paths-relative-to-root --follow-symbol ");
+            f.write(s);
+            f.write(" => ");
+            f.write(target);
+            f.putChar('\n');
+            // qDebug() << s << target;
+        } while (it->next());
+    }
+    delete it;
+    it = db->createIterator(Database::References);
+    if (it->isValid()) {
+        do {
+            if (it->key().endsWith(':')) {
+                Location loc = db->createLocation(it->key());
+                QSet<Location> refs = it->value<QSet<Location> >();
+                qDebug() << db->locationToString(loc) << refs << it->key() << loc.file;
+                continue;
+            }
+            // QByteArray s = it->key().constData();
+            // if (s.endsWith(':')) {
+            // int colon = s.indexOf(':');
+            // {
+            //     Path src = db->file(atoi(s.constData()));
+            //     if (src.startsWith(path))
+            //         src.remove(0, path.size());
+            //     s.replace(0, colon, src);
+            // }
+            // // src.append(it->key
+            // QByteArray target = db->locationToString(it->value<Location>());
+            // if (target.startsWith(path))
+            //     target.remove(0, path.size());
+            // f.write("rc --no-context --paths-relative-to-root --follow-symbol ");
+            // f.write(s);
+            // f.write(" => ");
+            // f.write(target);
+            // f.putChar('\n');
+            // // qDebug() << s << target;
+        } while (it->next());
+    }
+    delete it;
+    
+    printf("Wrote expect.txt\n");
+}
+
 static inline void raw(Database *db, const QByteArray &file)
 {
     const char *names[] = { "General: [", "Dictionary: [", "References: [", "Targets: [" };
@@ -76,18 +150,27 @@ int main(int argc, char** argv)
     int opt;
     char newLine = '\n';
     QByteArray rawFile;
-    while ((opt = getopt(argc, argv, "hnr:")) != -1) {
+    enum Mode {
+        Normal,
+        Expect,
+        Raw
+    } mode = Normal;
+    while ((opt = getopt(argc, argv, "hnr:e")) != -1) {
         switch (opt) {
         case 'n':
             newLine = ' ';
             break;
         case 'r':
+            mode = Raw;
             rawFile = optarg;
+            break;
+        case 'e':
+            mode = Expect;
             break;
         case '?':
         case 'h':
         default:
-            fprintf(stderr, "rdump -[rn]\n");
+            fprintf(stderr, "rdump -[rne]\n");
             return 0;
         }
     }
@@ -101,10 +184,16 @@ int main(int argc, char** argv)
 
     Database* db = Database::create(filename, Database::ReadOnly);
     if (db->isOpened()) {
-        if (!rawFile.isEmpty()) {
+        switch (mode) {
+        case Expect:
+            writeExpect(db);
+            return 0;
+        case Raw:
             raw(db, rawFile);
             delete db;
             return 0;
+        case Normal:
+            break;
         }
         const char *names[] = { "General", "Dictionary", "References", "Targets" };
         for (int i=0; i<Database::NumConnectionTypes; ++i) {
