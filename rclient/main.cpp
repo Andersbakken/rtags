@@ -10,6 +10,12 @@
 #include "Database.h"
 #include "Mmap.h"
 
+enum Flag {
+    PathsRelativeToRoot = 0x1,
+    NoContext = 0x2,
+    PrintDBPath = 0x4
+};
+
 // This sorts in reverse order. Location with higher line, column comes first
 static inline bool compareLoc(const Location &l, const Location &r)
 {
@@ -43,17 +49,24 @@ static inline int readLine(FILE *f, char *buf, int max)
 }
 QHash<const Database*, QByteArray> sUsedDBs;
 static inline bool printLocation(const Location &loc, const Database *db,
-                                 bool noContext, QSet<Location> *filter = 0)
+                                 unsigned flags, QSet<Location> *filter = 0)
 {
     if (filter) {
         if (filter->contains(loc))
             return false;
         filter->insert(loc);
     }
-    const QByteArray out = db->locationToString(loc);
+    QByteArray out = db->locationToString(loc);
     if (out.isEmpty())
         return false;
-    if (noContext) {
+    if (flags & PathsRelativeToRoot) {
+        const Path p = db->path().parentDir();
+        if (out.startsWith(p)) {
+            out.remove(0, p.endsWith('/') ? p.size() : p.size() + 1);
+        }
+    }
+
+    if (flags & NoContext) {
         printf("%s\n", out.constData());
         return false;
     }
@@ -163,11 +176,6 @@ int main(int argc, char** argv)
         RenameSymbol
         // RecursiveReferences,
     } mode = None;
-    enum Flag {
-        PathsRelativeToRoot = 0x1,
-        NoContext = 0x2,
-        PrintDBPath = 0x4
-    };
     unsigned flags = 0;
     int idx, longIndex;
     QByteArray arg, renameTo;
@@ -282,10 +290,10 @@ int main(int argc, char** argv)
         fprintf(stderr, "No databases specified\n");
         return 1;
     }
-    if ((flags & PathsRelativeToRoot) && mode != Files) {
-        fprintf(stderr, "-n only makes sense with -P\n");
-        return 1;
-    }
+    // if ((flags & PathsRelativeToRoot) && mode != Files) {
+    //     fprintf(stderr, "-n only makes sense with -P\n");
+    //     return 1;
+    // }
     bool done = false;
     foreach(const QByteArray &dbPath, dbPaths) {
         if (dbPath.isEmpty())
@@ -312,7 +320,7 @@ int main(int argc, char** argv)
             qSort(all.begin(), all.end(), compareLoc);
             if (mode == AllReferences) {
                 foreach(const Location &l, all) {
-                    printLocation(l, db, flags & NoContext);
+                    printLocation(l, db, flags);
                 }
             } else {
                 foreach(const Location &l, all) {
@@ -339,12 +347,12 @@ int main(int argc, char** argv)
             Location loc = db->createLocation(arg);
             // printf("%s => %d:%d:%d\n", arg.constData(), loc.file, loc.line, loc.column);
             if (loc.file) {
-                done = printLocation(db->followLocation(loc), db, flags & NoContext);
+                done = printLocation(db->followLocation(loc), db, flags);
                 // we're not going to find more than one followLocation
             } else {
                 QSet<Location> filter;
                 foreach(const Location &l, db->findSymbol(arg)) {
-                    printLocation(db->followLocation(l), db, flags & NoContext, &filter);
+                    printLocation(db->followLocation(l), db, flags, &filter);
                 }
             }
             break; }
@@ -352,20 +360,20 @@ int main(int argc, char** argv)
             const Location loc = db->createLocation(arg);
             if (loc.file) {
                 foreach(const Location &l, db->findReferences(loc)) {
-                    printLocation(l, db, flags & NoContext);
+                    printLocation(l, db, flags);
                 }
             } else {
                 QSet<Location> filter;
                 foreach(const Location &l, db->findSymbol(arg)) {
                     foreach(const Location &r, db->findReferences(l)) {
-                        printLocation(r, db, flags & NoContext, &filter);
+                        printLocation(r, db, flags, &filter);
                     }
                 }
             }
             break; }
         case FindSymbols:
             foreach(const Location &loc, db->findSymbol(arg)) {
-                printLocation(loc, db, flags & NoContext);
+                printLocation(loc, db, flags);
             }
             break;
         case ListSymbols: {
