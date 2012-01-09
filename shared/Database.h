@@ -60,7 +60,11 @@ public:
     void invalidateEntries(const QSet<Path> &paths);
 
     Location createLocation(const QByteArray &arg, const Path &cwd = Path());
-    QByteArray locationToString(const Location &location) const;
+    enum LocationToStringFlag {
+        None = 0x0,
+        RelativeToRoot = 0x1
+    };
+    QByteArray locationToString(const Location &location, unsigned flags = None) const;
     Path path(const Location &location) const { return mFilesByIndex.value(location.file); }
 
     enum ConnectionType {

@@ -40,24 +40,15 @@ static inline void writeExpect(Database *db)
     Database::iterator *it = db->createIterator(Database::Targets);
     if (it->isValid()) {
         do {
-            QByteArray s = it->key().constData();
-            int colon = s.indexOf(':');
-            {
-                Path src = db->file(atoi(s.constData()));
-                if (src.startsWith(path))
-                    src.remove(0, path.size());
-                s.replace(0, colon, src);
-            }
-            // src.append(it->key
-            QByteArray target = db->locationToString(it->value<Location>());
-            if (target.startsWith(path))
-                target.remove(0, path.size());
+            const QByteArray s = db->locationToString(Location::fromKey(it->key()),
+                                                      Database::RelativeToRoot);
+            const QByteArray target = db->locationToString(it->value<Location>(),
+                                                           Database::RelativeToRoot);
             f.write("rc --no-context --paths-relative-to-root --follow-symbol ");
             f.write(s);
             f.write(" => ");
             f.write(target);
             f.putChar('\n');
-            // qDebug() << s << target;
         } while (it->next());
     }
     delete it;
@@ -65,30 +56,24 @@ static inline void writeExpect(Database *db)
     if (it->isValid()) {
         do {
             if (it->key().endsWith(':')) {
-                Location loc = db->createLocation(it->key());
-                QSet<Location> refs = it->value<QSet<Location> >();
-                qDebug() << db->locationToString(loc) << refs << it->key() << loc.file;
+                Location loc = Location::fromKey(it->key());
+                QSet<Location> refs = db->findReferences(loc);
+                const QByteArray src = db->locationToString(loc, Database::RelativeToRoot);
+                f.write("rc --no-context --paths-relative-to-root --references ");
+                f.write(src);
+                f.write(" => ");
+                QList<QByteArray> references;
+                foreach(const Location &ref, refs) {
+                    references.append(db->locationToString(ref, Database::RelativeToRoot));
+                }
+                qSort(references);
+                foreach(const QByteArray &r, references) {
+                    f.write(r);
+                    f.putChar(' ');
+                }
+                f.putChar('\n');
                 continue;
             }
-            // QByteArray s = it->key().constData();
-            // if (s.endsWith(':')) {
-            // int colon = s.indexOf(':');
-            // {
-            //     Path src = db->file(atoi(s.constData()));
-            //     if (src.startsWith(path))
-            //         src.remove(0, path.size());
-            //     s.replace(0, colon, src);
-            // }
-            // // src.append(it->key
-            // QByteArray target = db->locationToString(it->value<Location>());
-            // if (target.startsWith(path))
-            //     target.remove(0, path.size());
-            // f.write("rc --no-context --paths-relative-to-root --follow-symbol ");
-            // f.write(s);
-            // f.write(" => ");
-            // f.write(target);
-            // f.putChar('\n');
-            // // qDebug() << s << target;
         } while (it->next());
     }
     delete it;

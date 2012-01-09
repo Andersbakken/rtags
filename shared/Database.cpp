@@ -542,10 +542,15 @@ void Database::writeEntity(const QByteArray &symbolName,
     }
 }
 
-QByteArray Database::locationToString(const Location &location) const
+QByteArray Database::locationToString(const Location &location, unsigned flags) const
 {
     if (location.file) {
         QByteArray ret = mFilesByIndex.value(location.file);
+        if (flags & RelativeToRoot) {
+            const int slash = mPath.lastIndexOf('/');
+            if (slash != -1 && !strncmp(ret.constData(), mPath.constData(), slash + 1))
+                ret.remove(0, slash + 1);
+        }
         char buf[32];
         snprintf(buf, 32, ":%d:%d:", location.line, location.column);
         ret += buf;
