@@ -13,7 +13,8 @@
 enum Flag {
     PathsRelativeToRoot = 0x1,
     NoContext = 0x2,
-    PrintDBPath = 0x4
+    PrintDBPath = 0x4,
+    SeparateLocationsBySpace = 0x8
 };
 
 // This sorts in reverse order. Location with higher line, column comes first
@@ -66,8 +67,9 @@ static inline bool printLocation(const Location &loc, const Database *db,
         }
     }
 
+    const char sep = (flags & SeparateLocationsBySpace ? ' ' : '\n');
     if (flags & NoContext) {
-        printf("%s\n", out.constData());
+        printf("%s%c", out.constData(), sep);
         return false;
     }
 
@@ -88,10 +90,10 @@ static inline bool printLocation(const Location &loc, const Database *db,
             readLine(f, 0, -1);
         char buf[1024] = { 0 };
         readLine(f, buf, 1024);
-        printf("\t%s\n", buf);
+        printf("\t%s%c", buf, sep);
         fclose(f);
     } else {
-        printf("\n");
+        printf("%c", sep);
     }
     return true;
 }
@@ -106,17 +108,18 @@ static inline void usage(const char* argv0, FILE *f)
             "  --detect-db|-D                Find .rtags.db based on path\n"
             "                                (default when no -d options are specified)\n"
             "  --db-type|-t [arg]            Type of db (leveldb or filedb)\n"
+            "  --paths-relative-to-root|-n   Print out files matching arg\n"
+            "  --no-context|-N               Don't print context from files when printing locations\n"
+            "  --separate-paths-by-space     Separate multiple locations by space instead of newline\n"
             "\n"
             "  Modes\n"
             "  --follow-symbol|-f [arg]      Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
-            "  --find-references|-r [arg]         Print references of symbol at arg\n"
+            "  --find-references|-r [arg]    Print references of symbol at arg\n"
             "  --list-symbols|-l [arg]       Print out symbols names matching arg\n"
             "  --files|-P [arg]              Print out files matching arg\n"
-            "  --paths-relative-to-root|-n   Print out files matching arg\n"
             "  --all-references|-a [arg]     Print all references/declarations/definitions that matches arg\n"
             "  --rename-symbol|-R [loc] [to] Rename symbol. E.g. rc -R main.cpp:10:3 foobar\n"
-            "  --find-symbols|-s [arg]       Print out symbols matching arg\n"
-            "  --no-context|-N               Don't print context from files when printing locations\n",
+            "  --find-symbols|-s [arg]       Print out symbols matching arg\n",
             argv0);
 }
 
@@ -157,9 +160,10 @@ int main(int argc, char** argv)
         { "all-references", required_argument, 0, 'a' },
         { "rename-symbol", required_argument, 0, 'R' },
         { "no-context", no_argument, 0, 'N' },
+        { "separate-paths-by-space", no_argument, 0, 'S' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hf:d:r:l::Dps:P::nt:a:R:N";
+    const char *shortOptions = "hf:d:r:l::Dps:P::nt:a:R:NS";
 
     Mmap::init();
 
@@ -188,6 +192,9 @@ int main(int argc, char** argv)
             return 1;
         case 'N':
             flags |= NoContext;
+            break;
+        case 'S':
+            flags |= SeparateLocationsBySpace;
             break;
         case 'R':
             if (mode != None) {
@@ -320,7 +327,7 @@ int main(int argc, char** argv)
             qSort(all.begin(), all.end(), compareLoc);
             if (mode == AllReferences) {
                 foreach(const Location &l, all) {
-                    printLocation(l, db, flags);
+                    printed |= printLocation(l, db, flags);
                 }
             } else {
                 foreach(const Location &l, all) {
