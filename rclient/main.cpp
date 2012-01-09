@@ -327,7 +327,7 @@ int main(int argc, char** argv)
             qSort(all.begin(), all.end(), compareLoc);
             if (mode == AllReferences) {
                 foreach(const Location &l, all) {
-                    printed |= printLocation(l, db, flags);
+                    printLocation(l, db, flags);
                 }
             } else {
                 foreach(const Location &l, all) {
