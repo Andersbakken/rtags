@@ -109,7 +109,7 @@ static inline void usage(const char* argv0, FILE *f)
             "\n"
             "  Modes\n"
             "  --follow-symbol|-f [arg]      Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
-            "  --references|-r [arg]         Print references of symbol at arg\n"
+            "  --find-references|-r [arg]         Print references of symbol at arg\n"
             "  --list-symbols|-l [arg]       Print out symbols names matching arg\n"
             "  --files|-P [arg]              Print out files matching arg\n"
             "  --paths-relative-to-root|-n   Print out files matching arg\n"

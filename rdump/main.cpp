@@ -59,7 +59,7 @@ static inline void writeExpect(Database *db)
                 Location loc = Location::fromKey(it->key());
                 QSet<Location> refs = db->findReferences(loc);
                 const QByteArray src = db->locationToString(loc, Database::RelativeToRoot);
-                f.write("rc --no-context --paths-relative-to-root --references ");
+                f.write("rc --no-context --paths-relative-to-root --find-references ");
                 f.write(src);
                 f.write(" => ");
                 QList<QByteArray> references;

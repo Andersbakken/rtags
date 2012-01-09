@@ -15,7 +15,7 @@ function runtest {
             #echo $expect foo
             if echo "$expect" | grep "^rc.*=>" --quiet; then
                 expected=`echo $expect | sed -e 's,.*=> ,,'`
-                cmd=`echo $expect | sed -e 's,^,../../,' -e 's, =>.*,,'`
+                cmd=`echo $expect | sed -e 's,^,../../,' -e 's, =>.*,,' | sort | xargs ` 
                 result=`$cmd`
                 #echo $expected $result
                 if [ "$expected" != "$result" ]; then
