@@ -475,8 +475,8 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
         CXCursor parent = decl->cursor;
         forever {
             parent = clang_getCursorSemanticParent(parent);
-            const CXCursorKind kind = clang_getCursorKind(parent);
-            if (clang_isInvalid(kind))
+            const CXCursorKind k = clang_getCursorKind(parent);
+            if (clang_isInvalid(k))
                 break;
             CXString str = clang_getCursorDisplayName(parent);
             const char *cstr = clang_getCString(str);
@@ -484,7 +484,7 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
                 clang_disposeString(str);
                 break;
             }
-            switch (kind) {
+            switch (k) {
             case CXCursor_StructDecl:
             case CXCursor_ClassDecl:
             case CXCursor_Namespace:
@@ -535,6 +535,68 @@ QDebug operator<<(QDebug dbg, const QVarLengthArray<T> &arr)
     return dbg.space();
 }
 
+static inline CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData data)
+{
+    bool ref = false;
+    switch (clang_getCursorKind(cursor)) {
+    case CXCursor_ParmDecl:
+    case CXCursor_VarDecl:
+        break;
+    case CXCursor_DeclRefExpr:
+        ref = true;
+        break;
+    default:
+        return CXChildVisit_Recurse;
+    }
+
+    RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(data);
+    Entity *e = 0;
+    QMutexLocker lock(&p->entryMutex);
+    if (ref) {
+        CXCursor referenced = clang_getCursorReferenced(cursor);
+        e = &p->entities[eatString(clang_getCursorUSR(referenced))];
+        const Location loc = createLocation(cursor, p->filesByName);
+        e->references.insert(loc);
+    } else {
+        e = &p->entities[eatString(clang_getCursorUSR(cursor))];
+        if (e->name.isEmpty()) {
+            CXString nm = clang_getCursorDisplayName(cursor); // this one gives us args
+            e->name = clang_getCString(nm);
+            clang_disposeString(nm);
+            e->kind = CXIdxEntity_Variable;
+            CXCursor parent = cursor;
+            forever {
+                parent = clang_getCursorSemanticParent(parent);
+                const CXCursorKind k = clang_getCursorKind(parent);
+                if (clang_isInvalid(k))
+                    break;
+                CXString str = clang_getCursorDisplayName(parent);
+                const char *cstr = clang_getCString(str);
+                if (!cstr || !strlen(cstr)) {
+                    clang_disposeString(str);
+                    break;
+                }
+                switch (k) {
+                case CXCursor_StructDecl:
+                case CXCursor_ClassDecl:
+                case CXCursor_Namespace:
+                    e->parentNames.prepend(cstr);
+                    break;
+                default:
+                    break;
+                }
+                clang_disposeString(str);
+            }
+        }
+
+        if (e) {
+            e->definition = createLocation(cursor, p->filesByName);
+        }
+    }
+
+    return CXChildVisit_Recurse;
+}
+
 void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile *precompile)
 {
     QVarLengthArray<const char *, 64> clangArgs(args.size() + (file.isEmpty() ? 0 : 2));
@@ -561,7 +623,6 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
     // }
     // fprintf(stderr, "%s\n", file.constData());
 
-
     if (precompile && clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
                                             CXIndexOpt_None, file.constData(), clangArgs.constData(),
                                             argCount, 0, 0, &unit,
@@ -573,25 +634,22 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
         // }
         // fprintf(stderr, "%s\n", input.constData());
 
-        if (unit)
-            clang_disposeTranslationUnit(unit);
-        unit = 0;
+        Q_ASSERT(!unit);
         argCount -= 2;
         precompile = 0;
     }
-    if (!unit && clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
-                                       CXIndexOpt_None, file.constData(),
-                                       clangArgs.constData(), argCount,
-                                       0, 0, &unit, clang_defaultEditingTranslationUnitOptions())) {
-        if (unit)
-            clang_disposeTranslationUnit(unit);
-        unit = 0;
-    }
+    if (!unit)
+        clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
+                              CXIndexOpt_None, file.constData(),
+                              clangArgs.constData(), argCount,
+                              0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
 
     if (!unit) {
         qWarning() << "Unable to parse unit for" << file; // << clangArgs;
         return;
     }
+    if (mData->visitorEnabled)
+        clang_visitChildren(clang_getTranslationUnitCursor(unit), visitor, mData);
     Source src = { file, args, file.lastModified(), QHash<Path, quint64>() };
     if (precompile) {
         src.dependencies = precompile->dependencies();
@@ -675,4 +733,12 @@ void RBuild::closeDB()
         delete mData->db;
         mData->db = 0;
     }
+}
+void RBuild::setVisitorEnabled(bool on)
+{
+    mData->visitorEnabled = on;
+}
+bool RBuild::isVisitorEnabled() const
+{
+    return mData->visitorEnabled;
 }

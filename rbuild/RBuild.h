@@ -20,6 +20,8 @@ public:
     void setDBPath(const Path &path);
     bool buildDB(const Path& makefile, const Path &sourceDir);
     bool updateDB();
+    void setVisitorEnabled(bool on);
+    bool isVisitorEnabled() const;
 signals:
     void compileFinished();
     void finishedCompiling();

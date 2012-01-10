@@ -56,18 +56,18 @@ public:
     CXString str;
 };
 
-// static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData)
-// {
-//     CXFile file;
-//     unsigned line, col;
-//     clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
-//     printf("%s %s %s:%u:%u\n",
-//            String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
-//            String(clang_getCursorSpelling(cursor)).data(),
-//            String(clang_getFileName(file)).data(),
-//            line, col);
-//     return CXChildVisit_Recurse;
-// }
+static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData)
+{
+    CXFile file;
+    unsigned line, col;
+    clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
+    printf("%s %s %s:%u:%u\n",
+           String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
+           String(clang_getCursorSpelling(cursor)).data(),
+           String(clang_getFileName(file)).data(),
+           line, col);
+    return CXChildVisit_Recurse;
+}
 
 /**
  * \brief Called periodically to check whether indexing should be aborted.
@@ -146,8 +146,8 @@ static inline void debugCursor(FILE* out, const CXCursor& cursor)
 
 void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
 {
-    if (decl->isImplicit)
-        return;
+    // if (decl->isImplicit)
+    //     return;
     CXFile f;
     unsigned l, c;
     clang_indexLoc_getFileLocation(decl->loc, 0, &f, &l, &c, 0);
@@ -201,10 +201,10 @@ int main(int, char **)
     printf("%d %p\n", ret, unit);
 
     // CXTranslationUnit unit = clang_parseTranslationUnit(index, "test.cpp", args, sizeof(args) / 4,
-    //                                                     0, 0, clang_defaultEditingTranslationUnitOptions());
+    //                                                      0, 0, clang_defaultEditingTranslationUnitOptions());
 
     if (unit) {
-        // clang_visitChildren(clang_getTranslationUnitCursor(unit), visitor, 0);
+        clang_visitChildren(clang_getTranslationUnitCursor(unit), visitor, 0);
     } else {
         printf("fucked\n");
     }

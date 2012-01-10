@@ -15,6 +15,7 @@ static inline void usage(const char* argv0, FILE *f)
             "  --help|-h                  Display this help\n"
             "  --db-file|-d [arg]         Use this database file\n"
             "  --update|-u                Update database\n"
+            "  --disable-visitor|-D       Disable additional visitor hack to index parameters and variables\n"
             "  --source-dir|-s [arg]      Recurse this directory\n"
             "  --db-type|-t [arg]         Type of db (leveldb or filedb)\n",
             argv0);
@@ -38,6 +39,7 @@ int main(int argc, char** argv)
     Path db;
     Path srcDir;
     bool update = false;
+    bool disableVisitor = false;
 
     Mmap::init();
 
@@ -49,9 +51,10 @@ int main(int argc, char** argv)
         { "update", 0, 0, 'u' },
         { "source-dir", 1, 0, 's' },
         { "db-type", 1, 0, 't' },
+        { "disable-visitor", 0, 0, 'D' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hud:s:t:";
+    const char *shortOptions = "hud:s:t:D";
 
     int idx, longIndex;
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
@@ -59,6 +62,9 @@ int main(int argc, char** argv)
         case '?':
             usage(argv[0], stderr);
             return 1;
+        case 'D':
+            disableVisitor = true;
+            break;
         case 's':
             srcDir = optarg;
             break;
@@ -98,6 +104,8 @@ int main(int argc, char** argv)
     }
 
     RBuild build;
+    if (disableVisitor)
+        build.setVisitorEnabled(false);
     build.setDBPath(db);
     if (update) {
         build.updateDB();
