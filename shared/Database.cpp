@@ -346,7 +346,8 @@ QSet<Location> Database::findSymbol(const QByteArray &symbolName) const
                 } else {
                     break;
                 }
-                it->next();
+                if (!it->next())
+                    break;
             }
         }
         delete it;
