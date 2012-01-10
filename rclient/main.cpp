@@ -176,7 +176,7 @@ int main(int argc, char** argv)
         { "db", required_argument, 0, 'd' },
         { "find-references", required_argument, 0, 'r' },
         { "find-symbols", required_argument, 0, 's' },
-        { "find-db", no_argument, 0, 'F' },
+        { "find-db", no_argument, 0, 'D' },
         { "list-symbols", optional_argument, 0, 'l' },
         { "files", optional_argument, 0, 'P' },
         { "paths-relative-to-root", no_argument, 0, 'n' },
@@ -252,7 +252,11 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Mode is already set\n");
                 return 1;
             }
-            arg = optarg;
+            if ((!optarg || !strlen(optarg)) && optind < argc && strncmp(argv[optind], "-", 1)) {
+                arg = argv[optind++];
+            } else {
+                arg = optarg;
+            }
             mode = Files;
             break;
         case 'r':
@@ -281,8 +285,12 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Mode is already set\n");
                 return 1;
             }
+            if ((!optarg || !strlen(optarg)) && optind < argc && strncmp(argv[optind], "-", 1)) {
+                arg = argv[optind++];
+            } else {
+                arg = optarg;
+            }
             mode = ListSymbols;
-            arg = optarg;
             break;
         case 's':
             if (mode != None) {
@@ -364,7 +372,7 @@ int main(int argc, char** argv)
             output.printLocations(db->findSymbol(arg), db);
             break;
         case ListSymbols: {
-            const QList<QByteArray> symbolNames = db->symbolNames(arg);
+            const QList<QByteArray> symbolNames = db->listSymbols(arg);
             if (!symbolNames.isEmpty())
                 output.print(symbolNames);
             break; }

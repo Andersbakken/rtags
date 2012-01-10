@@ -365,12 +365,13 @@ static inline State maybeDict(const QByteArray &key, const QByteArray &filter, S
 {
     Q_ASSERT(!key.isEmpty());
     if (state != In) {
-        const int idx = key.indexOf(filter);
-        if (idx != -1) {
-            if (idx + filter.size() <= paren) {
+        if (key.startsWith(filter)) {
+            if (key.size() == filter.size()) {
+                state = InArgs;
+            } else if (filter.size() == paren) {
                 state = In;
             } else {
-                state = InArgs;
+                state = Out;
             }
         } else {
             state = Out;
@@ -391,7 +392,7 @@ static inline State maybeDict(const QByteArray &key, const QByteArray &filter, S
     return state;
 }
 
-QList<QByteArray> Database::symbolNames(const QByteArray &filter) const
+QList<QByteArray> Database::listSymbols(const QByteArray &filter) const
 {
     QList<QByteArray> ret;
     iterator *it = createIterator(Dictionary);
