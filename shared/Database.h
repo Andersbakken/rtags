@@ -74,7 +74,7 @@ public:
         Targets,
         NumConnectionTypes
     };
-    
+
     class iterator
     {
     public:

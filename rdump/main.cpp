@@ -44,7 +44,7 @@ static inline void writeExpect(Database *db)
                                                       Database::RelativeToRoot);
             const QByteArray target = db->locationToString(it->value<Location>(),
                                                            Database::RelativeToRoot);
-            f.write("rc --no-context --paths-relative-to-root --follow-symbol ");
+            f.write("rc --sort-output --separate-paths-by-space --no-context --paths-relative-to-root --follow-symbol ");
             f.write(s);
             f.write(" => ");
             f.write(target);
@@ -59,7 +59,7 @@ static inline void writeExpect(Database *db)
                 Location loc = Location::fromKey(it->key());
                 QSet<Location> refs = db->findReferences(loc);
                 const QByteArray src = db->locationToString(loc, Database::RelativeToRoot);
-                f.write("rc --no-context --paths-relative-to-root --find-references ");
+                f.write("rc --sort-output --separate-paths-by-space --no-context --paths-relative-to-root --find-references ");
                 f.write(src);
                 f.write(" => ");
                 QList<QByteArray> references;
@@ -77,7 +77,7 @@ static inline void writeExpect(Database *db)
         } while (it->next());
     }
     delete it;
-    
+
     printf("Wrote expect.txt\n");
 }
 

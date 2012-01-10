@@ -4,4 +4,4 @@ DESTDIR = ..
 DEPENDPATH += .
 include(../shared/shared.pri)
 
-SOURCES += main.cpp 
+SOURCES += main.cpp

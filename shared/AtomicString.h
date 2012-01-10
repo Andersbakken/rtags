@@ -47,7 +47,7 @@ public:
             return false;
         return operator>(other.mData->data);
     }
-    
+
     bool operator==(const QByteArray& string) const { return mData ? mData->data == string : false; }
     bool operator!=(const QByteArray& string) const { return mData ? mData->data != string : false; }
     bool operator<(const QByteArray& string) const { return mData ? mData->data < string : false; }

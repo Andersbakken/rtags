@@ -20,7 +20,9 @@ function runtest {
                 #echo $expected $result
                 if [ "$expected" != "$result" ]; then
                     fail=`expr $fail + 1`
-                    echo "Test ${1} failed, ${expect} is ${result}, expected ${expected}"
+                    echo "Test ${1} failed"
+                    echo "Got      [${result}]"
+                    echo "Expected [${expected}]"
                 else
                     passed=`expr $passed + 1`
                 fi
@@ -31,6 +33,6 @@ function runtest {
     cd ..
 }
 
-for test in `find . -maxdepth 1 -mindepth 1 -type d`; do
+for test in `find \`dirname ${0}\` -maxdepth 1 -mindepth 1 -type d`; do
     test -f $test/expect.txt && runtest $test
 done

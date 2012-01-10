@@ -359,7 +359,7 @@ enum State {
     In,
     InArgs
 };
-    
+
 static inline State maybeDict(const QByteArray &key, const QByteArray &filter, State state,
                               int paren, QList<QByteArray> &keys)
 {
