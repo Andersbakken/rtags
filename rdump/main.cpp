@@ -77,6 +77,22 @@ static inline void writeExpect(Database *db)
         } while (it->next());
     }
     delete it;
+    foreach(const QByteArray &symbol, db->listSymbols()) {
+        f.write("rc --sort-output --separate-paths-by-space --no-context --paths-relative-to-root --find-symbol '");
+        f.write(symbol);
+        f.write("' => ");
+        QList<QByteArray> locations;
+        foreach(const Location &ref, db->findSymbol(symbol)) {
+            locations.append(db->locationToString(ref, Database::RelativeToRoot));
+        }
+        qSort(locations);
+        foreach(const QByteArray &l, locations) {
+            f.write(l);
+            f.putChar(' ');
+        }
+        f.putChar('\n');
+    }
+
 
     printf("Wrote expect.txt\n");
 }

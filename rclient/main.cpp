@@ -161,7 +161,9 @@ int main(int argc, char** argv)
         }
 
         for (int i=0; i<argc; ++i) {
+            log.putChar('\'');
             log.write(argv[i]);
+            log.putChar('\'');
             log.putChar(' ');
         }
         if (cwd)

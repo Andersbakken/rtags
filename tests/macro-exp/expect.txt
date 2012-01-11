@@ -1,0 +1,5 @@
+rc --sort-output --separate-paths-by-space --no-context --paths-relative-to-root --follow-symbol main.cpp:6:5: => main.cpp:5:9:
+rc --sort-output --separate-paths-by-space --no-context --paths-relative-to-root --follow-symbol main.cpp:7:5: => main.cpp:5:9:
+rc --sort-output --separate-paths-by-space --no-context --paths-relative-to-root --follow-symbol main.cpp:8:5: => main.cpp:5:9:
+rc --sort-output --separate-paths-by-space --no-context --paths-relative-to-root --follow-symbol main.cpp:9:5: => main.cpp:5:9:
+rc --sort-output --separate-paths-by-space --no-context --paths-relative-to-root --find-references main.cpp:5:9: => main.cpp:6:5: main.cpp:7:5: main.cpp:8:5: main.cpp:9:5: 
