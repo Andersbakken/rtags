@@ -658,8 +658,10 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
         clang_getInclusions(unit, getInclusions, &u);
     }
 
-    QMutexLocker lock(&mData->entryMutex); // ### is this the right place to lock?
-    mData->sources.append(src);
+    {
+        QMutexLocker lock(&mData->entryMutex); // ### is this the right place to lock?
+        mData->sources.append(src);
+    }
     // qDebug() << input << mData->dependencies.last().dependencies.keys();
     clang_disposeTranslationUnit(unit);
 
