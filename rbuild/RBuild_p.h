@@ -32,12 +32,12 @@ struct TemplateEntity
 struct RBuildPrivate
 {
     RBuildPrivate()
-        : visitorEnabled(true), db(0), pendingJobs(0), index(0)
+        : flags(0), db(0), pendingJobs(0), index(0)
     {
         Location::files() = &filesByName;
     }
 
-    bool visitorEnabled;
+    unsigned flags;
     QHash<QByteArray, Entity> entities;
     QHash<Location, TemplateEntity> templateEntities;
     QHash<Path, unsigned> filesByName;

@@ -14,14 +14,17 @@ class RBuild : public QObject
 {
     Q_OBJECT
 public:
-    RBuild(QObject *parent = 0);
+    enum Flag {
+        NoFlags = 0x0,
+        VisitorDisabled = 0x1,
+        ClangDisabled = 0x2
+    };
+    RBuild(unsigned flags, QObject *parent = 0);
     ~RBuild();
 
     void setDBPath(const Path &path);
     bool buildDB(const Path& makefile, const Path &sourceDir);
     bool updateDB();
-    void setVisitorEnabled(bool on);
-    bool isVisitorEnabled() const;
 signals:
     void compileFinished();
     void finishedCompiling();

@@ -17,6 +17,7 @@ static inline void usage(const char* argv0, FILE *f)
             "  --update|-u                Update database\n"
             "  --disable-visitor|-D       Disable additional visitor hack to index parameters and variables\n"
             "  --source-dir|-s [arg]      Recurse this directory\n"
+            "  --dont-clang|-c            Don't actually do much of anything\n"
             "  --db-type|-t [arg]         Type of db (leveldb or filedb)\n",
             argv0);
 }
@@ -39,7 +40,7 @@ int main(int argc, char** argv)
     Path db;
     Path srcDir;
     bool update = false;
-    bool disableVisitor = false;
+    unsigned flags = 0;
 
     Mmap::init();
 
@@ -52,9 +53,10 @@ int main(int argc, char** argv)
         { "source-dir", 1, 0, 's' },
         { "db-type", 1, 0, 't' },
         { "disable-visitor", 0, 0, 'D' },
+        { "dont-clang", 0, 0, 'c' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hud:s:t:D";
+    const char *shortOptions = "hud:s:t:Dc";
 
     int idx, longIndex;
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
@@ -62,8 +64,11 @@ int main(int argc, char** argv)
         case '?':
             usage(argv[0], stderr);
             return 1;
+        case 'c':
+            flags |= RBuild::ClangDisabled;
+            break;
         case 'D':
-            disableVisitor = true;
+            flags |= RBuild::VisitorDisabled;
             break;
         case 's':
             srcDir = optarg;
@@ -103,9 +108,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    RBuild build;
-    if (disableVisitor)
-        build.setVisitorEnabled(false);
+    RBuild build(flags);
     build.setDBPath(db);
     if (update) {
         build.updateDB();

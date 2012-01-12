@@ -72,6 +72,7 @@ Path GccArguments::parseCD(const QByteArray &cmd, const Path& path) const
 
 bool GccArguments::parse(const QByteArray& cmd, const Path &p)
 {
+    QList<QByteArray> resolveErrors;
     Q_ASSERT(p.isResolved() && p.isDir());
     Data* data = m_ptr.data();
     Path path = p;
@@ -174,10 +175,18 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &p)
         } else if (!a.isEmpty() && data->input.isEmpty()) { // input file?
             data->input = Path::resolved(a, path);
             if (!data->input.isFile()) {
-                qWarning() << "couldn't resolve" << a << path;
+                char buf[512];
+                snprintf(buf, 512, "Couldn't resolve [%s] in [%s] for [%s]\n", a.constData(),
+                         path.constData(), raw.constData());
+                resolveErrors.append(buf);
             } else {
                 data->inputParentDir = data->input.parentDir();
             }
+        }
+    }
+    if (!resolveErrors.isEmpty() && isCompile()) {
+        foreach(const QByteArray &error, resolveErrors) {
+            qWarning("%s", error.constData());
         }
     }
 

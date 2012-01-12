@@ -45,9 +45,10 @@ private:
     Precompile *pch;
 };
 
-RBuild::RBuild(QObject *parent)
+RBuild::RBuild(unsigned flags, QObject *parent)
     : QObject(parent), mData(new RBuildPrivate)
 {
+    mData->flags = flags;
     mData->index = clang_createIndex(1, 0);
     if (const char *env = getenv("RTAGS_THREAD_COUNT")) {
         const int threads = atoi(env);
@@ -599,72 +600,74 @@ static inline CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData
 
 void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile *precompile)
 {
-    QVarLengthArray<const char *, 64> clangArgs(args.size() + (file.isEmpty() ? 0 : 2));
-    int argCount = 0;
-    foreach(const QByteArray& arg, args) {
-        clangArgs[argCount++] = arg.constData();
-    }
-    if (precompile) {
-        Q_ASSERT(precompile->isCompiled());
-        clangArgs[argCount++] = "-include-pch";
-        clangArgs[argCount++] = precompile->filePath().constData();
-    }
+    if (!(mData->flags & ClangDisabled)) {
+        QVarLengthArray<const char *, 64> clangArgs(args.size() + (file.isEmpty() ? 0 : 2));
+        int argCount = 0;
+        foreach(const QByteArray& arg, args) {
+            clangArgs[argCount++] = arg.constData();
+        }
+        if (precompile) {
+            Q_ASSERT(precompile->isCompiled());
+            clangArgs[argCount++] = "-include-pch";
+            clangArgs[argCount++] = precompile->filePath().constData();
+        }
 
-    IndexerCallbacks cb;
-    memset(&cb, 0, sizeof(IndexerCallbacks));
-    cb.indexDeclaration = indexDeclaration;
-    cb.indexEntityReference = indexEntityReference;
+        IndexerCallbacks cb;
+        memset(&cb, 0, sizeof(IndexerCallbacks));
+        cb.indexDeclaration = indexDeclaration;
+        cb.indexEntityReference = indexEntityReference;
 
-    CXIndexAction action = clang_IndexAction_create(mData->index);
-    CXTranslationUnit unit = 0;
-    // fprintf(stderr, "clang ");
-    // for (int i=0; i<argCount; ++i) {
-    //     fprintf(stderr, "%s ", clangArgs[i]);
-    // }
-    // fprintf(stderr, "%s\n", file.constData());
-
-    if (precompile && clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
-                                            CXIndexOpt_None, file.constData(), clangArgs.constData(),
-                                            argCount, 0, 0, &unit,
-                                            clang_defaultEditingTranslationUnitOptions())) {
-        qWarning("Couldn't compile %s with pch %p, Falling back to no pch", file.constData(), unit);
+        CXIndexAction action = clang_IndexAction_create(mData->index);
+        CXTranslationUnit unit = 0;
         // fprintf(stderr, "clang ");
-        // foreach(const QByteArray& arg, arglist) {
-        //     fprintf(stderr, "%s ", arg.constData());
+        // for (int i=0; i<argCount; ++i) {
+        //     fprintf(stderr, "%s ", clangArgs[i]);
         // }
-        // fprintf(stderr, "%s\n", input.constData());
+        // fprintf(stderr, "%s\n", file.constData());
 
-        Q_ASSERT(!unit);
-        argCount -= 2;
-        precompile = 0;
-    }
-    if (!unit)
-        clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
-                              CXIndexOpt_None, file.constData(),
-                              clangArgs.constData(), argCount,
-                              0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
+        if (precompile && clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
+                                                CXIndexOpt_None, file.constData(), clangArgs.constData(),
+                                                argCount, 0, 0, &unit,
+                                                clang_defaultEditingTranslationUnitOptions())) {
+            qWarning("Couldn't compile %s with pch %p, Falling back to no pch", file.constData(), unit);
+            // fprintf(stderr, "clang ");
+            // foreach(const QByteArray& arg, arglist) {
+            //     fprintf(stderr, "%s ", arg.constData());
+            // }
+            // fprintf(stderr, "%s\n", input.constData());
 
-    if (!unit) {
-        qWarning() << "Unable to parse unit for" << file; // << clangArgs;
-        return;
-    }
-    if (mData->visitorEnabled)
-        clang_visitChildren(clang_getTranslationUnitCursor(unit), visitor, mData);
-    Source src = { file, args, file.lastModified(), QHash<Path, quint64>() };
-    if (precompile) {
-        src.dependencies = precompile->dependencies();
-    } else {
-        InclusionUserData u(src.dependencies);
-        clang_getInclusions(unit, getInclusions, &u);
-    }
+            Q_ASSERT(!unit);
+            argCount -= 2;
+            precompile = 0;
+        }
+        if (!unit)
+            clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
+                                  CXIndexOpt_None, file.constData(),
+                                  clangArgs.constData(), argCount,
+                                  0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
 
-    {
-        QMutexLocker lock(&mData->entryMutex); // ### is this the right place to lock?
-        mData->sources.append(src);
-    }
-    // qDebug() << input << mData->dependencies.last().dependencies.keys();
-    clang_disposeTranslationUnit(unit);
+        if (!unit) {
+            qWarning() << "Unable to parse unit for" << file; // << clangArgs;
+            return;
+        }
+        if (!(mData->flags & RBuild::VisitorDisabled))
+            clang_visitChildren(clang_getTranslationUnitCursor(unit), visitor, mData);
+        Source src = { file, args, file.lastModified(), QHash<Path, quint64>() };
+        if (precompile) {
+            src.dependencies = precompile->dependencies();
+        } else {
+            InclusionUserData u(src.dependencies);
+            clang_getInclusions(unit, getInclusions, &u);
+        }
 
+        {
+            QMutexLocker lock(&mData->entryMutex); // ### is this the right place to lock?
+            mData->sources.append(src);
+        }
+        // qDebug() << input << mData->dependencies.last().dependencies.keys();
+        clang_disposeTranslationUnit(unit);
+
+    }
     emit compileFinished();
 }
 
@@ -735,12 +738,4 @@ void RBuild::closeDB()
         delete mData->db;
         mData->db = 0;
     }
-}
-void RBuild::setVisitorEnabled(bool on)
-{
-    mData->visitorEnabled = on;
-}
-bool RBuild::isVisitorEnabled() const
-{
-    return mData->visitorEnabled;
 }
