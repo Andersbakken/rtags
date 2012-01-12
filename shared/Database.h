@@ -55,7 +55,7 @@ public:
                      const Location &definition,
                      const QSet<Location> &declarations,
                      QSet<Location> references);
-    QSet<Location> allLocations(const Location &locations) const;
+    QList<Location> allLocations(const Location &locations) const;
 
     void invalidateEntries(const QSet<Path> &paths);
 
@@ -72,6 +72,7 @@ public:
         Dictionary,
         References,
         Targets,
+        ExtraDeclarations,
         NumConnectionTypes
     };
 
@@ -95,7 +96,7 @@ public:
             const QByteArray val = value();
             if (val.isEmpty())
                 return defaultValue;
-            return Database::decode<T>(val);
+            return Database::decodeValue<T>(val);
         }
     };
 
@@ -114,7 +115,7 @@ public:
         remove(General, key);
     }
 
-    template <typename T> static QByteArray encode(const T &t)
+    template <typename T> static QByteArray encodeValue(const T &t)
     {
         QByteArray v;
         {
@@ -124,12 +125,12 @@ public:
         return v;
     }
 
-    static QByteArray encode(const QByteArray &ba)
+    static QByteArray encodeValue(const QByteArray &ba)
     {
         return ba;
     }
 
-    template <typename T> static T decode(const QByteArray &encoded)
+    template <typename T> static T decodeValue(const QByteArray &encoded)
     {
         T t;
         if (!encoded.isEmpty()) {
@@ -138,7 +139,7 @@ public:
         }
         return t;
     }
-    static QByteArray decode(const QByteArray &data)
+    static QByteArray decodeValue(const QByteArray &data)
     {
         return data;
     }
@@ -150,27 +151,51 @@ protected:
     virtual void closeDatabase() = 0;
     virtual Connection *createConnection(ConnectionType type) = 0;
 private:
-    template <typename T> T read(ConnectionType type, const QByteArray &key, const T &defaultValue = T()) const
+    static inline QByteArray encodeKey(const QByteArray &key)
     {
+        return key;
+    }
+    static inline QByteArray encodeKey(const Location &loc)
+    {
+        if (loc.file) {
+            char buf[32];
+            const int written = snprintf(buf, 32, "%d:%d:%d:", loc.file, loc.line, loc.column);
+            Q_ASSERT(written < 32);
+            return QByteArray(buf, written);
+        }
+        return QByteArray();
+    }
+    static inline QByteArray encodeKey(int key)
+    {
+        return QByteArray::number(key);
+    }
+
+    template <typename T, typename K> T read(ConnectionType type, const K &k, const T &defaultValue = T()) const
+    {
+        const QByteArray key = encodeKey(k);
         if (key.isEmpty())
             return T();
         const QByteArray dat = mConnections[type]->readData(key);
         if (dat.isEmpty())
             return defaultValue;
-        return decode<T>(dat);
+        return decodeValue<T>(dat);
     }
-    template <typename T> void write(ConnectionType type, const QByteArray &key, const T &t)
+
+    template <typename T, typename K> void write(ConnectionType type, const K &k, const T &t)
     {
+        const QByteArray key = encodeKey(k);
         Q_ASSERT(!key.isEmpty());
-        mConnections[type]->writeData(key, encode<T>(t));
+        mConnections[type]->writeData(key, encodeValue<T>(t));
     }
-    void remove(ConnectionType type, const QByteArray &key)
+
+    template <typename K> void remove(ConnectionType type, const K &k)
     {
+        const QByteArray key = encodeKey(k);
         Q_ASSERT(!key.isEmpty());
         mConnections[type]->writeData(key, QByteArray());
     }
 
-    bool filterReferences(Database::iterator *iterator, const QSet<int> &dirty);
+    bool filterLocationSet(Database::iterator *iterator, const QSet<int> &dirty);
     bool filterDictionary(Database::iterator *iterator, const QSet<int> &dirty);
 
     Path mPath;

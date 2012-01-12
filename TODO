@@ -1,10 +1,5 @@
-Make rtags -u|--update
-Make rtags create rtags.db (-o | or default to .rtags.db in same dir as Makefile).
-Add filenames, lastModified, dependencies, GccArguments etc to rtags.db
-Look into short-circuiting when encounting a header we have seen before in VisitThread
-add a string class around CXString
 implement a symbol at current pos which could be used for a dynamic modeline thing for emacs
-nicer output from rbuild
 rename symbol
+consider adding symbolsize to location .e.g foo has symbol size 3
 
 Bugs:

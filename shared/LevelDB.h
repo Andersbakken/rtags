@@ -122,6 +122,7 @@ public:
                 case Dictionary: p += "/dictionary"; break;
                 case References: p += "/references"; break;
                 case Targets: p += "/targets"; break;
+                case ExtraDeclarations: p += "/extradeclarations"; break;
                 default: Q_ASSERT(0); break;
                 }
                 const leveldb::Status status = leveldb::DB::Open(dbOptions, p.constData(), &mDatabases[i]);

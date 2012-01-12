@@ -99,7 +99,7 @@ static inline void writeExpect(Database *db)
 
 static inline void raw(Database *db, const QByteArray &file)
 {
-    const char *names[] = { "General: [", "Dictionary: [", "References: [", "Targets: [" };
+    const char *names[] = { "General: [", "Dictionary: [", "References: [", "Targets: [", "ExtraDeclarations: [" };
     QFile f(file);
     if (!f.open(QIODevice::WriteOnly)) {
         fprintf(stderr, "Can't open %s for writing\n", file.constData());
@@ -196,14 +196,15 @@ int main(int argc, char** argv)
         case Normal:
             break;
         }
-        const char *names[] = { "General", "Dictionary", "References", "Targets" };
+        const char *names[] = { "General", "Dictionary", "References", "Targets", "ExtraDeclarations" };
         for (int i=0; i<Database::NumConnectionTypes; ++i) {
             Database::iterator *it = db->createIterator(static_cast<Database::ConnectionType>(i));
             if (it->isValid()) {
                 do {
                     const QByteArray key(it->key().constData(), it->key().size());
                     QByteArray coolKey;
-                    if (i == Database::Targets || (i == Database::References && key.endsWith(":"))) {
+                    if (i == Database::Targets || (i == Database::References && key.endsWith(":"))
+                        || i == Database::ExtraDeclarations) {
                         coolKey = db->locationToString(locationFromKey(it->key())) + ' ';
                     }
                     printf("%s '%s' %s=> %d bytes", names[i], key.constData(), coolKey.constData(), it->value().size());
@@ -274,6 +275,7 @@ int main(int argc, char** argv)
                             }
                             break; }
                         case Database::References:
+                        case Database::ExtraDeclarations:
                             printf("%c", newLine);
                             foreach(const Location &l, it->value<QSet<Location> >())
                                 printf("    %s%c", db->locationToString(l).constData(), newLine);
