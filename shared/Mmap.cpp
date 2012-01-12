@@ -257,7 +257,7 @@ void Mmap::read(char* data, unsigned int size, bool* ok) const
             mPageOffset = 0;
             ++mPageNo;
 
-            Q_ASSERT((unsigned int)mPages.size() > mPageNo || !size);
+            Q_ASSERT(mPages.size() > mPageNo || !size);
             if (size)
                 page = &mPages.at(mPageNo);
         }
@@ -274,7 +274,7 @@ void Mmap::write(const char* data, unsigned int size)
 
     ensureSize(mOffset + size);
 
-    Q_ASSERT(mPageNo < (unsigned int)mPages.size());
+    Q_ASSERT(mPageNo < mPages.size());
 
     const Page* page = &mPages.at(mPageNo);
     if (mPageOffset + size < page->size) {
@@ -307,7 +307,7 @@ void Mmap::write(const char* data, unsigned int size)
             mPageOffset = 0;
             ++mPageNo;
 
-            Q_ASSERT((unsigned int)mPages.size() > mPageNo || !size);
+            Q_ASSERT(mPages.size() > mPageNo || !size);
             if (size)
                 page = &mPages.at(mPageNo);
         }
