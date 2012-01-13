@@ -614,7 +614,7 @@ static inline bool lessThan(const Location &l, const Location &r)
     return l.column > r.column;
 }
 
-QList<Location> Database::allLocations(const Location &location) const
+QList<Location> Database::allReferences(const Location &location) const
 {
     Q_ASSERT(location.file);
     QSet<Location> ret;
@@ -631,4 +631,40 @@ QList<Location> Database::allLocations(const Location &location) const
     QList<Location> sorted = ret.toList();
     qSort(sorted.begin(), sorted.end(), lessThan);
     return sorted;
+}
+
+static Location locationFromKey(const QByteArray &key)
+{
+    Location loc;
+    unsigned *uints[] = { &loc.file, &loc.line, &loc.column };
+    const QList<QByteArray> parts = key.split(':'); // ### nasty
+    for (int i=0; i<qMin(3, parts.size()); ++i) {
+        *uints[i] = parts.at(i).toUInt();
+    }
+    return loc;
+}
+
+QSet<Location> Database::allLocations() const
+{
+    QSet<Location> ret;
+    iterator *it = createIterator(Targets);
+    while (it->isValid()) {
+        ret += it->value<Location>();
+        const Location l = locationFromKey(it->key());
+        ret += l;
+        foreach(const Location &ll, allReferences(l))
+            ret += ll;
+        it->next();
+    }
+    delete it;
+    it = createIterator(Dictionary);
+    while (it->isValid()) {
+        const DictionaryHash &dh = it->value<DictionaryHash>();
+        foreach(const QSet<Location> &v, dh) {
+            ret += v;
+        }
+        it->next();
+    }
+    delete it;
+    return ret;
 }

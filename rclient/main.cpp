@@ -339,7 +339,7 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Invalid arg %s", arg.constData());
                 break;
             }
-            output.printLocations(db->allLocations(loc), db);
+            output.printLocations(db->allReferences(loc), db);
             break; }
         case FollowSymbol: {
             Location loc = db->createLocation(arg);

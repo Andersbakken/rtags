@@ -56,7 +56,8 @@ public:
                      const QSet<Location> &declarations,
                      QSet<Location> extraDeclarations,
                      QSet<Location> references);
-    QList<Location> allLocations(const Location &locations) const;
+    QList<Location> allReferences(const Location &locations) const;
+    QSet<Location> allLocations() const; // slow, for tests
 
     void invalidateEntries(const QSet<Path> &paths);
 

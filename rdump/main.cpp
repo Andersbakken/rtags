@@ -118,7 +118,23 @@ static inline void writeExpect(Database *db)
         }
         f.putChar('\n');
     }
+    foreach(const Location &loc, db->allLocations()) {
+        f.write("rc --sort-output --separate-paths-by-space --no-context --paths-relative-to-root --all-references ");
+        f.write(db->locationToString(loc, Database::RelativeToRoot));
+        f.write(" => ");
 
+        QList<QByteArray> out;
+        foreach(const Location &l, db->allReferences(loc)) {
+            out.append(db->locationToString(l, Database::RelativeToRoot));
+        }
+
+        qSort(out);
+        foreach(const QByteArray &o, out) {
+            f.write(o);
+            f.putChar(' ');
+        }
+        f.putChar('\n');
+    }
 
     printf("Wrote expect.txt\n");
 }
