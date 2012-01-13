@@ -15,6 +15,12 @@
   :type 'boolean
   :group 'rtags)
 
+(defcustom rtags-edit-hook nil
+  "Run before rtags tries to modify a buffer (from rtags-rename)
+return t if rtags is allowed to modify this file"
+  :group 'rtags
+  :type 'hook)
+
 (defun rtags-append-to-list (list element)
   ;; (add-to-list list element t))
   (let ((len (list-length (eval list))))
@@ -39,7 +45,7 @@
                (rtags-append-to-list 'arguments (concat "-d" (buffer-local-value 'rtags-source-buffer buffer-chain))))
           (setq buffer-chain (get-file-buffer (buffer-local-value 'rtags-source-buffer buffer-chain)))
         (setq buffer-chain nil)))
-    (rtags-log (concat (executable-find "rc") (combine-and-quote-strings arguments)))
+    (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
     (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
     (rtags-log (buffer-string))
     (goto-char (point-min))))
@@ -137,7 +143,7 @@
 
 (defun rtags-rename-symbol ()
   (interactive)
-  (let (col line len file replacewith prev)
+  (let (col line len file replacewith prev (modifications 0) (filesopened 0))
     (save-excursion
       (if (looking-at "[0-9A-Za-z_~#]")
           (progn
@@ -165,31 +171,28 @@
                   (let ((fn (match-string 1))
                         (l (string-to-number (match-string 2)))
                         (c (string-to-number (match-string 3)))
-                        (buf nil)
-                        (closebuffer nil))
-                    (save-excursion
-                      (setq buf (get-file-buffer fn))
-                      ;; ### check if buffer is modified
-                      (unless buf
-                        (progn
-                          (setq buf (create-file-buffer fn))
-                          (setq closebuffer t)))
-                      (if buf
-                          (progn
-                            (set-buffer buf)
-                            (goto-line l)
-                            (forward-char (- c 1))
-                            (kill-forward-chars len)
-                            ;; (message (format "%s %d %d %d" fn l c len))
-                            (insert replacewith)
-                            (if closebuffer
-                                (progn
-                                  (save-buffer)
-                                  (kill-buffer buf)))
-                            ))))
+                        (buf nil))
+                    (setq buf (find-buffer-visiting fn))
+                    (unless buf
+                      (progn
+                        (incf filesopened)
+                        (setq buf (find-file-noselect fn))))
+                    (if buf
+                        (save-excursion
+                          (set-buffer buf)
+                          (if (run-hook-with-args-until-failure rtags-edit-hook)
+                              (progn
+                                (incf modifications)
+                                (goto-line l)
+                                (forward-char (- c 1))
+                                ;; (message (format "file %s line %d col %d len %d replacewith %s pos %d" fn l c len replacewith (point)))
+                                (kill-forward-chars len)
+                                (insert replacewith)
+                                ))
+                          )))
                   (next-line))
                 )))
-        (message "we not cool")))))
+        (message (format "Opened %d new files and made %d modifications" filesopened modifications))))))
 
 ; (get-file-buffer FILENAME)
 
