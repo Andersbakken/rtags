@@ -85,6 +85,23 @@
     )
   )
 
+(defun rtags-symbol-pos (&optional pos)
+  (let ((line (int-to-string (line-number-at-pos pos)))
+        (column nil))
+    (setq rtags-last-buffer (current-buffer))
+    (save-excursion
+      (if pos
+          (goto-char pos))
+      (if (looking-at "[0-9A-Za-z_~#]")
+          (progn
+            (while (and (> (point) 1) (looking-at "[0-9A-Za-z_~#]"))
+              (backward-char))
+            (if (not (looking-at "[0-9A-Za-z_~#]"))
+                (forward-char))
+            (setq column (int-to-string (- (point) (point-at-bol) -1))))))
+    (concat (buffer-file-name rtags-last-buffer) ":" line ":" column ":")))
+
+
 (defun rtags-find-symbol-at-point(&optional pos)
   (interactive)
   (let ((line (int-to-string (line-number-at-pos pos)))
@@ -117,6 +134,64 @@
   (unless (rtags-find-references-at-point)
     (rtags-find-references-prompt))
   )
+
+(defun rtags-rename-symbol ()
+  (interactive)
+  (let (col line len file replacewith prev)
+    (save-excursion
+      (if (looking-at "[0-9A-Za-z_~#]")
+          (progn
+            (while (and (> (point) 1) (looking-at "[0-9A-Za-z_~#]"))
+              (backward-char))
+            (if (not (looking-at "[0-9A-Za-z_~#]"))
+                (forward-char))
+            (setq col (- (point) (point-at-bol) -1))
+            (setq line (line-number-at-pos (point)))
+            (setq file (buffer-file-name (current-buffer)))
+            (let ((tmp (point)))
+              (while (looking-at "[0-9A-Za-z_~#]")
+                (forward-char))
+              (setq prev (buffer-substring tmp (point)))
+              (setq len (- (point) tmp)))
+            (setq replacewith (read-from-minibuffer (format "Replace '%s' with: " prev)))
+            (unless (equal replacewith "")
+              (with-temp-buffer
+                (rtags-rc-internal "--no-context" "--all-references" (format "%s:%d:%d:" file line col))
+                (while (looking-at "^\\(.*\\):\\([0-9]+\\):\\([0-9]+\\):$")
+                  (message (buffer-substring (point-at-bol) (point-at-eol)))
+                  (message (format "%s %s %s" (match-string 1)
+                                   (match-string 2)
+                                   (match-string 3)))
+                  (let ((fn (match-string 1))
+                        (l (string-to-number (match-string 2)))
+                        (c (string-to-number (match-string 3)))
+                        (buf nil)
+                        (closebuffer nil))
+                    (save-excursion
+                      (setq buf (get-file-buffer fn))
+                      ;; ### check if buffer is modified
+                      (unless buf
+                        (progn
+                          (setq buf (create-file-buffer fn))
+                          (setq closebuffer t)))
+                      (if buf
+                          (progn
+                            (set-buffer buf)
+                            (goto-line l)
+                            (forward-char (- c 1))
+                            (kill-forward-chars len)
+                            ;; (message (format "%s %d %d %d" fn l c len))
+                            (insert replacewith)
+                            (if closebuffer
+                                (progn
+                                  (save-buffer)
+                                  (kill-buffer buf)))
+                            ))))
+                  (next-line))
+                )))
+        (message "we not cool")))))
+
+; (get-file-buffer FILENAME)
 
 (defun rtags-complete (string predicate code)
   (let ((completions))

@@ -464,9 +464,6 @@ void Database::writeEntity(const QByteArray &symbolName,
     if (!definition.file && declarations.isEmpty())
         return;
 
-    qDebug() << "symbolName" << symbolName << "definition" << definition
-             << "\ndeclarations" << declarations << "\nreferences" << references << "\n\n";
-
     int refIdx = 0;
     if (mMode == ReadWrite) {
         if (definition.file)

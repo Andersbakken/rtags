@@ -1,11 +1,12 @@
-void foo(); void foo();
-void foo();
-void foo()
+#include "foo.h"
+void f(); void f();
+void f();
+void f()
 {
 }
 
 int main()
 {
-    foo();
+    f();
     return 0;
 }

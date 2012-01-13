@@ -22,10 +22,39 @@ static Location locationFromKey(const QByteArray &key)
     return loc;
 }
 
+static inline void validateExpect(Database *db)
+{
+    QFile f("expect.txt");
+    qDebug() << QDir::current();
+    if (!f.open(QIODevice::ReadOnly)) {
+        printf("%s:%d if (!f.open(QIODevice::ReadOnly))\n", __FILE__, __LINE__);
+        return;
+    }
+    while (!f.atEnd()) {
+        const QByteArray line = f.readLine();
+        int idx = line.indexOf(" => ");
+        if (idx == -1) {
+            qWarning("Couldn't parse line '%s'", line.constData());
+            continue;
+        }
+        qDebug() << "got line" << line;
+    }
+}
+
 static inline void writeExpect(Database *db)
 {
     Q_ASSERT(db);
     QFile f("expect.txt");
+    if (!f.open(QIODevice::WriteOnly)) {
+        fprintf(stderr, "Can't open expect.txt for writing\n");
+        return;
+    }
+    QFile ff("expect.b");
+    if (!ff.open(QIODevice::WriteOnly)) {
+        fprintf(stderr, "Can't open expect.txt for writing\n");
+        return;
+    }
+    
     char buf[512];
     const bool cwd = getcwd(buf, 512);
     Q_ASSERT(cwd);
@@ -33,10 +62,7 @@ static inline void writeExpect(Database *db)
     QByteArray path = buf;
     if (!path.endsWith("/"))
         path.append("/");
-    if (!f.open(QIODevice::WriteOnly)) {
-        fprintf(stderr, "Can't open expect.txt for writing\n");
-        return;
-    }
+    
     Database::iterator *it = db->createIterator(Database::Targets);
     if (it->isValid()) {
         do {
@@ -154,9 +180,10 @@ int main(int argc, char** argv)
     enum Mode {
         Normal,
         Expect,
-        Raw
+        Raw,
+        Validate
     } mode = Normal;
-    while ((opt = getopt(argc, argv, "hnr:e")) != -1) {
+    while ((opt = getopt(argc, argv, "hnr:ev")) != -1) {
         switch (opt) {
         case 'n':
             newLine = ' ';
@@ -168,10 +195,13 @@ int main(int argc, char** argv)
         case 'e':
             mode = Expect;
             break;
+        case 'v':
+            mode = Validate;
+            break;
         case '?':
         case 'h':
         default:
-            fprintf(stderr, "rdump -[rne]\n");
+            fprintf(stderr, "rdump -[rnev]\n");
             return 0;
         }
     }
@@ -191,6 +221,10 @@ int main(int argc, char** argv)
             return 0;
         case Raw:
             raw(db, rawFile);
+            delete db;
+            return 0;
+        case Validate:
+            validateExpect(db);
             delete db;
             return 0;
         case Normal:
