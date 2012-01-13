@@ -1,12 +1,15 @@
 #include "foo.h"
-void f(); void f();
-void f();
-void f()
+void bar(); void bar();
+void bar();
+void bar()
 {
 }
 
-int main()
+int main(int argc, char **argv)
 {
-    f();
+    if (argc < 3 || argv[1][0] == argv[2][1])
+        return 2;
+
+    bar();
     return 0;
 }

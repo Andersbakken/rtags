@@ -159,6 +159,12 @@ void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
     // if (decl->isContainer)
     //     debugCursor(stdout, decl->container->cursor);
     // debugCursor(stdout, decl->entityInfo->cursor);
+
+    if (decl->entityInfo->kind == CXIdxEntity_CXXConstructor ||
+        decl->entityInfo->kind == CXIdxEntity_CXXDestructor) {
+        debugCursor(stdout, decl->semanticContainer->cursor);
+    }
+    
 }
 
 /**
@@ -204,7 +210,7 @@ int main(int, char **)
     //                                                      0, 0, clang_defaultEditingTranslationUnitOptions());
 
     if (unit) {
-        clang_visitChildren(clang_getTranslationUnitCursor(unit), visitor, 0);
+        // clang_visitChildren(clang_getTranslationUnitCursor(unit), visitor, 0);
     } else {
         printf("fucked\n");
     }
