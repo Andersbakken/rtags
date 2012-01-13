@@ -154,7 +154,8 @@ bool RBuild::updateDB()
         //          << entity.declarations
         //          << entity.references;
         mData->db->writeEntity(entity.name, entity.parentNames, entity.definition,
-                               entity.declarations, entity.references);
+                               entity.declarations, entity.extraDeclarations,
+                               entity.references);
     }
     mData->db->write("sources", mData->sources);
     snapshots[__LINE__] = timer.elapsed();
@@ -295,7 +296,7 @@ void RBuild::writeData()
             //          << entity.declarations
             //          << entity.references;
             mData->db->writeEntity(entity.name, entity.parentNames, entity.definition,
-                                   entity.declarations, entity.references);
+                                   entity.declarations, entity.extraDeclarations, entity.references);
             it = mData->entities.erase(it);
         }
     }
@@ -306,7 +307,7 @@ void RBuild::writeData()
             const TemplateEntity &entity = it.value();
             // qDebug() << it.key() << entity.references << entity.name;
             mData->db->writeEntity(entity.name, entity.parentNames, it.key(),
-                                   QSet<Location>(), entity.references);
+                                   QSet<Location>(), QSet<Location>(), entity.references);
             it = mData->templateEntities.erase(it);
         }
     }
@@ -460,14 +461,17 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
 
     Entity *e = 0;
     TemplateEntity *te = 0;
+    Location loc = createLocation(decl->loc, p->filesByName);
     if (decl->entityInfo->templateKind != CXIdxEntity_NonTemplate) {
-        te = &p->templateEntities[createLocation(decl->loc, p->filesByName)];
+        te = &p->templateEntities[loc];
     } else {
         e = &p->entities[decl->entityInfo->USR];
     }
     QByteArray &name = (e ? e->name : te->name);
     CXIdxEntityKind &kind = (e ? e->kind : te->kind);
     QList<QByteArray> &parentNames = (e ? e->parentNames : te->parentNames);
+    // qDebug() << createLocation(decl->loc, p->filesByName) << kindToString(decl->entityInfo->kind);
+
     if (name.isEmpty()) {
         CXString nm = clang_getCursorDisplayName(decl->cursor); // this one gives us args
         name = clang_getCString(nm);
@@ -500,11 +504,30 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
 
     if (e) {
         if (decl->isDefinition) {
-            e->definition = createLocation(decl->loc, p->filesByName);
+            e->definition = loc;
         } else {
-            e->declarations.insert(createLocation(decl->loc, p->filesByName));
+            e->declarations.insert(loc);
+        }
+
+        switch (kind) {
+        case CXIdxEntity_CXXConstructor:
+        case CXIdxEntity_CXXDestructor: {
+            Q_ASSERT(decl->semanticContainer);
+            CXString usr = clang_getCursorUSR(decl->semanticContainer->cursor);
+            Entity *container = &p->entities[clang_getCString(usr)];
+            clang_disposeString(usr);
+            Q_ASSERT(container);
+            if (kind == CXIdxEntity_CXXDestructor) {
+                Q_ASSERT(name.startsWith('~'));
+                ++loc.column; // this is just for renameSymbol purposes
+            }
+            container->extraDeclarations.insert(loc);
+            break; }
+        default:
+            break;
         }
     }
+    
 }
 
 static inline void indexEntityReference(CXClientData userData, const CXIdxEntityRefInfo *ref)

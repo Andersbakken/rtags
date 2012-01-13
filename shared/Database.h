@@ -54,6 +54,7 @@ public:
                      const QList<QByteArray> &parentNames,
                      const Location &definition,
                      const QSet<Location> &declarations,
+                     QSet<Location> extraDeclarations,
                      QSet<Location> references);
     QList<Location> allLocations(const Location &locations) const;
 

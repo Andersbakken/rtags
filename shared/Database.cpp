@@ -458,6 +458,7 @@ void Database::writeEntity(const QByteArray &symbolName,
                            const QList<QByteArray> &parentNames,
                            const Location &definition,
                            const QSet<Location> &declarations,
+                           QSet<Location> extraDeclarations,
                            QSet<Location> references)
 {
     // qDebug() << symbolName << parentNames << definition << declarations << references;
@@ -506,7 +507,7 @@ void Database::writeEntity(const QByteArray &symbolName,
         }
     }
     // qDebug() << definition.file << refIdx << declarations.size() << "funky" << symbolName;
-    if (definition.file && (refIdx || !declarations.isEmpty())) {
+    if (definition.file && (refIdx || !declarations.isEmpty() || !extraDeclarations.isEmpty())) {
         const QByteArray key = encodeKey(definition);
         switch (declarations.size()) {
         case 0:
@@ -515,11 +516,13 @@ void Database::writeEntity(const QByteArray &symbolName,
             write(Targets, key, *declarations.begin());
             break;
         default:
-            write(ExtraDeclarations, key, declarations);
+            extraDeclarations += declarations;
             break;
         }
         if (refIdx)
             write(References, key, refIdx);
+        if (!extraDeclarations.isEmpty())
+            write(ExtraDeclarations, key, extraDeclarations);
     }
 
 
@@ -616,10 +619,11 @@ QList<Location> Database::allLocations(const Location &location) const
     Q_ASSERT(location.file);
     QSet<Location> ret;
     ret.insert(location);
-    foreach(const Location &l, findReferences(location))
-        ret.insert(l);
-    Location f = followLocation(location);
+    ret += findReferences(location);
+    ret += read<QSet<Location> >(ExtraDeclarations, location);
+    const Location f = followLocation(location);
     if (f.file) {
+        ret += findReferences(f);
         ret.insert(f);
         ret += read<QSet<Location> >(ExtraDeclarations, f);
     }

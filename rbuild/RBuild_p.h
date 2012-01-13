@@ -17,7 +17,7 @@ struct Entity {
     QList<QByteArray> parentNames;
     CXIdxEntityKind kind;
     Location definition;
-    QSet<Location> declarations, references;
+    QSet<Location> declarations, references, extraDeclarations;
 };
 
 struct TemplateEntity
