@@ -1,7 +1,7 @@
 #include <clang-c/Index.h>
 #include <string.h>
 
-const char *kindToString(CXIdxEntityKind kind)
+static inline const char *kindToString(CXIdxEntityKind kind)
 {
     switch (kind) {
     case CXIdxEntity_Unexposed: return "Unexposed";
@@ -56,119 +56,16 @@ public:
     CXString str;
 };
 
-static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData)
-{
-    CXFile file;
-    unsigned line, col;
-    clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
-    printf("%s %s %s:%u:%u %s\n",
-           String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
-           String(clang_getCursorSpelling(cursor)).data(),
-           String(clang_getFileName(file)).data(),
-           line, col, String(clang_getCursorUSR(cursor)).data());
-    return CXChildVisit_Recurse;
-}
-
-/**
- * \brief Called periodically to check whether indexing should be aborted.
- * Should return 0 to continue, and non-zero to abort.
- */
-// int abortQuery(CXClientData client_data, void *reserved)
-// {
-// }
-
-/**
- * \brief Called at the end of indexing; passes the complete diagnostic set.
- */
-void diagnostic(CXClientData, CXDiagnosticSet set, void *)
-{
-    for (unsigned i=0; i<clang_getNumDiagnosticsInSet(set); ++i) {
-        CXDiagnostic diagnostic = clang_getDiagnosticInSet(set, i);
-        if (clang_getDiagnosticSeverity(diagnostic) >= CXDiagnostic_Warning) {
-            printf("Diagnostic: %d %s\n", clang_getDiagnosticSeverity(diagnostic),
-                   String(clang_getDiagnosticSpelling(diagnostic)).data());
-        }
-        clang_disposeDiagnostic(diagnostic);
-    }
-}
-
-// CXIdxClientFile enteredMainFile(CXClientData client_data,
-//                                 CXFile mainFile, void *reserved)
-// {
-//     printf("enteredMainFile %s\n", String(clang_getFileName(mainFile)).constData());
-// }
-  
-/**
- * \brief Called when a file gets #included/#imported.
- */
-// CXIdxClientFile ppIncludedFile(CXClientData client_data,
-//                                const CXIdxIncludedFileInfo *info)
-// {
-// }
-  
-/**
- * \brief Called when a AST file (PCH or module) gets imported.
- * 
- * AST files will not get indexed (there will not be callbacks to index all
- * the entities in an AST file). The recommended action is that, if the AST
- * file is not already indexed, to block further indexing and initiate a new
- * indexing job specific to the AST file.
- */
-// CXIdxClientASTFile importedASTFile(CXClientData client_data,
-//                                    const CXIdxImportedASTFileInfo *)
-// {
-// }
-
-/**
- * \brief Called at the beginning of indexing a translation unit.
- */
-// CXIdxClientContainer startedTranslationUnit(CXClientData client_data,
-//                                             void *reserved)
-// {
-// }
-
-static inline void debugCursor(FILE* out, const CXCursor& cursor)
-{
-    CXFile file;
-    unsigned int line, col, off;
-    CXSourceLocation loc = clang_getCursorLocation(cursor);
-    clang_getInstantiationLocation(loc, &file, &line, &col, &off);
-    CXString name = clang_getCursorDisplayName(cursor);
-    CXString filename = clang_getFileName(file);
-    CXString kind = clang_getCursorKindSpelling(clang_getCursorKind(cursor));
-    CXString usr = clang_getCursorUSR(cursor);
-    fprintf(out, "cursor name %s, kind %s, loc %s:%u:%u usr %s\n",
-            clang_getCString(name), clang_getCString(kind),
-            clang_getCString(filename), line, col,
-            clang_getCString(usr));
-    clang_disposeString(name);
-    clang_disposeString(usr);
-    clang_disposeString(kind);
-    clang_disposeString(filename);
-}
-
 void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
 {
-    // if (decl->isImplicit)
-    //     return;
     CXFile f;
     unsigned l, c;
     clang_indexLoc_getFileLocation(decl->loc, 0, &f, &l, &c, 0);
-    printf("%s:%d:%d: %s %s def: %d redecl: %d cont: %d (%s) templateKind %d\n", String(clang_getFileName(f)).data(),
-           l, c, decl->entityInfo->name, kindToString(decl->entityInfo->kind),
-           decl->isDefinition, decl->isRedeclaration, decl->isContainer, decl->entityInfo->USR,
-           decl->entityInfo->templateKind);
-    // debugCursor(stdout, decl->cursor);
-    // if (decl->isContainer)
-    //     debugCursor(stdout, decl->container->cursor);
-    // debugCursor(stdout, decl->entityInfo->cursor);
-    CXCursor spec = clang_getSpecializedCursorTemplate(decl->cursor);
-    debugCursor(stdout, spec);
+    printf("%s:%d:%d: %s %s\n",
+           String(clang_getFileName(f)).data(),
+           l, c, kindToString(decl->entityInfo->kind), decl->entityInfo->name);
 }
 
-/**
- * \brief Called to index a reference of an entity.
- */
 void indexEntityReference(CXClientData, const CXIdxEntityRefInfo *ref)
 {
     CXFile f;
@@ -179,14 +76,11 @@ void indexEntityReference(CXClientData, const CXIdxEntityRefInfo *ref)
     CXFile f2;
     unsigned l2, c2;
     clang_getInstantiationLocation(loc, &f2, &l2, &c2, 0);
-    printf("%s:%d:%d: ref of %s (%s) %s:%d:%d templatekind %d cursor kind %d/%d\n", String(clang_getFileName(f)).data(),
-           l, c, ref->referencedEntity->name, ref->referencedEntity->USR,
-           String(clang_getFileName(f2)).data(), l2, c2, ref->referencedEntity->templateKind,
-           clang_getCursorKind(ref->cursor), clang_getCursorKind(ref->referencedEntity->cursor));
-    CXCursor spec = clang_getSpecializedCursorTemplate(ref->cursor);
-    debugCursor(stdout, spec);
-    CXCursor spec2 = clang_getSpecializedCursorTemplate(ref->referencedEntity->cursor);
-    debugCursor(stdout, spec2);
+    printf("%s:%d:%d: ref of %s %s %s:%d:%d\n",
+           String(clang_getFileName(f)).data(), l, c,
+           kindToString(ref->referencedEntity->kind),
+           ref->referencedEntity->name,
+           String(clang_getFileName(f2)).data(), l2, c2);
 }
 
 
@@ -194,31 +88,19 @@ int main(int argc, char **argv)
 {
     CXIndex index = clang_createIndex(1, 1);
     CXIndexAction action = clang_IndexAction_create(index);
-
-    // int ret = clang_indexTranslationUnit(index, 0, 0,
-    // const char *args[] = { "-cc1", "-include-pch", "foo.h.pch", "-I.", "-x", "c++" };
     const char *args[] = { "-cc1", "-I.", "-x", "c++" };
     IndexerCallbacks cb;
     memset(&cb, 0, sizeof(IndexerCallbacks));
     cb.indexDeclaration = indexDeclaration;
     cb.indexEntityReference = indexEntityReference;
     CXTranslationUnit unit = 0;
-    int ret = clang_indexSourceFile(action, 0, &cb, sizeof(IndexerCallbacks),
-                                    CXIndexOpt_None,
-                                    argc < 2 ? "test.cpp" : argv[1],
-                                    args, sizeof(args) / 4,
-                                    0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
-    printf("%d %p\n", ret, unit);
-
-    // CXTranslationUnit unit = clang_parseTranslationUnit(index, "test.cpp", args, sizeof(args) / 4,
-    //                                                      0, 0, clang_defaultEditingTranslationUnitOptions());
-
-    if (unit) {
-        clang_visitChildren(clang_getTranslationUnitCursor(unit), visitor, 0);
-    } else {
-        printf("fucked\n");
-    }
-    clang_disposeTranslationUnit(unit);
+    clang_indexSourceFile(action, 0, &cb, sizeof(IndexerCallbacks),
+                          CXIndexOpt_IndexFunctionLocalSymbols,
+                          argc < 2 ? "test.cpp" : argv[1],
+                          args, sizeof(args) / 4,
+                          0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
+    if (unit)
+        clang_disposeTranslationUnit(unit);
     clang_IndexAction_dispose(action);
     clang_disposeIndex(index);
     return 0;

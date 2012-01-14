@@ -1,15 +1,19 @@
-template <typename T>
-T foo(T t)
-{
-    return t + t;
-}
+// template <typename T>
+// T foo(T t)
+// {
+//     return t + t;
+// }
 
-template <>
-int foo(int t)
-{
-    return t * t;
-}
+// template <>
+// int foo(int t)
+// {
+//     return t * t;
+// }
 
+class C
+{
+
+};
 template <typename T>
 class A
 {
@@ -26,10 +30,11 @@ private:
 
 int main()
 {
-    foo<int>(12);
-    foo<char>('b');
+    C c;
+    // foo<int>(12);
+    // foo<char>('b');
     A<int> a(13);
-    int b = a.t();
-    return b;
+    // int b = a.t();
+    // return b;
 }
 

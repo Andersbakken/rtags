@@ -1,53 +1,20 @@
-// template <typename T>
-// class C
-// {
-// public:
-//     C(const T &t)
-//         : mT(t)
-//     {}
-
-//     T t() const { return mT; }
-// private:
-//     const T mT;
-// };
-
-class B
+template <typename T>
+class TemplateClass
 {
 public:
-    B();
-
-    void foo();
+    TemplateClass(T t) { int b = t; if (b > t) ++b; }
 };
 
-template <typename T>
-T foo(T t)
+class NonTemplateClass
 {
-    return (t + t);
-}
-
-template <>
-int foo(int f)
-{
-    return f * f;
-}
+public:
+    NonTemplateClass() {}
+};
 
 int main()
 {
-    int a = foo(12);
-    char b = foo('a');
-    double c = foo(1.2);
-
-    // C<int> cc(12);
-
-    // int bb = cc.t();
-    // return bb;
+    TemplateClass<int> tt(12);
+    NonTemplateClass t;
+    return 0;
 }
 
-B::B()
-{
-}
-
-void B::foo()
-{
-
-}
