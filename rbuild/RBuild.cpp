@@ -535,15 +535,15 @@ static inline CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData
             return CXChildVisit_Recurse;
         }
         QMutexLocker lock(&p->entryMutex);
-        p->entities[eatString(clang_getCursorUSR(referenced))].references.insert(createLocation(cursor, p->filesByName));
+        const Location loc = createLocation(cursor, p->filesByName);
+        p->entities[eatString(clang_getCursorUSR(referenced))].references.insert(loc);
     } else {
         Entity &e = p->entities[eatString(clang_getCursorUSR(cursor))];
-        e = &p->entities[eatString(clang_getCursorUSR(cursor))];
-        if (e->name.isEmpty()) {
+        if (e.name.isEmpty()) {
             CXString nm = clang_getCursorDisplayName(cursor); // this one gives us args
-            e->name = clang_getCString(nm);
+            e.name = clang_getCString(nm);
             clang_disposeString(nm);
-            e->kind = CXIdxEntity_Variable;
+            e.kind = CXIdxEntity_Variable;
             CXCursor parent = cursor;
             forever {
                 parent = clang_getCursorSemanticParent(parent);
@@ -560,7 +560,7 @@ static inline CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData
                 case CXCursor_StructDecl:
                 case CXCursor_ClassDecl:
                 case CXCursor_Namespace:
-                    e->parentNames.prepend(cstr);
+                    e.parentNames.prepend(cstr);
                     break;
                 default:
                     break;
@@ -568,10 +568,7 @@ static inline CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData
                 clang_disposeString(str);
             }
         }
-
-        if (e) {
-            e->definition = createLocation(cursor, p->filesByName);
-        }
+        e.definition = createLocation(cursor, p->filesByName);
     }
 
     return CXChildVisit_Recurse;
