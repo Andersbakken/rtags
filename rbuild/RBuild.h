@@ -16,8 +16,7 @@ class RBuild : public QObject
 public:
     enum Flag {
         NoFlags = 0x0,
-        VisitorDisabled = 0x1,
-        ClangDisabled = 0x2
+        ClangDisabled = 0x1
     };
     RBuild(unsigned flags, QObject *parent = 0);
     ~RBuild();

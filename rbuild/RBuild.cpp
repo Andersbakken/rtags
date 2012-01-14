@@ -430,7 +430,6 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
     } else {
         e.declarations.insert(loc);
     }
-    qDebug() << loc << decl->entityInfo->USR;
     if (e.name.isEmpty()) {
         CXString nm = clang_getCursorDisplayName(decl->cursor); // this one gives us args
         e.name = clang_getCString(nm);
@@ -494,6 +493,7 @@ static inline void indexEntityReference(CXClientData userData, const CXIdxEntity
         r.specialized = clang_getCString(u);
         clang_disposeString(u);
     }
+
     p->pendingReferences.append(r);
 }
 
@@ -602,7 +602,8 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
         // fprintf(stderr, "%s\n", file.constData());
 
         if (precompile && clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
-                                                CXIndexOpt_None, file.constData(), clangArgs.constData(),
+                                                CXIndexOpt_IndexFunctionLocalSymbols, file.constData(),
+                                                clangArgs.constData(),
                                                 argCount, 0, 0, &unit,
                                                 clang_defaultEditingTranslationUnitOptions())) {
             qWarning("Couldn't compile %s with pch %p, Falling back to no pch", file.constData(), unit);
@@ -618,7 +619,7 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
         }
         if (!unit)
             clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
-                                  CXIndexOpt_None, file.constData(),
+                                  CXIndexOpt_IndexFunctionLocalSymbols, file.constData(),
                                   clangArgs.constData(), argCount,
                                   0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
 
@@ -626,8 +627,6 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
             qWarning() << "Unable to parse unit for" << file; // << clangArgs;
             return;
         }
-        if (!(mData->flags & RBuild::VisitorDisabled))
-            clang_visitChildren(clang_getTranslationUnitCursor(unit), visitor, mData);
         Source src = { file, args, file.lastModified(), QHash<Path, quint64>() };
         if (precompile) {
             src.dependencies = precompile->dependencies();
@@ -717,9 +716,7 @@ void RBuild::closeDB()
 }
 void RBuild::writeEntities()
 {
-    qDebug() << mData->entities.keys();
     foreach(const PendingReference &ref, mData->pendingReferences) {
-        qDebug() << ref.location << ref.usr << ref.specialized;
         QHash<QByteArray, Entity>::iterator it = mData->entities.find(ref.usr);
         if (it == mData->entities.end())
             it = mData->entities.find(ref.specialized);

@@ -15,7 +15,6 @@ static inline void usage(const char* argv0, FILE *f)
             "  --help|-h                  Display this help\n"
             "  --db-file|-d [arg]         Use this database file\n"
             "  --update|-u                Update database\n"
-            "  --disable-visitor|-D       Disable additional visitor hack to index parameters and variables\n"
             "  --source-dir|-s [arg]      Recurse this directory\n"
             "  --dont-clang|-c            Don't actually do much of anything\n"
             "  --db-type|-t [arg]         Type of db (leveldb or filedb)\n",
@@ -52,7 +51,6 @@ int main(int argc, char** argv)
         { "update", 0, 0, 'u' },
         { "source-dir", 1, 0, 's' },
         { "db-type", 1, 0, 't' },
-        { "disable-visitor", 0, 0, 'D' },
         { "dont-clang", 0, 0, 'c' },
         { 0, 0, 0, 0 },
     };
@@ -66,9 +64,6 @@ int main(int argc, char** argv)
             return 1;
         case 'c':
             flags |= RBuild::ClangDisabled;
-            break;
-        case 'D':
-            flags |= RBuild::VisitorDisabled;
             break;
         case 's':
             srcDir = optarg;
