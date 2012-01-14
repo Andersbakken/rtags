@@ -1,26 +1,53 @@
-class A
+// template <typename T>
+// class C
+// {
+// public:
+//     C(const T &t)
+//         : mT(t)
+//     {}
+
+//     T t() const { return mT; }
+// private:
+//     const T mT;
+// };
+
+class B
 {
 public:
-    A() {}
-    ~A();
+    B();
 
     void foo();
 };
 
-int main(int argc, char **argv)
+template <typename T>
+T foo(T t)
 {
-    {
-        A a;
-    }
-    return argc;
+    return (t + t);
 }
 
-A::~A()
+template <>
+int foo(int f)
 {
-
+    return f * f;
 }
 
-void A::foo()
+int main()
+{
+    int a = foo(12);
+    char b = foo('a');
+    double c = foo(1.2);
+
+    // C<int> cc(12);
+
+    // int bb = cc.t();
+    // return bb;
+}
+
+B::B()
+{
+}
+
+void B::foo()
 {
 
 }

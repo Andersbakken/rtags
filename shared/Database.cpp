@@ -461,9 +461,11 @@ void Database::writeEntity(const QByteArray &symbolName,
                            QSet<Location> extraDeclarations,
                            QSet<Location> references)
 {
-    // qDebug() << symbolName << parentNames << definition << declarations << references;
-    if (!definition.file && declarations.isEmpty())
+    if (!definition.file && declarations.isEmpty() && extraDeclarations.isEmpty()) {
+        qDebug() << "why does this happen" << symbolName << parentNames << definition << declarations
+                 << extraDeclarations << references;
         return;
+    }
 
     int refIdx = 0;
     if (mMode == ReadWrite) {

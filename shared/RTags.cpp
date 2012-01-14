@@ -119,11 +119,17 @@ QDebug operator<<(QDebug dbg, CXCursor cursor)
     CXString name = clang_getCursorDisplayName(cursor);
     CXString filename = clang_getFileName(file);
     CXString kind = clang_getCursorKindSpelling(clang_getCursorKind(cursor));
+    CXString templateKind = clang_getCursorKindSpelling(clang_getTemplateCursorKind(cursor));
+    CXString usr = clang_getCursorUSR(cursor);
     dbg << clang_getCString(name) << clang_getCString(kind)
+        << clang_getCString(templateKind)
+        << clang_getCString(usr)
         << QString("%1:%2:%3").arg(clang_getCString(filename)).arg(line).arg(col);
     clang_disposeString(name);
     clang_disposeString(kind);
     clang_disposeString(filename);
+    clang_disposeString(templateKind);
+    clang_disposeString(usr);
     return dbg;
 }
 

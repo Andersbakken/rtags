@@ -145,18 +145,7 @@ bool RBuild::updateDB()
     connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
     loop.exec();
     snapshots[__LINE__] = timer.elapsed();
-
-    for (QHash<QByteArray, Entity>::const_iterator it = mData->entities.begin();
-         it != mData->entities.end(); ++it) {
-        const Entity &entity = it.value();
-        // qDebug() << "writing entity" << entity.name
-        //          << entity.definition
-        //          << entity.declarations
-        //          << entity.references;
-        mData->db->writeEntity(entity.name, entity.parentNames, entity.definition,
-                               entity.declarations, entity.extraDeclarations,
-                               entity.references);
-    }
+    writeEntities();
     mData->db->write("sources", mData->sources);
     snapshots[__LINE__] = timer.elapsed();
 
@@ -285,32 +274,7 @@ static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
 void RBuild::writeData()
 {
     mData->db->write("filesByName", mData->filesByName);
-
-    {
-        int size = mData->entities.size();
-        QHash<QByteArray, Entity>::iterator it = mData->entities.begin();
-        while (size--) {
-            const Entity &entity = it.value();
-            // qDebug() << "writing entity" << entity.name
-            //          << entity.definition
-            //          << entity.declarations
-            //          << entity.references;
-            mData->db->writeEntity(entity.name, entity.parentNames, entity.definition,
-                                   entity.declarations, entity.extraDeclarations, entity.references);
-            it = mData->entities.erase(it);
-        }
-    }
-    {
-        int size = mData->templateEntities.size();
-        QHash<Location, TemplateEntity>::iterator it = mData->templateEntities.begin();
-        while (size--) {
-            const TemplateEntity &entity = it.value();
-            // qDebug() << it.key() << entity.references << entity.name;
-            mData->db->writeEntity(entity.name, entity.parentNames, it.key(),
-                                   QSet<Location>(), QSet<Location>(), entity.references);
-            it = mData->templateEntities.erase(it);
-        }
-    }
+    writeEntities();
     mData->db->write("sources", mData->sources);
     QSet<Path> allFiles;
 
@@ -459,24 +423,19 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
     RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(userData);
     QMutexLocker lock(&p->entryMutex); // ### is this the right place to lock?
 
-    Entity *e = 0;
-    TemplateEntity *te = 0;
+    Entity &e = p->entities[decl->entityInfo->USR];
     Location loc = createLocation(decl->loc, p->filesByName);
-    if (decl->entityInfo->templateKind != CXIdxEntity_NonTemplate) {
-        te = &p->templateEntities[loc];
+    if (decl->isDefinition) {
+        e.definition = loc;
     } else {
-        e = &p->entities[decl->entityInfo->USR];
+        e.declarations.insert(loc);
     }
-    QByteArray &name = (e ? e->name : te->name);
-    CXIdxEntityKind &kind = (e ? e->kind : te->kind);
-    QList<QByteArray> &parentNames = (e ? e->parentNames : te->parentNames);
-    // qDebug() << createLocation(decl->loc, p->filesByName) << kindToString(decl->entityInfo->kind);
-
-    if (name.isEmpty()) {
+    qDebug() << loc << decl->entityInfo->USR;
+    if (e.name.isEmpty()) {
         CXString nm = clang_getCursorDisplayName(decl->cursor); // this one gives us args
-        name = clang_getCString(nm);
+        e.name = clang_getCString(nm);
         clang_disposeString(nm);
-        kind = decl->entityInfo->kind;
+        e.kind = decl->entityInfo->kind;
         CXCursor parent = decl->cursor;
         forever {
             parent = clang_getCursorSemanticParent(parent);
@@ -493,7 +452,7 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
             case CXCursor_StructDecl:
             case CXCursor_ClassDecl:
             case CXCursor_Namespace:
-                parentNames.prepend(cstr);
+                e.parentNames.prepend(cstr);
                 break;
             default:
                 break;
@@ -501,31 +460,22 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
             clang_disposeString(str);
         }
     }
-
-    if (e) {
-        if (decl->isDefinition) {
-            e->definition = loc;
-        } else {
-            e->declarations.insert(loc);
+    // qDebug() << loc << name << kindToString(kind) << decl->entityInfo->templateKind
+    //          << decl->entityInfo->USR;
+    switch (e.kind) {
+    case CXIdxEntity_CXXConstructor:
+    case CXIdxEntity_CXXDestructor: {
+        if (e.kind == CXIdxEntity_CXXDestructor) {
+            Q_ASSERT(e.name.startsWith('~'));
+            ++loc.column; // this is just for renameSymbol purposes
         }
-
-        switch (kind) {
-        case CXIdxEntity_CXXConstructor:
-        case CXIdxEntity_CXXDestructor: {
-            Q_ASSERT(decl->semanticContainer);
-            CXString usr = clang_getCursorUSR(decl->semanticContainer->cursor);
-            Entity *container = &p->entities[clang_getCString(usr)];
-            clang_disposeString(usr);
-            Q_ASSERT(container);
-            if (kind == CXIdxEntity_CXXDestructor) {
-                Q_ASSERT(name.startsWith('~'));
-                ++loc.column; // this is just for renameSymbol purposes
-            }
-            container->extraDeclarations.insert(loc);
-            break; }
-        default:
-            break;
-        }
+        
+        Q_ASSERT(decl->semanticContainer);
+        CXString usr = clang_getCursorUSR(decl->semanticContainer->cursor);
+        p->entities[clang_getCString(usr)].extraDeclarations.insert(loc);
+        break; }
+    default:
+        break;
     }
     
 }
@@ -533,17 +483,18 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
 static inline void indexEntityReference(CXClientData userData, const CXIdxEntityRefInfo *ref)
 {
     RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(userData);
-    Entity *e = 0;
-    TemplateEntity *te = 0;
     QMutexLocker lock(&p->entryMutex);
-    if (ref->referencedEntity->templateKind != CXIdxEntity_NonTemplate) {
-        te = &p->templateEntities[createLocation(ref->referencedEntity->cursor, p->filesByName)];
-    } else {
-        e = &p->entities[ref->referencedEntity->USR];
-    }
-    QSet<Location> &references = (e ? e->references : te->references);
     const Location loc = createLocation(ref->loc, p->filesByName);
-    references.insert(loc);
+    CXCursor spec = clang_getSpecializedCursorTemplate(ref->referencedEntity->cursor);
+    PendingReference r;
+    r.location = loc;
+    r.usr = ref->referencedEntity->USR;
+    if (!clang_isInvalid(clang_getCursorKind(spec))) {
+        CXString u = clang_getCursorUSR(spec);
+        r.specialized = clang_getCString(u);
+        clang_disposeString(u);
+    }
+    p->pendingReferences.append(r);
 }
 
 template <typename T>
@@ -574,14 +525,19 @@ static inline CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData
     }
 
     RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(data);
-    Entity *e = 0;
-    QMutexLocker lock(&p->entryMutex);
     if (ref) {
         CXCursor referenced = clang_getCursorReferenced(cursor);
-        e = &p->entities[eatString(clang_getCursorUSR(referenced))];
-        const Location loc = createLocation(cursor, p->filesByName);
-        e->references.insert(loc);
+        switch (clang_getCursorKind(referenced)) {
+        case CXCursor_ParmDecl:
+        case CXCursor_VarDecl:
+            break;
+        default:
+            return CXChildVisit_Recurse;
+        }
+        QMutexLocker lock(&p->entryMutex);
+        p->entities[eatString(clang_getCursorUSR(referenced))].references.insert(createLocation(cursor, p->filesByName));
     } else {
+        Entity &e = p->entities[eatString(clang_getCursorUSR(cursor))];
         e = &p->entities[eatString(clang_getCursorUSR(cursor))];
         if (e->name.isEmpty()) {
             CXString nm = clang_getCursorDisplayName(cursor); // this one gives us args
@@ -760,5 +716,27 @@ void RBuild::closeDB()
         mData->db->close();
         delete mData->db;
         mData->db = 0;
+    }
+}
+void RBuild::writeEntities()
+{
+    qDebug() << mData->entities.keys();
+    foreach(const PendingReference &ref, mData->pendingReferences) {
+        qDebug() << ref.location << ref.usr << ref.specialized;
+        QHash<QByteArray, Entity>::iterator it = mData->entities.find(ref.usr);
+        if (it == mData->entities.end())
+            it = mData->entities.find(ref.specialized);
+        Q_ASSERT(it != mData->entities.end());
+        it.value().references.insert(ref.location);
+    }
+
+    for (QHash<QByteArray, Entity>::const_iterator it = mData->entities.begin(); it != mData->entities.end(); ++it) {
+        const Entity &entity = it.value();
+        // qDebug() << "writing entity" << entity.name
+        //          << entity.definition
+        //          << entity.declarations
+        //          << entity.references;
+        mData->db->writeEntity(entity.name, entity.parentNames, entity.definition,
+                               entity.declarations, entity.extraDeclarations, entity.references);
     }
 }

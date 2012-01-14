@@ -39,6 +39,7 @@ private:
     void precompileAll();
     void compile(const QList<QByteArray> &args, const Path &file, Precompile *precompile);
     void writeData();
+    void writeEntities();
     enum Mode {
         Create,
         Update

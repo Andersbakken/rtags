@@ -61,11 +61,11 @@ static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData)
     CXFile file;
     unsigned line, col;
     clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
-    printf("%s %s %s:%u:%u\n",
+    printf("%s %s %s:%u:%u %s\n",
            String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
            String(clang_getCursorSpelling(cursor)).data(),
            String(clang_getFileName(file)).data(),
-           line, col);
+           line, col, String(clang_getCursorUSR(cursor)).data());
     return CXChildVisit_Recurse;
 }
 
@@ -136,10 +136,13 @@ static inline void debugCursor(FILE* out, const CXCursor& cursor)
     CXString name = clang_getCursorDisplayName(cursor);
     CXString filename = clang_getFileName(file);
     CXString kind = clang_getCursorKindSpelling(clang_getCursorKind(cursor));
-    fprintf(out, "cursor name %s, kind %s, loc %s:%u:%u\n",
+    CXString usr = clang_getCursorUSR(cursor);
+    fprintf(out, "cursor name %s, kind %s, loc %s:%u:%u usr %s\n",
             clang_getCString(name), clang_getCString(kind),
-            clang_getCString(filename), line, col);
+            clang_getCString(filename), line, col,
+            clang_getCString(usr));
     clang_disposeString(name);
+    clang_disposeString(usr);
     clang_disposeString(kind);
     clang_disposeString(filename);
 }
@@ -159,12 +162,8 @@ void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
     // if (decl->isContainer)
     //     debugCursor(stdout, decl->container->cursor);
     // debugCursor(stdout, decl->entityInfo->cursor);
-
-    if (decl->entityInfo->kind == CXIdxEntity_CXXConstructor ||
-        decl->entityInfo->kind == CXIdxEntity_CXXDestructor) {
-        debugCursor(stdout, decl->semanticContainer->cursor);
-    }
-    
+    CXCursor spec = clang_getSpecializedCursorTemplate(decl->cursor);
+    debugCursor(stdout, spec);
 }
 
 /**
@@ -184,10 +183,14 @@ void indexEntityReference(CXClientData, const CXIdxEntityRefInfo *ref)
            l, c, ref->referencedEntity->name, ref->referencedEntity->USR,
            String(clang_getFileName(f2)).data(), l2, c2, ref->referencedEntity->templateKind,
            clang_getCursorKind(ref->cursor), clang_getCursorKind(ref->referencedEntity->cursor));
+    CXCursor spec = clang_getSpecializedCursorTemplate(ref->cursor);
+    debugCursor(stdout, spec);
+    CXCursor spec2 = clang_getSpecializedCursorTemplate(ref->referencedEntity->cursor);
+    debugCursor(stdout, spec2);
 }
 
 
-int main(int, char **)
+int main(int argc, char **argv)
 {
     CXIndex index = clang_createIndex(1, 1);
     CXIndexAction action = clang_IndexAction_create(index);
@@ -202,7 +205,8 @@ int main(int, char **)
     CXTranslationUnit unit = 0;
     int ret = clang_indexSourceFile(action, 0, &cb, sizeof(IndexerCallbacks),
                                     CXIndexOpt_None,
-                                    "test.cpp", args, sizeof(args) / 4,
+                                    argc < 2 ? "test.cpp" : argv[1],
+                                    args, sizeof(args) / 4,
                                     0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
     printf("%d %p\n", ret, unit);
 
@@ -210,7 +214,7 @@ int main(int, char **)
     //                                                      0, 0, clang_defaultEditingTranslationUnitOptions());
 
     if (unit) {
-        // clang_visitChildren(clang_getTranslationUnitCursor(unit), visitor, 0);
+        clang_visitChildren(clang_getTranslationUnitCursor(unit), visitor, 0);
     } else {
         printf("fucked\n");
     }

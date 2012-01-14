@@ -20,13 +20,10 @@ struct Entity {
     QSet<Location> declarations, references, extraDeclarations;
 };
 
-struct TemplateEntity
+struct PendingReference
 {
-    TemplateEntity() : kind(CXIdxEntity_Unexposed) {}
-    QByteArray name;
-    QList<QByteArray> parentNames;
-    CXIdxEntityKind kind;
-    QSet<Location> references;
+    QByteArray usr, specialized;
+    Location location;
 };
 
 struct RBuildPrivate
@@ -39,7 +36,7 @@ struct RBuildPrivate
 
     unsigned flags;
     QHash<QByteArray, Entity> entities;
-    QHash<Location, TemplateEntity> templateEntities;
+    QList<PendingReference> pendingReferences;
     QHash<Path, unsigned> filesByName;
     Database *db;
     Path makefile, sourceDir, dbPath;
