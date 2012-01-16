@@ -29,11 +29,12 @@ struct PendingReference
 struct RBuildPrivate
 {
     RBuildPrivate()
-        : flags(0), db(0), pendingJobs(0), index(0)
+        : makefileDone(false), flags(0), db(0), pendingJobs(0), index(0)
     {
         Location::files() = &filesByName;
     }
 
+    bool makefileDone;
     unsigned flags;
     QHash<QByteArray, Entity> entities;
     QList<PendingReference> pendingReferences;
@@ -43,7 +44,6 @@ struct RBuildPrivate
     MakefileParser parser;
     int pendingJobs;
     CXIndex index;
-    QHash<Precompile*, QList<GccArguments> > filesByPrecompile;
     QList<GccArguments> files;
     QList<QByteArray> extraArgs;
     QThreadPool threadPool;
@@ -58,27 +58,6 @@ struct RBuildPrivate
         const int ret = snprintf(buf, 512, "%d:%d:%d", loc.file, loc.line, loc.column);
         return ret;
     }
-};
-
-class Precompile;
-class PrecompileRunnable : public QObject, public QRunnable
-{
-    Q_OBJECT
-public:
-    PrecompileRunnable(Precompile *pch,
-                       RBuildPrivate *rbp,
-                       CXIndex index) // ### is this threadsafe?
-        : mPch(pch), mRBP(rbp), mIndex(index)
-    {
-        setAutoDelete(true);
-    }
-    virtual void run();
-signals:
-    void finished(Precompile *pre);
-private:
-    Precompile *mPch;
-    RBuildPrivate *mRBP;
-    CXIndex mIndex;
 };
 
 #endif

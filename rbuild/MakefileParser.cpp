@@ -67,11 +67,8 @@ void DirectoryTracker::leaveDirectory(const QByteArray& /*dir*/)
 }
 
 MakefileParser::MakefileParser(QObject* parent)
-    : QObject(parent), mProc(new QProcess(this)), mTracker(new DirectoryTracker)
+    : QObject(parent), mProc(0), mTracker(new DirectoryTracker)
 {
-    connect(mProc, SIGNAL(readyReadStandardOutput()),
-            this, SLOT(processMakeOutput()));
-    connect(mProc, SIGNAL(finished(int)), this, SIGNAL(done()));
 }
 
 MakefileParser::~MakefileParser()
@@ -81,13 +78,22 @@ MakefileParser::~MakefileParser()
 
 void MakefileParser::run(const Path& makefile)
 {
-    Q_ASSERT(mProc->state() == QProcess::NotRunning);
+    Q_ASSERT(!mProc);
+    mProc = new QProcess(this);
+    connect(mProc, SIGNAL(readyReadStandardOutput()),
+            this, SLOT(processMakeOutput()));
+    connect(mProc, SIGNAL(finished(int)), this, SIGNAL(done()));
 
     mTracker->init(makefile.parentDir());
     mProc->start(QLatin1String("make"), QStringList() << QLatin1String("-B")
                  << QLatin1String("-j1") << QLatin1String("-n") << QLatin1String("-w")
                  << QLatin1String("-f") << QString::fromLocal8Bit(makefile)
                  << QLatin1String("-C") << mTracker->path());
+}
+
+bool MakefileParser::isDone() const
+{
+    return mProc && (mProc->state() == QProcess::NotRunning);
 }
 
 void MakefileParser::processMakeOutput()
@@ -101,12 +107,14 @@ void MakefileParser::processMakeOutput()
     }
 }
 
-void MakefileParser::processMakeLine(const QByteArray& line)
+void MakefileParser::processMakeLine(const QByteArray &line)
 {
+    static bool verbose = getenv("VERBOSE");
+    if (verbose)
+        fprintf(stderr, "%s\n", line.constData());
     GccArguments args;
     if (args.parse(line, mTracker->path()) && args.isCompile()) {
         Q_ASSERT(!args.input().isEmpty());
-
         emit fileReady(args);
     } else {
         mTracker->track(line);

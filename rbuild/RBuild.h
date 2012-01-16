@@ -9,7 +9,6 @@
 #include <clang-c/Index.h>
 
 struct RBuildPrivate;
-class Precompile;
 class RBuild : public QObject
 {
     Q_OBJECT
@@ -32,14 +31,12 @@ signals:
     void compileFinished();
     void finishedCompiling();
 private slots:
+    void onMakefileDone();
     void processFile(const GccArguments& arguments);
     void onCompileFinished();
-    void onPrecompileFinished(Precompile *pch);
     void save();
 private:
-    void compileAll();
-    void precompileAll();
-    void compile(const QList<QByteArray> &args, const Path &file, Precompile *precompile);
+    void compile(const QList<QByteArray> &args, const Path &file);
     void writeData();
     void writeEntities();
     enum Mode {
@@ -51,7 +48,6 @@ private:
 private:
     RBuildPrivate* mData;
     friend class CompileRunnable;
-    friend class PrecompileRunnable;
 };
 
 #endif // RBUILD_H

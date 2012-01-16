@@ -1,5 +1,4 @@
 #include "RBuild.h"
-#include "Precompile.h"
 #include <RTags.h>
 #include <QCoreApplication>
 #include <QtAlgorithms>
@@ -17,15 +16,14 @@
 
 using namespace RTags;
 
-static const bool pchEnabled = false; //!getenv("RTAGS_NO_PCH") && false;
 static QElapsedTimer timer;
 int threadPoolSize = -1;
 
 class CompileRunnable : public QRunnable
 {
 public:
-    CompileRunnable(RBuild *rb, const Path &p, const QList<QByteArray> &a, Precompile *pc)
-        : rbuild(rb), path(p), args(a), pch(pc)
+    CompileRunnable(RBuild *rb, const Path &p, const QList<QByteArray> &a)
+        : rbuild(rb), path(p), args(a)
     {
         setAutoDelete(true);
     }
@@ -33,7 +31,7 @@ public:
     virtual void run()
     {
         const qint64 before = timer.elapsed();
-        rbuild->compile(args, path, pch);
+        rbuild->compile(args, path);
         const qint64 elapsed = timer.elapsed();
         fprintf(stderr, "parsed %s, (%lld ms) (%lld)\n", path.constData(),
                 elapsed - before, (elapsed - before) / threadPoolSize);
@@ -42,7 +40,6 @@ private:
     RBuild *rbuild;
     const Path path;
     const QList<QByteArray> args;
-    Precompile *pch;
 };
 
 RBuild::RBuild(unsigned flags, QObject *parent)
@@ -74,8 +71,8 @@ void RBuild::setDBPath(const Path &path)
 
 bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
 {
-    if (!makefile.exists()) {
-        fprintf(stderr, "%s doesn't exist\n", makefile.constData());
+    if (!makefile.isFile()) {
+        fprintf(stderr, "%s is not a file\n", makefile.constData());
         return false;
     }
     mData->sourceDir = sourceDir.isEmpty() ? Path(".") : sourceDir;
@@ -89,17 +86,12 @@ bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
 
     connect(&mData->parser, SIGNAL(fileReady(const GccArguments&)),
             this, SLOT(processFile(const GccArguments&)));
-    QEventLoop loop;
-    connect(&mData->parser, SIGNAL(done()), &loop, SLOT(quit()));
+    connect(&mData->parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
     mData->parser.run(makefile);
-    loop.exec();
-    connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
-    if (pchEnabled) {
-        precompileAll();
-    } else {
-        compileAll();
-    }
-    loop.exec();
+    QEventLoop loop;
+    do {
+        loop.processEvents();
+    } while (!mData->makefileDone || mData->pendingJobs);
     save();
     return true;
 }
@@ -115,7 +107,6 @@ void RBuild::buildDB(const QList<Path> &sources)
         mData->sourceDir.append('/');
 
     mData->pendingJobs += sources.size();
-    qDebug() << sources;
     foreach(const Path &path, sources) {
         QList<QByteArray> args;
         args << "-cc1";
@@ -123,7 +114,7 @@ void RBuild::buildDB(const QList<Path> &sources)
         if (lang != GccArguments::LangUndefined) {
             args << "-x" << GccArguments::languageString(lang);
         }
-        mData->threadPool.start(new CompileRunnable(this, path, args, 0));
+        mData->threadPool.start(new CompileRunnable(this, path, args));
     }
     QEventLoop loop;
     connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
@@ -168,7 +159,7 @@ bool RBuild::updateDB()
     mData->db->invalidateEntries(dirty);
     mData->pendingJobs += reparse.size();
     foreach(Source *source, reparse) {
-        mData->threadPool.start(new CompileRunnable(this, source->path, source->args, 0));
+        mData->threadPool.start(new CompileRunnable(this, source->path, source->args));
     }
     QEventLoop loop;
     connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
@@ -177,7 +168,8 @@ bool RBuild::updateDB()
     mData->db->write("sources", mData->sources);
 
     closeDB();
-    printf("Updated db %lld ms\n", timer.elapsed());
+    printf("Updated db %lld ms, %d threads\n",
+           timer.elapsed(), mData->threadPool.maxThreadCount());
     return true;
 }
 
@@ -192,23 +184,8 @@ void RBuild::save()
     writeData();
     closeDB();
     const qint64 elapsed = timer.elapsed();
-    fprintf(stderr, "All done. (total/saving %lld/%lld ms)\n", elapsed, elapsed - beforeWriting);
-}
-
-void RBuild::compileAll()
-{
-    mData->pendingJobs += mData->files.size();
-    foreach(const GccArguments &args, mData->files) {
-        mData->threadPool.start(new CompileRunnable(this, args.input(), args.clangArgs(), 0));
-    }
-    // for (QHash<Precompile*, QList<GccArguments> >::const_iterator it = mData->filesByPrecompile.begin();
-    //      it != mData->filesByPrecompile.end(); ++it) {
-    //     Precompile *pre = it.key();
-    //     foreach(const GccArguments &args, it.value())
-    //         mData->threadPool.start(new CompileRunnable(this, args, pre));
-    // }
-
-    mData->files.clear();
+    fprintf(stderr, "All done. (total/saving %lld/%lld ms, %d threads\n",
+            elapsed, elapsed - beforeWriting, mData->threadPool.maxThreadCount());
 }
 
 static inline bool add(const GccArguments &args, QList<GccArguments> &list)
@@ -230,23 +207,9 @@ static inline bool add(const GccArguments &args, QList<GccArguments> &list)
 
 void RBuild::processFile(const GccArguments& arguments)
 {
-    if (!pchEnabled) {
-        if (!add(arguments, mData->files)) {
-            // qDebug() << "ditched dupe" << arguments;
-        }
-        // mData->files.append(arguments);
-        // ### could start to compile now
-    } else {
-        Precompile *precompiler = Precompile::precompiler(arguments);
-        Q_ASSERT(precompiler);
-        // if (precompiler->isCompiled()) {
-        //     compile(arguments, precompiler);
-        // } else {
-        if (add(arguments, mData->filesByPrecompile[precompiler])) {
-            precompiler->collectHeaders(arguments);
-        // } else {
-        //     qDebug() << "ditched dupe" << arguments;
-        }
+    if (add(arguments, mData->files)) {
+        ++mData->pendingJobs;
+        mData->threadPool.start(new CompileRunnable(this, arguments.input(), arguments.clangArgs()));
     }
 }
 
@@ -358,8 +321,6 @@ static inline void getInclusions(CXFile includedFile,
             clang_getSpellingLocation(inclusionStack[i], &f, 0, 0, 0);
             str = clang_getFileName(f);
             p = Path::resolved(clang_getCString(str));
-            if (pchEnabled && i == includeLen - 2)
-                u->directIncludes.append(p);
             u->dependencies.insert(p, p.lastModified());
             clang_disposeString(str);
             // printf("    %d %s\n", i, eatString(clang_getFileName(f)).constData());
@@ -598,15 +559,14 @@ static inline void diagnostic(CXClientData, CXDiagnosticSet set, void *)
     }
 }
 
-void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile *precompile)
+void RBuild::compile(const QList<QByteArray> &args, const Path &file)
 {
     // qDebug() << args << file << mData->extraArgs;
     if ((mData->flags & DontClang) != DontClang) {
         const QList<QByteArray> systemIncludes = RTags::systemIncludes();
         QVarLengthArray<const char *, 64> clangArgs(args.size()
                                                     + mData->extraArgs.size()
-                                                    + systemIncludes.size()
-                                                    + (file.isEmpty() ? 0 : 2));
+                                                    + systemIncludes.size());
         int argCount = 0;
         foreach(const QByteArray& arg, args) {
             clangArgs[argCount++] = arg.constData();
@@ -616,11 +576,6 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
         }
         foreach(const QByteArray &extraArg, mData->extraArgs) {
             clangArgs[argCount++] = extraArg.constData();
-        }
-        if (precompile) {
-            Q_ASSERT(precompile->isCompiled());
-            clangArgs[argCount++] = "-include-pch";
-            clangArgs[argCount++] = precompile->filePath().constData();
         }
 
         IndexerCallbacks cb;
@@ -633,33 +588,20 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
 
         CXIndexAction action = clang_IndexAction_create(mData->index);
         CXTranslationUnit unit = 0;
-        fprintf(stderr, "clang ");
-        for (int i=0; i<argCount; ++i) {
-            fprintf(stderr, "%s ", clangArgs[i]);
-        }
-        fprintf(stderr, "%s\n", file.constData());
+        const bool verbose = (getenv("VERBOSE") != 0);
 
-        if (precompile && clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
-                                                CXIndexOpt_IndexFunctionLocalSymbols, file.constData(),
-                                                clangArgs.constData(),
-                                                argCount, 0, 0, &unit,
-                                                clang_defaultEditingTranslationUnitOptions())) {
-            qWarning("Couldn't compile %s with pch %p, Falling back to no pch", file.constData(), unit);
-            // fprintf(stderr, "clang ");
-            // foreach(const QByteArray& arg, arglist) {
-            //     fprintf(stderr, "%s ", arg.constData());
-            // }
-            // fprintf(stderr, "%s\n", input.constData());
-
-            Q_ASSERT(!unit);
-            argCount -= 2;
-            precompile = 0;
+        if (verbose) {
+            fprintf(stderr, "clang ");
+            for (int i=0; i<argCount; ++i) {
+                fprintf(stderr, "%s ", clangArgs[i]);
+            }
+            fprintf(stderr, "%s\n", file.constData());
         }
-        if (!unit)
-            clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
-                                  CXIndexOpt_IndexFunctionLocalSymbols, file.constData(),
-                                  clangArgs.constData(), argCount,
-                                  0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
+
+        clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
+                              CXIndexOpt_IndexFunctionLocalSymbols, file.constData(),
+                              clangArgs.constData(), argCount,
+                              0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
 
         if (!unit) {
             qWarning() << "Unable to parse unit for" << file;
@@ -671,13 +613,8 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
             return;
         }
         Source src = { file, args, file.lastModified(), QHash<Path, quint64>() };
-        if (precompile) {
-            src.dependencies = precompile->dependencies();
-        } else {
-            InclusionUserData u(src.dependencies);
-            clang_getInclusions(unit, getInclusions, &u);
-        }
-
+        InclusionUserData u(src.dependencies);
+        clang_getInclusions(unit, getInclusions, &u);
         {
             QMutexLocker lock(&mData->entryMutex); // ### is this the right place to lock?
             mData->sources.append(src);
@@ -689,56 +626,10 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
     emit compileFinished();
 }
 
-void PrecompileRunnable::run()
-{
-    // const qint64 before = timer.elapsed();
-    // CXTranslationUnit unit = mData->pch->precompile(mData->index);
-    // if (unit) {
-    //     CXCursor unitCursor = clang_getTranslationUnitCursor(unit);
-    //     CollectSymbolsUserData userData = {
-    //         mData->rBP->entryMutex, mData->rBP->seen, mData->rBP->data, 0
-    //     };
-
-    //     clang_visitChildren(unitCursor, collectSymbols, &userData);
-    //     QHash<Path, quint64> dependencies;
-    //     InclusionUserData u(dependencies);
-    //     clang_getInclusions(unit, getInclusions, &u);
-    //     // qDebug() << dependencies;
-    //     mData->pch->setDependencies(dependencies);
-    //     clang_disposeTranslationUnit(unit);
-    //     const qint64 elapsed = timer.elapsed() - before;
-    //     fprintf(stderr, "parsed pch header (%s) (%lld ms)\n",
-    //             mData->pch->headerFilePath().constData(), elapsed);
-    // }
-    // emit finished(mData->pch);
-}
-
-void RBuild::precompileAll()
-{
-    const QList<Precompile*> precompiles = Precompile::precompiles();
-    foreach(Precompile *pch, precompiles) {
-        if (!pch->isCompiled()) {
-            PrecompileRunnable *runnable = new PrecompileRunnable(pch, mData, mData->index);
-            connect(runnable, SIGNAL(finished(Precompile*)), this, SLOT(onPrecompileFinished(Precompile*)));
-            mData->threadPool.start(runnable);
-        }
-    }
-}
-
 void RBuild::onCompileFinished()
 {
-    qDebug() << __FUNCTION__ << mData->pendingJobs;
     if (!--mData->pendingJobs) {
         emit finishedCompiling();
-    }
-}
-
-void RBuild::onPrecompileFinished(Precompile *pch)
-{
-    Precompile *p = pch->isCompiled() ? pch : 0;
-    foreach(const GccArguments &args, mData->filesByPrecompile[pch]) {
-        ++mData->pendingJobs;
-        mData->threadPool.start(new CompileRunnable(this, args.input(), args.clangArgs(), p));
     }
 }
 
@@ -764,8 +655,12 @@ void RBuild::writeEntities()
         QHash<QByteArray, Entity>::iterator it = mData->entities.find(ref.usr);
         if (it == mData->entities.end())
             it = mData->entities.find(ref.specialized);
-        Q_ASSERT(it != mData->entities.end());
-        it.value().references.insert(ref.location);
+        if (it == mData->entities.end()) {
+            qDebug() << "Can't find this reference anywhere" << ref.usr << ref.specialized
+                     << ref.location;
+        } else {
+            it.value().references.insert(ref.location);
+        }
     }
 
     for (QHash<QByteArray, Entity>::const_iterator it = mData->entities.begin(); it != mData->entities.end(); ++it) {
@@ -789,4 +684,8 @@ void RBuild::addIncludePaths(const QList<Path> &paths)
 {
     foreach(const Path &path, paths)
         mData->extraArgs += ("-I" + path);
+}
+void RBuild::onMakefileDone()
+{
+    mData->makefileDone = true;
 }

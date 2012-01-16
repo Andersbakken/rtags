@@ -16,7 +16,7 @@ public:
     ~MakefileParser();
 
     void run(const Path& makefile);
-
+    bool isDone() const;
 signals:
     void done();
     void fileReady(const GccArguments& args);

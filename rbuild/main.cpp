@@ -1,6 +1,5 @@
 #include "RBuild.h"
 #include "Path.h"
-#include "Precompile.h"
 #include "Mmap.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -25,13 +24,6 @@ static inline void usage(const char* argv0, FILE *f)
 
 using namespace RTags;
 
-class PrecompileScope
-{
-public:
-    PrecompileScope() {}
-    ~PrecompileScope() { Precompile::cleanup(); }
-};
-
 int main(int argc, char** argv)
 {
     QCoreApplication::setOrganizationName("RTags");
@@ -44,8 +36,6 @@ int main(int argc, char** argv)
     unsigned flags = 0;
 
     Mmap::init();
-
-    PrecompileScope prescope;
 
     struct option longOptions[] = {
         { "help", no_argument, 0, 'h' },

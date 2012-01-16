@@ -11,11 +11,8 @@ include($$PWD/../shared/shared.pri)
 # Input
 SOURCES += $$PWD/main.cpp \
            $$PWD/RBuild.cpp \
-           $$PWD/MakefileParser.cpp \
-           $$PWD/Precompile.cpp
+           $$PWD/MakefileParser.cpp
 
 HEADERS += $$PWD/RBuild.h \
            $$PWD/RBuild_p.h \
-           $$PWD/MakefileParser.h \
-           $$PWD/Precompile.h
-
+           $$PWD/MakefileParser.h
