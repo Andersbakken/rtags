@@ -45,6 +45,7 @@ struct RBuildPrivate
     CXIndex index;
     QHash<Precompile*, QList<GccArguments> > filesByPrecompile;
     QList<GccArguments> files;
+    QList<QByteArray> extraArgs;
     QThreadPool threadPool;
 
     QList<Source> sources;

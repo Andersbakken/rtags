@@ -16,7 +16,9 @@ static inline void usage(const char* argv0, FILE *f)
             "  --db-file|-d [arg]         Use this database file\n"
             "  --update|-u                Update database\n"
             "  --source-dir|-s [arg]      Recurse this directory\n"
+            "  --source-file|-S [arg]     Build this source file\n"
             "  --dont-clang|-c            Don't actually do much of anything\n"
+            "  --dont-index|-i            Call clang_indexSourceFile but don't pass any callbacks\n"
             "  --db-type|-t [arg]         Type of db (leveldb or filedb)\n",
             argv0);
 }
@@ -46,24 +48,43 @@ int main(int argc, char** argv)
     PrecompileScope prescope;
 
     struct option longOptions[] = {
-        { "help", 0, 0, 'h' },
-        { "db-file", 1, 0, 'd' },
-        { "update", 0, 0, 'u' },
-        { "source-dir", 1, 0, 's' },
-        { "db-type", 1, 0, 't' },
-        { "dont-clang", 0, 0, 'c' },
+        { "help", no_argument, 0, 'h' },
+        { "update", no_argument, 0, 'u' },
+        { "db-file", required_argument, 0, 'd' },
+        { "source-dir", required_argument, 0, 's' },
+        { "db-type", required_argument, 0, 't' },
+        { "dont-clang", no_argument, 0, 'c' },
+        { "dont-index", no_argument, 0, 'i' },
+        { "includepath", required_argument, 0, 'I' },
+        { "define", required_argument, 0, 'D' },
+        { "source-file", required_argument, 0, 'S' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hud:s:t:Dc";
+    const char *shortOptions = "hud:s:t:ciI:D:S:";
 
+    QList<Path> includePaths;
+    QList<QByteArray> defines;
+    QList<Path> sourceFiles;
     int idx, longIndex;
     while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
         switch (idx) {
         case '?':
             usage(argv[0], stderr);
             return 1;
+        case 'S':
+            sourceFiles += Path::resolved(optarg);
+            break;
+        case 'I':
+            includePaths += Path::resolved(optarg);
+            break;
+        case 'D':
+            defines += optarg;
+            break;
         case 'c':
-            flags |= RBuild::ClangDisabled;
+            flags |= RBuild::DontClang;
+            break;
+        case 'i':
+            flags |= RBuild::DontIndex;
             break;
         case 's':
             srcDir = optarg;
@@ -89,8 +110,18 @@ int main(int argc, char** argv)
     if (update && !srcDir.isEmpty()) {
         fprintf(stderr, "Can't use --source-dir with --update");
         return 1;
-
     }
+    if (!sourceFiles.isEmpty()) {
+        if (update) {
+            fprintf(stderr, "Can't use --source-file with --update");
+            return 1;
+        }
+        if (optind < argc) {
+            fprintf(stderr, "Can't use --source-file with Makefile");
+            return 1;
+        }
+    }
+
     if (db.isEmpty()) {
         if (update) {
             db = findRtagsDb();
@@ -105,7 +136,13 @@ int main(int argc, char** argv)
 
     RBuild build(flags);
     build.setDBPath(db);
-    if (update) {
+    build.addDefines(defines);
+    build.addIncludePaths(includePaths);
+
+    if (!sourceFiles.isEmpty()) {
+        build.buildDB(sourceFiles);
+        return 0;
+    } else if (update) {
         build.updateDB();
         return 0;
     } else {

@@ -49,6 +49,7 @@ public:
     bool isCompile() const;
     bool operator==(const GccArguments &other) const;
     static const char* languageString(Language language);
+    static Language guessLanguage(const Path &path);
     QByteArray key() const;
     enum ResolveMode {
         Quotes,
@@ -62,8 +63,6 @@ private:
     {
     public:
         Data();
-
-        GccArguments::Language guessLanguage() const;
 
         struct Argument
         {
@@ -80,7 +79,7 @@ private:
         int x;
         int c;
         QString error;
-        Language language;
+        mutable Language language;
 
         QByteArray raw;
         QList<Argument> args;

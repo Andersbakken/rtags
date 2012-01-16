@@ -8,35 +8,15 @@ GccArguments::Data::Data()
 {
 }
 
-GccArguments::Language GccArguments::Data::guessLanguage() const
+GccArguments::GccArguments()
+    : m_ptr(new Data)
 {
-    if (language != LangUndefined)
-        return language;
+}
 
+GccArguments::Language GccArguments::guessLanguage(const Path &path)
+{
+    const char *ext = path.extension();
     Language guesslang = LangUndefined;
-    if (x != -1) {
-        const QByteArray xarg = args.at(x).value;
-        if (xarg == "c")
-            guesslang = LangC;
-        else if (xarg == "c++")
-            guesslang = LangCPlusPlus;
-        else if (xarg == "objective-c")
-            guesslang = LangObjC;
-        else if (xarg == "objective-c++")
-            guesslang = LangObjCPlusPlus;
-        else if (xarg == "c++-header")
-            guesslang = LangCPlusPlusHeader;
-        else if (xarg == "c-header")
-            guesslang = LangHeader;
-        return guesslang;
-    }
-
-    if (input.isEmpty())
-        return LangUndefined;
-    const char *ext = input.extension();
-    if (!ext)
-        return guesslang;
-
     if (!strcasecmp(ext, "c"))
         guesslang = LangC;
     else if (!strcasecmp(ext, "cpp") || !strcasecmp(ext, "cc") || !strcasecmp(ext, "cxx"))
@@ -51,11 +31,6 @@ GccArguments::Language GccArguments::Data::guessLanguage() const
         guesslang = LangHeader;
 
     return guesslang;
-}
-
-GccArguments::GccArguments()
-    : m_ptr(new Data)
-{
 }
 
 Path GccArguments::parseCD(const QByteArray &cmd, const Path& path) const
@@ -267,8 +242,29 @@ QByteArray GccArguments::output() const
 GccArguments::Language GccArguments::language() const
 {
     const Data* data = m_ptr.constData();
-    if (data->language == LangUndefined)
-        return data->guessLanguage();
+    if (data->language == LangUndefined) {
+        if (data->x != -1) {
+            const QByteArray xarg = data->args.at(data->x).value;
+            if (xarg == "c")
+                data->language = LangC;
+            else if (xarg == "c++")
+                data->language = LangCPlusPlus;
+            else if (xarg == "objective-c")
+                data->language = LangObjC;
+            else if (xarg == "objective-c++")
+                data->language = LangObjCPlusPlus;
+            else if (xarg == "c++-header")
+                data->language = LangCPlusPlusHeader;
+            else if (xarg == "c-header")
+                data->language = LangHeader;
+            return data->language;
+        }
+
+        if (data->input.isEmpty())
+            return LangUndefined;
+
+        data->language = GccArguments::guessLanguage(data->input);
+    }
     return data->language;
 }
 
@@ -455,5 +451,5 @@ QList<QByteArray> GccArguments::clangArgs() const
             }
         }
     }
-    return ret + RTags::systemIncludes();
+    return ret;
 }

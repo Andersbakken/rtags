@@ -16,13 +16,17 @@ class RBuild : public QObject
 public:
     enum Flag {
         NoFlags = 0x0,
-        ClangDisabled = 0x1
+        DontIndex = 0x1,
+        DontClang = 0x2|DontIndex
     };
     RBuild(unsigned flags, QObject *parent = 0);
     ~RBuild();
 
+    void addIncludePaths(const QList<Path> &path);
+    void addDefines(const QList<QByteArray> &define);
     void setDBPath(const Path &path);
     bool buildDB(const Path& makefile, const Path &sourceDir);
+    void buildDB(const QList<Path> &sources);
     bool updateDB();
 signals:
     void compileFinished();

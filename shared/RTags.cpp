@@ -133,7 +133,7 @@ QDebug operator<<(QDebug dbg, CXCursor cursor)
     return dbg;
 }
 
-QList<QByteArray> systemIncludes()
+QList<QByteArray> &systemIncludes()
 {
     static QList<QByteArray> sSystemIncludes;
     if (sSystemIncludes.isEmpty()) {

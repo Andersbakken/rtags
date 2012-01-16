@@ -80,15 +80,13 @@ bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
     }
     mData->makefile = makefile;
     mData->sourceDir = sourceDir.isEmpty() ? Path(".") : sourceDir;
-    if (!mData->sourceDir.isEmpty()) {
-        mData->sourceDir.resolve();
-        if (!mData->sourceDir.isDir()) {
-            fprintf(stderr, "%s is not a directory\n", sourceDir.constData());
-            return false;
-        }
-        if (!mData->sourceDir.endsWith('/'))
-            mData->sourceDir.append('/');
+    mData->sourceDir.resolve();
+    if (!mData->sourceDir.isDir()) {
+        fprintf(stderr, "%s is not a directory\n", sourceDir.constData());
+        return false;
     }
+    if (!mData->sourceDir.endsWith('/'))
+        mData->sourceDir.append('/');
 
     connect(&mData->parser, SIGNAL(fileReady(const GccArguments&)),
             this, SLOT(processFile(const GccArguments&)));
@@ -97,15 +95,36 @@ bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
     return true;
 }
 
+void RBuild::buildDB(const QList<Path> &sources)
+{
+    mData->sourceDir = Path::resolved(".");
+    if (!mData->sourceDir.isDir()) {
+        fprintf(stderr, "%s is not a directory\n", mData->sourceDir.constData());
+        return;
+    }
+    if (!mData->sourceDir.endsWith('/'))
+        mData->sourceDir.append('/');
+    
+    connect(this, SIGNAL(finishedCompiling()), this, SLOT(save()));
+    mData->pendingJobs += sources.size();
+    qDebug() << sources;
+    foreach(const Path &path, sources) {
+        QList<QByteArray> args;
+        args << "-cc1";
+        const GccArguments::Language lang = GccArguments::guessLanguage(path);
+        if (lang != GccArguments::LangUndefined) {
+            args << "-x" << GccArguments::languageString(lang);
+        }
+        mData->threadPool.start(new CompileRunnable(this, path, args, 0));
+    }
+}
+
 bool RBuild::updateDB()
 {
     if (!openDB(Update))
         return false;
-    QMap<int, qint64> snapshots;
-    snapshots[__LINE__] = timer.elapsed();
     QList<Source> sources = mData->db->read<QList<Source> >("sources");
     mData->filesByName = mData->db->read<QHash<Path, unsigned> >("filesByName");
-    snapshots[__LINE__] = timer.elapsed();
 
     QList<Source*> reparse;
     QSet<Path> dirty;
@@ -133,10 +152,8 @@ bool RBuild::updateDB()
         printf("Nothing has changed (%lld ms)\n", timer.elapsed());
         return true;
     }
-    snapshots[__LINE__] = timer.elapsed();
 
     mData->db->invalidateEntries(dirty);
-    snapshots[__LINE__] = timer.elapsed();
     mData->pendingJobs += reparse.size();
     foreach(Source *source, reparse) {
         mData->threadPool.start(new CompileRunnable(this, source->path, source->args, 0));
@@ -144,14 +161,11 @@ bool RBuild::updateDB()
     QEventLoop loop;
     connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
     loop.exec();
-    snapshots[__LINE__] = timer.elapsed();
     writeEntities();
     mData->db->write("sources", mData->sources);
-    snapshots[__LINE__] = timer.elapsed();
 
     closeDB();
     printf("Updated db %lld ms\n", timer.elapsed());
-    // qDebug() << snapshots;
     return true;
 }
 
@@ -285,8 +299,8 @@ void RBuild::writeData()
         } else {
             fprintf(stderr, "%s is not a directory\n", mData->sourceDir.constData());
         }
+        mData->db->write("sourceDir", mData->sourceDir);
     }
-    mData->db->write("sourceDir", mData->sourceDir);
     mData->db->write("files", allFiles);
 }
 
@@ -574,13 +588,34 @@ static inline CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData
     return CXChildVisit_Recurse;
 }
 
+static inline void diagnostic(CXClientData, CXDiagnosticSet set, void *)
+{
+    const int count = clang_getNumDiagnosticsInSet(set);
+    for (int i=0; i<count; ++i) {
+        CXDiagnostic diagnostic = clang_getDiagnosticInSet(set, i);
+        fprintf(stderr, "%s\n", eatString(clang_getDiagnosticSpelling(diagnostic)).constData());
+        clang_disposeDiagnostic(diagnostic);
+    }
+}
+
 void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile *precompile)
 {
-    if (!(mData->flags & ClangDisabled)) {
-        QVarLengthArray<const char *, 64> clangArgs(args.size() + (file.isEmpty() ? 0 : 2));
+    // qDebug() << args << file << mData->extraArgs;
+    if ((mData->flags & DontClang) != DontClang) {
+        const QList<QByteArray> systemIncludes = RTags::systemIncludes();
+        QVarLengthArray<const char *, 64> clangArgs(args.size()
+                                                    + mData->extraArgs.size()
+                                                    + systemIncludes.size()
+                                                    + (file.isEmpty() ? 0 : 2));
         int argCount = 0;
         foreach(const QByteArray& arg, args) {
             clangArgs[argCount++] = arg.constData();
+        }
+        foreach(const QByteArray &systemInclude, systemIncludes) {
+            clangArgs[argCount++] = systemInclude.constData();
+        }
+        foreach(const QByteArray &extraArg, mData->extraArgs) {
+            clangArgs[argCount++] = extraArg.constData();
         }
         if (precompile) {
             Q_ASSERT(precompile->isCompiled());
@@ -590,16 +625,19 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
 
         IndexerCallbacks cb;
         memset(&cb, 0, sizeof(IndexerCallbacks));
-        cb.indexDeclaration = indexDeclaration;
-        cb.indexEntityReference = indexEntityReference;
+        cb.diagnostic = diagnostic;
+        if ((mData->flags & DontIndex) != DontIndex) {
+            cb.indexDeclaration = indexDeclaration;
+            cb.indexEntityReference = indexEntityReference;
+        }
 
         CXIndexAction action = clang_IndexAction_create(mData->index);
         CXTranslationUnit unit = 0;
-        // fprintf(stderr, "clang ");
-        // for (int i=0; i<argCount; ++i) {
-        //     fprintf(stderr, "%s ", clangArgs[i]);
-        // }
-        // fprintf(stderr, "%s\n", file.constData());
+        fprintf(stderr, "clang ");
+        for (int i=0; i<argCount; ++i) {
+            fprintf(stderr, "%s ", clangArgs[i]);
+        }
+        fprintf(stderr, "%s\n", file.constData());
 
         if (precompile && clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
                                                 CXIndexOpt_IndexFunctionLocalSymbols, file.constData(),
@@ -624,7 +662,12 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file, Precompile
                                   0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
 
         if (!unit) {
-            qWarning() << "Unable to parse unit for" << file; // << clangArgs;
+            qWarning() << "Unable to parse unit for" << file;
+            for (int i=0; i<argCount; ++i) {
+                fprintf(stderr, "%s", clangArgs[i]);
+                fprintf(stderr, "%c", i + 1 < argCount ? ' ' : '\n');
+            }
+
             return;
         }
         Source src = { file, args, file.lastModified(), QHash<Path, quint64>() };
@@ -733,4 +776,16 @@ void RBuild::writeEntities()
         mData->db->writeEntity(entity.name, entity.parentNames, entity.definition,
                                entity.declarations, entity.extraDeclarations, entity.references);
     }
+}
+// ### it's only legal to call these before any compilation has started
+void RBuild::addDefines(const QList<QByteArray> &defines)
+{
+    foreach(const QByteArray &define, defines)
+        mData->extraArgs += ("-D" + define);
+}
+
+void RBuild::addIncludePaths(const QList<Path> &paths)
+{
+    foreach(const Path &path, paths)
+        mData->extraArgs += ("-I" + path);
 }

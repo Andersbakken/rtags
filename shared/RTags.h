@@ -178,7 +178,7 @@ static inline bool isValidKind(CXCursorKind kind)
 QDebug operator<<(QDebug dbg, CXCursor cursor);
 QDebug operator<<(QDebug dbg, const std::string &str);
 QDebug operator<<(QDebug dbg, const leveldb::Slice &slice);
-QList<QByteArray> systemIncludes();
+QList<QByteArray> &systemIncludes();
 }
 
 #endif
