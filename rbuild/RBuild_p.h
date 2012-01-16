@@ -29,7 +29,7 @@ struct PendingReference
 struct RBuildPrivate
 {
     RBuildPrivate()
-        : makefileDone(false), flags(0), db(0), pendingJobs(0), index(0)
+        : makefileDone(true), flags(0), db(0), pendingJobs(0), index(0)
     {
         Location::files() = &filesByName;
     }

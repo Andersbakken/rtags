@@ -81,6 +81,7 @@ bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
         fprintf(stderr, "%s is not a directory\n", sourceDir.constData());
         return false;
     }
+    mData->makefileDone = false;
     if (!mData->sourceDir.endsWith('/'))
         mData->sourceDir.append('/');
 
@@ -89,9 +90,8 @@ bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
     connect(&mData->parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
     mData->parser.run(makefile);
     QEventLoop loop;
-    do {
-        loop.processEvents();
-    } while (!mData->makefileDone || mData->pendingJobs);
+    connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
+    loop.exec();
     save();
     return true;
 }
@@ -628,9 +628,8 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file)
 
 void RBuild::onCompileFinished()
 {
-    if (!--mData->pendingJobs) {
+    if (!--mData->pendingJobs && mData->makefileDone)
         emit finishedCompiling();
-    }
 }
 
 bool RBuild::openDB(Mode mode)
@@ -688,4 +687,6 @@ void RBuild::addIncludePaths(const QList<Path> &paths)
 void RBuild::onMakefileDone()
 {
     mData->makefileDone = true;
+    if (!mData->pendingJobs)
+        emit finishedCompiling();
 }
