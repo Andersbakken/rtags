@@ -55,7 +55,6 @@ RBuild::RBuild(unsigned flags, QObject *parent)
         if (threads > 0)
             mData->threadPool.setMaxThreadCount(threads);
     }
-    connect(this, SIGNAL(finishedCompiling()), this, SLOT(save()));
     threadPoolSize = mData->threadPool.maxThreadCount();
     RTags::systemIncludes(); // force creation before any threads are spawned
     connect(this, SIGNAL(compileFinished()), this, SLOT(onCompileFinished()));
@@ -90,8 +89,18 @@ bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
 
     connect(&mData->parser, SIGNAL(fileReady(const GccArguments&)),
             this, SLOT(processFile(const GccArguments&)));
-    connect(&mData->parser, SIGNAL(done()), this, SLOT(makefileDone()));
+    QEventLoop loop;
+    connect(&mData->parser, SIGNAL(done()), &loop, SLOT(quit()));
     mData->parser.run(makefile);
+    loop.exec();
+    connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
+    if (pchEnabled) {
+        precompileAll();
+    } else {
+        compileAll();
+    }
+    loop.exec();
+    save();
     return true;
 }
 
@@ -104,7 +113,7 @@ void RBuild::buildDB(const QList<Path> &sources)
     }
     if (!mData->sourceDir.endsWith('/'))
         mData->sourceDir.append('/');
-    
+
     mData->pendingJobs += sources.size();
     qDebug() << sources;
     foreach(const Path &path, sources) {
@@ -116,6 +125,10 @@ void RBuild::buildDB(const QList<Path> &sources)
         }
         mData->threadPool.start(new CompileRunnable(this, path, args, 0));
     }
+    QEventLoop loop;
+    connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
+    loop.exec();
+    save();
 }
 
 bool RBuild::updateDB()
@@ -158,6 +171,7 @@ bool RBuild::updateDB()
         mData->threadPool.start(new CompileRunnable(this, source->path, source->args, 0));
     }
     QEventLoop loop;
+    connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
     loop.exec();
     writeEntities();
     mData->db->write("sources", mData->sources);
@@ -169,7 +183,6 @@ bool RBuild::updateDB()
 
 void RBuild::save()
 {
-    printf("Done parsing, now writing.\n");
     const qint64 beforeWriting = timer.elapsed();
 
     // Q_ASSERT(filename.endsWith(".rtags.db"));
@@ -180,7 +193,6 @@ void RBuild::save()
     closeDB();
     const qint64 elapsed = timer.elapsed();
     fprintf(stderr, "All done. (total/saving %lld/%lld ms)\n", elapsed, elapsed - beforeWriting);
-    qApp->quit();
 }
 
 void RBuild::compileAll()
@@ -235,15 +247,6 @@ void RBuild::processFile(const GccArguments& arguments)
         // } else {
         //     qDebug() << "ditched dupe" << arguments;
         }
-    }
-}
-
-void RBuild::makefileDone()
-{
-    if (pchEnabled) {
-        precompileAll();
-    } else {
-        compileAll();
     }
 }
 
@@ -724,6 +727,7 @@ void RBuild::precompileAll()
 
 void RBuild::onCompileFinished()
 {
+    qDebug() << __FUNCTION__ << mData->pendingJobs;
     if (!--mData->pendingJobs) {
         emit finishedCompiling();
     }

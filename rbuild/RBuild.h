@@ -33,7 +33,6 @@ signals:
     void finishedCompiling();
 private slots:
     void processFile(const GccArguments& arguments);
-    void makefileDone();
     void onCompileFinished();
     void onPrecompileFinished(Precompile *pch);
     void save();

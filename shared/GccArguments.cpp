@@ -48,7 +48,6 @@ Path GccArguments::parseCD(const QByteArray &cmd, const Path& path) const
 bool GccArguments::parse(const QByteArray& cmd, const Path &p)
 {
     QList<QByteArray> resolveErrors;
-    Q_ASSERT(p.isResolved() && p.isDir());
     Data* data = m_ptr.data();
     Path path = p;
 

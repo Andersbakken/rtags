@@ -141,10 +141,8 @@ int main(int argc, char** argv)
 
     if (!sourceFiles.isEmpty()) {
         build.buildDB(sourceFiles);
-        return 0;
     } else if (update) {
         build.updateDB();
-        return 0;
     } else {
         bool ok;
         Path appPath = Path::resolved(QDir::currentPath().toLocal8Bit(), Path(), &ok);
@@ -158,6 +156,6 @@ int main(int argc, char** argv)
             p += "/Makefile";
         if (!build.buildDB(p, srcDir))
             return 1;
-        return app.exec();
     }
+    return 0;
 }

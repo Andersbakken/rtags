@@ -16,7 +16,7 @@ public:
                     LangObjCPlusPlus, LangCPlusPlusHeader, LangHeader };
 
     GccArguments();
-    bool parse(const QByteArray& cmd, const Path &resolvedPath);
+    bool parse(const QByteArray& cmd, const Path &resolvePath = Path());
     QByteArray raw() const;
     bool isNull() const;
     bool isEmpty() const;
