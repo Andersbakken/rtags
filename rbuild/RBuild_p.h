@@ -39,7 +39,7 @@ struct RBuildPrivate
     QList<PendingReference> pendingReferences;
     QHash<Path, unsigned> filesByName;
     Database *db;
-    Path makefile, sourceDir, dbPath;
+    Path sourceDir, dbPath;
     MakefileParser parser;
     int pendingJobs;
     CXIndex index;

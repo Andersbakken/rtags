@@ -55,6 +55,7 @@ RBuild::RBuild(unsigned flags, QObject *parent)
         if (threads > 0)
             mData->threadPool.setMaxThreadCount(threads);
     }
+    connect(this, SIGNAL(finishedCompiling()), this, SLOT(save()));
     threadPoolSize = mData->threadPool.maxThreadCount();
     RTags::systemIncludes(); // force creation before any threads are spawned
     connect(this, SIGNAL(compileFinished()), this, SLOT(onCompileFinished()));
@@ -78,7 +79,6 @@ bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
         fprintf(stderr, "%s doesn't exist\n", makefile.constData());
         return false;
     }
-    mData->makefile = makefile;
     mData->sourceDir = sourceDir.isEmpty() ? Path(".") : sourceDir;
     mData->sourceDir.resolve();
     if (!mData->sourceDir.isDir()) {
@@ -91,7 +91,7 @@ bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
     connect(&mData->parser, SIGNAL(fileReady(const GccArguments&)),
             this, SLOT(processFile(const GccArguments&)));
     connect(&mData->parser, SIGNAL(done()), this, SLOT(makefileDone()));
-    mData->parser.run(mData->makefile);
+    mData->parser.run(makefile);
     return true;
 }
 
@@ -105,7 +105,6 @@ void RBuild::buildDB(const QList<Path> &sources)
     if (!mData->sourceDir.endsWith('/'))
         mData->sourceDir.append('/');
     
-    connect(this, SIGNAL(finishedCompiling()), this, SLOT(save()));
     mData->pendingJobs += sources.size();
     qDebug() << sources;
     foreach(const Path &path, sources) {
@@ -159,7 +158,6 @@ bool RBuild::updateDB()
         mData->threadPool.start(new CompileRunnable(this, source->path, source->args, 0));
     }
     QEventLoop loop;
-    connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
     loop.exec();
     writeEntities();
     mData->db->write("sources", mData->sources);
@@ -242,7 +240,6 @@ void RBuild::processFile(const GccArguments& arguments)
 
 void RBuild::makefileDone()
 {
-    connect(this, SIGNAL(finishedCompiling()), this, SLOT(save()));
     if (pchEnabled) {
         precompileAll();
     } else {
