@@ -34,6 +34,8 @@ public:
     Database();
     virtual ~Database();
 
+    int count() const; // ### slow
+
     enum Mode {
         ReadOnly,
         WriteOnly,
@@ -44,7 +46,7 @@ public:
     Mode mode() const { return mMode; }
     Path path() const { return mPath; }
     bool open(const Path &db, Mode mode);
-    void close();
+    int close();
     virtual bool isOpened() const = 0;
     Location followLocation(const Location &source) const;
     QSet<Location> findReferences(const Location &location) const;

@@ -126,6 +126,9 @@ bool RBuild::updateDB()
 {
     if (!openDB(Update))
         return false;
+#ifdef QT_DEBUG
+    const int beforeCount = mData->db->count();
+#endif
     QList<Source> sources = mData->db->read<QList<Source> >("sources");
     mData->filesByName = mData->db->read<QHash<Path, unsigned> >("filesByName");
 
@@ -167,9 +170,14 @@ bool RBuild::updateDB()
     writeEntities();
     mData->db->write("sources", mData->sources);
 
-    closeDB();
     printf("Updated db %lld ms, %d threads\n",
            timer.elapsed(), mData->threadPool.maxThreadCount());
+#ifdef QT_DEBUG
+    printf("%d => %d entries\n", beforeCount, closeDB());
+#else
+    closeDB();
+#endif
+
     return true;
 }
 
@@ -640,13 +648,15 @@ bool RBuild::openDB(Mode mode)
     return mData->db->isOpened();
 }
 
-void RBuild::closeDB()
+int RBuild::closeDB()
 {
+    int ret = -1;
     if (mData->db) {
-        mData->db->close();
+        ret = mData->db->close();
         delete mData->db;
         mData->db = 0;
     }
+    return ret;
 }
 void RBuild::writeEntities()
 {

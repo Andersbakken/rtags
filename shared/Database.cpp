@@ -183,7 +183,7 @@ void Database::invalidateEntries(const QSet<Path> &paths)
             if (mRemovedRefs.contains(i.key())) {
                 foreach(const QByteArray &key, i.value()) {
                     remove(References, key);
-                    qDebug() << "killing refs" << Location::fromKey(key) << i.key();
+                    // qDebug() << "killing refs" << Location::fromKey(key) << i.key();
                 }
             } else {
                 foreach(const QByteArray &key, i.value()) {
@@ -250,8 +250,10 @@ void Database::invalidateEntries(const QSet<Path> &paths)
     }
 }
 
-void Database::close()
+// ### nasty, this returns count() if in debug
+int Database::close()
 {
+    int ret = -1;
     // qDebug() << mDictionary;
     switch (mMode) {
     case ReadWrite:
@@ -276,13 +278,16 @@ void Database::close()
         Q_ASSERT(0);
         break;
     }
-
+#ifdef QT_DEBUG
+    ret = count();
+#endif
     closeDatabase();
 
     for (int i=0; i<NumConnectionTypes; ++i) {
         delete mConnections[i];
         mConnections[i] = 0;
     }
+    return ret;
 }
 
 
@@ -669,4 +674,19 @@ QSet<Location> Database::allLocations() const
     }
     delete it;
     return ret;
+}
+
+int Database::count() const
+{
+    int count = 0;
+    for (int i=0; i<NumConnectionTypes; ++i) {
+        iterator *it = createIterator(static_cast<ConnectionType>(i));
+        if (it->isValid()) {
+            do {
+                ++count;
+            } while (it->next());
+        }
+        delete it;
+    }
+    return count;
 }

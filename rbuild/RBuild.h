@@ -44,7 +44,7 @@ private:
         Update
     };
     bool openDB(Mode mode);
-    void closeDB();
+    int closeDB();
 private:
     RBuildPrivate* mData;
     friend class CompileRunnable;
