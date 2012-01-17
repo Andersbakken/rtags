@@ -24,8 +24,9 @@ public:
     void addIncludePaths(const QList<Path> &path);
     void addDefines(const QList<QByteArray> &define);
     void setDBPath(const Path &path);
-    bool buildDB(const Path& makefile, const Path &sourceDir);
-    void buildDB(const QList<Path> &sources);
+    bool buildDB(const QList<Path> &makefiles,
+                 const QList<Path> &sourceFiles,
+                 const Path &sourceDir);
     bool updateDB();
 signals:
     void compileFinished();

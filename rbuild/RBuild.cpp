@@ -69,57 +69,60 @@ void RBuild::setDBPath(const Path &path)
     mData->dbPath = path;
 }
 
-bool RBuild::buildDB(const Path& makefile, const Path &sourceDir)
+bool RBuild::buildDB(const QList<Path> &makefiles,
+                     const QList<Path> &sources,
+                     const Path &sourceDir)
 {
-    if (!makefile.isFile()) {
-        fprintf(stderr, "%s is not a file\n", makefile.constData());
-        return false;
-    }
     mData->sourceDir = sourceDir.isEmpty() ? Path(".") : sourceDir;
     mData->sourceDir.resolve();
     if (!mData->sourceDir.isDir()) {
         fprintf(stderr, "%s is not a directory\n", sourceDir.constData());
         return false;
     }
-    mData->makefileDone = false;
     if (!mData->sourceDir.endsWith('/'))
         mData->sourceDir.append('/');
 
-    connect(&mData->parser, SIGNAL(fileReady(const GccArguments&)),
-            this, SLOT(processFile(const GccArguments&)));
-    connect(&mData->parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
-    mData->parser.run(makefile);
+    bool ok = false;
+    foreach(const Path &makefile, makefiles) {
+        if (makefile.isFile()) {
+            MakefileParser *parser = new MakefileParser(this);
+            connect(parser, SIGNAL(fileReady(const GccArguments&)),
+                    this, SLOT(processFile(const GccArguments&)));
+            connect(parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
+            mData->makefileParsers.insert(parser);
+            parser->run(makefile);
+            ok = true;
+        } else {
+            qWarning("%s is not a Makefile", makefile.constData());
+            return false;
+        }
+    }
+    foreach(const Path &source, sources) {
+        if (source.isFile()) {
+            ++mData->pendingJobs;
+            QList<QByteArray> args;
+            args << "-cc1";
+            const GccArguments::Language lang = GccArguments::guessLanguage(source);
+            if (lang != GccArguments::LangUndefined) {
+                args << "-x" << GccArguments::languageString(lang);
+            }
+            mData->threadPool.start(new CompileRunnable(this, source, args));
+            ok = true;
+        } else {
+            qWarning("%s is not a file", source.constData());
+            return false;
+        }
+    }
+
+    if (!ok) {
+        qWarning("Nothing to do");
+        return false;
+    }
     QEventLoop loop;
     connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
     loop.exec();
     save();
     return true;
-}
-
-void RBuild::buildDB(const QList<Path> &sources)
-{
-    mData->sourceDir = Path::resolved(".");
-    if (!mData->sourceDir.isDir()) {
-        fprintf(stderr, "%s is not a directory\n", mData->sourceDir.constData());
-        return;
-    }
-    if (!mData->sourceDir.endsWith('/'))
-        mData->sourceDir.append('/');
-
-    mData->pendingJobs += sources.size();
-    foreach(const Path &path, sources) {
-        QList<QByteArray> args;
-        args << "-cc1";
-        const GccArguments::Language lang = GccArguments::guessLanguage(path);
-        if (lang != GccArguments::LangUndefined) {
-            args << "-x" << GccArguments::languageString(lang);
-        }
-        mData->threadPool.start(new CompileRunnable(this, path, args));
-    }
-    QEventLoop loop;
-    connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
-    loop.exec();
-    save();
 }
 
 bool RBuild::updateDB()
@@ -636,7 +639,7 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file)
 
 void RBuild::onCompileFinished()
 {
-    if (!--mData->pendingJobs && mData->makefileDone)
+    if (!--mData->pendingJobs && mData->makefileParsers.isEmpty())
         emit finishedCompiling();
 }
 
@@ -696,7 +699,9 @@ void RBuild::addIncludePaths(const QList<Path> &paths)
 }
 void RBuild::onMakefileDone()
 {
-    mData->makefileDone = true;
-    if (!mData->pendingJobs)
+    MakefileParser *parser = qobject_cast<MakefileParser*>(sender());
+    mData->makefileParsers.remove(parser);
+    parser->deleteLater();
+    if (mData->makefileParsers.isEmpty() && !mData->pendingJobs)
         emit finishedCompiling();
 }

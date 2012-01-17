@@ -29,19 +29,18 @@ struct PendingReference
 struct RBuildPrivate
 {
     RBuildPrivate()
-        : makefileDone(true), flags(0), db(0), pendingJobs(0), index(0)
+        : flags(0), db(0), pendingJobs(0), index(0)
     {
         Location::files() = &filesByName;
     }
 
-    bool makefileDone;
     unsigned flags;
     QHash<QByteArray, Entity> entities;
     QList<PendingReference> pendingReferences;
     QHash<Path, unsigned> filesByName;
     Database *db;
     Path sourceDir, dbPath;
-    MakefileParser parser;
+    QSet<MakefileParser*> makefileParsers;
     int pendingJobs;
     CXIndex index;
     QList<GccArguments> files;
