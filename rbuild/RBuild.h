@@ -16,7 +16,8 @@ public:
     enum Flag {
         NoFlags = 0x0,
         DontIndex = 0x1,
-        DontClang = 0x2|DontIndex
+        DontClang = 0x2|DontIndex,
+        DebugAllSymbols = 0x4
     };
     RBuild(unsigned flags, QObject *parent = 0);
     ~RBuild();

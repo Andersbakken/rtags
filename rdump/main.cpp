@@ -193,29 +193,31 @@ static inline void rdump(Database *db)
         Database::iterator *it = db->createIterator(static_cast<Database::ConnectionType>(i));
         if (it->isValid()) {
             do {
-                const QByteArray key(it->key().constData(), it->key().size());
-                QByteArray coolKey;
+                const QByteArray key = it->key();
                 if (i == Database::Targets || (i == Database::References && key.endsWith(":"))
                     || i == Database::ExtraDeclarations) {
-                    coolKey = db->locationToString(locationFromKey(it->key())) + ' ';
+                    printf("%s '%s' => %d bytes",
+                           names[i],
+                           db->locationToString(locationFromKey(it->key())).constData(),
+                           it->value().size());
+                } else {
+                    printf("%s '%s' => %d bytes", names[i], key.constData(), it->value().size());
                 }
-                printf("%s '%s' %s=> %d bytes", names[i], key.constData(), coolKey.constData(), it->value().size());
                 if (it->value().size() == 4) {
                     int t = it->value<int>();
                     printf(" (%d)\n", t);
                 } else {
                     switch (i) {
                     case Database::Targets:
-                        printf(" (%s => %s)\n",
-                               db->locationToString(locationFromKey(key)).constData(),
-                               db->locationToString(it->value<Location>()).constData());
+                        printf(" (%s)\n", db->locationToString(it->value<Location>()).constData());
                         break;
                     case Database::General:
                         if (key == "files") {
-                            printf("\n");
+                            printf("\n    ");
                             foreach(const Path &file, it->value<QSet<Path> >()) {
-                                printf("    %s\n", file.constData());
+                                printf("%s ", file.constData());
                             }
+                            printf("\n");
                         } else if (key == "filesByName") {
                             printf("\n");
                             const QHash<Path, int> filesToIndex = it->value<QHash<Path, int> >();
@@ -233,11 +235,14 @@ static inline void rdump(Database *db)
                                 foreach(const QByteArray &arg, src.args) {
                                     printf(" %s", arg.constData());
                                 }
-                                printf("\nDependencies:\n");
-                                for (QHash<Path, quint64>::const_iterator it = src.dependencies.begin();
-                                     it != src.dependencies.end(); ++it) {
-                                    printf("      %s (%s)\n", it.key().constData(),
-                                           qPrintable(QDateTime::fromTime_t(it.value()).toString()));
+                                printf("\n");
+                                if (!src.dependencies.isEmpty()) {
+                                    printf("      Dependencies:\n");
+                                    for (QHash<Path, quint64>::const_iterator it = src.dependencies.begin();
+                                         it != src.dependencies.end(); ++it) {
+                                        printf("          %s (%s)\n", it.key().constData(),
+                                               qPrintable(QDateTime::fromTime_t(it.value()).toString()));
+                                    }
                                 }
                             }
                         } else {
@@ -289,7 +294,6 @@ int main(int argc, char** argv)
     Mmap::init();
 
     int opt;
-    char newLine = '\n';
     enum Mode {
         Normal,
         Expect,

@@ -12,13 +12,16 @@ static inline void usage(const char* argv0, FILE *f)
     fprintf(f,
             "%s [options]...\n"
             "  --help|-h                  Display this help\n"
-            "  --db-file|-d [arg]         Use this database file\n"
+            "  --db-file|-b [arg]         Use this database file\n"
             "  --update|-u                Update database\n"
             "  --source-dir|-s [arg]      Recurse this directory\n"
             "  --dont-clang|-c            Don't actually do much of anything\n"
             "  --dont-index|-i            Call clang_indexSourceFile but don't pass any callbacks\n"
             "  --db-type|-t [arg]         Type of db (leveldb or filedb)\n"
-            "  --source|-S                Treat input as source file regardless of extension\n",
+            "  --source|-S                Treat input as source file regardless of extension\n"
+            "  --includepath|-I [arg]     Add this includepath to all source files\n"
+            "  --define|-D [arg]          Add this define to all files\n"
+            "  --debug|-d                 Print debug info\n",
             argv0);
 }
 
@@ -67,7 +70,7 @@ int main(int argc, char** argv)
     struct option longOptions[] = {
         { "help", no_argument, 0, 'h' },
         { "update", no_argument, 0, 'u' },
-        { "db-file", required_argument, 0, 'd' },
+        { "db-file", required_argument, 0, 'b' },
         { "source-dir", required_argument, 0, 's' },
         { "db-type", required_argument, 0, 't' },
         { "dont-clang", no_argument, 0, 'c' },
@@ -75,19 +78,23 @@ int main(int argc, char** argv)
         { "includepath", required_argument, 0, 'I' },
         { "define", required_argument, 0, 'D' },
         { "source", no_argument, 0, 'S' },
+        { "debug", no_argument, 0, 'd' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hud:s:t:ciI:D:S";
-
+    const QByteArray shortOptions = RTags::shortOptions(longOptions);
     QList<Path> includePaths;
     QList<QByteArray> defines;
     int idx, longIndex;
     bool treatInputAsSourceOverride = false;
-    while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
+    while ((idx = getopt_long(argc, argv, shortOptions.constData(),
+                              longOptions, &longIndex)) != -1) {
         switch (idx) {
         case '?':
             usage(argv[0], stderr);
             return 1;
+        case 'd':
+            flags |= RBuild::DebugAllSymbols;
+            break;
         case 'I':
             includePaths += Path::resolved(optarg);
             break;
@@ -112,14 +119,14 @@ int main(int argc, char** argv)
         case 'u':
             update = true;
             break;
-        case 'd':
+        case 'b':
             db = QByteArray(optarg);
             break;
         case 't':
             setenv("RTAGS_DB_TYPE", optarg, 1);
             break;
         default:
-            printf("%s\n", optarg);
+            printf("%c not found\n", idx);
             break;
         }
     }
@@ -184,7 +191,6 @@ int main(int argc, char** argv)
             if (makefile.isFile())
                 makefiles.append(makefile);
         }
-        qDebug() << makefiles << sourceFiles << srcDir;
         if (!build.buildDB(makefiles, sourceFiles, srcDir))
             return 1;
     }

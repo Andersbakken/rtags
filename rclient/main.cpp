@@ -189,8 +189,7 @@ int main(int argc, char** argv)
         { "sort-output", no_argument, 0, 'o' },
         { 0, 0, 0, 0 },
     };
-    const char *shortOptions = "hf:d:r:l::Dps:P::nt:a:NSo";
-
+    const QByteArray shortOptions = RTags::shortOptions(longOptions);
     Mmap::init();
 
     QList<QByteArray> dbPaths;
@@ -209,7 +208,7 @@ int main(int argc, char** argv)
     int idx, longIndex;
     QByteArray arg;
     opterr = 0;
-    while ((idx = getopt_long(argc, argv, shortOptions, longOptions, &longIndex)) != -1) {
+    while ((idx = getopt_long(argc, argv, shortOptions.constData(), longOptions, &longIndex)) != -1) {
         switch (idx) {
         case '?':
             usage(argv[0], stderr);

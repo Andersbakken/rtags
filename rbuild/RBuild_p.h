@@ -19,11 +19,8 @@ struct Entity {
     Location definition;
     QSet<Location> declarations, references, extraDeclarations;
 };
-
-struct PendingReference
-{
+struct PendingReference {
     QByteArray usr, specialized;
-    Location location;
 };
 
 struct RBuildPrivate
@@ -36,7 +33,8 @@ struct RBuildPrivate
 
     unsigned flags;
     QHash<QByteArray, Entity> entities;
-    QList<PendingReference> pendingReferences;
+
+    QHash<Location, PendingReference> pendingReferences;
     QHash<Path, unsigned> filesByName;
     Database *db;
     Path sourceDir, dbPath;

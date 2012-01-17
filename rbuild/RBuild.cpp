@@ -17,7 +17,6 @@
 using namespace RTags;
 
 static QElapsedTimer timer;
-int threadPoolSize = -1;
 
 class CompileRunnable : public QRunnable
 {
@@ -33,8 +32,7 @@ public:
         const qint64 before = timer.elapsed();
         rbuild->compile(args, path);
         const qint64 elapsed = timer.elapsed();
-        fprintf(stderr, "parsed %s, (%lld ms) (%lld)\n", path.constData(),
-                elapsed - before, (elapsed - before) / threadPoolSize);
+        fprintf(stderr, "parsed %s, (%lld ms)\n", path.constData(), elapsed - before);
     }
 private:
     RBuild *rbuild;
@@ -52,7 +50,6 @@ RBuild::RBuild(unsigned flags, QObject *parent)
         if (threads > 0)
             mData->threadPool.setMaxThreadCount(threads);
     }
-    threadPoolSize = mData->threadPool.maxThreadCount();
     RTags::systemIncludes(); // force creation before any threads are spawned
     connect(this, SIGNAL(compileFinished()), this, SLOT(onCompileFinished()));
     timer.start();
@@ -201,6 +198,7 @@ void RBuild::save()
 
 static inline bool add(const GccArguments &args, QList<GccArguments> &list)
 {
+#warning this one only works on GccArguments, should have a class I can more easily construct from source file and args
     const Path input = args.input();
     QSet<QByteArray> defines;
     foreach(const GccArguments &a, list) {
@@ -403,10 +401,23 @@ static inline Location createLocation(const CXCursor &c, QHash<Path, unsigned> &
     return loc;
 }
 
+struct UserData {
+    RBuildPrivate *p;
+    Path file;
+};
 
 static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
 {
-    RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(userData);
+    RBuildPrivate *p = reinterpret_cast<UserData*>(userData)->p;
+    if (p->flags & RBuild::DebugAllSymbols) {
+        CXFile f;
+        unsigned l, c;
+        clang_indexLoc_getFileLocation(decl->loc, 0, &f, &l, &c, 0);
+        Path p = Path::resolved(eatString(clang_getFileName(f)));
+        printf("%s:%d:%d: %s %s\n",
+               p.constData(), l, c, kindToString(decl->entityInfo->kind), decl->entityInfo->name);
+    }
+
     QMutexLocker lock(&p->entryMutex); // ### is this the right place to lock?
 
     Entity &e = p->entities[decl->entityInfo->USR];
@@ -465,107 +476,47 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
     
 }
 
-static inline void indexEntityReference(CXClientData userData, const CXIdxEntityRefInfo *ref)
+static inline void indexReference(CXClientData userData, const CXIdxEntityRefInfo *ref)
 {
-    RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(userData);
+    RBuildPrivate *p = reinterpret_cast<UserData*>(userData)->p;
+    if (p->flags & RBuild::DebugAllSymbols) {
+        CXFile f, f2;
+        unsigned l, c, l2, c2;
+        clang_indexLoc_getFileLocation(ref->loc, 0, &f, &l, &c, 0);
+        CXSourceLocation loc = clang_getCursorLocation(ref->referencedEntity->cursor);
+        clang_getInstantiationLocation(loc, &f2, &l2, &c2, 0);
+        const Path p = Path::resolved(eatString(clang_getFileName(f)));
+        const Path p2 = Path::resolved(eatString(clang_getFileName(f2)));
+        printf("%s:%d:%d: ref of %s %s %s:%d:%d\n",
+               p.constData(), l, c,
+               kindToString(ref->referencedEntity->kind),
+               ref->referencedEntity->name,
+               p2.constData(), l2, c2);
+    }
+    
     QMutexLocker lock(&p->entryMutex);
     const Location loc = createLocation(ref->loc, p->filesByName);
     CXCursor spec = clang_getSpecializedCursorTemplate(ref->referencedEntity->cursor);
-    PendingReference r;
-    r.location = loc;
-    r.usr = ref->referencedEntity->USR;
-    if (!clang_isInvalid(clang_getCursorKind(spec))) {
-        CXString u = clang_getCursorUSR(spec);
-        r.specialized = clang_getCString(u);
-        clang_disposeString(u);
+    PendingReference &r = p->pendingReferences[loc];
+    if (r.usr.isEmpty()) {
+        r.usr = ref->referencedEntity->USR;
+        if (!clang_isInvalid(clang_getCursorKind(spec)))
+            r.specialized = eatString(clang_getCursorUSR(spec));
     }
-
-    p->pendingReferences.append(r);
 }
 
-template <typename T>
-QDebug operator<<(QDebug dbg, const QVarLengthArray<T> &arr)
-{
-    dbg.nospace() << "QVarLengthArray(";
-    for (int i=0; i<arr.size(); ++i) {
-        if (i > 0)
-            dbg.nospace() << ", ";
-        dbg.nospace() << arr.at(i);
-    }
-    dbg.nospace() << ")";
-    return dbg.space();
-}
-
-static inline CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData data)
-{
-    bool ref = false;
-    switch (clang_getCursorKind(cursor)) {
-    case CXCursor_ParmDecl:
-    case CXCursor_VarDecl:
-        break;
-    case CXCursor_DeclRefExpr:
-        ref = true;
-        break;
-    default:
-        return CXChildVisit_Recurse;
-    }
-
-    RBuildPrivate *p = reinterpret_cast<RBuildPrivate*>(data);
-    if (ref) {
-        CXCursor referenced = clang_getCursorReferenced(cursor);
-        switch (clang_getCursorKind(referenced)) {
-        case CXCursor_ParmDecl:
-        case CXCursor_VarDecl:
-            break;
-        default:
-            return CXChildVisit_Recurse;
-        }
-        QMutexLocker lock(&p->entryMutex);
-        const Location loc = createLocation(cursor, p->filesByName);
-        p->entities[eatString(clang_getCursorUSR(referenced))].references.insert(loc);
-    } else {
-        Entity &e = p->entities[eatString(clang_getCursorUSR(cursor))];
-        if (e.name.isEmpty()) {
-            CXString nm = clang_getCursorDisplayName(cursor); // this one gives us args
-            e.name = clang_getCString(nm);
-            clang_disposeString(nm);
-            e.kind = CXIdxEntity_Variable;
-            CXCursor parent = cursor;
-            forever {
-                parent = clang_getCursorSemanticParent(parent);
-                const CXCursorKind k = clang_getCursorKind(parent);
-                if (clang_isInvalid(k))
-                    break;
-                CXString str = clang_getCursorDisplayName(parent);
-                const char *cstr = clang_getCString(str);
-                if (!cstr || !strlen(cstr)) {
-                    clang_disposeString(str);
-                    break;
-                }
-                switch (k) {
-                case CXCursor_StructDecl:
-                case CXCursor_ClassDecl:
-                case CXCursor_Namespace:
-                    e.parentNames.prepend(cstr);
-                    break;
-                default:
-                    break;
-                }
-                clang_disposeString(str);
-            }
-        }
-        e.definition = createLocation(cursor, p->filesByName);
-    }
-
-    return CXChildVisit_Recurse;
-}
-
-static inline void diagnostic(CXClientData, CXDiagnosticSet set, void *)
+static inline void diagnostic(CXClientData userdata, CXDiagnosticSet set, void *)
 {
     const int count = clang_getNumDiagnosticsInSet(set);
+    const static bool verbose = getenv("VERBOSE");
     for (int i=0; i<count; ++i) {
         CXDiagnostic diagnostic = clang_getDiagnosticInSet(set, i);
-        fprintf(stderr, "%s\n", eatString(clang_getDiagnosticSpelling(diagnostic)).constData());
+        if (verbose || clang_getDiagnosticSeverity(diagnostic) >= CXDiagnostic_Error) {
+
+            fprintf(stderr, "%s: %s\n",
+                    reinterpret_cast<UserData*>(userdata)->file.constData(),
+                    eatString(clang_formatDiagnostic(diagnostic, 0xff)).constData());
+        }
         clang_disposeDiagnostic(diagnostic);
     }
 }
@@ -594,7 +545,7 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file)
         cb.diagnostic = diagnostic;
         if ((mData->flags & DontIndex) != DontIndex) {
             cb.indexDeclaration = indexDeclaration;
-            cb.indexEntityReference = indexEntityReference;
+            cb.indexEntityReference = indexReference;
         }
 
         CXIndexAction action = clang_IndexAction_create(mData->index);
@@ -609,7 +560,8 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file)
             fprintf(stderr, "%s\n", file.constData());
         }
 
-        clang_indexSourceFile(action, mData, &cb, sizeof(IndexerCallbacks),
+        UserData userData = { mData, file };
+        clang_indexSourceFile(action, &userData, &cb, sizeof(IndexerCallbacks),
                               CXIndexOpt_IndexFunctionLocalSymbols, file.constData(),
                               clangArgs.constData(), argCount,
                               0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
@@ -663,15 +615,16 @@ int RBuild::closeDB()
 }
 void RBuild::writeEntities()
 {
-    foreach(const PendingReference &ref, mData->pendingReferences) {
-        QHash<QByteArray, Entity>::iterator it = mData->entities.find(ref.usr);
-        if (it == mData->entities.end())
-            it = mData->entities.find(ref.specialized);
-        if (it == mData->entities.end()) {
-            qDebug() << "Can't find this reference anywhere" << ref.usr << ref.specialized
-                     << ref.location;
+    for (QHash<Location, PendingReference>::const_iterator it = mData->pendingReferences.begin();
+         it != mData->pendingReferences.end(); ++it) {
+        const PendingReference &ref = it.value();
+        QHash<QByteArray, Entity>::iterator i = mData->entities.find(ref.usr);
+        if (i == mData->entities.end())
+            i = mData->entities.find(ref.specialized);
+        if (i == mData->entities.end()) {
+            qDebug() << "Can't find this reference anywhere" << ref.usr << ref.specialized << it.key();
         } else {
-            it.value().references.insert(ref.location);
+            i.value().references.insert(it.key());
         }
     }
 
