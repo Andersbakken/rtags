@@ -11,17 +11,19 @@ static inline void usage(const char* argv0, FILE *f)
 {
     fprintf(f,
             "%s [options]...\n"
-            "  --help|-h                  Display this help\n"
-            "  --db-file|-b [arg]         Use this database file\n"
-            "  --update|-u                Update database\n"
-            "  --source-dir|-s [arg]      Recurse this directory\n"
-            "  --dont-clang|-c            Don't actually do much of anything\n"
-            "  --dont-index|-i            Call clang_indexSourceFile but don't pass any callbacks\n"
-            "  --db-type|-t [arg]         Type of db (leveldb or filedb)\n"
-            "  --source|-S                Treat input as source file regardless of extension\n"
-            "  --includepath|-I [arg]     Add this includepath to all source files\n"
-            "  --define|-D [arg]          Add this define to all files\n"
-            "  --debug|-d                 Print debug info\n",
+            "  --help|-h                              Display this help\n"
+            "  --db-file|-b [arg]                     Use this database file\n"
+            "  --update|-u                            Update database\n"
+            "  --source-dir|-s [arg]                  Recurse this directory\n"
+            "  --dont-clang|-c                        Don't actually do much of anything\n"
+            "  --dont-index|-i                        Call clang_indexSourceFile but don't pass any callbacks\n"
+            "  --db-type|-t [arg]                     Type of db (leveldb or filedb)\n"
+            "  --source|-S                            Treat input as source file regardless of extension\n"
+            "  --includepath|-I [arg]                 Add this includepath to all source files\n"
+            "  --define|-D [arg]                      Add this define to all files\n"
+            "  --debug|-d                             Print debug info\n"
+            "  --disable-pch|-p                       Disable the use of pch\n"
+            "  --enable-system-header-dependencies|-H Add dependencies for system headers\n",
             argv0);
 }
 
@@ -109,6 +111,12 @@ int main(int argc, char** argv)
             break;
         case 'i':
             flags |= RBuild::DontIndex;
+            break;
+        case 'H':
+            flags |= RBuild::EnableSystemHeaderDependencies;
+            break;
+        case 'p':
+            flags |= RBuild::DisablePCH;
             break;
         case 's':
             srcDir = optarg;

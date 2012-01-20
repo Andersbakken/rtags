@@ -14,10 +14,12 @@ class RBuild : public QObject
     Q_OBJECT
 public:
     enum Flag {
-        NoFlags = 0x0,
-        DontIndex = 0x1,
-        DontClang = 0x2|DontIndex,
-        DebugAllSymbols = 0x4
+        NoFlags = 0x00,
+        DontIndex = 0x01,
+        DontClang = 0x02|DontIndex,
+        DebugAllSymbols = 0x04,
+        DisablePCH = 0x08,
+        EnableSystemHeaderDependencies = 0x10
     };
     RBuild(unsigned flags, QObject *parent = 0);
     ~RBuild();

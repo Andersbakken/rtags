@@ -325,12 +325,14 @@ static inline bool isSource(const AtomicString &str)
 }
 
 struct InclusionUserData {
-    InclusionUserData(QHash<Path, quint64> &deps, const QList<QByteArray> &sysInclude)
-        : dependencies(deps), systemIncludes(sysInclude)
+    InclusionUserData(QHash<Path, quint64> &deps,
+                      const QList<QByteArray> &sysInclude,
+                      bool ignoreSysIncludes)
+        : dependencies(deps), systemIncludes(sysInclude), ignoreSystemIncludes(ignoreSysIncludes)
     {}
-    QList<Path> directIncludes;
     QHash<Path, quint64> &dependencies;
     const QList<QByteArray> &systemIncludes;
+    const bool ignoreSystemIncludes;
 };
 
 static inline bool isSystemInclude(const Path &header, const QList<QByteArray> &systemIncludes)
@@ -351,16 +353,18 @@ static inline void getInclusions(CXFile includedFile,
         InclusionUserData *u = reinterpret_cast<InclusionUserData*>(userData);
         CXString str = clang_getFileName(includedFile);
         const char *cstr = clang_getCString(str);
-        if (strncmp("/usr/", cstr, 5) != 0) {
+        if (!u->ignoreSystemIncludes || strncmp("/usr/", cstr, 5) != 0) {
             const Path p = Path::resolved(cstr);
-            bool sysInclude = false;
-            foreach(const QByteArray &systemInclude, u->systemIncludes) {
-                if (!strncmp(p.constData(), systemInclude.constData() + 2, systemInclude.size() - 2)) {
-                    sysInclude = true;
-                    break;
+            bool add = true;
+            if (u->ignoreSystemIncludes) {
+                foreach(const QByteArray &systemInclude, u->systemIncludes) {
+                    if (!strncmp(p.constData(), systemInclude.constData() + 2, systemInclude.size() - 2)) {
+                        add = false;
+                        break;
+                    }
                 }
             }
-            if (!sysInclude) {
+            if (add) {
                 u->dependencies[p] = p.lastModified();
             }
         }
@@ -608,7 +612,8 @@ bool RBuild::compile(const QList<QByteArray> &args, const Path &file, const Path
             ret = false;
         } else {
             Source src = { file, args, file.lastModified(), QHash<Path, quint64>() };
-            InclusionUserData u(src.dependencies, systemIncludes);
+            InclusionUserData u(src.dependencies, systemIncludes,
+                                !(mData->flags & EnableSystemHeaderDependencies));
             clang_getInclusions(unit, getInclusions, &u);
             {
                 QMutexLocker lock(&mData->mutex); // ### is this the right place to lock?
@@ -701,7 +706,7 @@ void RBuild::onMakefileDone()
 
 bool RBuild::pch(const GccArguments &pch)
 {
-    if (getenv("RTAGS_DISABLE_PCH"))
+    if (mData->flags & DisablePCH)
         return false;
     QByteArray output = pch.output();
     int idx = output.indexOf(".gch");
@@ -717,11 +722,6 @@ bool RBuild::pch(const GccArguments &pch)
         mData->pch[output] = QByteArray();
     }
 
-
-    // qDebug() << output;
-    // qDebug() << pch.input() << pch.output() << pch.languageString();
-    // exit(0);
-
     QList<QByteArray> args = pch.clangArgs();
     args << "-emit-pch";
     char tmp[128];
@@ -733,7 +733,7 @@ bool RBuild::pch(const GccArguments &pch)
     }
     ++mData->pendingJobs;
     const bool ok = compile(args, pch.input(), tmp);
-    printf("pch %s => %d\n", pch.input().constData(), ok);
+    printf("pch %s %s\n", pch.input().constData(), output.constData());
     QMutexLocker lock(&mData->mutex);
     if (ok) {
         mData->pch[output] = tmp;
