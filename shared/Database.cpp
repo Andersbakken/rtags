@@ -298,11 +298,17 @@ Location Database::followLocation(const Location &source) const
 
 Location Database::findSuper(const Location &location) const
 {
-    return read<Location>(Super, location);
+    Location ret = read<Location>(Super, location);
+    if (!ret.file)
+        ret = read<Location>(Super, followLocation(location));
+    return ret;
 }
 QSet<Location> Database::findSubs(const Location &location) const
 {
-    return read<QSet<Location> >(Subs, location);
+    QSet<Location> ret = read<QSet<Location> >(Subs, location);
+    if (ret.isEmpty())
+        ret = read<QSet<Location> >(Subs, followLocation(location));
+    return ret;
 }
 
 QSet<Location> Database::findReferences(const Location &source) const
