@@ -95,19 +95,28 @@ bool RBuild::buildDB(const QList<Path> &makefiles,
         }
     }
     foreach(const Path &source, sources) {
-        if (source.isFile()) {
-            ++mData->pendingJobs;
-            QList<QByteArray> args;
-            args << "-cc1";
-            const GccArguments::Language lang = GccArguments::guessLanguage(source);
-            if (lang != GccArguments::LangUndefined) {
-                args << "-x" << GccArguments::languageString(lang);
-            }
-            mData->threadPool.start(new CompileRunnable(this, source, args));
-            ok = true;
-        } else {
+        if (!source.isFile()) {
             qWarning("%s is not a file", source.constData());
             return false;
+        }
+            
+        const GccArguments::Language lang = GccArguments::guessLanguage(source);
+        char buf[1024];
+        const int written = snprintf(buf, 1024, "gcc %s%s %s",
+                                     lang != GccArguments::LangUndefined ? "-x" : "",
+                                     (lang != GccArguments::LangUndefined
+                                      ? GccArguments::languageString(lang)
+                                      : ""),
+                                     source.constData());
+        Q_ASSERT(written < 1024);
+
+        GccArguments args;
+        if (!args.parse(QByteArray(buf, written))) {
+            qWarning("Couldn't parse %s", buf);
+            return false;
+        } else {
+            processFile(args);
+            ok = true;
         }
     }
 
@@ -196,24 +205,6 @@ void RBuild::save()
             elapsed, elapsed - beforeWriting, mData->threadPool.maxThreadCount());
 }
 
-static inline bool add(const GccArguments &args, QList<GccArguments> &list)
-{
-#warning this one only works on GccArguments, should have a class I can more easily construct from source file and args
-    const Path input = args.input();
-    QSet<QByteArray> defines;
-    foreach(const GccArguments &a, list) {
-        if (a.input() == input && args.language() == a.language()) {
-            if (defines.isEmpty())
-                defines = args.arguments("-D").toSet();
-            if (a.arguments("-D").toSet() == defines) {
-                return false;
-            }
-        }
-    }
-    list.append(args);
-    return true;
-}
-
 void RBuild::processFile(const GccArguments& arguments)
 {
     switch (arguments.language()) {
@@ -224,8 +215,18 @@ void RBuild::processFile(const GccArguments& arguments)
     default:
         break;
     }
-    if (!add(arguments, mData->files))
-        return; // dupe
+    const Path input = arguments.input();
+    QSet<QByteArray> defines;
+    foreach(const GccArguments &a, mData->files) {
+        if (a.input() == input && arguments.language() == a.language()) {
+            if (defines.isEmpty())
+                defines = arguments.arguments("-D").toSet();
+            if (a.arguments("-D").toSet() == defines) {
+                return; // duplicate
+            }
+        }
+    }
+    mData->files.append(arguments);
 
     ++mData->pendingJobs;
     QList<QByteArray> clangArgs = arguments.clangArgs();
