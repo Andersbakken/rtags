@@ -733,6 +733,7 @@ bool RBuild::pch(const GccArguments &pch)
 {
     if (mData->flags & DisablePCH)
         return false;
+    const qint64 before = timer.elapsed();
     QByteArray output = pch.output();
     int idx = output.indexOf(".gch");
     if (idx != -1) {
@@ -759,10 +760,11 @@ bool RBuild::pch(const GccArguments &pch)
     close(id);
     ++mData->pendingJobs;
     const bool ok = compile(args, pch.input(), tmp);
-    printf("pch %s %s\n", pch.input().constData(), output.constData());
     QMutexLocker lock(&mData->mutex);
     if (ok) {
         mData->pch[output] = tmp;
+        const qint64 elapsed = timer.elapsed() - before;
+        printf("pch %s %s (%lld ms)\n", pch.input().constData(), output.constData(), elapsed);
     } else {
         mData->pch.remove(output);
     }
