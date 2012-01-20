@@ -544,10 +544,6 @@ void Database::writeEntity(const QByteArray &symbolName,
     }
 
     if (!symbolName.isEmpty()) {
-        if (symbolName == "Count") {
-            qDebug() << declarations << definition << extraDeclarations
-                     << references << parentNames;
-        }
         QSet<Location> locations = declarations;
         if (definition.file)
             locations.insert(definition);
