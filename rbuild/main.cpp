@@ -23,7 +23,8 @@ static inline void usage(const char* argv0, FILE *f)
             "  --define|-D [arg]                      Add this define to all files\n"
             "  --debug|-d                             Print debug info\n"
             "  --disable-pch|-p                       Disable the use of pch\n"
-            "  --enable-system-header-dependencies|-H Add dependencies for system headers\n",
+            "  --enable-system-header-dependencies|-H Add dependencies for system headers\n"
+            "  --verbose|-v                           Be verbose\n",
             argv0);
 }
 
@@ -81,6 +82,7 @@ int main(int argc, char** argv)
         { "define", required_argument, 0, 'D' },
         { "source", no_argument, 0, 'S' },
         { "debug", no_argument, 0, 'd' },
+        { "verbose", no_argument, 0, 'v' },
         { 0, 0, 0, 0 },
     };
     const QByteArray shortOptions = RTags::shortOptions(longOptions);
@@ -114,6 +116,9 @@ int main(int argc, char** argv)
             break;
         case 'H':
             flags |= RBuild::EnableSystemHeaderDependencies;
+            break;
+        case 'v':
+            flags |= RBuild::Verbose;
             break;
         case 'p':
             flags |= RBuild::DisablePCH;
@@ -180,7 +185,7 @@ int main(int argc, char** argv)
         const Path appPath = Path::resolved(QDir::currentPath().toLocal8Bit(), Path(), &ok);
         if (!ok)
             qFatal("Unable to resolve initial path");
-        
+
         for (int i=optind; i<argc; ++i) {
             if (!strcmp("-", argv[i])) {
                 QFile file;

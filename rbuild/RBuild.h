@@ -12,14 +12,15 @@ struct RBuildPrivate;
 class RBuild : public QObject
 {
     Q_OBJECT
-public:
+    public:
     enum Flag {
         NoFlags = 0x00,
         DontIndex = 0x01,
         DontClang = 0x02|DontIndex,
         DebugAllSymbols = 0x04,
         DisablePCH = 0x08,
-        EnableSystemHeaderDependencies = 0x10
+        EnableSystemHeaderDependencies = 0x10,
+        Verbose = 0x20
     };
     RBuild(unsigned flags, QObject *parent = 0);
     ~RBuild();
@@ -43,6 +44,9 @@ private:
     static void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl);
     static void indexReference(CXClientData userData, const CXIdxEntityRefInfo *ref);
     static void diagnostic(CXClientData userdata, CXDiagnosticSet set, void *);
+    static void getInclusions(CXFile includedFile, CXSourceLocation* inclusionStack,
+                              unsigned inclusionStackLen, CXClientData userData);
+
     bool pch(const GccArguments &pch);
     bool compile(const QList<QByteArray> &args, const Path &file,
                  const Path &output = Path());

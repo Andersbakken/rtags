@@ -99,7 +99,7 @@ bool RBuild::buildDB(const QList<Path> &makefiles,
             qWarning("%s is not a file", source.constData());
             return false;
         }
-            
+
         const GccArguments::Language lang = GccArguments::guessLanguage(source);
         char buf[1024];
         const int written = snprintf(buf, 1024, "gcc %s%s %s",
@@ -150,9 +150,11 @@ bool RBuild::updateDB()
         for (QHash<Path, quint64>::const_iterator it = source.dependencies.constBegin();
              it != source.dependencies.constEnd(); ++it) {
             if (dirty.contains(it.key())) {
+                // qDebug() << source.path << "is dirty";
                 dirtySource = true;
             } else if (it.key().lastModified() != it.value()) {
                 dirty.insert(it.key());
+                // qDebug() << source.path << "is dirty2";
                 dirtySource = true;
             }
         }
@@ -160,6 +162,7 @@ bool RBuild::updateDB()
             dirty.insert(source.path);
             reparse.append(&sources[i]);
         } else {
+            // qDebug() << source.path << "is not dirty";
             mData->sources.append(source);
         }
     }
@@ -326,14 +329,16 @@ static inline bool isSource(const AtomicString &str)
 }
 
 struct InclusionUserData {
-    InclusionUserData(QHash<Path, quint64> &deps,
-                      const QList<QByteArray> &sysInclude,
-                      bool ignoreSysIncludes)
-        : dependencies(deps), systemIncludes(sysInclude), ignoreSystemIncludes(ignoreSysIncludes)
+    InclusionUserData(unsigned fl,
+                      const Path &f,
+                      QHash<Path, quint64> &deps,
+                      const QList<QByteArray> &sysInclude)
+        : flags(fl), file(f), dependencies(deps), systemIncludes(sysInclude)
     {}
+    const unsigned flags;
+    const Path &file;
     QHash<Path, quint64> &dependencies;
     const QList<QByteArray> &systemIncludes;
-    const bool ignoreSystemIncludes;
 };
 
 static inline bool isSystemInclude(const Path &header, const QList<QByteArray> &systemIncludes)
@@ -345,19 +350,31 @@ static inline bool isSystemInclude(const Path &header, const QList<QByteArray> &
     return false;
 }
 
-static inline void getInclusions(CXFile includedFile,
-                                 CXSourceLocation* /*inclusionStack*/,
-                                 unsigned inclusionStackLen,
-                                 CXClientData userData)
+void RBuild::getInclusions(CXFile includedFile,
+                           CXSourceLocation* inclusionStack,
+                           unsigned inclusionStackLen,
+                           CXClientData userData)
 {
+    InclusionUserData *u = reinterpret_cast<InclusionUserData*>(userData);
+    if (u->flags & Verbose) {
+        printf("getInclusions %s %d for %s\n",
+               eatString(clang_getFileName(includedFile)).constData(),
+               inclusionStackLen, u->file.constData());
+        for (unsigned i=0; i<inclusionStackLen; ++i) {
+            CXFile f;
+            clang_getSpellingLocation(inclusionStack[i], &f, 0, 0, 0);
+            printf("    %d/%d %s\n", i + 1, inclusionStackLen,
+                   eatString(clang_getFileName(f)).constData());
+        }
+    }
+
     if (inclusionStackLen) {
-        InclusionUserData *u = reinterpret_cast<InclusionUserData*>(userData);
         CXString str = clang_getFileName(includedFile);
         const char *cstr = clang_getCString(str);
-        if (!u->ignoreSystemIncludes || strncmp("/usr/", cstr, 5) != 0) {
+        if (!(u->flags & EnableSystemHeaderDependencies) || strncmp("/usr/", cstr, 5) != 0) {
             const Path p = Path::resolved(cstr);
             bool add = true;
-            if (u->ignoreSystemIncludes) {
+            if (!(u->flags & EnableSystemHeaderDependencies)) {
                 foreach(const QByteArray &systemInclude, u->systemIncludes) {
                     if (!strncmp(p.constData(), systemInclude.constData() + 2, systemInclude.size() - 2)) {
                         add = false;
@@ -373,11 +390,10 @@ static inline void getInclusions(CXFile includedFile,
     }
 }
 
-static inline bool diagnose(CXTranslationUnit unit)
+static inline bool diagnose(CXTranslationUnit unit, bool verbose)
 {
     if (!unit)
         return false;
-    const bool verbose = (getenv("VERBOSE") != 0);
     bool foundError = false;
     const unsigned int numDiags = clang_getNumDiagnostics(unit);
     for (unsigned int i = 0; i < numDiags; ++i) {
@@ -531,7 +547,7 @@ void RBuild::indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
             Q_ASSERT(e.symbolName.startsWith('~'));
             ++loc.column; // this is just for renameSymbol purposes
         }
-        
+
         Q_ASSERT(decl->semanticContainer);
         CXString usr = clang_getCursorUSR(decl->semanticContainer->cursor);
         p->entities[clang_getCString(usr)].extraDeclarations.insert(loc);
@@ -539,7 +555,7 @@ void RBuild::indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
     default:
         break;
     }
-    
+
 }
 
 void RBuild::indexReference(CXClientData userData, const CXIdxEntityRefInfo *ref)
@@ -559,7 +575,7 @@ void RBuild::indexReference(CXClientData userData, const CXIdxEntityRefInfo *ref
                ref->referencedEntity->name,
                p2.constData(), l2, c2);
     }
-    
+
     QMutexLocker lock(&p->mutex);
     const Location loc = createLocation(ref->loc, p->filesByName);
     CXCursor spec = clang_getSpecializedCursorTemplate(ref->referencedEntity->cursor);
@@ -574,7 +590,7 @@ void RBuild::indexReference(CXClientData userData, const CXIdxEntityRefInfo *ref
 void RBuild::diagnostic(CXClientData userdata, CXDiagnosticSet set, void *)
 {
     const int count = clang_getNumDiagnosticsInSet(set);
-    const static bool verbose = getenv("VERBOSE");
+    const bool verbose = reinterpret_cast<UserData*>(userdata)->p->flags & Verbose;
     for (int i=0; i<count; ++i) {
         CXDiagnostic diagnostic = clang_getDiagnosticInSet(set, i);
         if (verbose || clang_getDiagnosticSeverity(diagnostic) >= CXDiagnostic_Error) {
@@ -616,7 +632,7 @@ bool RBuild::compile(const QList<QByteArray> &args, const Path &file, const Path
 
         CXIndexAction action = clang_IndexAction_create(mData->index);
         CXTranslationUnit unit = 0;
-        const bool verbose = (getenv("VERBOSE") != 0);
+        const bool verbose = (mData->flags & Verbose);
 
         if (verbose) {
             fprintf(stderr, "clang ");
@@ -643,9 +659,9 @@ bool RBuild::compile(const QList<QByteArray> &args, const Path &file, const Path
             ret = false;
         } else {
             Source src = { file, args, file.lastModified(), QHash<Path, quint64>() };
-            InclusionUserData u(src.dependencies, systemIncludes,
-                                !(mData->flags & EnableSystemHeaderDependencies));
+            InclusionUserData u(mData->flags, file, src.dependencies, systemIncludes);
             clang_getInclusions(unit, getInclusions, &u);
+            // qDebug() << file << "depends on" << src.dependencies.keys();
             {
                 QMutexLocker lock(&mData->mutex); // ### is this the right place to lock?
                 mData->sources.append(src);
@@ -655,6 +671,7 @@ bool RBuild::compile(const QList<QByteArray> &args, const Path &file, const Path
                 const int c = clang_saveTranslationUnit(unit, output.constData(), clang_defaultSaveOptions(unit));
                 if (c) {
                     qWarning("Couldn't save translation unit: %d", c);
+                    // This will likely upset things
                     ret = false;
                 }
             }
@@ -759,9 +776,13 @@ bool RBuild::pch(const GccArguments &pch)
     }
     close(id);
     ++mData->pendingJobs;
-    const bool ok = compile(args, pch.input(), tmp);
+    const Path header = pch.input();
+    const bool ok = compile(args, header, tmp);
     QMutexLocker lock(&mData->mutex);
     if (ok) {
+        unsigned &file = mData->filesByName[header];
+        if (!file)
+            file = mData->filesByName.size();
         mData->pch[output] = tmp;
         const qint64 elapsed = timer.elapsed() - before;
         printf("pch %s %s (%lld ms)\n", pch.input().constData(), output.constData(), elapsed);

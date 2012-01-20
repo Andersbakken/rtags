@@ -12,7 +12,7 @@ class MakefileParser : public QObject
 {
     Q_OBJECT
 public:
-    MakefileParser(QObject *parent = 0);
+    MakefileParser(bool verbose, QObject *parent = 0);
     ~MakefileParser();
 
     void run(const Path& makefile);
@@ -28,6 +28,7 @@ private:
     void processMakeLine(const QByteArray& line);
 
 private:
+    const bool mVerbose;
     QProcess* mProc;
     QByteArray mData;
     DirectoryTracker* mTracker;

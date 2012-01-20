@@ -66,8 +66,8 @@ void DirectoryTracker::leaveDirectory(const QByteArray& /*dir*/)
     // enterDirectory(dir);
 }
 
-MakefileParser::MakefileParser(QObject* parent)
-    : QObject(parent), mProc(0), mTracker(new DirectoryTracker)
+MakefileParser::MakefileParser(bool verbose, QObject* parent)
+    : QObject(parent), mVerbose(verbose), mProc(0), mTracker(new DirectoryTracker)
 {
 }
 
@@ -109,8 +109,7 @@ void MakefileParser::processMakeOutput()
 
 void MakefileParser::processMakeLine(const QByteArray &line)
 {
-    static bool verbose = getenv("VERBOSE");
-    if (verbose)
+    if (mVerbose)
         fprintf(stderr, "%s\n", line.constData());
     GccArguments args;
     if (args.parse(line, mTracker->path()) && args.isCompile()) {
