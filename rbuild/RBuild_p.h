@@ -43,10 +43,11 @@ struct RBuildPrivate
     CXIndex index;
     QList<GccArguments> files;
     QList<QByteArray> extraArgs;
+    QHash<QByteArray, Path> pch;
     QThreadPool threadPool;
 
     QList<Source> sources;
-    QMutex entryMutex;
+    QMutex mutex;
 
     inline int locationKey(const Location &loc, char buf[512]) const
     {

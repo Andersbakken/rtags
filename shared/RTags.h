@@ -12,6 +12,24 @@
 
 namespace RTags {
 
+static inline int readLine(FILE *f, char *buf, int max)
+{
+    assert(!buf == (max == -1));
+    if (max == -1)
+        max = INT_MAX;
+    for (int i=0; i<max; ++i) {
+        const int ch = fgetc(f);
+        if (ch == '\n' || ch == EOF) {
+            if (buf)
+                *buf = '\0';
+            return i;
+        }
+        if (buf)
+            *buf++ = *reinterpret_cast<const char*>(&ch);
+    }
+    return -1;
+}
+
 static inline QByteArray shortOptions(const option *longOptions)
 {
     QByteArray ret;

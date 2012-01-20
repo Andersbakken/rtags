@@ -131,15 +131,6 @@ int main(int argc, char** argv)
         }
     }
 
-    if (update && !srcDir.isEmpty()) {
-        fprintf(stderr, "Can't use --source-dir with --update");
-        return 1;
-    }
-    if (update && optind < argc) {
-        fprintf(stderr, "Can't use --update with inputs");
-        return 1;
-    }
-
     if (db.isEmpty()) {
         if (update) {
             db = findRtagsDb();
@@ -147,19 +138,34 @@ int main(int argc, char** argv)
             db = ".rtags.db";
         }
     }
-    if (update && !db.exists()) {
-        fprintf(stderr, "No db dir, exiting\n");
-        return 1;
-    }
-
     RBuild build(flags);
     build.setDBPath(db);
-    build.addDefines(defines);
-    build.addIncludePaths(includePaths);
 
     if (update) {
+        if (!db.exists()) {
+            fprintf(stderr, "No db dir, exiting\n");
+            return 1;
+        }
+        if (!srcDir.isEmpty()) {
+            fprintf(stderr, "Can't use --source-dir with --update\n");
+            return 1;
+        }
+        if (optind < argc) {
+            fprintf(stderr, "Can't use --update with inputs\n");
+            return 1;
+        }
+        if (!includePaths.isEmpty()) {
+            fprintf(stderr, "Can't use --update with -I\n");
+            return 1;
+        }
+        if (!defines.isEmpty()) {
+            fprintf(stderr, "Can't use --update with -D\n");
+            return 1;
+        }
         build.updateDB();
     } else {
+        build.addDefines(defines);
+        build.addIncludePaths(includePaths);
         QList<Path> sourceFiles;
         QList<Path> makefiles;
         bool ok;

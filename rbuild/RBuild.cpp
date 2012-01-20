@@ -51,7 +51,7 @@ RBuild::RBuild(unsigned flags, QObject *parent)
             mData->threadPool.setMaxThreadCount(threads);
     }
     RTags::systemIncludes(); // force creation before any threads are spawned
-    connect(this, SIGNAL(compileFinished()), this, SLOT(onCompileFinished()));
+    connect(this, SIGNAL(compileFinished(bool)), this, SLOT(onCompileFinished()));
     timer.start();
 }
 
@@ -216,10 +216,31 @@ static inline bool add(const GccArguments &args, QList<GccArguments> &list)
 
 void RBuild::processFile(const GccArguments& arguments)
 {
-    if (add(arguments, mData->files)) {
-        ++mData->pendingJobs;
-        mData->threadPool.start(new CompileRunnable(this, arguments.input(), arguments.clangArgs()));
+    switch (arguments.language()) {
+    case GccArguments::LangHeader:
+    case GccArguments::LangCPlusPlusHeader:
+        pch(arguments);
+        return;
+    default:
+        break;
     }
+    if (!add(arguments, mData->files))
+        return; // dupe
+
+    ++mData->pendingJobs;
+    QList<QByteArray> clangArgs = arguments.clangArgs();
+    {
+        QMutexLocker lock(&mData->mutex);
+        foreach(const QByteArray &inc, arguments.arguments("-include")) {
+            const Path p = mData->pch.value(inc);
+            if (!p.isFile()) {
+                mData->pch.remove(inc);
+            } else {
+                clangArgs << "-include-pch" << p;
+            }
+        }
+    }
+    mData->threadPool.start(new CompileRunnable(this, arguments.input(), clangArgs));
 }
 
 static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
@@ -418,7 +439,7 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
                p.constData(), l, c, kindToString(decl->entityInfo->kind), decl->entityInfo->name);
     }
 
-    QMutexLocker lock(&p->entryMutex); // ### is this the right place to lock?
+    QMutexLocker lock(&p->mutex); // ### is this the right place to lock?
 
     Entity &e = p->entities[decl->entityInfo->USR];
     Location loc = createLocation(decl->loc, p->filesByName);
@@ -494,7 +515,7 @@ static inline void indexReference(CXClientData userData, const CXIdxEntityRefInf
                p2.constData(), l2, c2);
     }
     
-    QMutexLocker lock(&p->entryMutex);
+    QMutexLocker lock(&p->mutex);
     const Location loc = createLocation(ref->loc, p->filesByName);
     CXCursor spec = clang_getSpecializedCursorTemplate(ref->referencedEntity->cursor);
     PendingReference &r = p->pendingReferences[loc];
@@ -521,9 +542,9 @@ static inline void diagnostic(CXClientData userdata, CXDiagnosticSet set, void *
     }
 }
 
-void RBuild::compile(const QList<QByteArray> &args, const Path &file)
+bool RBuild::compile(const QList<QByteArray> &args, const Path &file, const Path &output)
 {
-    // qDebug() << args << file << mData->extraArgs;
+    bool ret = true;
     if ((mData->flags & DontClang) != DontClang) {
         const QList<QByteArray> systemIncludes = RTags::systemIncludes();
         QVarLengthArray<const char *, 64> clangArgs(args.size()
@@ -565,6 +586,7 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file)
                               CXIndexOpt_IndexFunctionLocalSymbols, file.constData(),
                               clangArgs.constData(), argCount,
                               0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
+        // ### do we need incomplete for pch?
 
         if (!unit) {
             qWarning() << "Unable to parse unit for" << file;
@@ -573,20 +595,28 @@ void RBuild::compile(const QList<QByteArray> &args, const Path &file)
                 fprintf(stderr, "%c", i + 1 < argCount ? ' ' : '\n');
             }
 
-            return;
+            ret = false;
+        } else {
+            Source src = { file, args, file.lastModified(), QHash<Path, quint64>() };
+            InclusionUserData u(src.dependencies);
+            clang_getInclusions(unit, getInclusions, &u);
+            {
+                QMutexLocker lock(&mData->mutex); // ### is this the right place to lock?
+                mData->sources.append(src);
+            }
+            // qDebug() << input << mData->dependencies.last().dependencies.keys();
+            if (!output.isEmpty()) {
+                const int c = clang_saveTranslationUnit(unit, output.constData(), clang_defaultSaveOptions(unit));
+                if (c) {
+                    qWarning("Couldn't save translation unit: %d", c);
+                    ret = false;
+                }
+            }
+            clang_disposeTranslationUnit(unit);
         }
-        Source src = { file, args, file.lastModified(), QHash<Path, quint64>() };
-        InclusionUserData u(src.dependencies);
-        clang_getInclusions(unit, getInclusions, &u);
-        {
-            QMutexLocker lock(&mData->entryMutex); // ### is this the right place to lock?
-            mData->sources.append(src);
-        }
-        // qDebug() << input << mData->dependencies.last().dependencies.keys();
-        clang_disposeTranslationUnit(unit);
-
     }
-    emit compileFinished();
+    emit compileFinished(ret);
+    return ret;
 }
 
 void RBuild::onCompileFinished()
@@ -657,4 +687,47 @@ void RBuild::onMakefileDone()
     parser->deleteLater();
     if (mData->makefileParsers.isEmpty() && !mData->pendingJobs)
         emit finishedCompiling();
+}
+
+bool RBuild::pch(const GccArguments &pch)
+{
+    if (getenv("RTAGS_DISABLE_PCH"))
+        return false;
+    QByteArray output = pch.output();
+    int idx = output.indexOf(".gch");
+    if (idx != -1) {
+        output.remove(idx, output.size() - idx);
+    } else {
+        return false;
+    }
+    {
+        QMutexLocker lock(&mData->mutex);
+        if (mData->pch.contains(output))
+            return true;
+        mData->pch[output] = QByteArray();
+    }
+
+
+    // qDebug() << output;
+    // qDebug() << pch.input() << pch.output() << pch.languageString();
+    // exit(0);
+
+    QList<QByteArray> args = pch.clangArgs();
+    args << "-emit-pch";
+    char tmp[128];
+    strncpy(tmp, "/tmp/rtagspch.XXXXXX", 127);
+    mktemp(tmp);
+#warning dont use mktemp
+    if (!tmp || !strlen(tmp)) {
+        return false;
+    }
+    const bool ok = compile(args, pch.input(), tmp);
+    printf("pch %s => %d\n", pch.input().constData(), ok);
+    QMutexLocker lock(&mData->mutex);
+    if (ok) {
+        mData->pch[output] = tmp;
+    } else {
+        mData->pch.remove(output);
+    }
+    return ok;
 }

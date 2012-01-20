@@ -282,13 +282,14 @@ bool GccArguments::isCompile() const
     // ### This should perhaps account for gcc commands that both compile and link at once
     if ((m_ptr->c != -1 && m_ptr->output != -1 && !m_ptr->input.isEmpty())
         || (m_ptr->c != -1 && m_ptr->output == -1 && !m_ptr->input.isEmpty())) {
-        switch (language()) {
-        case LangCPlusPlusHeader:
-        case LangHeader:
-            return false;
-        default:
-            return true;
-        }
+        // switch (language()) {
+        // case LangCPlusPlusHeader:
+        // case LangHeader:
+        //     return false;
+        // default:
+        //     return true;
+        // }
+        return true;
     }
     return false;
 }

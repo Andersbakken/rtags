@@ -30,7 +30,7 @@ public:
                  const Path &sourceDir);
     bool updateDB();
 signals:
-    void compileFinished();
+    void compileFinished(bool ok);
     void finishedCompiling();
 private slots:
     void onMakefileDone();
@@ -38,7 +38,9 @@ private slots:
     void onCompileFinished();
     void save();
 private:
-    void compile(const QList<QByteArray> &args, const Path &file);
+    bool pch(const GccArguments &pch);
+    bool compile(const QList<QByteArray> &args, const Path &file,
+                 const Path &output = Path());
     void writeData();
     void writeEntities();
     enum Mode {

@@ -75,21 +75,6 @@ public:
     }
 
 private:
-    static inline int readLine(FILE *f, char *buf, int max)
-    {
-        assert(!buf == (max == -1));
-        if (max == -1)
-            max = INT_MAX;
-        for (int i=0; i<max; ++i) {
-            const int ch = fgetc(f);
-            if (ch == '\n' || ch == EOF)
-                return i;
-            if (buf)
-                *buf++ = *reinterpret_cast<const char*>(&ch);
-        }
-        return -1;
-    }
-
     inline QByteArray printLocationImpl(const Location &loc, const Database *db, unsigned flags)
     {
         Q_ASSERT(loc.file);
