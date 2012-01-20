@@ -150,7 +150,13 @@ static inline void writeExpect(Database *db)
 
 static inline void raw(Database *db)
 {
-    const char *names[] = { "General: [", "Dictionary: [", "References: [", "Targets: [", "ExtraDeclarations: [" };
+    const char *names[] = { "General: [",
+                            "Dictionary: [",
+                            "References: [",
+                            "Targets: [",
+                            "ExtraDeclarations: [",
+                            "Super: [",
+                            "Subs: [" };
     QFile f("db.dump");
     if (!f.open(QIODevice::WriteOnly)) {
         fprintf(stderr, "Can't open %s for writing\n", qPrintable(f.fileName()));
@@ -195,23 +201,43 @@ static inline void raw(Database *db)
     }
 }
 
-static inline void rdump(Database *db, Mode mode)
+static inline void rdump(Database *db, Mode mode, const QByteArray &filter)
 {
-    const char *names[] = { "General", "Dictionary", "References", "Targets", "ExtraDeclarations" };
+    const char *names[] = { "General", "Dictionary", "References", "Targets",
+                            "ExtraDeclarations", "Super", "Subs" };
     int tot = 0;
     for (int i=0; i<Database::NumConnectionTypes; ++i) {
+        if (!filter.isEmpty()) {
+            const QByteArray name = names[i];
+            if (!filter.contains(name) && !name.contains(filter)) {
+                continue;
+            }
+        }
         Database::iterator *it = db->createIterator(static_cast<Database::ConnectionType>(i));
         if (it->isValid()) {
             do {
                 ++tot;
                 const QByteArray key = it->key();
-                if (i == Database::Targets || (i == Database::References && key.endsWith(":"))
-                    || i == Database::ExtraDeclarations) {
+                bool didCoolKey = false;
+                switch (i) {
+                case Database::References:
+                    if (!key.endsWith(':'))
+                        break;
+                    // fall through
+                case Database::Targets:
+                case Database::ExtraDeclarations:
+                case Database::Subs:
+                case Database::Super:
+                    didCoolKey = true;
                     printf("%s '%s' => %d bytes",
                            names[i],
                            db->locationToString(locationFromKey(it->key())).constData(),
                            it->value().size());
-                } else {
+                    break;
+                default:
+                    break;
+                }
+                if (!didCoolKey) {
                     printf("%s '%s' => %d bytes", names[i], key.constData(), it->value().size());
                 }
                 if (mode == KeysOnly) {
@@ -225,6 +251,7 @@ static inline void rdump(Database *db, Mode mode)
                 } else {
                     switch (i) {
                     case Database::Targets:
+                    case Database::Super:
                         printf(" (%s)\n", db->locationToString(it->value<Location>()).constData());
                         break;
                     case Database::General:
@@ -289,6 +316,7 @@ static inline void rdump(Database *db, Mode mode)
                         break; }
                     case Database::References:
                     case Database::ExtraDeclarations:
+                    case Database::Subs:
                         printf("\n");
                         foreach(const Location &l, it->value<QSet<Location> >())
                             printf("    %s\n", db->locationToString(l).constData());
@@ -311,7 +339,8 @@ int main(int argc, char** argv)
 
     Mode mode = Normal;
     int opt;
-    while ((opt = getopt(argc, argv, "hrevck")) != -1) {
+    QByteArray filter;
+    while ((opt = getopt(argc, argv, "hrevckf:")) != -1) {
         switch (opt) {
         case 'r':
             mode = Raw;
@@ -328,10 +357,13 @@ int main(int argc, char** argv)
         case 'v':
             mode = Validate;
             break;
+        case 'f':
+            filter = optarg;
+            break;
         case '?':
         case 'h':
         default:
-            fprintf(stderr, "rdump -[hrevck]\n");
+            fprintf(stderr, "rdump -[hrevck][-f filter]\n");
             return 0;
         }
     }
@@ -359,7 +391,7 @@ int main(int argc, char** argv)
             break;
         case Normal:
         case KeysOnly:
-            rdump(db, mode);
+            rdump(db, mode, filter);
             break;
         case Count:
             printf("%d entries\n", db->count());

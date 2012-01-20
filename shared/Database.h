@@ -28,6 +28,15 @@ static inline uint qHash(const QList<QByteArray> &scope)
     return ret;
 }
 
+struct Entity {
+    Entity() : kind(CXIdxEntity_Unexposed) {}
+    QByteArray symbolName;
+    QList<QByteArray> parentNames;
+    CXIdxEntityKind kind;
+    Location definition, super;
+    QSet<Location> declarations, references, extraDeclarations, subs;
+};
+
 class Database
 {
 public:
@@ -52,12 +61,7 @@ public:
     QSet<Location> findReferences(const Location &location) const;
     QSet<Location> findSymbol(const QByteArray &symbolName) const;
     QList<QByteArray> listSymbols(const QByteArray &filter = QByteArray()) const;
-    void writeEntity(const QByteArray &symbolName,
-                     const QList<QByteArray> &parentNames,
-                     const Location &definition,
-                     const QSet<Location> &declarations,
-                     QSet<Location> extraDeclarations,
-                     QSet<Location> references);
+    void writeEntity(const Entity &entity);
     QList<Location> allReferences(const Location &locations) const;
     QSet<Location> allLocations() const; // slow, for tests
 
@@ -77,6 +81,8 @@ public:
         References,
         Targets,
         ExtraDeclarations,
+        Super,
+        Subs,
         NumConnectionTypes
     };
 

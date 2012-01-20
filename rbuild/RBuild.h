@@ -40,6 +40,9 @@ private slots:
     void onCompileFinished();
     void save();
 private:
+    static void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl);
+    static void indexReference(CXClientData userData, const CXIdxEntityRefInfo *ref);
+    static void diagnostic(CXClientData userdata, CXDiagnosticSet set, void *);
     bool pch(const GccArguments &pch);
     bool compile(const QList<QByteArray> &args, const Path &file,
                  const Path &output = Path());

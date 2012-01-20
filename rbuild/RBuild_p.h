@@ -11,14 +11,6 @@
 #include <Location.h>
 #include <Database.h>
 
-struct Entity {
-    Entity() : kind(CXIdxEntity_Unexposed) {}
-    QByteArray name;
-    QList<QByteArray> parentNames;
-    CXIdxEntityKind kind;
-    Location definition;
-    QSet<Location> declarations, references, extraDeclarations;
-};
 struct PendingReference {
     QByteArray usr, specialized;
 };

@@ -459,25 +459,25 @@ Location Database::createLocation(const QByteArray &arg, const Path &cwd)
     return loc;
 }
 
-void Database::writeEntity(const QByteArray &symbolName,
-                           const QList<QByteArray> &parentNames,
-                           const Location &definition,
-                           const QSet<Location> &declarations,
-                           QSet<Location> extraDeclarations,
-                           QSet<Location> references)
+void Database::writeEntity(const Entity &entity)
 {
-    if (!definition.file && declarations.isEmpty() && extraDeclarations.isEmpty()) {
-        qDebug() << "why does this happen" << symbolName << parentNames << definition << declarations
-                 << extraDeclarations << references;
+    if (!entity.definition.file
+        && entity.declarations.isEmpty()
+        && entity.extraDeclarations.isEmpty()) {
+        qDebug() << "why does this happen" << entity.symbolName << entity.parentNames << entity.definition
+                 << entity.declarations << entity.extraDeclarations << entity.references
+                 << entity.super << entity.subs;
         return;
     }
+    QSet<Location> references = entity.references;
+    QSet<Location> extraDeclarations = entity.extraDeclarations;
 
     int refIdx = 0;
     if (mMode == ReadWrite) {
-        if (definition.file)
-            refIdx = mRefs.value(definition, 0);
+        if (entity.definition.file)
+            refIdx = mRefs.value(entity.definition, 0);
         if (!refIdx) {
-            foreach(const Location &l, declarations) {
+            foreach(const Location &l, entity.declarations) {
                 refIdx = mRefs.value(l, 0);
                 if (refIdx)
                     break;
@@ -498,14 +498,14 @@ void Database::writeEntity(const QByteArray &symbolName,
         }
         write(References, refIdx, references);
         Location loc;
-        if (definition.file) {
-            loc = definition;
+        if (entity.definition.file) {
+            loc = entity.definition;
         } else if (mMode == ReadWrite) {
-            Q_ASSERT(!declarations.isEmpty());
-            loc = followLocation(*declarations.begin());
+            Q_ASSERT(!entity.declarations.isEmpty());
+            loc = followLocation(*entity.declarations.begin());
         }
-        if (!loc.file && declarations.size() == 1) {
-            loc = *declarations.begin();
+        if (!loc.file && entity.declarations.size() == 1) {
+            loc = *entity.declarations.begin();
         }
         if (loc.file) {
             for (QSet<Location>::const_iterator it = references.begin(); it != references.end(); ++it) {
@@ -514,41 +514,53 @@ void Database::writeEntity(const QByteArray &symbolName,
         }
     }
     // qDebug() << definition.file << refIdx << declarations.size() << "funky" << symbolName;
-    if (definition.file && (refIdx || !declarations.isEmpty() || !extraDeclarations.isEmpty())) {
-        const QByteArray key = encodeKey(definition);
-        switch (declarations.size()) {
+    if (entity.definition.file && (refIdx || !entity.declarations.isEmpty()
+                                   || !extraDeclarations.isEmpty()
+                                   || entity.super.file
+                                   || !entity.subs.isEmpty())) {
+        const QByteArray key = encodeKey(entity.definition);
+        switch (entity.declarations.size()) {
         case 0:
             break;
         case 1:
-            write(Targets, key, *declarations.begin());
+            write(Targets, key, *entity.declarations.begin());
             break;
         default:
-            extraDeclarations += declarations;
+            extraDeclarations += entity.declarations;
             break;
         }
         if (refIdx)
             write(References, key, refIdx);
         if (!extraDeclarations.isEmpty())
             write(ExtraDeclarations, key, extraDeclarations);
+        if (entity.super.file)
+            write(Super, key, entity.super);
+        if (!entity.subs.isEmpty())
+            write(Subs, key, entity.subs);
     }
 
-
-    if (definition.file || refIdx) {
-        foreach(const Location &declaration, declarations) {
+    if (entity.definition.file || refIdx || !entity.subs.isEmpty() || entity.super.file) {
+        foreach(const Location &declaration, entity.declarations) {
             const QByteArray key = encodeKey(declaration);
-            if (definition.file)
-                write(Targets, key, definition);
+            if (entity.definition.file)
+                write(Targets, key, entity.definition);
             if (refIdx)
                 write(References, key, refIdx);
+            if (!entity.definition.file) {
+                if (entity.super.file)
+                    write(Super, key, entity.super);
+                if (!entity.subs.isEmpty())
+                    write(Subs, key, entity.subs);
+            }
         }
     }
 
-    if (!symbolName.isEmpty()) {
-        QSet<Location> locations = declarations;
-        if (definition.file)
-            locations.insert(definition);
+    if (!entity.symbolName.isEmpty()) {
+        QSet<Location> locations = entity.declarations;
+        if (entity.definition.file)
+            locations.insert(entity.definition);
         QByteArray out;
-        mDictionary[symbolName][parentNames] += locations;
+        mDictionary[entity.symbolName][entity.parentNames] += locations;
     }
 }
 

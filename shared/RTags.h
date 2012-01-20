@@ -106,6 +106,7 @@ static inline const char *kindToString(CXIdxEntityKind kind)
 QByteArray kindToString(CXCursorKind kind);
 const char *completionChunkKindToString(int kind);
 bool locationFromString(const QByteArray &string, Path *path = 0, int *line = 0, int *column = 0);
+QByteArray cursorToString(CXCursor cursor);
 static inline QByteArray eatString(CXString string)
 {
     const QByteArray ret = clang_getCString(string);

@@ -442,7 +442,7 @@ struct UserData {
     Path file;
 };
 
-static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
+void RBuild::indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
 {
     RBuildPrivate *p = reinterpret_cast<UserData*>(userData)->p;
     if (p->flags & RBuild::DebugAllSymbols) {
@@ -450,8 +450,21 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
         unsigned l, c;
         clang_indexLoc_getFileLocation(decl->loc, 0, &f, &l, &c, 0);
         Path p = Path::resolved(eatString(clang_getFileName(f)));
-        printf("%s:%d:%d: %s %s\n",
-               p.constData(), l, c, kindToString(decl->entityInfo->kind), decl->entityInfo->name);
+        QByteArray extra;
+        if (decl->isDefinition)
+            extra += "definition ";
+        if (clang_isVirtualBase(decl->cursor))
+            extra += "isVirtualBase ";
+        CXCursor *overridden = 0;
+        unsigned count = 0;
+        clang_getOverriddenCursors(decl->cursor, &overridden, &count);
+        for (unsigned i=0; i<count; ++i) {
+            extra += cursorToString(overridden[i]) + ' ';
+        }
+        clang_disposeOverriddenCursors(overridden);
+        printf("%s:%d:%d: %s %s %s\n",
+               p.constData(), l, c, kindToString(decl->entityInfo->kind), decl->entityInfo->name,
+               extra.constData());
     }
 
     QMutexLocker lock(&p->mutex); // ### is this the right place to lock?
@@ -463,11 +476,28 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
     } else {
         e.declarations.insert(loc);
     }
-    if (e.name.isEmpty()) {
+    if (e.symbolName.isEmpty()) {
         CXString nm = clang_getCursorDisplayName(decl->cursor); // this one gives us args
-        e.name = clang_getCString(nm);
+        e.symbolName = clang_getCString(nm);
         clang_disposeString(nm);
         e.kind = decl->entityInfo->kind;
+        if (e.kind == CXIdxEntity_CXXInstanceMethod || CXIdxEntity_CXXDestructor) {
+            CXCursor *overridden = 0;
+            unsigned count = 0;
+            clang_getOverriddenCursors(decl->cursor, &overridden, &count);
+            if (count == 1) { // we don't care about multiple inheritance, we could just take first I guess?
+                const Location l = createLocation(overridden[0], p->filesByName);
+                e.super = l;
+                // qDebug() << "setting super for " << loc << "to" << l;
+                const QByteArray usr = eatString(clang_getCursorUSR(overridden[0]));
+                QHash<QByteArray, Entity>::iterator it = p->entities.find(usr);
+                if (it != p->entities.end()) {
+                    // qDebug() << "adding " << loc << "as sub for" << l;
+                    it.value().subs.insert(loc);
+                }
+            }
+            clang_disposeOverriddenCursors(overridden);
+        }
         CXCursor parent = decl->cursor;
         forever {
             parent = clang_getCursorSemanticParent(parent);
@@ -498,7 +528,7 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
     case CXIdxEntity_CXXConstructor:
     case CXIdxEntity_CXXDestructor: {
         if (e.kind == CXIdxEntity_CXXDestructor) {
-            Q_ASSERT(e.name.startsWith('~'));
+            Q_ASSERT(e.symbolName.startsWith('~'));
             ++loc.column; // this is just for renameSymbol purposes
         }
         
@@ -512,7 +542,7 @@ static inline void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *
     
 }
 
-static inline void indexReference(CXClientData userData, const CXIdxEntityRefInfo *ref)
+void RBuild::indexReference(CXClientData userData, const CXIdxEntityRefInfo *ref)
 {
     RBuildPrivate *p = reinterpret_cast<UserData*>(userData)->p;
     if (p->flags & RBuild::DebugAllSymbols) {
@@ -541,7 +571,7 @@ static inline void indexReference(CXClientData userData, const CXIdxEntityRefInf
     }
 }
 
-static inline void diagnostic(CXClientData userdata, CXDiagnosticSet set, void *)
+void RBuild::diagnostic(CXClientData userdata, CXDiagnosticSet set, void *)
 {
     const int count = clang_getNumDiagnosticsInSet(set);
     const static bool verbose = getenv("VERBOSE");
@@ -674,14 +704,8 @@ void RBuild::writeEntities()
         }
     }
 
-    for (QHash<QByteArray, Entity>::const_iterator it = mData->entities.begin(); it != mData->entities.end(); ++it) {
-        const Entity &entity = it.value();
-        // qDebug() << "writing entity" << entity.name
-        //          << entity.definition
-        //          << entity.declarations
-        //          << entity.references;
-        mData->db->writeEntity(entity.name, entity.parentNames, entity.definition,
-                               entity.declarations, entity.extraDeclarations, entity.references);
+    foreach(const Entity &entity, mData->entities) {
+        mData->db->writeEntity(entity);
     }
 }
 // ### it's only legal to call these before any compilation has started

@@ -112,6 +112,12 @@ QDebug operator<<(QDebug dbg, const leveldb::Slice &slice)
 
 QDebug operator<<(QDebug dbg, CXCursor cursor)
 {
+    dbg << cursorToString(cursor);
+    return dbg;
+}
+
+QByteArray cursorToString(CXCursor cursor)
+{
     CXFile file;
     unsigned int line, col, off;
     CXSourceLocation loc = clang_getCursorLocation(cursor);
@@ -121,16 +127,16 @@ QDebug operator<<(QDebug dbg, CXCursor cursor)
     CXString kind = clang_getCursorKindSpelling(clang_getCursorKind(cursor));
     CXString templateKind = clang_getCursorKindSpelling(clang_getTemplateCursorKind(cursor));
     CXString usr = clang_getCursorUSR(cursor);
-    dbg << clang_getCString(name) << clang_getCString(kind)
-        << clang_getCString(templateKind)
-        << clang_getCString(usr)
-        << QString("%1:%2:%3").arg(clang_getCString(filename)).arg(line).arg(col);
+    char buf[1024];
+    snprintf(buf, 1024, "%s %s %s %s %s:%d:%d", clang_getCString(name), clang_getCString(kind),
+             clang_getCString(templateKind), clang_getCString(usr),
+             clang_getCString(filename), line, col);
     clang_disposeString(name);
     clang_disposeString(kind);
     clang_disposeString(filename);
     clang_disposeString(templateKind);
     clang_disposeString(usr);
-    return dbg;
+    return buf;
 }
 
 QList<QByteArray> &systemIncludes()

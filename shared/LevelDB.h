@@ -123,8 +123,10 @@ public:
                 case References: p += "/references"; break;
                 case Targets: p += "/targets"; break;
                 case ExtraDeclarations: p += "/extradeclarations"; break;
-                default: Q_ASSERT(0); break;
+                case Super: p += "/super"; break;
+                case Subs: p += "/subs"; break;
                 }
+                Q_ASSERT(p != path);
                 const leveldb::Status status = leveldb::DB::Open(dbOptions, p.constData(), &mDatabases[i]);
                 if (!status.ok()) {
                     fprintf(stderr, "Unable to open db [%s]: %s\n", p.constData(), status.ToString().c_str());
