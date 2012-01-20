@@ -325,36 +325,46 @@ static inline bool isSource(const AtomicString &str)
 }
 
 struct InclusionUserData {
-    InclusionUserData(QHash<Path, quint64> &deps)
-        : dependencies(deps)
+    InclusionUserData(QHash<Path, quint64> &deps, const QList<QByteArray> &sysInclude)
+        : dependencies(deps), systemIncludes(sysInclude)
     {}
     QList<Path> directIncludes;
     QHash<Path, quint64> &dependencies;
+    const QList<QByteArray> &systemIncludes;
 };
 
+static inline bool isSystemInclude(const Path &header, const QList<QByteArray> &systemIncludes)
+{
+    foreach(const QByteArray &systemInclude, systemIncludes) {
+        if (!strncmp(header.constData(), systemInclude.constData() + 2, systemInclude.size() - 2))
+            return true;
+    }
+    return false;
+}
+
 static inline void getInclusions(CXFile includedFile,
-                                 CXSourceLocation* inclusionStack,
-                                 unsigned evilUnsigned,
+                                 CXSourceLocation* /*inclusionStack*/,
+                                 unsigned inclusionStackLen,
                                  CXClientData userData)
 {
-    const int includeLen = evilUnsigned;
-    if (includeLen) {
+    if (inclusionStackLen) {
         InclusionUserData *u = reinterpret_cast<InclusionUserData*>(userData);
         CXString str = clang_getFileName(includedFile);
-        Path p = Path::resolved(clang_getCString(str));
-        u->dependencies[p] = p.lastModified();
-        clang_disposeString(str);
-        // printf("Included file %s %d\n", eatString(clang_getFileName(includedFile)).constData(), includeLen);
-        // qDebug() << includeLen;
-        for (int i=0; i<includeLen - 1; ++i) {
-            CXFile f;
-            clang_getSpellingLocation(inclusionStack[i], &f, 0, 0, 0);
-            str = clang_getFileName(f);
-            p = Path::resolved(clang_getCString(str));
-            u->dependencies.insert(p, p.lastModified());
-            clang_disposeString(str);
-            // printf("    %d %s\n", i, eatString(clang_getFileName(f)).constData());
+        const char *cstr = clang_getCString(str);
+        if (strncmp("/usr/", cstr, 5) != 0) {
+            const Path p = Path::resolved(cstr);
+            bool sysInclude = false;
+            foreach(const QByteArray &systemInclude, u->systemIncludes) {
+                if (!strncmp(p.constData(), systemInclude.constData() + 2, systemInclude.size() - 2)) {
+                    sysInclude = true;
+                    break;
+                }
+            }
+            if (!sysInclude) {
+                u->dependencies[p] = p.lastModified();
+            }
         }
+        clang_disposeString(str);
     }
 }
 
@@ -598,7 +608,7 @@ bool RBuild::compile(const QList<QByteArray> &args, const Path &file, const Path
             ret = false;
         } else {
             Source src = { file, args, file.lastModified(), QHash<Path, quint64>() };
-            InclusionUserData u(src.dependencies);
+            InclusionUserData u(src.dependencies, systemIncludes);
             clang_getInclusions(unit, getInclusions, &u);
             {
                 QMutexLocker lock(&mData->mutex); // ### is this the right place to lock?
