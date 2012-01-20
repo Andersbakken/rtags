@@ -2,6 +2,6 @@
 #define pch_h
 
 #include <string>
-#include <QByteArray>
+#include <foo.h>
 
 #endif

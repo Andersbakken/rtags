@@ -1,9 +1,9 @@
 #include <string>
-#include <QByteArray>
+#include <foo.h>
 
 int main()
 {
-    QByteArray bar = "123";
+    Foo f;
     std::string foo = "123";
     return 1;
 }

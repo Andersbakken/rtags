@@ -21,8 +21,8 @@ static QElapsedTimer timer;
 class CompileRunnable : public QRunnable
 {
 public:
-    CompileRunnable(RBuild *rb, const Path &p, const QList<QByteArray> &a)
-        : rbuild(rb), path(p), args(a)
+    CompileRunnable(RBuild *rb, const GccArguments &a)
+        : rbuild(rb), args(a)
     {
         setAutoDelete(true);
     }
@@ -30,28 +30,18 @@ public:
     virtual void run()
     {
         const qint64 before = timer.elapsed();
-        rbuild->compile(args, path);
+        rbuild->compile(args);
         const qint64 elapsed = timer.elapsed();
-        fprintf(stderr, "parsed %s, (%lld ms)\n", path.constData(), elapsed - before);
+        fprintf(stderr, "parsed %s, (%lld ms)\n", args.input().constData(), elapsed - before);
     }
 private:
     RBuild *rbuild;
-    const Path path;
-    const QList<QByteArray> args;
+    const GccArguments args;
 };
-
-static inline const Source* findSource(const QByteArray& filename, const QList<Source>& sources)
-{
-    foreach(const Source& source, sources) {
-        if (source.path == filename)
-            return &source;
-    }
-    return 0;
-}
 
 static inline bool isSourceDirty(const Source* source, QSet<Path>* dirty = 0)
 {
-    bool dirtySource = (source->path.lastModified() != source->lastModified);
+    bool dirtySource = (source->args.input().lastModified() != source->lastModified);
     for (QHash<Path, quint64>::const_iterator it = source->dependencies.constBegin();
          it != source->dependencies.constEnd(); ++it) {
         if (dirty && dirty->contains(it.key())) {
@@ -107,9 +97,9 @@ bool RBuild::buildDB(const QList<Path> &makefiles,
     bool ok = false;
     foreach(const Path &makefile, makefiles) {
         if (makefile.isFile()) {
-            MakefileParser *parser = new MakefileParser(this);
-            connect(parser, SIGNAL(fileReady(const GccArguments&)),
-                    this, SLOT(processFile(const GccArguments&)));
+            MakefileParser *parser = new MakefileParser(mData->flags & Verbose, this);
+            connect(parser, SIGNAL(fileReady(GccArguments)),
+                    this, SLOT(processFile(GccArguments)));
             connect(parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
             mData->makefileParsers.insert(parser);
             parser->run(makefile);
@@ -172,7 +162,7 @@ bool RBuild::updateDB()
     for (int i=0; i<sourceCount; ++i) {
         const Source &source = sources.at(i);
         if (isSourceDirty(&source, &dirty)) {
-            dirty.insert(source.path);
+            dirty.insert(source.args.input());
             reparse.append(&sources[i]);
         } else {
             mData->sources.append(source);
@@ -184,9 +174,8 @@ bool RBuild::updateDB()
     }
 
     mData->db->invalidateEntries(dirty);
-    mData->pendingJobs += reparse.size();
     foreach(Source *source, reparse) {
-        mData->threadPool.start(new CompileRunnable(this, source->path, source->args));
+        processFile(source->args);
     }
     QEventLoop loop;
     connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
@@ -244,19 +233,7 @@ void RBuild::processFile(const GccArguments& arguments)
     mData->files.append(arguments);
 
     ++mData->pendingJobs;
-    QList<QByteArray> clangArgs = arguments.clangArgs();
-    {
-        QMutexLocker lock(&mData->mutex);
-        foreach(const QByteArray &inc, arguments.arguments("-include")) {
-            const Path p = mData->pch.value(inc);
-            if (!p.isFile()) {
-                mData->pch.remove(inc);
-            } else {
-                clangArgs << "-include-pch" << p;
-            }
-        }
-    }
-    mData->threadPool.start(new CompileRunnable(this, arguments.input(), clangArgs));
+    mData->threadPool.start(new CompileRunnable(this, arguments));
 }
 
 static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
@@ -615,11 +592,35 @@ void RBuild::diagnostic(CXClientData userdata, CXDiagnosticSet set, void *)
     }
 }
 
-bool RBuild::compile(const QList<QByteArray> &args, const Path &file, const Path &output)
+bool RBuild::compile(const GccArguments &gccArgs, const Path &output)
 {
     bool ret = true;
     if ((mData->flags & DontClang) != DontClang) {
+        const Path file = gccArgs.input();
         const QList<QByteArray> systemIncludes = RTags::systemIncludes();
+        QList<QByteArray> args = gccArgs.clangArgs();
+        QHash<Path, quint64> pchDependencies;
+        {
+            QMutexLocker lock(&mData->mutex);
+            foreach(const QByteArray &inc, gccArgs.arguments("-include")) {
+                const QPair<Path, Path> p = mData->pch.value(inc);
+                if (!p.first.isFile()) {
+                    mData->pch.remove(inc);
+                } else {
+                    args << "-include-pch" << p.first;
+                    pchDependencies[p.second] = p.second.lastModified();
+                }
+            }
+        }
+        switch (gccArgs.language()) {
+        case GccArguments::LangCPlusPlusHeader:
+        case GccArguments::LangHeader:
+            args << "-emit-pch";
+            break;
+        default:
+            break;
+        }
+       
         QVarLengthArray<const char *, 64> clangArgs(args.size()
                                                     + mData->extraArgs.size()
                                                     + systemIncludes.size());
@@ -670,7 +671,7 @@ bool RBuild::compile(const QList<QByteArray> &args, const Path &file, const Path
 
             ret = false;
         } else {
-            Source src = { file, args, file.lastModified(), QHash<Path, quint64>() };
+            Source src = { gccArgs, file.lastModified(), pchDependencies };
             InclusionUserData u(mData->flags, file, src.dependencies, systemIncludes);
             clang_getInclusions(unit, getInclusions, &u);
             // qDebug() << file << "depends on" << src.dependencies.keys();
@@ -774,28 +775,27 @@ bool RBuild::pch(const GccArguments &pch)
         QMutexLocker lock(&mData->mutex);
         if (mData->pch.contains(output))
             return true;
-        mData->pch[output] = QByteArray();
+        mData->pch[output] = QPair<Path, Path>();
     }
 
-    QList<QByteArray> args = pch.clangArgs();
-    args << "-emit-pch";
     char tmp[128];
     strncpy(tmp, "/tmp/rtagspch.XXXXXX", 127);
     int id = mkstemp(tmp);
     if (id == -1) {
+        QMutexLocker lock(&mData->mutex);
         mData->pch.remove(output);
         return false;
     }
     close(id);
+
     ++mData->pendingJobs;
-    const Path header = pch.input();
-    const bool ok = compile(args, header, tmp);
+    const bool ok = compile(pch, tmp);
     QMutexLocker lock(&mData->mutex);
     if (ok) {
-        unsigned &file = mData->filesByName[header];
+        unsigned &file = mData->filesByName[pch.input()];
         if (!file)
             file = mData->filesByName.size();
-        mData->pch[output] = tmp;
+        mData->pch[output] = qMakePair(Path(tmp), pch.input());
         const qint64 elapsed = timer.elapsed() - before;
         printf("pch %s %s (%lld ms)\n", pch.input().constData(), output.constData(), elapsed);
     } else {

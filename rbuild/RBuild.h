@@ -48,8 +48,7 @@ private:
                               unsigned inclusionStackLen, CXClientData userData);
 
     bool pch(const GccArguments &pch);
-    bool compile(const QList<QByteArray> &args, const Path &file,
-                 const Path &output = Path());
+    bool compile(const GccArguments &args, const Path &output = Path());
     void writeData();
     void writeEntities();
     enum Mode {

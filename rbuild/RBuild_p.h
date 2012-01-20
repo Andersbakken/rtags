@@ -35,7 +35,7 @@ struct RBuildPrivate
     CXIndex index;
     QList<GccArguments> files;
     QList<QByteArray> extraArgs;
-    QHash<QByteArray, Path> pch;
+    QHash<QByteArray, QPair<Path, Path> > pch; // QPair(pch, header)
     QThreadPool threadPool;
 
     QList<Source> sources;
