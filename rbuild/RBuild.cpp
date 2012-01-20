@@ -726,11 +726,12 @@ bool RBuild::pch(const GccArguments &pch)
     args << "-emit-pch";
     char tmp[128];
     strncpy(tmp, "/tmp/rtagspch.XXXXXX", 127);
-    mktemp(tmp);
-#warning dont use mktemp
-    if (!strlen(tmp)) {
+    int id = mkstemp(tmp);
+    if (id == -1) {
+        mData->pch.remove(output);
         return false;
     }
+    close(id);
     ++mData->pendingJobs;
     const bool ok = compile(args, pch.input(), tmp);
     printf("pch %s %s\n", pch.input().constData(), output.constData());
