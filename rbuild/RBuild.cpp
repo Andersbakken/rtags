@@ -40,6 +40,31 @@ private:
     const QList<QByteArray> args;
 };
 
+static inline const Source* findSource(const QByteArray& filename, const QList<Source>& sources)
+{
+    foreach(const Source& source, sources) {
+        if (source.path == filename)
+            return &source;
+    }
+    return 0;
+}
+
+static inline bool isSourceDirty(const Source* source, QSet<Path>* dirty = 0)
+{
+    bool dirtySource = (source->path.lastModified() != source->lastModified);
+    for (QHash<Path, quint64>::const_iterator it = source->dependencies.constBegin();
+         it != source->dependencies.constEnd(); ++it) {
+        if (dirty && dirty->contains(it.key())) {
+            dirtySource = true;
+        } else if (it.key().lastModified() != it.value()) {
+            if (dirty)
+                dirty->insert(it.key());
+            dirtySource = true;
+        }
+    }
+    return dirtySource;
+}
+
 RBuild::RBuild(unsigned flags, QObject *parent)
     : QObject(parent), mData(new RBuildPrivate)
 {
@@ -146,23 +171,10 @@ bool RBuild::updateDB()
     const int sourceCount = sources.size();
     for (int i=0; i<sourceCount; ++i) {
         const Source &source = sources.at(i);
-        bool dirtySource = (source.path.lastModified() != source.lastModified);
-        for (QHash<Path, quint64>::const_iterator it = source.dependencies.constBegin();
-             it != source.dependencies.constEnd(); ++it) {
-            if (dirty.contains(it.key())) {
-                // qDebug() << source.path << "is dirty";
-                dirtySource = true;
-            } else if (it.key().lastModified() != it.value()) {
-                dirty.insert(it.key());
-                // qDebug() << source.path << "is dirty2";
-                dirtySource = true;
-            }
-        }
-        if (dirtySource) {
+        if (isSourceDirty(&source, &dirty)) {
             dirty.insert(source.path);
             reparse.append(&sources[i]);
         } else {
-            // qDebug() << source.path << "is not dirty";
             mData->sources.append(source);
         }
     }
