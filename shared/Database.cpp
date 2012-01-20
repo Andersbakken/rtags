@@ -71,6 +71,7 @@ bool Database::open(const Path &db, Mode mode)
     if (openDatabase(db, mode)) {
         mMode = mode;
         mPath = db;
+        mPath.resolve();
         for (int i=0; i<NumConnectionTypes; ++i) {
             mConnections[i] = createConnection(static_cast<ConnectionType>(i));
             Q_ASSERT(mConnections[i]);

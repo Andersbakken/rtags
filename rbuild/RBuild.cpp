@@ -39,6 +39,16 @@ private:
     const GccArguments args;
 };
 
+static inline bool removeGch(QByteArray &pch)
+{
+    const int idx = pch.indexOf(".gch");
+    if (idx != -1) {
+        pch.remove(idx, pch.size() - idx);
+        return true;
+    }
+    return false;
+}
+
 static inline bool isSourceDirty(const Source* source, QSet<Path>* dirty = 0)
 {
     bool dirtySource = (source->args.input().lastModified() != source->lastModified);
@@ -154,6 +164,7 @@ bool RBuild::updateDB()
     const int beforeCount = mData->db->count();
 #endif
     QList<Source> sources = mData->db->read<QList<Source> >("sources");
+    mData->pch = mData->db->read<QHash<QByteArray, QPair<Path, Path> > >("pch");
     mData->filesByName = mData->db->read<QHash<Path, unsigned> >("filesByName");
 
     QList<Source*> reparse;
@@ -162,6 +173,16 @@ bool RBuild::updateDB()
     for (int i=0; i<sourceCount; ++i) {
         const Source &source = sources.at(i);
         if (isSourceDirty(&source, &dirty)) {
+            switch (source.args.language()) {
+            case GccArguments::LangCPlusPlusHeader:
+            case GccArguments::LangHeader: {
+                QByteArray key = source.args.output();
+                if (removeGch(key))
+                    mData->pch.remove(key);
+                break; }
+            default:
+                break;
+            }
             dirty.insert(source.args.input());
             reparse.append(&sources[i]);
         } else {
@@ -276,6 +297,30 @@ void RBuild::writeData()
     mData->db->write("filesByName", mData->filesByName);
     writeEntities();
     mData->db->write("sources", mData->sources);
+    if (!mData->pch.isEmpty())
+        ::mkdir((mData->db->path() + "/pch").constData(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+
+
+    QHash<QByteArray, QPair<Path, Path> >::iterator it = mData->pch.begin();
+    while (it != mData->pch.end()) {
+        Path &pch = it.value().first;
+        Path p = mData->db->path();
+        QByteArray key = it.key();
+        key.replace('/', '_'); // hopefully this is always unique ###
+        p += "/pch/" + key;
+        if (p != pch) {
+            qDebug() << "need to move" << pch << "to" << p;
+            if (rename(pch.constData(), p.constData()) == -1) {
+                it = mData->pch.erase(it);
+                qWarning("Move error %s", strerror(errno));
+                continue;
+            }
+            pch = p;
+        }
+        ++it;
+    }
+
+    mData->db->write("pch", mData->pch);
     QSet<Path> allFiles;
 
     if (!mData->sourceDir.isEmpty()) {
@@ -765,12 +810,8 @@ bool RBuild::pch(const GccArguments &pch)
         return false;
     const qint64 before = timer.elapsed();
     QByteArray output = pch.output();
-    int idx = output.indexOf(".gch");
-    if (idx != -1) {
-        output.remove(idx, output.size() - idx);
-    } else {
+    if (!removeGch(output))
         return false;
-    }
     {
         QMutexLocker lock(&mData->mutex);
         if (mData->pch.contains(output))
