@@ -8,7 +8,7 @@ DEPENDPATH += .
 INCLUDEPATH += .
 
 # Input
-SOURCES += main.cpp
+SOURCES += main.cpp foo.cpp
 PRECOMPILED_HEADER = pch.h
 CONFIG += precompile_header
 PRECOMPILED_DIR = .pch

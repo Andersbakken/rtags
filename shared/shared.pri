@@ -6,6 +6,9 @@ gccopts_gperf.depends = $$PWD/gccopts.gperf
 QMAKE_EXTRA_TARGETS += gccopts_gperf
 
 PRE_TARGETDEPS += $$PWD/gccopts_gperf.h
+PRECOMPILED_HEADER = $$PWD/pch.h
+CONFIG += precompile_header
+PRECOMPILED_DIR = .pch
 SOURCES += $$PWD/GccArguments.cpp \
            $$PWD/Path.cpp \
            $$PWD/RTags.cpp \

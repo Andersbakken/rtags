@@ -718,9 +718,10 @@ bool RBuild::pch(const GccArguments &pch)
     strncpy(tmp, "/tmp/rtagspch.XXXXXX", 127);
     mktemp(tmp);
 #warning dont use mktemp
-    if (!tmp || !strlen(tmp)) {
+    if (!strlen(tmp)) {
         return false;
     }
+    ++mData->pendingJobs;
     const bool ok = compile(args, pch.input(), tmp);
     printf("pch %s => %d\n", pch.input().constData(), ok);
     QMutexLocker lock(&mData->mutex);

@@ -9,6 +9,15 @@
 #include "Database.h"
 #include "Mmap.h"
 
+enum Mode {
+    Normal,
+    Expect,
+    Raw,
+    Validate,
+    Count,
+    KeysOnly
+};
+
 using namespace RTags;
 
 static Location locationFromKey(const QByteArray &key)
@@ -186,13 +195,15 @@ static inline void raw(Database *db)
     }
 }
 
-static inline void rdump(Database *db)
+static inline void rdump(Database *db, Mode mode)
 {
     const char *names[] = { "General", "Dictionary", "References", "Targets", "ExtraDeclarations" };
+    int tot = 0;
     for (int i=0; i<Database::NumConnectionTypes; ++i) {
         Database::iterator *it = db->createIterator(static_cast<Database::ConnectionType>(i));
         if (it->isValid()) {
             do {
+                ++tot;
                 const QByteArray key = it->key();
                 if (i == Database::Targets || (i == Database::References && key.endsWith(":"))
                     || i == Database::ExtraDeclarations) {
@@ -203,6 +214,11 @@ static inline void rdump(Database *db)
                 } else {
                     printf("%s '%s' => %d bytes", names[i], key.constData(), it->value().size());
                 }
+                if (mode == KeysOnly) {
+                    printf("\n");
+                    continue;
+                }
+
                 if (it->value().size() == 4) {
                     int t = it->value<int>();
                     printf(" (%d)\n", t);
@@ -286,28 +302,25 @@ static inline void rdump(Database *db)
         }
         delete it;
     }
-    printf("%d entries\n", db->count());
+    printf("%d entries\n", tot);
 }
 
 int main(int argc, char** argv)
 {
     Mmap::init();
 
+    Mode mode = Normal;
     int opt;
-    enum Mode {
-        Normal,
-        Expect,
-        Raw,
-        Validate,
-        Count
-    } mode = Normal;
-    while ((opt = getopt(argc, argv, "hrevc")) != -1) {
+    while ((opt = getopt(argc, argv, "hrevck")) != -1) {
         switch (opt) {
         case 'r':
             mode = Raw;
             break;
         case 'e':
             mode = Expect;
+            break;
+        case 'k':
+            mode = KeysOnly;
             break;
         case 'c':
             mode = Count;
@@ -318,7 +331,7 @@ int main(int argc, char** argv)
         case '?':
         case 'h':
         default:
-            fprintf(stderr, "rdump -[hrevc]\n");
+            fprintf(stderr, "rdump -[hrevck]\n");
             return 0;
         }
     }
@@ -345,7 +358,8 @@ int main(int argc, char** argv)
             delete db;
             break;
         case Normal:
-            rdump(db);
+        case KeysOnly:
+            rdump(db, mode);
             break;
         case Count:
             printf("%d entries\n", db->count());

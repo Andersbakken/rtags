@@ -46,7 +46,7 @@ struct Location
             return QByteArray();
         enum { BufSize = 256 };
         char buf[BufSize];
-#ifdef QT_DEBUG
+// #ifdef QT_DEBUG
         if (files()) {
             for (QHash<Path, unsigned>::const_iterator it = files()->begin(); it != files()->end(); ++it) {
                 if (it.value() == file) {
@@ -55,7 +55,7 @@ struct Location
                 }
             }
         }
-#endif
+// #endif
         const int ret = snprintf(buf, BufSize, "%d:%d:%d:", file, line, column);
         return QByteArray(buf, ret);
     }
