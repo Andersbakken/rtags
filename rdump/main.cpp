@@ -264,26 +264,25 @@ static inline void rdump(Database *db, Mode mode, const QByteArray &filter)
                         } else if (key == "filesByName") {
                             printf("\n");
                             const QHash<Path, int> filesToIndex = it->value<QHash<Path, int> >();
+                            QMap<int, Path> sorted;
                             for (QHash<Path, int>::const_iterator it = filesToIndex.begin();
                                  it != filesToIndex.end(); ++it) {
-                                printf("    %s (id: %d)", it.key().constData(), it.value());
+                                sorted[it.value()] = it.key();
+                            }
+                            for (QMap<int, Path>::const_iterator it = sorted.begin(); it != sorted.end(); ++it) {
+                                printf("    %s (id: %d)\n", it.value().constData(), it.key());
                             }
                         } else if (key == "sourceDir") {
                             printf(" (%s)\n", it->value<Path>().constData());
                         } else if (key == "sources") {
                             printf("\n");
                             foreach(const Source &src, it->value<QList<Source> >()) {
-                                printf("    %s (%s)", src.path.constData(),
+                                printf("  %s (%s)\n%", src.args.input().constData(),
                                        qPrintable(QDateTime::fromTime_t(src.lastModified).toString()));
-                                foreach(const QByteArray &arg, src.args) {
-                                    printf(" %s", arg.constData());
-                                }
-                                printf("\n");
                                 if (!src.dependencies.isEmpty()) {
-                                    printf("      Dependencies:\n");
                                     for (QHash<Path, quint64>::const_iterator it = src.dependencies.begin();
                                          it != src.dependencies.end(); ++it) {
-                                        printf("          %s (%s)\n", it.key().constData(),
+                                        printf("    %s (%s)\n", it.key().constData(),
                                                qPrintable(QDateTime::fromTime_t(it.value()).toString()));
                                     }
                                 }
