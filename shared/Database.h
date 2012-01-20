@@ -61,6 +61,8 @@ public:
     QSet<Location> findReferences(const Location &location) const;
     QSet<Location> findSymbol(const QByteArray &symbolName) const;
     QList<QByteArray> listSymbols(const QByteArray &filter = QByteArray()) const;
+    Location findSuper(const Location &location) const;
+    QSet<Location> findSubs(const Location &location) const;
     void writeEntity(const Entity &entity);
     QList<Location> allReferences(const Location &locations) const;
     QSet<Location> allLocations() const; // slow, for tests

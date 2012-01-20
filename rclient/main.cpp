@@ -123,14 +123,23 @@ static inline void usage(const char* argv0, FILE *f)
             "  --sort-output|-o              Sort output alphabetically\n"
             "\n"
             "  Modes\n"
-            "  --follow-symbol|-f [arg]      Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
+            "  --follow-symbol|-f [loc]      Follow this symbol (e.g. /tmp/main.cpp:32:1)\n"
             "  --find-references|-r [arg]    Print references of symbol at arg\n"
             "  --list-symbols|-l [arg]       Print out symbols names matching arg\n"
             "  --files|-P [arg]              Print out files matching arg\n"
             "  --all-references|-a [arg]     Print all references/declarations/definitions that matches arg\n"
-            "  --find-symbols|-s [arg]       Print out symbols matching arg\n",
+            "  --find-symbols|-s [arg]       Print out symbols matching arg\n"
+            "  --find-super|-u [loc]         Print out superclass or reimplemented function of arg\n"
+            "  --find-subs|-b [loc]          Print out baseclasses or reimplementations of arg\n",
             argv0);
 }
+
+#define SET_MODE(m)                                     \
+    if (mode != None) {                                 \
+        fprintf(stderr, "Mode is already set\n");       \
+        return 1;                                       \
+    }                                                   \
+    mode = m;
 
 int main(int argc, char** argv)
 {
@@ -158,18 +167,20 @@ int main(int argc, char** argv)
 
     // ### print db path
     struct option longOptions[] = {
-        { "help", no_argument, 0, 'h' },
-        { "follow-symbol", required_argument, 0, 'f' },
-        { "db", required_argument, 0, 'd' },
-        { "find-references", required_argument, 0, 'r' },
-        { "find-symbols", required_argument, 0, 's' },
-        { "find-db", no_argument, 0, 'D' },
-        { "list-symbols", optional_argument, 0, 'l' },
-        { "files", optional_argument, 0, 'P' },
-        { "paths-relative-to-root", no_argument, 0, 'n' },
-        { "db-type", required_argument, 0, 't' },
         { "all-references", required_argument, 0, 'a' },
+        { "db", required_argument, 0, 'd' },
+        { "db-type", required_argument, 0, 't' },
+        { "files", optional_argument, 0, 'P' },
+        { "find-db", no_argument, 0, 'D' },
+        { "find-references", required_argument, 0, 'r' },
+        { "find-subs", required_argument, 0, 'b' },
+        { "find-super", required_argument, 0, 'u' },
+        { "find-symbols", required_argument, 0, 's' },
+        { "follow-symbol", required_argument, 0, 'f' },
+        { "help", no_argument, 0, 'h' },
+        { "list-symbols", optional_argument, 0, 'l' },
         { "no-context", no_argument, 0, 'N' },
+        { "paths-relative-to-root", no_argument, 0, 'n' },
         { "separate-paths-by-space", no_argument, 0, 'S' },
         { "sort-output", no_argument, 0, 'o' },
         { 0, 0, 0, 0 },
@@ -186,7 +197,9 @@ int main(int argc, char** argv)
         FindSymbols,
         ListSymbols,
         Files,
-        AllReferences
+        AllReferences,
+        FindSuper,
+        FindSubs
         // RecursiveReferences,
     } mode = None;
     unsigned flags = 0;
@@ -209,11 +222,7 @@ int main(int argc, char** argv)
             flags |= Output::SortOutput;
             break;
         case 'a':
-            if (mode != None) {
-                fprintf(stderr, "Mode is already set\n");
-                return 1;
-            }
-            mode = AllReferences;
+            SET_MODE(AllReferences);
             arg = optarg;
             break;
         case 'n':
@@ -226,32 +235,20 @@ int main(int argc, char** argv)
             usage(argv[0], stdout);
             return 0;
         case 'f':
-            if (mode != None) {
-                fprintf(stderr, "Mode is already set\n");
-                return 1;
-            }
+            SET_MODE(FollowSymbol);
             arg = optarg;
-            mode = FollowSymbol;
             break;
         case 'P':
-            if (mode != None) {
-                fprintf(stderr, "Mode is already set\n");
-                return 1;
-            }
+            SET_MODE(Files);
             if ((!optarg || !strlen(optarg)) && optind < argc && strncmp(argv[optind], "-", 1)) {
                 arg = argv[optind++];
             } else {
                 arg = optarg;
             }
-            mode = Files;
             break;
         case 'r':
+            SET_MODE(References);
             arg = optarg;
-            if (mode != None) {
-                fprintf(stderr, "Mode is already set\n");
-                return 1;
-            }
-            mode = References;
             break;
         case 'D': {
             const QByteArray db = findRtagsDb();
@@ -267,23 +264,23 @@ int main(int argc, char** argv)
             }
             break;
         case 'l':
-            if (mode != None) {
-                fprintf(stderr, "Mode is already set\n");
-                return 1;
-            }
+            SET_MODE(ListSymbols);
             if ((!optarg || !strlen(optarg)) && optind < argc && strncmp(argv[optind], "-", 1)) {
                 arg = argv[optind++];
             } else {
                 arg = optarg;
             }
-            mode = ListSymbols;
             break;
         case 's':
-            if (mode != None) {
-                fprintf(stderr, "Mode is already set\n");
-                return 1;
-            }
-            mode = FindSymbols;
+            SET_MODE(FindSymbols);
+            arg = optarg;
+            break;
+        case 'u':
+            SET_MODE(FindSuper);
+            arg = optarg;
+            break;
+        case 'b':
+            SET_MODE(FindSubs);
             arg = optarg;
             break;
         }
@@ -378,6 +375,35 @@ int main(int argc, char** argv)
                     printf("%s%s\n", root, path.constData());
                 }
             }
+            break; }
+        case FindSuper: {
+            Location loc = db->createLocation(arg);
+            if (loc.file) {
+                loc = db->findSuper(loc);
+                if (loc.file)
+                    output.printLocation(loc, db);
+            } else {
+                QList<Location> out;
+                foreach(const Location &l, db->findSymbol(arg)) {
+                    Location ll = db->findSuper(l);
+                    if (ll.file)
+                        out.append(ll);
+                }
+                output.printLocations(out, db);
+            }
+            break; }
+        case FindSubs: {
+            QSet<Location> out;
+            Location loc = db->createLocation(arg);
+            if (loc.file) {
+                out += db->findSubs(loc);
+            } else {
+                foreach(const Location &l, db->findSymbol(arg)) {
+                    out += db->findSubs(l);
+                }
+            }
+            if (!out.isEmpty())
+                output.printLocations(out, db);
             break; }
         }
         if (done)
