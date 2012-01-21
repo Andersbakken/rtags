@@ -50,6 +50,7 @@ private:
     bool pch(const GccArguments &pch);
     bool compile(const GccArguments &args, const Path &output = Path());
     void writeData();
+    void writePch();
     void writeEntities();
     enum Mode {
         Create,

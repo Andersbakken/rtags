@@ -195,13 +195,14 @@ bool RBuild::updateDB()
     }
 
     mData->db->invalidateEntries(dirty);
-    foreach(Source *source, reparse) {
+    foreach(const Source *source, reparse) {
         processFile(source->args);
     }
     QEventLoop loop;
     connect(this, SIGNAL(finishedCompiling()), &loop, SLOT(quit()));
     loop.exec();
     writeEntities();
+    writePch();
     mData->db->write("sources", mData->sources);
 
     printf("Updated db %lld ms, %d threads\n",
@@ -297,29 +298,7 @@ void RBuild::writeData()
     mData->db->write("filesByName", mData->filesByName);
     writeEntities();
     mData->db->write("sources", mData->sources);
-    if (!mData->pch.isEmpty())
-        ::mkdir((mData->db->path() + "/pch").constData(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
-
-
-    QHash<QByteArray, QPair<Path, Path> >::iterator it = mData->pch.begin();
-    while (it != mData->pch.end()) {
-        Path &pch = it.value().first;
-        Path p = mData->db->path();
-        QByteArray key = it.key();
-        key.replace('/', '_'); // hopefully this is always unique ###
-        p += "/pch/" + key;
-        if (p != pch) {
-            qDebug() << "need to move" << pch << "to" << p;
-            if (rename(pch.constData(), p.constData()) == -1) {
-                it = mData->pch.erase(it);
-                qWarning("Move error %s", strerror(errno));
-                continue;
-            }
-            pch = p;
-        }
-        ++it;
-    }
-
+    writePch();
     mData->db->write("pch", mData->pch);
     QSet<Path> allFiles;
 
@@ -843,4 +822,29 @@ bool RBuild::pch(const GccArguments &pch)
         mData->pch.remove(output);
     }
     return ok;
+}
+void RBuild::writePch()
+{
+    if (!mData->pch.isEmpty())
+        ::mkdir((mData->db->path() + "/pch").constData(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+
+    QHash<QByteArray, QPair<Path, Path> >::iterator it = mData->pch.begin();
+    while (it != mData->pch.end()) {
+        Path &pch = it.value().first;
+        Path p = mData->db->path();
+        QByteArray key = it.key();
+        key.replace('/', '_'); // hopefully this is always unique ###
+        p += "/pch/" + key;
+        if (p != pch) {
+            qDebug() << "need to move" << pch << "to" << p;
+            unlink(p.constData());
+            if (rename(pch.constData(), p.constData()) == -1) {
+                it = mData->pch.erase(it);
+                qWarning("Move error %s", strerror(errno));
+                continue;
+            }
+            pch = p;
+        }
+        ++it;
+    }
 }
