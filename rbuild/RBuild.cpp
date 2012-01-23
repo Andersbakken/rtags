@@ -624,7 +624,12 @@ bool RBuild::compile(const GccArguments &gccArgs, const Path &output)
         const QList<QByteArray> systemIncludes = RTags::systemIncludes();
         QList<QByteArray> args = gccArgs.clangArgs();
         QHash<Path, quint64> pchDependencies;
-        {
+        switch (gccArgs.language()) {
+        case GccArguments::LangCPlusPlusHeader:
+        case GccArguments::LangHeader:
+            args << "-emit-pch";
+            break;
+        case GccArguments::LangCPlusPlus: {
             QMutexLocker lock(&mData->mutex);
             foreach(const QByteArray &inc, gccArgs.arguments("-include")) {
                 const QPair<Path, Path> p = mData->pch.value(inc);
@@ -635,16 +640,10 @@ bool RBuild::compile(const GccArguments &gccArgs, const Path &output)
                     pchDependencies[p.second] = p.second.lastModified();
                 }
             }
-        }
-        switch (gccArgs.language()) {
-        case GccArguments::LangCPlusPlusHeader:
-        case GccArguments::LangHeader:
-            args << "-emit-pch";
-            break;
+            break; }
         default:
             break;
         }
-       
         QVarLengthArray<const char *, 64> clangArgs(args.size()
                                                     + mData->extraArgs.size()
                                                     + systemIncludes.size());
@@ -688,6 +687,7 @@ bool RBuild::compile(const GccArguments &gccArgs, const Path &output)
 
         if (!unit) {
             qWarning() << "Unable to parse unit for" << file;
+            fprintf(stderr, "clang ");
             for (int i=0; i<argCount; ++i) {
                 fprintf(stderr, "%s", clangArgs[i]);
                 fprintf(stderr, "%c", i + 1 < argCount ? ' ' : '\n');
