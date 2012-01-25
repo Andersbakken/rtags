@@ -40,7 +40,7 @@ Path GccArguments::parseCD(const QByteArray &cmd, const Path& path) const
     const QByteArray& argspath = args.at(1);
     Q_ASSERT(!argspath.isEmpty());
     Path cmdpath(argspath);
-    if (argspath.at(1) != '/')
+    if (!argspath.startsWith('/'))
         cmdpath.resolve(path);
     return cmdpath;
 }
