@@ -76,6 +76,21 @@ bool Database::open(const Path &db, Mode mode)
             mConnections[i] = createConnection(static_cast<ConnectionType>(i));
             Q_ASSERT(mConnections[i]);
         }
+        switch (mode) {
+        case ReadOnly:
+        case ReadWrite: {
+            const int version = read<int>("dbVersion", -1);
+            if (version != RTags::DatabaseVersion) {
+                fprintf(stderr, "Incompatible database version. Expected %d, got %d\n",
+                        RTags::DatabaseVersion, version);
+                close();
+                return false;
+            }
+            break; }
+        case WriteOnly:
+            write<int>("dbVersion", RTags::DatabaseVersion);
+            break;
+        }
 
         mFilesByName = read<QHash<Path, unsigned> >("filesByName");
         for (QHash<Path, unsigned>::const_iterator it = mFilesByName.begin();

@@ -12,6 +12,7 @@
 
 namespace RTags {
 
+enum { DatabaseVersion = 1 };
 static inline int readLine(FILE *f, char *buf, int max)
 {
     assert(!buf == (max == -1));

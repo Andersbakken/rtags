@@ -175,7 +175,7 @@ int main(int argc, char** argv)
             fprintf(stderr, "Can't use --update with -D\n");
             return 1;
         }
-        build.updateDB();
+        return build.updateDB() ? 0 : 1;
     } else {
         build.addDefines(defines);
         build.addIncludePaths(includePaths);
@@ -210,8 +210,6 @@ int main(int argc, char** argv)
             if (makefile.isFile())
                 makefiles.append(makefile);
         }
-        if (!build.buildDB(makefiles, sourceFiles, srcDir))
-            return 1;
+        return build.buildDB(makefiles, sourceFiles, srcDir) ? 0 : 1;
     }
-    return 0;
 }
