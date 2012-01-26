@@ -31,7 +31,7 @@ class RBuild : public QObject
     bool buildDB(const QList<Path> &makefiles,
                  const QList<Path> &sourceFiles,
                  const Path &sourceDir);
-    bool updateDB();
+    bool updateDB(const QHash<Path, QByteArray> &unsavedFiles);
 signals:
     void compileFinished(bool ok);
     void finishedCompiling();

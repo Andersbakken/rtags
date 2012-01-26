@@ -156,7 +156,7 @@ bool RBuild::buildDB(const QList<Path> &makefiles,
     return true;
 }
 
-bool RBuild::updateDB()
+bool RBuild::updateDB(const QHash<Path, QByteArray> &unsavedFiles)
 {
     if (!openDB(Update))
         return false;
@@ -166,6 +166,16 @@ bool RBuild::updateDB()
     QList<Source> sources = mData->db->read<QList<Source> >("sources");
     mData->pch = mData->db->read<QHash<QByteArray, QPair<Path, Path> > >("pch");
     mData->filesByName = mData->db->read<QHash<Path, unsigned> >("filesByName");
+    mData->unsavedFiles.resize(unsavedFiles.size());
+
+    int u = 0;
+    for (QHash<Path, QByteArray>::const_iterator it = unsavedFiles.begin();
+         it != unsavedFiles.end(); ++it) {
+        mData->unsavedFiles[u].Filename = it.key().constData();
+        mData->unsavedFiles[u].Contents = it.value().constData();
+        mData->unsavedFiles[u].Length = it.value().size();
+        ++u;
+    }
 
     QList<Source*> reparse;
     QSet<Path> dirty;
@@ -682,7 +692,8 @@ bool RBuild::compile(const GccArguments &gccArgs, const Path &output)
         clang_indexSourceFile(action, &userData, &cb, sizeof(IndexerCallbacks),
                               CXIndexOpt_IndexFunctionLocalSymbols, file.constData(),
                               clangArgs.constData(), argCount,
-                              0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
+                              mData->unsavedFiles.data(), mData->unsavedFiles.size(),
+                              &unit, clang_defaultEditingTranslationUnitOptions());
         // ### do we need incomplete for pch?
 
         if (!unit) {

@@ -36,6 +36,7 @@ struct RBuildPrivate
     QList<GccArguments> files;
     QList<QByteArray> extraArgs;
     QHash<QByteArray, QPair<Path, Path> > pch; // QPair(pch, header)
+    QVector<CXUnsavedFile> unsavedFiles;
     QThreadPool threadPool;
 
     QList<Source> sources;

@@ -24,7 +24,9 @@ static inline void usage(const char* argv0, FILE *f)
             "  --debug|-d                             Print debug info\n"
             "  --disable-pch|-p                       Disable the use of pch\n"
             "  --enable-system-header-dependencies|-H Add dependencies for system headers\n"
-            "  --verbose|-v                           Be verbose\n",
+            "  --verbose|-v                           Be verbose\n"
+            "  --unsaved-file|-U [file:size]          Unsaved file. Pass filename:content size and pass\n"
+            "                                         the file contents on stdin\n",
             argv0);
 }
 
@@ -83,11 +85,13 @@ int main(int argc, char** argv)
         { "source", no_argument, 0, 'S' },
         { "debug", no_argument, 0, 'd' },
         { "verbose", no_argument, 0, 'v' },
+        { "unsaved-file", required_argument, 0, 'U' },
         { 0, 0, 0, 0 },
     };
     const QByteArray shortOptions = RTags::shortOptions(longOptions);
     QList<Path> includePaths;
     QList<QByteArray> defines;
+    QList<Path> unsavedFiles;
     int idx, longIndex;
     bool treatInputAsSourceOverride = false;
     while ((idx = getopt_long(argc, argv, shortOptions.constData(),
@@ -98,6 +102,9 @@ int main(int argc, char** argv)
             return 1;
         case 'd':
             flags |= RBuild::DebugAllSymbols;
+            break;
+        case 'U':
+            unsavedFiles.append(optarg);
             break;
         case 'I':
             includePaths += Path::resolved(optarg);
@@ -175,8 +182,37 @@ int main(int argc, char** argv)
             fprintf(stderr, "Can't use --update with -D\n");
             return 1;
         }
-        return build.updateDB() ? 0 : 1;
+        QHash<Path, QByteArray> unsaved;
+        if (!unsavedFiles.isEmpty()) {
+            QFile in;
+            if (!in.open(stdin, QIODevice::ReadOnly)) {
+                qWarning("Couldn't open stdin for reading");
+                return 1;
+            }
+            foreach(Path unsavedFile, unsavedFiles) {
+                const int colon = unsavedFile.lastIndexOf(':');
+                quint32 size = 0;
+                if (colon != -1)
+                    size = atoi(unsavedFile.constData() + colon + 1);
+                if (!size) {
+                    fprintf(stderr, "Can't parse unsaved file argument [%s]\n", unsavedFile.constData());
+                    return 1;
+                }
+                unsavedFile.chop(unsavedFile.size() - colon);
+                if (!unsavedFile.resolve() || !unsavedFile.isFile()) {
+                    fprintf(stderr, "%s is not a valid file\n", unsavedFile.constData());
+                    return 1;
+                }
+                unsaved[unsavedFile] = in.read(size);
+            }
+        }
+        return build.updateDB(unsaved) ? 0 : 1;
     } else {
+        if (!unsavedFiles.isEmpty()) {
+            fprintf(stderr, "Can't use --unsaved-file without -u\n");
+            return 1;
+        }
+
         build.addDefines(defines);
         build.addIncludePaths(includePaths);
         QList<Path> sourceFiles;
