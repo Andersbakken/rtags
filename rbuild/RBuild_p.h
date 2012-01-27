@@ -34,7 +34,7 @@ struct RBuildPrivate
     CXIndex index;
     QList<GccArguments> files;
     QList<QByteArray> systemIncludes;
-    QList<QByteArray> extraArgs;
+    QList<QByteArray> extraArgs; // -I and -D passed on command line
     QHash<QByteArray, QPair<Path, Path> > pch; // QPair(pch, header)
     QVector<CXUnsavedFile> unsavedFiles;
     QHash<Path, QByteArray> unsavedFilesHash;
