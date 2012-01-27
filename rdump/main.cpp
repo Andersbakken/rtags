@@ -277,8 +277,9 @@ static inline void rdump(Database *db, Mode mode, const QByteArray &filter)
                         } else if (key == "sources") {
                             printf("\n");
                             foreach(const Source &src, it->value<QList<Source> >()) {
-                                printf("  %s (%s)\n%", src.args.input().constData(),
-                                       qPrintable(QDateTime::fromTime_t(src.lastModified).toString()));
+                                printf("  %s (%s) from unsaved %d\n", src.args.input().constData(),
+                                       qPrintable(QDateTime::fromTime_t(src.lastModified).toString()),
+                                       src.fromUnsavedFile);
                                 if (!src.dependencies.isEmpty()) {
                                     for (QHash<Path, quint64>::const_iterator it = src.dependencies.begin();
                                          it != src.dependencies.end(); ++it) {

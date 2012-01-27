@@ -33,9 +33,11 @@ struct RBuildPrivate
     int pendingJobs;
     CXIndex index;
     QList<GccArguments> files;
+    QList<QByteArray> systemIncludes;
     QList<QByteArray> extraArgs;
     QHash<QByteArray, QPair<Path, Path> > pch; // QPair(pch, header)
     QVector<CXUnsavedFile> unsavedFiles;
+    QHash<Path, QByteArray> unsavedFilesHash;
     QThreadPool threadPool;
 
     QList<Source> sources;

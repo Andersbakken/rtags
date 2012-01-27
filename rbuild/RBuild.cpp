@@ -48,9 +48,17 @@ static inline bool removeGch(QByteArray &pch)
     return false;
 }
 
-static inline bool isSourceDirty(const Source* source, QSet<Path>* dirty = 0)
+static inline bool isSourceDirty(const Source* source, QSet<Path>* dirty)
 {
-    bool dirtySource = (source->args.input().lastModified() != source->lastModified);
+    const Path &input = source->args.input();
+    if (source->fromUnsavedFile) {
+        dirty->insert(input);
+        return true;
+    }
+
+    if (dirty->contains(input))
+        return true;
+    bool dirtySource = (input.lastModified() != source->lastModified);
     for (QHash<Path, quint64>::const_iterator it = source->dependencies.constBegin();
          it != source->dependencies.constEnd(); ++it) {
         if (dirty && dirty->contains(it.key())) {
@@ -74,7 +82,7 @@ RBuild::RBuild(unsigned flags, QObject *parent)
         if (threads > 0)
             mData->threadPool.setMaxThreadCount(threads);
     }
-    RTags::systemIncludes(); // force creation before any threads are spawned
+    mData->systemIncludes = RTags::systemIncludes();
     connect(this, SIGNAL(compileFinished(bool)), this, SLOT(onCompileFinished()));
     timer.start();
 }
@@ -166,6 +174,7 @@ bool RBuild::updateDB(const QHash<Path, QByteArray> &unsavedFiles)
     mData->pch = mData->db->read<QHash<QByteArray, QPair<Path, Path> > >("pch");
     mData->filesByName = mData->db->read<QHash<Path, unsigned> >("filesByName");
     mData->unsavedFiles.resize(unsavedFiles.size());
+    mData->unsavedFilesHash = unsavedFiles;
 
     QSet<Path> dirty;
     int u = 0;
@@ -344,16 +353,16 @@ static inline void debugCursor(FILE* out, const CXCursor& cursor)
 // #define COLLECTDEBUG
 
 struct InclusionUserData {
-    InclusionUserData(unsigned fl,
+    InclusionUserData(RBuildPrivate *priv,
                       const Path &f,
                       QHash<Path, quint64> &deps,
-                      const QList<QByteArray> &sysInclude)
-        : flags(fl), file(f), dependencies(deps), systemIncludes(sysInclude)
+                      bool &u)
+        : mData(priv), file(f), dependencies(deps), unsaved(u)
     {}
-    const unsigned flags;
+    RBuildPrivate *mData;
     const Path &file;
     QHash<Path, quint64> &dependencies;
-    const QList<QByteArray> &systemIncludes;
+    bool &unsaved;
 };
 
 static inline bool isSystemInclude(const Path &header, const QList<QByteArray> &systemIncludes)
@@ -371,6 +380,8 @@ void RBuild::getInclusions(CXFile includedFile,
                            CXClientData userData)
 {
     InclusionUserData *u = reinterpret_cast<InclusionUserData*>(userData);
+    if (u->fromUnsavedFile)
+        return;
     if (u->flags & Verbose) {
         printf("getInclusions %s %d for %s\n",
                eatString(clang_getFileName(includedFile)).constData(),
@@ -386,19 +397,23 @@ void RBuild::getInclusions(CXFile includedFile,
     if (inclusionStackLen) {
         CXString str = clang_getFileName(includedFile);
         const char *cstr = clang_getCString(str);
-        if (!(u->flags & EnableSystemHeaderDependencies) || strncmp("/usr/", cstr, 5) != 0) {
+        if (!(u->mData->flags & EnableSystemHeaderDependencies) || strncmp("/usr/", cstr, 5) != 0) {
             const Path p = Path::resolved(cstr);
-            bool add = true;
-            if (!(u->flags & EnableSystemHeaderDependencies)) {
-                foreach(const QByteArray &systemInclude, u->systemIncludes) {
-                    if (!strncmp(p.constData(), systemInclude.constData() + 2, systemInclude.size() - 2)) {
-                        add = false;
-                        break;
+            if (u->mData->unsavedFilesHash.contains(p)) {
+                u->unsaved = true;
+            } else {
+                bool add = true;
+                if (!(u->mData->flags & EnableSystemHeaderDependencies)) {
+                    foreach(const QByteArray &systemInclude, u->mData->systemIncludes) {
+                        if (!strncmp(p.constData(), systemInclude.constData() + 2, systemInclude.size() - 2)) {
+                            add = false;
+                            break;
+                        }
                     }
                 }
-            }
-            if (add) {
-                u->dependencies[p] = p.lastModified();
+                if (add) {
+                    u->dependencies[p] = p.lastModified();
+                }
             }
         }
         clang_disposeString(str);
@@ -623,9 +638,9 @@ bool RBuild::compile(const GccArguments &gccArgs, const Path &output)
     bool ret = true;
     if ((mData->flags & DontClang) != DontClang) {
         const Path file = gccArgs.input();
-        const QList<QByteArray> systemIncludes = RTags::systemIncludes();
         QList<QByteArray> args = gccArgs.clangArgs();
         QHash<Path, quint64> pchDependencies;
+        bool unsaved = mData->unsavedFilesHash.contains(file);
         switch (gccArgs.language()) {
         case GccArguments::LangCPlusPlusHeader:
         case GccArguments::LangHeader:
@@ -639,7 +654,8 @@ bool RBuild::compile(const GccArguments &gccArgs, const Path &output)
                     mData->pch.remove(inc);
                 } else {
                     args << "-include-pch" << p.first;
-                    pchDependencies[p.second] = p.second.lastModified();
+                    if (!unsaved)
+                        pchDependencies[p.second] = p.second.lastModified();
                 }
             }
             break; }
@@ -648,12 +664,12 @@ bool RBuild::compile(const GccArguments &gccArgs, const Path &output)
         }
         QVarLengthArray<const char *, 64> clangArgs(args.size()
                                                     + mData->extraArgs.size()
-                                                    + systemIncludes.size());
+                                                    + mData->systemIncludes.size());
         int argCount = 0;
         foreach(const QByteArray& arg, args) {
             clangArgs[argCount++] = arg.constData();
         }
-        foreach(const QByteArray &systemInclude, systemIncludes) {
+        foreach(const QByteArray &systemInclude, mData->systemIncludes) {
             clangArgs[argCount++] = systemInclude.constData();
         }
         foreach(const QByteArray &extraArg, mData->extraArgs) {
@@ -698,9 +714,14 @@ bool RBuild::compile(const GccArguments &gccArgs, const Path &output)
 
             ret = false;
         } else {
-            Source src = { gccArgs, file.lastModified(), pchDependencies };
-            InclusionUserData u(mData->flags, file, src.dependencies, systemIncludes);
-            clang_getInclusions(unit, getInclusions, &u);
+            Source src = { gccArgs, file.lastModified(), pchDependencies, unsaved };
+            if (!unsaved) {
+                InclusionUserData u(mData, file, src.dependencies, src.fromUnsavedFile);
+                clang_getInclusions(unit, getInclusions, &u);
+            }
+            if (src.fromUnsavedFile) {
+                src.dependencies.clear();
+            }
             // qDebug() << file << "depends on" << src.dependencies.keys();
             {
                 QMutexLocker lock(&mData->mutex); // ### is this the right place to lock?
