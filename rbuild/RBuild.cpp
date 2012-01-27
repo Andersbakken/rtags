@@ -168,9 +168,11 @@ bool RBuild::updateDB(const QHash<Path, QByteArray> &unsavedFiles)
     mData->filesByName = mData->db->read<QHash<Path, unsigned> >("filesByName");
     mData->unsavedFiles.resize(unsavedFiles.size());
 
+    QSet<Path> dirty;
     int u = 0;
     for (QHash<Path, QByteArray>::const_iterator it = unsavedFiles.begin();
          it != unsavedFiles.end(); ++it) {
+        dirty.insert(it.key());
         mData->unsavedFiles[u].Filename = it.key().constData();
         mData->unsavedFiles[u].Contents = it.value().constData();
         mData->unsavedFiles[u].Length = it.value().size();
@@ -178,7 +180,6 @@ bool RBuild::updateDB(const QHash<Path, QByteArray> &unsavedFiles)
     }
 
     QList<Source*> reparse;
-    QSet<Path> dirty;
     const int sourceCount = sources.size();
     for (int i=0; i<sourceCount; ++i) {
         const Source &source = sources.at(i);

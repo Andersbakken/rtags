@@ -69,6 +69,27 @@ int main(int argc, char** argv)
     Path srcDir;
     bool update = false;
     unsigned flags = 0;
+    {
+        QFile log("/tmp/rb.log");
+        log.open(QIODevice::Append);
+        char buf[512];
+        const bool cwd = getcwd(buf, 512);
+        if (cwd) {
+            log.write("( cd ");
+            log.write(buf);
+            log.write(" && ");
+        }
+
+        for (int i=0; i<argc; ++i) {
+            log.putChar('\'');
+            log.write(argv[i]);
+            log.putChar('\'');
+            log.putChar(' ');
+        }
+        if (cwd)
+            log.write(" )");
+        log.putChar('\n');
+    }
 
     Mmap::init();
 
