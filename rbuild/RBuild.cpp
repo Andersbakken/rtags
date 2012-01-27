@@ -380,9 +380,9 @@ void RBuild::getInclusions(CXFile includedFile,
                            CXClientData userData)
 {
     InclusionUserData *u = reinterpret_cast<InclusionUserData*>(userData);
-    if (u->fromUnsavedFile)
+    if (u->unsaved)
         return;
-    if (u->flags & Verbose) {
+    if (u->mData->flags & Verbose) {
         printf("getInclusions %s %d for %s\n",
                eatString(clang_getFileName(includedFile)).constData(),
                inclusionStackLen, u->file.constData());
@@ -654,6 +654,7 @@ bool RBuild::compile(const GccArguments &gccArgs, const Path &output)
                     mData->pch.remove(inc);
                 } else {
                     args << "-include-pch" << p.first;
+#warning what if some header the pch file depends on from unsavedFile, this must be handled
                     if (!unsaved)
                         pchDependencies[p.second] = p.second.lastModified();
                 }
