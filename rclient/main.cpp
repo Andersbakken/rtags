@@ -6,7 +6,6 @@
 #include <getopt.h>
 #include <RTags.h>
 #include <Location.h>
-#include <AtomicString.h>
 #include "Database.h"
 #include "Mmap.h"
 

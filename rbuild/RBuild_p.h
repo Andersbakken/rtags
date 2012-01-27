@@ -1,7 +1,6 @@
 #ifndef RBuild_p_h
 #define RBuild_p_h
 
-#include "AtomicString.h"
 #include "GccArguments.h"
 #include "RBuild.h"
 #include <QList>

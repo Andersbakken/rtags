@@ -5,7 +5,6 @@
 #include <QDir>
 #include <getopt.h>
 #include <RTags.h>
-#include <AtomicString.h>
 
 static inline void usage(const char* argv0, FILE *f)
 {

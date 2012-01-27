@@ -9,7 +9,6 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <dirent.h>
-#include "AtomicString.h"
 #include "RBuild_p.h"
 #include <FileDB.h>
 #include <memory>
@@ -343,14 +342,6 @@ static inline void debugCursor(FILE* out, const CXCursor& cursor)
 }
 
 // #define COLLECTDEBUG
-
-static inline bool isSource(const AtomicString &str)
-{
-    const QByteArray b = str.toByteArray();
-    const int dot = b.lastIndexOf('.');
-    const int len = b.size() - dot - 1;
-    return (dot != -1 && len > 0 && Path::isSource(b.constData() + dot + 1, len));
-}
 
 struct InclusionUserData {
     InclusionUserData(unsigned fl,

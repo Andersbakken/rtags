@@ -12,7 +12,6 @@ PRECOMPILED_DIR = .pch
 SOURCES += $$PWD/GccArguments.cpp \
            $$PWD/Path.cpp \
            $$PWD/RTags.cpp \
-           $$PWD/AtomicString.cpp \
            $$PWD/Database.cpp \
            $$PWD/Mmap.cpp \
            $$PWD/FileDB.cpp \
@@ -20,7 +19,6 @@ SOURCES += $$PWD/GccArguments.cpp \
 HEADERS += $$PWD/GccArguments.h \
            $$PWD/Path.h \
            $$PWD/RTags.h \
-           $$PWD/AtomicString.h \
            $$PWD/Location.h \
            $$PWD/Database.h \
            $$PWD/LevelDB.h \
