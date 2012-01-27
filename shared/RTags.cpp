@@ -1,5 +1,7 @@
 #include "RTags.h"
 
+QHash<Path, unsigned> *filesByNameDebugUgleHack;
+
 namespace RTags {
 bool parseLocation(const std::string &string,
                    std::string &file, unsigned &line, unsigned &col)

@@ -8,12 +8,6 @@
 
 struct Location
 {
-    static QHash<Path, unsigned> *&files()
-    {
-        static QHash<Path, unsigned> *sFiles = 0;
-        return sFiles;
-    }
-
     Location()
         : file(0), line(0), column(0)
     {}
@@ -40,25 +34,6 @@ struct Location
     }
 
     unsigned file, line, column;
-    inline QByteArray key() const // this one should only be used in debug
-    {
-        if (!file)
-            return QByteArray();
-        enum { BufSize = 256 };
-        char buf[BufSize];
-// #ifdef QT_DEBUG
-        if (files()) {
-            for (QHash<Path, unsigned>::const_iterator it = files()->begin(); it != files()->end(); ++it) {
-                if (it.value() == file) {
-                    const int ret = snprintf(buf, BufSize, "%s:%d:%d:", it.key().constData(), line, column);
-                    return QByteArray(buf, ret);
-                }
-            }
-        }
-// #endif
-        const int ret = snprintf(buf, BufSize, "%d:%d:%d:", file, line, column);
-        return QByteArray(buf, ret);
-    }
     inline bool operator==(const Location &other) const
     {
         return file == other.file && line == other.line && column == other.column;
@@ -85,7 +60,26 @@ static inline QDataStream &operator>>(QDataStream &ds, Location &loc)
 
 static inline QDebug operator<<(QDebug dbg, const Location &location)
 {
-    dbg << (location.file ? location.key() : QByteArray("Location()"));
+    if (!location.file) {
+        dbg << "Location()";
+        return dbg;
+    }
+    enum { BufSize = 1024 };
+    char buf[BufSize];
+    extern QHash<Path, unsigned> *filesByNameDebugUgleHack;
+    if (filesByNameDebugUgleHack) {
+        for (QHash<Path, unsigned>::const_iterator it = filesByNameDebugUgleHack->begin();
+             it != filesByNameDebugUgleHack->end(); ++it) {
+            if (it.value() == location.file) {
+                const int ret = snprintf(buf, BufSize, "%s:%d:%d:", it.key().constData(),
+                                         location.line, location.column);
+                dbg << QByteArray::fromRawData(buf, ret);
+                return dbg;
+            }
+        }
+    }
+    const int ret = snprintf(buf, BufSize, "%d:%d:%d:", location.file, location.line, location.column);
+    dbg << QByteArray::fromRawData(buf, ret);
     return dbg;
 }
 

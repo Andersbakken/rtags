@@ -13,6 +13,8 @@
 #include <FileDB.h>
 #include <memory>
 
+QHash<Path, unsigned> *filesByName = 0;
+
 using namespace RTags;
 
 static QElapsedTimer timer;

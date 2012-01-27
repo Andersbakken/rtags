@@ -19,12 +19,12 @@ struct RBuildPrivate
     RBuildPrivate()
         : flags(0), db(0), pendingJobs(0), index(0)
     {
-        Location::files() = &filesByName;
+        extern QHash<Path, unsigned> *filesByNameDebugUgleHack;
+        filesByNameDebugUgleHack = &filesByName;
     }
 
     unsigned flags;
     QHash<QByteArray, Entity> entities;
-
     QHash<Location, PendingReference> pendingReferences;
     QHash<Path, unsigned> filesByName;
     Database *db;
@@ -36,7 +36,10 @@ struct RBuildPrivate
     QList<QByteArray> systemIncludes;
     QList<QByteArray> extraArgs; // -I and -D passed on command line
     QHash<QByteArray, QPair<Path, Path> > pch; // QPair(pch, header)
-    QSet<QByteArray> pchFromUnsaved;
+    QSet<QByteArray> pchFromUnsaved; // same key as pch, if present in the set
+                                     // the pch header or one of the headers it
+                                     // included (directly or indirectly) were
+                                     // supplied by CXUnsavedFile
     QVector<CXUnsavedFile> unsavedFiles;
     QHash<Path, QByteArray> unsavedFilesHash;
     QThreadPool threadPool;
