@@ -9,6 +9,7 @@
 #include <clang-c/Index.h>
 
 struct RBuildPrivate;
+struct Source;
 class RBuild : public QObject
 {
     Q_OBJECT
@@ -48,7 +49,7 @@ private:
                               unsigned inclusionStackLen, CXClientData userData);
 
     bool pch(const GccArguments &pch);
-    bool compile(const GccArguments &args, const Path &output = Path());
+    bool compile(const GccArguments &args, const Path &output = Path(), Source **src = 0);
     void writeData();
     void writePch();
     void writeEntities();
@@ -59,7 +60,7 @@ private:
     bool openDB(Mode mode);
     int closeDB();
 private:
-    RBuildPrivate* mData;
+    RBuildPrivate *mData;
     friend class CompileRunnable;
 };
 

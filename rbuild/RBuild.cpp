@@ -633,8 +633,10 @@ void RBuild::diagnostic(CXClientData userdata, CXDiagnosticSet set, void *)
     }
 }
 
-bool RBuild::compile(const GccArguments &gccArgs, const Path &output)
+bool RBuild::compile(const GccArguments &gccArgs, const Path &output, Source **source)
 {
+    if (source)
+        *source = 0;
     bool ret = true;
     if ((mData->flags & DontClang) != DontClang) {
         const Path file = gccArgs.input();
@@ -654,7 +656,8 @@ bool RBuild::compile(const GccArguments &gccArgs, const Path &output)
                     mData->pch.remove(inc);
                 } else {
                     args << "-include-pch" << p.first;
-#warning what if some header the pch file depends on from unsavedFile, this must be handled
+                    if (mData->pchFromUnsaved.contains(inc))
+                        unsaved = true;
                     if (!unsaved)
                         pchDependencies[p.second] = p.second.lastModified();
                 }
@@ -727,6 +730,8 @@ bool RBuild::compile(const GccArguments &gccArgs, const Path &output)
             {
                 QMutexLocker lock(&mData->mutex); // ### is this the right place to lock?
                 mData->sources.append(src);
+                if (source)
+                    *source = &mData->sources.last();
             }
             // qDebug() << input << mData->dependencies.last().dependencies.keys();
             if (!output.isEmpty()) {
@@ -834,13 +839,16 @@ bool RBuild::pch(const GccArguments &pch)
     close(id);
 
     ++mData->pendingJobs;
-    const bool ok = compile(pch, tmp);
+    Source *src = 0;
+    const bool ok = compile(pch, tmp, &src);
     QMutexLocker lock(&mData->mutex);
     if (ok) {
         unsigned &file = mData->filesByName[pch.input()];
         if (!file)
             file = mData->filesByName.size();
         mData->pch[output] = qMakePair(Path(tmp), pch.input());
+        if (src->fromUnsavedFile)
+            mData->pchFromUnsaved.insert(output);
         const qint64 elapsed = timer.elapsed() - before;
         printf("pch %s %s (%lld ms)\n", pch.input().constData(), output.constData(), elapsed);
     } else {

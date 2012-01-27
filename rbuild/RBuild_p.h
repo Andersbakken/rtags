@@ -32,10 +32,11 @@ struct RBuildPrivate
     QSet<MakefileParser*> makefileParsers;
     int pendingJobs;
     CXIndex index;
-    QList<GccArguments> files;
+    QList<GccArguments> files; // used for detecting duplicate files only
     QList<QByteArray> systemIncludes;
     QList<QByteArray> extraArgs; // -I and -D passed on command line
     QHash<QByteArray, QPair<Path, Path> > pch; // QPair(pch, header)
+    QSet<QByteArray> pchFromUnsaved;
     QVector<CXUnsavedFile> unsavedFiles;
     QHash<Path, QByteArray> unsavedFilesHash;
     QThreadPool threadPool;
