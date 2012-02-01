@@ -19,7 +19,6 @@ static inline QDebug operator<<(QDebug dbg, const Source &s)
 
 static inline QDataStream &operator<<(QDataStream &ds, const Source &s)
 {
-    qDebug() << "writing out source" << s.args.input() << s.fromUnsavedFile;
     ds << s.args << s.lastModified;
     ds << s.fromUnsavedFile;
     if (!s.fromUnsavedFile)

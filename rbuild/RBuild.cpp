@@ -490,6 +490,7 @@ struct UserData {
     Path file;
 };
 
+// This function is always called with the lock held
 CXChildVisitResult RBuild::visitor(CXCursor cursor, CXCursor, CXClientData userData)
 {
     switch (clang_getCursorKind(cursor)) {
@@ -498,7 +499,19 @@ CXChildVisitResult RBuild::visitor(CXCursor cursor, CXCursor, CXClientData userD
     case CXCursor_TypeRef: {
         CXCursor ref = clang_getCursorReferenced(cursor);
         RBuildPrivate *p = reinterpret_cast<UserData*>(userData)->p;
-        QMutexLocker lock(&p->mutex);
+        if (p->flags & RBuild::DebugAllSymbols) {
+            CXFile f, f2;
+            unsigned l, c, l2, c2;
+            clang_getInstantiationLocation(clang_getCursorLocation(cursor), &f, &l, &c, 0);
+            clang_getInstantiationLocation(clang_getCursorLocation(ref), &f2, &l2, &c2, 0);
+            const Path p = Path::resolved(eatString(clang_getFileName(f)));
+            const Path p2 = Path::resolved(eatString(clang_getFileName(f2)));
+            printf("%s:%d:%d: ref of %s %s %s:%d:%d\n",
+                   p.constData(), l, c,
+                   kindToString(clang_getCursorKind(ref)).constData(),
+                   eatString(clang_getCursorSpelling(ref)).constData(),
+                   p2.constData(), l2, c2);
+        }
         const Location loc = createLocation(ref, p->filesByName);
         PendingReference &r = p->pendingReferences[loc];
         if (r.usr.isEmpty()) {
