@@ -493,8 +493,9 @@ struct UserData {
 CXChildVisitResult RBuild::visitor(CXCursor cursor, CXCursor, CXClientData userData)
 {
     switch (clang_getCursorKind(cursor)) {
-    case CXCursor_TypeRef:
-    case CXCursor_TemplateRef: {
+    case CXCursor_ParmDecl:
+        return CXChildVisit_Recurse;
+    case CXCursor_TypeRef: {
         CXCursor ref = clang_getCursorReferenced(cursor);
         RBuildPrivate *p = reinterpret_cast<UserData*>(userData)->p;
         QMutexLocker lock(&p->mutex);
@@ -507,7 +508,7 @@ CXChildVisitResult RBuild::visitor(CXCursor cursor, CXCursor, CXClientData userD
     default:
         break;
     }
-    return CXChildVisit_Recurse;
+    return CXChildVisit_Continue;
 }
 
 void RBuild::indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)

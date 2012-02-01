@@ -68,6 +68,8 @@ static CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData
     //        l, c);
 
     switch (clang_getCursorKind(cursor)) {
+    case CXCursor_ParmDecl:
+        return CXChildVisit_Recurse;
     case CXCursor_TypeRef:
     case CXCursor_TemplateRef: {
         CXFile file;
@@ -91,7 +93,7 @@ static CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData
     default:
         break;
     }
-    return CXChildVisit_Recurse;
+    return CXChildVisit_Continue;
 }
 
 void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
