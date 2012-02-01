@@ -267,14 +267,14 @@ int main(int argc, char** argv)
             break;
         case 'D': {
             const QByteArray db = findRtagsDb();
-            if (!db.isEmpty()) {
+            if (!db.isEmpty() && !dbPaths.contains(db)) {
                 dbPaths.append(db);
             }
             break; }
         case 'd':
             if (optarg && strlen(optarg)) {
                 const QByteArray db = findRtagsDb(optarg);
-                if (!db.isEmpty())
+                if (!db.isEmpty() && !dbPaths.contains(db))
                     dbPaths.append(db);
             }
             break;
