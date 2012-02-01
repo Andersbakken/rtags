@@ -132,8 +132,8 @@ return t if rtags is allowed to modify this file"
             (while (and (> (point) 1) (looking-at "[0-9A-Za-z_~#]"))
               (backward-char))
             (if (not (looking-at "[0-9A-Za-z_~#]"))
-                (forward-char))
-            (setq column (int-to-string (- (point) (point-at-bol) -1))))))
+                (forward-char))))
+      (setq column (int-to-string (- (point) (point-at-bol) -1))))
     (with-temp-buffer
       (rtags-rc-internal "--follow-symbol" (concat (buffer-file-name rtags-last-buffer) ":" line ":" column ":"))
       (rtags-goto-location (buffer-string))
