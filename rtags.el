@@ -16,6 +16,11 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'hook)
 
+(defcustom rtags-after-find-file-hook nil
+  "Run after rtags has jumped to a location possibly in a new file"
+  :group 'rtags
+  :type 'hook)
+
 (defun rtags-append-to-list (list element)
   ;; (add-to-list list element t))
   (let ((len (list-length (eval list))))
@@ -81,6 +86,7 @@ return t if rtags is allowed to modify this file"
           (setq line (string-to-int (match-string 2 location)))
           (setq column (string-to-int (match-string 3 location)))
           (find-file (match-string 1 location))
+          (run-hooks rtags-after-find-file-hook)
           ;; (message (concat "current " (buffer-file-name (current-buffer))
           ;;                  " last " (buffer-file-name rtags-last-buffer)))
           (unless (eq (current-buffer) rtags-last-buffer)
@@ -307,7 +313,9 @@ return t if rtags is allowed to modify this file"
     (if (file-exists-p line)
         (progn
           (kill-buffer (current-buffer))
-          (find-file line))
+          (find-file line)
+          (run-hooks rtags-after-find-file-hook)
+          )
       )
     )
   )
