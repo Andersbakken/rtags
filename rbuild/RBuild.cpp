@@ -496,6 +496,7 @@ CXChildVisitResult RBuild::visitor(CXCursor cursor, CXCursor, CXClientData userD
     switch (clang_getCursorKind(cursor)) {
     case CXCursor_ParmDecl:
         return CXChildVisit_Recurse;
+    case CXCursor_TemplateRef:
     case CXCursor_TypeRef: {
         RBuildPrivate *p = reinterpret_cast<UserData*>(userData)->p;
         if (p->flags & RBuild::DebugAllSymbols) {
@@ -506,7 +507,7 @@ CXChildVisitResult RBuild::visitor(CXCursor cursor, CXCursor, CXClientData userD
             clang_getInstantiationLocation(clang_getCursorLocation(r), &f2, &l2, &c2, 0);
             const Path p = Path::resolved(eatString(clang_getFileName(f)));
             const Path p2 = Path::resolved(eatString(clang_getFileName(f2)));
-            printf("%s:%d:%d: ref of %s %s %s:%d:%d\n",
+            printf("%s:%d:%d: vref of %s %s %s:%d:%d\n",
                    p.constData(), l, c,
                    kindToString(clang_getCursorKind(r)).constData(),
                    eatString(clang_getCursorSpelling(r)).constData(),
@@ -517,6 +518,16 @@ CXChildVisitResult RBuild::visitor(CXCursor cursor, CXCursor, CXClientData userD
         if (r.usr.isEmpty()) {
             CXCursor ref = clang_getCursorReferenced(cursor);
             r.usr = eatString(clang_getCursorUSR(ref));
+            CXCursor spec = clang_getSpecializedCursorTemplate(ref);
+            if (!clang_isInvalid(clang_getCursorKind(spec)))
+                r.specialized = eatString(clang_getCursorUSR(spec));
+            if (clang_getCursorKind(ref) == CXCursor_TemplateTypeParameter) {
+                Entity e;
+                e.symbolName = eatString(clang_getCursorDisplayName(ref));
+                e.definition = createLocation(ref, p->filesByName);
+                e.parentNames = parentNames(ref);
+                p->entities[r.usr] = e;
+            }
         }
 
         break; }
@@ -564,8 +575,7 @@ void RBuild::indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
         CXString nm = clang_getCursorDisplayName(decl->cursor); // this one gives us args
         e.symbolName = clang_getCString(nm);
         clang_disposeString(nm);
-        e.kind = decl->entityInfo->kind;
-        if (e.kind == CXIdxEntity_CXXInstanceMethod || CXIdxEntity_CXXDestructor) {
+        if (decl->entityInfo->kind == CXIdxEntity_CXXInstanceMethod || CXIdxEntity_CXXDestructor) {
             CXCursor *overridden = 0;
             unsigned count = 0;
             clang_getOverriddenCursors(decl->cursor, &overridden, &count);
@@ -582,38 +592,16 @@ void RBuild::indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
             }
             clang_disposeOverriddenCursors(overridden);
         }
-        CXCursor parent = decl->cursor;
-        forever {
-            parent = clang_getCursorSemanticParent(parent);
-            const CXCursorKind k = clang_getCursorKind(parent);
-            if (clang_isInvalid(k))
-                break;
-            CXString str = clang_getCursorDisplayName(parent);
-            const char *cstr = clang_getCString(str);
-            if (!cstr || !strlen(cstr)) {
-                clang_disposeString(str);
-                break;
-            }
-            switch (k) {
-            case CXCursor_StructDecl:
-            case CXCursor_ClassDecl:
-            case CXCursor_Namespace:
-                e.parentNames.prepend(cstr);
-                break;
-            default:
-                break;
-            }
-            clang_disposeString(str);
-        }
+        e.parentNames = parentNames(decl->cursor);
     }
     // qDebug() << loc << name << kindToString(kind) << decl->entityInfo->templateKind
     //          << decl->entityInfo->USR;
     bool visit = false;
-    switch (e.kind) {
+    switch (decl->entityInfo->kind) {
     case CXIdxEntity_CXXConstructor:
         visit = true;
     case CXIdxEntity_CXXDestructor: {
-        if (e.kind == CXIdxEntity_CXXDestructor) {
+        if (decl->entityInfo->kind == CXIdxEntity_CXXDestructor) {
             Q_ASSERT(e.symbolName.startsWith('~'));
             ++loc.column; // this is just for renameSymbol purposes
         }
@@ -656,12 +644,19 @@ void RBuild::indexReference(CXClientData userData, const CXIdxEntityRefInfo *ref
 
     QMutexLocker lock(&p->mutex);
     const Location loc = createLocation(ref->loc, p->filesByName);
-    CXCursor spec = clang_getSpecializedCursorTemplate(ref->referencedEntity->cursor);
     PendingReference &r = p->pendingReferences[loc];
     if (r.usr.isEmpty()) {
         r.usr = ref->referencedEntity->USR;
+        CXCursor spec = clang_getSpecializedCursorTemplate(ref->referencedEntity->cursor);
         if (!clang_isInvalid(clang_getCursorKind(spec)))
             r.specialized = eatString(clang_getCursorUSR(spec));
+        if (clang_getCursorKind(ref->referencedEntity->cursor) == CXCursor_TemplateTypeParameter) {
+            Entity e;
+            e.symbolName = eatString(clang_getCursorDisplayName(ref->referencedEntity->cursor));
+            e.definition = createLocation(ref->referencedEntity->cursor, p->filesByName);
+            e.parentNames = parentNames(ref->referencedEntity->cursor);
+            p->entities[r.usr] = e;
+        }
     }
 }
 
@@ -929,4 +924,31 @@ void RBuild::writePch()
         }
         ++it;
     }
+}
+QList<QByteArray> RBuild::parentNames(CXCursor cursor)
+{
+    QList<QByteArray> parentNames;
+    forever {
+        cursor = clang_getCursorSemanticParent(cursor);
+        const CXCursorKind k = clang_getCursorKind(cursor);
+        if (clang_isInvalid(k))
+            break;
+        CXString str = clang_getCursorDisplayName(cursor);
+        const char *cstr = clang_getCString(str);
+        if (!cstr || !strlen(cstr)) {
+            clang_disposeString(str);
+            break;
+        }
+        switch (k) {
+        case CXCursor_StructDecl:
+        case CXCursor_ClassDecl:
+        case CXCursor_Namespace:
+            parentNames.prepend(cstr);
+            break;
+        default:
+            break;
+        }
+        clang_disposeString(str);
+    }
+    return parentNames;
 }

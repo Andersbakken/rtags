@@ -29,10 +29,9 @@ static inline uint qHash(const QList<QByteArray> &scope)
 }
 
 struct Entity {
-    Entity() : kind(CXIdxEntity_Unexposed) {}
+    Entity() {}
     QByteArray symbolName;
     QList<QByteArray> parentNames;
-    CXIdxEntityKind kind;
     Location definition, super;
     QSet<Location> declarations, references, extraDeclarations, subs;
 };
