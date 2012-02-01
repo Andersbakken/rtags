@@ -42,6 +42,7 @@ private slots:
     void onCompileFinished();
     void save();
 private:
+    static CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData userData);
     static void indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl);
     static void indexReference(CXClientData userData, const CXIdxEntityRefInfo *ref);
     static void diagnostic(CXClientData userdata, CXDiagnosticSet set, void *);

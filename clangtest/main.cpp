@@ -34,7 +34,6 @@ static inline const char *kindToString(CXIdxEntityKind kind)
     return "";
 }
 
-
 class String
 {
     String(const String &other);
@@ -56,6 +55,45 @@ public:
     CXString str;
 };
 
+static CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData)
+{
+    // CXFile f;
+    // unsigned l, c;
+    // clang_getInstantiationLocation(clang_getCursorLocation(parent), &f, &l, &c, 0);
+
+    // printf("    parent is %s %s %s:%u:%u:\n",
+    //        String(clang_getCursorKindSpelling(clang_getCursorKind(parent))).data(),
+    //        String(clang_getCursorSpelling(parent)).data(),
+    //        String(clang_getFileName(f)).data(),
+    //        l, c);
+
+    switch (clang_getCursorKind(cursor)) {
+    case CXCursor_TypeRef:
+    case CXCursor_TemplateRef: {
+        CXFile file;
+        unsigned line, col;
+        clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
+
+        CXCursor ref = clang_getCursorReferenced(cursor);
+        CXFile file2;
+        unsigned line2, col2;
+        clang_getInstantiationLocation(clang_getCursorLocation(ref), &file2, &line2, &col2, 0);
+        printf("    %s %s %s:%u:%u: references %s %s %s:%u:%u:\n",
+               String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
+               String(clang_getCursorSpelling(cursor)).data(),
+               String(clang_getFileName(file)).data(),
+               line, col,
+               String(clang_getCursorKindSpelling(clang_getCursorKind(ref))).data(),
+               String(clang_getCursorSpelling(ref)).data(),
+               String(clang_getFileName(file2)).data(),
+               line2, col2);
+        break; }
+    default:
+        break;
+    }
+    return CXChildVisit_Recurse;
+}
+
 void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
 {
     CXFile f;
@@ -64,6 +102,15 @@ void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
     printf("%s:%d:%d: %s %s\n",
            String(clang_getFileName(f)).data(),
            l, c, kindToString(decl->entityInfo->kind), decl->entityInfo->name);
+    switch (decl->entityInfo->kind) {
+    case CXIdxEntity_Function:
+    case CXIdxEntity_CXXInstanceMethod:
+    case CXIdxEntity_CXXConstructor:
+        clang_visitChildren(decl->cursor, visitor, 0);
+        break;
+    default:
+        break;
+    }
 }
 
 void indexEntityReference(CXClientData, const CXIdxEntityRefInfo *ref)

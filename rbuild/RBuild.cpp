@@ -490,6 +490,26 @@ struct UserData {
     Path file;
 };
 
+CXChildVisitResult RBuild::visitor(CXCursor cursor, CXCursor, CXClientData userData)
+{
+    switch (clang_getCursorKind(cursor)) {
+    case CXCursor_TypeRef:
+    case CXCursor_TemplateRef: {
+        CXCursor ref = clang_getCursorReferenced(cursor);
+        RBuildPrivate *p = reinterpret_cast<UserData*>(userData)->p;
+        QMutexLocker lock(&p->mutex);
+        const Location loc = createLocation(ref, p->filesByName);
+        PendingReference &r = p->pendingReferences[loc];
+        if (r.usr.isEmpty()) {
+            r.usr = eatString(clang_getCursorUSR(ref));
+        }
+        break; }
+    default:
+        break;
+    }
+    return CXChildVisit_Recurse;
+}
+
 void RBuild::indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
 {
     RBuildPrivate *p = reinterpret_cast<UserData*>(userData)->p;
@@ -572,8 +592,10 @@ void RBuild::indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
     }
     // qDebug() << loc << name << kindToString(kind) << decl->entityInfo->templateKind
     //          << decl->entityInfo->USR;
+    bool visit = false;
     switch (e.kind) {
     case CXIdxEntity_CXXConstructor:
+        visit = true;
     case CXIdxEntity_CXXDestructor: {
         if (e.kind == CXIdxEntity_CXXDestructor) {
             Q_ASSERT(e.symbolName.startsWith('~'));
@@ -584,10 +606,16 @@ void RBuild::indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
         CXString usr = clang_getCursorUSR(decl->semanticContainer->cursor);
         p->entities[clang_getCString(usr)].extraDeclarations.insert(loc);
         break; }
+    case CXIdxEntity_Function:
+    case CXIdxEntity_CXXInstanceMethod:
+        visit = true;
+        break;
     default:
         break;
     }
-
+    if (visit) {
+        clang_visitChildren(decl->cursor, RBuild::visitor, userData);
+    }
 }
 
 void RBuild::indexReference(CXClientData userData, const CXIdxEntityRefInfo *ref)
