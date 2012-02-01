@@ -50,6 +50,9 @@ return t if rtags is allowed to modify this file"
     (rtags-log (buffer-string))
     (goto-char (point-min))))
 
+(defun rtags-has-database ()
+  (if (= (call-process (executable-find "rc") nil nil nil "--find-db" default-directory) 0) t nil))
+
 (defvar rtags-symbol-history nil)
 (defvar rtags-file-history nil)
 (defvar last-rtags-update-process nil)
