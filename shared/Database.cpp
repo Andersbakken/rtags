@@ -309,7 +309,10 @@ int Database::close()
 
 Location Database::followLocation(const Location &source) const
 {
-    return read<Location>(Targets, source);
+    const Location ret = read<Location>(Targets, source);
+    if (!ret.file && read<int>(References, source, -1) != -1)
+        return source;
+    return ret;
 }
 
 Location Database::findSuper(const Location &location) const

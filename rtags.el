@@ -271,7 +271,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-find-symbol-prompt ()
   (interactive)
-  (rtags-find-symbol-internal "Find symbol" "-s"))
+  (rtags-find-symbol-internal "(R)Find symbol" "-s"))
 
 (defun rtags-find-symbol ()
   (interactive)
@@ -284,7 +284,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-find-references-prompt ()
   (interactive)
-  (rtags-find-symbol-internal "Find references" "-r"))
+  (rtags-find-symbol-internal "(R)Find references" "-r"))
 
 (defun rtags-complete-files (string predicate code)
   (let ((complete-list (make-vector 63 0)))
@@ -329,7 +329,7 @@ return t if rtags is allowed to modify this file"
 (defun rtags-find-files ()
    (interactive)
    (let ((tagname (gtags-current-token))
-         (input (completing-read "Find files: " 'rtags-complete-files nil nil nil rtags-file-history)))
+         (input (completing-read "(R)Find files: " 'rtags-complete-files nil nil nil rtags-file-history)))
      (setq rtags-last-buffer (current-buffer))
      (unless (equal "" input)
        (progn

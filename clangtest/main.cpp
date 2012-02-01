@@ -105,6 +105,8 @@ void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
            String(clang_getFileName(f)).data(),
            l, c, kindToString(decl->entityInfo->kind), decl->entityInfo->name);
     switch (decl->entityInfo->kind) {
+    case CXIdxEntity_Field:
+    case CXIdxEntity_Variable:
     case CXIdxEntity_Function:
     case CXIdxEntity_CXXInstanceMethod:
     case CXIdxEntity_CXXConstructor:

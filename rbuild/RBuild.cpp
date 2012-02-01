@@ -624,6 +624,8 @@ void RBuild::indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
         break; }
     case CXIdxEntity_Function:
     case CXIdxEntity_CXXInstanceMethod:
+    case CXIdxEntity_Variable:
+    case CXIdxEntity_Field:
         visit = true;
         break;
     default:
