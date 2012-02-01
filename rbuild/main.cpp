@@ -97,6 +97,7 @@ int main(int argc, char** argv)
         { "update", no_argument, 0, 'u' },
         { "db-file", required_argument, 0, 'b' },
         { "source-dir", required_argument, 0, 's' },
+        { "disable-pch", no_argument, 0, 'p' },
         { "db-type", required_argument, 0, 't' },
         { "dont-clang", no_argument, 0, 'c' },
         { "dont-index", no_argument, 0, 'i' },
