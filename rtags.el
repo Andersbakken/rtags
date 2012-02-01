@@ -10,11 +10,6 @@
   :group 'tools
   :prefix "rtags-")
 
-(defcustom rtags-enable t
-  "Whether or rtags is enabled"
-  :type 'boolean
-  :group 'rtags)
-
 (defcustom rtags-edit-hook nil
   "Run before rtags tries to modify a buffer (from rtags-rename)
 return t if rtags is allowed to modify this file"
