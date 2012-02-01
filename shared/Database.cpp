@@ -330,7 +330,11 @@ QSet<Location> Database::findSubs(const Location &location) const
 QSet<Location> Database::findReferences(const Location &source) const
 {
     QSet<Location> ret;
-    const int refId = read<int>(References, source, -1);
+    int refId = read<int>(References, source, -1);
+    if (refId > 0)
+        ret = read<QSet<Location> >(References, refId);
+    const Location followed = followLocation(source);
+    refId = read<int>(References, followed, -1);
     if (refId > 0)
         ret = read<QSet<Location> >(References, refId);
     return ret;
