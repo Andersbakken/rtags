@@ -38,6 +38,20 @@ struct Location
     {
         return file == other.file && line == other.line && column == other.column;
     }
+    inline bool operator<(const Location &other) const
+    {
+        if (file < other.file)
+            return true;
+        if (file > other.file)
+            return false;
+        if (line < other.line)
+            return true;
+        if (line > other.line)
+            return false;
+        if (column > other.column)
+            return false;
+        return true;
+    }
 };
 
 static inline uint qHash(const Location &l)

@@ -236,7 +236,7 @@ return t if rtags is allowed to modify this file"
         (kill-buffer "*RTags-Complete*"))
     (setq rtags-last-buffer (current-buffer))
     (switch-to-buffer (generate-new-buffer "*RTags-Complete*"))
-    (rtags-rc-internal mode (concat bufname ":" line ":" column ":"))
+    (rtags-rc-internal "-o" mode (concat bufname ":" line ":" column ":"))
 
     (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
           ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))

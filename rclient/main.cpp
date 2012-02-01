@@ -40,27 +40,25 @@ public:
         printf("%s\n", printLocationImpl(loc, db, mFlags & ~SeparateLocationsBySpace).constData());
     }
 
-    template <typename T> void printLocations(const T &t, const Database *db)
+    void printLocations(const QSet<Location> &set, const Database *db)
     {
-        unsigned flags = mFlags;
-        QList<QByteArray> out;
-        foreach(const Location &l, t)
-            out.append(printLocationImpl(l, db, flags));
-        if (flags & SortOutput)
-            qSort(out);
-        const int count = out.size();
+        QList<Location> t = set.toList();
+        if (mFlags & SortOutput)
+            qSort(t);
+        const int count = t.size();
         for (int i=0; i<count; ++i) {
-            if ((flags & SeparateLocationsBySpace)) {
+            const QByteArray out = printLocationImpl(t.at(i), db, mFlags);
+            if ((mFlags & SeparateLocationsBySpace)) {
                 if (i) {
-                    printf(" %s", out.at(i).constData());
+                    printf(" %s", out.constData());
                 } else {
-                    printf("%s", out.at(i).constData());
+                    printf("%s", out.constData());
                 }
             } else {
-                printf("%s\n", out.at(i).constData());
+                printf("%s\n", out.constData());
             }
         }
-        if (flags & SeparateLocationsBySpace)
+        if (mFlags & SeparateLocationsBySpace)
             printf("\n");
     }
 
@@ -338,7 +336,7 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Invalid arg %s", arg.constData());
                 break;
             }
-            output.printLocations(db->allReferences(loc), db);
+            output.printLocations(db->allReferences(loc).toSet(), db);
             break; }
         case FollowSymbol: {
             Location loc = db->createLocation(arg);
@@ -349,11 +347,11 @@ int main(int argc, char** argv)
                     output.printLocation(loc, db);
                 // we're not going to find more than one followLocation
             } else {
-                QList<Location> out;
+                QSet<Location> out;
                 foreach(const Location &l, db->findSymbol(arg)) {
                     Location ll = db->followLocation(l);
                     if (ll.file)
-                        out.append(ll);
+                        out.insert(ll);
                 }
                 output.printLocations(out, db);
             }
@@ -401,11 +399,11 @@ int main(int argc, char** argv)
                 if (loc.file)
                     output.printLocation(loc, db);
             } else {
-                QList<Location> out;
+                QSet<Location> out;
                 foreach(const Location &l, db->findSymbol(arg)) {
                     Location ll = db->findSuper(l);
                     if (ll.file)
-                        out.append(ll);
+                        out.insert(ll);
                 }
                 output.printLocations(out, db);
             }
