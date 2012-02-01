@@ -914,7 +914,7 @@ void RBuild::writePch()
         key.replace('/', '_'); // hopefully this is always unique ###
         p += "/pch/" + key;
         if (p != pch) {
-            qDebug() << "need to move" << pch << "to" << p;
+            // qDebug() << "need to move" << pch << "to" << p;
             unlink(p.constData());
             if (rename(pch.constData(), p.constData()) == -1) {
                 it = mData->pch.erase(it);

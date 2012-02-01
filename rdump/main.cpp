@@ -288,6 +288,16 @@ static inline void rdump(Database *db, Mode mode, const QByteArray &filter)
                                     }
                                 }
                             }
+                        } else if (key == "pch") {
+                            const QHash<QByteArray, QPair<Path, Path> > hash = it->value<QHash<QByteArray, QPair<Path, Path> > >();
+                            printf("\n");
+                            for (QHash<QByteArray, QPair<Path, Path> >::const_iterator it = hash.begin(); it != hash.end(); ++it) {
+                                printf("  %s: pch: %s header: %s\n",
+                                       it.key().constData(),
+                                       it.value().first.constData(),
+                                       it.value().second.constData());
+                            }
+
                         } else {
                             fprintf(stderr, "Unknown key General: [%s]\n", key.constData());
                         }
