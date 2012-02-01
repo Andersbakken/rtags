@@ -335,8 +335,10 @@ QSet<Location> Database::findReferences(const Location &source) const
         ret = read<QSet<Location> >(References, refId);
     const Location followed = followLocation(source);
     refId = read<int>(References, followed, -1);
-    if (refId > 0)
+    if (refId > 0) {
+        ret.remove(followed); // ### is this right?
         ret = read<QSet<Location> >(References, refId);
+    }
     return ret;
 }
 
