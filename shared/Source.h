@@ -30,7 +30,6 @@ static inline QDataStream &operator<<(QDataStream &ds, const Source &s)
 static inline QDataStream &operator>>(QDataStream &ds, Source &s)
 {
     ds >> s.args >> s.lastModified >> s.fromUnsavedFile;
-    qDebug() << "reading in source" << s.args.input() << s.fromUnsavedFile;
 
     if (!s.fromUnsavedFile)
         ds >> s.dependencies;
