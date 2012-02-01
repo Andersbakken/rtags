@@ -536,7 +536,7 @@ void RBuild::indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
                extra.constData());
     }
 
-    QMutexLocker lock(&p->mutex); // ### is this the right place to lock?
+    QMutexLocker lock(&p->mutex);
 
     Entity &e = p->entities[decl->entityInfo->USR];
     Location loc = createLocation(decl->loc, p->filesByName);
@@ -759,7 +759,7 @@ bool RBuild::compile(const GccArguments &gccArgs, const Path &output, Source **s
             }
             // qDebug() << file << "depends on" << src.dependencies.keys();
             {
-                QMutexLocker lock(&mData->mutex); // ### is this the right place to lock?
+                QMutexLocker lock(&mData->mutex);
                 mData->sources.append(src);
                 if (source)
                     *source = &mData->sources.last();
@@ -823,7 +823,8 @@ void RBuild::writeEntities()
         mData->db->writeEntity(entity);
     }
 }
-// ### it's only legal to call these before any compilation has started
+
+// it's only legal to call these before any compilation has started
 void RBuild::addDefines(const QList<QByteArray> &defines)
 {
     foreach(const QByteArray &define, defines)
