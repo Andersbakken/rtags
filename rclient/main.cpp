@@ -112,7 +112,6 @@ static inline void usage(const char* argv0, FILE *f)
             "%s [options]...\n"
             "  --help|-h                     Display this help\n"
             "  --db-file|-d [arg]            Find database using this path\n"
-            "  --print-db-path|-p            Print out the used database path(s)\n"
             "  --detect-db|-D                Find .rtags.db based on path\n"
             "                                (default when no -d options are specified)\n"
             "  --db-type|-t [arg]            Type of db (leveldb or filedb)\n"
@@ -129,7 +128,8 @@ static inline void usage(const char* argv0, FILE *f)
             "  --all-references|-a [arg]     Print all references/declarations/definitions that matches arg\n"
             "  --find-symbols|-s [arg]       Print out symbols matching arg\n"
             "  --find-super|-u [loc]         Print out superclass or reimplemented function of arg\n"
-            "  --find-subs|-b [loc]          Print out baseclasses or reimplementations of arg\n",
+            "  --find-subs|-b [loc]          Print out baseclasses or reimplementations of arg\n"
+            "  --find-db|-F                  Return 0 if a database was found, otherwise return 1\n",
             argv0);
 }
 
@@ -139,6 +139,17 @@ static inline void usage(const char* argv0, FILE *f)
         return 1;                                       \
     }                                                   \
     mode = m;
+
+class ScopedDBPointer : public QScopedPointer<Database>
+{
+public:
+    ScopedDBPointer(Database *db)
+        : QScopedPointer<Database>(db)
+    {}
+
+    operator Database *() const { return data(); }
+    operator Database *() { return data(); }
+};
 
 int main(int argc, char** argv)
 {
@@ -170,7 +181,8 @@ int main(int argc, char** argv)
         { "db", required_argument, 0, 'd' },
         { "db-type", required_argument, 0, 't' },
         { "files", optional_argument, 0, 'P' },
-        { "find-db", no_argument, 0, 'D' },
+        { "detect-db", no_argument, 0, 'D' },
+        { "find-db", no_argument, 0, 'F' },
         { "find-references", required_argument, 0, 'r' },
         { "find-subs", required_argument, 0, 'b' },
         { "find-super", required_argument, 0, 'u' },
@@ -198,7 +210,8 @@ int main(int argc, char** argv)
         Files,
         AllReferences,
         FindSuper,
-        FindSubs
+        FindSubs,
+        FindDB
         // RecursiveReferences,
     } mode = None;
     unsigned flags = 0;
@@ -233,6 +246,9 @@ int main(int argc, char** argv)
         case 'h':
             usage(argv[0], stdout);
             return 0;
+        case 'F':
+            SET_MODE(FindDB);
+            break;
         case 'f':
             SET_MODE(FollowSymbol);
             arg = optarg;
@@ -293,26 +309,29 @@ int main(int argc, char** argv)
     }
 
     if (dbPaths.isEmpty()) {
-        fprintf(stderr, "No databases specified\n");
+        if (mode != FindDB)
+            fprintf(stderr, "No databases specified\n");
         return 1;
     }
 
     Output output(flags);
     bool done = false;
+    bool foundDB = false;
     foreach(const QByteArray &dbPath, dbPaths) {
         if (dbPath.isEmpty())
             continue;
-        Database* db = Database::create(dbPath, Database::ReadOnly);
+        ScopedDBPointer db(Database::create(dbPath, Database::ReadOnly));
         if (!db->isOpened()) {
-            delete db;
             continue;
         }
-
+        foundDB = true;
         switch (mode) {
         case None:
             usage(argv[0], stderr);
             fprintf(stderr, "No mode selected\n");
             return 1;
+        case FindDB:
+            break;
         case AllReferences: {
             const Location loc = db->createLocation(arg);
             if (!loc.file) {
@@ -409,5 +428,5 @@ int main(int argc, char** argv)
             break;
     }
 
-    return 0;
+    return foundDB ? 0 : 1;
 }
