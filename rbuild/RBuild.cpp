@@ -940,6 +940,7 @@ void RBuild::writePch()
 }
 QList<QByteArray> RBuild::cursorScope(CXCursor cursor)
 {
+#warning bug here, all references for scope only gives itself and the scope.prepend thing, not the return statement. This seems to work when its an int though
     QList<QByteArray> scope;
     forever {
         cursor = clang_getCursorSemanticParent(cursor);

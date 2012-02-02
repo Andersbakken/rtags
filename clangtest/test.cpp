@@ -1,44 +1,15 @@
-// #include <QByteArray>
-// #include <QList>
-// #include <qglobal.h>
-
-template <typename T>
-class List
+int func()
 {
-public:
-    List(const T &t)
-        : tt(t)
-    {}
+    int foo;
+    ++foo;
 
-    T func() const { return tt; }
+    if (foo > foo)
+        --foo;
+    return foo;
+}
 
-private:
-    T tt;
-};
-
-// class A
-// {
-// public:
-//     A() {}
-
-//     A *parent;
-// };
-
-// List<A> *ptr = 0;
-
-// void func(List<A> *list)
-// {
-// }
 
 int main()
 {
-    // A balle;
-    // List<A> list(balle);
-    // A aa = list.func();
     return 0;
-    // QList<QByteArray> foo;
-    // foreach(const QByteArray &f, foo) {
-    //     return f.isEmpty() ? 0 : 1;
-    // }
-    // return 0;
 }

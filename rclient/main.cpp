@@ -333,7 +333,7 @@ int main(int argc, char** argv)
         case AllReferences: {
             const Location loc = db->createLocation(arg);
             if (!loc.file) {
-                fprintf(stderr, "Invalid arg %s", arg.constData());
+                fprintf(stderr, "Invalid arg %s\n", arg.constData());
                 break;
             }
             output.printLocations(db->allReferences(loc).toSet(), db);
