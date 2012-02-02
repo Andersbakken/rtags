@@ -506,7 +506,7 @@ void Database::writeEntity(const Entity &entity)
     if (!entity.definition.file
         && entity.declarations.isEmpty()
         && entity.extraDeclarations.isEmpty()) {
-        qDebug() << "why does this happen" << entity.symbolName << entity.parentNames << entity.definition
+        qDebug() << "why does this happen" << entity.symbolName << entity.cursorScope << entity.definition
                  << entity.declarations << entity.extraDeclarations << entity.references
                  << entity.super << entity.subs;
         return;
@@ -602,7 +602,7 @@ void Database::writeEntity(const Entity &entity)
         if (entity.definition.file)
             locations.insert(entity.definition);
         QByteArray out;
-        mDictionary[entity.symbolName][entity.parentNames] += locations;
+        mDictionary[entity.symbolName][entity.cursorScope] += locations;
     }
 }
 

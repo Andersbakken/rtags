@@ -48,7 +48,7 @@ private:
     static void diagnostic(CXClientData userdata, CXDiagnosticSet set, void *);
     static void getInclusions(CXFile includedFile, CXSourceLocation* inclusionStack,
                               unsigned inclusionStackLen, CXClientData userData);
-    static QList<QByteArray> parentNames(CXCursor cursor);
+    static QList<QByteArray> cursorScope(CXCursor cursor);
 
     bool pch(const GccArguments &pch);
     bool compile(const GccArguments &args, const Path &output = Path(), Source **src = 0);

@@ -17,12 +17,14 @@ struct PendingReference {
 struct RBuildPrivate
 {
     RBuildPrivate()
-        : flags(0), db(0), pendingJobs(0), index(0)
+        : errorFd(0), flags(0), db(0), pendingJobs(0), index(0)
     {
         extern QHash<Path, unsigned> *filesByNameDebugUgleHack;
         filesByNameDebugUgleHack = &filesByName;
     }
 
+    int errorFd;
+    Path errorFn;
     unsigned flags;
     QHash<QByteArray, Entity> entities;
     QHash<Location, PendingReference> pendingReferences;

@@ -31,7 +31,7 @@ static inline uint qHash(const QList<QByteArray> &scope)
 struct Entity {
     Entity() {}
     QByteArray symbolName;
-    QList<QByteArray> parentNames;
+    QList<QByteArray> cursorScope;
     Location definition, super;
     QSet<Location> declarations, references, extraDeclarations, subs;
 };

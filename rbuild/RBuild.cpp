@@ -422,38 +422,6 @@ void RBuild::getInclusions(CXFile includedFile,
     }
 }
 
-static inline bool diagnose(CXTranslationUnit unit, bool verbose)
-{
-    if (!unit)
-        return false;
-    bool foundError = false;
-    const unsigned int numDiags = clang_getNumDiagnostics(unit);
-    for (unsigned int i = 0; i < numDiags; ++i) {
-        CXDiagnostic diag = clang_getDiagnostic(unit, i);
-        const bool error = clang_getDiagnosticSeverity(diag) >= CXDiagnostic_Error;
-        foundError = foundError || error;
-        if (verbose || error) {
-            CXSourceLocation loc = clang_getDiagnosticLocation(diag);
-            CXFile file;
-            unsigned int line, col, off;
-
-            clang_getInstantiationLocation(loc, &file, &line, &col, &off);
-            CXString fn = clang_getFileName(file);
-            CXString txt = clang_getDiagnosticSpelling(diag);
-            const char* fnstr = clang_getCString(fn);
-
-            // Suppress diagnostic messages that doesn't have a filename
-            if (fnstr && (strcmp(fnstr, "") != 0))
-                fprintf(stderr, "%s:%u:%u %s\n", fnstr, line, col, clang_getCString(txt));
-
-            clang_disposeString(txt);
-            clang_disposeString(fn);
-        }
-        clang_disposeDiagnostic(diag);
-    }
-    return !foundError;
-}
-
 static inline Location createLocation(const CXIdxLoc &l, QHash<Path, unsigned> &files)
 {
     Location loc;
@@ -525,7 +493,7 @@ CXChildVisitResult RBuild::visitor(CXCursor cursor, CXCursor, CXClientData userD
                 Entity e;
                 e.symbolName = eatString(clang_getCursorDisplayName(ref));
                 e.definition = createLocation(ref, p->filesByName);
-                e.parentNames = parentNames(ref);
+                e.cursorScope = cursorScope(ref);
                 p->entities[r.usr] = e;
             }
         }
@@ -592,7 +560,7 @@ void RBuild::indexDeclaration(CXClientData userData, const CXIdxDeclInfo *decl)
             }
             clang_disposeOverriddenCursors(overridden);
         }
-        e.parentNames = parentNames(decl->cursor);
+        e.cursorScope = cursorScope(decl->cursor);
     }
     // qDebug() << loc << name << kindToString(kind) << decl->entityInfo->templateKind
     //          << decl->entityInfo->USR;
@@ -654,7 +622,7 @@ void RBuild::indexReference(CXClientData userData, const CXIdxEntityRefInfo *ref
             Entity e;
             e.symbolName = eatString(clang_getCursorDisplayName(ref->referencedEntity->cursor));
             e.definition = createLocation(ref->referencedEntity->cursor, p->filesByName);
-            e.parentNames = parentNames(ref->referencedEntity->cursor);
+            e.cursorScope = cursorScope(ref->referencedEntity->cursor);
             p->entities[r.usr] = e;
         }
     }
@@ -663,14 +631,38 @@ void RBuild::indexReference(CXClientData userData, const CXIdxEntityRefInfo *ref
 void RBuild::diagnostic(CXClientData userdata, CXDiagnosticSet set, void *)
 {
     const int count = clang_getNumDiagnosticsInSet(set);
-    const bool verbose = reinterpret_cast<UserData*>(userdata)->p->flags & Verbose;
+    RBuildPrivate *p = reinterpret_cast<UserData*>(userdata)->p;
+    const bool verbose = p->flags & Verbose;
     for (int i=0; i<count; ++i) {
         CXDiagnostic diagnostic = clang_getDiagnosticInSet(set, i);
-        if (verbose || clang_getDiagnosticSeverity(diagnostic) >= CXDiagnostic_Error) {
-
+        const bool error = clang_getDiagnosticSeverity(diagnostic) >= CXDiagnostic_Error;
+        if (verbose || error) {
+            const QByteArray diag = eatString(clang_formatDiagnostic(diagnostic, 0xff));
+            if (error) {
+                QMutexLocker lock(&p->mutex);
+                if (!p->errorFd) {
+                    char tmp[256];
+                    strncpy(tmp, "/tmp/rtagspch.error.XXXXXX", 255);
+                    p->errorFd = mkstemp(tmp);
+                    p->errorFn = tmp;
+                }
+                if (p->errorFd > 0) {
+                    char buf[1024];
+                    const int w = snprintf(buf, 1024, "%s: %s\n",
+                                           reinterpret_cast<UserData*>(userdata)->file.constData(),
+                                           diag.constData());
+                    int written = 0;
+                    while (written < w) {
+                        const int wrote = write(p->errorFd, buf + written, w - written);
+                        if (wrote <= 0)
+                            break;
+                        written += wrote;
+                    }
+                }
+            }
             fprintf(stderr, "%s: %s\n",
                     reinterpret_cast<UserData*>(userdata)->file.constData(),
-                    eatString(clang_formatDiagnostic(diagnostic, 0xff)).constData());
+                    diag.constData());
         }
         clang_disposeDiagnostic(diagnostic);
     }
@@ -811,6 +803,27 @@ int RBuild::closeDB()
     int ret = -1;
     if (mData->db) {
         ret = mData->db->close();
+        if (mData->errorFd) {
+            close(mData->errorFd);
+            mData->errorFd = 0;
+            Path p = mData->db->path();
+            time_t t;
+            time(&t);
+            struct tm *tm;
+            tm = localtime(&t);
+            char buf[128];
+            const int ret = strftime(buf, 80, "/errors_%D_%T.log", tm);
+            for (int i=0; i<ret; ++i) {
+                if (buf[i] == '/')
+                    buf[i] = '_';
+            }
+
+            p += QByteArray::fromRawData(buf, ret);
+            if (rename(mData->errorFn, p.constData()) == -1) {
+                qWarning("Move error %s", strerror(errno));
+            }
+            qDebug() << "moved" << mData->errorFn << "to" << p;
+        }
         delete mData->db;
         mData->db = 0;
     }
@@ -925,9 +938,9 @@ void RBuild::writePch()
         ++it;
     }
 }
-QList<QByteArray> RBuild::parentNames(CXCursor cursor)
+QList<QByteArray> RBuild::cursorScope(CXCursor cursor)
 {
-    QList<QByteArray> parentNames;
+    QList<QByteArray> scope;
     forever {
         cursor = clang_getCursorSemanticParent(cursor);
         const CXCursorKind k = clang_getCursorKind(cursor);
@@ -943,12 +956,12 @@ QList<QByteArray> RBuild::parentNames(CXCursor cursor)
         case CXCursor_StructDecl:
         case CXCursor_ClassDecl:
         case CXCursor_Namespace:
-            parentNames.prepend(cstr);
+            scope.prepend(cstr);
             break;
         default:
             break;
         }
         clang_disposeString(str);
     }
-    return parentNames;
+    return scope;
 }
