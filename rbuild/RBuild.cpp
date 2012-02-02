@@ -640,13 +640,7 @@ void RBuild::diagnostic(CXClientData userdata, CXDiagnosticSet set, void *)
             const QByteArray diag = eatString(clang_formatDiagnostic(diagnostic, 0xff));
             if (error) {
                 QMutexLocker lock(&p->mutex);
-                if (!p->errorFd) {
-                    char tmp[256];
-                    strncpy(tmp, "/tmp/rtagspch.error.XXXXXX", 255);
-                    p->errorFd = mkstemp(tmp);
-                    p->errorFn = tmp;
-                }
-                if (p->errorFd > 0) {
+                if (p->initErrorFD()) {
                     char buf[1024];
                     const int w = snprintf(buf, 1024, "%s: %s\n",
                                            reinterpret_cast<UserData*>(userdata)->file.constData(),
@@ -813,7 +807,7 @@ int RBuild::closeDB()
             tm = localtime(&t);
             char buf[128];
             const int ret = strftime(buf, 80, "/errors_%D_%T.log", tm);
-            for (int i=0; i<ret; ++i) {
+            for (int i=1; i<ret; ++i) {
                 if (buf[i] == '/')
                     buf[i] = '_';
             }
@@ -838,6 +832,24 @@ void RBuild::writeEntities()
         if (i == mData->entities.end())
             i = mData->entities.find(ref.specialized);
         if (i == mData->entities.end()) {
+            if (mData->initErrorFD()) {
+                char buf[1024];
+                const Location &loc = it.key();
+                const int w = snprintf(buf, 1024,
+                                       "Can't find this reference anywhere usr: [%s] "
+                                       "specialized: [%s] location: %s:%d:%d:\n",
+                                       ref.usr.constData(), ref.specialized.constData(),
+                                       mData->filesByName.key(loc.file).constData(),
+                                       loc.line, loc.column);
+                int written = 0;
+                while (written < w) {
+                    const int wrote = write(mData->errorFd, buf + written, w - written);
+                    if (wrote <= 0)
+                        break;
+                    written += wrote;
+                }
+            }
+
             qDebug() << "Can't find this reference anywhere" << ref.usr << ref.specialized << it.key();
         } else {
             i.value().references.insert(it.key());

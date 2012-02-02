@@ -49,7 +49,6 @@ private:
     static void getInclusions(CXFile includedFile, CXSourceLocation* inclusionStack,
                               unsigned inclusionStackLen, CXClientData userData);
     static QList<QByteArray> cursorScope(CXCursor cursor);
-
     bool pch(const GccArguments &pch);
     bool compile(const GccArguments &args, const Path &output = Path(), Source **src = 0);
     void writeData();

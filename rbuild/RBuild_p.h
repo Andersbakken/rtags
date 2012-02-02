@@ -49,6 +49,18 @@ struct RBuildPrivate
     QList<Source> sources;
     QMutex mutex;
 
+    bool initErrorFD()
+    {
+        if (errorFd <= 0) {
+            char tmp[256];
+            strncpy(tmp, "/tmp/rtagspch.error.XXXXXX", 255);
+            errorFd = mkstemp(tmp);
+            if (errorFd > 0)
+                errorFn = tmp;
+        }
+        return errorFd > 0;
+    }
+
     inline int locationKey(const Location &loc, char buf[512]) const
     {
         if (!loc.file)
