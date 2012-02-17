@@ -31,23 +31,30 @@ static inline void usage(const char* argv0, FILE *f)
 
 using namespace RTags;
 
+enum AddFlag {
+    None = 0x0,
+    TreatInputAsSourceOverride = 0x1,
+    RecurseDirOverride = 0x2
+};
 static inline bool add(QList<Path> &makefiles, QList<Path> &sources, const char *arg,
-                       const Path &appPath, bool treatInputAsSourceOverride)
+                       const Path &appPath, unsigned flags)
 {
     const Path p = Path::resolved(arg, appPath);
     switch (p.type()) {
     case Path::File:
-        if (treatInputAsSourceOverride || p.isSource()) {
+        if (flags & TreatInputAsSourceOverride || p.isSource()) {
             sources.append(p);
         } else {
             makefiles.append(p);
         }
         break;
     case Path::Directory: {
-        Path makefile = Path::resolved("Makefile", p);
-        if (makefile.isFile()) {
-            makefiles.append(makefile);
-            break;
+        if (!(flags & RecurseDirOverride)) {
+            Path makefile = Path::resolved("Makefile", p);
+            if (makefile.isFile()) {
+                makefiles.append(makefile);
+                break;
+            }
         }
     }
         // fall through

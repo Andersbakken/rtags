@@ -127,16 +127,20 @@ return t if rtags is allowed to modify this file"
     (save-excursion
       (if pos
           (goto-char pos))
-      (if (looking-at "[0-9A-Za-z_~#]")
-          (progn
-            (while (and (> (point) 1) (looking-at "[0-9A-Za-z_~#]"))
-              (backward-char))
-            (if (not (looking-at "[0-9A-Za-z_~#]"))
-                (forward-char))))
-      (setq column (int-to-string (- (point) (point-at-bol) -1))))
-    (with-temp-buffer
-      (rtags-rc-internal "--follow-symbol" (concat (buffer-file-name rtags-last-buffer) ":" line ":" column ":"))
-      (rtags-goto-location (buffer-string))
+      (unless (looking-at " ")
+        (progn
+          (if (looking-at "[0-9A-Za-z_~#]")
+              (progn
+                (while (and (> (point) 1) (looking-at "[0-9A-Za-z_~#]"))
+                  (backward-char))
+                (if (not (looking-at "[0-9A-Za-z_~#]"))
+                    (forward-char))))
+          (setq column (int-to-string (- (point) (point-at-bol) -1))))
+        (with-temp-buffer
+          (rtags-rc-internal "--follow-symbol" (concat (buffer-file-name rtags-last-buffer) ":" line ":" column ":"))
+          (rtags-goto-location (buffer-string))
+          )
+        )
       )
     )
   )
@@ -224,24 +228,27 @@ return t if rtags is allowed to modify this file"
   (let ((bufname (buffer-file-name))
         (line (int-to-string (line-number-at-pos)))
         (column nil))
-    (save-excursion
-      (if (looking-at "[0-9A-Za-z_~#]")
-          (progn
-            (while (and (> (point) 1) (looking-at "[0-9A-Za-z_~#]"))
-              (backward-char))
-            (if (not (looking-at "[0-9A-Za-z_~#]"))
-                (forward-char))
-            (setq column (int-to-string (- (point) (point-at-bol) -1))))))
-    (if (get-buffer "*RTags-Complete*")
-        (kill-buffer "*RTags-Complete*"))
-    (setq rtags-last-buffer (current-buffer))
-    (switch-to-buffer (generate-new-buffer "*RTags-Complete*"))
-    (rtags-rc-internal "-o" mode (concat bufname ":" line ":" column ":"))
+    (unless (looking-at " ")
+      (progn
+        (save-excursion
+          (if (looking-at "[0-9A-Za-z_~#]")
+              (progn
+                (while (and (> (point) 1) (looking-at "[0-9A-Za-z_~#]"))
+                  (backward-char))
+                (if (not (looking-at "[0-9A-Za-z_~#]"))
+                    (forward-char))
+                (setq column (int-to-string (- (point) (point-at-bol) -1))))))
+        (if (get-buffer "*RTags-Complete*")
+            (kill-buffer "*RTags-Complete*"))
+        (setq rtags-last-buffer (current-buffer))
+        (switch-to-buffer (generate-new-buffer "*RTags-Complete*"))
+        (rtags-rc-internal "-o" mode (concat bufname ":" line ":" column ":"))
 
-    (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
-          ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
-          (t (progn (goto-char (point-min)) (compilation-mode))))
-    (not (= (point-min) (point-max)))
+        (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
+              ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
+              (t (progn (goto-char (point-min)) (compilation-mode))))
+        (not (= (point-min) (point-max))))
+      nil)
     ))
 
 (defun rtags-find-symbol-internal (p switch)

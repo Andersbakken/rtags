@@ -219,6 +219,13 @@ static inline bool isValidKind(CXCursorKind kind)
     return true;
 }
 
+enum RecurseAction {
+    Recurse,
+    Break,
+    Continue
+};
+void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen);
+
 QDebug operator<<(QDebug dbg, CXCursor cursor);
 QDebug operator<<(QDebug dbg, const std::string &str);
 QDebug operator<<(QDebug dbg, const leveldb::Slice &slice);

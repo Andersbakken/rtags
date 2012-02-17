@@ -1,15 +1,22 @@
-int func()
+class Outer
 {
-    int foo;
-    ++foo;
+public:
 
-    if (foo > foo)
-        --foo;
-    return foo;
+    class Inner
+    {
+    public:
+        Inner(Outer *o);
+    };
+};
+
+Outer::Inner::Inner(Outer *o)
+{
+    delete o;
 }
-
 
 int main()
 {
+    Outer *o = new Outer;
+    Outer::Inner *i = new Outer::Inner(o);
     return 0;
 }

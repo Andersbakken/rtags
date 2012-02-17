@@ -279,41 +279,6 @@ void RBuild::processFile(const GccArguments& arguments)
     mData->threadPool.start(new CompileRunnable(this, arguments));
 }
 
-static void recurseDir(QSet<Path> *allFiles, Path path, int rootDirLen)
-{
-#if defined(_DIRENT_HAVE_D_TYPE) || defined(Q_OS_BSD4) || defined(Q_OS_SYMBIAN)
-    DIR *d = opendir(path.constData());
-    char fileBuffer[PATH_MAX];
-    if (d) {
-        if (!path.endsWith('/'))
-            path.append('/');
-        dirent *p;
-        while ((p=readdir(d))) {
-            switch (p->d_type) {
-            case DT_DIR:
-                if (p->d_name[0] != '.') {
-                    recurseDir(allFiles, path + QByteArray::fromRawData(p->d_name, strlen(p->d_name)), rootDirLen);
-                }
-                break;
-            case DT_REG: {
-                const int w = snprintf(fileBuffer, PATH_MAX, "%s%s", path.constData() + rootDirLen, p->d_name);
-                if (w >= PATH_MAX) {
-                    fprintf(stderr, "Path too long: %d, max is %d\n", w, PATH_MAX);
-                } else {
-                    allFiles->insert(Path(fileBuffer, w));
-                }
-                break; }
-                // case DT_LNK: not following links
-            }
-
-        }
-        closedir(d);
-    }
-#else
-#warning "Can't use --source-dir on this platform"
-#endif
-}
-
 void RBuild::writeData()
 {
     mData->db->write("filesByName", mData->filesByName);
