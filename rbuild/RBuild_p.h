@@ -53,7 +53,7 @@ struct RBuildPrivate
     {
         if (errorFd <= 0) {
             char tmp[256];
-            strncpy(tmp, "/tmp/rtagspch.error.XXXXXX", 255);
+            strncpy(tmp, "/tmp/rtags.errors.XXXXXX", 255);
             errorFd = mkstemp(tmp);
             if (errorFd > 0)
                 errorFn = tmp;
