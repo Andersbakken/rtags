@@ -55,18 +55,22 @@ public:
     CXString str;
 };
 
-static CXChildVisitResult visitor(CXCursor cursor, CXCursor parent, CXClientData)
+static CXChildVisitResult visitAll(CXCursor cursor, CXCursor, CXClientData)
 {
-    // CXFile f;
-    // unsigned l, c;
-    // clang_getInstantiationLocation(clang_getCursorLocation(parent), &f, &l, &c, 0);
+    CXFile f;
+    unsigned l, c;
+    clang_getInstantiationLocation(clang_getCursorLocation(cursor), &f, &l, &c, 0);
 
-    // printf("    parent is %s %s %s:%u:%u:\n",
-    //        String(clang_getCursorKindSpelling(clang_getCursorKind(parent))).data(),
-    //        String(clang_getCursorSpelling(parent)).data(),
-    //        String(clang_getFileName(f)).data(),
-    //        l, c);
+    printf("[%s] [%s] %s:%u:%u:\n",
+           String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
+           String(clang_getCursorSpelling(cursor)).data(),
+           String(clang_getFileName(f)).data(),
+           l, c);
+    return CXChildVisit_Recurse;
+}
 
+static CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData)
+{
     switch (clang_getCursorKind(cursor)) {
     case CXCursor_ParmDecl:
         return CXChildVisit_Recurse;
@@ -150,6 +154,7 @@ int main(int argc, char **argv)
                           argc < 2 ? "test.cpp" : argv[1],
                           args, sizeof(args) / 4,
                           0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
+    clang_visitChildren(clang_getTranslationUnitCursor(unit), visitAll, 0);
     if (unit)
         clang_disposeTranslationUnit(unit);
     clang_IndexAction_dispose(action);

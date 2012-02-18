@@ -3,6 +3,53 @@
 #include <RTags.h>
 #include "gccopts_gperf.h"
 
+static inline QList<QByteArray> split(QByteArray cmd)
+{
+    QProcess proc;
+    proc.start("/bin/bash", QStringList() << "-c" << "echo -n " + cmd);
+    proc.waitForFinished();
+    cmd = proc.readAllStandardOutput();
+    QList<QByteArray> ret;
+    int size = cmd.size();
+    char quote = 0;
+    int last = 0;
+    int slashes = 0;
+    for (int i=0; i<size; ++i) {
+        const char ch = cmd.at(i);
+        if (ch != ' ' && last == -1)
+            last = i;
+        switch (ch) {
+        case '\\':
+            ++slashes;
+            break;
+        case ' ':
+            if (last != -1 && quote == 0) {
+                ret.append(cmd.mid(last, i - last));
+                last = -1;
+            }
+            slashes = 0;
+            break;
+        case '"':
+        case '\'':
+            if (quote == 0) {
+                quote = ch;
+            } else if (quote == ch && slashes % 2 == 0) {
+                quote = 0;
+            }
+            slashes = 0;
+            break;
+        default:
+            slashes = 0;
+            break;
+        }
+    }
+    if (last != -1) {
+        ret.append(cmd.mid(last));
+    }
+
+    return ret;
+}
+
 GccArguments::Data::Data()
     : output(-1), x(-1), c(-1), language(LangUndefined)
 {
@@ -35,7 +82,9 @@ GccArguments::Language GccArguments::guessLanguage(const Path &path)
 
 Path GccArguments::parseCD(const QByteArray &cmd, const Path& path) const
 {
-    const QList<QByteArray> args = cmd.split(' ');
+    const QList<QByteArray> args = split(cmd);
+    if (args.size() < 2)
+        return path;
     Q_ASSERT(args.size() > 1);
     const QByteArray& argspath = args.at(1);
     Q_ASSERT(!argspath.isEmpty());
@@ -60,6 +109,7 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &p)
     int amppos = cmd.indexOf("&&");
     int cmdpos = (semipos != -1 && semipos < amppos) ? semipos : amppos, prevpos = 0;
     int sublen = (cmdpos == semipos) ? 1 : 2;
+
     if (cmdpos != -1) {
         while (prevpos != -1) {
             subcmd = cmd.mid(prevpos, (cmdpos == -1) ? -1 : cmdpos - prevpos).trimmed();
@@ -71,15 +121,16 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &p)
                 first = subcmd;
             }
 
+
             if (first.contains("gcc") || first.contains("g++")
-                || first.contains("c++") || first.contains("cc")) {
-                if (!raw.isEmpty())
-                    qDebug() << cmd << path << raw;
+                || first.contains("c++") || first.contains("cc")
+                || first.contains("libtool")) {
                 Q_ASSERT(raw.isEmpty());
                 raw = subcmd;
             } else {
-                if (subcmd.startsWith("cd "))
+                if (subcmd.startsWith("cd ")) {
                     path = parseCD(subcmd, path);
+                }
             }
             prevpos = (cmdpos != -1) ? cmdpos + sublen : -1;
             semipos = cmd.indexOf(';', cmdpos + 1);
@@ -91,10 +142,33 @@ bool GccArguments::parse(const QByteArray& cmd, const Path &p)
         raw = cmd;
     }
 
-    const QList<QByteArray> args = raw.split(' ');
-    Q_ASSERT(!args.isEmpty());
+    QList<QByteArray> args;
+    int libtoolIdx = raw.indexOf("libtool");
+    if (libtoolIdx != -1) {
+        const int mode = raw.indexOf(" --mode=", libtoolIdx + 7);
+        if (mode != -1 && raw.size() >= mode + 8 + 8
+            && !strncmp(raw.constData() + mode + 8, "compile ", 8)) {
+            const int rawSize = raw.size();
+            for (int i=mode + 15; i<rawSize - 1; ++i) {
+                if (raw.at(i) == ' ') {
+                    const char ch = raw.at(i + 1);
+                    if (ch != ' ' && ch != '-') {
+                        raw.remove(0, i + 1);
+                        break;
+                    }
+                }
+            }
+
+            args = split(raw);
+        }
+    }
+
+    if (args.isEmpty()) {
+        args = split(raw);
+    }
 
     const QByteArray &first = args.first();
+    Q_ASSERT(!args.isEmpty());
     if (!first.contains("gcc") && !first.contains("g++")
         && !first.contains("c++") && !first.contains("cc")) {
         // ### TODO might need to revisit this
@@ -289,8 +363,11 @@ bool GccArguments::isCompile() const
         // default:
         //     return true;
         // }
+        // qDebug() << "true" << m_ptr->raw;
         return true;
     }
+    // qDebug() << "false" << m_ptr->raw;
+
     return false;
 }
 

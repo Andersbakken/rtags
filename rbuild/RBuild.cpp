@@ -634,6 +634,7 @@ bool RBuild::compile(const GccArguments &gccArgs, const Path &output, Source **s
     bool ret = true;
     if ((mData->flags & DontClang) != DontClang) {
         const Path file = gccArgs.input();
+        Q_ASSERT(!file.isEmpty());
         QList<QByteArray> args = gccArgs.clangArgs();
         QHash<Path, quint64> pchDependencies;
         bool unsaved = mData->unsavedFilesHash.contains(file);

@@ -1,6 +1,7 @@
 #include "MakefileParser.h"
 #include <QProcess>
 #include <QStack>
+#include <QtCore>
 
 class DirectoryTracker
 {
@@ -80,12 +81,21 @@ void MakefileParser::run(const Path& makefile)
 {
     Q_ASSERT(!mProc);
     mProc = new QProcess(this);
+    QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+#ifdef Q_OS_MAC
+#warning is this right?
+    environment.insert("DYLD_INSERT_LIBRARIES", QCoreApplication::applicationDirPath() + "/makelib/libmakelib.dylib");
+#else
+    environment.insert("LD_PRELOAD", QCoreApplication::applicationDirPath() + "/makelib/libmakelib.so");
+#endif
+    mProc->setProcessEnvironment(environment);
+    
     connect(mProc, SIGNAL(readyReadStandardOutput()),
             this, SLOT(processMakeOutput()));
     connect(mProc, SIGNAL(finished(int)), this, SIGNAL(done()));
 
     mTracker->init(makefile.parentDir());
-    mProc->start(QLatin1String("make"), QStringList() << QLatin1String("-B")
+    mProc->start(QLatin1String("make"), QStringList()
                  << QLatin1String("-j1") << QLatin1String("-n") << QLatin1String("-w")
                  << QLatin1String("-f") << QString::fromLocal8Bit(makefile)
                  << QLatin1String("-C") << mTracker->path());

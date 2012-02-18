@@ -1,2 +1,2 @@
 TEMPLATE = subdirs
-SUBDIRS = rbuild rclient rdump
+SUBDIRS = rbuild rclient rdump makelib

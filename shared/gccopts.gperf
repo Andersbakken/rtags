@@ -17,3 +17,6 @@
 -b
 -G
 -arch
+-MF
+-MT
+-MQ
