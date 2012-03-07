@@ -124,6 +124,9 @@ public:
 
     HashSet m_defs, m_refs, m_syms;
 
+private:
+    void addFilenameSymbol(const QByteArray& filename);
+
 signals:
     void done(int id, const QByteArray& filename);
 };
@@ -273,6 +276,31 @@ IndexerJob::IndexerJob(IndexerImpl* impl, Indexer::Mode mode, int id, const QByt
 {
 }
 
+inline void IndexerJob::addFilenameSymbol(const QByteArray& filename)
+{
+    // ### would it be faster/better to use QFileInfo here?
+    int idx = -1;
+    for (;;) {
+        int backslashes = 0;
+        idx = filename.lastIndexOf('/', idx);
+        while (idx > 0 && filename.at(idx - 1) == '\\') {
+            ++backslashes;
+            --idx;
+        }
+        if ((backslashes % 2) || !idx) {
+            idx -= 1;
+            if (!idx)
+                break;
+        } else {
+            idx += backslashes;
+            break;
+        }
+    }
+    if (idx == -1)
+        return;
+    m_syms[filename.mid(idx + 1)].insert(filename);
+}
+
 static inline void uniteSets(HashSet& dst, HashSet& src)
 {
     HashSet::const_iterator it = src.begin();
@@ -313,6 +341,7 @@ void IndexerJob::run()
             qDebug() << "reread" << unit.unit()->filename << "from source, revisiting";
             clang_getInclusions(tu, inclusionVisitor, this);
             clang_visitChildren(clang_getTranslationUnitCursor(tu), indexVisitor, this);
+            addFilenameSymbol(unit.unit()->filename);
 
             QMutexLocker deflocker(&m_impl->defMutex);
             uniteSets(m_impl->defs, m_defs);
