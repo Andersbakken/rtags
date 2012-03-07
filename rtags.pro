@@ -1,2 +1,4 @@
 TEMPLATE = subdirs
-SUBDIRS = rbuild rclient rdump makelib
+SUBDIRS = 3rdparty rdm rc makelib
+
+rdm.depends = 3rdparty

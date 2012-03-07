@@ -6,8 +6,22 @@
 #include <unistd.h>
 #include <dlfcn.h>
 
+struct StatData
+{
+    const char* data;
+    int len;
+};
+static StatData statData[] = {
+    { ".o",       2 },
+    { ".lo",      3 },
+    { ".gch/c++", 8 },
+    { ".gch/c",   6 },
+    { 0,          0 }
+};
+
 typedef int (*RealStat)(int, const char*, struct stat64*);
-RealStat realStat = 0;
+static RealStat realStat = 0;
+
 int __xstat64 (int ver, const char *filename, struct stat64 *stat_buf)
 {
     if (!realStat) {
@@ -17,16 +31,22 @@ int __xstat64 (int ver, const char *filename, struct stat64 *stat_buf)
     if (!ret && S_ISREG(stat_buf->st_mode)) {
         const int len = strlen(filename);
         bool changed = false;
-        if (len >= 2 && !strncmp(filename + len - 2, ".o", 2)) {
-            stat_buf->st_mtime = 1;
-            changed = true;
-        } else if (len >= 3 && !strncmp(filename + len - 3, ".lo", 3)) {
-            stat_buf->st_mtime = 1;
-            changed = true;
+        for (StatData* current = statData; current->data; ++current) {
+            const int& currentLen = current->len;
+            if (len >= currentLen && !strncmp(filename + len - currentLen, current->data, currentLen))  {
+                stat_buf->st_mtime = 1;
+                changed = true;
+                break;
+            }
         }
         static bool debug = getenv("DEBUG_STAT");
-        if (debug)
-            fprintf(stderr, "stated [%s]%s\n", filename, changed ? " changed" : "");
+        if (debug) {
+            FILE* logfile = fopen("/tmp/makelib.log", "a");
+            if (logfile) {
+                fprintf(logfile, "stated [%s]%s\n", filename, changed ? " changed" : "");
+                fclose(logfile);
+            }
+        }
     }
     return ret;
 }

@@ -7,6 +7,9 @@ TARGET =
 DEPENDPATH += .
 INCLUDEPATH += .
 CONFIG += plugin
+CONFIG -= qt
 
 # Input
 SOURCES += makelib.cpp
+
+LIBS += -ldl

@@ -1,5 +1,6 @@
 *.o
 *.a
+*.moc
 Makefile
 moc_*
 cplusplus-frontend/cplusplus0
