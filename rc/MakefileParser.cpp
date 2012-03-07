@@ -5,6 +5,10 @@
 #include <QStack>
 #include <stdio.h>
 
+#ifndef MAKE
+#define MAKE "make"
+#endif
+
 class DirectoryTracker
 {
 public:
@@ -105,9 +109,9 @@ void MakefileParser::run(const Path& makefile)
 
     mTracker->init(makefile.parentDir());
     if (mVerbose)
-        fprintf(stderr, "make -j1 -n -w -f %s -C %s\n",
+        fprintf(stderr, MAKE " -j1 -n -w -f %s -C %s\n",
                 makefile.constData(), mTracker->path().constData());
-    mProc->start(QLatin1String("make"), QStringList()
+    mProc->start(QLatin1String(MAKE), QStringList()
                  << QLatin1String("-j1") << QLatin1String("-n") << QLatin1String("-w")
                  << QLatin1String("-f") << QString::fromLocal8Bit(makefile)
                  << QLatin1String("-C") << mTracker->path());

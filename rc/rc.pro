@@ -7,6 +7,10 @@ TARGET =
 DEPENDPATH += .
 INCLUDEPATH += .
 
+freebsd-* {
+  DEFINES+="MAKE=\\\"gmake\\\""
+}
+
 gccopts_gperf.commands = gperf -I -C -l -L C++ gccopts.gperf -Z gccopts_gperf > gccopts_gperf.h
 gccopts_gperf.target = gccopts_gperf.h
 gccopts_gperf.depends = gccopts.gperf
