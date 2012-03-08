@@ -34,6 +34,10 @@ Rdm::Rdm(int& argc, char**& argv, QObject* parent)
             int newjobs = ba.toInt(&ok);
             if (ok)
                 jobs = newjobs;
+        } else if (!strcmp(argv[i], "-include")
+                   && i + 1 < argc) {
+            m_defaultArgs.append(argv[i]);
+            m_defaultArgs.append(argv[++i]);
         }
     }
 
