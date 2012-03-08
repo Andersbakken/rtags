@@ -10,6 +10,24 @@ UnitCache* UnitCache::s_inst = 0;
 
 static const int MaxUnits = 5;
 
+static inline void printDiagnostic(CXTranslationUnit unit, const char* msg)
+{
+    unsigned int diagCount = clang_getNumDiagnostics(unit);
+    for (unsigned int i = 0; i < diagCount; ++i) {
+        const CXDiagnostic diag = clang_getDiagnostic(unit, i);
+        const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diag);
+        if (severity >= CXDiagnostic_Warning) {
+            CXString dmsg = clang_formatDiagnostic(diag, CXDiagnostic_DisplaySourceLocation
+                                                   | CXDiagnostic_DisplayColumn
+                                                   | CXDiagnostic_DisplayOption
+                                                   | CXDiagnostic_DisplayCategoryName);
+            qWarning("%s: %s", msg, clang_getCString(dmsg));
+            clang_disposeString(dmsg);
+        }
+        clang_disposeDiagnostic(diag);
+    }
+}
+
 UnitCache::UnitCache()
 {
 }
@@ -171,6 +189,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                     else {
                         qWarning("Unable to save translation unit (1): %s (as %s)",
                                  filename.constData(), outfilename.constData());
+                        printDiagnostic(data->unit.unit, "save (1)");
                         clang_disposeTranslationUnit(data->unit.unit);
                         clang_disposeIndex(data->unit.index);
                         delete data;
@@ -213,7 +232,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                     if (resource.exists(Resource::AST)) {
                         // we did not request a reparse and the unit exists as an AST file
                         const QByteArray fn = resource.hashedFilename(Resource::AST);
-                        qDebug("reading %s", fn.constData());
+                        qDebug("reading %s (%s)", fn.constData(), filename.constData());
                         data->unit.unit = clang_createTranslationUnit(data->unit.index,
                                                                       fn.constData());
                         if (!data->unit.unit) {
@@ -234,7 +253,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                     }
                 }
                 if (!loaded && (mode & Source)) {
-                    qDebug("trying to reparse, %d arguments", argcopy.size());
+                    qDebug("trying to reparse %s, %d arguments", filename.constData(), argcopy.size());
                     // we need to (re)parse
                     QVector<const char*> args;
                     foreach(const QByteArray& a, argcopy) {
@@ -259,6 +278,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                         } else {
                             qWarning("Unable to save translation unit (2): %s (as %s)",
                                      filename.constData(), fn.constData());
+                            printDiagnostic(data->unit.unit, "save (2)");
                             locker.relock();
 
                             clang_disposeTranslationUnit(data->unit.unit);
@@ -347,6 +367,7 @@ void UnitCache::recompile(Unit* unit)
         } else {
             qWarning("Unable to save translation unit (3): %s (as %s)",
                      unit->filename.constData(), fn.constData());
+            printDiagnostic(newunit, "save (3)");
             clang_disposeTranslationUnit(newunit);
         }
     } else
