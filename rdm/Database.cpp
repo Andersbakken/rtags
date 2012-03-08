@@ -492,13 +492,16 @@ void ReferencesJob::runName()
 
     leveldb::DB* db = 0;
     leveldb::Status status = leveldb::DB::Open(leveldb::Options(), databasename.constData(), &db);
-    if (!status.ok())
+    if (!status.ok()) {
+        emit complete(id, QList<QByteArray>());
         return;
+    }
 
     std::string value;
     db->Get(leveldb::ReadOptions(), filename.constData(), &value);
     if (value.empty()) {
         delete db;
+        emit complete(id, QList<QByteArray>());
         return;
     }
 
@@ -510,8 +513,10 @@ void ReferencesJob::runName()
 
     databasename = Database::databaseName(Database::Definition);
     status = leveldb::DB::Open(leveldb::Options(), databasename.constData(), &db);
-    if (!status.ok())
+    if (!status.ok()) {
+        emit complete(id, QList<QByteArray>());
         return;
+    }
 
     QList<QByteArray> result;
     foreach(const QByteArray& entry, list) {
