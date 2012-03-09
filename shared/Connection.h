@@ -21,7 +21,7 @@ public:
     Connection(QObject* parent = 0);
     Connection(QTcpSocket* socket, QObject* parent = 0);
 
-    void connectToHost(const QString& host, quint16 port);
+    bool connectToHost(const QString& host, quint16 port);
 
     int pendingWrite() const;
 

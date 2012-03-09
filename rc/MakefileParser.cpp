@@ -82,6 +82,12 @@ MakefileParser::MakefileParser(Verbosity verbosity, QObject* parent)
 MakefileParser::~MakefileParser()
 {
     delete mTracker;
+    if (mProc) {
+        mProc->kill();
+        mProc->terminate();
+        mProc->waitForFinished();
+        delete mProc;
+    }
 }
 
 void MakefileParser::run(const Path& makefile)

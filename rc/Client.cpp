@@ -50,11 +50,14 @@ void Client::query(QueryType type, const QByteArray& msg)
     }
 
     m_conn = new Connection(this);
-    m_conn->connectToHost("localhost", Connection::Port);
-    QueryMessage message(msg, qmt);
-    m_conn->send(&message);
-    connect(m_conn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
-    qApp->exec();
+    if (m_conn->connectToHost("localhost", Connection::Port)) {
+        QueryMessage message(msg, qmt);
+        m_conn->send(&message);
+        connect(m_conn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
+        qApp->exec();
+    } else {
+        qWarning("Can't connect to host");
+    }
 }
 
 void Client::onSendComplete()
@@ -105,7 +108,11 @@ void Client::onMakefileReady(const GccArguments& args)
 
     if (!m_conn) {
         m_conn = new Connection(this);
-        m_conn->connectToHost("localhost", Connection::Port);
+        if (!m_conn->connectToHost("localhost", Connection::Port)) {
+            qWarning("Can't connect to host");
+            QCoreApplication::quit();
+            return;
+        }
         connect(m_conn, SIGNAL(sendComplete()), this, SLOT(onSendComplete()));
     }
 
