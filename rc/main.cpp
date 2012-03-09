@@ -3,7 +3,9 @@
 #include <QList>
 #include <QPair>
 #include <QByteArray>
+#include <QDateTime>
 #include <stdio.h>
+#include <stdlib.h>
 #include <getopt.h>
 
 static int help(const char* app)
@@ -33,6 +35,18 @@ int main(int argc, char** argv)
 
     bool verbose = false;
     QList<QPair<OptType, QByteArray> > optlist;
+
+    if (getenv("LOG_RC")) {
+        FILE* logfile = fopen("/tmp/rc.log", "a");
+        if (logfile) {
+            QDateTime time = QDateTime::currentDateTime();
+            fprintf(logfile, "%s (%d): ", qPrintable(time.toString()), argc);
+            for (int i = 0; i < argc; ++i)
+                fprintf(logfile, "\"%s\" ", argv[i]);
+            fprintf(logfile, "\name");
+            fclose(logfile);
+        }
+    }
 
     int idx, c;
     for (;;) {
