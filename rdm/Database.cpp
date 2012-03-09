@@ -522,6 +522,11 @@ void ReferencesJob::runName()
     foreach(const QByteArray& entry, list) {
         if (entry.isEmpty())
             continue;
+        // if the entry looks like a path, return it outright
+        if (entry.at(0) == '/') {
+            result.append(entry);
+            continue;
+        }
         db->Get(leveldb::ReadOptions(), entry.constData(), &value);
         if (value.empty())
             continue;
