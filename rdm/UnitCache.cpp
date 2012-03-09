@@ -1,6 +1,7 @@
 #include "UnitCache.h"
 #include "Resource.h"
 #include "Indexer.h"
+#include "Path.h"
 #include <QMutexLocker>
 #include <QThread>
 #include <QVector>
@@ -8,6 +9,7 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QVariant>
+#include <QStringList>
 
 UnitCache* UnitCache::s_inst = 0;
 
@@ -338,7 +340,7 @@ void UnitCache::release(Unit* unit)
 
 void UnitCache::recompile(Unit* unit)
 {
-    delete unit->watcher;
+    unit->watcher->deleteLater(); // we're called from a signal from this watcher
     unit->watcher = 0;
     Resource resource(unit->filename);
 
@@ -400,30 +402,58 @@ static void findIncludes(CXFile includedFile, CXSourceLocation*, unsigned, CXCli
     CXString fn = clang_getFileName(includedFile);
     const char *cstr = clang_getCString(fn);
     if (strncmp(cstr, "/usr/", 5)) {
-        qDebug() << "Watching" << cstr << "for" << reinterpret_cast<UnitCache::Unit*>(qVariantValue<void*>(reinterpret_cast<QObject*>(userData)->property("unit")))->filename;
-        reinterpret_cast<QFileSystemWatcher*>(userData)->addPath(cstr);
+        QHash<Path, FileSystemWatcher::Directory> &paths = *reinterpret_cast<QHash<Path, FileSystemWatcher::Directory> *>(userData);
+        Path p(cstr);
+        p.resolve();
+        paths[p.parentDir()].fileNames.append(p.fileName());
     }
     clang_disposeString(fn);
 }
 
-
 void UnitCache::initFileSystemWatcher(Unit *unit)
 {
     delete unit->watcher;
-    unit->watcher = new QFileSystemWatcher;
-    unit->watcher->moveToThread(thread());
-    unit->watcher->setProperty("unit", qVariantFromValue<void*>(unit));
-    connect(unit->watcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged()));
-    clang_getInclusions(unit->unit, findIncludes, unit->watcher);
+    QHash<Path, FileSystemWatcher::Directory> paths;
+    clang_getInclusions(unit->unit, findIncludes, &paths);
+    // qDebug() << paths.keys();
+    if (!paths.isEmpty()) {
+        unit->watcher = new FileSystemWatcher(unit);
+        unit->watcher->moveToThread(thread());
+        QStringList dirs;
+        for (QHash<Path, FileSystemWatcher::Directory>::iterator it = paths.begin(); it != paths.end(); ++it) {
+            dirs.append(it.key());
+        }
+
+        unit->watcher->paths = paths;
+        unit->watcher->addPaths(dirs);
+        connect(unit->watcher, SIGNAL(directoryChanged(QString)),
+                this, SLOT(onDirectoryChanged(QString)));
+    }
 }
 
-void UnitCache::onFileChanged()
+void UnitCache::onDirectoryChanged(const QString &directory)
 {
-    QObject *s = sender();
-    if (s) {
-        Unit *unit = reinterpret_cast<Unit*>(qVariantValue<void*>(s->property("unit")));
-        if (unit) {
-            recompile(unit);
+    const Path dir(directory.toLocal8Bit());
+    qDebug() << "got dir changed" << dir;
+    FileSystemWatcher *f = qobject_cast<FileSystemWatcher*>(sender());
+    if (f) {
+        bool dirty = false;
+        FileSystemWatcher::Directory &d = f->paths[dir];
+        Q_ASSERT(!d.fileNames.isEmpty());
+        const QByteArray dirName = dir + "/";
+        foreach(const QByteArray &fn, d.fileNames) {
+            const Path p(dirName + fn);
+            if (p.lastModified() > d.lastModified) {
+                qDebug() << "recompiling" << f->unit->filename << "since lastModified for dir was"
+                         << QDateTime::fromTime_t(d.lastModified)
+                         << "and" << fn << "was modified at" << QDateTime::fromTime_t(p.lastModified());
+                dirty = true;
+                break;
+            }
+        }
+        if (dirty) {
+            recompile(f->unit);
         }
     }
 }
+

@@ -1,6 +1,7 @@
 #ifndef UNITCACHE_H
 #define UNITCACHE_H
 
+#include "Path.h"
 #include <clang-c/Index.h>
 #include <QByteArray>
 #include <QDateTime>
@@ -12,7 +13,7 @@
 #include <QObject>
 
 class QThread;
-
+class FileSystemWatcher;
 class UnitCache : public QObject
 {
     Q_OBJECT
@@ -28,17 +29,14 @@ public:
         Unit()
             : origin(None), index(0), file(0), unit(0), watcher(0)
         {}
-        ~Unit()
-        {
-            delete watcher;
-        }
+        ~Unit();
         LoadMode origin;
         QByteArray filename;
         CXIndex index;
         CXFile file;
         CXTranslationUnit unit;
         QDateTime visited;
-        QFileSystemWatcher *watcher;
+        FileSystemWatcher *watcher;
     };
 
     Unit* acquire(const QByteArray& filename, int mode = AST);
@@ -46,7 +44,7 @@ public:
     void release(Unit* unit);
     void recompile(Unit* unit);
 private slots:
-    void onFileChanged();
+    void onDirectoryChanged(const QString &dir);
 private:
     UnitCache();
     void initFileSystemWatcher(Unit *unit);
@@ -70,6 +68,30 @@ private:
 
     friend class CachedUnit;
 };
+
+class FileSystemWatcher : public QFileSystemWatcher
+{
+    Q_OBJECT
+public:
+    FileSystemWatcher(UnitCache::Unit *u)
+        : unit(u)
+    {}
+
+    UnitCache::Unit *unit;
+    struct Directory {
+        Directory()
+            : lastModified(time(0))
+        {}
+        QList<QByteArray> fileNames;
+        const quint64 lastModified;
+    };
+    QHash<Path, Directory> paths;
+};
+
+inline UnitCache::Unit::~Unit()
+{
+    delete watcher;
+}
 
 class CachedUnit
 {
