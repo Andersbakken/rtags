@@ -10,7 +10,7 @@
 
 static int help(const char* app)
 {
-    fprintf(stderr, "%s [-m Makefile] [-f follow-location] [-n reference-name] "
+    fprintf(stderr, "%s [-v] [-e] [-m Makefile] [-f follow-location] [-n reference-name] "
                     "[-l reference-location] [-r filename]\n", app);
     return 1;
 }
@@ -23,6 +23,7 @@ int main(int argc, char** argv)
 
     struct option opts[] = {
         { "verbose", no_argument, 0, 'v' },
+        { "skip-paren", no_argument, 0, 'p' },
         { "help", no_argument, 0, 'h' },
         { "follow-location", required_argument, 0, 'f' },
         { "makefile", required_argument, 0, 'm' },
@@ -34,6 +35,7 @@ int main(int argc, char** argv)
     };
 
     bool verbose = false;
+    bool skipparen = false;
     QList<QPair<OptType, QByteArray> > optlist;
 
     if (getenv("LOG_RC")) {
@@ -50,7 +52,7 @@ int main(int argc, char** argv)
 
     int idx, c;
     for (;;) {
-        c = getopt_long(argc, argv, "vhf:m:n:l:r:a:", opts, &idx);
+        c = getopt_long(argc, argv, "vphf:m:n:l:r:a:", opts, &idx);
         if (c == -1)
             break;
         switch (c) {
@@ -61,6 +63,9 @@ int main(int argc, char** argv)
             return help(argv[0]);
         case 'v':
             verbose = true;
+            break;
+        case 'p':
+            skipparen = true;
             break;
         case 'f':
             optlist.append(qMakePair(FollowLocation, QByteArray(optarg)));
@@ -90,7 +95,12 @@ int main(int argc, char** argv)
     if (optlist.isEmpty())
         return help(argv[0]);
 
-    Client client(verbose ? Client::Verbose : Client::Silent);
+    int flags = 0;
+    if (verbose)
+        flags |= Client::Verbose;
+    if (skipparen)
+        flags |= Client::SkipParen;
+    Client client(flags);
     QList<QPair<OptType, QByteArray> >::const_iterator it = optlist.begin();
     while (it != optlist.end()) {
         switch (it->first) {

@@ -7,8 +7,8 @@
 #include <QFileInfo>
 #include <QDebug>
 
-Client::Client(Verbosity verbosity, QObject* parent)
-    : QObject(parent), m_conn(0), m_verbosity(verbosity), m_makeDone(false)
+Client::Client(int flags, QObject* parent)
+    : QObject(parent), m_conn(0), m_flags(flags), m_makeDone(false)
 {
     Messages::init();
 }
@@ -16,7 +16,7 @@ Client::Client(Verbosity verbosity, QObject* parent)
 void Client::parseMakefile(const QByteArray& makefile)
 {
     MakefileParser::Verbosity v = MakefileParser::Silent;
-    if (m_verbosity == Verbose)
+    if (m_flags & Verbose)
         v = MakefileParser::Verbose;
     MakefileParser* parser = new MakefileParser(v, this);
     Path path = Path::resolved(makefile);
@@ -70,8 +70,12 @@ void Client::onNewMessage(Message* message)
     Q_ASSERT(m_conn == sender());
     if (message->messageId() == QueryMessage::MessageId) {
         foreach(const QByteArray& r, static_cast<QueryMessage*>(message)->query()) {
-            if (!r.isEmpty())
+            if (!r.isEmpty()) {
+                if ((m_flags & SkipParen)
+                    && r.contains("("))
+                    continue;
                 printf("%s\n", r.constData());
+            }
         }
         qApp->quit();
     } else {
@@ -109,7 +113,7 @@ void Client::onMakefileReady(const GccArguments& args)
     const QByteArray output = args.outputFile();
     AddMessage message((args.type() == GccArguments::Compile ? AddMessage::Compile : AddMessage::Pch),
                        input, output, args.clangArgs());
-    if (m_verbosity == Verbose)
+    if (m_flags & Verbose)
         qDebug() << "sending" << "input:" << input << "output:" << output << "args:" << args.clangArgs();
     m_conn->send(&message);
 }
