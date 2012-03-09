@@ -27,16 +27,14 @@ public:
     struct Unit
     {
         Unit()
-            : origin(None), index(0), file(0), unit(0), watcher(0)
+            : origin(None), index(0), file(0), unit(0)
         {}
-        ~Unit();
         LoadMode origin;
         QByteArray filename;
         CXIndex index;
         CXFile file;
         CXTranslationUnit unit;
         QDateTime visited;
-        FileSystemWatcher *watcher;
     };
 
     Unit* acquire(const QByteArray& filename, int mode = AST);
@@ -47,7 +45,7 @@ private slots:
     void onDirectoryChanged(const QString &dir);
 private:
     UnitCache();
-    void initFileSystemWatcher(Unit *unit);
+    void initFileSystemWatcher(const Path& filename);
     QList<Unit*> todo;
 
     struct UnitData
@@ -62,6 +60,7 @@ private:
     Unit* createUnit(const QByteArray& filename, const QList<QByteArray>& arguments, int mode);
 
     QHash<QByteArray, UnitData*> m_data;
+    QHash<Path, FileSystemWatcher*> m_watchers;
     QMutex m_dataMutex;
     QWaitCondition m_dataCondition;
     static UnitCache* s_inst;
@@ -73,11 +72,11 @@ class FileSystemWatcher : public QFileSystemWatcher
 {
     Q_OBJECT
 public:
-    FileSystemWatcher(UnitCache::Unit *u)
-        : unit(u)
+    FileSystemWatcher(const Path& fn)
+        : fileName(fn)
     {}
 
-    UnitCache::Unit *unit;
+    const Path fileName;
     struct Directory {
         Directory()
             : lastModified(time(0))
@@ -87,11 +86,6 @@ public:
     };
     QHash<Path, Directory> paths;
 };
-
-inline UnitCache::Unit::~Unit()
-{
-    delete watcher;
-}
 
 class CachedUnit
 {
