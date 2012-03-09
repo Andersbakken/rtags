@@ -654,11 +654,11 @@ void MatchJob::run()
     it->Seek(partial.constData());
     while (it->Valid()) {
         entry = it->key().ToString().c_str();
-        if ((entry.contains('(') && !partial.contains('('))
+        /*if ((entry.contains('(') && !partial.contains('('))
             || (entry.contains(':') && !partial.contains(':'))) {
             it->Next();
             continue;
-        }
+        }*/
         if (entry.startsWith(partial))
             result.append(entry);
         else
