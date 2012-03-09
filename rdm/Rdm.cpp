@@ -6,6 +6,7 @@
 #include "Message.h"
 #include "Messages.h"
 #include "Compressor.h"
+#include "UnitCache.h"
 #include <QThread>
 #include <QThreadPool>
 #include <QTcpServer>
@@ -20,6 +21,7 @@ Rdm::Rdm(int& argc, char**& argv, QObject* parent)
 {
     Compressor::init();
     Messages::init();
+    UnitCache::instance();
     Resource::setBaseDirectory("/tmp/rdm");
     Database::setBaseDirectory("/tmp/rdm");
 

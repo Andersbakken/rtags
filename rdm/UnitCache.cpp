@@ -5,6 +5,9 @@
 #include <QThread>
 #include <QVector>
 #include <QMap>
+#include <QCoreApplication>
+#include <QDebug>
+#include <QVariant>
 
 UnitCache* UnitCache::s_inst = 0;
 
@@ -198,6 +201,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                         return 0;
                     }
                 }
+                initFileSystemWatcher(&data->unit);
                 return &data->unit;
             } else {
                 // the unit is owned by someone else, wait for it to become available
@@ -306,6 +310,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                 data->unit.file = clang_getFile(data->unit.unit,
                                                 filename.constData());
 
+                initFileSystemWatcher(&data->unit);
                 return &data->unit;
             }
         }
@@ -321,7 +326,6 @@ void UnitCache::release(Unit* unit)
         return;
 
     QMutexLocker locker(&m_dataMutex);
-
     const QHash<QByteArray, UnitData*>::iterator it = m_data.find(unit->filename);
     Q_ASSERT(it != m_data.end());
     Q_ASSERT(it.value()->owner == QThread::currentThread());
@@ -334,6 +338,8 @@ void UnitCache::release(Unit* unit)
 
 void UnitCache::recompile(Unit* unit)
 {
+    delete unit->watcher;
+    unit->watcher = 0;
     Resource resource(unit->filename);
 
     QList<QByteArray> args = resource.read<QList<QByteArray> >(Resource::Information);
@@ -364,6 +370,7 @@ void UnitCache::recompile(Unit* unit)
                                        unit->filename.constData());
 
             Indexer::instance()->index(unit->filename, args);
+            initFileSystemWatcher(unit);
         } else {
             qWarning("Unable to save translation unit (3): %s (as %s)",
                      unit->filename.constData(), fn.constData());
@@ -386,4 +393,37 @@ void CachedUnit::adopt(UnitCache::Unit* unit)
         m_unit = cache->acquire(unit->filename);
     else
         m_unit = 0;
+}
+
+static void findIncludes(CXFile includedFile, CXSourceLocation*, unsigned, CXClientData userData)
+{
+    CXString fn = clang_getFileName(includedFile);
+    const char *cstr = clang_getCString(fn);
+    if (strncmp(cstr, "/usr/", 5)) {
+        qDebug() << "Watching" << cstr << "for" << reinterpret_cast<UnitCache::Unit*>(qVariantValue<void*>(reinterpret_cast<QObject*>(userData)->property("unit")))->filename;
+        reinterpret_cast<QFileSystemWatcher*>(userData)->addPath(cstr);
+    }
+    clang_disposeString(fn);
+}
+
+
+void UnitCache::initFileSystemWatcher(Unit *unit)
+{
+    delete unit->watcher;
+    unit->watcher = new QFileSystemWatcher;
+    unit->watcher->moveToThread(thread());
+    unit->watcher->setProperty("unit", qVariantFromValue<void*>(unit));
+    connect(unit->watcher, SIGNAL(fileChanged(QString)), this, SLOT(onFileChanged()));
+    clang_getInclusions(unit->unit, findIncludes, unit->watcher);
+}
+
+void UnitCache::onFileChanged()
+{
+    QObject *s = sender();
+    if (s) {
+        Unit *unit = reinterpret_cast<Unit*>(qVariantValue<void*>(s->property("unit")));
+        if (unit) {
+            recompile(unit);
+        }
+    }
 }

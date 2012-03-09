@@ -8,13 +8,16 @@
 #include <QHash>
 #include <QMutex>
 #include <QWaitCondition>
+#include <QFileSystemWatcher>
+#include <QObject>
 
 class QThread;
 
-class UnitCache
+class UnitCache : public QObject
 {
+    Q_OBJECT
 public:
-    enum LoadMode { Source = 0x1, AST = 0x2, Force = 0x4 };
+    enum LoadMode { None = 0x0, Source = 0x1, AST = 0x2, Force = 0x4 };
 
     ~UnitCache();
 
@@ -22,21 +25,32 @@ public:
 
     struct Unit
     {
+        Unit()
+            : origin(None), index(0), file(0), unit(0), watcher(0)
+        {}
+        ~Unit()
+        {
+            delete watcher;
+        }
         LoadMode origin;
         QByteArray filename;
         CXIndex index;
         CXFile file;
         CXTranslationUnit unit;
         QDateTime visited;
+        QFileSystemWatcher *watcher;
     };
 
     Unit* acquire(const QByteArray& filename, int mode = AST);
     Unit* acquire(const QByteArray& filename, const QList<QByteArray>& arguments, int mode = Source);
     void release(Unit* unit);
     void recompile(Unit* unit);
-
+private slots:
+    void onFileChanged();
 private:
     UnitCache();
+    void initFileSystemWatcher(Unit *unit);
+    QList<Unit*> todo;
 
     struct UnitData
     {

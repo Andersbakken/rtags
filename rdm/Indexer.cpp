@@ -150,23 +150,13 @@ static inline void addInclusion(IndexerJob* job, CXFile inc)
 }
 
 static void inclusionVisitor(CXFile included_file,
-                             CXSourceLocation* inclusion_stack,
+                             CXSourceLocation*,
                              unsigned include_len,
                              CXClientData client_data)
 {
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
-    addInclusion(job, included_file);
-
-    CXFile inf;
-    unsigned int inl, inc, ino;
-
-    CXSourceLocation* cur = inclusion_stack;
-    const CXSourceLocation* end = cur + include_len;
-    while (cur != end) {
-        clang_getSpellingLocation(*cur, &inf, &inl, &inc, &ino);
-        addInclusion(job, inf);
-        ++cur;
-    }
+    if (include_len)
+        addInclusion(job, included_file);
 }
 
 static inline void addNamePermutations(CXCursor cursor, const char* usr, IndexerJob* job)
