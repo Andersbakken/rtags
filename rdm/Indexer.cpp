@@ -255,7 +255,8 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
     QByteArray qloc(Path::resolved(cfilename));
     qloc += ":" + QByteArray::number(line) + ":" + QByteArray::number(col);
 
-    if (clang_isCursorDefinition(cursor)) {
+    if (clang_isCursorDefinition(cursor)
+        || kind == CXCursor_FunctionDecl) {
         job->m_defs[cusr].insert(qloc);
         addNamePermutations(cursor, cusr, job);
     }
