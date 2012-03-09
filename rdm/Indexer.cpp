@@ -299,7 +299,7 @@ inline void IndexerJob::addFilenameSymbol(const QByteArray& filename)
     }
     if (idx == -1)
         return;
-    m_syms[filename.mid(idx + 1)].insert(filename);
+    m_syms[filename.mid(idx + 1)].insert(filename + ":1:1");
 }
 
 static inline void uniteSets(HashSet& dst, HashSet& src)
