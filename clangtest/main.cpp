@@ -1,5 +1,6 @@
 #include <clang-c/Index.h>
 #include <string.h>
+#include <stdlib.h>
 
 static inline const char *kindToString(CXIdxEntityKind kind)
 {
@@ -149,12 +150,39 @@ int main(int argc, char **argv)
     cb.indexDeclaration = indexDeclaration;
     cb.indexEntityReference = indexEntityReference;
     CXTranslationUnit unit = 0;
+
+    const char* filename = (argc < 2 ? "test.cpp" : argv[1]);
+    const int completeLine = (argc < 3 ? 15 : atoi(argv[2]));
+    const int completeColumn = (argc < 3 ? 7 : atoi(argv[3]));
+
     clang_indexSourceFile(action, 0, &cb, sizeof(IndexerCallbacks),
                           CXIndexOpt_IndexFunctionLocalSymbols,
-                          argc < 2 ? "test.cpp" : argv[1],
+                          filename,
                           args, sizeof(args) / 4,
                           0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
     clang_visitChildren(clang_getTranslationUnitCursor(unit), visitAll, 0);
+
+    CXCodeCompleteResults* res = clang_codeCompleteAt(unit, filename,
+                                                      completeLine, completeColumn,
+                                                      0, 0,
+                                                      clang_defaultCodeCompleteOptions());
+    if (res) {
+        printf("\n---\ncompletions for %s:%d:%d\n", filename, completeLine, completeColumn);
+        for (unsigned int i = 0; i < res->NumResults; i++) {
+            const CXCompletionString& str = res->Results[i].CompletionString;
+            for (unsigned int j = 0; j < clang_getNumCompletionChunks(str); j++) {
+                if (clang_getCompletionChunkKind(str, j) != CXCompletionChunk_TypedText)
+                    continue;
+
+                CXString out = clang_getCompletionChunkText(str, j);
+                printf("  %s\n", clang_getCString(out));
+                clang_disposeString(out);
+            }
+        }
+
+        clang_disposeCodeCompleteResults(res);
+    }
+
     if (unit)
         clang_disposeTranslationUnit(unit);
     clang_IndexAction_dispose(action);

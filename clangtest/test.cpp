@@ -1,33 +1,18 @@
-// enum Enum {
-#define    Balle 0
-#define    Foobar 1
-// };
-
 class Outer
 {
 public:
-
-    class Inner
-    {
-    public:
-        Inner(Outer *o);
-    };
+    void foo();
 };
 
-Outer::Inner::Inner(Outer *o)
+void bar()
 {
-    delete o;
 }
 
 int main()
 {
-    switch (2) {
-    case Balle:
-        break;
-    case Foobar:
-        break;
-    }
-    Outer *o = new Outer;
-    Outer::Inner *i = new Outer::Inner(o);
+    Outer o;
+    
+    o.
+    o.foo();
     return 0;
 }
