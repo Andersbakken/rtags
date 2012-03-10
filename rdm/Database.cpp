@@ -559,10 +559,18 @@ CodeCompleteJob::~CodeCompleteJob()
 {
 }
 
+static inline bool isOperator(const char *str, int len)
+{
+    if (len >= 9 && !strncmp(str, "operator", 8)) {
+        const char ch = str[8];
+        if (!isalnum(ch) && ch != '_')
+            return true;
+    }
+    return false;
+}
 void CodeCompleteJob::run()
 {
-    printf("%s:%d void CodeCompleteJob::run()\n", __FILE__, __LINE__);
-    CachedUnit locker(fileName, UnitCache::AST | UnitCache::Memory);
+    CachedUnit locker(fileName, UnitCache::AST | UnitCache::Memory | UnitCache::Source);
     UnitCache::Unit* data = locker.unit();
     if (!data) {
         FirstUnitData first;
@@ -597,10 +605,42 @@ void CodeCompleteJob::run()
         delete[] unsaved;
 
     qDebug() << results << results->NumResults << unsavedFiles.keys();
+    QMap<QByteArray, bool> ret;
+    for (unsigned int i = 0; i < results->NumResults; ++i) {
+        const CXCompletionString& str = results->Results[i].CompletionString;
+        if (clang_getCompletionAvailability(str) != CXAvailability_Available)
+            continue;
+        // qDebug() << "stuff" << i << clang_getCompletionPriority(str);
+        // for (int b=0; b<clang_getCompletionNumAnnotations(str); ++b) {
+        //     qDebug() << b << eatString(clang_getCompletionAnnotation(str, b));
+        // }
+
+        switch (results->Results[i].CursorKind) {
+        case CXCursor_Destructor:
+        case CXCursor_ClassDecl:
+            continue;
+        default:
+            break;
+        }
+        // printf("Got thing %s %d\n" , eatString(clang_getCursorKindSpelling(results->Results[i].CursorKind)).constData(),
+        //        clang_getNumCompletionChunks(str));
+
+        for (unsigned int j = 0; j < clang_getNumCompletionChunks(str); ++j) {
+            if (clang_getCompletionChunkKind(str, j) != CXCompletionChunk_TypedText)
+                continue;
+
+            CXString out = clang_getCompletionChunkText(str, j);
+            const char *str = clang_getCString(out);
+            const int len = strlen(str);
+            if (!isOperator(str, len)) {
+                ret[QByteArray(str, len)] = true;
+            }
+            clang_disposeString(out);
+        }
+    }
 
     clang_disposeCodeCompleteResults(results);
-    QList<QByteArray> ret;
-    emit complete(id, ret);
+    emit complete(id, ret.keys());
 }
 
 

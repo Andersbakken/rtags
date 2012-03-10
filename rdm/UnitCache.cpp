@@ -173,7 +173,7 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
 
     data->unit.unit = clang_parseTranslationUnit(data->unit.index, filename.constData(),
                                                  clangArgs.data(), clangArgs.size(),
-                                                 0, 0, CXTranslationUnit_None|CXTranslationUnit_Incomplete);
+                                                 0, 0, 0xff); //CXTranslationUnit_None|CXTranslationUnit_Incomplete);
     if (data->unit.unit) {
         data->unit.file = clang_getFile(data->unit.unit, filename.constData());
         data->unit.origin = Source;
@@ -284,6 +284,13 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& fileName,
         return 0;
 
     QMutexLocker locker(&m_dataMutex);
+    qDebug() << "m_data.size()" << m_data.keys() << m_data.size();
+    for (QHash<QByteArray, UnitData*>::const_iterator it = m_data.begin(); it != m_data.end(); ++it) {
+        qDebug() << it.key() << "origin" << it.value()->unit.origin << "unit" << it.value()->unit.unit
+                 << "visited" << it.value()->unit.visited << "ref" << it.value()->ref << "owner" << it.value()->owner
+                 << "owned by us" << (it.value()->owner == QThread::currentThread());
+    }
+
     for (;;) {
         const QHash<QByteArray, UnitData*>::iterator it = m_data.find(fileName);
         if (it != m_data.end()) {
@@ -344,7 +351,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& fileName,
                 m_data[fileName] = data;
 
                 data->unit.unit = 0;
-                data->unit.index = clang_createIndex(0, 0);
+                data->unit.index = clang_createIndex(1, 1);
 
                 const UnitStatus status = initUnit(fileName, args, mode, data);
 
