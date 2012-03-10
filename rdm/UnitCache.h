@@ -15,11 +15,13 @@
 
 class QThread;
 class FileSystemWatcher;
+class Resource;
+
 class UnitCache : public QObject
 {
     Q_OBJECT
 public:
-    enum LoadMode { None = 0x0, Source = 0x1, AST = 0x2, Memory = 0x4, Force = 0x8 };
+    enum LoadMode { None = 0x0, Source = 0x1, AST = 0x2, Memory = 0x4 };
 
     ~UnitCache();
 
@@ -38,15 +40,18 @@ public:
         QDateTime visited;
     };
 
-    Unit* acquire(const QByteArray& filename, int mode = AST);
-    Unit* acquire(const QByteArray& filename, const QList<QByteArray>& arguments, int mode = Source);
+    Unit* acquire(const QByteArray& filename, int mode = AST | Memory);
+    Unit* acquire(const QByteArray& filename, const QList<QByteArray>& arguments, int mode = Source | Memory);
     void release(Unit* unit);
     void recompile(Unit* unit);
+
 private slots:
     void onDirectoryChanged(const QString &dir);
+
 private:
     UnitCache();
     void initFileSystemWatcher(Unit* unit);
+
     QList<Unit*> todo;
 
     struct UnitData
@@ -55,9 +60,17 @@ private:
         QThread* owner;
         int ref;
     };
+    enum UnitStatus { Done, Wait, Abort };
 
     void cleanup(UnitData* data);
     bool removeUnusedUnits(int num);
+    bool rereadUnit(const QByteArray& hashedFilename, UnitData* data);
+    bool loadUnit(const QByteArray& filename, const QList<QByteArray>& arguments, UnitData* data);
+    bool saveUnit(UnitData* data, Resource* resource, const QList<QByteArray>& arguments);
+    void destroyUnit(UnitData* data);
+    UnitStatus initUnit(const QByteArray& fileName, const QList<QByteArray>& args,
+                        int mode, UnitData* data);
+
     Unit* createUnit(const QByteArray& filename, const QList<QByteArray>& arguments, int mode);
 
     QHash<QByteArray, UnitData*> m_data;
@@ -85,8 +98,9 @@ public:
 class CachedUnit
 {
 public:
-    CachedUnit(const QByteArray& filename, int mode = UnitCache::AST);
-    CachedUnit(const QByteArray& filename, const QList<QByteArray>& arguments, int mode = UnitCache::Source);
+    CachedUnit(const QByteArray& filename, int mode = UnitCache::AST | UnitCache::Memory);
+    CachedUnit(const QByteArray& filename, const QList<QByteArray>& arguments,
+               int mode = UnitCache::Source | UnitCache::Memory);
     ~CachedUnit() { UnitCache::instance()->release(m_unit); }
 
     void adopt(UnitCache::Unit* unit);

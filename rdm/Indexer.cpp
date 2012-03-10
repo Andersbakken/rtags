@@ -306,8 +306,8 @@ static inline void uniteSets(HashSet& dst, HashSet& src)
 void IndexerJob::run()
 {
     int unitMode = UnitCache::Source | UnitCache::AST;
-    if (m_mode == Indexer::Force)
-        unitMode |= UnitCache::Force;
+    if (m_mode != Indexer::Force)
+        unitMode |= UnitCache::Memory;
     CachedUnit unit(m_in, m_args, unitMode);
 
     if (unit.unit()) {
