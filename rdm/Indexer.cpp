@@ -381,6 +381,11 @@ Indexer* Indexer::instance()
     return s_inst;
 }
 
+int Indexer::precompile(const QByteArray& output, const QByteArray& input, const QList<QByteArray>& arguments)
+{
+    return 0;
+}
+
 int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments, Mode mode)
 {
     QMutexLocker locker(&m_impl->implMutex);

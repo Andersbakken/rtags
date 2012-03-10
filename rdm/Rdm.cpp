@@ -8,23 +8,26 @@
 #include "Compressor.h"
 #include "UnitCache.h"
 #include "QueryMessage.h"
+#include "SHA256.h"
 #include <QThread>
 #include <QThreadPool>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <stdio.h>
 
+#define ASTPATH "/tmp/rdm"
+
 Rdm::Rdm(int& argc, char**& argv, QObject* parent)
     : QObject(parent),
-      m_indexer(new Indexer("/tmp/rdm", this)),
+      m_indexer(new Indexer(ASTPATH, this)),
       m_db(new Database(this)),
       m_server(new QTcpServer(this))
 {
     Compressor::init();
     Messages::init();
     UnitCache::instance();
-    Resource::setBaseDirectory("/tmp/rdm");
-    Database::setBaseDirectory("/tmp/rdm");
+    Resource::setBaseDirectory(ASTPATH);
+    Database::setBaseDirectory(ASTPATH);
 
     int jobs = QThread::idealThreadCount();
 
@@ -107,10 +110,27 @@ void Rdm::onNewMessage(Message* message)
     message->deleteLater();
 }
 
+static inline QList<QByteArray> pch(const QList<QByteArray>& pchs)
+{
+    QList<QByteArray> out;
+    foreach(const QByteArray& in, pchs) {
+        if (!in.isEmpty()) {
+            out.append("-include-pch");
+            out.append(ASTPATH + ("/" + SHA256::hash(in)));
+        }
+    }
+    return out;
+}
+
 void Rdm::handleAddMessage(AddMessage* message)
 {
     Connection* conn = qobject_cast<Connection*>(sender());
-    int id = m_indexer->index(message->inputFile(), message->arguments() + m_defaultArgs, Indexer::Force);
+    int id;
+    if (message->type() == AddMessage::Pch) {
+        id = m_indexer->precompile(message->outputFile(), message->inputFile(), message->arguments() + pch(message->pchs()));
+    } else {
+        id = m_indexer->index(message->inputFile(), message->arguments() + m_defaultArgs + pch(message->pchs()), Indexer::Force);
+    }
     m_pendingIndexes[id] = conn;
 }
 

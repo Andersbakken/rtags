@@ -18,6 +18,7 @@ public:
 
     int index(const QByteArray& input, const QList<QByteArray>& arguments, Mode mode = None);
     int reindex(const QByteArray& input, Mode mode = None);
+    int precompile(const QByteArray& output, const QByteArray& input, const QList<QByteArray>& arguments);
 
     static Indexer* instance();
 
