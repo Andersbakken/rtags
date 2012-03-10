@@ -29,12 +29,27 @@ public:
     int referencesForName(const QByteArray& name);
     int recompile(const QByteArray& fileName);
     int match(const QByteArray& partial);
+    int dump(const QByteArray& fileName);
 
     Database* db;
     int lastJobId;
 
 signals:
     void complete(int id, const QList<QByteArray>& locations);
+};
+
+class DumpJob : public QObject, public QRunnable
+{
+    Q_OBJECT
+public:
+    DumpJob(const QByteArray& fn, int i);
+signals:
+    void complete(int id, const QList<QByteArray>& locations);
+protected:
+    void run();
+private:
+    QByteArray fileName;
+    int id;
 };
 
 class FollowLocationJob : public QObject, public QRunnable
@@ -222,6 +237,22 @@ int DatabaseImpl::match(const QByteArray& partial)
 
     return id;
 }
+
+int DatabaseImpl::dump(const QByteArray& partial)
+{
+    printf("%s:%d %s\n", __FILE__, __LINE__, __FUNCTION__);
+    const int id = ++lastJobId;
+
+    qDebug() << "dump" << partial;
+
+    DumpJob* job = new DumpJob(partial, id);
+    connect(job, SIGNAL(complete(int, const QList<QByteArray>&)),
+            this, SIGNAL(complete(int, const QList<QByteArray>&)));
+    QThreadPool::globalInstance()->start(job);
+
+    return id;
+}
+
 
 static inline bool isCursorReference(CXCursorKind kind)
 {
@@ -591,6 +622,69 @@ void MatchJob::run()
     emit complete(id, result);
 }
 
+DumpJob::DumpJob(const QByteArray& fn, int i)
+    : fileName(fn), id(i)
+{
+}
+
+struct DumpUserData {
+    QList<QByteArray> lines;
+    int indent;
+};
+
+static inline QByteArray eatString(CXString str)
+{
+    const QByteArray ret(clang_getCString(str));
+    clang_disposeString(str);
+    return ret;
+}
+
+static QByteArray toString(CXCursor cursor)
+{
+    QByteArray ret = eatString(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
+    const QByteArray name = eatString(clang_getCursorSpelling(cursor));
+    if (!name.isEmpty())
+        ret += " " + name;
+
+    CXFile file;
+    unsigned line, col;
+    clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
+    const QByteArray fileName = eatString(clang_getFileName(file));
+    if (!fileName.isEmpty()) {
+        ret += " " + fileName + ':' + QByteArray::number(line) + ':' +  QByteArray::number(col);
+    }
+    return ret;
+}
+
+static CXChildVisitResult dumpVisitor(CXCursor cursor, CXCursor, CXClientData userData)
+{
+    DumpUserData *dump = reinterpret_cast<DumpUserData*>(userData);
+    QByteArray line(dump->indent * 2, ' ');
+    line += toString(cursor);
+    CXCursor ref = clang_getCursorReferenced(cursor);
+    if (!clang_equalCursors(cursor, ref) && !clang_isInvalid(clang_getCursorKind(ref))) {
+        line += " => " + toString(ref);
+    }
+    dump->lines.append(line);
+    ++dump->indent;
+    clang_visitChildren(cursor, dumpVisitor, dump);
+    --dump->indent;
+    return CXChildVisit_Continue;
+}
+
+void DumpJob::run()
+{
+    DumpUserData user = { QList<QByteArray>(), 0 };
+    CachedUnit unit(fileName);
+    if (unit.unit()) {
+        clang_visitChildren(clang_getTranslationUnitCursor(unit.unit()->unit), dumpVisitor, &user);
+        foreach(const QByteArray &line, user.lines) {
+            fprintf(stderr, "%s\n", line.constData());
+        }
+    }
+    emit complete(id, user.lines);
+}
+
 Database::Database(QObject* parent)
     : QObject(parent), m_impl(new DatabaseImpl)
 {
@@ -663,6 +757,12 @@ int Database::match(const QByteArray& query)
     return m_impl->match(query);
 }
 
+int Database::dump(const QByteArray& query)
+{
+    printf("%s:%d %s\n", __FILE__, __LINE__, __FUNCTION__);
+    return m_impl->dump(query);
+}
+
 static const char* const dbNames[] = { "/includes.db", "/defines.db",
                                        "/references.db", "/symbols.db" };
 
@@ -676,4 +776,5 @@ QByteArray Database::databaseName(Type type)
 void Database::setBaseDirectory(const QByteArray& base)
 {
     s_base = base;
+
 }

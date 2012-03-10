@@ -184,6 +184,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& fileName,
                         } else {
                             loaded = true;
                             data->unit.origin = AST;
+                            initFileSystemWatcher(&data->unit);
                         }
                     }
 
@@ -225,9 +226,10 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& fileName,
                     int result = clang_saveTranslationUnit(data->unit.unit,
                                                            outfileName.constData(),
                                                            CXSaveTranslationUnit_None);
-                    if (result == CXSaveError_None)
+                    if (result == CXSaveError_None) {
+                        initFileSystemWatcher(&data->unit);
                         resource.write(Resource::Information, argcopy, Resource::Truncate);
-                    else {
+                    } else {
                         qWarning("Unable to save translation unit (1): %s (as %s)",
                                  fileName.constData(), outfileName.constData());
                         printDiagnostic(data->unit.unit, "save (1)");
@@ -239,7 +241,6 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& fileName,
                         return 0;
                     }
                 }
-                initFileSystemWatcher(&data->unit);
                 return &data->unit;
             } else {
                 // the unit is owned by someone else, wait for it to become available
@@ -293,6 +294,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& fileName,
                             qDebug("unit loaded successfully");
                             loaded = true;
                             data->unit.origin = AST;
+                            initFileSystemWatcher(&data->unit);
                         }
                     }
                 }
@@ -319,6 +321,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& fileName,
                             qDebug("Parsed %s successfully", fileName.constData());
                             Indexer::instance()->index(fileName, argcopy);
                             argcopy.prepend(fileName);
+                            initFileSystemWatcher(&data->unit);
                             resource.write(Resource::Information, argcopy, Resource::Truncate);
                         } else {
                             qWarning("Unable to save translation unit (2): %s (as %s)",
@@ -353,7 +356,6 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& fileName,
                 data->unit.file = clang_getFile(data->unit.unit,
                                                 fileName.constData());
 
-                initFileSystemWatcher(&data->unit);
                 return &data->unit;
             }
         }
@@ -465,7 +467,7 @@ void UnitCache::initFileSystemWatcher(Unit* unit) // always called with m_dataMu
         }
         watcher->paths = paths;
         watcher->addPaths(dirs);
-        qDebug() << "adding" << paths << "for" << unit->fileName << dirs;
+        qDebug() << "adding" << paths << "for" << unit->fileName << dirs << old << watcher;
         connect(watcher, SIGNAL(directoryChanged(QString)),
                 this, SLOT(onDirectoryChanged(QString)));
     }

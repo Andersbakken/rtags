@@ -13,13 +13,12 @@ Client::Client(int flags, QObject* parent)
     Messages::init();
 }
 
-void Client::parseMakefile(const QByteArray& makefile)
+void Client::parseMakefile(const Path& path)
 {
     MakefileParser::Verbosity v = MakefileParser::Silent;
     if (m_flags & Verbose)
         v = MakefileParser::Verbose;
     MakefileParser* parser = new MakefileParser(v, this);
-    Path path = Path::resolved(makefile);
     connect(parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
     connect(parser, SIGNAL(fileReady(const GccArguments&)),
             this, SLOT(onMakefileReady(const GccArguments&)));
@@ -46,6 +45,9 @@ void Client::query(QueryType type, const QByteArray& msg)
         break;
     case Match:
         qmt = QueryMessage::Match;
+        break;
+    case Dump:
+        qmt = QueryMessage::Dump;
         break;
     }
 

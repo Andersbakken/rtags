@@ -11,7 +11,7 @@ class QueryMessage : public Message
     Q_OBJECT
 public:
     enum { MessageId = 4 };
-    enum Type { FollowLocation, ReferencesLocation, ReferencesName, Recompile, Match };
+    enum Type { FollowLocation, ReferencesLocation, ReferencesName, Recompile, Match, Dump };
 
     Q_INVOKABLE QueryMessage(QObject* parent = 0);
     QueryMessage(const QByteArray& query, Type type, QObject* parent = 0);

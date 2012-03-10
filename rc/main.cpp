@@ -15,8 +15,6 @@ static int help(const char* app)
     return 1;
 }
 
-enum OptType { FollowLocation, Makefile, ReferenceName, ReferenceLocation, Recompile, Match };
-
 int main(int argc, char** argv)
 {
     QCoreApplication app(argc, argv);
@@ -31,12 +29,14 @@ int main(int argc, char** argv)
         { "reference-location", required_argument, 0, 'l' },
         { "recompile", required_argument, 0, 'r' },
         { "match", required_argument, 0, 'a' },
+        { "dump", required_argument, 0, 'd' },
         { 0, 0, 0, 0 }
     };
 
     bool verbose = false;
     bool skipparen = false;
-    QList<QPair<OptType, QByteArray> > optlist;
+    QList<Path> makeFiles;
+    QList<QPair<Client::QueryType, QByteArray> > optlist;
 
     if (getenv("LOG_RC")) {
         FILE* logfile = fopen("/tmp/rc.log", "a");
@@ -52,7 +52,7 @@ int main(int argc, char** argv)
 
     int idx, c;
     for (;;) {
-        c = getopt_long(argc, argv, "vphf:m:n:l:r:a:", opts, &idx);
+        c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:", opts, &idx);
         if (c == -1)
             break;
         switch (c) {
@@ -68,22 +68,25 @@ int main(int argc, char** argv)
             skipparen = true;
             break;
         case 'f':
-            optlist.append(qMakePair(FollowLocation, QByteArray(optarg)));
+            optlist.append(qMakePair(Client::FollowLocation, QByteArray(optarg)));
             break;
         case 'm':
-            optlist.append(qMakePair(Makefile, QByteArray(optarg)));
+            makeFiles.append(Path::resolved(optarg));
             break;
         case 'n':
-            optlist.append(qMakePair(ReferenceName, QByteArray(optarg)));
+            optlist.append(qMakePair(Client::ReferencesName, QByteArray(optarg)));
             break;
         case 'l':
-            optlist.append(qMakePair(ReferenceLocation, QByteArray(optarg)));
+            optlist.append(qMakePair(Client::ReferencesLocation, QByteArray(optarg)));
             break;
         case 'r':
-            optlist.append(qMakePair(Recompile, QByteArray(optarg)));
+            optlist.append(qMakePair<Client::QueryType, QByteArray>(Client::Recompile, Path::resolved(optarg)));
             break;
         case 'a':
-            optlist.append(qMakePair(Match, QByteArray(optarg)));
+            optlist.append(qMakePair(Client::Match, QByteArray(optarg)));
+            break;
+        case 'd':
+            optlist.append(qMakePair<Client::QueryType, QByteArray>(Client::Dump, Path::resolved(optarg)));
             break;
         case '?':
             // getopt printed an error message already
@@ -92,7 +95,7 @@ int main(int argc, char** argv)
         }
     }
 
-    if (optlist.isEmpty())
+    if (optlist.isEmpty() && makeFiles.isEmpty())
         return help(argv[0]);
 
     int flags = 0;
@@ -101,29 +104,13 @@ int main(int argc, char** argv)
     if (skipparen)
         flags |= Client::SkipParen;
     Client client(flags);
-    QList<QPair<OptType, QByteArray> >::const_iterator it = optlist.begin();
+    QList<QPair<Client::QueryType, QByteArray> >::const_iterator it = optlist.begin();
     while (it != optlist.end()) {
-        switch (it->first) {
-        case FollowLocation:
-            client.query(Client::FollowLocation, it->second);
-            break;
-        case Makefile:
-            client.parseMakefile(it->second);
-            break;
-        case ReferenceName:
-            client.query(Client::ReferencesName, it->second);
-            break;
-        case ReferenceLocation:
-            client.query(Client::ReferencesLocation, it->second);
-            break;
-        case Recompile:
-            client.query(Client::Recompile, it->second);
-            break;
-        case Match:
-            client.query(Client::Match, it->second);
-            break;
-        }
+        client.query(it->first, it->second);
         ++it;
+    }
+    foreach(const QByteArray &makeFile, makeFiles) {
+        client.parseMakefile(makeFile);
     }
     return 0;
 }

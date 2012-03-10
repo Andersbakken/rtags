@@ -21,6 +21,7 @@ public:
     int referencesForName(const QByteArray& query);
     int recompile(const QByteArray& query);
     int match(const QByteArray& query);
+    int dump(const QByteArray& query);
 
     static void setBaseDirectory(const QByteArray& base);
     static QByteArray databaseName(Type type);

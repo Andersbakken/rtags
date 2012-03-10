@@ -116,8 +116,11 @@ void Rdm::handleAddMessage(AddMessage* message)
 
 void Rdm::handleQueryMessage(QueryMessage* message)
 {
-    if (message->query().isEmpty())
+    printf("%s:%d %s\n", __FILE__, __LINE__, __FUNCTION__);
+    if (message->query().isEmpty()) {
+        printf("%s:%d %s\n", __FILE__, __LINE__, __FUNCTION__);
         return;
+    }
 
     Connection* conn = qobject_cast<Connection*>(sender());
     int id = 0;
@@ -137,6 +140,13 @@ void Rdm::handleQueryMessage(QueryMessage* message)
     case QueryMessage::Match:
         id = m_db->match(message->query().front());
         break;
+    case QueryMessage::Dump:
+        printf("%s:%d %s\n", __FILE__, __LINE__, __FUNCTION__);
+        id = m_db->dump(message->query().front());
+        break;
+    default:
+        qWarning("Unknown message type %d\n", message->type());
+        return;
     }
     m_pendingLookups[id] = conn;
 }
