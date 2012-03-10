@@ -28,7 +28,7 @@ class DatabaseImpl : public QObject
 public:
     int followLocation(const QByteArray& fileName, int line, int col);
     int cursorInfo(const QByteArray& fileName, int line, int col);
-    int codeComplete(const QByteArray& fileName, int line, int col);
+    int codeComplete(const QByteArray& fileName, int line, int col, const QHash<Path, QByteArray> &unsaved);
     int referencesForLocation(const QByteArray& fileName, int line, int col);
     int referencesForName(const QByteArray& name);
     int recompile(const QByteArray& fileName);
@@ -96,7 +96,7 @@ class CodeCompleteJob : public QObject, public QRunnable
 {
     Q_OBJECT
 public:
-    CodeCompleteJob(const QByteArray& fn, int i, int l, int c);
+    CodeCompleteJob(const QByteArray& fn, int i, int l, int c, const QHash<Path, QByteArray> &unsaved);
     ~CodeCompleteJob();
 
 signals:
@@ -108,6 +108,7 @@ protected:
 private:
     QByteArray fileName;
     int id, line, col;
+    QHash<Path, QByteArray> unsavedFiles;
 };
 
 
@@ -346,11 +347,12 @@ int DatabaseImpl::cursorInfo(const QByteArray& fileName, int line, int col)
 }
 
 
-int DatabaseImpl::codeComplete(const QByteArray& fileName, int line, int col)
+int DatabaseImpl::codeComplete(const QByteArray& fileName, int line, int col,
+                               const QHash<Path, QByteArray> &unsaved)
 {
     const int id = ++lastJobId;
 
-    CodeCompleteJob* job = new CodeCompleteJob(fileName, id, line, col);
+    CodeCompleteJob* job = new CodeCompleteJob(fileName, id, line, col, unsaved);
     connect(job, SIGNAL(complete(int, const QList<QByteArray>&)),
             this, SIGNAL(complete(int, const QList<QByteArray>&)));
     QThreadPool::globalInstance()->start(job);
@@ -547,8 +549,9 @@ void CursorInfoJob::run()
     emit complete(id, ret);
 }
 
-CodeCompleteJob::CodeCompleteJob(const QByteArray&fn, int i, int l, int c)
-    : fileName(fn), id(i), line(l), col(c)
+CodeCompleteJob::CodeCompleteJob(const QByteArray&fn, int i, int l, int c,
+                                 const QHash<Path, QByteArray> &unsaved)
+    : fileName(fn), id(i), line(l), col(c), unsavedFiles(unsaved)
 {
 }
 
@@ -575,13 +578,25 @@ void CodeCompleteJob::run()
         }
     }
 
+    CXUnsavedFile *unsaved = 0;
+    if (unsavedFiles.size()) {
+        unsaved = new CXUnsavedFile[unsavedFiles.size()];
+        int i = 0;
+        for (QHash<Path, QByteArray>::const_iterator it = unsavedFiles.begin(); it != unsavedFiles.end(); ++it) {
+            unsaved[i].Filename = it.key().constData();
+            unsaved[i].Contents = it.value().constData();
+            unsaved[i].Length = it.value().size();
+        }
+    }
     CXCodeCompleteResults *results = clang_codeCompleteAt(data->unit,
                                                           data->fileName.constData(),
                                                           line, col,
-                                                          0, 0,
+                                                          unsaved, unsavedFiles.size(),
                                                           clang_defaultCodeCompleteOptions());
+    if (unsaved)
+        delete[] unsaved;
 
-    qDebug() << results << results->NumResults;
+    qDebug() << results << results->NumResults << unsavedFiles.keys();
 
     clang_disposeCodeCompleteResults(results);
     QList<QByteArray> ret;
@@ -877,7 +892,7 @@ int Database::codeComplete(const QueryMessage &query)
     if (!makeLocation(query.query().front(), &loc))
         return -1;
 
-    return m_impl->codeComplete(loc.path, loc.line, loc.column);
+    return m_impl->codeComplete(loc.path, loc.line, loc.column, query.unsavedFiles());
 }
 
 int Database::referencesForLocation(const QueryMessage &query)

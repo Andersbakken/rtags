@@ -32,6 +32,8 @@ class QueryMessage : public Message
     int messageId() const { return MessageId; }
 
     QList<QByteArray> query() const { return m_query; }
+
+    QHash<Path, QByteArray> unsavedFiles() const { return m_unsavedFiles; }
     Type type() const { return m_type; }
 
     QByteArray toByteArray() const;

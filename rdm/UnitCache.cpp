@@ -173,7 +173,7 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
 
     data->unit.unit = clang_parseTranslationUnit(data->unit.index, filename.constData(),
                                                  clangArgs.data(), clangArgs.size(),
-                                                 0, 0, CXTranslationUnit_None);
+                                                 0, 0, CXTranslationUnit_None|CXTranslationUnit_Incomplete);
     if (data->unit.unit) {
         data->unit.file = clang_getFile(data->unit.unit, filename.constData());
         data->unit.origin = Source;
@@ -465,10 +465,10 @@ void UnitCache::initFileSystemWatcher(Unit* unit) // always called with m_dataMu
         QStringList dirs;
         for (QHash<Path, QSet<QByteArray> >::iterator it = paths.begin(); it != paths.end(); ++it) {
             dirs.append(it.key());
+            qDebug() << "watching" << it.value() << "in" << it.key() << "for" << unit->fileName;
         }
         watcher->paths = paths;
         watcher->addPaths(dirs);
-        qDebug() << "adding" << paths << "for" << unit->fileName << dirs << old << watcher;
         connect(watcher, SIGNAL(directoryChanged(QString)),
                 this, SLOT(onDirectoryChanged(QString)));
     }
