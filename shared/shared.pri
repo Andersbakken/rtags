@@ -1,4 +1,4 @@
-INCLUDEPATH += $$PWD
+INCLUDEPATH += $$PWD $$PWD/messages
 DEPENDPATH += $$PWD
 
 OBJECTS_DIR = .obj

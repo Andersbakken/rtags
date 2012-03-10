@@ -1,4 +1,5 @@
 #include "Client.h"
+#include "QueryMessage.h"
 #include <QCoreApplication>
 #include <QList>
 #include <QPair>
@@ -36,7 +37,7 @@ int main(int argc, char** argv)
     bool verbose = false;
     bool skipparen = false;
     QList<Path> makeFiles;
-    QList<QPair<Client::QueryType, QByteArray> > optlist;
+    QList<QPair<QueryMessage::Type, QByteArray> > optlist;
 
     if (getenv("LOG_RC")) {
         FILE* logfile = fopen("/tmp/rc.log", "a");
@@ -68,25 +69,25 @@ int main(int argc, char** argv)
             skipparen = true;
             break;
         case 'f':
-            optlist.append(qMakePair(Client::FollowLocation, QByteArray(optarg)));
+            optlist.append(qMakePair(QueryMessage::FollowLocation, QByteArray(optarg)));
             break;
         case 'm':
             makeFiles.append(Path::resolved(optarg));
             break;
         case 'n':
-            optlist.append(qMakePair(Client::ReferencesName, QByteArray(optarg)));
+            optlist.append(qMakePair(QueryMessage::ReferencesName, QByteArray(optarg)));
             break;
         case 'l':
-            optlist.append(qMakePair(Client::ReferencesLocation, QByteArray(optarg)));
+            optlist.append(qMakePair(QueryMessage::ReferencesLocation, QByteArray(optarg)));
             break;
         case 'r':
-            optlist.append(qMakePair<Client::QueryType, QByteArray>(Client::Recompile, Path::resolved(optarg)));
+            optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Recompile, Path::resolved(optarg)));
             break;
         case 'a':
-            optlist.append(qMakePair(Client::Match, QByteArray(optarg)));
+            optlist.append(qMakePair(QueryMessage::Match, QByteArray(optarg)));
             break;
         case 'd':
-            optlist.append(qMakePair<Client::QueryType, QByteArray>(Client::Dump, Path::resolved(optarg)));
+            optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Dump, Path::resolved(optarg)));
             break;
         case '?':
             // getopt printed an error message already
@@ -104,7 +105,7 @@ int main(int argc, char** argv)
     if (skipparen)
         flags |= Client::SkipParen;
     Client client(flags);
-    QList<QPair<Client::QueryType, QByteArray> >::const_iterator it = optlist.begin();
+    QList<QPair<QueryMessage::Type, QByteArray> >::const_iterator it = optlist.begin();
     while (it != optlist.end()) {
         client.query(it->first, it->second);
         ++it;

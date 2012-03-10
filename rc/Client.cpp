@@ -27,33 +27,11 @@ void Client::parseMakefile(const Path& path)
     qApp->exec();
 }
 
-void Client::query(QueryType type, const QByteArray& msg)
+void Client::query(QueryMessage::Type type, const QByteArray& msg)
 {
-    QueryMessage::Type qmt = QueryMessage::FollowLocation; // make the compiler not complain
-    switch (type) {
-    case FollowLocation:
-        qmt = QueryMessage::FollowLocation;
-        break;
-    case Recompile:
-        qmt = QueryMessage::Recompile;
-        break;
-    case ReferencesLocation:
-        qmt = QueryMessage::ReferencesLocation;
-        break;
-    case ReferencesName:
-        qmt = QueryMessage::ReferencesName;
-        break;
-    case Match:
-        qmt = QueryMessage::Match;
-        break;
-    case Dump:
-        qmt = QueryMessage::Dump;
-        break;
-    }
-
     m_conn = new Connection(this);
     if (m_conn->connectToHost("localhost", Connection::Port)) {
-        QueryMessage message(msg, qmt);
+        QueryMessage message(msg, type);
         m_conn->send(&message);
         connect(m_conn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
         qApp->exec();

@@ -2,6 +2,7 @@
 #define CLIENT_H
 
 #include "GccArguments.h"
+#include "QueryMessage.h"
 #include <QObject>
 #include <QByteArray>
 #include <QList>
@@ -13,13 +14,12 @@ class Client : public QObject
 {
     Q_OBJECT
 public:
-    enum QueryType { FollowLocation, ReferencesLocation, ReferencesName, Recompile, Match, Dump };
     enum Flags { Verbose = 0x1, SkipParen = 0x2 };
 
     Client(int flags = 0, QObject* parent = 0);
 
     void parseMakefile(const Path &path);
-    void query(QueryType type, const QByteArray& msg);
+    void query(QueryMessage::Type type, const QByteArray& msg);
 
 private slots:
     void onSendComplete();
