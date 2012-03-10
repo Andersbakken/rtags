@@ -77,6 +77,25 @@ void Resource::setBaseDirectory(const QByteArray& base)
     s_base = base;
 }
 
+void Resource::erase(Type type)
+{
+    if (!m_locked)
+        lock();
+    Q_ASSERT(m_locked);
+
+    QFile::remove(hashedFileName(type));
+}
+
+void Resource::eraseAll()
+{
+    if (!m_locked)
+        lock();
+    Q_ASSERT(m_locked);
+
+    QFile::remove(hashedFileName(AST));
+    QFile::remove(hashedFileName(Information));
+}
+
 QByteArray Resource::readData(Type type) const
 {
     if (!exists(type))

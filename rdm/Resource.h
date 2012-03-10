@@ -32,6 +32,9 @@ public:
     static QByteArray hash(const QByteArray& fileName);
     static void setBaseDirectory(const QByteArray& base);
 
+    void erase(Type type);
+    void eraseAll();
+
 protected:
     void writeData(Type type, const QByteArray& data, WriteMode mode);
     QByteArray readData(Type type) const;

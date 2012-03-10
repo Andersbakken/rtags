@@ -201,7 +201,8 @@ inline bool UnitCache::saveUnit(UnitData* data,
 
     qWarning("Unable to save translation unit: %s (as %s)",
              data->unit.fileName.constData(), hashedFilename.constData());
-    printDiagnostic(data->unit.unit, "save");
+    printDiagnostic(data->unit.unit, "save (1)");
+    resource->eraseAll();
     return false;
 }
 
@@ -219,7 +220,7 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& fileName,
     if ((mode & Source) || (mode & AST)) {
         QList<QByteArray> arguments = args;
 
-        // we don't mind reread from disk
+        // we don't mind rereading from disk
         if (!data->owner || (data->owner == QThread::currentThread() && !data->unit.unit)) {
             // and luckily we can
             if (!data->owner) {
@@ -258,10 +259,9 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& fileName,
             }
             if (mode & Source) {
                 if (loadUnit(fileName, arguments, data)) {
-                    if (saveUnit(data, &resource, arguments)) {
-                        // done!
-                        return Done;
-                    }
+                    saveUnit(data, &resource, arguments);
+                    // done!
+                    return Done;
                 }
                 // Unable to read or write source, not good
                 return Abort;
@@ -405,22 +405,22 @@ void UnitCache::recompile(Unit* unit)
         int result = clang_saveTranslationUnit(newunit,
                                                fn.constData(),
                                                CXSaveTranslationUnit_None);
-        if (result == CXSaveError_None) {
-            clang_disposeTranslationUnit(unit->unit);
-            unit->unit = newunit;
-            unit->origin = Source;
-            unit->visited = QDateTime::currentDateTime();
-            unit->file = clang_getFile(unit->unit,
-                                       unit->fileName.constData());
-            initFileSystemWatcher(unit);
-
-            Indexer::instance()->index(unit->fileName, args);
-        } else {
+        if (result != CXSaveError_None) {
             qWarning("Unable to save translation unit (3): %s (as %s)",
                      unit->fileName.constData(), fn.constData());
-            printDiagnostic(newunit, "save (3)");
-            clang_disposeTranslationUnit(newunit);
+            printDiagnostic(newunit, "save (2)");
+            resource.eraseAll();
         }
+
+        clang_disposeTranslationUnit(unit->unit);
+        unit->unit = newunit;
+        unit->origin = Source;
+        unit->visited = QDateTime::currentDateTime();
+        unit->file = clang_getFile(unit->unit,
+                                   unit->fileName.constData());
+        initFileSystemWatcher(unit);
+
+        Indexer::instance()->index(unit->fileName, args);
     } else
         qWarning("Unable to recompile translation unit %s",
                  unit->fileName.constData());
