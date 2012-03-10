@@ -168,6 +168,27 @@ private:
 
 #include "Database.moc"
 
+struct DumpUserData {
+    QList<QByteArray> lines;
+    int indent;
+};
+
+static CXChildVisitResult dumpVisitor(CXCursor cursor, CXCursor, CXClientData userData)
+{
+    DumpUserData *dump = reinterpret_cast<DumpUserData*>(userData);
+    QByteArray line(dump->indent * 2, ' ');
+    line += cursorToString(cursor);
+    CXCursor ref = clang_getCursorReferenced(cursor);
+    if (!clang_equalCursors(cursor, ref) && !clang_isInvalid(clang_getCursorKind(ref))) {
+        line += " => " + cursorToString(ref);
+    }
+    dump->lines.append(line);
+    ++dump->indent;
+    clang_visitChildren(cursor, dumpVisitor, dump);
+    --dump->indent;
+    return CXChildVisit_Continue;
+}
+
 typedef bool (*VisitFile)(UnitCache::Unit* unit, void* data);
 
 static void visitIncluderFiles(const QByteArray& fileName, VisitFile visitor, void* data)
@@ -466,6 +487,31 @@ CursorInfoJob::~CursorInfoJob()
 {
 }
 
+static CXChildVisitResult memberVisitor(CXCursor cursor, CXCursor, CXClientData userData)
+{
+    switch (clang_getCursorKind(cursor)) {
+    case CXCursor_CXXMethod:
+    case CXCursor_FieldDecl:
+        reinterpret_cast<QList<QByteArray> *>(userData)->append(eatString(clang_getCursorSpelling(cursor)));
+        break;
+    default:
+        break;
+    }
+    return CXChildVisit_Continue;
+}
+
+static inline bool hasMembers(CXCursor cursor)
+{
+    switch (clang_getCursorKind(cursor)) {
+    case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
+
 void CursorInfoJob::run()
 {
     CachedUnit locker(fileName, UnitCache::AST | UnitCache::Memory);
@@ -487,12 +533,18 @@ void CursorInfoJob::run()
     CXFile file = clang_getFile(data->unit, fileName.constData());
     CXSourceLocation loc = clang_getLocation(data->unit, file, line, col);
     CXCursor cursor = clang_getCursor(data->unit, loc);
-    // CXCursorKind cursorKind = clang_getCursorKind(cursor);
-    // CXCursor ref = clang_getCursorReferenced(cursor);
-    // CXCursorKind refKind = clang_getCursorKind(ref);
-    emit complete(id, QList<QByteArray>() << cursorToString(cursor));
+    QList<QByteArray> ret;
+    if (!clang_isInvalid(clang_getCursorKind(cursor))) {
+        bool go = hasMembers(cursor);
+        if (!go) {
+            cursor = clang_getCursorReferenced(cursor);
+            go = hasMembers(cursor);
+        }
+        if (go)
+            clang_visitChildren(cursor, memberVisitor, &ret);
+    }
+    emit complete(id, ret);
 }
-
 
 CodeCompleteJob::CodeCompleteJob(const QByteArray&fn, int i, int l, int c)
     : fileName(fn), id(i), line(l), col(c)
@@ -838,27 +890,6 @@ void MatchJob::run()
 DumpJob::DumpJob(const QByteArray& fn, int i)
     : fileName(fn), id(i)
 {
-}
-
-struct DumpUserData {
-    QList<QByteArray> lines;
-    int indent;
-};
-
-static CXChildVisitResult dumpVisitor(CXCursor cursor, CXCursor, CXClientData userData)
-{
-    DumpUserData *dump = reinterpret_cast<DumpUserData*>(userData);
-    QByteArray line(dump->indent * 2, ' ');
-    line += cursorToString(cursor);
-    CXCursor ref = clang_getCursorReferenced(cursor);
-    if (!clang_equalCursors(cursor, ref) && !clang_isInvalid(clang_getCursorKind(ref))) {
-        line += " => " + cursorToString(ref);
-    }
-    dump->lines.append(line);
-    ++dump->indent;
-    clang_visitChildren(cursor, dumpVisitor, dump);
-    --dump->indent;
-    return CXChildVisit_Continue;
 }
 
 void DumpJob::run()
