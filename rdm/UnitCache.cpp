@@ -443,17 +443,17 @@ static void findIncludes(CXFile includedFile, CXSourceLocation*, unsigned, CXCli
     CXString fn = clang_getFileName(includedFile);
     const char *cstr = clang_getCString(fn);
     if (strncmp(cstr, "/usr/", 5)) {
-        QHash<Path, QList<QByteArray> > &paths = *reinterpret_cast<QHash<Path, QList<QByteArray> > *>(userData);
+        QHash<Path, QSet<QByteArray> > &paths = *reinterpret_cast<QHash<Path, QSet<QByteArray> > *>(userData);
         Path p(cstr);
         p.resolve();
-        paths[p.parentDir()].append(p.fileName());
+        paths[p.parentDir()].insert(p.fileName());
     }
     clang_disposeString(fn);
 }
 
 void UnitCache::initFileSystemWatcher(Unit* unit) // always called with m_dataMutex held
 {
-    QHash<Path, QList<QByteArray> > paths;
+    QHash<Path, QSet<QByteArray> > paths;
     clang_getInclusions(unit->unit, findIncludes, &paths);
     // qDebug() << paths.keys();
     FileSystemWatcher *old = m_watchers.take(unit->fileName);
@@ -462,7 +462,7 @@ void UnitCache::initFileSystemWatcher(Unit* unit) // always called with m_dataMu
         watcher->moveToThread(thread());
         m_watchers[unit->fileName] = watcher;
         QStringList dirs;
-        for (QHash<Path, QList<QByteArray> >::iterator it = paths.begin(); it != paths.end(); ++it) {
+        for (QHash<Path, QSet<QByteArray> >::iterator it = paths.begin(); it != paths.end(); ++it) {
             dirs.append(it.key());
         }
         watcher->paths = paths;
@@ -482,7 +482,7 @@ void UnitCache::onDirectoryChanged(const QString &directory)
     FileSystemWatcher *f = qobject_cast<FileSystemWatcher*>(sender());
     if (f) {
         bool dirty = false;
-        const QList<QByteArray> &fileNames = f->paths.value(dir);
+        const QSet<QByteArray> &fileNames = f->paths.value(dir);
         qDebug() << f->paths << dir;
         Q_ASSERT(!fileNames.isEmpty());
         const QByteArray dirName = dir + "/";

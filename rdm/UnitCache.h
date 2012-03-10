@@ -11,6 +11,7 @@
 #include <QWaitCondition>
 #include <QFileSystemWatcher>
 #include <QObject>
+#include <QSet>
 
 class QThread;
 class FileSystemWatcher;
@@ -78,7 +79,7 @@ public:
 
     const Path fileName;
     const quint64 lastModified;
-    QHash<Path, QList<QByteArray> > paths;
+    QHash<Path, QSet<QByteArray> > paths;
 };
 
 class CachedUnit
