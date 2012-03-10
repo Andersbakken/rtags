@@ -192,7 +192,7 @@ static void visitIncluderFiles(const QByteArray& fileName, VisitFile visitor, vo
             continue;
         qDebug() << "about to visit" << inc;
 
-        CachedUnit unit(inc, UnitCache::AST);
+        CachedUnit unit(inc, UnitCache::AST | UnitCache::Memory);
         if (unit.unit()) {
             if ((*visitor)(unit.unit(), data))
                 break;
@@ -358,7 +358,7 @@ static inline void debugCursor(CXCursor c)
 
 void FollowLocationJob::run()
 {
-    CachedUnit locker(fileName, UnitCache::AST);
+    CachedUnit locker(fileName, UnitCache::AST | UnitCache::Memory);
     UnitCache::Unit* data = locker.unit();
     if (!data) {
         FirstUnitData first;
@@ -468,7 +468,7 @@ CursorInfoJob::~CursorInfoJob()
 
 void CursorInfoJob::run()
 {
-    CachedUnit locker(fileName, UnitCache::AST);
+    CachedUnit locker(fileName, UnitCache::AST | UnitCache::Memory);
     UnitCache::Unit* data = locker.unit();
     if (!data) {
         FirstUnitData first;
@@ -505,7 +505,7 @@ CodeCompleteJob::~CodeCompleteJob()
 
 void CodeCompleteJob::run()
 {
-    CachedUnit locker(fileName, UnitCache::AST);
+    CachedUnit locker(fileName, UnitCache::AST | UnitCache::Memory);
     UnitCache::Unit* data = locker.unit();
     if (!data) {
         FirstUnitData first;
@@ -701,7 +701,7 @@ void ReferencesJob::runName()
 
 void ReferencesJob::runLocation()
 {
-    CachedUnit locker(fileName, UnitCache::AST);
+    CachedUnit locker(fileName, UnitCache::AST | UnitCache::Memory);
     UnitCache::Unit* data = locker.unit();
     if (!data) {
         FirstUnitData first;
@@ -770,7 +770,7 @@ RecompileJob::~RecompileJob()
 
 void RecompileJob::run()
 {
-    CachedUnit locker(fileName, UnitCache::AST);
+    CachedUnit locker(fileName, UnitCache::AST | UnitCache::Memory);
     UnitCache::Unit* data = locker.unit();
     if (!data) {
         FirstUnitData first;

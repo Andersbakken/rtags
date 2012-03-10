@@ -245,10 +245,15 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& fileName,
                         return Done;
                     }
                 }
-                // Unable to read AST, get the .inf arguments if none are present
-                if (arguments.isEmpty() && resource.exists(Resource::Information)) {
-                    arguments = resource.read<QList<QByteArray> >(Resource::Information);
-                    arguments.removeFirst(); // file name
+                // Unable to read AST, get the .inf arguments if we didn't also request a source read
+                if (!(mode & Source)) {
+                    if (resource.exists(Resource::Information)) {
+                        arguments = resource.read<QList<QByteArray> >(Resource::Information);
+                        arguments.removeFirst(); // file name
+                        mode |= Source;
+                    } else {
+                        return Abort;
+                    }
                 }
             }
             if (mode & Source) {
