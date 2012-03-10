@@ -10,6 +10,33 @@
 #include <QDebug>
 #include <QVariant>
 #include <QStringList>
+#include <QThreadPool>
+#include <QRunnable>
+
+class MaybeRecompileJob : public QRunnable
+{
+public:
+    MaybeRecompileJob(const Path& fn)
+        : fileName(fn)
+    {
+    }
+protected:
+    void run()
+    {
+        qDebug() << "acquiring" << fileName << "from memory";
+        CachedUnit unit(fileName, UnitCache::Memory);
+        if (unit.unit()) {
+            qDebug() << "got unit for" << fileName << "recompiling...";
+            UnitCache::instance()->recompile(unit.unit());
+            qDebug() << "recompiled" << fileName;
+        } else {
+            qDebug() << "no unit for" << fileName;
+        }
+    }
+
+private:
+    const Path fileName;
+};
 
 UnitCache* UnitCache::s_inst = 0;
 
@@ -101,7 +128,7 @@ bool UnitCache::removeUnusedUnits(int num)
     return (i >= num);
 }
 
-UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
+UnitCache::Unit* UnitCache::createUnit(const QByteArray& fileName,
                                        const QList<QByteArray>& arguments,
                                        int mode)
 {
@@ -111,9 +138,18 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
     QMutexLocker locker(&m_dataMutex);
     QList<QByteArray> argcopy = arguments;
     for (;;) {
-        const QHash<QByteArray, UnitData*>::iterator it = m_data.find(filename);
+        const QHash<QByteArray, UnitData*>::iterator it = m_data.find(fileName);
         if (it != m_data.end()) {
             // the unit exists in our cache
+            if (mode == Memory) {
+                if (it.value()->owner == QThread::currentThread() || !it.value()->owner) {
+                    it.value()->owner = QThread::currentThread();
+                    ++it.value()->ref;
+                    return &it.value()->unit;
+                }
+                m_dataCondition.wait(&m_dataMutex);
+                continue; // recheck
+            }
             if (it.value()->owner == QThread::currentThread() && (mode & (AST | Force)) == AST) {
                 // the unit is owned by our thread and we didn't explicitly request a reparse/reread
                 ++it.value()->ref;
@@ -132,11 +168,11 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                 if ((mode & (AST | Force)) == (AST | Force)) { // did we explicitly request a reread?
                     clang_disposeTranslationUnit(data->unit.unit);
 
-                    Resource resource(filename);
+                    Resource resource(fileName);
                     locker.unlock(); // no need to hold the lock while clang is parsing
 
                     if (resource.exists(Resource::AST)) {
-                        const QByteArray fn = resource.hashedFilename(Resource::AST);
+                        const QByteArray fn = resource.hashedFileName(Resource::AST);
                         data->unit.unit = clang_createTranslationUnit(data->unit.index,
                                                                       fn.constData());
                         if (!data->unit.unit) {
@@ -164,7 +200,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                     }
 
                     data->unit.unit = clang_parseTranslationUnit(data->unit.index,
-                                                                 filename.constData(),
+                                                                 fileName.constData(),
                                                                  args.data(), args.size(),
                                                                  0, 0,
                                                                  CXTranslationUnit_None);
@@ -172,7 +208,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                     if (!data->unit.unit) {
                         // double ow
                         qWarning("Unable to reparse an existing unit: %s",
-                                 filename.constData());
+                                 fileName.constData());
                         clang_disposeIndex(data->unit.index);
                         delete data;
                         m_data.erase(it);
@@ -180,20 +216,20 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                         return 0;
                     }
                     data->unit.file = clang_getFile(data->unit.unit,
-                                                    filename.constData());
+                                                    fileName.constData());
                     data->unit.origin = Source;
 
-                    argcopy.prepend(filename);
-                    Resource resource(filename);
-                    QByteArray outfilename = resource.hashedFilename(Resource::AST);
+                    argcopy.prepend(fileName);
+                    Resource resource(fileName);
+                    QByteArray outfileName = resource.hashedFileName(Resource::AST);
                     int result = clang_saveTranslationUnit(data->unit.unit,
-                                                           outfilename.constData(),
+                                                           outfileName.constData(),
                                                            CXSaveTranslationUnit_None);
                     if (result == CXSaveError_None)
                         resource.write(Resource::Information, argcopy, Resource::Truncate);
                     else {
                         qWarning("Unable to save translation unit (1): %s (as %s)",
-                                 filename.constData(), outfilename.constData());
+                                 fileName.constData(), outfileName.constData());
                         printDiagnostic(data->unit.unit, "save (1)");
                         clang_disposeTranslationUnit(data->unit.unit);
                         clang_disposeIndex(data->unit.index);
@@ -211,6 +247,8 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                 continue; // recheck
             }
         } else {
+            if (mode == Memory)
+                return 0;
             // the unit does not exist in our cache
             const int sz = m_data.size();
             if (sz >= MaxUnits && !removeUnusedUnits(sz - MaxUnits + 1)) {
@@ -225,8 +263,8 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                 data->ref = 1;
                 data->owner = QThread::currentThread();
                 data->unit.visited = QDateTime::currentDateTime();
-                data->unit.filename = filename;
-                m_data[filename] = data;
+                data->unit.fileName = fileName;
+                m_data[fileName] = data;
 
                 locker.unlock(); // no need to hold the lock while clang is parsing
 
@@ -234,11 +272,11 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                 data->unit.index = clang_createIndex(0, 0);
                 bool loaded = false;
                 if (mode & AST) {
-                    Resource resource(filename);
+                    Resource resource(fileName);
                     if (resource.exists(Resource::AST)) {
                         // we did not request a reparse and the unit exists as an AST file
-                        const QByteArray fn = resource.hashedFilename(Resource::AST);
-                        qDebug("reading %s (%s)", fn.constData(), filename.constData());
+                        const QByteArray fn = resource.hashedFileName(Resource::AST);
+                        qDebug("reading %s (%s)", fn.constData(), fileName.constData());
                         data->unit.unit = clang_createTranslationUnit(data->unit.index,
                                                                       fn.constData());
                         if (!data->unit.unit) {
@@ -259,7 +297,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                     }
                 }
                 if (!loaded && (mode & Source)) {
-                    qDebug("trying to reparse %s, %d arguments", filename.constData(), argcopy.size());
+                    qDebug() << "trying to reparse" << fileName << argcopy;
                     // we need to (re)parse
                     QVector<const char*> args;
                     foreach(const QByteArray& a, argcopy) {
@@ -267,33 +305,36 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                     }
 
                     data->unit.unit = clang_parseTranslationUnit(data->unit.index,
-                                                                 filename.constData(),
+                                                                 fileName.constData(),
                                                                  args.data(), args.size(),
                                                                  0, 0,
                                                                  CXTranslationUnit_None);
                     if (data->unit.unit) {
-                        Resource resource(filename);
-                        const QByteArray fn = resource.hashedFilename(Resource::AST);
+                        Resource resource(fileName);
+                        const QByteArray fn = resource.hashedFileName(Resource::AST);
                         int result = clang_saveTranslationUnit(data->unit.unit,
                                                                fn.constData(),
                                                                CXSaveTranslationUnit_None);
                         if (result == CXSaveError_None) {
-                            Indexer::instance()->index(filename, argcopy);
-                            argcopy.prepend(filename);
+                            qDebug("Parsed %s successfully", fileName.constData());
+                            Indexer::instance()->index(fileName, argcopy);
+                            argcopy.prepend(fileName);
                             resource.write(Resource::Information, argcopy, Resource::Truncate);
                         } else {
                             qWarning("Unable to save translation unit (2): %s (as %s)",
-                                     filename.constData(), fn.constData());
+                                     fileName.constData(), fn.constData());
                             printDiagnostic(data->unit.unit, "save (2)");
                             locker.relock();
 
                             clang_disposeTranslationUnit(data->unit.unit);
                             clang_disposeIndex(data->unit.index);
                             delete data;
-                            m_data.remove(filename);
+                            m_data.remove(fileName);
                             m_dataCondition.wakeAll();
                             return 0;
                         }
+                    } else {
+                        qWarning("Couldn't parse %s", fileName.constData());
                     }
                     data->unit.origin = Source;
                 }
@@ -304,13 +345,13 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& filename,
                     // the unit could not be loaded, out of date? missing? parse errors?
                     clang_disposeIndex(data->unit.index);
                     delete data;
-                    m_data.remove(filename);
+                    m_data.remove(fileName);
                     m_dataCondition.wakeAll();
                     return 0;
                 }
 
                 data->unit.file = clang_getFile(data->unit.unit,
-                                                filename.constData());
+                                                fileName.constData());
 
                 initFileSystemWatcher(&data->unit);
                 return &data->unit;
@@ -328,7 +369,7 @@ void UnitCache::release(Unit* unit)
         return;
 
     QMutexLocker locker(&m_dataMutex);
-    const QHash<QByteArray, UnitData*>::iterator it = m_data.find(unit->filename);
+    const QHash<QByteArray, UnitData*>::iterator it = m_data.find(unit->fileName);
     Q_ASSERT(it != m_data.end());
     Q_ASSERT(it.value()->owner == QThread::currentThread());
     Q_ASSERT(it.value()->ref > 0);
@@ -340,11 +381,7 @@ void UnitCache::release(Unit* unit)
 
 void UnitCache::recompile(Unit* unit)
 {
-    if (unit->watcher) {
-        unit->watcher->deleteLater(); // we're called from a signal from this watcher
-        unit->watcher = 0;
-    }
-    Resource resource(unit->filename);
+    Resource resource(unit->fileName);
 
     QList<QByteArray> args = resource.read<QList<QByteArray> >(Resource::Information);
     args.removeFirst(); // file name
@@ -356,12 +393,12 @@ void UnitCache::recompile(Unit* unit)
 
     CXTranslationUnit newunit;
     newunit = clang_parseTranslationUnit(unit->index,
-                                         unit->filename.constData(),
+                                         unit->fileName.constData(),
                                          clangargs.data(), clangargs.size(),
                                          0, 0,
                                          CXTranslationUnit_None);
     if (newunit) {
-        const QByteArray fn = resource.hashedFilename(Resource::AST);
+        const QByteArray fn = resource.hashedFileName(Resource::AST);
         int result = clang_saveTranslationUnit(newunit,
                                                fn.constData(),
                                                CXSaveTranslationUnit_None);
@@ -371,19 +408,19 @@ void UnitCache::recompile(Unit* unit)
             unit->origin = Source;
             unit->visited = QDateTime::currentDateTime();
             unit->file = clang_getFile(unit->unit,
-                                       unit->filename.constData());
+                                       unit->fileName.constData());
             initFileSystemWatcher(unit);
 
-            Indexer::instance()->index(unit->filename, args);
+            Indexer::instance()->index(unit->fileName, args);
         } else {
             qWarning("Unable to save translation unit (3): %s (as %s)",
-                     unit->filename.constData(), fn.constData());
+                     unit->fileName.constData(), fn.constData());
             printDiagnostic(newunit, "save (3)");
             clang_disposeTranslationUnit(newunit);
         }
     } else
         qWarning("Unable to recompile translation unit %s",
-                 unit->filename.constData());
+                 unit->fileName.constData());
 }
 
 void CachedUnit::adopt(UnitCache::Unit* unit)
@@ -394,7 +431,7 @@ void CachedUnit::adopt(UnitCache::Unit* unit)
     UnitCache* cache = UnitCache::instance();
     cache->release(m_unit);
     if (unit)
-        m_unit = cache->acquire(unit->filename);
+        m_unit = cache->acquire(unit->fileName);
     else
         m_unit = 0;
 }
@@ -404,30 +441,32 @@ static void findIncludes(CXFile includedFile, CXSourceLocation*, unsigned, CXCli
     CXString fn = clang_getFileName(includedFile);
     const char *cstr = clang_getCString(fn);
     if (strncmp(cstr, "/usr/", 5)) {
-        QHash<Path, FileSystemWatcher::Directory> &paths = *reinterpret_cast<QHash<Path, FileSystemWatcher::Directory> *>(userData);
+        QHash<Path, QList<QByteArray> > &paths = *reinterpret_cast<QHash<Path, QList<QByteArray> > *>(userData);
         Path p(cstr);
         p.resolve();
-        paths[p.parentDir()].fileNames.append(p.fileName());
+        paths[p.parentDir()].append(p.fileName());
     }
     clang_disposeString(fn);
 }
 
-void UnitCache::initFileSystemWatcher(Unit* unit)
+void UnitCache::initFileSystemWatcher(Unit* unit) // always called with m_dataMutex held
 {
-    QHash<Path, FileSystemWatcher::Directory> paths;
+    QHash<Path, QList<QByteArray> > paths;
     clang_getInclusions(unit->unit, findIncludes, &paths);
     // qDebug() << paths.keys();
     delete m_watchers.take(unit->fileName);
     if (!paths.isEmpty()) {
         FileSystemWatcher* watcher = new FileSystemWatcher(unit->fileName);
+        watcher->moveToThread(thread());
         m_watchers[unit->fileName] = watcher;
         QStringList dirs;
-        for (QHash<Path, FileSystemWatcher::Directory>::iterator it = paths.begin(); it != paths.end(); ++it) {
+        for (QHash<Path, QList<QByteArray> >::iterator it = paths.begin(); it != paths.end(); ++it) {
             dirs.append(it.key());
         }
+        watcher->paths = paths;
         watcher->addPaths(dirs);
-
-        connect(unit->watcher, SIGNAL(directoryChanged(QString)),
+        qDebug() << "adding" << paths << "for" << unit->fileName << dirs;
+        connect(watcher, SIGNAL(directoryChanged(QString)),
                 this, SLOT(onDirectoryChanged(QString)));
     }
 }
@@ -436,32 +475,27 @@ void UnitCache::onDirectoryChanged(const QString &directory)
 {
     const Path dir(directory.toLocal8Bit());
     qDebug() << "got dir changed" << dir;
+    QMutexLocker lock(&m_dataMutex);
     FileSystemWatcher *f = qobject_cast<FileSystemWatcher*>(sender());
-    if (f && f->unit) {
+    if (f) {
         bool dirty = false;
-        FileSystemWatcher::Directory &d = f->paths[dir];
-        Q_ASSERT(!d.fileNames.isEmpty());
+        const QList<QByteArray> &fileNames = f->paths.value(dir);
+        qDebug() << f->paths << dir;
+        Q_ASSERT(!fileNames.isEmpty());
         const QByteArray dirName = dir + "/";
-        foreach(const QByteArray &fn, d.fileNames) {
+        foreach(const QByteArray &fn, fileNames) {
             const Path p(dirName + fn);
-            if (p.lastModified() > d.lastModified) {
-                qDebug() << "recompiling" << f->unit->filename << "since lastModified for dir was"
-                         << QDateTime::fromTime_t(d.lastModified)
+            if (p.lastModified() > f->lastModified) {
+                qDebug() << "recompiling" << f->fileName << "since lastModified for dir was"
+                         << QDateTime::fromTime_t(f->lastModified)
                          << "and" << fn << "was modified at" << QDateTime::fromTime_t(p.lastModified());
                 dirty = true;
                 break;
             }
         }
         if (dirty) {
-            m_dataMutex.lock();
-            const QByteArray filename = f->unit->filename;
-            m_dataMutex.unlock();
-
-            f->deleteLater();
-            f->unit = 0;
-
-            recompileLater(filename);
+            QThreadPool::globalInstance()->start(new MaybeRecompileJob(f->fileName));
+            delete m_watchers.take(f->fileName);
         }
     }
 }
-

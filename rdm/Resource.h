@@ -10,18 +10,18 @@ public:
     enum Type { Information, AST };
     enum WriteMode { Normal, Truncate };
     enum LockMode { NoLock, Lock };
-    
+
     Resource();
-    Resource(const QByteArray &filename, LockMode mode = Lock);
+    Resource(const QByteArray &fileName, LockMode mode = Lock);
     ~Resource();
 
     void lock();
     void unlock();
 
-    QByteArray filename() const;
-    void setFilename(const QByteArray& filename, LockMode mode = Lock);
+    QByteArray fileName() const;
+    void setFileName(const QByteArray& fileName, LockMode mode = Lock);
     bool exists(Type type) const;
-    QByteArray hashedFilename(Type type) const;
+    QByteArray hashedFileName(Type type) const;
 
     template<typename T>
     T read(Type type) const { return readData(type); }
@@ -29,7 +29,7 @@ public:
     template<typename T>
     void write(Type type, const T& data, WriteMode mode = Normal) { writeData(type, data, mode); }
 
-    static QByteArray hash(const QByteArray& filename);
+    static QByteArray hash(const QByteArray& fileName);
     static void setBaseDirectory(const QByteArray& base);
 
 protected:
@@ -38,7 +38,7 @@ protected:
 
 private:
     static QByteArray s_base;
-    QByteArray m_filename, m_hash;
+    QByteArray m_fileName, m_hash;
     bool m_locked;
 };
 

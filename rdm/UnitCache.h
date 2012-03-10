@@ -18,7 +18,7 @@ class UnitCache : public QObject
 {
     Q_OBJECT
 public:
-    enum LoadMode { None = 0x0, Source = 0x1, AST = 0x2, Force = 0x4 };
+    enum LoadMode { None = 0x0, Source = 0x1, AST = 0x2, Memory = 0x4, Force = 0x8 };
 
     ~UnitCache();
 
@@ -30,7 +30,7 @@ public:
             : origin(None), index(0), file(0), unit(0)
         {}
         LoadMode origin;
-        QByteArray filename;
+        QByteArray fileName;
         CXIndex index;
         CXFile file;
         CXTranslationUnit unit;
@@ -45,7 +45,7 @@ private slots:
     void onDirectoryChanged(const QString &dir);
 private:
     UnitCache();
-    void initFileSystemWatcher(const Path& filename);
+    void initFileSystemWatcher(Unit* unit);
     QList<Unit*> todo;
 
     struct UnitData
@@ -73,18 +73,12 @@ class FileSystemWatcher : public QFileSystemWatcher
     Q_OBJECT
 public:
     FileSystemWatcher(const Path& fn)
-        : fileName(fn)
+        : fileName(fn), lastModified(time(0))
     {}
 
     const Path fileName;
-    struct Directory {
-        Directory()
-            : lastModified(time(0))
-        {}
-        QList<QByteArray> fileNames;
-        const quint64 lastModified;
-    };
-    QHash<Path, Directory> paths;
+    const quint64 lastModified;
+    QHash<Path, QList<QByteArray> > paths;
 };
 
 class CachedUnit

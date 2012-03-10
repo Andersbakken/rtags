@@ -12,10 +12,10 @@ Resource::Resource()
 {
 }
 
-Resource::Resource(const QByteArray& filename, LockMode mode)
-    : m_filename(filename), m_locked(false)
+Resource::Resource(const QByteArray& fileName, LockMode mode)
+    : m_fileName(fileName), m_locked(false)
 {
-    m_hash = m_filename.isEmpty() ? QByteArray() : SHA256::hash(m_filename);
+    m_hash = m_fileName.isEmpty() ? QByteArray() : SHA256::hash(m_fileName);
 
     if (mode == Lock)
         lock();
@@ -26,7 +26,7 @@ Resource::~Resource()
     unlock();
 }
 
-QByteArray Resource::hashedFilename(Type type) const
+QByteArray Resource::hashedFileName(Type type) const
 {
     return s_base + "/" + m_hash + extensions[type];
 }
@@ -48,20 +48,20 @@ void Resource::unlock()
     m_locked = false;
 }
 
-QByteArray Resource::filename() const
+QByteArray Resource::fileName() const
 {
-    return m_filename;
+    return m_fileName;
 }
 
-void Resource::setFilename(const QByteArray& filename, LockMode mode)
+void Resource::setFileName(const QByteArray& fileName, LockMode mode)
 {
-    if (m_filename == filename)
+    if (m_fileName == fileName)
         return;
 
     unlock();
-    
-    m_filename = filename;
-    m_hash = m_filename.isEmpty() ? QByteArray() : SHA256::hash(m_filename);
+
+    m_fileName = fileName;
+    m_hash = m_fileName.isEmpty() ? QByteArray() : SHA256::hash(m_fileName);
 
     if (mode == Lock)
         lock();
@@ -69,7 +69,7 @@ void Resource::setFilename(const QByteArray& filename, LockMode mode)
 
 bool Resource::exists(Type type) const
 {
-    return QFile::exists(hashedFilename(type));
+    return QFile::exists(hashedFileName(type));
 }
 
 void Resource::setBaseDirectory(const QByteArray& base)
@@ -86,7 +86,7 @@ QByteArray Resource::readData(Type type) const
         that->lock();
     }
     Q_ASSERT(m_locked);
-    QFile file(hashedFilename(type));
+    QFile file(hashedFileName(type));
     const bool ok = file.open(QFile::ReadOnly);
     Q_ASSERT(ok);
     if (!ok)
@@ -99,7 +99,7 @@ void Resource::writeData(Type type, const QByteArray& data, WriteMode mode)
     if (!m_locked)
         lock();
     Q_ASSERT(m_locked);
-    QFile file(hashedFilename(type));
+    QFile file(hashedFileName(type));
     QIODevice::OpenMode qmode = QIODevice::WriteOnly;
     if (mode & Truncate)
         qmode |= QIODevice::Truncate;
@@ -110,7 +110,7 @@ void Resource::writeData(Type type, const QByteArray& data, WriteMode mode)
     file.write(data);
 }
 
-QByteArray Resource::hash(const QByteArray& filename)
+QByteArray Resource::hash(const QByteArray& fileName)
 {
-    return SHA256::hash(filename);
+    return SHA256::hash(fileName);
 }

@@ -125,10 +125,10 @@ public:
     HashSet m_defs, m_refs, m_syms;
 
 private:
-    void addFilenameSymbol(const QByteArray& filename);
+    void addFileNameSymbol(const QByteArray& fileName);
 
 signals:
-    void done(int id, const QByteArray& filename);
+    void done(int id, const QByteArray& fileName);
 };
 
 #include "Indexer.moc"
@@ -234,15 +234,15 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
     CXFile file;
     unsigned int line, col;
     clang_getSpellingLocation(loc, &file, &line, &col, 0);
-    CXString filename = clang_getFileName(file);
-    const char* cfilename = clang_getCString(filename);
-    if (!cfilename || !strlen(cfilename)) {
+    CXString fileName = clang_getFileName(file);
+    const char* cfileName = clang_getCString(fileName);
+    if (!cfileName || !strlen(cfileName)) {
         //clang_disposeString(kindstr);
         clang_disposeString(usr);
-        clang_disposeString(filename);
+        clang_disposeString(fileName);
         return CXChildVisit_Recurse;
     }
-    QByteArray qloc(Path::resolved(cfilename));
+    QByteArray qloc(Path::resolved(cfileName));
     qloc += ":" + QByteArray::number(line) + ":" + QByteArray::number(col);
 
     if (clang_isCursorDefinition(cursor)
@@ -255,7 +255,7 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
     Q_ASSERT(strcmp(cusr, "") != 0);
     Q_ASSERT(strcmp(cusr, "c:") != 0);
     //clang_disposeString(kindstr);
-    clang_disposeString(filename);
+    clang_disposeString(fileName);
     clang_disposeString(usr);
 
     return CXChildVisit_Recurse;
@@ -267,14 +267,14 @@ IndexerJob::IndexerJob(IndexerImpl* impl, Indexer::Mode mode, int id, const QByt
 {
 }
 
-inline void IndexerJob::addFilenameSymbol(const QByteArray& filename)
+inline void IndexerJob::addFileNameSymbol(const QByteArray& fileName)
 {
     // ### would it be faster/better to use QFileInfo here?
     int idx = -1;
     for (;;) {
         int backslashes = 0;
-        idx = filename.lastIndexOf('/', idx);
-        while (idx > 0 && filename.at(idx - 1) == '\\') {
+        idx = fileName.lastIndexOf('/', idx);
+        while (idx > 0 && fileName.at(idx - 1) == '\\') {
             ++backslashes;
             --idx;
         }
@@ -289,7 +289,7 @@ inline void IndexerJob::addFilenameSymbol(const QByteArray& filename)
     }
     if (idx == -1)
         return;
-    m_syms[filename.mid(idx + 1)].insert(filename + ":1:1");
+    m_syms[fileName.mid(idx + 1)].insert(fileName + ":1:1");
 }
 
 static inline void uniteSets(HashSet& dst, HashSet& src)
@@ -311,7 +311,7 @@ void IndexerJob::run()
     CachedUnit unit(m_in, m_args, unitMode);
 
     if (unit.unit()) {
-        qDebug() << "parsing" << m_in << unit.unit()->filename;
+        qDebug() << "parsing" << m_in << unit.unit()->fileName;
         CXTranslationUnit tu = unit.unit()->unit;
         unsigned int diagCount = clang_getNumDiagnostics(tu);
         for (unsigned int i = 0; i < diagCount; ++i) {
@@ -329,10 +329,10 @@ void IndexerJob::run()
         }
 
         if (unit.unit()->origin == UnitCache::Source) {
-            qDebug() << "reread" << unit.unit()->filename << "from source, revisiting";
+            qDebug() << "reread" << unit.unit()->fileName << "from source, revisiting";
             clang_getInclusions(tu, inclusionVisitor, this);
             clang_visitChildren(clang_getTranslationUnitCursor(tu), indexVisitor, this);
-            addFilenameSymbol(unit.unit()->filename);
+            addFileNameSymbol(unit.unit()->fileName);
 
             QMutexLocker deflocker(&m_impl->defMutex);
             uniteSets(m_impl->defs, m_defs);
@@ -404,10 +404,10 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments, 
     return id;
 }
 
-int Indexer::reindex(const QByteArray& filename, Mode mode)
+int Indexer::reindex(const QByteArray& fileName, Mode mode)
 {
-    Resource resource(filename);
-    qDebug() << "trying to reindex" << filename << resource.hashedFilename(Resource::Information);
+    Resource resource(fileName);
+    qDebug() << "trying to reindex" << fileName << resource.hashedFileName(Resource::Information);
     if (!resource.exists(Resource::Information)) {
         qDebug() << "but resource does not exist";
         return -1;
@@ -426,12 +426,12 @@ int Indexer::reindex(const QByteArray& filename, Mode mode)
     return index(input, data, mode);
 }
 
-void Indexer::jobDone(int id, const QByteArray& filename)
+void Indexer::jobDone(int id, const QByteArray& fileName)
 {
     QMutexLocker locker(&m_impl->implMutex);
 
     m_impl->jobs.remove(id);
-    m_impl->indexing.remove(filename);
+    m_impl->indexing.remove(fileName);
 
     ++m_impl->jobCounter;
 
