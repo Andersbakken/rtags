@@ -1,15 +1,17 @@
 #ifndef QUERYMESSAGE_H
 #define QUERYMESSAGE_H
 
-#include <QObject>
-#include <QList>
-#include <QByteArray>
 #include "Message.h"
+#include "Path.h"
+#include <QByteArray>
+#include <QHash>
+#include <QList>
+#include <QObject>
 
 class QueryMessage : public Message
 {
     Q_OBJECT
-public:
+    public:
     enum { MessageId = 4 };
     enum Type {
         FollowLocation,
@@ -23,7 +25,8 @@ public:
     };
 
     Q_INVOKABLE QueryMessage(QObject* parent = 0);
-    QueryMessage(const QByteArray& query, Type type, QObject* parent = 0);
+    QueryMessage(const QByteArray& query, Type type,
+                 const QHash<Path, QByteArray> &unsavedFiles, QObject* parent = 0);
     QueryMessage(const QList<QByteArray>& query, Type type, QObject* parent = 0);
 
     int messageId() const { return MessageId; }
@@ -37,6 +40,7 @@ public:
 private:
     QList<QByteArray> m_query;
     Type m_type;
+    QHash<Path, QByteArray> m_unsavedFiles;
 };
 
 #endif // QUERYMESSAGE_H

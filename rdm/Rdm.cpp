@@ -7,6 +7,7 @@
 #include "Messages.h"
 #include "Compressor.h"
 #include "UnitCache.h"
+#include "QueryMessage.h"
 #include <QThread>
 #include <QThreadPool>
 #include <QTcpServer>
@@ -123,28 +124,28 @@ void Rdm::handleQueryMessage(QueryMessage* message)
     int id = 0;
     switch(message->type()) {
     case QueryMessage::FollowLocation:
-        id = m_db->followLocation(message->query().front());
+        id = m_db->followLocation(*message);
         break;
     case QueryMessage::CursorInfo:
-        id = m_db->cursorInfo(message->query().front());
+        id = m_db->cursorInfo(*message);
         break;
     case QueryMessage::CodeComplete:
-        id = m_db->codeComplete(message->query().front());
+        id = m_db->codeComplete(*message);
         break;
     case QueryMessage::ReferencesLocation:
-        id = m_db->referencesForLocation(message->query().front());
+        id = m_db->referencesForLocation(*message);
         break;
     case QueryMessage::ReferencesName:
-        id = m_db->referencesForName(message->query().front());
+        id = m_db->referencesForName(*message);
         break;
     case QueryMessage::Recompile:
-        id = m_db->recompile(message->query().front());
+        id = m_db->recompile(*message);
         break;
     case QueryMessage::Match:
-        id = m_db->match(message->query().front());
+        id = m_db->match(*message);
         break;
     case QueryMessage::Dump:
-        id = m_db->dump(message->query().front());
+        id = m_db->dump(*message);
         break;
     default:
         qWarning("Unknown message type %d\n", message->type());

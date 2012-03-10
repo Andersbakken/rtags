@@ -1,12 +1,12 @@
 #ifndef DATABASE_H
 #define DATABASE_H
 
-#include <QObject>
 #include <QByteArray>
 #include <QList>
+#include <QObject>
 
 class DatabaseImpl;
-
+class QueryMessage;
 class Database : public QObject
 {
     Q_OBJECT
@@ -16,14 +16,14 @@ public:
     Database(QObject* parent = 0);
     ~Database();
 
-    int followLocation(const QByteArray& query);
-    int cursorInfo(const QByteArray& query);
-    int codeComplete(const QByteArray& query);
-    int referencesForLocation(const QByteArray& query);
-    int referencesForName(const QByteArray& query);
-    int recompile(const QByteArray& query);
-    int match(const QByteArray& query);
-    int dump(const QByteArray& query);
+    int followLocation(const QueryMessage &query);
+    int cursorInfo(const QueryMessage &query);
+    int codeComplete(const QueryMessage &query);
+    int referencesForLocation(const QueryMessage &query);
+    int referencesForName(const QueryMessage &query);
+    int recompile(const QueryMessage &query);
+    int match(const QueryMessage &query);
+    int dump(const QueryMessage &query);
 
     static void setBaseDirectory(const QByteArray& base);
     static QByteArray databaseName(Type type);

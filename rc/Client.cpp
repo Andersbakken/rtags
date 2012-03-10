@@ -27,11 +27,11 @@ void Client::parseMakefile(const Path& path)
     qApp->exec();
 }
 
-void Client::query(QueryMessage::Type type, const QByteArray& msg)
+void Client::query(QueryMessage::Type type, const QByteArray& msg, const QHash<Path, QByteArray> &unsavedFiles)
 {
     m_conn = new Connection(this);
     if (m_conn->connectToHost("localhost", Connection::Port)) {
-        QueryMessage message(msg, type);
+        QueryMessage message(msg, type, unsavedFiles);
         m_conn->send(&message);
         connect(m_conn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
         qApp->exec();

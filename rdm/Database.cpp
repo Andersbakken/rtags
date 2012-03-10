@@ -1,21 +1,22 @@
 #include "Database.h"
 #include "Indexer.h"
-#include "Resource.h"
-#include "UnitCache.h"
 #include "Path.h"
-#include "leveldb/db.h"
+#include "QueryMessage.h"
+#include "Resource.h"
 #include "Tools.h"
-#include <clang-c/Index.h>
-#include <QWaitCondition>
+#include "UnitCache.h"
+#include "leveldb/db.h"
+#include <QDateTime>
+#include <QDebug>
+#include <QFile>
+#include <QHash>
+#include <QMetaType>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QRunnable>
 #include <QThreadPool>
-#include <QMetaType>
-#include <QDateTime>
-#include <QHash>
-#include <QFile>
-#include <QDebug>
+#include <QWaitCondition>
+#include <clang-c/Index.h>
 
 QByteArray Database::s_base;
 
@@ -524,7 +525,7 @@ void CursorInfoJob::run()
             locker.adopt(first.data);
             data = first.data;
         } else {
-            qDebug("follow: no unit for %s", fileName.constData());
+            qDebug("cursorInfo: no unit for %s", fileName.constData());
             emit complete(id, QList<QByteArray>());
             return;
         }
@@ -557,6 +558,7 @@ CodeCompleteJob::~CodeCompleteJob()
 
 void CodeCompleteJob::run()
 {
+    printf("%s:%d void CodeCompleteJob::run()\n", __FILE__, __LINE__);
     CachedUnit locker(fileName, UnitCache::AST | UnitCache::Memory);
     UnitCache::Unit* data = locker.unit();
     if (!data) {
@@ -567,93 +569,23 @@ void CodeCompleteJob::run()
             locker.adopt(first.data);
             data = first.data;
         } else {
-            qDebug("follow: no unit for %s", fileName.constData());
+            qDebug("codecomplete: no unit for %s", fileName.constData());
             emit complete(id, QList<QByteArray>());
             return;
         }
     }
 
-    // CXFile file = clang_getFile(data->unit, fileName.constData());
-    // CXSourceLocation loc = clang_getLocation(data->unit, file, line, col);
-    // CXCursor cursor = clang_getCursor(data->unit, loc);
-    // CXCursorKind cursorKind = clang_getCursorKind(cursor);
-    // CXCursor ref = clang_getCursorReferenced(cursor);
-    // CXCursorKind refKind = clang_getCursorKind(ref);
-    // qDebug() << "cursor" << cursorKind << "ref" << refKind;
-    // debugCursor(cursor);
-    // debugCursor(ref);
-    // qDebug() << "---";
-    // bool shouldFindDef = false;
-    // switch (refKind) {
-    // case CXCursor_StructDecl:
-    // case CXCursor_ClassDecl:
-    //     shouldFindDef = true;
-    //     break;
-    // default:
-    //     break;
-    // }
-    // if (clang_equalCursors(cursor, ref) || shouldFindDef) {
-    //     qDebug() << "I am myself or we should be on a definition";
-    //     if (!clang_isCursorDefinition(ref)) {
-    //         qDebug() << "not an outright definition";
-    //         ref = clang_getCursorDefinition(cursor);
-    //     }
-    //     if (!clang_isCursorDefinition(ref)) {
-    //         qDebug() << "no definition found, trying to read one from leveldb";
-    //         CXString usr = clang_getCursorUSR(cursor);
-    //         const char* cusr = clang_getCString(usr);
-    //         if (!strlen(cusr)) {
-    //             clang_disposeString(usr);
-    //             usr = clang_getCursorUSR(ref);
-    //             cusr = clang_getCString(usr);
-    //             if (!strlen(cusr)) {
-    //                 clang_disposeString(usr);
-    //                 qDebug() << "no USR found, bailing out";
-    //                 emit complete(id, QList<QByteArray>());
-    //                 return;
-    //             }
-    //         }
+    CXCodeCompleteResults *results = clang_codeCompleteAt(data->unit,
+                                                          data->fileName.constData(),
+                                                          line, col,
+                                                          0, 0,
+                                                          clang_defaultCodeCompleteOptions());
 
-    //         leveldb::DB* db = 0;
-    //         QByteArray dbname = Database::databaseName(Database::Definition);
-    //         leveldb::Status status = leveldb::DB::Open(leveldb::Options(), dbname.constData(), &db);
-    //         if (!status.ok()) {
-    //             qWarning("no definition db!");
-    //             clang_disposeString(usr);
-    //             emit complete(id, QList<QByteArray>());
-    //             return;
-    //         }
-    //         std::string value;
-    //         db->Get(leveldb::ReadOptions(), cusr, &value);
-    //         clang_disposeString(usr);
-    //         delete db;
-    //         if (value.empty()) {
-    //             qDebug() << "no definition resource found, bailing out";
-    //             emit complete(id, QList<QByteArray>());
-    //             return;
-    //         }
-    //         QByteArray bvalue = QByteArray::fromRawData(value.c_str(), value.size());
-    //         QList<QByteArray> defs = bvalue.split('\n');
-    //         emit complete(id, defs);
-    //         return;
-    //     }
-    // }
-    // loc = clang_getCursorLocation(ref);
+    qDebug() << results << results->NumResults;
 
-    // CXFile rfile;
-    // unsigned int rrow, rcol, roff;
-    // clang_getSpellingLocation(loc, &rfile, &rrow, &rcol, &roff);
-    // CXString unitfn = clang_getFileName(rfile);
-
-    // qDebug() << "followed to" << clang_getCString(unitfn) << rrow << rcol << roff;
-    // QByteArray qfn(Path::resolved(clang_getCString(unitfn)));
-    // qfn += ":" + QByteArray::number(rrow)
-    //     + ":" + QByteArray::number(rcol)
-    //     + ":" + QByteArray::number(roff);
-
-    // clang_disposeString(unitfn);
-
-    // emit complete(id, QList<QByteArray>() << qfn);
+    clang_disposeCodeCompleteResults(results);
+    QList<QByteArray> ret;
+    emit complete(id, ret);
 }
 
 
@@ -921,61 +853,60 @@ Database::~Database()
     delete m_impl;
 }
 
-int Database::followLocation(const QByteArray& query)
+int Database::followLocation(const QueryMessage &query)
 {
     Location loc;
-    if (!makeLocation(query, &loc))
+    if (!makeLocation(query.query().front(), &loc))
         return -1;
 
     return m_impl->followLocation(loc.path, loc.line, loc.column);
 }
 
-int Database::cursorInfo(const QByteArray& query)
+int Database::cursorInfo(const QueryMessage &query)
 {
     Location loc;
-    if (!makeLocation(query, &loc))
+    if (!makeLocation(query.query().front(), &loc))
         return -1;
 
     return m_impl->cursorInfo(loc.path, loc.line, loc.column);
 }
 
-int Database::codeComplete(const QByteArray& query)
+int Database::codeComplete(const QueryMessage &query)
 {
     Location loc;
-    if (!makeLocation(query, &loc))
+    if (!makeLocation(query.query().front(), &loc))
         return -1;
 
     return m_impl->codeComplete(loc.path, loc.line, loc.column);
 }
 
-int Database::referencesForLocation(const QByteArray& query)
+int Database::referencesForLocation(const QueryMessage &query)
 {
     Location loc;
-    if (!makeLocation(query, &loc))
+    if (!makeLocation(query.query().front(), &loc))
         return -1;
 
     return m_impl->referencesForLocation(loc.path, loc.line, loc.column);
 }
 
-int Database::referencesForName(const QByteArray& name)
+int Database::referencesForName(const QueryMessage& query)
 {
-    return m_impl->referencesForName(name);
+    return m_impl->referencesForName(query.query().front());
 }
 
-int Database::recompile(const QByteArray& query)
+int Database::recompile(const QueryMessage &query)
 {
-    return m_impl->recompile(query);
+    return m_impl->recompile(query.query().front());
 }
 
-int Database::match(const QByteArray& query)
+int Database::match(const QueryMessage &query)
 {
-    return m_impl->match(query);
+    return m_impl->match(query.query().front());
 }
 
-int Database::dump(const QByteArray& query)
+int Database::dump(const QueryMessage &query)
 {
-    printf("%s:%d %s\n", __FILE__, __LINE__, __FUNCTION__);
-    return m_impl->dump(query);
+    return m_impl->dump(query.query().front());
 }
 
 static const char* const dbNames[] = { "/includes.db", "/defines.db",

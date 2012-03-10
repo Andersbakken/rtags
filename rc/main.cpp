@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDebug>
+#include <QFile>
 #include <QList>
 #include <QPair>
 #include <getopt.h>
@@ -15,7 +16,7 @@ static int help(const char* app)
 {
     fprintf(stderr,
             "%s [-v] [-e] [-m Makefile] [-f follow-location] [-n reference-name] "
-            "[-l reference-location] [-r filename] [-d dump] [-c complete] [-C cursor-info]\n",
+            "[-l reference-location] [-r filename] [-d dump] [-c complete] [-C cursor-info] [-u unsaved-file]\n",
             app);
     return 1;
 }
@@ -37,7 +38,7 @@ int main(int argc, char** argv)
         { "dump", required_argument, 0, 'd' },
         { "complete", required_argument, 0, 'c' },
         { "cursor-info", required_argument, 0, 'C' },
-        { "balle", no_argument, 0, 0 },
+        { "unsaved-file", required_argument, 0, 'u' },
         { 0, 0, 0, 0 }
     };
 
@@ -45,6 +46,7 @@ int main(int argc, char** argv)
     bool skipparen = false;
     QList<Path> makeFiles;
     QList<QPair<QueryMessage::Type, QByteArray> > optlist;
+    QHash<Path, QByteArray> unsavedFiles;
 
     if (getenv("LOG_RC")) {
         FILE* logfile = fopen("/tmp/rc.log", "a");
@@ -58,8 +60,10 @@ int main(int argc, char** argv)
         }
     }
 
+    QFile standardIn;
+
     for (;;) {
-        const int c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:C:", opts, 0);
+        const int c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:C:u:", opts, 0);
         if (c == -1)
             break;
         switch (c) {
@@ -72,6 +76,26 @@ int main(int argc, char** argv)
             break;
         case 'p':
             skipparen = true;
+            break;
+        case 'u':
+            if (!standardIn.isOpen() && !standardIn.open(stdin, QIODevice::ReadOnly)) {
+                qWarning("Can't open stdin for reading");
+                return 1;
+            } else {
+                const QByteArray arg(optarg);
+                const int colon = arg.lastIndexOf(':');
+                if (colon == -1) {
+                    qWarning("Can't parse -u [%s]", optarg);
+                    return 1;
+                }
+                const int bytes = atoi(arg.constData() + colon + 1);
+                if (!bytes) {
+                    qWarning("Can't parse -u [%s]", optarg);
+                    return 1;
+                }
+                const QByteArray contents = standardIn.read(bytes);
+                unsavedFiles[Path::resolved(arg.left(colon))] = contents;
+            }
             break;
         case 'f':
         case 'c':
@@ -130,7 +154,7 @@ int main(int argc, char** argv)
     Client client(flags);
     QList<QPair<QueryMessage::Type, QByteArray> >::const_iterator it = optlist.begin();
     while (it != optlist.end()) {
-        client.query(it->first, it->second);
+        client.query(it->first, it->second, unsavedFiles);
         ++it;
     }
     foreach(const QByteArray &makeFile, makeFiles) {
