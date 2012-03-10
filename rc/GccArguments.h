@@ -23,6 +23,8 @@ public:
     QList<QByteArray> explicitIncludes() const;
     QByteArray outputFile() const;
 
+    QByteArray baseDirectory() const;
+
 private:
     GccArgumentsImpl* m_impl;
 };

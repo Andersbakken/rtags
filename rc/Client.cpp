@@ -78,9 +78,6 @@ void Client::onMakefileDone()
 
 void Client::onMakefileReady(const GccArguments& args)
 {
-    if (args.type() == GccArguments::Unknown)
-        return;
-
     if (args.inputFiles().isEmpty()) {
         qWarning("no input file?");
         return;
@@ -96,11 +93,35 @@ void Client::onMakefileReady(const GccArguments& args)
         connect(m_conn, SIGNAL(sendComplete()), this, SLOT(onSendComplete()));
     }
 
+    if (args.type() == GccArguments::Unknown)
+        return;
+    else if (args.type() == GccArguments::Pch) {
+        QByteArray output = args.outputFile();
+        if (output.isEmpty()) {
+            qWarning("no output file for pch");
+            return;
+        }
+        const int ext = output.lastIndexOf(".gch/c");
+        if (ext <= 0) {
+            qWarning("couldn't find .gch in pch output");
+            return;
+        }
+        output = output.left(ext + 4);
+        const QByteArray input = args.inputFiles().front();
+
+        AddMessage message(AddMessage::Pch, input, output, args.clangArgs(),
+                           args.explicitIncludes());
+        if (m_flags & Verbose)
+            qDebug() << "sending" << "input:" << input << "output:" << output << "args:" << args.clangArgs() << "incs:" << args.explicitIncludes();
+        m_conn->send(&message);
+        return;
+    }
+
     const QByteArray input = args.inputFiles().front();
     const QByteArray output = args.outputFile();
-    AddMessage message((args.type() == GccArguments::Compile ? AddMessage::Compile : AddMessage::Pch),
-                       input, output, args.clangArgs());
+    AddMessage message(AddMessage::Compile, input, output, args.clangArgs(),
+                       args.explicitIncludes());
     if (m_flags & Verbose)
-        qDebug() << "sending" << "input:" << input << "output:" << output << "args:" << args.clangArgs();
+        qDebug() << "sending" << "input:" << input << "output:" << output << "args:" << args.clangArgs() << "incs:" << args.explicitIncludes();
     m_conn->send(&message);
 }

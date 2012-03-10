@@ -10,6 +10,7 @@ public:
     QList<Path> includes;
     Path outputFile;
     GccArguments::Type type;
+    Path base;
 };
 
 GccArguments::GccArguments()
@@ -46,6 +47,7 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
     m_impl->type = Unknown;
     m_impl->clangArgs.clear();
     m_impl->inputFiles.clear();
+    m_impl->base = base;
 
     char quote = '\0';
     QList<QByteArray> split;
@@ -111,7 +113,7 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
                     m_impl->includes.append(inc);
                 } else {
                     if (!inc.isAbsolute())
-                        m_impl->includes.append(Path(path + "/" + cur));
+                        m_impl->includes.append(Path(path + "/" + cur + QByteArray(".gch"))); // ### is assuming .gch correct here?
                     else
                         qWarning("-include %s could not be resolved", cur);
                 } }
@@ -209,4 +211,9 @@ QList<QByteArray> GccArguments::explicitIncludes() const
 QByteArray GccArguments::outputFile() const
 {
     return m_impl->outputFile;
+}
+
+QByteArray GccArguments::baseDirectory() const
+{
+    return m_impl->base;
 }
