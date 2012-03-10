@@ -454,7 +454,7 @@ void UnitCache::initFileSystemWatcher(Unit* unit) // always called with m_dataMu
     QHash<Path, QList<QByteArray> > paths;
     clang_getInclusions(unit->unit, findIncludes, &paths);
     // qDebug() << paths.keys();
-    delete m_watchers.take(unit->fileName);
+    FileSystemWatcher *old = m_watchers.take(unit->fileName);
     if (!paths.isEmpty()) {
         FileSystemWatcher* watcher = new FileSystemWatcher(unit->fileName);
         watcher->moveToThread(thread());
@@ -469,6 +469,7 @@ void UnitCache::initFileSystemWatcher(Unit* unit) // always called with m_dataMu
         connect(watcher, SIGNAL(directoryChanged(QString)),
                 this, SLOT(onDirectoryChanged(QString)));
     }
+    delete old;
 }
 
 void UnitCache::onDirectoryChanged(const QString &directory)
@@ -495,7 +496,6 @@ void UnitCache::onDirectoryChanged(const QString &directory)
         }
         if (dirty) {
             QThreadPool::globalInstance()->start(new MaybeRecompileJob(f->fileName));
-            delete m_watchers.take(f->fileName);
         }
     }
 }
