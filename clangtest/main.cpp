@@ -153,7 +153,7 @@ int main(int argc, char **argv)
 
     const char* filename = (argc < 2 ? "test.cpp" : argv[1]);
     const int completeLine = (argc < 3 ? 15 : atoi(argv[2]));
-    const int completeColumn = (argc < 3 ? 7 : atoi(argv[3]));
+    const int completeColumn = (argc < 4 ? 7 : atoi(argv[3]));
 
     clang_indexSourceFile(action, 0, &cb, sizeof(IndexerCallbacks),
                           CXIndexOpt_IndexFunctionLocalSymbols,
@@ -168,9 +168,9 @@ int main(int argc, char **argv)
                                                       clang_defaultCodeCompleteOptions());
     if (res) {
         printf("\n---\ncompletions for %s:%d:%d\n", filename, completeLine, completeColumn);
-        for (unsigned int i = 0; i < res->NumResults; i++) {
+        for (unsigned int i = 0; i < res->NumResults; ++i) {
             const CXCompletionString& str = res->Results[i].CompletionString;
-            for (unsigned int j = 0; j < clang_getNumCompletionChunks(str); j++) {
+            for (unsigned int j = 0; j < clang_getNumCompletionChunks(str); ++j) {
                 if (clang_getCompletionChunkKind(str, j) != CXCompletionChunk_TypedText)
                     continue;
 
