@@ -127,7 +127,7 @@ void Rdm::handleAddMessage(AddMessage* message)
     Connection* conn = qobject_cast<Connection*>(sender());
     int id;
     if (message->type() == AddMessage::Pch) {
-        id = m_indexer->precompile(message->outputFile(), message->inputFile(), message->arguments() + pch(message->pchs()));
+        id = m_indexer->precompile(message->outputFile(), message->inputFile(), message->arguments() + m_defaultArgs + pch(message->pchs()));
     } else {
         id = m_indexer->index(message->inputFile(), message->arguments() + m_defaultArgs + pch(message->pchs()), Indexer::Force);
     }
