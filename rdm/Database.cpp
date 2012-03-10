@@ -569,6 +569,17 @@ static inline bool isOperator(const char *str, int len)
     }
     return false;
 }
+
+static inline int length(int num)
+{
+    int count = 1;
+    while (num > 10) {
+        ++count;
+        num /= 10;
+    }
+    return count;
+}
+
 void CodeCompleteJob::run()
 {
     CachedUnit locker(fileName, UnitCache::AST | UnitCache::Memory | UnitCache::Source);
@@ -606,11 +617,12 @@ void CodeCompleteJob::run()
         delete[] unsaved;
 
     qDebug() << results << results->NumResults << unsavedFiles.keys();
-    QMap<QByteArray, bool> ret;
+    QList<QByteArray> ret;
     for (unsigned int i = 0; i < results->NumResults; ++i) {
         const CXCompletionString& str = results->Results[i].CompletionString;
         if (clang_getCompletionAvailability(str) != CXAvailability_Available)
             continue;
+        int priority;
         // qDebug() << "stuff" << i << clang_getCompletionPriority(str);
         // for (int b=0; b<clang_getCompletionNumAnnotations(str); ++b) {
         //     qDebug() << b << eatString(clang_getCompletionAnnotation(str, b));
@@ -619,8 +631,10 @@ void CodeCompleteJob::run()
         switch (results->Results[i].CursorKind) {
         case CXCursor_Destructor:
         case CXCursor_ClassDecl:
-            continue;
+            priority = 65;
+            break;
         default:
+            priority = clang_getCompletionPriority(str);
             break;
         }
         // printf("Got thing %s %d\n" , eatString(clang_getCursorKindSpelling(results->Results[i].CursorKind)).constData(),
@@ -631,17 +645,21 @@ void CodeCompleteJob::run()
                 continue;
 
             CXString out = clang_getCompletionChunkText(str, j);
-            const char *str = clang_getCString(out);
-            const int len = strlen(str);
-            if (!isOperator(str, len)) {
-                ret[QByteArray(str, len)] = true;
+            const char *cstr = clang_getCString(out);
+            const int len = strlen(cstr);
+            if (isOperator(cstr, len)) {
+                priority = 65;
             }
+            QByteArray b(len + length(priority) + 2, 0);
+            snprintf(b.data(), b.size(), "%s %d", cstr, priority);
+            ret.append(b);
             clang_disposeString(out);
         }
     }
 
+    qDebug() << ret;
     clang_disposeCodeCompleteResults(results);
-    emit complete(id, ret.keys());
+    emit complete(id, ret);
 }
 
 

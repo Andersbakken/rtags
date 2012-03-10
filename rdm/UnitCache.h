@@ -67,8 +67,12 @@ private:
     bool removeUnusedUnits(int num);
     bool recheckPch(const QList<QByteArray>& arguments, UnitData* data);
     bool rereadUnit(const QByteArray& hashedFilename, UnitData* data);
-    bool loadUnit(const QByteArray& filename, const QList<QByteArray>& arguments, UnitData* data);
-    bool saveUnit(UnitData* data, Resource* resource, const QList<QByteArray>& arguments);
+    bool loadUnit(const QByteArray& filename, const QList<QByteArray>& arguments, UnitData* data, bool *errors);
+    enum SaveMode {
+        SaveAST = 0x1,
+        SaveInfo = 0x2
+    };
+    void saveUnit(UnitData* data, Resource* resource, const QList<QByteArray>& arguments, unsigned flags);
     void destroyUnit(UnitData* data);
     UnitStatus initUnit(const QByteArray& fileName, const QList<QByteArray>& args,
                         int mode, UnitData* data);

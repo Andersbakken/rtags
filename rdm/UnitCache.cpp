@@ -207,7 +207,8 @@ inline bool UnitCache::rereadUnit(const QByteArray& hashedFilename,
 
 inline bool UnitCache::loadUnit(const QByteArray& filename,
                                 const QList<QByteArray>& arguments,
-                                UnitData* data)
+                                UnitData* data,
+                                bool *errors)
 {
     QVector<const char*> clangArgs;
     QList<QByteArray> args = hashedPch(arguments, &data->unit.pchs);
@@ -223,6 +224,31 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
         data->unit.file = clang_getFile(data->unit.unit, filename.constData());
         data->unit.origin = Source;
         initFileSystemWatcher(&data->unit);
+        if (errors) {
+            unsigned int diagCount = clang_getNumDiagnostics(data->unit.unit);
+            for (unsigned int i = 0; i < diagCount; ++i) {
+                const CXDiagnostic diag = clang_getDiagnostic(data->unit.unit, i);
+                const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diag);
+                switch (severity) {
+                case CXDiagnostic_Ignored:
+                case CXDiagnostic_Note:
+                    continue;
+                case CXDiagnostic_Error:
+                case CXDiagnostic_Fatal:
+                    *errors = true;
+                    break;
+                case CXDiagnostic_Warning:
+                    break;
+                }
+                CXString msg = clang_formatDiagnostic(diag, CXDiagnostic_DisplaySourceLocation
+                                                      | CXDiagnostic_DisplayColumn
+                                                      | CXDiagnostic_DisplayOption
+                                                      | CXDiagnostic_DisplayCategoryName);
+                qWarning("clang: %s (%s)", clang_getCString(msg), data->unit.fileName.constData());
+                clang_disposeString(msg);
+                clang_disposeDiagnostic(diag);
+            }
+        }
         return true;
     } else {
         qWarning("failed to read unit from source: %s", filename.constData());
@@ -231,25 +257,25 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
     return false;
 }
 
-inline bool UnitCache::saveUnit(UnitData* data,
+inline void UnitCache::saveUnit(UnitData* data,
                                 Resource* resource,
-                                const QList<QByteArray>& arguments)
+                                const QList<QByteArray>& arguments,
+                                unsigned flags)
 {
-    const QByteArray hashedFilename = resource->hashedFileName(Resource::AST);
-    const int result = clang_saveTranslationUnit(data->unit.unit,
-                                                 hashedFilename.constData(),
-                                                 CXSaveTranslationUnit_None);
-    if (result == CXSaveError_None) {
-        initFileSystemWatcher(&data->unit);
-        resource->write(Resource::Information, arguments, Resource::Truncate);
-        return true;
+    if (flags & SaveAST) {
+        const QByteArray hashedFilename = resource->hashedFileName(Resource::AST);
+        const int result = clang_saveTranslationUnit(data->unit.unit,
+                                                     hashedFilename.constData(),
+                                                     CXSaveTranslationUnit_None);
+        if (result != CXSaveError_None) {
+            qWarning("Unable to save translation unit: %s (as %s)",
+                     data->unit.fileName.constData(), hashedFilename.constData());
+            printDiagnostic(data->unit.unit, "save (1)");
+        }
     }
-
-    qWarning("Unable to save translation unit: %s (as %s)",
-             data->unit.fileName.constData(), hashedFilename.constData());
-    printDiagnostic(data->unit.unit, "save (1)");
-    resource->eraseAll();
-    return false;
+    if (flags & SaveInfo) {
+        resource->write(Resource::Information, arguments, Resource::Truncate);
+    }
 }
 
 inline void UnitCache::destroyUnit(UnitData* data)
@@ -343,6 +369,11 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& fileName,
                     } else {
                         return Abort;
                     }
+                }
+                bool errors = true;
+                if (loadUnit(fileName, arguments, data, &errors)) {
+                    saveUnit(data, &resource, arguments, errors ? SaveInfo : SaveInfo|SaveAST);
+                    return Done;
                 }
                 bool retry;
                 do {
