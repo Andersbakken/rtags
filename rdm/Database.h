@@ -17,6 +17,7 @@ public:
     ~Database();
 
     int followLocation(const QByteArray& query);
+    int codeComplete(const QByteArray& query);
     int referencesForLocation(const QByteArray& query);
     int referencesForName(const QByteArray& query);
     int recompile(const QByteArray& query);

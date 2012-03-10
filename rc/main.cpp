@@ -31,6 +31,7 @@ int main(int argc, char** argv)
         { "recompile", required_argument, 0, 'r' },
         { "match", required_argument, 0, 'a' },
         { "dump", required_argument, 0, 'd' },
+        { "complete", required_argument, 0, 'c' },
         { 0, 0, 0, 0 }
     };
 
@@ -53,7 +54,7 @@ int main(int argc, char** argv)
 
     int idx, c;
     for (;;) {
-        c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:", opts, &idx);
+        c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:", opts, &idx);
         if (c == -1)
             break;
         switch (c) {
@@ -70,6 +71,9 @@ int main(int argc, char** argv)
             break;
         case 'f':
             optlist.append(qMakePair(QueryMessage::FollowLocation, QByteArray(optarg)));
+            break;
+        case 'c':
+            optlist.append(qMakePair(QueryMessage::CodeComplete, QByteArray(optarg)));
             break;
         case 'm':
             makeFiles.append(Path::resolved(optarg));

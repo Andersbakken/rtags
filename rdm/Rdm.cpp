@@ -116,9 +116,7 @@ void Rdm::handleAddMessage(AddMessage* message)
 
 void Rdm::handleQueryMessage(QueryMessage* message)
 {
-    printf("%s:%d %s\n", __FILE__, __LINE__, __FUNCTION__);
     if (message->query().isEmpty()) {
-        printf("%s:%d %s\n", __FILE__, __LINE__, __FUNCTION__);
         return;
     }
 
@@ -127,6 +125,9 @@ void Rdm::handleQueryMessage(QueryMessage* message)
     switch(message->type()) {
     case QueryMessage::FollowLocation:
         id = m_db->followLocation(message->query().front());
+        break;
+    case QueryMessage::CodeComplete:
+        id = m_db->codeComplete(message->query().front());
         break;
     case QueryMessage::ReferencesLocation:
         id = m_db->referencesForLocation(message->query().front());
@@ -141,7 +142,6 @@ void Rdm::handleQueryMessage(QueryMessage* message)
         id = m_db->match(message->query().front());
         break;
     case QueryMessage::Dump:
-        printf("%s:%d %s\n", __FILE__, __LINE__, __FUNCTION__);
         id = m_db->dump(message->query().front());
         break;
     default:
