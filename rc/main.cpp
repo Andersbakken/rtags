@@ -1,18 +1,22 @@
 #include "Client.h"
 #include "QueryMessage.h"
+#include "Tools.h"
+#include <QByteArray>
 #include <QCoreApplication>
+#include <QDateTime>
+#include <QDebug>
 #include <QList>
 #include <QPair>
-#include <QByteArray>
-#include <QDateTime>
+#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <getopt.h>
 
 static int help(const char* app)
 {
-    fprintf(stderr, "%s [-v] [-e] [-m Makefile] [-f follow-location] [-n reference-name] "
-                    "[-l reference-location] [-r filename]\n", app);
+    fprintf(stderr,
+            "%s [-v] [-e] [-m Makefile] [-f follow-location] [-n reference-name] "
+            "[-l reference-location] [-r filename] [-d dump] [-c complete] [-C cursor-info]\n",
+            app);
     return 1;
 }
 
@@ -32,6 +36,8 @@ int main(int argc, char** argv)
         { "match", required_argument, 0, 'a' },
         { "dump", required_argument, 0, 'd' },
         { "complete", required_argument, 0, 'c' },
+        { "cursor-info", required_argument, 0, 'C' },
+        { "balle", no_argument, 0, 0 },
         { 0, 0, 0, 0 }
     };
 
@@ -52,14 +58,12 @@ int main(int argc, char** argv)
         }
     }
 
-    int idx, c;
     for (;;) {
-        c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:", opts, &idx);
+        const int c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:C:", opts, 0);
         if (c == -1)
             break;
         switch (c) {
         case 0:
-            printf("long? %d\n", idx);
             break;
         case 'h':
             return help(argv[0]);
@@ -70,19 +74,34 @@ int main(int argc, char** argv)
             skipparen = true;
             break;
         case 'f':
-            optlist.append(qMakePair(QueryMessage::FollowLocation, QByteArray(optarg)));
-            break;
         case 'c':
-            optlist.append(qMakePair(QueryMessage::CodeComplete, QByteArray(optarg)));
-            break;
+        case 'C':
+        case 'l': {
+            QByteArray resolved;
+            Location loc;
+            if (!makeLocation(optarg, &loc, &resolved)) {
+                qWarning("Can't resolve argument %s", optarg);
+                return 1;
+            }
+            QueryMessage::Type type = QueryMessage::FollowLocation;
+            switch (c) {
+            case 'c':
+                type = QueryMessage::CodeComplete;
+                break;
+            case 'C':
+                type = QueryMessage::CursorInfo;
+                break;
+            case 'l':
+                type = QueryMessage::ReferencesLocation;
+                break;
+            }
+            optlist.append(qMakePair(type, resolved));
+            break; }
         case 'm':
             makeFiles.append(Path::resolved(optarg));
             break;
         case 'n':
             optlist.append(qMakePair(QueryMessage::ReferencesName, QByteArray(optarg)));
-            break;
-        case 'l':
-            optlist.append(qMakePair(QueryMessage::ReferencesLocation, QByteArray(optarg)));
             break;
         case 'r':
             optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Recompile, Path::resolved(optarg)));

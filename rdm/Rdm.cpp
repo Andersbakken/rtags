@@ -88,7 +88,6 @@ void Rdm::onConnectionDestroyed(QObject* o)
 
 void Rdm::onNewMessage(Message* message)
 {
-    qDebug() << "got message" << message->messageId();
     switch (message->messageId()) {
     case AddMessage::MessageId:
         handleAddMessage(static_cast<AddMessage*>(message));
@@ -125,6 +124,9 @@ void Rdm::handleQueryMessage(QueryMessage* message)
     switch(message->type()) {
     case QueryMessage::FollowLocation:
         id = m_db->followLocation(message->query().front());
+        break;
+    case QueryMessage::CursorInfo:
+        id = m_db->cursorInfo(message->query().front());
         break;
     case QueryMessage::CodeComplete:
         id = m_db->codeComplete(message->query().front());

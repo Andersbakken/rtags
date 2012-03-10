@@ -18,7 +18,8 @@ public:
         Recompile,
         Match,
         Dump,
-        CodeComplete
+        CodeComplete,
+        CursorInfo
     };
 
     Q_INVOKABLE QueryMessage(QObject* parent = 0);

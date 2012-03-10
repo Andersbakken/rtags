@@ -4,6 +4,7 @@
 #include "UnitCache.h"
 #include "Path.h"
 #include "leveldb/db.h"
+#include "Tools.h"
 #include <clang-c/Index.h>
 #include <QWaitCondition>
 #include <QMutex>
@@ -24,9 +25,10 @@ class DatabaseImpl : public QObject
 {
     Q_OBJECT
 public:
-    int followLocation(const QByteArray& fileName, int row, int col);
-    int codeComplete(const QByteArray& fileName, int row, int col);
-    int referencesForLocation(const QByteArray& fileName, int row, int col);
+    int followLocation(const QByteArray& fileName, int line, int col);
+    int cursorInfo(const QByteArray& fileName, int line, int col);
+    int codeComplete(const QByteArray& fileName, int line, int col);
+    int referencesForLocation(const QByteArray& fileName, int line, int col);
     int referencesForName(const QByteArray& name);
     int recompile(const QByteArray& fileName);
     int match(const QByteArray& partial);
@@ -59,6 +61,24 @@ class FollowLocationJob : public QObject, public QRunnable
 public:
     FollowLocationJob(const QByteArray& fn, int i, int l, int c);
     ~FollowLocationJob();
+
+signals:
+    void complete(int id, const QList<QByteArray>& locations);
+
+protected:
+    void run();
+
+private:
+    QByteArray fileName;
+    int id, line, col;
+};
+
+class CursorInfoJob : public QObject, public QRunnable
+{
+    Q_OBJECT
+public:
+    CursorInfoJob(const QByteArray& fn, int i, int l, int c);
+    ~CursorInfoJob();
 
 signals:
     void complete(int id, const QList<QByteArray>& locations);
@@ -202,13 +222,13 @@ static bool visitFindFirstUnit(UnitCache::Unit* ud, void* data)
     return true;
 }
 
-int DatabaseImpl::referencesForLocation(const QByteArray& fileName, int row, int col)
+int DatabaseImpl::referencesForLocation(const QByteArray& fileName, int line, int col)
 {
     const int id = ++lastJobId;
 
-    qDebug() << "references for location" << fileName << Resource::hash(fileName) << row << col;
+    qDebug() << "references for location" << fileName << Resource::hash(fileName) << line << col;
 
-    ReferencesJob* job = new ReferencesJob(fileName, id, row, col);
+    ReferencesJob* job = new ReferencesJob(fileName, id, line, col);
     connect(job, SIGNAL(complete(int, const QList<QByteArray>&)),
             this, SIGNAL(complete(int, const QList<QByteArray>&)));
     QThreadPool::globalInstance()->start(job);
@@ -279,11 +299,11 @@ static inline bool isCursorReference(CXCursorKind kind)
     return (kind >= CXCursor_FirstRef && kind <= CXCursor_LastRef);
 }
 
-int DatabaseImpl::followLocation(const QByteArray& fileName, int row, int col)
+int DatabaseImpl::followLocation(const QByteArray& fileName, int line, int col)
 {
     const int id = ++lastJobId;
 
-    FollowLocationJob* job = new FollowLocationJob(fileName, id, row, col);
+    FollowLocationJob* job = new FollowLocationJob(fileName, id, line, col);
     connect(job, SIGNAL(complete(int, const QList<QByteArray>&)),
             this, SIGNAL(complete(int, const QList<QByteArray>&)));
     QThreadPool::globalInstance()->start(job);
@@ -291,11 +311,24 @@ int DatabaseImpl::followLocation(const QByteArray& fileName, int row, int col)
     return id;
 }
 
-int DatabaseImpl::codeComplete(const QByteArray& fileName, int row, int col)
+int DatabaseImpl::cursorInfo(const QByteArray& fileName, int line, int col)
 {
     const int id = ++lastJobId;
 
-    CodeCompleteJob* job = new CodeCompleteJob(fileName, id, row, col);
+    CursorInfoJob* job = new CursorInfoJob(fileName, id, line, col);
+    connect(job, SIGNAL(complete(int, const QList<QByteArray>&)),
+            this, SIGNAL(complete(int, const QList<QByteArray>&)));
+    QThreadPool::globalInstance()->start(job);
+
+    return id;
+}
+
+
+int DatabaseImpl::codeComplete(const QByteArray& fileName, int line, int col)
+{
+    const int id = ++lastJobId;
+
+    CodeCompleteJob* job = new CodeCompleteJob(fileName, id, line, col);
     connect(job, SIGNAL(complete(int, const QList<QByteArray>&)),
             this, SIGNAL(complete(int, const QList<QByteArray>&)));
     QThreadPool::globalInstance()->start(job);
@@ -424,6 +457,43 @@ void FollowLocationJob::run()
     emit complete(id, QList<QByteArray>() << qfn);
 }
 
+CursorInfoJob::CursorInfoJob(const QByteArray&fn, int i, int l, int c)
+    : fileName(fn), id(i), line(l), col(c)
+{
+}
+
+CursorInfoJob::~CursorInfoJob()
+{
+}
+
+void CursorInfoJob::run()
+{
+    CachedUnit locker(fileName, UnitCache::AST);
+    UnitCache::Unit* data = locker.unit();
+    if (!data) {
+        FirstUnitData first;
+        first.fileName = fileName;
+        visitIncluderFiles(fileName, visitFindFirstUnit, &first);
+        if (first.data) {
+            locker.adopt(first.data);
+            data = first.data;
+        } else {
+            qDebug("follow: no unit for %s", fileName.constData());
+            emit complete(id, QList<QByteArray>());
+            return;
+        }
+    }
+
+    CXFile file = clang_getFile(data->unit, fileName.constData());
+    CXSourceLocation loc = clang_getLocation(data->unit, file, line, col);
+    CXCursor cursor = clang_getCursor(data->unit, loc);
+    // CXCursorKind cursorKind = clang_getCursorKind(cursor);
+    // CXCursor ref = clang_getCursorReferenced(cursor);
+    // CXCursorKind refKind = clang_getCursorKind(ref);
+    emit complete(id, QList<QByteArray>() << cursorToString(cursor));
+}
+
+
 CodeCompleteJob::CodeCompleteJob(const QByteArray&fn, int i, int l, int c)
     : fileName(fn), id(i), line(l), col(c)
 {
@@ -450,8 +520,6 @@ void CodeCompleteJob::run()
             return;
         }
     }
-
-
 
     // CXFile file = clang_getFile(data->unit, fileName.constData());
     // CXSourceLocation loc = clang_getLocation(data->unit, file, line, col);
@@ -777,38 +845,14 @@ struct DumpUserData {
     int indent;
 };
 
-static inline QByteArray eatString(CXString str)
-{
-    const QByteArray ret(clang_getCString(str));
-    clang_disposeString(str);
-    return ret;
-}
-
-static QByteArray toString(CXCursor cursor)
-{
-    QByteArray ret = eatString(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
-    const QByteArray name = eatString(clang_getCursorSpelling(cursor));
-    if (!name.isEmpty())
-        ret += " " + name;
-
-    CXFile file;
-    unsigned line, col;
-    clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
-    const QByteArray fileName = eatString(clang_getFileName(file));
-    if (!fileName.isEmpty()) {
-        ret += " " + fileName + ':' + QByteArray::number(line) + ':' +  QByteArray::number(col);
-    }
-    return ret;
-}
-
 static CXChildVisitResult dumpVisitor(CXCursor cursor, CXCursor, CXClientData userData)
 {
     DumpUserData *dump = reinterpret_cast<DumpUserData*>(userData);
     QByteArray line(dump->indent * 2, ' ');
-    line += toString(cursor);
+    line += cursorToString(cursor);
     CXCursor ref = clang_getCursorReferenced(cursor);
     if (!clang_equalCursors(cursor, ref) && !clang_isInvalid(clang_getCursorKind(ref))) {
-        line += " => " + toString(ref);
+        line += " => " + cursorToString(ref);
     }
     dump->lines.append(line);
     ++dump->indent;
@@ -846,55 +890,40 @@ Database::~Database()
     delete m_impl;
 }
 
-static inline bool makeLocation(QByteArray& query, int* line, int* col)
-{
-    bool ok;
-    int pos = query.lastIndexOf(':');
-    if (pos == -1)
-        return false;
-    *col = query.mid(pos + 1).toInt(&ok);
-    if (!ok)
-        return false;
-    query = query.left(pos);
-
-    pos = query.lastIndexOf(':');
-    if (pos == -1)
-        return false;
-    *line = query.mid(pos + 1).toInt(&ok);
-    if (!ok)
-        return false;
-    query = query.left(pos);
-    return true;
-}
-
 int Database::followLocation(const QByteArray& query)
 {
-    int row, col;
-    QByteArray fileName = query;
-    if (!makeLocation(fileName, &row, &col))
+    Location loc;
+    if (!makeLocation(query, &loc))
         return -1;
 
-    return m_impl->followLocation(fileName, row, col);
+    return m_impl->followLocation(loc.path, loc.line, loc.column);
+}
+
+int Database::cursorInfo(const QByteArray& query)
+{
+    Location loc;
+    if (!makeLocation(query, &loc))
+        return -1;
+
+    return m_impl->cursorInfo(loc.path, loc.line, loc.column);
 }
 
 int Database::codeComplete(const QByteArray& query)
 {
-    int row, col;
-    QByteArray fileName = query;
-    if (!makeLocation(fileName, &row, &col))
+    Location loc;
+    if (!makeLocation(query, &loc))
         return -1;
 
-    return m_impl->codeComplete(fileName, row, col);
+    return m_impl->codeComplete(loc.path, loc.line, loc.column);
 }
 
 int Database::referencesForLocation(const QByteArray& query)
 {
-    int row, col;
-    QByteArray fileName = query;
-    if (!makeLocation(fileName, &row, &col))
+    Location loc;
+    if (!makeLocation(query, &loc))
         return -1;
 
-    return m_impl->referencesForLocation(fileName, row, col);
+    return m_impl->referencesForLocation(loc.path, loc.line, loc.column);
 }
 
 int Database::referencesForName(const QByteArray& name)
