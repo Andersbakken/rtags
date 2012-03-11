@@ -213,6 +213,8 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
                                 UnitData* data,
                                 bool *errors)
 {
+    if (errors)
+        *errors = false;
     QVector<const char*> clangArgs;
     QList<QByteArray> args = hashedPch(arguments, &data->unit.pchs);
     foreach(const QByteArray& arg, args) {
@@ -301,7 +303,7 @@ inline bool UnitCache::recheckPch(const QList<QByteArray>& arguments, UnitData* 
         Resource resource(pchFile);
         QList<QByteArray> pchArgs = resource.read<QList<QByteArray> >(Resource::Information);
         const QByteArray filename = pchArgs.takeFirst();
-        bool errors = false;
+        bool errors;
         if (loadUnit(pchFile, pchArgs, data, &errors)) {
             pchArgs.prepend(filename);
             if (saveUnit(data, &resource, pchArgs, errors ? SaveInfo : SaveInfo|SaveAST))
@@ -381,7 +383,7 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& input,
                         return Abort;
                     }
                 }
-                bool errors = false;
+                bool errors;
                 if (loadUnit(input, arguments, data, &errors)) {
                     saveUnit(data, &resource, arguments, errors ? SaveInfo : SaveInfo|SaveAST);
                     return Done;
@@ -389,7 +391,6 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& input,
                 bool retry;
                 do {
                     retry = false;
-                    errors = false;
                     if (loadUnit(input, arguments, data, &errors)) {
                         arguments.prepend(data->unit.fileName);
                         saveUnit(data, &resource, arguments, errors ? SaveInfo : SaveInfo|SaveAST);
