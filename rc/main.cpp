@@ -1,6 +1,6 @@
 #include "Client.h"
 #include "QueryMessage.h"
-#include "Tools.h"
+#include "Shared.h"
 #include <QByteArray>
 #include <QCoreApplication>
 #include <QDateTime>

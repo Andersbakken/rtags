@@ -1,5 +1,5 @@
 INCLUDEPATH += $$PWD $$PWD/messages
-DEPENDPATH += $$PWD
+DEPENDPATH += $$PWD $$PWD/messages
 
 OBJECTS_DIR = .obj
 MOC_DIR = .moc
@@ -22,7 +22,12 @@ HEADERS += \
     $$PWD/Messages.h \
     $$PWD/messages/AddMessage.h \
     $$PWD/messages/QueryMessage.h \
-    $$PWD/messages/ErrorMessage.h
+    $$PWD/messages/ErrorMessage.h \
+    $$PWD/Shared.h
+
+PRECOMPILED_HEADER = $$PWD/Pch.h
+CONFIG += precompile_header
+PRECOMPILED_DIR = .pch
 
 noinline {
     QMAKE_CXXFLAGS += -fno-inline

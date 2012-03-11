@@ -34,9 +34,9 @@ void DumpJob::run()
     CachedUnit unit(fileName);
     if (unit.unit()) {
         clang_visitChildren(clang_getTranslationUnitCursor(unit.unit()->unit), dumpVisitor, &user);
-        foreach(const QByteArray &line, user.lines) {
-            fprintf(stderr, "%s\n", line.constData());
-        }
+        // foreach(const QByteArray &line, user.lines) {
+        //     fprintf(stderr, "%s\n", line.constData());
+        // }
     }
     emit complete(id, user.lines);
 }
