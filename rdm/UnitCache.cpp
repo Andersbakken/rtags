@@ -28,7 +28,7 @@ protected:
         if (unit->unit()) {
             qDebug() << "got unit for" << fileName << "recompiling...";
             delete unit;
-            unit = new CachedUnit(fileName, UnitCache::Source);
+            unit = new CachedUnit(fileName, UnitCache::Source | UnitCache::Info);
             qDebug() << "recompiled" << fileName;
         } else {
             qDebug() << "no unit for" << fileName;
