@@ -11,7 +11,7 @@ CONFIG += precompile_header
 
 # Input
 HEADERS += foo.h
-SOURCES += foo.cpp main.cpp
+SOURCES += foo.cpp main.cpp test.c
 
 PRECOMPILED_HEADER = stable.h
 PRECOMPILED_DIR = .precompiled
