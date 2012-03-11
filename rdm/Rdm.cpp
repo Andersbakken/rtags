@@ -110,14 +110,14 @@ void Rdm::onNewMessage(Message* message)
     message->deleteLater();
 }
 
-static inline QList<QByteArray> pch(const QList<QByteArray>& pchs)
+static inline QList<QByteArray> pch(const QList<QByteArray>& args)
 {
     QList<QByteArray> out;
-    foreach(const QByteArray& in, pchs) {
-        if (!in.isEmpty()) {
-            out.append("-include-pch");
-            out.append(ASTPATH + ("/" + SHA256::hash(in)));
-        }
+    foreach(const QByteArray& arg, args) {
+        if (arg.isEmpty())
+            continue;
+        out.append("-include-pch");
+        out.append(arg);
     }
     return out;
 }
@@ -125,12 +125,7 @@ static inline QList<QByteArray> pch(const QList<QByteArray>& pchs)
 void Rdm::handleAddMessage(AddMessage* message)
 {
     Connection* conn = qobject_cast<Connection*>(sender());
-    int id;
-    if (message->type() == AddMessage::Pch) {
-        id = m_indexer->precompile(message->outputFile(), message->inputFile(), message->arguments() + m_defaultArgs + pch(message->pchs()));
-    } else {
-        id = m_indexer->index(message->inputFile(), message->arguments() + m_defaultArgs + pch(message->pchs()), Indexer::Force);
-    }
+    int id = m_indexer->index(message->inputFile(), message->arguments() + m_defaultArgs + pch(message->pchs()), Indexer::Force);
     m_pendingIndexes[id] = conn;
 }
 

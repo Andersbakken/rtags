@@ -76,6 +76,21 @@ void Client::onMakefileDone()
         qApp->quit();
 }
 
+QList<QByteArray> Client::mapPchToInput(const QList<QByteArray>& input)
+{
+    QList<QByteArray> output;
+    QHash<QByteArray, QByteArray>::const_iterator pchit;
+    const QHash<QByteArray, QByteArray>::const_iterator pchend = m_pchs.end();
+    foreach(const QByteArray& in, input) {
+        pchit = m_pchs.find(in);
+        if (pchit != pchend) {
+            output.append(pchit.value());
+            qDebug() << "mapped" << in << "to" << pchit.value();
+        }
+    }
+    return output;
+}
+
 void Client::onMakefileReady(const GccArguments& args)
 {
     if (args.inputFiles().isEmpty()) {
@@ -110,17 +125,20 @@ void Client::onMakefileReady(const GccArguments& args)
         const QByteArray input = args.inputFiles().front();
 
         AddMessage message(AddMessage::Pch, input, output, args.clangArgs(),
-                           args.explicitIncludes());
+                           mapPchToInput(args.explicitIncludes()));
         if (m_flags & Verbose)
             qDebug() << "sending" << "input:" << input << "output:" << output << "args:" << args.clangArgs() << "incs:" << args.explicitIncludes();
         m_conn->send(&message);
+
+        m_pchs[output] = input;
+
         return;
     }
 
     const QByteArray input = args.inputFiles().front();
     const QByteArray output = args.outputFile();
     AddMessage message(AddMessage::Compile, input, output, args.clangArgs(),
-                       args.explicitIncludes());
+                       mapPchToInput(args.explicitIncludes()));
     if (m_flags & Verbose)
         qDebug() << "sending" << "input:" << input << "output:" << output << "args:" << args.clangArgs() << "incs:" << args.explicitIncludes();
     m_conn->send(&message);

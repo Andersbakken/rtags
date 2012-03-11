@@ -8,6 +8,7 @@
 #include <QHash>
 #include <QThreadPool>
 #include <QRunnable>
+#include <QWaitCondition>
 #include <QMutex>
 #include <QMutexLocker>
 #include <QSet>
@@ -28,6 +29,7 @@ public:
     void syncData(QMutex* mutex, HashSet& data, Database::Type type);
 
     QMutex implMutex;
+    QWaitCondition implCond;
     QSet<QByteArray> indexing;
 
     QByteArray path;
@@ -303,11 +305,46 @@ static inline void uniteSets(HashSet& dst, HashSet& src)
     src.clear();
 }
 
+static inline QList<QByteArray> extractPchFiles(const QList<QByteArray>& args)
+{
+    QList<QByteArray> out;
+    bool nextIsPch = false;
+    foreach(const QByteArray& arg, args) {
+        if (arg.isEmpty())
+            continue;
+
+        if (nextIsPch) {
+            nextIsPch = false;
+            out.append(arg);
+        } else if (arg == "-include-pch")
+            nextIsPch = true;
+    }
+    return out;
+}
+
 void IndexerJob::run()
 {
     int unitMode = UnitCache::Source | UnitCache::AST;
     if (m_mode != Indexer::Force)
         unitMode |= UnitCache::Memory;
+
+    QList<QByteArray> pchFiles = extractPchFiles(m_args);
+    if (!pchFiles.isEmpty()) {
+        QMutexLocker locker(&m_impl->implMutex);
+        bool wait;
+        do {
+            wait = false;
+            foreach(const QByteArray& pchFile, pchFiles) {
+                if (m_impl->indexing.contains(pchFile)) {
+                    wait = true;
+                    break;
+                }
+            }
+            if (wait)
+                m_impl->implCond.wait(&m_impl->implMutex);
+        } while (wait);
+    }
+
     CachedUnit unit(m_in, m_args, unitMode);
 
     if (unit.unit()) {
@@ -381,11 +418,6 @@ Indexer* Indexer::instance()
     return s_inst;
 }
 
-int Indexer::precompile(const QByteArray& output, const QByteArray& input, const QList<QByteArray>& arguments)
-{
-    return 0;
-}
-
 int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments, Mode mode)
 {
     QMutexLocker locker(&m_impl->implMutex);
@@ -436,7 +468,8 @@ void Indexer::jobDone(int id, const QByteArray& fileName)
     QMutexLocker locker(&m_impl->implMutex);
 
     m_impl->jobs.remove(id);
-    m_impl->indexing.remove(fileName);
+    if (m_impl->indexing.remove(fileName))
+        m_impl->implCond.wakeAll();
 
     ++m_impl->jobCounter;
 

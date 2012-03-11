@@ -104,6 +104,8 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
             case 'x':
                 if (!strcmp(cur, "c-header") || !strcmp(cur, "c++-header"))
                     m_impl->type = Pch;
+                m_impl->clangArgs.append("-x");
+                m_impl->clangArgs.append(cur);
                 break;
             case 'i': {
                 Path inc = Path::resolved(cur + QByteArray(".gch"), path, &pathok);

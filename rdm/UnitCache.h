@@ -21,7 +21,8 @@ class UnitCache : public QObject
 {
     Q_OBJECT
 public:
-    enum LoadMode { None = 0x0, Source = 0x1, AST = 0x2, Memory = 0x4 };
+    // AST implies Info
+    enum LoadMode { None = 0x0, Info = 0x1, Source = 0x2, AST = 0x4, Memory = 0x8 };
 
     ~UnitCache();
 
@@ -38,12 +39,12 @@ public:
         CXFile file;
         CXTranslationUnit unit;
         QDateTime visited;
+        QList<QByteArray> pchs;
     };
 
     Unit* acquire(const QByteArray& filename, int mode = AST | Memory);
     Unit* acquire(const QByteArray& filename, const QList<QByteArray>& arguments, int mode = Source | Memory);
     void release(Unit* unit);
-    void recompile(Unit* unit);
 
 private slots:
     void onDirectoryChanged(const QString &dir);
@@ -64,6 +65,7 @@ private:
 
     void cleanup(UnitData* data);
     bool removeUnusedUnits(int num);
+    bool recheckPch(const QList<QByteArray>& arguments, UnitData* data);
     bool rereadUnit(const QByteArray& hashedFilename, UnitData* data);
     bool loadUnit(const QByteArray& filename, const QList<QByteArray>& arguments, UnitData* data);
     bool saveUnit(UnitData* data, Resource* resource, const QList<QByteArray>& arguments);

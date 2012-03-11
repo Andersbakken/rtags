@@ -30,9 +30,13 @@ private slots:
     void onMakefileReady(const GccArguments& args);
 
 private:
+    QList<QByteArray> mapPchToInput(const QList<QByteArray>& input);
+
+private:
     Connection* m_conn;
     int m_flags;
     bool m_makeDone;
+    QHash<QByteArray, QByteArray> m_pchs;
 };
 
 #endif

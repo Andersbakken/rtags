@@ -193,7 +193,8 @@ static CXChildVisitResult dumpVisitor(CXCursor cursor, CXCursor, CXClientData us
 
 typedef bool (*VisitFile)(UnitCache::Unit* unit, void* data);
 
-static void visitIncluderFiles(const QByteArray& fileName, VisitFile visitor, void* data)
+static void visitIncluderFiles(const QByteArray& fileName, VisitFile visitor, void* data,
+                               int mode = UnitCache::AST | UnitCache::Memory)
 {
     qDebug() << "looking at" << fileName;
 
@@ -215,7 +216,7 @@ static void visitIncluderFiles(const QByteArray& fileName, VisitFile visitor, vo
             continue;
         qDebug() << "about to visit" << inc;
 
-        CachedUnit unit(inc, UnitCache::AST | UnitCache::Memory);
+        CachedUnit unit(inc, mode);
         if (unit.unit()) {
             if ((*visitor)(unit.unit(), data))
                 break;
@@ -809,22 +810,19 @@ RecompileJob::~RecompileJob()
 
 void RecompileJob::run()
 {
-    CachedUnit locker(fileName, UnitCache::AST | UnitCache::Memory);
+    CachedUnit locker(fileName, UnitCache::Source | UnitCache::Info);
     UnitCache::Unit* data = locker.unit();
-    if (!data) {
-        FirstUnitData first;
-        first.fileName = fileName;
-        visitIncluderFiles(fileName, visitFindFirstUnit, &first);
-        if (first.data) {
-            locker.adopt(first.data);
-            data = first.data;
-        } else {
-            qDebug("recompile: no unit for %s", fileName.constData());
-            emit complete(id, QList<QByteArray>());
-            return;
-        }
+    if (data) {
+        // everything is good!
+        emit complete(id, QList<QByteArray>());
+        return;
     }
-    UnitCache::instance()->recompile(data);
+
+    FirstUnitData first;
+    first.fileName = fileName;
+    visitIncluderFiles(fileName, visitFindFirstUnit, &first, UnitCache::Source | UnitCache::Info);
+    if (!first.data)
+        qDebug("recompile: no unit for %s", fileName.constData());
 
     emit complete(id, QList<QByteArray>());
 }
