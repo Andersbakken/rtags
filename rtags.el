@@ -55,27 +55,6 @@ return t if rtags is allowed to modify this file"
 
 (defvar rtags-symbol-history nil)
 (defvar rtags-file-history nil)
-(defvar last-rtags-update-process nil)
-(defun rtags-update ()
-  (interactive)
-  (if (executable-find "rb")
-      (let (unsavedbufferargs)
-        (if (and last-rtags-update-process (eq (process-status last-rtags-update-process) 'run))
-            (kill-process last-rtags-update-process))
-        (dolist (buffer (buffer-list))
-          (if (and (buffer-modified-p buffer) (buffer-file-name buffer))
-              (add-to-list 'unsavedbufferargs (concat "-U" (buffer-file-name buffer)
-                                                      ":" (int-to-string (buffer-size buffer))))))
-        ;; (message (combine-and-quote-strings unsavedbufferargs))
-        (setq last-rtags-update-process (apply 'start-process "rtags-update" nil "rb" "-u" unsavedbufferargs))
-        (if unsavedbufferargs
-            (dolist (buffer (buffer-list))
-              (if (and (buffer-modified-p buffer) (buffer-file-name buffer))
-                  (with-current-buffer buffer
-                    (process-send-string last-rtags-update-process (buffer-string))))))))
-
-  nil)
-
 
 (defun rtags-goto-location(location)
   (let (line column)

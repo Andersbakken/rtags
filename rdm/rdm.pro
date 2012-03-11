@@ -19,7 +19,14 @@ SOURCES += \
     Resource.cpp \
     Resources.cpp \
     Rdm.cpp \
-    SHA256.cpp
+    SHA256.cpp \
+    CodeCompleteJob.cpp \
+    CursorInfoJob.cpp \
+    DumpJob.cpp \
+    FollowLocationJob.cpp \
+    MatchJob.cpp \
+    RecompileJob.cpp \
+    ReferencesJob.cpp 
 
 HEADERS += \
     Compressor.h \
@@ -29,6 +36,14 @@ HEADERS += \
     Resource.h \
     Resources.h \
     Rdm.h \
-    SHA256.h
+    SHA256.h \
+    CodeCompleteJob.h \
+    CursorInfoJob.h \
+    DumpJob.h \
+    FollowLocationJob.h \
+    MatchJob.h \
+    RecompileJob.h \
+    ReferencesJob.h \
+    Tools.h
 
 LIBS += -lclang -lcrypto -L../3rdparty -lleveldb -lz -llzma

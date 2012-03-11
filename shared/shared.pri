@@ -22,8 +22,7 @@ HEADERS += \
     $$PWD/Messages.h \
     $$PWD/messages/AddMessage.h \
     $$PWD/messages/QueryMessage.h \
-    $$PWD/messages/ErrorMessage.h \
-    $$PWD/Tools.h
+    $$PWD/messages/ErrorMessage.h
 
 noinline {
     QMAKE_CXXFLAGS += -fno-inline

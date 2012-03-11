@@ -281,7 +281,8 @@ inline bool UnitCache::saveUnit(UnitData* data,
         }
     }
     if (flags & SaveInfo) {
-        resource->write(Resource::Information, arguments, Resource::Truncate);
+        resource->write(Resource::Information, (QList<QByteArray>() << "# " + data->unit.fileName) + arguments,
+                        Resource::Truncate);
         qDebug() << "successfully saved" << hashedFilename;
     }
     return ok;
@@ -294,6 +295,14 @@ inline void UnitCache::destroyUnit(UnitData* data)
     clang_disposeIndex(data->unit.index);
 }
 
+static inline void removeComments(QList<QByteArray> &lines)
+{
+    for (int i=lines.size() - 1; i>=0; --i) {
+        if (lines.startsWith("#"))
+            lines.removeAt(i);
+    }
+}
+
 inline bool UnitCache::recheckPch(const QList<QByteArray>& arguments, UnitData* data)
 {
     bool reread = false;
@@ -302,6 +311,7 @@ inline bool UnitCache::recheckPch(const QList<QByteArray>& arguments, UnitData* 
         Q_ASSERT(!data->unit.unit);
         Resource resource(pchFile);
         QList<QByteArray> pchArgs = resource.read<QList<QByteArray> >(Resource::Information);
+        removeComments(pchArgs);
         const QByteArray filename = pchArgs.takeFirst();
         bool errors;
         if (loadUnit(pchFile, pchArgs, data, &errors)) {
@@ -365,6 +375,7 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& input,
                 if (((mode & Source) && (mode & Info)) || !(mode & Source)) {
                     if (resource.exists(Resource::Information)) {
                         arguments = resource.read<QList<QByteArray> >(Resource::Information);
+                        removeComments(arguments);
                         arguments.removeFirst(); // file name
                         mode |= Source;
                         mode &= ~Info;
@@ -378,6 +389,7 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& input,
                 if (mode & Info) {
                     if (resource.exists(Resource::Information)) {
                         arguments = resource.read<QList<QByteArray> >(Resource::Information);
+                        removeComments(arguments);
                         arguments.removeFirst(); // file name
                     } else {
                         return Abort;
@@ -423,13 +435,6 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& input,
         return 0;
 
     QMutexLocker locker(&m_dataMutex);
-    qDebug() << "m_data.size()" << m_data.keys() << m_data.size();
-    for (QHash<QByteArray, UnitData*>::const_iterator it = m_data.begin(); it != m_data.end(); ++it) {
-        qDebug() << it.key() << "origin" << it.value()->unit.origin << "unit" << it.value()->unit.unit
-                 << "visited" << it.value()->unit.visited << "ref" << it.value()->ref << "owner" << it.value()->owner
-                 << "owned by us" << (it.value()->owner == QThread::currentThread());
-    }
-
     for (;;) {
         const QHash<QByteArray, UnitData*>::iterator it = m_data.find(input);
         if (it != m_data.end()) {
@@ -572,7 +577,7 @@ void UnitCache::initFileSystemWatcher(Unit* unit) // always called with m_dataMu
         QStringList dirs;
         for (QHash<Path, QSet<QByteArray> >::iterator it = paths.begin(); it != paths.end(); ++it) {
             dirs.append(it.key());
-            qDebug() << "watching" << it.value() << "in" << it.key() << "for" << unit->fileName;
+            // qDebug() << "watching" << it.value() << "in" << it.key() << "for" << unit->fileName;
         }
         watcher->paths = paths;
         watcher->addPaths(dirs);
@@ -585,13 +590,11 @@ void UnitCache::initFileSystemWatcher(Unit* unit) // always called with m_dataMu
 void UnitCache::onDirectoryChanged(const QString &directory)
 {
     const Path dir(directory.toLocal8Bit());
-    qDebug() << "got dir changed" << dir;
     QMutexLocker lock(&m_dataMutex);
     FileSystemWatcher *f = qobject_cast<FileSystemWatcher*>(sender());
     if (f) {
         bool dirty = false;
         const QSet<QByteArray> &fileNames = f->paths.value(dir);
-        qDebug() << f->paths << dir;
         Q_ASSERT(!fileNames.isEmpty());
         const QByteArray dirName = dir + "/";
         foreach(const QByteArray &fn, fileNames) {
