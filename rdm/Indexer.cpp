@@ -111,16 +111,18 @@ class IndexerJob : public QObject, public QRunnable
 {
     Q_OBJECT
 public:
-    IndexerJob(IndexerImpl* impl, Indexer::Mode mode, int id, const QByteArray& path,
-               const QByteArray& input, const QList<QByteArray>& arguments);
+    IndexerJob(IndexerImpl* impl, Indexer::Type type, Indexer::Mode mode, int id,
+               const QByteArray& path, const QByteArray& input, const QByteArray& output,
+               const QList<QByteArray>& arguments);
 
     int id() const { return m_id; }
 
     void run();
 
+    Indexer::Type m_type;
     Indexer::Mode m_mode;
     int m_id;
-    QByteArray m_path, m_in;
+    QByteArray m_path, m_in, m_out;
     QList<QByteArray> m_args;
     IndexerImpl* m_impl;
 
@@ -130,7 +132,7 @@ private:
     void addFileNameSymbol(const QByteArray& fileName);
 
 signals:
-    void done(int id, const QByteArray& fileName);
+    void done(int id, const QByteArray& input, const QByteArray& output);
 };
 
 #include "Indexer.moc"
@@ -263,9 +265,10 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
     return CXChildVisit_Recurse;
 }
 
-IndexerJob::IndexerJob(IndexerImpl* impl, Indexer::Mode mode, int id, const QByteArray& path,
-                       const QByteArray& input, const QList<QByteArray>& arguments)
-    : m_mode(mode), m_id(id), m_path(path), m_in(input), m_args(arguments), m_impl(impl)
+IndexerJob::IndexerJob(IndexerImpl* impl, Indexer::Type type, Indexer::Mode mode, int id,
+                       const QByteArray& path, const QByteArray& input, const QByteArray& output,
+                       const QList<QByteArray>& arguments)
+    : m_type(type), m_mode(mode), m_id(id), m_path(path), m_in(input), m_out(output), m_args(arguments), m_impl(impl)
 {
 }
 
@@ -345,7 +348,12 @@ void IndexerJob::run()
         } while (wait);
     }
 
-    CachedUnit unit(m_in, m_args, unitMode);
+    // ### hack for now
+    QByteArray out = m_in;
+    if (m_out.endsWith("/pch-c")
+        || m_out.endsWith("/pch-c++"))
+        out = m_out;
+    CachedUnit unit(m_in, out, m_args, unitMode);
 
     if (unit.unit()) {
         qDebug() << "parsing" << m_in << unit.unit()->fileName;
@@ -385,7 +393,7 @@ void IndexerJob::run()
         qDebug() << "got 0 unit for" << m_in;
     }
 
-    emit done(m_id, m_in);
+    emit done(m_id, m_in, m_out);
 }
 
 Indexer* Indexer::s_inst = 0;
@@ -418,11 +426,12 @@ Indexer* Indexer::instance()
     return s_inst;
 }
 
-int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments, Mode mode)
+int Indexer::index(Type type, const QByteArray& input, const QByteArray& output,
+                   const QList<QByteArray>& arguments, Mode mode)
 {
     QMutexLocker locker(&m_impl->implMutex);
 
-    if (m_impl->indexing.contains(input))
+    if (m_impl->indexing.contains(output))
         return -1;
 
     int id;
@@ -430,45 +439,24 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments, 
         id = m_impl->lastJobId++;
     } while (m_impl->jobs.contains(id));
 
-    m_impl->indexing.insert(input);
+    m_impl->indexing.insert(output);
 
-    IndexerJob* job = new IndexerJob(m_impl, mode, id, m_impl->path, input, arguments);
+    IndexerJob* job = new IndexerJob(m_impl, type, mode, id, m_impl->path, input, output, arguments);
     m_impl->jobs[id] = job;
-    connect(job, SIGNAL(done(int, const QByteArray&)),
-            this, SLOT(jobDone(int, const QByteArray&)), Qt::QueuedConnection);
+    connect(job, SIGNAL(done(int, const QByteArray&, const QByteArray&)),
+            this, SLOT(jobDone(int, const QByteArray&, const QByteArray&)), Qt::QueuedConnection);
     QThreadPool::globalInstance()->start(job);
 
     return id;
 }
 
-int Indexer::reindex(const QByteArray& fileName, Mode mode)
+void Indexer::jobDone(int id, const QByteArray& input, const QByteArray& output)
 {
-    Resource resource(fileName);
-    qDebug() << "trying to reindex" << fileName << resource.hashedFileName(Resource::Information);
-    if (!resource.exists(Resource::Information)) {
-        qDebug() << "but resource does not exist";
-        return -1;
-    }
+    Q_UNUSED(input)
 
-    QList<QByteArray> data = resource.read<QList<QByteArray> >(Resource::Information);
-    if (data.isEmpty() || data.at(0).isEmpty()) {
-        qDebug() << "no resource data";
-        return -1;
-    }
-
-    QByteArray input = data.takeFirst();
-
-    qDebug() << "reindexing" << input << data;
-
-    return index(input, data, mode);
-}
-
-void Indexer::jobDone(int id, const QByteArray& fileName)
-{
     QMutexLocker locker(&m_impl->implMutex);
-
     m_impl->jobs.remove(id);
-    if (m_impl->indexing.remove(fileName))
+    if (m_impl->indexing.remove(output))
         m_impl->implCond.wakeAll();
 
     ++m_impl->jobCounter;

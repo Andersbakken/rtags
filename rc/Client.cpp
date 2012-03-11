@@ -83,10 +83,8 @@ QList<QByteArray> Client::mapPchToInput(const QList<QByteArray>& input)
     const QHash<QByteArray, QByteArray>::const_iterator pchend = m_pchs.end();
     foreach(const QByteArray& in, input) {
         pchit = m_pchs.find(in);
-        if (pchit != pchend) {
+        if (pchit != pchend)
             output.append(pchit.value());
-            qDebug() << "mapped" << in << "to" << pchit.value();
-        }
     }
     return output;
 }
@@ -126,10 +124,11 @@ void Client::onMakefileReady(const GccArguments& args)
         const QByteArray input = args.inputFiles().front();
 
         AddMessage::Type type = (args.lang() == GccArguments::C) ? AddMessage::PchC : AddMessage::PchCPlusPlus;
-        AddMessage message(type, input, output, args.clangArgs(),
+        // using input for both input and output is correct here
+        AddMessage message(type, input, input, args.clangArgs(),
                            mapPchToInput(args.explicitIncludes()));
         if (m_flags & Verbose)
-            qDebug() << "sending" << "input:" << input << "output:" << output << "args:" << args.clangArgs() << "incs:" << args.explicitIncludes();
+            qDebug() << "sending" << "input:" << input << "output:" << output << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
         m_conn->send(&message);
 
         m_pchs[output] = input;
@@ -143,6 +142,6 @@ void Client::onMakefileReady(const GccArguments& args)
     AddMessage message(type, input, output, args.clangArgs(),
                        mapPchToInput(args.explicitIncludes()));
     if (m_flags & Verbose)
-        qDebug() << "sending" << "input:" << input << "output:" << output << "args:" << args.clangArgs() << "incs:" << args.explicitIncludes();
+        qDebug() << "sending" << "input:" << input << "output:" << output << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
     m_conn->send(&message);
 }

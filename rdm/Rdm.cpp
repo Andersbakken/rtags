@@ -110,13 +110,18 @@ void Rdm::onNewMessage(Message* message)
     message->deleteLater();
 }
 
-static inline QList<QByteArray> pch(const QList<QByteArray>& args)
+static inline QList<QByteArray> pch(const AddMessage* message)
 {
     QList<QByteArray> out;
-    foreach(const QByteArray& arg, args) {
+    foreach(QByteArray arg, message->pchs()) {
         if (arg.isEmpty())
             continue;
         out.append("-include-pch");
+        if (message->type() == AddMessage::CompileC
+            || message->type() == AddMessage::PchC)
+            arg += "/pch-c";
+        else
+            arg += "/pch-c++";
         out.append(arg);
     }
     return out;
@@ -125,7 +130,26 @@ static inline QList<QByteArray> pch(const QList<QByteArray>& args)
 void Rdm::handleAddMessage(AddMessage* message)
 {
     Connection* conn = qobject_cast<Connection*>(sender());
-    int id = m_indexer->index(message->inputFile(), message->arguments() + m_defaultArgs + pch(message->pchs()), Indexer::Force);
+
+    QByteArray outputfile = message->outputFile();
+    Indexer::Type type;
+    switch (message->type()) {
+    case AddMessage::PchC:
+        outputfile += "/pch-c";
+        // fall through
+    case AddMessage::CompileC:
+        type = Indexer::C;
+        break;
+    case AddMessage::PchCPlusPlus:
+        outputfile += "/pch-c++";
+        // fall through
+    case AddMessage::CompileCPlusPlus:
+        type = Indexer::CPlusPlus;
+        break;
+    }
+    int id = m_indexer->index(type, message->inputFile(), outputfile,
+                              message->arguments() + m_defaultArgs + pch(message),
+                              Indexer::Force);
     m_pendingIndexes[id] = conn;
 }
 

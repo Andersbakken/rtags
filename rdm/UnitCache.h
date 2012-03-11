@@ -44,6 +44,8 @@ public:
 
     Unit* acquire(const QByteArray& filename, int mode = AST | Memory);
     Unit* acquire(const QByteArray& filename, const QList<QByteArray>& arguments, int mode = Source | Memory);
+    Unit* acquire(const QByteArray& input, const QByteArray& output,
+                  const QList<QByteArray>& arguments, int mode = Source | Memory);
     void release(Unit* unit);
 
 private slots:
@@ -72,12 +74,13 @@ private:
         SaveAST = 0x1,
         SaveInfo = 0x2
     };
-    void saveUnit(UnitData* data, Resource* resource, const QList<QByteArray>& arguments, unsigned flags);
+    bool saveUnit(UnitData* data, Resource* resource, const QList<QByteArray>& arguments, unsigned flags);
     void destroyUnit(UnitData* data);
-    UnitStatus initUnit(const QByteArray& fileName, const QList<QByteArray>& args,
-                        int mode, UnitData* data);
+    UnitStatus initUnit(const QByteArray& input, const QByteArray& output,
+                        const QList<QByteArray>& args, int mode, UnitData* data);
 
-    Unit* createUnit(const QByteArray& filename, const QList<QByteArray>& arguments, int mode);
+    Unit* createUnit(const QByteArray& input, const QByteArray& output,
+                     const QList<QByteArray>& arguments, int mode);
 
     QHash<QByteArray, UnitData*> m_data;
     QHash<Path, FileSystemWatcher*> m_watchers;
@@ -107,6 +110,8 @@ public:
     CachedUnit(const QByteArray& filename, int mode = UnitCache::AST | UnitCache::Memory);
     CachedUnit(const QByteArray& filename, const QList<QByteArray>& arguments,
                int mode = UnitCache::Source | UnitCache::Memory);
+    CachedUnit(const QByteArray& input, const QByteArray& output, const QList<QByteArray>& arguments,
+               int mode = UnitCache::Source | UnitCache::Memory);
     ~CachedUnit() { UnitCache::instance()->release(m_unit); }
 
     void adopt(UnitCache::Unit* unit);
@@ -127,16 +132,29 @@ inline CachedUnit::CachedUnit(const QByteArray& filename, const QList<QByteArray
     m_unit = UnitCache::instance()->acquire(filename, arguments, mode);
 }
 
+inline CachedUnit::CachedUnit(const QByteArray& input, const QByteArray& output,
+                              const QList<QByteArray>& arguments, int mode)
+{
+    m_unit = UnitCache::instance()->acquire(input, output, arguments, mode);
+}
+
 inline UnitCache::Unit* UnitCache::acquire(const QByteArray& filename, int mode)
 {
-    return createUnit(filename, QList<QByteArray>(), mode);
+    return createUnit(filename, filename, QList<QByteArray>(), mode);
 }
 
 inline UnitCache::Unit* UnitCache::acquire(const QByteArray& filename,
                                            const QList<QByteArray>& arguments,
                                            int mode)
 {
-    return createUnit(filename, arguments, mode);
+    return createUnit(filename, filename, arguments, mode);
+}
+
+inline UnitCache::Unit* UnitCache::acquire(const QByteArray& input, const QByteArray& output,
+                                           const QList<QByteArray>& arguments,
+                                           int mode)
+{
+    return createUnit(input, output, arguments, mode);
 }
 
 #endif // UNITCACHE_H

@@ -109,8 +109,11 @@ static inline QList<QByteArray> hashedPch(const QList<QByteArray>& args, QList<Q
             nextIsPch = false;
             resource.setFileName(arg, Resource::NoLock);
             out.append(resource.hashedFileName(Resource::AST));
-            if (pchs)
-                pchs->append(arg);
+            if (pchs) {
+                const int pchidx = arg.lastIndexOf("/pch-");
+                if (pchidx != -1)
+                    pchs->append(arg.left(pchidx));
+            }
             continue;
         }
         if (arg == "-include-pch")
@@ -257,13 +260,14 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
     return false;
 }
 
-inline void UnitCache::saveUnit(UnitData* data,
+inline bool UnitCache::saveUnit(UnitData* data,
                                 Resource* resource,
                                 const QList<QByteArray>& arguments,
                                 unsigned flags)
 {
+    bool ok = true;
+    const QByteArray hashedFilename = resource->hashedFileName(Resource::AST);
     if (flags & SaveAST) {
-        const QByteArray hashedFilename = resource->hashedFileName(Resource::AST);
         const int result = clang_saveTranslationUnit(data->unit.unit,
                                                      hashedFilename.constData(),
                                                      CXSaveTranslationUnit_None);
@@ -271,11 +275,14 @@ inline void UnitCache::saveUnit(UnitData* data,
             qWarning("Unable to save translation unit: %s (as %s)",
                      data->unit.fileName.constData(), hashedFilename.constData());
             printDiagnostic(data->unit.unit, "save (1)");
+            ok = false;
         }
     }
     if (flags & SaveInfo) {
         resource->write(Resource::Information, arguments, Resource::Truncate);
+        qDebug() << "successfully saved" << hashedFilename;
     }
+    return ok;
 }
 
 inline void UnitCache::destroyUnit(UnitData* data)
@@ -291,14 +298,14 @@ inline bool UnitCache::recheckPch(const QList<QByteArray>& arguments, UnitData* 
     QList<QByteArray> pchFiles = extractPchFiles(arguments);
     foreach(const QByteArray& pchFile, pchFiles) {
         Q_ASSERT(!data->unit.unit);
-        qDebug() << "!!!pch" << pchFile;
         Resource resource(pchFile);
         QList<QByteArray> pchArgs = resource.read<QList<QByteArray> >(Resource::Information);
-        pchArgs.removeFirst(); // filename
+        const QByteArray filename = pchArgs.takeFirst();
         bool errors = true;
         if (loadUnit(pchFile, pchArgs, data, &errors)) {
-            saveUnit(data, &resource, arguments, errors ? SaveInfo : SaveInfo|SaveAST);
-            reread = true;
+            pchArgs.prepend(filename);
+            if (saveUnit(data, &resource, pchArgs, errors ? SaveInfo : SaveInfo|SaveAST))
+                reread = true;
         }
         if (data->unit.unit) {
             clang_disposeTranslationUnit(data->unit.unit);
@@ -308,7 +315,8 @@ inline bool UnitCache::recheckPch(const QList<QByteArray>& arguments, UnitData* 
     return reread;
 }
 
-inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& fileName,
+inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& input,
+                                                 const QByteArray& output,
                                                  const QList<QByteArray>& args,
                                                  int mode, UnitData* data)
 {
@@ -334,7 +342,7 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& fileName,
             }
 
             bool pchRechecked = false;
-            Resource resource(fileName);
+            Resource resource(output);
             if (mode & AST) { // try to reread AST
                 if (resource.exists(Resource::AST)) {
                     bool retry;
@@ -374,7 +382,7 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& fileName,
                     }
                 }
                 bool errors = true;
-                if (loadUnit(fileName, arguments, data, &errors)) {
+                if (loadUnit(input, arguments, data, &errors)) {
                     saveUnit(data, &resource, arguments, errors ? SaveInfo : SaveInfo|SaveAST);
                     return Done;
                 }
@@ -382,7 +390,7 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& fileName,
                 do {
                     retry = false;
                     bool errors = false;
-                    if (loadUnit(fileName, arguments, data, &errors)) {
+                    if (loadUnit(input, arguments, data, &errors)) {
                         arguments.prepend(data->unit.fileName);
                         saveUnit(data, &resource, arguments, errors ? SaveInfo : SaveInfo|SaveAST);
                         // done!
@@ -405,7 +413,8 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& fileName,
     return Abort;
 }
 
-UnitCache::Unit* UnitCache::createUnit(const QByteArray& fileName,
+UnitCache::Unit* UnitCache::createUnit(const QByteArray& input,
+                                       const QByteArray& output,
                                        const QList<QByteArray>& args,
                                        int mode)
 {
@@ -421,7 +430,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& fileName,
     }
 
     for (;;) {
-        const QHash<QByteArray, UnitData*>::iterator it = m_data.find(fileName);
+        const QHash<QByteArray, UnitData*>::iterator it = m_data.find(input);
         if (it != m_data.end()) {
             // the unit exists in our cache
             if (mode & Memory) {
@@ -439,7 +448,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& fileName,
                 }
             }
 
-            const UnitStatus status = initUnit(fileName, args, mode, it.value());
+            const UnitStatus status = initUnit(input, output, args, mode, it.value());
 
             if (status == Done) {
                 it.value()->unit.visited = QDateTime::currentDateTime();
@@ -476,19 +485,19 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& fileName,
                 data->ref = 1;
                 data->owner = QThread::currentThread();
                 data->unit.visited = QDateTime::currentDateTime();
-                data->unit.fileName = fileName;
-                m_data[fileName] = data;
+                data->unit.fileName = input;
+                m_data[input] = data;
 
                 data->unit.unit = 0;
                 data->unit.index = clang_createIndex(1, 1);
 
-                const UnitStatus status = initUnit(fileName, args, mode, data);
+                const UnitStatus status = initUnit(input, output, args, mode, data);
 
                 if (status == Done) {
                     return &data->unit;
                 } else if (status == Abort) {
                     destroyUnit(data);
-                    m_data.remove(fileName);
+                    m_data.remove(input);
                     delete data;
                     m_dataCondition.wakeAll();
                     return 0;
