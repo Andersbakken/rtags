@@ -10,13 +10,15 @@ class GccArgumentsImpl;
 class GccArguments
 {
 public:
-    enum Type { Unknown, Compile, Pch };
+    enum Type { NoType, Compile, Pch };
+    enum Lang { NoLang, C, CPlusPlus };
 
     GccArguments();
     GccArguments(const QByteArray& args, const Path& base);
 
     bool parse(const QByteArray& args, const Path& base);
     Type type() const;
+    Lang lang() const;
 
     QList<QByteArray> clangArgs() const;
     QList<QByteArray> inputFiles() const;

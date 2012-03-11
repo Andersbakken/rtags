@@ -96,6 +96,9 @@ void Client::onMakefileReady(const GccArguments& args)
     if (args.inputFiles().isEmpty()) {
         qWarning("no input file?");
         return;
+    } else if (args.outputFile().isEmpty()) {
+        qWarning("no output file?");
+        return;
     }
 
     if (!m_conn) {
@@ -108,14 +111,12 @@ void Client::onMakefileReady(const GccArguments& args)
         connect(m_conn, SIGNAL(sendComplete()), this, SLOT(onSendComplete()));
     }
 
-    if (args.type() == GccArguments::Unknown)
+    if (args.type() == GccArguments::NoType
+        || args.lang() == GccArguments::NoLang)
         return;
     else if (args.type() == GccArguments::Pch) {
         QByteArray output = args.outputFile();
-        if (output.isEmpty()) {
-            qWarning("no output file for pch");
-            return;
-        }
+        Q_ASSERT(!output.isEmpty());
         const int ext = output.lastIndexOf(".gch/c");
         if (ext <= 0) {
             qWarning("couldn't find .gch in pch output");
@@ -124,7 +125,8 @@ void Client::onMakefileReady(const GccArguments& args)
         output = output.left(ext + 4);
         const QByteArray input = args.inputFiles().front();
 
-        AddMessage message(AddMessage::Pch, input, output, args.clangArgs(),
+        AddMessage::Type type = (args.lang() == GccArguments::C) ? AddMessage::PchC : AddMessage::PchCPlusPlus;
+        AddMessage message(type, input, output, args.clangArgs(),
                            mapPchToInput(args.explicitIncludes()));
         if (m_flags & Verbose)
             qDebug() << "sending" << "input:" << input << "output:" << output << "args:" << args.clangArgs() << "incs:" << args.explicitIncludes();
@@ -137,7 +139,8 @@ void Client::onMakefileReady(const GccArguments& args)
 
     const QByteArray input = args.inputFiles().front();
     const QByteArray output = args.outputFile();
-    AddMessage message(AddMessage::Compile, input, output, args.clangArgs(),
+    AddMessage::Type type = (args.lang() == GccArguments::C) ? AddMessage::CompileC : AddMessage::CompileCPlusPlus;
+    AddMessage message(type, input, output, args.clangArgs(),
                        mapPchToInput(args.explicitIncludes()));
     if (m_flags & Verbose)
         qDebug() << "sending" << "input:" << input << "output:" << output << "args:" << args.clangArgs() << "incs:" << args.explicitIncludes();

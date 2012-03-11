@@ -11,7 +11,7 @@ class AddMessage : public Message
     Q_OBJECT
 public:
     enum { MessageId = 1 };
-    enum Type { Compile, Pch };
+    enum Type { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };
 
     Q_INVOKABLE AddMessage(QObject* parent = 0);
     AddMessage(Type type, const QByteArray& input, const QByteArray& output,

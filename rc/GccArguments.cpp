@@ -4,12 +4,13 @@
 class GccArgumentsImpl
 {
 public:
-    GccArgumentsImpl() : type(GccArguments::Unknown) { }
+    GccArgumentsImpl() : type(GccArguments::NoType), lang(GccArguments::NoLang) { }
 
     QList<QByteArray> clangArgs, inputFiles;
     QList<Path> includes;
     Path outputFile;
     GccArguments::Type type;
+    GccArguments::Lang lang;
     Path base;
 };
 
@@ -24,7 +25,7 @@ GccArguments::GccArguments(const QByteArray& args, const Path& base)
     parse(args, base);
 }
 
-static inline bool isCompiler(const QByteArray& compiler)
+static inline GccArguments::Lang guessLang(const QByteArray& compiler)
 {
     QByteArray c;
     const int dash = compiler.lastIndexOf('-');
@@ -34,17 +35,20 @@ static inline bool isCompiler(const QByteArray& compiler)
     else
         c = QByteArray::fromRawData(compiler.constData(), compiler.size());
 
+    GccArguments::Lang lang = GccArguments::NoLang;
     if (c == "g++"
-        || c == "gcc"
-        || c == "c++"
-        || c == "cc")
-        return true;
-    return false;
+        || c == "c++")
+        lang = GccArguments::CPlusPlus;
+    else if (c == "gcc"
+             || c == "cc")
+        lang = GccArguments::C;
+    return lang;
 }
 
 bool GccArguments::parse(const QByteArray& args, const Path& base)
 {
-    m_impl->type = Unknown;
+    m_impl->type = NoType;
+    m_impl->lang = NoLang;
     m_impl->clangArgs.clear();
     m_impl->inputFiles.clear();
     m_impl->base = base;
@@ -89,7 +93,8 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
     } else
         path = base;
 
-    if (!isCompiler(split.front()))
+    m_impl->lang = guessLang(split.front());
+    if (m_impl->lang == NoLang)
         return false;
 
     QList<QByteArray> unresolvedInputs;
@@ -102,8 +107,13 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
         if (prevopt != '\0') {
             switch (prevopt) {
             case 'x':
-                if (!strcmp(cur, "c-header") || !strcmp(cur, "c++-header"))
+                if (!strcmp(cur, "c-header")) {
                     m_impl->type = Pch;
+                    Q_ASSERT(m_impl->lang == C);
+                } else if (!strcmp(cur, "c++-header")) {
+                    m_impl->type = Pch;
+                    Q_ASSERT(m_impl->lang == CPlusPlus);
+                }
                 m_impl->clangArgs.append("-x");
                 m_impl->clangArgs.append(cur);
                 break;
@@ -154,7 +164,7 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
                     else
                         qWarning("-I %s could not be resolved", cur + 2);
                 }
-                else if (m_impl->type == Unknown && !strcmp(cur, "-c"))
+                else if (m_impl->type == NoType && !strcmp(cur, "-c"))
                     m_impl->type = Compile;
             }
         } else { // input file?
@@ -166,7 +176,7 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
         }
     }
 
-    if (m_impl->type == Unknown)
+    if (m_impl->type == NoType)
         return false;
 
     if (m_impl->inputFiles.isEmpty()) {
@@ -190,6 +200,11 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
 GccArguments::Type GccArguments::type() const
 {
     return m_impl->type;
+}
+
+GccArguments::Lang GccArguments::lang() const
+{
+    return m_impl->lang;
 }
 
 QList<QByteArray> GccArguments::clangArgs() const
