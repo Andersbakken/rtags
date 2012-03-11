@@ -295,8 +295,11 @@ inline bool UnitCache::recheckPch(const QList<QByteArray>& arguments, UnitData* 
         Resource resource(pchFile);
         QList<QByteArray> pchArgs = resource.read<QList<QByteArray> >(Resource::Information);
         pchArgs.removeFirst(); // filename
-        if (loadUnit(pchFile, pchArgs, data) && saveUnit(data, &resource, pchArgs))
+        bool errors = true;
+        if (loadUnit(pchFile, pchArgs, data, &errors)) {
+            saveUnit(data, &resource, arguments, errors ? SaveInfo : SaveInfo|SaveAST);
             reread = true;
+        }
         if (data->unit.unit) {
             clang_disposeTranslationUnit(data->unit.unit);
             data->unit.unit = 0;
@@ -378,9 +381,10 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& fileName,
                 bool retry;
                 do {
                     retry = false;
-                    if (loadUnit(fileName, arguments, data)) {
+                    bool errors = false;
+                    if (loadUnit(fileName, arguments, data, &errors)) {
                         arguments.prepend(data->unit.fileName);
-                        saveUnit(data, &resource, arguments);
+                        saveUnit(data, &resource, arguments, errors ? SaveInfo : SaveInfo|SaveAST);
                         // done!
                         return Done;
                     } else {
