@@ -32,8 +32,8 @@ void Client::query(QueryMessage::Type type, const QByteArray& msg, const QHash<P
     m_conn = new Connection(this);
     if (m_conn->connectToHost("localhost", Connection::Port)) {
         QueryMessage message(msg, type, unsavedFiles);
-        m_conn->send(&message);
         connect(m_conn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
+        m_conn->send(&message);
         qApp->exec();
     } else {
         qWarning("Can't connect to host");
