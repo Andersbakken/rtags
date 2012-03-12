@@ -311,7 +311,6 @@ inline bool UnitCache::recheckPch(const QList<QByteArray>& arguments, UnitData* 
         const QByteArray filename = pchArgs.takeFirst();
         bool errors;
         if (loadUnit(pchFile, pchArgs, data, false, &errors)) {
-            pchArgs.prepend(filename);
             if (saveUnit(data, &resource, pchArgs, errors ? SaveInfo : SaveInfo|SaveAST))
                 reread = true;
         }
@@ -372,7 +371,6 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& input,
                     if (resource.exists(Resource::Information)) {
                         arguments = resource.read<QList<QByteArray> >(Resource::Information);
                         removeComments(arguments);
-                        arguments.removeFirst(); // file name
                         mode |= Source;
                         mode &= ~Info;
                     } else {
@@ -386,7 +384,6 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& input,
                     if (resource.exists(Resource::Information)) {
                         arguments = resource.read<QList<QByteArray> >(Resource::Information);
                         removeComments(arguments);
-                        arguments.removeFirst(); // file name
                     } else {
                         return Abort;
                     }
@@ -400,7 +397,6 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& input,
                 do {
                     retry = false;
                     if (loadUnit(input, arguments, data, true, &errors)) {
-                        arguments.prepend(data->unit.fileName);
                         saveUnit(data, &resource, arguments, errors ? SaveInfo : SaveInfo|SaveAST);
                         // done!
                         return Done;
