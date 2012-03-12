@@ -1,5 +1,4 @@
-implement a symbol at current pos which could be used for a dynamic modeline thing for emacs
-rename symbol
-consider adding symbolsize to location .e.g foo has symbol size 3
-
-Bugs:
+rc seg fault when server is down
+make offset optional in rc output
+make rc output context from file (or make emacs do it)
+dependency-job
