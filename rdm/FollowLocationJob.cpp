@@ -97,14 +97,13 @@ void FollowLocationJob::run()
 
     CXFile rfile;
     unsigned int rrow, rcol, roff;
-    clang_getSpellingLocation(loc, &rfile, &rrow, &rcol, &roff);
+    clang_getSpellingLocation(loc, &rfile, &rrow, &rcol, 0);
     CXString unitfn = clang_getFileName(rfile);
 
-    qDebug() << "followed to" << clang_getCString(unitfn) << rrow << rcol << roff;
+    qDebug() << "followed to" << clang_getCString(unitfn) << rrow << rcol;
     QByteArray qfn(Path::resolved(clang_getCString(unitfn)));
     qfn += ":" + QByteArray::number(rrow)
-        + ":" + QByteArray::number(rcol)
-        + ":" + QByteArray::number(roff);
+        + ":" + QByteArray::number(rcol);
 
     clang_disposeString(unitfn);
 

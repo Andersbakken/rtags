@@ -1,4 +1,3 @@
 rc seg fault when server is down
-make offset optional in rc output
 make rc output context from file (or make emacs do it)
 dependency-job
