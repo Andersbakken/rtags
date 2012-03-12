@@ -158,11 +158,9 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
                 if (!strncmp(cur, "-D", 2))
                     m_impl->clangArgs.append(cur);
                 else if (!strncmp(cur, "-I", 2)) {
-                    Path inc = Path::resolved(cur + 2, path, &pathok);
+                    const Path inc = Path::resolved(cur + 2, path, &pathok);
                     if (pathok)
                         m_impl->clangArgs.append("-I" + inc);
-                    else
-                        qWarning("-I %s could not be resolved", cur + 2);
                 }
                 else if (m_impl->type == NoType && !strcmp(cur, "-c"))
                     m_impl->type = Compile;
