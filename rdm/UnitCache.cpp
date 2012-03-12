@@ -252,6 +252,11 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
     } else {
         qWarning("failed to read unit from source: %s", filename.constData());
         qDebug() << args;
+        printf("clang");
+        for (int i=0; i<clangArgs.size(); ++i) {
+            printf(" %s", clangArgs.at(i));
+        }
+        printf(" %s\n", filename.constData());
     }
     return false;
 }
@@ -293,8 +298,9 @@ inline void UnitCache::destroyUnit(UnitData* data)
 
 static inline void removeComments(QList<QByteArray> &lines)
 {
+    QList<QByteArray> old = lines;
     for (int i=lines.size() - 1; i>=0; --i) {
-        if (lines.startsWith("#"))
+        if (lines.at(i).startsWith("#"))
             lines.removeAt(i);
     }
 }
@@ -487,7 +493,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& input,
                 m_data[input] = data;
 
                 data->unit.unit = 0;
-                data->unit.index = clang_createIndex(1, 1);
+                data->unit.index = clang_createIndex(0, 1);
 
                 const UnitStatus status = initUnit(input, output, args, mode, data);
 
@@ -555,6 +561,7 @@ void UnitCache::initFileSystemWatcher(Unit* unit)
 {
     QHash<Path, QSet<QByteArray> > paths;
     clang_getInclusions(unit->unit, findIncludes, &paths);
+    qDebug() << "got paths" << unit->fileName << paths;
     foreach(const QByteArray& pch, unit->pchs) {
         Path p(pch);
         p.resolve();
@@ -569,7 +576,7 @@ void UnitCache::initFileSystemWatcher(Unit* unit)
         QStringList dirs;
         for (QHash<Path, QSet<QByteArray> >::iterator it = paths.begin(); it != paths.end(); ++it) {
             dirs.append(it.key());
-            // qDebug() << "watching" << it.value() << "in" << it.key() << "for" << unit->fileName;
+            qDebug() << "watching" << it.value() << "in" << it.key() << "for" << unit->fileName;
         }
         watcher->paths = paths;
         watcher->addPaths(dirs);
