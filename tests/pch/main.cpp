@@ -1,5 +1,7 @@
+#include "foo.h"
+
 int main(int, char**)
 {
-    foo();
+    // foo();
     return 0;
 }
