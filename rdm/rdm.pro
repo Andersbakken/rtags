@@ -3,7 +3,7 @@
 ######################################################################
 
 TEMPLATE = app
-TARGET = 
+TARGET =
 DEPENDPATH += .
 INCLUDEPATH += . ../3rdparty/leveldb/src/include
 
@@ -26,7 +26,7 @@ SOURCES += \
     FollowLocationJob.cpp \
     MatchJob.cpp \
     RecompileJob.cpp \
-    ReferencesJob.cpp 
+    ReferencesJob.cpp
 
 HEADERS += \
     Compressor.h \
@@ -46,4 +46,4 @@ HEADERS += \
     ReferencesJob.h \
     Tools.h
 
-LIBS += -lclang -lcrypto -L../3rdparty -lleveldb -lz -llzma
+

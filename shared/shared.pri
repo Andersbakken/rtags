@@ -4,8 +4,7 @@ DEPENDPATH += $$PWD $$PWD/messages
 OBJECTS_DIR = .obj
 MOC_DIR = .moc
 
-QT -= gui
-QT += network
+QT = core network
 
 SOURCES += \
     $$PWD/Connection.cpp \
@@ -33,3 +32,7 @@ noinline {
     QMAKE_CXXFLAGS += -fno-inline
     QMAKE_CFLAGS += -fno-inline
 }
+CLANG_LIBS = $(CLANG_ROOT)/lib
+CLANG_INCLUDE = $(CLANG_ROOT)/include
+LIBS += -lclang -lcrypto -L../3rdparty -lleveldb -lz -llzma -L$${CLANG_LIBS} -Wl,-rpath,$${CLANG_LIBS}
+INCLUDEPATH += $${CLANG_INCLUDE}
