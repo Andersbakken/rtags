@@ -26,8 +26,9 @@ Rdm::Rdm(QObject* parent)
 {
 }
 
-bool Rdm::init()
+bool Rdm::init(const QList<QByteArray> &defaultArguments)
 {
+    m_defaultArgs = defaultArguments;
     Compressor::init();
     Messages::init();
     UnitCache::instance();
@@ -133,6 +134,9 @@ void Rdm::handleAddMessage(AddMessage* message)
     case AddMessage::CompileCPlusPlus:
         type = Indexer::CPlusPlus;
         break;
+    default:
+        qWarning("%s: Invalid type %d\n", __FUNCTION__, message->type());
+        return;
     }
     int id = m_indexer->index(type, message->inputFile(), outputfile,
                               message->arguments() + m_defaultArgs + pch(message),

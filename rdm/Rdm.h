@@ -20,7 +20,7 @@ class Rdm : public QObject
     Q_OBJECT
 public:
     Rdm(QObject *parent = 0);
-    bool init();
+    bool init(const QList<QByteArray> &defaultArguments);
 private slots:
     void onNewConnection();
     void onNewMessage(Message* message);

@@ -1,6 +1,11 @@
 #include <QCoreApplication>
+#include <QThread>
+#include <QThreadPool>
 #include "Rdm.h"
 #include <getopt.h>
+#include <QDateTime>
+#include <stdio.h>
+#include <stdlib.h>
 
 void usage(FILE *f)
 {
@@ -13,16 +18,15 @@ void usage(FILE *f)
             "  --thread-count|-j [arg] Spawn this many threads for thread pool\n");
 }
 
-QtMsgHandler oldHandler = 0;
 FILE *logFile = 0;
-void msgHandler(QtMsgType t, const char* str)
+void msgHandler(QtMsgType, const char* str)
 {
     Q_ASSERT(logFile);
-    fprintf(logFile, "%s: %s",
+    fprintf(logFile, "%s: %s\n",
             QDateTime::currentDateTime().toString("dd/MM/yy hh:mm:ss").toLocal8Bit().constData(),
             str);
     fsync(fileno(logFile));
-    oldHandler(t, str);
+    fprintf(stderr, "%s\n", str);
 }
 
 
@@ -68,7 +72,7 @@ int main(int argc, char** argv)
                 qWarning("Can't open %s for writing", optarg);
                 return 1;
             }
-            oldHandler = qInstallMsgHandler(msgHandler);
+            qInstallMsgHandler(msgHandler);
             break;
         case '?':
             usage(stderr);
@@ -79,9 +83,9 @@ int main(int argc, char** argv)
     qDebug("Running with %d jobs\n", jobs);
 
     QCoreApplication app(argc, argv);
-    
+
     Rdm rdm;
-    if (!rdm.init())
+    if (!rdm.init(defaultArguments))
         return 1;
 
     const int ret = app.exec();
