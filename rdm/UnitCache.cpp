@@ -493,7 +493,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& input,
                 m_data[input] = data;
 
                 data->unit.unit = 0;
-                data->unit.index = clang_createIndex(0, 1);
+                data->unit.index = clang_createIndex(1, 1);
 
                 const UnitStatus status = initUnit(input, output, args, mode, data);
 
