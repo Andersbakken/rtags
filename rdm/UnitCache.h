@@ -54,6 +54,7 @@ private slots:
 private:
     UnitCache();
     void initFileSystemWatcher(Unit* unit);
+    void freeFileSystemWatcher(const QByteArray& filename);
 
     QList<Unit*> todo;
 
@@ -69,7 +70,7 @@ private:
     bool removeUnusedUnits(int num);
     bool recheckPch(const QList<QByteArray>& arguments, UnitData* data);
     bool rereadUnit(const QByteArray& hashedFilename, UnitData* data);
-    bool loadUnit(const QByteArray& filename, const QList<QByteArray>& arguments, UnitData* data, bool *errors);
+    bool loadUnit(const QByteArray& filename, const QList<QByteArray>& arguments, UnitData* data, bool initWatcher, bool *errors);
     enum SaveMode {
         SaveAST = 0x1,
         SaveInfo = 0x2

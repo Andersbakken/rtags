@@ -52,7 +52,6 @@ public:
     {
         m_mutex->lock();
     }
-
 private:
     QMutex* m_mutex;
 };
@@ -132,7 +131,7 @@ UnitCache::~UnitCache()
     foreach(UnitData* data, m_data) {
         data->ref = 0;
         data->owner = 0;
-        cleanup(data);
+        destroyUnit(data);
     }
 }
 
@@ -141,16 +140,6 @@ UnitCache* UnitCache::instance()
     if (!s_inst)
         s_inst = new UnitCache;
     return s_inst;
-}
-
-inline void UnitCache::cleanup(UnitData* data)
-{
-    Q_ASSERT(data);
-    Q_ASSERT(!data->owner);
-    Q_ASSERT(!data->ref);
-    clang_disposeTranslationUnit(data->unit.unit);
-    clang_disposeIndex(data->unit.index);
-    delete data;
 }
 
 bool UnitCache::removeUnusedUnits(int num)
@@ -179,7 +168,7 @@ bool UnitCache::removeUnusedUnits(int num)
                 done = true;
                 break;
             }
-            cleanup(m_data.value(entry));
+            destroyUnit(m_data.value(entry));
             m_data.remove(entry);
             ++i;
         }
@@ -199,6 +188,7 @@ inline bool UnitCache::rereadUnit(const QByteArray& hashedFilename,
     if (data->unit.unit) {
         data->unit.file = clang_getFile(data->unit.unit, data->unit.fileName.constData());
         data->unit.origin = AST;
+        QMutexLocker locker(&m_dataMutex);
         initFileSystemWatcher(&data->unit);
         return true;
     } else {
@@ -211,6 +201,7 @@ inline bool UnitCache::rereadUnit(const QByteArray& hashedFilename,
 inline bool UnitCache::loadUnit(const QByteArray& filename,
                                 const QList<QByteArray>& arguments,
                                 UnitData* data,
+                                bool initWatcher,
                                 bool *errors)
 {
     if (errors)
@@ -228,7 +219,10 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
     if (data->unit.unit) {
         data->unit.file = clang_getFile(data->unit.unit, filename.constData());
         data->unit.origin = Source;
-        initFileSystemWatcher(&data->unit);
+        if (initWatcher) {
+            QMutexLocker locker(&m_dataMutex);
+            initFileSystemWatcher(&data->unit);
+        }
         if (errors) {
             unsigned int diagCount = clang_getNumDiagnostics(data->unit.unit);
             for (unsigned int i = 0; i < diagCount; ++i) {
@@ -290,8 +284,10 @@ inline bool UnitCache::saveUnit(UnitData* data,
 
 inline void UnitCache::destroyUnit(UnitData* data)
 {
-    if (data->unit.unit)
+    if (data->unit.unit) {
         clang_disposeTranslationUnit(data->unit.unit);
+        freeFileSystemWatcher(data->unit.fileName);
+    }
     clang_disposeIndex(data->unit.index);
 }
 
@@ -314,7 +310,7 @@ inline bool UnitCache::recheckPch(const QList<QByteArray>& arguments, UnitData* 
         removeComments(pchArgs);
         const QByteArray filename = pchArgs.takeFirst();
         bool errors;
-        if (loadUnit(pchFile, pchArgs, data, &errors)) {
+        if (loadUnit(pchFile, pchArgs, data, false, &errors)) {
             pchArgs.prepend(filename);
             if (saveUnit(data, &resource, pchArgs, errors ? SaveInfo : SaveInfo|SaveAST))
                 reread = true;
@@ -396,14 +392,14 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& input,
                     }
                 }
                 bool errors;
-                if (loadUnit(input, arguments, data, &errors)) {
+                if (loadUnit(input, arguments, data, true, &errors)) {
                     saveUnit(data, &resource, arguments, errors ? SaveInfo : SaveInfo|SaveAST);
                     return Done;
                 }
                 bool retry;
                 do {
                     retry = false;
-                    if (loadUnit(input, arguments, data, &errors)) {
+                    if (loadUnit(input, arguments, data, true, &errors)) {
                         arguments.prepend(data->unit.fileName);
                         saveUnit(data, &resource, arguments, errors ? SaveInfo : SaveInfo|SaveAST);
                         // done!
@@ -559,7 +555,7 @@ static void findIncludes(CXFile includedFile, CXSourceLocation*, unsigned, CXCli
     clang_disposeString(fn);
 }
 
-void UnitCache::initFileSystemWatcher(Unit* unit) // always called with m_dataMutex held
+void UnitCache::initFileSystemWatcher(Unit* unit)
 {
     QHash<Path, QSet<QByteArray> > paths;
     clang_getInclusions(unit->unit, findIncludes, &paths);
@@ -585,6 +581,13 @@ void UnitCache::initFileSystemWatcher(Unit* unit) // always called with m_dataMu
                 this, SLOT(onDirectoryChanged(QString)));
     }
     delete old;
+}
+
+void UnitCache::freeFileSystemWatcher(const QByteArray& filename) // always called with m_dataMutex held
+{
+    FileSystemWatcher* watcher = m_watchers.take(filename);
+    Q_ASSERT(watcher);
+    delete watcher;
 }
 
 void UnitCache::onDirectoryChanged(const QString &directory)
