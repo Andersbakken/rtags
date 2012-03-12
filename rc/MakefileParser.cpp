@@ -130,6 +130,7 @@ bool MakefileParser::isDone() const
 
 void MakefileParser::processMakeOutput()
 {
+    Q_ASSERT(mProc);
     mData += mProc->readAllStandardOutput();
     int nextNewline = mData.indexOf('\n');
     while (nextNewline != -1) {
