@@ -20,7 +20,10 @@ class Rdm : public QObject
     Q_OBJECT
 public:
     Rdm(QObject *parent = 0);
-    bool init(const QList<QByteArray> &defaultArguments);
+    enum Option {
+        NoOptions = 0x0
+    };
+    bool init(unsigned options, const QList<QByteArray> &defaultArguments);
 private slots:
     void onNewConnection();
     void onNewMessage(Message* message);
@@ -34,6 +37,7 @@ private:
     void handleErrorMessage(ErrorMessage* message);
 
 private:
+    unsigned m_options;
     Indexer* m_indexer;
     Database* m_db;
     QTcpServer* m_server;

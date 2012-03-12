@@ -6,9 +6,6 @@ TEMPLATE = app
 TARGET =
 DEPENDPATH += .
 INCLUDEPATH += . ../3rdparty/leveldb/src/include
-CLANG_RUNTIME_INCLUDE = $(CLANG_ROOT)/lib/clang/$(CLANG_VERSION)/include
-DEFINES+="CLANG_RUNTIME_INCLUDE=\\\"$${CLANG_RUNTIME_INCLUDE}\\\""
-
 include(../shared/shared.pri)
 
 # Input

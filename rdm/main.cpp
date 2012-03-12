@@ -42,10 +42,11 @@ int main(int argc, char** argv)
     };
 
     int jobs = QThread::idealThreadCount();
-
+    unsigned options = 0;
     QList<QByteArray> defaultArguments;
+
     forever {
-        const int c = getopt_long(argc, argv, "hI:i:l:j:", opts, 0);
+        const int c = getopt_long(argc, argv, "hI:i:l:j:n", opts, 0);
         if (c == -1)
             break;
         switch (c) {
@@ -85,7 +86,7 @@ int main(int argc, char** argv)
     QCoreApplication app(argc, argv);
 
     Rdm rdm;
-    if (!rdm.init(defaultArguments))
+    if (!rdm.init(options, defaultArguments))
         return 1;
 
     const int ret = app.exec();

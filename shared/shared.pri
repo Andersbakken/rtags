@@ -36,3 +36,5 @@ CLANG_LIBS = $(CLANG_ROOT)/lib
 CLANG_INCLUDE = $(CLANG_ROOT)/include
 LIBS += -lclang -lcrypto -L../3rdparty -lleveldb -lz -llzma -L$${CLANG_LIBS} -Wl,-rpath,$${CLANG_LIBS}
 INCLUDEPATH += $${CLANG_INCLUDE}
+CLANG_RUNTIME_INCLUDE = $(CLANG_ROOT)/lib/clang/$(CLANG_VERSION)/include
+DEFINES+="CLANG_RUNTIME_INCLUDE=\\\"$${CLANG_RUNTIME_INCLUDE}\\\""

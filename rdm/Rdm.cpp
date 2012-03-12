@@ -26,8 +26,9 @@ Rdm::Rdm(QObject* parent)
 {
 }
 
-bool Rdm::init(const QList<QByteArray> &defaultArguments)
+bool Rdm::init(unsigned options, const QList<QByteArray> &defaultArguments)
 {
+    m_options = options;
     m_defaultArgs = defaultArguments;
     Compressor::init();
     Messages::init();
