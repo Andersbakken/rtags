@@ -2,6 +2,7 @@
 #include "Resource.h"
 #include "Indexer.h"
 #include "Path.h"
+#include "Shared.h"
 #include <QMutexLocker>
 #include <QThread>
 #include <QVector>
@@ -27,8 +28,9 @@ protected:
         CachedUnit* unit = new CachedUnit(fileName, UnitCache::Memory);
         if (unit->unit()) {
             qDebug() << "got unit for" << fileName << "recompiling...";
+            int mode = UnitCache::Source | UnitCache::Info;
             delete unit;
-            unit = new CachedUnit(fileName, UnitCache::Source | UnitCache::Info);
+            unit = new CachedUnit(fileName, mode);
             qDebug() << "recompiled" << fileName;
         } else {
             qDebug() << "no unit for" << fileName;
@@ -109,9 +111,7 @@ static inline QList<QByteArray> hashedPch(const QList<QByteArray>& args, QList<Q
             resource.setFileName(arg, Resource::NoLock);
             out.append(resource.hashedFileName(Resource::AST));
             if (pchs) {
-                const int pchidx = arg.lastIndexOf("/pch-");
-                if (pchidx != -1)
-                    pchs->append(arg.left(pchidx));
+                pchs->append(arg);
             }
             continue;
         }
@@ -424,6 +424,43 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& input,
     return Abort;
 }
 
+class MaybeLocker
+{
+public:
+    MaybeLocker(QMutex *mutex)
+        : m_mutex(mutex), m_locked(false)
+    {
+        relock();
+    }
+    ~MaybeLocker()
+    {
+        if (m_locked)
+            unlock();
+    }
+
+    void relock()
+    {
+        if (m_mutex) {
+            Q_ASSERT(!m_locked);
+            m_mutex->lock();
+            m_locked = true;
+        }
+
+    }
+
+    void unlock()
+    {
+        if (m_mutex) {
+            Q_ASSERT(m_locked);
+            m_mutex->unlock();
+            m_locked = false;
+        }
+    }
+private:
+    QMutex *m_mutex;
+    bool m_locked;
+};
+
 UnitCache::Unit* UnitCache::createUnit(const QByteArray& input,
                                        const QByteArray& output,
                                        const QList<QByteArray>& args,
@@ -432,7 +469,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& input,
     if (!mode)
         return 0;
 
-    QMutexLocker locker(&m_dataMutex);
+    MaybeLocker lock(mode & NoLock ? 0 : &m_dataMutex);
     for (;;) {
         const QHash<QByteArray, UnitData*>::iterator it = m_data.find(input);
         if (it != m_data.end()) {
@@ -443,6 +480,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& input,
                     it.value()->owner = QThread::currentThread();
                     ++it.value()->ref;
                     it.value()->unit.visited = QDateTime::currentDateTime();
+
                     return &it.value()->unit;
                 }
                 if (mode == Memory) {
@@ -490,10 +528,11 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& input,
                 data->owner = QThread::currentThread();
                 data->unit.visited = QDateTime::currentDateTime();
                 data->unit.fileName = input;
+                data->unit.precompile = (mode & Precompile);
                 m_data[input] = data;
 
                 data->unit.unit = 0;
-                data->unit.index = clang_createIndex(1, 1);
+                data->unit.index = clang_createIndex(0, 1);
 
                 const UnitStatus status = initUnit(input, output, args, mode, data);
 
@@ -544,41 +583,69 @@ void CachedUnit::adopt(UnitCache::Unit* unit)
         m_unit = 0;
 }
 
-static void findIncludes(CXFile includedFile, CXSourceLocation*, unsigned, CXClientData userData)
+struct FindIncludesUserData {
+    QByteArray path;
+    QHash<Path, QSet<QByteArray> > paths;
+};
+static void findIncludes(CXFile includedFile, CXSourceLocation* stack, unsigned stackSize, CXClientData userData)
 {
+    Q_UNUSED(stack);
+    Q_UNUSED(stackSize);
     CXString fn = clang_getFileName(includedFile);
     const char *cstr = clang_getCString(fn);
+    FindIncludesUserData *u = reinterpret_cast<FindIncludesUserData*>(userData);
     if (strncmp(cstr, "/usr/", 5)) {
-        QHash<Path, QSet<QByteArray> > &paths = *reinterpret_cast<QHash<Path, QSet<QByteArray> > *>(userData);
+        QHash<Path, QSet<QByteArray> > &paths = u->paths;
         Path p(cstr);
         p.resolve();
         paths[p.parentDir()].insert(p.fileName());
     }
+    qDebug("%s for %s", cstr, u->path.constData());
+    // for (unsigned i=0; i<stackSize; ++i) {
+    //     CXFile f;
+    //     unsigned l, c;
+    //     clang_getSpellingLocation(stack[i], &f, &l, &c, 0);
+    //     qDebug("%s:%d:%d (%d) for %s", eatString(clang_getFileName(f)).constData(), l, c, stackSize, u->path.constData());
+    // }
+
     clang_disposeString(fn);
 }
 
 void UnitCache::initFileSystemWatcher(Unit* unit)
 {
-    QHash<Path, QSet<QByteArray> > paths;
-    clang_getInclusions(unit->unit, findIncludes, &paths);
-    qDebug() << "got paths" << unit->fileName << paths;
+
+    FindIncludesUserData u = { unit->fileName, QHash<Path, QSet<QByteArray> >() };
+    clang_getInclusions(unit->unit, findIncludes, &u);
     foreach(const QByteArray& pch, unit->pchs) {
         Path p(pch);
-        p.resolve();
-        paths[p.parentDir()].insert(p.fileName());
+        Resource resource(pch);
+        const QByteArray ast = resource.hashedFileName(Resource::AST);
+        // CachedUnit
+        CachedUnit pchUnit(ast, UnitCache::NoLock|UnitCache::Memory|UnitCache::AST);
+        // CXTranslationUnit pchUnit = clang_createTranslationUnit(unit->index, ast.constData());
+        // ### is there a race here?
+        qDebug() << "Trying to get load pch ast" << ast << pchUnit.unit() << p;
+        if (pchUnit.unit()) {
+            u.path = ast;
+            clang_getInclusions(pchUnit.unit()->unit, findIncludes, &u);
+        } else {
+            qWarning("Failed to load pch unit %s for %s", p.constData(), unit->fileName.constData());
+        }
+        u.paths[p.parentDir()].insert(p.fileName());
     }
+    qDebug() << "got paths" << unit->fileName << u.paths << "pchs" << unit->pchs;
     // qDebug() << paths.keys();
     FileSystemWatcher *old = m_watchers.take(unit->fileName);
-    if (!paths.isEmpty()) {
+    if (!u.paths.isEmpty()) {
         FileSystemWatcher* watcher = new FileSystemWatcher(unit->fileName);
         watcher->moveToThread(thread());
         m_watchers[unit->fileName] = watcher;
         QStringList dirs;
-        for (QHash<Path, QSet<QByteArray> >::iterator it = paths.begin(); it != paths.end(); ++it) {
+        for (QHash<Path, QSet<QByteArray> >::iterator it = u.paths.begin(); it != u.paths.end(); ++it) {
             dirs.append(it.key());
             qDebug() << "watching" << it.value() << "in" << it.key() << "for" << unit->fileName;
         }
-        watcher->paths = paths;
+        watcher->paths = u.paths;
         watcher->addPaths(dirs);
         connect(watcher, SIGNAL(directoryChanged(QString)),
                 this, SLOT(onDirectoryChanged(QString)));

@@ -48,6 +48,7 @@ bool Rdm::init(const QList<QByteArray> &defaultArguments)
     if (p.isDir())
         m_defaultArgs.append("-I" + p);
 #endif
+    qDebug() << "running with" << m_defaultArgs;
     return true;
 }
 
@@ -106,16 +107,18 @@ void Rdm::onNewMessage(Message* message)
 static inline QList<QByteArray> pch(const AddMessage* message)
 {
     QList<QByteArray> out;
-    foreach(QByteArray arg, message->pchs()) {
-        if (arg.isEmpty())
-            continue;
-        out.append("-include-pch");
-        if (message->type() == AddMessage::CompileC
-            || message->type() == AddMessage::PchC)
-            arg += "/pch-c";
-        else
-            arg += "/pch-c++";
-        out.append(arg);
+    foreach(const QByteArray &arg, message->pchs()) {
+        if (!arg.isEmpty()) {
+            switch (message->type()) {
+            case AddMessage::CompileCPlusPlus:
+            case AddMessage::PchCPlusPlus:
+                out.append("-include-pch");
+                out.append(arg);
+                break;
+            default:
+                break;
+            }
+        }
     }
     return out;
 }
@@ -128,14 +131,12 @@ void Rdm::handleAddMessage(AddMessage* message)
     Indexer::Type type;
     switch (message->type()) {
     case AddMessage::PchC:
-        outputfile += "/pch-c";
-        // fall through
+        qWarning() << "Ignoring pch c file";
+        return;
     case AddMessage::CompileC:
         type = Indexer::C;
         break;
     case AddMessage::PchCPlusPlus:
-        outputfile += "/pch-c++";
-        // fall through
     case AddMessage::CompileCPlusPlus:
         type = Indexer::CPlusPlus;
         break;

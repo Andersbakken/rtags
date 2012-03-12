@@ -349,11 +349,7 @@ void IndexerJob::run()
     }
 
     // ### hack for now
-    QByteArray out = m_in;
-    if (m_out.endsWith("/pch-c")
-        || m_out.endsWith("/pch-c++"))
-        out = m_out;
-    CachedUnit unit(m_in, out, m_args, unitMode);
+    CachedUnit unit(m_in, m_in, m_args, unitMode);
 
     if (unit.unit()) {
         qDebug() << "parsing" << m_in << unit.unit()->fileName;

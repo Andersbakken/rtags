@@ -22,7 +22,15 @@ class UnitCache : public QObject
     Q_OBJECT
 public:
     // AST implies Info
-    enum LoadMode { None = 0x0, Info = 0x1, Source = 0x2, AST = 0x4, Memory = 0x8 };
+    enum LoadFlag {
+        None = 0x00,
+        Info = 0x01,
+        Source = 0x02,
+        AST = 0x04,
+        Memory = 0x08,
+        NoLock = 0x10,
+        Precompile = 0x20
+    };
 
     ~UnitCache();
 
@@ -31,15 +39,16 @@ public:
     struct Unit
     {
         Unit()
-            : origin(None), index(0), file(0), unit(0)
+            : origin(None), index(0), file(0), unit(0), precompile(false)
         {}
-        LoadMode origin;
+        LoadFlag origin;
         QByteArray fileName;
         CXIndex index;
         CXFile file;
         CXTranslationUnit unit;
         QDateTime visited;
         QList<QByteArray> pchs;
+        bool precompile;
     };
 
     Unit* acquire(const QByteArray& filename, int mode = AST | Memory);
