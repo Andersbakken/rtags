@@ -17,11 +17,16 @@
 
 #define ASTPATH "/tmp/rdm"
 
-Rdm::Rdm(int& argc, char**& argv, QObject* parent)
+Rdm::Rdm(QObject* parent)
     : QObject(parent),
       m_indexer(new Indexer(ASTPATH, this)),
       m_db(new Database(this)),
-      m_server(new QTcpServer(this))
+      m_server(new QTcpServer(this)),
+      m_verbose(false)
+{
+}
+
+bool Rdm::init()
 {
     Compressor::init();
     Messages::init();
@@ -29,33 +34,15 @@ Rdm::Rdm(int& argc, char**& argv, QObject* parent)
     Resource::setBaseDirectory(ASTPATH);
     Database::setBaseDirectory(ASTPATH);
 
-    int jobs = QThread::idealThreadCount();
-
-    for (int i = 0; i < argc; ++i) {
-        if (!strncmp(argv[i], "-I", 2))
-            m_defaultArgs.append(argv[i]);
-        else if (!strncmp(argv[i], "-j", 2)) {
-            QByteArray ba(argv[i] + 2);
-            bool ok;
-            int newjobs = ba.toInt(&ok);
-            if (ok)
-                jobs = newjobs;
-        } else if (!strcmp(argv[i], "-include")
-                   && i + 1 < argc) {
-            m_defaultArgs.append(argv[i]);
-            m_defaultArgs.append(argv[++i]);
-        }
+    if (!m_server->listen(QHostAddress::Any, Connection::Port)) {
+        qWarning("Unable to listen to port %d", Connection::Port);
+        return false;
     }
-
-    QThreadPool::globalInstance()->setMaxThreadCount(jobs);
-    printf("Running with %d jobs\n", jobs);
-
-    if (!m_server->listen(QHostAddress::Any, Connection::Port))
-        qFatal("Unable to listen to port %d", Connection::Port);
     connect(m_server, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
     connect(m_indexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
     connect(m_db, SIGNAL(complete(int, const QList<QByteArray>&)),
             this, SLOT(onDatabaseComplete(int, const QList<QByteArray>&)));
+    return true;
 }
 
 void Rdm::onNewConnection()

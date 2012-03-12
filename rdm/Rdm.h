@@ -19,8 +19,8 @@ class Rdm : public QObject
 {
     Q_OBJECT
 public:
-    Rdm(int& argc, char**& argv, QObject* parent = 0);
-
+    Rdm(QObject *parent = 0);
+    bool init();
 private slots:
     void onNewConnection();
     void onNewMessage(Message* message);
@@ -40,6 +40,7 @@ private:
     QHash<int, Connection*> m_pendingIndexes;
     QHash<int, Connection*> m_pendingLookups;
     QList<QByteArray> m_defaultArgs;
+    bool m_verbose;
 };
 
 #endif

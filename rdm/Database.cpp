@@ -109,7 +109,6 @@ int DatabaseImpl::match(const QByteArray& partial)
 
 int DatabaseImpl::dump(const QByteArray& partial)
 {
-    printf("%s:%d %s\n", __FILE__, __LINE__, __FUNCTION__);
     const int id = ++lastJobId;
 
     qDebug() << "dump" << partial;
