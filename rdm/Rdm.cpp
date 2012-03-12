@@ -43,6 +43,11 @@ bool Rdm::init(const QList<QByteArray> &defaultArguments)
     connect(m_indexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
     connect(m_db, SIGNAL(complete(int, const QList<QByteArray>&)),
             this, SLOT(onDatabaseComplete(int, const QList<QByteArray>&)));
+#ifdef CLANG_RUNTIME_INCLUDE
+    const Path p(CLANG_RUNTIME_INCLUDE);
+    if (p.isDir())
+        m_defaultArgs.append("-I" + p);
+#endif
     return true;
 }
 
