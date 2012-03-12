@@ -251,12 +251,12 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
         return true;
     } else {
         qWarning("failed to read unit from source: %s", filename.constData());
-        qDebug() << args;
-        printf("clang");
+        QByteArray clang = "clang ";
         for (int i=0; i<clangArgs.size(); ++i) {
-            printf(" %s", clangArgs.at(i));
+            clang += clangArgs.at(i);
+            clang += ' ';
         }
-        printf(" %s\n", filename.constData());
+        qDebug("%s%s\n", clang.constData(), filename.constData());
     }
     return false;
 }
