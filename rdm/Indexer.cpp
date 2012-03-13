@@ -7,6 +7,7 @@
 #include "leveldb/write_batch.h"
 #include <QElapsedTimer>
 #include <QHash>
+#include <QThread>
 #include <QThreadPool>
 #include <QRunnable>
 #include <QWaitCondition>
@@ -23,39 +24,78 @@ class IndexerJob;
 
 typedef QHash<QByteArray, QSet<QByteArray> > HashSet;
 
-class IndexerImpl
+class IndexerSyncer : public QThread
 {
 public:
-    int jobCounter;
-    void syncData(QMutex* mutex, HashSet& data, Database::Type type);
+    IndexerSyncer(QObject* parent = 0);
 
-    QMutex implMutex;
-    QWaitCondition implCond;
-    QSet<QByteArray> indexing;
+    void addSet(Database::Type type, const HashSet& set);
+    void notify();
+    void stop();
 
-    QByteArray path;
-    int lastJobId;
-    QHash<int, IndexerJob*> jobs;
+protected:
+    void run();
 
-    QMutex incMutex;
-    HashSet incs;
+private:
+    void unite(HashSet& set, const HashSet& other);
+    void writeSet(Database::Type type, HashSet& data);
 
-    QMutex defMutex;
-    HashSet defs;
-
-    QMutex refMutex;
-    HashSet refs;
-
-    QMutex symMutex;
-    HashSet syms;
-
-    bool timerRunning;
-    QElapsedTimer timer;
+private:
+    bool stopped;
+    QMutex mutex;
+    QWaitCondition cond;
+    HashSet incs, defs, refs, syms;
 };
 
-void IndexerImpl::syncData(QMutex* mutex,
-                           HashSet& data,
-                           Database::Type type)
+IndexerSyncer::IndexerSyncer(QObject* parent)
+    : QThread(parent), stopped(false)
+{
+}
+
+inline void IndexerSyncer::unite(HashSet& set, const HashSet& other)
+{
+    HashSet::const_iterator it = other.begin();
+    const HashSet::const_iterator end = other.end();
+    while (it != end) {
+        set[it.key()].unite(other.value(it.key()));
+        ++it;
+    }
+}
+
+void IndexerSyncer::stop()
+{
+    QMutexLocker locker(&mutex);
+    stopped = true;
+    cond.wakeOne();
+}
+
+void IndexerSyncer::notify()
+{
+    QMutexLocker locker(&mutex); // is this needed here?
+    cond.wakeOne();
+}
+
+void IndexerSyncer::addSet(Database::Type type, const HashSet& set)
+{
+    QMutexLocker locker(&mutex);
+    switch (type) {
+    case Database::Include:
+        unite(incs, set);
+        break;
+    case Database::Definition:
+        unite(defs, set);
+        break;
+    case Database::Reference:
+        unite(refs, set);
+        break;
+    case Database::Symbol:
+        unite(syms, set);
+        break;
+    }
+    //cond.wakeOne();
+}
+
+void IndexerSyncer::writeSet(Database::Type type, HashSet& data)
 {
     leveldb::DB* db = 0;
     leveldb::Options options;
@@ -68,8 +108,6 @@ void IndexerImpl::syncData(QMutex* mutex,
     if (!status.ok())
         return;
     Q_ASSERT(db);
-
-    QMutexLocker locker(mutex);
 
     leveldb::WriteBatch batch;
     const leveldb::ReadOptions readopts;
@@ -110,6 +148,50 @@ void IndexerImpl::syncData(QMutex* mutex,
     db->Write(leveldb::WriteOptions(), &batch);
     delete db;
 }
+
+void IndexerSyncer::run()
+{
+    QMutexLocker locker(&mutex);
+    while (!stopped) {
+        cond.wait(&mutex, 10000);
+        qDebug() << "syncing";
+        if (!incs.isEmpty()) {
+            writeSet(Database::Include, incs);
+        }
+        if (!defs.isEmpty()) {
+            writeSet(Database::Definition, defs);
+        }
+        if (!refs.isEmpty()) {
+            writeSet(Database::Reference, refs);
+        }
+        if (!syms.isEmpty()) {
+            writeSet(Database::Symbol, syms);
+        }
+        qDebug() << "synced";
+    }
+}
+
+class IndexerImpl
+{
+public:
+    int jobCounter;
+
+    QMutex implMutex;
+    QWaitCondition implCond;
+    QSet<QByteArray> indexing;
+
+    QByteArray path;
+    int lastJobId;
+    QHash<int, IndexerJob*> jobs;
+
+    IndexerSyncer* syncer;
+
+    QMutex incMutex;
+    HashSet incs;
+
+    bool timerRunning;
+    QElapsedTimer timer;
+};
 
 class IndexerJob : public QObject, public QRunnable
 {
@@ -379,15 +461,14 @@ void IndexerJob::run()
             clang_visitChildren(clang_getTranslationUnitCursor(tu), indexVisitor, this);
             addFileNameSymbol(unit.unit()->fileName);
 
-            QMutexLocker deflocker(&m_impl->defMutex);
-            uniteSets(m_impl->defs, m_defs);
-            deflocker.unlock();
-            QMutexLocker reflocker(&m_impl->refMutex);
-            uniteSets(m_impl->refs, m_refs);
-            reflocker.unlock();
-            QMutexLocker symlocker(&m_impl->symMutex);
-            uniteSets(m_impl->syms, m_syms);
-            symlocker.unlock();
+            m_impl->syncer->addSet(Database::Definition, m_defs);
+            m_defs.clear();
+
+            m_impl->syncer->addSet(Database::Reference, m_refs);
+            m_refs.clear();
+
+            m_impl->syncer->addSet(Database::Symbol, m_syms);
+            m_syms.clear();
         }
     } else {
         qDebug() << "got 0 unit for" << m_in;
@@ -411,6 +492,8 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
     m_impl->lastJobId = 0;
     m_impl->path = path;
     m_impl->timerRunning = false;
+    m_impl->syncer = new IndexerSyncer(this);
+    m_impl->syncer->start();
 
     s_inst = this;
 }
@@ -418,6 +501,8 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
 Indexer::~Indexer()
 {
     s_inst = 0;
+    m_impl->syncer->stop();
+    m_impl->syncer->wait();
 
     delete m_impl;
 }
@@ -469,15 +554,16 @@ void Indexer::jobDone(int id, const QByteArray& input, const QByteArray& output)
     ++m_impl->jobCounter;
 
     if (m_impl->jobs.isEmpty() || m_impl->jobCounter == SYNCINTERVAL) {
-        qDebug() << "syncing";
-        m_impl->syncData(&m_impl->incMutex, m_impl->incs, Database::Include);
-        m_impl->syncData(&m_impl->defMutex, m_impl->defs, Database::Definition);
-        m_impl->syncData(&m_impl->refMutex, m_impl->refs, Database::Reference);
-        m_impl->syncData(&m_impl->symMutex, m_impl->syms, Database::Symbol);
-        qDebug() << "synced";
+        {
+            QMutexLocker inclocker(&m_impl->incMutex);
+            m_impl->syncer->addSet(Database::Include, m_impl->incs);
+            m_impl->incs.clear();
+        }
         m_impl->jobCounter = 0;
 
         if (m_impl->jobs.isEmpty()) {
+            m_impl->syncer->notify();
+
             Q_ASSERT(m_impl->timerRunning);
             m_impl->timerRunning = false;
             qDebug() << "jobs took" << m_impl->timer.elapsed() << "ms";
