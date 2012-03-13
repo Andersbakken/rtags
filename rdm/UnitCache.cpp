@@ -24,16 +24,16 @@ public:
 protected:
     void run()
     {
-        qDebug() << "acquiring" << fileName << "from memory";
+        log(1) << "acquiring" << fileName << "from memory";
         CachedUnit* unit = new CachedUnit(fileName, UnitCache::Memory);
         if (unit->unit()) {
-            qDebug() << "got unit for" << fileName << "recompiling...";
+            log(1) << "got unit for" << fileName << "recompiling...";
             int mode = UnitCache::Source | UnitCache::Info;
             delete unit;
             unit = new CachedUnit(fileName, mode);
-            qDebug() << "recompiled" << fileName;
+            log(1) << "recompiled" << fileName;
         } else {
-            qDebug() << "no unit for" << fileName;
+            log(1) << "no unit for" << fileName;
         }
         delete unit;
     }
@@ -192,8 +192,8 @@ inline bool UnitCache::rereadUnit(const QByteArray& hashedFilename,
         initFileSystemWatcher(&data->unit);
         return true;
     } else {
-        qDebug("failed to read unit from AST: %s (as %s)",
-               data->unit.fileName.constData(), hashedFilename.constData());
+        log("failed to read unit from AST: %s (as %s)",
+            data->unit.fileName.constData(), hashedFilename.constData());
     }
     return false;
 }
@@ -215,8 +215,8 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
         clangLine += " ";
     }
     clangLine += filename;
-    qDebug() << "loading unit" << data->unit.fileName << filename << args
-             << clangLine;
+    log(1) << "loading unit" << data->unit.fileName << filename << args
+           << clangLine;
 
     data->unit.unit = clang_parseTranslationUnit(data->unit.index, filename.constData(),
                                                  clangArgs.data(), clangArgs.size(),
@@ -253,31 +253,33 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
                 CXFile f;
                 unsigned l, c;
                 clang_getSpellingLocation(loc, &f, &l, &c, 0);
-                qDebug("%s:%d:%d for %s", eatString(clang_getFileName(f)).constData(), l, c, data->unit.fileName.constData());
+                log(1, "%s:%d:%d for %s",
+                    eatString(clang_getFileName(f)).constData(),
+                    l, c, data->unit.fileName.constData());
 
 
                 clang_disposeString(msg);
                 clang_disposeDiagnostic(diag);
             }
             if (*errors) {
-                qWarning("got errors from source: %s", filename.constData());
+                log("got errors from source: %s", filename.constData());
                 QByteArray clang = "clang ";
                 for (int i=0; i<clangArgs.size(); ++i) {
                     clang += clangArgs.at(i);
                     clang += ' ';
                 }
-                qDebug("%s%s\n", clang.constData(), filename.constData());
+                log("%s%s\n", clang.constData(), filename.constData());
             }
         }
         return true;
     } else {
-        qWarning("failed to read unit from source: %s", filename.constData());
+        log("failed to read unit from source: %s", filename.constData());
         QByteArray clang = "clang ";
         for (int i=0; i<clangArgs.size(); ++i) {
             clang += clangArgs.at(i);
             clang += ' ';
         }
-        qDebug("%s%s\n", clang.constData(), filename.constData());
+        log("%s%s\n", clang.constData(), filename.constData());
     }
     return false;
 }
@@ -299,13 +301,13 @@ inline bool UnitCache::saveUnit(UnitData* data,
             printDiagnostic(data->unit.unit, "save (1)");
             ok = false;
         } else {
-            qDebug() << "successfully saved" << hashedFilename;
+            log(1) << "successfully saved" << hashedFilename;
         }
     }
     if (flags & SaveInfo) {
         resource->write(Resource::Information, (QList<QByteArray>() << "# " + data->unit.fileName) + arguments,
                         Resource::Truncate);
-        qDebug() << "wrote inf file for" << data->unit.fileName << arguments;
+        log(1) << "wrote inf file for" << data->unit.fileName << arguments;
     }
     return ok;
 }
@@ -626,12 +628,12 @@ static void findIncludes(CXFile includedFile, CXSourceLocation* stack, unsigned 
         p.resolve();
         paths[p.parentDir()].insert(p.fileName());
     }
-    // qDebug("%s for %s", cstr, u->path.constData());
+    // log(1, "%s for %s", cstr, u->path.constData());
     // for (unsigned i=0; i<stackSize; ++i) {
     //     CXFile f;
     //     unsigned l, c;
     //     clang_getSpellingLocation(stack[i], &f, &l, &c, 0);
-    //     qDebug("%s:%d:%d (%d) for %s", eatString(clang_getFileName(f)).constData(), l, c, stackSize, u->path.constData());
+    //     log(1, "%s:%d:%d (%d) for %s", eatString(clang_getFileName(f)).constData(), l, c, stackSize, u->path.constData());
     // }
 
     clang_disposeString(fn);
@@ -649,7 +651,7 @@ void UnitCache::initFileSystemWatcher(Unit* unit)
         // CachedUnit
         CXTranslationUnit pchUnit = clang_createTranslationUnit(unit->index, ast.constData());
         // ### is there a race here?
-        qDebug() << "Trying to get load pch ast" << ast << pchUnit << p;
+        log(1) << "Trying to get load pch ast" << ast << pchUnit << p;
         if (pchUnit) {
             u.path = ast;
             clang_getInclusions(pchUnit, findIncludes, &u);
@@ -659,8 +661,8 @@ void UnitCache::initFileSystemWatcher(Unit* unit)
         }
         u.paths[p.parentDir()].insert(p.fileName());
     }
-    // qDebug() << "got paths" << unit->fileName << u.paths << "pchs" << unit->pchs;
-    // qDebug() << paths.keys();
+    // log(1) << "got paths" << unit->fileName << u.paths << "pchs" << unit->pchs;
+    // log(1) << paths.keys();
     FileSystemWatcher *old = m_watchers.take(unit->fileName);
     if (!u.paths.isEmpty()) {
         FileSystemWatcher* watcher = new FileSystemWatcher(unit->fileName);
@@ -669,7 +671,7 @@ void UnitCache::initFileSystemWatcher(Unit* unit)
         QStringList dirs;
         for (QHash<Path, QSet<QByteArray> >::iterator it = u.paths.begin(); it != u.paths.end(); ++it) {
             dirs.append(it.key());
-            // qDebug() << "watching" << it.value() << "in" << it.key() << "for" << unit->fileName;
+            // log(1) << "watching" << it.value() << "in" << it.key() << "for" << unit->fileName;
         }
         watcher->paths = u.paths;
         watcher->addPaths(dirs);
@@ -699,9 +701,9 @@ void UnitCache::onDirectoryChanged(const QString &directory)
         foreach(const QByteArray &fn, fileNames) {
             const Path p(dirName + fn);
             if (p.lastModified() > f->lastModified) {
-                qDebug() << "recompiling" << f->fileName << "since lastModified for dir was"
-                         << QDateTime::fromTime_t(f->lastModified)
-                         << "and" << fn << "was modified at" << QDateTime::fromTime_t(p.lastModified());
+                log(1) << "recompiling" << f->fileName << "since lastModified for dir was"
+                       << QDateTime::fromTime_t(f->lastModified)
+                       << "and" << fn << "was modified at" << QDateTime::fromTime_t(p.lastModified());
                 dirty = true;
                 break;
             }

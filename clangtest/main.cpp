@@ -164,7 +164,7 @@ int main(int argc, char **argv)
                                                         0, 0, clang_defaultEditingTranslationUnitOptions());
     clang_saveTranslationUnit(unit, "/tmp/pch.pch", 0);
     clang_disposeTranslationUnit(unit);
-    qDebug() << "finished pch" << timer.restart();
+    log(1) << "finished pch" << timer.restart();
     const char *args[] = { "-cc1", "-fsyntax-only", "-D_REENTRANT", "-DQT_WEBKIT",
                            "-DCLANG_RUNTIME_INCLUDE=\"/home/anders/clang+llvm-3.0-i386-linux-Ubuntu-11_10//lib/clang//include\"",
                            "-DQT_NETWORK_LIB", "-DQT_CORE_LIB", "-DQT_SHARED",
@@ -187,9 +187,9 @@ int main(int argc, char **argv)
         unit = clang_parseTranslationUnit(index, files[i],
                                           args, sizeof(args) / 4,
                                           0, 0, clang_defaultEditingTranslationUnitOptions());
-        qDebug() << "compiled file" << files[i] << timer.restart();
+        log(1) << "compiled file" << files[i] << timer.restart();
         clang_visitChildren(clang_getTranslationUnitCursor(unit), visitAll, 0);
-        qDebug() << "visited file" << files[i] << timer.restart();
+        log(1) << "visited file" << files[i] << timer.restart();
         clang_disposeTranslationUnit(unit);
     }
 

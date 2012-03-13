@@ -49,7 +49,7 @@ void CursorInfoJob::run()
             locker.adopt(first.data);
             data = first.data;
         } else {
-            qDebug("cursorInfo: no unit for %s", fileName.constData());
+            log("cursorInfo: no unit for %s", fileName.constData());
             emit complete(id, QList<QByteArray>());
             return;
         }

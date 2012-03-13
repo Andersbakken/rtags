@@ -14,6 +14,7 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <stdio.h>
+#include <Log.h>
 
 #define ASTPATH "/tmp/rdm"
 
@@ -50,7 +51,7 @@ bool Rdm::init(unsigned options, const QList<QByteArray> &defaultArguments)
     if (p.isDir())
         m_defaultArgs.append("-I" + p);
 #endif
-    qDebug() << "running with" << m_defaultArgs;
+    log(1) << "running with" << m_defaultArgs;
     return true;
 }
 
@@ -99,7 +100,7 @@ void Rdm::onNewMessage(Message* message)
         handleErrorMessage(static_cast<ErrorMessage*>(message));
         break;
     default:
-        qWarning("Unknown message: %d", message->messageId());
+        log("Unknown message: %d", message->messageId());
         break;
     }
 

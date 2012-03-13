@@ -64,7 +64,7 @@ void ReferencesJob::runName()
 
     QByteArray bvalue = QByteArray::fromRawData(value.c_str(), value.size());
     QList<QByteArray> list = bvalue.split('\n');
-    //qDebug() << "runName result" << list;
+    //log(1) << "runName result" << list;
 
     delete db;
 
@@ -110,7 +110,7 @@ void ReferencesJob::runLocation()
             locker.adopt(first.data);
             data = first.data;
         } else {
-            qDebug("references: no unit for %s", fileName.constData());
+            log("references: no unit for %s", fileName.constData());
             emit complete(id, QList<QByteArray>());
             return;
         }
@@ -125,7 +125,7 @@ void ReferencesJob::runLocation()
     if (clang_equalCursors(def, clang_getNullCursor())) {
         CXCursor ref = clang_getCursorReferenced(cursor);
         if (clang_equalCursors(ref, clang_getNullCursor())) {
-            qDebug("no ref and no def!");
+            log("no ref and no def!");
             emit complete(id, QList<QByteArray>());
             return;
         }
@@ -133,7 +133,7 @@ void ReferencesJob::runLocation()
         CXString usr = clang_getCursorUSR(ref);
         if (!clang_getCString(usr) || !strcmp(clang_getCString(usr), "")) {
             clang_disposeString(usr);
-            qDebug() << "no usr";
+            log() << "no usr";
             emit complete(id, QList<QByteArray>());
             return;
         }
@@ -147,7 +147,7 @@ void ReferencesJob::runLocation()
     CXString usr = clang_getCursorUSR(def);
     if (!clang_getCString(usr) || !strcmp(clang_getCString(usr), "")) {
         clang_disposeString(usr);
-        qDebug() << "no usr";
+        log() << "no usr";
         emit complete(id, QList<QByteArray>());
         return;
     }

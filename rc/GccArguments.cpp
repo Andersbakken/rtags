@@ -1,5 +1,6 @@
 #include "GccArguments.h"
 #include "gccopts_gperf.h"
+#include "Log.h"
 
 class GccArgumentsImpl
 {
@@ -127,12 +128,12 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
                     if (!inc.isAbsolute())
                         m_impl->includes.append(Path(path + "/" + cur + QByteArray(".gch"))); // ### is assuming .gch correct here?
                     else
-                        qWarning("-include %s could not be resolved", cur);
+                        log("-include %s could not be resolved", cur);
                 } }
                 break;
             case 'o': {
                 if (!m_impl->outputFile.isEmpty())
-                    qWarning("Already have an output file: %s (new %s)",
+                    log("Already have an output file: %s (new %s)",
                              m_impl->outputFile.constData(), cur);
                 Path out = Path::resolved(cur, path);
                 m_impl->outputFile = out; }
@@ -178,13 +179,13 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
         return false;
 
     if (m_impl->inputFiles.isEmpty()) {
-        qWarning("Unable to find or resolve input files");
+        log("Unable to find or resolve input files");
         foreach(const QByteArray& input, unresolvedInputs)
-            qWarning("  %s", input.constData());
+            log("  %s", input.constData());
         return false;
     }
     if (m_impl->outputFile.isEmpty() && m_impl->type == Pch) {
-        qWarning("Output file is empty for pch");
+        log("Output file is empty for pch");
         return false;
     }
     if (!m_impl->outputFile.isResolved()) {

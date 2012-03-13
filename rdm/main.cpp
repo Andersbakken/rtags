@@ -6,6 +6,7 @@
 #include <QDateTime>
 #include <stdio.h>
 #include <stdlib.h>
+#include <Log.h>
 
 void usage(FILE *f)
 {
@@ -15,20 +16,9 @@ void usage(FILE *f)
             "  --include-path|-I [arg] Add additional include path to clang\n"
             "  --include|-i [arg]      Add additional include directive to clang\n"
             "  --log-file|-l [arg]     Log to this file\n"
+            "  --verbose|-v            Change verbosity, multiple -v's are allowed\n"
             "  --thread-count|-j [arg] Spawn this many threads for thread pool\n");
 }
-
-FILE *logFile = 0;
-void msgHandler(QtMsgType, const char* str)
-{
-    Q_ASSERT(logFile);
-    fprintf(logFile, "%s: %s\n",
-            QDateTime::currentDateTime().toString("dd/MM/yy hh:mm:ss").toLocal8Bit().constData(),
-            str);
-    fsync(fileno(logFile));
-    fprintf(stderr, "%s\n", str);
-}
-
 
 int main(int argc, char** argv)
 {
@@ -37,6 +27,7 @@ int main(int argc, char** argv)
         { "include-path", required_argument, 0, 'I' },
         { "include", required_argument, 0, 'i' },
         { "log-file", required_argument, 0, 'l' },
+        { "verbose", no_argument, 0, 'v' },
         { "thread-count", required_argument, 0, 'j' },
         { 0, 0, 0, 0 }
     };
@@ -44,9 +35,11 @@ int main(int argc, char** argv)
     int jobs = QThread::idealThreadCount();
     unsigned options = 0;
     QList<QByteArray> defaultArguments;
+    const char *logFile = 0;
+    int logLevel = 0;
 
     forever {
-        const int c = getopt_long(argc, argv, "hI:i:l:j:n", opts, 0);
+        const int c = getopt_long(argc, argv, "hI:i:l:j:nv", opts, 0);
         if (c == -1)
             break;
         switch (c) {
@@ -68,12 +61,10 @@ int main(int argc, char** argv)
             defaultArguments.append(optarg);
             break;
         case 'l':
-            logFile = fopen(optarg, "w");
-            if (!logFile) {
-                qWarning("Can't open %s for writing", optarg);
-                return 1;
-            }
-            qInstallMsgHandler(msgHandler);
+            logFile = optarg;
+            break;
+        case 'v':
+            ++logLevel;
             break;
         case '?':
             usage(stderr);
@@ -81,16 +72,18 @@ int main(int argc, char** argv)
         }
     }
     QThreadPool::globalInstance()->setMaxThreadCount(jobs);
-    qDebug("Running with %d jobs\n", jobs);
-
     QCoreApplication app(argc, argv);
+    if (!initLogging(logLevel, logFile)) {
+        fprintf(stderr, "Can't initialize logging with %d %s\n", logLevel, logFile ? logFile : "");
+        return false;
+    }
+
+    log("Running with %d jobs\n", jobs);
 
     Rdm rdm;
     if (!rdm.init(options, defaultArguments))
         return 1;
 
     const int ret = app.exec();
-    if (logFile)
-        fclose(logFile);
     return ret;
 }

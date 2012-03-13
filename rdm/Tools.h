@@ -17,7 +17,7 @@ static inline void debugCursor(CXCursor c)
     unsigned int line, col;
     clang_getSpellingLocation(loc, &file, &line, &col, 0);
     CXString fn = clang_getFileName(file);
-    qDebug() << Path::resolved(clang_getCString(fn)) << line << col;
+    log(1) << Path::resolved(clang_getCString(fn)) << line << col;
     clang_disposeString(fn);
 }
 
@@ -79,7 +79,7 @@ typedef bool (*VisitFile)(UnitCache::Unit* unit, void* data);
 static inline void visitIncluderFiles(const QByteArray& fileName, VisitFile visitor, void* data,
                                       int mode = UnitCache::AST | UnitCache::Memory)
 {
-    qDebug() << "looking at" << fileName;
+    log() << "looking at" << fileName;
 
     QByteArray dbname = Database::databaseName(Database::Include);
     leveldb::DB* db = 0;
@@ -97,14 +97,14 @@ static inline void visitIncluderFiles(const QByteArray& fileName, VisitFile visi
     foreach(const QByteArray& inc, others) {
         if (inc.isEmpty())
             continue;
-        qDebug() << "about to visit" << inc;
+        log() << "about to visit" << inc;
 
         CachedUnit unit(inc, mode);
         if (unit.unit()) {
             if ((*visitor)(unit.unit(), data))
                 break;
         } else {
-            qWarning("Unit not found: %s", inc.constData());
+            log("Unit not found: %s", inc.constData());
         }
     }
 }

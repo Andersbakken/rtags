@@ -13,9 +13,7 @@ class MakefileParser : public QObject
 {
     Q_OBJECT
 public:
-    enum Verbosity { Silent, Verbose };
-
-    MakefileParser(Verbosity verbosity = Silent, QObject *parent = 0);
+    MakefileParser(QObject *parent = 0);
     ~MakefileParser();
 
     void run(const Path& makefile);
@@ -31,7 +29,6 @@ private:
     void processMakeLine(const QByteArray& line);
 
 private:
-    bool mVerbose;
     QProcess* mProc;
     QByteArray mData;
     DirectoryTracker* mTracker;

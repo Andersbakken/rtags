@@ -107,7 +107,7 @@ int Database::referencesForLocation(const QueryMessage &query)
 
     const int id = ++m_impl->lastJobId;
 
-    qDebug() << "references for location" << loc.path << Resource::hash(loc.path) << loc.line << loc.column;
+    log(1) << "references for location" << loc.path << Resource::hash(loc.path) << loc.line << loc.column;
 
     ReferencesJob* job = new ReferencesJob(loc.path, id, loc.line, loc.column);
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
@@ -122,7 +122,7 @@ int Database::referencesForName(const QueryMessage& query)
     const int id = ++m_impl->lastJobId;
 
     const QByteArray name = query.query().front();
-    qDebug() << "references for name" << name;
+    log(1) << "references for name" << name;
 
     ReferencesJob* job = new ReferencesJob(name, id, -1, -1);
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
@@ -136,7 +136,7 @@ int Database::recompile(const QueryMessage &query)
     const QByteArray fileName = query.query().front();
     const int id = ++m_impl->lastJobId;
 
-    qDebug() << "recompile" << fileName;
+    log(1) << "recompile" << fileName;
 
     RecompileJob* job = new RecompileJob(fileName, id);
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
@@ -151,7 +151,7 @@ int Database::match(const QueryMessage &query)
     const QByteArray partial = query.query().front();
     const int id = ++m_impl->lastJobId;
 
-    qDebug() << "match" << partial;
+    log(1) << "match" << partial;
 
     MatchJob* job = new MatchJob(partial, id);
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
@@ -166,7 +166,7 @@ int Database::dump(const QueryMessage &query)
     const QByteArray partial = query.query().front();
     const int id = ++m_impl->lastJobId;
 
-    qDebug() << "dump" << partial;
+    log(1) << "dump" << partial;
 
     DumpJob* job = new DumpJob(partial, id);
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),

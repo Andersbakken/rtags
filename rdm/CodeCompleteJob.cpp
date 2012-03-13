@@ -44,7 +44,7 @@ void CodeCompleteJob::run()
             locker.adopt(first.data);
             data = first.data;
         } else {
-            qDebug("codecomplete: no unit for %s", fileName.constData());
+            log("codecomplete: no unit for %s", fileName.constData());
             emit complete(id, QList<QByteArray>());
             return;
         }
@@ -68,16 +68,16 @@ void CodeCompleteJob::run()
     if (unsaved)
         delete[] unsaved;
 
-    qDebug() << results << results->NumResults << unsavedFiles.keys();
+    log(1) << results << results->NumResults << unsavedFiles.keys();
     QList<QByteArray> ret;
     for (unsigned int i = 0; i < results->NumResults; ++i) {
         const CXCompletionString& str = results->Results[i].CompletionString;
         if (clang_getCompletionAvailability(str) != CXAvailability_Available)
             continue;
         int priority;
-        // qDebug() << "stuff" << i << clang_getCompletionPriority(str);
+        // log(1) << "stuff" << i << clang_getCompletionPriority(str);
         // for (int b=0; b<clang_getCompletionNumAnnotations(str); ++b) {
-        //     qDebug() << b << eatString(clang_getCompletionAnnotation(str, b));
+        //     log(1) << b << eatString(clang_getCompletionAnnotation(str, b));
         // }
 
         switch (results->Results[i].CursorKind) {
@@ -109,7 +109,6 @@ void CodeCompleteJob::run()
         }
     }
 
-    qDebug() << ret;
     clang_disposeCodeCompleteResults(results);
     emit complete(id, ret);
 }

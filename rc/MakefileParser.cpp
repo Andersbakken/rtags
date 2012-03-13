@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 #include <QProcess>
 #include <QStack>
+#include <Log.h>
 #include <stdio.h>
 
 #ifndef MAKE
@@ -67,16 +68,15 @@ void DirectoryTracker::enterDirectory(const QByteArray& dir)
 
 void DirectoryTracker::leaveDirectory(const QByteArray& /*dir*/)
 {
-    // qDebug() << "leaveDirectory" << dir;
+    // log(1) << "leaveDirectory" << dir;
     // enter and leave share the same code for now
     mPaths.pop();
     // enterDirectory(dir);
 }
 
-MakefileParser::MakefileParser(Verbosity verbosity, QObject* parent)
+MakefileParser::MakefileParser(QObject* parent)
     : QObject(parent), mProc(0), mTracker(new DirectoryTracker)
 {
-    mVerbose = (verbosity == Verbose);
 }
 
 MakefileParser::~MakefileParser()
@@ -97,8 +97,8 @@ void MakefileParser::run(const Path& makefile)
 
     QDir makelibdir(QCoreApplication::applicationDirPath());
     makelibdir.cdUp();
-    if (mVerbose)
-        fprintf(stderr, "using makelib in '%s'\n", qPrintable(makelibdir.canonicalPath()));
+    if (logLevel() > 0)
+        log(1, "using makelib in '%s'\n", qPrintable(makelibdir.canonicalPath()));
 
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
 #ifdef Q_OS_MAC
@@ -114,9 +114,10 @@ void MakefileParser::run(const Path& makefile)
     connect(mProc, SIGNAL(finished(int)), this, SIGNAL(done()));
 
     mTracker->init(makefile.parentDir());
-    if (mVerbose)
-        fprintf(stderr, MAKE " -j1 -n -w -f %s -C %s\n",
-                makefile.constData(), mTracker->path().constData());
+    if (logLevel()) {
+        log(1, MAKE " -j1 -n -w -f %s -C %s\n",
+            makefile.constData(), mTracker->path().constData());
+    }
     mProc->start(QLatin1String(MAKE), QStringList()
                  << QLatin1String("-j1") << QLatin1String("-n") << QLatin1String("-w")
                  << QLatin1String("-f") << QString::fromLocal8Bit(makefile)
@@ -142,8 +143,8 @@ void MakefileParser::processMakeOutput()
 
 void MakefileParser::processMakeLine(const QByteArray &line)
 {
-    if (mVerbose)
-        fprintf(stderr, "%s\n", line.constData());
+    if (logLevel())
+        log(1, "%s\n", line.constData());
     GccArguments args;
     if (args.parse(line, mTracker->path())) {
         emit fileReady(args);

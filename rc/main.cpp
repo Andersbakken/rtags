@@ -11,6 +11,7 @@
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <Log.h>
 
 static int help(const char* app)
 {
@@ -39,31 +40,21 @@ int main(int argc, char** argv)
         { "complete", required_argument, 0, 'c' },
         { "cursor-info", required_argument, 0, 'C' },
         { "unsaved-file", required_argument, 0, 'u' },
+        { "log-file", required_argument, 0, 'L' },
         { 0, 0, 0, 0 }
     };
 
-    bool verbose = false;
+    int logLevel = 0;
+    QByteArray logFile;
     bool skipparen = false;
     QList<Path> makeFiles;
     QList<QPair<QueryMessage::Type, QByteArray> > optlist;
     QHash<Path, QByteArray> unsavedFiles;
 
-    if (getenv("LOG_RC")) {
-        FILE* logfile = fopen("/tmp/rc.log", "a");
-        if (logfile) {
-            QDateTime time = QDateTime::currentDateTime();
-            fprintf(logfile, "%s (%d): ", qPrintable(time.toString()), argc);
-            for (int i = 0; i < argc; ++i)
-                fprintf(logfile, "\"%s\" ", argv[i]);
-            fprintf(logfile, "\name");
-            fclose(logfile);
-        }
-    }
-
     QFile standardIn;
 
     for (;;) {
-        const int c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:C:u:", opts, 0);
+        const int c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:C:u:L:", opts, 0);
         if (c == -1)
             break;
         switch (c) {
@@ -72,7 +63,10 @@ int main(int argc, char** argv)
         case 'h':
             return help(argv[0]);
         case 'v':
-            verbose = true;
+            ++logLevel;
+            break;
+        case 'L':
+            logFile = optarg;
             break;
         case 'p':
             skipparen = true;
@@ -143,12 +137,22 @@ int main(int argc, char** argv)
         }
     }
 
+    if (!initLogging(logLevel, logFile)) {
+        fprintf(stderr, "Can't initialize logging with %d %s\n", logLevel, logFile.constData());
+        return 1;
+    }
+
     if (optlist.isEmpty() && makeFiles.isEmpty())
         return help(argv[0]);
 
+    if (!logFile.isEmpty() || logLevel > 0) {
+        Log l(1);
+        l << argc;
+        for (int i = 0; i < argc; ++i)
+            l << argv[i];
+    }
+
     int flags = 0;
-    if (verbose)
-        flags |= Client::Verbose;
     if (skipparen)
         flags |= Client::SkipParen;
     Client client(flags);

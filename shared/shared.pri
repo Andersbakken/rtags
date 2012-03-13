@@ -12,7 +12,8 @@ SOURCES += \
     $$PWD/Messages.cpp \
     $$PWD/messages/AddMessage.cpp \
     $$PWD/messages/QueryMessage.cpp \
-    $$PWD/messages/ErrorMessage.cpp
+    $$PWD/messages/ErrorMessage.cpp \
+    $$PWD/Log.cpp
 
 HEADERS += \
     $$PWD/Connection.h \
@@ -22,7 +23,8 @@ HEADERS += \
     $$PWD/messages/AddMessage.h \
     $$PWD/messages/QueryMessage.h \
     $$PWD/messages/ErrorMessage.h \
-    $$PWD/Shared.h
+    $$PWD/Shared.h \
+    $$PWD/Log.h
 
 PRECOMPILED_HEADER = $$PWD/Pch.h
 CONFIG += precompile_header

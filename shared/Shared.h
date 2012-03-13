@@ -4,10 +4,26 @@
 #include <QByteArray>
 #include <clang-c/Index.h>
 #include <Path.h>
+#include <Log.h>
+
 static inline QByteArray eatString(CXString str)
 {
     const QByteArray ret(clang_getCString(str));
     clang_disposeString(str);
+    return ret;
+}
+
+static inline QByteArray join(const QList<QByteArray> &list, const QByteArray &sep = QByteArray())
+{
+    QByteArray ret;
+    int size = qMax(0, list.size() - 1) * sep.size();
+    foreach(const QByteArray &l, list) {
+        size += l.size();
+    }
+    ret.reserve(size);
+    foreach(const QByteArray &l, list) {
+        ret.append(l);
+    }
     return ret;
 }
 

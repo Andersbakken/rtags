@@ -16,7 +16,7 @@
 #include <QSet>
 #include <QVector>
 #include <QDir>
-#include <QDebug>
+#include <Log.h>
 
 #define SYNCINTERVAL 10
 
@@ -154,7 +154,7 @@ void IndexerSyncer::run()
     QMutexLocker locker(&mutex);
     while (!stopped) {
         cond.wait(&mutex, 10000);
-        qDebug() << "syncing";
+        log(1) << "syncing";
         if (!incs.isEmpty()) {
             writeSet(Database::Include, incs);
         }
@@ -167,7 +167,7 @@ void IndexerSyncer::run()
         if (!syms.isEmpty()) {
             writeSet(Database::Symbol, syms);
         }
-        qDebug() << "synced";
+        log(1) << "synced";
     }
 }
 
@@ -438,7 +438,7 @@ void IndexerJob::run()
     CachedUnit unit(m_in, m_in, m_args, unitMode);
 
     if (unit.unit()) {
-        qDebug() << "parsing" << m_in << unit.unit()->fileName;
+        log(1) << "parsing" << m_in << unit.unit()->fileName;
         CXTranslationUnit tu = unit.unit()->unit;
         unsigned int diagCount = clang_getNumDiagnostics(tu);
         for (unsigned int i = 0; i < diagCount; ++i) {
@@ -449,14 +449,14 @@ void IndexerJob::run()
                                                       | CXDiagnostic_DisplayColumn
                                                       | CXDiagnostic_DisplayOption
                                                       | CXDiagnostic_DisplayCategoryName);
-                qWarning("clang: %s", clang_getCString(msg));
+                log("clang: %s", clang_getCString(msg));
                 clang_disposeString(msg);
             }
             clang_disposeDiagnostic(diag);
         }
 
         if (unit.unit()->origin == UnitCache::Source) {
-            qDebug() << "reread" << unit.unit()->fileName << "from source, revisiting";
+            log(1) << "reread" << unit.unit()->fileName << "from source, revisiting";
             clang_getInclusions(tu, inclusionVisitor, this);
             clang_visitChildren(clang_getTranslationUnitCursor(tu), indexVisitor, this);
             addFileNameSymbol(unit.unit()->fileName);
@@ -471,7 +471,7 @@ void IndexerJob::run()
             m_syms.clear();
         }
     } else {
-        qDebug() << "got 0 unit for" << m_in;
+        log(1) << "got 0 unit for" << m_in;
     }
 
     emit done(m_id, m_in, m_out);
@@ -566,7 +566,7 @@ void Indexer::jobDone(int id, const QByteArray& input, const QByteArray& output)
 
             Q_ASSERT(m_impl->timerRunning);
             m_impl->timerRunning = false;
-            qDebug() << "jobs took" << m_impl->timer.elapsed() << "ms";
+            log(1) << "jobs took" << m_impl->timer.elapsed() << "ms";
         }
     }
 

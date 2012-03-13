@@ -16,7 +16,7 @@ class Client : public QObject
 {
     Q_OBJECT
 public:
-    enum Flags { Verbose = 0x1, SkipParen = 0x2 };
+    enum Flags { SkipParen = 0x1 };
 
     Client(int flags = 0, QObject* parent = 0);
 

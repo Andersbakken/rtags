@@ -6,6 +6,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QDebug>
+#include <Log.h>
 
 Client::Client(int flags, QObject* parent)
     : QObject(parent), m_conn(0), m_flags(flags), m_makeDone(false)
@@ -15,10 +16,7 @@ Client::Client(int flags, QObject* parent)
 
 void Client::parseMakefile(const Path& path)
 {
-    MakefileParser::Verbosity v = MakefileParser::Silent;
-    if (m_flags & Verbose)
-        v = MakefileParser::Verbose;
-    MakefileParser* parser = new MakefileParser(v, this);
+    MakefileParser* parser = new MakefileParser(this);
     connect(parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
     connect(parser, SIGNAL(fileReady(const GccArguments&)),
             this, SLOT(onMakefileReady(const GccArguments&)));
@@ -36,7 +34,7 @@ void Client::query(QueryMessage::Type type, const QByteArray& msg, const QHash<P
         m_conn->send(&message);
         qApp->exec();
     } else {
-        qWarning("Can't connect to host");
+        log("Can't connect to host");
     }
 }
 
@@ -92,17 +90,17 @@ QList<QByteArray> Client::mapPchToInput(const QList<QByteArray>& input)
 void Client::onMakefileReady(const GccArguments& args)
 {
     if (args.inputFiles().isEmpty()) {
-        qWarning("no input file?");
+        log("no input file?");
         return;
     } else if (args.outputFile().isEmpty()) {
-        qWarning("no output file?");
+        log("no output file?");
         return;
     }
 
     if (!m_conn) {
         m_conn = new Connection(this);
         if (!m_conn->connectToHost("localhost", Connection::Port)) {
-            qWarning("Can't connect to host");
+            log("Can't connect to host");
             QCoreApplication::quit();
             return;
         }
@@ -117,7 +115,7 @@ void Client::onMakefileReady(const GccArguments& args)
         Q_ASSERT(!output.isEmpty());
         const int ext = output.lastIndexOf(".gch/c");
         if (ext <= 0) {
-            qWarning("couldn't find .gch in pch output");
+            log("couldn't find .gch in pch output");
             return;
         }
         output = output.left(ext + 4);
@@ -127,8 +125,10 @@ void Client::onMakefileReady(const GccArguments& args)
         // using input for both input and output is correct here
         AddMessage message(type, input, input, args.clangArgs(),
                            mapPchToInput(args.explicitIncludes()));
-        if (m_flags & Verbose)
-            qDebug() << "sending" << "input:" << input << "output:" << output << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
+        if (logLevel()) {
+            log(1) << "sending" << "input:" << input << "output:" << output
+                   << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
+        }
         m_conn->send(&message);
 
         m_pchs[output] = input;
@@ -141,7 +141,9 @@ void Client::onMakefileReady(const GccArguments& args)
     AddMessage::Type type = (args.lang() == GccArguments::C) ? AddMessage::CompileC : AddMessage::CompileCPlusPlus;
     AddMessage message(type, input, output, args.clangArgs(),
                        mapPchToInput(args.explicitIncludes()));
-    if (m_flags & Verbose)
-        qDebug() << "sending" << "input:" << input << "output:" << output << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
+    if (logLevel()) {
+        log(1) << "sending" << "input:" << input << "output:" << output
+               << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
+    }
     m_conn->send(&message);
 }

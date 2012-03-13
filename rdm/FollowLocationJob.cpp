@@ -25,7 +25,7 @@ void FollowLocationJob::run()
                 locker.adopt(first.data);
                 data = first.data;
             } else {
-                qDebug("follow: no unit for %s", fileName.constData());
+                log("follow: no unit for %s", fileName.constData());
                 emit complete(id, QList<QByteArray>());
                 return;
             }
@@ -37,10 +37,10 @@ void FollowLocationJob::run()
         CXCursorKind cursorKind = clang_getCursorKind(cursor);
         CXCursor ref = clang_getCursorReferenced(cursor);
         CXCursorKind refKind = clang_getCursorKind(ref);
-        qDebug() << "cursor" << cursorKind << "ref" << refKind;
+        log(1) << "cursor" << cursorKind << "ref" << refKind;
         debugCursor(cursor);
         debugCursor(ref);
-        qDebug() << "---";
+        log(1) << "---";
         bool shouldFindDef = false;
         switch (refKind) {
         case CXCursor_StructDecl:
@@ -51,13 +51,13 @@ void FollowLocationJob::run()
             break;
         }
         if (clang_equalCursors(cursor, ref) || shouldFindDef) {
-            qDebug() << "I am myself or we should be on a definition";
+            log(1) << "I am myself or we should be on a definition";
             if (!clang_isCursorDefinition(ref)) {
-                qDebug() << "not an outright definition";
+                log(1) << "not an outright definition";
                 ref = clang_getCursorDefinition(cursor);
             }
             if (!clang_isCursorDefinition(ref)) {
-                qDebug() << "no definition found, trying to read one from leveldb";
+                log(1) << "no definition found, trying to read one from leveldb";
                 CXString usr = clang_getCursorUSR(cursor);
                 const char* cusr = clang_getCString(usr);
                 if (!strlen(cusr)) {
@@ -66,7 +66,7 @@ void FollowLocationJob::run()
                     cusr = clang_getCString(usr);
                     if (!strlen(cusr)) {
                         clang_disposeString(usr);
-                        qDebug() << "no USR found, bailing out";
+                        log(1) << "no USR found, bailing out";
                         emit complete(id, QList<QByteArray>());
                         return;
                     }
@@ -76,7 +76,7 @@ void FollowLocationJob::run()
                 QByteArray dbname = Database::databaseName(Database::Definition);
                 leveldb::Status status = leveldb::DB::Open(leveldb::Options(), dbname.constData(), &db);
                 if (!status.ok()) {
-                    qWarning("no definition db!");
+                    log("no definition db!");
                     clang_disposeString(usr);
                     emit complete(id, QList<QByteArray>());
                     return;
@@ -86,7 +86,7 @@ void FollowLocationJob::run()
                 clang_disposeString(usr);
                 delete db;
                 if (value.empty()) {
-                    qDebug() << "no definition resource found, bailing out";
+                    log() << "no definition resource found, bailing out";
                     emit complete(id, QList<QByteArray>());
                     return;
                 }
@@ -102,7 +102,7 @@ void FollowLocationJob::run()
         clang_getSpellingLocation(loc, &rfile, &rrow, &rcol, &roff);
         CXString unitfn = clang_getFileName(rfile);
 
-        qDebug() << "followed to" << clang_getCString(unitfn) << rrow << rcol << roff;
+        log(1) << "followed to" << clang_getCString(unitfn) << rrow << rcol << roff;
         qfn = Path::resolved(clang_getCString(unitfn));
         clang_disposeString(unitfn);
     }

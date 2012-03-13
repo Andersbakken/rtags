@@ -25,7 +25,7 @@ void RecompileJob::run()
     first.fileName = fileName;
     visitIncluderFiles(fileName, visitFindFirstUnit, &first, UnitCache::Source | UnitCache::Info);
     if (!first.data)
-        qDebug("recompile: no unit for %s", fileName.constData());
+        log("recompile: no unit for %s", fileName.constData());
 
     emit complete(id, QList<QByteArray>());
 }
