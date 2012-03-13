@@ -5,6 +5,7 @@
 #include "Database.h"
 #include "leveldb/db.h"
 #include "leveldb/write_batch.h"
+#include <QElapsedTimer>
 #include <QHash>
 #include <QThreadPool>
 #include <QRunnable>
@@ -47,6 +48,9 @@ public:
 
     QMutex symMutex;
     HashSet syms;
+
+    bool timerRunning;
+    QElapsedTimer timer;
 };
 
 void IndexerImpl::syncData(QMutex* mutex,
@@ -406,6 +410,7 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
     m_impl->jobCounter = 0;
     m_impl->lastJobId = 0;
     m_impl->path = path;
+    m_impl->timerRunning = false;
 
     s_inst = this;
 }
@@ -441,6 +446,12 @@ int Indexer::index(Type type, const QByteArray& input, const QByteArray& output,
     m_impl->jobs[id] = job;
     connect(job, SIGNAL(done(int, const QByteArray&, const QByteArray&)),
             this, SLOT(jobDone(int, const QByteArray&, const QByteArray&)), Qt::QueuedConnection);
+
+    if (!m_impl->timerRunning) {
+        m_impl->timerRunning = true;
+        m_impl->timer.restart();
+    }
+
     QThreadPool::globalInstance()->start(job);
 
     return id;
@@ -465,6 +476,12 @@ void Indexer::jobDone(int id, const QByteArray& input, const QByteArray& output)
         m_impl->syncData(&m_impl->symMutex, m_impl->syms, Database::Symbol);
         qDebug() << "synced";
         m_impl->jobCounter = 0;
+
+        if (m_impl->jobs.isEmpty()) {
+            Q_ASSERT(m_impl->timerRunning);
+            m_impl->timerRunning = false;
+            qDebug() << "jobs took" << m_impl->timer.elapsed() << "ms";
+        }
     }
 
     emit indexingDone(id);
