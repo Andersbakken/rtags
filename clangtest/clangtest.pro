@@ -5,9 +5,9 @@
 TEMPLATE = app
 TARGET = 
 DEPENDPATH += .
-INCLUDEPATH += . /usr/local/include/
-LIBS += -lclang -L/usr/local/lib
 
 # Input
 SOURCES += main.cpp
 CONFIG -= app_bundle
+include($$PWD/../shared/clang.pri)
+
