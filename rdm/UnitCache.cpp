@@ -208,10 +208,15 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
         *errors = false;
     QVector<const char*> clangArgs;
     QList<QByteArray> args = hashedPch(arguments, &data->unit.pchs);
+    QByteArray clangLine = "clang ";
     foreach(const QByteArray& arg, args) {
         clangArgs.append(arg.constData());
+        clangLine += arg;
+        clangLine += " ";
     }
-    qDebug() << "loading unit" << data->unit.fileName << filename << args;
+    clangLine += filename;
+    qDebug() << "loading unit" << data->unit.fileName << filename << args
+             << clangLine;
 
     data->unit.unit = clang_parseTranslationUnit(data->unit.index, filename.constData(),
                                                  clangArgs.data(), clangArgs.size(),
@@ -244,8 +249,24 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
                                                       | CXDiagnostic_DisplayOption
                                                       | CXDiagnostic_DisplayCategoryName);
                 qWarning("clang: %s (%s)", clang_getCString(msg), data->unit.fileName.constData());
+                CXSourceLocation loc =  clang_getDiagnosticLocation(diag);
+                CXFile f;
+                unsigned l, c;
+                clang_getSpellingLocation(loc, &f, &l, &c, 0);
+                qDebug("%s:%d:%d for %s", eatString(clang_getFileName(f)).constData(), l, c, data->unit.fileName.constData());
+
+
                 clang_disposeString(msg);
                 clang_disposeDiagnostic(diag);
+            }
+            if (*errors) {
+                qWarning("got errors from source: %s", filename.constData());
+                QByteArray clang = "clang ";
+                for (int i=0; i<clangArgs.size(); ++i) {
+                    clang += clangArgs.at(i);
+                    clang += ' ';
+                }
+                qDebug("%s%s\n", clang.constData(), filename.constData());
             }
         }
         return true;

@@ -5,8 +5,8 @@
 #include <QList>
 #include <QObject>
 
-class DatabaseImpl;
 class QueryMessage;
+struct DatabaseImpl;
 class Database : public QObject
 {
     Q_OBJECT
