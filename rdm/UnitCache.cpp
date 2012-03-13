@@ -381,13 +381,14 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& input,
             Resource resource(output);
             if (mode & AST) { // try to reread AST
                 if (resource.exists(Resource::AST)) {
-                    bool retry;
+                    bool retry = false;
                     do {
-                        retry = false;
                         if (rereadUnit(resource.hashedFileName(Resource::AST), data)) {
                             // done!
                             return Done;
                         } else {
+                            if (retry)
+                                break;
                             // recheck pch;
                             retry = recheckPch(arguments, data);
                             pchRechecked = true;
@@ -422,14 +423,15 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& input,
                     saveUnit(data, &resource, arguments, errors ? SaveInfo : SaveInfo|SaveAST);
                     return Done;
                 }
-                bool retry;
+                bool retry = false;
                 do {
-                    retry = false;
                     if (loadUnit(input, arguments, data, true, &errors)) {
                         saveUnit(data, &resource, arguments, errors ? SaveInfo : SaveInfo|SaveAST);
                         // done!
                         return Done;
                     } else {
+                        if (retry)
+                            break;
                         // recheck pch files, if any
                         retry = (!pchRechecked && recheckPch(arguments, data));
                     }
