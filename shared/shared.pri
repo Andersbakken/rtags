@@ -26,7 +26,7 @@ HEADERS += \
     $$PWD/Shared.h \
     $$PWD/Log.h
 
-PRECOMPILED_HEADER = $$PWD/Pch.h
+PRECOMPILED_HEADER = Pch.h
 CONFIG += precompile_header
 PRECOMPILED_DIR = .pch
 
