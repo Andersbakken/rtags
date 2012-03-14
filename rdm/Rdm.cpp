@@ -134,17 +134,18 @@ void Rdm::handleAddMessage(AddMessage* message)
     Indexer::Type type;
     switch (message->type()) {
     case AddMessage::PchC:
-        qWarning() << "Ignoring pch c file";
+        warning() << "Ignoring pch c file";
         return;
     case AddMessage::CompileC:
         type = Indexer::C;
         break;
     case AddMessage::PchCPlusPlus:
+        // warning() << message->arguments() + m_defaultArgs << message->inputFile();
     case AddMessage::CompileCPlusPlus:
         type = Indexer::CPlusPlus;
         break;
     default:
-        qWarning("%s: Invalid type %d\n", __FUNCTION__, message->type());
+        warning("%s: Invalid type %d\n", __FUNCTION__, message->type());
         return;
     }
     int id = m_indexer->index(type, message->inputFile(), outputfile,

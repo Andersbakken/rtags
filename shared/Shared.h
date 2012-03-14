@@ -6,6 +6,26 @@
 #include <Path.h>
 #include <Log.h>
 
+static inline int canonicalizePath(char *path, int len)
+{
+    Q_ASSERT(path[0] == '/');
+    for (int i=0; i<len - 3; ++i) {
+        if (path[i] == '/' && path[i + 1] == '.'
+            && path[i + 2] == '.' && path[i + 3] == '/') {
+            for (int j=i - 1; j>=0; --j) {
+                if (path[j] == '/') {
+                    memmove(path + j, path + i + 3, len - (i + 2));
+                    const int removed = (i + 3 - j);
+                    len -= removed;
+                    i -= removed;
+                    break;
+                }
+            }
+        }
+    }
+    return len;
+}
+
 static inline int digits(int len)
 {
     int ret = 1;
