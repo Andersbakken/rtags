@@ -336,22 +336,23 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         clang_disposeString(fileName);
         return CXChildVisit_Recurse;
     }
-    QByteArray qloc = cfileName;
-    const int ret = canonicalizePath(qloc.data(), qloc.size());
-    const int extra = digits(line) + digits(col) + 2;
-    qloc.resize(ret + extra);
-    snprintf(qloc.data() + ret, extra + 1, ":%d:%d", line, col);
-    // {
-    //     QMutexLocker locker(&job->m_impl->resolveMutex);
-    //     QHash<QByteArray, QByteArray>& cache = job->m_impl->resolveCache;
-    //     const QHash<QByteArray, QByteArray>::const_iterator it = cache.find(cfileName);
-    //     if (it == cache.end()) {
-    //         qloc = Path::resolved(cfileName);
-    //         makeLocation(qloc, line, col);
-    //         cache[cfileName] = qloc;
-    //     } else
-    //         qloc = it.value();
-    // }
+    QByteArray qloc;
+    {
+        QMutexLocker locker(&job->m_impl->resolveMutex);
+        QHash<QByteArray, QByteArray>& cache = job->m_impl->resolveCache;
+        QByteArray key = cfileName;
+        QByteArray &val = cache[key];
+        if (val.isEmpty()) {
+            qloc = key;
+            const int ret = canonicalizePath(qloc.data(), qloc.size());
+            const int extra = digits(line) + digits(col) + 2;
+            qloc.resize(ret + extra);
+            snprintf(qloc.data() + ret, extra + 1, ":%d:%d", line, col);
+            val = qloc;
+        } else {
+            qloc = val;
+        }
+    }
 
     if (clang_isCursorDefinition(cursor)
         || kind == CXCursor_FunctionDecl) {
