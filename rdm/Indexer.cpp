@@ -192,6 +192,9 @@ public:
 
     bool timerRunning;
     QElapsedTimer timer;
+
+    QMutex resolveMutex;
+    QHash<QByteArray, QByteArray> resolveCache;
 };
 
 class IndexerJob : public QObject, public QRunnable
@@ -333,8 +336,18 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         clang_disposeString(fileName);
         return CXChildVisit_Recurse;
     }
-    QByteArray qloc = Path::resolved(cfileName);
-    makeLocation(qloc, line, col);
+    QByteArray qloc;
+    {
+        QMutexLocker locker(&job->m_impl->resolveMutex);
+        QHash<QByteArray, QByteArray>& cache = job->m_impl->resolveCache;
+        const QHash<QByteArray, QByteArray>::const_iterator it = cache.find(cfileName);
+        if (it == cache.end()) {
+            qloc = Path::resolved(cfileName);
+            makeLocation(qloc, line, col);
+            cache[cfileName] = qloc;
+        } else
+            qloc = it.value();
+    }
 
     if (clang_isCursorDefinition(cursor)
         || kind == CXCursor_FunctionDecl) {
