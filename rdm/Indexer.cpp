@@ -1,4 +1,5 @@
 #include "Indexer.h"
+#include "Shared.h"
 #include "UnitCache.h"
 #include "Resource.h"
 #include "Path.h"
@@ -332,8 +333,8 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         clang_disposeString(fileName);
         return CXChildVisit_Recurse;
     }
-    QByteArray qloc(Path::resolved(cfileName));
-    qloc += ":" + QByteArray::number(line) + ":" + QByteArray::number(col);
+    QByteArray qloc = Path::resolved(cfileName);
+    makeLocation(qloc, line, col);
 
     if (clang_isCursorDefinition(cursor)
         || kind == CXCursor_FunctionDecl) {
