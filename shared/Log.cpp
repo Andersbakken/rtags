@@ -71,11 +71,11 @@ static inline void removeLogFile()
     sFile = 0;
 }
 
-bool initLogging(int level, const QByteArray &file)
+bool initLogging(int level, const QByteArray &file, unsigned flags)
 {
     sLevel = level;
     if (!file.isEmpty()) {
-        sFile = fopen(file.constData(), "w");
+        sFile = fopen(file.constData(), flags & Append ? "a" : "w");
         if (!sFile)
             return false;
         qAddPostRoutine(removeLogFile);

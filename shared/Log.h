@@ -9,7 +9,11 @@
 void log(int level, const char *format, ...);
 void debug(const char *format, ...);
 void warning(const char *format, ...);
-bool initLogging(int logLevel, const QByteArray &logFile);
+enum LogFlag {
+    Append = 0x1,
+    // ### rotate log files?
+};
+bool initLogging(int logLevel, const QByteArray &logFile, unsigned flags);
 int logLevel();
 
 class Log

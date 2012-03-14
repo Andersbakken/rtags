@@ -16,6 +16,7 @@ void usage(FILE *f)
             "  --include-path|-I [arg] Add additional include path to clang\n"
             "  --include|-i [arg]      Add additional include directive to clang\n"
             "  --log-file|-l [arg]     Log to this file\n"
+            "  --append|-a             Append to log file\n"
             "  --verbose|-v            Change verbosity, multiple -v's are allowed\n"
             "  --thread-count|-j [arg] Spawn this many threads for thread pool\n");
 }
@@ -27,6 +28,7 @@ int main(int argc, char** argv)
         { "include-path", required_argument, 0, 'I' },
         { "include", required_argument, 0, 'i' },
         { "log-file", required_argument, 0, 'l' },
+        { "append", no_argument, 0, 'a' },
         { "verbose", no_argument, 0, 'v' },
         { "thread-count", required_argument, 0, 'j' },
         { 0, 0, 0, 0 }
@@ -36,10 +38,11 @@ int main(int argc, char** argv)
     unsigned options = 0;
     QList<QByteArray> defaultArguments;
     const char *logFile = 0;
+    unsigned logFlags = 0;
     int logLevel = 0;
 
     forever {
-        const int c = getopt_long(argc, argv, "hI:i:l:j:nv", opts, 0);
+        const int c = getopt_long(argc, argv, "hI:i:l:j:nva", opts, 0);
         if (c == -1)
             break;
         switch (c) {
@@ -60,6 +63,9 @@ int main(int argc, char** argv)
             defaultArguments.append("-include");
             defaultArguments.append(optarg);
             break;
+        case 'a':
+            logFlags |= Append;
+            break;
         case 'l':
             logFile = optarg;
             break;
@@ -73,8 +79,9 @@ int main(int argc, char** argv)
     }
     QThreadPool::globalInstance()->setMaxThreadCount(jobs);
     QCoreApplication app(argc, argv);
-    if (!initLogging(logLevel, logFile)) {
-        fprintf(stderr, "Can't initialize logging with %d %s\n", logLevel, logFile ? logFile : "");
+    if (!initLogging(logLevel, logFile, logFlags)) {
+        fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
+                logLevel, logFile ? logFile : "", logFlags);
         return false;
     }
 

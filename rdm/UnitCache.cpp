@@ -644,6 +644,10 @@ void UnitCache::initFileSystemWatcher(Unit* unit)
 
     FindIncludesUserData u = { unit->fileName, QHash<Path, QSet<QByteArray> >() };
     clang_getInclusions(unit->unit, findIncludes, &u);
+    if (unit->precompile) {
+        warning() << "got some shit for a pch file"
+                  << unit->fileName << u.paths;
+    }
     foreach(const QByteArray& pch, unit->pchs) {
         Path p(pch);
         Resource resource(pch);

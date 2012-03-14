@@ -13,13 +13,25 @@
 #include <stdlib.h>
 #include <Log.h>
 
-static int help(const char* app)
+static void help(FILE *f, const char* app)
 {
-    fprintf(stderr,
-            "%s [-v] [-e] [-m Makefile] [-f follow-location] [-n reference-name] "
-            "[-l reference-location] [-r filename] [-d dump] [-c complete] [-C cursor-info] [-u unsaved-file]\n",
+    fprintf(f, "%s options...\n"
+            "  --help|-h                     Display this help\n"
+            "  --verbose|-v                  Be more verbose\n"
+            "  --skip-paren|-p               Skip parens in Makefile parsing\n"
+            "  --follow-location|-f [arg]    Follow this location\n"
+            "  --makefile|-m [arg]           Process this makefile\n"
+            "  --reference-name|-n [arg]     Find references matching arg\n"
+            "  --reference-location|-l [arg] Find references matching this location\n"
+            "  --recompile|-r [arg]          Recompile this source file\n"
+            "  --match|-a [arg]              Find symbol matching arg\n"
+            "  --dump|-d [arg]               Dump AST tree of arg \n"
+            "  --complete|-c [arg]           Get code completion for this location\n"
+            "  --cursor-info|-C [arg]        Get cursor info for this location\n"
+            "  --unsaved-file|-u [arg]       Specify an unsaved file and a size to be passed on stdin (e.g. -u main.cpp:343)\n"
+            "  --log-file|-L [file]          Log to this file\n"
+            "  --append|-A                   Append to log file\n",
             app);
-    return 1;
 }
 
 int main(int argc, char** argv)
@@ -41,11 +53,14 @@ int main(int argc, char** argv)
         { "cursor-info", required_argument, 0, 'C' },
         { "unsaved-file", required_argument, 0, 'u' },
         { "log-file", required_argument, 0, 'L' },
+        { "append", no_argument, 0, 'A' },
         { 0, 0, 0, 0 }
     };
 
     int logLevel = 0;
     QByteArray logFile;
+    unsigned logFlags = 0;
+
     bool skipparen = false;
     QList<Path> makeFiles;
     QList<QPair<QueryMessage::Type, QByteArray> > optlist;
@@ -54,16 +69,20 @@ int main(int argc, char** argv)
     QFile standardIn;
 
     for (;;) {
-        const int c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:C:u:L:", opts, 0);
+        const int c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:C:u:L:A", opts, 0);
         if (c == -1)
             break;
         switch (c) {
         case 0:
             break;
         case 'h':
-            return help(argv[0]);
+            help(stdout, argv[0]);
+            return 0;
         case 'v':
             ++logLevel;
+            break;
+        case 'A':
+            logFlags |= Append;
             break;
         case 'L':
             logFile = optarg;
@@ -137,13 +156,16 @@ int main(int argc, char** argv)
         }
     }
 
-    if (!initLogging(logLevel, logFile)) {
-        fprintf(stderr, "Can't initialize logging with %d %s\n", logLevel, logFile.constData());
+    if (!initLogging(logLevel, logFile, logFlags)) {
+        fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
+                logLevel, logFile.constData(), logFlags);
         return 1;
     }
 
-    if (optlist.isEmpty() && makeFiles.isEmpty())
-        return help(argv[0]);
+    if (optlist.isEmpty() && makeFiles.isEmpty()) {
+        help(stderr, argv[0]);
+        return 1;
+    }
 
     if (!logFile.isEmpty() || logLevel > 0) {
         Log l(1);
