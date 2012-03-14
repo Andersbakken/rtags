@@ -1,6 +1,7 @@
 #include "GccArguments.h"
 #include "gccopts_gperf.h"
 #include "Log.h"
+#include "Shared.h"
 
 class GccArgumentsImpl
 {
@@ -46,7 +47,7 @@ static inline GccArguments::Lang guessLang(const QByteArray& compiler)
     return lang;
 }
 
-bool GccArguments::parse(const QByteArray& args, const Path& base)
+bool GccArguments::parse(QByteArray args, const Path& base)
 {
     m_impl->type = NoType;
     m_impl->lang = NoLang;
@@ -56,33 +57,45 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
 
     char quote = '\0';
     QList<QByteArray> split;
-    const char* cur = args.constData();
-    const char* prev = cur;
-    const char* const end = args.constData() + args.size();
-    // ### handle escaped quotes?
-    while (cur != end) {
-        switch (*cur) {
-        case '"':
-        case '\'':
-            if (quote == '\0')
-                quote = *cur;
-            else if (*cur == quote)
-                quote = '\0';
-            break;
-        case ' ':
-            if (quote == '\0') {
-                if (cur > prev)
-                    split.append(QByteArray(prev, cur - prev));
-                prev = cur + 1;
+    QByteArray old2 = args;
+    {
+        char* cur = args.data();
+        char* prev = cur;
+        // ### handle escaped quotes?
+        int size = args.size();
+        while (size > 0) {
+            switch (*cur) {
+            case '\\':
+                Q_ASSERT(size > 0);
+                memmove(cur, cur + 1, size);
+                --size;
+                break;
+
+            case '"':
+            case '\'':
+                if (quote == '\0')
+                    quote = *cur;
+                else if (*cur == quote)
+                    quote = '\0';
+                memmove(cur, cur + 1, size);
+                --size;
+                break;
+            case ' ':
+                if (quote == '\0') {
+                    if (cur > prev)
+                        split.append(QByteArray(prev, cur - prev));
+                    prev = cur + 1;
+                }
+                break;
+            default:
+                break;
             }
-            break;
-        default:
-            break;
+            --size;
+            ++cur;
         }
-        ++cur;
+        if (cur > prev)
+            split.append(QByteArray(prev, cur - prev));
     }
-    if (cur > prev)
-        split.append(QByteArray(prev, cur - prev));
 
     if (split.isEmpty())
         return false;
@@ -91,8 +104,9 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
     if (split.front() == "cd" && split.size() > 3 && split.at(2) == "&&") {
         path = Path::resolved(split.at(1), base);
         split.erase(split.begin(), split.begin() + 3);
-    } else
+    } else {
         path = base;
+    }
 
     m_impl->lang = guessLang(split.front());
     if (m_impl->lang == NoLang)
@@ -104,7 +118,7 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
     char prevopt = '\1'; // skip the initial binary name
     gccopts_gperf gccopts;
     foreach(const QByteArray& arg, split) {
-        cur = arg.constData();
+        const char *cur = arg.constData();
         if (prevopt != '\0') {
             switch (prevopt) {
             case 'x':
@@ -134,7 +148,7 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
             case 'o': {
                 if (!m_impl->outputFile.isEmpty())
                     warning("Already have an output file: %s (new %s)",
-                             m_impl->outputFile.constData(), cur);
+                            m_impl->outputFile.constData(), cur);
                 Path out = Path::resolved(cur, path);
                 m_impl->outputFile = out; }
                 break;

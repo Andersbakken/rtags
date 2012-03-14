@@ -16,7 +16,7 @@ public:
     GccArguments();
     GccArguments(const QByteArray& args, const Path& base);
 
-    bool parse(const QByteArray& args, const Path& base);
+    bool parse(QByteArray args, const Path& base);
     Type type() const;
     Lang lang() const;
 
