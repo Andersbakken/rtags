@@ -192,7 +192,7 @@ inline bool UnitCache::rereadUnit(const QByteArray& hashedFilename,
         initFileSystemWatcher(&data->unit);
         return true;
     } else {
-        log("failed to read unit from AST: %s (as %s)",
+        warning("failed to read unit from AST: %s (as %s)",
             data->unit.fileName.constData(), hashedFilename.constData());
     }
     return false;
@@ -262,24 +262,24 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
                 clang_disposeDiagnostic(diag);
             }
             if (*errors) {
-                log("got errors from source: %s", filename.constData());
+                warning("got errors from source: %s", filename.constData());
                 QByteArray clang = "clang ";
                 for (int i=0; i<clangArgs.size(); ++i) {
                     clang += clangArgs.at(i);
                     clang += ' ';
                 }
-                log("%s%s\n", clang.constData(), filename.constData());
+                warning("%s%s\n", clang.constData(), filename.constData());
             }
         }
         return true;
     } else {
-        log("failed to read unit from source: %s", filename.constData());
+        warning("failed to read unit from source: %s", filename.constData());
         QByteArray clang = "clang ";
         for (int i=0; i<clangArgs.size(); ++i) {
             clang += clangArgs.at(i);
             clang += ' ';
         }
-        log("%s%s\n", clang.constData(), filename.constData());
+        warning("%s%s\n", clang.constData(), filename.constData());
     }
     return false;
 }

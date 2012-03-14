@@ -79,7 +79,7 @@ typedef bool (*VisitFile)(UnitCache::Unit* unit, void* data);
 static inline void visitIncluderFiles(const QByteArray& fileName, VisitFile visitor, void* data,
                                       int mode = UnitCache::AST | UnitCache::Memory)
 {
-    log() << "looking at" << fileName;
+    warning() << "looking at" << fileName;
 
     QByteArray dbname = Database::databaseName(Database::Include);
     leveldb::DB* db = 0;
@@ -97,14 +97,14 @@ static inline void visitIncluderFiles(const QByteArray& fileName, VisitFile visi
     foreach(const QByteArray& inc, others) {
         if (inc.isEmpty())
             continue;
-        log() << "about to visit" << inc;
+        warning() << "about to visit" << inc;
 
         CachedUnit unit(inc, mode);
         if (unit.unit()) {
             if ((*visitor)(unit.unit(), data))
                 break;
         } else {
-            log("Unit not found: %s", inc.constData());
+            warning("Unit not found: %s", inc.constData());
         }
     }
 }

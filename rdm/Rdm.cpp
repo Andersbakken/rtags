@@ -100,7 +100,7 @@ void Rdm::onNewMessage(Message* message)
         handleErrorMessage(static_cast<ErrorMessage*>(message));
         break;
     default:
-        log("Unknown message: %d", message->messageId());
+        warning("Unknown message: %d", message->messageId());
         break;
     }
 

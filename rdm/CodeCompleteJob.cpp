@@ -44,7 +44,7 @@ void CodeCompleteJob::run()
             locker.adopt(first.data);
             data = first.data;
         } else {
-            log("codecomplete: no unit for %s", fileName.constData());
+            warning("codecomplete: no unit for %s", fileName.constData());
             emit complete(id, QList<QByteArray>());
             return;
         }

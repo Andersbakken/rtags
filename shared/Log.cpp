@@ -22,10 +22,12 @@ static void log(int level, const char *format, va_list v)
     const QByteArray now = QDateTime::currentDateTime().toString("dd/MM/yy hh:mm:ss").toLocal8Bit();
     static QMutex mutex;
     QMutexLocker lock(&mutex); // serialize
+    static const char *names[] = { "Warning: ", "Debug: ", "Verbose: " };
+    const char *name = level < static_cast<int>(sizeof(names)) / 4 ? names[level] : "";
     if (level <= sLevel)
-        fprintf(stderr, "%s: %d: %s\n", now.constData(), level, msg);
+        fprintf(stderr, "%s: %s%s\n", now.constData(), name, msg);
     if (sFile) {
-        fprintf(sFile, "%s: %d: %s\n", now.constData(), level, msg);
+        fprintf(sFile, "%s: %s%s\n", now.constData(), name, msg);
         fflush(sFile);
     }
     if (msg != buf)
@@ -40,15 +42,21 @@ void log(int level, const char *format, ...)
     va_end(v);
 }
 
-void log(const char *format, ...)
+void debug(const char *format, ...)
+{
+    va_list v;
+    va_start(v, format);
+    log(1, format, v);
+    va_end(v);
+}
+
+void warning(const char *format, ...)
 {
     va_list v;
     va_start(v, format);
     log(0, format, v);
     va_end(v);
 }
-
-
 
 int logLevel()
 {

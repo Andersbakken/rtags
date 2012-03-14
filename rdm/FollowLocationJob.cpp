@@ -25,7 +25,7 @@ void FollowLocationJob::run()
                 locker.adopt(first.data);
                 data = first.data;
             } else {
-                log("follow: no unit for %s", fileName.constData());
+                warning("follow: no unit for %s", fileName.constData());
                 emit complete(id, QList<QByteArray>());
                 return;
             }
@@ -76,7 +76,7 @@ void FollowLocationJob::run()
                 QByteArray dbname = Database::databaseName(Database::Definition);
                 leveldb::Status status = leveldb::DB::Open(leveldb::Options(), dbname.constData(), &db);
                 if (!status.ok()) {
-                    log("no definition db!");
+                    warning("no definition db!");
                     clang_disposeString(usr);
                     emit complete(id, QList<QByteArray>());
                     return;
@@ -86,7 +86,7 @@ void FollowLocationJob::run()
                 clang_disposeString(usr);
                 delete db;
                 if (value.empty()) {
-                    log() << "no definition resource found, bailing out";
+                    warning() << "no definition resource found, bailing out";
                     emit complete(id, QList<QByteArray>());
                     return;
                 }

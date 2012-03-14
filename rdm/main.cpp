@@ -78,7 +78,7 @@ int main(int argc, char** argv)
         return false;
     }
 
-    log("Running with %d jobs\n", jobs);
+    warning("Running with %d jobs\n", jobs);
 
     Rdm rdm;
     if (!rdm.init(options, defaultArguments))

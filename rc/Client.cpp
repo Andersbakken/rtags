@@ -34,7 +34,7 @@ void Client::query(QueryMessage::Type type, const QByteArray& msg, const QHash<P
         m_conn->send(&message);
         qApp->exec();
     } else {
-        log("Can't connect to host");
+        warning("Can't connect to host");
     }
 }
 
@@ -90,17 +90,17 @@ QList<QByteArray> Client::mapPchToInput(const QList<QByteArray>& input)
 void Client::onMakefileReady(const GccArguments& args)
 {
     if (args.inputFiles().isEmpty()) {
-        log("no input file?");
+        warning("no input file?");
         return;
     } else if (args.outputFile().isEmpty()) {
-        log("no output file?");
+        warning("no output file?");
         return;
     }
 
     if (!m_conn) {
         m_conn = new Connection(this);
         if (!m_conn->connectToHost("localhost", Connection::Port)) {
-            log("Can't connect to host");
+            warning("Can't connect to host");
             QCoreApplication::quit();
             return;
         }
@@ -115,7 +115,7 @@ void Client::onMakefileReady(const GccArguments& args)
         Q_ASSERT(!output.isEmpty());
         const int ext = output.lastIndexOf(".gch/c");
         if (ext <= 0) {
-            log("couldn't find .gch in pch output");
+            warning("couldn't find .gch in pch output");
             return;
         }
         output = output.left(ext + 4);

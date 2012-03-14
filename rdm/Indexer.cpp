@@ -449,7 +449,7 @@ void IndexerJob::run()
                                                       | CXDiagnostic_DisplayColumn
                                                       | CXDiagnostic_DisplayOption
                                                       | CXDiagnostic_DisplayCategoryName);
-                log("clang: %s", clang_getCString(msg));
+                warning("clang: %s", clang_getCString(msg));
                 clang_disposeString(msg);
             }
             clang_disposeDiagnostic(diag);

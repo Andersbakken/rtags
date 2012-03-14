@@ -7,7 +7,8 @@
 #include <QSharedData>
 
 void log(int level, const char *format, ...);
-void log(const char *format, ...);
+void debug(const char *format, ...);
+void warning(const char *format, ...);
 bool initLogging(int logLevel, const QByteArray &logFile);
 int logLevel();
 
@@ -51,6 +52,20 @@ private:
 static inline Log log(int level = 0)
 {
     return Log(level);
+}
+static inline Log warning()
+{
+    return Log(0);
+}
+
+static inline Log debug()
+{
+    return Log(1);
+}
+
+static inline Log verboseDebug()
+{
+    return Log(2);
 }
 
 #endif

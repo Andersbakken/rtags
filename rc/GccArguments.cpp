@@ -128,12 +128,12 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
                     if (!inc.isAbsolute())
                         m_impl->includes.append(Path(path + "/" + cur + QByteArray(".gch"))); // ### is assuming .gch correct here?
                     else
-                        log("-include %s could not be resolved", cur);
+                        warning("-include %s could not be resolved", cur);
                 } }
                 break;
             case 'o': {
                 if (!m_impl->outputFile.isEmpty())
-                    log("Already have an output file: %s (new %s)",
+                    warning("Already have an output file: %s (new %s)",
                              m_impl->outputFile.constData(), cur);
                 Path out = Path::resolved(cur, path);
                 m_impl->outputFile = out; }
@@ -179,13 +179,13 @@ bool GccArguments::parse(const QByteArray& args, const Path& base)
         return false;
 
     if (m_impl->inputFiles.isEmpty()) {
-        log("Unable to find or resolve input files");
+        warning("Unable to find or resolve input files");
         foreach(const QByteArray& input, unresolvedInputs)
-            log("  %s", input.constData());
+            warning("  %s", input.constData());
         return false;
     }
     if (m_impl->outputFile.isEmpty() && m_impl->type == Pch) {
-        log("Output file is empty for pch");
+        warning("Output file is empty for pch");
         return false;
     }
     if (!m_impl->outputFile.isResolved()) {
