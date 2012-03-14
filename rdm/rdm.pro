@@ -6,7 +6,6 @@ TEMPLATE = app
 TARGET =
 DEPENDPATH += .
 INCLUDEPATH += . ../3rdparty/leveldb/src/include
-include(../shared/clang.pri)
 include(../shared/shared.pri)
 
 # Input

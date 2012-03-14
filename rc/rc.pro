@@ -18,7 +18,6 @@ QMAKE_EXTRA_TARGETS += gccopts_gperf
 PRE_TARGETDEPS += gccopts_gperf.h
 
 include(../shared/shared.pri)
-include(../shared/clang.pri)
 
 # Input
 HEADERS += \
