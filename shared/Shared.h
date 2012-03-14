@@ -5,6 +5,7 @@
 #include <clang-c/Index.h>
 #include <Path.h>
 #include <Log.h>
+#include <stdio.h>
 
 static inline int canonicalizePath(char *path, int len)
 {
@@ -41,6 +42,24 @@ static inline void makeLocation(QByteArray &path, int line, int col)
     const int extra = 2 + digits(line) + digits(col);
     path.resize(size + extra);
     snprintf(path.data() + size, extra + 1, ":%d:%d", line, col);
+}
+
+static inline QByteArray unescape(QByteArray command)
+{
+    command.replace('\'', "\\'");
+    command.prepend("bash --norc -c 'echo -n ");
+    command.append('\'');
+    // QByteArray cmd = "bash --norc -c 'echo -n " + command + "'";
+    FILE *f = popen(command.constData(), "r");
+    QByteArray ret;
+    char buf[1024];
+    do {
+        const int read = fread(buf, 1, 1024, f);
+        if (read)
+            ret += QByteArray::fromRawData(buf, read);
+    } while (!feof(f));
+    fclose(f);
+    return ret;
 }
 
 static inline QByteArray eatString(CXString str)
