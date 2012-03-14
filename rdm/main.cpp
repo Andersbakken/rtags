@@ -15,8 +15,8 @@ void usage(FILE *f)
             "  --help|-h               Display this page\n"
             "  --include-path|-I [arg] Add additional include path to clang\n"
             "  --include|-i [arg]      Add additional include directive to clang\n"
-            "  --log-file|-l [arg]     Log to this file\n"
-            "  --append|-a             Append to log file\n"
+            "  --log-file|-L [arg]     Log to this file\n"
+            "  --append|-A             Append to log file\n"
             "  --verbose|-v            Change verbosity, multiple -v's are allowed\n"
             "  --thread-count|-j [arg] Spawn this many threads for thread pool\n");
 }
@@ -27,8 +27,8 @@ int main(int argc, char** argv)
         { "help", no_argument, 0, 'h' },
         { "include-path", required_argument, 0, 'I' },
         { "include", required_argument, 0, 'i' },
-        { "log-file", required_argument, 0, 'l' },
-        { "append", no_argument, 0, 'a' },
+        { "log-file", required_argument, 0, 'L' },
+        { "append", no_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
         { "thread-count", required_argument, 0, 'j' },
         { 0, 0, 0, 0 }
@@ -42,7 +42,7 @@ int main(int argc, char** argv)
     int logLevel = 0;
 
     forever {
-        const int c = getopt_long(argc, argv, "hI:i:l:j:nva", opts, 0);
+        const int c = getopt_long(argc, argv, "hI:i:L:j:nvA", opts, 0);
         if (c == -1)
             break;
         switch (c) {
@@ -63,10 +63,10 @@ int main(int argc, char** argv)
             defaultArguments.append("-include");
             defaultArguments.append(optarg);
             break;
-        case 'a':
+        case 'A':
             logFlags |= Append;
             break;
-        case 'l':
+        case 'L':
             logFile = optarg;
             break;
         case 'v':
