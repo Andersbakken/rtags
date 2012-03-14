@@ -13,8 +13,10 @@ enum LogFlag {
     Append = 0x1,
     // ### rotate log files?
 };
+bool testLog(int level);
 bool initLogging(int logLevel, const QByteArray &logFile, unsigned flags);
 int logLevel();
+QByteArray logFile();
 
 class Log
 {

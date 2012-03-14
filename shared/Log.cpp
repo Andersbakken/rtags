@@ -3,6 +3,7 @@
 
 static int sLevel = 0;
 static FILE *sFile = 0;
+static QByteArray sLogFile;
 
 static void log(int level, const char *format, va_list v)
 {
@@ -63,12 +64,22 @@ int logLevel()
     return sLevel;
 }
 
+QByteArray logFile()
+{
+    return sLogFile;
+}
+
 static inline void removeLogFile()
 {
     Q_ASSERT(sFile);
     fflush(sFile);
     fclose(sFile);
     sFile = 0;
+}
+
+bool testLog(int level)
+{
+    return level <= sLevel || sFile;
 }
 
 bool initLogging(int level, const QByteArray &file, unsigned flags)
@@ -78,6 +89,7 @@ bool initLogging(int level, const QByteArray &file, unsigned flags)
         sFile = fopen(file.constData(), flags & Append ? "a" : "w");
         if (!sFile)
             return false;
+        sLogFile = file;
         qAddPostRoutine(removeLogFile);
     }
     return true;

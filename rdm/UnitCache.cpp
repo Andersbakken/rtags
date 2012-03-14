@@ -193,7 +193,7 @@ inline bool UnitCache::rereadUnit(const QByteArray& hashedFilename,
         return true;
     } else {
         warning("failed to read unit from AST: %s (as %s)",
-            data->unit.fileName.constData(), hashedFilename.constData());
+                data->unit.fileName.constData(), hashedFilename.constData());
     }
     return false;
 }
@@ -215,8 +215,7 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
         clangLine += " ";
     }
     clangLine += filename;
-    log(1) << "loading unit" << data->unit.fileName << filename << args
-           << clangLine;
+    log(1) << "loading unit" << clangLine;
 
     data->unit.unit = clang_parseTranslationUnit(data->unit.index, filename.constData(),
                                                  clangArgs.data(), clangArgs.size(),
@@ -231,32 +230,34 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
         if (errors) {
             unsigned int diagCount = clang_getNumDiagnostics(data->unit.unit);
             for (unsigned int i = 0; i < diagCount; ++i) {
+                int level = 0;
                 const CXDiagnostic diag = clang_getDiagnostic(data->unit.unit, i);
                 const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diag);
                 switch (severity) {
                 case CXDiagnostic_Ignored:
                 case CXDiagnostic_Note:
-                    continue;
+                    level = 2;
+                    break;
                 case CXDiagnostic_Error:
                 case CXDiagnostic_Fatal:
+                    level = 0;
                     *errors = true;
                     break;
                 case CXDiagnostic_Warning:
+                    level = 1;
                     break;
                 }
+                if (!testLog(level))
+                    continue;
                 CXString msg = clang_formatDiagnostic(diag, CXDiagnostic_DisplaySourceLocation
                                                       | CXDiagnostic_DisplayColumn
                                                       | CXDiagnostic_DisplayOption
                                                       | CXDiagnostic_DisplayCategoryName);
-                qWarning("clang: %s (%s)", clang_getCString(msg), data->unit.fileName.constData());
                 CXSourceLocation loc =  clang_getDiagnosticLocation(diag);
                 CXFile f;
                 unsigned l, c;
                 clang_getSpellingLocation(loc, &f, &l, &c, 0);
-                log(1, "%s:%d:%d for %s",
-                    eatString(clang_getFileName(f)).constData(),
-                    l, c, data->unit.fileName.constData());
-
+                log(level, "clang: %s (%s)", clang_getCString(msg), data->unit.fileName.constData());
 
                 clang_disposeString(msg);
                 clang_disposeDiagnostic(diag);
@@ -645,8 +646,8 @@ void UnitCache::initFileSystemWatcher(Unit* unit)
     FindIncludesUserData u = { unit->fileName, QHash<Path, QSet<QByteArray> >() };
     clang_getInclusions(unit->unit, findIncludes, &u);
     if (unit->precompile) {
-        warning() << "got some shit for a pch file"
-                  << unit->fileName << u.paths;
+        log(0) << "got some shit for a pch file"
+               << unit->fileName << u.paths;
     }
     foreach(const QByteArray& pch, unit->pchs) {
         Path p(pch);
