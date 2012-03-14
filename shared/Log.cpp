@@ -1,5 +1,8 @@
 #include "Log.h"
 #include <stdio.h>
+#include <QDateTime>
+#include <QMutex>
+#include <QCoreApplication>
 
 static int sLevel = 0;
 static FILE *sFile = 0;
