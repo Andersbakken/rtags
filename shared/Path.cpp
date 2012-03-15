@@ -84,7 +84,7 @@ bool Path::isCanonical() const
 int Path::canonicalizePath()
 {
     const int s = size();
-    const int ret = ::canonicalizePath(data(), s);
+    const int ret = RTags::canonicalizePath(data(), s);
     if (s != ret)
         truncate(ret);
     return ret;

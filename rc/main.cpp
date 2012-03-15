@@ -115,8 +115,8 @@ int main(int argc, char** argv)
         case 'C':
         case 'l': {
             QByteArray resolved;
-            Location loc;
-            if (!makeLocation(optarg, &loc, &resolved)) {
+            RTags::Location loc;
+            if (!RTags::makeLocation(optarg, &loc, &resolved)) {
                 qWarning("Can't resolve argument %s", optarg);
                 return 1;
             }

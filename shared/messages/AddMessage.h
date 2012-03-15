@@ -14,13 +14,13 @@ public:
     enum { MessageId = 1 };
 
     Q_INVOKABLE AddMessage(QObject* parent = 0);
-    AddMessage(UnitType type, const QByteArray& input, const QByteArray& output,
+    AddMessage(RTags::UnitType type, const QByteArray& input, const QByteArray& output,
                const QList<QByteArray>& arguments, const QList<QByteArray>& pchs,
                QObject* parent = 0);
 
     int messageId() const { return MessageId; }
 
-    UnitType type() const { return m_type; }
+    RTags::UnitType type() const { return m_type; }
     QByteArray inputFile() const { return m_input; }
     QByteArray outputFile() const { return m_output; }
     QList<QByteArray> arguments() const { return m_args; }
@@ -30,7 +30,7 @@ public:
     Q_INVOKABLE void fromByteArray(const QByteArray& data);
 
 private:
-    UnitType m_type;
+    RTags::UnitType m_type;
     QByteArray m_input, m_output;
     QList<QByteArray> m_args, m_pchs;
 };

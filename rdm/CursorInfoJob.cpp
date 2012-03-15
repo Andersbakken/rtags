@@ -17,7 +17,7 @@ static CXChildVisitResult memberVisitor(CXCursor cursor, CXCursor, CXClientData 
     switch (clang_getCursorKind(cursor)) {
     case CXCursor_CXXMethod:
     case CXCursor_FieldDecl:
-        reinterpret_cast<QList<QByteArray> *>(userData)->append(eatString(clang_getCursorSpelling(cursor)));
+        reinterpret_cast<QList<QByteArray> *>(userData)->append(RTags::eatString(clang_getCursorSpelling(cursor)));
         break;
     default:
         break;

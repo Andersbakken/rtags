@@ -113,8 +113,8 @@ static inline QList<QByteArray> pch(const AddMessage* message)
     foreach(const QByteArray &arg, message->pchs()) {
         if (!arg.isEmpty()) {
             switch (message->type()) {
-            case CompileCPlusPlus:
-            case PchCPlusPlus:
+            case RTags::CompileCPlusPlus:
+            case RTags::PchCPlusPlus:
                 out.append("-include-pch");
                 out.append(arg);
                 break;

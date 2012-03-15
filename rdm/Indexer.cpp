@@ -201,7 +201,7 @@ class IndexerJob : public QObject, public QRunnable
 {
     Q_OBJECT
 public:
-    IndexerJob(IndexerImpl* impl, UnitType type, Indexer::Mode mode, int id,
+    IndexerJob(IndexerImpl* impl, RTags::UnitType type, Indexer::Mode mode, int id,
                const QByteArray& path, const QByteArray& input, const QByteArray& output,
                const QList<QByteArray>& arguments);
 
@@ -209,7 +209,7 @@ public:
 
     void run();
 
-    UnitType m_type;
+    RTags::UnitType m_type;
     Indexer::Mode m_mode;
     int m_id;
     QByteArray m_path, m_in, m_out;
@@ -344,8 +344,8 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         QByteArray &val = cache[key];
         if (val.isEmpty()) {
             qloc = key;
-            const int ret = canonicalizePath(qloc.data(), qloc.size());
-            const int extra = digits(line) + digits(col) + 2;
+            const int ret = RTags::canonicalizePath(qloc.data(), qloc.size());
+            const int extra = RTags::digits(line) + RTags::digits(col) + 2;
             qloc.resize(ret + extra);
             snprintf(qloc.data() + ret, extra + 1, ":%d:%d", line, col);
             val = qloc;
@@ -370,7 +370,7 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
     return CXChildVisit_Recurse;
 }
 
-IndexerJob::IndexerJob(IndexerImpl* impl, UnitType type, Indexer::Mode mode, int id,
+IndexerJob::IndexerJob(IndexerImpl* impl, RTags::UnitType type, Indexer::Mode mode, int id,
                        const QByteArray& path, const QByteArray& input, const QByteArray& output,
                        const QList<QByteArray>& arguments)
     : m_type(type), m_mode(mode), m_id(id), m_path(path), m_in(input), m_out(output), m_args(arguments), m_impl(impl)
@@ -434,11 +434,11 @@ void IndexerJob::run()
 {
     int unitMode = UnitCache::Source | UnitCache::AST;
     switch (m_type) {
-    case CompileC:
-    case CompileCPlusPlus:
+    case RTags::CompileC:
+    case RTags::CompileCPlusPlus:
         break;
-    case PchC:
-    case PchCPlusPlus:
+    case RTags::PchC:
+    case RTags::PchCPlusPlus:
         unitMode |= UnitCache::Precompile;
         break;
     }
@@ -540,7 +540,7 @@ Indexer* Indexer::instance()
     return s_inst;
 }
 
-int Indexer::index(UnitType type, const QByteArray& input, const QByteArray& output,
+int Indexer::index(RTags::UnitType type, const QByteArray& input, const QByteArray& output,
                    const QList<QByteArray>& arguments, Mode mode)
 {
     QMutexLocker locker(&m_impl->implMutex);

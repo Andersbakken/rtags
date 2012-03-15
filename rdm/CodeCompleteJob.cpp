@@ -77,7 +77,7 @@ void CodeCompleteJob::run()
         int priority;
         // log(1) << "stuff" << i << clang_getCompletionPriority(str);
         // for (int b=0; b<clang_getCompletionNumAnnotations(str); ++b) {
-        //     log(1) << b << eatString(clang_getCompletionAnnotation(str, b));
+        //     log(1) << b << RTags::eatString(clang_getCompletionAnnotation(str, b));
         // }
 
         switch (results->Results[i].CursorKind) {
@@ -89,7 +89,7 @@ void CodeCompleteJob::run()
             priority = clang_getCompletionPriority(str);
             break;
         }
-        // printf("Got thing %s %d\n" , eatString(clang_getCursorKindSpelling(results->Results[i].CursorKind)).constData(),
+        // printf("Got thing %s %d\n" , RTags::eatString(clang_getCursorKindSpelling(results->Results[i].CursorKind)).constData(),
         //        clang_getNumCompletionChunks(str));
 
         for (unsigned int j = 0; j < clang_getNumCompletionChunks(str); ++j) {

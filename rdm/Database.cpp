@@ -57,7 +57,7 @@ Database::~Database()
 
 int Database::followLocation(const QueryMessage &query)
 {
-    Location loc;
+    RTags::Location loc;
     if (!makeLocation(query.query().front(), &loc))
         return -1;
 
@@ -73,7 +73,7 @@ int Database::followLocation(const QueryMessage &query)
 
 int Database::cursorInfo(const QueryMessage &query)
 {
-    Location loc;
+    RTags::Location loc;
     if (!makeLocation(query.query().front(), &loc))
         return -1;
     const int id = ++m_impl->lastJobId;
@@ -86,7 +86,7 @@ int Database::cursorInfo(const QueryMessage &query)
 
 int Database::codeComplete(const QueryMessage &query)
 {
-    Location loc;
+    RTags::Location loc;
     if (!makeLocation(query.query().front(), &loc))
         return -1;
 
@@ -101,7 +101,7 @@ int Database::codeComplete(const QueryMessage &query)
 
 int Database::referencesForLocation(const QueryMessage &query)
 {
-    Location loc;
+    RTags::Location loc;
     if (!makeLocation(query.query().front(), &loc))
         return -1;
 

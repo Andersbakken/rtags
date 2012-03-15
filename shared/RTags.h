@@ -1,11 +1,13 @@
-#ifndef Shared_h
-#define Shared_h
+#ifndef RTags_h
+#define RTags_h
 
 #include <QByteArray>
 #include <clang-c/Index.h>
 #include <Path.h>
 #include <Log.h>
 #include <stdio.h>
+
+namespace RTags {
 
 enum UnitType { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };
 
@@ -140,6 +142,6 @@ static inline bool makeLocation(const QByteArray &arg, Location *loc,
     }
     return true;
 }
-
+}
 
 #endif

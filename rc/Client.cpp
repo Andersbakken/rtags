@@ -121,7 +121,7 @@ void Client::onMakefileReady(const GccArguments& args)
         output = output.left(ext + 4);
         const QByteArray input = args.inputFiles().front();
 
-        UnitType type = (args.lang() == GccArguments::C) ? PchC : PchCPlusPlus;
+        RTags::UnitType type = (args.lang() == GccArguments::C) ? RTags::PchC : RTags::PchCPlusPlus;
         // using input for both input and output is correct here
         AddMessage message(type, input, input, args.clangArgs(),
                            mapPchToInput(args.explicitIncludes()));
@@ -138,7 +138,7 @@ void Client::onMakefileReady(const GccArguments& args)
 
     const QByteArray input = args.inputFiles().front();
     const QByteArray output = args.outputFile();
-    UnitType type = (args.lang() == GccArguments::C) ? CompileC : CompileCPlusPlus;
+    RTags::UnitType type = (args.lang() == GccArguments::C) ? RTags::CompileC : RTags::CompileCPlusPlus;
     AddMessage message(type, input, output, args.clangArgs(),
                        mapPchToInput(args.explicitIncludes()));
     if (logLevel()) {
