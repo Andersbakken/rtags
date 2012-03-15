@@ -2,7 +2,7 @@
 #include <QCoreApplication>
 #include <QThread>
 #include <stdio.h>
-#include "Shared.h"
+#include "RTags.h"
 
 // this doesn't check if *this actually is a real file
 Path Path::parentDir() const

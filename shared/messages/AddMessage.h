@@ -5,7 +5,7 @@
 #include <QList>
 #include <QByteArray>
 #include "Message.h"
-#include "Shared.h"
+#include "RTags.h"
 
 class AddMessage : public Message
 {

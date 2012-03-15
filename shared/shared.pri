@@ -23,7 +23,7 @@ HEADERS += \
     $$PWD/messages/AddMessage.h \
     $$PWD/messages/QueryMessage.h \
     $$PWD/messages/ErrorMessage.h \
-    $$PWD/Shared.h \
+    $$PWD/RTags.h \
     $$PWD/Log.h
 
 PRECOMPILED_HEADER = Pch.h

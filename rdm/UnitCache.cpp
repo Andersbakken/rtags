@@ -2,7 +2,7 @@
 #include "Resource.h"
 #include "Indexer.h"
 #include "Path.h"
-#include "Shared.h"
+#include "RTags.h"
 #include <QMutexLocker>
 #include <QThread>
 #include <QVector>

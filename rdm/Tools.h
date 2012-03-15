@@ -8,7 +8,7 @@
 #include "UnitCache.h"
 #include "Database.h"
 #include <leveldb/db.h>
-#include <Shared.h>
+#include <RTags.h>
 
 static inline void debugCursor(CXCursor c)
 {

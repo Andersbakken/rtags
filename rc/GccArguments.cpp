@@ -1,7 +1,7 @@
 #include "GccArguments.h"
 #include "gccopts_gperf.h"
 #include "Log.h"
-#include "Shared.h"
+#include "RTags.h"
 
 class GccArgumentsImpl
 {
