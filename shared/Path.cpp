@@ -2,6 +2,7 @@
 #include <QCoreApplication>
 #include <QThread>
 #include <stdio.h>
+#include "Shared.h"
 
 // this doesn't check if *this actually is a real file
 Path Path::parentDir() const
@@ -72,24 +73,21 @@ Path Path::resolved(const QByteArray &path, const Path &cwd, bool *ok)
 
 bool Path::isResolved() const
 {
-    if (!isAbsolute())
-        return false;
-    const int count = size();
-    for (int i=1; i<count - 1; ++i) {
-        if (at(i) == '.') {
-            switch (at(i + 1)) {
-            case '.':
-                return false;
-            case '/':
-                if (at(i - 1) == '/')
-                    return false;
-            default:
-                break;
-            }
-            ++i;
-        }
-    }
-    return true;
+    return isAbsolute() && !isCanonical();
+}
+
+bool Path::isCanonical() const
+{
+    return lastIndexOf("/../") == -1;
+}
+
+int Path::canonicalizePath()
+{
+    const int s = size();
+    const int ret = ::canonicalizePath(data(), s);
+    if (s != ret)
+        truncate(ret);
+    return ret;
 }
 
 bool Path::resolve(const Path &cwd)

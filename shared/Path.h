@@ -63,9 +63,11 @@ public:
     static bool isSource(const char *extension, int len);
     bool isHeader() const;
     bool isResolved() const;
+    bool isCanonical() const;
     Path parentDir() const;
     Type type() const;
     bool resolve(const Path &cwd = Path());
+    int canonicalizePath();
     quint64 lastModified() const; // returns time_t
     int64_t fileSize() const;
     static Path resolved(const QByteArray &path, const Path &cwd = Path(), bool *ok = 0);

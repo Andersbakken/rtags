@@ -626,8 +626,7 @@ static void findIncludes(CXFile includedFile, CXSourceLocation* stack, unsigned 
     if (strncmp(cstr, "/usr/", 5)) {
         QHash<Path, QSet<QByteArray> > &paths = u->paths;
         Path p(cstr);
-        int ret = canonicalizePath(p.data(), p.size());
-        p.truncate(ret);
+        p.canonicalizePath();
         paths[p.parentDir()].insert(p.fileName());
     }
     // log(1, "%s for %s", cstr, u->path.constData());
