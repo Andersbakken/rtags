@@ -29,7 +29,7 @@ void Client::query(QueryMessage::Type type, const QByteArray& msg, const QHash<P
 {
     m_conn = new Connection(this);
     if (m_conn->connectToHost("localhost", Connection::Port)) {
-        QueryMessage message(msg, type, unsavedFiles);
+        QueryMessage message(msg, type, m_flags, unsavedFiles);
         connect(m_conn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
         m_conn->send(&message);
         qApp->exec();

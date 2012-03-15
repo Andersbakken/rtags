@@ -29,6 +29,7 @@ static void help(FILE *f, const char* app)
             "  --complete|-c [arg]           Get code completion for this location\n"
             "  --cursor-info|-C [arg]        Get cursor info for this location\n"
             "  --unsaved-file|-u [arg]       Specify an unsaved file and a size to be passed on stdin (e.g. -u main.cpp:343)\n"
+            "  --no-context|-N               Don't print context for locations\n"
             "  --log-file|-L [file]          Log to this file\n"
             "  --append|-A                   Append to log file\n",
             app);
@@ -54,6 +55,7 @@ int main(int argc, char** argv)
         { "unsaved-file", required_argument, 0, 'u' },
         { "log-file", required_argument, 0, 'L' },
         { "append", no_argument, 0, 'A' },
+        { "no-context", no_argument, 0, 'N' },
         { 0, 0, 0, 0 }
     };
 
@@ -61,15 +63,15 @@ int main(int argc, char** argv)
     QByteArray logFile;
     unsigned logFlags = 0;
 
-    bool skipparen = false;
     QList<Path> makeFiles;
     QList<QPair<QueryMessage::Type, QByteArray> > optlist;
     QHash<Path, QByteArray> unsavedFiles;
+    unsigned flags = 0;
 
     QFile standardIn;
 
     for (;;) {
-        const int c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:C:u:L:A", opts, 0);
+        const int c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:C:u:L:AN", opts, 0);
         if (c == -1)
             break;
         switch (c) {
@@ -78,6 +80,9 @@ int main(int argc, char** argv)
         case 'h':
             help(stdout, argv[0]);
             return 0;
+        case 'N':
+            flags |= Client::NoContext;
+            break;
         case 'v':
             ++logLevel;
             break;
@@ -88,7 +93,7 @@ int main(int argc, char** argv)
             logFile = optarg;
             break;
         case 'p':
-            skipparen = true;
+            flags |= Client::SkipParen;
             break;
         case 'u':
             if (!standardIn.isOpen() && !standardIn.open(stdin, QIODevice::ReadOnly)) {
@@ -174,9 +179,6 @@ int main(int argc, char** argv)
             l << argv[i];
     }
 
-    int flags = 0;
-    if (skipparen)
-        flags |= Client::SkipParen;
     Client client(flags);
     QList<QPair<QueryMessage::Type, QByteArray> >::const_iterator it = optlist.begin();
     while (it != optlist.end()) {
