@@ -13,7 +13,8 @@ SOURCES += \
     $$PWD/messages/AddMessage.cpp \
     $$PWD/messages/QueryMessage.cpp \
     $$PWD/messages/ErrorMessage.cpp \
-    $$PWD/Log.cpp
+    $$PWD/Log.cpp \
+    $$PWD/RTags.cpp
 
 HEADERS += \
     $$PWD/Connection.h \
