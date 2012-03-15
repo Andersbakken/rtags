@@ -113,8 +113,8 @@ static inline QList<QByteArray> pch(const AddMessage* message)
     foreach(const QByteArray &arg, message->pchs()) {
         if (!arg.isEmpty()) {
             switch (message->type()) {
-            case AddMessage::CompileCPlusPlus:
-            case AddMessage::PchCPlusPlus:
+            case CompileCPlusPlus:
+            case PchCPlusPlus:
                 out.append("-include-pch");
                 out.append(arg);
                 break;
@@ -131,24 +131,7 @@ void Rdm::handleAddMessage(AddMessage* message)
     Connection* conn = qobject_cast<Connection*>(sender());
 
     QByteArray outputfile = message->outputFile();
-    Indexer::Type type;
-    switch (message->type()) {
-    case AddMessage::PchC:
-        warning() << "Ignoring pch c file";
-        return;
-    case AddMessage::CompileC:
-        type = Indexer::C;
-        break;
-    case AddMessage::PchCPlusPlus:
-        // warning() << message->arguments() + m_defaultArgs << message->inputFile();
-    case AddMessage::CompileCPlusPlus:
-        type = Indexer::CPlusPlus;
-        break;
-    default:
-        warning("%s: Invalid type %d\n", __FUNCTION__, message->type());
-        return;
-    }
-    int id = m_indexer->index(type, message->inputFile(), outputfile,
+    int id = m_indexer->index(message->type(), message->inputFile(), outputfile,
                               message->arguments() + m_defaultArgs + pch(message),
                               Indexer::Force);
     m_pendingIndexes[id] = conn;

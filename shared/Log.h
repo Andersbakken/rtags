@@ -6,9 +6,16 @@
 #include <QExplicitlySharedDataPointer>
 #include <QSharedData>
 
+enum LogLevel {
+    Error = 0,
+    Warning = 1,
+    Debug = 2,
+    VerboseDebug = 3
+};
 void log(int level, const char *format, ...);
 void debug(const char *format, ...);
 void warning(const char *format, ...);
+void error(const char *format, ...);
 enum LogFlag {
     Append = 0x1,
     // ### rotate log files?
@@ -59,19 +66,24 @@ static inline Log log(int level = 0)
 {
     return Log(level);
 }
+static inline Log error()
+{
+    return Log(Error);
+}
+
 static inline Log warning()
 {
-    return Log(0);
+    return Log(Warning);
 }
 
 static inline Log debug()
 {
-    return Log(1);
+    return Log(Debug);
 }
 
 static inline Log verboseDebug()
 {
-    return Log(2);
+    return Log(VerboseDebug);
 }
 
 #endif

@@ -7,6 +7,8 @@
 #include <Log.h>
 #include <stdio.h>
 
+enum UnitType { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };
+
 static inline int canonicalizePath(char *path, int len)
 {
     Q_ASSERT(path[0] == '/');
