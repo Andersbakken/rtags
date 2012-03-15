@@ -626,7 +626,8 @@ static void findIncludes(CXFile includedFile, CXSourceLocation* stack, unsigned 
     if (strncmp(cstr, "/usr/", 5)) {
         QHash<Path, QSet<QByteArray> > &paths = u->paths;
         Path p(cstr);
-        p.resolve();
+        int ret = canonicalizePath(p.data(), p.size());
+        p.truncate(ret);
         paths[p.parentDir()].insert(p.fileName());
     }
     // log(1, "%s for %s", cstr, u->path.constData());
@@ -642,29 +643,21 @@ static void findIncludes(CXFile includedFile, CXSourceLocation* stack, unsigned 
 
 void UnitCache::initFileSystemWatcher(Unit* unit)
 {
-
     FindIncludesUserData u = { unit->fileName, QHash<Path, QSet<QByteArray> >() };
     clang_getInclusions(unit->unit, findIncludes, &u);
-    if (unit->precompile) {
-        log(0) << "got some shit for a pch file"
-               << unit->fileName << u.paths;
-    }
     foreach(const QByteArray& pch, unit->pchs) {
         Path p(pch);
-        Resource resource(pch);
-        const QByteArray ast = resource.hashedFileName(Resource::AST);
-        // CachedUnit
-        CXTranslationUnit pchUnit = clang_createTranslationUnit(unit->index, ast.constData());
-        // ### is there a race here?
-        log(1) << "Trying to get load pch ast" << ast << pchUnit << p;
-        if (pchUnit) {
-            u.path = ast;
-            clang_getInclusions(pchUnit, findIncludes, &u);
-            clang_disposeTranslationUnit(pchUnit);
-        } else {
-            qWarning("Failed to load pch unit %s for %s", p.constData(), unit->fileName.constData());
+        QHash<Path, QSet<QByteArray> > pchDeps;
+        pchDeps = m_cachedPchDependencies.value(p);
+        debug() << "Getting dependencies for" << p << pchDeps.size() << unit->fileName;
+        for (QHash<Path, QSet<QByteArray> >::const_iterator it = pchDeps.begin(); it != pchDeps.end(); ++it) {
+            u.paths[it.key()] += it.value();
         }
         u.paths[p.parentDir()].insert(p.fileName());
+    }
+    if (unit->precompile) {
+        m_cachedPchDependencies[unit->fileName] = u.paths;
+        debug() << "caching pch dependencies for" << unit->fileName << "to" << u.paths;
     }
     // log(1) << "got paths" << unit->fileName << u.paths << "pchs" << unit->pchs;
     // log(1) << paths.keys();

@@ -95,6 +95,7 @@ private:
     QHash<QByteArray, UnitData*> m_data;
     QHash<Path, FileSystemWatcher*> m_watchers;
     QMutex m_dataMutex;
+    QHash<Path, QHash<Path, QSet<QByteArray> > > m_cachedPchDependencies;
     QWaitCondition m_dataCondition;
     static UnitCache* s_inst;
 
