@@ -6,6 +6,7 @@
 #include <Path.h>
 #include <Log.h>
 #include <stdio.h>
+#include <assert.h>
 
 namespace RTags {
 
@@ -39,13 +40,6 @@ static inline int digits(int len)
         ++ret;
     }
     return ret;
-}
-static inline void makeLocation(QByteArray &path, int line, int col)
-{
-    const int size = path.size();
-    const int extra = 2 + digits(line) + digits(col);
-    path.resize(size + extra);
-    snprintf(path.data() + size, extra + 1, ":%d:%d", line, col);
 }
 
 static inline QByteArray unescape(QByteArray command)
@@ -104,6 +98,36 @@ static inline QByteArray cursorToString(CXCursor cursor)
     return ret;
 }
 
+static inline int readLine(FILE *f, char *buf, int max)
+{
+    assert(!buf == (max == -1));
+    if (max == -1)
+        max = INT_MAX;
+    for (int i=0; i<max; ++i) {
+        const int ch = fgetc(f);
+        if (ch == '\n' || ch == EOF) {
+            if (buf)
+                *buf = '\0';
+            return i;
+        }
+        if (buf)
+            *buf++ = *reinterpret_cast<const char*>(&ch);
+    }
+    return -1;
+}
+
+static inline QByteArray context(const Path &path, unsigned offset, unsigned col)
+{
+    FILE *f = fopen(path.constData(), "r");
+    if (f && !fseek(f, offset - (col - 1), SEEK_SET)) {
+        char buf[1024] = { '\0' };
+        const int len = readLine(f, buf, 1023);
+        fclose(f);
+        return QByteArray(buf, len);
+    }
+    return QByteArray();
+}
+
 struct Location {
     Location() : line(0), column(0) {}
 
@@ -141,6 +165,41 @@ static inline bool makeLocation(const QByteArray &arg, Location *loc,
         loc->path = path;
     }
     return true;
+}
+
+static inline void makeLocation(QByteArray &path, int line, int col)
+{
+    const int size = path.size();
+    const int extra = 2 + digits(line) + digits(col);
+    path.resize(size + extra);
+    snprintf(path.data() + size, extra + 1, ":%d:%d", line, col);
+}
+
+enum MakeLocationFlag {
+    IncludeContext = 0x1
+};
+static inline QByteArray makeLocation(CXCursor cursor, unsigned flags = 0)
+{
+    CXSourceLocation loc = clang_getCursorLocation(cursor);
+    CXFile file;
+    unsigned line, col, off;
+    clang_getSpellingLocation(loc, &file, &line, &col, &off);
+    CXString fn = clang_getFileName(file);
+    QByteArray ret;
+    ret.reserve(256);
+    ret += clang_getCString(fn);
+    clang_disposeString(fn);
+    const int len = RTags::canonicalizePath(ret.data(), ret.size());
+    const int extra = RTags::digits(line) + RTags::digits(col) + 2;
+    const QByteArray ctx = (flags & IncludeContext ? context(ret, off, col) : QByteArray());
+    if (ctx.isEmpty()) {
+        ret.resize(len + extra);
+        snprintf(ret.data() + len, extra + 1, ":%d:%d", line, col);
+    } else {
+        ret.resize(len + extra + 1 + ctx.size());
+        snprintf(ret.data() + len, extra + 1 + ctx.size(), ":%d:%d\t%s", line, col, ctx.constData());
+    }
+    return ret;
 }
 }
 

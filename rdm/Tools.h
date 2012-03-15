@@ -30,38 +30,6 @@ struct FirstUnitData
     UnitCache::Unit* data;
 };
 
-static inline int readLine(FILE *f, char *buf, int max)
-{
-    assert(!buf == (max == -1));
-    if (max == -1)
-        max = INT_MAX;
-    for (int i=0; i<max; ++i) {
-        const int ch = fgetc(f);
-        if (ch == '\n' || ch == EOF) {
-            if (buf)
-                *buf = '\0';
-            return i;
-        }
-        if (buf)
-            *buf++ = *reinterpret_cast<const char*>(&ch);
-    }
-    return -1;
-}
-
-
-static inline QByteArray context(const Path &path, unsigned offset, unsigned col)
-{
-    FILE *f = fopen(path.constData(), "r");
-    if (f && !fseek(f, offset - (col - 1), SEEK_SET)) {
-        char buf[1024] = { '\0' };
-        const int len = readLine(f, buf, 1023);
-        fclose(f);
-        return QByteArray(buf, len);
-    }
-    return QByteArray();
-}
-
-
 static inline bool visitFindFirstUnit(UnitCache::Unit* ud, void* data)
 {
     FirstUnitData* firstdata = static_cast<FirstUnitData*>(data);

@@ -124,7 +124,7 @@ void FollowLocationJob::run()
         clang_disposeString(unitfn);
     }
 
-    QByteArray ctx = context(qfn, roff, rcol);
+    QByteArray ctx = RTags::context(qfn, roff, rcol);
     qfn += (":" + QByteArray::number(rrow) + ":" + QByteArray::number(rcol));
 
     if (!ctx.isEmpty())
