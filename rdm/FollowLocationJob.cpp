@@ -107,7 +107,7 @@ void FollowLocationJob::run()
             CXString usr = clang_getCursorUSR(ref);
             const char* cusr = clang_getCString(usr);
             if (!strlen(cusr)) {
-                log(1) << "no USR for reference, bailing out";
+                warning() << "no USR for reference, bailing out";
                 clang_disposeString(usr);
                 emit complete(id, QList<QByteArray>());
                 return;
