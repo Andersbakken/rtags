@@ -126,7 +126,7 @@ void FollowLocationJob::run()
             emit complete(id, defs);
             return;
         }
-        qfn = RTags::makeLocation(ref, 0);
+        qfn = makeLocation(ref, 0);
         log(1) << "followed to" << qfn;
     }
 

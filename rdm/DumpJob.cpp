@@ -16,10 +16,10 @@ static CXChildVisitResult dumpVisitor(CXCursor cursor, CXCursor, CXClientData us
 {
     DumpUserData *dump = reinterpret_cast<DumpUserData*>(userData);
     QByteArray line(dump->indent * 2, ' ');
-    line += RTags::cursorToString(cursor);
+    line += cursorToString(cursor);
     CXCursor ref = clang_getCursorReferenced(cursor);
     if (!clang_equalCursors(cursor, ref) && !clang_isInvalid(clang_getCursorKind(ref))) {
-        line += " => " + RTags::cursorToString(ref);
+        line += " => " + cursorToString(ref);
     }
     dump->lines.append(line);
     ++dump->indent;

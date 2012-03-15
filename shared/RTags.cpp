@@ -1,9 +1,4 @@
 #include "RTags.h"
-#include <clang-c/Index.h>
-#include <Path.h>
-#include <Log.h>
-#include <stdio.h>
-#include <assert.h>
 
 namespace RTags {
 
@@ -45,12 +40,6 @@ QByteArray unescape(QByteArray command)
     return ret;
 }
 
-QByteArray eatString(CXString str)
-{
-    const QByteArray ret(clang_getCString(str));
-    clang_disposeString(str);
-    return ret;
-}
 
 QByteArray join(const QList<QByteArray> &list, const QByteArray &sep)
 {
@@ -62,23 +51,6 @@ QByteArray join(const QList<QByteArray> &list, const QByteArray &sep)
     ret.reserve(size);
     foreach(const QByteArray &l, list) {
         ret.append(l);
-    }
-    return ret;
-}
-
-QByteArray cursorToString(CXCursor cursor)
-{
-    QByteArray ret = eatString(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
-    const QByteArray name = eatString(clang_getCursorSpelling(cursor));
-    if (!name.isEmpty())
-        ret += " " + name;
-
-    CXFile file;
-    unsigned line, col;
-    clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
-    const QByteArray fileName = eatString(clang_getFileName(file));
-    if (!fileName.isEmpty()) {
-        ret += " " + fileName + ':' + QByteArray::number(line) + ':' +  QByteArray::number(col);
     }
     return ret;
 }
@@ -163,29 +135,6 @@ void makeLocation(QByteArray &path, int line, int col)
     snprintf(path.data() + size, extra + 1, ":%d:%d", line, col);
 }
 
-QByteArray makeLocation(CXCursor cursor, unsigned flags)
-{
-    CXSourceLocation loc = clang_getCursorLocation(cursor);
-    CXFile file;
-    unsigned line, col, off;
-    clang_getSpellingLocation(loc, &file, &line, &col, &off);
-    CXString fn = clang_getFileName(file);
-    QByteArray ret;
-    ret.reserve(256);
-    ret += clang_getCString(fn);
-    clang_disposeString(fn);
-    const int len = RTags::canonicalizePath(ret.data(), ret.size());
-    const int extra = RTags::digits(line) + RTags::digits(col) + 2;
-    const QByteArray ctx = (flags & IncludeContext ? RTags::context(ret, off, col) : QByteArray());
-    if (ctx.isEmpty()) {
-        ret.resize(len + extra);
-        snprintf(ret.data() + len, extra + 1, ":%d:%d", line, col);
-    } else {
-        ret.resize(len + extra + 1 + ctx.size());
-        snprintf(ret.data() + len, extra + 1 + ctx.size(), ":%d:%d\t%s", line, col, ctx.constData());
-    }
-    return ret;
-}
 
 QByteArray makeLocation(const QByteArray &encodedLocation)
 {

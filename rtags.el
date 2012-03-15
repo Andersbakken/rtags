@@ -116,7 +116,7 @@ return t if rtags is allowed to modify this file"
                     (forward-char))))
           (setq column (int-to-string (- (point) (point-at-bol) -1))))
         (with-temp-buffer
-          (rtags-rc-internal "--follow-symbol" (concat (buffer-file-name rtags-last-buffer) ":" line ":" column ":"))
+          (rtags-rc-internal "-f" (concat (buffer-file-name rtags-last-buffer) ":" line ":" column))
           (rtags-goto-location (buffer-string))
           )
         )

@@ -35,4 +35,3 @@ noinline {
     QMAKE_CXXFLAGS += -fno-inline
     QMAKE_CFLAGS += -fno-inline
 }
-include($$PWD/clang.pri)

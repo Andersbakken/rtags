@@ -7,6 +7,7 @@ TARGET =
 DEPENDPATH += .
 INCLUDEPATH += . ../3rdparty/leveldb/src/include
 include(../shared/shared.pri)
+include(../shared/clang.pri)
 
 # Input
 SOURCES += \

@@ -10,6 +10,13 @@
 #include <leveldb/db.h>
 #include <RTags.h>
 
+static inline QByteArray eatString(CXString str)
+{
+    const QByteArray ret(clang_getCString(str));
+    clang_disposeString(str);
+    return ret;
+}
+    
 static inline void debugCursor(CXCursor c)
 {
     CXSourceLocation loc = clang_getCursorLocation(c);
@@ -76,5 +83,50 @@ static inline void visitIncluderFiles(const QByteArray& fileName, VisitFile visi
         }
     }
 }
+
+enum MakeLocationFlag {
+    IncludeContext = 0x1
+};
+static inline QByteArray cursorToString(CXCursor cursor)
+{
+    QByteArray ret = eatString(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
+    const QByteArray name = eatString(clang_getCursorSpelling(cursor));
+    if (!name.isEmpty())
+        ret += " " + name;
+
+    CXFile file;
+    unsigned line, col;
+    clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
+    const QByteArray fileName = eatString(clang_getFileName(file));
+    if (!fileName.isEmpty()) {
+        ret += " " + fileName + ':' + QByteArray::number(line) + ':' +  QByteArray::number(col);
+    }
+    return ret;
+}
+
+static inline QByteArray makeLocation(CXCursor cursor, unsigned flags = 0)
+{
+    CXSourceLocation loc = clang_getCursorLocation(cursor);
+    CXFile file;
+    unsigned line, col, off;
+    clang_getSpellingLocation(loc, &file, &line, &col, &off);
+    CXString fn = clang_getFileName(file);
+    QByteArray ret;
+    ret.reserve(256);
+    ret += clang_getCString(fn);
+    clang_disposeString(fn);
+    const int len = RTags::canonicalizePath(ret.data(), ret.size());
+    const int extra = RTags::digits(line) + RTags::digits(col) + 2;
+    const QByteArray ctx = (flags & IncludeContext ? RTags::context(ret, off, col) : QByteArray());
+    if (ctx.isEmpty()) {
+        ret.resize(len + extra);
+        snprintf(ret.data() + len, extra + 1, ":%d:%d", line, col);
+    } else {
+        ret.resize(len + extra + 1 + ctx.size());
+        snprintf(ret.data() + len, extra + 1 + ctx.size(), ":%d:%d\t%s", line, col, ctx.constData());
+    }
+    return ret;
+}
+
 
 #endif
