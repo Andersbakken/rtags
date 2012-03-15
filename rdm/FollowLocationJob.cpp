@@ -10,6 +10,26 @@ FollowLocationJob::~FollowLocationJob()
 {
 }
 
+static QList<QByteArray> lookupUsr(const char* cusr)
+{
+    leveldb::DB* db = 0;
+    const QByteArray dbname = Database::databaseName(Database::Definition);
+    const leveldb::Status status = leveldb::DB::Open(leveldb::Options(), dbname.constData(), &db);
+    if (!status.ok()) {
+        warning("no definition db!");
+        return QList<QByteArray>();
+    }
+    std::string value;
+    db->Get(leveldb::ReadOptions(), cusr, &value);
+    delete db;
+    if (value.empty()) {
+        warning() << "no definition resource found, bailing out";
+        return QList<QByteArray>();
+    }
+    const QByteArray bvalue(value.c_str(), value.size());
+    return bvalue.split('\n');
+}
+
 void FollowLocationJob::run()
 {
     QByteArray qfn;
@@ -72,26 +92,8 @@ void FollowLocationJob::run()
                     }
                 }
 
-                leveldb::DB* db = 0;
-                QByteArray dbname = Database::databaseName(Database::Definition);
-                leveldb::Status status = leveldb::DB::Open(leveldb::Options(), dbname.constData(), &db);
-                if (!status.ok()) {
-                    warning("no definition db!");
-                    clang_disposeString(usr);
-                    emit complete(id, QList<QByteArray>());
-                    return;
-                }
-                std::string value;
-                db->Get(leveldb::ReadOptions(), cusr, &value);
+                QList<QByteArray> defs = lookupUsr(cusr);
                 clang_disposeString(usr);
-                delete db;
-                if (value.empty()) {
-                    warning() << "no definition resource found, bailing out";
-                    emit complete(id, QList<QByteArray>());
-                    return;
-                }
-                QByteArray bvalue = QByteArray::fromRawData(value.c_str(), value.size());
-                QList<QByteArray> defs = bvalue.split('\n');
                 emit complete(id, defs);
                 return;
             }
@@ -100,8 +102,23 @@ void FollowLocationJob::run()
 
         CXFile rfile;
         clang_getSpellingLocation(loc, &rfile, &rrow, &rcol, &roff);
-        CXString unitfn = clang_getFileName(rfile);
+        if (rrow == 0 && rcol == 0) { // try to get the USR and look up in leveldb
+            log(1) << "no location at reference, trying USR";
+            CXString usr = clang_getCursorUSR(ref);
+            const char* cusr = clang_getCString(usr);
+            if (!strlen(cusr)) {
+                log(1) << "no USR for reference, bailing out";
+                clang_disposeString(usr);
+                emit complete(id, QList<QByteArray>());
+                return;
+            }
+            QList<QByteArray> defs = lookupUsr(cusr);
+            clang_disposeString(usr);
+            emit complete(id, defs);
+            return;
+        }
 
+        CXString unitfn = clang_getFileName(rfile);
         log(1) << "followed to" << clang_getCString(unitfn) << rrow << rcol << roff;
         qfn = Path::resolved(clang_getCString(unitfn));
         clang_disposeString(unitfn);
