@@ -4,12 +4,13 @@
 #include "UnitCache.h"
 #include "Tools.h"
 
-ReferencesJob::ReferencesJob(const QByteArray& fn, int i, int l, int c)
-    : fileName(fn), id(i), line(l), col(c)
+ReferencesJob::ReferencesJob(int i, const RTags::Location &loc)
+    : id(i), location(loc), symbolName(QByteArray())
 {
 }
 
-ReferencesJob::~ReferencesJob()
+ReferencesJob::ReferencesJob(int i, const QByteArray &sym)
+    : id(i), location(RTags::Location()), symbolName(sym)
 {
 }
 
@@ -37,10 +38,11 @@ static inline void readReferences(const char* usr, QList<QByteArray>& refs)
 
 void ReferencesJob::run()
 {
-    if (line == -1 && col == -1)
+    if (!symbolName.isEmpty()) {
         runName();
-    else
+    } else {
         runLocation();
+    }
 }
 
 void ReferencesJob::runName()
@@ -55,7 +57,7 @@ void ReferencesJob::runName()
     }
 
     std::string value;
-    db->Get(leveldb::ReadOptions(), fileName.constData(), &value);
+    db->Get(leveldb::ReadOptions(), symbolName.constData(), &value);
     if (value.empty()) {
         delete db;
         emit complete(id, QList<QByteArray>());
@@ -100,17 +102,17 @@ void ReferencesJob::runName()
 
 void ReferencesJob::runLocation()
 {
-    CachedUnit locker(fileName, UnitCache::AST | UnitCache::Memory);
+    CachedUnit locker(location.path, UnitCache::AST | UnitCache::Memory);
     UnitCache::Unit* data = locker.unit();
     if (!data) {
         FirstUnitData first;
-        first.fileName = fileName;
-        visitIncluderFiles(fileName, visitFindFirstUnit, &first);
+        first.fileName = location.path;
+        visitIncluderFiles(location.path, visitFindFirstUnit, &first);
         if (first.data) {
             locker.adopt(first.data);
             data = first.data;
         } else {
-            warning("references: no unit for %s", fileName.constData());
+            warning("references: no unit for %s", location.path.constData());
             emit complete(id, QList<QByteArray>());
             return;
         }
@@ -119,7 +121,12 @@ void ReferencesJob::runLocation()
     CXTranslationUnit unit = data->unit;
     CXFile file = data->file;
 
-    CXSourceLocation loc = clang_getLocation(unit, file, line, col);
+    CXSourceLocation loc;
+    if (location.offset != -1) {
+        loc = clang_getLocationForOffset(data->unit, file, location.offset);
+    } else {
+        loc = clang_getLocation(data->unit, file, location.line, location.column);
+    }
     CXCursor cursor = clang_getCursor(unit, loc);
     CXCursor def = clang_getCursorDefinition(cursor);
     if (clang_equalCursors(def, clang_getNullCursor())) {

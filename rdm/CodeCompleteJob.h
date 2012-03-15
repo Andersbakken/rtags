@@ -7,12 +7,14 @@
 #include <QList>
 #include <QHash>
 #include <Path.h>
+#include <RTags.h>
 
 class CodeCompleteJob : public QObject, public QRunnable
 {
     Q_OBJECT
 public:
-    CodeCompleteJob(const QByteArray& fn, int i, int l, int c, const QHash<Path, QByteArray> &unsaved);
+    CodeCompleteJob(int id, const RTags::Location &loc,
+                    const QHash<Path, QByteArray> &unsaved);
     ~CodeCompleteJob();
 
 signals:
@@ -22,9 +24,9 @@ protected:
     void run();
 
 private:
-    QByteArray fileName;
-    int id, line, col;
-    QHash<Path, QByteArray> unsavedFiles;
+    const int id;
+    const RTags::Location location;
+    const QHash<Path, QByteArray> unsavedFiles;
 };
 
 

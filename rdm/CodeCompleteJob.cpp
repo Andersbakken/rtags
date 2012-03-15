@@ -2,9 +2,9 @@
 #include "UnitCache.h"
 #include <Tools.h>
 
-CodeCompleteJob::CodeCompleteJob(const QByteArray&fn, int i, int l, int c,
+CodeCompleteJob::CodeCompleteJob(int i, const RTags::Location &loc,
                                  const QHash<Path, QByteArray> &unsaved)
-    : fileName(fn), id(i), line(l), col(c), unsavedFiles(unsaved)
+    : id(i), location(loc), unsavedFiles(unsaved)
 {
 }
 
@@ -34,17 +34,17 @@ static inline int length(int num)
 
 void CodeCompleteJob::run()
 {
-    CachedUnit locker(fileName, UnitCache::AST | UnitCache::Memory | UnitCache::Source);
+    CachedUnit locker(location.path, UnitCache::AST | UnitCache::Memory | UnitCache::Source);
     UnitCache::Unit* data = locker.unit();
     if (!data) {
         FirstUnitData first;
-        first.fileName = fileName;
-        visitIncluderFiles(fileName, visitFindFirstUnit, &first);
+        first.fileName = location.path;
+        visitIncluderFiles(location.path, visitFindFirstUnit, &first);
         if (first.data) {
             locker.adopt(first.data);
             data = first.data;
         } else {
-            warning("codecomplete: no unit for %s", fileName.constData());
+            warning("codecomplete: no unit for %s", location.path.constData());
             emit complete(id, QList<QByteArray>());
             return;
         }
@@ -59,6 +59,13 @@ void CodeCompleteJob::run()
             unsaved[i].Contents = it.value().constData();
             unsaved[i].Length = it.value().size();
         }
+    }
+    int line, col;
+    if (location.offset == -1) {
+        line = location.line;
+        col = location.column;
+    } else {
+        Q_ASSERT(0 && "clang_codeCompleteAt doesn't support offset. I could open the file and find the line/col but really... Do it in elisp.");
     }
     CXCodeCompleteResults *results = clang_codeCompleteAt(data->unit,
                                                           data->fileName.constData(),

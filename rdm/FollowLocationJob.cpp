@@ -1,8 +1,8 @@
 #include "FollowLocationJob.h"
 #include "Tools.h"
 
-FollowLocationJob::FollowLocationJob(const QByteArray&fn, int i, int l, int c)
-    : fileName(fn), id(i), line(l), col(c)
+FollowLocationJob::FollowLocationJob(int i, const RTags::Location &loc)
+    : id(i), location(loc)
 {
 }
 
@@ -27,7 +27,11 @@ static QList<QByteArray> lookupUsr(const char* cusr)
         return QList<QByteArray>();
     }
     const QByteArray bvalue(value.c_str(), value.size());
-    return bvalue.split('\n');
+    QList<QByteArray> list = bvalue.split('\n');
+    for (int i=0; i<list.size(); ++i) {
+        list[i] = RTags::makeLocation(list.at(i));
+    }
+    return list;
 }
 
 void FollowLocationJob::run()
@@ -35,24 +39,29 @@ void FollowLocationJob::run()
     QByteArray qfn;
     unsigned int rrow, rcol, roff;
     {
-        CachedUnit locker(fileName, UnitCache::AST | UnitCache::Memory);
+        CachedUnit locker(location.path, UnitCache::AST | UnitCache::Memory);
         UnitCache::Unit* data = locker.unit();
         if (!data) {
             FirstUnitData first;
-            first.fileName = fileName;
-            visitIncluderFiles(fileName, visitFindFirstUnit, &first);
+            first.fileName = location.path;
+            visitIncluderFiles(location.path, visitFindFirstUnit, &first);
             if (first.data) {
                 locker.adopt(first.data);
                 data = first.data;
             } else {
-                warning("follow: no unit for %s", fileName.constData());
+                warning("follow: no unit for %s", location.path.constData());
                 emit complete(id, QList<QByteArray>());
                 return;
             }
         }
 
-        CXFile file = clang_getFile(data->unit, fileName.constData());
-        CXSourceLocation loc = clang_getLocation(data->unit, file, line, col);
+        CXFile file = clang_getFile(data->unit, location.path.constData());
+        CXSourceLocation loc;
+        if (location.offset != -1) {
+            loc = clang_getLocationForOffset(data->unit, file, location.offset);
+        } else {
+            loc = clang_getLocation(data->unit, file, location.line, location.column);
+        }
         CXCursor cursor = clang_getCursor(data->unit, loc);
         CXCursorKind cursorKind = clang_getCursorKind(cursor);
         CXCursor ref = clang_getCursorReferenced(cursor);
@@ -92,7 +101,7 @@ void FollowLocationJob::run()
                     }
                 }
 
-                QList<QByteArray> defs = lookupUsr(cusr);
+                const QList<QByteArray> defs = lookupUsr(cusr);
                 clang_disposeString(usr);
                 emit complete(id, defs);
                 return;
@@ -112,23 +121,14 @@ void FollowLocationJob::run()
                 emit complete(id, QList<QByteArray>());
                 return;
             }
-            QList<QByteArray> defs = lookupUsr(cusr);
+            const QList<QByteArray> defs = lookupUsr(cusr);
             clang_disposeString(usr);
             emit complete(id, defs);
             return;
         }
-
-        CXString unitfn = clang_getFileName(rfile);
-        log(1) << "followed to" << clang_getCString(unitfn) << rrow << rcol << roff;
-        qfn = Path::resolved(clang_getCString(unitfn));
-        clang_disposeString(unitfn);
+        qfn = RTags::makeLocation(ref, 0);
+        log(1) << "followed to" << qfn;
     }
-
-    QByteArray ctx = RTags::context(qfn, roff, rcol);
-    qfn += (":" + QByteArray::number(rrow) + ":" + QByteArray::number(rcol));
-
-    if (!ctx.isEmpty())
-        qfn += ('\t' + ctx);
 
     emit complete(id, QList<QByteArray>() << qfn);
 }

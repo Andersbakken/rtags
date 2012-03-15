@@ -5,14 +5,14 @@
 #include <QObject>
 #include <QByteArray>
 #include <QList>
+#include <RTags.h>
 
 class ReferencesJob : public QObject, public QRunnable
 {
     Q_OBJECT
 public:
-    ReferencesJob(const QByteArray& fn, int i, int l, int c);
-    ~ReferencesJob();
-
+    ReferencesJob(int id, const RTags::Location &location);
+    ReferencesJob(int id, const QByteArray &symbolName);
 signals:
     void complete(int id, const QList<QByteArray>& locations);
 
@@ -22,8 +22,9 @@ protected:
     void runName();
 
 private:
-    QByteArray fileName;
-    int id, line, col;
+    const int id;
+    const RTags::Location location;
+    const QByteArray symbolName;
 };
 
 #endif

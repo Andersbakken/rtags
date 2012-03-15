@@ -63,7 +63,7 @@ int Database::followLocation(const QueryMessage &query)
 
     const int id = ++m_impl->lastJobId;
 
-    FollowLocationJob* job = new FollowLocationJob(loc.path, id, loc.line, loc.column);
+    FollowLocationJob* job = new FollowLocationJob(id, loc);
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
     QThreadPool::globalInstance()->start(job);
@@ -77,7 +77,7 @@ int Database::cursorInfo(const QueryMessage &query)
     if (!makeLocation(query.query().front(), &loc))
         return -1;
     const int id = ++m_impl->lastJobId;
-    CursorInfoJob* job = new CursorInfoJob(loc.path, id, loc.line, loc.column);
+    CursorInfoJob* job = new CursorInfoJob(id, loc);
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
     QThreadPool::globalInstance()->start(job);
@@ -92,7 +92,7 @@ int Database::codeComplete(const QueryMessage &query)
 
     const int id = ++m_impl->lastJobId;
 
-    CodeCompleteJob* job = new CodeCompleteJob(loc.path, id, loc.line, loc.column, query.unsavedFiles());
+    CodeCompleteJob* job = new CodeCompleteJob(id, loc, query.unsavedFiles());
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
     QThreadPool::globalInstance()->start(job);
@@ -107,9 +107,10 @@ int Database::referencesForLocation(const QueryMessage &query)
 
     const int id = ++m_impl->lastJobId;
 
-    log(1) << "references for location" << loc.path << Resource::hash(loc.path) << loc.line << loc.column;
+    log(1) << "references for location" << loc.path << Resource::hash(loc.path) << loc.line << loc.column
+           << loc.offset;
 
-    ReferencesJob* job = new ReferencesJob(loc.path, id, loc.line, loc.column);
+    ReferencesJob* job = new ReferencesJob(id, loc);
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
     QThreadPool::globalInstance()->start(job);
@@ -124,7 +125,7 @@ int Database::referencesForName(const QueryMessage& query)
     const QByteArray name = query.query().front();
     log(1) << "references for name" << name;
 
-    ReferencesJob* job = new ReferencesJob(name, id, -1, -1);
+    ReferencesJob* job = new ReferencesJob(id, name);
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
     QThreadPool::globalInstance()->start(job);

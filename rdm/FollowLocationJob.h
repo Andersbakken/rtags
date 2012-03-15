@@ -5,12 +5,13 @@
 #include <QObject>
 #include <QByteArray>
 #include <QList>
+#include "RTags.h"
 
 class FollowLocationJob : public QObject, public QRunnable
 {
     Q_OBJECT
 public:
-    FollowLocationJob(const QByteArray& fn, int i, int l, int c);
+    FollowLocationJob(int id, const RTags::Location &loc);
     ~FollowLocationJob();
 
 signals:
@@ -20,8 +21,8 @@ protected:
     void run();
 
 private:
-    QByteArray fileName;
-    int id, line, col;
+    const int id;
+    const RTags::Location location;
 };
 
 #endif

@@ -129,10 +129,10 @@ static inline QByteArray context(const Path &path, unsigned offset, unsigned col
 }
 
 struct Location {
-    Location() : line(0), column(0) {}
+    Location() : line(0), column(0), offset(-1) {}
 
     Path path;
-    int line, column;
+    int line, column, offset;
 };
 
 static inline bool makeLocation(const QByteArray &arg, Location *loc,
@@ -146,23 +146,33 @@ static inline bool makeLocation(const QByteArray &arg, Location *loc,
         return false;
     }
     const unsigned column = atoi(arg.constData() + colon + 1);
-    if (!column)
+    if (!column) {
         return false;
-    colon = arg.lastIndexOf(':', colon - 1);
-    if (colon == -1)
-        return false;
-    const unsigned line = atoi(arg.constData() + colon + 1);
-    if (!line)
-        return false;
+    }
+    const int colon2 = arg.lastIndexOf(':', colon - 1);
+    unsigned line = 0;
+    if (colon2 != -1) {
+        line = atoi(arg.constData() + colon2 + 1);
+        if (!line) {
+            return false;
+        }
+        colon = colon2;
+    }
     const Path path = Path::resolved(arg.left(colon), cwd);
-    if (path.isEmpty())
+    if (path.isEmpty()) {
         return false;
+    }
     if (resolvedLocation)
         *resolvedLocation = path + arg.mid(colon);
     if (loc) {
-        loc->line = line;
-        loc->column = column;
         loc->path = path;
+        if (line) {
+            loc->line = line;
+            loc->column = column;
+            loc->offset = -1;
+        } else {
+            loc->offset = column;
+        }
     }
     return true;
 }
@@ -191,7 +201,7 @@ static inline QByteArray makeLocation(CXCursor cursor, unsigned flags = 0)
     clang_disposeString(fn);
     const int len = RTags::canonicalizePath(ret.data(), ret.size());
     const int extra = RTags::digits(line) + RTags::digits(col) + 2;
-    const QByteArray ctx = (flags & IncludeContext ? context(ret, off, col) : QByteArray());
+    const QByteArray ctx = (flags & IncludeContext ? RTags::context(ret, off, col) : QByteArray());
     if (ctx.isEmpty()) {
         ret.resize(len + extra);
         snprintf(ret.data() + len, extra + 1, ":%d:%d", line, col);
@@ -200,6 +210,17 @@ static inline QByteArray makeLocation(CXCursor cursor, unsigned flags = 0)
         snprintf(ret.data() + len, extra + 1 + ctx.size(), ":%d:%d\t%s", line, col, ctx.constData());
     }
     return ret;
+}
+
+static inline QByteArray makeLocation(const QByteArray &encodedLocation)
+{
+    Location loc;
+    QByteArray file;
+    if (makeLocation(encodedLocation, &loc, &file)) {
+        const QByteArray ctx = RTags::context(file, loc.line, loc.column);
+        return encodedLocation + '\t' + ctx;
+    }
+    return encodedLocation;
 }
 }
 

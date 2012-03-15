@@ -5,12 +5,13 @@
 #include <QObject>
 #include <QByteArray>
 #include <QList>
+#include <RTags.h>
 
 class CursorInfoJob : public QObject, public QRunnable
 {
     Q_OBJECT
 public:
-    CursorInfoJob(const QByteArray& fn, int i, int l, int c);
+    CursorInfoJob(int id, const RTags::Location &loc);
     ~CursorInfoJob();
 
 signals:
@@ -20,8 +21,8 @@ protected:
     void run();
 
 private:
-    QByteArray fileName;
-    int id, line, col;
+    const int id;
+    const RTags::Location location;
 };
 
 #endif
