@@ -66,6 +66,9 @@ void CodeCompleteJob::run()
         col = location.column;
     } else {
         Q_ASSERT(0 && "clang_codeCompleteAt doesn't support offset. I could open the file and find the line/col but really... Do it in elisp.");
+        // make gcc not warn
+        line = 0;
+        col = 0;
     }
     CXCodeCompleteResults *results = clang_codeCompleteAt(data->unit,
                                                           data->fileName.constData(),
