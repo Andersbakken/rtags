@@ -51,7 +51,7 @@ private:
         ~Data()
         {
             delete dbg;
-            log(level, "%s", qPrintable(out));
+            log(level, "%s", qPrintable(out.trimmed()));
         }
 
         const int level;
