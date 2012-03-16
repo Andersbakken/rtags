@@ -72,6 +72,7 @@ void Client::onMakefileDone()
     m_makeDone = true;
     if (!m_conn || !m_conn->pendingWrite())
         qApp->quit();
+    sender()->deleteLater();
 }
 
 QList<QByteArray> Client::mapPchToInput(const QList<QByteArray>& input)
@@ -100,8 +101,8 @@ void Client::onMakefileReady(const GccArguments& args)
     if (!m_conn) {
         m_conn = new Connection(this);
         if (!m_conn->connectToHost("localhost", Connection::Port)) {
-            warning("Can't connect to host");
-            QCoreApplication::quit();
+            error("Can't connect to host");
+            sender()->deleteLater();
             return;
         }
         connect(m_conn, SIGNAL(sendComplete()), this, SLOT(onSendComplete()));
