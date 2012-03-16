@@ -73,7 +73,7 @@ Path Path::resolved(const QByteArray &path, const Path &cwd, bool *ok)
 
 bool Path::isResolved() const
 {
-    return isAbsolute() && !isCanonical();
+    return isAbsolute() && isCanonical();
 }
 
 bool Path::isCanonical() const
