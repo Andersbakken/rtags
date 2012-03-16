@@ -131,7 +131,7 @@ void Rdm::handleAddMessage(AddMessage* message)
     Connection* conn = qobject_cast<Connection*>(sender());
 
     QByteArray outputfile = message->outputFile();
-    int id = m_indexer->index(message->type(), message->inputFile(), outputfile,
+    int id = m_indexer->index(message->inputFile(), outputfile,
                               message->arguments() + m_defaultArgs + pch(message),
                               Indexer::Force);
     m_pendingIndexes[id] = conn;

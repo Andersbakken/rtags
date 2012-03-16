@@ -17,7 +17,7 @@ public:
     Indexer(const QByteArray& path, QObject* parent = 0);
     ~Indexer();
 
-    int index(RTags::UnitType type, const QByteArray& input, const QByteArray&output,
+    int index(const QByteArray& input, const QByteArray &output,
               const QList<QByteArray>& arguments, Mode mode = None);
 
     static Indexer* instance();
