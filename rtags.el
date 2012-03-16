@@ -21,11 +21,7 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'hook)
 
-(defun rtags-append-to-list (list element)
-  ;; (add-to-list list element t))
-  (let ((len (list-length (eval list))))
-    (add-to-list list element t)
-    (not (= len (list-length (eval list))))))
+(defvar rtags-last-buffer nil)
 
 (defun rtags-log (log)
   (save-excursion
@@ -68,25 +64,9 @@ return t if rtags is allowed to modify this file"
     )
   )
 
-(defun rtags-symbol-pos (&optional pos)
-  (let ((line (int-to-string (line-number-at-pos pos)))
-        (column nil))
-    (setq rtags-last-buffer (current-buffer))
-    (save-excursion
-      (if pos
-          (goto-char pos))
-      (if (looking-at "[0-9A-Za-z_~#]")
-          (progn
-            (while (and (> (point) 1) (looking-at "[0-9A-Za-z_~#]"))
-              (backward-char))
-            (if (not (looking-at "[0-9A-Za-z_~#]"))
-                (forward-char))
-            (setq column (int-to-string (- (point) (point-at-bol) -1))))))
-    (concat (buffer-file-name rtags-last-buffer) ":" line ":" column ":")))
-
-
-(defun rtags-follow-symbol-at-point(&optional pos)
+(defun rtags-follow-symbol-at-point()
   (interactive)
+  (setq rtags-last-buffer (current-buffer))
   (let ((arg (format "%s:%d" (buffer-file-name) (point))))
     (with-temp-buffer
       (rtags-call-rc "-f" arg)
@@ -97,8 +77,16 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-find-references-at-point()
   (interactive)
-  (rtags-find-references-at-point-internal "-r")
-  )
+  (setq rtags-last-buffer (current-buffer))
+  (let ((arg (format "%s:%d" (buffer-file-name) (point))))
+    (kill-buffer "*RTags-Complete*"))
+    (switch-to-buffer (generate-new-buffer "*RTags-Complete*"))
+    (rtags-call-rc "-l" arg)
+    (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
+          ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
+          (t (progn (goto-char (point-min)) (compilation-mode))))
+    (not (= (point-min) (point-max))))
+
 
 (defun rtags-find-references ()
   (interactive)
@@ -161,47 +149,8 @@ return t if rtags is allowed to modify this file"
 
 ; (get-file-buffer FILENAME)
 
-(defun rtags-complete (string predicate code)
-  (let ((completions))
-    (with-temp-buffer
-      (rtags-call-rc "-S" "-n" "-l" string)
-      (setq 'completions (split-string (buffer-string) "\n" t)))))
-      ;; (all-completion string completions))))
-      ;; (cond ((eq code nil)
-      ;;        (try-completion string completions predicate))
-      ;;       ((eq code t)
-      ;;        (all-completions string completions predicate))
-      ;;       ((eq code 'lambda)
-      ;;        (if (intern-soft string completions) t nil))))))
-
-(defun rtags-find-references-at-point-internal(mode)
-  (let ((bufname (buffer-file-name))
-        (line (int-to-string (line-number-at-pos)))
-        (column nil))
-    (unless (looking-at " ")
-      (progn
-        (save-excursion
-          (if (looking-at "[0-9A-Za-z_~#]")
-              (progn
-                (while (and (> (point) 1) (looking-at "[0-9A-Za-z_~#]"))
-                  (backward-char))
-                (if (not (looking-at "[0-9A-Za-z_~#]"))
-                    (forward-char))
-                (setq column (int-to-string (- (point) (point-at-bol) -1))))))
-        (if (get-buffer "*RTags-Complete*")
-            (kill-buffer "*RTags-Complete*"))
-        (setq rtags-last-buffer (current-buffer))
-        (switch-to-buffer (generate-new-buffer "*RTags-Complete*"))
-        (rtags-call-rc "-o" mode (concat bufname ":" line ":" column ":"))
-
-        (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
-              ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
-              (t (progn (goto-char (point-min)) (compilation-mode))))
-        (not (= (point-min) (point-max))))
-      nil)
-    ))
-
 (defun rtags-follow-symbol-internal (p switch)
+  (setq rtags-last-buffer (current-buffer))
   (let (tagname prompt input completions)
     (setq tagname (gtags-current-token))
     (if tagname
@@ -214,20 +163,18 @@ return t if rtags is allowed to modify this file"
     (setq input (completing-read prompt completions nil nil nil rtags-symbol-history))
     (if (not (equal "" input))
         (setq tagname input))
-    (if (get-buffer "*RTags-Complete*")
-        (kill-buffer "*RTags-Complete*"))
+    (kill-buffer "*RTags-Complete*"))
     (switch-to-buffer (generate-new-buffer "*RTags-Complete*"))
     (rtags-call-rc switch tagname)
-    ;; (call-process (executable-find "rc") nil (list t nil) nil switch tagname)
     (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
           ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
           (t (progn (goto-char (point-min)) (compilation-mode))))
     (not (= (point-min) (point-max)))
-    ))
+    )
 
 (defun rtags-follow-symbol-prompt ()
   (interactive)
-  (rtags-follow-symbol-internal "(R)Find symbol" "-s"))
+  (rtags-follow-symbol-internal "(R)Find symbol" "-a"))
 
 (defun rtags-follow-symbol ()
   (interactive)
@@ -240,9 +187,8 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-find-references-prompt ()
   (interactive)
-  (rtags-follow-symbol-internal "(R)Find references" "-r"))
+  (rtags-follow-symbol-internal "(R)Find references" "-n"))
 
-(defvar rtags-last-buffer nil)
 (defun rtags-remove-completions-buffer ()
   (interactive)
   (kill-buffer (current-buffer))

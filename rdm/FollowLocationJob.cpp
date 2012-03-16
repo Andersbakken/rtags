@@ -28,8 +28,12 @@ static QList<QByteArray> lookupUsr(const char* cusr)
     }
     const QByteArray bvalue(value.c_str(), value.size());
     QList<QByteArray> list = bvalue.split('\n');
-    for (int i=0; i<list.size(); ++i) {
-        list[i] = RTags::makeLocation(list.at(i));
+    for (int i=list.size() - 1; i>=-0; --i) {
+        if (list.at(i).isEmpty()) {
+            list.removeAt(i);
+        } else {
+            list[i] = RTags::makeLocation(list.at(i));
+        }
     }
     return list;
 }
