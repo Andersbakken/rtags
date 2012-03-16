@@ -201,17 +201,17 @@ class IndexerJob : public QObject, public QRunnable
 {
     Q_OBJECT
 public:
-    IndexerJob(IndexerImpl* impl, Indexer::Mode mode, int id,
-               const QByteArray& path, const QByteArray& input, const QByteArray& output,
+    IndexerJob(IndexerImpl* impl, unsigned mode, int id,
+               const QByteArray& path, const QByteArray& input,
                const QList<QByteArray>& arguments);
 
     int id() const { return m_id; }
 
     void run();
 
-    Indexer::Mode m_mode;
+    unsigned m_mode;
     int m_id;
-    QByteArray m_path, m_in, m_out;
+    QByteArray m_path, m_in;
     QList<QByteArray> m_args;
     IndexerImpl* m_impl;
 
@@ -221,7 +221,7 @@ private:
     void addFileNameSymbol(const QByteArray& fileName);
 
 signals:
-    void done(int id, const QByteArray& input, const QByteArray& output);
+    void done(int id, const QByteArray& input);
 };
 
 #include "Indexer.moc"
@@ -335,24 +335,42 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         clang_disposeString(fileName);
         return CXChildVisit_Recurse;
     }
+#if 0
     QByteArray qloc;
     {
         QMutexLocker locker(&job->m_impl->resolveMutex);
         QHash<QByteArray, QByteArray>& cache = job->m_impl->resolveCache;
-        QByteArray key = cfileName;
-        QByteArray &val = cache[key];
+        Path path(cfileName);
+        QByteArray &val = cache[path];
         if (val.isEmpty()) {
-            qloc = key;
-            int ret = RTags::canonicalizePath(qloc.data(), qloc.size());
+            path.canonicalizePath();
+
+            const int ret = RTags::canonicalizePath(qloc.data(), qloc.size());
             const int extra = RTags::digits(line) + RTags::digits(col) + 2;
             qloc.resize(ret + extra);
-            ret = snprintf(qloc.data() + ret, extra + 1, ":%d:%d", line, col);
-            qloc.resize(ret);
+            const int lineColLen = snprintf(qloc.data() + ret, extra + 1, ":%d:%d", line, col);
+            if (!strcmp(cusr, "c:@C@Connection@F@connectToHost#&1$@C@QString#s#")) {
+                error() << qloc << qloc.length() << lineColLen + ret
+                        << "line" << line << "col" << col << cfileName;
+            }
+            Q_ASSERT(!qloc.endsWith(' '));
+            qloc.resize(ret + lineColLen);
             val = qloc;
         } else {
             qloc = val;
+
         }
     }
+#else
+    QByteArray qloc(cfileName);
+    int canonicalized = RTags::canonicalizePath(qloc.data(), qloc.size());
+    const int extra = RTags::digits(line) + RTags::digits(col) + 2;
+    qloc.resize(canonicalized + extra);
+    const int lineColLen = snprintf(qloc.data() + canonicalized, extra + 1, ":%d:%d", line, col);
+    Q_ASSERT(lineColLen + canonicalized == qloc.size());
+    Q_ASSERT(!qloc.endsWith(" "));
+    // error() << cfileName << line << col << "=>" << qloc;
+#endif
 
     if (clang_isCursorDefinition(cursor)
         || kind == CXCursor_FunctionDecl) {
@@ -370,10 +388,10 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
     return CXChildVisit_Recurse;
 }
 
-IndexerJob::IndexerJob(IndexerImpl* impl, Indexer::Mode mode, int id,
-                       const QByteArray& path, const QByteArray& input, const QByteArray& output,
+IndexerJob::IndexerJob(IndexerImpl* impl, unsigned mode, int id,
+                       const QByteArray& path, const QByteArray& input,
                        const QList<QByteArray>& arguments)
-    : m_mode(mode), m_id(id), m_path(path), m_in(input), m_out(output), m_args(arguments), m_impl(impl)
+    : m_mode(mode), m_id(id), m_path(path), m_in(input), m_args(arguments), m_impl(impl)
 {
 }
 
@@ -432,10 +450,6 @@ static inline QList<QByteArray> extractPchFiles(const QList<QByteArray>& args)
 
 void IndexerJob::run()
 {
-    int unitMode = UnitCache::Source | UnitCache::AST;
-    if (m_mode != Indexer::Force)
-        unitMode |= UnitCache::Memory;
-
     QList<QByteArray> pchFiles = extractPchFiles(m_args);
     if (!pchFiles.isEmpty()) {
         QMutexLocker locker(&m_impl->implMutex);
@@ -448,13 +462,14 @@ void IndexerJob::run()
                     break;
                 }
             }
-            if (wait)
+            if (wait) {
                 m_impl->implCond.wait(&m_impl->implMutex);
+            }
         } while (wait);
     }
 
     // ### hack for now
-    CachedUnit unit(m_in, m_in, m_args, unitMode);
+    CachedUnit unit(m_in, m_in, m_args, m_mode);
 
     if (unit.unit()) {
         log(1) << "parsing" << m_in << unit.unit()->fileName;
@@ -474,8 +489,8 @@ void IndexerJob::run()
             clang_disposeDiagnostic(diag);
         }
 
-        if (unit.unit()->origin == UnitCache::Source) {
-            log(1) << "reread" << unit.unit()->fileName << "from source, revisiting";
+        if (unit.unit()->origin == UnitCache::Source || m_mode & UnitCache::ForceReindex) {
+            log(1) << "visiting" << unit.unit()->fileName;
             clang_getInclusions(tu, inclusionVisitor, this);
             clang_visitChildren(clang_getTranslationUnitCursor(tu), indexVisitor, this);
             addFileNameSymbol(unit.unit()->fileName);
@@ -493,7 +508,7 @@ void IndexerJob::run()
         log(1) << "got 0 unit for" << m_in;
     }
 
-    emit done(m_id, m_in, m_out);
+    emit done(m_id, m_in);
 }
 
 Indexer* Indexer::s_inst = 0;
@@ -531,12 +546,11 @@ Indexer* Indexer::instance()
     return s_inst;
 }
 
-int Indexer::index(const QByteArray& input, const QByteArray& output,
-                   const QList<QByteArray>& arguments, Mode mode)
+int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments, unsigned mode)
 {
     QMutexLocker locker(&m_impl->implMutex);
 
-    if (m_impl->indexing.contains(output))
+    if (m_impl->indexing.contains(input))
         return -1;
 
     int id;
@@ -544,12 +558,11 @@ int Indexer::index(const QByteArray& input, const QByteArray& output,
         id = m_impl->lastJobId++;
     } while (m_impl->jobs.contains(id));
 
-    m_impl->indexing.insert(output);
+    m_impl->indexing.insert(input);
 
-    IndexerJob* job = new IndexerJob(m_impl, mode, id, m_impl->path, input, output, arguments);
+    IndexerJob* job = new IndexerJob(m_impl, mode, id, m_impl->path, input, arguments);
     m_impl->jobs[id] = job;
-    connect(job, SIGNAL(done(int, const QByteArray&, const QByteArray&)),
-            this, SLOT(jobDone(int, const QByteArray&, const QByteArray&)), Qt::QueuedConnection);
+    connect(job, SIGNAL(done(int, QByteArray)), this, SLOT(jobDone(int, QByteArray)), Qt::QueuedConnection);
 
     if (!m_impl->timerRunning) {
         m_impl->timerRunning = true;
@@ -561,13 +574,13 @@ int Indexer::index(const QByteArray& input, const QByteArray& output,
     return id;
 }
 
-void Indexer::jobDone(int id, const QByteArray& input, const QByteArray& output)
+void Indexer::jobDone(int id, const QByteArray& input)
 {
     Q_UNUSED(input)
 
     QMutexLocker locker(&m_impl->implMutex);
     m_impl->jobs.remove(id);
-    if (m_impl->indexing.remove(output))
+    if (m_impl->indexing.remove(input))
         m_impl->implCond.wakeAll();
 
     ++m_impl->jobCounter;

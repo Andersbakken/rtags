@@ -31,6 +31,10 @@ protected:
             int mode = UnitCache::Source | UnitCache::Info;
             delete unit;
             unit = new CachedUnit(fileName, mode);
+            if (unit->unit()) {
+                Indexer::instance()->index(fileName, QList<QByteArray>(),
+                                           UnitCache::AST|UnitCache::Memory|UnitCache::Info|UnitCache::ForceReindex);
+            }
             log(1) << "recompiled" << fileName;
         } else {
             log(1) << "no unit for" << fileName;
@@ -447,43 +451,6 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& input,
     return Abort;
 }
 
-class MaybeLocker
-{
-public:
-    MaybeLocker(QMutex *mutex)
-        : m_mutex(mutex), m_locked(false)
-    {
-        relock();
-    }
-    ~MaybeLocker()
-    {
-        if (m_locked)
-            unlock();
-    }
-
-    void relock()
-    {
-        if (m_mutex) {
-            Q_ASSERT(!m_locked);
-            m_mutex->lock();
-            m_locked = true;
-        }
-
-    }
-
-    void unlock()
-    {
-        if (m_mutex) {
-            Q_ASSERT(m_locked);
-            m_mutex->unlock();
-            m_locked = false;
-        }
-    }
-private:
-    QMutex *m_mutex;
-    bool m_locked;
-};
-
 UnitCache::Unit* UnitCache::createUnit(const QByteArray& input,
                                        const QByteArray& output,
                                        const QList<QByteArray>& args,
@@ -492,7 +459,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& input,
     if (!mode)
         return 0;
 
-    MaybeLocker lock(mode & NoLock ? 0 : &m_dataMutex);
+    QMutexLocker lock(&m_dataMutex);
     for (;;) {
         const QHash<QByteArray, UnitData*>::iterator it = m_data.find(input);
         if (it != m_data.end()) {

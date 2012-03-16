@@ -81,6 +81,7 @@ Connection::Connection(QTcpSocket* socket, QObject* parent)
     connect(m_priv->socket, SIGNAL(bytesWritten(qint64)), m_priv, SLOT(dataWritten(qint64)));
 }
 
+
 bool Connection::connectToHost(const QString& host, quint16 port)
 {
     m_priv->socket->connectToHost(host, port);

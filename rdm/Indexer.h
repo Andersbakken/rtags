@@ -12,13 +12,11 @@ class Indexer : public QObject
 {
     Q_OBJECT
 public:
-    enum Mode { None, Force };
 
     Indexer(const QByteArray& path, QObject* parent = 0);
     ~Indexer();
 
-    int index(const QByteArray& input, const QByteArray &output,
-              const QList<QByteArray>& arguments, Mode mode = None);
+    int index(const QByteArray& input, const QList<QByteArray>& arguments, unsigned mode);
 
     static Indexer* instance();
 
@@ -26,7 +24,7 @@ signals:
     void indexingDone(int id);
 
 private slots:
-    void jobDone(int id, const QByteArray& input, const QByteArray& output);
+    void jobDone(int id, const QByteArray& input);
 
 private:
     IndexerImpl* m_impl;

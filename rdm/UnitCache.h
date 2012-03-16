@@ -21,14 +21,13 @@ class UnitCache : public QObject
 {
     Q_OBJECT
 public:
-    // AST implies Info
     enum LoadFlag {
         None = 0x00,
         Info = 0x01,
         Source = 0x02,
         AST = 0x04,
         Memory = 0x08,
-        NoLock = 0x10
+        ForceReindex = 0x10
     };
 
     ~UnitCache();
