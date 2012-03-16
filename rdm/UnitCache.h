@@ -28,8 +28,7 @@ public:
         Source = 0x02,
         AST = 0x04,
         Memory = 0x08,
-        NoLock = 0x10,
-        Precompile = 0x20
+        NoLock = 0x10
     };
 
     ~UnitCache();
@@ -39,16 +38,15 @@ public:
     struct Unit
     {
         Unit()
-            : origin(None), index(0), file(0), unit(0), precompile(false)
+            : origin(None), index(0), unit(0)
         {}
+        void clear();
         LoadFlag origin;
-        QByteArray fileName;
+        Path fileName;
         CXIndex index;
-        CXFile file;
         CXTranslationUnit unit;
         QDateTime visited;
         QList<QByteArray> pchs;
-        bool precompile;
     };
 
     Unit* acquire(const QByteArray& filename, int mode = AST | Memory);
@@ -75,10 +73,9 @@ private:
     };
     enum UnitStatus { Done, Wait, Abort };
 
-    void cleanup(UnitData* data);
     bool removeUnusedUnits(int num);
     bool recheckPch(const QList<QByteArray>& arguments, UnitData* data);
-    bool rereadUnit(const QByteArray& hashedFilename, UnitData* data);
+    bool rereadUnit(const QByteArray &sourceFile, const QByteArray& hashedFilename, UnitData* data);
     bool loadUnit(const QByteArray& filename, const QList<QByteArray>& arguments, UnitData* data, bool initWatcher, bool *errors);
     enum SaveMode {
         SaveAST = 0x1,

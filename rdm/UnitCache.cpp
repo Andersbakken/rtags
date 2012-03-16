@@ -180,16 +180,21 @@ bool UnitCache::removeUnusedUnits(int num)
     return (i >= num);
 }
 
-inline bool UnitCache::rereadUnit(const QByteArray& hashedFilename,
+inline bool UnitCache::rereadUnit(const QByteArray &sourceFileName,
+                                  const QByteArray& hashedFilename,
                                   UnitData* data)
 {
+    data->unit.clear();
     data->unit.unit = clang_createTranslationUnit(data->unit.index,
                                                   hashedFilename.constData());
     if (data->unit.unit) {
-        data->unit.file = clang_getFile(data->unit.unit, data->unit.fileName.constData());
         data->unit.origin = AST;
-        QMutexLocker locker(&m_dataMutex);
-        initFileSystemWatcher(&data->unit);
+        data->unit.fileName = sourceFileName;
+        data->unit.visited = QDateTime::currentDateTime();
+        {
+            QMutexLocker locker(&m_dataMutex);
+            initFileSystemWatcher(&data->unit);
+        }
         return true;
     } else {
         warning("failed to read unit from AST: %s (as %s)",
@@ -217,12 +222,15 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
     clangLine += filename;
     log(1) << "loading unit" << clangLine;
 
+    data->unit.clear();
+
     data->unit.unit = clang_parseTranslationUnit(data->unit.index, filename.constData(),
                                                  clangArgs.data(), clangArgs.size(),
                                                  0, 0, CXTranslationUnit_Incomplete);
     if (data->unit.unit) {
-        data->unit.file = clang_getFile(data->unit.unit, filename.constData());
         data->unit.origin = Source;
+        data->unit.fileName = filename;
+        data->unit.visited = QDateTime::currentDateTime();
         if (initWatcher) {
             QMutexLocker locker(&m_dataMutex);
             initFileSystemWatcher(&data->unit);
@@ -315,10 +323,7 @@ inline bool UnitCache::saveUnit(UnitData* data,
 
 inline void UnitCache::destroyUnit(UnitData* data)
 {
-    if (data->unit.unit) {
-        clang_disposeTranslationUnit(data->unit.unit);
-        freeFileSystemWatcher(data->unit.fileName);
-    }
+    data->unit.clear();
     clang_disposeIndex(data->unit.index);
 }
 
@@ -334,22 +339,18 @@ static inline void removeComments(QList<QByteArray> &lines)
 inline bool UnitCache::recheckPch(const QList<QByteArray>& arguments, UnitData* data)
 {
     bool reread = false;
-    QList<QByteArray> pchFiles = extractPchFiles(arguments);
+    const QList<QByteArray> pchFiles = extractPchFiles(arguments);
     foreach(const QByteArray& pchFile, pchFiles) {
         Q_ASSERT(!data->unit.unit);
         Resource resource(pchFile);
         QList<QByteArray> pchArgs = resource.read<QList<QByteArray> >(Resource::Information);
         removeComments(pchArgs);
-        const QByteArray filename = pchArgs.takeFirst();
         bool errors;
         if (loadUnit(pchFile, pchArgs, data, false, &errors)) {
             if (saveUnit(data, &resource, pchArgs, errors ? SaveInfo : SaveInfo|SaveAST))
                 reread = true;
         }
-        if (data->unit.unit) {
-            clang_disposeTranslationUnit(data->unit.unit);
-            data->unit.unit = 0;
-        }
+        data->unit.clear();
     }
     return reread;
 }
@@ -374,19 +375,13 @@ inline UnitCache::UnitStatus UnitCache::initUnit(const QByteArray& input,
             // and we don't need to hold the mutex while doing so
             MutexUnlocker unlocker(&m_dataMutex);
 
-            if (data->unit.unit) {
-                // destroy the existing unit
-                clang_disposeTranslationUnit(data->unit.unit);
-                data->unit.unit = 0;
-            }
-
             bool pchRechecked = false;
             Resource resource(output);
             if (mode & AST) { // try to reread AST
                 if (resource.exists(Resource::AST)) {
                     bool retry = false;
                     do {
-                        if (rereadUnit(resource.hashedFileName(Resource::AST), data)) {
+                        if (rereadUnit(output, resource.hashedFileName(Resource::AST), data)) {
                             // done!
                             return Done;
                         } else {
@@ -556,10 +551,8 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& input,
                 data->owner = QThread::currentThread();
                 data->unit.visited = QDateTime::currentDateTime();
                 data->unit.fileName = input;
-                data->unit.precompile = (mode & Precompile);
                 m_data[input] = data;
 
-                data->unit.unit = 0;
                 data->unit.index = clang_createIndex(1, 1);
 
                 const UnitStatus status = initUnit(input, output, args, mode, data);
@@ -654,7 +647,8 @@ void UnitCache::initFileSystemWatcher(Unit* unit)
         }
         u.paths[p.parentDir()].insert(p.fileName());
     }
-    if (unit->precompile) {
+    Q_ASSERT(unit->fileName.isResolved());
+    if (unit->fileName.isHeader() && (unit->origin == Source || !m_cachedPchDependencies.contains(unit->fileName))) {
         m_cachedPchDependencies[unit->fileName] = u.paths;
         debug() << "caching pch dependencies for" << unit->fileName << "to" << u.paths;
     }
@@ -709,4 +703,16 @@ void UnitCache::onDirectoryChanged(const QString &directory)
             QThreadPool::globalInstance()->start(new MaybeRecompileJob(f->fileName));
         }
     }
+}
+
+void UnitCache::Unit::clear()
+{
+    if (unit) {
+        clang_disposeTranslationUnit(unit);
+        unit = 0;
+    }
+    origin = None;
+    fileName.clear();
+    visited = QDateTime();
+    pchs.clear();
 }

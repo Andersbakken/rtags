@@ -126,7 +126,9 @@ void Resource::writeData(Type type, const QByteArray& data, WriteMode mode)
     Q_ASSERT(ok);
     if (!ok)
         return;
-    file.write(data);
+    const int ret = file.write(data);
+    Q_ASSERT(ret == data.size());
+    file.flush();
 }
 
 QByteArray Resource::hash(const QByteArray& fileName)

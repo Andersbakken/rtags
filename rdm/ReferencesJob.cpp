@@ -119,7 +119,7 @@ void ReferencesJob::runLocation()
     }
 
     CXTranslationUnit unit = data->unit;
-    CXFile file = data->file;
+    CXFile file = clang_getFile(unit, data->fileName.constData());
 
     CXSourceLocation loc;
     if (location.offset != -1) {

@@ -433,15 +433,6 @@ static inline QList<QByteArray> extractPchFiles(const QList<QByteArray>& args)
 void IndexerJob::run()
 {
     int unitMode = UnitCache::Source | UnitCache::AST;
-    switch (m_type) {
-    case RTags::CompileC:
-    case RTags::CompileCPlusPlus:
-        break;
-    case RTags::PchC:
-    case RTags::PchCPlusPlus:
-        unitMode |= UnitCache::Precompile;
-        break;
-    }
     if (m_mode != Indexer::Force)
         unitMode |= UnitCache::Memory;
 

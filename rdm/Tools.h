@@ -16,7 +16,7 @@ static inline QByteArray eatString(CXString str)
     clang_disposeString(str);
     return ret;
 }
-    
+
 static inline void debugCursor(CXCursor c)
 {
     CXSourceLocation loc = clang_getCursorLocation(c);
