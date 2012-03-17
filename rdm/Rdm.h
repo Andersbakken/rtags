@@ -22,6 +22,28 @@ struct FirstUnitData
     UnitCache::Unit* data;
 };
 
+class String
+{
+    String(const String &other);
+    String &operator=(const String &other);
+public:
+    String(CXString s)
+        : str(s)
+    {}
+
+    ~String()
+    {
+        clang_disposeString(str);
+    }
+    const char *data() const
+    {
+        return clang_getCString(str);
+    }
+
+    CXString str;
+};
+
+
 bool visitFindFirstUnit(UnitCache::Unit* ud, void* data);
 typedef bool (*VisitFile)(UnitCache::Unit* unit, void* data);
 void visitIncluderFiles(const QByteArray& fileName, VisitFile visitor, void* data,
