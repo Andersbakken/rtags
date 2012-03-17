@@ -26,7 +26,8 @@ SOURCES += \
     FollowLocationJob.cpp \
     MatchJob.cpp \
     RecompileJob.cpp \
-    ReferencesJob.cpp
+    ReferencesJob.cpp \
+    Rdm.cpp
 
 HEADERS += \
     Compressor.h \
