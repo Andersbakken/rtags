@@ -217,6 +217,9 @@ public:
 
     HashSet m_defs, m_refs, m_syms;
 
+    QByteArray m_lastLocationString;
+    CXSourceLocation m_lastLocation;
+
 private:
     void addFileNameSymbol(const QByteArray& fileName);
 
@@ -335,42 +338,21 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         clang_disposeString(fileName);
         return CXChildVisit_Recurse;
     }
-#if 0
     QByteArray qloc;
-    {
-        QMutexLocker locker(&job->m_impl->resolveMutex);
-        QHash<QByteArray, QByteArray>& cache = job->m_impl->resolveCache;
-        Path path(cfileName);
-        QByteArray &val = cache[path];
-        if (val.isEmpty()) {
-            path.canonicalizePath();
-
-            const int ret = RTags::canonicalizePath(qloc.data(), qloc.size());
-            const int extra = RTags::digits(line) + RTags::digits(col) + 2;
-            qloc.resize(ret + extra);
-            const int lineColLen = snprintf(qloc.data() + ret, extra + 1, ":%d:%d", line, col);
-            if (!strcmp(cusr, "c:@C@Connection@F@connectToHost#&1$@C@QString#s#")) {
-                error() << qloc << qloc.length() << lineColLen + ret
-                        << "line" << line << "col" << col << cfileName;
-            }
-            Q_ASSERT(!qloc.endsWith(' '));
-            qloc.resize(ret + lineColLen);
-            val = qloc;
-        } else {
-            qloc = val;
-
-        }
+    if (clang_equalLocations(loc, job->m_lastLocation)) {
+        qloc = job->m_lastLocationString;
+    } else {
+        qloc = cfileName;
+        int canonicalized = RTags::canonicalizePath(qloc.data(), qloc.size());
+        const int extra = RTags::digits(line) + RTags::digits(col) + 2;
+        qloc.resize(canonicalized + extra);
+        const int lineColLen = snprintf(qloc.data() + canonicalized, extra + 1, ":%d:%d", line, col);
+        Q_ASSERT(lineColLen + canonicalized == qloc.size());
+        Q_ASSERT(!qloc.endsWith(" "));
+        job->m_lastLocation = loc;
+        job->m_lastLocationString = qloc;
+        // error() << cfileName << line << col << "=>" << qloc;
     }
-#else
-    QByteArray qloc(cfileName);
-    int canonicalized = RTags::canonicalizePath(qloc.data(), qloc.size());
-    const int extra = RTags::digits(line) + RTags::digits(col) + 2;
-    qloc.resize(canonicalized + extra);
-    const int lineColLen = snprintf(qloc.data() + canonicalized, extra + 1, ":%d:%d", line, col);
-    Q_ASSERT(lineColLen + canonicalized == qloc.size());
-    Q_ASSERT(!qloc.endsWith(" "));
-    // error() << cfileName << line << col << "=>" << qloc;
-#endif
 
     if (clang_isCursorDefinition(cursor)
         || kind == CXCursor_FunctionDecl) {
@@ -391,7 +373,8 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
 IndexerJob::IndexerJob(IndexerImpl* impl, unsigned mode, int id,
                        const QByteArray& path, const QByteArray& input,
                        const QList<QByteArray>& arguments)
-    : m_mode(mode), m_id(id), m_path(path), m_in(input), m_args(arguments), m_impl(impl)
+    : m_mode(mode), m_id(id), m_path(path), m_in(input), m_args(arguments), m_impl(impl),
+      m_lastLocation(clang_getNullLocation())
 {
 }
 
