@@ -1,7 +1,7 @@
 #include "CursorInfoJob.h"
 #include <clang-c/Index.h>
 #include <Path.h>
-#include <Tools.h>
+#include <Rdm.h>
 
 CursorInfoJob::CursorInfoJob(int i, const RTags::Location &loc)
     : id(i), location(loc)
@@ -17,7 +17,7 @@ static CXChildVisitResult memberVisitor(CXCursor cursor, CXCursor, CXClientData 
     switch (clang_getCursorKind(cursor)) {
     case CXCursor_CXXMethod:
     case CXCursor_FieldDecl:
-        reinterpret_cast<QList<QByteArray> *>(userData)->append(eatString(clang_getCursorSpelling(cursor)));
+        reinterpret_cast<QList<QByteArray> *>(userData)->append(Rdm::eatString(clang_getCursorSpelling(cursor)));
         break;
     default:
         break;
@@ -42,9 +42,9 @@ void CursorInfoJob::run()
     CachedUnit locker(location.path, UnitCache::AST | UnitCache::Memory);
     UnitCache::Unit* data = locker.unit();
     if (!data) {
-        FirstUnitData first;
+        Rdm::FirstUnitData first;
         first.fileName = location.path;
-        visitIncluderFiles(location.path, visitFindFirstUnit, &first);
+        Rdm::visitIncluderFiles(location.path, Rdm::visitFindFirstUnit, &first);
         if (first.data) {
             locker.adopt(first.data);
             data = first.data;

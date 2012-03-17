@@ -3,7 +3,7 @@
 #include "Path.h"
 #include "QueryMessage.h"
 #include "Resource.h"
-#include "Tools.h"
+#include "Rdm.h"
 #include "UnitCache.h"
 #include "leveldb/db.h"
 #include <QDateTime>
@@ -58,7 +58,7 @@ Database::~Database()
 int Database::followLocation(const QueryMessage &query)
 {
     RTags::Location loc;
-    if (!makeLocation(query.query().front(), &loc))
+    if (!RTags::makeLocation(query.query().front(), &loc))
         return -1;
 
     const int id = ++m_impl->lastJobId;
@@ -74,7 +74,7 @@ int Database::followLocation(const QueryMessage &query)
 int Database::cursorInfo(const QueryMessage &query)
 {
     RTags::Location loc;
-    if (!makeLocation(query.query().front(), &loc))
+    if (!RTags::makeLocation(query.query().front(), &loc))
         return -1;
     const int id = ++m_impl->lastJobId;
     CursorInfoJob* job = new CursorInfoJob(id, loc);
@@ -87,7 +87,7 @@ int Database::cursorInfo(const QueryMessage &query)
 int Database::codeComplete(const QueryMessage &query)
 {
     RTags::Location loc;
-    if (!makeLocation(query.query().front(), &loc))
+    if (!RTags::makeLocation(query.query().front(), &loc))
         return -1;
 
     const int id = ++m_impl->lastJobId;
@@ -102,7 +102,7 @@ int Database::codeComplete(const QueryMessage &query)
 int Database::referencesForLocation(const QueryMessage &query)
 {
     RTags::Location loc;
-    if (!makeLocation(query.query().front(), &loc))
+    if (!RTags::makeLocation(query.query().front(), &loc))
         return -1;
 
     const int id = ++m_impl->lastJobId;

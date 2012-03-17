@@ -594,7 +594,7 @@ static void findIncludes(CXFile includedFile, CXSourceLocation* stack, unsigned 
     //     CXFile f;
     //     unsigned l, c;
     //     clang_getSpellingLocation(stack[i], &f, &l, &c, 0);
-    //     log(1, "%s:%d:%d (%d) for %s", RTags::eatString(clang_getFileName(f)).constData(), l, c, stackSize, u->path.constData());
+    //     log(1, "%s:%d:%d (%d) for %s", RTags::Rdm::eatString(clang_getFileName(f)).constData(), l, c, stackSize, u->path.constData());
     // }
 
     clang_disposeString(fn);

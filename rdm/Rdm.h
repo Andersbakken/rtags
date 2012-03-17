@@ -10,6 +10,7 @@
 #include <leveldb/db.h>
 #include <RTags.h>
 
+namespace Rdm {
 static inline QByteArray eatString(CXString str)
 {
     const QByteArray ret(clang_getCString(str));
@@ -127,6 +128,6 @@ static inline QByteArray makeLocation(CXCursor cursor, unsigned flags = 0)
     }
     return ret;
 }
-
+}
 
 #endif

@@ -1,6 +1,6 @@
 #include "DumpJob.h"
 #include <clang-c/Index.h>
-#include <Tools.h>
+#include <Rdm.h>
 
 DumpJob::DumpJob(const QByteArray& fn, int i)
     : fileName(fn), id(i)
@@ -16,10 +16,10 @@ static CXChildVisitResult dumpVisitor(CXCursor cursor, CXCursor, CXClientData us
 {
     DumpUserData *dump = reinterpret_cast<DumpUserData*>(userData);
     QByteArray line(dump->indent * 2, ' ');
-    line += cursorToString(cursor);
+    line += Rdm::cursorToString(cursor);
     CXCursor ref = clang_getCursorReferenced(cursor);
     if (!clang_equalCursors(cursor, ref) && !clang_isInvalid(clang_getCursorKind(ref))) {
-        line += " => " + cursorToString(ref);
+        line += " => " + Rdm::cursorToString(ref);
     }
     dump->lines.append(line);
     ++dump->indent;

@@ -44,6 +44,6 @@ HEADERS += \
     MatchJob.h \
     RecompileJob.h \
     ReferencesJob.h \
-    Tools.h
+    Rdm.h
 
 

@@ -1,6 +1,6 @@
 #include "RecompileJob.h"
 #include "UnitCache.h"
-#include <Tools.h>
+#include <Rdm.h>
 #include "Indexer.h"
 
 RecompileJob::RecompileJob(const QByteArray& fn, int i)
@@ -24,9 +24,9 @@ void RecompileJob::run()
         return;
     }
 
-    FirstUnitData first;
+    Rdm::FirstUnitData first;
     first.fileName = fileName;
-    visitIncluderFiles(fileName, visitFindFirstUnit, &first, UnitCache::Source | UnitCache::Info);
+    Rdm::visitIncluderFiles(fileName, Rdm::visitFindFirstUnit, &first, UnitCache::Source | UnitCache::Info);
     if (!first.data) {
         warning("recompile: no unit for %s", fileName.constData());
     } else {

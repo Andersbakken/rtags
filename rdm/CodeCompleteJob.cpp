@@ -1,6 +1,6 @@
 #include "CodeCompleteJob.h"
 #include "UnitCache.h"
-#include <Tools.h>
+#include <Rdm.h>
 
 CodeCompleteJob::CodeCompleteJob(int i, const RTags::Location &loc,
                                  const QHash<Path, QByteArray> &unsaved)
@@ -37,9 +37,9 @@ void CodeCompleteJob::run()
     CachedUnit locker(location.path, UnitCache::AST | UnitCache::Memory | UnitCache::Source);
     UnitCache::Unit* data = locker.unit();
     if (!data) {
-        FirstUnitData first;
+        Rdm::FirstUnitData first;
         first.fileName = location.path;
-        visitIncluderFiles(location.path, visitFindFirstUnit, &first);
+        Rdm::visitIncluderFiles(location.path, Rdm::visitFindFirstUnit, &first);
         if (first.data) {
             locker.adopt(first.data);
             data = first.data;
@@ -87,7 +87,7 @@ void CodeCompleteJob::run()
         int priority;
         // log(1) << "stuff" << i << clang_getCompletionPriority(str);
         // for (int b=0; b<clang_getCompletionNumAnnotations(str); ++b) {
-        //     log(1) << b << RTags::eatString(clang_getCompletionAnnotation(str, b));
+        //     log(1) << b << RTags::Rdm::eatString(clang_getCompletionAnnotation(str, b));
         // }
 
         switch (results->Results[i].CursorKind) {
@@ -99,7 +99,7 @@ void CodeCompleteJob::run()
             priority = clang_getCompletionPriority(str);
             break;
         }
-        // printf("Got thing %s %d\n" , RTags::eatString(clang_getCursorKindSpelling(results->Results[i].CursorKind)).constData(),
+        // printf("Got thing %s %d\n" , RTags::Rdm::eatString(clang_getCursorKindSpelling(results->Results[i].CursorKind)).constData(),
         //        clang_getNumCompletionChunks(str));
 
         for (unsigned int j = 0; j < clang_getNumCompletionChunks(str); ++j) {
