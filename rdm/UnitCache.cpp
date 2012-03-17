@@ -683,3 +683,22 @@ void UnitCache::Unit::clear()
     visited = QDateTime();
     pchs.clear();
 }
+QList<QByteArray> UnitCache::status()
+{
+    QList<QByteArray> ret;
+    QMutexLocker lock(&m_dataMutex);
+    QHash<QByteArray, UnitData*>::iterator it = m_data.begin();
+    const QMetaEnum enumerator = metaObject()->enumerator(metaObject()->indexOfEnumerator("LoadFlag"));
+    int i = 1;
+    while (it != m_data.end()) {
+        char buf[1024];
+        const int written = snprintf(buf, 1024, "%d/%d: ref %d origin %s fileName %s visited %s pchs %s",
+                                     i++, m_data.size(), it.value()->ref,
+                                     enumerator.valueToKeys(it.value()->unit.origin).constData(),
+                                     it.value()->unit.fileName.constData(),
+                                     it.value()->unit.visited.toString().toLocal8Bit().constData(),
+                                     RTags::join(it.value()->unit.pchs, "|").constData());
+        ret.append(QByteArray(buf, written));
+    }
+    return ret;
+}

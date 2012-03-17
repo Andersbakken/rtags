@@ -24,6 +24,7 @@ public:
     int recompile(const QueryMessage &query);
     int match(const QueryMessage &query);
     int dump(const QueryMessage &query);
+    int status(const QueryMessage &query);
 
     static void setBaseDirectory(const QByteArray& base);
     static QByteArray databaseName(Type type);

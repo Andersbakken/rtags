@@ -1,9 +1,17 @@
+#include "CodeCompleteJob.h"
+#include "CursorInfoJob.h"
 #include "Database.h"
+#include "DumpJob.h"
+#include "FollowLocationJob.h"
 #include "Indexer.h"
+#include "MatchJob.h"
 #include "Path.h"
 #include "QueryMessage.h"
-#include "Resource.h"
 #include "Rdm.h"
+#include "RecompileJob.h"
+#include "ReferencesJob.h"
+#include "Resource.h"
+#include "StatusJob.h"
 #include "UnitCache.h"
 #include "leveldb/db.h"
 #include <QDateTime>
@@ -17,13 +25,6 @@
 #include <QThreadPool>
 #include <QWaitCondition>
 #include <clang-c/Index.h>
-#include "CodeCompleteJob.h"
-#include "CursorInfoJob.h"
-#include "DumpJob.h"
-#include "FollowLocationJob.h"
-#include "MatchJob.h"
-#include "RecompileJob.h"
-#include "ReferencesJob.h"
 
 QByteArray Database::s_base;
 
@@ -176,6 +177,20 @@ int Database::dump(const QueryMessage &query)
 
     return id;
 }
+
+int Database::status(const QueryMessage &)
+{
+    const int id = ++m_impl->lastJobId;
+
+    log(1) << "status";
+
+    StatusJob* job = new StatusJob(id);
+    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
+            this, SIGNAL(complete(int, QList<QByteArray>)));
+    QThreadPool::globalInstance()->start(job);
+    return id;
+}
+
 
 static const char* const dbNames[] = { "/includes.db", "/defines.db",
                                        "/references.db", "/symbols.db" };

@@ -20,6 +20,7 @@ class Resource;
 class UnitCache : public QObject
 {
     Q_OBJECT
+    Q_ENUMS(LoadFlag)
 public:
     enum LoadFlag {
         None = 0x00,
@@ -53,7 +54,7 @@ public:
     Unit* acquire(const QByteArray& input, const QByteArray& output,
                   const QList<QByteArray>& arguments, int mode = Source | Memory);
     void release(Unit* unit);
-
+    QList<QByteArray> status();
 private slots:
     void onDirectoryChanged(const QString &dir);
 

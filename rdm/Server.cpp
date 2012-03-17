@@ -168,6 +168,9 @@ void Rdm::handleQueryMessage(QueryMessage* message)
     case QueryMessage::Dump:
         id = m_db->dump(*message);
         break;
+    case QueryMessage::Status:
+        id = m_db->status(*message);
+        break;
     default:
         qWarning("Unknown message type %d\n", message->type());
         return;

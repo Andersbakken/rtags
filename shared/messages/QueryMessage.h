@@ -21,7 +21,8 @@ public:
         Match,
         Dump,
         CodeComplete,
-        CursorInfo
+        CursorInfo,
+        Status
     };
     enum Flag {
         SkipParen = 0x01,

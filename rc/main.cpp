@@ -29,9 +29,10 @@ static void help(FILE *f, const char* app)
             "  --complete|-c [arg]           Get code completion for this location\n"
             "  --cursor-info|-C [arg]        Get cursor info for this location\n"
             "  --unsaved-file|-u [arg]       Specify an unsaved file and a size to be passed on stdin (e.g. -u main.cpp:343)\n"
-            "  --no-context|-N               Don't print context for locations\n"
             "  --log-file|-L [file]          Log to this file\n"
-            "  --append|-A                   Append to log file\n",
+            "  --append|-A                   Append to log file\n"
+            "  --no-context|-N               Don't print context for locations\n"
+            "  --status|-s                   Dump status of rdm\n",
             app);
 }
 
@@ -56,6 +57,7 @@ int main(int argc, char** argv)
         { "log-file", required_argument, 0, 'L' },
         { "append", no_argument, 0, 'A' },
         { "no-context", no_argument, 0, 'N' },
+        { "status", no_argument, 0, 's' },
         { 0, 0, 0, 0 }
     };
 
@@ -71,7 +73,7 @@ int main(int argc, char** argv)
     QFile standardIn;
 
     for (;;) {
-        const int c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:C:u:L:AN", opts, 0);
+        const int c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:C:u:L:ANs", opts, 0);
         if (c == -1)
             break;
         switch (c) {
@@ -141,6 +143,9 @@ int main(int argc, char** argv)
             break; }
         case 'm':
             makeFiles.append(Path::resolved(optarg));
+            break;
+        case 's':
+            optlist.append(qMakePair(QueryMessage::Status, QByteArray()));
             break;
         case 'n':
             optlist.append(qMakePair(QueryMessage::ReferencesName, QByteArray(optarg)));

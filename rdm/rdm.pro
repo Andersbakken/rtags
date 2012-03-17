@@ -27,7 +27,8 @@ SOURCES += \
     MatchJob.cpp \
     RecompileJob.cpp \
     ReferencesJob.cpp \
-    Rdm.cpp
+    Rdm.cpp \
+    StatusJob.cpp
 
 HEADERS += \
     Compressor.h \
@@ -45,6 +46,7 @@ HEADERS += \
     MatchJob.h \
     RecompileJob.h \
     ReferencesJob.h \
-    Rdm.h
+    Rdm.h \
+    StatusJob.h
 
 
