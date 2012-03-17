@@ -348,6 +348,7 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         qloc.resize(canonicalized + extra);
         const int lineColLen = snprintf(qloc.data() + canonicalized, extra + 1, ":%d:%d", line, col);
         Q_ASSERT(lineColLen + canonicalized == qloc.size());
+        Q_UNUSED(lineColLen);
         Q_ASSERT(!qloc.endsWith(" "));
         job->m_lastLocation = loc;
         job->m_lastLocationString = qloc;
