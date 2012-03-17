@@ -1,3 +1,4 @@
-rc seg fault when server is down
-make rc output context from file (or make emacs do it)
 dependency-job
+status-job (not working right)
+investigate why we have so many threads
+use on filesystemwatcher, they seem to have a thread each
