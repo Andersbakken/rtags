@@ -18,7 +18,7 @@ SOURCES += \
     UnitCache.cpp \
     Resource.cpp \
     Resources.cpp \
-    Rdm.cpp \
+    Server.cpp \
     SHA256.cpp \
     CodeCompleteJob.cpp \
     CursorInfoJob.cpp \
@@ -35,7 +35,7 @@ HEADERS += \
     UnitCache.h \
     Resource.h \
     Resources.h \
-    Rdm.h \
+    Server.h \
     SHA256.h \
     CodeCompleteJob.h \
     CursorInfoJob.h \
