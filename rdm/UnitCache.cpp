@@ -13,6 +13,7 @@
 #include <QStringList>
 #include <QThreadPool>
 #include <QRunnable>
+#include <QMetaEnum>
 
 class MaybeRecompileJob : public QRunnable
 {
