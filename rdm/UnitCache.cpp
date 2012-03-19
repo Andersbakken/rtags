@@ -700,6 +700,7 @@ QList<QByteArray> UnitCache::status()
                                      it.value()->unit.visited.toString().toLocal8Bit().constData(),
                                      RTags::join(it.value()->unit.pchs, "|").constData());
         ret.append(QByteArray(buf, written));
+        ++it;
     }
     return ret;
 }
