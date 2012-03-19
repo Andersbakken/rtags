@@ -107,7 +107,6 @@ QByteArray Resource::readData(Type type) const
     Q_ASSERT(m_locked);
     QFile file(hashedFileName(type));
     const bool ok = file.open(QFile::ReadOnly);
-    Q_ASSERT(ok);
     if (!ok)
         return QByteArray();
     return file.readAll();
