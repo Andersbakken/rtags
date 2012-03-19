@@ -15,11 +15,11 @@ class QueryMessage;
 class ErrorMessage;
 class QTcpServer;
 
-class Rdm : public QObject
+class Server : public QObject
 {
     Q_OBJECT
 public:
-    Rdm(QObject *parent = 0);
+    Server(QObject *parent = 0);
     enum Option {
         NoOptions = 0x0
     };

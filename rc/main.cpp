@@ -32,6 +32,7 @@ static void help(FILE *f, const char* app)
             "  --log-file|-L [file]          Log to this file\n"
             "  --append|-A                   Append to log file\n"
             "  --no-context|-N               Don't print context for locations\n"
+            "  --poke|-P                     Poke file\n"
             "  --status|-s                   Dump status of rdm\n",
             app);
 }
@@ -58,6 +59,7 @@ int main(int argc, char** argv)
         { "append", no_argument, 0, 'A' },
         { "no-context", no_argument, 0, 'N' },
         { "status", no_argument, 0, 's' },
+        { "poke", required_argument, 0, 'P' },
         { 0, 0, 0, 0 }
     };
 
@@ -73,7 +75,7 @@ int main(int argc, char** argv)
     QFile standardIn;
 
     for (;;) {
-        const int c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:C:u:L:ANs", opts, 0);
+        const int c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:C:u:L:ANsP:", opts, 0);
         if (c == -1)
             break;
         switch (c) {
@@ -127,7 +129,7 @@ int main(int argc, char** argv)
                 qWarning("Can't resolve argument %s", optarg);
                 return 1;
             }
-            QueryMessage::Type type = QueryMessage::FollowLocation;
+            QueryMessage::Type type;
             switch (c) {
             case 'c':
                 type = QueryMessage::CodeComplete;
@@ -138,6 +140,11 @@ int main(int argc, char** argv)
             case 'l':
                 type = QueryMessage::ReferencesLocation;
                 break;
+            case 'f':
+                type = QueryMessage::FollowLocation;
+                break;
+            default:
+                return 1;
             }
             optlist.append(qMakePair(type, resolved));
             break; }
@@ -152,6 +159,9 @@ int main(int argc, char** argv)
             break;
         case 'r':
             optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Recompile, Path::resolved(optarg)));
+            break;
+        case 'P':
+            optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Poke, Path::resolved(optarg)));
             break;
         case 'a':
             optlist.append(qMakePair(QueryMessage::Match, QByteArray(optarg)));

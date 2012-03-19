@@ -22,7 +22,8 @@ public:
         Dump,
         CodeComplete,
         CursorInfo,
-        Status
+        Status,
+        Poke
     };
     enum Flag {
         SkipParen = 0x01,

@@ -471,7 +471,7 @@ UnitCache::Unit* UnitCache::createUnit(const QByteArray& input,
                     it.value()->owner = QThread::currentThread();
                     ++it.value()->ref;
                     it.value()->unit.visited = QDateTime::currentDateTime();
-
+                    it.value()->unit.origin = Memory;
                     return &it.value()->unit;
                 }
                 if (mode == Memory) {

@@ -28,7 +28,8 @@ SOURCES += \
     RecompileJob.cpp \
     ReferencesJob.cpp \
     Rdm.cpp \
-    StatusJob.cpp
+    StatusJob.cpp \
+    PokeJob.cpp
 
 HEADERS += \
     Compressor.h \
@@ -47,6 +48,5 @@ HEADERS += \
     RecompileJob.h \
     ReferencesJob.h \
     Rdm.h \
-    StatusJob.h
-
-
+    StatusJob.h \
+    PokeJob.h

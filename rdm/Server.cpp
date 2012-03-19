@@ -18,7 +18,7 @@
 
 #define ASTPATH "/tmp/rdm"
 
-Rdm::Rdm(QObject* parent)
+Server::Server(QObject* parent)
     : QObject(parent),
       m_indexer(new Indexer(ASTPATH, this)),
       m_db(new Database(this)),
@@ -27,7 +27,7 @@ Rdm::Rdm(QObject* parent)
 {
 }
 
-bool Rdm::init(unsigned options, const QList<QByteArray> &defaultArguments)
+bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
 {
     m_options = options;
     m_defaultArgs = defaultArguments;
@@ -43,8 +43,8 @@ bool Rdm::init(unsigned options, const QList<QByteArray> &defaultArguments)
     }
     connect(m_server, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
     connect(m_indexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
-    connect(m_db, SIGNAL(complete(int, const QList<QByteArray>&)),
-            this, SLOT(onDatabaseComplete(int, const QList<QByteArray>&)));
+    connect(m_db, SIGNAL(complete(int, QList<QByteArray>)),
+            this, SLOT(onDatabaseComplete(int, QList<QByteArray>)));
 #ifdef CLANG_RUNTIME_INCLUDE
     Path p;
     p = CLANG_RUNTIME_INCLUDE;
@@ -55,7 +55,7 @@ bool Rdm::init(unsigned options, const QList<QByteArray> &defaultArguments)
     return true;
 }
 
-void Rdm::onNewConnection()
+void Server::onNewConnection()
 {
     while (m_server->hasPendingConnections()) {
         QTcpSocket* socket = m_server->nextPendingConnection();
@@ -66,7 +66,7 @@ void Rdm::onNewConnection()
     }
 }
 
-void Rdm::onConnectionDestroyed(QObject* o)
+void Server::onConnectionDestroyed(QObject* o)
 {
     QHash<int, Connection*>::iterator it = m_pendingIndexes.begin();
     QHash<int, Connection*>::const_iterator end = m_pendingIndexes.end();
@@ -87,7 +87,7 @@ void Rdm::onConnectionDestroyed(QObject* o)
     }
 }
 
-void Rdm::onNewMessage(Message* message)
+void Server::onNewMessage(Message* message)
 {
     switch (message->messageId()) {
     case AddMessage::MessageId:
@@ -126,7 +126,7 @@ static inline QList<QByteArray> pch(const AddMessage* message)
     return out;
 }
 
-void Rdm::handleAddMessage(AddMessage* message)
+void Server::handleAddMessage(AddMessage* message)
 {
     Connection* conn = qobject_cast<Connection*>(sender());
 
@@ -135,7 +135,7 @@ void Rdm::handleAddMessage(AddMessage* message)
     m_pendingIndexes[id] = conn;
 }
 
-void Rdm::handleQueryMessage(QueryMessage* message)
+void Server::handleQueryMessage(QueryMessage* message)
 {
     if (message->query().isEmpty()) {
         return;
@@ -143,7 +143,7 @@ void Rdm::handleQueryMessage(QueryMessage* message)
 
     Connection* conn = qobject_cast<Connection*>(sender());
     int id = 0;
-    switch(message->type()) {
+    switch (message->type()) {
     case QueryMessage::FollowLocation:
         id = m_db->followLocation(*message);
         break;
@@ -171,19 +171,24 @@ void Rdm::handleQueryMessage(QueryMessage* message)
     case QueryMessage::Status:
         id = m_db->status(*message);
         break;
-    default:
-        qWarning("Unknown message type %d\n", message->type());
-        return;
+    case QueryMessage::Poke:
+        id = m_db->poke(*message);
+        break;
     }
-    m_pendingLookups[id] = conn;
+    if (!id) {
+        QueryMessage msg(QList<QByteArray>() << "Invalid message", QueryMessage::FollowLocation);
+        conn->send(&msg);
+    } else {
+        m_pendingLookups[id] = conn;
+    }
 }
 
-void Rdm::handleErrorMessage(ErrorMessage* message)
+void Server::handleErrorMessage(ErrorMessage* message)
 {
     qWarning("Error message: %s", message->message().constData());
 }
 
-void Rdm::onIndexingDone(int id)
+void Server::onIndexingDone(int id)
 {
     QHash<int, Connection*>::iterator it = m_pendingIndexes.find(id);
     if (it == m_pendingIndexes.end())
@@ -192,7 +197,7 @@ void Rdm::onIndexingDone(int id)
     it.value()->send(&msg);
 }
 
-void Rdm::onDatabaseComplete(int id, const QList<QByteArray>& response)
+void Server::onDatabaseComplete(int id, const QList<QByteArray>& response)
 {
     QHash<int, Connection*>::iterator it = m_pendingLookups.find(id);
     if (it == m_pendingLookups.end())

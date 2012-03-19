@@ -87,10 +87,9 @@ int main(int argc, char** argv)
 
     warning("Running with %d jobs\n", jobs);
 
-    Rdm rdm;
-    if (!rdm.init(options, defaultArguments))
+    Server server;
+    if (!server.init(options, defaultArguments))
         return 1;
 
-    const int ret = app.exec();
-    return ret;
+    return app.exec();
 }
