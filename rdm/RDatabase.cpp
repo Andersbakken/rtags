@@ -1,6 +1,6 @@
 #include "CodeCompleteJob.h"
 #include "CursorInfoJob.h"
-#include "Database.h"
+#include "RDatabase.h"
 #include "DumpJob.h"
 #include "PokeJob.h"
 #include "FollowLocationJob.h"
@@ -27,13 +27,13 @@
 #include <QWaitCondition>
 #include <clang-c/Index.h>
 
-QByteArray Database::s_base;
+QByteArray RDatabase::s_base;
 
 Q_DECLARE_METATYPE(QList<QByteArray>)
 
 struct DatabaseImpl
 {
-    Database* db;
+    RDatabase* db;
     int jobId;
 };
 
@@ -43,7 +43,7 @@ static inline bool isCursorReference(CXCursorKind kind)
     return (kind >= CXCursor_FirstRef && kind <= CXCursor_LastRef);
 }
 
-Database::Database(QObject* parent)
+RDatabase::RDatabase(QObject* parent)
     : QObject(parent), m_impl(new DatabaseImpl)
 {
     m_impl->db = this;
@@ -52,12 +52,12 @@ Database::Database(QObject* parent)
     qRegisterMetaType<QList<QByteArray> >("QList<QByteArray>");
 }
 
-Database::~Database()
+RDatabase::~RDatabase()
 {
     delete m_impl;
 }
 
-int Database::nextId()
+int RDatabase::nextId()
 {
     ++m_impl->jobId;
     if (!m_impl->jobId)
@@ -66,7 +66,7 @@ int Database::nextId()
 }
 
 
-int Database::poke(const QueryMessage &query)
+int RDatabase::poke(const QueryMessage &query)
 {
     const int id = nextId();
     const bool exists = Resource(query.query().front()).exists(Resource::Information);
@@ -79,7 +79,7 @@ int Database::poke(const QueryMessage &query)
     
 }
 
-int Database::followLocation(const QueryMessage &query)
+int RDatabase::followLocation(const QueryMessage &query)
 {
     RTags::Location loc;
     if (!RTags::makeLocation(query.query().front(), &loc))
@@ -95,7 +95,7 @@ int Database::followLocation(const QueryMessage &query)
     return id;
 }
 
-int Database::cursorInfo(const QueryMessage &query)
+int RDatabase::cursorInfo(const QueryMessage &query)
 {
     RTags::Location loc;
     if (!RTags::makeLocation(query.query().front(), &loc))
@@ -108,7 +108,7 @@ int Database::cursorInfo(const QueryMessage &query)
     return id;
 }
 
-int Database::codeComplete(const QueryMessage &query)
+int RDatabase::codeComplete(const QueryMessage &query)
 {
     RTags::Location loc;
     if (!RTags::makeLocation(query.query().front(), &loc))
@@ -123,7 +123,7 @@ int Database::codeComplete(const QueryMessage &query)
     return id;
 }
 
-int Database::referencesForLocation(const QueryMessage &query)
+int RDatabase::referencesForLocation(const QueryMessage &query)
 {
     RTags::Location loc;
     if (!RTags::makeLocation(query.query().front(), &loc))
@@ -142,7 +142,7 @@ int Database::referencesForLocation(const QueryMessage &query)
     return id;
 }
 
-int Database::referencesForName(const QueryMessage& query)
+int RDatabase::referencesForName(const QueryMessage& query)
 {
     const int id = nextId();
 
@@ -156,7 +156,7 @@ int Database::referencesForName(const QueryMessage& query)
 
     return id;
 }
-int Database::recompile(const QueryMessage &query)
+int RDatabase::recompile(const QueryMessage &query)
 {
     const QByteArray fileName = query.query().front();
     const int id = nextId();
@@ -171,7 +171,7 @@ int Database::recompile(const QueryMessage &query)
     return id;
 }
 
-int Database::match(const QueryMessage &query)
+int RDatabase::match(const QueryMessage &query)
 {
     const QByteArray partial = query.query().front();
     const int id = nextId();
@@ -186,7 +186,7 @@ int Database::match(const QueryMessage &query)
     return id;
 }
 
-int Database::dump(const QueryMessage &query)
+int RDatabase::dump(const QueryMessage &query)
 {
     const QByteArray partial = query.query().front();
     const int id = nextId();
@@ -201,7 +201,7 @@ int Database::dump(const QueryMessage &query)
     return id;
 }
 
-int Database::status(const QueryMessage &)
+int RDatabase::status(const QueryMessage &)
 {
     const int id = nextId();
 
@@ -218,14 +218,14 @@ int Database::status(const QueryMessage &)
 static const char* const dbNames[] = { "/includes.db", "/defines.db",
                                        "/references.db", "/symbols.db" };
 
-QByteArray Database::databaseName(Type type)
+QByteArray RDatabase::databaseName(Type type)
 {
     if (s_base.isEmpty())
         return QByteArray();
     return s_base + dbNames[type];
 }
 
-void Database::setBaseDirectory(const QByteArray& base)
+void RDatabase::setBaseDirectory(const QByteArray& base)
 {
     s_base = base;
 }

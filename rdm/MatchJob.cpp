@@ -1,5 +1,5 @@
 #include "MatchJob.h"
-#include "Database.h"
+#include "RDatabase.h"
 #include <leveldb/db.h>
 
 MatchJob::MatchJob(const QByteArray& p, int i)
@@ -13,7 +13,7 @@ MatchJob::~MatchJob()
 
 void MatchJob::run()
 {
-    QByteArray databasename = Database::databaseName(Database::Symbol);
+    QByteArray databasename = RDatabase::databaseName(RDatabase::Symbol);
 
     leveldb::DB* db = 0;
     leveldb::Status status = leveldb::DB::Open(leveldb::Options(), databasename.constData(), &db);

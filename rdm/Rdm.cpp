@@ -44,7 +44,7 @@ void visitIncluderFiles(const QByteArray& fileName, VisitFile visitor, void* dat
 {
     warning() << "looking at" << fileName;
 
-    QByteArray dbname = Database::databaseName(Database::Include);
+    QByteArray dbname = RDatabase::databaseName(RDatabase::Include);
     leveldb::DB* db = 0;
     leveldb::Status status = leveldb::DB::Open(leveldb::Options(), dbname.constData(), &db);
     if (!status.ok())

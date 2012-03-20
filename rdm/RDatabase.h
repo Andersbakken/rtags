@@ -7,14 +7,14 @@
 
 class QueryMessage;
 struct DatabaseImpl;
-class Database : public QObject
+class RDatabase : public QObject
 {
     Q_OBJECT
 public:
     enum Type { Include, Definition, Reference, Symbol };
 
-    Database(QObject* parent = 0);
-    ~Database();
+    RDatabase(QObject* parent = 0);
+    ~RDatabase();
 
     int followLocation(const QueryMessage &query);
     int cursorInfo(const QueryMessage &query);

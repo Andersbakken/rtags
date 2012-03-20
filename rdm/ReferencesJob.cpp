@@ -1,5 +1,5 @@
 #include "ReferencesJob.h"
-#include "Database.h"
+#include "RDatabase.h"
 #include <leveldb/db.h>
 #include "UnitCache.h"
 #include "Rdm.h"
@@ -16,7 +16,7 @@ ReferencesJob::ReferencesJob(int i, const QByteArray &sym)
 
 static inline void readReferences(const char* usr, QList<QByteArray>& refs)
 {
-    QByteArray fileName = Database::databaseName(Database::Reference);
+    QByteArray fileName = RDatabase::databaseName(RDatabase::Reference);
 
     leveldb::DB* db = 0;
     leveldb::Status status = leveldb::DB::Open(leveldb::Options(), fileName.constData(), &db);
@@ -47,7 +47,7 @@ void ReferencesJob::run()
 
 void ReferencesJob::runName()
 {
-    QByteArray databasename = Database::databaseName(Database::Symbol);
+    QByteArray databasename = RDatabase::databaseName(RDatabase::Symbol);
 
     leveldb::DB* db = 0;
     leveldb::Status status = leveldb::DB::Open(leveldb::Options(), databasename.constData(), &db);
@@ -70,7 +70,7 @@ void ReferencesJob::runName()
 
     delete db;
 
-    databasename = Database::databaseName(Database::Definition);
+    databasename = RDatabase::databaseName(RDatabase::Definition);
     status = leveldb::DB::Open(leveldb::Options(), databasename.constData(), &db);
     if (!status.ok()) {
         emit complete(id, QList<QByteArray>());

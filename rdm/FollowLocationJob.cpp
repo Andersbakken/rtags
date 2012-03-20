@@ -13,7 +13,7 @@ FollowLocationJob::~FollowLocationJob()
 static QList<QByteArray> lookupUsr(const char* cusr)
 {
     leveldb::DB* db = 0;
-    const QByteArray dbname = Database::databaseName(Database::Definition);
+    const QByteArray dbname = RDatabase::databaseName(RDatabase::Definition);
     const leveldb::Status status = leveldb::DB::Open(leveldb::Options(), dbname.constData(), &db);
     if (!status.ok()) {
         warning("no definition db!");

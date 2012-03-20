@@ -3,7 +3,7 @@
 #include "UnitCache.h"
 #include "Resource.h"
 #include "Path.h"
-#include "Database.h"
+#include "RDatabase.h"
 #include "leveldb/db.h"
 #include "leveldb/write_batch.h"
 #include <QElapsedTimer>
@@ -30,7 +30,7 @@ class IndexerSyncer : public QThread
 public:
     IndexerSyncer(QObject* parent = 0);
 
-    void addSet(Database::Type type, const HashSet& set);
+    void addSet(RDatabase::Type type, const HashSet& set);
     void notify();
     void stop();
 
@@ -39,7 +39,7 @@ protected:
 
 private:
     void unite(HashSet& set, const HashSet& other);
-    void writeSet(Database::Type type, HashSet& data);
+    void writeSet(RDatabase::Type type, HashSet& data);
 
 private:
     bool stopped;
@@ -76,32 +76,32 @@ void IndexerSyncer::notify()
     cond.wakeOne();
 }
 
-void IndexerSyncer::addSet(Database::Type type, const HashSet& set)
+void IndexerSyncer::addSet(RDatabase::Type type, const HashSet& set)
 {
     QMutexLocker locker(&mutex);
     switch (type) {
-    case Database::Include:
+    case RDatabase::Include:
         unite(incs, set);
         break;
-    case Database::Definition:
+    case RDatabase::Definition:
         unite(defs, set);
         break;
-    case Database::Reference:
+    case RDatabase::Reference:
         unite(refs, set);
         break;
-    case Database::Symbol:
+    case RDatabase::Symbol:
         unite(syms, set);
         break;
     }
     //cond.wakeOne();
 }
 
-void IndexerSyncer::writeSet(Database::Type type, HashSet& data)
+void IndexerSyncer::writeSet(RDatabase::Type type, HashSet& data)
 {
     leveldb::DB* db = 0;
     leveldb::Options options;
     options.create_if_missing = true;
-    QByteArray name = Database::databaseName(type);
+    QByteArray name = RDatabase::databaseName(type);
     if (name.isEmpty())
         return;
 
@@ -157,16 +157,16 @@ void IndexerSyncer::run()
         cond.wait(&mutex, 10000);
         log(1) << "syncing";
         if (!incs.isEmpty()) {
-            writeSet(Database::Include, incs);
+            writeSet(RDatabase::Include, incs);
         }
         if (!defs.isEmpty()) {
-            writeSet(Database::Definition, defs);
+            writeSet(RDatabase::Definition, defs);
         }
         if (!refs.isEmpty()) {
-            writeSet(Database::Reference, refs);
+            writeSet(RDatabase::Reference, refs);
         }
         if (!syms.isEmpty()) {
-            writeSet(Database::Symbol, syms);
+            writeSet(RDatabase::Symbol, syms);
         }
         log(1) << "synced";
     }
@@ -479,13 +479,13 @@ void IndexerJob::run()
             clang_visitChildren(clang_getTranslationUnitCursor(tu), indexVisitor, this);
             addFileNameSymbol(unit.unit()->fileName);
 
-            m_impl->syncer->addSet(Database::Definition, m_defs);
+            m_impl->syncer->addSet(RDatabase::Definition, m_defs);
             m_defs.clear();
 
-            m_impl->syncer->addSet(Database::Reference, m_refs);
+            m_impl->syncer->addSet(RDatabase::Reference, m_refs);
             m_refs.clear();
 
-            m_impl->syncer->addSet(Database::Symbol, m_syms);
+            m_impl->syncer->addSet(RDatabase::Symbol, m_syms);
             m_syms.clear();
         }
     } else {
@@ -572,7 +572,7 @@ void Indexer::jobDone(int id, const QByteArray& input)
     if (m_impl->jobs.isEmpty() || m_impl->jobCounter == SYNCINTERVAL) {
         {
             QMutexLocker inclocker(&m_impl->incMutex);
-            m_impl->syncer->addSet(Database::Include, m_impl->incs);
+            m_impl->syncer->addSet(RDatabase::Include, m_impl->incs);
             m_impl->incs.clear();
         }
         m_impl->jobCounter = 0;

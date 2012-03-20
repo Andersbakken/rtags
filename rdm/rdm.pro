@@ -14,7 +14,7 @@ SOURCES += \
     main.cpp \
     Compressor.cpp \
     Indexer.cpp \
-    Database.cpp \
+    RDatabase.cpp \
     UnitCache.cpp \
     Resource.cpp \
     Resources.cpp \
@@ -34,7 +34,7 @@ SOURCES += \
 HEADERS += \
     Compressor.h \
     Indexer.h \
-    Database.h \
+    RDatabase.h \
     UnitCache.h \
     Resource.h \
     Resources.h \

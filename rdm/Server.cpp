@@ -1,6 +1,6 @@
 #include "Server.h"
 #include "Indexer.h"
-#include "Database.h"
+#include "RDatabase.h"
 #include "Connection.h"
 #include "Resource.h"
 #include "Message.h"
@@ -21,7 +21,7 @@
 Server::Server(QObject* parent)
     : QObject(parent),
       m_indexer(new Indexer(ASTPATH, this)),
-      m_db(new Database(this)),
+      m_db(new RDatabase(this)),
       m_server(new QTcpServer(this)),
       m_verbose(false)
 {
@@ -35,7 +35,7 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
     Messages::init();
     UnitCache::instance();
     Resource::setBaseDirectory(ASTPATH);
-    Database::setBaseDirectory(ASTPATH);
+    RDatabase::setBaseDirectory(ASTPATH);
 
     if (!m_server->listen(QHostAddress::Any, Connection::Port)) {
         qWarning("Unable to listen to port %d", Connection::Port);
