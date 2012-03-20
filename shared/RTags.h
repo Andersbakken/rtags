@@ -9,6 +9,8 @@
 
 namespace RTags {
 
+enum { DatabaseVersion = 2 };
+
 enum UnitType { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };
 
 struct Location {
