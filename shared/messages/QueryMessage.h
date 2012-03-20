@@ -20,8 +20,6 @@ public:
         Recompile,
         Match,
         Dump,
-        CodeComplete,
-        CursorInfo,
         Status,
         Poke
     };

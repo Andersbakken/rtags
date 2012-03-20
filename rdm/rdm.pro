@@ -14,14 +14,12 @@ SOURCES += \
     main.cpp \
     Compressor.cpp \
     Indexer.cpp \
-    RDatabase.cpp \
+    Database.cpp \
     UnitCache.cpp \
     Resource.cpp \
     Resources.cpp \
     Server.cpp \
     SHA256.cpp \
-    CodeCompleteJob.cpp \
-    CursorInfoJob.cpp \
     DumpJob.cpp \
     FollowLocationJob.cpp \
     MatchJob.cpp \
@@ -29,20 +27,17 @@ SOURCES += \
     ReferencesJob.cpp \
     Rdm.cpp \
     StatusJob.cpp \
-    PokeJob.cpp \
-    Database.cpp
+    PokeJob.cpp 
 
 HEADERS += \
     Compressor.h \
     Indexer.h \
-    RDatabase.h \
+    Database.h \
     UnitCache.h \
     Resource.h \
     Resources.h \
     Server.h \
     SHA256.h \
-    CodeCompleteJob.h \
-    CursorInfoJob.h \
     DumpJob.h \
     FollowLocationJob.h \
     MatchJob.h \
@@ -51,7 +46,6 @@ HEADERS += \
     Rdm.h \
     StatusJob.h \
     PokeJob.h \
-    Database.h \
     Location.h \
     Source.h \
     LevelDB.h

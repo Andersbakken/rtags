@@ -1,6 +1,6 @@
 #include "Server.h"
 #include "Indexer.h"
-#include "RDatabase.h"
+#include "Database.h"
 #include "Connection.h"
 #include "Resource.h"
 #include "Message.h"
@@ -21,7 +21,7 @@
 Server::Server(QObject* parent)
     : QObject(parent),
       m_indexer(new Indexer(ASTPATH, this)),
-      m_db(new RDatabase(this)),
+      m_db(new Database(this)),
       m_server(new QTcpServer(this)),
       m_verbose(false)
 {
@@ -35,7 +35,7 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
     Messages::init();
     UnitCache::instance();
     Resource::setBaseDirectory(ASTPATH);
-    RDatabase::setBaseDirectory(ASTPATH);
+    Database::setBaseDirectory(ASTPATH);
 
     if (!m_server->listen(QHostAddress::Any, Connection::Port)) {
         qWarning("Unable to listen to port %d", Connection::Port);
@@ -130,8 +130,7 @@ void Server::handleAddMessage(AddMessage* message)
 {
     Connection* conn = qobject_cast<Connection*>(sender());
 
-    int id = m_indexer->index(message->inputFile(), message->arguments() + m_defaultArgs + pch(message),
-                              UnitCache::Source|UnitCache::AST);
+    int id = m_indexer->index(message->inputFile(), message->arguments() + m_defaultArgs + pch(message));
     m_pendingIndexes[id] = conn;
 }
 
@@ -146,12 +145,6 @@ void Server::handleQueryMessage(QueryMessage* message)
     switch (message->type()) {
     case QueryMessage::FollowLocation:
         id = m_db->followLocation(*message);
-        break;
-    case QueryMessage::CursorInfo:
-        id = m_db->cursorInfo(*message);
-        break;
-    case QueryMessage::CodeComplete:
-        id = m_db->codeComplete(*message);
         break;
     case QueryMessage::ReferencesLocation:
         id = m_db->referencesForLocation(*message);

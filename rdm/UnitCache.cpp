@@ -33,8 +33,8 @@ protected:
             delete unit;
             unit = new CachedUnit(fileName, mode);
             if (unit->unit()) {
-                Indexer::instance()->index(fileName, QList<QByteArray>(),
-                                           UnitCache::AST|UnitCache::Memory|UnitCache::Info|UnitCache::ForceReindex);
+                Indexer::instance()->index(fileName, QList<QByteArray>());
+                                           // UnitCache::AST|UnitCache::Memory|UnitCache::Info|UnitCache::ForceReindex);
             }
             log(1) << "recompiled" << fileName;
         } else {

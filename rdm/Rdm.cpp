@@ -44,7 +44,7 @@ void visitIncluderFiles(const QByteArray& fileName, VisitFile visitor, void* dat
 {
     warning() << "looking at" << fileName;
 
-    QByteArray dbname = RDatabase::databaseName(RDatabase::Include);
+    QByteArray dbname = Database::databaseName(Database::Include);
     leveldb::DB* db = 0;
     leveldb::Status status = leveldb::DB::Open(leveldb::Options(), dbname.constData(), &db);
     if (!status.ok())
@@ -102,7 +102,7 @@ QByteArray makeLocation(CXCursor cursor, unsigned flags)
     clang_disposeString(fn);
     const int len = RTags::canonicalizePath(ret.data(), ret.size());
     const int extra = RTags::digits(line) + RTags::digits(col) + 2;
-    const QByteArray ctx = (flags & IncludeContext ? RTags::context(ret, off, col) : QByteArray());
+    const QByteArray ctx = (flags & IncludeContext ? RTags::context(ret, off) : QByteArray());
     if (ctx.isEmpty()) {
         ret.resize(len + extra);
         snprintf(ret.data() + len, extra + 1, ":%d:%d", line, col);

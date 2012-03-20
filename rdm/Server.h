@@ -8,7 +8,7 @@
 
 class Connection;
 class Indexer;
-class RDatabase;
+class Database;
 class Message;
 class AddMessage;
 class QueryMessage;
@@ -39,7 +39,7 @@ private:
 private:
     unsigned m_options;
     Indexer* m_indexer;
-    RDatabase* m_db;
+    Database* m_db;
     QTcpServer* m_server;
     QHash<int, Connection*> m_pendingIndexes;
     QHash<int, Connection*> m_pendingLookups;

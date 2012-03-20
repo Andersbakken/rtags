@@ -1,3 +1,5 @@
+#include "header.h"
+
 class Outer
 {
 public:
@@ -10,9 +12,15 @@ void bar()
 
 int main()
 {
+    Enum e = Foo;
     Outer o;
-    
-    o.
+
     o.foo();
     return 0;
+}
+
+void Outer::foo()
+{
+    bar();
+    return;
 }

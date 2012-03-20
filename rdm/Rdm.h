@@ -6,7 +6,7 @@
 #include <Path.h>
 #include <QDebug>
 #include "UnitCache.h"
-#include "RDatabase.h"
+#include "Database.h"
 #include <leveldb/db.h>
 #include <RTags.h>
 

@@ -76,10 +76,20 @@ int readLine(FILE *f, char *buf, int max)
     return -1;
 }
 
-QByteArray context(const Path &path, unsigned offset, unsigned col)
+QByteArray context(const Path &path, unsigned offset)
 {
+    --offset; // offset is 1-indexed, files are not
     FILE *f = fopen(path.constData(), "r");
-    if (f && !fseek(f, offset - (col - 1), SEEK_SET)) {
+    if (f && !fseek(f, offset, SEEK_SET)) {
+        while (offset > 0) {
+            char ch = fgetc(f);
+            if (ch == '\n')
+                break;
+            if (fseek(f, --offset, SEEK_SET) == -1) {
+                fclose(f);
+                return QByteArray();
+            }
+        }
         char buf[1024] = { '\0' };
         const int len = readLine(f, buf, 1023);
         fclose(f);
@@ -93,49 +103,30 @@ bool makeLocation(const QByteArray &arg, Location *loc,
 {
     Q_ASSERT(!arg.isEmpty());
     int colon = arg.lastIndexOf(':');
-    if (colon == arg.size() - 1)
-        colon = arg.lastIndexOf(':', colon - 1);
-    if (colon == -1) {
+    if (colon == -1 || colon == arg.size() - 1) {
         return false;
     }
-    const unsigned column = atoi(arg.constData() + colon + 1);
-    if (!column) {
+    const unsigned offset = atoi(arg.constData() + colon + 1);
+    if (!offset)
         return false;
-    }
-    const int colon2 = arg.lastIndexOf(':', colon - 1);
-    unsigned line = 0;
-    if (colon2 != -1) {
-        line = atoi(arg.constData() + colon2 + 1);
-        if (!line) {
-            return false;
-        }
-        colon = colon2;
-    }
     const Path path = Path::resolved(arg.left(colon), cwd);
-    if (path.isEmpty()) {
+    if (path.isEmpty())
         return false;
-    }
     if (resolvedLocation)
         *resolvedLocation = path + arg.mid(colon);
     if (loc) {
         loc->path = path;
-        if (line) {
-            loc->line = line;
-            loc->column = column;
-            loc->offset = -1;
-        } else {
-            loc->offset = column;
-        }
+        loc->offset = offset;
     }
     return true;
 }
 
-void makeLocation(QByteArray &path, int line, int col)
+void makeLocation(QByteArray &path, unsigned offset)
 {
     const int size = path.size();
-    const int extra = 2 + digits(line) + digits(col);
+    const int extra = 1 + digits(offset);
     path.resize(size + extra);
-    snprintf(path.data() + size, extra + 1, ":%d:%d", line, col);
+    snprintf(path.data() + size, extra + 1, ":%d", offset);
 }
 
 
@@ -144,7 +135,7 @@ QByteArray makeLocation(const QByteArray &encodedLocation)
     Location loc;
     QByteArray file;
     if (makeLocation(encodedLocation, &loc, &file)) {
-        const QByteArray ctx = RTags::context(file, loc.line, loc.column);
+        const QByteArray ctx = RTags::context(file, loc.offset);
         return encodedLocation + '\t' + ctx;
     }
     return encodedLocation;

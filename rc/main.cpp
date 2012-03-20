@@ -120,8 +120,6 @@ int main(int argc, char** argv)
             }
             break;
         case 'f':
-        case 'c':
-        case 'C':
         case 'l': {
             QByteArray resolved;
             RTags::Location loc;
@@ -129,24 +127,9 @@ int main(int argc, char** argv)
                 qWarning("Can't resolve argument %s", optarg);
                 return 1;
             }
-            QueryMessage::Type type;
-            switch (c) {
-            case 'c':
-                type = QueryMessage::CodeComplete;
-                break;
-            case 'C':
-                type = QueryMessage::CursorInfo;
-                break;
-            case 'l':
-                type = QueryMessage::ReferencesLocation;
-                break;
-            case 'f':
-                type = QueryMessage::FollowLocation;
-                break;
-            default:
-                return 1;
-            }
-            optlist.append(qMakePair(type, resolved));
+            optlist.append(qMakePair((c == 'l'
+                                      ? QueryMessage::ReferencesLocation
+                                      : QueryMessage::FollowLocation), resolved));
             break; }
         case 'm':
             makeFiles.append(Path::resolved(optarg));

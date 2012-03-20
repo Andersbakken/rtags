@@ -57,49 +57,45 @@ public:
     CXString str;
 };
 
+// static inline CXChildVisitResult visitAll(CXCursor cursor, CXCursor, CXClientData)
+// {
+//     CXFile f;
+//     unsigned l, c;
+//     clang_getInstantiationLocation(clang_getCursorLocation(cursor), &f, &l, &c, 0);
+
+//     printf("[%s] [%s] %s:%u:%u:\n",
+//            String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
+//            String(clang_getCursorSpelling(cursor)).data(),
+//            String(clang_getFileName(f)).data(),
+//            l, c);
+//     return CXChildVisit_Recurse;
+// }
+
 static inline CXChildVisitResult visitAll(CXCursor cursor, CXCursor, CXClientData)
 {
-    CXFile f;
-    unsigned l, c;
-    clang_getInstantiationLocation(clang_getCursorLocation(cursor), &f, &l, &c, 0);
+    // switch (clang_getCursorKind(cursor)) {
+    // case CXCursor_ParmDecl:
+    //     return CXChildVisit_Recurse;
+    // case CXCursor_TypeRef:
+    // case CXCursor_TemplateRef: {
+    CXFile file;
+    unsigned line, col;
+    clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
 
-    // printf("[%s] [%s] %s:%u:%u:\n",
-    //        String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
-    //        String(clang_getCursorSpelling(cursor)).data(),
-    //        String(clang_getFileName(f)).data(),
-    //        l, c);
+    CXCursor ref = clang_getCursorReferenced(cursor);
+    CXFile file2;
+    unsigned line2, col2;
+    clang_getInstantiationLocation(clang_getCursorLocation(ref), &file2, &line2, &col2, 0);
+    printf("    %s:%u:%u %s %s: references %s:%u:%u %s %s\n",
+           String(clang_getFileName(file)).data(),
+           line, col,
+           String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
+           String(clang_getCursorSpelling(cursor)).data(),
+           String(clang_getFileName(file2)).data(),
+           line2, col2,
+           String(clang_getCursorKindSpelling(clang_getCursorKind(ref))).data(),
+           String(clang_getCursorSpelling(ref)).data());
     return CXChildVisit_Recurse;
-}
-
-static inline CXChildVisitResult visitor(CXCursor cursor, CXCursor, CXClientData)
-{
-    switch (clang_getCursorKind(cursor)) {
-    case CXCursor_ParmDecl:
-        return CXChildVisit_Recurse;
-    case CXCursor_TypeRef:
-    case CXCursor_TemplateRef: {
-        CXFile file;
-        unsigned line, col;
-        clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
-
-        CXCursor ref = clang_getCursorReferenced(cursor);
-        CXFile file2;
-        unsigned line2, col2;
-        clang_getInstantiationLocation(clang_getCursorLocation(ref), &file2, &line2, &col2, 0);
-        printf("    %s %s %s:%u:%u: references %s %s %s:%u:%u:\n",
-               String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
-               String(clang_getCursorSpelling(cursor)).data(),
-               String(clang_getFileName(file)).data(),
-               line, col,
-               String(clang_getCursorKindSpelling(clang_getCursorKind(ref))).data(),
-               String(clang_getCursorSpelling(ref)).data(),
-               String(clang_getFileName(file2)).data(),
-               line2, col2);
-        break; }
-    default:
-        break;
-    }
-    return CXChildVisit_Continue;
 }
 
 // void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
@@ -147,49 +143,23 @@ int main(int argc, char **argv)
     timer.start();
     CXIndex index = clang_createIndex(1, 1);
 #if 1
-    const char *argsPch[] = { "-cc1", "-fsyntax-only", "-D_REENTRANT", "-DQT_WEBKIT",
-                              "-DCLANG_RUNTIME_INCLUDE=\"/home/anders/clang+llvm-3.0-i386-linux-Ubuntu-11_10//lib/clang//include\"",
-                              "-DQT_NETWORK_LIB", "-DQT_CORE_LIB", "-DQT_SHARED",
-                              "-I/usr/share/qt4/mkspecs/linux-g++", "-I/home/anders/dev/rtags/rdm",
-                              "-I/usr/include/qt4/QtCore", "-I/usr/include/qt4/QtNetwork", "-I/usr/include/qt4",
-                              "-I/home/anders/dev/rtags/rdm", "-I/home/anders/dev/rtags/3rdparty/leveldb/src/include",
-                              "-I/home/anders/dev/rtags/shared", "-I/home/anders/dev/rtags/shared/messages",
-                              "-I/home/anders/clang+llvm-3.0-i386-linux-Ubuntu-11_10//include",
-                              "-I/home/anders/dev/rtags/rdm/.moc", "-x", "c++-header",
-                              "-I/home/anders/clang+llvm-3.0-i386-linux-Ubuntu-11_10/lib/clang/3.0/include/",
-                              "-I/usr/include", "-I/usr/include/i386-linux-gnu/", "-I/usr/include/c++/4.6/",
-                              "-I/usr/include/c++/4.6/i686-linux-gnu/" };
-    CXTranslationUnit unit = clang_parseTranslationUnit(index, "/home/anders/dev/rtags/shared/Pch.h",
-                                                        argsPch, sizeof(argsPch) / 4,
+    // const char *argsPch[] = { "-I.", "-x", "c++-header" };
+    // CXTranslationUnit unit = clang_parseTranslationUnit(index, "pch.h",
+    //                                                     argsPch, sizeof(argsPch) / 4,
+    //                                                     0, 0, CXTranslationUnit_Incomplete);
+    // // clang_saveTranslationUnit(unit, "/tmp/pch.pch", 0);
+    // QByteArray pch;
+    // QFile f("/tmp/pch.pch2");
+    // f.open(QIODevice::ReadOnly);
+    // pch = f.readAll();
+    // CXUnsavedFile file = { "/tmp/pch.pch", pch.constData(), pch.size() };
+    // clang_disposeTranslationUnit(unit);
+    const char *args[] = { "-fsyntax-only", "-I.", "-x", "c++" }; //, "-include-pch", "/tmp/pch.pch" };
+    CXTranslationUnit unit = clang_parseTranslationUnit(index, "test.cpp",
+                                                        args, sizeof(args) / 4,
                                                         0, 0, clang_defaultEditingTranslationUnitOptions());
-    clang_saveTranslationUnit(unit, "/tmp/pch.pch", 0);
-    clang_disposeTranslationUnit(unit);
-    log(1) << "finished pch" << timer.restart();
-    const char *args[] = { "-cc1", "-fsyntax-only", "-D_REENTRANT", "-DQT_WEBKIT",
-                           "-DCLANG_RUNTIME_INCLUDE=\"/home/anders/clang+llvm-3.0-i386-linux-Ubuntu-11_10//lib/clang//include\"",
-                           "-DQT_NETWORK_LIB", "-DQT_CORE_LIB", "-DQT_SHARED",
-                           "-I/usr/share/qt4/mkspecs/linux-g++", "-I/home/anders/dev/rtags/rdm",
-                           "-I/usr/include/qt4/QtCore", "-I/usr/include/qt4/QtNetwork", "-I/usr/include/qt4",
-                           "-I/home/anders/dev/rtags/rdm", "-I/home/anders/dev/rtags/3rdparty/leveldb/src/include",
-                           "-I/home/anders/dev/rtags/shared", "-I/home/anders/dev/rtags/shared/messages",
-                           "-I/home/anders/clang+llvm-3.0-i386-linux-Ubuntu-11_10//include",
-                           "-I/home/anders/dev/rtags/rdm/.moc", "-x", "c++",
-                           "-I/home/anders/clang+llvm-3.0-i386-linux-Ubuntu-11_10/lib/clang/3.0/include/",
-                           "-I/usr/include", "-I/usr/include/i386-linux-gnu/", "-I/usr/include/c++/4.6/",
-                           "-I/usr/include/c++/4.6/i686-linux-gnu/", "-include-pch", "/tmp/pch.pch" };
-    const char *files[] = {
-        "/home/anders/dev/rtags/rdm/Rdm.cpp",
-        "/home/anders/dev/rtags/shared/Path.cpp",
-        "/home/anders/dev/rtags/rdm/UnitCache.cpp",
-        0
-    };
-    for (int i=0; files[i]; ++i) {
-        unit = clang_parseTranslationUnit(index, files[i],
-                                          args, sizeof(args) / 4,
-                                          0, 0, clang_defaultEditingTranslationUnitOptions());
-        log(1) << "compiled file" << files[i] << timer.restart();
+    if (unit) {
         clang_visitChildren(clang_getTranslationUnitCursor(unit), visitAll, 0);
-        log(1) << "visited file" << files[i] << timer.restart();
         clang_disposeTranslationUnit(unit);
     }
 
