@@ -189,6 +189,7 @@ inline bool UnitCache::rereadUnit(const QByteArray &sourceFileName,
                                   const QByteArray& hashedFilename,
                                   UnitData* data)
 {
+    freeFileSystemWatcher(data->unit.fileName);
     data->unit.clear();
     data->unit.unit = clang_createTranslationUnit(data->unit.index,
                                                   hashedFilename.constData());
@@ -227,6 +228,7 @@ inline bool UnitCache::loadUnit(const QByteArray& filename,
     clangLine += filename;
     log(1) << "loading unit" << clangLine;
 
+    freeFileSystemWatcher(data->unit.fileName);
     data->unit.clear();
 
     data->unit.unit = clang_parseTranslationUnit(data->unit.index, filename.constData(),
@@ -328,6 +330,7 @@ inline bool UnitCache::saveUnit(UnitData* data,
 
 inline void UnitCache::destroyUnit(UnitData* data)
 {
+    freeFileSystemWatcher(data->unit.fileName);
     data->unit.clear();
     clang_disposeIndex(data->unit.index);
 }
@@ -643,7 +646,6 @@ void UnitCache::initFileSystemWatcher(Unit* unit)
 void UnitCache::freeFileSystemWatcher(const QByteArray& filename) // always called with m_dataMutex held
 {
     FileSystemWatcher* watcher = m_watchers.take(filename);
-    Q_ASSERT(watcher);
     delete watcher;
 }
 
