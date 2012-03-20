@@ -49,8 +49,11 @@ QByteArray join(const QList<QByteArray> &list, const QByteArray &sep)
         size += l.size();
     }
     ret.reserve(size);
-    foreach(const QByteArray &l, list) {
-        ret.append(l);
+    for (int i=0; i<list.size(); ++i) {
+        ret.append(list.at(i));
+        if (i + 1 < list.size()) {
+            ret.append(sep);
+        }
     }
     return ret;
 }
