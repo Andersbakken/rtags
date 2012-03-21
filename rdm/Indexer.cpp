@@ -216,7 +216,7 @@ public:
     void run();
 
     int m_id;
-    RTags::Location createLocation(CXCursor cursor, unsigned *len = 0) const;
+    RTags::Location createLocation(CXCursor cursor) const;
     void addNamePermutations(CXCursor cursor);
 
     QHash<RTags::Location, CursorInfo> m_cursorInfo;
@@ -224,9 +224,6 @@ public:
     QByteArray m_path, m_in;
     QList<QByteArray> m_args;
     IndexerImpl* m_impl;
-    mutable RTags::Location m_lastLocation;
-    mutable CXSourceRange m_lastSourceRange;
-    mutable unsigned m_lastLocationLength;
 
 private:
     void addFileNameSymbol(const QByteArray& fileName);
@@ -301,39 +298,28 @@ void IndexerJob::addNamePermutations(CXCursor cursor)
 //     }
 }
 
-RTags::Location IndexerJob::createLocation(CXCursor cursor, unsigned *len) const
+RTags::Location IndexerJob::createLocation(CXCursor cursor) const
 {
-    CXSourceRange range = clang_getCursorExtent(cursor);
-    if (len && clang_equalRanges(range, m_lastSourceRange)) {
-        *len = m_lastLocationLength;
-        return m_lastLocation;
-    }
+    CXSourceLocation location = clang_getCursorLocation(cursor);
+    // if (clang_equalRanges(range, m_lastSourceRange)) {
+    //     *len = m_lastLocationLength;
+    //     return m_lastLocation;
+    // }
 
     RTags::Location ret;
-    if (!clang_Range_isNull(range)) {
+    if (!clang_equalLocations(location, clang_getNullLocation())) {
         CXFile file;
         unsigned start;
-        clang_getSpellingLocation(clang_getRangeStart(range), &file, 0, 0, &start);
+        clang_getSpellingLocation(location, &file, 0, 0, &start);
         CXString fn = clang_getFileName(file);
         const char *fileName = clang_getCString(fn);
-        if (!fileName || !strlen(fileName)) {
-            clang_disposeString(fn);
-            return ret;
-        }
-        ret.path = fileName;
-        ret.path.canonicalizePath(); // ### could canonicalize directly
-        ret.offset = start;
-        clang_disposeString(fn);
-        if (len) { // only cache the last one when (len != 0)
-            unsigned end;
-            clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-
-            m_lastLocationLength = end - start;
-            *len = m_lastLocationLength;
-            m_lastLocation = ret;
+        if (fileName && strlen(fileName)) {
+            ret.path = fileName;
+            ret.path.canonicalizePath(); // ### could canonicalize directly
+            ret.offset = start;
         }
         // unsigned l, c;
-        // clang_getSpellingLocation(clang_getRangeStart(range), 0, &l, &c, 0);
+        // clang_getSpellingLocation(location, 0, &l, &c, 0);
         // QByteArray out;
         // out.append(ret.path);
         // out.append(':');
@@ -341,8 +327,7 @@ RTags::Location IndexerJob::createLocation(CXCursor cursor, unsigned *len) const
         // out.append(':');
         // out.append(QByteArray::number(c));
         // debug() << ret.key() << "is" << out;
-    } else if (len) {
-        *len = 0;
+        clang_disposeString(fn);
     }
     return ret;
 }
@@ -352,7 +337,7 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
                                        CXClientData client_data)
 {
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
-
+    
     const CXCursorKind kind = clang_getCursorKind(cursor);
     switch (kind) {
     case CXCursor_CXXAccessSpecifier:
@@ -361,18 +346,18 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         break;
     }
 
-    // error() << Rdm::cursorToString(cursor) << "refs" << Rdm::cursorToString(clang_getCursorReferenced(cursor));
-    unsigned len = 0;
-    const RTags::Location loc = job->createLocation(cursor, &len);
-    if (loc.isNull() || job->m_cursorInfo.contains(loc))
+    error() << Rdm::cursorToString(cursor) << "refs" << Rdm::cursorToString(clang_getCursorReferenced(cursor));
+    const RTags::Location loc = job->createLocation(cursor);
+    if (loc.isNull() || job->m_cursorInfo.contains(loc)) {
         return CXChildVisit_Recurse;
+    }
     CursorInfo &info = job->m_cursorInfo[loc];
-    info.symbolLength = len;
+    info.symbolLength = 1;
 
     if (clang_isCursorDefinition(cursor) || kind == CXCursor_FunctionDecl) {
         job->addNamePermutations(cursor);
     }
-    
+
     CXCursor ref = clang_getCursorReferenced(cursor);
     if (clang_equalCursors(cursor, ref) && !clang_isCursorDefinition(ref)) {
         QByteArray old = Rdm::cursorToString(ref);
@@ -413,8 +398,7 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
 IndexerJob::IndexerJob(IndexerImpl* impl, int id,
                        const QByteArray& path, const QByteArray& input,
                        const QList<QByteArray>& arguments)
-    : m_id(id), m_path(path), m_in(input), m_args(arguments), m_impl(impl),
-    m_lastSourceRange(clang_getNullRange()), m_lastLocationLength(0)
+    : m_id(id), m_path(path), m_in(input), m_args(arguments), m_impl(impl)
 {
 }
 
@@ -514,16 +498,17 @@ void IndexerJob::run()
         clangLine += " ";
     }
     clangLine += m_in;
-    log(1) << "loading unit" << clangLine;
 
     CXIndex index = clang_createIndex(1, 1);
     CXTranslationUnit unit = clang_parseTranslationUnit(index, m_in.constData(),
                                                         clangArgs.data(), idx,
                                                         0, 0, CXTranslationUnit_Incomplete);
+    log(1) << "loading unit" << clangLine << (unit != 0);
+
     if (unit) {
-        debug() << "visiting" << m_in;
         clang_getInclusions(unit, inclusionVisitor, this);
         clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
+        error() << "visiting" << m_in << m_references.size() << m_cursorInfo.size();
 
         const QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator end = m_references.end();
         for (QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator it = m_references.begin(); it != end; ++it) {
