@@ -27,6 +27,11 @@ struct Location {
     Path path;
     int offset;
 
+    bool isNull() const
+    {
+        return !offset;
+    }
+
     inline bool operator==(const Location &other) const
     {
         return path == other.path && offset == other.offset;
@@ -44,6 +49,8 @@ struct Location {
 
     QByteArray key() const
     {
+        if (!offset)
+            return QByteArray();
         const int extra = RTags::digits(offset) + 1;
         QByteArray ret(path.size() + extra, '0');
         memcpy(ret.data(), path.constData(), path.size());
@@ -51,6 +58,12 @@ struct Location {
         return ret;
     }
 };
+
+static inline QDebug operator<<(QDebug dbg, const Location &loc)
+{
+    const QByteArray out = "Location(" + loc.key() + ")";
+    return (dbg << out);
+}
 
 static inline uint qHash(const Location &l)
 {
