@@ -12,7 +12,6 @@
 
 namespace Rdm {
 QByteArray eatString(CXString str);
-void debugCursor(CXCursor c);
 struct FirstUnitData
 {
     FirstUnitData();

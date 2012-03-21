@@ -24,11 +24,12 @@
 #define SYNCINTERVAL 10
 
 struct CursorInfo {
-    CursorInfo() : symbolLength(0) {}
+    CursorInfo() : symbolLength(0), kind(CXCursor_FirstInvalid) {}
     bool isNull() const { return symbolLength; }
     int symbolLength;
     RTags::Location target;
     QSet<RTags::Location> references;
+    CXCursorKind kind;
 };
 
 class IndexerJob;
@@ -301,11 +302,6 @@ void IndexerJob::addNamePermutations(CXCursor cursor)
 RTags::Location IndexerJob::createLocation(CXCursor cursor) const
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
-    // if (clang_equalRanges(range, m_lastSourceRange)) {
-    //     *len = m_lastLocationLength;
-    //     return m_lastLocation;
-    // }
-
     RTags::Location ret;
     if (!clang_equalLocations(location, clang_getNullLocation())) {
         CXFile file;
@@ -336,8 +332,16 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
                                        CXCursor /*parent*/,
                                        CXClientData client_data)
 {
+    {
+        CXCursor ref = clang_getCursorReferenced(cursor);
+        if (clang_equalCursors(cursor, ref) && !clang_isCursorDefinition(ref)) {
+            ref = clang_getCursorDefinition(ref);
+        }
+        debug() << Rdm::cursorToString(cursor) << "refs" << Rdm::cursorToString(clang_getCursorReferenced(cursor))
+                << (clang_equalCursors(ref, clang_getCursorReferenced(cursor)) ? QByteArray() : ("changed to " + Rdm::cursorToString(ref)));
+    }
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
-    
+
     const CXCursorKind kind = clang_getCursorKind(cursor);
     switch (kind) {
     case CXCursor_CXXAccessSpecifier:
@@ -346,31 +350,48 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         break;
     }
 
-    error() << Rdm::cursorToString(cursor) << "refs" << Rdm::cursorToString(clang_getCursorReferenced(cursor));
     const RTags::Location loc = job->createLocation(cursor);
-    if (loc.isNull() || job->m_cursorInfo.contains(loc)) {
+    if (loc.isNull()) {
         return CXChildVisit_Recurse;
     }
+    CXCursor ref = clang_getCursorReferenced(cursor);
+    if (clang_equalCursors(cursor, ref) && !clang_isCursorDefinition(ref)) {
+        // QByteArray old = Rdm::cursorToString(ref);
+        ref = clang_getCursorDefinition(ref);
+        // error() << "changed ref from" << old << "to" << Rdm::cursorToString(ref);
+    }
+    const CXCursorKind refKind = clang_getCursorKind(ref);
+    
     CursorInfo &info = job->m_cursorInfo[loc];
-    info.symbolLength = 1;
+    if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
+        return CXChildVisit_Recurse;
+    } else if (!info.symbolLength) {
+        info.kind = kind;
+    } else if (info.kind == CXCursor_Constructor && kind == CXCursor_TypeRef) {
+        return CXChildVisit_Recurse;
+    }
+    if (!info.symbolLength) {
+        CXString name;
+        if (clang_isReference(kind)) {
+            name = clang_getCursorSpelling(ref);
+        } else {
+            name = clang_getCursorSpelling(cursor);
+        }
+        const char *cstr = clang_getCString(name);
+        info.symbolLength = cstr ? strlen(cstr) : 0;
+        clang_disposeString(name);
+    }
 
     if (clang_isCursorDefinition(cursor) || kind == CXCursor_FunctionDecl) {
         job->addNamePermutations(cursor);
     }
 
-    CXCursor ref = clang_getCursorReferenced(cursor);
-    if (clang_equalCursors(cursor, ref) && !clang_isCursorDefinition(ref)) {
-        QByteArray old = Rdm::cursorToString(ref);
-        ref = clang_getCursorDefinition(ref);
-        // error() << "changed ref from" << old << "to" << Rdm::cursorToString(ref);
-    }
-
-    CXCursorKind refKind = clang_getCursorKind(ref);
 
     if (!clang_isInvalid(refKind) && !clang_equalCursors(cursor, ref)) {
         const RTags::Location refLoc = job->createLocation(ref);
-        if (refLoc.isNull())
+        if (refLoc.isNull()) {
             return CXChildVisit_Recurse;
+        }
 
         info.target = refLoc;
         bool isMemberFunction = false;
@@ -382,8 +403,8 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
             case CXCursor_Destructor:
             case CXCursor_CXXMethod:
                 isMemberFunction = true;
-                // error() << "got shit called" << loc << "ref is" << refLoc
-                //         << Rdm::cursorToString(cursor) << "is" << Rdm::cursorToString(ref);
+                error() << "got shit called" << loc << "ref is" << refLoc
+                        << Rdm::cursorToString(cursor) << "is" << Rdm::cursorToString(ref);
                 break;
             default:
                 break;
@@ -513,19 +534,14 @@ void IndexerJob::run()
         const QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator end = m_references.end();
         for (QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator it = m_references.begin(); it != end; ++it) {
             Q_ASSERT(m_cursorInfo.contains(it.value().first));
+            debug() << "key" << it.key() << "value" << it.value();
             CursorInfo &ci = m_cursorInfo[it.value().first];
-            ci.references.insert(it.key());
-            // if (it.value().second) {
-            //     error() << "We got second" << ci.target.isNull() << it.key() << "for" << it.value().first;
-            // }
-            if (it.value().second && ci.target.isNull()) {
+            if (it.value().second) {
                 CursorInfo &otherCi = m_cursorInfo[it.key()];
-                QSet<RTags::Location> refs = ci.references + otherCi.references;
-                // refs.insert(it.key());
-                // refs.insert(it.value().first);
-                ci.references = refs;
-                otherCi.references = refs;
-                ci.target = it.key();
+                if (otherCi.target.isNull())
+                    ci.target = it.key();
+            } else {
+                ci.references.insert(it.key());
             }
         }
 
@@ -534,7 +550,6 @@ void IndexerJob::run()
             CursorInfo &ci = it.value();
             if (ci.target.isNull() && ci.references.isEmpty())
                 continue;
-            ci.references.insert(it.key());
             debug() << it.key() << it.value().symbolLength << "=>" << it.value().target
                     << it.value().references;
         }

@@ -8,17 +8,6 @@ QByteArray eatString(CXString str)
     return ret;
 }
 
-void debugCursor(CXCursor c)
-{
-    CXSourceLocation loc = clang_getCursorLocation(c);
-    CXFile file;
-    unsigned int line, col;
-    clang_getSpellingLocation(loc, &file, &line, &col, 0);
-    CXString fn = clang_getFileName(file);
-    log(1) << Path::resolved(clang_getCString(fn)) << line << col;
-    clang_disposeString(fn);
-}
-
 FirstUnitData::FirstUnitData()
     : data(0)
 {}
@@ -80,11 +69,12 @@ QByteArray cursorToString(CXCursor cursor)
         ret += " " + name;
 
     CXFile file;
-    unsigned line, col;
-    clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
+    unsigned off, end;
+    CXSourceLocation loc = clang_getCursorLocation(cursor);
+    clang_getSpellingLocation(loc, &file, 0, 0, &off);
     const QByteArray fileName = eatString(clang_getFileName(file));
     if (!fileName.isEmpty()) {
-        ret += " " + fileName + ':' + QByteArray::number(line) + ':' +  QByteArray::number(col);
+        ret += " " + fileName + ',' + QByteArray::number(off);
     }
     return ret;
 }
