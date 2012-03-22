@@ -24,11 +24,12 @@ struct CursorInfo {
     CXCursorKind kind;
     bool unite(const CursorInfo &other)
     {
-        Q_ASSERT(target == other.target);
         if (!symbolLength) {
             *this = other;
             return true;
         }
+        Q_ASSERT(target == other.target);
+        
         const int oldSize = references.size();
         references.unite(other.references);
         return oldSize != references.size();
