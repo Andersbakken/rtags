@@ -250,15 +250,16 @@ signals:
 //     clang_disposeString(str);
 // }
 
-// static void inclusionVisitor(CXFile included_file,
-//                              CXSourceLocation*,
-//                              unsigned include_len,
-//                              CXClientData client_data)
-// {
-//     IndexerJob* job = static_cast<IndexerJob*>(client_data);
-//     if (include_len)
-//         addInclusion(job, included_file);
-// }
+static void inclusionVisitor(CXFile included_file,
+                             CXSourceLocation*,
+                             unsigned include_len,
+                             CXClientData client_data)
+{
+    IndexerJob* job = static_cast<IndexerJob*>(client_data);
+    printf("%s %d\n", Rdm::eatString(clang_getFileName(included_file)).constData(), include_len);
+    // if (include_len)
+    //     addInclusion(job, included_file);
+}
 
 
 void IndexerJob::addNamePermutations(CXCursor cursor, const RTags::Location &location)
@@ -498,7 +499,7 @@ void IndexerJob::run()
     log(1) << "loading unit" << clangLine << (unit != 0);
 
     if (unit) {
-        // clang_getInclusions(unit, inclusionVisitor, this);
+        clang_getInclusions(unit, inclusionVisitor, this);
         clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
         error() << "visiting" << m_in << m_references.size() << mSymbols.size();
         clang_disposeTranslationUnit(unit);
@@ -506,13 +507,13 @@ void IndexerJob::run()
         const QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator end = m_references.end();
         for (QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator it = m_references.begin(); it != end; ++it) {
             Q_ASSERT(mSymbols.contains(it.value().first));
-            debug() << "key" << it.key() << "value" << it.value();
+            // debug() << "key" << it.key() << "value" << it.value();
             Rdm::CursorInfo &ci = mSymbols[it.value().first];
             if (it.value().second) {
                 Rdm::CursorInfo &otherCi = mSymbols[it.key()];
+                // ### kinda nasty
                 ci.references += otherCi.references;
                 otherCi.references = ci.references;
-                // ### kind nasty
                 if (otherCi.target.isNull())
                     ci.target = it.key();
             } else {

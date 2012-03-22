@@ -28,8 +28,18 @@ struct CursorInfo {
             *this = other;
             return true;
         }
-        Q_ASSERT(target == other.target);
-        
+        Q_ASSERT(symbolLength == other.symbolLength);
+        if (target != other.target) {
+            Q_ASSERT(target.isNull() || other.isNull());
+            if (target.isNull()) {
+                target = other.target;
+            }
+            // error() << target << other.target
+            //         << symbolLength << other.symbolLength
+            //         << references << other.references
+            //         << kind << other.kind;
+        }
+
         const int oldSize = references.size();
         references.unite(other.references);
         return oldSize != references.size();
