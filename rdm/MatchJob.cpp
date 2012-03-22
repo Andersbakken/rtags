@@ -44,9 +44,7 @@ void MatchJob::run()
             if (!cmp) {
                 const QSet<RTags::Location> locations = Rdm::readValue<QSet<RTags::Location> >(it);
                 foreach(const RTags::Location &loc, locations) {
-                    result.append(entry + "\t" + loc.key(includeContext
-                                                         ? RTags::Location::ShowContext
-                                                         : RTags::Location::NoFlag));
+                    result.append(loc.key(includeContext ? RTags::Location::ShowContext : RTags::Location::NoFlag));
                 }
             } else if (cmp > 0) {
                 break;

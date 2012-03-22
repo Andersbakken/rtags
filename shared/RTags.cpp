@@ -100,6 +100,7 @@ QByteArray shortOptions(const option *longOptions)
 {
     QByteArray ret;
     for (int i=0; longOptions[i].name; ++i) {
+        Q_ASSERT(!ret.contains(longOptions[i].val));
         ret.append(longOptions[i].val);
         switch (longOptions[i].has_arg) {
         case no_argument:
