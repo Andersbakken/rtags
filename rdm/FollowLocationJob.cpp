@@ -29,16 +29,29 @@ void FollowLocationJob::run()
 
     const leveldb::ReadOptions readopts;
     leveldb::Iterator* it = db->NewIterator(readopts);
-    const QByteArray key = location.key();
-    it->Seek(key.constData());
+    const QByteArray needle = location.key();
+    it->Seek(needle.constData());
     QList<QByteArray> list;
     if (it->Valid()) {
-
-        if (!strcmp(it->key().data(),  key.constData())) {
-
-        } else {
-
-
+        const leveldb::Slice k = it->key();
+        Rdm::CursorInfo cursorInfo;
+        const QByteArray key = QByteArray::fromRawData(k.data(), k.size());
+        bool found = (key == needle);
+        if (!found) {
+            const RTags::Location loc = RTags::Location::fromKey(key);
+            if (location.path == loc.path) {
+                const int off = location.offset - loc.offset;
+                cursorInfo = Rdm::readValue<Rdm::CursorInfo>(it);
+                if (cursorInfo.symbolLength > off) {
+                    found = true;
+                }
+            }
+        }
+        if (found) {
+            if (!cursorInfo.symbolLength)
+                cursorInfo = Rdm::readValue<Rdm::CursorInfo>(it);
+            if (!cursorInfo.target.isNull())
+                list.append(cursorInfo.target.key());
         }
     }
     delete it;
@@ -58,7 +71,7 @@ void FollowLocationJob::run()
     //     ++it;
     // }
 
-   
+
 //     QByteArray qfn;
 //     unsigned int rrow, rcol, roff;
 //     {

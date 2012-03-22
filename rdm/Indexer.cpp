@@ -94,13 +94,19 @@ void IndexerSyncer::addSymbols(const SymbolHash &symbols)
 
 void IndexerSyncer::run()
 {
-    QMutexLocker locker(&mMutex);
-    while (!mStopped) {
-        mCond.wait(&mMutex, 10000);
+    while (true) {
         SymbolNameHash symbolNames;
         SymbolHash symbols;
         {
-            QMutexLocker lock(&mMutex);
+            QMutexLocker locker(&mMutex);
+            if (mStopped)
+                return;
+            while (mSymbols.isEmpty() && mSymbolNames.isEmpty()) {
+                mCond.wait(&mMutex, 10000);
+                if (mStopped)
+                    return;
+
+            }
             qSwap(symbolNames, mSymbolNames);
             qSwap(symbols, mSymbols);
         }

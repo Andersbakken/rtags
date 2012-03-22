@@ -101,6 +101,18 @@ template <typename T> T readValue(leveldb::DB *db, const char *key)
     return t;
 }
 
+template <typename T> T readValue(leveldb::Iterator *it)
+{
+    T t;
+    leveldb::Slice value = it->value();
+    const QByteArray v = QByteArray::fromRawData(value.data(), value.size());
+    if (!v.isEmpty()) {
+        QDataStream ds(v);
+        ds >> t;
+    }
+    return t;
+}
+
 template <typename T> void writeValue(leveldb::WriteBatch *batch, const char *key, const T &t)
 {
     Q_ASSERT(batch);
