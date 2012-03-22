@@ -256,7 +256,7 @@ static void inclusionVisitor(CXFile included_file,
                              CXClientData client_data)
 {
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
-    printf("%s %d\n", Rdm::eatString(clang_getFileName(included_file)).constData(), include_len);
+    // printf("%s %d\n", Rdm::eatString(clang_getFileName(included_file)).constData(), include_len);
     // if (include_len)
     //     addInclusion(job, included_file);
 }
@@ -506,18 +506,21 @@ void IndexerJob::run()
 
         const QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator end = m_references.end();
         for (QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator it = m_references.begin(); it != end; ++it) {
-            Q_ASSERT(mSymbols.contains(it.value().first));
-            // debug() << "key" << it.key() << "value" << it.value();
-            Rdm::CursorInfo &ci = mSymbols[it.value().first];
-            if (it.value().second) {
-                Rdm::CursorInfo &otherCi = mSymbols[it.key()];
-                // ### kinda nasty
-                ci.references += otherCi.references;
-                otherCi.references = ci.references;
-                if (otherCi.target.isNull())
-                    ci.target = it.key();
-            } else {
-                ci.references.insert(it.key());
+            SymbolHash::iterator sym = mSymbols.find(it.value().first);
+            if (sym != mSymbols.end()) {
+                // Q_ASSERT(mSymbols.contains(it.value().first));
+                // debug() << "key" << it.key() << "value" << it.value();
+                Rdm::CursorInfo &ci = sym.value();
+                if (it.value().second) {
+                    Rdm::CursorInfo &otherCi = mSymbols[it.key()];
+                    // ### kinda nasty
+                    ci.references += otherCi.references;
+                    otherCi.references = ci.references;
+                    if (otherCi.target.isNull())
+                        ci.target = it.key();
+                } else {
+                    ci.references.insert(it.key());
+                }
             }
         }
 
