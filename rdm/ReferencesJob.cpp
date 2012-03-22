@@ -16,24 +16,24 @@ ReferencesJob::ReferencesJob(int i, const QByteArray &sym)
 
 static inline void readReferences(const char* usr, QList<QByteArray>& refs)
 {
-    QByteArray fileName = Database::databaseName(Database::Reference);
+    // QByteArray fileName = Database::databaseName(Database::Reference);
 
-    leveldb::DB* db = 0;
-    leveldb::Status status = leveldb::DB::Open(leveldb::Options(), fileName.constData(), &db);
-    if (!status.ok())
-        return;
+    // leveldb::DB* db = 0;
+    // leveldb::Status status = leveldb::DB::Open(leveldb::Options(), fileName.constData(), &db);
+    // if (!status.ok())
+    //     return;
 
-    std::string value;
-    db->Get(leveldb::ReadOptions(), usr, &value);
-    if (value.empty()) {
-        delete db;
-        return;
-    }
+    // std::string value;
+    // db->Get(leveldb::ReadOptions(), usr, &value);
+    // if (value.empty()) {
+    //     delete db;
+    //     return;
+    // }
 
-    QByteArray qvalue = QByteArray::fromRawData(value.c_str(), value.size());
-    refs = qvalue.split('\n');
+    // QByteArray qvalue = QByteArray::fromRawData(value.c_str(), value.size());
+    // refs = qvalue.split('\n');
 
-    delete db;
+    // delete db;
 }
 
 void ReferencesJob::run()
@@ -47,57 +47,57 @@ void ReferencesJob::run()
 
 void ReferencesJob::runName()
 {
-    QByteArray databasename = Database::databaseName(Database::Symbol);
+//     QByteArray databasename = Database::databaseName(Database::Symbol);
 
-    leveldb::DB* db = 0;
-    leveldb::Status status = leveldb::DB::Open(leveldb::Options(), databasename.constData(), &db);
-    if (!status.ok()) {
-        emit complete(id, QList<QByteArray>());
-        return;
-    }
+//     leveldb::DB* db = 0;
+//     leveldb::Status status = leveldb::DB::Open(leveldb::Options(), databasename.constData(), &db);
+//     if (!status.ok()) {
+//         emit complete(id, QList<QByteArray>());
+//         return;
+//     }
 
-    std::string value;
-    db->Get(leveldb::ReadOptions(), symbolName.constData(), &value);
-    if (value.empty()) {
-        delete db;
-        emit complete(id, QList<QByteArray>());
-        return;
-    }
+//     std::string value;
+//     db->Get(leveldb::ReadOptions(), symbolName.constData(), &value);
+//     if (value.empty()) {
+//         delete db;
+//         emit complete(id, QList<QByteArray>());
+//         return;
+//     }
 
-    QByteArray bvalue = QByteArray::fromRawData(value.c_str(), value.size());
-    QList<QByteArray> list = bvalue.split('\n');
-    //log(1) << "runName result" << list;
+//     QByteArray bvalue = QByteArray::fromRawData(value.c_str(), value.size());
+//     QList<QByteArray> list = bvalue.split('\n');
+//     //log(1) << "runName result" << list;
 
-    delete db;
+//     delete db;
 
-    databasename = Database::databaseName(Database::Definition);
-    status = leveldb::DB::Open(leveldb::Options(), databasename.constData(), &db);
-    if (!status.ok()) {
-        emit complete(id, QList<QByteArray>());
-        return;
-    }
+//     databasename = Database::databaseName(Database::Definition);
+//     status = leveldb::DB::Open(leveldb::Options(), databasename.constData(), &db);
+//     if (!status.ok()) {
+//         emit complete(id, QList<QByteArray>());
+//         return;
+//     }
 
-    QList<QByteArray> result;
-    foreach(const QByteArray& entry, list) {
-        if (entry.isEmpty())
-            continue;
-        // if the entry looks like a path, return it outright
-        if (entry.at(0) == '/') {
-            result.append(entry);
-            continue;
-        }
-        db->Get(leveldb::ReadOptions(), entry.constData(), &value);
-        if (value.empty())
-            continue;
-        bvalue = QByteArray::fromRawData(value.c_str(), value.size());
-        foreach(const QByteArray& line, bvalue.split('\n')) {
-            if (!line.isEmpty())
-                result.append(line);
-        }
-    }
+//     QList<QByteArray> result;
+//     foreach(const QByteArray& entry, list) {
+//         if (entry.isEmpty())
+//             continue;
+//         // if the entry looks like a path, return it outright
+//         if (entry.at(0) == '/') {
+//             result.append(entry);
+//             continue;
+//         }
+//         db->Get(leveldb::ReadOptions(), entry.constData(), &value);
+//         if (value.empty())
+//             continue;
+//         bvalue = QByteArray::fromRawData(value.c_str(), value.size());
+//         foreach(const QByteArray& line, bvalue.split('\n')) {
+//             if (!line.isEmpty())
+//                 result.append(line);
+//         }
+//     }
 
-    delete db;
-    emit complete(id, result);
+//     delete db;
+//     emit complete(id, result);
 }
 
 void ReferencesJob::runLocation()

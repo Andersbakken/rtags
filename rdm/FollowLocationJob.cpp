@@ -10,36 +10,6 @@ FollowLocationJob::~FollowLocationJob()
 {
 }
 
-static QList<QByteArray> lookupUsr(const char* cusr)
-{
-    leveldb::DB* db = 0;
-    const QByteArray dbname = Database::databaseName(Database::Definition);
-    const leveldb::Status status = leveldb::DB::Open(leveldb::Options(), dbname.constData(), &db);
-    if (!status.ok()) {
-        warning("no definition db!");
-        return QList<QByteArray>();
-    }
-    std::string value;
-    db->Get(leveldb::ReadOptions(), cusr, &value);
-    delete db;
-    if (value.empty()) {
-        warning() << "no definition resource found, bailing out";
-        return QList<QByteArray>();
-    }
-    const QByteArray bvalue(value.c_str(), value.size());
-    QList<QByteArray> list = bvalue.split('\n');
-    Q_ASSERT(list.isEmpty() || list.last().isEmpty());
-    if (!list.isEmpty()) {
-        list.removeLast();
-        for (int i=list.size() - 1; i>=-0; --i) {
-            Q_ASSERT(!list.at(i).isEmpty());
-            list[i] = RTags::makeLocation(list.at(i));
-        }
-    }
-    debug() << "lookupUsr" << cusr << list;
-    return list;
-}
-
 void FollowLocationJob::run()
 {
 //     QByteArray qfn;

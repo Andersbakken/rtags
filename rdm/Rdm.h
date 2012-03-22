@@ -8,6 +8,7 @@
 #include "UnitCache.h"
 #include "Database.h"
 #include <leveldb/db.h>
+#include <leveldb/write_batch.h>
 #include <RTags.h>
 
 namespace Rdm {
@@ -52,6 +53,51 @@ enum MakeLocationFlag {
 };
 QByteArray cursorToString(CXCursor cursor);
 QByteArray makeLocation(CXCursor cursor, unsigned flags = 0);
+
+struct CursorInfo {
+    CursorInfo() : symbolLength(0), kind(CXCursor_FirstInvalid) {}
+    bool isNull() const { return symbolLength; }
+    int symbolLength;
+    RTags::Location target;
+    QSet<RTags::Location> references;
+    CXCursorKind kind;
+    void unite(const CursorInfo &other)
+    {
+        Q_ASSERT(target == other.target);
+        if (!symbolLength) {
+            *this = other;
+        } else {
+            references.unite(other.references);
+        }
+    }
+
+};
+
+
+template <typename T> T readValue(leveldb::DB *db, const char *key)
+{
+    T t;
+    std::string value;
+    db->Get(leveldb::ReadOptions(), key, &value);
+    if (!value.empty()) {
+        const QByteArray v = QByteArray::fromRawData(value.c_str(), value.length());
+        QDataStream ds(v);
+        ds >> t;
+    }
+    return t;
 }
+
+template <typename T> void writeValue(leveldb::WriteBatch *batch, const char *key, const T &t)
+{
+    Q_ASSERT(batch);
+    QByteArray out;
+    {
+        QDataStream ds(&out, QIODevice::WriteOnly);
+        ds << t;
+    }
+    batch->Put(key, leveldb::Slice(out.constData(), out.size()));
+}
+}
+
 
 #endif

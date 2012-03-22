@@ -57,7 +57,32 @@ struct Location {
         snprintf(ret.data(), ret.size() + extra + 1, "%s,%d", path.constData(), offset);
         return ret;
     }
+
+    static RTags::Location fromKey(const QByteArray &key)
+    {
+        if (key.isEmpty())
+            return Location();
+        const int lastComma = key.lastIndexOf(',');
+        Q_ASSERT(lastComma > 0 && lastComma + 1 < key.size());
+        Location ret;
+        ret.offset = atoi(key.constData() + lastComma + 1);
+        Q_ASSERT(ret.offset);
+        ret.path = key.left(lastComma);
+        return ret;
+    }
 };
+
+static inline QDataStream &operator<<(QDataStream &ds, const Location &loc)
+{
+    ds << loc.path << loc.offset;
+    return ds;
+}
+
+static inline QDataStream &operator>>(QDataStream &ds, Location &loc)
+{
+    ds >> loc.path >> loc.offset;
+    return ds;
+}
 
 static inline QDebug operator<<(QDebug dbg, const Location &loc)
 {

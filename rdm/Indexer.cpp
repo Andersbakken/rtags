@@ -23,26 +23,16 @@
 
 #define SYNCINTERVAL 10
 
-struct CursorInfo {
-    CursorInfo() : symbolLength(0), kind(CXCursor_FirstInvalid) {}
-    bool isNull() const { return symbolLength; }
-    int symbolLength;
-    RTags::Location target;
-    QSet<RTags::Location> references;
-    CXCursorKind kind;
-};
-
+typedef QHash<RTags::Location, Rdm::CursorInfo> SymbolHash;
+typedef QHash<QByteArray, QSet<RTags::Location> > SymbolNameHash;
 class IndexerJob;
-
-typedef QHash<QByteArray, QSet<QByteArray> > HashSet;
-
 class IndexerSyncer : public QThread
 {
 public:
     IndexerSyncer(QObject* parent = 0);
 
-    void addData(const QHash<RTags::Location, CursorInfo> &data);
-    void addSet(Database::Type type, const HashSet& set);
+    void addSymbols(const SymbolHash &data);
+    void addSymbolNames(const SymbolNameHash &symbolNames);
     void notify();
     void stop();
 
@@ -50,134 +40,111 @@ protected:
     void run();
 
 private:
-    void unite(HashSet& set, const HashSet& other);
-    void writeSet(Database::Type type, HashSet& data);
-
-private:
-    bool stopped;
-    QMutex mutex;
-    QWaitCondition cond;
-    HashSet incs, defs, refs, syms;
+    bool mStopped;
+    QMutex mMutex;
+    QWaitCondition mCond;
+    SymbolHash mSymbols;
+    SymbolNameHash mSymbolNames;
 };
 
 IndexerSyncer::IndexerSyncer(QObject* parent)
-    : QThread(parent), stopped(false)
+    : QThread(parent), mStopped(false)
 {
-}
-
-inline void IndexerSyncer::unite(HashSet& set, const HashSet& other)
-{
-    HashSet::const_iterator it = other.begin();
-    const HashSet::const_iterator end = other.end();
-    while (it != end) {
-        set[it.key()].unite(other.value(it.key()));
-        ++it;
-    }
 }
 
 void IndexerSyncer::stop()
 {
-    QMutexLocker locker(&mutex);
-    stopped = true;
-    cond.wakeOne();
+    QMutexLocker locker(&mMutex);
+    mStopped = true;
+    mCond.wakeOne();
 }
 
 void IndexerSyncer::notify()
 {
-    QMutexLocker locker(&mutex); // is this needed here?
-    cond.wakeOne();
+    QMutexLocker locker(&mMutex); // is this needed here?
+    mCond.wakeOne();
 }
 
-void IndexerSyncer::addSet(Database::Type type, const HashSet& set)
+void IndexerSyncer::addSymbolNames(const SymbolNameHash &locations)
 {
-    QMutexLocker locker(&mutex);
-    switch (type) {
-    case Database::Include:
-        unite(incs, set);
-        break;
-    case Database::Definition:
-        unite(defs, set);
-        break;
-    case Database::Reference:
-        unite(refs, set);
-        break;
-    case Database::Symbol:
-        unite(syms, set);
-        break;
+    if (mSymbolNames.isEmpty()) {
+        mSymbolNames = locations;
+    } else {
+        const SymbolNameHash::const_iterator end = locations.end();
+        for (SymbolNameHash::const_iterator it = locations.begin(); it != end; ++it) {
+            mSymbolNames[it.key()].unite(it.value());
+        }
     }
-    //cond.wakeOne();
 }
 
-void IndexerSyncer::writeSet(Database::Type type, HashSet& data)
+void IndexerSyncer::addSymbols(const SymbolHash &symbols)
 {
-    leveldb::DB* db = 0;
-    leveldb::Options options;
-    options.create_if_missing = true;
-    QByteArray name = Database::databaseName(type);
-    if (name.isEmpty())
-        return;
-
-    leveldb::Status status = leveldb::DB::Open(options, name.constData(), &db);
-    if (!status.ok())
-        return;
-    Q_ASSERT(db);
-
-    leveldb::WriteBatch batch;
-    const leveldb::ReadOptions readopts;
-
-    HashSet::iterator it = data.begin();
-    const HashSet::const_iterator end = data.end();
-    while (it != end) {
-        QSet<QByteArray>& set = it.value();
-
-        std::string value;
-        db->Get(readopts, it.key().constData(), &value);
-
-        QByteArray bvalue = QByteArray::fromRawData(value.c_str(), value.size());
-        QSet<QByteArray> newset = bvalue.split('\n').toSet(), inter;
-        newset.remove(QByteArray(""));
-
-        inter = newset & set; // intersection
-        if (inter.size() == set.size()) { // if the intersection contains all of our preexisting items then we're good
-            ++it;
-            continue;
+    if (mSymbols.isEmpty()) {
+        mSymbols = symbols;
+    } else {
+        const SymbolHash::const_iterator end = symbols.end();
+        for (SymbolHash::const_iterator it = symbols.begin(); it != end; ++it) {
+            mSymbols[it.key()].unite(it.value());
         }
-        newset.unite(set);
-
-        value.clear();
-        QSet<QByteArray>::const_iterator vit = newset.begin();
-        const QSet<QByteArray>::const_iterator vend = newset.end();
-        while (vit != vend) {
-            value += (*vit).constData();
-            value += '\n';
-            ++vit;
-        }
-
-        batch.Put(it.key().constData(), value);
-        ++it;
     }
-    data.clear();
-
-    db->Write(leveldb::WriteOptions(), &batch);
-    delete db;
 }
 
 void IndexerSyncer::run()
 {
-    QMutexLocker locker(&mutex);
-    while (!stopped) {
-        cond.wait(&mutex, 10000);
-        if (!incs.isEmpty()) {
-            writeSet(Database::Include, incs);
-        }
-        if (!defs.isEmpty()) {
-            writeSet(Database::Definition, defs);
-        }
-        if (!refs.isEmpty()) {
-            writeSet(Database::Reference, refs);
-        }
-        if (!syms.isEmpty()) {
-            writeSet(Database::Symbol, syms);
+    QMutexLocker locker(&mMutex);
+    while (!mStopped) {
+        mCond.wait(&mMutex, 10000);
+        if (!mSymbolNames.isEmpty()) {
+            leveldb::DB* db = 0;
+            leveldb::Options options;
+            options.create_if_missing = true;
+            const QByteArray name = Database::databaseName(Database::SymbolName);
+            if (name.isEmpty())
+                return;
+
+            leveldb::Status status = leveldb::DB::Open(options, name.constData(), &db);
+            if (!status.ok())
+                return;
+            Q_ASSERT(db);
+
+            leveldb::WriteBatch batch;
+            const leveldb::ReadOptions readopts;
+
+            SymbolNameHash::iterator it = mSymbolNames.begin();
+            const SymbolNameHash::const_iterator end = mSymbolNames.end();
+            while (it != end) {
+                QSet<RTags::Location> &set = it.value();
+
+                std::string value;
+                db->Get(readopts, it.key().constData(), &value);
+
+                QByteArray bvalue = QByteArray::fromRawData(value.c_str(), value.size());
+                QSet<QByteArray> newset = bvalue.split('\n').toSet(), inter;
+                newset.remove(QByteArray(""));
+
+                inter = newset & set; // intersection
+                if (inter.size() == set.size()) { // if the intersection contains all of our preexisting items then we're good
+                    ++it;
+                    continue;
+                }
+                newset.unite(set);
+
+                value.clear();
+                QSet<QByteArray>::const_iterator vit = newset.begin();
+                const QSet<QByteArray>::const_iterator vend = newset.end();
+                while (vit != vend) {
+                    value += (*vit).constData();
+                    value += '\n';
+                    ++vit;
+                }
+
+                batch.Put(it.key().constData(), value);
+                ++it;
+            }
+            data.clear();
+
+            db->Write(leveldb::WriteOptions(), &batch);
+            delete db;
         }
     }
 }
@@ -220,7 +187,7 @@ public:
     RTags::Location createLocation(CXCursor cursor) const;
     void addNamePermutations(CXCursor cursor);
 
-    QHash<RTags::Location, CursorInfo> m_cursorInfo;
+    SymbolHash m_cursorInfo;
     QHash<RTags::Location, QPair<RTags::Location, bool> > m_references;
     QByteArray m_path, m_in;
     QList<QByteArray> m_args;
@@ -235,31 +202,31 @@ signals:
 
 #include "Indexer.moc"
 
-static inline void addInclusion(IndexerJob* job, CXFile inc)
-{
-    CXString str = clang_getFileName(inc);
+// static inline void addInclusion(IndexerJob* job, CXFile inc)
+// {
+//     CXString str = clang_getFileName(inc);
 
-    const QByteArray path = Path::resolved(clang_getCString(str));
+//     const QByteArray path = Path::resolved(clang_getCString(str));
 
-    QMutexLocker locker(&job->m_impl->incMutex);
-    if (!qstrcmp(job->m_in, path)) {
-        clang_disposeString(str);
-        return;
-    }
+//     QMutexLocker locker(&job->m_impl->incMutex);
+//     if (!qstrcmp(job->m_in, path)) {
+//         clang_disposeString(str);
+//         return;
+//     }
 
-    job->m_impl->incs[path].insert(job->m_in);
-    clang_disposeString(str);
-}
+//     job->m_impl->incs[path].insert(job->m_in);
+//     clang_disposeString(str);
+// }
 
-static void inclusionVisitor(CXFile included_file,
-                             CXSourceLocation*,
-                             unsigned include_len,
-                             CXClientData client_data)
-{
-    IndexerJob* job = static_cast<IndexerJob*>(client_data);
-    if (include_len)
-        addInclusion(job, included_file);
-}
+// static void inclusionVisitor(CXFile included_file,
+//                              CXSourceLocation*,
+//                              unsigned include_len,
+//                              CXClientData client_data)
+// {
+//     IndexerJob* job = static_cast<IndexerJob*>(client_data);
+//     if (include_len)
+//         addInclusion(job, included_file);
+// }
 
 void IndexerJob::addNamePermutations(CXCursor cursor)
 {
@@ -362,7 +329,7 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
     }
     const CXCursorKind refKind = clang_getCursorKind(ref);
     
-    CursorInfo &info = job->m_cursorInfo[loc];
+    Rdm::CursorInfo &info = job->m_cursorInfo[loc];
     if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
         return CXChildVisit_Recurse;
     } else if (!info.symbolLength) {
@@ -535,9 +502,9 @@ void IndexerJob::run()
         for (QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator it = m_references.begin(); it != end; ++it) {
             Q_ASSERT(m_cursorInfo.contains(it.value().first));
             debug() << "key" << it.key() << "value" << it.value();
-            CursorInfo &ci = m_cursorInfo[it.value().first];
+            Rdm::CursorInfo &ci = m_cursorInfo[it.value().first];
             if (it.value().second) {
-                CursorInfo &otherCi = m_cursorInfo[it.key()];
+                Rdm::CursorInfo &otherCi = m_cursorInfo[it.key()];
                 if (otherCi.target.isNull())
                     ci.target = it.key();
             } else {
@@ -546,8 +513,8 @@ void IndexerJob::run()
         }
 
 
-        for (QHash<RTags::Location, CursorInfo>::iterator it = m_cursorInfo.begin(); it != m_cursorInfo.end(); ++it) {
-            CursorInfo &ci = it.value();
+        for (SymbolHash::iterator it = m_cursorInfo.begin(); it != m_cursorInfo.end(); ++it) {
+            Rdm::CursorInfo &ci = it.value();
             if (ci.target.isNull() && ci.references.isEmpty())
                 continue;
             debug() << it.key() << it.value().symbolLength << "=>" << it.value().target

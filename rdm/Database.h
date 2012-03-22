@@ -11,7 +11,7 @@ class Database : public QObject
 {
     Q_OBJECT
 public:
-    enum Type { Include, Definition, Reference, Symbol };
+    enum Type { Include, Symbol, SymbolName };
 
     Database(QObject* parent = 0);
     ~Database();
