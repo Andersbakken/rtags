@@ -11,6 +11,7 @@ namespace RTags {
 enum { DatabaseVersion = 2 };
 enum UnitType { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };
 
+int readLine(FILE *f, char *buf, int max);
 static inline int digits(int len)
 {
     int ret = 1;
@@ -51,20 +52,53 @@ struct Location {
 
     enum KeyFlag {
         NoFlag = 0x0,
-        Padded = 0x1
+        Padded = 0x1,
+        ShowContext = 0x2
     };
+    QByteArray context() const
+    {
+        unsigned off = offset - 1;// offset is 1-indexed, files are not
+        FILE *f = fopen(path.constData(), "r");
+        if (f && !fseek(f, off, SEEK_SET)) {
+            while (off > 0) {
+                char ch = fgetc(f);
+                if (ch == '\n')
+                    break;
+                if (fseek(f, --off, SEEK_SET) == -1) {
+                    fclose(f);
+                    return QByteArray();
+                }
+            }
+            char buf[1024] = { '\0' };
+            const int len = readLine(f, buf, 1023);
+            fclose(f);
+            return QByteArray(buf, len);
+        }
+        if (f)
+            fclose(f);
+        return QByteArray();
+    }
+        
     QByteArray key(unsigned flags = NoFlag) const
     {
         if (!offset)
             return QByteArray();
-        const int extra = flags & Padded ? 7 : RTags::digits(offset) + 1;
-
+        int extra = flags & Padded ? 7 : RTags::digits(offset) + 1;
+        QByteArray ctx;
+        if (flags & ShowContext) {
+            ctx += '\t' + context();
+            extra += ctx.size();
+        }
+        
         QByteArray ret(path.size() + extra, '0');
         memcpy(ret.data(), path.constData(), path.size());
+
         if (flags & Padded) {
-            snprintf(ret.data(), ret.size() + extra + 1, "%s,%06d", path.constData(), offset);
+            snprintf(ret.data(), ret.size() + extra + 1, "%s,%06d%s", path.constData(),
+                     offset, ctx.constData());
         } else {
-            snprintf(ret.data(), ret.size() + extra + 1, "%s,%d", path.constData(), offset);
+            snprintf(ret.data(), ret.size() + extra + 1, "%s,%d%s", path.constData(),
+                     offset, ctx.constData());
         }
         return ret;
     }
@@ -110,12 +144,9 @@ static inline uint qHash(const Location &l)
 int canonicalizePath(char *path, int len);
 QByteArray unescape(QByteArray command);
 QByteArray join(const QList<QByteArray> &list, const QByteArray &sep = QByteArray());
-int readLine(FILE *f, char *buf, int max);
-QByteArray context(const Path &path, unsigned offset);
 
 bool makeLocation(const QByteArray &arg, Location *loc,
                   QByteArray *resolvedLocation = 0, const Path &cwd = Path());
-QByteArray makeLocation(const QByteArray &encodedLocation);
 }
 
 #endif

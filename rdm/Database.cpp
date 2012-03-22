@@ -87,7 +87,7 @@ int Database::followLocation(const QueryMessage &query)
 
     const int id = nextId();
 
-    FollowLocationJob* job = new FollowLocationJob(id, loc);
+    FollowLocationJob* job = new FollowLocationJob(id, loc, !(query.flags() & QueryMessage::NoContext));
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
     QThreadPool::globalInstance()->start(job);

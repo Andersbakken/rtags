@@ -1,8 +1,8 @@
 #include "FollowLocationJob.h"
 #include "Rdm.h"
 
-FollowLocationJob::FollowLocationJob(int i, const RTags::Location &loc)
-    : id(i), location(loc)
+FollowLocationJob::FollowLocationJob(int i, const RTags::Location &loc, bool ctx)
+    : id(i), location(loc), includeContext(ctx)
 {
 }
 
@@ -28,7 +28,11 @@ void FollowLocationJob::run()
     Q_ASSERT(db);
     Rdm::CursorInfo cursorInfo = Rdm::findCursorInfo(db, location);
     QList<QByteArray> list;
-    if (!cursorInfo.target.isNull())
-        list.append(cursorInfo.target.key());
+    if (!cursorInfo.target.isNull()) {
+        list.append(cursorInfo.target.key(includeContext
+                                          ? RTags::Location::ShowContext
+                                          : RTags::Location::NoFlag));
+        qDebug() << "motherfucker" << list << includeContext;
+    }
     emit complete(id, list);
 }

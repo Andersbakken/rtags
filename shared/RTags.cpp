@@ -76,27 +76,6 @@ int readLine(FILE *f, char *buf, int max)
     return -1;
 }
 
-QByteArray context(const Path &path, unsigned offset)
-{
-    --offset; // offset is 1-indexed, files are not
-    FILE *f = fopen(path.constData(), "r");
-    if (f && !fseek(f, offset, SEEK_SET)) {
-        while (offset > 0) {
-            char ch = fgetc(f);
-            if (ch == '\n')
-                break;
-            if (fseek(f, --offset, SEEK_SET) == -1) {
-                fclose(f);
-                return QByteArray();
-            }
-        }
-        char buf[1024] = { '\0' };
-        const int len = readLine(f, buf, 1023);
-        fclose(f);
-        return QByteArray(buf, len);
-    }
-    return QByteArray();
-}
 
 bool makeLocation(const QByteArray &arg, Location *loc,
                   QByteArray *resolvedLocation, const Path &cwd)
@@ -115,17 +94,6 @@ bool makeLocation(const QByteArray &arg, Location *loc,
     if (loc)
         *loc = l;
     return true;
-}
-
-QByteArray makeLocation(const QByteArray &encodedLocation)
-{
-    Location loc;
-    QByteArray file;
-    if (makeLocation(encodedLocation, &loc, &file)) {
-        const QByteArray ctx = RTags::context(file, loc.offset);
-        return encodedLocation + '\t' + ctx;
-    }
-    return encodedLocation;
 }
 }
 
