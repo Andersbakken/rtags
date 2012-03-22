@@ -123,6 +123,8 @@ template <typename T> void writeValue(leveldb::WriteBatch *batch, const char *ke
     }
     batch->Put(key, leveldb::Slice(out.constData(), out.size()));
 }
+
+CursorInfo findCursorInfo(leveldb::DB *db, const RTags::Location &key);
 }
 
 

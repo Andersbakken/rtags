@@ -49,14 +49,23 @@ struct Location {
         return offset < other.offset;
     }
 
-    QByteArray key() const
+    enum KeyFlag {
+        NoFlag = 0x0,
+        Padded = 0x1
+    };
+    QByteArray key(unsigned flags = NoFlag) const
     {
         if (!offset)
             return QByteArray();
-        const int extra = RTags::digits(offset) + 1;
+        const int extra = flags & Padded ? 7 : RTags::digits(offset) + 1;
+
         QByteArray ret(path.size() + extra, '0');
         memcpy(ret.data(), path.constData(), path.size());
-        snprintf(ret.data(), ret.size() + extra + 1, "%s,%d", path.constData(), offset);
+        if (flags & Padded) {
+            snprintf(ret.data(), ret.size() + extra + 1, "%s,%06d", path.constData(), offset);
+        } else {
+            snprintf(ret.data(), ret.size() + extra + 1, "%s,%d", path.constData(), offset);
+        }
         return ret;
     }
 

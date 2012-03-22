@@ -41,8 +41,8 @@ protected:
 
 private:
     bool mStopped;
-    QMutex mMutex;
-    QWaitCondition mCond;
+    QMutex mMutex, mForceMutex;
+    QWaitCondition mCond, mForceCond;
     SymbolHash mSymbols;
     SymbolNameHash mSymbolNames;
 };
@@ -67,7 +67,6 @@ void IndexerSyncer::notify()
 
 void IndexerSyncer::addSymbolNames(const SymbolNameHash &locations)
 {
-    error() << __FUNCTION__ << locations;
     QMutexLocker lock(&mMutex);
     if (mSymbolNames.isEmpty()) {
         mSymbolNames = locations;
@@ -103,9 +102,7 @@ void IndexerSyncer::run()
             if (mStopped)
                 return;
             while (mSymbols.isEmpty() && mSymbolNames.isEmpty()) {
-                printf("[%s] %s:%d: while (mSymbols.isEmpty() && mSymbolNames.isEmpty()) {\n", __func__, __FILE__, __LINE__);
                 mCond.wait(&mMutex, 10000);
-                printf("[%s] %s:%d: mCond.wait(&mMutex, 10000);\n", __func__, __FILE__, __LINE__);
                 if (mStopped)
                     return;
 
@@ -169,7 +166,7 @@ void IndexerSyncer::run()
             const SymbolHash::const_iterator end = symbols.end();
             bool changed = false;
             while (it != end) {
-                const QByteArray key = it.key().key();
+                const QByteArray key = it.key().key(RTags::Location::Padded);
                 Rdm::CursorInfo added = it.value();
                 Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(db, key.constData());
                 if (current.unite(added)) {
@@ -616,29 +613,35 @@ void Indexer::jobDone(int id, const QByteArray& input)
 {
     Q_UNUSED(input)
 
-    QMutexLocker locker(&m_impl->implMutex);
+        QMutexLocker locker(&m_impl->implMutex);
     m_impl->jobs.remove(id);
     if (m_impl->indexing.remove(input))
         m_impl->implCond.wakeAll();
 
     ++m_impl->jobCounter;
 
-    // if (m_impl->jobs.isEmpty() || m_impl->jobCounter == SYNCINTERVAL) {
-    //     {
-    //         QMutexLocker inclocker(&m_impl->incMutex);
-    //         // m_impl->syncer->addSet(Database::Include, m_impl->incs);
-    //         m_impl->incs.clear();
-    //     }
-    //     m_impl->jobCounter = 0;
+    if (m_impl->jobs.isEmpty() || m_impl->jobCounter == SYNCINTERVAL) {
+        // {
+        //         QMutexLocker inclocker(&m_impl->incMutex);
+        //         // m_impl->syncer->addSet(Database::Include, m_impl->incs);
+        //         m_impl->incs.clear();
+        //     }
+        //     m_impl->jobCounter = 0;
 
-    //     if (m_impl->jobs.isEmpty()) {
-    //         m_impl->syncer->notify();
+        if (m_impl->jobs.isEmpty()) {
+            m_impl->syncer->notify();
 
-    //         Q_ASSERT(m_impl->timerRunning);
-    //         m_impl->timerRunning = false;
-    //         log(1) << "jobs took" << m_impl->timer.elapsed() << "ms";
-    //     }
-    // }
+            Q_ASSERT(m_impl->timerRunning);
+            m_impl->timerRunning = false;
+            log(1) << "jobs took" << m_impl->timer.elapsed() << "ms";
+        }
+    }
 
     emit indexingDone(id);
+}
+
+void Indexer::force()
+{
+    m_impl->syncer->notify();
+    // ### need to wait for syncer to write
 }
