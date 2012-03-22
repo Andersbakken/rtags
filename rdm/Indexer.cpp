@@ -67,6 +67,7 @@ void IndexerSyncer::notify()
 
 void IndexerSyncer::addSymbolNames(const SymbolNameHash &locations)
 {
+    QMutexLocker lock(&mMutex);
     if (mSymbolNames.isEmpty()) {
         mSymbolNames = locations;
     } else {
@@ -89,12 +90,21 @@ void IndexerSyncer::addSymbols(const SymbolHash &symbols)
     }
 }
 
+// template <typename ### the merging should be templatized
+
 void IndexerSyncer::run()
 {
     QMutexLocker locker(&mMutex);
     while (!mStopped) {
         mCond.wait(&mMutex, 10000);
-        if (!mSymbolNames.isEmpty()) {
+        SymbolNameHash symbolNames;
+        SymbolHash symbols;
+        {
+            QMutexLocker lock(&mMutex);
+            qSwap(symbolNames, mSymbolNames);
+            qSwap(symbols, mSymbols);
+        }
+        if (!symbolNames.isEmpty()) {
             leveldb::DB* db = 0;
             leveldb::Options options;
             options.create_if_missing = true;
@@ -110,20 +120,58 @@ void IndexerSyncer::run()
             leveldb::WriteBatch batch;
             const leveldb::ReadOptions readopts;
 
-            SymbolNameHash::iterator it = mSymbolNames.begin();
-            const SymbolNameHash::const_iterator end = mSymbolNames.end();
+            SymbolNameHash::iterator it = symbolNames.begin();
+            const SymbolNameHash::const_iterator end = symbolNames.end();
+            bool changed = false;
             while (it != end) {
                 const char *key = it.key().constData();
                 const QSet<RTags::Location> added = it.value();
                 QSet<RTags::Location> current = Rdm::readValue<QSet<RTags::Location> >(db, key);
                 const int oldSize = current.size();
                 current += added;
-                if (current.size() != oldSize)
+                if (current.size() != oldSize) {
+                    changed = true;
                     Rdm::writeValue<QSet<RTags::Location> >(&batch, key, current);
+                }
                 ++it;
             }
 
-            db->Write(leveldb::WriteOptions(), &batch);
+            if (changed)
+                db->Write(leveldb::WriteOptions(), &batch);
+            delete db;
+        }
+        if (!symbols.isEmpty()) {
+            leveldb::DB* db = 0;
+            leveldb::Options options;
+            options.create_if_missing = true;
+            const QByteArray name = Database::databaseName(Database::Symbol);
+            if (name.isEmpty())
+                return;
+
+            leveldb::Status status = leveldb::DB::Open(options, name.constData(), &db);
+            if (!status.ok())
+                return;
+            Q_ASSERT(db);
+
+            leveldb::WriteBatch batch;
+            const leveldb::ReadOptions readopts;
+
+            SymbolHash::iterator it = symbols.begin();
+            const SymbolHash::const_iterator end = symbols.end();
+            bool changed = false;
+            while (it != end) {
+                const QByteArray key = it.key().key();
+                Rdm::CursorInfo added = it.value();
+                Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(db, key.constData());
+                if (current.unite(added)) {
+                    changed = true;
+                    Rdm::writeValue<Rdm::CursorInfo>(&batch, key, current);
+                }
+                ++it;
+            }
+
+            if (changed)
+                db->Write(leveldb::WriteOptions(), &batch);
             delete db;
         }
     }

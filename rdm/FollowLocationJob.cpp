@@ -12,6 +12,53 @@ FollowLocationJob::~FollowLocationJob()
 
 void FollowLocationJob::run()
 {
+    leveldb::DB* db = 0;
+    leveldb::Options options;
+    const QByteArray name = Database::databaseName(Database::SymbolName);
+    if (name.isEmpty()) {
+        emit complete(id, QList<QByteArray>());
+        return;
+    }
+
+    leveldb::Status status = leveldb::DB::Open(options, name.constData(), &db);
+    if (!status.ok()) {
+        emit complete(id, QList<QByteArray>());
+        return;
+    }
+    Q_ASSERT(db);
+
+    const leveldb::ReadOptions readopts;
+    leveldb::Iterator* it = db->NewIterator(readopts);
+    const QByteArray key = location.key();
+    it->Seek(key.constData());
+    QList<QByteArray> list;
+    if (it->Valid()) {
+
+        if (!strcmp(it->key().data(),  key.constData())) {
+
+        } else {
+
+
+        }
+    }
+    delete it;
+    emit complete(id, list);
+
+
+    // SymbolNameHash::iterator it = mSymbolNames.begin();
+    // const SymbolNameHash::const_iterator end = mSymbolNames.end();
+    // while (it != end) {
+    //     const char *key = it.key().constData();
+    //     const QSet<RTags::Location> added = it.value();
+    //     QSet<RTags::Location> current = Rdm::readValue<QSet<RTags::Location> >(db, key);
+    //     const int oldSize = current.size();
+    //     current += added;
+    //     if (current.size() != oldSize)
+    //         Rdm::writeValue<QSet<RTags::Location> >(&batch, key, current);
+    //     ++it;
+    // }
+
+   
 //     QByteArray qfn;
 //     unsigned int rrow, rcol, roff;
 //     {

@@ -61,18 +61,32 @@ struct CursorInfo {
     RTags::Location target;
     QSet<RTags::Location> references;
     CXCursorKind kind;
-    void unite(const CursorInfo &other)
+    bool unite(const CursorInfo &other)
     {
         Q_ASSERT(target == other.target);
         if (!symbolLength) {
             *this = other;
-        } else {
-            references.unite(other.references);
+            return true;
         }
+        const int oldSize = references.size();
+        references.unite(other.references);
+        return oldSize != references.size();
     }
-
 };
 
+static inline QDataStream &operator<<(QDataStream &ds, const CursorInfo &ci)
+{
+    ds << ci.symbolLength << ci.target << ci.references << static_cast<quint32>(ci.kind);
+    return ds;
+}
+
+static inline QDataStream &operator>>(QDataStream &ds, CursorInfo &ci)
+{
+    quint32 kind;
+    ds >> ci.symbolLength >> ci.target >> ci.references >> kind;
+    ci.kind = static_cast<CXCursorKind>(kind);
+    return ds;
+}
 
 template <typename T> T readValue(leveldb::DB *db, const char *key)
 {
