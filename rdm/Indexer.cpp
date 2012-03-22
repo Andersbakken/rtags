@@ -113,35 +113,15 @@ void IndexerSyncer::run()
             SymbolNameHash::iterator it = mSymbolNames.begin();
             const SymbolNameHash::const_iterator end = mSymbolNames.end();
             while (it != end) {
-                QSet<RTags::Location> &set = it.value();
-
-                std::string value;
-                db->Get(readopts, it.key().constData(), &value);
-
-                QByteArray bvalue = QByteArray::fromRawData(value.c_str(), value.size());
-                QSet<QByteArray> newset = bvalue.split('\n').toSet(), inter;
-                newset.remove(QByteArray(""));
-
-                inter = newset & set; // intersection
-                if (inter.size() == set.size()) { // if the intersection contains all of our preexisting items then we're good
-                    ++it;
-                    continue;
-                }
-                newset.unite(set);
-
-                value.clear();
-                QSet<QByteArray>::const_iterator vit = newset.begin();
-                const QSet<QByteArray>::const_iterator vend = newset.end();
-                while (vit != vend) {
-                    value += (*vit).constData();
-                    value += '\n';
-                    ++vit;
-                }
-
-                batch.Put(it.key().constData(), value);
+                const char *key = it.key().constData();
+                const QSet<RTags::Location> added = it.value();
+                QSet<RTags::Location> current = Rdm::readValue<QSet<RTags::Location> >(db, key);
+                const int oldSize = current.size();
+                current += added;
+                if (current.size() != oldSize)
+                    Rdm::writeValue<QSet<RTags::Location> >(&batch, key, current);
                 ++it;
             }
-            data.clear();
 
             db->Write(leveldb::WriteOptions(), &batch);
             delete db;
@@ -164,11 +144,10 @@ public:
 
     IndexerSyncer* syncer;
 
-    QMutex incMutex;
-    HashSet incs;
-
     bool timerRunning;
     QElapsedTimer timer;
+
+    QMutex incMutex;
 };
 
 class IndexerJob : public QObject, public QRunnable
@@ -328,7 +307,7 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         // error() << "changed ref from" << old << "to" << Rdm::cursorToString(ref);
     }
     const CXCursorKind refKind = clang_getCursorKind(ref);
-    
+
     Rdm::CursorInfo &info = job->m_cursorInfo[loc];
     if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
         return CXChildVisit_Recurse;
@@ -415,17 +394,6 @@ inline void IndexerJob::addFileNameSymbol(const QByteArray& fileName)
     // m_syms[fileName.mid(idx + 1)].insert(fileName + ":1:1");
 }
 
-static inline void uniteSets(HashSet& dst, HashSet& src)
-{
-    HashSet::const_iterator it = src.begin();
-    const HashSet::const_iterator end = src.end();
-    while (it != end) {
-        dst[it.key()].unite(it.value());
-        ++it;
-    }
-    src.clear();
-}
-
 static inline QList<QByteArray> extractPchFiles(const QList<QByteArray>& args)
 {
     QList<QByteArray> out;
@@ -494,7 +462,7 @@ void IndexerJob::run()
     log(1) << "loading unit" << clangLine << (unit != 0);
 
     if (unit) {
-        clang_getInclusions(unit, inclusionVisitor, this);
+        // clang_getInclusions(unit, inclusionVisitor, this);
         clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
         error() << "visiting" << m_in << m_references.size() << m_cursorInfo.size();
 
@@ -612,22 +580,22 @@ void Indexer::jobDone(int id, const QByteArray& input)
 
     ++m_impl->jobCounter;
 
-    if (m_impl->jobs.isEmpty() || m_impl->jobCounter == SYNCINTERVAL) {
-        {
-            QMutexLocker inclocker(&m_impl->incMutex);
-            m_impl->syncer->addSet(Database::Include, m_impl->incs);
-            m_impl->incs.clear();
-        }
-        m_impl->jobCounter = 0;
+    // if (m_impl->jobs.isEmpty() || m_impl->jobCounter == SYNCINTERVAL) {
+    //     {
+    //         QMutexLocker inclocker(&m_impl->incMutex);
+    //         // m_impl->syncer->addSet(Database::Include, m_impl->incs);
+    //         m_impl->incs.clear();
+    //     }
+    //     m_impl->jobCounter = 0;
 
-        if (m_impl->jobs.isEmpty()) {
-            m_impl->syncer->notify();
+    //     if (m_impl->jobs.isEmpty()) {
+    //         m_impl->syncer->notify();
 
-            Q_ASSERT(m_impl->timerRunning);
-            m_impl->timerRunning = false;
-            log(1) << "jobs took" << m_impl->timer.elapsed() << "ms";
-        }
-    }
+    //         Q_ASSERT(m_impl->timerRunning);
+    //         m_impl->timerRunning = false;
+    //         log(1) << "jobs took" << m_impl->timer.elapsed() << "ms";
+    //     }
+    // }
 
     emit indexingDone(id);
 }
