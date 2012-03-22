@@ -191,6 +191,7 @@ public:
     QMutex implMutex;
     QWaitCondition implCond;
     QSet<QByteArray> indexing;
+    QSet<QByteArray> pchHeaderError;
 
     QByteArray path;
     int lastJobId;
@@ -442,22 +443,29 @@ static inline QList<QByteArray> extractPchFiles(const QList<QByteArray>& args)
         if (nextIsPch) {
             nextIsPch = false;
             out.append(arg);
-        } else if (arg == "-include-pch")
+        } else if (arg == "-include-pch") {
             nextIsPch = true;
+        }
     }
     return out;
 }
 
 void IndexerJob::run()
 {
-    QList<QByteArray> pchFiles = extractPchFiles(m_args);
+    QList<QByteArray> args = m_args;
+    QList<QByteArray> pchFiles = extractPchFiles(args);
     if (!pchFiles.isEmpty()) {
         QMutexLocker locker(&m_impl->implMutex);
         bool wait;
         do {
             wait = false;
-            foreach (const QByteArray& pchFile, pchFiles) {
-                if (m_impl->indexing.contains(pchFile)) {
+            foreach (const QByteArray &pchFile, pchFiles) {
+                if (m_impl->pchHeaderError.contains(pchFile)) {
+                    int idx = args.indexOf(pchFile);
+                    Q_ASSERT(idx > 0);
+                    args.removeAt(idx);
+                    args.removeAt(idx - 1);
+                } else if (m_impl->indexing.contains(pchFile)) {
                     wait = true;
                     break;
                 }
@@ -468,27 +476,43 @@ void IndexerJob::run()
         } while (wait);
     }
 
-    QVarLengthArray<const char*, 32> clangArgs(m_args.size());
+    QVarLengthArray<const char*, 32> clangArgs(args.size());
     QByteArray clangLine = "clang ";
-    bool nextIsPch = false;
+    bool nextIsPch = false, nextIsX = false;
+    QByteArray pchName;
+    bool isPch = false;
 
     int idx = 0;
-    foreach(const QByteArray& arg, m_args) {
+    foreach(const QByteArray& arg, args) {
         if (arg.isEmpty())
             continue;
+
         if (nextIsPch) {
             nextIsPch = false;
             Resource resource(arg, Resource::NoLock);
             pchFiles.append(resource.hashedFileName(Resource::AST));
             clangArgs[idx++] = pchFiles.last().constData();
-        } else {
-            clangArgs[idx++] = arg.constData();
-            if (arg == "-include-pch") {
-                nextIsPch = true;
-            }
+            clangLine += pchFiles.last().constData();
+            clangLine += " ";
+            continue;
         }
+
+        if (nextIsX) {
+            nextIsX = false;
+            isPch = (arg == "c++-header" || arg == "c-header");
+        }
+        clangArgs[idx++] = arg.constData();
         clangLine += arg;
         clangLine += " ";
+        if (arg == "-include-pch") {
+            nextIsPch = true;
+        } else if (arg == "-x") {
+            nextIsX = true;
+        }
+    }
+    if (isPch) {
+        Resource resource(m_in, Resource::NoLock);
+        pchName = resource.hashedFileName(Resource::AST);
     }
     clangLine += m_in;
 
@@ -497,11 +521,22 @@ void IndexerJob::run()
                                                         clangArgs.data(), idx,
                                                         0, 0, CXTranslationUnit_Incomplete);
     log(1) << "loading unit" << clangLine << (unit != 0);
+    bool pchError = false;
 
-    if (unit) {
+    if (!unit) {
+        pchError = isPch;
+        error() << "got 0 unit for" << clangLine;
+    } else {
         clang_getInclusions(unit, inclusionVisitor, this);
         clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
         error() << "visiting" << m_in << m_references.size() << mSymbols.size();
+        if (isPch) {
+            Q_ASSERT(!pchName.isEmpty());
+            if (clang_saveTranslationUnit(unit, pchName.constData(), clang_defaultSaveOptions(unit)) != CXSaveError_None) {
+                error() << "Couldn't save pch file" << m_in << pchName;
+                pchError = true;
+            }
+        }
         clang_disposeTranslationUnit(unit);
 
         const QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator end = m_references.end();
@@ -545,11 +580,16 @@ void IndexerJob::run()
         }
         m_impl->syncer->addSymbols(mSymbols);
         m_impl->syncer->addSymbolNames(mSymbolNames);
-    } else {
-        error() << "got 0 unit for" << m_in;
     }
     clang_disposeIndex(index);
-
+    if (isPch) {
+        QMutexLocker locker(&m_impl->implMutex);
+        if (pchError) {
+            m_impl->pchHeaderError.insert(m_in);
+        } else {
+            m_impl->pchHeaderError.remove(m_in);
+        }
+    }
     emit done(m_id, m_in);
 }
 
@@ -608,7 +648,7 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
 
     if (!m_impl->timerRunning) {
         m_impl->timerRunning = true;
-        m_impl->timer.restart();
+        m_impl->timer.start();
     }
 
     QThreadPool::globalInstance()->start(job);

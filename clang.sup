@@ -1,0 +1,19 @@
+{
+    1
+        Memcheck:Cond
+        fun:_ZNK5clang4Expr21refersToVectorElementEv
+        obj:*
+}
+
+
+{
+    2
+        Memcheck:Cond
+        fun:_ZNK5clang4Expr21refersToVectorElementEv
+}
+{
+    3
+        Memcheck:Cond
+        fun:_ZNK5clang4Expr17isTemporaryObjectERNS_10ASTContextEPKNS_13CXXRecordDeclE
+}
+
