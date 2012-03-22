@@ -28,7 +28,13 @@ struct CursorInfo {
             *this = other;
             return true;
         }
-        Q_ASSERT(symbolLength == other.symbolLength);
+        if (symbolLength != other.symbolLength) {
+            error() << symbolLength << other.symbolLength
+                    << target << other.target
+                    << references << other.references
+                    << kind << other.kind;
+        }
+        // Q_ASSERT(symbolLength == other.symbolLength);
         if (target != other.target) {
             Q_ASSERT(target.isNull() || other.isNull());
             if (target.isNull()) {

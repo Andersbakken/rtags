@@ -452,6 +452,8 @@ static inline QList<QByteArray> extractPchFiles(const QList<QByteArray>& args)
 
 void IndexerJob::run()
 {
+    QElapsedTimer timer;
+    timer.start();
     QList<QByteArray> args = m_args;
     QList<QByteArray> pchFiles = extractPchFiles(args);
     if (!pchFiles.isEmpty()) {
@@ -529,7 +531,6 @@ void IndexerJob::run()
     } else {
         clang_getInclusions(unit, inclusionVisitor, this);
         clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
-        error() << "visiting" << m_in << m_references.size() << mSymbols.size();
         if (isPch) {
             Q_ASSERT(!pchName.isEmpty());
             if (clang_saveTranslationUnit(unit, pchName.constData(), clang_defaultSaveOptions(unit)) != CXSaveError_None) {
@@ -591,6 +592,7 @@ void IndexerJob::run()
         }
     }
     emit done(m_id, m_in);
+    log(0) << "visited" << m_in << timer.elapsed() << "ms";
 }
 
 Indexer* Indexer::s_inst = 0;
@@ -680,7 +682,7 @@ void Indexer::jobDone(int id, const QByteArray& input)
 
             Q_ASSERT(m_impl->timerRunning);
             m_impl->timerRunning = false;
-            log(1) << "jobs took" << m_impl->timer.elapsed() << "ms";
+            log(0) << "jobs took" << m_impl->timer.elapsed() << "ms";
         }
     }
 
