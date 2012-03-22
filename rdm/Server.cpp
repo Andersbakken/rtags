@@ -155,7 +155,8 @@ void Server::handleQueryMessage(QueryMessage* message)
     case QueryMessage::Recompile:
         id = m_db->recompile(*message);
         break;
-    case QueryMessage::Match:
+    case QueryMessage::ListSymbols:
+    case QueryMessage::FindSymbols:
         id = m_db->match(*message);
         break;
     case QueryMessage::Dump:

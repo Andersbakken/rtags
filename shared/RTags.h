@@ -6,11 +6,13 @@
 #include <Log.h>
 #include <stdio.h>
 #include <assert.h>
+#include <getopt.h>
 
 namespace RTags {
 enum { DatabaseVersion = 2 };
 enum UnitType { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };
 
+QByteArray shortOptions(const option *longOptions);
 int readLine(FILE *f, char *buf, int max);
 static inline int digits(int len)
 {

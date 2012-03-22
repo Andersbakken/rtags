@@ -95,5 +95,30 @@ bool makeLocation(const QByteArray &arg, Location *loc,
         *loc = l;
     return true;
 }
+
+QByteArray shortOptions(const option *longOptions)
+{
+    QByteArray ret;
+    for (int i=0; longOptions[i].name; ++i) {
+        ret.append(longOptions[i].val);
+        switch (longOptions[i].has_arg) {
+        case no_argument:
+            break;
+        case optional_argument:
+            ret.append(':');
+            ret.append(':');
+            break;
+        case required_argument:
+            ret.append(':');
+            break;
+        default:
+            Q_ASSERT(0);
+            break;
+        }
+    }
+    return ret;
+}
+
+
 }
 

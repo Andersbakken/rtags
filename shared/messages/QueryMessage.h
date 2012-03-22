@@ -18,7 +18,8 @@ public:
         ReferencesLocation,
         ReferencesName,
         Recompile,
-        Match,
+        ListSymbols,
+        FindSymbols,
         Dump,
         Status,
         Poke

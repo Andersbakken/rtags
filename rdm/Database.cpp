@@ -105,7 +105,7 @@ int Database::referencesForLocation(const QueryMessage &query)
 
     log(1) << "references for location" << loc.path << Resource::hash(loc.path) << loc.offset;
 
-    ReferencesJob* job = new ReferencesJob(id, loc);
+    ReferencesJob* job = new ReferencesJob(id, loc, !(query.flags() & QueryMessage::NoContext));
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
     QThreadPool::globalInstance()->start(job);
@@ -120,7 +120,7 @@ int Database::referencesForName(const QueryMessage& query)
     const QByteArray name = query.query().front();
     log(1) << "references for name" << name;
 
-    ReferencesJob* job = new ReferencesJob(id, name);
+    ReferencesJob* job = new ReferencesJob(id, name, !(query.flags() & QueryMessage::NoContext));
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
     QThreadPool::globalInstance()->start(job);
@@ -149,7 +149,7 @@ int Database::match(const QueryMessage &query)
 
     log(1) << "match" << partial;
 
-    MatchJob* job = new MatchJob(partial, id);
+    MatchJob* job = new MatchJob(partial, id, query.type(), !(query.flags() & QueryMessage::NoContext));
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
     QThreadPool::globalInstance()->start(job);

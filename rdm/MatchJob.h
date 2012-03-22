@@ -5,14 +5,13 @@
 #include <QObject>
 #include <QByteArray>
 #include <QList>
+#include "QueryMessage.h"
 
 class MatchJob : public QObject, public QRunnable
 {
     Q_OBJECT
 public:
-    MatchJob(const QByteArray& p, int i);
-    ~MatchJob();
-
+    MatchJob(const QByteArray& p, int i, QueryMessage::Type type, bool includeContext);
 signals:
     void complete(int id, const QList<QByteArray>&);
 
@@ -20,8 +19,10 @@ protected:
     void run();
 
 private:
-    QByteArray partial;
-    int id;
+    const QByteArray partial;
+    const int id;
+    const QueryMessage::Type type;
+    const bool includeContext;
 };
 
 #endif

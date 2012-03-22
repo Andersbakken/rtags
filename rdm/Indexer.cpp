@@ -510,6 +510,9 @@ void IndexerJob::run()
             Rdm::CursorInfo &ci = mSymbols[it.value().first];
             if (it.value().second) {
                 Rdm::CursorInfo &otherCi = mSymbols[it.key()];
+                ci.references += otherCi.references;
+                otherCi.references = ci.references;
+                // ### kind nasty
                 if (otherCi.target.isNull())
                     ci.target = it.key();
             } else {

@@ -32,7 +32,6 @@ void FollowLocationJob::run()
         list.append(cursorInfo.target.key(includeContext
                                           ? RTags::Location::ShowContext
                                           : RTags::Location::NoFlag));
-        qDebug() << "motherfucker" << list << includeContext;
     }
     emit complete(id, list);
 }

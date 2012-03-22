@@ -24,7 +24,8 @@ static void help(FILE *f, const char* app)
             "  --reference-name|-n [arg]     Find references matching arg\n"
             "  --reference-location|-l [arg] Find references matching this location\n"
             "  --recompile|-r [arg]          Recompile this source file\n"
-            "  --match|-a [arg]              Find symbol matching arg\n"
+            "  --list-symbols|-S [arg]       List symbol names matching arg\n"
+            "  --find-symbols|-F [arg]       Find symbols matching arg\n"
             "  --dump|-d [arg]               Dump AST tree of arg \n"
             "  --complete|-c [arg]           Get code completion for this location\n"
             "  --cursor-info|-C [arg]        Get cursor info for this location\n"
@@ -50,7 +51,8 @@ int main(int argc, char** argv)
         { "reference-name", required_argument, 0, 'n' },
         { "reference-location", required_argument, 0, 'l' },
         { "recompile", required_argument, 0, 'r' },
-        { "match", required_argument, 0, 'a' },
+        { "list-symbols", required_argument, 0, 'S' },
+        { "find-symbols", required_argument, 0, 'F' },
         { "dump", required_argument, 0, 'd' },
         { "complete", required_argument, 0, 'c' },
         { "cursor-info", required_argument, 0, 'C' },
@@ -74,8 +76,10 @@ int main(int argc, char** argv)
 
     QFile standardIn;
 
+    const QByteArray shortOptions = RTags::shortOptions(opts);
+
     for (;;) {
-        const int c = getopt_long(argc, argv, "vphf:m:n:l:r:a:d:c:C:u:L:ANsP:", opts, 0);
+        const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
         if (c == -1)
             break;
         switch (c) {
@@ -146,8 +150,11 @@ int main(int argc, char** argv)
         case 'P':
             optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Poke, Path::resolved(optarg)));
             break;
-        case 'a':
-            optlist.append(qMakePair(QueryMessage::Match, QByteArray(optarg)));
+        case 'S':
+            optlist.append(qMakePair(QueryMessage::ListSymbols, QByteArray(optarg)));
+            break;
+        case 'F':
+            optlist.append(qMakePair(QueryMessage::FindSymbols, QByteArray(optarg)));
             break;
         case 'd':
             optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Dump, Path::resolved(optarg)));
