@@ -102,33 +102,20 @@ bool makeLocation(const QByteArray &arg, Location *loc,
                   QByteArray *resolvedLocation, const Path &cwd)
 {
     Q_ASSERT(!arg.isEmpty());
-    int colon = arg.lastIndexOf(':');
-    if (colon == -1 || colon == arg.size() - 1) {
+    Location l = Location::fromKey(arg);
+    if (!l.offset) {
         return false;
     }
-    const unsigned offset = atoi(arg.constData() + colon + 1);
-    if (!offset)
+    if (!l.path.resolve(cwd))
         return false;
-    const Path path = Path::resolved(arg.left(colon), cwd);
-    if (path.isEmpty())
-        return false;
-    if (resolvedLocation)
-        *resolvedLocation = path + arg.mid(colon);
-    if (loc) {
-        loc->path = path;
-        loc->offset = offset;
+    if (resolvedLocation) {
+        const int comma = arg.lastIndexOf(',');
+        *resolvedLocation = l.path + arg.mid(comma);
     }
+    if (loc)
+        *loc = l;
     return true;
 }
-
-void makeLocation(QByteArray &path, unsigned offset)
-{
-    const int size = path.size();
-    const int extra = 1 + digits(offset);
-    path.resize(size + extra);
-    snprintf(path.data() + size, extra + 1, ":%d", offset);
-}
-
 
 QByteArray makeLocation(const QByteArray &encodedLocation)
 {

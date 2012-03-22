@@ -22,7 +22,9 @@ static inline int digits(int len)
 }
 
 struct Location {
-    Location() : offset(0) {}
+    Location(const Path &p = Path(), int off = 0)
+        : path(p), offset(off)
+    {}
 
     Path path;
     int offset;
@@ -104,8 +106,6 @@ QByteArray context(const Path &path, unsigned offset);
 
 bool makeLocation(const QByteArray &arg, Location *loc,
                   QByteArray *resolvedLocation = 0, const Path &cwd = Path());
-void makeLocation(QByteArray &path, int line, int col);
-
 QByteArray makeLocation(const QByteArray &encodedLocation);
 }
 

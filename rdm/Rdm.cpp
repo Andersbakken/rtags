@@ -69,7 +69,7 @@ QByteArray cursorToString(CXCursor cursor)
         ret += " " + name;
 
     CXFile file;
-    unsigned off, end;
+    unsigned off;
     CXSourceLocation loc = clang_getCursorLocation(cursor);
     clang_getSpellingLocation(loc, &file, 0, 0, &off);
     const QByteArray fileName = eatString(clang_getFileName(file));

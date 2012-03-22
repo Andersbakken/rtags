@@ -80,8 +80,10 @@ int Database::poke(const QueryMessage &query)
 int Database::followLocation(const QueryMessage &query)
 {
     RTags::Location loc;
-    if (!RTags::makeLocation(query.query().front(), &loc))
+    if (!RTags::makeLocation(query.query().front(), &loc)) {
+        error("Failed to make location from [%s]", query.query().front().constData());
         return 0;
+    }
 
     const int id = nextId();
 
