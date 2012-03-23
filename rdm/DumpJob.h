@@ -16,8 +16,8 @@ signals:
 protected:
     void run();
 private:
-    QByteArray fileName;
-    int id;
+    const QByteArray fileName;
+    const int id;
 };
 
 #endif

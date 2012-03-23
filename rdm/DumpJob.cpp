@@ -7,35 +7,35 @@ DumpJob::DumpJob(const QByteArray& fn, int i)
 {
 }
 
-struct DumpUserData {
-    QList<QByteArray> lines;
-    int indent;
-};
-
-static CXChildVisitResult dumpVisitor(CXCursor cursor, CXCursor, CXClientData userData)
-{
-    DumpUserData *dump = reinterpret_cast<DumpUserData*>(userData);
-    QByteArray line(dump->indent * 2, ' ');
-    line += Rdm::cursorToString(cursor);
-    CXCursor ref = clang_getCursorReferenced(cursor);
-    if (!clang_equalCursors(cursor, ref) && !clang_isInvalid(clang_getCursorKind(ref))) {
-        line += " => " + Rdm::cursorToString(ref);
-    }
-    dump->lines.append(line);
-    ++dump->indent;
-    clang_visitChildren(cursor, dumpVisitor, dump);
-    --dump->indent;
-    return CXChildVisit_Continue;
-}
-
 void DumpJob::run()
 {
-    DumpUserData user = { QList<QByteArray>(), 0 };
-    CachedUnit unit(fileName);
-    if (unit.unit()) {
-        clang_visitChildren(clang_getTranslationUnitCursor(unit.unit()->unit), dumpVisitor, &user);
-    } else {
-        qWarning("Can't load unit for %s", fileName.constData());
+    leveldb::DB* db = 0;
+    leveldb::Options options;
+    const QByteArray name = Database::databaseName(Database::Symbol);
+    if (name.isEmpty()) {
+        emit complete(id, QList<QByteArray>());
+        return;
     }
-    emit complete(id, user.lines);
+
+    leveldb::Status status = leveldb::DB::Open(options, name.constData(), &db);
+    if (!status.ok()) {
+        emit complete(id, QList<QByteArray>());
+        return;
+    }
+
+    const leveldb::ReadOptions readopts;
+    leveldb::Iterator* it = db->NewIterator(readopts);
+    it->Seek(fileName.constData());
+    QList<QByteArray> out;
+    while (it->Valid()) {
+        const leveldb::Slice k = it->key();
+        if (strncmp(fileName.constData(), k.data(), fileName.size()))
+            break;
+        Rdm::CursorInfo cursorInfo;
+
+        it->Next();
+    }
+
+    delete it;
+    emit complete(id, out);
 }
