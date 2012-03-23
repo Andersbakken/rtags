@@ -51,7 +51,7 @@ int main(int argc, char** argv)
         { "reference-name", required_argument, 0, 'n' },
         { "reference-location", required_argument, 0, 'l' },
         { "recompile", required_argument, 0, 'r' },
-        { "list-symbols", required_argument, 0, 'S' },
+        { "list-symbols", optional_argument, 0, 'S' },
         { "find-symbols", required_argument, 0, 'F' },
         { "dump", required_argument, 0, 'd' },
         { "complete", required_argument, 0, 'c' },
@@ -151,7 +151,13 @@ int main(int argc, char** argv)
             optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Poke, Path::resolved(optarg)));
             break;
         case 'S':
-            optlist.append(qMakePair(QueryMessage::ListSymbols, QByteArray(optarg)));
+            if (optarg) {
+                optlist.append(qMakePair(QueryMessage::ListSymbols, QByteArray(optarg)));
+            } else if (optind < argc && argv[optind][0] != '-') {
+                optlist.append(qMakePair(QueryMessage::ListSymbols, QByteArray(argv[optind++])));
+            } else {
+                optlist.append(qMakePair(QueryMessage::ListSymbols, QByteArray()));
+            }
             break;
         case 'F':
             optlist.append(qMakePair(QueryMessage::FindSymbols, QByteArray(optarg)));
