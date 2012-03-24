@@ -31,8 +31,15 @@ void DumpJob::run()
         const leveldb::Slice k = it->key();
         if (strncmp(fileName.constData(), k.data(), fileName.size()))
             break;
-        Rdm::CursorInfo cursorInfo;
-
+        const Rdm::CursorInfo cursorInfo = Rdm::readValue<Rdm::CursorInfo>(it);
+        QString str;
+        QDebug dbg(&str);
+        dbg << QByteArray::fromRawData(k.data(), k.size())
+            << "symbolLength" << cursorInfo.symbolLength
+            << "target" << cursorInfo.target
+            << "kind" << Rdm::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
+            << "references" << cursorInfo.references;
+        out.append(str.toLocal8Bit());
         it->Next();
     }
 
