@@ -35,7 +35,7 @@ private:
     int nextId();
     DatabaseImpl* mImpl;
 
-    static QByteArray s_base;
+    static QByteArray sBase;
 };
 
 #endif

@@ -23,7 +23,7 @@
 #include <QWaitCondition>
 #include <clang-c/Index.h>
 
-QByteArray Database::s_base;
+QByteArray Database::sBase;
 
 Q_DECLARE_METATYPE(QList<QByteArray>)
 
@@ -188,13 +188,13 @@ static const char* const dbNames[] = { "/includes.db", "/symbols.db", "/symbolna
 
 QByteArray Database::databaseName(Type type)
 {
-    if (s_base.isEmpty())
+    if (sBase.isEmpty())
         return QByteArray();
-    return s_base + dbNames[type];
+    return sBase + dbNames[type];
 }
 
 void Database::setBaseDirectory(const QByteArray& base)
 {
-    s_base = base;
+    sBase = base;
 }
 
