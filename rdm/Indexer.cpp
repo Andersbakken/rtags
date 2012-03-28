@@ -21,6 +21,7 @@
 #include <Log.h>
 #include <QVarLengthArray>
 
+// #define RDM_TIMING
 #define SYNCINTERVAL 10
 
 typedef QHash<RTags::Location, Rdm::CursorInfo> SymbolHash;
@@ -41,8 +42,8 @@ protected:
 
 private:
     bool mStopped;
-    QMutex mMutex, mForceMutex;
-    QWaitCondition mCond, mForceCond;
+    QMutex mMutex;
+    QWaitCondition mCond;
     SymbolHash mSymbols;
     SymbolNameHash mSymbolNames;
 };
@@ -80,6 +81,7 @@ void IndexerSyncer::addSymbolNames(const SymbolNameHash &locations)
 
 void IndexerSyncer::addSymbols(const SymbolHash &symbols)
 {
+    QMutexLocker lock(&mMutex);
     if (mSymbols.isEmpty()) {
         mSymbols = symbols;
     } else {
@@ -205,6 +207,19 @@ public:
     QMutex incMutex;
 };
 
+struct Timestamp
+{
+    Timestamp()
+        : count(0), ms(0)
+    {}
+    inline void add(int t)
+    {
+        ms += t;
+        ++count;
+    }
+    int count, ms;
+};
+
 class IndexerJob : public QObject, public QRunnable
 {
     Q_OBJECT
@@ -229,6 +244,9 @@ public:
     QByteArray m_path, m_in;
     QList<QByteArray> m_args;
     IndexerImpl* m_impl;
+#ifdef RDM_TIMING
+    QHash<int, Timestamp> mTimeStamps;
+#endif
 signals:
     void done(int id, const QByteArray& input);
 };
@@ -256,7 +274,10 @@ static void inclusionVisitor(CXFile included_file,
                              unsigned include_len,
                              CXClientData client_data)
 {
-    IndexerJob* job = static_cast<IndexerJob*>(client_data);
+    (void)client_data;
+    (void)include_len;
+    (void)included_file;
+    // IndexerJob* job = static_cast<IndexerJob*>(client_data);
     // printf("%s %d\n", Rdm::eatString(clang_getFileName(included_file)).constData(), include_len);
     // if (include_len)
     //     addInclusion(job, included_file);
@@ -337,10 +358,28 @@ RTags::Location IndexerJob::createLocation(CXCursor cursor)
     return ret;
 }
 
+#ifdef RDM_TIMING
+#define RDM_TIMESTAMP() job->mTimeStamps[__LINE__].add(timer.restart())
+#define RDM_END_TIMESTAMP(file)                                         \
+    printf("%s\n", file);                                               \
+    for (QHash<int, Timestamp>::const_iterator it = mTimeStamps.begin(); it != mTimeStamps.end(); ++it) { \
+        printf("    line: %d total: %dms count: %d average: %fms\n",    \
+               it.key(), it.value().ms, it.value().count,               \
+               it.value().count                                         \
+               ? double(it.value().ms) / it.value().count               \
+               : 0.0);                                                  \
+    }                                                                   \
+
+#else
+#define RDM_TIMESTAMP()
+#define RDM_END_TIMESTAMP(file)
+#endif
+
 static CXChildVisitResult indexVisitor(CXCursor cursor,
                                        CXCursor /*parent*/,
                                        CXClientData client_data)
 {
+#ifdef QT_DEBUG
     {
         CXCursor ref = clang_getCursorReferenced(cursor);
         if (clang_equalCursors(cursor, ref) && !clang_isCursorDefinition(ref)) {
@@ -349,6 +388,11 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         debug() << Rdm::cursorToString(cursor) << "refs" << Rdm::cursorToString(clang_getCursorReferenced(cursor))
                 << (clang_equalCursors(ref, clang_getCursorReferenced(cursor)) ? QByteArray() : ("changed to " + Rdm::cursorToString(ref)));
     }
+#endif
+#ifdef RDM_TIMING
+    QElapsedTimer timer;
+    timer.start();
+#endif
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
 
     const CXCursorKind kind = clang_getCursorKind(cursor);
@@ -360,6 +404,7 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
     }
 
     const RTags::Location loc = job->createLocation(cursor);
+    RDM_TIMESTAMP();
     if (loc.isNull()) {
         return CXChildVisit_Recurse;
     }
@@ -370,6 +415,7 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         // error() << "changed ref from" << old << "to" << Rdm::cursorToString(ref);
     }
     const CXCursorKind refKind = clang_getCursorKind(ref);
+    RDM_TIMESTAMP();
 
     Rdm::CursorInfo &info = job->mSymbols[loc];
     if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
@@ -389,15 +435,18 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         const char *cstr = clang_getCString(name);
         info.symbolLength = cstr ? strlen(cstr) : 0;
         clang_disposeString(name);
+        RDM_TIMESTAMP();
     }
 
     if (clang_isCursorDefinition(cursor) || kind == CXCursor_FunctionDecl) {
         job->addNamePermutations(cursor, loc);
+        RDM_TIMESTAMP();
     }
 
 
     if (!clang_isInvalid(refKind) && !clang_equalCursors(cursor, ref)) {
         const RTags::Location refLoc = job->createLocation(ref);
+        RDM_TIMESTAMP();
         if (refLoc.isNull()) {
             return CXChildVisit_Recurse;
         }
@@ -420,6 +469,7 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
             }
         }
         job->m_references[loc] = qMakePair(refLoc, isMemberFunction);
+        RDM_TIMESTAMP();
     }
     return CXChildVisit_Recurse;
 
@@ -532,6 +582,7 @@ void IndexerJob::run()
     } else {
         clang_getInclusions(unit, inclusionVisitor, this);
         clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
+        RDM_END_TIMESTAMP(m_in.constData());
         if (isPch) {
             Q_ASSERT(!pchName.isEmpty());
             if (clang_saveTranslationUnit(unit, pchName.constData(), clang_defaultSaveOptions(unit)) != CXSaveError_None) {

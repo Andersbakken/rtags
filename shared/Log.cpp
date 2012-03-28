@@ -118,7 +118,8 @@ bool initLogging(int level, const QByteArray &file, unsigned flags)
 
 Log::Log(int level)
 {
-    mData = new Data(level);
+    if (testLog(level))
+        mData = new Data(level);
 }
 
 Log::Log(const Log &other)
