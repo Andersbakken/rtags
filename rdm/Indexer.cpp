@@ -477,6 +477,7 @@ void IndexerJob::run()
             }
         } while (wait);
     }
+    const quint64 waitingForPch = timer.restart();
 
     QVarLengthArray<const char*, 32> clangArgs(args.size());
     QByteArray clangLine = "clang ";
@@ -592,7 +593,7 @@ void IndexerJob::run()
         }
     }
     emit done(m_id, m_in);
-    log(0) << "visited" << m_in << timer.elapsed() << "ms";
+    log(0) << "visited" << m_in << timer.elapsed() << "ms. Waited for pch" << waitingForPch;
 }
 
 Indexer* Indexer::s_inst = 0;

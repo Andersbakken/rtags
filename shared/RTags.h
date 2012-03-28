@@ -39,13 +39,13 @@ struct Location {
 
     inline bool operator==(const Location &other) const
     {
-        return path == other.path && offset == other.offset;
+        return offset == other.offset && path == other.path;
     }
     inline bool operator!=(const Location &other) const
     {
         return offset != other.offset || path != other.path;
     }
-    
+
     inline bool operator<(const Location &other) const
     {
         const int cmp = strcmp(path.constData(), other.path.constData());
