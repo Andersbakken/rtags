@@ -46,6 +46,5 @@ HEADERS += \
     Rdm.h \
     StatusJob.h \
     PokeJob.h \
-    Location.h \
     Source.h \
     LevelDB.h
