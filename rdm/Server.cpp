@@ -2,10 +2,8 @@
 #include "Indexer.h"
 #include "Database.h"
 #include "Connection.h"
-#include "Resource.h"
 #include "Message.h"
 #include "Messages.h"
-#include "Compressor.h"
 #include "QueryMessage.h"
 #include "SHA256.h"
 #include <QThread>
@@ -15,7 +13,7 @@
 #include <stdio.h>
 #include <Log.h>
 
-#define ASTPATH "/tmp/rdm"
+#define ASTPATH "/tmp/rdm/"
 
 Server::Server(QObject* parent)
     : QObject(parent),
@@ -30,9 +28,7 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
 {
     mOptions = options;
     mDefaultArgs = defaultArguments;
-    Compressor::init();
     Messages::init();
-    Resource::setBaseDirectory(ASTPATH);
     Database::setBaseDirectory(ASTPATH);
 
     if (!mServer->listen(QHostAddress::Any, Connection::Port)) {

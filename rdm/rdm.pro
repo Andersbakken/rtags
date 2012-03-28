@@ -12,11 +12,8 @@ include(../shared/clang.pri)
 # Input
 SOURCES += \
     main.cpp \
-    Compressor.cpp \
     Indexer.cpp \
     Database.cpp \
-    Resource.cpp \
-    Resources.cpp \
     Server.cpp \
     SHA256.cpp \
     DumpJob.cpp \
@@ -29,11 +26,8 @@ SOURCES += \
     PokeJob.cpp 
 
 HEADERS += \
-    Compressor.h \
     Indexer.h \
     Database.h \
-    Resource.h \
-    Resources.h \
     Server.h \
     SHA256.h \
     DumpJob.h \

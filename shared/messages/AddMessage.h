@@ -20,19 +20,19 @@ public:
 
     int messageId() const { return MessageId; }
 
-    RTags::UnitType type() const { return m_type; }
-    QByteArray inputFile() const { return m_input; }
-    QByteArray outputFile() const { return m_output; }
-    QList<QByteArray> arguments() const { return m_args; }
-    QList<QByteArray> pchs() const { return m_pchs; }
+    RTags::UnitType type() const { return mType; }
+    QByteArray inputFile() const { return mInput; }
+    QByteArray outputFile() const { return mOutput; }
+    QList<QByteArray> arguments() const { return mArgs; }
+    QList<QByteArray> pchs() const { return mPchs; }
 
     QByteArray toByteArray() const;
     Q_INVOKABLE void fromByteArray(const QByteArray& data);
 
 private:
-    RTags::UnitType m_type;
-    QByteArray m_input, m_output;
-    QList<QByteArray> m_args, m_pchs;
+    RTags::UnitType mType;
+    QByteArray mInput, mOutput;
+    QList<QByteArray> mArgs, mPchs;
 };
 
 #endif // ADDMESSAGE_H

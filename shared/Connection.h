@@ -42,14 +42,14 @@ private:
     void send(int id, const QByteArray& message);
 
 private:
-    ConnectionPrivate* m_priv;
+    ConnectionPrivate* mPriv;
 
     struct Meta
     {
         const QMetaObject* meta;
         int fromByteArrayId;
     };
-    static QHash<int, Meta> s_metas;
+    static QHash<int, Meta> sMetas;
 
     friend class ConnectionPrivate;
 };
@@ -84,11 +84,11 @@ bool Connection::registerMessage()
     }
 
     const int id = T::MessageId;
-    Q_ASSERT(!s_metas.contains(id));
+    Q_ASSERT(!sMetas.contains(id));
     Meta m;
     m.meta = obj;
     m.fromByteArrayId = fromByteArrayId;
-    s_metas[id] = m;
+    sMetas[id] = m;
 
     return true;
 }

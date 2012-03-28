@@ -18,15 +18,15 @@ public:
 
     int messageId() const { return MessageId; }
 
-    Error error() const { return m_error; }
-    QByteArray message() const { return m_message; }
+    Error error() const { return mError; }
+    QByteArray message() const { return mMessage; }
 
     QByteArray toByteArray() const;
     Q_INVOKABLE void fromByteArray(const QByteArray& data);
 
 private:
-    Error m_error;
-    QByteArray m_message;
+    Error mError;
+    QByteArray mMessage;
 };
 
 #endif // ERRORMESSAGE_H

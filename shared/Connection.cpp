@@ -1,7 +1,7 @@
 #include "Connection.h"
 #include <QTcpSocket>
 
-QHash<int, Connection::Meta> Connection::s_metas;
+QHash<int, Connection::Meta> Connection::sMetas;
 
 class ConnectionPrivate : public QObject
 {
@@ -37,9 +37,9 @@ void ConnectionPrivate::dataAvailable()
         int id;
         QByteArray payload;
         strm >> id >> payload;
-        Q_ASSERT(id > 0 && Connection::s_metas.contains(id));
+        Q_ASSERT(id > 0 && Connection::sMetas.contains(id));
 
-        Connection::Meta m = Connection::s_metas.value(id);
+        Connection::Meta m = Connection::sMetas.value(id);
         QObject* newobj = m.meta->newInstance(Q_ARG(QObject*, conn));
         m.meta->method(m.fromByteArrayId).invoke(newobj, Q_ARG(QByteArray, payload));
         emit conn->newMessage(qobject_cast<Message*>(newobj));
@@ -59,40 +59,40 @@ void ConnectionPrivate::dataWritten(qint64 bytes)
 #include "Connection.moc"
 
 Connection::Connection(QObject* parent)
-    : QObject(parent), m_priv(new ConnectionPrivate(this))
+    : QObject(parent), mPriv(new ConnectionPrivate(this))
 {
-    m_priv->socket = new QTcpSocket(m_priv);
-    connect(m_priv->socket, SIGNAL(connected()), this, SIGNAL(connected()));
-    connect(m_priv->socket, SIGNAL(disconnected()), this, SIGNAL(disconnected()));
-    connect(m_priv->socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SIGNAL(error()));
-    connect(m_priv->socket, SIGNAL(readyRead()), m_priv, SLOT(dataAvailable()));
-    connect(m_priv->socket, SIGNAL(bytesWritten(qint64)), m_priv, SLOT(dataWritten(qint64)));
+    mPriv->socket = new QTcpSocket(mPriv);
+    connect(mPriv->socket, SIGNAL(connected()), this, SIGNAL(connected()));
+    connect(mPriv->socket, SIGNAL(disconnected()), this, SIGNAL(disconnected()));
+    connect(mPriv->socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SIGNAL(error()));
+    connect(mPriv->socket, SIGNAL(readyRead()), mPriv, SLOT(dataAvailable()));
+    connect(mPriv->socket, SIGNAL(bytesWritten(qint64)), mPriv, SLOT(dataWritten(qint64)));
 }
 
 Connection::Connection(QTcpSocket* socket, QObject* parent)
-    : QObject(parent), m_priv(new ConnectionPrivate(this))
+    : QObject(parent), mPriv(new ConnectionPrivate(this))
 {
     Q_ASSERT(socket->state() == QAbstractSocket::ConnectedState);
-    socket->setParent(m_priv);
-    m_priv->socket = socket;
-    connect(m_priv->socket, SIGNAL(disconnected()), this, SIGNAL(disconnected()));
-    connect(m_priv->socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SIGNAL(error()));
-    connect(m_priv->socket, SIGNAL(readyRead()), m_priv, SLOT(dataAvailable()));
-    connect(m_priv->socket, SIGNAL(bytesWritten(qint64)), m_priv, SLOT(dataWritten(qint64)));
+    socket->setParent(mPriv);
+    mPriv->socket = socket;
+    connect(mPriv->socket, SIGNAL(disconnected()), this, SIGNAL(disconnected()));
+    connect(mPriv->socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SIGNAL(error()));
+    connect(mPriv->socket, SIGNAL(readyRead()), mPriv, SLOT(dataAvailable()));
+    connect(mPriv->socket, SIGNAL(bytesWritten(qint64)), mPriv, SLOT(dataWritten(qint64)));
 }
 
 
 bool Connection::connectToHost(const QString& host, quint16 port)
 {
-    m_priv->socket->connectToHost(host, port);
-    return m_priv->socket->waitForConnected(1000);
+    mPriv->socket->connectToHost(host, port);
+    return mPriv->socket->waitForConnected(1000);
 }
 
 void Connection::send(int id, const QByteArray& message)
 {
-    if (m_priv->socket->state() != QAbstractSocket::ConnectedState
-        && m_priv->socket->state() != QAbstractSocket::ConnectingState
-        && m_priv->socket->state() != QAbstractSocket::HostLookupState)
+    if (mPriv->socket->state() != QAbstractSocket::ConnectedState
+        && mPriv->socket->state() != QAbstractSocket::ConnectingState
+        && mPriv->socket->state() != QAbstractSocket::HostLookupState)
         return;
 
     QByteArray data;
@@ -102,11 +102,11 @@ void Connection::send(int id, const QByteArray& message)
         strm.device()->seek(0);
         strm << static_cast<quint32>(data.size()) - static_cast<quint32>(sizeof(quint32));
     }
-    m_priv->pendingWrite += data.size();
-    m_priv->socket->write(data);
+    mPriv->pendingWrite += data.size();
+    mPriv->socket->write(data);
 }
 
 int Connection::pendingWrite() const
 {
-    return m_priv->pendingWrite;
+    return mPriv->pendingWrite;
 }

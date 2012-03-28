@@ -37,20 +37,20 @@ public:
 
     int messageId() const { return MessageId; }
 
-    QList<QByteArray> query() const { return m_query; }
+    QList<QByteArray> query() const { return mQuery; }
 
-    QHash<Path, QByteArray> unsavedFiles() const { return m_unsavedFiles; }
-    Type type() const { return m_type; }
-    int flags() const { return m_flags; }
+    QHash<Path, QByteArray> unsavedFiles() const { return mUnsavedFiles; }
+    Type type() const { return mType; }
+    int flags() const { return mFlags; }
 
     QByteArray toByteArray() const;
     Q_INVOKABLE void fromByteArray(const QByteArray& data);
 
 private:
-    QList<QByteArray> m_query;
-    Type m_type;
-    int m_flags;
-    QHash<Path, QByteArray> m_unsavedFiles;
+    QList<QByteArray> mQuery;
+    Type mType;
+    int mFlags;
+    QHash<Path, QByteArray> mUnsavedFiles;
 };
 
 #endif // QUERYMESSAGE_H

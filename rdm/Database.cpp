@@ -9,7 +9,6 @@
 #include "Rdm.h"
 #include "RecompileJob.h"
 #include "ReferencesJob.h"
-#include "Resource.h"
 #include "StatusJob.h"
 #include "leveldb/db.h"
 #include <QDateTime>
@@ -66,12 +65,12 @@ int Database::nextId()
 int Database::poke(const QueryMessage &query)
 {
     const int id = nextId();
-    const bool exists = Resource(query.query().front()).exists(Resource::Information);
-    QMetaObject::invokeMethod(this, "complete", Qt::QueuedConnection,
-                              Q_ARG(int, id),
-                              Q_ARG(QList<QByteArray>, QList<QByteArray>() << (exists ? "success" : "failure")));
-    PokeJob* job = new PokeJob(query.query().first(), id);
-    QThreadPool::globalInstance()->start(job);
+    // const bool exists = Resource(query.query().front()).exists(Resource::Information);
+    // QMetaObject::invokeMethod(this, "complete", Qt::QueuedConnection,
+    //                           Q_ARG(int, id),
+    //                           Q_ARG(QList<QByteArray>, QList<QByteArray>() << (exists ? "success" : "failure")));
+    // PokeJob* job = new PokeJob(query.query().first(), id);
+    // QThreadPool::globalInstance()->start(job);
     return id;
 
 }
@@ -102,7 +101,7 @@ int Database::referencesForLocation(const QueryMessage &query)
 
     const int id = nextId();
 
-    log(1) << "references for location" << loc.path << Resource::hash(loc.path) << loc.offset;
+    log(1) << "references for location" << loc.path << loc.offset;
 
     ReferencesJob* job = new ReferencesJob(id, loc, !(query.flags() & QueryMessage::NoContext));
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),

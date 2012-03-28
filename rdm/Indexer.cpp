@@ -1,7 +1,6 @@
 #include "Indexer.h"
 #include "RTags.h"
 #include "Rdm.h"
-#include "Resource.h"
 #include "Path.h"
 #include "Database.h"
 #include "leveldb/db.h"
@@ -19,6 +18,7 @@
 #include <QDir>
 #include <Log.h>
 #include <QVarLengthArray>
+#include "SHA256.h"
 
 // #define RDM_TIMING
 #define SYNCINTERVAL 10
@@ -503,6 +503,11 @@ static inline QList<QByteArray> extractPchFiles(const QList<QByteArray>& args)
     return out;
 }
 
+static QByteArray pchFileName(const QByteArray &path, const QByteArray &header)
+{
+    return path + SHA256::hash(header.constData());
+}
+
 void IndexerJob::run()
 {
     QElapsedTimer timer;
@@ -545,8 +550,7 @@ void IndexerJob::run()
 
         if (nextIsPch) {
             nextIsPch = false;
-            Resource resource(arg, Resource::NoLock);
-            pchFiles.append(resource.hashedFileName(Resource::AST));
+            pchFiles.append(pchFileName(mImpl->path, arg));
             clangArgs[idx++] = pchFiles.last().constData();
             clangLine += pchFiles.last().constData();
             clangLine += " ";
@@ -567,8 +571,7 @@ void IndexerJob::run()
         }
     }
     if (isPch) {
-        Resource resource(mIn, Resource::NoLock);
-        pchName = resource.hashedFileName(Resource::AST);
+        pchName = pchFileName(mImpl->path, mIn);
     }
     clangLine += mIn;
 
@@ -664,6 +667,8 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
     mImpl->jobCounter = 0;
     mImpl->lastJobId = 0;
     mImpl->path = path;
+    if (!mImpl->path.endsWith('/'))
+        mImpl->path += '/';
     mImpl->timerRunning = false;
     mImpl->syncer = new IndexerSyncer(this);
     mImpl->syncer->start();
