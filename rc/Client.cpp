@@ -9,7 +9,7 @@
 #include <Log.h>
 
 Client::Client(int flags, QObject* parent)
-    : QObject(parent), m_conn(0), m_flags(flags), m_makeDone(false)
+    : QObject(parent), mConn(0), mFlags(flags), mMakeDone(false)
 {
     Messages::init();
 }
@@ -21,17 +21,17 @@ void Client::parseMakefile(const Path& path)
     connect(parser, SIGNAL(fileReady(const GccArguments&)),
             this, SLOT(onMakefileReady(const GccArguments&)));
     parser->run(path);
-    m_makeDone = false;
+    mMakeDone = false;
     qApp->exec();
 }
 
 void Client::query(QueryMessage::Type type, const QByteArray& msg, const QHash<Path, QByteArray> &unsavedFiles)
 {
-    m_conn = new Connection(this);
-    if (m_conn->connectToHost("localhost", Connection::Port)) {
-        QueryMessage message(msg, type, m_flags, unsavedFiles);
-        connect(m_conn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
-        m_conn->send(&message);
+    mConn = new Connection(this);
+    if (mConn->connectToHost("localhost", Connection::Port)) {
+        QueryMessage message(msg, type, mFlags, unsavedFiles);
+        connect(mConn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
+        mConn->send(&message);
         qApp->exec();
     } else {
         warning("Can't connect to host");
@@ -40,19 +40,19 @@ void Client::query(QueryMessage::Type type, const QByteArray& msg, const QHash<P
 
 void Client::onSendComplete()
 {
-    Q_ASSERT(m_conn == sender());
+    Q_ASSERT(mConn == sender());
 
-    if (m_makeDone)
+    if (mMakeDone)
         qApp->quit();
 }
 
 void Client::onNewMessage(Message* message)
 {
-    Q_ASSERT(m_conn == sender());
+    Q_ASSERT(mConn == sender());
     if (message->messageId() == QueryMessage::MessageId) {
         foreach(const QByteArray& r, static_cast<QueryMessage*>(message)->query()) {
             if (!r.isEmpty()) {
-                if ((m_flags & SkipParen) && r.contains("("))
+                if ((mFlags & SkipParen) && r.contains("("))
                     continue;
                 printf("%s\n", r.constData());
             }
@@ -66,10 +66,10 @@ void Client::onNewMessage(Message* message)
 
 void Client::onMakefileDone()
 {
-    if (m_makeDone)
+    if (mMakeDone)
         return;
-    m_makeDone = true;
-    if (!m_conn || !m_conn->pendingWrite())
+    mMakeDone = true;
+    if (!mConn || !mConn->pendingWrite())
         qApp->quit();
     sender()->deleteLater();
 }
@@ -78,9 +78,9 @@ QList<QByteArray> Client::mapPchToInput(const QList<QByteArray>& input)
 {
     QList<QByteArray> output;
     QHash<QByteArray, QByteArray>::const_iterator pchit;
-    const QHash<QByteArray, QByteArray>::const_iterator pchend = m_pchs.end();
+    const QHash<QByteArray, QByteArray>::const_iterator pchend = mPchs.end();
     foreach(const QByteArray& in, input) {
-        pchit = m_pchs.find(in);
+        pchit = mPchs.find(in);
         if (pchit != pchend)
             output.append(pchit.value());
     }
@@ -97,14 +97,14 @@ void Client::onMakefileReady(const GccArguments& args)
         return;
     }
 
-    if (!m_conn) {
-        m_conn = new Connection(this);
-        if (!m_conn->connectToHost("localhost", Connection::Port)) {
+    if (!mConn) {
+        mConn = new Connection(this);
+        if (!mConn->connectToHost("localhost", Connection::Port)) {
             error("Can't connect to host");
             sender()->deleteLater();
             return;
         }
-        connect(m_conn, SIGNAL(sendComplete()), this, SLOT(onSendComplete()));
+        connect(mConn, SIGNAL(sendComplete()), this, SLOT(onSendComplete()));
     }
 
     if (args.type() == GccArguments::NoType
@@ -129,9 +129,9 @@ void Client::onMakefileReady(const GccArguments& args)
             log(1) << "sending" << "input:" << input << "output:" << output
                    << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
         }
-        m_conn->send(&message);
+        mConn->send(&message);
 
-        m_pchs[output] = input;
+        mPchs[output] = input;
 
         return;
     }
@@ -145,5 +145,5 @@ void Client::onMakefileReady(const GccArguments& args)
         log(1) << "sending" << "input:" << input << "output:" << output
                << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
     }
-    m_conn->send(&message);
+    mConn->send(&message);
 }

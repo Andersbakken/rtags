@@ -6,7 +6,6 @@
 #include "Message.h"
 #include "Messages.h"
 #include "Compressor.h"
-#include "UnitCache.h"
 #include "QueryMessage.h"
 #include "SHA256.h"
 #include <QThread>
@@ -33,7 +32,6 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
     mDefaultArgs = defaultArguments;
     Compressor::init();
     Messages::init();
-    UnitCache::instance();
     Resource::setBaseDirectory(ASTPATH);
     Database::setBaseDirectory(ASTPATH);
 

@@ -15,7 +15,6 @@ SOURCES += \
     Compressor.cpp \
     Indexer.cpp \
     Database.cpp \
-    UnitCache.cpp \
     Resource.cpp \
     Resources.cpp \
     Server.cpp \
@@ -33,7 +32,6 @@ HEADERS += \
     Compressor.h \
     Indexer.h \
     Database.h \
-    UnitCache.h \
     Resource.h \
     Resources.h \
     Server.h \

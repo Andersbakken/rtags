@@ -33,7 +33,7 @@ signals:
 
 private:
     int nextId();
-    DatabaseImpl* m_impl;
+    DatabaseImpl* mImpl;
 
     static QByteArray s_base;
 };

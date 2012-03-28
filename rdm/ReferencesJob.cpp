@@ -1,7 +1,6 @@
 #include "ReferencesJob.h"
 #include "Database.h"
 #include <leveldb/db.h>
-#include "UnitCache.h"
 #include "Rdm.h"
 
 ReferencesJob::ReferencesJob(int i, const RTags::Location &loc, bool ctx)

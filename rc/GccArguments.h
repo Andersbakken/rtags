@@ -28,7 +28,7 @@ public:
     QByteArray baseDirectory() const;
 
 private:
-    GccArgumentsImpl* m_impl;
+    GccArgumentsImpl* mImpl;
 };
 
 #endif

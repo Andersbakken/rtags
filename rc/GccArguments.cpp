@@ -17,12 +17,12 @@ public:
 };
 
 GccArguments::GccArguments()
-    : m_impl(new GccArgumentsImpl)
+    : mImpl(new GccArgumentsImpl)
 {
 }
 
 GccArguments::GccArguments(const QByteArray& args, const Path& base)
-    : m_impl(new GccArgumentsImpl)
+    : mImpl(new GccArgumentsImpl)
 {
     parse(args, base);
 }
@@ -49,11 +49,11 @@ static inline GccArguments::Lang guessLang(const QByteArray& compiler)
 
 bool GccArguments::parse(QByteArray args, const Path& base)
 {
-    m_impl->type = NoType;
-    m_impl->lang = NoLang;
-    m_impl->clangArgs.clear();
-    m_impl->inputFiles.clear();
-    m_impl->base = base;
+    mImpl->type = NoType;
+    mImpl->lang = NoLang;
+    mImpl->clangArgs.clear();
+    mImpl->inputFiles.clear();
+    mImpl->base = base;
 
     char quote = '\0';
     QList<QByteArray> split;
@@ -108,8 +108,8 @@ bool GccArguments::parse(QByteArray args, const Path& base)
         path = base;
     }
 
-    m_impl->lang = guessLang(split.front());
-    if (m_impl->lang == NoLang)
+    mImpl->lang = guessLang(split.front());
+    if (mImpl->lang == NoLang)
         return false;
 
     QList<QByteArray> unresolvedInputs;
@@ -123,34 +123,34 @@ bool GccArguments::parse(QByteArray args, const Path& base)
             switch (prevopt) {
             case 'x':
                 if (!strcmp(cur, "c-header")) {
-                    m_impl->type = Pch;
-                    Q_ASSERT(m_impl->lang == C);
+                    mImpl->type = Pch;
+                    Q_ASSERT(mImpl->lang == C);
                 } else if (!strcmp(cur, "c++-header")) {
-                    m_impl->type = Pch;
-                    Q_ASSERT(m_impl->lang == CPlusPlus);
+                    mImpl->type = Pch;
+                    Q_ASSERT(mImpl->lang == CPlusPlus);
                 }
-                m_impl->clangArgs.append("-x");
-                m_impl->clangArgs.append(cur);
+                mImpl->clangArgs.append("-x");
+                mImpl->clangArgs.append(cur);
                 break;
             case 'i': {
                 Path inc = Path::resolved(cur + QByteArray(".gch"), path, &pathok);
                 if (!pathok) // try without .gch postfix
                     inc = Path::resolved(cur, path, &pathok);
                 if (pathok) {
-                    m_impl->includes.append(inc);
+                    mImpl->includes.append(inc);
                 } else {
                     if (!inc.isAbsolute())
-                        m_impl->includes.append(Path(path + "/" + cur + QByteArray(".gch"))); // ### is assuming .gch correct here?
+                        mImpl->includes.append(Path(path + "/" + cur + QByteArray(".gch"))); // ### is assuming .gch correct here?
                     else
                         warning("-include %s could not be resolved", cur);
                 } }
                 break;
             case 'o': {
-                if (!m_impl->outputFile.isEmpty())
+                if (!mImpl->outputFile.isEmpty())
                     warning("Already have an output file: %s (new %s)",
-                            m_impl->outputFile.constData(), cur);
+                            mImpl->outputFile.constData(), cur);
                 Path out = Path::resolved(cur, path);
-                m_impl->outputFile = out; }
+                mImpl->outputFile = out; }
                 break;
             default:
                 break;
@@ -171,40 +171,40 @@ bool GccArguments::parse(QByteArray args, const Path& base)
                 continue;
             } else {
                 if (!strncmp(cur, "-D", 2))
-                    m_impl->clangArgs.append(cur);
+                    mImpl->clangArgs.append(cur);
                 else if (!strncmp(cur, "-I", 2)) {
                     const Path inc = Path::resolved(cur + 2, path, &pathok);
                     if (pathok)
-                        m_impl->clangArgs.append("-I" + inc);
+                        mImpl->clangArgs.append("-I" + inc);
                 }
-                else if (m_impl->type == NoType && !strcmp(cur, "-c"))
-                    m_impl->type = Compile;
+                else if (mImpl->type == NoType && !strcmp(cur, "-c"))
+                    mImpl->type = Compile;
             }
         } else { // input file?
             Path input = Path::resolved(cur, path, &pathok);
             if (pathok)
-                m_impl->inputFiles.append(input);
+                mImpl->inputFiles.append(input);
             else
                 unresolvedInputs.append(cur);
         }
     }
 
-    if (m_impl->type == NoType)
+    if (mImpl->type == NoType)
         return false;
 
-    if (m_impl->inputFiles.isEmpty()) {
+    if (mImpl->inputFiles.isEmpty()) {
         warning("Unable to find or resolve input files");
         foreach(const QByteArray& input, unresolvedInputs)
             warning("  %s", input.constData());
         return false;
     }
-    if (m_impl->outputFile.isEmpty() && m_impl->type == Pch) {
+    if (mImpl->outputFile.isEmpty() && mImpl->type == Pch) {
         warning("Output file is empty for pch");
         return false;
     }
-    if (!m_impl->outputFile.isResolved()) {
-        if (!m_impl->outputFile.isAbsolute())
-            m_impl->outputFile = path + "/" + m_impl->outputFile;
+    if (!mImpl->outputFile.isResolved()) {
+        if (!mImpl->outputFile.isAbsolute())
+            mImpl->outputFile = path + "/" + mImpl->outputFile;
     }
 
     return true;
@@ -212,38 +212,38 @@ bool GccArguments::parse(QByteArray args, const Path& base)
 
 GccArguments::Type GccArguments::type() const
 {
-    return m_impl->type;
+    return mImpl->type;
 }
 
 GccArguments::Lang GccArguments::lang() const
 {
-    return m_impl->lang;
+    return mImpl->lang;
 }
 
 QList<QByteArray> GccArguments::clangArgs() const
 {
-    return m_impl->clangArgs;
+    return mImpl->clangArgs;
 }
 
 QList<QByteArray> GccArguments::inputFiles() const
 {
-    return m_impl->inputFiles;
+    return mImpl->inputFiles;
 }
 
 QList<QByteArray> GccArguments::explicitIncludes() const
 {
     QList<QByteArray> incs;
-    foreach(const Path& p, m_impl->includes)
+    foreach(const Path& p, mImpl->includes)
         incs.append(p);
     return incs;
 }
 
 QByteArray GccArguments::outputFile() const
 {
-    return m_impl->outputFile;
+    return mImpl->outputFile;
 }
 
 QByteArray GccArguments::baseDirectory() const
 {
-    return m_impl->base;
+    return mImpl->base;
 }

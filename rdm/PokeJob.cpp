@@ -1,5 +1,4 @@
 #include "PokeJob.h"
-#include "UnitCache.h"
 #include <Rdm.h>
 #include "Indexer.h"
 

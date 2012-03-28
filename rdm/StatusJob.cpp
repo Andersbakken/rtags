@@ -9,6 +9,6 @@ StatusJob::StatusJob(int i)
 
 void StatusJob::run()
 {
-    const QList<QByteArray> ret = UnitCache::instance()->status();
-    emit complete(id, ret);
+    // const QList<QByteArray> ret = UnitCache::instance()->status();
+    // emit complete(id, ret);
 }

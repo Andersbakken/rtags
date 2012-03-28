@@ -1,6 +1,5 @@
 #include "Indexer.h"
 #include "RTags.h"
-#include "UnitCache.h"
 #include "Rdm.h"
 #include "Resource.h"
 #include "Path.h"

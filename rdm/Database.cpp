@@ -11,7 +11,6 @@
 #include "ReferencesJob.h"
 #include "Resource.h"
 #include "StatusJob.h"
-#include "UnitCache.h"
 #include "leveldb/db.h"
 #include <QDateTime>
 #include <QDebug>
@@ -42,25 +41,25 @@ static inline bool isCursorReference(CXCursorKind kind)
 }
 
 Database::Database(QObject* parent)
-    : QObject(parent), m_impl(new DatabaseImpl)
+    : QObject(parent), mImpl(new DatabaseImpl)
 {
-    m_impl->db = this;
-    m_impl->jobId = 0;
+    mImpl->db = this;
+    mImpl->jobId = 0;
 
     qRegisterMetaType<QList<QByteArray> >("QList<QByteArray>");
 }
 
 Database::~Database()
 {
-    delete m_impl;
+    delete mImpl;
 }
 
 int Database::nextId()
 {
-    ++m_impl->jobId;
-    if (!m_impl->jobId)
-        ++m_impl->jobId;
-    return m_impl->jobId;
+    ++mImpl->jobId;
+    if (!mImpl->jobId)
+        ++mImpl->jobId;
+    return mImpl->jobId;
 }
 
 

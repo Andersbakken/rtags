@@ -1,5 +1,4 @@
 #include "RecompileJob.h"
-#include "UnitCache.h"
 #include <Rdm.h>
 #include "Indexer.h"
 
