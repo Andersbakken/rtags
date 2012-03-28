@@ -20,6 +20,7 @@ public:
 
     static Indexer* instance();
     void force();
+    void setDefaultArgs(const QList<QByteArray> &args);
 signals:
     void indexingDone(int id);
 
@@ -27,8 +28,8 @@ private slots:
     void jobDone(int id, const QByteArray& input);
 
 private:
-    IndexerImpl* m_impl;
-    static Indexer* s_inst;
+    IndexerImpl* mImpl;
+    static Indexer* sInst;
 };
 
 #endif

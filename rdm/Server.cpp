@@ -20,45 +20,46 @@
 
 Server::Server(QObject* parent)
     : QObject(parent),
-      m_indexer(new Indexer(ASTPATH, this)),
-      m_db(new Database(this)),
-      m_server(new QTcpServer(this)),
-      m_verbose(false)
+      mIndexer(new Indexer(ASTPATH, this)),
+      mDb(new Database(this)),
+      mServer(new QTcpServer(this)),
+      mVerbose(false)
 {
 }
 
 bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
 {
-    m_options = options;
-    m_defaultArgs = defaultArguments;
+    mOptions = options;
+    mDefaultArgs = defaultArguments;
     Compressor::init();
     Messages::init();
     UnitCache::instance();
     Resource::setBaseDirectory(ASTPATH);
     Database::setBaseDirectory(ASTPATH);
 
-    if (!m_server->listen(QHostAddress::Any, Connection::Port)) {
+    if (!mServer->listen(QHostAddress::Any, Connection::Port)) {
         qWarning("Unable to listen to port %d", Connection::Port);
         return false;
     }
-    connect(m_server, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
-    connect(m_indexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
-    connect(m_db, SIGNAL(complete(int, QList<QByteArray>)),
+    connect(mServer, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
+    connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
+    connect(mDb, SIGNAL(complete(int, QList<QByteArray>)),
             this, SLOT(onDatabaseComplete(int, QList<QByteArray>)));
 #ifdef CLANG_RUNTIME_INCLUDE
     Path p;
     p = CLANG_RUNTIME_INCLUDE;
     if (p.isDir())
-        m_defaultArgs.append("-I" + p);
+        mDefaultArgs.append("-I" + p);
 #endif
-    log(1) << "running with" << m_defaultArgs;
+    mIndexer->setDefaultArgs(mDefaultArgs);
+    log(1) << "running with" << mDefaultArgs;
     return true;
 }
 
 void Server::onNewConnection()
 {
-    while (m_server->hasPendingConnections()) {
-        QTcpSocket* socket = m_server->nextPendingConnection();
+    while (mServer->hasPendingConnections()) {
+        QTcpSocket* socket = mServer->nextPendingConnection();
         Connection* conn = new Connection(socket, this);
         connect(conn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
         connect(socket, SIGNAL(disconnected()), conn, SLOT(deleteLater()));
@@ -68,20 +69,20 @@ void Server::onNewConnection()
 
 void Server::onConnectionDestroyed(QObject* o)
 {
-    QHash<int, Connection*>::iterator it = m_pendingIndexes.begin();
-    QHash<int, Connection*>::const_iterator end = m_pendingIndexes.end();
+    QHash<int, Connection*>::iterator it = mPendingIndexes.begin();
+    QHash<int, Connection*>::const_iterator end = mPendingIndexes.end();
     while (it != end) {
         if (it.value() == o)
-            m_pendingIndexes.erase(it++);
+            mPendingIndexes.erase(it++);
         else
             ++it;
     }
 
-    it = m_pendingLookups.begin();
-    end = m_pendingLookups.end();
+    it = mPendingLookups.begin();
+    end = mPendingLookups.end();
     while (it != end) {
         if (it.value() == o)
-            m_pendingLookups.erase(it++);
+            mPendingLookups.erase(it++);
         else
             ++it;
     }
@@ -130,8 +131,8 @@ void Server::handleAddMessage(AddMessage* message)
 {
     Connection* conn = qobject_cast<Connection*>(sender());
 
-    int id = m_indexer->index(message->inputFile(), message->arguments() + m_defaultArgs + pch(message));
-    m_pendingIndexes[id] = conn;
+    int id = mIndexer->index(message->inputFile(), message->arguments() + pch(message));
+    mPendingIndexes[id] = conn;
 }
 
 void Server::handleQueryMessage(QueryMessage* message)
@@ -144,36 +145,36 @@ void Server::handleQueryMessage(QueryMessage* message)
     int id = 0;
     switch (message->type()) {
     case QueryMessage::FollowLocation:
-        id = m_db->followLocation(*message);
+        id = mDb->followLocation(*message);
         break;
     case QueryMessage::ReferencesLocation:
-        id = m_db->referencesForLocation(*message);
+        id = mDb->referencesForLocation(*message);
         break;
     case QueryMessage::ReferencesName:
-        id = m_db->referencesForName(*message);
+        id = mDb->referencesForName(*message);
         break;
     case QueryMessage::Recompile:
-        id = m_db->recompile(*message);
+        id = mDb->recompile(*message);
         break;
     case QueryMessage::ListSymbols:
     case QueryMessage::FindSymbols:
-        id = m_db->match(*message);
+        id = mDb->match(*message);
         break;
     case QueryMessage::Dump:
-        id = m_db->dump(*message);
+        id = mDb->dump(*message);
         break;
     case QueryMessage::Status:
-        id = m_db->status(*message);
+        id = mDb->status(*message);
         break;
     case QueryMessage::Poke:
-        id = m_db->poke(*message);
+        id = mDb->poke(*message);
         break;
     }
     if (!id) {
         QueryMessage msg(QList<QByteArray>() << "Invalid message", QueryMessage::FollowLocation);
         conn->send(&msg);
     } else {
-        m_pendingLookups[id] = conn;
+        mPendingLookups[id] = conn;
     }
 }
 
@@ -184,8 +185,8 @@ void Server::handleErrorMessage(ErrorMessage* message)
 
 void Server::onIndexingDone(int id)
 {
-    QHash<int, Connection*>::iterator it = m_pendingIndexes.find(id);
-    if (it == m_pendingIndexes.end())
+    QHash<int, Connection*>::iterator it = mPendingIndexes.find(id);
+    if (it == mPendingIndexes.end())
         return;
     ErrorMessage msg("Hello, world");
     it.value()->send(&msg);
@@ -193,8 +194,8 @@ void Server::onIndexingDone(int id)
 
 void Server::onDatabaseComplete(int id, const QList<QByteArray>& response)
 {
-    QHash<int, Connection*>::iterator it = m_pendingLookups.find(id);
-    if (it == m_pendingLookups.end())
+    QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
+    if (it == mPendingLookups.end())
         return;
     QueryMessage msg(response, QueryMessage::FollowLocation);
     it.value()->send(&msg);

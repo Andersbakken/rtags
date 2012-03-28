@@ -37,14 +37,14 @@ private:
     void handleErrorMessage(ErrorMessage* message);
 
 private:
-    unsigned m_options;
-    Indexer* m_indexer;
-    Database* m_db;
-    QTcpServer* m_server;
-    QHash<int, Connection*> m_pendingIndexes;
-    QHash<int, Connection*> m_pendingLookups;
-    QList<QByteArray> m_defaultArgs;
-    bool m_verbose;
+    unsigned mOptions;
+    Indexer* mIndexer;
+    Database* mDb;
+    QTcpServer* mServer;
+    QHash<int, Connection*> mPendingIndexes;
+    QHash<int, Connection*> mPendingLookups;
+    QList<QByteArray> mDefaultArgs;
+    bool mVerbose;
 };
 
 #endif

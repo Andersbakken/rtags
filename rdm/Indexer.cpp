@@ -205,6 +205,7 @@ public:
     QElapsedTimer timer;
 
     QMutex incMutex;
+    QList<QByteArray> defaultArgs;
 };
 
 struct Timestamp
@@ -228,11 +229,11 @@ public:
                const QByteArray& path, const QByteArray& input,
                const QList<QByteArray>& arguments);
 
-    int id() const { return m_id; }
+    int id() const { return mId; }
 
     void run();
 
-    int m_id;
+    int mId;
     RTags::Location createLocation(CXCursor cursor);
     void addNamePermutations(CXCursor cursor, const RTags::Location &location);
 
@@ -240,10 +241,10 @@ public:
     SymbolNameHash mSymbolNames;
 
     QSet<Path> mPaths;
-    QHash<RTags::Location, QPair<RTags::Location, bool> > m_references;
-    QByteArray m_path, m_in;
-    QList<QByteArray> m_args;
-    IndexerImpl* m_impl;
+    QHash<RTags::Location, QPair<RTags::Location, bool> > mReferences;
+    QByteArray mPath, mIn;
+    QList<QByteArray> mArgs;
+    IndexerImpl* mImpl;
 #ifdef RDM_TIMING
     QHash<int, Timestamp> mTimeStamps;
 #endif
@@ -259,13 +260,13 @@ signals:
 
 //     const QByteArray path = Path::resolved(clang_getCString(str));
 
-//     QMutexLocker locker(&job->m_impl->incMutex);
-//     if (!qstrcmp(job->m_in, path)) {
+//     QMutexLocker locker(&job->mImpl->incMutex);
+//     if (!qstrcmp(job->mIn, path)) {
 //         clang_disposeString(str);
 //         return;
 //     }
 
-//     job->m_impl->incs[path].insert(job->m_in);
+//     job->mImpl->incs[path].insert(job->mIn);
 //     clang_disposeString(str);
 // }
 
@@ -277,10 +278,13 @@ static void inclusionVisitor(CXFile included_file,
     (void)client_data;
     (void)include_len;
     (void)included_file;
-    // IndexerJob* job = static_cast<IndexerJob*>(client_data);
-    // printf("%s %d\n", Rdm::eatString(clang_getFileName(included_file)).constData(), include_len);
-    // if (include_len)
-    //     addInclusion(job, included_file);
+    IndexerJob* job = static_cast<IndexerJob*>(client_data);
+    CXString fn = clang_getFileName(included_file);
+    const char *cstr = clang_getCString(fn);
+    if (strncmp("/usr/", cstr, 5) != 0) {
+        printf("%s %d\n", Rdm::eatString(clang_getFileName(included_file)).constData(), include_len);
+    }
+    clang_disposeString(fn);
 }
 
 
@@ -468,7 +472,7 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
                 break;
             }
         }
-        job->m_references[loc] = qMakePair(refLoc, isMemberFunction);
+        job->mReferences[loc] = qMakePair(refLoc, isMemberFunction);
         RDM_TIMESTAMP();
     }
     return CXChildVisit_Recurse;
@@ -478,7 +482,7 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
 IndexerJob::IndexerJob(IndexerImpl* impl, int id,
                        const QByteArray& path, const QByteArray& input,
                        const QList<QByteArray>& arguments)
-    : m_id(id), m_path(path), m_in(input), m_args(arguments), m_impl(impl)
+    : mId(id), mPath(path), mIn(input), mArgs(arguments), mImpl(impl)
 {
 }
 
@@ -504,26 +508,26 @@ void IndexerJob::run()
 {
     QElapsedTimer timer;
     timer.start();
-    QList<QByteArray> args = m_args;
+    QList<QByteArray> args = mArgs;
     QList<QByteArray> pchFiles = extractPchFiles(args);
     if (!pchFiles.isEmpty()) {
-        QMutexLocker locker(&m_impl->implMutex);
+        QMutexLocker locker(&mImpl->implMutex);
         bool wait;
         do {
             wait = false;
             foreach (const QByteArray &pchFile, pchFiles) {
-                if (m_impl->pchHeaderError.contains(pchFile)) {
+                if (mImpl->pchHeaderError.contains(pchFile)) {
                     int idx = args.indexOf(pchFile);
                     Q_ASSERT(idx > 0);
                     args.removeAt(idx);
                     args.removeAt(idx - 1);
-                } else if (m_impl->indexing.contains(pchFile)) {
+                } else if (mImpl->indexing.contains(pchFile)) {
                     wait = true;
                     break;
                 }
             }
             if (wait) {
-                m_impl->implCond.wait(&m_impl->implMutex);
+                mImpl->implCond.wait(&mImpl->implMutex);
             }
         } while (wait);
     }
@@ -564,13 +568,13 @@ void IndexerJob::run()
         }
     }
     if (isPch) {
-        Resource resource(m_in, Resource::NoLock);
+        Resource resource(mIn, Resource::NoLock);
         pchName = resource.hashedFileName(Resource::AST);
     }
-    clangLine += m_in;
+    clangLine += mIn;
 
     CXIndex index = clang_createIndex(1, 1);
-    CXTranslationUnit unit = clang_parseTranslationUnit(index, m_in.constData(),
+    CXTranslationUnit unit = clang_parseTranslationUnit(index, mIn.constData(),
                                                         clangArgs.data(), idx,
                                                         0, 0, CXTranslationUnit_Incomplete);
     log(1) << "loading unit" << clangLine << (unit != 0);
@@ -582,18 +586,18 @@ void IndexerJob::run()
     } else {
         clang_getInclusions(unit, inclusionVisitor, this);
         clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
-        RDM_END_TIMESTAMP(m_in.constData());
+        RDM_END_TIMESTAMP(mIn.constData());
         if (isPch) {
             Q_ASSERT(!pchName.isEmpty());
             if (clang_saveTranslationUnit(unit, pchName.constData(), clang_defaultSaveOptions(unit)) != CXSaveError_None) {
-                error() << "Couldn't save pch file" << m_in << pchName;
+                error() << "Couldn't save pch file" << mIn << pchName;
                 pchError = true;
             }
         }
         clang_disposeTranslationUnit(unit);
 
-        const QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator end = m_references.end();
-        for (QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator it = m_references.begin(); it != end; ++it) {
+        const QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator end = mReferences.end();
+        for (QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator it = mReferences.begin(); it != end; ++it) {
             SymbolHash::iterator sym = mSymbols.find(it.value().first);
             if (sym != mSymbols.end()) {
                 // Q_ASSERT(mSymbols.contains(it.value().first));
@@ -631,26 +635,26 @@ void IndexerJob::run()
             mSymbolNames[path].insert(loc);
             mSymbolNames[path.fileName()].insert(loc);
         }
-        m_impl->syncer->addSymbols(mSymbols);
-        m_impl->syncer->addSymbolNames(mSymbolNames);
+        mImpl->syncer->addSymbols(mSymbols);
+        mImpl->syncer->addSymbolNames(mSymbolNames);
     }
     clang_disposeIndex(index);
     if (isPch) {
-        QMutexLocker locker(&m_impl->implMutex);
+        QMutexLocker locker(&mImpl->implMutex);
         if (pchError) {
-            m_impl->pchHeaderError.insert(m_in);
+            mImpl->pchHeaderError.insert(mIn);
         } else {
-            m_impl->pchHeaderError.remove(m_in);
+            mImpl->pchHeaderError.remove(mIn);
         }
     }
-    emit done(m_id, m_in);
-    log(0) << "visited" << m_in << timer.elapsed() << "ms. Waited for pch" << waitingForPch;
+    emit done(mId, mIn);
+    log(0) << "visited" << mIn << timer.elapsed() << "ms. Waited for pch" << waitingForPch;
 }
 
-Indexer* Indexer::s_inst = 0;
+Indexer* Indexer::sInst = 0;
 
 Indexer::Indexer(const QByteArray& path, QObject* parent)
-    : QObject(parent), m_impl(new IndexerImpl)
+    : QObject(parent), mImpl(new IndexerImpl)
 {
     Q_ASSERT(path.startsWith('/'));
     if (!path.startsWith('/'))
@@ -658,51 +662,51 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
     QDir dir;
     dir.mkpath(path);
 
-    m_impl->jobCounter = 0;
-    m_impl->lastJobId = 0;
-    m_impl->path = path;
-    m_impl->timerRunning = false;
-    m_impl->syncer = new IndexerSyncer(this);
-    m_impl->syncer->start();
+    mImpl->jobCounter = 0;
+    mImpl->lastJobId = 0;
+    mImpl->path = path;
+    mImpl->timerRunning = false;
+    mImpl->syncer = new IndexerSyncer(this);
+    mImpl->syncer->start();
 
-    s_inst = this;
+    sInst = this;
 }
 
 Indexer::~Indexer()
 {
-    s_inst = 0;
-    m_impl->syncer->stop();
-    m_impl->syncer->wait();
+    sInst = 0;
+    mImpl->syncer->stop();
+    mImpl->syncer->wait();
 
-    delete m_impl;
+    delete mImpl;
 }
 
 Indexer* Indexer::instance()
 {
-    return s_inst;
+    return sInst;
 }
 
 int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
 {
-    QMutexLocker locker(&m_impl->implMutex);
+    QMutexLocker locker(&mImpl->implMutex);
 
-    if (m_impl->indexing.contains(input))
+    if (mImpl->indexing.contains(input))
         return -1;
 
     int id;
     do {
-        id = m_impl->lastJobId++;
-    } while (m_impl->jobs.contains(id));
+        id = mImpl->lastJobId++;
+    } while (mImpl->jobs.contains(id));
 
-    m_impl->indexing.insert(input);
+    mImpl->indexing.insert(input);
 
-    IndexerJob* job = new IndexerJob(m_impl, id, m_impl->path, input, arguments);
-    m_impl->jobs[id] = job;
+    IndexerJob* job = new IndexerJob(mImpl, id, mImpl->path, input, arguments);
+    mImpl->jobs[id] = job;
     connect(job, SIGNAL(done(int, QByteArray)), this, SLOT(jobDone(int, QByteArray)), Qt::QueuedConnection);
 
-    if (!m_impl->timerRunning) {
-        m_impl->timerRunning = true;
-        m_impl->timer.start();
+    if (!mImpl->timerRunning) {
+        mImpl->timerRunning = true;
+        mImpl->timer.start();
     }
 
     QThreadPool::globalInstance()->start(job);
@@ -714,27 +718,27 @@ void Indexer::jobDone(int id, const QByteArray& input)
 {
     Q_UNUSED(input)
 
-        QMutexLocker locker(&m_impl->implMutex);
-    m_impl->jobs.remove(id);
-    if (m_impl->indexing.remove(input))
-        m_impl->implCond.wakeAll();
+        QMutexLocker locker(&mImpl->implMutex);
+    mImpl->jobs.remove(id);
+    if (mImpl->indexing.remove(input))
+        mImpl->implCond.wakeAll();
 
-    ++m_impl->jobCounter;
+    ++mImpl->jobCounter;
 
-    if (m_impl->jobs.isEmpty() || m_impl->jobCounter == SYNCINTERVAL) {
+    if (mImpl->jobs.isEmpty() || mImpl->jobCounter == SYNCINTERVAL) {
         // {
-        //         QMutexLocker inclocker(&m_impl->incMutex);
-        //         // m_impl->syncer->addSet(Database::Include, m_impl->incs);
-        //         m_impl->incs.clear();
+        //         QMutexLocker inclocker(&mImpl->incMutex);
+        //         // mImpl->syncer->addSet(Database::Include, mImpl->incs);
+        //         mImpl->incs.clear();
         //     }
-        //     m_impl->jobCounter = 0;
+        //     mImpl->jobCounter = 0;
 
-        if (m_impl->jobs.isEmpty()) {
-            m_impl->syncer->notify();
+        if (mImpl->jobs.isEmpty()) {
+            mImpl->syncer->notify();
 
-            Q_ASSERT(m_impl->timerRunning);
-            m_impl->timerRunning = false;
-            log(0) << "jobs took" << m_impl->timer.elapsed() << "ms";
+            Q_ASSERT(mImpl->timerRunning);
+            mImpl->timerRunning = false;
+            log(0) << "jobs took" << mImpl->timer.elapsed() << "ms";
         }
     }
 
@@ -743,6 +747,11 @@ void Indexer::jobDone(int id, const QByteArray& input)
 
 void Indexer::force()
 {
-    m_impl->syncer->notify();
+    mImpl->syncer->notify();
     // ### need to wait for syncer to write
+}
+
+void Indexer::setDefaultArgs(const QList<QByteArray> &args)
+{
+    mImpl->defaultArgs = args;
 }
