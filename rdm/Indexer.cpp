@@ -512,7 +512,7 @@ void IndexerJob::run()
 {
     QElapsedTimer timer;
     timer.start();
-    QList<QByteArray> args = mArgs;
+    QList<QByteArray> args = mArgs + mImpl->defaultArgs;
     QList<QByteArray> pchFiles = extractPchFiles(args);
     if (!pchFiles.isEmpty()) {
         QMutexLocker locker(&mImpl->implMutex);
