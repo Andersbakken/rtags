@@ -25,7 +25,7 @@ signals:
     void indexingDone(int id);
 
 private slots:
-    void jobDone(int id, const QByteArray& input);
+    void onJobDone(int id, const QByteArray& input);
 
 private:
     IndexerImpl* mImpl;

@@ -184,7 +184,7 @@ int Database::status(const QueryMessage &)
 }
 
 
-static const char* const dbNames[] = { "/includes.db", "/symbols.db", "/symbolnames.db" };
+static const char* const dbNames[] = { "/dependencies.db", "/symbols.db", "/symbolnames.db" };
 
 QByteArray Database::databaseName(Type type)
 {

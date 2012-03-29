@@ -23,9 +23,12 @@
 // #define RDM_TIMING
 #define SYNCINTERVAL 10
 
+class IndexerJob;
+
 typedef QHash<RTags::Location, Rdm::CursorInfo> SymbolHash;
 typedef QHash<QByteArray, QSet<RTags::Location> > SymbolNameHash;
-class IndexerJob;
+typedef QHash<Path, QSet<Path> > DependencyHash;
+
 class IndexerSyncer : public QThread
 {
 public:
@@ -33,6 +36,7 @@ public:
 
     void addSymbols(const SymbolHash &data);
     void addSymbolNames(const SymbolNameHash &symbolNames);
+    void addDependencies(const DependencyHash& dependencies);
     void notify();
     void stop();
 
@@ -45,6 +49,7 @@ private:
     QWaitCondition mCond;
     SymbolHash mSymbols;
     SymbolNameHash mSymbolNames;
+    DependencyHash mDependencies;
 };
 
 IndexerSyncer::IndexerSyncer(QObject* parent)
@@ -91,6 +96,19 @@ void IndexerSyncer::addSymbols(const SymbolHash &symbols)
     }
 }
 
+void IndexerSyncer::addDependencies(const DependencyHash& dependencies)
+{
+    QMutexLocker lock(&mMutex);
+    if (mDependencies.isEmpty()) {
+        mDependencies = dependencies;
+    } else {
+        const DependencyHash::const_iterator end = dependencies.end();
+        for (DependencyHash::const_iterator it = dependencies.begin(); it != end; ++it) {
+            mDependencies[it.key()].unite(it.value());
+        }
+    }
+}
+
 // template <typename ### the merging should be templatized
 
 void IndexerSyncer::run()
@@ -98,6 +116,7 @@ void IndexerSyncer::run()
     while (true) {
         SymbolNameHash symbolNames;
         SymbolHash symbols;
+        DependencyHash dependencies;
         {
             QMutexLocker locker(&mMutex);
             if (mStopped)
@@ -110,6 +129,7 @@ void IndexerSyncer::run()
             }
             qSwap(symbolNames, mSymbolNames);
             qSwap(symbols, mSymbols);
+            qSwap(dependencies, mDependencies);
         }
         if (!symbolNames.isEmpty()) {
             leveldb::DB* db = 0;
@@ -181,6 +201,41 @@ void IndexerSyncer::run()
                 db->Write(leveldb::WriteOptions(), &batch);
             delete db;
         }
+        if (!dependencies.isEmpty()) {
+            leveldb::DB* db = 0;
+            leveldb::Options options;
+            options.create_if_missing = true;
+            const QByteArray name = Database::databaseName(Database::Dependency);
+            if (name.isEmpty())
+                return;
+
+            leveldb::Status status = leveldb::DB::Open(options, name.constData(), &db);
+            if (!status.ok())
+                return;
+            Q_ASSERT(db);
+
+            leveldb::WriteBatch batch;
+            const leveldb::ReadOptions readopts;
+
+            DependencyHash::iterator it = dependencies.begin();
+            const DependencyHash::const_iterator end = dependencies.end();
+            bool changed = false;
+            while (it != end) {
+                const char* key = it.key().constData();
+                QSet<Path> added = it.value();
+                QSet<Path> current = Rdm::readValue<QSet<Path> >(db, key);
+                const int oldSize = current.size();
+                if (current.unite(added).size() > oldSize) { // ### is this the correct way of checking if the current set has changed?
+                    changed = true;
+                    Rdm::writeValue<QSet<Path> >(&batch, key, current);
+                }
+                ++it;
+            }
+
+            if (changed)
+                db->Write(leveldb::WriteOptions(), &batch);
+            delete db;
+        }
     }
 }
 
@@ -203,9 +258,40 @@ public:
     bool timerRunning;
     QElapsedTimer timer;
 
-    QMutex incMutex;
     QList<QByteArray> defaultArgs;
+
+    QMutex dependencyMutex;
+    DependencyHash dependencies;
+    void commitDependencies(const DependencyHash& deps);
 };
+
+inline void IndexerImpl::commitDependencies(const DependencyHash& deps)
+{
+    QMutexLocker locker(&dependencyMutex);
+
+    DependencyHash newDependencies;
+
+    if (dependencies.isEmpty()) {
+        dependencies = deps;
+        newDependencies = deps;
+    } else {
+        const DependencyHash::const_iterator end = deps.end();
+        for (DependencyHash::const_iterator it = deps.begin(); it != end; ++it) {
+            newDependencies[it.key()].unite(it.value() - dependencies[it.key()]);
+            dependencies[it.key()].unite(it.value());
+        }
+    }
+
+    syncer->addDependencies(newDependencies);
+
+    const DependencyHash::const_iterator end = newDependencies.end();
+    for (DependencyHash::const_iterator it = newDependencies.begin(); it != end; ++it) {
+        foreach(const Path& path, it.value()) {
+            // ### add to QFileSystemWatcher here
+            printf("%s is a dependency of %s\n", it.key().constData(), path.constData());
+        }
+    }
+}
 
 struct Timestamp
 {
@@ -243,6 +329,7 @@ public:
     QHash<RTags::Location, QPair<RTags::Location, bool> > mReferences;
     QByteArray mPath, mIn;
     QList<QByteArray> mArgs;
+    DependencyHash mDependencies;
     IndexerImpl* mImpl;
 #ifdef RDM_TIMING
     QHash<int, Timestamp> mTimeStamps;
@@ -253,24 +340,8 @@ signals:
 
 #include "Indexer.moc"
 
-// static inline void addInclusion(IndexerJob* job, CXFile inc)
-// {
-//     CXString str = clang_getFileName(inc);
-
-//     const QByteArray path = Path::resolved(clang_getCString(str));
-
-//     QMutexLocker locker(&job->mImpl->incMutex);
-//     if (!qstrcmp(job->mIn, path)) {
-//         clang_disposeString(str);
-//         return;
-//     }
-
-//     job->mImpl->incs[path].insert(job->mIn);
-//     clang_disposeString(str);
-// }
-
 static void inclusionVisitor(CXFile included_file,
-                             CXSourceLocation*,
+                             CXSourceLocation* include_stack,
                              unsigned include_len,
                              CXClientData client_data)
 {
@@ -287,11 +358,18 @@ static void inclusionVisitor(CXFile included_file,
                 return;
             }
         }
-        printf("%s %d\n", cstr, include_len);
+        if (include_len) {
+            CXFile originatingFile;
+            clang_getSpellingLocation(include_stack[include_len - 1], &originatingFile, 0, 0, 0);
+            CXString originatingFn = clang_getFileName(originatingFile);
+            job->mDependencies[path].insert(Path::resolved(clang_getCString(originatingFn)));
+            clang_disposeString(originatingFn);
+        } else {
+            job->mDependencies[path].insert(path);
+        }
     }
     clang_disposeString(fn);
 }
-
 
 void IndexerJob::addNamePermutations(CXCursor cursor, const RTags::Location &location)
 {
@@ -593,6 +671,8 @@ void IndexerJob::run()
         error() << "got 0 unit for" << clangLine;
     } else {
         clang_getInclusions(unit, inclusionVisitor, this);
+        mImpl->commitDependencies(mDependencies);
+
         clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
         RDM_END_TIMESTAMP(mIn.constData());
         if (isPch) {
@@ -712,7 +792,7 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
 
     IndexerJob* job = new IndexerJob(mImpl, id, mImpl->path, input, arguments);
     mImpl->jobs[id] = job;
-    connect(job, SIGNAL(done(int, QByteArray)), this, SLOT(jobDone(int, QByteArray)), Qt::QueuedConnection);
+    connect(job, SIGNAL(done(int, QByteArray)), this, SLOT(onJobDone(int, QByteArray)), Qt::QueuedConnection);
 
     if (!mImpl->timerRunning) {
         mImpl->timerRunning = true;
@@ -724,11 +804,11 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
     return id;
 }
 
-void Indexer::jobDone(int id, const QByteArray& input)
+void Indexer::onJobDone(int id, const QByteArray& input)
 {
     Q_UNUSED(input)
 
-        QMutexLocker locker(&mImpl->implMutex);
+    QMutexLocker locker(&mImpl->implMutex);
     mImpl->jobs.remove(id);
     if (mImpl->indexing.remove(input))
         mImpl->implCond.wakeAll();
@@ -736,13 +816,6 @@ void Indexer::jobDone(int id, const QByteArray& input)
     ++mImpl->jobCounter;
 
     if (mImpl->jobs.isEmpty() || mImpl->jobCounter == SYNCINTERVAL) {
-        // {
-        //         QMutexLocker inclocker(&mImpl->incMutex);
-        //         // mImpl->syncer->addSet(Database::Include, mImpl->incs);
-        //         mImpl->incs.clear();
-        //     }
-        //     mImpl->jobCounter = 0;
-
         if (mImpl->jobs.isEmpty()) {
             mImpl->syncer->notify();
 
