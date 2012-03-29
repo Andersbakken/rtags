@@ -274,14 +274,20 @@ static void inclusionVisitor(CXFile included_file,
                              unsigned include_len,
                              CXClientData client_data)
 {
-    (void)client_data;
     (void)include_len;
     (void)included_file;
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
     CXString fn = clang_getFileName(included_file);
     const char *cstr = clang_getCString(fn);
     if (strncmp("/usr/", cstr, 5) != 0) {
-        printf("%s %d\n", Rdm::eatString(clang_getFileName(included_file)).constData(), include_len);
+        Path path = Path::resolved(cstr);
+        foreach(const QByteArray& arg, job->mImpl->defaultArgs) {
+            if (arg.contains(path)) {
+                clang_disposeString(fn);
+                return;
+            }
+        }
+        printf("%s %d\n", cstr, include_len);
     }
     clang_disposeString(fn);
 }
