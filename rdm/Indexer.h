@@ -21,11 +21,16 @@ public:
     static Indexer* instance();
     void force();
     void setDefaultArgs(const QList<QByteArray> &args);
+
+protected:
+    void customEvent(QEvent* event);
+
 signals:
     void indexingDone(int id);
 
 private slots:
     void onJobDone(int id, const QByteArray& input);
+    void onDirectoryChanged(const QString& path);
 
 private:
     IndexerImpl* mImpl;
