@@ -426,7 +426,7 @@ static void inclusionVisitor(CXFile included_file,
     // ### make this configurable
     if ((strncmp("/usr/", cstr, 5) != 0)
         || (strncmp("/usr/home/", cstr, 10) == 0)) {
-        Path path = Path::resolved(cstr);
+        Path path = Path::canonicalized(cstr);
         foreach (const QByteArray& arg, job->mImpl->defaultArgs) {
             if (arg.contains(path)) {
                 clang_disposeString(fn);
@@ -437,7 +437,7 @@ static void inclusionVisitor(CXFile included_file,
             CXFile originatingFile;
             clang_getSpellingLocation(include_stack[include_len - 1], &originatingFile, 0, 0, 0);
             CXString originatingFn = clang_getFileName(originatingFile);
-            job->mDependencies[path].insert(Path::resolved(clang_getCString(originatingFn)));
+            job->mDependencies[path].insert(Path::canonicalized(clang_getCString(originatingFn)));
             clang_disposeString(originatingFn);
         } else {
             job->mDependencies[path].insert(path);
@@ -502,7 +502,7 @@ RTags::Location IndexerJob::createLocation(CXCursor cursor)
         const char *fileName = clang_getCString(fn);
         if (fileName && strlen(fileName)) {
             ret.path = fileName;
-            ret.path.canonicalizePath(); // ### could canonicalize directly
+            ret.path.canonicalize(); // ### could canonicalize directly
             ret.offset = start;
             mPaths.insert(ret.path);
         }

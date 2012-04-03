@@ -67,10 +67,11 @@ public:
     Path parentDir() const;
     Type type() const;
     bool resolve(const Path &cwd = Path());
-    int canonicalizePath();
+    int canonicalize();
     quint64 lastModified() const; // returns time_t
     int64_t fileSize() const;
     static Path resolved(const QByteArray &path, const Path &cwd = Path(), bool *ok = 0);
+    static Path canonicalized(const QByteArray &path);
 };
 
 static inline QDataStream &operator<<(QDataStream &ds, const Path &path)

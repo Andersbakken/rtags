@@ -81,7 +81,7 @@ bool Path::isCanonical() const
     return lastIndexOf("/../") == -1;
 }
 
-int Path::canonicalizePath()
+int Path::canonicalize()
 {
     const int s = size();
     const int ret = RTags::canonicalizePath(data(), s);
@@ -159,4 +159,10 @@ bool Path::isHeader() const
         }
     }
     return false;
+}
+Path Path::canonicalized(const QByteArray &path)
+{
+    Path p(path);
+    p.canonicalize();
+    return p;
 }
