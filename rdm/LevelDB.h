@@ -14,7 +14,7 @@ public:
         ReadOnly,
         ReadWrite
     };
-    bool open(Database::Type type, Mode mode);
+    bool open(Database::Type type, Mode mode, QByteArray *error = 0);
     leveldb::DB *db() const { return mDB; }
 private:
     leveldb::DB *mDB;

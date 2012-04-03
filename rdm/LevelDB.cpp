@@ -18,7 +18,7 @@ LevelDB::~LevelDB()
         delete mDB;
     }
 }
-bool LevelDB::open(Database::Type type, Mode mode)
+bool LevelDB::open(Database::Type type, Mode mode, QByteArray *error)
 {
     const QByteArray name = Database::databaseName(type);
     Q_ASSERT(!name.isEmpty());
@@ -36,7 +36,8 @@ bool LevelDB::open(Database::Type type, Mode mode)
     }
     const leveldb::Status status = leveldb::DB::Open(options, name.constData(), &mDB);
     if (!status.ok()) {
-        printf("[%s] %s:%d: failed to open %s\n", __func__, __FILE__, __LINE__, name.constData());
+        if (error)
+            *error = status.ToString().c_str();
         Q_ASSERT(!mDB);
         lock.unlock();
         return false;

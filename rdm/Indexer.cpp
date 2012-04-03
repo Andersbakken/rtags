@@ -243,27 +243,6 @@ void IndexerSyncer::run()
     }
 }
 
-// ### should keep it cached or open or something
-static inline bool fileInformation(const Path& key, QList<QByteArray>& args)
-{
-    leveldb::DB* db = 0;
-    leveldb::Options options;
-    options.create_if_missing = true;
-    const QByteArray name = Database::databaseName(Database::FileInformation);
-    if (name.isEmpty())
-        return false;
-
-    leveldb::Status status = leveldb::DB::Open(options, name.constData(), &db);
-    if (!status.ok())
-        return false;
-    Q_ASSERT(db);
-
-    bool ok;
-    args = Rdm::readValue<QList<QByteArray> >(db, key, &ok);
-    delete db;
-    return ok;
-}
-
 class IndexerImpl
 {
 public:
@@ -923,6 +902,17 @@ void Indexer::onDirectoryChanged(const QString& path)
     QList<QByteArray> args;
     QSet<Path> dirtyFiles;
     QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
+
+    LevelDB db;
+    QByteArray err;
+    if (db.open(Database::FileInformation, LevelDB::ReadOnly, &err)) {
+        // ### there is a gap here where if the syncer thread hasn't synced the file information
+        //     then fileInformation() would return 'false' even though it knows what args to return.
+        error("Can't open FileInformation database %s %s\n",
+              Database::databaseName(Database::FileInformation).constData(),
+              err.constData());
+        return;
+    }
     while (wit != wend) {
         // weird API, QSet<>::iterator does not allow for modifications to the referenced value
         file = (p + (*wit).first);
@@ -941,9 +931,11 @@ void Indexer::onDirectoryChanged(const QString& path)
             Q_ASSERT(!dit.value().isEmpty());
             foreach (const Path& path, dit.value()) {
                 dirtyFiles.insert(path);
-                // ### there is a gap here where if the syncer thread hasn't synced the file information
-                //     then fileInformation() would return 'false' even though it knows what args to return.
-                if (fileInformation(path, args)) {
+
+                bool ok;
+                args = Rdm::readValue<QList<QByteArray> >(db.db(), path, &ok);
+
+                if (ok) {
                     if (isPch(args)) {
                         toIndexPch[path] = args;
                     } else {
