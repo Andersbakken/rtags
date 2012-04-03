@@ -80,7 +80,6 @@ int readLine(FILE *f, char *buf, int max)
 bool makeLocation(const QByteArray &arg, Location *loc,
                   QByteArray *resolvedLocation, const Path &cwd)
 {
-    Q_ASSERT(!arg.isEmpty());
     Location l = Location::fromKey(arg);
     if (!l.offset) {
         return false;

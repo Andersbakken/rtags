@@ -11,7 +11,13 @@ class Database : public QObject
 {
     Q_OBJECT
 public:
-    enum Type { Dependency, Symbol, SymbolName, FileInformation };
+    enum Type {
+        Dependency,
+        Symbol,
+        SymbolName,
+        FileInformation,
+        DatabaseTypeCount
+    };
 
     Database(QObject* parent = 0);
     ~Database();

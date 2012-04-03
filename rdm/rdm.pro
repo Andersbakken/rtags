@@ -4,7 +4,7 @@
 
 TEMPLATE = app
 TARGET =
-DEPENDPATH += . 
+DEPENDPATH += .
 INCLUDEPATH += . ../3rdparty/leveldb/src/include
 include(../shared/shared.pri)
 include(../shared/clang.pri)
@@ -23,7 +23,8 @@ SOURCES += \
     ReferencesJob.cpp \
     Rdm.cpp \
     StatusJob.cpp \
-    PokeJob.cpp 
+    PokeJob.cpp \
+    LevelDB.cpp
 
 HEADERS += \
     Indexer.h \

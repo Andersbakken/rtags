@@ -4,7 +4,7 @@
 #include "RTags.h"
 #include "Rdm.h"
 #include "SHA256.h"
-#include "leveldb/db.h"
+#include "LevelDB.h"
 #include "leveldb/write_batch.h"
 #include <Log.h>
 #include <QtCore>
@@ -147,17 +147,9 @@ void IndexerSyncer::run()
             qSwap(informations, mInformations);
         }
         if (!symbolNames.isEmpty()) {
-            leveldb::DB* db = 0;
-            leveldb::Options options;
-            options.create_if_missing = true;
-            const QByteArray name = Database::databaseName(Database::SymbolName);
-            if (name.isEmpty())
+            LevelDB db;
+            if (!db.open(Database::SymbolName, LevelDB::ReadWrite))
                 return;
-
-            leveldb::Status status = leveldb::DB::Open(options, name.constData(), &db);
-            if (!status.ok())
-                return;
-            Q_ASSERT(db);
 
             leveldb::WriteBatch batch;
             const leveldb::ReadOptions readopts;
@@ -168,7 +160,7 @@ void IndexerSyncer::run()
             while (it != end) {
                 const char *key = it.key().constData();
                 const QSet<RTags::Location> added = it.value();
-                QSet<RTags::Location> current = Rdm::readValue<QSet<RTags::Location> >(db, key);
+                QSet<RTags::Location> current = Rdm::readValue<QSet<RTags::Location> >(db.db(), key);
                 const int oldSize = current.size();
                 current += added;
                 if (current.size() != oldSize) {
@@ -179,21 +171,12 @@ void IndexerSyncer::run()
             }
 
             if (changed)
-                db->Write(leveldb::WriteOptions(), &batch);
-            delete db;
+                db.db()->Write(leveldb::WriteOptions(), &batch);
         }
         if (!symbols.isEmpty()) {
-            leveldb::DB* db = 0;
-            leveldb::Options options;
-            options.create_if_missing = true;
-            const QByteArray name = Database::databaseName(Database::Symbol);
-            if (name.isEmpty())
+            LevelDB db;
+            if (!db.open(Database::Symbol, LevelDB::ReadWrite))
                 return;
-
-            leveldb::Status status = leveldb::DB::Open(options, name.constData(), &db);
-            if (!status.ok())
-                return;
-            Q_ASSERT(db);
 
             leveldb::WriteBatch batch;
             const leveldb::ReadOptions readopts;
@@ -204,7 +187,7 @@ void IndexerSyncer::run()
             while (it != end) {
                 const QByteArray key = it.key().key(RTags::Location::Padded);
                 Rdm::CursorInfo added = it.value();
-                Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(db, key.constData());
+                Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(db.db(), key.constData());
                 if (current.unite(added)) {
                     changed = true;
                     Rdm::writeValue<Rdm::CursorInfo>(&batch, key, current);
@@ -213,21 +196,12 @@ void IndexerSyncer::run()
             }
 
             if (changed)
-                db->Write(leveldb::WriteOptions(), &batch);
-            delete db;
+                db.db()->Write(leveldb::WriteOptions(), &batch);
         }
         if (!dependencies.isEmpty()) {
-            leveldb::DB* db = 0;
-            leveldb::Options options;
-            options.create_if_missing = true;
-            const QByteArray name = Database::databaseName(Database::Dependency);
-            if (name.isEmpty())
+            LevelDB db;
+            if (!db.open(Database::Dependency, LevelDB::ReadWrite))
                 return;
-
-            leveldb::Status status = leveldb::DB::Open(options, name.constData(), &db);
-            if (!status.ok())
-                return;
-            Q_ASSERT(db);
 
             leveldb::WriteBatch batch;
             const leveldb::ReadOptions readopts;
@@ -238,7 +212,7 @@ void IndexerSyncer::run()
             while (it != end) {
                 const char* key = it.key().constData();
                 QSet<Path> added = it.value();
-                QSet<Path> current = Rdm::readValue<QSet<Path> >(db, key);
+                QSet<Path> current = Rdm::readValue<QSet<Path> >(db.db(), key);
                 const int oldSize = current.size();
                 if (current.unite(added).size() > oldSize) { // ### is this the correct way of checking if the current set has changed?
                     changed = true;
@@ -248,22 +222,9 @@ void IndexerSyncer::run()
             }
 
             if (changed)
-                db->Write(leveldb::WriteOptions(), &batch);
-            delete db;
+                db.db()->Write(leveldb::WriteOptions(), &batch);
         }
         if (!informations.isEmpty()) {
-            leveldb::DB* db = 0;
-            leveldb::Options options;
-            options.create_if_missing = true;
-            const QByteArray name = Database::databaseName(Database::FileInformation);
-            if (name.isEmpty())
-                return;
-
-            leveldb::Status status = leveldb::DB::Open(options, name.constData(), &db);
-            if (!status.ok())
-                return;
-            Q_ASSERT(db);
-
             leveldb::WriteBatch batch;
 
             InformationHash::iterator it = informations.begin();
@@ -273,13 +234,16 @@ void IndexerSyncer::run()
                 Rdm::writeValue<QList<QByteArray> >(&batch, key, it.value());
                 ++it;
             }
+            LevelDB db;
+            if (!db.open(Database::FileInformation, LevelDB::ReadWrite))
+                return;
 
-            db->Write(leveldb::WriteOptions(), &batch);
-            delete db;
+            db.db()->Write(leveldb::WriteOptions(), &batch);
         }
     }
 }
 
+// ### should keep it cached or open or something
 static inline bool fileInformation(const Path& key, QList<QByteArray>& args)
 {
     leveldb::DB* db = 0;
@@ -456,13 +420,14 @@ static void inclusionVisitor(CXFile included_file,
                 return;
             }
         }
-        if (include_len) {
+        for (unsigned i=0; i<include_len; ++i) {
             CXFile originatingFile;
-            clang_getSpellingLocation(include_stack[include_len - 1], &originatingFile, 0, 0, 0);
+            clang_getSpellingLocation(include_stack[i], &originatingFile, 0, 0, 0);
             CXString originatingFn = clang_getFileName(originatingFile);
             job->mDependencies[path].insert(Path::canonicalized(clang_getCString(originatingFn)));
             clang_disposeString(originatingFn);
-        } else {
+        }
+        if (!include_len) {
             job->mDependencies[path].insert(path);
         }
         if (job->mIsPch) {
@@ -956,11 +921,13 @@ void Indexer::onDirectoryChanged(const QString& path)
     QSet<WatchedPair>::iterator wit = it.value().begin();
     QSet<WatchedPair>::const_iterator wend = it.value().end();
     QList<QByteArray> args;
-    QHash<Path, QList<QByteArray> > toIndex;
+    QSet<Path> dirtyFiles;
+    QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
     while (wit != wend) {
         // weird API, QSet<>::iterator does not allow for modifications to the referenced value
         file = (p + (*wit).first);
         if (file.lastModified() != (*wit).second) {
+            dirtyFiles.insert(file);
             pending.append(file);
             wit = it.value().erase(wit);
             wend = it.value().end(); // ### do we need to update 'end' here?
@@ -973,25 +940,26 @@ void Indexer::onDirectoryChanged(const QString& path)
             }
             Q_ASSERT(!dit.value().isEmpty());
             foreach (const Path& path, dit.value()) {
+                dirtyFiles.insert(path);
                 // ### there is a gap here where if the syncer thread hasn't synced the file information
                 //     then fileInformation() would return 'false' even though it knows what args to return.
                 if (fileInformation(path, args)) {
                     if (isPch(args)) {
-                        index(path, args);
+                        toIndexPch[path] = args;
                     } else {
                         toIndex[path] = args;
                     }
-                } else {
-                    error() << "wanted to rebuild, but args not found!" << path;
                 }
             }
         } else {
             ++wit;
         }
     }
-    for (QHash<Path, QList<QByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
+    dirty(dirtyFiles);
+    for (QHash<Path, QList<QByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it)
         index(it.key(), it.value());
-    }
+    for (QHash<Path, QList<QByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it)
+        index(it.key(), it.value());
 
     foreach (const Path& path, pending) {
         it.value().insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
@@ -1025,4 +993,9 @@ void Indexer::onJobDone(int id, const QByteArray& input)
 void Indexer::setDefaultArgs(const QList<QByteArray> &args)
 {
     mImpl->defaultArgs = args;
+}
+
+void Indexer::dirty(const QSet<Path> &paths)
+{
+
 }
