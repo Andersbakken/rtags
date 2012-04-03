@@ -814,7 +814,7 @@ void IndexerJob::run()
     }
     emit done(mId, mIn);
     log(0) << "visited" << mIn << timer.elapsed()
-           << qPrintable(waitingForPch ? QString("%1 ms. Waited for pch").arg(waitingForPch) : QString());
+           << qPrintable(waitingForPch ? QString("Waited for pch: %1ms.").arg(waitingForPch) : QString());
 }
 
 Indexer* Indexer::sInst = 0;
