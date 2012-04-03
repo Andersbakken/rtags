@@ -1,25 +1,13 @@
+#include "Database.h"
 #include "Indexer.h"
+#include "Path.h"
 #include "RTags.h"
 #include "Rdm.h"
-#include "Path.h"
-#include "Database.h"
+#include "SHA256.h"
 #include "leveldb/db.h"
 #include "leveldb/write_batch.h"
-#include <QElapsedTimer>
-#include <QHash>
-#include <QThread>
-#include <QThreadPool>
-#include <QRunnable>
-#include <QWaitCondition>
-#include <QMutex>
-#include <QMutexLocker>
-#include <QSet>
-#include <QVector>
-#include <QDir>
-#include <QVarLengthArray>
-#include <QFileSystemWatcher>
 #include <Log.h>
-#include "SHA256.h"
+#include <QtCore>
 
 // #define RDM_TIMING
 #define SYNCINTERVAL 10
@@ -823,7 +811,8 @@ void IndexerJob::run()
         }
     }
     emit done(mId, mIn);
-    log(0) << "visited" << mIn << timer.elapsed() << "ms. Waited for pch" << waitingForPch;
+    log(0) << "visited" << mIn << timer.elapsed()
+           << qPrintable(waitingForPch ? QString("%1 ms. Waited for pch").arg(waitingForPch) : QString());
 }
 
 Indexer* Indexer::sInst = 0;
