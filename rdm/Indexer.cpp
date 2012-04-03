@@ -324,9 +324,12 @@ public:
     QList<QByteArray> defaultArgs;
 
     QFileSystemWatcher watcher;
-    DependencyHash dependencies;
+    DependencyHash dependencies, pchDeps;
+    mutable QReadWriteLock pchDependenciesLock;
     WatchedHash watched;
 
+    void setPchDependencies(const Path &pchHeader, const QSet<Path> &deps);
+    QSet<Path> pchDependencies(const Path &pchHeader) const;
     void commitDependencies(const DependencyHash& deps);
 };
 
@@ -367,6 +370,23 @@ inline void IndexerImpl::commitDependencies(const DependencyHash& deps)
     watcher.addPaths(watchPaths.toList());
 }
 
+void IndexerImpl::setPchDependencies(const Path &pchHeader, const QSet<Path> &deps)
+{
+    QWriteLocker lock(&pchDependenciesLock);
+    if (deps.isEmpty()) {
+        pchDeps.remove(pchHeader);
+    } else {
+        pchDeps[pchHeader] = deps;
+    }
+}
+
+QSet<Path> IndexerImpl::pchDependencies(const Path &pchHeader) const
+{
+    QReadLocker lock(&pchDependenciesLock);
+    return pchDeps.value(pchHeader);
+}
+
+
 struct Timestamp
 {
     Timestamp()
@@ -385,7 +405,7 @@ class IndexerJob : public QObject, public QRunnable
     Q_OBJECT
 public:
     IndexerJob(IndexerImpl* impl, int id,
-               const QByteArray& path, const QByteArray& input,
+               const Path& path, const Path& input,
                const QList<QByteArray>& arguments);
 
     int id() const { return mId; }
@@ -393,6 +413,7 @@ public:
     void run();
 
     int mId;
+    bool mIsPch;
     RTags::Location createLocation(CXCursor cursor);
     void addNamePermutations(CXCursor cursor, const RTags::Location &location);
 
@@ -401,9 +422,10 @@ public:
 
     QSet<Path> mPaths;
     QHash<RTags::Location, QPair<RTags::Location, bool> > mReferences;
-    QByteArray mPath, mIn;
+    Path mPath, mIn;
     QList<QByteArray> mArgs;
     DependencyHash mDependencies;
+    QSet<Path> mPchDependencies;
     IndexerImpl* mImpl;
 #ifdef RDM_TIMING
     QHash<int, Timestamp> mTimeStamps;
@@ -442,6 +464,9 @@ static void inclusionVisitor(CXFile included_file,
             clang_disposeString(originatingFn);
         } else {
             job->mDependencies[path].insert(path);
+        }
+        if (job->mIsPch) {
+            job->mPchDependencies.insert(path);
         }
     }
     clang_disposeString(fn);
@@ -639,15 +664,15 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
 }
 
 IndexerJob::IndexerJob(IndexerImpl* impl, int id,
-                       const QByteArray& path, const QByteArray& input,
+                       const Path& path, const Path& input,
                        const QList<QByteArray>& arguments)
-    : mId(id), mPath(path), mIn(input), mArgs(arguments), mImpl(impl)
+    : mId(id), mIsPch(false), mPath(path), mIn(input), mArgs(arguments), mImpl(impl)
 {
 }
 
-static inline QList<QByteArray> extractPchFiles(const QList<QByteArray>& args)
+static inline QList<Path> extractPchFiles(const QList<QByteArray>& args)
 {
-    QList<QByteArray> out;
+    QList<Path> out;
     bool nextIsPch = false;
     foreach (const QByteArray& arg, args) {
         if (arg.isEmpty())
@@ -673,19 +698,19 @@ void IndexerJob::run()
     QElapsedTimer timer;
     timer.start();
     QList<QByteArray> args = mArgs + mImpl->defaultArgs;
-    QList<QByteArray> pchFiles = extractPchFiles(args);
-    if (!pchFiles.isEmpty()) {
+    QList<Path> pchHeaders = extractPchFiles(args);
+    if (!pchHeaders.isEmpty()) {
         QMutexLocker locker(&mImpl->implMutex);
         bool wait;
         do {
             wait = false;
-            foreach (const QByteArray &pchFile, pchFiles) {
-                if (mImpl->pchHeaderError.contains(pchFile)) {
-                    int idx = args.indexOf(pchFile);
+            foreach (const QByteArray &pchHeader, pchHeaders) {
+                if (mImpl->pchHeaderError.contains(pchHeader)) {
+                    int idx = args.indexOf(pchHeader);
                     Q_ASSERT(idx > 0);
                     args.removeAt(idx);
                     args.removeAt(idx - 1);
-                } else if (mImpl->indexing.contains(pchFile)) {
+                } else if (mImpl->indexing.contains(pchHeader)) {
                     wait = true;
                     break;
                 }
@@ -701,8 +726,8 @@ void IndexerJob::run()
     QByteArray clangLine = "clang ";
     bool nextIsPch = false, nextIsX = false;
     QByteArray pchName;
-    bool isPch = false;
 
+    QList<Path> pchFiles;
     int idx = 0;
     foreach (const QByteArray& arg, args) {
         if (arg.isEmpty())
@@ -719,7 +744,7 @@ void IndexerJob::run()
 
         if (nextIsX) {
             nextIsX = false;
-            isPch = (arg == "c++-header" || arg == "c-header");
+            mIsPch = (arg == "c++-header" || arg == "c-header");
         }
         clangArgs[idx++] = arg.constData();
         clangLine += arg;
@@ -730,7 +755,7 @@ void IndexerJob::run()
             nextIsX = true;
         }
     }
-    if (isPch) {
+    if (mIsPch) {
         pchName = pchFileName(mImpl->path, mIn);
     }
     clangLine += mIn;
@@ -743,15 +768,20 @@ void IndexerJob::run()
     bool pchError = false;
 
     if (!unit) {
-        pchError = isPch;
+        pchError = mIsPch;
         error() << "got 0 unit for" << clangLine;
     } else {
         clang_getInclusions(unit, inclusionVisitor, this);
+        foreach(const Path &pchHeader, pchHeaders) {
+            foreach(const Path &dep, mImpl->pchDependencies(pchHeader)) {
+                mDependencies[dep].insert(mIn);
+            }
+        }
         QCoreApplication::postEvent(mImpl->indexer, new DependencyEvent(mDependencies));
 
         clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
         RDM_END_TIMESTAMP(mIn.constData());
-        if (isPch) {
+        if (mIsPch) {
             Q_ASSERT(!pchName.isEmpty());
             if (clang_saveTranslationUnit(unit, pchName.constData(), clang_defaultSaveOptions(unit)) != CXSaveError_None) {
                 error() << "Couldn't save pch file" << mIn << pchName;
@@ -802,9 +832,12 @@ void IndexerJob::run()
         mImpl->syncer->addSymbols(mSymbols);
         mImpl->syncer->addSymbolNames(mSymbolNames);
         mImpl->syncer->addFileInformation(mIn, mArgs);
+        if (mIsPch)
+            mImpl->setPchDependencies(mIn, mPchDependencies);
+
     }
     clang_disposeIndex(index);
-    if (isPch) {
+    if (mIsPch) {
         QMutexLocker locker(&mImpl->implMutex);
         if (pchError) {
             mImpl->pchHeaderError.insert(mIn);
@@ -893,6 +926,21 @@ void Indexer::customEvent(QEvent* e)
     }
 }
 
+static inline bool isPch(const QList<QByteArray> &args)
+{
+    const int size = args.size();
+    bool nextIsX = false;
+    for (int i=0; i<size; ++i) {
+        const QByteArray &arg = args.at(i);
+        if (nextIsX) {
+            return (arg == "c++-header" || arg == "c-header");
+        } else if (arg == "-x") { // ### this is not entirely safe, -xc++-header is allowed
+            nextIsX = true;
+        }
+    }
+    return false;
+}
+
 void Indexer::onDirectoryChanged(const QString& path)
 {
     const Path p = path.toLocal8Bit();
@@ -908,6 +956,7 @@ void Indexer::onDirectoryChanged(const QString& path)
     QSet<WatchedPair>::iterator wit = it.value().begin();
     QSet<WatchedPair>::const_iterator wend = it.value().end();
     QList<QByteArray> args;
+    QHash<Path, QList<QByteArray> > toIndex;
     while (wit != wend) {
         // weird API, QSet<>::iterator does not allow for modifications to the referenced value
         file = (p + (*wit).first);
@@ -926,14 +975,24 @@ void Indexer::onDirectoryChanged(const QString& path)
             foreach (const Path& path, dit.value()) {
                 // ### there is a gap here where if the syncer thread hasn't synced the file information
                 //     then fileInformation() would return 'false' even though it knows what args to return.
-                if (fileInformation(path, args))
-                    index(path, args);
-                else
+                if (fileInformation(path, args)) {
+                    if (isPch(args)) {
+                        index(path, args);
+                    } else {
+                        toIndex[path] = args;
+                    }
+                } else {
                     error() << "wanted to rebuild, but args not found!" << path;
+                }
             }
-        } else
+        } else {
             ++wit;
+        }
     }
+    for (QHash<Path, QList<QByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
+        index(it.key(), it.value());
+    }
+
     foreach (const Path& path, pending) {
         it.value().insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
     }
