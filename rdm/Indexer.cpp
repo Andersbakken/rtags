@@ -852,19 +852,22 @@ void Indexer::onDirectoryChanged(const QString& path)
         qDebug() << "directory changed, but not in watched list" << p;
         return;
     }
+
+    Path file;
     QList<Path> pending;
     QSet<WatchedPair>::iterator wit = it.value().begin();
     QSet<WatchedPair>::const_iterator wend = it.value().end();
     while (wit != wend) {
         // weird API, QSet<>::iterator does not allow for modifications to the referenced value
-        const WatchedPair& pair = *wit;
-        if (pair.first.lastModified() != pair.second) {
-            pending.append(pair.first);
+        file = (*wit).first;
+        if (file.lastModified() != (*wit).second) {
+            pending.append(file);
             wit = it.value().erase(wit);
             wend = it.value().end(); // ### do we need to update 'end' here?
-            DependencyHash::const_iterator dit = mImpl->dependencies.find(pair.first);
+
+            DependencyHash::const_iterator dit = mImpl->dependencies.find(file);
             if (dit == mImpl->dependencies.end()) {
-                qDebug() << "file modified but not in dependency list" << pair.first;
+                qDebug() << "file modified but not in dependency list" << file;
                 ++it;
                 continue;
             }
