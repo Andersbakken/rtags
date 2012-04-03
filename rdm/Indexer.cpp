@@ -908,12 +908,6 @@ void Indexer::onJobDone(int id, const QByteArray& input)
     emit indexingDone(id);
 }
 
-void Indexer::force()
-{
-    mImpl->syncer->notify();
-    // ### need to wait for syncer to write
-}
-
 void Indexer::setDefaultArgs(const QList<QByteArray> &args)
 {
     mImpl->defaultArgs = args;

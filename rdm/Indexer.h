@@ -19,7 +19,6 @@ public:
     int index(const QByteArray& input, const QList<QByteArray>& arguments);
 
     static Indexer* instance();
-    void force();
     void setDefaultArgs(const QList<QByteArray> &args);
 
 protected:
