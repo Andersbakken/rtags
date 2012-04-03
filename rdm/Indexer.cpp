@@ -306,9 +306,10 @@ static inline bool fileInformation(const Path& key, QList<QByteArray>& args)
         return false;
     Q_ASSERT(db);
 
-    args = Rdm::readValue<QList<QByteArray> >(db, key);
+    bool ok;
+    args = Rdm::readValue<QList<QByteArray> >(db, key, &ok);
     delete db;
-    return true;
+    return ok;
 }
 
 class IndexerImpl

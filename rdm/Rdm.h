@@ -65,16 +65,18 @@ static inline QDataStream &operator>>(QDataStream &ds, CursorInfo &ci)
     return ds;
 }
 
-template <typename T> T readValue(leveldb::DB *db, const char *key)
+template <typename T> T readValue(leveldb::DB *db, const char *key, bool *ok = 0)
 {
     T t;
     std::string value;
-    db->Get(leveldb::ReadOptions(), key, &value);
+    const leveldb::Status s = db->Get(leveldb::ReadOptions(), key, &value);
     if (!value.empty()) {
         const QByteArray v = QByteArray::fromRawData(value.c_str(), value.length());
         QDataStream ds(v);
         ds >> t;
     }
+    if (ok)
+        *ok = s.ok();
     return t;
 }
 
