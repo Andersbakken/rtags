@@ -31,6 +31,7 @@ typedef QHash<QByteArray, QSet<RTags::Location> > SymbolNameHash;
 typedef QHash<Path, QSet<Path> > DependencyHash;
 typedef QPair<Path, quint64> WatchedPair;
 typedef QHash<Path, QSet<WatchedPair> > WatchedHash;
+typedef QHash<Path, QList<QByteArray> > InformationHash;
 
 class DependencyEvent : public QEvent
 {
@@ -53,6 +54,7 @@ public:
     void addSymbols(const SymbolHash &data);
     void addSymbolNames(const SymbolNameHash &symbolNames);
     void addDependencies(const DependencyHash& dependencies);
+    void addFileInformation(const Path& input, const QList<QByteArray>& args);
     void notify();
     void stop();
 
@@ -66,6 +68,7 @@ private:
     SymbolHash mSymbols;
     SymbolNameHash mSymbolNames;
     DependencyHash mDependencies;
+    InformationHash mInformations;
 };
 
 IndexerSyncer::IndexerSyncer(QObject* parent)
@@ -125,6 +128,12 @@ void IndexerSyncer::addDependencies(const DependencyHash& dependencies)
     }
 }
 
+void IndexerSyncer::addFileInformation(const Path& input, const QList<QByteArray>& args)
+{
+    QMutexLocker lock(&mMutex);
+    mInformations[input] = args;
+}
+
 // template <typename ### the merging should be templatized
 
 void IndexerSyncer::run()
@@ -133,6 +142,7 @@ void IndexerSyncer::run()
         SymbolNameHash symbolNames;
         SymbolHash symbols;
         DependencyHash dependencies;
+        InformationHash informations;
         {
             QMutexLocker locker(&mMutex);
             if (mStopped)
@@ -146,6 +156,7 @@ void IndexerSyncer::run()
             qSwap(symbolNames, mSymbolNames);
             qSwap(symbols, mSymbols);
             qSwap(dependencies, mDependencies);
+            qSwap(informations, mInformations);
         }
         if (!symbolNames.isEmpty()) {
             leveldb::DB* db = 0;
@@ -252,7 +263,52 @@ void IndexerSyncer::run()
                 db->Write(leveldb::WriteOptions(), &batch);
             delete db;
         }
+        if (!informations.isEmpty()) {
+            leveldb::DB* db = 0;
+            leveldb::Options options;
+            options.create_if_missing = true;
+            const QByteArray name = Database::databaseName(Database::FileInformation);
+            if (name.isEmpty())
+                return;
+
+            leveldb::Status status = leveldb::DB::Open(options, name.constData(), &db);
+            if (!status.ok())
+                return;
+            Q_ASSERT(db);
+
+            leveldb::WriteBatch batch;
+
+            InformationHash::iterator it = informations.begin();
+            const InformationHash::const_iterator end = informations.end();
+            while (it != end) {
+                const char *key = it.key().constData();
+                Rdm::writeValue<QList<QByteArray> >(&batch, key, it.value());
+                ++it;
+            }
+
+            db->Write(leveldb::WriteOptions(), &batch);
+            delete db;
+        }
     }
+}
+
+static inline bool fileInformation(const Path& key, QList<QByteArray>& args)
+{
+    leveldb::DB* db = 0;
+    leveldb::Options options;
+    options.create_if_missing = true;
+    const QByteArray name = Database::databaseName(Database::FileInformation);
+    if (name.isEmpty())
+        return false;
+
+    leveldb::Status status = leveldb::DB::Open(options, name.constData(), &db);
+    if (!status.ok())
+        return false;
+    Q_ASSERT(db);
+
+    args = Rdm::readValue<QList<QByteArray> >(db, key);
+    delete db;
+    return true;
 }
 
 class IndexerImpl
@@ -309,7 +365,7 @@ inline void IndexerImpl::commitDependencies(const DependencyHash& deps)
         const Path& path = it.key();
         parentPath = path.parentDir();
         WatchedHash::iterator it = watched.find(parentPath);
-        //qDebug() << "watching" << path << "in" << parentPath;
+        //debug() << "watching" << path << "in" << parentPath;
         if (it == watched.end()) {
             watched[parentPath].insert(qMakePair(path, path.lastModified()));
             watchPaths.insert(QString::fromLocal8Bit(parentPath));
@@ -754,6 +810,7 @@ void IndexerJob::run()
         }
         mImpl->syncer->addSymbols(mSymbols);
         mImpl->syncer->addSymbolNames(mSymbolNames);
+        mImpl->syncer->addFileInformation(mIn, mArgs);
     }
     clang_disposeIndex(index);
     if (isPch) {
@@ -849,7 +906,7 @@ void Indexer::onDirectoryChanged(const QString& path)
     const Path p = path.toLocal8Bit();
     WatchedHash::iterator it = mImpl->watched.find(p);
     if (it == mImpl->watched.end()) {
-        qDebug() << "directory changed, but not in watched list" << p;
+        error() << "directory changed, but not in watched list" << p;
         return;
     }
 
@@ -857,6 +914,7 @@ void Indexer::onDirectoryChanged(const QString& path)
     QList<Path> pending;
     QSet<WatchedPair>::iterator wit = it.value().begin();
     QSet<WatchedPair>::const_iterator wend = it.value().end();
+    QList<QByteArray> args;
     while (wit != wend) {
         // weird API, QSet<>::iterator does not allow for modifications to the referenced value
         file = (*wit).first;
@@ -867,14 +925,18 @@ void Indexer::onDirectoryChanged(const QString& path)
 
             DependencyHash::const_iterator dit = mImpl->dependencies.find(file);
             if (dit == mImpl->dependencies.end()) {
-                qDebug() << "file modified but not in dependency list" << file;
+                error() << "file modified but not in dependency list" << file;
                 ++it;
                 continue;
             }
             Q_ASSERT(!dit.value().isEmpty());
             foreach(const Path& path, dit.value()) {
-                // ### rebuild files!
-                qDebug() << "should rebuild" << path;
+                // ### there is a gap here where if the syncer thread hasn't synced the file information
+                //     then fileInformation() would return 'false' even though it knows what args to return.
+                if (fileInformation(path, args))
+                    index(path, args);
+                else
+                    error() << "wanted to rebuild, but args not found!" << path;
             }
         } else
             ++wit;
