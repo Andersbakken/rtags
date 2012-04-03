@@ -423,6 +423,7 @@ static void inclusionVisitor(CXFile included_file,
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
     CXString fn = clang_getFileName(included_file);
     const char *cstr = clang_getCString(fn);
+    // ### make this configurable
     if ((strncmp("/usr/", cstr, 5) != 0)
         || (strncmp("/usr/home/", cstr, 10) == 0)) {
         Path path = Path::resolved(cstr);
