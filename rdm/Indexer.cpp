@@ -17,7 +17,7 @@ class IndexerJob;
 typedef QHash<RTags::Location, Rdm::CursorInfo> SymbolHash;
 typedef QHash<QByteArray, QSet<RTags::Location> > SymbolNameHash;
 typedef QHash<Path, QSet<Path> > DependencyHash;
-typedef QPair<Path, quint64> WatchedPair;
+typedef QPair<QByteArray, quint64> WatchedPair;
 typedef QHash<Path, QSet<WatchedPair> > WatchedHash;
 typedef QHash<Path, QList<QByteArray> > InformationHash;
 
@@ -356,10 +356,11 @@ inline void IndexerImpl::commitDependencies(const DependencyHash& deps)
         WatchedHash::iterator it = watched.find(parentPath);
         //debug() << "watching" << path << "in" << parentPath;
         if (it == watched.end()) {
-            watched[parentPath].insert(qMakePair(path, path.lastModified()));
+            watched[parentPath].insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
             watchPaths.insert(QString::fromLocal8Bit(parentPath));
-        } else
-            it.value().insert(qMakePair(path, path.lastModified()));
+        } else {
+            it.value().insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
+        }
     }
     if (watchPaths.isEmpty())
         return;
@@ -895,6 +896,7 @@ void Indexer::customEvent(QEvent* e)
 void Indexer::onDirectoryChanged(const QString& path)
 {
     const Path p = path.toLocal8Bit();
+    Q_ASSERT(p.endsWith('/'));
     WatchedHash::iterator it = mImpl->watched.find(p);
     if (it == mImpl->watched.end()) {
         error() << "directory changed, but not in watched list" << p;
@@ -908,7 +910,7 @@ void Indexer::onDirectoryChanged(const QString& path)
     QList<QByteArray> args;
     while (wit != wend) {
         // weird API, QSet<>::iterator does not allow for modifications to the referenced value
-        file = (*wit).first;
+        file = (p + (*wit).first);
         if (file.lastModified() != (*wit).second) {
             pending.append(file);
             wit = it.value().erase(wit);
@@ -933,7 +935,7 @@ void Indexer::onDirectoryChanged(const QString& path)
             ++wit;
     }
     foreach (const Path& path, pending) {
-        it.value().insert(qMakePair(path, path.lastModified()));
+        it.value().insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
     }
 }
 

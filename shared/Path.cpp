@@ -11,10 +11,12 @@ Path Path::parentDir() const
     int i = copy.size() - 1;
     while (copy.at(i) == '/')
         --i;
-    while (i > 0 && copy.at(i) != '/')
+    while (i >= 0 && copy.at(i) != '/')
         --i;
-    if (i > 0)
-        copy.truncate(i);
+    if (i < 0)
+        return Path();
+    copy.truncate(i + 1);
+    Q_ASSERT(copy.endsWith('/'));
     return copy;
 }
 
