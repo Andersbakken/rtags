@@ -43,7 +43,7 @@ void MatchJob::run()
             const int cmp = strcmp(partial.constData(), entry.constData());
             if (!cmp) {
                 const QSet<RTags::Location> locations = Rdm::readValue<QSet<RTags::Location> >(it);
-                foreach(const RTags::Location &loc, locations) {
+                foreach (const RTags::Location &loc, locations) {
                     result.append(loc.key(includeContext ? RTags::Location::ShowContext : RTags::Location::NoFlag));
                 }
             } else if (cmp > 0) {

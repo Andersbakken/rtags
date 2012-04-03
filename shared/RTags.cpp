@@ -45,7 +45,7 @@ QByteArray join(const QList<QByteArray> &list, const QByteArray &sep)
 {
     QByteArray ret;
     int size = qMax(0, list.size() - 1) * sep.size();
-    foreach(const QByteArray &l, list) {
+    foreach (const QByteArray &l, list) {
         size += l.size();
     }
     ret.reserve(size);

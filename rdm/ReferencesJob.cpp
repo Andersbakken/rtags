@@ -54,7 +54,7 @@ void ReferencesJob::run()
         cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
         refs = cursorInfo.references;
     }
-    foreach(const RTags::Location &loc, cursorInfo.references) {
+    foreach (const RTags::Location &loc, cursorInfo.references) {
         list.append(loc.key(includeContext ? RTags::Location::ShowContext : RTags::Location::NoFlag));
     }
     emit complete(id, list);

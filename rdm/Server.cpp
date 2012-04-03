@@ -105,7 +105,7 @@ void Server::onNewMessage(Message* message)
 static inline QList<QByteArray> pch(const AddMessage* message)
 {
     QList<QByteArray> out;
-    foreach(const QByteArray &arg, message->pchs()) {
+    foreach (const QByteArray &arg, message->pchs()) {
         if (!arg.isEmpty()) {
             switch (message->type()) {
             case RTags::CompileCPlusPlus:

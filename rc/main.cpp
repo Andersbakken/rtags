@@ -196,7 +196,7 @@ int main(int argc, char** argv)
         client.query(it->first, it->second, unsavedFiles);
         ++it;
     }
-    foreach(const QByteArray &makeFile, makeFiles) {
+    foreach (const QByteArray &makeFile, makeFiles) {
         client.parseMakefile(makeFile);
     }
     return 0;

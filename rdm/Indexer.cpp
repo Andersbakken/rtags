@@ -427,7 +427,7 @@ static void inclusionVisitor(CXFile included_file,
     if ((strncmp("/usr/", cstr, 5) != 0)
         || (strncmp("/usr/home/", cstr, 10) == 0)) {
         Path path = Path::resolved(cstr);
-        foreach(const QByteArray& arg, job->mImpl->defaultArgs) {
+        foreach (const QByteArray& arg, job->mImpl->defaultArgs) {
             if (arg.contains(path)) {
                 clang_disposeString(fn);
                 return;
@@ -648,7 +648,7 @@ static inline QList<QByteArray> extractPchFiles(const QList<QByteArray>& args)
 {
     QList<QByteArray> out;
     bool nextIsPch = false;
-    foreach(const QByteArray& arg, args) {
+    foreach (const QByteArray& arg, args) {
         if (arg.isEmpty())
             continue;
 
@@ -703,7 +703,7 @@ void IndexerJob::run()
     bool isPch = false;
 
     int idx = 0;
-    foreach(const QByteArray& arg, args) {
+    foreach (const QByteArray& arg, args) {
         if (arg.isEmpty())
             continue;
 
@@ -793,7 +793,7 @@ void IndexerJob::run()
                 }
             }
         }
-        foreach(const Path &path, mPaths) {
+        foreach (const Path &path, mPaths) {
             const RTags::Location loc(path, 1);
             mSymbolNames[path].insert(loc);
             mSymbolNames[path.fileName()].insert(loc);
@@ -921,7 +921,7 @@ void Indexer::onDirectoryChanged(const QString& path)
                 continue;
             }
             Q_ASSERT(!dit.value().isEmpty());
-            foreach(const Path& path, dit.value()) {
+            foreach (const Path& path, dit.value()) {
                 // ### there is a gap here where if the syncer thread hasn't synced the file information
                 //     then fileInformation() would return 'false' even though it knows what args to return.
                 if (fileInformation(path, args))
@@ -932,7 +932,7 @@ void Indexer::onDirectoryChanged(const QString& path)
         } else
             ++wit;
     }
-    foreach(const Path& path, pending) {
+    foreach (const Path& path, pending) {
         it.value().insert(qMakePair(path, path.lastModified()));
     }
 }

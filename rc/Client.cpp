@@ -50,7 +50,7 @@ void Client::onNewMessage(Message* message)
 {
     Q_ASSERT(mConn == sender());
     if (message->messageId() == QueryMessage::MessageId) {
-        foreach(const QByteArray& r, static_cast<QueryMessage*>(message)->query()) {
+        foreach (const QByteArray& r, static_cast<QueryMessage*>(message)->query()) {
             if (!r.isEmpty()) {
                 if ((mFlags & SkipParen) && r.contains("("))
                     continue;
@@ -79,7 +79,7 @@ QList<QByteArray> Client::mapPchToInput(const QList<QByteArray>& input)
     QList<QByteArray> output;
     QHash<QByteArray, QByteArray>::const_iterator pchit;
     const QHash<QByteArray, QByteArray>::const_iterator pchend = mPchs.end();
-    foreach(const QByteArray& in, input) {
+    foreach (const QByteArray& in, input) {
         pchit = mPchs.find(in);
         if (pchit != pchend)
             output.append(pchit.value());

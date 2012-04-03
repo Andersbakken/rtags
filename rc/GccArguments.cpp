@@ -117,7 +117,7 @@ bool GccArguments::parse(QByteArray args, const Path& base)
     bool pathok = false;
     char prevopt = '\1'; // skip the initial binary name
     gccopts_gperf gccopts;
-    foreach(const QByteArray& arg, split) {
+    foreach (const QByteArray& arg, split) {
         const char *cur = arg.constData();
         if (prevopt != '\0') {
             switch (prevopt) {
@@ -194,7 +194,7 @@ bool GccArguments::parse(QByteArray args, const Path& base)
 
     if (mImpl->inputFiles.isEmpty()) {
         warning("Unable to find or resolve input files");
-        foreach(const QByteArray& input, unresolvedInputs)
+        foreach (const QByteArray& input, unresolvedInputs)
             warning("  %s", input.constData());
         return false;
     }
@@ -233,7 +233,7 @@ QList<QByteArray> GccArguments::inputFiles() const
 QList<QByteArray> GccArguments::explicitIncludes() const
 {
     QList<QByteArray> incs;
-    foreach(const Path& p, mImpl->includes)
+    foreach (const Path& p, mImpl->includes)
         incs.append(p);
     return incs;
 }
