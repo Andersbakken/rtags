@@ -152,7 +152,6 @@ void IndexerSyncer::run()
                 return;
 
             leveldb::WriteBatch batch;
-            const leveldb::ReadOptions readopts;
 
             SymbolNameHash::iterator it = symbolNames.begin();
             const SymbolNameHash::const_iterator end = symbolNames.end();
@@ -179,7 +178,6 @@ void IndexerSyncer::run()
                 return;
 
             leveldb::WriteBatch batch;
-            const leveldb::ReadOptions readopts;
 
             SymbolHash::iterator it = symbols.begin();
             const SymbolHash::const_iterator end = symbols.end();
@@ -204,7 +202,6 @@ void IndexerSyncer::run()
                 return;
 
             leveldb::WriteBatch batch;
-            const leveldb::ReadOptions readopts;
 
             DependencyHash::iterator it = dependencies.begin();
             const DependencyHash::const_iterator end = dependencies.end();
@@ -269,6 +266,7 @@ public:
     QFileSystemWatcher watcher;
     DependencyHash dependencies, pchDeps;
     mutable QReadWriteLock pchDependenciesLock;
+    QMutex watchedMutex;
     WatchedHash watched;
 
     void setPchDependencies(const Path &pchHeader, const QSet<Path> &deps);
@@ -296,6 +294,7 @@ inline void IndexerImpl::commitDependencies(const DependencyHash& deps)
     Path parentPath;
     QSet<QString> watchPaths;
     const DependencyHash::const_iterator end = newDependencies.end();
+    QMutexLocker lock(&watchedMutex);
     for (DependencyHash::const_iterator it = newDependencies.begin(); it != end; ++it) {
         const Path& path = it.key();
         parentPath = path.parentDir();
@@ -346,7 +345,7 @@ struct Timestamp
 class IndexerJob : public QObject, public QRunnable
 {
     Q_OBJECT
-public:
+    public:
     IndexerJob(IndexerImpl* impl, int id,
                const Path& path, const Path& input,
                const QList<QByteArray>& arguments);
@@ -375,6 +374,30 @@ public:
 #endif
 signals:
     void done(int id, const QByteArray& input);
+};
+
+class DirtyJob : public QObject, public QRunnable
+{
+public:
+    DirtyJob(const QSet<Path> &dirty,
+             const QHash<Path, QList<QByteArray> > &toIndexPch,
+             const QHash<Path, QList<QByteArray> > &toIndex)
+        : mDirty(dirty), mToIndexPch(toIndexPch), mToIndex(toIndex)
+    {}
+
+    virtual void run()
+    {
+        dirty();
+        Indexer *indexer = Indexer::instance();
+        for (QHash<Path, QList<QByteArray> >::const_iterator it = mToIndexPch.begin(); it != mToIndexPch.end(); ++it)
+            indexer->index(it.key(), it.value());
+        for (QHash<Path, QList<QByteArray> >::const_iterator it = mToIndex.begin(); it != mToIndex.end(); ++it)
+            indexer->index(it.key(), it.value());
+    }
+    void dirty();
+private:
+    const QSet<Path> mDirty;
+    const QHash<Path, QList<QByteArray> > mToIndexPch, mToIndex;
 };
 
 #include "Indexer.moc"
@@ -889,6 +912,7 @@ void Indexer::onDirectoryChanged(const QString& path)
 {
     const Path p = path.toLocal8Bit();
     Q_ASSERT(p.endsWith('/'));
+    QMutexLocker lock(&mImpl->watchedMutex);
     WatchedHash::iterator it = mImpl->watched.find(p);
     if (it == mImpl->watched.end()) {
         error() << "directory changed, but not in watched list" << p;
@@ -905,7 +929,7 @@ void Indexer::onDirectoryChanged(const QString& path)
 
     LevelDB db;
     QByteArray err;
-    if (db.open(Database::FileInformation, LevelDB::ReadOnly, &err)) {
+    if (!db.open(Database::FileInformation, LevelDB::ReadOnly, &err)) {
         // ### there is a gap here where if the syncer thread hasn't synced the file information
         //     then fileInformation() would return 'false' even though it knows what args to return.
         error("Can't open FileInformation database %s %s\n",
@@ -916,7 +940,7 @@ void Indexer::onDirectoryChanged(const QString& path)
     while (wit != wend) {
         // weird API, QSet<>::iterator does not allow for modifications to the referenced value
         file = (p + (*wit).first);
-        if (file.lastModified() != (*wit).second) {
+        if (!file.exists() || file.lastModified() != (*wit).second) {
             dirtyFiles.insert(file);
             pending.append(file);
             wit = it.value().erase(wit);
@@ -931,15 +955,16 @@ void Indexer::onDirectoryChanged(const QString& path)
             Q_ASSERT(!dit.value().isEmpty());
             foreach (const Path& path, dit.value()) {
                 dirtyFiles.insert(path);
+                if (path.exists()) {
+                    bool ok;
+                    args = Rdm::readValue<QList<QByteArray> >(db.db(), path, &ok);
 
-                bool ok;
-                args = Rdm::readValue<QList<QByteArray> >(db.db(), path, &ok);
-
-                if (ok) {
-                    if (isPch(args)) {
-                        toIndexPch[path] = args;
-                    } else {
-                        toIndex[path] = args;
+                    if (ok) {
+                        if (isPch(args)) {
+                            toIndexPch[path] = args;
+                        } else {
+                            toIndex[path] = args;
+                        }
                     }
                 }
             }
@@ -947,22 +972,19 @@ void Indexer::onDirectoryChanged(const QString& path)
             ++wit;
         }
     }
-    dirty(dirtyFiles);
-    for (QHash<Path, QList<QByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it)
-        index(it.key(), it.value());
-    for (QHash<Path, QList<QByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it)
-        index(it.key(), it.value());
 
     foreach (const Path& path, pending) {
         it.value().insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
     }
+    lock.unlock();
+    QThreadPool::globalInstance()->start(new DirtyJob(dirtyFiles, toIndexPch, toIndex));
 }
 
 void Indexer::onJobDone(int id, const QByteArray& input)
 {
     Q_UNUSED(input)
 
-    QMutexLocker locker(&mImpl->implMutex);
+        QMutexLocker locker(&mImpl->implMutex);
     mImpl->jobs.remove(id);
     if (mImpl->indexing.remove(input))
         mImpl->implCond.wakeAll();
@@ -987,7 +1009,93 @@ void Indexer::setDefaultArgs(const QList<QByteArray> &args)
     mImpl->defaultArgs = args;
 }
 
-void Indexer::dirty(const QSet<Path> &paths)
+void DirtyJob::dirty()
 {
+    // ### we should probably have a thread or something that stats each file we have in the db and calls dirty if the file is gone
+    const leveldb::WriteOptions writeOptions;
+    debug() << "DirtyJob::dirty" << mDirty;
+    {
+        LevelDB db;
+        QByteArray err;
+        if (!db.open(Database::Symbol, LevelDB::ReadWrite, &err)) {
+            error("Can't open symbol database %s %s\n",
+                  Database::databaseName(Database::Symbol).constData(),
+                  err.constData());
+        }
+        leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
+        leveldb::WriteBatch batch;
+        bool writeBatch = false;
+        it->SeekToFirst();
+        while (it->Valid()) {
+            const leveldb::Slice key = it->key();
+            debug() << "looking at" << key.data();
+            const int comma = QByteArray::fromRawData(key.data(), key.size()).lastIndexOf(',');
+            Q_ASSERT(comma != -1);
+            const Path p = QByteArray::fromRawData(key.data(), comma);
+            if (mDirty.contains(p)) {
+                debug() << "key is dirty. removing" << key.data();
+                batch.Delete(key);
+                writeBatch = true;
+            } else {
+                Rdm::CursorInfo cursorInfo = Rdm::readValue<Rdm::CursorInfo>(it);
+                if (cursorInfo.dirty(mDirty)) {
+                    writeBatch = true;
+                    if (cursorInfo.target.isNull() && cursorInfo.references.isEmpty()) {
+                        debug() << "CursorInfo is empty now. removing" << key.data();
+                        batch.Delete(key);
+                    } else {
+                        debug() << "CursorInfo is modified. Changing" << key.data();
+                        Rdm::writeValue<Rdm::CursorInfo>(&batch, key.data(), cursorInfo);
+                    }
+                }
+            }
+            it->Next();
+        }
+        delete it;
+        if (writeBatch) {
+            db.db()->Write(writeOptions, &batch);
+        }
+    }
 
+    {
+        LevelDB db;
+        QByteArray err;
+        if (!db.open(Database::SymbolName, LevelDB::ReadWrite, &err)) {
+            error("Can't open symbol name database %s %s\n",
+                  Database::databaseName(Database::SymbolName).constData(),
+                  err.constData());
+        }
+        leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
+        leveldb::WriteBatch batch;
+        bool writeBatch = false;
+        it->SeekToFirst();
+        while (it->Valid()) {
+            QSet<RTags::Location> locations = Rdm::readValue<QSet<RTags::Location> >(it);
+            QSet<RTags::Location>::iterator i = locations.begin();
+            bool changed = false;
+            while (i != locations.end()) {
+                if (mDirty.contains((*i).path)) {
+                    changed = true;
+                    i = locations.erase(i);
+                } else {
+                    ++i;
+                }
+            }
+            if (changed) {
+                writeBatch = true;
+                if (locations.isEmpty()) {
+                    debug() << "No references to" << it->key().data() << "anymore. Removing";
+                    batch.Delete(it->key());
+                } else {
+                    debug() << "References to" << it->key().data() << "modified. Changing";
+                    Rdm::writeValue<QSet<RTags::Location> >(&batch, it->key().data(), locations);
+                }
+            }
+            it->Next();
+        }
+        delete it;
+        if (writeBatch) {
+            db.db()->Write(writeOptions, &batch);
+        }
+    }
 }

@@ -15,6 +15,7 @@ public:
         ReadWrite
     };
     bool open(Database::Type type, Mode mode, QByteArray *error = 0);
+    void close();
     leveldb::DB *db() const { return mDB; }
 private:
     leveldb::DB *mDB;

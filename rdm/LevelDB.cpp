@@ -13,9 +13,16 @@ LevelDB::LevelDB()
 
 LevelDB::~LevelDB()
 {
+    close();
+}
+
+void LevelDB::close()
+{
     if (mDB) {
         readWriteLocks()->locks[mType].unlock();
         delete mDB;
+        mDB = 0;
+        mType = -1;
     }
 }
 bool LevelDB::open(Database::Type type, Mode mode, QByteArray *error)

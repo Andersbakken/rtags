@@ -85,7 +85,7 @@ int main(int argc, char** argv)
         return false;
     }
 
-    warning("Running with %d jobs\n", jobs);
+    warning("Running with %d jobs", jobs);
 
     Server server;
     if (!server.init(options, defaultArguments))

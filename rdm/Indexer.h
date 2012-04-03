@@ -20,7 +20,6 @@ public:
 
     static Indexer* instance();
     void setDefaultArgs(const QList<QByteArray> &args);
-    void dirty(const QSet<Path> &paths);
 protected:
     void customEvent(QEvent* event);
 

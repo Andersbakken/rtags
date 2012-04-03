@@ -39,6 +39,28 @@ public:
         }
         return *this;
     }
+    template <typename K, typename V> Log &operator<<(const QHash<K, V> &hash)
+    {
+        if (mData) {
+            QVariant v(K());
+            QByteArray out = "QHash<";
+            if (!mData->out.isEmpty())
+                out.prepend('\n');
+            out += v.typeName();
+            v = V();
+            out += ", ";
+            out += v.typeName();
+            out += ">(";
+            *mData->dbg << out.constData();
+            for (typename QHash<K, V>::const_iterator it = hash.begin(); it != hash.end(); ++it) {
+                *mData->dbg << it.key() << ": " << it.value();
+            }
+            *mData->dbg << ")\n";
+            return *this;
+        }
+        return *this;
+    }
+
 private:
     class Data : public QSharedData
     {

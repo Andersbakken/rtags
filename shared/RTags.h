@@ -37,6 +37,12 @@ struct Location {
         return !offset;
     }
 
+    void clear()
+    {
+        path.clear();
+        offset = 0;
+    }
+
     inline bool operator==(const Location &other) const
     {
         return offset == other.offset && path == other.path;

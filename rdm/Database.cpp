@@ -1,6 +1,5 @@
 #include "Database.h"
 #include "DumpJob.h"
-#include "PokeJob.h"
 #include "FollowLocationJob.h"
 #include "Indexer.h"
 #include "MatchJob.h"
@@ -184,7 +183,7 @@ int Database::status(const QueryMessage &)
 }
 
 
-static const char* const dbNames[] = { "/dependencies.db", "/symbols.db", "/symbolnames.db", "/fileinfos.db" };
+static const char* const dbNames[] = { "dependencies.db", "symbols.db", "symbolnames.db", "fileinfos.db" };
 
 QByteArray Database::databaseName(Type type)
 {
@@ -196,5 +195,6 @@ QByteArray Database::databaseName(Type type)
 void Database::setBaseDirectory(const QByteArray& base)
 {
     sBase = base;
+    Q_ASSERT(sBase.endsWith('/'));
 }
 

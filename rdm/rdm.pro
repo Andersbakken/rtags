@@ -23,7 +23,6 @@ SOURCES += \
     ReferencesJob.cpp \
     Rdm.cpp \
     StatusJob.cpp \
-    PokeJob.cpp \
     LevelDB.cpp
 
 HEADERS += \
@@ -38,6 +37,5 @@ HEADERS += \
     ReferencesJob.h \
     Rdm.h \
     StatusJob.h \
-    PokeJob.h \
     Source.h \
     LevelDB.h

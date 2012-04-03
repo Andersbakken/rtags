@@ -21,6 +21,25 @@ struct CursorInfo {
     RTags::Location target;
     QSet<RTags::Location> references;
     CXCursorKind kind;
+    bool dirty(const QSet<Path> &paths)
+    {
+        bool changed = false;
+        if (paths.contains(target.path)) {
+            changed = true;
+            target.clear();
+        }
+
+        QSet<RTags::Location>::iterator it = references.begin();
+        while (it != references.end()) {
+            if (paths.contains((*it).path)) {
+                changed = true;
+                it = references.erase(it);
+            } else {
+                ++it;
+            }
+        }
+        return changed;
+    }
     bool unite(const CursorInfo &other)
     {
         if (!symbolLength) {

@@ -21,9 +21,9 @@ static void help(FILE *f, const char* app)
             "  --skip-paren|-p               Skip parens in Makefile parsing\n"
             "  --follow-location|-f [arg]    Follow this location\n"
             "  --makefile|-m [arg]           Process this makefile\n"
-            "  --reference-name|-n [arg]     Find references matching arg\n"
-            "  --reference-location|-l [arg] Find references matching this location\n"
-            "  --recompile|-r [arg]          Recompile this source file\n"
+            "  --reference-name|-R [arg]     Find references matching arg\n"
+            "  --reference-location|-r [arg] Find references matching this location\n"
+            "  --recompile|-M [arg]          Recompile this source file\n"
             "  --list-symbols|-S [arg]       List symbol names matching arg\n"
             "  --find-symbols|-F [arg]       Find symbols matching arg\n"
             "  --dump|-d [arg]               Dump AST tree of arg \n"
@@ -48,9 +48,9 @@ int main(int argc, char** argv)
         { "help", no_argument, 0, 'h' },
         { "follow-location", required_argument, 0, 'f' },
         { "makefile", required_argument, 0, 'm' },
-        { "reference-name", required_argument, 0, 'n' },
-        { "reference-location", required_argument, 0, 'l' },
-        { "recompile", required_argument, 0, 'r' },
+        { "reference-name", required_argument, 0, 'R' },
+        { "reference-location", required_argument, 0, 'r' },
+        { "recompile", required_argument, 0, 'M' },
         { "list-symbols", optional_argument, 0, 'S' },
         { "find-symbols", required_argument, 0, 'F' },
         { "dump", required_argument, 0, 'd' },
@@ -124,14 +124,14 @@ int main(int argc, char** argv)
             }
             break;
         case 'f':
-        case 'l': {
+        case 'r': {
             QByteArray resolved;
             RTags::Location loc;
             if (!RTags::makeLocation(optarg, &loc, &resolved)) {
                 qWarning("Can't resolve argument %s", optarg);
                 return 1;
             }
-            optlist.append(qMakePair((c == 'l'
+            optlist.append(qMakePair((c == 'r'
                                       ? QueryMessage::ReferencesLocation
                                       : QueryMessage::FollowLocation), resolved));
             break; }
@@ -141,10 +141,10 @@ int main(int argc, char** argv)
         case 's':
             optlist.append(qMakePair(QueryMessage::Status, QByteArray()));
             break;
-        case 'n':
+        case 'R':
             optlist.append(qMakePair(QueryMessage::ReferencesName, QByteArray(optarg)));
             break;
-        case 'r':
+        case 'M':
             optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Recompile, Path::resolved(optarg)));
             break;
         case 'P':
