@@ -5,6 +5,7 @@
 #include <QDebug>
 #include <QExplicitlySharedDataPointer>
 #include <QSharedData>
+#include <QVariant>
 
 enum LogLevel {
     Error = 0,
@@ -42,15 +43,21 @@ public:
     template <typename K, typename V> Log &operator<<(const QHash<K, V> &hash)
     {
         if (mData) {
-            QVariant v(K());
             QByteArray out = "QHash<";
-            if (!mData->out.isEmpty())
-                out.prepend('\n');
-            out += v.typeName();
-            v = V();
+            {
+                const K key;
+                const QVariant variant = qVariantFromValue<K>(key);
+                if (!mData->out.isEmpty())
+                    out.prepend('\n');
+                out += variant.typeName();
+            }
             out += ", ";
-            out += v.typeName();
-            out += ">(";
+            {
+                const V value;
+                QVariant variant = qVariantFromValue<V>(value);
+                out += variant.typeName();
+                out += ">(";
+            }
             *mData->dbg << out.constData();
             for (typename QHash<K, V>::const_iterator it = hash.begin(); it != hash.end(); ++it) {
                 *mData->dbg << it.key() << ": " << it.value();

@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <qbytearray.h>
 #include <QMetaObject>
+#include <QMetaType>
+#include <QSet>
 
 class Path : public QByteArray
 {
@@ -73,6 +75,9 @@ public:
     static Path resolved(const QByteArray &path, const Path &cwd = Path(), bool *ok = 0);
     static Path canonicalized(const QByteArray &path);
 };
+
+Q_DECLARE_METATYPE(Path);
+Q_DECLARE_METATYPE(QSet<Path>);
 
 static inline QDataStream &operator<<(QDataStream &ds, const Path &path)
 {
