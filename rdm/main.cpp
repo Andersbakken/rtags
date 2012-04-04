@@ -16,6 +16,7 @@ void usage(FILE *f)
             "  --help|-h               Display this page\n"
             "  --include-path|-I [arg] Add additional include path to clang\n"
             "  --include|-i [arg]      Add additional include directive to clang\n"
+            "  --define|-D [arg]       Add additional define directive to clang\n"
             "  --log-file|-L [arg]     Log to this file\n"
             "  --append|-A             Append to log file\n"
             "  --verbose|-v            Change verbosity, multiple -v's are allowed\n"
@@ -29,6 +30,7 @@ int main(int argc, char** argv)
         { "help", no_argument, 0, 'h' },
         { "include-path", required_argument, 0, 'I' },
         { "include", required_argument, 0, 'i' },
+        { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
         { "append", no_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
@@ -62,6 +64,9 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Can't parse argument to -j %s", optarg);
                 return 1;
             }
+            break;
+        case 'D':
+            defaultArguments.append("-D" + QByteArray(optarg));
             break;
         case 'I':
             defaultArguments.append("-I" + QByteArray(optarg));
