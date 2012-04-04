@@ -133,7 +133,8 @@ void IndexerSyncer::run()
             QMutexLocker locker(&mMutex);
             if (mStopped)
                 return;
-            while (mSymbols.isEmpty() && mSymbolNames.isEmpty()) {
+            while (mSymbols.isEmpty() && mSymbolNames.isEmpty()
+                   && mDependencies.isEmpty() && mInformations.isEmpty()) {
                 mCond.wait(&mMutex, 10000);
                 if (mStopped)
                     return;
@@ -283,12 +284,15 @@ inline void IndexerImpl::commitDependencies(const DependencyHash& deps, bool syn
         const DependencyHash::const_iterator end = deps.end();
         for (DependencyHash::const_iterator it = deps.begin(); it != end; ++it) {
             newDependencies[it.key()].unite(it.value() - dependencies[it.key()]);
+            DependencyHash::iterator i = newDependencies.find(it.key());
+            if (i.value().isEmpty())
+                newDependencies.erase(i);
             dependencies[it.key()].unite(it.value());
         }
     }
-
-    if (sync)
+    if (sync && !newDependencies.isEmpty())
         syncer->addDependencies(newDependencies);
+    
 
     Path parentPath;
     QSet<QString> watchPaths;
