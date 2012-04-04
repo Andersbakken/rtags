@@ -17,7 +17,8 @@ void ReferencesJob::run()
 {
     LevelDB db;
     if (!symbolName.isEmpty()) {
-        if (!db.open(Database::Symbol, LevelDB::ReadOnly)) {
+#warning this code is not right
+        if (!db.open(Database::SymbolName, LevelDB::ReadOnly)) {
             emit complete(id, QList<QByteArray>());
             return;
         }
@@ -28,6 +29,7 @@ void ReferencesJob::run()
             return;
         }
         location = RTags::Location::fromKey(QByteArray::fromRawData(value.c_str(), value.size()));
+        db.close();
     }
     if (!db.db() && !db.open(Database::Symbol, LevelDB::ReadOnly)) {
         emit complete(id, QList<QByteArray>());
