@@ -122,8 +122,6 @@ void IndexerSyncer::addFileInformation(const Path& input, const QList<QByteArray
     mInformations[input] = args;
 }
 
-// template <typename ### the merging should be templatized
-
 void IndexerSyncer::run()
 {
     while (true) {

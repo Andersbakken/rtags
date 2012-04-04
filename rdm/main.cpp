@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <Log.h>
+#include <RTags.h>
 
 void usage(FILE *f)
 {
@@ -18,6 +19,7 @@ void usage(FILE *f)
             "  --log-file|-L [arg]     Log to this file\n"
             "  --append|-A             Append to log file\n"
             "  --verbose|-v            Change verbosity, multiple -v's are allowed\n"
+            "  --clean-slate|-C        Start from a clean slate\n"
             "  --thread-count|-j [arg] Spawn this many threads for thread pool\n");
 }
 
@@ -31,6 +33,7 @@ int main(int argc, char** argv)
         { "append", no_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
         { "thread-count", required_argument, 0, 'j' },
+        { "clean-slate", no_argument, 0, 'C' },
         { 0, 0, 0, 0 }
     };
 
@@ -40,15 +43,19 @@ int main(int argc, char** argv)
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;
+    const QByteArray shortOptions = RTags::shortOptions(opts);
 
     forever {
-        const int c = getopt_long(argc, argv, "hI:i:L:j:nvA", opts, 0);
+        const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
         if (c == -1)
             break;
         switch (c) {
         case 'h':
             usage(stdout);
             return 0;
+        case 'C':
+            RTags::removeDirectory(ASTPATH);
+            break;
         case 'j':
             jobs = atoi(optarg);
             if (jobs <= 0) {

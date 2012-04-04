@@ -60,20 +60,6 @@ int Database::nextId()
     return mImpl->jobId;
 }
 
-
-int Database::poke(const QueryMessage &query)
-{
-    const int id = nextId();
-    // const bool exists = Resource(query.query().front()).exists(Resource::Information);
-    // QMetaObject::invokeMethod(this, "complete", Qt::QueuedConnection,
-    //                           Q_ARG(int, id),
-    //                           Q_ARG(QList<QByteArray>, QList<QByteArray>() << (exists ? "success" : "failure")));
-    // PokeJob* job = new PokeJob(query.query().first(), id);
-    // QThreadPool::globalInstance()->start(job);
-    return id;
-
-}
-
 int Database::followLocation(const QueryMessage &query)
 {
     RTags::Location loc;

@@ -13,8 +13,6 @@
 #include <stdio.h>
 #include <Log.h>
 
-#define ASTPATH "/tmp/rdm/"
-
 Server::Server(QObject* parent)
     : QObject(parent),
       mIndexer(new Indexer(ASTPATH, this)),
@@ -159,9 +157,6 @@ void Server::handleQueryMessage(QueryMessage* message)
         break;
     case QueryMessage::Status:
         id = mDb->status(*message);
-        break;
-    case QueryMessage::Poke:
-        id = mDb->poke(*message);
         break;
     }
     if (!id) {

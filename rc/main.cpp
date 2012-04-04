@@ -33,7 +33,6 @@ static void help(FILE *f, const char* app)
             "  --log-file|-L [file]          Log to this file\n"
             "  --append|-A                   Append to log file\n"
             "  --no-context|-N               Don't print context for locations\n"
-            "  --poke|-P                     Poke file\n"
             "  --status|-s                   Dump status of rdm\n",
             app);
 }
@@ -61,7 +60,6 @@ int main(int argc, char** argv)
         { "append", no_argument, 0, 'A' },
         { "no-context", no_argument, 0, 'N' },
         { "status", no_argument, 0, 's' },
-        { "poke", required_argument, 0, 'P' },
         { 0, 0, 0, 0 }
     };
 
@@ -146,9 +144,6 @@ int main(int argc, char** argv)
             break;
         case 'M':
             optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Recompile, Path::resolved(optarg)));
-            break;
-        case 'P':
-            optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Poke, Path::resolved(optarg)));
             break;
         case 'S':
             if (optarg) {

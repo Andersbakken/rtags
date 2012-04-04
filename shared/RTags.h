@@ -14,6 +14,8 @@ enum UnitType { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };
 
 QByteArray shortOptions(const option *longOptions);
 int readLine(FILE *f, char *buf, int max);
+int removeDirectory(const char *path);
+
 static inline int digits(int len)
 {
     int ret = 1;

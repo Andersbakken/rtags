@@ -15,6 +15,10 @@ class QueryMessage;
 class ErrorMessage;
 class QTcpServer;
 
+#ifndef ASTPATH
+#define ASTPATH "/tmp/rdm/"
+#endif
+
 class Server : public QObject
 {
     Q_OBJECT
