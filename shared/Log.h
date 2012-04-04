@@ -56,13 +56,18 @@ public:
                 const V value;
                 QVariant variant = qVariantFromValue<V>(value);
                 out += variant.typeName();
+                if (out.endsWith('>'))
+                    out += ' ';
                 out += ">(";
             }
             *mData->dbg << out.constData();
+            mData->dbg->nospace() << '\n';
             for (typename QHash<K, V>::const_iterator it = hash.begin(); it != hash.end(); ++it) {
-                *mData->dbg << it.key() << ": " << it.value();
+                mData->dbg->nospace() << "  " << it.key() << ": " << it.value();
+                mData->dbg->nospace() << '\n';
             }
             *mData->dbg << ")\n";
+            mData->dbg->maybeSpace();
             return *this;
         }
         return *this;
