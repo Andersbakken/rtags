@@ -19,7 +19,7 @@ protected:
     void run();
 private:
     const int id;
-    RTags::Location location;
+    QSet<RTags::Location> locations;
     const QByteArray symbolName;
     const bool includeContext;
 };

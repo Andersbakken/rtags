@@ -45,6 +45,7 @@ int main(int argc, char** argv)
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;
+    bool clearedDataDir = false;
     const QByteArray shortOptions = RTags::shortOptions(opts);
 
     forever {
@@ -57,6 +58,7 @@ int main(int argc, char** argv)
             return 0;
         case 'C':
             RTags::removeDirectory(ASTPATH);
+            clearedDataDir = true;
             break;
         case 'j':
             jobs = atoi(optarg);
@@ -96,6 +98,8 @@ int main(int argc, char** argv)
                 logLevel, logFile ? logFile : "", logFlags);
         return false;
     }
+    if (clearedDataDir)
+        warning("Removing contents of cache directory [%s]", ASTPATH);
 
     warning("Running with %d jobs", jobs);
 
