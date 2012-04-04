@@ -269,10 +269,10 @@ public:
 
     void setPchDependencies(const Path &pchHeader, const QSet<Path> &deps);
     QSet<Path> pchDependencies(const Path &pchHeader) const;
-    void commitDependencies(const DependencyHash& deps);
+    void commitDependencies(const DependencyHash& deps, bool sync);
 };
 
-inline void IndexerImpl::commitDependencies(const DependencyHash& deps)
+inline void IndexerImpl::commitDependencies(const DependencyHash& deps, bool sync)
 {
     DependencyHash newDependencies;
 
@@ -287,7 +287,8 @@ inline void IndexerImpl::commitDependencies(const DependencyHash& deps)
         }
     }
 
-    syncer->addDependencies(newDependencies);
+    if (sync)
+        syncer->addDependencies(newDependencies);
 
     Path parentPath;
     QSet<QString> watchPaths;
@@ -839,6 +840,7 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
     connect(&mImpl->watcher, SIGNAL(directoryChanged(QString)),
             this, SLOT(onDirectoryChanged(QString)));
 
+    initWatcher();
     sInst = this;
 }
 
@@ -887,7 +889,7 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
 void Indexer::customEvent(QEvent* e)
 {
     if (e->type() == static_cast<QEvent::Type>(DependencyEvent::Type)) {
-        mImpl->commitDependencies(static_cast<DependencyEvent*>(e)->deps);
+        mImpl->commitDependencies(static_cast<DependencyEvent*>(e)->deps, true);
     }
 }
 
@@ -1096,4 +1098,27 @@ void DirtyJob::dirty()
             db.db()->Write(writeOptions, &batch);
         }
     }
+}
+
+void Indexer::initWatcher()
+{
+    LevelDB db;
+    if (!db.open(Database::Dependency, LevelDB::ReadOnly))
+        return;
+
+    leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
+    it->SeekToFirst();
+    DependencyHash dependencies;
+    while (it->Valid()) {
+        const leveldb::Slice key = it->key();
+        const Path file(key.data(), key.size());
+        const QSet<Path> deps = Rdm::readValue<QSet<Path> >(it);
+        dependencies[file] = deps;
+        it->Next();
+    }
+    mImpl->commitDependencies(dependencies, false);
+
+    delete it;
+
+
 }

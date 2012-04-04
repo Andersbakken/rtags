@@ -15,9 +15,9 @@
 
 Server::Server(QObject* parent)
     : QObject(parent),
-      mIndexer(new Indexer(ASTPATH, this)),
-      mDb(new Database(this)),
-      mServer(new QTcpServer(this)),
+      mDb(0),
+      mIndexer(0),
+      mServer(0),
       mVerbose(false)
 {
 }
@@ -28,6 +28,9 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
     mDefaultArgs = defaultArguments;
     Messages::init();
     Database::setBaseDirectory(ASTPATH);
+    mDb = new Database(this);
+    mServer = new QTcpServer(this);
+    mIndexer = new Indexer(ASTPATH, this);
 
     if (!mServer->listen(QHostAddress::Any, Connection::Port)) {
         qWarning("Unable to listen to port %d", Connection::Port);

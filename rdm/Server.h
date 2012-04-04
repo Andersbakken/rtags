@@ -42,8 +42,8 @@ private:
 
 private:
     unsigned mOptions;
-    Indexer* mIndexer;
     Database* mDb;
+    Indexer* mIndexer;
     QTcpServer* mServer;
     QHash<int, Connection*> mPendingIndexes;
     QHash<int, Connection*> mPendingLookups;

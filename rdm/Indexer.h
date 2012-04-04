@@ -31,6 +31,7 @@ private slots:
     void onDirectoryChanged(const QString& path);
 
 private:
+    void initWatcher();
     IndexerImpl* mImpl;
     static Indexer* sInst;
 };
