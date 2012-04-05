@@ -23,7 +23,9 @@ SOURCES += \
     ReferencesJob.cpp \
     Rdm.cpp \
     StatusJob.cpp \
-    LevelDB.cpp
+    IndexerJob.cpp \
+    LevelDB.cpp \
+    IndexerSyncer.cpp
 
 HEADERS += \
     Indexer.h \
@@ -37,5 +39,10 @@ HEADERS += \
     ReferencesJob.h \
     Rdm.h \
     StatusJob.h \
+    IndexerJob.h \
     Source.h \
-    LevelDB.h
+    LevelDB.h \
+    IndexerImpl.h \
+    DependencyEvent.h \
+    IndexerSyncer.h \
+    DirtyJob.h

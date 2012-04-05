@@ -5,9 +5,16 @@
 #include <QByteArray>
 #include <QList>
 #include <AddMessage.h>
+#include "Rdm.h"
+
+typedef QHash<RTags::Location, Rdm::CursorInfo> SymbolHash;
+typedef QHash<QByteArray, QSet<RTags::Location> > SymbolNameHash;
+typedef QHash<Path, QSet<Path> > DependencyHash;
+typedef QPair<QByteArray, quint64> WatchedPair;
+typedef QHash<Path, QSet<WatchedPair> > WatchedHash;
+typedef QHash<Path, QList<QByteArray> > InformationHash;
 
 class IndexerImpl;
-
 class Indexer : public QObject
 {
     Q_OBJECT
