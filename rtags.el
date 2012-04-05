@@ -81,7 +81,7 @@ return t if rtags is allowed to modify this file"
   (let ((arg (format "%s:%d" (buffer-file-name) (point))))
     (kill-buffer "*RTags-Complete*"))
     (switch-to-buffer (generate-new-buffer "*RTags-Complete*"))
-    (rtags-call-rc "-l" arg)
+    (rtags-call-rc "-r" arg)
     (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
           ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
           (t (progn (goto-char (point-min)) (compilation-mode))))
@@ -174,7 +174,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-follow-symbol-prompt ()
   (interactive)
-  (rtags-follow-symbol-internal "(R)Find symbol" "-a"))
+  (rtags-follow-symbol-internal "(R)Find symbol" "-F"))
 
 (defun rtags-follow-symbol ()
   (interactive)
@@ -187,7 +187,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-find-references-prompt ()
   (interactive)
-  (rtags-follow-symbol-internal "(R)Find references" "-n"))
+  (rtags-follow-symbol-internal "(R)Find references" "-R"))
 
 (defun rtags-remove-completions-buffer ()
   (interactive)
