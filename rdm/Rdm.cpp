@@ -30,7 +30,7 @@ CursorInfo findCursorInfo(leveldb::DB *db, const RTags::Location &location)
 {
     const leveldb::ReadOptions readopts;
     leveldb::Iterator* it = db->NewIterator(readopts);
-    const QByteArray needle = location.key();
+    const QByteArray needle = location.key(RTags::Location::Padded);
     it->Seek(needle.constData());
     QList<QByteArray> list;
     bool found = false;
