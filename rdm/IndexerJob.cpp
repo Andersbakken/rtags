@@ -157,10 +157,11 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
     }
     const CXCursorKind refKind = clang_getCursorKind(ref);
 
-    Rdm::CursorInfo &info = job->mSymbols[loc];
-    if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
+    if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod)
         return CXChildVisit_Recurse;
-    } else if (!info.symbolLength) {
+
+    Rdm::CursorInfo &info = job->mSymbols[loc];
+    if (!info.symbolLength) {
         info.kind = kind;
     } else if (info.kind == CXCursor_Constructor && kind == CXCursor_TypeRef) {
         return CXChildVisit_Recurse;
@@ -206,6 +207,13 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
             }
         }
         job->mReferences[loc] = qMakePair(refLoc, isMemberFunction);
+    } else if (kind == CXCursor_InclusionDirective) {
+        CXFile includedFile = clang_getIncludedFile(cursor);
+        CXString fileName = clang_getFileName(includedFile);
+        const char* cstr = clang_getCString(fileName);
+        RTags::Location refLoc(Path::canonicalized(cstr), 0);
+        info.target = refLoc;
+        job->mReferences[loc] = qMakePair(refLoc, false);
     }
     return CXChildVisit_Recurse;
 
@@ -304,8 +312,8 @@ void IndexerJob::run()
 
     CXIndex index = clang_createIndex(1, 1);
     CXTranslationUnit unit = clang_parseTranslationUnit(index, mIn.constData(),
-                                                        clangArgs.data(), idx,
-                                                        0, 0, CXTranslationUnit_Incomplete);
+                                                        clangArgs.data(), idx, 0, 0,
+                                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
     log(1) << "loading unit" << clangLine << (unit != 0);
     bool pchError = false;
 
@@ -366,7 +374,7 @@ void IndexerJob::run()
             }
         }
         foreach (const Path &path, mPaths) {
-            const RTags::Location loc(path, 1);
+            const RTags::Location loc(path, 0);
             mSymbolNames[path].insert(loc);
             mSymbolNames[path.fileName()].insert(loc);
         }

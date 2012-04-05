@@ -83,7 +83,7 @@ bool makeLocation(const QByteArray &arg, Location *loc,
                   QByteArray *resolvedLocation, const Path &cwd)
 {
     Location l = Location::fromKey(arg);
-    if (!l.offset) {
+    if (l.offset == -1) {
         return false;
     }
     if (!l.path.resolve(cwd))

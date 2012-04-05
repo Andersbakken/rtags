@@ -27,7 +27,7 @@ static inline int digits(int len)
 }
 
 struct Location {
-    Location(const Path &p = Path(), int off = 0)
+    Location(const Path &p = Path(), int off = -1)
         : path(p), offset(off)
     {}
 
@@ -36,13 +36,13 @@ struct Location {
 
     bool isNull() const
     {
-        return !offset;
+        return (offset == -1);
     }
 
     void clear()
     {
         path.clear();
-        offset = 0;
+        offset = -1;
     }
 
     inline bool operator==(const Location &other) const
@@ -72,7 +72,7 @@ struct Location {
     };
     QByteArray context() const
     {
-        unsigned off = offset - 1;// offset is 1-indexed, files are not
+        unsigned off = offset;
         FILE *f = fopen(path.constData(), "r");
         if (f && !fseek(f, off, SEEK_SET)) {
             while (off > 0) {
@@ -96,7 +96,7 @@ struct Location {
 
     QByteArray key(unsigned flags = NoFlag) const
     {
-        if (!offset)
+        if (offset == -1)
             return QByteArray();
         int extra = flags & Padded ? 7 : RTags::digits(offset) + 1;
         QByteArray ctx;
@@ -120,13 +120,14 @@ struct Location {
 
     static RTags::Location fromKey(const QByteArray &key)
     {
-        if (key.isEmpty())
-            return Location();
         const int lastComma = key.lastIndexOf(',');
-        Q_ASSERT(lastComma > 0 && lastComma + 1 < key.size());
+        if (lastComma <= 0 || lastComma + 1 >= key.size())
+            return Location();
         Location ret;
-        ret.offset = atoi(key.constData() + lastComma + 1);
-        Q_ASSERT(ret.offset);
+        char *endPtr;
+        ret.offset = strtoull(key.constData() + lastComma + 1, &endPtr, 10);
+        if (*endPtr != '\0')
+            return Location();
         ret.path = key.left(lastComma);
         return ret;
     }
