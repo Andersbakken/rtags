@@ -42,6 +42,7 @@ public:
     void addSymbols(const SymbolHash &data);
     void addSymbolNames(const SymbolNameHash &symbolNames);
     void addDependencies(const DependencyHash& dependencies);
+    void setPchDependencies(const DependencyHash& dependencies);
     void addFileInformation(const Path& input, const QList<QByteArray>& args);
     void notify();
     void stop();
@@ -55,7 +56,7 @@ private:
     QWaitCondition mCond;
     SymbolHash mSymbols;
     SymbolNameHash mSymbolNames;
-    DependencyHash mDependencies;
+    DependencyHash mDependencies, mPchDependencies;
     InformationHash mInformations;
 };
 
@@ -116,6 +117,20 @@ void IndexerSyncer::addDependencies(const DependencyHash& dependencies)
     }
 }
 
+void IndexerSyncer::setPchDependencies(const DependencyHash& dependencies)
+{
+    QMutexLocker lock(&mMutex);
+    if (mPchDependencies.isEmpty()) {
+        mPchDependencies = dependencies;
+    } else {
+        const DependencyHash::const_iterator end = dependencies.end();
+        for (DependencyHash::const_iterator it = dependencies.begin(); it != end; ++it) {
+            mPchDependencies[it.key()].unite(it.value());
+        }
+    }
+}
+
+
 void IndexerSyncer::addFileInformation(const Path& input, const QList<QByteArray>& args)
 {
     QMutexLocker lock(&mMutex);
@@ -127,14 +142,17 @@ void IndexerSyncer::run()
     while (true) {
         SymbolNameHash symbolNames;
         SymbolHash symbols;
-        DependencyHash dependencies;
+        DependencyHash dependencies, pchDependencies;
         InformationHash informations;
         {
             QMutexLocker locker(&mMutex);
             if (mStopped)
                 return;
-            while (mSymbols.isEmpty() && mSymbolNames.isEmpty()
-                   && mDependencies.isEmpty() && mInformations.isEmpty()) {
+            while (mSymbols.isEmpty()
+                   && mSymbolNames.isEmpty()
+                   && mDependencies.isEmpty()
+                   && mInformations.isEmpty()
+                   && mPchDependencies.isEmpty()) {
                 mCond.wait(&mMutex, 10000);
                 if (mStopped)
                     return;
@@ -143,6 +161,7 @@ void IndexerSyncer::run()
             qSwap(symbolNames, mSymbolNames);
             qSwap(symbols, mSymbols);
             qSwap(dependencies, mDependencies);
+            qSwap(pchDependencies, mPchDependencies);
             qSwap(informations, mInformations);
         }
         if (!symbolNames.isEmpty()) {
@@ -219,6 +238,13 @@ void IndexerSyncer::run()
 
             if (changed)
                 db.db()->Write(leveldb::WriteOptions(), &batch);
+        }
+        if (!pchDependencies.isEmpty()) {
+            LevelDB db;
+            if (!db.open(Database::Dependency, LevelDB::ReadWrite))
+                return;
+            leveldb::WriteBatch batch;
+            // Rdm::writeValue<DependencyHash>(&batch);
         }
         if (!informations.isEmpty()) {
             leveldb::WriteBatch batch;
@@ -323,6 +349,7 @@ void IndexerImpl::setPchDependencies(const Path &pchHeader, const QSet<Path> &de
     } else {
         pchDeps[pchHeader] = deps;
     }
+    syncer->setPchDependencies(pchDeps);
 }
 
 QSet<Path> IndexerImpl::pchDependencies(const Path &pchHeader) const
@@ -347,8 +374,8 @@ struct Timestamp
 
 class IndexerJob : public QObject, public QRunnable
 {
-    Q_OBJECT
-    public:
+    Q_OBJECT;
+public:
     IndexerJob(IndexerImpl* impl, int id,
                const Path& path, const Path& input,
                const QList<QByteArray>& arguments);
