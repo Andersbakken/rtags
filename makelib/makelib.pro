@@ -3,7 +3,7 @@
 ######################################################################
 
 TEMPLATE = lib
-TARGET = 
+TARGET =
 DEPENDPATH += .
 INCLUDEPATH += .
 CONFIG += plugin

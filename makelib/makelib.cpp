@@ -19,27 +19,27 @@ static StatData statData[] = {
     { 0,          0 }
 };
 
-#ifdef OS_LINUX
+#if defined OS_LINUX || defined OS_MACOSX
 typedef int (*RealStat)(int, const char*, struct stat64*);
 #elif OS_FREEBSD
 typedef int (*RealStat)(const char*, struct stat*);
 #endif
 static RealStat realStat = 0;
 
-#ifdef OS_LINUX
+#if defined OS_LINUX || defined OS_MACOSX
 int __xstat64 (int ver, const char *filename, struct stat64 *stat_buf)
 #elif OS_FREEBSD
 int stat (const char *filename, struct stat *stat_buf)
 #endif
 {
     if (!realStat) {
-#ifdef OS_LINUX
+#if defined OS_LINUX || defined OS_MACOSX
         realStat = reinterpret_cast<RealStat>(dlsym(RTLD_NEXT, "__xstat64"));
 #elif OS_FREEBSD
         realStat = reinterpret_cast<RealStat>(dlsym(RTLD_NEXT, "stat"));
 #endif
     }
-#ifdef OS_LINUX
+#if defined OS_LINUX || defined OS_MACOSX
     int ret = realStat(ver, filename, stat_buf);
 #elif OS_FREEBSD
     int ret = realStat(filename, stat_buf);
