@@ -13,8 +13,6 @@
 #include <Log.h>
 #include <QtCore>
 
-#define SYNCINTERVAL 10
-
 void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
 {
     DependencyHash newDependencies;
@@ -229,14 +227,12 @@ void Indexer::onJobDone(int id, const QByteArray& input)
 
     ++mJobCounter;
 
-    if (mJobs.isEmpty() || mJobCounter == SYNCINTERVAL) {
-        if (mJobs.isEmpty()) {
-            mSyncer->notify();
+    if (mJobs.isEmpty()) {
+        mSyncer->notify();
 
-            Q_ASSERT(mTimerRunning);
-            mTimerRunning = false;
-            log(0) << "jobs took" << mTimer.elapsed() << "ms";
-        }
+        Q_ASSERT(mTimerRunning);
+        mTimerRunning = false;
+        log(0) << "jobs took" << mTimer.elapsed() << "ms";
     }
 
     emit indexingDone(id);
