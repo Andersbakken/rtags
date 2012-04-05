@@ -41,13 +41,13 @@ void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
     for (DependencyHash::const_iterator it = newDependencies.begin(); it != end; ++it) {
         const Path& path = it.key();
         parentPath = path.parentDir();
-        WatchedHash::iterator it = mWatched.find(parentPath);
+        WatchedHash::iterator wit = mWatched.find(parentPath);
         //debug() << "watching" << path << "in" << parentPath;
-        if (it == mWatched.end()) {
+        if (wit == mWatched.end()) {
             mWatched[parentPath].insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
             watchPaths.insert(QString::fromLocal8Bit(parentPath));
         } else {
-            it.value().insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
+            wit.value().insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
         }
     }
     if (watchPaths.isEmpty())
