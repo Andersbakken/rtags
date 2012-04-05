@@ -240,11 +240,13 @@ void IndexerSyncer::run()
                 db.db()->Write(leveldb::WriteOptions(), &batch);
         }
         if (!pchDependencies.isEmpty()) {
+            leveldb::WriteBatch batch;
+            Rdm::writeValue<DependencyHash>(&batch, "pch", pchDependencies);
+
             LevelDB db;
             if (!db.open(Database::Dependency, LevelDB::ReadWrite))
                 return;
-            leveldb::WriteBatch batch;
-            // Rdm::writeValue<DependencyHash>(&batch);
+            db.db()->Write(leveldb::WriteOptions(), &batch);
         }
         if (!informations.isEmpty()) {
             leveldb::WriteBatch batch;
@@ -1143,8 +1145,12 @@ void Indexer::initWatcher()
     while (it->Valid()) {
         const leveldb::Slice key = it->key();
         const Path file(key.data(), key.size());
-        const QSet<Path> deps = Rdm::readValue<QSet<Path> >(it);
-        dependencies[file] = deps;
+        if (file != "pch") {
+            const QSet<Path> deps = Rdm::readValue<QSet<Path> >(it);
+            dependencies[file] = deps;
+        } else {
+            mImpl->pchDeps = Rdm::readValue<DependencyHash>(it);
+        }
         it->Next();
     }
     mImpl->commitDependencies(dependencies, false);
