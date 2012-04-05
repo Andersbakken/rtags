@@ -124,7 +124,8 @@ template <typename T> void writeValue(leveldb::WriteBatch *batch, const char *ke
 
 template <typename T> void writeValue(leveldb::DB *db, const char *key, const T &t)
 {
-    Q_ASSERT(batch);
+    Q_ASSERT(db);
+    Q_ASSERT(key);
     QByteArray out;
     {
         QDataStream ds(&out, QIODevice::WriteOnly);

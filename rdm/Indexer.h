@@ -1,9 +1,7 @@
 #ifndef INDEXER_H
 #define INDEXER_H
 
-#include <QObject>
-#include <QByteArray>
-#include <QList>
+#include <QtCore>
 #include <AddMessage.h>
 #include "Rdm.h"
 

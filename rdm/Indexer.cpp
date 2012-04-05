@@ -215,7 +215,7 @@ void Indexer::onDirectoryChanged(const QString& path)
         it.value().insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
     }
     lock.unlock();
-    QThreadPool::globalInstance()->start(new DirtyJob(dirtyFiles, toIndexPch, toIndex));
+    QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
 }
 
 void Indexer::onJobDone(int id, const QByteArray& input)
