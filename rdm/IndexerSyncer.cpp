@@ -170,7 +170,7 @@ void IndexerSyncer::run()
                 QSet<Path> added = it.value();
                 QSet<Path> current = Rdm::readValue<QSet<Path> >(db.db(), key);
                 const int oldSize = current.size();
-                if (current.unite(added).size() > oldSize) { // ### is this the correct way of checking if the current set has changed?
+                if (current.unite(added).size() > oldSize) {
                     changed = true;
                     Rdm::writeValue<QSet<Path> >(&batch, key, current);
                 }
@@ -181,13 +181,10 @@ void IndexerSyncer::run()
                 db.db()->Write(leveldb::WriteOptions(), &batch);
         }
         if (!pchDependencies.isEmpty()) {
-            leveldb::WriteBatch batch;
-            Rdm::writeValue<DependencyHash>(&batch, "pch", pchDependencies);
-
             LevelDB db;
             if (!db.open(Database::Dependency, LevelDB::ReadWrite))
                 return;
-            db.db()->Write(leveldb::WriteOptions(), &batch);
+            Rdm::writeValue<DependencyHash>(db.db(), "pch", pchDependencies);
         }
         if (!informations.isEmpty()) {
             leveldb::WriteBatch batch;

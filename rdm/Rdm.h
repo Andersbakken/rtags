@@ -122,6 +122,18 @@ template <typename T> void writeValue(leveldb::WriteBatch *batch, const char *ke
     batch->Put(key, leveldb::Slice(out.constData(), out.size()));
 }
 
+template <typename T> void writeValue(leveldb::DB *db, const char *key, const T &t)
+{
+    Q_ASSERT(batch);
+    QByteArray out;
+    {
+        QDataStream ds(&out, QIODevice::WriteOnly);
+        ds << t;
+    }
+    db->Put(leveldb::WriteOptions(), leveldb::Slice(key, strlen(key)),
+            leveldb::Slice(out.constData(), out.size()));
+}
+
 CursorInfo findCursorInfo(leveldb::DB *db, const RTags::Location &key);
 }
 
