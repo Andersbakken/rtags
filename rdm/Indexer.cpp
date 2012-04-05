@@ -55,8 +55,6 @@ void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
     mWatcher.addPaths(watchPaths.toList());
 }
 
-Indexer* Indexer::sInst = 0;
-
 Indexer::Indexer(const QByteArray& path, QObject* parent)
     : QObject(parent)
 {
@@ -79,19 +77,12 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
             this, SLOT(onDirectoryChanged(QString)));
 
     initWatcher();
-    sInst = this;
 }
 
 Indexer::~Indexer()
 {
-    sInst = 0;
     mSyncer->stop();
     mSyncer->wait();
-}
-
-Indexer* Indexer::instance()
-{
-    return sInst;
 }
 
 int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)

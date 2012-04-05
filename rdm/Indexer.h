@@ -24,7 +24,6 @@ public:
 
     int index(const QByteArray& input, const QList<QByteArray>& arguments);
 
-    static Indexer* instance();
     void setDefaultArgs(const QList<QByteArray> &args);
     QList<QByteArray> defaultArgs() const { return mDefaultArgs; }
     void setPchDependencies(const Path &pchHeader, const QSet<Path> &deps);
@@ -42,7 +41,6 @@ private:
     void commitDependencies(const DependencyHash& deps, bool sync);
     void initWatcher();
 
-    static Indexer* sInst;
     QList<QByteArray> mDefaultArgs;
     mutable QReadWriteLock mPchDependenciesLock;
     QHash<Path, QSet<Path> > mPchDependencies;
