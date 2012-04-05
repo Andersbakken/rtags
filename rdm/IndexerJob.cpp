@@ -1,13 +1,12 @@
 #include "IndexerJob.h"
-#include "IndexerImpl.h"
 #include "SHA256.h"
 #include "DependencyEvent.h"
 #include "IndexerSyncer.h"
 
-IndexerJob::IndexerJob(IndexerImpl* impl, int id,
+IndexerJob::IndexerJob(Indexer* indexer, int id,
                        const Path& path, const Path& input,
                        const QList<QByteArray>& arguments)
-    : mId(id), mIsPch(false), mPath(path), mIn(input), mArgs(arguments), mImpl(impl)
+    : mId(id), mIsPch(false), mPath(path), mIn(input), mArgs(arguments), mIndexer(indexer)
 {
 }
 
@@ -25,7 +24,7 @@ static void inclusionVisitor(CXFile included_file,
     if ((strncmp("/usr/", cstr, 5) != 0)
         || (strncmp("/usr/home/", cstr, 10) == 0)) {
         Path path = Path::canonicalized(cstr);
-        foreach (const QByteArray& arg, job->mImpl->defaultArgs) {
+        foreach (const QByteArray& arg, job->mIndexer->defaultArgs()) {
             if (arg.contains(path)) {
                 clang_disposeString(fn);
                 return;
@@ -240,26 +239,26 @@ void IndexerJob::run()
 {
     QElapsedTimer timer;
     timer.start();
-    QList<QByteArray> args = mArgs + mImpl->defaultArgs;
+    QList<QByteArray> args = mArgs + mIndexer->mDefaultArgs;
     QList<Path> pchHeaders = extractPchFiles(args);
     if (!pchHeaders.isEmpty()) {
-        QMutexLocker locker(&mImpl->implMutex);
+        QMutexLocker locker(&mIndexer->mMutex);
         bool wait;
         do {
             wait = false;
             foreach (const QByteArray &pchHeader, pchHeaders) {
-                if (mImpl->pchHeaderError.contains(pchHeader)) {
+                if (mIndexer->mPchHeaderError.contains(pchHeader)) {
                     int idx = args.indexOf(pchHeader);
                     Q_ASSERT(idx > 0);
                     args.removeAt(idx);
                     args.removeAt(idx - 1);
-                } else if (mImpl->indexing.contains(pchHeader)) {
+                } else if (mIndexer->mIndexing.contains(pchHeader)) {
                     wait = true;
                     break;
                 }
             }
             if (wait) {
-                mImpl->implCond.wait(&mImpl->implMutex);
+                mIndexer->mCondition.wait(&mIndexer->mMutex);
             }
         } while (wait);
     }
@@ -278,7 +277,7 @@ void IndexerJob::run()
 
         if (nextIsPch) {
             nextIsPch = false;
-            pchFiles.append(pchFileName(mImpl->path, arg));
+            pchFiles.append(pchFileName(mIndexer->mPath, arg));
             clangArgs[idx++] = pchFiles.last().constData();
             clangLine += pchFiles.last().constData();
             clangLine += " ";
@@ -299,7 +298,7 @@ void IndexerJob::run()
         }
     }
     if (mIsPch) {
-        pchName = pchFileName(mImpl->path, mIn);
+        pchName = pchFileName(mIndexer->mPath, mIn);
     }
     clangLine += mIn;
 
@@ -316,11 +315,11 @@ void IndexerJob::run()
     } else {
         clang_getInclusions(unit, inclusionVisitor, this);
         foreach(const Path &pchHeader, pchHeaders) {
-            foreach(const Path &dep, mImpl->pchDependencies(pchHeader)) {
+            foreach(const Path &dep, mIndexer->pchDependencies(pchHeader)) {
                 mDependencies[dep].insert(mIn);
             }
         }
-        QCoreApplication::postEvent(mImpl->indexer, new DependencyEvent(mDependencies));
+        QCoreApplication::postEvent(mIndexer, new DependencyEvent(mDependencies));
 
         clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
         if (mIsPch) {
@@ -371,20 +370,20 @@ void IndexerJob::run()
             mSymbolNames[path].insert(loc);
             mSymbolNames[path.fileName()].insert(loc);
         }
-        mImpl->syncer->addSymbols(mSymbols);
-        mImpl->syncer->addSymbolNames(mSymbolNames);
-        mImpl->syncer->addFileInformation(mIn, mArgs);
+        mIndexer->mSyncer->addSymbols(mSymbols);
+        mIndexer->mSyncer->addSymbolNames(mSymbolNames);
+        mIndexer->mSyncer->addFileInformation(mIn, mArgs);
         if (mIsPch)
-            mImpl->setPchDependencies(mIn, mPchDependencies);
+            mIndexer->setPchDependencies(mIn, mPchDependencies);
 
     }
     clang_disposeIndex(index);
     if (mIsPch) {
-        QMutexLocker locker(&mImpl->implMutex);
+        QMutexLocker locker(&mIndexer->mMutex);
         if (pchError) {
-            mImpl->pchHeaderError.insert(mIn);
+            mIndexer->mPchHeaderError.insert(mIn);
         } else {
-            mImpl->pchHeaderError.remove(mIn);
+            mIndexer->mPchHeaderError.remove(mIn);
         }
     }
     emit done(mId, mIn);

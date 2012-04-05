@@ -10,7 +10,7 @@ class IndexerJob : public QObject, public QRunnable
 {
     Q_OBJECT;
 public:
-    IndexerJob(IndexerImpl* impl, int id,
+    IndexerJob(Indexer* indexer, int id,
                const Path& path, const Path& input,
                const QList<QByteArray>& arguments);
 
@@ -32,7 +32,7 @@ public:
     QList<QByteArray> mArgs;
     DependencyHash mDependencies;
     QSet<Path> mPchDependencies;
-    IndexerImpl* mImpl;
+    Indexer *mIndexer;
 signals:
     void done(int id, const QByteArray& input);
 };

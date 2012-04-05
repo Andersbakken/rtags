@@ -14,7 +14,8 @@ typedef QPair<QByteArray, quint64> WatchedPair;
 typedef QHash<Path, QSet<WatchedPair> > WatchedHash;
 typedef QHash<Path, QList<QByteArray> > InformationHash;
 
-class IndexerImpl;
+class IndexerJob;
+class IndexerSyncer;
 class Indexer : public QObject
 {
     Q_OBJECT
@@ -27,6 +28,9 @@ public:
 
     static Indexer* instance();
     void setDefaultArgs(const QList<QByteArray> &args);
+    QList<QByteArray> defaultArgs() const { return mDefaultArgs; }
+    void setPchDependencies(const Path &pchHeader, const QSet<Path> &deps);
+    QSet<Path> pchDependencies(const Path &pchHeader) const;
 protected:
     void customEvent(QEvent* event);
 
@@ -36,11 +40,36 @@ signals:
 private slots:
     void onJobDone(int id, const QByteArray& input);
     void onDirectoryChanged(const QString& path);
-
 private:
+    void commitDependencies(const DependencyHash& deps, bool sync);
     void initWatcher();
-    IndexerImpl* mImpl;
+
     static Indexer* sInst;
+    QList<QByteArray> mDefaultArgs;
+    mutable QReadWriteLock mPchDependenciesLock;
+    QHash<Path, QSet<Path> > mPchDependencies;
+    int mJobCounter;
+
+    QMutex mMutex;
+    QWaitCondition mCondition;
+    QSet<QByteArray> mIndexing;
+    QSet<QByteArray> mPchHeaderError;
+
+    QByteArray mPath;
+    int mLastJobId;
+    QHash<int, IndexerJob*> mJobs;
+
+    IndexerSyncer* mSyncer;
+
+    bool mTimerRunning;
+    QElapsedTimer mTimer;
+
+    QFileSystemWatcher mWatcher;
+    DependencyHash mDependencies;
+    QMutex mWatchedMutex;
+    WatchedHash mWatched;
+
+    friend class IndexerJob;
 };
 
 #endif

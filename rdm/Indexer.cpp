@@ -2,7 +2,6 @@
 #include "DependencyEvent.h"
 #include "DirtyJob.h"
 #include "Indexer.h"
-#include "IndexerImpl.h"
 #include "IndexerJob.h"
 #include "IndexerSyncer.h"
 #include "LevelDB.h"
@@ -16,38 +15,38 @@
 
 #define SYNCINTERVAL 10
 
-inline void IndexerImpl::commitDependencies(const DependencyHash& deps, bool sync)
+void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
 {
     DependencyHash newDependencies;
 
-    if (dependencies.isEmpty()) {
-        dependencies = deps;
+    if (mDependencies.isEmpty()) {
+        mDependencies = deps;
         newDependencies = deps;
     } else {
         const DependencyHash::const_iterator end = deps.end();
         for (DependencyHash::const_iterator it = deps.begin(); it != end; ++it) {
-            newDependencies[it.key()].unite(it.value() - dependencies[it.key()]);
+            newDependencies[it.key()].unite(it.value() - mDependencies[it.key()]);
             DependencyHash::iterator i = newDependencies.find(it.key());
             if (i.value().isEmpty())
                 newDependencies.erase(i);
-            dependencies[it.key()].unite(it.value());
+            mDependencies[it.key()].unite(it.value());
         }
     }
     if (sync && !newDependencies.isEmpty())
-        syncer->addDependencies(newDependencies);
+        mSyncer->addDependencies(newDependencies);
 
 
     Path parentPath;
     QSet<QString> watchPaths;
     const DependencyHash::const_iterator end = newDependencies.end();
-    QMutexLocker lock(&watchedMutex);
+    QMutexLocker lock(&mWatchedMutex);
     for (DependencyHash::const_iterator it = newDependencies.begin(); it != end; ++it) {
         const Path& path = it.key();
         parentPath = path.parentDir();
-        WatchedHash::iterator it = watched.find(parentPath);
+        WatchedHash::iterator it = mWatched.find(parentPath);
         //debug() << "watching" << path << "in" << parentPath;
-        if (it == watched.end()) {
-            watched[parentPath].insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
+        if (it == mWatched.end()) {
+            mWatched[parentPath].insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
             watchPaths.insert(QString::fromLocal8Bit(parentPath));
         } else {
             it.value().insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
@@ -55,30 +54,13 @@ inline void IndexerImpl::commitDependencies(const DependencyHash& deps, bool syn
     }
     if (watchPaths.isEmpty())
         return;
-    watcher.addPaths(watchPaths.toList());
-}
-
-void IndexerImpl::setPchDependencies(const Path &pchHeader, const QSet<Path> &deps)
-{
-    QWriteLocker lock(&pchDependenciesLock);
-    if (deps.isEmpty()) {
-        pchDeps.remove(pchHeader);
-    } else {
-        pchDeps[pchHeader] = deps;
-    }
-    syncer->setPchDependencies(pchDeps);
-}
-
-QSet<Path> IndexerImpl::pchDependencies(const Path &pchHeader) const
-{
-    QReadLocker lock(&pchDependenciesLock);
-    return pchDeps.value(pchHeader);
+    mWatcher.addPaths(watchPaths.toList());
 }
 
 Indexer* Indexer::sInst = 0;
 
 Indexer::Indexer(const QByteArray& path, QObject* parent)
-    : QObject(parent), mImpl(new IndexerImpl)
+    : QObject(parent)
 {
     Q_ASSERT(path.startsWith('/'));
     if (!path.startsWith('/'))
@@ -86,17 +68,16 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
     QDir dir;
     dir.mkpath(path);
 
-    mImpl->indexer = this;
-    mImpl->jobCounter = 0;
-    mImpl->lastJobId = 0;
-    mImpl->path = path;
-    if (!mImpl->path.endsWith('/'))
-        mImpl->path += '/';
-    mImpl->timerRunning = false;
-    mImpl->syncer = new IndexerSyncer(this);
-    mImpl->syncer->start();
+    mJobCounter = 0;
+    mLastJobId = 0;
+    mPath = path;
+    if (!mPath.endsWith('/'))
+        mPath += '/';
+    mTimerRunning = false;
+    mSyncer = new IndexerSyncer(this);
+    mSyncer->start();
 
-    connect(&mImpl->watcher, SIGNAL(directoryChanged(QString)),
+    connect(&mWatcher, SIGNAL(directoryChanged(QString)),
             this, SLOT(onDirectoryChanged(QString)));
 
     initWatcher();
@@ -106,10 +87,8 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
 Indexer::~Indexer()
 {
     sInst = 0;
-    mImpl->syncer->stop();
-    mImpl->syncer->wait();
-
-    delete mImpl;
+    mSyncer->stop();
+    mSyncer->wait();
 }
 
 Indexer* Indexer::instance()
@@ -119,25 +98,25 @@ Indexer* Indexer::instance()
 
 int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
 {
-    QMutexLocker locker(&mImpl->implMutex);
+    QMutexLocker locker(&mMutex);
 
-    if (mImpl->indexing.contains(input))
+    if (mIndexing.contains(input))
         return -1;
 
     int id;
     do {
-        id = mImpl->lastJobId++;
-    } while (mImpl->jobs.contains(id));
+        id = mLastJobId++;
+    } while (mJobs.contains(id));
 
-    mImpl->indexing.insert(input);
+    mIndexing.insert(input);
 
-    IndexerJob* job = new IndexerJob(mImpl, id, mImpl->path, input, arguments);
-    mImpl->jobs[id] = job;
+    IndexerJob* job = new IndexerJob(this, id, mPath, input, arguments);
+    mJobs[id] = job;
     connect(job, SIGNAL(done(int, QByteArray)), this, SLOT(onJobDone(int, QByteArray)), Qt::QueuedConnection);
 
-    if (!mImpl->timerRunning) {
-        mImpl->timerRunning = true;
-        mImpl->timer.start();
+    if (!mTimerRunning) {
+        mTimerRunning = true;
+        mTimer.start();
     }
 
     QThreadPool::globalInstance()->start(job);
@@ -148,7 +127,7 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
 void Indexer::customEvent(QEvent* e)
 {
     if (e->type() == static_cast<QEvent::Type>(DependencyEvent::Type)) {
-        mImpl->commitDependencies(static_cast<DependencyEvent*>(e)->deps, true);
+        commitDependencies(static_cast<DependencyEvent*>(e)->deps, true);
     }
 }
 
@@ -171,9 +150,9 @@ void Indexer::onDirectoryChanged(const QString& path)
 {
     const Path p = path.toLocal8Bit();
     Q_ASSERT(p.endsWith('/'));
-    QMutexLocker lock(&mImpl->watchedMutex);
-    WatchedHash::iterator it = mImpl->watched.find(p);
-    if (it == mImpl->watched.end()) {
+    QMutexLocker lock(&mWatchedMutex);
+    WatchedHash::iterator it = mWatched.find(p);
+    if (it == mWatched.end()) {
         error() << "directory changed, but not in watched list" << p;
         return;
     }
@@ -205,8 +184,8 @@ void Indexer::onDirectoryChanged(const QString& path)
             wit = it.value().erase(wit);
             wend = it.value().end(); // ### do we need to update 'end' here?
 
-            DependencyHash::const_iterator dit = mImpl->dependencies.find(file);
-            if (dit == mImpl->dependencies.end()) {
+            DependencyHash::const_iterator dit = mDependencies.find(file);
+            if (dit == mDependencies.end()) {
                 error() << "file modified but not in dependency list" << file;
                 ++it;
                 continue;
@@ -241,22 +220,22 @@ void Indexer::onDirectoryChanged(const QString& path)
 
 void Indexer::onJobDone(int id, const QByteArray& input)
 {
-    Q_UNUSED(input)
+    Q_UNUSED(input);
 
-        QMutexLocker locker(&mImpl->implMutex);
-    mImpl->jobs.remove(id);
-    if (mImpl->indexing.remove(input))
-        mImpl->implCond.wakeAll();
+    QMutexLocker locker(&mMutex);
+    mJobs.remove(id);
+    if (mIndexing.remove(input))
+        mCondition.wakeAll();
 
-    ++mImpl->jobCounter;
+    ++mJobCounter;
 
-    if (mImpl->jobs.isEmpty() || mImpl->jobCounter == SYNCINTERVAL) {
-        if (mImpl->jobs.isEmpty()) {
-            mImpl->syncer->notify();
+    if (mJobs.isEmpty() || mJobCounter == SYNCINTERVAL) {
+        if (mJobs.isEmpty()) {
+            mSyncer->notify();
 
-            Q_ASSERT(mImpl->timerRunning);
-            mImpl->timerRunning = false;
-            log(0) << "jobs took" << mImpl->timer.elapsed() << "ms";
+            Q_ASSERT(mTimerRunning);
+            mTimerRunning = false;
+            log(0) << "jobs took" << mTimer.elapsed() << "ms";
         }
     }
 
@@ -265,7 +244,7 @@ void Indexer::onJobDone(int id, const QByteArray& input)
 
 void Indexer::setDefaultArgs(const QList<QByteArray> &args)
 {
-    mImpl->defaultArgs = args;
+    mDefaultArgs = args;
 }
 
 void DirtyJob::dirty()
@@ -375,13 +354,28 @@ void Indexer::initWatcher()
             const QSet<Path> deps = Rdm::readValue<QSet<Path> >(it);
             dependencies[file] = deps;
         } else {
-            mImpl->pchDeps = Rdm::readValue<DependencyHash>(it);
+            mPchDependencies = Rdm::readValue<DependencyHash>(it);
         }
         it->Next();
     }
-    mImpl->commitDependencies(dependencies, false);
+    commitDependencies(dependencies, false);
 
     delete it;
-
-
 }
+void Indexer::setPchDependencies(const Path &pchHeader, const QSet<Path> &deps)
+{
+    QWriteLocker lock(&mPchDependenciesLock);
+    if (deps.isEmpty()) {
+        mPchDependencies.remove(pchHeader);
+    } else {
+        mPchDependencies[pchHeader] = deps;
+    }
+    mSyncer->setPchDependencies(mPchDependencies);
+}
+
+QSet<Path> Indexer::pchDependencies(const Path &pchHeader) const
+{
+    QReadLocker lock(&mPchDependenciesLock);
+    return mPchDependencies.value(pchHeader);
+}
+

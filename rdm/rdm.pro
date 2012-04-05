@@ -42,7 +42,6 @@ HEADERS += \
     IndexerJob.h \
     Source.h \
     LevelDB.h \
-    IndexerImpl.h \
     DependencyEvent.h \
     IndexerSyncer.h \
     DirtyJob.h
