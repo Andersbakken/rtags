@@ -3,8 +3,10 @@
 
 #include <QtCore>
 #include <QtNetwork>
-#include <Path.h>
-#include <Message.h>
 #include <clang-c/Index.h>
+#include "Path.h"
+#include "RTags.h"
+#include "Rdm.h"
+#include "Indexer.h"
 
 #endif
