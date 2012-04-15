@@ -102,7 +102,6 @@ void MakefileParser::run(const Path& makefile)
 
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
 #ifdef Q_OS_MAC
-#warning is this right?
     environment.insert("DYLD_INSERT_LIBRARIES", makelibdir.canonicalPath() + "/makelib/libmakelib.dylib");
 #else
     environment.insert("LD_PRELOAD", makelibdir.canonicalPath() + "/makelib/libmakelib.so");
@@ -119,6 +118,9 @@ void MakefileParser::run(const Path& makefile)
             makefile.constData(), mTracker->path().constData());
     }
     mProc->start(QLatin1String(MAKE), QStringList()
+#ifdef Q_OS_MAC
+                 << QLatin1String("-B")
+#endif
                  << QLatin1String("-j1") << QLatin1String("-n") << QLatin1String("-w")
                  << QLatin1String("-f") << QString::fromLocal8Bit(makefile)
                  << QLatin1String("-C") << mTracker->path());
