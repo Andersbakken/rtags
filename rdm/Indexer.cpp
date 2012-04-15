@@ -128,8 +128,11 @@ static inline bool isPch(const QList<QByteArray> &args)
         const QByteArray &arg = args.at(i);
         if (nextIsX) {
             return (arg == "c++-header" || arg == "c-header");
-        } else if (arg == "-x") { // ### this is not entirely safe, -xc++-header is allowed
+        } else if (arg == "-x") {
             nextIsX = true;
+        } else if (arg.startsWith("-x")) {
+            const QByteArray rest = QByteArray::fromRawData(arg.constData() + 2, arg.size() - 2);
+            return (rest == "c++-header" || rest == "c-header");
         }
     }
     return false;
