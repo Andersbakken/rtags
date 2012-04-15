@@ -27,23 +27,41 @@ GccArguments::GccArguments(const QByteArray& args, const Path& base)
     parse(args, base);
 }
 
-static inline GccArguments::Lang guessLang(const QByteArray& compiler)
+static inline GccArguments::Lang guessLang(const Path& fullPath)
 {
+    QByteArray compiler = fullPath.fileName();
     QByteArray c;
-    const int dash = compiler.lastIndexOf('-');
-    if (dash >= 0)
-        c = QByteArray::fromRawData(compiler.constData() + dash + 1,
-                                    compiler.size() - dash - 1);
-    else
+    int dash = compiler.lastIndexOf('-');
+    if (dash >= 0) {
+        c = QByteArray::fromRawData(compiler.constData() + dash + 1, compiler.size() - dash - 1);
+    } else {
         c = QByteArray::fromRawData(compiler.constData(), compiler.size());
+    }
+
+    if (c.size() != compiler.size()) {
+        bool isVersion = true;
+        for (int i=0; i<c.size(); ++i) {
+            if ((c.at(i) < '0' || c.at(i) > '9') && c.at(i) != '.') {
+                isVersion = false;
+                break;
+            }
+        }
+        if (isVersion) {
+            dash = compiler.lastIndexOf('-', dash - 1);
+            if (dash >= 0) {
+                c = compiler.mid(dash + 1, compiler.size() - c.size() - 2 - dash);
+            } else {
+                c = compiler.left(dash);
+            }
+        }
+    }
 
     GccArguments::Lang lang = GccArguments::NoLang;
-    if (c == "g++"
-        || c == "c++")
+    if (c == "g++" || c == "c++") {
         lang = GccArguments::CPlusPlus;
-    else if (c == "gcc"
-             || c == "cc")
+    } else if (c == "gcc" || c == "cc") {
         lang = GccArguments::C;
+    }
     return lang;
 }
 
