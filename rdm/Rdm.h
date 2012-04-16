@@ -11,6 +11,7 @@
 #include <RTags.h>
 
 namespace Rdm {
+enum { DatabaseVersion = 1 };
 QByteArray eatString(CXString str);
 QByteArray cursorToString(CXCursor cursor);
 

@@ -12,6 +12,7 @@ class Database : public QObject
     Q_OBJECT
 public:
     enum Type {
+        General,
         Dependency,
         Symbol,
         SymbolName,

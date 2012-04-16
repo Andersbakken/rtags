@@ -2,8 +2,10 @@
 #include "Indexer.h"
 #include "Database.h"
 #include "Connection.h"
+#include "Rdm.h"
 #include "Message.h"
 #include "Messages.h"
+#include "LevelDB.h"
 #include "QueryMessage.h"
 #include "SHA256.h"
 #include <QThread>
@@ -33,7 +35,7 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
     mDb = new Database(this, mIndexer);
 
     if (!mServer->listen(QHostAddress::Any, Connection::Port)) {
-        qWarning("Unable to listen to port %d", Connection::Port);
+        error("Unable to listen to port %d", Connection::Port);
         return false;
     }
     connect(mServer, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
@@ -47,7 +49,28 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
         mDefaultArgs.append("-I" + p);
 #endif
     mIndexer->setDefaultArgs(mDefaultArgs);
-    log(1) << "running with" << mDefaultArgs;
+    LevelDB db;
+    if (db.open(Database::General, LevelDB::ReadOnly)) {
+        bool ok;
+        const int version = Rdm::readValue<int>(db.db(), "version", &ok);
+        if (!ok) {
+            error("No version in database");
+            return false;
+        }
+        if (version != Rdm::DatabaseVersion) {
+            error("Wrong version, expected %d, got %d. Run with -C to regenerate database", version, Rdm::DatabaseVersion);
+            return false;
+        }
+    } else {
+        QByteArray err;
+        if (!db.open(Database::General, LevelDB::ReadWrite, &err)) {
+            error("Can't open database %s", err.constData());
+            return false;
+        }
+        Rdm::writeValue<int>(db.db(), "version", Rdm::DatabaseVersion);
+    }
+    
+    debug() << "running with" << mDefaultArgs;
     return true;
 }
 

@@ -168,6 +168,7 @@ int Database::poll(const QueryMessage &)
 
 
 static const char* const dbNames[] = {
+    "general.db",
     "dependencies.db",
     "symbols.db",
     "symbolnames.db",

@@ -9,7 +9,6 @@
 #include <getopt.h>
 
 namespace RTags {
-enum { DatabaseVersion = 2 };
 enum UnitType { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };
 
 QByteArray shortOptions(const option *longOptions);
