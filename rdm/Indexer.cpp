@@ -209,7 +209,7 @@ void Indexer::onDirectoryChanged(const QString& path)
     }
     if (toIndex.isEmpty() && toIndexPch.isEmpty())
         return;
-    
+
     lock.unlock();
     QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
 }
@@ -351,12 +351,18 @@ void Indexer::init()
     delete it;
     if (toIndex.isEmpty() && toIndexPch.isEmpty())
         return;
-    
+
     QThreadPool::globalInstance()->start(new DirtyJob(this, dirty, toIndexPch, toIndex));
-   
 }
 
 void Indexer::poll()
 {
-
+    QStringList dirs;
+    {
+        QMutexLocker lock(&mWatchedMutex);
+        dirs = mWatcher.directories();
+    }
+    foreach(const QString &dir, dirs) {
+        onDirectoryChanged(dir);
+    }
 }
