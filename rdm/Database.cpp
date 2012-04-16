@@ -55,6 +55,8 @@ int Database::followLocation(const QueryMessage &query)
 
     const int id = nextId();
 
+    warning() << "followLocation" << loc;
+
     FollowLocationJob* job = new FollowLocationJob(id, loc, !(query.flags() & QueryMessage::NoContext));
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
@@ -71,7 +73,7 @@ int Database::referencesForLocation(const QueryMessage &query)
 
     const int id = nextId();
 
-    log(1) << "references for location" << loc.path << loc.offset;
+    warning() << "references for location" << loc;
 
     ReferencesJob* job = new ReferencesJob(id, loc, !(query.flags() & QueryMessage::NoContext));
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
@@ -86,7 +88,7 @@ int Database::referencesForName(const QueryMessage& query)
     const int id = nextId();
 
     const QByteArray name = query.query().front();
-    log(1) << "references for name" << name;
+    warning() << "references for name" << name;
 
     ReferencesJob* job = new ReferencesJob(id, name, !(query.flags() & QueryMessage::NoContext));
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
@@ -100,7 +102,9 @@ int Database::recompile(const QueryMessage &query)
     const QByteArray fileName = query.query().front();
     const int id = nextId();
 
-    log(1) << "recompile" << fileName;
+    warning() << "recompile" << fileName;
+
+    // ### this needs to be implemented
 
     RecompileJob* job = new RecompileJob(fileName, id);
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
@@ -115,7 +119,7 @@ int Database::match(const QueryMessage &query)
     const QByteArray partial = query.query().front();
     const int id = nextId();
 
-    log(1) << "match" << partial;
+    warning() << "match" << partial;
 
     MatchJob* job = new MatchJob(partial, id, query.type(), !(query.flags() & QueryMessage::NoContext));
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
@@ -130,7 +134,7 @@ int Database::dump(const QueryMessage &query)
     const QByteArray partial = query.query().front();
     const int id = nextId();
 
-    log(1) << "dump" << partial;
+    warning() << "dump" << partial;
 
     DumpJob* job = new DumpJob(partial, id);
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
@@ -144,7 +148,10 @@ int Database::status(const QueryMessage &)
 {
     const int id = nextId();
 
-    log(1) << "status";
+    warning() << "status";
+
+    // ### this needs to be implemented
+
 
     StatusJob* job = new StatusJob(id);
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
@@ -157,7 +164,8 @@ int Database::poll(const QueryMessage &)
 {
     const int id = nextId();
 
-    log(1) << "poll";
+    warning() << "poll";
+    // ### this needs to be implemented
 
     PollJob *job = new PollJob(mIndexer, id);
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),

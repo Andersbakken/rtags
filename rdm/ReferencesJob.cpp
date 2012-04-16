@@ -41,7 +41,8 @@ void ReferencesJob::run()
             cursorInfo = Rdm::findCursorInfo(db.db(), cursorInfo.target);
             refs = cursorInfo.references;
         }
-        foreach (const RTags::Location &loc, cursorInfo.references) {
+        qDebug() << "got some references and shit" << includeContext << refs.size();
+        foreach (const RTags::Location &loc, refs) {
             list.append(loc.key(includeContext ? RTags::Location::ShowContext : RTags::Location::NoFlag));
         }
     }

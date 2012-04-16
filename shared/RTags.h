@@ -12,7 +12,7 @@ namespace RTags {
 enum UnitType { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };
 
 QByteArray shortOptions(const option *longOptions);
-int readLine(FILE *f, char *buf, int max);
+int readLine(FILE *f, char *buf = 0, int max = -1);
 int removeDirectory(const char *path);
 
 static inline int digits(int len)
@@ -67,16 +67,17 @@ struct Location {
     enum KeyFlag {
         NoFlag = 0x0,
         Padded = 0x1,
-        ShowContext = 0x2
+        ShowContext = 0x2,
+        LineNumbers = 0x4
     };
     QByteArray context() const
     {
-        unsigned off = offset;
+        int off = offset;
         FILE *f = fopen(path.constData(), "r");
         if (f && !fseek(f, off, SEEK_SET)) {
             while (off > 0) {
-                char ch = fgetc(f);
-                if (ch == '\n')
+                const char ch = fgetc(f);
+                if (ch == '\n' && off != offset)
                     break;
                 if (fseek(f, --off, SEEK_SET) == -1) {
                     fclose(f);
@@ -93,11 +94,51 @@ struct Location {
         return QByteArray();
     }
 
+    bool convertOffset(int &line, int &col) const
+    {
+        FILE *f = fopen(path.constData(), "r");
+        if (!f) {
+            line = col = -1;
+            return false;
+        }
+        line = 1;
+        int last = 0;
+        int idx = 0;
+        forever {
+            const int lineLen = readLine(f);
+            if (lineLen == -1) {
+                col = line = -1;
+                fclose(f);
+                return false;
+            }
+            idx += lineLen + 1;
+            // printf("lineStart %d offset %d last %d lineLen %d\n", idx, offset, last, lineLen);
+            if (idx > offset) {
+                col = offset - last;
+                break;
+            }
+            last = idx;
+            ++line;
+        }
+        fclose(f);
+        return true;
+    }
+
+
     QByteArray key(unsigned flags = NoFlag) const
     {
         if (offset == -1)
             return QByteArray();
-        int extra = flags & Padded ? 7 : RTags::digits(offset) + 1;
+        int extra = 0;
+        int line = 0, col = 0;
+        if (flags & Padded) {
+            extra = 7;
+        } else if (flags & LineNumbers && convertOffset(line, col)) {
+            extra = RTags::digits(line) + RTags::digits(col) + 2;
+        } else {
+            flags &= ~LineNumbers;
+            extra = RTags::digits(offset) + 1;
+        }
         QByteArray ctx;
         if (flags & ShowContext) {
             ctx += '\t' + context();
@@ -105,11 +146,13 @@ struct Location {
         }
 
         QByteArray ret(path.size() + extra, '0');
-        memcpy(ret.data(), path.constData(), path.size());
 
         if (flags & Padded) {
             snprintf(ret.data(), ret.size() + extra + 1, "%s,%06d%s", path.constData(),
                      offset, ctx.constData());
+        } else if (flags & LineNumbers) {
+            snprintf(ret.data(), ret.size() + extra + 1, "%s:%d:%d%s %d", path.constData(),
+                     line, col, ctx.constData(), offset);
         } else {
             snprintf(ret.data(), ret.size() + extra + 1, "%s,%d%s", path.constData(),
                      offset, ctx.constData());
