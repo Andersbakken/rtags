@@ -6,7 +6,7 @@
 #include <QObject>
 
 class QueryMessage;
-struct DatabaseImpl;
+class Indexer;
 class Database : public QObject
 {
     Q_OBJECT
@@ -19,9 +19,7 @@ public:
         DatabaseTypeCount
     };
 
-    Database(QObject* parent = 0);
-    ~Database();
-
+    Database(QObject *oarent, Indexer *indexer);
     int followLocation(const QueryMessage &query);
     int referencesForLocation(const QueryMessage &query);
     int referencesForName(const QueryMessage &query);
@@ -29,6 +27,7 @@ public:
     int match(const QueryMessage &query);
     int dump(const QueryMessage &query);
     int status(const QueryMessage &query);
+    int poll(const QueryMessage &query);
 
     static void setBaseDirectory(const QByteArray& base);
     static QByteArray databaseName(Type type);
@@ -38,9 +37,9 @@ signals:
 
 private:
     int nextId();
-    DatabaseImpl* mImpl;
-
+    int mJobId;
     static QByteArray sBase;
+    Indexer *mIndexer;
 };
 
 #endif

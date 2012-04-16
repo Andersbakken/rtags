@@ -3,6 +3,7 @@
 #include "FollowLocationJob.h"
 #include "Indexer.h"
 #include "MatchJob.h"
+#include "PollJob.h"
 #include "Path.h"
 #include "QueryMessage.h"
 #include "Rdm.h"
@@ -25,39 +26,23 @@
 QByteArray Database::sBase;
 
 Q_DECLARE_METATYPE(QList<QByteArray>)
-
-struct DatabaseImpl
-{
-    Database* db;
-    int jobId;
-};
-
-
 static inline bool isCursorReference(CXCursorKind kind)
 {
     return (kind >= CXCursor_FirstRef && kind <= CXCursor_LastRef);
 }
 
-Database::Database(QObject* parent)
-    : QObject(parent), mImpl(new DatabaseImpl)
+Database::Database(QObject *parent, Indexer *indexer)
+    : QObject(parent), mJobId(0), mIndexer(indexer)
 {
-    mImpl->db = this;
-    mImpl->jobId = 0;
-
     qRegisterMetaType<QList<QByteArray> >("QList<QByteArray>");
-}
-
-Database::~Database()
-{
-    delete mImpl;
 }
 
 int Database::nextId()
 {
-    ++mImpl->jobId;
-    if (!mImpl->jobId)
-        ++mImpl->jobId;
-    return mImpl->jobId;
+    ++mJobId;
+    if (!mJobId)
+        ++mJobId;
+    return mJobId;
 }
 
 int Database::followLocation(const QueryMessage &query)
@@ -168,8 +153,26 @@ int Database::status(const QueryMessage &)
     return id;
 }
 
+int Database::poll(const QueryMessage &)
+{
+    const int id = nextId();
 
-static const char* const dbNames[] = { "dependencies.db", "symbols.db", "symbolnames.db", "fileinfos.db" };
+    log(1) << "poll";
+
+    PollJob *job = new PollJob(mIndexer, id);
+    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
+            this, SIGNAL(complete(int, QList<QByteArray>)));
+    QThreadPool::globalInstance()->start(job);
+    return id;
+}
+
+
+static const char* const dbNames[] = {
+    "dependencies.db",
+    "symbols.db",
+    "symbolnames.db",
+    "fileinfos.db"
+};
 
 QByteArray Database::databaseName(Type type)
 {

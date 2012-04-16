@@ -21,7 +21,8 @@ public:
         ListSymbols,
         FindSymbols,
         Dump,
-        Status
+        Status,
+        Poll
     };
     enum Flag {
         SkipParen = 0x01,

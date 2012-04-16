@@ -28,9 +28,9 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
     mDefaultArgs = defaultArguments;
     Messages::init();
     Database::setBaseDirectory(ASTPATH);
-    mDb = new Database(this);
     mServer = new QTcpServer(this);
     mIndexer = new Indexer(ASTPATH, this);
+    mDb = new Database(this, mIndexer);
 
     if (!mServer->listen(QHostAddress::Any, Connection::Port)) {
         qWarning("Unable to listen to port %d", Connection::Port);
@@ -160,6 +160,9 @@ void Server::handleQueryMessage(QueryMessage* message)
         break;
     case QueryMessage::Status:
         id = mDb->status(*message);
+        break;
+    case QueryMessage::Poll:
+        id = mDb->poll(this);
         break;
     }
     if (!id) {

@@ -33,6 +33,7 @@ static void help(FILE *f, const char* app)
             "  --log-file|-L [file]          Log to this file\n"
             "  --append|-A                   Append to log file\n"
             "  --no-context|-N               Don't print context for locations\n"
+            "  --poll|-P                     Check if something's dirty\n"
             "  --status|-s                   Dump status of rdm\n",
             app);
 }
@@ -60,6 +61,7 @@ int main(int argc, char** argv)
         { "append", no_argument, 0, 'A' },
         { "no-context", no_argument, 0, 'N' },
         { "status", no_argument, 0, 's' },
+        { "poll", no_argument, 0, 'P' },
         { 0, 0, 0, 0 }
     };
 
@@ -97,6 +99,9 @@ int main(int argc, char** argv)
             break;
         case 'L':
             logFile = optarg;
+            break;
+        case 'P':
+            optlist.append(qMakePair(QueryMessage::Poll, QByteArray()));
             break;
         case 'p':
             flags |= Client::SkipParen;
