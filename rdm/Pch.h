@@ -8,5 +8,7 @@
 #include "RTags.h"
 #include "Rdm.h"
 #include "Indexer.h"
+#include <string>
+#include <map>
 
 #endif
