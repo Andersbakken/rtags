@@ -163,6 +163,10 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
     Rdm::CursorInfo &info = job->mSymbols[loc];
     if (!info.symbolLength) {
         info.kind = kind;
+#ifdef QT_DEBUG
+        info.loc = loc;
+        info.symbolName = Rdm::eatString(clang_getCursorDisplayName(cursor));
+#endif
     } else if (info.kind == CXCursor_Constructor && kind == CXCursor_TypeRef) {
         return CXChildVisit_Recurse;
     }
@@ -189,7 +193,9 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
             return CXChildVisit_Recurse;
         }
 
-        info.target = refLoc;
+        if (refLoc != loc) {
+            info.target = refLoc;
+        }
         bool isMemberFunction = false;
         // error() << "we're here" << Rdm::cursorToString(ref)
         //         << Rdm::cursorToString(cursor);

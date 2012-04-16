@@ -18,9 +18,13 @@ struct CursorInfo {
     CursorInfo() : symbolLength(0), kind(CXCursor_FirstInvalid) {}
     bool isNull() const { return symbolLength; }
     int symbolLength;
+    CXCursorKind kind;
     RTags::Location target;
     QSet<RTags::Location> references;
-    CXCursorKind kind;
+#ifdef QT_DEBUG
+    RTags::Location loc;
+    QByteArray symbolName;
+#endif
     bool dirty(const QSet<Path> &paths)
     {
         bool changed = false;
@@ -42,31 +46,63 @@ struct CursorInfo {
     }
     bool unite(const CursorInfo &other)
     {
+        if (!other.symbolLength)
+            return true;
         if (!symbolLength) {
+#ifdef QT_DEBUG
+            if (!target.isNull())
+                error() << "About to assert" << target << loc << symbolName;
+            if (!references.isEmpty())
+                error() << "About to assert" << references << loc << symbolName;
+#endif
+            Q_ASSERT(target.isNull());
+            Q_ASSERT(references.isEmpty());
             *this = other;
             return true;
         }
         if (symbolLength != other.symbolLength) {
-            error() << symbolLength << other.symbolLength
-                    << target << other.target
-                    << references << other.references
-                    << kind << other.kind;
+            error() << "something wrong here. SymbolLength" << symbolLength << "other.symbolLength" << other.symbolLength
+                    << "target" << target << "other.target" << other.target
+                    << "references" << references << "other.references" << other.references
+                    << "kind" << kind << "other.kind" << other.kind
+#ifdef QT_DEBUG
+                    << "location" << loc
+                    << "symbolName" << symbolName
+#endif
+                ;
         }
-        // Q_ASSERT(symbolLength == other.symbolLength);
-        if (target != other.target) {
-            Q_ASSERT(target.isNull() || other.isNull());
-            if (target.isNull()) {
-                target = other.target;
+        bool changed = false;
+        if (!other.target.isNull() && target != other.target) {
+#ifdef QT_DEBUG
+            if (!target.isNull()) {
+                switch (kind) {
+                case CXCursor_TypeRef:
+                case CXCursor_NamespaceRef:
+                case CXCursor_MacroExpansion:
+                case CXCursor_TemplateRef:
+                case CXCursor_CXXBaseSpecifier:
+                case CXCursor_UnexposedExpr:
+                case CXCursor_CallExpr: // don't like this one
+                    break;
+                case CXCursor_VarDecl:
+                case CXCursor_CXXMethod:
+                    if (target.path.contains("moc_") || target.path.contains(".moc"))
+                        break;
+                    // fallthrough
+                default:
+                    error() << "overwrote target for" << loc << "from" << target << "to" << other.target
+                            << "symbolName" << symbolName
+                            << Rdm::eatString(clang_getCursorKindSpelling(kind));
+                    break;
+                }
             }
-            // error() << target << other.target
-            //         << symbolLength << other.symbolLength
-            //         << references << other.references
-            //         << kind << other.kind;
+#endif
+            target = other.target;
+            changed = true;
         }
-
         const int oldSize = references.size();
         references.unite(other.references);
-        return oldSize != references.size();
+        return changed || oldSize != references.size();
     }
 };
 
