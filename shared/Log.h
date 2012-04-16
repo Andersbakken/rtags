@@ -6,6 +6,7 @@
 #include <QExplicitlySharedDataPointer>
 #include <QSharedData>
 #include <QVariant>
+class Path;
 
 enum LogLevel {
     Error = 0,

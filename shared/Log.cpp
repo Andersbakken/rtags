@@ -1,4 +1,5 @@
 #include "Log.h"
+#include "Path.h"
 #include <stdio.h>
 #include <QDateTime>
 #include <QMutex>
