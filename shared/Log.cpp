@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <QDateTime>
 #include <QMutex>
+#include <errno.h>
 #include <QCoreApplication>
 
 static int sLevel = 0;
@@ -103,10 +104,24 @@ bool testLog(int level)
     return level <= sLevel || sFile;
 }
 
-bool initLogging(int level, const QByteArray &file, unsigned flags)
+bool initLogging(int level, const Path &file, unsigned flags)
 {
     sLevel = level;
     if (!file.isEmpty()) {
+        if (!(flags & (Append|DontRotate)) && file.exists()) {
+            int i = 0;
+            forever {
+                Path rotated = file + "." + QByteArray::number(++i);
+                if (!rotated.exists()) {
+                    if (rename(file.constData(), rotated.constData())) {
+                        char buf[1025];
+                        strerror_r(errno, buf, 1024);
+                        error() << "Couldn't rotate log file" << file << "to" << rotated << buf;
+                    }
+                    break;
+                }
+            }
+        }
         sFile = fopen(file.constData(), flags & Append ? "a" : "w");
         if (!sFile)
             return false;

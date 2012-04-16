@@ -19,10 +19,10 @@ void warning(const char *format, ...);
 void error(const char *format, ...);
 enum LogFlag {
     Append = 0x1,
-    // ### rotate log files?
+    DontRotate = 0x2
 };
 bool testLog(int level);
-bool initLogging(int logLevel, const QByteArray &logFile, unsigned flags);
+bool initLogging(int logLevel, const Path &logFile, unsigned flags);
 int logLevel();
 QByteArray logFile();
 
