@@ -10,13 +10,33 @@ typedef QHash<QByteArray, QSet<RTags::Location> > SymbolNameHash;
 typedef QHash<Path, QSet<Path> > DependencyHash;
 typedef QPair<QByteArray, quint64> WatchedPair;
 typedef QHash<Path, QSet<WatchedPair> > WatchedHash;
-typedef QHash<Path, QList<QByteArray> > InformationHash;
+struct FileInformation {
+    FileInformation() : lastTouched(0) {}
+    time_t lastTouched;
+    QList<QByteArray> compileArgs;
+};
+static inline QDataStream &operator<<(QDataStream &ds, const FileInformation &ci)
+{
+    ds << static_cast<quint64>(ci.lastTouched) << ci.compileArgs;
+    return ds;
+}
+
+static inline QDataStream &operator>>(QDataStream &ds, FileInformation &ci)
+{
+    quint64 lastTouched;
+    ds >> lastTouched;
+    ci.lastTouched = static_cast<time_t>(lastTouched);
+    ds >> ci.compileArgs;
+    return ds;
+}
+
+typedef QHash<Path, FileInformation> InformationHash;
 
 class IndexerJob;
 class IndexerSyncer;
 class Indexer : public QObject
 {
-    Q_OBJECT
+    Q_OBJECT;
 public:
 
     Indexer(const QByteArray& path, QObject* parent = 0);
@@ -28,7 +48,9 @@ public:
     QList<QByteArray> defaultArgs() const { return mDefaultArgs; }
     void setPchDependencies(const Path &pchHeader, const QSet<Path> &deps);
     QSet<Path> pchDependencies(const Path &pchHeader) const;
+    void poll();
 protected:
+    void timerEvent(QTimerEvent *e);
     void customEvent(QEvent* event);
 
 signals:
@@ -40,6 +62,7 @@ private slots:
 private:
     void commitDependencies(const DependencyHash& deps, bool sync);
     void initWatcher();
+    void init();
 
     QList<QByteArray> mDefaultArgs;
     mutable QReadWriteLock mPchDependenciesLock;
@@ -64,6 +87,7 @@ private:
     DependencyHash mDependencies;
     QMutex mWatchedMutex;
     WatchedHash mWatched;
+    QBasicTimer mPollTimer;
 
     friend class IndexerJob;
 };

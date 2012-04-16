@@ -72,10 +72,13 @@ void IndexerSyncer::setPchDependencies(const DependencyHash& dependencies)
 }
 
 
-void IndexerSyncer::addFileInformation(const Path& input, const QList<QByteArray>& args)
+void IndexerSyncer::addFileInformation(const Path& input, const QList<QByteArray>& args, time_t timeStamp)
 {
+    FileInformation fi;
+    fi.lastTouched = timeStamp;
+    fi.compileArgs = args;
     QMutexLocker lock(&mMutex);
-    mInformations[input] = args;
+    mInformations[input] = fi;
 }
 
 void IndexerSyncer::run()
@@ -159,7 +162,6 @@ void IndexerSyncer::run()
             LevelDB db;
             if (!db.open(Database::Dependency, LevelDB::ReadWrite))
                 return;
-
             leveldb::WriteBatch batch;
 
             DependencyHash::iterator it = dependencies.begin();
@@ -193,7 +195,7 @@ void IndexerSyncer::run()
             const InformationHash::const_iterator end = informations.end();
             while (it != end) {
                 const char *key = it.key().constData();
-                Rdm::writeValue<QList<QByteArray> >(&batch, key, it.value());
+                Rdm::writeValue<FileInformation>(&batch, key, it.value());
                 ++it;
             }
             LevelDB db;

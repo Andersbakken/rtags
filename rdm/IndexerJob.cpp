@@ -314,6 +314,7 @@ void IndexerJob::run()
     CXTranslationUnit unit = clang_parseTranslationUnit(index, mIn.constData(),
                                                         clangArgs.data(), idx, 0, 0,
                                                         CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+    const time_t timeStamp = time(0);
     log(1) << "loading unit" << clangLine << (unit != 0);
     bool pchError = false;
 
@@ -380,7 +381,7 @@ void IndexerJob::run()
         }
         mIndexer->mSyncer->addSymbols(mSymbols);
         mIndexer->mSyncer->addSymbolNames(mSymbolNames);
-        mIndexer->mSyncer->addFileInformation(mIn, mArgs);
+        mIndexer->mSyncer->addFileInformation(mIn, mArgs, timeStamp);
         if (mIsPch)
             mIndexer->setPchDependencies(mIn, mPchDependencies);
 

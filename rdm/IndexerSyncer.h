@@ -13,7 +13,7 @@ public:
     void addSymbolNames(const SymbolNameHash &symbolNames);
     void addDependencies(const DependencyHash& dependencies);
     void setPchDependencies(const DependencyHash& dependencies);
-    void addFileInformation(const Path& input, const QList<QByteArray>& args);
+    void addFileInformation(const Path& input, const QList<QByteArray>& args, time_t timeStamp);
     void notify();
     void stop();
 
