@@ -51,7 +51,6 @@ return t if rtags is allowed to modify this file"
         (forward-char (- column 1)))
     t)
   nil)
-)
 
 
 (defun rtags-goto-location(location)
