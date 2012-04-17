@@ -11,8 +11,8 @@ class ReferencesJob : public QObject, public QRunnable
 {
     Q_OBJECT
 public:
-    ReferencesJob(int id, const RTags::Location &location, bool includeContext);
-    ReferencesJob(int id, const QByteArray &symbolName, bool includeContext);
+    ReferencesJob(int id, const RTags::Location &location, unsigned keyflags);
+    ReferencesJob(int id, const QByteArray &symbolName, unsigned keyflags);
 signals:
     void complete(int id, const QList<QByteArray>& locations);
 protected:
@@ -21,7 +21,7 @@ private:
     const int id;
     QSet<RTags::Location> locations;
     const QByteArray symbolName;
-    const bool includeContext;
+    const unsigned keyFlags;
 };
 
 #endif

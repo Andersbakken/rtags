@@ -16,8 +16,6 @@ class Client : public QObject
 {
     Q_OBJECT
 public:
-    enum Flags { SkipParen = 0x1, NoContext = 0x2 }; // duplicated in QueryMessage
-
     Client(int flags = 0, QObject* parent = 0);
 
     void parseMakefile(const Path &path);

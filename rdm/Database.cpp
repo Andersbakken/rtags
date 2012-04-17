@@ -57,7 +57,7 @@ int Database::followLocation(const QueryMessage &query)
 
     warning() << "followLocation" << loc;
 
-    FollowLocationJob* job = new FollowLocationJob(id, loc, !(query.flags() & QueryMessage::NoContext));
+    FollowLocationJob* job = new FollowLocationJob(id, loc, query.keyFlags());
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
     QThreadPool::globalInstance()->start(job);
@@ -75,7 +75,7 @@ int Database::referencesForLocation(const QueryMessage &query)
 
     warning() << "references for location" << loc;
 
-    ReferencesJob* job = new ReferencesJob(id, loc, !(query.flags() & QueryMessage::NoContext));
+    ReferencesJob* job = new ReferencesJob(id, loc, query.keyFlags());
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
     QThreadPool::globalInstance()->start(job);
@@ -90,7 +90,7 @@ int Database::referencesForName(const QueryMessage& query)
     const QByteArray name = query.query().front();
     warning() << "references for name" << name;
 
-    ReferencesJob* job = new ReferencesJob(id, name, !(query.flags() & QueryMessage::NoContext));
+    ReferencesJob* job = new ReferencesJob(id, name, query.keyFlags());
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
     QThreadPool::globalInstance()->start(job);
@@ -121,7 +121,7 @@ int Database::match(const QueryMessage &query)
 
     warning() << "match" << partial;
 
-    MatchJob* job = new MatchJob(partial, id, query.type(), !(query.flags() & QueryMessage::NoContext));
+    MatchJob* job = new MatchJob(partial, id, query.type(), query.keyFlags());
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
     QThreadPool::globalInstance()->start(job);

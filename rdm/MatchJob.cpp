@@ -5,8 +5,8 @@
 #include "Rdm.h"
 #include "LevelDB.h"
 
-MatchJob::MatchJob(const QByteArray& p, int i, QueryMessage::Type t, bool ctx)
-    : partial(p), id(i), type(t), includeContext(ctx)
+MatchJob::MatchJob(const QByteArray& p, int i, QueryMessage::Type t, unsigned flags)
+    : partial(p), id(i), type(t), keyFlags(flags)
 {
 }
 
@@ -17,8 +17,8 @@ void MatchJob::run()
         emit complete(id, QList<QByteArray>());
         return;
     }
-            
-    
+
+
     QList<QByteArray> result;
 
     QByteArray entry;
@@ -42,7 +42,7 @@ void MatchJob::run()
             if (!cmp) {
                 const QSet<RTags::Location> locations = Rdm::readValue<QSet<RTags::Location> >(it);
                 foreach (const RTags::Location &loc, locations) {
-                    result.append(loc.key(includeContext ? RTags::Location::ShowContext : RTags::Location::NoFlag));
+                    result.append(loc.key(keyFlags));
                 }
             } else if (cmp > 0) {
                 break;

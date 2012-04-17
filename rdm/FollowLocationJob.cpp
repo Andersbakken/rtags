@@ -2,8 +2,8 @@
 #include "Rdm.h"
 #include "LevelDB.h"
 
-FollowLocationJob::FollowLocationJob(int i, const RTags::Location &loc, bool ctx)
-    : id(i), location(loc), includeContext(ctx)
+FollowLocationJob::FollowLocationJob(int i, const RTags::Location &loc, unsigned f)
+    : id(i), location(loc), flags(f)
 {
 }
 
@@ -22,9 +22,7 @@ void FollowLocationJob::run()
     Rdm::CursorInfo cursorInfo = Rdm::findCursorInfo(db.db(), location);
     QList<QByteArray> list;
     if (!cursorInfo.target.isNull()) {
-        list.append(cursorInfo.target.key(includeContext
-                                          ? RTags::Location::ShowContext
-                                          : RTags::Location::NoFlag));
+        list.append(cursorInfo.target.key(flags));
     }
     emit complete(id, list);
 }

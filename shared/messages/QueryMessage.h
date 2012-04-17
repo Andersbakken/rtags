@@ -24,9 +24,11 @@ public:
         Status,
         Poll
     };
+
     enum Flag {
         SkipParen = 0x01,
-        NoContext = 0x02
+        NoContext = 0x02,
+        LineNumbers = 0x04
     };
 
     Q_INVOKABLE QueryMessage(QObject* parent = 0);
@@ -41,7 +43,9 @@ public:
 
     QHash<Path, QByteArray> unsavedFiles() const { return mUnsavedFiles; }
     Type type() const { return mType; }
-    int flags() const { return mFlags; }
+    unsigned flags() const { return mFlags; }
+
+    unsigned keyFlags() const;
 
     QByteArray toByteArray() const;
     Q_INVOKABLE void fromByteArray(const QByteArray& data);
@@ -49,7 +53,7 @@ public:
 private:
     QList<QByteArray> mQuery;
     Type mType;
-    int mFlags;
+    unsigned mFlags;
     QHash<Path, QByteArray> mUnsavedFiles;
 };
 

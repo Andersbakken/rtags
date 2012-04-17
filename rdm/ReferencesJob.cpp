@@ -3,14 +3,14 @@
 #include "LevelDB.h"
 #include "Rdm.h"
 
-ReferencesJob::ReferencesJob(int i, const RTags::Location &loc, bool ctx)
-    : id(i), symbolName(QByteArray()), includeContext(ctx)
+ReferencesJob::ReferencesJob(int i, const RTags::Location &loc, unsigned flags)
+    : id(i), symbolName(QByteArray()), keyFlags(flags)
 {
     locations.insert(loc);
 }
 
-ReferencesJob::ReferencesJob(int i, const QByteArray &sym, bool ctx)
-    : id(i), symbolName(sym), includeContext(ctx)
+ReferencesJob::ReferencesJob(int i, const QByteArray &sym, unsigned flags)
+    : id(i), symbolName(sym), keyFlags(flags)
 {
 }
 
@@ -41,9 +41,8 @@ void ReferencesJob::run()
             cursorInfo = Rdm::findCursorInfo(db.db(), cursorInfo.target);
             refs = cursorInfo.references;
         }
-        qDebug() << "got some references and shit" << includeContext << refs.size();
         foreach (const RTags::Location &loc, refs) {
-            list.append(loc.key(includeContext ? RTags::Location::ShowContext : RTags::Location::NoFlag));
+            list.append(loc.key(keyFlags));
         }
     }
     emit complete(id, list);

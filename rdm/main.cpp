@@ -26,9 +26,6 @@ void usage(FILE *f)
 
 int main(int argc, char** argv)
 {
-    RTags::Location loc(argv[1], atoi(argv[2]));
-    printf("%s\n", loc.key(RTags::Location::LineNumbers|RTags::Location::ShowContext).constData());
-    return 0;
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
         { "include-path", required_argument, 0, 'I' },

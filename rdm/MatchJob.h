@@ -11,7 +11,7 @@ class MatchJob : public QObject, public QRunnable
 {
     Q_OBJECT
 public:
-    MatchJob(const QByteArray& p, int i, QueryMessage::Type type, bool includeContext);
+    MatchJob(const QByteArray& p, int i, QueryMessage::Type type, unsigned flags);
 signals:
     void complete(int id, const QList<QByteArray>&);
 
@@ -22,7 +22,7 @@ private:
     const QByteArray partial;
     const int id;
     const QueryMessage::Type type;
-    const bool includeContext;
+    const unsigned keyFlags;
 };
 
 #endif

@@ -52,7 +52,7 @@ void Client::onNewMessage(Message* message)
     if (message->messageId() == QueryMessage::MessageId) {
         foreach (const QByteArray& r, static_cast<QueryMessage*>(message)->query()) {
             if (!r.isEmpty()) {
-                if ((mFlags & SkipParen) && r.contains("("))
+                if ((mFlags & QueryMessage::SkipParen) && r.contains("("))
                     continue;
                 printf("%s\n", r.constData());
             }

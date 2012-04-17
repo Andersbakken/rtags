@@ -1,4 +1,5 @@
 #include "QueryMessage.h"
+#include "RTags.h"
 #include <QDataStream>
 
 QueryMessage::QueryMessage(QObject* parent)
@@ -39,4 +40,14 @@ void QueryMessage::fromByteArray(const QByteArray& data)
     QDataStream stream(data);
     stream >> mQuery >> t >> mFlags >> mUnsavedFiles;
     mType = static_cast<Type>(t);
+}
+
+unsigned QueryMessage::keyFlags() const
+{
+    unsigned ret = RTags::Location::NoFlag;
+    if (!(mFlags & QueryMessage::NoContext))
+        ret |= RTags::Location::ShowContext;
+    if (mFlags & QueryMessage::LineNumbers)
+        ret |= RTags::Location::ShowLineNumbers;
+    return ret;
 }

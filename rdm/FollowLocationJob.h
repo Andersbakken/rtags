@@ -11,7 +11,7 @@ class FollowLocationJob : public QObject, public QRunnable
 {
     Q_OBJECT
 public:
-    FollowLocationJob(int id, const RTags::Location &loc, bool includeContext);
+    FollowLocationJob(int id, const RTags::Location &loc, unsigned flags);
     ~FollowLocationJob();
 
 signals:
@@ -23,7 +23,7 @@ protected:
 private:
     const int id;
     const RTags::Location location;
-    const bool includeContext;
+    const unsigned flags;
 };
 
 #endif

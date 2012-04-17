@@ -68,7 +68,7 @@ struct Location {
         NoFlag = 0x0,
         Padded = 0x1,
         ShowContext = 0x2,
-        LineNumbers = 0x4
+        ShowLineNumbers = 0x4
     };
     QByteArray context() const
     {
@@ -114,7 +114,7 @@ struct Location {
             idx += lineLen + 1;
             // printf("lineStart %d offset %d last %d lineLen %d\n", idx, offset, last, lineLen);
             if (idx > offset) {
-                col = offset - last;
+                col = offset - last + 1;
                 break;
             }
             last = idx;
@@ -133,10 +133,10 @@ struct Location {
         int line = 0, col = 0;
         if (flags & Padded) {
             extra = 7;
-        } else if (flags & LineNumbers && convertOffset(line, col)) {
-            extra = RTags::digits(line) + RTags::digits(col) + 2;
+        } else if (flags & ShowLineNumbers && convertOffset(line, col)) {
+            extra = RTags::digits(line) + RTags::digits(col) + 3;
         } else {
-            flags &= ~LineNumbers;
+            flags &= ~ShowLineNumbers;
             extra = RTags::digits(offset) + 1;
         }
         QByteArray ctx;
@@ -150,9 +150,9 @@ struct Location {
         if (flags & Padded) {
             snprintf(ret.data(), ret.size() + extra + 1, "%s,%06d%s", path.constData(),
                      offset, ctx.constData());
-        } else if (flags & LineNumbers) {
-            snprintf(ret.data(), ret.size() + extra + 1, "%s:%d:%d%s %d", path.constData(),
-                     line, col, ctx.constData(), offset);
+        } else if (flags & ShowLineNumbers) {
+            snprintf(ret.data(), ret.size() + extra + 1, "%s:%d:%d:%s", path.constData(),
+                     line, col, ctx.constData());
         } else {
             snprintf(ret.data(), ret.size() + extra + 1, "%s,%d%s", path.constData(),
                      offset, ctx.constData());
