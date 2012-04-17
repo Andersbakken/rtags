@@ -43,6 +43,8 @@ int main(int argc, char** argv)
 {
     QCoreApplication app(argc, argv);
 
+#warning need an arg to filter to a project
+
     struct option opts[] = {
         { "verbose", no_argument, 0, 'v' },
         { "skip-paren", no_argument, 0, 'p' },
