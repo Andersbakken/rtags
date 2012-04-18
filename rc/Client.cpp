@@ -25,17 +25,21 @@ void Client::parseMakefile(const Path& path)
     qApp->exec();
 }
 
-void Client::query(QueryMessage::Type type, const QByteArray& msg, const QHash<Path, QByteArray> &unsavedFiles)
+void Client::query(const QueryMessage &message)
 {
-    mConn = new Connection(this);
-    if (mConn->connectToHost("localhost", Connection::Port)) {
-        QueryMessage message(msg, type, mFlags, unsavedFiles);
-        connect(mConn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
-        mConn->send(&message);
-        qApp->exec();
-    } else {
-        warning("Can't connect to host");
+    if (!mConn) {
+        mConn = new Connection(this);
+        if (!mConn->connectToHost("localhost", Connection::Port)) {
+            warning("Can't connect to host");
+            delete mConn;
+            mConn = 0;
+            return;
+        }
     }
+
+    connect(mConn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
+    mConn->send(&message);
+    qApp->exec();
 }
 
 void Client::onSendComplete()
@@ -52,7 +56,7 @@ void Client::onNewMessage(Message* message)
     if (message->messageId() == QueryMessage::MessageId) {
         foreach (const QByteArray& r, static_cast<QueryMessage*>(message)->query()) {
             if (!r.isEmpty()) {
-                if ((mFlags & QueryMessage::SkipParen) && r.contains("("))
+                if ((mFlags & SkipParen) && r.contains("("))
                     continue;
                 printf("%s\n", r.constData());
             }

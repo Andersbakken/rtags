@@ -35,6 +35,7 @@ static void help(FILE *f, const char* app)
             "  --no-context|-N               Don't print context for locations\n"
             "  --line-numbers|-l             Output line numbers instead of offsets\n"
             "  --poll|-P                     Check if something's dirty\n"
+            "  --path-filter|-i [arg]        Filter out results not matching with arg\n"
             "  --status|-s                   Dump status of rdm\n",
             app);
 }
@@ -42,8 +43,6 @@ static void help(FILE *f, const char* app)
 int main(int argc, char** argv)
 {
     QCoreApplication app(argc, argv);
-
-#warning need an arg to filter to a project
 
     struct option opts[] = {
         { "verbose", no_argument, 0, 'v' },
@@ -65,6 +64,7 @@ int main(int argc, char** argv)
         { "no-context", no_argument, 0, 'N' },
         { "status", no_argument, 0, 's' },
         { "line-numbers", no_argument, 0, 'l' },
+        { "path-filter", required_argument, 0, 'i' },
         { "poll", no_argument, 0, 'P' },
         { 0, 0, 0, 0 }
     };
@@ -76,7 +76,9 @@ int main(int argc, char** argv)
     QList<Path> makeFiles;
     QList<QPair<QueryMessage::Type, QByteArray> > optlist;
     QHash<Path, QByteArray> unsavedFiles;
-    unsigned flags = 0;
+    QSet<QByteArray> pathFilters;
+    unsigned queryFlags = 0;
+    unsigned clientFlags = 0;
 
     QFile standardIn;
 
@@ -93,10 +95,13 @@ int main(int argc, char** argv)
             help(stdout, argv[0]);
             return 0;
         case 'N':
-            flags |= QueryMessage::NoContext;
+            queryFlags |= QueryMessage::NoContext;
+            break;
+        case 'i':
+            pathFilters.insert(optarg);
             break;
         case 'l':
-            flags |= QueryMessage::LineNumbers;
+            queryFlags |= QueryMessage::LineNumbers;
             break;
         case 'v':
             ++logLevel;
@@ -111,7 +116,7 @@ int main(int argc, char** argv)
             optlist.append(qMakePair(QueryMessage::Poll, QByteArray()));
             break;
         case 'p':
-            flags |= QueryMessage::SkipParen;
+            clientFlags |= Client::SkipParen;
             break;
         case 'u':
             if (!standardIn.isOpen() && !standardIn.open(stdin, QIODevice::ReadOnly)) {
@@ -197,10 +202,11 @@ int main(int argc, char** argv)
             l << argv[i];
     }
 
-    Client client(flags);
+    Client client(clientFlags);
     QList<QPair<QueryMessage::Type, QByteArray> >::const_iterator it = optlist.begin();
     while (it != optlist.end()) {
-        client.query(it->first, it->second, unsavedFiles);
+        QueryMessage msg(it->first, it->second, queryFlags, unsavedFiles, pathFilters);
+        client.query(msg);
         ++it;
     }
     foreach (const QByteArray &makeFile, makeFiles) {

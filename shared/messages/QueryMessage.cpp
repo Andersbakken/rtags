@@ -7,20 +7,16 @@ QueryMessage::QueryMessage(QObject* parent)
 {
 }
 
-QueryMessage::QueryMessage(const QByteArray& query, Type type, int flags,
-                           const QHash<Path, QByteArray> &unsavedFiles, QObject* parent)
-    : Message(parent), mType(type), mFlags(flags), mUnsavedFiles(unsavedFiles)
+QueryMessage::QueryMessage(Type type, const QByteArray& query, unsigned flags,
+                           const QHash<Path, QByteArray> &unsavedFiles, const QSet<QByteArray> &pathFilters,
+                           QObject* parent)
+    : Message(parent), mType(type), mFlags(flags), mUnsavedFiles(unsavedFiles), mPathFilters(pathFilters)
 {
     mQuery.append(query);
 }
 
-QueryMessage::QueryMessage(const QList<QByteArray>& query, Type type, int flags, QObject* parent)
-    : Message(parent), mQuery(query), mType(type), mFlags(flags)
-{
-}
-
-QueryMessage::QueryMessage(const QList<QByteArray>& query, Type type, QObject* parent)
-    : Message(parent), mQuery(query), mType(type), mFlags(0)
+QueryMessage::QueryMessage(Type type, const QList<QByteArray> &msg)
+    : Message(0), mQuery(msg), mType(type)
 {
 }
 
@@ -29,7 +25,7 @@ QByteArray QueryMessage::toByteArray() const
     QByteArray data;
     {
         QDataStream stream(&data, QIODevice::WriteOnly);
-        stream << mQuery << static_cast<int>(mType) << mFlags << mUnsavedFiles;
+        stream << mQuery << static_cast<int>(mType) << mFlags << mUnsavedFiles << mPathFilters;
     }
     return data;
 }
@@ -38,7 +34,7 @@ void QueryMessage::fromByteArray(const QByteArray& data)
 {
     int t;
     QDataStream stream(data);
-    stream >> mQuery >> t >> mFlags >> mUnsavedFiles;
+    stream >> mQuery >> t >> mFlags >> mUnsavedFiles >> mPathFilters;
     mType = static_cast<Type>(t);
 }
 
@@ -51,3 +47,4 @@ unsigned QueryMessage::keyFlags() const
         ret |= RTags::Location::ShowLineNumbers;
     return ret;
 }
+

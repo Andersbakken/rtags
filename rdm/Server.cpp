@@ -69,7 +69,7 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
         }
         Rdm::writeValue<int>(db.db(), "version", Rdm::DatabaseVersion);
     }
-    
+
     debug() << "running with" << mDefaultArgs;
     return true;
 }
@@ -189,7 +189,7 @@ void Server::handleQueryMessage(QueryMessage* message)
         break;
     }
     if (!id) {
-        QueryMessage msg(QList<QByteArray>() << "Invalid message", QueryMessage::FollowLocation);
+        QueryMessage msg(QueryMessage::FollowLocation, "Invalid message");
         conn->send(&msg);
     } else {
         mPendingLookups[id] = conn;
@@ -215,6 +215,6 @@ void Server::onDatabaseComplete(int id, const QList<QByteArray>& response)
     QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
         return;
-    QueryMessage msg(response, QueryMessage::FollowLocation);
+    QueryMessage msg(QueryMessage::FollowLocation, response);
     it.value()->send(&msg);
 }

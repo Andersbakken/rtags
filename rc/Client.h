@@ -17,19 +17,20 @@ class Client : public QObject
     Q_OBJECT
 public:
     Client(int flags = 0, QObject* parent = 0);
+    enum Flag {
+        None = 0x0,
+        SkipParen = 0x01
+    };
 
     void parseMakefile(const Path &path);
-    void query(QueryMessage::Type type, const QByteArray& msg,
-               const QHash<Path, QByteArray> &unsavedFiles);
+    void query(const QueryMessage &msg);
 private slots:
     void onSendComplete();
     void onNewMessage(Message* message);
     void onMakefileDone();
     void onMakefileReady(const GccArguments& args);
-
 private:
     QList<QByteArray> mapPchToInput(const QList<QByteArray>& input);
-
 private:
     Connection* mConn;
     int mFlags;
