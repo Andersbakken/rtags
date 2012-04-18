@@ -171,6 +171,9 @@ void Server::handleQueryMessage(QueryMessage* message)
     Connection* conn = qobject_cast<Connection*>(sender());
     int id = 0;
     switch (message->type()) {
+    case QueryMessage::Response:
+        Q_ASSERT(0);
+        break;
     case QueryMessage::FollowLocation:
         id = followLocation(*message);
         break;
@@ -198,7 +201,7 @@ void Server::handleQueryMessage(QueryMessage* message)
         break;
     }
     if (!id) {
-        QueryMessage msg(QueryMessage::FollowLocation, QList<QByteArray>() << "Invalid message");
+        QueryMessage msg(QList<QByteArray>() << "Invalid message");
         conn->send(&msg);
     } else {
         mPendingLookups[id] = conn;
@@ -224,7 +227,7 @@ void Server::onComplete(int id, const QList<QByteArray>& response)
     QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
         return;
-    QueryMessage msg(QueryMessage::FollowLocation, response);
+    QueryMessage msg(response);
     it.value()->send(&msg);
 }
 

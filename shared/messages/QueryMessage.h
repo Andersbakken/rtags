@@ -11,6 +11,7 @@ class QueryMessage : public Message
 public:
     enum { MessageId = 4 };
     enum Type {
+        Response,
         FollowLocation,
         ReferencesLocation,
         ReferencesName,
@@ -28,7 +29,7 @@ public:
     };
 
     Q_INVOKABLE QueryMessage(QObject* parent = 0);
-    QueryMessage(Type type, const QList<QByteArray> &msg);
+    QueryMessage(const QList<QByteArray> &msg);
     QueryMessage(Type type, const QByteArray &query, unsigned flags,
                  const QHash<Path, QByteArray> &unsavedFiles,
                  const QSet<QByteArray> &pathFilters,

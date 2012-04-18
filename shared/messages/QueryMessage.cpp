@@ -3,7 +3,7 @@
 #include <QDataStream>
 
 QueryMessage::QueryMessage(QObject* parent)
-    : Message(parent), mType(FollowLocation), mFlags(0)
+    : Message(parent), mType(Response), mFlags(0)
 {
 }
 
@@ -15,8 +15,8 @@ QueryMessage::QueryMessage(Type type, const QByteArray& query, unsigned flags,
     mQuery.append(query);
 }
 
-QueryMessage::QueryMessage(Type type, const QList<QByteArray> &msg)
-    : Message(0), mQuery(msg), mType(type)
+QueryMessage::QueryMessage(const QList<QByteArray> &msg)
+    : Message(0), mQuery(msg), mType(Response), mFlags(0)
 {
 }
 
