@@ -3,7 +3,5 @@
 
 #include <QtCore>
 #include <QtNetwork>
-#include <Path.h>
-#include <Message.h>
 
 #endif
