@@ -14,7 +14,7 @@ FollowLocationJob::~FollowLocationJob()
 void FollowLocationJob::run()
 {
     LevelDB db;
-    if (!db.open(Database::Symbol, LevelDB::ReadOnly)) {
+    if (!db.open(Server::Symbol, LevelDB::ReadOnly)) {
         emit complete(id, QList<QByteArray>());
         return;
     }

@@ -2,7 +2,7 @@
 #include <QReadWriteLock>
 
 struct Locks {
-    QReadWriteLock locks[Database::DatabaseTypeCount];
+    QReadWriteLock locks[Server::DatabaseTypeCount];
 };
 Q_GLOBAL_STATIC(Locks, readWriteLocks);
 
@@ -25,9 +25,9 @@ void LevelDB::close()
         mType = -1;
     }
 }
-bool LevelDB::open(Database::Type type, Mode mode, QByteArray *error)
+bool LevelDB::open(Server::DatabaseType type, Mode mode, QByteArray *error)
 {
-    const QByteArray name = Database::databaseName(type);
+    const QByteArray name = Server::databaseName(type);
     Q_ASSERT(!name.isEmpty());
     leveldb::Options options;
     if (mode == ReadWrite)

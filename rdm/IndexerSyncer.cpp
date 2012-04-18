@@ -135,7 +135,7 @@ void IndexerSyncer::run()
         }
         if (!symbolNames.isEmpty()) {
             LevelDB db;
-            if (!db.open(Database::SymbolName, LevelDB::ReadWrite))
+            if (!db.open(Server::SymbolName, LevelDB::ReadWrite))
                 return;
 
             leveldb::WriteBatch batch;
@@ -186,9 +186,9 @@ void IndexerSyncer::run()
                 } else {
                     if (!symbolDB.db()) {
                         QByteArray err;
-                        if (!symbolDB.open(Database::Symbol, LevelDB::ReadWrite, &err)) {
+                        if (!symbolDB.open(Server::Symbol, LevelDB::ReadWrite, &err)) {
                             error("Can't open Symbol database %s %s\n",
-                                  Database::databaseName(Database::Symbol).constData(),
+                                  Server::databaseName(Server::Symbol).constData(),
                                   err.constData());
                             return;
                         }
@@ -235,9 +235,9 @@ void IndexerSyncer::run()
         }
         if (!symbols.isEmpty()) {
             QByteArray err;
-            if (!symbolDB.db() && !symbolDB.open(Database::Symbol, LevelDB::ReadWrite, &err)) {
+            if (!symbolDB.db() && !symbolDB.open(Server::Symbol, LevelDB::ReadWrite, &err)) {
                 error("Can't open Symbol database %s %s\n",
-                      Database::databaseName(Database::Symbol).constData(),
+                      Server::databaseName(Server::Symbol).constData(),
                       err.constData());
                 return;
             }
@@ -261,7 +261,7 @@ void IndexerSyncer::run()
         
         if (!dependencies.isEmpty()) {
             LevelDB db;
-            if (!db.open(Database::Dependency, LevelDB::ReadWrite))
+            if (!db.open(Server::Dependency, LevelDB::ReadWrite))
                 return;
             leveldb::WriteBatch batch;
 
@@ -285,7 +285,7 @@ void IndexerSyncer::run()
         }
         if (!pchDependencies.isEmpty()) {
             LevelDB db;
-            if (!db.open(Database::Dependency, LevelDB::ReadWrite))
+            if (!db.open(Server::Dependency, LevelDB::ReadWrite))
                 return;
             Rdm::writeValue<DependencyHash>(db.db(), "pch", pchDependencies);
         }
@@ -300,7 +300,7 @@ void IndexerSyncer::run()
                 ++it;
             }
             LevelDB db;
-            if (!db.open(Database::FileInformation, LevelDB::ReadWrite))
+            if (!db.open(Server::FileInformation, LevelDB::ReadWrite))
                 return;
 
             db.db()->Write(leveldb::WriteOptions(), &batch);

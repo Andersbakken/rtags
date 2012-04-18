@@ -1,27 +1,49 @@
-#include "Server.h"
-#include "Indexer.h"
-#include "Database.h"
 #include "Connection.h"
-#include "Rdm.h"
+#include "DumpJob.h"
+#include "FollowLocationJob.h"
+#include "Indexer.h"
+#include "LevelDB.h"
+#include "MatchJob.h"
 #include "Message.h"
 #include "Messages.h"
-#include "LevelDB.h"
+#include "Path.h"
+#include "PollJob.h"
 #include "QueryMessage.h"
+#include "Rdm.h"
+#include "RecompileJob.h"
+#include "ReferencesJob.h"
 #include "SHA256.h"
-#include <QThread>
-#include <QThreadPool>
+#include "Server.h"
+#include "StatusJob.h"
+#include "leveldb/db.h"
+#include <Log.h>
+#include <QDateTime>
+#include <QDebug>
+#include <QFile>
+#include <QHash>
+#include <QMetaType>
+#include <QMutex>
+#include <QMutexLocker>
+#include <QRunnable>
 #include <QTcpServer>
 #include <QTcpSocket>
+#include <QThread>
+#include <QThreadPool>
+#include <QWaitCondition>
+#include <clang-c/Index.h>
 #include <stdio.h>
-#include <Log.h>
+
+QByteArray Server::sBase;
+Q_DECLARE_METATYPE(QList<QByteArray>);
 
 Server::Server(QObject* parent)
     : QObject(parent),
-      mDb(0),
       mIndexer(0),
       mServer(0),
-      mVerbose(false)
+      mVerbose(false),
+      mJobId(0)
 {
+    qRegisterMetaType<QList<QByteArray> >("QList<QByteArray>");
 }
 
 bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
@@ -29,10 +51,9 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
     mOptions = options;
     mDefaultArgs = defaultArguments;
     Messages::init();
-    Database::setBaseDirectory(ASTPATH);
+    setBaseDirectory(ASTPATH);
     mServer = new QTcpServer(this);
     mIndexer = new Indexer(ASTPATH, this);
-    mDb = new Database(this, mIndexer);
 
     if (!mServer->listen(QHostAddress::Any, Connection::Port)) {
         error("Unable to listen to port %d", Connection::Port);
@@ -40,8 +61,8 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
     }
     connect(mServer, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
     connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
-    connect(mDb, SIGNAL(complete(int, QList<QByteArray>)),
-            this, SLOT(onDatabaseComplete(int, QList<QByteArray>)));
+    connect(this, SIGNAL(complete(int, QList<QByteArray>)),
+            this, SLOT(onComplete(int, QList<QByteArray>)));
 #ifdef CLANG_RUNTIME_INCLUDE
     Path p;
     p = CLANG_RUNTIME_INCLUDE;
@@ -50,7 +71,7 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
 #endif
     mIndexer->setDefaultArgs(mDefaultArgs);
     LevelDB db;
-    if (db.open(Database::General, LevelDB::ReadOnly)) {
+    if (db.open(Server::General, LevelDB::ReadOnly)) {
         bool ok;
         const int version = Rdm::readValue<int>(db.db(), "version", &ok);
         if (!ok) {
@@ -63,7 +84,7 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
         }
     } else {
         QByteArray err;
-        if (!db.open(Database::General, LevelDB::ReadWrite, &err)) {
+        if (!db.open(Server::General, LevelDB::ReadWrite, &err)) {
             error("Can't open database %s", err.constData());
             return false;
         }
@@ -163,33 +184,33 @@ void Server::handleQueryMessage(QueryMessage* message)
     int id = 0;
     switch (message->type()) {
     case QueryMessage::FollowLocation:
-        id = mDb->followLocation(*message);
+        id = followLocation(*message);
         break;
     case QueryMessage::ReferencesLocation:
-        id = mDb->referencesForLocation(*message);
+        id = referencesForLocation(*message);
         break;
     case QueryMessage::ReferencesName:
-        id = mDb->referencesForName(*message);
+        id = referencesForName(*message);
         break;
     case QueryMessage::Recompile:
-        id = mDb->recompile(*message);
+        id = recompile(*message);
         break;
     case QueryMessage::ListSymbols:
     case QueryMessage::FindSymbols:
-        id = mDb->match(*message);
+        id = match(*message);
         break;
     case QueryMessage::Dump:
-        id = mDb->dump(*message);
+        id = dump(*message);
         break;
     case QueryMessage::Status:
-        id = mDb->status(*message);
+        id = status(*message);
         break;
     case QueryMessage::Poll:
-        id = mDb->poll(this);
+        id = poll(this);
         break;
     }
     if (!id) {
-        QueryMessage msg(QueryMessage::FollowLocation, "Invalid message");
+        QueryMessage msg(QueryMessage::FollowLocation, QList<QByteArray>() << "Invalid message");
         conn->send(&msg);
     } else {
         mPendingLookups[id] = conn;
@@ -210,7 +231,7 @@ void Server::onIndexingDone(int id)
     it.value()->send(&msg);
 }
 
-void Server::onDatabaseComplete(int id, const QList<QByteArray>& response)
+void Server::onComplete(int id, const QList<QByteArray>& response)
 {
     QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
@@ -218,3 +239,163 @@ void Server::onDatabaseComplete(int id, const QList<QByteArray>& response)
     QueryMessage msg(QueryMessage::FollowLocation, response);
     it.value()->send(&msg);
 }
+
+int Server::nextId()
+{
+    ++mJobId;
+    if (!mJobId)
+        ++mJobId;
+    return mJobId;
+}
+
+int Server::followLocation(const QueryMessage &query)
+{
+    RTags::Location loc;
+    if (!RTags::makeLocation(query.query().front(), &loc)) {
+        error("Failed to make location from [%s]", query.query().front().constData());
+        return 0;
+    }
+
+    const int id = nextId();
+
+    warning() << "followLocation" << loc;
+
+    FollowLocationJob* job = new FollowLocationJob(id, loc, query.keyFlags());
+    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
+            this, SIGNAL(complete(int, QList<QByteArray>)));
+    QThreadPool::globalInstance()->start(job);
+
+    return id;
+}
+
+int Server::referencesForLocation(const QueryMessage &query)
+{
+    RTags::Location loc;
+    if (!RTags::makeLocation(query.query().front(), &loc))
+        return 0;
+
+    const int id = nextId();
+
+    warning() << "references for location" << loc;
+
+    ReferencesJob* job = new ReferencesJob(id, loc, query.keyFlags());
+    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
+            this, SIGNAL(complete(int, QList<QByteArray>)));
+    QThreadPool::globalInstance()->start(job);
+
+    return id;
+}
+
+int Server::referencesForName(const QueryMessage& query)
+{
+    const int id = nextId();
+
+    const QByteArray name = query.query().front();
+    warning() << "references for name" << name;
+
+    ReferencesJob* job = new ReferencesJob(id, name, query.keyFlags());
+    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
+            this, SIGNAL(complete(int, QList<QByteArray>)));
+    QThreadPool::globalInstance()->start(job);
+
+    return id;
+}
+int Server::recompile(const QueryMessage &query)
+{
+    const QByteArray fileName = query.query().front();
+    const int id = nextId();
+
+    warning() << "recompile" << fileName;
+
+    // ### this needs to be implemented
+
+    RecompileJob* job = new RecompileJob(fileName, id);
+    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
+            this, SIGNAL(complete(int, QList<QByteArray>)));
+    QThreadPool::globalInstance()->start(job);
+
+    return id;
+}
+
+int Server::match(const QueryMessage &query)
+{
+    const QByteArray partial = query.query().front();
+    const int id = nextId();
+
+    warning() << "match" << partial;
+
+    MatchJob* job = new MatchJob(partial, id, query.type(), query.keyFlags());
+    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
+            this, SIGNAL(complete(int, QList<QByteArray>)));
+    QThreadPool::globalInstance()->start(job);
+
+    return id;
+}
+
+int Server::dump(const QueryMessage &query)
+{
+    const QByteArray partial = query.query().front();
+    const int id = nextId();
+
+    warning() << "dump" << partial;
+
+    DumpJob* job = new DumpJob(partial, id);
+    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
+            this, SIGNAL(complete(int, QList<QByteArray>)));
+    QThreadPool::globalInstance()->start(job);
+
+    return id;
+}
+
+int Server::status(const QueryMessage &)
+{
+    const int id = nextId();
+
+    warning() << "status";
+
+    // ### this needs to be implemented
+
+
+    StatusJob* job = new StatusJob(id);
+    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
+            this, SIGNAL(complete(int, QList<QByteArray>)));
+    QThreadPool::globalInstance()->start(job);
+    return id;
+}
+
+int Server::poll(const QueryMessage &)
+{
+    const int id = nextId();
+
+    warning() << "poll";
+    // ### this needs to be implemented
+
+    PollJob *job = new PollJob(mIndexer, id);
+    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
+            this, SIGNAL(complete(int, QList<QByteArray>)));
+    QThreadPool::globalInstance()->start(job);
+    return id;
+}
+
+
+static const char* const dbNames[] = {
+    "general.db",
+    "dependencies.db",
+    "symbols.db",
+    "symbolnames.db",
+    "fileinfos.db"
+};
+
+QByteArray Server::databaseName(DatabaseType type)
+{
+    if (sBase.isEmpty())
+        return QByteArray();
+    return sBase + dbNames[type];
+}
+
+void Server::setBaseDirectory(const QByteArray& base)
+{
+    sBase = base;
+    Q_ASSERT(sBase.endsWith('/'));
+}
+

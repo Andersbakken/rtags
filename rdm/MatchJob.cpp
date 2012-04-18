@@ -1,5 +1,5 @@
 #include "MatchJob.h"
-#include "Database.h"
+#include "Server.h"
 #include "Log.h"
 #include "RTags.h"
 #include "Rdm.h"
@@ -13,7 +13,7 @@ MatchJob::MatchJob(const QByteArray& p, int i, QueryMessage::Type t, unsigned fl
 void MatchJob::run()
 {
     LevelDB db;
-    if (!db.open(Database::SymbolName, LevelDB::ReadOnly)) {
+    if (!db.open(Server::SymbolName, LevelDB::ReadOnly)) {
         emit complete(id, QList<QByteArray>());
         return;
     }

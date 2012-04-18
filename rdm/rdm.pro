@@ -13,7 +13,6 @@ include(../shared/clang.pri)
 SOURCES += \
     main.cpp \
     Indexer.cpp \
-    Database.cpp \
     Server.cpp \
     SHA256.cpp \
     DumpJob.cpp \
@@ -31,7 +30,6 @@ SOURCES += \
 
 HEADERS += \
     Indexer.h \
-    Database.h \
     Server.h \
     SHA256.h \
     DumpJob.h \

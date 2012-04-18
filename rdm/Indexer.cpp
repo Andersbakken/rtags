@@ -1,4 +1,4 @@
-#include "Database.h"
+#include "Server.h"
 #include "DependencyEvent.h"
 #include "DirtyJob.h"
 #include "Indexer.h"
@@ -159,11 +159,11 @@ void Indexer::onDirectoryChanged(const QString& path)
 
     LevelDB db;
     QByteArray err;
-    if (!db.open(Database::FileInformation, LevelDB::ReadOnly, &err)) {
+    if (!db.open(Server::FileInformation, LevelDB::ReadOnly, &err)) {
         // ### there is a gap here where if the syncer thread hasn't synced the file information
         //     then fileInformation() would return 'false' even though it knows what args to return.
         error("Can't open FileInformation database %s %s\n",
-              Database::databaseName(Database::FileInformation).constData(),
+              Server::databaseName(Server::FileInformation).constData(),
               err.constData());
         return;
     }
@@ -245,7 +245,7 @@ void Indexer::setDefaultArgs(const QList<QByteArray> &args)
 void Indexer::initWatcher()
 {
     LevelDB db;
-    if (!db.open(Database::Dependency, LevelDB::ReadOnly))
+    if (!db.open(Server::Dependency, LevelDB::ReadOnly))
         return;
 
     leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
@@ -312,8 +312,8 @@ void Indexer::init()
 {
     DependencyHash deps;
     LevelDB fileInformationDB, dependencyDB;
-    if (!fileInformationDB.open(Database::FileInformation, LevelDB::ReadOnly)
-        || !dependencyDB.open(Database::Dependency, LevelDB::ReadOnly)) {
+    if (!fileInformationDB.open(Server::FileInformation, LevelDB::ReadOnly)
+        || !dependencyDB.open(Server::Dependency, LevelDB::ReadOnly)) {
         return;
     }
     leveldb::Iterator* it = dependencyDB.db()->NewIterator(leveldb::ReadOptions());

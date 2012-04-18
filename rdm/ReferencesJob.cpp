@@ -1,5 +1,5 @@
 #include "ReferencesJob.h"
-#include "Database.h"
+#include "Server.h"
 #include "LevelDB.h"
 #include "Rdm.h"
 
@@ -18,7 +18,7 @@ void ReferencesJob::run()
 {
     LevelDB db;
     if (!symbolName.isEmpty()) {
-        if (!db.open(Database::SymbolName, LevelDB::ReadOnly)) {
+        if (!db.open(Server::SymbolName, LevelDB::ReadOnly)) {
             emit complete(id, QList<QByteArray>());
             return;
         }
@@ -29,7 +29,7 @@ void ReferencesJob::run()
         }
         db.close();
     }
-    if (!db.open(Database::Symbol, LevelDB::ReadOnly)) {
+    if (!db.open(Server::Symbol, LevelDB::ReadOnly)) {
         emit complete(id, QList<QByteArray>());
         return;
     }

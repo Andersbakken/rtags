@@ -5,7 +5,7 @@
 #include <clang-c/Index.h>
 #include <Path.h>
 #include <QDebug>
-#include "Database.h"
+#include "Server.h"
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
 #include <RTags.h>

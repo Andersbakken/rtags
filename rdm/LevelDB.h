@@ -3,7 +3,7 @@
 
 #include <leveldb/db.h>
 #include <errno.h>
-#include "Database.h"
+#include "Server.h"
 
 class LevelDB
 {
@@ -14,7 +14,7 @@ public:
         ReadOnly,
         ReadWrite
     };
-    bool open(Database::Type type, Mode mode, QByteArray *error = 0);
+    bool open(Server::DatabaseType type, Mode mode, QByteArray *error = 0);
     void close();
     leveldb::DB *db() const { return mDB; }
 private:
