@@ -17,19 +17,7 @@
 #include "StatusJob.h"
 #include "leveldb/db.h"
 #include <Log.h>
-#include <QDateTime>
-#include <QDebug>
-#include <QFile>
-#include <QHash>
-#include <QMetaType>
-#include <QMutex>
-#include <QMutexLocker>
-#include <QRunnable>
-#include <QTcpServer>
-#include <QTcpSocket>
-#include <QThread>
-#include <QThreadPool>
-#include <QWaitCondition>
+#include <QtCore>
 #include <clang-c/Index.h>
 #include <stdio.h>
 
