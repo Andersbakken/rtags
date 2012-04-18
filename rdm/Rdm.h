@@ -12,6 +12,11 @@
 
 namespace Rdm {
 enum { DatabaseVersion = 1 };
+enum ReferenceType {
+    NormalReference,
+    MemberFunction,
+    GlobalFunction
+};
 QByteArray eatString(CXString str);
 QByteArray cursorToString(CXCursor cursor);
 

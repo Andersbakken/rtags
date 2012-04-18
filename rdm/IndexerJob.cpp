@@ -125,17 +125,22 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
                                        CXCursor /*parent*/,
                                        CXClientData client_data)
 {
-#ifdef QT_DEBUG
-    {
-        CXCursor ref = clang_getCursorReferenced(cursor);
-        if (clang_equalCursors(cursor, ref) && !clang_isCursorDefinition(ref)) {
-            ref = clang_getCursorDefinition(ref);
-        }
-        debug() << Rdm::cursorToString(cursor) << "refs" << Rdm::cursorToString(clang_getCursorReferenced(cursor))
-                << (clang_equalCursors(ref, clang_getCursorReferenced(cursor)) ? QByteArray() : ("changed to " + Rdm::cursorToString(ref)));
-    }
-#endif
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
+// #ifdef QT_DEBUG
+//     {
+//         CXCursor ref = clang_getCursorReferenced(cursor);
+//         if (clang_equalCursors(cursor, ref) && !clang_isCursorDefinition(ref)) {
+//             ref = clang_getCursorDefinition(ref);
+//         }
+//         RTags::Location loc = job->createLocation(cursor);
+//         RTags::Location rloc = job->createLocation(ref);
+//         if (Rdm::cursorToString(cursor).contains("canonicalizePath")
+//             || Rdm::cursorToString(ref).contains("canonicalizePath")) {
+//             error() << Rdm::cursorToString(cursor) << "refs" << Rdm::cursorToString(clang_getCursorReferenced(cursor))
+//                     << (clang_equalCursors(ref, clang_getCursorReferenced(cursor)) ? QByteArray() : ("changed to " + Rdm::cursorToString(ref)));
+//         }
+//     }
+// #endif
 
     const CXCursorKind kind = clang_getCursorKind(cursor);
     switch (kind) {
@@ -196,30 +201,29 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         if (refLoc != loc) {
             info.target = refLoc;
         }
-        bool isMemberFunction = false;
-        // error() << "we're here" << Rdm::cursorToString(ref)
-        //         << Rdm::cursorToString(cursor);
+        Rdm::ReferenceType referenceType = Rdm::NormalReference;
         if (refKind == kind) {
             switch (refKind) {
             case CXCursor_Constructor:
             case CXCursor_Destructor:
             case CXCursor_CXXMethod:
-                isMemberFunction = true;
-                // error() << "got shit called" << loc << "ref is" << refLoc
-                //         << Rdm::cursorToString(cursor) << "is" << Rdm::cursorToString(ref);
+                referenceType = Rdm::MemberFunction;
+                break;
+            case CXCursor_FunctionDecl:
+                referenceType = Rdm::GlobalFunction;
                 break;
             default:
                 break;
             }
         }
-        job->mReferences[loc] = qMakePair(refLoc, isMemberFunction);
+        job->mReferences[loc] = qMakePair(refLoc, referenceType);
     } else if (kind == CXCursor_InclusionDirective) {
         CXFile includedFile = clang_getIncludedFile(cursor);
         CXString fileName = clang_getFileName(includedFile);
         const char* cstr = clang_getCString(fileName);
         RTags::Location refLoc(Path::canonicalized(cstr), 0);
         info.target = refLoc;
-        job->mReferences[loc] = qMakePair(refLoc, false);
+        job->mReferences[loc] = qMakePair(refLoc, Rdm::NormalReference);
     }
     return CXChildVisit_Recurse;
 
@@ -346,40 +350,6 @@ void IndexerJob::run()
         }
         clang_disposeTranslationUnit(unit);
 
-        const QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator end = mReferences.end();
-        for (QHash<RTags::Location, QPair<RTags::Location, bool> >::const_iterator it = mReferences.begin(); it != end; ++it) {
-            SymbolHash::iterator sym = mSymbols.find(it.value().first);
-            if (sym != mSymbols.end()) {
-                // Q_ASSERT(mSymbols.contains(it.value().first));
-                // debug() << "key" << it.key() << "value" << it.value();
-                Rdm::CursorInfo &ci = sym.value();
-                if (it.value().second) {
-                    Rdm::CursorInfo &otherCi = mSymbols[it.key()];
-                    // ### kinda nasty
-                    ci.references += otherCi.references;
-                    otherCi.references = ci.references;
-                    if (otherCi.target.isNull())
-                        ci.target = it.key();
-                } else {
-                    ci.references.insert(it.key());
-                }
-            }
-        }
-
-        {
-            SymbolHash::iterator it = mSymbols.begin();
-            const SymbolHash::const_iterator end = mSymbols.end();
-            while (it != end) {
-                Rdm::CursorInfo &ci = it.value();
-                if (ci.target.isNull() && ci.references.isEmpty()) {
-                    it = mSymbols.erase(it);
-                } else {
-                    debug() << it.key() << it.value().symbolLength << "=>" << it.value().target
-                            << it.value().references;
-                    ++it;
-                }
-            }
-        }
         foreach (const Path &path, mPaths) {
             const RTags::Location loc(path, 0);
             mSymbolNames[path].insert(loc);
@@ -388,6 +358,7 @@ void IndexerJob::run()
         mIndexer->mSyncer->addSymbols(mSymbols);
         mIndexer->mSyncer->addSymbolNames(mSymbolNames);
         mIndexer->mSyncer->addFileInformation(mIn, mArgs, timeStamp);
+        mIndexer->mSyncer->addReferences(mReferences);
         if (mIsPch)
             mIndexer->setPchDependencies(mIn, mPchDependencies);
 
@@ -402,6 +373,6 @@ void IndexerJob::run()
         }
     }
     emit done(mId, mIn);
-    log(0) << "visited" << mIn << timer.elapsed()
-           << qPrintable(waitingForPch ? QString("Waited for pch: %1ms.").arg(waitingForPch) : QString());
+    error() << "visited" << mIn << timer.elapsed()
+            << qPrintable(waitingForPch ? QString("Waited for pch: %1ms.").arg(waitingForPch) : QString());
 }

@@ -45,6 +45,20 @@ void IndexerSyncer::addSymbols(const SymbolHash &symbols)
     }
 }
 
+void IndexerSyncer::addReferences(const ReferenceHash &references)
+{
+    QMutexLocker lock(&mMutex);
+    if (mReferences.isEmpty()) {
+        mReferences = references;
+    } else {
+        const ReferenceHash::const_iterator end = references.end();
+        for (ReferenceHash::const_iterator it = references.begin(); it != end; ++it) {
+            mReferences[it.key()] = it.value();
+        }
+    }
+}
+
+
 void IndexerSyncer::addDependencies(const DependencyHash& dependencies)
 {
     QMutexLocker lock(&mMutex);
@@ -81,6 +95,14 @@ void IndexerSyncer::addFileInformation(const Path& input, const QList<QByteArray
     mInformations[input] = fi;
 }
 
+template <typename Container, typename Value>
+static inline bool addTo(Container &container, const Value &value)
+{
+    const int oldSize = container.size();
+    container += value;
+    return container.size() != oldSize;
+}
+
 void IndexerSyncer::run()
 {
     while (true) {
@@ -88,6 +110,7 @@ void IndexerSyncer::run()
         SymbolHash symbols;
         DependencyHash dependencies, pchDependencies;
         InformationHash informations;
+        ReferenceHash references;
         {
             QMutexLocker locker(&mMutex);
             if (mStopped)
@@ -96,6 +119,7 @@ void IndexerSyncer::run()
                    && mSymbolNames.isEmpty()
                    && mDependencies.isEmpty()
                    && mInformations.isEmpty()
+                   && mReferences.isEmpty()
                    && mPchDependencies.isEmpty()) {
                 mCond.wait(&mMutex, 10000);
                 if (mStopped)
@@ -107,6 +131,7 @@ void IndexerSyncer::run()
             qSwap(dependencies, mDependencies);
             qSwap(pchDependencies, mPchDependencies);
             qSwap(informations, mInformations);
+            qSwap(references, mReferences);
         }
         if (!symbolNames.isEmpty()) {
             LevelDB db;
@@ -122,9 +147,7 @@ void IndexerSyncer::run()
                 const char *key = it.key().constData();
                 const QSet<RTags::Location> added = it.value();
                 QSet<RTags::Location> current = Rdm::readValue<QSet<RTags::Location> >(db.db(), key);
-                const int oldSize = current.size();
-                current += added;
-                if (current.size() != oldSize) {
+                if (addTo(current, added)) {
                     changed = true;
                     Rdm::writeValue<QSet<RTags::Location> >(&batch, key, current);
                 }
@@ -134,30 +157,108 @@ void IndexerSyncer::run()
             if (changed)
                 db.db()->Write(leveldb::WriteOptions(), &batch);
         }
-        if (!symbols.isEmpty()) {
-            LevelDB db;
-            if (!db.open(Database::Symbol, LevelDB::ReadWrite))
-                return;
+        LevelDB symbolDB;
+        bool changedSymbols = false;
+        leveldb::WriteBatch symbolsBatch;
 
-            leveldb::WriteBatch batch;
+        if (!references.isEmpty()) {
+            const ReferenceHash::const_iterator end = references.end();
+            for (ReferenceHash::const_iterator it = references.begin(); it != end; ++it) {
+                SymbolHash::iterator sym = symbols.find(it.value().first);
+                if (sym != symbols.end()) {
+                    Rdm::CursorInfo &ci = sym.value();
+                    ci.references.insert(it.key());
+                    // if (it.value().first.path.contains("RTags.h"))
+                    //     error() << "cramming" << it.key() << "into" << it.value();
+                    if (it.value().second != Rdm::NormalReference) {
+                        Rdm::CursorInfo &other = symbols[it.key()];
+                        ci.references += other.references;
+                        other.references += ci.references;
+                        if (other.target.isNull()) {
+                            // if (it.key().key().contains("RTags."))
+                            error() << "1looking up" << it.key() << "with the intention of setting target to" << it.value().first
+                                    << "it was" << other.target;
+                        }
+                        
+                        if (other.target.isNull())
+                            other.target = it.value().first;
+                    }
+                } else {
+                    if (!symbolDB.db()) {
+                        QByteArray err;
+                        if (!symbolDB.open(Database::Symbol, LevelDB::ReadWrite, &err)) {
+                            error("Can't open Symbol database %s %s\n",
+                                  Database::databaseName(Database::Symbol).constData(),
+                                  err.constData());
+                            return;
+                        }
+                    }
+                    const QByteArray key = it.value().first.key(RTags::Location::Padded);
+                    Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(symbolDB.db(), key.constData());
+                    bool changedCurrent = false;
+                    if (addTo(current.references, it.key()))
+                        changedCurrent = true;
+                    if (it.value().second != Rdm::NormalReference) {
+                        const QByteArray otherKey = it.key().key(RTags::Location::Padded);
+                        Rdm::CursorInfo other = Rdm::readValue<Rdm::CursorInfo>(symbolDB.db(), otherKey);
+                        bool changedOther = false;
+                        if (addTo(other.references, it.key()))
+                            changedOther = true;
+                        if (addTo(other.references, current.references))
+                            changedOther = true;
+                        if (addTo(current.references, other.references))
+                            changedCurrent = true;
+
+                        if (other.target.isNull()) {
+                            // if (otherKey.contains("RTags."))
+                            error() << "2looking up" << otherKey << "with the intention of setting target to" << it.value().first
+                                    << "it was" << other.target;
+                        }
+                        
+                            
+                        if (other.target.isNull()) {
+                            other.target = it.value().first;
+                            changedOther = true;
+                        }
+                        if (changedOther) {
+                            changedSymbols = true;
+                            Rdm::writeValue<Rdm::CursorInfo>(&symbolsBatch, otherKey, other);
+                        }
+                        // error() << "ditched reference" << it.key() << it.value();
+                    }
+                    if (changedCurrent) {
+                        changedSymbols = true;
+                        Rdm::writeValue<Rdm::CursorInfo>(&symbolsBatch, key, current);
+                    }
+                }
+            }
+        }
+        if (!symbols.isEmpty()) {
+            QByteArray err;
+            if (!symbolDB.db() && !symbolDB.open(Database::Symbol, LevelDB::ReadWrite, &err)) {
+                error("Can't open Symbol database %s %s\n",
+                      Database::databaseName(Database::Symbol).constData(),
+                      err.constData());
+                return;
+            }
 
             SymbolHash::iterator it = symbols.begin();
             const SymbolHash::const_iterator end = symbols.end();
-            bool changed = false;
             while (it != end) {
                 const QByteArray key = it.key().key(RTags::Location::Padded);
                 Rdm::CursorInfo added = it.value();
-                Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(db.db(), key.constData());
+                Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(symbolDB.db(), key.constData());
                 if (current.unite(added)) {
-                    changed = true;
-                    Rdm::writeValue<Rdm::CursorInfo>(&batch, key, current);
+                    changedSymbols = true;
+                    Rdm::writeValue<Rdm::CursorInfo>(&symbolsBatch, key, current);
                 }
                 ++it;
             }
-
-            if (changed)
-                db.db()->Write(leveldb::WriteOptions(), &batch);
         }
+        if (changedSymbols)
+            symbolDB.db()->Write(leveldb::WriteOptions(), &symbolsBatch);
+        symbolDB.close();
+        
         if (!dependencies.isEmpty()) {
             LevelDB db;
             if (!db.open(Database::Dependency, LevelDB::ReadWrite))

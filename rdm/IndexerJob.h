@@ -27,7 +27,7 @@ public:
     SymbolNameHash mSymbolNames;
 
     QSet<Path> mPaths;
-    QHash<RTags::Location, QPair<RTags::Location, bool> > mReferences;
+    ReferenceHash mReferences;
     Path mPath, mIn;
     QList<QByteArray> mArgs;
     DependencyHash mDependencies;

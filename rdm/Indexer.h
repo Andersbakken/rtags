@@ -6,6 +6,7 @@
 #include "Rdm.h"
 
 typedef QHash<RTags::Location, Rdm::CursorInfo> SymbolHash;
+typedef QHash<RTags::Location, QPair<RTags::Location, Rdm::ReferenceType> > ReferenceHash;
 typedef QHash<QByteArray, QSet<RTags::Location> > SymbolNameHash;
 typedef QHash<Path, QSet<Path> > DependencyHash;
 typedef QPair<QByteArray, quint64> WatchedPair;
