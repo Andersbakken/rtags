@@ -77,6 +77,9 @@ CursorInfo findCursorInfo(leveldb::DB *db, const RTags::Location &location)
     }
 #endif
     delete it;
+    if (!found)
+        cursorInfo.clear();
+    // error() << "found" << found << location << cursorInfo.target << cursorInfo.references << cursorInfo.symbolLength;
     return cursorInfo;
 }
 }

@@ -18,6 +18,17 @@ QByteArray cursorToString(CXCursor cursor);
 struct CursorInfo {
     CursorInfo() : symbolLength(0), kind(CXCursor_FirstInvalid) {}
     bool isNull() const { return symbolLength; }
+    void clear()
+    {
+        symbolLength = 0;
+        kind = CXCursor_FirstInvalid;
+        target.clear();
+        references.clear();
+#ifdef QT_DEBUG
+        loc.clear();
+        symbolName.clear();
+#endif
+    }
     int symbolLength;
     CXCursorKind kind;
     RTags::Location target;
@@ -91,9 +102,9 @@ struct CursorInfo {
                         break;
                     // fallthrough
                 default:
-                    error() << "overwrote target for" << loc << "from" << target << "to" << other.target
-                            << "symbolName" << symbolName
-                            << Rdm::eatString(clang_getCursorKindSpelling(kind));
+                    warning() << "overwrote target for" << loc << "from" << target << "to" << other.target
+                              << "symbolName" << symbolName
+                              << Rdm::eatString(clang_getCursorKindSpelling(kind));
                     break;
                 }
             }
