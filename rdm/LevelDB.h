@@ -17,6 +17,7 @@ public:
     bool open(Server::DatabaseType type, Mode mode, QByteArray *error = 0);
     void close();
     leveldb::DB *db() const { return mDB; }
+    static void shutdown();
 private:
     leveldb::DB *mDB;
     int mType;

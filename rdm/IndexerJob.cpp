@@ -6,8 +6,15 @@
 IndexerJob::IndexerJob(Indexer* indexer, int id,
                        const Path& path, const Path& input,
                        const QList<QByteArray>& arguments)
-    : mId(id), mIsPch(false), mPath(path), mIn(input), mArgs(arguments), mIndexer(indexer)
+    : mId(id), mIsPch(false), mPath(path), mIn(input), mArgs(arguments), mIndexer(indexer),
+      mAborted(false)
 {
+}
+
+void IndexerJob::abort()
+{
+    mAborted = true;
+    mIndexer->mCondition.wakeAll();
 }
 
 static void inclusionVisitor(CXFile included_file,
@@ -18,6 +25,8 @@ static void inclusionVisitor(CXFile included_file,
     (void)include_len;
     (void)included_file;
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
+    if (job->mAborted)
+        return;
     CXString fn = clang_getFileName(included_file);
     const char *cstr = clang_getCString(fn);
     // ### make this configurable
@@ -126,6 +135,9 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
                                        CXClientData client_data)
 {
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
+    if (job->mAborted)
+        return CXChildVisit_Break;
+    
 // #ifdef QT_DEBUG
 //     {
 //         CXCursor ref = clang_getCursorReferenced(cursor);
@@ -277,6 +289,8 @@ void IndexerJob::run()
             }
             if (wait) {
                 mIndexer->mCondition.wait(&mIndexer->mMutex);
+                if (mAborted)
+                    return;
             }
         } while (wait);
     }
@@ -355,16 +369,18 @@ void IndexerJob::run()
             mSymbolNames[path].insert(loc);
             mSymbolNames[path.fileName()].insert(loc);
         }
-        mIndexer->mSyncer->addSymbols(mSymbols);
-        mIndexer->mSyncer->addSymbolNames(mSymbolNames);
-        mIndexer->mSyncer->addFileInformation(mIn, mArgs, timeStamp);
-        mIndexer->mSyncer->addReferences(mReferences);
-        if (mIsPch)
-            mIndexer->setPchDependencies(mIn, mPchDependencies);
+        if (!mAborted) {
+            mIndexer->mSyncer->addSymbols(mSymbols);
+            mIndexer->mSyncer->addSymbolNames(mSymbolNames);
+            mIndexer->mSyncer->addFileInformation(mIn, mArgs, timeStamp);
+            mIndexer->mSyncer->addReferences(mReferences);
+            if (mIsPch)
+                mIndexer->setPchDependencies(mIn, mPchDependencies);
+        }
 
     }
     clang_disposeIndex(index);
-    if (mIsPch) {
+    if (mIsPch && !mAborted) {
         QMutexLocker locker(&mIndexer->mMutex);
         if (pchError) {
             mIndexer->mPchHeaderError.insert(mIn);

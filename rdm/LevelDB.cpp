@@ -5,6 +5,7 @@ struct Locks {
     QReadWriteLock locks[Server::DatabaseTypeCount];
 };
 Q_GLOBAL_STATIC(Locks, readWriteLocks);
+static bool shuttingDown = false; // ### use QBasicAtomic?
 
 LevelDB::LevelDB()
     : mDB(0), mType(-1)
@@ -52,4 +53,10 @@ bool LevelDB::open(Server::DatabaseType type, Mode mode, QByteArray *error)
     Q_ASSERT(mDB);
     mType = type;
     return true;
+}
+
+void LevelDB::shutdown()
+{
+    shuttingDown = true;
+    // ### wait on QReadWriteLocks somehow
 }

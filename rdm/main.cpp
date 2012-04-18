@@ -8,6 +8,22 @@
 #include <stdlib.h>
 #include <Log.h>
 #include <RTags.h>
+#include <signal.h>
+#include <execinfo.h>
+
+void signalHandler(int signal)
+{
+    fprintf(stderr, "Caught signal %d\n", signal);
+    enum { StackSize = 50 };
+    void *callstack[StackSize];
+    const int c = backtrace(callstack, StackSize);
+    char **symbols = backtrace_symbols(callstack, c);
+    for (int i = 0; i < c; ++i)
+        fprintf(stderr, "  %d/%d %p %s\n", i + 1, c, callstack[i], symbols[i]);
+    free(symbols);
+    fflush(stderr);
+    _exit(1);
+}
 
 void usage(FILE *f)
 {
@@ -107,5 +123,6 @@ int main(int argc, char** argv)
     if (!server.init(options, defaultArguments))
         return 1;
 
+    signal(SIGINT, signalHandler);
     return app.exec();
 }

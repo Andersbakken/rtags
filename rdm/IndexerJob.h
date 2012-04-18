@@ -15,6 +15,7 @@ public:
                const QList<QByteArray>& arguments);
 
     int id() const { return mId; }
+    void abort();
 
     void run();
 
@@ -33,6 +34,7 @@ public:
     DependencyHash mDependencies;
     QSet<Path> mPchDependencies;
     Indexer *mIndexer;
+    volatile bool mAborted; // ### ??? use QBasicAtomic?
 signals:
     void done(int id, const QByteArray& input);
 };
