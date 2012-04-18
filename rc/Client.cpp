@@ -126,8 +126,8 @@ void Client::onMakefileReady(const GccArguments& args)
         AddMessage message(type, input, input, args.clangArgs(),
                            mapPchToInput(args.explicitIncludes()));
         if (logLevel()) {
-            log(1) << "sending" << "input:" << input << "output:" << output
-                   << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
+            warning() << "sending" << "input:" << input << "output:" << output
+                      << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
         }
         mConn->send(&message);
 
@@ -141,9 +141,9 @@ void Client::onMakefileReady(const GccArguments& args)
     RTags::UnitType type = (args.lang() == GccArguments::C) ? RTags::CompileC : RTags::CompileCPlusPlus;
     AddMessage message(type, input, output, args.clangArgs(),
                        mapPchToInput(args.explicitIncludes()));
-    if (logLevel()) {
-        log(1) << "sending" << "input:" << input << "output:" << output
-               << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
+    if (testLog(Warning)) {
+        warning() << "sending" << "input:" << input << "output:" << output
+                  << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
     }
     mConn->send(&message);
 }

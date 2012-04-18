@@ -325,7 +325,7 @@ void IndexerJob::run()
                                                         clangArgs.data(), idx, 0, 0,
                                                         CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
     const time_t timeStamp = time(0);
-    log(1) << "loading unit" << clangLine << (unit != 0);
+    warning() << "loading unit" << clangLine << (unit != 0);
     bool pchError = false;
 
     if (!unit) {

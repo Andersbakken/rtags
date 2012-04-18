@@ -97,10 +97,6 @@ private:
     QExplicitlySharedDataPointer<Data> mData;
 };
 
-static inline Log log(int level = 0)
-{
-    return Log(level);
-}
 static inline Log error()
 {
     return Log(Error);

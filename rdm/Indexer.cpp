@@ -230,7 +230,7 @@ void Indexer::onJobDone(int id, const QByteArray& input)
 
         Q_ASSERT(mTimerRunning);
         mTimerRunning = false;
-        log(0) << "jobs took" << mTimer.elapsed() << "ms";
+        error() << "jobs took" << mTimer.elapsed() << "ms";
     }
 
     emit indexingDone(id);
