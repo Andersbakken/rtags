@@ -13,11 +13,12 @@ class MakefileParser : public QObject
 {
     Q_OBJECT
 public:
-    MakefileParser(QObject *parent = 0);
+    MakefileParser(const QList<QByteArray> &extraFlags, QObject *parent = 0);
     ~MakefileParser();
 
     void run(const Path& makefile);
     bool isDone() const;
+    QList<QByteArray> extraFlags() const { return mExtraFlags; }
 signals:
     void done();
     void fileReady(const GccArguments& args);
@@ -32,6 +33,7 @@ private:
     QProcess* mProc;
     QByteArray mData;
     DirectoryTracker* mTracker;
+    const QList<QByteArray> mExtraFlags;
 };
 
 #endif // MAKEFILEPARSER_H

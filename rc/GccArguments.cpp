@@ -134,6 +134,7 @@ bool GccArguments::parse(QByteArray args, const Path& base)
 
     bool pathok = false;
     char prevopt = '\1'; // skip the initial binary name
+
     gccopts_gperf gccopts;
     foreach (const QByteArray& arg, split) {
         const char *cur = arg.constData();
@@ -264,4 +265,15 @@ QByteArray GccArguments::outputFile() const
 QByteArray GccArguments::baseDirectory() const
 {
     return mImpl->base;
+}
+
+void GccArguments::addFlags(const QList<QByteArray> &extraFlags)
+{
+    foreach (QByteArray flag, extraFlags) {
+        if (flag.startsWith("-I")) {
+            Path p = Path::resolved(flag.constData() + 2);
+            flag.replace(2, flag.size() - 2, p);
+        }
+        mImpl->clangArgs.append(flag);
+    }
 }

@@ -16,14 +16,16 @@ class Client : public QObject
 {
     Q_OBJECT
 public:
-    Client(int flags = 0, QObject* parent = 0);
+    Client(unsigned flags, const QList<QByteArray> &extraFlags, QObject* parent = 0);
     enum Flag {
         None = 0x0,
         SkipParen = 0x01
     };
 
+    unsigned flags() const { return mFlags; }
     void parseMakefile(const Path &path);
     void query(const QueryMessage &msg);
+    QList<QByteArray> extraFlags() const { return mExtraFlags; }
 private slots:
     void onSendComplete();
     void onNewMessage(Message* message);
@@ -33,9 +35,10 @@ private:
     QList<QByteArray> mapPchToInput(const QList<QByteArray>& input);
 private:
     Connection* mConn;
-    int mFlags;
+    unsigned mFlags;
     bool mMakeDone;
     QHash<QByteArray, QByteArray> mPchs;
+    const QList<QByteArray> mExtraFlags;
 };
 
 #endif

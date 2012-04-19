@@ -36,6 +36,9 @@ static void help(FILE *f, const char* app)
             "  --line-numbers|-l             Output line numbers instead of offsets\n"
             "  --poll|-P                     Check if something's dirty\n"
             "  --path-filter|-i [arg]        Filter out results not matching with arg\n"
+            "  --includepath|-I [arg]        Add additional include path, must be combined with --makefile\n"
+            "  --define|-D [arg]             Add additional define, must be combined with --makefile\n"
+            "  --compiler-flag|-o [arg]      Add additional compiler flags, must be combined with --makefile\n"
             "  --status|-s                   Dump status of rdm\n",
             app);
 }
@@ -65,6 +68,9 @@ int main(int argc, char** argv)
         { "status", no_argument, 0, 's' },
         { "line-numbers", no_argument, 0, 'l' },
         { "path-filter", required_argument, 0, 'i' },
+        { "includepath", required_argument, 0, 'I' },
+        { "define", required_argument, 0, 'D' },
+        { "compiler-flag", required_argument, 0, 'o' },
         { "poll", no_argument, 0, 'P' },
         { 0, 0, 0, 0 }
     };
@@ -74,6 +80,7 @@ int main(int argc, char** argv)
     unsigned logFlags = 0;
 
     QList<Path> makeFiles;
+    QList<QByteArray> extraFlags;
     QList<QPair<QueryMessage::Type, QByteArray> > optlist;
     QHash<Path, QByteArray> unsavedFiles;
     QSet<QByteArray> pathFilters;
@@ -94,6 +101,19 @@ int main(int argc, char** argv)
         case 'h':
             help(stdout, argv[0]);
             return 0;
+        case 'I': {
+            QByteArray flag("-I");
+            flag += optarg;
+            extraFlags.append(flag);
+            break; }
+        case 'D': {
+            QByteArray flag("-D");
+            flag += optarg;
+            extraFlags.append(flag);
+            break; }
+        case 'o':
+            extraFlags.append(optarg);
+            break;
         case 'N':
             queryFlags |= QueryMessage::NoContext;
             break;
@@ -202,7 +222,7 @@ int main(int argc, char** argv)
             l << argv[i];
     }
 
-    Client client(clientFlags);
+    Client client(clientFlags, extraFlags);
     QList<QPair<QueryMessage::Type, QByteArray> >::const_iterator it = optlist.begin();
     while (it != optlist.end()) {
         QueryMessage msg(it->first, it->second, queryFlags, unsavedFiles, pathFilters);

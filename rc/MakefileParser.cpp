@@ -74,8 +74,8 @@ void DirectoryTracker::leaveDirectory(const QByteArray& /*dir*/)
     // enterDirectory(dir);
 }
 
-MakefileParser::MakefileParser(QObject* parent)
-    : QObject(parent), mProc(0), mTracker(new DirectoryTracker)
+MakefileParser::MakefileParser(const QList<QByteArray> &extraFlags, QObject* parent)
+    : QObject(parent), mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags)
 {
 }
 
@@ -98,7 +98,7 @@ void MakefileParser::run(const Path& makefile)
     QDir makelibdir(QCoreApplication::applicationDirPath());
     makelibdir.cdUp();
     if (logLevel() > 0)
-        log(1, "using makelib in '%s'\n", qPrintable(makelibdir.canonicalPath()));
+        debug("Using makelib in '%s/makelib'", qPrintable(makelibdir.canonicalPath()));
 
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
 #ifdef Q_OS_MAC
@@ -149,6 +149,7 @@ void MakefileParser::processMakeLine(const QByteArray &line)
         log(1, "%s\n", line.constData());
     GccArguments args;
     if (args.parse(line, mTracker->path())) {
+        args.addFlags(mExtraFlags);
         emit fileReady(args);
     } else {
         mTracker->track(line);

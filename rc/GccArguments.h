@@ -20,6 +20,7 @@ public:
     Type type() const;
     Lang lang() const;
 
+    void addFlags(const QList<QByteArray> &extraFlags);
     QList<QByteArray> clangArgs() const;
     QList<QByteArray> inputFiles() const;
     QList<QByteArray> explicitIncludes() const;

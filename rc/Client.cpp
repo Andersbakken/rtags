@@ -8,15 +8,15 @@
 #include <QDebug>
 #include <Log.h>
 
-Client::Client(int flags, QObject* parent)
-    : QObject(parent), mConn(0), mFlags(flags), mMakeDone(false)
+Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, QObject* parent)
+    : QObject(parent), mConn(0), mFlags(flags), mMakeDone(false), mExtraFlags(extraFlags)
 {
     Messages::init();
 }
 
 void Client::parseMakefile(const Path& path)
 {
-    MakefileParser* parser = new MakefileParser(this);
+    MakefileParser* parser = new MakefileParser(mExtraFlags, this);
     connect(parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
     connect(parser, SIGNAL(fileReady(const GccArguments&)),
             this, SLOT(onMakefileReady(const GccArguments&)));
