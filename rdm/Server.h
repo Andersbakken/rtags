@@ -67,7 +67,7 @@ private:
     Indexer* mIndexer;
     QTcpServer* mServer;
     QHash<int, Connection*> mPendingIndexes;
-    QHash<int, Connection*> mPendingLookups;
+    QHash<int, QPair<Connection*, QSet<QByteArray> > > mPendingLookups;
     QList<QByteArray> mDefaultArgs;
     bool mVerbose;
     int mJobId;

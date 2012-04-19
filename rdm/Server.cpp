@@ -96,22 +96,27 @@ void Server::onNewConnection()
 
 void Server::onConnectionDestroyed(QObject* o)
 {
-    QHash<int, Connection*>::iterator it = mPendingIndexes.begin();
-    QHash<int, Connection*>::const_iterator end = mPendingIndexes.end();
-    while (it != end) {
-        if (it.value() == o)
-            mPendingIndexes.erase(it++);
-        else
-            ++it;
+    {
+        QHash<int, Connection*>::iterator it = mPendingIndexes.begin();
+        const QHash<int, Connection*>::const_iterator end = mPendingIndexes.end();
+        while (it != end) {
+            if (it.value() == o) {
+                it = mPendingIndexes.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
-
-    it = mPendingLookups.begin();
-    end = mPendingLookups.end();
-    while (it != end) {
-        if (it.value() == o)
-            mPendingLookups.erase(it++);
-        else
-            ++it;
+    {
+        QHash<int, QPair<Connection*, QSet<QByteArray> > >::iterator it = mPendingLookups.begin();
+        const QHash<int, QPair<Connection*, QSet<QByteArray> > >::const_iterator end = mPendingLookups.end();
+        while (it != end) {
+            if (it.value().first == o) {
+                it = mPendingLookups.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 }
 
@@ -204,7 +209,7 @@ void Server::handleQueryMessage(QueryMessage* message)
         QueryMessage msg(QList<QByteArray>() << "Invalid message");
         conn->send(&msg);
     } else {
-        mPendingLookups[id] = conn;
+        mPendingLookups[id] = qMakePair(conn, message->pathFilters());
     }
 }
 
@@ -222,13 +227,32 @@ void Server::onIndexingDone(int id)
     it.value()->send(&msg);
 }
 
+static inline QList<QByteArray> filter(const QList<QByteArray> &list, const QSet<QByteArray> &filter)
+{
+    if (filter.isEmpty())
+        return list;
+
+    // ### this is really shitty
+    QList<QByteArray> ret;
+    foreach(const QByteArray &val, list) {
+        foreach(const QByteArray &f, filter) {
+            if (val.startsWith(f)) {
+                ret.append(val);
+                break;
+            }
+        }
+    }
+    return ret;
+}
+
 void Server::onComplete(int id, const QList<QByteArray>& response)
 {
-    QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
+    QHash<int, QPair<Connection*, QSet<QByteArray> > >::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
         return;
-    QueryMessage msg(response);
-    it.value()->send(&msg);
+
+    QueryMessage msg(filter(response, it.value().second));
+    it.value().first->send(&msg);
 }
 
 int Server::nextId()
