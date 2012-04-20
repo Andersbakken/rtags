@@ -141,7 +141,17 @@ void IndexerSyncer::run()
             qSwap(informations, mInformations);
             qSwap(references, mReferences);
         }
+        warning() << "IndexerSyncer::run woke up symbols" << symbols.size()
+                  << "symbolNames" << symbolNames.size()
+                  << "dependencies" << dependencies.size()
+                  << "informations" << informations.size()
+                  << "references" << references.size()
+                  << "pchDependencies" << pchDependencies.size()
+                  << "pchUSRHashes" << pchUSRHashes.size();
+        QElapsedTimer timer;
+
         if (!symbolNames.isEmpty()) {
+            timer.start();
             LevelDB db;
             if (!db.open(Server::SymbolName, LevelDB::ReadWrite))
                 return;
@@ -164,7 +174,9 @@ void IndexerSyncer::run()
 
             if (changed)
                 db.db()->Write(leveldb::WriteOptions(), &batch);
+            warning() << "wrote symbolNames" << timer.elapsed() << "ms";
         }
+        timer.start();
         LevelDB symbolDB;
         if (!references.isEmpty() || !symbols.isEmpty()) {
             QByteArray err;
@@ -175,7 +187,7 @@ void IndexerSyncer::run()
                 return;
             }
         }
-            
+
         bool changedSymbols = false;
         leveldb::WriteBatch symbolsBatch;
 
@@ -223,7 +235,7 @@ void IndexerSyncer::run()
                             current.target = it.key();
                             changedCurrent = true;
                         }
-                        
+
                         if (changedOther) {
                             changedSymbols = true;
                             Rdm::writeValue<Rdm::CursorInfo>(&symbolsBatch, otherKey, other);
@@ -251,11 +263,15 @@ void IndexerSyncer::run()
                 ++it;
             }
         }
-        if (changedSymbols)
+        if (changedSymbols) {
             symbolDB.db()->Write(leveldb::WriteOptions(), &symbolsBatch);
+            warning() << "wrote symbols and references" << timer.elapsed() << "ms";
+        }
+
         symbolDB.close();
 
         if (!dependencies.isEmpty()) {
+            timer.start();
             LevelDB db;
             if (!db.open(Server::Dependency, LevelDB::ReadWrite))
                 return;
@@ -278,8 +294,10 @@ void IndexerSyncer::run()
 
             if (changed)
                 db.db()->Write(leveldb::WriteOptions(), &batch);
+            warning() << "wrote dependencies" << timer.elapsed() << "ms";
         }
         if (!pchDependencies.isEmpty() || !pchUSRHashes.isEmpty()) {
+            timer.start();
             LevelDB db;
             leveldb::WriteBatch batch;
             if (!db.open(Server::PCH, LevelDB::ReadWrite))
@@ -291,8 +309,10 @@ void IndexerSyncer::run()
                 Rdm::writeValue<PchUSRHash>(&batch, it.key(), it.value());
             }
             db.db()->Write(leveldb::WriteOptions(), &batch);
+            warning() << "wrote pch info" << timer.elapsed() << "ms";
         }
         if (!informations.isEmpty()) {
+            timer.start();
             leveldb::WriteBatch batch;
 
             InformationHash::iterator it = informations.begin();
@@ -307,6 +327,7 @@ void IndexerSyncer::run()
                 return;
 
             db.db()->Write(leveldb::WriteOptions(), &batch);
+            warning() << "wrote informations" << timer.elapsed() << "ms";
         }
     }
 }

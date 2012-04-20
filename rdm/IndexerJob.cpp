@@ -174,7 +174,7 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         // error() << "changed ref from" << old << "to" << Rdm::cursorToString(ref);
     }
     const CXCursorKind refKind = clang_getCursorKind(ref);
- 
+
     if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod)
         return CXChildVisit_Recurse;
 

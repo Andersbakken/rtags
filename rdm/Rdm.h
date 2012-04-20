@@ -72,8 +72,8 @@ struct CursorInfo {
             if (!references.isEmpty())
                 error() << "About to assert" << references << loc << symbolName;
 #endif
-            Q_ASSERT(target.isNull());
-            Q_ASSERT(references.isEmpty());
+            // Q_ASSERT(target.isNull());
+            // Q_ASSERT(references.isEmpty());
             *this = other;
             return true;
         }
@@ -83,8 +83,8 @@ struct CursorInfo {
                     << "references" << references << "other.references" << other.references
                     << "kind" << kind << "other.kind" << other.kind
 #ifdef QT_DEBUG
-                    << "location" << loc
-                    << "symbolName" << symbolName
+                    << "location" << loc << "other.location" << other.loc
+                    << "symbolName" << symbolName << "other.symbolName" << other.symbolName
 #endif
                 ;
         }
