@@ -15,6 +15,7 @@ public:
     void setPchDependencies(const DependencyHash& dependencies);
     void addFileInformation(const Path& input, const QList<QByteArray>& args, time_t timeStamp);
     void addReferences(const ReferenceHash &references);
+    void addPchUSRHash(const Path &pchHeader, const PchUSRHash &hash);
     void notify();
     void stop();
 
@@ -30,6 +31,7 @@ private:
     DependencyHash mDependencies, mPchDependencies;
     InformationHash mInformations;
     ReferenceHash mReferences;
+    QHash<Path, PchUSRHash> mPchUSRHashes;
 };
 
 #endif

@@ -75,6 +75,21 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
     connect(&mWatcher, SIGNAL(directoryChanged(QString)),
             this, SLOT(onDirectoryChanged(QString)));
 
+    LevelDB db;
+    if (db.open(Server::PCH, LevelDB::ReadOnly)) {
+        const leveldb::ReadOptions readopts;
+        leveldb::Iterator* it = db.db()->NewIterator(readopts);
+        it->SeekToFirst();
+        while (it->Valid()) {
+            if (it->key() == "dependencies") {
+                mPchDependencies = Rdm::readValue<DependencyHash>(it);
+            } else {
+                mPchUSRHashes[it->key().data()] = Rdm::readValue<PchUSRHash>(it);
+            }
+            it->Next();
+        }
+        delete it;
+    }
     initWatcher();
     init();
 }
@@ -254,12 +269,8 @@ void Indexer::initWatcher()
     while (it->Valid()) {
         const leveldb::Slice key = it->key();
         const Path file(key.data(), key.size());
-        if (file != "pch") {
-            const QSet<Path> deps = Rdm::readValue<QSet<Path> >(it);
-            dependencies[file] = deps;
-        } else {
-            mPchDependencies = Rdm::readValue<DependencyHash>(it);
-        }
+        const QSet<Path> deps = Rdm::readValue<QSet<Path> >(it);
+        dependencies[file] = deps;
         it->Next();
     }
     commitDependencies(dependencies, false);
@@ -321,10 +332,8 @@ void Indexer::init()
     while (it->Valid()) {
         const leveldb::Slice key = it->key();
         const Path file(key.data(), key.size());
-        if (file != "pch") {
-            foreach(const Path &p, Rdm::readValue<QSet<Path> >(it)) {
-                deps[p].insert(file);
-            }
+        foreach(const Path &p, Rdm::readValue<QSet<Path> >(it)) {
+            deps[p].insert(file);
         }
         it->Next();
     }
@@ -388,6 +397,7 @@ PchUSRHash Indexer::pchUSRHash(const QList<Path> &pchFiles) const
 
 void Indexer::setPchUSRHash(const Path &pch, const PchUSRHash &astHash)
 {
+    mSyncer->addPchUSRHash(pch, astHash);
     QWriteLocker lock(&mPchUSRHashLock);
     mPchUSRHashes[pch] = astHash;
 }

@@ -85,6 +85,11 @@ void IndexerSyncer::setPchDependencies(const DependencyHash& dependencies)
     }
 }
 
+void IndexerSyncer::addPchUSRHash(const Path &pchHeader, const PchUSRHash &hash)
+{
+    QMutexLocker lock(&mMutex);
+    mPchUSRHashes[pchHeader] = hash;
+}
 
 void IndexerSyncer::addFileInformation(const Path& input, const QList<QByteArray>& args, time_t timeStamp)
 {
@@ -111,6 +116,7 @@ void IndexerSyncer::run()
         DependencyHash dependencies, pchDependencies;
         InformationHash informations;
         ReferenceHash references;
+        QHash<Path, PchUSRHash> pchUSRHashes;
         {
             QMutexLocker locker(&mMutex);
             if (mStopped)
@@ -120,7 +126,8 @@ void IndexerSyncer::run()
                    && mDependencies.isEmpty()
                    && mInformations.isEmpty()
                    && mReferences.isEmpty()
-                   && mPchDependencies.isEmpty()) {
+                   && mPchDependencies.isEmpty()
+                   && mPchUSRHashes.isEmpty()) {
                 mCond.wait(&mMutex, 10000);
                 if (mStopped)
                     return;
@@ -130,6 +137,7 @@ void IndexerSyncer::run()
             qSwap(symbols, mSymbols);
             qSwap(dependencies, mDependencies);
             qSwap(pchDependencies, mPchDependencies);
+            qSwap(pchUSRHashes, mPchUSRHashes);
             qSwap(informations, mInformations);
             qSwap(references, mReferences);
         }
@@ -271,11 +279,18 @@ void IndexerSyncer::run()
             if (changed)
                 db.db()->Write(leveldb::WriteOptions(), &batch);
         }
-        if (!pchDependencies.isEmpty()) {
+        if (!pchDependencies.isEmpty() || !pchUSRHashes.isEmpty()) {
             LevelDB db;
-            if (!db.open(Server::Dependency, LevelDB::ReadWrite))
+            leveldb::WriteBatch batch;
+            if (!db.open(Server::PCH, LevelDB::ReadWrite))
                 return;
-            Rdm::writeValue<DependencyHash>(db.db(), "pch", pchDependencies);
+            if (!pchDependencies.isEmpty())
+                Rdm::writeValue<DependencyHash>(&batch, "dependencies", pchDependencies);
+
+            for (QHash<Path, PchUSRHash>::const_iterator it = pchUSRHashes.begin(); it != pchUSRHashes.end(); ++it) {
+                Rdm::writeValue<PchUSRHash>(&batch, it.key(), it.value());
+            }
+            db.db()->Write(leveldb::WriteOptions(), &batch);
         }
         if (!informations.isEmpty()) {
             leveldb::WriteBatch batch;

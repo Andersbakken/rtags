@@ -185,11 +185,6 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
             const char *cstr = clang_getCString(usr);
             if (cstr) {
                 refLoc = job->mPchUSRHash.value(QByteArray::fromRawData(cstr, strlen(cstr)));
-                if (!refLoc.isNull()) {
-                    error() << "we actually found some shit" << refLoc << cstr
-                            << loc << Rdm::eatString(clang_getCursorSpelling(cursor));
-
-                }
             }
             clang_disposeString(usr);
         }

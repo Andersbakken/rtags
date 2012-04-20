@@ -399,7 +399,8 @@ static const char* const dbNames[] = {
     "dependencies.db",
     "symbols.db",
     "symbolnames.db",
-    "fileinfos.db"
+    "fileinfos.db",
+    "pch.db"
 };
 
 QByteArray Server::databaseName(DatabaseType type)

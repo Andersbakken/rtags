@@ -11,7 +11,7 @@
 #include <RTags.h>
 
 namespace Rdm {
-enum { DatabaseVersion = 1 };
+enum { DatabaseVersion = 2 };
 enum ReferenceType {
     NormalReference,
     MemberFunction,

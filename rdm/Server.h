@@ -32,6 +32,7 @@ public:
         Symbol,
         SymbolName,
         FileInformation,
+        PCH,
         DatabaseTypeCount
     };
 
@@ -47,8 +48,6 @@ private slots:
     void onIndexingDone(int id);
     void onComplete(int id, const QList<QByteArray>& response);
     void onConnectionDestroyed(QObject* o);
-
-
 private:
     void handleAddMessage(AddMessage* message);
     void handleQueryMessage(QueryMessage* message);
