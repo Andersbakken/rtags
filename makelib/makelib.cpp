@@ -6,63 +6,62 @@
 #include <unistd.h>
 #include <dlfcn.h>
 
-struct StatData
+typedef int (*XStat64)(int, const char*, struct stat64*);
+typedef int (*XStat)(int, const char*, struct stat*);
+typedef int (*Stat64)(const char*, struct stat64*);
+typedef int (*Stat)(const char*, struct stat*);
+template <typename T>
+int sharedStat(int ret, const char *filename, T *stat_buf)
 {
-    const char* data;
-    int len;
-};
-static StatData statData[] = {
-    { ".o",       2 },
-    { ".lo",      3 },
-    { ".gch/c++", 8 },
-    { ".gch/c",   6 },
-    { 0,          0 }
-};
-
-#if defined(OS_LINUX)
-typedef int (*RealStat)(int, const char*, struct stat64*);
-#elif defined(OS_MACOSX) || defined(OS_FREEBSD)
-typedef int (*RealStat)(const char*, struct stat*);
-#endif
-static RealStat realStat = 0;
-
-#if defined(OS_LINUX)
-int __xstat64 (int ver, const char *filename, struct stat64 *stat_buf)
-#elif defined(OS_FREEBSD) || defined(OS_MACOSX)
-int stat(const char *filename, struct stat *stat_buf)
-#endif
-{
-    if (!realStat) {
-#if defined(OS_LINUX)
-        realStat = reinterpret_cast<RealStat>(dlsym(RTLD_NEXT, "__xstat64"));
-#elif defined(OS_FREEBSD) || defined(OS_MACOSX)
-        realStat = reinterpret_cast<RealStat>(dlsym(RTLD_NEXT, "stat"));
-#endif
-    }
-#if defined(OS_LINUX)
-    int ret = realStat(ver, filename, stat_buf);
-#elif defined(OS_FREEBSD) || defined(OS_MACOSX)
-    int ret = realStat(filename, stat_buf);
-#endif
     if (!ret && S_ISREG(stat_buf->st_mode)) {
         const int len = strlen(filename);
-        bool changed = false;
-        for (StatData* current = statData; current->data; ++current) {
-            const int& currentLen = current->len;
-            if (len >= currentLen && !strncmp(filename + len - currentLen, current->data, currentLen))  {
+        struct {
+            const char* data;
+            int len;
+        } static const statData[] = {
+            { ".o", 2 },
+            { ".lo", 3 },
+            { ".gch/c++", 8 },
+            { ".gch/c", 6 },
+            { 0, 0 }
+        };
+        for (int i=0; statData[i].data; ++i) {
+            if (len >= statData[i].len && !strncmp(filename + len - statData[i].len, statData[i].data, statData[i].len))  {
                 stat_buf->st_mtime = 1;
-                changed = true;
                 break;
-            }
-        }
-        static bool debug = getenv("DEBUG_STAT");
-        if (debug) {
-            FILE* logfile = fopen("/tmp/makelib.log", "a");
-            if (logfile) {
-                fprintf(logfile, "stated [%s]%s\n", filename, changed ? " changed" : "");
-                fclose(logfile);
             }
         }
     }
     return ret;
 }
+
+int __xstat64(int ver, const char *filename, struct stat64 *stat_buf)
+{
+    static XStat64 realStat = 0;
+    if (!realStat)
+        realStat = reinterpret_cast<XStat64>(dlsym(RTLD_NEXT, "__xstat64"));
+    return sharedStat(realStat(ver, filename, stat_buf), filename, stat_buf);
+}
+int __xstat(int ver, const char *filename, struct stat *stat_buf)
+{
+    static XStat realStat = 0;
+    if (!realStat)
+        realStat = reinterpret_cast<XStat>(dlsym(RTLD_NEXT, "__xstat"));
+    return sharedStat(realStat(ver, filename, stat_buf), filename, stat_buf);
+}
+int stat(const char *filename, struct stat *stat_buf)
+{
+    static Stat realStat = 0;
+    if (!realStat)
+        realStat = reinterpret_cast<Stat>(dlsym(RTLD_NEXT, "stat"));
+    return sharedStat(realStat(filename, stat_buf), filename, stat_buf);
+}
+
+int stat64(const char *filename, struct stat64 *stat_buf)
+{
+    static Stat64 realStat = 0;
+    if (!realStat)
+        realStat = reinterpret_cast<Stat64>(dlsym(RTLD_NEXT, "stat64"));
+    return sharedStat(realStat(filename, stat_buf), filename, stat_buf);
+}
+
