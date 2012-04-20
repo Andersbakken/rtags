@@ -137,7 +137,7 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
     if (job->mAborted)
         return CXChildVisit_Break;
-    
+
 // #ifdef QT_DEBUG
 //     {
 //         CXCursor ref = clang_getCursorReferenced(cursor);
@@ -167,27 +167,45 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         return CXChildVisit_Recurse;
     }
     CXCursor ref = clang_getCursorReferenced(cursor);
+    RTags::Location refLoc;
     if (clang_equalCursors(cursor, ref) && !clang_isCursorDefinition(ref)) {
         // QByteArray old = Rdm::cursorToString(ref);
         ref = clang_getCursorDefinition(ref);
         // error() << "changed ref from" << old << "to" << Rdm::cursorToString(ref);
     }
     const CXCursorKind refKind = clang_getCursorKind(ref);
-
+ 
     if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod)
         return CXChildVisit_Recurse;
 
+    if (clang_equalCursors(cursor, ref)) {
+        refLoc.clear();
+        if (!job->mIsPch) {
+            CXString usr = clang_getCursorUSR(ref);
+            const char *cstr = clang_getCString(usr);
+            if (cstr) {
+                refLoc = job->mPchUSRHash.value(QByteArray::fromRawData(cstr, strlen(cstr)));
+                if (!refLoc.isNull()) {
+                    error() << "we actually found some shit" << refLoc << cstr
+                            << loc << Rdm::eatString(clang_getCursorSpelling(cursor));
+
+                }
+            }
+            clang_disposeString(usr);
+        }
+    } else {
+        refLoc = job->createLocation(ref);
+    }
+
     Rdm::CursorInfo &info = job->mSymbols[loc];
     if (!info.symbolLength) {
+        if (job->mIsPch) {
+            const QByteArray usr = Rdm::eatString(clang_getCursorUSR(cursor));
+            if (!usr.isEmpty()) {
+                job->mPchUSRHash[usr] = loc;
+            }
+        }
         info.kind = kind;
-#ifdef QT_DEBUG
-        info.loc = loc;
-        info.symbolName = Rdm::eatString(clang_getCursorDisplayName(cursor));
-#endif
-    } else if (info.kind == CXCursor_Constructor && kind == CXCursor_TypeRef) {
-        return CXChildVisit_Recurse;
-    }
-    if (!info.symbolLength) {
         CXString name;
         if (clang_isReference(kind)) {
             name = clang_getCursorSpelling(ref);
@@ -197,19 +215,19 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         const char *cstr = clang_getCString(name);
         info.symbolLength = cstr ? strlen(cstr) : 0;
         clang_disposeString(name);
+#ifdef QT_DEBUG
+        info.loc = loc;
+        info.symbolName = Rdm::eatString(clang_getCursorDisplayName(cursor));
+#endif
+    } else if (info.kind == CXCursor_Constructor && kind == CXCursor_TypeRef) {
+        return CXChildVisit_Recurse;
     }
 
     if (clang_isCursorDefinition(cursor) || kind == CXCursor_FunctionDecl) {
         job->addNamePermutations(cursor, loc);
     }
 
-
-    if (!clang_isInvalid(refKind) && !clang_equalCursors(cursor, ref)) {
-        const RTags::Location refLoc = job->createLocation(ref);
-        if (refLoc.isNull()) {
-            return CXChildVisit_Recurse;
-        }
-
+    if (!clang_isInvalid(refKind) && !refLoc.isNull()) {
         if (refLoc != loc) {
             info.target = refLoc;
         }
@@ -293,6 +311,7 @@ void IndexerJob::run()
                     return;
             }
         } while (wait);
+        mPchUSRHash = mIndexer->pchUSRHash(pchHeaders);
     }
     const quint64 waitingForPch = timer.restart();
 
@@ -360,6 +379,8 @@ void IndexerJob::run()
             if (clang_saveTranslationUnit(unit, pchName.constData(), clang_defaultSaveOptions(unit)) != CXSaveError_None) {
                 error() << "Couldn't save pch file" << mIn << pchName;
                 pchError = true;
+            } else {
+                mIndexer->setPchUSRHash(mIn, mPchUSRHash);
             }
         }
         clang_disposeTranslationUnit(unit);

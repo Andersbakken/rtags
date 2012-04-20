@@ -10,6 +10,7 @@ typedef QHash<RTags::Location, QPair<RTags::Location, Rdm::ReferenceType> > Refe
 typedef QHash<QByteArray, QSet<RTags::Location> > SymbolNameHash;
 typedef QHash<Path, QSet<Path> > DependencyHash;
 typedef QPair<QByteArray, quint64> WatchedPair;
+typedef QHash<QByteArray, RTags::Location> PchUSRHash;
 typedef QHash<Path, QSet<WatchedPair> > WatchedHash;
 struct FileInformation {
     FileInformation() : lastTouched(0) {}
@@ -50,6 +51,8 @@ public:
     void setPchDependencies(const Path &pchHeader, const QSet<Path> &deps);
     QSet<Path> pchDependencies(const Path &pchHeader) const;
     void poll();
+    QHash<QByteArray, RTags::Location> pchUSRHash(const QList<Path> &pchFiles) const;
+    void setPchUSRHash(const Path &pch, const PchUSRHash &astHash);
 protected:
     void timerEvent(QTimerEvent *e);
     void customEvent(QEvent* event);
@@ -64,6 +67,9 @@ private:
     void commitDependencies(const DependencyHash& deps, bool sync);
     void initWatcher();
     void init();
+
+    mutable QReadWriteLock mPchUSRHashLock;
+    QHash<Path, PchUSRHash > mPchUSRHashes;
 
     QList<QByteArray> mDefaultArgs;
     mutable QReadWriteLock mPchDependenciesLock;

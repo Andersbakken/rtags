@@ -35,6 +35,7 @@ public:
     QSet<Path> mPchDependencies;
     Indexer *mIndexer;
     volatile bool mAborted; // ### ??? use QBasicAtomic?
+    QHash<QByteArray, RTags::Location> mPchUSRHash;
 signals:
     void done(int id, const QByteArray& input);
 };

@@ -6,5 +6,6 @@
 #include <clang-c/Index.h>
 #include <string>
 #include <map>
+#include <RTags.h>
 
 #endif

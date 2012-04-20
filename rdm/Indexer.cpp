@@ -366,3 +366,28 @@ void Indexer::poll()
         onDirectoryChanged(dir);
     }
 }
+PchUSRHash Indexer::pchUSRHash(const QList<Path> &pchFiles) const
+{
+    QReadLocker lock(&mPchUSRHashLock);
+    const int count = pchFiles.size();
+    switch (pchFiles.size()) {
+    case 0: return PchUSRHash();
+    case 1: return mPchUSRHashes.value(pchFiles.first());
+    default:
+        break;
+    }
+    PchUSRHash ret = mPchUSRHashes.value(pchFiles.first());
+    for (int i=1; i<count; ++i) {
+        const PchUSRHash h = mPchUSRHashes.value(pchFiles.at(i));
+        for (PchUSRHash::const_iterator it = h.begin(); it != h.end(); ++it) {
+            ret[it.key()] = it.value();
+        }
+    }
+    return ret;
+}
+
+void Indexer::setPchUSRHash(const Path &pch, const PchUSRHash &astHash)
+{
+    QWriteLocker lock(&mPchUSRHashLock);
+    mPchUSRHashes[pch] = astHash;
+}

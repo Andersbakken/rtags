@@ -158,13 +158,23 @@ void IndexerSyncer::run()
                 db.db()->Write(leveldb::WriteOptions(), &batch);
         }
         LevelDB symbolDB;
+        if (!references.isEmpty() || !symbols.isEmpty()) {
+            QByteArray err;
+            if (!symbolDB.open(Server::Symbol, LevelDB::ReadWrite, &err)) {
+                error("Can't open Symbol database %s %s\n",
+                      Server::databaseName(Server::Symbol).constData(),
+                      err.constData());
+                return;
+            }
+        }
+            
         bool changedSymbols = false;
         leveldb::WriteBatch symbolsBatch;
 
         if (!references.isEmpty()) {
             const ReferenceHash::const_iterator end = references.end();
             for (ReferenceHash::const_iterator it = references.begin(); it != end; ++it) {
-                SymbolHash::iterator sym = symbols.find(it.value().first);
+                const SymbolHash::iterator sym = symbols.find(it.value().first);
                 if (sym != symbols.end()) {
                     Rdm::CursorInfo &ci = sym.value();
                     ci.references.insert(it.key());
@@ -174,25 +184,12 @@ void IndexerSyncer::run()
                         Rdm::CursorInfo &other = symbols[it.key()];
                         ci.references += other.references;
                         other.references += ci.references;
-                        if (other.target.isNull()) {
-                            // if (it.key().key().contains("RTags."))
-                            error() << "1looking up" << it.key() << "with the intention of setting target to" << it.value().first
-                                    << "it was" << other.target;
-                        }
-                        
                         if (other.target.isNull())
                             other.target = it.value().first;
+                        if (ci.target.isNull())
+                            ci.target = it.key();
                     }
                 } else {
-                    if (!symbolDB.db()) {
-                        QByteArray err;
-                        if (!symbolDB.open(Server::Symbol, LevelDB::ReadWrite, &err)) {
-                            error("Can't open Symbol database %s %s\n",
-                                  Server::databaseName(Server::Symbol).constData(),
-                                  err.constData());
-                            return;
-                        }
-                    }
                     const QByteArray key = it.value().first.key(RTags::Location::Padded);
                     Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(symbolDB.db(), key.constData());
                     bool changedCurrent = false;
@@ -210,16 +207,15 @@ void IndexerSyncer::run()
                             changedCurrent = true;
 
                         if (other.target.isNull()) {
-                            // if (otherKey.contains("RTags."))
-                            error() << "2looking up" << otherKey << "with the intention of setting target to" << it.value().first
-                                    << "it was" << other.target;
-                        }
-                        
-                            
-                        if (other.target.isNull()) {
                             other.target = it.value().first;
                             changedOther = true;
                         }
+
+                        if (current.target.isNull()) {
+                            current.target = it.key();
+                            changedCurrent = true;
+                        }
+                        
                         if (changedOther) {
                             changedSymbols = true;
                             Rdm::writeValue<Rdm::CursorInfo>(&symbolsBatch, otherKey, other);
@@ -234,14 +230,6 @@ void IndexerSyncer::run()
             }
         }
         if (!symbols.isEmpty()) {
-            QByteArray err;
-            if (!symbolDB.db() && !symbolDB.open(Server::Symbol, LevelDB::ReadWrite, &err)) {
-                error("Can't open Symbol database %s %s\n",
-                      Server::databaseName(Server::Symbol).constData(),
-                      err.constData());
-                return;
-            }
-
             SymbolHash::iterator it = symbols.begin();
             const SymbolHash::const_iterator end = symbols.end();
             while (it != end) {
@@ -258,7 +246,7 @@ void IndexerSyncer::run()
         if (changedSymbols)
             symbolDB.db()->Write(leveldb::WriteOptions(), &symbolsBatch);
         symbolDB.close();
-        
+
         if (!dependencies.isEmpty()) {
             LevelDB db;
             if (!db.open(Server::Dependency, LevelDB::ReadWrite))
