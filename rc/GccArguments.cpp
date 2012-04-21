@@ -27,6 +27,11 @@ GccArguments::GccArguments(const QByteArray& args, const Path& base)
     parse(args, base);
 }
 
+void GccArguments::clear()
+{
+    *mImpl = GccArgumentsImpl();
+}
+
 static inline GccArguments::Lang guessLang(const Path& fullPath)
 {
     QByteArray compiler = fullPath.fileName();
@@ -115,8 +120,10 @@ bool GccArguments::parse(QByteArray args, const Path& base)
             split.append(QByteArray(prev, cur - prev));
     }
 
-    if (split.isEmpty())
+    if (split.isEmpty()) {
+        clear();
         return false;
+    }
 
     Path path;
     if (split.front() == "cd" && split.size() > 3 && split.at(2) == "&&") {
@@ -127,8 +134,10 @@ bool GccArguments::parse(QByteArray args, const Path& base)
     }
 
     mImpl->lang = guessLang(split.front());
-    if (mImpl->lang == NoLang)
+    if (mImpl->lang == NoLang) {
+        clear();
         return false;
+    }
 
     QList<QByteArray> unresolvedInputs;
 
@@ -136,7 +145,9 @@ bool GccArguments::parse(QByteArray args, const Path& base)
     char prevopt = '\1'; // skip the initial binary name
 
     gccopts_gperf gccopts;
-    foreach (const QByteArray& arg, split) {
+    const int s = split.size();
+    for (int i=0; i<s; ++i) {
+        const QByteArray &arg = split.at(i);
         const char *cur = arg.constData();
         if (prevopt != '\0') {
             switch (prevopt) {
@@ -158,10 +169,11 @@ bool GccArguments::parse(QByteArray args, const Path& base)
                 if (pathok) {
                     mImpl->includes.append(inc);
                 } else {
-                    if (!inc.isAbsolute())
+                    if (!inc.isAbsolute()) {
                         mImpl->includes.append(Path(path + "/" + cur + QByteArray(".gch"))); // ### is assuming .gch correct here?
-                    else
+                    } else {
                         warning("-include %s could not be resolved", cur);
+                    }
                 } }
                 break;
             case 'o': {
@@ -189,15 +201,25 @@ bool GccArguments::parse(QByteArray args, const Path& base)
                     prevopt = '\1';
                 continue;
             } else {
-                if (!strncmp(cur, "-D", 2))
-                    mImpl->clangArgs.append(cur);
-                else if (!strncmp(cur, "-I", 2)) {
-                    const Path inc = Path::resolved(cur + 2, path, &pathok);
+                if (!strncmp(cur, "-D", 2)) {
+                    if (arg.size() == 2 && i + 1 < s) {
+                        mImpl->clangArgs.append((cur + split.at(++i)));
+                    } else {
+                        mImpl->clangArgs.append(cur);
+                    }
+                } else if (!strncmp(cur, "-I", 2)) {
+                    Path inc;
+                    pathok = false;
+                    if (arg.size() > 2) {
+                        inc = Path::resolved(cur + 2, path, &pathok);
+                    } else if (i + 1 < s) {
+                        inc = Path::resolved(split.at(++i), path, &pathok);
+                    }
                     if (pathok)
                         mImpl->clangArgs.append("-I" + inc);
-                }
-                else if (mImpl->type == NoType && !strcmp(cur, "-c"))
+                } else if (mImpl->type == NoType && !strcmp(cur, "-c")) {
                     mImpl->type = Compile;
+                }
             }
         } else { // input file?
             Path input = Path::resolved(cur, path, &pathok);
@@ -208,22 +230,25 @@ bool GccArguments::parse(QByteArray args, const Path& base)
         }
     }
 
-    if (mImpl->type == NoType)
+    if (mImpl->type == NoType) {
+        clear();
         return false;
+    }
 
     if (mImpl->inputFiles.isEmpty()) {
         warning("Unable to find or resolve input files");
         foreach (const QByteArray& input, unresolvedInputs)
             warning("  %s", input.constData());
+        clear();
         return false;
     }
     if (mImpl->outputFile.isEmpty() && mImpl->type == Pch) {
         warning("Output file is empty for pch");
+        clear();
         return false;
     }
-    if (!mImpl->outputFile.isResolved()) {
-        if (!mImpl->outputFile.isAbsolute())
-            mImpl->outputFile = path + "/" + mImpl->outputFile;
+    if (!mImpl->outputFile.isResolved() && !mImpl->outputFile.isAbsolute()) {
+        mImpl->outputFile = path + "/" + mImpl->outputFile;
     }
 
     return true;

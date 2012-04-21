@@ -19,6 +19,7 @@ public:
     bool parse(QByteArray args, const Path& base);
     Type type() const;
     Lang lang() const;
+    void clear();
 
     void addFlags(const QList<QByteArray> &extraFlags);
     QList<QByteArray> clangArgs() const;
