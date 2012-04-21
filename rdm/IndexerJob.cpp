@@ -359,6 +359,9 @@ void IndexerJob::run()
     if (!unit) {
         pchError = mIsPch;
         error() << "got 0 unit for" << clangLine;
+        mDependencies[mIn].insert(mIn);
+        QCoreApplication::postEvent(mIndexer, new DependencyEvent(mDependencies));
+        mIndexer->mSyncer->addFileInformation(mIn, mArgs, timeStamp);
     } else {
         clang_getInclusions(unit, inclusionVisitor, this);
         foreach(const Path &pchHeader, pchHeaders) {
