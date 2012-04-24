@@ -1,5 +1,7 @@
 #include "StatusJob.h"
 #include "Server.h"
+#include "RTags.h"
+#include "Indexer.h"
 #include <clang-c/Index.h>
 #include <Rdm.h>
 #include "LevelDB.h"
@@ -73,12 +75,53 @@ void StatusJob::run()
     }
 
     if (query.isEmpty() || query == "symbolnames") {
+        LevelDB db;
+        if (db.open(Server::SymbolName, LevelDB::ReadOnly)) {
+            write(Server::databaseName(Server::SymbolName));
+            leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
+            it->SeekToFirst();
+            char buf[1024];
+            memcpy(buf, "  ", 2);
+            while (it->Valid()) {
+                memcpy(buf + 2, it->key().data(), it->key().size());
+                memcpy(buf + 2 + it->key().size(), ":", 2);
+                write(buf);
+                const QSet<RTags::Location> locations = Rdm::readValue<QSet<RTags::Location> >(it);
+                memcpy(buf + 2, "  ", 2);
+                foreach (const RTags::Location &loc, locations) {
+                    QByteArray key = loc.key(RTags::Location::Padded);
+                    memcpy(buf + 4, key.constData(), key.size() + 1);
+                    write(buf);
+                }
+                it->Next();
+            }
+            delete it;
+        }
     }
 
     if (query.isEmpty() || query == "fileinfos") {
+        LevelDB db;
+        if (db.open(Server::FileInformation, LevelDB::ReadOnly)) {
+            write(Server::databaseName(Server::FileInformation));
+            leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
+            it->SeekToFirst();
+            char buf[1024];
+            memcpy(buf, "  ", 2);
+            while (it->Valid()) {
+                memcpy(buf + 2, it->key().data(), it->key().size());
+                const FileInformation fi = Rdm::readValue<FileInformation>(it);
+                snprintf(buf + 2 + it->key().size(), sizeof(buf) - 3 - it->key().size(),
+                         ": %s [%s]", QDateTime::fromTime_t(fi.lastTouched).toString().toLocal8Bit().constData(),
+                         RTags::join(fi.compileArgs).constData());
+                write(buf);
+                it->Next();
+            }
+            delete it;
+        }
     }
 
     if (query.isEmpty() || query == "pch") {
+        // ### needs to be done
     }
     finish();
 }
