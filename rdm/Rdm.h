@@ -146,6 +146,12 @@ static inline QDataStream &operator>>(QDataStream &ds, CursorInfo &ci)
     return ds;
 }
 
+static inline bool contains(leveldb::DB *db, const char *key)
+{
+    std::string str;
+    return db->Get(leveldb::ReadOptions(), key, &str).ok();
+}
+
 template <typename T> T readValue(leveldb::DB *db, const char *key, bool *ok = 0)
 {
     T t;

@@ -7,6 +7,7 @@
 #include "Message.h"
 #include "Messages.h"
 #include "Path.h"
+#include "TestJob.h"
 #include "PollJob.h"
 #include "QueryMessage.h"
 #include "Rdm.h"
@@ -201,6 +202,9 @@ void Server::handleQueryMessage(QueryMessage* message)
     case QueryMessage::Poll:
         id = poll(this);
         break;
+    case QueryMessage::Test:
+        id = test(*message);
+        break;
     }
     if (!id) {
         QueryMessage msg(QList<QByteArray>() << "Invalid message");
@@ -390,6 +394,17 @@ int Server::poll(const QueryMessage &query)
     return id;
 }
 
+int Server::test(const QueryMessage &query)
+{
+    const int id = nextId();
+
+    warning() << "poll";
+
+    TestJob *job = new TestJob(query.query().first(), id);
+    connectJob(job);
+    QThreadPool::globalInstance()->start(job);
+    return id;
+}
 
 static const char* const dbNames[] = {
     "general.db",

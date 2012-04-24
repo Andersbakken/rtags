@@ -19,7 +19,8 @@ public:
         FindSymbols,
         Dump,
         Status,
-        Poll
+        Poll,
+        Test
     };
 
     enum Flag {

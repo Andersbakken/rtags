@@ -39,6 +39,7 @@ static void help(FILE *f, const char* app)
             "  --includepath|-I [arg]        Add additional include path, must be combined with --makefile\n"
             "  --define|-D [arg]             Add additional define, must be combined with --makefile\n"
             "  --compiler-flag|-o [arg]      Add additional compiler flags, must be combined with --makefile\n"
+            "  --test|-t                     Test whether rtags knows about this source file\n"
             "  --status|-s [arg]             Dump status of rdm. If arg is passed it should match one of:\n"
             "                                'general', 'dependencies', 'symbols', 'symbolnames', 'fileinfos' or 'pch'\n",
             app);
@@ -73,6 +74,7 @@ int main(int argc, char** argv)
         { "define", required_argument, 0, 'D' },
         { "compiler-flag", required_argument, 0, 'o' },
         { "poll", no_argument, 0, 'P' },
+        { "test", required_argument, 0, 't' },
         { 0, 0, 0, 0 }
     };
 
@@ -174,6 +176,9 @@ int main(int argc, char** argv)
                                       ? QueryMessage::ReferencesLocation
                                       : QueryMessage::FollowLocation), resolved));
             break; }
+        case 't':
+            optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Test, Path::resolved(optarg)));
+            break;
         case 'm':
             makeFiles.append(Path::resolved(optarg));
             break;

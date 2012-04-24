@@ -26,7 +26,8 @@ SOURCES += \
     IndexerSyncer.cpp \
     DirtyJob.cpp \
     PollJob.cpp \
-    Job.cpp
+    Job.cpp \
+    TestJob.cpp
 
 HEADERS += \
     Indexer.h \
@@ -45,4 +46,5 @@ HEADERS += \
     IndexerSyncer.h \
     DirtyJob.h \
     PollJob.h \
-    Job.h
+    Job.h \
+    TestJob.h
