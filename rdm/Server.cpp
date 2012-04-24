@@ -109,8 +109,8 @@ void Server::onConnectionDestroyed(QObject* o)
         }
     }
     {
-        QHash<int, QPair<Connection*, QSet<QByteArray> > >::iterator it = mPendingLookups.begin();
-        const QHash<int, QPair<Connection*, QSet<QByteArray> > >::const_iterator end = mPendingLookups.end();
+        QHash<int, QPair<Connection*, QList<QByteArray> > >::iterator it = mPendingLookups.begin();
+        const QHash<int, QPair<Connection*, QList<QByteArray> > >::const_iterator end = mPendingLookups.end();
         while (it != end) {
             if (it.value().first == o) {
                 it = mPendingLookups.erase(it);
@@ -228,19 +228,23 @@ void Server::onIndexingDone(int id)
     it.value()->send(&msg);
 }
 
-static inline QList<QByteArray> filter(const QList<QByteArray> &list, const QSet<QByteArray> &filter)
+static inline QList<QByteArray> filter(const QList<QByteArray> &list, const QList<QByteArray> &sortedFilters)
 {
-    if (filter.isEmpty())
+    if (sortedFilters.isEmpty())
         return list;
 
-    // ### this is really shitty
     QList<QByteArray> ret;
     foreach(const QByteArray &val, list) {
-        foreach(const QByteArray &f, filter) {
-            if (val.startsWith(f)) {
+        QList<QByteArray>::const_iterator it = qUpperBound(sortedFilters, val);
+        if (it != sortedFilters.end()) {
+            const int cmp = strncmp(val.constData(), (*it).constData(), (*it).size());
+            if (cmp == 0) {
                 ret.append(val);
-                break;
+            } else if (cmp < 0 && it != sortedFilters.begin() && val.startsWith(*(it - 1))) {
+                ret.append(val);
             }
+        } else if (val.startsWith(*(it - 1))) {
+            ret.append(val);
         }
     }
     return ret;
@@ -248,7 +252,7 @@ static inline QList<QByteArray> filter(const QList<QByteArray> &list, const QSet
 
 void Server::onComplete(int id, const QList<QByteArray>& response)
 {
-    QHash<int, QPair<Connection*, QSet<QByteArray> > >::iterator it = mPendingLookups.find(id);
+    QHash<int, QPair<Connection*, QList<QByteArray> > >::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
         return;
 

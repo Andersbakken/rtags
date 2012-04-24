@@ -232,7 +232,7 @@ int main(int argc, char** argv)
     Client client(clientFlags, extraFlags);
     QList<QPair<QueryMessage::Type, QByteArray> >::const_iterator it = optlist.begin();
     while (it != optlist.end()) {
-        QueryMessage msg(it->first, it->second, queryFlags, unsavedFiles, pathFilters);
+        QueryMessage msg(it->first, it->second, queryFlags, unsavedFiles, pathFilters.toList());
         client.query(msg);
         ++it;
     }

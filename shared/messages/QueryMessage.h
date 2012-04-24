@@ -32,10 +32,10 @@ public:
     QueryMessage(const QList<QByteArray> &msg);
     QueryMessage(Type type, const QByteArray &query, unsigned flags,
                  const QHash<Path, QByteArray> &unsavedFiles,
-                 const QSet<QByteArray> &pathFilters,
+                 const QList<QByteArray> &pathFilters,
                  QObject *parent = 0);
 
-    QSet<QByteArray> pathFilters() const { return mPathFilters; }
+    QList<QByteArray> pathFilters() const { return mPathFilters; }
     int messageId() const { return MessageId; }
     QList<QByteArray> query() const { return mQuery; }
     QHash<Path, QByteArray> unsavedFiles() const { return mUnsavedFiles; }
@@ -50,7 +50,7 @@ private:
     Type mType;
     unsigned mFlags;
     QHash<Path, QByteArray> mUnsavedFiles;
-    QSet<QByteArray> mPathFilters;
+    QList<QByteArray> mPathFilters;
 };
 
 #endif // QUERYMESSAGE_H

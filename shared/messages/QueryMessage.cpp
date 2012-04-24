@@ -8,10 +8,11 @@ QueryMessage::QueryMessage(QObject* parent)
 }
 
 QueryMessage::QueryMessage(Type type, const QByteArray& query, unsigned flags,
-                           const QHash<Path, QByteArray> &unsavedFiles, const QSet<QByteArray> &pathFilters,
+                           const QHash<Path, QByteArray> &unsavedFiles, const QList<QByteArray> &pathFilters,
                            QObject* parent)
     : Message(parent), mType(type), mFlags(flags), mUnsavedFiles(unsavedFiles), mPathFilters(pathFilters)
 {
+    qSort(mPathFilters);
     mQuery.append(query);
 }
 
