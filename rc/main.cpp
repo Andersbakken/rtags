@@ -211,9 +211,14 @@ int main(int argc, char** argv)
             break;
         case '?':
             // getopt printed an error message already
+            break;
         default:
             break;
         }
+    }
+    if (optind < argc) {
+        fprintf(stderr, "rc: unexpected option -- '%s'\n", argv[optind]);
+        return 1;
     }
 
     if (!initLogging(logLevel, logFile, logFlags)) {
