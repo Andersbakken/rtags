@@ -72,8 +72,18 @@ struct CursorInfo {
     }
     bool unite(const CursorInfo &other)
     {
-        if (!other.symbolLength)
+        if (kind == CXCursor_InvalidFile)
+            kind = other.kind;
+        if (!other.symbolLength) {
+            // error() << "other full of shit"
+            //         << eatString(clang_getCursorKindSpelling(other.kind))
+            //         << other.target
+            //         << other.references
+            //         << "me"
+            //         << eatString(clang_getCursorKindSpelling(kind))
+            //         << symbolLength;
             return true;
+        }
         if (!symbolLength) {
 #ifdef QT_DEBUG
             if (!target.isNull())

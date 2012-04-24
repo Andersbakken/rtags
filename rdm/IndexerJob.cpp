@@ -154,7 +154,37 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
 // #endif
 
     const CXCursorKind kind = clang_getCursorKind(cursor);
+    if (clang_isInvalid(kind))
+        return CXChildVisit_Recurse;
     switch (kind) {
+    case CXCursor_CXXThisExpr:
+    case CXCursor_CXXTypeidExpr:
+    case CXCursor_CXXReinterpretCastExpr:
+    case CXCursor_CXXStaticCastExpr:
+    case CXCursor_CXXDynamicCastExpr:
+    case CXCursor_CXXNullPtrLiteralExpr:
+    case CXCursor_CXXNewExpr: // ### Are these right?
+    case CXCursor_CXXDeleteExpr:
+    case CXCursor_CompoundAssignOperator: // ### Are these right?
+    case CXCursor_CompoundStmt:
+    case CXCursor_ParenExpr:
+    case CXCursor_StringLiteral:
+    case CXCursor_IntegerLiteral:
+    case CXCursor_InitListExpr:
+    case CXCursor_BreakStmt:
+    case CXCursor_DefaultStmt:
+    case CXCursor_BinaryOperator:
+    case CXCursor_CaseStmt:
+    case CXCursor_ConditionalOperator:
+    case CXCursor_CStyleCastExpr:
+    case CXCursor_ForStmt:
+    case CXCursor_WhileStmt:
+    case CXCursor_DoStmt:
+    case CXCursor_IfStmt:
+    case CXCursor_CXXBoolLiteralExpr:
+    case CXCursor_CharacterLiteral:
+    case CXCursor_UnaryOperator:
+    case CXCursor_ReturnStmt:
     case CXCursor_CXXAccessSpecifier:
         return CXChildVisit_Recurse;
     default:
