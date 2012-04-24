@@ -77,9 +77,9 @@ struct CursorInfo {
         if (!symbolLength) {
 #ifdef QT_DEBUG
             if (!target.isNull())
-                error() << "About to assert" << target << loc << symbolName;
+                warning() << "About to assert" << target << loc << symbolName;
             if (!references.isEmpty())
-                error() << "About to assert" << references << loc << symbolName;
+                warning() << "About to assert" << references << loc << symbolName;
 #endif
             // Q_ASSERT(target.isNull());
             // Q_ASSERT(references.isEmpty());
@@ -87,13 +87,13 @@ struct CursorInfo {
             return true;
         }
         if (symbolLength != other.symbolLength) {
-            error() << "something wrong here. SymbolLength" << symbolLength << "other.symbolLength" << other.symbolLength
-                    << "target" << target << "other.target" << other.target
-                    << "references" << references << "other.references" << other.references
-                    << "kind" << kind << "other.kind" << other.kind
+            warning() << "something wrong here. SymbolLength" << symbolLength << "other.symbolLength" << other.symbolLength
+                      << "target" << target << "other.target" << other.target
+                      << "references" << references << "other.references" << other.references
+                      << "kind" << kind << "other.kind" << other.kind
 #ifdef QT_DEBUG
-                    << "location" << loc << "other.location" << other.loc
-                    << "symbolName" << symbolName << "other.symbolName" << other.symbolName
+                      << "location" << loc << "other.location" << other.loc
+                      << "symbolName" << symbolName << "other.symbolName" << other.symbolName
 #endif
                 ;
         }
