@@ -15,7 +15,6 @@ public:
         FollowLocation,
         ReferencesLocation,
         ReferencesName,
-        Recompile,
         ListSymbols,
         FindSymbols,
         Dump,
@@ -30,6 +29,7 @@ public:
 
     Q_INVOKABLE QueryMessage(QObject* parent = 0);
     QueryMessage(const QList<QByteArray> &msg);
+    QueryMessage(const QByteArray &msg);
     QueryMessage(Type type, const QByteArray &query, unsigned flags,
                  const QHash<Path, QByteArray> &unsavedFiles,
                  const QList<QByteArray> &pathFilters,

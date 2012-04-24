@@ -6,22 +6,17 @@
 #include <QByteArray>
 #include <QList>
 #include "RTags.h"
+#include "Job.h"
 
-class FollowLocationJob : public QObject, public QRunnable
+class FollowLocationJob : public Job
 {
     Q_OBJECT
 public:
     FollowLocationJob(int id, const RTags::Location &loc, unsigned flags);
     ~FollowLocationJob();
-
-signals:
-    void complete(int id, const QList<QByteArray>& locations);
-
 protected:
     void run();
-
 private:
-    const int id;
     const RTags::Location location;
     const unsigned flags;
 };

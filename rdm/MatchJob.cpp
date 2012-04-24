@@ -6,7 +6,7 @@
 #include "LevelDB.h"
 
 MatchJob::MatchJob(const QByteArray& p, int i, QueryMessage::Type t, unsigned flags)
-    : partial(p), id(i), type(t), keyFlags(flags)
+    : Job(i), partial(p), type(t), keyFlags(flags)
 {
 }
 
@@ -14,7 +14,7 @@ void MatchJob::run()
 {
     LevelDB db;
     if (!db.open(Server::SymbolName, LevelDB::ReadOnly)) {
-        emit complete(id, QList<QByteArray>());
+        emit complete(id());
         return;
     }
 
@@ -50,17 +50,6 @@ void MatchJob::run()
         }
         it->Next();
     }
-#if 0
-    if (result.isEmpty()) {
-        it->SeekToFirst();
-        while (it->Valid()) {
-            const leveldb::Slice k = it->key();
-            const QByteArray key = QByteArray::fromRawData(k.data(), k.size());
-            debug() << key << partial;
-            it->Next();
-        }
-    }
-#endif
     delete it;
-    emit complete(id, result);
+    emit complete(id(), result);
 }

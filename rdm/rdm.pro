@@ -18,7 +18,6 @@ SOURCES += \
     DumpJob.cpp \
     FollowLocationJob.cpp \
     MatchJob.cpp \
-    RecompileJob.cpp \
     ReferencesJob.cpp \
     Rdm.cpp \
     StatusJob.cpp \
@@ -35,7 +34,6 @@ HEADERS += \
     DumpJob.h \
     FollowLocationJob.h \
     MatchJob.h \
-    RecompileJob.h \
     ReferencesJob.h \
     Rdm.h \
     StatusJob.h \
@@ -45,4 +43,5 @@ HEADERS += \
     DependencyEvent.h \
     IndexerSyncer.h \
     DirtyJob.h \
-    PollJob.h
+    PollJob.h \
+    Job.h

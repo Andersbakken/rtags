@@ -30,7 +30,7 @@ public:
 
     template<typename T>
     static bool registerMessage();
-
+    void finish();
 signals:
     void connected();
     void disconnected();

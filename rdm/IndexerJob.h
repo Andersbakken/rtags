@@ -5,8 +5,9 @@
 #include "Indexer.h"
 #include <RTags.h>
 #include "Rdm.h"
+#include "Job.h"
 
-class IndexerJob : public QObject, public QRunnable
+class IndexerJob : public Job
 {
     Q_OBJECT;
 public:
@@ -36,8 +37,6 @@ public:
     Indexer *mIndexer;
     volatile bool mAborted; // ### ??? use QBasicAtomic?
     QHash<QByteArray, RTags::Location> mPchUSRHash;
-signals:
-    void done(int id, const QByteArray& input);
 };
 
 #endif

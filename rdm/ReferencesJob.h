@@ -6,19 +6,17 @@
 #include <QByteArray>
 #include <QList>
 #include <RTags.h>
+#include "Job.h"
 
-class ReferencesJob : public QObject, public QRunnable
+class ReferencesJob : public Job
 {
     Q_OBJECT
 public:
     ReferencesJob(int id, const RTags::Location &location, unsigned keyflags);
     ReferencesJob(int id, const QByteArray &symbolName, unsigned keyflags);
-signals:
-    void complete(int id, const QList<QByteArray>& locations);
 protected:
     void run();
 private:
-    const int id;
     QSet<RTags::Location> locations;
     const QByteArray symbolName;
     const unsigned keyFlags;

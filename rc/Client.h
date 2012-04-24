@@ -27,6 +27,7 @@ public:
     void query(const QueryMessage &msg);
     QList<QByteArray> extraFlags() const { return mExtraFlags; }
 private slots:
+    void onDisconnected();
     void onSendComplete();
     void onNewMessage(Message* message);
     void onMakefileDone();

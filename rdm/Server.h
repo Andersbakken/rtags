@@ -13,7 +13,7 @@ class Message;
 class AddMessage;
 class ErrorMessage;
 class QTcpServer;
-
+class Job;
 #ifndef ASTPATH
 #define ASTPATH "/tmp/rdm/"
 #endif
@@ -47,6 +47,9 @@ private slots:
     void onNewMessage(Message* message);
     void onIndexingDone(int id);
     void onComplete(int id, const QList<QByteArray>& response);
+    void onOutput(int id, const QList<QByteArray> &response);
+    void onComplete(int id, const QByteArray& response);
+    void onOutput(int id, const QByteArray &response);
     void onConnectionDestroyed(QObject* o);
 private:
     void handleAddMessage(AddMessage* message);
@@ -55,12 +58,12 @@ private:
     int followLocation(const QueryMessage &query);
     int referencesForLocation(const QueryMessage &query);
     int referencesForName(const QueryMessage &query);
-    int recompile(const QueryMessage &query);
     int match(const QueryMessage &query);
     int dump(const QueryMessage &query);
     int status(const QueryMessage &query);
     int poll(const QueryMessage &query);
     int nextId();
+    void connectJob(Job *job);
 private:
     unsigned mOptions;
     Indexer* mIndexer;

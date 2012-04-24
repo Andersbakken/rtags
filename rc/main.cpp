@@ -23,7 +23,6 @@ static void help(FILE *f, const char* app)
             "  --makefile|-m [arg]           Process this makefile\n"
             "  --reference-name|-R [arg]     Find references matching arg\n"
             "  --reference-location|-r [arg] Find references matching this location\n"
-            "  --recompile|-M [arg]          Recompile this source file\n"
             "  --list-symbols|-S [arg]       List symbol names matching arg\n"
             "  --find-symbols|-F [arg]       Find symbols matching arg\n"
             "  --dump|-d [arg]               Dump AST tree of arg \n"
@@ -56,7 +55,6 @@ int main(int argc, char** argv)
         { "makefile", required_argument, 0, 'm' },
         { "reference-name", required_argument, 0, 'R' },
         { "reference-location", required_argument, 0, 'r' },
-        { "recompile", required_argument, 0, 'M' },
         { "list-symbols", optional_argument, 0, 'S' },
         { "find-symbols", required_argument, 0, 'F' },
         { "dump", required_argument, 0, 'd' },
@@ -185,9 +183,6 @@ int main(int argc, char** argv)
             break;
         case 'R':
             optlist.append(qMakePair(QueryMessage::ReferencesName, QByteArray(optarg)));
-            break;
-        case 'M':
-            optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Recompile, Path::resolved(optarg)));
             break;
         case 'S':
             if (optarg) {

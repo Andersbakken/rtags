@@ -5,19 +5,17 @@
 #include <QRunnable>
 #include <QByteArray>
 #include <QList>
+#include "Job.h"
 class Indexer;
-class PollJob : public QObject, public QRunnable
+class PollJob : public Job
 {
     Q_OBJECT
 public:
     PollJob(Indexer *indexer, int id);
-signals:
-    void complete(int id, const QList<QByteArray>& locations);
 protected:
     void run();
 private:
     Indexer *indexer;
-    const int id;
 };
 
 #endif

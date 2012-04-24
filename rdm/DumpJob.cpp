@@ -4,7 +4,7 @@
 #include "LevelDB.h"
 
 DumpJob::DumpJob(const QByteArray& fn, int i)
-    : fileName(fn), id(i)
+    : Job(i), fileName(fn)
 {
 }
 
@@ -12,7 +12,7 @@ void DumpJob::run()
 {
     LevelDB db;
     if (!db.open(Server::Symbol, LevelDB::ReadOnly)) {
-        emit complete(id, QList<QByteArray>());
+        emit complete(id(), QByteArray());
         return;
     }
 
@@ -37,5 +37,5 @@ void DumpJob::run()
     }
 
     delete it;
-    emit complete(id, out);
+    emit complete(id(), out);
 }

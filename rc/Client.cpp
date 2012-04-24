@@ -35,6 +35,7 @@ void Client::query(const QueryMessage &message)
             mConn = 0;
             return;
         }
+        connect(mConn, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
     }
 
     connect(mConn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
@@ -61,7 +62,6 @@ void Client::onNewMessage(Message* message)
                 printf("%s\n", r.constData());
             }
         }
-        qApp->quit();
     } else {
         qFatal("Unexpected message: %d", message->messageId());
     }
@@ -111,10 +111,9 @@ void Client::onMakefileReady(const GccArguments& args)
         connect(mConn, SIGNAL(sendComplete()), this, SLOT(onSendComplete()));
     }
 
-    if (args.type() == GccArguments::NoType
-        || args.lang() == GccArguments::NoLang)
+    if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
         return;
-    else if (args.type() == GccArguments::Pch) {
+    } else if (args.type() == GccArguments::Pch) {
         QByteArray output = args.outputFile();
         Q_ASSERT(!output.isEmpty());
         const int ext = output.lastIndexOf(".gch/c");
@@ -150,4 +149,12 @@ void Client::onMakefileReady(const GccArguments& args)
                   << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
     }
     mConn->send(&message);
+}
+void Client::onDisconnected()
+{
+    if (sender() == mConn) {
+        mConn->deleteLater();
+        mConn = 0;
+        qApp->quit();
+    }
 }

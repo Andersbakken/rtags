@@ -5,19 +5,17 @@
 #include <QRunnable>
 #include <QByteArray>
 #include <QList>
+#include "Job.h"
 
-class DumpJob : public QObject, public QRunnable
+class DumpJob : public Job
 {
     Q_OBJECT
 public:
     DumpJob(const QByteArray& fn, int i);
-signals:
-    void complete(int id, const QList<QByteArray>& locations);
 protected:
     void run();
 private:
     const QByteArray fileName;
-    const int id;
 };
 
 #endif

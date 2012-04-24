@@ -2,12 +2,12 @@
 #include "Indexer.h"
 
 PollJob::PollJob(Indexer *idx, int i)
-    : indexer(idx), id(i)
+    : Job(i), indexer(idx)
 {
 }
 
 void PollJob::run()
 {
     indexer->poll();
-    emit complete(id, QList<QByteArray>());
+    emit complete(id(), QList<QByteArray>());
 }

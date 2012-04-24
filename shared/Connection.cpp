@@ -8,7 +8,7 @@ class ConnectionPrivate : public QObject
     Q_OBJECT
 public:
     ConnectionPrivate(Connection* parent)
-        : QObject(parent), socket(0), conn(parent), pendingRead(0), pendingWrite(0)
+        : QObject(parent), socket(0), conn(parent), pendingRead(0), pendingWrite(0), done(false)
     {
     }
 
@@ -20,6 +20,7 @@ public:
     QTcpSocket* socket;
     Connection* conn;
     quint32 pendingRead, pendingWrite;
+    bool done;
 };
 
 void ConnectionPrivate::dataAvailable()
@@ -52,8 +53,12 @@ void ConnectionPrivate::dataWritten(qint64 bytes)
 {
     Q_ASSERT(pendingWrite >= bytes);
     pendingWrite -= bytes;
-    if (!pendingWrite)
-        emit conn->sendComplete();
+    if (!pendingWrite) {
+        if (bytes)
+            emit conn->sendComplete();
+        if (done)
+            socket->close();
+    }
 }
 
 #include "Connection.moc"
@@ -109,4 +114,9 @@ void Connection::send(int id, const QByteArray& message)
 int Connection::pendingWrite() const
 {
     return mPriv->pendingWrite;
+}
+void Connection::finish()
+{
+    mPriv->done = true;
+    mPriv->dataWritten(0);
 }

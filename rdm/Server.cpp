@@ -10,7 +10,6 @@
 #include "PollJob.h"
 #include "QueryMessage.h"
 #include "Rdm.h"
-#include "RecompileJob.h"
 #include "ReferencesJob.h"
 #include "SHA256.h"
 #include "Server.h"
@@ -189,9 +188,6 @@ void Server::handleQueryMessage(QueryMessage* message)
     case QueryMessage::ReferencesName:
         id = referencesForName(*message);
         break;
-    case QueryMessage::Recompile:
-        id = recompile(*message);
-        break;
     case QueryMessage::ListSymbols:
     case QueryMessage::FindSymbols:
         id = match(*message);
@@ -228,6 +224,24 @@ void Server::onIndexingDone(int id)
     it.value()->send(&msg);
 }
 
+static inline bool filter(const QByteArray &val, const QList<QByteArray> &sortedFilters)
+{
+    Q_ASSERT(!sortedFilters.isEmpty());
+    QList<QByteArray>::const_iterator it = qUpperBound(sortedFilters, val);
+    if (it != sortedFilters.end()) {
+        const int cmp = strncmp(val.constData(), (*it).constData(), (*it).size());
+        if (cmp == 0) {
+            return true;
+        } else if (cmp < 0 && it != sortedFilters.begin() && val.startsWith(*(it - 1))) {
+            return true;
+        }
+    } else if (val.startsWith(*(it - 1))) {
+        return true;
+    }
+    return false;
+}
+
+
 static inline QList<QByteArray> filter(const QList<QByteArray> &list, const QList<QByteArray> &sortedFilters)
 {
     if (sortedFilters.isEmpty())
@@ -235,17 +249,8 @@ static inline QList<QByteArray> filter(const QList<QByteArray> &list, const QLis
 
     QList<QByteArray> ret;
     foreach(const QByteArray &val, list) {
-        QList<QByteArray>::const_iterator it = qUpperBound(sortedFilters, val);
-        if (it != sortedFilters.end()) {
-            const int cmp = strncmp(val.constData(), (*it).constData(), (*it).size());
-            if (cmp == 0) {
-                ret.append(val);
-            } else if (cmp < 0 && it != sortedFilters.begin() && val.startsWith(*(it - 1))) {
-                ret.append(val);
-            }
-        } else if (val.startsWith(*(it - 1))) {
+        if (filter(val, sortedFilters))
             ret.append(val);
-        }
     }
     return ret;
 }
@@ -258,7 +263,37 @@ void Server::onComplete(int id, const QList<QByteArray>& response)
 
     QueryMessage msg(filter(response, it.value().second));
     it.value().first->send(&msg);
+    it.value().first->finish();
 }
+
+void Server::onOutput(int id, const QList<QByteArray> &response)
+{
+    QHash<int, QPair<Connection*, QList<QByteArray> > >::iterator it = mPendingLookups.find(id);
+    if (it == mPendingLookups.end())
+        return;
+
+    QueryMessage msg(filter(response, it.value().second));
+    it.value().first->send(&msg);
+}
+
+void Server::onComplete(int id, const QByteArray& response)
+{
+    QHash<int, QPair<Connection*, QList<QByteArray> > >::iterator it = mPendingLookups.find(id);
+    if (it == mPendingLookups.end() && !it.value().second.isEmpty() && !filter(response, it.value().second))
+        return;
+    QueryMessage msg(response);
+    it.value().first->send(&msg);
+    it.value().first->finish();
+}
+void Server::onOutput(int id, const QByteArray &response)
+{
+    QHash<int, QPair<Connection*, QList<QByteArray> > >::iterator it = mPendingLookups.find(id);
+    if (it == mPendingLookups.end() && !it.value().second.isEmpty() && !filter(response, it.value().second))
+        return;
+    QueryMessage msg(response);
+    it.value().first->send(&msg);
+}
+
 
 int Server::nextId()
 {
@@ -281,8 +316,7 @@ int Server::followLocation(const QueryMessage &query)
     warning() << "followLocation" << loc;
 
     FollowLocationJob* job = new FollowLocationJob(id, loc, query.keyFlags());
-    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
-            this, SIGNAL(complete(int, QList<QByteArray>)));
+    connectJob(job);
     QThreadPool::globalInstance()->start(job);
 
     return id;
@@ -299,8 +333,7 @@ int Server::referencesForLocation(const QueryMessage &query)
     warning() << "references for location" << loc;
 
     ReferencesJob* job = new ReferencesJob(id, loc, query.keyFlags());
-    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
-            this, SIGNAL(complete(int, QList<QByteArray>)));
+    connectJob(job);
     QThreadPool::globalInstance()->start(job);
 
     return id;
@@ -314,24 +347,7 @@ int Server::referencesForName(const QueryMessage& query)
     warning() << "references for name" << name;
 
     ReferencesJob* job = new ReferencesJob(id, name, query.keyFlags());
-    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
-            this, SIGNAL(complete(int, QList<QByteArray>)));
-    QThreadPool::globalInstance()->start(job);
-
-    return id;
-}
-int Server::recompile(const QueryMessage &query)
-{
-    const QByteArray fileName = query.query().front();
-    const int id = nextId();
-
-    warning() << "recompile" << fileName;
-
-    // ### this needs to be implemented
-
-    RecompileJob* job = new RecompileJob(fileName, id);
-    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
-            this, SIGNAL(complete(int, QList<QByteArray>)));
+    connectJob(job);
     QThreadPool::globalInstance()->start(job);
 
     return id;
@@ -345,8 +361,7 @@ int Server::match(const QueryMessage &query)
     warning() << "match" << partial;
 
     MatchJob* job = new MatchJob(partial, id, query.type(), query.keyFlags());
-    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
-            this, SIGNAL(complete(int, QList<QByteArray>)));
+    connectJob(job);
     QThreadPool::globalInstance()->start(job);
 
     return id;
@@ -360,8 +375,7 @@ int Server::dump(const QueryMessage &query)
     warning() << "dump" << partial;
 
     DumpJob* job = new DumpJob(partial, id);
-    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
-            this, SIGNAL(complete(int, QList<QByteArray>)));
+    connectJob(job);
     QThreadPool::globalInstance()->start(job);
 
     return id;
@@ -373,12 +387,8 @@ int Server::status(const QueryMessage &query)
 
     warning() << "status";
 
-    // ### this needs to be implemented
-
-
     StatusJob* job = new StatusJob(id, query.query().first());
-    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
-            this, SIGNAL(complete(int, QList<QByteArray>)));
+    connectJob(job);
     QThreadPool::globalInstance()->start(job);
     return id;
 }
@@ -391,8 +401,7 @@ int Server::poll(const QueryMessage &)
     // ### this needs to be implemented
 
     PollJob *job = new PollJob(mIndexer, id);
-    connect(job, SIGNAL(complete(int, QList<QByteArray>)),
-            this, SIGNAL(complete(int, QList<QByteArray>)));
+    connectJob(job);
     QThreadPool::globalInstance()->start(job);
     return id;
 }
@@ -420,3 +429,10 @@ void Server::setBaseDirectory(const QByteArray& base)
     Q_ASSERT(sBase.endsWith('/'));
 }
 
+void Server::connectJob(Job *job)
+{
+    connect(job, SIGNAL(complete(int, QByteArray)), this, SLOT(onComplete(int, QByteArray)));
+    connect(job, SIGNAL(complete(int, QList<QByteArray>)), this, SLOT(onComplete(int, QList<QByteArray>)));
+    connect(job, SIGNAL(output(int, QByteArray)), this, SLOT(onOutput(int, QByteArray)));
+    connect(job, SIGNAL(output(int, QList<QByteArray>)), this, SLOT(onOutput(int, QList<QByteArray>)));
+}

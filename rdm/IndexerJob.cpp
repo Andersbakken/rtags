@@ -6,7 +6,7 @@
 IndexerJob::IndexerJob(Indexer* indexer, int id,
                        const Path& path, const Path& input,
                        const QList<QByteArray>& arguments)
-    : mId(id), mIsPch(false), mPath(path), mIn(input), mArgs(arguments), mIndexer(indexer),
+    : Job(id), mIsPch(false), mPath(path), mIn(input), mArgs(arguments), mIndexer(indexer),
       mAborted(false)
 {
 }
@@ -407,7 +407,7 @@ void IndexerJob::run()
             mIndexer->mPchHeaderError.remove(mIn);
         }
     }
-    emit done(mId, mIn);
+    emit complete(mId, mIn);
     error() << "visited" << mIn << timer.elapsed()
             << qPrintable(waitingForPch ? QString("Waited for pch: %1ms.").arg(waitingForPch) : QString());
 }

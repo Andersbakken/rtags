@@ -5,7 +5,7 @@
 #include "LevelDB.h"
 
 StatusJob::StatusJob(int i, const QByteArray &q)
-    : id(i), query(q)
+    : Job(i), query(q)
 {
 }
 
@@ -81,5 +81,5 @@ void StatusJob::run()
 
     if (query.isEmpty() || query == "pch") {
     }
-    emit complete(id, ret);
+    emit complete(id(), ret);
 }

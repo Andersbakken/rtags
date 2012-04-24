@@ -16,6 +16,11 @@ QueryMessage::QueryMessage(Type type, const QByteArray& query, unsigned flags,
     mQuery.append(query);
 }
 
+QueryMessage::QueryMessage(const QByteArray &msg)
+    : Message(0), mQuery(QList<QByteArray>() << msg), mType(Response), mFlags(0)
+{
+}
+
 QueryMessage::QueryMessage(const QList<QByteArray> &msg)
     : Message(0), mQuery(msg), mType(Response), mFlags(0)
 {
@@ -26,7 +31,9 @@ QByteArray QueryMessage::toByteArray() const
     QByteArray data;
     {
         QDataStream stream(&data, QIODevice::WriteOnly);
-        stream << mQuery << static_cast<int>(mType) << mFlags << mUnsavedFiles << mPathFilters;
+        stream << mQuery << static_cast<int>(mType);
+        if (mType != Response)
+            stream << mFlags << mUnsavedFiles << mPathFilters;
     }
     return data;
 }
@@ -35,8 +42,10 @@ void QueryMessage::fromByteArray(const QByteArray& data)
 {
     int t;
     QDataStream stream(data);
-    stream >> mQuery >> t >> mFlags >> mUnsavedFiles >> mPathFilters;
+    stream >> mQuery >> t;
     mType = static_cast<Type>(t);
+    if (mType != Response)
+        stream >> mFlags >> mUnsavedFiles >> mPathFilters;
 }
 
 unsigned QueryMessage::keyFlags() const

@@ -3,7 +3,7 @@
 #include "LevelDB.h"
 
 FollowLocationJob::FollowLocationJob(int i, const RTags::Location &loc, unsigned f)
-    : id(i), location(loc), flags(f)
+    : Job(i), location(loc), flags(f)
 {
 }
 
@@ -15,7 +15,7 @@ void FollowLocationJob::run()
 {
     LevelDB db;
     if (!db.open(Server::Symbol, LevelDB::ReadOnly)) {
-        emit complete(id, QList<QByteArray>());
+        emit complete(id());
         return;
     }
 
@@ -24,5 +24,5 @@ void FollowLocationJob::run()
     if (!cursorInfo.target.isNull()) {
         list.append(cursorInfo.target.key(flags));
     }
-    emit complete(id, list);
+    emit complete(id(), list);
 }

@@ -116,7 +116,7 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
 
     IndexerJob* job = new IndexerJob(this, id, mPath, input, arguments);
     mJobs[id] = job;
-    connect(job, SIGNAL(done(int, QByteArray)), this, SLOT(onJobDone(int, QByteArray)), Qt::QueuedConnection);
+    connect(job, SIGNAL(complete(int, QByteArray)), this, SLOT(onJobComplete(int, QByteArray)), Qt::QueuedConnection);
 
     if (!mTimerRunning) {
         mTimerRunning = true;
@@ -229,7 +229,7 @@ void Indexer::onDirectoryChanged(const QString& path)
     QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
 }
 
-void Indexer::onJobDone(int id, const QByteArray& input)
+void Indexer::onJobComplete(int id, const QByteArray& input)
 {
     Q_UNUSED(input);
 
