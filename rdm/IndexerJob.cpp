@@ -246,9 +246,12 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         CXFile includedFile = clang_getIncludedFile(cursor);
         CXString fileName = clang_getFileName(includedFile);
         const char* cstr = clang_getCString(fileName);
-        RTags::Location refLoc(Path::canonicalized(cstr), 0);
-        info.target = refLoc;
-        job->mReferences[loc] = qMakePair(refLoc, Rdm::NormalReference);
+        if (cstr) {
+            RTags::Location refLoc(Path::canonicalized(cstr), 0);
+            info.target = refLoc;
+            job->mReferences[loc] = qMakePair(refLoc, Rdm::NormalReference);
+        }
+        clang_disposeString(fileName);
     }
     return CXChildVisit_Recurse;
 

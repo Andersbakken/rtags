@@ -13,6 +13,175 @@
 #include <Log.h>
 #include <QtCore>
 
+Indexer::Indexer(const QByteArray& path, QObject* parent)
+    : QObject(parent)
+{
+    Q_ASSERT(path.startsWith('/'));
+    if (!path.startsWith('/'))
+        return;
+    QDir dir;
+    dir.mkpath(path);
+
+    mJobCounter = 0;
+    mLastJobId = 0;
+    mPath = path;
+    if (!mPath.endsWith('/'))
+        mPath += '/';
+    mTimerRunning = false;
+    mSyncer = new IndexerSyncer(this);
+    mSyncer->start();
+
+    connect(&mWatcher, SIGNAL(directoryChanged(QString)),
+            this, SLOT(onDirectoryChanged(QString)));
+
+    LevelDB db;
+    if (db.open(Server::PCH, LevelDB::ReadOnly)) {
+        const leveldb::ReadOptions readopts;
+        leveldb::Iterator* it = db.db()->NewIterator(readopts);
+        it->SeekToFirst();
+        while (it->Valid()) {
+            if (it->key() == "dependencies") {
+                mPchDependencies = Rdm::readValue<DependencyHash>(it);
+            } else {
+                mPchUSRHashes[it->key().data()] = Rdm::readValue<PchUSRHash>(it);
+            }
+            it->Next();
+        }
+        delete it;
+    }
+    initWatcher();
+    init();
+}
+
+void Indexer::initWatcher()
+{
+    LevelDB db;
+    if (!db.open(Server::Dependency, LevelDB::ReadOnly))
+        return;
+
+    leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
+    it->SeekToFirst();
+    DependencyHash dependencies;
+    while (it->Valid()) {
+        const leveldb::Slice key = it->key();
+        const Path file(key.data(), key.size());
+        const QSet<Path> deps = Rdm::readValue<QSet<Path> >(it);
+        dependencies[file] = deps;
+        it->Next();
+    }
+    commitDependencies(dependencies, false);
+    delete it;
+}
+
+
+static inline bool isDirty(const Path &path, const QSet<Path> &dependencies, quint64 time,
+                           QSet<Path> &dirty)
+{
+    bool ret = (path.lastModified() > time);
+
+    foreach(const Path &p, dependencies) {
+        if (dirty.contains(p)) {
+            ret = true;
+        } else if (p.lastModified() > time) {
+            dirty.insert(p);
+            ret = true;
+        }
+    }
+    verboseDebug() << "isDirty" << path << ret << path << QDateTime::fromTime_t(time) << dirty;
+    return ret;
+}
+
+static inline bool isPch(const QList<QByteArray> &args)
+{
+    const int size = args.size();
+    bool nextIsX = false;
+    for (int i=0; i<size; ++i) {
+        const QByteArray &arg = args.at(i);
+        if (nextIsX) {
+            return (arg == "c++-header" || arg == "c-header");
+        } else if (arg == "-x") {
+            nextIsX = true;
+        } else if (arg.startsWith("-x")) {
+            const QByteArray rest = QByteArray::fromRawData(arg.constData() + 2, arg.size() - 2);
+            return (rest == "c++-header" || rest == "c-header");
+        }
+    }
+    return false;
+}
+
+void Indexer::init()
+{
+    DependencyHash deps;
+    LevelDB fileInformationDB, dependencyDB;
+    if (!fileInformationDB.open(Server::FileInformation, LevelDB::ReadWrite)
+        || !dependencyDB.open(Server::Dependency, LevelDB::ReadWrite)) {
+        return;
+    }
+    leveldb::Iterator* it = dependencyDB.db()->NewIterator(leveldb::ReadOptions());
+    it->SeekToFirst();
+    leveldb::WriteBatch batch;
+    bool writeBatch = false;
+    while (it->Valid()) {
+        const leveldb::Slice key = it->key();
+        const Path file(key.data(), key.size());
+        if (file.isFile()) {
+            foreach(const Path &p, Rdm::readValue<QSet<Path> >(it)) {
+                deps[p].insert(file);
+            }
+        } else {
+            batch.Delete(key);
+            writeBatch = true;
+        }
+        it->Next();
+    }
+    delete it;
+    if (writeBatch) {
+        dependencyDB.db()->Write(leveldb::WriteOptions(), &batch);
+        writeBatch = false;
+        batch = leveldb::WriteBatch();
+    }
+
+    QSet<Path> dirty;
+    QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
+    dependencyDB.close();
+
+    it = fileInformationDB.db()->NewIterator(leveldb::ReadOptions());
+    it->SeekToFirst();
+    while (it->Valid()) {
+        const leveldb::Slice key = it->key();
+        const Path path(key.data(), key.size());
+        if (path.isFile()) {
+            const FileInformation fi = Rdm::readValue<FileInformation>(it);
+            if (isDirty(path, deps.value(path), fi.lastTouched, dirty)) {
+                // ### am I checking pch deps correctly here?
+                if (isPch(fi.compileArgs)) {
+                    toIndexPch[path] = fi.compileArgs;
+                } else {
+                    toIndex[path] = fi.compileArgs;
+                }
+            }
+        } else {
+            batch.Delete(key);
+            writeBatch = true;
+        }
+        it->Next();
+    }
+    delete it;
+    if (writeBatch)
+        fileInformationDB.db()->Write(leveldb::WriteOptions(), &batch);
+
+    if (toIndex.isEmpty() && toIndexPch.isEmpty())
+        return;
+
+    QThreadPool::globalInstance()->start(new DirtyJob(this, dirty, toIndexPch, toIndex));
+}
+
+Indexer::~Indexer()
+{
+    mSyncer->stop();
+    mSyncer->wait();
+}
+
 void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
 {
     DependencyHash newDependencies;
@@ -54,52 +223,6 @@ void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
     mWatcher.addPaths(watchPaths.toList());
 }
 
-Indexer::Indexer(const QByteArray& path, QObject* parent)
-    : QObject(parent)
-{
-    Q_ASSERT(path.startsWith('/'));
-    if (!path.startsWith('/'))
-        return;
-    QDir dir;
-    dir.mkpath(path);
-
-    mJobCounter = 0;
-    mLastJobId = 0;
-    mPath = path;
-    if (!mPath.endsWith('/'))
-        mPath += '/';
-    mTimerRunning = false;
-    mSyncer = new IndexerSyncer(this);
-    mSyncer->start();
-
-    connect(&mWatcher, SIGNAL(directoryChanged(QString)),
-            this, SLOT(onDirectoryChanged(QString)));
-
-    LevelDB db;
-    if (db.open(Server::PCH, LevelDB::ReadOnly)) {
-        const leveldb::ReadOptions readopts;
-        leveldb::Iterator* it = db.db()->NewIterator(readopts);
-        it->SeekToFirst();
-        while (it->Valid()) {
-            if (it->key() == "dependencies") {
-                mPchDependencies = Rdm::readValue<DependencyHash>(it);
-            } else {
-                mPchUSRHashes[it->key().data()] = Rdm::readValue<PchUSRHash>(it);
-            }
-            it->Next();
-        }
-        delete it;
-    }
-    initWatcher();
-    init();
-}
-
-Indexer::~Indexer()
-{
-    mSyncer->stop();
-    mSyncer->wait();
-}
-
 int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
 {
     QMutexLocker locker(&mMutex);
@@ -133,24 +256,6 @@ void Indexer::customEvent(QEvent* e)
     if (e->type() == static_cast<QEvent::Type>(DependencyEvent::Type)) {
         commitDependencies(static_cast<DependencyEvent*>(e)->deps, true);
     }
-}
-
-static inline bool isPch(const QList<QByteArray> &args)
-{
-    const int size = args.size();
-    bool nextIsX = false;
-    for (int i=0; i<size; ++i) {
-        const QByteArray &arg = args.at(i);
-        if (nextIsX) {
-            return (arg == "c++-header" || arg == "c-header");
-        } else if (arg == "-x") {
-            nextIsX = true;
-        } else if (arg.startsWith("-x")) {
-            const QByteArray rest = QByteArray::fromRawData(arg.constData() + 2, arg.size() - 2);
-            return (rest == "c++-header" || rest == "c-header");
-        }
-    }
-    return false;
 }
 
 void Indexer::onDirectoryChanged(const QString& path)
@@ -256,26 +361,6 @@ void Indexer::setDefaultArgs(const QList<QByteArray> &args)
     mDefaultArgs = args;
 }
 
-
-void Indexer::initWatcher()
-{
-    LevelDB db;
-    if (!db.open(Server::Dependency, LevelDB::ReadOnly))
-        return;
-
-    leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
-    it->SeekToFirst();
-    DependencyHash dependencies;
-    while (it->Valid()) {
-        const leveldb::Slice key = it->key();
-        const Path file(key.data(), key.size());
-        const QSet<Path> deps = Rdm::readValue<QSet<Path> >(it);
-        dependencies[file] = deps;
-        it->Next();
-    }
-    commitDependencies(dependencies, false);
-    delete it;
-}
 void Indexer::setPchDependencies(const Path &pchHeader, const QSet<Path> &deps)
 {
     QWriteLocker lock(&mPchDependenciesLock);
@@ -300,68 +385,6 @@ void Indexer::timerEvent(QTimerEvent *e)
     } else {
         QObject::timerEvent(e);
     }
-}
-
-static inline bool isDirty(const Path &path, const QSet<Path> &dependencies, quint64 time,
-                           QSet<Path> &dirty)
-{
-    bool ret = (path.lastModified() > time);
-
-    foreach(const Path &p, dependencies) {
-        if (dirty.contains(p)) {
-            ret = true;
-        } else if (p.lastModified() > time) {
-            dirty.insert(p);
-            ret = true;
-        }
-    }
-    verboseDebug() << "isDirty" << path << ret << path << QDateTime::fromTime_t(time) << dirty;
-    return ret;
-}
-
-void Indexer::init()
-{
-    DependencyHash deps;
-    LevelDB fileInformationDB, dependencyDB;
-    if (!fileInformationDB.open(Server::FileInformation, LevelDB::ReadOnly)
-        || !dependencyDB.open(Server::Dependency, LevelDB::ReadOnly)) {
-        return;
-    }
-    leveldb::Iterator* it = dependencyDB.db()->NewIterator(leveldb::ReadOptions());
-    it->SeekToFirst();
-    while (it->Valid()) {
-        const leveldb::Slice key = it->key();
-        const Path file(key.data(), key.size());
-        foreach(const Path &p, Rdm::readValue<QSet<Path> >(it)) {
-            deps[p].insert(file);
-        }
-        it->Next();
-    }
-    delete it;
-    QSet<Path> dirty;
-    QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
-
-    it = fileInformationDB.db()->NewIterator(leveldb::ReadOptions());
-    it->SeekToFirst();
-    while (it->Valid()) {
-        const leveldb::Slice key = it->key();
-        const Path path(key.data(), key.size());
-        const FileInformation fi = Rdm::readValue<FileInformation>(it);
-        if (isDirty(path, deps.value(path), fi.lastTouched, dirty)) {
-            // ### am I checking pch deps correctly here?
-            if (isPch(fi.compileArgs)) {
-                toIndexPch[path] = fi.compileArgs;
-            } else {
-                toIndex[path] = fi.compileArgs;
-            }
-        }
-        it->Next();
-    }
-    delete it;
-    if (toIndex.isEmpty() && toIndexPch.isEmpty())
-        return;
-
-    QThreadPool::globalInstance()->start(new DirtyJob(this, dirty, toIndexPch, toIndex));
 }
 
 void Indexer::poll()
