@@ -6,7 +6,7 @@
 IndexerJob::IndexerJob(Indexer* indexer, int id,
                        const Path& path, const Path& input,
                        const QList<QByteArray>& arguments)
-    : Job(id), mIsPch(false), mPath(path), mIn(input), mArgs(arguments), mIndexer(indexer),
+    : mId(id), mIsPch(false), mPath(path), mIn(input), mArgs(arguments), mIndexer(indexer),
       mAborted(false)
 {
 }
@@ -30,8 +30,7 @@ static void inclusionVisitor(CXFile included_file,
     CXString fn = clang_getFileName(included_file);
     const char *cstr = clang_getCString(fn);
     // ### make this configurable
-    if ((strncmp("/usr/", cstr, 5) != 0)
-        || (strncmp("/usr/home/", cstr, 10) == 0)) {
+    if (!Rdm::isSystem(cstr)) {
         Path path = Path::canonicalized(cstr);
         foreach (const QByteArray& arg, job->mIndexer->defaultArgs()) {
             if (arg.contains(path)) {
@@ -413,5 +412,5 @@ void IndexerJob::run()
 
     error() << "visited" << mIn << timer.elapsed()
             << qPrintable(waitingForPch ? QString("Waited for pch: %1ms.").arg(waitingForPch) : QString());
-    finish(mIn);
+    emit done(mId, mIn);
 }

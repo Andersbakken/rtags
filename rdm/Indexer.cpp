@@ -16,6 +16,8 @@
 Indexer::Indexer(const QByteArray& path, QObject* parent)
     : QObject(parent)
 {
+    qRegisterMetaType<Path>("Path");
+
     Q_ASSERT(path.startsWith('/'));
     if (!path.startsWith('/'))
         return;
@@ -239,7 +241,7 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
 
     IndexerJob* job = new IndexerJob(this, id, mPath, input, arguments);
     mJobs[id] = job;
-    connect(job, SIGNAL(complete(int, QByteArray)), this, SLOT(onJobComplete(int, QByteArray)), Qt::QueuedConnection);
+    connect(job, SIGNAL(done(int, Path)), this, SLOT(onJobComplete(int, Path)));
 
     if (!mTimerRunning) {
         mTimerRunning = true;
@@ -334,7 +336,7 @@ void Indexer::onDirectoryChanged(const QString& path)
     QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
 }
 
-void Indexer::onJobComplete(int id, const QByteArray& input)
+void Indexer::onJobComplete(int id, const Path& input)
 {
     Q_UNUSED(input);
 

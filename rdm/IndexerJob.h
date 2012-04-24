@@ -7,7 +7,7 @@
 #include "Rdm.h"
 #include "Job.h"
 
-class IndexerJob : public Job
+class IndexerJob : public QObject, public QRunnable
 {
     Q_OBJECT;
 public:
@@ -19,6 +19,7 @@ public:
 
     void run();
 
+    int mId;
     bool mIsPch;
     RTags::Location createLocation(CXCursor cursor);
     void addNamePermutations(CXCursor cursor, const RTags::Location &location);
@@ -35,6 +36,8 @@ public:
     Indexer *mIndexer;
     volatile bool mAborted; // ### ??? use QBasicAtomic?
     QHash<QByteArray, RTags::Location> mPchUSRHash;
+signals:
+    void done(int id, const Path &path);
 };
 
 #endif

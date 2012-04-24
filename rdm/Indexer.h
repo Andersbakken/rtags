@@ -61,7 +61,7 @@ signals:
     void indexingDone(int id);
 
 private slots:
-    void onJobComplete(int id, const QByteArray& input);
+    void onJobComplete(int id, const Path& input);
     void onDirectoryChanged(const QString& path);
 private:
     void commitDependencies(const DependencyHash& deps, bool sync);
