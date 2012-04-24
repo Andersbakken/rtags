@@ -18,11 +18,11 @@ public:
     void addPchUSRHash(const Path &pchHeader, const PchUSRHash &hash);
     void notify();
     void stop();
-
 protected:
     void run();
-
 private:
+    void maybeWake();
+
     bool mStopped;
     QMutex mMutex;
     QWaitCondition mCond;

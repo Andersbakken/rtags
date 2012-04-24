@@ -30,6 +30,7 @@ void IndexerSyncer::addSymbolNames(const SymbolNameHash &locations)
             mSymbolNames[it.key()].unite(it.value());
         }
     }
+    maybeWake();
 }
 
 void IndexerSyncer::addSymbols(const SymbolHash &symbols)
@@ -43,6 +44,7 @@ void IndexerSyncer::addSymbols(const SymbolHash &symbols)
             mSymbols[it.key()].unite(it.value());
         }
     }
+    maybeWake();
 }
 
 void IndexerSyncer::addReferences(const ReferenceHash &references)
@@ -56,6 +58,7 @@ void IndexerSyncer::addReferences(const ReferenceHash &references)
             mReferences[it.key()] = it.value();
         }
     }
+    maybeWake();
 }
 
 
@@ -70,6 +73,7 @@ void IndexerSyncer::addDependencies(const DependencyHash& dependencies)
             mDependencies[it.key()].unite(it.value());
         }
     }
+    maybeWake();
 }
 
 void IndexerSyncer::setPchDependencies(const DependencyHash& dependencies)
@@ -83,12 +87,14 @@ void IndexerSyncer::setPchDependencies(const DependencyHash& dependencies)
             mPchDependencies[it.key()].unite(it.value());
         }
     }
+    maybeWake();
 }
 
 void IndexerSyncer::addPchUSRHash(const Path &pchHeader, const PchUSRHash &hash)
 {
     QMutexLocker lock(&mMutex);
     mPchUSRHashes[pchHeader] = hash;
+    maybeWake();
 }
 
 void IndexerSyncer::addFileInformation(const Path& input, const QList<QByteArray>& args, time_t timeStamp)
@@ -98,6 +104,7 @@ void IndexerSyncer::addFileInformation(const Path& input, const QList<QByteArray
     fi.compileArgs = args;
     QMutexLocker lock(&mMutex);
     mInformations[input] = fi;
+    maybeWake();
 }
 
 template <typename Container, typename Value>
@@ -329,4 +336,13 @@ void IndexerSyncer::run()
             warning() << "wrote informations" << timer.elapsed() << "ms";
         }
     }
+}
+
+void IndexerSyncer::maybeWake()
+{
+    const int size = (mSymbols.size() + mSymbolNames.size() + mDependencies.size() + mPchDependencies.size()
+                      + mInformations.size() + mReferences.size() + mPchUSRHashes.size());
+    enum { MaxSize = 1024 * 256 };
+    if (size > MaxSize) // ### tunable?
+        mCond.wakeOne();
 }
