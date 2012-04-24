@@ -14,7 +14,7 @@ void MatchJob::run()
 {
     LevelDB db;
     if (!db.open(Server::SymbolName, LevelDB::ReadOnly)) {
-        emit complete(id());
+        finish();
         return;
     }
 
@@ -51,5 +51,5 @@ void MatchJob::run()
         it->Next();
     }
     delete it;
-    emit complete(id(), result);
+    finish(result);
 }

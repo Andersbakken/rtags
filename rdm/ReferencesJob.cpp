@@ -19,18 +19,18 @@ void ReferencesJob::run()
     LevelDB db;
     if (!symbolName.isEmpty()) {
         if (!db.open(Server::SymbolName, LevelDB::ReadOnly)) {
-            emit complete(id());
+            finish();
             return;
         }
         locations = Rdm::readValue<QSet<RTags::Location> >(db.db(), symbolName.constData());
         if (locations.isEmpty()) {
-            emit complete(id());
+            finish();
             return;
         }
         db.close();
     }
     if (!db.open(Server::Symbol, LevelDB::ReadOnly)) {
-        emit complete(id());
+        finish();
         return;
     }
     QList<QByteArray> list;
@@ -45,5 +45,5 @@ void ReferencesJob::run()
             list.append(loc.key(keyFlags));
         }
     }
-    emit complete(id(), list);
+    finish(list);
 }

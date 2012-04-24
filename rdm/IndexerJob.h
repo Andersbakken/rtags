@@ -15,12 +15,10 @@ public:
                const Path& path, const Path& input,
                const QList<QByteArray>& arguments);
 
-    int id() const { return mId; }
     void abort();
 
     void run();
 
-    int mId;
     bool mIsPch;
     RTags::Location createLocation(CXCursor cursor);
     void addNamePermutations(CXCursor cursor, const RTags::Location &location);

@@ -9,5 +9,5 @@ PollJob::PollJob(Indexer *idx, int i)
 void PollJob::run()
 {
     indexer->poll();
-    emit complete(id(), QList<QByteArray>());
+    finish();
 }

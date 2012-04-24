@@ -12,7 +12,7 @@ void DumpJob::run()
 {
     LevelDB db;
     if (!db.open(Server::Symbol, LevelDB::ReadOnly)) {
-        emit complete(id(), QByteArray());
+        finish();
         return;
     }
 
@@ -37,5 +37,5 @@ void DumpJob::run()
     }
 
     delete it;
-    emit complete(id(), out);
+    finish(out);
 }

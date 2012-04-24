@@ -15,7 +15,7 @@ void FollowLocationJob::run()
 {
     LevelDB db;
     if (!db.open(Server::Symbol, LevelDB::ReadOnly)) {
-        emit complete(id());
+        finish();
         return;
     }
 
@@ -24,5 +24,5 @@ void FollowLocationJob::run()
     if (!cursorInfo.target.isNull()) {
         list.append(cursorInfo.target.key(flags));
     }
-    emit complete(id(), list);
+    finish(list);
 }

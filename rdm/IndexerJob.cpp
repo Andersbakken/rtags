@@ -410,7 +410,8 @@ void IndexerJob::run()
             mIndexer->mPchHeaderError.remove(mIn);
         }
     }
-    emit complete(mId, mIn);
+
     error() << "visited" << mIn << timer.elapsed()
             << qPrintable(waitingForPch ? QString("Waited for pch: %1ms.").arg(waitingForPch) : QString());
+    finish(mIn);
 }

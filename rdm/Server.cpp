@@ -255,6 +255,15 @@ static inline QList<QByteArray> filter(const QList<QByteArray> &list, const QLis
     return ret;
 }
 
+void Server::onComplete(int id)
+{
+    QHash<int, QPair<Connection*, QList<QByteArray> > >::iterator it = mPendingLookups.find(id);
+    if (it == mPendingLookups.end())
+        return;
+    it.value().first->finish();
+}
+
+
 void Server::onComplete(int id, const QList<QByteArray>& response)
 {
     QHash<int, QPair<Connection*, QList<QByteArray> > >::iterator it = mPendingLookups.find(id);
@@ -433,6 +442,7 @@ void Server::connectJob(Job *job)
 {
     connect(job, SIGNAL(complete(int, QByteArray)), this, SLOT(onComplete(int, QByteArray)));
     connect(job, SIGNAL(complete(int, QList<QByteArray>)), this, SLOT(onComplete(int, QList<QByteArray>)));
+    connect(job, SIGNAL(complete(int)), this, SLOT(onComplete(int)));
     connect(job, SIGNAL(output(int, QByteArray)), this, SLOT(onOutput(int, QByteArray)));
     connect(job, SIGNAL(output(int, QList<QByteArray>)), this, SLOT(onOutput(int, QList<QByteArray>)));
 }

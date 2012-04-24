@@ -11,19 +11,18 @@ StatusJob::StatusJob(int i, const QByteArray &q)
 
 void StatusJob::run()
 {
-    QList<QByteArray> ret;
     if (query.isEmpty() || query == "general") {
         LevelDB db;
         if (db.open(Server::General, LevelDB::ReadOnly)) {
-            ret.append(Server::databaseName(Server::General));
-            ret.append("    version: " + QByteArray::number(Rdm::readValue<int>(db.db(), "version")));
+            write(Server::databaseName(Server::General));
+            write("    version: " + QByteArray::number(Rdm::readValue<int>(db.db(), "version")));
         }
     }
 
     if (query.isEmpty() || query == "dependencies") {
         LevelDB db;
         if (db.open(Server::Dependency, LevelDB::ReadOnly)) {
-            ret.append(Server::databaseName(Server::Dependency));
+            write(Server::databaseName(Server::Dependency));
             leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
             it->SeekToFirst();
             char buf[1024];
@@ -31,12 +30,12 @@ void StatusJob::run()
             while (it->Valid()) {
                 memcpy(buf + 2, it->key().data(), it->key().size());
                 memcpy(buf + 2 + it->key().size(), " is depended on by:", 20);
-                ret.append(buf);
+                write(buf);
                 const QSet<Path> deps = Rdm::readValue<QSet<Path> >(it);
                 memcpy(buf + 2, "  ", 2);
                 foreach (const Path &p, deps) {
                     memcpy(buf + 4, p.constData(), p.size() + 1);
-                    ret.append(buf);
+                    write(buf);
                 }
                 it->Next();
             }
@@ -47,7 +46,7 @@ void StatusJob::run()
     if (query.isEmpty() || query == "symbols") {
         LevelDB db;
         if (db.open(Server::Symbol, LevelDB::ReadOnly)) {
-            ret.append(Server::databaseName(Server::Symbol));
+            write(Server::databaseName(Server::Symbol));
             leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
             it->SeekToFirst();
             char buf[1024];
@@ -61,11 +60,11 @@ void StatusJob::run()
                          clang_getCString(kind), ci.symbolLength, ci.target.key(RTags::Location::Padded).constData(),
                          ci.references.isEmpty() ? "" : " references:");
                 clang_disposeString(kind);
-                ret.append(buf);
+                write(buf);
                 foreach(const RTags::Location &loc, ci.references) {
                     const int w = snprintf(buf + 2, sizeof(buf) - w - 3, "  %s",
                                            loc.key(RTags::Location::Padded).constData());
-                    ret.append(QByteArray(buf, w));
+                    write(QByteArray(buf, w));
                 }
                 it->Next();
             }
@@ -81,5 +80,5 @@ void StatusJob::run()
 
     if (query.isEmpty() || query == "pch") {
     }
-    emit complete(id(), ret);
+    finish();
 }
