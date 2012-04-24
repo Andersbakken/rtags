@@ -108,10 +108,10 @@ void Server::onConnectionDestroyed(QObject* o)
         }
     }
     {
-        QHash<int, QPair<Connection*, QList<QByteArray> > >::iterator it = mPendingLookups.begin();
-        const QHash<int, QPair<Connection*, QList<QByteArray> > >::const_iterator end = mPendingLookups.end();
+        QHash<int, Connection*>::iterator it = mPendingLookups.begin();
+        const QHash<int, Connection*>::const_iterator end = mPendingLookups.end();
         while (it != end) {
-            if (it.value().first == o) {
+            if (it.value() == o) {
                 it = mPendingLookups.erase(it);
             } else {
                 ++it;
@@ -206,7 +206,7 @@ void Server::handleQueryMessage(QueryMessage* message)
         QueryMessage msg(QList<QByteArray>() << "Invalid message");
         conn->send(&msg);
     } else {
-        mPendingLookups[id] = qMakePair(conn, message->pathFilters());
+        mPendingLookups[id] = conn;
     }
 }
 
@@ -224,83 +224,52 @@ void Server::onIndexingDone(int id)
     it.value()->send(&msg);
 }
 
-static inline bool filter(const QByteArray &val, const QList<QByteArray> &sortedFilters)
-{
-    Q_ASSERT(!sortedFilters.isEmpty());
-    QList<QByteArray>::const_iterator it = qUpperBound(sortedFilters, val);
-    if (it != sortedFilters.end()) {
-        const int cmp = strncmp(val.constData(), (*it).constData(), (*it).size());
-        if (cmp == 0) {
-            return true;
-        } else if (cmp < 0 && it != sortedFilters.begin() && val.startsWith(*(it - 1))) {
-            return true;
-        }
-    } else if (val.startsWith(*(it - 1))) {
-        return true;
-    }
-    return false;
-}
-
-
-static inline QList<QByteArray> filter(const QList<QByteArray> &list, const QList<QByteArray> &sortedFilters)
-{
-    if (sortedFilters.isEmpty())
-        return list;
-
-    QList<QByteArray> ret;
-    foreach(const QByteArray &val, list) {
-        if (filter(val, sortedFilters))
-            ret.append(val);
-    }
-    return ret;
-}
-
 void Server::onComplete(int id)
 {
-    QHash<int, QPair<Connection*, QList<QByteArray> > >::iterator it = mPendingLookups.find(id);
+    QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
         return;
-    it.value().first->finish();
+    it.value()->finish();
 }
 
 
 void Server::onComplete(int id, const QList<QByteArray>& response)
 {
-    QHash<int, QPair<Connection*, QList<QByteArray> > >::iterator it = mPendingLookups.find(id);
+    QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
         return;
 
-    QueryMessage msg(filter(response, it.value().second));
-    it.value().first->send(&msg);
-    it.value().first->finish();
+    QueryMessage msg(response);
+    it.value()->send(&msg);
+    it.value()->finish();
 }
 
 void Server::onOutput(int id, const QList<QByteArray> &response)
 {
-    QHash<int, QPair<Connection*, QList<QByteArray> > >::iterator it = mPendingLookups.find(id);
+    QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
         return;
 
-    QueryMessage msg(filter(response, it.value().second));
-    it.value().first->send(&msg);
+    QueryMessage msg(response);
+    it.value()->send(&msg);
 }
 
 void Server::onComplete(int id, const QByteArray& response)
 {
-    QHash<int, QPair<Connection*, QList<QByteArray> > >::iterator it = mPendingLookups.find(id);
-    if (it == mPendingLookups.end() && !it.value().second.isEmpty() && !filter(response, it.value().second))
+    QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
+    if (it == mPendingLookups.end())
         return;
     QueryMessage msg(response);
-    it.value().first->send(&msg);
-    it.value().first->finish();
+    it.value()->send(&msg);
+    it.value()->finish();
 }
 void Server::onOutput(int id, const QByteArray &response)
 {
-    QHash<int, QPair<Connection*, QList<QByteArray> > >::iterator it = mPendingLookups.find(id);
-    if (it == mPendingLookups.end() && !it.value().second.isEmpty() && !filter(response, it.value().second))
+    QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
+    if (it == mPendingLookups.end())
         return;
     QueryMessage msg(response);
-    it.value().first->send(&msg);
+    it.value()->send(&msg);
 }
 
 
@@ -325,6 +294,7 @@ int Server::followLocation(const QueryMessage &query)
     warning() << "followLocation" << loc;
 
     FollowLocationJob* job = new FollowLocationJob(id, loc, query.keyFlags());
+    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);
 
@@ -342,6 +312,7 @@ int Server::referencesForLocation(const QueryMessage &query)
     warning() << "references for location" << loc;
 
     ReferencesJob* job = new ReferencesJob(id, loc, query.keyFlags());
+    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);
 
@@ -356,6 +327,7 @@ int Server::referencesForName(const QueryMessage& query)
     warning() << "references for name" << name;
 
     ReferencesJob* job = new ReferencesJob(id, name, query.keyFlags());
+    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);
 
@@ -370,6 +342,7 @@ int Server::match(const QueryMessage &query)
     warning() << "match" << partial;
 
     MatchJob* job = new MatchJob(partial, id, query.type(), query.keyFlags());
+    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);
 
@@ -384,6 +357,7 @@ int Server::dump(const QueryMessage &query)
     warning() << "dump" << partial;
 
     DumpJob* job = new DumpJob(partial, id);
+    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);
 
@@ -397,12 +371,13 @@ int Server::status(const QueryMessage &query)
     warning() << "status";
 
     StatusJob* job = new StatusJob(id, query.query().first());
+    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);
     return id;
 }
 
-int Server::poll(const QueryMessage &)
+int Server::poll(const QueryMessage &query)
 {
     const int id = nextId();
 
@@ -410,6 +385,7 @@ int Server::poll(const QueryMessage &)
     // ### this needs to be implemented
 
     PollJob *job = new PollJob(mIndexer, id);
+    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);
     return id;
@@ -440,9 +416,6 @@ void Server::setBaseDirectory(const QByteArray& base)
 
 void Server::connectJob(Job *job)
 {
-    connect(job, SIGNAL(complete(int, QByteArray)), this, SLOT(onComplete(int, QByteArray)));
-    connect(job, SIGNAL(complete(int, QList<QByteArray>)), this, SLOT(onComplete(int, QList<QByteArray>)));
     connect(job, SIGNAL(complete(int)), this, SLOT(onComplete(int)));
     connect(job, SIGNAL(output(int, QByteArray)), this, SLOT(onOutput(int, QByteArray)));
-    connect(job, SIGNAL(output(int, QList<QByteArray>)), this, SLOT(onOutput(int, QList<QByteArray>)));
 }

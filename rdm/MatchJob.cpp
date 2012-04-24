@@ -6,7 +6,7 @@
 #include "LevelDB.h"
 
 MatchJob::MatchJob(const QByteArray& p, int i, QueryMessage::Type t, unsigned flags)
-    : Job(i), partial(p), type(t), keyFlags(flags)
+    : Job(i, WriteUnfiltered), partial(p), type(t), keyFlags(flags)
 {
 }
 
@@ -18,22 +18,28 @@ void MatchJob::run()
         return;
     }
 
-
-    QList<QByteArray> result;
+    const bool hasFilter = !pathFilters().isEmpty();
 
     QByteArray entry;
     leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
     it->Seek(partial.constData());
     while (it->Valid()) {
-        entry = it->key().ToString().c_str();
-        /*if ((entry.contains('(') && !partial.contains('('))
-          || (entry.contains(':') && !partial.contains(':'))) {
-          it->Next();
-          continue;
-          }*/
+        entry = QByteArray(it->key().data(), it->key().size());
         if (type == QueryMessage::ListSymbols) {
-            if (entry.startsWith(partial)) {
-                result.append(entry);
+            if (partial.isEmpty() || entry.startsWith(partial)) {
+                bool ok = true;
+                if (hasFilter) {
+                    ok = false;
+                    const QSet<RTags::Location> locations = Rdm::readValue<QSet<RTags::Location> >(it);
+                    foreach(const RTags::Location &loc, locations) {
+                        if (filter(loc.path)) {
+                            ok = true;
+                            break;
+                        }
+                    }
+                }
+                if (ok)
+                    write(entry);
             } else {
                 break;
             }
@@ -42,7 +48,8 @@ void MatchJob::run()
             if (!cmp) {
                 const QSet<RTags::Location> locations = Rdm::readValue<QSet<RTags::Location> >(it);
                 foreach (const RTags::Location &loc, locations) {
-                    result.append(loc.key(keyFlags));
+                    if (filter(loc.path))
+                        write(loc.key(keyFlags));
                 }
             } else if (cmp > 0) {
                 break;
@@ -51,5 +58,5 @@ void MatchJob::run()
         it->Next();
     }
     delete it;
-    finish(result);
+    finish();
 }

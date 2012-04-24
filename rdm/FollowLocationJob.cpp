@@ -20,9 +20,8 @@ void FollowLocationJob::run()
     }
 
     Rdm::CursorInfo cursorInfo = Rdm::findCursorInfo(db.db(), location);
-    QList<QByteArray> list;
     if (!cursorInfo.target.isNull()) {
-        list.append(cursorInfo.target.key(flags));
+        write(cursorInfo.target.key(flags));
     }
-    finish(list);
+    finish();
 }

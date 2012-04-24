@@ -19,6 +19,15 @@ enum ReferenceType {
 };
 QByteArray eatString(CXString str);
 QByteArray cursorToString(CXCursor cursor);
+static inline bool isSystem(const char *str)
+{
+    bool system = !strncmp("/usr/", str, 5);
+#ifdef Q_OS_BSD4
+    if (system && !strncmp("home/", str + 5, 5))
+        system = false;
+#endif
+    return system;
+}
 
 struct CursorInfo {
     CursorInfo() : symbolLength(0), kind(CXCursor_FirstInvalid) {}

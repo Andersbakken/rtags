@@ -32,10 +32,10 @@ void DumpJob::run()
             << "target" << cursorInfo.target
             << "kind" << Rdm::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
             << "references" << cursorInfo.references;
-        out.append(str.toLocal8Bit());
+        write(str.toLocal8Bit());
         it->Next();
     }
 
     delete it;
-    finish(out);
+    finish();
 }

@@ -35,6 +35,7 @@ static void help(FILE *f, const char* app)
             "  --line-numbers|-l             Output line numbers instead of offsets\n"
             "  --poll|-P                     Check if something's dirty\n"
             "  --path-filter|-i [arg]        Filter out results not matching with arg\n"
+            "  --filter-system-headers|-H    Don't exempt system headers from path filters\n"
             "  --includepath|-I [arg]        Add additional include path, must be combined with --makefile\n"
             "  --define|-D [arg]             Add additional define, must be combined with --makefile\n"
             "  --compiler-flag|-o [arg]      Add additional compiler flags, must be combined with --makefile\n"
@@ -67,6 +68,7 @@ int main(int argc, char** argv)
         { "status", optional_argument, 0, 's' },
         { "line-numbers", no_argument, 0, 'l' },
         { "path-filter", required_argument, 0, 'i' },
+        { "filter-system-headers", no_argument, 0, 'H' },
         { "includepath", required_argument, 0, 'I' },
         { "define", required_argument, 0, 'D' },
         { "compiler-flag", required_argument, 0, 'o' },
@@ -100,6 +102,9 @@ int main(int argc, char** argv)
         case 'h':
             help(stdout, argv[0]);
             return 0;
+        case 'H':
+            queryFlags |= QueryMessage::FilterSystemIncludes;
+            break;
         case 'I': {
             QByteArray flag("-I");
             flag += optarg;

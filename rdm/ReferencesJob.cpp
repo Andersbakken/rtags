@@ -33,7 +33,6 @@ void ReferencesJob::run()
         finish();
         return;
     }
-    QList<QByteArray> list;
     foreach(const RTags::Location &location, locations) {
         Rdm::CursorInfo cursorInfo = Rdm::findCursorInfo(db.db(), location);
         QSet<RTags::Location> refs = cursorInfo.references;
@@ -42,8 +41,8 @@ void ReferencesJob::run()
             refs = cursorInfo.references;
         }
         foreach (const RTags::Location &loc, refs) {
-            list.append(loc.key(keyFlags));
+            write(loc.key(keyFlags));
         }
     }
-    finish(list);
+    finish();
 }
