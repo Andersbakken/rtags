@@ -27,17 +27,14 @@ void Client::parseMakefile(const Path& path)
 
 void Client::query(const QueryMessage &message)
 {
-    if (!mConn) {
-        mConn = new Connection(this);
-        if (!mConn->connectToHost("localhost", Connection::Port)) {
-            warning("Can't connect to host");
-            delete mConn;
-            mConn = 0;
-            return;
-        }
-        connect(mConn, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
+    mConn = new Connection(this);
+    if (!mConn->connectToHost("localhost", Connection::Port)) {
+        warning("Can't connect to host");
+        delete mConn;
+        mConn = 0;
+        return;
     }
-
+    connect(mConn, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
     connect(mConn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
     mConn->send(&message);
     qApp->exec();
