@@ -40,10 +40,37 @@ void StatusJob::run()
                 }
                 it->Next();
             }
+            delete it;
         }
     }
 
     if (query.isEmpty() || query == "symbols") {
+        LevelDB db;
+        if (db.open(Server::Symbol, LevelDB::ReadOnly)) {
+            ret.append(Server::databaseName(Server::Symbol));
+            leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
+            it->SeekToFirst();
+            char buf[1024];
+            memcpy(buf, "  ", 2);
+            while (it->Valid()) {
+                memcpy(buf + 2, it->key().data(), it->key().size());
+                const Rdm::CursorInfo ci = Rdm::readValue<Rdm::CursorInfo>(it);
+                CXString kind = clang_getCursorKindSpelling(ci.kind);
+                snprintf(buf + 2 + it->key().size(), sizeof(buf) - it->key().size() - 3,
+                         " kind: %s symbolLength: %d target: %s%s",
+                         clang_getCString(kind), ci.symbolLength, ci.target.key(RTags::Location::Padded).constData(),
+                         ci.references.isEmpty() ? "" : " references:");
+                clang_disposeString(kind);
+                ret.append(buf);
+                foreach(const RTags::Location &loc, ci.references) {
+                    const int w = snprintf(buf + 2, sizeof(buf) - w - 3, "  %s",
+                                           loc.key(RTags::Location::Padded).constData());
+                    ret.append(QByteArray(buf, w));
+                }
+                it->Next();
+            }
+            delete it;
+        }
     }
 
     if (query.isEmpty() || query == "symbolnames") {
