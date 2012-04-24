@@ -273,6 +273,7 @@ void IndexerSyncer::run()
         if (!dependencies.isEmpty()) {
             timer.start();
             LevelDB db;
+            // ### could optimize for the case when the db is empty and not merge
             if (!db.open(Server::Dependency, LevelDB::ReadWrite))
                 return;
             leveldb::WriteBatch batch;
