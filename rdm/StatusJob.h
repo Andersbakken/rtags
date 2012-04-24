@@ -10,13 +10,14 @@ class StatusJob : public QObject, public QRunnable
 {
     Q_OBJECT
 public:
-    StatusJob(int i);
+    StatusJob(int i, const QByteArray &query);
 signals:
     void complete(int id, const QList<QByteArray>& locations);
 protected:
     void run();
 private:
-    int id;
+    const int id;
+    const QByteArray query;
 };
 
 #endif

@@ -363,7 +363,7 @@ int Server::dump(const QueryMessage &query)
     return id;
 }
 
-int Server::status(const QueryMessage &)
+int Server::status(const QueryMessage &query)
 {
     const int id = nextId();
 
@@ -372,7 +372,7 @@ int Server::status(const QueryMessage &)
     // ### this needs to be implemented
 
 
-    StatusJob* job = new StatusJob(id);
+    StatusJob* job = new StatusJob(id, query.query().first());
     connect(job, SIGNAL(complete(int, QList<QByteArray>)),
             this, SIGNAL(complete(int, QList<QByteArray>)));
     QThreadPool::globalInstance()->start(job);

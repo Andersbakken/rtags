@@ -39,7 +39,8 @@ static void help(FILE *f, const char* app)
             "  --includepath|-I [arg]        Add additional include path, must be combined with --makefile\n"
             "  --define|-D [arg]             Add additional define, must be combined with --makefile\n"
             "  --compiler-flag|-o [arg]      Add additional compiler flags, must be combined with --makefile\n"
-            "  --status|-s                   Dump status of rdm\n",
+            "  --status|-s [arg]             Dump status of rdm. If arg is passed it should match one of:\n"
+            "                                'general', 'dependencies', 'symbols', 'symbolnames', 'fileinfos' or 'pch'\n",
             app);
 }
 
@@ -65,7 +66,7 @@ int main(int argc, char** argv)
         { "log-file", required_argument, 0, 'L' },
         { "append", no_argument, 0, 'A' },
         { "no-context", no_argument, 0, 'N' },
-        { "status", no_argument, 0, 's' },
+        { "status", optional_argument, 0, 's' },
         { "line-numbers", no_argument, 0, 'l' },
         { "path-filter", required_argument, 0, 'i' },
         { "includepath", required_argument, 0, 'I' },
@@ -174,7 +175,13 @@ int main(int argc, char** argv)
             makeFiles.append(Path::resolved(optarg));
             break;
         case 's':
-            optlist.append(qMakePair(QueryMessage::Status, QByteArray()));
+            if (optarg) {
+                optlist.append(qMakePair(QueryMessage::Status, QByteArray(optarg)));
+            } else if (optind < argc && argv[optind][0] != '-') {
+                optlist.append(qMakePair(QueryMessage::Status, QByteArray(argv[optind++])));
+            } else {
+                optlist.append(qMakePair(QueryMessage::Status, QByteArray()));
+            }
             break;
         case 'R':
             optlist.append(qMakePair(QueryMessage::ReferencesName, QByteArray(optarg)));
