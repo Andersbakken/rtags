@@ -5,8 +5,9 @@
 #include "Rdm.h"
 #include "LevelDB.h"
 
-MatchJob::MatchJob(const QByteArray& p, int i, QueryMessage::Type t, unsigned flags)
-    : Job(i, WriteUnfiltered), partial(p), type(t), keyFlags(flags)
+MatchJob::MatchJob(int i, const QueryMessage &query)
+    : Job(i, WriteUnfiltered), partial(query.query().front()), type(query.type()),
+      keyFlags(query.keyFlags()), skipParentheses(query.flags() & QueryMessage::SkipParentheses)
 {
 }
 
@@ -26,7 +27,7 @@ void MatchJob::run()
     while (it->Valid()) {
         entry = QByteArray(it->key().data(), it->key().size());
         if (type == QueryMessage::ListSymbols) {
-            if (partial.isEmpty() || entry.startsWith(partial)) {
+            if ((partial.isEmpty() || entry.startsWith(partial)) && (!skipParentheses || !entry.contains('('))) {
                 bool ok = true;
                 if (hasFilter) {
                     ok = false;

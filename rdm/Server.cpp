@@ -341,8 +341,7 @@ int Server::match(const QueryMessage &query)
 
     warning() << "match" << partial;
 
-    MatchJob* job = new MatchJob(partial, id, query.type(), query.keyFlags());
-    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
+    MatchJob* job = new MatchJob(id, query);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);
 

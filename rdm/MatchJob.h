@@ -12,13 +12,14 @@ class MatchJob : public Job
 {
     Q_OBJECT
 public:
-    MatchJob(const QByteArray& p, int i, QueryMessage::Type type, unsigned flags);
+    MatchJob(int i, const QueryMessage &query);
 protected:
     void run();
 private:
     const QByteArray partial;
     const QueryMessage::Type type;
     const unsigned keyFlags;
+    const bool skipParentheses;
 };
 
 #endif

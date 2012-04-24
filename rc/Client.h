@@ -18,8 +18,7 @@ class Client : public QObject
 public:
     Client(unsigned flags, const QList<QByteArray> &extraFlags, QObject* parent = 0);
     enum Flag {
-        None = 0x0,
-        SkipParen = 0x01
+        None = 0x0
     };
 
     unsigned flags() const { return mFlags; }

@@ -25,7 +25,8 @@ public:
     enum Flag {
         NoContext = 0x01,
         LineNumbers = 0x02,
-        FilterSystemIncludes = 0x04
+        FilterSystemIncludes = 0x04,
+        SkipParentheses = 0x08
     };
 
     Q_INVOKABLE QueryMessage(QObject* parent = 0);

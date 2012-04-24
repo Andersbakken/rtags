@@ -140,7 +140,7 @@ int main(int argc, char** argv)
             optlist.append(qMakePair(QueryMessage::Poll, QByteArray()));
             break;
         case 'p':
-            clientFlags |= Client::SkipParen;
+            queryFlags |= QueryMessage::SkipParentheses;
             break;
         case 'u':
             if (!standardIn.isOpen() && !standardIn.open(stdin, QIODevice::ReadOnly)) {
