@@ -243,6 +243,11 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
         info.loc = loc;
         info.symbolName = Rdm::eatString(clang_getCursorDisplayName(cursor));
 #endif
+#warning should we do this
+        // if (!info.symbolLength) {
+        //     job->mSymbols.erase(loc);
+        //     return CXChildVisit_Recurse;
+        // }
     } else if (info.kind == CXCursor_Constructor && kind == CXCursor_TypeRef) {
         return CXChildVisit_Recurse;
     }
