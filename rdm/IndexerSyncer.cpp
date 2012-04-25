@@ -107,6 +107,17 @@ void IndexerSyncer::addFileInformation(const Path& input, const QList<QByteArray
     maybeWake();
 }
 
+void IndexerSyncer::addFileInformations(const QSet<Path>& files)
+{
+    QMutexLocker lock(&mMutex);
+    foreach (const Path &path, files) {
+        FileInformation &fi = mInformations[path]; // force creation
+        (void)fi;
+    }
+    maybeWake();
+}
+
+
 template <typename Container, typename Value>
 static inline bool addTo(Container &container, const Value &value)
 {

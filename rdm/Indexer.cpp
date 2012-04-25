@@ -154,7 +154,7 @@ void Indexer::init()
         const Path path(key.data(), key.size());
         if (path.isFile()) {
             const FileInformation fi = Rdm::readValue<FileInformation>(it);
-            if (isDirty(path, deps.value(path), fi.lastTouched, dirty)) {
+            if (!fi.compileArgs.isEmpty() && isDirty(path, deps.value(path), fi.lastTouched, dirty)) {
                 // ### am I checking pch deps correctly here?
                 if (isPch(fi.compileArgs)) {
                     toIndexPch[path] = fi.compileArgs;

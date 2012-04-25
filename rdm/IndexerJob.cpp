@@ -46,15 +46,8 @@ void IndexerJob::inclusionVisitor(CXFile included_file,
         return;
     CXString fn = clang_getFileName(included_file);
     const char *cstr = clang_getCString(fn);
-    Path path = Path::canonicalized(cstr);
     if (!Rdm::isSystem(cstr)) {
-        // ### this isn't right, should be done in isSystem
-        // foreach (const QByteArray& arg, job->mIndexer->defaultArgs()) {
-        //     if (arg.contains(path)) {
-        //         clang_disposeString(fn);
-        //         return;
-        //     }
-        // }
+        const Path path = Path::canonicalized(cstr);
         for (unsigned i=0; i<include_len; ++i) {
             CXFile originatingFile;
             clang_getSpellingLocation(include_stack[i], &originatingFile, 0, 0, 0);
@@ -396,6 +389,7 @@ void IndexerJob::run()
             const RTags::Location loc(path, 0);
             mSymbolNames[path].insert(loc);
             mSymbolNames[path.fileName()].insert(loc);
+            mIndexer->syncer()->addFileInformations(mPaths);
         }
         if (!mAborted) {
             mIndexer->syncer()->addSymbols(mSymbols);

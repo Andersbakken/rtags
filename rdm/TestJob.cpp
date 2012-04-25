@@ -10,9 +10,8 @@ TestJob::TestJob(const Path &p, int i)
 
 void TestJob::run()
 {
-#warning this is not good enough for system headers.
     LevelDB db;
-    bool found = db.open(Server::Dependency, LevelDB::ReadOnly) && Rdm::contains(db.db(), path.constData());
+    bool found = db.open(Server::FileInformation, LevelDB::ReadOnly) && Rdm::contains(db.db(), path.constData());
     write(found ? "1" : "0");
     finish();
 }
