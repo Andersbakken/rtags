@@ -9,6 +9,7 @@ MatchJob::MatchJob(int i, const QueryMessage &query)
     : Job(i, WriteUnfiltered), partial(query.query().front()), type(query.type()),
       keyFlags(query.keyFlags()), skipParentheses(query.flags() & QueryMessage::SkipParentheses)
 {
+    setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
 }
 
 void MatchJob::run()
