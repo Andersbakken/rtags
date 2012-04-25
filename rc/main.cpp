@@ -33,7 +33,6 @@ static void help(FILE *f, const char* app)
             "  --append|-A                   Append to log file\n"
             "  --no-context|-N               Don't print context for locations\n"
             "  --line-numbers|-l             Output line numbers instead of offsets\n"
-            "  --poll|-P                     Check if something's dirty\n"
             "  --path-filter|-i [arg]        Filter out results not matching with arg\n"
             "  --filter-system-headers|-H    Don't exempt system headers from path filters\n"
             "  --includepath|-I [arg]        Add additional include path, must be combined with --makefile\n"
@@ -73,7 +72,6 @@ int main(int argc, char** argv)
         { "includepath", required_argument, 0, 'I' },
         { "define", required_argument, 0, 'D' },
         { "compiler-flag", required_argument, 0, 'o' },
-        { "poll", no_argument, 0, 'P' },
         { "test", required_argument, 0, 't' },
         { 0, 0, 0, 0 }
     };
@@ -137,9 +135,6 @@ int main(int argc, char** argv)
             break;
         case 'L':
             logFile = optarg;
-            break;
-        case 'P':
-            optlist.append(qMakePair(QueryMessage::Poll, QByteArray()));
             break;
         case 'p':
             queryFlags |= QueryMessage::SkipParentheses;

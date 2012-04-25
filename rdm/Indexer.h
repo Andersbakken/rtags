@@ -50,13 +50,11 @@ public:
     inline QList<QByteArray> defaultArgs() const { return mDefaultArgs; }
     void setPchDependencies(const Path &pchHeader, const QSet<Path> &deps);
     QSet<Path> pchDependencies(const Path &pchHeader) const;
-    void poll();
     QHash<QByteArray, RTags::Location> pchUSRHash(const QList<Path> &pchFiles) const;
     void setPchUSRHash(const Path &pch, const PchUSRHash &astHash);
     inline IndexerSyncer *syncer() const { return mSyncer; }
     Path path() const { return mPath; }
 protected:
-    void timerEvent(QTimerEvent *e);
     void customEvent(QEvent* event);
 signals:
     void indexingDone(int id);
@@ -94,7 +92,6 @@ private:
     DependencyHash mDependencies;
     QMutex mWatchedMutex;
     WatchedHash mWatched;
-    QBasicTimer mPollTimer;
 };
 
 #endif

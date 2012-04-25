@@ -25,7 +25,6 @@ SOURCES += \
     LevelDB.cpp \
     IndexerSyncer.cpp \
     DirtyJob.cpp \
-    PollJob.cpp \
     Job.cpp \
     TestJob.cpp
 
@@ -45,6 +44,5 @@ HEADERS += \
     DependencyEvent.h \
     IndexerSyncer.h \
     DirtyJob.h \
-    PollJob.h \
     Job.h \
     TestJob.h

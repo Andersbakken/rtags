@@ -19,7 +19,6 @@ public:
         FindSymbols,
         Dump,
         Status,
-        Poll,
         Test
     };
 

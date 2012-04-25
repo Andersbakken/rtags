@@ -62,7 +62,6 @@ private:
     int match(const QueryMessage &query);
     int dump(const QueryMessage &query);
     int status(const QueryMessage &query);
-    int poll(const QueryMessage &query);
     int test(const QueryMessage &query);
     int nextId();
     void connectJob(Job *job);

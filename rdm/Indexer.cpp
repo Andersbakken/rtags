@@ -237,7 +237,6 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
         id = mLastJobId++;
     } while (mJobs.contains(id));
 
-
     IndexerJob* job = new IndexerJob(this, id, mPath, input, arguments);
     connect(job, SIGNAL(done(int, Path, bool)), this, SLOT(onJobComplete(int, Path, bool)));
     if (needsToWaitForPch(job)) {
@@ -399,26 +398,6 @@ QSet<Path> Indexer::pchDependencies(const Path &pchHeader) const
     return mPchDependencies.value(pchHeader);
 }
 
-void Indexer::timerEvent(QTimerEvent *e)
-{
-    if (e->timerId() == mPollTimer.timerId()) {
-        poll();
-    } else {
-        QObject::timerEvent(e);
-    }
-}
-
-void Indexer::poll()
-{
-    QStringList dirs;
-    {
-        QMutexLocker lock(&mWatchedMutex);
-        dirs = mWatcher.directories();
-    }
-    foreach(const QString &dir, dirs) {
-        onDirectoryChanged(dir);
-    }
-}
 PchUSRHash Indexer::pchUSRHash(const QList<Path> &pchFiles) const
 {
     QReadLocker lock(&mPchUSRHashLock);

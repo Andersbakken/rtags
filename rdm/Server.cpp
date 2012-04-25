@@ -8,7 +8,6 @@
 #include "Messages.h"
 #include "Path.h"
 #include "TestJob.h"
-#include "PollJob.h"
 #include "QueryMessage.h"
 #include "Rdm.h"
 #include "ReferencesJob.h"
@@ -209,9 +208,6 @@ void Server::handleQueryMessage(QueryMessage* message)
     case QueryMessage::Status:
         id = status(*message);
         break;
-    case QueryMessage::Poll:
-        id = poll(this);
-        break;
     case QueryMessage::Test:
         id = test(*message);
         break;
@@ -390,25 +386,11 @@ int Server::status(const QueryMessage &query)
     return id;
 }
 
-int Server::poll(const QueryMessage &query)
-{
-    const int id = nextId();
-
-    warning() << "poll";
-    // ### this needs to be implemented
-
-    PollJob *job = new PollJob(mIndexer, id);
-    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
-    connectJob(job);
-    QThreadPool::globalInstance()->start(job);
-    return id;
-}
-
 int Server::test(const QueryMessage &query)
 {
     const int id = nextId();
 
-    warning() << "poll";
+    warning() << "test";
 
     TestJob *job = new TestJob(query.query().first(), id);
     connectJob(job);
