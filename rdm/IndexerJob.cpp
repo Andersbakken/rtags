@@ -400,7 +400,7 @@ void IndexerJob::run()
     }
     clang_disposeIndex(index);
     char buf[1024];
-    const int w = snprintf(buf, sizeof(buf) - 1, "Visited %s in %lldms.%s ",
+    const int w = snprintf(buf, sizeof(buf) - 1, "Visited %s in %lldms.%s",
                            mIn.constData(), timer.elapsed(),
                            qPrintable(waitingForPch ? QString(" Waited for pch: %1ms.").arg(waitingForPch)
                                       : QString()));
