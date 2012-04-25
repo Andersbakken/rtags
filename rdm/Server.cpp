@@ -53,10 +53,10 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
     connect(this, SIGNAL(complete(int, QList<QByteArray>)),
             this, SLOT(onComplete(int, QList<QByteArray>)));
 #ifdef CLANG_RUNTIME_INCLUDE
-    Path p;
-    p = CLANG_RUNTIME_INCLUDE;
+    const Path p = Path::resolved(CLANG_RUNTIME_INCLUDE);
     if (p.isDir())
         mDefaultArgs.append("-I" + p);
+    Rdm::isSystem("/"); // prime the static len variable in isSystem
 #endif
     mIndexer->setDefaultArgs(mDefaultArgs);
     LevelDB db;

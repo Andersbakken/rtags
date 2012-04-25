@@ -26,6 +26,12 @@ static inline bool isSystem(const char *str)
     if (system && !strncmp("home/", str + 5, 5))
         system = false;
 #endif
+#ifdef CLANG_RUNTIME_INCLUDE
+    static const int clangRuntimeIncludeLen = strlen(CLANG_RUNTIME_INCLUDE);
+    if (!strncmp(CLANG_RUNTIME_INCLUDE, str, clangRuntimeIncludeLen))
+        system = true;
+#endif
+    
     return system;
 }
 
