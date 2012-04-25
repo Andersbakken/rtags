@@ -237,11 +237,21 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
         id = mLastJobId++;
     } while (mJobs.contains(id));
 
-    mIndexing.insert(input);
 
     IndexerJob* job = new IndexerJob(this, id, mPath, input, arguments);
+    connect(job, SIGNAL(done(int, Path, bool)), this, SLOT(onJobComplete(int, Path, bool)));
+    if (needsToWaitForPch(job)) {
+        mWaitingForPCH[id] = job;
+        return id;
+    }
+    startJob(id, job);
+    return id;
+}
+
+void Indexer::startJob(int id, IndexerJob *job)
+{
     mJobs[id] = job;
-    connect(job, SIGNAL(done(int, Path)), this, SLOT(onJobComplete(int, Path)));
+    mIndexing.insert(job->mIn);
 
     if (!mTimerRunning) {
         mTimerRunning = true;
@@ -249,8 +259,6 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
     }
 
     QThreadPool::globalInstance()->start(job);
-
-    return id;
 }
 
 void Indexer::customEvent(QEvent* e)
@@ -336,16 +344,27 @@ void Indexer::onDirectoryChanged(const QString& path)
     QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
 }
 
-void Indexer::onJobComplete(int id, const Path& input)
+void Indexer::onJobComplete(int id, const Path& input, bool isPch)
 {
     Q_UNUSED(input);
 
     QMutexLocker locker(&mMutex);
-    mJobs.remove(id);
-    if (mIndexing.remove(input))
-        mCondition.wakeAll();
-
     ++mJobCounter;
+    mJobs.remove(id);
+    mIndexing.remove(input);
+    if (isPch) {
+        QHash<int, IndexerJob*>::iterator it = mWaitingForPCH.begin();
+        while (it != mWaitingForPCH.end()) {
+            IndexerJob *job = it.value();
+            if (!needsToWaitForPch(job)) {
+                const int id = it.key();
+                it = mWaitingForPCH.erase(it);
+                startJob(id, job);
+            } else {
+                ++it;
+            }
+        }
+    }
 
     if (mJobs.isEmpty()) {
         mSyncer->notify();
@@ -425,4 +444,12 @@ void Indexer::setPchUSRHash(const Path &pch, const PchUSRHash &astHash)
     mSyncer->addPchUSRHash(pch, astHash);
     QWriteLocker lock(&mPchUSRHashLock);
     mPchUSRHashes[pch] = astHash;
+}
+bool Indexer::needsToWaitForPch(IndexerJob *job) const
+{
+    foreach(const Path &pchHeader, job->mPchHeaders) {
+        if (mIndexing.contains(pchHeader))
+            return true;
+    }
+    return false;
 }

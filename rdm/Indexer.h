@@ -47,26 +47,28 @@ public:
     int index(const QByteArray& input, const QList<QByteArray>& arguments);
 
     void setDefaultArgs(const QList<QByteArray> &args);
-    QList<QByteArray> defaultArgs() const { return mDefaultArgs; }
+    inline QList<QByteArray> defaultArgs() const { return mDefaultArgs; }
     void setPchDependencies(const Path &pchHeader, const QSet<Path> &deps);
     QSet<Path> pchDependencies(const Path &pchHeader) const;
     void poll();
     QHash<QByteArray, RTags::Location> pchUSRHash(const QList<Path> &pchFiles) const;
     void setPchUSRHash(const Path &pch, const PchUSRHash &astHash);
+    inline IndexerSyncer *syncer() const { return mSyncer; }
+    Path path() const { return mPath; }
 protected:
     void timerEvent(QTimerEvent *e);
     void customEvent(QEvent* event);
-
 signals:
     void indexingDone(int id);
-
 private slots:
-    void onJobComplete(int id, const Path& input);
+    void onJobComplete(int id, const Path& input, bool isPch);
     void onDirectoryChanged(const QString& path);
 private:
     void commitDependencies(const DependencyHash& deps, bool sync);
     void initWatcher();
     void init();
+    bool needsToWaitForPch(IndexerJob *job) const;
+    void startJob(int id, IndexerJob *job);
 
     mutable QReadWriteLock mPchUSRHashLock;
     QHash<Path, PchUSRHash > mPchUSRHashes;
@@ -77,13 +79,11 @@ private:
     int mJobCounter;
 
     QMutex mMutex;
-    QWaitCondition mCondition;
     QSet<QByteArray> mIndexing;
-    QSet<QByteArray> mPchHeaderError;
 
     QByteArray mPath;
     int mLastJobId;
-    QHash<int, IndexerJob*> mJobs;
+    QHash<int, IndexerJob*> mJobs, mWaitingForPCH;
 
     IndexerSyncer* mSyncer;
 
@@ -95,8 +95,6 @@ private:
     QMutex mWatchedMutex;
     WatchedHash mWatched;
     QBasicTimer mPollTimer;
-
-    friend class IndexerJob;
 };
 
 #endif

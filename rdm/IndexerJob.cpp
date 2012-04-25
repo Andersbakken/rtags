@@ -3,18 +3,35 @@
 #include "DependencyEvent.h"
 #include "IndexerSyncer.h"
 
+static inline QList<Path> extractPchFiles(const QList<QByteArray>& args)
+{
+    QList<Path> out;
+    bool nextIsPch = false;
+    foreach (const QByteArray& arg, args) {
+        if (arg.isEmpty())
+            continue;
+
+        if (nextIsPch) {
+            nextIsPch = false;
+            out.append(arg);
+        } else if (arg == "-include-pch") {
+            nextIsPch = true;
+        }
+    }
+    return out;
+}
+
 IndexerJob::IndexerJob(Indexer* indexer, int id,
                        const Path& path, const Path& input,
                        const QList<QByteArray>& arguments)
     : mId(id), mIsPch(false), mPath(path), mIn(input), mArgs(arguments), mIndexer(indexer),
-      mAborted(false)
+      mAborted(false), mPchHeaders(extractPchFiles(arguments))
 {
 }
 
 void IndexerJob::abort()
 {
     mAborted = true;
-    mIndexer->mCondition.wakeAll();
 }
 
 static void inclusionVisitor(CXFile included_file,
@@ -291,25 +308,6 @@ static CXChildVisitResult indexVisitor(CXCursor cursor,
 
 }
 
-
-static inline QList<Path> extractPchFiles(const QList<QByteArray>& args)
-{
-    QList<Path> out;
-    bool nextIsPch = false;
-    foreach (const QByteArray& arg, args) {
-        if (arg.isEmpty())
-            continue;
-
-        if (nextIsPch) {
-            nextIsPch = false;
-            out.append(arg);
-        } else if (arg == "-include-pch") {
-            nextIsPch = true;
-        }
-    }
-    return out;
-}
-
 static QByteArray pchFileName(const QByteArray &path, const QByteArray &header)
 {
     return path + SHA256::hash(header.constData());
@@ -319,32 +317,9 @@ void IndexerJob::run()
 {
     QElapsedTimer timer;
     timer.start();
-    QList<QByteArray> args = mArgs + mIndexer->mDefaultArgs;
-    QList<Path> pchHeaders = extractPchFiles(args);
-    if (!pchHeaders.isEmpty()) {
-        QMutexLocker locker(&mIndexer->mMutex);
-        bool wait;
-        do {
-            wait = false;
-            foreach (const QByteArray &pchHeader, pchHeaders) {
-                if (mIndexer->mPchHeaderError.contains(pchHeader)) {
-                    int idx = args.indexOf(pchHeader);
-                    Q_ASSERT(idx > 0);
-                    args.removeAt(idx);
-                    args.removeAt(idx - 1);
-                } else if (mIndexer->mIndexing.contains(pchHeader)) {
-                    wait = true;
-                    break;
-                }
-            }
-            if (wait) {
-                mIndexer->mCondition.wait(&mIndexer->mMutex);
-                if (mAborted)
-                    return;
-            }
-        } while (wait);
-        mPchUSRHash = mIndexer->pchUSRHash(pchHeaders);
-    }
+    QList<QByteArray> args = mArgs + mIndexer->defaultArgs();
+    if (!mPchHeaders.isEmpty())
+        mPchUSRHash = mIndexer->pchUSRHash(mPchHeaders);
     const quint64 waitingForPch = timer.restart();
 
     QVarLengthArray<const char*, 32> clangArgs(args.size());
@@ -360,7 +335,7 @@ void IndexerJob::run()
 
         if (nextIsPch) {
             nextIsPch = false;
-            pchFiles.append(pchFileName(mIndexer->mPath, arg));
+            pchFiles.append(pchFileName(mIndexer->path(), arg));
             clangArgs[idx++] = pchFiles.last().constData();
             clangLine += pchFiles.last().constData();
             clangLine += " ";
@@ -381,7 +356,7 @@ void IndexerJob::run()
         }
     }
     if (mIsPch) {
-        pchName = pchFileName(mIndexer->mPath, mIn);
+        pchName = pchFileName(mIndexer->path(), mIn);
     }
     clangLine += mIn;
 
@@ -398,10 +373,10 @@ void IndexerJob::run()
         error() << "got 0 unit for" << clangLine;
         mDependencies[mIn].insert(mIn);
         QCoreApplication::postEvent(mIndexer, new DependencyEvent(mDependencies));
-        mIndexer->mSyncer->addFileInformation(mIn, mArgs, timeStamp);
+        mIndexer->syncer()->addFileInformation(mIn, mArgs, timeStamp);
     } else {
         clang_getInclusions(unit, inclusionVisitor, this);
-        foreach(const Path &pchHeader, pchHeaders) {
+        foreach(const Path &pchHeader, mPchHeaders) {
             foreach(const Path &dep, mIndexer->pchDependencies(pchHeader)) {
                 mDependencies[dep].insert(mIn);
             }
@@ -426,26 +401,17 @@ void IndexerJob::run()
             mSymbolNames[path.fileName()].insert(loc);
         }
         if (!mAborted) {
-            mIndexer->mSyncer->addSymbols(mSymbols);
-            mIndexer->mSyncer->addSymbolNames(mSymbolNames);
-            mIndexer->mSyncer->addFileInformation(mIn, mArgs, timeStamp);
-            mIndexer->mSyncer->addReferences(mReferences);
+            mIndexer->syncer()->addSymbols(mSymbols);
+            mIndexer->syncer()->addSymbolNames(mSymbolNames);
+            mIndexer->syncer()->addFileInformation(mIn, mArgs, timeStamp);
+            mIndexer->syncer()->addReferences(mReferences);
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
         }
 
     }
     clang_disposeIndex(index);
-    if (mIsPch && !mAborted) {
-        QMutexLocker locker(&mIndexer->mMutex);
-        if (pchError) {
-            mIndexer->mPchHeaderError.insert(mIn);
-        } else {
-            mIndexer->mPchHeaderError.remove(mIn);
-        }
-    }
-
-    error() << "visited" << mIn << timer.elapsed()
+    error() << "visited" << mIn << timer.elapsed() << "ms"
             << qPrintable(waitingForPch ? QString("Waited for pch: %1ms.").arg(waitingForPch) : QString());
-    emit done(mId, mIn);
+    emit done(mId, mIn, mIsPch);
 }

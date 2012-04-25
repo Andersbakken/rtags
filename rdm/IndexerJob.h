@@ -36,8 +36,9 @@ public:
     Indexer *mIndexer;
     volatile bool mAborted; // ### ??? use QBasicAtomic?
     QHash<QByteArray, RTags::Location> mPchUSRHash;
+    QList<Path> mPchHeaders;
 signals:
-    void done(int id, const Path &path);
+    void done(int id, const Path &path, bool isPch);
 };
 
 #endif
