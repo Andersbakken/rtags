@@ -34,10 +34,10 @@ void IndexerJob::abort()
     mAborted = true;
 }
 
-static void inclusionVisitor(CXFile included_file,
-                             CXSourceLocation* include_stack,
-                             unsigned include_len,
-                             CXClientData client_data)
+void IndexerJob::inclusionVisitor(CXFile included_file,
+                                  CXSourceLocation* include_stack,
+                                  unsigned include_len,
+                                  CXClientData client_data)
 {
     (void)include_len;
     (void)included_file;
@@ -146,9 +146,9 @@ RTags::Location IndexerJob::createLocation(CXCursor cursor)
     return ret;
 }
 
-static CXChildVisitResult indexVisitor(CXCursor cursor,
-                                       CXCursor /*parent*/,
-                                       CXClientData client_data)
+CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
+                                            CXCursor /*parent*/,
+                                            CXClientData client_data)
 {
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
     if (job->mAborted)

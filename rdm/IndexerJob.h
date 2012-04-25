@@ -23,6 +23,9 @@ public:
     bool mIsPch;
     RTags::Location createLocation(CXCursor cursor);
     void addNamePermutations(CXCursor cursor, const RTags::Location &location);
+    static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
+    static void inclusionVisitor(CXFile included_file, CXSourceLocation* include_stack,
+                                 unsigned include_len, CXClientData client_data);
 
     SymbolHash mSymbols;
     SymbolNameHash mSymbolNames;
