@@ -19,20 +19,26 @@ enum ReferenceType {
 };
 QByteArray eatString(CXString str);
 QByteArray cursorToString(CXCursor cursor);
-static inline bool isSystem(const char *str)
+void initSystemPaths(const QList<Path> &paths);
+bool isSystem(const Path &path);
+template <typename T>
+static inline bool startsWith(const QList<T> &list, const T &str)
 {
-    bool system = !strncmp("/usr/", str, 5);
-#ifdef Q_OS_BSD4
-    if (system && !strncmp("home/", str + 5, 5))
-        system = false;
-#endif
-#ifdef CLANG_RUNTIME_INCLUDE
-    static const int clangRuntimeIncludeLen = strlen(CLANG_RUNTIME_INCLUDE);
-    if (!strncmp(CLANG_RUNTIME_INCLUDE, str, clangRuntimeIncludeLen))
-        system = true;
-#endif
-    
-    return system;
+    if (!list.isEmpty()) {
+        qDebug() << "filtering" << list << str;
+        typename QList<T>::const_iterator it = qUpperBound(list, str);
+        if (it != list.end()) {
+            const int cmp = strncmp(str.constData(), (*it).constData(), (*it).size());
+            if (cmp == 0) {
+                return true;
+            } else if (cmp < 0 && it != list.begin() && str.startsWith(*(it - 1))) {
+                return true;
+            }
+        } else if (str.startsWith(*(it - 1))) {
+            return true;
+        }
+    }
+    return false;
 }
 
 struct CursorInfo {

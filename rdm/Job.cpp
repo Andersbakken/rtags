@@ -33,16 +33,5 @@ bool Job::filter(const QByteArray &val) const
     if (mPathFilters.isEmpty() || (!mFilterSystemIncludes && Rdm::isSystem(val.constData()))) {
         return true;
     }
-    QList<QByteArray>::const_iterator it = qUpperBound(mPathFilters, val);
-    if (it != mPathFilters.end()) {
-        const int cmp = strncmp(val.constData(), (*it).constData(), (*it).size());
-        if (cmp == 0) {
-            return true;
-        } else if (cmp < 0 && it != mPathFilters.begin() && val.startsWith(*(it - 1))) {
-            return true;
-        }
-    } else if (val.startsWith(*(it - 1))) {
-        return true;
-    }
-    return false;
+    return Rdm::startsWith(mPathFilters, val);
 }

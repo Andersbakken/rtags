@@ -52,12 +52,22 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
     connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
     connect(this, SIGNAL(complete(int, QList<QByteArray>)),
             this, SLOT(onComplete(int, QList<QByteArray>)));
+    QList<Path> systemPaths;
+    foreach(const QByteArray &a, mDefaultArgs) {
+        if (a.startsWith("-I")) {
+            const Path p = Path::resolved(a.constData() + 2);
+            if (p.isDir())
+                systemPaths.append(p);
+        }
+    }
 #ifdef CLANG_RUNTIME_INCLUDE
     const Path p = Path::resolved(CLANG_RUNTIME_INCLUDE);
-    if (p.isDir())
+    if (p.isDir()) {
+        systemPaths.append(p);
         mDefaultArgs.append("-I" + p);
-    Rdm::isSystem("/"); // prime the static len variable in isSystem
+    }
 #endif
+    Rdm::initSystemPaths(systemPaths);
     mIndexer->setDefaultArgs(mDefaultArgs);
     LevelDB db;
     if (db.open(Server::General, LevelDB::ReadOnly)) {

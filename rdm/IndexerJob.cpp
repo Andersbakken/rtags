@@ -46,15 +46,15 @@ static void inclusionVisitor(CXFile included_file,
         return;
     CXString fn = clang_getFileName(included_file);
     const char *cstr = clang_getCString(fn);
-    // ### make this configurable
+    Path path = Path::canonicalized(cstr);
     if (!Rdm::isSystem(cstr)) {
-        Path path = Path::canonicalized(cstr);
-        foreach (const QByteArray& arg, job->mIndexer->defaultArgs()) {
-            if (arg.contains(path)) {
-                clang_disposeString(fn);
-                return;
-            }
-        }
+        // ### this isn't right, should be done in isSystem
+        // foreach (const QByteArray& arg, job->mIndexer->defaultArgs()) {
+        //     if (arg.contains(path)) {
+        //         clang_disposeString(fn);
+        //         return;
+        //     }
+        // }
         for (unsigned i=0; i<include_len; ++i) {
             CXFile originatingFile;
             clang_getSpellingLocation(include_stack[i], &originatingFile, 0, 0, 0);
@@ -366,10 +366,8 @@ void IndexerJob::run()
                                                         CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
     const time_t timeStamp = time(0);
     warning() << "loading unit" << clangLine << (unit != 0);
-    bool pchError = false;
 
     if (!unit) {
-        pchError = mIsPch;
         error() << "got 0 unit for" << clangLine;
         mDependencies[mIn].insert(mIn);
         QCoreApplication::postEvent(mIndexer, new DependencyEvent(mDependencies));
@@ -388,7 +386,6 @@ void IndexerJob::run()
             Q_ASSERT(!pchName.isEmpty());
             if (clang_saveTranslationUnit(unit, pchName.constData(), clang_defaultSaveOptions(unit)) != CXSaveError_None) {
                 error() << "Couldn't save pch file" << mIn << pchName;
-                pchError = true;
             } else {
                 mIndexer->setPchUSRHash(mIn, mPchUSRHash);
             }

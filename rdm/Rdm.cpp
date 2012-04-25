@@ -26,6 +26,25 @@ QByteArray cursorToString(CXCursor cursor)
     return ret;
 }
 
+static QList<Path> sSystemPaths;
+void initSystemPaths(const QList<Path> &paths)
+{
+    sSystemPaths = paths;
+    qSort(sSystemPaths);
+}
+
+bool isSystem(const Path &path)
+{
+    if (!strncmp("/usr/", path.constData(), 5)) {
+#ifdef Q_OS_BSD4
+        if (!strncmp("home/", path.constData() + 5, 5))
+            return false;
+#endif
+        return true;
+    }
+    return startsWith(sSystemPaths, path);
+}
+
 CursorInfo findCursorInfo(leveldb::DB *db, const RTags::Location &location)
 {
     const leveldb::ReadOptions readopts;
