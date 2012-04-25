@@ -2,6 +2,7 @@
 #include <sys/types.h>
 #include <dirent.h>
 
+#warning should consider using a hash of <int, path> for Locations
 namespace RTags {
 
 int canonicalizePath(char *path, int len)
