@@ -25,6 +25,9 @@ public:
     void parseMakefile(const Path &path);
     void query(const QueryMessage &msg);
     QList<QByteArray> extraFlags() const { return mExtraFlags; }
+    int sourceFileCount() const { return mSourceFileCount; }
+    int pchCount() const { return mPchCount; }
+
 private slots:
     void onDisconnected();
     void onSendComplete();
@@ -39,6 +42,7 @@ private:
     bool mMakeDone;
     QHash<QByteArray, QByteArray> mPchs;
     const QList<QByteArray> mExtraFlags;
+    int mSourceFileCount, mPchCount;
 };
 
 #endif

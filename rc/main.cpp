@@ -245,6 +245,7 @@ int main(int argc, char** argv)
     }
     foreach (const QByteArray &makeFile, makeFiles) {
         client.parseMakefile(makeFile);
+        error("%d source files and %d pch files", client.sourceFileCount(), client.pchCount());
     }
     return 0;
 }

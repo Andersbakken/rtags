@@ -9,13 +9,15 @@
 #include <Log.h>
 
 Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, QObject* parent)
-    : QObject(parent), mConn(0), mFlags(flags), mMakeDone(false), mExtraFlags(extraFlags)
+    : QObject(parent), mConn(0), mFlags(flags), mMakeDone(false), mExtraFlags(extraFlags),
+      mSourceFileCount(0), mPchCount(0)
 {
     Messages::init();
 }
 
 void Client::parseMakefile(const Path& path)
 {
+    mSourceFileCount = mPchCount = 0;
     MakefileParser* parser = new MakefileParser(mExtraFlags, this);
     connect(parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
     connect(parser, SIGNAL(fileReady(const GccArguments&)),
@@ -94,8 +96,9 @@ void Client::onMakefileReady(const GccArguments& args)
     } else if (args.outputFile().isEmpty()) {
         warning("no output file?");
         return;
+    } else if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
+        return;
     }
-
     if (!mConn) {
         mConn = new Connection(this);
         if (!mConn->connectToHost("localhost", Connection::Port)) {
@@ -106,9 +109,7 @@ void Client::onMakefileReady(const GccArguments& args)
         connect(mConn, SIGNAL(sendComplete()), this, SLOT(onSendComplete()));
     }
 
-    if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
-        return;
-    } else if (args.type() == GccArguments::Pch) {
+    if (args.type() == GccArguments::Pch) {
         QByteArray output = args.outputFile();
         Q_ASSERT(!output.isEmpty());
         const int ext = output.lastIndexOf(".gch/c");
@@ -130,20 +131,20 @@ void Client::onMakefileReady(const GccArguments& args)
         mConn->send(&message);
 
         mPchs[output] = input;
-
-        return;
+        ++mPchCount;
+    } else {
+        const QByteArray input = args.inputFiles().front();
+        const QByteArray output = args.outputFile();
+        RTags::UnitType type = (args.lang() == GccArguments::C) ? RTags::CompileC : RTags::CompileCPlusPlus;
+        AddMessage message(type, input, output, args.clangArgs(),
+                           mapPchToInput(args.explicitIncludes()));
+        if (testLog(Warning)) {
+            warning() << "sending" << "input:" << input << "output:" << output
+                      << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
+        }
+        mConn->send(&message);
+        ++mSourceFileCount;
     }
-
-    const QByteArray input = args.inputFiles().front();
-    const QByteArray output = args.outputFile();
-    RTags::UnitType type = (args.lang() == GccArguments::C) ? RTags::CompileC : RTags::CompileCPlusPlus;
-    AddMessage message(type, input, output, args.clangArgs(),
-                       mapPchToInput(args.explicitIncludes()));
-    if (testLog(Warning)) {
-        warning() << "sending" << "input:" << input << "output:" << output
-                  << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
-    }
-    mConn->send(&message);
 }
 void Client::onDisconnected()
 {

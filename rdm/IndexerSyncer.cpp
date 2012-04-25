@@ -159,16 +159,17 @@ void IndexerSyncer::run()
             qSwap(informations, mInformations);
             qSwap(references, mReferences);
         }
-        error() << "IndexerSyncer::run woke up symbols" << symbols.size()
-                << "symbolNames" << symbolNames.size()
-                << "dependencies" << dependencies.size()
-                << "informations" << informations.size()
-                << "references" << references.size()
-                << "pchDependencies" << pchDependencies.size()
-                << "pchUSRHashes" << pchUSRHashes.size();
-        QElapsedTimer timer;
+        warning() << "IndexerSyncer::run woke up symbols" << symbols.size()
+                  << "symbolNames" << symbolNames.size()
+                  << "dependencies" << dependencies.size()
+                  << "informations" << informations.size()
+                  << "references" << references.size()
+                  << "pchDependencies" << pchDependencies.size()
+                  << "pchUSRHashes" << pchUSRHashes.size();
+        QList<QByteArray> out;
 
         if (!symbolNames.isEmpty()) {
+            QElapsedTimer timer;
             timer.start();
             LevelDB db;
             if (!db.open(Server::SymbolName, LevelDB::ReadWrite))
@@ -192,10 +193,12 @@ void IndexerSyncer::run()
 
             if (changed)
                 db.db()->Write(leveldb::WriteOptions(), &batch);
-            error() << "wrote symbolNames" << timer.elapsed() << "ms";
+            out += QByteArray("Wrote " + QByteArray::number(symbolNames.size()) + " symbolNames in "
+                              + QByteArray::number(timer.elapsed()) + "ms");
         }
-        timer.start();
         if (!references.isEmpty() || !symbols.isEmpty()) {
+            QElapsedTimer timer;
+            timer.start();
             LevelDB symbolDB;
             QByteArray err;
             if (!symbolDB.open(Server::Symbol, LevelDB::ReadWrite, &err)) {
@@ -282,11 +285,14 @@ void IndexerSyncer::run()
             }
             if (changedSymbols) {
                 symbolDB.db()->Write(leveldb::WriteOptions(), &symbolsBatch);
-                error() << "wrote symbols and references" << timer.elapsed() << "ms";
+                out += QByteArray("Wrote " + QByteArray::number(symbols.size())
+                                  + " symbols and " + QByteArray::number(references.size())
+                                  + " references in " + QByteArray::number(timer.elapsed()) + "ms");
             }
         }
 
         if (!dependencies.isEmpty()) {
+            QElapsedTimer timer;
             timer.start();
             LevelDB db;
             // ### could optimize for the case when the db is empty and not merge
@@ -314,6 +320,7 @@ void IndexerSyncer::run()
             error() << "wrote dependencies" << timer.elapsed() << "ms";
         }
         if (!pchDependencies.isEmpty() || !pchUSRHashes.isEmpty()) {
+            QElapsedTimer timer;
             timer.start();
             LevelDB db;
             leveldb::WriteBatch batch;
@@ -326,9 +333,11 @@ void IndexerSyncer::run()
                 Rdm::writeValue<PchUSRHash>(&batch, it.key(), it.value());
             }
             db.db()->Write(leveldb::WriteOptions(), &batch);
-            error() << "wrote pch info" << timer.elapsed() << "ms";
+            out += ("Wrote " + QByteArray::number(pchDependencies.size() + pchUSRHashes.size()) + " pch infos in "
+                    + QByteArray::number(timer.elapsed()) + "ms");
         }
         if (!informations.isEmpty()) {
+            QElapsedTimer timer;
             timer.start();
             leveldb::WriteBatch batch;
 
@@ -344,8 +353,11 @@ void IndexerSyncer::run()
                 return;
 
             db.db()->Write(leveldb::WriteOptions(), &batch);
-            error() << "wrote informations" << timer.elapsed() << "ms";
+            out += ("Wrote " + QByteArray::number(informations.size()) + " fileinfos in "
+                    + QByteArray::number(timer.elapsed()) + "ms");
         }
+        if (!out.isEmpty())
+            error() << RTags::join(out, ", ");
     }
 }
 
