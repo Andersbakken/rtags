@@ -44,6 +44,8 @@ static void help(FILE *f, const char* app)
             app);
 }
 
+#warning autostart rdm
+
 int main(int argc, char** argv)
 {
     QCoreApplication app(argc, argv);
