@@ -11,12 +11,8 @@ class IndexerJob : public QObject, public QRunnable
 {
     Q_OBJECT;
 public:
-    IndexerJob(Indexer* indexer, int id,
-               const Path& path, const Path& input,
-               const QList<QByteArray>& arguments);
-
+    IndexerJob(Indexer* indexer, int id, const Path& input, const QList<QByteArray>& arguments);
     void abort();
-
     void run();
 
     int mId;
@@ -32,7 +28,7 @@ public:
 
     QSet<Path> mPaths;
     ReferenceHash mReferences;
-    Path mPath, mIn;
+    Path mIn;
     QList<QByteArray> mArgs;
     DependencyHash mDependencies;
     QSet<Path> mPchDependencies;

@@ -37,6 +37,7 @@ void usage(FILE *f)
             "  --append|-A             Append to log file\n"
             "  --verbose|-v            Change verbosity, multiple -v's are allowed\n"
             "  --clean-slate|-C        Start from a clean slate\n"
+            "  --datadir|-d [arg]      Use this as datadir (default ~/.rtags\n"
             "  --thread-count|-j [arg] Spawn this many threads for thread pool\n");
 }
 
@@ -51,6 +52,7 @@ int main(int argc, char** argv)
         { "append", no_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
         { "thread-count", required_argument, 0, 'j' },
+        { "datadir", required_argument, 0, 'd' },
         { "clean-slate", no_argument, 0, 'C' },
         { 0, 0, 0, 0 }
     };
@@ -62,6 +64,7 @@ int main(int argc, char** argv)
     unsigned logFlags = 0;
     int logLevel = 0;
     bool clearedDataDir = false;
+    Path datadir = (QDir::homePath() + "/.rtags/").toLocal8Bit();
     const QByteArray shortOptions = RTags::shortOptions(opts);
 
     forever {
@@ -72,8 +75,10 @@ int main(int argc, char** argv)
         case 'h':
             usage(stdout);
             return 0;
+        case 'd':
+            datadir = Path::resolved(optarg);
+            break;
         case 'C':
-            RTags::removeDirectory(ASTPATH);
             clearedDataDir = true;
             break;
         case 'j':
@@ -107,6 +112,7 @@ int main(int argc, char** argv)
             return 1;
         }
     }
+    Server::setBaseDirectory(datadir);
     QThreadPool::globalInstance()->setMaxThreadCount(jobs);
     QCoreApplication app(argc, argv);
     if (!initLogging(logLevel, logFile, logFlags)) {
@@ -114,8 +120,11 @@ int main(int argc, char** argv)
                 logLevel, logFile ? logFile : "", logFlags);
         return false;
     }
-    if (clearedDataDir)
-        warning("Removing contents of cache directory [%s]", ASTPATH);
+    if (clearedDataDir) {
+        // ### protect against stupidity?
+        RTags::removeDirectory(datadir);
+        warning("Removing contents of cache directory [%s]", datadir.constData());
+    }
 
     warning("Running with %d jobs", jobs);
 

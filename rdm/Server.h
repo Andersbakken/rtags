@@ -14,9 +14,6 @@ class AddMessage;
 class ErrorMessage;
 class QTcpServer;
 class Job;
-#ifndef ASTPATH
-#define ASTPATH "/tmp/rdm/"
-#endif
 
 class Server : public QObject
 {

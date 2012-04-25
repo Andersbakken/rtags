@@ -39,9 +39,8 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
     mOptions = options;
     mDefaultArgs = defaultArguments;
     Messages::init();
-    setBaseDirectory(ASTPATH);
     mServer = new QTcpServer(this);
-    mIndexer = new Indexer(ASTPATH, this);
+    mIndexer = new Indexer(sBase, this);
 
     if (!mServer->listen(QHostAddress::Any, Connection::Port)) {
         error("Unable to listen to port %d", Connection::Port);
@@ -417,7 +416,11 @@ QByteArray Server::databaseName(DatabaseType type)
 void Server::setBaseDirectory(const QByteArray& base)
 {
     sBase = base;
+    if (!sBase.endsWith('/'))
+        sBase.append('/');
     Q_ASSERT(sBase.endsWith('/'));
+    QDir dir;
+    dir.mkpath(sBase);
 }
 
 void Server::connectJob(Job *job)

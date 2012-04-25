@@ -121,7 +121,7 @@ QByteArray shortOptions(const option *longOptions)
     return ret;
 }
 
-int removeDirectory(const char *path)
+bool removeDirectory(const char *path)
 {
     DIR *d = opendir(path);
     size_t path_len = strlen(path);
@@ -169,7 +169,7 @@ int removeDirectory(const char *path)
         r = rmdir(path);
     }
 
-    return r;
+    return !r;
 }
 }
 

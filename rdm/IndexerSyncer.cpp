@@ -159,13 +159,13 @@ void IndexerSyncer::run()
             qSwap(informations, mInformations);
             qSwap(references, mReferences);
         }
-        warning() << "IndexerSyncer::run woke up symbols" << symbols.size()
-                  << "symbolNames" << symbolNames.size()
-                  << "dependencies" << dependencies.size()
-                  << "informations" << informations.size()
-                  << "references" << references.size()
-                  << "pchDependencies" << pchDependencies.size()
-                  << "pchUSRHashes" << pchUSRHashes.size();
+        error() << "IndexerSyncer::run woke up symbols" << symbols.size()
+                << "symbolNames" << symbolNames.size()
+                << "dependencies" << dependencies.size()
+                << "informations" << informations.size()
+                << "references" << references.size()
+                << "pchDependencies" << pchDependencies.size()
+                << "pchUSRHashes" << pchUSRHashes.size();
         QElapsedTimer timer;
 
         if (!symbolNames.isEmpty()) {
@@ -192,7 +192,7 @@ void IndexerSyncer::run()
 
             if (changed)
                 db.db()->Write(leveldb::WriteOptions(), &batch);
-            warning() << "wrote symbolNames" << timer.elapsed() << "ms";
+            error() << "wrote symbolNames" << timer.elapsed() << "ms";
         }
         timer.start();
         if (!references.isEmpty() || !symbols.isEmpty()) {
@@ -282,7 +282,7 @@ void IndexerSyncer::run()
             }
             if (changedSymbols) {
                 symbolDB.db()->Write(leveldb::WriteOptions(), &symbolsBatch);
-                warning() << "wrote symbols and references" << timer.elapsed() << "ms";
+                error() << "wrote symbols and references" << timer.elapsed() << "ms";
             }
         }
 
@@ -311,7 +311,7 @@ void IndexerSyncer::run()
 
             if (changed)
                 db.db()->Write(leveldb::WriteOptions(), &batch);
-            warning() << "wrote dependencies" << timer.elapsed() << "ms";
+            error() << "wrote dependencies" << timer.elapsed() << "ms";
         }
         if (!pchDependencies.isEmpty() || !pchUSRHashes.isEmpty()) {
             timer.start();
@@ -326,7 +326,7 @@ void IndexerSyncer::run()
                 Rdm::writeValue<PchUSRHash>(&batch, it.key(), it.value());
             }
             db.db()->Write(leveldb::WriteOptions(), &batch);
-            warning() << "wrote pch info" << timer.elapsed() << "ms";
+            error() << "wrote pch info" << timer.elapsed() << "ms";
         }
         if (!informations.isEmpty()) {
             timer.start();
@@ -344,7 +344,7 @@ void IndexerSyncer::run()
                 return;
 
             db.db()->Write(leveldb::WriteOptions(), &batch);
-            warning() << "wrote informations" << timer.elapsed() << "ms";
+            error() << "wrote informations" << timer.elapsed() << "ms";
         }
     }
 }
@@ -353,7 +353,7 @@ void IndexerSyncer::maybeWake()
 {
     const int size = (mSymbols.size() + mSymbolNames.size() + mDependencies.size() + mPchDependencies.size()
                       + mInformations.size() + mReferences.size() + mPchUSRHashes.size());
-    enum { MaxSize = 1024 * 256 };
+    enum { MaxSize = 1024 * 64 };
     if (size > MaxSize) // ### tunable?
         mCond.wakeOne();
 }

@@ -21,13 +21,12 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
     Q_ASSERT(path.startsWith('/'));
     if (!path.startsWith('/'))
         return;
-    QDir dir;
-    dir.mkpath(path);
 
     mJobCounter = 0;
-    mPath = path;
-    if (!mPath.endsWith('/'))
-        mPath += '/';
+    mPath = path + "pch/";
+    Q_ASSERT(mPath.endsWith('/'));
+    QDir dir;
+    dir.mkpath(mPath);
     mTimerRunning = false;
     mSyncer = new IndexerSyncer(this);
     mSyncer->start();
@@ -232,7 +231,7 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
         return -1;
 
     const int id = ++mJobCounter;
-    IndexerJob* job = new IndexerJob(this, id, mPath, input, arguments);
+    IndexerJob* job = new IndexerJob(this, id, input, arguments);
     connect(job, SIGNAL(done(int, Path, bool, QByteArray)),
             this, SLOT(onJobComplete(int, Path, bool, QByteArray)));
     if (needsToWaitForPch(job)) {
