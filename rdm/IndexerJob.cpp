@@ -402,7 +402,11 @@ void IndexerJob::run()
 
     }
     clang_disposeIndex(index);
-    error() << "visited" << mIn << timer.elapsed() << "ms"
-            << qPrintable(waitingForPch ? QString("Waited for pch: %1ms.").arg(waitingForPch) : QString());
-    emit done(mId, mIn, mIsPch);
+    char buf[1024];
+    const int w = snprintf(buf, sizeof(buf) - 1, "Visited %s in %lldms.%s ",
+                           mIn.constData(), timer.elapsed(),
+                           qPrintable(waitingForPch ? QString(" Waited for pch: %1ms.").arg(waitingForPch)
+                                      : QString()));
+
+    emit done(mId, mIn, mIsPch, QByteArray(buf, w));
 }

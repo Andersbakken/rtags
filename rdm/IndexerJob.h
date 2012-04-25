@@ -41,7 +41,7 @@ public:
     QHash<QByteArray, RTags::Location> mPchUSRHash;
     QList<Path> mPchHeaders;
 signals:
-    void done(int id, const Path &path, bool isPch);
+    void done(int id, const Path &path, bool isPch, const QByteArray &msg);
 };
 
 #endif

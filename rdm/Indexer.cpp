@@ -25,7 +25,6 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
     dir.mkpath(path);
 
     mJobCounter = 0;
-    mLastJobId = 0;
     mPath = path;
     if (!mPath.endsWith('/'))
         mPath += '/';
@@ -232,13 +231,10 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
     if (mIndexing.contains(input))
         return -1;
 
-    int id;
-    do {
-        id = mLastJobId++;
-    } while (mJobs.contains(id));
-
+    const int id = ++mJobCounter;
     IndexerJob* job = new IndexerJob(this, id, mPath, input, arguments);
-    connect(job, SIGNAL(done(int, Path, bool)), this, SLOT(onJobComplete(int, Path, bool)));
+    connect(job, SIGNAL(done(int, Path, bool, QByteArray)),
+            this, SLOT(onJobComplete(int, Path, bool, QByteArray)));
     if (needsToWaitForPch(job)) {
         mWaitingForPCH[id] = job;
         return id;
@@ -343,12 +339,11 @@ void Indexer::onDirectoryChanged(const QString& path)
     QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
 }
 
-void Indexer::onJobComplete(int id, const Path& input, bool isPch)
+void Indexer::onJobComplete(int id, const Path& input, bool isPch, const QByteArray &msg)
 {
     Q_UNUSED(input);
 
     QMutexLocker locker(&mMutex);
-    ++mJobCounter;
     mJobs.remove(id);
     mIndexing.remove(input);
     if (isPch) {
@@ -364,6 +359,8 @@ void Indexer::onJobComplete(int id, const Path& input, bool isPch)
             }
         }
     }
+    const int idx = mJobCounter - (mIndexing.size() + mWaitingForPCH.size());
+    error("%s %d/%d %.1f%%", msg.constData(), idx, mJobCounter, (double(idx) / double(mJobCounter)) * 100.0);
 
     if (mJobs.isEmpty()) {
         mSyncer->notify();

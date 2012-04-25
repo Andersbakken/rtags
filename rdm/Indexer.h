@@ -59,7 +59,7 @@ protected:
 signals:
     void indexingDone(int id);
 private slots:
-    void onJobComplete(int id, const Path& input, bool isPch);
+    void onJobComplete(int id, const Path& input, bool isPch, const QByteArray &msg);
     void onDirectoryChanged(const QString& path);
 private:
     void commitDependencies(const DependencyHash& deps, bool sync);
@@ -80,7 +80,6 @@ private:
     QSet<QByteArray> mIndexing;
 
     QByteArray mPath;
-    int mLastJobId;
     QHash<int, IndexerJob*> mJobs, mWaitingForPCH;
 
     IndexerSyncer* mSyncer;
