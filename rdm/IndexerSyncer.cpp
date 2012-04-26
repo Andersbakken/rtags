@@ -321,7 +321,6 @@ void IndexerSyncer::run()
 
             if (changed)
                 db.db()->Write(leveldb::WriteOptions(), &batch);
-            error() << "wrote dependencies" << timer.elapsed() << "ms";
         }
         if (!pchDependencies.isEmpty() || !pchUSRHashes.isEmpty()) {
             QElapsedTimer timer;
@@ -361,7 +360,7 @@ void IndexerSyncer::run()
                     + QByteArray::number(timer.elapsed()) + "ms");
         }
         if (!out.isEmpty())
-            error() << RTags::join(out, ", ");
+            error() << RTags::join(out, ", ").constData();
     }
 }
 
