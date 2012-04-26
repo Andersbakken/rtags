@@ -28,7 +28,7 @@ void LevelDB::close()
 }
 bool LevelDB::open(Server::DatabaseType type, Mode mode, QByteArray *error)
 {
-    const QByteArray name = Server::databaseName(type);
+    const QByteArray name = Server::databaseDir(type);
     Q_ASSERT(!name.isEmpty());
     leveldb::Options options;
     if (mode == ReadWrite)

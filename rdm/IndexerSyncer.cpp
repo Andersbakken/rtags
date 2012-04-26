@@ -203,7 +203,7 @@ void IndexerSyncer::run()
             QByteArray err;
             if (!symbolDB.open(Server::Symbol, LevelDB::ReadWrite, &err)) {
                 error("Can't open Symbol database %s %s\n",
-                      Server::databaseName(Server::Symbol).constData(),
+                      Server::databaseDir(Server::Symbol).constData(),
                       err.constData());
                 return;
             }

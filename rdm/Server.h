@@ -35,8 +35,9 @@ public:
 
 
     bool init(unsigned options, const QList<QByteArray> &defaultArguments);
-    static void setBaseDirectory(const QByteArray& base);
-    static QByteArray databaseName(DatabaseType type);
+    static void setBaseDirectory(const QByteArray& base, bool clear);
+    static QByteArray databaseDir(DatabaseType type);
+    static QByteArray pchDir();
 signals:
     void complete(int id, const QList<QByteArray>& locations);
 private slots:

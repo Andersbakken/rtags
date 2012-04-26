@@ -403,17 +403,25 @@ static const char* const dbNames[] = {
     "symbols.db",
     "symbolnames.db",
     "fileinfos.db",
-    "pch.db"
+    "pch.db",
+    0
 };
 
-QByteArray Server::databaseName(DatabaseType type)
+QByteArray Server::databaseDir(DatabaseType type)
 {
     if (sBase.isEmpty())
         return QByteArray();
     return sBase + dbNames[type];
 }
 
-void Server::setBaseDirectory(const QByteArray& base)
+QByteArray Server::pchDir()
+{
+    if (sBase.isEmpty())
+        return QByteArray();
+    return sBase + "pch";
+}
+
+void Server::setBaseDirectory(const QByteArray& base, bool clear)
 {
     sBase = base;
     if (!sBase.endsWith('/'))
@@ -421,6 +429,12 @@ void Server::setBaseDirectory(const QByteArray& base)
     Q_ASSERT(sBase.endsWith('/'));
     QDir dir;
     dir.mkpath(sBase);
+    if (clear) {
+        RTags::removeDirectory(Server::pchDir());
+        for (int i=0; i<DatabaseTypeCount; ++i)
+            RTags::removeDirectory(databaseDir(static_cast<Server::DatabaseType>(i)).constData());
+        error() << "cleared database dir" << base;
+    }
 }
 
 void Server::connectJob(Job *job)

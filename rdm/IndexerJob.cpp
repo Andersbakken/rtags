@@ -2,6 +2,7 @@
 #include "SHA256.h"
 #include "DependencyEvent.h"
 #include "IndexerSyncer.h"
+#include "Server.h"
 
 static inline QList<Path> extractPchFiles(const QList<QByteArray>& args)
 {
@@ -300,7 +301,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
 
 static QByteArray pchFileName(const QByteArray &path, const QByteArray &header)
 {
-    return path + SHA256::hash(header.constData());
+    return Server::pchDir() + SHA256::hash(header.constData());
 }
 
 void IndexerJob::run()

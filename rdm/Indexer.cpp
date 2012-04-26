@@ -287,7 +287,7 @@ void Indexer::onDirectoryChanged(const QString& path)
         // ### there is a gap here where if the syncer thread hasn't synced the file information
         //     then fileInformation() would return 'false' even though it knows what args to return.
         error("Can't open FileInformation database %s %s\n",
-              Server::databaseName(Server::FileInformation).constData(),
+              Server::databaseDir(Server::FileInformation).constData(),
               err.constData());
         return;
     }

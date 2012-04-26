@@ -16,7 +16,7 @@ void StatusJob::run()
     if (query.isEmpty() || query == "general") {
         LevelDB db;
         if (db.open(Server::General, LevelDB::ReadOnly)) {
-            write(Server::databaseName(Server::General));
+            write(Server::databaseDir(Server::General));
             write("    version: " + QByteArray::number(Rdm::readValue<int>(db.db(), "version")));
         }
     }
@@ -24,7 +24,7 @@ void StatusJob::run()
     if (query.isEmpty() || query == "dependencies") {
         LevelDB db;
         if (db.open(Server::Dependency, LevelDB::ReadOnly)) {
-            write(Server::databaseName(Server::Dependency));
+            write(Server::databaseDir(Server::Dependency));
             leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
             it->SeekToFirst();
             char buf[1024];
@@ -48,7 +48,7 @@ void StatusJob::run()
     if (query.isEmpty() || query == "symbols") {
         LevelDB db;
         if (db.open(Server::Symbol, LevelDB::ReadOnly)) {
-            write(Server::databaseName(Server::Symbol));
+            write(Server::databaseDir(Server::Symbol));
             leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
             it->SeekToFirst();
             char buf[1024];
@@ -77,7 +77,7 @@ void StatusJob::run()
     if (query.isEmpty() || query == "symbolnames") {
         LevelDB db;
         if (db.open(Server::SymbolName, LevelDB::ReadOnly)) {
-            write(Server::databaseName(Server::SymbolName));
+            write(Server::databaseDir(Server::SymbolName));
             leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
             it->SeekToFirst();
             char buf[1024];
@@ -102,7 +102,7 @@ void StatusJob::run()
     if (query.isEmpty() || query == "fileinfos") {
         LevelDB db;
         if (db.open(Server::FileInformation, LevelDB::ReadOnly)) {
-            write(Server::databaseName(Server::FileInformation));
+            write(Server::databaseDir(Server::FileInformation));
             leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
             it->SeekToFirst();
             char buf[1024];

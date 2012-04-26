@@ -11,7 +11,7 @@ void DirtyJob::dirty()
         QByteArray err;
         if (!db.open(Server::Symbol, LevelDB::ReadWrite, &err)) {
             error("Can't open symbol database %s %s\n",
-                  Server::databaseName(Server::Symbol).constData(),
+                  Server::databaseDir(Server::Symbol).constData(),
                   err.constData());
         }
         leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
@@ -54,7 +54,7 @@ void DirtyJob::dirty()
         QByteArray err;
         if (!db.open(Server::SymbolName, LevelDB::ReadWrite, &err)) {
             error("Can't open symbol name database %s %s\n",
-                  Server::databaseName(Server::SymbolName).constData(),
+                  Server::databaseDir(Server::SymbolName).constData(),
                   err.constData());
         }
         leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());

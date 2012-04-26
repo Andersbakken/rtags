@@ -63,7 +63,7 @@ int main(int argc, char** argv)
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;
-    bool clearedDataDir = false;
+    bool clearDataDir = false;
     Path datadir = (QDir::homePath() + "/.rtags/").toLocal8Bit();
     const QByteArray shortOptions = RTags::shortOptions(opts);
 
@@ -79,7 +79,7 @@ int main(int argc, char** argv)
             datadir = Path::resolved(optarg);
             break;
         case 'C':
-            clearedDataDir = true;
+            clearDataDir = true;
             break;
         case 'j':
             jobs = atoi(optarg);
@@ -112,7 +112,6 @@ int main(int argc, char** argv)
             return 1;
         }
     }
-    Server::setBaseDirectory(datadir);
     QThreadPool::globalInstance()->setMaxThreadCount(jobs);
     QCoreApplication app(argc, argv);
     if (!initLogging(logLevel, logFile, logFlags)) {
@@ -120,9 +119,8 @@ int main(int argc, char** argv)
                 logLevel, logFile ? logFile : "", logFlags);
         return false;
     }
-    if (clearedDataDir) {
-        // ### protect against stupidity?
-        RTags::removeDirectory(datadir);
+    Server::setBaseDirectory(datadir, clearDataDir);
+    if (clearDataDir) {
         warning("Removing contents of cache directory [%s]", datadir.constData());
     }
 
