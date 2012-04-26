@@ -28,20 +28,22 @@ void MatchJob::run()
     while (it->Valid()) {
         entry = QByteArray(it->key().data(), it->key().size());
         if (type == QueryMessage::ListSymbols) {
-            if ((partial.isEmpty() || entry.startsWith(partial)) && (!skipParentheses || !entry.contains('('))) {
-                bool ok = true;
-                if (hasFilter) {
-                    ok = false;
-                    const QSet<RTags::Location> locations = Rdm::readValue<QSet<RTags::Location> >(it);
-                    foreach(const RTags::Location &loc, locations) {
-                        if (filter(loc.path)) {
-                            ok = true;
-                            break;
+            if (partial.isEmpty() || entry.startsWith(partial)) {
+                if (!skipParentheses || !entry.contains('(')) {
+                    bool ok = true;
+                    if (hasFilter) {
+                        ok = false;
+                        const QSet<RTags::Location> locations = Rdm::readValue<QSet<RTags::Location> >(it);
+                        foreach(const RTags::Location &loc, locations) {
+                            if (filter(loc.path)) {
+                                ok = true;
+                                break;
+                            }
                         }
                     }
+                    if (ok)
+                        write(entry);
                 }
-                if (ok)
-                    write(entry);
             } else {
                 break;
             }
