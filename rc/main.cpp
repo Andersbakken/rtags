@@ -239,7 +239,9 @@ int main(int argc, char** argv)
     Client client(clientFlags, extraFlags);
     QList<QPair<QueryMessage::Type, QByteArray> >::const_iterator it = optlist.begin();
     while (it != optlist.end()) {
-        QueryMessage msg(it->first, it->second, queryFlags, unsavedFiles, pathFilters.toList());
+        QueryMessage msg(it->first, it->second, queryFlags);
+        msg.setUnsavedFiles(unsavedFiles);
+        msg.setPathFilters(pathFilters.toList());
         client.query(msg);
         ++it;
     }

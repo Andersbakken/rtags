@@ -128,6 +128,7 @@ static inline bool addTo(Container &container, const Value &value)
 
 void IndexerSyncer::run()
 {
+    bool wroteSymbolNames = false;
     while (true) {
         SymbolNameHash symbolNames;
         SymbolHash symbols;
@@ -139,6 +140,10 @@ void IndexerSyncer::run()
             QMutexLocker locker(&mMutex);
             if (mStopped)
                 return;
+            if (wroteSymbolNames && mSymbolNames.isEmpty()) {
+                wroteSymbolNames = false;
+                emit symbolNamesChanged();
+            }
             while (mSymbols.isEmpty()
                    && mSymbolNames.isEmpty()
                    && mDependencies.isEmpty()
@@ -149,7 +154,6 @@ void IndexerSyncer::run()
                 mCond.wait(&mMutex, 10000);
                 if (mStopped)
                     return;
-
             }
             qSwap(symbolNames, mSymbolNames);
             qSwap(symbols, mSymbols);
@@ -193,7 +197,7 @@ void IndexerSyncer::run()
 
             if (changed) {
                 db.db()->Write(leveldb::WriteOptions(), &batch);
-                emit changedSymbolNames();
+                wroteSymbolNames = true;
             }
             out += QByteArray("Wrote " + QByteArray::number(symbolNames.size()) + " symbolNames in "
                               + QByteArray::number(timer.elapsed()) + "ms");

@@ -20,10 +20,11 @@ public:
     void addPchUSRHash(const Path &pchHeader, const PchUSRHash &hash);
     void notify();
     void stop();
-signals:
-    void changedSymbolNames();
+
 protected:
     void run();
+signals:
+    void symbolNamesChanged();
 private:
     void maybeWake();
 

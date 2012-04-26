@@ -42,7 +42,7 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
     Messages::init();
     mServer = new QTcpServer(this);
     mIndexer = new Indexer(sBase, this);
-    connect(mIndexer->syncer(), SIGNAL(changedSymbolNames()), this, SLOT(onSymbolNamesChanged()));
+    connect(mIndexer->syncer(), SIGNAL(symbolNamesChanged()), this, SLOT(onSymbolNamesChanged()));
 
     if (!mServer->listen(QHostAddress::Any, Connection::Port)) {
         error("Unable to listen to port %d", Connection::Port);
@@ -198,9 +198,10 @@ void Server::handleQueryMessage(QueryMessage* message)
         id = referencesForName(*message);
         break;
     case QueryMessage::ListSymbols:
-        if (message->query().isEmpty() && !message->flags() && !mCachedSymbolNames.isEmpty()) {
+        if (message->query().front().isEmpty() && !message->flags() && !mCachedSymbolNames.isEmpty()) {
             QueryMessage response(mCachedSymbolNames);
             conn->send(&response);
+            conn->finish();
             return;
         }
         // fall through
@@ -356,9 +357,9 @@ int Server::status(const QueryMessage &query)
 {
     const int id = nextId();
 
-    error() << "status" << query.query().value(0);
+    error() << "status" << query.query().front();
 
-    StatusJob* job = new StatusJob(id, query.query().value(0));
+    StatusJob* job = new StatusJob(id, query.query().front());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);
@@ -424,18 +425,8 @@ void Server::connectJob(Job *job)
 }
 void Server::onSymbolNamesChanged()
 {
-    printf("[%s] %s:%d: void Server::onSymbolNamesChanged()\n", __func__, __FILE__, __LINE__);
-    mUpdateCachedSymbolsTimer.start(5000, this);
-}
-
-void Server::timerEvent(QTimerEvent *e)
-{
-    if (e->timerId() == mUpdateCachedSymbolsTimer.timerId()) {
-        printf("[%s] %s:%d: if (e->timerId() == mUpdateCachedSymbolsTimer.timerId()) {\n", __func__, __FILE__, __LINE__);
-        mUpdateCachedSymbolsTimer.stop();
-        MatchJob *match = MatchJob::createCompletionMatchJob();
-        connectJob(match);
-        mCachedSymbolNames.clear();
-        QThreadPool::globalInstance()->start(match);
-    }
+    MatchJob *match = MatchJob::createCompletionMatchJob();
+    connectJob(match);
+    mCachedSymbolNames.clear();
+    QThreadPool::globalInstance()->start(match);
 }

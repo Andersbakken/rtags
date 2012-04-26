@@ -32,15 +32,15 @@ class QueryMessage : public Message
     Q_INVOKABLE QueryMessage(QObject* parent = 0);
     QueryMessage(const QList<QByteArray> &msg);
     QueryMessage(const QByteArray &msg);
-    QueryMessage(Type type, const QByteArray &query = QByteArray(), unsigned flags = 0,
-                 const QHash<Path, QByteArray> &unsavedFiles = QHash<Path, QByteArray>(),
-                 const QList<QByteArray> &pathFilters = QList<QByteArray>(),
-                 QObject *parent = 0);
+    QueryMessage(Type type, const QByteArray &query = QByteArray(),
+                 unsigned flags = 0, QObject *parent = 0);
 
     QList<QByteArray> pathFilters() const { return mPathFilters; }
+    void setPathFilters(const QList<QByteArray> &pathFilters) { mPathFilters = pathFilters; qSort(mPathFilters); }
     int messageId() const { return MessageId; }
     QList<QByteArray> query() const { return mQuery; }
     QHash<Path, QByteArray> unsavedFiles() const { return mUnsavedFiles; }
+    void setUnsavedFiles(const QHash<Path, QByteArray> &unsavedFiles) { mUnsavedFiles = unsavedFiles; }
     Type type() const { return mType; }
     unsigned flags() const { return mFlags; }
     unsigned keyFlags() const;
