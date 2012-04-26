@@ -55,14 +55,7 @@ struct CursorInfo {
         symbolName.clear();
 #endif
     }
-    int symbolLength;
-    CXCursorKind kind;
-    RTags::Location target;
-    QSet<RTags::Location> references;
-#ifdef QT_DEBUG
-    RTags::Location loc;
-    QByteArray symbolName;
-#endif
+
     bool dirty(const QSet<Path> &paths)
     {
         bool changed = false;
@@ -82,10 +75,14 @@ struct CursorInfo {
         }
         return changed;
     }
+
     bool unite(const CursorInfo &other)
     {
-        if (kind == CXCursor_InvalidFile)
+        bool changed = false;
+        if (kind == CXCursor_InvalidFile) {
             kind = other.kind;
+            changed = true;
+        }
         if (!other.symbolLength) {
             // error() << "other full of shit"
             //         << eatString(clang_getCursorKindSpelling(other.kind))
@@ -119,7 +116,6 @@ struct CursorInfo {
 #endif
                 ;
         }
-        bool changed = false;
         if (!other.target.isNull() && target != other.target) {
 #ifdef QT_DEBUG
             if (!target.isNull()) {
@@ -152,6 +148,15 @@ struct CursorInfo {
         references.unite(other.references);
         return changed || oldSize != references.size();
     }
+
+    int symbolLength;
+    CXCursorKind kind;
+    RTags::Location target;
+    QSet<RTags::Location> references;
+#ifdef QT_DEBUG
+    RTags::Location loc;
+    QByteArray symbolName;
+#endif
 };
 
 static inline QDataStream &operator<<(QDataStream &ds, const CursorInfo &ci)
