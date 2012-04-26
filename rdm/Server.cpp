@@ -267,7 +267,7 @@ int Server::followLocation(const QueryMessage &query)
 
     const int id = nextId();
 
-    warning() << "followLocation" << loc;
+    error() << "followLocation" << loc;
 
     FollowLocationJob* job = new FollowLocationJob(id, loc, query.keyFlags());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
@@ -285,7 +285,7 @@ int Server::referencesForLocation(const QueryMessage &query)
 
     const int id = nextId();
 
-    warning() << "references for location" << loc;
+    error() << "references for location" << loc;
 
     ReferencesJob* job = new ReferencesJob(id, loc, query.keyFlags());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
@@ -300,7 +300,7 @@ int Server::referencesForName(const QueryMessage& query)
     const int id = nextId();
 
     const QByteArray name = query.query().front();
-    warning() << "references for name" << name;
+    error() << "references for name" << name;
 
     ReferencesJob* job = new ReferencesJob(id, name, query.keyFlags());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
@@ -315,7 +315,7 @@ int Server::match(const QueryMessage &query)
     const QByteArray partial = query.query().front();
     const int id = nextId();
 
-    warning() << "match" << partial;
+    error() << "match" << partial;
 
     MatchJob* job = new MatchJob(id, query);
     connectJob(job);
@@ -329,7 +329,7 @@ int Server::dump(const QueryMessage &query)
     const QByteArray partial = query.query().front();
     const int id = nextId();
 
-    warning() << "dump" << partial;
+    error() << "dump" << partial;
 
     DumpJob* job = new DumpJob(partial, id);
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
@@ -343,9 +343,9 @@ int Server::status(const QueryMessage &query)
 {
     const int id = nextId();
 
-    warning() << "status";
+    error() << "status" << query.query().value(0);
 
-    StatusJob* job = new StatusJob(id, query.query().first());
+    StatusJob* job = new StatusJob(id, query.query().value(0));
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);
@@ -356,7 +356,7 @@ int Server::test(const QueryMessage &query)
 {
     const int id = nextId();
 
-    warning() << "test";
+    error() << "test";
 
     TestJob *job = new TestJob(query.query().first(), id);
     connectJob(job);
