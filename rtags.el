@@ -160,7 +160,7 @@ return t if rtags is allowed to modify this file"
 
 ; (get-file-buffer FILENAME)
 
-(defun rtags-follow-symbol-internal (p switch)
+(defun rtags-find-symbols-by-name-internal (p switch)
   (setq rtags-last-buffer (current-buffer))
   (let (tagname prompt input completions)
     (setq tagname (gtags-current-token))
@@ -168,7 +168,7 @@ return t if rtags is allowed to modify this file"
         (setq prompt (concat p ": (default " tagname ") "))
       (setq prompt (concat p ": ")))
     (with-temp-buffer
-      (rtags-call-rc "-a" "")
+      (rtags-call-rc "-S")
       (setq completions (split-string (buffer-string) "\n" t)))
       ;; (setq completions (split-string "test1" "test1()")))
     (setq input (completing-read prompt completions nil nil nil rtags-symbol-history))
@@ -185,7 +185,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-follow-symbol-prompt ()
   (interactive)
-  (rtags-follow-symbol-internal "(R)Find symbol" "-F"))
+  (rtags-find-symbols-by-name-internal "(R)Find symbol" "-F"))
 
 (defun rtags-follow-symbol ()
   (interactive)
@@ -196,7 +196,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-find-references-prompt ()
   (interactive)
-  (rtags-follow-symbol-internal "(R)Find references" "-R"))
+  (rtags-find-symbols-by-name-internal "(R)Find references" "-R"))
 
 (defun rtags-remove-completions-buffer ()
   (interactive)
