@@ -168,33 +168,35 @@ return t if rtags is allowed to modify this file"
     (if tagname
         (setq prompt (concat p ": (default " tagname ") "))
       (setq prompt (concat p ": ")))
-    (if (get-buffer "*RTags SymbolName Completions*")
-        (save-excursion
-          (set-buffer "*RTags SymbolName Completions*")
-          (setq completions (split-string (buffer-string) "\n" t)))
-      (with-temp-buffer
-        (rtags-call-rc "-S")
-        (setq completions (split-string (buffer-string) "\n" t))))
+    ;; (if (get-buffer "*RTags SymbolName Completions*")
+    ;;     (message "yes")
+    ;;     (save-excursion
+    ;;       (set-buffer "*RTags SymbolName Completions*")
+    ;;       (setq completions (split-string (buffer-string) "\n" t)))
+    (with-temp-buffer
+      (rtags-call-rc "-S")
+      (setq completions (split-string (buffer-string) "\n" t)))
       ;; (setq completions (split-string "test1" "test1()")))
     (setq input (completing-read prompt completions nil nil nil rtags-symbol-history))
     (if (not (equal "" input))
         (setq tagname input))
-    (kill-buffer "*RTags Complete*"))
+    (if (get-buffer "*RTags Complete*")
+        (kill-buffer "*RTags Complete*"))
     (switch-to-buffer (generate-new-buffer "*RTags Complete*"))
-    (rtags-call-rc switch tagname)
+    (rtags-call-rc switch tagname "-l")
     (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
           ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-line-column (buffer-string)))
           (t (progn (goto-char (point-min)) (compilation-mode))))
-    (not (= (point-min) (point-max)))
+    (not (= (point-min) (point-max))))
     )
 
 (defun rtags-find-symbol ()
   (interactive)
-  (rtags-find-symbols-by-name-internal "(R)Find symbol" "-F"))
+  (rtags-find-symbols-by-name-internal "Find symbol" "-F"))
 
 (defun rtags-find-references ()
   (interactive)
-  (rtags-find-symbols-by-name-internal "(R)Find references" "-R"))
+  (rtags-find-symbols-by-name-internal "Find references" "-R"))
 
 (defun rtags-remove-completions-buffer ()
   (interactive)
