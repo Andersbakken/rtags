@@ -25,7 +25,7 @@ template <typename T>
 static inline bool startsWith(const QList<T> &list, const T &str)
 {
     if (!list.isEmpty()) {
-        qDebug() << "filtering" << list << str;
+        //qDebug() << "filtering" << list << str;
         typename QList<T>::const_iterator it = qUpperBound(list, str);
         if (it != list.end()) {
             const int cmp = strncmp(str.constData(), (*it).constData(), (*it).size());
