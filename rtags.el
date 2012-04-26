@@ -23,6 +23,20 @@ return t if rtags is allowed to modify this file"
 
 (defvar rtags-last-buffer nil)
 
+(defun rtags-current-symbol ()
+  (cond
+   ((looking-at "[0-9A-Za-z_]")
+    (while (and (not (bolp)) (looking-at "[0-9A-Za-z_]"))
+      (forward-char -1))
+    (if (not (looking-at "[0-9A-Za-z_]")) (forward-char 1)))
+   (t
+    (while (looking-at "[ \t]")
+      (forward-char 1))))
+  (if (looking-at "[A-Za-z_][A-Za-z_0-9]*")
+      (buffer-substring (match-beginning 0) (match-end 0))
+    nil))
+
+
 (defun rtags-build-symbol-name-completions()
   (interactive)
   (if (get-buffer "*RTags SymbolName Completions*")
@@ -164,7 +178,7 @@ return t if rtags is allowed to modify this file"
 (defun rtags-find-symbols-by-name-internal (p switch)
   (setq rtags-last-buffer (current-buffer))
   (let (tagname prompt input completions)
-    (setq tagname (gtags-current-token))
+    (setq tagname (rtags-current-symbol))
     (if tagname
         (setq prompt (concat p ": (default " tagname ") "))
       (setq prompt (concat p ": ")))
