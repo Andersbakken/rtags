@@ -48,8 +48,6 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
     }
     connect(mServer, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
     connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
-    connect(this, SIGNAL(complete(int, QList<QByteArray>)),
-            this, SLOT(onComplete(int, QList<QByteArray>)));
     QList<Path> systemPaths;
     foreach(const QByteArray &a, mDefaultArgs) {
         if (a.startsWith("-I")) {
@@ -241,37 +239,6 @@ void Server::onComplete(int id)
     it.value()->finish();
 }
 
-
-void Server::onComplete(int id, const QList<QByteArray>& response)
-{
-    QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
-    if (it == mPendingLookups.end())
-        return;
-
-    QueryMessage msg(response);
-    it.value()->send(&msg);
-    it.value()->finish();
-}
-
-void Server::onOutput(int id, const QList<QByteArray> &response)
-{
-    QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
-    if (it == mPendingLookups.end())
-        return;
-
-    QueryMessage msg(response);
-    it.value()->send(&msg);
-}
-
-void Server::onComplete(int id, const QByteArray& response)
-{
-    QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
-    if (it == mPendingLookups.end())
-        return;
-    QueryMessage msg(response);
-    it.value()->send(&msg);
-    it.value()->finish();
-}
 void Server::onOutput(int id, const QByteArray &response)
 {
     QHash<int, Connection*>::iterator it = mPendingLookups.find(id);

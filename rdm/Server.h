@@ -45,9 +45,6 @@ private slots:
     void onNewMessage(Message* message);
     void onIndexingDone(int id);
     void onComplete(int id);
-    void onComplete(int id, const QList<QByteArray>& response);
-    void onOutput(int id, const QList<QByteArray> &response);
-    void onComplete(int id, const QByteArray& response);
     void onOutput(int id, const QByteArray &response);
     void onConnectionDestroyed(QObject* o);
 private:

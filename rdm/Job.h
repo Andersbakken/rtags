@@ -24,10 +24,7 @@ signals:
 #if !defined(Q_MOC_RUN)
 private:
 #endif
-    void complete(int id, const QList<QByteArray> &out);
-    void complete(int id, const QByteArray &out);
     void complete(int id);
-    void output(int id, const QList<QByteArray> &out);
     void output(int id, const QByteArray &out);
 private:
     const int mId;
