@@ -275,8 +275,12 @@ void IndexerSyncer::run()
                 while (it != end) {
                     const QByteArray key = it.key().key(RTags::Location::Padded);
                     Rdm::CursorInfo added = it.value();
-                    Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(symbolDB.db(), key.constData());
-                    if (current.unite(added)) {
+                    bool ok;
+                    Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(symbolDB.db(), key.constData(), &ok);
+                    if (!ok) {
+                        changedSymbols = true;
+                        Rdm::writeValue<Rdm::CursorInfo>(&symbolsBatch, key, added);
+                    } else if (current.unite(added)) {
                         changedSymbols = true;
                         Rdm::writeValue<Rdm::CursorInfo>(&symbolsBatch, key, current);
                     }
