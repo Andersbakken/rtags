@@ -88,7 +88,8 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
         Rdm::writeValue<int>(db.db(), "version", Rdm::DatabaseVersion);
     }
 
-    debug() << "running with" << mDefaultArgs;
+    warning() << "running with" << mDefaultArgs;
+    onSymbolNamesChanged();
     return true;
 }
 
