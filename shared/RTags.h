@@ -157,6 +157,9 @@ struct Location {
             snprintf(ret.data(), ret.size() + extra + 1, "%s,%d%s", path.constData(),
                      offset, ctx.constData());
         }
+        if (path == "/home/abakken/dev/nrdapp/master/src/platform/gibbon/Surface.h" && offset == 633) {
+
+        }
         return ret;
     }
 

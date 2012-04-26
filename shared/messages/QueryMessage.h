@@ -8,7 +8,7 @@
 class QueryMessage : public Message
 {
     Q_OBJECT
-public:
+    public:
     enum { MessageId = 4 };
     enum Type {
         Response,
@@ -32,9 +32,9 @@ public:
     Q_INVOKABLE QueryMessage(QObject* parent = 0);
     QueryMessage(const QList<QByteArray> &msg);
     QueryMessage(const QByteArray &msg);
-    QueryMessage(Type type, const QByteArray &query, unsigned flags,
-                 const QHash<Path, QByteArray> &unsavedFiles,
-                 const QList<QByteArray> &pathFilters,
+    QueryMessage(Type type, const QByteArray &query = QByteArray(), unsigned flags = 0,
+                 const QHash<Path, QByteArray> &unsavedFiles = QHash<Path, QByteArray>(),
+                 const QList<QByteArray> &pathFilters = QList<QByteArray>(),
                  QObject *parent = 0);
 
     QList<QByteArray> pathFilters() const { return mPathFilters; }

@@ -367,6 +367,7 @@ void Indexer::onJobComplete(int id, const Path& input, bool isPch, const QByteAr
         Q_ASSERT(mTimerRunning);
         mTimerRunning = false;
         error() << "jobs took" << ((double)(mTimer.elapsed()) / 1000.0) << "secs";
+        emit jobsComplete();
     }
 
     emit indexingDone(id);

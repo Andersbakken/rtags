@@ -191,8 +191,10 @@ void IndexerSyncer::run()
                 ++it;
             }
 
-            if (changed)
+            if (changed) {
                 db.db()->Write(leveldb::WriteOptions(), &batch);
+                emit changedSymbolNames();
+            }
             out += QByteArray("Wrote " + QByteArray::number(symbolNames.size()) + " symbolNames in "
                               + QByteArray::number(timer.elapsed()) + "ms");
         }

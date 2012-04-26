@@ -7,6 +7,7 @@
 #include "Message.h"
 #include "Messages.h"
 #include "Path.h"
+#include "IndexerSyncer.h"
 #include "TestJob.h"
 #include "QueryMessage.h"
 #include "Rdm.h"
@@ -41,6 +42,7 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
     Messages::init();
     mServer = new QTcpServer(this);
     mIndexer = new Indexer(sBase, this);
+    connect(mIndexer->syncer(), SIGNAL(changedSymbolNames()), this, SLOT(onSymbolNamesChanged()));
 
     if (!mServer->listen(QHostAddress::Any, Connection::Port)) {
         error("Unable to listen to port %d", Connection::Port);
@@ -196,6 +198,12 @@ void Server::handleQueryMessage(QueryMessage* message)
         id = referencesForName(*message);
         break;
     case QueryMessage::ListSymbols:
+        if (message->query().isEmpty() && !message->flags() && !mCachedSymbolNames.isEmpty()) {
+            QueryMessage response(mCachedSymbolNames);
+            conn->send(&response);
+            return;
+        }
+        // fall through
     case QueryMessage::FindSymbols:
         id = match(*message);
         break;
@@ -233,6 +241,8 @@ void Server::onIndexingDone(int id)
 
 void Server::onComplete(int id)
 {
+    if (id == MatchJob::CompletionMatchJobId)
+        return;
     QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
         return;
@@ -241,13 +251,16 @@ void Server::onComplete(int id)
 
 void Server::onOutput(int id, const QByteArray &response)
 {
+    if (id == MatchJob::CompletionMatchJobId) {
+        mCachedSymbolNames.append(response);
+        return;
+    }
     QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
         return;
     QueryMessage msg(response);
     it.value()->send(&msg);
 }
-
 
 int Server::nextId()
 {
@@ -408,4 +421,21 @@ void Server::connectJob(Job *job)
 {
     connect(job, SIGNAL(complete(int)), this, SLOT(onComplete(int)));
     connect(job, SIGNAL(output(int, QByteArray)), this, SLOT(onOutput(int, QByteArray)));
+}
+void Server::onSymbolNamesChanged()
+{
+    printf("[%s] %s:%d: void Server::onSymbolNamesChanged()\n", __func__, __FILE__, __LINE__);
+    mUpdateCachedSymbolsTimer.start(5000, this);
+}
+
+void Server::timerEvent(QTimerEvent *e)
+{
+    if (e->timerId() == mUpdateCachedSymbolsTimer.timerId()) {
+        printf("[%s] %s:%d: if (e->timerId() == mUpdateCachedSymbolsTimer.timerId()) {\n", __func__, __FILE__, __LINE__);
+        mUpdateCachedSymbolsTimer.stop();
+        MatchJob *match = MatchJob::createCompletionMatchJob();
+        connectJob(match);
+        mCachedSymbolNames.clear();
+        QThreadPool::globalInstance()->start(match);
+    }
 }

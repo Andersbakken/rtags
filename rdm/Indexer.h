@@ -58,6 +58,7 @@ protected:
     void customEvent(QEvent* event);
 signals:
     void indexingDone(int id);
+    void jobsComplete();
 private slots:
     void onJobComplete(int id, const Path& input, bool isPch, const QByteArray &msg);
     void onDirectoryChanged(const QString& path);

@@ -299,7 +299,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
 
 }
 
-static QByteArray pchFileName(const QByteArray &path, const QByteArray &header)
+static QByteArray pchFileName(const QByteArray &header)
 {
     return Server::pchDir() + SHA256::hash(header.constData());
 }
@@ -326,7 +326,7 @@ void IndexerJob::run()
 
         if (nextIsPch) {
             nextIsPch = false;
-            pchFiles.append(pchFileName(mIndexer->path(), arg));
+            pchFiles.append(pchFileName(arg));
             clangArgs[idx++] = pchFiles.last().constData();
             clangLine += pchFiles.last().constData();
             clangLine += " ";
@@ -347,7 +347,7 @@ void IndexerJob::run()
         }
     }
     if (mIsPch) {
-        pchName = pchFileName(mIndexer->path(), mIn);
+        pchName = pchFileName(mIn);
     }
     clangLine += mIn;
 

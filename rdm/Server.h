@@ -38,9 +38,12 @@ public:
     static void setBaseDirectory(const QByteArray& base, bool clear);
     static QByteArray databaseDir(DatabaseType type);
     static QByteArray pchDir();
+protected:
+    void timerEvent(QTimerEvent *e);
 signals:
     void complete(int id, const QList<QByteArray>& locations);
 private slots:
+    void onSymbolNamesChanged();
     void onNewConnection();
     void onNewMessage(Message* message);
     void onIndexingDone(int id);
@@ -69,6 +72,8 @@ private:
     QList<QByteArray> mDefaultArgs;
     bool mVerbose;
     int mJobId;
+    QList<QByteArray> mCachedSymbolNames;
+    QBasicTimer mUpdateCachedSymbolsTimer;
     static QByteArray sBase;
 };
 

@@ -12,7 +12,9 @@ class MatchJob : public Job
 {
     Q_OBJECT
 public:
+    enum { CompletionMatchJobId = -1 };
     MatchJob(int i, const QueryMessage &query);
+    static MatchJob *createCompletionMatchJob();
 protected:
     void run();
 private:

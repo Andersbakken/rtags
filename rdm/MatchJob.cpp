@@ -62,3 +62,8 @@ void MatchJob::run()
     delete it;
     finish();
 }
+MatchJob * MatchJob::createCompletionMatchJob()
+{
+    QueryMessage msg(QueryMessage::ListSymbols);
+    return new MatchJob(CompletionMatchJobId, msg);
+}

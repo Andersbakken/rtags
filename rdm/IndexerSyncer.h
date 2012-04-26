@@ -6,6 +6,7 @@
 
 class IndexerSyncer : public QThread
 {
+    Q_OBJECT
 public:
     IndexerSyncer(QObject* parent = 0);
 
@@ -19,6 +20,8 @@ public:
     void addPchUSRHash(const Path &pchHeader, const PchUSRHash &hash);
     void notify();
     void stop();
+signals:
+    void changedSymbolNames();
 protected:
     void run();
 private:
