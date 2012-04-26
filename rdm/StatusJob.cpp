@@ -64,9 +64,9 @@ void StatusJob::run()
                 clang_disposeString(kind);
                 write(buf);
                 foreach(const RTags::Location &loc, ci.references) {
-                    const int w = snprintf(buf + 2, sizeof(buf) - 3, "  %s",
+                    const int w = snprintf(buf + 2, sizeof(buf) - 4, "  %s",
                                            loc.key(RTags::Location::Padded).constData());
-                    write(QByteArray(buf, w));
+                    write(QByteArray(buf, w + 2));
                 }
                 it->Next();
             }
