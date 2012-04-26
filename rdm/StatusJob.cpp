@@ -7,7 +7,7 @@
 #include "LevelDB.h"
 
 StatusJob::StatusJob(int i, const QByteArray &q)
-    : Job(i), query(q)
+    : Job(i, WriteUnfiltered), query(q)
 {
 }
 
