@@ -35,7 +35,7 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
 
     leveldb::DB *db = Server::instance()->db(Server::PCH);
     const leveldb::ReadOptions readopts;
-    leveldb::Iterator* it = db->NewIterator(readopts);
+    RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
     it->SeekToFirst();
     while (it->Valid()) {
         if (it->key() == "dependencies") {
@@ -45,7 +45,6 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
         }
         it->Next();
     }
-    delete it;
     initWatcher();
     init();
 }
@@ -53,7 +52,7 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
 void Indexer::initWatcher()
 {
     leveldb::DB *db = Server::instance()->db(Server::Dependency);
-    leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
+    RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
     it->SeekToFirst();
     DependencyHash dependencies;
     while (it->Valid()) {
@@ -64,7 +63,6 @@ void Indexer::initWatcher()
         it->Next();
     }
     commitDependencies(dependencies, false);
-    delete it;
 }
 
 
@@ -108,7 +106,7 @@ void Indexer::init()
     DependencyHash deps;
     leveldb::DB *fileInformationDB = Server::instance()->db(Server::FileInformation);
     leveldb::DB *dependencyDB = Server::instance()->db(Server::Dependency);
-    leveldb::Iterator* it = dependencyDB->NewIterator(leveldb::ReadOptions());
+    RTags::Ptr<leveldb::Iterator> it(dependencyDB->NewIterator(leveldb::ReadOptions()));
     it->SeekToFirst();
     leveldb::WriteBatch batch;
     bool writeBatch = false;
@@ -125,7 +123,6 @@ void Indexer::init()
         }
         it->Next();
     }
-    delete it;
     if (writeBatch) {
         dependencyDB->Write(leveldb::WriteOptions(), &batch);
         writeBatch = false;
@@ -135,7 +132,7 @@ void Indexer::init()
     QSet<Path> dirty;
     QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
 
-    it = fileInformationDB->NewIterator(leveldb::ReadOptions());
+    it.reset(fileInformationDB->NewIterator(leveldb::ReadOptions()));
     it->SeekToFirst();
     while (it->Valid()) {
         const leveldb::Slice key = it->key();
@@ -156,7 +153,6 @@ void Indexer::init()
         }
         it->Next();
     }
-    delete it;
     if (writeBatch)
         fileInformationDB->Write(leveldb::WriteOptions(), &batch);
 
@@ -352,6 +348,7 @@ void Indexer::onJobComplete(int id, const Path& input, bool isPch, const QByteAr
     }
 
     emit indexingDone(id);
+    sender()->deleteLater();
 }
 
 void Indexer::setDefaultArgs(const QList<QByteArray> &args)
@@ -409,4 +406,14 @@ bool Indexer::needsToWaitForPch(IndexerJob *job) const
             return true;
     }
     return false;
+}
+
+void Indexer::abort()
+{
+    QMutexLocker lock(&mMutex);
+    qDeleteAll(mWaitingForPCH);
+    mWaitingForPCH.clear();
+    foreach(IndexerJob *job, mJobs) {
+        job->abort();
+    }
 }

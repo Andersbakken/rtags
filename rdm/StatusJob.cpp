@@ -4,13 +4,14 @@
 #include "Indexer.h"
 #include <clang-c/Index.h>
 #include <Rdm.h>
+#include "CursorInfo.h"
 
 StatusJob::StatusJob(int i, const QByteArray &q)
     : Job(i, WriteUnfiltered), query(q)
 {
 }
 
-void StatusJob::run()
+void StatusJob::execute()
 {
     if (query.isEmpty() || query == "general") {
         leveldb::DB *db = Server::instance()->db(Server::General);
@@ -21,11 +22,13 @@ void StatusJob::run()
     if (query.isEmpty() || query == "dependencies") {
         leveldb::DB *db = Server::instance()->db(Server::Dependency);
         write(Server::databaseDir(Server::Dependency));
-        leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
+        RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
         it->SeekToFirst();
         char buf[1024];
         memcpy(buf, "  ", 2);
         while (it->Valid()) {
+            if (isAborted())
+                return;
             memcpy(buf + 2, it->key().data(), it->key().size());
             memcpy(buf + 2 + it->key().size(), " is depended on by:", 20);
             write(buf);
@@ -37,17 +40,18 @@ void StatusJob::run()
             }
             it->Next();
         }
-        delete it;
     }
 
     if (query.isEmpty() || query == "symbols") {
         leveldb::DB *db = Server::instance()->db(Server::Symbol);
         write(Server::databaseDir(Server::Symbol));
-        leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
+        RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
         it->SeekToFirst();
         char buf[1024];
         memcpy(buf, "  ", 2);
         while (it->Valid()) {
+            if (isAborted())
+                return;
             memcpy(buf + 2, it->key().data(), it->key().size());
             const CursorInfo ci = Rdm::readValue<CursorInfo>(it);
             CXString kind = clang_getCursorKindSpelling(ci.kind);
@@ -65,17 +69,18 @@ void StatusJob::run()
             }
             it->Next();
         }
-        delete it;
     }
 
     if (query.isEmpty() || query == "symbolnames") {
         leveldb::DB *db = Server::instance()->db(Server::SymbolName);
         write(Server::databaseDir(Server::SymbolName));
-        leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
+        RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
         it->SeekToFirst();
         char buf[1024];
         memcpy(buf, "  ", 2);
         while (it->Valid()) {
+            if (isAborted())
+                return;
             memcpy(buf + 2, it->key().data(), it->key().size());
             memcpy(buf + 2 + it->key().size(), ":", 2);
             write(buf);
@@ -88,17 +93,18 @@ void StatusJob::run()
             }
             it->Next();
         }
-        delete it;
     }
 
     if (query.isEmpty() || query == "fileinfos") {
         leveldb::DB *db = Server::instance()->db(Server::FileInformation);
         write(Server::databaseDir(Server::FileInformation));
-        leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
+        RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
         it->SeekToFirst();
         char buf[1024];
         memcpy(buf, "  ", 2);
         while (it->Valid()) {
+            if (isAborted())
+                return;
             memcpy(buf + 2, it->key().data(), it->key().size());
             const FileInformation fi = Rdm::readValue<FileInformation>(it);
             snprintf(buf + 2 + it->key().size(), sizeof(buf) - 3 - it->key().size(),
@@ -107,11 +113,9 @@ void StatusJob::run()
             write(buf);
             it->Next();
         }
-        delete it;
     }
 
     if (query.isEmpty() || query == "pch") {
         // ### needs to be done
     }
-    finish();
 }

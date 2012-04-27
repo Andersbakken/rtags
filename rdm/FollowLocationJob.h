@@ -16,7 +16,7 @@ public:
     FollowLocationJob(int id, const Location &loc, unsigned flags);
     ~FollowLocationJob();
 protected:
-    void run();
+    virtual void execute();
 private:
     const Location location;
     const unsigned flags;

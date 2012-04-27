@@ -2,8 +2,9 @@
 #define Job_h
 
 #include <QtCore>
+#include "AbortInterface.h"
 
-class Job : public QObject, public QRunnable
+class Job : public QObject, public QRunnable, public AbortInterface
 {
     Q_OBJECT;
 public:
@@ -15,11 +16,11 @@ public:
     void setPathFilters(const QList<QByteArray> &filter, bool filterSystemIncludes);
     QList<QByteArray> pathFilters() const;
     int id() const { return mId; }
-    virtual void abort() {}
     void write(const QByteArray &out);
-    void finish();
     unsigned flags() const { return mFlags; }
     bool filter(const QByteArray &val) const;
+    virtual void run();
+    virtual void execute() {}
 signals:
 #if !defined(Q_MOC_RUN)
 private:

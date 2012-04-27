@@ -4,6 +4,7 @@
 Job::Job(int id, unsigned flags, QObject *parent)
     : QObject(parent), mId(id), mFlags(flags), mFilterSystemIncludes(false)
 {
+    setAutoDelete(false);
 }
 
 void Job::setPathFilters(const QList<QByteArray> &filter, bool filterSystemIncludes)
@@ -23,15 +24,15 @@ void Job::write(const QByteArray &out)
         emit output(id(), out);
 }
 
-void Job::finish()
-{
-    emit complete(id());
-}
-
 bool Job::filter(const QByteArray &val) const
 {
     if (mPathFilters.isEmpty() || (!mFilterSystemIncludes && Rdm::isSystem(val.constData()))) {
         return true;
     }
     return Rdm::startsWith(mPathFilters, val);
+}
+void Job::run()
+{
+    execute();
+    emit complete(id());
 }

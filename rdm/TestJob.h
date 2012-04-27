@@ -10,7 +10,7 @@ class TestJob : public Job
 public:
     TestJob(const Path &path, int id);
 protected:
-    void run();
+    virtual void execute();
 private:
     const Path path;
 };

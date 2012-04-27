@@ -24,13 +24,18 @@ static inline QList<Path> extractPchFiles(const QList<QByteArray>& args)
 
 IndexerJob::IndexerJob(Indexer* indexer, int id, const Path& input, const QList<QByteArray>& arguments)
     : mId(id), mIsPch(false), mIn(input), mArgs(arguments), mIndexer(indexer),
-      mAborted(false), mPchHeaders(extractPchFiles(arguments))
+      mPchHeaders(extractPchFiles(arguments)), mIndex(0), mUnit(0)
 {
+    setAutoDelete(false);
 }
 
-void IndexerJob::abort()
+IndexerJob::~IndexerJob()
 {
-    mAborted = true;
+    return;
+    if (mUnit)
+        clang_disposeTranslationUnit(mUnit);
+    if (mIndex)
+        clang_disposeIndex(mIndex);
 }
 
 void IndexerJob::inclusionVisitor(CXFile included_file,
@@ -41,7 +46,7 @@ void IndexerJob::inclusionVisitor(CXFile included_file,
     (void)include_len;
     (void)included_file;
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
-    if (job->mAborted)
+    if (job->isAborted())
         return;
     CXString fn = clang_getFileName(included_file);
     const char *cstr = clang_getCString(fn);
@@ -149,7 +154,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
                                             CXClientData client_data)
 {
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
-    if (job->mAborted)
+    if (job->isAborted())
         return CXChildVisit_Break;
 
 // #ifdef QT_DEBUG
@@ -354,20 +359,26 @@ void IndexerJob::run()
     }
     clangLine += mIn;
 
-    CXIndex index = clang_createIndex(1, 1);
-    CXTranslationUnit unit = clang_parseTranslationUnit(index, mIn.constData(),
-                                                        clangArgs.data(), idx, 0, 0,
-                                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+    if (isAborted()) {
+        return;
+    }
+    mIndex = clang_createIndex(1, 1);
+    mUnit = clang_parseTranslationUnit(mIndex, mIn.constData(),
+                                       clangArgs.data(), idx, 0, 0,
+                                       CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
     const time_t timeStamp = time(0);
-    warning() << "loading unit" << clangLine << (unit != 0);
+    warning() << "loading unit" << clangLine << (mUnit != 0);
+    if (isAborted()) {
+        return;
+    }
 
-    if (!unit) {
+    if (!mUnit) {
         error() << "got 0 unit for" << clangLine;
         mDependencies[mIn].insert(mIn);
         QCoreApplication::postEvent(mIndexer, new DependencyEvent(mDependencies));
         mIndexer->syncer()->addFileInformation(mIn, mArgs, timeStamp);
     } else {
-        clang_getInclusions(unit, inclusionVisitor, this);
+        clang_getInclusions(mUnit, inclusionVisitor, this);
         foreach(const Path &pchHeader, mPchHeaders) {
             foreach(const Path &dep, mIndexer->pchDependencies(pchHeader)) {
                 mDependencies[dep].insert(mIn);
@@ -375,16 +386,15 @@ void IndexerJob::run()
         }
         QCoreApplication::postEvent(mIndexer, new DependencyEvent(mDependencies));
 
-        clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
+        clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
         if (mIsPch) {
             Q_ASSERT(!pchName.isEmpty());
-            if (clang_saveTranslationUnit(unit, pchName.constData(), clang_defaultSaveOptions(unit)) != CXSaveError_None) {
+            if (clang_saveTranslationUnit(mUnit, pchName.constData(), clang_defaultSaveOptions(mUnit)) != CXSaveError_None) {
                 error() << "Couldn't save pch file" << mIn << pchName;
             } else {
                 mIndexer->setPchUSRHash(mIn, mPchUSRHash);
             }
         }
-        clang_disposeTranslationUnit(unit);
 
         foreach (const Path &path, mPaths) {
             const Location loc(path, 0);
@@ -392,7 +402,7 @@ void IndexerJob::run()
             mSymbolNames[path.fileName()].insert(loc);
             mIndexer->syncer()->addFileInformations(mPaths);
         }
-        if (!mAborted) {
+        if (!isAborted()) {
             mIndexer->syncer()->addSymbols(mSymbols);
             mIndexer->syncer()->addSymbolNames(mSymbolNames);
             mIndexer->syncer()->addFileInformation(mIn, mArgs, timeStamp);
@@ -402,7 +412,6 @@ void IndexerJob::run()
         }
 
     }
-    clang_disposeIndex(index);
     char buf[1024];
     const int w = snprintf(buf, sizeof(buf) - 1, "Visited %s in %lldms.%s",
                            mIn.constData(), timer.elapsed(),

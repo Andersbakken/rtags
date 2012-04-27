@@ -2,6 +2,7 @@
 #include "Server.h"
 #include "leveldb/db.h"
 #include "Rdm.h"
+#include "CursorInfo.h"
 
 ReferencesJob::ReferencesJob(int i, const Location &loc, unsigned flags)
     : Job(i), symbolName(QByteArray()), keyFlags(flags)
@@ -14,18 +15,19 @@ ReferencesJob::ReferencesJob(int i, const QByteArray &sym, unsigned flags)
 {
 }
 
-void ReferencesJob::run()
+void ReferencesJob::execute()
 {
     if (!symbolName.isEmpty()) {
         leveldb::DB *db = Server::instance()->db(Server::SymbolName);
         locations = Rdm::readValue<QSet<Location> >(db, symbolName.constData());
         if (locations.isEmpty()) {
-            finish();
             return;
         }
     }
     leveldb::DB *db = Server::instance()->db(Server::Symbol);
     foreach(const Location &location, locations) {
+        if (isAborted())
+            return;
         CursorInfo cursorInfo = Rdm::findCursorInfo(db, location);
         QSet<Location> refs = cursorInfo.references;
         if (refs.isEmpty() && !cursorInfo.target.isNull()) {
@@ -36,5 +38,4 @@ void ReferencesJob::run()
             write(loc.key(keyFlags));
         }
     }
-    finish();
 }

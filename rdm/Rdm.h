@@ -10,8 +10,8 @@
 #include <leveldb/write_batch.h>
 #include <RTags.h>
 #include "Location.h"
-#include "CursorInfo.h"
 
+class CursorInfo;
 namespace Rdm {
 enum { DatabaseVersion = 4 };
 enum ReferenceType {

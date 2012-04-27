@@ -27,6 +27,13 @@ bool removeDirectory(const char *path);
 int canonicalizePath(char *path, int len);
 QByteArray unescape(QByteArray command);
 QByteArray join(const QList<QByteArray> &list, const QByteArray &sep = QByteArray());
+
+template <typename T> class Ptr : public QScopedPointer<T>
+{
+public:
+    Ptr(T *t = 0) : QScopedPointer<T>(t) {}
+    operator T*() const { return QScopedPointer<T>::data(); }
+};
 }
 
 #endif

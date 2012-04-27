@@ -4,6 +4,7 @@
 #include <QtCore>
 #include <AddMessage.h>
 #include "Rdm.h"
+#include "CursorInfo.h"
 
 typedef QHash<Location, CursorInfo> SymbolHash;
 typedef QHash<Location, QPair<Location, Rdm::ReferenceType> > ReferenceHash;
@@ -54,6 +55,7 @@ public:
     void setPchUSRHash(const Path &pch, const PchUSRHash &astHash);
     inline IndexerSyncer *syncer() const { return mSyncer; }
     Path path() const { return mPath; }
+    void abort();
 protected:
     void customEvent(QEvent* event);
 signals:

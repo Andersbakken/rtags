@@ -16,7 +16,7 @@ public:
     CursorInfoJob(int id, const Location &loc, unsigned flags);
     ~CursorInfoJob();
 protected:
-    void run();
+    virtual void execute();
 private:
     const Location location;
     const unsigned flags;

@@ -7,6 +7,7 @@
 #include <QDebug>
 #include <RTags.h>
 #include "Location.h"
+#include "Rdm.h"
 
 class CursorInfo
 {

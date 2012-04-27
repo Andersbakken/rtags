@@ -46,4 +46,5 @@ HEADERS += \
     DirtyJob.h \
     Job.h \
     TestJob.h \
-    CursorInfo.h
+    CursorInfo.h \
+    AbortInterface.h

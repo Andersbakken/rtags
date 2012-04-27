@@ -16,7 +16,7 @@ public:
     ReferencesJob(int id, const Location &location, unsigned keyflags);
     ReferencesJob(int id, const QByteArray &symbolName, unsigned keyflags);
 protected:
-    void run();
+    virtual void execute();
 private:
     QSet<Location> locations;
     const QByteArray symbolName;

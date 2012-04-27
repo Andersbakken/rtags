@@ -13,7 +13,7 @@ class DumpJob : public Job
 public:
     DumpJob(const QByteArray& fn, int i);
 protected:
-    void run();
+    virtual void execute();
 private:
     const QByteArray fileName;
 };

@@ -11,15 +11,15 @@ MatchJob::MatchJob(int i, const QueryMessage &query)
     setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
 }
 
-void MatchJob::run()
+void MatchJob::execute()
 {
     leveldb::DB *db = Server::instance()->db(Server::SymbolName);
     const bool hasFilter = !pathFilters().isEmpty();
 
     QByteArray entry;
-    leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
+    RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
     it->Seek(partial.constData());
-    while (it->Valid()) {
+    while (it->Valid() && !isAborted()) {
         entry = QByteArray(it->key().data(), it->key().size());
         if (type == QueryMessage::ListSymbols) {
             if (partial.isEmpty() || entry.startsWith(partial)) {
@@ -55,8 +55,6 @@ void MatchJob::run()
         }
         it->Next();
     }
-    delete it;
-    finish();
 }
 MatchJob * MatchJob::createCompletionMatchJob()
 {

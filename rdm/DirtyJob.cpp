@@ -9,7 +9,7 @@ void DirtyJob::dirty()
     debug() << "DirtyJob::dirty" << mDirty;
     {
         leveldb::DB *db = Server::instance()->db(Server::Symbol);
-        leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
+        RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
         leveldb::WriteBatch batch;
         bool writeBatch = false;
         it->SeekToFirst();
@@ -38,7 +38,6 @@ void DirtyJob::dirty()
             }
             it->Next();
         }
-        delete it;
         if (writeBatch) {
             db->Write(writeOptions, &batch);
         }
@@ -47,7 +46,7 @@ void DirtyJob::dirty()
     {
         leveldb::DB *db = Server::instance()->db(Server::SymbolName);
 
-        leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
+        RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
         leveldb::WriteBatch batch;
         bool writeBatch = false;
         it->SeekToFirst();
@@ -75,7 +74,6 @@ void DirtyJob::dirty()
             }
             it->Next();
         }
-        delete it;
         if (writeBatch) {
             db->Write(writeOptions, &batch);
         }

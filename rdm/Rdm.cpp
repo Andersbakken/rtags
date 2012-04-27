@@ -1,4 +1,5 @@
 #include "Rdm.h"
+#include "CursorInfo.h"
 
 namespace Rdm {
 QByteArray eatString(CXString str)
@@ -48,7 +49,7 @@ bool isSystem(const Path &path)
 CursorInfo findCursorInfo(leveldb::DB *db, const Location &location, Location *loc)
 {
     const leveldb::ReadOptions readopts;
-    leveldb::Iterator* it = db->NewIterator(readopts);
+    RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
     const QByteArray needle = location.key(Location::Padded);
     it->Seek(needle.constData());
     QList<QByteArray> list;
@@ -89,7 +90,6 @@ CursorInfo findCursorInfo(leveldb::DB *db, const Location &location, Location *l
             *loc = Location::fromKey(QByteArray::fromRawData(it->key().data(), it->key().size()));
         }
     }
-    delete it;
     if (!found) {
         // printf("[%s] %s:%d: if (!found) {\n", __func__, __FILE__, __LINE__);
         cursorInfo.clear();

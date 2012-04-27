@@ -2,20 +2,21 @@
 #include <clang-c/Index.h>
 #include <Rdm.h>
 #include "Server.h"
+#include "CursorInfo.h"
 
 DumpJob::DumpJob(const QByteArray& fn, int i)
     : Job(i), fileName(fn)
 {
 }
 
-void DumpJob::run()
+void DumpJob::execute()
 {
     leveldb::DB *db = Server::instance()->db(Server::Symbol);
     const leveldb::ReadOptions readopts;
-    leveldb::Iterator* it = db->NewIterator(readopts);
+    RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
     it->Seek(fileName.constData());
     QList<QByteArray> out;
-    while (it->Valid()) {
+    while (it->Valid() && !isAborted()) {
         const leveldb::Slice k = it->key();
         if (strncmp(fileName.constData(), k.data(), fileName.size()))
             break;
@@ -30,7 +31,4 @@ void DumpJob::run()
         write(str.toLocal8Bit());
         it->Next();
     }
-
-    delete it;
-    finish();
 }

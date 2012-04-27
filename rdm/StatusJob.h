@@ -13,7 +13,7 @@ class StatusJob : public Job
 public:
     StatusJob(int i, const QByteArray &query);
 protected:
-    void run();
+    virtual void execute();
 private:
     const QByteArray query;
 };

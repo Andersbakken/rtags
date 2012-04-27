@@ -16,7 +16,7 @@ public:
     MatchJob(int i, const QueryMessage &query);
     static MatchJob *createCompletionMatchJob();
 protected:
-    void run();
+    virtual void execute();
 private:
     const QByteArray partial;
     const QueryMessage::Type type;
