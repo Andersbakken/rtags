@@ -7,17 +7,18 @@
 #include <QList>
 #include "RTags.h"
 #include "Job.h"
+#include "Location.h"
 
 class FollowLocationJob : public Job
 {
     Q_OBJECT
 public:
-    FollowLocationJob(int id, const RTags::Location &loc, unsigned flags);
+    FollowLocationJob(int id, const Location &loc, unsigned flags);
     ~FollowLocationJob();
 protected:
     void run();
 private:
-    const RTags::Location location;
+    const Location location;
     const unsigned flags;
 };
 

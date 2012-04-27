@@ -25,7 +25,8 @@ HEADERS += \
     $$PWD/messages/QueryMessage.h \
     $$PWD/messages/ErrorMessage.h \
     $$PWD/RTags.h \
-    $$PWD/Log.h
+    $$PWD/Log.h \
+    $$PWD/Location.h
 
 PRECOMPILED_HEADER = Pch.h
 CONFIG += precompile_header

@@ -27,8 +27,8 @@ void MatchJob::run()
                     bool ok = true;
                     if (hasFilter) {
                         ok = false;
-                        const QSet<RTags::Location> locations = Rdm::readValue<QSet<RTags::Location> >(it);
-                        foreach(const RTags::Location &loc, locations) {
+                        const QSet<Location> locations = Rdm::readValue<QSet<Location> >(it);
+                        foreach(const Location &loc, locations) {
                             if (filter(loc.path)) {
                                 ok = true;
                                 break;
@@ -44,8 +44,8 @@ void MatchJob::run()
         } else {
             const int cmp = strcmp(partial.constData(), entry.constData());
             if (!cmp) {
-                const QSet<RTags::Location> locations = Rdm::readValue<QSet<RTags::Location> >(it);
-                foreach (const RTags::Location &loc, locations) {
+                const QSet<Location> locations = Rdm::readValue<QSet<Location> >(it);
+                foreach (const Location &loc, locations) {
                     if (filter(loc.path))
                         write(loc.key(keyFlags));
                 }

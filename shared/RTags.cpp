@@ -80,24 +80,6 @@ int readLine(FILE *f, char *buf, int max)
 }
 
 
-bool makeLocation(const QByteArray &arg, Location *loc,
-                  QByteArray *resolvedLocation, const Path &cwd)
-{
-    Location l = Location::fromKey(arg);
-    if (l.offset == -1) {
-        return false;
-    }
-    if (!l.path.resolve(cwd))
-        return false;
-    if (resolvedLocation) {
-        const int comma = arg.lastIndexOf(',');
-        *resolvedLocation = l.path + arg.mid(comma);
-    }
-    if (loc)
-        *loc = l;
-    return true;
-}
-
 QByteArray shortOptions(const option *longOptions)
 {
     QByteArray ret;

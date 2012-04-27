@@ -2,7 +2,7 @@
 #include "Rdm.h"
 #include "leveldb/db.h"
 
-FollowLocationJob::FollowLocationJob(int i, const RTags::Location &loc, unsigned f)
+FollowLocationJob::FollowLocationJob(int i, const Location &loc, unsigned f)
     : Job(i), location(loc), flags(f)
 {
 }

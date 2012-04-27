@@ -64,7 +64,7 @@ void IndexerJob::inclusionVisitor(CXFile included_file,
     clang_disposeString(fn);
 }
 
-QByteArray IndexerJob::addNamePermutations(CXCursor cursor, const RTags::Location &location, bool addToDB)
+QByteArray IndexerJob::addNamePermutations(CXCursor cursor, const Location &location, bool addToDB)
 {
     QByteArray qname;
     QByteArray qparam, qnoparam;
@@ -114,10 +114,10 @@ QByteArray IndexerJob::addNamePermutations(CXCursor cursor, const RTags::Locatio
     return qparam;
 }
 
-RTags::Location IndexerJob::createLocation(CXCursor cursor)
+Location IndexerJob::createLocation(CXCursor cursor)
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
-    RTags::Location ret;
+    Location ret;
     if (!clang_equalLocations(location, clang_getNullLocation())) {
         CXFile file;
         unsigned start;
@@ -158,8 +158,8 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
 //         if (clang_equalCursors(cursor, ref) && !clang_isCursorDefinition(ref)) {
 //             ref = clang_getCursorDefinition(ref);
 //         }
-//         RTags::Location loc = job->createLocation(cursor);
-//         RTags::Location rloc = job->createLocation(ref);
+//         Location loc = job->createLocation(cursor);
+//         Location rloc = job->createLocation(ref);
 //         if (Rdm::cursorToString(cursor).contains("canonicalizePath")
 //             || Rdm::cursorToString(ref).contains("canonicalizePath")) {
 //             error() << Rdm::cursorToString(cursor) << "refs" << Rdm::cursorToString(clang_getCursorReferenced(cursor))
@@ -206,12 +206,12 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         break;
     }
 
-    const RTags::Location loc = job->createLocation(cursor);
+    const Location loc = job->createLocation(cursor);
     if (loc.isNull()) {
         return CXChildVisit_Recurse;
     }
     CXCursor ref = clang_getCursorReferenced(cursor);
-    RTags::Location refLoc;
+    Location refLoc;
     if (clang_equalCursors(cursor, ref) && !clang_isCursorDefinition(ref)) {
         // QByteArray old = Rdm::cursorToString(ref);
         ref = clang_getCursorDefinition(ref);
@@ -292,7 +292,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         CXString fileName = clang_getFileName(includedFile);
         const char* cstr = clang_getCString(fileName);
         if (cstr) {
-            RTags::Location refLoc(Path::canonicalized(cstr), 0);
+            Location refLoc(Path::canonicalized(cstr), 0);
             info.target = refLoc;
             job->mReferences[loc] = qMakePair(refLoc, Rdm::NormalReference);
         }
@@ -387,7 +387,7 @@ void IndexerJob::run()
         clang_disposeTranslationUnit(unit);
 
         foreach (const Path &path, mPaths) {
-            const RTags::Location loc(path, 0);
+            const Location loc(path, 0);
             mSymbolNames[path].insert(loc);
             mSymbolNames[path.fileName()].insert(loc);
             mIndexer->syncer()->addFileInformations(mPaths);

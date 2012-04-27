@@ -185,11 +185,11 @@ void IndexerSyncer::run()
             bool changed = false;
             while (it != end) {
                 const char *key = it.key().constData();
-                const QSet<RTags::Location> added = it.value();
-                QSet<RTags::Location> current = Rdm::readValue<QSet<RTags::Location> >(db, key);
+                const QSet<Location> added = it.value();
+                QSet<Location> current = Rdm::readValue<QSet<Location> >(db, key);
                 if (addTo(current, added)) {
                     changed = true;
-                    Rdm::writeValue<QSet<RTags::Location> >(&batch, key, current);
+                    Rdm::writeValue<QSet<Location> >(&batch, key, current);
                 }
                 ++it;
             }
@@ -228,13 +228,13 @@ void IndexerSyncer::run()
                                 ci.target = it.key();
                         }
                     } else {
-                        const QByteArray key = it.value().first.key(RTags::Location::Padded);
+                        const QByteArray key = it.value().first.key(Location::Padded);
                         Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(symbolDB, key.constData());
                         bool changedCurrent = false;
                         if (addTo(current.references, it.key()))
                             changedCurrent = true;
                         if (it.value().second != Rdm::NormalReference) {
-                            const QByteArray otherKey = it.key().key(RTags::Location::Padded);
+                            const QByteArray otherKey = it.key().key(Location::Padded);
                             Rdm::CursorInfo other = Rdm::readValue<Rdm::CursorInfo>(symbolDB, otherKey);
                             bool changedOther = false;
                             if (addTo(other.references, it.key()))
@@ -271,7 +271,7 @@ void IndexerSyncer::run()
                 SymbolHash::iterator it = symbols.begin();
                 const SymbolHash::const_iterator end = symbols.end();
                 while (it != end) {
-                    const QByteArray key = it.key().key(RTags::Location::Padded);
+                    const QByteArray key = it.key().key(Location::Padded);
                     Rdm::CursorInfo added = it.value();
                     bool ok;
                     Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(symbolDB, key.constData(), &ok);

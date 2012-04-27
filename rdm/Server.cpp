@@ -293,8 +293,8 @@ int Server::nextId()
 
 int Server::followLocation(const QueryMessage &query)
 {
-    RTags::Location loc;
-    if (!RTags::makeLocation(query.query().front(), &loc)) {
+    const Location loc = Location::fromKey(query.query().front());
+    if (loc.isNull()) {
         error("Failed to make location from [%s]", query.query().front().constData());
         return 0;
     }
@@ -313,8 +313,8 @@ int Server::followLocation(const QueryMessage &query)
 
 int Server::cursorInfo(const QueryMessage &query)
 {
-    RTags::Location loc;
-    if (!RTags::makeLocation(query.query().front(), &loc)) {
+    const Location loc = Location::fromKey(query.query().front());
+    if (loc.isNull()) {
         error("Failed to make location from [%s]", query.query().front().constData());
         return 0;
     }
@@ -334,9 +334,11 @@ int Server::cursorInfo(const QueryMessage &query)
 
 int Server::referencesForLocation(const QueryMessage &query)
 {
-    RTags::Location loc;
-    if (!RTags::makeLocation(query.query().front(), &loc))
+    const Location loc = Location::fromKey(query.query().front());
+    if (loc.isNull()) {
+        error("Failed to make location from [%s]", query.query().front().constData());
         return 0;
+    }
 
     const int id = nextId();
 

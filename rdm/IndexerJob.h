@@ -17,8 +17,8 @@ public:
 
     int mId;
     bool mIsPch;
-    RTags::Location createLocation(CXCursor cursor);
-    QByteArray addNamePermutations(CXCursor cursor, const RTags::Location &location, bool addToDb);
+    Location createLocation(CXCursor cursor);
+    QByteArray addNamePermutations(CXCursor cursor, const Location &location, bool addToDb);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static void inclusionVisitor(CXFile included_file, CXSourceLocation* include_stack,
                                  unsigned include_len, CXClientData client_data);
@@ -34,7 +34,7 @@ public:
     QSet<Path> mPchDependencies;
     Indexer *mIndexer;
     volatile bool mAborted; // ### ??? use QBasicAtomic?
-    QHash<QByteArray, RTags::Location> mPchUSRHash;
+    QHash<QByteArray, Location> mPchUSRHash;
     QList<Path> mPchHeaders;
 signals:
     void done(int id, const Path &path, bool isPch, const QByteArray &msg);

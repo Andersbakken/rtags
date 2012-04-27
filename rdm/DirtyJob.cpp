@@ -52,8 +52,8 @@ void DirtyJob::dirty()
         bool writeBatch = false;
         it->SeekToFirst();
         while (it->Valid()) {
-            QSet<RTags::Location> locations = Rdm::readValue<QSet<RTags::Location> >(it);
-            QSet<RTags::Location>::iterator i = locations.begin();
+            QSet<Location> locations = Rdm::readValue<QSet<Location> >(it);
+            QSet<Location>::iterator i = locations.begin();
             bool changed = false;
             while (i != locations.end()) {
                 if (mDirty.contains((*i).path)) {
@@ -70,7 +70,7 @@ void DirtyJob::dirty()
                     batch.Delete(it->key());
                 } else {
                     debug() << "References to" << it->key().data() << "modified. Changing";
-                    Rdm::writeValue<QSet<RTags::Location> >(&batch, it->key().data(), locations);
+                    Rdm::writeValue<QSet<Location> >(&batch, it->key().data(), locations);
                 }
             }
             it->Next();

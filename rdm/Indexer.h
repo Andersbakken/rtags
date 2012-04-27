@@ -5,12 +5,12 @@
 #include <AddMessage.h>
 #include "Rdm.h"
 
-typedef QHash<RTags::Location, Rdm::CursorInfo> SymbolHash;
-typedef QHash<RTags::Location, QPair<RTags::Location, Rdm::ReferenceType> > ReferenceHash;
-typedef QHash<QByteArray, QSet<RTags::Location> > SymbolNameHash;
+typedef QHash<Location, Rdm::CursorInfo> SymbolHash;
+typedef QHash<Location, QPair<Location, Rdm::ReferenceType> > ReferenceHash;
+typedef QHash<QByteArray, QSet<Location> > SymbolNameHash;
 typedef QHash<Path, QSet<Path> > DependencyHash;
 typedef QPair<QByteArray, quint64> WatchedPair;
-typedef QHash<QByteArray, RTags::Location> PchUSRHash;
+typedef QHash<QByteArray, Location> PchUSRHash;
 typedef QHash<Path, QSet<WatchedPair> > WatchedHash;
 struct FileInformation {
     FileInformation() : lastTouched(0) {}
@@ -50,7 +50,7 @@ public:
     inline QList<QByteArray> defaultArgs() const { return mDefaultArgs; }
     void setPchDependencies(const Path &pchHeader, const QSet<Path> &deps);
     QSet<Path> pchDependencies(const Path &pchHeader) const;
-    QHash<QByteArray, RTags::Location> pchUSRHash(const QList<Path> &pchFiles) const;
+    QHash<QByteArray, Location> pchUSRHash(const QList<Path> &pchFiles) const;
     void setPchUSRHash(const Path &pch, const PchUSRHash &astHash);
     inline IndexerSyncer *syncer() const { return mSyncer; }
     Path path() const { return mPath; }

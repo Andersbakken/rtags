@@ -7,17 +7,18 @@
 #include <QList>
 #include "RTags.h"
 #include "Job.h"
+#include "Location.h"
 
 class CursorInfoJob : public Job
 {
     Q_OBJECT
 public:
-    CursorInfoJob(int id, const RTags::Location &loc, unsigned flags);
+    CursorInfoJob(int id, const Location &loc, unsigned flags);
     ~CursorInfoJob();
 protected:
     void run();
 private:
-    const RTags::Location location;
+    const Location location;
     const unsigned flags;
 };
 

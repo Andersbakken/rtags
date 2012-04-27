@@ -9,6 +9,7 @@
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
 #include <RTags.h>
+#include "Location.h"
 
 namespace Rdm {
 enum { DatabaseVersion = 4 };
@@ -64,7 +65,7 @@ struct CursorInfo {
             target.clear();
         }
 
-        QSet<RTags::Location>::iterator it = references.begin();
+        QSet<Location>::iterator it = references.begin();
         while (it != references.end()) {
             if (paths.contains((*it).path)) {
                 changed = true;
@@ -152,10 +153,10 @@ struct CursorInfo {
     int symbolLength; // this is just the symbol name e.g. foo
     QByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
     CXCursorKind kind;
-    RTags::Location target;
-    QSet<RTags::Location> references;
+    Location target;
+    QSet<Location> references;
 #ifdef QT_DEBUG
-    RTags::Location loc;
+    Location loc;
 #endif
 };
 
@@ -231,7 +232,7 @@ template <typename T> void writeValue(leveldb::DB *db, const char *key, const T 
             leveldb::Slice(out.constData(), out.size()));
 }
 
-CursorInfo findCursorInfo(leveldb::DB *db, const RTags::Location &key, RTags::Location *loc = 0);
+CursorInfo findCursorInfo(leveldb::DB *db, const Location &key, Location *loc = 0);
 }
 
 

@@ -45,11 +45,11 @@ bool isSystem(const Path &path)
     return startsWith(sSystemPaths, path);
 }
 
-CursorInfo findCursorInfo(leveldb::DB *db, const RTags::Location &location, RTags::Location *loc)
+CursorInfo findCursorInfo(leveldb::DB *db, const Location &location, Location *loc)
 {
     const leveldb::ReadOptions readopts;
     leveldb::Iterator* it = db->NewIterator(readopts);
-    const QByteArray needle = location.key(RTags::Location::Padded);
+    const QByteArray needle = location.key(Location::Padded);
     it->Seek(needle.constData());
     QList<QByteArray> list;
     bool found = false;
@@ -67,7 +67,7 @@ CursorInfo findCursorInfo(leveldb::DB *db, const RTags::Location &location, RTag
         const leveldb::Slice k = it->key();
         const QByteArray key = QByteArray::fromRawData(k.data(), k.size());
         debug() << "key" << key << "needle" << needle;
-        const RTags::Location loc = RTags::Location::fromKey(key);
+        const Location loc = Location::fromKey(key);
         if (location.path == loc.path) {
             const int off = location.offset - loc.offset;
             cursorInfo = Rdm::readValue<Rdm::CursorInfo>(it);
@@ -86,7 +86,7 @@ CursorInfo findCursorInfo(leveldb::DB *db, const RTags::Location &location, RTag
             cursorInfo = Rdm::readValue<Rdm::CursorInfo>(it);
         }
         if (loc) {
-            *loc = RTags::Location::fromKey(QByteArray::fromRawData(it->key().data(), it->key().size()));
+            *loc = Location::fromKey(QByteArray::fromRawData(it->key().data(), it->key().size()));
         }
     }
     delete it;

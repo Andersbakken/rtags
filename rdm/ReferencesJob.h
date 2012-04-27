@@ -7,17 +7,18 @@
 #include <QList>
 #include <RTags.h>
 #include "Job.h"
+#include "Location.h"
 
 class ReferencesJob : public Job
 {
     Q_OBJECT
 public:
-    ReferencesJob(int id, const RTags::Location &location, unsigned keyflags);
+    ReferencesJob(int id, const Location &location, unsigned keyflags);
     ReferencesJob(int id, const QByteArray &symbolName, unsigned keyflags);
 protected:
     void run();
 private:
-    QSet<RTags::Location> locations;
+    QSet<Location> locations;
     const QByteArray symbolName;
     const unsigned keyFlags;
 };

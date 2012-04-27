@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <Log.h>
+#include "Location.h"
 
 static void help(FILE *f, const char* app)
 {
@@ -164,9 +165,8 @@ int main(int argc, char** argv)
         case 'f':
         case 'C':
         case 'r': {
-            QByteArray resolved;
-            RTags::Location loc;
-            if (!RTags::makeLocation(optarg, &loc, &resolved)) {
+            const Location loc = Location::fromKey(optarg, Location::Resolve);
+            if (loc.isNull()) {
                 fprintf(stderr, "Can't resolve argument %s", optarg);
                 return 1;
             }
@@ -176,7 +176,7 @@ int main(int argc, char** argv)
             case 'C': type = QueryMessage::CursorInfo; break;
             case 'r': type = QueryMessage::ReferencesLocation; break;
             }
-            optlist.append(qMakePair(type, resolved));
+            optlist.append(qMakePair<QueryMessage::Type, QByteArray>(type, loc.path));
             break; }
         case 't':
             optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Test, Path::resolved(optarg)));
