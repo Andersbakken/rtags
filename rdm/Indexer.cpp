@@ -4,7 +4,6 @@
 #include "Indexer.h"
 #include "IndexerJob.h"
 #include "IndexerSyncer.h"
-#include "LevelDB.h"
 #include "Path.h"
 #include "RTags.h"
 #include "Rdm.h"
@@ -34,32 +33,27 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
     connect(&mWatcher, SIGNAL(directoryChanged(QString)),
             this, SLOT(onDirectoryChanged(QString)));
 
-    LevelDB db;
-    if (db.open(Server::PCH, LevelDB::ReadOnly)) {
-        const leveldb::ReadOptions readopts;
-        leveldb::Iterator* it = db.db()->NewIterator(readopts);
-        it->SeekToFirst();
-        while (it->Valid()) {
-            if (it->key() == "dependencies") {
-                mPchDependencies = Rdm::readValue<DependencyHash>(it);
-            } else {
-                mPchUSRHashes[it->key().data()] = Rdm::readValue<PchUSRHash>(it);
-            }
-            it->Next();
+    leveldb::DB *db = Server::instance()->db(Server::PCH);
+    const leveldb::ReadOptions readopts;
+    leveldb::Iterator* it = db->NewIterator(readopts);
+    it->SeekToFirst();
+    while (it->Valid()) {
+        if (it->key() == "dependencies") {
+            mPchDependencies = Rdm::readValue<DependencyHash>(it);
+        } else {
+            mPchUSRHashes[it->key().data()] = Rdm::readValue<PchUSRHash>(it);
         }
-        delete it;
+        it->Next();
     }
+    delete it;
     initWatcher();
     init();
 }
 
 void Indexer::initWatcher()
 {
-    LevelDB db;
-    if (!db.open(Server::Dependency, LevelDB::ReadOnly))
-        return;
-
-    leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
+    leveldb::DB *db = Server::instance()->db(Server::Dependency);
+    leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
     it->SeekToFirst();
     DependencyHash dependencies;
     while (it->Valid()) {
@@ -112,12 +106,9 @@ static inline bool isPch(const QList<QByteArray> &args)
 void Indexer::init()
 {
     DependencyHash deps;
-    LevelDB fileInformationDB, dependencyDB;
-    if (!fileInformationDB.open(Server::FileInformation, LevelDB::ReadWrite)
-        || !dependencyDB.open(Server::Dependency, LevelDB::ReadWrite)) {
-        return;
-    }
-    leveldb::Iterator* it = dependencyDB.db()->NewIterator(leveldb::ReadOptions());
+    leveldb::DB *fileInformationDB = Server::instance()->db(Server::FileInformation);
+    leveldb::DB *dependencyDB = Server::instance()->db(Server::Dependency);
+    leveldb::Iterator* it = dependencyDB->NewIterator(leveldb::ReadOptions());
     it->SeekToFirst();
     leveldb::WriteBatch batch;
     bool writeBatch = false;
@@ -136,16 +127,15 @@ void Indexer::init()
     }
     delete it;
     if (writeBatch) {
-        dependencyDB.db()->Write(leveldb::WriteOptions(), &batch);
+        dependencyDB->Write(leveldb::WriteOptions(), &batch);
         writeBatch = false;
         batch = leveldb::WriteBatch();
     }
 
     QSet<Path> dirty;
     QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
-    dependencyDB.close();
 
-    it = fileInformationDB.db()->NewIterator(leveldb::ReadOptions());
+    it = fileInformationDB->NewIterator(leveldb::ReadOptions());
     it->SeekToFirst();
     while (it->Valid()) {
         const leveldb::Slice key = it->key();
@@ -168,7 +158,7 @@ void Indexer::init()
     }
     delete it;
     if (writeBatch)
-        fileInformationDB.db()->Write(leveldb::WriteOptions(), &batch);
+        fileInformationDB->Write(leveldb::WriteOptions(), &batch);
 
     if (toIndex.isEmpty() && toIndexPch.isEmpty())
         return;
@@ -281,16 +271,7 @@ void Indexer::onDirectoryChanged(const QString& path)
     QSet<Path> dirtyFiles;
     QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
 
-    LevelDB db;
-    QByteArray err;
-    if (!db.open(Server::FileInformation, LevelDB::ReadOnly, &err)) {
-        // ### there is a gap here where if the syncer thread hasn't synced the file information
-        //     then fileInformation() would return 'false' even though it knows what args to return.
-        error("Can't open FileInformation database %s %s\n",
-              Server::databaseDir(Server::FileInformation).constData(),
-              err.constData());
-        return;
-    }
+    leveldb::DB *db = Server::instance()->db(Server::FileInformation);
     while (wit != wend) {
         // weird API, QSet<>::iterator does not allow for modifications to the referenced value
         file = (p + (*wit).first);
@@ -313,7 +294,7 @@ void Indexer::onDirectoryChanged(const QString& path)
                 dirtyFiles.insert(path);
                 if (path.exists()) {
                     bool ok;
-                    const FileInformation fi = Rdm::readValue<FileInformation>(db.db(), path, &ok);
+                    const FileInformation fi = Rdm::readValue<FileInformation>(db, path, &ok);
                     if (ok) {
                         if (isPch(fi.compileArgs)) {
                             toIndexPch[path] = fi.compileArgs;

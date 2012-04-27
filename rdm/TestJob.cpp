@@ -1,6 +1,5 @@
 #include "TestJob.h"
 #include "Server.h"
-#include "LevelDB.h"
 #include "Rdm.h"
 
 TestJob::TestJob(const Path &p, int i)
@@ -10,8 +9,8 @@ TestJob::TestJob(const Path &p, int i)
 
 void TestJob::run()
 {
-    LevelDB db;
-    bool found = db.open(Server::FileInformation, LevelDB::ReadOnly) && Rdm::contains(db.db(), path.constData());
+    leveldb::DB *db = Server::instance()->db(Server::FileInformation);
+    const bool found = Rdm::contains(db, path.constData());
     write(found ? "1" : "0");
     finish();
 }

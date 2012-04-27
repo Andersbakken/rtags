@@ -2,7 +2,6 @@
 #include "DumpJob.h"
 #include "FollowLocationJob.h"
 #include "Indexer.h"
-#include "LevelDB.h"
 #include "MatchJob.h"
 #include "Message.h"
 #include "Messages.h"
@@ -22,9 +21,10 @@
 #include <clang-c/Index.h>
 #include <stdio.h>
 
-QByteArray Server::sBase;
+Path Server::sBase;
 Q_DECLARE_METATYPE(QList<QByteArray>);
 
+Server *Server::sInstance = 0;
 Server::Server(QObject* parent)
     : QObject(parent),
       mIndexer(0),
@@ -32,12 +32,38 @@ Server::Server(QObject* parent)
       mVerbose(false),
       mJobId(0)
 {
+    Q_ASSERT(!sInstance);
+    sInstance = this;
     qRegisterMetaType<QList<QByteArray> >("QList<QByteArray>");
+    memset(mDBs, 0, sizeof(mDBs));
+}
+
+Server::~Server()
+{
+    for (int i=0; i<DatabaseTypeCount; ++i) {
+        delete mDBs[i];
+    }
+
+    Q_ASSERT(sInstance = this);
+    sInstance = 0;
 }
 
 bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
 {
     mOptions = options;
+    {
+        leveldb::Options opt;
+        opt.create_if_missing = true;
+
+        leveldb::Status status;
+        for (int i=0; i<DatabaseTypeCount; ++i) {
+            status = leveldb::DB::Open(opt, databaseDir(static_cast<DatabaseType>(i)).constData(), &mDBs[i]);
+            if (!status.ok()) {
+                error() << "Failed to open db" << status.ToString().c_str();
+                return false;
+            }
+        }
+    }
     mDefaultArgs = defaultArguments;
     Messages::init();
     mServer = new QTcpServer(this);
@@ -67,25 +93,14 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
 #endif
     Rdm::initSystemPaths(systemPaths);
     mIndexer->setDefaultArgs(mDefaultArgs);
-    LevelDB db;
-    if (db.open(Server::General, LevelDB::ReadOnly)) {
-        bool ok;
-        const int version = Rdm::readValue<int>(db.db(), "version", &ok);
-        if (!ok) {
-            error("No version in database");
-            return false;
-        }
-        if (version != Rdm::DatabaseVersion) {
-            error("Wrong version, expected %d, got %d. Run with -C to regenerate database", version, Rdm::DatabaseVersion);
-            return false;
-        }
-    } else {
-        QByteArray err;
-        if (!db.open(Server::General, LevelDB::ReadWrite, &err)) {
-            error("Can't open database %s", err.constData());
-            return false;
-        }
-        Rdm::writeValue<int>(db.db(), "version", Rdm::DatabaseVersion);
+    leveldb::DB *general = db(Server::General);
+    bool ok;
+    const int version = Rdm::readValue<int>(general, "version", &ok);
+    if (!ok) {
+        Rdm::writeValue<int>(general, "version", Rdm::DatabaseVersion);
+    } else if (version != Rdm::DatabaseVersion) {
+        error("Wrong version, expected %d, got %d. Run with -C to regenerate database", version, Rdm::DatabaseVersion);
+        return false;
     }
 
     warning() << "running with" << mDefaultArgs;
@@ -389,17 +404,17 @@ static const char* const dbNames[] = {
     0
 };
 
-QByteArray Server::databaseDir(DatabaseType type)
+Path Server::databaseDir(DatabaseType type)
 {
     if (sBase.isEmpty())
-        return QByteArray();
+        return Path();
     return sBase + dbNames[type];
 }
 
-QByteArray Server::pchDir()
+Path Server::pchDir()
 {
     if (sBase.isEmpty())
-        return QByteArray();
+        return Path();
     return sBase + "pch";
 }
 

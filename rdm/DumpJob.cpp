@@ -1,7 +1,7 @@
 #include "DumpJob.h"
 #include <clang-c/Index.h>
 #include <Rdm.h>
-#include "LevelDB.h"
+#include "Server.h"
 
 DumpJob::DumpJob(const QByteArray& fn, int i)
     : Job(i), fileName(fn)
@@ -10,14 +10,9 @@ DumpJob::DumpJob(const QByteArray& fn, int i)
 
 void DumpJob::run()
 {
-    LevelDB db;
-    if (!db.open(Server::Symbol, LevelDB::ReadOnly)) {
-        finish();
-        return;
-    }
-
+    leveldb::DB *db = Server::instance()->db(Server::Symbol);
     const leveldb::ReadOptions readopts;
-    leveldb::Iterator* it = db.db()->NewIterator(readopts);
+    leveldb::Iterator* it = db->NewIterator(readopts);
     it->Seek(fileName.constData());
     QList<QByteArray> out;
     while (it->Valid()) {

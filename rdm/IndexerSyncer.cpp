@@ -1,5 +1,6 @@
 #include "IndexerSyncer.h"
-#include "LevelDB.h"
+#include "leveldb/db.h"
+#include "Server.h"
 
 IndexerSyncer::IndexerSyncer(QObject* parent)
     : QThread(parent), mStopped(false)
@@ -175,9 +176,7 @@ void IndexerSyncer::run()
         if (!symbolNames.isEmpty()) {
             QElapsedTimer timer;
             timer.start();
-            LevelDB db;
-            if (!db.open(Server::SymbolName, LevelDB::ReadWrite))
-                return;
+            leveldb::DB *db = Server::instance()->db(Server::SymbolName);
 
             leveldb::WriteBatch batch;
 
@@ -187,7 +186,7 @@ void IndexerSyncer::run()
             while (it != end) {
                 const char *key = it.key().constData();
                 const QSet<RTags::Location> added = it.value();
-                QSet<RTags::Location> current = Rdm::readValue<QSet<RTags::Location> >(db.db(), key);
+                QSet<RTags::Location> current = Rdm::readValue<QSet<RTags::Location> >(db, key);
                 if (addTo(current, added)) {
                     changed = true;
                     Rdm::writeValue<QSet<RTags::Location> >(&batch, key, current);
@@ -196,7 +195,7 @@ void IndexerSyncer::run()
             }
 
             if (changed) {
-                db.db()->Write(leveldb::WriteOptions(), &batch);
+                db->Write(leveldb::WriteOptions(), &batch);
                 wroteSymbolNames = true;
             }
             out += QByteArray("Wrote " + QByteArray::number(symbolNames.size()) + " symbolNames in "
@@ -205,14 +204,7 @@ void IndexerSyncer::run()
         if (!references.isEmpty() || !symbols.isEmpty()) {
             QElapsedTimer timer;
             timer.start();
-            LevelDB symbolDB;
-            QByteArray err;
-            if (!symbolDB.open(Server::Symbol, LevelDB::ReadWrite, &err)) {
-                error("Can't open Symbol database %s %s\n",
-                      Server::databaseDir(Server::Symbol).constData(),
-                      err.constData());
-                return;
-            }
+            leveldb::DB *symbolDB = Server::instance()->db(Server::Symbol);
 
             bool changedSymbols = false;
             leveldb::WriteBatch symbolsBatch;
@@ -237,13 +229,13 @@ void IndexerSyncer::run()
                         }
                     } else {
                         const QByteArray key = it.value().first.key(RTags::Location::Padded);
-                        Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(symbolDB.db(), key.constData());
+                        Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(symbolDB, key.constData());
                         bool changedCurrent = false;
                         if (addTo(current.references, it.key()))
                             changedCurrent = true;
                         if (it.value().second != Rdm::NormalReference) {
                             const QByteArray otherKey = it.key().key(RTags::Location::Padded);
-                            Rdm::CursorInfo other = Rdm::readValue<Rdm::CursorInfo>(symbolDB.db(), otherKey);
+                            Rdm::CursorInfo other = Rdm::readValue<Rdm::CursorInfo>(symbolDB, otherKey);
                             bool changedOther = false;
                             if (addTo(other.references, it.key()))
                                 changedOther = true;
@@ -282,7 +274,7 @@ void IndexerSyncer::run()
                     const QByteArray key = it.key().key(RTags::Location::Padded);
                     Rdm::CursorInfo added = it.value();
                     bool ok;
-                    Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(symbolDB.db(), key.constData(), &ok);
+                    Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(symbolDB, key.constData(), &ok);
                     if (!ok) {
                         changedSymbols = true;
                         Rdm::writeValue<Rdm::CursorInfo>(&symbolsBatch, key, added);
@@ -294,7 +286,7 @@ void IndexerSyncer::run()
                 }
             }
             if (changedSymbols) {
-                symbolDB.db()->Write(leveldb::WriteOptions(), &symbolsBatch);
+                symbolDB->Write(leveldb::WriteOptions(), &symbolsBatch);
                 out += QByteArray("Wrote " + QByteArray::number(symbols.size())
                                   + " symbols and " + QByteArray::number(references.size())
                                   + " references in " + QByteArray::number(timer.elapsed()) + "ms");
@@ -304,10 +296,7 @@ void IndexerSyncer::run()
         if (!dependencies.isEmpty()) {
             QElapsedTimer timer;
             timer.start();
-            LevelDB db;
-            // ### could optimize for the case when the db is empty and not merge
-            if (!db.open(Server::Dependency, LevelDB::ReadWrite))
-                return;
+            leveldb::DB *db = Server::instance()->db(Server::Dependency);
             leveldb::WriteBatch batch;
 
             DependencyHash::iterator it = dependencies.begin();
@@ -316,7 +305,7 @@ void IndexerSyncer::run()
             while (it != end) {
                 const char* key = it.key().constData();
                 QSet<Path> added = it.value();
-                QSet<Path> current = Rdm::readValue<QSet<Path> >(db.db(), key);
+                QSet<Path> current = Rdm::readValue<QSet<Path> >(db, key);
                 const int oldSize = current.size();
                 if (current.unite(added).size() > oldSize) {
                     changed = true;
@@ -326,22 +315,20 @@ void IndexerSyncer::run()
             }
 
             if (changed)
-                db.db()->Write(leveldb::WriteOptions(), &batch);
+                db->Write(leveldb::WriteOptions(), &batch);
         }
         if (!pchDependencies.isEmpty() || !pchUSRHashes.isEmpty()) {
             QElapsedTimer timer;
             timer.start();
-            LevelDB db;
+            leveldb::DB *db = Server::instance()->db(Server::PCH);
             leveldb::WriteBatch batch;
-            if (!db.open(Server::PCH, LevelDB::ReadWrite))
-                return;
             if (!pchDependencies.isEmpty())
                 Rdm::writeValue<DependencyHash>(&batch, "dependencies", pchDependencies);
 
             for (QHash<Path, PchUSRHash>::const_iterator it = pchUSRHashes.begin(); it != pchUSRHashes.end(); ++it) {
                 Rdm::writeValue<PchUSRHash>(&batch, it.key(), it.value());
             }
-            db.db()->Write(leveldb::WriteOptions(), &batch);
+            db->Write(leveldb::WriteOptions(), &batch);
             out += ("Wrote " + QByteArray::number(pchDependencies.size() + pchUSRHashes.size()) + " pch infos in "
                     + QByteArray::number(timer.elapsed()) + "ms");
         }
@@ -357,11 +344,9 @@ void IndexerSyncer::run()
                 Rdm::writeValue<FileInformation>(&batch, key, it.value());
                 ++it;
             }
-            LevelDB db;
-            if (!db.open(Server::FileInformation, LevelDB::ReadWrite))
-                return;
+            leveldb::DB *db = Server::instance()->db(Server::FileInformation);
 
-            db.db()->Write(leveldb::WriteOptions(), &batch);
+            db->Write(leveldb::WriteOptions(), &batch);
             out += ("Wrote " + QByteArray::number(informations.size()) + " fileinfos in "
                     + QByteArray::number(timer.elapsed()) + "ms");
         }

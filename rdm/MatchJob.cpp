@@ -3,7 +3,6 @@
 #include "Log.h"
 #include "RTags.h"
 #include "Rdm.h"
-#include "LevelDB.h"
 
 MatchJob::MatchJob(int i, const QueryMessage &query)
     : Job(i, WriteUnfiltered), partial(query.query().front()), type(query.type()),
@@ -14,16 +13,11 @@ MatchJob::MatchJob(int i, const QueryMessage &query)
 
 void MatchJob::run()
 {
-    LevelDB db;
-    if (!db.open(Server::SymbolName, LevelDB::ReadOnly)) {
-        finish();
-        return;
-    }
-
+    leveldb::DB *db = Server::instance()->db(Server::SymbolName);
     const bool hasFilter = !pathFilters().isEmpty();
 
     QByteArray entry;
-    leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
+    leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
     it->Seek(partial.constData());
     while (it->Valid()) {
         entry = QByteArray(it->key().data(), it->key().size());

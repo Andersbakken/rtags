@@ -5,6 +5,7 @@
 #include <QByteArray>
 #include <QList>
 #include <QHash>
+#include <leveldb/db.h>
 #include "QueryMessage.h"
 
 class Connection;
@@ -20,6 +21,7 @@ class Server : public QObject
     Q_OBJECT
 public:
     Server(QObject *parent = 0);
+    ~Server();
     enum Option {
         NoOptions = 0x0
     };
@@ -33,11 +35,12 @@ public:
         DatabaseTypeCount
     };
 
-
+    static Server *instance() { return sInstance; }
+    inline leveldb::DB *db(DatabaseType type) const { return mDBs[type]; }
     bool init(unsigned options, const QList<QByteArray> &defaultArguments);
     static void setBaseDirectory(const QByteArray& base, bool clear);
-    static QByteArray databaseDir(DatabaseType type);
-    static QByteArray pchDir();
+    static Path databaseDir(DatabaseType type);
+    static Path pchDir();
 signals:
     void complete(int id, const QList<QByteArray>& locations);
 private slots:
@@ -62,6 +65,7 @@ private:
     int nextId();
     void connectJob(Job *job);
 private:
+    static Server *sInstance;
     unsigned mOptions;
     Indexer* mIndexer;
     QTcpServer* mServer;
@@ -71,7 +75,8 @@ private:
     bool mVerbose;
     int mJobId;
     QList<QByteArray> mCachedSymbolNames;
-    static QByteArray sBase;
+    static Path sBase;
+    leveldb::DB *mDBs[DatabaseTypeCount];
 };
 
 #endif

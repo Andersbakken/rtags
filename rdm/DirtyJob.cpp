@@ -1,5 +1,6 @@
 #include "DirtyJob.h"
-#include "LevelDB.h"
+#include "leveldb/db.h"
+#include "Server.h"
 
 void DirtyJob::dirty()
 {
@@ -7,14 +8,8 @@ void DirtyJob::dirty()
     const leveldb::WriteOptions writeOptions;
     debug() << "DirtyJob::dirty" << mDirty;
     {
-        LevelDB db;
-        QByteArray err;
-        if (!db.open(Server::Symbol, LevelDB::ReadWrite, &err)) {
-            error("Can't open symbol database %s %s\n",
-                  Server::databaseDir(Server::Symbol).constData(),
-                  err.constData());
-        }
-        leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
+        leveldb::DB *db = Server::instance()->db(Server::Symbol);
+        leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
         leveldb::WriteBatch batch;
         bool writeBatch = false;
         it->SeekToFirst();
@@ -45,19 +40,14 @@ void DirtyJob::dirty()
         }
         delete it;
         if (writeBatch) {
-            db.db()->Write(writeOptions, &batch);
+            db->Write(writeOptions, &batch);
         }
     }
 
     {
-        LevelDB db;
-        QByteArray err;
-        if (!db.open(Server::SymbolName, LevelDB::ReadWrite, &err)) {
-            error("Can't open symbol name database %s %s\n",
-                  Server::databaseDir(Server::SymbolName).constData(),
-                  err.constData());
-        }
-        leveldb::Iterator* it = db.db()->NewIterator(leveldb::ReadOptions());
+        leveldb::DB *db = Server::instance()->db(Server::SymbolName);
+
+        leveldb::Iterator* it = db->NewIterator(leveldb::ReadOptions());
         leveldb::WriteBatch batch;
         bool writeBatch = false;
         it->SeekToFirst();
@@ -87,7 +77,7 @@ void DirtyJob::dirty()
         }
         delete it;
         if (writeBatch) {
-            db.db()->Write(writeOptions, &batch);
+            db->Write(writeOptions, &batch);
         }
     }
 }
