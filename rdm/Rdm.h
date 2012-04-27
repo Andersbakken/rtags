@@ -149,26 +149,27 @@ struct CursorInfo {
         return changed || oldSize != references.size();
     }
 
-    int symbolLength;
+    int symbolLength; // this is just the symbol name e.g. foo
+    QByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
     CXCursorKind kind;
     RTags::Location target;
     QSet<RTags::Location> references;
 #ifdef QT_DEBUG
     RTags::Location loc;
-    QByteArray symbolName;
 #endif
 };
 
 static inline QDataStream &operator<<(QDataStream &ds, const CursorInfo &ci)
 {
-    ds << ci.symbolLength << ci.target << ci.references << static_cast<quint32>(ci.kind);
+    ds << ci.symbolLength << ci.target << ci.references << static_cast<quint32>(ci.kind)
+       << ci.symbolName;
     return ds;
 }
 
 static inline QDataStream &operator>>(QDataStream &ds, CursorInfo &ci)
 {
     quint32 kind;
-    ds >> ci.symbolLength >> ci.target >> ci.references >> kind;
+    ds >> ci.symbolLength >> ci.target >> ci.references >> kind >> ci.symbolName;
     ci.kind = static_cast<CXCursorKind>(kind);
     return ds;
 }

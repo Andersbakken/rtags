@@ -64,7 +64,7 @@ void IndexerJob::inclusionVisitor(CXFile included_file,
     clang_disposeString(fn);
 }
 
-void IndexerJob::addNamePermutations(CXCursor cursor, const RTags::Location &location)
+QByteArray IndexerJob::addNamePermutations(CXCursor cursor, const RTags::Location &location, bool addToDB)
 {
     QByteArray qname;
     QByteArray qparam, qnoparam;
@@ -88,24 +88,30 @@ void IndexerJob::addNamePermutations(CXCursor cursor, const RTags::Location &loc
         qname = QByteArray(name);
         if (qparam.isEmpty()) {
             qparam.prepend(qname);
-            qnoparam.prepend(qname);
-            const int sp = qnoparam.indexOf('(');
-            if (sp != -1)
-                qnoparam = qnoparam.left(sp);
+            if (addToDB) {
+                qnoparam.prepend(qname);
+                const int sp = qnoparam.indexOf('(');
+                if (sp != -1)
+                    qnoparam = qnoparam.left(sp);
+            }
         } else {
             qparam.prepend(qname + "::");
-            qnoparam.prepend(qname + "::");
+            if (addToDB)
+                qnoparam.prepend(qname + "::");
         }
         Q_ASSERT(!qparam.isEmpty());
-        mSymbolNames[qparam].insert(location);
-        if (qparam != qnoparam) {
-            Q_ASSERT(!qnoparam.isEmpty());
-            mSymbolNames[qnoparam].insert(location);
+        if (addToDB) {
+            mSymbolNames[qparam].insert(location);
+            if (qparam != qnoparam) {
+                Q_ASSERT(!qnoparam.isEmpty());
+                mSymbolNames[qnoparam].insert(location);
+            }
         }
 
         clang_disposeString(displayName);
         cur = clang_getCursorSemanticParent(cur);
     }
+    return qparam;
 }
 
 RTags::Location IndexerJob::createLocation(CXCursor cursor)
@@ -250,18 +256,15 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         clang_disposeString(name);
 #ifdef QT_DEBUG
         info.loc = loc;
-        info.symbolName = Rdm::eatString(clang_getCursorDisplayName(cursor));
 #endif
         if (!info.symbolLength) {
             job->mSymbols.remove(loc);
             return CXChildVisit_Recurse;
         }
+        const bool addToDB = (clang_isCursorDefinition(cursor) || kind == CXCursor_FunctionDecl);
+        info.symbolName = job->addNamePermutations(cursor, loc, addToDB);
     } else if (info.kind == CXCursor_Constructor && kind == CXCursor_TypeRef) {
         return CXChildVisit_Recurse;
-    }
-
-    if (clang_isCursorDefinition(cursor) || kind == CXCursor_FunctionDecl) {
-        job->addNamePermutations(cursor, loc);
     }
 
     if (!clang_isInvalid(refKind) && !refLoc.isNull()) {
