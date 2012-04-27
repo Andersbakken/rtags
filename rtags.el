@@ -50,7 +50,7 @@ return t if rtags is allowed to modify this file"
   (start-process "RTags SymbolName Completions" (generate-new-buffer "*RTags SymbolName Completions*") "rc" "-S"))
 
 (defun rtags-log (log)
-  (save-excursizoon
+  (save-excursion
     (set-buffer (get-buffer-create "*RTags Log*"))
     (goto-char (point-max))
     (setq buffer-read-only nil)
