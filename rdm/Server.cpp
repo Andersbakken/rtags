@@ -65,6 +65,16 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
             }
         }
     }
+    leveldb::DB *general = db(Server::General);
+    bool ok;
+    const int version = Rdm::readValue<int>(general, "version", &ok);
+    if (!ok) {
+        Rdm::writeValue<int>(general, "version", Rdm::DatabaseVersion);
+    } else if (version != Rdm::DatabaseVersion) {
+        error("Wrong version, expected %d, got %d. Run with -C to regenerate database", version, Rdm::DatabaseVersion);
+        return false;
+    }
+
     mDefaultArgs = defaultArguments;
     Messages::init();
     mServer = new QTcpServer(this);
@@ -94,15 +104,6 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
 #endif
     Rdm::initSystemPaths(systemPaths);
     mIndexer->setDefaultArgs(mDefaultArgs);
-    leveldb::DB *general = db(Server::General);
-    bool ok;
-    const int version = Rdm::readValue<int>(general, "version", &ok);
-    if (!ok) {
-        Rdm::writeValue<int>(general, "version", Rdm::DatabaseVersion);
-    } else if (version != Rdm::DatabaseVersion) {
-        error("Wrong version, expected %d, got %d. Run with -C to regenerate database", version, Rdm::DatabaseVersion);
-        return false;
-    }
 
     warning() << "running with" << mDefaultArgs;
     onSymbolNamesChanged();
