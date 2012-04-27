@@ -176,7 +176,7 @@ int main(int argc, char** argv)
             case 'C': type = QueryMessage::CursorInfo; break;
             case 'r': type = QueryMessage::ReferencesLocation; break;
             }
-            optlist.append(qMakePair<QueryMessage::Type, QByteArray>(type, loc.path));
+            optlist.append(qMakePair<QueryMessage::Type, QByteArray>(type, loc.key()));
             break; }
         case 't':
             optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Test, Path::resolved(optarg)));
