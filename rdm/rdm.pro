@@ -17,6 +17,7 @@ SOURCES += \
     SHA256.cpp \
     DumpJob.cpp \
     FollowLocationJob.cpp \
+    CursorInfoJob.cpp \
     MatchJob.cpp \
     ReferencesJob.cpp \
     Rdm.cpp \
@@ -33,6 +34,7 @@ HEADERS += \
     SHA256.h \
     DumpJob.h \
     FollowLocationJob.h \
+    CursorInfoJob.h \
     MatchJob.h \
     ReferencesJob.h \
     Rdm.h \

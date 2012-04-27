@@ -19,7 +19,8 @@ class QueryMessage : public Message
         FindSymbols,
         Dump,
         Status,
-        Test
+        Test,
+        CursorInfo
     };
 
     enum Flag {
@@ -38,6 +39,7 @@ class QueryMessage : public Message
     QList<QByteArray> pathFilters() const { return mPathFilters; }
     void setPathFilters(const QList<QByteArray> &pathFilters) { mPathFilters = pathFilters; qSort(mPathFilters); }
     int messageId() const { return MessageId; }
+    // ### it should be possible to put an already parsed Location in here instead of a query that needs to be reparsed
     QList<QByteArray> query() const { return mQuery; }
     QHash<Path, QByteArray> unsavedFiles() const { return mUnsavedFiles; }
     void setUnsavedFiles(const QHash<Path, QByteArray> &unsavedFiles) { mUnsavedFiles = unsavedFiles; }

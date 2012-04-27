@@ -52,8 +52,9 @@ void StatusJob::run()
             const Rdm::CursorInfo ci = Rdm::readValue<Rdm::CursorInfo>(it);
             CXString kind = clang_getCursorKindSpelling(ci.kind);
             snprintf(buf + 2 + it->key().size(), sizeof(buf) - it->key().size() - 3,
-                     " kind: %s symbolLength: %d target: %s%s",
-                     clang_getCString(kind), ci.symbolLength, ci.target.key(RTags::Location::Padded).constData(),
+                     " kind: %s symbolLength: %d symbolName: %s target: %s%s",
+                     clang_getCString(kind), ci.symbolLength, ci.symbolName.constData(),
+                     ci.target.key(RTags::Location::Padded).constData(),
                      ci.references.isEmpty() ? "" : " references:");
             clang_disposeString(kind);
             write(buf);

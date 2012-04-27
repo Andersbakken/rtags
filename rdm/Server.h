@@ -56,6 +56,7 @@ private:
     void handleQueryMessage(QueryMessage* message);
     void handleErrorMessage(ErrorMessage* message);
     int followLocation(const QueryMessage &query);
+    int cursorInfo(const QueryMessage &query);
     int referencesForLocation(const QueryMessage &query);
     int referencesForName(const QueryMessage &query);
     int match(const QueryMessage &query);

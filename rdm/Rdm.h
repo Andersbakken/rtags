@@ -11,7 +11,7 @@
 #include <RTags.h>
 
 namespace Rdm {
-enum { DatabaseVersion = 3 };
+enum { DatabaseVersion = 4 };
 enum ReferenceType {
     NormalReference,
     MemberFunction,
@@ -43,7 +43,7 @@ static inline bool startsWith(const QList<T> &list, const T &str)
 
 struct CursorInfo {
     CursorInfo() : symbolLength(0), kind(CXCursor_FirstInvalid) {}
-    bool isNull() const { return symbolLength; }
+    bool isNull() const { return !symbolLength; }
     void clear()
     {
         symbolLength = 0;
@@ -231,7 +231,7 @@ template <typename T> void writeValue(leveldb::DB *db, const char *key, const T 
             leveldb::Slice(out.constData(), out.size()));
 }
 
-CursorInfo findCursorInfo(leveldb::DB *db, const RTags::Location &key);
+CursorInfo findCursorInfo(leveldb::DB *db, const RTags::Location &key, RTags::Location *loc = 0);
 }
 
 

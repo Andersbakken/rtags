@@ -36,6 +36,12 @@ return t if rtags is allowed to modify this file"
       (buffer-substring (match-beginning 0) (match-end 0))
     nil))
 
+(defun rtags-current-location ()
+  (format "%s,%d" (buffer-file-name) (- (point) 1)))
+
+(defun rtags-print-current-location ()
+  (interactive)
+  (message (rtags-current-location)))
 
 (defun rtags-build-symbol-name-completions()
   (interactive)
@@ -96,7 +102,7 @@ return t if rtags is allowed to modify this file"
 (defun rtags-follow-symbol-at-point()
   (interactive)
   (setq rtags-last-buffer (current-buffer))
-  (let ((arg (format "%s,%d" (buffer-file-name) (- (point) 1))))
+  (let ((arg (rtags-current-location)))
     (with-temp-buffer
       (rtags-call-rc "-N" "-f" arg)
       (rtags-goto-location (buffer-string))
@@ -107,7 +113,7 @@ return t if rtags is allowed to modify this file"
 (defun rtags-find-references-at-point()
   (interactive)
   (setq rtags-last-buffer (current-buffer))
-  (let ((arg (format "%s,%d" (buffer-file-name) (- (point) 1))))
+  (let ((arg (rtags-current-location)))
     (if (get-buffer "*RTags Complete*")
         (kill-buffer "*RTags Complete*"))
     (switch-to-buffer (generate-new-buffer "*RTags Complete*"))

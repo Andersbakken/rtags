@@ -162,16 +162,21 @@ int main(int argc, char** argv)
             }
             break;
         case 'f':
+        case 'C':
         case 'r': {
             QByteArray resolved;
             RTags::Location loc;
             if (!RTags::makeLocation(optarg, &loc, &resolved)) {
-                qWarning("Can't resolve argument %s", optarg);
+                fprintf(stderr, "Can't resolve argument %s", optarg);
                 return 1;
             }
-            optlist.append(qMakePair((c == 'r'
-                                      ? QueryMessage::ReferencesLocation
-                                      : QueryMessage::FollowLocation), resolved));
+            QueryMessage::Type type = QueryMessage::Response;
+            switch (c) {
+            case 'f': type = QueryMessage::FollowLocation; break;
+            case 'C': type = QueryMessage::CursorInfo; break;
+            case 'r': type = QueryMessage::ReferencesLocation; break;
+            }
+            optlist.append(qMakePair(type, resolved));
             break; }
         case 't':
             optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Test, Path::resolved(optarg)));

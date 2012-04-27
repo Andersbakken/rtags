@@ -2,6 +2,7 @@
 #include "DumpJob.h"
 #include "FollowLocationJob.h"
 #include "Indexer.h"
+#include "CursorInfoJob.h"
 #include "MatchJob.h"
 #include "Message.h"
 #include "Messages.h"
@@ -204,6 +205,9 @@ void Server::handleQueryMessage(QueryMessage* message)
     case QueryMessage::Response:
         Q_ASSERT(0);
         break;
+    case QueryMessage::CursorInfo:
+        id = cursorInfo(*message);
+        break;
     case QueryMessage::FollowLocation:
         id = followLocation(*message);
         break;
@@ -306,6 +310,27 @@ int Server::followLocation(const QueryMessage &query)
 
     return id;
 }
+
+int Server::cursorInfo(const QueryMessage &query)
+{
+    RTags::Location loc;
+    if (!RTags::makeLocation(query.query().front(), &loc)) {
+        error("Failed to make location from [%s]", query.query().front().constData());
+        return 0;
+    }
+
+    const int id = nextId();
+
+    error() << "cursorInfo" << loc;
+
+    CursorInfoJob* job = new CursorInfoJob(id, loc, query.keyFlags());
+    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
+    connectJob(job);
+    QThreadPool::globalInstance()->start(job);
+
+    return id;
+}
+
 
 int Server::referencesForLocation(const QueryMessage &query)
 {

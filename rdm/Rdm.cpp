@@ -45,7 +45,7 @@ bool isSystem(const Path &path)
     return startsWith(sSystemPaths, path);
 }
 
-CursorInfo findCursorInfo(leveldb::DB *db, const RTags::Location &location)
+CursorInfo findCursorInfo(leveldb::DB *db, const RTags::Location &location, RTags::Location *loc)
 {
     const leveldb::ReadOptions readopts;
     leveldb::Iterator* it = db->NewIterator(readopts);
@@ -81,24 +81,21 @@ CursorInfo findCursorInfo(leveldb::DB *db, const RTags::Location &location)
             debug() << "wrong path" << location.path << loc.path << key;
         }
     }
-    if (found && !cursorInfo.symbolLength)
-        cursorInfo = Rdm::readValue<Rdm::CursorInfo>(it);
-#if 0
-    if (list.isEmpty()) {
-        it->SeekToFirst();
-        while (it->Valid()) {
-            const leveldb::Slice k = it->key();
-            const QByteArray key = QByteArray::fromRawData(k.data(), k.size());
-            RTags::Location loc = RTags::Location::fromKey(key);
-            debug() << key << loc;
-            it->Next();
+    if (found) {
+        if (!cursorInfo.symbolLength) {
+            cursorInfo = Rdm::readValue<Rdm::CursorInfo>(it);
+        }
+        if (loc) {
+            *loc = RTags::Location::fromKey(QByteArray::fromRawData(it->key().data(), it->key().size()));
         }
     }
-#endif
     delete it;
-    if (!found)
+    if (!found) {
+        // printf("[%s] %s:%d: if (!found) {\n", __func__, __FILE__, __LINE__);
         cursorInfo.clear();
-    // error() << "found" << found << location << cursorInfo.target << cursorInfo.references << cursorInfo.symbolLength;
+    }
+    // error() << "found" << found << location << cursorInfo.target << cursorInfo.references << cursorInfo.symbolLength
+    //         << cursorInfo.symbolName;
     return cursorInfo;
 }
 }
