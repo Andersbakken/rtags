@@ -236,7 +236,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         refLoc = job->createLocation(ref);
     }
 
-    Rdm::CursorInfo &info = job->mSymbols[loc];
+    CursorInfo &info = job->mSymbols[loc];
     if (!info.symbolLength) {
         if (job->mIsPch) {
             const QByteArray usr = Rdm::eatString(clang_getCursorUSR(cursor));

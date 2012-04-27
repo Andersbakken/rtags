@@ -24,7 +24,7 @@ void DirtyJob::dirty()
                 batch.Delete(key);
                 writeBatch = true;
             } else {
-                Rdm::CursorInfo cursorInfo = Rdm::readValue<Rdm::CursorInfo>(it);
+                CursorInfo cursorInfo = Rdm::readValue<CursorInfo>(it);
                 if (cursorInfo.dirty(mDirty)) {
                     writeBatch = true;
                     if (cursorInfo.target.isNull() && cursorInfo.references.isEmpty()) {
@@ -32,7 +32,7 @@ void DirtyJob::dirty()
                         batch.Delete(key);
                     } else {
                         debug() << "CursorInfo is modified. Changing" << key.data();
-                        Rdm::writeValue<Rdm::CursorInfo>(&batch, key.data(), cursorInfo);
+                        Rdm::writeValue<CursorInfo>(&batch, key.data(), cursorInfo);
                     }
                 }
             }

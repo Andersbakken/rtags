@@ -45,4 +45,5 @@ HEADERS += \
     IndexerSyncer.h \
     DirtyJob.h \
     Job.h \
-    TestJob.h
+    TestJob.h \
+    CursorInfo.h

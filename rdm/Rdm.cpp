@@ -53,7 +53,7 @@ CursorInfo findCursorInfo(leveldb::DB *db, const Location &location, Location *l
     it->Seek(needle.constData());
     QList<QByteArray> list;
     bool found = false;
-    Rdm::CursorInfo cursorInfo;
+    CursorInfo cursorInfo;
     if (it->Valid()) {
         const leveldb::Slice k = it->key();
         const QByteArray key = QByteArray::fromRawData(k.data(), k.size());
@@ -70,7 +70,7 @@ CursorInfo findCursorInfo(leveldb::DB *db, const Location &location, Location *l
         const Location loc = Location::fromKey(key);
         if (location.path == loc.path) {
             const int off = location.offset - loc.offset;
-            cursorInfo = Rdm::readValue<Rdm::CursorInfo>(it);
+            cursorInfo = Rdm::readValue<CursorInfo>(it);
             if (cursorInfo.symbolLength > off) {
                 found = true;
             } else {
@@ -83,7 +83,7 @@ CursorInfo findCursorInfo(leveldb::DB *db, const Location &location, Location *l
     }
     if (found) {
         if (!cursorInfo.symbolLength) {
-            cursorInfo = Rdm::readValue<Rdm::CursorInfo>(it);
+            cursorInfo = Rdm::readValue<CursorInfo>(it);
         }
         if (loc) {
             *loc = Location::fromKey(QByteArray::fromRawData(it->key().data(), it->key().size()));

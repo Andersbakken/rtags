@@ -214,12 +214,12 @@ void IndexerSyncer::run()
                 for (ReferenceHash::const_iterator it = references.begin(); it != end; ++it) {
                     const SymbolHash::iterator sym = symbols.find(it.value().first);
                     if (sym != symbols.end()) {
-                        Rdm::CursorInfo &ci = sym.value();
+                        CursorInfo &ci = sym.value();
                         ci.references.insert(it.key());
                         // if (it.value().first.path.contains("RTags.h"))
                         //     error() << "cramming" << it.key() << "into" << it.value();
                         if (it.value().second != Rdm::NormalReference) {
-                            Rdm::CursorInfo &other = symbols[it.key()];
+                            CursorInfo &other = symbols[it.key()];
                             ci.references += other.references;
                             other.references += ci.references;
                             if (other.target.isNull())
@@ -229,13 +229,13 @@ void IndexerSyncer::run()
                         }
                     } else {
                         const QByteArray key = it.value().first.key(Location::Padded);
-                        Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(symbolDB, key.constData());
+                        CursorInfo current = Rdm::readValue<CursorInfo>(symbolDB, key.constData());
                         bool changedCurrent = false;
                         if (addTo(current.references, it.key()))
                             changedCurrent = true;
                         if (it.value().second != Rdm::NormalReference) {
                             const QByteArray otherKey = it.key().key(Location::Padded);
-                            Rdm::CursorInfo other = Rdm::readValue<Rdm::CursorInfo>(symbolDB, otherKey);
+                            CursorInfo other = Rdm::readValue<CursorInfo>(symbolDB, otherKey);
                             bool changedOther = false;
                             if (addTo(other.references, it.key()))
                                 changedOther = true;
@@ -256,13 +256,13 @@ void IndexerSyncer::run()
 
                             if (changedOther) {
                                 changedSymbols = true;
-                                Rdm::writeValue<Rdm::CursorInfo>(&symbolsBatch, otherKey, other);
+                                Rdm::writeValue<CursorInfo>(&symbolsBatch, otherKey, other);
                             }
                             // error() << "ditched reference" << it.key() << it.value();
                         }
                         if (changedCurrent) {
                             changedSymbols = true;
-                            Rdm::writeValue<Rdm::CursorInfo>(&symbolsBatch, key, current);
+                            Rdm::writeValue<CursorInfo>(&symbolsBatch, key, current);
                         }
                     }
                 }
@@ -272,15 +272,15 @@ void IndexerSyncer::run()
                 const SymbolHash::const_iterator end = symbols.end();
                 while (it != end) {
                     const QByteArray key = it.key().key(Location::Padded);
-                    Rdm::CursorInfo added = it.value();
+                    CursorInfo added = it.value();
                     bool ok;
-                    Rdm::CursorInfo current = Rdm::readValue<Rdm::CursorInfo>(symbolDB, key.constData(), &ok);
+                    CursorInfo current = Rdm::readValue<CursorInfo>(symbolDB, key.constData(), &ok);
                     if (!ok) {
                         changedSymbols = true;
-                        Rdm::writeValue<Rdm::CursorInfo>(&symbolsBatch, key, added);
+                        Rdm::writeValue<CursorInfo>(&symbolsBatch, key, added);
                     } else if (current.unite(added)) {
                         changedSymbols = true;
-                        Rdm::writeValue<Rdm::CursorInfo>(&symbolsBatch, key, current);
+                        Rdm::writeValue<CursorInfo>(&symbolsBatch, key, current);
                     }
                     ++it;
                 }

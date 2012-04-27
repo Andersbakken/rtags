@@ -49,7 +49,7 @@ void StatusJob::run()
         memcpy(buf, "  ", 2);
         while (it->Valid()) {
             memcpy(buf + 2, it->key().data(), it->key().size());
-            const Rdm::CursorInfo ci = Rdm::readValue<Rdm::CursorInfo>(it);
+            const CursorInfo ci = Rdm::readValue<CursorInfo>(it);
             CXString kind = clang_getCursorKindSpelling(ci.kind);
             snprintf(buf + 2 + it->key().size(), sizeof(buf) - it->key().size() - 3,
                      " kind: %s symbolLength: %d symbolName: %s target: %s%s",

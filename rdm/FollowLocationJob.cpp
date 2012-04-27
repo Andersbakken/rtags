@@ -14,7 +14,7 @@ FollowLocationJob::~FollowLocationJob()
 void FollowLocationJob::run()
 {
     leveldb::DB *db = Server::instance()->db(Server::Symbol);
-    Rdm::CursorInfo cursorInfo = Rdm::findCursorInfo(db, location);
+    CursorInfo cursorInfo = Rdm::findCursorInfo(db, location);
     if (!cursorInfo.target.isNull()) {
         write(cursorInfo.target.key(flags));
     }

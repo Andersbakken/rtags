@@ -19,7 +19,7 @@ void DumpJob::run()
         const leveldb::Slice k = it->key();
         if (strncmp(fileName.constData(), k.data(), fileName.size()))
             break;
-        const Rdm::CursorInfo cursorInfo = Rdm::readValue<Rdm::CursorInfo>(it);
+        const CursorInfo cursorInfo = Rdm::readValue<CursorInfo>(it);
         QString str;
         QDebug dbg(&str);
         dbg << QByteArray::fromRawData(k.data(), k.size())

@@ -26,7 +26,7 @@ void ReferencesJob::run()
     }
     leveldb::DB *db = Server::instance()->db(Server::Symbol);
     foreach(const Location &location, locations) {
-        Rdm::CursorInfo cursorInfo = Rdm::findCursorInfo(db, location);
+        CursorInfo cursorInfo = Rdm::findCursorInfo(db, location);
         QSet<Location> refs = cursorInfo.references;
         if (refs.isEmpty() && !cursorInfo.target.isNull()) {
             cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);

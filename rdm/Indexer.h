@@ -5,7 +5,7 @@
 #include <AddMessage.h>
 #include "Rdm.h"
 
-typedef QHash<Location, Rdm::CursorInfo> SymbolHash;
+typedef QHash<Location, CursorInfo> SymbolHash;
 typedef QHash<Location, QPair<Location, Rdm::ReferenceType> > ReferenceHash;
 typedef QHash<QByteArray, QSet<Location> > SymbolNameHash;
 typedef QHash<Path, QSet<Path> > DependencyHash;
