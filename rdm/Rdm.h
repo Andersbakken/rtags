@@ -76,7 +76,7 @@ template <typename T> T readValue(leveldb::Iterator *it)
     return t;
 }
 
-template <typename T> void writeValue(leveldb::WriteBatch *batch, const char *key, const T &t)
+template <typename T> int writeValue(leveldb::WriteBatch *batch, const char *key, const T &t)
 {
     Q_ASSERT(batch);
     QByteArray out;
@@ -85,9 +85,10 @@ template <typename T> void writeValue(leveldb::WriteBatch *batch, const char *ke
         ds << t;
     }
     batch->Put(key, leveldb::Slice(out.constData(), out.size()));
+    return out.size();
 }
 
-template <typename T> void writeValue(leveldb::DB *db, const char *key, const T &t)
+template <typename T> int writeValue(leveldb::DB *db, const char *key, const T &t)
 {
     Q_ASSERT(db);
     Q_ASSERT(key);
@@ -98,6 +99,7 @@ template <typename T> void writeValue(leveldb::DB *db, const char *key, const T 
     }
     db->Put(leveldb::WriteOptions(), leveldb::Slice(key, strlen(key)),
             leveldb::Slice(out.constData(), out.size()));
+    return out.size();
 }
 
 CursorInfo findCursorInfo(leveldb::DB *db, const Location &key, Location *loc = 0);
