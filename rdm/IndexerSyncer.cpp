@@ -143,8 +143,10 @@ public:
     void write()
     {
         if (batchSize) {
+            // error("About to write %d bytes to %p", batchSize, db);
             db->Write(leveldb::WriteOptions(), &batch);
             totalWritten += batchSize;
+            // error("Wrote %d (%d) to %p", batchSize, totalWritten, db);
             batchSize = 0;
             batch.Clear();
         }
