@@ -33,15 +33,6 @@ IndexerJob::IndexerJob(Indexer* indexer, int id, const Path& input, const QList<
     setAutoDelete(false);
 }
 
-IndexerJob::~IndexerJob()
-{
-    // qDebug() << metaObject()->className() << "died" << ++count << ++active;
-    if (mUnit)
-        clang_disposeTranslationUnit(mUnit);
-    if (mIndex)
-        clang_disposeIndex(mIndex);
-}
-
 void IndexerJob::inclusionVisitor(CXFile included_file,
                                   CXSourceLocation* include_stack,
                                   unsigned include_len,
@@ -318,6 +309,14 @@ static QByteArray pchFileName(const QByteArray &header)
 
 void IndexerJob::run()
 {
+    execute();
+    if (mUnit)
+        clang_disposeTranslationUnit(mUnit);
+    if (mIndex)
+        clang_disposeIndex(mIndex);
+}
+void IndexerJob::execute()
+{
     QElapsedTimer timer;
     timer.start();
     QList<QByteArray> args = mArgs + mIndexer->defaultArgs();
@@ -381,6 +380,8 @@ void IndexerJob::run()
         mDependencies[mIn].insert(mIn);
         QCoreApplication::postEvent(mIndexer, new DependencyEvent(mDependencies));
         mIndexer->syncer()->addFileInformation(mIn, mArgs, timeStamp);
+        clang_disposeIndex(mIndex);
+        mIndex = 0;
     } else {
         clang_getInclusions(mUnit, inclusionVisitor, this);
         foreach(const Path &pchHeader, mPchHeaders) {
@@ -414,6 +415,10 @@ void IndexerJob::run()
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
         }
+        clang_disposeTranslationUnit(mUnit);
+        mUnit = 0;
+        clang_disposeIndex(mIndex);
+        mIndex = 0;
 
     }
     char buf[1024];

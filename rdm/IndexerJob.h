@@ -14,8 +14,8 @@ class IndexerJob : public QObject, public QRunnable, public AbortInterface
     Q_OBJECT;
 public:
     IndexerJob(Indexer* indexer, int id, const Path& input, const QList<QByteArray>& arguments);
-    ~IndexerJob();
-    void run();
+    virtual void run();
+    void execute();
 
     int mId;
     bool mIsPch;
