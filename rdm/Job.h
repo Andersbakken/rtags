@@ -13,6 +13,7 @@ public:
         WriteUnfiltered = 0x1
     };
     Job(int id, unsigned flags = None, QObject *parent = 0);
+    ~Job();
     void setPathFilters(const QList<QByteArray> &filter, bool filterSystemIncludes);
     QList<QByteArray> pathFilters() const;
     int id() const { return mId; }

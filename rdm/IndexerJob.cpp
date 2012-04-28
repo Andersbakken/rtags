@@ -22,16 +22,20 @@ static inline QList<Path> extractPchFiles(const QList<QByteArray>& args)
     return out;
 }
 
+// static int count = 0;
+// static int active = 0;
+
 IndexerJob::IndexerJob(Indexer* indexer, int id, const Path& input, const QList<QByteArray>& arguments)
     : mId(id), mIsPch(false), mIn(input), mArgs(arguments), mIndexer(indexer),
       mPchHeaders(extractPchFiles(arguments)), mIndex(0), mUnit(0)
 {
+    // qDebug() << metaObject()->className() << "born" << ++count << ++active;
     setAutoDelete(false);
 }
 
 IndexerJob::~IndexerJob()
 {
-    return;
+    // qDebug() << metaObject()->className() << "died" << ++count << ++active;
     if (mUnit)
         clang_disposeTranslationUnit(mUnit);
     if (mIndex)
