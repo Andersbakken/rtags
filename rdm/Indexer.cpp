@@ -336,7 +336,9 @@ void Indexer::onJobComplete(int id, const Path& input, bool isPch, const QByteAr
         }
     }
     const int idx = mJobCounter - (mIndexing.size() + mWaitingForPCH.size());
-    error("%s %d/%d %.1f%%", msg.constData(), idx, mJobCounter, (double(idx) / double(mJobCounter)) * 100.0);
+    error("%s %d/%d %.1f%%. Active jobs %d. Waiting For pch: %d.",
+          msg.constData(), idx, mJobCounter, (double(idx) / double(mJobCounter)) * 100.0,
+          mJobs.size(), mWaitingForPCH.size());
 
     if (mJobs.isEmpty()) {
         mSyncer->notify();
