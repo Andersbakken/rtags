@@ -405,9 +405,9 @@ void IndexerJob::execute()
             const Location loc(path, 0);
             mSymbolNames[path].insert(loc);
             mSymbolNames[path.fileName()].insert(loc);
-            mIndexer->syncer()->addFileInformations(mPaths);
         }
         if (!isAborted()) {
+            mIndexer->syncer()->addFileInformations(mPaths);
             mIndexer->syncer()->addSymbols(mSymbols);
             mIndexer->syncer()->addSymbolNames(mSymbolNames);
             mIndexer->syncer()->addFileInformation(mIn, mArgs, timeStamp);
