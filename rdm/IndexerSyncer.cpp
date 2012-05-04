@@ -131,6 +131,7 @@ static inline bool addTo(Container &container, const Value &value)
 void IndexerSyncer::run()
 {
     bool wroteSymbolNames = false;
+    quint64 memLast = 0;
     while (true) {
         SymbolNameHash symbolNames;
         SymbolHash symbols;
@@ -156,9 +157,14 @@ void IndexerSyncer::run()
                    && mPchUSRHashes.isEmpty()) {
                 if (first) {
                     first = false;
-                    error() << "Syncer sleeping, nothing to do";
+                    error() << "Syncer sleeping, nothing to do.";
                 }
-                error() << "we're using" << double(MemoryMonitor::usage()) / double(1024 * 1024) << "MB of memory";
+                const quint64 mem = MemoryMonitor::usage();
+                if (mem != memLast) {
+                    memLast = mem;
+                    error() << "We're using" << double(mem) / double(1024 * 1024) << "MB of memory";
+                }
+
                 mCond.wait(&mMutex, 10000);
                 if (mStopped)
                     return;
