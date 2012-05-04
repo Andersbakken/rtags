@@ -377,7 +377,7 @@ void IndexerSyncer::run()
             const InformationHash::const_iterator end = informations.end();
             while (it != end) {
                 const char *key = it.key().constData();
-                batch.add(key, it.key());
+                batch.add(key, it.value());
                 ++it;
             }
 
