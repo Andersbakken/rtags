@@ -50,14 +50,13 @@ public:
     void setDefaultArgs(const QList<QByteArray> &args);
     inline QList<QByteArray> defaultArgs() const { return mDefaultArgs; }
     void setPchDependencies(const Path &pchHeader, const QSet<Path> &deps);
+    void addDependencies(const DependencyHash &hash);
     QSet<Path> pchDependencies(const Path &pchHeader) const;
     QHash<QByteArray, Location> pchUSRHash(const QList<Path> &pchFiles) const;
     void setPchUSRHash(const Path &pch, const PchUSRHash &astHash);
     inline IndexerSyncer *syncer() const { return mSyncer; }
     Path path() const { return mPath; }
     void abort();
-protected:
-    void customEvent(QEvent* event);
 signals:
     void indexingDone(int id);
     void jobsComplete();

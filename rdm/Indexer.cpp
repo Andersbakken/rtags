@@ -1,5 +1,4 @@
 #include "Server.h"
-#include "DependencyEvent.h"
 #include "DirtyJob.h"
 #include "Indexer.h"
 #include "IndexerJob.h"
@@ -241,13 +240,6 @@ void Indexer::startJob(int id, IndexerJob *job)
     QThreadPool::globalInstance()->start(job);
 }
 
-void Indexer::customEvent(QEvent* e)
-{
-    if (e->type() == static_cast<QEvent::Type>(DependencyEvent::Type)) {
-        commitDependencies(static_cast<DependencyEvent*>(e)->deps, true);
-    }
-}
-
 void Indexer::onDirectoryChanged(const QString& path)
 {
     const Path p = path.toLocal8Bit();
@@ -373,6 +365,11 @@ QSet<Path> Indexer::pchDependencies(const Path &pchHeader) const
 {
     QReadLocker lock(&mPchDependenciesLock);
     return mPchDependencies.value(pchHeader);
+}
+
+void Indexer::addDependencies(const DependencyHash &deps)
+{
+    commitDependencies(deps, true);
 }
 
 PchUSRHash Indexer::pchUSRHash(const QList<Path> &pchFiles) const

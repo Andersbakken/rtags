@@ -1,6 +1,5 @@
 #include "IndexerJob.h"
 #include "SHA256.h"
-#include "DependencyEvent.h"
 #include "IndexerSyncer.h"
 #include "Server.h"
 
@@ -378,7 +377,7 @@ void IndexerJob::execute()
     if (!mUnit) {
         error() << "got 0 unit for" << clangLine;
         mDependencies[mIn].insert(mIn);
-        QCoreApplication::postEvent(mIndexer, new DependencyEvent(mDependencies));
+        mIndexer->addDependencies(mDependencies);
         mIndexer->syncer()->addFileInformation(mIn, mArgs, timeStamp);
         clang_disposeIndex(mIndex);
         mIndex = 0;
@@ -389,8 +388,7 @@ void IndexerJob::execute()
                 mDependencies[dep].insert(mIn);
             }
         }
-        QCoreApplication::postEvent(mIndexer, new DependencyEvent(mDependencies));
-
+        mIndexer->addDependencies(mDependencies);
         clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
         if (mIsPch) {
             Q_ASSERT(!pchName.isEmpty());

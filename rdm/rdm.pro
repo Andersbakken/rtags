@@ -41,7 +41,6 @@ HEADERS += \
     StatusJob.h \
     IndexerJob.h \
     Source.h \
-    DependencyEvent.h \
     IndexerSyncer.h \
     DirtyJob.h \
     Job.h \
