@@ -1,5 +1,5 @@
-#ifndef RDM_H
-#define RDM_H
+#ifndef Server_h
+#define Server_h
 
 #include <QObject>
 #include <QByteArray>

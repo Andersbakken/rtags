@@ -1,6 +1,7 @@
 #include "IndexerSyncer.h"
 #include "leveldb/db.h"
 #include "Server.h"
+#include "MemoryMonitor.h"
 
 IndexerSyncer::IndexerSyncer(QObject* parent)
     : QThread(parent), mStopped(false)
@@ -127,44 +128,6 @@ static inline bool addTo(Container &container, const Value &value)
     return container.size() != oldSize;
 }
 
-class Batch
-{
-public:
-    enum { BatchThreshold = 1024 * 1024 };
-    Batch(leveldb::DB *d)
-        : db(d), batchSize(0), totalWritten(0)
-    {}
-
-    ~Batch()
-    {
-        write();
-    }
-
-    void write()
-    {
-        if (batchSize) {
-            // error("About to write %d bytes to %p", batchSize, db);
-            db->Write(leveldb::WriteOptions(), &batch);
-            totalWritten += batchSize;
-            // error("Wrote %d (%d) to %p", batchSize, totalWritten, db);
-            batchSize = 0;
-            batch.Clear();
-        }
-    }
-
-    template <typename T>
-    void add(const char *key, const T &t)
-    {
-        batchSize += Rdm::writeValue<T>(&batch, key, t);
-        if (batchSize >= BatchThreshold)
-            write();
-    }
-
-    leveldb::DB *db;
-    leveldb::WriteBatch batch;
-    int batchSize, totalWritten;
-};
-
 void IndexerSyncer::run()
 {
     bool wroteSymbolNames = false;
@@ -183,6 +146,7 @@ void IndexerSyncer::run()
                 wroteSymbolNames = false;
                 emit symbolNamesChanged();
             }
+            bool first = true;;
             while (mSymbols.isEmpty()
                    && mSymbolNames.isEmpty()
                    && mDependencies.isEmpty()
@@ -190,6 +154,11 @@ void IndexerSyncer::run()
                    && mReferences.isEmpty()
                    && mPchDependencies.isEmpty()
                    && mPchUSRHashes.isEmpty()) {
+                if (first) {
+                    first = false;
+                    error() << "Syncer sleeping, nothing to do";
+                }
+                error() << "we're using" << double(MemoryMonitor::usage()) / double(1024 * 1024) << "MB of memory";
                 mCond.wait(&mMutex, 10000);
                 if (mStopped)
                     return;
@@ -212,11 +181,12 @@ void IndexerSyncer::run()
         QList<QByteArray> out;
 
         if (!symbolNames.isEmpty()) {
+            int totalWritten = 0;
             QElapsedTimer timer;
             timer.start();
             leveldb::DB *db = Server::instance()->db(Server::SymbolName);
 
-            Batch batch(db);
+            // Batch batch(db);
 
             SymbolNameHash::iterator it = symbolNames.begin();
             const SymbolNameHash::const_iterator end = symbolNames.end();
@@ -225,15 +195,14 @@ void IndexerSyncer::run()
                 const QSet<Location> added = it.value();
                 QSet<Location> current = Rdm::readValue<QSet<Location> >(db, key);
                 if (addTo(current, added)) {
-                    batch.add(key, current);
+                    totalWritten += Rdm::writeValue(db, key, current);
                 }
                 ++it;
             }
 
-            batch.write();
-            if (batch.totalWritten) {
+            if (totalWritten) {
                 out += QByteArray("Wrote " + QByteArray::number(symbolNames.size()) + " symbolNames "
-                                  + QByteArray::number(batch.totalWritten) + " bytes in "
+                                  + QByteArray::number(totalWritten) + " bytes in "
                                   + QByteArray::number(timer.elapsed()) + "ms");
                 wroteSymbolNames = true;
             }
@@ -241,9 +210,8 @@ void IndexerSyncer::run()
         if (!references.isEmpty() || !symbols.isEmpty()) {
             QElapsedTimer timer;
             timer.start();
-            leveldb::DB *symbolDB = Server::instance()->db(Server::Symbol);
-
-            Batch batch(symbolDB);
+            leveldb::DB *db = Server::instance()->db(Server::Symbol);
+            int totalWritten = 0;
 
             if (!references.isEmpty()) {
                 const ReferenceHash::const_iterator end = references.end();
@@ -265,13 +233,13 @@ void IndexerSyncer::run()
                         }
                     } else {
                         const QByteArray key = it.value().first.key(Location::Padded);
-                        CursorInfo current = Rdm::readValue<CursorInfo>(symbolDB, key.constData());
+                        CursorInfo current = Rdm::readValue<CursorInfo>(db, key.constData());
                         bool changedCurrent = false;
                         if (addTo(current.references, it.key()))
                             changedCurrent = true;
                         if (it.value().second != Rdm::NormalReference) {
                             const QByteArray otherKey = it.key().key(Location::Padded);
-                            CursorInfo other = Rdm::readValue<CursorInfo>(symbolDB, otherKey);
+                            CursorInfo other = Rdm::readValue<CursorInfo>(db, otherKey);
                             bool changedOther = false;
                             if (addTo(other.references, it.key()))
                                 changedOther = true;
@@ -291,12 +259,12 @@ void IndexerSyncer::run()
                             }
 
                             if (changedOther) {
-                                batch.add(otherKey, other);
+                                totalWritten += Rdm::writeValue(db, otherKey, other);
                             }
                             // error() << "ditched reference" << it.key() << it.value();
                         }
                         if (changedCurrent) {
-                            batch.add(key, current);
+                            totalWritten += Rdm::writeValue(db, key, current);
                         }
                     }
                 }
@@ -308,20 +276,19 @@ void IndexerSyncer::run()
                     const QByteArray key = it.key().key(Location::Padded);
                     CursorInfo added = it.value();
                     bool ok;
-                    CursorInfo current = Rdm::readValue<CursorInfo>(symbolDB, key.constData(), &ok);
+                    CursorInfo current = Rdm::readValue<CursorInfo>(db, key.constData(), &ok);
                     if (!ok) {
-                        batch.add(key, added);
+                        totalWritten += Rdm::writeValue(db, key, added);
                     } else if (current.unite(added)) {
-                        batch.add(key, current);
+                        totalWritten += Rdm::writeValue(db, key, current);
                     }
                     ++it;
                 }
             }
-            batch.write();
-            if (batch.totalWritten) {
+            if (totalWritten) {
                 out += QByteArray("Wrote " + QByteArray::number(symbols.size())
                                   + " symbols and " + QByteArray::number(references.size())
-                                  + " references " + QByteArray::number(batch.totalWritten) + " bytes in "
+                                  + " references " + QByteArray::number(totalWritten) + " bytes in "
                                   + QByteArray::number(timer.elapsed()) + "ms");
             }
         }
@@ -330,24 +297,23 @@ void IndexerSyncer::run()
             QElapsedTimer timer;
             timer.start();
             leveldb::DB *db = Server::instance()->db(Server::Dependency);
-            Batch batch(db);
 
             DependencyHash::iterator it = dependencies.begin();
             const DependencyHash::const_iterator end = dependencies.end();
+            int totalWritten = 0;
             while (it != end) {
                 const char* key = it.key().constData();
                 QSet<Path> added = it.value();
                 QSet<Path> current = Rdm::readValue<QSet<Path> >(db, key);
                 const int oldSize = current.size();
                 if (current.unite(added).size() > oldSize) {
-                    batch.add(key, current);
+                    totalWritten += Rdm::writeValue(db, key, current);
                 }
                 ++it;
             }
-            batch.write();
-            if (batch.totalWritten) {
+            if (totalWritten) {
                 out += QByteArray("Wrote " + QByteArray::number(dependencies.size())
-                                  + " dependencies, " + QByteArray::number(batch.totalWritten) + " bytes in "
+                                  + " dependencies, " + QByteArray::number(totalWritten) + " bytes in "
                                   + QByteArray::number(timer.elapsed()) + "ms");
             }
         }
@@ -355,34 +321,32 @@ void IndexerSyncer::run()
             QElapsedTimer timer;
             timer.start();
             leveldb::DB *db = Server::instance()->db(Server::PCH);
-            Batch batch(db);
+            int totalWritten = 0;
             if (!pchDependencies.isEmpty())
-                batch.add("dependencies", pchDependencies);
+                totalWritten += Rdm::writeValue(db, "dependencies", pchDependencies);
 
             for (QHash<Path, PchUSRHash>::const_iterator it = pchUSRHashes.begin(); it != pchUSRHashes.end(); ++it) {
-                batch.add(it.key(), it.value());
+                totalWritten += Rdm::writeValue(db, it.key(), it.value());
             }
-            batch.write();
             out += ("Wrote " + QByteArray::number(pchDependencies.size() + pchUSRHashes.size()) + " pch infos, "
-                    + QByteArray::number(batch.totalWritten) + " bytes in "
+                    + QByteArray::number(totalWritten) + " bytes in "
                     + QByteArray::number(timer.elapsed()) + "ms");
         }
         if (!informations.isEmpty()) {
             QElapsedTimer timer;
             timer.start();
             leveldb::DB *db = Server::instance()->db(Server::FileInformation);
-            Batch batch(db);
+            int totalWritten = 0;
 
             InformationHash::iterator it = informations.begin();
             const InformationHash::const_iterator end = informations.end();
             while (it != end) {
-                const char *key = it.key().constData();
-                batch.add(key, it.value());
+                totalWritten += Rdm::writeValue(db, it.key(), it.value());
                 ++it;
             }
 
             out += ("Wrote " + QByteArray::number(informations.size()) + " fileinfos, "
-                    + QByteArray::number(batch.totalWritten) + " bytes in "
+                    + QByteArray::number(totalWritten) + " bytes in "
                     + QByteArray::number(timer.elapsed()) + "ms");
         }
         if (!out.isEmpty())

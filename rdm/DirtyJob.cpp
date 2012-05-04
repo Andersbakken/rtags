@@ -10,8 +10,6 @@ void DirtyJob::dirty()
     {
         leveldb::DB *db = Server::instance()->db(Server::Symbol);
         RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
-        leveldb::WriteBatch batch;
-        bool writeBatch = false;
         it->SeekToFirst();
         while (it->Valid()) {
             const leveldb::Slice key = it->key();
@@ -21,25 +19,20 @@ void DirtyJob::dirty()
             const Path p = QByteArray::fromRawData(key.data(), comma);
             if (mDirty.contains(p)) {
                 debug() << "key is dirty. removing" << key.data();
-                batch.Delete(key);
-                writeBatch = true;
+                db->Delete(writeOptions, key);
             } else {
                 CursorInfo cursorInfo = Rdm::readValue<CursorInfo>(it);
                 if (cursorInfo.dirty(mDirty)) {
-                    writeBatch = true;
                     if (cursorInfo.target.isNull() && cursorInfo.references.isEmpty()) {
                         debug() << "CursorInfo is empty now. removing" << key.data();
-                        batch.Delete(key);
+                        db->Delete(writeOptions, key);
                     } else {
                         debug() << "CursorInfo is modified. Changing" << key.data();
-                        Rdm::writeValue<CursorInfo>(&batch, key.data(), cursorInfo);
+                        Rdm::writeValue<CursorInfo>(db, key.data(), cursorInfo);
                     }
                 }
             }
             it->Next();
-        }
-        if (writeBatch) {
-            db->Write(writeOptions, &batch);
         }
     }
 
@@ -47,8 +40,6 @@ void DirtyJob::dirty()
         leveldb::DB *db = Server::instance()->db(Server::SymbolName);
 
         RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
-        leveldb::WriteBatch batch;
-        bool writeBatch = false;
         it->SeekToFirst();
         while (it->Valid()) {
             QSet<Location> locations = Rdm::readValue<QSet<Location> >(it);
@@ -63,19 +54,15 @@ void DirtyJob::dirty()
                 }
             }
             if (changed) {
-                writeBatch = true;
                 if (locations.isEmpty()) {
                     debug() << "No references to" << it->key().data() << "anymore. Removing";
-                    batch.Delete(it->key());
+                    db->Delete(writeOptions, it->key());
                 } else {
                     debug() << "References to" << it->key().data() << "modified. Changing";
-                    Rdm::writeValue<QSet<Location> >(&batch, it->key().data(), locations);
+                    Rdm::writeValue<QSet<Location> >(db, it->key().data(), locations);
                 }
             }
             it->Next();
-        }
-        if (writeBatch) {
-            db->Write(writeOptions, &batch);
         }
     }
 }
