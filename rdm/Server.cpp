@@ -50,13 +50,13 @@ Server::~Server()
     sInstance = 0;
 }
 
-bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments, long cacheSizeMB)
+bool Server::init(const Options &options)
 {
-    mOptions = options;
+    mOptions = options.options;
     {
         leveldb::Options opt;
         opt.create_if_missing = true;
-        opt.block_cache = leveldb::NewLRUCache(cacheSizeMB * 1024 * 1024);
+        opt.block_cache = leveldb::NewLRUCache(options.cacheSizeMB * 1024 * 1024);
         leveldb::Status status;
         for (int i=0; i<DatabaseTypeCount; ++i) {
             status = leveldb::DB::Open(opt, databaseDir(static_cast<DatabaseType>(i)).constData(), &mDBs[i]);
@@ -76,7 +76,7 @@ bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments, l
         return false;
     }
 
-    mDefaultArgs = defaultArguments;
+    mDefaultArgs = options.defaultArguments;
     Messages::init();
     mServer = new QTcpServer(this);
     mIndexer = new Indexer(sBase, this);

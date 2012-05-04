@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <Log.h>
 #include <RTags.h>
+#include "Rdm.h"
 #include <signal.h>
 #include <execinfo.h>
 
@@ -29,17 +30,18 @@ void usage(FILE *f)
 {
     fprintf(f,
             "rdm ...options...\n"
-            "  --help|-h               Display this page\n"
-            "  --include-path|-I [arg] Add additional include path to clang\n"
-            "  --include|-i [arg]      Add additional include directive to clang\n"
-            "  --define|-D [arg]       Add additional define directive to clang\n"
-            "  --log-file|-L [arg]     Log to this file\n"
-            "  --append|-A             Append to log file\n"
-            "  --verbose|-v            Change verbosity, multiple -v's are allowed\n"
-            "  --clean-slate|-C        Start from a clean slate\n"
-            "  --datadir|-d [arg]      Use this as datadir (default ~/.rtags\n"
-            "  --cache-size|-c [size]  Cache size in MB (one cache per db, default 100MB)\n"
-            "  --thread-count|-j [arg] Spawn this many threads for thread pool\n");
+            "  --help|-h                  Display this page\n"
+            "  --include-path|-I [arg]    Add additional include path to clang\n"
+            "  --include|-i [arg]         Add additional include directive to clang\n"
+            "  --define|-D [arg]          Add additional define directive to clang\n"
+            "  --log-file|-L [arg]        Log to this file\n"
+            "  --append|-A                Append to log file\n"
+            "  --verbose|-v               Change verbosity, multiple -v's are allowed\n"
+            "  --clean-slate|-C           Start from a clean slate\n"
+            "  --datadir|-d [arg]         Use this as datadir (default ~/.rtags\n"
+            "  --cache-size|-c [size]     Cache size in MB (one cache per db, default 128MB)\n"
+            "  --max-memory-use|-M [size] Max amount of memory to use in MB default 1024MB\n"
+            "  --thread-count|-j [arg]    Spawn this many threads for thread pool\n");
 }
 
 int main(int argc, char** argv)
@@ -56,6 +58,7 @@ int main(int argc, char** argv)
         { "datadir", required_argument, 0, 'd' },
         { "clean-slate", no_argument, 0, 'C' },
         { "cache-size", required_argument, 0, 'c' },
+        { "max-memory-use", required_argument, 0, 'M' },
         { 0, 0, 0, 0 }
     };
 
@@ -68,7 +71,8 @@ int main(int argc, char** argv)
     bool clearDataDir = false;
     Path datadir = (QDir::homePath() + "/.rtags/").toLocal8Bit();
     const QByteArray shortOptions = RTags::shortOptions(opts);
-    int cacheSize = 100;
+    int cacheSize = 128;
+    long maxMemoryUse = 1024;
 
     forever {
         const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
@@ -92,6 +96,13 @@ int main(int argc, char** argv)
                 return 1;
             }
             break; }
+        case 'M':
+            maxMemoryUse = atoi(optarg);
+            if (maxMemoryUse <= 0) {
+                fprintf(stderr, "Can't parse argument to -M %s\n", optarg);
+                return 1;
+            }
+            break;
         case 'j':
             jobs = atoi(optarg);
             if (jobs <= 0) {
@@ -135,6 +146,7 @@ int main(int argc, char** argv)
                 logLevel, logFile ? logFile : "", logFlags);
         return false;
     }
+    Rdm::setMaxMemoryUsage(maxMemoryUse * 1024 * 1024);
     Server::setBaseDirectory(datadir, clearDataDir);
     if (clearDataDir) {
         warning("Removing contents of cache directory [%s]", datadir.constData());
@@ -143,7 +155,8 @@ int main(int argc, char** argv)
     warning("Running with %d jobs", jobs);
 
     Server server;
-    if (!server.init(options, defaultArguments, cacheSize))
+    const Server::Options serverOpts = { options, defaultArguments, cacheSize };
+    if (!server.init(serverOpts))
         return 1;
 
     signal(SIGINT, signalHandler);

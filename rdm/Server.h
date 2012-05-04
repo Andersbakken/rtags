@@ -37,7 +37,12 @@ public:
 
     static Server *instance() { return sInstance; }
     inline leveldb::DB *db(DatabaseType type) const { return mDBs[type]; }
-    bool init(unsigned options, const QList<QByteArray> &defaultArguments, long cacheSizeMB);
+    struct Options {
+        unsigned options;
+        QList<QByteArray> defaultArguments;
+        long cacheSizeMB;
+    };
+    bool init(const Options &options);
     static void setBaseDirectory(const QByteArray& base, bool clear);
     static Path databaseDir(DatabaseType type);
     static Path pchDir();
