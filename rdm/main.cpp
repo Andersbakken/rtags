@@ -39,6 +39,7 @@ void usage(FILE *f)
             "  --verbose|-v               Change verbosity, multiple -v's are allowed\n"
             "  --clean-slate|-C           Start from a clean slate\n"
             "  --datadir|-d [arg]         Use this as datadir (default ~/.rtags\n"
+            "  --enable-sighandler|-s     Enable signal handler to dump stack for crashes\n"
             "  --cache-size|-c [size]     Cache size in MB (one cache per db, default 128MB)\n"
             "  --max-memory-use|-M [size] Max amount of memory to use in MB default 1024MB\n"
             "  --thread-count|-j [arg]    Spawn this many threads for thread pool\n");
@@ -59,6 +60,7 @@ int main(int argc, char** argv)
         { "clean-slate", no_argument, 0, 'C' },
         { "cache-size", required_argument, 0, 'c' },
         { "max-memory-use", required_argument, 0, 'M' },
+        { "enable-sighandler", no_argument, 0, 's' },
         { 0, 0, 0, 0 }
     };
 
@@ -84,6 +86,9 @@ int main(int argc, char** argv)
             return 0;
         case 'd':
             datadir = Path::resolved(optarg);
+            break;
+        case 's':
+            signal(SIGINT, signalHandler);
             break;
         case 'C':
             clearDataDir = true;
@@ -159,6 +164,5 @@ int main(int argc, char** argv)
     if (!server.init(serverOpts))
         return 1;
 
-    signal(SIGINT, signalHandler);
     return app.exec();
 }
