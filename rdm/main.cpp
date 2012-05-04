@@ -38,6 +38,7 @@ void usage(FILE *f)
             "  --verbose|-v            Change verbosity, multiple -v's are allowed\n"
             "  --clean-slate|-C        Start from a clean slate\n"
             "  --datadir|-d [arg]      Use this as datadir (default ~/.rtags\n"
+            "  --cache-size|-c [size]  Cache size in MB (one cache per db, default 100MB)\n"
             "  --thread-count|-j [arg] Spawn this many threads for thread pool\n");
 }
 
@@ -54,6 +55,7 @@ int main(int argc, char** argv)
         { "thread-count", required_argument, 0, 'j' },
         { "datadir", required_argument, 0, 'd' },
         { "clean-slate", no_argument, 0, 'C' },
+        { "cache-size", required_argument, 0, 'c' },
         { 0, 0, 0, 0 }
     };
 
@@ -66,6 +68,7 @@ int main(int argc, char** argv)
     bool clearDataDir = false;
     Path datadir = (QDir::homePath() + "/.rtags/").toLocal8Bit();
     const QByteArray shortOptions = RTags::shortOptions(opts);
+    int cacheSize = 100;
 
     forever {
         const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
@@ -81,10 +84,18 @@ int main(int argc, char** argv)
         case 'C':
             clearDataDir = true;
             break;
+        case 'c': {
+            bool ok;
+            cacheSize = QByteArray::fromRawData(optarg, strlen(optarg)).toUInt(&ok);
+            if (!ok) {
+                fprintf(stderr, "Can't parse argument to -c %s\n", optarg);
+                return 1;
+            }
+            break; }
         case 'j':
             jobs = atoi(optarg);
             if (jobs <= 0) {
-                fprintf(stderr, "Can't parse argument to -j %s", optarg);
+                fprintf(stderr, "Can't parse argument to -j %s\n", optarg);
                 return 1;
             }
             break;
@@ -127,7 +138,7 @@ int main(int argc, char** argv)
     warning("Running with %d jobs", jobs);
 
     Server server;
-    if (!server.init(options, defaultArguments))
+    if (!server.init(options, defaultArguments, cacheSize))
         return 1;
 
     signal(SIGINT, signalHandler);

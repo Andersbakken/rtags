@@ -16,6 +16,7 @@
 #include "Server.h"
 #include "StatusJob.h"
 #include "leveldb/db.h"
+#include "leveldb/cache.h"
 #include <Log.h>
 #include <QtCore>
 #include <QtNetwork>
@@ -49,13 +50,13 @@ Server::~Server()
     sInstance = 0;
 }
 
-bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments)
+bool Server::init(unsigned options, const QList<QByteArray> &defaultArguments, long cacheSizeMB)
 {
     mOptions = options;
     {
         leveldb::Options opt;
         opt.create_if_missing = true;
-
+        opt.block_cache = leveldb::NewLRUCache(cacheSizeMB * 1024 * 1024);
         leveldb::Status status;
         for (int i=0; i<DatabaseTypeCount; ++i) {
             status = leveldb::DB::Open(opt, databaseDir(static_cast<DatabaseType>(i)).constData(), &mDBs[i]);
