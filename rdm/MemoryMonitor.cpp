@@ -10,16 +10,6 @@ MemoryMonitor::MemoryMonitor()
 }
 
 #ifdef Q_OS_LINUX
-static inline quint64 valueKiB(const char* str)
-{
-    while (*str == ' ') {
-        ++str;
-    }
-    if (*str == '\0')
-        return 0;
-    return atoi(str);
-}
-
 static inline quint64 usageLinux()
 {
     const pid_t pid = getpid();
@@ -30,9 +20,9 @@ static inline quint64 usageLinux()
     QList<QByteArray> lines = file.readAll().split('\n');
     foreach(const QByteArray& line, lines) {
         if (!qstrncmp("Private_Clean:", line, 14))
-            total += (valueKiB(line.constData() + 14) * 1024);
+            total += (atoll(line.constData() + 14) * 1024);
         else if (!qstrncmp("Private_Dirty:", line, 14))
-            total += (valueKiB(line.constData() + 14) * 1024);
+            total += (atoll(line.constData() + 14) * 1024);
     }
     return total;
 }
