@@ -143,7 +143,7 @@ int main(int argc, char** argv)
         fprintf(stderr, "rdm: unexpected option -- '%s'\n", argv[optind]);
         return 1;
     }
-    
+
     QThreadPool::globalInstance()->setMaxThreadCount(jobs);
     QCoreApplication app(argc, argv);
     if (!initLogging(logLevel, logFile, logFlags)) {

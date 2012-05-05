@@ -138,13 +138,18 @@ void Indexer::init()
         const Path path(key.data(), key.size());
         if (path.isFile()) {
             const FileInformation fi = Rdm::readValue<FileInformation>(it);
-            if (!fi.compileArgs.isEmpty() && isDirty(path, deps.value(path), fi.lastTouched, dirty)) {
-                // ### am I checking pch deps correctly here?
-                if (isPch(fi.compileArgs)) {
-                    toIndexPch[path] = fi.compileArgs;
-                } else {
-                    toIndex[path] = fi.compileArgs;
+            if (!fi.compileArgs.isEmpty()) {
+                bool dirt = false;
+                if (isDirty(path, deps.value(path), fi.lastTouched, dirty)) {
+                    dirt = true;
+                    // ### am I checking pch deps correctly here?
+                    if (isPch(fi.compileArgs)) {
+                        toIndexPch[path] = fi.compileArgs;
+                    } else {
+                        toIndex[path] = fi.compileArgs;
+                    }
                 }
+                warning() << "checking if" << path << "is dirty =>" << dirt;
             }
         } else {
             batch.Delete(key);
@@ -165,6 +170,7 @@ Indexer::~Indexer()
 {
     mSyncer->stop();
     mSyncer->wait();
+    // write out FileInformation for all the files that are waiting for pch maybe
 }
 
 void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
@@ -415,4 +421,9 @@ void Indexer::abort()
     foreach(IndexerJob *job, mJobs) {
         job->abort();
     }
+}
+QList<QByteArray> Indexer::compileArgs(const Path &file) const
+{
+    leveldb::DB *fileInformationDB = Server::instance()->db(Server::FileInformation);
+    return Rdm::readValue<FileInformation>(fileInformationDB, file).compileArgs;
 }

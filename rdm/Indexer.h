@@ -57,6 +57,7 @@ public:
     inline IndexerSyncer *syncer() const { return mSyncer; }
     Path path() const { return mPath; }
     void abort();
+    QList<QByteArray> compileArgs(const Path &file) const;
 signals:
     void indexingDone(int id);
     void jobsComplete();

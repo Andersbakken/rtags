@@ -176,7 +176,6 @@ void IndexerSyncer::run()
             qSwap(pchUSRHashes, mPchUSRHashes);
             qSwap(informations, mInformations);
             qSwap(references, mReferences);
-            mIndexerJobCondition.wakeAll();
         }
         warning() << "IndexerSyncer::run woke up symbols" << symbols.size()
                   << "symbolNames" << symbolNames.size()
@@ -358,6 +357,7 @@ void IndexerSyncer::run()
         }
         if (!out.isEmpty())
             error() << RTags::join(out, ", ").constData();
+        mIndexerJobCondition.wakeAll();
     }
 }
 
@@ -373,7 +373,7 @@ void IndexerSyncer::maybeWake()
 void IndexerSyncer::wait()
 {
     QMutexLocker lock(&mMutex);
-    enum { MaxSize = 1024 * 64 };
+    enum { MaxSize = 1024 * 256 };
 
     while (mSymbols.size() + mSymbolNames.size() + mDependencies.size() + mPchDependencies.size()
            + mInformations.size() + mReferences.size() + mPchUSRHashes.size()

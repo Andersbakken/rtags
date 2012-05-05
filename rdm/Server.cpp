@@ -191,8 +191,13 @@ void Server::handleAddMessage(AddMessage* message)
 {
     Connection* conn = qobject_cast<Connection*>(sender());
 
-    int id = mIndexer->index(message->inputFile(), message->arguments() + pch(message));
-    mPendingIndexes[id] = conn;
+    leveldb::DB *database = db(Server::FileInformation);
+    const QList<QByteArray> args = message->arguments() + pch(message);
+    if (args != mIndexer->compileArgs(message->inputFile())) {
+        const int id = mIndexer->index(message->inputFile(), args);
+        if (id != -1)
+            mPendingIndexes[id] = conn;
+    }
 }
 
 void Server::handleQueryMessage(QueryMessage* message)
