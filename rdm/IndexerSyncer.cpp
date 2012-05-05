@@ -176,6 +176,7 @@ void IndexerSyncer::run()
             qSwap(pchUSRHashes, mPchUSRHashes);
             qSwap(informations, mInformations);
             qSwap(references, mReferences);
+            mIndexerJobCondition.wakeAll();
         }
         warning() << "IndexerSyncer::run woke up symbols" << symbols.size()
                   << "symbolNames" << symbolNames.size()
@@ -367,4 +368,18 @@ void IndexerSyncer::maybeWake()
     enum { MaxSize = 1024 * 64 };
     if (size > MaxSize) // ### tunable?
         mCond.wakeOne();
+}
+
+void IndexerSyncer::wait()
+{
+    QMutexLocker lock(&mMutex);
+    enum { MaxSize = 1024 * 64 };
+
+    while (mSymbols.size() + mSymbolNames.size() + mDependencies.size() + mPchDependencies.size()
+           + mInformations.size() + mReferences.size() + mPchUSRHashes.size()
+           > MaxSize) {
+        error() << "waiting";
+        mIndexerJobCondition.wait(&mMutex);
+        error() << "woke up";
+    }
 }

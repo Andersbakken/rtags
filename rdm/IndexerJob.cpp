@@ -318,9 +318,14 @@ void IndexerJob::execute()
 {
     QElapsedTimer timer;
     timer.start();
-    while (!Rdm::waitForMemory(10000)) {
-        error("%s Waiting for rdm to shrink", mIn.constData());
+    mIndexer->syncer()->wait();
+    int elapsed = timer.elapsed();
+    if (elapsed) {
+        error() << mIn << "waited for" << elapsed << "ms";
     }
+    // while (!Rdm::waitForMemory(10000)) {
+    //     error("%s Waiting for rdm to shrink", mIn.constData());
+    // }
     QList<QByteArray> args = mArgs + mIndexer->defaultArgs();
     if (!mPchHeaders.isEmpty())
         mPchUSRHash = mIndexer->pchUSRHash(mPchHeaders);

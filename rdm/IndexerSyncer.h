@@ -20,6 +20,7 @@ public:
     void addPchUSRHash(const Path &pchHeader, const PchUSRHash &hash);
     void notify();
     void stop();
+    void wait();
 
 protected:
     void run();
@@ -30,7 +31,7 @@ private:
 
     bool mStopped;
     QMutex mMutex;
-    QWaitCondition mCond;
+    QWaitCondition mCond, mIndexerJobCondition;
     SymbolHash mSymbols;
     SymbolNameHash mSymbolNames;
     DependencyHash mDependencies, mPchDependencies;
