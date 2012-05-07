@@ -159,10 +159,13 @@ void IndexerSyncer::run()
                     first = false;
                     error() << "Syncer sleeping, nothing to do.";
                 }
+                QElapsedTimer tm;
+                tm.start();
                 const quint64 mem = MemoryMonitor::usage();
+                const int elapsed = tm.elapsed();
                 if (mem != memLast) {
                     memLast = mem;
-                    error() << "We're using" << double(mem) / double(1024 * 1024) << "MB of memory";
+                    error() << "We're using" << double(mem) / double(1024 * 1024) << "MB of memory" << elapsed << "ms";
                 }
 
                 mCond.wait(&mMutex, 10000);
@@ -379,7 +382,9 @@ void IndexerSyncer::wait()
            + mInformations.size() + mReferences.size() + mPchUSRHashes.size()
            > MaxSize) {
         error() << "waiting";
+        QElapsedTimer timer;
+        timer.start();
         mIndexerJobCondition.wait(&mMutex);
-        error() << "woke up";
+        error() << "woke up after" << timer.elapsed() << "ms";
     }
 }

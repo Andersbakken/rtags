@@ -1,6 +1,7 @@
 #include "IndexerJob.h"
 #include "SHA256.h"
 #include "IndexerSyncer.h"
+#include "MemoryMonitor.h"
 #include "Server.h"
 
 static inline QList<Path> extractPchFiles(const QList<QByteArray>& args)
@@ -434,4 +435,7 @@ void IndexerJob::execute()
                                       : QString()));
 
     emit done(mId, mIn, mIsPch, QByteArray(buf, w));
+    if (testLog(Warning)) {
+        error() << "We're using" << double(MemoryMonitor::usage()) / double(1024 * 1024) << "MB of memory" << elapsed << "ms";
+    }
 }

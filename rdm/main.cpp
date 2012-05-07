@@ -23,6 +23,7 @@ void signalHandler(int signal)
         fprintf(stderr, "  %d/%d %p %s\n", i + 1, c, callstack[i], symbols[i]);
     free(symbols);
     fflush(stderr);
+    delete Server::instance();
     _exit(1);
 }
 
@@ -159,10 +160,14 @@ int main(int argc, char** argv)
 
     warning("Running with %d jobs", jobs);
 
-    Server server;
+    Server *server = new Server;
     const Server::Options serverOpts = { options, defaultArguments, cacheSize };
-    if (!server.init(serverOpts))
+    if (!server->init(serverOpts)) {
+        delete server;
         return 1;
+    }
 
-    return app.exec();
+    const int ret = app.exec();
+    delete server;
+    return ret;
 }

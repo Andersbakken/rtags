@@ -48,6 +48,15 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
     init();
 }
 
+Indexer::~Indexer()
+{
+    mSyncer->stop();
+    mSyncer->wait();
+    QMutexLocker locker(&mMutex);
+
+    // write out FileInformation for all the files that are waiting for pch maybe
+}
+
 void Indexer::initWatcher()
 {
     leveldb::DB *db = Server::instance()->db(Server::Dependency);
@@ -164,13 +173,6 @@ void Indexer::init()
         return;
 
     QThreadPool::globalInstance()->start(new DirtyJob(this, dirty, toIndexPch, toIndex));
-}
-
-Indexer::~Indexer()
-{
-    mSyncer->stop();
-    mSyncer->wait();
-    // write out FileInformation for all the files that are waiting for pch maybe
 }
 
 void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
