@@ -20,7 +20,8 @@ void warning(const char *format, ...);
 void error(const char *format, ...);
 enum LogFlag {
     Append = 0x1,
-    DontRotate = 0x2
+    DontRotate = 0x2,
+    AbsoluteTime = 0x4
 };
 bool testLog(int level);
 bool initLogging(int logLevel, const Path &logFile, unsigned flags);

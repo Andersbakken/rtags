@@ -7,8 +7,15 @@
 #include <QCoreApplication>
 
 static int sLevel = 0;
+static unsigned sFlags = 0;
 static FILE *sFile = 0;
 static QByteArray sLogFile;
+static QElapsedTimer sStart;
+
+static inline QByteArray prettyTimeSinceStarted()
+{
+    return QTime(0, 0, 0, sStart.elapsed()).toString("hh:mm:ss.zzz").toLocal8Bit();
+}
 
 static void log(int level, const char *format, va_list v)
 {
@@ -25,7 +32,8 @@ static void log(int level, const char *format, va_list v)
         msg = new char[n + 1];
         n = vsnprintf(msg, n + 1, format, v);
     }
-    const QByteArray now = QDateTime::currentDateTime().toString("dd/MM/yy hh:mm:ss").toLocal8Bit();
+    const QByteArray now = (sFlags & AbsoluteTime ? QDateTime::currentDateTime().toString("dd/MM/yy hh:mm:ss").toLocal8Bit()
+                            : prettyTimeSinceStarted());
     static QMutex mutex;
     QMutexLocker lock(&mutex); // serialize
 #if 0
@@ -107,6 +115,8 @@ bool testLog(int level)
 
 bool initLogging(int level, const Path &file, unsigned flags)
 {
+    sStart.start();
+    sFlags = flags;
     sLevel = level;
     if (!file.isEmpty()) {
         if (!(flags & (Append|DontRotate)) && file.exists()) {
