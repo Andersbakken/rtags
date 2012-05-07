@@ -133,12 +133,12 @@ void setMaxMemoryUsage(quint64 max)
 
 int writeSymbolNames(SymbolNameHash &symbolNames)
 {
-    int totalWritten = 0;
     QElapsedTimer timer;
     timer.start();
     leveldb::DB *db = Server::instance()->db(Server::SymbolName);
 
-    // Batch batch(db);
+    Batch batch(db);
+    int totalWritten = 0;
 
     SymbolNameHash::iterator it = symbolNames.begin();
     const SymbolNameHash::const_iterator end = symbolNames.end();
@@ -147,7 +147,7 @@ int writeSymbolNames(SymbolNameHash &symbolNames)
         const QSet<Location> added = it.value();
         QSet<Location> current = Rdm::readValue<QSet<Location> >(db, key);
         if (addTo(current, added)) {
-            totalWritten += Rdm::writeValue(db, key, current);
+            totalWritten += batch.add(key, current);
         }
         ++it;
     }
@@ -162,11 +162,12 @@ int writeSymbolNames(SymbolNameHash &symbolNames)
 
 int writeDependencies(const DependencyHash &dependencies)
 {
-    int totalWritten = 0;
     QElapsedTimer timer;
     timer.start();
     leveldb::DB *db = Server::instance()->db(Server::Dependency);
 
+    Batch batch(db);
+    int totalWritten = 0;
     DependencyHash::const_iterator it = dependencies.begin();
     const DependencyHash::const_iterator end = dependencies.end();
     while (it != end) {
@@ -175,7 +176,7 @@ int writeDependencies(const DependencyHash &dependencies)
         QSet<Path> current = Rdm::readValue<QSet<Path> >(db, key);
         const int oldSize = current.size();
         if (current.unite(added).size() > oldSize) {
-            totalWritten += Rdm::writeValue(db, key, current);
+            totalWritten += batch.add(key, current);
         }
         ++it;
     }
@@ -201,11 +202,12 @@ int writeFileInformation(const InformationHash &informations)
     timer.start();
     leveldb::DB *db = Server::instance()->db(Server::FileInformation);
     int totalWritten = 0;
+    Batch batch(db);
 
     InformationHash::const_iterator it = informations.begin();
     const InformationHash::const_iterator end = informations.end();
     while (it != end) {
-        totalWritten += Rdm::writeValue(db, it.key(), it.value());
+        totalWritten += batch.add(it.key(), it.value());
         ++it;
     }
 
@@ -220,8 +222,9 @@ int writePchUSRHashes(const QHash<Path, PchUSRHash> &pchUSRHashes)
     timer.start();
     leveldb::DB *db = Server::instance()->db(Server::PCH);
     int totalWritten = 0;
+    Batch batch(db);
     for (QHash<Path, PchUSRHash>::const_iterator it = pchUSRHashes.begin(); it != pchUSRHashes.end(); ++it) {
-        totalWritten += Rdm::writeValue(db, it.key(), it.value());
+        totalWritten += batch.add(it.key(), it.value());
     }
     error() << "Wrote" << pchUSRHashes.size() << "pch infos,"
             << totalWritten << "bytes in"
@@ -234,6 +237,7 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
     QElapsedTimer timer;
     timer.start();
     leveldb::DB *db = Server::instance()->db(Server::Symbol);
+    Batch batch(db);
     int totalWritten = 0;
 
     if (!references.isEmpty()) {
@@ -282,12 +286,12 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
                     }
 
                     if (changedOther) {
-                        totalWritten += Rdm::writeValue(db, otherKey, other);
+                        totalWritten += batch.add(otherKey, other);
                     }
                     // error() << "ditched reference" << it.key() << it.value();
                 }
                 if (changedCurrent) {
-                    totalWritten += Rdm::writeValue(db, key, current);
+                    totalWritten += batch.add(key, current);
                 }
             }
         }
@@ -301,9 +305,9 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
             bool ok;
             CursorInfo current = Rdm::readValue<CursorInfo>(db, key.constData(), &ok);
             if (!ok) {
-                totalWritten += Rdm::writeValue(db, key, added);
+                totalWritten += batch.add(key, added);
             } else if (current.unite(added)) {
-                totalWritten += Rdm::writeValue(db, key, current);
+                totalWritten += batch.add(key, current);
             }
             ++it;
         }

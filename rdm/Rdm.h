@@ -120,17 +120,17 @@ template <typename T> T readValue(leveldb::Iterator *it)
     return t;
 }
 
-// template <typename T> int writeValue(leveldb::WriteBatch *batch, const char *key, const T &t)
-// {
-//     Q_ASSERT(batch);
-//     QByteArray out;
-//     {
-//         QDataStream ds(&out, QIODevice::WriteOnly);
-//         ds << t;
-//     }
-//     batch->Put(key, leveldb::Slice(out.constData(), out.size()));
-//     return out.size();
-// }
+template <typename T> int writeValue(leveldb::WriteBatch *batch, const char *key, const T &t)
+{
+    Q_ASSERT(batch);
+    QByteArray out;
+    {
+        QDataStream ds(&out, QIODevice::WriteOnly);
+        ds << t;
+    }
+    batch->Put(key, leveldb::Slice(out.constData(), out.size()));
+    return out.size();
+}
 
 template <typename T> int writeValue(leveldb::DB *db, const char *key, const T &t)
 {
@@ -173,11 +173,13 @@ public:
     }
 
     template <typename T>
-    void add(const char *key, const T &t)
+    int add(const char *key, const T &t)
     {
-        batchSize += Rdm::writeValue<T>(&batch, key, t);
+        const int written = Rdm::writeValue<T>(&batch, key, t);
+        batchSize += written;
         if (batchSize >= BatchThreshold)
             write();
+        return written;
     }
 
     leveldb::DB *db;
