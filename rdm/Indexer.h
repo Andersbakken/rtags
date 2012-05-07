@@ -80,7 +80,7 @@ private:
     int mJobCounter;
 
     QMutex mMutex;
-    QSet<QByteArray> mIndexing;
+    QSet<Path> mIndexing;
 
     QByteArray mPath;
     QHash<int, IndexerJob*> mJobs, mWaitingForPCH;
