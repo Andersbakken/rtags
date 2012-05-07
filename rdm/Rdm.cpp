@@ -70,7 +70,7 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
         const QByteArray key = QByteArray::fromRawData(k.data(), k.size());
         debug() << "key" << key << "needle" << needle;
         const Location loc = Location::fromKey(key);
-        if (location.path == loc.path) {
+        if (location.fileId() == loc.fileId()) {
             const int off = location.offset - loc.offset;
             cursorInfo = it->value<CursorInfo>();
             if (cursorInfo.symbolLength > off) {

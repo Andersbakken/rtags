@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <Log.h>
-#include "Location.h"
 
 static void help(FILE *f, const char* app)
 {
@@ -46,6 +45,26 @@ static void help(FILE *f, const char* app)
 }
 
 #warning autostart rdm
+
+static inline QByteArray encodeLocation(const QByteArray &key)
+{
+    const int lastComma = key.lastIndexOf(',');
+    if (lastComma <= 0 || lastComma + 1 >= key.size())
+        return QByteArray();
+
+    char *endPtr;
+    quint32 offset = strtoull(key.constData() + lastComma + 1, &endPtr, 10);
+    if (*endPtr != '\0')
+        return QByteArray();
+    Path path = Path::resolved(key.left(lastComma));
+    QByteArray out;
+    {
+        QDataStream ds(&out, QIODevice::WriteOnly);
+        ds << path << offset;
+    }
+    return out;
+}
+
 
 int main(int argc, char** argv)
 {
@@ -165,8 +184,8 @@ int main(int argc, char** argv)
         case 'f':
         case 'C':
         case 'r': {
-            const Location loc = Location::fromKey(optarg, Location::Resolve);
-            if (loc.isNull()) {
+            QByteArray encoded = encodeLocation(optarg);
+            if (encoded.isEmpty()) {
                 fprintf(stderr, "Can't resolve argument %s", optarg);
                 return 1;
             }
@@ -176,7 +195,7 @@ int main(int argc, char** argv)
             case 'C': type = QueryMessage::CursorInfo; break;
             case 'r': type = QueryMessage::ReferencesLocation; break;
             }
-            optlist.append(qMakePair<QueryMessage::Type, QByteArray>(type, loc.key()));
+            optlist.append(qMakePair<QueryMessage::Type, QByteArray>(type, encoded));
             break; }
         case 't':
             optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Test, Path::resolved(optarg)));

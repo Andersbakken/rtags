@@ -28,7 +28,8 @@ SOURCES += \
     Job.cpp \
     TestJob.cpp \
     MemoryMonitor.cpp \
-    Database.cpp
+    Database.cpp \
+    Location.cpp
 
 HEADERS += \
     Indexer.h \
@@ -49,4 +50,5 @@ HEADERS += \
     CursorInfo.h \
     AbortInterface.h \
     MemoryMonitor.h \
-    Database.cpp
+    Database.h \
+    Location.h

@@ -26,17 +26,17 @@ public:
 #endif
     }
 
-    bool dirty(const QSet<Path> &paths)
+    bool dirty(const QSet<quint32> &fileIds)
     {
         bool changed = false;
-        if (paths.contains(target.path)) {
+        if (fileIds.contains(target.fileId())) {
             changed = true;
             target.clear();
         }
 
         QSet<Location>::iterator it = references.begin();
         while (it != references.end()) {
-            if (paths.contains((*it).path)) {
+            if (fileIds.contains((*it).fileId())) {
                 changed = true;
                 it = references.erase(it);
             } else {

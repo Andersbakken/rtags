@@ -125,7 +125,7 @@ void Indexer::init()
         }
     }
 
-    QSet<Path> dirty;
+    QSet<quint32> dirty;
     QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
 
     {
