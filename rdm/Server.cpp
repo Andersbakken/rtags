@@ -191,7 +191,6 @@ void Server::handleAddMessage(AddMessage* message)
 {
     Connection* conn = qobject_cast<Connection*>(sender());
 
-    leveldb::DB *database = db(Server::FileInformation);
     const QList<QByteArray> args = message->arguments() + pch(message);
     if (args != mIndexer->compileArgs(message->inputFile())) {
         const int id = mIndexer->index(message->inputFile(), args);

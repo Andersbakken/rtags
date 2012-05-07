@@ -12,14 +12,47 @@
 #include "Location.h"
 
 class CursorInfo;
+struct FileInformation {
+    FileInformation() : lastTouched(0) {}
+    time_t lastTouched;
+    QList<QByteArray> compileArgs;
+};
+
+static inline QDataStream &operator<<(QDataStream &ds, const FileInformation &ci)
+{
+    ds << static_cast<quint64>(ci.lastTouched) << ci.compileArgs;
+    return ds;
+}
+
+static inline QDataStream &operator>>(QDataStream &ds, FileInformation &ci)
+{
+    quint64 lastTouched;
+    ds >> lastTouched;
+    ci.lastTouched = static_cast<time_t>(lastTouched);
+    ds >> ci.compileArgs;
+    return ds;
+}
+
 namespace Rdm {
 enum { DatabaseVersion = 4 };
+
 enum ReferenceType {
     NormalReference,
     MemberFunction,
     GlobalFunction
 };
+}
 
+typedef QHash<Location, CursorInfo> SymbolHash;
+typedef QHash<Location, QPair<Location, Rdm::ReferenceType> > ReferenceHash;
+typedef QHash<QByteArray, QSet<Location> > SymbolNameHash;
+typedef QHash<Path, QSet<Path> > DependencyHash;
+typedef QPair<QByteArray, quint64> WatchedPair;
+typedef QHash<QByteArray, Location> PchUSRHash;
+typedef QHash<Path, QSet<WatchedPair> > WatchedHash;
+typedef QHash<Path, FileInformation> InformationHash;
+
+namespace Rdm {
 void setMaxMemoryUsage(quint64 max);
 bool waitForMemory(int maxMs);
 QByteArray eatString(CXString str);
@@ -44,6 +77,14 @@ static inline bool startsWith(const QList<T> &list, const T &str)
         }
     }
     return false;
+}
+
+template <typename Container, typename Value>
+static inline bool addTo(Container &container, const Value &value)
+{
+    const int oldSize = container.size();
+    container += value;
+    return container.size() != oldSize;
 }
 
 static inline bool contains(leveldb::DB *db, const char *key)
@@ -105,7 +146,54 @@ template <typename T> int writeValue(leveldb::DB *db, const char *key, const T &
     return out.size();
 }
 
+
+class Batch
+{
+public:
+    enum { BatchThreshold = 1024 * 1024 };
+    Batch(leveldb::DB *d)
+        : db(d), batchSize(0), totalWritten(0)
+    {}
+
+    ~Batch()
+    {
+        write();
+    }
+
+    void write()
+    {
+        if (batchSize) {
+            // error("About to write %d bytes to %p", batchSize, db);
+            db->Write(leveldb::WriteOptions(), &batch);
+            totalWritten += batchSize;
+            // error("Wrote %d (%d) to %p", batchSize, totalWritten, db);
+            batchSize = 0;
+            batch.Clear();
+        }
+    }
+
+    template <typename T>
+    void add(const char *key, const T &t)
+    {
+        batchSize += Rdm::writeValue<T>(&batch, key, t);
+        if (batchSize >= BatchThreshold)
+            write();
+    }
+
+    leveldb::DB *db;
+    leveldb::WriteBatch batch;
+    int batchSize, totalWritten;
+};
+
 CursorInfo findCursorInfo(leveldb::DB *db, const Location &key, Location *loc = 0);
+int writeSymbolNames(SymbolNameHash &symbolNames);
+int writeDependencies(const DependencyHash &dependencies);
+int writePchDepencies(const DependencyHash &pchDependencies);
+int writeFileInformation(const InformationHash &fileInformation);
+int writePchUSRHashes(const QHash<Path, PchUSRHash> &hashes);
+int writeSymbols(SymbolHash &symbols, const ReferenceHash &references);
+// the symbols will be modified before writing and we don't want to detach so we
+// work on a non-const reference
 }
 
 #endif

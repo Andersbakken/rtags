@@ -130,4 +130,190 @@ void setMaxMemoryUsage(quint64 max)
 {
     sMaxMemoryUsage = max;
 }
+
+int writeSymbolNames(SymbolNameHash &symbolNames)
+{
+    int totalWritten = 0;
+    QElapsedTimer timer;
+    timer.start();
+    leveldb::DB *db = Server::instance()->db(Server::SymbolName);
+
+    // Batch batch(db);
+
+    SymbolNameHash::iterator it = symbolNames.begin();
+    const SymbolNameHash::const_iterator end = symbolNames.end();
+    while (it != end) {
+        const char *key = it.key().constData();
+        const QSet<Location> added = it.value();
+        QSet<Location> current = Rdm::readValue<QSet<Location> >(db, key);
+        if (addTo(current, added)) {
+            totalWritten += Rdm::writeValue(db, key, current);
+        }
+        ++it;
+    }
+
+    if (totalWritten) {
+        error() << "Wrote" << symbolNames.size() << "symbolNames "
+                << totalWritten << "bytes in"
+                << timer.elapsed() << "ms";
+    }
+    return totalWritten;
+}
+
+int writeDependencies(const DependencyHash &dependencies)
+{
+    int totalWritten = 0;
+    QElapsedTimer timer;
+    timer.start();
+    leveldb::DB *db = Server::instance()->db(Server::Dependency);
+
+    DependencyHash::const_iterator it = dependencies.begin();
+    const DependencyHash::const_iterator end = dependencies.end();
+    while (it != end) {
+        const char* key = it.key().constData();
+        QSet<Path> added = it.value();
+        QSet<Path> current = Rdm::readValue<QSet<Path> >(db, key);
+        const int oldSize = current.size();
+        if (current.unite(added).size() > oldSize) {
+            totalWritten += Rdm::writeValue(db, key, current);
+        }
+        ++it;
+    }
+    if (totalWritten) {
+        error() << "Wrote" << dependencies.size()
+                << "dependencies," << totalWritten << "bytes in"
+                << timer.elapsed() << "ms";
+    }
+    return totalWritten;
+}
+int writePchDepencies(const DependencyHash &pchDependencies)
+{
+    QElapsedTimer timer;
+    timer.start();
+    leveldb::DB *db = Server::instance()->db(Server::PCH);
+    if (!pchDependencies.isEmpty())
+        return Rdm::writeValue(db, "dependencies", pchDependencies);
+    return 0;
+}
+int writeFileInformation(const InformationHash &informations)
+{
+    QElapsedTimer timer;
+    timer.start();
+    leveldb::DB *db = Server::instance()->db(Server::FileInformation);
+    int totalWritten = 0;
+
+    InformationHash::const_iterator it = informations.begin();
+    const InformationHash::const_iterator end = informations.end();
+    while (it != end) {
+        totalWritten += Rdm::writeValue(db, it.key(), it.value());
+        ++it;
+    }
+
+    error() << "Wrote" << informations.size() << "fileinfos,"
+            << totalWritten << "bytes in "
+            << timer.elapsed() << "ms";
+    return totalWritten;
+}
+int writePchUSRHashes(const QHash<Path, PchUSRHash> &pchUSRHashes)
+{
+    QElapsedTimer timer;
+    timer.start();
+    leveldb::DB *db = Server::instance()->db(Server::PCH);
+    int totalWritten = 0;
+    for (QHash<Path, PchUSRHash>::const_iterator it = pchUSRHashes.begin(); it != pchUSRHashes.end(); ++it) {
+        totalWritten += Rdm::writeValue(db, it.key(), it.value());
+    }
+    error() << "Wrote" << pchUSRHashes.size() << "pch infos,"
+            << totalWritten << "bytes in"
+            << timer.elapsed() << "ms";
+    return totalWritten;
+}
+
+int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
+{
+    QElapsedTimer timer;
+    timer.start();
+    leveldb::DB *db = Server::instance()->db(Server::Symbol);
+    int totalWritten = 0;
+
+    if (!references.isEmpty()) {
+        const ReferenceHash::const_iterator end = references.end();
+        for (ReferenceHash::const_iterator it = references.begin(); it != end; ++it) {
+            const SymbolHash::iterator sym = symbols.find(it.value().first);
+            if (sym != symbols.end()) {
+                CursorInfo &ci = sym.value();
+                ci.references.insert(it.key());
+                // if (it.value().first.path.contains("RTags.h"))
+                //     error() << "cramming" << it.key() << "into" << it.value();
+                if (it.value().second != Rdm::NormalReference) {
+                    CursorInfo &other = symbols[it.key()];
+                    ci.references += other.references;
+                    other.references += ci.references;
+                    if (other.target.isNull())
+                        other.target = it.value().first;
+                    if (ci.target.isNull())
+                        ci.target = it.key();
+                }
+            } else {
+                const QByteArray key = it.value().first.key(Location::Padded);
+                CursorInfo current = Rdm::readValue<CursorInfo>(db, key.constData());
+                bool changedCurrent = false;
+                if (addTo(current.references, it.key()))
+                    changedCurrent = true;
+                if (it.value().second != Rdm::NormalReference) {
+                    const QByteArray otherKey = it.key().key(Location::Padded);
+                    CursorInfo other = Rdm::readValue<CursorInfo>(db, otherKey);
+                    bool changedOther = false;
+                    if (addTo(other.references, it.key()))
+                        changedOther = true;
+                    if (addTo(other.references, current.references))
+                        changedOther = true;
+                    if (addTo(current.references, other.references))
+                        changedCurrent = true;
+
+                    if (other.target.isNull()) {
+                        other.target = it.value().first;
+                        changedOther = true;
+                    }
+
+                    if (current.target.isNull()) {
+                        current.target = it.key();
+                        changedCurrent = true;
+                    }
+
+                    if (changedOther) {
+                        totalWritten += Rdm::writeValue(db, otherKey, other);
+                    }
+                    // error() << "ditched reference" << it.key() << it.value();
+                }
+                if (changedCurrent) {
+                    totalWritten += Rdm::writeValue(db, key, current);
+                }
+            }
+        }
+    }
+    if (!symbols.isEmpty()) {
+        SymbolHash::iterator it = symbols.begin();
+        const SymbolHash::const_iterator end = symbols.end();
+        while (it != end) {
+            const QByteArray key = it.key().key(Location::Padded);
+            CursorInfo added = it.value();
+            bool ok;
+            CursorInfo current = Rdm::readValue<CursorInfo>(db, key.constData(), &ok);
+            if (!ok) {
+                totalWritten += Rdm::writeValue(db, key, added);
+            } else if (current.unite(added)) {
+                totalWritten += Rdm::writeValue(db, key, current);
+            }
+            ++it;
+        }
+    }
+    if (totalWritten) {
+        error() << "Wrote" << symbols.size()
+                << "symbols and" << references.size()
+                << "references" << totalWritten << "bytes in"
+                << timer.elapsed() << "ms";
+    }
+    return totalWritten;
+}
 }

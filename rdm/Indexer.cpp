@@ -377,6 +377,7 @@ QSet<Path> Indexer::pchDependencies(const Path &pchHeader) const
 
 void Indexer::addDependencies(const DependencyHash &deps)
 {
+    QMutexLocker lock(&mMutex);
     commitDependencies(deps, true);
 }
 

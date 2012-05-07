@@ -6,34 +6,6 @@
 #include "Rdm.h"
 #include "CursorInfo.h"
 
-typedef QHash<Location, CursorInfo> SymbolHash;
-typedef QHash<Location, QPair<Location, Rdm::ReferenceType> > ReferenceHash;
-typedef QHash<QByteArray, QSet<Location> > SymbolNameHash;
-typedef QHash<Path, QSet<Path> > DependencyHash;
-typedef QPair<QByteArray, quint64> WatchedPair;
-typedef QHash<QByteArray, Location> PchUSRHash;
-typedef QHash<Path, QSet<WatchedPair> > WatchedHash;
-struct FileInformation {
-    FileInformation() : lastTouched(0) {}
-    time_t lastTouched;
-    QList<QByteArray> compileArgs;
-};
-static inline QDataStream &operator<<(QDataStream &ds, const FileInformation &ci)
-{
-    ds << static_cast<quint64>(ci.lastTouched) << ci.compileArgs;
-    return ds;
-}
-
-static inline QDataStream &operator>>(QDataStream &ds, FileInformation &ci)
-{
-    quint64 lastTouched;
-    ds >> lastTouched;
-    ci.lastTouched = static_cast<time_t>(lastTouched);
-    ds >> ci.compileArgs;
-    return ds;
-}
-
-typedef QHash<Path, FileInformation> InformationHash;
 
 class IndexerJob;
 class IndexerSyncer;
