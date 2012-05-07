@@ -8,7 +8,6 @@
 
 
 class IndexerJob;
-class IndexerSyncer;
 class Indexer : public QObject
 {
     Q_OBJECT;
@@ -26,7 +25,6 @@ public:
     QSet<Path> pchDependencies(const Path &pchHeader) const;
     QHash<QByteArray, Location> pchUSRHash(const QList<Path> &pchFiles) const;
     void setPchUSRHash(const Path &pch, const PchUSRHash &astHash);
-    inline IndexerSyncer *syncer() const { return mSyncer; }
     Path path() const { return mPath; }
     void abort();
     QList<QByteArray> compileArgs(const Path &file) const;
@@ -56,8 +54,6 @@ private:
 
     QByteArray mPath;
     QHash<int, IndexerJob*> mJobs, mWaitingForPCH;
-
-    IndexerSyncer* mSyncer;
 
     bool mTimerRunning;
     QElapsedTimer mTimer;

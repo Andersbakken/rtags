@@ -23,7 +23,6 @@ SOURCES += \
     Rdm.cpp \
     StatusJob.cpp \
     IndexerJob.cpp \
-    IndexerSyncer.cpp \
     DirtyJob.cpp \
     Job.cpp \
     TestJob.cpp \
@@ -42,7 +41,6 @@ HEADERS += \
     StatusJob.h \
     IndexerJob.h \
     Source.h \
-    IndexerSyncer.h \
     DirtyJob.h \
     Job.h \
     TestJob.h \

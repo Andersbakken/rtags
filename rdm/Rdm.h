@@ -13,7 +13,10 @@
 
 class CursorInfo;
 struct FileInformation {
-    FileInformation() : lastTouched(0) {}
+    FileInformation(time_t lt = 0, const QList<QByteArray> &args = QList<QByteArray>())
+        : lastTouched(lt), compileArgs(args)
+    {}
+
     time_t lastTouched;
     QList<QByteArray> compileArgs;
 };
@@ -191,7 +194,8 @@ CursorInfo findCursorInfo(leveldb::DB *db, const Location &key, Location *loc = 
 int writeSymbolNames(SymbolNameHash &symbolNames);
 int writeDependencies(const DependencyHash &dependencies);
 int writePchDepencies(const DependencyHash &pchDependencies);
-int writeFileInformation(const InformationHash &fileInformation);
+int writeFileInformation(const Path &path, const QList<QByteArray> &args, time_t lastTouched);
+int writeFileInformation(const QSet<Path> &paths);
 int writePchUSRHashes(const QHash<Path, PchUSRHash> &hashes);
 int writeSymbols(SymbolHash &symbols, const ReferenceHash &references);
 // the symbols will be modified before writing and we don't want to detach so we

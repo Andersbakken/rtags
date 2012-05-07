@@ -2,7 +2,6 @@
 #include "DirtyJob.h"
 #include "Indexer.h"
 #include "IndexerJob.h"
-#include "IndexerSyncer.h"
 #include "Path.h"
 #include "RTags.h"
 #include "Rdm.h"
@@ -26,8 +25,6 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
     QDir dir;
     dir.mkpath(mPath);
     mTimerRunning = false;
-    mSyncer = new IndexerSyncer(this);
-    mSyncer->start();
 
     connect(&mWatcher, SIGNAL(directoryChanged(QString)),
             this, SLOT(onDirectoryChanged(QString)));
@@ -50,9 +47,7 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
 
 Indexer::~Indexer()
 {
-    mSyncer->stop();
-    mSyncer->wait();
-    QMutexLocker locker(&mMutex);
+    // QMutexLocker locker(&mMutex);
 
     // write out FileInformation for all the files that are waiting for pch maybe
 }
@@ -193,7 +188,7 @@ void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
         }
     }
     if (sync && !newDependencies.isEmpty())
-        mSyncer->addDependencies(newDependencies);
+        Rdm::writeDependencies(newDependencies);
 
     Path parentPath;
     QSet<QString> watchPaths;
@@ -341,8 +336,6 @@ void Indexer::onJobComplete(int id, const Path& input, bool isPch, const QByteAr
           mJobs.size(), mWaitingForPCH.size());
 
     if (mJobs.isEmpty()) {
-        mSyncer->notify();
-
         Q_ASSERT(mTimerRunning);
         mTimerRunning = false;
         error() << "jobs took" << ((double)(mTimer.elapsed()) / 1000.0) << "secs";
@@ -366,7 +359,7 @@ void Indexer::setPchDependencies(const Path &pchHeader, const QSet<Path> &deps)
     } else {
         mPchDependencies[pchHeader] = deps;
     }
-    mSyncer->setPchDependencies(mPchDependencies);
+    Rdm::writePchDepencies(mPchDependencies);
 }
 
 QSet<Path> Indexer::pchDependencies(const Path &pchHeader) const
@@ -403,9 +396,9 @@ PchUSRHash Indexer::pchUSRHash(const QList<Path> &pchFiles) const
 
 void Indexer::setPchUSRHash(const Path &pch, const PchUSRHash &astHash)
 {
-    mSyncer->addPchUSRHash(pch, astHash);
     QWriteLocker lock(&mPchUSRHashLock);
     mPchUSRHashes[pch] = astHash;
+    Rdm::writePchUSRHashes(mPchUSRHashes);
 }
 bool Indexer::needsToWaitForPch(IndexerJob *job) const
 {

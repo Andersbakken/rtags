@@ -152,10 +152,10 @@ int writeSymbolNames(SymbolNameHash &symbolNames)
         ++it;
     }
 
-    if (totalWritten) {
-        error() << "Wrote" << symbolNames.size() << "symbolNames "
-                << totalWritten << "bytes in"
-                << timer.elapsed() << "ms";
+    if (totalWritten && testLog(Warning)) {
+        warning() << "Wrote" << symbolNames.size() << "symbolNames "
+                  << totalWritten << "bytes in"
+                  << timer.elapsed() << "ms";
     }
     return totalWritten;
 }
@@ -180,10 +180,10 @@ int writeDependencies(const DependencyHash &dependencies)
         }
         ++it;
     }
-    if (totalWritten) {
-        error() << "Wrote" << dependencies.size()
-                << "dependencies," << totalWritten << "bytes in"
-                << timer.elapsed() << "ms";
+    if (totalWritten && testLog(Warning)) {
+        warning() << "Wrote" << dependencies.size()
+                  << "dependencies," << totalWritten << "bytes in"
+                  << timer.elapsed() << "ms";
     }
     return totalWritten;
 }
@@ -196,26 +196,30 @@ int writePchDepencies(const DependencyHash &pchDependencies)
         return Rdm::writeValue(db, "dependencies", pchDependencies);
     return 0;
 }
-int writeFileInformation(const InformationHash &informations)
+int writeFileInformation(const Path &path, const QList<QByteArray> &args, time_t lastTouched)
 {
     QElapsedTimer timer;
     timer.start();
     leveldb::DB *db = Server::instance()->db(Server::FileInformation);
-    int totalWritten = 0;
+    return Rdm::writeValue<FileInformation>(db, path.constData(), FileInformation(lastTouched, args));
+}
+
+int writeFileInformation(const QSet<Path> &paths)
+{
+    QElapsedTimer timer;
+    timer.start();
+    leveldb::DB *db = Server::instance()->db(Server::FileInformation);
     Batch batch(db);
-
-    InformationHash::const_iterator it = informations.begin();
-    const InformationHash::const_iterator end = informations.end();
-    while (it != end) {
-        totalWritten += batch.add(it.key(), it.value());
-        ++it;
+    int totalWritten = 0;
+    const FileInformation fi;
+    for (QSet<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
+        if (!Rdm::contains(db, (*it).constData())) 
+            totalWritten += batch.add((*it).constData(), fi);
     }
-
-    error() << "Wrote" << informations.size() << "fileinfos,"
-            << totalWritten << "bytes in "
-            << timer.elapsed() << "ms";
     return totalWritten;
 }
+
+
 int writePchUSRHashes(const QHash<Path, PchUSRHash> &pchUSRHashes)
 {
     QElapsedTimer timer;
@@ -226,9 +230,11 @@ int writePchUSRHashes(const QHash<Path, PchUSRHash> &pchUSRHashes)
     for (QHash<Path, PchUSRHash>::const_iterator it = pchUSRHashes.begin(); it != pchUSRHashes.end(); ++it) {
         totalWritten += batch.add(it.key(), it.value());
     }
-    error() << "Wrote" << pchUSRHashes.size() << "pch infos,"
-            << totalWritten << "bytes in"
-            << timer.elapsed() << "ms";
+    if (testLog(Warning)) {
+        warning() << "Wrote" << pchUSRHashes.size() << "pch infos,"
+                  << totalWritten << "bytes in"
+                  << timer.elapsed() << "ms";
+    }
     return totalWritten;
 }
 
@@ -312,11 +318,11 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
             ++it;
         }
     }
-    if (totalWritten) {
-        error() << "Wrote" << symbols.size()
-                << "symbols and" << references.size()
-                << "references" << totalWritten << "bytes in"
-                << timer.elapsed() << "ms";
+    if (totalWritten && testLog(Warning)) {
+        warning() << "Wrote" << symbols.size()
+                  << "symbols and" << references.size()
+                  << "references" << totalWritten << "bytes in"
+                  << timer.elapsed() << "ms";
     }
     return totalWritten;
 }

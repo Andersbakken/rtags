@@ -1,6 +1,5 @@
 #include "IndexerJob.h"
 #include "SHA256.h"
-#include "IndexerSyncer.h"
 #include "MemoryMonitor.h"
 #include "Server.h"
 
@@ -319,7 +318,6 @@ void IndexerJob::execute()
 {
     QElapsedTimer timer;
     timer.start();
-    mIndexer->syncer()->wait();
     int elapsed = timer.elapsed();
     if (elapsed) {
         error() << mIn << "waited for" << elapsed << "ms";
@@ -387,7 +385,11 @@ void IndexerJob::execute()
         error() << "got 0 unit for" << clangLine;
         mDependencies[mIn].insert(mIn);
         mIndexer->addDependencies(mDependencies);
-        mIndexer->syncer()->addFileInformation(mIn, mArgs, timeStamp);
+        FileInformation fi;
+        fi.compileArgs = mArgs;
+        fi.lastTouched = timeStamp;
+
+        Rdm::writeFileInformation(mIn, mArgs, timeStamp);
         clang_disposeIndex(mIndex);
         mIndex = 0;
     } else {
@@ -414,11 +416,10 @@ void IndexerJob::execute()
             mSymbolNames[path.fileName()].insert(loc);
         }
         if (!isAborted()) {
-            mIndexer->syncer()->addFileInformations(mPaths);
-            mIndexer->syncer()->addSymbols(mSymbols);
-            mIndexer->syncer()->addSymbolNames(mSymbolNames);
-            mIndexer->syncer()->addFileInformation(mIn, mArgs, timeStamp);
-            mIndexer->syncer()->addReferences(mReferences);
+            Rdm::writeFileInformation(mPaths);
+            Rdm::writeSymbols(mSymbols, mReferences);
+            Rdm::writeSymbolNames(mSymbolNames);
+            Rdm::writeFileInformation(mIn, mArgs, timeStamp);
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
         }

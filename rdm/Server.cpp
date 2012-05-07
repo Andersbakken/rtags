@@ -7,7 +7,6 @@
 #include "Message.h"
 #include "Messages.h"
 #include "Path.h"
-#include "IndexerSyncer.h"
 #include "TestJob.h"
 #include "QueryMessage.h"
 #include "Rdm.h"
@@ -80,7 +79,8 @@ bool Server::init(const Options &options)
     Messages::init();
     mServer = new QTcpServer(this);
     mIndexer = new Indexer(sBase, this);
-    connect(mIndexer->syncer(), SIGNAL(symbolNamesChanged()), this, SLOT(onSymbolNamesChanged()));
+    // connect(mIndexer->syncer(), SIGNAL(symbolNamesChanged()), this, SLOT(onSymbolNamesChanged()));
+#warning gotta to this
 
     if (!mServer->listen(QHostAddress::Any, Connection::Port)) {
         error("Unable to listen to port %d", Connection::Port);
