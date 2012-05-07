@@ -2,14 +2,14 @@
 #define Rdm_h
 
 #include <QByteArray>
+#include <QIODevice>
 #include <clang-c/Index.h>
 #include <Path.h>
 #include <QDebug>
 #include "Server.h"
-#include <leveldb/db.h>
-#include <leveldb/write_batch.h>
 #include <RTags.h>
 #include "Location.h"
+#include "Database.h"
 
 class CursorInfo;
 struct FileInformation {
@@ -90,107 +90,104 @@ static inline bool addTo(Container &container, const Value &value)
     return container.size() != oldSize;
 }
 
-static inline bool contains(leveldb::DB *db, const char *key)
-{
-    std::string str;
-    return db->Get(leveldb::ReadOptions(), key, &str).ok();
-}
+// static inline bool contains(leveldb::DB *db, const char *key)
+// {
+//     std::string str;
+//     return db->Get(leveldb::ReadOptions(), key, &str).ok();
+// }
 
-template <typename T> T readValue(leveldb::DB *db, const char *key, bool *ok = 0)
-{
-    T t;
-    std::string value;
-    const leveldb::Status s = db->Get(leveldb::ReadOptions(), key, &value);
-    if (!value.empty()) {
-        const QByteArray v = QByteArray::fromRawData(value.c_str(), value.length());
-        QDataStream ds(v);
-        ds >> t;
-    }
-    if (ok)
-        *ok = s.ok();
-    return t;
-}
+// template <typename T> T readValue(leveldb::DB *db, const char *key, bool *ok = 0)
+// {
+//     T t;
+//     std::string value;
+//     const leveldb::Status s = db->Get(leveldb::ReadOptions(), key, &value);
+//     if (!value.empty()) {
+//         const QByteArray v = QByteArray::fromRawData(value.c_str(), value.length());
+//         QDataStream ds(v);
+//         ds >> t;
+//     }
+//     if (ok)
+//         *ok = s.ok();
+//     return t;
+// }
 
-template <typename T> T readValue(leveldb::Iterator *it)
-{
-    T t;
-    leveldb::Slice value = it->value();
-    const QByteArray v = QByteArray::fromRawData(value.data(), value.size());
-    if (!v.isEmpty()) {
-        QDataStream ds(v);
-        ds >> t;
-    }
-    return t;
-}
+// template <typename T> T readValue(leveldb::Iterator *it)
+// {
+//     T t;
+//     leveldb::Slice value = it->value();
+//     const QByteArray v = QByteArray::fromRawData(value.data(), value.size());
+//     if (!v.isEmpty()) {
+//         QDataStream ds(v);
+//         ds >> t;
+//     }
+//     return t;
+// }
 
-template <typename T> int writeValue(leveldb::WriteBatch *batch, const char *key, const T &t)
-{
-    Q_ASSERT(batch);
-    QByteArray out;
-    {
-        QDataStream ds(&out, QIODevice::WriteOnly);
-        ds << t;
-    }
-    batch->Put(key, leveldb::Slice(out.constData(), out.size()));
-    return out.size();
-}
+// typedef qint64 (*WriteFunction)(void *userData, const char *data, qint64 length);
+// class SimpleWriter : public QIODevice
+// {
+// public:
+//     SimpleWriter(void *userData, WriteFunction writer)
+//         : mUserData(userData), mWriter(writer), mSize(0)
+//     {}
 
-template <typename T> int writeValue(leveldb::DB *db, const char *key, const T &t)
-{
-    Q_ASSERT(db);
-    Q_ASSERT(key);
-    QByteArray out;
-    {
-        QDataStream ds(&out, QIODevice::WriteOnly);
-        ds << t;
-    }
-    db->Put(leveldb::WriteOptions(), leveldb::Slice(key, strlen(key)),
-            leveldb::Slice(out.constData(), out.size()));
-    return out.size();
-}
+//     virtual qint64 writeData(const char *data, qint64 len)
+//     {
+//         const qint64 ret = mWriter(mUserData, data, len);
+//         mSize += ret;
+//         return ret;
+//     }
+
+//     virtual qint64 size() const { return mSize; }
+// private:
+//     void *mUserData;
+//     WriteFunction mWriter;
+//     qint64 mSize;
+// };
+
+// template <typename T> int encode(const T &t, void *userData, WriteFunction writer)
+// {
+//     SimpleWriter dev(userData, writer);
+//     {
+//         QDataStream ds(&dev, QIODevice::WriteOnly);
+//         ds << t;
+//     }
+//     return writer.size();
+// }
+
+// template <typename T> T decode(const char *data, int length)
+// {
 
 
-class Batch
-{
-public:
-    enum { BatchThreshold = 1024 * 1024 };
-    Batch(leveldb::DB *d)
-        : db(d), batchSize(0), totalWritten(0)
-    {}
+// }
 
-    ~Batch()
-    {
-        write();
-    }
+// template <typename T> int writeValue(leveldb::WriteBatch *batch, const char *key, const T &t)
+// {
+//     Q_ASSERT(batch);
+//     QByteArray out;
+//     {
+//         QDataStream ds(&out, QIODevice::WriteOnly);
+//         ds << t;
+//     }
+//     batch->Put(key, leveldb::Slice(out.constData(), out.size()));
+//     return out.size();
+// }
 
-    void write()
-    {
-        if (batchSize) {
-            // error("About to write %d bytes to %p", batchSize, db);
-            db->Write(leveldb::WriteOptions(), &batch);
-            totalWritten += batchSize;
-            // error("Wrote %d (%d) to %p", batchSize, totalWritten, db);
-            batchSize = 0;
-            batch.Clear();
-        }
-    }
+// template <typename T> int writeValue(leveldb::DB *db, const char *key, const T &t)
+// {
+//     Q_ASSERT(db);
+//     Q_ASSERT(key);
+//     QByteArray out;
+//     {
+//         QDataStream ds(&out, QIODevice::WriteOnly);
+//         ds << t;
+//     }
+//     db->Put(leveldb::WriteOptions(), leveldb::Slice(key, strlen(key)),
+//             leveldb::Slice(out.constData(), out.size()));
+//     return out.size();
+// }
 
-    template <typename T>
-    int add(const char *key, const T &t)
-    {
-        const int written = Rdm::writeValue<T>(&batch, key, t);
-        batchSize += written;
-        if (batchSize >= BatchThreshold)
-            write();
-        return written;
-    }
-
-    leveldb::DB *db;
-    leveldb::WriteBatch batch;
-    int batchSize, totalWritten;
-};
-
-CursorInfo findCursorInfo(leveldb::DB *db, const Location &key, Location *loc = 0);
+CursorInfo findCursorInfo(Database *db, const Location &key, Location *loc = 0);
 int writeSymbolNames(SymbolNameHash &symbolNames);
 int writeDependencies(const DependencyHash &dependencies);
 int writePchDepencies(const DependencyHash &pchDependencies);

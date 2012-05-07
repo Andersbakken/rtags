@@ -5,6 +5,7 @@
 #include <QMutex>
 #include <errno.h>
 #include <QCoreApplication>
+#include <QElapsedTimer>
 
 static int sLevel = 0;
 static unsigned sFlags = 0;
@@ -14,7 +15,8 @@ static QElapsedTimer sStart;
 
 static inline QByteArray prettyTimeSinceStarted()
 {
-    return QTime(0, 0, 0, sStart.elapsed()).toString("hh:mm:ss.zzz").toLocal8Bit();
+    return QDateTime::currentDateTime().toString("dd/MM/yy hh:mm:ss").toLocal8Bit(); // ### not done
+    // return QTime(0, 0, 0, sStart.elapsed()).toString("hh:mm:ss.zzz").toLocal8Bit();
 }
 
 static void log(int level, const char *format, va_list v)

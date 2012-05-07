@@ -6,6 +6,7 @@ TEMPLATE = app
 TARGET =
 DEPENDPATH += .
 INCLUDEPATH += . ../3rdparty/leveldb/src/include
+DEFINES += USE_LEVELDB
 include(../shared/shared.pri)
 include(../shared/clang.pri)
 
@@ -26,7 +27,8 @@ SOURCES += \
     DirtyJob.cpp \
     Job.cpp \
     TestJob.cpp \
-    MemoryMonitor.cpp
+    MemoryMonitor.cpp \
+    Database.cpp
 
 HEADERS += \
     Indexer.h \
@@ -46,4 +48,5 @@ HEADERS += \
     TestJob.h \
     CursorInfo.h \
     AbortInterface.h \
-    MemoryMonitor.h
+    MemoryMonitor.h \
+    Database.cpp

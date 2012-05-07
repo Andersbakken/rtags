@@ -14,7 +14,7 @@ CursorInfoJob::~CursorInfoJob()
 
 void CursorInfoJob::execute()
 {
-    leveldb::DB *db = Server::instance()->db(Server::Symbol);
+    Database *db = Server::instance()->db(Server::Symbol);
     Location found;
     const CursorInfo cursorInfo = Rdm::findCursorInfo(db, location, &found);
     if (isAborted())

@@ -5,7 +5,6 @@
 #include <QByteArray>
 #include <QList>
 #include <QHash>
-#include <leveldb/db.h>
 #include "QueryMessage.h"
 
 class Connection;
@@ -15,7 +14,7 @@ class AddMessage;
 class ErrorMessage;
 class QTcpServer;
 class Job;
-
+class Database;
 class Server : public QObject
 {
     Q_OBJECT
@@ -36,7 +35,7 @@ public:
     };
 
     static Server *instance() { return sInstance; }
-    inline leveldb::DB *db(DatabaseType type) const { return mDBs[type]; }
+    inline Database *db(DatabaseType type) const { return mDBs[type]; }
     struct Options {
         unsigned options;
         QList<QByteArray> defaultArguments;
@@ -82,7 +81,7 @@ private:
     int mJobId;
     QList<QByteArray> mCachedSymbolNames;
     static Path sBase;
-    leveldb::DB *mDBs[DatabaseTypeCount];
+    Database *mDBs[DatabaseTypeCount];
 };
 
 #endif

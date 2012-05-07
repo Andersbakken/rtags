@@ -14,6 +14,7 @@
 #include "SHA256.h"
 #include "Server.h"
 #include "StatusJob.h"
+#include "Database.h"
 #include "leveldb/db.h"
 #include "leveldb/cache.h"
 #include <Log.h>
@@ -53,23 +54,19 @@ bool Server::init(const Options &options)
 {
     mOptions = options.options;
     {
-        leveldb::Options opt;
-        opt.create_if_missing = true;
-        opt.block_cache = leveldb::NewLRUCache(options.cacheSizeMB * 1024 * 1024);
-        leveldb::Status status;
         for (int i=0; i<DatabaseTypeCount; ++i) {
-            status = leveldb::DB::Open(opt, databaseDir(static_cast<DatabaseType>(i)).constData(), &mDBs[i]);
-            if (!status.ok()) {
-                error() << "Failed to open db" << status.ToString().c_str();
+            mDBs[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(), options);
+            if (!mDBs[i]->isOpened()) {
+                error() << "Failed to open db" << mDBs[i]->openError();
                 return false;
             }
         }
     }
-    leveldb::DB *general = db(Server::General);
+    Database *general = db(Server::General);
     bool ok;
-    const int version = Rdm::readValue<int>(general, "version", &ok);
+    const int version = general->value<int>("version", &ok);
     if (!ok) {
-        Rdm::writeValue<int>(general, "version", Rdm::DatabaseVersion);
+        general->setValue<int>("version", Rdm::DatabaseVersion);
     } else if (version != Rdm::DatabaseVersion) {
         error("Wrong version, expected %d, got %d. Run with -C to regenerate database", version, Rdm::DatabaseVersion);
         return false;
@@ -80,7 +77,7 @@ bool Server::init(const Options &options)
     mServer = new QTcpServer(this);
     mIndexer = new Indexer(sBase, this);
     // connect(mIndexer->syncer(), SIGNAL(symbolNamesChanged()), this, SLOT(onSymbolNamesChanged()));
-#warning gotta to this
+//#warning gotta to this ###
 
     if (!mServer->listen(QHostAddress::Any, Connection::Port)) {
         error("Unable to listen to port %d", Connection::Port);

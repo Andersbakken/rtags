@@ -47,32 +47,32 @@ bool isSystem(const Path &path)
     return startsWith(sSystemPaths, path);
 }
 
-CursorInfo findCursorInfo(leveldb::DB *db, const Location &location, Location *loc)
+CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
 {
     const leveldb::ReadOptions readopts;
-    RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
+    RTags::Ptr<Iterator> it(db->createIterator());
     const QByteArray needle = location.key(Location::Padded);
-    it->Seek(needle.constData());
+    it->seek(needle.constData());
     QList<QByteArray> list;
     bool found = false;
     CursorInfo cursorInfo;
-    if (it->Valid()) {
-        const leveldb::Slice k = it->key();
+    if (it->isValid()) {
+        const Slice k = it->key();
         const QByteArray key = QByteArray::fromRawData(k.data(), k.size());
         found = (key == needle);
         if (!found)
-            it->Prev();
+            it->previous();
     } else {
-        it->SeekToLast();
+        it->seekToLast();
     }
-    if (!found && it->Valid()) {
-        const leveldb::Slice k = it->key();
+    if (!found && it->isValid()) {
+        const Slice k = it->key();
         const QByteArray key = QByteArray::fromRawData(k.data(), k.size());
         debug() << "key" << key << "needle" << needle;
         const Location loc = Location::fromKey(key);
         if (location.path == loc.path) {
             const int off = location.offset - loc.offset;
-            cursorInfo = Rdm::readValue<CursorInfo>(it);
+            cursorInfo = it->value<CursorInfo>();
             if (cursorInfo.symbolLength > off) {
                 found = true;
             } else {
@@ -85,7 +85,7 @@ CursorInfo findCursorInfo(leveldb::DB *db, const Location &location, Location *l
     }
     if (found) {
         if (!cursorInfo.symbolLength) {
-            cursorInfo = Rdm::readValue<CursorInfo>(it);
+            cursorInfo = it->value<CursorInfo>();
         }
         if (loc) {
             *loc = Location::fromKey(QByteArray::fromRawData(it->key().data(), it->key().size()));
@@ -135,7 +135,7 @@ int writeSymbolNames(SymbolNameHash &symbolNames)
 {
     QElapsedTimer timer;
     timer.start();
-    leveldb::DB *db = Server::instance()->db(Server::SymbolName);
+    Database *db = Server::instance()->db(Server::SymbolName);
 
     Batch batch(db);
     int totalWritten = 0;
@@ -145,7 +145,7 @@ int writeSymbolNames(SymbolNameHash &symbolNames)
     while (it != end) {
         const char *key = it.key().constData();
         const QSet<Location> added = it.value();
-        QSet<Location> current = Rdm::readValue<QSet<Location> >(db, key);
+        QSet<Location> current = db->value<QSet<Location> >(key);
         if (addTo(current, added)) {
             totalWritten += batch.add(key, current);
         }
@@ -164,16 +164,16 @@ int writeDependencies(const DependencyHash &dependencies)
 {
     QElapsedTimer timer;
     timer.start();
-    leveldb::DB *db = Server::instance()->db(Server::Dependency);
+    Database *db = Server::instance()->db(Server::Dependency);
 
     Batch batch(db);
     int totalWritten = 0;
     DependencyHash::const_iterator it = dependencies.begin();
     const DependencyHash::const_iterator end = dependencies.end();
     while (it != end) {
-        const char* key = it.key().constData();
+        const Slice key = it.key();
         QSet<Path> added = it.value();
-        QSet<Path> current = Rdm::readValue<QSet<Path> >(db, key);
+        QSet<Path> current = db->value<QSet<Path> >(key);
         const int oldSize = current.size();
         if (current.unite(added).size() > oldSize) {
             totalWritten += batch.add(key, current);
@@ -191,30 +191,30 @@ int writePchDepencies(const DependencyHash &pchDependencies)
 {
     QElapsedTimer timer;
     timer.start();
-    leveldb::DB *db = Server::instance()->db(Server::PCH);
+    Database *db = Server::instance()->db(Server::PCH);
     if (!pchDependencies.isEmpty())
-        return Rdm::writeValue(db, "dependencies", pchDependencies);
+        return db->setValue("dependencies", pchDependencies);
     return 0;
 }
 int writeFileInformation(const Path &path, const QList<QByteArray> &args, time_t lastTouched)
 {
     QElapsedTimer timer;
     timer.start();
-    leveldb::DB *db = Server::instance()->db(Server::FileInformation);
-    return Rdm::writeValue<FileInformation>(db, path.constData(), FileInformation(lastTouched, args));
+    Database *db = Server::instance()->db(Server::FileInformation);
+    return db->setValue(path, FileInformation(lastTouched, args));
 }
 
 int writeFileInformation(const QSet<Path> &paths)
 {
     QElapsedTimer timer;
     timer.start();
-    leveldb::DB *db = Server::instance()->db(Server::FileInformation);
+    Database *db = Server::instance()->db(Server::FileInformation);
     Batch batch(db);
     int totalWritten = 0;
     const FileInformation fi;
     for (QSet<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
-        if (!Rdm::contains(db, (*it).constData())) 
-            totalWritten += batch.add((*it).constData(), fi);
+        if (!db->contains(*it))
+            totalWritten += batch.add(*it, fi);
     }
     return totalWritten;
 }
@@ -224,7 +224,7 @@ int writePchUSRHashes(const QHash<Path, PchUSRHash> &pchUSRHashes)
 {
     QElapsedTimer timer;
     timer.start();
-    leveldb::DB *db = Server::instance()->db(Server::PCH);
+    Database *db = Server::instance()->db(Server::PCH);
     int totalWritten = 0;
     Batch batch(db);
     for (QHash<Path, PchUSRHash>::const_iterator it = pchUSRHashes.begin(); it != pchUSRHashes.end(); ++it) {
@@ -242,7 +242,7 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
 {
     QElapsedTimer timer;
     timer.start();
-    leveldb::DB *db = Server::instance()->db(Server::Symbol);
+    Database *db = Server::instance()->db(Server::Symbol);
     Batch batch(db);
     int totalWritten = 0;
 
@@ -266,13 +266,13 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
                 }
             } else {
                 const QByteArray key = it.value().first.key(Location::Padded);
-                CursorInfo current = Rdm::readValue<CursorInfo>(db, key.constData());
+                CursorInfo current = db->value<CursorInfo>(key.constData());
                 bool changedCurrent = false;
                 if (addTo(current.references, it.key()))
                     changedCurrent = true;
                 if (it.value().second != Rdm::NormalReference) {
                     const QByteArray otherKey = it.key().key(Location::Padded);
-                    CursorInfo other = Rdm::readValue<CursorInfo>(db, otherKey);
+                    CursorInfo other = db->value<CursorInfo>(otherKey);
                     bool changedOther = false;
                     if (addTo(other.references, it.key()))
                         changedOther = true;
@@ -309,7 +309,7 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
             const QByteArray key = it.key().key(Location::Padded);
             CursorInfo added = it.value();
             bool ok;
-            CursorInfo current = Rdm::readValue<CursorInfo>(db, key.constData(), &ok);
+            CursorInfo current = db->value<CursorInfo>(key, &ok);
             if (!ok) {
                 totalWritten += batch.add(key, added);
             } else if (current.unite(added)) {

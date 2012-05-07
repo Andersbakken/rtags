@@ -11,16 +11,15 @@ DumpJob::DumpJob(const QByteArray& fn, int i)
 
 void DumpJob::execute()
 {
-    leveldb::DB *db = Server::instance()->db(Server::Symbol);
-    const leveldb::ReadOptions readopts;
-    RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
-    it->Seek(fileName.constData());
+    Database *db = Server::instance()->db(Server::Symbol);
+    RTags::Ptr<Iterator> it(db->createIterator());
+    it->seek(fileName.constData());
     QList<QByteArray> out;
-    while (it->Valid() && !isAborted()) {
-        const leveldb::Slice k = it->key();
+    while (it->isValid() && !isAborted()) {
+        const Slice k = it->key();
         if (strncmp(fileName.constData(), k.data(), fileName.size()))
             break;
-        const CursorInfo cursorInfo = Rdm::readValue<CursorInfo>(it);
+        const CursorInfo cursorInfo = it->value<CursorInfo>();
         QString str;
         QDebug dbg(&str);
         dbg << QByteArray::fromRawData(k.data(), k.size())
@@ -29,6 +28,6 @@ void DumpJob::execute()
             << "kind" << Rdm::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
             << "references" << cursorInfo.references;
         write(str.toLocal8Bit());
-        it->Next();
+        it->next();
     }
 }

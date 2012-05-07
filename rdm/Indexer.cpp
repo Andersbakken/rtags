@@ -6,7 +6,6 @@
 #include "RTags.h"
 #include "Rdm.h"
 #include "SHA256.h"
-#include "leveldb/write_batch.h"
 #include <Log.h>
 #include <QtCore>
 
@@ -29,17 +28,16 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
     connect(&mWatcher, SIGNAL(directoryChanged(QString)),
             this, SLOT(onDirectoryChanged(QString)));
 
-    leveldb::DB *db = Server::instance()->db(Server::PCH);
-    const leveldb::ReadOptions readopts;
-    RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
-    it->SeekToFirst();
-    while (it->Valid()) {
-        if (it->key() == "dependencies") {
-            mPchDependencies = Rdm::readValue<DependencyHash>(it);
+    Database *db = Server::instance()->db(Server::PCH);
+    RTags::Ptr<Iterator> it(db->createIterator());
+    it->seekToFirst();
+    while (it->isValid()) {
+        if (!strcmp(it->key().data(), "dependencies")) {
+            mPchDependencies = it->value<DependencyHash>();
         } else {
-            mPchUSRHashes[it->key().data()] = Rdm::readValue<PchUSRHash>(it);
+            mPchUSRHashes[it->key().data()] = it->value<PchUSRHash>();
         }
-        it->Next();
+        it->next();
     }
     initWatcher();
     init();
@@ -54,16 +52,16 @@ Indexer::~Indexer()
 
 void Indexer::initWatcher()
 {
-    leveldb::DB *db = Server::instance()->db(Server::Dependency);
-    RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
-    it->SeekToFirst();
+    Database *db = Server::instance()->db(Server::Dependency);
+    RTags::Ptr<Iterator> it(db->createIterator());
+    it->seekToFirst();
     DependencyHash dependencies;
-    while (it->Valid()) {
-        const leveldb::Slice key = it->key();
+    while (it->isValid()) {
+        const Slice key = it->key();
         const Path file(key.data(), key.size());
-        const QSet<Path> deps = Rdm::readValue<QSet<Path> >(it);
+        const QSet<Path> deps = it->value<QSet<Path> >();
         dependencies[file] = deps;
-        it->Next();
+        it->next();
     }
     commitDependencies(dependencies, false);
 }
@@ -107,62 +105,57 @@ static inline bool isPch(const QList<QByteArray> &args)
 void Indexer::init()
 {
     DependencyHash deps;
-    leveldb::DB *fileInformationDB = Server::instance()->db(Server::FileInformation);
-    leveldb::DB *dependencyDB = Server::instance()->db(Server::Dependency);
-    RTags::Ptr<leveldb::Iterator> it(dependencyDB->NewIterator(leveldb::ReadOptions()));
-    it->SeekToFirst();
-    leveldb::WriteBatch batch;
-    bool writeBatch = false;
-    while (it->Valid()) {
-        const leveldb::Slice key = it->key();
-        const Path file(key.data(), key.size());
-        if (file.isFile()) {
-            foreach(const Path &p, Rdm::readValue<QSet<Path> >(it)) {
-                deps[p].insert(file);
+    Database *fileInformationDB = Server::instance()->db(Server::FileInformation);
+    Database *dependencyDB = Server::instance()->db(Server::Dependency);
+    RTags::Ptr<Iterator> it(dependencyDB->createIterator());
+    it->seekToFirst();
+    {
+        Batch batch(dependencyDB);
+        while (it->isValid()) {
+            const Slice key = it->key();
+            const Path file(key.data(), key.size());
+            if (file.isFile()) {
+                foreach(const Path &p, it->value<QSet<Path> >()) {
+                    deps[p].insert(file);
+                }
+            } else {
+                batch.remove(key);
             }
-        } else {
-            batch.Delete(key);
-            writeBatch = true;
+            it->next();
         }
-        it->Next();
-    }
-    if (writeBatch) {
-        dependencyDB->Write(leveldb::WriteOptions(), &batch);
-        writeBatch = false;
-        batch = leveldb::WriteBatch();
     }
 
     QSet<Path> dirty;
     QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
 
-    it.reset(fileInformationDB->NewIterator(leveldb::ReadOptions()));
-    it->SeekToFirst();
-    while (it->Valid()) {
-        const leveldb::Slice key = it->key();
-        const Path path(key.data(), key.size());
-        if (path.isFile()) {
-            const FileInformation fi = Rdm::readValue<FileInformation>(it);
-            if (!fi.compileArgs.isEmpty()) {
-                bool dirt = false;
-                if (isDirty(path, deps.value(path), fi.lastTouched, dirty)) {
-                    dirt = true;
-                    // ### am I checking pch deps correctly here?
-                    if (isPch(fi.compileArgs)) {
-                        toIndexPch[path] = fi.compileArgs;
-                    } else {
-                        toIndex[path] = fi.compileArgs;
+    {
+        Batch batch(fileInformationDB);
+        it.reset(fileInformationDB->createIterator());
+        it->seekToFirst();
+        while (it->isValid()) {
+            const Slice key = it->key();
+            const Path path(key.data(), key.size());
+            if (path.isFile()) {
+                const FileInformation fi = it->value<FileInformation>();
+                if (!fi.compileArgs.isEmpty()) {
+                    bool dirt = false;
+                    if (isDirty(path, deps.value(path), fi.lastTouched, dirty)) {
+                        dirt = true;
+                        // ### am I checking pch deps correctly here?
+                        if (isPch(fi.compileArgs)) {
+                            toIndexPch[path] = fi.compileArgs;
+                        } else {
+                            toIndex[path] = fi.compileArgs;
+                        }
                     }
+                    warning() << "checking if" << path << "is dirty =>" << dirt;
                 }
-                warning() << "checking if" << path << "is dirty =>" << dirt;
+            } else {
+                batch.remove(key);
             }
-        } else {
-            batch.Delete(key);
-            writeBatch = true;
+            it->next();
         }
-        it->Next();
     }
-    if (writeBatch)
-        fileInformationDB->Write(leveldb::WriteOptions(), &batch);
 
     if (toIndex.isEmpty() && toIndexPch.isEmpty())
         return;
@@ -262,7 +255,7 @@ void Indexer::onDirectoryChanged(const QString& path)
     QSet<Path> dirtyFiles;
     QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
 
-    leveldb::DB *db = Server::instance()->db(Server::FileInformation);
+    Database *db = Server::instance()->db(Server::FileInformation);
     while (wit != wend) {
         // weird API, QSet<>::iterator does not allow for modifications to the referenced value
         file = (p + (*wit).first);
@@ -285,7 +278,7 @@ void Indexer::onDirectoryChanged(const QString& path)
                 dirtyFiles.insert(path);
                 if (path.exists()) {
                     bool ok;
-                    const FileInformation fi = Rdm::readValue<FileInformation>(db, path, &ok);
+                    const FileInformation fi = db->value<FileInformation>(path, &ok);
                     if (ok) {
                         if (isPch(fi.compileArgs)) {
                             toIndexPch[path] = fi.compileArgs;
@@ -420,6 +413,6 @@ void Indexer::abort()
 }
 QList<QByteArray> Indexer::compileArgs(const Path &file) const
 {
-    leveldb::DB *fileInformationDB = Server::instance()->db(Server::FileInformation);
-    return Rdm::readValue<FileInformation>(fileInformationDB, file).compileArgs;
+    Database *fileInformationDB = Server::instance()->db(Server::FileInformation);
+    return fileInformationDB->value<FileInformation>(file).compileArgs;
 }

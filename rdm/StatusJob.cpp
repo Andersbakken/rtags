@@ -14,46 +14,46 @@ StatusJob::StatusJob(int i, const QByteArray &q)
 void StatusJob::execute()
 {
     if (query.isEmpty() || query == "general") {
-        leveldb::DB *db = Server::instance()->db(Server::General);
+        Database *db = Server::instance()->db(Server::General);
         write(Server::databaseDir(Server::General));
-        write("    version: " + QByteArray::number(Rdm::readValue<int>(db, "version")));
+        write("    version: " + QByteArray::number(db->value<int>("version")));
     }
 
     if (query.isEmpty() || query == "dependencies") {
-        leveldb::DB *db = Server::instance()->db(Server::Dependency);
+        Database *db = Server::instance()->db(Server::Dependency);
         write(Server::databaseDir(Server::Dependency));
-        RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
-        it->SeekToFirst();
+        RTags::Ptr<Iterator> it(db->createIterator());
+        it->seekToFirst();
         char buf[1024];
         memcpy(buf, "  ", 2);
-        while (it->Valid()) {
+        while (it->isValid()) {
             if (isAborted())
                 return;
             memcpy(buf + 2, it->key().data(), it->key().size());
             memcpy(buf + 2 + it->key().size(), " is depended on by:", 20);
             write(buf);
-            const QSet<Path> deps = Rdm::readValue<QSet<Path> >(it);
+            const QSet<Path> deps = it->value<QSet<Path> >();
             memcpy(buf + 2, "  ", 2);
             foreach (const Path &p, deps) {
                 memcpy(buf + 4, p.constData(), p.size() + 1);
                 write(buf);
             }
-            it->Next();
+            it->next();
         }
     }
 
     if (query.isEmpty() || query == "symbols") {
-        leveldb::DB *db = Server::instance()->db(Server::Symbol);
+        Database *db = Server::instance()->db(Server::Symbol);
         write(Server::databaseDir(Server::Symbol));
-        RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
-        it->SeekToFirst();
+        RTags::Ptr<Iterator> it(db->createIterator());
+        it->seekToFirst();
         char buf[1024];
         memcpy(buf, "  ", 2);
-        while (it->Valid()) {
+        while (it->isValid()) {
             if (isAborted())
                 return;
             memcpy(buf + 2, it->key().data(), it->key().size());
-            const CursorInfo ci = Rdm::readValue<CursorInfo>(it);
+            const CursorInfo ci = it->value<CursorInfo>();
             CXString kind = clang_getCursorKindSpelling(ci.kind);
             snprintf(buf + 2 + it->key().size(), sizeof(buf) - it->key().size() - 3,
                      " kind: %s symbolLength: %d symbolName: %s target: %s%s",
@@ -67,51 +67,51 @@ void StatusJob::execute()
                                        loc.key(Location::Padded).constData());
                 write(QByteArray(buf, w + 2));
             }
-            it->Next();
+            it->next();
         }
     }
 
     if (query.isEmpty() || query == "symbolnames") {
-        leveldb::DB *db = Server::instance()->db(Server::SymbolName);
+        Database *db = Server::instance()->db(Server::SymbolName);
         write(Server::databaseDir(Server::SymbolName));
-        RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
-        it->SeekToFirst();
+        RTags::Ptr<Iterator> it(db->createIterator());
+        it->seekToFirst();
         char buf[1024];
         memcpy(buf, "  ", 2);
-        while (it->Valid()) {
+        while (it->isValid()) {
             if (isAborted())
                 return;
             memcpy(buf + 2, it->key().data(), it->key().size());
             memcpy(buf + 2 + it->key().size(), ":", 2);
             write(buf);
-            const QSet<Location> locations = Rdm::readValue<QSet<Location> >(it);
+            const QSet<Location> locations = it->value<QSet<Location> >();
             memcpy(buf + 2, "  ", 2);
             foreach (const Location &loc, locations) {
                 QByteArray key = loc.key(Location::Padded);
                 memcpy(buf + 4, key.constData(), key.size() + 1);
                 write(buf);
             }
-            it->Next();
+            it->next();
         }
     }
 
     if (query.isEmpty() || query == "fileinfos") {
-        leveldb::DB *db = Server::instance()->db(Server::FileInformation);
+        Database *db = Server::instance()->db(Server::FileInformation);
         write(Server::databaseDir(Server::FileInformation));
-        RTags::Ptr<leveldb::Iterator> it(db->NewIterator(leveldb::ReadOptions()));
-        it->SeekToFirst();
+        RTags::Ptr<Iterator> it(db->createIterator());
+        it->seekToFirst();
         char buf[1024];
         memcpy(buf, "  ", 2);
-        while (it->Valid()) {
+        while (it->isValid()) {
             if (isAborted())
                 return;
             memcpy(buf + 2, it->key().data(), it->key().size());
-            const FileInformation fi = Rdm::readValue<FileInformation>(it);
+            const FileInformation fi = it->value<FileInformation>();
             snprintf(buf + 2 + it->key().size(), sizeof(buf) - 3 - it->key().size(),
                      ": %s [%s]", QDateTime::fromTime_t(fi.lastTouched).toString().toLocal8Bit().constData(),
                      RTags::join(fi.compileArgs).constData());
             write(buf);
-            it->Next();
+            it->next();
         }
     }
 
