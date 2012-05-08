@@ -2,6 +2,7 @@
 #include "DirtyJob.h"
 #include "Indexer.h"
 #include "IndexerJob.h"
+#include "MemoryMonitor.h"
 #include "Path.h"
 #include "RTags.h"
 #include "Rdm.h"
@@ -361,7 +362,8 @@ void Indexer::onJobComplete(int id, const Path& input, bool isPch, const QByteAr
     if (mJobs.isEmpty()) {
         Q_ASSERT(mTimerRunning);
         mTimerRunning = false;
-        error() << "jobs took" << ((double)(mTimer.elapsed()) / 1000.0) << "secs";
+        error() << "jobs took" << ((double)(mTimer.elapsed()) / 1000.0) << "secs"
+                << "using" << (double(MemoryMonitor::usage()) / (1024.0 * 1024.0)) << "mb of memory";
         emit jobsComplete();
     }
 
