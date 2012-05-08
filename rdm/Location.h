@@ -200,7 +200,6 @@ public:
             memset(buf, 0, 8);
             return false;
         } else {
-            Q_ASSERT(sizeof(buf) == sizeof(mData));
             memcpy(buf, &mData, sizeof(buf));
             return true;
         }
