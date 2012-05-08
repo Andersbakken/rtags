@@ -86,11 +86,9 @@ Indexer::~Indexer()
 }
 
 
-static inline bool isDirty(const Path &path, quint32 fileId, const QSet<quint32> &dependencies, quint64 time, QSet<quint32> &dirty)
+static inline bool isDirty(const QSet<quint32> &dependencies, quint64 time, QSet<quint32> &dirty)
 {
-    bool ret = (path.lastModified() > time);
-    if (!ret)
-        dirty.insert(fileId);
+    bool ret = false;
 
     for (QSet<quint32>::const_iterator it = dependencies.begin(); it != dependencies.end(); ++it) {
         const quint32 id = *it;
@@ -101,7 +99,7 @@ static inline bool isDirty(const Path &path, quint32 fileId, const QSet<quint32>
             ret = true;
         }
     }
-    verboseDebug() << "isDirty" << path << ret << path << QDateTime::fromTime_t(time) << dirty;
+    // verboseDebug() << "isDirty" << path << ret << path << QDateTime::fromTime_t(time) << dirty;
     return ret;
 }
 
@@ -130,6 +128,8 @@ static inline bool isFile(quint32 fileId)
 
 void Indexer::initDB()
 {
+    QElapsedTimer timer;
+    timer.start();
     QHash<quint32, QSet<quint32> > deps;
     Database *fileInformationDB = Server::instance()->db(Server::FileInformation);
     Database *dependencyDB = Server::instance()->db(Server::Dependency);
@@ -153,6 +153,7 @@ void Indexer::initDB()
 
     QSet<quint32> dirty;
     QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
+    int checked = 0;
 
     {
         Batch batch(fileInformationDB);
@@ -165,8 +166,9 @@ void Indexer::initDB()
             if (path.isFile()) {
                 const FileInformation fi = it->value<FileInformation>();
                 if (!fi.compileArgs.isEmpty()) {
+                    ++checked;
                     bool dirt = false;
-                    if (isDirty(path, fileId, deps.value(fileId), fi.lastTouched, dirty)) {
+                    if (isDirty(deps.value(fileId), fi.lastTouched, dirty)) {
                         dirt = true;
                         // ### am I checking pch deps correctly here?
                         if (isPch(fi.compileArgs)) {
@@ -183,6 +185,9 @@ void Indexer::initDB()
             it->next();
         }
     }
+
+    if (checked)
+        error() << "Checked" << checked << "files. Found" << (toIndex.size() + toIndexPch.size()) << "dirty ones in" << timer.elapsed() << "ms";
 
     if (toIndex.isEmpty() && toIndexPch.isEmpty())
         return;
