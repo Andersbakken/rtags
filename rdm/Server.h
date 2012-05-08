@@ -30,7 +30,8 @@ public:
         Symbol,
         SymbolName,
         FileInformation,
-        PCH,
+        PCHUsrHashes,
+        FileIds,
         DatabaseTypeCount
     };
 

@@ -118,4 +118,16 @@ void StatusJob::execute()
     if (query.isEmpty() || query == "pch") {
         // ### needs to be done
     }
+
+    if (query.isEmpty() || query == "fileids") {
+        Database *db = Server::instance()->db(Server::FileIds);
+        write(Server::databaseDir(Server::FileIds));
+        RTags::Ptr<Iterator> it(db->createIterator());
+        it->seekToFirst();
+        char buf[1024];
+        while (it->isValid()) {
+            snprintf(buf, 1024, "  %s: %d", std::string(it->key().data(), it->key().size()).c_str(), it->value<quint32>());
+            it->next();
+        }
+    }
 }

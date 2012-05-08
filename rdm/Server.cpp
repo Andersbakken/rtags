@@ -76,8 +76,7 @@ bool Server::init(const Options &options)
     Messages::init();
     mServer = new QTcpServer(this);
     mIndexer = new Indexer(sBase, this);
-    // connect(mIndexer->syncer(), SIGNAL(symbolNamesChanged()), this, SLOT(onSymbolNamesChanged()));
-//#warning gotta to this ###
+    connect(mIndexer, SIGNAL(symbolNamesChanged()), this, SLOT(onSymbolNamesChanged()));
 
     if (!mServer->listen(QHostAddress::Any, Connection::Port)) {
         error("Unable to listen to port %d", Connection::Port);
@@ -430,7 +429,8 @@ static const char* const dbNames[] = {
     "symbols.db",
     "symbolnames.db",
     "fileinfos.db",
-    "pch.db",
+    "pchusrhashes.db",
+    "fileids.db",
     0
 };
 

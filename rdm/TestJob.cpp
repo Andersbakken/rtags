@@ -9,9 +9,6 @@ TestJob::TestJob(const Path &p, int i)
 
 void TestJob::execute()
 {
-    Database *db = Server::instance()->db(Server::FileInformation);
-    const bool found = db->contains(path);
-    if (isAborted())
-        return;
+    const bool found = Location::fileId(path);
     write(found ? "1" : "0");
 }

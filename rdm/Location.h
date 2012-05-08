@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "RTags.h"
+#include <clang-c/Index.h>
 
 class Location
 {
@@ -18,17 +19,60 @@ public:
     Location(quint32 fileId, quint32 offset)
         : mData(quint64(fileId) << 32 | offset)
     {}
-    static inline quint32 insertFile(const Path &path)
-    {
-        QWriteLocker lock(&sLock);
-        quint32 &id = sPathsToIds[path];
-        if (!id) {
-            id = ++sLastId;
-            sIdsToPaths[id] = path;
-        }
 
-        return id;
+    Location(CXFile file, quint32 offset)
+        : mData(0)
+    {
+        Q_ASSERT(file);
+        quint32 fileId;
+        {
+            QReadLocker lock(&sLock);
+            fileId = sCXFileToIds.value(file);
+        }
+        if (!fileId) {
+            CXString fn = clang_getFileName(file);
+            const char *cstr = clang_getCString(fn);
+            if (!cstr)
+                return;
+            const Path p = Path::canonicalized(cstr);
+            clang_disposeString(fn);
+            fileId = insertFile(p, file);
+        }
+        mData = (quint64(fileId) << 32 | offset);
     }
+    static inline quint32 fileId(const Path &path)
+    {
+        QReadLocker lock(&sLock);
+        return sPathsToIds.value(path);
+    }
+    static inline Path path(quint32 id)
+    {
+        QReadLocker lock(&sLock);
+        return sIdsToPaths.value(id);
+    }
+
+    static inline quint32 insertFile(const Path &path, CXFile file = 0)
+    {
+        bool newFile = false;
+        quint32 ret;
+        {
+            QWriteLocker lock(&sLock);
+            quint32 &id = sPathsToIds[path];
+            if (!id) {
+                id = ++sLastId;
+                sIdsToPaths[id] = path;
+                newFile = true;
+            }
+            ret = id;
+            if (file)
+                sCXFileToIds[file] = id;
+        }
+        if (newFile)
+            writeToDB(path, ret);
+
+        return ret;
+    }
+    static void writeToDB(const Path &path, quint32 file);
     static void init(const QHash<Path, quint32> &pathsToIds,
                      const QHash<quint32, Path> &idsToPaths)
     {
@@ -41,11 +85,14 @@ public:
 
     inline Path path() const
     {
-        QReadLocker lock(&sLock);
-        return sIdsToPaths.value(fileId());
+        if (mCachedPath.isEmpty()) {
+            QReadLocker lock(&sLock);
+            mCachedPath = sIdsToPaths.value(fileId());
+        }
+        return mCachedPath;
     }
     inline bool isNull() const { return !mData; }
-    inline void clear() { mData = 0; }
+    inline void clear() { mData = 0; mCachedPath.clear(); }
     inline bool operator==(const Location &other) const { return mData == other.mData; }
     inline bool operator!=(const Location &other) const { return mData != other.mData; }
     inline bool operator<(const Location &other) const { return mData < other.mData; }
@@ -153,10 +200,10 @@ public:
         return ret;
     }
 
-    bool toKey(char buf[8]) const
+    bool toKey(char *buf) const
     {
         if (isNull()) {
-            memset(buf, 0, sizeof(buf));
+            memset(buf, 0, 8);
             return false;
         } else {
             Q_ASSERT(sizeof(buf) == sizeof(mData));
@@ -165,29 +212,6 @@ public:
         }
     }
 
-    enum FromKeyFlag {
-        None = 0x0,
-        Resolve = 0x1,
-        Canonicalize = 0x2
-    };
-    // static Location fromKey(const QByteArray &key, unsigned flags = 0, const Path &cwd = Path())
-    // {
-    //     const int lastComma = key.lastIndexOf(',');
-    //     if (lastComma <= 0 || lastComma + 1 >= key.size())
-    //         return Location();
-    //     Location ret;
-    //     char *endPtr;
-    //     ret.offset = strtoull(key.constData() + lastComma + 1, &endPtr, 10);
-    //     if (*endPtr != '\0')
-    //         return Location();
-    //     ret.path = key.left(lastComma);
-    //     if (flags == Canonicalize) {
-    //         ret.path.canonicalize();
-    //     } else if (flags & Resolve) {
-    //         ret.path.resolve(cwd);
-    //     }
-    //     return ret;
-    // }
     static Location fromKey(const char *data)
     {
         Location ret;
@@ -211,8 +235,10 @@ public:
 private:
     static QHash<Path, quint32> sPathsToIds;
     static QHash<quint32, Path> sIdsToPaths;
+    static QHash<CXFile, quint32> sCXFileToIds;
     static quint32 sLastId;
     static QReadWriteLock sLock;
+    mutable Path mCachedPath;
 };
 
 static inline QDataStream &operator<<(QDataStream &ds, const Location &loc)

@@ -71,16 +71,16 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
         debug() << "key" << key << "needle" << needle;
         const Location loc = Location::fromKey(key);
         if (location.fileId() == loc.fileId()) {
-            const int off = location.offset - loc.offset;
+            const int off = location.offset() - loc.offset();
             cursorInfo = it->value<CursorInfo>();
             if (cursorInfo.symbolLength > off) {
                 found = true;
             } else {
                 debug("offsets wrong symbolLength %d offset %d %d/%d", cursorInfo.symbolLength,
-                      off, location.offset, loc.offset);
+                      off, location.offset(), loc.offset());
             }
         } else {
-            debug() << "wrong path" << location.path << loc.path << key;
+            debug() << "wrong path" << location.path() << loc.path() << key;
         }
     }
     if (found) {
@@ -170,10 +170,12 @@ int writeDependencies(const DependencyHash &dependencies)
     int totalWritten = 0;
     DependencyHash::const_iterator it = dependencies.begin();
     const DependencyHash::const_iterator end = dependencies.end();
+    char buf[4];
+    const Slice key(buf, 4);
     while (it != end) {
-        const Slice key = it.key();
-        QSet<Path> added = it.value();
-        QSet<Path> current = db->value<QSet<Path> >(key);
+        memcpy(buf, &it.key(), sizeof(buf));
+        QSet<quint32> added = it.value();
+        QSet<quint32> current = db->value<QSet<quint32> >(key);
         const int oldSize = current.size();
         if (current.unite(added).size() > oldSize) {
             totalWritten += batch.add(key, current);
@@ -187,44 +189,30 @@ int writeDependencies(const DependencyHash &dependencies)
     }
     return totalWritten;
 }
-int writePchDepencies(const DependencyHash &pchDependencies)
+int writePchDepencies(const QHash<Path, QSet<quint32> > &pchDependencies)
 {
     QElapsedTimer timer;
     timer.start();
-    Database *db = Server::instance()->db(Server::PCH);
+    Database *db = Server::instance()->db(Server::General);
     if (!pchDependencies.isEmpty())
-        return db->setValue("dependencies", pchDependencies);
+        return db->setValue("pchDependencies", pchDependencies);
     return 0;
 }
-int writeFileInformation(const Path &path, const QList<QByteArray> &args, time_t lastTouched)
+int writeFileInformation(quint32 fileId, const QList<QByteArray> &args, time_t lastTouched)
 {
     QElapsedTimer timer;
     timer.start();
     Database *db = Server::instance()->db(Server::FileInformation);
-    return db->setValue(path, FileInformation(lastTouched, args));
+    char buf[4];
+    memcpy(buf, &fileId, 4);
+    return db->setValue(Slice(buf, 4), FileInformation(lastTouched, args));
 }
-
-int writeFileInformation(const QSet<Path> &paths)
-{
-    QElapsedTimer timer;
-    timer.start();
-    Database *db = Server::instance()->db(Server::FileInformation);
-    Batch batch(db);
-    int totalWritten = 0;
-    const FileInformation fi;
-    for (QSet<Path>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
-        if (!db->contains(*it))
-            totalWritten += batch.add(*it, fi);
-    }
-    return totalWritten;
-}
-
 
 int writePchUSRHashes(const QHash<Path, PchUSRHash> &pchUSRHashes)
 {
     QElapsedTimer timer;
     timer.start();
-    Database *db = Server::instance()->db(Server::PCH);
+    Database *db = Server::instance()->db(Server::PCHUsrHashes);
     int totalWritten = 0;
     Batch batch(db);
     for (QHash<Path, PchUSRHash>::const_iterator it = pchUSRHashes.begin(); it != pchUSRHashes.end(); ++it) {

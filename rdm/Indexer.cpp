@@ -28,19 +28,53 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
     connect(&mWatcher, SIGNAL(directoryChanged(QString)),
             this, SLOT(onDirectoryChanged(QString)));
 
-    Database *db = Server::instance()->db(Server::PCH);
-    RTags::Ptr<Iterator> it(db->createIterator());
-    it->seekToFirst();
-    while (it->isValid()) {
-        if (!strcmp(it->key().data(), "dependencies")) {
-            mPchDependencies = it->value<DependencyHash>();
-        } else {
-            mPchUSRHashes[it->key().data()] = it->value<PchUSRHash>();
+    {
+        // fileids
+        Database *db = Server::instance()->db(Server::FileIds);
+        RTags::Ptr<Iterator> it(db->createIterator());
+        it->seekToFirst();
+        QHash<quint32, Path> idsToPaths;
+        QHash<Path, quint32> pathsToIds;
+        while (it->isValid()) {
+            const Slice key = it->key();
+            const Path path(key.data(), key.size());
+            const quint32 fileId = it->value<quint32>();
+            idsToPaths[fileId] = path;
+            pathsToIds[path] = fileId;
+            it->next();
         }
-        it->next();
+        Location::init(pathsToIds, idsToPaths);
     }
-    initWatcher();
-    init();
+    {
+        Database *db = Server::instance()->db(Server::PCHUsrHashes);
+        RTags::Ptr<Iterator> it(db->createIterator());
+        it->seekToFirst();
+        while (it->isValid()) {
+            mPchUSRHashes[it->key().data()] = it->value<PchUSRHash>();
+            it->next();
+        }
+    }
+    {
+        Database *db = Server::instance()->db(Server::General);
+        mPchDependencies = db->value<QHash<Path, QSet<quint32> > >("pchDependencies");
+    }
+    {
+        // watcher
+        Database *db = Server::instance()->db(Server::Dependency);
+        RTags::Ptr<Iterator> it(db->createIterator());
+        it->seekToFirst();
+        DependencyHash dependencies;
+        while (it->isValid()) {
+            const Slice key = it->key();
+            const quint32 fileId = *reinterpret_cast<const quint32*>(key.data());
+            const QSet<quint32> deps = it->value<QSet<quint32> >();
+            dependencies[fileId] = deps;
+            it->next();
+        }
+        commitDependencies(dependencies, false);
+    }
+
+    initDB();
 }
 
 Indexer::~Indexer()
@@ -50,33 +84,19 @@ Indexer::~Indexer()
     // write out FileInformation for all the files that are waiting for pch maybe
 }
 
-void Indexer::initWatcher()
-{
-    Database *db = Server::instance()->db(Server::Dependency);
-    RTags::Ptr<Iterator> it(db->createIterator());
-    it->seekToFirst();
-    DependencyHash dependencies;
-    while (it->isValid()) {
-        const Slice key = it->key();
-        const Path file(key.data(), key.size());
-        const QSet<Path> deps = it->value<QSet<Path> >();
-        dependencies[file] = deps;
-        it->next();
-    }
-    commitDependencies(dependencies, false);
-}
 
-
-static inline bool isDirty(const Path &path, const QSet<Path> &dependencies, quint64 time,
-                           QSet<Path> &dirty)
+static inline bool isDirty(const Path &path, quint32 fileId, const QSet<quint32> &dependencies, quint64 time, QSet<quint32> &dirty)
 {
     bool ret = (path.lastModified() > time);
+    if (!ret)
+        dirty.insert(fileId);
 
-    foreach(const Path &p, dependencies) {
-        if (dirty.contains(p)) {
+    for (QSet<quint32>::const_iterator it = dependencies.begin(); it != dependencies.end(); ++it) {
+        const quint32 id = *it;
+        if (dirty.contains(id)) {
             ret = true;
-        } else if (p.lastModified() > time) {
-            dirty.insert(p);
+        } else if (Location::path(id).lastModified() > time) {
+            dirty.insert(id);
             ret = true;
         }
     }
@@ -102,9 +122,14 @@ static inline bool isPch(const QList<QByteArray> &args)
     return false;
 }
 
-void Indexer::init()
+static inline bool isFile(quint32 fileId)
 {
-    DependencyHash deps;
+    return Location::path(fileId).isFile(); // ### not ideal
+}
+
+void Indexer::initDB()
+{
+    QHash<quint32, QSet<quint32> > deps;
     Database *fileInformationDB = Server::instance()->db(Server::FileInformation);
     Database *dependencyDB = Server::instance()->db(Server::Dependency);
     RTags::Ptr<Iterator> it(dependencyDB->createIterator());
@@ -113,9 +138,9 @@ void Indexer::init()
         Batch batch(dependencyDB);
         while (it->isValid()) {
             const Slice key = it->key();
-            const Path file(key.data(), key.size());
-            if (file.isFile()) {
-                foreach(const Path &p, it->value<QSet<Path> >()) {
+            const quint32 file = *reinterpret_cast<const quint32*>(key.data());
+            if (isFile(file)) {
+                foreach(quint32 p, it->value<QSet<quint32> >()) {
                     deps[p].insert(file);
                 }
             } else {
@@ -134,12 +159,13 @@ void Indexer::init()
         it->seekToFirst();
         while (it->isValid()) {
             const Slice key = it->key();
-            const Path path(key.data(), key.size());
+            const quint32 fileId = *reinterpret_cast<const quint32*>(key.data());
+            const Path path = Location::path(fileId);
             if (path.isFile()) {
                 const FileInformation fi = it->value<FileInformation>();
                 if (!fi.compileArgs.isEmpty()) {
                     bool dirt = false;
-                    if (isDirty(path, deps.value(path), fi.lastTouched, dirty)) {
+                    if (isDirty(path, fileId, deps.value(fileId), fi.lastTouched, dirty)) {
                         dirt = true;
                         // ### am I checking pch deps correctly here?
                         if (isPch(fi.compileArgs)) {
@@ -165,6 +191,7 @@ void Indexer::init()
 
 void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
 {
+    qDebug() << deps << sync;
     DependencyHash newDependencies;
 
     if (mDependencies.isEmpty()) {
@@ -188,7 +215,8 @@ void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
     const DependencyHash::const_iterator end = newDependencies.end();
     QMutexLocker lock(&mWatchedMutex);
     for (DependencyHash::const_iterator it = newDependencies.begin(); it != end; ++it) {
-        const Path& path = it.key();
+        const Path path = Location::path(it.key());
+        qDebug() << it.key() << path << path.parentDir();
         parentPath = path.parentDir();
         WatchedHash::iterator wit = mWatched.find(parentPath);
         //debug() << "watching" << path << "in" << parentPath;
@@ -201,6 +229,7 @@ void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
     }
     if (watchPaths.isEmpty())
         return;
+    qDebug() << "adding paths" << watchPaths;
     mWatcher.addPaths(watchPaths.toList());
 }
 
@@ -252,7 +281,7 @@ void Indexer::onDirectoryChanged(const QString& path)
     QSet<WatchedPair>::iterator wit = it.value().begin();
     QSet<WatchedPair>::const_iterator wend = it.value().end();
     QList<QByteArray> args;
-    QSet<Path> dirtyFiles;
+    QSet<quint32> dirtyFiles;
     QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
 
     Database *db = Server::instance()->db(Server::FileInformation);
@@ -262,23 +291,27 @@ void Indexer::onDirectoryChanged(const QString& path)
         debug() << "comparing" << file << (file.lastModified() == (*wit).second)
                 << QDateTime::fromTime_t(file.lastModified());
         if (!file.exists() || file.lastModified() != (*wit).second) {
-            dirtyFiles.insert(file);
+            const quint32 fileId = Location::fileId(file);
+            dirtyFiles.insert(fileId);
             pending.append(file);
             wit = it.value().erase(wit);
             wend = it.value().end(); // ### do we need to update 'end' here?
 
-            DependencyHash::const_iterator dit = mDependencies.find(file);
+            DependencyHash::const_iterator dit = mDependencies.find(fileId);
             if (dit == mDependencies.end()) {
                 error() << "file modified but not in dependency list" << file;
                 ++it;
                 continue;
             }
             Q_ASSERT(!dit.value().isEmpty());
-            foreach (const Path& path, dit.value()) {
-                dirtyFiles.insert(path);
+            foreach (quint32 pathId, dit.value()) {
+                dirtyFiles.insert(pathId);
+                const Path path = Location::path(pathId);
                 if (path.exists()) {
                     bool ok;
-                    const FileInformation fi = db->value<FileInformation>(path, &ok);
+                    char buf[4];
+                    memcpy(buf, &pathId, 4);
+                    const FileInformation fi = db->value<FileInformation>(Slice(buf, 4), &ok);
                     if (ok) {
                         if (isPch(fi.compileArgs)) {
                             toIndexPch[path] = fi.compileArgs;
@@ -336,6 +369,8 @@ void Indexer::onJobComplete(int id, const Path& input, bool isPch, const QByteAr
     }
 
     emit indexingDone(id);
+    if (qobject_cast<IndexerJob*>(sender())->mWroteSymbolNames)
+        mSymbolNamesChangedTimer.start(1000, this);
     sender()->deleteLater();
 }
 
@@ -344,7 +379,7 @@ void Indexer::setDefaultArgs(const QList<QByteArray> &args)
     mDefaultArgs = args;
 }
 
-void Indexer::setPchDependencies(const Path &pchHeader, const QSet<Path> &deps)
+void Indexer::setPchDependencies(const Path &pchHeader, const QSet<quint32> &deps)
 {
     QWriteLocker lock(&mPchDependenciesLock);
     if (deps.isEmpty()) {
@@ -355,7 +390,7 @@ void Indexer::setPchDependencies(const Path &pchHeader, const QSet<Path> &deps)
     Rdm::writePchDepencies(mPchDependencies);
 }
 
-QSet<Path> Indexer::pchDependencies(const Path &pchHeader) const
+QSet<quint32> Indexer::pchDependencies(const Path &pchHeader) const
 {
     QReadLocker lock(&mPchDependenciesLock);
     return mPchDependencies.value(pchHeader);
@@ -415,4 +450,11 @@ QList<QByteArray> Indexer::compileArgs(const Path &file) const
 {
     Database *fileInformationDB = Server::instance()->db(Server::FileInformation);
     return fileInformationDB->value<FileInformation>(file).compileArgs;
+}
+void Indexer::timerEvent(QTimerEvent *e)
+{
+    if (e->timerId() == mSymbolNamesChangedTimer.timerId()) {
+        mSymbolNamesChangedTimer.stop();
+        emit symbolNamesChanged();
+    }
 }

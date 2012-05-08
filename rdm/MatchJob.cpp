@@ -29,7 +29,7 @@ void MatchJob::execute()
                         ok = false;
                         const QSet<Location> locations = it->value<QSet<Location> >();
                         foreach(const Location &loc, locations) {
-#warning inefficient. We will look up the path again in a second
+// #warning inefficient. We will look up the path again in a second ###
                             // ### inefficient
                             if (filter(loc.path())) {
                                 ok = true;

@@ -26,18 +26,24 @@ static inline QList<Path> extractPchFiles(const QList<QByteArray>& args)
 
 IndexerJob::IndexerJob(Indexer* indexer, int id, const Path& input, const QList<QByteArray>& arguments)
     : mId(id), mIsPch(false), mIn(input), mArgs(arguments), mIndexer(indexer),
-      mPchHeaders(extractPchFiles(arguments)), mIndex(0), mUnit(0)
+      mPchHeaders(extractPchFiles(arguments)), mIndex(0), mUnit(0),
+      mWroteSymbolNames(false)
 {
     // qDebug() << metaObject()->className() << "born" << ++count << ++active;
     setAutoDelete(false);
 }
 
+static inline quint32 fileId(CXFile file)
+{
+    return Location(file, 0).fileId();
+}
+
 void IndexerJob::inclusionVisitor(CXFile included_file,
                                   CXSourceLocation* include_stack,
-                                  unsigned include_len,
+                                  unsigned includeLen,
                                   CXClientData client_data)
 {
-    (void)include_len;
+    (void)includeLen;
     (void)included_file;
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
     if (job->isAborted())
@@ -45,15 +51,16 @@ void IndexerJob::inclusionVisitor(CXFile included_file,
     CXString fn = clang_getFileName(included_file);
     const char *cstr = clang_getCString(fn);
     if (!Rdm::isSystem(cstr)) {
-        const Path path = Path::canonicalized(cstr);
-        for (unsigned i=0; i<include_len; ++i) {
+        const quint32 path = fileId(included_file);
+        qDebug() << "got dependency" << cstr << path;
+        for (unsigned i=0; i<includeLen; ++i) {
             CXFile originatingFile;
             clang_getSpellingLocation(include_stack[i], &originatingFile, 0, 0, 0);
-            CXString originatingFn = clang_getFileName(originatingFile);
-            job->mDependencies[path].insert(Path::canonicalized(clang_getCString(originatingFn)));
-            clang_disposeString(originatingFn);
+            const quint32 loc = fileId(originatingFile);
+            if (loc)
+                job->mDependencies[path].insert(loc);
         }
-        if (!include_len) {
+        if (!includeLen) {
             job->mDependencies[path].insert(path);
         }
         if (job->mIsPch) {
@@ -121,24 +128,11 @@ Location IndexerJob::createLocation(CXCursor cursor)
         CXFile file;
         unsigned start;
         clang_getSpellingLocation(location, &file, 0, 0, &start);
-        CXString fn = clang_getFileName(file);
-        const char *fileName = clang_getCString(fn);
-        if (fileName && strlen(fileName)) {
-            ret.path = fileName;
-            ret.path.canonicalize(); // ### could canonicalize directly
-            ret.offset = start;
-            mPaths.insert(ret.path);
+        if (file) {
+            ret = Location(file, start);
+            if (!ret.isNull())
+                mPaths.insert(ret.fileId());
         }
-        // unsigned l, c;
-        // clang_getSpellingLocation(location, 0, &l, &c, 0);
-        // QByteArray out;
-        // out.append(ret.path);
-        // out.append(':');
-        // out.append(QByteArray::number(l));
-        // out.append(':');
-        // out.append(QByteArray::number(c));
-        // debug() << ret.key() << "is" << out;
-        clang_disposeString(fn);
     }
     return ret;
 }
@@ -288,14 +282,11 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         job->mReferences[loc] = qMakePair(refLoc, referenceType);
     } else if (kind == CXCursor_InclusionDirective) {
         CXFile includedFile = clang_getIncludedFile(cursor);
-        CXString fileName = clang_getFileName(includedFile);
-        const char* cstr = clang_getCString(fileName);
-        if (cstr) {
-            Location refLoc(Path::canonicalized(cstr), 0);
+        Location refLoc(includedFile, 0);
+        if (!refLoc.isNull()) {
             info.target = refLoc;
             job->mReferences[loc] = qMakePair(refLoc, Rdm::NormalReference);
         }
-        clang_disposeString(fileName);
     }
     return CXChildVisit_Recurse;
 
@@ -381,22 +372,23 @@ void IndexerJob::execute()
         return;
     }
 
+    const quint32 fileId = Location::fileId(mIn);
     if (!mUnit) {
         error() << "got 0 unit for" << clangLine;
-        mDependencies[mIn].insert(mIn);
+        mDependencies[fileId].insert(fileId);
         mIndexer->addDependencies(mDependencies);
         FileInformation fi;
         fi.compileArgs = mArgs;
         fi.lastTouched = timeStamp;
 
-        Rdm::writeFileInformation(mIn, mArgs, timeStamp);
+        Rdm::writeFileInformation(fileId, mArgs, timeStamp);
         clang_disposeIndex(mIndex);
         mIndex = 0;
     } else {
         clang_getInclusions(mUnit, inclusionVisitor, this);
         foreach(const Path &pchHeader, mPchHeaders) {
-            foreach(const Path &dep, mIndexer->pchDependencies(pchHeader)) {
-                mDependencies[dep].insert(mIn);
+            foreach(quint32 dep, mIndexer->pchDependencies(pchHeader)) {
+                mDependencies[dep].insert(fileId);
             }
         }
         mIndexer->addDependencies(mDependencies);
@@ -410,16 +402,16 @@ void IndexerJob::execute()
             }
         }
 
-        foreach (const Path &path, mPaths) {
-            const Location loc(path, 0);
+        foreach (const quint32 fileId, mPaths) {
+            const Location loc(fileId, 0);
+            const Path path = loc.path();
             mSymbolNames[path].insert(loc);
             mSymbolNames[path.fileName()].insert(loc);
         }
         if (!isAborted()) {
-            Rdm::writeFileInformation(mPaths);
-            Rdm::writeSymbols(mSymbols, mReferences);
+            mWroteSymbolNames = Rdm::writeSymbols(mSymbols, mReferences);
             Rdm::writeSymbolNames(mSymbolNames);
-            Rdm::writeFileInformation(mIn, mArgs, timeStamp);
+            Rdm::writeFileInformation(fileId, mArgs, timeStamp);
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
         }

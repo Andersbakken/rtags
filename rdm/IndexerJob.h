@@ -28,18 +28,18 @@ public:
     SymbolHash mSymbols;
     SymbolNameHash mSymbolNames;
 
-    QSet<Path> mPaths;
+    QSet<quint32> mPaths;
     ReferenceHash mReferences;
     Path mIn;
     QList<QByteArray> mArgs;
     DependencyHash mDependencies;
-    QSet<Path> mPchDependencies;
+    QSet<quint32> mPchDependencies;
     Indexer *mIndexer;
     QHash<QByteArray, Location> mPchUSRHash;
     QList<Path> mPchHeaders;
     CXIndex mIndex;
     CXTranslationUnit mUnit;
-
+    bool mWroteSymbolNames;
 signals:
     void done(int id, const Path &path, bool isPch, const QByteArray &msg);
 };

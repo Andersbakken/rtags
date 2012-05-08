@@ -11,23 +11,23 @@ void DirtyJob::dirty()
         it->seekToFirst();
         while (it->isValid()) {
             const Slice key = it->key();
-            debug() << "looking at" << key.data();
-            const int comma = QByteArray::fromRawData(key.data(), key.size()).lastIndexOf(',');
-            Q_ASSERT(comma != -1);
-            const Path p = QByteArray::fromRawData(key.data(), comma);
-            if (mDirty.contains(p)) {
+            Q_ASSERT(key.size() == 8);
+            const Location loc = Location::fromKey(key.data());
+            // debug() << "looking at" << key.data();
+            if (mDirty.contains(loc.fileId())) {
                 debug() << "key is dirty. removing" << key.data();
                 db->remove(key);
             } else {
                 CursorInfo cursorInfo = it->value<CursorInfo>();
                 if (cursorInfo.dirty(mDirty)) {
-                    if (cursorInfo.target.isNull() && cursorInfo.references.isEmpty()) {
-                        debug() << "CursorInfo is empty now. removing" << key.data();
-                        db->remove(key);
-                    } else {
-                        debug() << "CursorInfo is modified. Changing" << key.data();
-                        db->setValue<CursorInfo>(key, cursorInfo);
-                    }
+                    // ### should we remove the whole cursorInfo if its target and all the references are gone?
+                    // if (cursorInfo.target.isNull() && cursorInfo.references.isEmpty()) {
+                    //     debug() << "CursorInfo is empty now. removing" << key.data();
+                    //     db->remove(key);
+                    // } else {
+                    debug() << "CursorInfo is modified. Changing" << key.data();
+                    db->setValue<CursorInfo>(key, cursorInfo);
+                    // }
                 }
             }
             it->next();
@@ -44,7 +44,7 @@ void DirtyJob::dirty()
             QSet<Location>::iterator i = locations.begin();
             bool changed = false;
             while (i != locations.end()) {
-                if (mDirty.contains((*i).path)) {
+                if (mDirty.contains((*i).fileId())) {
                     changed = true;
                     i = locations.erase(i);
                 } else {

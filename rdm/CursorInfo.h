@@ -100,7 +100,7 @@ public:
                     break;
                 case CXCursor_VarDecl:
                 case CXCursor_CXXMethod:
-                    if (target.path.contains("moc_") || target.path.contains(".moc"))
+                    if (target.path().contains("moc_") || target.path().contains(".moc"))
                         break;
                     // fallthrough
                 default:
