@@ -1,16 +1,149 @@
 #include "Database.h"
 #include <leveldb/cache.h>
+#include <leveldb/comparator.h>
 
 #ifdef USE_LEVELDB
-Database::Database(const char *path, const Server::Options &options)
-    : mDB(0)
+
+// ================== Slice ==================
+
+Slice::Slice(const std::string &string)
+    : mSlice(string.data(), string.size())
+{}
+
+Slice::Slice(const leveldb::Slice &slice)
+    : mSlice(slice)
+{}
+
+Slice::Slice(const QByteArray &d)
+    : mSlice(d.constData(), d.size())
+{}
+
+Slice::Slice(const char *d, int s)
+    : mSlice(d, s == -1 ? strlen(d) : s)
+{}
+
+bool Slice::operator==(const Slice &other) const
+{
+    return mSlice == other.mSlice;
+}
+
+bool Slice::operator!=(const Slice &other) const
+{
+    return mSlice != other.mSlice;
+}
+
+const char *Slice::data() const
+{
+    return mSlice.data();
+}
+
+int Slice::size() const
+{
+    return mSlice.size();
+}
+
+void Slice::clear()
+{
+    mSlice.clear();
+}
+
+// ================== Iterator ==================
+
+Iterator::Iterator(leveldb::Iterator *iterator)
+    : mIterator(iterator)
+{
+}
+
+Iterator::~Iterator()
+{
+    delete mIterator;
+}
+
+void Iterator::seekToFirst()
+{
+    mIterator->SeekToFirst();
+}
+
+void Iterator::seekToLast()
+
+{    mIterator->SeekToLast();
+}
+
+void Iterator::seek(const Slice &slice)
+{
+    mIterator->Seek(slice.mSlice);
+}
+
+bool Iterator::isValid() const
+{
+    return mIterator->Valid();
+}
+
+void Iterator::next()
+{
+    mIterator->Next();
+}
+
+void Iterator::previous()
+{
+    mIterator->Prev();
+}
+
+Slice Iterator::key() const
+{
+    return Slice(mIterator->key());
+}
+
+Slice Iterator::value() const
+{
+    return mIterator->value();
+}
+
+// ================== Database ==================
+
+class LocationComparator : public leveldb::Comparator
+{
+public:
+    int Compare(const leveldb::Slice &left, const leveldb::Slice &right) const
+    {
+        Q_ASSERT(left.size() == right.size());
+        Q_ASSERT(left.size() == 8);
+        const quint32 *l = reinterpret_cast<const quint32*>(left.data());
+        const quint32 *r = reinterpret_cast<const quint32*>(right.data());
+        if (*l < *r)
+            return -1;
+        if (*l > *r)
+            return 1;
+        ++l;
+        ++r;
+        if (*l < *r)
+            return -1;
+        if (*l > *r)
+            return 1;
+        return 0;
+    }
+
+    const char* Name() const { return "LocationComparator"; }
+    void FindShortestSeparator(std::string*, const leveldb::Slice&) const { }
+    void FindShortSuccessor(std::string*) const { }
+};
+
+Database::Database(const char *path, const Server::Options &options, bool locationKeys)
+    : mDB(0), mLocationComparator(locationKeys ? new LocationComparator : 0)
 {
     leveldb::Options opt;
     opt.create_if_missing = true;
+    if (locationKeys)
+        opt.comparator = mLocationComparator;
     opt.block_cache = leveldb::NewLRUCache(options.cacheSizeMB * 1024 * 1024);
     leveldb::Status status = leveldb::DB::Open(opt, path, &mDB);
     if (!status.ok())
         mOpenError = status.ToString().c_str();
+}
+
+Database::~Database()
+{
+    delete mLocationComparator;
 }
 
 bool Database::isOpened() const
@@ -59,81 +192,6 @@ void Database::remove(const Slice &key)
 Iterator *Database::createIterator() const
 {
     return new Iterator(mDB->NewIterator(leveldb::ReadOptions()));
-}
-
-Iterator::Iterator(leveldb::Iterator *iterator)
-    : mIterator(iterator)
-{
-}
-
-Iterator::~Iterator()
-{
-    delete mIterator;
-}
-void Iterator::seekToFirst()
-{
-    mIterator->SeekToFirst();
-}
-void Iterator::seekToLast()
-
-{    mIterator->SeekToLast();
-}
-
-void Iterator::seek(const Slice &slice)
-{
-    mIterator->Seek(slice.mSlice);
-}
-
-bool Iterator::isValid() const
-{
-    return mIterator->Valid();
-}
-void Iterator::next()
-{
-    mIterator->Next();
-}
-void Iterator::previous()
-{
-    mIterator->Prev();
-}
-Slice Iterator::key() const
-{
-    return Slice(mIterator->key());
-}
-Slice Iterator::value() const
-{
-    return mIterator->value();
-}
-
-Slice::Slice(const std::string &string)
-    : mSlice(string.data(), string.size())
-{}
-
-Slice::Slice(const leveldb::Slice &slice)
-    : mSlice(slice)
-{}
-
-Slice::Slice(const QByteArray &d)
-    : mSlice(d.constData(), d.size())
-{}
-
-Slice::Slice(const char *d, int s)
-    : mSlice(d, s == -1 ? strlen(d) : s)
-{}
-
-const char *Slice::data() const
-{
-    return mSlice.data();
-}
-
-int Slice::size() const
-{
-    return mSlice.size();
-}
-
-void Slice::clear()
-{
-    mSlice.clear();
 }
 
 Batch::Batch(Database *d)

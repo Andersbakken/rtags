@@ -48,6 +48,12 @@ void usage(FILE *f)
 
 int main(int argc, char** argv)
 {
+    // quint64 mData = (quint64(12) << 32 | 13);
+    // qDebug() << quint32(mData);
+
+    // Location loc(12, 13);
+    // qDebug() << loc.fileId() << loc.offset();
+    // return 0;
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
         { "include-path", required_argument, 0, 'I' },

@@ -52,7 +52,6 @@ void IndexerJob::inclusionVisitor(CXFile included_file,
     const char *cstr = clang_getCString(fn);
     if (!Rdm::isSystem(cstr)) {
         const quint32 path = fileId(included_file);
-        qDebug() << "got dependency" << cstr << path;
         for (unsigned i=0; i<includeLen; ++i) {
             CXFile originatingFile;
             clang_getSpellingLocation(include_stack[i], &originatingFile, 0, 0, 0);

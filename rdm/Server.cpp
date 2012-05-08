@@ -55,7 +55,7 @@ bool Server::init(const Options &options)
     mOptions = options.options;
     {
         for (int i=0; i<DatabaseTypeCount; ++i) {
-            mDBs[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(), options);
+            mDBs[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(), options, i == Server::Symbol);
             if (!mDBs[i]->isOpened()) {
                 error() << "Failed to open db" << mDBs[i]->openError();
                 return false;
@@ -295,7 +295,7 @@ int Server::nextId()
 
 int Server::followLocation(const QueryMessage &query)
 {
-    const Location loc = Location::fromKey(query.query().front());
+    const Location loc = Location::decodeClientLocation(query.query().front());
     if (loc.isNull()) {
         error("Failed to make location from [%s]", query.query().front().constData());
         return 0;
@@ -315,7 +315,7 @@ int Server::followLocation(const QueryMessage &query)
 
 int Server::cursorInfo(const QueryMessage &query)
 {
-    const Location loc = Location::fromKey(query.query().front());
+    const Location loc = Location::decodeClientLocation(query.query().front());
     if (loc.isNull()) {
         error("Failed to make location from [%s]", query.query().front().constData());
         return 0;
@@ -336,7 +336,7 @@ int Server::cursorInfo(const QueryMessage &query)
 
 int Server::referencesForLocation(const QueryMessage &query)
 {
-    const Location loc = Location::fromKey(query.query().front());
+    const Location loc = Location::decodeClientLocation(query.query().front());
     if (loc.isNull()) {
         error("Failed to make location from [%s]", query.query().front().constData());
         return 0;

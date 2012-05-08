@@ -191,7 +191,6 @@ void Indexer::initDB()
 
 void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
 {
-    qDebug() << deps << sync;
     DependencyHash newDependencies;
 
     if (mDependencies.isEmpty()) {
@@ -216,7 +215,6 @@ void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
     QMutexLocker lock(&mWatchedMutex);
     for (DependencyHash::const_iterator it = newDependencies.begin(); it != end; ++it) {
         const Path path = Location::path(it.key());
-        qDebug() << it.key() << path << path.parentDir();
         parentPath = path.parentDir();
         WatchedHash::iterator wit = mWatched.find(parentPath);
         //debug() << "watching" << path << "in" << parentPath;
@@ -229,7 +227,7 @@ void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
     }
     if (watchPaths.isEmpty())
         return;
-    qDebug() << "adding paths" << watchPaths;
+#warning this is not working yet
     mWatcher.addPaths(watchPaths.toList());
 }
 

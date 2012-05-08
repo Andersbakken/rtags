@@ -17,7 +17,7 @@ public:
         : mData(0)
     {}
     Location(quint32 fileId, quint32 offset)
-        : mData(quint64(fileId) << 32 | offset)
+        : mData(quint64(offset) << 32 | fileId)
     {}
 
     Location(CXFile file, quint32 offset)
@@ -38,7 +38,7 @@ public:
             clang_disposeString(fn);
             fileId = insertFile(p, file);
         }
-        mData = (quint64(fileId) << 32 | offset);
+        mData = (quint64(offset) << 32) | fileId;
     }
     static inline quint32 fileId(const Path &path)
     {
@@ -80,8 +80,8 @@ public:
         sIdsToPaths = idsToPaths;
     }
 
-    inline quint32 offset() const { return quint32(mData >> 32); }
     inline quint32 fileId() const { return quint32(mData); }
+    inline quint32 offset() const { return quint32(mData >> 32); }
 
     inline Path path() const
     {
@@ -97,12 +97,6 @@ public:
     inline bool operator!=(const Location &other) const { return mData != other.mData; }
     inline bool operator<(const Location &other) const { return mData < other.mData; }
 
-    enum KeyFlag {
-        NoFlag = 0x0,
-        Padded = 0x1,
-        ShowContext = 0x2,
-        ShowLineNumbers = 0x4
-    };
     QByteArray context() const
     {
         const quint32 off = offset();
@@ -162,23 +156,23 @@ public:
     }
 
 
-    QByteArray key(unsigned flags = NoFlag) const
+    QByteArray key(unsigned flags = RTags::NoFlag) const
     {
         if (isNull())
             return QByteArray();
         int extra = 0;
         const int off = offset();
         int line = 0, col = 0;
-        if (flags & Padded) {
+        if (flags & RTags::Padded) {
             extra = 7;
-        } else if (flags & ShowLineNumbers && convertOffset(line, col)) {
+        } else if (flags & RTags::ShowLineNumbers && convertOffset(line, col)) {
             extra = RTags::digits(line) + RTags::digits(col) + 3;
         } else {
-            flags &= ~ShowLineNumbers;
+            flags &= ~RTags::ShowLineNumbers;
             extra = RTags::digits(off) + 1;
         }
         QByteArray ctx;
-        if (flags & ShowContext) {
+        if (flags & RTags::ShowContext) {
             ctx += '\t' + context();
             extra += ctx.size();
         }
@@ -187,10 +181,10 @@ public:
 
         QByteArray ret(p.size() + extra, '0');
 
-        if (flags & Padded) {
+        if (flags & RTags::Padded) {
             snprintf(ret.data(), ret.size() + extra + 1, "%s,%06d%s", p.constData(),
                      off, ctx.constData());
-        } else if (flags & ShowLineNumbers) {
+        } else if (flags & RTags::ShowLineNumbers) {
             snprintf(ret.data(), ret.size() + extra + 1, "%s:%d:%d:%s", p.constData(),
                      line, col, ctx.constData());
         } else {
@@ -200,7 +194,7 @@ public:
         return ret;
     }
 
-    bool toKey(char *buf) const
+    bool toKey(char buf[8]) const
     {
         if (isNull()) {
             memset(buf, 0, 8);
@@ -215,7 +209,7 @@ public:
     static Location fromKey(const char *data)
     {
         Location ret;
-        memcpy(&ret.mData, data, sizeof(mData));
+        memcpy(&ret.mData, data, sizeof(ret.mData));
         return ret;
     }
 

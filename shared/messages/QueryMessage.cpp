@@ -1,6 +1,5 @@
 #include "QueryMessage.h"
 #include "RTags.h"
-#include "Location.h"
 #include <QDataStream>
 
 QueryMessage::QueryMessage(QObject* parent)
@@ -48,11 +47,11 @@ void QueryMessage::fromByteArray(const QByteArray& data)
 
 unsigned QueryMessage::keyFlags() const
 {
-    unsigned ret = Location::NoFlag;
+    unsigned ret = RTags::NoFlag;
     if (!(mFlags & QueryMessage::NoContext))
-        ret |= Location::ShowContext;
+        ret |= RTags::ShowContext;
     if (mFlags & QueryMessage::LineNumbers)
-        ret |= Location::ShowLineNumbers;
+        ret |= RTags::ShowLineNumbers;
     return ret;
 }
 

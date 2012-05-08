@@ -51,14 +51,14 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
 {
     const leveldb::ReadOptions readopts;
     RTags::Ptr<Iterator> it(db->createIterator());
-    const QByteArray needle = location.key(Location::Padded);
-    it->seek(needle.constData());
-    QList<QByteArray> list;
+    char needleBuf[8];
+    location.toKey(needleBuf);
+    const Slice needle(needleBuf, 8);
+    it->seek(needle);
     bool found = false;
     CursorInfo cursorInfo;
     if (it->isValid()) {
-        const Slice k = it->key();
-        const QByteArray key = QByteArray::fromRawData(k.data(), k.size());
+        const Slice key = it->key();
         found = (key == needle);
         if (!found)
             it->previous();
@@ -66,10 +66,9 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
         it->seekToLast();
     }
     if (!found && it->isValid()) {
-        const Slice k = it->key();
-        const QByteArray key = QByteArray::fromRawData(k.data(), k.size());
+        const Slice key = it->key();
         debug() << "key" << key << "needle" << needle;
-        const Location loc = Location::fromKey(key);
+        const Location loc = Location::fromKey(key.data());
         if (location.fileId() == loc.fileId()) {
             const int off = location.offset() - loc.offset();
             cursorInfo = it->value<CursorInfo>();
@@ -88,7 +87,7 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
             cursorInfo = it->value<CursorInfo>();
         }
         if (loc) {
-            *loc = Location::fromKey(QByteArray::fromRawData(it->key().data(), it->key().size()));
+            *loc = Location::fromKey(it->key().data());
         }
     }
     if (!found) {
@@ -145,8 +144,11 @@ int writeSymbolNames(SymbolNameHash &symbolNames)
     while (it != end) {
         const char *key = it.key().constData();
         const QSet<Location> added = it.value();
-        QSet<Location> current = db->value<QSet<Location> >(key);
-        if (addTo(current, added)) {
+        bool ok;
+        QSet<Location> current = db->value<QSet<Location> >(key, &ok);
+        if (!ok) {
+            totalWritten += batch.add(key, added);
+        } else if (addTo(current, added)) {
             totalWritten += batch.add(key, current);
         }
         ++it;
@@ -253,13 +255,17 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
                         ci.target = it.key();
                 }
             } else {
-                const QByteArray key = it.value().first.key(Location::Padded);
-                CursorInfo current = db->value<CursorInfo>(key.constData());
+                char buf[8];
+                it.value().first.toKey(buf);
+                const Slice key(buf, 8);
+                CursorInfo current = db->value<CursorInfo>(key);
                 bool changedCurrent = false;
                 if (addTo(current.references, it.key()))
                     changedCurrent = true;
                 if (it.value().second != Rdm::NormalReference) {
-                    const QByteArray otherKey = it.key().key(Location::Padded);
+                    char otherBuf[8];
+                    it.key().toKey(otherBuf);
+                    const Slice otherKey(otherBuf, 8);
                     CursorInfo other = db->value<CursorInfo>(otherKey);
                     bool changedOther = false;
                     if (addTo(other.references, it.key()))
@@ -294,7 +300,9 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
         SymbolHash::iterator it = symbols.begin();
         const SymbolHash::const_iterator end = symbols.end();
         while (it != end) {
-            const QByteArray key = it.key().key(Location::Padded);
+            char buf[8];
+            it.key().toKey(buf);
+            const Slice key(buf, 8);
             CursorInfo added = it.value();
             bool ok;
             CursorInfo current = db->value<CursorInfo>(key, &ok);

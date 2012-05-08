@@ -13,29 +13,30 @@ StatusJob::StatusJob(int i, const QByteArray &q)
 
 void StatusJob::execute()
 {
+    const char *delimiter = "*********************************";
     if (query.isEmpty() || query == "general") {
         Database *db = Server::instance()->db(Server::General);
+        write(delimiter);
         write(Server::databaseDir(Server::General));
         write("    version: " + QByteArray::number(db->value<int>("version")));
     }
 
     if (query.isEmpty() || query == "dependencies") {
         Database *db = Server::instance()->db(Server::Dependency);
+        write(delimiter);
         write(Server::databaseDir(Server::Dependency));
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         char buf[1024];
-        memcpy(buf, "  ", 2);
         while (it->isValid()) {
             if (isAborted())
                 return;
-            memcpy(buf + 2, it->key().data(), it->key().size());
-            memcpy(buf + 2 + it->key().size(), " is depended on by:", 20);
+            const quint32 key = *reinterpret_cast<const quint32*>(it->key().data());
+            snprintf(buf, sizeof(buf), "  %s (%d) is depended on by", Location::path(key).constData(), key);
             write(buf);
-            const QSet<Path> deps = it->value<QSet<Path> >();
-            memcpy(buf + 2, "  ", 2);
-            foreach (const Path &p, deps) {
-                memcpy(buf + 4, p.constData(), p.size() + 1);
+            const QSet<quint32> deps = it->value<QSet<quint32> >();
+            foreach (quint32 p, deps) {
+                snprintf(buf, sizeof(buf), "    %s (%d)", Location::path(p).constData(), p);
                 write(buf);
             }
             it->next();
@@ -44,28 +45,28 @@ void StatusJob::execute()
 
     if (query.isEmpty() || query == "symbols") {
         Database *db = Server::instance()->db(Server::Symbol);
+        write(delimiter);
         write(Server::databaseDir(Server::Symbol));
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         char buf[1024];
-        memcpy(buf, "  ", 2);
         while (it->isValid()) {
             if (isAborted())
                 return;
-            memcpy(buf + 2, it->key().data(), it->key().size());
             const CursorInfo ci = it->value<CursorInfo>();
             CXString kind = clang_getCursorKindSpelling(ci.kind);
-            snprintf(buf + 2 + it->key().size(), sizeof(buf) - it->key().size() - 3,
-                     " kind: %s symbolLength: %d symbolName: %s target: %s%s",
-                     clang_getCString(kind), ci.symbolLength, ci.symbolName.constData(),
-                     ci.target.key(Location::Padded).constData(),
+            Location loc = Location::fromKey(it->key().data());
+            snprintf(buf, sizeof(buf),
+                     "  %s symbolName: %s kind: %s symbolLength: %d target: %s%s",
+                     loc.key().constData(), ci.symbolName.constData(),
+                     clang_getCString(kind), ci.symbolLength,
+                     ci.target.key().constData(),
                      ci.references.isEmpty() ? "" : " references:");
             clang_disposeString(kind);
             write(buf);
             foreach(const Location &loc, ci.references) {
-                const int w = snprintf(buf + 2, sizeof(buf) - 4, "  %s",
-                                       loc.key(Location::Padded).constData());
-                write(QByteArray(buf, w + 2));
+                snprintf(buf, sizeof(buf), "    %s", loc.key().constData());
+                write(buf);
             }
             it->next();
         }
@@ -73,22 +74,19 @@ void StatusJob::execute()
 
     if (query.isEmpty() || query == "symbolnames") {
         Database *db = Server::instance()->db(Server::SymbolName);
+        write(delimiter);
         write(Server::databaseDir(Server::SymbolName));
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         char buf[1024];
-        memcpy(buf, "  ", 2);
         while (it->isValid()) {
             if (isAborted())
                 return;
-            memcpy(buf + 2, it->key().data(), it->key().size());
-            memcpy(buf + 2 + it->key().size(), ":", 2);
+            snprintf(buf, sizeof(buf), "  %s:", std::string(it->key().data(), it->key().size()).c_str());
             write(buf);
             const QSet<Location> locations = it->value<QSet<Location> >();
-            memcpy(buf + 2, "  ", 2);
             foreach (const Location &loc, locations) {
-                QByteArray key = loc.key(Location::Padded);
-                memcpy(buf + 4, key.constData(), key.size() + 1);
+                snprintf(buf, sizeof(buf), "    %s", loc.key().constData());
                 write(buf);
             }
             it->next();
@@ -97,18 +95,19 @@ void StatusJob::execute()
 
     if (query.isEmpty() || query == "fileinfos") {
         Database *db = Server::instance()->db(Server::FileInformation);
+        write(delimiter);
         write(Server::databaseDir(Server::FileInformation));
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         char buf[1024];
-        memcpy(buf, "  ", 2);
         while (it->isValid()) {
             if (isAborted())
                 return;
-            memcpy(buf + 2, it->key().data(), it->key().size());
+
             const FileInformation fi = it->value<FileInformation>();
-            snprintf(buf + 2 + it->key().size(), sizeof(buf) - 3 - it->key().size(),
-                     ": %s [%s]", QDateTime::fromTime_t(fi.lastTouched).toString().toLocal8Bit().constData(),
+            snprintf(buf, 1024, "  %s: last compiled: %s compile args: %s",
+                     Location::fromKey(it->key().data()).key().constData(),
+                     QDateTime::fromTime_t(fi.lastTouched).toString().toLocal8Bit().constData(),
                      RTags::join(fi.compileArgs).constData());
             write(buf);
             it->next();
@@ -121,12 +120,14 @@ void StatusJob::execute()
 
     if (query.isEmpty() || query == "fileids") {
         Database *db = Server::instance()->db(Server::FileIds);
+        write(delimiter);
         write(Server::databaseDir(Server::FileIds));
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         char buf[1024];
         while (it->isValid()) {
             snprintf(buf, 1024, "  %s: %d", std::string(it->key().data(), it->key().size()).c_str(), it->value<quint32>());
+            write(buf);
             it->next();
         }
     }

@@ -15,6 +15,8 @@ struct Slice {
     const char *data() const;
     int size() const;
     void clear();
+    bool operator==(const Slice &other) const;
+    bool operator!=(const Slice &other) const;
 private:
 #ifdef USE_LEVELDB
     Slice(const leveldb::Slice &slice);
@@ -24,6 +26,12 @@ private:
     friend class Iterator;
     friend class Batch;
 };
+
+static inline QDebug operator<<(QDebug dbg, const Slice &slice)
+{
+    dbg << "Slice(" << std::string(slice.data(), slice.size()).c_str() << ")";
+    return dbg;
+}
 
 template <typename T> QByteArray encode(const T &t)
 {
@@ -65,7 +73,37 @@ private:
     friend class Database;
 };
 
-class Database;
+class LocationComparator;
+class Database
+{
+public:
+    Database(const char *path, const Server::Options &opt, bool locationKeys);
+    ~Database();
+    bool isOpened() const;
+    void close();
+    QByteArray openError() const;
+    std::string rawValue(const Slice &key, bool *ok = 0) const;
+    template <typename T> T value(const Slice &key, bool *ok = 0) {
+        const std::string val = rawValue(key, ok);
+        if (!val.empty())
+            return decode<T>(val);
+        return T();
+    }
+    int setRawValue(const Slice &key, const Slice &value);
+    template <typename T> int setValue(const Slice &key, const T &t) { return setRawValue(key, encode(t)); }
+    bool contains(const Slice &key) const;
+    void remove(const Slice &key);
+    Iterator *createIterator() const;
+private:
+#ifdef USE_LEVELDB
+    leveldb::DB *mDB;
+    const leveldb::WriteOptions mWriteOptions;
+    QByteArray mOpenError;
+    LocationComparator *mLocationComparator;
+    friend class Batch;
+#endif
+};
+
 struct Batch {
     enum { BatchThreshold = 1024 * 1024 };
     Batch(Database *d);
@@ -89,32 +127,5 @@ private:
 #endif
 };
 
-class Database
-{
-public:
-    Database(const char *path, const Server::Options &opt);
-    bool isOpened() const;
-    void close();
-    QByteArray openError() const;
-    std::string rawValue(const Slice &key, bool *ok = 0) const;
-    template <typename T> T value(const Slice &key, bool *ok = 0) {
-        const std::string val = rawValue(key, ok);
-        if (!val.empty())
-            return decode<T>(val);
-        return T();
-    }
-    int setRawValue(const Slice &key, const Slice &value);
-    template <typename T> int setValue(const Slice &key, const T &t) { return setRawValue(key, encode(t)); }
-    bool contains(const Slice &key) const;
-    void remove(const Slice &key);
-    Iterator *createIterator() const;
-private:
-#ifdef USE_LEVELDB
-    leveldb::DB *mDB;
-    const leveldb::WriteOptions mWriteOptions;
-    QByteArray mOpenError;
-    friend class Batch;
-#endif
-};
 
 #endif

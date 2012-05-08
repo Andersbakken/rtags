@@ -11,6 +11,13 @@
 namespace RTags {
 enum UnitType { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };
 
+enum KeyFlag {
+    NoFlag = 0x0,
+    Padded = 0x1,
+    ShowContext = 0x2,
+    ShowLineNumbers = 0x4
+};
+
 static inline int digits(int len)
 {
     int ret = 1;
