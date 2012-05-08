@@ -20,9 +20,9 @@ public:
         kind = CXCursor_FirstInvalid;
         target.clear();
         references.clear();
+        symbolName.clear();
 #ifdef QT_DEBUG
         loc.clear();
-        symbolName.clear();
 #endif
     }
 
@@ -80,6 +80,7 @@ public:
                       << "target" << target << "other.target" << other.target
                       << "references" << references << "other.references" << other.references
                       << "kind" << kind << "other.kind" << other.kind
+                      << "symbolName" << symbolName << "other.symbolName" << other.symbolName
 #ifdef QT_DEBUG
                       << "location" << loc << "other.location" << other.loc
                       << "symbolName" << symbolName << "other.symbolName" << other.symbolName
