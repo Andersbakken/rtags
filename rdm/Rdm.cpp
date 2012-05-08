@@ -205,9 +205,8 @@ int writeFileInformation(quint32 fileId, const QList<QByteArray> &args, time_t l
     QElapsedTimer timer;
     timer.start();
     Database *db = Server::instance()->db(Server::FileInformation);
-    char buf[4];
-    memcpy(buf, &fileId, 4);
-    return db->setValue(Slice(buf, 4), FileInformation(lastTouched, args));
+    const char *ch = reinterpret_cast<const char*>(&fileId);
+    return db->setValue(Slice(ch, sizeof(fileId)), FileInformation(lastTouched, args));
 }
 
 int writePchUSRHashes(const QHash<Path, PchUSRHash> &pchUSRHashes)

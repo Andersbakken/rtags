@@ -105,10 +105,11 @@ void StatusJob::execute()
                 return;
 
             const FileInformation fi = it->value<FileInformation>();
+            const quint32 fileId = *reinterpret_cast<const quint32*>(it->key().data());
             snprintf(buf, 1024, "  %s: last compiled: %s compile args: %s",
-                     Location::fromKey(it->key().data()).key().constData(),
+                     Location::path(fileId).constData(),
                      QDateTime::fromTime_t(fi.lastTouched).toString().toLocal8Bit().constData(),
-                     RTags::join(fi.compileArgs).constData());
+                     RTags::join(fi.compileArgs, " ").constData());
             write(buf);
             it->next();
         }

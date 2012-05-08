@@ -227,7 +227,6 @@ void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
     }
     if (watchPaths.isEmpty())
         return;
-#warning this is not working yet
     mWatcher.addPaths(watchPaths.toList());
 }
 
@@ -286,8 +285,8 @@ void Indexer::onDirectoryChanged(const QString& path)
     while (wit != wend) {
         // weird API, QSet<>::iterator does not allow for modifications to the referenced value
         file = (p + (*wit).first);
-        debug() << "comparing" << file << (file.lastModified() == (*wit).second)
-                << QDateTime::fromTime_t(file.lastModified());
+        // qDebug() << "comparing" << file << (file.lastModified() == (*wit).second)
+        //          << QDateTime::fromTime_t(file.lastModified());
         if (!file.exists() || file.lastModified() != (*wit).second) {
             const quint32 fileId = Location::fileId(file);
             dirtyFiles.insert(fileId);

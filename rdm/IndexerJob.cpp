@@ -371,9 +371,9 @@ void IndexerJob::execute()
         return;
     }
 
-    const quint32 fileId = Location::fileId(mIn);
     if (!mUnit) {
         error() << "got 0 unit for" << clangLine;
+        const quint32 fileId = Location::insertFile(mIn);
         mDependencies[fileId].insert(fileId);
         mIndexer->addDependencies(mDependencies);
         FileInformation fi;
@@ -385,12 +385,6 @@ void IndexerJob::execute()
         mIndex = 0;
     } else {
         clang_getInclusions(mUnit, inclusionVisitor, this);
-        foreach(const Path &pchHeader, mPchHeaders) {
-            foreach(quint32 dep, mIndexer->pchDependencies(pchHeader)) {
-                mDependencies[dep].insert(fileId);
-            }
-        }
-        mIndexer->addDependencies(mDependencies);
         clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
         if (mIsPch) {
             Q_ASSERT(!pchName.isEmpty());
@@ -400,6 +394,14 @@ void IndexerJob::execute()
                 mIndexer->setPchUSRHash(mIn, mPchUSRHash);
             }
         }
+        const quint32 fileId = Location::insertFile(mIn);
+        foreach(const Path &pchHeader, mPchHeaders) {
+            foreach(quint32 dep, mIndexer->pchDependencies(pchHeader)) {
+                mDependencies[dep].insert(fileId);
+            }
+        }
+        mIndexer->addDependencies(mDependencies);
+
 
         foreach (const quint32 fileId, mPaths) {
             const Location loc(fileId, 0);
