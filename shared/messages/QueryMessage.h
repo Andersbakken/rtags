@@ -20,7 +20,8 @@ class QueryMessage : public Message
         Dump,
         Status,
         Test,
-        CursorInfo
+        CursorInfo,
+        Shutdown
     };
 
     enum Flag {

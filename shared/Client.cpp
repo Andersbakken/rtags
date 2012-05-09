@@ -1,7 +1,9 @@
 #include "Client.h"
 #include "Messages.h"
 #include "Connection.h"
+#ifdef BUILDING_RC
 #include "MakefileParser.h"
+#endif
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -14,18 +16,6 @@ Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, const QStrin
       mSourceFileCount(0), mPchCount(0), mRdmArgs(rdmArgs)
 {
     Messages::init();
-}
-
-void Client::parseMakefile(const Path& path)
-{
-    mSourceFileCount = mPchCount = 0;
-    MakefileParser* parser = new MakefileParser(mExtraFlags, this);
-    connect(parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
-    connect(parser, SIGNAL(fileReady(const GccArguments&)),
-            this, SLOT(onMakefileReady(const GccArguments&)));
-    parser->run(path);
-    mMakeDone = false;
-    qApp->exec();
 }
 
 void Client::query(const QueryMessage &message)
@@ -61,6 +51,19 @@ void Client::onNewMessage(Message* message)
         qFatal("Unexpected message: %d", message->messageId());
     }
     message->deleteLater();
+}
+
+#ifdef BUILDING_RC
+void Client::parseMakefile(const Path& path)
+{
+    mSourceFileCount = mPchCount = 0;
+    MakefileParser* parser = new MakefileParser(mExtraFlags, this);
+    connect(parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
+    connect(parser, SIGNAL(fileReady(const GccArguments&)),
+            this, SLOT(onMakefileReady(const GccArguments&)));
+    parser->run(path);
+    mMakeDone = false;
+    qApp->exec();
 }
 
 void Client::onMakefileDone()
@@ -140,6 +143,8 @@ void Client::onMakefileReady(const GccArguments& args)
         ++mSourceFileCount;
     }
 }
+#endif
+
 void Client::onDisconnected()
 {
     if (sender() == mConn) {

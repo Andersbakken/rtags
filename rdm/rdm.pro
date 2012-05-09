@@ -6,7 +6,7 @@ TEMPLATE = app
 TARGET =
 DEPENDPATH += .
 INCLUDEPATH += . ../3rdparty/leveldb/src/include
-DEFINES += USE_LEVELDB
+DEFINES += USE_LEVELDB BUILDING_RDM
 include(../shared/shared.pri)
 include(../shared/clang.pri)
 

@@ -14,6 +14,7 @@ SOURCES += \
     $$PWD/messages/QueryMessage.cpp \
     $$PWD/messages/ErrorMessage.cpp \
     $$PWD/Log.cpp \
+    $$PWD/Client.cpp \
     $$PWD/RTags.cpp
 
 HEADERS += \
@@ -25,7 +26,8 @@ HEADERS += \
     $$PWD/messages/QueryMessage.h \
     $$PWD/messages/ErrorMessage.h \
     $$PWD/RTags.h \
-    $$PWD/Log.h
+    $$PWD/Log.h \
+    $$PWD/Client.h
 
 PRECOMPILED_HEADER = Pch.h
 CONFIG += precompile_header

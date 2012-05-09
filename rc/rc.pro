@@ -3,13 +3,14 @@
 ######################################################################
 
 TEMPLATE = app
-TARGET = 
+TARGET =
 DEPENDPATH += .
 INCLUDEPATH += .
 
 freebsd-* {
   DEFINES+="MAKE=\\\"gmake\\\""
 }
+DEFINES += BUILDING_RC
 
 gccopts_gperf.commands = gperf -I -C -l -L C++ gccopts.gperf -Z gccopts_gperf > gccopts_gperf.h
 gccopts_gperf.target = gccopts_gperf.h
@@ -21,11 +22,9 @@ include(../shared/shared.pri)
 
 # Input
 HEADERS += \
-    Client.h \
     MakefileParser.h \
     GccArguments.h
 SOURCES += \
-    Client.cpp \
     MakefileParser.cpp \
     GccArguments.cpp \
     main.cpp
