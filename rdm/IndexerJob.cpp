@@ -122,7 +122,7 @@ QByteArray IndexerJob::addNamePermutations(CXCursor cursor, const Location &loca
     return qparam;
 }
 
-Location IndexerJob::createLocation(CXCursor cursor)
+Location IndexerJob::createLocation(CXCursor cursor, bool check)
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
     Location ret;
@@ -132,13 +132,15 @@ Location IndexerJob::createLocation(CXCursor cursor)
         clang_getSpellingLocation(location, &file, 0, 0, &start);
         if (file) {
             ret = Location(file, start);
-            const quint32 fileId = ret.fileId();
-            PathState &state = mPaths[fileId];
-            if (state == Unset)
-                state = mIndexer->visitFile(fileId) ? Index : DontIndex;
-            if (state == DontIndex) {
-                // qDebug() << "ignored" << Rdm::cursorToString(cursor);
-                return Location();
+            if (check) {
+                const quint32 fileId = ret.fileId();
+                PathState &state = mPaths[fileId];
+                if (state == Unset)
+                    state = mIndexer->visitFile(fileId) ? Index : DontIndex;
+                if (state == DontIndex) {
+                    // qDebug() << "ignored" << Rdm::cursorToString(cursor);
+                    return Location();
+                }
             }
         }
     }
@@ -207,7 +209,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         break;
     }
 
-    const Location loc = job->createLocation(cursor);
+    const Location loc = job->createLocation(cursor, true);
     if (loc.isNull()) {
         return CXChildVisit_Recurse;
     }
@@ -234,7 +236,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
             clang_disposeString(usr);
         }
     } else {
-        refLoc = job->createLocation(ref);
+        refLoc = job->createLocation(ref, false);
     }
 
     CursorInfo &info = job->mSymbols[loc];
