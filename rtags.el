@@ -105,7 +105,8 @@ return t if rtags is allowed to modify this file"
   (let ((arg (rtags-current-location)))
     (with-temp-buffer
       (rtags-call-rc "-N" "-f" arg)
-      (rtags-goto-location (buffer-string))
+      (if (< (point-min) (point-max))
+          (rtags-goto-location (buffer-string)))
       )
     )
   )
