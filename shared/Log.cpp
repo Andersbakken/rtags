@@ -15,8 +15,22 @@ static QElapsedTimer sStart;
 
 static inline QByteArray prettyTimeSinceStarted()
 {
-    return QDateTime::currentDateTime().toString("dd/MM/yy hh:mm:ss").toLocal8Bit(); // ### not done
-    // return QTime(0, 0, 0, sStart.elapsed()).toString("hh:mm:ss.zzz").toLocal8Bit();
+    quint64 elapsed = sStart.elapsed();
+    char buf[128];
+    enum { MS = 1,
+           Second = 1000,
+           Minute = Second * 60,
+           Hour = Minute * 60
+    };
+    const int ratios[] = { Hour, Minute, Second, MS };
+    int values[] = { 0, 0, 0, 0 };
+    for (int i=0; i<4; ++i) {
+        values[i] = elapsed / ratios[i];
+        elapsed %= ratios[i];
+    }
+
+    snprintf(buf, sizeof(buf), "%02d:%02d:%02d:%03d", values[0], values[1], values[2], values[3]);
+    return buf;
 }
 
 static void log(int level, const char *format, va_list v)
