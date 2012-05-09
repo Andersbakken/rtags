@@ -40,11 +40,10 @@ static void help(FILE *f, const char* app)
             "  --compiler-flag|-o [arg]      Add additional compiler flags, must be combined with --makefile\n"
             "  --test|-t                     Test whether rtags knows about this source file\n"
             "  --status|-s [arg]             Dump status of rdm. If arg is passed it should match one of:\n"
-            "                                'general', 'dependencies', 'symbols', 'symbolnames', 'fileinfos' or 'pch'\n",
+            "                                'general', 'dependencies', 'symbols', 'symbolnames', 'fileinfos' or 'pch'\n"
+            "  --autostart-rdm|-a [args]     Start rdm with [args] if rc fails to connect\n",
             app);
 }
-
-#warning autostart rdm
 
 static inline QByteArray encodeLocation(const QByteArray &key)
 {
@@ -74,6 +73,7 @@ int main(int argc, char** argv)
         { "verbose", no_argument, 0, 'v' },
         { "skip-paren", no_argument, 0, 'p' },
         { "help", no_argument, 0, 'h' },
+        { "autostart-rdm", optional_argument, 0, 'a' },
         { "follow-location", required_argument, 0, 'f' },
         { "makefile", required_argument, 0, 'm' },
         { "reference-name", required_argument, 0, 'R' },
@@ -109,6 +109,7 @@ int main(int argc, char** argv)
     QSet<QByteArray> pathFilters;
     unsigned queryFlags = 0;
     unsigned clientFlags = 0;
+    QStringList rdmArgs;
 
     QFile standardIn;
 
@@ -124,6 +125,11 @@ int main(int argc, char** argv)
         case 'h':
             help(stdout, argv[0]);
             return 0;
+        case 'a':
+            clientFlags |= Client::AutostartRdm;
+            if (optarg)
+                rdmArgs = QString::fromLocal8Bit(optarg).split(' ');
+            break;
         case 'H':
             queryFlags |= QueryMessage::FilterSystemIncludes;
             break;
@@ -260,7 +266,7 @@ int main(int argc, char** argv)
             l << argv[i];
     }
 
-    Client client(clientFlags, extraFlags);
+    Client client(clientFlags, extraFlags, rdmArgs);
     QList<QPair<QueryMessage::Type, QByteArray> >::const_iterator it = optlist.begin();
     while (it != optlist.end()) {
         QueryMessage msg(it->first, it->second, queryFlags);

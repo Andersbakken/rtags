@@ -7,10 +7,11 @@
 #include <QFileInfo>
 #include <QDebug>
 #include <Log.h>
+#include <unistd.h>
 
-Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, QObject* parent)
+Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, const QStringList &rdmArgs, QObject* parent)
     : QObject(parent), mConn(0), mFlags(flags), mMakeDone(false), mExtraFlags(extraFlags),
-      mSourceFileCount(0), mPchCount(0)
+      mSourceFileCount(0), mPchCount(0), mRdmArgs(rdmArgs)
 {
     Messages::init();
 }
@@ -29,13 +30,10 @@ void Client::parseMakefile(const Path& path)
 
 void Client::query(const QueryMessage &message)
 {
-    mConn = new Connection(this);
-    if (!mConn->connectToHost("localhost", Connection::Port)) {
-        warning("Can't connect to host");
-        delete mConn;
-        mConn = 0;
+    if (!mConn && !connectToServer()) {
         return;
     }
+
     connect(mConn, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
     connect(mConn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
     mConn->send(&message);
@@ -100,12 +98,8 @@ void Client::onMakefileReady(const GccArguments& args)
         return;
     }
     if (!mConn) {
-        mConn = new Connection(this);
-        if (!mConn->connectToHost("localhost", Connection::Port)) {
-            error("Can't connect to host");
-            sender()->deleteLater();
+        if (!connectToServer())
             return;
-        }
         connect(mConn, SIGNAL(sendComplete()), this, SLOT(onSendComplete()));
     }
 
@@ -153,4 +147,34 @@ void Client::onDisconnected()
         mConn = 0;
         qApp->quit();
     }
+}
+bool Client::connectToServer()
+{
+    Q_ASSERT(!mConn);
+    mConn = new Connection(this);
+    if (!mConn->connectToHost("localhost", Connection::Port)) {
+        if (mFlags & AutostartRdm) {
+            QString cmd = QCoreApplication::arguments().value(0);
+            const int lastSlash = cmd.lastIndexOf('/');
+            if (lastSlash != -1) {
+                cmd.replace(lastSlash + 1, cmd.size() - lastSlash - 1, "rdm");
+            } else {
+                cmd = "rdm";
+            }
+            if (QProcess::startDetached(cmd, mRdmArgs)) {
+                for (int i=0; i<5; ++i) {
+                    if (mConn->connectToHost("localhost", Connection::Port)) {
+                        return true;
+                    }
+                    sleep(1);
+                }
+            }
+        }
+
+        warning("Can't connect to host");
+        delete mConn;
+        mConn = 0;
+        return false;
+    }
+    return true;
 }

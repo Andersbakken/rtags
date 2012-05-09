@@ -16,18 +16,21 @@ class Client : public QObject
 {
     Q_OBJECT
 public:
-    Client(unsigned flags, const QList<QByteArray> &extraFlags, QObject* parent = 0);
+    Client(unsigned flags, const QList<QByteArray> &extraFlags,
+           const QStringList &rdmArgs, QObject* parent = 0);
     enum Flag {
-        None = 0x0
+        None = 0x0,
+        AutostartRdm = 0x1
     };
 
+    QStringList rdmArgs() const { return mRdmArgs; }
     unsigned flags() const { return mFlags; }
     void parseMakefile(const Path &path);
     void query(const QueryMessage &msg);
     QList<QByteArray> extraFlags() const { return mExtraFlags; }
     int sourceFileCount() const { return mSourceFileCount; }
     int pchCount() const { return mPchCount; }
-
+    bool connectToServer();
 private slots:
     void onDisconnected();
     void onSendComplete();
@@ -43,6 +46,7 @@ private:
     QHash<QByteArray, QByteArray> mPchs;
     const QList<QByteArray> mExtraFlags;
     int mSourceFileCount, mPchCount;
+    QStringList mRdmArgs;
 };
 
 #endif
