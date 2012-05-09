@@ -151,7 +151,7 @@ void Indexer::initDB()
         }
     }
 
-    QSet<quint32> dirty;
+    QSet<quint32> dirtyFiles;
     QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
     int checked = 0;
 
@@ -167,9 +167,9 @@ void Indexer::initDB()
                 const FileInformation fi = it->value<FileInformation>();
                 if (!fi.compileArgs.isEmpty()) {
                     ++checked;
-                    bool dirt = false;
-                    if (isDirty(deps.value(fileId), fi.lastTouched, dirty)) {
-                        dirt = true;
+                    bool dirty = false;
+                    if (isDirty(deps.value(fileId), fi.lastTouched, dirtyFiles)) {
+                        dirty = true;
                         // ### am I checking pch deps correctly here?
                         if (isPch(fi.compileArgs)) {
                             toIndexPch[path] = fi.compileArgs;
@@ -177,7 +177,7 @@ void Indexer::initDB()
                             toIndex[path] = fi.compileArgs;
                         }
                     }
-                    warning() << "checking if" << path << "is dirty =>" << dirt;
+                    warning() << "checking if" << path << "is dirty =>" << dirty;
                 }
             } else {
                 batch.remove(key);
@@ -192,7 +192,8 @@ void Indexer::initDB()
     if (toIndex.isEmpty() && toIndexPch.isEmpty())
         return;
 
-    QThreadPool::globalInstance()->start(new DirtyJob(this, dirty, toIndexPch, toIndex));
+    dirty(dirtyFiles);
+    QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
 }
 
 void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
@@ -336,6 +337,7 @@ void Indexer::onDirectoryChanged(const QString& path)
         return;
 
     lock.unlock();
+    dirty(dirtyFiles);
     QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
 }
 
@@ -463,18 +465,18 @@ void Indexer::timerEvent(QTimerEvent *e)
     }
 }
 
-bool Indexer::startHeader(quint32 fileId)
+bool Indexer::visitFile(quint32 fileId)
 {
-    QMutexLocker lock(&mIndexedFilesMutex);
-    if (mIndexedFiles.contains(fileId)) {
+    QMutexLocker lock(&mVisitedFilesMutex);
+    if (mVisitedFiles.contains(fileId)) {
         return false;
     }
-    mIndexedFiles.insert(fileId);
+    mVisitedFiles.insert(fileId);
     return true;
 }
 
 void Indexer::dirty(const QSet<quint32> &files)
 {
-    QMutexLocker lock(&mIndexedFilesMutex);
-    mIndexedFiles -= files;
+    QMutexLocker lock(&mVisitedFilesMutex);
+    mVisitedFiles -= files;
 }

@@ -33,7 +33,7 @@ public:
         Index,
         DontIndex
     };
-    QHash<quint32, PathState> mPaths; // value is true if we should index, this stuff is largely duplicated by mDependencies
+    QHash<quint32, PathState> mPaths;
     ReferenceHash mReferences;
     Path mIn;
     QList<QByteArray> mArgs;

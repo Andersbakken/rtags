@@ -133,17 +133,14 @@ Location IndexerJob::createLocation(CXCursor cursor)
         clang_getSpellingLocation(location, &file, 0, 0, &start);
         if (file) {
             ret = Location(file, start);
-            // PathState &state = mPaths[ret.fileId()];
-            // if (state == Unset) {
-            //     state = mIndex->
-            // switch (state) {
-            // case Unset:
-            // case Index:
-            //     case Dpon
-
-            // }
-            // if (
-            // if (ret.fileId
+            const quint32 fileId = ret.fileId();
+            PathState &state = mPaths[fileId];
+            if (state == Unset)
+                state = mIndexer->visitFile(fileId) ? Index : DontIndex;
+            if (state == DontIndex) {
+                // qDebug() << "ignored" << Rdm::cursorToString(cursor);
+                return Location();
+            }
         }
     }
     return ret;

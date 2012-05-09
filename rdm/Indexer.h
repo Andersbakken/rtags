@@ -29,7 +29,7 @@ public:
     void abort();
     QList<QByteArray> compileArgs(const Path &file) const;
     void timerEvent(QTimerEvent *e);
-    bool startHeader(quint32 fileId);
+    bool visitFile(quint32 fileId);
     void dirty(const QSet<quint32> &files);
 signals:
     void indexingDone(int id);
@@ -47,8 +47,8 @@ private:
     mutable QReadWriteLock mPchUSRHashLock;
     QHash<Path, PchUSRHash> mPchUSRHashes;
 
-    QMutex mIndexedFilesMutex;
-    QSet<quint32> mIndexedFiles;
+    QMutex mVisitedFilesMutex;
+    QSet<quint32> mVisitedFiles;
 
     QList<QByteArray> mDefaultArgs;
     mutable QReadWriteLock mPchDependenciesLock;
