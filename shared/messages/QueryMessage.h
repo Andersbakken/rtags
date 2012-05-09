@@ -8,7 +8,7 @@
 class QueryMessage : public Message
 {
     Q_OBJECT
-    public:
+public:
     enum { MessageId = 4 };
     enum Type {
         Response,

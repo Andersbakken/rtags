@@ -18,8 +18,8 @@ class Client : public QObject
 {
     Q_OBJECT
 public:
-    Client(unsigned flags, const QList<QByteArray> &extraFlags,
-           const QStringList &rdmArgs, QObject* parent = 0);
+    Client(unsigned flags = 0, const QList<QByteArray> &extraFlags = QList<QByteArray>(),
+           const QStringList &rdmArgs = QStringList(), QObject* parent = 0);
     enum Flag {
         None = 0x0,
         AutostartRdm = 0x1
@@ -30,7 +30,7 @@ public:
 #ifdef BUILDING_RC
     void parseMakefile(const Path &path);
 #endif
-    void query(const QueryMessage &msg);
+    void query(const QueryMessage *msg);
     QList<QByteArray> extraFlags() const { return mExtraFlags; }
     int sourceFileCount() const { return mSourceFileCount; }
     int pchCount() const { return mPchCount; }
@@ -54,6 +54,7 @@ private:
     const QList<QByteArray> mExtraFlags;
     int mSourceFileCount, mPchCount;
     QStringList mRdmArgs;
+    QEventLoop mLoop;
 };
 
 #endif

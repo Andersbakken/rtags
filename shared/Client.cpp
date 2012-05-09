@@ -18,7 +18,7 @@ Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, const QStrin
     Messages::init();
 }
 
-void Client::query(const QueryMessage &message)
+void Client::query(const QueryMessage *message)
 {
     if (!mConn && !connectToServer()) {
         return;
@@ -26,8 +26,8 @@ void Client::query(const QueryMessage &message)
 
     connect(mConn, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
     connect(mConn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
-    mConn->send(&message);
-    qApp->exec();
+    mConn->send(message);
+    mLoop.exec();
 }
 
 void Client::onSendComplete()
@@ -35,7 +35,7 @@ void Client::onSendComplete()
     Q_ASSERT(mConn == sender());
 
     if (mMakeDone)
-        qApp->quit();
+        mLoop.quit();
 }
 
 void Client::onNewMessage(Message* message)
@@ -59,11 +59,11 @@ void Client::parseMakefile(const Path& path)
     mSourceFileCount = mPchCount = 0;
     MakefileParser* parser = new MakefileParser(mExtraFlags, this);
     connect(parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
-    connect(parser, SIGNAL(fileReady(const GccArguments&)),
-            this, SLOT(onMakefileReady(const GccArguments&)));
+    connect(parser, SIGNAL(fileReady(GccArguments)),
+            this, SLOT(onMakefileReady(GccArguments)));
     parser->run(path);
     mMakeDone = false;
-    qApp->exec();
+    mLoop.exec();
 }
 
 void Client::onMakefileDone()
@@ -72,7 +72,7 @@ void Client::onMakefileDone()
         return;
     mMakeDone = true;
     if (!mConn || !mConn->pendingWrite())
-        qApp->quit();
+        mLoop.quit();
     sender()->deleteLater();
 }
 
@@ -150,7 +150,7 @@ void Client::onDisconnected()
     if (sender() == mConn) {
         mConn->deleteLater();
         mConn = 0;
-        qApp->quit();
+        mLoop.quit();
     }
 }
 bool Client::connectToServer()

@@ -2,6 +2,7 @@
 #include "DumpJob.h"
 #include "FollowLocationJob.h"
 #include "Indexer.h"
+#include "Client.h"
 #include "CursorInfoJob.h"
 #include "MatchJob.h"
 #include "Message.h"
@@ -53,15 +54,37 @@ Server::~Server()
 bool Server::init(const Options &options)
 {
     mOptions = options.options;
-    {
-        for (int i=0; i<DatabaseTypeCount; ++i) {
-            mDBs[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(), options, i == Server::Symbol);
-            if (!mDBs[i]->isOpened()) {
-                error() << "Failed to open db" << mDBs[i]->openError();
-                return false;
-            }
+    mDefaultArgs = options.defaultArguments;
+    Messages::init();
+
+    for (int i=0; i<10; ++i) {
+        mServer = new QTcpServer(this);
+        if (mServer->listen(QHostAddress::Any, Connection::Port)) {
+            break;
+        }
+        delete mServer;
+        mServer = 0;
+        if (!i) {
+            Client client;
+            QueryMessage msg(QueryMessage::Shutdown);
+            client.query(&msg);
+        }
+        sleep(1);
+    }
+    if (!mServer) {
+        error("Unable to listen to port %d", Connection::Port);
+        return false;
+    }
+
+    for (int i=0; i<DatabaseTypeCount; ++i) {
+        mDBs[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(), options, i == Server::Symbol);
+        if (!mDBs[i]->isOpened()) {
+            error() << "Failed to open db" << mDBs[i]->openError();
+            return false;
         }
     }
+
+
     Database *general = db(Server::General);
     bool ok;
     const int version = general->value<int>("version", &ok);
@@ -72,16 +95,9 @@ bool Server::init(const Options &options)
         return false;
     }
 
-    mDefaultArgs = options.defaultArguments;
-    Messages::init();
-    mServer = new QTcpServer(this);
     mIndexer = new Indexer(sBase, this);
     connect(mIndexer, SIGNAL(symbolNamesChanged()), this, SLOT(onSymbolNamesChanged()));
 
-    if (!mServer->listen(QHostAddress::Any, Connection::Port)) {
-        error("Unable to listen to port %d", Connection::Port);
-        return false;
-    }
     connect(mServer, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
     connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
     QList<Path> systemPaths;
@@ -197,10 +213,6 @@ void Server::handleAddMessage(AddMessage* message)
 
 void Server::handleQueryMessage(QueryMessage* message)
 {
-    if (message->query().isEmpty()) {
-        return;
-    }
-
     Connection* conn = qobject_cast<Connection*>(sender());
     int id = 0;
     switch (message->type()) {
@@ -210,6 +222,10 @@ void Server::handleQueryMessage(QueryMessage* message)
     case QueryMessage::CursorInfo:
         id = cursorInfo(*message);
         break;
+    case QueryMessage::Shutdown:
+        QCoreApplication::instance()->quit();
+        conn->finish();
+        return;
     case QueryMessage::FollowLocation:
         id = followLocation(*message);
         break;
@@ -220,7 +236,7 @@ void Server::handleQueryMessage(QueryMessage* message)
         id = referencesForName(*message);
         break;
     case QueryMessage::ListSymbols:
-        if (message->query().front().isEmpty() && !message->flags() && !mCachedSymbolNames.isEmpty()) {
+        if (message->query().value(0).isEmpty() && !message->flags() && !mCachedSymbolNames.isEmpty()) {
             QueryMessage response(mCachedSymbolNames);
             conn->send(&response);
             conn->finish();
@@ -295,9 +311,9 @@ int Server::nextId()
 
 int Server::followLocation(const QueryMessage &query)
 {
-    const Location loc = Location::decodeClientLocation(query.query().front());
+    const Location loc = Location::decodeClientLocation(query.query().value(0));
     if (loc.isNull()) {
-        error("Failed to make location from [%s]", query.query().front().constData());
+        error("Failed to make location from [%s]", query.query().value(0).constData());
         return 0;
     }
 
@@ -315,9 +331,9 @@ int Server::followLocation(const QueryMessage &query)
 
 int Server::cursorInfo(const QueryMessage &query)
 {
-    const Location loc = Location::decodeClientLocation(query.query().front());
+    const Location loc = Location::decodeClientLocation(query.query().value(0));
     if (loc.isNull()) {
-        error("Failed to make location from [%s]", query.query().front().constData());
+        error("Failed to make location from [%s]", query.query().value(0).constData());
         return 0;
     }
 
@@ -336,9 +352,9 @@ int Server::cursorInfo(const QueryMessage &query)
 
 int Server::referencesForLocation(const QueryMessage &query)
 {
-    const Location loc = Location::decodeClientLocation(query.query().front());
+    const Location loc = Location::decodeClientLocation(query.query().value(0));
     if (loc.isNull()) {
-        error("Failed to make location from [%s]", query.query().front().constData());
+        error("Failed to make location from [%s]", query.query().value(0).constData());
         return 0;
     }
 
@@ -358,7 +374,7 @@ int Server::referencesForName(const QueryMessage& query)
 {
     const int id = nextId();
 
-    const QByteArray name = query.query().front();
+    const QByteArray name = query.query().value(0);
     error() << "references for name" << name;
 
     ReferencesJob* job = new ReferencesJob(id, name, query.keyFlags());
@@ -371,7 +387,7 @@ int Server::referencesForName(const QueryMessage& query)
 
 int Server::match(const QueryMessage &query)
 {
-    const QByteArray partial = query.query().front();
+    const QByteArray partial = query.query().value(0);
     const int id = nextId();
 
     error() << "match" << partial;
@@ -385,7 +401,7 @@ int Server::match(const QueryMessage &query)
 
 int Server::dump(const QueryMessage &query)
 {
-    const QByteArray partial = query.query().front();
+    const QByteArray partial = query.query().value(0);
     const int id = nextId();
 
     error() << "dump" << partial;
@@ -402,9 +418,9 @@ int Server::status(const QueryMessage &query)
 {
     const int id = nextId();
 
-    error() << "status" << query.query().front();
+    error() << "status" << query.query().value(0);
 
-    StatusJob* job = new StatusJob(id, query.query().front());
+    StatusJob* job = new StatusJob(id, query.query().value(0));
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);
@@ -417,7 +433,7 @@ int Server::test(const QueryMessage &query)
 
     error() << "test";
 
-    TestJob *job = new TestJob(query.query().first(), id);
+    TestJob *job = new TestJob(query.query().value(0), id);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);
     return id;

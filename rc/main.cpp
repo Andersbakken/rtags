@@ -41,7 +41,8 @@ static void help(FILE *f, const char* app)
             "  --test|-t                     Test whether rtags knows about this source file\n"
             "  --status|-s [arg]             Dump status of rdm. If arg is passed it should match one of:\n"
             "                                'general', 'dependencies', 'symbols', 'symbolnames', 'fileinfos' or 'pch'\n"
-            "  --autostart-rdm|-a [args]     Start rdm with [args] if rc fails to connect\n",
+            "  --autostart-rdm|-a [args]     Start rdm with [args] if rc fails to connect\n"
+            "  --quit-server|-q              Tell server to shut down\n",
             app);
 }
 
@@ -95,6 +96,7 @@ int main(int argc, char** argv)
         { "define", required_argument, 0, 'D' },
         { "compiler-flag", required_argument, 0, 'o' },
         { "test", required_argument, 0, 't' },
+        { "quit-server", no_argument, 0, 'q' },
         { 0, 0, 0, 0 }
     };
 
@@ -203,6 +205,9 @@ int main(int argc, char** argv)
             }
             optlist.append(qMakePair<QueryMessage::Type, QByteArray>(type, encoded));
             break; }
+        case 'q':
+            optlist.append(qMakePair(QueryMessage::Shutdown, QByteArray()));
+            break;
         case 't':
             optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Test, Path::resolved(optarg)));
             break;
@@ -272,7 +277,7 @@ int main(int argc, char** argv)
         QueryMessage msg(it->first, it->second, queryFlags);
         msg.setUnsavedFiles(unsavedFiles);
         msg.setPathFilters(pathFilters.toList());
-        client.query(msg);
+        client.query(&msg);
         ++it;
     }
     foreach (const QByteArray &makeFile, makeFiles) {

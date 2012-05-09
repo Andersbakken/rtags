@@ -40,7 +40,7 @@ void usage(FILE *f)
             "  --verbose|-v               Change verbosity, multiple -v's are allowed\n"
             "  --clean-slate|-C           Start from a clean slate\n"
             "  --datadir|-d [arg]         Use this as datadir (default ~/.rtags\n"
-            "  --enable-sighandler|-s     Enable signal handler to dump stack for crashes\n"
+            "  --disable-sighandler|-s    Disable signal handler to dump stack for crashes\n"
             "  --cache-size|-c [size]     Cache size in MB (one cache per db, default 128MB)\n"
             "  --max-memory-use|-M [size] Max amount of memory to use in MB default 1024MB\n"
             "  --thread-count|-j [arg]    Spawn this many threads for thread pool\n");
@@ -61,7 +61,7 @@ int main(int argc, char** argv)
         { "clean-slate", no_argument, 0, 'C' },
         { "cache-size", required_argument, 0, 'c' },
         { "max-memory-use", required_argument, 0, 'M' },
-        { "enable-sighandler", no_argument, 0, 's' },
+        { "disable-sighandler", no_argument, 0, 's' },
         { 0, 0, 0, 0 }
     };
 
@@ -76,6 +76,7 @@ int main(int argc, char** argv)
     const QByteArray shortOptions = RTags::shortOptions(opts);
     int cacheSize = 128;
     long maxMemoryUse = 1024;
+    bool enableSignalHandler = true;
 
     forever {
         const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
@@ -89,7 +90,7 @@ int main(int argc, char** argv)
             datadir = Path::resolved(optarg);
             break;
         case 's':
-            signal(SIGINT, signalHandler);
+            enableSignalHandler = false;
             break;
         case 'C':
             clearDataDir = true;
@@ -143,6 +144,10 @@ int main(int argc, char** argv)
     if (optind < argc) {
         fprintf(stderr, "rdm: unexpected option -- '%s'\n", argv[optind]);
         return 1;
+    }
+
+    if (enableSignalHandler) {
+        signal(SIGINT, signalHandler);
     }
 
     QThreadPool::globalInstance()->setMaxThreadCount(jobs);
