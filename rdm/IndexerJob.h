@@ -15,7 +15,6 @@ class IndexerJob : public QObject, public QRunnable, public AbortInterface
 public:
     IndexerJob(Indexer* indexer, int id, const Path& input, const QList<QByteArray>& arguments);
     virtual void run();
-    void execute();
 
     int mId;
     bool mIsPch;
@@ -42,8 +41,6 @@ public:
     Indexer *mIndexer;
     QHash<QByteArray, Location> mPchUSRHash;
     QList<Path> mPchHeaders;
-    CXIndex mIndex;
-    CXTranslationUnit mUnit;
     bool mWroteSymbolNames;
 signals:
     void done(int id, const Path &path, bool isPch, const QByteArray &msg);

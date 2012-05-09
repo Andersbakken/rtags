@@ -26,8 +26,7 @@ static inline QList<Path> extractPchFiles(const QList<QByteArray>& args)
 
 IndexerJob::IndexerJob(Indexer* indexer, int id, const Path& input, const QList<QByteArray>& arguments)
     : mId(id), mIsPch(false), mIn(input), mArgs(arguments), mIndexer(indexer),
-      mPchHeaders(extractPchFiles(arguments)), mIndex(0), mUnit(0),
-      mWroteSymbolNames(false)
+      mPchHeaders(extractPchFiles(arguments)), mWroteSymbolNames(false)
 {
     // qDebug() << metaObject()->className() << "born" << ++count << ++active;
     setAutoDelete(false);
@@ -306,15 +305,28 @@ static QByteArray pchFileName(const QByteArray &header)
     return Server::pchDir() + SHA256::hash(header.constData());
 }
 
+struct Scope {
+    ~Scope()
+    {
+        cleanup();
+    }
+    void cleanup()
+    {
+        if (unit) {
+            clang_disposeTranslationUnit(unit);
+            unit = 0;
+        }
+        if (index) {
+            clang_disposeIndex(index);
+            index = 0;
+        }
+    }
+
+
+    CXTranslationUnit &unit;
+    CXIndex &index;
+};
 void IndexerJob::run()
-{
-    execute();
-    if (mUnit)
-        clang_disposeTranslationUnit(mUnit);
-    if (mIndex)
-        clang_disposeIndex(mIndex);
-}
-void IndexerJob::execute()
 {
     QElapsedTimer timer;
     timer.start();
@@ -371,17 +383,18 @@ void IndexerJob::execute()
     if (isAborted()) {
         return;
     }
-    mIndex = clang_createIndex(1, 1);
-    mUnit = clang_parseTranslationUnit(mIndex, mIn.constData(),
-                                       clangArgs.data(), idx, 0, 0,
-                                       CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+    CXIndex index = clang_createIndex(1, 1);
+    CXTranslationUnit unit = clang_parseTranslationUnit(index, mIn.constData(),
+                                                        clangArgs.data(), idx, 0, 0,
+                                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+    Scope scope = { unit, index };
     const time_t timeStamp = time(0);
-    warning() << "loading unit" << clangLine << (mUnit != 0);
+    warning() << "loading unit" << clangLine << (unit != 0);
     if (isAborted()) {
         return;
     }
 
-    if (!mUnit) {
+    if (!unit) {
         error() << "got 0 unit for" << clangLine;
         const quint32 fileId = Location::insertFile(mIn);
         mDependencies[fileId].insert(fileId);
@@ -391,10 +404,8 @@ void IndexerJob::execute()
         fi.lastTouched = timeStamp;
 
         Rdm::writeFileInformation(fileId, mArgs, timeStamp);
-        clang_disposeIndex(mIndex);
-        mIndex = 0;
     } else {
-        clang_getInclusions(mUnit, inclusionVisitor, this);
+        clang_getInclusions(unit, inclusionVisitor, this);
         // for (QHash<quint32, QSet<quint32> >::const_iterator it = mDependencies.begin(); it != mDependencies.end(); ++it) {
         //     QList<Path> out;
         //     foreach(quint32 p, it.value()) {
@@ -403,10 +414,10 @@ void IndexerJob::execute()
         //     qDebug() << Location::path(it.key()) << "->" << out;
         // }
 
-        clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
+        clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
         if (mIsPch) {
             Q_ASSERT(!pchName.isEmpty());
-            if (clang_saveTranslationUnit(mUnit, pchName.constData(), clang_defaultSaveOptions(mUnit)) != CXSaveError_None) {
+            if (clang_saveTranslationUnit(unit, pchName.constData(), clang_defaultSaveOptions(unit)) != CXSaveError_None) {
                 error() << "Couldn't save pch file" << mIn << pchName;
             } else {
                 mIndexer->setPchUSRHash(mIn, mPchUSRHash);
@@ -419,6 +430,7 @@ void IndexerJob::execute()
             }
         }
         mIndexer->addDependencies(mDependencies);
+        scope.cleanup();
 
         if (!isAborted()) {
             mWroteSymbolNames = Rdm::writeSymbols(mSymbols, mReferences);
@@ -427,10 +439,6 @@ void IndexerJob::execute()
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
         }
-        clang_disposeTranslationUnit(mUnit);
-        mUnit = 0;
-        clang_disposeIndex(mIndex);
-        mIndex = 0;
 
     }
     char buf[1024];
