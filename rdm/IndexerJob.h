@@ -28,7 +28,12 @@ public:
     SymbolHash mSymbols;
     SymbolNameHash mSymbolNames;
 
-    QSet<quint32> mPaths;
+    enum PathState {
+        Unset,
+        Index,
+        DontIndex
+    };
+    QHash<quint32, PathState> mPaths; // value is true if we should index, this stuff is largely duplicated by mDependencies
     ReferenceHash mReferences;
     Path mIn;
     QList<QByteArray> mArgs;

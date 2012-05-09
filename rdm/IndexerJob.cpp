@@ -38,40 +38,39 @@ static inline quint32 fileId(CXFile file)
     return Location(file, 0).fileId();
 }
 
-void IndexerJob::inclusionVisitor(CXFile included_file,
-                                  CXSourceLocation* include_stack,
+void IndexerJob::inclusionVisitor(CXFile includedFile,
+                                  CXSourceLocation* includeStack,
                                   unsigned includeLen,
-                                  CXClientData client_data)
+                                  CXClientData userData)
 {
-    (void)includeLen;
-    (void)included_file;
-    IndexerJob* job = static_cast<IndexerJob*>(client_data);
+    IndexerJob* job = static_cast<IndexerJob*>(userData);
     if (job->isAborted())
         return;
-    if (!includeLen) {
-        const quint32 path = fileId(included_file);
-        job->mDependencies[path].insert(path);
-        return;
-    }
+    const Location l(includedFile, 0);
 
-    CXString fn = clang_getFileName(included_file);
-    const char *cstr = clang_getCString(fn);
-    // qDebug() << cstr << job->mIn << "inclusionVisitor" << includeLen;
-    if (!Rdm::isSystem(cstr)) {
-        const quint32 path = fileId(included_file);
+    const Path path = l.path();
+    job->mSymbolNames[path].insert(l);
+    const char *fn = path.fileName();
+    // since path comes from Location::sIdsToPaths it will never go away so this is safe
+    job->mSymbolNames[QByteArray::fromRawData(fn, strlen(fn))].insert(l);
+
+    const quint32 fileId = l.fileId();
+    if (!includeLen) {
+        job->mDependencies[fileId].insert(fileId);
+    } else if (!Rdm::isSystem(path)) {
         for (unsigned i=0; i<includeLen; ++i) {
             CXFile originatingFile;
-            clang_getSpellingLocation(include_stack[i], &originatingFile, 0, 0, 0);
-            const quint32 loc = fileId(originatingFile);
+            clang_getSpellingLocation(includeStack[i], &originatingFile, 0, 0, 0);
+            Location loc(originatingFile, 0);
+            const quint32 f = loc.fileId();
             // qDebug() << i << includeLen << job->mIn << Location(originatingFile, 0).path();
-            if (loc)
-                job->mDependencies[path].insert(loc);
+            if (f)
+                job->mDependencies[fileId].insert(f);
         }
         if (job->mIsPch) {
-            job->mPchDependencies.insert(path);
+            job->mPchDependencies.insert(fileId);
         }
     }
-    clang_disposeString(fn);
 }
 
 QByteArray IndexerJob::addNamePermutations(CXCursor cursor, const Location &location, bool addToDB)
@@ -134,8 +133,17 @@ Location IndexerJob::createLocation(CXCursor cursor)
         clang_getSpellingLocation(location, &file, 0, 0, &start);
         if (file) {
             ret = Location(file, start);
-            if (!ret.isNull())
-                mPaths.insert(ret.fileId());
+            // PathState &state = mPaths[ret.fileId()];
+            // if (state == Unset) {
+            //     state = mIndex->
+            // switch (state) {
+            // case Unset:
+            // case Index:
+            //     case Dpon
+
+            // }
+            // if (
+            // if (ret.fileId
         }
     }
     return ret;
@@ -415,13 +423,6 @@ void IndexerJob::execute()
         }
         mIndexer->addDependencies(mDependencies);
 
-
-        foreach (const quint32 fileId, mPaths) {
-            const Location loc(fileId, 0);
-            const Path path = loc.path();
-            mSymbolNames[path].insert(loc);
-            mSymbolNames[path.fileName()].insert(loc);
-        }
         if (!isAborted()) {
             mWroteSymbolNames = Rdm::writeSymbols(mSymbols, mReferences);
             Rdm::writeSymbolNames(mSymbolNames);

@@ -462,3 +462,19 @@ void Indexer::timerEvent(QTimerEvent *e)
         emit symbolNamesChanged();
     }
 }
+
+bool Indexer::startHeader(quint32 fileId)
+{
+    QMutexLocker lock(&mIndexedFilesMutex);
+    if (mIndexedFiles.contains(fileId)) {
+        return false;
+    }
+    mIndexedFiles.insert(fileId);
+    return true;
+}
+
+void Indexer::dirty(const QSet<quint32> &files)
+{
+    QMutexLocker lock(&mIndexedFilesMutex);
+    mIndexedFiles -= files;
+}
