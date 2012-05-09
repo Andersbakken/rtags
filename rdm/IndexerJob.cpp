@@ -48,19 +48,24 @@ void IndexerJob::inclusionVisitor(CXFile included_file,
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
     if (job->isAborted())
         return;
+    if (!includeLen) {
+        const quint32 path = fileId(included_file);
+        job->mDependencies[path].insert(path);
+        return;
+    }
+
     CXString fn = clang_getFileName(included_file);
     const char *cstr = clang_getCString(fn);
+    // qDebug() << cstr << job->mIn << "inclusionVisitor" << includeLen;
     if (!Rdm::isSystem(cstr)) {
         const quint32 path = fileId(included_file);
         for (unsigned i=0; i<includeLen; ++i) {
             CXFile originatingFile;
             clang_getSpellingLocation(include_stack[i], &originatingFile, 0, 0, 0);
             const quint32 loc = fileId(originatingFile);
+            // qDebug() << i << includeLen << job->mIn << Location(originatingFile, 0).path();
             if (loc)
                 job->mDependencies[path].insert(loc);
-        }
-        if (!includeLen) {
-            job->mDependencies[path].insert(path);
         }
         if (job->mIsPch) {
             job->mPchDependencies.insert(path);
@@ -385,6 +390,14 @@ void IndexerJob::execute()
         mIndex = 0;
     } else {
         clang_getInclusions(mUnit, inclusionVisitor, this);
+        // for (QHash<quint32, QSet<quint32> >::const_iterator it = mDependencies.begin(); it != mDependencies.end(); ++it) {
+        //     QList<Path> out;
+        //     foreach(quint32 p, it.value()) {
+        //         out.append(Location::path(p));
+        //     }
+        //     qDebug() << Location::path(it.key()) << "->" << out;
+        // }
+
         clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
         if (mIsPch) {
             Q_ASSERT(!pchName.isEmpty());
