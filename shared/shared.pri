@@ -35,4 +35,8 @@ noinline {
     QMAKE_CXXFLAGS += -fno-inline
     QMAKE_CFLAGS += -fno-inline
 }
+release {
+    QMAKE_CXXFLAGS += -g
+    QMAKE_CFLAGS += -g
+}
 CONFIG -= app_bundle
