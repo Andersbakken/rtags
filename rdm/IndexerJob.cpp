@@ -226,7 +226,6 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         return CXChildVisit_Recurse;
 
     if (clang_equalCursors(cursor, ref)) {
-        refLoc.clear();
         if (!job->mIsPch) {
             CXString usr = clang_getCursorUSR(ref);
             const char *cstr = clang_getCString(usr);
