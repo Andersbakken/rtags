@@ -200,7 +200,7 @@ public:
             memset(buf, 0, 8);
             return false;
         } else {
-            memcpy(buf, &mData, sizeof(buf));
+            memcpy(buf, &mData, sizeof(mData));
             return true;
         }
     }
