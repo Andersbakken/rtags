@@ -122,7 +122,7 @@ QByteArray IndexerJob::addNamePermutations(CXCursor cursor, const Location &loca
     return qparam;
 }
 
-Location IndexerJob::createLocation(CXCursor cursor, bool check)
+Location IndexerJob::createLocation(CXCursor cursor, bool *blocked)
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
     Location ret;
@@ -132,15 +132,17 @@ Location IndexerJob::createLocation(CXCursor cursor, bool check)
         clang_getSpellingLocation(location, &file, 0, 0, &start);
         if (file) {
             ret = Location(file, start);
-            if (check) {
+            if (blocked) {
                 const quint32 fileId = ret.fileId();
                 PathState &state = mPaths[fileId];
                 if (state == Unset)
                     state = mIndexer->visitFile(fileId) ? Index : DontIndex;
                 if (state == DontIndex) {
+                    *blocked = true;
                     // qDebug() << "ignored" << Rdm::cursorToString(cursor) << "for" << mIn;
                     return Location();
                 }
+                *blocked = false;
             }
         }
     }
@@ -209,8 +211,11 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         break;
     }
 
-    const Location loc = job->createLocation(cursor, true);
-    if (loc.isNull()) {
+    bool blocked;
+    const Location loc = job->createLocation(cursor, &blocked);
+    if (blocked) {
+        return CXChildVisit_Continue;
+    } else if (loc.isNull()) {
         return CXChildVisit_Recurse;
     }
     CXCursor ref = clang_getCursorReferenced(cursor);
@@ -235,7 +240,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
             clang_disposeString(usr);
         }
     } else {
-        refLoc = job->createLocation(ref, false);
+        refLoc = job->createLocation(ref, 0);
     }
 
     CursorInfo &info = job->mSymbols[loc];

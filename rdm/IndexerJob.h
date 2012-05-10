@@ -18,7 +18,7 @@ public:
 
     int mId;
     bool mIsPch;
-    Location createLocation(CXCursor cursor, bool check);
+    Location createLocation(CXCursor cursor, bool *blocked);
     QByteArray addNamePermutations(CXCursor cursor, const Location &location, bool addToDb);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static void inclusionVisitor(CXFile included_file, CXSourceLocation* include_stack,
