@@ -363,9 +363,10 @@ void Indexer::onJobComplete(int id, const Path& input, bool isPch, const QByteAr
         }
     }
     const int idx = mJobCounter - (mIndexing.size() + mWaitingForPCH.size());
-    error("%s %d/%d %.1f%%. Pending jobs %d.",
+    error("%s %d/%d %.1f%%. Pending jobs %d. %d mb mem.",
           msg.constData(), idx, mJobCounter, (double(idx) / double(mJobCounter)) * 100.0,
-          mJobs.size() + mWaitingForPCH.size());
+          mJobs.size() + mWaitingForPCH.size(),
+          (MemoryMonitor::usage() / (1024 * 1024)));
 
     if (mJobs.isEmpty()) {
         Q_ASSERT(mTimerRunning);
