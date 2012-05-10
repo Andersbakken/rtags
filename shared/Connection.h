@@ -63,6 +63,9 @@ void Connection::send(const T* message)
 template<typename T>
 bool Connection::registerMessage()
 {
+    const int id = T::MessageId;
+    if (sMetas.contains(id))
+        return true;
     const QMetaObject* obj = &T::staticMetaObject;
 
     if (!obj->constructorCount()
@@ -83,7 +86,6 @@ bool Connection::registerMessage()
         return false;
     }
 
-    const int id = T::MessageId;
     Q_ASSERT(!sMetas.contains(id));
     Meta m;
     m.meta = obj;
