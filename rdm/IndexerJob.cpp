@@ -56,6 +56,8 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
     const quint32 fileId = l.fileId();
     if (!includeLen) {
         job->mDependencies[fileId].insert(fileId);
+        if (job->mIsPch)
+            job->mPchDependencies.insert(fileId);
     } else if (!Rdm::isSystem(path)) {
         for (unsigned i=0; i<includeLen; ++i) {
             CXFile originatingFile;
