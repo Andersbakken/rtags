@@ -135,7 +135,8 @@ Database::Database(const char *path, int cacheSizeMB, bool locationKeys)
     opt.create_if_missing = true;
     if (locationKeys)
         opt.comparator = mLocationComparator;
-    opt.block_cache = leveldb::NewLRUCache(cacheSizeMB * 1024 * 1024);
+    if (cacheSizeMB)
+        opt.block_cache = leveldb::NewLRUCache(cacheSizeMB * 1024 * 1024);
     leveldb::Status status = leveldb::DB::Open(opt, path, &mDB);
     if (!status.ok())
         mOpenError = status.ToString().c_str();

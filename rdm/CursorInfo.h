@@ -48,46 +48,12 @@ public:
 
     bool unite(const CursorInfo &other)
     {
-        bool changed = false;
-        if (kind == CXCursor_InvalidFile) {
-            kind = other.kind;
-            changed = true;
-        }
-        if (!other.symbolLength) {
-            // error() << "other full of shit"
-            //         << eatString(clang_getCursorKindSpelling(other.kind))
-            //         << other.target
-            //         << other.references
-            //         << "me"
-            //         << eatString(clang_getCursorKindSpelling(kind))
-            //         << symbolLength;
-            return true;
-        }
-        if (!symbolLength) {
-#ifdef QT_DEBUG
-            if (!target.isNull())
-                warning() << "About to assert" << target << loc << symbolName;
-            if (!references.isEmpty())
-                warning() << "About to assert" << references << loc << symbolName;
-#endif
-            // Q_ASSERT(target.isNull());
-            // Q_ASSERT(references.isEmpty());
+        if (isNull()) {
             *this = other;
             return true;
         }
-        if (symbolLength != other.symbolLength) {
-            warning() << "something wrong here. SymbolLength" << symbolLength << "other.symbolLength" << other.symbolLength
-                      << "target" << target << "other.target" << other.target
-                      << "references" << references << "other.references" << other.references
-                      << "kind" << kind << "other.kind" << other.kind
-                      << "symbolName" << symbolName << "other.symbolName" << other.symbolName
-#ifdef QT_DEBUG
-                      << "location" << loc << "other.location" << other.loc
-                      << "symbolName" << symbolName << "other.symbolName" << other.symbolName
-#endif
-                ;
-        }
-        if (!other.target.isNull() && target != other.target) {
+        bool changed = false;
+        if (target.isNull() && !other.target.isNull()) {
 #ifdef QT_DEBUG
             if (!target.isNull()) {
                 switch (kind) {

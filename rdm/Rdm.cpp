@@ -238,62 +238,16 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
     if (!references.isEmpty()) {
         const ReferenceHash::const_iterator end = references.end();
         for (ReferenceHash::const_iterator it = references.begin(); it != end; ++it) {
-            const SymbolHash::iterator sym = symbols.find(it.value().first);
-            if (sym != symbols.end()) {
-                CursorInfo &ci = sym.value();
-                ci.references.insert(it.key());
-                // if (it.value().first.path.contains("RTags.h"))
-                //     error() << "cramming" << it.key() << "into" << it.value();
-                if (it.value().second != Rdm::NormalReference) {
-                    CursorInfo &other = symbols[it.key()];
-                    ci.references += other.references;
-                    other.references += ci.references;
-                    if (other.target.isNull())
-                        other.target = it.value().first;
-                    if (ci.target.isNull())
-                        ci.target = it.key();
-                }
-            } else {
-                char buf[8];
-                it.value().first.toKey(buf);
-                const Slice key(buf, 8);
-                CursorInfo current = db->value<CursorInfo>(key);
-                bool changedCurrent = false;
-                qDebug() << "about to add" << it.key().key() << "to" << it.value().first.key()
-                         << current.references;
-                if (addTo(current.references, it.key()))
-                    changedCurrent = true;
-                if (it.value().second != Rdm::NormalReference) {
-                    char otherBuf[8];
-                    it.key().toKey(otherBuf);
-                    const Slice otherKey(otherBuf, 8);
-                    CursorInfo other = db->value<CursorInfo>(otherKey);
-                    bool changedOther = false;
-                    if (addTo(other.references, it.key()))
-                        changedOther = true;
-                    if (addTo(other.references, current.references))
-                        changedOther = true;
-                    if (addTo(current.references, other.references))
-                        changedCurrent = true;
-
-                    if (other.target.isNull()) {
-                        other.target = it.value().first;
-                        changedOther = true;
-                    }
-
-                    if (current.target.isNull()) {
-                        current.target = it.key();
-                        changedCurrent = true;
-                    }
-
-                    if (changedOther) {
-                        totalWritten += batch.add(otherKey, other);
-                    }
-                    // error() << "ditched reference" << it.key() << it.value();
-                }
-                if (changedCurrent) {
-                    totalWritten += batch.add(key, current);
-                }
+            CursorInfo &ci = symbols[it.value().first];
+            ci.references.insert(it.key());
+            if (it.value().second != Rdm::NormalReference) {
+                CursorInfo &other = symbols[it.key()];
+                ci.references += other.references;
+                other.references += ci.references;
+                if (other.target.isNull())
+                    other.target = it.value().first;
+                if (ci.target.isNull())
+                    ci.target = it.key();
             }
         }
     }
