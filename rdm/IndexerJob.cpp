@@ -213,7 +213,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         break;
     }
 
-    bool blocked;
+    bool blocked = false;
     const Location loc = job->createLocation(cursor, &blocked);
     if (blocked) {
         return CXChildVisit_Continue;
