@@ -138,10 +138,8 @@ Location IndexerJob::createLocation(CXCursor cursor, bool check)
                 if (state == Unset)
                     state = mIndexer->visitFile(fileId) ? Index : DontIndex;
                 if (state == DontIndex) {
-                    qDebug() << "ignored" << Rdm::cursorToString(cursor) << "for" << mIn;
+                    // qDebug() << "ignored" << Rdm::cursorToString(cursor) << "for" << mIn;
                     return Location();
-                } else if (Rdm::cursorToString(cursor).contains("foo.h")) {
-                    qDebug() << "allowed" << Rdm::cursorToString(cursor) << "for" << mIn;
                 }
             }
         }
