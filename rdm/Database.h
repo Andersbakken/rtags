@@ -115,25 +115,32 @@ public:
         Write
     };
     ScopedDB(Database *db, LockType lockType)
-        : mDb(db)
+        : mData(new Data(db, lockType))
     {
-        switch (lockType) {
-        case Read:
-            mDb->lockForRead();
-            break;
-        case Write:
-            mDb->lockForWrite();
-            break;
-        }
     }
-    Database *operator->() { return mDb; }
-    operator Database *() { return mDb; }
-    ~ScopedDB()
-    {
-        mDb->unlock();
-    }
+    Database *operator->() { return mData->db; }
+    operator Database *() { return mData->db; }
 private:
-    Database *mDb;
+    class Data : public QSharedData
+    {
+    public:
+        Data(Database *database, LockType lockType)
+            : db(database)
+        {
+            if (db) {
+                (lockType == Read ? db->lockForRead() : db->lockForWrite());
+            }
+        }
+
+        ~Data()
+        {
+            if (db)
+                db->unlock();
+        }
+
+        Database *db;
+    };
+    QSharedDataPointer<Data> mData;
 };
 
 struct Batch {
