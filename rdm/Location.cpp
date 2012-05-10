@@ -11,5 +11,5 @@ QReadWriteLock Location::sLock;
 void Location::writeToDB(const Path &path, quint32 id)
 {
     // printf("Writing a value here %s %d\n", path.constData(), id);
-    Server::instance()->db(Server::FileIds)->setValue<quint32>(path, id);
+    Server::instance()->db(Server::FileIds, ScopedDB::Write)->setValue<quint32>(path, id);
 }

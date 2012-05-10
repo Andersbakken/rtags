@@ -134,7 +134,7 @@ int writeSymbolNames(SymbolNameHash &symbolNames)
 {
     QElapsedTimer timer;
     timer.start();
-    Database *db = Server::instance()->db(Server::SymbolName);
+    ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Write);
 
     Batch batch(db);
     int totalWritten = 0;
@@ -166,7 +166,7 @@ int writeDependencies(const DependencyHash &dependencies)
 {
     QElapsedTimer timer;
     timer.start();
-    Database *db = Server::instance()->db(Server::Dependency);
+    ScopedDB db = Server::instance()->db(Server::Dependency, ScopedDB::Write);
 
     Batch batch(db);
     int totalWritten = 0;
@@ -195,7 +195,7 @@ int writePchDepencies(const QHash<Path, QSet<quint32> > &pchDependencies)
 {
     QElapsedTimer timer;
     timer.start();
-    Database *db = Server::instance()->db(Server::General);
+    ScopedDB db = Server::instance()->db(Server::General, ScopedDB::Write);
     if (!pchDependencies.isEmpty())
         return db->setValue("pchDependencies", pchDependencies);
     return 0;
@@ -204,7 +204,7 @@ int writeFileInformation(quint32 fileId, const QList<QByteArray> &args, time_t l
 {
     QElapsedTimer timer;
     timer.start();
-    Database *db = Server::instance()->db(Server::FileInformation);
+    ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Write);
     const char *ch = reinterpret_cast<const char*>(&fileId);
     return db->setValue(Slice(ch, sizeof(fileId)), FileInformation(lastTouched, args));
 }
@@ -213,7 +213,7 @@ int writePchUSRHashes(const QHash<Path, PchUSRHash> &pchUSRHashes)
 {
     QElapsedTimer timer;
     timer.start();
-    Database *db = Server::instance()->db(Server::PCHUsrHashes);
+    ScopedDB db = Server::instance()->db(Server::PCHUsrHashes, ScopedDB::Write);
     int totalWritten = 0;
     Batch batch(db);
     for (QHash<Path, PchUSRHash>::const_iterator it = pchUSRHashes.begin(); it != pchUSRHashes.end(); ++it) {
@@ -231,7 +231,7 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
 {
     QElapsedTimer timer;
     timer.start();
-    Database *db = Server::instance()->db(Server::Symbol);
+    ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Write);
     Batch batch(db);
     int totalWritten = 0;
 
@@ -259,6 +259,8 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
                 const Slice key(buf, 8);
                 CursorInfo current = db->value<CursorInfo>(key);
                 bool changedCurrent = false;
+                qDebug() << "about to add" << it.key().key() << "to" << it.value().first.key()
+                         << current.references;
                 if (addTo(current.references, it.key()))
                     changedCurrent = true;
                 if (it.value().second != Rdm::NormalReference) {

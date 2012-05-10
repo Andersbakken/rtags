@@ -6,6 +6,7 @@
 #include <QList>
 #include <QHash>
 #include "QueryMessage.h"
+#include "Database.h"
 
 class Connection;
 class Indexer;
@@ -36,7 +37,7 @@ public:
     };
 
     static Server *instance() { return sInstance; }
-    inline Database *db(DatabaseType type) const { return mDBs[type]; }
+    inline ScopedDB db(DatabaseType type, ScopedDB::LockType lockType) const { return ScopedDB(mDBs[type], lockType); }
     struct Options {
         unsigned options;
         QList<QByteArray> defaultArguments;

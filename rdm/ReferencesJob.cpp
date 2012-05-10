@@ -17,13 +17,13 @@ ReferencesJob::ReferencesJob(int i, const QByteArray &sym, unsigned flags)
 void ReferencesJob::execute()
 {
     if (!symbolName.isEmpty()) {
-        Database *db = Server::instance()->db(Server::SymbolName);
+        ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Read);
         locations = db->value<QSet<Location> >(symbolName);
         if (locations.isEmpty()) {
             return;
         }
     }
-    Database *db = Server::instance()->db(Server::Symbol);
+    ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Read);
     foreach(const Location &location, locations) {
         if (isAborted())
             return;

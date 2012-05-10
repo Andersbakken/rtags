@@ -31,7 +31,7 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
 
     {
         // fileids
-        Database *db = Server::instance()->db(Server::FileIds);
+        ScopedDB db = Server::instance()->db(Server::FileIds, ScopedDB::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         QHash<quint32, Path> idsToPaths;
@@ -47,7 +47,7 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
         Location::init(pathsToIds, idsToPaths);
     }
     {
-        Database *db = Server::instance()->db(Server::PCHUsrHashes);
+        ScopedDB db = Server::instance()->db(Server::PCHUsrHashes, ScopedDB::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         while (it->isValid()) {
@@ -56,12 +56,12 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
         }
     }
     {
-        Database *db = Server::instance()->db(Server::General);
+        ScopedDB db = Server::instance()->db(Server::General, ScopedDB::Read);
         mPchDependencies = db->value<QHash<Path, QSet<quint32> > >("pchDependencies");
     }
     {
         // watcher
-        Database *db = Server::instance()->db(Server::Dependency);
+        ScopedDB db = Server::instance()->db(Server::Dependency, ScopedDB::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         DependencyHash dependencies;
@@ -131,8 +131,7 @@ void Indexer::initDB()
     QElapsedTimer timer;
     timer.start();
     QHash<quint32, QSet<quint32> > deps;
-    Database *fileInformationDB = Server::instance()->db(Server::FileInformation);
-    Database *dependencyDB = Server::instance()->db(Server::Dependency);
+    ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ScopedDB::Read);
     RTags::Ptr<Iterator> it(dependencyDB->createIterator());
     it->seekToFirst();
     {
@@ -156,6 +155,7 @@ void Indexer::initDB()
     int checked = 0;
 
     {
+        ScopedDB fileInformationDB = Server::instance()->db(Server::FileInformation, ScopedDB::Write);
         Batch batch(fileInformationDB);
         it.reset(fileInformationDB->createIterator());
         it->seekToFirst();
@@ -288,7 +288,7 @@ void Indexer::onDirectoryChanged(const QString& path)
     QSet<quint32> dirtyFiles;
     QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
 
-    Database *db = Server::instance()->db(Server::FileInformation);
+    ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
     while (wit != wend) {
         // weird API, QSet<>::iterator does not allow for modifications to the referenced value
         file = (p + (*wit).first);
@@ -454,8 +454,8 @@ void Indexer::abort()
 }
 QList<QByteArray> Indexer::compileArgs(const Path &file) const
 {
-    Database *fileInformationDB = Server::instance()->db(Server::FileInformation);
-    return fileInformationDB->value<FileInformation>(file).compileArgs;
+    ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
+    return db->value<FileInformation>(file).compileArgs;
 }
 void Indexer::timerEvent(QTimerEvent *e)
 {

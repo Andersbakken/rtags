@@ -15,14 +15,14 @@ void StatusJob::execute()
 {
     const char *delimiter = "*********************************";
     if (query.isEmpty() || query == "general") {
-        Database *db = Server::instance()->db(Server::General);
+        ScopedDB db = Server::instance()->db(Server::General, ScopedDB::Read);
         write(delimiter);
         write(Server::databaseDir(Server::General));
         write("    version: " + QByteArray::number(db->value<int>("version")));
     }
 
     if (query.isEmpty() || query == "dependencies") {
-        Database *db = Server::instance()->db(Server::Dependency);
+        ScopedDB db = Server::instance()->db(Server::Dependency, ScopedDB::Read);
         write(delimiter);
         write(Server::databaseDir(Server::Dependency));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -44,7 +44,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "symbols") {
-        Database *db = Server::instance()->db(Server::Symbol);
+        ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Read);
         write(delimiter);
         write(Server::databaseDir(Server::Symbol));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -73,7 +73,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "symbolnames") {
-        Database *db = Server::instance()->db(Server::SymbolName);
+        ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Read);
         write(delimiter);
         write(Server::databaseDir(Server::SymbolName));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -94,7 +94,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "fileinfos") {
-        Database *db = Server::instance()->db(Server::FileInformation);
+        ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
         write(delimiter);
         write(Server::databaseDir(Server::FileInformation));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -120,7 +120,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "fileids") {
-        Database *db = Server::instance()->db(Server::FileIds);
+        ScopedDB db = Server::instance()->db(Server::FileIds, ScopedDB::Read);
         write(delimiter);
         write(Server::databaseDir(Server::FileIds));
         RTags::Ptr<Iterator> it(db->createIterator());

@@ -5,7 +5,6 @@
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
 #endif
-#include "Server.h"
 #include <QtCore>
 
 struct Slice {
@@ -77,8 +76,11 @@ class LocationComparator;
 class Database
 {
 public:
-    Database(const char *path, const Server::Options &opt, bool locationKeys);
+    Database(const char *path, int cacheSizeMB, bool locationKeys);
     ~Database();
+    void lockForRead() { mLock.lockForRead(); }
+    void lockForWrite() { mLock.lockForWrite(); }
+    void unlock() { mLock.unlock(); }
     bool isOpened() const;
     void close();
     QByteArray openError() const;
@@ -95,6 +97,7 @@ public:
     void remove(const Slice &key);
     Iterator *createIterator() const;
 private:
+    QReadWriteLock mLock;
 #ifdef USE_LEVELDB
     leveldb::DB *mDB;
     const leveldb::WriteOptions mWriteOptions;
@@ -102,6 +105,35 @@ private:
     LocationComparator *mLocationComparator;
     friend class Batch;
 #endif
+};
+
+class ScopedDB
+{
+public:
+    enum LockType {
+        Read,
+        Write
+    };
+    ScopedDB(Database *db, LockType lockType)
+        : mDb(db)
+    {
+        switch (lockType) {
+        case Read:
+            mDb->lockForRead();
+            break;
+        case Write:
+            mDb->lockForWrite();
+            break;
+        }
+    }
+    Database *operator->() { return mDb; }
+    operator Database *() { return mDb; }
+    ~ScopedDB()
+    {
+        mDb->unlock();
+    }
+private:
+    Database *mDb;
 };
 
 struct Batch {

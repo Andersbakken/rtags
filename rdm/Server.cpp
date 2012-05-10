@@ -77,7 +77,8 @@ bool Server::init(const Options &options)
     }
 
     for (int i=0; i<DatabaseTypeCount; ++i) {
-        mDBs[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(), options, i == Server::Symbol);
+        mDBs[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(),
+                               options.cacheSizeMB, i == Server::Symbol);
         if (!mDBs[i]->isOpened()) {
             error() << "Failed to open db" << mDBs[i]->openError();
             return false;
@@ -85,14 +86,16 @@ bool Server::init(const Options &options)
     }
 
 
-    Database *general = db(Server::General);
-    bool ok;
-    const int version = general->value<int>("version", &ok);
-    if (!ok) {
-        general->setValue<int>("version", Rdm::DatabaseVersion);
-    } else if (version != Rdm::DatabaseVersion) {
-        error("Wrong version, expected %d, got %d. Run with -C to regenerate database", version, Rdm::DatabaseVersion);
-        return false;
+    {
+        ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
+        bool ok;
+        const int version = general->value<int>("version", &ok);
+        if (!ok) {
+            general->setValue<int>("version", Rdm::DatabaseVersion);
+        } else if (version != Rdm::DatabaseVersion) {
+            error("Wrong version, expected %d, got %d. Run with -C to regenerate database", version, Rdm::DatabaseVersion);
+            return false;
+        }
     }
 
     mIndexer = new Indexer(sBase, this);

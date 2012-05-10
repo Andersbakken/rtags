@@ -6,7 +6,7 @@ void DirtyJob::dirty()
     // ### we should probably have a thread or something that stats each file we have in the db and calls dirty if the file is gone
     debug() << "DirtyJob::dirty" << mDirty;
     {
-        Database *db = Server::instance()->db(Server::Symbol);
+        ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Write);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         while (it->isValid()) {
@@ -35,7 +35,7 @@ void DirtyJob::dirty()
     }
 
     {
-        Database *db = Server::instance()->db(Server::SymbolName);
+        ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Write);
 
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();

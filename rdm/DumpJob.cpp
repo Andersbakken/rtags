@@ -11,7 +11,7 @@ DumpJob::DumpJob(const QByteArray& fn, int i)
 
 void DumpJob::execute()
 {
-    Database *db = Server::instance()->db(Server::Symbol);
+    ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Read);
     RTags::Ptr<Iterator> it(db->createIterator());
     it->seek(fileName.constData());
     QList<QByteArray> out;

@@ -13,7 +13,7 @@ MatchJob::MatchJob(int i, const QueryMessage &query)
 
 void MatchJob::execute()
 {
-    Database *db = Server::instance()->db(Server::SymbolName);
+    ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Read);
     const bool hasFilter = !pathFilters().isEmpty();
 
     QByteArray entry;
