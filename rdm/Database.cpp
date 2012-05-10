@@ -94,7 +94,7 @@ Slice Iterator::key() const
     return Slice(mIterator->key());
 }
 
-Slice Iterator::value() const
+Slice Iterator::rawValue() const
 {
     return mIterator->value();
 }
@@ -218,7 +218,7 @@ int Batch::flush()
     return was;
 }
 
-int Batch::writeEncoded(const Slice &key, const Slice &data)
+int Batch::addEncoded(const Slice &key, const Slice &data)
 {
     mBatch.Put(key.mSlice, data.mSlice);
     mSize += data.size();

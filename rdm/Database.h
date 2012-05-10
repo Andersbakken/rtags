@@ -119,9 +119,9 @@ public:
     void next();
     void previous();
     Slice key() const;
-    Slice value() const;
+    Slice rawValue() const;
     void seek(const Slice &slice);
-    template <typename T> T value() const { return decode<T>(value()); }
+    template <typename T> T value() const { return decode<T>(rawValue()); }
 private:
 #ifdef USE_LEVELDB
     leveldb::Iterator *mIterator;
@@ -172,14 +172,13 @@ struct Batch {
     template <typename T> int add(const Slice &key, const T &t)
     {
         const QByteArray encoded = encode<T>(t);
-        return writeEncoded(key, Slice(encoded));
+        return addEncoded(key, Slice(encoded));
     }
 
     void remove(const Slice &key);
     int size() const { return mSize; }
     int total() const { return mTotal; }
-private:
-    int writeEncoded(const Slice &key, const Slice &data);
+    int addEncoded(const Slice &key, const Slice &data);
 #ifdef USE_LEVELDB
     Database *mDB;
     int mSize, mTotal;

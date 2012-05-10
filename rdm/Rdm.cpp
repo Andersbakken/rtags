@@ -258,13 +258,32 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
             char buf[8];
             it.key().toKey(buf);
             const Slice key(buf, 8);
-            CursorInfo added = it.value();
-            bool ok;
-            CursorInfo current = db->value<CursorInfo>(key, &ok);
-            if (!ok) {
-                totalWritten += batch.add(key, added);
-            } else if (current.unite(added)) {
-                totalWritten += batch.add(key, current);
+            const CursorInfo added = it.value();
+            #if 0
+            if (!added.symbolLength) { // only adding references
+                std::string value = db->rawValue(key);
+                const int oldSize = value.size();
+                if (oldSize) {
+                    value.resize(oldSize + (added.references.size() * sizeof(quint64)));
+                    char *end = &value[0] + oldSize;
+                    quint64 *ptr = reinterpret_cast<quint64*>(end);
+                    for (QSet<Location>::const_iterator it = added.references.begin();
+                         it != added.references.end(); ++it) {
+                        *ptr++ = (*it).mData;
+                    }
+                    db->setRawValue(key, Slice(value.data(), value.size()));
+                    totalWritten += value.size() - oldSize;
+                }
+            } else
+#endif
+            {
+                bool ok;
+                CursorInfo current = db->value<CursorInfo>(key, &ok);
+                if (!ok) {
+                    totalWritten += batch.add(key, added);
+                } else if (current.unite(added)) {
+                    totalWritten += batch.add(key, current);
+                }
             }
             ++it;
         }
