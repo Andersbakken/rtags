@@ -261,9 +261,6 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         const char *cstr = clang_getCString(name);
         info.symbolLength = cstr ? strlen(cstr) : 0;
         clang_disposeString(name);
-#ifdef QT_DEBUG
-        info.loc = loc;
-#endif
         if (!info.symbolLength) {
             job->mSymbols.remove(loc);
             return CXChildVisit_Recurse;

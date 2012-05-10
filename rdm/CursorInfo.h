@@ -12,7 +12,9 @@
 class CursorInfo
 {
 public:
-    CursorInfo() : symbolLength(0), kind(CXCursor_FirstInvalid) {}
+    CursorInfo()
+        : symbolLength(0), kind(CXCursor_FirstInvalid)
+    {}
     bool isNull() const { return !symbolLength; }
     void clear()
     {
@@ -21,9 +23,6 @@ public:
         target.clear();
         references.clear();
         symbolName.clear();
-#ifdef QT_DEBUG
-        loc.clear();
-#endif
     }
 
     bool dirty(const QSet<quint32> &fileIds)
@@ -71,7 +70,7 @@ public:
                         break;
                     // fallthrough
                 default:
-                    warning() << "overwrote target for" << loc << "from" << target << "to" << other.target
+                    warning() << "overwrote target from" << target << "to" << other.target
                               << "symbolName" << symbolName
                               << Rdm::eatString(clang_getCursorKindSpelling(kind));
                     break;
@@ -91,9 +90,6 @@ public:
     CXCursorKind kind;
     Location target;
     QSet<Location> references;
-#ifdef QT_DEBUG
-    Location loc;
-#endif
 };
 
 static inline QDataStream &operator<<(QDataStream &ds, const CursorInfo &ci)
