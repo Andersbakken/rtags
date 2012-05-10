@@ -6,6 +6,8 @@
 #include <leveldb/write_batch.h>
 #endif
 #include <QtCore>
+#include "Location.h"
+#include "CursorInfo.h"
 
 struct Slice {
     Slice(const std::string &str);
@@ -48,6 +50,61 @@ template <typename T> T decode(const Slice &slice)
     ds >> t;
     return t;
 }
+
+template <> inline QByteArray encode(const QSet<Location> &locations)
+{
+    QByteArray out(locations.size() * sizeof(quint64), '\0');
+    quint64 *ptr = reinterpret_cast<quint64*>(out.data());
+    for (QSet<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
+        *ptr++ = (*it).mData;
+    }
+    return out;
+}
+
+template <> inline QSet<Location> decode(const Slice &slice)
+{
+    QSet<Location> ret;
+    const quint64 *ptr = reinterpret_cast<const quint64*>(slice.data());
+    const int count = slice.size() / sizeof(quint64);
+    for (int i=0; i<count; ++i) {
+        ret.insert(Location(*ptr++));
+    }
+    return ret;
+}
+
+template <> inline QByteArray encode(const CursorInfo &info)
+{
+    // symbolLength, kind, target, references
+    QByteArray out(info.symbolName.size() + 1 + (sizeof(quint32) * 2) + (sizeof(quint64) * (1 + info.references.size())), '\0');
+    memcpy(out.data(), info.symbolName.constData(), info.symbolName.size() + 1);
+    quint32 *ptr = reinterpret_cast<quint32*>(out.data() + (info.symbolName.size() + 1));
+    *ptr++ = info.symbolLength;
+    *ptr++ = info.kind;
+    quint64 *locPtr = reinterpret_cast<quint64*>(ptr);
+    *locPtr++ = info.target.mData;
+    foreach(const Location &loc, info.references) {
+        *locPtr++ = loc.mData;
+    }
+    return out;
+}
+
+template <> inline CursorInfo decode(const Slice &slice)
+{
+    CursorInfo ret;
+    ret.symbolName = QByteArray(slice.data()); // 0-terminated
+    const quint32 *ptr = reinterpret_cast<const quint32*>(slice.data() + ret.symbolName.size() + 1);
+    ret.symbolLength = *ptr++;
+    ret.kind = static_cast<CXCursorKind>(*ptr++);
+    const quint64 *locPtr = reinterpret_cast<const quint64*>(ptr);
+    const int count = ((slice.size() - ret.symbolName.size() - (sizeof(quint32) * 2)) / sizeof(quint64));
+    ret.target.mData = *locPtr++;
+    for (int i=0; i<count - 1; ++i) {
+        const Location loc(*locPtr++);
+        ret.references.insert(loc);
+    }
+    return ret;
+}
+
 
 class Iterator
 {
@@ -105,42 +162,6 @@ private:
     LocationComparator *mLocationComparator;
     friend class Batch;
 #endif
-};
-
-class ScopedDB
-{
-public:
-    enum LockType {
-        Read,
-        Write
-    };
-    ScopedDB(Database *db, LockType lockType)
-        : mData(new Data(db, lockType))
-    {
-    }
-    Database *operator->() { return mData->db; }
-    operator Database *() { return mData->db; }
-private:
-    class Data : public QSharedData
-    {
-    public:
-        Data(Database *database, LockType lockType)
-            : db(database)
-        {
-            if (db) {
-                (lockType == Read ? db->lockForRead() : db->lockForWrite());
-            }
-        }
-
-        ~Data()
-        {
-            if (db)
-                db->unlock();
-        }
-
-        Database *db;
-    };
-    QSharedDataPointer<Data> mData;
 };
 
 struct Batch {

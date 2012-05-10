@@ -92,19 +92,4 @@ public:
     QSet<Location> references;
 };
 
-static inline QDataStream &operator<<(QDataStream &ds, const CursorInfo &ci)
-{
-    ds << ci.symbolLength << ci.target << ci.references << static_cast<quint32>(ci.kind)
-       << ci.symbolName;
-    return ds;
-}
-
-static inline QDataStream &operator>>(QDataStream &ds, CursorInfo &ci)
-{
-    quint32 kind;
-    ds >> ci.symbolLength >> ci.target >> ci.references >> kind >> ci.symbolName;
-    ci.kind = static_cast<CXCursorKind>(kind);
-    return ds;
-}
-
 #endif

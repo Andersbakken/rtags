@@ -1,4 +1,5 @@
 #include "DumpJob.h"
+#include "Database.h"
 #include <clang-c/Index.h>
 #include <Rdm.h>
 #include "Server.h"

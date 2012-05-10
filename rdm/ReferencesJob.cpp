@@ -1,3 +1,4 @@
+#include "Database.h"
 #include "ReferencesJob.h"
 #include "Server.h"
 #include "Rdm.h"

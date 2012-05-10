@@ -1,3 +1,4 @@
+#include "Database.h"
 #include "MatchJob.h"
 #include "Server.h"
 #include "Log.h"

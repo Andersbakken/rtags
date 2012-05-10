@@ -1,4 +1,5 @@
 #include "DirtyJob.h"
+#include "Database.h"
 #include "Server.h"
 
 void DirtyJob::dirty()

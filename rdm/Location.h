@@ -16,6 +16,9 @@ public:
     Location()
         : mData(0)
     {}
+    Location(quint64 data)
+        : mData(data)
+    {}
     Location(quint32 fileId, quint32 offset)
         : mData(quint64(offset) << 32 | fileId)
     {}

@@ -1,4 +1,5 @@
 #include "Rdm.h"
+#include "Database.h"
 #include "CursorInfo.h"
 #include "MemoryMonitor.h"
 
@@ -49,7 +50,6 @@ bool isSystem(const Path &path)
 
 CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
 {
-    const leveldb::ReadOptions readopts;
     RTags::Ptr<Iterator> it(db->createIterator());
     char needleBuf[8];
     location.toKey(needleBuf);

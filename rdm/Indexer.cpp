@@ -1,3 +1,4 @@
+#include "Database.h"
 #include "Server.h"
 #include "DirtyJob.h"
 #include "Indexer.h"

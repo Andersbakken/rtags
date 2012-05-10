@@ -495,3 +495,22 @@ void Server::onSymbolNamesChanged()
     mCachedSymbolNames.clear();
     QThreadPool::globalInstance()->start(match);
 }
+
+ScopedDB::ScopedDB(Database *db, LockType lockType)
+    : mData(new Data(db, lockType))
+{
+}
+
+ScopedDB::Data::Data(Database *database, LockType lockType)
+    : db(database)
+{
+    if (db) {
+        (lockType == Read ? db->lockForRead() : db->lockForWrite());
+    }
+}
+
+ScopedDB::Data::~Data()
+{
+    if (db)
+        db->unlock();
+}

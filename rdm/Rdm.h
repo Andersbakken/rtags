@@ -9,7 +9,6 @@
 #include "Server.h"
 #include <RTags.h>
 #include "Location.h"
-#include "Database.h"
 
 class CursorInfo;
 struct FileInformation {
@@ -37,7 +36,7 @@ static inline QDataStream &operator>>(QDataStream &ds, FileInformation &ci)
 }
 
 namespace Rdm {
-enum { DatabaseVersion = 5 };
+enum { DatabaseVersion = 6 };
 
 enum ReferenceType {
     NormalReference,
@@ -46,6 +45,7 @@ enum ReferenceType {
 };
 }
 
+class Database;
 typedef QHash<Location, CursorInfo> SymbolHash;
 typedef QHash<Location, QPair<Location, Rdm::ReferenceType> > ReferenceHash;
 typedef QHash<QByteArray, QSet<Location> > SymbolNameHash;

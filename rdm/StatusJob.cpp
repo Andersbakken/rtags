@@ -1,4 +1,5 @@
 #include "StatusJob.h"
+#include "Database.h"
 #include "Server.h"
 #include "RTags.h"
 #include "Indexer.h"

@@ -6,7 +6,6 @@
 #include <QList>
 #include <QHash>
 #include "QueryMessage.h"
-#include "Database.h"
 
 class Connection;
 class Indexer;
@@ -16,6 +15,28 @@ class ErrorMessage;
 class QTcpServer;
 class Job;
 class Database;
+
+class ScopedDB
+{
+public:
+    enum LockType {
+        Read,
+        Write
+    };
+    ScopedDB(Database *db, LockType lockType);
+    Database *operator->() { return mData->db; }
+    operator Database *() { return mData->db; }
+private:
+    class Data : public QSharedData
+    {
+    public:
+        Data(Database *database, LockType lockType);
+        ~Data();
+        Database *db;
+    };
+    QSharedDataPointer<Data> mData;
+};
+
 class Server : public QObject
 {
     Q_OBJECT
