@@ -47,10 +47,6 @@ public:
 
     bool unite(const CursorInfo &other)
     {
-        if (isNull()) {
-            *this = other;
-            return true;
-        }
         bool changed = false;
         if (target.isNull() && !other.target.isNull()) {
 #ifdef QT_DEBUG
@@ -80,10 +76,35 @@ public:
             target = other.target;
             changed = true;
         }
+
+        // ### this is not ideal, we can probably know this rather than check all of them
+        if (symbolName.isEmpty() && !other.symbolName.isEmpty()) {
+            symbolName = other.symbolName;
+            changed = true;
+        }
+
+        if (kind == CXCursor_FirstInvalid && other.kind != CXCursor_FirstInvalid) {
+            kind = other.kind;
+            changed = true;
+        }
+
+        if (!symbolLength && other.symbolLength) {
+            symbolLength = other.symbolLength;
+            changed = true;
+        }
         const int oldSize = references.size();
-        references.unite(other.references);
-        return changed || oldSize != references.size();
+        if (!oldSize) {
+            references = other.references;
+            if (!other.references.isEmpty())
+                changed = true;
+        } else {
+            references.unite(other.references);
+            if (oldSize != references.size())
+                changed = true;
+        }
+        return changed;
     }
+
 
     int symbolLength; // this is just the symbol name e.g. foo
     QByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
