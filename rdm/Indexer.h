@@ -28,7 +28,7 @@ public:
     Path path() const { return mPath; }
     void abort();
     QList<QByteArray> compileArgs(const Path &file) const;
-    bool visitFile(quint32 fileId);
+    bool visitFile(quint32 fileId, const Path &hack);
     void dirty(const QSet<quint32> &files);
 signals:
     void indexingDone(int id);

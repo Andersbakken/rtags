@@ -137,8 +137,10 @@ Location IndexerJob::createLocation(CXCursor cursor, bool *blocked)
             if (blocked) {
                 const quint32 fileId = ret.fileId();
                 PathState &state = mPaths[fileId];
-                if (state == Unset)
-                    state = mIndexer->visitFile(fileId) ? Index : DontIndex;
+                if (state == Unset) {
+                    state = mIndexer->visitFile(fileId, mIn) ? Index : DontIndex;
+                    qDebug() << "checking block" << mIn << ret.path() << (state == Index);
+                }
                 if (state == DontIndex) {
                     *blocked = true;
                     // qDebug() << "ignored" << Rdm::cursorToString(cursor) << "for" << mIn;
