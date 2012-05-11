@@ -42,7 +42,8 @@ static void help(FILE *f, const char* app)
             "  --status|-s [arg]             Dump status of rdm. If arg is passed it should match one of:\n"
             "                                'general', 'dependencies', 'symbols', 'symbolnames', 'fileinfos' or 'pch'\n"
             "  --autostart-rdm|-a [args]     Start rdm with [args] if rc fails to connect\n"
-            "  --quit-server|-q              Tell server to shut down\n",
+            "  --restart-rdm|-e [args]       Restart rdm with [args] before doing the rest of the commands\n"
+            "  --quit-rdm|-q                 Tell server to shut down\n",
             app);
 }
 
@@ -96,7 +97,8 @@ int main(int argc, char** argv)
         { "define", required_argument, 0, 'D' },
         { "compiler-flag", required_argument, 0, 'o' },
         { "test", required_argument, 0, 't' },
-        { "quit-server", no_argument, 0, 'q' },
+        { "quit-rdm", no_argument, 0, 'q' },
+        { "restart-rdm", optional_argument, 0, 'e' },
         { 0, 0, 0, 0 }
     };
 
@@ -129,6 +131,11 @@ int main(int argc, char** argv)
             return 0;
         case 'a':
             clientFlags |= Client::AutostartRdm;
+            if (optarg)
+                rdmArgs = QString::fromLocal8Bit(optarg).split(' ');
+            break;
+        case 'e':
+            clientFlags |= Client::RestartRdm;
             if (optarg)
                 rdmArgs = QString::fromLocal8Bit(optarg).split(' ');
             break;
@@ -259,7 +266,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (optlist.isEmpty() && makeFiles.isEmpty()) {
+    if (optlist.isEmpty() && makeFiles.isEmpty() && !(clientFlags & Client::RestartRdm|Client::AutostartRdm)) {
         help(stderr, argv[0]);
         return 1;
     }

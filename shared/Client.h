@@ -22,7 +22,8 @@ public:
            const QStringList &rdmArgs = QStringList(), QObject* parent = 0);
     enum Flag {
         None = 0x0,
-        AutostartRdm = 0x1
+        AutostartRdm = 0x1,
+        RestartRdm = 0x2
     };
 
     QStringList rdmArgs() const { return mRdmArgs; }

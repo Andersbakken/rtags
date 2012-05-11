@@ -15,12 +15,27 @@ Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, const QStrin
     : QObject(parent), mConn(0), mFlags(flags), mMakeDone(false), mExtraFlags(extraFlags),
       mSourceFileCount(0), mPchCount(0), mRdmArgs(rdmArgs)
 {
+    if ((mFlags & (RestartRdm|AutostartRdm)) == (RestartRdm|AutostartRdm)) {
+        mFlags &= ~RestartRdm; // this is implied and would upset connectToServer
+    }
     Messages::init();
+    const bool ret = connectToServer();
+    if (mFlags & RestartRdm) {
+        if (ret) {
+            QueryMessage msg(QueryMessage::Shutdown);
+            query(&msg);
+            delete mConn;
+            mConn = 0;
+        }
+        mFlags |= AutostartRdm;
+        connectToServer();
+        mFlags &= ~AutostartRdm;
+    }
 }
 
 void Client::query(const QueryMessage *message)
 {
-    if (!mConn && !connectToServer()) {
+    if (!mConn) {
         return;
     }
 
@@ -56,6 +71,11 @@ void Client::onNewMessage(Message* message)
 #ifdef BUILDING_RC
 void Client::parseMakefile(const Path& path)
 {
+    if (!mConn) {
+        return;
+    }
+
+    connect(mConn, SIGNAL(sendComplete()), this, SLOT(onSendComplete()));
     mSourceFileCount = mPchCount = 0;
     MakefileParser* parser = new MakefileParser(mExtraFlags, this);
     connect(parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
@@ -99,11 +119,6 @@ void Client::onMakefileReady(const GccArguments& args)
         return;
     } else if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
         return;
-    }
-    if (!mConn) {
-        if (!connectToServer())
-            return;
-        connect(mConn, SIGNAL(sendComplete()), this, SLOT(onSendComplete()));
     }
 
     if (args.type() == GccArguments::Pch) {
