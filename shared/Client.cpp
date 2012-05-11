@@ -20,7 +20,7 @@ Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, const QStrin
     }
     Messages::init();
     const bool ret = connectToServer();
-    if (mFlags & RestartRdm) {
+    if (mFlags & RestartRdm) { // ### something about this is buggy
         if (ret) {
             QueryMessage msg(QueryMessage::Shutdown);
             query(&msg);
@@ -28,7 +28,6 @@ Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, const QStrin
             mConn = 0;
         }
         mFlags |= AutostartRdm;
-        connectToServer();
         mFlags &= ~AutostartRdm;
     }
 }
@@ -49,8 +48,9 @@ void Client::onSendComplete()
 {
     Q_ASSERT(mConn == sender());
 
-    if (mMakeDone)
+    if (mMakeDone) {
         mLoop.quit();
+    }
 }
 
 void Client::onNewMessage(Message* message)
@@ -69,16 +69,22 @@ void Client::onNewMessage(Message* message)
 }
 
 #ifdef BUILDING_RC
-void Client::parseMakefile(const Path& path)
+void Client::parseMakefile(const Path& path, bool wait)
 {
     if (!mConn) {
         return;
     }
 
     connect(mConn, SIGNAL(sendComplete()), this, SLOT(onSendComplete()));
+
     mSourceFileCount = mPchCount = 0;
     MakefileParser* parser = new MakefileParser(mExtraFlags, this);
-    connect(parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
+
+    if (wait) {
+        connect(mConn, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
+    } else {
+        connect(parser, SIGNAL(done()), this, SLOT(onMakefileDone()));
+    }
     connect(parser, SIGNAL(fileReady(GccArguments)),
             this, SLOT(onMakefileReady(GccArguments)));
     parser->run(path);
@@ -91,8 +97,9 @@ void Client::onMakefileDone()
     if (mMakeDone)
         return;
     mMakeDone = true;
-    if (!mConn || !mConn->pendingWrite())
+    if (!mConn || !mConn->pendingWrite()) {
         mLoop.quit();
+    }
     sender()->deleteLater();
 }
 
@@ -188,6 +195,7 @@ bool Client::connectToServer()
                     }
                     sleep(1);
                 }
+                sleep(1); // ### give it some time
             }
         }
 

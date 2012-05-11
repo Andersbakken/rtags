@@ -212,6 +212,7 @@ void Server::handleAddMessage(AddMessage* message)
         if (id != -1)
             mPendingIndexes[id] = conn;
     }
+    connect(mIndexer, SIGNAL(jobsComplete()), conn, SLOT(finish())); // ### this is kind of a hack
 }
 
 void Server::handleQueryMessage(QueryMessage* message)

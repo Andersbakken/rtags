@@ -29,7 +29,7 @@ public:
     QStringList rdmArgs() const { return mRdmArgs; }
     unsigned flags() const { return mFlags; }
 #ifdef BUILDING_RC
-    void parseMakefile(const Path &path);
+    void parseMakefile(const Path &path, bool wait);
 #endif
     void query(const QueryMessage *msg);
     QList<QByteArray> extraFlags() const { return mExtraFlags; }

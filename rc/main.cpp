@@ -295,7 +295,7 @@ int main(int argc, char** argv)
     for (int i=0; i<makeFiles.size(); ++i) {
         const bool wait = makeFiles.at(i).second;
         Path makeFile = makeFiles.at(i).first;
-        client.parseMakefile(makeFile);
+        client.parseMakefile(makeFile, wait);
         error("%d source files and %d pch files", client.sourceFileCount(), client.pchCount());
     }
     return 0;

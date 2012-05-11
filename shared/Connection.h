@@ -30,6 +30,7 @@ public:
 
     template<typename T>
     static bool registerMessage();
+public slots:
     void finish();
 signals:
     void connected();
