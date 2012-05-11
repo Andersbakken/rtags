@@ -11,6 +11,20 @@
 #include "Location.h"
 
 class CursorInfo;
+class CXStringScope
+{
+public:
+    CXStringScope(CXString str)
+        : string(str)
+    {}
+
+    ~CXStringScope()
+    {
+        clang_disposeString(string);
+    }
+    CXString string;
+};
+
 struct FileInformation {
     FileInformation(time_t lt = 0, const QList<QByteArray> &args = QList<QByteArray>())
         : lastTouched(lt), compileArgs(args)

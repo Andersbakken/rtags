@@ -153,6 +153,24 @@ Location IndexerJob::createLocation(CXCursor cursor, bool *blocked)
     return ret;
 }
 
+struct UserData {
+    const char *usr;
+    CXCursor &ref;
+};
+CXChildVisitResult findReferenceVisitor(CXCursor cursor, CXCursor, CXClientData u)
+{
+    UserData *userData = reinterpret_cast<UserData*>(u);
+    CXStringScope usr(clang_getCursorUSR(cursor));
+    const char *cstr = clang_getCString(usr.string);
+    qDebug() << Rdm::cursorToString(cursor) << "looking for" << userData->usr << "got" << cstr;
+    if (cstr && !strcmp(userData->usr, cstr)) {
+        userData->ref = cursor;
+        return CXChildVisit_Break;
+    }
+    return CXChildVisit_Continue; // ### recurse?
+}
+
+
 CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
                                             CXCursor /*parent*/,
                                             CXClientData client_data)
@@ -160,22 +178,6 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     IndexerJob* job = static_cast<IndexerJob*>(client_data);
     if (job->isAborted())
         return CXChildVisit_Break;
-
-// #ifdef QT_DEBUG
-//     {
-//         CXCursor ref = clang_getCursorReferenced(cursor);
-//         if (clang_equalCursors(cursor, ref) && !clang_isCursorDefinition(ref)) {
-//             ref = clang_getCursorDefinition(ref);
-//         }
-//         Location loc = job->createLocation(cursor);
-//         Location rloc = job->createLocation(ref);
-//         if (Rdm::cursorToString(cursor).contains("canonicalizePath")
-//             || Rdm::cursorToString(ref).contains("canonicalizePath")) {
-//             error() << Rdm::cursorToString(cursor) << "refs" << Rdm::cursorToString(clang_getCursorReferenced(cursor))
-//                     << (clang_equalCursors(ref, clang_getCursorReferenced(cursor)) ? QByteArray() : ("changed to " + Rdm::cursorToString(ref)));
-//         }
-//     }
-// #endif
 
     const CXCursorKind kind = clang_getCursorKind(cursor);
     if (clang_isInvalid(kind))
@@ -223,29 +225,37 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         return CXChildVisit_Recurse;
     }
     CXCursor ref = clang_getCursorReferenced(cursor);
-    Location refLoc;
-    if (clang_equalCursors(cursor, ref) && !clang_isCursorDefinition(ref)) {
-        // QByteArray old = Rdm::cursorToString(ref);
-        ref = clang_getCursorDefinition(ref);
-        // error() << "changed ref from" << old << "to" << Rdm::cursorToString(ref);
-    }
     const CXCursorKind refKind = clang_getCursorKind(ref);
-
+    // the kind won't change even if the reference is looked up from elsewhere
     if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod)
         return CXChildVisit_Recurse;
 
+    Location refLoc;
     if (clang_equalCursors(cursor, ref)) {
-        if (!job->mIsPch) {
-            CXString usr = clang_getCursorUSR(ref);
-            const char *cstr = clang_getCString(usr);
-            if (cstr) {
-                refLoc = job->mPchUSRHash.value(QByteArray::fromRawData(cstr, strlen(cstr)));
+        if (!clang_isCursorDefinition(cursor)) {
+            ref = clang_getCursorDefinition(cursor);
+            if (!clang_equalCursors(clang_getNullCursor(), ref)) {
+                Q_ASSERT(!clang_equalCursors(cursor, ref));
+                goto createLocationFromCursor;
             }
-            clang_disposeString(usr);
         }
-    } else {
-        refLoc = job->createLocation(ref, 0);
+        CXStringScope usr(clang_getCursorUSR(ref));
+        const char *cstr = clang_getCString(usr.string);
+        if (cstr) {
+            if (!job->mIsPch) {
+                refLoc = job->mPchUSRHash.value(QByteArray::fromRawData(cstr, strlen(cstr)));
+                if (!refLoc.isNull())
+                    goto haveLocation;
+            }
+            UserData u = { cstr, ref };
+            clang_visitChildren(clang_getCursorSemanticParent(cursor), findReferenceVisitor, &u);
+        }
+        if (clang_equalCursors(cursor, ref))
+            ref = clang_getNullCursor();
     }
+createLocationFromCursor:
+    refLoc = job->createLocation(ref, 0);
+haveLocation:
 
     CursorInfo &info = job->mSymbols[loc];
     if (!info.symbolLength) {

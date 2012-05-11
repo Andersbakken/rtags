@@ -260,33 +260,14 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
             it.key().toKey(buf);
             const Slice key(buf, 8);
             const CursorInfo added = it.value();
-#if 0
-            if (!added.symbolLength) { // only adding references
-                std::string value = db->rawValue(key);
-                const int oldSize = value.size();
-                if (oldSize) {
-                    value.resize(oldSize + (added.references.size() * sizeof(quint64)));
-                    char *end = &value[0] + oldSize;
-                    quint64 *ptr = reinterpret_cast<quint64*>(end);
-                    for (QSet<Location>::const_iterator it = added.references.begin();
-                         it != added.references.end(); ++it) {
-                        *ptr++ = (*it).mData;
-                    }
-                    db->setRawValue(key, Slice(value.data(), value.size()));
-                    totalWritten += value.size() - oldSize;
-                }
-            } else
-#endif
-            {
-                bool ok;
-                CursorInfo current = db->value<CursorInfo>(key, &ok);
-                if (!ok) {
-                    // qDebug() << "about to write" << it.key() << added.symbolName << added.kind;
-                    totalWritten += batch.add(key, added);
-                } else if (current.unite(added)) {
-                    // qDebug() << "about to write united" << it.key() << current.symbolName << current.kind;
-                    totalWritten += batch.add(key, current);
-                }
+            bool ok;
+            CursorInfo current = db->value<CursorInfo>(key, &ok);
+            if (!ok) {
+                // qDebug() << "about to write" << it.key() << added.symbolName << added.kind << added.target;
+                totalWritten += batch.add(key, added);
+            } else if (current.unite(added)) {
+                // qDebug() << "about to write united" << it.key() << current.symbolName << current.kind << current.target;
+                totalWritten += batch.add(key, current);
             }
             ++it;
         }
