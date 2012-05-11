@@ -155,7 +155,7 @@ Location IndexerJob::createLocation(CXCursor cursor, bool *blocked)
 
 struct UserData {
     const char *usr;
-    CXCursor &ref;
+    CXCursor ref;
 };
 CXChildVisitResult findReferenceVisitor(CXCursor cursor, CXCursor, CXClientData u)
 {
@@ -231,67 +231,71 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         return CXChildVisit_Recurse;
 
     Location refLoc;
-    if (clang_equalCursors(cursor, ref)) {
+    if (!clang_equalCursors(cursor, ref)) {
+        refLoc = job->createLocation(ref, 0);
+    } else {
         if (!clang_isCursorDefinition(cursor)) {
             ref = clang_getCursorDefinition(cursor);
             if (!clang_equalCursors(clang_getNullCursor(), ref)) {
                 Q_ASSERT(!clang_equalCursors(cursor, ref));
-                goto createLocationFromCursor;
+                refLoc = job->createLocation(ref, 0);
             }
         }
-        CXStringScope usr(clang_getCursorUSR(ref));
-        const char *cstr = clang_getCString(usr.string);
-        if (cstr) {
+        if (refLoc.isNull()) {
             if (!job->mIsPch) {
+                CXStringScope usr(clang_getCursorUSR(ref));
+                const char *cstr = clang_getCString(usr.string);
+                Q_ASSERT(cstr);
                 refLoc = job->mPchUSRHash.value(QByteArray::fromRawData(cstr, strlen(cstr)));
-                if (!refLoc.isNull())
-                    goto haveLocation;
             }
-            UserData u = { cstr, ref };
-            clang_visitChildren(clang_getCursorSemanticParent(cursor), findReferenceVisitor, &u);
+            if (refLoc.isNull()) {
+                const Cursor c = { cursor, loc, kind };
+                job->mDelayed.append(c);
+                return CXChildVisit_Recurse;
+            }
         }
-        if (clang_equalCursors(cursor, ref))
-            ref = clang_getNullCursor();
     }
-createLocationFromCursor:
-    refLoc = job->createLocation(ref, 0);
-haveLocation:
+    const Cursor c = { cursor, loc, kind };
+    const Cursor r = { ref, refLoc, refKind };
+    return job->processCursor(c, r);
+}
 
-    CursorInfo &info = job->mSymbols[loc];
+CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor &ref)
+{
+    CursorInfo &info = mSymbols[cursor.location];
     if (!info.symbolLength) {
-        if (job->mIsPch) {
-            const QByteArray usr = Rdm::eatString(clang_getCursorUSR(cursor));
+        if (mIsPch) {
+            const QByteArray usr = Rdm::eatString(clang_getCursorUSR(cursor.cursor));
             if (!usr.isEmpty()) {
-                job->mPchUSRHash[usr] = loc;
+                mPchUSRHash[usr] = cursor.location;
             }
         }
-        info.kind = kind;
+        info.kind = cursor.kind;
         CXString name;
-        if (clang_isReference(kind)) {
-            name = clang_getCursorSpelling(ref);
+        if (clang_isReference(cursor.kind)) {
+            name = clang_getCursorSpelling(ref.cursor);
         } else {
-            name = clang_getCursorSpelling(cursor);
+            name = clang_getCursorSpelling(cursor.cursor);
         }
         const char *cstr = clang_getCString(name);
         info.symbolLength = cstr ? strlen(cstr) : 0;
         clang_disposeString(name);
         if (!info.symbolLength) {
-            job->mSymbols.remove(loc);
+            mSymbols.remove(cursor.location);
             return CXChildVisit_Recurse;
         }
-        const bool addToDB = (clang_isCursorDefinition(cursor) || kind == CXCursor_FunctionDecl);
-        info.symbolName = job->addNamePermutations(cursor, loc, addToDB);
-    } else if (info.kind == CXCursor_Constructor && kind == CXCursor_TypeRef) {
+        const bool addToDB = (clang_isCursorDefinition(cursor.cursor)
+                              || cursor.kind == CXCursor_FunctionDecl);
+        info.symbolName = addNamePermutations(cursor.cursor, cursor.location, addToDB);
+    } else if (info.kind == CXCursor_Constructor && cursor.kind == CXCursor_TypeRef) {
         return CXChildVisit_Recurse;
     }
 
-    if (!clang_isInvalid(refKind) && !refLoc.isNull()) {
-        if (refLoc != loc) {
-            info.target = refLoc;
-        }
+    if (!clang_isInvalid(ref.kind) && !ref.location.isNull() && ref.location != cursor.location) {
+        info.target = ref.location;
         Rdm::ReferenceType referenceType = Rdm::NormalReference;
-        if (refKind == kind) {
-            switch (refKind) {
+        if (ref.kind == cursor.kind) {
+            switch (ref.kind) {
             case CXCursor_Constructor:
             case CXCursor_Destructor:
             case CXCursor_CXXMethod:
@@ -304,17 +308,16 @@ haveLocation:
                 break;
             }
         }
-        job->mReferences[loc] = qMakePair(refLoc, referenceType);
-    } else if (kind == CXCursor_InclusionDirective) {
-        CXFile includedFile = clang_getIncludedFile(cursor);
+        mReferences[cursor.location] = qMakePair(ref.location, referenceType);
+    } else if (cursor.kind == CXCursor_InclusionDirective) {
+        CXFile includedFile = clang_getIncludedFile(cursor.cursor);
         Location refLoc(includedFile, 0);
         if (!refLoc.isNull()) {
-            info.target = refLoc;
-            job->mReferences[loc] = qMakePair(refLoc, Rdm::NormalReference);
+            info.target = ref.location;
+            mReferences[cursor.location] = qMakePair(ref.location, Rdm::NormalReference);
         }
     }
     return CXChildVisit_Recurse;
-
 }
 
 static QByteArray pchFileName(const QByteArray &header)
@@ -432,6 +435,18 @@ void IndexerJob::run()
         // }
 
         clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
+        foreach(const Cursor &c, mDelayed) {
+            CXStringScope usr(clang_getCursorUSR(c.cursor));
+            const char *cstr = clang_getCString(usr.string);
+            Q_ASSERT(cstr);
+            UserData u = { cstr, clang_getNullCursor() };
+            clang_visitChildren(clang_getCursorSemanticParent(c.cursor), findReferenceVisitor, &u);
+            if (!clang_equalCursors(clang_getNullCursor(), u.ref)) {
+                // found ref
+                const Cursor r = { u.ref, createLocation(u.ref, 0), clang_getCursorKind(u.ref) };
+                processCursor(c, r);
+            }
+        }
         if (mIsPch) {
             Q_ASSERT(!pchName.isEmpty());
             if (clang_saveTranslationUnit(unit, pchName.constData(), clang_defaultSaveOptions(unit)) != CXSaveError_None) {

@@ -24,6 +24,15 @@ public:
     static void inclusionVisitor(CXFile included_file, CXSourceLocation* include_stack,
                                  unsigned include_len, CXClientData client_data);
 
+    struct Cursor {
+        CXCursor cursor;
+        Location location;
+        CXCursorKind kind;
+    };
+
+    CXChildVisitResult processCursor(const Cursor &cursor, const Cursor &ref);
+
+    QList<Cursor> mDelayed;
     SymbolHash mSymbols;
     SymbolNameHash mSymbolNames;
 
