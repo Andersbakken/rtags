@@ -16,7 +16,7 @@ Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, const QStrin
       mSourceFileCount(0), mPchCount(0), mRdmArgs(rdmArgs)
 {
     if ((mFlags & (RestartRdm|AutostartRdm)) == (RestartRdm|AutostartRdm)) {
-        mFlags &= ~RestartRdm; // this is implied and would upset connectToServer
+        mFlags &= ~AutostartRdm; // this is implied and would upset connectToServer
     }
     Messages::init();
     const bool ret = connectToServer();
@@ -28,6 +28,7 @@ Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, const QStrin
             mConn = 0;
         }
         mFlags |= AutostartRdm;
+        connectToServer();
         mFlags &= ~AutostartRdm;
     }
 }
