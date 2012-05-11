@@ -99,7 +99,7 @@ bool Server::init(const Options &options)
     }
 
     mIndexer = new Indexer(sBase, this);
-    connect(mIndexer, SIGNAL(symbolNamesChanged()), this, SLOT(onSymbolNamesChanged()));
+    connect(mIndexer, SIGNAL(jobsComplete()), this, SLOT(onSymbolNamesChanged()));
 
     connect(mServer, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
     connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));

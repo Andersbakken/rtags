@@ -41,7 +41,6 @@ public:
     Indexer *mIndexer;
     QHash<QByteArray, Location> mPchUSRHash;
     QList<Path> mPchHeaders;
-    bool mWroteSymbolNames;
 signals:
     void done(int id, const Path &path, bool isPch, const QByteArray &msg);
 };

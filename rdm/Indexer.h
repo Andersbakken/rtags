@@ -28,13 +28,11 @@ public:
     Path path() const { return mPath; }
     void abort();
     QList<QByteArray> compileArgs(const Path &file) const;
-    void timerEvent(QTimerEvent *e);
     bool visitFile(quint32 fileId);
     void dirty(const QSet<quint32> &files);
 signals:
     void indexingDone(int id);
     void jobsComplete();
-    void symbolNamesChanged();
 private slots:
     void onJobComplete(int id, const Path& input, bool isPch, const QByteArray &msg);
     void onDirectoryChanged(const QString& path);
@@ -68,8 +66,6 @@ private:
     DependencyHash mDependencies;
     QMutex mWatchedMutex;
     WatchedHash mWatched;
-
-    QBasicTimer mSymbolNamesChangedTimer;
 };
 
 #endif

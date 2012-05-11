@@ -377,8 +377,6 @@ void Indexer::onJobComplete(int id, const Path& input, bool isPch, const QByteAr
     }
 
     emit indexingDone(id);
-    if (qobject_cast<IndexerJob*>(sender())->mWroteSymbolNames)
-        mSymbolNamesChangedTimer.start(1000, this);
     sender()->deleteLater();
 }
 
@@ -458,13 +456,6 @@ QList<QByteArray> Indexer::compileArgs(const Path &file) const
 {
     ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
     return db->value<FileInformation>(file).compileArgs;
-}
-void Indexer::timerEvent(QTimerEvent *e)
-{
-    if (e->timerId() == mSymbolNamesChangedTimer.timerId()) {
-        mSymbolNamesChangedTimer.stop();
-        emit symbolNamesChanged();
-    }
 }
 
 bool Indexer::visitFile(quint32 fileId)

@@ -26,7 +26,7 @@ static inline QList<Path> extractPchFiles(const QList<QByteArray>& args)
 
 IndexerJob::IndexerJob(Indexer* indexer, int id, const Path& input, const QList<QByteArray>& arguments)
     : mId(id), mIsPch(false), mIn(input), mArgs(arguments), mIndexer(indexer),
-      mPchHeaders(extractPchFiles(arguments)), mWroteSymbolNames(false)
+      mPchHeaders(extractPchFiles(arguments))
 {
     // qDebug() << metaObject()->className() << "born" << ++count << ++active;
     setAutoDelete(false);
@@ -438,7 +438,7 @@ void IndexerJob::run()
         scope.cleanup();
 
         if (!isAborted()) {
-            mWroteSymbolNames = Rdm::writeSymbols(mSymbols, mReferences);
+            Rdm::writeSymbols(mSymbols, mReferences);
             Rdm::writeSymbolNames(mSymbolNames);
             Rdm::writeFileInformation(fileId, mArgs, timeStamp);
             if (mIsPch)
