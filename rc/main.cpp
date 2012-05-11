@@ -21,6 +21,7 @@ static void help(FILE *f, const char* app)
             "  --skip-paren|-p               Skip parens in Makefile parsing\n"
             "  --follow-location|-f [arg]    Follow this location\n"
             "  --makefile|-m [arg]           Process this makefile\n"
+            "  --makefile-wait|-M [arg]      Process this makefile and wait until the whole make process is finished\n"
             "  --reference-name|-R [arg]     Find references matching arg\n"
             "  --reference-location|-r [arg] Find references matching this location\n"
             "  --list-symbols|-S [arg]       List symbol names matching arg\n"
@@ -78,6 +79,7 @@ int main(int argc, char** argv)
         { "autostart-rdm", optional_argument, 0, 'a' },
         { "follow-location", required_argument, 0, 'f' },
         { "makefile", required_argument, 0, 'm' },
+        { "makefile-wait", required_argument, 0, 'M' },
         { "reference-name", required_argument, 0, 'R' },
         { "reference-location", required_argument, 0, 'r' },
         { "list-symbols", optional_argument, 0, 'S' },
@@ -106,7 +108,7 @@ int main(int argc, char** argv)
     QByteArray logFile;
     unsigned logFlags = 0;
 
-    QList<Path> makeFiles;
+    QList<QPair<Path, bool> > makeFiles; // bool is for whether we wait for finished
     QList<QByteArray> extraFlags;
     QList<QPair<QueryMessage::Type, QByteArray> > optlist;
     QHash<Path, QByteArray> unsavedFiles;
@@ -219,7 +221,10 @@ int main(int argc, char** argv)
             optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Test, Path::resolved(optarg)));
             break;
         case 'm':
-            makeFiles.append(Path::resolved(optarg));
+            makeFiles.append(qMakePair(Path::resolved(optarg), false));
+            break;
+        case 'M':
+            makeFiles.append(qMakePair(Path::resolved(optarg), true));
             break;
         case 's':
             if (optarg) {
@@ -266,7 +271,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (optlist.isEmpty() && makeFiles.isEmpty() && !(clientFlags & Client::RestartRdm|Client::AutostartRdm)) {
+    if (optlist.isEmpty() && makeFiles.isEmpty() && !(clientFlags & (Client::RestartRdm|Client::AutostartRdm))) {
         help(stderr, argv[0]);
         return 1;
     }
@@ -287,7 +292,9 @@ int main(int argc, char** argv)
         client.query(&msg);
         ++it;
     }
-    foreach (const QByteArray &makeFile, makeFiles) {
+    for (int i=0; i<makeFiles.size(); ++i) {
+        const bool wait = makeFiles.at(i).second;
+        Path makeFile = makeFiles.at(i).first;
         client.parseMakefile(makeFile);
         error("%d source files and %d pch files", client.sourceFileCount(), client.pchCount());
     }
