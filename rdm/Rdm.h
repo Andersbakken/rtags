@@ -60,6 +60,11 @@ void setMaxMemoryUsage(quint64 max);
 bool waitForMemory(int maxMs);
 QByteArray eatString(CXString str);
 QByteArray cursorToString(CXCursor cursor);
+static inline QDebug operator<<(QDebug dbg, CXCursorKind kind)
+{
+    dbg << Rdm::eatString(clang_getCursorKindSpelling(kind)).constData();
+    return dbg;
+}
 void initSystemPaths(const QList<Path> &paths);
 bool isSystem(const Path &path);
 template <typename T>

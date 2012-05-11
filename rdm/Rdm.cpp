@@ -244,6 +244,7 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
                 CursorInfo &other = symbols[it.key()];
                 ci.references += other.references;
                 other.references += ci.references;
+                // qDebug() << "trying to join" << it.key() << "and" << it.value().first;
                 if (other.target.isNull())
                     other.target = it.value().first;
                 if (ci.target.isNull())
@@ -259,7 +260,7 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
             it.key().toKey(buf);
             const Slice key(buf, 8);
             const CursorInfo added = it.value();
-            #if 0
+#if 0
             if (!added.symbolLength) { // only adding references
                 std::string value = db->rawValue(key);
                 const int oldSize = value.size();
@@ -280,8 +281,10 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
                 bool ok;
                 CursorInfo current = db->value<CursorInfo>(key, &ok);
                 if (!ok) {
+                    // qDebug() << "about to write" << it.key() << added.symbolName << added.kind;
                     totalWritten += batch.add(key, added);
                 } else if (current.unite(added)) {
+                    // qDebug() << "about to write united" << it.key() << current.symbolName << current.kind;
                     totalWritten += batch.add(key, current);
                 }
             }
