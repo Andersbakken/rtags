@@ -35,7 +35,7 @@ Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, const QStrin
 
 void Client::query(const QueryMessage *message)
 {
-    if (!mConn) {
+    if (!mConn && !connectToServer()) {
         return;
     }
 
@@ -70,10 +70,11 @@ void Client::onNewMessage(Message* message)
 }
 
 #ifdef BUILDING_RC
-void Client::parseMakefile(const Path& path, bool wait)
+bool Client::parseMakefile(const Path& path, bool wait)
 {
-    if (!mConn) {
-        return;
+    if (!mConn && !connectToServer()) {
+        fprintf(stderr, "Can't connect to server\n");
+        return false;
     }
 
     connect(mConn, SIGNAL(sendComplete()), this, SLOT(onSendComplete()));
@@ -91,12 +92,11 @@ void Client::parseMakefile(const Path& path, bool wait)
     parser->run(path);
     mMakeDone = false;
     mLoop.exec();
+    return true;
 }
 
 void Client::onMakefileDone()
 {
-    if (mMakeDone)
-        return;
     mMakeDone = true;
     if (!mConn || !mConn->pendingWrite()) {
         mLoop.quit();

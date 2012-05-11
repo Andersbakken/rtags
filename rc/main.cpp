@@ -67,6 +67,55 @@ static inline QByteArray encodeLocation(const QByteArray &key)
     return out;
 }
 
+struct Command {
+    virtual ~Command() {}
+    virtual void exec(Client *client) = 0;
+    virtual QByteArray description() const = 0;
+};
+
+struct QueryCommand : public Command {
+    QueryCommand(QueryMessage::Type t, const QByteArray &q, const unsigned &qf,
+                 const QHash<Path, QByteArray> &u, const QSet<QByteArray> &p)
+        : type(t), query(q), queryFlags(qf), unsavedFiles(u), pathFilters(p)
+    {}
+
+    const QueryMessage::Type type;
+    const QByteArray query;
+    const unsigned &queryFlags; // eeh
+    const QHash<Path, QByteArray> &unsavedFiles; // eeh
+    const QSet<QByteArray> &pathFilters; // eeh
+
+    virtual void exec(Client *client)
+    {
+        QueryMessage msg(type, query, queryFlags);
+        msg.setUnsavedFiles(unsavedFiles);
+        msg.setPathFilters(pathFilters.toList());
+        client->query(&msg);
+    }
+
+    virtual QByteArray description() const
+    {
+        return ("QueryMessage " + QByteArray::number(type) + " " + query);
+    }
+};
+
+struct MakefileCommand : public Command {
+    MakefileCommand(const Path &mf, bool w)
+        : makefile(mf), wait(w)
+    {}
+    const Path makefile;
+    const bool wait;
+    virtual void exec(Client *client)
+    {
+        if (client->parseMakefile(makefile, wait))
+            error("%d source files and %d pch files from %s",
+                  client->sourceFileCount(), client->pchCount(), makefile.constData());
+    }
+    virtual QByteArray description() const
+    {
+        return ("MakefileCommand " + makefile + (wait ? " wait" : ""));
+    }
+};
 
 int main(int argc, char** argv)
 {
@@ -108,9 +157,8 @@ int main(int argc, char** argv)
     QByteArray logFile;
     unsigned logFlags = 0;
 
-    QList<QPair<Path, bool> > makeFiles; // bool is for whether we wait for finished
+    QList<Command*> commands;
     QList<QByteArray> extraFlags;
-    QList<QPair<QueryMessage::Type, QByteArray> > optlist;
     QHash<Path, QByteArray> unsavedFiles;
     QSet<QByteArray> pathFilters;
     unsigned queryFlags = 0;
@@ -212,46 +260,46 @@ int main(int argc, char** argv)
             case 'C': type = QueryMessage::CursorInfo; break;
             case 'r': type = QueryMessage::ReferencesLocation; break;
             }
-            optlist.append(qMakePair<QueryMessage::Type, QByteArray>(type, encoded));
+            commands.append(new QueryCommand(type, encoded, queryFlags, unsavedFiles, pathFilters)); // these are references
             break; }
         case 'q':
-            optlist.append(qMakePair(QueryMessage::Shutdown, QByteArray()));
+            commands.append(new QueryCommand(QueryMessage::Shutdown, QByteArray(), queryFlags, unsavedFiles, pathFilters)); // these are references
             break;
         case 't':
-            optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Test, Path::resolved(optarg)));
+            commands.append(new QueryCommand(QueryMessage::Test, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references
             break;
         case 'm':
-            makeFiles.append(qMakePair(Path::resolved(optarg), false));
+            commands.append(new MakefileCommand(Path::resolved(optarg), false));
             break;
         case 'M':
-            makeFiles.append(qMakePair(Path::resolved(optarg), true));
+            commands.append(new MakefileCommand(Path::resolved(optarg), true));
             break;
         case 's':
             if (optarg) {
-                optlist.append(qMakePair(QueryMessage::Status, QByteArray(optarg)));
+                commands.append(new QueryCommand(QueryMessage::Status, optarg, queryFlags, unsavedFiles, pathFilters)); // these are references
             } else if (optind < argc && argv[optind][0] != '-') {
-                optlist.append(qMakePair(QueryMessage::Status, QByteArray(argv[optind++])));
+                commands.append(new QueryCommand(QueryMessage::Status, argv[optind++], queryFlags, unsavedFiles, pathFilters)); // these are references
             } else {
-                optlist.append(qMakePair(QueryMessage::Status, QByteArray()));
+                commands.append(new QueryCommand(QueryMessage::Status, QByteArray(), queryFlags, unsavedFiles, pathFilters)); // these are references
             }
             break;
         case 'R':
-            optlist.append(qMakePair(QueryMessage::ReferencesName, QByteArray(optarg)));
+            commands.append(new QueryCommand(QueryMessage::ReferencesName, optarg, queryFlags, unsavedFiles, pathFilters)); // these are references
             break;
         case 'S':
             if (optarg) {
-                optlist.append(qMakePair(QueryMessage::ListSymbols, QByteArray(optarg)));
+                commands.append(new QueryCommand(QueryMessage::ListSymbols, optarg, queryFlags, unsavedFiles, pathFilters)); // these are references
             } else if (optind < argc && argv[optind][0] != '-') {
-                optlist.append(qMakePair(QueryMessage::ListSymbols, QByteArray(argv[optind++])));
+                commands.append(new QueryCommand(QueryMessage::ListSymbols, argv[optind++], queryFlags, unsavedFiles, pathFilters)); // these are references
             } else {
-                optlist.append(qMakePair(QueryMessage::ListSymbols, QByteArray()));
+                commands.append(new QueryCommand(QueryMessage::ListSymbols, QByteArray(), queryFlags, unsavedFiles, pathFilters)); // these are references
             }
             break;
         case 'F':
-            optlist.append(qMakePair(QueryMessage::FindSymbols, QByteArray(optarg)));
+            commands.append(new QueryCommand(QueryMessage::FindSymbols, optarg, queryFlags, unsavedFiles, pathFilters)); // these are references
             break;
         case 'd':
-            optlist.append(qMakePair<QueryMessage::Type, QByteArray>(QueryMessage::Dump, Path::resolved(optarg)));
+            commands.append(new QueryCommand(QueryMessage::Dump, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references
             break;
         case '?':
             // getopt printed an error message already
@@ -271,7 +319,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (optlist.isEmpty() && makeFiles.isEmpty() && !(clientFlags & (Client::RestartRdm|Client::AutostartRdm))) {
+    if (commands.isEmpty() && !(clientFlags & (Client::RestartRdm|Client::AutostartRdm))) {
         help(stderr, argv[0]);
         return 1;
     }
@@ -284,19 +332,10 @@ int main(int argc, char** argv)
     }
 
     Client client(clientFlags, extraFlags, rdmArgs);
-    QList<QPair<QueryMessage::Type, QByteArray> >::const_iterator it = optlist.begin();
-    while (it != optlist.end()) {
-        QueryMessage msg(it->first, it->second, queryFlags);
-        msg.setUnsavedFiles(unsavedFiles);
-        msg.setPathFilters(pathFilters.toList());
-        client.query(&msg);
-        ++it;
-    }
-    for (int i=0; i<makeFiles.size(); ++i) {
-        const bool wait = makeFiles.at(i).second;
-        Path makeFile = makeFiles.at(i).first;
-        client.parseMakefile(makeFile, wait);
-        error("%d source files and %d pch files", client.sourceFileCount(), client.pchCount());
+    foreach(Command *cmd, commands) {
+        debug() << "running command" << cmd->description();
+        cmd->exec(&client);
+        delete cmd;
     }
     return 0;
 }
