@@ -74,6 +74,12 @@ void setMaxMemoryUsage(quint64 max);
 bool waitForMemory(int maxMs);
 QByteArray eatString(CXString str);
 QByteArray cursorToString(CXCursor cursor);
+static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
+{
+    dbg << Rdm::cursorToString(cursor).constData();
+    return dbg;
+}
+
 static inline QDebug operator<<(QDebug dbg, CXCursorKind kind)
 {
     dbg << Rdm::eatString(clang_getCursorKindSpelling(kind)).constData();

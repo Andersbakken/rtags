@@ -162,12 +162,14 @@ CXChildVisitResult findReferenceVisitor(CXCursor cursor, CXCursor, CXClientData 
     UserData *userData = reinterpret_cast<UserData*>(u);
     CXStringScope usr(clang_getCursorUSR(cursor));
     const char *cstr = clang_getCString(usr.string);
+    Q_ASSERT(cstr);
     qDebug() << Rdm::cursorToString(cursor) << "looking for" << userData->usr << "got" << cstr;
     if (cstr && !strcmp(userData->usr, cstr)) {
+        qDebug() << "found it at" << Rdm::cursorToString(cursor);
         userData->ref = cursor;
         return CXChildVisit_Break;
     }
-    return CXChildVisit_Continue; // ### recurse?
+    return CXChildVisit_Recurse;
 }
 
 
