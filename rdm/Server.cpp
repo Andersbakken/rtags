@@ -122,6 +122,10 @@ bool Server::init(const Options &options)
     mIndexer->setDefaultArgs(mDefaultArgs);
 
     error() << "running with" << mDefaultArgs << "clang version" << Rdm::eatString(clang_getClangVersion());
+#if CLANG_VERSION_MINOR <= 1
+    error() << "RTags will run much faster with a newer version of clang. (>= 3.2).";
+#endif
+
     onSymbolNamesChanged();
     return true;
 }
@@ -176,7 +180,7 @@ void Server::onNewMessage(Message* message)
         handleErrorMessage(static_cast<ErrorMessage*>(message));
         break;
     default:
-        warning("Unknown message: %d", message->messageId());
+        error("Unknown message: %d", message->messageId());
         break;
     }
 
