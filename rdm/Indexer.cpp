@@ -458,10 +458,10 @@ QList<QByteArray> Indexer::compileArgs(const Path &file) const
     return db->value<FileInformation>(file).compileArgs;
 }
 
-bool Indexer::visitFile(quint32 fileId, const Path &hack)
+bool Indexer::visitFile(quint32 fileId)
 {
     QMutexLocker lock(&mVisitedFilesMutex);
-    if (mVisitedFiles.contains(fileId) || (hack.endsWith("Foo.cpp") && Location::path(fileId) != hack)) {
+    if (mVisitedFiles.contains(fileId)) {
         return false;
     }
     mVisitedFiles.insert(fileId);

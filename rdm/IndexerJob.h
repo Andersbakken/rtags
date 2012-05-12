@@ -31,6 +31,7 @@ public:
     };
 
     CXChildVisitResult processCursor(const Cursor &cursor, const Cursor &ref);
+    Cursor findByUSR(CXCursor cursor);
 
     QList<Cursor> mDelayed;
     SymbolHash mSymbols;
@@ -49,6 +50,9 @@ public:
     QSet<quint32> mPchDependencies;
     Indexer *mIndexer;
     QHash<QByteArray, Location> mPchUSRHash;
+
+    QHash<QByteArray, CXCursor> mHeaderHash;
+    QSet<quint32> mHeaderHashFiles;
     QList<Path> mPchHeaders;
 signals:
     void done(int id, const Path &path, bool isPch, const QByteArray &msg);
