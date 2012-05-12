@@ -135,6 +135,7 @@ Location IndexerJob::createLocation(CXCursor cursor, bool *blocked)
         if (file) {
             ret = Location(file, start);
             if (blocked) {
+#if CLANG_VERSION_MINOR > 1
                 const quint32 fileId = ret.fileId();
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
@@ -145,6 +146,7 @@ Location IndexerJob::createLocation(CXCursor cursor, bool *blocked)
                     // qDebug() << "ignored" << Rdm::cursorToString(cursor) << "for" << mIn;
                     return Location();
                 }
+#endif
                 *blocked = false;
             }
         }
@@ -158,13 +160,6 @@ CXChildVisitResult findReferenceVisitor(CXCursor cursor, CXCursor, CXClientData 
     CXStringScope usr(clang_getCursorUSR(cursor));
     const char *cstr = clang_getCString(usr.string);
     headerHash[cstr] = cursor;
-    // Q_ASSERT(cstr);
-    // qDebug() << Rdm::cursorToString(cursor) << "looking for" << userData->usr << "got" << cstr;
-    // if (cstr && !strcmp(userData->usr, cstr)) {
-    //     qDebug() << "found it at" << Rdm::cursorToString(cursor);
-    //     userData->ref = cursor;
-    //     return CXChildVisit_Break;
-    // }
     return CXChildVisit_Continue;
 }
 
@@ -479,6 +474,7 @@ IndexerJob::Cursor IndexerJob::findByUSR(CXCursor cursor)
         // ### even if this isn't the right CXCursor it's good enough for our needs
         return ret;
     }
+#if CLANG_VERSION_MINOR > 1
     QHash<QByteArray, CXCursor>::const_iterator it = mHeaderHash.find(key);
     if (it == mHeaderHash.end()) {
         clang_visitChildren(clang_getCursorSemanticParent(cursor), findReferenceVisitor, &mHeaderHash);
@@ -489,6 +485,7 @@ IndexerJob::Cursor IndexerJob::findByUSR(CXCursor cursor)
         const Cursor ret = { ref, createLocation(ref, 0), clang_getCursorKind(ref) };
         return ret;
     }
+#endif
 
     const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
     return ret;

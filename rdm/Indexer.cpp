@@ -458,16 +458,6 @@ QList<QByteArray> Indexer::compileArgs(const Path &file) const
     return db->value<FileInformation>(file).compileArgs;
 }
 
-bool Indexer::visitFile(quint32 fileId)
-{
-    QMutexLocker lock(&mVisitedFilesMutex);
-    if (mVisitedFiles.contains(fileId)) {
-        return false;
-    }
-    mVisitedFiles.insert(fileId);
-    return true;
-}
-
 void Indexer::dirty(const QSet<quint32> &files)
 {
     QMutexLocker lock(&mVisitedFilesMutex);

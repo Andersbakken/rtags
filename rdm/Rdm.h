@@ -4,6 +4,7 @@
 #include <QByteArray>
 #include <QIODevice>
 #include <clang-c/Index.h>
+#include <clang/Basic/Version.inc>
 #include <Path.h>
 #include <QDebug>
 #include "Server.h"

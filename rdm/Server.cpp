@@ -121,7 +121,7 @@ bool Server::init(const Options &options)
     Rdm::initSystemPaths(systemPaths);
     mIndexer->setDefaultArgs(mDefaultArgs);
 
-    warning() << "running with" << mDefaultArgs;
+    error() << "running with" << mDefaultArgs << "clang version" << Rdm::eatString(clang_getClangVersion());
     onSymbolNamesChanged();
     return true;
 }

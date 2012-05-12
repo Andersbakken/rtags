@@ -5,7 +5,7 @@
 #include <AddMessage.h>
 #include "Rdm.h"
 #include "CursorInfo.h"
-
+#include <clang-c/Index.h>
 
 class IndexerJob;
 class Indexer : public QObject
@@ -28,7 +28,9 @@ public:
     Path path() const { return mPath; }
     void abort();
     QList<QByteArray> compileArgs(const Path &file) const;
+#if CLANG_VERSION_MINOR > 1
     bool visitFile(quint32 fileId);
+#endif
     void dirty(const QSet<quint32> &files);
 signals:
     void indexingDone(int id);
@@ -68,4 +70,15 @@ private:
     WatchedHash mWatched;
 };
 
+#if CLANG_VERSION_MINOR > 1
+inline bool Indexer::visitFile(quint32 fileId)
+{
+    QMutexLocker lock(&mVisitedFilesMutex);
+    if (mVisitedFiles.contains(fileId)) {
+        return false;
+    }
+    mVisitedFiles.insert(fileId);
+    return true;
+}
+#endif
 #endif

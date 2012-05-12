@@ -18,7 +18,7 @@ public:
 
     int mId;
     bool mIsPch;
-    Location createLocation(CXCursor cursor, bool *blocked);
+    Location createLocation(CXCursor cursor , bool *blocked);
     QByteArray addNamePermutations(CXCursor cursor, const Location &location, bool addToDb);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static void inclusionVisitor(CXFile included_file, CXSourceLocation* include_stack,
@@ -42,7 +42,10 @@ public:
         Index,
         DontIndex
     };
+#if CLANG_VERSION_MINOR > 1
     QHash<quint32, PathState> mPaths;
+    QHash<QByteArray, CXCursor> mHeaderHash;
+#endif
     ReferenceHash mReferences;
     Path mIn;
     QList<QByteArray> mArgs;
@@ -51,8 +54,6 @@ public:
     Indexer *mIndexer;
     QHash<QByteArray, Location> mPchUSRHash;
 
-    QHash<QByteArray, CXCursor> mHeaderHash;
-    QSet<quint32> mHeaderHashFiles;
     QList<Path> mPchHeaders;
 signals:
     void done(int id, const Path &path, bool isPch, const QByteArray &msg);
