@@ -23,6 +23,8 @@ public:
     bool done;
 };
 
+#include "Connection.cpp.moc"
+
 void ConnectionPrivate::dataAvailable()
 {
     for (;;) {
@@ -60,8 +62,6 @@ void ConnectionPrivate::dataWritten(qint64 bytes)
             socket->close();
     }
 }
-
-#include "Connection.moc"
 
 Connection::Connection(QObject* parent)
     : QObject(parent), mPriv(new ConnectionPrivate(this))
