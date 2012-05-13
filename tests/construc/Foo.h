@@ -8,4 +8,10 @@ public:
     void func();
 };
 
+static inline void balle()
+{
+    Foo f;
+    f.func();
+}
+
 #endif

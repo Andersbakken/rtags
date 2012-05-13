@@ -242,8 +242,6 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
             ci.references.insert(it.key());
             if (it.value().second != Rdm::NormalReference) {
                 CursorInfo &other = symbols[it.key()];
-                ci.references += other.references;
-                other.references += ci.references;
                 // qDebug() << "trying to join" << it.key() << "and" << it.value().first;
                 if (other.target.isNull())
                     other.target = it.value().first;
