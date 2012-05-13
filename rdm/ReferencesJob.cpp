@@ -28,13 +28,27 @@ void ReferencesJob::execute()
     foreach(const Location &location, locations) {
         if (isAborted())
             return;
-        CursorInfo cursorInfo = Rdm::findCursorInfo(db, location);
-        QSet<Location> refs = cursorInfo.references;
-        if (refs.isEmpty() && !cursorInfo.target.isNull()) {
-            cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
-            refs = cursorInfo.references;
+        QSet<Location> refs;
+        Location loc = location;
+        QSet<Location> seen;
+        /* This loop goes three times because we might get called for one of the
+         * actual references. If so we want to follow the location to the
+         * declaration or definition (whichever one the reference actually
+         * references... it can be either). From there we want to get those
+         * references and follow to the other one (decl => def or def => decl)
+         * and get those references. Wes would be proud! */
+
+        for (int i=0; i<3; ++i) {
+            CursorInfo cursorInfo = Rdm::findCursorInfo(db, loc);
+            refs += cursorInfo.references;
+            loc = cursorInfo.target;
+            if (loc.isNull() || seen.contains(loc))
+                break;
+            seen.insert(loc);
         }
-        foreach (const Location &loc, refs) {
+        QList<Location> sorted = refs.toList();
+        qSort(sorted);
+        foreach (const Location &loc, sorted) {
             write(loc.key(keyFlags));
         }
     }
