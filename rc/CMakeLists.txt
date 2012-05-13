@@ -25,9 +25,13 @@ set ( rc_MOCS
 	)
 
 include ( ../shared/shared.cmake )
+include ( ../shared/PCH_GCC4_v2.cmake )
 
 QT4_WRAP_CPP ( MOCS ${rc_MOCS} ${shared_MOCS} )
 QT4_GENERATE_MOCS ( ${shared_CPPMOCS} )
+
+ADD_PCH_RULE ( Pch.h rc_SRCS rc_PCHFLAGS )
+add_definitions( ${rc_PCHFLAGS} )
 
 add_custom_target ( gperf )
 

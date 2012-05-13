@@ -63,9 +63,13 @@ set ( rdm_MOCS
 
 include ( ../shared/shared.cmake )
 include ( ../shared/clang.cmake )
+include ( ../shared/PCH_GCC4_v2.cmake )
 
 QT4_WRAP_CPP( MOCS ${rdm_MOCS} ${shared_MOCS} )
 QT4_GENERATE_MOCS ( ${shared_CPPMOCS} )
+
+ADD_PCH_RULE ( Pch.h rdm_SRCS rdm_PCHFLAGS )
+add_definitions( ${rdm_PCHFLAGS} )
 
 add_executable ( rdm ${rdm_SRCS} ${shared_SRCS} ${UIS} ${RSCS} ${TRS} ${MOCS} )
 target_link_libraries ( rdm ${QT_QTCORE_LIBRARY} ${QT_QTNETWORK_LIBRARY} ${clang_LIBS} )
