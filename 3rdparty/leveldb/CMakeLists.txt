@@ -4,7 +4,7 @@ set ( CMAKE_BUILD_TYPE Release )
 add_custom_target(
    libleveldb
    ALL
-   COMMAND make
+   COMMAND \$\(MAKE\)
    WORKING_DIRECTORY src
    )
 
