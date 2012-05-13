@@ -40,6 +40,6 @@ MACRO (ADD_PCH_RULE _header_filename _src_list _cflag_list)
 	SEPARATE_ARGUMENTS(_args)
 	add_custom_command(OUTPUT ${_gch_filename}
 		   COMMAND rm -f ${_gch_filename}
-		   COMMAND ${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_ARG1} ${_args}
+		   COMMAND ${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_ARG1} -x c++-header ${_args}
 			    DEPENDS ${_header_filename})
 ENDMACRO(ADD_PCH_RULE _header_filename _src_list)
