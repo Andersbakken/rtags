@@ -60,15 +60,15 @@ void DirectoryTracker::enterDirectory(const QByteArray& dir)
     Path newPath = Path::resolved(dir, path(), &ok);
     if (ok) {
         mPaths.push(newPath);
-        // printf("New directory resolved: %s\n", newPath.constData());
+        debug("New directory resolved: %s", newPath.constData());
     } else {
         qFatal("Unable to resolve path %s (%s)", dir.constData(), path().constData());
     }
 }
 
-void DirectoryTracker::leaveDirectory(const QByteArray& /*dir*/)
+void DirectoryTracker::leaveDirectory(const QByteArray& dir)
 {
-    // log(1) << "leaveDirectory" << dir;
+    verboseDebug() << "leaveDirectory" << dir;
     // enter and leave share the same code for now
     mPaths.pop();
     // enterDirectory(dir);
@@ -110,6 +110,14 @@ void MakefileParser::run(const Path& makefile)
 
     connect(mProc, SIGNAL(readyReadStandardOutput()),
             this, SLOT(processMakeOutput()));
+    connect(mProc, SIGNAL(readyReadStandardError()),
+            this, SLOT(onReadyReadStandardError()));
+
+    connect(mProc, SIGNAL(stateChanged(QProcess::ProcessState)),
+            this, SLOT(onProcessStateChanged(QProcess::ProcessState)));
+
+    connect(mProc, SIGNAL(error(QProcess::ProcessError)),
+            this, SLOT(onError(QProcess::ProcessError)));
     connect(mProc, SIGNAL(finished(int)), this, SIGNAL(done()));
 
     mTracker->init(makefile.parentDir());
@@ -132,6 +140,7 @@ void MakefileParser::processMakeOutput()
 {
     Q_ASSERT(mProc);
     mData += mProc->readAllStandardOutput();
+
     int nextNewline = mData.indexOf('\n');
     while (nextNewline != -1) {
         processMakeLine(mData.left(nextNewline));
@@ -142,8 +151,8 @@ void MakefileParser::processMakeOutput()
 
 void MakefileParser::processMakeLine(const QByteArray &line)
 {
-    if (logLevel())
-        log(1, "%s\n", line.constData());
+    if (testLog(VerboseDebug))
+        verboseDebug("%s", line.constData());
     GccArguments args;
     if (args.parse(line, mTracker->path())) {
         args.addFlags(mExtraFlags);
@@ -151,4 +160,16 @@ void MakefileParser::processMakeLine(const QByteArray &line)
     } else {
         mTracker->track(line);
     }
+}
+void MakefileParser::onError(QProcess::ProcessError err)
+{
+    error() << "Error" << err << mProc->errorString();
+}
+void MakefileParser::onProcessStateChanged(QProcess::ProcessState state)
+{
+    debug() << "process state changed" << state;
+}
+void MakefileParser::onReadyReadStandardError()
+{
+    debug() << "stderr" << mProc->readAllStandardError();
 }

@@ -12,7 +12,7 @@ class DirectoryTracker;
 class MakefileParser : public QObject
 {
     Q_OBJECT
-public:
+    public:
     MakefileParser(const QList<QByteArray> &extraFlags, QObject *parent = 0);
     ~MakefileParser();
 
@@ -25,7 +25,9 @@ signals:
 
 private slots:
     void processMakeOutput();
-
+    void onReadyReadStandardError();
+    void onError(QProcess::ProcessError error);
+    void onProcessStateChanged(QProcess::ProcessState state);
 private:
     void processMakeLine(const QByteArray& line);
 

@@ -16,6 +16,7 @@ enum LogLevel {
 };
 void log(int level, const char *format, ...);
 void debug(const char *format, ...);
+void verboseDebug(const char *format, ...);
 void warning(const char *format, ...);
 void error(const char *format, ...);
 enum LogFlag {

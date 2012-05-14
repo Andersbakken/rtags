@@ -90,6 +90,14 @@ void debug(const char *format, ...)
     va_end(v);
 }
 
+void verboseDebug(const char *format, ...)
+{
+    va_list v;
+    va_start(v, format);
+    log(VerboseDebug, format, v);
+    va_end(v);
+}
+
 void warning(const char *format, ...)
 {
     va_list v;
