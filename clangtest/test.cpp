@@ -1,4 +1,4 @@
-#include "header.h"
+// #include "header.h"
 
 class Outer
 {
@@ -12,7 +12,7 @@ void bar()
 
 int main()
 {
-    Enum e = Foo;
+    // Enum e = Foo;
     Outer o;
 
     o.foo();
@@ -22,5 +22,5 @@ int main()
 void Outer::foo()
 {
     bar();
-    return;
+    foo();
 }

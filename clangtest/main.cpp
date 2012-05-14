@@ -71,13 +71,13 @@ public:
 //     return CXChildVisit_Recurse;
 // }
 
-static inline CXChildVisitResult visitAll(CXCursor cursor, CXCursor, CXClientData)
+static inline CXChildVisitResult visitSub(CXCursor cursor, CXCursor, CXClientData)
 {
-    // switch (clang_getCursorKind(cursor)) {
-    // case CXCursor_ParmDecl:
-    //     return CXChildVisit_Recurse;
-    // case CXCursor_TypeRef:
-    // case CXCursor_TemplateRef: {
+    return CXChildVisit_Break;
+}
+
+static inline CXChildVisitResult visitAll(CXCursor cursor, CXCursor, CXClientData userData)
+{
     CXFile file;
     unsigned line, col;
     clang_getInstantiationLocation(clang_getCursorLocation(cursor), &file, &line, &col, 0);
@@ -86,7 +86,11 @@ static inline CXChildVisitResult visitAll(CXCursor cursor, CXCursor, CXClientDat
     CXFile file2;
     unsigned line2, col2;
     clang_getInstantiationLocation(clang_getCursorLocation(ref), &file2, &line2, &col2, 0);
-    printf("    %s:%u:%u %s %s: references %s:%u:%u %s %s\n",
+    for (int i=0; i<reinterpret_cast<long>(userData); ++i) {
+        printf(" ");
+    }
+
+    printf("%s:%u:%u %s %s: references %s:%u:%u %s %s\n",
            String(clang_getFileName(file)).data(),
            line, col,
            String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
@@ -95,7 +99,8 @@ static inline CXChildVisitResult visitAll(CXCursor cursor, CXCursor, CXClientDat
            line2, col2,
            String(clang_getCursorKindSpelling(clang_getCursorKind(ref))).data(),
            String(clang_getCursorSpelling(ref)).data());
-    return CXChildVisit_Recurse;
+    clang_visitChildren(cursor, visitAll, reinterpret_cast<void*>(reinterpret_cast<long>(userData) + 2));
+    return CXChildVisit_Continue;
 }
 
 // void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
@@ -137,77 +142,77 @@ static inline CXChildVisitResult visitAll(CXCursor cursor, CXCursor, CXClientDat
 // }
 
 
-int main(int argc, char **argv)
-{
-    QElapsedTimer timer;
-    timer.start();
-    CXIndex index = clang_createIndex(1, 1);
+    int main(int argc, char **argv)
+    {
+        QElapsedTimer timer;
+        timer.start();
+        CXIndex index = clang_createIndex(1, 1);
 #if 1
-    // const char *argsPch[] = { "-I.", "-x", "c++-header" };
-    // CXTranslationUnit unit = clang_parseTranslationUnit(index, "pch.h",
-    //                                                     argsPch, sizeof(argsPch) / 4,
-    //                                                     0, 0, CXTranslationUnit_Incomplete);
-    // // clang_saveTranslationUnit(unit, "/tmp/pch.pch", 0);
-    // QByteArray pch;
-    // QFile f("/tmp/pch.pch2");
-    // f.open(QIODevice::ReadOnly);
-    // pch = f.readAll();
-    // CXUnsavedFile file = { "/tmp/pch.pch", pch.constData(), pch.size() };
-    // clang_disposeTranslationUnit(unit);
-    const char *args[] = { "-fsyntax-only", "-I.", "-x", "c++" }; //, "-include-pch", "/tmp/pch.pch" };
-    CXTranslationUnit unit = clang_parseTranslationUnit(index, "test.cpp",
-                                                        args, sizeof(args) / 4,
-                                                        0, 0, clang_defaultEditingTranslationUnitOptions());
-    if (unit) {
-        clang_visitChildren(clang_getTranslationUnitCursor(unit), visitAll, 0);
-        clang_disposeTranslationUnit(unit);
-    }
-
-#else
-    CXIndexAction action = clang_IndexAction_create(index);
-    const char *args[] = { "-cc1", "-I.", "-x", "c++" };
-    IndexerCallbacks cb;
-    memset(&cb, 0, sizeof(IndexerCallbacks));
-    cb.indexDeclaration = indexDeclaration;
-    cb.indexEntityReference = indexEntityReference;
-    CXTranslationUnit unit = 0;
-
-    const char* filename = (argc < 2 ? "test.cpp" : argv[1]);
-    const int completeLine = (argc < 3 ? 15 : atoi(argv[2]));
-    const int completeColumn = (argc < 4 ? 7 : atoi(argv[3]));
-
-    clang_indexSourceFile(action, 0, &cb, sizeof(IndexerCallbacks),
-                          CXIndexOpt_IndexFunctionLocalSymbols,
-                          filename,
-                          args, sizeof(args) / 4,
-                          0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
-    clang_visitChildren(clang_getTranslationUnitCursor(unit), visitAll, 0);
-
-    CXCodeCompleteResults* res = clang_codeCompleteAt(unit, filename,
-                                                      completeLine, completeColumn,
-                                                      0, 0,
-                                                      clang_defaultCodeCompleteOptions());
-    if (res) {
-        printf("\n---\ncompletions for %s:%d:%d\n", filename, completeLine, completeColumn);
-        for (unsigned int i = 0; i < res->NumResults; ++i) {
-            const CXCompletionString& str = res->Results[i].CompletionString;
-            for (unsigned int j = 0; j < clang_getNumCompletionChunks(str); ++j) {
-                if (clang_getCompletionChunkKind(str, j) != CXCompletionChunk_TypedText)
-                    continue;
-
-                CXString out = clang_getCompletionChunkText(str, j);
-                printf("  %s\n", clang_getCString(out));
-                clang_disposeString(out);
-            }
+        // const char *argsPch[] = { "-I.", "-x", "c++-header" };
+        // CXTranslationUnit unit = clang_parseTranslationUnit(index, "pch.h",
+        //                                                     argsPch, sizeof(argsPch) / 4,
+        //                                                     0, 0, CXTranslationUnit_Incomplete);
+        // // clang_saveTranslationUnit(unit, "/tmp/pch.pch", 0);
+        // QByteArray pch;
+        // QFile f("/tmp/pch.pch2");
+        // f.open(QIODevice::ReadOnly);
+        // pch = f.readAll();
+        // CXUnsavedFile file = { "/tmp/pch.pch", pch.constData(), pch.size() };
+        // clang_disposeTranslationUnit(unit);
+        const char *args[] = { "-I.", "-x", "c++" }; //, "-include-pch", "/tmp/pch.pch" };
+        CXTranslationUnit unit = clang_parseTranslationUnit(index, "test.cpp",
+                                                            args, sizeof(args) / sizeof(char*),
+                                                            0, 0, clang_defaultEditingTranslationUnitOptions());
+        if (unit) {
+            clang_visitChildren(clang_getTranslationUnitCursor(unit), visitAll, 0);
+            clang_disposeTranslationUnit(unit);
         }
 
-        clang_disposeCodeCompleteResults(res);
-    }
+#else
+        CXIndexAction action = clang_IndexAction_create(index);
+        const char *args[] = { "-cc1", "-I.", "-x", "c++" };
+        IndexerCallbacks cb;
+        memset(&cb, 0, sizeof(IndexerCallbacks));
+        cb.indexDeclaration = indexDeclaration;
+        cb.indexEntityReference = indexEntityReference;
+        CXTranslationUnit unit = 0;
 
-    if (unit)
-        clang_disposeTranslationUnit(unit);
-    clang_IndexAction_dispose(action);
+        const char* filename = (argc < 2 ? "test.cpp" : argv[1]);
+        const int completeLine = (argc < 3 ? 15 : atoi(argv[2]));
+        const int completeColumn = (argc < 4 ? 7 : atoi(argv[3]));
+
+        clang_indexSourceFile(action, 0, &cb, sizeof(IndexerCallbacks),
+                              CXIndexOpt_IndexFunctionLocalSymbols,
+                              filename,
+                              args, sizeof(args) / 4,
+                              0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
+        clang_visitChildren(clang_getTranslationUnitCursor(unit), visitAll, 0);
+
+        CXCodeCompleteResults* res = clang_codeCompleteAt(unit, filename,
+                                                          completeLine, completeColumn,
+                                                          0, 0,
+                                                          clang_defaultCodeCompleteOptions());
+        if (res) {
+            printf("\n---\ncompletions for %s:%d:%d\n", filename, completeLine, completeColumn);
+            for (unsigned int i = 0; i < res->NumResults; ++i) {
+                const CXCompletionString& str = res->Results[i].CompletionString;
+                for (unsigned int j = 0; j < clang_getNumCompletionChunks(str); ++j) {
+                    if (clang_getCompletionChunkKind(str, j) != CXCompletionChunk_TypedText)
+                        continue;
+
+                    CXString out = clang_getCompletionChunkText(str, j);
+                    printf("  %s\n", clang_getCString(out));
+                    clang_disposeString(out);
+                }
+            }
+
+            clang_disposeCodeCompleteResults(res);
+        }
+
+        if (unit)
+            clang_disposeTranslationUnit(unit);
+        clang_IndexAction_dispose(action);
 #endif
-    clang_disposeIndex(index);
-    return 0;
-}
+        clang_disposeIndex(index);
+        return 0;
+    }
