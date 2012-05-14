@@ -10,4 +10,4 @@ set ( makelib_SRCS
 	)
 
 add_library ( makelib MODULE ${makelib_SRCS} ${UIS} ${RSCS} ${TRS} ${MOCS} )
-target_link_libraries ( makelib  )
+target_link_libraries ( makelib -ldl )
