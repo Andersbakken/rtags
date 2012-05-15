@@ -10,11 +10,14 @@
 #include <RTags.h>
 #include "Rdm.h"
 #include <signal.h>
+#ifdef Q_OS_LINUX
 #include <execinfo.h>
+#endif
 
 void signalHandler(int signal)
 {
     fprintf(stderr, "Caught signal %d\n", signal);
+#ifdef Q_OS_LINUX
     enum { StackSize = 50 };
     void *callstack[StackSize];
     const int c = backtrace(callstack, StackSize);
@@ -22,6 +25,7 @@ void signalHandler(int signal)
     for (int i = 0; i < c; ++i)
         fprintf(stderr, "  %d/%d %p %s\n", i + 1, c, callstack[i], symbols[i]);
     free(symbols);
+#endif
     fflush(stderr);
     delete Server::instance();
     _exit(1);

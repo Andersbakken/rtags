@@ -9,5 +9,24 @@ set ( makelib_SRCS
 	makelib.cpp
 	)
 
+include( CheckCSourceCompiles )
+
+check_c_source_compiles (
+	"
+	#ifndef __GLIBC__
+	#error \"no glibc\"
+	#endif
+	int main(int, char**)
+	{
+		return 0;
+	}
+	"
+	HAVE_GLIBC
+	)
+
 add_library ( makelib MODULE ${makelib_SRCS} ${UIS} ${RSCS} ${TRS} ${MOCS} )
-target_link_libraries ( makelib -ldl )
+if ( HAVE_GLIBC )
+	target_link_libraries ( makelib -ldl )
+else ( HAVE_GLIBC )
+	target_link_libraries ( makelib )
+endif ( HAVE_GLIBC )

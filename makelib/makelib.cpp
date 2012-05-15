@@ -35,6 +35,7 @@ int sharedStat(int ret, const char *filename, T *stat_buf)
     return ret;
 }
 
+#ifdef __GLIBC__
 int __xstat64(int ver, const char *filename, struct stat64 *stat_buf)
 {
     static XStat64 realStat = 0;
@@ -42,6 +43,8 @@ int __xstat64(int ver, const char *filename, struct stat64 *stat_buf)
         realStat = reinterpret_cast<XStat64>(dlsym(RTLD_NEXT, "__xstat64"));
     return sharedStat(realStat(ver, filename, stat_buf), filename, stat_buf);
 }
+#endif
+
 int __xstat(int ver, const char *filename, struct stat *stat_buf)
 {
     static XStat realStat = 0;
@@ -49,6 +52,7 @@ int __xstat(int ver, const char *filename, struct stat *stat_buf)
         realStat = reinterpret_cast<XStat>(dlsym(RTLD_NEXT, "__xstat"));
     return sharedStat(realStat(ver, filename, stat_buf), filename, stat_buf);
 }
+
 int stat(const char *filename, struct stat *stat_buf)
 {
     static Stat realStat = 0;
@@ -57,6 +61,7 @@ int stat(const char *filename, struct stat *stat_buf)
     return sharedStat(realStat(filename, stat_buf), filename, stat_buf);
 }
 
+#ifdef __GLIBC__
 int stat64(const char *filename, struct stat64 *stat_buf)
 {
     static Stat64 realStat = 0;
@@ -64,4 +69,4 @@ int stat64(const char *filename, struct stat64 *stat_buf)
         realStat = reinterpret_cast<Stat64>(dlsym(RTLD_NEXT, "stat64"));
     return sharedStat(realStat(filename, stat_buf), filename, stat_buf);
 }
-
+#endif

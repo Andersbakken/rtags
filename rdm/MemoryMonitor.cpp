@@ -9,7 +9,7 @@ MemoryMonitor::MemoryMonitor()
 {
 }
 
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX)
 static inline quint64 usageLinux()
 {
     quint64 total = 0;
@@ -58,13 +58,13 @@ static inline quint64 usageLinux()
 
     return total;
 }
-#elif Q_OS_FREEBSD
+#elif defined(Q_OS_FREEBSD)
 static inline quint64 usageFreeBSD()
 {
 #warning "implement me"
     return 0;
 }
-#elif Q_OS_MAC
+#elif defined(Q_OS_MAC)
 static inline quint64 usageOSX()
 {
 #warning "implement me"
@@ -74,11 +74,11 @@ static inline quint64 usageOSX()
 
 quint64 MemoryMonitor::usage()
 {
-#ifdef Q_OS_LINUX
+#if defined(Q_OS_LINUX)
     return usageLinux();
-#elif Q_OS_FREEBSD
-    return usageFreeBsd();
-#elif Q_OS_MAC
+#elif defined(Q_OS_FREEBSD)
+    return usageFreeBSD();
+#elif defined(Q_OS_MAC)
     return usageOSX();
 #else
 #error "MemoryMonitor does not support this system"
