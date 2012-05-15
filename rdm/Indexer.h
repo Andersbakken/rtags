@@ -29,7 +29,7 @@ public:
     void abort();
     QList<QByteArray> compileArgs(const Path &file) const;
 #if CLANG_VERSION_MINOR > 1
-    bool visitFile(quint32 fileId);
+    bool visitFile(quint32 fileId, const Path &p);
 #endif
     void dirty(const QSet<quint32> &files);
 signals:
@@ -71,9 +71,13 @@ private:
 };
 
 #if CLANG_VERSION_MINOR > 1
-inline bool Indexer::visitFile(quint32 fileId)
+inline bool Indexer::visitFile(quint32 fileId, const Path &path)
 {
     QMutexLocker lock(&mVisitedFilesMutex);
+    if (Location::path(fileId).endsWith("Foo.h") && path.endsWith("Foo.cpp")) {
+        printf("[%s] %s:%d: if (Location::path(fileId).endsWith(\"Foo.h\") && path.endsWith(\"Foo.cpp\")) { [after]\n", __func__, __FILE__, __LINE__);
+        return false;
+    }
     if (mVisitedFiles.contains(fileId)) {
         return false;
     }

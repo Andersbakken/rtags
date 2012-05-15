@@ -139,7 +139,7 @@ Location IndexerJob::createLocation(CXCursor cursor, bool *blocked)
                 const quint32 fileId = ret.fileId();
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
-                    state = mIndexer->visitFile(fileId) ? Index : DontIndex;
+                    state = mIndexer->visitFile(fileId, mIn) ? Index : DontIndex;
                 }
                 if (state == DontIndex) {
                     *blocked = true;
@@ -154,27 +154,10 @@ Location IndexerJob::createLocation(CXCursor cursor, bool *blocked)
     return ret;
 }
 
-CXChildVisitResult findReferenceVisitor(CXCursor cursor, CXCursor, CXClientData u)
+static inline bool isInteresting(CXCursorKind kind)
 {
-    QHash<QByteArray, CXCursor> &headerHash = *reinterpret_cast<QHash<QByteArray, CXCursor> *>(u);
-    CXStringScope usr(clang_getCursorUSR(cursor));
-    const char *cstr = clang_getCString(usr.string);
-    headerHash[cstr] = cursor;
-    return CXChildVisit_Continue;
-}
-
-
-CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
-                                            CXCursor /*parent*/,
-                                            CXClientData client_data)
-{
-    IndexerJob* job = static_cast<IndexerJob*>(client_data);
-    if (job->isAborted())
-        return CXChildVisit_Break;
-
-    const CXCursorKind kind = clang_getCursorKind(cursor);
     if (clang_isInvalid(kind))
-        return CXChildVisit_Recurse;
+        return false;
     switch (kind) {
     case CXCursor_CXXThisExpr:
     case CXCursor_CXXTypeidExpr:
@@ -205,10 +188,35 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     case CXCursor_UnaryOperator:
     case CXCursor_ReturnStmt:
     case CXCursor_CXXAccessSpecifier:
-        return CXChildVisit_Recurse;
+        return false;
     default:
         break;
     }
+    return true;
+}
+
+CXChildVisitResult findReferenceVisitor(CXCursor cursor, CXCursor, CXClientData u)
+{
+    if (isInteresting(clang_getCursorKind(cursor))) {
+        QHash<QByteArray, CXCursor> &headerHash = *reinterpret_cast<QHash<QByteArray, CXCursor> *>(u);
+        CXStringScope usr(clang_getCursorUSR(cursor));
+        const char *cstr = clang_getCString(usr.string);
+        headerHash[cstr] = cursor;
+    }
+    return CXChildVisit_Continue;
+}
+
+CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
+                                            CXCursor /*parent*/,
+                                            CXClientData client_data)
+{
+    IndexerJob* job = static_cast<IndexerJob*>(client_data);
+    if (job->isAborted())
+        return CXChildVisit_Break;
+
+    const CXCursorKind kind = clang_getCursorKind(cursor);
+    if (!isInteresting(kind))
+        return CXChildVisit_Recurse;
 
     bool blocked = false;
     const Location loc = job->createLocation(cursor, &blocked);
@@ -236,7 +244,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
             }
         }
         if (refLoc.isNull()) {
-            const Cursor r = job->findByUSR(ref);
+            const Cursor r = job->findByUSR(cursor);
             if (r.kind != CXCursor_FirstInvalid)
                 return job->processCursor(c, r);
         }
