@@ -197,7 +197,7 @@ static inline bool isInteresting(CXCursorKind kind)
 
 CXChildVisitResult findReferenceVisitor(CXCursor cursor, CXCursor, CXClientData u)
 {
-    if (isInteresting(clang_getCursorKind(cursor))) {
+    if (isInteresting(clang_getCursorKind(cursor)) && !clang_isCursorDefinition(cursor)) { // only looking for declarations here
         QHash<QByteArray, CXCursor> &headerHash = *reinterpret_cast<QHash<QByteArray, CXCursor> *>(u);
         CXStringScope usr(clang_getCursorUSR(cursor));
         const char *cstr = clang_getCString(usr.string);
