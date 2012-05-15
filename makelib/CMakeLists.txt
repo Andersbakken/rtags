@@ -13,10 +13,11 @@ include( CheckCSourceCompiles )
 
 check_c_source_compiles (
 	"
+	#include <stdlib.h>
 	#ifndef __GLIBC__
 	#error \"no glibc\"
 	#endif
-	int main(int, char**)
+	int main(int argc, char** argv)
 	{
 		return 0;
 	}
