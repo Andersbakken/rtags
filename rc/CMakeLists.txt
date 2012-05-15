@@ -12,6 +12,7 @@ include_directories (
 
 set ( rc_HDRS
 	GccArguments.h
+	MakefileParser.h
 	)
 
 set ( rc_SRCS
@@ -33,13 +34,17 @@ QT4_GENERATE_MOCS ( ${shared_CPPMOCS} )
 ADD_PCH_RULE ( Pch.h rc_SRCS rc_PCHFLAGS )
 add_definitions( ${rc_PCHFLAGS} )
 
-add_custom_target ( gperf )
-
 add_custom_command (
-	TARGET gperf
+	OUTPUT gccopts_gperf.h
+	DEPENDS gccopts.gperf
 	PRE_BUILD
 	COMMAND gperf -I -C -l -L C++ gccopts.gperf -Z gccopts_gperf > gccopts_gperf.h
-        VERBATIM
+	VERBATIM
+	)
+
+add_custom_target (
+	gperf
+	DEPENDS gccopts_gperf.h
 	)
 
 add_executable ( rc ${rc_SRCS} ${shared_SRCS} ${UIS} ${RSCS} ${TRS} ${MOCS} )
