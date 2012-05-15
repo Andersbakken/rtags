@@ -5,8 +5,8 @@
 #include "GccArguments.h"
 #include <QObject>
 #include <QList>
+#include <QProcess>
 
-class QProcess;
 class DirectoryTracker;
 
 class MakefileParser : public QObject

@@ -1,7 +1,6 @@
 #include "MakefileParser.h"
 #include <QDir>
 #include <QCoreApplication>
-#include <QProcess>
 #include <QStack>
 #include <Log.h>
 #include <stdio.h>
