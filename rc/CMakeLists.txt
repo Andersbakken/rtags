@@ -1,7 +1,9 @@
 cmake_minimum_required( VERSION 2.6 )
 find_package ( Qt4 REQUIRED )
 include ( ${QT_USE_FILE} )
-set ( CMAKE_BUILD_TYPE Release )
+if ( NOT CMAKE_BUILD_TYPE )
+	set ( CMAKE_BUILD_TYPE Release )
+endif ( NOT CMAKE_BUILD_TYPE )
 
 add_definitions ( -Wall -DBUILDING_RC )
 
