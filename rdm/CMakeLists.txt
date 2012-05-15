@@ -65,7 +65,7 @@ include ( ../shared/shared.cmake )
 include ( ../shared/clang.cmake )
 include ( ../shared/PCH_GCC4_v2.cmake )
 
-QT4_WRAP_CPP( MOCS ${rdm_MOCS} ${shared_MOCS} )
+QT4_DO_THE_RIGHT_THING( MOCS ${rdm_MOCS} ${shared_MOCS} )
 QT4_GENERATE_MOCS ( ${shared_CPPMOCS} )
 
 ADD_PCH_RULE ( Pch.h rdm_SRCS rdm_PCHFLAGS )
