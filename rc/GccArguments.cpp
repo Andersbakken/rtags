@@ -236,14 +236,14 @@ bool GccArguments::parse(QByteArray args, const Path& base)
     }
 
     if (mImpl->inputFiles.isEmpty()) {
-        warning("Unable to find or resolve input files");
+        error("Unable to find or resolve input files");
         foreach (const QByteArray& input, unresolvedInputs)
-            warning("  %s", input.constData());
+            error("  %s", input.constData());
         clear();
         return false;
     }
     if (mImpl->outputFile.isEmpty() && mImpl->type == Pch) {
-        warning("Output file is empty for pch");
+        error("Output file is empty for pch");
         clear();
         return false;
     }

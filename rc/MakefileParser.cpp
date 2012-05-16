@@ -140,6 +140,7 @@ void MakefileParser::processMakeOutput()
     Q_ASSERT(mProc);
     mData += mProc->readAllStandardOutput();
 
+    // ### this could be more efficient
     int nextNewline = mData.indexOf('\n');
     while (nextNewline != -1) {
         processMakeLine(mData.left(nextNewline));
