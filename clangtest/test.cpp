@@ -4,6 +4,13 @@ class Outer
 {
 public:
     void foo();
+    void inlinefunc()
+    {}
+    void inlinefunc2()
+    {
+        inlinefunc();
+    }
+    
 };
 
 void bar()

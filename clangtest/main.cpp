@@ -71,11 +71,6 @@ public:
 //     return CXChildVisit_Recurse;
 // }
 
-static inline CXChildVisitResult visitSub(CXCursor cursor, CXCursor, CXClientData)
-{
-    return CXChildVisit_Break;
-}
-
 static inline CXChildVisitResult visitAll(CXCursor cursor, CXCursor, CXClientData userData)
 {
     CXFile file;
@@ -86,19 +81,42 @@ static inline CXChildVisitResult visitAll(CXCursor cursor, CXCursor, CXClientDat
     CXFile file2;
     unsigned line2, col2;
     clang_getInstantiationLocation(clang_getCursorLocation(ref), &file2, &line2, &col2, 0);
-    for (int i=0; i<reinterpret_cast<long>(userData); ++i) {
-        printf(" ");
+    // for (int i=0; i<reinterpret_cast<long>(userData); ++i) {
+    //     printf(" ");
+    // }
+
+    CXSourceRange range = clang_getCursorExtent(cursor);
+    CXSourceLocation start = clang_getRangeStart(range);
+    CXSourceLocation end = clang_getRangeEnd(range);
+
+    QByteArray out;
+    {
+        CXFile f;
+        unsigned l, c, o;
+        CXFile f2;
+        unsigned l2, c2, o2;
+        
+        clang_getInstantiationLocation(start, &f, &l, &c, &o);
+        clang_getInstantiationLocation(end, &f2, &l2, &c2, &o2);
+        qDebug() << QByteArray(reinterpret_cast<long>(userData), ' ').constData()
+                 << String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data()
+                 << String(clang_getCursorSpelling(cursor)).data()
+                 << "extent is" << String(clang_getFileName(f)).data()
+                 << l << c << o << "to" << String(clang_getFileName(f2)).data()
+                 << l2 << c2 << o2
+                 << String(clang_getCursorKindSpelling(clang_getCursorKind(clang_getCursorLexicalParent(cursor)))).data()
+                 << String(clang_getCursorSpelling(clang_getCursorLexicalParent(cursor))).data();
     }
 
-    printf("%s:%u:%u %s %s: references %s:%u:%u %s %s\n",
-           String(clang_getFileName(file)).data(),
-           line, col,
-           String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
-           String(clang_getCursorSpelling(cursor)).data(),
-           String(clang_getFileName(file2)).data(),
-           line2, col2,
-           String(clang_getCursorKindSpelling(clang_getCursorKind(ref))).data(),
-           String(clang_getCursorSpelling(ref)).data());
+    // printf("%s:%u:%u %s %s: references %s:%u:%u %s %s\n",
+    //        String(clang_getFileName(file)).data(),
+    //        line, col,
+    //        String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data(),
+    //        String(clang_getCursorSpelling(cursor)).data(),
+    //        String(clang_getFileName(file2)).data(),
+    //        line2, col2,
+    //        String(clang_getCursorKindSpelling(clang_getCursorKind(ref))).data(),
+    //        String(clang_getCursorSpelling(ref)).data());
     clang_visitChildren(cursor, visitAll, reinterpret_cast<void*>(reinterpret_cast<long>(userData) + 2));
     return CXChildVisit_Continue;
 }
