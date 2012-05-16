@@ -466,7 +466,7 @@ Path Server::pchDir()
 {
     if (sBase.isEmpty())
         return Path();
-    return sBase + "pch";
+    return sBase + "pch/";
 }
 
 void Server::setBaseDirectory(const QByteArray& base, bool clear)
