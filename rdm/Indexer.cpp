@@ -381,11 +381,6 @@ void Indexer::onJobComplete(int id, const Path& input, bool isPch, const QByteAr
     sender()->deleteLater();
 }
 
-void Indexer::setDefaultArgs(const QList<QByteArray> &args)
-{
-    mDefaultArgs = args;
-}
-
 void Indexer::setPchDependencies(const Path &pchHeader, const QSet<quint32> &deps)
 {
     QWriteLocker lock(&mPchDependenciesLock);
@@ -452,11 +447,6 @@ void Indexer::abort()
     foreach(IndexerJob *job, mJobs) {
         job->abort();
     }
-}
-QList<QByteArray> Indexer::compileArgs(const Path &file) const
-{
-    ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
-    return db->value<FileInformation>(file).compileArgs;
 }
 
 void Indexer::dirty(const QSet<quint32> &files)

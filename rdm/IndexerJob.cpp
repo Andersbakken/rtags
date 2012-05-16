@@ -349,19 +349,18 @@ void IndexerJob::run()
     // while (!Rdm::waitForMemory(10000)) {
     //     error("%s Waiting for rdm to shrink", mIn.constData());
     // }
-    QList<QByteArray> args = mArgs + mIndexer->defaultArgs();
     if (!mPchHeaders.isEmpty())
         mPchUSRHash = mIndexer->pchUSRHash(mPchHeaders);
     const quint64 waitingForPch = timer.restart();
 
-    QVarLengthArray<const char*, 32> clangArgs(args.size());
+    QVarLengthArray<const char*, 32> clangArgs(mArgs.size());
     QByteArray clangLine = "clang ";
     bool nextIsPch = false, nextIsX = false;
     QByteArray pchName;
 
     QList<Path> pchFiles;
     int idx = 0;
-    foreach (const QByteArray& arg, args) {
+    foreach (const QByteArray& arg, mArgs) {
         if (arg.isEmpty())
             continue;
 

@@ -18,8 +18,6 @@ public:
 
     int index(const QByteArray& input, const QList<QByteArray>& arguments);
 
-    void setDefaultArgs(const QList<QByteArray> &args);
-    inline QList<QByteArray> defaultArgs() const { return mDefaultArgs; }
     void setPchDependencies(const Path &pchHeader, const QSet<quint32> &deps);
     void addDependencies(const DependencyHash &hash);
     QSet<quint32> pchDependencies(const Path &pchHeader) const;
@@ -27,7 +25,6 @@ public:
     void setPchUSRHash(const Path &pch, const PchUSRHash &astHash);
     Path path() const { return mPath; }
     void abort();
-    QList<QByteArray> compileArgs(const Path &file) const;
     bool visitFile(quint32 fileId, const Path &p);
     void dirty(const QSet<quint32> &files);
 signals:
@@ -48,7 +45,6 @@ private:
     QMutex mVisitedFilesMutex;
     QSet<quint32> mVisitedFiles;
 
-    QList<QByteArray> mDefaultArgs;
     mutable QReadWriteLock mPchDependenciesLock;
     QHash<Path, QSet<quint32> > mPchDependencies;
     int mJobCounter;

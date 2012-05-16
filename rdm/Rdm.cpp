@@ -257,4 +257,12 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
     }
     return totalWritten;
 }
+QList<QByteArray> compileArgs(quint32 fileId)
+{
+    ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
+    const char *ch = reinterpret_cast<const char*>(&fileId);
+    const Slice key(ch, sizeof(fileId));
+    FileInformation fi = db->value<FileInformation>(key);
+    return fi.compileArgs;
+}
 }

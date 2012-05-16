@@ -119,7 +119,6 @@ bool Server::init(const Options &options)
     }
 #endif
     Rdm::initSystemPaths(systemPaths);
-    mIndexer->setDefaultArgs(mDefaultArgs);
 
     error() << "running with" << mDefaultArgs << "clang version" << Rdm::eatString(clang_getClangVersion());
 
@@ -184,36 +183,26 @@ void Server::onNewMessage(Message* message)
     message->deleteLater();
 }
 
-static inline QList<QByteArray> pch(const AddMessage* message)
-{
-    QList<QByteArray> out;
-    foreach (const QByteArray &arg, message->pchs()) {
-        if (!arg.isEmpty()) {
-            switch (message->type()) {
-            case RTags::CompileCPlusPlus:
-            case RTags::PchCPlusPlus:
-                out.append("-include-pch");
-                out.append(arg);
-                break;
-            default:
-                break;
-            }
-        }
-    }
-    return out;
-}
-
 void Server::handleAddMessage(AddMessage* message)
 {
     Connection* conn = qobject_cast<Connection*>(sender());
+    if (!conn->property("connected").toBool()) {
+        connect(mIndexer, SIGNAL(jobsComplete()), conn, SLOT(finish())); // ### this is kind of a hack
+        conn->setProperty("connected", true);
+    }
 
-    const QList<QByteArray> args = message->arguments() + pch(message);
-    if (args != mIndexer->compileArgs(message->inputFile())) {
+    const QList<QByteArray> args = message->arguments() + mDefaultArgs;
+
+    if (args != Rdm::compileArgs(Location::insertFile(message->inputFile()))) {
+        // if (!Rdm::compileArgs(Location::insertFile(message->inputFile())).isEmpty()) {
+        //     qDebug() << message->inputFile() << RTags::join(args, " ")
+        //              << "vs"
+        //              << RTags::join(Rdm::compileArgs(Location::insertFile(message->inputFile())), " ");
+        // }
         const int id = mIndexer->index(message->inputFile(), args);
         if (id != -1)
             mPendingIndexes[id] = conn;
     }
-    connect(mIndexer, SIGNAL(jobsComplete()), conn, SLOT(finish())); // ### this is kind of a hack
 }
 
 void Server::handleQueryMessage(QueryMessage* message)

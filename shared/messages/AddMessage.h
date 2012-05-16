@@ -24,7 +24,6 @@ public:
     QByteArray inputFile() const { return mInput; }
     QByteArray outputFile() const { return mOutput; }
     QList<QByteArray> arguments() const { return mArgs; }
-    QList<QByteArray> pchs() const { return mPchs; }
 
     QByteArray toByteArray() const;
     Q_INVOKABLE void fromByteArray(const QByteArray& data);
@@ -32,7 +31,7 @@ public:
 private:
     RTags::UnitType mType;
     QByteArray mInput, mOutput;
-    QList<QByteArray> mArgs, mPchs;
+    QList<QByteArray> mArgs;
 };
 
 #endif // ADDMESSAGE_H
