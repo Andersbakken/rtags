@@ -28,9 +28,7 @@ public:
     Path path() const { return mPath; }
     void abort();
     QList<QByteArray> compileArgs(const Path &file) const;
-#if CLANG_VERSION_MINOR > 1
     bool visitFile(quint32 fileId, const Path &p);
-#endif
     void dirty(const QSet<quint32> &files);
 signals:
     void indexingDone(int id);
@@ -70,7 +68,6 @@ private:
     WatchedHash mWatched;
 };
 
-#if CLANG_VERSION_MINOR > 1
 inline bool Indexer::visitFile(quint32 fileId, const Path &path)
 {
     QMutexLocker lock(&mVisitedFilesMutex);
@@ -84,5 +81,4 @@ inline bool Indexer::visitFile(quint32 fileId, const Path &path)
     mVisitedFiles.insert(fileId);
     return true;
 }
-#endif
 #endif

@@ -25,8 +25,8 @@ static inline QList<Path> extractPchFiles(const QList<QByteArray>& args)
 // static int active = 0;
 
 IndexerJob::IndexerJob(Indexer* indexer, int id, const Path& input, const QList<QByteArray>& arguments)
-    : mId(id), mIsPch(false), mIn(input), mArgs(arguments), mIndexer(indexer),
-      mPchHeaders(extractPchFiles(arguments))
+    : mId(id), mIsPch(false), mIn(input), mFileId(Location::insertFile(input)), mArgs(arguments),
+      mIndexer(indexer), mPchHeaders(extractPchFiles(arguments))
 {
     // qDebug() << metaObject()->className() << "born" << ++count << ++active;
     setAutoDelete(false);
@@ -74,7 +74,7 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
     }
 }
 
-QByteArray IndexerJob::addNamePermutations(CXCursor cursor, const Location &location, bool addToDB)
+QByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDB)
 {
     QByteArray qname;
     QByteArray qparam, qnoparam;
@@ -124,7 +124,7 @@ QByteArray IndexerJob::addNamePermutations(CXCursor cursor, const Location &loca
     return qparam;
 }
 
-Location IndexerJob::createLocation(CXCursor cursor, bool *blocked)
+Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
     Location ret;
@@ -135,7 +135,6 @@ Location IndexerJob::createLocation(CXCursor cursor, bool *blocked)
         if (file) {
             ret = Location(file, start);
             if (blocked) {
-#if CLANG_VERSION_MINOR > 1
                 const quint32 fileId = ret.fileId();
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
@@ -146,7 +145,6 @@ Location IndexerJob::createLocation(CXCursor cursor, bool *blocked)
                     // qDebug() << "ignored" << Rdm::cursorToString(cursor) << "for" << mIn;
                     return Location();
                 }
-#endif
                 *blocked = false;
             }
         }
@@ -161,9 +159,7 @@ static inline bool isInteresting(CXCursorKind kind)
     switch (kind) {
     case CXCursor_CXXThisExpr:
     case CXCursor_CXXTypeidExpr:
-    case CXCursor_CXXReinterpretCastExpr:
     case CXCursor_CXXStaticCastExpr:
-    case CXCursor_CXXDynamicCastExpr:
     case CXCursor_CXXNullPtrLiteralExpr:
     case CXCursor_CXXNewExpr: // ### Are these right?
     case CXCursor_CXXDeleteExpr:
@@ -188,6 +184,9 @@ static inline bool isInteresting(CXCursorKind kind)
     case CXCursor_UnaryOperator:
     case CXCursor_ReturnStmt:
     case CXCursor_CXXAccessSpecifier:
+    case CXCursor_CXXConstCastExpr:
+    case CXCursor_CXXDynamicCastExpr:
+    case CXCursor_CXXReinterpretCastExpr:
         return false;
     default:
         break;
@@ -244,7 +243,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
             }
         }
         if (refLoc.isNull()) {
-            const Cursor r = job->findByUSR(cursor);
+            const Cursor r = job->findByUSR(cursor, kind, loc);
             if (r.kind != CXCursor_FirstInvalid)
                 return job->processCursor(c, r);
         }
@@ -409,14 +408,13 @@ void IndexerJob::run()
 
     if (!unit) {
         error() << "got 0 unit for" << clangLine;
-        const quint32 fileId = Location::insertFile(mIn);
-        mDependencies[fileId].insert(fileId);
+        mDependencies[mFileId].insert(mFileId);
         mIndexer->addDependencies(mDependencies);
         FileInformation fi;
         fi.compileArgs = mArgs;
         fi.lastTouched = timeStamp;
 
-        Rdm::writeFileInformation(fileId, mArgs, timeStamp);
+        Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
         clang_getInclusions(unit, inclusionVisitor, this);
         // for (QHash<quint32, QSet<quint32> >::const_iterator it = mDependencies.begin(); it != mDependencies.end(); ++it) {
@@ -436,10 +434,9 @@ void IndexerJob::run()
                 mIndexer->setPchUSRHash(mIn, mPchUSRHash);
             }
         }
-        const quint32 fileId = Location::insertFile(mIn);
         foreach(const Path &pchHeader, mPchHeaders) {
             foreach(quint32 dep, mIndexer->pchDependencies(pchHeader)) {
-                mDependencies[dep].insert(fileId);
+                mDependencies[dep].insert(mFileId);
             }
         }
         mIndexer->addDependencies(mDependencies);
@@ -448,7 +445,7 @@ void IndexerJob::run()
         if (!isAborted()) {
             Rdm::writeSymbols(mSymbols, mReferences);
             Rdm::writeSymbolNames(mSymbolNames);
-            Rdm::writeFileInformation(fileId, mArgs, timeStamp);
+            Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
         }
@@ -466,7 +463,25 @@ void IndexerJob::run()
         error() << "We're using" << double(MemoryMonitor::usage()) / double(1024 * 1024) << "MB of memory" << elapsed << "ms";
     }
 }
-IndexerJob::Cursor IndexerJob::findByUSR(CXCursor cursor)
+
+CXChildVisitResult isInlineVisitor(CXCursor, CXCursor, CXClientData u)
+{
+    *reinterpret_cast<bool*>(u) = true;
+    return CXChildVisit_Break;
+}
+
+static inline bool isInline(const CXCursor &cursor)
+{
+    switch (clang_getCursorKind(clang_getCursorLexicalParent(cursor))) {
+    case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
+        return true;
+    default:
+        return false;
+    }
+}
+
+IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc)
 {
     CXStringScope scope(clang_getCursorUSR(cursor));
     const char *cstr = clang_getCString(scope.string);
@@ -482,18 +497,31 @@ IndexerJob::Cursor IndexerJob::findByUSR(CXCursor cursor)
         // ### even if this isn't the right CXCursor it's good enough for our needs
         return ret;
     }
-#if CLANG_VERSION_MINOR > 1
+    switch (kind) {
+    case CXCursor_CXXMethod:
+    case CXCursor_Destructor:
+    case CXCursor_Constructor:
+        // case CXCursor_FunctionDecl: // these mostly fail
+        if (clang_isCursorDefinition(cursor) && loc.fileId() == mFileId && !isInline(cursor))
+            break;
+        // fall through
+    default:
+        const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
+        return ret;
+    }
+    
     QHash<QByteArray, CXCursor>::const_iterator it = mHeaderHash.find(key);
     if (it == mHeaderHash.end()) {
         clang_visitChildren(clang_getCursorSemanticParent(cursor), findReferenceVisitor, &mHeaderHash);
         it = mHeaderHash.find(key);
     }
+
     if (it != mHeaderHash.end()) {
         const CXCursor ref = it.value();
         const Cursor ret = { ref, createLocation(ref, 0), clang_getCursorKind(ref) };
+        Q_ASSERT(!clang_equalCursors(ref, cursor));
         return ret;
     }
-#endif
 
     const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
     return ret;

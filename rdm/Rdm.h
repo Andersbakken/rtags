@@ -4,7 +4,6 @@
 #include <QByteArray>
 #include <QIODevice>
 #include <clang-c/Index.h>
-#include <clang/Basic/Version.inc>
 #include <Path.h>
 #include <QDebug>
 #include "Server.h"
@@ -75,17 +74,6 @@ void setMaxMemoryUsage(quint64 max);
 bool waitForMemory(int maxMs);
 QByteArray eatString(CXString str);
 QByteArray cursorToString(CXCursor cursor);
-static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
-{
-    dbg << Rdm::cursorToString(cursor).constData();
-    return dbg;
-}
-
-static inline QDebug operator<<(QDebug dbg, CXCursorKind kind)
-{
-    dbg << Rdm::eatString(clang_getCursorKindSpelling(kind)).constData();
-    return dbg;
-}
 void initSystemPaths(const QList<Path> &paths);
 bool isSystem(const Path &path);
 template <typename T>
@@ -126,5 +114,17 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references);
 // the symbols will be modified before writing and we don't want to detach so we
 // work on a non-const reference
 }
+static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
+{
+    dbg << Rdm::cursorToString(cursor).constData();
+    return dbg;
+}
+
+static inline QDebug operator<<(QDebug dbg, CXCursorKind kind)
+{
+    dbg << Rdm::eatString(clang_getCursorKindSpelling(kind)).constData();
+    return dbg;
+}
+
 
 #endif
