@@ -154,11 +154,6 @@ int writeSymbolNames(SymbolNameHash &symbolNames)
         ++it;
     }
 
-    if (totalWritten && testLog(Warning)) {
-        warning() << "Wrote" << symbolNames.size() << "symbolNames "
-                  << totalWritten << "bytes in"
-                  << timer.elapsed() << "ms";
-    }
     return totalWritten;
 }
 
@@ -183,11 +178,6 @@ int writeDependencies(const DependencyHash &dependencies)
             totalWritten += batch.add(key, current);
         }
         ++it;
-    }
-    if (totalWritten && testLog(Warning)) {
-        warning() << "Wrote" << dependencies.size()
-                  << "dependencies," << totalWritten << "bytes in"
-                  << timer.elapsed() << "ms";
     }
     return totalWritten;
 }
@@ -218,11 +208,6 @@ int writePchUSRHashes(const QHash<Path, PchUSRHash> &pchUSRHashes)
     Batch batch(db);
     for (QHash<Path, PchUSRHash>::const_iterator it = pchUSRHashes.begin(); it != pchUSRHashes.end(); ++it) {
         totalWritten += batch.add(it.key(), it.value());
-    }
-    if (testLog(Warning)) {
-        warning() << "Wrote" << pchUSRHashes.size() << "pch infos,"
-                  << totalWritten << "bytes in"
-                  << timer.elapsed() << "ms";
     }
     return totalWritten;
 }
@@ -269,12 +254,6 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
             }
             ++it;
         }
-    }
-    if (totalWritten && testLog(Warning)) {
-        warning() << "Wrote" << symbols.size()
-                  << "symbols and" << references.size()
-                  << "references" << totalWritten << "bytes in"
-                  << timer.elapsed() << "ms";
     }
     return totalWritten;
 }
