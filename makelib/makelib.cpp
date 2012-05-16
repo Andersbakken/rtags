@@ -21,6 +21,7 @@ int sharedStat(int ret, const char *filename, T *stat_buf)
         } static const statData[] = {
             { ".o", 2 },
             { ".lo", 3 },
+            { ".gch", 4 },
             { ".gch/c++", 8 },
             { ".gch/c", 6 },
             { 0, 0 }
@@ -31,6 +32,9 @@ int sharedStat(int ret, const char *filename, T *stat_buf)
                 break;
             }
         }
+        // FILE *f = fopen("/tmp/log", "a");
+        // fprintf(f, "%s => %ld\n", filename, stat_buf->st_mtime);
+        // fclose(f);
     }
     return ret;
 }
