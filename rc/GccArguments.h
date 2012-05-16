@@ -15,6 +15,7 @@ public:
 
     GccArguments();
     GccArguments(const QByteArray& args, const Path& base);
+    ~GccArguments();
 
     bool parse(QByteArray args, const Path& base);
     Type type() const;
@@ -30,6 +31,7 @@ public:
     QByteArray baseDirectory() const;
 
 private:
+    Q_DISABLE_COPY(GccArguments);
     GccArgumentsImpl* mImpl;
 };
 

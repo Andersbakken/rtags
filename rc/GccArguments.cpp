@@ -27,6 +27,11 @@ GccArguments::GccArguments(const QByteArray& args, const Path& base)
     parse(args, base);
 }
 
+GccArguments::~GccArguments()
+{
+    delete mImpl;
+}
+
 void GccArguments::clear()
 {
     *mImpl = GccArgumentsImpl();
