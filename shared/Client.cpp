@@ -133,11 +133,12 @@ void Client::onMakefileReady(const GccArguments& args)
         QByteArray output = args.outputFile();
         Q_ASSERT(!output.isEmpty());
         const int ext = output.lastIndexOf(".gch/c");
-        if (ext <= 0) {
-            warning("couldn't find .gch in pch output");
+        if (ext != -1) {
+            output = output.left(ext + 4);
+        } else if (!output.endsWith(".gch")) {
+            error("couldn't find .gch in pch output");
             return;
         }
-        output = output.left(ext + 4);
         const QByteArray input = args.inputFiles().front();
 
         RTags::UnitType type = (args.lang() == GccArguments::C) ? RTags::PchC : RTags::PchCPlusPlus;
