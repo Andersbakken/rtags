@@ -373,6 +373,7 @@ void Indexer::onJobComplete(int id, const Path& input, bool isPch, const QByteAr
         mTimerRunning = false;
         error() << "jobs took" << ((double)(mTimer.elapsed()) / 1000.0) << "secs"
                 << "using" << (double(MemoryMonitor::usage()) / (1024.0 * 1024.0)) << "mb of memory";
+        mJobCounter = 0;
         emit jobsComplete();
     }
 
