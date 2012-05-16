@@ -14,4 +14,5 @@ static inline void balle()
     f.func();
 }
 
+
 #endif
