@@ -202,10 +202,20 @@ bool GccArguments::parse(QByteArray args, const Path& base)
                 continue;
             } else {
                 if (!strncmp(cur, "-D", 2)) {
+                    QByteArray arg;
                     if (arg.size() == 2 && i + 1 < s) {
-                        mImpl->clangArgs.append((cur + split.at(++i)));
+                        arg = (cur + split.at(++i));
                     } else {
-                        mImpl->clangArgs.append(cur);
+                        arg = cur;
+                    }
+                    if (!mImpl->clangArgs.contains(arg)) {
+                        /* This is nasty stuff but can be important for pch. To
+                         * see the effect just reset to this commit~ and notice
+                         * that pch doesn't work for rtags since the pch file
+                         * has different defines than the sources using it, even
+                         * if the difference only is the multiple definition of
+                         * QT_(NO_)DEBUG */
+                        mImpl->clangArgs.append(arg);
                     }
                 } else if (!strncmp(cur, "-I", 2)) {
                     Path inc;
