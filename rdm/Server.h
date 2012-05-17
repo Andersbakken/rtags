@@ -33,6 +33,7 @@ private:
         Data(Database *database, LockType lockType);
         ~Data();
         Database *db;
+        LockType lock;
     };
     QSharedDataPointer<Data> mData;
 };

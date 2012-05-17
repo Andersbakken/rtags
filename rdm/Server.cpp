@@ -493,15 +493,15 @@ ScopedDB::ScopedDB(Database *db, LockType lockType)
 }
 
 ScopedDB::Data::Data(Database *database, LockType lockType)
-    : db(database)
+    : db(database), lock(lockType)
 {
-    if (db) {
-        (lockType == Read ? db->lockForRead() : db->lockForWrite());
+    if (db && lockType == Write) {
+        db->lockForWrite();
     }
 }
 
 ScopedDB::Data::~Data()
 {
-    if (db)
+    if (db && lock == Write)
         db->unlock();
 }

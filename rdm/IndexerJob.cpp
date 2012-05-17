@@ -196,11 +196,17 @@ static inline bool isInteresting(CXCursorKind kind)
 
 CXChildVisitResult findReferenceVisitor(CXCursor cursor, CXCursor, CXClientData u)
 {
-    if (isInteresting(clang_getCursorKind(cursor)) && !clang_isCursorDefinition(cursor)) { // only looking for declarations here
+    switch (clang_getCursorKind(cursor)) {
+    case CXCursor_CXXMethod:
+    case CXCursor_Destructor:
+    case CXCursor_Constructor: {
         QHash<QByteArray, CXCursor> &headerHash = *reinterpret_cast<QHash<QByteArray, CXCursor> *>(u);
         CXStringScope usr(clang_getCursorUSR(cursor));
         const char *cstr = clang_getCString(usr.string);
         headerHash[cstr] = cursor;
+        break; }
+    default:
+        break;
     }
     return CXChildVisit_Continue;
 }
@@ -508,11 +514,14 @@ IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind ki
         const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
         return ret;
     }
-    
+
     QHash<QByteArray, CXCursor>::const_iterator it = mHeaderHash.find(key);
     if (it == mHeaderHash.end()) {
-        clang_visitChildren(clang_getCursorSemanticParent(cursor), findReferenceVisitor, &mHeaderHash);
-        it = mHeaderHash.find(key);
+        CXCursor parent = clang_getCursorSemanticParent(cursor);
+        if (!clang_isInvalid(clang_getCursorKind(parent))) {
+            clang_visitChildren(parent, findReferenceVisitor, &mHeaderHash);
+            it = mHeaderHash.find(key);
+        }
     }
 
     if (it != mHeaderHash.end()) {
