@@ -54,10 +54,10 @@ void DirtyJob::dirty()
             }
             if (changed) {
                 if (locations.isEmpty()) {
-                    debug() << "No references to" << it->key().data() << "anymore. Removing";
+                    debug() << "No references to" << it->key() << "anymore. Removing";
                     db->remove(it->key());
                 } else {
-                    debug() << "References to" << it->key().data() << "modified. Changing";
+                    debug() << "References to" << it->key() << "modified. Changing";
                     db->setValue<QSet<Location> >(it->key(), locations);
                 }
             }

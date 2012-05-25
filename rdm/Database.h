@@ -30,7 +30,7 @@ private:
 
 static inline QDebug operator<<(QDebug dbg, const Slice &slice)
 {
-    dbg << "Slice(" << std::string(slice.data(), slice.size()).c_str() << ")";
+    dbg << std::string(slice.data(), slice.size()).c_str();
     return dbg;
 }
 
