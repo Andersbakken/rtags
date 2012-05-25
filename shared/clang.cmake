@@ -12,4 +12,4 @@ get_filename_component(PARENT_DIR ${CMAKE_CURRENT_LIST_DIR} PATH)
 
 include_directories(${clang_ROOT}/include)
 add_definitions(-DCLANG_RUNTIME_INCLUDE="${clang_ROOT}/lib/clang/${clang_VERSION}/include")
-set(clang_LIBS ${clang_ROOT}/lib/libclang.so ${PARENT_DIR}/3rdparty/leveldb/libleveldb.a crypto)
+set(clang_LIBS ${clang_ROOT}/lib/liblibclang.so ${PARENT_DIR}/3rdparty/leveldb/libleveldb.a crypto)
