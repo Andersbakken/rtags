@@ -411,9 +411,9 @@ void IndexerJob::run()
         return;
     }
 
+    mDependencies[mFileId].insert(mFileId);
     if (!unit) {
         error() << "got 0 unit for" << clangLine;
-        mDependencies[mFileId].insert(mFileId);
         mIndexer->addDependencies(mDependencies);
         FileInformation fi;
         fi.compileArgs = mArgs;
@@ -445,6 +445,7 @@ void IndexerJob::run()
             }
         }
         mIndexer->addDependencies(mDependencies);
+        Q_ASSERT(mDependencies[mFileId].contains(mFileId));
         scope.cleanup();
 
         if (!isAborted()) {
