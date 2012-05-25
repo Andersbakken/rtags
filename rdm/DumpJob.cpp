@@ -23,8 +23,7 @@ void DumpJob::execute()
         const CursorInfo cursorInfo = it->value<CursorInfo>();
         QString str;
         QDebug dbg(&str);
-        dbg << QByteArray::fromRawData(k.data(), k.size())
-            << "symbolLength" << cursorInfo.symbolLength
+        dbg << k << "symbolLength" << cursorInfo.symbolLength
             << "target" << cursorInfo.target
             << "kind" << Rdm::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
             << "references" << cursorInfo.references;

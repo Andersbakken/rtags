@@ -52,7 +52,7 @@ Indexer::Indexer(const QByteArray& path, QObject* parent)
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         while (it->isValid()) {
-            mPchUSRHashes[it->key().data()] = it->value<PchUSRHash>();
+            mPchUSRHashes[it->key().byteArray()] = it->value<PchUSRHash>();
             it->next();
         }
     }

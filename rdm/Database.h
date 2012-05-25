@@ -18,6 +18,7 @@ struct Slice {
     void clear();
     bool operator==(const Slice &other) const;
     bool operator!=(const Slice &other) const;
+    QByteArray byteArray() const { return QByteArray(data(), size()); }
 private:
 #ifdef USE_LEVELDB
     Slice(const leveldb::Slice &slice);

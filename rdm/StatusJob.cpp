@@ -83,7 +83,7 @@ void StatusJob::execute()
         while (it->isValid()) {
             if (isAborted())
                 return;
-            snprintf(buf, sizeof(buf), "  %s:", std::string(it->key().data(), it->key().size()).c_str());
+            snprintf(buf, sizeof(buf), "  %s:", it->key().byteArray().constData());
             write(buf);
             const QSet<Location> locations = it->value<QSet<Location> >();
             foreach (const Location &loc, locations) {
@@ -128,7 +128,7 @@ void StatusJob::execute()
         it->seekToFirst();
         char buf[1024];
         while (it->isValid()) {
-            snprintf(buf, 1024, "  %s: %d", std::string(it->key().data(), it->key().size()).c_str(), it->value<quint32>());
+            snprintf(buf, 1024, "  %s: %d", it->key().byteArray().constData(), it->value<quint32>());
             write(buf);
             it->next();
         }

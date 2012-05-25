@@ -21,7 +21,7 @@ void MatchJob::execute()
     RTags::Ptr<Iterator> it(db->createIterator());
     it->seek(partial.constData());
     while (it->isValid() && !isAborted()) {
-        entry = QByteArray(it->key().data(), it->key().size());
+        entry = it->key().byteArray();
         if (type == QueryMessage::ListSymbols) {
             if (partial.isEmpty() || entry.startsWith(partial)) {
                 if (!skipParentheses || !entry.contains('(')) {

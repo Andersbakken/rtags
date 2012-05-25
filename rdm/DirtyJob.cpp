@@ -14,19 +14,19 @@ void DirtyJob::dirty()
             const Slice key = it->key();
             Q_ASSERT(key.size() == 8);
             const Location loc = Location::fromKey(key.data());
-            // debug() << "looking at" << key.data();
+            // debug() << "looking at" << key;
             if (mDirty.contains(loc.fileId())) {
-                debug() << "key is dirty. removing" << key.data();
+                debug() << "key is dirty. removing" << key;
                 db->remove(key);
             } else {
                 CursorInfo cursorInfo = it->value<CursorInfo>();
                 if (cursorInfo.dirty(mDirty)) {
                     // ### should we remove the whole cursorInfo if its target and all the references are gone?
                     // if (cursorInfo.target.isNull() && cursorInfo.references.isEmpty()) {
-                    //     debug() << "CursorInfo is empty now. removing" << key.data();
+                    //     debug() << "CursorInfo is empty now. removing" << key;
                     //     db->remove(key);
                     // } else {
-                    debug() << "CursorInfo is modified. Changing" << key.data();
+                    debug() << "CursorInfo is modified. Changing" << key;
                     db->setValue<CursorInfo>(key, cursorInfo);
                     // }
                 }
