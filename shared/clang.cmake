@@ -1,11 +1,11 @@
 set(clang_ROOT $ENV{CLANG_ROOT})
 IF("${clang_ROOT}" STREQUAL "")
-  set(clang_ROOT "/usr/local")
+  set(clang_ROOT "${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/clang_install/")
 ENDIF("${clang_ROOT}" STREQUAL "")
 
 set(clang_VERSION $ENV{CLANG_VERSION})
 IF("${clang_VERSION}" STREQUAL "")
-  set(clang_VERSION "3.0")
+  set(clang_VERSION "3.1")
 ENDIF("${clang_VERSION}" STREQUAL "")
 
 get_filename_component(PARENT_DIR ${CMAKE_CURRENT_LIST_DIR} PATH)
