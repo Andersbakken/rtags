@@ -27,20 +27,13 @@ public:
         : mData(0)
     {
         Q_ASSERT(file);
-        quint32 fileId;
-        {
-            QReadLocker lock(&sLock);
-            fileId = sCXFileToIds.value(file);
-        }
-        if (!fileId) {
-            CXString fn = clang_getFileName(file);
-            const char *cstr = clang_getCString(fn);
-            if (!cstr)
-                return;
-            const Path p = Path::canonicalized(cstr);
-            clang_disposeString(fn);
-            fileId = insertFile(p, file);
-        }
+        CXString fn = clang_getFileName(file);
+        const char *cstr = clang_getCString(fn);
+        if (!cstr)
+            return;
+        const Path p = Path::canonicalized(cstr);
+        clang_disposeString(fn);
+        quint32 fileId = insertFile(p);
         mData = (quint64(offset) << 32) | fileId;
     }
     static inline quint32 fileId(const Path &path)
@@ -54,7 +47,7 @@ public:
         return sIdsToPaths.value(id);
     }
 
-    static inline quint32 insertFile(const Path &path, CXFile file = 0)
+    static inline quint32 insertFile(const Path &path)
     {
         bool newFile = false;
         quint32 ret;
@@ -67,8 +60,6 @@ public:
                 newFile = true;
             }
             ret = id;
-            if (file)
-                sCXFileToIds[file] = id;
         }
         if (newFile)
             writeToDB(path, ret);
@@ -231,7 +222,6 @@ public:
 private:
     static QHash<Path, quint32> sPathsToIds;
     static QHash<quint32, Path> sIdsToPaths;
-    static QHash<CXFile, quint32> sCXFileToIds;
     static quint32 sLastId;
     static QReadWriteLock sLock;
     mutable Path mCachedPath;
