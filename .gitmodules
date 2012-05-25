@@ -1,9 +1,0 @@
-[submodule "3rdparty/leveldb"]
-	path = 3rdparty/leveldb
-	url = https://code.google.com/p/leveldb/
-[submodule "3rdparty/clang"]
-	path = 3rdparty/clang
-	url = http://llvm.org/git/clang.git
-[submodule "3rdparty/llvm"]
-	path = 3rdparty/llvm
-	url = http://llvm.org/git/llvm.git
