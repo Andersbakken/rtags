@@ -1,19 +1,19 @@
-cmake_minimum_required( VERSION 2.6 )
-find_package ( Qt4 REQUIRED )
-include ( ${QT_USE_FILE} )
-if ( NOT CMAKE_BUILD_TYPE )
-	set ( CMAKE_BUILD_TYPE Release )
-endif ( NOT CMAKE_BUILD_TYPE )
+cmake_minimum_required(VERSION 2.6)
+find_package(Qt4 REQUIRED)
+include(${QT_USE_FILE})
+if(NOT CMAKE_BUILD_TYPE)
+	set(CMAKE_BUILD_TYPE Release)
+endif(NOT CMAKE_BUILD_TYPE)
 
-add_definitions ( -Wall -DUSE_LEVELDB -DBUILDING_RDM )
+add_definitions(-Wall -DUSE_LEVELDB -DBUILDING_RDM)
 
-include_directories (
+include_directories(
 	${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
 	${QT_QTCORE_INCLUDE_DIR} ${QT_QTNETWORK_INCLUDE_DIR}
-	.
-	../3rdparty/leveldb/src/include)
+        ${CMAKE_CURRENT_SOURCE_DIR}
+	../3rdparty/leveldb/include)
 
-set ( rdm_HDRS
+set(rdm_HDRS
 	Indexer.h
 	SHA256.h
 	Rdm.h
@@ -28,7 +28,7 @@ set ( rdm_HDRS
 	Location.h
 	)
 
-set ( rdm_SRCS
+set(rdm_SRCS
 	main.cpp
 	Indexer.cpp
 	Server.cpp
@@ -49,7 +49,7 @@ set ( rdm_SRCS
 	Location.cpp
 	)
 
-set ( rdm_MOCS
+set(rdm_MOCS
 	Server.h
 	DumpJob.h
 	FollowLocationJob.h
@@ -63,15 +63,15 @@ set ( rdm_MOCS
         Indexer.h
 	)
 
-include ( ../shared/shared.cmake )
-include ( ../shared/clang.cmake )
-include ( ../shared/PCH_GCC4_v2.cmake )
+include(../shared/shared.cmake)
+include(../shared/clang.cmake)
+include(../shared/PCH_GCC4_v2.cmake)
 
-QT4_DO_THE_RIGHT_THING( MOCS ${rdm_MOCS} ${shared_MOCS} )
-QT4_GENERATE_MOCS ( ${shared_CPPMOCS} )
+QT4_DO_THE_RIGHT_THING(MOCS ${rdm_MOCS} ${shared_MOCS})
+QT4_GENERATE_MOCS(${shared_CPPMOCS})
 
-ADD_PCH_RULE ( Pch.h rdm_SRCS rdm_PCHFLAGS )
-add_definitions( ${rdm_PCHFLAGS} )
+ADD_PCH_RULE(Pch.h rdm_SRCS rdm_PCHFLAGS)
+add_definitions(${rdm_PCHFLAGS})
 
-add_executable ( rdm ${rdm_SRCS} ${shared_SRCS} ${UIS} ${RSCS} ${TRS} ${MOCS} )
-target_link_libraries ( rdm ${QT_QTCORE_LIBRARY} ${QT_QTNETWORK_LIBRARY} ${clang_LIBS} )
+add_executable(rdm ${rdm_SRCS} ${shared_SRCS} ${UIS} ${RSCS} ${TRS} ${MOCS})
+target_link_libraries(rdm ${QT_QTCORE_LIBRARY} ${QT_QTNETWORK_LIBRARY} ${clang_LIBS})
