@@ -253,6 +253,7 @@ void Server::handleQueryMessage(QueryMessage* message)
     if (!id) {
         QueryMessage msg(QList<QByteArray>() << "Invalid message");
         conn->send(&msg);
+        conn->finish();
     } else {
         mPendingLookups[id] = conn;
     }
