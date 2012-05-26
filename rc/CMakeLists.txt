@@ -1,55 +1,55 @@
-cmake_minimum_required( VERSION 2.6 )
-find_package ( Qt4 REQUIRED )
-include ( ${QT_USE_FILE} )
-if ( NOT CMAKE_BUILD_TYPE )
-	set ( CMAKE_BUILD_TYPE Release )
-endif ( NOT CMAKE_BUILD_TYPE )
+cmake_minimum_required(VERSION 2.6)
+find_package(Qt4 REQUIRED)
+include(${QT_USE_FILE})
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
 
-add_definitions ( -Wall -DBUILDING_RC )
+add_definitions(-Wall -DBUILDING_RC)
 
-include_directories (
-	${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
-	${QT_QTCORE_INCLUDE_DIR} ${QT_QTNETWORK_INCLUDE_DIR}
-	.)
+include_directories(
+    ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
+    ${QT_QTCORE_INCLUDE_DIR} ${QT_QTNETWORK_INCLUDE_DIR}
+    .)
 
-set ( rc_HDRS
-	GccArguments.h
-	MakefileParser.h
-	)
+set(rc_HDRS
+    GccArguments.h
+    MakefileParser.h
+    )
 
-set ( rc_SRCS
-	MakefileParser.cpp
-	GccArguments.cpp
-	main.cpp
-	)
+set(rc_SRCS
+    MakefileParser.cpp
+    GccArguments.cpp
+    main.cpp
+    )
 
-set ( rc_MOCS
-	MakefileParser.h
-	)
+set(rc_MOCS
+    MakefileParser.h
+    )
 
-include ( ../shared/shared.cmake )
-include ( ../shared/PCH_GCC4_v2.cmake )
+include(../shared/shared.cmake)
+include(../shared/PCH_GCC4_v2.cmake)
 
-QT4_DO_THE_RIGHT_THING ( MOCS ${rc_MOCS} ${shared_MOCS} )
-QT4_GENERATE_MOCS ( ${shared_CPPMOCS} )
+QT4_DO_THE_RIGHT_THING(MOCS ${rc_MOCS} ${shared_MOCS})
+QT4_GENERATE_MOCS(${shared_CPPMOCS})
 
-ADD_PCH_RULE ( Pch.h rc_SRCS rc_PCHFLAGS )
-add_definitions( ${rc_PCHFLAGS} )
+ADD_PCH_RULE(Pch.h rc_SRCS rc_PCHFLAGS)
+add_definitions(${rc_PCHFLAGS})
 
-add_custom_command (
-	OUTPUT gccopts_gperf.h
-	DEPENDS gccopts.gperf
-	PRE_BUILD
-	COMMAND gperf -I -C -l -L C++ gccopts.gperf -Z gccopts_gperf > gccopts_gperf.h
-	VERBATIM
-	)
+add_custom_command(
+    OUTPUT gccopts_gperf.h
+    DEPENDS gccopts.gperf
+    PRE_BUILD
+    COMMAND gperf -I -C -l -L C++ gccopts.gperf -Z gccopts_gperf > gccopts_gperf.h
+    VERBATIM
+    )
 
-add_custom_target (
-	gperf
-	DEPENDS gccopts_gperf.h
-	)
+add_custom_target(
+    gperf
+    DEPENDS gccopts_gperf.h
+    )
 
-add_executable ( rc ${rc_SRCS} ${shared_SRCS} ${UIS} ${RSCS} ${TRS} ${MOCS} )
-target_link_libraries ( rc  ${QT_QTCORE_LIBRARY} ${QT_QTNETWORK_LIBRARY} )
+add_executable(rc ${rc_SRCS} ${shared_SRCS} ${UIS} ${RSCS} ${TRS} ${MOCS})
+target_link_libraries(rc ${QT_QTCORE_LIBRARY} ${QT_QTNETWORK_LIBRARY})
 
-add_dependencies ( rc gperf )
+add_dependencies(rc gperf)

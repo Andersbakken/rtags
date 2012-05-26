@@ -1,17 +1,10 @@
 cmake_minimum_required(VERSION 2.6)
 if(NOT CMAKE_BUILD_TYPE)
-	set(CMAKE_BUILD_TYPE Release)
+    set(CMAKE_BUILD_TYPE Release)
 endif()
 
-add_definitions(-Wall)
-find_package(Qt4 REQUIRED)
-include(${QT_USE_FILE})
-include_directories(
-	${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
-	${QT_QTCORE_INCLUDE_DIR}
-	)
+add_subdirectory(makelib)
+add_subdirectory(rc)
 add_subdirectory(3rdparty)
 add_subdirectory(rdm)
-add_subdirectory(rc)
-add_subdirectory(makelib)
 add_dependencies(rdm leveldb clang llvm)
