@@ -51,6 +51,47 @@ Server::~Server()
     sInstance = 0;
 }
 
+static inline QList<Path> systemIncludes()
+{
+    QList<Path> systemIncludes;
+    QProcess proc;
+    proc.start(QLatin1String("cpp"), QStringList() << QLatin1String("-v"));
+    proc.closeWriteChannel();
+    proc.waitForFinished();
+    QList<QByteArray> lines = proc.readAllStandardError().split('\n');
+    bool seenInclude = false;
+    Path gxxIncludeDir;
+    QByteArray target;
+    foreach(const QByteArray& line, lines) {
+        if (gxxIncludeDir.isEmpty()) {
+            int idx = line.indexOf("--with-gxx-include-dir=");
+            if (idx != -1) {
+                const int space = line.indexOf(' ', idx);
+                gxxIncludeDir = line.mid(idx + 23, space - idx - 23);
+            }
+            idx = line.indexOf("--target=");
+            if (idx != -1) {
+                const int space = line.indexOf(' ', idx);
+                target = line.mid(idx + 9, space - idx - 9);
+            }
+        } else if (!seenInclude && line.startsWith("#include ")) {
+            seenInclude = true;
+        } else if (seenInclude && line.startsWith(" /")) {
+            Path path = Path::resolved(line.mid(1));
+            if (path.isResolved()) {
+                systemIncludes.append(path);
+            }
+        }
+    }
+    if (!gxxIncludeDir.isEmpty()) {
+        systemIncludes.append(gxxIncludeDir);
+        if (!target.isEmpty()) {
+            systemIncludes.append(gxxIncludeDir + "/" + target);
+        }
+    }
+    return systemIncludes;
+}
+
 bool Server::init(const Options &options)
 {
     mOptions = options.options;
@@ -111,16 +152,14 @@ bool Server::init(const Options &options)
                 systemPaths.append(p);
         }
     }
-#ifdef CLANG_RUNTIME_INCLUDE
-    const Path p = Path::resolved(CLANG_RUNTIME_INCLUDE);
-    if (p.isDir()) {
-        systemPaths.append(p);
-        mDefaultArgs.append("-I" + p);
+    foreach(const Path &systemPath, systemIncludes()) {
+        systemPaths.append(systemPath);
+        mDefaultArgs.append("-I" + systemPath);
     }
-#endif
     Rdm::initSystemPaths(systemPaths);
 
-    error() << "running with" << mDefaultArgs << "clang version" << Rdm::eatString(clang_getClangVersion());
+    error() << "running with" << mDefaultArgs << "clang version" << Rdm::eatString(clang_getClangVersion())
+            << "and system includes" << systemPaths;
 
     onSymbolNamesChanged();
     return true;
