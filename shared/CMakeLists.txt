@@ -9,42 +9,42 @@ include_directories(
 )
 
 set(shared_SRCS
-  ${CMAKE_CURRENT_LIST_DIR}/Client.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/Connection.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/GccArguments.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/Log.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/MakefileParser.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/Messages.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/Path.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/RTags.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/messages/AddMessage.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/messages/ErrorMessage.cpp
-  ${CMAKE_CURRENT_LIST_DIR}/messages/QueryMessage.cpp
+  Client.cpp
+  Connection.cpp
+  GccArguments.cpp
+  Log.cpp
+  MakefileParser.cpp
+  Messages.cpp
+  Path.cpp
+  RTags.cpp
+  messages/AddMessage.cpp
+  messages/ErrorMessage.cpp
+  messages/QueryMessage.cpp
   )
 
 set(shared_HDRS
-  ${CMAKE_CURRENT_LIST_DIR}/Client.h
-  ${CMAKE_CURRENT_LIST_DIR}/Connection.h
-  ${CMAKE_CURRENT_LIST_DIR}/GccArguments.h
-  ${CMAKE_CURRENT_LIST_DIR}/Log.h
-  ${CMAKE_CURRENT_LIST_DIR}/MakefileParser.h
-  ${CMAKE_CURRENT_LIST_DIR}/Message.h
-  ${CMAKE_CURRENT_LIST_DIR}/Messages.h
-  ${CMAKE_CURRENT_LIST_DIR}/Path.h
-  ${CMAKE_CURRENT_LIST_DIR}/RTags.h
-  ${CMAKE_CURRENT_LIST_DIR}/messages/AddMessage.h
-  ${CMAKE_CURRENT_LIST_DIR}/messages/ErrorMessage.h
-  ${CMAKE_CURRENT_LIST_DIR}/messages/QueryMessage.h
+  Client.h
+  Connection.h
+  GccArguments.h
+  Log.h
+  MakefileParser.h
+  Message.h
+  Messages.h
+  Path.h
+  RTags.h
+  messages/AddMessage.h
+  messages/ErrorMessage.h
+  messages/QueryMessage.h
   )
 
 set(shared_MOCS
-  ${CMAKE_CURRENT_LIST_DIR}/Connection.h
-  ${CMAKE_CURRENT_LIST_DIR}/Client.h
-  ${CMAKE_CURRENT_LIST_DIR}/messages/AddMessage.h
-  ${CMAKE_CURRENT_LIST_DIR}/messages/QueryMessage.h
-  ${CMAKE_CURRENT_LIST_DIR}/messages/ErrorMessage.h
-  ${CMAKE_CURRENT_LIST_DIR}/Message.h
-  ${CMAKE_CURRENT_LIST_DIR}/MakefileParser.h
+  Connection.h
+  Client.h
+  messages/AddMessage.h
+  messages/QueryMessage.h
+  messages/ErrorMessage.h
+  Message.h
+  MakefileParser.h
   )
 
 set(shared_CPPMOCS
