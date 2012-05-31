@@ -41,7 +41,7 @@ static void help(FILE *f, const char* app)
             "  --includepath|-I [arg]                    Add additional include path, must be combined with --makefile\n"
             "  --define|-D [arg]                         Add additional define, must be combined with --makefile\n"
             "  --compiler-flag|-o [arg]                  Add additional compiler flags, must be combined with --makefile\n"
-            "  --test|-t                                 Test whether rtags knows about this source file\n"
+            "  --test|-t [arg]                           Test whether rtags knows about this source file\n"
             "  --status|-s [arg]                         Dump status of rdm. If arg is passed it should match one of:\n"
             "                                            'general', 'dependencies', 'symbols', 'symbolnames', 'fileinfos' or 'pch'\n"
             "  --autostart-rdm|-a [args]                 Start rdm with [args] if rc fails to connect\n"
