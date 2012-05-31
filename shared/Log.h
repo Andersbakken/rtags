@@ -20,7 +20,7 @@ public:
     Output(int logLevel);
     virtual ~Output();
     int logLevel() const { return mLogLevel; }
-    bool testLog(int level) { level <= mLogLevel; }
+    bool testLog(int level) { return level <= mLogLevel; }
     virtual void log(const QByteArray &) {}
 private:
     const int mLogLevel;
