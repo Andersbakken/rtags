@@ -23,4 +23,4 @@ include(../shared/PCH_GCC4_v2.cmake)
 add_executable(rc ${rc_SRCS} ${UIS} ${RSCS} ${TRS} ${MOCS})
 target_link_libraries(rc rtags ${QT_QTCORE_LIBRARY} ${QT_QTNETWORK_LIBRARY})
 
-add_dependencies(rc gperf rtags)
+add_dependencies(rc rtags)
