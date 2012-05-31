@@ -290,7 +290,7 @@ void Server::handleQueryMessage(QueryMessage* message)
         break;
     }
     if (!id) {
-        QueryMessage msg(QList<QByteArray>() << "Invalid message");
+        QueryMessage msg;
         conn->send(&msg);
         conn->finish();
     } else {
@@ -396,7 +396,7 @@ int Server::referencesForLocation(const QueryMessage &query)
 
     error() << "references for location" << loc;
 
-    ReferencesJob *job = new ReferencesJob(id, loc, query.flags());
+    ReferencesJob* job = new ReferencesJob(id, loc, query.flags());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);
