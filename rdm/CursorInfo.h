@@ -50,30 +50,6 @@ public:
     {
         bool changed = false;
         if (target.isNull() && !other.target.isNull()) {
-#ifdef QT_DEBUG
-            if (!target.isNull()) {
-                switch (kind) {
-                case CXCursor_TypeRef:
-                case CXCursor_NamespaceRef:
-                case CXCursor_MacroExpansion:
-                case CXCursor_TemplateRef:
-                case CXCursor_CXXBaseSpecifier:
-                case CXCursor_UnexposedExpr:
-                case CXCursor_CallExpr: // don't like this one
-                    break;
-                case CXCursor_VarDecl:
-                case CXCursor_CXXMethod:
-                    if (target.path().contains("moc_") || target.path().contains(".moc"))
-                        break;
-                    // fallthrough
-                default:
-                    warning() << "overwrote target from" << target << "to" << other.target
-                              << "symbolName" << symbolName
-                              << Rdm::eatString(clang_getCursorKindSpelling(kind));
-                    break;
-                }
-            }
-#endif
             target = other.target;
             changed = true;
         }
@@ -84,7 +60,7 @@ public:
             changed = true;
         }
 
-        if (kind == CXCursor_FirstInvalid && other.kind != CXCursor_FirstInvalid) {
+        if (kind == CXCursor_FirstInvalid) {
             kind = other.kind;
             changed = true;
         }
