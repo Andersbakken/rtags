@@ -1,5 +1,5 @@
-#ifndef Pch_h
-#define Pch_h
+#ifndef SharedPch_h
+#define SharedPch_h
 
 #include <QtCore>
 #include <QtNetwork>
