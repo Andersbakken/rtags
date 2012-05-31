@@ -458,11 +458,12 @@ void IndexerJob::run()
 
     }
     char buf[1024];
-    const int w = snprintf(buf, sizeof(buf) - 1, "Visited %s in %lldms.%s (%d syms, %d refs, %d deps, %d symNames)",
+    const int w = snprintf(buf, sizeof(buf) - 1, "Visited %s in %lldms.%s (%d syms, %d refs, %d deps, %d symNames)%s",
                            mIn.constData(), timer.elapsed(),
                            qPrintable(waitingForPch ? QString(" Waited for pch: %1ms.").arg(waitingForPch)
                                       : QString()),
-                           mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size());
+                           mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size(),
+                           mPchHeaders.isEmpty() ? "" : " (pch)");
 
     emit done(mId, mIn, mIsPch, QByteArray(buf, w));
     if (testLog(Warning)) {

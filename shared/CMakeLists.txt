@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 include(shared.cmake)
 find_package(Qt4 REQUIRED)
 include(${QT_USE_FILE})
+include(PCH_GCC4_v2.cmake)
 include_directories(
   ${CMAKE_CURRENT_LIST_DIR}
   ${CMAKE_CURRENT_LIST_DIR}/messages
@@ -65,6 +66,9 @@ add_custom_target(
     gperf
     DEPENDS gccopts_gperf.h
     )
+
+add_pch_rule(Pch.h shared_SRCS shared_PCHFLAGS)
+add_definitions(${shared_PCHFLAGS})
 
 add_library(rtags ${shared_SRCS} ${MOCS})
 add_dependencies(rtags gperf)
