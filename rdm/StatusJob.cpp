@@ -117,7 +117,25 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "pch") {
-        // ### needs to be done
+        ScopedDB db = Server::instance()->db(Server::FileIds, ScopedDB::Read);
+        RTags::Ptr<Iterator> it(db->createIterator());
+        it->seekToFirst();
+        char buf[1024];
+        while (it->isValid()) {
+            if (isAborted())
+                return;
+
+            const PchUSRHash hash = it->value<PchUSRHash>();
+            write(it->key().byteArray());
+            snprintf(buf, 1024, "  %s", it->key().byteArray().constData());
+            write(buf);
+            for (PchUSRHash::const_iterator i = hash.begin(); i != hash.end(); ++i) {
+                snprintf(buf, 1024, "    %s: %s", i.key().constData(), i.value().key().constData());
+                write(buf);
+            }
+
+            it->next();
+        }
     }
 
     if (query.isEmpty() || query == "fileids") {
