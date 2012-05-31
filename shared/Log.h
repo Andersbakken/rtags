@@ -14,6 +14,18 @@ enum LogLevel {
     Debug = 2,
     VerboseDebug = 3
 };
+class Output
+{
+public:
+    Output(int logLevel);
+    virtual ~Output();
+    int logLevel() const { return mLogLevel; }
+    bool testLog(int level) { level <= mLogLevel; }
+    virtual void log(const QByteArray &) {}
+private:
+    const int mLogLevel;
+};
+
 void log(int level, const char *format, ...);
 void debug(const char *format, ...);
 void verboseDebug(const char *format, ...);

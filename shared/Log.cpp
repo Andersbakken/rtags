@@ -12,6 +12,18 @@ static unsigned sFlags = 0;
 static FILE *sFile = 0;
 static QByteArray sLogFile;
 static QElapsedTimer sStart;
+static QSet<Output*> sOutputs;
+static QReadWriteLock sOutputsLock;
+
+class FileOutput : public Output
+{
+public:
+    FileOutput(const Path &file)
+        : Output(INT_MAX)
+    {}
+    Path fileName;
+    FILE *file;
+};
 
 static inline QByteArray prettyTimeSinceStarted()
 {
@@ -181,4 +193,15 @@ Log &Log::operator=(const Log &other)
 {
     mData = other.mData;
     return *this;
+}
+Output::Output(int logLevel)
+    : mLogLevel(logLevel)
+{
+    QWriteLocker lock(&sOutputsLock);
+    sOutputs.insert(this);
+}
+Output::~Output()
+{
+    QWriteLocker lock(&sOutputsLock);
+    sOutputs.remove(this);
 }
