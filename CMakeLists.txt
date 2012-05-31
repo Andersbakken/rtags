@@ -5,6 +5,9 @@ endif()
 
 add_subdirectory(makelib)
 add_subdirectory(rc)
-add_subdirectory(3rdparty)
 add_subdirectory(rdm)
-add_dependencies(rdm leveldb clang llvm)
+
+add_custom_target(3rdparty 
+    COMMAND cmake . && \$\(MAKE\)
+    WORKING_DIRECTORY 3rdparty)
+
