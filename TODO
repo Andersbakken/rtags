@@ -1,5 +1,2 @@
-dependency-job
-status-job (not working right)
-investigate why we have so many threads
-use on filesystemwatcher, they seem to have a thread each
-return real status code in rc for failures/successes
+Consider waiting for currently processing files before queries on these files
+Consider changing offsets in currently modified files the same way compilation mode does
