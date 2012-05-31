@@ -16,35 +16,36 @@
 static void help(FILE *f, const char* app)
 {
     fprintf(f, "%s options...\n"
-            "  --help|-h                     Display this help\n"
-            "  --verbose|-v                  Be more verbose\n"
-            "  --skip-paren|-p               Skip parens in Makefile parsing\n"
-            "  --follow-location|-f [arg]    Follow this location\n"
-            "  --makefile|-m [arg]           Process this makefile\n"
-            "  --makefile-wait|-M [arg]      Process this makefile and wait until the whole make process is finished\n"
-            "  --reference-name|-R [arg]     Find references matching arg\n"
-            "  --reference-location|-r [arg] Find references matching this location\n"
-            "  --list-symbols|-S [arg]       List symbol names matching arg\n"
-            "  --find-symbols|-F [arg]       Find symbols matching arg\n"
-            "  --dump|-d [arg]               Dump AST tree of arg \n"
-            "  --complete|-c [arg]           Get code completion for this location\n"
-            "  --cursor-info|-C [arg]        Get cursor info for this location\n"
-            "  --unsaved-file|-u [arg]       Specify an unsaved file and a size to be passed on stdin (e.g. -u main.cpp:343)\n"
-            "  --log-file|-L [file]          Log to this file\n"
-            "  --append|-A                   Append to log file\n"
-            "  --no-context|-N               Don't print context for locations\n"
-            "  --line-numbers|-l             Output line numbers instead of offsets\n"
-            "  --path-filter|-i [arg]        Filter out results not matching with arg\n"
-            "  --filter-system-headers|-H    Don't exempt system headers from path filters\n"
-            "  --includepath|-I [arg]        Add additional include path, must be combined with --makefile\n"
-            "  --define|-D [arg]             Add additional define, must be combined with --makefile\n"
-            "  --compiler-flag|-o [arg]      Add additional compiler flags, must be combined with --makefile\n"
-            "  --test|-t                     Test whether rtags knows about this source file\n"
-            "  --status|-s [arg]             Dump status of rdm. If arg is passed it should match one of:\n"
-            "                                'general', 'dependencies', 'symbols', 'symbolnames', 'fileinfos' or 'pch'\n"
-            "  --autostart-rdm|-a [args]     Start rdm with [args] if rc fails to connect\n"
-            "  --restart-rdm|-e [args]       Restart rdm with [args] before doing the rest of the commands\n"
-            "  --quit-rdm|-q                 Tell server to shut down\n",
+            "  --help|-h                                 Display this help\n"
+            "  --verbose|-v                              Be more verbose\n"
+            "  --skip-paren|-p                           Skip parens in Makefile parsing\n"
+            "  --follow-location|-f [arg]                Follow this location\n"
+            "  --makefile|-m [arg]                       Process this makefile\n"
+            "  --makefile-wait|-M [arg]                  Process this makefile and wait until the whole make process is finished\n"
+            "  --reference-name|-R [arg]                 Find references matching arg\n"
+            "  --reference-location|-r [arg]             Find references matching this location\n"
+            "  --include-declarations-and-definitions|-E Include reference to referenced location\n"
+            "  --list-symbols|-S [arg]                   List symbol names matching arg\n"
+            "  --find-symbols|-F [arg]                   Find symbols matching arg\n"
+            "  --dump|-d [arg]                           Dump AST tree of arg \n"
+            "  --complete|-c [arg]                       Get code completion for this location\n"
+            "  --cursor-info|-C [arg]                    Get cursor info for this location\n"
+            "  --unsaved-file|-u [arg]                   Specify an unsaved file and a size to be passed on stdin (e.g. -u main.cpp:343)\n"
+            "  --log-file|-L [file]                      Log to this file\n"
+            "  --append|-A                               Append to log file\n"
+            "  --no-context|-N                           Don't print context for locations\n"
+            "  --line-numbers|-l                         Output line numbers instead of offsets\n"
+            "  --path-filter|-i [arg]                    Filter out results not matching with arg\n"
+            "  --filter-system-headers|-H                Don't exempt system headers from path filters\n"
+            "  --includepath|-I [arg]                    Add additional include path, must be combined with --makefile\n"
+            "  --define|-D [arg]                         Add additional define, must be combined with --makefile\n"
+            "  --compiler-flag|-o [arg]                  Add additional compiler flags, must be combined with --makefile\n"
+            "  --test|-t                                 Test whether rtags knows about this source file\n"
+            "  --status|-s [arg]                         Dump status of rdm. If arg is passed it should match one of:\n"
+            "                                            'general', 'dependencies', 'symbols', 'symbolnames', 'fileinfos' or 'pch'\n"
+            "  --autostart-rdm|-a [args]                 Start rdm with [args] if rc fails to connect\n"
+            "  --restart-rdm|-e [args]                   Restart rdm with [args] before doing the rest of the commands\n"
+            "  --quit-rdm|-q                             Tell server to shut down\n",
             app);
 }
 
@@ -95,7 +96,7 @@ struct QueryCommand : public Command {
 
     virtual QByteArray description() const
     {
-        return ("QueryMessage " + QByteArray::number(type) + " " + query);
+        return ("QueryMessage " + QByteArray::number(type) + " " + query); // ### query might be binary data
     }
 };
 
@@ -150,6 +151,7 @@ int main(int argc, char** argv)
         { "test", required_argument, 0, 't' },
         { "quit-rdm", no_argument, 0, 'q' },
         { "restart-rdm", optional_argument, 0, 'e' },
+        { "include-declarations-and-definitions", no_argument, 0, 'E' },
         { 0, 0, 0, 0 }
     };
 
@@ -188,6 +190,9 @@ int main(int argc, char** argv)
             clientFlags |= Client::RestartRdm;
             if (optarg)
                 rdmArgs = QString::fromLocal8Bit(optarg).split(' ');
+            break;
+        case 'E':
+            queryFlags |= QueryMessage::IncludeDeclarationsAndDefinitions;
             break;
         case 'H':
             queryFlags |= QueryMessage::FilterSystemIncludes;

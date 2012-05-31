@@ -45,12 +45,12 @@ void QueryMessage::fromByteArray(const QByteArray& data)
         stream >> mFlags >> mUnsavedFiles >> mPathFilters;
 }
 
-unsigned QueryMessage::keyFlags() const
+unsigned QueryMessage::keyFlags(unsigned queryFlags)
 {
     unsigned ret = RTags::NoFlag;
-    if (!(mFlags & QueryMessage::NoContext))
+    if (!(queryFlags & QueryMessage::NoContext))
         ret |= RTags::ShowContext;
-    if (mFlags & QueryMessage::LineNumbers)
+    if (queryFlags & QueryMessage::LineNumbers)
         ret |= RTags::ShowLineNumbers;
     return ret;
 }

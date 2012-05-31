@@ -28,7 +28,8 @@ public:
         NoContext = 0x01,
         LineNumbers = 0x02,
         FilterSystemIncludes = 0x04,
-        SkipParentheses = 0x08
+        SkipParentheses = 0x08,
+        IncludeDeclarationsAndDefinitions = 0x10
     };
 
     Q_INVOKABLE QueryMessage(QObject* parent = 0);
@@ -46,7 +47,8 @@ public:
     void setUnsavedFiles(const QHash<Path, QByteArray> &unsavedFiles) { mUnsavedFiles = unsavedFiles; }
     Type type() const { return mType; }
     unsigned flags() const { return mFlags; }
-    unsigned keyFlags() const;
+    static unsigned keyFlags(unsigned queryFlags);
+    inline unsigned keyFlags() const { return keyFlags(mFlags); }
     QByteArray toByteArray() const;
     Q_INVOKABLE void fromByteArray(const QByteArray& data);
 

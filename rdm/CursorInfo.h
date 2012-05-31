@@ -16,6 +16,7 @@ public:
         : symbolLength(0), kind(CXCursor_FirstInvalid)
     {}
     bool isNull() const { return !symbolLength; }
+    bool isValid() const { return symbolLength; }
     void clear()
     {
         symbolLength = 0;

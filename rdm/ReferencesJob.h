@@ -13,14 +13,14 @@ class ReferencesJob : public Job
 {
     Q_OBJECT
 public:
-    ReferencesJob(int id, const Location &location, unsigned keyflags);
+    ReferencesJob(int id, const Location &location, unsigned queryFlags);
     ReferencesJob(int id, const QByteArray &symbolName, unsigned keyflags);
 protected:
     virtual void execute();
 private:
     QSet<Location> locations;
     const QByteArray symbolName;
-    const unsigned keyFlags;
+    const unsigned flags;
 };
 
 #endif

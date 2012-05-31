@@ -388,7 +388,7 @@ int Server::referencesForLocation(const QueryMessage &query)
 {
     const Location loc = Location::decodeClientLocation(query.query().value(0));
     if (loc.isNull()) {
-        error("Failed to make location from [%s]", query.query().value(0).constData());
+        error("Failed to make location from [%d]", query.query().value(0).size());
         return 0;
     }
 
@@ -396,7 +396,7 @@ int Server::referencesForLocation(const QueryMessage &query)
 
     error() << "references for location" << loc;
 
-    ReferencesJob* job = new ReferencesJob(id, loc, query.keyFlags());
+    ReferencesJob *job = new ReferencesJob(id, loc, query.flags());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);
@@ -411,7 +411,7 @@ int Server::referencesForName(const QueryMessage& query)
     const QByteArray name = query.query().value(0);
     error() << "references for name" << name;
 
-    ReferencesJob* job = new ReferencesJob(id, name, query.keyFlags());
+    ReferencesJob* job = new ReferencesJob(id, name, query.flags());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     connectJob(job);
     QThreadPool::globalInstance()->start(job);

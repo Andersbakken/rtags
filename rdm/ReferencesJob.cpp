@@ -4,14 +4,14 @@
 #include "Rdm.h"
 #include "CursorInfo.h"
 
-ReferencesJob::ReferencesJob(int i, const Location &loc, unsigned flags)
-    : Job(i), symbolName(QByteArray()), keyFlags(flags)
+ReferencesJob::ReferencesJob(int i, const Location &loc, unsigned fl)
+    : Job(i), symbolName(QByteArray()), flags(fl)
 {
     locations.insert(loc);
 }
 
-ReferencesJob::ReferencesJob(int i, const QByteArray &sym, unsigned flags)
-    : Job(i), symbolName(sym), keyFlags(flags)
+ReferencesJob::ReferencesJob(int i, const QByteArray &sym, unsigned fl)
+    : Job(i), symbolName(sym), flags(fl)
 {
 }
 
@@ -24,27 +24,41 @@ void ReferencesJob::execute()
             return;
         }
     }
+    const bool excludeDefsAndDecls = !(flags & QueryMessage::IncludeDeclarationsAndDefinitions);
     ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Read);
+    const unsigned keyFlags = QueryMessage::keyFlags(flags);
     foreach(const Location &location, locations) {
         if (isAborted())
             return;
         QSet<Location> refs;
         Location loc = location;
-        QSet<Location> seen;
-        /* This loop goes three times because we might get called for one of the
-         * actual references. If so we want to follow the location to the
-         * declaration or definition (whichever one the reference actually
-         * references... it can be either). From there we want to get those
-         * references and follow to the other one (decl => def or def => decl)
-         * and get those references. Wes would be proud! */
+        QSet<Location> filtered;
 
-        for (int i=0; i<3; ++i) {
-            CursorInfo cursorInfo = Rdm::findCursorInfo(db, loc);
-            refs += cursorInfo.references;
-            loc = cursorInfo.target;
-            if (loc.isNull() || seen.contains(loc))
-                break;
-            seen.insert(loc);
+        CursorInfo cursorInfo = Rdm::findCursorInfo(db, loc);
+        if (clang_isReference(cursorInfo.kind)) {
+            filtered.insert(cursorInfo.target);
+            cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
+        } else {
+            filtered.insert(location);
+        }
+        if (cursorInfo.isValid()) {
+            if (excludeDefsAndDecls && cursorInfo.target.isValid())
+                filtered.insert(cursorInfo.target);
+            assert(!clang_isReference(cursorInfo));
+            foreach(const Location &l, cursorInfo.references) {
+                if (!excludeDefsAndDecls || !filtered.contains(l)) {
+                    refs.insert(l);
+                }
+            }
+            assert(filtered.target != cursorInfo.location);
+            if (cursorInfo.target.isValid()) {
+                cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
+                foreach(const Location &l, cursorInfo.references) {
+                    if (!excludeDefsAndDecls || !filtered.contains(l)) {
+                        refs.insert(l);
+                    }
+                }
+            }
         }
         QList<Location> sorted = refs.toList();
         qSort(sorted);
