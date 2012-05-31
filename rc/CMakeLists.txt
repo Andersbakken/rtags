@@ -17,9 +17,6 @@ set(rc_SRCS main.cpp)
 include(../shared/shared.cmake)
 include(../shared/PCH_GCC4_v2.cmake)
 
-#ADD_PCH_RULE(Pch.h rc_SRCS rc_PCHFLAGS)
-# add_definitions(${rc_PCHFLAGS})
-
 add_executable(rc ${rc_SRCS} ${UIS} ${RSCS} ${TRS} ${MOCS})
 target_link_libraries(rc rtags ${QT_QTCORE_LIBRARY} ${QT_QTNETWORK_LIBRARY})
 

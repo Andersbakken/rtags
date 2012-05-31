@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 2.8.3)
 find_package(Qt4 REQUIRED)
 include(${QT_USE_FILE})
 if(NOT CMAKE_BUILD_TYPE)
@@ -69,7 +69,7 @@ include(../shared/PCH_GCC4_v2.cmake)
 
 QT4_DO_THE_RIGHT_THING(MOCS ${rdm_MOCS})
 
-#ADD_PCH_RULE(Pch.h rdm_SRCS rdm_PCHFLAGS)
+add_pch_rule(Pch.h rdm_SRCS rdm_PCHFLAGS)
 add_definitions(${rdm_PCHFLAGS})
 
 add_executable(rdm ${rdm_SRCS} ${MOCS})
