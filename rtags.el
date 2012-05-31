@@ -16,6 +16,13 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'hook)
 
+(defvar rtags-current-path-filter nil)
+
+(defun rtags-create-path-filter()
+  nil)
+  ;; (if rtags-create-path-filter
+  ;;     (let ((filter (rtags-create-path-filter)))
+
 (defcustom rtags-after-find-file-hook nil
   "Run after rtags has jumped to a location possibly in a new file"
   :group 'rtags
@@ -102,7 +109,8 @@ return t if rtags is allowed to modify this file"
 (defun rtags-follow-symbol-at-point()
   (interactive)
   (setq rtags-last-buffer (current-buffer))
-  (let ((arg (rtags-current-location)))
+  (let ((arg (rtags-current-location))
+        (pathfilter (rtags-create-path-filter)))
     (with-temp-buffer
       (rtags-call-rc "-N" "-f" arg)
       (if (< (point-min) (point-max))
