@@ -66,6 +66,7 @@ public:
         long cacheSizeMB;
     };
     bool init(const Options &options);
+    Indexer *indexer() const { return mIndexer; }
     static void setBaseDirectory(const QByteArray& base, bool clear);
     static Path databaseDir(DatabaseType type);
     static Path pchDir();
