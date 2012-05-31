@@ -129,6 +129,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-rename-symbol ()
   (interactive)
+  (save-some-buffers) ; it all kinda falls apart when buffers are unsaved
   (let (len file pos replacewith prev (modifications 0) (filesopened 0))
     (save-excursion
       (if (looking-at "[0-9A-Za-z_~#]")
