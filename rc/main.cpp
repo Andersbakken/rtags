@@ -25,6 +25,7 @@ static void help(FILE *f, const char* app)
             "  --reference-name|-R [arg]                 Find references matching arg\n"
             "  --reference-location|-r [arg]             Find references matching this location\n"
             "  --include-declarations-and-definitions|-E Include reference to referenced location\n"
+            "  --reverse-sort|-O                         Sort output reversed\n"
             "  --list-symbols|-S [arg]                   List symbol names matching arg\n"
             "  --find-symbols|-F [arg]                   Find symbols matching arg\n"
             "  --dump|-d [arg]                           Dump AST tree of arg \n"
@@ -132,6 +133,7 @@ int main(int argc, char** argv)
         { "makefile-wait", required_argument, 0, 'M' },
         { "reference-name", required_argument, 0, 'R' },
         { "reference-location", required_argument, 0, 'r' },
+        { "reverse-sort", no_argument, 0, 'O' },
         { "list-symbols", optional_argument, 0, 'S' },
         { "find-symbols", required_argument, 0, 'F' },
         { "dump", required_argument, 0, 'd' },
@@ -193,6 +195,9 @@ int main(int argc, char** argv)
             break;
         case 'E':
             queryFlags |= QueryMessage::IncludeDeclarationsAndDefinitions;
+            break;
+        case 'O':
+            queryFlags |= QueryMessage::ReverseSort;
             break;
         case 'H':
             queryFlags |= QueryMessage::FilterSystemIncludes;

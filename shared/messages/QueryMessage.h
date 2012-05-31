@@ -29,7 +29,8 @@ public:
         LineNumbers = 0x02,
         FilterSystemIncludes = 0x04,
         SkipParentheses = 0x08,
-        IncludeDeclarationsAndDefinitions = 0x10
+        IncludeDeclarationsAndDefinitions = 0x10,
+        ReverseSort = 0x20
     };
 
     Q_INVOKABLE QueryMessage(QObject* parent = 0);
