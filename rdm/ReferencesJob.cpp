@@ -32,17 +32,17 @@ void ReferencesJob::execute()
         if (isAborted())
             return;
         QSet<Location> refs;
-        Location loc = location;
         QSet<Location> filtered;
 
-        CursorInfo cursorInfo = Rdm::findCursorInfo(db, loc);
+        Location realLoc;
+        CursorInfo cursorInfo = Rdm::findCursorInfo(db, location, &realLoc);
         if (clang_isReference(cursorInfo.kind) || (cursorInfo.kind >= CXCursor_FirstExpr && cursorInfo.kind <= CXCursor_LastExpr)) {
             filtered.insert(cursorInfo.target);
             cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
         } else if (excludeDefsAndDecls) {
-            filtered.insert(location);
+            filtered.insert(realLoc);
         } else {
-            refs.insert(location);
+            refs.insert(realLoc);
         }
         if (cursorInfo.isValid()) {
             if (cursorInfo.target.isValid()) {
@@ -69,7 +69,11 @@ void ReferencesJob::execute()
             }
         }
         QList<Location> sorted = refs.toList();
-        qSort(sorted);
+        if (flags & QueryMessage::ReverseSort) {
+            qSort(sorted.begin(), sorted.end(), qGreater<Location>());
+        } else {
+            qSort(sorted);
+        }
         foreach (const Location &loc, sorted) {
             write(loc.key(keyFlags));
         }
