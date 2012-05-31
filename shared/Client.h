@@ -1,9 +1,7 @@
 #ifndef CLIENT_H
 #define CLIENT_H
 
-#ifdef BUILDING_RC
 #include "GccArguments.h"
-#endif
 #include "Path.h"
 #include "QueryMessage.h"
 #include <QByteArray>
@@ -28,9 +26,7 @@ public:
 
     QStringList rdmArgs() const { return mRdmArgs; }
     unsigned flags() const { return mFlags; }
-#ifdef BUILDING_RC
     bool parseMakefile(const Path &path, bool wait);
-#endif
     void query(const QueryMessage *msg);
     QList<QByteArray> extraFlags() const { return mExtraFlags; }
     int sourceFileCount() const { return mSourceFileCount; }
@@ -40,14 +36,10 @@ private slots:
     void onDisconnected();
     void onSendComplete();
     void onNewMessage(Message* message);
-#ifdef BUILDING_RC
     void onMakefileDone();
     void onMakefileReady(const GccArguments& args);
-#endif
 private:
-#ifdef BUILDING_RC
     QList<QByteArray> mapPchToInput(const QList<QByteArray>& input);
-#endif
     Connection* mConn;
     unsigned mFlags;
     bool mMakeDone;

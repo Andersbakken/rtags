@@ -6,6 +6,7 @@ endif()
 add_subdirectory(makelib)
 add_subdirectory(rc)
 add_subdirectory(rdm)
+add_subdirectory(shared)
 
 add_custom_target(3rdparty 
     COMMAND cmake . && \$\(MAKE\)

@@ -1,9 +1,7 @@
 #include "Client.h"
 #include "Messages.h"
 #include "Connection.h"
-#ifdef BUILDING_RC
 #include "MakefileParser.h"
-#endif
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -69,7 +67,6 @@ void Client::onNewMessage(Message* message)
     message->deleteLater();
 }
 
-#ifdef BUILDING_RC
 bool Client::parseMakefile(const Path& path, bool wait)
 {
     if (!mConn && !connectToServer()) {
@@ -167,7 +164,6 @@ void Client::onMakefileReady(const GccArguments& args)
         ++mSourceFileCount;
     }
 }
-#endif
 
 void Client::onDisconnected()
 {

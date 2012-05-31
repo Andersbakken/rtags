@@ -27,43 +27,6 @@ macro(QT4_DO_THE_RIGHT_THING outfiles)
 ENDMACRO(QT4_DO_THE_RIGHT_THING)
 
 include_directories(
-        ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/messages
-       )
+  ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/messages
+  )
 
-set(shared_SRCS
-        ${CMAKE_CURRENT_LIST_DIR}/Connection.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/Path.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/Messages.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/messages/AddMessage.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/messages/QueryMessage.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/messages/ErrorMessage.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/Log.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/Client.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/RTags.cpp
-       )
-
-set(shared_HDRS
-        ${CMAKE_CURRENT_LIST_DIR}/Connection.h
-        ${CMAKE_CURRENT_LIST_DIR}/Path.h
-        ${CMAKE_CURRENT_LIST_DIR}/Message.h
-        ${CMAKE_CURRENT_LIST_DIR}/Messages.h
-        ${CMAKE_CURRENT_LIST_DIR}/messages/AddMessage.h
-        ${CMAKE_CURRENT_LIST_DIR}/messages/QueryMessage.h
-        ${CMAKE_CURRENT_LIST_DIR}/messages/ErrorMessage.h
-        ${CMAKE_CURRENT_LIST_DIR}/RTags.h
-        ${CMAKE_CURRENT_LIST_DIR}/Log.h
-        ${CMAKE_CURRENT_LIST_DIR}/Client.h
-       )
-
-set(shared_MOCS
-        ${CMAKE_CURRENT_LIST_DIR}/Connection.h
-        ${CMAKE_CURRENT_LIST_DIR}/Client.h
-        ${CMAKE_CURRENT_LIST_DIR}/messages/AddMessage.h
-        ${CMAKE_CURRENT_LIST_DIR}/messages/QueryMessage.h
-        ${CMAKE_CURRENT_LIST_DIR}/messages/ErrorMessage.h
-        ${CMAKE_CURRENT_LIST_DIR}/Message.h
-       )
-
-set(shared_CPPMOCS
-        ${CMAKE_CURRENT_LIST_DIR}/Connection.cpp
-       )
