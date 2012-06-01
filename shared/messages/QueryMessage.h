@@ -21,6 +21,7 @@ public:
         Status,
         Test,
         CursorInfo,
+        RdmLog,
         Shutdown
     };
 

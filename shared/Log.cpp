@@ -11,6 +11,7 @@ static unsigned sFlags = 0;
 static QElapsedTimer sStart;
 static QSet<Output*> sOutputs;
 static QReadWriteLock sOutputsLock;
+static int sLevel = 0;
 
 class FileOutput : public Output
 {
@@ -90,8 +91,9 @@ static void log(int level, const char *format, va_list v)
 
     QReadLocker lock(&sOutputsLock);
     foreach(Output *output, sOutputs) {
-        if (output->testLog(level))
+        if (output->testLog(level)) {
             output->log(msg, n);
+        }
     }
 
     if (msg != buf)
@@ -154,10 +156,16 @@ bool testLog(int level)
     return false;
 }
 
+int logLevel()
+{
+    return sLevel;
+}
+
 bool initLogging(int level, const Path &file, unsigned flags)
 {
     sStart.start();
     sFlags = flags;
+    sLevel = level;
     new StderrOutput(level);
     if (!file.isEmpty()) {
         if (!(flags & (Append|DontRotate)) && file.exists()) {

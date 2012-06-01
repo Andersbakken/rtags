@@ -114,6 +114,35 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references);
 QList<QByteArray> compileArgs(quint32 fileId);
 // the symbols will be modified before writing and we don't want to detach so we
 // work on a non-const reference
+class LogObject : public QObject, public Output
+{
+    Q_OBJECT
+public:
+    LogObject(Connection *conn, int level)
+        : QObject(conn), Output(level), mConnection(conn)
+    {
+        printf("[%s] %s:%d: connect(conn, SIGNAL(disconnected()), conn, SLOT(deleteLater())); [before]\n", __func__, __FILE__, __LINE__);
+        connect(conn, SIGNAL(disconnected()), conn, SLOT(deleteLater()));
+    }
+
+    virtual void log(const char *msg, int len)
+    {
+        printf("[%s] %s:%d: virtual void log(const char *msg, int len) [after]\n", __func__, __FILE__, __LINE__);
+        qDebug() << QThread::currentThread() << thread();
+        printf("[%s] %s:%d: qDebug() << QThread::currentThread() << thread(); [after]\n", __func__, __FILE__, __LINE__);
+        const QByteArray out(msg, len);
+        printf("[%s] %s:%d: const QByteArray out(msg, len); [after]\n", __func__, __FILE__, __LINE__);
+        QMetaObject::invokeMethod(this, "onLog", Qt::QueuedConnection, Q_ARG(QByteArray, out));
+    }
+public slots:
+    void onLog(const QByteArray &log)
+    {
+        QueryMessage q(log);
+        mConnection->send(&q);
+    }
+private:
+    Connection *mConnection;
+};
 }
 static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
 {

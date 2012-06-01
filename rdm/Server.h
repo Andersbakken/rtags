@@ -6,6 +6,7 @@
 #include <QList>
 #include <QHash>
 #include "QueryMessage.h"
+#include "Connection.h"
 
 class Connection;
 class Indexer;
@@ -94,6 +95,7 @@ private:
     int test(const QueryMessage &query);
     int nextId();
     void connectJob(Job *job);
+    void rdmLog(const QueryMessage &message, Connection *conn);
 private:
     static Server *sInstance;
     unsigned mOptions;
@@ -107,6 +109,27 @@ private:
     QList<QByteArray> mCachedSymbolNames;
     static Path sBase;
     Database *mDBs[DatabaseTypeCount];
+};
+
+class RdmLogObject : public QObject, public Output
+{
+public:
+    RdmLogObject(Connection *conn, int level)
+        : QObject(conn), Output(level), mConnection(conn)
+    {
+        connect(conn, SIGNAL(disconnected()), conn, SLOT(deleteLater()));
+    }
+
+    virtual void log(const char *msg, int len)
+    {
+        const QByteArray out(msg, len); // ### fromRawData
+        QueryMessage q(out);
+        QMutexLocker lock(&mMutex);
+        mConnection->send(&q); // ### is this thread safe?
+    }
+private:
+    QMutex mMutex;
+    Connection *mConnection;
 };
 
 #endif

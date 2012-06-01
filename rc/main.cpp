@@ -42,7 +42,7 @@ static void help(FILE *f, const char* app)
             "  --define|-D [arg]                         Add additional define, must be combined with --makefile\n"
             "  --compiler-flag|-o [arg]                  Add additional compiler flags, must be combined with --makefile\n"
             "  --test|-t [arg]                           Test whether rtags knows about this source file\n"
-            // "  --rdm-log|-g                              Receive logs from rdm\n"
+            "  --rdm-log|-g                              Receive logs from rdm\n"
             "  --status|-s [arg]                         Dump status of rdm. If arg is passed it should match one of:\n"
             "                                            'general', 'dependencies', 'symbols', 'symbolnames', 'fileinfos' or 'pch'\n"
             "  --autostart-rdm|-a [args]                 Start rdm with [args] if rc fails to connect\n"
@@ -70,13 +70,15 @@ static inline QByteArray encodeLocation(const QByteArray &key)
     return out;
 }
 
-struct Command {
+struct Command
+{
     virtual ~Command() {}
     virtual void exec(Client *client) = 0;
     virtual QByteArray description() const = 0;
 };
 
-struct QueryCommand : public Command {
+struct QueryCommand : public Command
+{
     QueryCommand(QueryMessage::Type t, const QByteArray &q, const unsigned &qf,
                  const QHash<Path, QByteArray> &u, const QSet<QByteArray> &p)
         : type(t), query(q), queryFlags(qf), unsavedFiles(u), pathFilters(p)
@@ -99,6 +101,22 @@ struct QueryCommand : public Command {
     virtual QByteArray description() const
     {
         return ("QueryMessage " + QByteArray::number(type) + " " + query); // ### query might be binary data
+    }
+};
+
+struct RdmLogCommand : public Command
+{
+    virtual void exec(Client *client)
+    {
+        char buf[sizeof(int)];
+        int *intPtr = reinterpret_cast<int*>(buf);
+        *intPtr = logLevel();
+        QueryMessage msg(QueryMessage::RdmLog, QByteArray(buf, sizeof(buf)));
+        client->query(&msg);
+    }
+    virtual QByteArray description() const
+    {
+        return "RdmLogCommand";
     }
 };
 
@@ -145,6 +163,7 @@ int main(int argc, char** argv)
         { "append", no_argument, 0, 'A' },
         { "no-context", no_argument, 0, 'N' },
         { "status", optional_argument, 0, 's' },
+        { "rdm-log", no_argument, 0, 'g' },
         { "line-numbers", no_argument, 0, 'l' },
         { "path-filter", required_argument, 0, 'i' },
         { "filter-system-headers", no_argument, 0, 'H' },
@@ -273,6 +292,9 @@ int main(int argc, char** argv)
             }
             commands.append(new QueryCommand(type, encoded, queryFlags, unsavedFiles, pathFilters)); // these are references
             break; }
+        case 'g':
+            commands.append(new RdmLogCommand);
+            break;
         case 'q':
             commands.append(new QueryCommand(QueryMessage::Shutdown, QByteArray(), queryFlags, unsavedFiles, pathFilters)); // these are references
             break;
