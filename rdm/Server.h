@@ -7,6 +7,7 @@
 #include <QHash>
 #include "QueryMessage.h"
 #include "Connection.h"
+#include "Job.h"
 
 class Connection;
 class Indexer;
@@ -14,9 +15,7 @@ class Message;
 class AddMessage;
 class ErrorMessage;
 class QTcpServer;
-class Job;
 class Database;
-
 class ScopedDB
 {
 public:
@@ -94,7 +93,7 @@ private:
     int status(const QueryMessage &query);
     int test(const QueryMessage &query);
     int nextId();
-    void connectJob(Job *job);
+    void startJob(Job *job);
     void rdmLog(const QueryMessage &message, Connection *conn);
 private:
     static Server *sInstance;

@@ -16,7 +16,12 @@ public:
     Indexer(const QByteArray& path, QObject* parent = 0);
     ~Indexer();
 
-    int index(const QByteArray& input, const QList<QByteArray>& arguments);
+    enum IndexType {
+        DirtyPch = 1,
+        Dirty = 2,
+        Makefile = 3 // these are used as QThreadPool priorites
+    };
+    int index(const QByteArray& input, const QList<QByteArray>& arguments, IndexType type);
 
     void setPchDependencies(const Path &pchHeader, const QSet<quint32> &deps);
     void addDependencies(const DependencyHash &hash);

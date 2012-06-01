@@ -4,7 +4,7 @@
 #include "CursorInfo.h"
 
 CursorInfoJob::CursorInfoJob(int i, const Location &loc, unsigned f)
-    : Job(i), location(loc), flags(f & ~RTags::ShowContext)
+    : Job(i, QueryJobPriority), location(loc), flags(f & ~RTags::ShowContext)
 {
 }
 

@@ -13,10 +13,12 @@ class IndexerJob : public QObject, public QRunnable, public AbortInterface
 {
     Q_OBJECT;
 public:
-    IndexerJob(Indexer* indexer, int id, const Path& input, const QList<QByteArray>& arguments);
+    IndexerJob(Indexer* indexer, int id, Indexer::IndexType type, const Path &input, const QList<QByteArray> &arguments);
+    int priority() const { return mType; }
     virtual void run();
 
-    int mId;
+    const int mId;
+    const Indexer::IndexType mType;
     bool mIsPch;
     Location createLocation(const CXCursor &cursor , bool *blocked);
     QByteArray addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDb);

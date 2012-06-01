@@ -5,13 +5,13 @@
 #include "CursorInfo.h"
 
 ReferencesJob::ReferencesJob(int i, const Location &loc, unsigned fl)
-    : Job(i), symbolName(QByteArray()), flags(fl)
+    : Job(i, QueryJobPriority), symbolName(QByteArray()), flags(fl)
 {
     locations.insert(loc);
 }
 
 ReferencesJob::ReferencesJob(int i, const QByteArray &sym, unsigned fl)
-    : Job(i), symbolName(sym), flags(fl)
+    : Job(i, QueryJobPriority), symbolName(sym), flags(fl)
 {
 }
 
@@ -52,13 +52,11 @@ void ReferencesJob::execute()
                     refs.insert(cursorInfo.target);
                 }
             }
-            assert(!clang_isReference(cursorInfo));
             foreach(const Location &l, cursorInfo.references) {
                 if (!excludeDefsAndDecls || !filtered.contains(l)) {
                     refs.insert(l);
                 }
             }
-            assert(filtered.target != cursorInfo.location);
             if (cursorInfo.target.isValid()) {
                 cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
                 foreach(const Location &l, cursorInfo.references) {

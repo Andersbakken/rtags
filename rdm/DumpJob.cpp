@@ -6,7 +6,7 @@
 #include "CursorInfo.h"
 
 DumpJob::DumpJob(const QByteArray& fn, int i)
-    : Job(i), fileName(fn)
+    : Job(i, QueryJobPriority), fileName(fn)
 {
 }
 

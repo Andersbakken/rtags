@@ -28,7 +28,7 @@ Path Server::sBase;
 Q_DECLARE_METATYPE(QList<QByteArray>);
 
 Server *Server::sInstance = 0;
-Server::Server(QObject* parent)
+Server::Server(QObject *parent)
     : QObject(parent),
       mIndexer(0),
       mServer(0),
@@ -39,6 +39,7 @@ Server::Server(QObject* parent)
     sInstance = this;
     qRegisterMetaType<QList<QByteArray> >("QList<QByteArray>");
     memset(mDBs, 0, sizeof(mDBs));
+    QThreadPool::globalInstance()->setExpiryTimeout(-1);
 }
 
 Server::~Server()
@@ -168,15 +169,15 @@ bool Server::init(const Options &options)
 void Server::onNewConnection()
 {
     while (mServer->hasPendingConnections()) {
-        QTcpSocket* socket = mServer->nextPendingConnection();
-        Connection* conn = new Connection(socket, this);
+        QTcpSocket *socket = mServer->nextPendingConnection();
+        Connection *conn = new Connection(socket, this);
         connect(conn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
         connect(socket, SIGNAL(disconnected()), conn, SLOT(deleteLater()));
         connect(conn, SIGNAL(destroyed(QObject*)), this, SLOT(onConnectionDestroyed(QObject*)));
     }
 }
 
-void Server::onConnectionDestroyed(QObject* o)
+void Server::onConnectionDestroyed(QObject *o)
 {
     {
         QHash<int, Connection*>::iterator it = mPendingIndexes.begin();
@@ -202,7 +203,7 @@ void Server::onConnectionDestroyed(QObject* o)
     }
 }
 
-void Server::onNewMessage(Message* message)
+void Server::onNewMessage(Message *message)
 {
     switch (message->messageId()) {
     case AddMessage::MessageId:
@@ -222,9 +223,9 @@ void Server::onNewMessage(Message* message)
     message->deleteLater();
 }
 
-void Server::handleAddMessage(AddMessage* message)
+void Server::handleAddMessage(AddMessage *message)
 {
-    Connection* conn = qobject_cast<Connection*>(sender());
+    Connection *conn = qobject_cast<Connection*>(sender());
     if (!conn->property("connected").toBool()) {
         connect(mIndexer, SIGNAL(jobsComplete()), conn, SLOT(finish())); // ### this is kind of a hack
         conn->setProperty("connected", true);
@@ -238,15 +239,15 @@ void Server::handleAddMessage(AddMessage* message)
         //              << "vs"
         //              << RTags::join(Rdm::compileArgs(Location::insertFile(message->inputFile())), " ");
         // }
-        const int id = mIndexer->index(message->inputFile(), args);
+        const int id = mIndexer->index(message->inputFile(), args, Indexer::Makefile);
         if (id != -1)
             mPendingIndexes[id] = conn;
     }
 }
 
-void Server::handleQueryMessage(QueryMessage* message)
+void Server::handleQueryMessage(QueryMessage *message)
 {
-    Connection* conn = qobject_cast<Connection*>(sender());
+    Connection *conn = qobject_cast<Connection*>(sender());
     int id = 0;
     switch (message->type()) {
     case QueryMessage::Response:
@@ -301,7 +302,7 @@ void Server::handleQueryMessage(QueryMessage* message)
     }
 }
 
-void Server::handleErrorMessage(ErrorMessage* message)
+void Server::handleErrorMessage(ErrorMessage *message)
 {
     qWarning("Error message: %s", message->message().constData());
 }
@@ -358,10 +359,9 @@ int Server::followLocation(const QueryMessage &query)
 
     error() << "followLocation" << loc;
 
-    FollowLocationJob* job = new FollowLocationJob(id, loc, query.keyFlags());
+    FollowLocationJob *job = new FollowLocationJob(id, loc, query.keyFlags());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
-    connectJob(job);
-    QThreadPool::globalInstance()->start(job);
+    startJob(job);
 
     return id;
 }
@@ -378,10 +378,9 @@ int Server::cursorInfo(const QueryMessage &query)
 
     error() << "cursorInfo" << loc;
 
-    CursorInfoJob* job = new CursorInfoJob(id, loc, query.keyFlags());
+    CursorInfoJob *job = new CursorInfoJob(id, loc, query.keyFlags());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
-    connectJob(job);
-    QThreadPool::globalInstance()->start(job);
+    startJob(job);
 
     return id;
 }
@@ -399,10 +398,9 @@ int Server::referencesForLocation(const QueryMessage &query)
 
     error() << "references for location" << loc;
 
-    ReferencesJob* job = new ReferencesJob(id, loc, query.flags());
+    ReferencesJob *job = new ReferencesJob(id, loc, query.flags());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
-    connectJob(job);
-    QThreadPool::globalInstance()->start(job);
+    startJob(job);
 
     return id;
 }
@@ -414,10 +412,9 @@ int Server::referencesForName(const QueryMessage& query)
     const QByteArray name = query.query().value(0);
     error() << "references for name" << name;
 
-    ReferencesJob* job = new ReferencesJob(id, name, query.flags());
+    ReferencesJob *job = new ReferencesJob(id, name, query.flags());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
-    connectJob(job);
-    QThreadPool::globalInstance()->start(job);
+    startJob(job);
 
     return id;
 }
@@ -429,9 +426,8 @@ int Server::match(const QueryMessage &query)
 
     error() << "match" << partial;
 
-    MatchJob* job = new MatchJob(id, query);
-    connectJob(job);
-    QThreadPool::globalInstance()->start(job);
+    MatchJob *job = new MatchJob(id, query);
+    startJob(job);
 
     return id;
 }
@@ -443,10 +439,9 @@ int Server::dump(const QueryMessage &query)
 
     error() << "dump" << partial;
 
-    DumpJob* job = new DumpJob(partial, id);
+    DumpJob *job = new DumpJob(partial, id);
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
-    connectJob(job);
-    QThreadPool::globalInstance()->start(job);
+    startJob(job);
 
     return id;
 }
@@ -457,10 +452,9 @@ int Server::status(const QueryMessage &query)
 
     error() << "status" << query.query().value(0);
 
-    StatusJob* job = new StatusJob(id, query.query().value(0));
+    StatusJob *job = new StatusJob(id, query.query().value(0));
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
-    connectJob(job);
-    QThreadPool::globalInstance()->start(job);
+    startJob(job);
     return id;
 }
 
@@ -471,8 +465,7 @@ int Server::test(const QueryMessage &query)
     error() << "test";
 
     TestJob *job = new TestJob(query.query().value(0), id);
-    connectJob(job);
-    QThreadPool::globalInstance()->start(job);
+    startJob(job);
     return id;
 }
 
@@ -483,7 +476,7 @@ void Server::rdmLog(const QueryMessage &query, Connection *conn)
     new Rdm::LogObject(conn, level);
 }
 
-static const char* const dbNames[] = {
+static const char *const dbNames[] = {
     "general.db",
     "dependencies.db",
     "symbols.db",
@@ -524,17 +517,17 @@ void Server::setBaseDirectory(const QByteArray& base, bool clear)
     }
 }
 
-void Server::connectJob(Job *job)
+void Server::startJob(Job *job)
 {
     connect(job, SIGNAL(complete(int)), this, SLOT(onComplete(int)));
     connect(job, SIGNAL(output(int, QByteArray)), this, SLOT(onOutput(int, QByteArray)));
+    QThreadPool::globalInstance()->start(job, job->priority());
 }
 void Server::onSymbolNamesChanged()
 {
     MatchJob *match = MatchJob::createCompletionMatchJob();
-    connectJob(match);
     mCachedSymbolNames.clear();
-    QThreadPool::globalInstance()->start(match);
+    startJob(match);
 }
 
 ScopedDB::ScopedDB(Database *db, LockType lockType)

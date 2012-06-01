@@ -12,7 +12,11 @@ public:
         None = 0x0,
         WriteUnfiltered = 0x1
     };
-    Job(int id, unsigned flags = None, QObject *parent = 0);
+    enum Priority {
+        QueryJobPriority = 0,
+        CompletionMatchJobPriority = 4
+    };
+    Job(int id, Priority priority, unsigned flags = None, QObject *parent = 0);
     ~Job();
     void setPathFilters(const QList<QByteArray> &filter, bool filterSystemIncludes);
     QList<QByteArray> pathFilters() const;
@@ -22,6 +26,7 @@ public:
     bool filter(const QByteArray &val) const;
     virtual void run();
     virtual void execute() {}
+    int priority() const { return mPriority; }
 signals:
 #if !defined(Q_MOC_RUN)
 private:
@@ -31,6 +36,7 @@ private:
 private:
     const int mId;
     const int mFlags;
+    const Priority mPriority;
     QList<QByteArray> mPathFilters;
     bool mFilterSystemIncludes;
 };

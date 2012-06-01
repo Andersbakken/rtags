@@ -3,11 +3,11 @@
 #include "MemoryMonitor.h"
 #include "Server.h"
 
-static inline QList<Path> extractPchFiles(const QList<QByteArray>& args)
+static inline QList<Path> extractPchFiles(const QList<QByteArray> &args)
 {
     QList<Path> out;
     bool nextIsPch = false;
-    foreach (const QByteArray& arg, args) {
+    foreach (const QByteArray &arg, args) {
         if (arg.isEmpty())
             continue;
 
@@ -24,8 +24,8 @@ static inline QList<Path> extractPchFiles(const QList<QByteArray>& args)
 // static int count = 0;
 // static int active = 0;
 
-IndexerJob::IndexerJob(Indexer* indexer, int id, const Path& input, const QList<QByteArray>& arguments)
-    : mId(id), mIsPch(false), mIn(input), mFileId(Location::insertFile(input)), mArgs(arguments),
+IndexerJob::IndexerJob(Indexer* indexer, int id, Indexer::IndexType type, const Path &input, const QList<QByteArray> &arguments)
+    : mId(id), mType(type), mIsPch(false), mIn(input), mFileId(Location::insertFile(input)), mArgs(arguments),
       mIndexer(indexer), mPchHeaders(extractPchFiles(arguments))
 {
     // qDebug() << metaObject()->className() << "born" << ++count << ++active;
@@ -366,7 +366,7 @@ void IndexerJob::run()
 
     QList<Path> pchFiles;
     int idx = 0;
-    foreach (const QByteArray& arg, mArgs) {
+    foreach (const QByteArray &arg, mArgs) {
         if (arg.isEmpty())
             continue;
 
@@ -529,8 +529,8 @@ IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind ki
     if (it != mHeaderHash.end()) {
         const CXCursor ref = it.value();
         const Cursor ret = { ref, createLocation(ref, 0), clang_getCursorKind(ref) };
-        Q_ASSERT(!clang_equalCursors(ref, cursor));
-        return ret;
+        if (!clang_equalCursors(ref, cursor)) // ### why is this happening?
+            return ret;
     }
 
     const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };

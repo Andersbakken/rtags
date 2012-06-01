@@ -4,7 +4,7 @@
 #include "CursorInfo.h"
 
 FollowLocationJob::FollowLocationJob(int i, const Location &loc, unsigned f)
-    : Job(i), location(loc), flags(f)
+    : Job(i, QueryJobPriority), location(loc), flags(f)
 {
 }
 

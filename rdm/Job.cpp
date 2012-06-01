@@ -3,8 +3,8 @@
 
 // static int count = 0;
 // static int active = 0;
-Job::Job(int id, unsigned flags, QObject *parent)
-    : QObject(parent), mId(id), mFlags(flags), mFilterSystemIncludes(false)
+Job::Job(int id, Priority p, unsigned flags, QObject *parent)
+    : QObject(parent), mId(id), mPriority(p), mFlags(flags), mFilterSystemIncludes(false)
 {
     // qDebug() << metaObject()->className() << "born" << ++count << ++active;
     setAutoDelete(false);

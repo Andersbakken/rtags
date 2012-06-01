@@ -238,7 +238,7 @@ void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
     mWatcher.addPaths(watchPaths.toList());
 }
 
-int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
+int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments, IndexType type)
 {
     QMutexLocker locker(&mMutex);
 
@@ -246,7 +246,7 @@ int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments)
         return -1;
 
     const int id = ++mJobCounter;
-    IndexerJob* job = new IndexerJob(this, id, input, arguments);
+    IndexerJob* job = new IndexerJob(this, id, type, input, arguments);
     connect(job, SIGNAL(done(int, Path, bool, QByteArray)),
             this, SLOT(onJobComplete(int, Path, bool, QByteArray)));
     if (needsToWaitForPch(job)) {
@@ -267,7 +267,7 @@ void Indexer::startJob(int id, IndexerJob *job)
         mTimer.start();
     }
 
-    QThreadPool::globalInstance()->start(job);
+    QThreadPool::globalInstance()->start(job, job->priority());
 }
 
 void Indexer::onDirectoryChanged(const QString& path)

@@ -8,7 +8,7 @@
 #include "CursorInfo.h"
 
 StatusJob::StatusJob(int i, const QByteArray &q)
-    : Job(i, WriteUnfiltered), query(q)
+    : Job(i, QueryJobPriority, WriteUnfiltered), query(q)
 {
 }
 
