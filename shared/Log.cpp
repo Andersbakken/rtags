@@ -158,7 +158,6 @@ bool initLogging(int level, const Path &file, unsigned flags)
 {
     sStart.start();
     sFlags = flags;
-    qDebug() << "initLogging" << level << file << flags;
     new StderrOutput(level);
     if (!file.isEmpty()) {
         if (!(flags & (Append|DontRotate)) && file.exists()) {
