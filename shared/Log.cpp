@@ -29,6 +29,7 @@ public:
     virtual void log(const char *msg, int)
     {
         fprintf(file, "%s\n", msg);
+        fflush(file);
     }
     FILE *file;
 };
