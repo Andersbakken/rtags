@@ -50,11 +50,11 @@ void signalHandler(int signal)
             int status;
             abi::__cxa_demangle(buf, buf, &len, &status);
             if (!status) {
-                fprintf(stderr, "  %d/%d %s\n", i + 1, c, buf);
+                fprintf(stderr, "  %d/%d %s [%p]\n", i + 1, c, buf, callstack[i]);
                 continue;
             }
         }
-        fprintf(stderr, "  %d/%d %s (%p)\n", i + 1, c, frame, callstack[i]);
+        fprintf(stderr, "  %d/%d %s\n", i + 1, c, frame);
     }
     free(symbols);
 #endif
@@ -66,7 +66,7 @@ void signalHandler(int signal)
 void usage(FILE *f)
 {
     fprintf(f,
-            "rdm ...options...\n"
+            "rdm [...options...]\n"
             "  --help|-h                  Display this page\n"
             "  --include-path|-I [arg]    Add additional include path to clang\n"
             "  --include|-i [arg]         Add additional include directive to clang\n"

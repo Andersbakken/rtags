@@ -84,7 +84,7 @@ static void log(int level, const char *format, va_list v)
     int n = vsnprintf(msg + now.size(), Size - now.size(), format, v);
     if (n == -1)
         return;
-    if (n >= Size) {
+    if (n + now.size() >= Size) {
         msg = new char[n + 1 + now.size()];
         n = vsnprintf(msg + now.size(), n + 1, format, v);
     }
@@ -93,7 +93,7 @@ static void log(int level, const char *format, va_list v)
     QMutexLocker lock(&sOutputsMutex);
     foreach(Output *output, sOutputs) {
         if (output->testLog(level)) {
-            output->log(msg);
+            output->log(msg, n + now.size());
         }
     }
 

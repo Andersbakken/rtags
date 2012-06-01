@@ -21,7 +21,7 @@ public:
     virtual ~Output();
     int logLevel() const { return mLogLevel; }
     bool testLog(int level) const { return level <= mLogLevel; }
-    virtual void log(const char */*msg*/) {}
+    virtual void log(const char */*msg*/, int /*len*/) {}
 private:
     const int mLogLevel;
 };
