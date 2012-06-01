@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 Client::Client(const QByteArray &name, unsigned flags, const QList<QByteArray> &extraFlags,
-               const QList<QByteArray> &rdmArgs, QObject* parent)
+               const QList<QByteArray> &rdmArgs, QObject *parent)
     : QObject(parent), mConn(0), mFlags(flags), mMakeDone(false), mExtraFlags(extraFlags),
       mSourceFileCount(0), mPchCount(0), mRdmArgs(rdmArgs),
       mName(name)
@@ -79,7 +79,7 @@ bool Client::parseMakefile(const Path &path, bool wait)
     connect(mConn, SIGNAL(sendComplete()), this, SLOT(onSendComplete()));
 
     mSourceFileCount = mPchCount = 0;
-    MakefileParser* parser = new MakefileParser(mExtraFlags, this);
+    MakefileParser *parser = new MakefileParser(mExtraFlags, this);
 
     if (wait) {
         connect(mConn, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
