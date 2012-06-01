@@ -16,6 +16,11 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'hook)
 
+(defcustom rtags-jump-to-first-match t
+  "If t, jump to first match"
+  :group 'rtags
+  :type 'boolean)
+
 (defvar rtags-current-path-filter nil)
 
 (defun rtags-create-path-filter()
@@ -129,7 +134,11 @@ return t if rtags is allowed to modify this file"
     (rtags-call-rc "-l" "-r" arg)
     (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
           ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-line-column (buffer-string)))
-          (t (progn (goto-char (point-min)) (compilation-mode))))
+          (t (progn
+               (goto-char (point-min))
+               (compilation-mode)
+               (if rtags-jump-to-first-match
+                   (next-error)))))
     (not (= (point-min) (point-max)))
     )
   )
@@ -214,7 +223,11 @@ return t if rtags is allowed to modify this file"
     (rtags-call-rc switch tagname "-l")
     (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
           ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-line-column (buffer-string)))
-          (t (progn (goto-char (point-min)) (compilation-mode))))
+          (t (progn
+               (goto-char (point-min))
+               (compilation-mode)
+               (if rtags-jump-to-first-match
+                   (next-error)))))
     (not (= (point-min) (point-max))))
     )
 
