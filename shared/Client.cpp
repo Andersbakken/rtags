@@ -177,7 +177,6 @@ bool Client::connectToServer()
 {
     Q_ASSERT(!mConn);
     mConn = new Connection(this);
-    error("About to connect to server");
     if (!mConn->connectToServer(mName)) {
         error("Failed to connect to server");
         if (mFlags & AutostartRdm) {
