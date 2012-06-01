@@ -96,8 +96,7 @@ void MakefileParser::run(const Path& makefile)
 
     QDir makelibdir(QCoreApplication::applicationDirPath());
     makelibdir.cdUp();
-    if (logLevel() > 0)
-        debug("Using makelib in '%s/makelib'", qPrintable(makelibdir.canonicalPath()));
+    debug("Using makelib in '%s/makelib'", qPrintable(makelibdir.canonicalPath()));
 
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
 #ifdef Q_OS_MAC
@@ -120,10 +119,8 @@ void MakefileParser::run(const Path& makefile)
     connect(mProc, SIGNAL(finished(int)), this, SIGNAL(done()));
 
     mTracker->init(makefile.parentDir());
-    if (logLevel()) {
-        log(1, MAKE " -j1 -n -w -f %s -C %s\n",
+    warning(MAKE " -j1 -n -w -f %s -C %s\n",
             makefile.constData(), mTracker->path().constData());
-    }
     mProc->start(QLatin1String(MAKE), QStringList()
                  << QLatin1String("-j1") << QLatin1String("-n") << QLatin1String("-w")
                  << QLatin1String("-f") << QString::fromLocal8Bit(makefile)

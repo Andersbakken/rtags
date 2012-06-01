@@ -142,10 +142,8 @@ void Client::onMakefileReady(const GccArguments& args)
         // using input for both input and output is correct here
         AddMessage message(type, input, input, args.clangArgs(),
                            mapPchToInput(args.explicitIncludes()));
-        if (logLevel()) {
-            warning() << "sending" << "input:" << input << "output:" << output
-                      << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
-        }
+        warning() << "sending" << "input:" << input << "output:" << output
+                  << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
         mConn->send(&message);
 
         mPchs[output] = input;

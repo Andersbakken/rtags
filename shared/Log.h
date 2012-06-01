@@ -20,8 +20,8 @@ public:
     Output(int logLevel);
     virtual ~Output();
     int logLevel() const { return mLogLevel; }
-    bool testLog(int level) { return level <= mLogLevel; }
-    virtual void log(const QByteArray &) {}
+    bool testLog(int level) const { return level <= mLogLevel; }
+    virtual void log(const char */*msg*/, int /*len*/) {}
 private:
     const int mLogLevel;
 };
@@ -38,9 +38,7 @@ enum LogFlag {
 };
 bool testLog(int level);
 bool initLogging(int logLevel, const Path &logFile, unsigned flags);
-int logLevel();
-QByteArray logFile();
-
+void restartTime();
 class Log
 {
 public:

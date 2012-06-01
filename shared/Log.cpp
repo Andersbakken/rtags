@@ -7,10 +7,7 @@
 #include <QCoreApplication>
 #include <QElapsedTimer>
 
-static int sLevel = 0;
 static unsigned sFlags = 0;
-static FILE *sFile = 0;
-static QByteArray sLogFile;
 static QElapsedTimer sStart;
 static QSet<Output*> sOutputs;
 static QReadWriteLock sOutputsLock;
@@ -18,12 +15,40 @@ static QReadWriteLock sOutputsLock;
 class FileOutput : public Output
 {
 public:
-    FileOutput(const Path &file)
-        : Output(INT_MAX)
-    {}
-    Path fileName;
+    FileOutput(FILE *f)
+        : Output(INT_MAX), file(f)
+    {
+    }
+    ~FileOutput()
+    {
+        if (file)
+            fclose(file);
+    }
+
+    virtual void log(const char *msg, int)
+    {
+        fprintf(file, "%s\n", msg);
+    }
     FILE *file;
 };
+
+class StderrOutput : public Output
+{
+public:
+    StderrOutput(int lvl)
+        : Output(lvl)
+    {}
+    virtual void log(const char *msg, int)
+    {
+        fprintf(stderr, "%s\n", msg);
+    }
+};
+
+
+void restartTime()
+{
+    sStart.restart();
+}
 
 static inline QByteArray prettyTimeSinceStarted()
 {
@@ -40,47 +65,34 @@ static inline QByteArray prettyTimeSinceStarted()
         values[i] = elapsed / ratios[i];
         elapsed %= ratios[i];
     }
-
-    snprintf(buf, sizeof(buf), "%02d:%02d:%02d:%03d", values[0], values[1], values[2], values[3]);
+    snprintf(buf, sizeof(buf), "%02d:%02d:%02d:%03d: ", values[0], values[1], values[2], values[3]);
     return buf;
 }
 
 static void log(int level, const char *format, va_list v)
 {
-    if (level > sLevel && !sFile)
+    if (!testLog(level))
         return;
     enum { Size = 16384 };
     char buf[Size];
-    char *msg = buf;
-    int n = vsnprintf(buf, Size, format, v);
-    if (n == -1) {
-        return;
-    }
-    if (n >= Size) {
-        msg = new char[n + 1];
-        n = vsnprintf(msg, n + 1, format, v);
-    }
-    const QByteArray now = (sFlags & AbsoluteTime ? QDateTime::currentDateTime().toString("dd/MM/yy hh:mm:ss").toLocal8Bit()
+    const QByteArray now = (sFlags & AbsoluteTime
+                            ? QDateTime::currentDateTime().toString("dd/MM/yy hh:mm:ss: ").toLocal8Bit()
                             : prettyTimeSinceStarted());
-    static QMutex mutex;
-    QMutexLocker lock(&mutex); // serialize
-#if 0
-    static const char *names[] = { "Error: ", "Warning: ", "Debug: ", "Verbose: " };
-    const char *name = level < static_cast<int>(sizeof(names)) / 4 ? names[level] : "";
-    if (level <= sLevel)
-        fprintf(stderr, "%s: %s%s\n", now.constData(), name, msg);
-    if (sFile) {
-        fprintf(sFile, "%s: %s%s\n", now.constData(), name, msg);
-        fflush(sFile);
+    char *msg = buf;
+    int n = vsnprintf(msg + now.size(), Size - now.size(), format, v);
+    if (n == -1)
+        return;
+    if (n >= Size) {
+        msg = new char[n + 1 + now.size()];
+        n = vsnprintf(msg + now.size(), n + 1, format, v);
     }
-#else
-    if (level <= sLevel)
-        fprintf(stderr, "%s: %s\n", now.constData(), msg);
-    if (sFile) {
-        fprintf(sFile, "%s: %s\n", now.constData(), msg);
-        fflush(sFile);
+    memcpy(msg, now.constData(), now.size());
+
+    QReadLocker lock(&sOutputsLock);
+    foreach(Output *output, sOutputs) {
+        if (output->testLog(level))
+            output->log(msg, n);
     }
-#endif
 
     if (msg != buf)
         delete []msg;
@@ -126,34 +138,28 @@ void error(const char *format, ...)
     va_end(v);
 }
 
-int logLevel()
+static inline void removeOutputs()
 {
-    return sLevel;
-}
-
-QByteArray logFile()
-{
-    return sLogFile;
-}
-
-static inline void removeLogFile()
-{
-    Q_ASSERT(sFile);
-    fflush(sFile);
-    fclose(sFile);
-    sFile = 0;
+    QWriteLocker lock(&sOutputsLock);
+    qDeleteAll(sOutputs);
+    sOutputs.clear();
 }
 
 bool testLog(int level)
 {
-    return level <= sLevel || sFile;
+    QReadLocker lock(&sOutputsLock);
+    foreach(const Output *output, sOutputs)
+        if (output->testLog(level))
+            return true;
+    return false;
 }
 
 bool initLogging(int level, const Path &file, unsigned flags)
 {
     sStart.start();
     sFlags = flags;
-    sLevel = level;
+    qDebug() << "initLogging" << level << file << flags;
+    new StderrOutput(level);
     if (!file.isEmpty()) {
         if (!(flags & (Append|DontRotate)) && file.exists()) {
             int i = 0;
@@ -169,11 +175,10 @@ bool initLogging(int level, const Path &file, unsigned flags)
                 }
             }
         }
-        sFile = fopen(file.constData(), flags & Append ? "a" : "w");
-        if (!sFile)
+        FILE *f = fopen(file.constData(), flags & Append ? "a" : "w");
+        if (!f)
             return false;
-        sLogFile = file;
-        qAddPostRoutine(removeLogFile);
+        new FileOutput(f);
     }
     return true;
 }
