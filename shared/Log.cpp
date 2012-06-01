@@ -10,7 +10,7 @@
 static unsigned sFlags = 0;
 static QElapsedTimer sStart;
 static QSet<Output*> sOutputs;
-static QReadWriteLock sOutputsLock;
+static QMutex sOutputsMutex;
 static int sLevel = 0;
 
 class FileOutput : public Output
@@ -89,7 +89,7 @@ static void log(int level, const char *format, va_list v)
     }
     memcpy(msg, now.constData(), now.size());
 
-    QReadLocker lock(&sOutputsLock);
+    QMutexLocker lock(&sOutputsMutex);
     foreach(Output *output, sOutputs) {
         if (output->testLog(level)) {
             output->log(msg, n);
@@ -142,14 +142,14 @@ void error(const char *format, ...)
 
 static inline void removeOutputs()
 {
-    QWriteLocker lock(&sOutputsLock);
+    QMutexLocker lock(&sOutputsMutex);
     qDeleteAll(sOutputs);
     sOutputs.clear();
 }
 
 bool testLog(int level)
 {
-    QReadLocker lock(&sOutputsLock);
+    QMutexLocker lock(&sOutputsMutex);
     foreach(const Output *output, sOutputs)
         if (output->testLog(level))
             return true;
@@ -209,11 +209,11 @@ Log &Log::operator=(const Log &other)
 Output::Output(int logLevel)
     : mLogLevel(logLevel)
 {
-    QWriteLocker lock(&sOutputsLock);
+    QMutexLocker lock(&sOutputsMutex);
     sOutputs.insert(this);
 }
 Output::~Output()
 {
-    QWriteLocker lock(&sOutputsLock);
+    QMutexLocker lock(&sOutputsMutex);
     sOutputs.remove(this);
 }
