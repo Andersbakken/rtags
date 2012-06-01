@@ -61,6 +61,7 @@ set(rdm_MOCS
     IndexerJob.h
     Job.h
     Indexer.h
+    Rdm.h
     )
 
 include(../shared/shared.cmake)

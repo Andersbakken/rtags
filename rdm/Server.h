@@ -111,25 +111,4 @@ private:
     Database *mDBs[DatabaseTypeCount];
 };
 
-class RdmLogObject : public QObject, public Output
-{
-public:
-    RdmLogObject(Connection *conn, int level)
-        : QObject(conn), Output(level), mConnection(conn)
-    {
-        connect(conn, SIGNAL(disconnected()), conn, SLOT(deleteLater()));
-    }
-
-    virtual void log(const char *msg, int len)
-    {
-        const QByteArray out(msg, len); // ### fromRawData
-        QueryMessage q(out);
-        QMutexLocker lock(&mMutex);
-        mConnection->send(&q); // ### is this thread safe?
-    }
-private:
-    QMutex mMutex;
-    Connection *mConnection;
-};
-
 #endif

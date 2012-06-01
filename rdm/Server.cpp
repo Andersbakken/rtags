@@ -478,11 +478,9 @@ int Server::test(const QueryMessage &query)
 
 void Server::rdmLog(const QueryMessage &query, Connection *conn)
 {
-    qDebug() << query.query().first().size();
     const char *q = query.query().first().constData();
     const int level = *reinterpret_cast<const int *>(q);
-    warning("Got an rdmLog connection %d\n", level);
-    new RdmLogObject(conn, level);
+    new Rdm::LogObject(conn, level);
 }
 
 static const char* const dbNames[] = {

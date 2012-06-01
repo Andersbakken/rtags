@@ -121,17 +121,12 @@ public:
     LogObject(Connection *conn, int level)
         : QObject(conn), Output(level), mConnection(conn)
     {
-        printf("[%s] %s:%d: connect(conn, SIGNAL(disconnected()), conn, SLOT(deleteLater())); [before]\n", __func__, __FILE__, __LINE__);
         connect(conn, SIGNAL(disconnected()), conn, SLOT(deleteLater()));
     }
 
     virtual void log(const char *msg, int len)
     {
-        printf("[%s] %s:%d: virtual void log(const char *msg, int len) [after]\n", __func__, __FILE__, __LINE__);
-        qDebug() << QThread::currentThread() << thread();
-        printf("[%s] %s:%d: qDebug() << QThread::currentThread() << thread(); [after]\n", __func__, __FILE__, __LINE__);
         const QByteArray out(msg, len);
-        printf("[%s] %s:%d: const QByteArray out(msg, len); [after]\n", __func__, __FILE__, __LINE__);
         QMetaObject::invokeMethod(this, "onLog", Qt::QueuedConnection, Q_ARG(QByteArray, out));
     }
 public slots:
