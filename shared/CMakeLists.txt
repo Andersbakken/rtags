@@ -67,8 +67,8 @@ add_custom_target(
     DEPENDS gccopts_gperf.h
     )
 
-add_pch_rule(Pch.h shared_SRCS shared_PCHFLAGS)
-add_definitions(${shared_PCHFLAGS})
+# add_pch_rule(Pch.h shared_SRCS shared_PCHFLAGS)
+# add_definitions(${shared_PCHFLAGS})
 
 add_library(rtags ${shared_SRCS} ${MOCS})
 add_dependencies(rtags gperf)
