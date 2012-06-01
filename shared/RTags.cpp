@@ -178,7 +178,10 @@ bool startProcess(const Path &dotexe, const QList<QByteArray> &dollarArgs)
         _exit(0);
     }
 
-    chdir("/");
+    int ret = chdir("/");
+    if (ret == -1)
+        perror("RTags::startProcess() Failed to chdir(\"/\")");
+
     umask(0);
 
     const int fdlimit = sysconf(_SC_OPEN_MAX);
@@ -186,8 +189,12 @@ bool startProcess(const Path &dotexe, const QList<QByteArray> &dollarArgs)
         close(i);
 
     open("/dev/null", O_RDWR);
-    dup(0);
-    dup(0);
+    ret = dup(0);
+    if (ret == -1)
+        perror("RTags::startProcess() Failed to duplicate fd");
+    ret = dup(0);
+    if (ret == -1)
+        perror("RTags::startProcess() Failed to duplicate fd");
     char **args = new char*[dollarArgs.size() + 2];
     args[0] = strndup(dotexe.constData(), dotexe.size());
     for (int i=0; i<dollarArgs.size(); ++i) {
