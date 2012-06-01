@@ -291,7 +291,7 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Can't resolve argument %s", optarg);
                 return 1;
             }
-            QueryMessage::Type type = QueryMessage::Response;
+            QueryMessage::Type type = QueryMessage::Invalid;
             switch (c) {
             case 'f': type = QueryMessage::FollowLocation; break;
             case 'C': type = QueryMessage::CursorInfo; break;

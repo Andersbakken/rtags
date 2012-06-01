@@ -248,7 +248,7 @@ void Server::handleQueryMessage(QueryMessage *message)
     Connection *conn = qobject_cast<Connection*>(sender());
     int id = 0;
     switch (message->type()) {
-    case QueryMessage::Response:
+    case QueryMessage::Invalid:
         Q_ASSERT(0);
         break;
     case QueryMessage::CursorInfo:
@@ -269,7 +269,7 @@ void Server::handleQueryMessage(QueryMessage *message)
         break;
     case QueryMessage::ListSymbols:
         if (message->query().value(0).isEmpty() && !message->flags() && !mCachedSymbolNames.isEmpty()) {
-            QueryMessage response(mCachedSymbolNames);
+            ResponseMessage response(mCachedSymbolNames);
             conn->send(&response);
             conn->finish();
             return;
@@ -333,7 +333,7 @@ void Server::onOutput(int id, const QByteArray &response)
     QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
         return;
-    QueryMessage msg(response);
+    ResponseMessage msg(response);
     it.value()->send(&msg);
 }
 

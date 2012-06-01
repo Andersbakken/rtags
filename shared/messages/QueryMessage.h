@@ -11,7 +11,7 @@ class QueryMessage : public Message
 public:
     enum { MessageId = 4 };
     enum Type {
-        Response,
+        Invalid,
         FollowLocation,
         ReferencesLocation,
         ReferencesName,
@@ -34,10 +34,8 @@ public:
         ReverseSort = 0x20
     };
 
-    Q_INVOKABLE QueryMessage(QObject* parent = 0);
-    QueryMessage(const QList<QByteArray> &msg);
-    QueryMessage(const QByteArray &msg);
-    QueryMessage(Type type, const QByteArray &query = QByteArray(),
+    Q_INVOKABLE QueryMessage(QObject *parent);
+    QueryMessage(Type type = Invalid, const QByteArray &query = QByteArray(),
                  unsigned flags = 0, QObject *parent = 0);
 
     QList<QByteArray> pathFilters() const { return mPathFilters; }

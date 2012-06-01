@@ -2,6 +2,7 @@
 #include "Messages.h"
 #include "Connection.h"
 #include "MakefileParser.h"
+#include "ResponseMessage.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
@@ -54,14 +55,13 @@ void Client::onSendComplete()
     }
 }
 
-void Client::onNewMessage(Message* message)
+void Client::onNewMessage(Message *message)
 {
     Q_ASSERT(mConn == sender());
-    if (message->messageId() == QueryMessage::MessageId) {
-        foreach (const QByteArray& r, static_cast<QueryMessage*>(message)->query()) {
-            if (!r.isEmpty()) {
-                printf("%s\n", r.constData());
-            }
+    if (message->messageId() == ResponseMessage::MessageId) {
+        const QByteArray response = static_cast<ResponseMessage*>(message)->data();
+        if (!response.isEmpty()) {
+            printf("%s\n", response.constData());
         }
     } else {
         qFatal("Unexpected message: %d", message->messageId());
@@ -69,7 +69,7 @@ void Client::onNewMessage(Message* message)
     message->deleteLater();
 }
 
-bool Client::parseMakefile(const Path& path, bool wait)
+bool Client::parseMakefile(const Path &path, bool wait)
 {
     if (!mConn && !connectToServer()) {
         fprintf(stderr, "Can't connect to server\n");
@@ -103,12 +103,12 @@ void Client::onMakefileDone()
     sender()->deleteLater();
 }
 
-QList<QByteArray> Client::mapPchToInput(const QList<QByteArray>& input)
+QList<QByteArray> Client::mapPchToInput(const QList<QByteArray> &input)
 {
     QList<QByteArray> output;
     QHash<QByteArray, QByteArray>::const_iterator pchit;
     const QHash<QByteArray, QByteArray>::const_iterator pchend = mPchs.end();
-    foreach (const QByteArray& in, input) {
+    foreach (const QByteArray &in, input) {
         pchit = mPchs.find(in);
         if (pchit != pchend)
             output.append(pchit.value());
@@ -116,7 +116,7 @@ QList<QByteArray> Client::mapPchToInput(const QList<QByteArray>& input)
     return output;
 }
 
-void Client::onMakefileReady(const GccArguments& args)
+void Client::onMakefileReady(const GccArguments &args)
 {
     if (args.inputFiles().isEmpty()) {
         warning("no input file?");

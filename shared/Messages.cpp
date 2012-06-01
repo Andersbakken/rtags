@@ -17,4 +17,5 @@ void Messages::init()
     reg<AddMessage>();
     reg<QueryMessage>();
     reg<ErrorMessage>();
+    reg<ResponseMessage>();
 }

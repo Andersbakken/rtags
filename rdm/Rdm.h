@@ -9,6 +9,7 @@
 #include "Server.h"
 #include <RTags.h>
 #include "Location.h"
+#include "ResponseMessage.h"
 
 class CursorInfo;
 class CXStringScope
@@ -132,8 +133,8 @@ public:
 public slots:
     void onLog(const QByteArray &log)
     {
-        QueryMessage q(log);
-        mConnection->send(&q);
+        ResponseMessage msg(log);
+        mConnection->send(&msg);
     }
 private:
     Connection *mConnection;

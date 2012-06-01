@@ -36,6 +36,7 @@ set(shared_HDRS
   messages/AddMessage.h
   messages/ErrorMessage.h
   messages/QueryMessage.h
+  messages/ResponseMessage.h
   )
 
 set(shared_MOCS
@@ -44,6 +45,7 @@ set(shared_MOCS
   messages/AddMessage.h
   messages/QueryMessage.h
   messages/ErrorMessage.h
+  messages/ResponseMessage.h
   Message.h
   MakefileParser.h
   )

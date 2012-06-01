@@ -7,7 +7,9 @@ class Message : public QObject
 {
     Q_OBJECT
 public:
-    Message(QObject* parent) : QObject(parent) {}
+    Message(QObject *parent = 0)
+        : QObject(parent)
+    {}
 
     virtual int messageId() const = 0;
 };
