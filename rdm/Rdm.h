@@ -124,9 +124,9 @@ public:
         connect(conn, SIGNAL(disconnected()), conn, SLOT(deleteLater()));
     }
 
-    virtual void log(const char *msg, int len)
+    virtual void log(const char *msg)
     {
-        const QByteArray out(msg, len);
+        const QByteArray out(msg);
         QMetaObject::invokeMethod(this, "onLog", Qt::QueuedConnection, Q_ARG(QByteArray, out));
     }
 public slots:

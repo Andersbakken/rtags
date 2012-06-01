@@ -35,8 +35,8 @@ private:
     void output(int id, const QByteArray &out);
 private:
     const int mId;
-    const int mFlags;
     const Priority mPriority;
+    const int mFlags;
     QList<QByteArray> mPathFilters;
     bool mFilterSystemIncludes;
 };

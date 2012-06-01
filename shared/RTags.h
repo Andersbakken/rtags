@@ -41,6 +41,7 @@ public:
     Ptr(T *t = 0) : QScopedPointer<T>(t) {}
     operator T*() const { return QScopedPointer<T>::data(); }
 };
+bool startProcess(const Path &dotexe, const QList<QByteArray> &dollarArgs);
 }
 
 #endif

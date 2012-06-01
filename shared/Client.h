@@ -17,14 +17,14 @@ class Client : public QObject
     Q_OBJECT
 public:
     Client(unsigned flags = 0, const QList<QByteArray> &extraFlags = QList<QByteArray>(),
-           const QStringList &rdmArgs = QStringList(), QObject* parent = 0);
+           const QList<QByteArray> &rdmArgs = QList<QByteArray>(), QObject* parent = 0);
     enum Flag {
         None = 0x0,
         AutostartRdm = 0x1,
         RestartRdm = 0x2
     };
 
-    QStringList rdmArgs() const { return mRdmArgs; }
+    QList<QByteArray> rdmArgs() const { return mRdmArgs; }
     unsigned flags() const { return mFlags; }
     bool parseMakefile(const Path &path, bool wait);
     void query(const QueryMessage *msg);
@@ -46,7 +46,7 @@ private:
     QHash<QByteArray, QByteArray> mPchs;
     const QList<QByteArray> mExtraFlags;
     int mSourceFileCount, mPchCount;
-    QStringList mRdmArgs;
+    QList<QByteArray> mRdmArgs;
     QEventLoop mLoop;
 };
 

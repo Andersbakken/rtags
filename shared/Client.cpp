@@ -9,7 +9,7 @@
 #include <Log.h>
 #include <unistd.h>
 
-Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, const QStringList &rdmArgs, QObject* parent)
+Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, const QList<QByteArray> &rdmArgs, QObject* parent)
     : QObject(parent), mConn(0), mFlags(flags), mMakeDone(false), mExtraFlags(extraFlags),
       mSourceFileCount(0), mPchCount(0), mRdmArgs(rdmArgs)
 {
@@ -33,7 +33,7 @@ Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, const QStrin
 
 void Client::query(const QueryMessage *message)
 {
-    if (!mConn && !connectToServer()) {
+    if (!mConn && !connectToServer() && !(mFlags & (RestartRdm|AutostartRdm))) {
         return;
     }
 
@@ -175,7 +175,9 @@ bool Client::connectToServer()
 {
     Q_ASSERT(!mConn);
     mConn = new Connection(this);
+    error("About to connect to server");
     if (!mConn->connectToHost("localhost", Connection::Port)) {
+        error("Failed to connect to server");
         if (mFlags & AutostartRdm) {
             QString cmd = QCoreApplication::arguments().value(0);
             const int lastSlash = cmd.lastIndexOf('/');
@@ -184,15 +186,19 @@ bool Client::connectToServer()
             } else {
                 cmd = "rdm";
             }
-            if (QProcess::startDetached(cmd, mRdmArgs)) {
+            error("trying to start rdm %s [%s]", qPrintable(cmd), RTags::join(mRdmArgs, " ").constData());
+            if (RTags::startProcess(cmd.toLocal8Bit(), mRdmArgs)) {
+                error("Started successfully");
                 for (int i=0; i<5; ++i) {
                     if (mConn->connectToHost("localhost", Connection::Port)) {
                         return true;
                     }
                     sleep(1);
                 }
-                sleep(1); // ### give it some time
+            } else {
+                error("Couldn't start");
             }
+
         }
 
         warning("Can't connect to host");

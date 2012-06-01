@@ -187,7 +187,7 @@ int main(int argc, char** argv)
     QSet<QByteArray> pathFilters;
     unsigned queryFlags = 0;
     unsigned clientFlags = 0;
-    QStringList rdmArgs;
+    QList<QByteArray> rdmArgs;
 
     QFile standardIn;
 
@@ -206,12 +206,12 @@ int main(int argc, char** argv)
         case 'a':
             clientFlags |= Client::AutostartRdm;
             if (optarg)
-                rdmArgs = QString::fromLocal8Bit(optarg).split(' ');
+                rdmArgs = QByteArray::fromRawData(optarg, strlen(optarg)).split(' ');
             break;
         case 'e':
             clientFlags |= Client::RestartRdm;
             if (optarg)
-                rdmArgs = QString::fromLocal8Bit(optarg).split(' ');
+                rdmArgs = QByteArray::fromRawData(optarg, strlen(optarg)).split(' ');
             break;
         case 'E':
             queryFlags |= QueryMessage::IncludeDeclarationsAndDefinitions;

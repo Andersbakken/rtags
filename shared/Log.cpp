@@ -93,7 +93,7 @@ static void log(int level, const char *format, va_list v)
     QMutexLocker lock(&sOutputsMutex);
     foreach(Output *output, sOutputs) {
         if (output->testLog(level)) {
-            output->log(msg, n);
+            output->log(msg);
         }
     }
 
