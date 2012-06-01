@@ -9,9 +9,11 @@
 #include <Log.h>
 #include <unistd.h>
 
-Client::Client(unsigned flags, const QList<QByteArray> &extraFlags, const QList<QByteArray> &rdmArgs, QObject* parent)
+Client::Client(const QByteArray &name, unsigned flags, const QList<QByteArray> &extraFlags,
+               const QList<QByteArray> &rdmArgs, QObject* parent)
     : QObject(parent), mConn(0), mFlags(flags), mMakeDone(false), mExtraFlags(extraFlags),
-      mSourceFileCount(0), mPchCount(0), mRdmArgs(rdmArgs)
+      mSourceFileCount(0), mPchCount(0), mRdmArgs(rdmArgs),
+      mName(name)
 {
     if ((mFlags & (RestartRdm|AutostartRdm)) == (RestartRdm|AutostartRdm)) {
         mFlags &= ~AutostartRdm; // this is implied and would upset connectToServer
@@ -176,7 +178,7 @@ bool Client::connectToServer()
     Q_ASSERT(!mConn);
     mConn = new Connection(this);
     error("About to connect to server");
-    if (!mConn->connectToHost("localhost", Connection::Port)) {
+    if (!mConn->connectToServer(mName)) {
         error("Failed to connect to server");
         if (mFlags & AutostartRdm) {
             QString cmd = QCoreApplication::arguments().value(0);
@@ -190,7 +192,7 @@ bool Client::connectToServer()
             if (RTags::startProcess(cmd.toLocal8Bit(), mRdmArgs)) {
                 error("Started successfully");
                 for (int i=0; i<5; ++i) {
-                    if (mConn->connectToHost("localhost", Connection::Port)) {
+                    if (mConn->connectToServer(mName)) {
                         return true;
                     }
                     sleep(1);

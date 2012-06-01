@@ -16,7 +16,7 @@ class Client : public QObject
 {
     Q_OBJECT
 public:
-    Client(unsigned flags = 0, const QList<QByteArray> &extraFlags = QList<QByteArray>(),
+    Client(const QByteArray &name, unsigned flags = 0, const QList<QByteArray> &extraFlags = QList<QByteArray>(),
            const QList<QByteArray> &rdmArgs = QList<QByteArray>(), QObject* parent = 0);
     enum Flag {
         None = 0x0,
@@ -48,6 +48,7 @@ private:
     int mSourceFileCount, mPchCount;
     QList<QByteArray> mRdmArgs;
     QEventLoop mLoop;
+    const QByteArray mName;
 };
 
 #endif

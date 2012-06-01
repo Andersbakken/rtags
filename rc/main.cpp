@@ -45,6 +45,7 @@ static void help(FILE *f, const char* app)
             "  --rdm-log|-g                              Receive logs from rdm\n"
             "  --status|-s [arg]                         Dump status of rdm. If arg is passed it should match one of:\n"
             "                                            'general', 'dependencies', 'symbols', 'symbolnames', 'fileinfos' or 'pch'\n"
+            "  --name|-N [name]                          Name to use for server (default ~/.rtags/server)"
             "  --autostart-rdm|-a [args]                 Start rdm with [args] if rc fails to connect\n"
             "  --restart-rdm|-e [args]                   Restart rdm with [args] before doing the rest of the commands\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
@@ -162,6 +163,7 @@ int main(int argc, char** argv)
         { "log-file", required_argument, 0, 'L' },
         { "append", no_argument, 0, 'A' },
         { "no-context", no_argument, 0, 'N' },
+        { "name", required_argument, 0, 'n' },
         { "status", optional_argument, 0, 's' },
         { "rdm-log", no_argument, 0, 'g' },
         { "line-numbers", no_argument, 0, 'l' },
@@ -173,6 +175,7 @@ int main(int argc, char** argv)
         { "test", required_argument, 0, 't' },
         { "quit-rdm", no_argument, 0, 'q' },
         { "restart-rdm", optional_argument, 0, 'e' },
+
         { "include-declarations-and-definitions", no_argument, 0, 'E' },
         { 0, 0, 0, 0 }
     };
@@ -188,6 +191,7 @@ int main(int argc, char** argv)
     unsigned queryFlags = 0;
     unsigned clientFlags = 0;
     QList<QByteArray> rdmArgs;
+    QByteArray name;
 
     QFile standardIn;
 
@@ -203,6 +207,9 @@ int main(int argc, char** argv)
         case 'h':
             help(stdout, argv[0]);
             return 0;
+        case 'n':
+            name = optarg;
+            break;
         case 'a':
             clientFlags |= Client::AutostartRdm;
             if (optarg)
@@ -364,7 +371,10 @@ int main(int argc, char** argv)
             l << argv[i];
     }
 
-    Client client(clientFlags, extraFlags, rdmArgs);
+    if (name.isEmpty())
+        name = RTags::rtagsDir() + "server";
+
+    Client client(name, clientFlags, extraFlags, rdmArgs);
     foreach(Command *cmd, commands) {
         debug() << "running command" << cmd->description();
         cmd->exec(&client);

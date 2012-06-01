@@ -1,5 +1,5 @@
 #include "Connection.h"
-#include <QTcpSocket>
+#include <QLocalSocket>
 
 QHash<int, Connection::Meta> Connection::sMetas;
 
@@ -17,7 +17,7 @@ public slots:
     void dataWritten(qint64 bytes);
 
 public:
-    QTcpSocket* socket;
+    QLocalSocket* socket;
     Connection* conn;
     quint32 pendingRead, pendingWrite;
     bool done;
@@ -66,39 +66,39 @@ void ConnectionPrivate::dataWritten(qint64 bytes)
 Connection::Connection(QObject* parent)
     : QObject(parent), mPriv(new ConnectionPrivate(this))
 {
-    mPriv->socket = new QTcpSocket(mPriv);
+    mPriv->socket = new QLocalSocket(mPriv);
     connect(mPriv->socket, SIGNAL(connected()), this, SIGNAL(connected()));
     connect(mPriv->socket, SIGNAL(disconnected()), this, SIGNAL(disconnected()));
-    connect(mPriv->socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SIGNAL(error()));
+    connect(mPriv->socket, SIGNAL(error(QLocalSocket::LocalSocketError)), this, SIGNAL(error()));
     connect(mPriv->socket, SIGNAL(readyRead()), mPriv, SLOT(dataAvailable()));
     connect(mPriv->socket, SIGNAL(bytesWritten(qint64)), mPriv, SLOT(dataWritten(qint64)));
 }
 
-Connection::Connection(QTcpSocket* socket, QObject* parent)
+Connection::Connection(QLocalSocket* socket, QObject* parent)
     : QObject(parent), mPriv(new ConnectionPrivate(this))
 {
-    Q_ASSERT(socket->state() == QAbstractSocket::ConnectedState);
+    Q_ASSERT(socket->state() == QLocalSocket::ConnectedState);
     socket->setParent(mPriv);
     mPriv->socket = socket;
     connect(mPriv->socket, SIGNAL(disconnected()), this, SIGNAL(disconnected()));
-    connect(mPriv->socket, SIGNAL(error(QAbstractSocket::SocketError)), this, SIGNAL(error()));
+    connect(mPriv->socket, SIGNAL(error(QLocalSocket::LocalSocketError)), this, SIGNAL(error()));
     connect(mPriv->socket, SIGNAL(readyRead()), mPriv, SLOT(dataAvailable()));
     connect(mPriv->socket, SIGNAL(bytesWritten(qint64)), mPriv, SLOT(dataWritten(qint64)));
 }
 
 
-bool Connection::connectToHost(const QString& host, quint16 port)
+bool Connection::connectToServer(const QString &name)
 {
-    mPriv->socket->connectToHost(host, port);
+    mPriv->socket->connectToServer(name);
     return mPriv->socket->waitForConnected(1000);
 }
 
 void Connection::send(int id, const QByteArray& message)
 {
-    if (mPriv->socket->state() != QAbstractSocket::ConnectedState
-        && mPriv->socket->state() != QAbstractSocket::ConnectingState
-        && mPriv->socket->state() != QAbstractSocket::HostLookupState)
+    if (mPriv->socket->state() != QLocalSocket::ConnectedState
+        && mPriv->socket->state() != QLocalSocket::ConnectingState) {
         return;
+    }
 
     QByteArray data;
     {

@@ -9,7 +9,7 @@
 #include <QByteArray>
 #include <QHash>
 
-class QTcpSocket;
+class QLocalSocket;
 class ConnectionPrivate;
 
 class Connection : public QObject
@@ -18,15 +18,15 @@ class Connection : public QObject
 public:
     enum { Port = 18414 };
 
-    Connection(QObject* parent = 0);
-    Connection(QTcpSocket* socket, QObject* parent = 0);
+    Connection(QObject *parent = 0);
+    Connection(QLocalSocket *socket, QObject *parent = 0);
 
-    bool connectToHost(const QString& host, quint16 port);
+    bool connectToServer(const QString &name);
 
     int pendingWrite() const;
 
     template<typename T>
-    void send(const T* message);
+    void send(const T *message);
 
     template<typename T>
     static bool registerMessage();
@@ -36,18 +36,18 @@ signals:
     void connected();
     void disconnected();
     void error();
-    void newMessage(Message* message);
+    void newMessage(Message *message);
     void sendComplete();
 
 private:
     void send(int id, const QByteArray& message);
 
 private:
-    ConnectionPrivate* mPriv;
+    ConnectionPrivate *mPriv;
 
     struct Meta
     {
-        const QMetaObject* meta;
+        const QMetaObject *meta;
         int fromByteArrayId;
     };
     static QHash<int, Meta> sMetas;
@@ -56,7 +56,7 @@ private:
 };
 
 template<typename T>
-void Connection::send(const T* message)
+void Connection::send(const T *message)
 {
     send(T::MessageId, message->toByteArray());
 }
@@ -67,7 +67,7 @@ bool Connection::registerMessage()
     const int id = T::MessageId;
     if (sMetas.contains(id))
         return true;
-    const QMetaObject* obj = &T::staticMetaObject;
+    const QMetaObject *obj = &T::staticMetaObject;
 
     if (!obj->constructorCount()
         || obj->constructor(0).parameterTypes().size() != 1

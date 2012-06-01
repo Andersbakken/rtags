@@ -1,2 +1,3 @@
 Consider waiting for currently processing files before queries on these files
 Consider changing offsets in currently modified files the same way compilation mode does
+Consider not actually removing entries from db until a file has actually successfully parsed.

@@ -29,11 +29,7 @@ Q_DECLARE_METATYPE(QList<QByteArray>);
 
 Server *Server::sInstance = 0;
 Server::Server(QObject *parent)
-    : QObject(parent),
-      mIndexer(0),
-      mServer(0),
-      mVerbose(false),
-      mJobId(0)
+    : QObject(parent), mIndexer(0), mServer(0), mVerbose(false), mJobId(0)
 {
     Q_ASSERT(!sInstance);
     sInstance = this;
@@ -95,19 +91,21 @@ static inline QList<Path> systemIncludes()
 
 bool Server::init(const Options &options)
 {
+    mName = options.name;
     mOptions = options.options;
     mDefaultArgs = options.defaultArguments;
     Messages::init();
 
     for (int i=0; i<10; ++i) {
-        mServer = new QTcpServer(this);
-        if (mServer->listen(QHostAddress::Any, Connection::Port)) {
+        mServer = new QLocalServer(this);
+        if (mServer->listen(mName)) {
             break;
         }
+        QFile::remove(mName);
         delete mServer;
         mServer = 0;
         if (!i) {
-            Client client;
+            Client client(mName);
             QueryMessage msg(QueryMessage::Shutdown);
             client.query(&msg);
         }
@@ -169,7 +167,7 @@ bool Server::init(const Options &options)
 void Server::onNewConnection()
 {
     while (mServer->hasPendingConnections()) {
-        QTcpSocket *socket = mServer->nextPendingConnection();
+        QLocalSocket *socket = mServer->nextPendingConnection();
         Connection *conn = new Connection(socket, this);
         connect(conn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
         connect(socket, SIGNAL(disconnected()), conn, SLOT(deleteLater()));

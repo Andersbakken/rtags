@@ -14,7 +14,7 @@ class Indexer;
 class Message;
 class AddMessage;
 class ErrorMessage;
-class QTcpServer;
+class QLocalServer;
 class Database;
 class ScopedDB
 {
@@ -64,9 +64,11 @@ public:
         unsigned options;
         QList<QByteArray> defaultArguments;
         long cacheSizeMB;
+        QByteArray name;
     };
     bool init(const Options &options);
     Indexer *indexer() const { return mIndexer; }
+    QByteArray name() const { return mName; }
     static void setBaseDirectory(const QByteArray& base, bool clear);
     static Path databaseDir(DatabaseType type);
     static Path pchDir();
@@ -99,12 +101,13 @@ private:
     static Server *sInstance;
     unsigned mOptions;
     Indexer* mIndexer;
-    QTcpServer* mServer;
+    QLocalServer* mServer;
     QHash<int, Connection*> mPendingIndexes;
     QHash<int, Connection*> mPendingLookups;
     QList<QByteArray> mDefaultArgs;
     bool mVerbose;
     int mJobId;
+    QByteArray mName;
     QList<QByteArray> mCachedSymbolNames;
     static Path sBase;
     Database *mDBs[DatabaseTypeCount];

@@ -79,6 +79,7 @@ void usage(FILE *f)
             "  --disable-sighandler|-s    Disable signal handler to dump stack for crashes\n"
             "  --cache-size|-c [size]     Cache size in MB (one cache per db, default 128MB)\n"
             "  --max-memory-use|-M [size] Max amount of memory to use in MB default 1024MB\n"
+            "  --name|-n [name]           Name to use for server (default ~/.rtags/server)"
             "  --thread-count|-j [arg]    Spawn this many threads for thread pool\n");
 }
 
@@ -98,6 +99,7 @@ int main(int argc, char** argv)
         { "cache-size", required_argument, 0, 'c' },
         { "max-memory-use", required_argument, 0, 'M' },
         { "disable-sighandler", no_argument, 0, 's' },
+        { "name", required_argument, 0, 'n' },
         { 0, 0, 0, 0 }
     };
 
@@ -108,17 +110,20 @@ int main(int argc, char** argv)
     unsigned logFlags = 0;
     int logLevel = 0;
     bool clearDataDir = false;
-    Path datadir = (QDir::homePath() + "/.rtags/").toLocal8Bit();
+    Path datadir = RTags::rtagsDir();
     const QByteArray shortOptions = RTags::shortOptions(opts);
     int cacheSize = 128;
     long maxMemoryUse = 1024;
     bool enableSignalHandler = true;
-
+    QByteArray name;
     forever {
         const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
         if (c == -1)
             break;
         switch (c) {
+        case 'n':
+            name = optarg;
+            break;
         case 'h':
             usage(stdout);
             return 0;
@@ -202,7 +207,8 @@ int main(int argc, char** argv)
     warning("Running with %d jobs", jobs);
 
     Server *server = new Server;
-    const Server::Options serverOpts = { options, defaultArguments, cacheSize };
+    const Server::Options serverOpts = { options, defaultArguments, cacheSize,
+                                         name.isEmpty() ? QByteArray(RTags::rtagsDir() + "server") : name };
     if (!server->init(serverOpts)) {
         delete server;
         return 1;

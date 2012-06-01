@@ -3,6 +3,7 @@
 
 #include <QByteArray>
 #include <Path.h>
+#include <QDir>
 #include <Log.h>
 #include <stdio.h>
 #include <assert.h>
@@ -10,6 +11,8 @@
 
 namespace RTags {
 enum UnitType { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };
+
+static inline Path rtagsDir() { return (QDir::homePath() + "/.rtags/").toLocal8Bit(); }
 
 enum KeyFlag {
     NoFlag = 0x0,
