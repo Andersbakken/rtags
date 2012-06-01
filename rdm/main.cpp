@@ -12,6 +12,7 @@
 #include <signal.h>
 #ifdef Q_OS_LINUX
 #include <execinfo.h>
+#include <cxxabi.h>
 #endif
 
 void signalHandler(int signal)
@@ -22,8 +23,39 @@ void signalHandler(int signal)
     void *callstack[StackSize];
     const int c = backtrace(callstack, StackSize);
     char **symbols = backtrace_symbols(callstack, c);
-    for (int i = 0; i < c; ++i)
-        fprintf(stderr, "  %d/%d %p %s\n", i + 1, c, callstack[i], symbols[i]);
+    for (int i=0; i<c; ++i) {
+        const char *frame = symbols[i];
+        int from = -1;
+        int to = -1;
+        for (int j=0; frame[j]; ++j) {
+            switch (frame[j]) {
+            case '(':
+                Q_ASSERT(from = -1);
+                from = j;
+                break;
+            case '+':
+                if (from != -1) {
+                    to = j;
+                    break;
+                }
+                break;
+            }
+        }
+        if (from != -1 && to != -1) {
+            char buf[1024];
+            size_t len = sizeof(buf);
+            assert(to - from < len);
+            memcpy(buf, frame + from + 1, to - from - 1);
+            buf[to - from - 1] = '\0';
+            int status;
+            abi::__cxa_demangle(buf, buf, &len, &status);
+            if (!status) {
+                fprintf(stderr, "  %d/%d %s\n", i + 1, c, buf);
+                continue;
+            }
+        }
+        fprintf(stderr, "  %d/%d %s (%p)\n", i + 1, c, frame, callstack[i]);
+    }
     free(symbols);
 #endif
     fflush(stderr);
