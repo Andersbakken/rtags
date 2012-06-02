@@ -24,12 +24,11 @@ public:
 
     void addFlags(const QList<QByteArray> &extraFlags);
     QList<QByteArray> clangArgs() const;
-    QList<QByteArray> inputFiles() const;
+    QList<Path> inputFiles() const;
     QList<QByteArray> explicitIncludes() const;
-    QByteArray outputFile() const;
-
-    QByteArray baseDirectory() const;
-
+    Path outputFile() const;
+    Path baseDirectory() const;
+    Path compiler() const;
 private:
     Q_DISABLE_COPY(GccArguments);
     GccArgumentsImpl *mImpl;

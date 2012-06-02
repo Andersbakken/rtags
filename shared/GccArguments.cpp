@@ -8,12 +8,13 @@ class GccArgumentsImpl
 public:
     GccArgumentsImpl() : type(GccArguments::NoType), lang(GccArguments::NoLang) { }
 
-    QList<QByteArray> clangArgs, inputFiles;
+    QList<QByteArray> clangArgs;
+    QList<Path> inputFiles;
     QList<Path> includes;
     Path outputFile;
     GccArguments::Type type;
     GccArguments::Lang lang;
-    Path base;
+    Path base, compiler;
 };
 
 GccArguments::GccArguments()
@@ -257,6 +258,39 @@ bool GccArguments::parse(QByteArray args, const Path &base)
         mImpl->outputFile = path + "/" + mImpl->outputFile;
     }
 
+    mImpl->compiler = split.first();
+    if (!mImpl->compiler.isResolved()) {
+        Q_ASSERT(!QCoreApplication::instance() || QThread::currentThread() == QCoreApplication::thread());
+        static QHash<Path, Path> resolvedFromPath;
+        static QList<Path> paths;
+        mImpl->compiler = mImpl->compiler.fileName();
+        Path resolved = resolvedFromPath.value(mImpl->compiler);
+        if (resolved.isEmpty()) {
+            if (paths.isEmpty()) {
+                const QByteArray p = getenv("PATH");
+                foreach(const QByteArray &pp, p.split(':')) {
+                    Path path(pp);
+                    if (path.resolve()) {
+                        if (!path.endsWith('/'))
+                            path.append('/');
+                        paths.append(path);
+                    }
+                }
+            }
+            const char *fncstr = mImpl->compiler.fileName();
+            const QByteArray fn = QByteArray::fromRawData(fncstr, strlen(fncstr));
+            foreach(const Path &path, paths) {
+                Path c = path + fn;
+                if (c.isFile()) {
+                    resolvedFromPath[mImpl->compiler] = c;
+                    mImpl->compiler = c;
+                    break;
+                }
+            }
+        }
+
+    }
+
     return true;
 }
 
@@ -275,7 +309,7 @@ QList<QByteArray> GccArguments::clangArgs() const
     return mImpl->clangArgs;
 }
 
-QList<QByteArray> GccArguments::inputFiles() const
+QList<Path> GccArguments::inputFiles() const
 {
     return mImpl->inputFiles;
 }
@@ -288,12 +322,12 @@ QList<QByteArray> GccArguments::explicitIncludes() const
     return incs;
 }
 
-QByteArray GccArguments::outputFile() const
+Path GccArguments::outputFile() const
 {
     return mImpl->outputFile;
 }
 
-QByteArray GccArguments::baseDirectory() const
+Path GccArguments::baseDirectory() const
 {
     return mImpl->base;
 }
@@ -308,3 +342,9 @@ void GccArguments::addFlags(const QList<QByteArray> &extraFlags)
         mImpl->clangArgs.append(flag);
     }
 }
+
+Path GccArguments::compiler() const
+{
+    return mImpl->compiler;
+}
+

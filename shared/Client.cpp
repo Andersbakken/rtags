@@ -127,6 +127,7 @@ void Client::onMakefileReady(const GccArguments &args)
     } else if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
         return;
     }
+    qDebug() << args.inputFiles() << args.compiler();
 
     if (args.type() == GccArguments::Pch) {
         QByteArray output = args.outputFile();
