@@ -15,7 +15,6 @@ void DumpJob::execute()
     ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Read);
     RTags::Ptr<Iterator> it(db->createIterator());
     it->seek(fileName.constData());
-    QList<QByteArray> out;
     while (it->isValid() && !isAborted()) {
         const Slice k = it->key();
         if (strncmp(fileName.constData(), k.data(), fileName.size()))
