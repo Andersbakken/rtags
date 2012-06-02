@@ -4,3 +4,4 @@ Consider not actually removing entries from db until a file has
    actually successfully parsed.
 Consider not calling /usr/bin/cpp to find paths but rather cache them
    based on the path to the compiler used.
+Use the same pch file for rc/rdm/shared
