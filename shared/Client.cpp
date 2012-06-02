@@ -143,7 +143,7 @@ void Client::onMakefileReady(const GccArguments &args)
 
         RTags::UnitType type = (args.lang() == GccArguments::C) ? RTags::PchC : RTags::PchCPlusPlus;
         // using input for both input and output is correct here
-        AddMessage message(type, input, input, args.clangArgs(),
+        AddMessage message(type, input, input, args.compiler(), args.clangArgs(),
                            mapPchToInput(args.explicitIncludes()));
         warning() << "sending" << "input:" << input << "output:" << output
                   << "args:" << args.clangArgs() << "incs:" << mapPchToInput(args.explicitIncludes());
@@ -155,7 +155,7 @@ void Client::onMakefileReady(const GccArguments &args)
         const QByteArray input = args.inputFiles().front();
         const QByteArray output = args.outputFile();
         RTags::UnitType type = (args.lang() == GccArguments::C) ? RTags::CompileC : RTags::CompileCPlusPlus;
-        AddMessage message(type, input, output, args.clangArgs(),
+        AddMessage message(type, input, output, args.compiler(), args.clangArgs(),
                            mapPchToInput(args.explicitIncludes()));
         if (testLog(Warning)) {
             warning() << "sending" << "input:" << input << "output:" << output

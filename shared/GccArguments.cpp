@@ -2,6 +2,8 @@
 #include "gccopts_gperf.h"
 #include "Log.h"
 #include "RTags.h"
+#include <QCoreApplication>
+#include <QThread>
 
 class GccArgumentsImpl
 {
