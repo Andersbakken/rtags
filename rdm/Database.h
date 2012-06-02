@@ -1,10 +1,8 @@
 #ifndef Database_h
 #define Database_h
 
-#ifdef USE_LEVELDB
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
-#endif
 #include <QtCore>
 #include "Location.h"
 #include "CursorInfo.h"
@@ -20,10 +18,8 @@ struct Slice {
     bool operator!=(const Slice &other) const;
     QByteArray byteArray() const { return QByteArray(data(), size()); }
 private:
-#ifdef USE_LEVELDB
     Slice(const leveldb::Slice &slice);
     leveldb::Slice mSlice;
-#endif
     friend class Database;
     friend class Iterator;
     friend class Batch;
@@ -109,9 +105,7 @@ template <> inline CursorInfo decode(const Slice &slice)
 
 class Iterator
 {
-#ifdef USE_LEVELDB
     Iterator(leveldb::Iterator *iterator);
-#endif
 public:
     ~Iterator();
     void seekToFirst();
@@ -124,9 +118,7 @@ public:
     void seek(const Slice &slice);
     template <typename T> T value() const { return decode<T>(rawValue()); }
 private:
-#ifdef USE_LEVELDB
     leveldb::Iterator *mIterator;
-#endif
     friend class Database;
 };
 
@@ -156,13 +148,11 @@ public:
     Iterator *createIterator() const;
 private:
     QReadWriteLock mLock;
-#ifdef USE_LEVELDB
     leveldb::DB *mDB;
     const leveldb::WriteOptions mWriteOptions;
     QByteArray mOpenError;
     LocationComparator *mLocationComparator;
     friend class Batch;
-#endif
 };
 
 struct Batch {
@@ -180,11 +170,10 @@ struct Batch {
     int size() const { return mSize; }
     int total() const { return mTotal; }
     int addEncoded(const Slice &key, const Slice &data);
-#ifdef USE_LEVELDB
+private:
     Database *mDB;
     int mSize, mTotal;
     leveldb::WriteBatch mBatch;
-#endif
 };
 
 

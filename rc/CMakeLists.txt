@@ -5,7 +5,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-add_definitions(-Wall -DBUILDING_RC)
+add_definitions(-Wall)
 
 include_directories(
     ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}

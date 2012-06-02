@@ -2,8 +2,6 @@
 #include <leveldb/cache.h>
 #include <leveldb/comparator.h>
 
-#ifdef USE_LEVELDB
-
 // ================== Slice ==================
 
 Slice::Slice(const std::string &string)
@@ -233,7 +231,3 @@ void Batch::remove(const Slice &key)
 {
     mBatch.Delete(key.mSlice);
 }
-
-#else
-#error No Datatype selected
-#endif

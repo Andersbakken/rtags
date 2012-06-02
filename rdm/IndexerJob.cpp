@@ -349,7 +349,7 @@ void IndexerJob::run()
     QElapsedTimer timer;
     timer.start();
     int elapsed = timer.elapsed();
-    if (elapsed) {
+    if (elapsed > 10) {
         error() << mIn << "waited for" << elapsed << "ms";
     }
     // while (!Rdm::waitForMemory(10000)) {

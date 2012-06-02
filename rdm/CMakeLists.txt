@@ -5,7 +5,7 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif(NOT CMAKE_BUILD_TYPE)
 
-add_definitions(-Wall -DUSE_LEVELDB -DBUILDING_RDM)
+add_definitions(-Wall)
 
 include_directories(
     ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
