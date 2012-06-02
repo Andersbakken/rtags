@@ -75,6 +75,19 @@ return t if rtags is allowed to modify this file"
   (goto-char (point-min)))
 
 (defvar rtags-symbol-history nil)
+(defun rtags-goto-line-column(location)
+  (string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" location)
+  (if (match-beginning 1)
+      (let ((line (string-to-int (match-string 2 location)))
+            (column (string-to-int (match-string 3 location))))
+        (find-file (match-string 1 location))
+        (run-hooks rtags-after-find-file-hook)
+        (goto-char (point-min))
+        (forward-line (- line 1))
+        (forward-char (- column 1)))
+    t)
+  nil)
+
 
 (defun rtags-goto-location(location)
   (string-match "\\(.*\\),\\([0-9]+\\)" location)
@@ -115,9 +128,9 @@ return t if rtags is allowed to modify this file"
     (if (get-buffer "*RTags Complete*")
         (kill-buffer "*RTags Complete*"))
     (switch-to-buffer (generate-new-buffer "*RTags Complete*"))
-    (rtags-call-rc "-r" arg)
+    (rtags-call-rc "-l" "-r" arg)
     (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
-          ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
+          ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-line-column (buffer-string)))
           (t (progn
                (goto-char (point-min))
                (compilation-mode)
@@ -204,9 +217,9 @@ return t if rtags is allowed to modify this file"
     (if (get-buffer "*RTags Complete*")
         (kill-buffer "*RTags Complete*"))
     (switch-to-buffer (generate-new-buffer "*RTags Complete*"))
-    (rtags-call-rc switch tagname)
+    (rtags-call-rc switch tagname "-l")
     (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
-          ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
+          ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-line-column (buffer-string)))
           (t (progn
                (goto-char (point-min))
                (compilation-mode)
