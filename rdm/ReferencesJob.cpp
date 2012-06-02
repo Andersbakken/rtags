@@ -27,7 +27,6 @@ void ReferencesJob::execute()
     const bool excludeDefsAndDecls = !(flags & QueryMessage::IncludeDeclarationsAndDefinitions);
     ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Read);
     const unsigned keyFlags = QueryMessage::keyFlags(flags);
-    qDebug() << locations;
     foreach(const Location &location, locations) {
         if (isAborted())
             return;
@@ -36,6 +35,10 @@ void ReferencesJob::execute()
 
         Location realLoc;
         CursorInfo cursorInfo = Rdm::findCursorInfo(db, location, &realLoc);
+        qDebug() << "getting references at" << realLoc << Rdm::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
+                 << cursorInfo.references << cursorInfo.target
+                 << clang_isReference(cursorInfo.kind)
+                 << (cursorInfo.kind >= CXCursor_FirstExpr && cursorInfo.kind <= CXCursor_LastExpr);
         if (clang_isReference(cursorInfo.kind) || (cursorInfo.kind >= CXCursor_FirstExpr && cursorInfo.kind <= CXCursor_LastExpr)) {
             filtered.insert(cursorInfo.target);
             cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
@@ -57,7 +60,7 @@ void ReferencesJob::execute()
                     refs.insert(l);
                 }
             }
-            if (cursorInfo.target.isValid()) {
+            if (cursorInfo.target.isValid() && cursorInfo.kind != CXCursor_VarDecl) {
                 cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
                 foreach(const Location &l, cursorInfo.references) {
                     if (!excludeDefsAndDecls || !filtered.contains(l)) {

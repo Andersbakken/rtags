@@ -3,6 +3,3 @@ Consider changing offsets in currently modified files the same way compilation m
 Consider not actually removing entries from db until a file has
    actually successfully parsed.
 Use the same pch file for rc/rdm/shared
-When a variable is also a call to a constructor we're not doing the
-   right thing about find references. For an example just do
-   find-references on QList<QByteArray> split in GccArguments::parse.
