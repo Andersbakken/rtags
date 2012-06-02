@@ -262,7 +262,7 @@ bool GccArguments::parse(QByteArray args, const Path &base)
 
     mImpl->compiler = split.first();
     if (!mImpl->compiler.isResolved()) {
-        Q_ASSERT(!QCoreApplication::instance() || QThread::currentThread() == QCoreApplication::thread());
+        Q_ASSERT(!QCoreApplication::instance() || QThread::currentThread() == QCoreApplication::instance()->thread());
         static QHash<Path, Path> resolvedFromPath;
         static QList<Path> paths;
         mImpl->compiler = mImpl->compiler.fileName();

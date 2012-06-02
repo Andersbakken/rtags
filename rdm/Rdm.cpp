@@ -29,12 +29,6 @@ QByteArray cursorToString(CXCursor cursor)
     return ret;
 }
 
-static QList<Path> sSystemPaths;
-void initSystemPaths(const QList<Path> &paths)
-{
-    sSystemPaths = paths;
-    qSort(sSystemPaths);
-}
 
 bool isSystem(const Path &path)
 {
@@ -45,7 +39,7 @@ bool isSystem(const Path &path)
 #endif
         return true;
     }
-    return startsWith(sSystemPaths, path);
+    return false;
 }
 
 CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)

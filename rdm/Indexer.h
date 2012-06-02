@@ -13,7 +13,7 @@ class Indexer : public QObject
     Q_OBJECT;
 public:
 
-    Indexer(const QByteArray& path, QObject* parent = 0);
+    Indexer(const QByteArray &path, QObject* parent = 0);
     ~Indexer();
 
     enum IndexType {
@@ -21,7 +21,7 @@ public:
         Dirty = 2,
         Makefile = 3 // these are used as QThreadPool priorites
     };
-    int index(const QByteArray& input, const QList<QByteArray>& arguments, IndexType type);
+    int index(const Path &input, const QList<QByteArray> &arguments, IndexType type);
 
     void setPchDependencies(const Path &pchHeader, const QSet<quint32> &deps);
     void addDependencies(const DependencyHash &hash);
@@ -36,10 +36,10 @@ signals:
     void indexingDone(int id);
     void jobsComplete();
 private slots:
-    void onJobComplete(int id, const Path& input, bool isPch, const QByteArray &msg);
-    void onDirectoryChanged(const QString& path);
+    void onJobComplete(int id, const Path &input, bool isPch, const QByteArray &msg);
+    void onDirectoryChanged(const QString &path);
 private:
-    void commitDependencies(const DependencyHash& deps, bool sync);
+    void commitDependencies(const DependencyHash &deps, bool sync);
     void initDB();
     bool needsToWaitForPch(IndexerJob *job) const;
     void startJob(int id, IndexerJob *job);
@@ -72,10 +72,6 @@ private:
 inline bool Indexer::visitFile(quint32 fileId, const Path &path)
 {
     QMutexLocker lock(&mVisitedFilesMutex);
-    if (Location::path(fileId).endsWith("Foo.h") && path.endsWith("Foo.cpp")) {
-        printf("[%s] %s:%d: if (Location::path(fileId).endsWith(\"Foo.h\") && path.endsWith(\"Foo.cpp\")) { [after]\n", __func__, __FILE__, __LINE__);
-        return false;
-    }
     if (mVisitedFiles.contains(fileId)) {
         return false;
     }

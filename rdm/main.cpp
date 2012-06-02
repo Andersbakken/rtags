@@ -44,7 +44,7 @@ void signalHandler(int signal)
         if (from != -1 && to != -1) {
             char buf[1024];
             size_t len = sizeof(buf);
-            assert(to - from < len);
+            assert(to - from < (int)len);
             memcpy(buf, frame + from + 1, to - from - 1);
             buf[to - from - 1] = '\0';
             int status;

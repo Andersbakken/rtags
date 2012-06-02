@@ -59,6 +59,7 @@ public:
     };
 
     static Server *instance() { return sInstance; }
+    QList<QByteArray> defaultArguments() const { return mDefaultArgs; }
     inline ScopedDB db(DatabaseType type, ScopedDB::LockType lockType) const { return ScopedDB(mDBs[type], lockType); }
     struct Options {
         unsigned options;

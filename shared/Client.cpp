@@ -127,7 +127,6 @@ void Client::onMakefileReady(const GccArguments &args)
     } else if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
         return;
     }
-    qDebug() << args.inputFiles() << args.compiler();
 
     if (args.type() == GccArguments::Pch) {
         QByteArray output = args.outputFile();
@@ -179,7 +178,6 @@ bool Client::connectToServer()
     Q_ASSERT(!mConn);
     mConn = new Connection(this);
     if (!mConn->connectToServer(mName)) {
-        error("Failed to connect to server");
         if (mFlags & AutostartRdm) {
             QString cmd = QCoreApplication::arguments().value(0);
             const int lastSlash = cmd.lastIndexOf('/');

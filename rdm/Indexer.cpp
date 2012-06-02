@@ -11,7 +11,7 @@
 #include <Log.h>
 #include <QtCore>
 
-Indexer::Indexer(const QByteArray& path, QObject* parent)
+Indexer::Indexer(const QByteArray &path, QObject* parent)
     : QObject(parent)
 {
     qRegisterMetaType<Path>("Path");
@@ -197,7 +197,7 @@ void Indexer::initDB()
     QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
 }
 
-void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
+void Indexer::commitDependencies(const DependencyHash &deps, bool sync)
 {
     DependencyHash newDependencies;
 
@@ -238,7 +238,7 @@ void Indexer::commitDependencies(const DependencyHash& deps, bool sync)
     mWatcher.addPaths(watchPaths.toList());
 }
 
-int Indexer::index(const QByteArray& input, const QList<QByteArray>& arguments, IndexType type)
+int Indexer::index(const Path &input, const QList<QByteArray> &arguments, IndexType type)
 {
     QMutexLocker locker(&mMutex);
 
@@ -270,7 +270,7 @@ void Indexer::startJob(int id, IndexerJob *job)
     QThreadPool::globalInstance()->start(job, job->priority());
 }
 
-void Indexer::onDirectoryChanged(const QString& path)
+void Indexer::onDirectoryChanged(const QString &path)
 {
     const Path p = path.toLocal8Bit();
     Q_ASSERT(p.endsWith('/'));
@@ -331,7 +331,7 @@ void Indexer::onDirectoryChanged(const QString& path)
         }
     }
 
-    foreach(const Path& path, pending) {
+    foreach(const Path &path, pending) {
         it.value().insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
     }
     if (toIndex.isEmpty() && toIndexPch.isEmpty())
@@ -342,7 +342,7 @@ void Indexer::onDirectoryChanged(const QString& path)
     QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
 }
 
-void Indexer::onJobComplete(int id, const Path& input, bool isPch, const QByteArray &msg)
+void Indexer::onJobComplete(int id, const Path &input, bool isPch, const QByteArray &msg)
 {
     Q_UNUSED(input);
 

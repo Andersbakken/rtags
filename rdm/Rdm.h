@@ -75,7 +75,6 @@ void setMaxMemoryUsage(quint64 max);
 bool waitForMemory(int maxMs);
 QByteArray eatString(CXString str);
 QByteArray cursorToString(CXCursor cursor);
-void initSystemPaths(const QList<Path> &paths);
 bool isSystem(const Path &path);
 template <typename T>
 static inline bool startsWith(const QList<T> &list, const T &str)

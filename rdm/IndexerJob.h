@@ -13,7 +13,8 @@ class IndexerJob : public QObject, public QRunnable, public AbortInterface
 {
     Q_OBJECT;
 public:
-    IndexerJob(Indexer* indexer, int id, Indexer::IndexType type, const Path &input, const QList<QByteArray> &arguments);
+    IndexerJob(Indexer *indexer, int id, Indexer::IndexType type, const Path &input,
+               const QList<QByteArray> &arguments);
     int priority() const { return mType; }
     virtual void run();
 
@@ -23,7 +24,7 @@ public:
     Location createLocation(const CXCursor &cursor , bool *blocked);
     QByteArray addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDb);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
-    static void inclusionVisitor(CXFile included_file, CXSourceLocation* include_stack,
+    static void inclusionVisitor(CXFile included_file, CXSourceLocation *include_stack,
                                  unsigned include_len, CXClientData client_data);
 
     struct Cursor {

@@ -24,7 +24,8 @@ static inline QList<Path> extractPchFiles(const QList<QByteArray> &args)
 // static int count = 0;
 // static int active = 0;
 
-IndexerJob::IndexerJob(Indexer *indexer, int id, Indexer::IndexType type, const Path &input, const QList<QByteArray> &arguments)
+IndexerJob::IndexerJob(Indexer *indexer, int id, Indexer::IndexType type,
+                       const Path &input, const QList<QByteArray> &arguments)
     : mId(id), mType(type), mIsPch(false), mIn(input), mFileId(Location::insertFile(input)), mArgs(arguments),
       mIndexer(indexer), mPchHeaders(extractPchFiles(arguments))
 {

@@ -48,11 +48,11 @@ Server::~Server()
     sInstance = 0;
 }
 
-static inline QList<Path> systemIncludes()
+static inline QList<Path> systemIncludes(const Path &cpp)
 {
     QList<Path> systemIncludes;
     QProcess proc;
-    proc.start(QLatin1String("cpp"), QStringList() << QLatin1String("-v"));
+    proc.start(cpp, QStringList() << QLatin1String("-v"));
     proc.closeWriteChannel();
     proc.waitForFinished();
     QList<QByteArray> lines = proc.readAllStandardError().split('\n');
@@ -65,6 +65,8 @@ static inline QList<Path> systemIncludes()
             if (idx != -1) {
                 const int space = line.indexOf(' ', idx);
                 gxxIncludeDir = line.mid(idx + 23, space - idx - 23);
+                if (!gxxIncludeDir.resolve())
+                    gxxIncludeDir.clear();
             }
             idx = line.indexOf("--target=");
             if (idx != -1) {
@@ -75,15 +77,19 @@ static inline QList<Path> systemIncludes()
             seenInclude = true;
         } else if (seenInclude && line.startsWith(" /")) {
             Path path = Path::resolved(line.mid(1));
-            if (path.isResolved()) {
+            if (path.isDir()) {
                 systemIncludes.append(path);
             }
         }
     }
-    if (!gxxIncludeDir.isEmpty()) {
+    if (gxxIncludeDir.isDir()) {
         systemIncludes.append(gxxIncludeDir);
         if (!target.isEmpty()) {
-            systemIncludes.append(gxxIncludeDir + "/" + target);
+            gxxIncludeDir += target;
+            if (!gxxIncludeDir.endsWith('/'))
+                gxxIncludeDir.append('/');
+            if (gxxIncludeDir.isDir())
+                systemIncludes.append(gxxIncludeDir);
         }
     }
     return systemIncludes;
@@ -143,22 +149,7 @@ bool Server::init(const Options &options)
 
     connect(mServer, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
     connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
-    QList<Path> systemPaths;
-    foreach(const QByteArray &a, mDefaultArgs) {
-        if (a.startsWith("-I")) {
-            const Path p = Path::resolved(a.constData() + 2);
-            if (p.isDir())
-                systemPaths.append(p);
-        }
-    }
-    foreach(const Path &systemPath, systemIncludes()) {
-        systemPaths.append(systemPath);
-        mDefaultArgs.append("-I" + systemPath);
-    }
-    Rdm::initSystemPaths(systemPaths);
-
-    error() << "running with" << mDefaultArgs << "clang version" << Rdm::eatString(clang_getClangVersion())
-            << "and system includes" << systemPaths;
+    error() << "running with" << mDefaultArgs << "clang version" << Rdm::eatString(clang_getClangVersion());
 
     onSymbolNamesChanged();
     return true;
@@ -213,6 +204,7 @@ void Server::onNewMessage(Message *message)
     case ErrorMessage::MessageId:
         handleErrorMessage(static_cast<ErrorMessage*>(message));
         break;
+    case ResponseMessage::MessageId:
     default:
         error("Unknown message: %d", message->messageId());
         break;
@@ -229,7 +221,25 @@ void Server::handleAddMessage(AddMessage *message)
         conn->setProperty("connected", true);
     }
 
-    const QList<QByteArray> args = message->arguments() + mDefaultArgs;
+    QList<QByteArray> args = message->arguments() + mDefaultArgs;
+
+    if (!message->compiler().isEmpty()) {
+        static QHash<Path, QList<QByteArray> > compilerFlags;
+        QList<QByteArray> &flags = compilerFlags[message->compiler()];
+        if (flags.isEmpty()) {
+            const Path cpp = message->compiler().parentDir() + "/cpp";
+            if (cpp.isFile()) {
+                foreach(const Path &systemPath, systemIncludes(cpp)) {
+                    flags.append("-I" + systemPath);
+                }
+            }
+            if (flags.isEmpty()) { // make sure we don't look this up every time
+                flags.append("-I/_");
+            }
+        }
+        args.append(flags);
+    }
+
 
     if (args != Rdm::compileArgs(Location::insertFile(message->inputFile()))) {
         // if (!Rdm::compileArgs(Location::insertFile(message->inputFile())).isEmpty()) {
