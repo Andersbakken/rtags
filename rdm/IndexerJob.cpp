@@ -24,7 +24,7 @@ static inline QList<Path> extractPchFiles(const QList<QByteArray> &args)
 // static int count = 0;
 // static int active = 0;
 
-IndexerJob::IndexerJob(Indexer* indexer, int id, Indexer::IndexType type, const Path &input, const QList<QByteArray> &arguments)
+IndexerJob::IndexerJob(Indexer *indexer, int id, Indexer::IndexType type, const Path &input, const QList<QByteArray> &arguments)
     : mId(id), mType(type), mIsPch(false), mIn(input), mFileId(Location::insertFile(input)), mArgs(arguments),
       mIndexer(indexer), mPchHeaders(extractPchFiles(arguments))
 {
@@ -38,11 +38,11 @@ static inline quint32 fileId(CXFile file)
 }
 
 void IndexerJob::inclusionVisitor(CXFile includedFile,
-                                  CXSourceLocation* includeStack,
+                                  CXSourceLocation *includeStack,
                                   unsigned includeLen,
                                   CXClientData userData)
 {
-    IndexerJob* job = static_cast<IndexerJob*>(userData);
+    IndexerJob *job = static_cast<IndexerJob*>(userData);
     if (job->isAborted())
         return;
     const Location l(includedFile, 0);
@@ -90,7 +90,7 @@ QByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Locatio
             break;
 
         displayName = clang_getCursorDisplayName(cur);
-        const char* name = clang_getCString(displayName);
+        const char *name = clang_getCString(displayName);
         if (!name || !strlen(name)) {
             clang_disposeString(displayName);
             break;
@@ -215,7 +215,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
                                             CXCursor /*parent*/,
                                             CXClientData client_data)
 {
-    IndexerJob* job = static_cast<IndexerJob*>(client_data);
+    IndexerJob *job = static_cast<IndexerJob*>(client_data);
     if (job->isAborted())
         return CXChildVisit_Break;
 
@@ -458,7 +458,7 @@ void IndexerJob::run()
 
     }
     char buf[1024];
-    const int w = snprintf(buf, sizeof(buf) - 1, "Visited %s in %lldms.%s (%d syms, %d refs, %d deps, %d symNames)%s",
+    const int w = snprintf(buf, sizeof(buf), "Visited %s in %lldms.%s (%d syms, %d refs, %d deps, %d symNames)%s",
                            mIn.constData(), timer.elapsed(),
                            qPrintable(waitingForPch ? QString(" Waited for pch: %1ms.").arg(waitingForPch)
                                       : QString()),
@@ -467,7 +467,7 @@ void IndexerJob::run()
 
     emit done(mId, mIn, mIsPch, QByteArray(buf, w));
     if (testLog(Warning)) {
-        error() << "We're using" << double(MemoryMonitor::usage()) / double(1024 * 1024) << "MB of memory" << elapsed << "ms";
+        warning() << "We're using" << double(MemoryMonitor::usage()) / double(1024 * 1024) << "MB of memory" << elapsed << "ms";
     }
 }
 
