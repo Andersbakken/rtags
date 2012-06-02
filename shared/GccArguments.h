@@ -14,10 +14,10 @@ public:
     enum Lang { NoLang, C, CPlusPlus };
 
     GccArguments();
-    GccArguments(const QByteArray& args, const Path& base);
+    GccArguments(const QByteArray &args, const Path &base);
     ~GccArguments();
 
-    bool parse(QByteArray args, const Path& base);
+    bool parse(QByteArray args, const Path &base);
     Type type() const;
     Lang lang() const;
     void clear();
@@ -32,7 +32,7 @@ public:
 
 private:
     Q_DISABLE_COPY(GccArguments);
-    GccArgumentsImpl* mImpl;
+    GccArgumentsImpl *mImpl;
 };
 
 #endif

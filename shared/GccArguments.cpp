@@ -21,7 +21,7 @@ GccArguments::GccArguments()
 {
 }
 
-GccArguments::GccArguments(const QByteArray& args, const Path& base)
+GccArguments::GccArguments(const QByteArray &args, const Path &base)
     : mImpl(new GccArgumentsImpl)
 {
     parse(args, base);
@@ -37,7 +37,7 @@ void GccArguments::clear()
     *mImpl = GccArgumentsImpl();
 }
 
-static inline GccArguments::Lang guessLang(const Path& fullPath)
+static inline GccArguments::Lang guessLang(const Path &fullPath)
 {
     QByteArray compiler = fullPath.fileName();
     QByteArray c;
@@ -75,7 +75,7 @@ static inline GccArguments::Lang guessLang(const Path& fullPath)
     return lang;
 }
 
-bool GccArguments::parse(QByteArray args, const Path& base)
+bool GccArguments::parse(QByteArray args, const Path &base)
 {
     mImpl->type = NoType;
     mImpl->lang = NoLang;
@@ -87,8 +87,8 @@ bool GccArguments::parse(QByteArray args, const Path& base)
     QList<QByteArray> split;
     QByteArray old2 = args;
     {
-        char* cur = args.data();
-        char* prev = cur;
+        char *cur = args.data();
+        char *prev = cur;
         // ### handle escaped quotes?
         int size = args.size();
         while (size > 0) {
@@ -213,15 +213,6 @@ bool GccArguments::parse(QByteArray args, const Path& base)
                     } else {
                         arg = cur;
                     }
-                    if (!mImpl->clangArgs.contains(arg)) {
-                        /* This is nasty stuff but can be important for pch. To
-                         * see the effect just reset to this commit~ and notice
-                         * that pch doesn't work for rtags since the pch file
-                         * has different defines than the sources using it, even
-                         * if the difference only is the multiple definition of
-                         * QT_(NO_)DEBUG */
-                        mImpl->clangArgs.append(arg);
-                    }
                 } else if (!strncmp(cur, "-I", 2)) {
                     Path inc;
                     pathok = false;
@@ -292,7 +283,7 @@ QList<QByteArray> GccArguments::inputFiles() const
 QList<QByteArray> GccArguments::explicitIncludes() const
 {
     QList<QByteArray> incs;
-    foreach (const Path& p, mImpl->includes)
+    foreach (const Path &p, mImpl->includes)
         incs.append(p);
     return incs;
 }
