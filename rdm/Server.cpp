@@ -151,10 +151,10 @@ bool Server::init(const Options &options)
 
 
     connect(mServer, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
-    connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
     error() << "running with" << mDefaultArgs << "clang version" << Rdm::eatString(clang_getClangVersion());
 
     mIndexer = new Indexer(sBase, this);
+    connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
     connect(mIndexer, SIGNAL(jobsComplete()), this, SLOT(onSymbolNamesChanged()));
 
     onSymbolNamesChanged();

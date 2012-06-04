@@ -19,12 +19,12 @@ QByteArray cursorToString(CXCursor cursor)
         ret += " " + name;
 
     CXFile file;
-    unsigned off;
+    unsigned off, line, col;
     CXSourceLocation loc = clang_getCursorLocation(cursor);
-    clang_getSpellingLocation(loc, &file, 0, 0, &off);
+    clang_getSpellingLocation(loc, &file, &line, &col, &off);
     const QByteArray fileName = eatString(clang_getFileName(file));
     if (!fileName.isEmpty()) {
-        ret += " " + fileName + ',' + QByteArray::number(off);
+        ret += " " + fileName + ':' + QByteArray::number(line) + ":" + QByteArray::number(col) + ": (" + QByteArray::number(off) + ")";
     }
     return ret;
 }
