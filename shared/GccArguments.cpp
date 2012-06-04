@@ -216,6 +216,7 @@ bool GccArguments::parse(QByteArray args, const Path &base)
                     } else {
                         arg = cur;
                     }
+                    mImpl->clangArgs.append(arg);
                 } else if (!strncmp(cur, "-I", 2)) {
                     Path inc;
                     pathok = false;
