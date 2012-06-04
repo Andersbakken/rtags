@@ -79,7 +79,8 @@ void usage(FILE *f)
             "  --disable-sighandler|-s    Disable signal handler to dump stack for crashes\n"
             "  --cache-size|-c [size]     Cache size in MB (one cache per db, default 128MB)\n"
             "  --max-memory-use|-M [size] Max amount of memory to use in MB default 1024MB\n"
-            "  --name|-n [name]           Name to use for server (default ~/.rtags/server)"
+            "  --name|-n [name]           Name to use for server (default ~/.rtags/server)\n"
+            "  --no-clang-includepath|-p  Don't use clang include paths by default\n"
             "  --thread-count|-j [arg]    Spawn this many threads for thread pool\n");
 }
 
@@ -91,6 +92,7 @@ int main(int argc, char** argv)
         { "include", required_argument, 0, 'i' },
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
+        { "no-clang-includepath", no_argument, 0, 'p' },
         { "append", no_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
         { "thread-count", required_argument, 0, 'j' },
@@ -129,6 +131,9 @@ int main(int argc, char** argv)
             return 0;
         case 'd':
             datadir = Path::resolved(optarg);
+            break;
+        case 'p':
+            options |= Server::NoClangIncludePath;
             break;
         case 's':
             enableSignalHandler = false;

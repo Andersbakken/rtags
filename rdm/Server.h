@@ -45,7 +45,8 @@ public:
     Server(QObject *parent = 0);
     ~Server();
     enum Option {
-        NoOptions = 0x0
+        NoOptions = 0x0,
+        NoClangIncludePath = 0x1
     };
     enum DatabaseType {
         General,

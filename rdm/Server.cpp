@@ -99,7 +99,13 @@ bool Server::init(const Options &options)
 {
     mName = options.name;
     mOptions = options.options;
-    mDefaultArgs = options.defaultArguments;
+    if (!(options.options & NoClangIncludePath)) {
+        Path clangPath = Path::resolved(CLANG_INCLUDEPATH);
+        clangPath.prepend("-I");
+        mDefaultArgs.append(clangPath);
+    }
+
+    mDefaultArgs += options.defaultArguments;
     Messages::init();
 
     for (int i=0; i<10; ++i) {
@@ -131,7 +137,6 @@ bool Server::init(const Options &options)
         }
     }
 
-
     {
         ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
         bool ok;
@@ -144,12 +149,13 @@ bool Server::init(const Options &options)
         }
     }
 
-    mIndexer = new Indexer(sBase, this);
-    connect(mIndexer, SIGNAL(jobsComplete()), this, SLOT(onSymbolNamesChanged()));
 
     connect(mServer, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
     connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
     error() << "running with" << mDefaultArgs << "clang version" << Rdm::eatString(clang_getClangVersion());
+
+    mIndexer = new Indexer(sBase, this);
+    connect(mIndexer, SIGNAL(jobsComplete()), this, SLOT(onSymbolNamesChanged()));
 
     onSymbolNamesChanged();
     return true;
@@ -224,7 +230,19 @@ void Server::handleAddMessage(AddMessage *message)
     QList<QByteArray> args = message->arguments() + mDefaultArgs;
 
     if (!message->compiler().isEmpty()) {
+        static bool first = true;
         static QHash<Path, QList<QByteArray> > compilerFlags;
+        if (first) {
+            QSettings settings(QSettings::IniFormat, QSettings::UserScope, "RTags");
+            settings.beginGroup("Compilers");
+            foreach(QString key, settings.childKeys()) {
+                QByteArray val = settings.value(key).toByteArray();
+                key.replace('!', '/');
+                compilerFlags[key.toLocal8Bit()] = val.split(' ');
+            }
+            warning() << "Read" << compilerFlags << "from settings" << settings.fileName();
+            first = false;
+        }
         QList<QByteArray> &flags = compilerFlags[message->compiler()];
         if (flags.isEmpty()) {
             const Path cpp = message->compiler().parentDir() + "/cpp";
@@ -234,12 +252,13 @@ void Server::handleAddMessage(AddMessage *message)
                 }
             }
             if (flags.isEmpty()) { // make sure we don't look this up every time
-                flags.append("-I/_");
+                flags.append(QByteArray());
             }
         }
-        args.append(flags);
+        if (flags.size() != 1 || !flags.at(0).isEmpty())
+            args.append(flags);
+        // warning() << "got" << flags << "for" << message->compiler() << "now we have" << args;
     }
-
 
     if (args != Rdm::compileArgs(Location::insertFile(message->inputFile()))) {
         // if (!Rdm::compileArgs(Location::insertFile(message->inputFile())).isEmpty()) {
