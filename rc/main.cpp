@@ -288,7 +288,7 @@ int main(int argc, char** argv)
         case 'r': {
             QByteArray encoded = encodeLocation(optarg);
             if (encoded.isEmpty()) {
-                fprintf(stderr, "Can't resolve argument %s", optarg);
+                fprintf(stderr, "Can't resolve argument %s\n", optarg);
                 return 1;
             }
             QueryMessage::Type type = QueryMessage::Invalid;
