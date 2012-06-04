@@ -135,7 +135,7 @@ return t if rtags is allowed to modify this file"
                (goto-char (point-min))
                (compilation-mode)
                (if rtags-jump-to-first-match
-                   (next-error)))))
+                   (compile-goto-error)))))
     (not (= (point-min) (point-max)))
     )
   )

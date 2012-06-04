@@ -232,9 +232,6 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         return CXChildVisit_Recurse;
     }
     CXCursor ref = clang_getCursorReferenced(cursor);
-    if (job->mIn.endsWith("NetworkManager.cpp")) {
-        qDebug() << "Got called" << cursor << "refs" << ref;
-    }
     const CXCursorKind refKind = clang_getCursorKind(ref);
     // the kind won't change even if the reference is looked up from elsewhere
     if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod)
