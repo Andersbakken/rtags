@@ -12,21 +12,10 @@ public:
              const QHash<Path, QList<QByteArray> > &toIndexPch,
              const QHash<Path, QList<QByteArray> > &toIndex)
         : mIndexer(indexer), mDirty(dirty), mToIndexPch(toIndexPch), mToIndex(toIndex)
-    {}
-
-    virtual void run()
     {
-        dirty();
-        if (mToIndexPch.isEmpty() && mToIndex.isEmpty()) {
-            error() << "will assert" << mToIndex.size() << mToIndexPch.size() << mDirty;
-        }
-        Q_ASSERT(!mToIndexPch.isEmpty() || !mToIndex.isEmpty());
-        for (QHash<Path, QList<QByteArray> >::const_iterator it = mToIndexPch.begin(); it != mToIndexPch.end(); ++it)
-            mIndexer->index(it.key(), it.value(), Indexer::DirtyPch);
-        for (QHash<Path, QList<QByteArray> >::const_iterator it = mToIndex.begin(); it != mToIndex.end(); ++it)
-            mIndexer->index(it.key(), it.value(), Indexer::Dirty);
     }
-    void dirty();
+
+    virtual void run();
 private:
     Indexer *mIndexer;
     const QSet<quint32> mDirty;

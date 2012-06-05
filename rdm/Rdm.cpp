@@ -251,6 +251,75 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
     }
     return totalWritten;
 }
+
+int dirty(const QSet<quint32> &dirtyFileIds)
+{
+    // ### we should probably have a thread or something that stats each file we have in the db and calls dirty if the file is gone
+    int ret = 0;
+    debug() << "dirty" << dirtyFileIds;
+    {
+        ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Write);
+        RTags::Ptr<Iterator> it(db->createIterator());
+        it->seekToFirst();
+        while (it->isValid()) {
+            const Slice key = it->key();
+            Q_ASSERT(key.size() == 8);
+            const Location loc = Location::fromKey(key.data());
+            // debug() << "looking at" << key;
+            if (dirtyFileIds.contains(loc.fileId())) {
+                debug() << "key is dirty. removing" << key;
+                db->remove(key);
+            } else {
+                CursorInfo cursorInfo = it->value<CursorInfo>();
+                if (cursorInfo.dirty(dirtyFileIds)) {
+                    // ### should we remove the whole cursorInfo if its target and all the references are gone?
+                    // if (cursorInfo.target.isNull() && cursorInfo.references.isEmpty()) {
+                    //     debug() << "CursorInfo is empty now. removing" << key;
+                    //     db->remove(key);
+                    // } else {
+                    debug() << "CursorInfo is modified. Changing" << key;
+                    db->setValue<CursorInfo>(key, cursorInfo);
+                    ++ret;
+                    // }
+                }
+            }
+            it->next();
+        }
+    }
+
+    {
+        ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Write);
+
+        RTags::Ptr<Iterator> it(db->createIterator());
+        it->seekToFirst();
+        while (it->isValid()) {
+            QSet<Location> locations = it->value<QSet<Location> >();
+            QSet<Location>::iterator i = locations.begin();
+            bool changed = false;
+            while (i != locations.end()) {
+                if (dirtyFileIds.contains((*i).fileId())) {
+                    changed = true;
+                    i = locations.erase(i);
+                    ++ret;
+                } else {
+                    ++i;
+                }
+            }
+            if (changed) {
+                if (locations.isEmpty()) {
+                    debug() << "No references to" << it->key() << "anymore. Removing";
+                    db->remove(it->key());
+                } else {
+                    debug() << "References to" << it->key() << "modified. Changing";
+                    db->setValue<QSet<Location> >(it->key(), locations);
+                }
+            }
+            it->next();
+        }
+    }
+    return ret;
+}
+
 QList<QByteArray> compileArgs(quint32 fileId)
 {
     ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
