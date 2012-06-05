@@ -31,7 +31,6 @@ public:
     Path path() const { return mPath; }
     void abort();
     bool visitFile(quint32 fileId, const Path &p);
-    void dirty(const QSet<quint32> &files);
 signals:
     void indexingDone(int id);
     void jobsComplete();
@@ -39,6 +38,7 @@ private slots:
     void onJobComplete(int id, const Path &input, bool isPch, const QByteArray &msg);
     void onDirectoryChanged(const QString &path);
 private:
+    void dirty(const QSet<quint32> &files);
     void commitDependencies(const DependencyHash &deps, bool sync);
     void initDB();
     bool needsToWaitForPch(IndexerJob *job) const;

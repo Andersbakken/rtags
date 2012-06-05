@@ -19,7 +19,6 @@ set(rdm_HDRS
     Rdm.h
     IndexerJob.h
     Source.h
-    DirtyJob.h
     Job.h
     CursorInfo.h
     AbortInterface.h
@@ -41,7 +40,6 @@ set(rdm_SRCS
     Rdm.cpp
     StatusJob.cpp
     IndexerJob.cpp
-    DirtyJob.cpp
     Job.cpp
     TestJob.cpp
     MemoryMonitor.cpp
