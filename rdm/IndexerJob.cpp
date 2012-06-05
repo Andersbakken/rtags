@@ -310,10 +310,12 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         mReferences[cursor.location] = qMakePair(ref.location, referenceType);
     } else if (cursor.kind == CXCursor_InclusionDirective) {
         CXFile includedFile = clang_getIncludedFile(cursor.cursor);
-        Location refLoc(includedFile, 0);
-        if (!refLoc.isNull()) {
-            info.target = ref.location;
-            mReferences[cursor.location] = qMakePair(ref.location, Rdm::NormalReference);
+        if (includedFile) {
+            Location refLoc(includedFile, 0);
+            if (!refLoc.isNull()) {
+                info.target = ref.location;
+                mReferences[cursor.location] = qMakePair(ref.location, Rdm::NormalReference);
+            }
         }
     }
     return CXChildVisit_Recurse;
