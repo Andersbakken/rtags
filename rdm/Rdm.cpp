@@ -189,6 +189,10 @@ int writeFileInformation(quint32 fileId, const QList<QByteArray> &args, time_t l
     QElapsedTimer timer;
     timer.start();
     ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Write);
+    if (Location::path(fileId).isHeader() && !isPch(args)) {
+        error() << "Somehow we're writing fileInformation for a header that isn't pch"
+                << Location::path(fileId) << args << lastTouched;
+    }
     const char *ch = reinterpret_cast<const char*>(&fileId);
     return db->setValue(Slice(ch, sizeof(fileId)), FileInformation(lastTouched, args));
 }
@@ -254,6 +258,8 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
 
 int dirty(const QSet<quint32> &dirtyFileIds)
 {
+    QElapsedTimer timer;
+    timer.start();
     // ### we should probably have a thread or something that stats each file we have in the db and calls dirty if the file is gone
     int ret = 0;
     debug() << "dirty" << dirtyFileIds;
@@ -317,6 +323,7 @@ int dirty(const QSet<quint32> &dirtyFileIds)
             it->next();
         }
     }
+    error() << "dirtied" << ret << timer.elapsed() << dirtyFileIds.size() << "files";
     return ret;
 }
 

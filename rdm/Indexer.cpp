@@ -87,24 +87,6 @@ static inline bool isDirty(const QSet<quint32> &dependencies, quint64 time, QSet
     return ret;
 }
 
-static inline bool isPch(const QList<QByteArray> &args)
-{
-    const int size = args.size();
-    bool nextIsX = false;
-    for (int i=0; i<size; ++i) {
-        const QByteArray &arg = args.at(i);
-        if (nextIsX) {
-            return (arg == "c++-header" || arg == "c-header");
-        } else if (arg == "-x") {
-            nextIsX = true;
-        } else if (arg.startsWith("-x")) {
-            const QByteArray rest = QByteArray::fromRawData(arg.constData() + 2, arg.size() - 2);
-            return (rest == "c++-header" || rest == "c-header");
-        }
-    }
-    return false;
-}
-
 static inline bool isFile(quint32 fileId)
 {
     return Location::path(fileId).isFile(); // ### not ideal
@@ -151,7 +133,7 @@ void Indexer::initDB()
                 const FileInformation fi = it->value<FileInformation>();
                 if (!fi.compileArgs.isEmpty()) {
 #ifdef QT_DEBUG
-                    if (path.isHeader() && !isPch(fi.compileArgs)) {
+                    if (path.isHeader() && !Rdm::isPch(fi.compileArgs)) {
                         qDebug() << path << fi.compileArgs;
                         Q_ASSERT(0);
                     }
@@ -161,7 +143,7 @@ void Indexer::initDB()
                     if (isDirty(deps.value(fileId), fi.lastTouched, dirtyFiles)) {
                         dirty = true;
                         // ### am I checking pch deps correctly here?
-                        if (isPch(fi.compileArgs)) {
+                        if (Rdm::isPch(fi.compileArgs)) {
                             toIndexPch[path] = fi.compileArgs;
                         } else {
                             toIndex[path] = fi.compileArgs;
@@ -307,7 +289,7 @@ void Indexer::onDirectoryChanged(const QString &path)
                     memcpy(buf, &pathId, 4);
                     const FileInformation fi = db->value<FileInformation>(Slice(buf, 4), &ok);
                     if (ok) {
-                        if (isPch(fi.compileArgs)) {
+                        if (Rdm::isPch(fi.compileArgs)) {
                             toIndexPch[path] = fi.compileArgs;
                         } else {
                             toIndex[path] = fi.compileArgs;
