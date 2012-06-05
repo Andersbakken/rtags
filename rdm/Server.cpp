@@ -227,9 +227,14 @@ void Server::handleAddMessage(AddMessage *message)
         conn->setProperty("connected", true);
     }
 
-    QList<QByteArray> args = message->arguments() + mDefaultArgs;
+    /* We want to have the arguments in this order:
+       1) flags from Makefile
+       2) flags from clang
+       3) flags from compiler
+    */
+    QList<QByteArray> args = message->arguments();
 
-    if (!message->compiler().isEmpty()) {
+    if (!message->compiler().isEmpty() && false) {
         static bool first = true;
         static QHash<Path, QList<QByteArray> > compilerFlags;
         if (first) {
@@ -256,9 +261,10 @@ void Server::handleAddMessage(AddMessage *message)
             }
         }
         if (flags.size() != 1 || !flags.at(0).isEmpty())
-            args.append(flags);
+            args += flags;
         // warning() << "got" << flags << "for" << message->compiler() << "now we have" << args;
     }
+    args += mDefaultArgs;
 
     if (args != Rdm::compileArgs(Location::insertFile(message->inputFile()))) {
         // if (!Rdm::compileArgs(Location::insertFile(message->inputFile())).isEmpty()) {
