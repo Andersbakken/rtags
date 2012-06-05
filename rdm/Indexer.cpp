@@ -31,23 +31,6 @@ Indexer::Indexer(const QByteArray &path, QObject* parent)
             this, SLOT(onDirectoryChanged(QString)));
 
     {
-        // fileids
-        ScopedDB db = Server::instance()->db(Server::FileIds, ScopedDB::Read);
-        RTags::Ptr<Iterator> it(db->createIterator());
-        it->seekToFirst();
-        QHash<quint32, Path> idsToPaths;
-        QHash<Path, quint32> pathsToIds;
-        while (it->isValid()) {
-            const Slice key = it->key();
-            const Path path(key.data(), key.size());
-            const quint32 fileId = it->value<quint32>();
-            idsToPaths[fileId] = path;
-            pathsToIds[path] = fileId;
-            it->next();
-        }
-        Location::init(pathsToIds, idsToPaths);
-    }
-    {
         ScopedDB db = Server::instance()->db(Server::PCHUsrHashes, ScopedDB::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
@@ -167,6 +150,12 @@ void Indexer::initDB()
             if (path.isFile()) {
                 const FileInformation fi = it->value<FileInformation>();
                 if (!fi.compileArgs.isEmpty()) {
+#ifdef QT_DEBUG
+                    if (path.isHeader() && !isPch(fi.compileArgs)) {
+                        qDebug() << path << fi.compileArgs;
+                        Q_ASSERT(0);
+                    }
+#endif
                     ++checked;
                     bool dirty = false;
                     if (isDirty(deps.value(fileId), fi.lastTouched, dirtyFiles)) {

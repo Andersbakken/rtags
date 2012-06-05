@@ -138,6 +138,24 @@ bool Server::init(const Options &options)
     }
 
     {
+        // fileids
+        ScopedDB db = Server::instance()->db(Server::FileIds, ScopedDB::Read);
+        RTags::Ptr<Iterator> it(db->createIterator());
+        it->seekToFirst();
+        QHash<quint32, Path> idsToPaths;
+        QHash<Path, quint32> pathsToIds;
+        while (it->isValid()) {
+            const Slice key = it->key();
+            const Path path(key.data(), key.size());
+            const quint32 fileId = it->value<quint32>();
+            idsToPaths[fileId] = path;
+            pathsToIds[path] = fileId;
+            it->next();
+        }
+        Location::init(pathsToIds, idsToPaths);
+    }
+
+    {
         ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
         bool ok;
         const int version = general->value<int>("version", &ok);
