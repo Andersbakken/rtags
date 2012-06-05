@@ -1,7 +1,6 @@
 Consider waiting for currently processing files before queries on these files
 Consider changing offsets in currently modified files the same way compilation mode does
-Consider not actually removing entries from db until a file has
-   actually successfully parsed.
 Use the same pch file for rc/rdm/shared
 Maybe clang has some gcc compat mode where it would work approriately with the
    headers from the toolchain
+Try to jump to definition if possible.
