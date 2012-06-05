@@ -5,12 +5,17 @@
 #include "RTags.h"
 #include "Rdm.h"
 
-MatchJob::MatchJob(int i, const QueryMessage &query)
-    : Job(i, i == CompletionMatchJobId ? CompletionMatchJobPriority : QueryJobPriority,
-          WriteUnfiltered), partial(query.query().front()), type(query.type()),
-      keyFlags(query.keyFlags()), skipParentheses(query.flags() & QueryMessage::SkipParentheses)
+static inline unsigned jobFlags(unsigned queryFlags)
 {
-    setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
+    return (queryFlags & QueryMessage::ElispList) ? Job::WriteUnfiltered|Job::QuoteOutput : Job::WriteUnfiltered;
+}
+
+MatchJob::MatchJob(int i, const QueryMessage &query)
+    : Job(i, i == CompletionMatchJobId ? CompletionMatchJobPriority : QueryJobPriority, jobFlags(query.flags())),
+      partial(query.query().front()), type(query.type()),
+      keyFlags(query.keyFlags()), queryFlags(query.flags())
+{
+    setPathFilters(query.pathFilters(), queryFlags & QueryMessage::FilterSystemIncludes);
 }
 
 void MatchJob::execute()
@@ -21,6 +26,9 @@ void MatchJob::execute()
     QByteArray entry;
     RTags::Ptr<Iterator> it(db->createIterator());
     it->seek(partial.constData());
+    const bool skipParentheses = queryFlags & QueryMessage::SkipParentheses;
+    if (queryFlags & QueryMessage::ElispList)
+        writeRaw("(list");
     while (it->isValid() && !isAborted()) {
         entry = it->key().byteArray();
         if (type == QueryMessage::ListSymbols) {
@@ -57,6 +65,8 @@ void MatchJob::execute()
         }
         it->next();
     }
+    if (queryFlags & QueryMessage::ElispList)
+        writeRaw(")");
 }
 MatchJob * MatchJob::createCompletionMatchJob()
 {

@@ -19,6 +19,7 @@ static void help(FILE *f, const char* app)
             "  --help|-h                                 Display this help\n"
             "  --verbose|-v                              Be more verbose\n"
             "  --skip-paren|-p                           Skip parens in Makefile parsing\n"
+            "  --elisp-list|-P                           Output elisp: (list \"one\" \"two\" ...)\n"
             "  --follow-location|-f [arg]                Follow this location\n"
             "  --makefile|-m [arg]                       Process this makefile\n"
             "  --makefile-wait|-M [arg]                  Process this makefile and wait until the whole make process is finished\n"
@@ -175,8 +176,8 @@ int main(int argc, char** argv)
         { "test", required_argument, 0, 't' },
         { "quit-rdm", no_argument, 0, 'q' },
         { "restart-rdm", optional_argument, 0, 'e' },
-
         { "include-declarations-and-definitions", no_argument, 0, 'E' },
+        { "elisp-list", no_argument, 0, 'P' },
         { 0, 0, 0, 0 }
     };
 
@@ -225,6 +226,9 @@ int main(int argc, char** argv)
             break;
         case 'O':
             queryFlags |= QueryMessage::ReverseSort;
+            break;
+        case 'P':
+            queryFlags |= QueryMessage::ElispList;
             break;
         case 'H':
             queryFlags |= QueryMessage::FilterSystemIncludes;

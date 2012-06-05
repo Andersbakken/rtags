@@ -29,8 +29,15 @@ QList<QByteArray> Job::pathFilters() const
 
 void Job::write(const QByteArray &out)
 {
-    if (mFlags & WriteUnfiltered || mPathFilters.isEmpty() || filter(out))
-        emit output(id(), out);
+    if (mFlags & WriteUnfiltered || mPathFilters.isEmpty() || filter(out)) {
+        if (mFlags & QuoteOutput) {
+            QByteArray o(out.size() + 2, '"');
+            memcpy(o.data() + 1, out.constData(), out.size());
+            emit output(id(), o);
+        } else {
+            emit output(id(), out);
+        }
+    }
 }
 
 bool Job::filter(const QByteArray &val) const
@@ -44,4 +51,8 @@ void Job::run()
 {
     execute();
     emit complete(id());
+}
+void Job::writeRaw(const QByteArray &out)
+{
+    emit output(id(), out);
 }

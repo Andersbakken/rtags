@@ -10,7 +10,8 @@ class Job : public QObject, public QRunnable, public AbortInterface
 public:
     enum Flag {
         None = 0x0,
-        WriteUnfiltered = 0x1
+        WriteUnfiltered = 0x1,
+        QuoteOutput = 0x2
     };
     enum Priority {
         QueryJobPriority = 0,
@@ -22,6 +23,7 @@ public:
     QList<QByteArray> pathFilters() const;
     int id() const { return mId; }
     void write(const QByteArray &out);
+    void writeRaw(const QByteArray &out);
     unsigned flags() const { return mFlags; }
     bool filter(const QByteArray &val) const;
     virtual void run();

@@ -21,7 +21,7 @@ private:
     const QByteArray partial;
     const QueryMessage::Type type;
     const unsigned keyFlags;
-    const bool skipParentheses;
+    const unsigned queryFlags;
 };
 
 #endif

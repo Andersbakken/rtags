@@ -14,6 +14,11 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-log-enabled nil
+  "If t, log"
+  :group 'rtags
+  :type 'boolean)
+
 (defvar rtags-current-path-filter nil)
 
 (defun rtags-create-path-filter()
@@ -55,12 +60,14 @@ return t if rtags is allowed to modify this file"
   (start-process "RTags SymbolName Completions" (generate-new-buffer "*RTags SymbolName Completions*") "rc" "-S"))
 
 (defun rtags-log (log)
-  (save-excursion
-    (set-buffer (get-buffer-create "*RTags Log*"))
-    (goto-char (point-max))
-    (setq buffer-read-only nil)
-    (insert "**********************************\n" log "\n")
-    (setq buffer-read-only t)
+  (if rtags-log-enabled
+      (save-excursion
+        (set-buffer (get-buffer-create "*RTags Log*"))
+        (goto-char (point-max))
+        (setq buffer-read-only nil)
+        (insert "**********************************\n" log "\n")
+        (setq buffer-read-only t)
+        )
     )
   )
 
@@ -140,7 +147,6 @@ return t if rtags is allowed to modify this file"
     )
   )
 
-
 (defun rtags-rename-symbol ()
   (interactive)
   (save-some-buffers) ; it all kinda falls apart when buffers are unsaved
@@ -197,21 +203,12 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-find-symbols-by-name-internal (p switch)
   (setq rtags-last-buffer (current-buffer))
-  (let (tagname prompt input completions)
+  (let (tagname prompt input)
     (setq tagname (rtags-current-symbol))
     (if tagname
         (setq prompt (concat p ": (default " tagname ") "))
       (setq prompt (concat p ": ")))
-    ;; (if (get-buffer "*RTags SymbolName Completions*")
-    ;;     (message "yes")
-    ;;     (save-excursion
-    ;;       (set-buffer "*RTags SymbolName Completions*")
-    ;;       (setq completions (split-string (buffer-string) "\n" t)))
-    (with-temp-buffer
-      (rtags-call-rc "-S")
-      (setq completions (split-string (buffer-string) "\n" t)))
-      ;; (setq completions (split-string "test1" "test1()")))
-    (setq input (completing-read prompt completions nil nil nil rtags-symbol-history))
+    (setq input (completing-read prompt (function rtags-symbolname-complete) nil nil nil rtags-symbol-history))
     (if (not (equal "" input))
         (setq tagname input))
     (if (get-buffer "*RTags Complete*")
@@ -242,3 +239,20 @@ return t if rtags is allowed to modify this file"
   (switch-to-buffer rtags-last-buffer))
 
 (provide 'rtags)
+
+(defun rtags-symbolname-completion-get (string)
+  (with-temp-buffer
+    (rtags-call-rc "-P" "-S" string)
+    (eval (read (buffer-string)))))
+
+(defun rtags-symbolname-completion-exactmatch (string)
+  (with-temp-buffer
+    (rtags-call-rc "-N" "-F" string)
+    (> (point-max) (point-min))))
+
+(defun rtags-symbolname-complete (string predicate code)
+  (if (> (length string) 0)
+      (cond ((eq code nil)
+             (try-completion string (rtags-symbolname-completion-get string) predicate))
+            ((eq code t) (rtags-symbolname-completion-get string))
+            ((eq code 'lambda) (rtags-symbolname-completion-exactmatch string)))))

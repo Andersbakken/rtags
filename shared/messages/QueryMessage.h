@@ -31,7 +31,8 @@ public:
         FilterSystemIncludes = 0x04,
         SkipParentheses = 0x08,
         IncludeDeclarationsAndDefinitions = 0x10,
-        ReverseSort = 0x20
+        ReverseSort = 0x20,
+        ElispList = 0x40
     };
 
     Q_INVOKABLE QueryMessage(QObject *parent);
