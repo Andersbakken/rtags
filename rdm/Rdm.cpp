@@ -323,7 +323,7 @@ int dirty(const QSet<quint32> &dirtyFileIds)
             it->next();
         }
     }
-    error() << "dirtied" << ret << timer.elapsed() << dirtyFileIds.size() << "files";
+    error() << "dirtied" << dirtyFileIds.size() << "files in" << timer.elapsed() << "ms";
     return ret;
 }
 
