@@ -46,7 +46,7 @@ static void help(FILE *f, const char* app)
             "  --rdm-log|-g                              Receive logs from rdm\n"
             "  --status|-s [arg]                         Dump status of rdm. If arg is passed it should match one of:\n"
             "                                            'general', 'dependencies', 'symbols', 'symbolnames', 'fileinfos' or 'pch'\n"
-            "  --name|-N [name]                          Name to use for server (default ~/.rtags/server)"
+            "  --name|-N [name]                          Name to use for server (default ~/.rtags/server)\n"
             "  --autostart-rdm|-a [args]                 Start rdm with [args] if rc fails to connect\n"
             "  --restart-rdm|-e [args]                   Restart rdm with [args] before doing the rest of the commands\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
