@@ -249,6 +249,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
                 refLoc = job->createLocation(ref, 0);
             }
         }
+
         if (refLoc.isNull()) {
             const Cursor r = job->findByUSR(cursor, kind, loc);
             if (r.kind != CXCursor_FirstInvalid)
@@ -493,6 +494,22 @@ static inline bool isInline(const CXCursor &cursor)
 
 IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc)
 {
+    switch (kind) {
+    case CXCursor_FunctionDecl:
+        if (clang_isCursorDefinition(cursor) && loc.fileId() == mFileId)
+            break;
+    case CXCursor_CXXMethod:
+    case CXCursor_Destructor:
+    case CXCursor_Constructor:
+        if (clang_isCursorDefinition(cursor) && loc.fileId() == mFileId && !isInline(cursor))
+            break;
+        // fall through
+
+    default:
+        const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
+        return ret;
+    }
+
     CXStringScope scope(clang_getCursorUSR(cursor));
     const char *cstr = clang_getCString(scope.string);
     if (!cstr) {
@@ -507,18 +524,7 @@ IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind ki
         // ### even if this isn't the right CXCursor it's good enough for our needs
         return ret;
     }
-    switch (kind) {
-    case CXCursor_CXXMethod:
-    case CXCursor_Destructor:
-    case CXCursor_Constructor:
-        // case CXCursor_FunctionDecl: // these mostly fail
-        if (clang_isCursorDefinition(cursor) && loc.fileId() == mFileId && !isInline(cursor))
-            break;
-        // fall through
-    default:
-        const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
-        return ret;
-    }
+
 
     QHash<QByteArray, CXCursor>::const_iterator it = mHeaderHash.find(key);
     if (it == mHeaderHash.end()) {
