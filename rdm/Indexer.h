@@ -72,9 +72,6 @@ private:
 inline bool Indexer::visitFile(quint32 fileId, const Path &path)
 {
     QMutexLocker lock(&mVisitedFilesMutex);
-    if (path.endsWith("c.cpp") && Location::path(fileId).endsWith("c.h")) {
-        return false;
-    }
     if (mVisitedFiles.contains(fileId)) {
         return false;
     }

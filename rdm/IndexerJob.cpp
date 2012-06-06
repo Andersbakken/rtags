@@ -21,16 +21,12 @@ static inline QList<Path> extractPchFiles(const QList<QByteArray> &args)
     return out;
 }
 
-// static int count = 0;
-// static int active = 0;
-
 IndexerJob::IndexerJob(Indexer *indexer, int id, Indexer::IndexType type,
                        const Path &input, const QList<QByteArray> &arguments)
     : mId(id), mType(type), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
-      mPchHeaders(extractPchFiles(arguments)), mUnit(0)
+      mPchHeaders(extractPchFiles(arguments))
 {
-    // qDebug() << metaObject()->className() << "born" << ++count << ++active;
     setAutoDelete(false);
 }
 
@@ -196,35 +192,6 @@ static inline bool isInteresting(CXCursorKind kind)
     return true;
 }
 
-struct FindReferenceVisitorUserData {
-    const CXChildVisitResult result;
-    IndexerJob *job;
-};
-
-CXChildVisitResult findReferenceVisitor(CXCursor cursor, CXCursor, CXClientData u)
-{
-    FindReferenceVisitorUserData &userData = *reinterpret_cast<FindReferenceVisitorUserData*>(u);
-
-    const Location loc = userData.job->createLocation(cursor, 0);
-    if (loc.fileId() == userData.job->mFileId) {// we're only interested in things in headers
-        return CXChildVisit_Continue;
-    } else if (loc.fileId()) {
-        switch (clang_getCursorKind(cursor)) {
-        case CXCursor_FunctionDecl:
-        case CXCursor_CXXMethod:
-        case CXCursor_Destructor:
-        case CXCursor_Constructor: {
-            CXStringScope usr(clang_getCursorUSR(cursor));
-            const char *cstr = clang_getCString(usr.string);
-            userData.job->mHeaderHash[cstr] = cursor;
-            break; }
-        default:
-            break;
-        }
-    }
-    return userData.result;
-}
-
 CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
                                             CXCursor /*parent*/,
                                             CXClientData client_data)
@@ -240,6 +207,22 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     bool blocked = false;
     const Location loc = job->createLocation(cursor, &blocked);
     if (blocked) {
+        switch (kind) {
+        case CXCursor_FunctionDecl:
+        case CXCursor_CXXMethod:
+        case CXCursor_Destructor:
+        case CXCursor_Constructor: {
+            CXStringScope usr(clang_getCursorUSR(cursor));
+            const char *cstr = clang_getCString(usr.string);
+            job->mHeaderHash[cstr] = cursor;
+            break; }
+        case CXCursor_ClassDecl:
+        case CXCursor_StructDecl:
+        case CXCursor_Namespace:
+            return CXChildVisit_Recurse;
+        default:
+            break;
+        }
         return CXChildVisit_Continue;
     } else if (loc.isNull()) {
         return CXChildVisit_Recurse;
@@ -255,15 +238,8 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     if (!clang_equalCursors(cursor, ref)) {
         refLoc = job->createLocation(ref, 0);
     } else {
-        // const bool debug = Rdm::eatString(clang_getCursorUSR(cursor)) == "c:@N@Rdm@F@isSystem#&1$@C@Path#";
-        // if (debug) {
-        //     qDebug() << "we're here" << cursor << clang_isCursorDefinition(cursor);
-        // }
         if (!clang_isCursorDefinition(cursor)) {
             ref = clang_getCursorDefinition(cursor);
-            // if (debug)
-            //     qDebug() << "we're here 2" << ref;
-
             if (!clang_equalCursors(clang_getNullCursor(), ref)) {
                 Q_ASSERT(!clang_equalCursors(cursor, ref));
                 refLoc = job->createLocation(ref, 0);
@@ -271,9 +247,6 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         }
 
         if (refLoc.isNull()) {
-            // if (debug) {
-            //     qDebug() << "we're here 3" << cursor << kind << loc;
-            // }
             const Cursor r = job->findByUSR(cursor, kind, loc);
             if (r.kind != CXCursor_FirstInvalid)
                 return job->processCursor(c, r);
@@ -428,18 +401,18 @@ void IndexerJob::run()
         return;
     }
     CXIndex index = clang_createIndex(1, 1);
-    mUnit = clang_parseTranslationUnit(index, mIn.constData(),
-                                       clangArgs.data(), idx, 0, 0,
-                                       CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
-    Scope scope = { mUnit, index };
+    CXTranslationUnit unit = clang_parseTranslationUnit(index, mIn.constData(),
+                                                        clangArgs.data(), idx, 0, 0,
+                                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+    Scope scope = { unit, index };
     const time_t timeStamp = time(0);
-    warning() << "loading unit" << clangLine << (mUnit != 0);
+    warning() << "loading unit" << clangLine << (unit != 0);
     if (isAborted()) {
         return;
     }
 
     mDependencies[mFileId].insert(mFileId);
-    if (!mUnit) {
+    if (!unit) {
         error() << "got 0 unit for" << clangLine;
         mIndexer->addDependencies(mDependencies);
         FileInformation fi;
@@ -448,19 +421,12 @@ void IndexerJob::run()
 
         Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
-        clang_getInclusions(mUnit, inclusionVisitor, this);
-        // for (QHash<quint32, QSet<quint32> >::const_iterator it = mDependencies.begin(); it != mDependencies.end(); ++it) {
-        //     QList<Path> out;
-        //     foreach(quint32 p, it.value()) {
-        //         out.append(Location::path(p));
-        //     }
-        //     qDebug() << Location::path(it.key()) << "->" << out;
-        // }
+        clang_getInclusions(unit, inclusionVisitor, this);
 
-        clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
+        clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
         if (mIsPch) {
             Q_ASSERT(!pchName.isEmpty());
-            if (clang_saveTranslationUnit(mUnit, pchName.constData(), clang_defaultSaveOptions(mUnit)) != CXSaveError_None) {
+            if (clang_saveTranslationUnit(unit, pchName.constData(), clang_defaultSaveOptions(unit)) != CXSaveError_None) {
                 error() << "Couldn't save pch file" << mIn << pchName;
             } else {
                 mIndexer->setPchUSRHash(mIn, mPchUSRHash);
@@ -517,11 +483,6 @@ static inline bool isInline(const CXCursor &cursor)
 
 IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc)
 {
-    // const bool debug = Rdm::eatString(clang_getCursorUSR(cursor)) == "c:@N@Rdm@F@isSystem#&1$@C@Path#" || true;
-
-    // if (Rdm::eatString(clang_getCursorSpelling(cursor)).contains("isSystem") && loc.path().contains("Rdm.")) {
-    //     qDebug() << cursor << kind << loc;
-    // }
     bool ok = false;
     switch (kind) {
     case CXCursor_FunctionDecl:
@@ -556,37 +517,12 @@ IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind ki
     }
 
     QHash<QByteArray, CXCursor>::const_iterator it = mHeaderHash.find(key);
-    if (it == mHeaderHash.end() && !mDoneFullUSRScan) {
-        CXCursor parent = (kind == CXCursor_FunctionDecl
-                           ? clang_getTranslationUnitCursor(mUnit)
-                           : clang_getCursorSemanticParent(cursor));
-
-        if (!clang_isInvalid(clang_getCursorKind(parent))) {
-            FindReferenceVisitorUserData u = {
-                kind == CXCursor_FunctionDecl ? CXChildVisit_Recurse : CXChildVisit_Continue,
-                this
-            };
-            clang_visitChildren(parent, findReferenceVisitor, &u);
-            if (kind == CXCursor_FunctionDecl)
-                mDoneFullUSRScan = true;
-            it = mHeaderHash.find(key);
-            // if (it != mHeaderHash.end()) {
-            //     qDebug() << "we found it" << cursor << it.value();
-            // } else {
-            //     qDebug() << "we didn't find it" << cursor;
-            // }
-        }
-        // } else {
-        //     qDebug() << "it was already in the hash" << cursor << it.value();
-    }
-
     if (it != mHeaderHash.end()) {
         const CXCursor ref = it.value();
         const Cursor ret = { ref, createLocation(ref, 0), clang_getCursorKind(ref) };
-        if (!clang_equalCursors(ref, cursor)) // ### why is this happening?
-            return ret;
+        assert(!clang_equalCursors(ref, cursor)); // ### why is this happening?
+        return ret;
     }
-
     const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
     return ret;
 }
