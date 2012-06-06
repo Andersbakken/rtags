@@ -5,3 +5,4 @@ Maybe clang has some gcc compat mode where it would work approriately with the
    headers from the toolchain
 Make a string wrapper class and use that one for mHeaderHash.
 Solve constructors and destructors for rename symbol.
+Should be able to do rc -m from emacs
