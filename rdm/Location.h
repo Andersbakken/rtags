@@ -219,6 +219,7 @@ public:
         const quint32 fileId = sPathsToIds.value(path, 0);
         if (fileId)
             return Location(fileId, offset);
+        error("Failed to make location from [%s,%d]", path.constData(), offset);
         return Location();
     }
     quint64 mData;

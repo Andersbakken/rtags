@@ -347,7 +347,7 @@ void Server::handleQueryMessage(QueryMessage *message)
         return;
     }
     if (!id) {
-        QueryMessage msg;
+        ResponseMessage msg;
         conn->send(&msg);
         conn->finish();
     } else {
@@ -404,7 +404,6 @@ int Server::followLocation(const QueryMessage &query)
 {
     const Location loc = Location::decodeClientLocation(query.query().value(0));
     if (loc.isNull()) {
-        error("Failed to make location from [%s]", query.query().value(0).constData());
         return 0;
     }
 
@@ -423,7 +422,6 @@ int Server::cursorInfo(const QueryMessage &query)
 {
     const Location loc = Location::decodeClientLocation(query.query().value(0));
     if (loc.isNull()) {
-        error("Failed to make location from [%s]", query.query().value(0).constData());
         return 0;
     }
 
@@ -443,7 +441,6 @@ int Server::referencesForLocation(const QueryMessage &query)
 {
     const Location loc = Location::decodeClientLocation(query.query().value(0));
     if (loc.isNull()) {
-        error("Failed to make location from [%d]", query.query().value(0).size());
         return 0;
     }
 

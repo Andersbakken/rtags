@@ -10,7 +10,7 @@ class ResponseMessage : public Message
 public:
     enum { MessageId = 3 };
 
-    Q_INVOKABLE ResponseMessage(QObject *parent)
+    Q_INVOKABLE ResponseMessage(QObject *parent = 0)
         : Message(parent)
     {}
     ResponseMessage(const QByteArray &data, QObject *parent = 0)
