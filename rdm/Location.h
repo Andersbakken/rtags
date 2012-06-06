@@ -68,10 +68,12 @@ public:
     }
     static void writeToDB(const Path &path, quint32 file);
     static void init(const QHash<Path, quint32> &pathsToIds,
-                     const QHash<quint32, Path> &idsToPaths)
+                     const QHash<quint32, Path> &idsToPaths,
+                     quint32 maxId)
     {
         sPathsToIds = pathsToIds;
         sIdsToPaths = idsToPaths;
+        sLastId = maxId;
     }
 
     inline quint32 fileId() const { return quint32(mData); }

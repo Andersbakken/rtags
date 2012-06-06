@@ -144,15 +144,17 @@ bool Server::init(const Options &options)
         it->seekToFirst();
         QHash<quint32, Path> idsToPaths;
         QHash<Path, quint32> pathsToIds;
+        quint32 maxId = 0;
         while (it->isValid()) {
             const Slice key = it->key();
             const Path path(key.data(), key.size());
             const quint32 fileId = it->value<quint32>();
+            maxId = qMax(fileId, maxId);
             idsToPaths[fileId] = path;
             pathsToIds[path] = fileId;
             it->next();
         }
-        Location::init(pathsToIds, idsToPaths);
+        Location::init(pathsToIds, idsToPaths, maxId);
     }
 
     {

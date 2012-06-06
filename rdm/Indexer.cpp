@@ -134,7 +134,7 @@ void Indexer::initDB()
                 if (!fi.compileArgs.isEmpty()) {
 #ifdef QT_DEBUG
                     if (path.isHeader() && !Rdm::isPch(fi.compileArgs)) {
-                        qDebug() << path << fi.compileArgs;
+                        qDebug() << path << fi.compileArgs << fileId;
                         Q_ASSERT(0);
                     }
 #endif
