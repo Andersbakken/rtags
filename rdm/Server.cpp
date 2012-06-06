@@ -113,7 +113,6 @@ bool Server::init(const Options &options)
         if (mServer->listen(mName)) {
             break;
         }
-        QFile::remove(mName);
         delete mServer;
         mServer = 0;
         if (!i) {
@@ -122,6 +121,7 @@ bool Server::init(const Options &options)
             client.query(&msg);
         }
         sleep(1);
+        QFile::remove(mName);
     }
     if (!mServer) {
         error("Unable to listen to port %d", Connection::Port);
