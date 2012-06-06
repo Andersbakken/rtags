@@ -95,6 +95,19 @@ return t if rtags is allowed to modify this file"
     t)
   nil)
 
+(defun rtags-save-location()
+  (setq rtags-last-buffer (current-buffer))
+  (bookmark-set "RTags Last"))
+
+(defun rtags-back()
+  (interactive)
+  (let ((bms (bookmark-all-names)))
+    (if (member "RTags Last" bms)
+        (progn
+          (bookmark-rename "RTags Last" "RTags temp")
+          (rtags-save-location)
+          (bookmark-jump "RTags temp")
+          (bookmark-delete "RTags temp")))))
 
 (defun rtags-goto-location(location)
   (string-match "\\(.*\\),\\([0-9]+\\)" location)
@@ -117,7 +130,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-follow-symbol-at-point()
   (interactive)
-  (setq rtags-last-buffer (current-buffer))
+  (rtags-save-location)
   (let ((arg (rtags-current-location))
         (pathfilter (rtags-create-path-filter)))
     (with-temp-buffer
@@ -130,7 +143,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-find-references-at-point()
   (interactive)
-  (setq rtags-last-buffer (current-buffer))
+  (rtags-save-location)
   (let ((arg (rtags-current-location)))
     (if (get-buffer "*RTags Complete*")
         (kill-buffer "*RTags Complete*"))
@@ -202,7 +215,7 @@ return t if rtags is allowed to modify this file"
 ; (get-file-buffer FILENAME)
 
 (defun rtags-find-symbols-by-name-internal (p switch)
-  (setq rtags-last-buffer (current-buffer))
+  (rtags-save-location)
   (let (tagname prompt input)
     (setq tagname (rtags-current-symbol))
     (if tagname
