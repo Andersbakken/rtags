@@ -4,4 +4,3 @@ Use the same pch file for rc/rdm/shared
 Maybe clang has some gcc compat mode where it would work approriately with the
    headers from the toolchain
 Try to jump to definition if possible.
-join def/decl of global functions.
