@@ -450,8 +450,6 @@ void IndexerJob::run()
         scope.cleanup();
 
         if (!isAborted()) {
-            if (mType != Indexer::Makefile)
-                Rdm::dirty(mPaths.keys().toSet());
             Rdm::writeSymbols(mSymbols, mReferences);
             Rdm::writeSymbolNames(mSymbolNames);
             Rdm::writeFileInformation(mFileId, mArgs, timeStamp);

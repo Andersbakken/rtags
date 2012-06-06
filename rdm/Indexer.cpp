@@ -1,5 +1,6 @@
 #include "Database.h"
 #include "Server.h"
+#include "DirtyJob.h"
 #include "Indexer.h"
 #include "IndexerJob.h"
 #include "MemoryMonitor.h"
@@ -10,7 +11,7 @@
 #include <Log.h>
 #include <QtCore>
 
-Indexer::Indexer(const QByteArray &path, QObject *parent)
+Indexer::Indexer(const QByteArray &path, QObject* parent)
     : QObject(parent)
 {
     qRegisterMetaType<Path>("Path");
@@ -134,8 +135,7 @@ void Indexer::initDB()
     }
 
     QSet<quint32> dirtyFiles;
-    QHash<Path, QList<QByteArray> > toIndex;
-    int toIndexPch = 0;
+    QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
     int checked = 0;
 
     {
@@ -162,8 +162,7 @@ void Indexer::initDB()
                         dirty = true;
                         // ### am I checking pch deps correctly here?
                         if (isPch(fi.compileArgs)) {
-                            index(path, fi.compileArgs, DirtyPch);
-                            ++toIndexPch;
+                            toIndexPch[path] = fi.compileArgs;
                         } else {
                             toIndex[path] = fi.compileArgs;
                         }
@@ -178,11 +177,13 @@ void Indexer::initDB()
     }
 
     if (checked)
-        error() << "Checked" << checked << "files. Found" << (toIndex.size() + toIndexPch) << "dirty ones in" << timer.elapsed() << "ms";
+        error() << "Checked" << checked << "files. Found" << (toIndex.size() + toIndexPch.size()) << "dirty ones in" << timer.elapsed() << "ms";
 
-    for (QHash<Path, QList<QByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
-        index(it.key(), it.value(), Dirty);
-    }
+    if (toIndex.isEmpty() && toIndexPch.isEmpty())
+        return;
+
+    dirty(dirtyFiles);
+    QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
 }
 
 void Indexer::commitDependencies(const DependencyHash &deps, bool sync)
@@ -234,7 +235,7 @@ int Indexer::index(const Path &input, const QList<QByteArray> &arguments, IndexT
         return -1;
 
     const int id = ++mJobCounter;
-    IndexerJob *job = new IndexerJob(this, id, type, input, arguments);
+    IndexerJob* job = new IndexerJob(this, id, type, input, arguments);
     connect(job, SIGNAL(done(int, Path, bool, QByteArray)),
             this, SLOT(onJobComplete(int, Path, bool, QByteArray)));
     if (needsToWaitForPch(job)) {
@@ -261,73 +262,73 @@ void Indexer::startJob(int id, IndexerJob *job)
 void Indexer::onDirectoryChanged(const QString &path)
 {
     const Path p = path.toLocal8Bit();
-    QSet<quint32> dirtyFiles;
-    QHash<Path, QList<QByteArray> > toIndex;
-
     Q_ASSERT(p.endsWith('/'));
-    {
-        QMutexLocker lock(&mWatchedMutex);
-        WatchedHash::iterator it = mWatched.find(p);
-        if (it == mWatched.end()) {
-            error() << "directory changed, but not in watched list" << p;
-            return;
-        }
+    QMutexLocker lock(&mWatchedMutex);
+    WatchedHash::iterator it = mWatched.find(p);
+    if (it == mWatched.end()) {
+        error() << "directory changed, but not in watched list" << p;
+        return;
+    }
 
-        Path file;
-        QList<Path> pending;
-        QSet<WatchedPair>::iterator wit = it.value().begin();
-        QSet<WatchedPair>::const_iterator wend = it.value().end();
-        QList<QByteArray> args;
+    Path file;
+    QList<Path> pending;
+    QSet<WatchedPair>::iterator wit = it.value().begin();
+    QSet<WatchedPair>::const_iterator wend = it.value().end();
+    QList<QByteArray> args;
+    QSet<quint32> dirtyFiles;
+    QHash<Path, QList<QByteArray> > toIndex, toIndexPch;
 
-        ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
-        while (wit != wend) {
-            // weird API, QSet<>::iterator does not allow for modifications to the referenced value
-            file = (p + (*wit).first);
-            // qDebug() << "comparing" << file << (file.lastModified() == (*wit).second)
-            //          << QDateTime::fromTime_t(file.lastModified());
-            if (!file.exists() || file.lastModified() != (*wit).second) {
-                const quint32 fileId = Location::fileId(file);
-                dirtyFiles.insert(fileId);
-                pending.append(file);
-                wit = it.value().erase(wit);
-                wend = it.value().end(); // ### do we need to update 'end' here?
+    ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
+    while (wit != wend) {
+        // weird API, QSet<>::iterator does not allow for modifications to the referenced value
+        file = (p + (*wit).first);
+        // qDebug() << "comparing" << file << (file.lastModified() == (*wit).second)
+        //          << QDateTime::fromTime_t(file.lastModified());
+        if (!file.exists() || file.lastModified() != (*wit).second) {
+            const quint32 fileId = Location::fileId(file);
+            dirtyFiles.insert(fileId);
+            pending.append(file);
+            wit = it.value().erase(wit);
+            wend = it.value().end(); // ### do we need to update 'end' here?
 
-                DependencyHash::const_iterator dit = mDependencies.find(fileId);
-                if (dit == mDependencies.end()) {
-                    error() << "file modified but not in dependency list" << file;
-                    ++it;
-                    continue;
-                }
-                Q_ASSERT(!dit.value().isEmpty());
-                foreach (quint32 pathId, dit.value()) {
-                    dirtyFiles.insert(pathId);
-                    const Path path = Location::path(pathId);
-                    if (path.exists()) {
-                        bool ok;
-                        char buf[4];
-                        memcpy(buf, &pathId, 4);
-                        const FileInformation fi = db->value<FileInformation>(Slice(buf, 4), &ok);
-                        if (ok) {
-                            if (isPch(fi.compileArgs)) {
-                                index(path, fi.compileArgs, DirtyPch);
-                            } else {
-                                toIndex[path] = fi.compileArgs;
-                            }
+            DependencyHash::const_iterator dit = mDependencies.find(fileId);
+            if (dit == mDependencies.end()) {
+                error() << "file modified but not in dependency list" << file;
+                ++it;
+                continue;
+            }
+            Q_ASSERT(!dit.value().isEmpty());
+            foreach (quint32 pathId, dit.value()) {
+                dirtyFiles.insert(pathId);
+                const Path path = Location::path(pathId);
+                if (path.exists()) {
+                    bool ok;
+                    char buf[4];
+                    memcpy(buf, &pathId, 4);
+                    const FileInformation fi = db->value<FileInformation>(Slice(buf, 4), &ok);
+                    if (ok) {
+                        if (isPch(fi.compileArgs)) {
+                            toIndexPch[path] = fi.compileArgs;
+                        } else {
+                            toIndex[path] = fi.compileArgs;
                         }
                     }
                 }
-            } else {
-                ++wit;
             }
-        }
-
-        foreach(const Path &path, pending) {
-            it.value().insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
+        } else {
+            ++wit;
         }
     }
+
+    foreach(const Path &path, pending) {
+        it.value().insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
+    }
+    if (toIndex.isEmpty() && toIndexPch.isEmpty())
+        return;
+
+    lock.unlock();
     dirty(dirtyFiles);
-    for (QHash<Path, QList<QByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it)
-        index(it.key(), it.value(), Dirty);
+    QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
 }
 
 void Indexer::onJobComplete(int id, const Path &input, bool isPch, const QByteArray &msg)
