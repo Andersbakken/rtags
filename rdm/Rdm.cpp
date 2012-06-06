@@ -24,7 +24,7 @@ QByteArray cursorToString(CXCursor cursor)
     clang_getSpellingLocation(loc, &file, &line, &col, &off);
     const QByteArray fileName = eatString(clang_getFileName(file));
     if (!fileName.isEmpty()) {
-        ret += " " + fileName + ':' + QByteArray::number(line) + ":" + QByteArray::number(col) + ": (" + QByteArray::number(off) + ")";
+        ret += " " + fileName + ':' + QByteArray::number(line) + ":" + QByteArray::number(col) + ": (" + QByteArray::number(off) + ") " + eatString(clang_getCursorUSR(cursor));
     }
     return ret;
 }
