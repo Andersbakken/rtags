@@ -47,6 +47,7 @@ public:
     };
     QHash<quint32, PathState> mPaths;
     QHash<QByteArray, CXCursor> mHeaderHash;
+    bool mDoneFullUSRScan;
     ReferenceHash mReferences;
     const Path mIn;
     const quint32 mFileId;
@@ -57,6 +58,7 @@ public:
     QHash<QByteArray, Location> mPchUSRHash;
 
     QList<Path> mPchHeaders;
+    CXTranslationUnit mUnit;
 signals:
     void done(int id, const Path &path, bool isPch, const QByteArray &msg);
 };
