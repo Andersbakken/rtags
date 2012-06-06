@@ -58,9 +58,9 @@ void StatusJob::execute()
             CXString kind = clang_getCursorKindSpelling(ci.kind);
             Location loc = Location::fromKey(it->key().data());
             snprintf(buf, sizeof(buf),
-                     "  %s symbolName: %s kind: %s symbolLength: %d target: %s%s",
+                     "  %s symbolName: %s kind: %s isDefinition: %s symbolLength: %d target: %s%s",
                      loc.key().constData(), ci.symbolName.constData(),
-                     clang_getCString(kind), ci.symbolLength,
+                     clang_getCString(kind), ci.isDefinition ? "true" : "false", ci.symbolLength,
                      ci.target.key().constData(),
                      ci.references.isEmpty() ? "" : " references:");
             clang_disposeString(kind);

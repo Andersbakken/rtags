@@ -13,7 +13,7 @@ class CursorInfo
 {
 public:
     CursorInfo()
-        : symbolLength(0), kind(CXCursor_FirstInvalid)
+        : symbolLength(0), kind(CXCursor_FirstInvalid), isDefinition(false)
     {}
     bool isNull() const { return !symbolLength; }
     bool isValid() const { return symbolLength; }
@@ -21,6 +21,7 @@ public:
     {
         symbolLength = 0;
         kind = CXCursor_FirstInvalid;
+        isDefinition = false;
         target.clear();
         references.clear();
         symbolName.clear();
@@ -64,6 +65,7 @@ public:
             kind = other.kind;
             changed = true;
         }
+        isDefinition = isDefinition || other.isDefinition; // ### hm
 
         if (!symbolLength && other.symbolLength) {
             symbolLength = other.symbolLength;
@@ -86,6 +88,7 @@ public:
     int symbolLength; // this is just the symbol name e.g. foo
     QByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
     CXCursorKind kind;
+    bool isDefinition;
     Location target;
     QSet<Location> references;
 };

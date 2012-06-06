@@ -71,13 +71,16 @@ template <> inline QSet<Location> decode(const Slice &slice)
 
 template <> inline QByteArray encode(const CursorInfo &info)
 {
-    // symbolLength, kind, target, references
-    QByteArray out(info.symbolName.size() + 1 + (sizeof(quint32) * 2) + (sizeof(quint64) * (1 + info.references.size())), '\0');
+    // null-terminated symbolName, quint32(symbolLength), quint32(kind), quint8(isDefinition), quint64(target.location), quint64(refs)...
+    QByteArray out(info.symbolName.size() + 1 + (sizeof(quint32) * 2) + sizeof(quint8)
+                   + (sizeof(quint64) * (1 + info.references.size())), '\0');
     memcpy(out.data(), info.symbolName.constData(), info.symbolName.size() + 1);
     quint32 *ptr = reinterpret_cast<quint32*>(out.data() + (info.symbolName.size() + 1));
     *ptr++ = info.symbolLength;
     *ptr++ = info.kind;
-    quint64 *locPtr = reinterpret_cast<quint64*>(ptr);
+    quint8 *isDefinitionPtr = reinterpret_cast<quint8*>(ptr);
+    *isDefinitionPtr++ = info.isDefinition;
+    quint64 *locPtr = reinterpret_cast<quint64*>(isDefinitionPtr);
     *locPtr++ = info.target.mData;
     foreach(const Location &loc, info.references) {
         *locPtr++ = loc.mData;
@@ -92,8 +95,10 @@ template <> inline CursorInfo decode(const Slice &slice)
     const quint32 *ptr = reinterpret_cast<const quint32*>(slice.data() + ret.symbolName.size() + 1);
     ret.symbolLength = *ptr++;
     ret.kind = static_cast<CXCursorKind>(*ptr++);
-    const quint64 *locPtr = reinterpret_cast<const quint64*>(ptr);
-    const int count = ((slice.size() - ret.symbolName.size() - (sizeof(quint32) * 2)) / sizeof(quint64));
+    const quint8 *isDefinitionPtr = reinterpret_cast<const quint8*>(ptr);
+    ret.isDefinition = *isDefinitionPtr++;
+    const quint64 *locPtr = reinterpret_cast<const quint64*>(isDefinitionPtr);
+    const int count = ((slice.size() - ret.symbolName.size() - sizeof(char) - (sizeof(quint32) * 2) - sizeof(quint8)) / sizeof(quint64));
     ret.target.mData = *locPtr++;
     for (int i=0; i<count - 1; ++i) {
         const Location loc(*locPtr++);

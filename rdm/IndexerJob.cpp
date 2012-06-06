@@ -270,6 +270,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
                 mPchUSRHash[usr] = cursor.location;
             }
         }
+        info.isDefinition = clang_isCursorDefinition(cursor.cursor);
         info.kind = cursor.kind;
         CXString name;
         if (clang_isReference(cursor.kind)) {
@@ -284,8 +285,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
             mSymbols.remove(cursor.location);
             return CXChildVisit_Recurse;
         }
-        const bool addToDB = (clang_isCursorDefinition(cursor.cursor)
-                              || cursor.kind == CXCursor_FunctionDecl);
+        const bool addToDB = (info.isDefinition || cursor.kind == CXCursor_FunctionDecl);
         info.symbolName = addNamePermutations(cursor.cursor, cursor.location, addToDB);
     } else if (info.kind == CXCursor_Constructor && cursor.kind == CXCursor_TypeRef) {
         return CXChildVisit_Recurse;
@@ -494,18 +494,20 @@ static inline bool isInline(const CXCursor &cursor)
 
 IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc)
 {
+    bool ok = false;
     switch (kind) {
     case CXCursor_FunctionDecl:
-        if (clang_isCursorDefinition(cursor) && loc.fileId() == mFileId)
-            break;
+        ok = (clang_isCursorDefinition(cursor) && loc.fileId() == mFileId);
+        break;
     case CXCursor_CXXMethod:
     case CXCursor_Destructor:
     case CXCursor_Constructor:
-        if (clang_isCursorDefinition(cursor) && loc.fileId() == mFileId && !isInline(cursor))
-            break;
-        // fall through
-
+        ok = (clang_isCursorDefinition(cursor) && loc.fileId() == mFileId && !isInline(cursor));
+        break;
     default:
+        break;
+    }
+    if (!ok) {
         const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
         return ret;
     }

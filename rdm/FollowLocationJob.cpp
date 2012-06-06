@@ -19,6 +19,22 @@ void FollowLocationJob::execute()
     if (isAborted())
         return;
     if (!cursorInfo.target.isNull()) {
+        switch (cursorInfo.kind) {
+        case CXCursor_FunctionDecl:
+        case CXCursor_CXXMethod:
+        case CXCursor_Destructor:
+        case CXCursor_Constructor:
+            break;
+        default: {
+            const CursorInfo target = Rdm::findCursorInfo(db, cursorInfo.target);
+            // qDebug() << "cursorInfo is" << Rdm::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
+            //          << Rdm::eatString(clang_getCursorKindSpelling(target.kind));
+            if (!target.isDefinition && !target.target.isNull()) {
+                write(target.target.key(flags));
+                return;
+            }
+            break; }
+        }
         write(cursorInfo.target.key(flags));
     }
 }
