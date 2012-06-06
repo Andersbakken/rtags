@@ -35,10 +35,6 @@ void ReferencesJob::execute()
 
         Location realLoc;
         CursorInfo cursorInfo = Rdm::findCursorInfo(db, location, &realLoc);
-        qDebug() << "getting references at" << realLoc << Rdm::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
-                 << cursorInfo.references << cursorInfo.target
-                 << clang_isReference(cursorInfo.kind)
-                 << (cursorInfo.kind >= CXCursor_FirstExpr && cursorInfo.kind <= CXCursor_LastExpr);
         if (clang_isReference(cursorInfo.kind) || (cursorInfo.kind >= CXCursor_FirstExpr && cursorInfo.kind <= CXCursor_LastExpr)) {
             filtered.insert(cursorInfo.target);
             cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
