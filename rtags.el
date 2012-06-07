@@ -19,6 +19,19 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'boolean)
 
+(defun rtags-enable-standard-keybindings (&optional map)
+  (interactive)
+  (unless map
+    (setq map c-mode-base-map))
+  (define-key map (kbd "C-x r .") (function rtags-follow-symbol-at-point))
+  (define-key map (kbd "C-x r ,") (function rtags-find-references-at-point))
+  (define-key map (kbd "C-x r >") (function rtags-find-symbol))
+  (define-key map (kbd "C-x r <") (function rtags-find-references))
+  (define-key map (kbd "C-x r p") (function rtags-back))
+  (define-key map (kbd "C-x r M") (function rtags-index-project))
+  )
+
+
 (defun rtags-find-ancestor-file(pattern)
   "Find a file named \a file in as shallow a path as possible,
   e.g. if there's a Makefile in /foobar/rtags/rc/Makefile and one
