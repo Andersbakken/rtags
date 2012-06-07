@@ -31,8 +31,21 @@ void Job::write(const QByteArray &out)
 {
     if (mFlags & WriteUnfiltered || mPathFilters.isEmpty() || filter(out)) {
         if (mFlags & QuoteOutput) {
-            QByteArray o(out.size() + 2, '"');
-            memcpy(o.data() + 1, out.constData(), out.size());
+            QByteArray o((out.size() * 2) + 2, '"');
+            char *ch = o.data() + 1;
+            int l = 2;
+            for (int i=0; i<out.size(); ++i) {
+                const char c = out.at(i);
+                if (c == '"') {
+                    *ch = '\\';
+                    ch += 2;
+                    l += 2;
+                } else {
+                    ++l;
+                    *ch++ = c;
+                }
+            }
+            o.truncate(l);
             emit output(id(), o);
         } else {
             emit output(id(), out);

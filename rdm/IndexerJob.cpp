@@ -25,7 +25,7 @@ IndexerJob::IndexerJob(Indexer *indexer, int id, unsigned flags,
                        const Path &input, const QList<QByteArray> &arguments)
     : mId(id), mFlags(flags), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
-      mPchHeaders(extractPchFiles(arguments))
+      mPchHeaders(extractPchFiles(arguments)), mUnit(0)
 {
     setAutoDelete(false);
 }
@@ -193,13 +193,15 @@ static inline bool isInteresting(CXCursorKind kind)
 }
 
 CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
-                                            CXCursor /*parent*/,
+                                            CXCursor parent,
                                             CXClientData client_data)
 {
     IndexerJob *job = static_cast<IndexerJob*>(client_data);
     if (job->isAborted())
         return CXChildVisit_Break;
 
+    if (testLog(Debug))
+        debug() << "indexVisitor" << cursor << parent;
     const CXCursorKind kind = clang_getCursorKind(cursor);
     if (!isInteresting(kind))
         return CXChildVisit_Recurse;
@@ -258,6 +260,42 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
 
 CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor &ref)
 {
+    if (testLog(Debug))
+        debug() << "processCursor" << cursor.cursor << ref.cursor;
+
+    if (cursor.kind == CXCursor_InclusionDirective) {
+        CXFile includedFile = clang_getIncludedFile(cursor.cursor);
+        if (includedFile) {
+            const Location refLoc(includedFile, 0);
+            if (!refLoc.isNull()) {
+                CXSourceRange range = clang_getCursorExtent(cursor.cursor);
+                unsigned int end;
+                clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
+                unsigned tokenCount = 0;
+                CXToken *tokens = 0;
+                clang_tokenize(mUnit, range, &tokens, &tokenCount);
+                CursorInfo &info = mSymbols[cursor.location];
+                info.target = refLoc;
+                info.kind = cursor.kind;
+                info.isDefinition = false;
+                info.symbolLength = end - cursor.location.offset();
+                for (unsigned i=0; i<tokenCount; ++i) {
+                    if (clang_getTokenKind(tokens[i]) == CXToken_Literal) {
+                        CXStringScope scope(clang_getTokenSpelling(mUnit, tokens[i]));
+                        info.symbolName = "#include ";
+                        info.symbolName += clang_getCString(scope.string);
+                        mSymbolNames[info.symbolName].insert(cursor.location);
+                        break;
+                    }
+                }
+                if (tokens) {
+                    clang_disposeTokens(mUnit, tokens, tokenCount);
+                }
+            }
+        }
+        return CXChildVisit_Recurse;
+    }
+
     CursorInfo &info = mSymbols[cursor.location];
     if (!info.symbolLength) {
         if (mIsPch) {
@@ -305,15 +343,6 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
             }
         }
         mReferences[cursor.location] = qMakePair(ref.location, referenceType);
-    } else if (cursor.kind == CXCursor_InclusionDirective) {
-        CXFile includedFile = clang_getIncludedFile(cursor.cursor);
-        if (includedFile) {
-            Location refLoc(includedFile, 0);
-            if (!refLoc.isNull()) {
-                info.target = ref.location;
-                mReferences[cursor.location] = qMakePair(ref.location, Rdm::NormalReference);
-            }
-        }
     }
     return CXChildVisit_Recurse;
 }
@@ -402,18 +431,18 @@ void IndexerJob::run()
         return;
     }
     CXIndex index = clang_createIndex(1, 1);
-    CXTranslationUnit unit = clang_parseTranslationUnit(index, mIn.constData(),
-                                                        clangArgs.data(), idx, 0, 0,
-                                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
-    Scope scope = { mHeaderHash, unit, index };
+    mUnit = clang_parseTranslationUnit(index, mIn.constData(),
+                                       clangArgs.data(), idx, 0, 0,
+                                       CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+    Scope scope = { mHeaderHash, mUnit, index };
     const time_t timeStamp = time(0);
-    warning() << "loading unit" << clangLine << (unit != 0);
+    warning() << "loading unit" << clangLine << (mUnit != 0);
     if (isAborted()) {
         return;
     }
 
     mDependencies[mFileId].insert(mFileId);
-    if (!unit) {
+    if (!mUnit) {
         error() << "got 0 unit for" << clangLine;
         mIndexer->addDependencies(mDependencies);
         FileInformation fi;
@@ -422,12 +451,12 @@ void IndexerJob::run()
 
         Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
-        clang_getInclusions(unit, inclusionVisitor, this);
+        clang_getInclusions(mUnit, inclusionVisitor, this);
 
-        clang_visitChildren(clang_getTranslationUnitCursor(unit), indexVisitor, this);
+        clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
         if (mIsPch) {
             Q_ASSERT(!pchName.isEmpty());
-            if (clang_saveTranslationUnit(unit, pchName.constData(), clang_defaultSaveOptions(unit)) != CXSaveError_None) {
+            if (clang_saveTranslationUnit(mUnit, pchName.constData(), clang_defaultSaveOptions(mUnit)) != CXSaveError_None) {
                 error() << "Couldn't save pch file" << mIn << pchName;
             } else {
                 mIndexer->setPchUSRHash(mIn, mPchUSRHash);

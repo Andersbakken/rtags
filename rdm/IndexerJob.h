@@ -66,6 +66,7 @@ public:
     QHash<QByteArray, Location> mPchUSRHash;
 
     QList<Path> mPchHeaders;
+    CXTranslationUnit mUnit;
 signals:
     void done(int id, const Path &path, bool isPch, const QByteArray &msg);
 };
