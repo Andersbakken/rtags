@@ -43,16 +43,16 @@ return t if rtags is allowed to modify this file"
 (defun rtags-default-current-project ()
   (cond
    ((gtags-get-rootpath))
-        ((git-root-dir))
-        ((rtags-find-ancestor-file-directory "configure"))
-        ((rtags-find-ancestor-file-directory "CMakeLists.txt"))
-        ((rtags-find-ancestor-file-directory "*.pro"))
-        ((rtags-find-ancestor-file-directory "scons.1")) ; Is this the right way to determine this?
-        ((rtags-find-ancestor-file-directory "autogen.*"))
-        ((rtags-find-ancestor-file-directory "Makefile*"))
-        ((rtags-find-ancestor-file-directory "INSTALL*"))
-        ((rtags-find-ancestor-file-directory "README*"))
-        (t nil)))
+   ((git-root-dir))
+   ((rtags-find-ancestor-file-directory "configure"))
+   ((rtags-find-ancestor-file-directory "CMakeLists.txt"))
+   ((rtags-find-ancestor-file-directory "*.pro"))
+   ((rtags-find-ancestor-file-directory "scons.1")) ; Is this the right way to determine this?
+   ((rtags-find-ancestor-file-directory "autogen.*"))
+   ((rtags-find-ancestor-file-directory "Makefile*"))
+   ((rtags-find-ancestor-file-directory "INSTALL*"))
+   ((rtags-find-ancestor-file-directory "README*"))
+   (t nil)))
 
 ;; (defvar rtags-current-project-function rtags-default-current-project)
 
