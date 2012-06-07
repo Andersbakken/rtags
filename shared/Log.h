@@ -26,11 +26,20 @@ private:
     const int mLogLevel;
 };
 
+
+#if defined(Q_CC_GNU)
+void log(int level, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
+void debug(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
+void verboseDebug(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
+void warning(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
+void error(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
+#else
 void log(int level, const char *format, ...);
 void debug(const char *format, ...);
 void verboseDebug(const char *format, ...);
 void warning(const char *format, ...);
 void error(const char *format, ...);
+#endif
 enum LogFlag {
     Append = 0x1,
     DontRotate = 0x2,
