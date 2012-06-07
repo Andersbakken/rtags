@@ -3,6 +3,8 @@
   :group 'tools
   :prefix "rtags-")
 
+(require 'bookmark)
+
 (defcustom rtags-edit-hook nil
   "Run before rtags tries to modify a buffer (from rtags-rename)
 return t if rtags is allowed to modify this file"
