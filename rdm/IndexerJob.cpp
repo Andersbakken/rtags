@@ -473,7 +473,7 @@ void IndexerJob::run()
                            qPrintable(waitingForPch ? QString(" Waited for pch: %1ms.").arg(waitingForPch)
                                       : QString()),
                            mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size(),
-                           strings[(mPchHeaders.isEmpty() ? Pch : None) | (mFlags & NeedsDirty ? Dirty : None)]);
+                           strings[(mPchHeaders.isEmpty() ? None : Pch) | (mFlags & NeedsDirty ? Dirty : None)]);
 
     emit done(mId, mIn, mIsPch, QByteArray(buf, w));
     if (testLog(Warning)) {
