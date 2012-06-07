@@ -74,6 +74,7 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
 
 QByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDB)
 {
+    QByteArray ret;
     QByteArray qname;
     QByteArray qparam, qnoparam;
 
@@ -94,6 +95,8 @@ QByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Locatio
             break;
         }
         qname = QByteArray(name);
+        if (ret.isEmpty())
+            ret = qname;
         if (qparam.isEmpty()) {
             qparam.prepend(qname);
             if (addToDB) {
@@ -119,7 +122,7 @@ QByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Locatio
         clang_disposeString(displayName);
         cur = clang_getCursorSemanticParent(cur);
     }
-    return qparam;
+    return ret;
 }
 
 Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
@@ -228,7 +231,9 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     CXCursor ref = clang_getCursorReferenced(cursor);
     const CXCursorKind refKind = clang_getCursorKind(ref);
     // the kind won't change even if the reference is looked up from elsewhere
-    if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod)
+
+    /* CXCursor_CallExpr is the right thing to use for invocations of constructors */
+    if (kind == CXCursor_CallExpr && (refKind == CXCursor_CXXMethod || refKind == CXCursor_FunctionDecl))
         return CXChildVisit_Recurse;
 
     const Cursor c = { cursor, loc, kind };
