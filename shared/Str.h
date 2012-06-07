@@ -12,8 +12,11 @@ public:
     {}
     Str(CXString string)
     {
-        if (clang_getCString(string))
+        if (clang_getCString(string)) {
             mData = new Shared(string);
+        } else {
+            clang_disposeString(string);
+        }
     }
 
     bool operator==(const Str &other) const { return !strcmp(data(), other.data()); }
