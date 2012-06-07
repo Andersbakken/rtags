@@ -20,6 +20,11 @@ void CursorInfoJob::execute()
     if (isAborted())
         return;
     if (!cursorInfo.isNull()) {
-        write(found.key(flags) + "\t" + cursorInfo.symbolName);
+        char buf[1024];
+        const CXStringScope kind(clang_getCursorKindSpelling(cursorInfo.kind));
+        const int w = snprintf(buf, sizeof(buf), "%s symbolName: '%s' symbolLength: %d type: %s",
+                               found.key(flags).constData(), cursorInfo.symbolName.constData(),
+                               cursorInfo.symbolLength, clang_getCString(kind.string));
+        write(QByteArray(buf, w));
     }
 }

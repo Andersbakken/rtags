@@ -46,6 +46,12 @@ return t if rtags is allowed to modify this file"
       (buffer-substring (match-beginning 0) (match-end 0))
     nil))
 
+(defun rtags-cursorinfo (&optional location)
+  (let ((loc (if location location (rtags-current-location))))
+    (with-temp-buffer
+      (rtags-call-rc "-C" loc)
+      (buffer-string))))
+
 (defun rtags-current-location ()
   (format "%s,%d" (buffer-file-name) (- (point) 1)))
 
