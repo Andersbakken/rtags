@@ -151,14 +151,16 @@ return t if rtags is allowed to modify this file"
     )
   )
 
-(defun rtags-find-references-at-point()
+(defun rtags-find-references-at-point(&optional samefile)
   (interactive)
   (rtags-save-location)
   (let ((arg (rtags-current-location)))
     (if (get-buffer "*RTags Complete*")
         (kill-buffer "*RTags Complete*"))
     (switch-to-buffer (generate-new-buffer "*RTags Complete*"))
-    (rtags-call-rc "-l" "-r" arg)
+    (if samefile
+        (rtags-call-rc "-l" "-z" "-r" arg)
+      (rtags-call-rc "-l" "-r" arg))
     (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
           ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-line-column (buffer-string)))
           (t (progn
@@ -169,6 +171,10 @@ return t if rtags is allowed to modify this file"
     (not (= (point-min) (point-max)))
     )
   )
+
+(defun rtags-find-references-at-point-samefile()
+  (interactive)
+  (rtags-find-references-at-point t))
 
 (defun rtags-rename-symbol ()
   (interactive)
