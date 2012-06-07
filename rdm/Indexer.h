@@ -16,12 +16,7 @@ public:
     Indexer(const QByteArray &path, QObject* parent = 0);
     ~Indexer();
 
-    enum IndexType {
-        DirtyPch = 1,
-        Dirty = 2,
-        Makefile = 3 // these are used as QThreadPool priorites
-    };
-    int index(const Path &input, const QList<QByteArray> &arguments, IndexType type);
+    int index(const Path &input, const QList<QByteArray> &arguments, unsigned indexerJobFlags);
 
     void setPchDependencies(const Path &pchHeader, const QSet<quint32> &deps);
     void addDependencies(const DependencyHash &hash);
@@ -31,7 +26,6 @@ public:
     Path path() const { return mPath; }
     void abort();
     bool visitFile(quint32 fileId, const Path &p);
-    void dirty(const QSet<quint32> &files);
 signals:
     void indexingDone(int id);
     void jobsComplete();
@@ -39,6 +33,7 @@ private slots:
     void onJobComplete(int id, const Path &input, bool isPch, const QByteArray &msg);
     void onDirectoryChanged(const QString &path);
 private:
+    void dirty(const QSet<quint32> &files);
     void commitDependencies(const DependencyHash &deps, bool sync);
     void initDB();
     bool needsToWaitForPch(IndexerJob *job) const;

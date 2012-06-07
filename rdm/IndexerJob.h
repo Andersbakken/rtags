@@ -13,13 +13,20 @@ class IndexerJob : public QObject, public QRunnable, public AbortInterface
 {
     Q_OBJECT;
 public:
-    IndexerJob(Indexer *indexer, int id, Indexer::IndexType type, const Path &input,
-               const QList<QByteArray> &arguments);
-    int priority() const { return mType; }
+    enum Flag {
+        DirtyPch = 0x01,
+        Dirty = 0x02,
+        Makefile = 0x4, // these are used as QThreadPool priorites
+        Priorities = DirtyPch|Dirty|Makefile,
+        NeedsDirty = 0x010
+    };
+    IndexerJob(Indexer *indexer, int id, unsigned flags,
+               const Path &input, const QList<QByteArray> &arguments);
+    int priority() const { return mFlags & Priorities; }
     virtual void run();
 
     const int mId;
-    const Indexer::IndexType mType;
+    const unsigned mFlags;
     bool mIsPch;
     Location createLocation(const CXCursor &cursor , bool *blocked);
     QByteArray addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDb);

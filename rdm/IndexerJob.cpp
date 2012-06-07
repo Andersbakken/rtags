@@ -21,9 +21,9 @@ static inline QList<Path> extractPchFiles(const QList<QByteArray> &args)
     return out;
 }
 
-IndexerJob::IndexerJob(Indexer *indexer, int id, Indexer::IndexType type,
+IndexerJob::IndexerJob(Indexer *indexer, int id, unsigned flags,
                        const Path &input, const QList<QByteArray> &arguments)
-    : mId(id), mType(type), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
+    : mId(id), mFlags(flags), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
       mPchHeaders(extractPchFiles(arguments))
 {
@@ -442,6 +442,15 @@ void IndexerJob::run()
         scope.cleanup();
 
         if (!isAborted()) {
+            if (mFlags & NeedsDirty) {
+                QSet<quint32> dirtied;
+                for (QHash<quint32, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
+                    if (it.value() == Index)
+                        dirtied.insert(it.value());
+                }
+
+                Rdm::dirty(dirtied);
+            }
             Rdm::writeSymbols(mSymbols, mReferences);
             Rdm::writeSymbolNames(mSymbolNames);
             Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
@@ -451,12 +460,18 @@ void IndexerJob::run()
 
     }
     char buf[1024];
+    const char *strings[] = { "", "(pch)", "(dirty)", "(pch, dirty)" };
+    enum {
+        None = 0x0,
+        Pch = 0x1,
+        Dirty = 0x2
+    };
     const int w = snprintf(buf, sizeof(buf), "Visited %s in %lldms.%s (%d syms, %d refs, %d deps, %d symNames)%s",
                            mIn.constData(), timer.elapsed(),
                            qPrintable(waitingForPch ? QString(" Waited for pch: %1ms.").arg(waitingForPch)
                                       : QString()),
                            mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size(),
-                           mPchHeaders.isEmpty() ? "" : " (pch)");
+                           strings[(mPchHeaders.isEmpty() ? Pch : None) | (mFlags & NeedsDirty ? Dirty : None)]);
 
     emit done(mId, mIn, mIsPch, QByteArray(buf, w));
     if (testLog(Warning)) {

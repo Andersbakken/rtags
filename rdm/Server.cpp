@@ -13,6 +13,7 @@
 #include "Rdm.h"
 #include "ReferencesJob.h"
 #include "SHA256.h"
+#include "IndexerJob.h"
 #include "Server.h"
 #include "StatusJob.h"
 #include "Database.h"
@@ -292,7 +293,7 @@ void Server::handleAddMessage(AddMessage *message)
         //              << "vs"
         //              << RTags::join(Rdm::compileArgs(Location::insertFile(message->inputFile())), " ");
         // }
-        const int id = mIndexer->index(message->inputFile(), args, Indexer::Makefile);
+        const int id = mIndexer->index(message->inputFile(), args, IndexerJob::Makefile);
         if (id != -1)
             mPendingIndexes[id] = conn;
     }
