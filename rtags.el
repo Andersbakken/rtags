@@ -19,12 +19,47 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'boolean)
 
-(defvar rtags-current-path-filter nil)
+(defun rtags-find-ancestor-file(pattern)
+  "Find a file named \a file in as shallow a path as possible,
+  e.g. if there's a Makefile in /foobar/rtags/rc/Makefile and one
+  in /foobar/rtags/Makefile it will return the latter. Wildcards
+  are allowed. If multiple files match return first match. "
+  (let ((best nil)
+        (dir default-directory))
+    (while (cond ((string= dir "") nil)
+                 ((string= dir "/") nil)
+                 (t t))
+      (let ((match (file-expand-wildcards (concat dir pattern))))
+        (if match
+            (setq best (nth 0 match))))
+      (setq dir (substring dir 0 (string-match "[^/]*/?$" dir))))
+    best))
 
-(defun rtags-create-path-filter()
-  nil)
-  ;; (if rtags-create-path-filter
-  ;;     (let ((filter (rtags-create-path-filter)))
+(defun rtags-find-ancestor-file-directory(pattern)
+  (let ((match (rtags-find-ancestor-file pattern)))
+    (if match
+        (substring match 0 (string-match "[^/]*/?$" match)))))
+
+(defun rtags-default-current-project ()
+  (cond
+   ((gtags-get-rootpath))
+        ((git-root-dir))
+        ((rtags-find-ancestor-file-directory "configure"))
+        ((rtags-find-ancestor-file-directory "CMakeLists.txt"))
+        ((rtags-find-ancestor-file-directory "*.pro"))
+        ((rtags-find-ancestor-file-directory "scons.1")) ; Is this the right way to determine this?
+        ((rtags-find-ancestor-file-directory "autogen.*"))
+        ((rtags-find-ancestor-file-directory "Makefile*"))
+        ((rtags-find-ancestor-file-directory "INSTALL*"))
+        ((rtags-find-ancestor-file-directory "README*"))
+        (t nil)))
+
+;; (defvar rtags-current-project-function rtags-default-current-project)
+
+;; (defun rtags-create-path-filter()
+;;   (if (functionp rtags-current-project-function)
+;;       (concat "-i" (apply 'rtags-current-project-function))
+;;     nil))
 
 (defcustom rtags-after-find-file-hook nil
   "Run after rtags has jumped to a location possibly in a new file"
@@ -32,6 +67,7 @@ return t if rtags is allowed to modify this file"
   :type 'hook)
 
 (defvar rtags-last-buffer nil)
+(defvar rtags-current-path-filter nil)
 
 (defun rtags-current-symbol ()
   (cond
@@ -58,12 +94,6 @@ return t if rtags is allowed to modify this file"
 (defun rtags-print-current-location ()
   (interactive)
   (message (rtags-current-location)))
-
-(defun rtags-build-symbol-name-completions()
-  (interactive)
-  (if (get-buffer "*RTags SymbolName Completions*")
-      (kill-buffer "*RTags SymbolName Completions**"))
-  (start-process "RTags SymbolName Completions" (generate-new-buffer "*RTags SymbolName Completions*") "rc" "-S"))
 
 (defun rtags-log (log)
   (if rtags-log-enabled
@@ -273,8 +303,6 @@ return t if rtags is allowed to modify this file"
   (kill-buffer (current-buffer))
   (switch-to-buffer rtags-last-buffer))
 
-(provide 'rtags)
-
 (defun rtags-symbolname-completion-get (string)
   (with-temp-buffer
     (rtags-call-rc "-P" "-S" string)
@@ -291,3 +319,5 @@ return t if rtags is allowed to modify this file"
              (try-completion string (rtags-symbolname-completion-get string) predicate))
             ((eq code t) (rtags-symbolname-completion-get string))
             ((eq code 'lambda) (rtags-symbolname-completion-exactmatch string)))))
+
+(provide 'rtags)
