@@ -5,5 +5,4 @@ Maybe clang has some gcc compat mode where it would work approriately with the
    headers from the toolchain
 Make a string wrapper class and use that one for mHeaderHash.
 Solve constructors and destructors for rename symbol.
-Delay dirtying if dirty file has no dependencies (except itself)
 Use GccArguments in rdm as well
