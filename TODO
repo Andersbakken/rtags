@@ -3,6 +3,5 @@ Consider changing offsets in currently modified files the same way compilation m
 Use the same pch file for rc/rdm/shared
 Maybe clang has some gcc compat mode where it would work approriately with the
    headers from the toolchain
-Make a string wrapper class and use that one for mHeaderHash.
 Solve constructors and destructors for rename symbol.
 Use GccArguments in rdm as well
