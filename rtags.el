@@ -127,6 +127,16 @@ return t if rtags is allowed to modify this file"
     nil)
   )
 
+(defun rtags-index-project ()
+  (interactive)
+  (let ((makefile (read-file-name
+                   "Index project Makefile: "
+                   default-directory
+                   nil
+                   t
+                   (if (file-exists-p (concat default-directory "/Makefile")) "Makefile" nil))))
+    (if (file-exists-p makefile)
+        (rtags-call-rc "-m" makefile))))
 
 (defun rtags-follow-symbol-at-point()
   (interactive)
