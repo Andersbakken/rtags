@@ -38,6 +38,7 @@ static void help(FILE *f, const char* app)
             "  --no-context|-N                           Don't print context for locations\n"
             "  --line-numbers|-l                         Output line numbers instead of offsets\n"
             "  --path-filter|-i [arg]                    Filter out results not matching with arg\n"
+            "  --same-file|-z                            Filter out results not in the same file\n"
             "  --filter-system-headers|-H                Don't exempt system headers from path filters\n"
             "  --includepath|-I [arg]                    Add additional include path, must be combined with --makefile\n"
             "  --define|-D [arg]                         Add additional define, must be combined with --makefile\n"
@@ -169,6 +170,7 @@ int main(int argc, char** argv)
         { "rdm-log", no_argument, 0, 'g' },
         { "line-numbers", no_argument, 0, 'l' },
         { "path-filter", required_argument, 0, 'i' },
+        { "same-file", no_argument, 0, 'z' },
         { "filter-system-headers", no_argument, 0, 'H' },
         { "includepath", required_argument, 0, 'I' },
         { "define", required_argument, 0, 'D' },
@@ -180,6 +182,8 @@ int main(int argc, char** argv)
         { "elisp-list", no_argument, 0, 'P' },
         { 0, 0, 0, 0 }
     };
+
+    // Not taken: b G j k Q T U V w x y
 
     int logLevel = 0;
     QByteArray logFile;
@@ -223,6 +227,9 @@ int main(int argc, char** argv)
             break;
         case 'E':
             queryFlags |= QueryMessage::IncludeDeclarationsAndDefinitions;
+            break;
+        case 'z':
+            queryFlags |= QueryMessage::SameFile;
             break;
         case 'O':
             queryFlags |= QueryMessage::ReverseSort;

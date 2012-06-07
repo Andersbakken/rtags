@@ -27,6 +27,7 @@ void ReferencesJob::execute()
     const bool excludeDefsAndDecls = !(flags & QueryMessage::IncludeDeclarationsAndDefinitions);
     ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Read);
     const unsigned keyFlags = QueryMessage::keyFlags(flags);
+    const quint32 fileFilterId = (flags & QueryMessage::SameFile && symbolName.isEmpty() ? locations.begin()->fileId() : 0);
     foreach(const Location &location, locations) {
         if (isAborted())
             return;
@@ -47,19 +48,19 @@ void ReferencesJob::execute()
             if (cursorInfo.target.isValid()) {
                 if (excludeDefsAndDecls) {
                     filtered.insert(cursorInfo.target);
-                } else {
+                } else if (!fileFilterId || cursorInfo.target.fileId() == fileFilterId) {
                     refs.insert(cursorInfo.target);
                 }
             }
             foreach(const Location &l, cursorInfo.references) {
-                if (!excludeDefsAndDecls || !filtered.contains(l)) {
+                if ((!fileFilterId || l.fileId() == fileFilterId) && (!excludeDefsAndDecls || !filtered.contains(l))) {
                     refs.insert(l);
                 }
             }
             if (cursorInfo.target.isValid() && cursorInfo.kind != CXCursor_VarDecl) {
                 cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
                 foreach(const Location &l, cursorInfo.references) {
-                    if (!excludeDefsAndDecls || !filtered.contains(l)) {
+                    if ((!fileFilterId || l.fileId() == fileFilterId) && (!excludeDefsAndDecls || !filtered.contains(l))) {
                         refs.insert(l);
                     }
                 }
