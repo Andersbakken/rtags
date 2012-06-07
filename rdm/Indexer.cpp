@@ -164,7 +164,11 @@ void Indexer::initDB()
     if (toIndex.isEmpty() && toIndexPch.isEmpty())
         return;
 
-    dirty(dirtyFiles);
+    {
+        QMutexLocker lock(&mVisitedFilesMutex);
+        mVisitedFiles -= dirtyFiles;
+    }
+
     if (dirtyFiles.size() > 1) {
         QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
     } else {
@@ -259,7 +263,8 @@ void Indexer::onDirectoryChanged(const QString &path)
 
     Q_ASSERT(p.endsWith('/'));
     {
-        QMutexLocker lock(&mWatchedMutex);
+        QMutexLocker watchedLock(&mWatchedMutex);
+        QMutexLocker visitedLock(&mVisitedFilesMutex);
         WatchedHash::iterator it = mWatched.find(p);
         if (it == mWatched.end()) {
             error() << "directory changed, but not in watched list" << p;
@@ -281,6 +286,7 @@ void Indexer::onDirectoryChanged(const QString &path)
             if (!file.exists() || file.lastModified() != (*wit).second) {
                 const quint32 fileId = Location::fileId(file);
                 dirtyFiles.insert(fileId);
+                mVisitedFiles.remove(fileId);
                 pending.append(file);
                 wit = it.value().erase(wit);
                 wend = it.value().end(); // ### do we need to update 'end' here?
@@ -321,7 +327,6 @@ void Indexer::onDirectoryChanged(const QString &path)
     if (toIndex.isEmpty() && toIndexPch.isEmpty())
         return;
 
-    dirty(dirtyFiles);
     if (dirtyFiles.size() > 1) {
         QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
     } else {
@@ -440,10 +445,4 @@ void Indexer::abort()
     foreach(IndexerJob *job, mJobs) {
         job->abort();
     }
-}
-
-void Indexer::dirty(const QSet<quint32> &files)
-{
-    QMutexLocker lock(&mVisitedFilesMutex);
-    mVisitedFiles -= files;
 }

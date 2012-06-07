@@ -443,13 +443,14 @@ void IndexerJob::run()
 
         if (!isAborted()) {
             if (mFlags & NeedsDirty) {
-                QSet<quint32> dirtied;
+#ifdef QT_DEBUG
                 for (QHash<quint32, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
-                    if (it.value() == Index)
-                        dirtied.insert(it.value());
+                    if (it.value() == Index && it.key() != mFileId) {
+                        error("This file should not have been dirty %s %d", Location::path(it.key()).constData(), it.key());
+                    }
                 }
-
-                Rdm::dirty(dirtied);
+#endif
+                Rdm::dirty(QSet<quint32>() << mFileId);
             }
             Rdm::writeSymbols(mSymbols, mReferences);
             Rdm::writeSymbolNames(mSymbolNames);
