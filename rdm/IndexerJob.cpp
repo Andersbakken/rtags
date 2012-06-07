@@ -211,11 +211,9 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         case CXCursor_FunctionDecl:
         case CXCursor_CXXMethod:
         case CXCursor_Destructor:
-        case CXCursor_Constructor: {
-            CXStringScope usr(clang_getCursorUSR(cursor));
-            const char *cstr = clang_getCString(usr.string);
-            job->mHeaderHash[cstr] = cursor;
-            break; }
+        case CXCursor_Constructor:
+            job->mHeaderHash[clang_getCursorUSR(cursor)] = cursor;
+            break;
         case CXCursor_ClassDecl:
         case CXCursor_StructDecl:
         case CXCursor_Namespace:
@@ -330,6 +328,7 @@ struct Scope {
     }
     void cleanup()
     {
+        headerHash.clear();
         if (unit) {
             clang_disposeTranslationUnit(unit);
             unit = 0;
@@ -340,7 +339,7 @@ struct Scope {
         }
     }
 
-
+    QHash<Str, CXCursor> &headerHash;
     CXTranslationUnit &unit;
     CXIndex &index;
 };
@@ -404,7 +403,7 @@ void IndexerJob::run()
     CXTranslationUnit unit = clang_parseTranslationUnit(index, mIn.constData(),
                                                         clangArgs.data(), idx, 0, 0,
                                                         CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
-    Scope scope = { unit, index };
+    Scope scope = { mHeaderHash, unit, index };
     const time_t timeStamp = time(0);
     warning() << "loading unit" << clangLine << (unit != 0);
     if (isAborted()) {
@@ -517,14 +516,13 @@ IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind ki
         return ret;
     }
 
-    CXStringScope scope(clang_getCursorUSR(cursor));
-    const char *cstr = clang_getCString(scope.string);
-    if (!cstr) {
+    const Str usr = clang_getCursorUSR(cursor);
+    if (!usr.length()) {
         const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
         return ret;
     }
 
-    const QByteArray key = QByteArray::fromRawData(cstr, strlen(cstr));
+    const QByteArray key = QByteArray::fromRawData(usr.data(), usr.length());
     Location refLoc = mPchUSRHash.value(key);
     if (!refLoc.isNull()) {
         const Cursor ret = { cursor, refLoc, clang_getCursorKind(cursor) };
@@ -532,7 +530,7 @@ IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind ki
         return ret;
     }
 
-    QHash<QByteArray, CXCursor>::const_iterator it = mHeaderHash.find(key);
+    QHash<Str, CXCursor>::const_iterator it = mHeaderHash.find(usr);
     if (it != mHeaderHash.end()) {
         const CXCursor ref = it.value();
         const Cursor ret = { ref, createLocation(ref, 0), clang_getCursorKind(ref) };

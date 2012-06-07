@@ -6,6 +6,7 @@
 #include <RTags.h>
 #include "Rdm.h"
 #include "Job.h"
+#include "Str.h"
 #include "AbortInterface.h"
 #include <clang-c/Index.h>
 
@@ -53,7 +54,7 @@ public:
         DontIndex
     };
     QHash<quint32, PathState> mPaths;
-    QHash<QByteArray, CXCursor> mHeaderHash;
+    QHash<Str, CXCursor> mHeaderHash;
     bool mDoneFullUSRScan;
     ReferenceHash mReferences;
     const Path mIn;
