@@ -78,7 +78,6 @@ QByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Locatio
     QByteArray qname;
     QByteArray qparam, qnoparam;
 
-    CXString displayName;
     CXCursor cur = cursor, null = clang_getNullCursor();
     CXCursorKind kind;
     for (;;) {
@@ -88,10 +87,9 @@ QByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Locatio
         if (clang_isTranslationUnit(kind))
             break;
 
-        displayName = clang_getCursorDisplayName(cur);
-        const char *name = clang_getCString(displayName);
+        CXStringScope displayName(clang_getCursorDisplayName(cur));
+        const char *name = clang_getCString(displayName.string);
         if (!name || !strlen(name)) {
-            clang_disposeString(displayName);
             break;
         }
         qname = QByteArray(name);
@@ -119,7 +117,6 @@ QByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Locatio
             }
         }
 
-        clang_disposeString(displayName);
         cur = clang_getCursorSemanticParent(cur);
     }
     return ret;
