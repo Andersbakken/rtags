@@ -75,7 +75,7 @@ return t if rtags is allowed to modify this file"
   (call-process (executable-find "rc") nil nil nil "--quit-rdm"))
 
 (defun rtags-call-rc (&rest arguments)
-  (push "--autostart-rdm=-L/tmp/rdm.log" arguments)
+  (push (if rtags-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
   (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
   (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
   (rtags-log (buffer-string))
