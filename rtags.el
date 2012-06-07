@@ -67,6 +67,7 @@ return t if rtags is allowed to modify this file"
   :type 'hook)
 
 (defvar rtags-last-buffer nil)
+(defvar rtags-last-project nil)
 (defvar rtags-current-path-filter nil)
 
 (defun rtags-current-symbol ()
@@ -121,6 +122,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-save-location()
   (setq rtags-last-buffer (current-buffer))
+  (setq rtags-last-project (rtags-default-current-project))
   (bookmark-set "RTags Last"))
 
 (defun rtags-back()
@@ -167,8 +169,7 @@ return t if rtags is allowed to modify this file"
 (defun rtags-follow-symbol-at-point()
   (interactive)
   (rtags-save-location)
-  (let ((arg (rtags-current-location))
-        (pathfilter (rtags-create-path-filter)))
+  (let ((arg (rtags-current-location)))
     (with-temp-buffer
       (rtags-call-rc "-N" "-f" arg)
       (if (< (point-min) (point-max))
