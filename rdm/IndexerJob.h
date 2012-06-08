@@ -15,9 +15,9 @@ class IndexerJob : public QObject, public QRunnable, public AbortInterface
     Q_OBJECT;
 public:
     enum Flag {
-        DirtyPch = 0x01,
+        DirtyPch = 0x04,
         Dirty = 0x02,
-        Makefile = 0x4, // these are used as QThreadPool priorites
+        Makefile = 0x1, // these are used as QThreadPool priorites
         Priorities = DirtyPch|Dirty|Makefile,
         NeedsDirty = 0x010
     };

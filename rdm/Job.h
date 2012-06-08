@@ -14,8 +14,8 @@ public:
         QuoteOutput = 0x2
     };
     enum Priority {
-        QueryJobPriority = 0,
-        CompletionMatchJobPriority = 4
+        QueryJobPriority = 10,
+        CompletionMatchJobPriority = 0
     };
     Job(int id, Priority priority, unsigned flags = None, QObject *parent = 0);
     ~Job();
