@@ -128,7 +128,7 @@ int writeDependencies(const DependencyHash &dependencies);
 int writePchDepencies(const QHash<Path, QSet<quint32> > &pchDependencies);
 int writeFileInformation(quint32 fileId, const QList<QByteArray> &args, time_t lastTouched);
 int writePchUSRHashes(const QHash<Path, PchUSRHash> &hashes);
-int writeSymbols(SymbolHash &symbols, const ReferenceHash &references);
+int writeSymbols(SymbolHash &symbols, const ReferenceHash &references, quint32 fileId);
 int dirty(const QSet<quint32> &dirtyFileIds);
 QList<QByteArray> compileArgs(quint32 fileId);
 // the symbols will be modified before writing and we don't want to detach so we

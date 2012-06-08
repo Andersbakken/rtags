@@ -210,7 +210,7 @@ int writePchUSRHashes(const QHash<Path, PchUSRHash> &pchUSRHashes)
     return totalWritten;
 }
 
-int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
+int writeSymbols(SymbolHash &symbols, const ReferenceHash &references, quint32 fileId)
 {
     QElapsedTimer timer;
     timer.start();
@@ -241,15 +241,17 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references)
             it.key().toKey(buf);
             const Slice key(buf, 8);
             const CursorInfo added = it.value();
-            bool ok;
-            CursorInfo current = db->value<CursorInfo>(key, &ok);
-            if (!ok) {
-                // qDebug() << "about to write" << it.key() << added.symbolName << added.kind << added.target;
-                totalWritten += batch.add(key, added);
-            } else if (current.unite(added)) {
-                // qDebug() << "about to write united" << it.key() << current.symbolName << current.kind << current.target;
-                totalWritten += batch.add(key, current);
+            if (it.key().fileId() != fileId) {
+                bool ok;
+                CursorInfo current = db->value<CursorInfo>(key, &ok);
+                if (ok) {
+                    if (current.unite(added))
+                        totalWritten += batch.add(key, current);
+                    ++it;
+                    continue;
+                }
             }
+            totalWritten += batch.add(key, added);
             ++it;
         }
     }

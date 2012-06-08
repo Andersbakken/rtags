@@ -482,7 +482,7 @@ void IndexerJob::run()
 #endif
                 Rdm::dirty(QSet<quint32>() << mFileId);
             }
-            Rdm::writeSymbols(mSymbols, mReferences);
+            Rdm::writeSymbols(mSymbols, mReferences, mFileId);
             Rdm::writeSymbolNames(mSymbolNames);
             Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
             if (mIsPch)
