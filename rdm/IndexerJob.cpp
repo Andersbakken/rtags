@@ -80,12 +80,30 @@ QByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Locatio
 
     CXCursor cur = cursor, null = clang_getNullCursor();
     CXCursorKind kind;
+    bool first = true;
     for (;;) {
         if (clang_equalCursors(cur, null))
             break;
         kind = clang_getCursorKind(cur);
-        if (clang_isTranslationUnit(kind))
-            break;
+        if (first) {
+            first = false;
+        } else {
+            bool ok = false;
+            switch (kind) {
+            case CXCursor_Namespace:
+            case CXCursor_ClassDecl:
+            case CXCursor_StructDecl:
+            case CXCursor_CXXMethod:
+            case CXCursor_Constructor:
+            case CXCursor_FunctionDecl:
+                ok = true;
+                break;
+            default:
+                break;
+            }
+            if (!ok)
+                break;
+        }
 
         CXStringScope displayName(clang_getCursorDisplayName(cur));
         const char *name = clang_getCString(displayName.string);
