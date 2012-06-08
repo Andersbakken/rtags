@@ -85,9 +85,7 @@ QByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Locatio
         if (clang_equalCursors(cur, null))
             break;
         kind = clang_getCursorKind(cur);
-        if (first) {
-            first = false;
-        } else {
+        if (!first) {
             bool ok = false;
             switch (kind) {
             case CXCursor_Namespace:
@@ -135,6 +133,24 @@ QByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Locatio
             if (qparam != qnoparam) {
                 Q_ASSERT(!qnoparam.isEmpty());
                 mSymbolNames[qnoparam].insert(location);
+            }
+        }
+
+        if (first) {
+            first = false;
+            switch (kind) {
+            case CXCursor_Namespace:
+            case CXCursor_ClassDecl:
+            case CXCursor_StructDecl:
+            case CXCursor_CXXMethod:
+            case CXCursor_Constructor:
+            case CXCursor_FunctionDecl:
+            case CXCursor_VarDecl:
+            case CXCursor_ParmDecl:
+                break;
+            default:
+                // these don't need the scope
+                return ret;
             }
         }
 
