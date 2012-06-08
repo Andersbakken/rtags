@@ -22,9 +22,10 @@ void CursorInfoJob::execute()
     if (!cursorInfo.isNull()) {
         char buf[1024];
         const CXStringScope kind(clang_getCursorKindSpelling(cursorInfo.kind));
-        const int w = snprintf(buf, sizeof(buf), "%s symbolName: '%s' symbolLength: %d type: %s",
+        const int w = snprintf(buf, sizeof(buf), "%s symbolName: %s kind: %s isDefinition: %s symbolLength: %d",
                                found.key(flags).constData(), cursorInfo.symbolName.constData(),
-                               cursorInfo.symbolLength, clang_getCString(kind.string));
+                               clang_getCString(kind.string), cursorInfo.isDefinition ? "true" : "false",
+                               cursorInfo.symbolLength);
         write(QByteArray(buf, w));
     }
 }

@@ -4,18 +4,6 @@
 #include "Path.h"
 #include "Job.h"
 
-class RunTestJob : public Job
-{
-    Q_OBJECT
-public:
-    RunTestJob(const Path &path, int id);
-protected:
-    virtual void execute();
-    void testSymbolNames(const QByteArray &symbolName, const QSet<QByteArray> &expectedLocations);
-private:
-    const Path path;
-};
-
 class JobRunner : public QObject
 {
     Q_OBJECT;
@@ -44,6 +32,19 @@ private:
     QSet<QByteArray> *lines;
 
 
+};
+
+class RunTestJob : public Job
+{
+    Q_OBJECT
+public:
+    RunTestJob(const Path &path, int id);
+protected:
+    virtual void execute();
+    void testSymbolNames(const QByteArray &symbolName, const QSet<QByteArray> &expectedLocations);
+    QSet<QByteArray> runJob(Job *job) const { JobRunner runner; return runner.runJob(job); }
+private:
+    const Path path;
 };
 
 #endif

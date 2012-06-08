@@ -222,7 +222,22 @@ public:
         error("Failed to make location from [%s,%d]", path.constData(), offset);
         return Location();
     }
-    quint64 mData;
+    static Location fromPathAndOffset(const QByteArray &pathAndOffset)
+    {
+        const int comma = pathAndOffset.lastIndexOf(',');
+        if (comma <= 0 || comma + 1 == pathAndOffset.size()) {
+            error("Can't create location from this: %s", pathAndOffset.constData());
+            return Location();
+        }
+        bool ok;
+        const quint32 fileId = QByteArray::fromRawData(pathAndOffset.constData() + comma + 1, pathAndOffset.size() - comma - 1).toUInt(&ok);
+        if (!ok) {
+            error("Can't create location from this: %s", pathAndOffset.constData());
+            return Location();
+        }
+        return Location(Location::insertFile(Path(pathAndOffset.left(comma))), fileId);
+    }
+quint64 mData;
 private:
     static QHash<Path, quint32> sPathsToIds;
     static QHash<quint32, Path> sIdsToPaths;

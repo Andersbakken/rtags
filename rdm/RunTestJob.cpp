@@ -3,6 +3,10 @@
 #include "Server.h"
 #include "Rdm.h"
 #include "FindSymbolsJob.h"
+#include "ListSymbolsJob.h"
+#include "CursorInfoJob.h"
+#include "FollowLocationJob.h"
+#include "ReferencesJob.h"
 
 RunTestJob::RunTestJob(const Path &p, int i)
     : Job(i, QueryJobPriority, WriteUnfiltered), path(p)
@@ -26,8 +30,18 @@ void RunTestJob::execute()
         SymbolNames,
         Symbols
     } state = None;
+    // symbolNames
     QByteArray symbolName;
     QSet<QByteArray> expectedLocations;
+    QSet<QByteArray> allSymbolNames;
+    {
+        const QueryMessage msg(QueryMessage::ListSymbols);
+        expectedLocations = runJob(new ListSymbolsJob(-1, msg));
+    }
+
+    // symbols
+    QByteArray location, targetLocation;
+    QList<QByteArray> references;
     if (f) {
         int read;
         while ((read = RTags::readLine(f, buf, sizeof(buf))) != -1) {
@@ -51,6 +65,7 @@ void RunTestJob::execute()
                         return;
                     }
                     symbolName = line.mid(2, line.size() - 3);
+                    allSymbolNames.remove(symbolName);
                 } else if (line.startsWith("    /")) {
                     if (symbolName.isEmpty()) {
                         write("Unexpected line [" + line + "]. Got new location without symbolName");
@@ -63,6 +78,8 @@ void RunTestJob::execute()
                         symbolName.clear();
                         expectedLocations.clear();
                     }
+                    if (!allSymbolNames.isEmpty())
+                        write("Missing symbolNames: " + RTags::join(allSymbolNames.toList(), ", "));
                     state = None;
                 } else {
                     write("Unexpected line [" + line + "] while parsing symbol name tests");
@@ -70,9 +87,30 @@ void RunTestJob::execute()
                 }
                 break;
             case Symbols:
-                if (!strcmp(StatusJob::delimiter, line)) {
-                    state = None;
-                    break;
+                if (line.startsWith("  /")) {
+                    const int idx = line.indexOf(" symbolName: ");
+                    if (idx == -1) {
+                        write("Can't parse line [" + line + "] during symbol tests");
+                        return;
+                    }
+                    const Location loc = Location::fromPathAndOffset(QByteArray::fromRawData(line.constData() + 2, idx - 2));
+                    if (!loc.isValid()) {
+                        write("Can't parse line [" + line + "] during symbol tests");
+                        return;
+                    }
+                    const QByteArray cursorInfo = runJob(new CursorInfoJob(-1, loc, 0)).toList().value(0);
+                    if (strncmp(cursorInfo.constData(), line.constData() + 2, cursorInfo.size())) {
+                        write("Failed test, something's different here");
+                    }
+                } else if (line.startsWith("    /")) {
+
+
+                } else if (line == StatusJob::delimiter) {
+
+
+                } else {
+                    write("Unexpected line [" + line + "] while parsing symbol name tests");
+                    return;
                 }
                 break;
             }
@@ -85,8 +123,7 @@ void RunTestJob::execute()
 void RunTestJob::testSymbolNames(const QByteArray &symbolName, const QSet<QByteArray> &expectedLocations)
 {
     const QueryMessage msg(QueryMessage::FindSymbols, symbolName, QueryMessage::NoContext);
-    JobRunner runner;
-    const QSet<QByteArray> actual = runner.runJob(new FindSymbolsJob(-1, msg));
+    const QSet<QByteArray> actual = runJob(new FindSymbolsJob(-1, msg));
     QSet<QByteArray> missing = expectedLocations - actual;
     QSet<QByteArray> unexpected = actual - expectedLocations;
     if (!missing.isEmpty() || !unexpected.isEmpty()) {
