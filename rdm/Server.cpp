@@ -4,7 +4,8 @@
 #include "Indexer.h"
 #include "Client.h"
 #include "CursorInfoJob.h"
-#include "MatchJob.h"
+#include "ListSymbolsJob.h"
+#include "FindSymbolsJob.h"
 #include "Message.h"
 #include "Messages.h"
 #include "Path.h"
@@ -322,15 +323,10 @@ void Server::handleQueryMessage(QueryMessage *message)
         id = referencesForName(*message);
         break;
     case QueryMessage::ListSymbols:
-        if (message->query().value(0).isEmpty() && !message->flags() && !mCachedSymbolNames.isEmpty()) {
-            ResponseMessage response(mCachedSymbolNames);
-            conn->send(&response);
-            conn->finish();
-            return;
-        }
-        // fall through
+        id = listSymbols(*message);
+        break;
     case QueryMessage::FindSymbols:
-        id = match(*message);
+        id = findSymbols(*message);
         break;
     case QueryMessage::Dump:
         id = dump(*message);
@@ -370,8 +366,6 @@ void Server::onIndexingDone(int id)
 
 void Server::onComplete(int id)
 {
-    if (id == MatchJob::CompletionMatchJobId)
-        return;
     QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
         return;
@@ -380,10 +374,6 @@ void Server::onComplete(int id)
 
 void Server::onOutput(int id, const QByteArray &response)
 {
-    if (id == MatchJob::CompletionMatchJobId) {
-        mCachedSymbolNames.append(response);
-        return;
-    }
     QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
         return;
@@ -468,18 +458,32 @@ int Server::referencesForName(const QueryMessage& query)
     return id;
 }
 
-int Server::match(const QueryMessage &query)
+int Server::findSymbols(const QueryMessage &query)
 {
     const QByteArray partial = query.query().value(0);
     const int id = nextId();
 
-    error() << "match" << partial;
+    error() << "findSymbols" << partial;
 
-    MatchJob *job = new MatchJob(id, query);
+    FindSymbolsJob *job = new FindSymbolsJob(id, query);
     startJob(job);
 
     return id;
 }
+
+int Server::listSymbols(const QueryMessage &query)
+{
+    const QByteArray partial = query.query().value(0);
+    const int id = nextId();
+
+    error() << "listSymbols" << partial;
+
+    ListSymbolsJob *job = new ListSymbolsJob(id, query);
+    startJob(job);
+
+    return id;
+}
+
 
 int Server::dump(const QueryMessage &query)
 {

@@ -36,7 +36,8 @@ set(rdm_SRCS
     DumpJob.cpp
     FollowLocationJob.cpp
     CursorInfoJob.cpp
-    MatchJob.cpp
+    ListSymbolsJob.cpp
+    FindSymbolsJob.cpp
     ReferencesJob.cpp
     Rdm.cpp
     StatusJob.cpp
@@ -54,7 +55,8 @@ set(rdm_MOCS
     DumpJob.h
     FollowLocationJob.h
     CursorInfoJob.h
-    MatchJob.h
+    ListSymbolsJob.h
+    FindSymbolsJob.h
     ReferencesJob.h
     StatusJob.h
     TestJob.h

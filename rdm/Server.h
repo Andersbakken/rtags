@@ -91,7 +91,8 @@ private:
     int cursorInfo(const QueryMessage &query);
     int referencesForLocation(const QueryMessage &query);
     int referencesForName(const QueryMessage &query);
-    int match(const QueryMessage &query);
+    int findSymbols(const QueryMessage &query);
+    int listSymbols(const QueryMessage &query);
     int dump(const QueryMessage &query);
     int status(const QueryMessage &query);
     int test(const QueryMessage &query);
@@ -109,7 +110,6 @@ private:
     bool mVerbose;
     int mJobId;
     QByteArray mName;
-    QList<QByteArray> mCachedSymbolNames;
     static Path sBase;
     Database *mDBs[DatabaseTypeCount];
 };
