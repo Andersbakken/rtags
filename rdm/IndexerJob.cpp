@@ -93,8 +93,11 @@ QByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Locatio
             break;
         }
         qname = QByteArray(name);
-        if (ret.isEmpty())
+        if (ret.isEmpty()) {
             ret = qname;
+            if (!addToDB)
+                return ret;
+        }
         if (qparam.isEmpty()) {
             qparam.prepend(qname);
             if (addToDB) {
@@ -193,7 +196,7 @@ static inline bool isInteresting(CXCursorKind kind)
 }
 
 CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
-                                            CXCursor parent,
+                                            CXCursor /*parent*/,
                                             CXClientData client_data)
 {
     IndexerJob *job = static_cast<IndexerJob*>(client_data);
@@ -201,7 +204,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         return CXChildVisit_Break;
 
     if (testLog(Debug))
-        debug() << "indexVisitor" << cursor << parent;
+        debug() << "indexVisitor" << cursor << clang_getCursorReferenced(cursor);
     const CXCursorKind kind = clang_getCursorKind(cursor);
     if (!isInteresting(kind))
         return CXChildVisit_Recurse;
@@ -245,6 +248,9 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
             if (!clang_equalCursors(clang_getNullCursor(), ref)) {
                 Q_ASSERT(!clang_equalCursors(cursor, ref));
                 refLoc = job->createLocation(ref, 0);
+                if (testLog(Debug)) {
+                    debug() << "Looked up definition for ref" << ref << cursor;
+                }
             }
         }
 
@@ -307,7 +313,8 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         info.isDefinition = clang_isCursorDefinition(cursor.cursor);
         info.kind = cursor.kind;
         CXString name;
-        if (clang_isReference(cursor.kind)) {
+        const bool isReference = clang_isReference(cursor.kind);
+        if (isReference) {
             name = clang_getCursorSpelling(ref.cursor);
         } else {
             name = clang_getCursorSpelling(cursor.cursor);
@@ -319,8 +326,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
             mSymbols.remove(cursor.location);
             return CXChildVisit_Recurse;
         }
-        const bool addToDB = (info.isDefinition || cursor.kind == CXCursor_FunctionDecl);
-        info.symbolName = addNamePermutations(cursor.cursor, cursor.location, addToDB);
+        info.symbolName = addNamePermutations(cursor.cursor, cursor.location, !isReference);
     } else if (info.kind == CXCursor_Constructor && cursor.kind == CXCursor_TypeRef) {
         return CXChildVisit_Recurse;
     }
@@ -547,7 +553,7 @@ IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind ki
         return ret;
     }
 
-    const Str usr = clang_getCursorUSR(cursor);
+    const Str usr(clang_getCursorUSR(cursor));
     if (!usr.length()) {
         const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
         return ret;

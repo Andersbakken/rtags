@@ -77,7 +77,6 @@ public:
 signals:
     void complete(int id, const QList<QByteArray>& locations);
 private slots:
-    void onSymbolNamesChanged();
     void onNewConnection();
     void onNewMessage(Message* message);
     void onIndexingDone(int id);

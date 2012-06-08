@@ -176,9 +176,7 @@ bool Server::init(const Options &options)
 
     mIndexer = new Indexer(sBase, this);
     connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
-    connect(mIndexer, SIGNAL(jobsComplete()), this, SLOT(onSymbolNamesChanged()));
 
-    onSymbolNamesChanged();
     return true;
 }
 
@@ -573,12 +571,6 @@ void Server::startJob(Job *job)
     connect(job, SIGNAL(complete(int)), this, SLOT(onComplete(int)));
     connect(job, SIGNAL(output(int, QByteArray)), this, SLOT(onOutput(int, QByteArray)));
     QThreadPool::globalInstance()->start(job, job->priority());
-}
-void Server::onSymbolNamesChanged()
-{
-    MatchJob *match = MatchJob::createCompletionMatchJob();
-    mCachedSymbolNames.clear();
-    startJob(match);
 }
 
 ScopedDB::ScopedDB(Database *db, LockType lockType)

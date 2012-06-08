@@ -15,9 +15,12 @@ static int sLevel = 0;
 
 static void cleanupSinks()
 {
-    QMutexLocker lock(&sOutputsMutex);
-    qDeleteAll(sOutputs);
-    sOutputs.clear();
+    QSet<Output*> copy;
+    {
+        QMutexLocker lock(&sOutputsMutex);
+        qSwap(copy, sOutputs);
+    }
+    qDeleteAll(copy);
 }
 
 class FileOutput : public Output
@@ -214,8 +217,9 @@ Output::Output(int logLevel)
     : mLogLevel(logLevel)
 {
     QMutexLocker lock(&sOutputsMutex);
-    if (sOutputs.isEmpty())
+    if (sOutputs.isEmpty()) {
         qAddPostRoutine(cleanupSinks);
+    }
     sOutputs.insert(this);
 }
 Output::~Output()

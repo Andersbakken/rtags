@@ -24,7 +24,7 @@ QByteArray cursorToString(CXCursor cursor)
     clang_getSpellingLocation(loc, &file, &line, &col, &off);
     const QByteArray fileName = eatString(clang_getFileName(file));
     if (!fileName.isEmpty()) {
-        ret += " " + fileName + ':' + QByteArray::number(line) + ":" + QByteArray::number(col) + ": (" + QByteArray::number(off) + ") " + eatString(clang_getCursorUSR(cursor));
+        ret += " " + fileName + ':' + QByteArray::number(line) + ":" + QByteArray::number(col) + ": (" + QByteArray::number(off) + ")"; // + eatString(clang_getCursorUSR(cursor));
     }
     return ret;
 }
@@ -61,7 +61,6 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
     }
     if (!found && it->isValid()) {
         const Slice key = it->key();
-        debug() << "key" << key << "needle" << needle;
         const Location loc = Location::fromKey(key.data());
         if (location.fileId() == loc.fileId()) {
             const int off = location.offset() - loc.offset();
@@ -275,7 +274,6 @@ int dirty(const QSet<quint32> &dirtyFileIds)
             const Location loc = Location::fromKey(key.data());
             // debug() << "looking at" << key;
             if (dirtyFileIds.contains(loc.fileId())) {
-                debug() << "key is dirty. removing" << key;
                 db->remove(key);
             } else {
                 CursorInfo cursorInfo = it->value<CursorInfo>();
@@ -285,7 +283,6 @@ int dirty(const QSet<quint32> &dirtyFileIds)
                     //     debug() << "CursorInfo is empty now. removing" << key;
                     //     db->remove(key);
                     // } else {
-                    debug() << "CursorInfo is modified. Changing" << key;
                     db->setValue<CursorInfo>(key, cursorInfo);
                     ++ret;
                     // }
