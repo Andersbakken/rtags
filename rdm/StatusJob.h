@@ -12,6 +12,7 @@ class StatusJob : public Job
     Q_OBJECT
 public:
     StatusJob(int i, const QByteArray &query);
+    static const char *delimiter;
 protected:
     virtual void execute();
 private:

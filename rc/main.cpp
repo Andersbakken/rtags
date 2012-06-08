@@ -50,6 +50,7 @@ static void help(FILE *f, const char* app)
             "  --name|-N [name]                          Name to use for server (default ~/.rtags/server)\n"
             "  --autostart-rdm|-a [args]                 Start rdm with [args] if rc fails to connect\n"
             "  --restart-rdm|-e [args]                   Restart rdm with [args] before doing the rest of the commands\n"
+            "  --run-test|-T [file]                      Run tests from file\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
             app);
 }
@@ -180,10 +181,11 @@ int main(int argc, char** argv)
         { "restart-rdm", optional_argument, 0, 'e' },
         { "include-declarations-and-definitions", no_argument, 0, 'E' },
         { "elisp-list", no_argument, 0, 'P' },
+        { "run-test", required_argument, 0, 'T' },
         { 0, 0, 0, 0 }
     };
 
-    // Not taken: b G j k Q T U V w x y
+    // Not taken: b G j k Q U V w x y
 
     int logLevel = 0;
     QByteArray logFile;
@@ -318,6 +320,9 @@ int main(int argc, char** argv)
             break;
         case 't':
             commands.append(new QueryCommand(QueryMessage::Test, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references
+            break;
+        case 'T':
+            commands.append(new QueryCommand(QueryMessage::RunTest, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references
             break;
         case 'm':
             commands.append(new MakefileCommand(Path::resolved(optarg), false));

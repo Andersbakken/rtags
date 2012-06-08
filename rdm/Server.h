@@ -96,6 +96,7 @@ private:
     int dump(const QueryMessage &query);
     int status(const QueryMessage &query);
     int test(const QueryMessage &query);
+    int runTest(const QueryMessage &query);
     int nextId();
     void startJob(Job *job);
     void rdmLog(const QueryMessage &message, Connection *conn);

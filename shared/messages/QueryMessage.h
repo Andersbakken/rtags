@@ -22,6 +22,7 @@ public:
         Test,
         CursorInfo,
         RdmLog,
+        RunTest,
         Shutdown
     };
 

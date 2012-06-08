@@ -45,6 +45,7 @@ set(rdm_SRCS
     DirtyJob.cpp
     Job.cpp
     TestJob.cpp
+    RunTestJob.cpp
     MemoryMonitor.cpp
     Database.cpp
     Location.cpp
@@ -60,6 +61,7 @@ set(rdm_MOCS
     ReferencesJob.h
     StatusJob.h
     TestJob.h
+    RunTestJob.h
     IndexerJob.h
     Job.h
     Indexer.h

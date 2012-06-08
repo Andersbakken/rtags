@@ -7,6 +7,7 @@
 #include <Rdm.h>
 #include "CursorInfo.h"
 
+const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(int i, const QByteArray &q)
     : Job(i, QueryJobPriority, WriteUnfiltered), query(q)
 {
@@ -14,7 +15,6 @@ StatusJob::StatusJob(int i, const QByteArray &q)
 
 void StatusJob::execute()
 {
-    const char *delimiter = "*********************************";
     if (query.isEmpty() || query == "general") {
         ScopedDB db = Server::instance()->db(Server::General, ScopedDB::Read);
         write(delimiter);

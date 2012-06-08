@@ -10,6 +10,7 @@
 #include "Messages.h"
 #include "Path.h"
 #include "TestJob.h"
+#include "RunTestJob.h"
 #include "QueryMessage.h"
 #include "Rdm.h"
 #include "ReferencesJob.h"
@@ -340,6 +341,9 @@ void Server::handleQueryMessage(QueryMessage *message)
     case QueryMessage::RdmLog:
         rdmLog(*message, conn);
         return;
+    case QueryMessage::RunTest:
+        id = runTest(*message);
+        break;
     }
     if (!id) {
         ResponseMessage msg;
@@ -507,6 +511,21 @@ int Server::status(const QueryMessage &query)
 
     StatusJob *job = new StatusJob(id, query.query().value(0));
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
+    startJob(job);
+    return id;
+}
+
+int Server::runTest(const QueryMessage &query)
+{
+    Path path = query.query().value(0);
+    if (!path.isFile()) {
+        return 0;
+    }
+    const int id = nextId();
+
+    error() << "runTest";
+
+    RunTestJob *job = new RunTestJob(path, id);
     startJob(job);
     return id;
 }
