@@ -77,23 +77,19 @@ static void log(int level, const char *format, va_list v)
         return;
     enum { Size = 16384 };
     char buf[Size];
-    const QByteArray now = (sFlags & AbsoluteTime
-                            ? QDateTime::currentDateTime().toString("dd/MM/yy hh:mm:ss: ").toLocal8Bit()
-                            : prettyTimeSinceStarted());
     char *msg = buf;
-    int n = vsnprintf(msg + now.size(), Size - now.size(), format, v);
+    int n = vsnprintf(msg, Size, format, v);
     if (n == -1)
         return;
-    if (n + now.size() >= Size) {
-        msg = new char[n + 1 + now.size()];
-        n = vsnprintf(msg + now.size(), n + 1, format, v);
+    if (n >= Size) {
+        msg = new char[n + 1];
+        n = vsnprintf(msg, n + 1, format, v);
     }
-    memcpy(msg, now.constData(), now.size());
 
     QMutexLocker lock(&sOutputsMutex);
     foreach(Output *output, sOutputs) {
         if (output->testLog(level)) {
-            output->log(msg, n + now.size());
+            output->log(msg, n);
         }
     }
 
