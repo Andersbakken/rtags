@@ -13,6 +13,13 @@ static QSet<Output*> sOutputs;
 static QMutex sOutputsMutex;
 static int sLevel = 0;
 
+static void cleanupSinks()
+{
+    QMutexLocker lock(&sOutputsMutex);
+    qDeleteAll(sOutputs);
+    sOutputs.clear();
+}
+
 class FileOutput : public Output
 {
 public:
@@ -34,10 +41,10 @@ public:
     FILE *file;
 };
 
-class StderrOutput : public Output
+class StdoutOutput : public Output
 {
 public:
-    StderrOutput(int lvl)
+    StdoutOutput(int lvl)
         : Output(lvl)
     {}
     virtual void log(const char *msg, int)
@@ -163,7 +170,7 @@ bool initLogging(int level, const Path &file, unsigned flags)
     sStart.start();
     sFlags = flags;
     sLevel = level;
-    new StderrOutput(level);
+    new StdoutOutput(level);
     if (!file.isEmpty()) {
         if (!(flags & (Append|DontRotate)) && file.exists()) {
             int i = 0;
@@ -207,6 +214,8 @@ Output::Output(int logLevel)
     : mLogLevel(logLevel)
 {
     QMutexLocker lock(&sOutputsMutex);
+    if (sOutputs.isEmpty())
+        qAddPostRoutine(cleanupSinks);
     sOutputs.insert(this);
 }
 Output::~Output()
