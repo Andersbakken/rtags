@@ -90,9 +90,10 @@ void RunTestJob::testSymbolNames(const QByteArray &symbolName, const QSet<QByteA
     QSet<QByteArray> missing = expectedLocations - actual;
     QSet<QByteArray> unexpected = actual - expectedLocations;
     if (!missing.isEmpty() || !unexpected.isEmpty()) {
-        write("symbolnames: [" + symbolName + "]");
+        write("symbolnames: [" + symbolName + "] failed ("
+              + QByteArray::number(missing.size() + unexpected.size()) + " failures)");
         foreach(const QByteArray &m, missing)
-            write("---  " + m);
+            write("--- " + m);
         foreach(const QByteArray &u, unexpected)
             write("+++ " + u);
     } else {
