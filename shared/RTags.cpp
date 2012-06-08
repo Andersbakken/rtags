@@ -68,7 +68,12 @@ int readLine(FILE *f, char *buf, int max)
         max = INT_MAX;
     for (int i=0; i<max; ++i) {
         const int ch = fgetc(f);
-        if (ch == '\n' || ch == EOF) {
+        switch (ch) {
+        case EOF:
+            if (!i)
+                i = -1;
+            // fall through
+        case '\n':
             if (buf)
                 *buf = '\0';
             return i;
