@@ -300,7 +300,7 @@ void Server::handleAddMessage(AddMessage *message)
         //              << "vs"
         //              << RTags::join(Rdm::compileArgs(Location::insertFile(message->inputFile())), " ");
         // }
-        const int id = mIndexer->index(message->inputFile(), args, IndexerJob::Makefile);
+        const int id = mIndexer->index(message->inputFile(), args, IndexerJob::Makefile|IndexerJob::Visit);
         if (id != -1)
             mPendingIndexes[id] = conn;
     }

@@ -165,11 +165,11 @@ void Indexer::initDB()
         Server::instance()->threadPool()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
     } else {
         for (QHash<Path, QList<QByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
-            index(it.key(), it.value(), IndexerJob::DirtyPch|IndexerJob::NeedsDirty);
+            index(it.key(), it.value(), IndexerJob::DirtyPch|IndexerJob::NeedsDirty|IndexerJob::Visit);
         }
 
         for (QHash<Path, QList<QByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
-            index(it.key(), it.value(), IndexerJob::Dirty|IndexerJob::NeedsDirty);
+            index(it.key(), it.value(), IndexerJob::Dirty|IndexerJob::NeedsDirty|IndexerJob::Visit);
         }
     }
 }

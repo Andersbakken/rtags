@@ -308,6 +308,12 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         if (includedFile) {
             const Location refLoc(includedFile, 0);
             if (!refLoc.isNull()) {
+                {
+                    QByteArray include = "#include ";
+                    const Path path = refLoc.path();
+                    mSymbolNames[(include + path)].insert(cursor.location);
+                    mSymbolNames[(include + path.fileName())].insert(cursor.location);
+                }
                 CXSourceRange range = clang_getCursorExtent(cursor.cursor);
                 unsigned int end;
                 clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
@@ -524,9 +530,20 @@ void IndexerJob::run()
                                                               CXDiagnostic_DisplayCategoryName);
                 log(logLevel, "%s", clang_getCString(string.string));
             }
+            const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
+            for (unsigned f=0; f<fixItCount; ++f) {
+                CXSourceRange range;
+                CXStringScope string = clang_getDiagnosticFixIt(diagnostic, f, &range);
+
+                error("Fixit (%d/%d) for %s: %s", f + 1, fixItCount, mIn.constData(), clang_getCString(string.string));
+            }
+
             clang_disposeDiagnostic(diagnostic);
         }
 
+        if (!(mFlags & Visit)) {
+            return;
+        }
         clang_getInclusions(mUnit, inclusionVisitor, this);
 
         clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
@@ -565,8 +582,8 @@ void IndexerJob::run()
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
         }
-
     }
+
     char buf[1024];
     const char *strings[] = { "", "(pch)", "(dirty)", "(pch, dirty)" };
     enum {
