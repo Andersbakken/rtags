@@ -69,24 +69,6 @@ Indexer::~Indexer()
     // write out FileInformation for all the files that are waiting for pch maybe
 }
 
-
-static inline bool isDirty(const QSet<quint32> &dependencies, quint64 time, QSet<quint32> &dirty)
-{
-    bool ret = false;
-
-    for (QSet<quint32>::const_iterator it = dependencies.begin(); it != dependencies.end(); ++it) {
-        const quint32 id = *it;
-        if (dirty.contains(id)) {
-            ret = true;
-        } else if (Location::path(id).lastModified() > time) {
-            dirty.insert(id);
-            ret = true;
-        }
-    }
-    // verboseDebug() << "isDirty" << path << ret << path << QDateTime::fromTime_t(time) << dirty;
-    return ret;
-}
-
 static inline bool isFile(quint32 fileId)
 {
     return Location::path(fileId).isFile(); // ### not ideal
@@ -125,6 +107,7 @@ void Indexer::initDB()
         Batch batch(fileInformationDB);
         it.reset(fileInformationDB->createIterator());
         it->seekToFirst();
+        QMutexLocker lock(&mVisitedFilesMutex);
         while (it->isValid()) {
             const Slice key = it->key();
             const quint32 fileId = *reinterpret_cast<const quint32*>(key.data());
@@ -140,14 +123,23 @@ void Indexer::initDB()
 #endif
                     ++checked;
                     bool dirty = false;
-                    if (isDirty(deps.value(fileId), fi.lastTouched, dirtyFiles)) {
-                        dirty = true;
-                        // ### am I checking pch deps correctly here?
+                    const QSet<quint32> dependencies = deps.value(fileId);
+                    foreach(quint32 id, dependencies) {
+                        if (dirtyFiles.contains(id)) {
+                            dirty = true;
+                        } else if (Location::path(id).lastModified() > fi.lastTouched) {
+                            dirtyFiles.insert(id);
+                            dirty = true;
+                        }
+                    }
+                    if (dirty) {
                         if (Rdm::isPch(fi.compileArgs)) {
                             toIndexPch[path] = fi.compileArgs;
                         } else {
                             toIndex[path] = fi.compileArgs;
                         }
+                    } else {
+                        mVisitedFiles += dependencies;
                     }
                     warning() << "checking if" << path << "is dirty =>" << dirty;
                 }
