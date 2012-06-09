@@ -7,3 +7,4 @@ Solve constructors and destructors for rename symbol.
 Use GccArguments in rdm as well
 When a file has disappared it never gets out of the database
 There's too many symbolnames, function calls on variables are not needed
+make an rc command to clear db
