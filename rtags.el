@@ -101,7 +101,7 @@ return t if rtags is allowed to modify this file"
 (defun rtags-cursorinfo (&optional location)
   (let ((loc (if location location (rtags-current-location))))
     (with-temp-buffer
-      (rtags-call-rc "-C" loc)
+      (rtags-call-rc "-U" loc)
       (buffer-string))))
 
 (defun rtags-current-location ()

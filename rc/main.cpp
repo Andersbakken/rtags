@@ -161,7 +161,7 @@ int main(int argc, char** argv)
         { "find-symbols", required_argument, 0, 'F' },
         { "dump", required_argument, 0, 'd' },
         { "complete", required_argument, 0, 'c' },
-        { "cursor-info", required_argument, 0, 'C' },
+        { "cursor-info", required_argument, 0, 'U' },
         { "unsaved-file", required_argument, 0, 'u' },
         { "log-file", required_argument, 0, 'L' },
         { "append", no_argument, 0, 'A' },
@@ -185,7 +185,7 @@ int main(int argc, char** argv)
         { 0, 0, 0, 0 }
     };
 
-    // Not taken: b G j k Q U V w x y
+    // Not taken: b G j k Q V w x y C
 
     int logLevel = 0;
     QByteArray logFile;
@@ -297,7 +297,7 @@ int main(int argc, char** argv)
             }
             break;
         case 'f':
-        case 'C':
+        case 'U':
         case 'r': {
             QByteArray encoded = encodeLocation(optarg);
             if (encoded.isEmpty()) {
@@ -307,7 +307,7 @@ int main(int argc, char** argv)
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (c) {
             case 'f': type = QueryMessage::FollowLocation; break;
-            case 'C': type = QueryMessage::CursorInfo; break;
+            case 'U': type = QueryMessage::CursorInfo; break;
             case 'r': type = QueryMessage::ReferencesLocation; break;
             }
             commands.append(new QueryCommand(type, encoded, queryFlags, unsavedFiles, pathFilters)); // these are references
