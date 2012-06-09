@@ -47,7 +47,7 @@ void FindSymbolsJob::execute()
         qSort(sorted);
     }
     const quint32 keyFlags = QueryMessage::keyFlags(queryFlags);
-    foreach (const Location &loc, out) {
+    foreach (const Location &loc, sorted) {
         write(loc.key(keyFlags));
     }
 }
