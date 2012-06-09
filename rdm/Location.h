@@ -23,7 +23,7 @@ public:
         : mData(quint64(offset) << 32 | fileId)
     {}
 
-    Location(CXFile file, quint32 offset)
+    Location(const CXFile &file, quint32 offset)
         : mData(0)
     {
         Q_ASSERT(file);
@@ -35,6 +35,14 @@ public:
         clang_disposeString(fn);
         quint32 fileId = insertFile(p);
         mData = (quint64(offset) << 32) | fileId;
+    }
+    Location(const CXSourceLocation &location)
+        : mData(0)
+    {
+        CXFile file;
+        unsigned offset;
+        clang_getSpellingLocation(location, &file, 0, 0, &offset);
+        *this = Location(file, offset);
     }
     static inline quint32 fileId(const Path &path)
     {

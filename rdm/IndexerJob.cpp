@@ -534,8 +534,12 @@ void IndexerJob::run()
             for (unsigned f=0; f<fixItCount; ++f) {
                 CXSourceRange range;
                 CXStringScope string = clang_getDiagnosticFixIt(diagnostic, f, &range);
+                const Location start(clang_getRangeStart(range));
+                unsigned endOffset = 0;
+                clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
 
-                error("Fixit (%d/%d) for %s: %s", f + 1, fixItCount, mIn.constData(), clang_getCString(string.string));
+                error("Fixit (%d/%d) for %s: %s %s-%d", f + 1, fixItCount, mIn.constData(),
+                      clang_getCString(string.string), start.key().constData(), endOffset);
             }
 
             clang_disposeDiagnostic(diagnostic);
