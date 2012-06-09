@@ -82,8 +82,7 @@ return t if rtags is allowed to modify this file"
   :type 'hook)
 
 (defvar rtags-last-buffer nil)
-(defvar rtags-last-project nil)
-(defvar rtags-current-path-filter nil)
+(defvar rtags-path-filter nil)
 
 (defun rtags-current-symbol ()
   (cond
@@ -101,7 +100,7 @@ return t if rtags is allowed to modify this file"
 (defun rtags-cursorinfo (&optional location)
   (let ((loc (if location location (rtags-current-location))))
     (with-temp-buffer
-      (rtags-call-rc "-U" loc)
+      (rtags-call-rc nil "-U" loc)
       (buffer-string))))
 
 (defun rtags-current-location ()
@@ -126,8 +125,10 @@ return t if rtags is allowed to modify this file"
 (defun rtags-quit-rdm () (interactive)
   (call-process (executable-find "rc") nil nil nil "--quit-rdm"))
 
-(defun rtags-call-rc (&rest arguments)
+(defun rtags-call-rc (pathfilter &rest arguments)
   (push (if rtags-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
+  ;; (if (and pathfilter rtags-path-filter)
+  ;;     (push (concat "-i" rtags-path-filter) arguments))
   (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
   (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
   (rtags-log (buffer-string))
@@ -137,7 +138,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-save-location()
   (setq rtags-last-buffer (current-buffer))
-  (setq rtags-last-project (rtags-default-current-project))
+  (setq rtags-path-filter (rtags-default-current-project))
   (bookmark-set "RTags Last"))
 
 (defun rtags-back()
@@ -179,14 +180,14 @@ return t if rtags is allowed to modify this file"
                    t
                    (if (file-exists-p (concat default-directory "/Makefile")) "Makefile" nil))))
     (if (file-exists-p makefile)
-        (rtags-call-rc "-m" makefile))))
+        (rtags-call-rc nil "-m" makefile))))
 
 (defun rtags-follow-symbol-at-point()
   (interactive)
   (rtags-save-location)
   (let ((arg (rtags-current-location)))
     (with-temp-buffer
-      (rtags-call-rc "-N" "-f" arg)
+      (rtags-call-rc nil "-N" "-f" arg)
       (if (< (point-min) (point-max))
           (rtags-goto-location (buffer-string)))
       )
@@ -201,8 +202,8 @@ return t if rtags is allowed to modify this file"
         (kill-buffer "*RTags Complete*"))
     (switch-to-buffer (generate-new-buffer "*RTags Complete*"))
     (if samefile
-        (rtags-call-rc "-l" "-z" "-r" arg)
-      (rtags-call-rc "-l" "-r" arg))
+        (rtags-call-rc nil "-l" "-z" "-r" arg)
+      (rtags-call-rc t "-l" "-r" arg)) ; ### is this right, I kinda hate that samefile stuff, it should just use path-filter
     (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
           ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
           (t (progn
@@ -238,7 +239,7 @@ return t if rtags is allowed to modify this file"
             (setq replacewith (read-from-minibuffer (format "Replace '%s' with: " prev)))
             (unless (equal replacewith "")
               (with-temp-buffer
-                (rtags-call-rc "-E" "-O" "-N" "-r" (format "%s,%d" file pos))
+                (rtags-call-rc nil "-E" "-O" "-N" "-r" (format "%s,%d" file pos))
                 (while (looking-at "^\\(.*\\),\\([0-9]+\\)$")
                   (message (buffer-substring (point-at-bol) (point-at-eol)))
                   (message (format "%s %s" (match-string 1) (match-string 2)))
@@ -272,10 +273,12 @@ return t if rtags is allowed to modify this file"
 
 ; (get-file-buffer FILENAME)
 
-(defun rtags-find-symbols-by-name-internal (p switch)
+(defun rtags-find-symbols-by-name-internal (p references)
   (rtags-save-location)
-  (let (tagname prompt input)
-    (setq tagname (rtags-current-symbol))
+  (let ((tagname (rtags-current-symbol))
+        (switch (if references "-R" "-F"))
+        prompt
+        input)
     (if tagname
         (setq prompt (concat p ": (default " tagname ") "))
       (setq prompt (concat p ": ")))
@@ -285,7 +288,7 @@ return t if rtags is allowed to modify this file"
     (if (get-buffer "*RTags Complete*")
         (kill-buffer "*RTags Complete*"))
     (switch-to-buffer (generate-new-buffer "*RTags Complete*"))
-    (rtags-call-rc switch tagname "-l")
+    (rtags-call-rc references switch tagname "-l")
     (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
           ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
           (t (progn
@@ -298,11 +301,11 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-find-symbol ()
   (interactive)
-  (rtags-find-symbols-by-name-internal "Find symbol" "-F"))
+  (rtags-find-symbols-by-name-internal "Find symbol" nil))
 
 (defun rtags-find-references ()
   (interactive)
-  (rtags-find-symbols-by-name-internal "Find references" "-R"))
+  (rtags-find-symbols-by-name-internal "Find references" t))
 
 (defun rtags-remove-completions-buffer ()
   (interactive)
@@ -311,12 +314,12 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-symbolname-completion-get (string)
   (with-temp-buffer
-    (rtags-call-rc "-P" "-S" string)
+    (rtags-call-rc nil "-P" "-S" string)
     (eval (read (buffer-string)))))
 
 (defun rtags-symbolname-completion-exactmatch (string)
   (with-temp-buffer
-    (rtags-call-rc "-N" "-F" string)
+    (rtags-call-rc nil "-N" "-F" string)
     (> (point-max) (point-min))))
 
 (defun rtags-symbolname-complete (string predicate code)
