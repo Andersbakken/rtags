@@ -74,6 +74,7 @@ public:
     static void setBaseDirectory(const QByteArray& base, bool clear);
     static Path databaseDir(DatabaseType type);
     static Path pchDir();
+    QThreadPool *threadPool() const { return mThreadPool; }
 signals:
     void complete(int id, const QList<QByteArray>& locations);
 private slots:
@@ -113,6 +114,7 @@ private:
     QByteArray mName;
     static Path sBase;
     Database *mDBs[DatabaseTypeCount];
+    QThreadPool *mThreadPool;
 };
 
 #endif

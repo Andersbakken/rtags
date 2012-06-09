@@ -162,7 +162,7 @@ void Indexer::initDB()
     }
 
     if (dirtyFiles.size() > 1) {
-        QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
+        Server::instance()->threadPool()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
     } else {
         for (QHash<Path, QList<QByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
             index(it.key(), it.value(), IndexerJob::DirtyPch|IndexerJob::NeedsDirty);
@@ -244,7 +244,7 @@ void Indexer::startJob(int id, IndexerJob *job)
         mTimer.start();
     }
 
-    QThreadPool::globalInstance()->start(job, job->priority());
+    Server::instance()->threadPool()->start(job, job->priority());
 }
 
 void Indexer::onDirectoryChanged(const QString &path)
@@ -320,7 +320,7 @@ void Indexer::onDirectoryChanged(const QString &path)
         return;
 
     if (dirtyFiles.size() > 1) {
-        QThreadPool::globalInstance()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
+        Server::instance()->threadPool()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
     } else {
         for (QHash<Path, QList<QByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
             index(it.key(), it.value(), IndexerJob::DirtyPch|IndexerJob::NeedsDirty);

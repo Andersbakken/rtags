@@ -38,7 +38,8 @@ Server::Server(QObject *parent)
     sInstance = this;
     qRegisterMetaType<QList<QByteArray> >("QList<QByteArray>");
     memset(mDBs, 0, sizeof(mDBs));
-    QThreadPool::globalInstance()->setExpiryTimeout(-1);
+    mThreadPool = new QThreadPool(this);
+    mThreadPool->setExpiryTimeout(-1);
 }
 
 Server::~Server()
@@ -308,10 +309,13 @@ void Server::handleQueryMessage(QueryMessage *message)
         Q_ASSERT(0);
         break;
     case QueryMessage::ClearDatabase: {
+        delete mThreadPool;
         Server::setBaseDirectory(sBase, true);
         ResponseMessage msg("Cleared data dir");
         conn->send(&msg);
         conn->finish();
+        mThreadPool = new QThreadPool(this);
+        mThreadPool->setExpiryTimeout(-1);
         return; }
     case QueryMessage::CursorInfo:
         id = cursorInfo(*message);
@@ -599,7 +603,7 @@ void Server::startJob(Job *job)
 {
     connect(job, SIGNAL(complete(int)), this, SLOT(onComplete(int)));
     connect(job, SIGNAL(output(int, QByteArray)), this, SLOT(onOutput(int, QByteArray)));
-    QThreadPool::globalInstance()->start(job, job->priority());
+    mThreadPool->start(job, job->priority());
 }
 
 ScopedDB::ScopedDB(Database *db, LockType lockType)
