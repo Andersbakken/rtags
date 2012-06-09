@@ -40,7 +40,7 @@ Path::Type Path::type() const
     return Invalid;
 }
 
-quint64 Path::lastModified() const
+time_t Path::lastModified() const
 {
     struct stat st;
     if (stat(constData(), &st) == -1) {

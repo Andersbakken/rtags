@@ -65,7 +65,7 @@ typedef QHash<Location, CursorInfo> SymbolHash;
 typedef QHash<Location, QPair<Location, Rdm::ReferenceType> > ReferenceHash;
 typedef QHash<QByteArray, QSet<Location> > SymbolNameHash;
 typedef QHash<quint32, QSet<quint32> > DependencyHash;
-typedef QPair<QByteArray, quint64> WatchedPair;
+typedef QPair<QByteArray, time_t> WatchedPair;
 typedef QHash<QByteArray, Location> PchUSRHash;
 typedef QHash<Path, QSet<WatchedPair> > WatchedHash;
 typedef QHash<quint32, FileInformation> InformationHash;

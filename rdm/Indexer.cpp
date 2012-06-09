@@ -212,10 +212,10 @@ void Indexer::commitDependencies(const DependencyHash &deps, bool sync)
         WatchedHash::iterator wit = mWatched.find(parentPath);
         //debug() << "watching" << path << "in" << parentPath;
         if (wit == mWatched.end()) {
-            mWatched[parentPath].insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
+            mWatched[parentPath].insert(qMakePair<QByteArray, time_t>(path.fileName(), path.lastModified()));
             watchPaths.insert(QString::fromLocal8Bit(parentPath));
         } else {
-            wit.value().insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
+            wit.value().insert(qMakePair<QByteArray, time_t>(path.fileName(), path.lastModified()));
         }
     }
     if (watchPaths.isEmpty())
@@ -321,7 +321,7 @@ void Indexer::onDirectoryChanged(const QString &path)
         }
 
         foreach(const Path &path, pending) {
-            it.value().insert(qMakePair<QByteArray, quint64>(path.fileName(), path.lastModified()));
+            it.value().insert(qMakePair<QByteArray, time_t>(path.fileName(), path.lastModified()));
         }
     }
     if (toIndex.isEmpty() && toIndexPch.isEmpty())
