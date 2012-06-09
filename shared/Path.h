@@ -63,6 +63,8 @@ public:
     const char *extension() const;
     bool isSource() const;
     static bool isSource(const char *extension, int len);
+    bool isSystem() const { return Path::isSystem(constData()); }
+    static bool isSystem(const char *path);
     bool isHeader() const;
     bool isResolved() const;
     bool isCanonical() const;

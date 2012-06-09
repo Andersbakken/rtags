@@ -56,7 +56,7 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
         job->mDependencies[fileId].insert(fileId);
         if (job->mIsPch)
             job->mPchDependencies.insert(fileId);
-    } else if (!Rdm::isSystem(path)) {
+    } else if (!path.isSystem()) {
         for (unsigned i=0; i<includeLen; ++i) {
             CXFile originatingFile;
             clang_getSpellingLocation(includeStack[i], &originatingFile, 0, 0, 0);
@@ -516,7 +516,8 @@ void IndexerJob::run()
             if (mFlags & NeedsDirty) {
 #ifdef QT_DEBUG
                 for (QHash<quint32, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
-                    if (it.value() == Index && it.key() != mFileId) {
+                    if (it.value() == Index && it.key() != mFileId && !Location::path(it.value()).isSystem()) {
+                        // ideally system headers would have ended up in mVisitedFiles on startup
                         error("This file should not have been dirty %s %d", Location::path(it.key()).constData(), it.key());
                     }
                 }

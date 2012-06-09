@@ -55,7 +55,7 @@ void Job::write(const QByteArray &out)
 
 bool Job::filter(const QByteArray &val) const
 {
-    if (mPathFilters.isEmpty() || (!mFilterSystemIncludes && Rdm::isSystem(val.constData()))) {
+    if (mPathFilters.isEmpty() || (!mFilterSystemIncludes && Path::isSystem(val.constData()))) {
         return true;
     }
     return Rdm::startsWith(mPathFilters, val);

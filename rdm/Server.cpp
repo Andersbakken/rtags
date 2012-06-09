@@ -307,6 +307,12 @@ void Server::handleQueryMessage(QueryMessage *message)
     case QueryMessage::Invalid:
         Q_ASSERT(0);
         break;
+    case QueryMessage::ClearDatabase: {
+        Server::setBaseDirectory(sBase, true);
+        ResponseMessage msg("Cleared data dir");
+        conn->send(&msg);
+        conn->finish();
+        return; }
     case QueryMessage::CursorInfo:
         id = cursorInfo(*message);
         break;

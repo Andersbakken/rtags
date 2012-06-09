@@ -23,6 +23,7 @@ public:
         CursorInfo,
         RdmLog,
         RunTest,
+        ClearDatabase,
         Shutdown
     };
 

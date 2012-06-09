@@ -29,19 +29,6 @@ QByteArray cursorToString(CXCursor cursor)
     return ret;
 }
 
-
-bool isSystem(const Path &path)
-{
-    if (!strncmp("/usr/", path.constData(), 5)) {
-#ifdef Q_OS_BSD4
-        if (!strncmp("home/", path.constData() + 5, 5))
-            return false;
-#endif
-        return true;
-    }
-    return false;
-}
-
 CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
 {
     RTags::Ptr<Iterator> it(db->createIterator());

@@ -162,6 +162,19 @@ bool Path::isHeader() const
     }
     return false;
 }
+
+bool Path::isSystem(const char *path)
+{
+    if (!strncmp("/usr/", path, 5)) {
+#ifdef Q_OS_BSD4
+        if (!strncmp("home/", path + 5, 5))
+            return false;
+#endif
+        return true;
+    }
+    return false;
+}
+
 Path Path::canonicalized(const QByteArray &path)
 {
     Path p(path);

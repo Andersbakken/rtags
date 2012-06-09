@@ -31,7 +31,7 @@ static void help(FILE *f, const char* app)
             "  --find-symbols|-F [arg]                   Find symbols matching arg\n"
             "  --dump|-d [arg]                           Dump AST tree of arg \n"
             "  --complete|-c [arg]                       Get code completion for this location\n"
-            "  --cursor-info|-C [arg]                    Get cursor info for this location\n"
+            "  --cursor-info|-U [arg]                    Get cursor info for this location\n"
             "  --unsaved-file|-u [arg]                   Specify an unsaved file and a size to be passed on stdin (e.g. -u main.cpp:343)\n"
             "  --log-file|-L [file]                      Log to this file\n"
             "  --append|-A                               Append to log file\n"
@@ -51,6 +51,7 @@ static void help(FILE *f, const char* app)
             "  --autostart-rdm|-a [args]                 Start rdm with [args] if rc fails to connect\n"
             "  --restart-rdm|-e [args]                   Restart rdm with [args] before doing the rest of the commands\n"
             "  --run-test|-T [file]                      Run tests from file\n"
+            "  --clear-db|-C                             Clear database, use with care\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
             app);
 }
@@ -182,10 +183,11 @@ int main(int argc, char** argv)
         { "include-declarations-and-definitions", no_argument, 0, 'E' },
         { "elisp-list", no_argument, 0, 'P' },
         { "run-test", required_argument, 0, 'T' },
+        { "clear-db", no_argument, 0, 'C' },
         { 0, 0, 0, 0 }
     };
 
-    // Not taken: b G j k Q V w x y C
+    // Not taken: b G j k Q V w x y
 
     int logLevel = 0;
     QByteArray logFile;
@@ -312,6 +314,9 @@ int main(int argc, char** argv)
             }
             commands.append(new QueryCommand(type, encoded, queryFlags, unsavedFiles, pathFilters)); // these are references
             break; }
+        case 'C':
+            commands.append(new QueryCommand(QueryMessage::ClearDatabase, QByteArray(), queryFlags, unsavedFiles, pathFilters));
+            break;
         case 'g':
             commands.append(new RdmLogCommand);
             break;
