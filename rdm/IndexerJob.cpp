@@ -483,7 +483,9 @@ void IndexerJob::run()
     }
 
     mDependencies[mFileId].insert(mFileId);
+    bool compileError = false;
     if (!mUnit) {
+        compileError = true;
         error() << "got 0 unit for" << clangLine;
         mIndexer->addDependencies(mDependencies);
         FileInformation fi;
@@ -539,10 +541,9 @@ void IndexerJob::run()
         Pch = 0x1,
         Dirty = 0x2
     };
-    const int w = snprintf(buf, sizeof(buf), "Visited %s in %lldms.%s (%d syms, %d refs, %d deps, %d symNames)%s",
-                           mIn.constData(), timer.elapsed(),
-                           qPrintable(waitingForPch ? QString(" Waited for pch: %1ms.").arg(waitingForPch)
-                                      : QString()),
+    const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %lldms.%s (%d syms, %d refs, %d deps, %d symNames)%s",
+                           mIn.constData(), compileError ? "error" : "success", timer.elapsed(),
+                           qPrintable(waitingForPch ? QString(" Waited for pch: %1ms.").arg(waitingForPch) : QString()),
                            mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size(),
                            strings[(mPchHeaders.isEmpty() ? None : Pch) | (mFlags & NeedsDirty ? Dirty : None)]);
 
