@@ -471,7 +471,7 @@ void IndexerJob::run()
     if (isAborted()) {
         return;
     }
-    CXIndex index = clang_createIndex(1, 1);
+    CXIndex index = clang_createIndex(1, 0);
     mUnit = clang_parseTranslationUnit(index, mIn.constData(),
                                        clangArgs.data(), idx, 0, 0,
                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
@@ -494,6 +494,39 @@ void IndexerJob::run()
 
         Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
+        const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
+        for (unsigned i=0; i<diagnosticCount; ++i) {
+            CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
+            int logLevel;
+            const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diagnostic);
+            switch (severity) {
+            case CXDiagnostic_Error:
+            case CXDiagnostic_Fatal:
+                logLevel = Error;
+                break;
+            case CXDiagnostic_Note:
+                logLevel = Debug;
+                break;
+            case CXDiagnostic_Warning:
+                logLevel = Warning;
+                break;
+            case CXDiagnostic_Ignored:
+                logLevel = INT_MAX;
+                break;
+            }
+            if (testLog(logLevel)) {
+                CXStringScope string = clang_formatDiagnostic(diagnostic,
+                                                              CXDiagnostic_DisplaySourceLocation|
+                                                              CXDiagnostic_DisplayColumn|
+                                                              CXDiagnostic_DisplaySourceRanges|
+                                                              CXDiagnostic_DisplayOption|
+                                                              CXDiagnostic_DisplayCategoryId|
+                                                              CXDiagnostic_DisplayCategoryName);
+                log(logLevel, "%s", clang_getCString(string.string));
+            }
+            clang_disposeDiagnostic(diagnostic);
+        }
+
         clang_getInclusions(mUnit, inclusionVisitor, this);
 
         clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
