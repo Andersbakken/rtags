@@ -36,7 +36,7 @@ void ReferencesJob::execute()
 
         Location realLoc;
         CursorInfo cursorInfo = Rdm::findCursorInfo(db, location, &realLoc);
-        if (clang_isReference(cursorInfo.kind) || (cursorInfo.kind >= CXCursor_FirstExpr && cursorInfo.kind <= CXCursor_LastExpr)) {
+        if (Rdm::isReference(cursorInfo.kind)) {
             filtered.insert(cursorInfo.target);
             cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
         } else if (excludeDefsAndDecls) {

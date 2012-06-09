@@ -347,7 +347,8 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         info.isDefinition = clang_isCursorDefinition(cursor.cursor);
         info.kind = cursor.kind;
         CXString name;
-        const bool isReference = clang_isReference(cursor.kind);
+        const bool isReference = Rdm::isReference(info.kind);
+
         if (isReference) {
             name = clang_getCursorSpelling(ref.cursor);
         } else {

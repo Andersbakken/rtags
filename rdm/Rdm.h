@@ -89,6 +89,11 @@ static inline bool isPch(const QList<QByteArray> &args)
     return false;
 }
 
+static inline bool isReference(CXCursorKind kind)
+{
+    return (clang_isReference(kind) || (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr));
+}
+
 void setMaxMemoryUsage(quint64 max);
 bool waitForMemory(int maxMs);
 QByteArray eatString(CXString str);
