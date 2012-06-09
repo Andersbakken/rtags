@@ -32,24 +32,29 @@ Q_DECLARE_METATYPE(QList<QByteArray>);
 
 Server *Server::sInstance = 0;
 Server::Server(QObject *parent)
-    : QObject(parent), mIndexer(0), mServer(0), mVerbose(false), mJobId(0)
+    : QObject(parent), mIndexer(0), mServer(0), mVerbose(false), mJobId(0), mThreadPool(0)
 {
     Q_ASSERT(!sInstance);
     sInstance = this;
     qRegisterMetaType<QList<QByteArray> >("QList<QByteArray>");
     memset(mDBs, 0, sizeof(mDBs));
-    mThreadPool = new QThreadPool(this);
-    mThreadPool->setExpiryTimeout(-1);
 }
 
 Server::~Server()
 {
-    for (int i=0; i<DatabaseTypeCount; ++i) {
-        delete mDBs[i];
-    }
-
+    clear();
     Q_ASSERT(sInstance = this);
     sInstance = 0;
+}
+
+void Server::clear()
+{
+    delete mServer;
+    mServer = 0;
+    for (int i=0; i<DatabaseTypeCount; ++i) {
+        delete mDBs[i];
+        mDBs[i] = 0;
+    }
 }
 
 static inline QList<Path> systemIncludes(const Path &cpp)
@@ -101,31 +106,32 @@ static inline QList<Path> systemIncludes(const Path &cpp)
 
 bool Server::init(const Options &options)
 {
-    mName = options.name;
-    mOptions = options.options;
+    mThreadPool = new QThreadPool(this);
+    mThreadPool->setExpiryTimeout(-1);
+
+    mOptions = options;
     if (!(options.options & NoClangIncludePath)) {
         Path clangPath = Path::resolved(CLANG_INCLUDEPATH);
         clangPath.prepend("-I");
-        mDefaultArgs.append(clangPath);
+        mOptions.defaultArguments.append(clangPath);
     }
 
-    mDefaultArgs += options.defaultArguments;
     Messages::init();
 
     for (int i=0; i<10; ++i) {
         mServer = new QLocalServer(this);
-        if (mServer->listen(mName)) {
+        if (mServer->listen(mOptions.name)) {
             break;
         }
         delete mServer;
         mServer = 0;
         if (!i) {
-            Client client(mName);
+            Client client(mOptions.name);
             QueryMessage msg(QueryMessage::Shutdown);
             client.query(&msg);
         }
         sleep(1);
-        QFile::remove(mName);
+        QFile::remove(mOptions.name);
     }
     if (!mServer) {
         error("Unable to listen to port %d", Connection::Port);
@@ -175,7 +181,7 @@ bool Server::init(const Options &options)
 
 
     connect(mServer, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
-    error() << "running with" << mDefaultArgs << "clang version" << Rdm::eatString(clang_getClangVersion());
+    error() << "running with" << mOptions.defaultArguments << "clang version" << Rdm::eatString(clang_getClangVersion());
 
     mIndexer = new Indexer(sBase, this);
     connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
@@ -286,7 +292,7 @@ void Server::handleAddMessage(AddMessage *message)
             args += flags;
         // warning() << "got" << flags << "for" << message->compiler() << "now we have" << args;
     }
-    args += mDefaultArgs;
+    args += mOptions.defaultArguments;
 
     if (args != Rdm::compileArgs(Location::insertFile(message->inputFile()))) {
         // if (!Rdm::compileArgs(Location::insertFile(message->inputFile())).isEmpty()) {
@@ -310,12 +316,13 @@ void Server::handleQueryMessage(QueryMessage *message)
         break;
     case QueryMessage::ClearDatabase: {
         delete mThreadPool;
+        mThreadPool = 0;
+        clear();
         Server::setBaseDirectory(sBase, true);
         ResponseMessage msg("Cleared data dir");
+        init(mOptions);
         conn->send(&msg);
         conn->finish();
-        mThreadPool = new QThreadPool(this);
-        mThreadPool->setExpiryTimeout(-1);
         return; }
     case QueryMessage::CursorInfo:
         id = cursorInfo(*message);
@@ -624,3 +631,4 @@ ScopedDB::Data::~Data()
     if (db && lock == Write)
         db->unlock();
 }
+

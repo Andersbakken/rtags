@@ -212,8 +212,11 @@ int main(int argc, char** argv)
     warning("Running with %d jobs", jobs);
 
     Server *server = new Server;
-    const Server::Options serverOpts = { options, defaultArguments, cacheSize,
-                                         name.isEmpty() ? QByteArray(RTags::rtagsDir() + "server") : name };
+    Server::Options serverOpts;
+    serverOpts.options = options;
+    serverOpts.defaultArguments = defaultArguments;
+    serverOpts.cacheSizeMB = cacheSize;
+    serverOpts.name = (name.isEmpty() ? QByteArray(RTags::rtagsDir() + "server") : name );
     if (!server->init(serverOpts)) {
         delete server;
         return 1;

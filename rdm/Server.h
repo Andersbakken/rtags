@@ -44,6 +44,7 @@ class Server : public QObject
 public:
     Server(QObject *parent = 0);
     ~Server();
+    void clear();
     enum Option {
         NoOptions = 0x0,
         NoClangIncludePath = 0x1
@@ -60,9 +61,10 @@ public:
     };
 
     static Server *instance() { return sInstance; }
-    QList<QByteArray> defaultArguments() const { return mDefaultArgs; }
+    QList<QByteArray> defaultArguments() const { return mOptions.defaultArguments; }
     inline ScopedDB db(DatabaseType type, ScopedDB::LockType lockType) const { return ScopedDB(mDBs[type], lockType); }
     struct Options {
+        Options() : options(0), cacheSizeMB(0) {}
         unsigned options;
         QList<QByteArray> defaultArguments;
         long cacheSizeMB;
@@ -70,7 +72,7 @@ public:
     };
     bool init(const Options &options);
     Indexer *indexer() const { return mIndexer; }
-    QByteArray name() const { return mName; }
+    QByteArray name() const { return mOptions.name; }
     static void setBaseDirectory(const QByteArray& base, bool clear);
     static Path databaseDir(DatabaseType type);
     static Path pchDir();
@@ -103,15 +105,13 @@ private:
     void rdmLog(const QueryMessage &message, Connection *conn);
 private:
     static Server *sInstance;
-    unsigned mOptions;
+    Options mOptions;
     Indexer* mIndexer;
     QLocalServer* mServer;
     QHash<int, Connection*> mPendingIndexes;
     QHash<int, Connection*> mPendingLookups;
-    QList<QByteArray> mDefaultArgs;
     bool mVerbose;
     int mJobId;
-    QByteArray mName;
     static Path sBase;
     Database *mDBs[DatabaseTypeCount];
     QThreadPool *mThreadPool;
