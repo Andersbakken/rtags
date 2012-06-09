@@ -151,4 +151,13 @@ void StatusJob::execute()
             it->next();
         }
     }
+    if (query.isEmpty() || query == "visitedFiles") {
+        write(delimiter);
+        write("visitedFiles");
+        char buf[1024];
+        foreach(quint32 id, Server::instance()->indexer()->visitedFiles()) {
+            snprintf(buf, sizeof(buf), "  %s: %d", Location::path(id).constData(), id);
+            write(buf);
+        }
+    }
 }

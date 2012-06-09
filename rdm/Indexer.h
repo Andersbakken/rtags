@@ -26,6 +26,7 @@ public:
     Path path() const { return mPath; }
     void abort();
     bool visitFile(quint32 fileId, const Path &p);
+    QSet<quint32> visitedFiles() const { QMutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
 signals:
     void indexingDone(int id);
     void jobsComplete();
@@ -41,7 +42,7 @@ private:
     mutable QReadWriteLock mPchUSRHashLock;
     QHash<Path, PchUSRHash> mPchUSRHashes;
 
-    QMutex mVisitedFilesMutex;
+    mutable QMutex mVisitedFilesMutex;
     QSet<quint32> mVisitedFiles;
 
     mutable QReadWriteLock mPchDependenciesLock;
