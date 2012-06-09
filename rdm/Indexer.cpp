@@ -292,6 +292,7 @@ void Indexer::onDirectoryChanged(const QString &path)
                 Q_ASSERT(!dit.value().isEmpty());
                 foreach (quint32 pathId, dit.value()) {
                     dirtyFiles.insert(pathId);
+                    mVisitedFiles.remove(pathId);
                     const Path path = Location::path(pathId);
                     if (path.exists()) {
                         bool ok;
