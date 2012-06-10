@@ -7,4 +7,3 @@ Solve constructors and destructors for rename symbol.
 Use GccArguments in rdm as well
 When a file has disappared it never gets out of the database
 Make bookmarks a stack
-fixits
