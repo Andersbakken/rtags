@@ -105,7 +105,7 @@
   (setq rtags-path-filter (rtags-default-current-project))
   (rtags-bookmark-push))
 
-(defun rtags-goto-location(location)
+(defun rtags-goto-location(location &optional nobookmark)
   "Go to a location passed in. It can be either: file,12 or file:13:14"
   (cond ((string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" location)
          (let ((line (string-to-int (match-string 2 location)))
@@ -115,12 +115,14 @@
            (goto-char (point-min))
            (forward-line (- line 1))
            (forward-char (- column 1))
+           (rtags-bookmark-push)
            t))
         ((string-match "\\(.*\\),\\([0-9]+\\)" location)
          (let ((offset (string-to-int (match-string 2 location))))
            (find-file (match-string 1 location))
            (run-hooks rtags-after-find-file-hook)
            (goto-char (+ offset 1))
+           (rtags-bookmark-push)
            t))
         (t nil))
   )
@@ -176,27 +178,34 @@
             ((eq code t) (rtags-symbolname-completion-get string))
             ((eq code 'lambda) (rtags-symbolname-completion-exactmatch string)))))
 
-(defvar rtags-bookmark-count 0)
-(defvar rtags-bookmark-current-index 0)
+(defvar rtags-bm-count 0)
+(defvar rtags-bm-index 0)
 (defun rtags-bookmark-name (&optional index)
-  (format "RTags %d" (if index index rtags-bookmark-current-index)))
+  (format "RTags %d" (if index index rtags-bookmark-index)))
 
 (defun rtags-bookmark-push ()
-  (while (> rtags-bookmark-count rtags-bookmark-current-index)
-    (progn
-      (setq rtags-bookmark-count (- rtags-bookmark-count 1))
-      (bookmark-delete (rtags-bookmark-name rtags-bookmark-count))))
+  ;; (while (> rtags-bm-count rtags-bookmark-index)
+  ;;   (progn
+  ;;     (bookmark-delete (rtags-bookmark-name (- rtags-bm-count 1)))
+  ;;     (setq rtags-bm-count (- rtags-bm-count 1))))
 
-  (bookmark-set (rtags-bookmark-name))
-  (setq rtags-bookmark-count (+ rtags-bookmark-count 1))
-  (setq rtags-bookmark-current-index rtags-bookmark-count))
+  ;; (let ((loc (rtags-current-location)))
+  ;;   (unless (string= (car rtags-bm) loc)
+  ;;     (progn
+  ;;       (push loc rtags-bm)
+  ;;       (setq rtags-bookmark-index (length rtags-bm))))))
+  )
+
+(defun rtags-reset-bookmarks ()
+  (setq rtags-bm-index 0)
+  (setq rtags-bm nil))
 
 (defun rtags-bookmark-goto (&optional add)
-  (let ((targetidx (+ rtags-bookmark-current-index (if add add 0))))
-    (if (and (>= targetidx 0) (< targetidx rtags-bookmark-count))
+  (let ((targetidx (+ rtags-bookmark-index (if add add 0))))
+    (if (and (>= targetidx 0) (< targetidx (length rtags-bm)))
         (progn
-          (setq rtags-bookmark-current-index targetidx)
-          (bookmark-jump (rtags-bookmark-name))))))
+          (setq rtags-bookmark-index targetidx)
+          (rtags-goto-location (nth rtags-bm (- (length rtags-bm) rtags-bookmark-index)) t)))))
 
 ; **************************** API *********************************
 
