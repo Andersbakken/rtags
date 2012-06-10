@@ -103,7 +103,7 @@
 (defun rtags-save-location()
   (setq rtags-last-buffer (current-buffer))
   (setq rtags-path-filter (rtags-default-current-project))
-  (bookmark-set "RTags Last"))
+  (rtags-bookmark-push))
 
 (defun rtags-goto-location(location)
   "Go to a location passed in. It can be either: file,12 or file:13:14"
@@ -176,6 +176,28 @@
             ((eq code t) (rtags-symbolname-completion-get string))
             ((eq code 'lambda) (rtags-symbolname-completion-exactmatch string)))))
 
+(defvar rtags-bookmark-count 0)
+(defvar rtags-bookmark-current-index 0)
+(defun rtags-bookmark-name (&optional index)
+  (format "RTags %d" (if index index rtags-bookmark-current-index)))
+
+(defun rtags-bookmark-push ()
+  (while (> rtags-bookmark-count rtags-bookmark-current-index)
+    (progn
+      (setq rtags-bookmark-count (- rtags-bookmark-count 1))
+      (bookmark-delete (rtags-bookmark-name rtags-bookmark-count))))
+
+  (bookmark-set (rtags-bookmark-name))
+  (setq rtags-bookmark-count (+ rtags-bookmark-count 1))
+  (setq rtags-bookmark-current-index rtags-bookmark-count))
+
+(defun rtags-bookmark-goto (&optional add)
+  (let ((targetidx (+ rtags-bookmark-current-index (if add add 0))))
+    (if (and (>= targetidx 0) (< targetidx rtags-bookmark-count))
+        (progn
+          (setq rtags-bookmark-current-index targetidx)
+          (bookmark-jump (rtags-bookmark-name))))))
+
 ; **************************** API *********************************
 
 (defcustom rtags-edit-hook nil
@@ -203,7 +225,9 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r ,") (function rtags-find-references-at-point))
   (define-key map (kbd "C-x r >") (function rtags-find-symbol))
   (define-key map (kbd "C-x r <") (function rtags-find-references))
-  (define-key map (kbd "C-x r p") (function rtags-back))
+  (define-key map (kbd "C-x r [") (function rtags-bookmark-back))
+  (define-key map (kbd "C-x r ]") (function rtags-bookmark-forward))
+  (define-key map (kbd "C-x r \\") (function rtags-bookmark-current))
   (define-key map (kbd "C-x r F") (function rtags-fixit))
   (define-key map (kbd "C-x r q") (function rtags-fixit))
   (define-key map (kbd "C-x r C") (function rtags-clear-rdm))
@@ -222,15 +246,15 @@ return t if rtags is allowed to modify this file"
   (if (or dontask (y-or-n-p "This will clear the database. Are you sure?"))
       (call-process (executable-find "rc") nil nil nil "-C")))
 
-(defun rtags-back()
-  (interactive)
-  (let ((bms (bookmark-all-names)))
-    (if (member "RTags Last" bms)
-        (progn
-          (bookmark-rename "RTags Last" "RTags temp")
-          (rtags-save-location)
-          (bookmark-jump "RTags temp")
-          (bookmark-delete "RTags temp")))))
+;; (defun rtags-back()
+;;   (interactive)
+;;   (let ((bms (bookmark-all-names)))
+;;     (if (member "RTags Last" bms)
+;;         (progn
+;;           (bookmark-rename "RTags Last" "RTags temp")
+;;           (rtags-save-location)
+;;           (bookmark-jump "RTags temp")
+;;           (bookmark-delete "RTags temp")))))
 
 (defun rtags-index-project ()
   (interactive)
@@ -360,6 +384,17 @@ return t if rtags is allowed to modify this file"
               (insert text)))
           (next-line))))))
 
+(defun rtags-bookmark-back ()
+  (interactive)
+  (rtags-bookmark-goto -1))
+
+(defun rtags-bookmark-forward ()
+  (interactive)
+  (rtags-bookmark-goto -1))
+
+(defun rtags-bookmark-current ()
+  (interactive)
+  (rtags-bookmark-goto))
 
 (provide 'rtags)
 
