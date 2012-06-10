@@ -329,4 +329,23 @@ return t if rtags is allowed to modify this file"
             ((eq code t) (rtags-symbolname-completion-get string))
             ((eq code 'lambda) (rtags-symbolname-completion-exactmatch string)))))
 
+(defun rtags-fixit()
+  (interactive)
+  (if (buffer-modified-p)
+      (message "I refuse to modifiy a modified buffer")
+    (let ((buffer (current-buffer)))
+      (with-temp-buffer
+        (rtags-call-rc nil "-x" (buffer-file-name buffer))
+        (goto-char (point-min))
+        (while (looking-at "^\\([0-9]+\\)-?\\([0-9]+\\)? \\(.*\\)$")
+          (let ((from (string-to-int (match-string 1)))
+                (len (if (stringp (match-string 2)) (string-to-int (match-string 2)) 0))
+                (text (match-string 3)))
+            (save-excursion
+              (set-buffer buffer)
+              (goto-char (+ from 1)) ; emacs offsets start at 1 for some reason
+              (kill-forward-chars len) ; may be 0
+              (insert text)))
+          (next-line))))))
+
 (provide 'rtags)

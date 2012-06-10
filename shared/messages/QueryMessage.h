@@ -24,6 +24,7 @@ public:
         RdmLog,
         RunTest,
         ClearDatabase,
+        FixIts,
         Shutdown
     };
 

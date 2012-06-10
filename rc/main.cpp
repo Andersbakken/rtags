@@ -44,6 +44,7 @@ static void help(FILE *f, const char* app)
             "  --define|-D [arg]                         Add additional define, must be combined with --makefile\n"
             "  --compiler-flag|-o [arg]                  Add additional compiler flags, must be combined with --makefile\n"
             "  --test|-t [arg]                           Test whether rtags knows about this source file\n"
+            "  --fixits|-x [file]                        Get fixits for file\n"
             "  --rdm-log|-g                              Receive logs from rdm\n"
             "  --status|-s [arg]                         Dump status of rdm. If arg is passed it should match one of:\n"
             "                                            'general', 'dependencies', 'symbols', 'symbolnames', 'fileinfos' or 'pch'\n"
@@ -184,10 +185,11 @@ int main(int argc, char** argv)
         { "elisp-list", no_argument, 0, 'P' },
         { "run-test", required_argument, 0, 'T' },
         { "clear-db", no_argument, 0, 'C' },
+        { "fixits", required_argument, 0, 'x' },
         { 0, 0, 0, 0 }
     };
 
-    // Not taken: b G j k Q V w x y
+    // Not taken: b G j k Q V w y
 
     int logLevel = 0;
     QByteArray logFile;
@@ -325,6 +327,9 @@ int main(int argc, char** argv)
             break;
         case 't':
             commands.append(new QueryCommand(QueryMessage::Test, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references
+            break;
+        case 'x':
+            commands.append(new QueryCommand(QueryMessage::FixIts, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references
             break;
         case 'T':
             commands.append(new QueryCommand(QueryMessage::RunTest, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references

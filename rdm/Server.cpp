@@ -300,7 +300,7 @@ void Server::handleAddMessage(AddMessage *message)
         //              << "vs"
         //              << RTags::join(Rdm::compileArgs(Location::insertFile(message->inputFile())), " ");
         // }
-        const int id = mIndexer->index(message->inputFile(), args, IndexerJob::Makefile|IndexerJob::Visit);
+        const int id = mIndexer->index(message->inputFile(), args, IndexerJob::Makefile);
         if (id != -1)
             mPendingIndexes[id] = conn;
     }
@@ -324,6 +324,9 @@ void Server::handleQueryMessage(QueryMessage *message)
         conn->send(&msg);
         conn->finish();
         return; }
+    case QueryMessage::FixIts:
+        fixIts(*message, conn);
+        return;
     case QueryMessage::CursorInfo:
         id = cursorInfo(*message);
         break;
@@ -556,6 +559,17 @@ int Server::test(const QueryMessage &query)
     TestJob *job = new TestJob(query.query().value(0), id);
     startJob(job);
     return id;
+}
+
+void Server::fixIts(const QueryMessage &query, Connection *conn)
+{
+    const QByteArray fixIts = mIndexer->fixIts(query.query().value(0));
+
+    error() << "fixIts" << query.query().value(0);
+
+    ResponseMessage msg(fixIts);
+    conn->send(&msg);
+    conn->finish();
 }
 
 void Server::rdmLog(const QueryMessage &query, Connection *conn)

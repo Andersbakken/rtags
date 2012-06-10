@@ -18,10 +18,9 @@ public:
         DirtyPch = 0x04,
         Dirty = 0x02,
         Makefile = 0x1, // these are used as QThreadPool priorites
-        Visit = 0x010,
         Priorities = DirtyPch|Dirty|Makefile,
-        NeedsDirty = 0x020,
-        FixIt = 0x040
+        NeedsDirty = 0x010,
+        FixIt = 0x020
     };
     IndexerJob(Indexer *indexer, int id, unsigned flags,
                const Path &input, const QList<QByteArray> &arguments);

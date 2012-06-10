@@ -90,6 +90,7 @@ private:
     void handleAddMessage(AddMessage* message);
     void handleQueryMessage(QueryMessage* message);
     void handleErrorMessage(ErrorMessage* message);
+    void fixIts(const QueryMessage &query, Connection *conn);
     int followLocation(const QueryMessage &query);
     int cursorInfo(const QueryMessage &query);
     int referencesForLocation(const QueryMessage &query);

@@ -165,11 +165,11 @@ void Indexer::initDB()
         Server::instance()->threadPool()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
     } else {
         for (QHash<Path, QList<QByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
-            index(it.key(), it.value(), IndexerJob::DirtyPch|IndexerJob::NeedsDirty|IndexerJob::Visit);
+            index(it.key(), it.value(), IndexerJob::DirtyPch|IndexerJob::NeedsDirty);
         }
 
         for (QHash<Path, QList<QByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
-            index(it.key(), it.value(), IndexerJob::Dirty|IndexerJob::NeedsDirty|IndexerJob::Visit);
+            index(it.key(), it.value(), IndexerJob::Dirty|IndexerJob::NeedsDirty);
         }
     }
 }
@@ -437,5 +437,43 @@ void Indexer::abort()
     mWaitingForPCH.clear();
     foreach(IndexerJob *job, mJobs) {
         job->abort();
+    }
+}
+
+QByteArray Indexer::fixIts(const Path &path) const
+{
+    quint32 fileId = Location::fileId(path);
+    if (!fileId)
+        return QByteArray();
+    QReadLocker lock(&mFixItsLock);
+    QMap<Location, QPair<int, QByteArray> >::const_iterator it = mFixIts.lowerBound(Location(fileId, 0));
+    QByteArray ret;
+    char buf[1024];
+    while (it != mFixIts.end() && it.key().fileId() == fileId) {
+        int w;
+        if (it.value().first) {
+            w = snprintf(buf, sizeof(buf), "%d-%d %s%s", it.key().offset(), it.value().first,
+                         it.value().second.constData(), ret.isEmpty() ? "" : "\n");
+        } else {
+            w = snprintf(buf, sizeof(buf), "%d %s%s", it.key().offset(),
+                         it.value().second.constData(), ret.isEmpty() ? "" : "\n");
+        }
+        ret.prepend(QByteArray(buf, w)); // we want the last ones first
+        ++it;
+    }
+    return ret;
+}
+
+void Indexer::setFixIts(const QSet<quint32> &parsedFiles, const QMap<Location, QPair<int, QByteArray> > &fixIts)
+{
+    QWriteLocker lock(&mFixItsLock);
+    foreach(const quint32 fileId, parsedFiles) {
+        QMap<Location, QPair<int, QByteArray> >::iterator it = mFixIts.lowerBound(Location(fileId, 0));
+        while (it != mFixIts.end() && it.key().fileId() == fileId) {
+            it = mFixIts.erase(it);
+        }
+    }
+    for (QMap<Location, QPair<int, QByteArray> >::const_iterator it = fixIts.begin(); it != fixIts.end(); ++it) {
+        mFixIts[it.key()] = it.value();
     }
 }

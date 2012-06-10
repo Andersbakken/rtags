@@ -62,7 +62,6 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
             clang_getSpellingLocation(includeStack[i], &originatingFile, 0, 0, 0);
             Location loc(originatingFile, 0);
             const quint32 f = loc.fileId();
-            // qDebug() << i << includeLen << job->mIn << Location(originatingFile, 0).path();
             if (f)
                 job->mDependencies[fileId].insert(f);
         }
@@ -177,7 +176,6 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
                 }
                 if (state == DontIndex) {
                     *blocked = true;
-                    // qDebug() << "ignored" << Rdm::cursorToString(cursor) << "for" << mIn;
                     return Location();
                 }
                 *blocked = false;
@@ -500,6 +498,7 @@ void IndexerJob::run()
 
         Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
+        QMap<Location, QPair<int, QByteArray> > fixIts;
         const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
         for (unsigned i=0; i<diagnosticCount; ++i) {
             CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
@@ -533,21 +532,20 @@ void IndexerJob::run()
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
             for (unsigned f=0; f<fixItCount; ++f) {
                 CXSourceRange range;
-                CXStringScope string = clang_getDiagnosticFixIt(diagnostic, f, &range);
+                CXString string = clang_getDiagnosticFixIt(diagnostic, f, &range);
                 const Location start(clang_getRangeStart(range));
                 unsigned endOffset = 0;
                 clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
 
                 error("Fixit (%d/%d) for %s: %s %s-%d", f + 1, fixItCount, mIn.constData(),
-                      clang_getCString(string.string), start.key().constData(), endOffset);
+                      clang_getCString(string), start.key().constData(), endOffset);
+                // ### can there be more than one fixit starting at the same location? Probably not.
+                fixIts[start] = qMakePair<int, QByteArray>(endOffset - start.offset(), Rdm::eatString(string));
             }
 
             clang_disposeDiagnostic(diagnostic);
         }
 
-        if (!(mFlags & Visit)) {
-            return;
-        }
         clang_getInclusions(mUnit, inclusionVisitor, this);
 
         clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
@@ -569,9 +567,12 @@ void IndexerJob::run()
         scope.cleanup();
 
         if (!isAborted()) {
+            QSet<quint32> visited;
             if (mFlags & NeedsDirty) {
 #ifdef QT_DEBUG
                 for (QHash<quint32, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
+                    if (it.value() == Index)
+                        visited.insert(it.key());
                     if (it.value() == Index && it.key() != mFileId && !Location::path(it.value()).isSystem()) {
                         // ideally system headers would have ended up in mVisitedFiles on startup
                         error("This file should not have been dirty %s %d", Location::path(it.key()).constData(), it.key());
@@ -580,6 +581,7 @@ void IndexerJob::run()
 #endif
                 Rdm::dirty(QSet<quint32>() << mFileId);
             }
+            mIndexer->setFixIts(visited, fixIts);
             Rdm::writeSymbols(mSymbols, mReferences, mFileId);
             Rdm::writeSymbolNames(mSymbolNames);
             Rdm::writeFileInformation(mFileId, mArgs, timeStamp);

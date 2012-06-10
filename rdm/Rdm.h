@@ -17,7 +17,8 @@ class CXStringScope
 public:
     CXStringScope(CXString str)
         : string(str)
-    {}
+    {
+    }
 
     ~CXStringScope()
     {
