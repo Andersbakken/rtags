@@ -390,7 +390,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-bookmark-forward ()
   (interactive)
-  (rtags-bookmark-goto -1))
+  (rtags-bookmark-goto 1))
 
 (defun rtags-bookmark-current ()
   (interactive)
