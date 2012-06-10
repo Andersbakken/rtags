@@ -5,35 +5,6 @@
 
 (require 'bookmark)
 
-(defcustom rtags-edit-hook nil
-  "Run before rtags tries to modify a buffer (from rtags-rename)
-return t if rtags is allowed to modify this file"
-  :group 'rtags
-  :type 'hook)
-
-(defcustom rtags-jump-to-first-match t
-  "If t, jump to first match"
-  :group 'rtags
-  :type 'boolean)
-
-(defcustom rtags-log-enabled nil
-  "If t, log"
-  :group 'rtags
-  :type 'boolean)
-
-(defun rtags-enable-standard-keybindings (&optional map)
-  (interactive)
-  (unless map
-    (setq map c-mode-base-map))
-  (define-key map (kbd "C-x r .") (function rtags-follow-symbol-at-point))
-  (define-key map (kbd "C-x r ,") (function rtags-find-references-at-point))
-  (define-key map (kbd "C-x r >") (function rtags-find-symbol))
-  (define-key map (kbd "C-x r <") (function rtags-find-references))
-  (define-key map (kbd "C-x r p") (function rtags-back))
-  (define-key map (kbd "C-x r M") (function rtags-index-project))
-  )
-
-
 (defun rtags-find-ancestor-file(pattern)
   "Find a file named \a file in as shallow a path as possible,
   e.g. if there's a Makefile in /foobar/rtags/rc/Makefile and one
@@ -106,10 +77,6 @@ return t if rtags is allowed to modify this file"
 (defun rtags-current-location ()
   (format "%s,%d" (buffer-file-name) (- (point) 1)))
 
-(defun rtags-print-current-location ()
-  (interactive)
-  (message (rtags-current-location)))
-
 (defun rtags-log (log)
   (if rtags-log-enabled
       (save-excursion
@@ -121,9 +88,6 @@ return t if rtags is allowed to modify this file"
         )
     )
   )
-
-(defun rtags-quit-rdm () (interactive)
-  (call-process (executable-find "rc") nil nil nil "--quit-rdm"))
 
 (defun rtags-call-rc (pathfilter &rest arguments)
   (push (if rtags-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
@@ -140,16 +104,6 @@ return t if rtags is allowed to modify this file"
   (setq rtags-last-buffer (current-buffer))
   (setq rtags-path-filter (rtags-default-current-project))
   (bookmark-set "RTags Last"))
-
-(defun rtags-back()
-  (interactive)
-  (let ((bms (bookmark-all-names)))
-    (if (member "RTags Last" bms)
-        (progn
-          (bookmark-rename "RTags Last" "RTags temp")
-          (rtags-save-location)
-          (bookmark-jump "RTags temp")
-          (bookmark-delete "RTags temp")))))
 
 (defun rtags-goto-location(location)
   "Go to a location passed in. It can be either: file,12 or file:13:14"
@@ -170,6 +124,113 @@ return t if rtags is allowed to modify this file"
            t))
         (t nil))
   )
+
+
+
+(defun rtags-find-symbols-by-name-internal (p references)
+  (rtags-save-location)
+  (let ((tagname (rtags-current-symbol))
+        (switch (if references "-R" "-F"))
+        prompt
+        input)
+    (if tagname
+        (setq prompt (concat p ": (default " tagname ") "))
+      (setq prompt (concat p ": ")))
+    (setq input (completing-read prompt (function rtags-symbolname-complete) nil nil nil rtags-symbol-history))
+    (if (not (equal "" input))
+        (setq tagname input))
+    (if (get-buffer "*RTags Complete*")
+        (kill-buffer "*RTags Complete*"))
+    (switch-to-buffer (generate-new-buffer "*RTags Complete*"))
+    (rtags-call-rc references switch tagname "-l")
+    (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
+          ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
+          (t (progn
+               (goto-char (point-min))
+               (compilation-mode)
+               (if rtags-jump-to-first-match
+                   (compile-goto-error)))))
+    (not (= (point-min) (point-max))))
+    )
+
+
+(defun rtags-remove-completions-buffer ()
+  (interactive)
+  (kill-buffer (current-buffer))
+  (switch-to-buffer rtags-last-buffer))
+
+(defun rtags-symbolname-completion-get (string)
+  (with-temp-buffer
+    (rtags-call-rc nil "-P" "-S" string)
+    (eval (read (buffer-string)))))
+
+(defun rtags-symbolname-completion-exactmatch (string)
+  (with-temp-buffer
+    (rtags-call-rc nil "-N" "-F" string)
+    (> (point-max) (point-min))))
+
+(defun rtags-symbolname-complete (string predicate code)
+  (if (> (length string) 0)
+      (cond ((eq code nil)
+             (try-completion string (rtags-symbolname-completion-get string) predicate))
+            ((eq code t) (rtags-symbolname-completion-get string))
+            ((eq code 'lambda) (rtags-symbolname-completion-exactmatch string)))))
+
+; **************************** API *********************************
+
+(defcustom rtags-edit-hook nil
+  "Run before rtags tries to modify a buffer (from rtags-rename)
+return t if rtags is allowed to modify this file"
+  :group 'rtags
+  :type 'hook)
+
+(defcustom rtags-jump-to-first-match t
+  "If t, jump to first match"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-log-enabled nil
+  "If t, log"
+  :group 'rtags
+  :type 'boolean)
+
+
+(defun rtags-enable-standard-keybindings (&optional map)
+  (interactive)
+  (unless map
+    (setq map c-mode-base-map))
+  (define-key map (kbd "C-x r .") (function rtags-follow-symbol-at-point))
+  (define-key map (kbd "C-x r ,") (function rtags-find-references-at-point))
+  (define-key map (kbd "C-x r >") (function rtags-find-symbol))
+  (define-key map (kbd "C-x r <") (function rtags-find-references))
+  (define-key map (kbd "C-x r p") (function rtags-back))
+  (define-key map (kbd "C-x r F") (function rtags-fixit))
+  (define-key map (kbd "C-x r q") (function rtags-fixit))
+  (define-key map (kbd "C-x r C") (function rtags-clear-rdm))
+  (define-key map (kbd "C-x r M") (function rtags-index-project))
+  )
+
+(defun rtags-print-current-location ()
+  (interactive)
+  (message (rtags-current-location)))
+
+(defun rtags-quit-rdm () (interactive)
+  (call-process (executable-find "rc") nil nil nil "--quit-rdm"))
+
+(defun rtags-clear-rdm (&optional dontask) (interactive)
+  "Use with care, it will destroy the database without possibility of undoing"
+  (if (or dontask (y-or-n-p "This will clear the database. Are you sure?"))
+      (call-process (executable-find "rc") nil nil nil "-C")))
+
+(defun rtags-back()
+  (interactive)
+  (let ((bms (bookmark-all-names)))
+    (if (member "RTags Last" bms)
+        (progn
+          (bookmark-rename "RTags Last" "RTags temp")
+          (rtags-save-location)
+          (bookmark-jump "RTags temp")
+          (bookmark-delete "RTags temp")))))
 
 (defun rtags-index-project ()
   (interactive)
@@ -214,6 +275,7 @@ return t if rtags is allowed to modify this file"
     (not (= (point-min) (point-max)))
     )
   )
+
 
 (defun rtags-find-references-at-point-samefile()
   (interactive)
@@ -271,34 +333,6 @@ return t if rtags is allowed to modify this file"
                 )))
         (message (format "Opened %d new files and made %d modifications" filesopened modifications))))))
 
-; (get-file-buffer FILENAME)
-
-(defun rtags-find-symbols-by-name-internal (p references)
-  (rtags-save-location)
-  (let ((tagname (rtags-current-symbol))
-        (switch (if references "-R" "-F"))
-        prompt
-        input)
-    (if tagname
-        (setq prompt (concat p ": (default " tagname ") "))
-      (setq prompt (concat p ": ")))
-    (setq input (completing-read prompt (function rtags-symbolname-complete) nil nil nil rtags-symbol-history))
-    (if (not (equal "" input))
-        (setq tagname input))
-    (if (get-buffer "*RTags Complete*")
-        (kill-buffer "*RTags Complete*"))
-    (switch-to-buffer (generate-new-buffer "*RTags Complete*"))
-    (rtags-call-rc references switch tagname "-l")
-    (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
-          ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
-          (t (progn
-               (goto-char (point-min))
-               (compilation-mode)
-               (if rtags-jump-to-first-match
-                   (compile-goto-error)))))
-    (not (= (point-min) (point-max))))
-    )
-
 (defun rtags-find-symbol ()
   (interactive)
   (rtags-find-symbols-by-name-internal "Find symbol" nil))
@@ -306,28 +340,6 @@ return t if rtags is allowed to modify this file"
 (defun rtags-find-references ()
   (interactive)
   (rtags-find-symbols-by-name-internal "Find references" t))
-
-(defun rtags-remove-completions-buffer ()
-  (interactive)
-  (kill-buffer (current-buffer))
-  (switch-to-buffer rtags-last-buffer))
-
-(defun rtags-symbolname-completion-get (string)
-  (with-temp-buffer
-    (rtags-call-rc nil "-P" "-S" string)
-    (eval (read (buffer-string)))))
-
-(defun rtags-symbolname-completion-exactmatch (string)
-  (with-temp-buffer
-    (rtags-call-rc nil "-N" "-F" string)
-    (> (point-max) (point-min))))
-
-(defun rtags-symbolname-complete (string predicate code)
-  (if (> (length string) 0)
-      (cond ((eq code nil)
-             (try-completion string (rtags-symbolname-completion-get string) predicate))
-            ((eq code t) (rtags-symbolname-completion-get string))
-            ((eq code 'lambda) (rtags-symbolname-completion-exactmatch string)))))
 
 (defun rtags-fixit()
   (interactive)
@@ -348,4 +360,6 @@ return t if rtags is allowed to modify this file"
               (insert text)))
           (next-line))))))
 
+
 (provide 'rtags)
+
