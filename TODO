@@ -7,3 +7,5 @@ Solve constructors and destructors for rename symbol.
 Use GccArguments in rdm as well
 When a file has disappared it never gets out of the database
 Make bookmarks a stack
+cache compile errors from clang and do something like what we do we fixits
+do eventsource from rdm to emacs
