@@ -573,7 +573,7 @@ void IndexerJob::run()
                 for (QHash<quint32, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
                     if (it.value() == Index)
                         visited.insert(it.key());
-                    if (it.value() == Index && it.key() != mFileId && !Location::path(it.value()).isSystem()) {
+                    if (it.value() == Index && it.key() != mFileId && !Location::path(it.key()).isSystem()) {
                         // ideally system headers would have ended up in mVisitedFiles on startup
                         error("This file should not have been dirty %s %d", Location::path(it.key()).constData(), it.key());
                     }
