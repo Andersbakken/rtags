@@ -597,7 +597,7 @@ void IndexerJob::run()
         Pch = 0x1,
         Dirty = 0x2
     };
-    const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %lldms.%s (%d syms, %d refs, %d deps, %d symNames)%s",
+    const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %lldms.%s (%d syms, %d refs, %d deps, %d symNames) %s",
                            mIn.constData(), compileError ? "error" : "success", timer.elapsed(),
                            qPrintable(waitingForPch ? QString(" Waited for pch: %1ms.").arg(waitingForPch) : QString()),
                            mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size(),
