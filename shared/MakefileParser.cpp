@@ -89,7 +89,7 @@ MakefileParser::~MakefileParser()
     delete mTracker;
 }
 
-void MakefileParser::run(const Path& makefile)
+void MakefileParser::run(const Path &makefile, const QList<QByteArray> &args)
 {
     Q_ASSERT(!mProc);
     mProc = new QProcess(this);
@@ -121,10 +121,15 @@ void MakefileParser::run(const Path& makefile)
     mTracker->init(makefile.parentDir());
     warning(MAKE " -j1 -n -w -f %s -C %s\n",
             makefile.constData(), mTracker->path().constData());
-    mProc->start(QLatin1String(MAKE), QStringList()
-                 << QLatin1String("-j1") << QLatin1String("-n") << QLatin1String("-w")
-                 << QLatin1String("-f") << QString::fromLocal8Bit(makefile)
-                 << QLatin1String("-C") << mTracker->path());
+    QStringList a;
+    a << QLatin1String("-j1") << QLatin1String("-n") << QLatin1String("-w")
+      << QLatin1String("-f") << QString::fromLocal8Bit(makefile)
+      << QLatin1String("-C") << mTracker->path();
+    foreach(const QByteArray &arg, args) {
+        a << arg;
+    }
+
+    mProc->start(QLatin1String(MAKE), a);
 }
 
 bool MakefileParser::isDone() const

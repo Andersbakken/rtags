@@ -127,14 +127,15 @@ struct RdmLogCommand : public Command
 };
 
 struct MakefileCommand : public Command {
-    MakefileCommand(const Path &mf, bool w)
-        : makefile(mf), wait(w)
+    MakefileCommand(const Path &mf, const QList<QByteArray> &args, bool w)
+        : makefile(mf), makefileArgs(args), wait(w)
     {}
     const Path makefile;
+    const QList<QByteArray> makefileArgs;
     const bool wait;
     virtual void exec(Client *client)
     {
-        if (client->parseMakefile(makefile, wait))
+        if (client->parseMakefile(makefile, makefileArgs, wait))
             error("%d source files and %d pch files from %s",
                   client->sourceFileCount(), client->pchCount(), makefile.constData());
     }
@@ -335,11 +336,12 @@ int main(int argc, char** argv)
             commands.append(new QueryCommand(QueryMessage::RunTest, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references
             break;
         case 'm':
-            commands.append(new MakefileCommand(Path::resolved(optarg), false));
-            break;
-        case 'M':
-            commands.append(new MakefileCommand(Path::resolved(optarg), true));
-            break;
+        case 'M': {
+            QList<QByteArray> makefileArgs;
+            while (optind < argc && argv[optind][0] != '-')
+                makefileArgs.append(argv[optind++]);
+            commands.append(new MakefileCommand(Path::resolved(optarg), makefileArgs, c == 'M'));
+            break; }
         case 's':
             if (optarg) {
                 commands.append(new QueryCommand(QueryMessage::Status, optarg, queryFlags, unsavedFiles, pathFilters)); // these are references

@@ -26,7 +26,7 @@ public:
 
     QList<QByteArray> rdmArgs() const { return mRdmArgs; }
     unsigned flags() const { return mFlags; }
-    bool parseMakefile(const Path &path, bool wait);
+    bool parseMakefile(const Path &path, const QList<QByteArray> &args, bool wait);
     void query(const QueryMessage *msg);
     QList<QByteArray> extraFlags() const { return mExtraFlags; }
     int sourceFileCount() const { return mSourceFileCount; }

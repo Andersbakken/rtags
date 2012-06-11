@@ -69,7 +69,7 @@ void Client::onNewMessage(Message *message)
     message->deleteLater();
 }
 
-bool Client::parseMakefile(const Path &path, bool wait)
+bool Client::parseMakefile(const Path &path, const QList<QByteArray> &args, bool wait)
 {
     if (!mConn && !connectToServer()) {
         fprintf(stderr, "Can't connect to server\n");
@@ -88,7 +88,7 @@ bool Client::parseMakefile(const Path &path, bool wait)
     }
     connect(parser, SIGNAL(fileReady(GccArguments)),
             this, SLOT(onMakefileReady(GccArguments)));
-    parser->run(path);
+    parser->run(path, args);
     mMakeDone = false;
     mLoop.exec();
     return true;
