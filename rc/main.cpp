@@ -1,5 +1,6 @@
 #include "Client.h"
 #include "QueryMessage.h"
+#include "OutputMessage.h"
 #include "RTags.h"
 #include <QByteArray>
 #include <QCoreApplication>
@@ -103,7 +104,7 @@ struct QueryCommand : public Command
         QueryMessage msg(type, query, queryFlags);
         msg.setUnsavedFiles(unsavedFiles);
         msg.setPathFilters(pathFilters.toList());
-        client->query(&msg);
+        client->message(&msg);
     }
 
     virtual QByteArray description() const
@@ -116,11 +117,8 @@ struct RdmLogCommand : public Command
 {
     virtual void exec(Client *client)
     {
-        char buf[sizeof(int)];
-        int *intPtr = reinterpret_cast<int*>(buf);
-        *intPtr = logLevel();
-        QueryMessage msg(QueryMessage::RdmLog, QByteArray(buf, sizeof(buf)));
-        client->query(&msg);
+        OutputMessage msg("log", logLevel());
+        client->message(&msg);
     }
     virtual QByteArray description() const
     {

@@ -12,6 +12,7 @@
 #include "TestJob.h"
 #include "RunTestJob.h"
 #include "QueryMessage.h"
+#include "OutputMessage.h"
 #include "Rdm.h"
 #include "ReferencesJob.h"
 #include "SHA256.h"
@@ -128,7 +129,7 @@ bool Server::init(const Options &options)
         if (!i) {
             Client client(mOptions.name);
             QueryMessage msg(QueryMessage::Shutdown);
-            client.query(&msg);
+            client.message(&msg);
         }
         sleep(1);
         QFile::remove(mOptions.name);
@@ -238,6 +239,9 @@ void Server::onNewMessage(Message *message)
     case ErrorMessage::MessageId:
         handleErrorMessage(static_cast<ErrorMessage*>(message));
         break;
+    case OutputMessage::MessageId:
+        handleOutputMessage(static_cast<OutputMessage*>(message));
+        break;
     case ResponseMessage::MessageId:
     default:
         error("Unknown message: %d", message->messageId());
@@ -306,6 +310,22 @@ void Server::handleAddMessage(AddMessage *message)
     }
 }
 
+void Server::handleOutputMessage(OutputMessage *message)
+{
+    Connection *conn = qobject_cast<Connection*>(sender());
+    const QList<QByteArray> names = message->name().split(',');
+    foreach(const QByteArray& name, names) {
+        if (name == "log") {
+            new Rdm::LogObject(conn, message->level());
+        } else {
+            ResponseMessage msg("Unknown output name: " + name);
+            conn->send(&msg);
+            conn->finish();
+            return;
+        }
+    }
+}
+
 void Server::handleQueryMessage(QueryMessage *message)
 {
     Connection *conn = qobject_cast<Connection*>(sender());
@@ -365,9 +385,6 @@ void Server::handleQueryMessage(QueryMessage *message)
     case QueryMessage::Test:
         id = test(*message);
         break;
-    case QueryMessage::RdmLog:
-        rdmLog(*message, conn);
-        return;
     case QueryMessage::RunTest:
         id = runTest(*message);
         break;

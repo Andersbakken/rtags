@@ -5,6 +5,7 @@
 #include "messages/QueryMessage.h"
 #include "messages/ErrorMessage.h"
 #include "messages/ResponseMessage.h"
+#include "messages/OutputMessage.h"
 
 class Messages
 {

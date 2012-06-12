@@ -27,6 +27,7 @@ public:
 
     template<typename T>
     void send(const T *message);
+    void send(int id, const QByteArray& message);
 
     template<typename T>
     static bool registerMessage();
@@ -38,9 +39,6 @@ signals:
     void error();
     void newMessage(Message *message);
     void sendComplete();
-
-private:
-    void send(int id, const QByteArray& message);
 
 private:
     ConnectionPrivate *mPriv;

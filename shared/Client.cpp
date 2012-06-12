@@ -24,7 +24,7 @@ Client::Client(const QByteArray &name, unsigned flags, const QList<QByteArray> &
     if (mFlags & RestartRdm) { // ### something about this is buggy
         if (ret) {
             QueryMessage msg(QueryMessage::Shutdown);
-            query(&msg);
+            message(&msg);
             delete mConn;
             mConn = 0;
         }
@@ -34,7 +34,7 @@ Client::Client(const QByteArray &name, unsigned flags, const QList<QByteArray> &
     }
 }
 
-void Client::query(const QueryMessage *message)
+void Client::sendMessage(int id, const QByteArray &msg)
 {
     if (!mConn && !connectToServer() && !(mFlags & (RestartRdm|AutostartRdm))) {
         return;
@@ -42,7 +42,7 @@ void Client::query(const QueryMessage *message)
 
     connect(mConn, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
     connect(mConn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
-    mConn->send(message);
+    mConn->send(id, msg);
     mLoop.exec();
 }
 

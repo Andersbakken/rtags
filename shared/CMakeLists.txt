@@ -21,6 +21,7 @@ set(shared_SRCS
   messages/AddMessage.cpp
   messages/ErrorMessage.cpp
   messages/QueryMessage.cpp
+  messages/OutputMessage.cpp
   )
 
 set(shared_HDRS
@@ -37,6 +38,7 @@ set(shared_HDRS
   messages/ErrorMessage.h
   messages/QueryMessage.h
   messages/ResponseMessage.h
+  messages/OutputMessage.h
   )
 
 set(shared_MOCS
@@ -46,6 +48,7 @@ set(shared_MOCS
   messages/QueryMessage.h
   messages/ErrorMessage.h
   messages/ResponseMessage.h
+  messages/OutputMessage.h
   Message.h
   MakefileParser.h
   )

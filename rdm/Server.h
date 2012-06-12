@@ -14,6 +14,7 @@ class Indexer;
 class Message;
 class AddMessage;
 class ErrorMessage;
+class OutputMessage;
 class QLocalServer;
 class Database;
 class ScopedDB
@@ -90,6 +91,7 @@ private:
     void handleAddMessage(AddMessage* message);
     void handleQueryMessage(QueryMessage* message);
     void handleErrorMessage(ErrorMessage* message);
+    void handleOutputMessage(OutputMessage* message);
     void fixIts(const QueryMessage &query, Connection *conn);
     void errors(const QueryMessage &query, Connection *conn);
     int followLocation(const QueryMessage &query);

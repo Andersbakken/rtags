@@ -21,7 +21,6 @@ public:
         Status,
         Test,
         CursorInfo,
-        RdmLog,
         RunTest,
         ClearDatabase,
         FixIts,
@@ -47,15 +46,19 @@ public:
 
     QList<QByteArray> pathFilters() const { return mPathFilters; }
     void setPathFilters(const QList<QByteArray> &pathFilters) { mPathFilters = pathFilters; qSort(mPathFilters); }
+
     int messageId() const { return MessageId; }
     // ### it should be possible to put an already parsed Location in here instead of a query that needs to be reparsed
     QList<QByteArray> query() const { return mQuery; }
+
     QHash<Path, QByteArray> unsavedFiles() const { return mUnsavedFiles; }
     void setUnsavedFiles(const QHash<Path, QByteArray> &unsavedFiles) { mUnsavedFiles = unsavedFiles; }
+
     Type type() const { return mType; }
     unsigned flags() const { return mFlags; }
     static unsigned keyFlags(unsigned queryFlags);
     inline unsigned keyFlags() const { return keyFlags(mFlags); }
+
     QByteArray toByteArray() const;
     Q_INVOKABLE void fromByteArray(const QByteArray& data);
 

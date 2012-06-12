@@ -18,4 +18,5 @@ void Messages::init()
     reg<QueryMessage>();
     reg<ErrorMessage>();
     reg<ResponseMessage>();
+    reg<OutputMessage>();
 }

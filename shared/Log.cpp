@@ -213,6 +213,7 @@ Log &Log::operator=(const Log &other)
     mData = other.mData;
     return *this;
 }
+
 Output::Output(int logLevel)
     : mLogLevel(logLevel)
 {
@@ -222,6 +223,7 @@ Output::Output(int logLevel)
     }
     sOutputs.insert(this);
 }
+
 Output::~Output()
 {
     QMutexLocker lock(&sOutputsMutex);
