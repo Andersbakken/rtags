@@ -54,6 +54,7 @@ static void help(FILE *f, const char* app)
             "  --restart-rdm|-e [args]                   Restart rdm with [args] before doing the rest of the commands\n"
             "  --run-test|-T [file]                      Run tests from file\n"
             "  --clear-db|-C                             Clear database, use with care\n"
+            "  --reindex|-V                              Reindex all files\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
             app);
 }
@@ -189,10 +190,11 @@ int main(int argc, char** argv)
         { "clear-db", no_argument, 0, 'C' },
         { "fixits", required_argument, 0, 'x' },
         { "errors", required_argument, 0, 'Q' },
+        { "reindex", no_argument, 0, 'V' },
         { 0, 0, 0, 0 }
     };
 
-    // Not taken: b G j k V w y
+    // Not taken: b G j k w y
 
     int logLevel = 0;
     QByteArray logFile;
@@ -327,6 +329,9 @@ int main(int argc, char** argv)
             break;
         case 'q':
             commands.append(new QueryCommand(QueryMessage::Shutdown, QByteArray(), queryFlags, unsavedFiles, pathFilters)); // these are references
+            break;
+        case 'V':
+            commands.append(new QueryCommand(QueryMessage::Reindex, QByteArray(), queryFlags, unsavedFiles, pathFilters)); // these are references
             break;
         case 't':
             commands.append(new QueryCommand(QueryMessage::Test, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references

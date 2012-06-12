@@ -104,6 +104,7 @@ private:
     int runTest(const QueryMessage &query);
     int nextId();
     void startJob(Job *job);
+    void reindex();
     void rdmLog(const QueryMessage &message, Connection *conn);
 private:
     static Server *sInstance;

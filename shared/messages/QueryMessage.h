@@ -26,6 +26,7 @@ public:
         ClearDatabase,
         FixIts,
         Errors,
+        Reindex,
         Shutdown
     };
 

@@ -314,6 +314,10 @@ void Server::handleQueryMessage(QueryMessage *message)
     case QueryMessage::Invalid:
         Q_ASSERT(0);
         break;
+    case QueryMessage::Reindex: {
+        reindex();
+        conn->finish();
+        return; }
     case QueryMessage::ClearDatabase: {
         delete mThreadPool;
         mThreadPool = 0;
@@ -632,6 +636,11 @@ void Server::setBaseDirectory(const QByteArray& base, bool clear)
             RTags::removeDirectory(databaseDir(static_cast<Server::DatabaseType>(i)).constData());
         error() << "cleared database dir" << base;
     }
+}
+
+void Server::reindex()
+{
+    mIndexer->reindex();
 }
 
 void Server::startJob(Job *job)

@@ -31,6 +31,7 @@ public:
     QByteArray errors(const Path &path) const;
     void setDiagnostics(const QHash<quint32, QList<QByteArray> > &errors,
                         const QMap<Location, QPair<int, QByteArray> > &fixIts);
+    void reindex();
 signals:
     void indexingDone(int id);
     void jobsComplete();
@@ -39,7 +40,11 @@ private slots:
     void onDirectoryChanged(const QString &path);
 private:
     void commitDependencies(const DependencyHash &deps, bool sync);
-    void initDB();
+    enum InitMode {
+        Normal,
+        ForceDirty
+    };
+    void initDB(InitMode forceDirty);
     bool needsToWaitForPch(IndexerJob *job) const;
     void startJob(int id, IndexerJob *job);
 

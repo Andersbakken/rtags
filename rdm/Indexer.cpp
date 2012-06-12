@@ -59,7 +59,7 @@ Indexer::Indexer(const QByteArray &path, QObject *parent)
         commitDependencies(dependencies, false);
     }
 
-    initDB();
+    initDB(Normal);
 }
 
 Indexer::~Indexer()
@@ -74,7 +74,7 @@ static inline bool isFile(quint32 fileId)
     return Location::path(fileId).isFile(); // ### not ideal
 }
 
-void Indexer::initDB()
+void Indexer::initDB(InitMode mode)
 {
     QElapsedTimer timer;
     timer.start();
@@ -127,7 +127,7 @@ void Indexer::initDB()
                     foreach(quint32 id, dependencies) {
                         if (dirtyFiles.contains(id)) {
                             dirty = true;
-                        } else if (Location::path(id).lastModified() > fi.lastTouched) {
+                        } else if (mode == ForceDirty || Location::path(id).lastModified() > fi.lastTouched) {
                             dirtyFiles.insert(id);
                             dirty = true;
                         }
@@ -493,4 +493,9 @@ void Indexer::setDiagnostics(const QHash<quint32, QList<QByteArray> > &diagnosti
     for (QMap<Location, QPair<int, QByteArray> >::const_iterator it = fixIts.begin(); it != fixIts.end(); ++it) {
         mFixIts[it.key()] = it.value();
     }
+}
+
+void Indexer::reindex()
+{
+    initDB(ForceDirty);
 }
