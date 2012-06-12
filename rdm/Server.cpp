@@ -339,7 +339,7 @@ void Server::handleQueryMessage(QueryMessage *message)
         Q_ASSERT(0);
         break;
     case QueryMessage::Reindex: {
-        reindex();
+        reindex(message->query().value(0));
         conn->finish();
         return; }
     case QueryMessage::ClearDatabase: {
@@ -659,9 +659,9 @@ void Server::setBaseDirectory(const QByteArray& base, bool clear)
     }
 }
 
-void Server::reindex()
+void Server::reindex(const QByteArray &pattern)
 {
-    mIndexer->reindex();
+    mIndexer->reindex(pattern);
 }
 
 void Server::startJob(Job *job)

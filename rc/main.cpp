@@ -56,7 +56,7 @@ static void help(FILE *f, const char* app)
             "  --run-test|-T [file]                      Run tests from file\n"
             "  --diagnostics|-G                          Open a connection that prints diagnostics\n"
             "  --clear-db|-C                             Clear database, use with care\n"
-            "  --reindex|-V                              Reindex all files\n"
+            "  --reindex|-V [optional regexp]            Reindex all files or all files matching pattern\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
             app);
 }
@@ -195,7 +195,7 @@ int main(int argc, char** argv)
         { "clear-db", no_argument, 0, 'C' },
         { "fixits", required_argument, 0, 'x' },
         { "errors", required_argument, 0, 'Q' },
-        { "reindex", no_argument, 0, 'V' },
+        { "reindex", optional_argument, 0, 'V' },
         { "diagnostics", no_argument, 0, 'G' },
         { 0, 0, 0, 0 }
     };
@@ -340,7 +340,13 @@ int main(int argc, char** argv)
             commands.append(new QueryCommand(QueryMessage::Shutdown, QByteArray(), queryFlags, unsavedFiles, pathFilters)); // these are references
             break;
         case 'V':
-            commands.append(new QueryCommand(QueryMessage::Reindex, QByteArray(), queryFlags, unsavedFiles, pathFilters)); // these are references
+            if (optarg) {
+                commands.append(new QueryCommand(QueryMessage::Reindex, optarg, queryFlags, unsavedFiles, pathFilters)); // these are references
+            } else if (optind < argc && argv[optind][0] != '-') {
+                commands.append(new QueryCommand(QueryMessage::Reindex, argv[optind++], queryFlags, unsavedFiles, pathFilters)); // these are references
+            } else {
+                commands.append(new QueryCommand(QueryMessage::Reindex, QByteArray(), queryFlags, unsavedFiles, pathFilters)); // these are references
+            }
             break;
         case 't':
             commands.append(new QueryCommand(QueryMessage::Test, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references

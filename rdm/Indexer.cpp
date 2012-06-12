@@ -59,7 +59,7 @@ Indexer::Indexer(const QByteArray &path, QObject *parent)
         commitDependencies(dependencies, false);
     }
 
-    initDB(Normal);
+    initDB();
 }
 
 Indexer::~Indexer()
@@ -74,8 +74,9 @@ static inline bool isFile(quint32 fileId)
     return Location::path(fileId).isFile(); // ### not ideal
 }
 
-void Indexer::initDB(InitMode mode)
+void Indexer::initDB(InitMode mode, const QByteArray &pattern)
 {
+    Q_ASSERT(mode == ForceDirty || pattern.isEmpty());
     QElapsedTimer timer;
     timer.start();
     QHash<quint32, QSet<quint32> > deps;
@@ -108,6 +109,7 @@ void Indexer::initDB(InitMode mode)
         it.reset(fileInformationDB->createIterator());
         it->seekToFirst();
         QMutexLocker lock(&mVisitedFilesMutex);
+        QRegExp rx(pattern);
         while (it->isValid()) {
             const Slice key = it->key();
             const quint32 fileId = *reinterpret_cast<const quint32*>(key.data());
@@ -127,9 +129,13 @@ void Indexer::initDB(InitMode mode)
                     foreach(quint32 id, dependencies) {
                         if (dirtyFiles.contains(id)) {
                             dirty = true;
-                        } else if (mode == ForceDirty || Location::path(id).lastModified() > fi.lastTouched) {
-                            dirtyFiles.insert(id);
-                            dirty = true;
+                        } else {
+                            const Path path = Location::path(id);
+                            if ((mode == ForceDirty && (pattern.isEmpty() || QString::fromLocal8Bit(path).contains(rx)))
+                                || path.lastModified() > fi.lastTouched) {
+                                dirtyFiles.insert(id);
+                                dirty = true;
+                            }
                         }
                     }
                     if (dirty) {
@@ -474,7 +480,8 @@ QByteArray Indexer::errors(const Path &path) const
 }
 
 
-void Indexer::setDiagnostics(const QHash<quint32, QList<QByteArray> > &diagnostics, const QMap<Location, QPair<int, QByteArray> > &fixIts)
+void Indexer::setDiagnostics(const QHash<quint32, QList<QByteArray> > &diagnostics,
+                             const QMap<Location, QPair<int, QByteArray> > &fixIts)
 {
     QWriteLocker lock(&mFixItsAndErrorsLock);
 
@@ -495,7 +502,7 @@ void Indexer::setDiagnostics(const QHash<quint32, QList<QByteArray> > &diagnosti
     }
 }
 
-void Indexer::reindex()
+void Indexer::reindex(const QByteArray &pattern)
 {
-    initDB(ForceDirty);
+    initDB(ForceDirty, pattern);
 }
