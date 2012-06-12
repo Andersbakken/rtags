@@ -3,6 +3,7 @@
   :group 'tools
   :prefix "rtags-")
 
+(require 'highlight)
 (require 'bookmark)
 
 (defun rtags-find-ancestor-file(pattern)
@@ -413,6 +414,20 @@ return t if rtags is allowed to modify this file"
               (kill-forward-chars len) ; may be 0
               (insert text)))
           (next-line))))))
+
+(defvar rtags-diagnostics-process nil)
+
+(defun rtags-start-diagnostics ()
+  (interactive)
+  (if (and rtags-diagnostics-process (not (eq (process-status rtags-diagnostics-process) 'exit)))
+      (kill-process rtags-diagnostics-process))
+  (if (get-buffer "*RTags Diagnostics*")
+      (kill-buffer "*RTags Diagnostics*"))
+  (let ((buf (get-buffer-create "*RTags Diagnostics*")))
+    (with-current-buffer buf
+      (setq buffer-read-only t)
+      (compilation-mode))
+    (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (executable-find "rc") "-G"))))
 
 (provide 'rtags)
 

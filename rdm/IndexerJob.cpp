@@ -537,7 +537,7 @@ void IndexerJob::run()
             if (testLog(logLevel)) {
                 log(logLevel, "%s", string.constData());
             }
-            if (logLevel == Error) {
+            if (logLevel == Error || logLevel == Warning) {
                 log(Rdm::EventObject::CError, "%s", string.constData());
             }
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
@@ -601,13 +601,13 @@ void IndexerJob::run()
     }
 
     char buf[1024];
-    const char *strings[] = { "", "(pch)", "(dirty)", "(pch, dirty)" };
+    const char *strings[] = { "", " (pch)", " (dirty)", " (pch, dirty)" };
     enum {
         None = 0x0,
         Pch = 0x1,
         Dirty = 0x2
     };
-    const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %lldms.%s (%d syms, %d refs, %d deps, %d symNames) %s",
+    const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %lldms.%s (%d syms, %d refs, %d deps, %d symNames)%s",
                            mIn.constData(), compileError ? "error" : "success", timer.elapsed(),
                            qPrintable(waitingForPch ? QString(" Waited for pch: %1ms.").arg(waitingForPch) : QString()),
                            mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size(),
