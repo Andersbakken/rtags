@@ -28,7 +28,9 @@ public:
     bool visitFile(quint32 fileId, const Path &p);
     QSet<quint32> visitedFiles() const { QMutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
     QByteArray fixIts(const Path &path) const;
-    void setFixIts(const QSet<quint32> &parsedFiles, const QMap<Location, QPair<int, QByteArray> > &fixIts);
+    QByteArray errors(const Path &path) const;
+    void setDiagnostics(const QHash<quint32, QList<QByteArray> > &errors,
+                        const QMap<Location, QPair<int, QByteArray> > &fixIts);
 signals:
     void indexingDone(int id);
     void jobsComplete();
@@ -66,7 +68,8 @@ private:
     WatchedHash mWatched;
 
     QMap<Location, QPair<int, QByteArray> > mFixIts;
-    mutable QReadWriteLock mFixItsLock;
+    QHash<quint32, QByteArray> mErrors;
+    mutable QReadWriteLock mFixItsAndErrorsLock;
 };
 
 inline bool Indexer::visitFile(quint32 fileId, const Path &path)

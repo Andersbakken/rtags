@@ -25,6 +25,7 @@ public:
         RunTest,
         ClearDatabase,
         FixIts,
+        Errors,
         Shutdown
     };
 

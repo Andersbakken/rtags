@@ -499,6 +499,7 @@ void IndexerJob::run()
         Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
         QMap<Location, QPair<int, QByteArray> > fixIts;
+        QHash<quint32, QList<QByteArray> > visited;
         const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
         for (unsigned i=0; i<diagnosticCount; ++i) {
             CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
@@ -519,15 +520,22 @@ void IndexerJob::run()
                 logLevel = INT_MAX;
                 break;
             }
+
+            CXSourceLocation loc = clang_getDiagnosticLocation(diagnostic);
+            CXFile file;
+            clang_getSpellingLocation(loc, &file, 0, 0, 0);
+            const quint32 fileId = Location(file, 0).fileId();
+            const QByteArray string = Rdm::eatString(clang_formatDiagnostic(diagnostic,
+                                                                            CXDiagnostic_DisplaySourceLocation|
+                                                                            CXDiagnostic_DisplayColumn|
+                                                                            CXDiagnostic_DisplaySourceRanges|
+                                                                            CXDiagnostic_DisplayOption|
+                                                                            CXDiagnostic_DisplayCategoryId|
+                                                                            CXDiagnostic_DisplayCategoryName));
+            visited[fileId].append(string);
+
             if (testLog(logLevel)) {
-                CXStringScope string = clang_formatDiagnostic(diagnostic,
-                                                              CXDiagnostic_DisplaySourceLocation|
-                                                              CXDiagnostic_DisplayColumn|
-                                                              CXDiagnostic_DisplaySourceRanges|
-                                                              CXDiagnostic_DisplayOption|
-                                                              CXDiagnostic_DisplayCategoryId|
-                                                              CXDiagnostic_DisplayCategoryName);
-                log(logLevel, "%s", clang_getCString(string.string));
+                log(logLevel, "%s", string.constData());
             }
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
             for (unsigned f=0; f<fixItCount; ++f) {
@@ -567,21 +575,20 @@ void IndexerJob::run()
         scope.cleanup();
 
         if (!isAborted()) {
-            QSet<quint32> visited;
-            if (mFlags & NeedsDirty) {
+            for (QHash<quint32, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
+                if (it.value() == Index) {
+                    (void)visited[it.key()];
 #ifdef QT_DEBUG
-                for (QHash<quint32, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
-                    if (it.value() == Index)
-                        visited.insert(it.key());
-                    if (it.value() == Index && it.key() != mFileId && !Location::path(it.key()).isSystem()) {
+                    if (mFlags & NeedsDirty && it.key() != mFileId && !Location::path(it.key()).isSystem()) {
                         // ideally system headers would have ended up in mVisitedFiles on startup
                         error("This file should not have been dirty %s %d", Location::path(it.key()).constData(), it.key());
                     }
-                }
 #endif
-                Rdm::dirty(QSet<quint32>() << mFileId);
+                }
             }
-            mIndexer->setFixIts(visited, fixIts);
+            if (mFlags & NeedsDirty)
+                Rdm::dirty(QSet<quint32>() << mFileId);
+            mIndexer->setDiagnostics(visited, fixIts);
             Rdm::writeSymbols(mSymbols, mReferences, mFileId);
             Rdm::writeSymbolNames(mSymbolNames);
             Rdm::writeFileInformation(mFileId, mArgs, timeStamp);

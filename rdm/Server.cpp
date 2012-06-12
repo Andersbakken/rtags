@@ -327,6 +327,9 @@ void Server::handleQueryMessage(QueryMessage *message)
     case QueryMessage::FixIts:
         fixIts(*message, conn);
         return;
+    case QueryMessage::Errors:
+        errors(*message, conn);
+        return;
     case QueryMessage::CursorInfo:
         id = cursorInfo(*message);
         break;
@@ -568,6 +571,17 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
     error() << "fixIts" << query.query().value(0);
 
     ResponseMessage msg(fixIts);
+    conn->send(&msg);
+    conn->finish();
+}
+
+void Server::errors(const QueryMessage &query, Connection *conn)
+{
+    const QByteArray errors = mIndexer->errors(query.query().value(0));
+
+    error() << "errors" << query.query().value(0);
+
+    ResponseMessage msg(errors);
     conn->send(&msg);
     conn->finish();
 }

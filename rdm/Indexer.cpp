@@ -445,7 +445,7 @@ QByteArray Indexer::fixIts(const Path &path) const
     quint32 fileId = Location::fileId(path);
     if (!fileId)
         return QByteArray();
-    QReadLocker lock(&mFixItsLock);
+    QReadLocker lock(&mFixItsAndErrorsLock);
     QMap<Location, QPair<int, QByteArray> >::const_iterator it = mFixIts.lowerBound(Location(fileId, 0));
     QByteArray ret;
     char buf[1024];
@@ -464,13 +464,30 @@ QByteArray Indexer::fixIts(const Path &path) const
     return ret;
 }
 
-void Indexer::setFixIts(const QSet<quint32> &parsedFiles, const QMap<Location, QPair<int, QByteArray> > &fixIts)
+QByteArray Indexer::errors(const Path &path) const
 {
-    QWriteLocker lock(&mFixItsLock);
-    foreach(const quint32 fileId, parsedFiles) {
-        QMap<Location, QPair<int, QByteArray> >::iterator it = mFixIts.lowerBound(Location(fileId, 0));
-        while (it != mFixIts.end() && it.key().fileId() == fileId) {
-            it = mFixIts.erase(it);
+    quint32 fileId = Location::fileId(path);
+    if (!fileId)
+        return QByteArray();
+    QReadLocker lock(&mFixItsAndErrorsLock);
+    return mErrors.value(fileId);
+}
+
+
+void Indexer::setDiagnostics(const QHash<quint32, QList<QByteArray> > &diagnostics, const QMap<Location, QPair<int, QByteArray> > &fixIts)
+{
+    QWriteLocker lock(&mFixItsAndErrorsLock);
+
+    for (QHash<quint32, QList<QByteArray> >::const_iterator it = diagnostics.begin(); it != diagnostics.end(); ++it) {
+        const quint32 fileId = it.key();
+        QMap<Location, QPair<int, QByteArray> >::iterator i = mFixIts.lowerBound(Location(fileId, 0));
+        while (i != mFixIts.end() && i.key().fileId() == fileId) {
+            i = mFixIts.erase(i);
+        }
+        if (it.value().isEmpty()) {
+            mErrors.remove(it.key());
+        } else {
+            mErrors[it.key()] = RTags::join(it.value(), "\n");
         }
     }
     for (QMap<Location, QPair<int, QByteArray> >::const_iterator it = fixIts.begin(); it != fixIts.end(); ++it) {
