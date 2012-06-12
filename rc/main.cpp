@@ -200,7 +200,7 @@ int main(int argc, char** argv)
         { 0, 0, 0, 0 }
     };
 
-    // Not taken: b G j k w y
+    // Not taken: b j k w y
 
     int logLevel = 0;
     QByteArray logFile;
