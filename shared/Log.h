@@ -14,18 +14,46 @@ enum LogLevel {
     Debug = 2,
     VerboseDebug = 3
 };
+
 class Output
 {
 public:
-    Output(int logLevel);
+    Output();
     virtual ~Output();
-    int logLevel() const { return mLogLevel; }
-    bool testLog(int level) const { return level <= mLogLevel; }
-    virtual void log(const char */*msg*/, int /*len*/) {}
-private:
-    const int mLogLevel;
+
+    virtual bool testLog(int level) const = 0;
+    virtual void log(const char */*msg*/, int /*len*/) = 0;
 };
 
+class LogOutput : public Output
+{
+public:
+    LogOutput(int logLevel);
+    virtual ~LogOutput();
+
+    virtual bool testLog(int level) const { return level <= mLogLevel; }
+    virtual void log(const char */*msg*/, int /*len*/) { }
+
+    int logLevel() const { return mLogLevel; }
+
+private:
+    int mLogLevel;
+};
+
+class EventOutput : public Output
+{
+public:
+    EventOutput(int level);
+    ~EventOutput();
+
+    virtual bool testLog(int level) const { return mLevel & level; }
+    virtual void log(const char */*msg*/, int /*len*/) { }
+
+    int level() const { return mLevel; }
+
+private:
+    int mLevel;
+};
 
 #if defined(Q_CC_GNU)
 void log(int level, const char *format, ...) __attribute__ ((format (printf, 2, 3)));

@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <QDateTime>
 #include <QMutex>
+#include <QMetaObject>
+#include <QMetaEnum>
 #include <errno.h>
 #include <QCoreApplication>
 #include <QElapsedTimer>
@@ -23,11 +25,11 @@ static void cleanupSinks()
     qDeleteAll(copy);
 }
 
-class FileOutput : public Output
+class FileOutput : public LogOutput
 {
 public:
     FileOutput(FILE *f)
-        : Output(INT_MAX), file(f)
+        : LogOutput(INT_MAX), file(f)
     {
     }
     ~FileOutput()
@@ -44,11 +46,11 @@ public:
     FILE *file;
 };
 
-class StdoutOutput : public Output
+class StdoutOutput : public LogOutput
 {
 public:
     StdoutOutput(int lvl)
-        : Output(lvl)
+        : LogOutput(lvl)
     {}
     virtual void log(const char *msg, int)
     {
@@ -214,8 +216,7 @@ Log &Log::operator=(const Log &other)
     return *this;
 }
 
-Output::Output(int logLevel)
-    : mLogLevel(logLevel)
+Output::Output()
 {
     QMutexLocker lock(&sOutputsMutex);
     if (sOutputs.isEmpty()) {
@@ -228,4 +229,22 @@ Output::~Output()
 {
     QMutexLocker lock(&sOutputsMutex);
     sOutputs.remove(this);
+}
+
+LogOutput::LogOutput(int logLevel)
+    : mLogLevel(logLevel)
+{
+}
+
+LogOutput::~LogOutput()
+{
+}
+
+EventOutput::EventOutput(int level)
+    : mLevel(level)
+{
+}
+
+EventOutput::~EventOutput()
+{
 }

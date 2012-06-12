@@ -321,4 +321,21 @@ QList<QByteArray> compileArgs(quint32 fileId)
     FileInformation fi = db->value<FileInformation>(key);
     return fi.compileArgs;
 }
+
+int EventObject::typeForName(const QByteArray &name)
+{
+    const QMetaObject m = staticMetaObject;
+    for (int i = 0; i < m.enumeratorCount(); ++i) {
+        const int idx = m.indexOfEnumerator("Type");
+        if (idx >= 0) {
+            const QMetaEnum en = m.enumerator(idx);
+            if (name.contains('|'))
+                return en.keysToValue(name.constData());
+            else
+                return en.keyToValue(name.constData());
+        }
+    }
+    return -1;
+}
+
 }

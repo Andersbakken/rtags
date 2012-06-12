@@ -537,6 +537,9 @@ void IndexerJob::run()
             if (testLog(logLevel)) {
                 log(logLevel, "%s", string.constData());
             }
+            if (logLevel == Error) {
+                log(Rdm::EventObject::CError, "%s", string.constData());
+            }
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
             for (unsigned f=0; f<fixItCount; ++f) {
                 CXSourceRange range;

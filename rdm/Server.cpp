@@ -318,10 +318,14 @@ void Server::handleOutputMessage(OutputMessage *message)
         if (name == "log") {
             new Rdm::LogObject(conn, message->level());
         } else {
-            ResponseMessage msg("Unknown output name: " + name);
-            conn->send(&msg);
-            conn->finish();
-            return;
+            const int level = Rdm::EventObject::typeForName(name);
+            if (level == -1) {
+                ResponseMessage msg("Unknown output name: " + name);
+                conn->send(&msg);
+                conn->finish();
+                return;
+            }
+            new Rdm::EventObject(conn, level);
         }
     }
 }

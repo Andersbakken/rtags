@@ -50,10 +50,11 @@ static void help(FILE *f, const char* app)
             "  --rdm-log|-g                              Receive logs from rdm\n"
             "  --status|-s [arg]                         Dump status of rdm. If arg is passed it should match one of:\n"
             "                                            'general', 'dependencies', 'symbols', 'symbolnames', 'fileinfos' or 'pch'\n"
-            "  --name|-N [name]                          Name to use for server (default ~/.rtags/server)\n"
+            "  --name|-n [name]                          Name to use for server (default ~/.rtags/server)\n"
             "  --autostart-rdm|-a [args]                 Start rdm with [args] if rc fails to connect\n"
             "  --restart-rdm|-e [args]                   Restart rdm with [args] before doing the rest of the commands\n"
             "  --run-test|-T [file]                      Run tests from file\n"
+            "  --diagnostics|-G                          Open a connection that prints diagnostics\n"
             "  --clear-db|-C                             Clear database, use with care\n"
             "  --reindex|-V                              Reindex all files\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
@@ -115,15 +116,21 @@ struct QueryCommand : public Command
 
 struct RdmLogCommand : public Command
 {
+    RdmLogCommand(const QByteArray &cmd)
+        : mCmd(cmd)
+    {
+    }
     virtual void exec(Client *client)
     {
-        OutputMessage msg("log", logLevel());
+        OutputMessage msg(mCmd, logLevel());
         client->message(&msg);
     }
     virtual QByteArray description() const
     {
         return "RdmLogCommand";
     }
+private:
+    QByteArray mCmd;
 };
 
 struct MakefileCommand : public Command {
@@ -189,6 +196,7 @@ int main(int argc, char** argv)
         { "fixits", required_argument, 0, 'x' },
         { "errors", required_argument, 0, 'Q' },
         { "reindex", no_argument, 0, 'V' },
+        { "diagnostics", no_argument, 0, 'G' },
         { 0, 0, 0, 0 }
     };
 
@@ -323,7 +331,10 @@ int main(int argc, char** argv)
             commands.append(new QueryCommand(QueryMessage::ClearDatabase, QByteArray(), queryFlags, unsavedFiles, pathFilters));
             break;
         case 'g':
-            commands.append(new RdmLogCommand);
+            commands.append(new RdmLogCommand("log"));
+            break;
+        case 'G':
+            commands.append(new RdmLogCommand("CError"));
             break;
         case 'q':
             commands.append(new QueryCommand(QueryMessage::Shutdown, QByteArray(), queryFlags, unsavedFiles, pathFilters)); // these are references

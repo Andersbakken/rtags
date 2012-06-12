@@ -5,11 +5,12 @@
 #include <QIODevice>
 #include <clang-c/Index.h>
 #include <Path.h>
-#include <QDebug>
-#include "Server.h"
 #include <RTags.h>
+#include <QDebug>
 #include "Location.h"
+#include "Log.h"
 #include "ResponseMessage.h"
+#include "Server.h"
 
 class CursorInfo;
 class CXStringScope
@@ -138,12 +139,12 @@ int dirty(const QSet<quint32> &dirtyFileIds);
 QList<QByteArray> compileArgs(quint32 fileId);
 // the symbols will be modified before writing and we don't want to detach so we
 // work on a non-const reference
-class LogObject : public QObject, public Output
+class LogObject : public QObject, public LogOutput
 {
     Q_OBJECT
 public:
     LogObject(Connection *conn, int level)
-        : QObject(conn), Output(level), mConnection(conn)
+        : QObject(conn), LogOutput(level), mConnection(conn)
     {
         connect(conn, SIGNAL(disconnected()), conn, SLOT(deleteLater()));
     }
@@ -159,6 +160,38 @@ public slots:
         ResponseMessage msg(log);
         mConnection->send(&msg);
     }
+private:
+    Connection *mConnection;
+};
+
+class EventObject : public QObject, public EventOutput
+{
+    Q_OBJECT
+    Q_ENUMS(Type)
+public:
+    enum Type { CError = 0x40000000 };
+
+    EventObject(Connection *conn, int level)
+        : QObject(conn), EventOutput(level), mConnection(conn)
+    {
+        connect(conn, SIGNAL(disconnected()), conn, SLOT(deleteLater()));
+    }
+
+    virtual void log(const char *msg, int len)
+    {
+        const QByteArray out(msg, len);
+        QMetaObject::invokeMethod(this, "onLog", Qt::QueuedConnection, Q_ARG(QByteArray, out));
+    }
+
+    static int typeForName(const QByteArray &name);
+
+public slots:
+    void onLog(const QByteArray &log)
+    {
+        ResponseMessage msg(log);
+        mConnection->send(&msg);
+    }
+
 private:
     Connection *mConnection;
 };
