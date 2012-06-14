@@ -26,6 +26,7 @@ public:
         FixIts,
         Errors,
         Reindex,
+        Remake,
         Shutdown
     };
 
@@ -51,9 +52,6 @@ public:
     // ### it should be possible to put an already parsed Location in here instead of a query that needs to be reparsed
     QList<QByteArray> query() const { return mQuery; }
 
-    QHash<Path, QByteArray> unsavedFiles() const { return mUnsavedFiles; }
-    void setUnsavedFiles(const QHash<Path, QByteArray> &unsavedFiles) { mUnsavedFiles = unsavedFiles; }
-
     Type type() const { return mType; }
     unsigned flags() const { return mFlags; }
     static unsigned keyFlags(unsigned queryFlags);
@@ -66,7 +64,6 @@ private:
     QList<QByteArray> mQuery;
     Type mType;
     unsigned mFlags;
-    QHash<Path, QByteArray> mUnsavedFiles;
     QList<QByteArray> mPathFilters;
 };
 

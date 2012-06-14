@@ -24,6 +24,7 @@ static void help(FILE *f, const char* app)
             "  --elisp-list|-P                           Output elisp: (list \"one\" \"two\" ...)\n"
             "  --follow-location|-f [arg]                Follow this location\n"
             "  --makefile|-m [arg]                       Process this makefile\n"
+            "  --remake|-M [optional regexp]             Remake makefiles matching regexp or all if no regexp\n"
             "  --reference-name|-R [arg]                 Find references matching arg\n"
             "  --reference-location|-r [arg]             Find references matching this location\n"
             "  --include-declarations-and-definitions|-E Include reference to referenced location\n"
@@ -33,7 +34,6 @@ static void help(FILE *f, const char* app)
             "  --dump|-d [arg]                           Dump AST tree of arg \n"
             "  --complete|-c [arg]                       Get code completion for this location\n"
             "  --cursor-info|-U [arg]                    Get cursor info for this location\n"
-            "  --unsaved-file|-u [arg]                   Specify an unsaved file and a size to be passed on stdin (e.g. -u main.cpp:343)\n"
             "  --log-file|-L [file]                      Log to this file\n"
             "  --append|-A                               Append to log file\n"
             "  --no-context|-N                           Don't print context for locations\n"
@@ -89,21 +89,18 @@ struct Command
 
 struct QueryCommand : public Command
 {
-    QueryCommand(QueryMessage::Type t, const QByteArray &q, const unsigned &qf,
-                 const QHash<Path, QByteArray> &u, const QSet<QByteArray> &p)
-        : type(t), query(q), queryFlags(qf), unsavedFiles(u), pathFilters(p)
+    QueryCommand(QueryMessage::Type t, const QByteArray &q, const unsigned &qf, const QSet<QByteArray> &p)
+        : type(t), query(q), queryFlags(qf), pathFilters(p)
     {}
 
     const QueryMessage::Type type;
     const QByteArray query;
     const unsigned &queryFlags; // eeh
-    const QHash<Path, QByteArray> &unsavedFiles; // eeh
     const QSet<QByteArray> &pathFilters; // eeh
 
     virtual void exec(Client *client)
     {
         QueryMessage msg(type, query, queryFlags);
-        msg.setUnsavedFiles(unsavedFiles);
         msg.setPathFilters(pathFilters.toList());
         client->message(&msg);
     }
@@ -166,6 +163,7 @@ int main(int argc, char** argv)
         { "autostart-rdm", optional_argument, 0, 'a' },
         { "follow-location", required_argument, 0, 'f' },
         { "makefile", required_argument, 0, 'm' },
+        { "remake", optional_argument, 0, 'M' },
         { "reference-name", required_argument, 0, 'R' },
         { "reference-location", required_argument, 0, 'r' },
         { "reverse-sort", no_argument, 0, 'O' },
@@ -174,7 +172,6 @@ int main(int argc, char** argv)
         { "dump", required_argument, 0, 'd' },
         { "complete", required_argument, 0, 'c' },
         { "cursor-info", required_argument, 0, 'U' },
-        { "unsaved-file", required_argument, 0, 'u' },
         { "log-file", required_argument, 0, 'L' },
         { "append", no_argument, 0, 'A' },
         { "no-context", no_argument, 0, 'N' },
@@ -210,7 +207,6 @@ int main(int argc, char** argv)
 
     QList<Command*> commands;
     QList<QByteArray> extraFlags;
-    QHash<Path, QByteArray> unsavedFiles;
     QSet<QByteArray> pathFilters;
     unsigned queryFlags = 0;
     unsigned clientFlags = 0;
@@ -293,26 +289,6 @@ int main(int argc, char** argv)
         case 'p':
             queryFlags |= QueryMessage::SkipParentheses;
             break;
-        case 'u':
-            if (!standardIn.isOpen() && !standardIn.open(stdin, QIODevice::ReadOnly)) {
-                qWarning("Can't open stdin for reading");
-                return 1;
-            } else {
-                const QByteArray arg(optarg);
-                const int colon = arg.lastIndexOf(':');
-                if (colon == -1) {
-                    qWarning("Can't parse -u [%s]", optarg);
-                    return 1;
-                }
-                const int bytes = atoi(arg.constData() + colon + 1);
-                if (!bytes) {
-                    qWarning("Can't parse -u [%s]", optarg);
-                    return 1;
-                }
-                const QByteArray contents = standardIn.read(bytes);
-                unsavedFiles[Path::resolved(arg.left(colon))] = contents;
-            }
-            break;
         case 'f':
         case 'U':
         case 'r': {
@@ -327,10 +303,10 @@ int main(int argc, char** argv)
             case 'U': type = QueryMessage::CursorInfo; break;
             case 'r': type = QueryMessage::ReferencesLocation; break;
             }
-            commands.append(new QueryCommand(type, encoded, queryFlags, unsavedFiles, pathFilters)); // these are references
+            commands.append(new QueryCommand(type, encoded, queryFlags, pathFilters));
             break; }
         case 'C':
-            commands.append(new QueryCommand(QueryMessage::ClearDatabase, QByteArray(), queryFlags, unsavedFiles, pathFilters));
+            commands.append(new QueryCommand(QueryMessage::ClearDatabase, QByteArray(), queryFlags, pathFilters));
             break;
         case 'g':
             commands.append(new RdmLogCommand("log"));
@@ -339,28 +315,30 @@ int main(int argc, char** argv)
             commands.append(new RdmLogCommand("CError"));
             break;
         case 'q':
-            commands.append(new QueryCommand(QueryMessage::Shutdown, QByteArray(), queryFlags, unsavedFiles, pathFilters)); // these are references
+            commands.append(new QueryCommand(QueryMessage::Shutdown, QByteArray(), queryFlags, pathFilters));
             break;
         case 'V':
+        case 'M': {
+            const QueryMessage::Type type = (c == 'V' ? QueryMessage::Reindex : QueryMessage::Remake);
             if (optarg) {
-                commands.append(new QueryCommand(QueryMessage::Reindex, optarg, queryFlags, unsavedFiles, pathFilters)); // these are references
+                commands.append(new QueryCommand(type, optarg, queryFlags, pathFilters));
             } else if (optind < argc && argv[optind][0] != '-') {
-                commands.append(new QueryCommand(QueryMessage::Reindex, argv[optind++], queryFlags, unsavedFiles, pathFilters)); // these are references
+                commands.append(new QueryCommand(type, argv[optind++], queryFlags, pathFilters));
             } else {
-                commands.append(new QueryCommand(QueryMessage::Reindex, QByteArray(), queryFlags, unsavedFiles, pathFilters)); // these are references
+                commands.append(new QueryCommand(type, QByteArray(), queryFlags, pathFilters));
             }
-            break;
+            break; }
         case 't':
-            commands.append(new QueryCommand(QueryMessage::Test, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references
+            commands.append(new QueryCommand(QueryMessage::Test, Path::resolved(optarg), queryFlags, pathFilters));
             break;
         case 'x':
-            commands.append(new QueryCommand(QueryMessage::FixIts, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references
+            commands.append(new QueryCommand(QueryMessage::FixIts, Path::resolved(optarg), queryFlags, pathFilters));
             break;
         case 'Q':
-            commands.append(new QueryCommand(QueryMessage::Errors, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references
+            commands.append(new QueryCommand(QueryMessage::Errors, Path::resolved(optarg), queryFlags, pathFilters));
             break;
         case 'T':
-            commands.append(new QueryCommand(QueryMessage::RunTest, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references
+            commands.append(new QueryCommand(QueryMessage::RunTest, Path::resolved(optarg), queryFlags, pathFilters));
             break;
         case 'm': {
             QList<QByteArray> makefileArgs;
@@ -370,30 +348,30 @@ int main(int argc, char** argv)
             break; }
         case 's':
             if (optarg) {
-                commands.append(new QueryCommand(QueryMessage::Status, optarg, queryFlags, unsavedFiles, pathFilters)); // these are references
+                commands.append(new QueryCommand(QueryMessage::Status, optarg, queryFlags, pathFilters));
             } else if (optind < argc && argv[optind][0] != '-') {
-                commands.append(new QueryCommand(QueryMessage::Status, argv[optind++], queryFlags, unsavedFiles, pathFilters)); // these are references
+                commands.append(new QueryCommand(QueryMessage::Status, argv[optind++], queryFlags, pathFilters));
             } else {
-                commands.append(new QueryCommand(QueryMessage::Status, QByteArray(), queryFlags, unsavedFiles, pathFilters)); // these are references
+                commands.append(new QueryCommand(QueryMessage::Status, QByteArray(), queryFlags, pathFilters));
             }
             break;
         case 'R':
-            commands.append(new QueryCommand(QueryMessage::ReferencesName, optarg, queryFlags, unsavedFiles, pathFilters)); // these are references
+            commands.append(new QueryCommand(QueryMessage::ReferencesName, optarg, queryFlags, pathFilters));
             break;
         case 'S':
             if (optarg) {
-                commands.append(new QueryCommand(QueryMessage::ListSymbols, optarg, queryFlags, unsavedFiles, pathFilters)); // these are references
+                commands.append(new QueryCommand(QueryMessage::ListSymbols, optarg, queryFlags, pathFilters));
             } else if (optind < argc && argv[optind][0] != '-') {
-                commands.append(new QueryCommand(QueryMessage::ListSymbols, argv[optind++], queryFlags, unsavedFiles, pathFilters)); // these are references
+                commands.append(new QueryCommand(QueryMessage::ListSymbols, argv[optind++], queryFlags, pathFilters));
             } else {
-                commands.append(new QueryCommand(QueryMessage::ListSymbols, QByteArray(), queryFlags, unsavedFiles, pathFilters)); // these are references
+                commands.append(new QueryCommand(QueryMessage::ListSymbols, QByteArray(), queryFlags, pathFilters));
             }
             break;
         case 'F':
-            commands.append(new QueryCommand(QueryMessage::FindSymbols, optarg, queryFlags, unsavedFiles, pathFilters)); // these are references
+            commands.append(new QueryCommand(QueryMessage::FindSymbols, optarg, queryFlags, pathFilters));
             break;
         case 'd':
-            commands.append(new QueryCommand(QueryMessage::Dump, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references
+            commands.append(new QueryCommand(QueryMessage::Dump, Path::resolved(optarg), queryFlags, pathFilters));
             break;
         case '?':
             // getopt printed an error message already

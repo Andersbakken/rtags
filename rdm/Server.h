@@ -109,7 +109,9 @@ private:
     int nextId();
     void startJob(Job *job);
     void reindex(const QByteArray &pattern);
+    void remake(const QByteArray &pattern, Connection *conn);
     void rdmLog(const QueryMessage &message, Connection *conn);
+    void make(const QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > >::const_iterator it);
 private:
     static Server *sInstance;
     Options mOptions;
@@ -120,6 +122,7 @@ private:
     bool mVerbose;
     int mJobId;
     static Path sBase;
+    QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > > mMakefiles;
     Database *mDBs[DatabaseTypeCount];
     QThreadPool *mThreadPool;
 };

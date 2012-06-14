@@ -53,7 +53,7 @@ static inline QDataStream &operator>>(QDataStream &ds, FileInformation &ci)
 }
 
 namespace Rdm {
-enum { DatabaseVersion = 9 };
+enum { DatabaseVersion = 10 };
 
 enum ReferenceType {
     NormalReference,

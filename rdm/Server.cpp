@@ -151,6 +151,19 @@ bool Server::init(const Options &options)
     }
 
     {
+        ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
+        bool ok;
+        const int version = general->value<int>("version", &ok);
+        if (!ok) {
+            general->setValue<int>("version", Rdm::DatabaseVersion);
+        } else if (version != Rdm::DatabaseVersion) {
+            error("Wrong version, expected %d, got %d. Run with -C to regenerate database", Rdm::DatabaseVersion, version);
+            return false;
+        }
+        mMakefiles = general->value<QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > > >("makefiles");
+    }
+
+    {
         // fileids
         ScopedDB db = Server::instance()->db(Server::FileIds, ScopedDB::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -168,18 +181,6 @@ bool Server::init(const Options &options)
             it->next();
         }
         Location::init(pathsToIds, idsToPaths, maxId);
-    }
-
-    {
-        ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
-        bool ok;
-        const int version = general->value<int>("version", &ok);
-        if (!ok) {
-            general->setValue<int>("version", Rdm::DatabaseVersion);
-        } else if (version != Rdm::DatabaseVersion) {
-            error("Wrong version, expected %d, got %d. Run with -C to regenerate database", version, Rdm::DatabaseVersion);
-            return false;
-        }
     }
 
 
@@ -255,11 +256,19 @@ void Server::onNewMessage(Message *message)
 
 void Server::handleMakefileMessage(MakefileMessage *message)
 {
-    MakefileParser *parser = new MakefileParser(message->extraFlags(), this);
+    QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > >::const_iterator it
+        = mMakefiles.insert(message->makefile(), qMakePair(message->arguments(), message->extraFlags()));
+    ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
+    general->setValue("makefiles", mMakefiles);
+    make(it);
+}
+
+void Server::make(const QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > >::const_iterator it)
+{
+    MakefileParser *parser = new MakefileParser(it.value().second, this);
     connect(parser, SIGNAL(fileReady(GccArguments)), this, SLOT(onFileReady(GccArguments)));
     connect(parser, SIGNAL(done()), parser, SLOT(deleteLater()));
-    parser->run(message->makefile(), message->arguments());
-    qDebug() << "got a makefile" << message->makefile() << message->arguments() << message->extraFlags();
+    parser->run(it.key(), it.value().first);
     Connection *conn = qobject_cast<Connection*>(sender());
     conn->finish();
 }
@@ -295,6 +304,9 @@ void Server::handleQueryMessage(QueryMessage *message)
     case QueryMessage::Reindex: {
         reindex(message->query().value(0));
         conn->finish();
+        return; }
+    case QueryMessage::Remake: {
+        remake(message->query().value(0), conn);
         return; }
     case QueryMessage::ClearDatabase: {
         delete mThreadPool;
@@ -617,6 +629,22 @@ void Server::reindex(const QByteArray &pattern)
 {
     mIndexer->reindex(pattern);
 }
+
+void Server::remake(const QByteArray &pattern, Connection *conn)
+{
+    error() << "remake" << pattern;
+    QRegExp rx(pattern);
+    for (QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > >::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
+        if (rx.isEmpty() || QString::fromLocal8Bit(it.key()).contains(rx)) {
+            qDebug() << "calling remake on" << it.key();
+            ResponseMessage msg("Remaking " + it.key());
+            conn->send(&msg);
+            make(it);
+        }
+    }
+    conn->finish();
+}
+
 
 void Server::startJob(Job *job)
 {
