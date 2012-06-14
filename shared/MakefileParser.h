@@ -19,6 +19,9 @@ public:
     void run(const Path &makefile, const QList<QByteArray> &args);
     bool isDone() const;
     QList<QByteArray> extraFlags() const { return mExtraFlags; }
+    QList<QByteArray> mapPchToInput(const QList<QByteArray> &input) const;
+    void setPch(const QByteArray &output, const QByteArray &input);
+    int pchCount() const { return mPchs.size(); }
 signals:
     void done();
     void fileReady(const GccArguments &args);
@@ -32,10 +35,11 @@ private:
     void processMakeLine(const QByteArray &line);
 
 private:
-    QProcess* mProc;
+    QProcess *mProc;
     QByteArray mData;
-    DirectoryTracker* mTracker;
+    DirectoryTracker *mTracker;
     const QList<QByteArray> mExtraFlags;
+    QHash<QByteArray, QByteArray> mPchs;
 };
 
 #endif // MAKEFILEPARSER_H

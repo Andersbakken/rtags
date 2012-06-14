@@ -18,7 +18,7 @@ set(shared_SRCS
   Messages.cpp
   Path.cpp
   RTags.cpp
-  messages/AddMessage.cpp
+  messages/MakefileMessage.cpp
   messages/ErrorMessage.cpp
   messages/QueryMessage.cpp
   messages/OutputMessage.cpp
@@ -34,7 +34,7 @@ set(shared_HDRS
   Messages.h
   Path.h
   RTags.h
-  messages/AddMessage.h
+  messages/MakefileMessage.h
   messages/ErrorMessage.h
   messages/QueryMessage.h
   messages/ResponseMessage.h
@@ -44,7 +44,7 @@ set(shared_HDRS
 set(shared_MOCS
   Connection.h
   Client.h
-  messages/AddMessage.h
+  messages/MakefileMessage.h
   messages/QueryMessage.h
   messages/ErrorMessage.h
   messages/ResponseMessage.h

@@ -1,6 +1,7 @@
 #include "Client.h"
 #include "QueryMessage.h"
 #include "OutputMessage.h"
+#include "MakefileMessage.h"
 #include "RTags.h"
 #include <QByteArray>
 #include <QCoreApplication>
@@ -23,7 +24,6 @@ static void help(FILE *f, const char* app)
             "  --elisp-list|-P                           Output elisp: (list \"one\" \"two\" ...)\n"
             "  --follow-location|-f [arg]                Follow this location\n"
             "  --makefile|-m [arg]                       Process this makefile\n"
-            "  --makefile-wait|-M [arg]                  Process this makefile and wait until the whole make process is finished\n"
             "  --reference-name|-R [arg]                 Find references matching arg\n"
             "  --reference-location|-r [arg]             Find references matching this location\n"
             "  --include-declarations-and-definitions|-E Include reference to referenced location\n"
@@ -134,21 +134,24 @@ private:
 };
 
 struct MakefileCommand : public Command {
-    MakefileCommand(const Path &mf, const QList<QByteArray> &args, bool w)
-        : makefile(mf), makefileArgs(args), wait(w)
+    MakefileCommand(const Path &mf, const QList<QByteArray> &args, const QList<QByteArray> &ef)
+        : makefile(mf), makefileArgs(args), extraFlags(ef)
     {}
     const Path makefile;
     const QList<QByteArray> makefileArgs;
-    const bool wait;
+    const QList<QByteArray> &extraFlags; // reference
     virtual void exec(Client *client)
     {
-        if (client->parseMakefile(makefile, makefileArgs, wait))
-            error("%d source files and %d pch files from %s",
-                  client->sourceFileCount(), client->pchCount(), makefile.constData());
+        if (!makefile.isFile()) {
+            error() << makefile << "is not a file";
+            return;
+        }
+        MakefileMessage msg(makefile, makefileArgs, extraFlags);
+        client->message(&msg);
     }
     virtual QByteArray description() const
     {
-        return ("MakefileCommand " + makefile + (wait ? " wait" : ""));
+        return ("MakefileCommand " + makefile + " " + RTags::join(makefileArgs, " ") + " " + RTags::join(extraFlags, " "));
     }
 };
 
@@ -163,7 +166,6 @@ int main(int argc, char** argv)
         { "autostart-rdm", optional_argument, 0, 'a' },
         { "follow-location", required_argument, 0, 'f' },
         { "makefile", required_argument, 0, 'm' },
-        { "makefile-wait", required_argument, 0, 'M' },
         { "reference-name", required_argument, 0, 'R' },
         { "reference-location", required_argument, 0, 'r' },
         { "reverse-sort", no_argument, 0, 'O' },
@@ -360,12 +362,11 @@ int main(int argc, char** argv)
         case 'T':
             commands.append(new QueryCommand(QueryMessage::RunTest, Path::resolved(optarg), queryFlags, unsavedFiles, pathFilters)); // these are references
             break;
-        case 'm':
-        case 'M': {
+        case 'm': {
             QList<QByteArray> makefileArgs;
             while (optind < argc && argv[optind][0] != '-')
                 makefileArgs.append(argv[optind++]);
-            commands.append(new MakefileCommand(Path::resolved(optarg), makefileArgs, c == 'M'));
+            commands.append(new MakefileCommand(Path::resolved(optarg), makefileArgs, extraFlags));
             break; }
         case 's':
             if (optarg) {
@@ -427,7 +428,7 @@ int main(int argc, char** argv)
     if (name.isEmpty())
         name = RTags::rtagsDir() + "server";
 
-    Client client(name, clientFlags, extraFlags, rdmArgs);
+    Client client(name, clientFlags, rdmArgs);
     foreach(Command *cmd, commands) {
         debug() << "running command" << cmd->description();
         cmd->exec(&client);

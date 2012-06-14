@@ -73,7 +73,7 @@ void DirectoryTracker::leaveDirectory(const QByteArray& dir)
     // enterDirectory(dir);
 }
 
-MakefileParser::MakefileParser(const QList<QByteArray> &extraFlags, QObject* parent)
+MakefileParser::MakefileParser(const QList<QByteArray> &extraFlags, QObject *parent)
     : QObject(parent), mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags)
 {
 }
@@ -174,4 +174,21 @@ void MakefileParser::onProcessStateChanged(QProcess::ProcessState state)
 void MakefileParser::onReadyReadStandardError()
 {
     debug() << "stderr" << mProc->readAllStandardError();
+}
+QList<QByteArray> MakefileParser::mapPchToInput(const QList<QByteArray> &input) const
+{
+    QList<QByteArray> output;
+    QHash<QByteArray, QByteArray>::const_iterator pchit;
+    const QHash<QByteArray, QByteArray>::const_iterator pchend = mPchs.end();
+    foreach (const QByteArray &in, input) {
+        pchit = mPchs.find(in);
+        if (pchit != pchend)
+            output.append(pchit.value());
+    }
+    return output;
+}
+
+void MakefileParser::setPch(const QByteArray &output, const QByteArray &input)
+{
+    mPchs[output] = input;
 }

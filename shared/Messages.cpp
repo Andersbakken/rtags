@@ -14,9 +14,9 @@ Messages::Messages()
 
 void Messages::init()
 {
-    reg<AddMessage>();
     reg<QueryMessage>();
     reg<ErrorMessage>();
     reg<ResponseMessage>();
     reg<OutputMessage>();
+    reg<MakefileMessage>();
 }

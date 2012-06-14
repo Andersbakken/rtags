@@ -2,7 +2,6 @@
 #define INDEXER_H
 
 #include <QtCore>
-#include <AddMessage.h>
 #include "Rdm.h"
 #include "CursorInfo.h"
 #include <clang-c/Index.h>

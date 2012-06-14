@@ -1,6 +1,7 @@
 #include "Connection.h"
 #include "DumpJob.h"
 #include "FollowLocationJob.h"
+#include "MakefileParser.h"
 #include "Indexer.h"
 #include "Client.h"
 #include "CursorInfoJob.h"
@@ -13,6 +14,7 @@
 #include "RunTestJob.h"
 #include "QueryMessage.h"
 #include "OutputMessage.h"
+#include "MakefileMessage.h"
 #include "Rdm.h"
 #include "ReferencesJob.h"
 #include "SHA256.h"
@@ -230,8 +232,8 @@ void Server::onConnectionDestroyed(QObject *o)
 void Server::onNewMessage(Message *message)
 {
     switch (message->messageId()) {
-    case AddMessage::MessageId:
-        handleAddMessage(static_cast<AddMessage*>(message));
+    case MakefileMessage::MessageId:
+        handleMakefileMessage(static_cast<MakefileMessage*>(message));
         break;
     case QueryMessage::MessageId:
         handleQueryMessage(static_cast<QueryMessage*>(message));
@@ -251,63 +253,15 @@ void Server::onNewMessage(Message *message)
     message->deleteLater();
 }
 
-void Server::handleAddMessage(AddMessage *message)
+void Server::handleMakefileMessage(MakefileMessage *message)
 {
+    MakefileParser *parser = new MakefileParser(message->extraFlags(), this);
+    connect(parser, SIGNAL(fileReady(GccArguments)), this, SLOT(onFileReady(GccArguments)));
+    connect(parser, SIGNAL(done()), parser, SLOT(deleteLater()));
+    parser->run(message->makefile(), message->arguments());
+    qDebug() << "got a makefile" << message->makefile() << message->arguments() << message->extraFlags();
     Connection *conn = qobject_cast<Connection*>(sender());
-    if (!conn->property("connected").toBool()) {
-        connect(mIndexer, SIGNAL(jobsComplete()), conn, SLOT(finish())); // ### this is kind of a hack
-        conn->setProperty("connected", true);
-    }
-
-    /* We want to have the arguments in this order:
-       1) flags from Makefile
-       2) flags from clang
-       3) flags from compiler
-    */
-    QList<QByteArray> args = message->arguments();
-
-    if (!message->compiler().isEmpty() && false) {
-        static bool first = true;
-        static QHash<Path, QList<QByteArray> > compilerFlags;
-        if (first) {
-            QSettings settings(QSettings::IniFormat, QSettings::UserScope, "RTags");
-            settings.beginGroup("Compilers");
-            foreach(QString key, settings.childKeys()) {
-                QByteArray val = settings.value(key).toByteArray();
-                key.replace('!', '/');
-                compilerFlags[key.toLocal8Bit()] = val.split(' ');
-            }
-            warning() << "Read" << compilerFlags << "from settings" << settings.fileName();
-            first = false;
-        }
-        QList<QByteArray> &flags = compilerFlags[message->compiler()];
-        if (flags.isEmpty()) {
-            const Path cpp = message->compiler().parentDir() + "/cpp";
-            if (cpp.isFile()) {
-                foreach(const Path &systemPath, systemIncludes(cpp)) {
-                    flags.append("-I" + systemPath);
-                }
-            }
-            if (flags.isEmpty()) { // make sure we don't look this up every time
-                flags.append(QByteArray());
-            }
-        }
-        if (flags.size() != 1 || !flags.at(0).isEmpty())
-            args += flags;
-        // warning() << "got" << flags << "for" << message->compiler() << "now we have" << args;
-    }
-    args += mOptions.defaultArguments;
-
-    if (args != Rdm::compileArgs(Location::insertFile(message->inputFile()))) {
-        // if (!Rdm::compileArgs(Location::insertFile(message->inputFile())).isEmpty()) {
-        //     qDebug() << message->inputFile() << RTags::join(args, " ")
-        //              << "vs"
-        //              << RTags::join(Rdm::compileArgs(Location::insertFile(message->inputFile())), " ");
-        // }
-        const int id = mIndexer->index(message->inputFile(), args, IndexerJob::Makefile);
-        if (id != -1)
-            mPendingIndexes[id] = conn;
-    }
+    conn->finish();
 }
 
 void Server::handleOutputMessage(OutputMessage *message)
@@ -690,3 +644,48 @@ ScopedDB::Data::~Data()
         db->unlock();
 }
 
+void Server::onFileReady(const GccArguments &args)
+{
+    if (args.inputFiles().isEmpty()) {
+        warning("no input file?");
+        return;
+    } else if (args.outputFile().isEmpty()) {
+        warning("no output file?");
+        return;
+    } else if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
+        return;
+    }
+
+    MakefileParser *parser = qobject_cast<MakefileParser*>(sender());
+
+    if (args.type() == GccArguments::Pch) {
+        QByteArray output = args.outputFile();
+        Q_ASSERT(!output.isEmpty());
+        const int ext = output.lastIndexOf(".gch/c");
+        if (ext != -1) {
+            output = output.left(ext + 4);
+        } else if (!output.endsWith(".gch")) {
+            error("couldn't find .gch in pch output");
+            return;
+        }
+        const QByteArray input = args.inputFiles().front();
+        parser->setPch(output, input);
+    }
+
+    QList<QByteArray> arguments = args.clangArgs();
+    if (args.lang() == GccArguments::CPlusPlus) {
+        foreach(const QByteArray &pch, parser->mapPchToInput(args.explicitIncludes())) {
+            arguments.append("-include-pch");
+            arguments.append(pch);
+        }
+    }
+    arguments.append(mOptions.defaultArguments);
+
+    foreach(const QByteArray &input, args.inputFiles()) {
+        if (arguments != Rdm::compileArgs(Location::insertFile(input))) {
+            mIndexer->index(input, arguments, IndexerJob::Makefile);
+        } else {
+            warning() << input << "is not dirty. ignoring";
+        }
+    }
+}

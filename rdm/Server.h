@@ -12,11 +12,12 @@
 class Connection;
 class Indexer;
 class Message;
-class AddMessage;
 class ErrorMessage;
 class OutputMessage;
+class MakefileMessage;
 class QLocalServer;
 class Database;
+class GccArguments;
 class ScopedDB
 {
 public:
@@ -74,24 +75,25 @@ public:
     bool init(const Options &options);
     Indexer *indexer() const { return mIndexer; }
     QByteArray name() const { return mOptions.name; }
-    static void setBaseDirectory(const QByteArray& base, bool clear);
+    static void setBaseDirectory(const QByteArray &base, bool clear);
     static Path databaseDir(DatabaseType type);
     static Path pchDir();
     QThreadPool *threadPool() const { return mThreadPool; }
 signals:
-    void complete(int id, const QList<QByteArray>& locations);
+    void complete(int id, const QList<QByteArray> &locations);
 private slots:
+    void onFileReady(const GccArguments &file);
     void onNewConnection();
-    void onNewMessage(Message* message);
+    void onNewMessage(Message *message);
     void onIndexingDone(int id);
     void onComplete(int id);
     void onOutput(int id, const QByteArray &response);
-    void onConnectionDestroyed(QObject* o);
+    void onConnectionDestroyed(QObject *o);
 private:
-    void handleAddMessage(AddMessage* message);
-    void handleQueryMessage(QueryMessage* message);
-    void handleErrorMessage(ErrorMessage* message);
-    void handleOutputMessage(OutputMessage* message);
+    void handleMakefileMessage(MakefileMessage *message);
+    void handleQueryMessage(QueryMessage *message);
+    void handleErrorMessage(ErrorMessage *message);
+    void handleOutputMessage(OutputMessage *message);
     void fixIts(const QueryMessage &query, Connection *conn);
     void errors(const QueryMessage &query, Connection *conn);
     int followLocation(const QueryMessage &query);
@@ -111,8 +113,8 @@ private:
 private:
     static Server *sInstance;
     Options mOptions;
-    Indexer* mIndexer;
-    QLocalServer* mServer;
+    Indexer *mIndexer;
+    QLocalServer *mServer;
     QHash<int, Connection*> mPendingIndexes;
     QHash<int, Connection*> mPendingLookups;
     bool mVerbose;
