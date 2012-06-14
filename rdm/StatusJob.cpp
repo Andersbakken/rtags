@@ -20,6 +20,19 @@ void StatusJob::execute()
         write(delimiter);
         write(Server::databaseDir(Server::General));
         write("    version: " + QByteArray::number(db->value<int>("version")));
+
+        const QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > > makefiles
+            = db->value<QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > > >("makefiles");
+
+        for (QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > >::const_iterator it = makefiles.begin();
+             it != makefiles.end(); ++it) {
+            QByteArray out = "    " + it.key();
+            if (!it.value().first.isEmpty())
+                out += " args: " + RTags::join(it.value().first, " ");
+            if (!it.value().second.isEmpty())
+                out += " extra flags: " + RTags::join(it.value().second, " ");
+            write(out);
+        }
     }
 
     if (query.isEmpty() || query == "dependencies") {
