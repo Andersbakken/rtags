@@ -523,9 +523,6 @@ void IndexerJob::run()
             }
 
             CXSourceLocation loc = clang_getDiagnosticLocation(diagnostic);
-            CXFile file;
-            clang_getSpellingLocation(loc, &file, 0, 0, 0);
-            const quint32 fileId = Location(file, 0).fileId();
             const QByteArray string = Rdm::eatString(clang_formatDiagnostic(diagnostic,
                                                                             CXDiagnostic_DisplaySourceLocation|
                                                                             CXDiagnostic_DisplayColumn|
@@ -533,7 +530,10 @@ void IndexerJob::run()
                                                                             CXDiagnostic_DisplayOption|
                                                                             CXDiagnostic_DisplayCategoryId|
                                                                             CXDiagnostic_DisplayCategoryName));
-            visited[fileId].append(string);
+            CXFile file;
+            clang_getSpellingLocation(loc, &file, 0, 0, 0);
+            if (file)
+                visited[Location(file, 0).fileId()].append(string);
 
             if (testLog(logLevel)) {
                 log(logLevel, "%s", string.constData());
