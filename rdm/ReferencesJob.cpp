@@ -28,11 +28,11 @@ void ReferencesJob::execute()
     ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Read);
     const unsigned keyFlags = QueryMessage::keyFlags(flags);
     const quint32 fileFilterId = (flags & QueryMessage::SameFile && symbolName.isEmpty() ? locations.begin()->fileId() : 0);
+    QSet<Location> refs;
+    QSet<Location> filtered;
     foreach(const Location &location, locations) {
         if (isAborted())
             return;
-        QSet<Location> refs;
-        QSet<Location> filtered;
 
         Location realLoc;
         CursorInfo cursorInfo = Rdm::findCursorInfo(db, location, &realLoc);
@@ -66,14 +66,14 @@ void ReferencesJob::execute()
                 }
             }
         }
-        QList<Location> sorted = refs.toList();
-        if (flags & QueryMessage::ReverseSort) {
-            qSort(sorted.begin(), sorted.end(), qGreater<Location>());
-        } else {
-            qSort(sorted);
-        }
-        foreach (const Location &loc, sorted) {
-            write(loc.key(keyFlags));
-        }
+    }
+    QList<Location> sorted = refs.toList();
+    if (flags & QueryMessage::ReverseSort) {
+        qSort(sorted.begin(), sorted.end(), qGreater<Location>());
+    } else {
+        qSort(sorted);
+    }
+    foreach (const Location &loc, sorted) {
+        write(loc.key(keyFlags));
     }
 }
