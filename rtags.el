@@ -202,7 +202,7 @@
 (defun rtags-bookmark-jump (by)
   (interactive)
   (let ((instack (nth rtags-bookmark-index rtags-bookmarks))
-        (cur (loc)))
+        (cur (rtags-current-location)))
     (if (not (string= instack cur))
         (rtags-goto-location instack t)
       (let ((target (+ rtags-bookmark-index by)))
