@@ -350,17 +350,18 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         }
         info.isDefinition = clang_isCursorDefinition(cursor.cursor);
         info.kind = cursor.kind;
-        CXString name;
         const bool isReference = Rdm::isReference(info.kind);
 
-        if (isReference) {
-            name = clang_getCursorSpelling(ref.cursor);
+        if (!isReference && !info.isDefinition) {
+            CXSourceRange range = clang_getCursorExtent(cursor.cursor);
+            unsigned end;
+            clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
+            info.symbolLength = end - cursor.location.offset();
         } else {
-            name = clang_getCursorSpelling(cursor.cursor);
+            CXStringScope name = clang_getCursorSpelling(cursor.cursor);
+            const char *cstr = clang_getCString(name.string);
+            info.symbolLength = cstr ? strlen(cstr) : 0;
         }
-        const char *cstr = clang_getCString(name);
-        info.symbolLength = cstr ? strlen(cstr) : 0;
-        clang_disposeString(name);
         if (!info.symbolLength) {
             mSymbols.remove(cursor.location);
             return CXChildVisit_Recurse;
