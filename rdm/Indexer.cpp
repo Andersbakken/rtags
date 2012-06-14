@@ -79,7 +79,8 @@ void Indexer::initDB(InitMode mode, const QByteArray &pattern)
     Q_ASSERT(mode == ForceDirty || pattern.isEmpty());
     QElapsedTimer timer;
     timer.start();
-    QHash<quint32, QSet<quint32> > deps;
+    QHash<quint32, QSet<quint32> > deps, depsReversed;
+
     ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ScopedDB::Read);
     RTags::Ptr<Iterator> it(dependencyDB->createIterator());
     it->seekToFirst();
@@ -89,7 +90,9 @@ void Indexer::initDB(InitMode mode, const QByteArray &pattern)
             const Slice key = it->key();
             const quint32 file = *reinterpret_cast<const quint32*>(key.data());
             if (isFile(file)) {
-                foreach(quint32 p, it->value<QSet<quint32> >()) {
+                const QSet<quint32> v = it->value<QSet<quint32> >();
+                depsReversed[file] = v;
+                foreach(const quint32 p, v) {
                     deps[p].insert(file);
                 }
             } else {
@@ -126,14 +129,16 @@ void Indexer::initDB(InitMode mode, const QByteArray &pattern)
                     ++checked;
                     bool dirty = false;
                     const QSet<quint32> dependencies = deps.value(fileId);
+                    Q_ASSERT(dependencies.contains(fileId));
                     foreach(quint32 id, dependencies) {
                         if (dirtyFiles.contains(id)) {
                             dirty = true;
                         } else {
-                            const Path path = Location::path(id);
-                            if ((mode == ForceDirty && (pattern.isEmpty() || QString::fromLocal8Bit(path).contains(rx)))
-                                || path.lastModified() > fi.lastTouched) {
+                            const Path p = Location::path(id);
+                            if ((mode == ForceDirty && (pattern.isEmpty() || QString::fromLocal8Bit(p).contains(rx)))
+                                || p.lastModified() > fi.lastTouched) {
                                 dirtyFiles.insert(id);
+                                dirtyFiles += depsReversed.value(id);
                                 dirty = true;
                             }
                         }
@@ -157,7 +162,8 @@ void Indexer::initDB(InitMode mode, const QByteArray &pattern)
     }
 
     if (checked)
-        error() << "Checked" << checked << "files. Found" << (toIndex.size() + toIndexPch.size()) << "dirty ones in" << timer.elapsed() << "ms";
+        error() << "Checked" << checked << "files. Found" << dirtyFiles.size() << "dirty files and"
+                << (toIndex.size() + toIndexPch.size()) << "sources to reindex in" << timer.elapsed() << "ms";
 
     if (toIndex.isEmpty() && toIndexPch.isEmpty())
         return;
