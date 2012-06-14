@@ -22,7 +22,7 @@ private:
     leveldb::Slice mSlice;
     friend class Database;
     friend class Iterator;
-    friend class Batch;
+    friend struct Batch;
 };
 
 static inline QDebug operator<<(QDebug dbg, const Slice &slice)
@@ -157,7 +157,7 @@ private:
     const leveldb::WriteOptions mWriteOptions;
     QByteArray mOpenError;
     LocationComparator *mLocationComparator;
-    friend class Batch;
+    friend struct Batch;
 };
 
 struct Batch {
