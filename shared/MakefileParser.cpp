@@ -99,11 +99,13 @@ void MakefileParser::run(const Path &makefile, const QList<QByteArray> &args)
     debug("Using makelib in '%s/makelib'", qPrintable(makelibdir.canonicalPath()));
 
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    if (!args.contains("-B")) {
 #ifdef Q_OS_MAC
-    environment.insert("DYLD_INSERT_LIBRARIES", makelibdir.canonicalPath() + "/makelib/libmakelib.dylib");
+        environment.insert("DYLD_INSERT_LIBRARIES", makelibdir.canonicalPath() + "/makelib/libmakelib.dylib");
 #else
-    environment.insert("LD_PRELOAD", makelibdir.canonicalPath() + "/makelib/libmakelib.so");
+        environment.insert("LD_PRELOAD", makelibdir.canonicalPath() + "/makelib/libmakelib.so");
 #endif
+    }
     mProc->setProcessEnvironment(environment);
 
     connect(mProc, SIGNAL(readyReadStandardOutput()),
@@ -145,10 +147,10 @@ void MakefileParser::processMakeOutput()
     // ### this could be more efficient
     int nextNewline = mData.indexOf('\n');
     while (nextNewline != -1) {
-        processMakeLine(mData.left(nextNewline));
-        mData = mData.mid(nextNewline + 1);
-        nextNewline = mData.indexOf('\n');
-    }
+    processMakeLine(mData.left(nextNewline));
+    mData = mData.mid(nextNewline + 1);
+    nextNewline = mData.indexOf('\n');
+}
 }
 
 void MakefileParser::processMakeLine(const QByteArray &line)
@@ -157,11 +159,11 @@ void MakefileParser::processMakeLine(const QByteArray &line)
         verboseDebug("%s", line.constData());
     GccArguments args;
     if (args.parse(line, mTracker->path())) {
-        args.addFlags(mExtraFlags);
-        emit fileReady(args);
-    } else {
-        mTracker->track(line);
-    }
+    args.addFlags(mExtraFlags);
+    emit fileReady(args);
+} else {
+    mTracker->track(line);
+}
 }
 void MakefileParser::onError(QProcess::ProcessError err)
 {
@@ -181,10 +183,10 @@ QList<QByteArray> MakefileParser::mapPchToInput(const QList<QByteArray> &input) 
     QHash<QByteArray, QByteArray>::const_iterator pchit;
     const QHash<QByteArray, QByteArray>::const_iterator pchend = mPchs.end();
     foreach (const QByteArray &in, input) {
-        pchit = mPchs.find(in);
-        if (pchit != pchend)
-            output.append(pchit.value());
-    }
+    pchit = mPchs.find(in);
+    if (pchit != pchend)
+        output.append(pchit.value());
+}
     return output;
 }
 

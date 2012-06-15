@@ -81,6 +81,7 @@ void usage(FILE *f)
             "  --max-memory-use|-M [size] Max amount of memory to use in MB default 1024MB\n"
             "  --name|-n [name]           Name to use for server (default ~/.rtags/server)\n"
             "  --no-clang-includepath|-p  Don't use clang include paths by default\n"
+            "  --usedashB|-B              Use -B for make instead of makelib\n"
             "  --thread-count|-j [arg]    Spawn this many threads for thread pool\n");
 }
 
@@ -102,6 +103,7 @@ int main(int argc, char** argv)
         { "max-memory-use", required_argument, 0, 'M' },
         { "disable-sighandler", no_argument, 0, 's' },
         { "name", required_argument, 0, 'n' },
+        { "usedashB", no_argument, 0, 'B' },
         { 0, 0, 0, 0 }
     };
 
@@ -129,6 +131,9 @@ int main(int argc, char** argv)
         case 'h':
             usage(stdout);
             return 0;
+        case 'B':
+            options |= Server::UseDashB;
+            break;
         case 'd':
             datadir = Path::resolved(optarg);
             break;

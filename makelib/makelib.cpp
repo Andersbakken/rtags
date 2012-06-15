@@ -32,9 +32,9 @@ int sharedStat(int ret, const char *filename, T *stat_buf)
                 break;
             }
         }
-        // FILE *f = fopen("/tmp/log", "a");
-        // fprintf(f, "%s => %ld\n", filename, stat_buf->st_mtime);
-        // fclose(f);
+        FILE *f = fopen("/tmp/log", "a");
+        fprintf(f, "%s => %ld\n", filename, stat_buf->st_mtime);
+        fclose(f);
     }
     return ret;
 }

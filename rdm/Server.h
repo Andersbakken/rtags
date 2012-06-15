@@ -49,7 +49,8 @@ public:
     void clear();
     enum Option {
         NoOptions = 0x0,
-        NoClangIncludePath = 0x1
+        NoClangIncludePath = 0x1,
+        UseDashB = 0x2
     };
     enum DatabaseType {
         General,

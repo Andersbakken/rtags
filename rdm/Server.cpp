@@ -268,7 +268,10 @@ void Server::make(const QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> >
     MakefileParser *parser = new MakefileParser(it.value().second, this);
     connect(parser, SIGNAL(fileReady(GccArguments)), this, SLOT(onFileReady(GccArguments)));
     connect(parser, SIGNAL(done()), parser, SLOT(deleteLater()));
-    parser->run(it.key(), it.value().first);
+    QList<QByteArray> makefileArgs = it.value().first;
+    if (mOptions.options & UseDashB)
+        makefileArgs.append("-B");
+    parser->run(it.key(), makefileArgs);
     Connection *conn = qobject_cast<Connection*>(sender());
     conn->finish();
 }
