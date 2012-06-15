@@ -419,7 +419,7 @@ int Server::followLocation(const QueryMessage &query)
 
     const int id = nextId();
 
-    error() << "followLocation" << loc;
+    error("rc -f %s", loc.key().constData());
 
     FollowLocationJob *job = new FollowLocationJob(id, loc, query.keyFlags());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
@@ -437,7 +437,7 @@ int Server::cursorInfo(const QueryMessage &query)
 
     const int id = nextId();
 
-    error() << "cursorInfo" << loc;
+    error("rc -U %s", loc.key().constData());
 
     CursorInfoJob *job = new CursorInfoJob(id, loc, query.keyFlags());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
@@ -456,7 +456,7 @@ int Server::referencesForLocation(const QueryMessage &query)
 
     const int id = nextId();
 
-    error() << "references for location" << loc;
+    error("rc -r %s", loc.key().constData());
 
     ReferencesJob *job = new ReferencesJob(id, loc, query.flags());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
@@ -470,7 +470,7 @@ int Server::referencesForName(const QueryMessage& query)
     const int id = nextId();
 
     const QByteArray name = query.query().value(0);
-    error() << "references for name" << name;
+    error("rc -R \"%s\"", name.constData());
 
     ReferencesJob *job = new ReferencesJob(id, name, query.flags());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
@@ -484,7 +484,7 @@ int Server::findSymbols(const QueryMessage &query)
     const QByteArray partial = query.query().value(0);
     const int id = nextId();
 
-    error() << "findSymbols" << partial;
+    error("rc -F \"%s\"", partial.constData());
 
     FindSymbolsJob *job = new FindSymbolsJob(id, query);
     startJob(job);
@@ -497,7 +497,7 @@ int Server::listSymbols(const QueryMessage &query)
     const QByteArray partial = query.query().value(0);
     const int id = nextId();
 
-    error() << "listSymbols" << partial;
+    error("rc -S \"%s\"", partial.constData());
 
     ListSymbolsJob *job = new ListSymbolsJob(id, query);
     startJob(job);
@@ -524,7 +524,7 @@ int Server::status(const QueryMessage &query)
 {
     const int id = nextId();
 
-    error() << "status" << query.query().value(0);
+    error("rc - \"%s\"", query.query().value(0).constData());
 
     StatusJob *job = new StatusJob(id, query.query().value(0));
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
