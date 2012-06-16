@@ -511,7 +511,7 @@ int Server::dump(const QueryMessage &query)
     const QByteArray partial = query.query().value(0);
     const int id = nextId();
 
-    error() << "dump" << partial;
+    error("rc -d \"%s\"", partial.constData());
 
     DumpJob *job = new DumpJob(partial, id);
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
@@ -524,7 +524,7 @@ int Server::status(const QueryMessage &query)
 {
     const int id = nextId();
 
-    error("rc - \"%s\"", query.query().value(0).constData());
+    error("rc -s \"%s\"", query.query().value(0).constData());
 
     StatusJob *job = new StatusJob(id, query.query().value(0));
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
@@ -540,7 +540,7 @@ int Server::runTest(const QueryMessage &query)
     }
     const int id = nextId();
 
-    error() << "runTest";
+    error("rc -T \"%s\"", path.constData());
 
     RunTestJob *job = new RunTestJob(path, id);
     startJob(job);
@@ -549,11 +549,15 @@ int Server::runTest(const QueryMessage &query)
 
 int Server::test(const QueryMessage &query)
 {
+    Path path = query.query().value(0);
+    if (!path.isFile()) {
+        return 0;
+    }
     const int id = nextId();
 
-    error() << "test";
+    error("rc -t \"%s\"", path.constData());
 
-    TestJob *job = new TestJob(query.query().value(0), id);
+    TestJob *job = new TestJob(path, id);
     startJob(job);
     return id;
 }
@@ -562,7 +566,7 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
 {
     const QByteArray fixIts = mIndexer->fixIts(query.query().value(0));
 
-    error() << "fixIts" << query.query().value(0);
+    error("rc -x \"%s\"", fixIts.constData());
 
     ResponseMessage msg(fixIts);
     conn->send(&msg);
@@ -573,7 +577,7 @@ void Server::errors(const QueryMessage &query, Connection *conn)
 {
     const QByteArray errors = mIndexer->errors(query.query().value(0));
 
-    error() << "errors" << query.query().value(0);
+    error("rc -Q \"%s\"", errors.constData());
 
     ResponseMessage msg(errors);
     conn->send(&msg);
