@@ -292,7 +292,7 @@ int main(int argc, char** argv)
         case 'f':
         case 'U':
         case 'r': {
-            QByteArray encoded = encodeLocation(optarg);
+            const QByteArray encoded = encodeLocation(optarg);
             if (encoded.isEmpty()) {
                 fprintf(stderr, "Can't resolve argument %s\n", optarg);
                 return 1;
@@ -329,22 +329,37 @@ int main(int argc, char** argv)
             }
             break; }
         case 't':
-            commands.append(new QueryCommand(QueryMessage::Test, Path::resolved(optarg), queryFlags, pathFilters));
-            break;
         case 'x':
-            commands.append(new QueryCommand(QueryMessage::FixIts, Path::resolved(optarg), queryFlags, pathFilters));
-            break;
         case 'Q':
-            commands.append(new QueryCommand(QueryMessage::Errors, Path::resolved(optarg), queryFlags, pathFilters));
-            break;
-        case 'T':
-            commands.append(new QueryCommand(QueryMessage::RunTest, Path::resolved(optarg), queryFlags, pathFilters));
-            break;
+        case 'd':
+        case 'T': {
+            const Path p = Path::resolved(optarg);
+            if (!p.isFile()) {
+                fprintf(stderr, "%s is not a file\n", optarg);
+                return 1;
+            }
+            QueryMessage::Type type;
+            switch (c) {
+            case 't': type = QueryMessage::Test; break;
+            case 'x': type = QueryMessage::FixIts; break;
+            case 'Q': type = QueryMessage::Errors; break;
+            case 'T': type = QueryMessage::RunTest; break;
+            case 'd': type = QueryMessage::Dump; break;
+            }
+
+            commands.append(new QueryCommand(type, p, queryFlags, pathFilters));
+            break; }
         case 'm': {
+            const Path p = Path::resolved(optarg);
+            if (!p.isFile()) {
+                fprintf(stderr, "%s is not a file\n", optarg);
+                return 1;
+            }
+
             QList<QByteArray> makefileArgs;
             while (optind < argc && argv[optind][0] != '-')
                 makefileArgs.append(argv[optind++]);
-            commands.append(new MakefileCommand(Path::resolved(optarg), makefileArgs, extraFlags));
+            commands.append(new MakefileCommand(p, makefileArgs, extraFlags));
             break; }
         case 's':
             if (optarg) {
@@ -369,9 +384,6 @@ int main(int argc, char** argv)
             break;
         case 'F':
             commands.append(new QueryCommand(QueryMessage::FindSymbols, optarg, queryFlags, pathFilters));
-            break;
-        case 'd':
-            commands.append(new QueryCommand(QueryMessage::Dump, Path::resolved(optarg), queryFlags, pathFilters));
             break;
         case '?':
             // getopt printed an error message already
