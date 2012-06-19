@@ -1,5 +1,5 @@
 #include "MemoryMonitor.h"
-#include <QByteArray>
+#include <ByteArray.h>
 #include <QList>
 #include <QFile>
 #include <unistd.h>
@@ -14,7 +14,7 @@ static inline quint64 usageLinux()
 {
     quint64 total = 0;
     const pid_t pid = getpid();
-    FILE* file = fopen(("/proc/" + QByteArray::number(pid) + "/smaps").constData(), "r");
+    FILE* file = fopen(("/proc/" + ByteArray::number(pid) + "/smaps").constData(), "r");
     if (!file)
         return 0;
 

@@ -12,7 +12,7 @@ Slice::Slice(const leveldb::Slice &slice)
     : mSlice(slice)
 {}
 
-Slice::Slice(const QByteArray &d)
+Slice::Slice(const ByteArray &d)
     : mSlice(d.constData(), d.size())
 {}
 
@@ -157,7 +157,7 @@ void Database::close()
     mOpenError.clear();
 }
 
-QByteArray Database::openError() const
+ByteArray Database::openError() const
 {
     return mOpenError;
 }

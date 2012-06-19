@@ -9,14 +9,14 @@
 
 struct Slice {
     Slice(const std::string &str);
-    Slice(const QByteArray &d);
+    Slice(const ByteArray &d);
     Slice(const char *d = 0, int s = -1);
     const char *data() const;
     int size() const;
     void clear();
     bool operator==(const Slice &other) const;
     bool operator!=(const Slice &other) const;
-    QByteArray byteArray() const { return QByteArray(data(), size()); }
+    ByteArray byteArray() const { return ByteArray(data(), size()); }
 private:
     Slice(const leveldb::Slice &slice);
     leveldb::Slice mSlice;
@@ -31,7 +31,7 @@ static inline QDebug operator<<(QDebug dbg, const Slice &slice)
     return dbg;
 }
 
-template <typename T> QByteArray encode(const T &t)
+template <typename T> ByteArray encode(const T &t)
 {
     QByteArray out;
     QDataStream ds(&out, QIODevice::WriteOnly);
@@ -48,9 +48,9 @@ template <typename T> T decode(const Slice &slice)
     return t;
 }
 
-template <> inline QByteArray encode(const QSet<Location> &locations)
+template <> inline ByteArray encode(const QSet<Location> &locations)
 {
-    QByteArray out(locations.size() * sizeof(quint64), '\0');
+    ByteArray out(locations.size() * sizeof(quint64), '\0');
     quint64 *ptr = reinterpret_cast<quint64*>(out.data());
     for (QSet<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
         *ptr++ = (*it).mData;
@@ -69,10 +69,10 @@ template <> inline QSet<Location> decode(const Slice &slice)
     return ret;
 }
 
-template <> inline QByteArray encode(const CursorInfo &info)
+template <> inline ByteArray encode(const CursorInfo &info)
 {
     // null-terminated symbolName, quint32(symbolLength), quint32(kind), quint8(isDefinition), quint64(target.location), quint64(refs)...
-    QByteArray out(info.symbolName.size() + 1 + (sizeof(quint32) * 2) + sizeof(quint8)
+    ByteArray out(info.symbolName.size() + 1 + (sizeof(quint32) * 2) + sizeof(quint8)
                    + (sizeof(quint64) * (1 + info.references.size())), '\0');
     memcpy(out.data(), info.symbolName.constData(), info.symbolName.size() + 1);
     quint32 *ptr = reinterpret_cast<quint32*>(out.data() + (info.symbolName.size() + 1));
@@ -91,7 +91,7 @@ template <> inline QByteArray encode(const CursorInfo &info)
 template <> inline CursorInfo decode(const Slice &slice)
 {
     CursorInfo ret;
-    ret.symbolName = QByteArray(slice.data()); // 0-terminated
+    ret.symbolName = ByteArray(slice.data()); // 0-terminated
     const quint32 *ptr = reinterpret_cast<const quint32*>(slice.data() + ret.symbolName.size() + 1);
     ret.symbolLength = *ptr++;
     ret.kind = static_cast<CXCursorKind>(*ptr++);
@@ -138,7 +138,7 @@ public:
     void unlock() { mLock.unlock(); }
     bool isOpened() const;
     void close();
-    QByteArray openError() const;
+    ByteArray openError() const;
     std::string rawValue(const Slice &key, bool *ok = 0) const;
     template <typename T> T value(const Slice &key, bool *ok = 0) {
         const std::string val = rawValue(key, ok);
@@ -155,7 +155,7 @@ private:
     QReadWriteLock mLock;
     leveldb::DB *mDB;
     const leveldb::WriteOptions mWriteOptions;
-    QByteArray mOpenError;
+    ByteArray mOpenError;
     LocationComparator *mLocationComparator;
     friend struct Batch;
 };
@@ -167,7 +167,7 @@ struct Batch {
     int flush();
     template <typename T> int add(const Slice &key, const T &t)
     {
-        const QByteArray encoded = encode<T>(t);
+        const ByteArray encoded = encode<T>(t);
         return addEncoded(key, Slice(encoded));
     }
 

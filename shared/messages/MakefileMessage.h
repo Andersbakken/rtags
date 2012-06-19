@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include <QList>
-#include <QByteArray>
+#include <ByteArray.h>
 #include "Message.h"
 #include "RTags.h"
 
@@ -14,21 +14,21 @@ public:
     enum { MessageId = 6 };
 
     Q_INVOKABLE MakefileMessage(QObject *parent = 0);
-    MakefileMessage(const Path &makefile, const QList<QByteArray> &arguments,
-                    const QList<QByteArray> &extraFlags, QObject *parent = 0);
+    MakefileMessage(const Path &makefile, const QList<ByteArray> &arguments,
+                    const QList<ByteArray> &extraFlags, QObject *parent = 0);
 
     int messageId() const { return MessageId; }
 
     Path makefile() const { return mMakefile; }
-    QList<QByteArray> arguments() const { return mArgs; }
-    QList<QByteArray> extraFlags() const { return mExtraFlags; }
+    QList<ByteArray> arguments() const { return mArgs; }
+    QList<ByteArray> extraFlags() const { return mExtraFlags; }
 
-    QByteArray toByteArray() const;
-    Q_INVOKABLE void fromByteArray(const QByteArray &data);
+    ByteArray toByteArray() const;
+    Q_INVOKABLE void fromByteArray(const ByteArray &data);
 
 private:
     Path mMakefile;
-    QList<QByteArray> mArgs, mExtraFlags;
+    QList<ByteArray> mArgs, mExtraFlags;
 };
 
 #endif // MAKEFILEMESSAGE_H

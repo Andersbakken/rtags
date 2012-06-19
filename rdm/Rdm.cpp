@@ -4,17 +4,17 @@
 #include "MemoryMonitor.h"
 
 namespace Rdm {
-QByteArray eatString(CXString str)
+ByteArray eatString(CXString str)
 {
-    const QByteArray ret(clang_getCString(str));
+    const ByteArray ret(clang_getCString(str));
     clang_disposeString(str);
     return ret;
 }
 
-QByteArray cursorToString(CXCursor cursor)
+ByteArray cursorToString(CXCursor cursor)
 {
-    QByteArray ret = eatString(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
-    const QByteArray name = eatString(clang_getCursorSpelling(cursor));
+    ByteArray ret = eatString(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
+    const ByteArray name = eatString(clang_getCursorSpelling(cursor));
     if (!name.isEmpty())
         ret += " " + name;
 
@@ -22,9 +22,9 @@ QByteArray cursorToString(CXCursor cursor)
     unsigned off, line, col;
     CXSourceLocation loc = clang_getCursorLocation(cursor);
     clang_getSpellingLocation(loc, &file, &line, &col, &off);
-    const QByteArray fileName = eatString(clang_getFileName(file));
+    const ByteArray fileName = eatString(clang_getFileName(file));
     if (!fileName.isEmpty()) {
-        ret += " " + fileName + ':' + QByteArray::number(line) + ":" + QByteArray::number(col) + ": (" + QByteArray::number(off) + ")"; // + eatString(clang_getCursorUSR(cursor));
+        ret += " " + fileName + ':' + ByteArray::number(line) + ":" + ByteArray::number(col) + ": (" + ByteArray::number(off) + ")"; // + eatString(clang_getCursorUSR(cursor));
     }
     return ret;
 }
@@ -170,7 +170,7 @@ int writePchDepencies(const QHash<Path, QSet<quint32> > &pchDependencies)
         return db->setValue("pchDependencies", pchDependencies);
     return 0;
 }
-int writeFileInformation(quint32 fileId, const QList<QByteArray> &args, time_t lastTouched)
+int writeFileInformation(quint32 fileId, const QList<ByteArray> &args, time_t lastTouched)
 {
     QElapsedTimer timer;
     timer.start();
@@ -313,7 +313,7 @@ int dirty(const QSet<quint32> &dirtyFileIds)
     return ret;
 }
 
-QList<QByteArray> compileArgs(quint32 fileId)
+QList<ByteArray> compileArgs(quint32 fileId)
 {
     ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
     const char *ch = reinterpret_cast<const char*>(&fileId);
@@ -322,7 +322,7 @@ QList<QByteArray> compileArgs(quint32 fileId)
     return fi.compileArgs;
 }
 
-int EventObject::typeForName(const QByteArray &name)
+int EventObject::typeForName(const ByteArray &name)
 {
     const QMetaObject m = staticMetaObject;
     for (int i = 0; i < m.enumeratorCount(); ++i) {

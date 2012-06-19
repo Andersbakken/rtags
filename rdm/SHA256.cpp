@@ -28,7 +28,7 @@ void SHA256::update(const char *data, uint size)
     SHA256_Update(&priv->ctx, data, size);
 }
 
-void SHA256::update(const QByteArray &data)
+void SHA256::update(const ByteArray &data)
 {
     if (priv->finalized)
         priv->finalized = false;
@@ -43,9 +43,9 @@ void SHA256::reset()
 
 static const char* const hexLookup = "0123456789abcdef";
 
-static inline QByteArray hashToHex(SHA256Private* priv)
+static inline ByteArray hashToHex(SHA256Private* priv)
 {
-    QByteArray out(SHA256_DIGEST_LENGTH * 2, '\0');
+    ByteArray out(SHA256_DIGEST_LENGTH * 2, '\0');
     const unsigned char* get = priv->hash;
     char* put = out.data();
     const char* const end = out.data() + out.size();;
@@ -56,7 +56,7 @@ static inline QByteArray hashToHex(SHA256Private* priv)
     return out;
 }
 
-QByteArray SHA256::hash(HashType type) const
+ByteArray SHA256::hash(HashType type) const
 {
     if (!priv->finalized) {
         SHA256_Final(priv->hash, &priv->ctx);
@@ -65,15 +65,15 @@ QByteArray SHA256::hash(HashType type) const
     }
     if (type == Hex)
         return hashToHex(priv);
-    return QByteArray(reinterpret_cast<char*>(priv->hash), SHA256_DIGEST_LENGTH);
+    return ByteArray(reinterpret_cast<char*>(priv->hash), SHA256_DIGEST_LENGTH);
 }
 
-QByteArray SHA256::hash(const QByteArray& data, HashType type)
+ByteArray SHA256::hash(const ByteArray& data, HashType type)
 {
     return SHA256::hash(data.constData(), data.size(), type);
 }
 
-QByteArray SHA256::hash(const char* data, uint size, HashType type)
+ByteArray SHA256::hash(const char* data, uint size, HashType type)
 {
     SHA256Private priv;
     SHA256_Init(&priv.ctx);
@@ -81,5 +81,5 @@ QByteArray SHA256::hash(const char* data, uint size, HashType type)
     SHA256_Final(priv.hash, &priv.ctx);
     if (type == Hex)
         return hashToHex(&priv);
-    return QByteArray(reinterpret_cast<char*>(priv.hash), SHA256_DIGEST_LENGTH);
+    return ByteArray(reinterpret_cast<char*>(priv.hash), SHA256_DIGEST_LENGTH);
 }

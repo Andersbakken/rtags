@@ -109,17 +109,17 @@ int main(int argc, char** argv)
 
     int jobs = QThread::idealThreadCount();
     unsigned options = 0;
-    QList<QByteArray> defaultArguments;
+    QList<ByteArray> defaultArguments;
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;
     bool clearDataDir = false;
     Path datadir = RTags::rtagsDir();
-    const QByteArray shortOptions = RTags::shortOptions(opts);
+    const ByteArray shortOptions = RTags::shortOptions(opts);
     int cacheSize = 128;
     long maxMemoryUse = 1024;
     bool enableSignalHandler = true;
-    QByteArray name;
+    ByteArray name;
     forever {
         const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
         if (c == -1)
@@ -148,7 +148,7 @@ int main(int argc, char** argv)
             break;
         case 'c': {
             bool ok;
-            cacheSize = QByteArray::fromRawData(optarg, strlen(optarg)).toUInt(&ok);
+            cacheSize = ByteArray(optarg, strlen(optarg)).toUInt(&ok);
             if (!ok) {
                 fprintf(stderr, "Can't parse argument to -c %s\n", optarg);
                 return 1;
@@ -169,10 +169,10 @@ int main(int argc, char** argv)
             }
             break;
         case 'D':
-            defaultArguments.append("-D" + QByteArray(optarg));
+            defaultArguments.append("-D" + ByteArray(optarg));
             break;
         case 'I':
-            defaultArguments.append("-I" + QByteArray(optarg));
+            defaultArguments.append("-I" + ByteArray(optarg));
             break;
         case 'i':
             defaultArguments.append("-include");
@@ -221,7 +221,7 @@ int main(int argc, char** argv)
     serverOpts.options = options;
     serverOpts.defaultArguments = defaultArguments;
     serverOpts.cacheSizeMB = cacheSize;
-    serverOpts.name = (name.isEmpty() ? QByteArray(RTags::rtagsDir() + "server") : name );
+    serverOpts.name = (name.isEmpty() ? ByteArray(RTags::rtagsDir() + "server") : name );
     if (!server->init(serverOpts)) {
         delete server;
         return 1;

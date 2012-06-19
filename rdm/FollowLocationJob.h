@@ -3,7 +3,7 @@
 
 #include <QRunnable>
 #include <QObject>
-#include <QByteArray>
+#include <ByteArray.h>
 #include <QList>
 #include "RTags.h"
 #include "Job.h"

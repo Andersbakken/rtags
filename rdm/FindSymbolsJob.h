@@ -3,7 +3,7 @@
 
 #include <QRunnable>
 #include <QObject>
-#include <QByteArray>
+#include <ByteArray.h>
 #include <QList>
 #include "QueryMessage.h"
 #include "Job.h"
@@ -16,7 +16,7 @@ public:
 protected:
     virtual void execute();
 private:
-    const QByteArray string;
+    const ByteArray string;
     const unsigned queryFlags;
 };
 

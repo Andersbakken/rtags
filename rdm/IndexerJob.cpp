@@ -3,11 +3,11 @@
 #include "MemoryMonitor.h"
 #include "Server.h"
 
-static inline QList<Path> extractPchFiles(const QList<QByteArray> &args)
+static inline QList<Path> extractPchFiles(const QList<ByteArray> &args)
 {
     QList<Path> out;
     bool nextIsPch = false;
-    foreach (const QByteArray &arg, args) {
+    foreach (const ByteArray &arg, args) {
         if (arg.isEmpty())
             continue;
 
@@ -22,7 +22,7 @@ static inline QList<Path> extractPchFiles(const QList<QByteArray> &args)
 }
 
 IndexerJob::IndexerJob(Indexer *indexer, int id, unsigned flags,
-                       const Path &input, const QList<QByteArray> &arguments)
+                       const Path &input, const QList<ByteArray> &arguments)
     : mId(id), mFlags(flags), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
       mPchHeaders(extractPchFiles(arguments)), mUnit(0)
@@ -48,8 +48,7 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
     const Path path = l.path();
     job->mSymbolNames[path].insert(l);
     const char *fn = path.fileName();
-    // since path comes from Location::sIdsToPaths it will never go away so this is safe
-    job->mSymbolNames[QByteArray::fromRawData(fn, strlen(fn))].insert(l);
+    job->mSymbolNames[ByteArray(fn, strlen(fn))].insert(l);
 
     const quint32 fileId = l.fileId();
     if (!includeLen) {
@@ -71,11 +70,11 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
     }
 }
 
-QByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDB)
+ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDB)
 {
-    QByteArray ret;
-    QByteArray qname;
-    QByteArray qparam, qnoparam;
+    ByteArray ret;
+    ByteArray qname;
+    ByteArray qparam, qnoparam;
 
     CXCursor cur = cursor, null = clang_getNullCursor();
     CXCursorKind kind;
@@ -107,7 +106,7 @@ QByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Locatio
         if (!name || !strlen(name)) {
             break;
         }
-        qname = QByteArray(name);
+        qname = ByteArray(name);
         if (ret.isEmpty()) {
             ret = qname;
             if (!addToDB)
@@ -307,7 +306,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
             const Location refLoc(includedFile, 0);
             if (!refLoc.isNull()) {
                 {
-                    QByteArray include = "#include ";
+                    ByteArray include = "#include ";
                     const Path path = refLoc.path();
                     mSymbolNames[(include + path)].insert(cursor.location);
                     mSymbolNames[(include + path.fileName())].insert(cursor.location);
@@ -343,7 +342,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
     CursorInfo &info = mSymbols[cursor.location];
     if (!info.symbolLength) {
         if (mIsPch) {
-            const QByteArray usr = Rdm::eatString(clang_getCursorUSR(cursor.cursor));
+            const ByteArray usr = Rdm::eatString(clang_getCursorUSR(cursor.cursor));
             if (!usr.isEmpty()) {
                 mPchUSRHash[usr] = cursor.location;
             }
@@ -393,7 +392,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
     return CXChildVisit_Recurse;
 }
 
-static QByteArray pchFileName(const QByteArray &header)
+static ByteArray pchFileName(const ByteArray &header)
 {
     return Server::pchDir() + SHA256::hash(header.constData());
 }
@@ -436,13 +435,13 @@ void IndexerJob::run()
     const quint64 waitingForPch = timer.restart();
 
     QVarLengthArray<const char*, 32> clangArgs(mArgs.size());
-    QByteArray clangLine = "clang ";
+    ByteArray clangLine = "clang ";
     bool nextIsPch = false, nextIsX = false;
-    QByteArray pchName;
+    ByteArray pchName;
 
     QList<Path> pchFiles;
     int idx = 0;
-    foreach (const QByteArray &arg, mArgs) {
+    foreach (const ByteArray &arg, mArgs) {
         if (arg.isEmpty())
             continue;
 
@@ -499,8 +498,8 @@ void IndexerJob::run()
 
         Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
-        QMap<Location, QPair<int, QByteArray> > fixIts;
-        QHash<quint32, QList<QByteArray> > visited;
+        QMap<Location, QPair<int, ByteArray> > fixIts;
+        QHash<quint32, QList<ByteArray> > visited;
         const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
         for (unsigned i=0; i<diagnosticCount; ++i) {
             CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
@@ -523,7 +522,7 @@ void IndexerJob::run()
             }
 
             CXSourceLocation loc = clang_getDiagnosticLocation(diagnostic);
-            const QByteArray string = Rdm::eatString(clang_formatDiagnostic(diagnostic,
+            const ByteArray string = Rdm::eatString(clang_formatDiagnostic(diagnostic,
                                                                             CXDiagnostic_DisplaySourceLocation|
                                                                             CXDiagnostic_DisplayColumn|
                                                                             CXDiagnostic_DisplaySourceRanges|
@@ -552,7 +551,7 @@ void IndexerJob::run()
                 error("Fixit (%d/%d) for %s: %s %s-%d", f + 1, fixItCount, mIn.constData(),
                       clang_getCString(string), start.key().constData(), endOffset);
                 // ### can there be more than one fixit starting at the same location? Probably not.
-                fixIts[start] = qMakePair<int, QByteArray>(endOffset - start.offset(), Rdm::eatString(string));
+                fixIts[start] = qMakePair<int, ByteArray>(endOffset - start.offset(), Rdm::eatString(string));
             }
 
             clang_disposeDiagnostic(diagnostic);
@@ -614,7 +613,8 @@ void IndexerJob::run()
                            mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size(),
                            strings[(mPchHeaders.isEmpty() ? None : Pch) | (mFlags & NeedsDirty ? Dirty : None)]);
 
-    emit done(mId, mIn, mIsPch, QByteArray(buf, w));
+    ByteArray b(buf, w);
+    emit done(mId, mIn, mIsPch, b);
     if (testLog(Warning)) {
         warning() << "We're using" << double(MemoryMonitor::usage()) / double(1024 * 1024) << "MB of memory" << elapsed << "ms";
     }
@@ -663,7 +663,7 @@ IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind ki
         return ret;
     }
 
-    const QByteArray key = QByteArray::fromRawData(usr.data(), usr.length());
+    const ByteArray key(usr.data(), usr.length());
     Location refLoc = mPchUSRHash.value(key);
     if (!refLoc.isNull()) {
         const Cursor ret = { cursor, refLoc, clang_getCursorKind(cursor) };

@@ -16,24 +16,25 @@ ErrorMessage::ErrorMessage(Error error, QObject *parent)
     }
 }
 
-ErrorMessage::ErrorMessage(const QByteArray& message, QObject* parent)
+ErrorMessage::ErrorMessage(const ByteArray& message, QObject* parent)
     : Message(parent), mError(UnknownError), mMessage(message)
 {
 }
 
-QByteArray ErrorMessage::toByteArray() const
+ByteArray ErrorMessage::toByteArray() const
 {
     QByteArray data;
     {
         QDataStream stream(&data, QIODevice::WriteOnly);
         stream << static_cast<int>(mError) << mMessage;
     }
-    return data;
+    return ByteArray(data.constData(), data.size());
 }
 
-void ErrorMessage::fromByteArray(const QByteArray& data)
+void ErrorMessage::fromByteArray(const ByteArray &data)
 {
-    QDataStream stream(data);
+    const QByteArray ba = QByteArray::fromRawData(data.constData(), data.size());
+    QDataStream stream(ba);
     int err;
     stream >> err >> mMessage;
     mError = static_cast<Error>(err);

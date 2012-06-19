@@ -7,13 +7,13 @@ QueryMessage::QueryMessage(QObject *parent)
 {
 }
 
-QueryMessage::QueryMessage(Type type, const QByteArray& query, unsigned flags, QObject* parent)
+QueryMessage::QueryMessage(Type type, const ByteArray& query, unsigned flags, QObject* parent)
     : Message(parent), mType(type), mFlags(flags)
 {
     mQuery.append(query);
 }
 
-QByteArray QueryMessage::toByteArray() const
+ByteArray QueryMessage::toByteArray() const
 {
     QByteArray data;
     {
@@ -23,9 +23,10 @@ QByteArray QueryMessage::toByteArray() const
     return data;
 }
 
-void QueryMessage::fromByteArray(const QByteArray& data)
+void QueryMessage::fromByteArray(const ByteArray &ba)
 {
     int t;
+    const QByteArray data = QByteArray::fromRawData(ba.constData(), ba.size());
     QDataStream stream(data);
     stream >> mQuery >> t;
     mType = static_cast<Type>(t);

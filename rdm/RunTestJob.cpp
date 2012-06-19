@@ -31,21 +31,21 @@ void RunTestJob::execute()
         Symbols
     } state = None;
     // symbolNames
-    QByteArray symbolName;
-    QSet<QByteArray> expectedLocations;
-    QSet<QByteArray> allSymbolNames;
+    ByteArray symbolName;
+    QSet<ByteArray> expectedLocations;
+    QSet<ByteArray> allSymbolNames;
     {
         const QueryMessage msg(QueryMessage::ListSymbols);
         expectedLocations = runJob(new ListSymbolsJob(-1, msg));
     }
 
     // symbols
-    QByteArray location, targetLocation;
-    QList<QByteArray> references;
+    ByteArray location, targetLocation;
+    QList<ByteArray> references;
     if (f) {
         int read;
         while ((read = RTags::readLine(f, buf, sizeof(buf))) != -1) {
-            const QByteArray line = QByteArray::fromRawData(buf, read);
+            const ByteArray line(buf, read);
             switch (state) {
             case None:
                 if (line.endsWith("symbols.db")) {
@@ -93,12 +93,12 @@ void RunTestJob::execute()
                         write("Can't parse line [" + line + "] during symbol tests");
                         return;
                     }
-                    const Location loc = Location::fromPathAndOffset(QByteArray::fromRawData(line.constData() + 2, idx - 2));
+                    const Location loc = Location::fromPathAndOffset(ByteArray(line.constData() + 2, idx - 2));
                     if (!loc.isValid()) {
                         write("Can't parse line [" + line + "] during symbol tests");
                         return;
                     }
-                    const QByteArray cursorInfo = runJob(new CursorInfoJob(-1, loc, 0)).toList().value(0);
+                    const ByteArray cursorInfo = runJob(new CursorInfoJob(-1, loc, 0)).toList().value(0);
                     if (strncmp(cursorInfo.constData(), line.constData() + 2, cursorInfo.size())) {
                         write("Failed test, something's different here");
                     }
@@ -120,21 +120,21 @@ void RunTestJob::execute()
     }
 }
 
-void RunTestJob::testSymbolNames(const QByteArray &symbolName, const QSet<QByteArray> &expectedLocations)
+void RunTestJob::testSymbolNames(const ByteArray &symbolName, const QSet<ByteArray> &expectedLocations)
 {
     const QueryMessage msg(QueryMessage::FindSymbols, symbolName, QueryMessage::NoContext);
-    const QSet<QByteArray> actual = runJob(new FindSymbolsJob(-1, msg));
-    QSet<QByteArray> missing = expectedLocations - actual;
-    QSet<QByteArray> unexpected = actual - expectedLocations;
+    const QSet<ByteArray> actual = runJob(new FindSymbolsJob(-1, msg));
+    QSet<ByteArray> missing = expectedLocations - actual;
+    QSet<ByteArray> unexpected = actual - expectedLocations;
     if (!missing.isEmpty() || !unexpected.isEmpty()) {
         write("symbolnames: [" + symbolName + "] failed ("
-              + QByteArray::number(missing.size() + unexpected.size()) + " failures)");
-        foreach(const QByteArray &m, missing)
+              + ByteArray::number(missing.size() + unexpected.size()) + " failures)");
+        foreach(const ByteArray &m, missing)
             write("--- " + m);
-        foreach(const QByteArray &u, unexpected)
+        foreach(const ByteArray &u, unexpected)
             write("+++ " + u);
     } else {
-        write("symbolnames: [" + symbolName + "] passed (" + QByteArray::number(expectedLocations.size()) + " locations)");
+        write("symbolnames: [" + symbolName + "] passed (" + ByteArray::number(expectedLocations.size()) + " locations)");
     }
     // qDebug() << "testSymbolNames" << symbolName << "got" << expectedLocations << "wanted" << actual;
 }

@@ -19,13 +19,13 @@ public:
     };
     Job(int id, Priority priority, unsigned flags = None, QObject *parent = 0);
     ~Job();
-    void setPathFilters(const QList<QByteArray> &filter, bool filterSystemIncludes);
-    QList<QByteArray> pathFilters() const;
+    void setPathFilters(const QList<ByteArray> &filter, bool filterSystemIncludes);
+    QList<ByteArray> pathFilters() const;
     int id() const { return mId; }
-    void write(const QByteArray &out);
-    void writeRaw(const QByteArray &out);
+    void write(const ByteArray &out);
+    void writeRaw(const ByteArray &out);
     unsigned flags() const { return mFlags; }
-    bool filter(const QByteArray &val) const;
+    bool filter(const ByteArray &val) const;
     virtual void run();
     virtual void execute() {}
     int priority() const { return mPriority; }
@@ -34,12 +34,12 @@ signals:
 private:
 #endif
     void complete(int id);
-    void output(int id, const QByteArray &out);
+    void output(int id, const ByteArray &out);
 private:
     const int mId;
     const Priority mPriority;
     const int mFlags;
-    QList<QByteArray> mPathFilters;
+    QList<ByteArray> mPathFilters;
     bool mFilterSystemIncludes;
 };
 

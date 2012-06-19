@@ -3,7 +3,7 @@
 
 #include <QRunnable>
 #include <QObject>
-#include <QByteArray>
+#include <ByteArray.h>
 #include <QList>
 #include <RTags.h>
 #include "Job.h"
@@ -14,12 +14,12 @@ class ReferencesJob : public Job
     Q_OBJECT
 public:
     ReferencesJob(int id, const Location &location, unsigned queryFlags);
-    ReferencesJob(int id, const QByteArray &symbolName, unsigned keyflags);
+    ReferencesJob(int id, const ByteArray &symbolName, unsigned keyflags);
 protected:
     virtual void execute();
 private:
     QSet<Location> locations;
-    const QByteArray symbolName;
+    const ByteArray symbolName;
     const unsigned flags;
 };
 

@@ -3,7 +3,7 @@
 #include "OutputMessage.h"
 #include "MakefileMessage.h"
 #include "RTags.h"
-#include <QByteArray>
+#include <ByteArray.h>
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDebug>
@@ -61,22 +61,25 @@ static void help(FILE *f, const char* app)
             app);
 }
 
-static inline QByteArray encodeLocation(const QByteArray &key)
+static inline ByteArray encodeLocation(const ByteArray &key)
 {
     const int lastComma = key.lastIndexOf(',');
     if (lastComma <= 0 || lastComma + 1 >= key.size())
-        return QByteArray();
+        return ByteArray();
 
     char *endPtr;
     quint32 offset = strtoull(key.constData() + lastComma + 1, &endPtr, 10);
     if (*endPtr != '\0')
-        return QByteArray();
+        return ByteArray();
     Path path = Path::resolved(key.left(lastComma));
-    QByteArray out;
+    ByteArray out;
     {
-        QDataStream ds(&out, QIODevice::WriteOnly);
-        ds << path << offset;
+        out = path;
+        char buf[4];
+        memcpy(buf, &offset, sizeof(buf));
+        out += ByteArray(buf, 4);
     }
+
     return out;
 }
 
@@ -84,19 +87,19 @@ struct Command
 {
     virtual ~Command() {}
     virtual void exec(Client *client) = 0;
-    virtual QByteArray description() const = 0;
+    virtual ByteArray description() const = 0;
 };
 
 struct QueryCommand : public Command
 {
-    QueryCommand(QueryMessage::Type t, const QByteArray &q, const unsigned &qf, const QSet<QByteArray> &p)
+    QueryCommand(QueryMessage::Type t, const ByteArray &q, const unsigned &qf, const QSet<ByteArray> &p)
         : type(t), query(q), queryFlags(qf), pathFilters(p)
     {}
 
     const QueryMessage::Type type;
-    const QByteArray query;
+    const ByteArray query;
     const unsigned &queryFlags; // eeh
-    const QSet<QByteArray> &pathFilters; // eeh
+    const QSet<ByteArray> &pathFilters; // eeh
 
     virtual void exec(Client *client)
     {
@@ -105,15 +108,15 @@ struct QueryCommand : public Command
         client->message(&msg);
     }
 
-    virtual QByteArray description() const
+    virtual ByteArray description() const
     {
-        return ("QueryMessage " + QByteArray::number(type) + " " + query); // ### query might be binary data
+        return ("QueryMessage " + ByteArray::number(type) + " " + query); // ### query might be binary data
     }
 };
 
 struct RdmLogCommand : public Command
 {
-    RdmLogCommand(const QByteArray &cmd)
+    RdmLogCommand(const ByteArray &cmd)
         : mCmd(cmd)
     {
     }
@@ -122,21 +125,21 @@ struct RdmLogCommand : public Command
         OutputMessage msg(mCmd, logLevel());
         client->message(&msg);
     }
-    virtual QByteArray description() const
+    virtual ByteArray description() const
     {
         return "RdmLogCommand";
     }
 private:
-    QByteArray mCmd;
+    ByteArray mCmd;
 };
 
 struct MakefileCommand : public Command {
-    MakefileCommand(const Path &mf, const QList<QByteArray> &args, const QList<QByteArray> &ef)
+    MakefileCommand(const Path &mf, const QList<ByteArray> &args, const QList<ByteArray> &ef)
         : makefile(mf), makefileArgs(args), extraFlags(ef)
     {}
     const Path makefile;
-    const QList<QByteArray> makefileArgs;
-    const QList<QByteArray> &extraFlags; // reference
+    const QList<ByteArray> makefileArgs;
+    const QList<ByteArray> &extraFlags; // reference
     virtual void exec(Client *client)
     {
         if (!makefile.isFile()) {
@@ -146,7 +149,7 @@ struct MakefileCommand : public Command {
         MakefileMessage msg(makefile, makefileArgs, extraFlags);
         client->message(&msg);
     }
-    virtual QByteArray description() const
+    virtual ByteArray description() const
     {
         return ("MakefileCommand " + makefile + " " + RTags::join(makefileArgs, " ") + " " + RTags::join(extraFlags, " "));
     }
@@ -202,20 +205,20 @@ int main(int argc, char** argv)
     // Not taken: b j k w y
 
     int logLevel = 0;
-    QByteArray logFile;
+    ByteArray logFile;
     unsigned logFlags = 0;
 
     QList<Command*> commands;
-    QList<QByteArray> extraFlags;
-    QSet<QByteArray> pathFilters;
+    QList<ByteArray> extraFlags;
+    QSet<ByteArray> pathFilters;
     unsigned queryFlags = 0;
     unsigned clientFlags = 0;
-    QList<QByteArray> rdmArgs;
-    QByteArray name;
+    QList<ByteArray> rdmArgs;
+    ByteArray name;
 
     QFile standardIn;
 
-    const QByteArray shortOptions = RTags::shortOptions(opts);
+    const ByteArray shortOptions = RTags::shortOptions(opts);
 
     for (;;) {
         const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
@@ -233,12 +236,12 @@ int main(int argc, char** argv)
         case 'a':
             clientFlags |= Client::AutostartRdm;
             if (optarg)
-                rdmArgs = QByteArray::fromRawData(optarg, strlen(optarg)).split(' ');
+                rdmArgs = ByteArray(optarg, strlen(optarg)).split(' ');
             break;
         case 'e':
             clientFlags |= Client::RestartRdm;
             if (optarg)
-                rdmArgs = QByteArray::fromRawData(optarg, strlen(optarg)).split(' ');
+                rdmArgs = ByteArray(optarg, strlen(optarg)).split(' ');
             break;
         case 'E':
             queryFlags |= QueryMessage::IncludeDeclarationsAndDefinitions;
@@ -256,12 +259,12 @@ int main(int argc, char** argv)
             queryFlags |= QueryMessage::FilterSystemIncludes;
             break;
         case 'I': {
-            QByteArray flag("-I");
+            ByteArray flag("-I");
             flag += optarg;
             extraFlags.append(flag);
             break; }
         case 'D': {
-            QByteArray flag("-D");
+            ByteArray flag("-D");
             flag += optarg;
             extraFlags.append(flag);
             break; }
@@ -292,7 +295,7 @@ int main(int argc, char** argv)
         case 'f':
         case 'U':
         case 'r': {
-            const QByteArray encoded = encodeLocation(optarg);
+            const ByteArray encoded = encodeLocation(optarg);
             if (encoded.isEmpty()) {
                 fprintf(stderr, "Can't resolve argument %s\n", optarg);
                 return 1;
@@ -306,7 +309,7 @@ int main(int argc, char** argv)
             commands.append(new QueryCommand(type, encoded, queryFlags, pathFilters));
             break; }
         case 'C':
-            commands.append(new QueryCommand(QueryMessage::ClearDatabase, QByteArray(), queryFlags, pathFilters));
+            commands.append(new QueryCommand(QueryMessage::ClearDatabase, ByteArray(), queryFlags, pathFilters));
             break;
         case 'g':
             commands.append(new RdmLogCommand("log"));
@@ -315,7 +318,7 @@ int main(int argc, char** argv)
             commands.append(new RdmLogCommand("CError"));
             break;
         case 'q':
-            commands.append(new QueryCommand(QueryMessage::Shutdown, QByteArray(), queryFlags, pathFilters));
+            commands.append(new QueryCommand(QueryMessage::Shutdown, ByteArray(), queryFlags, pathFilters));
             break;
         case 'V':
         case 'M': {
@@ -325,7 +328,7 @@ int main(int argc, char** argv)
             } else if (optind < argc && argv[optind][0] != '-') {
                 commands.append(new QueryCommand(type, argv[optind++], queryFlags, pathFilters));
             } else {
-                commands.append(new QueryCommand(type, QByteArray(), queryFlags, pathFilters));
+                commands.append(new QueryCommand(type, ByteArray(), queryFlags, pathFilters));
             }
             break; }
         case 't':
@@ -356,7 +359,7 @@ int main(int argc, char** argv)
                 return 1;
             }
 
-            QList<QByteArray> makefileArgs;
+            QList<ByteArray> makefileArgs;
             while (optind < argc && argv[optind][0] != '-')
                 makefileArgs.append(argv[optind++]);
             commands.append(new MakefileCommand(p, makefileArgs, extraFlags));
@@ -367,7 +370,7 @@ int main(int argc, char** argv)
             } else if (optind < argc && argv[optind][0] != '-') {
                 commands.append(new QueryCommand(QueryMessage::Status, argv[optind++], queryFlags, pathFilters));
             } else {
-                commands.append(new QueryCommand(QueryMessage::Status, QByteArray(), queryFlags, pathFilters));
+                commands.append(new QueryCommand(QueryMessage::Status, ByteArray(), queryFlags, pathFilters));
             }
             break;
         case 'R':
@@ -379,7 +382,7 @@ int main(int argc, char** argv)
             } else if (optind < argc && argv[optind][0] != '-') {
                 commands.append(new QueryCommand(QueryMessage::ListSymbols, argv[optind++], queryFlags, pathFilters));
             } else {
-                commands.append(new QueryCommand(QueryMessage::ListSymbols, QByteArray(), queryFlags, pathFilters));
+                commands.append(new QueryCommand(QueryMessage::ListSymbols, ByteArray(), queryFlags, pathFilters));
             }
             break;
         case 'F':

@@ -8,7 +8,7 @@
 #include "CursorInfo.h"
 
 const char *StatusJob::delimiter = "*********************************";
-StatusJob::StatusJob(int i, const QByteArray &q)
+StatusJob::StatusJob(int i, const ByteArray &q)
     : Job(i, QueryJobPriority, WriteUnfiltered), query(q)
 {
 }
@@ -19,14 +19,14 @@ void StatusJob::execute()
         ScopedDB db = Server::instance()->db(Server::General, ScopedDB::Read);
         write(delimiter);
         write(Server::databaseDir(Server::General));
-        write("    version: " + QByteArray::number(db->value<int>("version")));
+        write("    version: " + ByteArray::number(db->value<int>("version")));
 
-        const QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > > makefiles
-            = db->value<QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > > >("makefiles");
+        const QHash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > makefiles
+            = db->value<QHash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > >("makefiles");
 
-        for (QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > >::const_iterator it = makefiles.begin();
+        for (QHash<Path, QPair<QList<ByteArray>, QList<ByteArray> > >::const_iterator it = makefiles.begin();
              it != makefiles.end(); ++it) {
-            QByteArray out = "    " + it.key();
+            ByteArray out = "    " + it.key();
             if (!it.value().first.isEmpty())
                 out += " args: " + RTags::join(it.value().first, " ");
             if (!it.value().second.isEmpty())

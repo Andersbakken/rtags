@@ -38,13 +38,13 @@ void ConnectionPrivate::dataAvailable()
             return;
 
         int id;
-        QByteArray payload;
+        ByteArray payload;
         strm >> id >> payload;
         Q_ASSERT(id > 0 && Connection::sMetas.contains(id));
 
         Connection::Meta m = Connection::sMetas.value(id);
         QObject* newobj = m.meta->newInstance(Q_ARG(QObject*, conn));
-        m.meta->method(m.fromByteArrayId).invoke(newobj, Q_ARG(QByteArray, payload));
+        m.meta->method(m.fromByteArrayId).invoke(newobj, Q_ARG(ByteArray, payload));
         emit conn->newMessage(qobject_cast<Message*>(newobj));
 
         pendingRead = 0;
@@ -93,7 +93,7 @@ bool Connection::connectToServer(const QString &name)
     return mPriv->socket->waitForConnected(1000);
 }
 
-void Connection::send(int id, const QByteArray& message)
+void Connection::send(int id, const ByteArray& message)
 {
     if (mPriv->socket->state() != QLocalSocket::ConnectedState
         && mPriv->socket->state() != QLocalSocket::ConnectingState) {

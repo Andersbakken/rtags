@@ -26,6 +26,6 @@ void CursorInfoJob::execute()
                                found.key(flags).constData(), cursorInfo.symbolName.constData(),
                                clang_getCString(kind.string), cursorInfo.isDefinition ? "true" : "false",
                                cursorInfo.symbolLength);
-        write(QByteArray(buf, w));
+        write(ByteArray(buf, w));
     }
 }

@@ -10,7 +10,7 @@
 #include <Log.h>
 #include <unistd.h>
 
-Client::Client(const QByteArray &name, unsigned flags, const QList<QByteArray> &rdmArgs, QObject *parent)
+Client::Client(const ByteArray &name, unsigned flags, const QList<ByteArray> &rdmArgs, QObject *parent)
     : QObject(parent), mConn(0), mFlags(flags), mRdmArgs(rdmArgs), mName(name)
 {
     if ((mFlags & (RestartRdm|AutostartRdm)) == (RestartRdm|AutostartRdm)) {
@@ -31,7 +31,7 @@ Client::Client(const QByteArray &name, unsigned flags, const QList<QByteArray> &
     }
 }
 
-void Client::sendMessage(int id, const QByteArray &msg)
+void Client::sendMessage(int id, const ByteArray &msg)
 {
     if (!mConn && !connectToServer() && !(mFlags & (RestartRdm|AutostartRdm))) {
         return;
@@ -47,7 +47,7 @@ void Client::onNewMessage(Message *message)
 {
     Q_ASSERT(mConn == sender());
     if (message->messageId() == ResponseMessage::MessageId) {
-        const QByteArray response = static_cast<ResponseMessage*>(message)->data();
+        const ByteArray response = static_cast<ResponseMessage*>(message)->data();
         if (!response.isEmpty()) {
             printf("%s\n", response.constData());
         }
@@ -70,7 +70,7 @@ bool Client::connectToServer()
 {
     Q_ASSERT(!mConn);
     mConn = new Connection(this);
-    if (!mConn->connectToServer(mName)) {
+    if (!mConn->connectToServer(QString::fromStdString(mName))) {
         if (mFlags & AutostartRdm) {
             QString cmd = QCoreApplication::arguments().value(0);
             const int lastSlash = cmd.lastIndexOf('/');
@@ -80,10 +80,10 @@ bool Client::connectToServer()
                 cmd = "rdm";
             }
             error("trying to start rdm %s [%s]", qPrintable(cmd), RTags::join(mRdmArgs, " ").constData());
-            if (RTags::startProcess(cmd.toLocal8Bit(), mRdmArgs)) {
+            if (RTags::startProcess(ByteArray(cmd.toLocal8Bit()), mRdmArgs)) {
                 error("Started successfully");
                 for (int i=0; i<5; ++i) {
-                    if (mConn->connectToServer(mName)) {
+                    if (mConn->connectToServer(QString::fromStdString(mName))) {
                         return true;
                     }
                     sleep(1);

@@ -1,7 +1,7 @@
 #ifndef SHA256_H
 #define SHA256_H
 
-#include <QByteArray>
+#include <ByteArray.h>
 
 class SHA256Private;
 
@@ -13,15 +13,15 @@ public:
 
     enum HashType { Raw, Hex };
 
-    void update(const QByteArray& data);
+    void update(const ByteArray& data);
     void update(const char* data, uint size);
 
     void reset();
 
-    QByteArray hash(HashType type = Hex) const;
+    ByteArray hash(HashType type = Hex) const;
 
-    static QByteArray hash(const QByteArray& data, HashType type = Hex);
-    static QByteArray hash(const char* data, uint size, HashType type = Hex);
+    static ByteArray hash(const ByteArray& data, HashType type = Hex);
+    static ByteArray hash(const char* data, uint size, HashType type = Hex);
 
 private:
     SHA256Private* priv;

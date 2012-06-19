@@ -13,20 +13,20 @@ public:
     Q_INVOKABLE ResponseMessage(QObject *parent = 0)
         : Message(parent)
     {}
-    ResponseMessage(const QByteArray &data, QObject *parent = 0)
+    ResponseMessage(const ByteArray &data, QObject *parent = 0)
         : Message(parent), mData(data)
     {}
-    ResponseMessage(const QList<QByteArray> &data, QObject *parent = 0)
+    ResponseMessage(const QList<ByteArray> &data, QObject *parent = 0)
         : Message(parent), mData(RTags::join(data, "\n"))
     {}
 
     virtual int messageId() const { return MessageId; }
-    QByteArray data() const { return mData; }
-    void setData(const QByteArray &data) { mData = data; }
-    QByteArray toByteArray() const { return mData; }
-    Q_INVOKABLE void fromByteArray(const QByteArray &data) { mData = data; }
+    ByteArray data() const { return mData; }
+    void setData(const ByteArray &data) { mData = data; }
+    ByteArray toByteArray() const { return mData; }
+    Q_INVOKABLE void fromByteArray(const ByteArray &data) { mData = data; }
 private:
-    QByteArray mData;
+    ByteArray mData;
 };
 
 #endif

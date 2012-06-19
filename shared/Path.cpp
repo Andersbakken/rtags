@@ -58,7 +58,7 @@ int64_t Path::fileSize() const
     return -1;
 }
 
-Path Path::resolved(const QByteArray &path, const Path &cwd, bool *ok)
+Path Path::resolved(const ByteArray &path, const Path &cwd, bool *ok)
 {
     Path ret(path);
     if (ret.isResolved() && ret.exists()) {
@@ -107,7 +107,7 @@ bool Path::resolve(const Path &cwd)
         char buffer[PATH_MAX + 1];
         char *resolved = realpath(constData(), buffer);
         if (resolved) {
-            QByteArray::operator=(resolved);
+            ByteArray::operator=(resolved);
             return true;
         }
     }
@@ -175,7 +175,7 @@ bool Path::isSystem(const char *path)
     return false;
 }
 
-Path Path::canonicalized(const QByteArray &path)
+Path Path::canonicalized(const ByteArray &path)
 {
     Path p(path);
     p.canonicalize();

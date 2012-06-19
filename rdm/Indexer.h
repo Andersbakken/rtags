@@ -12,30 +12,30 @@ class Indexer : public QObject
     Q_OBJECT;
 public:
 
-    Indexer(const QByteArray &path, QObject* parent = 0);
+    Indexer(const ByteArray &path, QObject* parent = 0);
     ~Indexer();
 
-    int index(const Path &input, const QList<QByteArray> &arguments, unsigned indexerJobFlags);
+    int index(const Path &input, const QList<ByteArray> &arguments, unsigned indexerJobFlags);
 
     void setPchDependencies(const Path &pchHeader, const QSet<quint32> &deps);
     void addDependencies(const DependencyHash &hash);
     QSet<quint32> pchDependencies(const Path &pchHeader) const;
-    QHash<QByteArray, Location> pchUSRHash(const QList<Path> &pchFiles) const;
+    QHash<ByteArray, Location> pchUSRHash(const QList<Path> &pchFiles) const;
     void setPchUSRHash(const Path &pch, const PchUSRHash &astHash);
     Path path() const { return mPath; }
     void abort();
     bool visitFile(quint32 fileId, const Path &p);
     QSet<quint32> visitedFiles() const { MutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
-    QByteArray fixIts(const Path &path) const;
-    QByteArray errors(const Path &path) const;
-    void setDiagnostics(const QHash<quint32, QList<QByteArray> > &errors,
-                        const QMap<Location, QPair<int, QByteArray> > &fixIts);
-    void reindex(const QByteArray &pattern);
+    ByteArray fixIts(const Path &path) const;
+    ByteArray errors(const Path &path) const;
+    void setDiagnostics(const QHash<quint32, QList<ByteArray> > &errors,
+                        const QMap<Location, QPair<int, ByteArray> > &fixIts);
+    void reindex(const ByteArray &pattern);
 signals:
     void indexingDone(int id);
     void jobsComplete();
 private slots:
-    void onJobComplete(int id, const Path &input, bool isPch, const QByteArray &msg);
+    void onJobComplete(int id, const Path &input, bool isPch, const ByteArray &msg);
     void onDirectoryChanged(const QString &path);
 private:
     void commitDependencies(const DependencyHash &deps, bool sync);
@@ -43,7 +43,7 @@ private:
         Normal,
         ForceDirty
     };
-    void initDB(InitMode forceDirty = Normal, const QByteArray &pattern = QByteArray());
+    void initDB(InitMode forceDirty = Normal, const ByteArray &pattern = ByteArray());
     bool needsToWaitForPch(IndexerJob *job) const;
     void startJob(int id, IndexerJob *job);
 
@@ -60,7 +60,7 @@ private:
     Mutex mMutex;
     QSet<Path> mIndexing;
 
-    QByteArray mPath;
+    ByteArray mPath;
     QHash<int, IndexerJob*> mJobs, mWaitingForPCH;
 
     bool mTimerRunning;
@@ -71,8 +71,8 @@ private:
     Mutex mWatchedMutex;
     WatchedHash mWatched;
 
-    QMap<Location, QPair<int, QByteArray> > mFixIts;
-    QHash<quint32, QByteArray> mErrors;
+    QMap<Location, QPair<int, ByteArray> > mFixIts;
+    QHash<quint32, ByteArray> mErrors;
     mutable QReadWriteLock mFixItsAndErrorsLock;
 };
 

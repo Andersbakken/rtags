@@ -65,7 +65,7 @@ void restartTime()
     sStart.restart();
 }
 
-static inline QByteArray prettyTimeSinceStarted()
+static inline ByteArray prettyTimeSinceStarted()
 {
     quint64 elapsed = sStart.elapsed();
     char buf[128];
@@ -181,7 +181,9 @@ bool initLogging(int level, const Path &file, unsigned flags)
         if (!(flags & (Append|DontRotate)) && file.exists()) {
             int i = 0;
             forever {
-                Path rotated = file + "." + QByteArray::number(++i);
+                Path rotated = file + ".";
+                // rotated +=
+                // + ByteArray::number(++i);
                 if (!rotated.exists()) {
                     if (rename(file.constData(), rotated.constData())) {
                         char buf[1025];

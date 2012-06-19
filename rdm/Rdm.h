@@ -1,7 +1,7 @@
 #ifndef Rdm_h
 #define Rdm_h
 
-#include <QByteArray>
+#include <ByteArray.h>
 #include <QIODevice>
 #include <clang-c/Index.h>
 #include <Path.h>
@@ -31,12 +31,12 @@ public:
 };
 
 struct FileInformation {
-    FileInformation(time_t lt = 0, const QList<QByteArray> &args = QList<QByteArray>())
+    FileInformation(time_t lt = 0, const QList<ByteArray> &args = QList<ByteArray>())
         : lastTouched(lt), compileArgs(args)
     {}
 
     time_t lastTouched;
-    QList<QByteArray> compileArgs;
+    QList<ByteArray> compileArgs;
 };
 
 static inline QDataStream &operator<<(QDataStream &ds, const FileInformation &ci)
@@ -67,26 +67,26 @@ enum ReferenceType {
 class Database;
 typedef QHash<Location, CursorInfo> SymbolHash;
 typedef QHash<Location, QPair<Location, Rdm::ReferenceType> > ReferenceHash;
-typedef QHash<QByteArray, QSet<Location> > SymbolNameHash;
+typedef QHash<ByteArray, QSet<Location> > SymbolNameHash;
 typedef QHash<quint32, QSet<quint32> > DependencyHash;
-typedef QPair<QByteArray, time_t> WatchedPair;
-typedef QHash<QByteArray, Location> PchUSRHash;
+typedef QPair<ByteArray, time_t> WatchedPair;
+typedef QHash<ByteArray, Location> PchUSRHash;
 typedef QHash<Path, QSet<WatchedPair> > WatchedHash;
 typedef QHash<quint32, FileInformation> InformationHash;
 
 namespace Rdm {
-static inline bool isPch(const QList<QByteArray> &args)
+static inline bool isPch(const QList<ByteArray> &args)
 {
     const int size = args.size();
     bool nextIsX = false;
     for (int i=0; i<size; ++i) {
-        const QByteArray &arg = args.at(i);
+        const ByteArray &arg = args.at(i);
         if (nextIsX) {
             return (arg == "c++-header" || arg == "c-header");
         } else if (arg == "-x") {
             nextIsX = true;
         } else if (arg.startsWith("-x")) {
-            const QByteArray rest = QByteArray::fromRawData(arg.constData() + 2, arg.size() - 2);
+            const ByteArray rest = ByteArray(arg.constData() + 2, arg.size() - 2);
             return (rest == "c++-header" || rest == "c-header");
         }
     }
@@ -100,8 +100,8 @@ static inline bool isReference(CXCursorKind kind)
 
 void setMaxMemoryUsage(quint64 max);
 bool waitForMemory(int maxMs);
-QByteArray eatString(CXString str);
-QByteArray cursorToString(CXCursor cursor);
+ByteArray eatString(CXString str);
+ByteArray cursorToString(CXCursor cursor);
 template <typename T>
 static inline bool startsWith(const QList<T> &list, const T &str)
 {
@@ -134,11 +134,11 @@ CursorInfo findCursorInfo(Database *db, const Location &key, Location *loc = 0);
 int writeSymbolNames(SymbolNameHash &symbolNames);
 int writeDependencies(const DependencyHash &dependencies);
 int writePchDepencies(const QHash<Path, QSet<quint32> > &pchDependencies);
-int writeFileInformation(quint32 fileId, const QList<QByteArray> &args, time_t lastTouched);
+int writeFileInformation(quint32 fileId, const QList<ByteArray> &args, time_t lastTouched);
 int writePchUSRHashes(const QHash<Path, PchUSRHash> &hashes);
 int writeSymbols(SymbolHash &symbols, const ReferenceHash &references, quint32 fileId);
 int dirty(const QSet<quint32> &dirtyFileIds);
-QList<QByteArray> compileArgs(quint32 fileId);
+QList<ByteArray> compileArgs(quint32 fileId);
 // the symbols will be modified before writing and we don't want to detach so we
 // work on a non-const reference
 class LogObject : public QObject, public LogOutput
@@ -153,11 +153,11 @@ public:
 
     virtual void log(const char *msg, int len)
     {
-        const QByteArray out(msg, len);
-        QMetaObject::invokeMethod(this, "onLog", Qt::QueuedConnection, Q_ARG(QByteArray, out));
+        const ByteArray out(msg, len);
+        QMetaObject::invokeMethod(this, "onLog", Qt::QueuedConnection, Q_ARG(ByteArray, out));
     }
 public slots:
-    void onLog(const QByteArray &log)
+    void onLog(const ByteArray &log)
     {
         ResponseMessage msg(log);
         mConnection->send(&msg);
@@ -181,14 +181,14 @@ public:
 
     virtual void log(const char *msg, int len)
     {
-        const QByteArray out(msg, len);
-        QMetaObject::invokeMethod(this, "onLog", Qt::QueuedConnection, Q_ARG(QByteArray, out));
+        const ByteArray out(msg, len);
+        QMetaObject::invokeMethod(this, "onLog", Qt::QueuedConnection, Q_ARG(ByteArray, out));
     }
 
-    static int typeForName(const QByteArray &name);
+    static int typeForName(const ByteArray &name);
 
 public slots:
-    void onLog(const QByteArray &log)
+    void onLog(const ByteArray &log)
     {
         ResponseMessage msg(log);
         mConnection->send(&msg);

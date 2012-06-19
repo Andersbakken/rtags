@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include <QRunnable>
-#include <QByteArray>
+#include <ByteArray.h>
 #include <QList>
 #include "Job.h"
 
@@ -11,11 +11,11 @@ class DumpJob : public Job
 {
     Q_OBJECT
 public:
-    DumpJob(const QByteArray& fn, int i);
+    DumpJob(const ByteArray& fn, int i);
 protected:
     virtual void execute();
 private:
-    const QByteArray fileName;
+    const ByteArray fileName;
 };
 
 #endif

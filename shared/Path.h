@@ -10,37 +10,38 @@
 #include <QMetaObject>
 #include <QMetaType>
 #include <QSet>
+#include <ByteArray.h>
 
-class Path : public QByteArray
+class Path : public ByteArray
 {
 public:
     Path(const Path &other)
-        : QByteArray(other)
+        : ByteArray(other)
     {}
-    Path(const QByteArray &other)
-        : QByteArray(other)
+    Path(const ByteArray &other)
+        : ByteArray(other)
     {}
     Path(const char *path)
-        : QByteArray(path)
+        : ByteArray(path)
     {}
     Path(const char *path, int size)
-        : QByteArray(path, size)
+        : ByteArray(path, size)
     {}
     Path() {}
     Path &operator=(const Path &other)
     {
-        QByteArray::operator=(other);
+        ByteArray::operator=(other);
         return *this;
     }
-    Path &operator=(const QByteArray &other)
+    Path &operator=(const ByteArray &other)
     {
-        QByteArray::operator=(other);
+        ByteArray::operator=(other);
         return *this;
     }
 
     Path &operator=(const char *path)
     {
-        QByteArray::operator=(path);
+        ByteArray::operator=(path);
         return *this;
     }
 
@@ -74,28 +75,11 @@ public:
     int canonicalize();
     time_t lastModified() const; // returns time_t
     int64_t fileSize() const;
-    static Path resolved(const QByteArray &path, const Path &cwd = Path(), bool *ok = 0);
-    static Path canonicalized(const QByteArray &path);
+    static Path resolved(const ByteArray &path, const Path &cwd = Path(), bool *ok = 0);
+    static Path canonicalized(const ByteArray &path);
 };
 
 Q_DECLARE_METATYPE(Path);
 Q_DECLARE_METATYPE(QSet<Path>);
-
-static inline QDataStream &operator<<(QDataStream &ds, const Path &path)
-{
-    ds << QByteArray::fromRawData(path.constData(), path.size());
-    return ds;
-}
-
-static inline QDataStream &operator>>(QDataStream &ds, Path &path)
-{
-    QByteArray in;
-    ds >> in;
-    path = in;
-    return ds;
-}
-
-
-
 
 #endif

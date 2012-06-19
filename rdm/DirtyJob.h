@@ -9,8 +9,8 @@ class DirtyJob : public QObject, public QRunnable
 {
 public:
     DirtyJob(Indexer *indexer, const QSet<quint32> &dirty,
-             const QHash<Path, QList<QByteArray> > &toIndexPch,
-             const QHash<Path, QList<QByteArray> > &toIndex)
+             const QHash<Path, QList<ByteArray> > &toIndexPch,
+             const QHash<Path, QList<ByteArray> > &toIndex)
         : mIndexer(indexer), mDirty(dirty), mToIndexPch(toIndexPch), mToIndex(toIndex)
     {
     }
@@ -19,7 +19,7 @@ public:
 private:
     Indexer *mIndexer;
     const QSet<quint32> mDirty;
-    const QHash<Path, QList<QByteArray> > mToIndexPch, mToIndex;
+    const QHash<Path, QList<ByteArray> > mToIndexPch, mToIndex;
 };
 
 #endif

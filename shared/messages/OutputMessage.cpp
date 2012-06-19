@@ -6,12 +6,12 @@ OutputMessage::OutputMessage(QObject *parent)
 {
 }
 
-OutputMessage::OutputMessage(const QByteArray &name, int level, QObject *parent)
+OutputMessage::OutputMessage(const ByteArray &name, int level, QObject *parent)
     : mName(name), mLevel(level)
 {
 }
 
-QByteArray OutputMessage::name() const
+ByteArray OutputMessage::name() const
 {
     return mName;
 }
@@ -21,18 +21,19 @@ int OutputMessage::level() const
     return mLevel;
 }
 
-QByteArray OutputMessage::toByteArray() const
+ByteArray OutputMessage::toByteArray() const
 {
     QByteArray data;
     {
         QDataStream stream(&data, QIODevice::WriteOnly);
         stream << mName << mLevel;
     }
-    return data;
+    return ByteArray(data.constData(), data.size());
 }
 
-void OutputMessage::fromByteArray(const QByteArray& data)
+void OutputMessage::fromByteArray(const ByteArray &data)
 {
-    QDataStream stream(data);
+    const QByteArray ba = QByteArray::fromRawData(data.constData(), data.size());
+    QDataStream stream(ba);
     stream >> mName >> mLevel;
 }

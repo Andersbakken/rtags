@@ -6,6 +6,7 @@
 #include <QExplicitlySharedDataPointer>
 #include <QSharedData>
 #include <QVariant>
+#include <ByteArray.h>
 class Path;
 
 enum LogLevel {
@@ -94,7 +95,7 @@ public:
     template <typename K, typename V> Log &operator<<(const QHash<K, V> &hash)
     {
         if (mData) {
-            QByteArray out = "QHash<";
+            ByteArray out = "QHash<";
             {
                 const K key;
                 const QVariant variant = qVariantFromValue<K>(key);

@@ -23,7 +23,7 @@ public:
         FixIt = 0x020
     };
     IndexerJob(Indexer *indexer, int id, unsigned flags,
-               const Path &input, const QList<QByteArray> &arguments);
+               const Path &input, const QList<ByteArray> &arguments);
     int priority() const { return mFlags & Priorities; }
     virtual void run();
 
@@ -31,7 +31,7 @@ public:
     const unsigned mFlags;
     bool mIsPch;
     Location createLocation(const CXCursor &cursor , bool *blocked);
-    QByteArray addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDb);
+    ByteArray addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDb);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static void inclusionVisitor(CXFile included_file, CXSourceLocation *include_stack,
                                  unsigned include_len, CXClientData client_data);
@@ -60,16 +60,16 @@ public:
     ReferenceHash mReferences;
     const Path mIn;
     const quint32 mFileId;
-    const QList<QByteArray> mArgs;
+    const QList<ByteArray> mArgs;
     DependencyHash mDependencies;
     QSet<quint32> mPchDependencies;
     Indexer *mIndexer;
-    QHash<QByteArray, Location> mPchUSRHash;
+    QHash<ByteArray, Location> mPchUSRHash;
 
     QList<Path> mPchHeaders;
     CXTranslationUnit mUnit;
 signals:
-    void done(int id, const Path &path, bool isPch, const QByteArray &msg);
+    void done(int id, const Path &path, bool isPch, const ByteArray &msg);
 };
 
 #endif

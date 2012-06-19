@@ -6,7 +6,7 @@
 #include <QMetaObject>
 #include <QMetaMethod>
 #include <QString>
-#include <QByteArray>
+#include <ByteArray.h>
 #include <QHash>
 
 class QLocalSocket;
@@ -27,7 +27,7 @@ public:
 
     template<typename T>
     void send(const T *message);
-    void send(int id, const QByteArray& message);
+    void send(int id, const ByteArray& message);
 
     template<typename T>
     static bool registerMessage();
@@ -76,7 +76,7 @@ bool Connection::registerMessage()
 
     int fromByteArrayId = -1;
     for (int i = obj->methodOffset(); i < obj->methodCount(); ++i) {
-        if (!qstrcmp(obj->method(i).signature(), "fromByteArray(QByteArray)"))
+        if (!qstrcmp(obj->method(i).signature(), "fromByteArray(ByteArray)"))
             fromByteArrayId = i;
     }
 

@@ -11,25 +11,25 @@ public:
     JobRunner()
         : lines(0)
     {}
-    QSet<QByteArray> runJob(Job *job)
+    QSet<ByteArray> runJob(Job *job)
     {
         Q_ASSERT(!lines);
-        QSet<QByteArray> ret;
+        QSet<ByteArray> ret;
         lines = &ret;
-        connect(job, SIGNAL(output(int, QByteArray)), this, SLOT(onOutput(int, QByteArray)));
+        connect(job, SIGNAL(output(int, ByteArray)), this, SLOT(onOutput(int, ByteArray)));
         job->execute();
         lines = 0;
         delete job;
         return ret;
     }
 private slots:
-    void onOutput(int, const QByteArray &line)
+    void onOutput(int, const ByteArray &line)
     {
         Q_ASSERT(lines);
         lines->insert(line);
     }
 private:
-    QSet<QByteArray> *lines;
+    QSet<ByteArray> *lines;
 
 
 };
@@ -41,8 +41,8 @@ public:
     RunTestJob(const Path &path, int id);
 protected:
     virtual void execute();
-    void testSymbolNames(const QByteArray &symbolName, const QSet<QByteArray> &expectedLocations);
-    QSet<QByteArray> runJob(Job *job) const { JobRunner runner; return runner.runJob(job); }
+    void testSymbolNames(const ByteArray &symbolName, const QSet<ByteArray> &expectedLocations);
+    QSet<ByteArray> runJob(Job *job) const { JobRunner runner; return runner.runJob(job); }
 private:
     const Path path;
 };

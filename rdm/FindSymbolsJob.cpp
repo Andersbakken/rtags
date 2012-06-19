@@ -30,7 +30,7 @@ void FindSymbolsJob::execute()
     }
     QSet<Location> out;
     while (it->isValid() && !isAborted()) {
-        const QByteArray entry = it->key().byteArray();
+        const ByteArray entry = it->key().byteArray();
         const int cmp = strcmp(string.constData(), entry.constData());
         if (!cmp) {
             const QSet<Location> locations = it->value<QSet<Location> >();

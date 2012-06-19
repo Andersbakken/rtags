@@ -25,30 +25,30 @@ int canonicalizePath(char *path, int len)
     return len;
 }
 
-QByteArray unescape(QByteArray command)
+ByteArray unescape(ByteArray command)
 {
-    command.replace('\'', "\\'");
+    command.replace("\'", "\\'");
     command.prepend("bash --norc -c 'echo -n ");
     command.append('\'');
-    // QByteArray cmd = "bash --norc -c 'echo -n " + command + "'";
+    // ByteArray cmd = "bash --norc -c 'echo -n " + command + "'";
     FILE *f = popen(command.constData(), "r");
-    QByteArray ret;
+    ByteArray ret;
     char buf[1024];
     do {
         const int read = fread(buf, 1, 1024, f);
         if (read)
-            ret += QByteArray::fromRawData(buf, read);
+            ret += ByteArray(buf, read);
     } while (!feof(f));
     fclose(f);
     return ret;
 }
 
 
-QByteArray join(const QList<QByteArray> &list, const QByteArray &sep)
+ByteArray join(const QList<ByteArray> &list, const ByteArray &sep)
 {
-    QByteArray ret;
+    ByteArray ret;
     int size = qMax(0, list.size() - 1) * sep.size();
-    foreach (const QByteArray &l, list) {
+    foreach (const ByteArray &l, list) {
         size += l.size();
     }
     ret.reserve(size);
@@ -85,9 +85,9 @@ int readLine(FILE *f, char *buf, int max)
 }
 
 
-QByteArray shortOptions(const option *longOptions)
+ByteArray shortOptions(const option *longOptions)
 {
-    QByteArray ret;
+    ByteArray ret;
     for (int i=0; longOptions[i].name; ++i) {
         Q_ASSERT(!ret.contains(longOptions[i].val));
         ret.append(longOptions[i].val);
@@ -159,7 +159,7 @@ bool removeDirectory(const char *path)
 
     return !r;
 }
-bool startProcess(const Path &dotexe, const QList<QByteArray> &dollarArgs)
+bool startProcess(const Path &dotexe, const QList<ByteArray> &dollarArgs)
 {
     switch (fork()) {
     case 0:
@@ -211,7 +211,7 @@ bool startProcess(const Path &dotexe, const QList<QByteArray> &dollarArgs)
     if (f) {
         fwrite(dotexe.constData(), 1, dotexe.size(), f);
         fwrite(" ", 1, 1, f);
-        const QByteArray joined = RTags::join(dollarArgs, " ");
+        const ByteArray joined = RTags::join(dollarArgs, " ");
         fwrite(joined.constData(), 1, joined.size(), f);
         fclose(f);
     }

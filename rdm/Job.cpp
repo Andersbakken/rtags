@@ -16,22 +16,22 @@ Job::~Job()
 }
 
 
-void Job::setPathFilters(const QList<QByteArray> &filter, bool filterSystemIncludes)
+void Job::setPathFilters(const QList<ByteArray> &filter, bool filterSystemIncludes)
 {
     mPathFilters = filter;
     mFilterSystemIncludes = filterSystemIncludes;
 }
 
-QList<QByteArray> Job::pathFilters() const
+QList<ByteArray> Job::pathFilters() const
 {
     return mPathFilters;
 }
 
-void Job::write(const QByteArray &out)
+void Job::write(const ByteArray &out)
 {
     if (mFlags & WriteUnfiltered || mPathFilters.isEmpty() || filter(out)) {
         if (mFlags & QuoteOutput) {
-            QByteArray o((out.size() * 2) + 2, '"');
+            ByteArray o((out.size() * 2) + 2, '"');
             char *ch = o.data() + 1;
             int l = 2;
             for (int i=0; i<out.size(); ++i) {
@@ -53,7 +53,7 @@ void Job::write(const QByteArray &out)
     }
 }
 
-bool Job::filter(const QByteArray &val) const
+bool Job::filter(const ByteArray &val) const
 {
     if (mPathFilters.isEmpty() || (!mFilterSystemIncludes && Path::isSystem(val.constData()))) {
         return true;
@@ -65,7 +65,7 @@ void Job::run()
     execute();
     emit complete(id());
 }
-void Job::writeRaw(const QByteArray &out)
+void Job::writeRaw(const ByteArray &out)
 {
     emit output(id(), out);
 }

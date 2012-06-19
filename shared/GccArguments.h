@@ -3,7 +3,7 @@
 
 #include "Path.h"
 #include <QList>
-#include <QByteArray>
+#include <ByteArray.h>
 
 class GccArgumentsImpl;
 
@@ -14,18 +14,18 @@ public:
     enum Lang { NoLang, C, CPlusPlus };
 
     GccArguments();
-    GccArguments(const QByteArray &args, const Path &base);
+    GccArguments(const ByteArray &args, const Path &base);
     ~GccArguments();
 
-    bool parse(QByteArray args, const Path &base);
+    bool parse(ByteArray args, const Path &base);
     Type type() const;
     Lang lang() const;
     void clear();
 
-    void addFlags(const QList<QByteArray> &extraFlags);
-    QList<QByteArray> clangArgs() const;
+    void addFlags(const QList<ByteArray> &extraFlags);
+    QList<ByteArray> clangArgs() const;
     QList<Path> inputFiles() const;
-    QList<QByteArray> explicitIncludes() const;
+    QList<ByteArray> explicitIncludes() const;
     Path outputFile() const;
     Path baseDirectory() const;
     Path compiler() const;

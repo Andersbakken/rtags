@@ -27,9 +27,9 @@ void ListSymbolsJob::execute()
     }
     if (elispList)
         writeRaw("(list");
-    QList<QByteArray> out;
+    QList<ByteArray> out;
     while (it->isValid() && !isAborted()) {
-        const QByteArray entry = it->key().byteArray();
+        const ByteArray entry = it->key().byteArray();
         if (!string.isEmpty() && !entry.startsWith(string))
             break;
         if (!skipParentheses || !entry.contains('(')) {
@@ -59,11 +59,11 @@ void ListSymbolsJob::execute()
         return;
     }
     if (queryFlags & QueryMessage::ReverseSort) {
-        qSort(out.begin(), out.end(), qGreater<QByteArray>());
+        qSort(out.begin(), out.end(), qGreater<ByteArray>());
     } else {
         qSort(out);
     }
-    foreach (const QByteArray &o, out) {
+    foreach (const ByteArray &o, out) {
         write(o);
     }
 }

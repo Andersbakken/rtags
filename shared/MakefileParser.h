@@ -13,14 +13,14 @@ class MakefileParser : public QObject
 {
     Q_OBJECT
 public:
-    MakefileParser(const QList<QByteArray> &extraFlags, QObject *parent = 0);
+    MakefileParser(const QList<ByteArray> &extraFlags, QObject *parent = 0);
     ~MakefileParser();
 
-    void run(const Path &makefile, const QList<QByteArray> &args);
+    void run(const Path &makefile, const QList<ByteArray> &args);
     bool isDone() const;
-    QList<QByteArray> extraFlags() const { return mExtraFlags; }
-    QList<QByteArray> mapPchToInput(const QList<QByteArray> &input) const;
-    void setPch(const QByteArray &output, const QByteArray &input);
+    QList<ByteArray> extraFlags() const { return mExtraFlags; }
+    QList<ByteArray> mapPchToInput(const QList<ByteArray> &input) const;
+    void setPch(const ByteArray &output, const ByteArray &input);
     int pchCount() const { return mPchs.size(); }
 signals:
     void done();
@@ -32,14 +32,14 @@ private slots:
     void onError(QProcess::ProcessError error);
     void onProcessStateChanged(QProcess::ProcessState state);
 private:
-    void processMakeLine(const QByteArray &line);
+    void processMakeLine(const ByteArray &line);
 
 private:
     QProcess *mProc;
-    QByteArray mData;
+    ByteArray mData;
     DirectoryTracker *mTracker;
-    const QList<QByteArray> mExtraFlags;
-    QHash<QByteArray, QByteArray> mPchs;
+    const QList<ByteArray> mExtraFlags;
+    QHash<ByteArray, ByteArray> mPchs;
 };
 
 #endif // MAKEFILEPARSER_H

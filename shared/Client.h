@@ -4,7 +4,7 @@
 #include "GccArguments.h"
 #include "Path.h"
 #include "QueryMessage.h"
-#include <QByteArray>
+#include <ByteArray.h>
 #include <QHash>
 #include <QList>
 #include <QObject>
@@ -16,14 +16,14 @@ class Client : public QObject
 {
     Q_OBJECT
 public:
-    Client(const QByteArray &name, unsigned flags = 0, const QList<QByteArray> &rdmArgs = QList<QByteArray>(), QObject *parent = 0);
+    Client(const ByteArray &name, unsigned flags = 0, const QList<ByteArray> &rdmArgs = QList<ByteArray>(), QObject *parent = 0);
     enum Flag {
         None = 0x0,
         AutostartRdm = 0x1,
         RestartRdm = 0x2
     };
 
-    QList<QByteArray> rdmArgs() const { return mRdmArgs; }
+    QList<ByteArray> rdmArgs() const { return mRdmArgs; }
     unsigned flags() const { return mFlags; }
     template<typename T>
     void message(const T *msg);
@@ -32,12 +32,12 @@ private slots:
     void onDisconnected();
     void onNewMessage(Message *message);
 private:
-    void sendMessage(int id, const QByteArray& msg);
+    void sendMessage(int id, const ByteArray& msg);
     Connection *mConn;
     unsigned mFlags;
-    QList<QByteArray> mRdmArgs;
+    QList<ByteArray> mRdmArgs;
     QEventLoop mLoop;
-    const QByteArray mName;
+    const ByteArray mName;
 };
 
 template<typename T>

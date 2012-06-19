@@ -2,7 +2,7 @@
 #define Server_h
 
 #include <QObject>
-#include <QByteArray>
+#include <ByteArray.h>
 #include <QList>
 #include <QHash>
 #include "QueryMessage.h"
@@ -64,31 +64,31 @@ public:
     };
 
     static Server *instance() { return sInstance; }
-    QList<QByteArray> defaultArguments() const { return mOptions.defaultArguments; }
+    QList<ByteArray> defaultArguments() const { return mOptions.defaultArguments; }
     inline ScopedDB db(DatabaseType type, ScopedDB::LockType lockType) const { return ScopedDB(mDBs[type], lockType); }
     struct Options {
         Options() : options(0), cacheSizeMB(0) {}
         unsigned options;
-        QList<QByteArray> defaultArguments;
+        QList<ByteArray> defaultArguments;
         long cacheSizeMB;
-        QByteArray name;
+        ByteArray name;
     };
     bool init(const Options &options);
     Indexer *indexer() const { return mIndexer; }
-    QByteArray name() const { return mOptions.name; }
-    static void setBaseDirectory(const QByteArray &base, bool clear);
+    ByteArray name() const { return mOptions.name; }
+    static void setBaseDirectory(const ByteArray &base, bool clear);
     static Path databaseDir(DatabaseType type);
     static Path pchDir();
     QThreadPool *threadPool() const { return mThreadPool; }
 signals:
-    void complete(int id, const QList<QByteArray> &locations);
+    void complete(int id, const QList<ByteArray> &locations);
 private slots:
     void onFileReady(const GccArguments &file);
     void onNewConnection();
     void onNewMessage(Message *message);
     void onIndexingDone(int id);
     void onComplete(int id);
-    void onOutput(int id, const QByteArray &response);
+    void onOutput(int id, const ByteArray &response);
     void onConnectionDestroyed(QObject *o);
 private:
     void handleMakefileMessage(MakefileMessage *message);
@@ -109,10 +109,10 @@ private:
     int runTest(const QueryMessage &query);
     int nextId();
     void startJob(Job *job);
-    void reindex(const QByteArray &pattern);
-    void remake(const QByteArray &pattern, Connection *conn);
+    void reindex(const ByteArray &pattern);
+    void remake(const ByteArray &pattern, Connection *conn);
     void rdmLog(const QueryMessage &message, Connection *conn);
-    void make(const QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > >::const_iterator it);
+    void make(const QHash<Path, QPair<QList<ByteArray>, QList<ByteArray> > >::const_iterator it);
 private:
     static Server *sInstance;
     Options mOptions;
@@ -123,7 +123,7 @@ private:
     bool mVerbose;
     int mJobId;
     static Path sBase;
-    QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > > mMakefiles;
+    QHash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > mMakefiles;
     Database *mDBs[DatabaseTypeCount];
     QThreadPool *mThreadPool;
 };

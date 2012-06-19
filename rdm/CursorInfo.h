@@ -1,7 +1,7 @@
 #ifndef CursorInfo_h
 #define CursorInfo_h
 
-#include <QByteArray>
+#include <ByteArray.h>
 #include <clang-c/Index.h>
 #include <Path.h>
 #include <QDebug>
@@ -86,7 +86,7 @@ public:
 
 
     int symbolLength; // this is just the symbol name e.g. foo
-    QByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
+    ByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
     CXCursorKind kind;
     bool isDefinition;
     Location target;

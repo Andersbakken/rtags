@@ -5,7 +5,7 @@
 #include "Server.h"
 #include "CursorInfo.h"
 
-DumpJob::DumpJob(const QByteArray& fn, int i)
+DumpJob::DumpJob(const ByteArray& fn, int i)
     : Job(i, QueryJobPriority), fileName(fn)
 {
 }

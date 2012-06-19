@@ -15,13 +15,13 @@ public:
     DirectoryTracker();
 
     void init(const Path& path);
-    void track(const QByteArray& line);
+    void track(const ByteArray& line);
 
     const Path& path() const { return mPaths.top(); }
 
 private:
-    void enterDirectory(const QByteArray& dir);
-    void leaveDirectory(const QByteArray& dir);
+    void enterDirectory(const ByteArray& dir);
+    void leaveDirectory(const ByteArray& dir);
 
 private:
     QStack<Path> mPaths;
@@ -36,7 +36,7 @@ void DirectoryTracker::init(const Path& path)
     mPaths.push(path);
 }
 
-void DirectoryTracker::track(const QByteArray& line)
+void DirectoryTracker::track(const ByteArray& line)
 {
     // printf("Tracking %s\n", line.constData());
     static QRegExp drx(QLatin1String("make[^:]*: ([^ ]+) directory `([^']+)'"));
@@ -53,7 +53,7 @@ void DirectoryTracker::track(const QByteArray& line)
     }
 }
 
-void DirectoryTracker::enterDirectory(const QByteArray& dir)
+void DirectoryTracker::enterDirectory(const ByteArray& dir)
 {
     bool ok;
     Path newPath = Path::resolved(dir, path(), &ok);
@@ -65,7 +65,7 @@ void DirectoryTracker::enterDirectory(const QByteArray& dir)
     }
 }
 
-void DirectoryTracker::leaveDirectory(const QByteArray& dir)
+void DirectoryTracker::leaveDirectory(const ByteArray& dir)
 {
     verboseDebug() << "leaveDirectory" << dir;
     // enter and leave share the same code for now
@@ -73,7 +73,7 @@ void DirectoryTracker::leaveDirectory(const QByteArray& dir)
     // enterDirectory(dir);
 }
 
-MakefileParser::MakefileParser(const QList<QByteArray> &extraFlags, QObject *parent)
+MakefileParser::MakefileParser(const QList<ByteArray> &extraFlags, QObject *parent)
     : QObject(parent), mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags)
 {
 }
@@ -89,7 +89,7 @@ MakefileParser::~MakefileParser()
     delete mTracker;
 }
 
-void MakefileParser::run(const Path &makefile, const QList<QByteArray> &args)
+void MakefileParser::run(const Path &makefile, const QList<ByteArray> &args)
 {
     Q_ASSERT(!mProc);
     mProc = new QProcess(this);
@@ -125,10 +125,10 @@ void MakefileParser::run(const Path &makefile, const QList<QByteArray> &args)
             makefile.constData(), mTracker->path().constData());
     QStringList a;
     a << QLatin1String("-j1") << QLatin1String("-n") << QLatin1String("-w")
-      << QLatin1String("-f") << QString::fromLocal8Bit(makefile)
-      << QLatin1String("-C") << mTracker->path();
-    foreach(const QByteArray &arg, args) {
-        a << arg;
+      << QLatin1String("-f") << QString::fromLocal8Bit(makefile.constData(), makefile.size())
+      << QLatin1String("-C") << QString::fromStdString(mTracker->path());
+    foreach(const ByteArray &arg, args) {
+        a << QString::fromStdString(arg);
     }
 
     mProc->start(QLatin1String(MAKE), a);
@@ -142,7 +142,7 @@ bool MakefileParser::isDone() const
 void MakefileParser::processMakeOutput()
 {
     Q_ASSERT(mProc);
-    mData += mProc->readAllStandardOutput();
+    mData += mProc->readAllStandardOutput().constData();
 
     // ### this could be more efficient
     int nextNewline = mData.indexOf('\n');
@@ -153,7 +153,7 @@ void MakefileParser::processMakeOutput()
 }
 }
 
-void MakefileParser::processMakeLine(const QByteArray &line)
+void MakefileParser::processMakeLine(const ByteArray &line)
 {
     if (testLog(VerboseDebug))
         verboseDebug("%s", line.constData());
@@ -177,12 +177,12 @@ void MakefileParser::onReadyReadStandardError()
 {
     debug() << "stderr" << mProc->readAllStandardError();
 }
-QList<QByteArray> MakefileParser::mapPchToInput(const QList<QByteArray> &input) const
+QList<ByteArray> MakefileParser::mapPchToInput(const QList<ByteArray> &input) const
 {
-    QList<QByteArray> output;
-    QHash<QByteArray, QByteArray>::const_iterator pchit;
-    const QHash<QByteArray, QByteArray>::const_iterator pchend = mPchs.end();
-    foreach (const QByteArray &in, input) {
+    QList<ByteArray> output;
+    QHash<ByteArray, ByteArray>::const_iterator pchit;
+    const QHash<ByteArray, ByteArray>::const_iterator pchend = mPchs.end();
+    foreach (const ByteArray &in, input) {
     pchit = mPchs.find(in);
     if (pchit != pchend)
         output.append(pchit.value());
@@ -190,7 +190,7 @@ QList<QByteArray> MakefileParser::mapPchToInput(const QList<QByteArray> &input) 
     return output;
 }
 
-void MakefileParser::setPch(const QByteArray &output, const QByteArray &input)
+void MakefileParser::setPch(const ByteArray &output, const ByteArray &input)
 {
     mPchs[output] = input;
 }

@@ -5,12 +5,12 @@
 #include "CursorInfo.h"
 
 ReferencesJob::ReferencesJob(int i, const Location &loc, unsigned fl)
-    : Job(i, QueryJobPriority), symbolName(QByteArray()), flags(fl)
+    : Job(i, QueryJobPriority), symbolName(ByteArray()), flags(fl)
 {
     locations.insert(loc);
 }
 
-ReferencesJob::ReferencesJob(int i, const QByteArray &sym, unsigned fl)
+ReferencesJob::ReferencesJob(int i, const ByteArray &sym, unsigned fl)
     : Job(i, QueryJobPriority), symbolName(sym), flags(fl)
 {
 }

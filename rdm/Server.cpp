@@ -31,7 +31,8 @@
 #include <stdio.h>
 
 Path Server::sBase;
-Q_DECLARE_METATYPE(QList<QByteArray>);
+Q_DECLARE_METATYPE(QList<ByteArray>);
+Q_DECLARE_METATYPE(ByteArray);
 
 Server *Server::sInstance = 0;
 Server::Server(QObject *parent)
@@ -39,7 +40,8 @@ Server::Server(QObject *parent)
 {
     Q_ASSERT(!sInstance);
     sInstance = this;
-    qRegisterMetaType<QList<QByteArray> >("QList<QByteArray>");
+    qRegisterMetaType<ByteArray>("ByteArray");
+    qRegisterMetaType<QList<ByteArray> >("QList<ByteArray>");
     memset(mDBs, 0, sizeof(mDBs));
 }
 
@@ -67,11 +69,11 @@ static inline QList<Path> systemIncludes(const Path &cpp)
     proc.start(cpp, QStringList() << QLatin1String("-v"));
     proc.closeWriteChannel();
     proc.waitForFinished();
-    QList<QByteArray> lines = proc.readAllStandardError().split('\n');
+    QList<ByteArray> lines = ByteArray(proc.readAllStandardError()).split('\n');
     bool seenInclude = false;
     Path gxxIncludeDir;
-    QByteArray target;
-    foreach(const QByteArray& line, lines) {
+    ByteArray target;
+    foreach(const ByteArray& line, lines) {
         if (gxxIncludeDir.isEmpty()) {
             int idx = line.indexOf("--with-gxx-include-dir=");
             if (idx != -1) {
@@ -160,7 +162,7 @@ bool Server::init(const Options &options)
             error("Wrong version, expected %d, got %d. Run with -C to regenerate database", Rdm::DatabaseVersion, version);
             return false;
         }
-        mMakefiles = general->value<QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > > >("makefiles");
+        mMakefiles = general->value<QHash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > >("makefiles");
     }
 
     {
@@ -256,19 +258,19 @@ void Server::onNewMessage(Message *message)
 
 void Server::handleMakefileMessage(MakefileMessage *message)
 {
-    QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > >::const_iterator it
+    QHash<Path, QPair<QList<ByteArray>, QList<ByteArray> > >::const_iterator it
         = mMakefiles.insert(message->makefile(), qMakePair(message->arguments(), message->extraFlags()));
     ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
     general->setValue("makefiles", mMakefiles);
     make(it);
 }
 
-void Server::make(const QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > >::const_iterator it)
+void Server::make(const QHash<Path, QPair<QList<ByteArray>, QList<ByteArray> > >::const_iterator it)
 {
     MakefileParser *parser = new MakefileParser(it.value().second, this);
     connect(parser, SIGNAL(fileReady(GccArguments)), this, SLOT(onFileReady(GccArguments)));
     connect(parser, SIGNAL(done()), parser, SLOT(deleteLater()));
-    QList<QByteArray> makefileArgs = it.value().first;
+    QList<ByteArray> makefileArgs = it.value().first;
     if (mOptions.options & UseDashB)
         makefileArgs.append("-B");
     parser->run(it.key(), makefileArgs);
@@ -279,8 +281,8 @@ void Server::make(const QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> >
 void Server::handleOutputMessage(OutputMessage *message)
 {
     Connection *conn = qobject_cast<Connection*>(sender());
-    const QList<QByteArray> names = message->name().split(',');
-    foreach(const QByteArray& name, names) {
+    const QList<ByteArray> names = message->name().split(',');
+    foreach(const ByteArray& name, names) {
         if (name == "log") {
             new Rdm::LogObject(conn, message->level());
         } else {
@@ -393,7 +395,7 @@ void Server::onComplete(int id)
     it.value()->finish();
 }
 
-void Server::onOutput(int id, const QByteArray &response)
+void Server::onOutput(int id, const ByteArray &response)
 {
     QHash<int, Connection*>::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
@@ -469,7 +471,7 @@ int Server::referencesForName(const QueryMessage& query)
 {
     const int id = nextId();
 
-    const QByteArray name = query.query().value(0);
+    const ByteArray name = query.query().value(0);
     error("rc -R \"%s\"", name.constData());
 
     ReferencesJob *job = new ReferencesJob(id, name, query.flags());
@@ -481,7 +483,7 @@ int Server::referencesForName(const QueryMessage& query)
 
 int Server::findSymbols(const QueryMessage &query)
 {
-    const QByteArray partial = query.query().value(0);
+    const ByteArray partial = query.query().value(0);
     const int id = nextId();
 
     error("rc -F \"%s\"", partial.constData());
@@ -494,7 +496,7 @@ int Server::findSymbols(const QueryMessage &query)
 
 int Server::listSymbols(const QueryMessage &query)
 {
-    const QByteArray partial = query.query().value(0);
+    const ByteArray partial = query.query().value(0);
     const int id = nextId();
 
     error("rc -S \"%s\"", partial.constData());
@@ -508,7 +510,7 @@ int Server::listSymbols(const QueryMessage &query)
 
 int Server::dump(const QueryMessage &query)
 {
-    const QByteArray partial = query.query().value(0);
+    const ByteArray partial = query.query().value(0);
     const int id = nextId();
 
     error("rc -d \"%s\"", partial.constData());
@@ -564,7 +566,7 @@ int Server::test(const QueryMessage &query)
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)
 {
-    const QByteArray fixIts = mIndexer->fixIts(query.query().value(0));
+    const ByteArray fixIts = mIndexer->fixIts(query.query().value(0));
 
     error("rc -x \"%s\"", fixIts.constData());
 
@@ -575,7 +577,7 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
 
 void Server::errors(const QueryMessage &query, Connection *conn)
 {
-    const QByteArray errors = mIndexer->errors(query.query().value(0));
+    const ByteArray errors = mIndexer->errors(query.query().value(0));
 
     error("rc -Q \"%s\"", errors.constData());
 
@@ -616,7 +618,7 @@ Path Server::pchDir()
     return sBase + "pch/";
 }
 
-void Server::setBaseDirectory(const QByteArray& base, bool clear)
+void Server::setBaseDirectory(const ByteArray& base, bool clear)
 {
     sBase = base;
     if (!sBase.endsWith('/'))
@@ -625,24 +627,24 @@ void Server::setBaseDirectory(const QByteArray& base, bool clear)
     QDir dir;
     dir.mkpath(sBase);
     if (clear) {
-        RTags::removeDirectory(Server::pchDir());
+        RTags::removeDirectory(Server::pchDir().constData());
         for (int i=0; i<DatabaseTypeCount; ++i)
             RTags::removeDirectory(databaseDir(static_cast<Server::DatabaseType>(i)).constData());
         error() << "cleared database dir" << base;
     }
 }
 
-void Server::reindex(const QByteArray &pattern)
+void Server::reindex(const ByteArray &pattern)
 {
     mIndexer->reindex(pattern);
 }
 
-void Server::remake(const QByteArray &pattern, Connection *conn)
+void Server::remake(const ByteArray &pattern, Connection *conn)
 {
     error() << "remake" << pattern;
     QRegExp rx(pattern);
-    for (QHash<Path, QPair<QList<QByteArray>, QList<QByteArray> > >::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
-        if (rx.isEmpty() || QString::fromLocal8Bit(it.key()).contains(rx)) {
+    for (QHash<Path, QPair<QList<ByteArray>, QList<ByteArray> > >::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
+        if (rx.isEmpty() || rx.indexIn(it.key()) != -1) {
             qDebug() << "calling remake on" << it.key();
             ResponseMessage msg("Remaking " + it.key());
             conn->send(&msg);
@@ -656,7 +658,7 @@ void Server::remake(const QByteArray &pattern, Connection *conn)
 void Server::startJob(Job *job)
 {
     connect(job, SIGNAL(complete(int)), this, SLOT(onComplete(int)));
-    connect(job, SIGNAL(output(int, QByteArray)), this, SLOT(onOutput(int, QByteArray)));
+    connect(job, SIGNAL(output(int, ByteArray)), this, SLOT(onOutput(int, ByteArray)));
     mThreadPool->start(job, job->priority());
 }
 
@@ -694,7 +696,7 @@ void Server::onFileReady(const GccArguments &args)
     MakefileParser *parser = qobject_cast<MakefileParser*>(sender());
 
     if (args.type() == GccArguments::Pch) {
-        QByteArray output = args.outputFile();
+        ByteArray output = args.outputFile();
         Q_ASSERT(!output.isEmpty());
         const int ext = output.lastIndexOf(".gch/c");
         if (ext != -1) {
@@ -703,20 +705,20 @@ void Server::onFileReady(const GccArguments &args)
             error("couldn't find .gch in pch output");
             return;
         }
-        const QByteArray input = args.inputFiles().front();
+        const ByteArray input = args.inputFiles().front();
         parser->setPch(output, input);
     }
 
-    QList<QByteArray> arguments = args.clangArgs();
+    QList<ByteArray> arguments = args.clangArgs();
     if (args.lang() == GccArguments::CPlusPlus) {
-        foreach(const QByteArray &pch, parser->mapPchToInput(args.explicitIncludes())) {
+        foreach(const ByteArray &pch, parser->mapPchToInput(args.explicitIncludes())) {
             arguments.append("-include-pch");
             arguments.append(pch);
         }
     }
     arguments.append(mOptions.defaultArguments);
 
-    foreach(const QByteArray &input, args.inputFiles()) {
+    foreach(const ByteArray &input, args.inputFiles()) {
         if (arguments != Rdm::compileArgs(Location::insertFile(input))) {
             mIndexer->index(input, arguments, IndexerJob::Makefile);
         } else {

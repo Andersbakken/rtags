@@ -1,7 +1,7 @@
 #ifndef Location_h
 #define Location_h
 
-#include <QByteArray>
+#include <ByteArray.h>
 #include <QReadWriteLock>
 #include <Path.h>
 #include <Log.h>
@@ -111,7 +111,7 @@ public:
         return offset() < other.offset();
     }
 
-    QByteArray context() const
+    ByteArray context() const
     {
         const quint32 off = offset();
         quint32 o = off;
@@ -124,17 +124,17 @@ public:
                     break;
                 if (fseek(f, --o, SEEK_SET) == -1) {
                     fclose(f);
-                    return QByteArray();
+                    return ByteArray();
                 }
             }
             char buf[1024] = { '\0' };
             const int len = RTags::readLine(f, buf, 1023);
             fclose(f);
-            return QByteArray(buf, len);
+            return ByteArray(buf, len);
         }
         if (f)
             fclose(f);
-        return QByteArray();
+        return ByteArray();
     }
 
     bool convertOffset(int &line, int &col) const
@@ -170,10 +170,10 @@ public:
     }
 
 
-    QByteArray key(unsigned flags = RTags::NoFlag) const
+    ByteArray key(unsigned flags = RTags::NoFlag) const
     {
         if (isNull())
-            return QByteArray();
+            return ByteArray();
         int extra = 0;
         const int off = offset();
         int line = 0, col = 0;
@@ -185,15 +185,16 @@ public:
             flags &= ~RTags::ShowLineNumbers;
             extra = RTags::digits(off) + 1;
         }
-        QByteArray ctx;
+        ByteArray ctx;
         if (flags & RTags::ShowContext) {
-            ctx += '\t' + context();
+            ctx += '\t';
+            ctx += context();
             extra += ctx.size();
         }
 
         const Path p = path();
 
-        QByteArray ret(p.size() + extra, '0');
+        ByteArray ret(p.size() + extra, '0');
 
         if (flags & RTags::Padded) {
             snprintf(ret.data(), ret.size() + extra + 1, "%s,%06d%s", p.constData(),
@@ -226,12 +227,11 @@ public:
         return ret;
     }
 
-    static Location decodeClientLocation(const QByteArray &data)
+    static Location decodeClientLocation(const ByteArray &data)
     {
-        QDataStream ds(data);
-        Path path;
         quint32 offset;
-        ds >> path >> offset;
+        memcpy(&offset, data.constData() + data.size() - sizeof(offset), sizeof(offset));
+        const Path path(data.constData(), data.size() - sizeof(offset));
         QReadLocker lock(&sLock);
         const quint32 fileId = sPathsToIds.value(path, 0);
         if (fileId)
@@ -239,7 +239,7 @@ public:
         error("Failed to make location from [%s,%d]", path.constData(), offset);
         return Location();
     }
-    static Location fromPathAndOffset(const QByteArray &pathAndOffset)
+    static Location fromPathAndOffset(const ByteArray &pathAndOffset)
     {
         const int comma = pathAndOffset.lastIndexOf(',');
         if (comma <= 0 || comma + 1 == pathAndOffset.size()) {
@@ -247,7 +247,7 @@ public:
             return Location();
         }
         bool ok;
-        const quint32 fileId = QByteArray::fromRawData(pathAndOffset.constData() + comma + 1, pathAndOffset.size() - comma - 1).toUInt(&ok);
+        const quint32 fileId = ByteArray(pathAndOffset.constData() + comma + 1, pathAndOffset.size() - comma - 1).toUInt(&ok);
         if (!ok) {
             error("Can't create location from this: %s", pathAndOffset.constData());
             return Location();
@@ -277,7 +277,7 @@ static inline QDataStream &operator>>(QDataStream &ds, Location &loc)
 
 static inline QDebug operator<<(QDebug dbg, const Location &loc)
 {
-    const QByteArray out = "Location(" + loc.key() + ")";
+    const ByteArray out = "Location(" + loc.key() + ")";
     return (dbg << out);
 }
 
