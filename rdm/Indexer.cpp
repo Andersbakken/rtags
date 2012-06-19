@@ -64,7 +64,7 @@ Indexer::Indexer(const QByteArray &path, QObject *parent)
 
 Indexer::~Indexer()
 {
-    // QMutexLocker locker(&mMutex);
+    // MutexLocker locker(&mMutex);
 
     // write out FileInformation for all the files that are waiting for pch maybe
 }
@@ -111,7 +111,7 @@ void Indexer::initDB(InitMode mode, const QByteArray &pattern)
         Batch batch(fileInformationDB);
         it.reset(fileInformationDB->createIterator());
         it->seekToFirst();
-        QMutexLocker lock(&mVisitedFilesMutex);
+        MutexLocker lock(&mVisitedFilesMutex);
         QRegExp rx(pattern);
         while (it->isValid()) {
             const Slice key = it->key();
@@ -169,7 +169,7 @@ void Indexer::initDB(InitMode mode, const QByteArray &pattern)
         return;
 
     {
-        QMutexLocker lock(&mVisitedFilesMutex);
+        MutexLocker lock(&mVisitedFilesMutex);
         mVisitedFiles -= dirtyFiles;
     }
 
@@ -209,7 +209,7 @@ void Indexer::commitDependencies(const DependencyHash &deps, bool sync)
     Path parentPath;
     QSet<QString> watchPaths;
     const DependencyHash::const_iterator end = newDependencies.end();
-    QMutexLocker lock(&mWatchedMutex);
+    MutexLocker lock(&mWatchedMutex);
     for (DependencyHash::const_iterator it = newDependencies.begin(); it != end; ++it) {
         const Path path = Location::path(it.key());
         parentPath = path.parentDir();
@@ -229,7 +229,7 @@ void Indexer::commitDependencies(const DependencyHash &deps, bool sync)
 
 int Indexer::index(const Path &input, const QList<QByteArray> &arguments, unsigned indexerJobFlags)
 {
-    QMutexLocker locker(&mMutex);
+    MutexLocker locker(&mMutex);
 
     if (mIndexing.contains(input))
         return -1;
@@ -267,8 +267,8 @@ void Indexer::onDirectoryChanged(const QString &path)
 
     Q_ASSERT(p.endsWith('/'));
     {
-        QMutexLocker watchedLock(&mWatchedMutex);
-        QMutexLocker visitedLock(&mVisitedFilesMutex);
+        MutexLocker watchedLock(&mWatchedMutex);
+        MutexLocker visitedLock(&mVisitedFilesMutex);
         WatchedHash::iterator it = mWatched.find(p);
         if (it == mWatched.end()) {
             error() << "directory changed, but not in watched list" << p;
@@ -349,7 +349,7 @@ void Indexer::onJobComplete(int id, const Path &input, bool isPch, const QByteAr
 {
     Q_UNUSED(input);
 
-    QMutexLocker locker(&mMutex);
+    MutexLocker locker(&mMutex);
     mJobs.remove(id);
     mIndexing.remove(input);
     if (isPch) {
@@ -403,7 +403,7 @@ QSet<quint32> Indexer::pchDependencies(const Path &pchHeader) const
 
 void Indexer::addDependencies(const DependencyHash &deps)
 {
-    QMutexLocker lock(&mMutex);
+    MutexLocker lock(&mMutex);
     commitDependencies(deps, true);
 }
 
@@ -444,7 +444,7 @@ bool Indexer::needsToWaitForPch(IndexerJob *job) const
 
 void Indexer::abort()
 {
-    QMutexLocker lock(&mMutex);
+    MutexLocker lock(&mMutex);
     qDeleteAll(mWaitingForPCH);
     mWaitingForPCH.clear();
     foreach(IndexerJob *job, mJobs) {

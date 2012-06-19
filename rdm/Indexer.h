@@ -25,7 +25,7 @@ public:
     Path path() const { return mPath; }
     void abort();
     bool visitFile(quint32 fileId, const Path &p);
-    QSet<quint32> visitedFiles() const { QMutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
+    QSet<quint32> visitedFiles() const { MutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
     QByteArray fixIts(const Path &path) const;
     QByteArray errors(const Path &path) const;
     void setDiagnostics(const QHash<quint32, QList<QByteArray> > &errors,
@@ -50,14 +50,14 @@ private:
     mutable QReadWriteLock mPchUSRHashLock;
     QHash<Path, PchUSRHash> mPchUSRHashes;
 
-    mutable QMutex mVisitedFilesMutex;
+    mutable Mutex mVisitedFilesMutex;
     QSet<quint32> mVisitedFiles;
 
     mutable QReadWriteLock mPchDependenciesLock;
     QHash<Path, QSet<quint32> > mPchDependencies;
     int mJobCounter;
 
-    QMutex mMutex;
+    Mutex mMutex;
     QSet<Path> mIndexing;
 
     QByteArray mPath;
@@ -68,7 +68,7 @@ private:
 
     QFileSystemWatcher mWatcher;
     DependencyHash mDependencies;
-    QMutex mWatchedMutex;
+    Mutex mWatchedMutex;
     WatchedHash mWatched;
 
     QMap<Location, QPair<int, QByteArray> > mFixIts;
@@ -78,7 +78,7 @@ private:
 
 inline bool Indexer::visitFile(quint32 fileId, const Path &path)
 {
-    QMutexLocker lock(&mVisitedFilesMutex);
+    MutexLocker lock(&mVisitedFilesMutex);
     if (mVisitedFiles.contains(fileId)) {
         return false;
     }

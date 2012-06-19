@@ -1,8 +1,9 @@
 #include "Log.h"
+#include "Mutex.h"
+#include "MutexLocker.h"
 #include "Path.h"
 #include <stdio.h>
 #include <QDateTime>
-#include <QMutex>
 #include <QMetaObject>
 #include <QMetaEnum>
 #include <errno.h>
@@ -12,14 +13,14 @@
 static unsigned sFlags = 0;
 static QElapsedTimer sStart;
 static QSet<Output*> sOutputs;
-static QMutex sOutputsMutex;
+static Mutex sOutputsMutex;
 static int sLevel = 0;
 
 static void cleanupSinks()
 {
     QSet<Output*> copy;
     {
-        QMutexLocker lock(&sOutputsMutex);
+        MutexLocker lock(&sOutputsMutex);
         qSwap(copy, sOutputs);
     }
     qDeleteAll(copy);
@@ -98,7 +99,7 @@ static void log(int level, const char *format, va_list v)
         n = vsnprintf(msg, n + 1, format, v);
     }
 
-    QMutexLocker lock(&sOutputsMutex);
+    MutexLocker lock(&sOutputsMutex);
     foreach(Output *output, sOutputs) {
         if (output->testLog(level)) {
             output->log(msg, n);
@@ -151,14 +152,14 @@ void error(const char *format, ...)
 
 static inline void removeOutputs()
 {
-    QMutexLocker lock(&sOutputsMutex);
+    MutexLocker lock(&sOutputsMutex);
     qDeleteAll(sOutputs);
     sOutputs.clear();
 }
 
 bool testLog(int level)
 {
-    QMutexLocker lock(&sOutputsMutex);
+    MutexLocker lock(&sOutputsMutex);
     foreach(const Output *output, sOutputs)
         if (output->testLog(level))
             return true;
@@ -218,7 +219,7 @@ Log &Log::operator=(const Log &other)
 
 Output::Output()
 {
-    QMutexLocker lock(&sOutputsMutex);
+    MutexLocker lock(&sOutputsMutex);
     if (sOutputs.isEmpty()) {
         qAddPostRoutine(cleanupSinks);
     }
@@ -227,7 +228,7 @@ Output::Output()
 
 Output::~Output()
 {
-    QMutexLocker lock(&sOutputsMutex);
+    MutexLocker lock(&sOutputsMutex);
     sOutputs.remove(this);
 }
 

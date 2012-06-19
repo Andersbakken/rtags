@@ -7,6 +7,8 @@
 #include <Path.h>
 #include <RTags.h>
 #include <QDebug>
+#include "Mutex.h"
+#include "MutexLocker.h"
 #include "Location.h"
 #include "Log.h"
 #include "ResponseMessage.h"
