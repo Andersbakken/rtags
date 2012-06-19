@@ -37,13 +37,20 @@ void ReferencesJob::execute()
         Location realLoc;
         CursorInfo cursorInfo = Rdm::findCursorInfo(db, location, &realLoc);
         if (Rdm::isReference(cursorInfo.kind)) {
-            filtered.insert(cursorInfo.target);
+            if (excludeDefsAndDecls) {
+                filtered.insert(cursorInfo.target);
+            } else {
+                refs.insert(cursorInfo.target);
+            }
             cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
-        } else if (excludeDefsAndDecls) {
-            filtered.insert(realLoc);
         } else {
-            refs.insert(realLoc);
+            if (excludeDefsAndDecls) {
+                filtered.insert(realLoc);
+            } else {
+                refs.insert(realLoc);
+            }
         }
+
         if (cursorInfo.isValid()) {
             if (cursorInfo.target.isValid()) {
                 if (excludeDefsAndDecls) {
