@@ -100,7 +100,16 @@ public:
     inline void clear() { mData = 0; mCachedPath.clear(); }
     inline bool operator==(const Location &other) const { return mData == other.mData; }
     inline bool operator!=(const Location &other) const { return mData != other.mData; }
-    inline bool operator<(const Location &other) const { return mData < other.mData; }
+    inline bool operator<(const Location &other) const
+    {
+        const int off = other.fileId() - fileId();
+        if (off < 0) {
+            return true;
+        } else if (off > 0) {
+            return false;
+        }
+        return offset() < other.offset();
+    }
 
     QByteArray context() const
     {
