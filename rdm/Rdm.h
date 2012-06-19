@@ -67,12 +67,25 @@ enum ReferenceType {
 class Database;
 typedef QHash<Location, CursorInfo> SymbolHash;
 typedef QHash<Location, QPair<Location, Rdm::ReferenceType> > ReferenceHash;
-typedef QHash<ByteArray, QSet<Location> > SymbolNameHash;
-typedef QHash<quint32, QSet<quint32> > DependencyHash;
+typedef QHash<ByteArray, Set<Location> > SymbolNameHash;
+typedef QHash<quint32, Set<quint32> > DependencyHash;
 typedef QPair<ByteArray, time_t> WatchedPair;
 typedef QHash<ByteArray, Location> PchUSRHash;
-typedef QHash<Path, QSet<WatchedPair> > WatchedHash;
+typedef QHash<Path, Set<WatchedPair> > WatchedHash;
 typedef QHash<quint32, FileInformation> InformationHash;
+
+inline std::size_t hash_value(const QPair<ByteArray, time_t> &pair)
+{
+    std::size_t h1 = hash_value(pair.first);
+    std::size_t h2 = hash_value(pair.second);
+    return ((h1 << 16) | (h1 >> 16)) ^ h2;
+}
+
+inline std::size_t hash_value(const QString &string)
+{
+    const QByteArray ba = string.toLocal8Bit();
+    return hashString(ba.constData(), ba.size());
+}
 
 namespace Rdm {
 static inline bool isPch(const QList<ByteArray> &args)
@@ -133,11 +146,11 @@ static inline bool addTo(Container &container, const Value &value)
 CursorInfo findCursorInfo(Database *db, const Location &key, Location *loc = 0);
 int writeSymbolNames(SymbolNameHash &symbolNames);
 int writeDependencies(const DependencyHash &dependencies);
-int writePchDepencies(const QHash<Path, QSet<quint32> > &pchDependencies);
+int writePchDepencies(const QHash<Path, Set<quint32> > &pchDependencies);
 int writeFileInformation(quint32 fileId, const QList<ByteArray> &args, time_t lastTouched);
 int writePchUSRHashes(const QHash<Path, PchUSRHash> &hashes);
 int writeSymbols(SymbolHash &symbols, const ReferenceHash &references, quint32 fileId);
-int dirty(const QSet<quint32> &dirtyFileIds);
+int dirty(const Set<quint32> &dirtyFileIds);
 QList<ByteArray> compileArgs(quint32 fileId);
 // the symbols will be modified before writing and we don't want to detach so we
 // work on a non-const reference

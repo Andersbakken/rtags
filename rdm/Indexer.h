@@ -17,15 +17,15 @@ public:
 
     int index(const Path &input, const QList<ByteArray> &arguments, unsigned indexerJobFlags);
 
-    void setPchDependencies(const Path &pchHeader, const QSet<quint32> &deps);
+    void setPchDependencies(const Path &pchHeader, const Set<quint32> &deps);
     void addDependencies(const DependencyHash &hash);
-    QSet<quint32> pchDependencies(const Path &pchHeader) const;
+    Set<quint32> pchDependencies(const Path &pchHeader) const;
     QHash<ByteArray, Location> pchUSRHash(const QList<Path> &pchFiles) const;
     void setPchUSRHash(const Path &pch, const PchUSRHash &astHash);
     Path path() const { return mPath; }
     void abort();
     bool visitFile(quint32 fileId, const Path &p);
-    QSet<quint32> visitedFiles() const { MutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
+    Set<quint32> visitedFiles() const { MutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path) const;
     void setDiagnostics(const QHash<quint32, QList<ByteArray> > &errors,
@@ -51,14 +51,14 @@ private:
     QHash<Path, PchUSRHash> mPchUSRHashes;
 
     mutable Mutex mVisitedFilesMutex;
-    QSet<quint32> mVisitedFiles;
+    Set<quint32> mVisitedFiles;
 
     mutable QReadWriteLock mPchDependenciesLock;
-    QHash<Path, QSet<quint32> > mPchDependencies;
+    QHash<Path, Set<quint32> > mPchDependencies;
     int mJobCounter;
 
     Mutex mMutex;
-    QSet<Path> mIndexing;
+    Set<Path> mIndexing;
 
     ByteArray mPath;
     QHash<int, IndexerJob*> mJobs, mWaitingForPCH;

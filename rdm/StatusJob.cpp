@@ -48,7 +48,7 @@ void StatusJob::execute()
             const quint32 key = *reinterpret_cast<const quint32*>(it->key().data());
             snprintf(buf, sizeof(buf), "  %s (%d) is depended on by", Location::path(key).constData(), key);
             write(buf);
-            const QSet<quint32> deps = it->value<QSet<quint32> >();
+            const Set<quint32> deps = it->value<Set<quint32> >();
             foreach (quint32 p, deps) {
                 snprintf(buf, sizeof(buf), "    %s (%d)", Location::path(p).constData(), p);
                 write(buf);
@@ -98,7 +98,7 @@ void StatusJob::execute()
                 return;
             snprintf(buf, sizeof(buf), "  %s:", it->key().byteArray().constData());
             write(buf);
-            const QSet<Location> locations = it->value<QSet<Location> >();
+            const Set<Location> locations = it->value<Set<Location> >();
             foreach (const Location &loc, locations) {
                 snprintf(buf, sizeof(buf), "    %s", loc.key().constData());
                 write(buf);

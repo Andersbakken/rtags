@@ -32,8 +32,8 @@ void RunTestJob::execute()
     } state = None;
     // symbolNames
     ByteArray symbolName;
-    QSet<ByteArray> expectedLocations;
-    QSet<ByteArray> allSymbolNames;
+    Set<ByteArray> expectedLocations;
+    Set<ByteArray> allSymbolNames;
     {
         const QueryMessage msg(QueryMessage::ListSymbols);
         expectedLocations = runJob(new ListSymbolsJob(-1, msg));
@@ -120,12 +120,12 @@ void RunTestJob::execute()
     }
 }
 
-void RunTestJob::testSymbolNames(const ByteArray &symbolName, const QSet<ByteArray> &expectedLocations)
+void RunTestJob::testSymbolNames(const ByteArray &symbolName, const Set<ByteArray> &expectedLocations)
 {
     const QueryMessage msg(QueryMessage::FindSymbols, symbolName, QueryMessage::NoContext);
-    const QSet<ByteArray> actual = runJob(new FindSymbolsJob(-1, msg));
-    QSet<ByteArray> missing = expectedLocations - actual;
-    QSet<ByteArray> unexpected = actual - expectedLocations;
+    const Set<ByteArray> actual = runJob(new FindSymbolsJob(-1, msg));
+    Set<ByteArray> missing = expectedLocations - actual;
+    Set<ByteArray> unexpected = actual - expectedLocations;
     if (!missing.isEmpty() || !unexpected.isEmpty()) {
         write("symbolnames: [" + symbolName + "] failed ("
               + ByteArray::number(missing.size() + unexpected.size()) + " failures)");

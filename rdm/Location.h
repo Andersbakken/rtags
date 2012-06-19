@@ -254,7 +254,7 @@ public:
         }
         return Location(Location::insertFile(Path(pathAndOffset.left(comma))), fileId);
     }
-quint64 mData;
+    quint64 mData;
 private:
     static QHash<Path, quint32> sPathsToIds;
     static QHash<quint32, Path> sIdsToPaths;
@@ -262,6 +262,11 @@ private:
     static QReadWriteLock sLock;
     mutable Path mCachedPath;
 };
+
+inline std::size_t hash_value(const Location &location)
+{
+    return hash_value(location.mData);
+}
 
 static inline QDataStream &operator<<(QDataStream &ds, const Location &loc)
 {

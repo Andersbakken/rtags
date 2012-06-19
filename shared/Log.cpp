@@ -12,13 +12,13 @@
 
 static unsigned sFlags = 0;
 static QElapsedTimer sStart;
-static QSet<Output*> sOutputs;
+static Set<Output*> sOutputs;
 static Mutex sOutputsMutex;
 static int sLevel = 0;
 
 static void cleanupSinks()
 {
-    QSet<Output*> copy;
+    Set<Output*> copy;
     {
         MutexLocker lock(&sOutputsMutex);
         qSwap(copy, sOutputs);

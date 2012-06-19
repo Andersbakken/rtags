@@ -123,9 +123,9 @@ int writeSymbolNames(SymbolNameHash &symbolNames)
     const SymbolNameHash::const_iterator end = symbolNames.end();
     while (it != end) {
         const char *key = it.key().constData();
-        const QSet<Location> added = it.value();
+        const Set<Location> added = it.value();
         bool ok;
-        QSet<Location> current = db->value<QSet<Location> >(key, &ok);
+        Set<Location> current = db->value<Set<Location> >(key, &ok);
         if (!ok) {
             totalWritten += batch.add(key, added);
         } else if (addTo(current, added)) {
@@ -151,8 +151,8 @@ int writeDependencies(const DependencyHash &dependencies)
     const Slice key(buf, 4);
     while (it != end) {
         memcpy(buf, &it.key(), sizeof(buf));
-        QSet<quint32> added = it.value();
-        QSet<quint32> current = db->value<QSet<quint32> >(key);
+        Set<quint32> added = it.value();
+        Set<quint32> current = db->value<Set<quint32> >(key);
         const int oldSize = current.size();
         if (current.unite(added).size() > oldSize) {
             totalWritten += batch.add(key, current);
@@ -161,7 +161,7 @@ int writeDependencies(const DependencyHash &dependencies)
     }
     return totalWritten;
 }
-int writePchDepencies(const QHash<Path, QSet<quint32> > &pchDependencies)
+int writePchDepencies(const QHash<Path, Set<quint32> > &pchDependencies)
 {
     QElapsedTimer timer;
     timer.start();
@@ -244,7 +244,7 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references, quint32 f
     return totalWritten;
 }
 
-int dirty(const QSet<quint32> &dirtyFileIds)
+int dirty(const Set<quint32> &dirtyFileIds)
 {
     QElapsedTimer timer;
     timer.start();
@@ -285,8 +285,8 @@ int dirty(const QSet<quint32> &dirtyFileIds)
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         while (it->isValid()) {
-            QSet<Location> locations = it->value<QSet<Location> >();
-            QSet<Location>::iterator i = locations.begin();
+            Set<Location> locations = it->value<Set<Location> >();
+            Set<Location>::iterator i = locations.begin();
             bool changed = false;
             while (i != locations.end()) {
                 if (dirtyFileIds.contains((*i).fileId())) {
@@ -303,7 +303,7 @@ int dirty(const QSet<quint32> &dirtyFileIds)
                     db->remove(it->key());
                 } else {
                     debug() << "References to" << it->key() << "modified. Changing";
-                    db->setValue<QSet<Location> >(it->key(), locations);
+                    db->setValue<Set<Location> >(it->key(), locations);
                 }
             }
             it->next();

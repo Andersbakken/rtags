@@ -41,7 +41,7 @@ Indexer::Indexer(const ByteArray &path, QObject *parent)
     }
     {
         ScopedDB db = Server::instance()->db(Server::General, ScopedDB::Read);
-        mPchDependencies = db->value<QHash<Path, QSet<quint32> > >("pchDependencies");
+        mPchDependencies = db->value<QHash<Path, Set<quint32> > >("pchDependencies");
     }
     {
         // watcher
@@ -52,7 +52,7 @@ Indexer::Indexer(const ByteArray &path, QObject *parent)
         while (it->isValid()) {
             const Slice key = it->key();
             const quint32 fileId = *reinterpret_cast<const quint32*>(key.data());
-            const QSet<quint32> deps = it->value<QSet<quint32> >();
+            const Set<quint32> deps = it->value<Set<quint32> >();
             dependencies[fileId] = deps;
             it->next();
         }
@@ -79,7 +79,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     Q_ASSERT(mode == ForceDirty || pattern.isEmpty());
     QElapsedTimer timer;
     timer.start();
-    QHash<quint32, QSet<quint32> > deps, depsReversed;
+    QHash<quint32, Set<quint32> > deps, depsReversed;
 
     ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ScopedDB::Read);
     RTags::Ptr<Iterator> it(dependencyDB->createIterator());
@@ -90,7 +90,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
             const Slice key = it->key();
             const quint32 file = *reinterpret_cast<const quint32*>(key.data());
             if (isFile(file)) {
-                const QSet<quint32> v = it->value<QSet<quint32> >();
+                const Set<quint32> v = it->value<Set<quint32> >();
                 depsReversed[file] = v;
                 foreach(const quint32 p, v) {
                     deps[p].insert(file);
@@ -102,7 +102,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
         }
     }
 
-    QSet<quint32> dirtyFiles;
+    Set<quint32> dirtyFiles;
     QHash<Path, QList<ByteArray> > toIndex, toIndexPch;
     int checked = 0;
 
@@ -128,7 +128,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
 #endif
                     ++checked;
                     bool dirty = false;
-                    const QSet<quint32> dependencies = deps.value(fileId);
+                    const Set<quint32> dependencies = deps.value(fileId);
                     Q_ASSERT(dependencies.contains(fileId));
                     foreach(quint32 id, dependencies) {
                         if (dirtyFiles.contains(id)) {
@@ -207,7 +207,7 @@ void Indexer::commitDependencies(const DependencyHash &deps, bool sync)
         Rdm::writeDependencies(newDependencies);
 
     Path parentPath;
-    QSet<QString> watchPaths;
+    Set<QString> watchPaths;
     const DependencyHash::const_iterator end = newDependencies.end();
     MutexLocker lock(&mWatchedMutex);
     for (DependencyHash::const_iterator it = newDependencies.begin(); it != end; ++it) {
@@ -262,7 +262,7 @@ void Indexer::startJob(int id, IndexerJob *job)
 void Indexer::onDirectoryChanged(const QString &path)
 {
     const Path p(ByteArray(path.toLocal8Bit()));
-    QSet<quint32> dirtyFiles;
+    Set<quint32> dirtyFiles;
     QHash<Path, QList<ByteArray> > toIndex, toIndexPch;
 
     Q_ASSERT(p.endsWith('/'));
@@ -277,13 +277,13 @@ void Indexer::onDirectoryChanged(const QString &path)
 
         Path file;
         QList<Path> pending;
-        QSet<WatchedPair>::iterator wit = it.value().begin();
-        QSet<WatchedPair>::const_iterator wend = it.value().end();
+        Set<WatchedPair>::iterator wit = it.value().begin();
+        Set<WatchedPair>::const_iterator wend = it.value().end();
         QList<ByteArray> args;
 
         ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
         while (wit != wend) {
-            // weird API, QSet<>::iterator does not allow for modifications to the referenced value
+            // weird API, Set<>::iterator does not allow for modifications to the referenced value
             file = (p + (*wit).first);
             // qDebug() << "comparing" << file << (file.lastModified() == (*wit).second)
             //          << QDateTime::fromTime_t(file.lastModified());
@@ -384,7 +384,7 @@ void Indexer::onJobComplete(int id, const Path &input, bool isPch, const ByteArr
     sender()->deleteLater();
 }
 
-void Indexer::setPchDependencies(const Path &pchHeader, const QSet<quint32> &deps)
+void Indexer::setPchDependencies(const Path &pchHeader, const Set<quint32> &deps)
 {
     QWriteLocker lock(&mPchDependenciesLock);
     if (deps.isEmpty()) {
@@ -395,7 +395,7 @@ void Indexer::setPchDependencies(const Path &pchHeader, const QSet<quint32> &dep
     Rdm::writePchDepencies(mPchDependencies);
 }
 
-QSet<quint32> Indexer::pchDependencies(const Path &pchHeader) const
+Set<quint32> Indexer::pchDependencies(const Path &pchHeader) const
 {
     QReadLocker lock(&mPchDependenciesLock);
     return mPchDependencies.value(pchHeader);

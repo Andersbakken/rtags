@@ -589,8 +589,11 @@ void IndexerJob::run()
 #endif
                 }
             }
-            if (mFlags & NeedsDirty)
-                Rdm::dirty(QSet<quint32>() << mFileId);
+            if (mFlags & NeedsDirty) {
+                Set<quint32> files;
+                files.insert(mFileId);
+                Rdm::dirty(files);
+            }
             mIndexer->setDiagnostics(visited, fixIts);
             Rdm::writeSymbols(mSymbols, mReferences, mFileId);
             Rdm::writeSymbolNames(mSymbolNames);

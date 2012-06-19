@@ -36,7 +36,7 @@ void ListSymbolsJob::execute()
             bool ok = true;
             if (hasFilter) {
                 ok = false;
-                const QSet<Location> locations = it->value<QSet<Location> >();
+                const Set<Location> locations = it->value<Set<Location> >();
                 foreach(const Location &loc, locations) {
                     if (filter(loc.path())) {
                         ok = true;

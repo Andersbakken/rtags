@@ -49,6 +49,6 @@ private:
     QSharedDataPointer<Shared> mData;
 };
 
-inline uint qHash(const Str &key) { return hash(key.data(), key.length()); }
+inline uint qHash(const Str &key) { return hashString(key.data(), key.length()); }
 
 #endif

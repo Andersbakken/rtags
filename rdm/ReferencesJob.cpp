@@ -19,7 +19,7 @@ void ReferencesJob::execute()
 {
     if (!symbolName.isEmpty()) {
         ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Read);
-        locations = db->value<QSet<Location> >(symbolName);
+        locations = db->value<Set<Location> >(symbolName);
         if (locations.isEmpty()) {
             return;
         }
@@ -28,8 +28,8 @@ void ReferencesJob::execute()
     ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Read);
     const unsigned keyFlags = QueryMessage::keyFlags(flags);
     const quint32 fileFilterId = (flags & QueryMessage::SameFile && symbolName.isEmpty() ? locations.begin()->fileId() : 0);
-    QSet<Location> refs;
-    QSet<Location> filtered;
+    Set<Location> refs;
+    Set<Location> filtered;
     foreach(const Location &location, locations) {
         if (isAborted())
             return;

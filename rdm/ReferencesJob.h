@@ -18,7 +18,7 @@ public:
 protected:
     virtual void execute();
 private:
-    QSet<Location> locations;
+    Set<Location> locations;
     const ByteArray symbolName;
     const unsigned flags;
 };

@@ -48,19 +48,19 @@ template <typename T> T decode(const Slice &slice)
     return t;
 }
 
-template <> inline ByteArray encode(const QSet<Location> &locations)
+template <> inline ByteArray encode(const Set<Location> &locations)
 {
     ByteArray out(locations.size() * sizeof(quint64), '\0');
     quint64 *ptr = reinterpret_cast<quint64*>(out.data());
-    for (QSet<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
+    for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
         *ptr++ = (*it).mData;
     }
     return out;
 }
 
-template <> inline QSet<Location> decode(const Slice &slice)
+template <> inline Set<Location> decode(const Slice &slice)
 {
-    QSet<Location> ret;
+    Set<Location> ret;
     const quint64 *ptr = reinterpret_cast<const quint64*>(slice.data());
     const int count = slice.size() / sizeof(quint64);
     for (int i=0; i<count; ++i) {

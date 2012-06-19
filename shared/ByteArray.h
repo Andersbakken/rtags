@@ -270,7 +270,7 @@ private:
     std::string mString;
 };
 
-inline uint hash(const char *p, int n)
+inline uint hashString(const char *p, int n)
 {
     uint h = 0;
 
@@ -285,7 +285,7 @@ inline uint hash(const char *p, int n)
 
 inline uint qHash(const ByteArray &ba)
 {
-    return qHash(hash(ba.constData(), ba.size()));
+    return hashString(ba.constData(), ba.size());
 }
 
 inline const ByteArray operator+(const ByteArray &l, const char *r)
@@ -335,6 +335,11 @@ static inline QDataStream &operator>>(QDataStream &ds, ByteArray &ba)
     ba.resize(size);
     ds.readRawData(ba.data(), size);
     return ds;
+}
+
+inline std::size_t hash_value(const ByteArray &ba)
+{
+    return hashString(ba.constData(), ba.size());
 }
 
 #endif

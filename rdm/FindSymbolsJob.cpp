@@ -28,12 +28,12 @@ void FindSymbolsJob::execute()
     } else {
         it->seek(string.constData());
     }
-    QSet<Location> out;
+    Set<Location> out;
     while (it->isValid() && !isAborted()) {
         const ByteArray entry = it->key().byteArray();
         const int cmp = strcmp(string.constData(), entry.constData());
         if (!cmp) {
-            const QSet<Location> locations = it->value<QSet<Location> >();
+            const Set<Location> locations = it->value<Set<Location> >();
             out += locations;
         } else if (cmp > 0) {
             break;

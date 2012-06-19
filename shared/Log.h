@@ -7,6 +7,8 @@
 #include <QSharedData>
 #include <QVariant>
 #include <ByteArray.h>
+#include <Set.h>
+
 class Path;
 
 enum LogLevel {
@@ -124,6 +126,37 @@ public:
         }
         return *this;
     }
+
+    template <typename K> Log &operator<<(const Set<K> &set)
+    {
+        if (mData) {
+            ByteArray out;
+            if (mData->out.isEmpty())
+                out += '\n';
+            out += "Set<";
+            {
+                K key;
+                const QVariant variant = qVariantFromValue<K>(key);
+                out += variant.typeName();
+                out += ">(";
+            }
+            *mData->dbg << out.constData();
+            bool first = true;
+            for (typename Set<K>::const_iterator it = set.begin(); it != set.end(); ++it) {
+                if (!first) {
+                    mData->dbg->nospace() << ", ";
+                } else {
+                    first = false;
+                }
+                mData->dbg->nospace() << *it;
+            }
+            *mData->dbg << ")";
+            mData->dbg->maybeSpace();
+            return *this;
+        }
+        return *this;
+    }
+
 
 private:
     class Data : public QSharedData

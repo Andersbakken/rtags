@@ -21,12 +21,12 @@ void DumpJob::execute()
             break;
         const CursorInfo cursorInfo = it->value<CursorInfo>();
         QString str;
-        QDebug dbg(&str);
-        dbg << k << "symbolLength" << cursorInfo.symbolLength
-            << "target" << cursorInfo.target
-            << "kind" << Rdm::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
-            << "references" << cursorInfo.references;
-        write(str.toLocal8Bit());
+        // QDebug dbg(&str);
+        // dbg << k << "symbolLength" << cursorInfo.symbolLength
+        //     << "target" << cursorInfo.target
+        //     << "kind" << Rdm::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
+        //     << "references" << cursorInfo.references;
+        // write(str.toLocal8Bit());
         it->next();
     }
 }

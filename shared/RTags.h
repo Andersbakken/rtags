@@ -9,6 +9,16 @@
 #include <assert.h>
 #include <getopt.h>
 
+
+inline std::size_t hash_value(uint64_t num)
+{
+    if (sizeof(uint64_t) > sizeof(std::size_t)) {
+        return std::size_t(((num >> (8 * sizeof(std::size_t) - 1)) ^ num) & (~0U));
+    } else {
+        return std::size_t(num & (~0U));
+    }
+}
+
 namespace RTags {
 enum UnitType { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };
 

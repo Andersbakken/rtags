@@ -62,7 +62,7 @@ public:
     const quint32 mFileId;
     const QList<ByteArray> mArgs;
     DependencyHash mDependencies;
-    QSet<quint32> mPchDependencies;
+    Set<quint32> mPchDependencies;
     Indexer *mIndexer;
     QHash<ByteArray, Location> mPchUSRHash;
 

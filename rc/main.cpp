@@ -92,14 +92,14 @@ struct Command
 
 struct QueryCommand : public Command
 {
-    QueryCommand(QueryMessage::Type t, const ByteArray &q, const unsigned &qf, const QSet<ByteArray> &p)
+    QueryCommand(QueryMessage::Type t, const ByteArray &q, const unsigned &qf, const Set<ByteArray> &p)
         : type(t), query(q), queryFlags(qf), pathFilters(p)
     {}
 
     const QueryMessage::Type type;
     const ByteArray query;
     const unsigned &queryFlags; // eeh
-    const QSet<ByteArray> &pathFilters; // eeh
+    const Set<ByteArray> &pathFilters; // eeh
 
     virtual void exec(Client *client)
     {
@@ -210,7 +210,7 @@ int main(int argc, char** argv)
 
     QList<Command*> commands;
     QList<ByteArray> extraFlags;
-    QSet<ByteArray> pathFilters;
+    Set<ByteArray> pathFilters;
     unsigned queryFlags = 0;
     unsigned clientFlags = 0;
     QList<ByteArray> rdmArgs;

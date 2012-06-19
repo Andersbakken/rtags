@@ -27,7 +27,7 @@ public:
         symbolName.clear();
     }
 
-    bool dirty(const QSet<quint32> &fileIds)
+    bool dirty(const Set<quint32> &fileIds)
     {
         bool changed = false;
         if (fileIds.contains(target.fileId())) {
@@ -35,7 +35,7 @@ public:
             target.clear();
         }
 
-        QSet<Location>::iterator it = references.begin();
+        Set<Location>::iterator it = references.begin();
         while (it != references.end()) {
             if (fileIds.contains((*it).fileId())) {
                 changed = true;
@@ -90,7 +90,7 @@ public:
     CXCursorKind kind;
     bool isDefinition;
     Location target;
-    QSet<Location> references;
+    Set<Location> references;
 };
 
 #endif
