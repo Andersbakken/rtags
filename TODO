@@ -10,3 +10,5 @@ do eventsource from rdm to emacs
 we break on dos line endings. We could solve this by using
    line/col when emacs has converted the line endings. rc needs to
    understand lines columns
+
+-r not properly sorted?
