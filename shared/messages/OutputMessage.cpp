@@ -1,5 +1,5 @@
 #include "OutputMessage.h"
-#include <QDataStream>
+#include <Serializer.h>
 
 OutputMessage::OutputMessage(QObject *parent)
     : mLevel(0)
@@ -23,17 +23,16 @@ int OutputMessage::level() const
 
 ByteArray OutputMessage::toByteArray() const
 {
-    QByteArray data;
+    ByteArray data;
     {
-        QDataStream stream(&data, QIODevice::WriteOnly);
+        Serializer stream(data);
         stream << mName << mLevel;
     }
-    return ByteArray(data.constData(), data.size());
+    return data;
 }
 
 void OutputMessage::fromByteArray(const ByteArray &data)
 {
-    const QByteArray ba = QByteArray::fromRawData(data.constData(), data.size());
-    QDataStream stream(ba);
-    stream >> mName >> mLevel;
+    Deserializer ds(data.constData(), data.size());
+    ds >> mName >> mLevel;
 }

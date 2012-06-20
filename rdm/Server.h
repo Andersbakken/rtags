@@ -124,7 +124,7 @@ private:
     bool mVerbose;
     int mJobId;
     static Path sBase;
-    Map<Path, QPair<List<ByteArray>, List<ByteArray> > > mMakefiles;
+    Map<Path, std::pair<List<ByteArray>, List<ByteArray> > > mMakefiles;
     Database *mDBs[DatabaseTypeCount];
     ThreadPool *mThreadPool;
 };

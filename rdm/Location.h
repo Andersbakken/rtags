@@ -9,6 +9,7 @@
 #include <assert.h>
 #include "RTags.h"
 #include <clang-c/Index.h>
+#include <Serializer.h>
 
 class Location
 {
@@ -263,18 +264,21 @@ private:
     mutable Path mCachedPath;
 };
 
-static inline QDataStream &operator<<(QDataStream &ds, const Location &loc)
+template <> inline int fixedSize(const Location &)
 {
-    ds << quint64(loc.mData);
-    return ds;
+    return sizeof(uint64_t);
 }
 
-static inline QDataStream &operator>>(QDataStream &ds, Location &loc)
+template <> inline Serializer &operator<<(Serializer &s, const Location &t)
 {
-    quint64 tmp;
-    ds >> tmp;
-    loc.mData = tmp;
-    return ds;
+    s.write(reinterpret_cast<const char*>(&t.mData), sizeof(uint64_t));
+    return s;
+}
+
+template <> inline Deserializer &operator>>(Deserializer &s, Location &t)
+{
+    s.read(reinterpret_cast<char*>(&t), sizeof(uint64_t));
+    return s;
 }
 
 static inline QDebug operator<<(QDebug dbg, const Location &loc)

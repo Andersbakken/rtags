@@ -17,22 +17,4 @@ static inline QDebug operator<<(QDebug dbg, const Source &s)
     return dbg;
 }
 
-static inline QDataStream &operator<<(QDataStream &ds, const Source &s)
-{
-    ds << s.args << s.lastModified;
-    ds << s.fromUnsavedFile;
-    if (!s.fromUnsavedFile)
-        ds << s.dependencies;
-    return ds;
-}
-
-static inline QDataStream &operator>>(QDataStream &ds, Source &s)
-{
-    ds >> s.args >> s.lastModified >> s.fromUnsavedFile;
-
-    if (!s.fromUnsavedFile)
-        ds >> s.dependencies;
-    return ds;
-}
-
 #endif

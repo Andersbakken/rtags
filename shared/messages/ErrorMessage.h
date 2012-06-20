@@ -4,6 +4,7 @@
 #include <QObject>
 #include "Message.h"
 #include <ByteArray.h>
+#include <Serializer.h>
 
 class ErrorMessage : public Message
 {
@@ -29,5 +30,7 @@ private:
     Error mError;
     ByteArray mMessage;
 };
+
+DECLARE_NATIVE_TYPE(ErrorMessage::Error);
 
 #endif // ERRORMESSAGE_H

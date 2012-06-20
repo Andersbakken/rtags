@@ -4,6 +4,7 @@
 #include "Message.h"
 #include "Path.h"
 #include <QtCore>
+#include <Serializer.h>
 
 class QueryMessage : public Message
 {
@@ -66,5 +67,7 @@ private:
     unsigned mFlags;
     List<ByteArray> mPathFilters;
 };
+
+DECLARE_NATIVE_TYPE(QueryMessage::Type);
 
 #endif // QUERYMESSAGE_H

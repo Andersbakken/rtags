@@ -311,21 +311,6 @@ inline QDebug operator<<(QDebug dbg, const ByteArray &ba)
     return dbg;
 }
 
-static inline QDataStream &operator<<(QDataStream &ds, const ByteArray &ba)
-{
-    ds.writeBytes(ba.constData(), ba.size());
-    return ds;
-}
-
-static inline QDataStream &operator>>(QDataStream &ds, ByteArray &ba)
-{
-    uint32_t size;
-    ds >> size;
-    ba.resize(size);
-    ds.readRawData(ba.data(), size);
-    return ds;
-}
-
 Q_DECLARE_METATYPE(ByteArray);
 Q_DECLARE_METATYPE(List<ByteArray>);
 

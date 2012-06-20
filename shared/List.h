@@ -2,7 +2,6 @@
 #define List_h
 
 #include <vector>
-#include <QDataStream>
 
 template <typename T>
 class List : public std::vector<T>
@@ -25,7 +24,6 @@ public:
         push_back(t);
     }
 
-
     void append(const List<T> &t)
     {
         const int size = t.size();
@@ -43,30 +41,5 @@ public:
         return idx < size() ? std::vector<T>::at(idx) : defaultValue;
     }
 };
-
-template <typename T>
-inline QDataStream &operator<<(QDataStream &ds, const List<T> &list)
-{
-    ds << list.size();
-    for (typename List<T>::const_iterator it = list.begin(); it != list.end(); ++it) {
-        ds << *it;
-    }
-    return ds;
-}
-
-template <typename T>
-inline QDataStream &operator>>(QDataStream &ds, List<T> &list)
-{
-    int size;
-    ds >> size;
-    list.reserve(size);
-    T t;
-    for (int i=0; i<size; ++i) {
-        ds >> t;
-        list.append(t);
-    }
-    return ds;
-}
-
 
 #endif

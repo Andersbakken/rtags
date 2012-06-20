@@ -9,7 +9,6 @@
 #include <QDebug>
 #include <QFile>
 #include <List.h>
-#include <QPair>
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>

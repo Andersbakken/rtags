@@ -1,5 +1,5 @@
 #include "MakefileMessage.h"
-#include <QDataStream>
+#include <Serializer.h>
 
 MakefileMessage::MakefileMessage(QObject *parent)
     : Message(parent)
@@ -14,17 +14,18 @@ MakefileMessage::MakefileMessage(const Path &makefile, const List<ByteArray> &ar
 
 ByteArray MakefileMessage::toByteArray() const
 {
-    QByteArray data;
+    ByteArray data;
     {
-        QDataStream stream(&data, QIODevice::WriteOnly);
-        stream << mMakefile << mArgs << mExtraFlags;
+        Serializer stream(data);
+        stream << mMakefile; // << mArgs << mExtraFlags;
     }
-    return ByteArray(data.constData(), data.size());
+    qDebug() << "toByteArray" << data.size();
+    return data;
 }
 
 void MakefileMessage::fromByteArray(const ByteArray &data)
 {
-    QByteArray ba = QByteArray::fromRawData(data.constData(), data.size());
-    QDataStream stream(ba);
-    stream >> mMakefile >> mArgs >> mExtraFlags;
+    qDebug() << "fromByteArray" << data.size();
+    Deserializer stream(data.constData(), data.size());
+    stream >> mMakefile; // >> mArgs >> mExtraFlags;
 }

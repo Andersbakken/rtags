@@ -38,12 +38,12 @@ void ConnectionPrivate::dataAvailable()
             return;
 
         int id;
-        ByteArray payload;
+        QByteArray payload;
         strm >> id >> payload;
         Q_ASSERT(id > 0 && Connection::sMetas.contains(id));
 
         Connection::Meta m = Connection::sMetas.value(id);
-        QObject* newobj = m.meta->newInstance(Q_ARG(QObject*, conn));
+        QObject *newobj = m.meta->newInstance(Q_ARG(QObject*, conn));
         m.meta->method(m.fromByteArrayId).invoke(newobj, Q_ARG(ByteArray, payload));
         emit conn->newMessage(qobject_cast<Message*>(newobj));
 
@@ -93,7 +93,7 @@ bool Connection::connectToServer(const QString &name)
     return mPriv->socket->waitForConnected(1000);
 }
 
-void Connection::send(int id, const ByteArray& message)
+void Connection::send(int id, const ByteArray &message)
 {
     if (mPriv->socket->state() != QLocalSocket::ConnectedState
         && mPriv->socket->state() != QLocalSocket::ConnectingState) {
@@ -103,7 +103,7 @@ void Connection::send(int id, const ByteArray& message)
     QByteArray data;
     {
         QDataStream strm(&data, QIODevice::WriteOnly);
-        strm << (int)0 << id << message;
+        strm << (int)0 << id << QByteArray::fromRawData(message.constData(), message.size());
         strm.device()->seek(0);
         strm << static_cast<uint32_t>(data.size()) - static_cast<uint32_t>(sizeof(uint32_t));
     }

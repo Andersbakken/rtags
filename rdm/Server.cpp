@@ -159,7 +159,7 @@ bool Server::init(const Options &options)
             error("Wrong version, expected %d, got %d. Run with -C to regenerate database", Rdm::DatabaseVersion, version);
             return false;
         }
-        mMakefiles = general->value<Map<Path, QPair<List<ByteArray>, List<ByteArray> > > >("makefiles");
+        mMakefiles = general->value<Map<Path, std::pair<List<ByteArray>, List<ByteArray> > > >("makefiles");
     }
 
     {
@@ -255,7 +255,7 @@ void Server::onNewMessage(Message *message)
 
 void Server::handleMakefileMessage(MakefileMessage *message)
 {
-    mMakefiles[message->makefile()] = qMakePair(message->arguments(), message->extraFlags());
+    mMakefiles[message->makefile()] = std::pair<List<ByteArray>, List<ByteArray> >(message->arguments(), message->extraFlags());
     ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
     general->setValue("makefiles", mMakefiles);
     make(message->makefile(), message->arguments(), message->extraFlags());
@@ -638,7 +638,7 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
 {
     error() << "remake" << pattern;
     QRegExp rx(pattern);
-    for (Map<Path, QPair<List<ByteArray>, List<ByteArray> > >::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
+    for (Map<Path, std::pair<List<ByteArray>, List<ByteArray> > >::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
         if (rx.isEmpty() || rx.indexIn(it->first) != -1) {
             qDebug() << "calling remake on" << it->first;
             ResponseMessage msg("Remaking " + it->first);

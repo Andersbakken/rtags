@@ -91,28 +91,4 @@ inline const Map<Key, Value> operator-(const Map<Key, Value> &l, const Map<Key, 
     return ret;
 }
 
-template <typename Key, typename Value>
-inline QDataStream &operator<<(QDataStream &ds, const Map<Key, Value> &hash)
-{
-    ds << hash.size();
-    for (typename Map<Key, Value>::const_iterator it = hash.begin(); it != hash.end(); ++it) {
-        ds << it->first << it->second;
-    }
-    return ds;
-}
-
-template <typename Key, typename Value>
-inline QDataStream &operator>>(QDataStream &ds, Map<Key, Value> &hash)
-{
-    int size;
-    ds >> size;
-    Key t;
-    Value v;
-    for (int i=0; i<size; ++i) {
-        ds >> t >> v;
-        hash[t] = v;
-    }
-    return ds;
-}
-
 #endif

@@ -41,6 +41,11 @@ set(shared_HDRS
   WaitCondition.h
   Thread.h
   ThreadPool.h
+  List.h
+  Set.h
+  Map.h
+  ByteArray.h
+  Serializer.h
   messages/MakefileMessage.h
   messages/ErrorMessage.h
   messages/QueryMessage.h

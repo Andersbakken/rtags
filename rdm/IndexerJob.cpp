@@ -387,7 +387,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
                 break;
             }
         }
-        mReferences[cursor.location] = qMakePair(ref.location, referenceType);
+        mReferences[cursor.location] = std::pair<Location, Rdm::ReferenceType>(ref.location, referenceType);
     }
     return CXChildVisit_Recurse;
 }
@@ -498,7 +498,7 @@ void IndexerJob::run()
 
         Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
-        std::map<Location, QPair<int, ByteArray> > fixIts;
+        std::map<Location, std::pair<int, ByteArray> > fixIts;
         Map<uint32_t, List<ByteArray> > visited;
         const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
         for (unsigned i=0; i<diagnosticCount; ++i) {
@@ -551,7 +551,7 @@ void IndexerJob::run()
                 error("Fixit (%d/%d) for %s: %s %s-%d", f + 1, fixItCount, mIn.constData(),
                       clang_getCString(string), start.key().constData(), endOffset);
                 // ### can there be more than one fixit starting at the same location? Probably not.
-                fixIts[start] = qMakePair<int, ByteArray>(endOffset - start.offset(), Rdm::eatString(string));
+                fixIts[start] = std::pair<int, ByteArray>(endOffset - start.offset(), Rdm::eatString(string));
             }
 
             clang_disposeDiagnostic(diagnostic);

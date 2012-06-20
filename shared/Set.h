@@ -92,28 +92,4 @@ inline const Set<T> operator-(const Set<T> &l, const Set<T> &r)
     return ret;
 }
 
-template <typename T>
-inline QDataStream &operator<<(QDataStream &ds, const Set<T> &set)
-{
-    ds << set.size();
-    for (typename Set<T>::const_iterator it = set.begin(); it != set.end(); ++it) {
-        ds << *it;
-    }
-    return ds;
-}
-
-template <typename T>
-inline QDataStream &operator>>(QDataStream &ds, Set<T> &set)
-{
-    int size;
-    ds >> size;
-    T t;
-    for (int i=0; i<size; ++i) {
-        ds >> t;
-        set.insert(t);
-    }
-    return ds;
-}
-
-
 #endif

@@ -26,10 +26,6 @@ set(rdm_HDRS
     MemoryMonitor.h
     Database.h
     Location.h
-    List.h
-    Set.h
-    Map.h
-    ByteArray.h>
     )
 
 set(rdm_SRCS

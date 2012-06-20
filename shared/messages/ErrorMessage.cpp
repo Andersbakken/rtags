@@ -1,5 +1,5 @@
 #include "ErrorMessage.h"
-#include <QDataStream>
+#include <Serializer.h>
 
 ErrorMessage::ErrorMessage(QObject* parent)
     : Message(parent), mError(UnknownError)
@@ -23,19 +23,16 @@ ErrorMessage::ErrorMessage(const ByteArray& message, QObject* parent)
 
 ByteArray ErrorMessage::toByteArray() const
 {
-    QByteArray data;
+    ByteArray data;
     {
-        QDataStream stream(&data, QIODevice::WriteOnly);
-        stream << static_cast<int>(mError) << mMessage;
+        Serializer s(data);
+        s << mError << mMessage;
     }
-    return ByteArray(data.constData(), data.size());
+    return data;
 }
 
 void ErrorMessage::fromByteArray(const ByteArray &data)
 {
-    const QByteArray ba = QByteArray::fromRawData(data.constData(), data.size());
-    QDataStream stream(ba);
-    int err;
-    stream >> err >> mMessage;
-    mError = static_cast<Error>(err);
+    Deserializer ds(data.constData(), data.size());
+    ds >> mError >> mMessage;
 }

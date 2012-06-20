@@ -21,10 +21,10 @@ void StatusJob::execute()
         write(Server::databaseDir(Server::General));
         write("    version: " + ByteArray::number(db->value<int>("version")));
 
-        const Map<Path, QPair<List<ByteArray>, List<ByteArray> > > makefiles
-            = db->value<Map<Path, QPair<List<ByteArray>, List<ByteArray> > > >("makefiles");
+        const Map<Path, std::pair<List<ByteArray>, List<ByteArray> > > makefiles
+            = db->value<Map<Path, std::pair<List<ByteArray>, List<ByteArray> > > >("makefiles");
 
-        for (Map<Path, QPair<List<ByteArray>, List<ByteArray> > >::const_iterator it = makefiles.begin();
+        for (Map<Path, std::pair<List<ByteArray>, List<ByteArray> > >::const_iterator it = makefiles.begin();
              it != makefiles.end(); ++it) {
             ByteArray out = "    " + it->first;
             if (!it->second.first.isEmpty())

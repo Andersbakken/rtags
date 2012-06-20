@@ -216,10 +216,10 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
         WatchedMap::iterator wit = mWatched.find(parentPath);
         //debug() << "watching" << path << "in" << parentPath;
         if (wit == mWatched.end()) {
-            mWatched[parentPath].insert(qMakePair<ByteArray, time_t>(path.fileName(), path.lastModified()));
+            mWatched[parentPath].insert(std::pair<ByteArray, time_t>(path.fileName(), path.lastModified()));
             watchPaths.insert(parentPath);
         } else {
-            wit->second.insert(qMakePair<ByteArray, time_t>(path.fileName(), path.lastModified()));
+            wit->second.insert(std::pair<ByteArray, time_t>(path.fileName(), path.lastModified()));
         }
     }
     if (watchPaths.isEmpty())
@@ -332,7 +332,7 @@ void Indexer::onDirectoryChanged(const QString &path)
         }
 
         foreach(const Path &path, pending) {
-            it->second.insert(qMakePair<ByteArray, time_t>(path.fileName(), path.lastModified()));
+            it->second.insert(std::pair<ByteArray, time_t>(path.fileName(), path.lastModified()));
         }
     }
     if (toIndex.isEmpty() && toIndexPch.isEmpty())
@@ -467,7 +467,7 @@ ByteArray Indexer::fixIts(const Path &path) const
     if (!fileId)
         return ByteArray();
     QReadLocker lock(&mFixItsAndErrorsLock);
-    std::map<Location, QPair<int, ByteArray> >::const_iterator it = mFixIts.lower_bound(Location(fileId, 0));
+    std::map<Location, std::pair<int, ByteArray> >::const_iterator it = mFixIts.lower_bound(Location(fileId, 0));
     ByteArray ret;
     char buf[1024];
     while (it != mFixIts.end() && it->first.fileId() == fileId) {
@@ -496,13 +496,13 @@ ByteArray Indexer::errors(const Path &path) const
 
 
 void Indexer::setDiagnostics(const Map<uint32_t, List<ByteArray> > &diagnostics,
-                             const std::map<Location, QPair<int, ByteArray> > &fixIts)
+                             const std::map<Location, std::pair<int, ByteArray> > &fixIts)
 {
     QWriteLocker lock(&mFixItsAndErrorsLock);
 
     for (Map<uint32_t, List<ByteArray> >::const_iterator it = diagnostics.begin(); it != diagnostics.end(); ++it) {
         const uint32_t fileId = it->first;
-        std::map<Location, QPair<int, ByteArray> >::iterator i = mFixIts.lower_bound(Location(fileId, 0));
+        std::map<Location, std::pair<int, ByteArray> >::iterator i = mFixIts.lower_bound(Location(fileId, 0));
         while (i != mFixIts.end() && i->first.fileId() == fileId) {
             mFixIts.erase(i++);
         }
@@ -512,7 +512,7 @@ void Indexer::setDiagnostics(const Map<uint32_t, List<ByteArray> > &diagnostics,
             mErrors[it->first] = RTags::join(it->second, "\n");
         }
     }
-    for (std::map<Location, QPair<int, ByteArray> >::const_iterator it = fixIts.begin(); it != fixIts.end(); ++it) {
+    for (std::map<Location, std::pair<int, ByteArray> >::const_iterator it = fixIts.begin(); it != fixIts.end(); ++it) {
         mFixIts[it->first] = (*it).second;
     }
 }

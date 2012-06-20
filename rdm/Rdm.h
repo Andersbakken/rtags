@@ -2,6 +2,7 @@
 #define Rdm_h
 
 #include <ByteArray.h>
+#include <Serializer.h>
 #include <QIODevice>
 #include <clang-c/Index.h>
 #include <Path.h>
@@ -39,15 +40,15 @@ struct FileInformation {
     List<ByteArray> compileArgs;
 };
 
-static inline QDataStream &operator<<(QDataStream &ds, const FileInformation &ci)
+static inline Serializer &operator<<(Serializer &s, const FileInformation &ci)
 {
-    ds << static_cast<quint64>(ci.lastTouched) << ci.compileArgs;
-    return ds;
+    s << static_cast<uint64_t>(ci.lastTouched) << ci.compileArgs;
+    return s;
 }
 
-static inline QDataStream &operator>>(QDataStream &ds, FileInformation &ci)
+static inline Deserializer &operator>>(Deserializer &ds, FileInformation &ci)
 {
-    quint64 lastTouched;
+    uint64_t lastTouched;
     ds >> lastTouched;
     ci.lastTouched = static_cast<time_t>(lastTouched);
     ds >> ci.compileArgs;
@@ -66,10 +67,10 @@ enum ReferenceType {
 
 class Database;
 typedef Map<Location, CursorInfo> SymbolMap;
-typedef Map<Location, QPair<Location, Rdm::ReferenceType> > ReferenceMap;
+typedef Map<Location, std::pair<Location, Rdm::ReferenceType> > ReferenceMap;
 typedef Map<ByteArray, Set<Location> > SymbolNameMap;
 typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
-typedef QPair<ByteArray, time_t> WatchedPair;
+typedef std::pair<ByteArray, time_t> WatchedPair;
 typedef Map<ByteArray, Location> PchUSRMap;
 typedef Map<Path, Set<WatchedPair> > WatchedMap;
 typedef Map<uint32_t, FileInformation> InformationMap;
