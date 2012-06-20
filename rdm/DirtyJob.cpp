@@ -10,8 +10,8 @@ void DirtyJob::run()
         error() << "will assert" << mToIndex.size() << mToIndexPch.size() << mDirty;
     }
     Q_ASSERT(!mToIndexPch.isEmpty() || !mToIndex.isEmpty());
-    for (QHash<Path, QList<ByteArray> >::const_iterator it = mToIndexPch.begin(); it != mToIndexPch.end(); ++it)
-        mIndexer->index(it.key(), it.value(), IndexerJob::DirtyPch);
-    for (QHash<Path, QList<ByteArray> >::const_iterator it = mToIndex.begin(); it != mToIndex.end(); ++it)
-        mIndexer->index(it.key(), it.value(), IndexerJob::Dirty);
+    for (Hash<Path, QList<ByteArray> >::const_iterator it = mToIndexPch.begin(); it != mToIndexPch.end(); ++it)
+        mIndexer->index(it->first, it->second, IndexerJob::DirtyPch);
+    for (Hash<Path, QList<ByteArray> >::const_iterator it = mToIndex.begin(); it != mToIndex.end(); ++it)
+        mIndexer->index(it->first, it->second, IndexerJob::Dirty);
 }

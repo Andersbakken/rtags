@@ -54,8 +54,8 @@ public:
         Index,
         DontIndex
     };
-    QHash<quint32, PathState> mPaths;
-    QHash<Str, CXCursor> mHeaderHash;
+    Hash<quint32, PathState> mPaths;
+    Hash<Str, CXCursor> mHeaderHash;
     bool mDoneFullUSRScan;
     ReferenceHash mReferences;
     const Path mIn;
@@ -64,7 +64,7 @@ public:
     DependencyHash mDependencies;
     Set<quint32> mPchDependencies;
     Indexer *mIndexer;
-    QHash<ByteArray, Location> mPchUSRHash;
+    Hash<ByteArray, Location> mPchUSRHash;
 
     QList<Path> mPchHeaders;
     CXTranslationUnit mUnit;

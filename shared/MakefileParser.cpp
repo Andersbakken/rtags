@@ -180,13 +180,13 @@ void MakefileParser::onReadyReadStandardError()
 QList<ByteArray> MakefileParser::mapPchToInput(const QList<ByteArray> &input) const
 {
     QList<ByteArray> output;
-    QHash<ByteArray, ByteArray>::const_iterator pchit;
-    const QHash<ByteArray, ByteArray>::const_iterator pchend = mPchs.end();
+    Hash<ByteArray, ByteArray>::const_iterator pchit;
+    const Hash<ByteArray, ByteArray>::const_iterator pchend = mPchs.end();
     foreach (const ByteArray &in, input) {
-    pchit = mPchs.find(in);
-    if (pchit != pchend)
-        output.append(pchit.value());
-}
+        pchit = mPchs.find(in);
+        if (pchit != pchend)
+            output.append(pchit->second);
+    }
     return output;
 }
 

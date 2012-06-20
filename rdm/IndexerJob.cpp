@@ -415,7 +415,7 @@ struct Scope {
         }
     }
 
-    QHash<Str, CXCursor> &headerHash;
+    Hash<Str, CXCursor> &headerHash;
     CXTranslationUnit &unit;
     CXIndex &index;
 };
@@ -499,7 +499,7 @@ void IndexerJob::run()
         Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
         QMap<Location, QPair<int, ByteArray> > fixIts;
-        QHash<quint32, QList<ByteArray> > visited;
+        Hash<quint32, QList<ByteArray> > visited;
         const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
         for (unsigned i=0; i<diagnosticCount; ++i) {
             CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
@@ -578,13 +578,13 @@ void IndexerJob::run()
         scope.cleanup();
 
         if (!isAborted()) {
-            for (QHash<quint32, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
-                if (it.value() == Index) {
-                    (void)visited[it.key()];
+            for (Hash<quint32, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
+                if (it->second == Index) {
+                    (void)visited[it->first];
 #ifdef QT_DEBUG
-                    if (mFlags & NeedsDirty && it.key() != mFileId && !Location::path(it.key()).isSystem()) {
+                    if (mFlags & NeedsDirty && it->first != mFileId && !Location::path(it->first).isSystem()) {
                         // ideally system headers would have ended up in mVisitedFiles on startup
-                        error("This file should not have been dirty %s %d", Location::path(it.key()).constData(), it.key());
+                        error("This file should not have been dirty %s %d", Location::path(it->first).constData(), it->first);
                     }
 #endif
                 }
@@ -674,9 +674,9 @@ IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind ki
         return ret;
     }
 
-    QHash<Str, CXCursor>::const_iterator it = mHeaderHash.find(usr);
+    Hash<Str, CXCursor>::const_iterator it = mHeaderHash.find(usr);
     if (it != mHeaderHash.end()) {
-        const CXCursor ref = it.value();
+        const CXCursor ref = it->second;
         const Cursor ret = { ref, createLocation(ref, 0), clang_getCursorKind(ref) };
         assert(!clang_equalCursors(ref, cursor)); // ### why is this happening?
         return ret;

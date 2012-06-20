@@ -4,7 +4,7 @@
 #include <QObject>
 #include <ByteArray.h>
 #include <QList>
-#include <QHash>
+#include <Hash.h>
 #include "QueryMessage.h"
 #include "Connection.h"
 #include "Job.h"
@@ -112,18 +112,18 @@ private:
     void reindex(const ByteArray &pattern);
     void remake(const ByteArray &pattern, Connection *conn);
     void rdmLog(const QueryMessage &message, Connection *conn);
-    void make(const QHash<Path, QPair<QList<ByteArray>, QList<ByteArray> > >::const_iterator it);
+    void make(const Path &path, QList<ByteArray> makefileArgs, const QList<ByteArray> &extraFlags);
 private:
     static Server *sInstance;
     Options mOptions;
     Indexer *mIndexer;
     QLocalServer *mServer;
-    QHash<int, Connection*> mPendingIndexes;
-    QHash<int, Connection*> mPendingLookups;
+    Hash<int, Connection*> mPendingIndexes;
+    Hash<int, Connection*> mPendingLookups;
     bool mVerbose;
     int mJobId;
     static Path sBase;
-    QHash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > mMakefiles;
+    Hash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > mMakefiles;
     Database *mDBs[DatabaseTypeCount];
     QThreadPool *mThreadPool;
 };

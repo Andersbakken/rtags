@@ -5,7 +5,7 @@
 #include "Path.h"
 #include "QueryMessage.h"
 #include <ByteArray.h>
-#include <QHash>
+#include <Hash.h>
 #include <QList>
 #include <QObject>
 

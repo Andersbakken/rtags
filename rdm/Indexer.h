@@ -20,7 +20,7 @@ public:
     void setPchDependencies(const Path &pchHeader, const Set<quint32> &deps);
     void addDependencies(const DependencyHash &hash);
     Set<quint32> pchDependencies(const Path &pchHeader) const;
-    QHash<ByteArray, Location> pchUSRHash(const QList<Path> &pchFiles) const;
+    Hash<ByteArray, Location> pchUSRHash(const QList<Path> &pchFiles) const;
     void setPchUSRHash(const Path &pch, const PchUSRHash &astHash);
     Path path() const { return mPath; }
     void abort();
@@ -28,7 +28,7 @@ public:
     Set<quint32> visitedFiles() const { MutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path) const;
-    void setDiagnostics(const QHash<quint32, QList<ByteArray> > &errors,
+    void setDiagnostics(const Hash<quint32, QList<ByteArray> > &errors,
                         const QMap<Location, QPair<int, ByteArray> > &fixIts);
     void reindex(const ByteArray &pattern);
 signals:
@@ -48,20 +48,20 @@ private:
     void startJob(int id, IndexerJob *job);
 
     mutable QReadWriteLock mPchUSRHashLock;
-    QHash<Path, PchUSRHash> mPchUSRHashes;
+    Hash<Path, PchUSRHash> mPchUSRHashes;
 
     mutable Mutex mVisitedFilesMutex;
     Set<quint32> mVisitedFiles;
 
     mutable QReadWriteLock mPchDependenciesLock;
-    QHash<Path, Set<quint32> > mPchDependencies;
+    Hash<Path, Set<quint32> > mPchDependencies;
     int mJobCounter;
 
     Mutex mMutex;
     Set<Path> mIndexing;
 
     ByteArray mPath;
-    QHash<int, IndexerJob*> mJobs, mWaitingForPCH;
+    Hash<int, IndexerJob*> mJobs, mWaitingForPCH;
 
     bool mTimerRunning;
     QElapsedTimer mTimer;
@@ -72,7 +72,7 @@ private:
     WatchedHash mWatched;
 
     QMap<Location, QPair<int, ByteArray> > mFixIts;
-    QHash<quint32, ByteArray> mErrors;
+    Hash<quint32, ByteArray> mErrors;
     mutable QReadWriteLock mFixItsAndErrorsLock;
 };
 

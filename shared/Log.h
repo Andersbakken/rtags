@@ -7,6 +7,7 @@
 #include <QSharedData>
 #include <QVariant>
 #include <ByteArray.h>
+#include <Hash.h>
 #include <Set.h>
 
 class Path;
@@ -94,10 +95,10 @@ public:
         }
         return *this;
     }
-    template <typename K, typename V> Log &operator<<(const QHash<K, V> &hash)
+    template <typename K, typename V> Log &operator<<(const Hash<K, V> &hash)
     {
         if (mData) {
-            ByteArray out = "QHash<";
+            ByteArray out = "Hash<";
             {
                 const K key;
                 const QVariant variant = qVariantFromValue<K>(key);
@@ -116,7 +117,7 @@ public:
             }
             *mData->dbg << out.constData();
             mData->dbg->nospace() << '\n';
-            for (typename QHash<K, V>::const_iterator it = hash.begin(); it != hash.end(); ++it) {
+            for (typename Hash<K, V>::const_iterator it = hash.begin(); it != hash.end(); ++it) {
                 mData->dbg->nospace() << "  " << it.key() << ": " << it.value();
                 mData->dbg->nospace() << '\n';
             }

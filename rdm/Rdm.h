@@ -65,14 +65,14 @@ enum ReferenceType {
 }
 
 class Database;
-typedef QHash<Location, CursorInfo> SymbolHash;
-typedef QHash<Location, QPair<Location, Rdm::ReferenceType> > ReferenceHash;
-typedef QHash<ByteArray, Set<Location> > SymbolNameHash;
-typedef QHash<quint32, Set<quint32> > DependencyHash;
+typedef Hash<Location, CursorInfo> SymbolHash;
+typedef Hash<Location, QPair<Location, Rdm::ReferenceType> > ReferenceHash;
+typedef Hash<ByteArray, Set<Location> > SymbolNameHash;
+typedef Hash<quint32, Set<quint32> > DependencyHash;
 typedef QPair<ByteArray, time_t> WatchedPair;
-typedef QHash<ByteArray, Location> PchUSRHash;
-typedef QHash<Path, Set<WatchedPair> > WatchedHash;
-typedef QHash<quint32, FileInformation> InformationHash;
+typedef Hash<ByteArray, Location> PchUSRHash;
+typedef Hash<Path, Set<WatchedPair> > WatchedHash;
+typedef Hash<quint32, FileInformation> InformationHash;
 
 inline std::size_t hash_value(const QPair<ByteArray, time_t> &pair)
 {
@@ -146,9 +146,9 @@ static inline bool addTo(Container &container, const Value &value)
 CursorInfo findCursorInfo(Database *db, const Location &key, Location *loc = 0);
 int writeSymbolNames(SymbolNameHash &symbolNames);
 int writeDependencies(const DependencyHash &dependencies);
-int writePchDepencies(const QHash<Path, Set<quint32> > &pchDependencies);
+int writePchDepencies(const Hash<Path, Set<quint32> > &pchDependencies);
 int writeFileInformation(quint32 fileId, const QList<ByteArray> &args, time_t lastTouched);
-int writePchUSRHashes(const QHash<Path, PchUSRHash> &hashes);
+int writePchUSRHashes(const Hash<Path, PchUSRHash> &hashes);
 int writeSymbols(SymbolHash &symbols, const ReferenceHash &references, quint32 fileId);
 int dirty(const Set<quint32> &dirtyFileIds);
 QList<ByteArray> compileArgs(quint32 fileId);

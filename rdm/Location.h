@@ -75,8 +75,8 @@ public:
         return ret;
     }
     static void writeToDB(const Path &path, quint32 file);
-    static void init(const QHash<Path, quint32> &pathsToIds,
-                     const QHash<quint32, Path> &idsToPaths,
+    static void init(const Hash<Path, quint32> &pathsToIds,
+                     const Hash<quint32, Path> &idsToPaths,
                      quint32 maxId)
     {
         sPathsToIds = pathsToIds;
@@ -256,8 +256,8 @@ public:
     }
     quint64 mData;
 private:
-    static QHash<Path, quint32> sPathsToIds;
-    static QHash<quint32, Path> sIdsToPaths;
+    static Hash<Path, quint32> sPathsToIds;
+    static Hash<quint32, Path> sIdsToPaths;
     static quint32 sLastId;
     static QReadWriteLock sLock;
     mutable Path mCachedPath;

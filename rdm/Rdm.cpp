@@ -122,8 +122,8 @@ int writeSymbolNames(SymbolNameHash &symbolNames)
     SymbolNameHash::iterator it = symbolNames.begin();
     const SymbolNameHash::const_iterator end = symbolNames.end();
     while (it != end) {
-        const char *key = it.key().constData();
-        const Set<Location> added = it.value();
+        const char *key = it->first.constData();
+        const Set<Location> added = it->second;
         bool ok;
         Set<Location> current = db->value<Set<Location> >(key, &ok);
         if (!ok) {
@@ -150,8 +150,8 @@ int writeDependencies(const DependencyHash &dependencies)
     char buf[4];
     const Slice key(buf, 4);
     while (it != end) {
-        memcpy(buf, &it.key(), sizeof(buf));
-        Set<quint32> added = it.value();
+        memcpy(buf, &it->first, sizeof(buf));
+        Set<quint32> added = it->second;
         Set<quint32> current = db->value<Set<quint32> >(key);
         const int oldSize = current.size();
         if (current.unite(added).size() > oldSize) {
@@ -161,7 +161,7 @@ int writeDependencies(const DependencyHash &dependencies)
     }
     return totalWritten;
 }
-int writePchDepencies(const QHash<Path, Set<quint32> > &pchDependencies)
+int writePchDepencies(const Hash<Path, Set<quint32> > &pchDependencies)
 {
     QElapsedTimer timer;
     timer.start();
@@ -183,15 +183,15 @@ int writeFileInformation(quint32 fileId, const QList<ByteArray> &args, time_t la
     return db->setValue(Slice(ch, sizeof(fileId)), FileInformation(lastTouched, args));
 }
 
-int writePchUSRHashes(const QHash<Path, PchUSRHash> &pchUSRHashes)
+int writePchUSRHashes(const Hash<Path, PchUSRHash> &pchUSRHashes)
 {
     QElapsedTimer timer;
     timer.start();
     ScopedDB db = Server::instance()->db(Server::PCHUsrHashes, ScopedDB::Write);
     int totalWritten = 0;
     Batch batch(db);
-    for (QHash<Path, PchUSRHash>::const_iterator it = pchUSRHashes.begin(); it != pchUSRHashes.end(); ++it) {
-        totalWritten += batch.add(it.key(), it.value());
+    for (Hash<Path, PchUSRHash>::const_iterator it = pchUSRHashes.begin(); it != pchUSRHashes.end(); ++it) {
+        totalWritten += batch.add(it->first, it->second);
     }
     return totalWritten;
 }
@@ -207,15 +207,15 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references, quint32 f
     if (!references.isEmpty()) {
         const ReferenceHash::const_iterator end = references.end();
         for (ReferenceHash::const_iterator it = references.begin(); it != end; ++it) {
-            CursorInfo &ci = symbols[it.value().first];
-            ci.references.insert(it.key());
-            if (it.value().second != Rdm::NormalReference) {
-                CursorInfo &other = symbols[it.key()];
-                // qDebug() << "trying to join" << it.key() << "and" << it.value().first;
+            CursorInfo &ci = symbols[it->second.first];
+            ci.references.insert(it->first);
+            if (it->second.second != Rdm::NormalReference) {
+                CursorInfo &other = symbols[it->first];
+                // qDebug() << "trying to join" << it->first << "and" << it->second.first;
                 if (other.target.isNull())
-                    other.target = it.value().first;
+                    other.target = it->second.first;
                 if (ci.target.isNull())
-                    ci.target = it.key();
+                    ci.target = it->first;
             }
         }
     }
@@ -224,10 +224,10 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references, quint32 f
         const SymbolHash::const_iterator end = symbols.end();
         while (it != end) {
             char buf[8];
-            it.key().toKey(buf);
+            it->first.toKey(buf);
             const Slice key(buf, 8);
-            const CursorInfo added = it.value();
-            if (it.key().fileId() != fileId) {
+            const CursorInfo added = it->second;
+            if (it->first.fileId() != fileId) {
                 bool ok;
                 CursorInfo current = db->value<CursorInfo>(key, &ok);
                 if (ok) {

@@ -21,16 +21,16 @@ void StatusJob::execute()
         write(Server::databaseDir(Server::General));
         write("    version: " + ByteArray::number(db->value<int>("version")));
 
-        const QHash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > makefiles
-            = db->value<QHash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > >("makefiles");
+        const Hash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > makefiles
+            = db->value<Hash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > >("makefiles");
 
-        for (QHash<Path, QPair<QList<ByteArray>, QList<ByteArray> > >::const_iterator it = makefiles.begin();
+        for (Hash<Path, QPair<QList<ByteArray>, QList<ByteArray> > >::const_iterator it = makefiles.begin();
              it != makefiles.end(); ++it) {
-            ByteArray out = "    " + it.key();
-            if (!it.value().first.isEmpty())
-                out += " args: " + RTags::join(it.value().first, " ");
-            if (!it.value().second.isEmpty())
-                out += " extra flags: " + RTags::join(it.value().second, " ");
+            ByteArray out = "    " + it->first;
+            if (!it->second.first.isEmpty())
+                out += " args: " + RTags::join(it->second.first, " ");
+            if (!it->second.second.isEmpty())
+                out += " extra flags: " + RTags::join(it->second.second, " ");
             write(out);
         }
     }
@@ -143,7 +143,7 @@ void StatusJob::execute()
             snprintf(buf, 1024, "  %s", it->key().byteArray().constData());
             write(buf);
             for (PchUSRHash::const_iterator i = hash.begin(); i != hash.end(); ++i) {
-                snprintf(buf, 1024, "    %s: %s", i.key().constData(), i.value().key().constData());
+                snprintf(buf, 1024, "    %s: %s", i->first.constData(), i->second.key().constData());
                 write(buf);
             }
 
