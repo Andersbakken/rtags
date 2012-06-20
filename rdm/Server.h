@@ -7,6 +7,7 @@
 #include <Hash.h>
 #include "QueryMessage.h"
 #include "Connection.h"
+#include "ThreadPool.h"
 #include "Job.h"
 
 class Connection;
@@ -79,7 +80,7 @@ public:
     static void setBaseDirectory(const ByteArray &base, bool clear);
     static Path databaseDir(DatabaseType type);
     static Path pchDir();
-    QThreadPool *threadPool() const { return mThreadPool; }
+    ThreadPool *threadPool() const { return mThreadPool; }
 signals:
     void complete(int id, const QList<ByteArray> &locations);
 private slots:
@@ -125,7 +126,7 @@ private:
     static Path sBase;
     Hash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > mMakefiles;
     Database *mDBs[DatabaseTypeCount];
-    QThreadPool *mThreadPool;
+    ThreadPool *mThreadPool;
 };
 
 #endif

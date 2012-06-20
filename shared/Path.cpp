@@ -1,6 +1,5 @@
 #include "Path.h"
 #include <QCoreApplication>
-#include <QThread>
 #include <stdio.h>
 #include "RTags.h"
 

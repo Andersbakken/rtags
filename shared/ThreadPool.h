@@ -3,7 +3,6 @@
 
 #include "Mutex.h"
 #include "WaitCondition.h"
-#include <set>
 #include <vector>
 
 class ThreadPoolThread;
@@ -14,6 +13,8 @@ public:
     ThreadPool(int concurrentJobs);
     ~ThreadPool();
 
+    void setConcurrentJobs(int concurrentJobs);
+
     class Job
     {
     public:
@@ -23,8 +24,12 @@ public:
     protected:
         virtual void run() = 0;
 
+        void setAutoDelete(bool autoDelete);
+
     private:
         int mPriority;
+        Mutex mMutex;
+        bool mAutoDelete;
 
         friend class ThreadPool;
         friend class ThreadPoolThread;
@@ -36,19 +41,13 @@ public:
     static ThreadPool* globalInstance();
 
 private:
-    struct JobLessThan : public std::binary_function<Job*, Job*, bool>
-    {
-        bool operator()(const Job* l, const Job* r) const
-        {
-            return l->mPriority < r->mPriority;
-        }
-    };
+    static bool jobLessThan(const Job* l, const Job* r);
 
 private:
     int mConcurrentJobs;
     Mutex mMutex;
     WaitCondition mCond;
-    std::set<Job*, JobLessThan> mJobs;
+    std::vector<Job*> mJobs;
     std::vector<ThreadPoolThread*> mThreads;
 
     static ThreadPool* sGlobalInstance;

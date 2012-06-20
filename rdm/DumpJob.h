@@ -2,7 +2,6 @@
 #define DumpJob_h
 
 #include <QObject>
-#include <QRunnable>
 #include <ByteArray.h>
 #include <QList>
 #include "Job.h"

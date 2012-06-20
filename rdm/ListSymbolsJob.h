@@ -1,7 +1,6 @@
 #ifndef ListSymbolsJob_h
 #define ListSymbolsJob_h
 
-#include <QRunnable>
 #include <QObject>
 #include <ByteArray.h>
 #include <QList>

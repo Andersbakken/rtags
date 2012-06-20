@@ -4,8 +4,9 @@
 #include <QtCore>
 #include "Indexer.h"
 #include "Path.h"
+#include "ThreadPool.h"
 
-class DirtyJob : public QObject, public QRunnable
+class DirtyJob : public QObject, public ThreadPool::Job
 {
 public:
     DirtyJob(Indexer *indexer, const Set<quint32> &dirty,

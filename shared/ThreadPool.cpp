@@ -1,6 +1,7 @@
 #include "ThreadPool.h"
 #include "Thread.h"
 #include "MutexLocker.h"
+#include <algorithm>
 #include <assert.h>
 #if defined (FreeBSD) || defined (NetBSD) || defined (OpenBSD) || defined (bsdi)
 #   include <sys/types.h>
@@ -49,16 +50,21 @@ void ThreadPoolThread::run()
         MutexLocker locker(&mPool->mMutex);
         if (mStopped)
             break;
-        if (mPool->mJobs.empty())
+        if (mPool->mJobs.empty()) {
             mPool->mCond.wait(&mPool->mMutex);
+        }
         else {
-            std::set<ThreadPool::Job*>::iterator item = mPool->mJobs.begin();
+            std::vector<ThreadPool::Job*>::iterator item = mPool->mJobs.begin();
             assert(item != mPool->mJobs.end());
             ThreadPool::Job* job = *item;
             mPool->mJobs.erase(item);
+            MutexLocker jobLocker(&job->mMutex);
             locker.unlock();
             job->run();
-            delete job;
+            if (job->mAutoDelete) {
+                jobLocker.unlock();
+                delete job;
+            }
         }
     }
 }
@@ -75,7 +81,7 @@ ThreadPool::ThreadPool(int concurrentJobs)
 ThreadPool::~ThreadPool()
 {
     MutexLocker locker(&mMutex);
-    for (std::set<Job*>::const_iterator it = mJobs.begin();
+    for (std::vector<Job*>::const_iterator it = mJobs.begin();
          it != mJobs.end(); ++it) {
         delete *it;
     }
@@ -90,11 +96,43 @@ ThreadPool::~ThreadPool()
     }
 }
 
+void ThreadPool::setConcurrentJobs(int concurrentJobs)
+{
+    if (concurrentJobs == mConcurrentJobs)
+        return;
+    if (concurrentJobs > mConcurrentJobs) {
+        MutexLocker locker(&mMutex);
+        for (int i = mConcurrentJobs; i < concurrentJobs; ++i) {
+            mThreads.push_back(new ThreadPoolThread(this));
+            mThreads.back()->start();
+        }
+        mConcurrentJobs = concurrentJobs;
+    } else {
+        MutexLocker locker(&mMutex);
+        for (int i = mConcurrentJobs; i > concurrentJobs; --i) {
+            ThreadPoolThread* t = mThreads.back();
+            mThreads.pop_back();
+            locker.unlock();
+            t->stop();
+            t->join();
+            locker.relock();
+            delete t;
+        }
+    }
+}
+
+bool ThreadPool::jobLessThan(const Job* l, const Job* r)
+{
+    return l->mPriority < r->mPriority;
+}
+
 void ThreadPool::start(Job* job, int priority)
 {
     job->mPriority = priority;
     MutexLocker locker(&mMutex);
-    mJobs.insert(job);
+    mJobs.push_back(job);
+    std::sort(mJobs.begin(), mJobs.end(), jobLessThan);
+    mCond.wakeOne();
 }
 
 int ThreadPool::idealThreadCount()
@@ -121,4 +159,21 @@ ThreadPool* ThreadPool::globalInstance()
     if (!sGlobalInstance)
         sGlobalInstance = new ThreadPool(idealThreadCount());
     return sGlobalInstance;
+}
+
+ThreadPool::Job::Job()
+    : mPriority(0), mAutoDelete(true)
+{
+}
+
+ThreadPool::Job::~Job()
+{
+    // hold the mutex when deleting in order to ensure that run() is done
+    MutexLocker jobLocker(&mMutex);
+}
+
+void ThreadPool::Job::setAutoDelete(bool autoDelete)
+{
+    MutexLocker locker(&mMutex);
+    mAutoDelete = autoDelete;
 }

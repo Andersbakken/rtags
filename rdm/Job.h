@@ -3,8 +3,9 @@
 
 #include <QtCore>
 #include "AbortInterface.h"
+#include "ThreadPool.h"
 
-class Job : public QObject, public QRunnable, public AbortInterface
+class Job : public QObject, public ThreadPool::Job, public AbortInterface
 {
     Q_OBJECT;
 public:

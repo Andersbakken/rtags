@@ -111,8 +111,7 @@ static inline QList<Path> systemIncludes(const Path &cpp)
 
 bool Server::init(const Options &options)
 {
-    mThreadPool = new QThreadPool(this);
-    mThreadPool->setExpiryTimeout(-1);
+    mThreadPool = new ThreadPool(ThreadPool::idealThreadCount());
 
     mOptions = options;
     if (!(options.options & NoClangIncludePath)) {

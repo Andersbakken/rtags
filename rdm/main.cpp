@@ -1,6 +1,6 @@
 #include <QCoreApplication>
-#include <QThread>
-#include <QThreadPool>
+#include "Thread.h"
+#include "ThreadPool.h"
 #include "Server.h"
 #include <getopt.h>
 #include <QDateTime>
@@ -107,7 +107,7 @@ int main(int argc, char** argv)
         { 0, 0, 0, 0 }
     };
 
-    int jobs = QThread::idealThreadCount();
+    int jobs = ThreadPool::idealThreadCount();
     unsigned options = 0;
     QList<ByteArray> defaultArguments;
     const char *logFile = 0;
@@ -201,7 +201,7 @@ int main(int argc, char** argv)
         signal(SIGINT, signalHandler);
     }
 
-    QThreadPool::globalInstance()->setMaxThreadCount(jobs);
+    ThreadPool::globalInstance()->setConcurrentJobs(jobs);
     QCoreApplication app(argc, argv);
     if (!initLogging(logLevel, logFile, logFlags)) {
         fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",

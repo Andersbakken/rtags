@@ -3,7 +3,6 @@
 #include "Log.h"
 #include "RTags.h"
 #include <QCoreApplication>
-#include <QThread>
 
 class GccArgumentsImpl
 {
@@ -263,7 +262,6 @@ bool GccArguments::parse(ByteArray args, const Path &base)
 
     mImpl->compiler = split.first();
     if (!mImpl->compiler.isResolved()) {
-        Q_ASSERT(!QCoreApplication::instance() || QThread::currentThread() == QCoreApplication::instance()->thread());
         static Hash<Path, Path> resolvedFromPath;
         static QList<Path> paths;
         mImpl->compiler = mImpl->compiler.fileName();
