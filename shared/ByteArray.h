@@ -6,7 +6,7 @@
 #include <errno.h>
 #include <List.h>
 #include <stdio.h>
-#include <QtCore>
+#include <QMetaType>
 
 class ByteArray
 {
