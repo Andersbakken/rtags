@@ -4,7 +4,7 @@
 #include "Path.h"
 #include "GccArguments.h"
 #include <QObject>
-#include <QList>
+#include <List.h>
 #include <Hash.h>
 #include <QProcess>
 
@@ -14,13 +14,13 @@ class MakefileParser : public QObject
 {
     Q_OBJECT
 public:
-    MakefileParser(const QList<ByteArray> &extraFlags, QObject *parent = 0);
+    MakefileParser(const List<ByteArray> &extraFlags, QObject *parent = 0);
     ~MakefileParser();
 
-    void run(const Path &makefile, const QList<ByteArray> &args);
+    void run(const Path &makefile, const List<ByteArray> &args);
     bool isDone() const;
-    QList<ByteArray> extraFlags() const { return mExtraFlags; }
-    QList<ByteArray> mapPchToInput(const QList<ByteArray> &input) const;
+    List<ByteArray> extraFlags() const { return mExtraFlags; }
+    List<ByteArray> mapPchToInput(const List<ByteArray> &input) const;
     void setPch(const ByteArray &output, const ByteArray &input);
     int pchCount() const { return mPchs.size(); }
 signals:
@@ -39,7 +39,7 @@ private:
     QProcess *mProc;
     ByteArray mData;
     DirectoryTracker *mTracker;
-    const QList<ByteArray> mExtraFlags;
+    const List<ByteArray> mExtraFlags;
     Hash<ByteArray, ByteArray> mPchs;
 };
 

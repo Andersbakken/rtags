@@ -2,7 +2,7 @@
 #define GCCARGUMENTS_H
 
 #include "Path.h"
-#include <QList>
+#include <List.h>
 #include <ByteArray.h>
 
 class GccArgumentsImpl;
@@ -22,10 +22,10 @@ public:
     Lang lang() const;
     void clear();
 
-    void addFlags(const QList<ByteArray> &extraFlags);
-    QList<ByteArray> clangArgs() const;
-    QList<Path> inputFiles() const;
-    QList<ByteArray> explicitIncludes() const;
+    void addFlags(const List<ByteArray> &extraFlags);
+    List<ByteArray> clangArgs() const;
+    List<Path> inputFiles() const;
+    List<ByteArray> explicitIncludes() const;
     Path outputFile() const;
     Path baseDirectory() const;
     Path compiler() const;

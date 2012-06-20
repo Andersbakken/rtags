@@ -9,6 +9,7 @@
 #include <ByteArray.h>
 #include <Hash.h>
 #include <Set.h>
+#include <List.h>
 
 class Path;
 
@@ -95,6 +96,38 @@ public:
         }
         return *this;
     }
+
+    template <typename T> Log &operator<<(const List<T> &vector)
+    {
+        if (mData) {
+            ByteArray out;
+            if (mData->out.isEmpty())
+                out += '\n';
+            out += "std::vector<";
+            {
+                T key;
+                const QVariant variant = qVariantFromValue<T>(key);
+                out += variant.typeName();
+                out += ">(";
+            }
+            *mData->dbg << out.constData();
+            bool first = true;
+            for (typename std::vector<T>::const_iterator it = vector.begin(); it != vector.end(); ++it) {
+                if (!first) {
+                    mData->dbg->nospace() << ", ";
+                } else {
+                    first = false;
+                }
+                mData->dbg->nospace() << *it;
+            }
+            *mData->dbg << ")";
+            mData->dbg->maybeSpace();
+            return *this;
+        }
+        return *this;
+    }
+
+
     template <typename K, typename V> Log &operator<<(const Hash<K, V> &hash)
     {
         if (mData) {

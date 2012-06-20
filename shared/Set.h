@@ -2,7 +2,7 @@
 #define Set_h
 
 #include <boost/unordered_set.hpp>
-#include <QList>
+#include <List.h>
 
 template <typename T>
 class Set : public boost::unordered_set<T, boost::hash<T> >
@@ -29,9 +29,9 @@ public:
         }
         return false;
     }
-    QList<T> toList() const
+    List<T> toList() const
     {
-        QList<T> ret;
+        List<T> ret;
         typename boost::unordered_set<T, boost::hash<T> >::iterator it = boost::unordered_set<T, boost::hash<T> >::begin();
         while (it != boost::unordered_set<T, boost::hash<T> >::end()) {
             ret.append(*it);

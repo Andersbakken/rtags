@@ -6,7 +6,7 @@
 #include "QueryMessage.h"
 #include <ByteArray.h>
 #include <Hash.h>
-#include <QList>
+#include <List.h>
 #include <QObject>
 
 class Connection;
@@ -16,14 +16,14 @@ class Client : public QObject
 {
     Q_OBJECT
 public:
-    Client(const ByteArray &name, unsigned flags = 0, const QList<ByteArray> &rdmArgs = QList<ByteArray>(), QObject *parent = 0);
+    Client(const ByteArray &name, unsigned flags = 0, const List<ByteArray> &rdmArgs = List<ByteArray>(), QObject *parent = 0);
     enum Flag {
         None = 0x0,
         AutostartRdm = 0x1,
         RestartRdm = 0x2
     };
 
-    QList<ByteArray> rdmArgs() const { return mRdmArgs; }
+    List<ByteArray> rdmArgs() const { return mRdmArgs; }
     unsigned flags() const { return mFlags; }
     template<typename T>
     void message(const T *msg);
@@ -35,7 +35,7 @@ private:
     void sendMessage(int id, const ByteArray& msg);
     Connection *mConn;
     unsigned mFlags;
-    QList<ByteArray> mRdmArgs;
+    List<ByteArray> mRdmArgs;
     QEventLoop mLoop;
     const ByteArray mName;
 };

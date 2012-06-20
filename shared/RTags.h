@@ -46,7 +46,7 @@ int readLine(FILE *f, char *buf = 0, int max = -1);
 bool removeDirectory(const char *path);
 int canonicalizePath(char *path, int len);
 ByteArray unescape(ByteArray command);
-ByteArray join(const QList<ByteArray> &list, const ByteArray &sep = ByteArray());
+ByteArray join(const List<ByteArray> &list, const ByteArray &sep = ByteArray());
 
 template <typename T> class Ptr : public QScopedPointer<T>
 {
@@ -54,7 +54,7 @@ public:
     Ptr(T *t = 0) : QScopedPointer<T>(t) {}
     operator T*() const { return QScopedPointer<T>::data(); }
 };
-bool startProcess(const Path &dotexe, const QList<ByteArray> &dollarArgs);
+bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs);
 }
 
 #endif

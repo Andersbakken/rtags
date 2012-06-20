@@ -5,6 +5,7 @@
 #include <QDebug>
 #include <QByteArray>
 #include <errno.h>
+#include <List.h>
 
 class ByteArray
 {
@@ -133,6 +134,11 @@ public:
         mString.append(ba);
     }
 
+    void append(const char *str, int len)
+    {
+        mString.append(str, len);
+    }
+
     ByteArray &operator+=(char ch)
     {
         mString += ch;
@@ -235,10 +241,10 @@ public:
         return QString::fromStdString(mString);
     }
 
-    QList<ByteArray> split(char ch) const
+    List<ByteArray> split(char ch) const
     {
         // ### is this right?
-        QList<ByteArray> ret;
+        List<ByteArray> ret;
         int last = 0;
         while (1) {
             const int next = indexOf(ch, last);
@@ -341,5 +347,8 @@ inline std::size_t hash_value(const ByteArray &ba)
 {
     return hashString(ba.constData(), ba.size());
 }
+
+Q_DECLARE_METATYPE(ByteArray);
+Q_DECLARE_METATYPE(List<ByteArray>);
 
 #endif

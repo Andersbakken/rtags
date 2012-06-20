@@ -2,7 +2,7 @@
 #define Hash_h
 
 #include <boost/unordered_map.hpp>
-#include <QList>
+#include <List.h>
 
 template <typename Key, typename Value>
 class Hash : public boost::unordered_map<Key, Value, boost::hash<Key> >
