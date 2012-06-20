@@ -7,5 +7,7 @@
 #include <map>
 #include <Path.h>
 #include <RTags.h>
+#include <Hash.h>
+#include <Set.h>
 
 #endif
