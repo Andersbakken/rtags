@@ -14,5 +14,5 @@ target_link_libraries(rdm ${QT_QTCORE_LIBRARY} ${QT_QTNETWORK_LIBRARY} ${clang_L
 add_dependencies(rdm rtags)
 
 add_executable(rc rc.cpp)
-target_link_libraries(rc ${QT_QTCORE_LIBRARY} ${QT_QTNETWORK_LIBRARY} ${clang_LIBS} rtags ${leveldb_LIBS})
+target_link_libraries(rc ${QT_QTCORE_LIBRARY} ${QT_QTNETWORK_LIBRARY} rtags)
 add_dependencies(rc rtags)
