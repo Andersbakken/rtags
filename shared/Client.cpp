@@ -80,7 +80,7 @@ bool Client::connectToServer()
                 cmd = "rdm";
             }
             error("trying to start rdm %s [%s]", qPrintable(cmd), RTags::join(mRdmArgs, " ").constData());
-            if (RTags::startProcess(ByteArray(cmd.toLocal8Bit()), mRdmArgs)) {
+            if (RTags::startProcess(ByteArray(cmd.toStdString()), mRdmArgs)) {
                 error("Started successfully");
                 for (int i=0; i<5; ++i) {
                     if (mConn->connectToServer(QString::fromStdString(mName))) {

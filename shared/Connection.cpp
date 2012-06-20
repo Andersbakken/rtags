@@ -44,7 +44,7 @@ void ConnectionPrivate::dataAvailable()
 
         Connection::Meta m = Connection::sMetas.value(id);
         QObject *newobj = m.meta->newInstance(Q_ARG(QObject*, conn));
-        m.meta->method(m.fromByteArrayId).invoke(newobj, Q_ARG(ByteArray, payload));
+        m.meta->method(m.fromByteArrayId).invoke(newobj, Q_ARG(ByteArray, ByteArray(payload.constData(), payload.size())));
         emit conn->newMessage(qobject_cast<Message*>(newobj));
 
         pendingRead = 0;

@@ -4,7 +4,6 @@
 #include <string>
 #include <stdint.h>
 #include <QDebug>
-#include <QByteArray>
 #include <errno.h>
 #include <List.h>
 
@@ -25,10 +24,6 @@ public:
 
     ByteArray(const ByteArray &ba)
         : mString(ba.mString)
-    {}
-
-    ByteArray(const QByteArray &ba)
-        : mString(ba.constData(), ba.size())
     {}
 
     ByteArray(const std::string &str)
