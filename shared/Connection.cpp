@@ -19,7 +19,7 @@ public slots:
 public:
     QLocalSocket* socket;
     Connection* conn;
-    quint32 pendingRead, pendingWrite;
+    uint32_t pendingRead, pendingWrite;
     bool done;
 };
 
@@ -29,7 +29,7 @@ void ConnectionPrivate::dataAvailable()
 {
     for (;;) {
         if (!pendingRead &&
-            socket->bytesAvailable() < static_cast<int>(sizeof(quint32)))
+            socket->bytesAvailable() < static_cast<int>(sizeof(uint32_t)))
             return;
         QDataStream strm(socket);
         if (!pendingRead)
@@ -105,7 +105,7 @@ void Connection::send(int id, const ByteArray& message)
         QDataStream strm(&data, QIODevice::WriteOnly);
         strm << (int)0 << id << message;
         strm.device()->seek(0);
-        strm << static_cast<quint32>(data.size()) - static_cast<quint32>(sizeof(quint32));
+        strm << static_cast<uint32_t>(data.size()) - static_cast<uint32_t>(sizeof(uint32_t));
     }
     mPriv->pendingWrite += data.size();
     mPriv->socket->write(data);

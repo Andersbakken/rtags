@@ -80,20 +80,20 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
     return cursorInfo;
 }
 
-static quint64 sMaxMemoryUsage = 0;
+static uint64_t sMaxMemoryUsage = 0;
 bool waitForMemory(int maxMs)
 {
     QElapsedTimer timer;
     timer.start();
-    static quint64 last = 0;
+    static uint64_t last = 0;
     do {
         QElapsedTimer timer;
         timer.start();
-        const quint64 mem = MemoryMonitor::usage();
+        const uint64_t mem = MemoryMonitor::usage();
         int elapsed = timer.elapsed();
         static int total = 0;
         total += elapsed;
-        printf("We're at %lld, max is %lld (was at %lld) %d %d\n", mem, sMaxMemoryUsage, last, total, elapsed);
+        printf("We're at %lu, max is %lu (was at %lu) %d %d\n", mem, sMaxMemoryUsage, last, total, elapsed);
         if (mem < sMaxMemoryUsage) {
             return true;
         } else if (mem < last || !last) {
@@ -106,7 +106,7 @@ bool waitForMemory(int maxMs)
     return false;
 }
 
-void setMaxMemoryUsage(quint64 max)
+void setMaxMemoryUsage(uint64_t max)
 {
     sMaxMemoryUsage = max;
 }
@@ -152,8 +152,8 @@ int writeDependencies(const DependencyMap &dependencies)
     const Slice key(buf, 4);
     while (it != end) {
         memcpy(buf, &it->first, sizeof(buf));
-        Set<quint32> added = it->second;
-        Set<quint32> current = db->value<Set<quint32> >(key);
+        Set<uint32_t> added = it->second;
+        Set<uint32_t> current = db->value<Set<uint32_t> >(key);
         const int oldSize = current.size();
         if (current.unite(added).size() > oldSize) {
             totalWritten += batch.add(key, current);
@@ -162,7 +162,7 @@ int writeDependencies(const DependencyMap &dependencies)
     }
     return totalWritten;
 }
-int writePchDepencies(const Map<Path, Set<quint32> > &pchDependencies)
+int writePchDepencies(const Map<Path, Set<uint32_t> > &pchDependencies)
 {
     QElapsedTimer timer;
     timer.start();
@@ -171,7 +171,7 @@ int writePchDepencies(const Map<Path, Set<quint32> > &pchDependencies)
         return db->setValue("pchDependencies", pchDependencies);
     return 0;
 }
-int writeFileInformation(quint32 fileId, const List<ByteArray> &args, time_t lastTouched)
+int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t lastTouched)
 {
     QElapsedTimer timer;
     timer.start();
@@ -197,7 +197,7 @@ int writePchUSRMapes(const Map<Path, PchUSRMap> &pchUSRMapes)
     return totalWritten;
 }
 
-int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, quint32 fileId)
+int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, uint32_t fileId)
 {
     QElapsedTimer timer;
     timer.start();
@@ -245,7 +245,7 @@ int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, quint32 fil
     return totalWritten;
 }
 
-int dirty(const Set<quint32> &dirtyFileIds)
+int dirty(const Set<uint32_t> &dirtyFileIds)
 {
     QElapsedTimer timer;
     timer.start();
@@ -314,7 +314,7 @@ int dirty(const Set<quint32> &dirtyFileIds)
     return ret;
 }
 
-List<ByteArray> compileArgs(quint32 fileId)
+List<ByteArray> compileArgs(uint32_t fileId)
 {
     ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
     const char *ch = reinterpret_cast<const char*>(&fileId);

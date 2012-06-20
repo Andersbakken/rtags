@@ -41,7 +41,7 @@ Indexer::Indexer(const ByteArray &path, QObject *parent)
     }
     {
         ScopedDB db = Server::instance()->db(Server::General, ScopedDB::Read);
-        mPchDependencies = db->value<Map<Path, Set<quint32> > >("pchDependencies");
+        mPchDependencies = db->value<Map<Path, Set<uint32_t> > >("pchDependencies");
     }
     {
         // watcher
@@ -51,8 +51,8 @@ Indexer::Indexer(const ByteArray &path, QObject *parent)
         DependencyMap dependencies;
         while (it->isValid()) {
             const Slice key = it->key();
-            const quint32 fileId = *reinterpret_cast<const quint32*>(key.data());
-            const Set<quint32> deps = it->value<Set<quint32> >();
+            const uint32_t fileId = *reinterpret_cast<const uint32_t*>(key.data());
+            const Set<uint32_t> deps = it->value<Set<uint32_t> >();
             dependencies[fileId] = deps;
             it->next();
         }
@@ -69,7 +69,7 @@ Indexer::~Indexer()
     // write out FileInformation for all the files that are waiting for pch maybe
 }
 
-static inline bool isFile(quint32 fileId)
+static inline bool isFile(uint32_t fileId)
 {
     return Location::path(fileId).isFile(); // ### not ideal
 }
@@ -79,7 +79,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     Q_ASSERT(mode == ForceDirty || pattern.isEmpty());
     QElapsedTimer timer;
     timer.start();
-    Map<quint32, Set<quint32> > deps, depsReversed;
+    Map<uint32_t, Set<uint32_t> > deps, depsReversed;
 
     ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ScopedDB::Read);
     RTags::Ptr<Iterator> it(dependencyDB->createIterator());
@@ -88,11 +88,11 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
         Batch batch(dependencyDB);
         while (it->isValid()) {
             const Slice key = it->key();
-            const quint32 file = *reinterpret_cast<const quint32*>(key.data());
+            const uint32_t file = *reinterpret_cast<const uint32_t*>(key.data());
             if (isFile(file)) {
-                const Set<quint32> v = it->value<Set<quint32> >();
+                const Set<uint32_t> v = it->value<Set<uint32_t> >();
                 depsReversed[file] = v;
-                foreach(const quint32 p, v) {
+                foreach(const uint32_t p, v) {
                     deps[p].insert(file);
                 }
             } else {
@@ -102,7 +102,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
         }
     }
 
-    Set<quint32> dirtyFiles;
+    Set<uint32_t> dirtyFiles;
     Map<Path, List<ByteArray> > toIndex, toIndexPch;
     int checked = 0;
 
@@ -115,7 +115,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
         QRegExp rx(pattern);
         while (it->isValid()) {
             const Slice key = it->key();
-            const quint32 fileId = *reinterpret_cast<const quint32*>(key.data());
+            const uint32_t fileId = *reinterpret_cast<const uint32_t*>(key.data());
             const Path path = Location::path(fileId);
             if (path.isFile()) {
                 const FileInformation fi = it->value<FileInformation>();
@@ -128,9 +128,9 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
 #endif
                     ++checked;
                     bool dirty = false;
-                    const Set<quint32> dependencies = deps.value(fileId);
+                    const Set<uint32_t> dependencies = deps.value(fileId);
                     Q_ASSERT(dependencies.contains(fileId));
-                    foreach(quint32 id, dependencies) {
+                    foreach(uint32_t id, dependencies) {
                         if (dirtyFiles.contains(id)) {
                             dirty = true;
                         } else {
@@ -268,7 +268,7 @@ void Indexer::startJob(int id, IndexerJob *job)
 void Indexer::onDirectoryChanged(const QString &path)
 {
     const Path p(ByteArray(path.toLocal8Bit()));
-    Set<quint32> dirtyFiles;
+    Set<uint32_t> dirtyFiles;
     Map<Path, List<ByteArray> > toIndex, toIndexPch;
 
     Q_ASSERT(p.endsWith('/'));
@@ -294,7 +294,7 @@ void Indexer::onDirectoryChanged(const QString &path)
             // qDebug() << "comparing" << file << (file.lastModified() == (*wit).second)
             //          << QDateTime::fromTime_t(file.lastModified());
             if (!file.exists() || file.lastModified() != (*wit).second) {
-                const quint32 fileId = Location::fileId(file);
+                const uint32_t fileId = Location::fileId(file);
                 dirtyFiles.insert(fileId);
                 mVisitedFiles.remove(fileId);
                 pending.append(file);
@@ -308,7 +308,7 @@ void Indexer::onDirectoryChanged(const QString &path)
                     continue;
                 }
                 Q_ASSERT(!dit->second.isEmpty());
-                foreach (quint32 pathId, dit->second) {
+                foreach (uint32_t pathId, dit->second) {
                     dirtyFiles.insert(pathId);
                     mVisitedFiles.remove(pathId);
                     const Path path = Location::path(pathId);
@@ -372,7 +372,7 @@ void Indexer::onJobComplete(int id, const Path &input, bool isPch, const ByteArr
         }
     }
     const int idx = mJobCounter - (mIndexing.size() + mWaitingForPCH.size());
-    error("[%3d%%] %d/%d %s. Pending jobs %d. %lld mb mem.",
+    error("[%3d%%] %d/%d %s. Pending jobs %d. %lu mb mem.",
           static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
           msg.constData(), mJobs.size() + mWaitingForPCH.size(),
           (MemoryMonitor::usage() / (1024 * 1024)));
@@ -390,7 +390,7 @@ void Indexer::onJobComplete(int id, const Path &input, bool isPch, const ByteArr
     sender()->deleteLater();
 }
 
-void Indexer::setPchDependencies(const Path &pchHeader, const Set<quint32> &deps)
+void Indexer::setPchDependencies(const Path &pchHeader, const Set<uint32_t> &deps)
 {
     QWriteLocker lock(&mPchDependenciesLock);
     if (deps.isEmpty()) {
@@ -401,7 +401,7 @@ void Indexer::setPchDependencies(const Path &pchHeader, const Set<quint32> &deps
     Rdm::writePchDepencies(mPchDependencies);
 }
 
-Set<quint32> Indexer::pchDependencies(const Path &pchHeader) const
+Set<uint32_t> Indexer::pchDependencies(const Path &pchHeader) const
 {
     QReadLocker lock(&mPchDependenciesLock);
     return mPchDependencies.value(pchHeader);
@@ -463,7 +463,7 @@ void Indexer::abort()
 
 ByteArray Indexer::fixIts(const Path &path) const
 {
-    quint32 fileId = Location::fileId(path);
+    uint32_t fileId = Location::fileId(path);
     if (!fileId)
         return ByteArray();
     QReadLocker lock(&mFixItsAndErrorsLock);
@@ -487,7 +487,7 @@ ByteArray Indexer::fixIts(const Path &path) const
 
 ByteArray Indexer::errors(const Path &path) const
 {
-    quint32 fileId = Location::fileId(path);
+    uint32_t fileId = Location::fileId(path);
     if (!fileId)
         return ByteArray();
     QReadLocker lock(&mFixItsAndErrorsLock);
@@ -495,13 +495,13 @@ ByteArray Indexer::errors(const Path &path) const
 }
 
 
-void Indexer::setDiagnostics(const Map<quint32, List<ByteArray> > &diagnostics,
+void Indexer::setDiagnostics(const Map<uint32_t, List<ByteArray> > &diagnostics,
                              const std::map<Location, QPair<int, ByteArray> > &fixIts)
 {
     QWriteLocker lock(&mFixItsAndErrorsLock);
 
-    for (Map<quint32, List<ByteArray> >::const_iterator it = diagnostics.begin(); it != diagnostics.end(); ++it) {
-        const quint32 fileId = it->first;
+    for (Map<uint32_t, List<ByteArray> >::const_iterator it = diagnostics.begin(); it != diagnostics.end(); ++it) {
+        const uint32_t fileId = it->first;
         std::map<Location, QPair<int, ByteArray> >::iterator i = mFixIts.lower_bound(Location(fileId, 0));
         while (i != mFixIts.end() && i->first.fileId() == fileId) {
             mFixIts.erase(i++);

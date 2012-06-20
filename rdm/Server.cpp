@@ -167,13 +167,13 @@ bool Server::init(const Options &options)
         ScopedDB db = Server::instance()->db(Server::FileIds, ScopedDB::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
-        Map<quint32, Path> idsToPaths;
-        Map<Path, quint32> pathsToIds;
-        quint32 maxId = 0;
+        Map<uint32_t, Path> idsToPaths;
+        Map<Path, uint32_t> pathsToIds;
+        uint32_t maxId = 0;
         while (it->isValid()) {
             const Slice key = it->key();
             const Path path(key.data(), key.size());
-            const quint32 fileId = it->value<quint32>();
+            const uint32_t fileId = it->value<uint32_t>();
             maxId = qMax(fileId, maxId);
             idsToPaths[fileId] = path;
             pathsToIds[path] = fileId;

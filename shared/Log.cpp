@@ -67,7 +67,7 @@ void restartTime()
 
 static inline ByteArray prettyTimeSinceStarted()
 {
-    quint64 elapsed = sStart.elapsed();
+    uint64_t elapsed = sStart.elapsed();
     char buf[128];
     enum { MS = 1,
            Second = 1000,

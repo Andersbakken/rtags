@@ -106,8 +106,8 @@ public:
     {
         Q_ASSERT(left.size() == right.size());
         Q_ASSERT(left.size() == 8);
-        const quint32 *l = reinterpret_cast<const quint32*>(left.data());
-        const quint32 *r = reinterpret_cast<const quint32*>(right.data());
+        const uint32_t *l = reinterpret_cast<const uint32_t*>(left.data());
+        const uint32_t *r = reinterpret_cast<const uint32_t*>(right.data());
         if (*l < *r)
             return -1;
         if (*l > *r)

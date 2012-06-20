@@ -9,7 +9,7 @@
 class DirtyJob : public QObject, public ThreadPool::Job
 {
 public:
-    DirtyJob(Indexer *indexer, const Set<quint32> &dirty,
+    DirtyJob(Indexer *indexer, const Set<uint32_t> &dirty,
              const Map<Path, List<ByteArray> > &toIndexPch,
              const Map<Path, List<ByteArray> > &toIndex)
         : mIndexer(indexer), mDirty(dirty), mToIndexPch(toIndexPch), mToIndex(toIndex)
@@ -19,7 +19,7 @@ public:
     virtual void run();
 private:
     Indexer *mIndexer;
-    const Set<quint32> mDirty;
+    const Set<uint32_t> mDirty;
     const Map<Path, List<ByteArray> > mToIndexPch, mToIndex;
 };
 

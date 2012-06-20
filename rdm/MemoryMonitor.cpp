@@ -10,9 +10,9 @@ MemoryMonitor::MemoryMonitor()
 }
 
 #if defined(Q_OS_LINUX)
-static inline quint64 usageLinux()
+static inline uint64_t usageLinux()
 {
-    quint64 total = 0;
+    uint64_t total = 0;
     const pid_t pid = getpid();
     FILE* file = fopen(("/proc/" + ByteArray::number(pid) + "/smaps").constData(), "r");
     if (!file)
@@ -59,20 +59,20 @@ static inline quint64 usageLinux()
     return total;
 }
 #elif defined(Q_OS_FREEBSD)
-static inline quint64 usageFreeBSD()
+static inline uint64_t usageFreeBSD()
 {
 #warning "implement me"
     return 0;
 }
 #elif defined(Q_OS_MAC)
-static inline quint64 usageOSX()
+static inline uint64_t usageOSX()
 {
 #warning "implement me"
     return 0;
 }
 #endif
 
-quint64 MemoryMonitor::usage()
+uint64_t MemoryMonitor::usage()
 {
 #if defined(Q_OS_LINUX)
     return usageLinux();

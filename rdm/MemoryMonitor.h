@@ -6,7 +6,7 @@
 class MemoryMonitor
 {
 public:
-    static quint64 usage();
+    static uint64_t usage();
 
 private:
     MemoryMonitor();

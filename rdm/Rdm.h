@@ -68,11 +68,11 @@ class Database;
 typedef Map<Location, CursorInfo> SymbolMap;
 typedef Map<Location, QPair<Location, Rdm::ReferenceType> > ReferenceMap;
 typedef Map<ByteArray, Set<Location> > SymbolNameMap;
-typedef Map<quint32, Set<quint32> > DependencyMap;
+typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
 typedef QPair<ByteArray, time_t> WatchedPair;
 typedef Map<ByteArray, Location> PchUSRMap;
 typedef Map<Path, Set<WatchedPair> > WatchedMap;
-typedef Map<quint32, FileInformation> InformationMap;
+typedef Map<uint32_t, FileInformation> InformationMap;
 
 namespace Rdm {
 static inline bool isPch(const List<ByteArray> &args)
@@ -98,7 +98,7 @@ static inline bool isReference(CXCursorKind kind)
     return (clang_isReference(kind) || (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr));
 }
 
-void setMaxMemoryUsage(quint64 max);
+void setMaxMemoryUsage(uint64_t max);
 bool waitForMemory(int maxMs);
 ByteArray eatString(CXString str);
 ByteArray cursorToString(CXCursor cursor);
@@ -133,12 +133,12 @@ static inline bool addTo(Container &container, const Value &value)
 CursorInfo findCursorInfo(Database *db, const Location &key, Location *loc = 0);
 int writeSymbolNames(SymbolNameMap &symbolNames);
 int writeDependencies(const DependencyMap &dependencies);
-int writePchDepencies(const Map<Path, Set<quint32> > &pchDependencies);
-int writeFileInformation(quint32 fileId, const List<ByteArray> &args, time_t lastTouched);
+int writePchDepencies(const Map<Path, Set<uint32_t> > &pchDependencies);
+int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t lastTouched);
 int writePchUSRMapes(const Map<Path, PchUSRMap> &hashes);
-int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, quint32 fileId);
-int dirty(const Set<quint32> &dirtyFileIds);
-List<ByteArray> compileArgs(quint32 fileId);
+int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, uint32_t fileId);
+int dirty(const Set<uint32_t> &dirtyFileIds);
+List<ByteArray> compileArgs(uint32_t fileId);
 // the symbols will be modified before writing and we don't want to detach so we
 // work on a non-const reference
 class LogObject : public QObject, public LogOutput

@@ -50,8 +50,8 @@ template <typename T> T decode(const Slice &slice)
 
 template <> inline ByteArray encode(const Set<Location> &locations)
 {
-    ByteArray out(locations.size() * sizeof(quint64), '\0');
-    quint64 *ptr = reinterpret_cast<quint64*>(out.data());
+    ByteArray out(locations.size() * sizeof(uint64_t), '\0');
+    uint64_t *ptr = reinterpret_cast<uint64_t*>(out.data());
     for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
         *ptr++ = (*it).mData;
     }
@@ -61,8 +61,8 @@ template <> inline ByteArray encode(const Set<Location> &locations)
 template <> inline Set<Location> decode(const Slice &slice)
 {
     Set<Location> ret;
-    const quint64 *ptr = reinterpret_cast<const quint64*>(slice.data());
-    const int count = slice.size() / sizeof(quint64);
+    const uint64_t *ptr = reinterpret_cast<const uint64_t*>(slice.data());
+    const int count = slice.size() / sizeof(uint64_t);
     for (int i=0; i<count; ++i) {
         ret.insert(Location(*ptr++));
     }
@@ -71,16 +71,16 @@ template <> inline Set<Location> decode(const Slice &slice)
 
 template <> inline ByteArray encode(const CursorInfo &info)
 {
-    // null-terminated symbolName, quint32(symbolLength), quint32(kind), quint8(isDefinition), quint64(target.location), quint64(refs)...
-    ByteArray out(info.symbolName.size() + 1 + (sizeof(quint32) * 2) + sizeof(quint8)
-                   + (sizeof(quint64) * (1 + info.references.size())), '\0');
+    // null-terminated symbolName, uint32_t(symbolLength), uint32_t(kind), quint8(isDefinition), uint64_t(target.location), uint64_t(refs)...
+    ByteArray out(info.symbolName.size() + 1 + (sizeof(uint32_t) * 2) + sizeof(quint8)
+                   + (sizeof(uint64_t) * (1 + info.references.size())), '\0');
     memcpy(out.data(), info.symbolName.constData(), info.symbolName.size() + 1);
-    quint32 *ptr = reinterpret_cast<quint32*>(out.data() + (info.symbolName.size() + 1));
+    uint32_t *ptr = reinterpret_cast<uint32_t*>(out.data() + (info.symbolName.size() + 1));
     *ptr++ = info.symbolLength;
     *ptr++ = info.kind;
     quint8 *isDefinitionPtr = reinterpret_cast<quint8*>(ptr);
     *isDefinitionPtr++ = info.isDefinition;
-    quint64 *locPtr = reinterpret_cast<quint64*>(isDefinitionPtr);
+    uint64_t *locPtr = reinterpret_cast<uint64_t*>(isDefinitionPtr);
     *locPtr++ = info.target.mData;
     foreach(const Location &loc, info.references) {
         *locPtr++ = loc.mData;
@@ -92,13 +92,13 @@ template <> inline CursorInfo decode(const Slice &slice)
 {
     CursorInfo ret;
     ret.symbolName = ByteArray(slice.data()); // 0-terminated
-    const quint32 *ptr = reinterpret_cast<const quint32*>(slice.data() + ret.symbolName.size() + 1);
+    const uint32_t *ptr = reinterpret_cast<const uint32_t*>(slice.data() + ret.symbolName.size() + 1);
     ret.symbolLength = *ptr++;
     ret.kind = static_cast<CXCursorKind>(*ptr++);
     const quint8 *isDefinitionPtr = reinterpret_cast<const quint8*>(ptr);
     ret.isDefinition = *isDefinitionPtr++;
-    const quint64 *locPtr = reinterpret_cast<const quint64*>(isDefinitionPtr);
-    const int count = ((slice.size() - ret.symbolName.size() - sizeof(char) - (sizeof(quint32) * 2) - sizeof(quint8)) / sizeof(quint64));
+    const uint64_t *locPtr = reinterpret_cast<const uint64_t*>(isDefinitionPtr);
+    const int count = ((slice.size() - ret.symbolName.size() - sizeof(char) - (sizeof(uint32_t) * 2) - sizeof(quint8)) / sizeof(uint64_t));
     ret.target.mData = *locPtr++;
     for (int i=0; i<count - 1; ++i) {
         const Location loc(*locPtr++);

@@ -16,14 +16,14 @@ public:
     Location()
         : mData(0)
     {}
-    Location(quint64 data)
+    Location(uint64_t data)
         : mData(data)
     {}
-    Location(quint32 fileId, quint32 offset)
-        : mData(quint64(offset) << 32 | fileId)
+    Location(uint32_t fileId, uint32_t offset)
+        : mData(uint64_t(offset) << 32 | fileId)
     {}
 
-    Location(const CXFile &file, quint32 offset)
+    Location(const CXFile &file, uint32_t offset)
         : mData(0)
     {
         Q_ASSERT(file);
@@ -33,8 +33,8 @@ public:
             return;
         const Path p = Path::canonicalized(cstr);
         clang_disposeString(fn);
-        quint32 fileId = insertFile(p);
-        mData = (quint64(offset) << 32) | fileId;
+        uint32_t fileId = insertFile(p);
+        mData = (uint64_t(offset) << 32) | fileId;
     }
     Location(const CXSourceLocation &location)
         : mData(0)
@@ -44,24 +44,24 @@ public:
         clang_getSpellingLocation(location, &file, 0, 0, &offset);
         *this = Location(file, offset);
     }
-    static inline quint32 fileId(const Path &path)
+    static inline uint32_t fileId(const Path &path)
     {
         QReadLocker lock(&sLock);
         return sPathsToIds.value(path);
     }
-    static inline Path path(quint32 id)
+    static inline Path path(uint32_t id)
     {
         QReadLocker lock(&sLock);
         return sIdsToPaths.value(id);
     }
 
-    static inline quint32 insertFile(const Path &path)
+    static inline uint32_t insertFile(const Path &path)
     {
         bool newFile = false;
-        quint32 ret;
+        uint32_t ret;
         {
             QWriteLocker lock(&sLock);
-            quint32 &id = sPathsToIds[path];
+            uint32_t &id = sPathsToIds[path];
             if (!id) {
                 id = ++sLastId;
                 sIdsToPaths[id] = path;
@@ -74,18 +74,18 @@ public:
 
         return ret;
     }
-    static void writeToDB(const Path &path, quint32 file);
-    static void init(const Map<Path, quint32> &pathsToIds,
-                     const Map<quint32, Path> &idsToPaths,
-                     quint32 maxId)
+    static void writeToDB(const Path &path, uint32_t file);
+    static void init(const Map<Path, uint32_t> &pathsToIds,
+                     const Map<uint32_t, Path> &idsToPaths,
+                     uint32_t maxId)
     {
         sPathsToIds = pathsToIds;
         sIdsToPaths = idsToPaths;
         sLastId = maxId;
     }
 
-    inline quint32 fileId() const { return quint32(mData); }
-    inline quint32 offset() const { return quint32(mData >> 32); }
+    inline uint32_t fileId() const { return uint32_t(mData); }
+    inline uint32_t offset() const { return uint32_t(mData >> 32); }
 
     inline Path path() const
     {
@@ -113,8 +113,8 @@ public:
 
     ByteArray context() const
     {
-        const quint32 off = offset();
-        quint32 o = off;
+        const uint32_t off = offset();
+        uint32_t o = off;
         Path p = path();
         FILE *f = fopen(p.constData(), "r");
         if (f && !fseek(f, off, SEEK_SET)) {
@@ -139,7 +139,7 @@ public:
 
     bool convertOffset(int &line, int &col) const
     {
-        const quint32 off = offset();
+        const uint32_t off = offset();
         Path p = path();
         FILE *f = fopen(p.constData(), "r");
         if (!f) {
@@ -148,7 +148,7 @@ public:
         }
         line = 1;
         int last = 0;
-        quint32 idx = 0;
+        uint32_t idx = 0;
         forever {
             const int lineLen = RTags::readLine(f);
             if (lineLen == -1) {
@@ -229,11 +229,11 @@ public:
 
     static Location decodeClientLocation(const ByteArray &data)
     {
-        quint32 offset;
+        uint32_t offset;
         memcpy(&offset, data.constData() + data.size() - sizeof(offset), sizeof(offset));
         const Path path(data.constData(), data.size() - sizeof(offset));
         QReadLocker lock(&sLock);
-        const quint32 fileId = sPathsToIds.value(path, 0);
+        const uint32_t fileId = sPathsToIds.value(path, 0);
         if (fileId)
             return Location(fileId, offset);
         error("Failed to make location from [%s,%d]", path.constData(), offset);
@@ -247,31 +247,33 @@ public:
             return Location();
         }
         bool ok;
-        const quint32 fileId = ByteArray(pathAndOffset.constData() + comma + 1, pathAndOffset.size() - comma - 1).toUInt(&ok);
+        const uint32_t fileId = ByteArray(pathAndOffset.constData() + comma + 1, pathAndOffset.size() - comma - 1).toUInt(&ok);
         if (!ok) {
             error("Can't create location from this: %s", pathAndOffset.constData());
             return Location();
         }
         return Location(Location::insertFile(Path(pathAndOffset.left(comma))), fileId);
     }
-    quint64 mData;
+    uint64_t mData;
 private:
-    static Map<Path, quint32> sPathsToIds;
-    static Map<quint32, Path> sIdsToPaths;
-    static quint32 sLastId;
+    static Map<Path, uint32_t> sPathsToIds;
+    static Map<uint32_t, Path> sIdsToPaths;
+    static uint32_t sLastId;
     static QReadWriteLock sLock;
     mutable Path mCachedPath;
 };
 
 static inline QDataStream &operator<<(QDataStream &ds, const Location &loc)
 {
-    ds << loc.mData;
+    ds << quint64(loc.mData);
     return ds;
 }
 
 static inline QDataStream &operator>>(QDataStream &ds, Location &loc)
 {
-    ds >> loc.mData;
+    quint64 tmp;
+    ds >> tmp;
+    loc.mData = tmp;
     return ds;
 }
 

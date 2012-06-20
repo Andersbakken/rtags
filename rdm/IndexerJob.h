@@ -55,15 +55,15 @@ public:
         Index,
         DontIndex
     };
-    Map<quint32, PathState> mPaths;
+    Map<uint32_t, PathState> mPaths;
     Map<Str, CXCursor> mHeaderMap;
     bool mDoneFullUSRScan;
     ReferenceMap mReferences;
     const Path mIn;
-    const quint32 mFileId;
+    const uint32_t mFileId;
     const List<ByteArray> mArgs;
     DependencyMap mDependencies;
-    Set<quint32> mPchDependencies;
+    Set<uint32_t> mPchDependencies;
     Indexer *mIndexer;
     Map<ByteArray, Location> mPchUSRMap;
 

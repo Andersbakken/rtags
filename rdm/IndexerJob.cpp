@@ -30,7 +30,7 @@ IndexerJob::IndexerJob(Indexer *indexer, int id, unsigned flags,
     setAutoDelete(false);
 }
 
-static inline quint32 fileId(CXFile file)
+static inline uint32_t fileId(CXFile file)
 {
     return Location(file, 0).fileId();
 }
@@ -50,7 +50,7 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
     const char *fn = path.fileName();
     job->mSymbolNames[ByteArray(fn, strlen(fn))].insert(l);
 
-    const quint32 fileId = l.fileId();
+    const uint32_t fileId = l.fileId();
     if (!includeLen) {
         job->mDependencies[fileId].insert(fileId);
         if (job->mIsPch)
@@ -60,7 +60,7 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
             CXFile originatingFile;
             clang_getSpellingLocation(includeStack[i], &originatingFile, 0, 0, 0);
             Location loc(originatingFile, 0);
-            const quint32 f = loc.fileId();
+            const uint32_t f = loc.fileId();
             if (f)
                 job->mDependencies[fileId].insert(f);
         }
@@ -168,7 +168,7 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
         if (file) {
             ret = Location(file, start);
             if (blocked) {
-                const quint32 fileId = ret.fileId();
+                const uint32_t fileId = ret.fileId();
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
                     state = mIndexer->visitFile(fileId, mIn) ? Index : DontIndex;
@@ -432,7 +432,7 @@ void IndexerJob::run()
     // }
     if (!mPchHeaders.isEmpty())
         mPchUSRMap = mIndexer->pchUSRMap(mPchHeaders);
-    const quint64 waitingForPch = timer.restart();
+    const uint64_t waitingForPch = timer.restart();
 
     QVarLengthArray<const char*, 32> clangArgs(mArgs.size());
     ByteArray clangLine = "clang ";
@@ -499,7 +499,7 @@ void IndexerJob::run()
         Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
         std::map<Location, QPair<int, ByteArray> > fixIts;
-        Map<quint32, List<ByteArray> > visited;
+        Map<uint32_t, List<ByteArray> > visited;
         const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
         for (unsigned i=0; i<diagnosticCount; ++i) {
             CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
@@ -569,7 +569,7 @@ void IndexerJob::run()
             }
         }
         foreach(const Path &pchHeader, mPchHeaders) {
-            foreach(quint32 dep, mIndexer->pchDependencies(pchHeader)) {
+            foreach(uint32_t dep, mIndexer->pchDependencies(pchHeader)) {
                 mDependencies[dep].insert(mFileId);
             }
         }
@@ -578,7 +578,7 @@ void IndexerJob::run()
         scope.cleanup();
 
         if (!isAborted()) {
-            for (Map<quint32, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
+            for (Map<uint32_t, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
                 if (it->second == Index) {
                     (void)visited[it->first];
 #ifdef QT_DEBUG
@@ -590,7 +590,7 @@ void IndexerJob::run()
                 }
             }
             if (mFlags & NeedsDirty) {
-                Set<quint32> files;
+                Set<uint32_t> files;
                 files.insert(mFileId);
                 Rdm::dirty(files);
             }

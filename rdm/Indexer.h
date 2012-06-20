@@ -17,18 +17,18 @@ public:
 
     int index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
 
-    void setPchDependencies(const Path &pchHeader, const Set<quint32> &deps);
+    void setPchDependencies(const Path &pchHeader, const Set<uint32_t> &deps);
     void addDependencies(const DependencyMap &hash);
-    Set<quint32> pchDependencies(const Path &pchHeader) const;
+    Set<uint32_t> pchDependencies(const Path &pchHeader) const;
     Map<ByteArray, Location> pchUSRMap(const List<Path> &pchFiles) const;
     void setPchUSRMap(const Path &pch, const PchUSRMap &astMap);
     Path path() const { return mPath; }
     void abort();
-    bool visitFile(quint32 fileId, const Path &p);
-    Set<quint32> visitedFiles() const { MutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
+    bool visitFile(uint32_t fileId, const Path &p);
+    Set<uint32_t> visitedFiles() const { MutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path) const;
-    void setDiagnostics(const Map<quint32, List<ByteArray> > &errors,
+    void setDiagnostics(const Map<uint32_t, List<ByteArray> > &errors,
                         const std::map<Location, QPair<int, ByteArray> > &fixIts);
     void reindex(const ByteArray &pattern);
 signals:
@@ -51,10 +51,10 @@ private:
     Map<Path, PchUSRMap> mPchUSRMapes;
 
     mutable Mutex mVisitedFilesMutex;
-    Set<quint32> mVisitedFiles;
+    Set<uint32_t> mVisitedFiles;
 
     mutable QReadWriteLock mPchDependenciesLock;
-    Map<Path, Set<quint32> > mPchDependencies;
+    Map<Path, Set<uint32_t> > mPchDependencies;
     int mJobCounter;
 
     Mutex mMutex;
@@ -72,11 +72,11 @@ private:
     WatchedMap mWatched;
 
     std::map<Location, QPair<int, ByteArray> > mFixIts;
-    Map<quint32, ByteArray> mErrors;
+    Map<uint32_t, ByteArray> mErrors;
     mutable QReadWriteLock mFixItsAndErrorsLock;
 };
 
-inline bool Indexer::visitFile(quint32 fileId, const Path &path)
+inline bool Indexer::visitFile(uint32_t fileId, const Path &path)
 {
     MutexLocker lock(&mVisitedFilesMutex);
     if (mVisitedFiles.contains(fileId)) {

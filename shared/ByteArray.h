@@ -2,6 +2,7 @@
 #define ByteArray_h
 
 #include <string>
+#include <stdint.h>
 #include <QDebug>
 #include <QByteArray>
 #include <errno.h>
@@ -318,7 +319,7 @@ static inline QDataStream &operator<<(QDataStream &ds, const ByteArray &ba)
 
 static inline QDataStream &operator>>(QDataStream &ds, ByteArray &ba)
 {
-    quint32 size;
+    uint32_t size;
     ds >> size;
     ba.resize(size);
     ds.readRawData(ba.data(), size);

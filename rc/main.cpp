@@ -68,7 +68,7 @@ static inline ByteArray encodeLocation(const ByteArray &key)
         return ByteArray();
 
     char *endPtr;
-    quint32 offset = strtoull(key.constData() + lastComma + 1, &endPtr, 10);
+    uint32_t offset = strtoull(key.constData() + lastComma + 1, &endPtr, 10);
     if (*endPtr != '\0')
         return ByteArray();
     Path path = Path::resolved(key.left(lastComma));

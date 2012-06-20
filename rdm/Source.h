@@ -6,8 +6,8 @@
 
 struct Source {
     GccArguments args;
-    quint64 lastModified;
-    Map<Path, quint64> dependencies;
+    uint64_t lastModified;
+    Map<Path, uint64_t> dependencies;
     bool fromUnsavedFile;
 };
 

@@ -45,11 +45,11 @@ void StatusJob::execute()
         while (it->isValid()) {
             if (isAborted())
                 return;
-            const quint32 key = *reinterpret_cast<const quint32*>(it->key().data());
+            const uint32_t key = *reinterpret_cast<const uint32_t*>(it->key().data());
             snprintf(buf, sizeof(buf), "  %s (%d) is depended on by", Location::path(key).constData(), key);
             write(buf);
-            const Set<quint32> deps = it->value<Set<quint32> >();
-            foreach (quint32 p, deps) {
+            const Set<uint32_t> deps = it->value<Set<uint32_t> >();
+            foreach (uint32_t p, deps) {
                 snprintf(buf, sizeof(buf), "    %s (%d)", Location::path(p).constData(), p);
                 write(buf);
             }
@@ -119,7 +119,7 @@ void StatusJob::execute()
                 return;
 
             const FileInformation fi = it->value<FileInformation>();
-            const quint32 fileId = *reinterpret_cast<const quint32*>(it->key().data());
+            const uint32_t fileId = *reinterpret_cast<const uint32_t*>(it->key().data());
             snprintf(buf, 1024, "  %s: last compiled: %s compile args: %s",
                      Location::path(fileId).constData(),
                      QDateTime::fromTime_t(fi.lastTouched).toString().toLocal8Bit().constData(),
@@ -159,7 +159,7 @@ void StatusJob::execute()
         it->seekToFirst();
         char buf[1024];
         while (it->isValid()) {
-            snprintf(buf, 1024, "  %s: %d", it->key().byteArray().constData(), it->value<quint32>());
+            snprintf(buf, 1024, "  %s: %d", it->key().byteArray().constData(), it->value<uint32_t>());
             write(buf);
             it->next();
         }
@@ -168,7 +168,7 @@ void StatusJob::execute()
         write(delimiter);
         write("visitedFiles");
         char buf[1024];
-        foreach(quint32 id, Server::instance()->indexer()->visitedFiles()) {
+        foreach(uint32_t id, Server::instance()->indexer()->visitedFiles()) {
             snprintf(buf, sizeof(buf), "  %s: %d", Location::path(id).constData(), id);
             write(buf);
         }

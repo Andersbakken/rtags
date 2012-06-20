@@ -27,7 +27,7 @@ public:
         symbolName.clear();
     }
 
-    bool dirty(const Set<quint32> &fileIds)
+    bool dirty(const Set<uint32_t> &fileIds)
     {
         bool changed = false;
         if (fileIds.contains(target.fileId())) {
