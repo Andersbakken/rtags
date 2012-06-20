@@ -15,6 +15,8 @@ public:
 
 private:
     pthread_mutex_t mMutex;
+
+    friend class WaitCondition;
 };
 
 #endif

@@ -19,6 +19,7 @@ set(shared_SRCS
   Path.cpp
   RTags.cpp
   Thread.cpp
+  ThreadPool.cpp
   messages/MakefileMessage.cpp
   messages/ErrorMessage.cpp
   messages/QueryMessage.cpp
@@ -37,7 +38,9 @@ set(shared_HDRS
   RTags.h
   Mutex.h
   MutexLocker.h
+  WaitCondition.h
   Thread.h
+  ThreadPool.h
   messages/MakefileMessage.h
   messages/ErrorMessage.h
   messages/QueryMessage.h
