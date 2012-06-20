@@ -12,5 +12,3 @@ we break on dos line endings. We could solve this by using
    understand lines columns
 
 remove all uses of QList
-remove all uses of QMap
-

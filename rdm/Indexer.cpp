@@ -461,17 +461,17 @@ ByteArray Indexer::fixIts(const Path &path) const
     if (!fileId)
         return ByteArray();
     QReadLocker lock(&mFixItsAndErrorsLock);
-    QMap<Location, QPair<int, ByteArray> >::const_iterator it = mFixIts.lowerBound(Location(fileId, 0));
+    std::map<Location, QPair<int, ByteArray> >::const_iterator it = mFixIts.lower_bound(Location(fileId, 0));
     ByteArray ret;
     char buf[1024];
-    while (it != mFixIts.end() && it.key().fileId() == fileId) {
+    while (it != mFixIts.end() && it->first.fileId() == fileId) {
         int w;
-        if (it.value().first) {
-            w = snprintf(buf, sizeof(buf), "%d-%d %s%s", it.key().offset(), it.value().first,
-                         it.value().second.constData(), ret.isEmpty() ? "" : "\n");
+        if ((*it).second.first) {
+            w = snprintf(buf, sizeof(buf), "%d-%d %s%s", it->first.offset(), (*it).second.first,
+                         (*it).second.second.constData(), ret.isEmpty() ? "" : "\n");
         } else {
-            w = snprintf(buf, sizeof(buf), "%d %s%s", it.key().offset(),
-                         it.value().second.constData(), ret.isEmpty() ? "" : "\n");
+            w = snprintf(buf, sizeof(buf), "%d %s%s", it->first.offset(),
+                         (*it).second.second.constData(), ret.isEmpty() ? "" : "\n");
         }
         ret.prepend(ByteArray(buf, w)); // we want the last ones first
         ++it;
@@ -490,15 +490,15 @@ ByteArray Indexer::errors(const Path &path) const
 
 
 void Indexer::setDiagnostics(const Hash<quint32, QList<ByteArray> > &diagnostics,
-                             const QMap<Location, QPair<int, ByteArray> > &fixIts)
+                             const std::map<Location, QPair<int, ByteArray> > &fixIts)
 {
     QWriteLocker lock(&mFixItsAndErrorsLock);
 
     for (Hash<quint32, QList<ByteArray> >::const_iterator it = diagnostics.begin(); it != diagnostics.end(); ++it) {
         const quint32 fileId = it->first;
-        QMap<Location, QPair<int, ByteArray> >::iterator i = mFixIts.lowerBound(Location(fileId, 0));
-        while (i != mFixIts.end() && i.key().fileId() == fileId) {
-            i = mFixIts.erase(i);
+        std::map<Location, QPair<int, ByteArray> >::iterator i = mFixIts.lower_bound(Location(fileId, 0));
+        while (i != mFixIts.end() && i->first.fileId() == fileId) {
+            mFixIts.erase(i++);
         }
         if (it->second.isEmpty()) {
             mErrors.remove(it->first);
@@ -506,8 +506,8 @@ void Indexer::setDiagnostics(const Hash<quint32, QList<ByteArray> > &diagnostics
             mErrors[it->first] = RTags::join(it->second, "\n");
         }
     }
-    for (QMap<Location, QPair<int, ByteArray> >::const_iterator it = fixIts.begin(); it != fixIts.end(); ++it) {
-        mFixIts[it.key()] = it.value();
+    for (std::map<Location, QPair<int, ByteArray> >::const_iterator it = fixIts.begin(); it != fixIts.end(); ++it) {
+        mFixIts[it->first] = (*it).second;
     }
 }
 

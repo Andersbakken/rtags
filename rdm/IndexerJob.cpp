@@ -498,7 +498,7 @@ void IndexerJob::run()
 
         Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
-        QMap<Location, QPair<int, ByteArray> > fixIts;
+        std::map<Location, QPair<int, ByteArray> > fixIts;
         Hash<quint32, QList<ByteArray> > visited;
         const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
         for (unsigned i=0; i<diagnosticCount; ++i) {

@@ -29,7 +29,7 @@ public:
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path) const;
     void setDiagnostics(const Hash<quint32, QList<ByteArray> > &errors,
-                        const QMap<Location, QPair<int, ByteArray> > &fixIts);
+                        const std::map<Location, QPair<int, ByteArray> > &fixIts);
     void reindex(const ByteArray &pattern);
 signals:
     void indexingDone(int id);
@@ -71,7 +71,7 @@ private:
     Mutex mWatchedMutex;
     WatchedHash mWatched;
 
-    QMap<Location, QPair<int, ByteArray> > mFixIts;
+    std::map<Location, QPair<int, ByteArray> > mFixIts;
     Hash<quint32, ByteArray> mErrors;
     mutable QReadWriteLock mFixItsAndErrorsLock;
 };
