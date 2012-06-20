@@ -182,8 +182,7 @@ bool initLogging(int level, const Path &file, unsigned flags)
             int i = 0;
             forever {
                 Path rotated = file + ".";
-                // rotated +=
-                // + ByteArray::number(++i);
+                rotated += ByteArray::number(++i);
                 if (!rotated.exists()) {
                     if (rename(file.constData(), rotated.constData())) {
                         char buf[1025];

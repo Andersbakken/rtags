@@ -490,7 +490,7 @@ void IndexerJob::run()
     bool compileError = false;
     if (!mUnit) {
         compileError = true;
-        error() << "got 0 unit for" << clangLine;
+        error() << "got 0 unit for " << clangLine;
         mIndexer->addDependencies(mDependencies);
         FileInformation fi;
         fi.compileArgs = mArgs;

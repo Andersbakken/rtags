@@ -4,9 +4,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 add_subdirectory(makelib)
-add_subdirectory(rc)
-add_subdirectory(rdm)
-add_subdirectory(shared)
+add_subdirectory(src)
 
 add_custom_target(3rdparty 
     COMMAND cmake . && \$\(MAKE\)
