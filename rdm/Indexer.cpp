@@ -267,7 +267,7 @@ void Indexer::startJob(int id, IndexerJob *job)
 
 void Indexer::onDirectoryChanged(const QString &path)
 {
-    const Path p(ByteArray(path.toLocal8Bit()));
+    const Path p(ByteArray(path.toStdString()));
     Set<uint32_t> dirtyFiles;
     Map<Path, List<ByteArray> > toIndex, toIndexPch;
 

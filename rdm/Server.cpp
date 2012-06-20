@@ -67,7 +67,8 @@ static inline List<Path> systemIncludes(const Path &cpp)
     proc.start(cpp, QStringList() << QLatin1String("-v"));
     proc.closeWriteChannel();
     proc.waitForFinished();
-    List<ByteArray> lines = ByteArray(proc.readAllStandardError()).split('\n');
+    QByteArray ba = proc.readAllStandardError();
+    List<ByteArray> lines = ByteArray(ba.constData(), ba.size()).split('\n');
     bool seenInclude = false;
     Path gxxIncludeDir;
     ByteArray target;
