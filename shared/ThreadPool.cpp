@@ -2,7 +2,12 @@
 #include "Thread.h"
 #include "MutexLocker.h"
 #include <assert.h>
-#include <unistd.h>
+#if defined (FreeBSD) || defined (NetBSD) || defined (OpenBSD) || defined (bsdi)
+#   include <sys/types.h>
+#   include <sys/sysctl.h>
+#elif defined (linux)
+#   include <unistd.h>
+#endif
 
 ThreadPool* ThreadPool::sGlobalInstance = 0;
 
@@ -106,7 +111,7 @@ int ThreadPool::idealThreadCount()
 #elif defined (linux)
     return (int)sysconf(_SC_NPROCESSORS_ONLN);
 #else
-#warning idealthreadcount not implemented on this platform
+#   warning idealthreadcount not implemented on this platform
     return 1;
 #endif
 }
