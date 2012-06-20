@@ -269,17 +269,17 @@ int dirty(const Set<uint32_t> &dirtyFileIds)
             }
             if (changed) {
                 if (locations.isEmpty()) {
-                    debug() << "No references to" << it->key() << "anymore. Removing";
+                    debug() << "No references to " << it->key() << " anymore. Removing";
                     db->remove(it->key());
                 } else {
-                    debug() << "References to" << it->key() << "modified. Changing";
+                    debug() << "References to " << it->key() << " modified. Changing";
                     db->setValue<Set<Location> >(it->key(), locations);
                 }
             }
             it->next();
         }
     }
-    error() << "dirtied" << dirtyFileIds.size() << "files in" << timer.elapsed() << "ms";
+    warning() << "dirtied " << dirtyFileIds.size() << " files in " << timer.elapsed() << "ms";
     return ret;
 }
 

@@ -1,11 +1,9 @@
 Consider waiting for currently processing files before queries on these files
 Consider changing offsets in currently modified files the same way compilation mode does
-Use the same pch file for rc/rdm/shared
 Maybe clang has some gcc compat mode where it would work approriately with the
    headers from the toolchain
 Solve constructors and destructors for rename symbol.
 When a file has disappared it never gets out of the database
-cache compile errors from clang and do something like what we do we fixits
 do eventsource from rdm to emacs
 we break on dos line endings. We could solve this by using
    line/col when emacs has converted the line endings. rc needs to
