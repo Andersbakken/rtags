@@ -36,7 +36,7 @@ public:
     static ThreadPool* globalInstance();
 
 private:
-    struct JobLessThan : public std::binary_function<Job, Job*, bool>
+    struct JobLessThan : public std::binary_function<Job*, Job*, bool>
     {
         bool operator()(const Job* l, const Job* r) const
         {
