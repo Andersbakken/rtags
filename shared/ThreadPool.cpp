@@ -118,6 +118,7 @@ void ThreadPool::setConcurrentJobs(int concurrentJobs)
             locker.relock();
             delete t;
         }
+        mConcurrentJobs = concurrentJobs;
     }
 }
 
