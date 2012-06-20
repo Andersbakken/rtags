@@ -111,7 +111,7 @@ void setMaxMemoryUsage(quint64 max)
     sMaxMemoryUsage = max;
 }
 
-int writeSymbolNames(SymbolNameHash &symbolNames)
+int writeSymbolNames(SymbolNameMap &symbolNames)
 {
     QElapsedTimer timer;
     timer.start();
@@ -120,8 +120,8 @@ int writeSymbolNames(SymbolNameHash &symbolNames)
     Batch batch(db);
     int totalWritten = 0;
 
-    SymbolNameHash::iterator it = symbolNames.begin();
-    const SymbolNameHash::const_iterator end = symbolNames.end();
+    SymbolNameMap::iterator it = symbolNames.begin();
+    const SymbolNameMap::const_iterator end = symbolNames.end();
     while (it != end) {
         const char *key = it->first.constData();
         const Set<Location> added = it->second;
@@ -138,7 +138,7 @@ int writeSymbolNames(SymbolNameHash &symbolNames)
     return totalWritten;
 }
 
-int writeDependencies(const DependencyHash &dependencies)
+int writeDependencies(const DependencyMap &dependencies)
 {
     QElapsedTimer timer;
     timer.start();
@@ -146,8 +146,8 @@ int writeDependencies(const DependencyHash &dependencies)
 
     Batch batch(db);
     int totalWritten = 0;
-    DependencyHash::const_iterator it = dependencies.begin();
-    const DependencyHash::const_iterator end = dependencies.end();
+    DependencyMap::const_iterator it = dependencies.begin();
+    const DependencyMap::const_iterator end = dependencies.end();
     char buf[4];
     const Slice key(buf, 4);
     while (it != end) {
@@ -162,7 +162,7 @@ int writeDependencies(const DependencyHash &dependencies)
     }
     return totalWritten;
 }
-int writePchDepencies(const Hash<Path, Set<quint32> > &pchDependencies)
+int writePchDepencies(const Map<Path, Set<quint32> > &pchDependencies)
 {
     QElapsedTimer timer;
     timer.start();
@@ -184,20 +184,20 @@ int writeFileInformation(quint32 fileId, const List<ByteArray> &args, time_t las
     return db->setValue(Slice(ch, sizeof(fileId)), FileInformation(lastTouched, args));
 }
 
-int writePchUSRHashes(const Hash<Path, PchUSRHash> &pchUSRHashes)
+int writePchUSRMapes(const Map<Path, PchUSRMap> &pchUSRMapes)
 {
     QElapsedTimer timer;
     timer.start();
-    ScopedDB db = Server::instance()->db(Server::PCHUsrHashes, ScopedDB::Write);
+    ScopedDB db = Server::instance()->db(Server::PCHUsrMapes, ScopedDB::Write);
     int totalWritten = 0;
     Batch batch(db);
-    for (Hash<Path, PchUSRHash>::const_iterator it = pchUSRHashes.begin(); it != pchUSRHashes.end(); ++it) {
+    for (Map<Path, PchUSRMap>::const_iterator it = pchUSRMapes.begin(); it != pchUSRMapes.end(); ++it) {
         totalWritten += batch.add(it->first, it->second);
     }
     return totalWritten;
 }
 
-int writeSymbols(SymbolHash &symbols, const ReferenceHash &references, quint32 fileId)
+int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, quint32 fileId)
 {
     QElapsedTimer timer;
     timer.start();
@@ -206,8 +206,8 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references, quint32 f
     int totalWritten = 0;
 
     if (!references.isEmpty()) {
-        const ReferenceHash::const_iterator end = references.end();
-        for (ReferenceHash::const_iterator it = references.begin(); it != end; ++it) {
+        const ReferenceMap::const_iterator end = references.end();
+        for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
             CursorInfo &ci = symbols[it->second.first];
             ci.references.insert(it->first);
             if (it->second.second != Rdm::NormalReference) {
@@ -221,8 +221,8 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references, quint32 f
         }
     }
     if (!symbols.isEmpty()) {
-        SymbolHash::iterator it = symbols.begin();
-        const SymbolHash::const_iterator end = symbols.end();
+        SymbolMap::iterator it = symbols.begin();
+        const SymbolMap::const_iterator end = symbols.end();
         while (it != end) {
             char buf[8];
             it->first.toKey(buf);
@@ -292,7 +292,7 @@ int dirty(const Set<quint32> &dirtyFileIds)
             while (i != locations.end()) {
                 if (dirtyFileIds.contains((*i).fileId())) {
                     changed = true;
-                    i = locations.erase(i);
+                    locations.erase(i++);
                     ++ret;
                 } else {
                     ++i;

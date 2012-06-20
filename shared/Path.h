@@ -79,11 +79,6 @@ public:
     static Path canonicalized(const ByteArray &path);
 };
 
-inline std::size_t hash_value(const Path &path)
-{
-    return hashString(path.constData(), path.size());
-}
-
 Q_DECLARE_METATYPE(Path);
 Q_DECLARE_METATYPE(Set<Path>);
 

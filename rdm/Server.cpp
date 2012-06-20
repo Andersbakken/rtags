@@ -159,7 +159,7 @@ bool Server::init(const Options &options)
             error("Wrong version, expected %d, got %d. Run with -C to regenerate database", Rdm::DatabaseVersion, version);
             return false;
         }
-        mMakefiles = general->value<Hash<Path, QPair<List<ByteArray>, List<ByteArray> > > >("makefiles");
+        mMakefiles = general->value<Map<Path, QPair<List<ByteArray>, List<ByteArray> > > >("makefiles");
     }
 
     {
@@ -167,8 +167,8 @@ bool Server::init(const Options &options)
         ScopedDB db = Server::instance()->db(Server::FileIds, ScopedDB::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
-        Hash<quint32, Path> idsToPaths;
-        Hash<Path, quint32> pathsToIds;
+        Map<quint32, Path> idsToPaths;
+        Map<Path, quint32> pathsToIds;
         quint32 maxId = 0;
         while (it->isValid()) {
             const Slice key = it->key();
@@ -206,22 +206,22 @@ void Server::onNewConnection()
 void Server::onConnectionDestroyed(QObject *o)
 {
     {
-        Hash<int, Connection*>::iterator it = mPendingIndexes.begin();
-        const Hash<int, Connection*>::const_iterator end = mPendingIndexes.end();
+        Map<int, Connection*>::iterator it = mPendingIndexes.begin();
+        const Map<int, Connection*>::const_iterator end = mPendingIndexes.end();
         while (it != end) {
             if (it->second == o) {
-                it = mPendingIndexes.erase(it);
+                mPendingIndexes.erase(it++);
             } else {
                 ++it;
             }
         }
     }
     {
-        Hash<int, Connection*>::iterator it = mPendingLookups.begin();
-        const Hash<int, Connection*>::const_iterator end = mPendingLookups.end();
+        Map<int, Connection*>::iterator it = mPendingLookups.begin();
+        const Map<int, Connection*>::const_iterator end = mPendingLookups.end();
         while (it != end) {
             if (it->second == o) {
-                it = mPendingLookups.erase(it);
+                mPendingLookups.erase(it++);
             } else {
                 ++it;
             }
@@ -375,7 +375,7 @@ void Server::handleErrorMessage(ErrorMessage *message)
 
 void Server::onIndexingDone(int id)
 {
-    Hash<int, Connection*>::iterator it = mPendingIndexes.find(id);
+    Map<int, Connection*>::iterator it = mPendingIndexes.find(id);
     if (it == mPendingIndexes.end())
         return;
     ErrorMessage msg("Hello, world");
@@ -384,7 +384,7 @@ void Server::onIndexingDone(int id)
 
 void Server::onComplete(int id)
 {
-    Hash<int, Connection*>::iterator it = mPendingLookups.find(id);
+    Map<int, Connection*>::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
         return;
     it->second->finish();
@@ -392,7 +392,7 @@ void Server::onComplete(int id)
 
 void Server::onOutput(int id, const ByteArray &response)
 {
-    Hash<int, Connection*>::iterator it = mPendingLookups.find(id);
+    Map<int, Connection*>::iterator it = mPendingLookups.find(id);
     if (it == mPendingLookups.end())
         return;
     ResponseMessage msg(response);
@@ -638,7 +638,7 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
 {
     error() << "remake" << pattern;
     QRegExp rx(pattern);
-    for (Hash<Path, QPair<List<ByteArray>, List<ByteArray> > >::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
+    for (Map<Path, QPair<List<ByteArray>, List<ByteArray> > >::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
         if (rx.isEmpty() || rx.indexIn(it->first) != -1) {
             qDebug() << "calling remake on" << it->first;
             ResponseMessage msg("Remaking " + it->first);

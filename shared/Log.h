@@ -7,7 +7,7 @@
 #include <QSharedData>
 #include <QVariant>
 #include <ByteArray.h>
-#include <Hash.h>
+#include <Map.h>
 #include <Set.h>
 #include <List.h>
 
@@ -128,10 +128,10 @@ public:
     }
 
 
-    template <typename K, typename V> Log &operator<<(const Hash<K, V> &hash)
+    template <typename K, typename V> Log &operator<<(const Map<K, V> &hash)
     {
         if (mData) {
-            ByteArray out = "Hash<";
+            ByteArray out = "Map<";
             {
                 const K key;
                 const QVariant variant = qVariantFromValue<K>(key);
@@ -150,7 +150,7 @@ public:
             }
             *mData->dbg << out.constData();
             mData->dbg->nospace() << '\n';
-            for (typename Hash<K, V>::const_iterator it = hash.begin(); it != hash.end(); ++it) {
+            for (typename Map<K, V>::const_iterator it = hash.begin(); it != hash.end(); ++it) {
                 mData->dbg->nospace() << "  " << it.key() << ": " << it.value();
                 mData->dbg->nospace() << '\n';
             }

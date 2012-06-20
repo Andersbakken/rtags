@@ -248,7 +248,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         case CXCursor_CXXMethod:
         case CXCursor_Destructor:
         case CXCursor_Constructor:
-            job->mHeaderHash[clang_getCursorUSR(cursor)] = cursor;
+            job->mHeaderMap[clang_getCursorUSR(cursor)] = cursor;
             break;
         case CXCursor_ClassDecl:
         case CXCursor_StructDecl:
@@ -344,7 +344,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         if (mIsPch) {
             const ByteArray usr = Rdm::eatString(clang_getCursorUSR(cursor.cursor));
             if (!usr.isEmpty()) {
-                mPchUSRHash[usr] = cursor.location;
+                mPchUSRMap[usr] = cursor.location;
             }
         }
         info.isDefinition = clang_isCursorDefinition(cursor.cursor);
@@ -404,7 +404,7 @@ struct Scope {
     }
     void cleanup()
     {
-        headerHash.clear();
+        headerMap.clear();
         if (unit) {
             clang_disposeTranslationUnit(unit);
             unit = 0;
@@ -415,7 +415,7 @@ struct Scope {
         }
     }
 
-    Hash<Str, CXCursor> &headerHash;
+    Map<Str, CXCursor> &headerMap;
     CXTranslationUnit &unit;
     CXIndex &index;
 };
@@ -431,7 +431,7 @@ void IndexerJob::run()
     //     error("%s Waiting for rdm to shrink", mIn.constData());
     // }
     if (!mPchHeaders.isEmpty())
-        mPchUSRHash = mIndexer->pchUSRHash(mPchHeaders);
+        mPchUSRMap = mIndexer->pchUSRMap(mPchHeaders);
     const quint64 waitingForPch = timer.restart();
 
     QVarLengthArray<const char*, 32> clangArgs(mArgs.size());
@@ -479,7 +479,7 @@ void IndexerJob::run()
     mUnit = clang_parseTranslationUnit(index, mIn.constData(),
                                        clangArgs.data(), idx, 0, 0,
                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
-    Scope scope = { mHeaderHash, mUnit, index };
+    Scope scope = { mHeaderMap, mUnit, index };
     const time_t timeStamp = time(0);
     warning() << "loading unit" << clangLine << (mUnit != 0);
     if (isAborted()) {
@@ -499,7 +499,7 @@ void IndexerJob::run()
         Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
         std::map<Location, QPair<int, ByteArray> > fixIts;
-        Hash<quint32, List<ByteArray> > visited;
+        Map<quint32, List<ByteArray> > visited;
         const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
         for (unsigned i=0; i<diagnosticCount; ++i) {
             CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
@@ -565,7 +565,7 @@ void IndexerJob::run()
             if (clang_saveTranslationUnit(mUnit, pchName.constData(), clang_defaultSaveOptions(mUnit)) != CXSaveError_None) {
                 error() << "Couldn't save pch file" << mIn << pchName;
             } else {
-                mIndexer->setPchUSRHash(mIn, mPchUSRHash);
+                mIndexer->setPchUSRMap(mIn, mPchUSRMap);
             }
         }
         foreach(const Path &pchHeader, mPchHeaders) {
@@ -578,7 +578,7 @@ void IndexerJob::run()
         scope.cleanup();
 
         if (!isAborted()) {
-            for (Hash<quint32, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
+            for (Map<quint32, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
                 if (it->second == Index) {
                     (void)visited[it->first];
 #ifdef QT_DEBUG
@@ -667,15 +667,15 @@ IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind ki
     }
 
     const ByteArray key(usr.data(), usr.length());
-    Location refLoc = mPchUSRHash.value(key);
+    Location refLoc = mPchUSRMap.value(key);
     if (!refLoc.isNull()) {
         const Cursor ret = { cursor, refLoc, clang_getCursorKind(cursor) };
         // ### even if this isn't the right CXCursor it's good enough for our needs
         return ret;
     }
 
-    Hash<Str, CXCursor>::const_iterator it = mHeaderHash.find(usr);
-    if (it != mHeaderHash.end()) {
+    Map<Str, CXCursor>::const_iterator it = mHeaderMap.find(usr);
+    if (it != mHeaderMap.end()) {
         const CXCursor ref = it->second;
         const Cursor ret = { ref, createLocation(ref, 0), clang_getCursorKind(ref) };
         assert(!clang_equalCursors(ref, cursor)); // ### why is this happening?

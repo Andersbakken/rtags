@@ -2,8 +2,8 @@
 #include "Server.h"
 #include "Database.h"
 
-Hash<Path, quint32> Location::sPathsToIds;
-Hash<quint32, Path> Location::sIdsToPaths;
+Map<Path, quint32> Location::sPathsToIds;
+Map<quint32, Path> Location::sIdsToPaths;
 quint32 Location::sLastId = 0;
 QReadWriteLock Location::sLock;
 

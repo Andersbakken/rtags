@@ -7,7 +7,7 @@
 #include <QMetaMethod>
 #include <QString>
 #include <ByteArray.h>
-#include <Hash.h>
+#include <Map.h>
 
 class QLocalSocket;
 class ConnectionPrivate;
@@ -48,7 +48,7 @@ private:
         const QMetaObject *meta;
         int fromByteArrayId;
     };
-    static Hash<int, Meta> sMetas;
+    static Map<int, Meta> sMetas;
 
     friend class ConnectionPrivate;
 };

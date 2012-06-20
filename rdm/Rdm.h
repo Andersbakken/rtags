@@ -65,27 +65,14 @@ enum ReferenceType {
 }
 
 class Database;
-typedef Hash<Location, CursorInfo> SymbolHash;
-typedef Hash<Location, QPair<Location, Rdm::ReferenceType> > ReferenceHash;
-typedef Hash<ByteArray, Set<Location> > SymbolNameHash;
-typedef Hash<quint32, Set<quint32> > DependencyHash;
+typedef Map<Location, CursorInfo> SymbolMap;
+typedef Map<Location, QPair<Location, Rdm::ReferenceType> > ReferenceMap;
+typedef Map<ByteArray, Set<Location> > SymbolNameMap;
+typedef Map<quint32, Set<quint32> > DependencyMap;
 typedef QPair<ByteArray, time_t> WatchedPair;
-typedef Hash<ByteArray, Location> PchUSRHash;
-typedef Hash<Path, Set<WatchedPair> > WatchedHash;
-typedef Hash<quint32, FileInformation> InformationHash;
-
-inline std::size_t hash_value(const QPair<ByteArray, time_t> &pair)
-{
-    std::size_t h1 = hash_value(pair.first);
-    std::size_t h2 = hash_value(pair.second);
-    return ((h1 << 16) | (h1 >> 16)) ^ h2;
-}
-
-inline std::size_t hash_value(const QString &string)
-{
-    const QByteArray ba = string.toLocal8Bit();
-    return hashString(ba.constData(), ba.size());
-}
+typedef Map<ByteArray, Location> PchUSRMap;
+typedef Map<Path, Set<WatchedPair> > WatchedMap;
+typedef Map<quint32, FileInformation> InformationMap;
 
 namespace Rdm {
 static inline bool isPch(const List<ByteArray> &args)
@@ -144,12 +131,12 @@ static inline bool addTo(Container &container, const Value &value)
 }
 
 CursorInfo findCursorInfo(Database *db, const Location &key, Location *loc = 0);
-int writeSymbolNames(SymbolNameHash &symbolNames);
-int writeDependencies(const DependencyHash &dependencies);
-int writePchDepencies(const Hash<Path, Set<quint32> > &pchDependencies);
+int writeSymbolNames(SymbolNameMap &symbolNames);
+int writeDependencies(const DependencyMap &dependencies);
+int writePchDepencies(const Map<Path, Set<quint32> > &pchDependencies);
 int writeFileInformation(quint32 fileId, const List<ByteArray> &args, time_t lastTouched);
-int writePchUSRHashes(const Hash<Path, PchUSRHash> &hashes);
-int writeSymbols(SymbolHash &symbols, const ReferenceHash &references, quint32 fileId);
+int writePchUSRMapes(const Map<Path, PchUSRMap> &hashes);
+int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, quint32 fileId);
 int dirty(const Set<quint32> &dirtyFileIds);
 List<ByteArray> compileArgs(quint32 fileId);
 // the symbols will be modified before writing and we don't want to detach so we

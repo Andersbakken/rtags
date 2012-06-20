@@ -39,7 +39,7 @@ public:
         while (it != references.end()) {
             if (fileIds.contains((*it).fileId())) {
                 changed = true;
-                it = references.erase(it);
+                references.erase(it++);
             } else {
                 ++it;
             }

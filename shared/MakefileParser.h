@@ -5,7 +5,7 @@
 #include "GccArguments.h"
 #include <QObject>
 #include <List.h>
-#include <Hash.h>
+#include <Map.h>
 #include <QProcess>
 
 class DirectoryTracker;
@@ -40,7 +40,7 @@ private:
     ByteArray mData;
     DirectoryTracker *mTracker;
     const List<ByteArray> mExtraFlags;
-    Hash<ByteArray, ByteArray> mPchs;
+    Map<ByteArray, ByteArray> mPchs;
 };
 
 #endif // MAKEFILEPARSER_H

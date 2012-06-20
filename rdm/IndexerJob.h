@@ -47,25 +47,25 @@ public:
     Cursor findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc);
 
     List<Cursor> mDelayed;
-    SymbolHash mSymbols;
-    SymbolNameHash mSymbolNames;
+    SymbolMap mSymbols;
+    SymbolNameMap mSymbolNames;
 
     enum PathState {
         Unset,
         Index,
         DontIndex
     };
-    Hash<quint32, PathState> mPaths;
-    Hash<Str, CXCursor> mHeaderHash;
+    Map<quint32, PathState> mPaths;
+    Map<Str, CXCursor> mHeaderMap;
     bool mDoneFullUSRScan;
-    ReferenceHash mReferences;
+    ReferenceMap mReferences;
     const Path mIn;
     const quint32 mFileId;
     const List<ByteArray> mArgs;
-    DependencyHash mDependencies;
+    DependencyMap mDependencies;
     Set<quint32> mPchDependencies;
     Indexer *mIndexer;
-    Hash<ByteArray, Location> mPchUSRHash;
+    Map<ByteArray, Location> mPchUSRMap;
 
     List<Path> mPchHeaders;
     CXTranslationUnit mUnit;

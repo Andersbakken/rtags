@@ -49,11 +49,4 @@ private:
     QSharedDataPointer<Shared> mData;
 };
 
-inline std::size_t hash_value(const Str &str)
-{
-    return hashString(str.data(), str.length());
-}
-
-inline uint qHash(const Str &key) { return hashString(key.data(), key.length()); }
-
 #endif

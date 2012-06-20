@@ -262,7 +262,7 @@ bool GccArguments::parse(ByteArray args, const Path &base)
 
     mImpl->compiler = split.front();
     if (!mImpl->compiler.isResolved()) {
-        static Hash<Path, Path> resolvedFromPath;
+        static Map<Path, Path> resolvedFromPath;
         static List<Path> paths;
         mImpl->compiler = mImpl->compiler.fileName();
         Path resolved = resolvedFromPath.value(mImpl->compiler);

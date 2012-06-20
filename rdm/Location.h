@@ -75,8 +75,8 @@ public:
         return ret;
     }
     static void writeToDB(const Path &path, quint32 file);
-    static void init(const Hash<Path, quint32> &pathsToIds,
-                     const Hash<quint32, Path> &idsToPaths,
+    static void init(const Map<Path, quint32> &pathsToIds,
+                     const Map<quint32, Path> &idsToPaths,
                      quint32 maxId)
     {
         sPathsToIds = pathsToIds;
@@ -256,17 +256,12 @@ public:
     }
     quint64 mData;
 private:
-    static Hash<Path, quint32> sPathsToIds;
-    static Hash<quint32, Path> sIdsToPaths;
+    static Map<Path, quint32> sPathsToIds;
+    static Map<quint32, Path> sIdsToPaths;
     static quint32 sLastId;
     static QReadWriteLock sLock;
     mutable Path mCachedPath;
 };
-
-inline std::size_t hash_value(const Location &location)
-{
-    return hash_value(location.mData);
-}
 
 static inline QDataStream &operator<<(QDataStream &ds, const Location &loc)
 {
@@ -284,11 +279,6 @@ static inline QDebug operator<<(QDebug dbg, const Location &loc)
 {
     const ByteArray out = "Location(" + loc.key() + ")";
     return (dbg << out);
-}
-
-static inline uint qHash(const Location &l)
-{
-    return qHash(l.mData);
 }
 
 #endif

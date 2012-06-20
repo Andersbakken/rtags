@@ -28,7 +28,7 @@ set(rdm_HDRS
     Location.h
     List.h
     Set.h
-    Hash.h
+    Map.h
     ByteArray.h>
     )
 

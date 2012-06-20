@@ -180,8 +180,8 @@ void MakefileParser::onReadyReadStandardError()
 List<ByteArray> MakefileParser::mapPchToInput(const List<ByteArray> &input) const
 {
     List<ByteArray> output;
-    Hash<ByteArray, ByteArray>::const_iterator pchit;
-    const Hash<ByteArray, ByteArray>::const_iterator pchend = mPchs.end();
+    Map<ByteArray, ByteArray>::const_iterator pchit;
+    const Map<ByteArray, ByteArray>::const_iterator pchend = mPchs.end();
     foreach (const ByteArray &in, input) {
         pchit = mPchs.find(in);
         if (pchit != pchend)

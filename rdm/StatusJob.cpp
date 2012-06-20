@@ -21,10 +21,10 @@ void StatusJob::execute()
         write(Server::databaseDir(Server::General));
         write("    version: " + ByteArray::number(db->value<int>("version")));
 
-        const Hash<Path, QPair<List<ByteArray>, List<ByteArray> > > makefiles
-            = db->value<Hash<Path, QPair<List<ByteArray>, List<ByteArray> > > >("makefiles");
+        const Map<Path, QPair<List<ByteArray>, List<ByteArray> > > makefiles
+            = db->value<Map<Path, QPair<List<ByteArray>, List<ByteArray> > > >("makefiles");
 
-        for (Hash<Path, QPair<List<ByteArray>, List<ByteArray> > >::const_iterator it = makefiles.begin();
+        for (Map<Path, QPair<List<ByteArray>, List<ByteArray> > >::const_iterator it = makefiles.begin();
              it != makefiles.end(); ++it) {
             ByteArray out = "    " + it->first;
             if (!it->second.first.isEmpty())
@@ -138,11 +138,11 @@ void StatusJob::execute()
             if (isAborted())
                 return;
 
-            const PchUSRHash hash = it->value<PchUSRHash>();
+            const PchUSRMap hash = it->value<PchUSRMap>();
             write(it->key().byteArray());
             snprintf(buf, 1024, "  %s", it->key().byteArray().constData());
             write(buf);
-            for (PchUSRHash::const_iterator i = hash.begin(); i != hash.end(); ++i) {
+            for (PchUSRMap::const_iterator i = hash.begin(); i != hash.end(); ++i) {
                 snprintf(buf, 1024, "    %s: %s", i->first.constData(), i->second.key().constData());
                 write(buf);
             }

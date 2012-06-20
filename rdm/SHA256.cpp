@@ -56,7 +56,7 @@ static inline ByteArray hashToHex(SHA256Private* priv)
     return out;
 }
 
-ByteArray SHA256::hash(HashType type) const
+ByteArray SHA256::hash(MapType type) const
 {
     if (!priv->finalized) {
         SHA256_Final(priv->hash, &priv->ctx);
@@ -68,12 +68,12 @@ ByteArray SHA256::hash(HashType type) const
     return ByteArray(reinterpret_cast<char*>(priv->hash), SHA256_DIGEST_LENGTH);
 }
 
-ByteArray SHA256::hash(const ByteArray& data, HashType type)
+ByteArray SHA256::hash(const ByteArray& data, MapType type)
 {
     return SHA256::hash(data.constData(), data.size(), type);
 }
 
-ByteArray SHA256::hash(const char* data, uint size, HashType type)
+ByteArray SHA256::hash(const char* data, uint size, MapType type)
 {
     SHA256Private priv;
     SHA256_Init(&priv.ctx);

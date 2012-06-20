@@ -31,24 +31,24 @@ Indexer::Indexer(const ByteArray &path, QObject *parent)
             this, SLOT(onDirectoryChanged(QString)));
 
     {
-        ScopedDB db = Server::instance()->db(Server::PCHUsrHashes, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::PCHUsrMapes, ScopedDB::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         while (it->isValid()) {
-            mPchUSRHashes[it->key().byteArray()] = it->value<PchUSRHash>();
+            mPchUSRMapes[it->key().byteArray()] = it->value<PchUSRMap>();
             it->next();
         }
     }
     {
         ScopedDB db = Server::instance()->db(Server::General, ScopedDB::Read);
-        mPchDependencies = db->value<Hash<Path, Set<quint32> > >("pchDependencies");
+        mPchDependencies = db->value<Map<Path, Set<quint32> > >("pchDependencies");
     }
     {
         // watcher
         ScopedDB db = Server::instance()->db(Server::Dependency, ScopedDB::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
-        DependencyHash dependencies;
+        DependencyMap dependencies;
         while (it->isValid()) {
             const Slice key = it->key();
             const quint32 fileId = *reinterpret_cast<const quint32*>(key.data());
@@ -79,7 +79,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     Q_ASSERT(mode == ForceDirty || pattern.isEmpty());
     QElapsedTimer timer;
     timer.start();
-    Hash<quint32, Set<quint32> > deps, depsReversed;
+    Map<quint32, Set<quint32> > deps, depsReversed;
 
     ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ScopedDB::Read);
     RTags::Ptr<Iterator> it(dependencyDB->createIterator());
@@ -103,7 +103,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     }
 
     Set<quint32> dirtyFiles;
-    Hash<Path, List<ByteArray> > toIndex, toIndexPch;
+    Map<Path, List<ByteArray> > toIndex, toIndexPch;
     int checked = 0;
 
     {
@@ -176,28 +176,28 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     if (dirtyFiles.size() > 1) {
         Server::instance()->threadPool()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
     } else {
-        for (Hash<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
+        for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
             index(it->first, it->second, IndexerJob::DirtyPch|IndexerJob::NeedsDirty);
         }
 
-        for (Hash<Path, List<ByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
+        for (Map<Path, List<ByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
             index(it->first, it->second, IndexerJob::Dirty|IndexerJob::NeedsDirty);
         }
     }
 }
 
-void Indexer::commitDependencies(const DependencyHash &deps, bool sync)
+void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
 {
-    DependencyHash newDependencies;
+    DependencyMap newDependencies;
 
     if (mDependencies.isEmpty()) {
         mDependencies = deps;
         newDependencies = deps;
     } else {
-        const DependencyHash::const_iterator end = deps.end();
-        for (DependencyHash::const_iterator it = deps.begin(); it != end; ++it) {
+        const DependencyMap::const_iterator end = deps.end();
+        for (DependencyMap::const_iterator it = deps.begin(); it != end; ++it) {
             newDependencies[it->first].unite(it->second - mDependencies[it->first]);
-            DependencyHash::iterator i = newDependencies.find(it->first);
+            DependencyMap::iterator i = newDependencies.find(it->first);
             if (i->second.isEmpty())
                 newDependencies.erase(i);
             mDependencies[it->first].unite(it->second);
@@ -208,12 +208,12 @@ void Indexer::commitDependencies(const DependencyHash &deps, bool sync)
 
     Path parentPath;
     Set<QString> watchPaths;
-    const DependencyHash::const_iterator end = newDependencies.end();
+    const DependencyMap::const_iterator end = newDependencies.end();
     MutexLocker lock(&mWatchedMutex);
-    for (DependencyHash::const_iterator it = newDependencies.begin(); it != end; ++it) {
+    for (DependencyMap::const_iterator it = newDependencies.begin(); it != end; ++it) {
         const Path path = Location::path(it->first);
         parentPath = path.parentDir();
-        WatchedHash::iterator wit = mWatched.find(parentPath);
+        WatchedMap::iterator wit = mWatched.find(parentPath);
         //debug() << "watching" << path << "in" << parentPath;
         if (wit == mWatched.end()) {
             mWatched[parentPath].insert(qMakePair<ByteArray, time_t>(path.fileName(), path.lastModified()));
@@ -269,13 +269,13 @@ void Indexer::onDirectoryChanged(const QString &path)
 {
     const Path p(ByteArray(path.toLocal8Bit()));
     Set<quint32> dirtyFiles;
-    Hash<Path, List<ByteArray> > toIndex, toIndexPch;
+    Map<Path, List<ByteArray> > toIndex, toIndexPch;
 
     Q_ASSERT(p.endsWith('/'));
     {
         MutexLocker watchedLock(&mWatchedMutex);
         MutexLocker visitedLock(&mVisitedFilesMutex);
-        WatchedHash::iterator it = mWatched.find(p);
+        WatchedMap::iterator it = mWatched.find(p);
         if (it == mWatched.end()) {
             error() << "directory changed, but not in watched list" << p;
             return;
@@ -298,10 +298,10 @@ void Indexer::onDirectoryChanged(const QString &path)
                 dirtyFiles.insert(fileId);
                 mVisitedFiles.remove(fileId);
                 pending.append(file);
-                wit = it->second.erase(wit);
+                it->second.erase(wit++);
                 wend = it->second.end(); // ### do we need to update 'end' here?
 
-                DependencyHash::const_iterator dit = mDependencies.find(fileId);
+                DependencyMap::const_iterator dit = mDependencies.find(fileId);
                 if (dit == mDependencies.end()) {
                     error() << "file modified but not in dependency list" << file;
                     ++it;
@@ -341,11 +341,11 @@ void Indexer::onDirectoryChanged(const QString &path)
     if (dirtyFiles.size() > 1) {
         Server::instance()->threadPool()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
     } else {
-        for (Hash<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
+        for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
             index(it->first, it->second, IndexerJob::DirtyPch|IndexerJob::NeedsDirty);
         }
 
-        for (Hash<Path, List<ByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
+        for (Map<Path, List<ByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
             index(it->first, it->second, IndexerJob::Dirty|IndexerJob::NeedsDirty);
         }
     }
@@ -359,12 +359,12 @@ void Indexer::onJobComplete(int id, const Path &input, bool isPch, const ByteArr
     mJobs.remove(id);
     mIndexing.remove(input);
     if (isPch) {
-        Hash<int, IndexerJob*>::iterator it = mWaitingForPCH.begin();
+        Map<int, IndexerJob*>::iterator it = mWaitingForPCH.begin();
         while (it != mWaitingForPCH.end()) {
             IndexerJob *job = it->second;
             if (!needsToWaitForPch(job)) {
                 const int id = it->first;
-                it = mWaitingForPCH.erase(it);
+                mWaitingForPCH.erase(it++);
                 startJob(id, job);
             } else {
                 ++it;
@@ -407,37 +407,37 @@ Set<quint32> Indexer::pchDependencies(const Path &pchHeader) const
     return mPchDependencies.value(pchHeader);
 }
 
-void Indexer::addDependencies(const DependencyHash &deps)
+void Indexer::addDependencies(const DependencyMap &deps)
 {
     MutexLocker lock(&mMutex);
     commitDependencies(deps, true);
 }
 
-PchUSRHash Indexer::pchUSRHash(const List<Path> &pchFiles) const
+PchUSRMap Indexer::pchUSRMap(const List<Path> &pchFiles) const
 {
-    QReadLocker lock(&mPchUSRHashLock);
+    QReadLocker lock(&mPchUSRMapLock);
     const int count = pchFiles.size();
     switch (pchFiles.size()) {
-    case 0: return PchUSRHash();
-    case 1: return mPchUSRHashes.value(pchFiles.front());
+    case 0: return PchUSRMap();
+    case 1: return mPchUSRMapes.value(pchFiles.front());
     default:
         break;
     }
-    PchUSRHash ret = mPchUSRHashes.value(pchFiles.front());
+    PchUSRMap ret = mPchUSRMapes.value(pchFiles.front());
     for (int i=1; i<count; ++i) {
-        const PchUSRHash h = mPchUSRHashes.value(pchFiles.at(i));
-        for (PchUSRHash::const_iterator it = h.begin(); it != h.end(); ++it) {
+        const PchUSRMap h = mPchUSRMapes.value(pchFiles.at(i));
+        for (PchUSRMap::const_iterator it = h.begin(); it != h.end(); ++it) {
             ret[it->first] = it->second;
         }
     }
     return ret;
 }
 
-void Indexer::setPchUSRHash(const Path &pch, const PchUSRHash &astHash)
+void Indexer::setPchUSRMap(const Path &pch, const PchUSRMap &astMap)
 {
-    QWriteLocker lock(&mPchUSRHashLock);
-    mPchUSRHashes[pch] = astHash;
-    Rdm::writePchUSRHashes(mPchUSRHashes);
+    QWriteLocker lock(&mPchUSRMapLock);
+    mPchUSRMapes[pch] = astMap;
+    Rdm::writePchUSRMapes(mPchUSRMapes);
 }
 bool Indexer::needsToWaitForPch(IndexerJob *job) const
 {
@@ -451,12 +451,12 @@ bool Indexer::needsToWaitForPch(IndexerJob *job) const
 void Indexer::abort()
 {
     MutexLocker lock(&mMutex);
-    for (Hash<int, IndexerJob*>::const_iterator it = mWaitingForPCH.begin(); it != mWaitingForPCH.end(); ++it) {
+    for (Map<int, IndexerJob*>::const_iterator it = mWaitingForPCH.begin(); it != mWaitingForPCH.end(); ++it) {
         delete it->second;
     }
 
     mWaitingForPCH.clear();
-    for (Hash<int, IndexerJob*>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
+    for (Map<int, IndexerJob*>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
         it->second->abort();
     }
 }
@@ -495,12 +495,12 @@ ByteArray Indexer::errors(const Path &path) const
 }
 
 
-void Indexer::setDiagnostics(const Hash<quint32, List<ByteArray> > &diagnostics,
+void Indexer::setDiagnostics(const Map<quint32, List<ByteArray> > &diagnostics,
                              const std::map<Location, QPair<int, ByteArray> > &fixIts)
 {
     QWriteLocker lock(&mFixItsAndErrorsLock);
 
-    for (Hash<quint32, List<ByteArray> >::const_iterator it = diagnostics.begin(); it != diagnostics.end(); ++it) {
+    for (Map<quint32, List<ByteArray> >::const_iterator it = diagnostics.begin(); it != diagnostics.end(); ++it) {
         const quint32 fileId = it->first;
         std::map<Location, QPair<int, ByteArray> >::iterator i = mFixIts.lower_bound(Location(fileId, 0));
         while (i != mFixIts.end() && i->first.fileId() == fileId) {

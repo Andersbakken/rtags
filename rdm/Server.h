@@ -4,7 +4,7 @@
 #include <QObject>
 #include <ByteArray.h>
 #include <List.h>
-#include <Hash.h>
+#include <Map.h>
 #include "QueryMessage.h"
 #include "Connection.h"
 #include "ThreadPool.h"
@@ -59,7 +59,7 @@ public:
         Symbol,
         SymbolName,
         FileInformation,
-        PCHUsrHashes,
+        PCHUsrMapes,
         FileIds,
         DatabaseTypeCount
     };
@@ -119,12 +119,12 @@ private:
     Options mOptions;
     Indexer *mIndexer;
     QLocalServer *mServer;
-    Hash<int, Connection*> mPendingIndexes;
-    Hash<int, Connection*> mPendingLookups;
+    Map<int, Connection*> mPendingIndexes;
+    Map<int, Connection*> mPendingLookups;
     bool mVerbose;
     int mJobId;
     static Path sBase;
-    Hash<Path, QPair<List<ByteArray>, List<ByteArray> > > mMakefiles;
+    Map<Path, QPair<List<ByteArray>, List<ByteArray> > > mMakefiles;
     Database *mDBs[DatabaseTypeCount];
     ThreadPool *mThreadPool;
 };

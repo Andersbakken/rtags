@@ -1,7 +1,7 @@
 #include "Connection.h"
 #include <QLocalSocket>
 
-Hash<int, Connection::Meta> Connection::sMetas;
+Map<int, Connection::Meta> Connection::sMetas;
 
 class ConnectionPrivate : public QObject
 {

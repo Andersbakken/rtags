@@ -276,24 +276,6 @@ private:
     std::string mString;
 };
 
-inline uint hashString(const char *p, int n)
-{
-    uint h = 0;
-
-    while (n--) {
-        h = (h << 4) + *p++;
-        h ^= (h & 0xf0000000) >> 23;
-        h &= 0x0fffffff;
-    }
-    return h;
-}
-
-
-inline uint qHash(const ByteArray &ba)
-{
-    return hashString(ba.constData(), ba.size());
-}
-
 inline const ByteArray operator+(const ByteArray &l, const char *r)
 {
     ByteArray ret = l;
@@ -341,11 +323,6 @@ static inline QDataStream &operator>>(QDataStream &ds, ByteArray &ba)
     ba.resize(size);
     ds.readRawData(ba.data(), size);
     return ds;
-}
-
-inline std::size_t hash_value(const ByteArray &ba)
-{
-    return hashString(ba.constData(), ba.size());
 }
 
 Q_DECLARE_METATYPE(ByteArray);

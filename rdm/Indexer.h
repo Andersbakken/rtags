@@ -18,17 +18,17 @@ public:
     int index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
 
     void setPchDependencies(const Path &pchHeader, const Set<quint32> &deps);
-    void addDependencies(const DependencyHash &hash);
+    void addDependencies(const DependencyMap &hash);
     Set<quint32> pchDependencies(const Path &pchHeader) const;
-    Hash<ByteArray, Location> pchUSRHash(const List<Path> &pchFiles) const;
-    void setPchUSRHash(const Path &pch, const PchUSRHash &astHash);
+    Map<ByteArray, Location> pchUSRMap(const List<Path> &pchFiles) const;
+    void setPchUSRMap(const Path &pch, const PchUSRMap &astMap);
     Path path() const { return mPath; }
     void abort();
     bool visitFile(quint32 fileId, const Path &p);
     Set<quint32> visitedFiles() const { MutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path) const;
-    void setDiagnostics(const Hash<quint32, List<ByteArray> > &errors,
+    void setDiagnostics(const Map<quint32, List<ByteArray> > &errors,
                         const std::map<Location, QPair<int, ByteArray> > &fixIts);
     void reindex(const ByteArray &pattern);
 signals:
@@ -38,7 +38,7 @@ private slots:
     void onJobComplete(int id, const Path &input, bool isPch, const ByteArray &msg);
     void onDirectoryChanged(const QString &path);
 private:
-    void commitDependencies(const DependencyHash &deps, bool sync);
+    void commitDependencies(const DependencyMap &deps, bool sync);
     enum InitMode {
         Normal,
         ForceDirty
@@ -47,32 +47,32 @@ private:
     bool needsToWaitForPch(IndexerJob *job) const;
     void startJob(int id, IndexerJob *job);
 
-    mutable QReadWriteLock mPchUSRHashLock;
-    Hash<Path, PchUSRHash> mPchUSRHashes;
+    mutable QReadWriteLock mPchUSRMapLock;
+    Map<Path, PchUSRMap> mPchUSRMapes;
 
     mutable Mutex mVisitedFilesMutex;
     Set<quint32> mVisitedFiles;
 
     mutable QReadWriteLock mPchDependenciesLock;
-    Hash<Path, Set<quint32> > mPchDependencies;
+    Map<Path, Set<quint32> > mPchDependencies;
     int mJobCounter;
 
     Mutex mMutex;
     Set<Path> mIndexing;
 
     ByteArray mPath;
-    Hash<int, IndexerJob*> mJobs, mWaitingForPCH;
+    Map<int, IndexerJob*> mJobs, mWaitingForPCH;
 
     bool mTimerRunning;
     QElapsedTimer mTimer;
 
     QFileSystemWatcher mWatcher;
-    DependencyHash mDependencies;
+    DependencyMap mDependencies;
     Mutex mWatchedMutex;
-    WatchedHash mWatched;
+    WatchedMap mWatched;
 
     std::map<Location, QPair<int, ByteArray> > mFixIts;
-    Hash<quint32, ByteArray> mErrors;
+    Map<quint32, ByteArray> mErrors;
     mutable QReadWriteLock mFixItsAndErrorsLock;
 };
 

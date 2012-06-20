@@ -7,7 +7,7 @@
 struct Source {
     GccArguments args;
     quint64 lastModified;
-    Hash<Path, quint64> dependencies;
+    Map<Path, quint64> dependencies;
     bool fromUnsavedFile;
 };
 

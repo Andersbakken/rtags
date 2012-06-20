@@ -1,29 +1,29 @@
 #ifndef Set_h
 #define Set_h
 
-#include <boost/unordered_set.hpp>
+#include <set>
 #include <List.h>
 
 template <typename T>
-class Set : public boost::unordered_set<T, boost::hash<T> >
+class Set : public std::set<T>
 {
 public:
     Set() {}
 
     bool contains(const T &t) const
     {
-        return find(t) != boost::unordered_set<T, boost::hash<T> >::end();
+        return find(t) != std::set<T>::end();
     }
 
     bool isEmpty() const
     {
-        return !boost::unordered_set<T, boost::hash<T> >::size();
+        return !std::set<T>::size();
     }
 
     bool remove(const T &t)
     {
-        typename boost::unordered_set<T, boost::hash<T> >::iterator it = find(t);
-        if (it != boost::unordered_set<T, boost::hash<T> >::end()) {
+        typename std::set<T>::iterator it = find(t);
+        if (it != std::set<T>::end()) {
             erase(it);
             return true;
         }
@@ -32,8 +32,8 @@ public:
     List<T> toList() const
     {
         List<T> ret;
-        typename boost::unordered_set<T, boost::hash<T> >::iterator it = boost::unordered_set<T, boost::hash<T> >::begin();
-        while (it != boost::unordered_set<T, boost::hash<T> >::end()) {
+        typename std::set<T>::iterator it = std::set<T>::begin();
+        while (it != std::set<T>::end()) {
             ret.append(*it);
             ++it;
         }
@@ -42,9 +42,9 @@ public:
 
     Set<T> &unite(const Set<T> &other)
     {
-        typename boost::unordered_set<T, boost::hash<T> >::iterator it = other.begin();
+        typename std::set<T>::iterator it = other.begin();
         while (it != other.end()) {
-            boost::unordered_set<T, boost::hash<T> >::insert(*it);
+            std::set<T>::insert(*it);
             ++it;
         }
         return *this;
@@ -52,7 +52,7 @@ public:
 
     Set<T> &subtract(const Set<T> &other)
     {
-        typename boost::unordered_set<T, boost::hash<T> >::iterator it = other.begin();
+        typename std::set<T>::iterator it = other.begin();
         while (it != other.end()) {
             erase(*it);
             ++it;
@@ -72,7 +72,7 @@ public:
 
     int size() const
     {
-        return boost::unordered_set<T, boost::hash<T> >::size();
+        return std::set<T>::size();
     }
 };
 
