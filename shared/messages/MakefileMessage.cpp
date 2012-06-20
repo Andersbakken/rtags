@@ -19,13 +19,11 @@ ByteArray MakefileMessage::toByteArray() const
         Serializer stream(data);
         stream << mMakefile; // << mArgs << mExtraFlags;
     }
-    qDebug() << "toByteArray" << data.size();
     return data;
 }
 
 void MakefileMessage::fromByteArray(const ByteArray &data)
 {
-    qDebug() << "fromByteArray" << data.size();
     Deserializer stream(data.constData(), data.size());
     stream >> mMakefile; // >> mArgs >> mExtraFlags;
 }

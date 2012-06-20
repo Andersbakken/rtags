@@ -2,6 +2,7 @@
 #define List_h
 
 #include <vector>
+#include <algorithm>
 
 template <typename T>
 class List : public std::vector<T>

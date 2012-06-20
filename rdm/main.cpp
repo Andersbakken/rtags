@@ -78,7 +78,6 @@ void usage(FILE *f)
             "  --datadir|-d [arg]         Use this as datadir (default ~/.rtags\n"
             "  --disable-sighandler|-s    Disable signal handler to dump stack for crashes\n"
             "  --cache-size|-c [size]     Cache size in MB (one cache per db, default 128MB)\n"
-            "  --max-memory-use|-M [size] Max amount of memory to use in MB default 1024MB\n"
             "  --name|-n [name]           Name to use for server (default ~/.rtags/server)\n"
             "  --no-clang-includepath|-p  Don't use clang include paths by default\n"
             "  --usedashB|-B              Use -B for make instead of makelib\n"
@@ -100,7 +99,6 @@ int main(int argc, char** argv)
         { "datadir", required_argument, 0, 'd' },
         { "clean-slate", no_argument, 0, 'C' },
         { "cache-size", required_argument, 0, 'c' },
-        { "max-memory-use", required_argument, 0, 'M' },
         { "disable-sighandler", no_argument, 0, 's' },
         { "name", required_argument, 0, 'n' },
         { "usedashB", no_argument, 0, 'B' },
@@ -117,7 +115,6 @@ int main(int argc, char** argv)
     Path datadir = RTags::rtagsDir();
     const ByteArray shortOptions = RTags::shortOptions(opts);
     int cacheSize = 128;
-    long maxMemoryUse = 1024;
     bool enableSignalHandler = true;
     ByteArray name;
     forever {
@@ -154,13 +151,6 @@ int main(int argc, char** argv)
                 return 1;
             }
             break; }
-        case 'M':
-            maxMemoryUse = atoi(optarg);
-            if (maxMemoryUse <= 0) {
-                fprintf(stderr, "Can't parse argument to -M %s\n", optarg);
-                return 1;
-            }
-            break;
         case 'j':
             jobs = atoi(optarg);
             if (jobs <= 0) {
@@ -208,7 +198,6 @@ int main(int argc, char** argv)
                 logLevel, logFile ? logFile : "", logFlags);
         return false;
     }
-    Rdm::setMaxMemoryUsage(maxMemoryUse * 1024 * 1024);
     Server::setBaseDirectory(datadir, clearDataDir);
     if (clearDataDir) {
         warning("Removing contents of cache directory [%s]", datadir.constData());

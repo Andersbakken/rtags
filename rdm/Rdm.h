@@ -7,7 +7,6 @@
 #include <clang-c/Index.h>
 #include <Path.h>
 #include <RTags.h>
-#include <QDebug>
 #include "Mutex.h"
 #include "MutexLocker.h"
 #include "Location.h"
@@ -99,15 +98,12 @@ static inline bool isReference(CXCursorKind kind)
     return (clang_isReference(kind) || (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr));
 }
 
-void setMaxMemoryUsage(uint64_t max);
-bool waitForMemory(int maxMs);
 ByteArray eatString(CXString str);
 ByteArray cursorToString(CXCursor cursor);
 template <typename T>
 static inline bool startsWith(const List<T> &list, const T &str)
 {
     if (!list.isEmpty()) {
-        //qDebug() << "filtering" << list << str;
         typename List<T>::const_iterator it = std::upper_bound(list.begin(), list.end(), str);
         if (it != list.end()) {
             const int cmp = strncmp(str.constData(), (*it).constData(), (*it).size());
@@ -199,13 +195,13 @@ private:
     Connection *mConnection;
 };
 }
-static inline QDebug operator<<(QDebug dbg, CXCursor cursor)
+static inline Log &operator<<(Log &dbg, CXCursor cursor)
 {
     dbg << Rdm::cursorToString(cursor).constData();
     return dbg;
 }
 
-static inline QDebug operator<<(QDebug dbg, CXCursorKind kind)
+static inline Log &operator<<(Log &dbg, CXCursorKind kind)
 {
     dbg << Rdm::eatString(clang_getCursorKindSpelling(kind)).constData();
     return dbg;

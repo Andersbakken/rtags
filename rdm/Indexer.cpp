@@ -122,7 +122,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
                 if (!fi.compileArgs.isEmpty()) {
 #ifdef QT_DEBUG
                     if (path.isHeader() && !Rdm::isPch(fi.compileArgs)) {
-                        error() << path << fi.compileArgs << fileId;
+                        error() << path; // << fi.compileArgs << fileId;
                         Q_ASSERT(0);
                     }
 #endif
@@ -291,7 +291,7 @@ void Indexer::onDirectoryChanged(const QString &path)
         while (wit != wend) {
             // weird API, Set<>::iterator does not allow for modifications to the referenced value
             file = (p + (*wit).first);
-            // qDebug() << "comparing" << file << (file.lastModified() == (*wit).second)
+            // error() << "comparing" << file << (file.lastModified() == (*wit).second)
             //          << QDateTime::fromTime_t(file.lastModified());
             if (!file.exists() || file.lastModified() != (*wit).second) {
                 const uint32_t fileId = Location::fileId(file);
@@ -372,16 +372,16 @@ void Indexer::onJobComplete(int id, const Path &input, bool isPch, const ByteArr
         }
     }
     const int idx = mJobCounter - (mIndexing.size() + mWaitingForPCH.size());
-    error("[%3d%%] %d/%d %s. Pending jobs %d. %lu mb mem.",
+    error("[%3d%%] %d/%d %s. Pending jobs %d. %d mb mem.",
           static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
           msg.constData(), mJobs.size() + mWaitingForPCH.size(),
-          (MemoryMonitor::usage() / (1024 * 1024)));
+          int((MemoryMonitor::usage() / (1024 * 1024))));
 
     if (mJobs.isEmpty()) {
         Q_ASSERT(mTimerRunning);
         mTimerRunning = false;
-        error() << "jobs took" << ((double)(mTimer.elapsed()) / 1000.0) << "secs"
-                << "using" << (double(MemoryMonitor::usage()) / (1024.0 * 1024.0)) << "mb of memory";
+        error() << "jobs took " << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using "
+                << MemoryMonitor::usage() / (1024.0 * 1024.0) << " mb of memory";
         mJobCounter = 0;
         emit jobsComplete();
     }

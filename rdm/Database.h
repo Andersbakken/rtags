@@ -26,7 +26,7 @@ private:
     friend struct Batch;
 };
 
-static inline QDebug operator<<(QDebug dbg, const Slice &slice)
+static inline Log &operator<<(Log &dbg, const Slice &slice)
 {
     dbg << std::string(slice.data(), slice.size()).c_str();
     return dbg;

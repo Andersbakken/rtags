@@ -132,7 +132,8 @@ private:
     ByteArray mCmd;
 };
 
-struct MakefileCommand : public Command {
+struct MakefileCommand : public Command
+{
     MakefileCommand(const Path &mf, const List<ByteArray> &args, const List<ByteArray> &ef)
         : makefile(mf), makefileArgs(args), extraFlags(ef)
     {}

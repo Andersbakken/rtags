@@ -80,37 +80,6 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
     return cursorInfo;
 }
 
-static uint64_t sMaxMemoryUsage = 0;
-bool waitForMemory(int maxMs)
-{
-    QElapsedTimer timer;
-    timer.start();
-    static uint64_t last = 0;
-    do {
-        QElapsedTimer timer;
-        timer.start();
-        const uint64_t mem = MemoryMonitor::usage();
-        int elapsed = timer.elapsed();
-        static int total = 0;
-        total += elapsed;
-        printf("We're at %lu, max is %lu (was at %lu) %d %d\n", mem, sMaxMemoryUsage, last, total, elapsed);
-        if (mem < sMaxMemoryUsage) {
-            return true;
-        } else if (mem < last || !last) {
-            sleep(1);
-        } else {
-            sleep(2); // yes!
-        }
-        last = mem;
-    } while (maxMs <= 0 || timer.elapsed() >= maxMs);
-    return false;
-}
-
-void setMaxMemoryUsage(uint64_t max)
-{
-    sMaxMemoryUsage = max;
-}
-
 int writeSymbolNames(SymbolNameMap &symbolNames)
 {
     QElapsedTimer timer;

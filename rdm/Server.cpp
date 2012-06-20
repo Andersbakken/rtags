@@ -183,9 +183,8 @@ bool Server::init(const Options &options)
         Location::init(pathsToIds, idsToPaths, maxId);
     }
 
-
     connect(mServer, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
-    error() << "running with" << mOptions.defaultArguments << "clang version" << Rdm::eatString(clang_getClangVersion());
+    error() << "running with " << mOptions.defaultArguments << " clang version " << Rdm::eatString(clang_getClangVersion());
 
     mIndexer = new Indexer(sBase, this);
     connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
@@ -371,7 +370,7 @@ void Server::handleQueryMessage(QueryMessage *message)
 
 void Server::handleErrorMessage(ErrorMessage *message)
 {
-    qWarning("Error message: %s", message->message().constData());
+    error("Error message: %s", message->message().constData());
 }
 
 void Server::onIndexingDone(int id)

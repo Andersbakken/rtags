@@ -3,9 +3,10 @@
 
 #include <string>
 #include <stdint.h>
-#include <QDebug>
 #include <errno.h>
 #include <List.h>
+#include <stdio.h>
+#include <QtCore>
 
 class ByteArray
 {
@@ -18,7 +19,7 @@ public:
             mString = std::string(data, len);
         }
     }
-    ByteArray(int len, char fillChar = '\0')
+    ByteArray(int len, char fillChar)
         : mString(len, fillChar)
     {}
 
@@ -298,12 +299,6 @@ inline const ByteArray operator+(const ByteArray &l, const ByteArray &r)
     ByteArray ret = l;
     ret += r;
     return ret;
-}
-
-inline QDebug operator<<(QDebug dbg, const ByteArray &ba)
-{
-    dbg << ba.constData();
-    return dbg;
 }
 
 Q_DECLARE_METATYPE(ByteArray);

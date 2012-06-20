@@ -73,7 +73,7 @@ public:
     Type type() const;
     bool resolve(const Path &cwd = Path());
     int canonicalize();
-    time_t lastModified() const; // returns time_t
+    time_t lastModified() const; // returns time_t ... no shit
     int64_t fileSize() const;
     static Path resolved(const ByteArray &path, const Path &cwd = Path(), bool *ok = 0);
     static Path canonicalized(const ByteArray &path);

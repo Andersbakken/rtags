@@ -2,7 +2,6 @@
 #define Log_h
 
 #include <QString>
-#include <QDebug>
 #include <QExplicitlySharedDataPointer>
 #include <QSharedData>
 #include <QVariant>
@@ -10,6 +9,9 @@
 #include <Map.h>
 #include <Set.h>
 #include <List.h>
+#include <sstream>
+#include <Path.h>
+#include <cxxabi.h>
 
 class Path;
 
@@ -91,107 +93,17 @@ public:
     template <typename T> Log &operator<<(const T &t)
     {
         if (mData) {
-            *mData->dbg << t;
-            return *this;
+            mData->dbg << t;
         }
         return *this;
     }
-
-    template <typename T> Log &operator<<(const List<T> &vector)
+    Log &operator<<(const std::string &string)
     {
         if (mData) {
-            ByteArray out;
-            if (mData->out.isEmpty())
-                out += '\n';
-            out += "std::vector<";
-            {
-                T key;
-                const QVariant variant = qVariantFromValue<T>(key);
-                out += variant.typeName();
-                out += ">(";
-            }
-            *mData->dbg << out.constData();
-            bool first = true;
-            for (typename std::vector<T>::const_iterator it = vector.begin(); it != vector.end(); ++it) {
-                if (!first) {
-                    mData->dbg->nospace() << ", ";
-                } else {
-                    first = false;
-                }
-                mData->dbg->nospace() << *it;
-            }
-            *mData->dbg << ")";
-            mData->dbg->maybeSpace();
-            return *this;
+            mData->dbg << string;
         }
         return *this;
     }
-
-
-    template <typename K, typename V> Log &operator<<(const Map<K, V> &hash)
-    {
-        if (mData) {
-            ByteArray out = "Map<";
-            {
-                const K key;
-                const QVariant variant = qVariantFromValue<K>(key);
-                if (!mData->out.isEmpty())
-                    out.prepend('\n');
-                out += variant.typeName();
-            }
-            out += ", ";
-            {
-                const V value;
-                QVariant variant = qVariantFromValue<V>(value);
-                out += variant.typeName();
-                if (out.endsWith('>'))
-                    out += ' ';
-                out += ">(";
-            }
-            *mData->dbg << out.constData();
-            mData->dbg->nospace() << '\n';
-            for (typename Map<K, V>::const_iterator it = hash.begin(); it != hash.end(); ++it) {
-                mData->dbg->nospace() << "  " << it.key() << ": " << it.value();
-                mData->dbg->nospace() << '\n';
-            }
-            *mData->dbg << ")\n";
-            mData->dbg->maybeSpace();
-            return *this;
-        }
-        return *this;
-    }
-
-    template <typename K> Log &operator<<(const Set<K> &set)
-    {
-        if (mData) {
-            ByteArray out;
-            if (mData->out.isEmpty())
-                out += '\n';
-            out += "Set<";
-            {
-                K key;
-                const QVariant variant = qVariantFromValue<K>(key);
-                out += variant.typeName();
-                out += ">(";
-            }
-            *mData->dbg << out.constData();
-            bool first = true;
-            for (typename Set<K>::const_iterator it = set.begin(); it != set.end(); ++it) {
-                if (!first) {
-                    mData->dbg->nospace() << ", ";
-                } else {
-                    first = false;
-                }
-                mData->dbg->nospace() << *it;
-            }
-            *mData->dbg << ")";
-            mData->dbg->maybeSpace();
-            return *this;
-        }
-        return *this;
-    }
-
-
 private:
     class Data : public QSharedData
     {
@@ -199,21 +111,87 @@ private:
         Data(int lvl)
             : level(lvl)
         {
-            dbg = new QDebug(&out);
         }
         ~Data()
         {
-            delete dbg;
-            log(level, "%s", qPrintable(out.trimmed()));
+            log(level, "%s", dbg.str().c_str());
         }
 
         const int level;
-        QDebug *dbg;
-        QString out;
+        std::ostringstream dbg;
     };
 
     QExplicitlySharedDataPointer<Data> mData;
 };
+
+template <typename T> inline ByteArray typeName()
+{
+    const char *name = typeid(T).name();
+    char *ret = abi::__cxa_demangle(name, 0, 0, 0);
+    ByteArray ba;
+    if (ret) {
+        ba = ret;
+        free(ret);
+    }
+    return ba;
+}
+
+template <typename T>
+inline std::ostringstream &operator<<(std::ostringstream &stream, const List<T> &list)
+{
+    stream << "List<" << typeName<T>().constData() << ">(";
+    bool first = true;
+    for (typename List<T>::const_iterator it = list.begin(); it != list.end(); ++it) {
+        if (!first) {
+            stream << ", ";
+        } else {
+            first = false;
+        }
+        stream << *it;
+    }
+    stream << ")";
+    return stream;
+}
+
+template <typename T>
+inline std::ostringstream &operator<<(std::ostringstream &stream, const Set<T> &set)
+{
+    stream << "List<" << typeName<T>().constData() << ">(";
+    bool first = true;
+    for (typename Set<T>::const_iterator it = set.begin(); it != set.end(); ++it) {
+        if (!first) {
+            stream << ", ";
+        } else {
+            first = false;
+        }
+        stream << *it;
+    }
+    stream << ")";
+    return stream;
+}
+
+template <typename Key, typename Value>
+inline std::ostringstream &operator<<(std::ostringstream &stream, const Map<Key, Value> &map)
+{
+    stream << "Key<" << typeName<Key>().constData() << ", " << typeName<Value>().constData() << ">(";
+    bool first = true;
+    for (typename Map<Key, Value>::const_iterator it = map.begin(); it != map.end(); ++it) {
+        if (!first) {
+            stream << ", ";
+        } else {
+            first = false;
+        }
+        stream << it->first << ": " << it->second;
+    }
+    stream << ")";
+    return stream;
+}
+
+inline std::ostringstream &operator<<(std::ostringstream &stream, const ByteArray &byteArray)
+{
+    stream.write(byteArray.constData(), byteArray.size());
+    return stream;
+}
 
 static inline Log error()
 {
