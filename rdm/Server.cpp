@@ -31,8 +31,6 @@
 #include <stdio.h>
 
 Path Server::sBase;
-Q_DECLARE_METATYPE(QList<ByteArray>);
-Q_DECLARE_METATYPE(ByteArray);
 
 Server *Server::sInstance = 0;
 Server::Server(QObject *parent)
@@ -41,7 +39,7 @@ Server::Server(QObject *parent)
     Q_ASSERT(!sInstance);
     sInstance = this;
     qRegisterMetaType<ByteArray>("ByteArray");
-    qRegisterMetaType<QList<ByteArray> >("QList<ByteArray>");
+    qRegisterMetaType<List<ByteArray> >("List<ByteArray>");
     memset(mDBs, 0, sizeof(mDBs));
 }
 
@@ -62,14 +60,14 @@ void Server::clear()
     }
 }
 
-static inline QList<Path> systemIncludes(const Path &cpp)
+static inline List<Path> systemIncludes(const Path &cpp)
 {
-    QList<Path> systemIncludes;
+    List<Path> systemIncludes;
     QProcess proc;
     proc.start(cpp, QStringList() << QLatin1String("-v"));
     proc.closeWriteChannel();
     proc.waitForFinished();
-    QList<ByteArray> lines = ByteArray(proc.readAllStandardError()).split('\n');
+    List<ByteArray> lines = ByteArray(proc.readAllStandardError()).split('\n');
     bool seenInclude = false;
     Path gxxIncludeDir;
     ByteArray target;
@@ -161,7 +159,7 @@ bool Server::init(const Options &options)
             error("Wrong version, expected %d, got %d. Run with -C to regenerate database", Rdm::DatabaseVersion, version);
             return false;
         }
-        mMakefiles = general->value<Hash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > >("makefiles");
+        mMakefiles = general->value<Hash<Path, QPair<List<ByteArray>, List<ByteArray> > > >("makefiles");
     }
 
     {
@@ -263,7 +261,7 @@ void Server::handleMakefileMessage(MakefileMessage *message)
     make(message->makefile(), message->arguments(), message->extraFlags());
 }
 
-void Server::make(const Path &path, QList<ByteArray> makefileArgs, const QList<ByteArray> &extraFlags)
+void Server::make(const Path &path, List<ByteArray> makefileArgs, const List<ByteArray> &extraFlags)
 {
     MakefileParser *parser = new MakefileParser(extraFlags, this);
     connect(parser, SIGNAL(fileReady(GccArguments)), this, SLOT(onFileReady(GccArguments)));
@@ -278,7 +276,7 @@ void Server::make(const Path &path, QList<ByteArray> makefileArgs, const QList<B
 void Server::handleOutputMessage(OutputMessage *message)
 {
     Connection *conn = qobject_cast<Connection*>(sender());
-    const QList<ByteArray> names = message->name().split(',');
+    const List<ByteArray> names = message->name().split(',');
     foreach(const ByteArray& name, names) {
         if (name == "log") {
             new Rdm::LogObject(conn, message->level());
@@ -585,7 +583,7 @@ void Server::errors(const QueryMessage &query, Connection *conn)
 
 void Server::rdmLog(const QueryMessage &query, Connection *conn)
 {
-    const char *q = query.query().first().constData();
+    const char *q = query.query().front().constData();
     const int level = *reinterpret_cast<const int *>(q);
     new Rdm::LogObject(conn, level);
 }
@@ -640,7 +638,7 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
 {
     error() << "remake" << pattern;
     QRegExp rx(pattern);
-    for (Hash<Path, QPair<QList<ByteArray>, QList<ByteArray> > >::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
+    for (Hash<Path, QPair<List<ByteArray>, List<ByteArray> > >::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
         if (rx.isEmpty() || rx.indexIn(it->first) != -1) {
             qDebug() << "calling remake on" << it->first;
             ResponseMessage msg("Remaking " + it->first);
@@ -706,7 +704,7 @@ void Server::onFileReady(const GccArguments &args)
         parser->setPch(output, input);
     }
 
-    QList<ByteArray> arguments = args.clangArgs();
+    List<ByteArray> arguments = args.clangArgs();
     if (args.lang() == GccArguments::CPlusPlus) {
         foreach(const ByteArray &pch, parser->mapPchToInput(args.explicitIncludes())) {
             arguments.append("-include-pch");

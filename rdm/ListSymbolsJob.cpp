@@ -27,7 +27,7 @@ void ListSymbolsJob::execute()
     }
     if (elispList)
         writeRaw("(list");
-    QList<ByteArray> out;
+    List<ByteArray> out;
     while (it->isValid() && !isAborted()) {
         const ByteArray entry = it->key().byteArray();
         if (!string.isEmpty() && !entry.startsWith(string))

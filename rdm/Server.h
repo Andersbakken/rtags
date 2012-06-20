@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include <ByteArray.h>
-#include <QList>
+#include <List.h>
 #include <Hash.h>
 #include "QueryMessage.h"
 #include "Connection.h"
@@ -65,12 +65,12 @@ public:
     };
 
     static Server *instance() { return sInstance; }
-    QList<ByteArray> defaultArguments() const { return mOptions.defaultArguments; }
+    List<ByteArray> defaultArguments() const { return mOptions.defaultArguments; }
     inline ScopedDB db(DatabaseType type, ScopedDB::LockType lockType) const { return ScopedDB(mDBs[type], lockType); }
     struct Options {
         Options() : options(0), cacheSizeMB(0) {}
         unsigned options;
-        QList<ByteArray> defaultArguments;
+        List<ByteArray> defaultArguments;
         long cacheSizeMB;
         ByteArray name;
     };
@@ -82,7 +82,7 @@ public:
     static Path pchDir();
     ThreadPool *threadPool() const { return mThreadPool; }
 signals:
-    void complete(int id, const QList<ByteArray> &locations);
+    void complete(int id, const List<ByteArray> &locations);
 private slots:
     void onFileReady(const GccArguments &file);
     void onNewConnection();
@@ -113,7 +113,7 @@ private:
     void reindex(const ByteArray &pattern);
     void remake(const ByteArray &pattern, Connection *conn);
     void rdmLog(const QueryMessage &message, Connection *conn);
-    void make(const Path &path, QList<ByteArray> makefileArgs, const QList<ByteArray> &extraFlags);
+    void make(const Path &path, List<ByteArray> makefileArgs, const List<ByteArray> &extraFlags);
 private:
     static Server *sInstance;
     Options mOptions;
@@ -124,7 +124,7 @@ private:
     bool mVerbose;
     int mJobId;
     static Path sBase;
-    Hash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > mMakefiles;
+    Hash<Path, QPair<List<ByteArray>, List<ByteArray> > > mMakefiles;
     Database *mDBs[DatabaseTypeCount];
     ThreadPool *mThreadPool;
 };

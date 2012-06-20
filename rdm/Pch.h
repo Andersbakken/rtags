@@ -9,5 +9,6 @@
 #include <RTags.h>
 #include <Hash.h>
 #include <Set.h>
+#include <ByteArray.h>
 
 #endif

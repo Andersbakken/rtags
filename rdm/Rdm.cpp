@@ -2,6 +2,7 @@
 #include "Database.h"
 #include "CursorInfo.h"
 #include "MemoryMonitor.h"
+#include <List.h>
 
 namespace Rdm {
 ByteArray eatString(CXString str)
@@ -170,7 +171,7 @@ int writePchDepencies(const Hash<Path, Set<quint32> > &pchDependencies)
         return db->setValue("pchDependencies", pchDependencies);
     return 0;
 }
-int writeFileInformation(quint32 fileId, const QList<ByteArray> &args, time_t lastTouched)
+int writeFileInformation(quint32 fileId, const List<ByteArray> &args, time_t lastTouched)
 {
     QElapsedTimer timer;
     timer.start();
@@ -211,7 +212,7 @@ int writeSymbols(SymbolHash &symbols, const ReferenceHash &references, quint32 f
             ci.references.insert(it->first);
             if (it->second.second != Rdm::NormalReference) {
                 CursorInfo &other = symbols[it->first];
-                // qDebug() << "trying to join" << it->first << "and" << it->second.first;
+                // qDebug() << "trying to join" << it->first << "and" << it->second.front();
                 if (other.target.isNull())
                     other.target = it->second.first;
                 if (ci.target.isNull())
@@ -313,7 +314,7 @@ int dirty(const Set<quint32> &dirtyFileIds)
     return ret;
 }
 
-QList<ByteArray> compileArgs(quint32 fileId)
+List<ByteArray> compileArgs(quint32 fileId)
 {
     ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
     const char *ch = reinterpret_cast<const char*>(&fileId);

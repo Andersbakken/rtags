@@ -73,7 +73,7 @@ void DirectoryTracker::leaveDirectory(const ByteArray& dir)
     // enterDirectory(dir);
 }
 
-MakefileParser::MakefileParser(const QList<ByteArray> &extraFlags, QObject *parent)
+MakefileParser::MakefileParser(const List<ByteArray> &extraFlags, QObject *parent)
     : QObject(parent), mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags)
 {
 }
@@ -89,7 +89,7 @@ MakefileParser::~MakefileParser()
     delete mTracker;
 }
 
-void MakefileParser::run(const Path &makefile, const QList<ByteArray> &args)
+void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
 {
     Q_ASSERT(!mProc);
     mProc = new QProcess(this);
@@ -177,9 +177,9 @@ void MakefileParser::onReadyReadStandardError()
 {
     debug() << "stderr" << mProc->readAllStandardError();
 }
-QList<ByteArray> MakefileParser::mapPchToInput(const QList<ByteArray> &input) const
+List<ByteArray> MakefileParser::mapPchToInput(const List<ByteArray> &input) const
 {
-    QList<ByteArray> output;
+    List<ByteArray> output;
     Hash<ByteArray, ByteArray>::const_iterator pchit;
     const Hash<ByteArray, ByteArray>::const_iterator pchend = mPchs.end();
     foreach (const ByteArray &in, input) {

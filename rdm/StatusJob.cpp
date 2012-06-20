@@ -21,10 +21,10 @@ void StatusJob::execute()
         write(Server::databaseDir(Server::General));
         write("    version: " + ByteArray::number(db->value<int>("version")));
 
-        const Hash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > makefiles
-            = db->value<Hash<Path, QPair<QList<ByteArray>, QList<ByteArray> > > >("makefiles");
+        const Hash<Path, QPair<List<ByteArray>, List<ByteArray> > > makefiles
+            = db->value<Hash<Path, QPair<List<ByteArray>, List<ByteArray> > > >("makefiles");
 
-        for (Hash<Path, QPair<QList<ByteArray>, QList<ByteArray> > >::const_iterator it = makefiles.begin();
+        for (Hash<Path, QPair<List<ByteArray>, List<ByteArray> > >::const_iterator it = makefiles.begin();
              it != makefiles.end(); ++it) {
             ByteArray out = "    " + it->first;
             if (!it->second.first.isEmpty())

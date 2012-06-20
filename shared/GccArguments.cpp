@@ -9,9 +9,9 @@ class GccArgumentsImpl
 public:
     GccArgumentsImpl() : type(GccArguments::NoType), lang(GccArguments::NoLang) { }
 
-    QList<ByteArray> clangArgs;
-    QList<Path> inputFiles;
-    QList<Path> includes;
+    List<ByteArray> clangArgs;
+    List<Path> inputFiles;
+    List<Path> includes;
     Path outputFile;
     GccArguments::Type type;
     GccArguments::Lang lang;
@@ -86,7 +86,7 @@ bool GccArguments::parse(ByteArray args, const Path &base)
     mImpl->base = base;
 
     char quote = '\0';
-    QList<ByteArray> split;
+    List<ByteArray> split;
     ByteArray old2 = args;
     {
         char *cur = args.data();
@@ -146,7 +146,7 @@ bool GccArguments::parse(ByteArray args, const Path &base)
         return false;
     }
 
-    QList<ByteArray> unresolvedInputs;
+    List<ByteArray> unresolvedInputs;
 
     bool pathok = false;
     char prevopt = '\1'; // skip the initial binary name
@@ -260,10 +260,10 @@ bool GccArguments::parse(ByteArray args, const Path &base)
         mImpl->outputFile = path + "/" + mImpl->outputFile;
     }
 
-    mImpl->compiler = split.first();
+    mImpl->compiler = split.front();
     if (!mImpl->compiler.isResolved()) {
         static Hash<Path, Path> resolvedFromPath;
-        static QList<Path> paths;
+        static List<Path> paths;
         mImpl->compiler = mImpl->compiler.fileName();
         Path resolved = resolvedFromPath.value(mImpl->compiler);
         if (resolved.isEmpty()) {
@@ -305,19 +305,19 @@ GccArguments::Lang GccArguments::lang() const
     return mImpl->lang;
 }
 
-QList<ByteArray> GccArguments::clangArgs() const
+List<ByteArray> GccArguments::clangArgs() const
 {
     return mImpl->clangArgs;
 }
 
-QList<Path> GccArguments::inputFiles() const
+List<Path> GccArguments::inputFiles() const
 {
     return mImpl->inputFiles;
 }
 
-QList<ByteArray> GccArguments::explicitIncludes() const
+List<ByteArray> GccArguments::explicitIncludes() const
 {
-    QList<ByteArray> incs;
+    List<ByteArray> incs;
     foreach (const Path &p, mImpl->includes)
         incs.append(p);
     return incs;
@@ -333,7 +333,7 @@ Path GccArguments::baseDirectory() const
     return mImpl->base;
 }
 
-void GccArguments::addFlags(const QList<ByteArray> &extraFlags)
+void GccArguments::addFlags(const List<ByteArray> &extraFlags)
 {
     foreach (ByteArray flag, extraFlags) {
         if (flag.startsWith("-I")) {

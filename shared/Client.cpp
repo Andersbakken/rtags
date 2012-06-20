@@ -10,7 +10,7 @@
 #include <Log.h>
 #include <unistd.h>
 
-Client::Client(const ByteArray &name, unsigned flags, const QList<ByteArray> &rdmArgs, QObject *parent)
+Client::Client(const ByteArray &name, unsigned flags, const List<ByteArray> &rdmArgs, QObject *parent)
     : QObject(parent), mConn(0), mFlags(flags), mRdmArgs(rdmArgs), mName(name)
 {
     if ((mFlags & (RestartRdm|AutostartRdm)) == (RestartRdm|AutostartRdm)) {

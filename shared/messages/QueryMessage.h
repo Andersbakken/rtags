@@ -45,12 +45,12 @@ public:
     QueryMessage(Type type = Invalid, const ByteArray &query = ByteArray(),
                  unsigned flags = 0, QObject *parent = 0);
 
-    QList<ByteArray> pathFilters() const { return mPathFilters; }
-    void setPathFilters(const QList<ByteArray> &pathFilters) { mPathFilters = pathFilters; qSort(mPathFilters); }
+    List<ByteArray> pathFilters() const { return mPathFilters; }
+    void setPathFilters(const List<ByteArray> &pathFilters) { mPathFilters = pathFilters; qSort(mPathFilters); }
 
     int messageId() const { return MessageId; }
     // ### it should be possible to put an already parsed Location in here instead of a query that needs to be reparsed
-    QList<ByteArray> query() const { return mQuery; }
+    List<ByteArray> query() const { return mQuery; }
 
     Type type() const { return mType; }
     unsigned flags() const { return mFlags; }
@@ -61,10 +61,10 @@ public:
     Q_INVOKABLE void fromByteArray(const ByteArray& data);
 
 private:
-    QList<ByteArray> mQuery;
+    List<ByteArray> mQuery;
     Type mType;
     unsigned mFlags;
-    QList<ByteArray> mPathFilters;
+    List<ByteArray> mPathFilters;
 };
 
 #endif // QUERYMESSAGE_H

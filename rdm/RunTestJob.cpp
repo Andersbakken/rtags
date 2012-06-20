@@ -41,7 +41,7 @@ void RunTestJob::execute()
 
     // symbols
     ByteArray location, targetLocation;
-    QList<ByteArray> references;
+    List<ByteArray> references;
     if (f) {
         int read;
         while ((read = RTags::readLine(f, buf, sizeof(buf))) != -1) {

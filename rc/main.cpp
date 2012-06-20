@@ -8,7 +8,7 @@
 #include <QDateTime>
 #include <QDebug>
 #include <QFile>
-#include <QList>
+#include <List.h>
 #include <QPair>
 #include <getopt.h>
 #include <stdio.h>
@@ -134,12 +134,12 @@ private:
 };
 
 struct MakefileCommand : public Command {
-    MakefileCommand(const Path &mf, const QList<ByteArray> &args, const QList<ByteArray> &ef)
+    MakefileCommand(const Path &mf, const List<ByteArray> &args, const List<ByteArray> &ef)
         : makefile(mf), makefileArgs(args), extraFlags(ef)
     {}
     const Path makefile;
-    const QList<ByteArray> makefileArgs;
-    const QList<ByteArray> &extraFlags; // reference
+    const List<ByteArray> makefileArgs;
+    const List<ByteArray> &extraFlags; // reference
     virtual void exec(Client *client)
     {
         if (!makefile.isFile()) {
@@ -208,12 +208,12 @@ int main(int argc, char** argv)
     ByteArray logFile;
     unsigned logFlags = 0;
 
-    QList<Command*> commands;
-    QList<ByteArray> extraFlags;
+    List<Command*> commands;
+    List<ByteArray> extraFlags;
     Set<ByteArray> pathFilters;
     unsigned queryFlags = 0;
     unsigned clientFlags = 0;
-    QList<ByteArray> rdmArgs;
+    List<ByteArray> rdmArgs;
     ByteArray name;
 
     QFile standardIn;
@@ -359,7 +359,7 @@ int main(int argc, char** argv)
                 return 1;
             }
 
-            QList<ByteArray> makefileArgs;
+            List<ByteArray> makefileArgs;
             while (optind < argc && argv[optind][0] != '-')
                 makefileArgs.append(argv[optind++]);
             commands.append(new MakefileCommand(p, makefileArgs, extraFlags));

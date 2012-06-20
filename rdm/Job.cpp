@@ -16,13 +16,13 @@ Job::~Job()
 }
 
 
-void Job::setPathFilters(const QList<ByteArray> &filter, bool filterSystemIncludes)
+void Job::setPathFilters(const List<ByteArray> &filter, bool filterSystemIncludes)
 {
     mPathFilters = filter;
     mFilterSystemIncludes = filterSystemIncludes;
 }
 
-QList<ByteArray> Job::pathFilters() const
+List<ByteArray> Job::pathFilters() const
 {
     return mPathFilters;
 }

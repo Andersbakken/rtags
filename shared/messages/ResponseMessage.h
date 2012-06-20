@@ -16,7 +16,7 @@ public:
     ResponseMessage(const ByteArray &data, QObject *parent = 0)
         : Message(parent), mData(data)
     {}
-    ResponseMessage(const QList<ByteArray> &data, QObject *parent = 0)
+    ResponseMessage(const List<ByteArray> &data, QObject *parent = 0)
         : Message(parent), mData(RTags::join(data, "\n"))
     {}
 

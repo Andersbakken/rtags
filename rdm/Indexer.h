@@ -15,12 +15,12 @@ public:
     Indexer(const ByteArray &path, QObject* parent = 0);
     ~Indexer();
 
-    int index(const Path &input, const QList<ByteArray> &arguments, unsigned indexerJobFlags);
+    int index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
 
     void setPchDependencies(const Path &pchHeader, const Set<quint32> &deps);
     void addDependencies(const DependencyHash &hash);
     Set<quint32> pchDependencies(const Path &pchHeader) const;
-    Hash<ByteArray, Location> pchUSRHash(const QList<Path> &pchFiles) const;
+    Hash<ByteArray, Location> pchUSRHash(const List<Path> &pchFiles) const;
     void setPchUSRHash(const Path &pch, const PchUSRHash &astHash);
     Path path() const { return mPath; }
     void abort();
@@ -28,7 +28,7 @@ public:
     Set<quint32> visitedFiles() const { MutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path) const;
-    void setDiagnostics(const Hash<quint32, QList<ByteArray> > &errors,
+    void setDiagnostics(const Hash<quint32, List<ByteArray> > &errors,
                         const std::map<Location, QPair<int, ByteArray> > &fixIts);
     void reindex(const ByteArray &pattern);
 signals:

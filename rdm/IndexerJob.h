@@ -24,7 +24,7 @@ public:
         FixIt = 0x020
     };
     IndexerJob(Indexer *indexer, int id, unsigned flags,
-               const Path &input, const QList<ByteArray> &arguments);
+               const Path &input, const List<ByteArray> &arguments);
     int priority() const { return mFlags & Priorities; }
     virtual void run();
 
@@ -46,7 +46,7 @@ public:
     CXChildVisitResult processCursor(const Cursor &cursor, const Cursor &ref);
     Cursor findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc);
 
-    QList<Cursor> mDelayed;
+    List<Cursor> mDelayed;
     SymbolHash mSymbols;
     SymbolNameHash mSymbolNames;
 
@@ -61,13 +61,13 @@ public:
     ReferenceHash mReferences;
     const Path mIn;
     const quint32 mFileId;
-    const QList<ByteArray> mArgs;
+    const List<ByteArray> mArgs;
     DependencyHash mDependencies;
     Set<quint32> mPchDependencies;
     Indexer *mIndexer;
     Hash<ByteArray, Location> mPchUSRHash;
 
-    QList<Path> mPchHeaders;
+    List<Path> mPchHeaders;
     CXTranslationUnit mUnit;
 signals:
     void done(int id, const Path &path, bool isPch, const ByteArray &msg);

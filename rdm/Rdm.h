@@ -31,12 +31,12 @@ public:
 };
 
 struct FileInformation {
-    FileInformation(time_t lt = 0, const QList<ByteArray> &args = QList<ByteArray>())
+    FileInformation(time_t lt = 0, const List<ByteArray> &args = List<ByteArray>())
         : lastTouched(lt), compileArgs(args)
     {}
 
     time_t lastTouched;
-    QList<ByteArray> compileArgs;
+    List<ByteArray> compileArgs;
 };
 
 static inline QDataStream &operator<<(QDataStream &ds, const FileInformation &ci)
@@ -88,7 +88,7 @@ inline std::size_t hash_value(const QString &string)
 }
 
 namespace Rdm {
-static inline bool isPch(const QList<ByteArray> &args)
+static inline bool isPch(const List<ByteArray> &args)
 {
     const int size = args.size();
     bool nextIsX = false;
@@ -116,11 +116,11 @@ bool waitForMemory(int maxMs);
 ByteArray eatString(CXString str);
 ByteArray cursorToString(CXCursor cursor);
 template <typename T>
-static inline bool startsWith(const QList<T> &list, const T &str)
+static inline bool startsWith(const List<T> &list, const T &str)
 {
     if (!list.isEmpty()) {
         //qDebug() << "filtering" << list << str;
-        typename QList<T>::const_iterator it = qUpperBound(list, str);
+        typename List<T>::const_iterator it = std::upper_bound(list.begin(), list.end(), str);
         if (it != list.end()) {
             const int cmp = strncmp(str.constData(), (*it).constData(), (*it).size());
             if (cmp == 0) {
@@ -147,11 +147,11 @@ CursorInfo findCursorInfo(Database *db, const Location &key, Location *loc = 0);
 int writeSymbolNames(SymbolNameHash &symbolNames);
 int writeDependencies(const DependencyHash &dependencies);
 int writePchDepencies(const Hash<Path, Set<quint32> > &pchDependencies);
-int writeFileInformation(quint32 fileId, const QList<ByteArray> &args, time_t lastTouched);
+int writeFileInformation(quint32 fileId, const List<ByteArray> &args, time_t lastTouched);
 int writePchUSRHashes(const Hash<Path, PchUSRHash> &hashes);
 int writeSymbols(SymbolHash &symbols, const ReferenceHash &references, quint32 fileId);
 int dirty(const Set<quint32> &dirtyFileIds);
-QList<ByteArray> compileArgs(quint32 fileId);
+List<ByteArray> compileArgs(quint32 fileId);
 // the symbols will be modified before writing and we don't want to detach so we
 // work on a non-const reference
 class LogObject : public QObject, public LogOutput

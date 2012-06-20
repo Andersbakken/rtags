@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include <ByteArray.h>
-#include <QList>
+#include <List.h>
 #include "RTags.h"
 #include "Job.h"
 #include "Location.h"

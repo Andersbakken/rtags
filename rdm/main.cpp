@@ -109,7 +109,7 @@ int main(int argc, char** argv)
 
     int jobs = ThreadPool::idealThreadCount();
     unsigned options = 0;
-    QList<ByteArray> defaultArguments;
+    List<ByteArray> defaultArguments;
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;

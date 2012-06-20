@@ -40,7 +40,7 @@ void FindSymbolsJob::execute()
         }
         it->next();
     }
-    QList<Location> sorted = out.toList();
+    List<Location> sorted = out.toList();
     if (queryFlags & QueryMessage::ReverseSort) {
         qSort(sorted.begin(), sorted.end(), qGreater<Location>());
     } else {

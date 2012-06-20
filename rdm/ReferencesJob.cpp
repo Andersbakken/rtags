@@ -74,7 +74,7 @@ void ReferencesJob::execute()
             }
         }
     }
-    QList<Location> sorted = refs.toList();
+    List<Location> sorted = refs.toList();
     if (flags & QueryMessage::ReverseSort) {
         qSort(sorted.begin(), sorted.end(), qGreater<Location>());
     } else {

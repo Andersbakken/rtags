@@ -3,9 +3,9 @@
 #include "MemoryMonitor.h"
 #include "Server.h"
 
-static inline QList<Path> extractPchFiles(const QList<ByteArray> &args)
+static inline List<Path> extractPchFiles(const List<ByteArray> &args)
 {
-    QList<Path> out;
+    List<Path> out;
     bool nextIsPch = false;
     foreach (const ByteArray &arg, args) {
         if (arg.isEmpty())
@@ -22,7 +22,7 @@ static inline QList<Path> extractPchFiles(const QList<ByteArray> &args)
 }
 
 IndexerJob::IndexerJob(Indexer *indexer, int id, unsigned flags,
-                       const Path &input, const QList<ByteArray> &arguments)
+                       const Path &input, const List<ByteArray> &arguments)
     : mId(id), mFlags(flags), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
       mPchHeaders(extractPchFiles(arguments)), mUnit(0)
@@ -439,7 +439,7 @@ void IndexerJob::run()
     bool nextIsPch = false, nextIsX = false;
     ByteArray pchName;
 
-    QList<Path> pchFiles;
+    List<Path> pchFiles;
     int idx = 0;
     foreach (const ByteArray &arg, mArgs) {
         if (arg.isEmpty())
@@ -448,8 +448,8 @@ void IndexerJob::run()
         if (nextIsPch) {
             nextIsPch = false;
             pchFiles.append(pchFileName(arg));
-            clangArgs[idx++] = pchFiles.last().constData();
-            clangLine += pchFiles.last().constData();
+            clangArgs[idx++] = pchFiles.back().constData();
+            clangLine += pchFiles.back().constData();
             clangLine += " ";
             continue;
         }
@@ -499,7 +499,7 @@ void IndexerJob::run()
         Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
         std::map<Location, QPair<int, ByteArray> > fixIts;
-        Hash<quint32, QList<ByteArray> > visited;
+        Hash<quint32, List<ByteArray> > visited;
         const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
         for (unsigned i=0; i<diagnosticCount; ++i) {
             CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);

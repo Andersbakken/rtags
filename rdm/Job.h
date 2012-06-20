@@ -20,8 +20,8 @@ public:
     };
     Job(int id, Priority priority, unsigned flags = None, QObject *parent = 0);
     ~Job();
-    void setPathFilters(const QList<ByteArray> &filter, bool filterSystemIncludes);
-    QList<ByteArray> pathFilters() const;
+    void setPathFilters(const List<ByteArray> &filter, bool filterSystemIncludes);
+    List<ByteArray> pathFilters() const;
     int id() const { return mId; }
     void write(const ByteArray &out);
     void writeRaw(const ByteArray &out);
@@ -40,7 +40,7 @@ private:
     const int mId;
     const Priority mPriority;
     const int mFlags;
-    QList<ByteArray> mPathFilters;
+    List<ByteArray> mPathFilters;
     bool mFilterSystemIncludes;
 };
 

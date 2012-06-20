@@ -44,7 +44,7 @@ ByteArray unescape(ByteArray command)
 }
 
 
-ByteArray join(const QList<ByteArray> &list, const ByteArray &sep)
+ByteArray join(const List<ByteArray> &list, const ByteArray &sep)
 {
     ByteArray ret;
     int size = qMax(0, list.size() - 1) * sep.size();
@@ -159,7 +159,7 @@ bool removeDirectory(const char *path)
 
     return !r;
 }
-bool startProcess(const Path &dotexe, const QList<ByteArray> &dollarArgs)
+bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs)
 {
     switch (fork()) {
     case 0:

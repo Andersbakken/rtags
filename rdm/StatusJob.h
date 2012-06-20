@@ -3,7 +3,7 @@
 
 #include <QObject>
 #include <ByteArray.h>
-#include <QList>
+#include <List.h>
 #include "Job.h"
 
 class StatusJob : public Job

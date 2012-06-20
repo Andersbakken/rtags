@@ -10,8 +10,8 @@ class DirtyJob : public QObject, public ThreadPool::Job
 {
 public:
     DirtyJob(Indexer *indexer, const Set<quint32> &dirty,
-             const Hash<Path, QList<ByteArray> > &toIndexPch,
-             const Hash<Path, QList<ByteArray> > &toIndex)
+             const Hash<Path, List<ByteArray> > &toIndexPch,
+             const Hash<Path, List<ByteArray> > &toIndex)
         : mIndexer(indexer), mDirty(dirty), mToIndexPch(toIndexPch), mToIndex(toIndex)
     {
     }
@@ -20,7 +20,7 @@ public:
 private:
     Indexer *mIndexer;
     const Set<quint32> mDirty;
-    const Hash<Path, QList<ByteArray> > mToIndexPch, mToIndex;
+    const Hash<Path, List<ByteArray> > mToIndexPch, mToIndex;
 };
 
 #endif
