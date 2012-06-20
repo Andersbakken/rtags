@@ -77,6 +77,23 @@ static inline GccArguments::Lang guessLang(const Path &fullPath)
     return lang;
 }
 
+static inline void eatAutoTools(List<ByteArray> &args)
+{
+    List<ByteArray> copy = args;
+    for (int i=0; i<args.size(); ++i) {
+        if (args.at(i).contains("gcc") || args.at(i).contains("g++")) {
+            if (i) {
+                args.erase(args.begin(), args.begin() + i);
+                if (testLog(Debug)) {
+                    debug() << "ate something" << copy;
+                    debug() << "now we have" << args;
+                }
+                break;
+            }
+        }
+    }
+}
+
 bool GccArguments::parse(ByteArray args, const Path &base)
 {
     mImpl->type = NoType;
@@ -126,11 +143,13 @@ bool GccArguments::parse(ByteArray args, const Path &base)
         if (cur > prev)
             split.append(ByteArray(prev, cur - prev));
     }
+    eatAutoTools(split);
 
     if (split.isEmpty()) {
         clear();
         return false;
     }
+    // error() << "GccArguments::parse" << split << base;
 
     Path path;
     if (split.front() == "cd" && split.size() > 3 && split.at(2) == "&&") {

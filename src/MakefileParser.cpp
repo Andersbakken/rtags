@@ -76,6 +76,8 @@ void DirectoryTracker::leaveDirectory(const ByteArray& dir)
 MakefileParser::MakefileParser(const List<ByteArray> &extraFlags, QObject *parent)
     : QObject(parent), mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags)
 {
+    mExtraFlags.append("AM_DEFAULT_VERBOSITY=1");
+    mExtraFlags.append("VERBOSE=1");
 }
 
 MakefileParser::~MakefileParser()
