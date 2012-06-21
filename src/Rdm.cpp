@@ -15,7 +15,7 @@ ByteArray eatString(CXString str)
 ByteArray cursorToString(CXCursor cursor)
 {
     ByteArray ret = eatString(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
-    const ByteArray name = eatString(clang_getCursorSpelling(cursor));
+    const ByteArray name = eatString(clang_getCursorDisplayName(cursor));
     if (!name.isEmpty())
         ret += " " + name;
 
