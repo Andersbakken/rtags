@@ -135,6 +135,7 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
         a << QString::fromStdString(arg);
     }
 
+    unlink("/tmp/makelib.log");
     mProc->start(QLatin1String(MAKE), a);
 }
 

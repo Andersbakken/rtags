@@ -79,7 +79,7 @@
   (format "%s,%d" (buffer-file-name) (- (point) 1)))
 
 (defun rtags-log (log)
-  (if rtags-log-enabled
+  (if rtags-rc-log-enabled
       (save-excursion
         (set-buffer (get-buffer-create "*RTags Log*"))
         (goto-char (point-max))
@@ -91,7 +91,7 @@
   )
 
 (defun rtags-call-rc (pathfilter &rest arguments)
-  (push (if rtags-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
+  (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
   ;; (if (and pathfilter rtags-path-filter)
   ;;     (push (concat "-i" rtags-path-filter) arguments))
   (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
@@ -237,10 +237,16 @@ return t if rtags is allowed to modify this file"
   :type 'integer)
 
 
-(defcustom rtags-log-enabled nil
-  "If t, log"
+(defcustom rtags-rc-log-enabled nil
+  "If t, log rc commands and responses"
   :group 'rtags
   :type 'boolean)
+
+(defcustom rtags-rdm-log-enabled nil
+  "If t, log for autostarted rdm"
+  :group 'rtags
+  :type 'boolean)
+
 
 
 (defun rtags-enable-standard-keybindings (&optional map)

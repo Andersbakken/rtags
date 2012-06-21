@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <limits.h>
+#include <cstdarg>
 
 typedef int (*XStat64)(int, const char*, struct stat64*);
 typedef int (*Stat64)(const char*, struct stat64*);
@@ -14,6 +15,36 @@ typedef int (*XStat)(int, const char*, struct stat*);
 typedef int (*Stat)(const char*, struct stat*);
 typedef int (*Execv)(const char *, char *const []);
 typedef int (*Execve)(const char *, char *const [], char *const []);
+
+class Log
+{
+public:
+    ~Log()
+    {
+        if (!out.empty()) {
+            static bool first = false; //true;
+            FILE *f;
+            if (first) {
+                f = fopen("/tmp/makelib.log", "w");
+                first = false;
+            } else {
+                f = fopen("/tmp/makelib.log", "a");
+            }
+            fwrite(out.data(), sizeof(char), out.size(), f);
+            fclose(f);
+        }
+    }
+    void log(const char *format, ...)
+    {
+        va_list args;
+        va_start(args, format);
+        char buf[1024];
+        vsnprintf(buf, sizeof(buf), format, args);
+        va_end(args);
+        out += buf;
+    }
+    std::string out;
+};
 
 #ifdef __GLIBC__
 static XStat64 realXStat64()
@@ -57,18 +88,16 @@ static int sharedStat(int ret, const char *filename, T *stat_buf)
             { ".gch/c", 6 },
             { 0, 0 }
         };
+        bool found = false;
         for (int i=0; statData[i].data; ++i) {
             if (len >= statData[i].len && !strncmp(filename + len - statData[i].len, statData[i].data, statData[i].len))  {
+                found = true;
                 stat_buf->st_mtime = 1;
                 break;
             }
         }
-        static const bool log = getenv("LOG_MAKELIB");
-        if (log) {
-            FILE *f = fopen("/tmp/makelib.log", "a");
-            fprintf(f, "stat %s\n", filename);
-            fclose(f);
-        }
+        Log log;
+        log.log("stat %s%s\n", filename, found ? " => faked dirtyness" : "");
     }
     return ret;
 }
@@ -99,21 +128,20 @@ int stat64(const char *filename, struct stat64 *stat_buf)
 
 static bool eatExec(const char *filename, const char *function, char *const argv[])
 {
-    static const bool log = getenv("LOG_MAKELIB");
-    if (log) {
-        FILE *f = fopen("/tmp/makelib.log", "a");
-        fprintf(f, "%s %s", function, filename);
-        for (int i=0; argv[i]; ++i) {
-            fprintf(f, " %s", argv[i]);
-        }
-        fprintf(f, "\n");
-        fclose(f);
+    Log log;
+    log.log("%s %s", function, filename);
+    for (int i=0; argv[i]; ++i) {
+        log.log(" %s", argv[i]);
     }
+    log.log("\n");
     struct {
         const char *data;
         int len;
     } static const execvData[] = {
         { "sh", 2 },
+        { "/sed", 4 },
+        { "/awk", 4 },
+        { "/perl", 5 },
         { "/make", 5 },
         { "/gmake", 6 },
         { 0, 0 }
@@ -121,27 +149,17 @@ static bool eatExec(const char *filename, const char *function, char *const argv
     const int len = strlen(filename);
     for (int i=0; execvData[i].data; ++i) {
         if (len >= execvData[i].len && !strncmp(filename + len - execvData[i].len, execvData[i].data, execvData[i].len))  {
-            if (log) {
-                FILE *f = fopen("/tmp/makelib.log", "a");
-                fprintf(f, "uneaten %s", filename);
-                for (int j=0; argv[j]; ++j) {
-                    fprintf(f, " %s", argv[j]);
-                }
-                fprintf(f, "\n");
-                fclose(f);
-            }
+            log.log("Didn't eat %s", filename);
+            for (int j=0; argv[j]; ++j)
+                log.log(" %s", argv[j]);
+            log.log("\n");
             return false;
         }
     }
-    if (log) {
-        FILE *f = fopen("/tmp/makelib.log", "a");
-        fprintf(f, "eaten %s", filename);
-        for (int j=0; argv[j]; ++j) {
-            fprintf(f, " %s", argv[j]);
-        }
-        fprintf(f, "\n");
-        fclose(f);
-    }
+    log.log("Ate %s", filename);
+    for (int j=0; argv[j]; ++j)
+        log.log(" %s", argv[j]);
+    log.log("\n");
     return true;
 }
 
