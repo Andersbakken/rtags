@@ -31,6 +31,7 @@ void ReadWriteLock::lockForWrite()
     MutexLocker locker(&mMutex);
     for (;;) {
         if (!mCount) {
+            assert(!mWrite);
             mCount = 1;
             mWrite = true;
             return;
@@ -65,6 +66,7 @@ void ReadWriteLock::unlock()
     assert(mCount > 0);
     if (mCount > 1) {
         --mCount;
+        assert(!mWrite);
         return;
     }
     --mCount;
