@@ -1,10 +1,12 @@
 cmake_minimum_required(VERSION 2.8.3)
-include(rtags.cmake)
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
 add_definitions(-Wall "-DCLANG_INCLUDEPATH=\"${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/clang_install/lib/clang/3.1/include/\"")
+add_definitions(-D${CMAKE_SYSTEM_NAME})
+
+include(rtags.cmake)
 
 set(leveldb_LIBS ${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/leveldb/libleveldb.a)
 
