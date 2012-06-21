@@ -5,7 +5,7 @@
 Map<Path, uint32_t> Location::sPathsToIds;
 Map<uint32_t, Path> Location::sIdsToPaths;
 uint32_t Location::sLastId = 0;
-QReadWriteLock Location::sLock;
+ReadWriteLock Location::sLock;
 
 void Location::writeToDB(const Path &path, uint32_t id)
 {

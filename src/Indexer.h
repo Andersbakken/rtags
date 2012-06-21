@@ -4,6 +4,7 @@
 #include <QtCore>
 #include "Rdm.h"
 #include "CursorInfo.h"
+#include "ReadWriteLock.h"
 #include <clang-c/Index.h>
 
 class IndexerJob;
@@ -47,13 +48,13 @@ private:
     bool needsToWaitForPch(IndexerJob *job) const;
     void startJob(int id, IndexerJob *job);
 
-    mutable QReadWriteLock mPchUSRMapLock;
+    mutable ReadWriteLock mPchUSRMapLock;
     Map<Path, PchUSRMap> mPchUSRMapes;
 
     mutable Mutex mVisitedFilesMutex;
     Set<uint32_t> mVisitedFiles;
 
-    mutable QReadWriteLock mPchDependenciesLock;
+    mutable ReadWriteLock mPchDependenciesLock;
     Map<Path, Set<uint32_t> > mPchDependencies;
     int mJobCounter;
 
@@ -73,7 +74,7 @@ private:
 
     Map<Location, std::pair<int, ByteArray> > mFixIts;
     Map<uint32_t, ByteArray> mErrors;
-    mutable QReadWriteLock mFixItsAndErrorsLock;
+    mutable ReadWriteLock mFixItsAndErrorsLock;
 };
 
 inline bool Indexer::visitFile(uint32_t fileId, const Path &path)

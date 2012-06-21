@@ -7,7 +7,7 @@ ExternalProject_Add(
     leveldb
     SOURCE_DIR ./leveldb
     GIT_REPOSITORY "https://code.google.com/p/leveldb/"
-    GIT_TAG "master"
+    GIT_TAG "85584d497e7b354853b72f450683d59fcf6b9c5c"
     CONFIGURE_COMMAND ""
     BUILD_COMMAND ""
     INSTALL_COMMAND ""

@@ -8,6 +8,8 @@
 #include "RTags.h"
 #include "Rdm.h"
 #include "SHA256.h"
+#include "ReadLocker.h"
+#include "WriteLocker.h"
 #include <Log.h>
 #include <QtCore>
 
@@ -392,7 +394,7 @@ void Indexer::onJobComplete(int id, const Path &input, bool isPch, const ByteArr
 
 void Indexer::setPchDependencies(const Path &pchHeader, const Set<uint32_t> &deps)
 {
-    QWriteLocker lock(&mPchDependenciesLock);
+    WriteLocker lock(&mPchDependenciesLock);
     if (deps.isEmpty()) {
         mPchDependencies.remove(pchHeader);
     } else {
@@ -403,7 +405,7 @@ void Indexer::setPchDependencies(const Path &pchHeader, const Set<uint32_t> &dep
 
 Set<uint32_t> Indexer::pchDependencies(const Path &pchHeader) const
 {
-    QReadLocker lock(&mPchDependenciesLock);
+    ReadLocker lock(&mPchDependenciesLock);
     return mPchDependencies.value(pchHeader);
 }
 
@@ -415,7 +417,7 @@ void Indexer::addDependencies(const DependencyMap &deps)
 
 PchUSRMap Indexer::pchUSRMap(const List<Path> &pchFiles) const
 {
-    QReadLocker lock(&mPchUSRMapLock);
+    ReadLocker lock(&mPchUSRMapLock);
     const int count = pchFiles.size();
     switch (pchFiles.size()) {
     case 0: return PchUSRMap();
@@ -435,7 +437,7 @@ PchUSRMap Indexer::pchUSRMap(const List<Path> &pchFiles) const
 
 void Indexer::setPchUSRMap(const Path &pch, const PchUSRMap &astMap)
 {
-    QWriteLocker lock(&mPchUSRMapLock);
+    WriteLocker lock(&mPchUSRMapLock);
     mPchUSRMapes[pch] = astMap;
     Rdm::writePchUSRMapes(mPchUSRMapes);
 }
@@ -466,7 +468,7 @@ ByteArray Indexer::fixIts(const Path &path) const
     uint32_t fileId = Location::fileId(path);
     if (!fileId)
         return ByteArray();
-    QReadLocker lock(&mFixItsAndErrorsLock);
+    ReadLocker lock(&mFixItsAndErrorsLock);
     Map<Location, std::pair<int, ByteArray> >::const_iterator it = mFixIts.lower_bound(Location(fileId, 0));
     ByteArray ret;
     char buf[1024];
@@ -490,7 +492,7 @@ ByteArray Indexer::errors(const Path &path) const
     uint32_t fileId = Location::fileId(path);
     if (!fileId)
         return ByteArray();
-    QReadLocker lock(&mFixItsAndErrorsLock);
+    ReadLocker lock(&mFixItsAndErrorsLock);
     return mErrors.value(fileId);
 }
 
@@ -498,7 +500,7 @@ ByteArray Indexer::errors(const Path &path) const
 void Indexer::setDiagnostics(const Map<uint32_t, List<ByteArray> > &diagnostics,
                              const Map<Location, std::pair<int, ByteArray> > &fixIts)
 {
-    QWriteLocker lock(&mFixItsAndErrorsLock);
+    WriteLocker lock(&mFixItsAndErrorsLock);
 
     for (Map<uint32_t, List<ByteArray> >::const_iterator it = diagnostics.begin(); it != diagnostics.end(); ++it) {
         const uint32_t fileId = it->first;

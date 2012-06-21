@@ -2,12 +2,14 @@
 #define Location_h
 
 #include <ByteArray.h>
-#include <QReadWriteLock>
 #include <Path.h>
 #include <Log.h>
 #include <stdio.h>
 #include <assert.h>
 #include "RTags.h"
+#include "ReadWriteLock.h"
+#include "ReadLocker.h"
+#include "WriteLocker.h"
 #include <clang-c/Index.h>
 #include <Serializer.h>
 
@@ -47,12 +49,12 @@ public:
     }
     static inline uint32_t fileId(const Path &path)
     {
-        QReadLocker lock(&sLock);
+        ReadLocker lock(&sLock);
         return sPathsToIds.value(path);
     }
     static inline Path path(uint32_t id)
     {
-        QReadLocker lock(&sLock);
+        ReadLocker lock(&sLock);
         return sIdsToPaths.value(id);
     }
 
@@ -61,7 +63,7 @@ public:
         bool newFile = false;
         uint32_t ret;
         {
-            QWriteLocker lock(&sLock);
+            WriteLocker lock(&sLock);
             uint32_t &id = sPathsToIds[path];
             if (!id) {
                 id = ++sLastId;
@@ -91,7 +93,7 @@ public:
     inline Path path() const
     {
         if (mCachedPath.isEmpty()) {
-            QReadLocker lock(&sLock);
+            ReadLocker lock(&sLock);
             mCachedPath = sIdsToPaths.value(fileId());
         }
         return mCachedPath;
@@ -233,7 +235,7 @@ public:
         uint32_t offset;
         memcpy(&offset, data.constData() + data.size() - sizeof(offset), sizeof(offset));
         const Path path(data.constData(), data.size() - sizeof(offset));
-        QReadLocker lock(&sLock);
+        ReadLocker lock(&sLock);
         const uint32_t fileId = sPathsToIds.value(path, 0);
         if (fileId)
             return Location(fileId, offset);
@@ -260,7 +262,7 @@ private:
     static Map<Path, uint32_t> sPathsToIds;
     static Map<uint32_t, Path> sIdsToPaths;
     static uint32_t sLastId;
-    static QReadWriteLock sLock;
+    static ReadWriteLock sLock;
     mutable Path mCachedPath;
 };
 

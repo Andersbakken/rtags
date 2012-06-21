@@ -62,6 +62,9 @@ set(rtags_HDRS
     Thread.h
     ThreadPool.h
     WaitCondition.h
+    ReadWriteLock.h
+    ReadLocker.h
+    WriteLocker.h
     )
 
 set(rtags_SRCS
@@ -98,6 +101,7 @@ set(rtags_SRCS
     TestJob.cpp
     Thread.cpp
     ThreadPool.cpp
+    ReadWriteLock.cpp
 )
 
 set(rtags_MOCS

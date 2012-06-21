@@ -7,6 +7,7 @@
 #include <Serializer.h>
 #include "Location.h"
 #include "CursorInfo.h"
+#include "ReadWriteLock.h"
 
 struct Slice {
     Slice(const std::string &str);
@@ -152,7 +153,7 @@ public:
     void remove(const Slice &key);
     Iterator *createIterator() const;
 private:
-    QReadWriteLock mLock;
+    ReadWriteLock mLock;
     leveldb::DB *mDB;
     const leveldb::WriteOptions mWriteOptions;
     ByteArray mOpenError;
