@@ -143,26 +143,22 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
                 return ret;
         }
         if (qparam.isEmpty()) {
-            qparam.prepend(qname);
-            if (addToDB) {
-                qnoparam.prepend(qname);
-                const int sp = qnoparam.indexOf('(');
-                if (sp != -1)
-                    qnoparam = qnoparam.left(sp);
-            }
+            qparam = qname;
+            const int sp = qparam.indexOf('(');
+            if (sp != -1)
+                qnoparam = qparam.left(sp);
         } else {
             qparam.prepend(qname + "::");
-            if (addToDB)
+            if (!qnoparam.isEmpty())
                 qnoparam.prepend(qname + "::");
         }
+
         Q_ASSERT(!qparam.isEmpty());
-        if (addToDB) {
-            const bool hasTemplates = mayHaveTemplates(kind) && qnoparam.contains('<');
-            addToSymbolNames(qparam, hasTemplates, location, mSymbolNames);
-            if (qparam != qnoparam) {
-                Q_ASSERT(!qnoparam.isEmpty());
-                addToSymbolNames(qnoparam, hasTemplates, location, mSymbolNames);
-            }
+        const bool hasTemplates = mayHaveTemplates(kind) && qnoparam.contains('<');
+        addToSymbolNames(qparam, hasTemplates, location, mSymbolNames);
+        if (!qnoparam.isEmpty()) {
+            Q_ASSERT(!qnoparam.isEmpty());
+            addToSymbolNames(qnoparam, hasTemplates, location, mSymbolNames);
         }
 
         if (first) {
@@ -176,6 +172,7 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
             case CXCursor_FunctionDecl:
             case CXCursor_VarDecl:
             case CXCursor_ParmDecl:
+            case CXCursor_FieldDecl:
             case CXCursor_ClassTemplate:
                 break;
             default:
