@@ -108,7 +108,6 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
     CXCursor cur = cursor, null = clang_getNullCursor();
     CXCursorKind kind;
     bool first = true;
-    bool hasTemplates = false;
     for (;;) {
         if (clang_equalCursors(cur, null))
             break;
@@ -138,8 +137,6 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
             break;
         }
         qname = ByteArray(name);
-        if (!hasTemplates && mayHaveTemplates(kind) && qname.contains('<'))
-            hasTemplates = true;
         if (ret.isEmpty()) {
             ret = qname;
             if (!addToDB)
@@ -160,6 +157,7 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
         }
         Q_ASSERT(!qparam.isEmpty());
         if (addToDB) {
+            const bool hasTemplates = mayHaveTemplates(kind) && qnoparam.contains('<');
             addToSymbolNames(qparam, hasTemplates, location, mSymbolNames);
             if (qparam != qnoparam) {
                 Q_ASSERT(!qnoparam.isEmpty());
