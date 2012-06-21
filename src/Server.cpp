@@ -263,14 +263,29 @@ void Server::handleMakefileMessage(MakefileMessage *message)
 
 void Server::make(const Path &path, List<ByteArray> makefileArgs, const List<ByteArray> &extraFlags)
 {
-    MakefileParser *parser = new MakefileParser(extraFlags, this);
+    Connection *conn = qobject_cast<Connection*>(sender());
+    MakefileParser *parser = new MakefileParser(extraFlags, conn);
     connect(parser, SIGNAL(fileReady(GccArguments)), this, SLOT(onFileReady(GccArguments)));
-    connect(parser, SIGNAL(done()), parser, SLOT(deleteLater()));
+    connect(parser, SIGNAL(done(int, int)), this, SLOT(onMakefileParserDone(int, int)));
     if (mOptions.options & UseDashB)
         makefileArgs.append("-B");
     parser->run(path, makefileArgs);
-    Connection *conn = qobject_cast<Connection*>(sender());
-    conn->finish();
+}
+
+void Server::onMakefileParserDone(int sourceCount, int pchCount)
+{
+    MakefileParser *parser = qobject_cast<MakefileParser*>(sender());
+    Q_ASSERT(parser);
+    Connection *connection = qobject_cast<Connection*>(parser->parent());
+    char buf[1024];
+    if (pchCount) {
+        snprintf(buf, sizeof(buf), "Parsed %s, %d sources, %d pch headers", parser->makefile().constData(), sourceCount, pchCount);
+    } else {
+        snprintf(buf, sizeof(buf), "Parsed %s, %d sources", parser->makefile().constData(), sourceCount);
+    }
+    ResponseMessage msg(buf);
+    connection->send(&msg);
+    connection->finish();
 }
 
 void Server::handleOutputMessage(OutputMessage *message)

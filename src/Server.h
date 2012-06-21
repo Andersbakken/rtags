@@ -91,6 +91,7 @@ private slots:
     void onComplete(int id);
     void onOutput(int id, const ByteArray &response);
     void onConnectionDestroyed(QObject *o);
+    void onMakefileParserDone(int sourceCount, int pchCount);
 private:
     void handleMakefileMessage(MakefileMessage *message);
     void handleQueryMessage(QueryMessage *message);

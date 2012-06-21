@@ -74,7 +74,8 @@ void DirectoryTracker::leaveDirectory(const ByteArray& dir)
 }
 
 MakefileParser::MakefileParser(const List<ByteArray> &extraFlags, QObject *parent)
-    : QObject(parent), mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags)
+    : QObject(parent), mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags),
+      mSourceCount(0), mPchCount(0)
 {
 }
 
@@ -91,6 +92,7 @@ MakefileParser::~MakefileParser()
 
 void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
 {
+    mMakefile = makefile;
     Q_ASSERT(!mProc);
     mProc = new QProcess(this);
 
@@ -118,7 +120,7 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
 
     connect(mProc, SIGNAL(error(QProcess::ProcessError)),
             this, SLOT(onError(QProcess::ProcessError)));
-    connect(mProc, SIGNAL(finished(int)), this, SIGNAL(done()));
+    connect(mProc, SIGNAL(finished(int)), this, SLOT(onDone()));
 
     mTracker->init(makefile.parentDir());
     warning(MAKE " -j1 -n -w -f %s -C %s\n",
@@ -162,6 +164,11 @@ void MakefileParser::processMakeLine(const ByteArray &line)
     GccArguments args;
     if (args.parse(line, mTracker->path())) {
         args.addFlags(mExtraFlags);
+        if (args.type() == GccArguments::Pch) {
+            ++mPchCount;
+        } else {
+            ++mSourceCount;
+        }
         emit fileReady(args);
     } else {
         mTracker->track(line);
@@ -195,4 +202,8 @@ List<ByteArray> MakefileParser::mapPchToInput(const List<ByteArray> &input) cons
 void MakefileParser::setPch(const ByteArray &output, const ByteArray &input)
 {
     mPchs[output] = input;
+}
+void MakefileParser::onDone()
+{
+    emit done(mSourceCount, mPchCount);
 }

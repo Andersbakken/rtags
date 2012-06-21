@@ -22,12 +22,13 @@ public:
     List<ByteArray> extraFlags() const { return mExtraFlags; }
     List<ByteArray> mapPchToInput(const List<ByteArray> &input) const;
     void setPch(const ByteArray &output, const ByteArray &input);
-    int pchCount() const { return mPchs.size(); }
+    Path makefile() const { return mMakefile; }
 signals:
-    void done();
+    void done(int sources, int pchs);
     void fileReady(const GccArguments &args);
 
 private slots:
+    void onDone();
     void processMakeOutput();
     void onReadyReadStandardError();
     void onError(QProcess::ProcessError error);
@@ -41,6 +42,8 @@ private:
     DirectoryTracker *mTracker;
     const List<ByteArray> mExtraFlags;
     Map<ByteArray, ByteArray> mPchs;
+    int mSourceCount, mPchCount;
+    Path mMakefile;
 };
 
 #endif // MAKEFILEPARSER_H
