@@ -3,10 +3,10 @@
 #include "MutexLocker.h"
 #include <algorithm>
 #include <assert.h>
-#if defined (FreeBSD) || defined (NetBSD) || defined (OpenBSD)
+#if defined (OS_FreeBSD) || defined (OS_NetBSD) || defined (OS_OpenBSD)
 #   include <sys/types.h>
 #   include <sys/sysctl.h>
-#elif defined (Linux)
+#elif defined (OS_Linux)
 #   include <unistd.h>
 #endif
 
@@ -138,7 +138,7 @@ void ThreadPool::start(Job* job, int priority)
 
 int ThreadPool::idealThreadCount()
 {
-#if defined (FreeBSD) || defined (NetBSD) || defined (OpenBSD)
+#if defined (OS_FreeBSD) || defined (OS_NetBSD) || defined (OS_OpenBSD)
     int cores;
     size_t len = sizeof(cores);
     int mib[2];
@@ -147,7 +147,7 @@ int ThreadPool::idealThreadCount()
     if (sysctl(mib, 2, &cores, &len, NULL, 0) != 0)
         return 1;
     return cores;
-#elif defined (Linux)
+#elif defined (OS_Linux)
     return (int)sysconf(_SC_NPROCESSORS_ONLN);
 #else
 #   warning idealthreadcount not implemented on this platform

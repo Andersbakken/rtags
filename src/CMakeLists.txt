@@ -4,7 +4,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 add_definitions(-Wall "-DCLANG_INCLUDEPATH=\"${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/clang_install/lib/clang/3.1/include/\"")
-add_definitions(-D${CMAKE_SYSTEM_NAME})
+add_definitions(-DOS_${CMAKE_SYSTEM_NAME})
 
 include(rtags.cmake)
 
