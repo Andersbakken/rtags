@@ -76,8 +76,6 @@ void DirectoryTracker::leaveDirectory(const ByteArray& dir)
 MakefileParser::MakefileParser(const List<ByteArray> &extraFlags, QObject *parent)
     : QObject(parent), mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags)
 {
-    mExtraFlags.append("AM_DEFAULT_VERBOSITY=1");
-    mExtraFlags.append("VERBOSE=1");
 }
 
 MakefileParser::~MakefileParser()
@@ -128,7 +126,9 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     QStringList a;
     a << QLatin1String("-j1") << QLatin1String("-n") << QLatin1String("-w")
       << QLatin1String("-f") << QString::fromLocal8Bit(makefile.constData(), makefile.size())
-      << QLatin1String("-C") << QString::fromStdString(mTracker->path());
+      << QLatin1String("-C") << QString::fromStdString(mTracker->path())
+      << QLatin1String("AM_DEFAULT_VERBOSITY=1") << QLatin1String("VERBOSE=1");
+
     foreach(const ByteArray &arg, args) {
         a << QString::fromStdString(arg);
     }

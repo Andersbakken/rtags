@@ -81,17 +81,29 @@ static inline void eatAutoTools(List<ByteArray> &args)
 {
     List<ByteArray> copy = args;
     for (int i=0; i<args.size(); ++i) {
-        if (args.at(i).contains("gcc") || args.at(i).contains("g++")) {
+        if (args.at(i).contains("gcc") || args.at(i).contains("g++") || args.at(i) == "cd" || args.at(i) == "c++") {
             if (i) {
                 args.erase(args.begin(), args.begin() + i);
                 if (testLog(Debug)) {
-                    debug() << "ate something" << copy;
-                    debug() << "now we have" << args;
+                    debug() << "ate something " << copy;
+                    debug() << "now we have " << args;
                 }
                 break;
             }
         }
     }
+}
+
+static inline ByteArray trim(const char *start, int size)
+{
+    while (size && isspace(*start)) {
+        ++start;
+        --size;
+    }
+    while (size && isspace(start[size - 1])) {
+        --size;
+    }
+    return ByteArray(start, size);
 }
 
 bool GccArguments::parse(ByteArray args, const Path &base)
@@ -130,7 +142,7 @@ bool GccArguments::parse(ByteArray args, const Path &base)
             case ' ':
                 if (quote == '\0') {
                     if (cur > prev)
-                        split.append(ByteArray(prev, cur - prev));
+                        split.append(trim(prev, cur - prev));
                     prev = cur + 1;
                 }
                 break;
@@ -141,7 +153,7 @@ bool GccArguments::parse(ByteArray args, const Path &base)
             ++cur;
         }
         if (cur > prev)
-            split.append(ByteArray(prev, cur - prev));
+            split.append(trim(prev, cur - prev));
     }
     eatAutoTools(split);
 
@@ -149,7 +161,7 @@ bool GccArguments::parse(ByteArray args, const Path &base)
         clear();
         return false;
     }
-    // error() << "GccArguments::parse" << split << base;
+    debug() << "GccArguments::parse (" << args << ") => " << split;
 
     Path path;
     if (split.front() == "cd" && split.size() > 3 && split.at(2) == "&&") {

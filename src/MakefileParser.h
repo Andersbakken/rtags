@@ -39,7 +39,7 @@ private:
     QProcess *mProc;
     ByteArray mData;
     DirectoryTracker *mTracker;
-    List<ByteArray> mExtraFlags;
+    const List<ByteArray> mExtraFlags;
     Map<ByteArray, ByteArray> mPchs;
 };
 
