@@ -195,13 +195,13 @@ private:
     Connection *mConnection;
 };
 }
-static inline Log &operator<<(Log &dbg, CXCursor cursor)
+static inline std::ostringstream &operator<<(std::ostringstream &dbg, CXCursor cursor)
 {
     dbg << Rdm::cursorToString(cursor).constData();
     return dbg;
 }
 
-static inline Log &operator<<(Log &dbg, CXCursorKind kind)
+static inline std::ostringstream &operator<<(std::ostringstream &dbg, CXCursorKind kind)
 {
     dbg << Rdm::eatString(clang_getCursorKindSpelling(kind)).constData();
     return dbg;

@@ -235,7 +235,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         return CXChildVisit_Break;
 
     if (testLog(Debug))
-        debug() << "indexVisitor" << cursor << clang_getCursorReferenced(cursor);
+        debug() << "indexVisitor " << cursor << " " << clang_getCursorReferenced(cursor);
     const CXCursorKind kind = clang_getCursorKind(cursor);
     if (!isInteresting(kind))
         return CXChildVisit_Recurse;
@@ -280,7 +280,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
                 Q_ASSERT(!clang_equalCursors(cursor, ref));
                 refLoc = job->createLocation(ref, 0);
                 if (testLog(Debug)) {
-                    debug() << "Looked up definition for ref" << ref << cursor;
+                    debug() << "Looked up definition for ref " << ref << " " << cursor;
                 }
             }
         }
@@ -297,8 +297,8 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
 
 CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor &ref)
 {
-    if (testLog(Debug))
-        debug() << "processCursor" << cursor.cursor << ref.cursor;
+    if (testLog(VerboseDebug))
+        verboseDebug() << "processCursor " << cursor.cursor << " " << ref.cursor;
 
     if (cursor.kind == CXCursor_InclusionDirective) {
         CXFile includedFile = clang_getIncludedFile(cursor.cursor);
