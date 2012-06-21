@@ -1,0 +1,297 @@
+# -*-Makefile-*- to build GNU make with nmake
+#
+# NOTE: If you have no 'make' program at all to process this makefile,
+# run 'build_w32.bat' instead.
+#
+# Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004, 2005,
+# 2006, 2007, 2008, 2009, 2010 Free Software Foundation, Inc.
+# This file is part of GNU Make.
+#
+# GNU Make is free software; you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation; either version 3 of the License, or (at your option) any later
+# version.
+#
+# GNU Make is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program.  If not, see <http://www.gnu.org/licenses/>.
+
+LINK = link
+CC = cl
+MAKE = nmake
+
+OUTDIR=.
+MAKEFILE=NMakefile
+SUBPROC_MAKEFILE=NMakefile
+
+CFLAGS_any = /nologo /MT /W4 /GX /Zi /YX /I . /I glob /I w32/include /D WIN32 /D WINDOWS32 /D _CONSOLE /D HAVE_CONFIG_H
+CFLAGS_debug = $(CFLAGS_any) /Od /D DEBUG /D _DEBUG /FR.\WinDebug/ /Fp.\WinDebug/make.pch /Fo.\WinDebug/ /Fd.\WinDebug/make.pdb
+CFLAGS_release = $(CFLAGS_any) /O2 /D NDEBUG /FR.\WinRel/ /Fp.\WinRel/make.pch /Fo.\WinRel/
+
+LDFLAGS_debug = w32\subproc\WinDebug\subproc.lib /NOLOGO /SUBSYSTEM:console\
+	/INCREMENTAL:no /PDB:WinDebug/make.pdb /OUT:WinDebug/make.exe /DEBUG
+LDFLAGS_release = w32\subproc\WinRel\subproc.lib /NOLOGO /SUBSYSTEM:console\
+	/INCREMENTAL:no /OUT:WinRel/make.exe
+
+all: config.h subproc Release Debug
+
+#
+# Make sure we build the subproc library first. It has it's own
+# makefile. To be portable to Windows 95, we put the instructions
+# on how to build the library into a batch file. On NT, we could
+# simply have done foo && bar && dog, but this doesn't port.
+#
+subproc: w32/subproc/WinDebug/subproc.lib w32/subproc/WinRel/subproc.lib
+
+w32/subproc/WinDebug/subproc.lib w32/subproc/WinRel/subproc.lib: w32/subproc/misc.c w32/subproc/sub_proc.c w32/subproc/w32err.c
+	subproc.bat $(SUBPROC_MAKEFILE) $(MAKE)
+	if exist WinDebug\make.exe erase WinDebug\make.exe
+	if exist WinRel\make.exe erase WinRel\make.exe
+
+config.h: config.h.W32
+	copy $? $@
+
+Release:
+	$(MAKE) /f $(MAKEFILE) LDFLAGS="$(LDFLAGS_release)" CFLAGS="$(CFLAGS_release)" OUTDIR=WinRel WinRel/make.exe
+Debug:
+	$(MAKE) /f $(MAKEFILE) LDFLAGS="$(LDFLAGS_debug)" CFLAGS="$(CFLAGS_debug)" OUTDIR=WinDebug WinDebug/make.exe
+
+clean:
+	if exist WinDebug\nul rmdir /s /q WinDebug
+	if exist WinRel\nul rmdir /s /q WinRel
+	if exist w32\subproc\WinDebug\nul rmdir /s /q w32\subproc\WinDebug
+	if exist w32\subproc\WinRel\nul rmdir /s /q w32\subproc\WinRel
+	if exist config.h erase config.h
+	erase *.pdb
+
+$(OUTDIR):
+	if not exist .\$@\nul mkdir .\$@
+
+LIBS = kernel32.lib user32.lib advapi32.lib
+
+OBJS = \
+	$(OUTDIR)/ar.obj \
+	$(OUTDIR)/arscan.obj \
+	$(OUTDIR)/commands.obj \
+	$(OUTDIR)/default.obj \
+	$(OUTDIR)/dir.obj \
+	$(OUTDIR)/expand.obj \
+	$(OUTDIR)/file.obj \
+	$(OUTDIR)/function.obj \
+	$(OUTDIR)/getloadavg.obj \
+	$(OUTDIR)/getopt.obj \
+	$(OUTDIR)/getopt1.obj \
+	$(OUTDIR)/hash.obj \
+	$(OUTDIR)/implicit.obj \
+	$(OUTDIR)/job.obj \
+	$(OUTDIR)/main.obj \
+	$(OUTDIR)/misc.obj \
+	$(OUTDIR)/read.obj \
+	$(OUTDIR)/remake.obj \
+	$(OUTDIR)/remote-stub.obj \
+	$(OUTDIR)/rule.obj \
+	$(OUTDIR)/signame.obj \
+	$(OUTDIR)/strcache.obj \
+	$(OUTDIR)/variable.obj \
+	$(OUTDIR)/version.obj \
+	$(OUTDIR)/vpath.obj \
+	$(OUTDIR)/glob.obj \
+	$(OUTDIR)/fnmatch.obj \
+	$(OUTDIR)/dirent.obj \
+	$(OUTDIR)/pathstuff.obj
+
+$(OUTDIR)/make.exe: $(OUTDIR) $(OBJS)
+	$(LINK) @<<
+		$(LDFLAGS) $(LIBS) $(OBJS)
+<<
+
+.c{$(OUTDIR)}.obj:
+	$(CC) $(CFLAGS) /c $<
+
+$(OUTDIR)/glob.obj : glob/glob.c
+	$(CC) $(CFLAGS) /c $?
+$(OUTDIR)/fnmatch.obj : glob/fnmatch.c
+	$(CC) $(CFLAGS) /c $?
+$(OUTDIR)/dirent.obj : w32/compat/dirent.c
+	$(CC) $(CFLAGS) /c $?
+$(OUTDIR)/pathstuff.obj : w32/pathstuff.c
+	$(CC) $(CFLAGS) /c $?
+
+# --------------- DEPENDENCIES
+#
+
+# .deps/alloca.Po
+# dummy
+
+# .deps/ar.Po
+$(OUTDIR)/ar.obj: ar.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ filedef.h hash.h dep.h \
+
+# .deps/arscan.Po
+$(OUTDIR)/arscan.obj: arscan.c make.h config.h \
+ getopt.h \
+ gettext.h \
+
+# .deps/commands.Po
+$(OUTDIR)/commands.obj: commands.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ dep.h filedef.h hash.h variable.h job.h \
+ commands.h
+
+# .deps/default.Po
+$(OUTDIR)/default.obj: default.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ filedef.h hash.h variable.h rule.h dep.h \
+ job.h \
+ commands.h
+
+# .deps/dir.Po
+$(OUTDIR)/dir.obj: dir.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ hash.h \
+
+# .deps/expand.Po
+$(OUTDIR)/expand.obj: expand.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ filedef.h hash.h \
+ job.h \
+ commands.h variable.h \
+ rule.h
+
+# .deps/file.Po
+$(OUTDIR)/file.obj: file.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ dep.h filedef.h \
+ hash.h job.h \
+ commands.h variable.h \
+ debug.h
+
+# .deps/function.Po
+$(OUTDIR)/function.obj: function.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ filedef.h hash.h variable.h dep.h job.h \
+ commands.h debug.h
+
+# .deps/getloadavg.Po
+# dummy
+
+# .deps/getopt.Po
+$(OUTDIR)/getopt.obj: getopt.c config.h \
+
+# .deps/getopt1.Po
+$(OUTDIR)/getopt1.obj: getopt1.c config.h getopt.h \
+
+# .deps/hash.Po
+$(OUTDIR)/hash.obj: hash.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ hash.h
+
+# .deps/implicit.Po
+$(OUTDIR)/implicit.obj: implicit.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ filedef.h hash.h rule.h dep.h debug.h \
+ variable.h job.h \
+ commands.h
+
+# .deps/job.Po
+$(OUTDIR)/job.obj: job.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ job.h \
+ debug.h filedef.h hash.h commands.h \
+ variable.h
+
+# .deps/loadavg-getloadavg.Po
+# dummy
+
+# .deps/main.Po
+$(OUTDIR)/main.obj: main.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ dep.h filedef.h hash.h variable.h job.h \
+ commands.h rule.h debug.h getopt.h \
+
+# .deps/misc.Po
+$(OUTDIR)/misc.obj: misc.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ dep.h debug.h
+
+# .deps/read.Po
+$(OUTDIR)/read.obj: read.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ dep.h filedef.h hash.h job.h \
+ commands.h variable.h rule.h debug.h \
+
+# .deps/remake.Po
+$(OUTDIR)/remake.obj: remake.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ filedef.h hash.h job.h \
+ commands.h dep.h variable.h debug.h \
+
+# .deps/remote-cstms.Po
+# dummy
+
+# .deps/remote-stub.Po
+$(OUTDIR)/remote-stub.obj: remote-stub.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ filedef.h hash.h job.h \
+ commands.h
+
+# .deps/rule.Po
+$(OUTDIR)/rule.obj: rule.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ dep.h filedef.h \
+ hash.h job.h \
+ commands.h variable.h \
+ rule.h
+
+# .deps/signame.Po
+$(OUTDIR)/signame.obj: signame.c make.h config.h \
+ getopt.h \
+ gettext.h \
+
+# .deps/strcache.Po
+$(OUTDIR)/strcache.obj: strcache.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ hash.h
+
+# .deps/variable.Po
+$(OUTDIR)/variable.obj: variable.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ dep.h filedef.h \
+ hash.h job.h \
+ commands.h variable.h \
+ rule.h
+
+# .deps/version.Po
+$(OUTDIR)/version.obj: version.c config.h
+
+# .deps/vmsjobs.Po
+# dummy
+
+# .deps/vpath.Po
+$(OUTDIR)/vpath.obj: vpath.c make.h config.h \
+ getopt.h \
+ gettext.h \
+ filedef.h hash.h variable.h

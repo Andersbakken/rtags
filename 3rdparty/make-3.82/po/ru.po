@@ -1,0 +1,2070 @@
+# Translation of make messages to Russian
+# Copyright (C) 1998, 1999, 2000, 2001, 2002, 2009 Free Software Foundation, Inc.
+# This file is distributed under the same license as the make package.
+# Alexey Mahotkin <alexm@hsys.msk.ru> 2001
+#
+# Oleg S. Tihonov <tihonov@ffke-campus.mipt.ru>, 1998.
+# Denis Perchine <dyp@perchine.com>, 2001, 2002.
+# Yuri Kozlov <yuray@komyakino.ru>, 2009, 2010.
+# Pavel Maryanov <acid_jack@ukr.net>, 2009.
+msgid ""
+msgstr ""
+"Project-Id-Version: make 3.81.91\n"
+"Report-Msgid-Bugs-To: bug-make@gnu.org\n"
+"POT-Creation-Date: 2010-07-28 01:42-0400\n"
+"PO-Revision-Date: 2010-07-21 21:46+0400\n"
+"Last-Translator: Yuri Kozlov <yuray@komyakino.ru>\n"
+"Language-Team: Russian <gnu@mx.ru>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Lokalize 1.0\n"
+
+#: ar.c:48
+#, c-format
+msgid "attempt to use unsupported feature: `%s'"
+msgstr "попытка использования неподдерживаемого средства: `%s'"
+
+#: ar.c:125
+msgid "touch archive member is not available on VMS"
+msgstr "обновление времени изменения члена архива невозможно в системе VMS"
+
+#: ar.c:149
+#, c-format
+msgid "touch: Archive `%s' does not exist"
+msgstr "обновление времени изменения: Архив `%s' не существует"
+
+#: ar.c:152
+#, c-format
+msgid "touch: `%s' is not a valid archive"
+msgstr "обновление времени изменения: Неверный архив: `%s'"
+
+#: ar.c:159
+#, c-format
+msgid "touch: Member `%s' does not exist in `%s'"
+msgstr "обновление времени изменения: Элемент `%s' не содержится в `%s'"
+
+#: ar.c:166
+#, c-format
+msgid "touch: Bad return code from ar_member_touch on `%s'"
+msgstr ""
+"обновление времени изменения: Функция ar_member_touch вернула\n"
+"ошибочное значение для `%s'"
+
+#: arscan.c:69
+#, c-format
+msgid "lbr$set_module() failed to extract module info, status = %d"
+msgstr "lbr$set_module() не смогла извлечь информацию о модуле, статус = %d"
+
+#: arscan.c:175
+#, c-format
+msgid "lbr$ini_control() failed with status = %d"
+msgstr "lbr$init_control() вернула код ошибки %d"
+
+#: arscan.c:187
+#, c-format
+msgid "unable to open library `%s' to lookup member `%s'"
+msgstr "Ошибка открытия библиотеки `%s' для поиска элемента `%s'"
+
+#: arscan.c:850
+#, c-format
+msgid "Member `%s'%s: %ld bytes at %ld (%ld).\n"
+msgstr "Элемент `%s'%s: %ld байт по адресу %ld (%ld).\n"
+
+#: arscan.c:851
+msgid " (name might be truncated)"
+msgstr " (имя может быть усечено)"
+
+#: arscan.c:853
+#, c-format
+msgid "  Date %s"
+msgstr "  Дата %s"
+
+#: arscan.c:854
+#, c-format
+msgid "  uid = %d, gid = %d, mode = 0%o.\n"
+msgstr "  uid = %d, gid = %d, mode = 0%o.\n"
+
+#: commands.c:499
+msgid "*** Break.\n"
+msgstr "*** Останов.\n"
+
+#: commands.c:622
+#, c-format
+msgid "*** [%s] Archive member `%s' may be bogus; not deleted"
+msgstr "*** [%s] Элемент архива `%s', кажется, недействителен; не удалён"
+
+#: commands.c:625
+#, c-format
+msgid "*** Archive member `%s' may be bogus; not deleted"
+msgstr "*** Элемент архива `%s', кажется, недействителен; не удалён"
+
+#: commands.c:638
+#, c-format
+msgid "*** [%s] Deleting file `%s'"
+msgstr "*** [%s] Удаляется файл `%s'"
+
+#: commands.c:640
+#, c-format
+msgid "*** Deleting file `%s'"
+msgstr "*** Удаляется файл `%s'"
+
+#: commands.c:676
+msgid "#  recipe to execute"
+msgstr "#  способ, который следует применить"
+
+#: commands.c:679
+msgid " (built-in):"
+msgstr " (встроенные):"
+
+#: commands.c:681
+#, c-format
+msgid " (from `%s', line %lu):\n"
+msgstr "  (из `%s', строка %lu):\n"
+
+#: dir.c:996
+msgid ""
+"\n"
+"# Directories\n"
+msgstr ""
+"\n"
+"# Каталоги\n"
+
+#: dir.c:1008
+#, c-format
+msgid "# %s: could not be stat'd.\n"
+msgstr "# %s: невозможно получить сведения вызовом stat.\n"
+
+#: dir.c:1012
+#, c-format
+msgid "# %s (key %s, mtime %d): could not be opened.\n"
+msgstr "# %s (ключ %s, время модификации %d): невозможно открыть.\n"
+
+#: dir.c:1016
+#, c-format
+msgid "# %s (device %d, inode [%d,%d,%d]): could not be opened.\n"
+msgstr "# %s (устройство %d, inode [%d,%d,%d]): невозможно открыть.\n"
+
+#: dir.c:1021
+#, c-format
+msgid "# %s (device %ld, inode %ld): could not be opened.\n"
+msgstr "# %s (устройство %ld, inode %ld): невозможно открыть.\n"
+
+#: dir.c:1048
+#, c-format
+msgid "# %s (key %s, mtime %d): "
+msgstr "# %s (ключ %s, время модификации %d): "
+
+#: dir.c:1052
+#, c-format
+msgid "# %s (device %d, inode [%d,%d,%d]): "
+msgstr "# %s (устройство %d, inode [%d,%d,%d]): "
+
+#: dir.c:1057
+#, c-format
+msgid "# %s (device %ld, inode %ld): "
+msgstr "# %s (устройство %ld, inode %ld): "
+
+#: dir.c:1063 dir.c:1084
+msgid "No"
+msgstr "Нет"
+
+#: dir.c:1066 dir.c:1087
+msgid " files, "
+msgstr " файлов,"
+
+#: dir.c:1068 dir.c:1089
+msgid "no"
+msgstr "нет"
+
+#: dir.c:1071
+msgid " impossibilities"
+msgstr " недостижимых целей"
+
+#: dir.c:1075
+msgid " so far."
+msgstr " на текущий момент."
+
+#: dir.c:1092
+#, c-format
+msgid " impossibilities in %lu directories.\n"
+msgstr " недостижимых целей в %lu каталогах.\n"
+
+#: expand.c:127
+#, c-format
+msgid "Recursive variable `%s' references itself (eventually)"
+msgstr "Рекурсивная переменная `%s' ссылается сама на себя (в результате)"
+
+#: expand.c:276
+msgid "unterminated variable reference"
+msgstr "незавершённая ссылка на переменную"
+
+#: file.c:267
+#, c-format
+msgid "Recipe was specified for file `%s' at %s:%lu,"
+msgstr "Способ для файла `%s' был задан в %s:%lu,"
+
+#: file.c:272
+#, c-format
+msgid "Recipe for file `%s' was found by implicit rule search,"
+msgstr "Способ для файла `%s' был найден из неявного правила,"
+
+#: file.c:275
+#, c-format
+msgid "but `%s' is now considered the same file as `%s'."
+msgstr "но `%s' и `%s' теперь считаются одним и тем же файлом. "
+
+#: file.c:278
+#, c-format
+msgid "Recipe for `%s' will be ignored in favor of the one for `%s'."
+msgstr ""
+"Способ для `%s' игнорируется, вместо него будет использован способ для `%s'."
+
+#: file.c:298
+#, c-format
+msgid "can't rename single-colon `%s' to double-colon `%s'"
+msgstr ""
+"невозможно переименовать `%s' с одним двоеточием в `%s' с двумя двоеточиями"
+
+#: file.c:303
+#, c-format
+msgid "can't rename double-colon `%s' to single-colon `%s'"
+msgstr ""
+"невозможно переименовать `%s' с двумя двоеточиями в `%s' с одним двоеточием"
+
+#: file.c:392
+#, c-format
+msgid "*** Deleting intermediate file `%s'"
+msgstr "*** Удаление промежуточного файла `%s'"
+
+#: file.c:396
+msgid "Removing intermediate files...\n"
+msgstr "Удаление промежуточных файлов...\n"
+
+#: file.c:803
+#, c-format
+msgid "%s: Timestamp out of range; substituting %s"
+msgstr "%s: Временной штамп выходит за пределы диапазона; подставляем %s"
+
+#: file.c:804
+msgid "Current time"
+msgstr "Текущее время"
+
+#: file.c:924
+msgid "# Not a target:"
+msgstr "# Не является целью:"
+
+#: file.c:929
+msgid "#  Precious file (prerequisite of .PRECIOUS)."
+msgstr "#  Ценный файл (зависимость .PRECIOUS)."
+
+#: file.c:931
+msgid "#  Phony target (prerequisite of .PHONY)."
+msgstr "#  Псевдоцель (зависимость от .PHONY)."
+
+#: file.c:933
+msgid "#  Command line target."
+msgstr "#  Цель, вызываемая из командной строки."
+
+#: file.c:935
+msgid "#  A default, MAKEFILES, or -include/sinclude makefile."
+msgstr "#  По умолчанию, MAKEFILES, или -include/sinclude makefile."
+
+#: file.c:937
+msgid "#  Implicit rule search has been done."
+msgstr "#  Производился поиск неявных правил."
+
+#: file.c:938
+msgid "#  Implicit rule search has not been done."
+msgstr "#  Поиск неявных правил не производился."
+
+#: file.c:940
+#, c-format
+msgid "#  Implicit/static pattern stem: `%s'\n"
+msgstr "#  Основа неявного или статического образца: `%s'\n"
+
+#: file.c:942
+msgid "#  File is an intermediate prerequisite."
+msgstr "#  Файл — промежуточная зависимость."
+
+#: file.c:946
+msgid "#  Also makes:"
+msgstr "#  Собирает также:"
+
+#: file.c:952
+msgid "#  Modification time never checked."
+msgstr "#  Время изменения ни разу не проверялось."
+
+#: file.c:954
+msgid "#  File does not exist."
+msgstr "#  Файл не существует."
+
+#: file.c:956
+msgid "#  File is very old."
+msgstr "#  Файл очень старый."
+
+#: file.c:961
+#, c-format
+msgid "#  Last modified %s\n"
+msgstr "#  Время последнего изменения %s\n"
+
+#: file.c:964
+msgid "#  File has been updated."
+msgstr "#  Файл был обновлён."
+
+#: file.c:964
+msgid "#  File has not been updated."
+msgstr "#  Файл не был обновлён."
+
+#: file.c:968
+msgid "#  Recipe currently running (THIS IS A BUG)."
+msgstr "#  В данный момент уже применяется некий способ (ЭТО ОШИБКА)."
+
+#: file.c:971
+msgid "#  Dependencies recipe running (THIS IS A BUG)."
+msgstr ""
+"#  В данный момент уже применяется некий способ по зависимостям (ЭТО ОШИБКА)."
+
+#: file.c:980
+msgid "#  Successfully updated."
+msgstr "#  Успешно обновлено."
+
+#: file.c:984
+msgid "#  Needs to be updated (-q is set)."
+msgstr "#  Должно быть обновлено (задан ключ -q)."
+
+#: file.c:987
+msgid "#  Failed to be updated."
+msgstr "#  Попытка обновления безуспешна."
+
+#: file.c:990
+msgid "#  Invalid value in `update_status' member!"
+msgstr "#  Неверное значение члена `update_status'!"
+
+#: file.c:997
+msgid "#  Invalid value in `command_state' member!"
+msgstr "#  Неверное значение члена `command_state'!"
+
+#: file.c:1016
+msgid ""
+"\n"
+"# Files"
+msgstr ""
+"\n"
+"# Файлы"
+
+#: file.c:1020
+msgid ""
+"\n"
+"# files hash-table stats:\n"
+"# "
+msgstr ""
+"\n"
+"# состояние файлов хеш-таблицы:\n"
+"# "
+
+#: function.c:758
+msgid "non-numeric first argument to `word' function"
+msgstr "нечисловой первый аргумент функции `word'"
+
+#: function.c:763
+msgid "first argument to `word' function must be greater than 0"
+msgstr "первый аргумент функции `word' должен быть больше нуля"
+
+#: function.c:783
+msgid "non-numeric first argument to `wordlist' function"
+msgstr "нечисловой первый аргумент функции `wordlist'"
+
+#: function.c:785
+msgid "non-numeric second argument to `wordlist' function"
+msgstr "нечисловой второй аргумент функции `wordlist'"
+
+#: function.c:1458
+#, c-format
+msgid "windows32_openpipe(): DuplicateHandle(In) failed (e=%ld)\n"
+msgstr "windows32_openpipe(): DuplicateHandle(In) вернула код ошибки (e=%ld)\n"
+
+#: function.c:1469
+#, c-format
+msgid "windows32_open_pipe(): DuplicateHandle(Err) failed (e=%ld)\n"
+msgstr ""
+"windows32_open_pipe(): DuplicateHandle(Err) вернула код ошибки (e=%ld)\n"
+
+#: function.c:1474
+#, c-format
+msgid "CreatePipe() failed (e=%ld)\n"
+msgstr "CreatePipe() вернула код ошибки (e=%ld)\n"
+
+#: function.c:1479
+msgid "windows32_openpipe(): process_init_fd() failed\n"
+msgstr "windows32_openpipe(): process_init_fd() завершилась неудачно\n"
+
+#: function.c:1728
+#, c-format
+msgid "Cleaning up temporary batch file %s\n"
+msgstr "Очищаю временный пакетный файл %s\n"
+
+#: function.c:2150
+#, c-format
+msgid "insufficient number of arguments (%d) to function `%s'"
+msgstr "недостаточно аргументов (всего %d) функции `%s'"
+
+#: function.c:2162
+#, c-format
+msgid "unimplemented on this platform: function `%s'"
+msgstr "не реализовано на этой платформе: функция `%s'"
+
+#: function.c:2212
+#, c-format
+msgid "unterminated call to function `%s': missing `%c'"
+msgstr "незавершённый вызов функции `%s': пропущено `%c'"
+
+# Сообщения getopt исключены, т.к. они относятся к уже
+# устаревшей версии этой библиотеки, и исчезнут в следующей версии make
+#
+#: getopt.c:661
+#, c-format
+msgid "%s: option `%s' is ambiguous\n"
+msgstr "%s: ключ `%s' не однозначен\n"
+
+#: getopt.c:685
+#, c-format
+msgid "%s: option `--%s' doesn't allow an argument\n"
+msgstr "%s: ключ `--%s' не имеет аргумента\n"
+
+#: getopt.c:690
+#, c-format
+msgid "%s: option `%c%s' doesn't allow an argument\n"
+msgstr "%s: ключ `%c%s' не имеет аргумента\n"
+
+#: getopt.c:707 getopt.c:880
+#, c-format
+msgid "%s: option `%s' requires an argument\n"
+msgstr "%s: ключ `%s' требует аргумент\n"
+
+#: getopt.c:736
+#, c-format
+msgid "%s: unrecognized option `--%s'\n"
+msgstr "%s: неизвестный ключ `--%s'\n"
+
+#: getopt.c:740
+#, c-format
+msgid "%s: unrecognized option `%c%s'\n"
+msgstr "%s: неизвестный ключ `%c%s'\n"
+
+#: getopt.c:766
+#, c-format
+msgid "%s: illegal option -- %c\n"
+msgstr "%s: недопустимый ключ -- %c\n"
+
+#: getopt.c:769
+#, c-format
+msgid "%s: invalid option -- %c\n"
+msgstr "%s: неверный ключ -- %c\n"
+
+#: getopt.c:799 getopt.c:929
+#, c-format
+msgid "%s: option requires an argument -- %c\n"
+msgstr "%s: ключ требует аргумент -- %c\n"
+
+#: getopt.c:846
+#, c-format
+msgid "%s: option `-W %s' is ambiguous\n"
+msgstr "%s: ключ `-W %s' неоднозначен\n"
+
+#: getopt.c:864
+#, c-format
+msgid "%s: option `-W %s' doesn't allow an argument\n"
+msgstr "%s: ключ `-W %s' не имеет аргумента\n"
+
+#: hash.c:49
+#, c-format
+msgid "can't allocate %lu bytes for hash table: memory exhausted"
+msgstr "не удалось выделить %lu байт для хеш-таблицы: закончилась память"
+
+#: hash.c:280
+#, c-format
+msgid "Load=%ld/%ld=%.0f%%, "
+msgstr "Загружено=%ld/%ld=%.0f%%, "
+
+#: hash.c:282
+#, c-format
+msgid "Rehash=%d, "
+msgstr "Переформулировано=%d, "
+
+#: hash.c:283
+#, c-format
+msgid "Collisions=%ld/%ld=%.0f%%"
+msgstr "Противоречий=%ld/%ld=%.0f%%"
+
+#: implicit.c:40
+#, c-format
+msgid "Looking for an implicit rule for `%s'.\n"
+msgstr "Поиск неявного правила для `%s'.\n"
+
+#: implicit.c:56
+#, c-format
+msgid "Looking for archive-member implicit rule for `%s'.\n"
+msgstr "Поиск неявного правила для элемента архива `%s'.\n"
+
+#: implicit.c:317
+msgid "Avoiding implicit rule recursion.\n"
+msgstr "Избежание рекурсивного вызова неявного правила.\n"
+
+#: implicit.c:491
+#, c-format
+msgid "Trying pattern rule with stem `%.*s'.\n"
+msgstr "Попытка применения правила с образцом, основа `%.*s'.\n"
+
+#: implicit.c:674
+#, c-format
+msgid "Rejecting impossible rule prerequisite `%s'.\n"
+msgstr "Отвержение невозможной зависимости правила `%s'.\n"
+
+#: implicit.c:675
+#, c-format
+msgid "Rejecting impossible implicit prerequisite `%s'.\n"
+msgstr "Отвержение невозможной неявной зависимости `%s'.\n"
+
+#: implicit.c:688
+#, c-format
+msgid "Trying rule prerequisite `%s'.\n"
+msgstr "Попытка применения правила зависимости `%s'.\n"
+
+#: implicit.c:689
+#, c-format
+msgid "Trying implicit prerequisite `%s'.\n"
+msgstr "Попытка применения неявной зависимости `%s'.\n"
+
+#: implicit.c:728
+#, c-format
+msgid "Found prerequisite `%s' as VPATH `%s'\n"
+msgstr "Обнаружена зависимость `%s' в виде VPATH `%s'\n"
+
+#: implicit.c:742
+#, c-format
+msgid "Looking for a rule with intermediate file `%s'.\n"
+msgstr "Поиск правила с промежуточным файлом `%s'.\n"
+
+#: job.c:335
+msgid "Cannot create a temporary file\n"
+msgstr "Не удалось создать временный файл\n"
+
+#: job.c:449
+#, c-format
+msgid "*** [%s] Error 0x%x (ignored)"
+msgstr "*** [%s] Ошибка 0x%x (игнорирована)"
+
+#: job.c:450
+#, c-format
+msgid "*** [%s] Error 0x%x"
+msgstr "*** [%s] Ошибка 0x%x"
+
+#: job.c:454
+#, c-format
+msgid "[%s] Error %d (ignored)"
+msgstr "[%s] Ошибка %d (игнорирована)"
+
+#: job.c:455
+#, c-format
+msgid "*** [%s] Error %d"
+msgstr "*** [%s] Ошибка %d"
+
+#: job.c:460
+msgid " (core dumped)"
+msgstr " (сделан дамп памяти)"
+
+#: job.c:549
+msgid "*** Waiting for unfinished jobs...."
+msgstr "*** Ожидание завершения заданий..."
+
+#: job.c:579
+#, c-format
+msgid "Live child %p (%s) PID %s %s\n"
+msgstr "Незавершённый потомок %p (%s) PID %s %s\n"
+
+#: job.c:581 job.c:760 job.c:862 job.c:1527
+msgid " (remote)"
+msgstr " (удалённый)"
+
+#: job.c:758
+#, c-format
+msgid "Reaping losing child %p PID %s %s\n"
+msgstr "Подбирается неудачно завершившийся  потомок %p PID %s %s\n"
+
+#: job.c:759
+#, c-format
+msgid "Reaping winning child %p PID %s %s\n"
+msgstr "Подбирается удачно завершившийся потомок %p PID %s %s\n"
+
+#: job.c:763
+#, c-format
+msgid "Cleaning up temp batch file %s\n"
+msgstr "Подчищаю временный пакетный файл %s\n"
+
+#: job.c:861
+#, c-format
+msgid "Removing child %p PID %s%s from chain.\n"
+msgstr "Удаляется потомок %p PID %s%s из цепочки.\n"
+
+#: job.c:920
+msgid "write jobserver"
+msgstr "пишу в сервер задач"
+
+#: job.c:922
+#, c-format
+msgid "Released token for child %p (%s).\n"
+msgstr "Освобождается токен для потомка %p (%s).\n"
+
+#: job.c:1453 job.c:2094
+#, c-format
+msgid "process_easy() failed to launch process (e=%ld)\n"
+msgstr "process_easy() не смогла запустить процесс (e=%ld)\n"
+
+#: job.c:1457 job.c:2098
+#, c-format
+msgid ""
+"\n"
+"Counted %d args in failed launch\n"
+msgstr ""
+"\n"
+"При неудачном запуске сосчитано %d аргументов\n"
+
+#: job.c:1525
+#, c-format
+msgid "Putting child %p (%s) PID %s%s on the chain.\n"
+msgstr "Помещение потомка %p (%s) PID %s%s в цепочку потомков.\n"
+
+#: job.c:1778
+#, c-format
+msgid "Obtained token for child %p (%s).\n"
+msgstr "Получен токен для потомка %p (%s).\n"
+
+#: job.c:1787
+msgid "read jobs pipe"
+msgstr "читаю задачи из потока"
+
+#: job.c:1798
+#, c-format
+msgid "Invoking recipe from %s:%lu to update target `%s'.\n"
+msgstr "Применяется способ из %s:%lu для обновления цели `%s'.\n"
+
+#: job.c:1802
+#, c-format
+msgid "Invoking builtin recipe to update target `%s'.\n"
+msgstr "Выполняется встроенный способ для обновления цели `%s'.\n"
+
+#: job.c:1910
+msgid "cannot enforce load limits on this operating system"
+msgstr "эта операционная система не позволяет устанавливать пределы загрузки"
+
+#: job.c:1912
+msgid "cannot enforce load limit: "
+msgstr "невозможно установить пределы загрузки: "
+
+#: job.c:1985
+msgid "no more file handles: could not duplicate stdin\n"
+msgstr "закончились файловые дескрипторы: не удалось сделать копию stdin\n"
+
+#: job.c:1987
+msgid "no more file handles: could not duplicate stdout\n"
+msgstr "закончились файловые дескрипторы: не удалось сделать копию stdout\n"
+
+#: job.c:2015
+msgid "Could not restore stdin\n"
+msgstr "Не удалось восстановить stdin\n"
+
+#: job.c:2023
+msgid "Could not restore stdout\n"
+msgstr "Не удалось восстановить stdout\n"
+
+#: job.c:2127
+#, c-format
+msgid "make reaped child pid %s, still waiting for pid %s\n"
+msgstr "make нашла завершившегося потомка pid %s, всё ещё ожидает pid %s\n"
+
+#: job.c:2168
+#, c-format
+msgid "%s: Command not found"
+msgstr "%s: Команда не найдена"
+
+#: job.c:2228
+#, c-format
+msgid "%s: Shell program not found"
+msgstr "%s: Командный процессор не найден"
+
+#: job.c:2237
+msgid "spawnvpe: environment space might be exhausted"
+msgstr "spawnvpe: вероятно, закончилось место под окружение"
+
+#: job.c:2461
+#, c-format
+msgid "$SHELL changed (was `%s', now `%s')\n"
+msgstr "Переменная $SHELL изменилась (было '%s', теперь '%s')\n"
+
+#: job.c:2951
+#, c-format
+msgid "Creating temporary batch file %s\n"
+msgstr "Создаётся временный пакетный файл %s\n"
+
+#: job.c:2963
+#, c-format
+msgid ""
+"Batch file contents:%s\n"
+"\t%s\n"
+msgstr ""
+"Содержимое файла пакетных заданий:%s\n"
+"\t%s\n"
+
+#: job.c:3065
+#, c-format
+msgid "%s (line %d) Bad shell context (!unixy && !batch_mode_shell)\n"
+msgstr ""
+"%s (строка %d) Плохой контекст командного процессора (!unixy && !"
+"batch_mode_shell)\n"
+
+#: main.c:303
+msgid "Options:\n"
+msgstr "Ключи:\n"
+
+#: main.c:304
+msgid "  -b, -m                      Ignored for compatibility.\n"
+msgstr "  -b, -m                      Игнорируется для совместимости.\n"
+
+#: main.c:306
+msgid "  -B, --always-make           Unconditionally make all targets.\n"
+msgstr "  -B, --always-make           Без условий отрабатывать все цели.\n"
+
+#: main.c:308
+msgid ""
+"  -C DIRECTORY, --directory=DIRECTORY\n"
+"                              Change to DIRECTORY before doing anything.\n"
+msgstr ""
+"  -C КАТАЛОГ, --directory=КАТАЛОГ\n"
+"                              Перейти в КАТАЛОГ перед выполнением действий.\n"
+
+#: main.c:311
+msgid "  -d                          Print lots of debugging information.\n"
+msgstr "  -d                          Выводить массу отладочных сообщений.\n"
+
+#: main.c:313
+msgid ""
+"  --debug[=FLAGS]             Print various types of debugging information.\n"
+msgstr ""
+"  --debug[=ФЛАГИ]             Выводить различные типы отладочной "
+"информации.\n"
+
+#: main.c:315
+msgid ""
+"  -e, --environment-overrides\n"
+"                              Environment variables override makefiles.\n"
+msgstr ""
+"  -e, --environment-overrides\n"
+"                              Переменные окружения заменяют значения "
+"makefile.\n"
+
+#: main.c:318
+msgid ""
+"  --eval=STRING               Evaluate STRING as a makefile statement.\n"
+msgstr ""
+"  --eval=СТРОКА               Вычислить СТРОКУ как предложение makefile.\n"
+
+#: main.c:320
+msgid ""
+"  -f FILE, --file=FILE, --makefile=FILE\n"
+"                              Read FILE as a makefile.\n"
+msgstr ""
+"  -f ФАЙЛ, --file=ФАЙЛ, --makefile=ФАЙЛ\n"
+"                              Использовать ФАЙЛ в качестве makefile.\n"
+
+#: main.c:323
+msgid "  -h, --help                  Print this message and exit.\n"
+msgstr "  -h, --help                  Показать эту справку и выйти.\n"
+
+#: main.c:325
+msgid "  -i, --ignore-errors         Ignore errors from recipes.\n"
+msgstr "  -i, --ignore-errors         Игнорировать ошибки способов.\n"
+
+#: main.c:327
+msgid ""
+"  -I DIRECTORY, --include-dir=DIRECTORY\n"
+"                              Search DIRECTORY for included makefiles.\n"
+msgstr ""
+"  -I КАТАЛОГ, --include-dir=КАТАЛОГ\n"
+"                              Искать включаемые make-файлы в КАТАЛОГЕ.\n"
+
+#: main.c:330
+msgid ""
+"  -j [N], --jobs[=N]          Allow N jobs at once; infinite jobs with no "
+"arg.\n"
+msgstr ""
+"  -j [N], --jobs[=N]          Запускать одновременно до N заданий; \n"
+"                              если N не указано, число заданий "
+"неограничено.\n"
+
+#: main.c:332
+msgid ""
+"  -k, --keep-going            Keep going when some targets can't be made.\n"
+msgstr ""
+"  -k, --keep-going            Продолжать работу, даже если некоторые цели\n"
+"                              не могут быть достигнуты.\n"
+
+#: main.c:334
+msgid ""
+"  -l [N], --load-average[=N], --max-load[=N]\n"
+"                              Don't start multiple jobs unless load is below "
+"N.\n"
+msgstr ""
+"  -l [N], --load-average[=N], --max-load[=N]         Не запускать\n"
+"                               несколько заданий, если загрузка больше N.\n"
+
+#: main.c:337
+msgid ""
+"  -L, --check-symlink-times   Use the latest mtime between symlinks and "
+"target.\n"
+msgstr ""
+"  -L, --check-symlink-times   Использовать последнее mtime при выборе между\n"
+"                              символическими ссылками и целью.\n"
+
+#: main.c:339
+msgid ""
+"  -n, --just-print, --dry-run, --recon\n"
+"                              Don't actually run any recipe; just print "
+"them.\n"
+msgstr ""
+"  -n, --just-print, --dry-run, --recon\n"
+"                              Не применять способ на самом деле; просто\n"
+"                              напечатать его.\n"
+
+#: main.c:342
+msgid ""
+"  -o FILE, --old-file=FILE, --assume-old=FILE\n"
+"                              Consider FILE to be very old and don't remake "
+"it.\n"
+msgstr ""
+"  -o ФАЙЛ, --old-file=ФАЙЛ, --assume-old=ФАЙЛ\n"
+"                              Считать ФАЙЛ очень старым и не переделывать "
+"его.\n"
+
+#: main.c:345
+msgid "  -p, --print-data-base       Print make's internal database.\n"
+msgstr ""
+"  -p, --print-data-base       Напечатать внутреннюю базу данных make.\n"
+
+#: main.c:347
+msgid ""
+"  -q, --question              Run no recipe; exit status says if up to "
+"date.\n"
+msgstr ""
+"  -q, --question              Не применять способ;\n"
+"                              код завершения показывает, всё ли уже "
+"сделано.\n"
+
+#: main.c:349
+msgid "  -r, --no-builtin-rules      Disable the built-in implicit rules.\n"
+msgstr ""
+"  -r, --no-builtin-rules      Не использовать встроенные неявные правила.\n"
+
+# Что такое "variable settings"?
+#: main.c:351
+msgid "  -R, --no-builtin-variables  Disable the built-in variable settings.\n"
+msgstr ""
+"  -R, --no-builtin-variables   Выключить установку встроенных\n"
+"                              значений переменных.\n"
+
+#: main.c:353
+msgid "  -s, --silent, --quiet       Don't echo recipes.\n"
+msgstr "  -s, --silent, --quiet        Не показывать сами способы.\n"
+
+#: main.c:355
+msgid ""
+"  -S, --no-keep-going, --stop\n"
+"                              Turns off -k.\n"
+msgstr ""
+"  -S, --no-keep-going, --stop\n"
+"                              Отменить ключ -k.\n"
+
+#: main.c:358
+msgid "  -t, --touch                 Touch targets instead of remaking them.\n"
+msgstr ""
+"  -t, --touch                 Установить время доступа целей в текущее,\n"
+"                              а не пересобирать их.\n"
+
+#: main.c:360
+msgid ""
+"  -v, --version               Print the version number of make and exit.\n"
+msgstr "  -v, --version               Показать информацию о версии и выйти.\n"
+
+#: main.c:362
+msgid "  -w, --print-directory       Print the current directory.\n"
+msgstr "  -w, --print-directory       Напечатать текущий каталог.\n"
+
+#: main.c:364
+msgid ""
+"  --no-print-directory        Turn off -w, even if it was turned on "
+"implicitly.\n"
+msgstr ""
+"  --no-print-directory        Отменить ключ -w, даже если он был явно "
+"указан.\n"
+
+#: main.c:366
+msgid ""
+"  -W FILE, --what-if=FILE, --new-file=FILE, --assume-new=FILE\n"
+"                              Consider FILE to be infinitely new.\n"
+msgstr ""
+"  -W ФАЙЛ, --what-if=ФАЙЛ, --new-file=ФАЙЛ, --assume-new=ФАЙЛ\n"
+"                              Считать ФАЙЛ всегда новым.\n"
+
+#: main.c:369
+msgid ""
+"  --warn-undefined-variables  Warn when an undefined variable is "
+"referenced.\n"
+msgstr ""
+"  --warn-undefined-variables  Выдавать предупреждение при ссылке\n"
+"                              на неопределённую переменную.\n"
+
+#: main.c:564
+msgid "empty string invalid as file name"
+msgstr "пустая строка недопустима в качестве имени файла"
+
+#: main.c:650
+#, c-format
+msgid "unknown debug level specification `%s'"
+msgstr "неизвестный способ задания уровня отладки `%s'"
+
+#: main.c:690
+#, c-format
+msgid "%s: Interrupt/Exception caught (code = 0x%lx, addr = 0x%p)\n"
+msgstr "%s: поймано прерывание или исключение (код = 0x%lx, адрес = 0x%p)\n"
+
+#: main.c:697
+#, c-format
+msgid ""
+"\n"
+"Unhandled exception filter called from program %s\n"
+"ExceptionCode = %lx\n"
+"ExceptionFlags = %lx\n"
+"ExceptionAddress = 0x%p\n"
+msgstr ""
+"\n"
+"Необработанное исключение в программе %s\n"
+"Код исключения = %lx\n"
+"Флаги исключения = %lx\n"
+"Адрес исключения = 0x%p\n"
+
+#: main.c:705
+#, c-format
+msgid "Access violation: write operation at address 0x%p\n"
+msgstr "Нарушение доступа: операция записи по адресу 0x%p\n"
+
+#: main.c:706
+#, c-format
+msgid "Access violation: read operation at address 0x%p\n"
+msgstr "Нарушение доступа: операция чтения адреса 0x%p\n"
+
+#: main.c:781 main.c:792
+#, c-format
+msgid "find_and_set_shell() setting default_shell = %s\n"
+msgstr "find_and_set_shell() устанавливает default_shell = %s\n"
+
+#: main.c:834
+#, c-format
+msgid "find_and_set_shell() path search set default_shell = %s\n"
+msgstr "find_and_set_shell(): поиск в путях устанавливает default_shell = %s\n"
+
+#: main.c:1273
+#, c-format
+msgid "%s is suspending for 30 seconds..."
+msgstr "%s приостанавливается на 30 секунд..."
+
+#: main.c:1275
+#, c-format
+msgid "done sleep(30). Continuing.\n"
+msgstr "sleep(30) завершён. Продолжаем.\n"
+
+#: main.c:1501
+msgid "Makefile from standard input specified twice."
+msgstr "Makefile из стандартного ввода указан дважды."
+
+#: main.c:1539 vmsjobs.c:500
+msgid "fopen (temporary file)"
+msgstr "fopen (временный файл)"
+
+#: main.c:1545
+msgid "fwrite (temporary file)"
+msgstr "fwrite (временный файл)"
+
+#: main.c:1703
+msgid "Parallel jobs (-j) are not supported on this platform."
+msgstr "Параллельные задачи (-j) не поддерживаются на этой платформе."
+
+#: main.c:1704
+msgid "Resetting to single job (-j1) mode."
+msgstr "Возвращается режим одиночной задачи (-j1)."
+
+#: main.c:1719
+msgid "internal error: multiple --jobserver-fds options"
+msgstr "внутренняя ошибка: несколько ключей --jobserver-fds"
+
+#: main.c:1727
+#, c-format
+msgid "internal error: invalid --jobserver-fds string `%s'"
+msgstr "внутренняя ошибка: неправильная строка --jobserver-fds: `%s'"
+
+#: main.c:1730
+#, c-format
+msgid "Jobserver client (fds %d,%d)\n"
+msgstr "Клиент сервера заданий (fds %d,%d)\n"
+
+#: main.c:1740
+msgid "warning: -jN forced in submake: disabling jobserver mode."
+msgstr ""
+"предупреждение: в суб-Makefile принудительно задан -jN; режим сервера задач "
+"запрещён"
+
+#: main.c:1750
+msgid "dup jobserver"
+msgstr "создаю копию сервера задач"
+
+#: main.c:1753
+msgid ""
+"warning: jobserver unavailable: using -j1.  Add `+' to parent make rule."
+msgstr ""
+"предупреждение: сервер задач недоступен: используется -j1.\n"
+"Добавьте `+' к правилу в родительском make."
+
+#: main.c:1777
+msgid "creating jobs pipe"
+msgstr "создаю канал задач"
+
+#: main.c:1792
+msgid "init jobserver pipe"
+msgstr "начальная настройка сервера задач"
+
+#: main.c:1812
+msgid "Symbolic links not supported: disabling -L."
+msgstr "Символические ссылки не поддерживаются: отменяется ключ -L."
+
+#: main.c:1892
+msgid "Updating makefiles....\n"
+msgstr "Обновление make-файлов....\n"
+
+#: main.c:1917
+#, c-format
+msgid "Makefile `%s' might loop; not remaking it.\n"
+msgstr "Make-файл `%s', возможно, зациклен, он не будет пересобираться.\n"
+
+#: main.c:1996
+#, c-format
+msgid "Failed to remake makefile `%s'."
+msgstr "Попытка пересобрать make-файл `%s' завершилась неудачно."
+
+#: main.c:2013
+#, c-format
+msgid "Included makefile `%s' was not found."
+msgstr "Включаемый make-файл `%s' не найден."
+
+#: main.c:2018
+#, c-format
+msgid "Makefile `%s' was not found"
+msgstr "Make-файл `%s' не найден"
+
+#: main.c:2086
+msgid "Couldn't change back to original directory."
+msgstr "Невозможно перейти в первоначальный каталог."
+
+#: main.c:2102
+#, c-format
+msgid "Re-executing[%u]:"
+msgstr "Повторное выполнение[%u]:"
+
+#: main.c:2215
+msgid "unlink (temporary file): "
+msgstr "unlink (временный файл)"
+
+#: main.c:2247
+msgid ".DEFAULT_GOAL contains more than one target"
+msgstr ".DEFAULT_GOAL содержит более одной цели"
+
+#: main.c:2270
+msgid "No targets specified and no makefile found"
+msgstr "Не заданы цели и не найден make-файл"
+
+#: main.c:2272
+msgid "No targets"
+msgstr "Нет целей"
+
+#: main.c:2277
+msgid "Updating goal targets....\n"
+msgstr "Обновление целей результата...\n"
+
+#: main.c:2306
+msgid "warning:  Clock skew detected.  Your build may be incomplete."
+msgstr "предупреждение: Неправильный ход часов.  Сборка может быть неполной."
+
+#: main.c:2470
+#, c-format
+msgid "Usage: %s [options] [target] ...\n"
+msgstr "Использование: %s [КЛЮЧ]... [ЦЕЛЬ]...\n"
+
+#: main.c:2476
+#, c-format
+msgid ""
+"\n"
+"This program built for %s\n"
+msgstr ""
+"\n"
+"Эта программа собрана для %s\n"
+
+#: main.c:2478
+#, c-format
+msgid ""
+"\n"
+"This program built for %s (%s)\n"
+msgstr ""
+"\n"
+"Эта программа собрана для %s (%s)\n"
+
+#: main.c:2481
+#, c-format
+msgid "Report bugs to <bug-make@gnu.org>\n"
+msgstr "Сообщайте об ошибках по адресу <bug-make@gnu.org>\n"
+
+#: main.c:2562
+#, c-format
+msgid "the `%s%s' option requires a non-empty string argument"
+msgstr "для ключа `%s%s' нужно указать аргументом непустую строку"
+
+#: main.c:2617
+#, c-format
+msgid "the `-%c' option requires a positive integral argument"
+msgstr "ключ `-%c' должен использоваться с целым положительным аргументом"
+
+#: main.c:3054
+#, c-format
+msgid "%sBuilt for %s\n"
+msgstr "%sЭта программа собрана для %s\n"
+
+#: main.c:3056
+#, c-format
+msgid "%sBuilt for %s (%s)\n"
+msgstr "%sЭта программа собрана для %s (%s)\n"
+
+#: main.c:3066
+#, c-format
+msgid ""
+"%sLicense GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl."
+"html>\n"
+"%sThis is free software: you are free to change and redistribute it.\n"
+"%sThere is NO WARRANTY, to the extent permitted by law.\n"
+msgstr ""
+"%sЛицензия GPLv3+: GNU GPL версии 3 или новее <http://gnu.org/licenses/gpl."
+"html>\n"
+"%sЭто свободное программное обеспечение: вы можете свободно изменять его и\n"
+"%sраспространять. НЕТ НИКАКИХ ГАРАНТИЙ вне пределов, допустимых законом.\n"
+
+#: main.c:3086
+#, c-format
+msgid ""
+"\n"
+"# Make data base, printed on %s"
+msgstr ""
+"\n"
+"# База данных Make, напечатана %s"
+
+#: main.c:3096
+#, c-format
+msgid ""
+"\n"
+"# Finished Make data base on %s\n"
+msgstr ""
+"\n"
+"# Печать базы данных Make завершена %s\n"
+
+#: main.c:3237
+#, c-format
+msgid "%s: Entering an unknown directory\n"
+msgstr "%s: Вход в неизвестный каталог\n"
+
+#: main.c:3239
+#, c-format
+msgid "%s: Leaving an unknown directory\n"
+msgstr "%s: Выход из неизвестного каталога\n"
+
+#: main.c:3242
+#, c-format
+msgid "%s: Entering directory `%s'\n"
+msgstr "%s: Вход в каталог `%s'\n"
+
+#: main.c:3245
+#, c-format
+msgid "%s: Leaving directory `%s'\n"
+msgstr "%s: Выход из каталога `%s'\n"
+
+#: main.c:3250
+#, c-format
+msgid "%s[%u]: Entering an unknown directory\n"
+msgstr "%s[%u]: Вход в неизвестный каталог\n"
+
+#: main.c:3253
+#, c-format
+msgid "%s[%u]: Leaving an unknown directory\n"
+msgstr "%s[%u]: Выход из неизвестного каталога\n"
+
+#: main.c:3257
+#, c-format
+msgid "%s[%u]: Entering directory `%s'\n"
+msgstr "%s[%u]: Вход в каталог `%s'\n"
+
+#: main.c:3260
+#, c-format
+msgid "%s[%u]: Leaving directory `%s'\n"
+msgstr "%s[%u]: Выход из каталога `%s'\n"
+
+#: misc.c:316
+msgid ".  Stop.\n"
+msgstr ".  Останов.\n"
+
+#: misc.c:337
+#, c-format
+msgid "Unknown error %d"
+msgstr "Неизвестная ошибка %d"
+
+#: misc.c:347
+#, c-format
+msgid "%s%s: %s"
+msgstr "%s%s: %s"
+
+#: misc.c:355
+#, c-format
+msgid "%s: %s"
+msgstr "%s: %s"
+
+#: misc.c:376 misc.c:387 misc.c:402 misc.c:419 misc.c:438 read.c:3118
+msgid "virtual memory exhausted"
+msgstr "закончилась виртуальная память"
+
+#: misc.c:708
+#, c-format
+msgid "%s: user %lu (real %lu), group %lu (real %lu)\n"
+msgstr ""
+"%s: пользователь %lu (действительный %lu),\n"
+"группа %lu (действительная %lu)\n"
+
+#: misc.c:729
+msgid "Initialized access"
+msgstr "Доступ инициализации"
+
+#: misc.c:808
+msgid "User access"
+msgstr "Доступ пользователя"
+
+#: misc.c:856
+msgid "Make access"
+msgstr "Доступ make"
+
+#: misc.c:890
+msgid "Child access"
+msgstr "Доступ потомка"
+
+#: misc.c:954
+#, c-format
+msgid "write error: %s"
+msgstr "ошибка записи: %s"
+
+#: misc.c:956
+msgid "write error"
+msgstr "ошибка записи"
+
+#: read.c:179
+msgid "Reading makefiles...\n"
+msgstr "Чтение make-файлов...\n"
+
+#: read.c:333
+#, c-format
+msgid "Reading makefile `%s'"
+msgstr "Чтение make-файла `%s'"
+
+#: read.c:335
+#, c-format
+msgid " (no default goal)"
+msgstr " (нет цели по умолчанию)"
+
+#: read.c:337
+#, c-format
+msgid " (search path)"
+msgstr " (путь поиска)"
+
+#: read.c:339
+#, c-format
+msgid " (don't care)"
+msgstr " (игнорировать ошибки)"
+
+#: read.c:341
+#, c-format
+msgid " (no ~ expansion)"
+msgstr " (не раскрывать символ `~') "
+
+#: read.c:759
+msgid "invalid syntax in conditional"
+msgstr "неверный синтаксис в условном выражении"
+
+#: read.c:891
+msgid "recipe commences before first target"
+msgstr "обнаружен способ до первого определения цели"
+
+#: read.c:940
+msgid "missing rule before recipe"
+msgstr "перед способом отсутствует правило"
+
+#: read.c:1027
+#, c-format
+msgid "missing separator%s"
+msgstr "пропущен разделитель%s"
+
+#: read.c:1029
+msgid " (did you mean TAB instead of 8 spaces?)"
+msgstr "(не имели ли вы в виду TAB вместо восьми пробелов?)"
+
+#: read.c:1163
+msgid "missing target pattern"
+msgstr "пропущен образец цели"
+
+#: read.c:1165
+msgid "multiple target patterns"
+msgstr "несколько образцов цели"
+
+#: read.c:1169
+#, c-format
+msgid "target pattern contains no `%%'"
+msgstr "образец цели не содержит `%%'"
+
+#: read.c:1293
+msgid "missing `endif'"
+msgstr "пропущена `endif'"
+
+#: read.c:1332 read.c:1377 variable.c:1488
+msgid "empty variable name"
+msgstr "пустое имя переменной"
+
+#: read.c:1367
+msgid "extraneous text after `define' directive"
+msgstr "излишний текст после директивы `define'"
+
+#: read.c:1392
+msgid "missing `endef', unterminated `define'"
+msgstr "пропущена `endif', незавершённая `define'"
+
+#: read.c:1420
+msgid "extraneous text after `endef' directive"
+msgstr "излишний текст после директивы `endef'"
+
+#: read.c:1490
+#, c-format
+msgid "Extraneous text after `%s' directive"
+msgstr "Излишний текст после директивы `%s'"
+
+#: read.c:1499 read.c:1513
+#, c-format
+msgid "extraneous `%s'"
+msgstr "излишняя `%s'"
+
+#: read.c:1518
+msgid "only one `else' per conditional"
+msgstr "в условном выражении возможна только одна `else'"
+
+#: read.c:1797
+msgid "Malformed target-specific variable definition"
+msgstr "Неправильный формат задания переменной цели"
+
+#: read.c:1855
+msgid "prerequisites cannot be defined in recipes"
+msgstr "в способах не могут задаваться зависимости"
+
+#: read.c:1908
+msgid "mixed implicit and static pattern rules"
+msgstr "смешаны неявные правила и правила со статическими образцами"
+
+#: read.c:1931 read.c:2112
+msgid "mixed implicit and normal rules"
+msgstr "смешаны неявные и обычные правила"
+
+#: read.c:1976
+#, c-format
+msgid "target `%s' doesn't match the target pattern"
+msgstr "цель `%s' не соответствует образцу целей"
+
+#: read.c:1991 read.c:2036
+#, c-format
+msgid "target file `%s' has both : and :: entries"
+msgstr "целевой файл `%s' имеет вхождения и с `:', и с `::' "
+
+#: read.c:1997
+#, c-format
+msgid "target `%s' given more than once in the same rule."
+msgstr "цель `%s' указана несколько раз в одном правиле"
+
+#: read.c:2006
+#, c-format
+msgid "warning: overriding recipe for target `%s'"
+msgstr "предупреждение: переопределение способа для цели `%s'"
+
+#: read.c:2009
+#, c-format
+msgid "warning: ignoring old recipe for target `%s'"
+msgstr "предупреждение: старый способ для цели `%s' игнорируются"
+
+#: read.c:2392
+msgid "warning: NUL character seen; rest of line ignored"
+msgstr "предупреждение: встречен символ NUL; игнорируется до конца строки"
+
+#: remake.c:234
+#, c-format
+msgid "Nothing to be done for `%s'."
+msgstr "Цель `%s' не требует выполнения команд."
+
+#: remake.c:235
+#, c-format
+msgid "`%s' is up to date."
+msgstr "`%s' не требует обновления."
+
+#: remake.c:306
+#, c-format
+msgid "Pruning file `%s'.\n"
+msgstr "Обрезается файл `%s'.\n"
+
+#: remake.c:359
+#, c-format
+msgid "%sNo rule to make target `%s'%s"
+msgstr "%sНет правила для сборки цели `%s'%s"
+
+#: remake.c:361
+#, c-format
+msgid "%sNo rule to make target `%s', needed by `%s'%s"
+msgstr "%sНет правила для сборки цели `%s', требуемой для `%s'%s"
+
+#: remake.c:413
+#, c-format
+msgid "Considering target file `%s'.\n"
+msgstr "Обработка целевого файла `%s'.\n"
+
+#: remake.c:420
+#, c-format
+msgid "Recently tried and failed to update file `%s'.\n"
+msgstr "Предыдущая попытка обновить файл `%s' завершилась неудачно.\n"
+
+#: remake.c:432
+#, c-format
+msgid "File `%s' was considered already.\n"
+msgstr "Файл `%s' уже был обработан.\n"
+
+#: remake.c:442
+#, c-format
+msgid "Still updating file `%s'.\n"
+msgstr "Файл `%s' обновляется в данный момент.\n"
+
+#: remake.c:445
+#, c-format
+msgid "Finished updating file `%s'.\n"
+msgstr "Обновление файла `%s' завершено.\n"
+
+#: remake.c:474
+#, c-format
+msgid "File `%s' does not exist.\n"
+msgstr "Файл `%s' не существует.\n"
+
+#: remake.c:481
+#, c-format
+msgid ""
+"*** Warning: .LOW_RESOLUTION_TIME file `%s' has a high resolution time stamp"
+msgstr ""
+"*** Предупреждение: у файла `%s' параметр .LOW_RESOLUTION_TIME содержит "
+"метку времени с высокой точностью"
+
+#: remake.c:494 remake.c:1016
+#, c-format
+msgid "Found an implicit rule for `%s'.\n"
+msgstr "Найдено неявное правило для `%s'.\n"
+
+#: remake.c:496 remake.c:1018
+#, c-format
+msgid "No implicit rule found for `%s'.\n"
+msgstr "Не найдено неявного правила для `%s'.\n"
+
+#: remake.c:502
+#, c-format
+msgid "Using default recipe for `%s'.\n"
+msgstr "Использование способа по умолчанию для `%s'.\n"
+
+#: remake.c:535 remake.c:1057
+#, c-format
+msgid "Circular %s <- %s dependency dropped."
+msgstr "Циклическая зависимость %s <- %s пропущена."
+
+#: remake.c:651
+#, c-format
+msgid "Finished prerequisites of target file `%s'.\n"
+msgstr "Обновление целей, от которых зависит целевой файл `%s', завершено.\n"
+
+#: remake.c:657
+#, c-format
+msgid "The prerequisites of `%s' are being made.\n"
+msgstr "Цели, от которых зависит `%s', в настоящий момент собираются.\n"
+
+#: remake.c:670
+#, c-format
+msgid "Giving up on target file `%s'.\n"
+msgstr "Аварийный останов на целевом файле `%s'.\n"
+
+#: remake.c:675
+#, c-format
+msgid "Target `%s' not remade because of errors."
+msgstr "Цель `%s' не была пересобрана из-за ошибок."
+
+#: remake.c:727
+#, c-format
+msgid "Prerequisite `%s' is order-only for target `%s'.\n"
+msgstr "Зависимость `%s' только для цели `%s'.\n"
+
+#: remake.c:732
+#, c-format
+msgid "Prerequisite `%s' of target `%s' does not exist.\n"
+msgstr "Зависимость `%s' цели `%s' не существует.\n"
+
+#: remake.c:737
+#, c-format
+msgid "Prerequisite `%s' is newer than target `%s'.\n"
+msgstr "Зависимость `%s' новее, чем цель `%s'.\n"
+
+#: remake.c:740
+#, c-format
+msgid "Prerequisite `%s' is older than target `%s'.\n"
+msgstr "Зависимость `%s' старее, чем цель `%s'.\n"
+
+#: remake.c:758
+#, c-format
+msgid "Target `%s' is double-colon and has no prerequisites.\n"
+msgstr "Цель `%s' объявлена с двумя двоеточиями и не имеет зависимостей.\n"
+
+#: remake.c:765
+#, c-format
+msgid "No recipe for `%s' and no prerequisites actually changed.\n"
+msgstr "Способ для `%s' не задан, и начальные условия не изменены.\n"
+
+#: remake.c:770
+#, c-format
+msgid "Making `%s' due to always-make flag.\n"
+msgstr "Пересборка `%s' из-за установленного ключа always-make.\n"
+
+#: remake.c:778
+#, c-format
+msgid "No need to remake target `%s'"
+msgstr "Нет необходимости пересобирать цель `%s'."
+
+#: remake.c:780
+#, c-format
+msgid "; using VPATH name `%s'"
+msgstr "; используется VPATH-имя `%s'"
+
+#: remake.c:800
+#, c-format
+msgid "Must remake target `%s'.\n"
+msgstr "Необходимо пересобрать цель `%s'.\n"
+
+#: remake.c:806
+#, c-format
+msgid "  Ignoring VPATH name `%s'.\n"
+msgstr "  Игнорируется VPATH-имя `%s'.\n"
+
+#: remake.c:815
+#, c-format
+msgid "Recipe of `%s' is being run.\n"
+msgstr "В настоящее время применяется способ `%s'.\n"
+
+#: remake.c:822
+#, c-format
+msgid "Failed to remake target file `%s'.\n"
+msgstr "Не удалось пересоздать файл цели `%s'.\n"
+
+#: remake.c:825
+#, c-format
+msgid "Successfully remade target file `%s'.\n"
+msgstr "Целевой файл `%s' успешно пересоздан.\n"
+
+#: remake.c:828
+#, c-format
+msgid "Target file `%s' needs remade under -q.\n"
+msgstr "Целевой файл `%s' требует пересоздания с ключом -q.\n"
+
+#: remake.c:1024
+#, c-format
+msgid "Using default commands for `%s'.\n"
+msgstr "Использование команд по умолчанию для `%s'.\n"
+
+#: remake.c:1357
+#, c-format
+msgid "Warning: File `%s' has modification time in the future"
+msgstr "Предупреждение: Время изменения файла `%s' находится в будущем"
+
+#: remake.c:1370
+#, c-format
+msgid "Warning: File `%s' has modification time %s s in the future"
+msgstr "Предупреждение: Время изменения файла `%s' находится в будущем (%s)"
+
+#: remake.c:1569
+#, c-format
+msgid ".LIBPATTERNS element `%s' is not a pattern"
+msgstr "Элемент .LIBPATTERNS `%s' не является образцом"
+
+#: remote-cstms.c:125
+#, c-format
+msgid "Customs won't export: %s\n"
+msgstr "Не экспортируемые настройки: %s\n"
+
+#: rule.c:499
+msgid ""
+"\n"
+"# Implicit Rules"
+msgstr ""
+"\n"
+"# Неявные правила"
+
+#: rule.c:514
+msgid ""
+"\n"
+"# No implicit rules."
+msgstr ""
+"\n"
+"# Неявных правил нет."
+
+#: rule.c:517
+#, c-format
+msgid ""
+"\n"
+"# %u implicit rules, %u"
+msgstr ""
+"\n"
+"# Неявных правил: %u, терминальных: %u"
+
+#: rule.c:526
+msgid " terminal."
+msgstr " терминал."
+
+#: rule.c:534
+#, c-format
+msgid "BUG: num_pattern_rules is wrong!  %u != %u"
+msgstr "ОШИБКА: неверное значение num_pattern_rules! %u != %u"
+
+#: signame.c:86
+msgid "unknown signal"
+msgstr "неизвестный сигнал"
+
+#: signame.c:94
+msgid "Hangup"
+msgstr "Обрыв терминальной линии"
+
+#: signame.c:97
+msgid "Interrupt"
+msgstr "Прерывание"
+
+#: signame.c:100
+msgid "Quit"
+msgstr "Аварийное прерывание"
+
+#: signame.c:103
+msgid "Illegal Instruction"
+msgstr "Недопустимая инструкция"
+
+#: signame.c:106
+msgid "Trace/breakpoint trap"
+msgstr "Прерывание на контрольной точке"
+
+#: signame.c:111
+msgid "Aborted"
+msgstr "Прервано"
+
+#: signame.c:114
+msgid "IOT trap"
+msgstr "Ошибка IOT"
+
+#: signame.c:117
+msgid "EMT trap"
+msgstr "Ошибка эмуляции"
+
+#: signame.c:120
+msgid "Floating point exception"
+msgstr "Ошибка операции с плавающей точкой"
+
+#: signame.c:123
+msgid "Killed"
+msgstr "Уничтожение"
+
+#: signame.c:126
+msgid "Bus error"
+msgstr "Неверное обращение к памяти"
+
+#: signame.c:129
+msgid "Segmentation fault"
+msgstr "Нарушение прав доступа к памяти"
+
+#: signame.c:132
+msgid "Bad system call"
+msgstr "Неправильный системный вызов"
+
+#: signame.c:135
+msgid "Broken pipe"
+msgstr "Обрыв канала"
+
+#: signame.c:138
+msgid "Alarm clock"
+msgstr "Сигнал по таймеру"
+
+#: signame.c:141
+msgid "Terminated"
+msgstr "Завершение"
+
+#: signame.c:144
+msgid "User defined signal 1"
+msgstr "Определяемый пользователем сигнал 1"
+
+#: signame.c:147
+msgid "User defined signal 2"
+msgstr "Определяемый пользователем сигнал 2"
+
+#: signame.c:152 signame.c:155
+msgid "Child exited"
+msgstr "Потомок завершил работу"
+
+#: signame.c:158
+msgid "Power failure"
+msgstr "Отказ питания"
+
+#: signame.c:161
+msgid "Stopped"
+msgstr "Останов"
+
+#: signame.c:164
+msgid "Stopped (tty input)"
+msgstr "Останов (ввод с терминала) "
+
+#: signame.c:167
+msgid "Stopped (tty output)"
+msgstr "Останов (вывод на терминал)"
+
+#: signame.c:170
+msgid "Stopped (signal)"
+msgstr "Останов (сигнал)"
+
+#: signame.c:173
+msgid "CPU time limit exceeded"
+msgstr "Превышен предел процессорного времени"
+
+#: signame.c:176
+msgid "File size limit exceeded"
+msgstr "Превышен предел размера файла"
+
+#: signame.c:179
+msgid "Virtual timer expired"
+msgstr "Виртуальное время истекло"
+
+#: signame.c:182
+msgid "Profiling timer expired"
+msgstr "Время профилирования истекло"
+
+#: signame.c:188
+msgid "Window changed"
+msgstr "Окно изменено"
+
+#: signame.c:191
+msgid "Continued"
+msgstr "Возобновление"
+
+#: signame.c:194
+msgid "Urgent I/O condition"
+msgstr "Условия экстренного ввода/вывода"
+
+#: signame.c:201 signame.c:210
+msgid "I/O possible"
+msgstr "Возможен ввод/вывод"
+
+#: signame.c:204
+msgid "SIGWIND"
+msgstr "SIGWIND"
+
+#: signame.c:207
+msgid "SIGPHONE"
+msgstr "SIGPHONE"
+
+#: signame.c:213
+msgid "Resource lost"
+msgstr "Ресурс потерян"
+
+#: signame.c:216
+msgid "Danger signal"
+msgstr "Сигнал опасности"
+
+#: signame.c:219
+msgid "Information request"
+msgstr "Запрос информации"
+
+#: signame.c:222
+msgid "Floating point co-processor not available"
+msgstr "Сопроцессор с плавающей точкой недоступен"
+
+#: strcache.c:235
+#, c-format
+msgid ""
+"\n"
+"%s # of strings in strcache: %d / lookups = %lu / hits = %lu\n"
+msgstr ""
+"\n"
+"%s # строк в strcache: %d / lookups = %lu / hits = %lu\n"
+
+#: strcache.c:237
+#, c-format
+msgid "%s # of strcache buffers: %d (* %d B/buffer = %d B)\n"
+msgstr "%s # буферов strcache: %d (* %d B/buffer = %d B)\n"
+
+#: strcache.c:239
+#, c-format
+msgid "%s strcache used: total = %d (%d) / max = %d / min = %d / avg = %d\n"
+msgstr ""
+"%s размер strcache: всего = %d (%d) / макс = %d / мин = %d / сред = %d\n"
+
+#: strcache.c:241
+#, c-format
+msgid "%s strcache free: total = %d (%d) / max = %d / min = %d / avg = %d\n"
+msgstr ""
+"%s свободно в strcache: всего = %d (%d) / макс = %d / мин = %d / сред = %d\n"
+
+#: strcache.c:244
+msgid ""
+"\n"
+"# strcache hash-table stats:\n"
+"# "
+msgstr ""
+"\n"
+"# состояние хеш-таблицы strcache:\n"
+"# "
+
+#: variable.c:1541
+msgid "default"
+msgstr "по умолчанию"
+
+#: variable.c:1544
+msgid "environment"
+msgstr "определена в среде"
+
+#: variable.c:1547
+msgid "makefile"
+msgstr "Make-файл"
+
+#: variable.c:1550
+msgid "environment under -e"
+msgstr "задан ключ -e"
+
+#: variable.c:1553
+msgid "command line"
+msgstr "определена в командной строке"
+
+#: variable.c:1556
+msgid "`override' directive"
+msgstr "Директива `override'"
+
+#: variable.c:1559
+msgid "automatic"
+msgstr "автоматическая"
+
+#: variable.c:1570
+#, c-format
+msgid " (from `%s', line %lu)"
+msgstr " (из `%s', строка %lu)"
+
+#: variable.c:1612
+msgid "# variable set hash-table stats:\n"
+msgstr "# состояние переменных в хеш-таблице:\n"
+
+#: variable.c:1623
+msgid ""
+"\n"
+"# Variables\n"
+msgstr ""
+"\n"
+"# Переменные\n"
+
+#: variable.c:1627
+msgid ""
+"\n"
+"# Pattern-specific Variable Values"
+msgstr ""
+"\n"
+"# Значения переменных особенные для маски"
+
+#: variable.c:1641
+msgid ""
+"\n"
+"# No pattern-specific variable values."
+msgstr ""
+"\n"
+"# Нет значений переменных особенных для маски."
+
+#: variable.c:1643
+#, c-format
+msgid ""
+"\n"
+"# %u pattern-specific variable values"
+msgstr ""
+"\n"
+"# %u значений переменных особенных для маски"
+
+#: variable.h:219
+#, c-format
+msgid "warning: undefined variable `%.*s'"
+msgstr "предупреждение: неопределённая переменная `%.*s'"
+
+#: vmsfunctions.c:92
+#, c-format
+msgid "sys$search() failed with %d\n"
+msgstr "sys$search() вернула код ошибки %d\n"
+
+#: vmsjobs.c:71
+#, c-format
+msgid "Warning: Empty redirection\n"
+msgstr "Предупреждение: Пустое перенаправление\n"
+
+#: vmsjobs.c:184
+#, c-format
+msgid "internal error: `%s' command_state"
+msgstr "внутренняя ошибка: `%s' command_state"
+
+#: vmsjobs.c:289
+#, c-format
+msgid "-warning, you may have to re-enable CTRL-Y handling from DCL.\n"
+msgstr ""
+"-предупреждение, возможно вам потребуется повторно разрешить\n"
+"обработку CTRL-Y из DCL.\n"
+
+#: vmsjobs.c:421
+#, c-format
+msgid "BUILTIN [%s][%s]\n"
+msgstr "ВСТРОЕННЫЙ [%s][%s]\n"
+
+#: vmsjobs.c:432
+#, c-format
+msgid "BUILTIN CD %s\n"
+msgstr "ВСТРОЕННЫЙ CD %s\n"
+
+#: vmsjobs.c:450
+#, c-format
+msgid "BUILTIN RM %s\n"
+msgstr "ВСТРОЕННЫЙ RM %s\n"
+
+#: vmsjobs.c:471
+#, c-format
+msgid "Unknown builtin command '%s'\n"
+msgstr "Неизвестная встроенная команда '%s'\n"
+
+#: vmsjobs.c:493
+#, c-format
+msgid "Error, empty command\n"
+msgstr "Ошибка, пустая команда\n"
+
+#: vmsjobs.c:506
+#, c-format
+msgid "Redirected input from %s\n"
+msgstr "Стандартный ввод перенаправлен из %s\n"
+
+#: vmsjobs.c:513
+#, c-format
+msgid "Redirected error to %s\n"
+msgstr "Поток ошибок перенаправлен в %s\n"
+
+#: vmsjobs.c:523
+#, c-format
+msgid "Append output to %s\n"
+msgstr "Стандартный вывод добавлен в %s\n"
+
+#: vmsjobs.c:529
+#, c-format
+msgid "Redirected output to %s\n"
+msgstr "Стандартный вывод перенаправлен в %s\n"
+
+#: vmsjobs.c:599
+#, c-format
+msgid "Append %.*s and cleanup\n"
+msgstr "Добавить %.*s и очистить\n"
+
+#: vmsjobs.c:606
+#, c-format
+msgid "Executing %s instead\n"
+msgstr "Вместо заданного выполняется %s\n"
+
+#: vmsjobs.c:712
+#, c-format
+msgid "Error spawning, %d\n"
+msgstr "Ошибка порождения процесса, %d\n"
+
+#: vpath.c:586
+msgid ""
+"\n"
+"# VPATH Search Paths\n"
+msgstr ""
+"\n"
+"# Пути поиска VPATH\n"
+
+#: vpath.c:603
+msgid "# No `vpath' search paths."
+msgstr "# Не определён путь поиска `vpath'."
+
+#: vpath.c:605
+#, c-format
+msgid ""
+"\n"
+"# %u `vpath' search paths.\n"
+msgstr ""
+"\n"
+"# %u путей поиска по `vpath'\n"
+
+#: vpath.c:608
+msgid ""
+"\n"
+"# No general (`VPATH' variable) search path."
+msgstr ""
+"\n"
+"# Не определён общий (переменная `VPATH') путь поиска."
+
+#: vpath.c:614
+msgid ""
+"\n"
+"# General (`VPATH' variable) search path:\n"
+"# "
+msgstr ""
+"\n"
+"# Общий (переменная `VPATH') путь поиска:\n"
+"# "
+
+#~ msgid "process_easy() failed failed to launch process (e=%ld)\n"
+#~ msgstr "process_easy() не смогла запустить процесс (e=%ld)\n"
+
+#~ msgid ""
+#~ "%sThis is free software; see the source for copying conditions.\n"
+#~ "%sThere is NO warranty; not even for MERCHANTABILITY or FITNESS FOR A\n"
+#~ "%sPARTICULAR PURPOSE.\n"
+#~ msgstr ""
+#~ "%sЭто свободная программа; подробности об условиях распространения "
+#~ "смотрите\n"
+#~ "%sв исходном коде.  Мы НЕ предоставляем гарантий; даже гарантий\n"
+#~ "%sКОММЕРЧЕСКОЙ ЦЕННОСТИ или ПРИГОДНОСТИ ДЛЯ КАКОЙ-ЛИБО ЦЕЛИ.\n"
+
+#~ msgid "extraneous `endef'"
+#~ msgstr "излишний `endef'"
+
+#~ msgid "empty `override' directive"
+#~ msgstr "пустая директива `override'"
+
+#~ msgid "invalid `override' directive"
+#~ msgstr "неправильная директива `override'"
+
+#~ msgid "-warning, CTRL-Y will leave sub-process(es) around.\n"
+#~ msgstr "-предупреждение, после CTRL-Y останутся суб-процессы.\n"
