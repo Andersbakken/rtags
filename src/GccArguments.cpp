@@ -88,8 +88,8 @@ static inline void eatAutoTools(List<ByteArray> &args)
                     debug() << "ate something " << copy;
                     debug() << "now we have " << args;
                 }
-                break;
             }
+            break;
         }
     }
 }
