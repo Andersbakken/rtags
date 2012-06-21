@@ -341,7 +341,7 @@ int main(int argc, char** argv)
                 fprintf(stderr, "%s is not a file\n", optarg);
                 return 1;
             }
-            QueryMessage::Type type;
+            QueryMessage::Type type = QueryMessage::Invalid;
             switch (c) {
             case 't': type = QueryMessage::Test; break;
             case 'x': type = QueryMessage::FixIts; break;
