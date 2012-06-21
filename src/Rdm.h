@@ -197,13 +197,13 @@ private:
 }
 static inline std::ostringstream &operator<<(std::ostringstream &dbg, CXCursor cursor)
 {
-    dbg << Rdm::cursorToString(cursor).constData();
+    dbg << Rdm::cursorToString(cursor);
     return dbg;
 }
 
 static inline std::ostringstream &operator<<(std::ostringstream &dbg, CXCursorKind kind)
 {
-    dbg << Rdm::eatString(clang_getCursorKindSpelling(kind)).constData();
+    dbg << Rdm::eatString(clang_getCursorKindSpelling(kind));
     return dbg;
 }
 
