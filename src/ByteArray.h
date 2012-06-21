@@ -136,6 +136,11 @@ public:
         mString.append(str, len);
     }
 
+    void remove(int idx, int count)
+    {
+        mString.erase(idx, count);
+    }
+
     ByteArray &operator+=(char ch)
     {
         mString += ch;
