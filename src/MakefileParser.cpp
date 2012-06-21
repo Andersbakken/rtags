@@ -123,10 +123,10 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     connect(mProc, SIGNAL(finished(int)), this, SLOT(onDone()));
 
     mTracker->init(makefile.parentDir());
-    warning(MAKE " -j1 -n -w -f %s -C %s\n",
+    warning(MAKE " -j1 -w -f %s -C %s\n",
             makefile.constData(), mTracker->path().constData());
     QStringList a;
-    a << QLatin1String("-j1") << QLatin1String("-n") << QLatin1String("-w")
+    a << QLatin1String("-j1") << QLatin1String("-w")
       << QLatin1String("-f") << QString::fromLocal8Bit(makefile.constData(), makefile.size())
       << QLatin1String("-C") << QString::fromStdString(mTracker->path())
       << QLatin1String("AM_DEFAULT_VERBOSITY=1") << QLatin1String("VERBOSE=1");

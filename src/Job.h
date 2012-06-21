@@ -4,6 +4,8 @@
 #include <QtCore>
 #include "AbortInterface.h"
 #include "ThreadPool.h"
+#include <List.h>
+#include <ByteArray.h>
 
 class Job : public QObject, public ThreadPool::Job, public AbortInterface
 {

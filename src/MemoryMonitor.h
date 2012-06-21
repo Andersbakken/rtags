@@ -1,7 +1,7 @@
 #ifndef MEMORYMONITOR_H
 #define MEMORYMONITOR_H
 
-#include <QtGlobal>
+#include <stdint.h>
 
 class MemoryMonitor
 {
