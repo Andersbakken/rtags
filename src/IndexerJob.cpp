@@ -70,15 +70,45 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
     }
 }
 
+static inline bool mayHaveTemplates(CXCursorKind kind)
+{
+    switch (kind) {
+    case CXCursor_ClassTemplate:
+    case CXCursor_Constructor:
+    case CXCursor_Destructor:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static inline void addToSymbolNames(const ByteArray &arg, bool hasTemplates, const Location &location, SymbolNameMap &symbolNames)
+{
+    symbolNames[arg].insert(location);
+    if (hasTemplates) {
+        ByteArray copy = arg;
+        const int lt = arg.indexOf('<');
+        assert(lt != -1);
+        const int gt = arg.indexOf('>', lt + 1);
+        assert(gt != -1);
+        if (gt + 1 == arg.size()) {
+            copy.truncate(lt);
+        } else {
+            copy.remove(lt, gt - lt + 1);
+        }
+
+        symbolNames[copy].insert(location);
+    }
+}
+
 ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDB)
 {
-    ByteArray ret;
-    ByteArray qname;
-    ByteArray qparam, qnoparam;
+    ByteArray ret, qname, qparam, qnoparam;
 
     CXCursor cur = cursor, null = clang_getNullCursor();
     CXCursorKind kind;
     bool first = true;
+    bool hasTemplates = false;
     for (;;) {
         if (clang_equalCursors(cur, null))
             break;
@@ -88,6 +118,7 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
             switch (kind) {
             case CXCursor_Namespace:
             case CXCursor_ClassDecl:
+            case CXCursor_ClassTemplate:
             case CXCursor_StructDecl:
             case CXCursor_CXXMethod:
             case CXCursor_Constructor:
@@ -107,6 +138,8 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
             break;
         }
         qname = ByteArray(name);
+        if (!hasTemplates && mayHaveTemplates(kind) && qname.contains('<'))
+            hasTemplates = true;
         if (ret.isEmpty()) {
             ret = qname;
             if (!addToDB)
@@ -127,10 +160,10 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
         }
         Q_ASSERT(!qparam.isEmpty());
         if (addToDB) {
-            mSymbolNames[qparam].insert(location);
+            addToSymbolNames(qparam, hasTemplates, location, mSymbolNames);
             if (qparam != qnoparam) {
                 Q_ASSERT(!qnoparam.isEmpty());
-                mSymbolNames[qnoparam].insert(location);
+                addToSymbolNames(qnoparam, hasTemplates, location, mSymbolNames);
             }
         }
 
@@ -145,6 +178,7 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
             case CXCursor_FunctionDecl:
             case CXCursor_VarDecl:
             case CXCursor_ParmDecl:
+            case CXCursor_ClassTemplate:
                 break;
             default:
                 // these don't need the scope
@@ -253,6 +287,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         case CXCursor_ClassDecl:
         case CXCursor_StructDecl:
         case CXCursor_Namespace:
+        case CXCursor_ClassTemplate:
             return CXChildVisit_Recurse;
         default:
             break;
@@ -633,6 +668,7 @@ static inline bool isInline(const CXCursor &cursor)
 {
     switch (clang_getCursorKind(clang_getCursorLexicalParent(cursor))) {
     case CXCursor_ClassDecl:
+    case CXCursor_ClassTemplate:
     case CXCursor_StructDecl:
         return true;
     default:

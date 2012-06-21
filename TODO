@@ -8,7 +8,8 @@ do eventsource from rdm to emacs
 we break on dos line endings. We could solve this by using
    line/col when emacs has converted the line endings. rc needs to
    understand lines columns
-templatized classes should have a symbol name entry without template
-   params
 
-### bug openssl doesn't rc -m correctly
+### bug openssl doesn't rc -m correctly, this might be fixed
+
+we may have to handle CXCursor_ClassTemplatePartialSpecialization and
+   maybe some other kinds that we currently.
