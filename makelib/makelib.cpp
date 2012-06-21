@@ -10,6 +10,8 @@ typedef int (*XStat64)(int, const char*, struct stat64*);
 typedef int (*XStat)(int, const char*, struct stat*);
 typedef int (*Stat64)(const char*, struct stat64*);
 typedef int (*Stat)(const char*, struct stat*);
+typedef int (*Execve)(const char *, char *const [], char *const []);
+
 template <typename T>
 int sharedStat(int ret, const char *filename, T *stat_buf)
 {
@@ -32,9 +34,12 @@ int sharedStat(int ret, const char *filename, T *stat_buf)
                 break;
             }
         }
-        FILE *f = fopen("/tmp/log", "a");
-        fprintf(f, "%s => %ld\n", filename, stat_buf->st_mtime);
-        fclose(f);
+        static const bool log = getenv("LOG_MAKELIB");
+        if (log) {
+            FILE *f = fopen("/tmp/log", "a");
+            fprintf(f, "%s => %ld\n", filename, stat_buf->st_mtime);
+            fclose(f);
+        }
     }
     return ret;
 }
@@ -74,3 +79,61 @@ int stat64(const char *filename, struct stat64 *stat_buf)
     return sharedStat(realStat(filename, stat_buf), filename, stat_buf);
 }
 #endif
+
+int execv(const char *filename, char *const argv[])
+{
+    FILE *f = fopen("/tmp/fuck", "w");
+    fprintf(f, "%s\n", filename);
+    fclose(f);
+    exit(0);
+}
+
+int execve(const char *filename, char *const argv[], char *const envp[])
+{
+    static const bool log = getenv("LOG_MAKELIB");
+    if (log) {
+        FILE *f = fopen("/tmp/log", "a");
+        fprintf(f, "execve %s", filename);
+        for (int i=0; argv[i]; ++i) {
+            fprintf(f, " %s", argv[i]);
+        }
+        fprintf(f, " =>");
+
+        for (int i=0; envp[i]; ++i) {
+            fprintf(f, " %s", envp[i]);
+        }
+        fprintf(f, "\n");
+        fclose(f);
+    }
+    static Execve realExecve = 0;
+    if (!realExecve)
+        realExecve = reinterpret_cast<Execve>(dlsym(RTLD_NEXT, "execve"));
+
+    struct {
+        const char *data;
+        int len;
+    } static const execveData[] = {
+        { "gcc", 3 },
+        { "cxx", 3 },
+        { "cc", 2 },
+        { "cc1", 3 },
+        { "g++", 3 },
+        { 0, 0 }
+    };
+    const int len = strlen(filename);
+    for (int i=0; execveData[i].data; ++i) {
+        if (len >= execveData[i].len && !strncmp(filename + len - execveData[i].len, execveData[i].data, execveData[i].len))  {
+            struct stat st;
+            if (stat(filename, &st))
+                break;
+
+            fprintf(stdout, "yo yo yo %s", filename);
+            for (int j=0; argv[j]; ++j) {
+                fprintf(stdout, " %s", argv[j]);
+            }
+            fprintf(stdout, "\n");
+            exit(0);
+        }
+    }
+    return realExecve(filename, argv, envp);
+}
