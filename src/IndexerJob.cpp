@@ -89,9 +89,11 @@ static inline void addToSymbolNames(const ByteArray &arg, bool hasTemplates, con
     if (hasTemplates) {
         ByteArray copy = arg;
         const int lt = arg.indexOf('<');
-        assert(lt != -1);
+        if (lt == -1)
+            return;
         const int gt = arg.indexOf('>', lt + 1);
-        assert(gt != -1);
+        if (gt == -1)
+            return;
         if (gt + 1 == arg.size()) {
             copy.truncate(lt);
         } else {

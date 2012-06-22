@@ -135,7 +135,7 @@ bool Server::init(const Options &options)
         delete mServer;
         mServer = 0;
         if (!i) {
-            Client client(mOptions.name);
+            Client client(mOptions.name, Client::DontWarnOnConnectionFailure);
             QueryMessage msg(QueryMessage::Shutdown);
             client.message(&msg);
         }
