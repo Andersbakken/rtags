@@ -164,8 +164,8 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     }
 
     if (checked)
-        error() << "Checked" << checked << "files. Found" << dirtyFiles.size() << "dirty files and"
-                << (toIndex.size() + toIndexPch.size()) << "sources to reindex in" << timer.elapsed() << "ms";
+        error() << "Checked " << checked << " files. Found " << dirtyFiles.size() << " dirty files and "
+                << (toIndex.size() + toIndexPch.size()) << " sources to reindex in " << timer.elapsed() << "ms";
 
     if (toIndex.isEmpty() && toIndexPch.isEmpty())
         return;
