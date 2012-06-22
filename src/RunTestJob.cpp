@@ -136,5 +136,5 @@ void RunTestJob::testSymbolNames(const ByteArray &symbolName, const Set<ByteArra
     } else {
         write("symbolnames: [" + symbolName + "] passed (" + ByteArray::number(expectedLocations.size()) + " locations)");
     }
-    // qDebug() << "testSymbolNames" << symbolName << "got" << expectedLocations << "wanted" << actual;
+    // error() << "testSymbolNames" << symbolName << "got" << expectedLocations << "wanted" << actual;
 }

@@ -1,6 +1,8 @@
 #include "Rdm.h"
 #include "Database.h"
 #include "CursorInfo.h"
+#include "ScopedDB.h"
+#include "Server.h"
 #include "MemoryMonitor.h"
 #include <List.h>
 
@@ -181,7 +183,7 @@ int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, uint32_t fi
             ci.references.insert(it->first);
             if (it->second.second != Rdm::NormalReference) {
                 CursorInfo &other = symbols[it->first];
-                // qDebug() << "trying to join" << it->first << "and" << it->second.front();
+                // error() << "trying to join" << it->first << "and" << it->second.front();
                 if (other.target.isNull())
                     other.target = it->second.first;
                 if (ci.target.isNull())
@@ -290,22 +292,6 @@ List<ByteArray> compileArgs(uint32_t fileId)
     const Slice key(ch, sizeof(fileId));
     FileInformation fi = db->value<FileInformation>(key);
     return fi.compileArgs;
-}
-
-int EventObject::typeForName(const ByteArray &name)
-{
-    const QMetaObject m = staticMetaObject;
-    for (int i = 0; i < m.enumeratorCount(); ++i) {
-        const int idx = m.indexOfEnumerator("Type");
-        if (idx >= 0) {
-            const QMetaEnum en = m.enumerator(idx);
-            if (name.contains('|'))
-                return en.keysToValue(name.constData());
-            else
-                return en.keyToValue(name.constData());
-        }
-    }
-    return -1;
 }
 
 }

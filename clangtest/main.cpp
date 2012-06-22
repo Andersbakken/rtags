@@ -95,7 +95,7 @@ static inline CXChildVisitResult visitAll(CXCursor cursor, CXCursor, CXClientDat
         unsigned l, c, o;
         CXFile f2;
         unsigned l2, c2, o2;
-        
+
         clang_getInstantiationLocation(start, &f, &l, &c, &o);
         clang_getInstantiationLocation(end, &f2, &l2, &c2, &o2);
         qDebug() << QByteArray(reinterpret_cast<long>(userData), ' ').constData()

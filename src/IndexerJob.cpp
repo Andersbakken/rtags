@@ -2,6 +2,7 @@
 #include "SHA256.h"
 #include "MemoryMonitor.h"
 #include "Server.h"
+#include "EventObject.h"
 
 static inline List<Path> extractPchFiles(const List<ByteArray> &args)
 {
@@ -568,7 +569,7 @@ void IndexerJob::run()
                 log(logLevel, "%s", string.constData());
             }
             if (logLevel == Error || logLevel == Warning) {
-                log(Rdm::EventObject::CError, "%s", string.constData());
+                log(EventObject::CError, "%s", string.constData());
             }
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
             for (unsigned f=0; f<fixItCount; ++f) {

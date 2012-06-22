@@ -3,6 +3,7 @@
 #include <clang-c/Index.h>
 #include <Rdm.h>
 #include "Server.h"
+#include "ScopedDB.h"
 #include "CursorInfo.h"
 
 DumpJob::DumpJob(const ByteArray& fn, int i)

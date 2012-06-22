@@ -94,6 +94,7 @@ DECLARE_NATIVE_TYPE(uint32_t);
 DECLARE_NATIVE_TYPE(int32_t);
 DECLARE_NATIVE_TYPE(uint64_t);
 DECLARE_NATIVE_TYPE(int64_t);
+DECLARE_NATIVE_TYPE(time_t);
 
 template <>
 inline Serializer &operator<<(Serializer &s, const ByteArray &byteArray)

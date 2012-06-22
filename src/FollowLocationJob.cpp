@@ -1,5 +1,7 @@
 #include "FollowLocationJob.h"
 #include "Rdm.h"
+#include "ScopedDB.h"
+#include "Server.h"
 #include "leveldb/db.h"
 #include "CursorInfo.h"
 
@@ -27,7 +29,7 @@ void FollowLocationJob::execute()
             break;
         default: {
             const CursorInfo target = Rdm::findCursorInfo(db, cursorInfo.target);
-            // qDebug() << "cursorInfo is" << Rdm::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
+            // error() << "cursorInfo is" << Rdm::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
             //          << Rdm::eatString(clang_getCursorKindSpelling(target.kind));
             if (!target.isDefinition && !target.target.isNull()) {
                 write(target.target.key(flags));

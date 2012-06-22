@@ -9,6 +9,8 @@
 #include "FindSymbolsJob.h"
 #include "Message.h"
 #include "Messages.h"
+#include "LogObject.h"
+#include "EventObject.h"
 #include "Path.h"
 #include "TestJob.h"
 #include "RunTestJob.h"
@@ -160,7 +162,9 @@ bool Server::init(const Options &options)
             error("Wrong version, expected %d, got %d. Run with -C to regenerate database", Rdm::DatabaseVersion, version);
             return false;
         }
-        mMakefiles = general->value<Map<Path, std::pair<List<ByteArray>, List<ByteArray> > > >("makefiles");
+        mMakefiles = general->value<Map<Path, MakefileInformation> >("makefiles");
+        for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
+        }
     }
 
     {
@@ -255,7 +259,9 @@ void Server::onNewMessage(Message *message)
 
 void Server::handleMakefileMessage(MakefileMessage *message)
 {
-    mMakefiles[message->makefile()] = std::pair<List<ByteArray>, List<ByteArray> >(message->arguments(), message->extraFlags());
+    const Path makefile = message->makefile();
+    const MakefileInformation mi(makefile.lastModified(), message->arguments(), message->extraFlags());
+    mMakefiles[makefile] = mi;
     ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
     general->setValue("makefiles", mMakefiles);
     make(message->makefile(), message->arguments(), message->extraFlags());
@@ -294,16 +300,16 @@ void Server::handleOutputMessage(OutputMessage *message)
     const List<ByteArray> names = message->name().split(',');
     foreach(const ByteArray& name, names) {
         if (name == "log") {
-            new Rdm::LogObject(conn, message->level());
+            new LogObject(conn, message->level());
         } else {
-            const int level = Rdm::EventObject::typeForName(name);
+            const int level = EventObject::typeForName(name);
             if (level == -1) {
                 ResponseMessage msg("Unknown output name: " + name);
                 conn->send(&msg);
                 conn->finish();
                 return;
             }
-            new Rdm::EventObject(conn, level);
+            new EventObject(conn, level);
         }
     }
 }
@@ -600,7 +606,7 @@ void Server::rdmLog(const QueryMessage &query, Connection *conn)
 {
     const char *q = query.query().front().constData();
     const int level = *reinterpret_cast<const int *>(q);
-    new Rdm::LogObject(conn, level);
+    new LogObject(conn, level);
 }
 
 static const char *const dbNames[] = {
@@ -653,12 +659,11 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
 {
     error() << "remake" << pattern;
     QRegExp rx(pattern);
-    for (Map<Path, std::pair<List<ByteArray>, List<ByteArray> > >::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
+    for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
         if (rx.isEmpty() || rx.indexIn(it->first) != -1) {
-            qDebug() << "calling remake on" << it->first;
             ResponseMessage msg("Remaking " + it->first);
             conn->send(&msg);
-            make(it->first, it->second.first, it->second.second);
+            make(it->first, it->second.makefileArgs, it->second.extraFlags);
         }
     }
     conn->finish();
@@ -672,24 +677,6 @@ void Server::startJob(Job *job)
     mThreadPool->start(job, job->priority());
 }
 
-ScopedDB::ScopedDB(Database *db, LockType lockType)
-    : mData(new Data(db, lockType))
-{
-}
-
-ScopedDB::Data::Data(Database *database, LockType lockType)
-    : db(database), lock(lockType)
-{
-    if (db && lockType == Write) {
-        db->lockForWrite();
-    }
-}
-
-ScopedDB::Data::~Data()
-{
-    if (db && lock == Write)
-        db->unlock();
-}
 
 void Server::onFileReady(const GccArguments &args)
 {

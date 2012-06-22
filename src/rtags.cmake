@@ -24,6 +24,7 @@ set(rtags_HDRS
     DirtyJob.h
     DumpJob.h
     ErrorMessage.h
+    EventObject.h
     FindSymbolsJob.h
     FollowLocationJob.h
     GccArguments.h
@@ -34,6 +35,7 @@ set(rtags_HDRS
     ListSymbolsJob.h
     Location.h
     Log.h
+    LogObject.h
     MakefileMessage.h
     MakefileParser.h
     Map.h
@@ -48,10 +50,13 @@ set(rtags_HDRS
     QueryMessage.h
     RTags.h
     Rdm.h
+    ReadLocker.h
+    ReadWriteLock.h
     ReferencesJob.h
     ResponseMessage.h
     RunTestJob.h
     SHA256.h
+    ScopedDB.h
     Serializer.h
     Server.h
     Set.h
@@ -62,8 +67,6 @@ set(rtags_HDRS
     Thread.h
     ThreadPool.h
     WaitCondition.h
-    ReadWriteLock.h
-    ReadLocker.h
     WriteLocker.h
     )
 
@@ -75,6 +78,7 @@ set(rtags_SRCS
     DirtyJob.cpp
     DumpJob.cpp
     ErrorMessage.cpp
+    EventObject.cpp
     FindSymbolsJob.cpp
     FollowLocationJob.cpp
     GccArguments.cpp
@@ -93,41 +97,43 @@ set(rtags_SRCS
     QueryMessage.cpp
     RTags.cpp
     Rdm.cpp
+    ReadWriteLock.cpp
     ReferencesJob.cpp
     RunTestJob.cpp
     SHA256.cpp
+    ScopedDB.cpp
     Server.cpp
     StatusJob.cpp
     TestJob.cpp
     Thread.cpp
     ThreadPool.cpp
-    ReadWriteLock.cpp
 )
 
 set(rtags_MOCS
-    Server.h
-    DumpJob.h
-    FollowLocationJob.h
+    Client.h
+    Connection.h
     CursorInfoJob.h
-    ListSymbolsJob.h
+    DumpJob.h
+    ErrorMessage.h
+    EventObject.h
     FindSymbolsJob.h
-    ReferencesJob.h
-    StatusJob.h
-    TestJob.h
-    RunTestJob.h
+    FollowLocationJob.h
+    Indexer.h
     IndexerJob.h
     Job.h
-    Indexer.h
-    Rdm.h
-    Message.h
-    QueryMessage.h
-    ErrorMessage.h
-    OutputMessage.h
+    ListSymbolsJob.h
+    LogObject.h
     MakefileMessage.h
-    Connection.h
     MakefileParser.h
+    Message.h
+    OutputMessage.h
+    QueryMessage.h
+    ReferencesJob.h
     ResponseMessage.h
-    Client.h
+    RunTestJob.h
+    Server.h
+    StatusJob.h
+    TestJob.h
     )
 
 include(qt4.cmake)

@@ -1,6 +1,6 @@
 #include "TestJob.h"
 #include "Server.h"
-#include "Rdm.h"
+#include "ScopedDB.h"
 
 TestJob::TestJob(const Path &p, int i)
     : Job(i, QueryJobPriority), path(p)

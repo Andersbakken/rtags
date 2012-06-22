@@ -6,13 +6,13 @@
 Job::Job(int id, Priority p, unsigned flags, QObject *parent)
     : QObject(parent), mId(id), mPriority(p), mFlags(flags), mFilterSystemIncludes(false)
 {
-    // qDebug() << metaObject()->className() << "born" << ++count << ++active;
+    // error() << metaObject()->className() << "born" << ++count << ++active;
     setAutoDelete(false);
 }
 
 Job::~Job()
 {
-    // qDebug() << metaObject()->className() << "died" << count << --active;
+    // error() << metaObject()->className() << "died" << count << --active;
 }
 
 

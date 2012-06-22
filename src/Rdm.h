@@ -12,7 +12,7 @@
 #include "Location.h"
 #include "Log.h"
 #include "ResponseMessage.h"
-#include "Server.h"
+#include "CursorInfo.h"
 
 class CursorInfo;
 class CXStringScope
@@ -41,21 +41,41 @@ struct FileInformation {
 
 static inline Serializer &operator<<(Serializer &s, const FileInformation &ci)
 {
-    s << static_cast<uint64_t>(ci.lastTouched) << ci.compileArgs;
+    s << ci.lastTouched << ci.compileArgs;
     return s;
 }
 
 static inline Deserializer &operator>>(Deserializer &ds, FileInformation &ci)
 {
-    uint64_t lastTouched;
-    ds >> lastTouched;
-    ci.lastTouched = static_cast<time_t>(lastTouched);
-    ds >> ci.compileArgs;
+    ds >> ci.lastTouched >> ci.compileArgs;
     return ds;
 }
 
+struct MakefileInformation {
+    MakefileInformation(time_t lt = 0,
+                        const List<ByteArray> &args = List<ByteArray>(),
+                        const List<ByteArray> &flags = List<ByteArray>())
+        : lastTouched(lt), makefileArgs(args), extraFlags(flags)
+    {}
+    time_t lastTouched;
+    List<ByteArray> makefileArgs;
+    List<ByteArray> extraFlags;
+};
+
+static inline Serializer &operator<<(Serializer &s, const MakefileInformation &mi)
+{
+    s << mi.lastTouched << mi.makefileArgs << mi.extraFlags;
+    return s;
+}
+
+static inline Deserializer &operator>>(Deserializer &s, MakefileInformation &mi)
+{
+    s >> mi.lastTouched >> mi.makefileArgs >> mi.extraFlags;
+    return s;
+}
+
 namespace Rdm {
-enum { DatabaseVersion = 10 };
+enum { DatabaseVersion = 11 };
 
 enum ReferenceType {
     NormalReference,
@@ -138,63 +158,8 @@ int dirty(const Set<uint32_t> &dirtyFileIds);
 List<ByteArray> compileArgs(uint32_t fileId);
 // the symbols will be modified before writing and we don't want to detach so we
 // work on a non-const reference
-class LogObject : public QObject, public LogOutput
-{
-    Q_OBJECT
-public:
-    LogObject(Connection *conn, int level)
-        : QObject(conn), LogOutput(level), mConnection(conn)
-    {
-        connect(conn, SIGNAL(disconnected()), conn, SLOT(deleteLater()));
-    }
-
-    virtual void log(const char *msg, int len)
-    {
-        const ByteArray out(msg, len);
-        QMetaObject::invokeMethod(this, "onLog", Qt::QueuedConnection, Q_ARG(ByteArray, out));
-    }
-public slots:
-    void onLog(const ByteArray &log)
-    {
-        ResponseMessage msg(log);
-        mConnection->send(&msg);
-    }
-private:
-    Connection *mConnection;
-};
-
-class EventObject : public QObject, public EventOutput
-{
-    Q_OBJECT
-    Q_ENUMS(Type)
-public:
-    enum Type { CError = 0x40000000 };
-
-    EventObject(Connection *conn, int level)
-        : QObject(conn), EventOutput(level), mConnection(conn)
-    {
-        connect(conn, SIGNAL(disconnected()), conn, SLOT(deleteLater()));
-    }
-
-    virtual void log(const char *msg, int len)
-    {
-        const ByteArray out(msg, len);
-        QMetaObject::invokeMethod(this, "onLog", Qt::QueuedConnection, Q_ARG(ByteArray, out));
-    }
-
-    static int typeForName(const ByteArray &name);
-
-public slots:
-    void onLog(const ByteArray &log)
-    {
-        ResponseMessage msg(log);
-        mConnection->send(&msg);
-    }
-
-private:
-    Connection *mConnection;
-};
 }
+
 static inline std::ostringstream &operator<<(std::ostringstream &dbg, CXCursor cursor)
 {
     dbg << Rdm::cursorToString(cursor);

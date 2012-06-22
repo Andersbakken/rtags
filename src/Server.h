@@ -2,6 +2,7 @@
 #define Server_h
 
 #include <QObject>
+#include <QFileSystemWatcher>
 #include <ByteArray.h>
 #include <List.h>
 #include <Map.h>
@@ -9,6 +10,8 @@
 #include "Connection.h"
 #include "ThreadPool.h"
 #include "Job.h"
+#include "Rdm.h"
+#include "ScopedDB.h"
 
 class Connection;
 class Indexer;
@@ -19,28 +22,6 @@ class MakefileMessage;
 class QLocalServer;
 class Database;
 class GccArguments;
-class ScopedDB
-{
-public:
-    enum LockType {
-        Read,
-        Write
-    };
-    ScopedDB(Database *db, LockType lockType);
-    Database *operator->() { return mData->db; }
-    operator Database *() { return mData->db; }
-private:
-    class Data : public QSharedData
-    {
-    public:
-        Data(Database *database, LockType lockType);
-        ~Data();
-        Database *db;
-        LockType lock;
-    };
-    QSharedDataPointer<Data> mData;
-};
-
 class Server : public QObject
 {
     Q_OBJECT
@@ -125,7 +106,8 @@ private:
     bool mVerbose;
     int mJobId;
     static Path sBase;
-    Map<Path, std::pair<List<ByteArray>, List<ByteArray> > > mMakefiles;
+    Map<Path, MakefileInformation> mMakefiles;
+    QFileSystemWatcher mMakefilesWatcher;
     Database *mDBs[DatabaseTypeCount];
     ThreadPool *mThreadPool;
 };
