@@ -13,3 +13,7 @@ we break on dos line endings. We could solve this by using
 
 we may have to handle CXCursor_ClassTemplatePartialSpecialization and
    maybe some other kinds that we currently.
+
+check in various build systems so we can easily test them:
+
+directfb, openssl, qmake-based, cmake-based, scons, automake (directfb?)
