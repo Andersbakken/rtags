@@ -73,6 +73,7 @@ private slots:
     void onOutput(int id, const ByteArray &response);
     void onConnectionDestroyed(QObject *o);
     void onMakefileParserDone(int sourceCount, int pchCount);
+    void onMakefileChanged(const QString &path);
 private:
     void handleMakefileMessage(MakefileMessage *message);
     void handleQueryMessage(QueryMessage *message);
@@ -93,7 +94,7 @@ private:
     int nextId();
     void startJob(Job *job);
     void reindex(const ByteArray &pattern);
-    void remake(const ByteArray &pattern, Connection *conn);
+    void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);
     void rdmLog(const QueryMessage &message, Connection *conn);
     void make(const Path &path, List<ByteArray> makefileArgs, const List<ByteArray> &extraFlags);
 private:

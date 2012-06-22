@@ -114,6 +114,9 @@ bool Server::init(const Options &options)
 {
     mThreadPool = new ThreadPool(ThreadPool::idealThreadCount());
 
+    connect(&mMakefilesWatcher, SIGNAL(fileChanged(QString)),
+            this, SLOT(onMakefileChanged(QString)));
+
     mOptions = options;
     if (!(options.options & NoClangIncludePath)) {
         Path clangPath = Path::resolved(CLANG_INCLUDEPATH);
@@ -164,6 +167,7 @@ bool Server::init(const Options &options)
         }
         mMakefiles = general->value<Map<Path, MakefileInformation> >("makefiles");
         for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
+            mMakefilesWatcher.addPath(it->first);
         }
     }
 
@@ -192,6 +196,8 @@ bool Server::init(const Options &options)
 
     mIndexer = new Indexer(sBase, this);
     connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
+
+    remake();
 
     return true;
 }
@@ -262,6 +268,7 @@ void Server::handleMakefileMessage(MakefileMessage *message)
     const Path makefile = message->makefile();
     const MakefileInformation mi(makefile.lastModified(), message->arguments(), message->extraFlags());
     mMakefiles[makefile] = mi;
+    mMakefilesWatcher.addPath(makefile);
     ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
     general->setValue("makefiles", mMakefiles);
     make(message->makefile(), message->arguments(), message->extraFlags());
@@ -281,17 +288,20 @@ void Server::make(const Path &path, List<ByteArray> makefileArgs, const List<Byt
 void Server::onMakefileParserDone(int sourceCount, int pchCount)
 {
     MakefileParser *parser = qobject_cast<MakefileParser*>(sender());
-    Q_ASSERT(parser);
     Connection *connection = qobject_cast<Connection*>(parser->parent());
-    char buf[1024];
-    if (pchCount) {
-        snprintf(buf, sizeof(buf), "Parsed %s, %d sources, %d pch headers", parser->makefile().constData(), sourceCount, pchCount);
+    if (connection) {
+        char buf[1024];
+        if (pchCount) {
+            snprintf(buf, sizeof(buf), "Parsed %s, %d sources, %d pch headers", parser->makefile().constData(), sourceCount, pchCount);
+        } else {
+            snprintf(buf, sizeof(buf), "Parsed %s, %d sources", parser->makefile().constData(), sourceCount);
+        }
+        ResponseMessage msg(buf);
+        connection->send(&msg);
+        connection->finish();
     } else {
-        snprintf(buf, sizeof(buf), "Parsed %s, %d sources", parser->makefile().constData(), sourceCount);
+        parser->deleteLater();
     }
-    ResponseMessage msg(buf);
-    connection->send(&msg);
-    connection->finish();
 }
 
 void Server::handleOutputMessage(OutputMessage *message)
@@ -657,18 +667,21 @@ void Server::reindex(const ByteArray &pattern)
 
 void Server::remake(const ByteArray &pattern, Connection *conn)
 {
-    error() << "remake" << pattern;
+    error() << "remake " << pattern;
     QRegExp rx(pattern);
     for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
         if (rx.isEmpty() || rx.indexIn(it->first) != -1) {
-            ResponseMessage msg("Remaking " + it->first);
-            conn->send(&msg);
+            if (conn) {
+                ResponseMessage msg("Remaking " + it->first);
+                conn->send(&msg);
+            }
             make(it->first, it->second.makefileArgs, it->second.extraFlags);
         }
     }
-    conn->finish();
+    if (conn) {
+        conn->finish();
+    }
 }
-
 
 void Server::startJob(Job *job)
 {
@@ -676,7 +689,6 @@ void Server::startJob(Job *job)
     connect(job, SIGNAL(output(int, ByteArray)), this, SLOT(onOutput(int, ByteArray)));
     mThreadPool->start(job, job->priority());
 }
-
 
 void Server::onFileReady(const GccArguments &args)
 {
@@ -722,4 +734,8 @@ void Server::onFileReady(const GccArguments &args)
             warning() << input << "is not dirty. ignoring";
         }
     }
+}
+void Server::onMakefileChanged(const QString &path)
+{
+    remake(path.toStdString(), 0);
 }
