@@ -8,9 +8,13 @@
 #include <fcntl.h>
 #include <algorithm>
 
+EventLoop* EventLoop::sInstance = 0;
+
 EventLoop::EventLoop()
     : mQuit(false)
 {
+    if (!sInstance)
+        sInstance = this;
     ::pipe2(mEventPipe, O_NONBLOCK);
 }
 
@@ -18,6 +22,11 @@ EventLoop::~EventLoop()
 {
     ::close(mEventPipe[0]);
     ::close(mEventPipe[1]);
+}
+
+EventLoop* EventLoop::instance()
+{
+    return sInstance;
 }
 
 void EventLoop::addFileDescriptor(int fd, FdFunc callback, void* userData)

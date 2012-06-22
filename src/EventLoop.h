@@ -14,6 +14,8 @@ public:
     EventLoop();
     ~EventLoop();
 
+    static EventLoop* instance();
+
     typedef void(*FdFunc)(int, void*);
 
     // The following three functions are thread safe
@@ -47,6 +49,8 @@ private:
         Event* event;
     };
     std::vector<EventData> mEvents;
+
+    static EventLoop* sInstance;
 };
 
 #endif
