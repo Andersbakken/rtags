@@ -9,6 +9,8 @@
 #include <Log.h>
 #include <RTags.h>
 #include "Rdm.h"
+#include "Thread.h"
+#include "EventLoop.h"
 #include <signal.h>
 #ifdef Q_OS_LINUX
 #include <execinfo.h>
@@ -61,6 +63,25 @@ void signalHandler(int signal)
     fflush(stderr);
     delete Server::instance();
     _exit(1);
+}
+
+class EventLoopThread : public Thread
+{
+public:
+    EventLoopThread();
+
+protected:
+    void run();
+};
+
+EventLoopThread::EventLoopThread()
+{
+}
+
+void EventLoopThread::run()
+{
+    EventLoop loop;
+    loop.run();
 }
 
 void usage(FILE *f)
@@ -205,6 +226,8 @@ int main(int argc, char** argv)
 
     warning("Running with %d jobs", jobs);
 
+    EventLoopThread eventThread;
+
     Server *server = new Server;
     Server::Options serverOpts;
     serverOpts.options = options;
@@ -216,6 +239,8 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    eventThread.start();
+    
     const int ret = app.exec();
     delete server;
     return ret;

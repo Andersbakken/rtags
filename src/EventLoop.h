@@ -2,6 +2,7 @@
 #define EVENTLOOP_H
 
 #include "Mutex.h"
+#include "WaitCondition.h"
 #include <vector>
 
 class Event;
@@ -15,11 +16,9 @@ public:
 
     typedef void(*FdFunc)(int, void*);
 
-    // add/removeFileDescriptor are not thread safe
+    // The following three functions are thread safe
     void addFileDescriptor(int fd, FdFunc callback, void* userData);
     void removeFileDescriptor(int fd);
-
-    // postEvent is thread safe
     void postEvent(EventReceiver* object, Event* event);
 
     void run();
@@ -30,16 +29,19 @@ private:
     void sendPostedEvents();
 
 private:
+    int mEventPipe[2];
+    bool mQuit;
+
+    Mutex mMutex;
+    WaitCondition mCond;
+
     struct FdData {
         int fd;
         FdFunc callback;
         void* userData;
     };
-    int mEventPipe[2];
     std::vector<FdData> mFdData;
-    bool mQuit;
 
-    Mutex mMutex;
     struct EventData {
         EventReceiver* receiver;
         Event* event;

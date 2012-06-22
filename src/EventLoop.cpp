@@ -23,17 +23,37 @@ EventLoop::~EventLoop()
 void EventLoop::addFileDescriptor(int fd, FdFunc callback, void* userData)
 {
     FdData data = { fd, callback, userData };
+    MutexLocker locker(&mMutex);
     mFdData.push_back(data);
+    locker.unlock();
+
+    const char c = 'a';
+    int r;
+    do {
+        r = ::write(mEventPipe[1], &c, 1);
+    } while (r == -1 && errno == EAGAIN);
 }
 
 void EventLoop::removeFileDescriptor(int fd)
 {
+    bool found = false;
+    MutexLocker locker(&mMutex);
     for (std::vector<FdData>::iterator it = mFdData.begin();
          it != mFdData.end(); ++it) {
         if (it->fd == fd) {
             mFdData.erase(it);
+            found = true;
             break;
         }
+    }
+
+    if (found) {
+        const char c = 'r';
+        int r;
+        do {
+            r = ::write(mEventPipe[1], &c, 1);
+        } while (r == -1 && errno == EAGAIN);
+        mCond.wait(&mMutex);
     }
 }
 
@@ -45,7 +65,7 @@ void EventLoop::postEvent(EventReceiver* receiver, Event* event)
         MutexLocker locker(&mMutex);
         mEvents.push_back(data);
     }
-    const char c = '\1';
+    const char c = 'e';
     int r;
     do {
         r = ::write(mEventPipe[1], &c, 1);
@@ -60,10 +80,13 @@ void EventLoop::run()
         FD_ZERO(&set);
         FD_SET(mEventPipe[0], &set);
         max = mEventPipe[0];
-        for (std::vector<FdData>::const_iterator it = mFdData.begin();
-             it != mFdData.end(); ++it) {
-            FD_SET(it->fd, &set);
-            max = std::max(max, it->fd);
+        {
+            MutexLocker locker(&mMutex);
+            for (std::vector<FdData>::const_iterator it = mFdData.begin();
+                 it != mFdData.end(); ++it) {
+                FD_SET(it->fd, &set);
+                max = std::max(max, it->fd);
+            }
         }
         int r = ::select(max + 1, &set, 0, 0, 0);
         if (r == -1) { // ow
@@ -71,8 +94,13 @@ void EventLoop::run()
         }
         if (FD_ISSET(mEventPipe[0], &set))
             handlePipe();
-        for (std::vector<FdData>::const_iterator it = mFdData.begin();
-             it != mFdData.end(); ++it) {
+        std::vector<FdData> fds;
+        {
+            MutexLocker locker(&mMutex);
+            fds = mFdData;
+        }
+        for (std::vector<FdData>::const_iterator it = fds.begin();
+             it != fds.end(); ++it) {
             if (FD_ISSET(it->fd, &set))
                 it->callback(it->fd, it->userData);
         }
@@ -88,12 +116,18 @@ void EventLoop::handlePipe()
         const int r = ::read(mEventPipe[0], &c, 1);
         if (r == 1) {
             switch (c) {
-            case '\1':
+            case 'e':
                 sendPostedEvents();
                 break;
             case 'q':
                 mQuit = true;
                 break;
+            case 'a':
+                break;
+            case 'r': {
+                MutexLocker locker(&mMutex);
+                mCond.wakeAll();
+                break; }
             }
         } else
             break;
