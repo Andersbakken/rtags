@@ -34,6 +34,7 @@ Client::Client(const ByteArray &name, unsigned flags, const List<ByteArray> &rdm
 void Client::sendMessage(int id, const ByteArray &msg)
 {
     if (!mConn && !connectToServer() && !(mFlags & (RestartRdm|AutostartRdm))) {
+        error("Can't seem to connect to server");
         return;
     }
 
