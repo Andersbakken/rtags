@@ -80,8 +80,7 @@ EventLoopThread::EventLoopThread()
 
 void EventLoopThread::run()
 {
-    EventLoop loop;
-    loop.run();
+    EventLoop::instance()->run();
 }
 
 void usage(FILE *f)
@@ -226,6 +225,7 @@ int main(int argc, char** argv)
 
     warning("Running with %d jobs", jobs);
 
+    EventLoop loop;
     EventLoopThread eventThread;
 
     Server *server = new Server;
