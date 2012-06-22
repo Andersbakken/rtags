@@ -113,8 +113,10 @@ bool Server::init(const Options &options)
 {
     mThreadPool = new ThreadPool(ThreadPool::idealThreadCount());
 
-    connect(&mMakefilesWatcher, SIGNAL(fileChanged(QString)),
-            this, SLOT(onMakefileChanged(QString)));
+    connect(&mMakefilesWatcher, SIGNAL(modified(Path)),
+            this, SLOT(onMakefileModified(Path)));
+    connect(&mMakefilesWatcher, SIGNAL(removed(Path)),
+            this, SLOT(onMakefileRemoved(Path)));
 
     mOptions = options;
     if (!(options.options & NoClangIncludePath)) {
@@ -166,7 +168,7 @@ bool Server::init(const Options &options)
         }
         mMakefiles = general->value<Map<Path, MakefileInformation> >("makefiles");
         for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
-            mMakefilesWatcher.addPath(it->first);
+            mMakefilesWatcher.watch(it->first);
         }
     }
 
@@ -267,7 +269,7 @@ void Server::handleMakefileMessage(MakefileMessage *message)
     const Path makefile = message->makefile();
     const MakefileInformation mi(makefile.lastModified(), message->arguments(), message->extraFlags());
     mMakefiles[makefile] = mi;
-    mMakefilesWatcher.addPath(makefile);
+    mMakefilesWatcher.watch(makefile);
     ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
     general->setValue("makefiles", mMakefiles);
     make(message->makefile(), message->arguments(), message->extraFlags());
@@ -716,7 +718,15 @@ void Server::onFileReady(const GccArguments &args)
         }
     }
 }
-void Server::onMakefileChanged(const QString &path)
+void Server::onMakefileModified(const Path &path)
 {
-    remake(path.toStdString(), 0);
+    remake(path, 0);
 }
+
+void Server::onMakefileRemoved(const Path &path)
+{
+    mMakefiles.remove(path);
+    ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
+    general->setValue("makefiles", mMakefiles);
+}
+

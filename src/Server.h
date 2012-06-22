@@ -2,7 +2,7 @@
 #define Server_h
 
 #include <QObject>
-#include <QFileSystemWatcher>
+#include <FileSystemWatcher.h>
 #include <ByteArray.h>
 #include <List.h>
 #include <Map.h>
@@ -73,7 +73,8 @@ private slots:
     void onOutput(int id, const ByteArray &response);
     void onConnectionDestroyed(QObject *o);
     void onMakefileParserDone(int sourceCount, int pchCount);
-    void onMakefileChanged(const QString &path);
+    void onMakefileModified(const Path &path);
+    void onMakefileRemoved(const Path &path);
 private:
     void handleMakefileMessage(MakefileMessage *message);
     void handleQueryMessage(QueryMessage *message);
@@ -107,7 +108,7 @@ private:
     int mJobId;
     static Path sBase;
     Map<Path, MakefileInformation> mMakefiles;
-    QFileSystemWatcher mMakefilesWatcher;
+    FileSystemWatcher mMakefilesWatcher;
     Database *mDBs[DatabaseTypeCount];
     ThreadPool *mThreadPool;
 };
