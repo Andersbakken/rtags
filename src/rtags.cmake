@@ -24,6 +24,7 @@ set(rtags_HDRS
     DirtyJob.h
     ErrorMessage.h
     EventObject.h
+    FileSystemWatcher.h
     FindSymbolsJob.h
     FollowLocationJob.h
     GccArguments.h
@@ -80,6 +81,7 @@ set(rtags_SRCS
     DirtyJob.cpp
     ErrorMessage.cpp
     EventObject.cpp
+    FileSystemWatcher.cpp
     FindSymbolsJob.cpp
     FollowLocationJob.cpp
     GccArguments.cpp
@@ -117,6 +119,7 @@ set(rtags_MOCS
     CursorInfoJob.h
     ErrorMessage.h
     EventObject.h
+    FileSystemWatcher.h
     FindSymbolsJob.h
     FollowLocationJob.h
     Indexer.h

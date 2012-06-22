@@ -29,10 +29,12 @@ public:
         return it->second;
     }
 
-    bool remove(const Key &t)
+    bool remove(const Key &t, Value *value = 0)
     {
         typename std::map<Key, Value>::iterator it = find(t);
         if (it != std::map<Key, Value>::end()) {
+            if (value)
+                *value = it->second;
             erase(it);
             return true;
         }
