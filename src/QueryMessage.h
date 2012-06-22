@@ -18,7 +18,6 @@ public:
         ReferencesName,
         ListSymbols,
         FindSymbols,
-        Dump,
         Status,
         Test,
         CursorInfo,

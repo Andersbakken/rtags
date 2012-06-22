@@ -1,5 +1,4 @@
 #include "Connection.h"
-#include "DumpJob.h"
 #include "FollowLocationJob.h"
 #include "MakefileParser.h"
 #include "Indexer.h"
@@ -377,9 +376,6 @@ void Server::handleQueryMessage(QueryMessage *message)
     case QueryMessage::FindSymbols:
         id = findSymbols(*message);
         break;
-    case QueryMessage::Dump:
-        id = dump(*message);
-        break;
     case QueryMessage::Status:
         id = status(*message);
         break;
@@ -528,21 +524,6 @@ int Server::listSymbols(const QueryMessage &query)
     error("rc -S \"%s\"", partial.constData());
 
     ListSymbolsJob *job = new ListSymbolsJob(id, query);
-    startJob(job);
-
-    return id;
-}
-
-
-int Server::dump(const QueryMessage &query)
-{
-    const ByteArray partial = query.query().value(0);
-    const int id = nextId();
-
-    error("rc -d \"%s\"", partial.constData());
-
-    DumpJob *job = new DumpJob(partial, id);
-    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     startJob(job);
 
     return id;

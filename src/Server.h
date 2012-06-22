@@ -87,7 +87,6 @@ private:
     int referencesForName(const QueryMessage &query);
     int findSymbols(const QueryMessage &query);
     int listSymbols(const QueryMessage &query);
-    int dump(const QueryMessage &query);
     int status(const QueryMessage &query);
     int test(const QueryMessage &query);
     int runTest(const QueryMessage &query);

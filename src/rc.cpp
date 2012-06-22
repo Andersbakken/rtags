@@ -30,7 +30,6 @@ static void help(FILE *f, const char* app)
             "  --reverse-sort|-O                         Sort output reversed\n"
             "  --list-symbols|-S [arg]                   List symbol names matching arg\n"
             "  --find-symbols|-F [arg]                   Find symbols matching arg\n"
-            "  --dump|-d [arg]                           Dump AST tree of arg \n"
             "  --complete|-c [arg]                       Get code completion for this location\n"
             "  --cursor-info|-U [arg]                    Get cursor info for this location\n"
             "  --log-file|-L [file]                      Log to this file\n"
@@ -172,7 +171,6 @@ int main(int argc, char** argv)
         { "reverse-sort", no_argument, 0, 'O' },
         { "list-symbols", optional_argument, 0, 'S' },
         { "find-symbols", required_argument, 0, 'F' },
-        { "dump", required_argument, 0, 'd' },
         { "complete", required_argument, 0, 'c' },
         { "cursor-info", required_argument, 0, 'U' },
         { "log-file", required_argument, 0, 'L' },
@@ -202,7 +200,7 @@ int main(int argc, char** argv)
         { 0, 0, 0, 0 }
     };
 
-    // Not taken: b j k w y
+    // Not taken: b j k w y d
 
     int logLevel = 0;
     ByteArray logFile;
@@ -334,7 +332,6 @@ int main(int argc, char** argv)
         case 't':
         case 'x':
         case 'Q':
-        case 'd':
         case 'T': {
             const Path p = Path::resolved(optarg);
             if (!p.isFile()) {
@@ -347,7 +344,6 @@ int main(int argc, char** argv)
             case 'x': type = QueryMessage::FixIts; break;
             case 'Q': type = QueryMessage::Errors; break;
             case 'T': type = QueryMessage::RunTest; break;
-            case 'd': type = QueryMessage::Dump; break;
             }
 
             commands.append(new QueryCommand(type, p, queryFlags, pathFilters));

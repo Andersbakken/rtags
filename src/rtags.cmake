@@ -22,7 +22,6 @@ set(rtags_HDRS
     CursorInfoJob.h
     Database.h
     DirtyJob.h
-    DumpJob.h
     ErrorMessage.h
     EventObject.h
     FindSymbolsJob.h
@@ -79,7 +78,6 @@ set(rtags_SRCS
     CursorInfoJob.cpp
     Database.cpp
     DirtyJob.cpp
-    DumpJob.cpp
     ErrorMessage.cpp
     EventObject.cpp
     FindSymbolsJob.cpp
@@ -117,7 +115,6 @@ set(rtags_MOCS
     Client.h
     Connection.h
     CursorInfoJob.h
-    DumpJob.h
     ErrorMessage.h
     EventObject.h
     FindSymbolsJob.h
