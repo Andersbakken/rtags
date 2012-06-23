@@ -25,7 +25,7 @@ private:
     Map<Path, int> mWatchedByPath;
     Map<int, Path> mWatchedById;
     void inotifyReadyRead();
-    static void iNotifyCallback(int, void *user) { reinterpret_cast<FileSystemWatcher*>(user)->inotifyReadyRead(); }
+    static void iNotifyCallback(int, unsigned int, void *user) { reinterpret_cast<FileSystemWatcher*>(user)->inotifyReadyRead(); }
 #else
 #warning "FileSystemWatcher not implemented on this platform"
 #endif

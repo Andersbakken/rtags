@@ -12,7 +12,7 @@ FileSystemWatcher::FileSystemWatcher()
 #ifdef OS_Linux
     mInotifyFd = inotify_init();
     assert(mInotifyFd != -1);
-    EventLoop::instance()->addFileDescriptor(mInotifyFd, iNotifyCallback, this);
+    EventLoop::instance()->addFileDescriptor(mInotifyFd, EventLoop::Read, iNotifyCallback, this);
 #endif
 }
 
