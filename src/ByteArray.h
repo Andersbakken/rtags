@@ -90,6 +90,16 @@ public:
         return mString.at(i);
     }
 
+    char& operator[](int i)
+    {
+        return mString.operator[](i);
+    }
+
+    const char& operator[](int i) const
+    {
+        return mString.operator[](i);
+    }
+
     const char *constData() const
     {
         return mString.data();

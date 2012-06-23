@@ -11,6 +11,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
     ${QT_QTCORE_INCLUDE_DIR} ${QT_QTNETWORK_INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ../signalslot
     ../3rdparty/leveldb/include)
 
 set(rtags_HDRS
@@ -71,6 +72,7 @@ set(rtags_HDRS
     EventLoop.h
     EventReceiver.h
     Event.h
+    LocalClient.h
     )
 
 set(rtags_SRCS
@@ -111,6 +113,7 @@ set(rtags_SRCS
     Thread.cpp
     ThreadPool.cpp
     EventLoop.cpp
+    LocalClient.cpp
 )
 
 set(rtags_MOCS

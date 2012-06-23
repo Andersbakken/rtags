@@ -29,9 +29,9 @@ EventLoop* EventLoop::instance()
     return sInstance;
 }
 
-void EventLoop::addFileDescriptor(int fd, FdFunc callback, void* userData)
+void EventLoop::addFileDescriptor(int fd, unsigned int flags, FdFunc callback, void* userData)
 {
-    FdData data = { fd, callback, userData };
+    FdData data = { fd, flags, callback, userData };
     MutexLocker locker(&mMutex);
     mFdData.push_back(data);
     locker.unlock();
@@ -83,25 +83,29 @@ void EventLoop::postEvent(EventReceiver* receiver, Event* event)
 
 void EventLoop::run()
 {
-    fd_set set;
+    fd_set rset, wset;
     int max;
     for (;;) {
-        FD_ZERO(&set);
-        FD_SET(mEventPipe[0], &set);
+        FD_ZERO(&rset);
+        FD_ZERO(&wset);
+        FD_SET(mEventPipe[0], &rset);
         max = mEventPipe[0];
         {
             MutexLocker locker(&mMutex);
             for (std::vector<FdData>::const_iterator it = mFdData.begin();
                  it != mFdData.end(); ++it) {
-                FD_SET(it->fd, &set);
+                if (it->flags & Read)
+                    FD_SET(it->fd, &rset);
+                if (it->flags & Write)
+                    FD_SET(it->fd, &wset);
                 max = std::max(max, it->fd);
             }
         }
-        int r = ::select(max + 1, &set, 0, 0, 0);
+        int r = ::select(max + 1, &rset, &wset, 0, 0);
         if (r == -1) { // ow
             return;
         }
-        if (FD_ISSET(mEventPipe[0], &set))
+        if (FD_ISSET(mEventPipe[0], &rset))
             handlePipe();
         std::vector<FdData> fds;
         {
@@ -110,8 +114,13 @@ void EventLoop::run()
         }
         for (std::vector<FdData>::const_iterator it = fds.begin();
              it != fds.end(); ++it) {
-            if (FD_ISSET(it->fd, &set))
-                it->callback(it->fd, it->userData);
+            if ((it->flags & Read) && FD_ISSET(it->fd, &rset)) {
+                unsigned int flag = Read;
+                if ((it->flags & Write) && FD_ISSET(it->fd, &wset))
+                    flag |= Write;
+                it->callback(it->fd, flag, it->userData);
+            } else if ((it->flags & Write) && FD_ISSET(it->fd, &wset))
+                it->callback(it->fd, Write, it->userData);
         }
         if (mQuit)
             break;

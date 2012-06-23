@@ -16,10 +16,11 @@ public:
 
     static EventLoop* instance();
 
-    typedef void(*FdFunc)(int, void*);
+    enum { Read = 1, Write = 2 };
+    typedef void(*FdFunc)(int, unsigned int, void*);
 
     // The following three functions are thread safe
-    void addFileDescriptor(int fd, FdFunc callback, void* userData);
+    void addFileDescriptor(int fd, unsigned int flags, FdFunc callback, void* userData);
     void removeFileDescriptor(int fd);
     void postEvent(EventReceiver* object, Event* event);
 
@@ -39,6 +40,7 @@ private:
 
     struct FdData {
         int fd;
+        unsigned int flags;
         FdFunc callback;
         void* userData;
     };
