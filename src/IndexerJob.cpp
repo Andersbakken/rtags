@@ -611,21 +611,17 @@ void IndexerJob::run()
         scope.cleanup();
 
         if (!isAborted()) {
+            Set<uint32_t> dirtyFiles;
             for (Map<uint32_t, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
                 if (it->second == Index) {
                     (void)visited[it->first];
-#ifdef QT_DEBUG
-                    if (mFlags & NeedsDirty && it->first != mFileId && !Location::path(it->first).isSystem()) {
-                        // ideally system headers would have ended up in mVisitedFiles on startup
-                        error("This file should not have been dirty %s %d", Location::path(it->first).constData(), it->first);
+                    if (mFlags & NeedsDirty) {
+                        dirtyFiles.insert(it->first);
                     }
-#endif
                 }
             }
             if (mFlags & NeedsDirty) {
-                Set<uint32_t> files;
-                files.insert(mFileId);
-                Rdm::dirty(files);
+                Rdm::dirty(dirtyFiles);
             }
             mIndexer->setDiagnostics(visited, fixIts);
             Rdm::writeSymbols(mSymbols, mReferences, mFileId);
