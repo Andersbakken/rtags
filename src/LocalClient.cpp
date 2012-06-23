@@ -29,7 +29,7 @@ LocalClient::LocalClient(const ByteArray& name)
 
     const int flags = fcntl(mFd, F_GETFL, 0);
     fcntl(mFd, F_SETFL, flags | O_NONBLOCK);
-    EventLoop::instance()->addFileDescriptor(mFd, EventLoop::Read | EventLoop::Write, dataReadyCallback, this);
+    EventLoop::instance()->addFileDescriptor(mFd, EventLoop::Read | EventLoop::Write, dataCallback, this);
 }
 
 LocalClient::LocalClient(int fd)
@@ -37,7 +37,7 @@ LocalClient::LocalClient(int fd)
 {
     const int flags = fcntl(mFd, F_GETFL, 0);
     fcntl(mFd, F_SETFL, flags | O_NONBLOCK);
-    EventLoop::instance()->addFileDescriptor(mFd, EventLoop::Read | EventLoop::Write, dataReadyCallback, this);
+    EventLoop::instance()->addFileDescriptor(mFd, EventLoop::Read | EventLoop::Write, dataCallback, this);
 }
 
 LocalClient::~LocalClient()
@@ -46,7 +46,7 @@ LocalClient::~LocalClient()
         ::close(mFd);
 }
 
-void LocalClient::dataReadyCallback(int, unsigned int flags, void* userData)
+void LocalClient::dataCallback(int, unsigned int flags, void* userData)
 {
     LocalClient* client = reinterpret_cast<LocalClient*>(userData);
     if (flags & EventLoop::Read)

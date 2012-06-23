@@ -20,7 +20,7 @@ public:
     signalslot::Signal0& dataReady() { return mDataReady; }
 
 private:
-    static void dataReadyCallback(int fd, unsigned int flags, void* userData);
+    static void dataCallback(int fd, unsigned int flags, void* userData);
 
     void writeMore();
 
