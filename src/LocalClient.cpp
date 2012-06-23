@@ -42,7 +42,8 @@ LocalClient::LocalClient(int fd)
 
 LocalClient::~LocalClient()
 {
-    ::close(mFd);
+    if (mConnected)
+        ::close(mFd);
 }
 
 void LocalClient::dataReadyCallback(int, unsigned int flags, void* userData)
