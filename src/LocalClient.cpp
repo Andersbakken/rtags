@@ -17,7 +17,9 @@ LocalClient::LocalClient(const ByteArray& name)
     struct sockaddr_un address;
     memset(&address, 0, sizeof(struct sockaddr_un));
     address.sun_family = AF_UNIX;
-    memcpy(address.sun_path, name.constData(), std::min<int>(sizeof(address.sun_path), name.size()));
+    const int sz = std::min<int>(sizeof(address.sun_path) - 1, name.size());
+    memcpy(address.sun_path, name.constData(), sz);
+    address.sun_path[sz] = '\0';
     if (::connect(mFd, (struct sockaddr *)&address, sizeof(struct sockaddr_un)) == -1) {
         ::close(mFd);
         return;
