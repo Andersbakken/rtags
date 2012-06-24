@@ -12,7 +12,7 @@ public:
     LocalClient(int fd);
     virtual ~LocalClient();
 
-    bool isConnected() const { return mConnected; }
+    bool isConnected() const { return mFd != -1; }
 
     ByteArray readAll();
     void write(const ByteArray& data);
@@ -29,7 +29,6 @@ private:
     signalslot::Signal0 mDataReady;
     std::deque<ByteArray> mBuffers;
     int mBufferIdx;
-    bool mConnected;
 };
 
 #endif

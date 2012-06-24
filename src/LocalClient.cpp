@@ -8,7 +8,7 @@
 #include <algorithm>
 
 LocalClient::LocalClient(const ByteArray& name)
-    : mBufferIdx(0), mConnected(false)
+    : mBufferIdx(0)
 {
     mFd = ::socket(PF_UNIX, SOCK_STREAM, 0);
     if (mFd == -1)
@@ -22,10 +22,9 @@ LocalClient::LocalClient(const ByteArray& name)
     address.sun_path[sz] = '\0';
     if (::connect(mFd, (struct sockaddr *)&address, sizeof(struct sockaddr_un)) == -1) {
         ::close(mFd);
+        mFd = -1;
         return;
     }
-
-    mConnected = true;
 
     const int flags = fcntl(mFd, F_GETFL, 0);
     fcntl(mFd, F_SETFL, flags | O_NONBLOCK);
@@ -33,7 +32,7 @@ LocalClient::LocalClient(const ByteArray& name)
 }
 
 LocalClient::LocalClient(int fd)
-    : mFd(fd), mBufferIdx(0), mConnected(true)
+    : mFd(fd), mBufferIdx(0)
 {
     const int flags = fcntl(mFd, F_GETFL, 0);
     fcntl(mFd, F_SETFL, flags | O_NONBLOCK);
@@ -42,8 +41,10 @@ LocalClient::LocalClient(int fd)
 
 LocalClient::~LocalClient()
 {
-    if (mConnected)
+    if (mFd != -1) {
+        EventLoop::instance()->removeFileDescriptor(mFd);
         ::close(mFd);
+    }
 }
 
 void LocalClient::dataCallback(int, unsigned int flags, void* userData)
