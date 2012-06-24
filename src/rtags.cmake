@@ -73,6 +73,7 @@ set(rtags_HDRS
     EventReceiver.h
     Event.h
     LocalClient.h
+    LocalServer.h
     )
 
 set(rtags_SRCS
@@ -114,6 +115,7 @@ set(rtags_SRCS
     ThreadPool.cpp
     EventLoop.cpp
     LocalClient.cpp
+    LocalServer.cpp
 )
 
 set(rtags_MOCS

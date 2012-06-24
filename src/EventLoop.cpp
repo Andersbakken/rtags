@@ -15,7 +15,8 @@ EventLoop::EventLoop()
 {
     if (!sInstance)
         sInstance = this;
-    ::pipe2(mEventPipe, O_NONBLOCK);
+    if (::pipe2(mEventPipe, O_NONBLOCK) == -1) // ### ??? !!!
+        ;
 }
 
 EventLoop::~EventLoop()
