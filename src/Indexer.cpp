@@ -273,10 +273,10 @@ void Indexer::onJobFinished(IndexerJob *job)
         }
 
         emit indexingDone(job->mId);
+        mCondition.wakeAll();
     }
 
     job->deleteLater();
-    mCondition.wakeAll();
 }
 
 
