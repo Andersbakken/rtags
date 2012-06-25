@@ -150,7 +150,7 @@ struct MakefileCommand : public Command
     }
     virtual ByteArray description() const
     {
-        return ("MakefileCommand " + makefile + " " + RTags::join(makefileArgs, " ") + " " + RTags::join(extraFlags, " "));
+        return ("MakefileCommand " + makefile + " " + ByteArray::join(makefileArgs, " ") + " " + ByteArray::join(extraFlags, " "));
     }
 };
 

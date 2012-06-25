@@ -43,24 +43,6 @@ ByteArray unescape(ByteArray command)
     return ret;
 }
 
-
-ByteArray join(const List<ByteArray> &list, const ByteArray &sep)
-{
-    ByteArray ret;
-    int size = qMax(0, list.size() - 1) * sep.size();
-    foreach (const ByteArray &l, list) {
-        size += l.size();
-    }
-    ret.reserve(size);
-    for (int i=0; i<list.size(); ++i) {
-        ret.append(list.at(i));
-        if (i + 1 < list.size()) {
-            ret.append(sep);
-        }
-    }
-    return ret;
-}
-
 int readLine(FILE *f, char *buf, int max)
 {
     assert(!buf == (max == -1));
@@ -211,7 +193,7 @@ bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs)
     if (f) {
         fwrite(dotexe.constData(), 1, dotexe.size(), f);
         fwrite(" ", 1, 1, f);
-        const ByteArray joined = RTags::join(dollarArgs, " ");
+        const ByteArray joined = ByteArray::join(dollarArgs, " ");
         fwrite(joined.constData(), 1, joined.size(), f);
         fclose(f);
     }

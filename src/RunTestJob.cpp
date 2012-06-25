@@ -79,7 +79,7 @@ void RunTestJob::execute()
                         expectedLocations.clear();
                     }
                     if (!allSymbolNames.isEmpty())
-                        write("Missing symbolNames: " + RTags::join(allSymbolNames.toList(), ", "));
+                        write("Missing symbolNames: " + ByteArray::join(allSymbolNames.toList(), ", "));
                     state = None;
                 } else {
                     write("Unexpected line [" + line + "] while parsing symbol name tests");

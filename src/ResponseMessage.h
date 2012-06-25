@@ -17,7 +17,7 @@ public:
         : Message(parent), mData(data)
     {}
     ResponseMessage(const List<ByteArray> &data, QObject *parent = 0)
-        : Message(parent), mData(RTags::join(data, "\n"))
+        : Message(parent), mData(ByteArray::join(data, "\n"))
     {}
 
     virtual int messageId() const { return MessageId; }

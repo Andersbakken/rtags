@@ -50,7 +50,7 @@ class Signal0 : public SignalBase<fastdelegate::FastDelegate0<> >
 {
 public:
     typedef fastdelegate::FastDelegate0<> Type;
-    
+
     Signal0() {}
 
     void operator()()
@@ -84,7 +84,7 @@ public:
     bool disconnect(Class* object, void (Class::*function)())
     {
         return SignalBase<Type>::disconnect(fastdelegate::MakeDelegate(object, function));
-    }   
+    }
 
     bool disconnect(const Signal0& signal)
     {
@@ -103,7 +103,7 @@ class Signal1 : public SignalBase<fastdelegate::FastDelegate1<Arg1> >
 {
 public:
     typedef fastdelegate::FastDelegate1<Arg1> Type;
-    
+
     Signal1() {}
 
     void operator()(Arg1 a1)
@@ -137,7 +137,7 @@ public:
     bool disconnect(Class* object, void (Class::*function)(Arg1))
     {
         return SignalBase<Type>::disconnect(fastdelegate::MakeDelegate(object, function));
-    }   
+    }
 
     bool disconnect(const Signal1& signal)
     {
@@ -156,7 +156,7 @@ class Signal2 : public SignalBase<fastdelegate::FastDelegate2<Arg1, Arg2> >
 {
 public:
     typedef fastdelegate::FastDelegate2<Arg1, Arg2> Type;
-    
+
     Signal2() {}
 
     void operator()(Arg1 a1, Arg2 a2)
@@ -190,7 +190,7 @@ public:
     bool disconnect(Class* object, void (Class::*function)(Arg1, Arg2))
     {
         return SignalBase<Type>::disconnect(fastdelegate::MakeDelegate(object, function));
-    }   
+    }
 
     bool disconnect(const Signal2& signal)
     {
@@ -209,7 +209,7 @@ class Signal3 : public SignalBase<fastdelegate::FastDelegate3<Arg1, Arg2, Arg3> 
 {
 public:
     typedef fastdelegate::FastDelegate3<Arg1, Arg2, Arg3> Type;
-    
+
     Signal3() {}
 
     void operator()(Arg1 a1, Arg2 a2, Arg3 a3)
@@ -243,7 +243,7 @@ public:
     bool disconnect(Class* object, void (Class::*function)(Arg1, Arg2, Arg3))
     {
         return SignalBase<Type>::disconnect(fastdelegate::MakeDelegate(object, function));
-    }   
+    }
 
     bool disconnect(const Signal3& signal)
     {
@@ -262,7 +262,7 @@ class Signal4 : public SignalBase<fastdelegate::FastDelegate4<Arg1, Arg2, Arg3, 
 {
 public:
     typedef fastdelegate::FastDelegate4<Arg1, Arg2, Arg3, Arg4> Type;
-    
+
     Signal4() {}
 
     void operator()(Arg1 a1, Arg2 a2, Arg3 a3, Arg4 a4)
@@ -296,7 +296,7 @@ public:
     bool disconnect(Class* object, void (Class::*function)(Arg1, Arg2, Arg3, Arg4))
     {
         return SignalBase<Type>::disconnect(fastdelegate::MakeDelegate(object, function));
-    }   
+    }
 
     bool disconnect(const Signal4& signal)
     {
@@ -315,7 +315,7 @@ class Signal5 : public SignalBase<fastdelegate::FastDelegate5<Arg1, Arg2, Arg3, 
 {
 public:
     typedef fastdelegate::FastDelegate5<Arg1, Arg2, Arg3, Arg4, Arg5> Type;
-    
+
     Signal5() {}
 
     void operator()(Arg1 a1, Arg2 a2, Arg3 a3, Arg4 a4, Arg5 a5)
@@ -349,7 +349,7 @@ public:
     bool disconnect(Class* object, void (Class::*function)(Arg1, Arg2, Arg3, Arg4, Arg5))
     {
         return SignalBase<Type>::disconnect(fastdelegate::MakeDelegate(object, function));
-    }   
+    }
 
     bool disconnect(const Signal5& signal)
     {

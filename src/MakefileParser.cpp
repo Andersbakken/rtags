@@ -4,6 +4,7 @@
 #include <QStack>
 #include <Log.h>
 #include <stdio.h>
+#include <RegExp.h>
 
 #ifndef MAKE
 #define MAKE "make"
@@ -39,16 +40,18 @@ void DirectoryTracker::init(const Path& path)
 void DirectoryTracker::track(const ByteArray& line)
 {
     // printf("Tracking %s\n", line.constData());
-    static QRegExp drx(QLatin1String("make[^:]*: ([^ ]+) directory `([^']+)'"));
-    if (drx.indexIn(QString::fromLocal8Bit(line.constData())) != -1) {
-        if (drx.cap(1) == QLatin1String("Entering")) {
-            enterDirectory(drx.cap(2).toStdString());
-        } else if (drx.cap(1) == QLatin1String("Leaving")) {
-            leaveDirectory(drx.cap(2).toStdString());
+    static RegExp rx("make[^:]*: ([^ ]+) directory `([^']+)'");
+    List<RegExp::Capture> captures;
+    if (rx.indexIn(line.constData(), 0, &captures) != -1) {
+        assert(captures.size() >= 3);
+        if (captures.at(1).capture() == "Entering") {
+            enterDirectory(captures.at(2).capture());
+        } else if (captures.at(1).capture() == "Leaving") {
+            leaveDirectory(captures.at(2).capture());
         } else {
-            qFatal("Invalid directory track: %s %s",
-                   drx.cap(1).toLatin1().constData(),
-                   drx.cap(2).toLatin1().constData());
+            error("Invalid directory track: %s %s",
+                  captures.at(1).capture().constData(),
+                  captures.at(2).capture().constData());
         }
     }
 }
@@ -108,6 +111,8 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
         environment.insert("LD_PRELOAD", makelibdir.canonicalPath() + "/makelib/libmakelib.so");
 #endif
     }
+
+    qDebug() << environment.toStringList() << makefile << " " << ByteArray::join(args, " ");
     mProc->setProcessEnvironment(environment);
 
     connect(mProc, SIGNAL(readyReadStandardOutput()),
@@ -175,18 +180,22 @@ void MakefileParser::processMakeLine(const ByteArray &line)
         mTracker->track(line);
     }
 }
+
 void MakefileParser::onError(QProcess::ProcessError err)
 {
     error() << "Error" << int(err) << mProc->errorString().toStdString();
 }
+
 void MakefileParser::onProcessStateChanged(QProcess::ProcessState state)
 {
     debug() << "process state changed" << state;
 }
+
 void MakefileParser::onReadyReadStandardError()
 {
     debug() << "stderr" << mProc->readAllStandardError().constData();
 }
+
 List<ByteArray> MakefileParser::mapPchToInput(const List<ByteArray> &input) const
 {
     List<ByteArray> output;
@@ -204,6 +213,7 @@ void MakefileParser::setPch(const ByteArray &output, const ByteArray &input)
 {
     mPchs[output] = input;
 }
+
 void MakefileParser::onDone()
 {
     emit done(mSourceCount, mPchCount);

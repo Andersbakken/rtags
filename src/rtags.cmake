@@ -54,6 +54,7 @@ set(rtags_HDRS
     ReadLocker.h
     ReadWriteLock.h
     ReferencesJob.h
+    RegExp.h
     ResponseMessage.h
     RunTestJob.h
     SHA256.h

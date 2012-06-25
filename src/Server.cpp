@@ -2,6 +2,7 @@
 #include "FollowLocationJob.h"
 #include "MakefileParser.h"
 #include "Indexer.h"
+#include "RegExp.h"
 #include "Client.h"
 #include "CursorInfoJob.h"
 #include "ListSymbolsJob.h"
@@ -651,7 +652,7 @@ void Server::reindex(const ByteArray &pattern)
 void Server::remake(const ByteArray &pattern, Connection *conn)
 {
     error() << "remake " << pattern;
-    QRegExp rx(pattern);
+    RegExp rx(pattern);
     for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
         if (rx.isEmpty() || rx.indexIn(it->first) != -1) {
             if (conn) {

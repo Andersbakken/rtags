@@ -9,6 +9,7 @@
 #include "Rdm.h"
 #include "SHA256.h"
 #include "ReadLocker.h"
+#include "RegExp.h"
 #include "WriteLocker.h"
 #include <Log.h>
 #include <QtCore>
@@ -114,7 +115,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
         it.reset(fileInformationDB->createIterator());
         it->seekToFirst();
         MutexLocker lock(&mVisitedFilesMutex);
-        QRegExp rx(pattern);
+        RegExp rx(pattern);
         while (it->isValid()) {
             const Slice key = it->key();
             const uint32_t fileId = *reinterpret_cast<const uint32_t*>(key.data());
@@ -511,7 +512,7 @@ void Indexer::setDiagnostics(const Map<uint32_t, List<ByteArray> > &diagnostics,
         if (it->second.isEmpty()) {
             mErrors.remove(it->first);
         } else {
-            mErrors[it->first] = RTags::join(it->second, "\n");
+            mErrors[it->first] = ByteArray::join(it->second, "\n");
         }
     }
     for (Map<Location, std::pair<int, ByteArray> >::const_iterator it = fixIts.begin(); it != fixIts.end(); ++it) {

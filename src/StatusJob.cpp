@@ -28,9 +28,9 @@ void StatusJob::execute()
              it != makefiles.end(); ++it) {
             ByteArray out = "    " + it->first;
             if (!it->second.first.isEmpty())
-                out += " args: " + RTags::join(it->second.first, " ");
+                out += " args: " + ByteArray::join(it->second.first, " ");
             if (!it->second.second.isEmpty())
-                out += " extra flags: " + RTags::join(it->second.second, " ");
+                out += " extra flags: " + ByteArray::join(it->second.second, " ");
             write(out);
         }
     }
@@ -123,7 +123,7 @@ void StatusJob::execute()
             snprintf(buf, 1024, "  %s: last compiled: %s compile args: %s",
                      Location::path(fileId).constData(),
                      QDateTime::fromTime_t(fi.lastTouched).toString().toLocal8Bit().constData(),
-                     RTags::join(fi.compileArgs, " ").constData());
+                     ByteArray::join(fi.compileArgs, " ").constData());
             write(buf);
             it->next();
         }

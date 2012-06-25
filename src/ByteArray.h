@@ -105,6 +105,11 @@ public:
         return mString.data();
     }
 
+    const char *nullTerminated() const
+    {
+        return mString.c_str();
+    }
+
     int size() const
     {
         return mString.size();
@@ -283,6 +288,23 @@ public:
         char buf[32];
         const int w = snprintf(buf, sizeof(buf), "%lld", num);
         return ByteArray(buf, w + 1);
+    }
+
+    static ByteArray join(const List<ByteArray> &list, const ByteArray &sep)
+    {
+        ByteArray ret;
+        const int sepSize = sep.size();
+        int size = qMax(0, list.size() - 1) * sepSize;
+        foreach(const ByteArray &b, list)
+            size += b.size();
+        ret.reserve(size);
+        int i = 0;
+        foreach(const ByteArray &b, list) {
+            ret.append(b);
+            if (sepSize && i++ < list.size())
+                ret.append(sep);
+        }
+        return ret;
     }
 private:
     std::string mString;
