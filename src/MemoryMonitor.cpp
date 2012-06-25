@@ -1,7 +1,6 @@
 #include "MemoryMonitor.h"
 #include <ByteArray.h>
 #include <List.h>
-#include <QFile>
 #include <unistd.h>
 #include <stdlib.h>
 
