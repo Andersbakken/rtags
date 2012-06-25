@@ -290,6 +290,7 @@ int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned
         IndexerJob *job = mJobs.value(fileId);
         if (job) {
             // printf("Aborting job %s to restart it\n", job->mIn.constData());
+            return -1;
             job->abort();
         } else {
             break;
