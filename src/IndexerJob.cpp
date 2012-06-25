@@ -4,6 +4,7 @@
 #include "MemoryMonitor.h"
 #include "Server.h"
 #include "EventObject.h"
+#include "EventLoop.h"
 
 static inline List<Path> extractPchFiles(const List<ByteArray> &args)
 {
@@ -457,7 +458,7 @@ struct Scope {
 void IndexerJob::run()
 {
     execute();
-    emit finished(this);
+    EventLoop::instance()->postEvent(mIndexer, new IndexerJobFinishedEvent(this));
 }
 void IndexerJob::execute()
 {

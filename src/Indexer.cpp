@@ -222,6 +222,15 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
     }
 }
 
+void Indexer::event(const Event *event)
+{
+    switch (event->type()) {
+    case IndexerJobFinishedEvent::Type:
+        onJobFinished(static_cast<const IndexerJobFinishedEvent*>(event)->job);
+        break;
+    }
+}
+
 void Indexer::onJobFinished(IndexerJob *job)
 {
     if (job->isAborted()) {
@@ -238,8 +247,6 @@ void Indexer::onJobFinished(IndexerJob *job)
 
     {
         MutexLocker locker(&mMutex);
-        if (mJobs.size() == 1)
-            printf("Removing %s from jobs\n", job->mIn.constData());
         mJobs.remove(job->mFileId);
         if (job->mIsPch) {
             Map<int, IndexerJob*>::iterator it = mWaitingForPCH.begin();
@@ -276,7 +283,7 @@ void Indexer::onJobFinished(IndexerJob *job)
         emit indexingDone(job->mId);
     }
 
-    job->deleteLater();
+    delete job;
 }
 
 
@@ -288,7 +295,6 @@ int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned
 
     const int id = ++mJobCounter;
     IndexerJob *job = new IndexerJob(this, id, indexerJobFlags, input, arguments);
-    connect(job, SIGNAL(finished(IndexerJob*)), this, SLOT(onJobFinished(IndexerJob*)));
 
     if (needsToWaitForPch(job)) {
         mWaitingForPCH[id] = job;
@@ -299,6 +305,8 @@ int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned
     if (existing) {
         existing->abort();
         IndexerJob *&j = mWaitingForAbort[fileId];
+        // ### if we're already waiting for this file, is it worth it to spawn a
+        // ### new thread? what about the id?
         delete j;
         j = job;
         return -1;

@@ -3,6 +3,7 @@
 
 #include "Mutex.h"
 #include "WaitCondition.h"
+#include "Thread.h"
 #include <vector>
 
 class Event;
@@ -27,6 +28,7 @@ public:
     void run();
     void exit();
 
+    pthread_t thread() const { return mThread; }
 private:
     void handlePipe();
     void sendPostedEvents();
@@ -53,6 +55,22 @@ private:
     std::vector<EventData> mEvents;
 
     static EventLoop* sInstance;
+
+    pthread_t mThread;
 };
+
+class EventLoopThread : public Thread
+{
+public:
+    EventLoopThread()
+    {}
+
+protected:
+    void run()
+    {
+        EventLoop::instance()->run();
+    }
+};
+
 
 #endif

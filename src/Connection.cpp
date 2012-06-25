@@ -1,5 +1,5 @@
 #include "Connection.h"
-#include <QLocalSocket>
+#include <LocalClient.h>
 
 Map<int, Connection::Meta> Connection::sMetas;
 
@@ -8,18 +8,23 @@ class ConnectionPrivate : public QObject
     Q_OBJECT
 public:
     ConnectionPrivate(Connection* parent)
-        : QObject(parent), socket(0), conn(parent), pendingRead(0), pendingWrite(0), done(false)
+        : QObject(parent), client(0), conn(parent), pendingRead(0), pendingWrite(0), done(false)
     {
+    }
+
+    ~ConnectionPrivate()
+    {
+        delete client;
     }
 
 public slots:
     void dataAvailable();
-    void dataWritten(qint64 bytes);
+    void dataWritten(int bytes);
 
 public:
-    QLocalSocket* socket;
+    LocalClient* client;
     Connection* conn;
-    uint32_t pendingRead, pendingWrite;
+    int pendingRead, pendingWrite;
     bool done;
 };
 
@@ -27,23 +32,36 @@ public:
 
 void ConnectionPrivate::dataAvailable()
 {
-    for (;;) {
-        if (!pendingRead &&
-            socket->bytesAvailable() < static_cast<int>(sizeof(uint32_t)))
-            return;
-        QDataStream strm(socket);
-        if (!pendingRead)
+    forever {
+        int available = client->bytesAvailable();
+        if (!pendingRead) {
+            if (available < static_cast<int>(sizeof(uint32_t)))
+                break;
+            char buf[sizeof(uint32_t)];
+            const int read = client->read(buf, 4);
+            assert(read == 4);
+            Deserializer strm(buf, read);
             strm >> pendingRead;
-        if (socket->bytesAvailable() < pendingRead)
-            return;
-
+            available -= 4;
+        }
+        if (available < pendingRead)
+            break;
+        char buf[1024];
+        char *buffer = buf;
+        if (pendingRead > static_cast<int>(sizeof(buf))) {
+            buffer = new char[pendingRead];
+        }
+        const int read = client->read(buffer, pendingRead);
+        assert(read == pendingRead);
+        Deserializer strm(buffer, read);
         int id;
-        QByteArray payload;
+        ByteArray payload;
         strm >> id >> payload;
-        Q_ASSERT(id > 0 && Connection::sMetas.contains(id));
+        assert(id > 0 && Connection::sMetas.contains(id));
 
         Connection::Meta m = Connection::sMetas.value(id);
-        QObject *newobj = m.meta->newInstance(Q_ARG(QObject*, conn));
+        QObject *newobj = m.meta->newInstance(Q_ARG(QObject*, 0));
+        assert(newobj);
         m.meta->method(m.fromByteArrayId).invoke(newobj, Q_ARG(ByteArray, ByteArray(payload.constData(), payload.size())));
         emit conn->newMessage(qobject_cast<Message*>(newobj));
 
@@ -51,7 +69,7 @@ void ConnectionPrivate::dataAvailable()
     }
 }
 
-void ConnectionPrivate::dataWritten(qint64 bytes)
+void ConnectionPrivate::dataWritten(int bytes)
 {
     Q_ASSERT(pendingWrite >= bytes);
     pendingWrite -= bytes;
@@ -59,56 +77,58 @@ void ConnectionPrivate::dataWritten(qint64 bytes)
         if (bytes)
             emit conn->sendComplete();
         if (done)
-            socket->close();
+            client->disconnect();
     }
 }
 
 Connection::Connection(QObject* parent)
     : QObject(parent), mPriv(new ConnectionPrivate(this))
 {
-    mPriv->socket = new QLocalSocket(mPriv);
-    connect(mPriv->socket, SIGNAL(connected()), this, SIGNAL(connected()));
-    connect(mPriv->socket, SIGNAL(disconnected()), this, SIGNAL(disconnected()));
-    connect(mPriv->socket, SIGNAL(error(QLocalSocket::LocalSocketError)), this, SIGNAL(error()));
-    connect(mPriv->socket, SIGNAL(readyRead()), mPriv, SLOT(dataAvailable()));
-    connect(mPriv->socket, SIGNAL(bytesWritten(qint64)), mPriv, SLOT(dataWritten(qint64)));
+    mPriv->client = new LocalClient;
+    mPriv->client->connected().connect(this, &Connection::connected);
+    mPriv->client->disconnected().connect(this, &Connection::disconnected);
+    mPriv->client->dataAvailable().connect(mPriv, &ConnectionPrivate::dataAvailable);
+    mPriv->client->bytesWritten().connect(mPriv, &ConnectionPrivate::dataWritten);
 }
 
-Connection::Connection(QLocalSocket* socket, QObject* parent)
+Connection::Connection(LocalClient* client, QObject* parent)
     : QObject(parent), mPriv(new ConnectionPrivate(this))
 {
-    Q_ASSERT(socket->state() == QLocalSocket::ConnectedState);
-    socket->setParent(mPriv);
-    mPriv->socket = socket;
-    connect(mPriv->socket, SIGNAL(disconnected()), this, SIGNAL(disconnected()));
-    connect(mPriv->socket, SIGNAL(error(QLocalSocket::LocalSocketError)), this, SIGNAL(error()));
-    connect(mPriv->socket, SIGNAL(readyRead()), mPriv, SLOT(dataAvailable()));
-    connect(mPriv->socket, SIGNAL(bytesWritten(qint64)), mPriv, SLOT(dataWritten(qint64)));
+    assert(client->isConnected());
+    mPriv->client = client;
+    mPriv->client->disconnected().connect(this, &Connection::disconnected);
+    mPriv->client->dataAvailable().connect(mPriv, &ConnectionPrivate::dataAvailable);
+    mPriv->client->bytesWritten().connect(mPriv, &ConnectionPrivate::dataWritten);
 }
 
 
 bool Connection::connectToServer(const ByteArray &name)
 {
-    mPriv->socket->connectToServer(name);
-    return mPriv->socket->waitForConnected(1000);
+    return mPriv->client->connect(name, 1000);
 }
 
 void Connection::send(int id, const ByteArray &message)
 {
-    if (mPriv->socket->state() != QLocalSocket::ConnectedState
-        && mPriv->socket->state() != QLocalSocket::ConnectingState) {
+    if (!mPriv->client->isConnected()) {
+        ::error("Trying to send message to unconnected client (%d)", id);
         return;
     }
 
-    QByteArray data;
+    ByteArray header, data;
     {
-        QDataStream strm(&data, QIODevice::WriteOnly);
-        strm << (int)0 << id << QByteArray::fromRawData(message.constData(), message.size());
-        strm.device()->seek(0);
-        strm << static_cast<uint32_t>(data.size()) - static_cast<uint32_t>(sizeof(uint32_t));
+        {
+            Serializer strm(data);
+            strm << id << message.size();
+            strm.write(message.constData(), message.size());
+        }
+        {
+            Serializer strm(header);
+            strm << data.size();
+        }
     }
-    mPriv->pendingWrite += data.size();
-    mPriv->socket->write(data);
+    mPriv->pendingWrite += (header.size() + data.size());
+    mPriv->client->write(header);
+    mPriv->client->write(data);
 }
 
 int Connection::pendingWrite() const

@@ -9,7 +9,6 @@
 
 class ListSymbolsJob : public Job
 {
-    Q_OBJECT
 public:
     ListSymbolsJob(int i, const QueryMessage &query);
 protected:

@@ -76,9 +76,9 @@ void DirectoryTracker::leaveDirectory(const ByteArray &dir)
     // enterDirectory(dir);
 }
 
-MakefileParser::MakefileParser(const List<ByteArray> &extraFlags, QObject *parent)
-    : QObject(parent), mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags),
-      mSourceCount(0), mPchCount(0)
+MakefileParser::MakefileParser(const List<ByteArray> &extraFlags, Connection *conn)
+    : QObject(), mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags),
+      mSourceCount(0), mPchCount(0), mConnection(conn)
 {
 }
 

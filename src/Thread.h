@@ -12,6 +12,7 @@ public:
     void start();
     void join();
 
+    pthread_t self() const { return mThread; }
 protected:
     virtual void run() = 0;
 

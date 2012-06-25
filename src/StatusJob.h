@@ -8,7 +8,6 @@
 
 class StatusJob : public Job
 {
-    Q_OBJECT
 public:
     StatusJob(int i, const ByteArray &query);
     static const char *delimiter;

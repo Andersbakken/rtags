@@ -1,10 +1,12 @@
 #include "Job.h"
 #include "Rdm.h"
+#include "EventLoop.h"
+#include "Server.h"
 
 // static int count = 0;
 // static int active = 0;
-Job::Job(int id, Priority p, unsigned flags, QObject *parent)
-    : QObject(parent), mId(id), mPriority(p), mFlags(flags), mFilterSystemIncludes(false)
+Job::Job(int id, Priority p, unsigned flags)
+    : mId(id), mPriority(p), mFlags(flags), mFilterSystemIncludes(false)
 {
     // error() << metaObject()->className() << "born" << ++count << ++active;
     setAutoDelete(false);
@@ -46,9 +48,9 @@ void Job::write(const ByteArray &out)
                 }
             }
             o.truncate(l);
-            emit output(id(), o);
+            EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, o));
         } else {
-            emit output(id(), out);
+            EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, out));
         }
     }
 }
@@ -63,9 +65,9 @@ bool Job::filter(const ByteArray &val) const
 void Job::run()
 {
     execute();
-    emit complete(id());
+    EventLoop::instance()->postEvent(Server::instance(), new JobCompleteEvent(this));
 }
 void Job::writeRaw(const ByteArray &out)
 {
-    emit output(id(), out);
+    EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, out));
 }

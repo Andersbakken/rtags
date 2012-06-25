@@ -6,10 +6,10 @@
 #include <List.h>
 #include <ByteArray.h>
 #include <QObject>
+#include "Event.h"
 
-class Job : public QObject, public ThreadPool::Job, public AbortInterface
+class Job : public ThreadPool::Job, public AbortInterface
 {
-    Q_OBJECT;
 public:
     enum Flag {
         None = 0x0,
@@ -20,7 +20,7 @@ public:
         QueryJobPriority = 10,
         CompletionMatchJobPriority = 0
     };
-    Job(int id, Priority priority, unsigned flags = None, QObject *parent = 0);
+    Job(int id, Priority priority, unsigned flags = None);
     ~Job();
     void setPathFilters(const List<ByteArray> &filter, bool filterSystemIncludes);
     List<ByteArray> pathFilters() const;
@@ -32,18 +32,36 @@ public:
     virtual void run();
     virtual void execute() {}
     int priority() const { return mPriority; }
-signals:
-#if !defined(Q_MOC_RUN)
-private:
-#endif
-    void complete(int id);
-    void output(int id, const ByteArray &out);
 private:
     const int mId;
     const Priority mPriority;
     const int mFlags;
     List<ByteArray> mPathFilters;
     bool mFilterSystemIncludes;
+};
+
+class JobCompleteEvent : public Event
+{
+public:
+    enum { Type = 1 };
+    JobCompleteEvent(Job *j)
+        : Event(Type), job(j)
+    {}
+
+    Job *job;
+};
+
+
+class JobOutputEvent : public Event
+{
+public:
+    enum { Type = 2 };
+    JobOutputEvent(Job *j, const ByteArray &o)
+        : Event(Type), job(j), out(o)
+    {}
+
+    Job *job;
+    const ByteArray out;
 };
 
 #endif

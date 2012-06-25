@@ -10,7 +10,6 @@
 
 class CursorInfoJob : public Job
 {
-    Q_OBJECT
 public:
     CursorInfoJob(int id, const Location &loc, unsigned flags);
     ~CursorInfoJob();

@@ -8,17 +8,15 @@
 #include <ByteArray.h>
 #include <Map.h>
 
-class QLocalSocket;
 class ConnectionPrivate;
+class LocalClient;
 
 class Connection : public QObject
 {
     Q_OBJECT
 public:
-    enum { Port = 18414 };
-
     Connection(QObject *parent = 0);
-    Connection(QLocalSocket *socket, QObject *parent = 0);
+    Connection(LocalClient *client, QObject *parent = 0);
 
     bool connectToServer(const ByteArray &name);
 

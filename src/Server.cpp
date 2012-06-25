@@ -1,31 +1,36 @@
-#include "Connection.h"
-#include "FollowLocationJob.h"
-#include "MakefileParser.h"
-#include "Indexer.h"
-#include "RegExp.h"
+#include "Server.h"
+
+#include "Event.h"
 #include "Client.h"
+#include <QObject>
+#include "LocalClient.h"
+#include "Connection.h"
 #include "CursorInfoJob.h"
-#include "ListSymbolsJob.h"
+#include "Database.h"
+#include "EventObject.h"
 #include "FindSymbolsJob.h"
+#include "FollowLocationJob.h"
+#include "Indexer.h"
+#include "IndexerJob.h"
+#include "ListSymbolsJob.h"
+#include "LocalServer.h"
+#include "LogObject.h"
+#include "MakefileMessage.h"
+#include "MakefileParser.h"
 #include "Message.h"
 #include "Messages.h"
-#include "LogObject.h"
-#include "EventObject.h"
-#include "Path.h"
-#include "TestJob.h"
-#include "RunTestJob.h"
-#include "QueryMessage.h"
 #include "OutputMessage.h"
-#include "MakefileMessage.h"
+#include "Path.h"
+#include "QueryMessage.h"
 #include "Rdm.h"
 #include "ReferencesJob.h"
+#include "RegExp.h"
+#include "RunTestJob.h"
 #include "SHA256.h"
-#include "IndexerJob.h"
-#include "Server.h"
 #include "StatusJob.h"
-#include "Database.h"
-#include "leveldb/db.h"
+#include "TestJob.h"
 #include "leveldb/cache.h"
+#include "leveldb/db.h"
 #include <Log.h>
 #include <clang-c/Index.h>
 #include <stdio.h>
@@ -127,7 +132,7 @@ bool Server::init(const Options &options)
     Messages::init();
 
     for (int i=0; i<10; ++i) {
-        mServer = new QLocalServer(this);
+        mServer = new LocalServer;
         if (mServer->listen(mOptions.name)) {
             break;
         }
@@ -142,7 +147,7 @@ bool Server::init(const Options &options)
         QFile::remove(mOptions.name);
     }
     if (!mServer) {
-        error("Unable to listen to port %d", Connection::Port);
+        error("Unable to listen on %s", mOptions.name.constData());
         return false;
     }
 
@@ -191,8 +196,8 @@ bool Server::init(const Options &options)
         }
         Location::init(pathsToIds, idsToPaths, maxId);
     }
+    mServer->clientConnected().connect(this, &Server::onNewConnection);
 
-    connect(mServer, SIGNAL(newConnection()), this, SLOT(onNewConnection()));
     error() << "running with " << mOptions.defaultArguments << " clang version " << Rdm::eatString(clang_getClangVersion());
 
     mIndexer = new Indexer(sBase, this);
@@ -205,11 +210,12 @@ bool Server::init(const Options &options)
 
 void Server::onNewConnection()
 {
-    while (mServer->hasPendingConnections()) {
-        QLocalSocket *socket = mServer->nextPendingConnection();
-        Connection *conn = new Connection(socket, this);
+    forever {
+        LocalClient *client = mServer->nextClient();
+        if (!client)
+            break;
+        Connection *conn = new Connection(client);
         connect(conn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
-        connect(socket, SIGNAL(disconnected()), conn, SLOT(deleteLater()));
         connect(conn, SIGNAL(destroyed(QObject*)), this, SLOT(onConnectionDestroyed(QObject*)));
     }
 }
@@ -289,7 +295,8 @@ void Server::make(const Path &path, List<ByteArray> makefileArgs, const List<Byt
 void Server::onMakefileParserDone(int sourceCount, int pchCount)
 {
     MakefileParser *parser = qobject_cast<MakefileParser*>(sender());
-    Connection *connection = qobject_cast<Connection*>(parser->parent());
+    assert(parser);
+    Connection *connection = parser->connection();
     if (connection) {
         char buf[1024];
         if (pchCount) {
@@ -300,9 +307,8 @@ void Server::onMakefileParserDone(int sourceCount, int pchCount)
         ResponseMessage msg(buf);
         connection->send(&msg);
         connection->finish();
-    } else {
-        parser->deleteLater();
     }
+    parser->deleteLater();
 }
 
 void Server::handleOutputMessage(OutputMessage *message)
@@ -408,23 +414,6 @@ void Server::onIndexingDone(int id)
     if (it == mPendingIndexes.end())
         return;
     ErrorMessage msg("Hello, world");
-    it->second->send(&msg);
-}
-
-void Server::onComplete(int id)
-{
-    Map<int, Connection*>::iterator it = mPendingLookups.find(id);
-    if (it == mPendingLookups.end())
-        return;
-    it->second->finish();
-}
-
-void Server::onOutput(int id, const ByteArray &response)
-{
-    Map<int, Connection*>::iterator it = mPendingLookups.find(id);
-    if (it == mPendingLookups.end())
-        return;
-    ResponseMessage msg(response);
     it->second->send(&msg);
 }
 
@@ -668,8 +657,6 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
 
 void Server::startJob(Job *job)
 {
-    connect(job, SIGNAL(complete(int)), this, SLOT(onComplete(int)));
-    connect(job, SIGNAL(output(int, ByteArray)), this, SLOT(onOutput(int, ByteArray)));
     mThreadPool->start(job, job->priority());
 }
 
@@ -730,3 +717,26 @@ void Server::onMakefileRemoved(const Path &path)
     general->setValue("makefiles", mMakefiles);
 }
 
+void Server::event(const Event *event)
+{
+    switch (event->type()) {
+    case JobCompleteEvent::Type: {
+        const JobCompleteEvent *e = static_cast<const JobCompleteEvent*>(event);
+        Map<int, Connection*>::iterator it = mPendingLookups.find(e->job->id());
+        if (it == mPendingLookups.end())
+            return;
+        it->second->finish();
+        break; }
+    case JobOutputEvent::Type: {
+        const JobOutputEvent *e = static_cast<const JobOutputEvent*>(event);
+        Map<int, Connection*>::iterator it = mPendingLookups.find(e->job->id());
+        if (it == mPendingLookups.end())
+            break;
+        ResponseMessage msg(e->out);
+        it->second->send(&msg);
+        break; }
+    default:
+        assert(0);
+        break;
+    }
+}

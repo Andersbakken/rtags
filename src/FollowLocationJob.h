@@ -10,7 +10,6 @@
 
 class FollowLocationJob : public Job
 {
-    Q_OBJECT
 public:
     FollowLocationJob(int id, const Location &loc, unsigned flags);
     ~FollowLocationJob();

@@ -10,7 +10,6 @@
 
 class ReferencesJob : public Job
 {
-    Q_OBJECT
 public:
     ReferencesJob(int id, const Location &location, unsigned queryFlags);
     ReferencesJob(int id, const ByteArray &symbolName, unsigned keyflags);

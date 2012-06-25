@@ -11,9 +11,8 @@
 #include "AbortInterface.h"
 #include <clang-c/Index.h>
 
-class IndexerJob : public QObject, public ThreadPool::Job, public AbortInterface
+class IndexerJob : public ThreadPool::Job, public AbortInterface
 {
-    Q_OBJECT;
 public:
     enum Flag {
         DirtyPch = 0x04,
@@ -72,8 +71,17 @@ public:
     CXTranslationUnit mUnit;
 
     ByteArray mMessage;
-signals:
-    void finished(IndexerJob *);
+};
+
+class IndexerJobFinishedEvent : public Event
+{
+public:
+    enum { Type = 1 };
+    IndexerJobFinishedEvent(IndexerJob *j)
+        : Event(Type), job(j)
+    {}
+
+    IndexerJob *job;
 };
 
 #endif

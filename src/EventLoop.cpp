@@ -11,7 +11,7 @@
 EventLoop* EventLoop::sInstance = 0;
 
 EventLoop::EventLoop()
-    : mQuit(false)
+    : mQuit(false), mThread(0)
 {
     if (!sInstance)
         sInstance = this;
@@ -37,11 +37,13 @@ void EventLoop::addFileDescriptor(int fd, unsigned int flags, FdFunc callback, v
     mFdData.push_back(data);
     locker.unlock();
 
-    const char c = 'a';
-    int r;
-    do {
-        r = ::write(mEventPipe[1], &c, 1);
-    } while (r == -1 && errno == EAGAIN);
+    if (!pthread_equal(pthread_self(), mThread)) {
+        const char c = 'a';
+        int r;
+        do {
+            r = ::write(mEventPipe[1], &c, 1);
+        } while (r == -1 && errno == EAGAIN);
+    }
 }
 
 void EventLoop::removeFileDescriptor(int fd)
@@ -57,7 +59,7 @@ void EventLoop::removeFileDescriptor(int fd)
         }
     }
 
-    if (found) {
+    if (found && !pthread_equal(pthread_self(), mThread)) {
         const char c = 'r';
         int r;
         do {
@@ -84,6 +86,7 @@ void EventLoop::postEvent(EventReceiver* receiver, Event* event)
 
 void EventLoop::run()
 {
+    mThread = pthread_self();
     fd_set rset, wset;
     int max;
     for (;;) {
@@ -162,6 +165,7 @@ void EventLoop::sendPostedEvents()
         mEvents.erase(first);
         locker.unlock();
         data.receiver->event(data.event);
+        delete data.event;
         locker.relock();
     }
 }

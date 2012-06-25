@@ -2,6 +2,7 @@
 #include "QueryMessage.h"
 #include "OutputMessage.h"
 #include "MakefileMessage.h"
+#include "EventLoop.h"
 #include "RTags.h"
 #include <ByteArray.h>
 #include <QCoreApplication>
@@ -426,6 +427,10 @@ int main(int argc, char** argv)
 
     if (name.isEmpty())
         name = RTags::rtagsDir() + "server";
+
+    EventLoop loop;
+    EventLoopThread eventThread;
+    eventThread.start();
 
     Client client(name, clientFlags, rdmArgs);
     foreach(Command *cmd, commands) {

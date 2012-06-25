@@ -10,7 +10,7 @@ public:
     virtual ~EventReceiver() {}
 
 protected:
-    virtual void event(Event* event) {}
+    virtual void event(const Event* event) {}
 
 private:
     friend class EventLoop;

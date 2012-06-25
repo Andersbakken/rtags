@@ -9,7 +9,6 @@
 
 class FindSymbolsJob : public Job
 {
-    Q_OBJECT
 public:
     FindSymbolsJob(int i, const QueryMessage &query);
 protected:

@@ -16,7 +16,8 @@ public:
         Q_ASSERT(!lines);
         Set<ByteArray> ret;
         lines = &ret;
-        connect(job, SIGNAL(output(int, ByteArray)), this, SLOT(onOutput(int, ByteArray)));
+#warning this is busted
+        // connect(job, SIGNAL(output(int, ByteArray)), this, SLOT(onOutput(int, ByteArray)));
         job->execute();
         lines = 0;
         delete job;
@@ -36,7 +37,6 @@ private:
 
 class RunTestJob : public Job
 {
-    Q_OBJECT
 public:
     RunTestJob(const Path &path, int id);
 protected:

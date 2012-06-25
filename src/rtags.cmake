@@ -122,28 +122,20 @@ set(rtags_SRCS
 set(rtags_MOCS
     Client.h
     Connection.h
-    CursorInfoJob.h
     ErrorMessage.h
     EventObject.h
     FileSystemWatcher.h
-    FindSymbolsJob.h
-    FollowLocationJob.h
     Indexer.h
     IndexerJob.h
-    Job.h
-    ListSymbolsJob.h
     LogObject.h
     MakefileMessage.h
     MakefileParser.h
     Message.h
     OutputMessage.h
     QueryMessage.h
-    ReferencesJob.h
     ResponseMessage.h
-    RunTestJob.h
     Server.h
-    StatusJob.h
-    TestJob.h
+    RunTestJob.h
     )
 
 include(qt4.cmake)

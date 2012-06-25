@@ -5,6 +5,7 @@
 #include <sys/un.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <errno.h>
 #include <string.h>
 
 #define LISTEN_BACKLOG 5
@@ -28,6 +29,7 @@ bool LocalServer::listen(const ByteArray& name)
 
     mFd = socket(PF_UNIX, SOCK_STREAM, 0);
     if (mFd < 0) {
+        error("LocalServer::listen() Unable to create socket");
         return false;
     }
 
@@ -35,19 +37,24 @@ bool LocalServer::listen(const ByteArray& name)
 
     memset(&address, 0, sizeof(struct sockaddr_un));
 
-    const int sz = std::min<int>(sizeof(address.sun_path) - 1, name.size());
+    if (static_cast<int>(sizeof(address.sun_path)) - 1 <= name.size()) {
+        error("LocalServer::listen() Path too long %s", name.constData());
+        return false;
+    }
+
     address.sun_family = AF_UNIX;
-    snprintf(address.sun_path, sz, "%s", name.constData());
-    address.sun_path[sz] = '\0';
+    memcpy(address.sun_path, name.nullTerminated(), name.size() + 1);
 
     if (bind(mFd, (struct sockaddr*)&address, sizeof(struct sockaddr_un)) != 0) {
         ::close(mFd);
         mFd = -1;
+        error("LocalServer::listen() Unable to bind");
         return false;
     }
 
     if (::listen(mFd, LISTEN_BACKLOG) != 0) {
         ::close(mFd);
+        error("LocalServer::listen() Unable to listen to socket");
         mFd = -1;
         return false;
     }

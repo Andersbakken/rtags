@@ -9,12 +9,12 @@
 #include <QProcess>
 
 class DirectoryTracker;
-
+class Connection;
 class MakefileParser : public QObject
 {
     Q_OBJECT
 public:
-    MakefileParser(const List<ByteArray> &extraFlags, QObject *parent = 0);
+    MakefileParser(const List<ByteArray> &extraFlags, Connection *conn);
     ~MakefileParser();
 
     void run(const Path &makefile, const List<ByteArray> &args);
@@ -23,6 +23,7 @@ public:
     List<ByteArray> mapPchToInput(const List<ByteArray> &input) const;
     void setPch(const ByteArray &output, const ByteArray &input);
     Path makefile() const { return mMakefile; }
+    Connection *connection() const { return mConnection; }
 signals:
     void done(int sources, int pchs);
     void fileReady(const GccArguments &args);
@@ -44,6 +45,7 @@ private:
     Map<ByteArray, ByteArray> mPchs;
     int mSourceCount, mPchCount;
     Path mMakefile;
+    Connection *mConnection;
 };
 
 #endif // MAKEFILEPARSER_H

@@ -4,13 +4,13 @@
 class Event
 {
 public:
-    Event(int type) {}
+    Event(int type) : mType(type) {}
     virtual ~Event() {}
 
     int type() const { return mType; }
 
 private:
-    int mType;
+    const int mType;
 };
 
 #endif

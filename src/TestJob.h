@@ -6,7 +6,6 @@
 
 class TestJob : public Job
 {
-    Q_OBJECT
 public:
     TestJob(const Path &path, int id);
 protected:

@@ -67,24 +67,6 @@ void signalHandler(int signal)
     _exit(1);
 }
 
-class EventLoopThread : public Thread
-{
-public:
-    EventLoopThread();
-
-protected:
-    void run();
-};
-
-EventLoopThread::EventLoopThread()
-{
-}
-
-void EventLoopThread::run()
-{
-    EventLoop::instance()->run();
-}
-
 void usage(FILE *f)
 {
     fprintf(f,

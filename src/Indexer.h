@@ -3,13 +3,14 @@
 
 #include "Rdm.h"
 #include "CursorInfo.h"
+#include "EventReceiver.h"
 #include "ReadWriteLock.h"
 #include "FileSystemWatcher.h"
 #include <clang-c/Index.h>
 #include <Timer.h>
 
 class IndexerJob;
-class Indexer : public QObject
+class Indexer : public QObject, public EventReceiver
 {
     Q_OBJECT;
 public:
@@ -33,13 +34,14 @@ public:
     void setDiagnostics(const Map<uint32_t, List<ByteArray> > &errors,
                         const Map<Location, std::pair<int, ByteArray> > &fixIts);
     void reindex(const ByteArray &pattern);
+    void event(const Event *event);
 signals:
     void indexingDone(int id);
     void jobsComplete();
 private slots:
-    void onJobFinished(IndexerJob *job);
     void onDirectoryChanged(const Path &path);
 private:
+    void onJobFinished(IndexerJob *job);
     void commitDependencies(const DependencyMap &deps, bool sync);
     enum InitMode {
         Normal,
