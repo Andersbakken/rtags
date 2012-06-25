@@ -1,16 +1,34 @@
 #ifndef AbortInterface_h
 #define AbortInterface_h
 
-#include <QBasicAtomicInt>
+#include <Mutex.h>
+#include <MutexLocker.h>
 
 class AbortInterface
 {
 public:
-    AbortInterface() { mAborted = 0; }
-    inline void abort() { mAborted.testAndSetRelaxed(0, 1); }
-    inline bool isAborted() { return mAborted.fetchAndAddRelaxed(0); }
+    AbortInterface()
+    {
+        mAborted = false;
+    }
+
+    virtual ~AbortInterface()
+    {}
+
+    inline void abort()
+    {
+        MutexLocker lock(&mMutex);
+        mAborted = true;
+    }
+
+    inline bool isAborted() const
+    {
+        MutexLocker lock(&mMutex);
+        return mAborted;
+    }
 private:
-    QBasicAtomicInt mAborted;
+    mutable Mutex mMutex;
+    bool mAborted;
 };
 
 #endif

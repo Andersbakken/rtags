@@ -3,7 +3,6 @@
 #include "ThreadPool.h"
 #include "Server.h"
 #include <getopt.h>
-#include <QDateTime>
 #include <stdio.h>
 #include <stdlib.h>
 #include <Log.h>
@@ -240,7 +239,7 @@ int main(int argc, char** argv)
     }
 
     eventThread.start();
-    
+
     const int ret = app.exec();
     delete server;
     return ret;

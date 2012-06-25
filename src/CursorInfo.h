@@ -4,7 +4,6 @@
 #include <ByteArray.h>
 #include <clang-c/Index.h>
 #include <Path.h>
-#include <QDebug>
 #include <RTags.h>
 #include "Location.h"
 #include "Rdm.h"
