@@ -462,10 +462,6 @@ void IndexerJob::execute()
 {
     QElapsedTimer timer;
     timer.start();
-    int elapsed = timer.elapsed();
-    if (elapsed > 10) {
-        error() << mIn << "waited for" << elapsed << "ms";
-    }
     // while (!Rdm::waitForMemory(10000)) {
     //     error("%s Waiting for rdm to shrink", mIn.constData());
     // }
@@ -652,7 +648,7 @@ void IndexerJob::execute()
                            strings[(mPchHeaders.isEmpty() ? None : Pch) | (mFlags & NeedsDirty ? Dirty : None)]);
     mMessage = ByteArray(buf, w);
     if (testLog(Warning)) {
-        warning() << "We're using" << double(MemoryMonitor::usage()) / double(1024 * 1024) << "MB of memory" << elapsed << "ms";
+        warning() << "We're using" << double(MemoryMonitor::usage()) / double(1024 * 1024) << "MB of memory" << timer.elapsed() << "ms";
     }
 }
 

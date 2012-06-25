@@ -5,6 +5,7 @@
 #include "Rdm.h"
 #include "CursorInfo.h"
 #include "ReadWriteLock.h"
+#include "FileSystemWatcher.h"
 #include <clang-c/Index.h>
 
 class IndexerJob;
@@ -37,7 +38,7 @@ signals:
     void jobsComplete();
 private slots:
     void onJobFinished(IndexerJob *job);
-    void onDirectoryChanged(const QString &path);
+    void onDirectoryChanged(const Path &path);
 private:
     void commitDependencies(const DependencyMap &deps, bool sync);
     enum InitMode {
@@ -67,7 +68,7 @@ private:
     bool mTimerRunning;
     QElapsedTimer mTimer;
 
-    QFileSystemWatcher mWatcher;
+    FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
     Mutex mWatchedMutex;
     WatchedMap mWatched;

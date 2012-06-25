@@ -32,7 +32,6 @@ public:
 
     bool isEmpty() const
     {
-        printf("%d %d\n", mPattern.isEmpty(), isValid());
         return mPattern.isEmpty() || !isValid();
     }
 

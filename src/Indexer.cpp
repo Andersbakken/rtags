@@ -30,8 +30,8 @@ Indexer::Indexer(const ByteArray &path, QObject *parent)
     dir.mkpath(mPath);
     mTimerRunning = false;
 
-    connect(&mWatcher, SIGNAL(directoryChanged(QString)),
-            this, SLOT(onDirectoryChanged(QString)));
+    connect(&mWatcher, SIGNAL(modified(Path)),
+            this, SLOT(onDirectoryChanged(Path)));
 
     {
         ScopedDB db = Server::instance()->db(Server::PCHUsrMapes, ScopedDB::Read);
@@ -211,7 +211,7 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
         Rdm::writeDependencies(newDependencies);
 
     Path parentPath;
-    Set<QString> watchPaths;
+    Set<ByteArray> watchPaths;
     const DependencyMap::const_iterator end = newDependencies.end();
     MutexLocker lock(&mWatchedMutex);
     for (DependencyMap::const_iterator it = newDependencies.begin(); it != end; ++it) {
@@ -221,20 +221,11 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
         //debug() << "watching" << path << "in" << parentPath;
         if (wit == mWatched.end()) {
             mWatched[parentPath].insert(std::pair<ByteArray, time_t>(path.fileName(), path.lastModified()));
-            watchPaths.insert(parentPath);
+            mWatcher.watch(parentPath);
         } else {
             wit->second.insert(std::pair<ByteArray, time_t>(path.fileName(), path.lastModified()));
         }
     }
-    if (watchPaths.isEmpty())
-        return;
-
-    QStringList list;
-    for (Set<QString>::const_iterator it = watchPaths.begin(); it != watchPaths.end(); ++it) {
-        list.append(*it);
-    }
-
-    mWatcher.addPaths(list);
 }
 
 void Indexer::onJobFinished(IndexerJob *job)
@@ -300,14 +291,12 @@ int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned
     forever {
         IndexerJob *job = mJobs.value(fileId);
         if (job) {
-            printf("Aborting job %s to restart it\n", job->mIn.constData());
+            // printf("Aborting job %s to restart it\n", job->mIn.constData());
             job->abort();
         } else {
             break;
         }
-        printf("[%s] %s:%d: mCondition.wait(&mMutex); [before]\n", __func__, __FILE__, __LINE__);
         mCondition.wait(&mMutex);
-        printf("[%s] %s:%d: mCondition.wait(&mMutex); [after]\n", __func__, __FILE__, __LINE__);
         if (mShuttingDown)
             return -1;
     }
@@ -337,9 +326,9 @@ void Indexer::startJob(IndexerJob *job)
     Server::instance()->threadPool()->start(job, job->priority());
 }
 
-void Indexer::onDirectoryChanged(const QString &path)
+void Indexer::onDirectoryChanged(const Path &p)
 {
-    const Path p(ByteArray(path.toStdString()));
+    // printf("%s modified\n", p.constData());
     Set<uint32_t> dirtyFiles;
     Map<Path, List<ByteArray> > toIndex, toIndexPch;
 
