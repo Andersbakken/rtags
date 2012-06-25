@@ -1,8 +1,8 @@
 #ifndef ScopedDB_h
 #define ScopedDB_h
 
+#include <tr1/memory>
 class Database;
-#include <QSharedDataPointer>
 class ScopedDB
 {
 public:
@@ -14,7 +14,7 @@ public:
     Database *operator->() { return mData->db; }
     operator Database *() { return mData->db; }
 private:
-    class Data : public QSharedData
+    class Data
     {
     public:
         Data(Database *database, LockType lockType);
@@ -22,7 +22,7 @@ private:
         Database *db;
         LockType lock;
     };
-    QSharedDataPointer<Data> mData;
+    std::tr1::shared_ptr<Data> mData;
 };
 
 #endif
