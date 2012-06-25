@@ -60,10 +60,9 @@ private:
     int mJobCounter;
 
     Mutex mMutex;
-    WaitCondition mCondition;
 
     ByteArray mPath;
-    Map<int, IndexerJob*> mJobs, mWaitingForPCH;
+    Map<int, IndexerJob*> mJobs, mWaitingForPCH, mWaitingForAbort;
 
     bool mTimerRunning;
     Timer mTimer;
@@ -76,7 +75,6 @@ private:
     Map<Location, std::pair<int, ByteArray> > mFixIts;
     Map<uint32_t, ByteArray> mErrors;
     mutable ReadWriteLock mFixItsAndErrorsLock;
-    bool mShuttingDown;
 };
 
 inline bool Indexer::visitFile(uint32_t fileId, const Path &path)

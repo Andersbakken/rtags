@@ -14,7 +14,7 @@
 #include <Log.h>
 
 Indexer::Indexer(const ByteArray &path, QObject *parent)
-    : QObject(parent), mShuttingDown(false)
+    : QObject(parent)
 {
     qRegisterMetaType<Path>("Path");
 
@@ -66,10 +66,6 @@ Indexer::Indexer(const ByteArray &path, QObject *parent)
 
 Indexer::~Indexer()
 {
-    MutexLocker locker(&mMutex);
-    mShuttingDown = true;
-    mCondition.wakeAll();
-    // write out FileInformation for all the files that are waiting for pch maybe
 }
 
 static inline bool isFile(uint32_t fileId)
@@ -262,6 +258,11 @@ void Indexer::onJobFinished(IndexerJob *job)
               static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
               job->mMessage.constData(), mJobs.size() + mWaitingForPCH.size(),
               int((MemoryMonitor::usage() / (1024 * 1024))));
+        IndexerJob *waiting = 0;
+        if (mWaitingForAbort.remove(job->mFileId, &waiting)) {
+            assert(waiting);
+            startJob(waiting);
+        }
 
         if (mJobs.isEmpty()) {
             Q_ASSERT(mTimerRunning);
@@ -273,7 +274,6 @@ void Indexer::onJobFinished(IndexerJob *job)
         }
 
         emit indexingDone(job->mId);
-        mCondition.wakeAll();
     }
 
     job->deleteLater();
@@ -286,20 +286,6 @@ int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned
 
     const uint32_t fileId = Location::insertFile(input);
 
-    forever {
-        IndexerJob *job = mJobs.value(fileId);
-        if (job) {
-            // printf("Aborting job %s to restart it\n", job->mIn.constData());
-            return -1;
-            job->abort();
-        } else {
-            break;
-        }
-        mCondition.wait(&mMutex);
-        if (mShuttingDown)
-            return -1;
-    }
-
     const int id = ++mJobCounter;
     IndexerJob *job = new IndexerJob(this, id, indexerJobFlags, input, arguments);
     connect(job, SIGNAL(finished(IndexerJob*)), this, SLOT(onJobFinished(IndexerJob*)));
@@ -308,12 +294,23 @@ int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned
         mWaitingForPCH[id] = job;
         return id;
     }
+
+    IndexerJob *existing = mJobs.value(fileId);
+    if (existing) {
+        existing->abort();
+        IndexerJob *&j = mWaitingForAbort[fileId];
+        delete j;
+        j = job;
+        return -1;
+    }
+
     startJob(job);
     return id;
 }
 
 void Indexer::startJob(IndexerJob *job)
 {
+    assert(!mJobs.contains(job->mFileId));
     // mMutex is always held at this point
     mJobs[job->mFileId] = job;
 
