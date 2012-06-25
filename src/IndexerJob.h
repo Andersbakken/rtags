@@ -1,7 +1,7 @@
 #ifndef IndexerJob_h
 #define IndexerJob_h
 
-#include <QtCore>
+#include <QObject>
 #include "Indexer.h"
 #include <RTags.h>
 #include "Rdm.h"

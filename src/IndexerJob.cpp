@@ -469,7 +469,7 @@ void IndexerJob::execute()
         mPchUSRMap = mIndexer->pchUSRMap(mPchHeaders);
     const uint64_t waitingForPch = timer.restart();
 
-    QVarLengthArray<const char*, 32> clangArgs(mArgs.size());
+    List<const char*> clangArgs(mArgs.size(), 0);
     ByteArray clangLine = "clang ";
     bool nextIsPch = false, nextIsX = false;
     ByteArray pchName;

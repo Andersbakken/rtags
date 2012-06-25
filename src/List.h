@@ -8,7 +8,9 @@ template <typename T>
 class List : public std::vector<T>
 {
 public:
-    List() {}
+    List(int count = 0, const T &defaultValue = T())
+        : std::vector<T>(count, defaultValue)
+    {}
 
     bool contains(const T &t) const
     {
