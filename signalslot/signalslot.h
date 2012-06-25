@@ -55,14 +55,14 @@ public:
 
     void operator()()
     {
-        typename std::vector<Type>::const_iterator delit = SignalBase<Type>::mDelegates.begin();
-        const typename std::vector<Type>::const_iterator delend = SignalBase<Type>::mDelegates.end();
+        std::vector<Type>::const_iterator delit = SignalBase<Type>::mDelegates.begin();
+        const  std::vector<Type>::const_iterator delend = SignalBase<Type>::mDelegates.end();
         while (delit != delend) {
             (*delit)();
             ++delit;
         }
-        typename std::vector<const SignalBase<Type>*>::const_iterator sigit = SignalBase<Type>::mSignals.begin();
-        const typename std::vector<const SignalBase<Type>*>::const_iterator sigend = SignalBase<Type>::mSignals.end();
+        std::vector<const SignalBase<Type>*>::const_iterator sigit = SignalBase<Type>::mSignals.begin();
+        const std::vector<const SignalBase<Type>*>::const_iterator sigend = SignalBase<Type>::mSignals.end();
         while (sigit != sigend) {
             (*const_cast<Signal0*>(reinterpret_cast<const Signal0*>(*sigit)))();
             ++sigit;

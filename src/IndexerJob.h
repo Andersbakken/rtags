@@ -27,6 +27,7 @@ public:
                const Path &input, const List<ByteArray> &arguments);
     int priority() const { return mFlags & Priorities; }
     virtual void run();
+    void execute();
 
     const int mId;
     const unsigned mFlags;
@@ -69,8 +70,10 @@ public:
 
     List<Path> mPchHeaders;
     CXTranslationUnit mUnit;
+
+    ByteArray mMessage;
 signals:
-    void done(int id, const Path &path, bool isPch, const ByteArray &msg);
+    void finished(IndexerJob *);
 };
 
 #endif

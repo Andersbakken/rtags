@@ -452,7 +452,13 @@ struct Scope {
     CXTranslationUnit &unit;
     CXIndex &index;
 };
+
 void IndexerJob::run()
+{
+    execute();
+    emit finished(this);
+}
+void IndexerJob::execute()
 {
     QElapsedTimer timer;
     timer.start();
@@ -644,9 +650,7 @@ void IndexerJob::run()
                            qPrintable(waitingForPch ? QString(" Waited for pch: %1ms.").arg(waitingForPch) : QString()),
                            mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size(),
                            strings[(mPchHeaders.isEmpty() ? None : Pch) | (mFlags & NeedsDirty ? Dirty : None)]);
-
-    ByteArray b(buf, w);
-    emit done(mId, mIn, mIsPch, b);
+    mMessage = ByteArray(buf, w);
     if (testLog(Warning)) {
         warning() << "We're using" << double(MemoryMonitor::usage()) / double(1024 * 1024) << "MB of memory" << elapsed << "ms";
     }

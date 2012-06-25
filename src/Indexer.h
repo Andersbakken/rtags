@@ -36,7 +36,7 @@ signals:
     void indexingDone(int id);
     void jobsComplete();
 private slots:
-    void onJobComplete(int id, const Path &input, bool isPch, const ByteArray &msg);
+    void onJobFinished(IndexerJob *job);
     void onDirectoryChanged(const QString &path);
 private:
     void commitDependencies(const DependencyMap &deps, bool sync);
@@ -46,7 +46,7 @@ private:
     };
     void initDB(InitMode forceDirty = Normal, const ByteArray &pattern = ByteArray());
     bool needsToWaitForPch(IndexerJob *job) const;
-    void startJob(int id, IndexerJob *job);
+    void startJob(IndexerJob *job);
 
     mutable ReadWriteLock mPchUSRMapLock;
     Map<Path, PchUSRMap> mPchUSRMapes;
@@ -59,7 +59,7 @@ private:
     int mJobCounter;
 
     Mutex mMutex;
-    Set<Path> mIndexing;
+    WaitCondition mCondition;
 
     ByteArray mPath;
     Map<int, IndexerJob*> mJobs, mWaitingForPCH;
@@ -75,6 +75,7 @@ private:
     Map<Location, std::pair<int, ByteArray> > mFixIts;
     Map<uint32_t, ByteArray> mErrors;
     mutable ReadWriteLock mFixItsAndErrorsLock;
+    bool mShuttingDown;
 };
 
 inline bool Indexer::visitFile(uint32_t fileId, const Path &path)

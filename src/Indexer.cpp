@@ -15,7 +15,7 @@
 #include <QtCore>
 
 Indexer::Indexer(const ByteArray &path, QObject *parent)
-    : QObject(parent)
+    : QObject(parent), mShuttingDown(false)
 {
     qRegisterMetaType<Path>("Path");
 
@@ -67,8 +67,9 @@ Indexer::Indexer(const ByteArray &path, QObject *parent)
 
 Indexer::~Indexer()
 {
-    // MutexLocker locker(&mMutex);
-
+    MutexLocker locker(&mMutex);
+    mShuttingDown = true;
+    mCondition.wakeAll();
     // write out FileInformation for all the files that are waiting for pch maybe
 }
 
@@ -236,29 +237,97 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
     mWatcher.addPaths(list);
 }
 
+void Indexer::onJobFinished(IndexerJob *job)
+{
+    if (job->isAborted()) {
+        Set<uint32_t> visited;
+        for (Map<uint32_t, IndexerJob::PathState>::const_iterator it = job->mPaths.begin(); it != job->mPaths.end(); ++it) {
+            if (it->second == IndexerJob::Index)
+                visited.insert(it->first);
+        }
+
+        MutexLocker lock(&mVisitedFilesMutex);
+        mVisitedFiles -= visited;
+        job->mMessage = "Aborted";
+    }
+
+    {
+        MutexLocker locker(&mMutex);
+        if (mJobs.size() == 1)
+            printf("Removing %s from jobs\n", job->mIn.constData());
+        mJobs.remove(job->mFileId);
+        if (job->mIsPch) {
+            Map<int, IndexerJob*>::iterator it = mWaitingForPCH.begin();
+            while (it != mWaitingForPCH.end()) {
+                IndexerJob *job = it->second;
+                if (!needsToWaitForPch(job)) {
+                    mWaitingForPCH.erase(it++);
+                    startJob(job);
+                } else {
+                    ++it;
+                }
+            }
+        }
+        const int idx = mJobCounter - (mJobs.size() + mWaitingForPCH.size());
+        error("[%3d%%] %d/%d %s. Pending jobs %d. %d mb mem.",
+              static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
+              job->mMessage.constData(), mJobs.size() + mWaitingForPCH.size(),
+              int((MemoryMonitor::usage() / (1024 * 1024))));
+
+        if (mJobs.isEmpty()) {
+            Q_ASSERT(mTimerRunning);
+            mTimerRunning = false;
+            error() << "jobs took " << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using "
+                    << MemoryMonitor::usage() / (1024.0 * 1024.0) << " mb of memory";
+            mJobCounter = 0;
+            emit jobsComplete();
+        }
+
+        emit indexingDone(job->mId);
+    }
+
+    job->deleteLater();
+    mCondition.wakeAll();
+}
+
+
 int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags)
 {
     MutexLocker locker(&mMutex);
 
-    if (mIndexing.contains(input))
-        return -1;
+    const uint32_t fileId = Location::insertFile(input);
+
+    forever {
+        IndexerJob *job = mJobs.value(fileId);
+        if (job) {
+            printf("Aborting job %s to restart it\n", job->mIn.constData());
+            job->abort();
+        } else {
+            break;
+        }
+        printf("[%s] %s:%d: mCondition.wait(&mMutex); [before]\n", __func__, __FILE__, __LINE__);
+        mCondition.wait(&mMutex);
+        printf("[%s] %s:%d: mCondition.wait(&mMutex); [after]\n", __func__, __FILE__, __LINE__);
+        if (mShuttingDown)
+            return -1;
+    }
 
     const int id = ++mJobCounter;
     IndexerJob *job = new IndexerJob(this, id, indexerJobFlags, input, arguments);
-    connect(job, SIGNAL(done(int, Path, bool, ByteArray)),
-            this, SLOT(onJobComplete(int, Path, bool, ByteArray)));
+    connect(job, SIGNAL(finished(IndexerJob*)), this, SLOT(onJobFinished(IndexerJob*)));
+
     if (needsToWaitForPch(job)) {
         mWaitingForPCH[id] = job;
         return id;
     }
-    startJob(id, job);
+    startJob(job);
     return id;
 }
 
-void Indexer::startJob(int id, IndexerJob *job)
+void Indexer::startJob(IndexerJob *job)
 {
-    mJobs[id] = job;
-    mIndexing.insert(job->mIn);
+    // mMutex is always held at this point
+    mJobs[job->mFileId] = job;
 
     if (!mTimerRunning) {
         mTimerRunning = true;
@@ -297,6 +366,7 @@ void Indexer::onDirectoryChanged(const QString &path)
             // error() << "comparing" << file << (file.lastModified() == (*wit).second)
             //          << QDateTime::fromTime_t(file.lastModified());
             if (!file.exists() || file.lastModified() != (*wit).second) {
+                error() << file << " has changed";
                 const uint32_t fileId = Location::fileId(file);
                 dirtyFiles.insert(fileId);
                 mVisitedFiles.remove(fileId);
@@ -354,45 +424,6 @@ void Indexer::onDirectoryChanged(const QString &path)
     }
 }
 
-void Indexer::onJobComplete(int id, const Path &input, bool isPch, const ByteArray &msg)
-{
-    Q_UNUSED(input);
-
-    MutexLocker locker(&mMutex);
-    mJobs.remove(id);
-    mIndexing.remove(input);
-    if (isPch) {
-        Map<int, IndexerJob*>::iterator it = mWaitingForPCH.begin();
-        while (it != mWaitingForPCH.end()) {
-            IndexerJob *job = it->second;
-            if (!needsToWaitForPch(job)) {
-                const int id = it->first;
-                mWaitingForPCH.erase(it++);
-                startJob(id, job);
-            } else {
-                ++it;
-            }
-        }
-    }
-    const int idx = mJobCounter - (mIndexing.size() + mWaitingForPCH.size());
-    error("[%3d%%] %d/%d %s. Pending jobs %d. %d mb mem.",
-          static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-          msg.constData(), mJobs.size() + mWaitingForPCH.size(),
-          int((MemoryMonitor::usage() / (1024 * 1024))));
-
-    if (mJobs.isEmpty()) {
-        Q_ASSERT(mTimerRunning);
-        mTimerRunning = false;
-        error() << "jobs took " << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using "
-                << MemoryMonitor::usage() / (1024.0 * 1024.0) << " mb of memory";
-        mJobCounter = 0;
-        emit jobsComplete();
-    }
-
-    emit indexingDone(id);
-    sender()->deleteLater();
-}
-
 void Indexer::setPchDependencies(const Path &pchHeader, const Set<uint32_t> &deps)
 {
     WriteLocker lock(&mPchDependenciesLock);
@@ -445,7 +476,8 @@ void Indexer::setPchUSRMap(const Path &pch, const PchUSRMap &astMap)
 bool Indexer::needsToWaitForPch(IndexerJob *job) const
 {
     foreach(const Path &pchHeader, job->mPchHeaders) {
-        if (mIndexing.contains(pchHeader))
+        const uint32_t fileId = Location::fileId(pchHeader);
+        if (mJobs.contains(fileId))
             return true;
     }
     return false;

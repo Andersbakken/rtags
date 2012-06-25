@@ -112,7 +112,6 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
 #endif
     }
 
-    qDebug() << environment.toStringList() << makefile << " " << ByteArray::join(args, " ");
     mProc->setProcessEnvironment(environment);
 
     connect(mProc, SIGNAL(readyReadStandardOutput()),
