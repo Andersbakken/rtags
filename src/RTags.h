@@ -4,7 +4,6 @@
 #include <typeinfo>
 #include <ByteArray.h>
 #include <Path.h>
-#include <QDir>
 #include <Log.h>
 #include <stdio.h>
 #include <assert.h>
@@ -13,7 +12,11 @@
 namespace RTags {
 enum UnitType { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };
 
-static inline Path rtagsDir() { return (QDir::homePath() + "/.rtags/").toLocal8Bit().constData(); }
+static inline Path rtagsDir() {
+    char buf[128];
+    int w = snprintf(buf, sizeof(buf), "%s/.rtags/", getenv("HOME"));
+    return Path(buf, w);
+}
 
 enum KeyFlag {
     NoFlag = 0x0,
