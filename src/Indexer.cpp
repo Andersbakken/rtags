@@ -81,8 +81,7 @@ static inline bool isFile(uint32_t fileId)
 void Indexer::initDB(InitMode mode, const ByteArray &pattern)
 {
     Q_ASSERT(mode == ForceDirty || pattern.isEmpty());
-    QElapsedTimer timer;
-    timer.start();
+    Timer timer;
     Map<uint32_t, Set<uint32_t> > deps, depsReversed;
 
     ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ScopedDB::Read);

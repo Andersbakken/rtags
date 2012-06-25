@@ -8,10 +8,10 @@
 #include <QMetaEnum>
 #include <errno.h>
 #include <QCoreApplication>
-#include <QElapsedTimer>
+#include <Timer.h>
 
 static unsigned sFlags = 0;
-static QElapsedTimer sStart;
+static Timer sStart;
 static Set<Output*> sOutputs;
 static Mutex sOutputsMutex;
 static int sLevel = 0;

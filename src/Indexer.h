@@ -7,6 +7,7 @@
 #include "ReadWriteLock.h"
 #include "FileSystemWatcher.h"
 #include <clang-c/Index.h>
+#include <Timer.h>
 
 class IndexerJob;
 class Indexer : public QObject
@@ -66,7 +67,7 @@ private:
     Map<int, IndexerJob*> mJobs, mWaitingForPCH;
 
     bool mTimerRunning;
-    QElapsedTimer mTimer;
+    Timer mTimer;
 
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;

@@ -4,6 +4,7 @@
 #include "ScopedDB.h"
 #include "Server.h"
 #include "MemoryMonitor.h"
+#include "Timer.h"
 #include <List.h>
 
 namespace Rdm {
@@ -84,8 +85,7 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
 
 int writeSymbolNames(SymbolNameMap &symbolNames)
 {
-    QElapsedTimer timer;
-    timer.start();
+    Timer timer;
     ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Write);
 
     Batch batch(db);
@@ -111,8 +111,7 @@ int writeSymbolNames(SymbolNameMap &symbolNames)
 
 int writeDependencies(const DependencyMap &dependencies)
 {
-    QElapsedTimer timer;
-    timer.start();
+    Timer timer;
     ScopedDB db = Server::instance()->db(Server::Dependency, ScopedDB::Write);
 
     Batch batch(db);
@@ -135,8 +134,7 @@ int writeDependencies(const DependencyMap &dependencies)
 }
 int writePchDepencies(const Map<Path, Set<uint32_t> > &pchDependencies)
 {
-    QElapsedTimer timer;
-    timer.start();
+    Timer timer;
     ScopedDB db = Server::instance()->db(Server::General, ScopedDB::Write);
     if (!pchDependencies.isEmpty())
         return db->setValue("pchDependencies", pchDependencies);
@@ -144,8 +142,7 @@ int writePchDepencies(const Map<Path, Set<uint32_t> > &pchDependencies)
 }
 int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t lastTouched)
 {
-    QElapsedTimer timer;
-    timer.start();
+    Timer timer;
     ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Write);
     if (Location::path(fileId).isHeader() && !isPch(args)) {
         error() << "Somehow we're writing fileInformation for a header that isn't pch"
@@ -157,8 +154,7 @@ int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t la
 
 int writePchUSRMapes(const Map<Path, PchUSRMap> &pchUSRMapes)
 {
-    QElapsedTimer timer;
-    timer.start();
+    Timer timer;
     ScopedDB db = Server::instance()->db(Server::PCHUsrMapes, ScopedDB::Write);
     int totalWritten = 0;
     Batch batch(db);
@@ -170,8 +166,7 @@ int writePchUSRMapes(const Map<Path, PchUSRMap> &pchUSRMapes)
 
 int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, uint32_t fileId)
 {
-    QElapsedTimer timer;
-    timer.start();
+    Timer timer;
     ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Write);
     Batch batch(db);
     int totalWritten = 0;
@@ -218,8 +213,7 @@ int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, uint32_t fi
 
 int dirty(const Set<uint32_t> &dirtyFileIds)
 {
-    QElapsedTimer timer;
-    timer.start();
+    Timer timer;
     // ### we should probably have a thread or something that stats each file we have in the db and calls dirty if the file is gone
     int ret = 0;
     debug() << "dirty" << dirtyFileIds;

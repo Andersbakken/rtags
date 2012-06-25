@@ -1,4 +1,5 @@
 #include "IndexerJob.h"
+#include "Timer.h"
 #include "SHA256.h"
 #include "MemoryMonitor.h"
 #include "Server.h"
@@ -460,8 +461,7 @@ void IndexerJob::run()
 }
 void IndexerJob::execute()
 {
-    QElapsedTimer timer;
-    timer.start();
+    Timer timer;
     // while (!Rdm::waitForMemory(10000)) {
     //     error("%s Waiting for rdm to shrink", mIn.constData());
     // }
