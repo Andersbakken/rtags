@@ -3,9 +3,6 @@
 #include "Connection.h"
 #include "MakefileParser.h"
 #include "ResponseMessage.h"
-#include <QDir>
-#include <QFileInfo>
-#include <QDebug>
 #include <Log.h>
 #include <unistd.h>
 
@@ -71,14 +68,14 @@ bool Client::connectToServer()
 {
     Q_ASSERT(!mConn);
     mConn = new Connection(this);
-    if (!mConn->connectToServer(QString::fromStdString(mName))) {
+    if (!mConn->connectToServer(mName)) {
         if (mFlags & AutostartRdm) {
             const Path cmd = RTags::applicationDirPath() + "/rdm";
             warning("trying to start rdm %s [%s]", qPrintable(cmd), ByteArray::join(mRdmArgs, " ").constData());
             if (RTags::startProcess(cmd, mRdmArgs)) {
                 warning("Started successfully");
                 for (int i=0; i<5; ++i) {
-                    if (mConn->connectToServer(QString::fromStdString(mName))) {
+                    if (mConn->connectToServer(mName)) {
                         return true;
                     }
                     sleep(1);

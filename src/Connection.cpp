@@ -87,7 +87,7 @@ Connection::Connection(QLocalSocket* socket, QObject* parent)
 }
 
 
-bool Connection::connectToServer(const QString &name)
+bool Connection::connectToServer(const ByteArray &name)
 {
     mPriv->socket->connectToServer(name);
     return mPriv->socket->waitForConnected(1000);

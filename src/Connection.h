@@ -5,7 +5,6 @@
 #include <QObject>
 #include <QMetaObject>
 #include <QMetaMethod>
-#include <QString>
 #include <ByteArray.h>
 #include <Map.h>
 
@@ -21,7 +20,7 @@ public:
     Connection(QObject *parent = 0);
     Connection(QLocalSocket *socket, QObject *parent = 0);
 
-    bool connectToServer(const QString &name);
+    bool connectToServer(const ByteArray &name);
 
     int pendingWrite() const;
 
