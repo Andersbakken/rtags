@@ -19,43 +19,6 @@
 #include <mach-o/dyld.h>
 #endif
 
-inline Path applicationDirPath(const char *argv0)
-{
-#ifdef OS_Linux
-    char buf[32];
-    const int w = snprintf(buf, sizeof(buf), "/proc/%d/exe", getpid());
-    Path p(buf, w);
-    if (p.isSymLink()) {
-        p.canonicalize();
-        return p.parentDir();
-    }
-#endif
-#ifdef OS_MAC
-    char path[PATH_MAX];
-    uint32_t size = sizeof(path);
-    if (_NSGetExecutablePath(path, &size) == 0) {
-        Path p(path, size);
-        if (p.resolve())
-            return p.parentDir();
-    }
-#endif
-    {
-        assert(argv0);
-        Path a(argv0);
-        if (a.resolve())
-            return a.parentDir();
-    }
-    const char *path = getenv("PATH");
-    const List<ByteArray> paths = ByteArray(path).split(':');
-    for (int i=0; i<paths.size(); ++i) {
-        Path p = (paths.at(i) + "/") + argv0;
-        if (p.resolve())
-            return p.parentDir();
-    }
-
-    return Path();
-}
-
 void signalHandler(int signal)
 {
     fprintf(stderr, "Caught signal %d\n", signal);
@@ -145,7 +108,7 @@ void usage(FILE *f)
 
 int main(int argc, char** argv)
 {
-    Rdm::setApplicationDirPath(applicationDirPath(*argv));
+    RTags::findApplicationDirPath(*argv);
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
         { "include-path", required_argument, 0, 'I' },

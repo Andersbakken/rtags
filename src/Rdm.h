@@ -82,8 +82,6 @@ enum ReferenceType {
     MemberFunction,
     GlobalFunction
 };
-void setApplicationDirPath(const Path &path);
-Path applicationDirPath();
 }
 
 class Database;

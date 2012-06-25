@@ -3,6 +3,7 @@
 #include <List.h>
 #include <stdio.h>
 #include <RegExp.h>
+#include <RTags.h>
 #include "Rdm.h"
 
 #ifndef MAKE
@@ -98,12 +99,9 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     Q_ASSERT(!mProc);
     mProc = new QProcess(this);
 
-    QDir makelibdir(QCoreApplication::applicationDirPath());
-    makelibdir.cdUp();
-
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
     if (!args.contains("-B")) {
-        Path p = Rdm::applicationDirPath();
+        Path p = RTags::applicationDirPath();
 #ifdef OS_Mac
         p += "/../makelib/libmakelib.dylib";
         p.resolve();

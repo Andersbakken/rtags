@@ -45,6 +45,9 @@ public:
     operator T*() const { return QScopedPointer<T>::data(); }
 };
 bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs);
+
+void findApplicationDirPath(const char *argv0);
+Path applicationDirPath();
 }
 
 #endif

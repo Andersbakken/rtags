@@ -200,6 +200,55 @@ bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs)
     _exit(1);
     return false;
 }
+
+static Path sApplicationDirPath;
+Path applicationDirPath()
+{
+    return sApplicationDirPath;
+}
+void findApplicationDirPath(const char *argv0)
+{
+#ifdef OS_Linux
+    char buf[32];
+    const int w = snprintf(buf, sizeof(buf), "/proc/%d/exe", getpid());
+    Path p(buf, w);
+    if (p.isSymLink()) {
+        p.resolve();
+        sApplicationDirPath = p;
+        return;
+    }
+#endif
+#ifdef OS_MAC
+    char path[PATH_MAX];
+    uint32_t size = sizeof(path);
+    if (_NSGetExecutablePath(path, &size) == 0) {
+        Path p(path, size);
+        if (p.resolve()) {
+            sApplicationDirPath = p;
+            return;
+        }
+    }
+#endif
+    {
+        assert(argv0);
+        Path a(argv0);
+        if (a.resolve()) {
+            sApplicationDirPath = a.parentDir();
+            return;
+        }
+    }
+    const char *path = getenv("PATH");
+    const List<ByteArray> paths = ByteArray(path).split(':');
+    for (int i=0; i<paths.size(); ++i) {
+        Path p = (paths.at(i) + "/") + argv0;
+        if (p.resolve()) {
+            sApplicationDirPath = p.parentDir();
+            return;
+        }
+    }
+    error("Can't find applicationDirPath");
+}
+
 }
 
 

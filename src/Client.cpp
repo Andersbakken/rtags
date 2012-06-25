@@ -74,16 +74,10 @@ bool Client::connectToServer()
     mConn = new Connection(this);
     if (!mConn->connectToServer(QString::fromStdString(mName))) {
         if (mFlags & AutostartRdm) {
-            QString cmd = QCoreApplication::arguments().value(0);
-            const int lastSlash = cmd.lastIndexOf('/');
-            if (lastSlash != -1) {
-                cmd.replace(lastSlash + 1, cmd.size() - lastSlash - 1, "rdm");
-            } else {
-                cmd = "rdm";
-            }
-            error("trying to start rdm %s [%s]", qPrintable(cmd), ByteArray::join(mRdmArgs, " ").constData());
-            if (RTags::startProcess(ByteArray(cmd.toStdString()), mRdmArgs)) {
-                error("Started successfully");
+            const Path cmd = RTags::applicationDirPath() + "/rdm";
+            warning("trying to start rdm %s [%s]", qPrintable(cmd), ByteArray::join(mRdmArgs, " ").constData());
+            if (RTags::startProcess(cmd, mRdmArgs)) {
+                warning("Started successfully");
                 for (int i=0; i<5; ++i) {
                     if (mConn->connectToServer(QString::fromStdString(mName))) {
                         return true;

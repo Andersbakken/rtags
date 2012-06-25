@@ -156,6 +156,7 @@ struct MakefileCommand : public Command
 
 int main(int argc, char** argv)
 {
+    RTags::findApplicationDirPath(*argv);
     QCoreApplication app(argc, argv);
 
     struct option opts[] = {

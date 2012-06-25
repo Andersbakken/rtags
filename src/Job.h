@@ -1,11 +1,11 @@
 #ifndef Job_h
 #define Job_h
 
-#include <QtCore>
 #include "AbortInterface.h"
 #include "ThreadPool.h"
 #include <List.h>
 #include <ByteArray.h>
+#include <QObject>
 
 class Job : public QObject, public ThreadPool::Job, public AbortInterface
 {
