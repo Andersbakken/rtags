@@ -2,8 +2,7 @@
 #define Str_h
 
 #include <clang-c/Index.h>
-#include <QSharedData>
-#include <QSharedDataPointer>
+#include <tr1/memory>
 
 class Str
 {
@@ -13,7 +12,7 @@ public:
     Str(CXString string)
     {
         if (clang_getCString(string)) {
-            mData = new Shared(string);
+            mData.reset(new Shared(string));
         } else {
             clang_disposeString(string);
         }
@@ -33,7 +32,7 @@ public:
         return 0;
     }
 private:
-    class Shared : public QSharedData
+    class Shared
     {
     public:
         Shared(CXString str)
@@ -46,7 +45,7 @@ private:
         CXString string;
         mutable int length;
     };
-    QSharedDataPointer<Shared> mData;
+    std::tr1::shared_ptr<Shared> mData;
 };
 
 #endif

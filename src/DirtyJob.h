@@ -1,7 +1,6 @@
 #ifndef DirtyJob_h
 #define DirtyJob_h
 
-#include <QtCore>
 #include "Indexer.h"
 #include "Path.h"
 #include "ThreadPool.h"

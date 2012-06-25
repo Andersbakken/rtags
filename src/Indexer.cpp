@@ -12,7 +12,6 @@
 #include "RegExp.h"
 #include "WriteLocker.h"
 #include <Log.h>
-#include <QtCore>
 
 Indexer::Indexer(const ByteArray &path, QObject *parent)
     : QObject(parent), mShuttingDown(false)

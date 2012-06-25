@@ -1,7 +1,6 @@
 #ifndef INDEXER_H
 #define INDEXER_H
 
-#include <QtCore>
 #include "Rdm.h"
 #include "CursorInfo.h"
 #include "ReadWriteLock.h"

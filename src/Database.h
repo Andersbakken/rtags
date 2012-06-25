@@ -3,7 +3,6 @@
 
 #include <leveldb/db.h>
 #include <leveldb/write_batch.h>
-#include <QtCore>
 #include <Serializer.h>
 #include "Location.h"
 #include "CursorInfo.h"

@@ -3,7 +3,6 @@
 
 #include "Message.h"
 #include "Path.h"
-#include <QtCore>
 #include <Serializer.h>
 
 class QueryMessage : public Message

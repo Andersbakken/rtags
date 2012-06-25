@@ -3,7 +3,6 @@
 
 #include <ByteArray.h>
 #include <Serializer.h>
-#include <QIODevice>
 #include <clang-c/Index.h>
 #include <Path.h>
 #include <RTags.h>

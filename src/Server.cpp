@@ -27,8 +27,6 @@
 #include "leveldb/db.h"
 #include "leveldb/cache.h"
 #include <Log.h>
-#include <QtCore>
-#include <QtNetwork>
 #include <clang-c/Index.h>
 #include <stdio.h>
 
