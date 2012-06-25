@@ -165,7 +165,7 @@ int main(int argc, char** argv)
         { "help", no_argument, 0, 'h' },
         { "autostart-rdm", optional_argument, 0, 'a' },
         { "follow-location", required_argument, 0, 'f' },
-        { "makefile", required_argument, 0, 'm' },
+        { "makefile", optional_argument, 0, 'm' },
         { "remake", optional_argument, 0, 'M' },
         { "reference-name", required_argument, 0, 'R' },
         { "reference-location", required_argument, 0, 'r' },
@@ -350,10 +350,19 @@ int main(int argc, char** argv)
             commands.append(new QueryCommand(type, p, queryFlags, pathFilters));
             break; }
         case 'm': {
-            const Path p = Path::resolved(optarg);
-            if (!p.isFile()) {
-                fprintf(stderr, "%s is not a file\n", optarg);
-                return 1;
+            Path p;
+            if (optarg) {
+                p = Path::resolved(optarg);
+                if (!p.isFile()) {
+                    fprintf(stderr, "%s is not a file\n", optarg);
+                    return 1;
+                }
+            } else {
+                p = "Makefile";
+                if (!p.resolve()) {
+                    fprintf(stderr, "Can't find a Makefile here\n");
+                    return 1;
+                }
             }
 
             List<ByteArray> makefileArgs;
