@@ -8,6 +8,15 @@
 #include <List.h>
 
 namespace Rdm {
+static Path sApplicationDirPath;
+Path applicationDirPath()
+{
+    return sApplicationDirPath;
+}
+void setApplicationDirPath(const Path &path)
+{
+    sApplicationDirPath = path;
+}
 ByteArray eatString(CXString str)
 {
     const ByteArray ret(clang_getCString(str));

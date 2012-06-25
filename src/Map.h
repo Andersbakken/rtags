@@ -75,6 +75,28 @@ public:
     {
         return std::map<Key, Value>::size();
     }
+
+    List<Key> keys() const
+    {
+        List<Key> keys;
+        typename std::map<Key, Value>::const_iterator it = std::map<Key, Value>::begin();
+        while (it != std::map<Key, Value>::end()) {
+            keys.append(it->first);
+            ++it;
+        }
+        return keys;
+    }
+
+    List<Value> values() const
+    {
+        List<Value> values;
+        typename std::map<Key, Value>::const_iterator it = std::map<Key, Value>::begin();
+        while (it != std::map<Key, Value>::end()) {
+            values.append(it->second);
+            ++it;
+        }
+        return values;
+    }
 };
 
 template <typename Key, typename Value>

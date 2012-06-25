@@ -12,36 +12,36 @@ public:
     {
     }
 
-    uint64_t start()
+    long int start()
     {
         return (mStart = current());
     }
 
-    uint64_t startTime() const
+    long int startTime() const
     {
         return mStart;
     }
 
-    static uint64_t current()
+    static long int current()
     {
         timeval t;
         ::gettimeofday(&t, 0);
         return t.tv_sec + (t.tv_usec / 1000);
     }
 
-    uint64_t elapsed() const
+    long int elapsed() const
     {
         return current() - mStart;
     }
 
-    uint64_t restart()
+    long int restart()
     {
-        const uint64_t cur = current();
-        const uint64_t ret = cur - mStart;
+        const long int cur = current();
+        const long int ret = cur - mStart;
         mStart = cur;
         return ret;
     }
 private:
-    uint64_t mStart;
+    long int mStart;
 };
 #endif

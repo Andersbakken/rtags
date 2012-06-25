@@ -13,8 +13,8 @@ public:
     FileSystemWatcher();
     ~FileSystemWatcher();
 
-    void watch(const Path &path);
-    void unwatch(const Path &path);
+    bool watch(const Path &path);
+    bool unwatch(const Path &path);
 signals:
     void removed(const Path &path);
     void modified(const Path &path);

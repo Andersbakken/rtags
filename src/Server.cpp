@@ -168,6 +168,7 @@ bool Server::init(const Options &options)
             return false;
         }
         mMakefiles = general->value<Map<Path, MakefileInformation> >("makefiles");
+        error() << mMakefiles.keys();
         for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
             mMakefilesWatcher.watch(it->first);
         }

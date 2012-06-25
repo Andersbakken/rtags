@@ -1,10 +1,9 @@
 #include "MakefileParser.h"
-#include <QDir>
-#include <QCoreApplication>
-#include <QStack>
 #include <Log.h>
+#include <List.h>
 #include <stdio.h>
 #include <RegExp.h>
+#include "Rdm.h"
 
 #ifndef MAKE
 #define MAKE "make"
@@ -15,29 +14,29 @@ class DirectoryTracker
 public:
     DirectoryTracker();
 
-    void init(const Path& path);
-    void track(const ByteArray& line);
+    void init(const Path &path);
+    void track(const ByteArray &line);
 
-    const Path& path() const { return mPaths.top(); }
-
-private:
-    void enterDirectory(const ByteArray& dir);
-    void leaveDirectory(const ByteArray& dir);
+    const Path &path() const { return mPaths.back(); }
 
 private:
-    QStack<Path> mPaths;
+    void enterDirectory(const ByteArray &dir);
+    void leaveDirectory(const ByteArray &dir);
+
+private:
+    List<Path> mPaths;
 };
 
 DirectoryTracker::DirectoryTracker()
 {
 }
 
-void DirectoryTracker::init(const Path& path)
+void DirectoryTracker::init(const Path &path)
 {
-    mPaths.push(path);
+    mPaths.push_back(path);
 }
 
-void DirectoryTracker::track(const ByteArray& line)
+void DirectoryTracker::track(const ByteArray &line)
 {
     // printf("Tracking %s\n", line.constData());
     static RegExp rx("make[^:]*: ([^ ]+) directory `([^']+)'");
@@ -56,23 +55,23 @@ void DirectoryTracker::track(const ByteArray& line)
     }
 }
 
-void DirectoryTracker::enterDirectory(const ByteArray& dir)
+void DirectoryTracker::enterDirectory(const ByteArray &dir)
 {
     bool ok;
     Path newPath = Path::resolved(dir, path(), &ok);
     if (ok) {
-        mPaths.push(newPath);
+        mPaths.push_back(newPath);
         debug("New directory resolved: %s", newPath.constData());
     } else {
         qFatal("Unable to resolve path %s (%s)", dir.constData(), path().constData());
     }
 }
 
-void DirectoryTracker::leaveDirectory(const ByteArray& dir)
+void DirectoryTracker::leaveDirectory(const ByteArray &dir)
 {
     verboseDebug() << "leaveDirectory" << dir;
     // enter and leave share the same code for now
-    mPaths.pop();
+    mPaths.pop_back();
     // enterDirectory(dir);
 }
 
@@ -101,14 +100,18 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
 
     QDir makelibdir(QCoreApplication::applicationDirPath());
     makelibdir.cdUp();
-    debug("Using makelib in '%s/makelib'", qPrintable(makelibdir.canonicalPath()));
 
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
     if (!args.contains("-B")) {
-#ifdef Q_OS_MAC
-        environment.insert("DYLD_INSERT_LIBRARIES", makelibdir.canonicalPath() + "/makelib/libmakelib.dylib");
+        Path p = Rdm::applicationDirPath();
+#ifdef OS_Mac
+        p += "/../makelib/libmakelib.dylib";
+        p.resolve();
+        environment.insert("DYLD_INSERT_LIBRARIES", p.constData());
 #else
-        environment.insert("LD_PRELOAD", makelibdir.canonicalPath() + "/makelib/libmakelib.so");
+        p += "/../makelib/libmakelib.so";
+        p.resolve();
+        environment.insert("LD_PRELOAD", p.constData());
 #endif
     }
 

@@ -26,7 +26,7 @@ FileSystemWatcher::~FileSystemWatcher()
     close(mInotifyFd);
 #endif
 }
-void FileSystemWatcher::watch(const Path &path)
+bool FileSystemWatcher::watch(const Path &path)
 {
 #ifdef OS_Linux
     MutexLocker lock(&mMutex);
@@ -41,26 +41,26 @@ void FileSystemWatcher::watch(const Path &path)
         break;
     default:
         error("FileSystemWatcher::watch() %s doesn't not seem to be watchable", path.constData());
-        return;
+        return false;
     }
 
     if (mWatchedByPath.contains(path)) {
-        error("You're  already watching [%s]", path.constData());
-        return;
+        return false;
     }
     errno = 0;
     const int ret = inotify_add_watch(mInotifyFd, path.constData(), flags);
     if (ret == -1) {
         error("FileSystemWatcher::watch() inotify_add_watch failed for %s (%d) %s",
               path.constData(), errno, strerror(errno));
-        return;
+        return false;
     }
 
     mWatchedByPath[path] = ret;
     mWatchedById[ret] = path;
+    return true;
 #endif
 }
-void FileSystemWatcher::unwatch(const Path &path)
+bool FileSystemWatcher::unwatch(const Path &path)
 {
 #ifdef OS_Linux
     MutexLocker lock(&mMutex);
@@ -69,8 +69,9 @@ void FileSystemWatcher::unwatch(const Path &path)
         debug("FileSystemWatcher::unwatch(\"%s\")", path.constData());
         mWatchedById.remove(wd);
         inotify_rm_watch(mInotifyFd, wd);
+        return true;
     } else {
-        error("You weren't watching %s", path.constData());
+        return false;
     }
 #endif
 }

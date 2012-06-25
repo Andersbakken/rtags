@@ -1,7 +1,7 @@
 #ifndef Log_h
 #define Log_h
 
-#include <shared_ptr.h>
+#include <tr1/memory>
 #include <ByteArray.h>
 #include <Map.h>
 #include <Set.h>
@@ -118,7 +118,7 @@ private:
         std::ostringstream dbg;
     };
 
-    shared_ptr<Data> mData;
+    std::tr1::shared_ptr<Data> mData;
 };
 
 template <typename T> inline ByteArray typeName()

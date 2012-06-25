@@ -204,7 +204,7 @@ bool initLogging(int level, const Path &file, unsigned flags)
 Log::Log(int level)
 {
     if (testLog(level))
-        mData = new Data(level);
+        mData.reset(new Data(level));
 }
 
 Log::Log(const Log &other)

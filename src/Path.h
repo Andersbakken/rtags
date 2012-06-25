@@ -69,6 +69,7 @@ public:
     bool isHeader() const;
     bool isResolved() const;
     bool isCanonical() const;
+    bool isSymLink() const { return type() == SymLink; }
     Path parentDir() const;
     Type type() const;
     bool resolve(const Path &cwd = Path());
