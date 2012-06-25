@@ -7,7 +7,6 @@
 #include <QMetaObject>
 #include <QMetaEnum>
 #include <errno.h>
-#include <QCoreApplication>
 #include <Timer.h>
 
 static unsigned sFlags = 0;

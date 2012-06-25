@@ -3,7 +3,6 @@
 #include "Connection.h"
 #include "MakefileParser.h"
 #include "ResponseMessage.h"
-#include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
 #include <QDebug>
