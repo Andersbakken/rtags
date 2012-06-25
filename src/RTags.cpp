@@ -208,7 +208,7 @@ Path applicationDirPath()
 }
 void findApplicationDirPath(const char *argv0)
 {
-#ifdef OS_Linux
+#if defined(OS_Linux)
     char buf[32];
     const int w = snprintf(buf, sizeof(buf), "/proc/%d/exe", getpid());
     Path p(buf, w);
@@ -217,8 +217,7 @@ void findApplicationDirPath(const char *argv0)
         sApplicationDirPath = p;
         return;
     }
-#endif
-#ifdef OS_MAC
+#elif defined(OS_Mac)
     char path[PATH_MAX];
     uint32_t size = sizeof(path);
     if (_NSGetExecutablePath(path, &size) == 0) {
@@ -228,6 +227,8 @@ void findApplicationDirPath(const char *argv0)
             return;
         }
     }
+#else
+#warning Unknown platform.
 #endif
     {
         assert(argv0);
