@@ -355,7 +355,7 @@ void Indexer::onDirectoryChanged(const Path &p)
             // error() << "comparing" << file << (file.lastModified() == (*wit).second)
             //          << QDateTime::fromTime_t(file.lastModified());
             if (!file.exists() || file.lastModified() != (*wit).second) {
-                error() << file << " has changed";
+                warning() << file << " has changed";
                 const uint32_t fileId = Location::fileId(file);
                 dirtyFiles.insert(fileId);
                 mVisitedFiles.remove(fileId);

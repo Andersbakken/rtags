@@ -1,10 +1,7 @@
 #ifndef Log_h
 #define Log_h
 
-#include <QString>
-#include <QExplicitlySharedDataPointer>
-#include <QSharedData>
-#include <QVariant>
+#include <shared_ptr.h>
 #include <ByteArray.h>
 #include <Map.h>
 #include <Set.h>
@@ -105,7 +102,7 @@ public:
         return *this;
     }
 private:
-    class Data : public QSharedData
+    class Data
     {
     public:
         Data(int lvl)
@@ -121,7 +118,7 @@ private:
         std::ostringstream dbg;
     };
 
-    QExplicitlySharedDataPointer<Data> mData;
+    shared_ptr<Data> mData;
 };
 
 template <typename T> inline ByteArray typeName()
