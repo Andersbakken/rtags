@@ -1,6 +1,7 @@
 #include "Path.h"
 #include <stdio.h>
 #include "RTags.h"
+#include <sys/stat.h>
 
 // this doesn't check if *this actually is a real file
 Path Path::parentDir() const
@@ -178,4 +179,23 @@ Path Path::canonicalized(const ByteArray &path)
     Path p(path);
     p.canonicalize();
     return p;
+}
+
+bool Path::mksubdir(const ByteArray &path) const
+{
+    if (isDir()) {
+        ByteArray combined = *this;
+        if (!combined.endsWith('/'))
+            combined.append('/');
+        combined.append(path);
+        return Path::mkdir(combined);
+    }
+    return false;
+}
+
+bool Path::mkdir(const Path &path)
+{
+    const mode_t mode = S_IRUSR|S_IWUSR|S_IXUSR|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
+    errno = 0;
+    return !::mkdir(path.constData(), mode) || errno == EEXIST;
 }

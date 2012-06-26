@@ -62,6 +62,8 @@ public:
     inline bool isAbsolute() const { return (!isEmpty() && at(0) == '/'); }
     const char *fileName() const;
     const char *extension() const;
+    static bool mkdir(const Path &path);
+    bool mksubdir(const ByteArray &subdir) const;
     bool isSource() const;
     static bool isSource(const char *extension, int len);
     bool isSystem() const { return Path::isSystem(constData()); }
