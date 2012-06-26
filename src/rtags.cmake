@@ -126,7 +126,6 @@ set(rtags_MOCS
     EventObject.h
     FileSystemWatcher.h
     Indexer.h
-    IndexerJob.h
     LogObject.h
     MakefileMessage.h
     MakefileParser.h
