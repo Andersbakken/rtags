@@ -8,15 +8,15 @@
 #include <Map.h>
 #include <List.h>
 #include <QObject>
+#include <QEventLoop>
 
 class Connection;
 class Message;
 
-class Client : public QObject
+class Client
 {
-    Q_OBJECT
 public:
-    Client(const ByteArray &name, unsigned flags = 0, const List<ByteArray> &rdmArgs = List<ByteArray>(), QObject *parent = 0);
+    Client(const ByteArray &name, unsigned flags = 0, const List<ByteArray> &rdmArgs = List<ByteArray>());
     enum Flag {
         None = 0x0,
         AutostartRdm = 0x1,
@@ -29,12 +29,11 @@ public:
     template<typename T>
     void message(const T *msg);
     bool connectToServer();
-private slots:
     void onDisconnected();
-    void onNewMessage(Message *message);
+    void onNewMessage(Message *message, Connection *);
 private:
     void sendMessage(int id, const ByteArray& msg);
-    Connection *mConn;
+    Connection *mConnection;
     unsigned mFlags;
     List<ByteArray> mRdmArgs;
     QEventLoop mLoop;
@@ -44,7 +43,7 @@ private:
 template<typename T>
 void Client::message(const T *msg)
 {
-    sendMessage(msg->messageId(), msg->toByteArray());
+    sendMessage(msg->messageId(), msg->encode());
 }
 
 #endif

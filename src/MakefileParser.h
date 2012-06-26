@@ -7,6 +7,7 @@
 #include <List.h>
 #include <Map.h>
 #include <QProcess>
+#include <signalslot.h>
 
 class DirectoryTracker;
 class Connection;
@@ -24,9 +25,11 @@ public:
     void setPch(const ByteArray &output, const ByteArray &input);
     Path makefile() const { return mMakefile; }
     Connection *connection() const { return mConnection; }
-signals:
-    void done(int sources, int pchs);
-    void fileReady(const GccArguments &args);
+    signalslot::Signal1<MakefileParser*> &done() { return mDone; }
+    signalslot::Signal1<const GccArguments &> &fileReady() { return mFileReady; }
+
+    int sourceCount() const { return mSourceCount; }
+    int pchCount() const { return mPchCount; }
 
 private slots:
     void onDone();
@@ -46,6 +49,8 @@ private:
     int mSourceCount, mPchCount;
     Path mMakefile;
     Connection *mConnection;
+    signalslot::Signal1<MakefileParser*> mDone;
+    signalslot::Signal1<const GccArguments &> mFileReady;
 };
 
 #endif // MAKEFILEPARSER_H

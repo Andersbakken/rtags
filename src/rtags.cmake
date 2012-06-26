@@ -24,7 +24,6 @@ set(rtags_HDRS
     Database.h
     DirtyJob.h
     ErrorMessage.h
-    EventObject.h
     FileSystemWatcher.h
     FindSymbolsJob.h
     FollowLocationJob.h
@@ -45,7 +44,7 @@ set(rtags_HDRS
     Messages.h
     Mutex.h
     MutexLocker.h
-    OutputMessage.h
+    CreateOutputMessage.h
     Path.h
     Pch.h
     QueryMessage.h
@@ -84,7 +83,6 @@ set(rtags_SRCS
     Database.cpp
     DirtyJob.cpp
     ErrorMessage.cpp
-    EventObject.cpp
     FileSystemWatcher.cpp
     FindSymbolsJob.cpp
     FollowLocationJob.cpp
@@ -99,7 +97,7 @@ set(rtags_SRCS
     MakefileParser.cpp
     MemoryMonitor.cpp
     Messages.cpp
-    OutputMessage.cpp
+    CreateOutputMessage.cpp
     Path.cpp
     QueryMessage.cpp
     RTags.cpp
@@ -120,17 +118,7 @@ set(rtags_SRCS
 )
 
 set(rtags_MOCS
-    Client.h
-    Connection.h
-    ErrorMessage.h
-    EventObject.h
-    LogObject.h
-    MakefileMessage.h
     MakefileParser.h
-    Message.h
-    OutputMessage.h
-    QueryMessage.h
-    ResponseMessage.h
     Server.h
     RunTestJob.h
     )

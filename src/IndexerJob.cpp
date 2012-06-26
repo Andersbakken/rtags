@@ -3,7 +3,6 @@
 #include "SHA256.h"
 #include "MemoryMonitor.h"
 #include "Server.h"
-#include "EventObject.h"
 #include "EventLoop.h"
 
 static inline List<Path> extractPchFiles(const List<ByteArray> &args)
@@ -570,12 +569,12 @@ void IndexerJob::execute()
             if (file)
                 visited[Location(file, 0).fileId()].append(string);
 
-            if (testLog(logLevel)) {
+            if (logLevel == Error || logLevel == Warning) {
+                log(CompilationError, "%s", string.constData());
+            } else if (testLog(logLevel)) {
                 log(logLevel, "%s", string.constData());
             }
-            if (logLevel == Error || logLevel == Warning) {
-                log(EventObject::CError, "%s", string.constData());
-            }
+
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
             for (unsigned f=0; f<fixItCount; ++f) {
                 CXSourceRange range;
@@ -649,7 +648,7 @@ void IndexerJob::execute()
                            strings[(mPchHeaders.isEmpty() ? None : Pch) | (mFlags & NeedsDirty ? Dirty : None)]);
     mMessage = ByteArray(buf, w);
     if (testLog(Warning)) {
-        warning() << "We're using" << double(MemoryMonitor::usage()) / double(1024 * 1024) << "MB of memory" << timer.elapsed() << "ms";
+        warning() << "We're using " << double(MemoryMonitor::usage()) / double(1024 * 1024) << " MB of memory " << timer.elapsed() << "ms";
     }
 }
 

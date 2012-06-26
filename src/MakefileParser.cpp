@@ -5,6 +5,7 @@
 #include <RegExp.h>
 #include <RTags.h>
 #include "Rdm.h"
+#include <QtCore>
 
 #ifndef MAKE
 #define MAKE "make"
@@ -142,6 +143,7 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
 
     unlink("/tmp/makelib.log");
     mProc->start(QLatin1String(MAKE), a);
+    mProc->waitForFinished();
 }
 
 bool MakefileParser::isDone() const
@@ -151,7 +153,7 @@ bool MakefileParser::isDone() const
 
 void MakefileParser::processMakeOutput()
 {
-    Q_ASSERT(mProc);
+    assert(mProc);
     mData += mProc->readAllStandardOutput().constData();
 
     // ### this could be more efficient
@@ -175,7 +177,7 @@ void MakefileParser::processMakeLine(const ByteArray &line)
         } else {
             ++mSourceCount;
         }
-        emit fileReady(args);
+        fileReady()(args);
     } else {
         mTracker->track(line);
     }
@@ -188,7 +190,7 @@ void MakefileParser::onError(QProcess::ProcessError err)
 
 void MakefileParser::onProcessStateChanged(QProcess::ProcessState state)
 {
-    debug() << "process state changed" << state;
+    debug() << "process state changed " << state;
 }
 
 void MakefileParser::onReadyReadStandardError()
@@ -216,5 +218,5 @@ void MakefileParser::setPch(const ByteArray &output, const ByteArray &input)
 
 void MakefileParser::onDone()
 {
-    emit done(mSourceCount, mPchCount);
+    done()(this);
 }

@@ -2,21 +2,20 @@
 #define CONNECTION_H
 
 #include "Messages.h"
-#include <QObject>
-#include <QMetaObject>
-#include <QMetaMethod>
+#include "EventReceiver.h"
 #include <ByteArray.h>
 #include <Map.h>
 #include <signalslot.h>
 
 class ConnectionPrivate;
 class LocalClient;
-
-class Connection
+class Event;
+class Connection : public EventReceiver
 {
 public:
     Connection();
     Connection(LocalClient *client);
+    ~Connection();
 
     bool connectToServer(const ByteArray &name);
 
@@ -25,71 +24,34 @@ public:
     template<typename T>
     void send(const T *message);
     void send(int id, const ByteArray& message);
-
-    template<typename T>
-    static bool registerMessage();
+    void write(const ByteArray &out);
     void finish();
+
     signalslot::Signal0 &connected() { return mConnected; }
     signalslot::Signal0 &disconnected() { return mDisconnected; }
     signalslot::Signal0 &error() { return mError; }
-    signalslot::Signal1<Message*> newMessage() { return mNewMessage; }
-    signalslot::Signal0 sendComplete() { return mSendComplete; }
-
+    signalslot::Signal2<Message*, Connection*> &newMessage() { return mNewMessage; }
+    signalslot::Signal0 &sendComplete() { return mSendComplete; }
+    signalslot::Signal1<Connection*> &destroyed() { return mDestroyed; }
+protected:
+    void event(const Event *e);
 private:
-    ConnectionPrivate *mPriv;
+    void dataAvailable();
+    void dataWritten(int bytes);
 
-    struct Meta
-    {
-        const QMetaObject *meta;
-        int fromByteArrayId;
-    };
-    static Map<int, Meta> sMetas;
+    LocalClient *mClient;
+    int mPendingRead, mPendingWrite;
+    bool mDone;
 
     signalslot::Signal0 mConnected, mDisconnected, mError, mSendComplete;
-    signalslot::Signal1<Message*> mNewMessage;
-
-    friend class ConnectionPrivate;
+    signalslot::Signal2<Message*, Connection*> mNewMessage;
+    signalslot::Signal1<Connection*> mDestroyed;
 };
 
 template<typename T>
 void Connection::send(const T *message)
 {
-    send(T::MessageId, message->toByteArray());
-}
-
-template<typename T>
-bool Connection::registerMessage()
-{
-    const int id = T::MessageId;
-    if (sMetas.contains(id))
-        return true;
-    const QMetaObject *obj = &T::staticMetaObject;
-
-    if (!obj->constructorCount()
-        || obj->constructor(0).parameterTypes().size() != 1
-        || obj->constructor(0).parameterTypes().front() != "QObject*") {
-        qWarning("no constructor");
-        return false;
-    }
-
-    int fromByteArrayId = -1;
-    for (int i = obj->methodOffset(); i < obj->methodCount(); ++i) {
-        if (!qstrcmp(obj->method(i).signature(), "fromByteArray(ByteArray)"))
-            fromByteArrayId = i;
-    }
-
-    if (fromByteArrayId == -1) {
-        qWarning("no fromByteArray method");
-        return false;
-    }
-
-    Q_ASSERT(!sMetas.contains(id));
-    Meta m;
-    m.meta = obj;
-    m.fromByteArrayId = fromByteArrayId;
-    sMetas[id] = m;
-
-    return true;
+    send(message->messageId(), message->encode());
 }
 
 #endif // CONNECTION_H

@@ -63,6 +63,7 @@ public:
     const char *fileName() const;
     const char *extension() const;
     static bool mkdir(const Path &path);
+    static bool rm(const Path &file);
     bool mksubdir(const ByteArray &subdir) const;
     bool isSource() const;
     static bool isSource(const char *extension, int len);

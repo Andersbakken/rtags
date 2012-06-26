@@ -47,7 +47,7 @@ private:
     void startJob(IndexerJob *job);
 
     mutable ReadWriteLock mPchUSRMapLock;
-    Map<Path, PchUSRMap> mPchUSRMapes;
+    Map<Path, PchUSRMap> mPchUSRMaps;
 
     mutable Mutex mVisitedFilesMutex;
     Set<uint32_t> mVisitedFiles;

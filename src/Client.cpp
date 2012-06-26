@@ -6,8 +6,8 @@
 #include <Log.h>
 #include <unistd.h>
 
-Client::Client(const ByteArray &name, unsigned flags, const List<ByteArray> &rdmArgs, QObject *parent)
-    : QObject(parent), mConn(0), mFlags(flags), mRdmArgs(rdmArgs), mName(name)
+Client::Client(const ByteArray &name, unsigned flags, const List<ByteArray> &rdmArgs)
+    : mConnection(0), mFlags(flags), mRdmArgs(rdmArgs), mName(name)
 {
     if ((mFlags & (RestartRdm|AutostartRdm)) == (RestartRdm|AutostartRdm)) {
         mFlags &= ~AutostartRdm; // this is implied and would upset connectToServer
@@ -18,8 +18,8 @@ Client::Client(const ByteArray &name, unsigned flags, const List<ByteArray> &rdm
         if (ret) {
             QueryMessage msg(QueryMessage::Shutdown);
             message(&msg);
-            delete mConn;
-            mConn = 0;
+            delete mConnection;
+            mConnection = 0;
         }
         mFlags |= AutostartRdm;
         connectToServer();
@@ -29,19 +29,19 @@ Client::Client(const ByteArray &name, unsigned flags, const List<ByteArray> &rdm
 
 void Client::sendMessage(int id, const ByteArray &msg)
 {
-    if (!mConn && !connectToServer() && !(mFlags & (RestartRdm|AutostartRdm))) {
+    if (!mConnection && !connectToServer() && !(mFlags & (RestartRdm|AutostartRdm))) {
         if (!(mFlags & DontWarnOnConnectionFailure))
             error("Can't seem to connect to server");
         return;
     }
 
-    mConn->disconnected().connect(this, &Client::onDisconnected);
-    mConn->newMessage().connect(this, &Client::onNewMessage);
-    mConn->send(id, msg);
+    mConnection->disconnected().connect(this, &Client::onDisconnected);
+    mConnection->newMessage().connect(this, &Client::onNewMessage);
+    mConnection->send(id, msg);
     mLoop.exec();
 }
 
-void Client::onNewMessage(Message *message)
+void Client::onNewMessage(Message *message, Connection *)
 {
     if (message->messageId() == ResponseMessage::MessageId) {
         const ByteArray response = static_cast<ResponseMessage*>(message)->data();
@@ -51,30 +51,27 @@ void Client::onNewMessage(Message *message)
     } else {
         qFatal("Unexpected message: %d", message->messageId());
     }
-    message->deleteLater();
 }
 
 
 void Client::onDisconnected()
 {
-    if (sender() == mConn) {
-        mConn->deleteLater();
-        mConn = 0;
-        mLoop.quit();
-    }
+    delete mConnection;
+    mConnection = 0;
+    mLoop.quit();
 }
 bool Client::connectToServer()
 {
-    Q_ASSERT(!mConn);
-    mConn = new Connection(this);
-    if (!mConn->connectToServer(mName)) {
+    Q_ASSERT(!mConnection);
+    mConnection = new Connection;
+    if (!mConnection->connectToServer(mName)) {
         if (mFlags & AutostartRdm) {
             const Path cmd = RTags::applicationDirPath() + "/rdm";
             warning("trying to start rdm %s [%s]", cmd.nullTerminated(), ByteArray::join(mRdmArgs, " ").constData());
             if (RTags::startProcess(cmd, mRdmArgs)) {
                 warning("Started successfully");
                 for (int i=0; i<5; ++i) {
-                    if (mConn->connectToServer(mName)) {
+                    if (mConnection->connectToServer(mName)) {
                         return true;
                     }
                     sleep(1);
@@ -86,8 +83,8 @@ bool Client::connectToServer()
         }
 
         warning("Can't connect to host");
-        delete mConn;
-        mConn = 0;
+        delete mConnection;
+        mConnection = 0;
         return false;
     }
     return true;

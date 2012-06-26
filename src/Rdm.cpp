@@ -152,14 +152,17 @@ int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t la
     return db->setValue(Slice(ch, sizeof(fileId)), FileInformation(lastTouched, args));
 }
 
-int writePchUSRMapes(const Map<Path, PchUSRMap> &pchUSRMapes)
+int writePchUSRMaps(const Map<Path, PchUSRMap> &pchUSRMaps)
 {
     Timer timer;
-    ScopedDB db = Server::instance()->db(Server::PCHUsrMapes, ScopedDB::Write);
+    ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ScopedDB::Write);
     int totalWritten = 0;
     Batch batch(db);
-    for (Map<Path, PchUSRMap>::const_iterator it = pchUSRMapes.begin(); it != pchUSRMapes.end(); ++it) {
+    printf("write pch usr maps %d\n", pchUSRMaps.size());
+    for (Map<Path, PchUSRMap>::const_iterator it = pchUSRMaps.begin(); it != pchUSRMaps.end(); ++it) {
+        int old = totalWritten;
         totalWritten += batch.add(it->first, it->second);
+        printf("Writing pch usr map %s %d\n", it->first.constData(), old - totalWritten);
     }
     return totalWritten;
 }

@@ -151,7 +151,7 @@ int writeSymbolNames(SymbolNameMap &symbolNames);
 int writeDependencies(const DependencyMap &dependencies);
 int writePchDepencies(const Map<Path, Set<uint32_t> > &pchDependencies);
 int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t lastTouched);
-int writePchUSRMapes(const Map<Path, PchUSRMap> &hashes);
+int writePchUSRMaps(const Map<Path, PchUSRMap> &maps);
 int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, uint32_t fileId);
 int dirty(const Set<uint32_t> &dirtyFileIds);
 List<ByteArray> compileArgs(uint32_t fileId);

@@ -1,16 +1,11 @@
 #ifndef MESSAGE_H
 #define MESSAGE_H
 
-#include <QObject>
-
-class Message : public QObject
+class Message
 {
-    Q_OBJECT
 public:
-    Message(QObject *parent = 0)
-        : QObject(parent)
-    {}
-
+    Message() {}
+    virtual ~Message() {}
     virtual int messageId() const = 0;
 };
 

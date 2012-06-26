@@ -6,25 +6,21 @@
 
 class ResponseMessage : public Message
 {
-    Q_OBJECT
 public:
     enum { MessageId = 3 };
 
-    Q_INVOKABLE ResponseMessage(QObject *parent = 0)
-        : Message(parent)
+    ResponseMessage(const ByteArray &data = ByteArray())
+        : mData(data)
     {}
-    ResponseMessage(const ByteArray &data, QObject *parent = 0)
-        : Message(parent), mData(data)
-    {}
-    ResponseMessage(const List<ByteArray> &data, QObject *parent = 0)
-        : Message(parent), mData(ByteArray::join(data, "\n"))
+    ResponseMessage(const List<ByteArray> &data)
+        : mData(ByteArray::join(data, "\n"))
     {}
 
     virtual int messageId() const { return MessageId; }
     ByteArray data() const { return mData; }
     void setData(const ByteArray &data) { mData = data; }
-    ByteArray toByteArray() const { return mData; }
-    Q_INVOKABLE void fromByteArray(const ByteArray &data) { mData = data; }
+    ByteArray encode() const { return mData; }
+    void fromData(const char *data, int size) { mData = ByteArray(data, size); }
 private:
     ByteArray mData;
 };

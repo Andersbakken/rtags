@@ -6,6 +6,7 @@
 #include <clang-c/Index.h>
 #include <Rdm.h>
 #include "CursorInfo.h"
+#include <QDateTime>
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(int i, const ByteArray &q)
@@ -21,16 +22,14 @@ void StatusJob::execute()
         write(Server::databaseDir(Server::General));
         write("    version: " + ByteArray::number(db->value<int>("version")));
 
-        const Map<Path, std::pair<List<ByteArray>, List<ByteArray> > > makefiles
-            = db->value<Map<Path, std::pair<List<ByteArray>, List<ByteArray> > > >("makefiles");
-
-        for (Map<Path, std::pair<List<ByteArray>, List<ByteArray> > >::const_iterator it = makefiles.begin();
-             it != makefiles.end(); ++it) {
+        const Map<Path, MakefileInformation> makefiles = db->value<Map<Path, MakefileInformation> >("makefiles");
+        for (Map<Path, MakefileInformation>::const_iterator it = makefiles.begin(); it != makefiles.end(); ++it) {
             ByteArray out = "    " + it->first;
-            if (!it->second.first.isEmpty())
-                out += " args: " + ByteArray::join(it->second.first, " ");
-            if (!it->second.second.isEmpty())
-                out += " extra flags: " + ByteArray::join(it->second.second, " ");
+            out += " last touched: " + QDateTime::fromTime_t(it->second.lastTouched).toString().toStdString();
+            if (!it->second.makefileArgs.isEmpty())
+                out += " args: " + ByteArray::join(it->second.makefileArgs, " ");
+            if (!it->second.extraFlags.isEmpty())
+                out += " extra flags: " + ByteArray::join(it->second.extraFlags, " ");
             write(out);
         }
     }
@@ -130,7 +129,9 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "pch") {
-        ScopedDB db = Server::instance()->db(Server::FileIds, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ScopedDB::Read);
+        write(delimiter);
+        write(Server::databaseDir(Server::PCHUsrMaps));
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         char buf[1024];

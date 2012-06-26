@@ -5,15 +5,13 @@
 #include "MakefileMessage.h"
 #include "ErrorMessage.h"
 #include "ResponseMessage.h"
-#include "OutputMessage.h"
+#include "CreateOutputMessage.h"
 
 class Messages
 {
 public:
     static void init();
-
-private:
-    Messages();
+    static Message *create(const char *data, int size);
 };
 
 #endif // MESSAGES_H

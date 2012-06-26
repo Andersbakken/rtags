@@ -226,12 +226,3 @@ LogOutput::LogOutput(int logLevel)
 LogOutput::~LogOutput()
 {
 }
-
-EventOutput::EventOutput(int level)
-    : mLevel(level)
-{
-}
-
-EventOutput::~EventOutput()
-{
-}

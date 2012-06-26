@@ -1,29 +1,23 @@
 #include "MakefileMessage.h"
 #include <Serializer.h>
 
-MakefileMessage::MakefileMessage(QObject *parent)
-    : Message(parent)
+MakefileMessage::MakefileMessage(const Path &makefile, const List<ByteArray> &args, const List<ByteArray> &extraFlags)
+    : mMakefile(makefile), mArgs(args), mExtraFlags(extraFlags)
 {
 }
 
-MakefileMessage::MakefileMessage(const Path &makefile, const List<ByteArray> &args,
-                                 const List<ByteArray> &extraFlags, QObject *parent)
-    : Message(parent), mMakefile(makefile), mArgs(args), mExtraFlags(extraFlags)
-{
-}
-
-ByteArray MakefileMessage::toByteArray() const
+ByteArray MakefileMessage::encode() const
 {
     ByteArray data;
     {
         Serializer stream(data);
-        stream << mMakefile; // << mArgs << mExtraFlags;
+        stream << mMakefile << mArgs << mExtraFlags;
     }
     return data;
 }
 
-void MakefileMessage::fromByteArray(const ByteArray &data)
+void MakefileMessage::fromData(const char *data, int size)
 {
-    Deserializer stream(data.constData(), data.size());
-    stream >> mMakefile; // >> mArgs >> mExtraFlags;
+    Deserializer stream(data, size);
+    stream >> mMakefile >> mArgs >> mExtraFlags;
 }

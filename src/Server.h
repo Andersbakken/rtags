@@ -23,6 +23,7 @@ class MakefileMessage;
 class LocalServer;
 class Database;
 class GccArguments;
+class MakefileParser;
 class Server : public QObject, public EventReceiver
 {
     Q_OBJECT
@@ -41,7 +42,7 @@ public:
         Symbol,
         SymbolName,
         FileInformation,
-        PCHUsrMapes,
+        PCHUsrMaps,
         FileIds,
         DatabaseTypeCount
     };
@@ -65,22 +66,25 @@ public:
     ThreadPool *threadPool() const { return mThreadPool; }
     void onNewConnection();
 protected:
+    bool event(QEvent *event);
     void event(const Event *event);
 signals:
     void complete(int id, const List<ByteArray> &locations);
 private slots:
     void onFileReady(const GccArguments &file);
-    void onNewMessage(Message *message);
+    void onNewMessage(Message *message, Connection *conn);
     void onIndexingDone(int id);
-    void onConnectionDestroyed(QObject *o);
-    void onMakefileParserDone(int sourceCount, int pchCount);
+    void onConnectionDestroyed(Connection *o);
+    void onMakefileParserDone(MakefileParser *parser);
     void onMakefileModified(const Path &path);
     void onMakefileRemoved(const Path &path);
+    void make(const Path &path, List<ByteArray> makefileArgs = List<ByteArray>(),
+              const List<ByteArray> &extraFlags = List<ByteArray>(), Connection *conn = 0);
 private:
-    void handleMakefileMessage(MakefileMessage *message);
-    void handleQueryMessage(QueryMessage *message);
-    void handleErrorMessage(ErrorMessage *message);
-    void handleOutputMessage(OutputMessage *message);
+    void handleMakefileMessage(MakefileMessage *message, Connection *conn);
+    void handleQueryMessage(QueryMessage *message, Connection *conn);
+    void handleErrorMessage(ErrorMessage *message, Connection *conn);
+    void handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn);
     void fixIts(const QueryMessage &query, Connection *conn);
     void errors(const QueryMessage &query, Connection *conn);
     int followLocation(const QueryMessage &query);
@@ -97,7 +101,6 @@ private:
     void reindex(const ByteArray &pattern);
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);
     void rdmLog(const QueryMessage &message, Connection *conn);
-    void make(const Path &path, List<ByteArray> makefileArgs, const List<ByteArray> &extraFlags);
 private:
     static Server *sInstance;
     Options mOptions;

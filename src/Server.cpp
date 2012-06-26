@@ -7,7 +7,6 @@
 #include "Connection.h"
 #include "CursorInfoJob.h"
 #include "Database.h"
-#include "EventObject.h"
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
 #include "Indexer.h"
@@ -19,7 +18,7 @@
 #include "MakefileParser.h"
 #include "Message.h"
 #include "Messages.h"
-#include "OutputMessage.h"
+#include "CreateOutputMessage.h"
 #include "Path.h"
 #include "QueryMessage.h"
 #include "Rdm.h"
@@ -34,8 +33,20 @@
 #include <Log.h>
 #include <clang-c/Index.h>
 #include <stdio.h>
+#include <QCoreApplication>
 
 Path Server::sBase;
+
+class MakeEvent : public QEvent
+{
+public:
+    MakeEvent()
+        : QEvent(User)
+    {}
+    Path makefile;
+    List<ByteArray> makefileArgs, extraFlags;
+    Connection *connection;
+};
 
 Server *Server::sInstance = 0;
 Server::Server(QObject *parent)
@@ -43,6 +54,7 @@ Server::Server(QObject *parent)
 {
     Q_ASSERT(!sInstance);
     sInstance = this;
+    qRegisterMetaType<Path>("Path");
     qRegisterMetaType<ByteArray>("ByteArray");
     qRegisterMetaType<List<ByteArray> >("List<ByteArray>");
     memset(mDBs, 0, sizeof(mDBs));
@@ -143,7 +155,7 @@ bool Server::init(const Options &options)
             client.message(&msg);
         }
         sleep(1);
-        QFile::remove(mOptions.name);
+        Path::rm(mOptions.name);
     }
     if (!mServer) {
         error("Unable to listen on %s", mOptions.name.constData());
@@ -214,12 +226,12 @@ void Server::onNewConnection()
         if (!client)
             break;
         Connection *conn = new Connection(client);
-        connect(conn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
-        connect(conn, SIGNAL(destroyed(QObject*)), this, SLOT(onConnectionDestroyed(QObject*)));
+        conn->newMessage().connect(this, &Server::onNewMessage);
+        conn->destroyed().connect(this, &Server::onConnectionDestroyed);
     }
 }
 
-void Server::onConnectionDestroyed(QObject *o)
+void Server::onConnectionDestroyed(Connection *o)
 {
     {
         Map<int, Connection*>::iterator it = mPendingIndexes.begin();
@@ -245,31 +257,29 @@ void Server::onConnectionDestroyed(QObject *o)
     }
 }
 
-void Server::onNewMessage(Message *message)
+void Server::onNewMessage(Message *message, Connection *connection)
 {
     switch (message->messageId()) {
     case MakefileMessage::MessageId:
-        handleMakefileMessage(static_cast<MakefileMessage*>(message));
+        handleMakefileMessage(static_cast<MakefileMessage*>(message), connection);
         break;
     case QueryMessage::MessageId:
-        handleQueryMessage(static_cast<QueryMessage*>(message));
+        handleQueryMessage(static_cast<QueryMessage*>(message), connection);
         break;
     case ErrorMessage::MessageId:
-        handleErrorMessage(static_cast<ErrorMessage*>(message));
+        handleErrorMessage(static_cast<ErrorMessage*>(message), connection);
         break;
-    case OutputMessage::MessageId:
-        handleOutputMessage(static_cast<OutputMessage*>(message));
+    case CreateOutputMessage::MessageId:
+        handleCreateOutputMessage(static_cast<CreateOutputMessage*>(message), connection);
         break;
     case ResponseMessage::MessageId:
     default:
         error("Unknown message: %d", message->messageId());
         break;
     }
-
-    message->deleteLater();
 }
 
-void Server::handleMakefileMessage(MakefileMessage *message)
+void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
 {
     const Path makefile = message->makefile();
     const MakefileInformation mi(makefile.lastModified(), message->arguments(), message->extraFlags());
@@ -277,31 +287,43 @@ void Server::handleMakefileMessage(MakefileMessage *message)
     mMakefilesWatcher.watch(makefile);
     ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
     general->setValue("makefiles", mMakefiles);
-    make(message->makefile(), message->arguments(), message->extraFlags());
+    MakeEvent *ev = new MakeEvent;
+    ev->makefile = message->makefile();
+    ev->makefileArgs = message->arguments();
+    ev->extraFlags = message->extraFlags();
+    ev->connection = conn;
+    // QCoreApplication::postEvent(this, ev);
+    QMetaObject::invokeMethod(this, "make", Q_ARG(Path, message->makefile()));
+                              // Q_ARG(List<ByteArray>(), message->arguments()),
+                              // Q_ARG(List<ByteArray>(), message->extraFlags()),
+                              // Q_ARG(Connection *, conn));
+    conn->finish();
+
+    // make(message->makefile(), message->arguments(), message->extraFlags(), conn);
 }
 
-void Server::make(const Path &path, List<ByteArray> makefileArgs, const List<ByteArray> &extraFlags)
+void Server::make(const Path &path, List<ByteArray> makefileArgs, const List<ByteArray> &extraFlags, Connection *conn)
 {
-    Connection *conn = qobject_cast<Connection*>(sender());
     MakefileParser *parser = new MakefileParser(extraFlags, conn);
-    connect(parser, SIGNAL(fileReady(GccArguments)), this, SLOT(onFileReady(GccArguments)));
-    connect(parser, SIGNAL(done(int, int)), this, SLOT(onMakefileParserDone(int, int)));
+    parser->fileReady().connect(this, &Server::onFileReady);
+    parser->done().connect(this, &Server::onMakefileParserDone);
     if (mOptions.options & UseDashB)
         makefileArgs.append("-B");
     parser->run(path, makefileArgs);
 }
 
-void Server::onMakefileParserDone(int sourceCount, int pchCount)
+void Server::onMakefileParserDone(MakefileParser *parser)
 {
-    MakefileParser *parser = qobject_cast<MakefileParser*>(sender());
     assert(parser);
     Connection *connection = parser->connection();
     if (connection) {
         char buf[1024];
-        if (pchCount) {
-            snprintf(buf, sizeof(buf), "Parsed %s, %d sources, %d pch headers", parser->makefile().constData(), sourceCount, pchCount);
+        if (parser->pchCount()) {
+            snprintf(buf, sizeof(buf), "Parsed %s, %d sources, %d pch headers",
+                     parser->makefile().constData(), parser->sourceCount(), parser->pchCount());
         } else {
-            snprintf(buf, sizeof(buf), "Parsed %s, %d sources", parser->makefile().constData(), sourceCount);
+            snprintf(buf, sizeof(buf), "Parsed %s, %d sources",
+                     parser->makefile().constData(), parser->sourceCount());
         }
         ResponseMessage msg(buf);
         connection->send(&msg);
@@ -310,29 +332,13 @@ void Server::onMakefileParserDone(int sourceCount, int pchCount)
     parser->deleteLater();
 }
 
-void Server::handleOutputMessage(OutputMessage *message)
+void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn)
 {
-    Connection *conn = qobject_cast<Connection*>(sender());
-    const List<ByteArray> names = message->name().split(',');
-    foreach(const ByteArray& name, names) {
-        if (name == "log") {
-            new LogObject(conn, message->level());
-        } else {
-            const int level = EventObject::typeForName(name);
-            if (level == -1) {
-                ResponseMessage msg("Unknown output name: " + name);
-                conn->send(&msg);
-                conn->finish();
-                return;
-            }
-            new EventObject(conn, level);
-        }
-    }
+    new LogObject(conn, message->level());
 }
 
-void Server::handleQueryMessage(QueryMessage *message)
+void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
 {
-    Connection *conn = qobject_cast<Connection*>(sender());
     int id = 0;
     switch (message->type()) {
     case QueryMessage::Invalid:
@@ -402,7 +408,7 @@ void Server::handleQueryMessage(QueryMessage *message)
     }
 }
 
-void Server::handleErrorMessage(ErrorMessage *message)
+void Server::handleErrorMessage(ErrorMessage *message, Connection *)
 {
     error("Error message: %s", message->message().constData());
 }
@@ -653,7 +659,7 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
                 ResponseMessage msg("Remaking " + it->first);
                 conn->send(&msg);
             }
-            make(it->first, it->second.makefileArgs, it->second.extraFlags);
+            make(it->first, it->second.makefileArgs, it->second.extraFlags, conn);
         }
     }
     if (conn) {
@@ -745,4 +751,13 @@ void Server::event(const Event *event)
         assert(0);
         break;
     }
+}
+
+bool Server::event(QEvent *event)
+{
+    if (event->type() == QEvent::User) {
+        MakeEvent *ev = static_cast<MakeEvent*>(event);
+        make(ev->makefile, ev->makefileArgs, ev->extraFlags, ev->connection);
+    }
+    return QObject::event(event);
 }

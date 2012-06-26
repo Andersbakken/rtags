@@ -1,6 +1,6 @@
 #include "Client.h"
 #include "QueryMessage.h"
-#include "OutputMessage.h"
+#include "CreateOutputMessage.h"
 #include "MakefileMessage.h"
 #include "EventLoop.h"
 #include "RTags.h"
@@ -115,13 +115,13 @@ struct QueryCommand : public Command
 
 struct RdmLogCommand : public Command
 {
-    RdmLogCommand(const ByteArray &cmd)
-        : mCmd(cmd)
+    RdmLogCommand(const int &level)
+        : mLevel(level)
     {
     }
     virtual void exec(Client *client)
     {
-        OutputMessage msg(mCmd, logLevel());
+        CreateOutputMessage msg(mLevel);
         client->message(&msg);
     }
     virtual ByteArray description() const
@@ -129,7 +129,7 @@ struct RdmLogCommand : public Command
         return "RdmLogCommand";
     }
 private:
-    ByteArray mCmd;
+    const int &mLevel;
 };
 
 struct MakefileCommand : public Command
@@ -312,10 +312,10 @@ int main(int argc, char** argv)
             commands.append(new QueryCommand(QueryMessage::ClearDatabase, ByteArray(), queryFlags, pathFilters));
             break;
         case 'g':
-            commands.append(new RdmLogCommand("log"));
+            commands.append(new RdmLogCommand(logLevel));
             break;
         case 'G':
-            commands.append(new RdmLogCommand("CError"));
+            commands.append(new RdmLogCommand(CompilationError));
             break;
         case 'q':
             commands.append(new QueryCommand(QueryMessage::Shutdown, ByteArray(), queryFlags, pathFilters));

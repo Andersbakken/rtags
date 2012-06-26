@@ -1,111 +1,52 @@
 #include "Connection.h"
 #include <LocalClient.h>
+#include "Event.h"
+#include "EventLoop.h"
 
-Map<int, Connection::Meta> Connection::sMetas;
-
-class ConnectionPrivate
+class ResponseMessageEvent : public Event
 {
 public:
-    ConnectionPrivate(Connection* c)
-        : client(0), conn(c), pendingRead(0), pendingWrite(0), done(false)
-    {
-    }
+    enum { Type = 1 };
+    ResponseMessageEvent(const ByteArray &r)
+        : Event(Type), response(r)
+    {}
 
-    ~ConnectionPrivate()
-    {
-        delete client;
-    }
-
-    void dataAvailable();
-    void dataWritten(int bytes);
-
-public:
-    LocalClient* client;
-    Connection* conn;
-    int pendingRead, pendingWrite;
-    bool done;
+    const ByteArray response;
 };
 
-void ConnectionPrivate::dataAvailable()
+Connection::Connection()
+    : mClient(new LocalClient), mPendingRead(0), mPendingWrite(0), mDone(false)
 {
-    forever {
-        int available = client->bytesAvailable();
-        if (!pendingRead) {
-            if (available < static_cast<int>(sizeof(uint32_t)))
-                break;
-            char buf[sizeof(uint32_t)];
-            const int read = client->read(buf, 4);
-            assert(read == 4);
-            Deserializer strm(buf, read);
-            strm >> pendingRead;
-            available -= 4;
-        }
-        if (available < pendingRead)
-            break;
-        char buf[1024];
-        char *buffer = buf;
-        if (pendingRead > static_cast<int>(sizeof(buf))) {
-            buffer = new char[pendingRead];
-        }
-        const int read = client->read(buffer, pendingRead);
-        assert(read == pendingRead);
-        Deserializer strm(buffer, read);
-        int id;
-        ByteArray payload;
-        strm >> id >> payload;
-        assert(id > 0 && Connection::sMetas.contains(id));
-
-        Connection::Meta m = Connection::sMetas.value(id);
-        QObject *newobj = m.meta->newInstance(Q_ARG(QObject*, 0));
-        assert(newobj);
-        m.meta->method(m.fromByteArrayId).invoke(newobj, Q_ARG(ByteArray, ByteArray(payload.constData(), payload.size())));
-        conn->newMessage()(qobject_cast<Message*>(newobj));
-
-        pendingRead = 0;
-    }
+    mClient->connected().connect(mConnected);
+    mClient->disconnected().connect(mDisconnected);
+    mClient->dataAvailable().connect(this, &Connection::dataAvailable);
+    mClient->bytesWritten().connect(this, &Connection::dataWritten);
 }
 
-void ConnectionPrivate::dataWritten(int bytes)
-{
-    Q_ASSERT(pendingWrite >= bytes);
-    pendingWrite -= bytes;
-    if (!pendingWrite) {
-        if (bytes)
-            emit conn->sendComplete();
-        if (done)
-            client->disconnect();
-    }
-}
-
-Connection::Connection(QObject* parent)
-    : QObject(parent), mPriv(new ConnectionPrivate(this))
-{
-    mPriv->client = new LocalClient;
-    mPriv->client->connected().connect(this, &Connection::connected);
-    mPriv->client->disconnected().connect(this, &Connection::disconnected);
-    mPriv->client->dataAvailable().connect(mPriv, &ConnectionPrivate::dataAvailable);
-    mPriv->client->bytesWritten().connect(mPriv, &ConnectionPrivate::dataWritten);
-}
-
-Connection::Connection(LocalClient* client, QObject* parent)
-    : QObject(parent), mPriv(new ConnectionPrivate(this))
+Connection::Connection(LocalClient* client)
+    : mClient(client), mPendingRead(0), mPendingWrite(0), mDone(false)
 {
     assert(client->isConnected());
-    mPriv->client = client;
-    mPriv->client->disconnected().connect(this, &Connection::disconnected);
-    mPriv->client->dataAvailable().connect(mPriv, &ConnectionPrivate::dataAvailable);
-    mPriv->client->bytesWritten().connect(mPriv, &ConnectionPrivate::dataWritten);
+    mClient->disconnected().connect(mDisconnected);
+    mClient->dataAvailable().connect(this, &Connection::dataAvailable);
+    mClient->bytesWritten().connect(this, &Connection::dataWritten);
+}
+
+Connection::~Connection()
+{
+    destroyed()(this);
+    delete mClient;
 }
 
 
 bool Connection::connectToServer(const ByteArray &name)
 {
-    return mPriv->client->connect(name, 1000);
+    return mClient->connect(name, 1000);
 }
 
 void Connection::send(int id, const ByteArray &message)
 {
-    if (!mPriv->client->isConnected()) {
+    if (!mClient->isConnected()) {
         ::error("Trying to send message to unconnected client (%d)", id);
         return;
     }
@@ -114,7 +55,7 @@ void Connection::send(int id, const ByteArray &message)
     {
         {
             Serializer strm(data);
-            strm << id << message.size();
+            strm << id;
             strm.write(message.constData(), message.size());
         }
         {
@@ -122,17 +63,79 @@ void Connection::send(int id, const ByteArray &message)
             strm << data.size();
         }
     }
-    mPriv->pendingWrite += (header.size() + data.size());
-    mPriv->client->write(header);
-    mPriv->client->write(data);
+    mPendingWrite += (header.size() + data.size());
+    mClient->write(header);
+    mClient->write(data);
 }
 
 int Connection::pendingWrite() const
 {
-    return mPriv->pendingWrite;
+    return mPendingWrite;
 }
 void Connection::finish()
 {
-    mPriv->done = true;
-    mPriv->dataWritten(0);
+    mDone = true;
+    dataWritten(0);
+}
+
+void Connection::dataAvailable()
+{
+    forever {
+        int available = mClient->bytesAvailable();
+        if (!mPendingRead) {
+            if (available < static_cast<int>(sizeof(uint32_t)))
+                break;
+            char buf[sizeof(uint32_t)];
+            const int read = mClient->read(buf, 4);
+            assert(read == 4);
+            Deserializer strm(buf, read);
+            strm >> mPendingRead;
+            available -= 4;
+        }
+        if (available < mPendingRead)
+            break;
+        char buf[1024];
+        char *buffer = buf;
+        if (mPendingRead > static_cast<int>(sizeof(buf))) {
+            buffer = new char[mPendingRead];
+        }
+        const int read = mClient->read(buffer, mPendingRead);
+        assert(read == mPendingRead);
+        Message *message = Messages::create(buffer, read);
+        if (message) {
+            newMessage()(message, this);
+            delete message;
+        }
+        if (buffer != buf)
+            delete[] buffer;
+
+        mPendingRead = 0;
+    }
+}
+
+void Connection::dataWritten(int bytes)
+{
+    assert(mPendingWrite >= bytes);
+    mPendingWrite -= bytes;
+    if (!mPendingWrite) {
+        if (bytes)
+            sendComplete()();
+        if (mDone)
+            mClient->disconnect();
+    }
+}
+
+void Connection::write(const ByteArray &out)
+{
+    EventLoop::instance()->postEvent(this, new ResponseMessageEvent(out));
+}
+
+void Connection::event(const Event *e)
+{
+    switch (e->type()) {
+    case ResponseMessageEvent::Type: {
+        ResponseMessage msg(static_cast<const ResponseMessageEvent*>(e)->response);
+        send(&msg);
+        break; }
+    }
 }

@@ -199,3 +199,7 @@ bool Path::mkdir(const Path &path)
     errno = 0;
     return !::mkdir(path.constData(), mode) || errno == EEXIST;
 }
+bool Path::rm(const Path &file)
+{
+    return !unlink(file.constData());
+}

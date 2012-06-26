@@ -1,13 +1,8 @@
 #include "ErrorMessage.h"
 #include <Serializer.h>
 
-ErrorMessage::ErrorMessage(QObject* parent)
-    : Message(parent), mError(UnknownError)
-{
-}
-
-ErrorMessage::ErrorMessage(Error error, QObject *parent)
-    : Message(parent), mError(error)
+ErrorMessage::ErrorMessage(Error error)
+    : mError(error)
 {
     switch (mError) {
     case UnknownError:
@@ -16,12 +11,12 @@ ErrorMessage::ErrorMessage(Error error, QObject *parent)
     }
 }
 
-ErrorMessage::ErrorMessage(const ByteArray& message, QObject* parent)
-    : Message(parent), mError(UnknownError), mMessage(message)
+ErrorMessage::ErrorMessage(const ByteArray& message)
+    : mError(UnknownError), mMessage(message)
 {
 }
 
-ByteArray ErrorMessage::toByteArray() const
+ByteArray ErrorMessage::encode() const
 {
     ByteArray data;
     {
@@ -31,8 +26,8 @@ ByteArray ErrorMessage::toByteArray() const
     return data;
 }
 
-void ErrorMessage::fromByteArray(const ByteArray &data)
+void ErrorMessage::fromData(const char *data, int size)
 {
-    Deserializer ds(data.constData(), data.size());
+    Deserializer ds(data, size);
     ds >> mError >> mMessage;
 }

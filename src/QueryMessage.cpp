@@ -2,18 +2,13 @@
 #include "RTags.h"
 #include <Serializer.h>
 
-QueryMessage::QueryMessage(QObject *parent)
-    : Message(parent), mType(Invalid), mFlags(0)
-{
-}
-
-QueryMessage::QueryMessage(Type type, const ByteArray& query, unsigned flags, QObject* parent)
-    : Message(parent), mType(type), mFlags(flags)
+QueryMessage::QueryMessage(Type type, const ByteArray& query, unsigned flags)
+    : mType(type), mFlags(flags)
 {
     mQuery.append(query);
 }
 
-ByteArray QueryMessage::toByteArray() const
+ByteArray QueryMessage::encode() const
 {
     ByteArray data;
     {
@@ -23,9 +18,9 @@ ByteArray QueryMessage::toByteArray() const
     return data;
 }
 
-void QueryMessage::fromByteArray(const ByteArray &ba)
+void QueryMessage::fromData(const char *data, int size)
 {
-    Deserializer stream(ba.constData(), ba.size());
+    Deserializer stream(data, size);
     stream >> mQuery >> mType >> mFlags >> mPathFilters;
 }
 

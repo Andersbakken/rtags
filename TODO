@@ -17,3 +17,5 @@ check in various build systems so we can easily test them:
 directfb, openssl, qmake-based, cmake-based, scons, automake (directfb?)
 reintroduce a -m option that waits for it to finish indexing
 make -g work when we start rdm using -a, I don't think it currently does
+
+Connection doesn't seem to know it's gone and we keep writing to it.

@@ -7,7 +7,6 @@
 
 class QueryMessage : public Message
 {
-    Q_OBJECT
 public:
     enum { MessageId = 4 };
     enum Type {
@@ -40,9 +39,7 @@ public:
         SameFile = 0x80
     };
 
-    Q_INVOKABLE QueryMessage(QObject *parent);
-    QueryMessage(Type type = Invalid, const ByteArray &query = ByteArray(),
-                 unsigned flags = 0, QObject *parent = 0);
+    QueryMessage(Type type = Invalid, const ByteArray &query = ByteArray(), unsigned flags = 0);
 
     List<ByteArray> pathFilters() const { return mPathFilters; }
     void setPathFilters(const List<ByteArray> &pathFilters) { mPathFilters = pathFilters; qSort(mPathFilters); }
@@ -56,8 +53,8 @@ public:
     static unsigned keyFlags(unsigned queryFlags);
     inline unsigned keyFlags() const { return keyFlags(mFlags); }
 
-    ByteArray toByteArray() const;
-    Q_INVOKABLE void fromByteArray(const ByteArray& data);
+    ByteArray encode() const;
+    void fromData(const char *data, int size);
 
 private:
     List<ByteArray> mQuery;

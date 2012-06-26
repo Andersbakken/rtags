@@ -12,6 +12,7 @@
 #include "RegExp.h"
 #include "WriteLocker.h"
 #include <Log.h>
+#include <math.h>
 
 Indexer::Indexer()
 {
@@ -20,11 +21,11 @@ Indexer::Indexer()
 
     mWatcher.modified().connect(this, &Indexer::onDirectoryChanged);
     {
-        ScopedDB db = Server::instance()->db(Server::PCHUsrMapes, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ScopedDB::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         while (it->isValid()) {
-            mPchUSRMapes[it->key().byteArray()] = it->value<PchUSRMap>();
+            mPchUSRMaps[it->key().byteArray()] = it->value<PchUSRMap>();
             it->next();
         }
     }
@@ -433,13 +434,13 @@ PchUSRMap Indexer::pchUSRMap(const List<Path> &pchFiles) const
     const int count = pchFiles.size();
     switch (pchFiles.size()) {
     case 0: return PchUSRMap();
-    case 1: return mPchUSRMapes.value(pchFiles.front());
+    case 1: return mPchUSRMaps.value(pchFiles.front());
     default:
         break;
     }
-    PchUSRMap ret = mPchUSRMapes.value(pchFiles.front());
+    PchUSRMap ret = mPchUSRMaps.value(pchFiles.front());
     for (int i=1; i<count; ++i) {
-        const PchUSRMap h = mPchUSRMapes.value(pchFiles.at(i));
+        const PchUSRMap h = mPchUSRMaps.value(pchFiles.at(i));
         for (PchUSRMap::const_iterator it = h.begin(); it != h.end(); ++it) {
             ret[it->first] = it->second;
         }
@@ -450,8 +451,8 @@ PchUSRMap Indexer::pchUSRMap(const List<Path> &pchFiles) const
 void Indexer::setPchUSRMap(const Path &pch, const PchUSRMap &astMap)
 {
     WriteLocker lock(&mPchUSRMapLock);
-    mPchUSRMapes[pch] = astMap;
-    Rdm::writePchUSRMapes(mPchUSRMapes);
+    mPchUSRMaps[pch] = astMap;
+    Rdm::writePchUSRMaps(mPchUSRMaps);
 }
 bool Indexer::needsToWaitForPch(IndexerJob *job) const
 {

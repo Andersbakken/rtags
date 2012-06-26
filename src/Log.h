@@ -13,6 +13,7 @@
 class Path;
 
 enum LogLevel {
+    CompilationError = -1,
     Error = 0,
     Warning = 1,
     Debug = 2,
@@ -42,21 +43,6 @@ public:
 
 private:
     int mLogLevel;
-};
-
-class EventOutput : public Output
-{
-public:
-    EventOutput(int level);
-    ~EventOutput();
-
-    virtual bool testLog(int level) const { return mLevel & level; }
-    virtual void log(const char */*msg*/, int /*len*/) { }
-
-    int level() const { return mLevel; }
-
-private:
-    int mLevel;
 };
 
 #ifdef __GNUC__
