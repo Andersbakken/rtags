@@ -98,7 +98,7 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     Q_ASSERT(!mProc);
     mProc = new Process;
 
-    std::list<ByteArray> environment;
+    std::list<ByteArray> environment = Process::environment();
     if (!args.contains("-B")) {
         Path p = RTags::applicationDirPath();
 #ifdef OS_Mac
@@ -158,6 +158,7 @@ void MakefileParser::processMakeOutput()
 
 void MakefileParser::processMakeLine(const ByteArray &line)
 {
+    printf("processMakeLine '%s'\n", line.nullTerminated());
     if (testLog(VerboseDebug))
         verboseDebug("%s", line.constData());
     GccArguments args;

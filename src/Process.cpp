@@ -1,5 +1,6 @@
 #include "Process.h"
 #include "EventLoop.h"
+#include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
@@ -25,6 +26,11 @@ Process::~Process()
     closeStdErr();
 }
 
+void Process::setCwd(const ByteArray& cwd)
+{
+    mCwd = cwd;
+}
+
 void Process::start(const ByteArray& command,
                     const std::list<ByteArray>& arguments)
 {
@@ -41,6 +47,7 @@ void Process::start(const ByteArray& command,
 
     mPid = ::fork();
     if (mPid == -1) {
+        printf("fork, something horrible has happened %d\n", errno);
         // bail out
         ::close(mStdIn[1]);
         ::close(mStdIn[0]);
@@ -50,6 +57,7 @@ void Process::start(const ByteArray& command,
         ::close(mStdErr[0]);
         return;
     } else if (mPid == 0) {
+        //printf("fork, in child\n");
         // child, should do some error checking here really
         ::close(mStdIn[1]);
         ::close(mStdOut[0]);
@@ -66,26 +74,36 @@ void Process::start(const ByteArray& command,
         ::dup2(mStdErr[1], STDERR_FILENO);
         ::close(mStdErr[1]);
 
-        const char* args[arguments.size() + 1];
-        args[arguments.size()] = 0;
-        int pos = 0;
+        const char* args[arguments.size() + 2];
+        args[arguments.size() + 1] = 0;
+        args[0] = command.nullTerminated();
+        int pos = 1;
         for(std::list<ByteArray>::const_iterator it = arguments.begin(); it != arguments.end(); ++it) {
             args[pos] = it->nullTerminated();
+            //printf("arg: '%s'\n", args[pos]);
             ++pos;
         }
         const char* env[environ.size() + 1];
         env[environ.size()] = 0;
         pos = 0;
+        //printf("fork, about to exec '%s'\n", command.nullTerminated());
         for(std::list<ByteArray>::const_iterator it = environ.begin(); it != environ.end(); ++it) {
             env[pos] = it->nullTerminated();
+            //printf("env: '%s'\n", env[pos]);
             ++pos;
         }
-        ::execve(command.nullTerminated(), const_cast<char* const*>(args), const_cast<char* const*>(env));
+        if (!mCwd.isEmpty())
+            ::chdir(mCwd.nullTerminated());
+        const int ret = ::execvpe(command.nullTerminated(), const_cast<char* const*>(args), const_cast<char* const*>(env));
+        (void)ret;
+        //printf("fork, exec seemingly failed %d, %d %s\n", ret, errno, strerror(errno));
     } else {
         // parent
         ::close(mStdIn[0]);
         ::close(mStdOut[1]);
         ::close(mStdErr[1]);
+
+        //printf("fork, in parent\n");
 
         int flags = fcntl(mStdIn[1], F_GETFL, 0);
         fcntl(mStdIn[1], F_SETFL, flags | O_NONBLOCK);
@@ -94,7 +112,7 @@ void Process::start(const ByteArray& command,
         flags = fcntl(mStdErr[0], F_GETFL, 0);
         fcntl(mStdErr[0], F_SETFL, flags | O_NONBLOCK);
 
-        EventLoop::instance()->addFileDescriptor(mStdIn[1], EventLoop::Write, processCallback, this);
+        //printf("fork, about to add fds: stdin=%d, stdout=%d, stderr=%d\n", mStdIn[1], mStdOut[0], mStdErr[0]);
         EventLoop::instance()->addFileDescriptor(mStdOut[0], EventLoop::Read, processCallback, this);
         EventLoop::instance()->addFileDescriptor(mStdErr[0], EventLoop::Read, processCallback, this);
     }
@@ -120,22 +138,22 @@ void Process::closeStdIn()
 
 void Process::closeStdOut()
 {
-    if (mStdOut[1] == -1)
+    if (mStdOut[0] == -1)
         return;
 
-    EventLoop::instance()->removeFileDescriptor(mStdOut[1]);
-    ::close(mStdOut[1]);
-    mStdOut[1] = -1;
+    EventLoop::instance()->removeFileDescriptor(mStdOut[0]);
+    ::close(mStdOut[0]);
+    mStdOut[0] = -1;
 }
 
 void Process::closeStdErr()
 {
-    if (mStdErr[1] == -1)
+    if (mStdErr[0] == -1)
         return;
 
-    EventLoop::instance()->removeFileDescriptor(mStdErr[1]);
-    ::close(mStdErr[1]);
-    mStdErr[1] = -1;
+    EventLoop::instance()->removeFileDescriptor(mStdErr[0]);
+    ::close(mStdErr[0]);
+    mStdErr[0] = -1;
 }
 
 ByteArray Process::readAllStdOut()
@@ -167,10 +185,15 @@ void Process::processCallback(int fd, unsigned int flags, void* userData)
 
 void Process::handleInput(int fd)
 {
+    EventLoop::instance()->removeFileDescriptor(fd);
+
+    static int balle = 0;
+    printf("Process::handleInput (cnt=%d)\n", ++balle);
     for (;;) {
         if (mStdInBuffer.empty())
             return;
 
+        printf("Process::handleInput in loop\n");
         int w, want;
         const ByteArray& front = mStdInBuffer.front();
         if (mStdInIndex) {
@@ -180,9 +203,10 @@ void Process::handleInput(int fd)
             want = front.size();
             w = ::write(fd, front.constData(), want);
         }
-        if (w == -1)
+        if (w == -1) {
+            EventLoop::instance()->addFileDescriptor(fd, EventLoop::Write, processCallback, this);
             break;
-        if (w == want) {
+        } else if (w == want) {
             mStdInBuffer.pop_front();
             mStdInIndex = 0;
         } else
@@ -192,6 +216,7 @@ void Process::handleInput(int fd)
 
 void Process::handleOutput(int fd, ByteArray& buffer, int& index, signalslot::Signal0& signal)
 {
+    printf("Process::handleOutput %d\n", fd);
     enum { BufSize = 1024, MaxSize = (1024 * 1024 * 16) };
     char buf[BufSize];
     int total = 0;
@@ -199,11 +224,15 @@ void Process::handleOutput(int fd, ByteArray& buffer, int& index, signalslot::Si
     for (;;) {
         int r = ::read(fd, buf, BufSize);
         if (r == -1) {
+            printf("Process::handleOutput %d returning -1, errno %d %s\n", fd, errno, strerror(errno));
             break;
         } else if (r == 0) { // Assume process terminated
+            printf("Process::handleOutput %d returning 0\n", fd);
             term = true;
             break;
         } else {
+            printf("Process::handleOutput in loop %d\n", fd);
+            //printf("data: '%s'\n", std::string(buf, r).c_str());
             int sz = buffer.size();
             if (sz + r > MaxSize) {
                 if (sz + r - index > MaxSize) {
@@ -223,6 +252,8 @@ void Process::handleOutput(int fd, ByteArray& buffer, int& index, signalslot::Si
             total += r;
         }
     }
+
+    //printf("total data '%s'\n", buffer.nullTerminated());
 
     if (total)
         signal();
@@ -253,4 +284,16 @@ void Process::stop()
 
     ::kill(mPid, SIGTERM);
     ::waitpid(mPid, &mReturn, 0);
+}
+
+std::list<ByteArray> Process::environment()
+{
+    extern char** environ;
+    char** cur = environ;
+    std::list<ByteArray> env;
+    while (*cur) {
+        env.push_back(*cur);
+        ++cur;
+    }
+    return env;
 }

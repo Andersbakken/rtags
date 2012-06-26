@@ -12,6 +12,8 @@ public:
     Process();
     ~Process();
 
+    void setCwd(const ByteArray& cwd);
+
     void start(const ByteArray& command, const std::list<ByteArray>& arguments);
     void start(const ByteArray& command, const std::list<ByteArray>& arguments,
                const std::list<ByteArray>& environ);
@@ -27,9 +29,11 @@ public:
 
     void stop();
 
-    signalslot::Signal0 readyReadStdOut() const { return mReadyReadStdOut; }
-    signalslot::Signal0 readyReadStdErr() const { return mReadyReadStdErr; }
-    signalslot::Signal0 finished() const { return mFinished; }
+    signalslot::Signal0& readyReadStdOut() { return mReadyReadStdOut; }
+    signalslot::Signal0& readyReadStdErr() { return mReadyReadStdErr; }
+    signalslot::Signal0& finished() { return mFinished; }
+
+    static std::list<ByteArray> environment();
 
 private:
     static void processCallback(int fd, unsigned int flags, void* userData);
@@ -52,6 +56,8 @@ private:
     std::deque<ByteArray> mStdInBuffer;
     ByteArray mStdOutBuffer, mStdErrBuffer;
     int mStdInIndex, mStdOutIndex, mStdErrIndex;
+
+    ByteArray mCwd;
 
     signalslot::Signal0 mReadyReadStdOut, mReadyReadStdErr, mFinished;
 };
