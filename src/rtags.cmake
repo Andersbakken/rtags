@@ -124,8 +124,6 @@ set(rtags_MOCS
     Connection.h
     ErrorMessage.h
     EventObject.h
-    FileSystemWatcher.h
-    Indexer.h
     LogObject.h
     MakefileMessage.h
     MakefileParser.h

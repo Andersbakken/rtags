@@ -13,25 +13,12 @@
 #include "WriteLocker.h"
 #include <Log.h>
 
-Indexer::Indexer(const ByteArray &path, QObject *parent)
-    : QObject(parent)
+Indexer::Indexer()
 {
-    qRegisterMetaType<Path>("Path");
-
-    Q_ASSERT(path.startsWith('/'));
-    if (!path.startsWith('/'))
-        return;
-
     mJobCounter = 0;
-    mPath = path + "pch/";
-    Q_ASSERT(mPath.endsWith('/'));
-    QDir dir;
-    dir.mkpath(mPath);
     mTimerRunning = false;
 
-    connect(&mWatcher, SIGNAL(modified(Path)),
-            this, SLOT(onDirectoryChanged(Path)));
-
+    mWatcher.modified().connect(this, &Indexer::onDirectoryChanged);
     {
         ScopedDB db = Server::instance()->db(Server::PCHUsrMapes, ScopedDB::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -280,7 +267,7 @@ void Indexer::onJobFinished(IndexerJob *job)
             emit jobsComplete();
         }
 
-        emit indexingDone(job->mId);
+        mIndexingDone(job->mId);
     }
 
     delete job;

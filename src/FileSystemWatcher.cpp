@@ -124,9 +124,9 @@ void FileSystemWatcher::inotifyReadyRead()
     }
     for (Map<Path, bool>::const_iterator it = notifications.begin(); it != notifications.end(); ++it) {
         if (it->second) {
-            emit removed(it->first);
+            mRemoved(it->first);
         } else {
-            emit modified(it->first);
+            mModified(it->first);
         }
     }
 }

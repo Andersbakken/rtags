@@ -50,6 +50,7 @@ Server::Server(QObject *parent)
 
 Server::~Server()
 {
+    delete mIndexer;
     clear();
     Q_ASSERT(sInstance = this);
     sInstance = 0;
@@ -117,10 +118,8 @@ bool Server::init(const Options &options)
 {
     mThreadPool = new ThreadPool(ThreadPool::idealThreadCount());
 
-    connect(&mMakefilesWatcher, SIGNAL(modified(Path)),
-            this, SLOT(onMakefileModified(Path)));
-    connect(&mMakefilesWatcher, SIGNAL(removed(Path)),
-            this, SLOT(onMakefileRemoved(Path)));
+    mMakefilesWatcher.modified().connect(this, &Server::onMakefileModified);
+    mMakefilesWatcher.removed().connect(this, &Server::onMakefileRemoved);
 
     mOptions = options;
     if (!(options.options & NoClangIncludePath)) {
@@ -200,8 +199,8 @@ bool Server::init(const Options &options)
 
     error() << "running with " << mOptions.defaultArguments << " clang version " << Rdm::eatString(clang_getClangVersion());
 
-    mIndexer = new Indexer(sBase, this);
-    connect(mIndexer, SIGNAL(indexingDone(int)), this, SLOT(onIndexingDone(int)));
+    mIndexer = new Indexer;
+    mIndexer->indexingDone().connect(this, &Server::onIndexingDone);
 
     remake();
 
@@ -616,20 +615,27 @@ Path Server::pchDir()
     return sBase + "pch/";
 }
 
-void Server::setBaseDirectory(const ByteArray& base, bool clear)
+bool Server::setBaseDirectory(const ByteArray& base, bool clear)
 {
     sBase = base;
     if (!sBase.endsWith('/'))
         sBase.append('/');
-    Q_ASSERT(sBase.endsWith('/'));
-    QDir dir;
-    dir.mkpath(sBase);
+    if (!Path::mkdir(sBase)) {
+        error("Can't create directory [%s]", sBase.constData());
+        return false;
+    }
+    if (!sBase.mksubdir("pch")) {
+        error("Can't create directory [%s/pch]", sBase.constData());
+        return false;
+    }
+
     if (clear) {
         RTags::removeDirectory(Server::pchDir().constData());
         for (int i=0; i<DatabaseTypeCount; ++i)
             RTags::removeDirectory(databaseDir(static_cast<Server::DatabaseType>(i)).constData());
         error() << "cleared database dir" << base;
     }
+    return true;
 }
 
 void Server::reindex(const ByteArray &pattern)

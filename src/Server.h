@@ -59,7 +59,7 @@ public:
     bool init(const Options &options);
     Indexer *indexer() const { return mIndexer; }
     ByteArray name() const { return mOptions.name; }
-    static void setBaseDirectory(const ByteArray &base, bool clear);
+    static bool setBaseDirectory(const ByteArray &base, bool clear);
     static Path databaseDir(DatabaseType type);
     static Path pchDir();
     ThreadPool *threadPool() const { return mThreadPool; }

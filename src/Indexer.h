@@ -10,12 +10,10 @@
 #include <Timer.h>
 
 class IndexerJob;
-class Indexer : public QObject, public EventReceiver
+class Indexer : public EventReceiver
 {
-    Q_OBJECT;
 public:
-
-    Indexer(const ByteArray &path, QObject* parent = 0);
+    Indexer();
     ~Indexer();
 
     int index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
@@ -25,7 +23,6 @@ public:
     Set<uint32_t> pchDependencies(const Path &pchHeader) const;
     Map<ByteArray, Location> pchUSRMap(const List<Path> &pchFiles) const;
     void setPchUSRMap(const Path &pch, const PchUSRMap &astMap);
-    Path path() const { return mPath; }
     void abort();
     bool visitFile(uint32_t fileId, const Path &p);
     Set<uint32_t> visitedFiles() const { MutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
@@ -35,10 +32,8 @@ public:
                         const Map<Location, std::pair<int, ByteArray> > &fixIts);
     void reindex(const ByteArray &pattern);
     void event(const Event *event);
-signals:
-    void indexingDone(int id);
-    void jobsComplete();
-private slots:
+    signalslot::Signal1<int> &indexingDone() { return mIndexingDone; }
+    signalslot::Signal0 &jobsComplete() { return mJobsComplete; }
     void onDirectoryChanged(const Path &path);
 private:
     void onJobFinished(IndexerJob *job);
@@ -77,6 +72,9 @@ private:
     Map<Location, std::pair<int, ByteArray> > mFixIts;
     Map<uint32_t, ByteArray> mErrors;
     mutable ReadWriteLock mFixItsAndErrorsLock;
+
+    signalslot::Signal1<int> mIndexingDone;
+    signalslot::Signal0 mJobsComplete;
 };
 
 inline bool Indexer::visitFile(uint32_t fileId, const Path &path)

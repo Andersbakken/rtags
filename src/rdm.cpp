@@ -201,9 +201,10 @@ int main(int argc, char** argv)
     if (!initLogging(logLevel, logFile, logFlags)) {
         fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
                 logLevel, logFile ? logFile : "", logFlags);
-        return false;
+        return 1;
     }
-    Server::setBaseDirectory(datadir, clearDataDir);
+    if (!Server::setBaseDirectory(datadir, clearDataDir))
+        return 1;
     if (clearDataDir) {
         warning("Removing contents of cache directory [%s]", datadir.constData());
     }
