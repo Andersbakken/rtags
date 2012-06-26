@@ -25,7 +25,15 @@ Process::~Process()
     closeStdErr();
 }
 
-void Process::start(const ByteArray& command, const std::list<ByteArray>& arguments)
+void Process::start(const ByteArray& command,
+                    const std::list<ByteArray>& arguments)
+{
+    start(command, arguments, std::list<ByteArray>());
+}
+
+void Process::start(const ByteArray& command,
+                    const std::list<ByteArray>& arguments,
+                    const std::list<ByteArray>& environ)
 {
     ::pipe(mStdIn);
     ::pipe(mStdOut);
@@ -65,7 +73,14 @@ void Process::start(const ByteArray& command, const std::list<ByteArray>& argume
             args[pos] = it->nullTerminated();
             ++pos;
         }
-        ::execv(command.nullTerminated(), const_cast<char* const*>(args));
+        const char* env[environ.size() + 1];
+        env[environ.size()] = 0;
+        pos = 0;
+        for(std::list<ByteArray>::const_iterator it = environ.begin(); it != environ.end(); ++it) {
+            env[pos] = it->nullTerminated();
+            ++pos;
+        }
+        ::execve(command.nullTerminated(), const_cast<char* const*>(args), const_cast<char* const*>(env));
     } else {
         // parent
         ::close(mStdIn[0]);

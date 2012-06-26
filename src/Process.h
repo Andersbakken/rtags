@@ -13,6 +13,8 @@ public:
     ~Process();
 
     void start(const ByteArray& command, const std::list<ByteArray>& arguments);
+    void start(const ByteArray& command, const std::list<ByteArray>& arguments,
+               const std::list<ByteArray>& environ);
 
     void write(const ByteArray& data);
     void closeStdIn();
