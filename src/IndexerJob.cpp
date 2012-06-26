@@ -517,7 +517,7 @@ void IndexerJob::execute()
                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
     Scope scope = { mHeaderMap, mUnit, index };
     const time_t timeStamp = time(0);
-    warning() << "loading unit" << clangLine << (mUnit != 0);
+    warning() << "loading unit " << clangLine << " " << (mUnit != 0);
     if (isAborted()) {
         return;
     }
