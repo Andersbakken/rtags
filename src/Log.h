@@ -59,7 +59,7 @@ private:
     int mLevel;
 };
 
-#if defined(Q_CC_GNU)
+#ifdef __GNUC__
 void log(int level, const char *format, ...) __attribute__ ((format (printf, 2, 3)));
 void debug(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
 void verboseDebug(const char *format, ...) __attribute__ ((format (printf, 1, 2)));

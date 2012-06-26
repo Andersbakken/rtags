@@ -3,9 +3,6 @@
 #include "MutexLocker.h"
 #include "Path.h"
 #include <stdio.h>
-#include <QDateTime>
-#include <QMetaObject>
-#include <QMetaEnum>
 #include <errno.h>
 #include <Timer.h>
 
@@ -14,16 +11,6 @@ static Timer sStart;
 static Set<Output*> sOutputs;
 static Mutex sOutputsMutex;
 static int sLevel = 0;
-
-static void cleanupSinks()
-{
-    Set<Output*> copy;
-    {
-        MutexLocker lock(&sOutputsMutex);
-        qSwap(copy, sOutputs);
-    }
-    qDeleteAll(copy);
-}
 
 class FileOutput : public LogOutput
 {
@@ -152,16 +139,18 @@ void error(const char *format, ...)
 static inline void removeOutputs()
 {
     MutexLocker lock(&sOutputsMutex);
-    qDeleteAll(sOutputs);
+    for (Set<Output*>::const_iterator it = sOutputs.begin(); it != sOutputs.end(); ++it)
+        delete *it;
     sOutputs.clear();
 }
 
 bool testLog(int level)
 {
     MutexLocker lock(&sOutputsMutex);
-    foreach(const Output *output, sOutputs)
-        if (output->testLog(level))
+    for (Set<Output*>::const_iterator it = sOutputs.begin(); it != sOutputs.end(); ++it) {
+        if ((*it)->testLog(level))
             return true;
+    }
     return false;
 }
 
@@ -220,9 +209,6 @@ Log &Log::operator=(const Log &other)
 Output::Output()
 {
     MutexLocker lock(&sOutputsMutex);
-    if (sOutputs.isEmpty()) {
-        qAddPostRoutine(cleanupSinks);
-    }
     sOutputs.insert(this);
 }
 
