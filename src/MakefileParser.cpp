@@ -5,7 +5,7 @@
 #include <RegExp.h>
 #include <RTags.h>
 #include "Rdm.h"
-#include <QtCore>
+#include "Process.h"
 
 #ifndef MAKE
 #define MAKE "make"
@@ -86,9 +86,7 @@ MakefileParser::MakefileParser(const List<ByteArray> &extraFlags, Connection *co
 MakefileParser::~MakefileParser()
 {
     if (mProc) {
-        mProc->kill();
-        mProc->terminate();
-        mProc->waitForFinished();
+        mProc->stop();
         delete mProc;
     }
     delete mTracker;
@@ -98,63 +96,56 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
 {
     mMakefile = makefile;
     Q_ASSERT(!mProc);
-    mProc = new QProcess(this);
+    mProc = new Process;
 
-    QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    std::list<ByteArray> environment;
     if (!args.contains("-B")) {
         Path p = RTags::applicationDirPath();
 #ifdef OS_Mac
         p += "/../makelib/libmakelib.dylib";
         p.resolve();
-        environment.insert("DYLD_INSERT_LIBRARIES", p.constData());
+        environment.push_back("DYLD_INSERT_LIBRARIES=" + p);
 #else
         p += "/../makelib/libmakelib.so";
         p.resolve();
-        environment.insert("LD_PRELOAD", p.constData());
+        environment.push_back("LD_PRELOAD=" + p);
 #endif
     }
 
-    mProc->setProcessEnvironment(environment);
-
-    connect(mProc, SIGNAL(readyReadStandardOutput()),
-            this, SLOT(processMakeOutput()));
-    connect(mProc, SIGNAL(readyReadStandardError()),
-            this, SLOT(onReadyReadStandardError()));
-
-    connect(mProc, SIGNAL(stateChanged(QProcess::ProcessState)),
-            this, SLOT(onProcessStateChanged(QProcess::ProcessState)));
-
-    connect(mProc, SIGNAL(error(QProcess::ProcessError)),
-            this, SLOT(onError(QProcess::ProcessError)));
-    connect(mProc, SIGNAL(finished(int)), this, SLOT(onDone()));
+    mProc->readyReadStdOut().connect(this, &MakefileParser::processMakeOutput);
+    mProc->finished().connect(this, &MakefileParser::onDone);
 
     mTracker->init(makefile.parentDir());
     warning(MAKE " -j1 -w -f %s -C %s\n",
             makefile.constData(), mTracker->path().constData());
-    QStringList a;
-    a << QLatin1String("-j1") << QLatin1String("-w")
-      << QLatin1String("-f") << QString::fromLocal8Bit(makefile.constData(), makefile.size())
-      << QLatin1String("-C") << QString::fromStdString(mTracker->path())
-      << QLatin1String("AM_DEFAULT_VERBOSITY=1") << QLatin1String("VERBOSE=1");
+
+    std::list<ByteArray> a;
+    a.push_back("-j1");
+    a.push_back("-w");
+    a.push_back("-f");
+    a.push_back(makefile);
+    a.push_back("-C");
+    a.push_back(mTracker->path());
+    a.push_back("AM_DEFAULT_VERBOSITY=1");
+    a.push_back("VERBOSE=1");
 
     foreach(const ByteArray &arg, args) {
-        a << QString::fromStdString(arg);
+        a.push_back(arg);
     }
 
     unlink("/tmp/makelib.log");
-    mProc->start(QLatin1String(MAKE), a);
-    mProc->waitForFinished();
+    mProc->start(MAKE, a, environment);
 }
 
 bool MakefileParser::isDone() const
 {
-    return mProc && (mProc->state() == QProcess::NotRunning);
+    return mProc && mProc->isDone();
 }
 
 void MakefileParser::processMakeOutput()
 {
     assert(mProc);
-    mData += mProc->readAllStandardOutput().constData();
+    mData += mProc->readAllStdOut();
 
     // ### this could be more efficient
     int nextNewline = mData.indexOf('\n');
@@ -181,21 +172,6 @@ void MakefileParser::processMakeLine(const ByteArray &line)
     } else {
         mTracker->track(line);
     }
-}
-
-void MakefileParser::onError(QProcess::ProcessError err)
-{
-    error() << "Error" << int(err) << mProc->errorString().toStdString();
-}
-
-void MakefileParser::onProcessStateChanged(QProcess::ProcessState state)
-{
-    debug() << "process state changed " << state;
-}
-
-void MakefileParser::onReadyReadStandardError()
-{
-    debug() << "stderr" << mProc->readAllStandardError().constData();
 }
 
 List<ByteArray> MakefileParser::mapPchToInput(const List<ByteArray> &input) const

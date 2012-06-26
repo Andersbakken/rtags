@@ -3,17 +3,16 @@
 
 #include "Path.h"
 #include "GccArguments.h"
-#include <QObject>
 #include <List.h>
 #include <Map.h>
-#include <QProcess>
 #include <signalslot.h>
 
 class DirectoryTracker;
 class Connection;
-class MakefileParser : public QObject
+class Process;
+
+class MakefileParser
 {
-    Q_OBJECT
 public:
     MakefileParser(const List<ByteArray> &extraFlags, Connection *conn);
     ~MakefileParser();
@@ -30,18 +29,12 @@ public:
 
     int sourceCount() const { return mSourceCount; }
     int pchCount() const { return mPchCount; }
-
-private slots:
-    void onDone();
+private:
     void processMakeOutput();
-    void onReadyReadStandardError();
-    void onError(QProcess::ProcessError error);
-    void onProcessStateChanged(QProcess::ProcessState state);
-private:
     void processMakeLine(const ByteArray &line);
+    void onDone();
 
-private:
-    QProcess *mProc;
+    Process *mProc;
     ByteArray mData;
     DirectoryTracker *mTracker;
     const List<ByteArray> mExtraFlags;

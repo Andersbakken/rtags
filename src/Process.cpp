@@ -245,3 +245,12 @@ void Process::handleTerminated()
 
     mFinished();
 }
+
+void Process::stop()
+{
+    if (mPid == -1)
+        return;
+
+    ::kill(mPid, SIGTERM);
+    ::waitpid(mPid, &mReturn, 0);
+}

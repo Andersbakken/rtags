@@ -22,7 +22,10 @@ public:
     ByteArray readAllStdOut();
     ByteArray readAllStdErr();
 
+    bool isDone() const { return mPid == -1; }
     int returnCode() const { return mReturn; }
+
+    void stop();
 
     signalslot::Signal0 readyReadStdOut() const { return mReadyReadStdOut; }
     signalslot::Signal0 readyReadStdErr() const { return mReadyReadStdErr; }
