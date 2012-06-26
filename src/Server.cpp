@@ -78,54 +78,6 @@ void Server::clear()
     }
 }
 
-static inline List<Path> systemIncludes(const Path &cpp)
-{
-    List<Path> systemIncludes;
-    QProcess proc;
-    proc.start(cpp, QStringList() << QLatin1String("-v"));
-    proc.closeWriteChannel();
-    proc.waitForFinished();
-    QByteArray ba = proc.readAllStandardError();
-    List<ByteArray> lines = ByteArray(ba.constData(), ba.size()).split('\n');
-    bool seenInclude = false;
-    Path gxxIncludeDir;
-    ByteArray target;
-    foreach(const ByteArray& line, lines) {
-        if (gxxIncludeDir.isEmpty()) {
-            int idx = line.indexOf("--with-gxx-include-dir=");
-            if (idx != -1) {
-                const int space = line.indexOf(' ', idx);
-                gxxIncludeDir = line.mid(idx + 23, space - idx - 23);
-                if (!gxxIncludeDir.resolve())
-                    gxxIncludeDir.clear();
-            }
-            idx = line.indexOf("--target=");
-            if (idx != -1) {
-                const int space = line.indexOf(' ', idx);
-                target = line.mid(idx + 9, space - idx - 9);
-            }
-        } else if (!seenInclude && line.startsWith("#include ")) {
-            seenInclude = true;
-        } else if (seenInclude && line.startsWith(" /")) {
-            Path path = Path::resolved(line.mid(1));
-            if (path.isDir()) {
-                systemIncludes.append(path);
-            }
-        }
-    }
-    if (gxxIncludeDir.isDir()) {
-        systemIncludes.append(gxxIncludeDir);
-        if (!target.isEmpty()) {
-            gxxIncludeDir += target;
-            if (!gxxIncludeDir.endsWith('/'))
-                gxxIncludeDir.append('/');
-            if (gxxIncludeDir.isDir())
-                systemIncludes.append(gxxIncludeDir);
-        }
-    }
-    return systemIncludes;
-}
-
 bool Server::init(const Options &options)
 {
     mThreadPool = new ThreadPool(ThreadPool::idealThreadCount());
