@@ -12,9 +12,9 @@ set(leveldb_LIBS ${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/leveldb/libleveldb.a)
 
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 add_executable(rdm rdm.cpp)
-target_link_libraries(rdm rtags ${leveldb_LIBS} ${clang_LIBS} ${QT_QTCORE_LIBRARY} ${QT_QTNETWORK_LIBRARY})
+target_link_libraries(rdm rtags ${leveldb_LIBS} ${clang_LIBS})
 add_dependencies(rdm rtags)
 
 add_executable(rc rc.cpp)
-target_link_libraries(rc rtags ${leveldb_LIBS} ${clang_LIBS} ${QT_QTCORE_LIBRARY} ${QT_QTNETWORK_LIBRARY})
+target_link_libraries(rc rtags ${leveldb_LIBS} ${clang_LIBS})
 add_dependencies(rc rtags)

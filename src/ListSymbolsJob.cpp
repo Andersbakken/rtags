@@ -38,8 +38,8 @@ void ListSymbolsJob::execute()
             if (hasFilter) {
                 ok = false;
                 const Set<Location> locations = it->value<Set<Location> >();
-                foreach(const Location &loc, locations) {
-                    if (filter(loc.path())) {
+                for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
+                    if (filter(it->path())) {
                         ok = true;
                         break;
                     }
@@ -60,12 +60,14 @@ void ListSymbolsJob::execute()
         return;
     }
     if (queryFlags & QueryMessage::ReverseSort) {
-        qSort(out.begin(), out.end(), qGreater<ByteArray>());
+#warning how do we do this?
+        // qSort(out.begin(), out.end(), qGreater<ByteArray>());
     } else {
-        qSort(out);
+        std::sort(out.begin(), out.end());
     }
-    foreach (const ByteArray &o, out) {
-        write(o);
+    const int count = out.size();
+    for (int i=0; i<count; ++i) {
+        write(out.at(i));
     }
 }
 

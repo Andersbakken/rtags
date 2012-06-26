@@ -1,7 +1,6 @@
 #ifndef FollowLocationJob_h
 #define FollowLocationJob_h
 
-#include <QObject>
 #include <ByteArray.h>
 #include <List.h>
 #include "RTags.h"

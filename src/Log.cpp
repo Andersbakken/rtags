@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <Timer.h>
+#include <stdarg.h>
 
 static unsigned sFlags = 0;
 static Timer sStart;
@@ -86,7 +87,8 @@ static void log(int level, const char *format, va_list v)
     }
 
     MutexLocker lock(&sOutputsMutex);
-    foreach(Output *output, sOutputs) {
+    for (Set<Output*>::const_iterator it = sOutputs.begin(); it != sOutputs.end(); ++it) {
+        Output *output = *it;
         if (output->testLog(level)) {
             output->log(msg, n);
         }
@@ -168,7 +170,7 @@ bool initLogging(int level, const Path &file, unsigned flags)
     if (!file.isEmpty()) {
         if (!(flags & (Append|DontRotate)) && file.exists()) {
             int i = 0;
-            forever {
+            while (true) {
                 Path rotated = file + ".";
                 rotated += ByteArray::number(++i);
                 if (!rotated.exists()) {

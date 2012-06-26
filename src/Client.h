@@ -7,8 +7,6 @@
 #include <ByteArray.h>
 #include <Map.h>
 #include <List.h>
-#include <QObject>
-#include <QEventLoop>
 
 class Connection;
 class Message;
@@ -36,7 +34,6 @@ private:
     Connection *mConnection;
     unsigned mFlags;
     List<ByteArray> mRdmArgs;
-    QEventLoop mLoop;
     const ByteArray mName;
 };
 

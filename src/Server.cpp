@@ -2,7 +2,7 @@
 
 #include "Event.h"
 #include "Client.h"
-#include <QObject>
+#include "EventLoop.h"
 #include "LocalClient.h"
 #include "Connection.h"
 #include "CursorInfoJob.h"
@@ -33,15 +33,15 @@
 #include <Log.h>
 #include <clang-c/Index.h>
 #include <stdio.h>
-#include <QCoreApplication>
 
 Path Server::sBase;
 
-class MakeEvent : public QEvent
+class MakeEvent : public Event
 {
 public:
+    enum { Type = 3 };
     MakeEvent()
-        : QEvent(User)
+        : Event(Type)
     {}
     Path makefile;
     List<ByteArray> makefileArgs, extraFlags;
@@ -49,14 +49,11 @@ public:
 };
 
 Server *Server::sInstance = 0;
-Server::Server(QObject *parent)
-    : QObject(parent), mIndexer(0), mServer(0), mVerbose(false), mJobId(0), mThreadPool(0)
+Server::Server()
+    : mIndexer(0), mServer(0), mVerbose(false), mJobId(0), mThreadPool(0)
 {
-    Q_ASSERT(!sInstance);
+    assert(!sInstance);
     sInstance = this;
-    qRegisterMetaType<Path>("Path");
-    qRegisterMetaType<ByteArray>("ByteArray");
-    qRegisterMetaType<List<ByteArray> >("List<ByteArray>");
     memset(mDBs, 0, sizeof(mDBs));
 }
 
@@ -64,7 +61,7 @@ Server::~Server()
 {
     delete mIndexer;
     clear();
-    Q_ASSERT(sInstance = this);
+    assert(sInstance = this);
     sInstance = 0;
 }
 
@@ -152,7 +149,7 @@ bool Server::init(const Options &options)
             const Slice key = it->key();
             const Path path(key.data(), key.size());
             const uint32_t fileId = it->value<uint32_t>();
-            maxId = qMax(fileId, maxId);
+            maxId = std::max(fileId, maxId);
             idsToPaths[fileId] = path;
             pathsToIds[path] = fileId;
             it->next();
@@ -244,13 +241,8 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
     ev->makefileArgs = message->arguments();
     ev->extraFlags = message->extraFlags();
     ev->connection = conn;
-    // QCoreApplication::postEvent(this, ev);
-    QMetaObject::invokeMethod(this, "make", Q_ARG(Path, message->makefile()));
-                              // Q_ARG(List<ByteArray>(), message->arguments()),
-                              // Q_ARG(List<ByteArray>(), message->extraFlags()),
-                              // Q_ARG(Connection *, conn));
-    conn->finish();
-
+    EventLoop::instance()->postEvent(this, ev);
+    // conn->finish();
     // make(message->makefile(), message->arguments(), message->extraFlags(), conn);
 }
 
@@ -281,7 +273,7 @@ void Server::onMakefileParserDone(MakefileParser *parser)
         connection->send(&msg);
         connection->finish();
     }
-    parser->deleteLater();
+    delete parser;
 }
 
 void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn)
@@ -294,7 +286,7 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     int id = 0;
     switch (message->type()) {
     case QueryMessage::Invalid:
-        Q_ASSERT(0);
+        assert(0);
         break;
     case QueryMessage::Reindex: {
         reindex(message->query().value(0));
@@ -624,7 +616,7 @@ void Server::startJob(Job *job)
     mThreadPool->start(job, job->priority());
 }
 
-void Server::onFileReady(const GccArguments &args)
+void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 {
     if (args.inputFiles().isEmpty()) {
         warning("no input file?");
@@ -636,11 +628,9 @@ void Server::onFileReady(const GccArguments &args)
         return;
     }
 
-    MakefileParser *parser = qobject_cast<MakefileParser*>(sender());
-
     if (args.type() == GccArguments::Pch) {
         ByteArray output = args.outputFile();
-        Q_ASSERT(!output.isEmpty());
+        assert(!output.isEmpty());
         const int ext = output.lastIndexOf(".gch/c");
         if (ext != -1) {
             output = output.left(ext + 4);
@@ -699,17 +689,12 @@ void Server::event(const Event *event)
         ResponseMessage msg(e->out);
         it->second->send(&msg);
         break; }
+    case MakeEvent::Type: {
+        const MakeEvent *e = static_cast<const MakeEvent*>(event);
+        make(e->makefile, e->makefileArgs, e->extraFlags, e->connection);
+        break; }
     default:
         assert(0);
         break;
     }
-}
-
-bool Server::event(QEvent *event)
-{
-    if (event->type() == QEvent::User) {
-        MakeEvent *ev = static_cast<MakeEvent*>(event);
-        make(ev->makefile, ev->makefileArgs, ev->extraFlags, ev->connection);
-    }
-    return QObject::event(event);
 }

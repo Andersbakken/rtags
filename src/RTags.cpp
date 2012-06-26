@@ -7,7 +7,7 @@ namespace RTags {
 
 int canonicalizePath(char *path, int len)
 {
-    Q_ASSERT(path[0] == '/');
+    assert(path[0] == '/');
     for (int i=0; i<len - 3; ++i) {
         if (path[i] == '/' && path[i + 1] == '.'
             && path[i + 2] == '.' && path[i + 3] == '/') {
@@ -71,7 +71,7 @@ ByteArray shortOptions(const option *longOptions)
 {
     ByteArray ret;
     for (int i=0; longOptions[i].name; ++i) {
-        Q_ASSERT(!ret.contains(longOptions[i].val));
+        assert(!ret.contains(longOptions[i].val));
         ret.append(longOptions[i].val);
         switch (longOptions[i].has_arg) {
         case no_argument:
@@ -84,7 +84,7 @@ ByteArray shortOptions(const option *longOptions)
             ret.append(':');
             break;
         default:
-            Q_ASSERT(0);
+            assert(0);
             break;
         }
     }

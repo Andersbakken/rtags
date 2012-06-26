@@ -226,7 +226,7 @@ int dirty(const Set<uint32_t> &dirtyFileIds)
         it->seekToFirst();
         while (it->isValid()) {
             const Slice key = it->key();
-            Q_ASSERT(key.size() == 8);
+            assert(key.size() == 8);
             const Location loc = Location::fromKey(key.data());
             // debug() << "looking at" << key;
             if (dirtyFileIds.contains(loc.fileId())) {

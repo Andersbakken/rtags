@@ -41,13 +41,16 @@ void FindSymbolsJob::execute()
         it->next();
     }
     List<Location> sorted = out.toList();
-    if (queryFlags & QueryMessage::ReverseSort) {
-        qSort(sorted.begin(), sorted.end(), qGreater<Location>());
+    if (queryFlags & QueryMessage::ReverseSort && false) {
+        #warning how do we do this?
+        // qSort(sorted.begin(), sorted.end(), qGreater<Location>());
     } else {
-        qSort(sorted);
+        std::sort(sorted.begin(), sorted.end());
     }
     const uint32_t keyFlags = QueryMessage::keyFlags(queryFlags);
-    foreach (const Location &loc, sorted) {
+    const int count = sorted.size();
+    for (int i=0; i<count; ++i) {
+        const Location &loc = sorted.at(i);
         write(loc.key(keyFlags));
     }
 }

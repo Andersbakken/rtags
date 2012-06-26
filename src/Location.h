@@ -29,7 +29,7 @@ public:
     Location(const CXFile &file, uint32_t offset)
         : mData(0)
     {
-        Q_ASSERT(file);
+        assert(file);
         CXString fn = clang_getFileName(file);
         const char *cstr = clang_getCString(fn);
         if (!cstr)
@@ -152,7 +152,7 @@ public:
         line = 1;
         int last = 0;
         uint32_t idx = 0;
-        forever {
+        while (true) {
             const int lineLen = RTags::readLine(f);
             if (lineLen == -1) {
                 col = line = -1;

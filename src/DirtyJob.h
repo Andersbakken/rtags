@@ -5,7 +5,7 @@
 #include "Path.h"
 #include "ThreadPool.h"
 
-class DirtyJob : public QObject, public ThreadPool::Job
+class DirtyJob : public ThreadPool::Job
 {
 public:
     DirtyJob(Indexer *indexer, const Set<uint32_t> &dirty,

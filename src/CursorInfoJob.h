@@ -1,7 +1,6 @@
 #ifndef CursorInfoJob_h
 #define CursorInfoJob_h
 
-#include <QObject>
 #include <ByteArray.h>
 #include <List.h>
 #include "RTags.h"

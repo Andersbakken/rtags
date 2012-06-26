@@ -1,7 +1,6 @@
 #ifndef Server_h
 #define Server_h
 
-#include <QObject>
 #include <FileSystemWatcher.h>
 #include <ByteArray.h>
 #include <List.h>
@@ -24,11 +23,10 @@ class LocalServer;
 class Database;
 class GccArguments;
 class MakefileParser;
-class Server : public QObject, public EventReceiver
+class Server : public EventReceiver
 {
-    Q_OBJECT
 public:
-    Server(QObject *parent = 0);
+    Server();
     ~Server();
     void clear();
     enum Option {
@@ -65,13 +63,10 @@ public:
     static Path pchDir();
     ThreadPool *threadPool() const { return mThreadPool; }
     void onNewConnection();
+    signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
 protected:
-    bool event(QEvent *event);
     void event(const Event *event);
-signals:
-    void complete(int id, const List<ByteArray> &locations);
-private slots:
-    void onFileReady(const GccArguments &file);
+    void onFileReady(const GccArguments &file, MakefileParser *parser);
     void onNewMessage(Message *message, Connection *conn);
     void onIndexingDone(int id);
     void onConnectionDestroyed(Connection *o);
@@ -115,6 +110,7 @@ private:
     FileSystemWatcher mMakefilesWatcher;
     Database *mDBs[DatabaseTypeCount];
     ThreadPool *mThreadPool;
+    signalslot::Signal2<int, const List<ByteArray> &> mComplete;
 };
 
 #endif

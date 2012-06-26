@@ -104,8 +104,8 @@ class LocationComparator : public leveldb::Comparator
 public:
     int Compare(const leveldb::Slice &left, const leveldb::Slice &right) const
     {
-        Q_ASSERT(left.size() == right.size());
-        Q_ASSERT(left.size() == 8);
+        assert(left.size() == right.size());
+        assert(left.size() == 8);
         const uint32_t *l = reinterpret_cast<const uint32_t*>(left.data());
         const uint32_t *r = reinterpret_cast<const uint32_t*>(right.data());
         if (*l < *r)

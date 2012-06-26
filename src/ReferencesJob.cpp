@@ -30,10 +30,11 @@ void ReferencesJob::execute()
     const uint32_t fileFilterId = (flags & QueryMessage::SameFile && symbolName.isEmpty() ? locations.begin()->fileId() : 0);
     Set<Location> refs;
     Set<Location> filtered;
-    foreach(const Location &location, locations) {
+    for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
         if (isAborted())
             return;
 
+        const Location &location = *it;
         Location realLoc;
         CursorInfo cursorInfo = Rdm::findCursorInfo(db, location, &realLoc);
         if (Rdm::isReference(cursorInfo.kind)) {
@@ -59,14 +60,16 @@ void ReferencesJob::execute()
                     refs.insert(cursorInfo.target);
                 }
             }
-            foreach(const Location &l, cursorInfo.references) {
+            for (Set<Location>::const_iterator it = cursorInfo.references.begin(); it != cursorInfo.references.end(); ++it) {
+                const Location &l = *it;
                 if ((!fileFilterId || l.fileId() == fileFilterId) && (!excludeDefsAndDecls || !filtered.contains(l))) {
                     refs.insert(l);
                 }
             }
             if (cursorInfo.target.isValid() && cursorInfo.kind != CXCursor_VarDecl) {
                 cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
-                foreach(const Location &l, cursorInfo.references) {
+                for (Set<Location>::const_iterator it = cursorInfo.references.begin(); it != cursorInfo.references.end(); ++it) {
+                    const Location &l = *it;
                     if ((!fileFilterId || l.fileId() == fileFilterId) && (!excludeDefsAndDecls || !filtered.contains(l))) {
                         refs.insert(l);
                     }
@@ -75,12 +78,14 @@ void ReferencesJob::execute()
         }
     }
     List<Location> sorted = refs.toList();
-    if (flags & QueryMessage::ReverseSort) {
-        qSort(sorted.begin(), sorted.end(), qGreater<Location>());
+    if (flags & QueryMessage::ReverseSort && false) {
+#warning not done
+        // qSort(sorted.begin(), sorted.end(), qGreater<Location>());
     } else {
-        qSort(sorted);
+        std::sort(sorted.begin(), sorted.end());
     }
-    foreach (const Location &loc, sorted) {
-        write(loc.key(keyFlags));
+    for (List<Location>::const_iterator it = sorted.begin(); it != sorted.end(); ++it) {
+        const Location &l = *it;
+        write(l.key(keyFlags));
     }
 }

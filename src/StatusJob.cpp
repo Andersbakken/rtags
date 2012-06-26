@@ -6,12 +6,17 @@
 #include <clang-c/Index.h>
 #include <Rdm.h>
 #include "CursorInfo.h"
-#include <QDateTime>
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(int i, const ByteArray &q)
     : Job(i, QueryJobPriority, WriteUnfiltered), query(q)
 {
+}
+
+static inline ByteArray timeToString(time_t t)
+{
+#warning not done
+    return ByteArray();
 }
 
 void StatusJob::execute()
@@ -25,7 +30,7 @@ void StatusJob::execute()
         const Map<Path, MakefileInformation> makefiles = db->value<Map<Path, MakefileInformation> >("makefiles");
         for (Map<Path, MakefileInformation>::const_iterator it = makefiles.begin(); it != makefiles.end(); ++it) {
             ByteArray out = "    " + it->first;
-            out += " last touched: " + QDateTime::fromTime_t(it->second.lastTouched).toString().toStdString();
+            out += " last touched: " + timeToString(it->second.lastTouched);
             if (!it->second.makefileArgs.isEmpty())
                 out += " args: " + ByteArray::join(it->second.makefileArgs, " ");
             if (!it->second.extraFlags.isEmpty())
@@ -48,8 +53,8 @@ void StatusJob::execute()
             snprintf(buf, sizeof(buf), "  %s (%d) is depended on by", Location::path(key).constData(), key);
             write(buf);
             const Set<uint32_t> deps = it->value<Set<uint32_t> >();
-            foreach (uint32_t p, deps) {
-                snprintf(buf, sizeof(buf), "    %s (%d)", Location::path(p).constData(), p);
+            for (Set<uint32_t>::const_iterator dit = deps.begin(); dit != deps.end(); ++dit) {
+                snprintf(buf, sizeof(buf), "    %s (%d)", Location::path(*dit).constData(), *dit);
                 write(buf);
             }
             it->next();
@@ -77,8 +82,9 @@ void StatusJob::execute()
                      ci.references.isEmpty() ? "" : " references:");
             clang_disposeString(kind);
             write(buf);
-            foreach(const Location &loc, ci.references) {
-                snprintf(buf, sizeof(buf), "    %s", loc.key().constData());
+            for (Set<Location>::const_iterator rit = ci.references.begin(); rit != ci.references.end(); ++rit) {
+                const Location &l = *rit;
+                snprintf(buf, sizeof(buf), "    %s", l.key().constData());
                 write(buf);
             }
             it->next();
@@ -98,7 +104,8 @@ void StatusJob::execute()
             snprintf(buf, sizeof(buf), "  %s:", it->key().byteArray().constData());
             write(buf);
             const Set<Location> locations = it->value<Set<Location> >();
-            foreach (const Location &loc, locations) {
+            for (Set<Location>::const_iterator lit = locations.begin(); lit != locations.end(); ++lit) {
+                const Location &loc = *lit;
                 snprintf(buf, sizeof(buf), "    %s", loc.key().constData());
                 write(buf);
             }
@@ -121,7 +128,7 @@ void StatusJob::execute()
             const uint32_t fileId = *reinterpret_cast<const uint32_t*>(it->key().data());
             snprintf(buf, 1024, "  %s: last compiled: %s compile args: %s",
                      Location::path(fileId).constData(),
-                     QDateTime::fromTime_t(fi.lastTouched).toString().toLocal8Bit().constData(),
+                     timeToString(fi.lastTouched).constData(),
                      ByteArray::join(fi.compileArgs, " ").constData());
             write(buf);
             it->next();
@@ -169,7 +176,10 @@ void StatusJob::execute()
         write(delimiter);
         write("visitedFiles");
         char buf[1024];
-        foreach(uint32_t id, Server::instance()->indexer()->visitedFiles()) {
+        const Set<uint32_t> visitedFiles = Server::instance()->indexer()->visitedFiles();
+
+        for (Set<uint32_t>::const_iterator it = visitedFiles.begin(); it != visitedFiles.end(); ++it) {
+            const uint32_t id = *it;
             snprintf(buf, sizeof(buf), "  %s: %d", Location::path(id).constData(), id);
             write(buf);
         }

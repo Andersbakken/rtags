@@ -1,7 +1,6 @@
 #ifndef ReferencesJob_h
 #define ReferencesJob_h
 
-#include <QObject>
 #include <ByteArray.h>
 #include <List.h>
 #include <RTags.h>

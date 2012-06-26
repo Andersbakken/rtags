@@ -1,4 +1,3 @@
-#include <QCoreApplication>
 #include "Thread.h"
 #include "ThreadPool.h"
 #include "Server.h"
@@ -197,7 +196,6 @@ int main(int argc, char** argv)
     }
 
     ThreadPool::globalInstance()->setConcurrentJobs(jobs);
-    QCoreApplication app(argc, argv);
     if (!initLogging(logLevel, logFile, logFlags)) {
         fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
                 logLevel, logFile ? logFile : "", logFlags);
@@ -212,7 +210,6 @@ int main(int argc, char** argv)
     warning("Running with %d jobs", jobs);
 
     EventLoop loop;
-    EventLoopThread eventThread;
 
     Server *server = new Server;
     Server::Options serverOpts;
@@ -225,9 +222,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    eventThread.start();
-
-    const int ret = app.exec();
+    loop.run();
     delete server;
-    return ret;
+    return 0;
 }

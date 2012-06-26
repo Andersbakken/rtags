@@ -80,7 +80,7 @@ void Connection::finish()
 
 void Connection::dataAvailable()
 {
-    forever {
+    while (true) {
         int available = mClient->bytesAvailable();
         if (!mPendingRead) {
             if (available < static_cast<int>(sizeof(uint32_t)))

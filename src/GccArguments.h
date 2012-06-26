@@ -30,7 +30,8 @@ public:
     Path baseDirectory() const;
     Path compiler() const;
 private:
-    Q_DISABLE_COPY(GccArguments);
+    GccArguments(const GccArguments &);
+    GccArguments &operator=(const GccArguments&);
     GccArgumentsImpl *mImpl;
 };
 

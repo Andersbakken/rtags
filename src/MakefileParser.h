@@ -25,7 +25,7 @@ public:
     Path makefile() const { return mMakefile; }
     Connection *connection() const { return mConnection; }
     signalslot::Signal1<MakefileParser*> &done() { return mDone; }
-    signalslot::Signal1<const GccArguments &> &fileReady() { return mFileReady; }
+    signalslot::Signal2<const GccArguments &, MakefileParser*> &fileReady() { return mFileReady; }
 
     int sourceCount() const { return mSourceCount; }
     int pchCount() const { return mPchCount; }
@@ -43,7 +43,7 @@ private:
     Path mMakefile;
     Connection *mConnection;
     signalslot::Signal1<MakefileParser*> mDone;
-    signalslot::Signal1<const GccArguments &> mFileReady;
+    signalslot::Signal2<const GccArguments &, MakefileParser*> mFileReady;
 };
 
 #endif // MAKEFILEPARSER_H

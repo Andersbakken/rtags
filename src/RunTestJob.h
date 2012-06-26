@@ -4,16 +4,15 @@
 #include "Path.h"
 #include "Job.h"
 
-class JobRunner : public QObject
+class JobRunner
 {
-    Q_OBJECT;
 public:
     JobRunner()
         : lines(0)
     {}
     Set<ByteArray> runJob(Job *job)
     {
-        Q_ASSERT(!lines);
+        assert(!lines);
         Set<ByteArray> ret;
         lines = &ret;
 #warning this is busted
@@ -23,10 +22,9 @@ public:
         delete job;
         return ret;
     }
-private slots:
     void onOutput(int, const ByteArray &line)
     {
-        Q_ASSERT(lines);
+        assert(lines);
         lines->insert(line);
     }
 private:

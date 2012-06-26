@@ -1,15 +1,11 @@
 cmake_minimum_required(VERSION 2.8.3)
-find_package(Qt4 REQUIRED)
-include(${QT_USE_FILE})
 include(PCH_GCC4_v2.cmake)
 include_directories(
   ${CMAKE_CURRENT_LIST_DIR}
-  ${QT_QTCORE_INCLUDE_DIR} ${QT_QTNETWORK_INCLUDE_DIR}
 )
 
 include_directories(
     ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
-    ${QT_QTCORE_INCLUDE_DIR} ${QT_QTNETWORK_INCLUDE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
     ../signalslot
     ../3rdparty/leveldb/include)
@@ -119,21 +115,12 @@ set(rtags_SRCS
     Process.cpp
 )
 
-set(rtags_MOCS
-    MakefileParser.h
-    Server.h
-    RunTestJob.h
-    )
-
-include(qt4.cmake)
 include(clang.cmake)
 include(PCH_GCC4_v2.cmake)
 
 set(rtags_CPPMOCS
   ${CMAKE_CURRENT_LIST_DIR}/Connection.cpp
   )
-QT4_DO_THE_RIGHT_THING(MOCS ${rtags_MOCS})
-QT4_GENERATE_MOCS(${rtags_CPPMOCS})
 
 add_pch_rule(Pch.h rtags_SRCS rtags_PCHFLAGS)
 add_definitions(${rtags_PCHFLAGS})

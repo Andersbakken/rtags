@@ -6,7 +6,7 @@
 #include <errno.h>
 #include <List.h>
 #include <stdio.h>
-#include <QMetaType>
+#include <string.h>
 
 class ByteArray
 {
@@ -253,11 +253,6 @@ public:
         return mString;
     }
 
-    operator QString() const
-    {
-        return QString::fromStdString(mString);
-    }
-
     List<ByteArray> split(char ch) const
     {
         // ### is this right?
@@ -294,14 +289,15 @@ public:
     {
         ByteArray ret;
         const int sepSize = sep.size();
-        int size = qMax(0, list.size() - 1) * sepSize;
-        foreach(const ByteArray &b, list)
-            size += b.size();
+        int size = std::max(0, list.size() - 1) * sepSize;
+        const int count = list.size();
+        for (int i=0; i<count; ++i)
+            size += list.at(i).size();
         ret.reserve(size);
-        int i = 0;
-        foreach(const ByteArray &b, list) {
+        for (int i=0; i<count; ++i) {
+            const ByteArray &b = list.at(i);
             ret.append(b);
-            if (sepSize && i++ < list.size())
+            if (sepSize && i + 1 < list.size())
                 ret.append(sep);
         }
         return ret;
@@ -337,8 +333,5 @@ inline const ByteArray operator+(const ByteArray &l, const ByteArray &r)
     ret += r;
     return ret;
 }
-
-Q_DECLARE_METATYPE(ByteArray);
-Q_DECLARE_METATYPE(List<ByteArray>);
 
 #endif

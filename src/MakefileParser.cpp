@@ -65,7 +65,7 @@ void DirectoryTracker::enterDirectory(const ByteArray &dir)
         mPaths.push_back(newPath);
         debug("New directory resolved: %s", newPath.constData());
     } else {
-        qFatal("Unable to resolve path %s (%s)", dir.constData(), path().constData());
+        error("Unable to resolve path %s (%s)", dir.constData(), path().constData());
     }
 }
 
@@ -78,7 +78,7 @@ void DirectoryTracker::leaveDirectory(const ByteArray &dir)
 }
 
 MakefileParser::MakefileParser(const List<ByteArray> &extraFlags, Connection *conn)
-    : QObject(), mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags),
+    : mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags),
       mSourceCount(0), mPchCount(0), mConnection(conn)
 {
 }
@@ -95,7 +95,7 @@ MakefileParser::~MakefileParser()
 void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
 {
     mMakefile = makefile;
-    Q_ASSERT(!mProc);
+    assert(!mProc);
     mProc = new Process;
 
     std::list<ByteArray> environment = Process::environment();
@@ -129,8 +129,9 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     a.push_back("AM_DEFAULT_VERBOSITY=1");
     a.push_back("VERBOSE=1");
 
-    foreach(const ByteArray &arg, args) {
-        a.push_back(arg);
+    const int c = args.size();
+    for (int i=0; i<c; ++i) {
+        a.push_back(args.at(i));
     }
 
     unlink("/tmp/makelib.log");
@@ -169,7 +170,7 @@ void MakefileParser::processMakeLine(const ByteArray &line)
         } else {
             ++mSourceCount;
         }
-        fileReady()(args);
+        fileReady()(args, this);
     } else {
         mTracker->track(line);
     }
@@ -180,7 +181,9 @@ List<ByteArray> MakefileParser::mapPchToInput(const List<ByteArray> &input) cons
     List<ByteArray> output;
     Map<ByteArray, ByteArray>::const_iterator pchit;
     const Map<ByteArray, ByteArray>::const_iterator pchend = mPchs.end();
-    foreach (const ByteArray &in, input) {
+    const int count = input.size();
+    for (int i=0; i<count; ++i) {
+        const ByteArray &in = input.at(i);
         pchit = mPchs.find(in);
         if (pchit != pchend)
             output.append(pchit->second);

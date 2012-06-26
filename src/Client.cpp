@@ -3,6 +3,7 @@
 #include "Connection.h"
 #include "MakefileParser.h"
 #include "ResponseMessage.h"
+#include <EventLoop.h>
 #include <Log.h>
 #include <unistd.h>
 
@@ -38,7 +39,7 @@ void Client::sendMessage(int id, const ByteArray &msg)
     mConnection->disconnected().connect(this, &Client::onDisconnected);
     mConnection->newMessage().connect(this, &Client::onNewMessage);
     mConnection->send(id, msg);
-    mLoop.exec();
+    EventLoop::instance()->run();
 }
 
 void Client::onNewMessage(Message *message, Connection *)
@@ -49,7 +50,7 @@ void Client::onNewMessage(Message *message, Connection *)
             printf("%s\n", response.constData());
         }
     } else {
-        qFatal("Unexpected message: %d", message->messageId());
+        error("Unexpected message: %d", message->messageId());
     }
 }
 
@@ -58,11 +59,11 @@ void Client::onDisconnected()
 {
     delete mConnection;
     mConnection = 0;
-    mLoop.quit();
+    EventLoop::instance()->exit();
 }
 bool Client::connectToServer()
 {
-    Q_ASSERT(!mConnection);
+    assert(!mConnection);
     mConnection = new Connection;
     if (!mConnection->connectToServer(mName)) {
         if (mFlags & AutostartRdm) {

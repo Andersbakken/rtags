@@ -47,7 +47,7 @@ bool LocalClient::connect(const ByteArray& name, int maxTime)
     const int sz = std::min<int>(sizeof(address.sun_path) - 1, name.size());
     memcpy(address.sun_path, name.constData(), sz);
     address.sun_path[sz] = '\0';
-    forever {
+    while (true) {
         mFd = ::socket(PF_UNIX, SOCK_STREAM, 0);
         if (mFd == -1)
             return false;

@@ -124,7 +124,7 @@ bool GccArguments::parse(ByteArray args, const Path &base)
         while (size > 0) {
             switch (*cur) {
             case '\\':
-                Q_ASSERT(size > 0);
+                assert(size > 0);
                 memmove(cur, cur + 1, size);
                 --size;
                 break;
@@ -191,10 +191,10 @@ bool GccArguments::parse(ByteArray args, const Path &base)
             case 'x':
                 if (!strcmp(cur, "c-header")) {
                     mImpl->type = Pch;
-                    Q_ASSERT(mImpl->lang == C);
+                    assert(mImpl->lang == C);
                 } else if (!strcmp(cur, "c++-header")) {
                     mImpl->type = Pch;
-                    Q_ASSERT(mImpl->lang == CPlusPlus);
+                    assert(mImpl->lang == CPlusPlus);
                 }
                 mImpl->clangArgs.append("-x");
                 mImpl->clangArgs.append(cur);
@@ -276,8 +276,11 @@ bool GccArguments::parse(ByteArray args, const Path &base)
 
     if (mImpl->inputFiles.isEmpty()) {
         error("Unable to find or resolve input files");
-        foreach (const ByteArray& input, unresolvedInputs)
+        const int c = unresolvedInputs.size();
+        for (int i=0; i<c; ++i) {
+            const ByteArray &input = unresolvedInputs.at(i);
             error("  %s", input.constData());
+        }
         clear();
         return false;
     }
@@ -299,8 +302,10 @@ bool GccArguments::parse(ByteArray args, const Path &base)
         if (resolved.isEmpty()) {
             if (paths.isEmpty()) {
                 const ByteArray p = getenv("PATH");
-                foreach(const ByteArray &pp, p.split(':')) {
-                    Path path(pp);
+                const List<ByteArray> split = p.split(':');
+                const int splitCount = split.size();
+                for (int i=0; i<splitCount; ++i) {
+                    Path path = split.at(i);
                     if (path.resolve()) {
                         if (!path.endsWith('/'))
                             path.append('/');
@@ -310,7 +315,9 @@ bool GccArguments::parse(ByteArray args, const Path &base)
             }
             const char *fncstr = mImpl->compiler.fileName();
             const ByteArray fn(fncstr);
-            foreach(const Path &path, paths) {
+            const int pathCount = paths.size();
+            for (int i=0; i<pathCount; ++i) {
+                const Path &path = paths.at(i);
                 Path c = path + fn;
                 if (c.isFile()) {
                     resolvedFromPath[mImpl->compiler] = c;
@@ -348,8 +355,10 @@ List<Path> GccArguments::inputFiles() const
 List<ByteArray> GccArguments::explicitIncludes() const
 {
     List<ByteArray> incs;
-    foreach (const Path &p, mImpl->includes)
-        incs.append(p);
+    const int c = mImpl->includes.size();
+    for (int i=0; i<c; ++i)
+        incs.append(mImpl->includes.at(i));
+    // ### ????
     return incs;
 }
 
@@ -365,7 +374,9 @@ Path GccArguments::baseDirectory() const
 
 void GccArguments::addFlags(const List<ByteArray> &extraFlags)
 {
-    foreach (ByteArray flag, extraFlags) {
+    const int count = extraFlags.size();
+    for (int i=0; i<count; ++i) {
+        ByteArray flag = extraFlags.at(i);
         if (flag.startsWith("-I")) {
             Path p = Path::resolved(flag.constData() + 2);
             flag.replace(2, flag.size() - 2, p);

@@ -82,8 +82,8 @@ template <> inline ByteArray encode(const CursorInfo &info)
     *isDefinitionPtr++ = info.isDefinition;
     uint64_t *locPtr = reinterpret_cast<uint64_t*>(isDefinitionPtr);
     *locPtr++ = info.target.mData;
-    foreach(const Location &loc, info.references) {
-        *locPtr++ = loc.mData;
+    for (Set<Location>::const_iterator it = info.references.begin(); it != info.references.end(); ++it) {
+        *locPtr++ = it->mData;
     }
     return out;
 }

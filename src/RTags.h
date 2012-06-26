@@ -41,11 +41,15 @@ bool removeDirectory(const char *path);
 int canonicalizePath(char *path, int len);
 ByteArray unescape(ByteArray command);
 
-template <typename T> class Ptr : public QScopedPointer<T>
+template <typename T> class Ptr
 {
 public:
-    Ptr(T *t = 0) : QScopedPointer<T>(t) {}
-    operator T*() const { return QScopedPointer<T>::data(); }
+    Ptr(T *t = 0) : tt(t) {}
+    ~Ptr() { delete tt; }
+    operator T*() const { return tt; }
+    T *operator->() const { return tt; }
+private:
+    T *tt;
 };
 bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs);
 

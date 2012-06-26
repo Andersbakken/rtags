@@ -15,7 +15,7 @@ Path Path::parentDir() const
     if (i < 0)
         return Path();
     copy.truncate(i + 1);
-    Q_ASSERT(copy.endsWith('/'));
+    assert(copy.endsWith('/'));
     return copy;
 }
 
@@ -43,7 +43,7 @@ time_t Path::lastModified() const
 {
     struct stat st;
     if (stat(constData(), &st) == -1) {
-        qWarning("Stat failed for %s", constData());
+        warning("Stat failed for %s", constData());
         return 0;
     }
     return st.st_mtime;

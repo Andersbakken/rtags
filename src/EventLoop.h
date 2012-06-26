@@ -59,18 +59,4 @@ private:
     pthread_t mThread;
 };
 
-class EventLoopThread : public Thread
-{
-public:
-    EventLoopThread()
-    {}
-
-protected:
-    void run()
-    {
-        EventLoop::instance()->run();
-    }
-};
-
-
 #endif

@@ -129,10 +129,10 @@ void RunTestJob::testSymbolNames(const ByteArray &symbolName, const Set<ByteArra
     if (!missing.isEmpty() || !unexpected.isEmpty()) {
         write("symbolnames: [" + symbolName + "] failed ("
               + ByteArray::number(missing.size() + unexpected.size()) + " failures)");
-        foreach(const ByteArray &m, missing)
-            write("--- " + m);
-        foreach(const ByteArray &u, unexpected)
-            write("+++ " + u);
+        for (Set<ByteArray>::const_iterator it = missing.begin(); it != missing.end(); ++it)
+            write("--- " + *it);
+        for (Set<ByteArray>::const_iterator it = unexpected.begin(); it != unexpected.end(); ++it)
+            write("+++ " + *it);
     } else {
         write("symbolnames: [" + symbolName + "] passed (" + ByteArray::number(expectedLocations.size()) + " locations)");
     }

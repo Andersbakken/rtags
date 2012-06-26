@@ -6,9 +6,6 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <qbytearray.h>
-#include <QMetaObject>
-#include <QMetaType>
 #include <Set.h>
 #include <ByteArray.h>
 
@@ -82,8 +79,5 @@ public:
     static Path resolved(const ByteArray &path, const Path &cwd = Path(), bool *ok = 0);
     static Path canonicalized(const ByteArray &path);
 };
-
-Q_DECLARE_METATYPE(Path);
-Q_DECLARE_METATYPE(Set<Path>);
 
 #endif

@@ -5,7 +5,6 @@
 #include "ThreadPool.h"
 #include <List.h>
 #include <ByteArray.h>
-#include <QObject>
 #include "Event.h"
 
 class Job : public ThreadPool::Job, public AbortInterface

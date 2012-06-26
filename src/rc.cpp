@@ -5,7 +5,6 @@
 #include "EventLoop.h"
 #include "RTags.h"
 #include <ByteArray.h>
-#include <QCoreApplication>
 #include <QDateTime>
 #include <QDebug>
 #include <QFile>
@@ -158,7 +157,6 @@ struct MakefileCommand : public Command
 int main(int argc, char** argv)
 {
     RTags::findApplicationDirPath(*argv);
-    QCoreApplication app(argc, argv);
 
     struct option opts[] = {
         { "verbose", no_argument, 0, 'v' },
@@ -429,8 +427,6 @@ int main(int argc, char** argv)
         name = RTags::rtagsDir() + "server";
 
     EventLoop loop;
-    EventLoopThread eventThread;
-    eventThread.start();
 
     Client client(name, clientFlags, rdmArgs);
     foreach(Command *cmd, commands) {

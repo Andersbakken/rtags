@@ -9,7 +9,9 @@ static inline List<Path> extractPchFiles(const List<ByteArray> &args)
 {
     List<Path> out;
     bool nextIsPch = false;
-    foreach (const ByteArray &arg, args) {
+    const int count = args.size();
+    for (int i=0; i<count; ++i) {
+        const ByteArray &arg = args.at(i);
         if (arg.isEmpty())
             continue;
 
@@ -157,11 +159,11 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
                 qnoparam.prepend(qname + "::");
         }
 
-        Q_ASSERT(!qparam.isEmpty());
+        assert(!qparam.isEmpty());
         const bool hasTemplates = mayHaveTemplates(kind) && qnoparam.contains('<');
         addToSymbolNames(qparam, hasTemplates, location, mSymbolNames);
         if (!qnoparam.isEmpty()) {
-            Q_ASSERT(!qnoparam.isEmpty());
+            assert(!qnoparam.isEmpty());
             addToSymbolNames(qnoparam, hasTemplates, location, mSymbolNames);
         }
 
@@ -311,7 +313,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         if (!clang_isCursorDefinition(cursor)) {
             ref = clang_getCursorDefinition(cursor);
             if (!clang_equalCursors(clang_getNullCursor(), ref)) {
-                Q_ASSERT(!clang_equalCursors(cursor, ref));
+                assert(!clang_equalCursors(cursor, ref));
                 refLoc = job->createLocation(ref, 0);
                 if (testLog(Debug)) {
                     debug() << "Looked up definition for ref " << ref << " " << cursor;
@@ -596,7 +598,7 @@ void IndexerJob::execute()
 
         clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
         if (mIsPch) {
-            Q_ASSERT(!pchName.isEmpty());
+            assert(!pchName.isEmpty());
             if (clang_saveTranslationUnit(mUnit, pchName.constData(), clang_defaultSaveOptions(mUnit)) != CXSaveError_None) {
                 error() << "Couldn't save pch file" << mIn << pchName;
             } else {
@@ -609,7 +611,7 @@ void IndexerJob::execute()
             }
         }
         mIndexer->addDependencies(mDependencies);
-        Q_ASSERT(mDependencies[mFileId].contains(mFileId));
+        assert(mDependencies[mFileId].contains(mFileId));
         scope.cleanup();
 
         if (!isAborted()) {

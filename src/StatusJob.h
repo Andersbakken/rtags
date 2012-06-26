@@ -1,7 +1,6 @@
 #ifndef StatusJob_h
 #define StatusJob_h
 
-#include <QObject>
 #include <ByteArray.h>
 #include <List.h>
 #include "Job.h"
