@@ -1,9 +1,9 @@
 #include "EventObject.h"
 
 EventObject::EventObject(Connection *conn, int level)
-    : QObject(conn), EventOutput(level), mConnection(conn)
+    : EventOutput(level), mConnection(conn)
 {
-    connect(conn, SIGNAL(disconnected()), conn, SLOT(deleteLater()));
+    conn->disconnected().connect(static_cast<QObject*>(this), &QObject::deleteLater);
 }
 
 void EventObject::log(const char *msg, int len)

@@ -35,15 +35,14 @@ void Client::sendMessage(int id, const ByteArray &msg)
         return;
     }
 
-    connect(mConn, SIGNAL(disconnected()), this, SLOT(onDisconnected()));
-    connect(mConn, SIGNAL(newMessage(Message*)), this, SLOT(onNewMessage(Message*)));
+    mConn->disconnected().connect(this, &Client::onDisconnected);
+    mConn->newMessage().connect(this, &Client::onNewMessage);
     mConn->send(id, msg);
     mLoop.exec();
 }
 
 void Client::onNewMessage(Message *message)
 {
-    Q_ASSERT(mConn == sender());
     if (message->messageId() == ResponseMessage::MessageId) {
         const ByteArray response = static_cast<ResponseMessage*>(message)->data();
         if (!response.isEmpty()) {

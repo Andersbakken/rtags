@@ -7,16 +7,16 @@
 #include <QMetaMethod>
 #include <ByteArray.h>
 #include <Map.h>
+#include <signalslot.h>
 
 class ConnectionPrivate;
 class LocalClient;
 
-class Connection : public QObject
+class Connection
 {
-    Q_OBJECT
 public:
-    Connection(QObject *parent = 0);
-    Connection(LocalClient *client, QObject *parent = 0);
+    Connection();
+    Connection(LocalClient *client);
 
     bool connectToServer(const ByteArray &name);
 
@@ -28,14 +28,12 @@ public:
 
     template<typename T>
     static bool registerMessage();
-public slots:
     void finish();
-signals:
-    void connected();
-    void disconnected();
-    void error();
-    void newMessage(Message *message);
-    void sendComplete();
+    signalslot::Signal0 &connected() { return mConnected; }
+    signalslot::Signal0 &disconnected() { return mDisconnected; }
+    signalslot::Signal0 &error() { return mError; }
+    signalslot::Signal1<Message*> newMessage() { return mNewMessage; }
+    signalslot::Signal0 sendComplete() { return mSendComplete; }
 
 private:
     ConnectionPrivate *mPriv;
@@ -46,6 +44,9 @@ private:
         int fromByteArrayId;
     };
     static Map<int, Meta> sMetas;
+
+    signalslot::Signal0 mConnected, mDisconnected, mError, mSendComplete;
+    signalslot::Signal1<Message*> mNewMessage;
 
     friend class ConnectionPrivate;
 };

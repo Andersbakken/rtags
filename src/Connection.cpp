@@ -3,12 +3,11 @@
 
 Map<int, Connection::Meta> Connection::sMetas;
 
-class ConnectionPrivate : public QObject
+class ConnectionPrivate
 {
-    Q_OBJECT
 public:
-    ConnectionPrivate(Connection* parent)
-        : QObject(parent), client(0), conn(parent), pendingRead(0), pendingWrite(0), done(false)
+    ConnectionPrivate(Connection* c)
+        : client(0), conn(c), pendingRead(0), pendingWrite(0), done(false)
     {
     }
 
@@ -17,7 +16,6 @@ public:
         delete client;
     }
 
-public slots:
     void dataAvailable();
     void dataWritten(int bytes);
 
@@ -27,8 +25,6 @@ public:
     int pendingRead, pendingWrite;
     bool done;
 };
-
-#include "Connection.cpp.moc"
 
 void ConnectionPrivate::dataAvailable()
 {
@@ -63,7 +59,7 @@ void ConnectionPrivate::dataAvailable()
         QObject *newobj = m.meta->newInstance(Q_ARG(QObject*, 0));
         assert(newobj);
         m.meta->method(m.fromByteArrayId).invoke(newobj, Q_ARG(ByteArray, ByteArray(payload.constData(), payload.size())));
-        emit conn->newMessage(qobject_cast<Message*>(newobj));
+        conn->newMessage()(qobject_cast<Message*>(newobj));
 
         pendingRead = 0;
     }
