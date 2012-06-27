@@ -541,40 +541,36 @@ void IndexerJob::execute()
         const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
         for (unsigned i=0; i<diagnosticCount; ++i) {
             CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
-            int logLevel;
+            int logLevel = INT_MAX;
             const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diagnostic);
             switch (severity) {
             case CXDiagnostic_Error:
             case CXDiagnostic_Fatal:
-                logLevel = Error;
+            case CXDiagnostic_Warning:
+                logLevel = CompilationError;
                 break;
             case CXDiagnostic_Note:
                 logLevel = Debug;
-                break;
-            case CXDiagnostic_Warning:
-                logLevel = Warning;
                 break;
             case CXDiagnostic_Ignored:
                 logLevel = INT_MAX;
                 break;
             }
 
-            CXSourceLocation loc = clang_getDiagnosticLocation(diagnostic);
-            const ByteArray string = Rdm::eatString(clang_formatDiagnostic(diagnostic,
-                                                                           CXDiagnostic_DisplaySourceLocation|
-                                                                           CXDiagnostic_DisplayColumn|
-                                                                           CXDiagnostic_DisplaySourceRanges|
-                                                                           CXDiagnostic_DisplayOption|
-                                                                           CXDiagnostic_DisplayCategoryId|
-                                                                           CXDiagnostic_DisplayCategoryName));
-            CXFile file;
-            clang_getSpellingLocation(loc, &file, 0, 0, 0);
-            if (file)
-                visited[Location(file, 0).fileId()].append(string);
+            if (testLog(logLevel)) {
+                CXSourceLocation loc = clang_getDiagnosticLocation(diagnostic);
+                const ByteArray string = Rdm::eatString(clang_formatDiagnostic(diagnostic,
+                                                                               CXDiagnostic_DisplaySourceLocation|
+                                                                               CXDiagnostic_DisplayColumn|
+                                                                               CXDiagnostic_DisplaySourceRanges|
+                                                                               CXDiagnostic_DisplayOption|
+                                                                               CXDiagnostic_DisplayCategoryId|
+                                                                               CXDiagnostic_DisplayCategoryName));
+                CXFile file;
+                clang_getSpellingLocation(loc, &file, 0, 0, 0);
+                if (file)
+                    visited[Location(file, 0).fileId()].append(string);
 
-            if (logLevel == Error || logLevel == Warning) {
-                log(CompilationError, "%s", string.constData());
-            } else if (testLog(logLevel)) {
                 log(logLevel, "%s", string.constData());
             }
 
