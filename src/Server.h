@@ -32,7 +32,8 @@ public:
     enum Option {
         NoOptions = 0x0,
         NoClangIncludePath = 0x1,
-        UseDashB = 0x2
+        UseDashB = 0x2,
+        WatchSourceFiles = 0x4
     };
     enum DatabaseType {
         General,
