@@ -1,5 +1,6 @@
 #include "Process.h"
 #include "EventLoop.h"
+#include "Log.h"
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>

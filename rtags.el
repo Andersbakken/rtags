@@ -482,6 +482,12 @@ return t if rtags is allowed to modify this file"
     (not empty))
   )
 
+(defun rtags-standard-save-hook ()
+  (interactive)
+  (if (and (get-buffer "*RTags Diagnostics*") (rtags-is-indexed))
+      (rtags-clear-diagnostics))
+  t)
+
 
 (provide 'rtags)
 

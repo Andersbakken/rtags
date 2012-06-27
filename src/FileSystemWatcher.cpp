@@ -1,6 +1,7 @@
 #include "FileSystemWatcher.h"
 #include "EventLoop.h"
 #include "MutexLocker.h"
+#include "Log.h"
 #ifdef OS_Linux
 #include <sys/inotify.h>
 #include <errno.h>

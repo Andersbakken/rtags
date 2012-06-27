@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include "Log.h"
 
 #define LISTEN_BACKLOG 5
 

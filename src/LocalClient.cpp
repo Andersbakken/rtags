@@ -1,5 +1,6 @@
 #include "LocalClient.h"
 #include "Event.h"
+#include "Log.h"
 #include "EventLoop.h"
 #include <unistd.h>
 #include <Timer.h>

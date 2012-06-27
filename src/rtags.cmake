@@ -118,10 +118,6 @@ set(rtags_SRCS
 include(clang.cmake)
 include(PCH_GCC4_v2.cmake)
 
-set(rtags_CPPMOCS
-  ${CMAKE_CURRENT_LIST_DIR}/Connection.cpp
-  )
-
 add_pch_rule(Pch.h rtags_SRCS rtags_PCHFLAGS)
 add_definitions(${rtags_PCHFLAGS})
 
@@ -138,5 +134,6 @@ add_custom_target(
     DEPENDS gccopts_gperf.h
     )
 
-add_library(rtags ${rtags_SRCS} ${MOCS})
+add_library(rtags ${rtags_SRCS})
 add_dependencies(rtags gperf)
+
