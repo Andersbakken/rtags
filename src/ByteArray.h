@@ -285,6 +285,11 @@ public:
         return ByteArray(buf, w + 1);
     }
 
+    static ByteArray join(const List<ByteArray> &list, char ch)
+    {
+        return ByteArray::join(list, ByteArray(&ch, 1));
+    }
+
     static ByteArray join(const List<ByteArray> &list, const ByteArray &sep)
     {
         ByteArray ret;
