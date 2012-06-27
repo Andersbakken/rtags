@@ -82,6 +82,7 @@ void Connection::dataAvailable()
 {
     while (true) {
         int available = mClient->bytesAvailable();
+        assert(available >= 0);
         if (!mPendingRead) {
             if (available < static_cast<int>(sizeof(uint32_t)))
                 break;

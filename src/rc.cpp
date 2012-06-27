@@ -428,7 +428,7 @@ int main(int argc, char** argv)
         Log l(1);
         l << argc;
         for (int i = 0; i < argc; ++i)
-            l << argv[i];
+            l << " " << argv[i];
     }
 
     if (name.isEmpty())
@@ -440,7 +440,7 @@ int main(int argc, char** argv)
     const int commandCount = commands.size();
     for (int i=0; i<commandCount; ++i) {
         Command *cmd = commands.at(i);
-        debug() << "running command" << cmd->description();
+        debug() << "running command " << cmd->description();
         cmd->exec(&client);
         delete cmd;
     }

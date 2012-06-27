@@ -247,7 +247,7 @@ void findApplicationDirPath(const char *argv0)
             return;
         }
     }
-    error("Can't find applicationDirPath");
+    fprintf(stderr, "Can't find applicationDirPath");
 }
 
 }
