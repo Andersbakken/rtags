@@ -78,8 +78,8 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
             if (isFile(file)) {
                 const Set<uint32_t> v = it->value<Set<uint32_t> >();
                 depsReversed[file] = v;
-                foreach(const uint32_t p, v) {
-                    deps[p].insert(file);
+                for (Set<uint32_t>::const_iterator vit = v.begin(); vit != v.end(); ++vit) {
+                    deps[*vit].insert(file);
                 }
             } else {
                 batch.remove(key);
@@ -116,7 +116,8 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
                     bool dirty = false;
                     const Set<uint32_t> dependencies = deps.value(fileId);
                     assert(dependencies.contains(fileId));
-                    foreach(uint32_t id, dependencies) {
+                    for (Set<uint32_t>::const_iterator it = dependencies.begin(); it != dependencies.end(); ++it) {
+                        const uint32_t id = *it;
                         if (dirtyFiles.contains(id)) {
                             dirty = true;
                         } else {
@@ -265,7 +266,7 @@ void Indexer::onJobFinished(IndexerJob *job)
             error() << "jobs took " << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using "
                     << MemoryMonitor::usage() / (1024.0 * 1024.0) << " mb of memory";
             mJobCounter = 0;
-            emit jobsComplete();
+            jobsComplete()();
         }
 
         mIndexingDone(job->mId);
@@ -362,7 +363,8 @@ void Indexer::onDirectoryChanged(const Path &p)
                     continue;
                 }
                 assert(!dit->second.isEmpty());
-                foreach (uint32_t pathId, dit->second) {
+                for (Set<uint32_t>::const_iterator pit = dit->second.begin(); pit != dit->second.end(); ++it) {
+                    const uint32_t pathId = *pit;
                     dirtyFiles.insert(pathId);
                     mVisitedFiles.remove(pathId);
                     const Path path = Location::path(pathId);
@@ -385,7 +387,9 @@ void Indexer::onDirectoryChanged(const Path &p)
             }
         }
 
-        foreach(const Path &path, pending) {
+        const int pendingCount = pending.size();
+        for (int i=0; i<pendingCount; ++i) {
+            const Path &path = pending.at(i);
             it->second.insert(std::pair<ByteArray, time_t>(path.fileName(), path.lastModified()));
         }
     }
@@ -456,7 +460,8 @@ void Indexer::setPchUSRMap(const Path &pch, const PchUSRMap &astMap)
 }
 bool Indexer::needsToWaitForPch(IndexerJob *job) const
 {
-    foreach(const Path &pchHeader, job->mPchHeaders) {
+    for (List<Path>::const_iterator it = job->mPchHeaders.begin(); it != job->mPchHeaders.end(); ++it) {
+        const Path &pchHeader = *it;
         const uint32_t fileId = Location::fileId(pchHeader);
         if (mJobs.contains(fileId))
             return true;

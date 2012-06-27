@@ -5,9 +5,6 @@
 #include "EventLoop.h"
 #include "RTags.h"
 #include <ByteArray.h>
-#include <QDateTime>
-#include <QDebug>
-#include <QFile>
 #include <List.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -213,8 +210,6 @@ int main(int argc, char** argv)
     unsigned clientFlags = 0;
     List<ByteArray> rdmArgs;
     ByteArray name;
-
-    QFile standardIn;
 
     const ByteArray shortOptions = RTags::shortOptions(opts);
 
@@ -429,7 +424,9 @@ int main(int argc, char** argv)
     EventLoop loop;
 
     Client client(name, clientFlags, rdmArgs);
-    foreach(Command *cmd, commands) {
+    const int commandCount = commands.size();
+    for (int i=0; i<commandCount; ++i) {
+        Command *cmd = commands.at(i);
         debug() << "running command" << cmd->description();
         cmd->exec(&client);
         delete cmd;

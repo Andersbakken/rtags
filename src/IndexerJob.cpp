@@ -469,7 +469,6 @@ void IndexerJob::execute()
     // }
     if (!mPchHeaders.isEmpty())
         mPchUSRMap = mIndexer->pchUSRMap(mPchHeaders);
-    const uint64_t waitingForPch = timer.restart();
 
     List<const char*> clangArgs(mArgs.size(), 0);
     ByteArray clangLine = "clang ";
@@ -648,9 +647,8 @@ void IndexerJob::execute()
         Pch = 0x1,
         Dirty = 0x2
     };
-    const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %sms.%s (%d syms, %d refs, %d deps, %d symNames)%s",
+    const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %sms. (%d syms, %d refs, %d deps, %d symNames)%s",
                            mIn.constData(), compileError ? "error" : "success", ByteArray::number(timer.elapsed()).constData(),
-                           qPrintable(waitingForPch ? QString(" Waited for pch: %1ms.").arg(waitingForPch) : QString()),
                            mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size(),
                            strings[(mPchHeaders.isEmpty() ? None : Pch) | (mFlags & NeedsDirty ? Dirty : None)]);
     mMessage = ByteArray(buf, w);

@@ -5,6 +5,7 @@
 #include <ByteArray.h>
 #include <Path.h>
 #include <Log.h>
+#include <memory>
 #include <stdio.h>
 #include <assert.h>
 #include <getopt.h>
@@ -41,15 +42,13 @@ bool removeDirectory(const char *path);
 int canonicalizePath(char *path, int len);
 ByteArray unescape(ByteArray command);
 
-template <typename T> class Ptr
+template <typename T> class Ptr : public std::tr1::shared_ptr<T>
 {
 public:
-    Ptr(T *t = 0) : tt(t) {}
-    ~Ptr() { delete tt; }
-    operator T*() const { return tt; }
-    T *operator->() const { return tt; }
-private:
-    T *tt;
+    Ptr(T *t = 0)
+        : std::tr1::shared_ptr<T>(t)
+    {}
+    operator T*() const { return std::tr1::shared_ptr<T>::get(); }
 };
 bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs);
 

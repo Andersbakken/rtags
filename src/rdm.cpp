@@ -33,7 +33,7 @@ void signalHandler(int signal)
         for (int j=0; frame[j]; ++j) {
             switch (frame[j]) {
             case '(':
-                Q_ASSERT(from = -1);
+                assert(from = -1);
                 from = j;
                 break;
             case '+':
@@ -121,7 +121,7 @@ int main(int argc, char** argv)
     int cacheSize = 128;
     bool enableSignalHandler = true;
     ByteArray name;
-    forever {
+    while (true) {
         const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
         if (c == -1)
             break;

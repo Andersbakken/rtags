@@ -170,7 +170,7 @@ bool Server::init(const Options &options)
 
 void Server::onNewConnection()
 {
-    forever {
+    while (true) {
         LocalClient *client = mServer->nextClient();
         if (!client)
             break;
@@ -315,7 +315,7 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         id = cursorInfo(*message);
         break;
     case QueryMessage::Shutdown:
-        QCoreApplication::instance()->quit();
+        EventLoop::instance()->exit();
         conn->finish();
         return;
     case QueryMessage::FollowLocation:
@@ -644,14 +644,19 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 
     List<ByteArray> arguments = args.clangArgs();
     if (args.lang() == GccArguments::CPlusPlus) {
-        foreach(const ByteArray &pch, parser->mapPchToInput(args.explicitIncludes())) {
+        const List<ByteArray> pchs = parser->mapPchToInput(args.explicitIncludes());
+        for (List<ByteArray>::const_iterator it = pchs.begin(); it != pchs.end(); ++it) {
+            const ByteArray &pch = *it;
             arguments.append("-include-pch");
             arguments.append(pch);
         }
     }
     arguments.append(mOptions.defaultArguments);
 
-    foreach(const ByteArray &input, args.inputFiles()) {
+    List<Path> inputFiles = args.inputFiles();
+    const int c = inputFiles.size();
+    for (int i=0; i<c; ++i) {
+        const Path &input = inputFiles.at(i);
         if (arguments != Rdm::compileArgs(Location::insertFile(input))) {
             mIndexer->index(input, arguments, IndexerJob::Makefile);
         } else {
@@ -698,3 +703,4 @@ void Server::event(const Event *event)
         break;
     }
 }
+
