@@ -146,15 +146,9 @@
         (kill-buffer "*RTags Complete*"))
     (switch-to-buffer-other-window (generate-new-buffer "*RTags Complete*"))
     (rtags-call-rc references switch tagname "-l")
-    (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
-          ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
-          (t (progn
-               (goto-char (point-min))
-               (compilation-mode)
-               (if rtags-jump-to-first-match
-                   (compile-goto-error)))))
-    (not (= (point-min) (point-max))))
-    )
+    (rtags-handle-completion-buffer)
+  )
+  )
 
 
 (defun rtags-remove-completions-buffer ()
@@ -328,14 +322,8 @@ return t if rtags is allowed to modify this file"
     (if samefile
         (rtags-call-rc nil "-l" "-z" "-r" arg)
       (rtags-call-rc t "-l" "-r" arg)) ; ### is this right, I kinda hate that samefile stuff, it should just use path-filter
-    (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
-          ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
-          (t (progn
-               (goto-char (point-min))
-               (compilation-mode)
-               (if rtags-jump-to-first-match
-                   (compile-goto-error)))))
-    (not (= (point-min) (point-max)))
+
+    (rtags-handle-completion-buffer)
     )
   )
 
@@ -388,7 +376,7 @@ return t if rtags is allowed to modify this file"
                                 ;;                  replacewith
                                 ;;                  (point)
                                 ;;                  fn))
-                                (kill-forward-chars len)
+                                (delete-char len)
                                 (insert replacewith)
                                 ))
                           )))
@@ -419,7 +407,7 @@ return t if rtags is allowed to modify this file"
             (save-excursion
               (set-buffer buffer)
               (goto-char (+ from 1)) ; emacs offsets start at 1 for some reason
-              (kill-forward-chars len) ; may be 0
+              (delete-char len) ; may be 0
               (insert text)))
           (next-line))))))
 
@@ -437,7 +425,8 @@ return t if rtags is allowed to modify this file"
   (if (get-buffer "*RTags Diagnostics*")
       (with-current-buffer "*RTags Diagnostics*"
         (setq buffer-read-only nil)
-        (kill-region (point-min) (point-max))
+        (goto-char (point-min))
+        (delete-char (- (point-max) (point-min)))
         (setq buffer-read-only t))
     )
   )
@@ -476,6 +465,22 @@ return t if rtags is allowed to modify this file"
     (looking-at "1")
   )
 )
+
+(defun rtags-handle-completion-buffer ()
+  (let ((empty (= (point-min) (point-max))))
+    (cond (empty
+           (rtags-remove-completions-buffer))
+          ((= (count-lines (point-min) (point-max)) 1)
+           (progn
+             (delete-other-windows)
+             (rtags-goto-location (buffer-string))))
+          (t (progn
+               (goto-char (point-min))
+               (compilation-mode)
+               (if rtags-jump-to-first-match
+                   (compile-goto-error)))))
+    (not empty))
+  )
 
 
 (provide 'rtags)
