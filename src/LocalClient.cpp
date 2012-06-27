@@ -9,6 +9,11 @@
 #include <sys/un.h>
 #include <algorithm>
 
+#define eintrwrap(VAR, BLOCK)                  \
+    do {                                       \
+        VAR = BLOCK;                           \
+    } while (VAR == -1 && errno == EINTR)
+
 class DelayedWriteEvent : public Event
 {
 public:
@@ -28,8 +33,9 @@ LocalClient::LocalClient()
 LocalClient::LocalClient(int fd)
     : mFd(fd), mBufferIdx(0), mReadBufferPos(0)
 {
-    const int flags = fcntl(mFd, F_GETFL, 0);
-    fcntl(mFd, F_SETFL, flags | O_NONBLOCK);
+    int flags;
+    eintrwrap(flags, fcntl(mFd, F_GETFL, 0));
+    eintrwrap(flags, fcntl(mFd, F_SETFL, flags | O_NONBLOCK));
     EventLoop::instance()->addFileDescriptor(mFd, EventLoop::Read | EventLoop::Write, dataCallback, this);
 }
 
@@ -51,17 +57,20 @@ bool LocalClient::connect(const ByteArray& name, int maxTime)
         mFd = ::socket(PF_UNIX, SOCK_STREAM, 0);
         if (mFd == -1)
             return false;
-        if (!::connect(mFd, (struct sockaddr *)&address, sizeof(struct sockaddr_un)))
+        int ret;
+        eintrwrap(ret, ::connect(mFd, (struct sockaddr *)&address, sizeof(struct sockaddr_un)));
+        if (!ret)
             break;
-        ::close(mFd);
+        eintrwrap(ret, ::close(mFd));
         mFd = -1;
         if (maxTime > 0 && timer.elapsed() >= maxTime)
             return false;
     }
 
     assert(mFd != -1);
-    const int flags = fcntl(mFd, F_GETFL, 0);
-    fcntl(mFd, F_SETFL, flags | O_NONBLOCK);
+    int flags;
+    eintrwrap(flags, fcntl(mFd, F_GETFL, 0));
+    eintrwrap(flags, fcntl(mFd, F_SETFL, flags | O_NONBLOCK));
     EventLoop::instance()->addFileDescriptor(mFd, EventLoop::Read | EventLoop::Write, dataCallback, this);
 
     mConnected();
@@ -71,7 +80,8 @@ bool LocalClient::connect(const ByteArray& name, int maxTime)
 void LocalClient::disconnect()
 {
     if (mFd != -1) {
-        ::close(mFd);
+        int ret;
+        eintrwrap(ret, ::close(mFd));
         EventLoop::instance()->removeFileDescriptor(mFd);
         mFd = -1;
         mDisconnected();
@@ -130,7 +140,8 @@ void LocalClient::readMore()
     int read = 0;
     bool wasDisconnected = false;
     for (;;) {
-        const int r = ::read(mFd, buf, BufSize);
+        int r;
+        eintrwrap(r, ::read(mFd, buf, BufSize));
         if (r == -1) {
             break;
         } else if (!r) {
@@ -166,7 +177,8 @@ void LocalClient::writeMore()
         if (mBuffers.empty())
             break;
         const ByteArray& front = mBuffers.front();
-        const int w = ::write(mFd, &front[mBufferIdx], front.size() - mBufferIdx);
+        int w;
+        eintrwrap(w, ::write(mFd, &front[mBufferIdx], front.size() - mBufferIdx));
         if (w == -1) // check EWOULDBLOCK / EAGAIN?
             break;
         written += w;
