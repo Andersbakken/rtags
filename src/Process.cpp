@@ -6,6 +6,11 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
+#define eintrwrap(VAR, BLOCK)                  \
+    do {                                       \
+        VAR = BLOCK;                           \
+    } while (VAR == -1 && errno == EINTR)
+
 Process::Process()
     : mPid(-1), mReturn(0), mStdInIndex(0), mStdOutIndex(0), mStdErrIndex(0)
 {
@@ -68,9 +73,11 @@ void Process::start(const ByteArray& command,
     if (cmd.isEmpty())
         return;
 
-    ::pipe(mStdIn);
-    ::pipe(mStdOut);
-    ::pipe(mStdErr);
+    int err;
+
+    eintrwrap(err, ::pipe(mStdIn));
+    eintrwrap(err, ::pipe(mStdOut));
+    eintrwrap(err, ::pipe(mStdErr));
 
     const char* args[arguments.size() + 2];
     args[arguments.size() + 1] = 0;
@@ -95,51 +102,52 @@ void Process::start(const ByteArray& command,
     if (mPid == -1) {
         printf("fork, something horrible has happened %d\n", errno);
         // bail out
-        ::close(mStdIn[1]);
-        ::close(mStdIn[0]);
-        ::close(mStdOut[1]);
-        ::close(mStdOut[0]);
-        ::close(mStdErr[1]);
-        ::close(mStdErr[0]);
+        eintrwrap(err, ::close(mStdIn[1]));
+        eintrwrap(err, ::close(mStdIn[0]));
+        eintrwrap(err, ::close(mStdOut[1]));
+        eintrwrap(err, ::close(mStdOut[0]));
+        eintrwrap(err, ::close(mStdErr[1]));
+        eintrwrap(err, ::close(mStdErr[0]));
         return;
     } else if (mPid == 0) {
         //printf("fork, in child\n");
         // child, should do some error checking here really
-        ::close(mStdIn[1]);
-        ::close(mStdOut[0]);
-        ::close(mStdErr[0]);
+        eintrwrap(err, ::close(mStdIn[1]));
+        eintrwrap(err, ::close(mStdOut[0]));
+        eintrwrap(err, ::close(mStdErr[0]));
 
-        ::close(STDIN_FILENO);
-        ::close(STDOUT_FILENO);
-        ::close(STDERR_FILENO);
+        eintrwrap(err, ::close(STDIN_FILENO));
+        eintrwrap(err, ::close(STDOUT_FILENO));
+        eintrwrap(err, ::close(STDERR_FILENO));
 
-        ::dup2(mStdIn[0], STDIN_FILENO);
-        ::close(mStdIn[0]);
-        ::dup2(mStdOut[1], STDOUT_FILENO);
-        ::close(mStdOut[1]);
-        ::dup2(mStdErr[1], STDERR_FILENO);
-        ::close(mStdErr[1]);
+        eintrwrap(err, ::dup2(mStdIn[0], STDIN_FILENO));
+        eintrwrap(err, ::close(mStdIn[0]));
+        eintrwrap(err, ::dup2(mStdOut[1], STDOUT_FILENO));
+        eintrwrap(err, ::close(mStdOut[1]));
+        eintrwrap(err, ::dup2(mStdErr[1], STDERR_FILENO));
+        eintrwrap(err, ::close(mStdErr[1]));
 
         if (!mCwd.isEmpty())
-            ::chdir(mCwd.nullTerminated());
+            eintrwrap(err, ::chdir(mCwd.nullTerminated()));
         const int ret = ::execve(cmd.nullTerminated(), const_cast<char* const*>(args), const_cast<char* const*>(env));
         ::_exit(1);
         (void)ret;
         //printf("fork, exec seemingly failed %d, %d %s\n", ret, errno, strerror(errno));
     } else {
         // parent
-        ::close(mStdIn[0]);
-        ::close(mStdOut[1]);
-        ::close(mStdErr[1]);
+        eintrwrap(err, ::close(mStdIn[0]));
+        eintrwrap(err, ::close(mStdOut[1]));
+        eintrwrap(err, ::close(mStdErr[1]));
 
         //printf("fork, in parent\n");
 
-        int flags = fcntl(mStdIn[1], F_GETFL, 0);
-        fcntl(mStdIn[1], F_SETFL, flags | O_NONBLOCK);
-        flags = fcntl(mStdOut[0], F_GETFL, 0);
-        fcntl(mStdOut[0], F_SETFL, flags | O_NONBLOCK);
-        flags = fcntl(mStdErr[0], F_GETFL, 0);
-        fcntl(mStdErr[0], F_SETFL, flags | O_NONBLOCK);
+        int flags;
+        eintrwrap(flags, fcntl(mStdIn[1], F_GETFL, 0));
+        eintrwrap(flags, fcntl(mStdIn[1], F_SETFL, flags | O_NONBLOCK));
+        eintrwrap(flags, fcntl(mStdOut[0], F_GETFL, 0));
+        eintrwrap(flags, fcntl(mStdOut[0], F_SETFL, flags | O_NONBLOCK));
+        eintrwrap(flags, fcntl(mStdErr[0], F_GETFL, 0));
+        eintrwrap(flags, fcntl(mStdErr[0], F_SETFL, flags | O_NONBLOCK));
 
         //printf("fork, about to add fds: stdin=%d, stdout=%d, stderr=%d\n", mStdIn[1], mStdOut[0], mStdErr[0]);
         EventLoop::instance()->addFileDescriptor(mStdOut[0], EventLoop::Read, processCallback, this);
@@ -161,7 +169,8 @@ void Process::closeStdIn()
         return;
 
     EventLoop::instance()->removeFileDescriptor(mStdIn[1]);
-    ::close(mStdIn[1]);
+    int err;
+    eintrwrap(err, ::close(mStdIn[1]));
     mStdIn[1] = -1;
 }
 
@@ -171,7 +180,8 @@ void Process::closeStdOut()
         return;
 
     EventLoop::instance()->removeFileDescriptor(mStdOut[0]);
-    ::close(mStdOut[0]);
+    int err;
+    eintrwrap(err, ::close(mStdOut[0]));
     mStdOut[0] = -1;
 }
 
@@ -181,7 +191,8 @@ void Process::closeStdErr()
         return;
 
     EventLoop::instance()->removeFileDescriptor(mStdErr[0]);
-    ::close(mStdErr[0]);
+    int err;
+    eintrwrap(err, ::close(mStdErr[0]));
     mStdErr[0] = -1;
 }
 
@@ -227,10 +238,10 @@ void Process::handleInput(int fd)
         const ByteArray& front = mStdInBuffer.front();
         if (mStdInIndex) {
             want = front.size() - mStdInIndex;
-            w = ::write(fd, front.mid(mStdInIndex).constData(), want);
+            eintrwrap(w, ::write(fd, front.mid(mStdInIndex).constData(), want));
         } else {
             want = front.size();
-            w = ::write(fd, front.constData(), want);
+            eintrwrap(w, ::write(fd, front.constData(), want));
         }
         if (w == -1) {
             EventLoop::instance()->addFileDescriptor(fd, EventLoop::Write, processCallback, this);
@@ -251,7 +262,8 @@ void Process::handleOutput(int fd, ByteArray& buffer, int& index, signalslot::Si
     int total = 0;
     bool term = false;
     for (;;) {
-        int r = ::read(fd, buf, BufSize);
+        int r;
+        eintrwrap(r, ::read(fd, buf, BufSize));
         if (r == -1) {
             //printf("Process::handleOutput %d returning -1, errno %d %s\n", fd, errno, strerror(errno));
             break;
@@ -300,7 +312,8 @@ void Process::handleTerminated()
     closeStdOut();
     closeStdErr();
 
-    ::waitpid(mPid, &mReturn, WNOHANG);
+    int err;
+    eintrwrap(err, ::waitpid(mPid, &mReturn, WNOHANG));
     mPid = -1;
 
     mFinished();
@@ -312,7 +325,8 @@ void Process::stop()
         return;
 
     ::kill(mPid, SIGTERM);
-    ::waitpid(mPid, &mReturn, 0);
+    int err;
+    eintrwrap(err, ::waitpid(mPid, &mReturn, 0));
 }
 
 std::list<ByteArray> Process::environment()
