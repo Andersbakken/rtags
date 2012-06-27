@@ -360,6 +360,7 @@ int main(int argc, char** argv)
             }
 
             List<ByteArray> makefileArgs;
+            ++optind; // ### ???
             while (optind < argc && argv[optind][0] != '-')
                 makefileArgs.append(argv[optind++]);
             commands.append(new MakefileCommand(p, makefileArgs, extraFlags));
