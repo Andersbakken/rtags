@@ -164,7 +164,10 @@ inline std::ostringstream &operator<<(std::ostringstream &stream, const Map<Key,
         } else {
             first = false;
         }
-        stream << it->first << ": " << it->second;
+        const Key &key = it->first;
+        const Value &value = it->second;
+        stream << key << ": ";
+        stream << value; // ### we have some operator issue here
     }
     stream << ")";
     return stream;
