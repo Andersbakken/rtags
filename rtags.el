@@ -450,8 +450,10 @@ return t if rtags is allowed to modify this file"
       (local-set-key "c" 'rtags-clear-diagnostics))
     (if (or (not rtags-diagnostics-process)
             (eq (process-status rtags-diagnostics-process) 'exit))
-        (setq rtags-diagnostics-process
-              (start-process "RTags Diagnostics" buf (executable-find "rc") "-G"))
+        (progn
+          (setq rtags-diagnostics-process
+                (start-process "RTags Diagnostics" buf (executable-find "rc") "-G"))
+          (rtags-clear-diagnostics))
       )
     )
   )
