@@ -262,6 +262,8 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r \\") (function rtags-bookmark-current))
   (define-key map (kbd "C-x r F") (function rtags-fixit))
   (define-key map (kbd "C-x r C") (function rtags-clear-rdm))
+  (define-key map (kbd "C-x r D") (function rtags-diagnostics))
+  (define-key map (kbd "C-x r G") (function rtags-clear-diagnostics))
   (define-key map (kbd "C-x r M") (function rtags-index-project))
   )
 
@@ -423,17 +425,45 @@ return t if rtags is allowed to modify this file"
 
 (defvar rtags-diagnostics-process nil)
 
-(defun rtags-start-diagnostics ()
+(defun rtags-stop-diagnostics ()
   (interactive)
   (if (and rtags-diagnostics-process (not (eq (process-status rtags-diagnostics-process) 'exit)))
       (kill-process rtags-diagnostics-process))
   (if (get-buffer "*RTags Diagnostics*")
-      (kill-buffer "*RTags Diagnostics*"))
+      (kill-buffer "*RTags Diagnostics*")))
+
+(defun rtags-clear-diagnostics ()
+  (interactive)
+  (if (get-buffer "*RTags Diagnostics*")
+      (with-current-buffer "*RTags Diagnostics*"
+        (setq buffer-read-only nil)
+        (kill-region (point-min) (point-max))
+        (setq buffer-read-only t))
+    )
+  )
+
+(defun rtags-init-diagnostics-buffer-and-process ()
   (let ((buf (get-buffer-create "*RTags Diagnostics*")))
     (with-current-buffer buf
       (setq buffer-read-only t)
-      (compilation-mode))
-    (setq rtags-diagnostics-process (start-process "RTags Diagnostics" buf (executable-find "rc") "-G"))))
+      (compilation-mode)
+      (local-set-key "c" 'rtags-clear-diagnostics))
+    (if (or (not rtags-diagnostics-process)
+            (eq (process-status rtags-diagnostics-process) 'exit))
+        (setq rtags-diagnostics-process
+              (start-process "RTags Diagnostics" buf (executable-find "rc") "-G"))
+      )
+    )
+  )
+
+(defun rtags-diagnostics (&optional restart)
+  (interactive)
+  (if restart
+      (rtags-stop-diagnostics))
+  (rtags-init-diagnostics-buffer-and-process)
+  (switch-to-buffer-other-window "*RTags Diagnostics*")
+  (other-window 1)
+  )
 
 (provide 'rtags)
 
