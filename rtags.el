@@ -465,5 +465,16 @@ return t if rtags is allowed to modify this file"
   (other-window 1)
   )
 
+(defun rtags-is-indexed (&optional buffer)
+  (unless buffer
+    (setq buffer (current-buffer)))
+  (with-temp-buffer
+    (rtags-call-rc nil "-t" (buffer-file-name buffer))
+    (goto-char (point-min))
+    (looking-at "1")
+  )
+)
+
+
 (provide 'rtags)
 
