@@ -8,6 +8,11 @@
 #include <fcntl.h>
 #include <algorithm>
 
+#define eintrwrap(VAR, BLOCK)                  \
+    do {                                       \
+        VAR = BLOCK;                           \
+    } while (VAR == -1 && errno == EINTR)
+
 EventLoop* EventLoop::sInstance = 0;
 
 EventLoop::EventLoop()
@@ -15,14 +20,15 @@ EventLoop::EventLoop()
 {
     if (!sInstance)
         sInstance = this;
-    if (::pipe2(mEventPipe, O_NONBLOCK) == -1) // ### ??? !!!
-        ;
+    int err;
+    eintrwrap(err, ::pipe2(mEventPipe, O_NONBLOCK));
 }
 
 EventLoop::~EventLoop()
 {
-    ::close(mEventPipe[0]);
-    ::close(mEventPipe[1]);
+    int err;
+    eintrwrap(err, ::close(mEventPipe[0]));
+    eintrwrap(err, ::close(mEventPipe[1]));
 }
 
 EventLoop* EventLoop::instance()
@@ -41,7 +47,7 @@ void EventLoop::addFileDescriptor(int fd, unsigned int flags, FdFunc callback, v
         const char c = 'a';
         int r;
         do {
-            r = ::write(mEventPipe[1], &c, 1);
+            eintrwrap(r, ::write(mEventPipe[1], &c, 1));
         } while (r == -1 && errno == EAGAIN);
     }
 }
@@ -63,7 +69,7 @@ void EventLoop::removeFileDescriptor(int fd)
         const char c = 'r';
         int r;
         do {
-            r = ::write(mEventPipe[1], &c, 1);
+            eintrwrap(r, ::write(mEventPipe[1], &c, 1));
         } while (r == -1 && errno == EAGAIN);
         mCond.wait(&mMutex);
     }
@@ -80,7 +86,7 @@ void EventLoop::postEvent(EventReceiver* receiver, Event* event)
     const char c = 'e';
     int r;
     do {
-        r = ::write(mEventPipe[1], &c, 1);
+        eintrwrap(r, ::write(mEventPipe[1], &c, 1));
     } while (r == -1 && errno == EAGAIN);
 }
 
@@ -105,7 +111,9 @@ void EventLoop::run()
                 max = std::max(max, it->fd);
             }
         }
-        int r = ::select(max + 1, &rset, &wset, 0, 0);
+        int r;
+        // ### use poll instead? easier to catch exactly what fd that was problematic in the EBADF case
+        eintrwrap(r, ::select(max + 1, &rset, &wset, 0, 0));
         if (r == -1) { // ow
             return;
         }
@@ -135,7 +143,8 @@ void EventLoop::handlePipe()
 {
     char c;
     for (;;) {
-        const int r = ::read(mEventPipe[0], &c, 1);
+        int r;
+        eintrwrap(r, ::read(mEventPipe[0], &c, 1));
         if (r == 1) {
             switch (c) {
             case 'e':
@@ -175,6 +184,6 @@ void EventLoop::exit()
     const char q = 'q';
     int r;
     do {
-        r = ::write(mEventPipe[1], &q, 1);
+        eintrwrap(r, ::write(mEventPipe[1], &q, 1));
     } while (r == -1 && errno == EAGAIN);
 }
