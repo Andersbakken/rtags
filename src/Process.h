@@ -45,6 +45,8 @@ private:
     void handleOutput(int fd, ByteArray& buffer, int& index, signalslot::Signal0& signal);
     void handleTerminated();
 
+    ByteArray findCommand(const ByteArray& command) const;
+
 private:
     int mStdIn[2];
     int mStdOut[2];

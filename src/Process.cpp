@@ -37,13 +37,57 @@ void Process::start(const ByteArray& command,
     start(command, arguments, std::list<ByteArray>());
 }
 
+ByteArray Process::findCommand(const ByteArray& command) const
+{
+    if (command.isEmpty() || command.at(0) == '/')
+        return command;
+
+    ByteArray ret;
+    bool found = false;
+    const char* path = getenv("PATH");
+    List<ByteArray> paths = ByteArray(path).split(':');
+    for (List<ByteArray>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
+        ret = *it + "/" + command;
+        if (!access(ret.nullTerminated(), R_OK | X_OK)) {
+            found = true;
+            break;
+        }
+    }
+    if (!found)
+        ret.clear();
+    return ret;
+}
+
 void Process::start(const ByteArray& command,
                     const std::list<ByteArray>& arguments,
                     const std::list<ByteArray>& environ)
 {
+    ByteArray cmd = findCommand(command);
+    if (cmd.isEmpty())
+        return;
+
     ::pipe(mStdIn);
     ::pipe(mStdOut);
     ::pipe(mStdErr);
+
+    const char* args[arguments.size() + 2];
+    args[arguments.size() + 1] = 0;
+    args[0] = cmd.nullTerminated();
+    int pos = 1;
+    for(std::list<ByteArray>::const_iterator it = arguments.begin(); it != arguments.end(); ++it) {
+        args[pos] = it->nullTerminated();
+        //printf("arg: '%s'\n", args[pos]);
+        ++pos;
+    }
+    const char* env[environ.size() + 1];
+    env[environ.size()] = 0;
+    pos = 0;
+    //printf("fork, about to exec '%s'\n", cmd.nullTerminated());
+    for(std::list<ByteArray>::const_iterator it = environ.begin(); it != environ.end(); ++it) {
+        env[pos] = it->nullTerminated();
+        //printf("env: '%s'\n", env[pos]);
+        ++pos;
+    }
 
     mPid = ::fork();
     if (mPid == -1) {
@@ -74,27 +118,10 @@ void Process::start(const ByteArray& command,
         ::dup2(mStdErr[1], STDERR_FILENO);
         ::close(mStdErr[1]);
 
-        const char* args[arguments.size() + 2];
-        args[arguments.size() + 1] = 0;
-        args[0] = command.nullTerminated();
-        int pos = 1;
-        for(std::list<ByteArray>::const_iterator it = arguments.begin(); it != arguments.end(); ++it) {
-            args[pos] = it->nullTerminated();
-            //printf("arg: '%s'\n", args[pos]);
-            ++pos;
-        }
-        const char* env[environ.size() + 1];
-        env[environ.size()] = 0;
-        pos = 0;
-        //printf("fork, about to exec '%s'\n", command.nullTerminated());
-        for(std::list<ByteArray>::const_iterator it = environ.begin(); it != environ.end(); ++it) {
-            env[pos] = it->nullTerminated();
-            //printf("env: '%s'\n", env[pos]);
-            ++pos;
-        }
         if (!mCwd.isEmpty())
             ::chdir(mCwd.nullTerminated());
-        const int ret = ::execvpe(command.nullTerminated(), const_cast<char* const*>(args), const_cast<char* const*>(env));
+        const int ret = ::execve(cmd.nullTerminated(), const_cast<char* const*>(args), const_cast<char* const*>(env));
+        ::_exit(1);
         (void)ret;
         //printf("fork, exec seemingly failed %d, %d %s\n", ret, errno, strerror(errno));
     } else {
@@ -187,13 +214,13 @@ void Process::handleInput(int fd)
 {
     EventLoop::instance()->removeFileDescriptor(fd);
 
-    static int balle = 0;
-    printf("Process::handleInput (cnt=%d)\n", ++balle);
+    //static int ting = 0;
+    //printf("Process::handleInput (cnt=%d)\n", ++ting);
     for (;;) {
         if (mStdInBuffer.empty())
             return;
 
-        printf("Process::handleInput in loop\n");
+        //printf("Process::handleInput in loop\n");
         int w, want;
         const ByteArray& front = mStdInBuffer.front();
         if (mStdInIndex) {
@@ -216,7 +243,7 @@ void Process::handleInput(int fd)
 
 void Process::handleOutput(int fd, ByteArray& buffer, int& index, signalslot::Signal0& signal)
 {
-    printf("Process::handleOutput %d\n", fd);
+    //printf("Process::handleOutput %d\n", fd);
     enum { BufSize = 1024, MaxSize = (1024 * 1024 * 16) };
     char buf[BufSize];
     int total = 0;
@@ -224,14 +251,14 @@ void Process::handleOutput(int fd, ByteArray& buffer, int& index, signalslot::Si
     for (;;) {
         int r = ::read(fd, buf, BufSize);
         if (r == -1) {
-            printf("Process::handleOutput %d returning -1, errno %d %s\n", fd, errno, strerror(errno));
+            //printf("Process::handleOutput %d returning -1, errno %d %s\n", fd, errno, strerror(errno));
             break;
         } else if (r == 0) { // Assume process terminated
-            printf("Process::handleOutput %d returning 0\n", fd);
+            //printf("Process::handleOutput %d returning 0\n", fd);
             term = true;
             break;
         } else {
-            printf("Process::handleOutput in loop %d\n", fd);
+            //printf("Process::handleOutput in loop %d\n", fd);
             //printf("data: '%s'\n", std::string(buf, r).c_str());
             int sz = buffer.size();
             if (sz + r > MaxSize) {
