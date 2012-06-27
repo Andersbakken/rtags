@@ -19,3 +19,5 @@ reintroduce a -m option that waits for it to finish indexing
 make -g work when we start rdm using -a, I don't think it currently does
 
 Connection doesn't seem to know it's gone and we keep writing to it.
+
+add a --silent mode
