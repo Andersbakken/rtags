@@ -94,6 +94,15 @@ typedef Map<Path, Set<WatchedPair> > WatchedMap;
 typedef Map<uint32_t, FileInformation> InformationMap;
 
 namespace Rdm {
+static inline ByteArray timeToString(time_t t)
+{
+    char buf[32];
+    tm tm;
+    localtime_r(&t, &tm);
+    const int w = strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm);
+    return ByteArray(buf, w);
+}
+
 static inline bool isPch(const List<ByteArray> &args)
 {
     const int size = args.size();

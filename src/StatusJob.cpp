@@ -13,15 +13,6 @@ StatusJob::StatusJob(int i, const ByteArray &q)
 {
 }
 
-static inline ByteArray timeToString(time_t t)
-{
-    char buf[32];
-    tm tm;
-    localtime_r(&t, &tm);
-    const int w = strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm);
-    return ByteArray(buf, w);
-}
-
 void StatusJob::execute()
 {
     if (query.isEmpty() || query == "general") {
@@ -33,7 +24,7 @@ void StatusJob::execute()
         const Map<Path, MakefileInformation> makefiles = db->value<Map<Path, MakefileInformation> >("makefiles");
         for (Map<Path, MakefileInformation>::const_iterator it = makefiles.begin(); it != makefiles.end(); ++it) {
             ByteArray out = "    " + it->first;
-            out += " last touched: " + timeToString(it->second.lastTouched);
+            out += " last touched: " + Rdm::timeToString(it->second.lastTouched);
             if (!it->second.makefileArgs.isEmpty())
                 out += " args: " + ByteArray::join(it->second.makefileArgs, " ");
             if (!it->second.extraFlags.isEmpty())
@@ -131,7 +122,7 @@ void StatusJob::execute()
             const uint32_t fileId = *reinterpret_cast<const uint32_t*>(it->key().data());
             snprintf(buf, 1024, "  %s: last compiled: %s compile args: %s",
                      Location::path(fileId).constData(),
-                     timeToString(fi.lastTouched).constData(),
+                     Rdm::timeToString(fi.lastTouched).constData(),
                      ByteArray::join(fi.compileArgs, " ").constData());
             write(buf);
             it->next();

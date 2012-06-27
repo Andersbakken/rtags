@@ -345,8 +345,8 @@ void Indexer::onDirectoryChanged(const Path &p)
         while (wit != wend) {
             // weird API, Set<>::iterator does not allow for modifications to the referenced value
             file = (p + (*wit).first);
-            // error() << "comparing" << file << (file.lastModified() == (*wit).second)
-            //          << QDateTime::fromTime_t(file.lastModified());
+            warning() << "comparing " << file << " " << (file.lastModified() == (*wit).second)
+                      << " " << Rdm::timeToString(file.lastModified());
             if (!file.exists() || file.lastModified() != (*wit).second) {
                 warning() << file << " has changed";
                 const uint32_t fileId = Location::fileId(file);
@@ -363,7 +363,7 @@ void Indexer::onDirectoryChanged(const Path &p)
                     continue;
                 }
                 assert(!dit->second.isEmpty());
-                for (Set<uint32_t>::const_iterator pit = dit->second.begin(); pit != dit->second.end(); ++it) {
+                for (Set<uint32_t>::const_iterator pit = dit->second.begin(); pit != dit->second.end(); ++pit) {
                     const uint32_t pathId = *pit;
                     dirtyFiles.insert(pathId);
                     mVisitedFiles.remove(pathId);
