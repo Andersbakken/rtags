@@ -144,7 +144,7 @@
         (setq tagname input))
     (if (get-buffer "*RTags Complete*")
         (kill-buffer "*RTags Complete*"))
-    (switch-to-buffer (generate-new-buffer "*RTags Complete*"))
+    (switch-to-buffer-other-window (generate-new-buffer "*RTags Complete*"))
     (rtags-call-rc references switch tagname "-l")
     (cond ((= (point-min) (point-max)) (rtags-remove-completions-buffer))
           ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
@@ -324,7 +324,7 @@ return t if rtags is allowed to modify this file"
   (let ((arg (rtags-current-location)))
     (if (get-buffer "*RTags Complete*")
         (kill-buffer "*RTags Complete*"))
-    (switch-to-buffer (generate-new-buffer "*RTags Complete*"))
+    (switch-to-buffer-other-window (generate-new-buffer "*RTags Complete*"))
     (if samefile
         (rtags-call-rc nil "-l" "-z" "-r" arg)
       (rtags-call-rc t "-l" "-r" arg)) ; ### is this right, I kinda hate that samefile stuff, it should just use path-filter
