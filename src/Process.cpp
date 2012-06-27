@@ -45,6 +45,8 @@ ByteArray Process::findCommand(const ByteArray& command) const
     ByteArray ret;
     bool found = false;
     const char* path = getenv("PATH");
+    if (!path)
+        return ByteArray();
     List<ByteArray> paths = ByteArray(path).split(':');
     for (List<ByteArray>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
         ret = *it + "/" + command;
