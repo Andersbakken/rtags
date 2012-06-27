@@ -159,7 +159,7 @@ void MakefileParser::processMakeOutput()
 
 void MakefileParser::processMakeLine(const ByteArray &line)
 {
-    printf("processMakeLine '%s'\n", line.nullTerminated());
+    //printf("processMakeLine '%s'\n", line.nullTerminated());
     if (testLog(VerboseDebug))
         verboseDebug("%s", line.constData());
     GccArguments args;
