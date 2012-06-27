@@ -478,7 +478,9 @@ void IndexerJob::execute()
 
     List<Path> pchFiles;
     int idx = 0;
-    foreach (const ByteArray &arg, mArgs) {
+    const int count = mArgs.size();
+    for (int i=0; i<count; ++i) {
+        const ByteArray &arg = mArgs.at(i);
         if (arg.isEmpty())
             continue;
 
@@ -560,12 +562,12 @@ void IndexerJob::execute()
 
             CXSourceLocation loc = clang_getDiagnosticLocation(diagnostic);
             const ByteArray string = Rdm::eatString(clang_formatDiagnostic(diagnostic,
-                                                                            CXDiagnostic_DisplaySourceLocation|
-                                                                            CXDiagnostic_DisplayColumn|
-                                                                            CXDiagnostic_DisplaySourceRanges|
-                                                                            CXDiagnostic_DisplayOption|
-                                                                            CXDiagnostic_DisplayCategoryId|
-                                                                            CXDiagnostic_DisplayCategoryName));
+                                                                           CXDiagnostic_DisplaySourceLocation|
+                                                                           CXDiagnostic_DisplayColumn|
+                                                                           CXDiagnostic_DisplaySourceRanges|
+                                                                           CXDiagnostic_DisplayOption|
+                                                                           CXDiagnostic_DisplayCategoryId|
+                                                                           CXDiagnostic_DisplayCategoryName));
             CXFile file;
             clang_getSpellingLocation(loc, &file, 0, 0, 0);
             if (file)
@@ -605,9 +607,12 @@ void IndexerJob::execute()
                 mIndexer->setPchUSRMap(mIn, mPchUSRMap);
             }
         }
-        foreach(const Path &pchHeader, mPchHeaders) {
-            foreach(uint32_t dep, mIndexer->pchDependencies(pchHeader)) {
-                mDependencies[dep].insert(mFileId);
+        const int pchHeaderCount = mPchHeaders.size();
+        for (int i=0; i<pchHeaderCount; ++i) {
+            const Path &pchHeader = mPchHeaders.at(i);
+            const Set<uint32_t> pchDeps = mIndexer->pchDependencies(pchHeader);
+            for (Set<uint32_t>::const_iterator it = pchDeps.begin(); it != pchDeps.end(); ++it) {
+                mDependencies[*it].insert(mFileId);
             }
         }
         mIndexer->addDependencies(mDependencies);

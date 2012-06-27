@@ -63,7 +63,7 @@ static inline bool isFile(uint32_t fileId)
 
 void Indexer::initDB(InitMode mode, const ByteArray &pattern)
 {
-    Q_ASSERT(mode == ForceDirty || pattern.isEmpty());
+    assert(mode == ForceDirty || pattern.isEmpty());
     Timer timer;
     Map<uint32_t, Set<uint32_t> > deps, depsReversed;
 
@@ -109,13 +109,13 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
 #ifdef QT_DEBUG
                     if (path.isHeader() && !Rdm::isPch(fi.compileArgs)) {
                         error() << path; // << fi.compileArgs << fileId;
-                        Q_ASSERT(0);
+                        assert(0);
                     }
 #endif
                     ++checked;
                     bool dirty = false;
                     const Set<uint32_t> dependencies = deps.value(fileId);
-                    Q_ASSERT(dependencies.contains(fileId));
+                    assert(dependencies.contains(fileId));
                     foreach(uint32_t id, dependencies) {
                         if (dirtyFiles.contains(id)) {
                             dirty = true;
@@ -260,7 +260,7 @@ void Indexer::onJobFinished(IndexerJob *job)
         }
 
         if (mJobs.isEmpty()) {
-            Q_ASSERT(mTimerRunning);
+            assert(mTimerRunning);
             mTimerRunning = false;
             error() << "jobs took " << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using "
                     << MemoryMonitor::usage() / (1024.0 * 1024.0) << " mb of memory";
@@ -324,7 +324,7 @@ void Indexer::onDirectoryChanged(const Path &p)
     Set<uint32_t> dirtyFiles;
     Map<Path, List<ByteArray> > toIndex, toIndexPch;
 
-    Q_ASSERT(p.endsWith('/'));
+    assert(p.endsWith('/'));
     {
         MutexLocker watchedLock(&mWatchedMutex);
         MutexLocker visitedLock(&mVisitedFilesMutex);
@@ -361,7 +361,7 @@ void Indexer::onDirectoryChanged(const Path &p)
                     ++it;
                     continue;
                 }
-                Q_ASSERT(!dit->second.isEmpty());
+                assert(!dit->second.isEmpty());
                 foreach (uint32_t pathId, dit->second) {
                     dirtyFiles.insert(pathId);
                     mVisitedFiles.remove(pathId);
