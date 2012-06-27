@@ -114,6 +114,17 @@ public:
         return offset() < other.offset();
     }
 
+    inline bool operator>(const Location &other) const
+    {
+        const int off = other.fileId() - fileId();
+        if (off < 0) {
+            return false;
+        } else if (off > 0) {
+            return true;
+        }
+        return offset() > other.offset();
+    }
+
     ByteArray context() const
     {
         const uint32_t off = offset();

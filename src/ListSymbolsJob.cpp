@@ -60,8 +60,7 @@ void ListSymbolsJob::execute()
         return;
     }
     if (queryFlags & QueryMessage::ReverseSort) {
-#warning how do we do this?
-        // qSort(out.begin(), out.end(), qGreater<ByteArray>());
+        std::sort(out.begin(), out.end(), std::greater<ByteArray>());
     } else {
         std::sort(out.begin(), out.end());
     }

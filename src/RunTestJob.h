@@ -8,29 +8,23 @@ class JobRunner
 {
 public:
     JobRunner()
-        : lines(0)
     {}
     Set<ByteArray> runJob(Job *job)
     {
-        assert(!lines);
-        Set<ByteArray> ret;
-        lines = &ret;
-#warning this is busted
-        // connect(job, SIGNAL(output(int, ByteArray)), this, SLOT(onOutput(int, ByteArray)));
+        job->setFlags(job->flags() | Job::OutputSignalEnabled);
+        job->output().connect(this, &JobRunner::onOutput);
         job->execute();
-        lines = 0;
         delete job;
+        Set<ByteArray> ret;
+        std::swap(ret, lines);
         return ret;
     }
-    void onOutput(int, const ByteArray &line)
+    void onOutput(const ByteArray &line)
     {
-        assert(lines);
-        lines->insert(line);
+        lines.insert(line);
     }
 private:
-    Set<ByteArray> *lines;
-
-
+    Set<ByteArray> lines;
 };
 
 class RunTestJob : public Job

@@ -48,9 +48,9 @@ void Job::write(const ByteArray &out)
                 }
             }
             o.truncate(l);
-            EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, o));
+            writeRaw(o);
         } else {
-            EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, out));
+            writeRaw(out);
         }
     }
 }
@@ -65,9 +65,14 @@ bool Job::filter(const ByteArray &val) const
 void Job::run()
 {
     execute();
-    EventLoop::instance()->postEvent(Server::instance(), new JobCompleteEvent(this));
+    if (mId != -1)
+        EventLoop::instance()->postEvent(Server::instance(), new JobCompleteEvent(this));
 }
 void Job::writeRaw(const ByteArray &out)
 {
-    EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, out));
+    if (mFlags & OutputSignalEnabled) {
+        output()(out);
+    } else {
+        EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, out));
+    }
 }

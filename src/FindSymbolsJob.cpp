@@ -42,8 +42,7 @@ void FindSymbolsJob::execute()
     }
     List<Location> sorted = out.toList();
     if (queryFlags & QueryMessage::ReverseSort && false) {
-        #warning how do we do this?
-        // qSort(sorted.begin(), sorted.end(), qGreater<Location>());
+        std::sort(sorted.begin(), sorted.end(), std::greater<Location>());
     } else {
         std::sort(sorted.begin(), sorted.end());
     }

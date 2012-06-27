@@ -6,6 +6,7 @@
 #include <List.h>
 #include <ByteArray.h>
 #include "Event.h"
+#include "signalslot.h"
 
 class Job : public ThreadPool::Job, public AbortInterface
 {
@@ -13,7 +14,8 @@ public:
     enum Flag {
         None = 0x0,
         WriteUnfiltered = 0x1,
-        QuoteOutput = 0x2
+        QuoteOutput = 0x2,
+        OutputSignalEnabled = 0x4
     };
     enum Priority {
         QueryJobPriority = 10,
@@ -27,16 +29,19 @@ public:
     void write(const ByteArray &out);
     void writeRaw(const ByteArray &out);
     unsigned flags() const { return mFlags; }
+    void setFlags(unsigned flags) { mFlags = flags; }
     bool filter(const ByteArray &val) const;
     virtual void run();
     virtual void execute() {}
     int priority() const { return mPriority; }
+    signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
 private:
     const int mId;
     const Priority mPriority;
-    const int mFlags;
+    int mFlags;
     List<ByteArray> mPathFilters;
     bool mFilterSystemIncludes;
+    signalslot::Signal1<const ByteArray &> mOutput;
 };
 
 class JobCompleteEvent : public Event

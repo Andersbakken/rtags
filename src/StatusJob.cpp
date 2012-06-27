@@ -15,8 +15,11 @@ StatusJob::StatusJob(int i, const ByteArray &q)
 
 static inline ByteArray timeToString(time_t t)
 {
-#warning not done
-    return ByteArray();
+    char buf[32];
+    tm tm;
+    localtime_r(&t, &tm);
+    const int w = strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm);
+    return ByteArray(buf, w);
 }
 
 void StatusJob::execute()

@@ -78,9 +78,8 @@ void ReferencesJob::execute()
         }
     }
     List<Location> sorted = refs.toList();
-    if (flags & QueryMessage::ReverseSort && false) {
-#warning not done
-        // qSort(sorted.begin(), sorted.end(), qGreater<Location>());
+    if (flags & QueryMessage::ReverseSort) {
+        std::sort(sorted.begin(), sorted.end(), std::greater<Location>());
     } else {
         std::sort(sorted.begin(), sorted.end());
     }

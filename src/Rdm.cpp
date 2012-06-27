@@ -158,11 +158,8 @@ int writePchUSRMaps(const Map<Path, PchUSRMap> &pchUSRMaps)
     ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ScopedDB::Write);
     int totalWritten = 0;
     Batch batch(db);
-    printf("write pch usr maps %d\n", pchUSRMaps.size());
     for (Map<Path, PchUSRMap>::const_iterator it = pchUSRMaps.begin(); it != pchUSRMaps.end(); ++it) {
-        int old = totalWritten;
         totalWritten += batch.add(it->first, it->second);
-        printf("Writing pch usr map %s %d\n", it->first.constData(), old - totalWritten);
     }
     return totalWritten;
 }
