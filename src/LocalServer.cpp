@@ -10,6 +10,11 @@
 
 #define LISTEN_BACKLOG 5
 
+#define eintrwrap(VAR, BLOCK)                  \
+    do {                                       \
+        VAR = BLOCK;                           \
+    } while (VAR == -1 && errno == EINTR)
+
 LocalServer::LocalServer()
     : mFd(-1)
 {
@@ -19,7 +24,8 @@ LocalServer::~LocalServer()
 {
     if (mFd != -1) {
         EventLoop::instance()->removeFileDescriptor(mFd);
-        ::close(mFd);
+        int ret;
+        eintrwrap(ret, ::close(mFd));
     }
 }
 
@@ -46,14 +52,16 @@ bool LocalServer::listen(const ByteArray& name)
     memcpy(address.sun_path, name.nullTerminated(), name.size() + 1);
 
     if (bind(mFd, (struct sockaddr*)&address, sizeof(struct sockaddr_un)) != 0) {
-        ::close(mFd);
+        int ret;
+        eintrwrap(ret, ::close(mFd));
         mFd = -1;
         error("LocalServer::listen() Unable to bind");
         return false;
     }
 
     if (::listen(mFd, LISTEN_BACKLOG) != 0) {
-        ::close(mFd);
+        int ret;
+        eintrwrap(ret, ::close(mFd));
         error("LocalServer::listen() Unable to listen to socket");
         mFd = -1;
         return false;
@@ -67,9 +75,12 @@ void LocalServer::listenCallback(int, unsigned int, void* userData)
 {
     LocalServer* server = reinterpret_cast<LocalServer*>(userData);
 
-    const int clientFd = ::accept(server->mFd, NULL, NULL);
-    server->mPendingClients.push_back(clientFd);
-    server->mClientConnected();
+    int clientFd;
+    eintrwrap(clientFd, ::accept(server->mFd, NULL, NULL));
+    if (clientFd != -1) {
+        server->mPendingClients.push_back(clientFd);
+        server->mClientConnected();
+    }
 }
 
 LocalClient* LocalServer::nextClient()
