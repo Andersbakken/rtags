@@ -582,7 +582,7 @@ void IndexerJob::execute()
                 unsigned endOffset = 0;
                 clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
 
-                error("Fixit (%d/%d) for %s: %s %s-%d", f + 1, fixItCount, mIn.constData(),
+                error("Fixit (%d/%d) for %s: [%s] %s-%d", f + 1, fixItCount, mIn.constData(),
                       clang_getCString(string), start.key().constData(), endOffset);
                 // ### can there be more than one fixit starting at the same location? Probably not.
                 fixIts[start] = std::pair<int, ByteArray>(endOffset - start.offset(), Rdm::eatString(string));
