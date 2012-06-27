@@ -344,26 +344,38 @@ int main(int argc, char** argv)
             commands.append(new QueryCommand(type, p, queryFlags, pathFilters));
             break; }
         case 'm': {
-            Path p;
+            Path makefile;
             if (optarg) {
-                p = Path::resolved(optarg);
-                if (!p.isFile()) {
+                makefile = Path::resolved(optarg);
+                if (!makefile.isFile()) {
                     fprintf(stderr, "%s is not a file\n", optarg);
                     return 1;
                 }
             } else {
-                p = "Makefile";
-                if (!p.resolve()) {
-                    fprintf(stderr, "Can't find a Makefile here\n");
-                    return 1;
+                if (optind < argc) {
+                    makefile = Path::resolved(argv[optind]);
+                    if (!makefile.isFile()) {
+                        makefile = Path::resolved("Makefile");
+                        if (!makefile.isFile()) {
+                            fprintf(stderr, "%s is not a file", argv[optind]);
+                            return 1;
+                        }
+                    } else {
+                        ++optind;
+                    }
+                } else {
+                    makefile = Path::resolved("Makefile");
+                    if (!makefile.isFile()) {
+                        fprintf(stderr, "Can't find a Makefile here\n");
+                        return 1;
+                    }
                 }
             }
 
             List<ByteArray> makefileArgs;
-            ++optind; // ### ???
             while (optind < argc && argv[optind][0] != '-')
                 makefileArgs.append(argv[optind++]);
-            commands.append(new MakefileCommand(p, makefileArgs, extraFlags));
+            commands.append(new MakefileCommand(makefile, makefileArgs, extraFlags));
             break; }
         case 's':
             if (optarg) {
