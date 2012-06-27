@@ -21,7 +21,7 @@ public:
 };
 
 LocalClient::LocalClient()
-    : mFd(-1), mBufferIdx(0)
+    : mFd(-1), mBufferIdx(0), mReadBufferPos(0)
 {
 }
 
