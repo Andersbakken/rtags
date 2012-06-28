@@ -26,9 +26,18 @@ public:
         symbolName.clear();
     }
 
-    bool dirty(const Set<uint32_t> &fileIds)
+    bool dirty(const Set<uint32_t> &fileIds, bool selfDirty)
     {
-        bool changed = false;
+        bool changed = selfDirty;
+        if (selfDirty) {
+            symbolLength = 0;
+            kind = CXCursor_FirstInvalid;
+            isDefinition = false;
+            symbolName.clear();
+            target.clear();
+            // references are still kept
+        }
+
         if (fileIds.contains(target.fileId())) {
             changed = true;
             target.clear();

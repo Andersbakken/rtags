@@ -226,20 +226,10 @@ int dirty(const Set<uint32_t> &dirtyFileIds)
             assert(key.size() == 8);
             const Location loc = Location::fromKey(key.data());
             // debug() << "looking at" << key;
-            if (dirtyFileIds.contains(loc.fileId())) {
-                db->remove(key);
-            } else {
-                CursorInfo cursorInfo = it->value<CursorInfo>();
-                if (cursorInfo.dirty(dirtyFileIds)) {
-                    // ### should we remove the whole cursorInfo if its target and all the references are gone?
-                    // if (cursorInfo.target.isNull() && cursorInfo.references.isEmpty()) {
-                    //     debug() << "CursorInfo is empty now. removing" << key;
-                    //     db->remove(key);
-                    // } else {
-                    db->setValue<CursorInfo>(key, cursorInfo);
-                    ++ret;
-                    // }
-                }
+            CursorInfo cursorInfo = it->value<CursorInfo>();
+            if (cursorInfo.dirty(dirtyFileIds, dirtyFileIds.contains(loc.fileId()))) {
+                db->setValue<CursorInfo>(key, cursorInfo);
+                ++ret;
             }
             it->next();
         }
