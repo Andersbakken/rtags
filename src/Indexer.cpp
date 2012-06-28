@@ -231,7 +231,7 @@ void Indexer::onJobFinished(IndexerJob *job)
 
         MutexLocker lock(&mVisitedFilesMutex);
         mVisitedFiles -= visited;
-        job->mMessage = "Aborted";
+        job->mMessage += job->mIn + " Aborted";
     }
 
     {
