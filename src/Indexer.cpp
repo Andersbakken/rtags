@@ -48,6 +48,7 @@ Indexer::Indexer()
         commitDependencies(dependencies, false);
     }
 
+
     initDB();
 }
 
@@ -391,8 +392,6 @@ void Indexer::onDirectoryChanged(const Path &p)
             it->second.insert(std::pair<ByteArray, time_t>(path.fileName(), path.lastModified()));
         }
     }
-    if (toIndex.isEmpty() && toIndexPch.isEmpty())
-        return;
 
     for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
         index(it->first, it->second, IndexerJob::DirtyPch|IndexerJob::NeedsDirty, dirtyFiles);
@@ -431,7 +430,9 @@ DependencyMap Indexer::dependencies(const Set<uint32_t> &fileIds) const
     MutexLocker lock(&mMutex);
     DependencyMap ret;
     for (Set<uint32_t>::const_iterator it = fileIds.begin(); it != fileIds.end(); ++it) {
-        ret[*it] = mDependencies.at(*it);
+        const Set<uint32_t> deps = mDependencies.value(*it);
+        if (!deps.isEmpty())
+            ret[*it] = deps;
     }
 
     return ret;

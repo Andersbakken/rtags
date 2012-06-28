@@ -208,7 +208,6 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
             const uint32_t fileId = ret.fileId();
             if (blocked) {
                 PathState &state = mPaths[fileId];
-                assert(state != Reference);
                 if (state == Unset) {
                     state = mIndexer->visitFile(fileId, mIn) ? Index : DontIndex;
                 }
@@ -652,12 +651,14 @@ void IndexerJob::execute()
             }
             if (mFlags & NeedsDirty) {
                 Map<uint32_t, Set<uint32_t> > dirty = mIndexer->dependencies(fileIds);
+                // Log log(Error);
+                // log << "About to dirty for " << mIn;
                 for (Map<uint32_t, Set<uint32_t> >::iterator it = dirty.begin(); it != dirty.end(); ++it) {
+                    // log << " " << Location::path(it->first);
                     it->second.unite(mDirty);
                 }
 
-                error() << "about to dirty for " << mIn << " " << dirty
-                        << mPaths;
+                debug() << "about to dirty for " << mIn << " " << dirty << mPaths;
                 Rdm::dirtySymbols(dirty);
                 Rdm::dirtySymbolNames(dirtySymbolNames);
             }
