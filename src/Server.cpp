@@ -48,6 +48,17 @@ public:
     Connection *connection;
 };
 
+class MakefileParserDoneEvent : public Event
+{
+public:
+    enum { Type = 4 };
+    MakefileParserDoneEvent(MakefileParser *p)
+        : Event(Type), parser(p)
+    {}
+    MakefileParser *parser;
+};
+
+
 Server *Server::sInstance = 0;
 Server::Server()
     : mIndexer(0), mServer(0), mVerbose(false), mJobId(0), mThreadPool(0)
@@ -273,7 +284,7 @@ void Server::onMakefileParserDone(MakefileParser *parser)
         connection->send(&msg);
         connection->finish();
     }
-    delete parser;
+    EventLoop::instance()->postEvent(this, new MakefileParserDoneEvent(parser));
 }
 
 void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn)
@@ -658,9 +669,10 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
     for (int i=0; i<c; ++i) {
         const Path &input = inputFiles.at(i);
         if (arguments != Rdm::compileArgs(Location::insertFile(input))) {
+            error() << "arguments for " << input << " " << arguments << Rdm::compileArgs(Location::insertFile(input));
             mIndexer->index(input, arguments, IndexerJob::Makefile, Set<uint32_t>());
         } else {
-            warning() << input << "is not dirty. ignoring";
+            debug() << input << " is not dirty. ignoring";
         }
     }
 }
@@ -697,6 +709,9 @@ void Server::event(const Event *event)
     case MakeEvent::Type: {
         const MakeEvent *e = static_cast<const MakeEvent*>(event);
         make(e->makefile, e->makefileArgs, e->extraFlags, e->connection);
+        break; }
+    case MakefileParserDoneEvent::Type: {
+        delete static_cast<const MakefileParserDoneEvent*>(event)->parser;
         break; }
     default:
         assert(0);

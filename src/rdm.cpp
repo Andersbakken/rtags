@@ -62,7 +62,7 @@ void signalHandler(int signal)
     free(symbols);
 #endif
     fflush(stderr);
-    // delete Server::instance();
+    Server::instance()->clear();
     exit(1);
 }
 
