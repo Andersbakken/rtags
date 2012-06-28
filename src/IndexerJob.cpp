@@ -594,9 +594,9 @@ void IndexerJob::execute()
 
             clang_disposeDiagnostic(diagnostic);
         }
-        if (!hasCompilationErrors) {
-            log(CompilationError, "%s parsed", mIn.constData());
-        }
+        // if (!hasCompilationErrors) {
+        //     log(CompilationError, "%s parsed", mIn.constData()); ### this is annoying for rdm, we need something better
+        // }
 
         clang_getInclusions(mUnit, inclusionVisitor, this);
 
