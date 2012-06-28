@@ -211,8 +211,7 @@ int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, uint32_t fi
     return totalWritten;
 }
 
-template <typename T>
-static int dirtySymbolNames(T dirty)
+int dirtySymbolNames(const Set<uint32_t> &dirty)
 {
     int ret = 0;
     ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Write);
@@ -224,7 +223,7 @@ static int dirtySymbolNames(T dirty)
         Set<Location>::iterator i = locations.begin();
         bool changed = false;
         while (i != locations.end()) {
-            if (match(dirty, *i)) {
+            if (dirty.contains(*i)) {
                 changed = true;
                 locations.erase(i++);
                 ++ret;
@@ -246,23 +245,25 @@ static int dirtySymbolNames(T dirty)
     return ret;
 }
 
-int dirty(const Set<uint32_t> &dirtyFileIds)
+int dirtySymbols(const Map<uint32_t, Set<uint32_t> > &dirty)
 {
-    Timer timer;
-    // ### we should probably have a thread or something that stats each file we have in the db and calls dirty if the file is gone
     int ret = 0;
-    debug() << "dirty" << dirtyFileIds;
-    {
-        ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Write);
-        RTags::Ptr<Iterator> it(db->createIterator());
-        it->seekToFirst();
+    ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Write);
+    RTags::Ptr<Iterator> it(db->createIterator());
+    char key[8];
+    for (Map<uint32_t, Set<uint32_t> >::const_iterator i = dirty.begin(); i != dirty.end(); ++i) {
+        const Location loc(i->first, 0);
+        loc.toKey(key);
+        const bool selfDirty = i->second.contains(i->first);
+        it->seek(Slice(key, sizeof(key)));
         while (it->isValid()) {
             const Slice key = it->key();
             assert(key.size() == 8);
             const Location loc = Location::fromKey(key.data());
-            // debug() << "looking at" << key;
+            if (loc.fileId() != i->first)
+                break;
             CursorInfo cursorInfo = it->value<CursorInfo>();
-            switch (cursorInfo.dirty(dirtyFileIds, dirtyFileIds.contains(loc.fileId()))) {
+            switch (cursorInfo.dirty(i->second, selfDirty)) {
             case CursorInfo::Unchanged:
                 break;
             case CursorInfo::Modified:
@@ -277,49 +278,6 @@ int dirty(const Set<uint32_t> &dirtyFileIds)
             it->next();
         }
     }
-
-    ret += dirtySymbolNames(dirtyFileIds);
-    warning() << "dirtied " << dirtyFileIds.size() << " files in " << timer.elapsed() << "ms";
-    return ret;
-}
-
-// maxOffset of -1 will be > everything
-
-int dirty(uint32_t fileId, int maxOffset, const Set<uint32_t> &dependencies)
-{
-    int ret = 0;
-    {
-        ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Write);
-        RTags::Ptr<Iterator> it(db->createIterator());
-        char key[8];
-        for (Set<uint32_t>::const_iterator i = dependencies.begin(); i != dependencies.end(); ++i) {
-            const Location loc(*i, 0);
-            loc.toKey(key);
-            it->seek(Slice(key, sizeof(key)));
-            while (it->isValid()) {
-                const Slice key = it->key();
-                assert(key.size() == 8);
-                const Location loc = Location::fromKey(key.data());
-                if (loc.fileId() != fileId || loc.offset() > static_cast<uint32_t>(maxOffset))
-                    break;
-                CursorInfo cursorInfo = it->value<CursorInfo>();
-                switch (cursorInfo.dirty(fileId, true)) {
-                case CursorInfo::Unchanged:
-                    break;
-                case CursorInfo::Modified:
-                    db->setValue<CursorInfo>(key, cursorInfo);
-                    ++ret;
-                    break;
-                case CursorInfo::Empty:
-                    db->remove(it->key());
-                    ++ret;
-                    break;
-                }
-                it->next();
-            }
-        }
-    }
-    ret += dirtySymbolNames(fileId);
     return ret;
 }
 

@@ -18,7 +18,6 @@ set(rtags_HDRS
     CursorInfo.h
     CursorInfoJob.h
     Database.h
-    DirtyJob.h
     ErrorMessage.h
     FileSystemWatcher.h
     FindSymbolsJob.h
@@ -78,7 +77,6 @@ set(rtags_SRCS
     Connection.cpp
     CursorInfoJob.cpp
     Database.cpp
-    DirtyJob.cpp
     ErrorMessage.cpp
     FileSystemWatcher.cpp
     FindSymbolsJob.cpp

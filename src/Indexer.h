@@ -16,10 +16,11 @@ public:
     Indexer();
     ~Indexer();
 
-    int index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
+    int index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags, const Set<uint32_t> &dirty);
 
     void setPchDependencies(const Path &pchHeader, const Set<uint32_t> &deps);
     void addDependencies(const DependencyMap &hash);
+    DependencyMap dependencies(const Set<uint32_t> &files) const;
     Set<uint32_t> pchDependencies(const Path &pchHeader) const;
     Map<ByteArray, Location> pchUSRMap(const List<Path> &pchFiles) const;
     void setPchUSRMap(const Path &pch, const PchUSRMap &astMap);
@@ -56,7 +57,7 @@ private:
     Map<Path, Set<uint32_t> > mPchDependencies;
     int mJobCounter;
 
-    Mutex mMutex;
+    mutable Mutex mMutex;
 
     ByteArray mPath;
     Map<int, IndexerJob*> mJobs, mWaitingForPCH, mWaitingForAbort;
@@ -79,6 +80,8 @@ private:
 
 inline bool Indexer::visitFile(uint32_t fileId, const Path &path)
 {
+    if (!strcmp(path.fileName(), "b.cpp") && Location::path(fileId) == "foo.h")
+        return false;
     MutexLocker lock(&mVisitedFilesMutex);
     if (mVisitedFiles.contains(fileId)) {
         return false;

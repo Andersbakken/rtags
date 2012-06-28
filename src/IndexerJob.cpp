@@ -26,12 +26,15 @@ static inline List<Path> extractPchFiles(const List<ByteArray> &args)
 }
 
 IndexerJob::IndexerJob(Indexer *indexer, int id, unsigned flags,
-                       const Path &input, const List<ByteArray> &arguments)
+                       const Path &input, const List<ByteArray> &arguments,
+                       const Set<uint32_t> &dirty)
+
     : mId(id), mFlags(flags), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
-      mPchHeaders(extractPchFiles(arguments)), mUnit(0)
+      mDirty(dirty), mPchHeaders(extractPchFiles(arguments)), mUnit(0)
 {
     setAutoDelete(false);
+    assert(mDirty.isEmpty() || flags & NeedsDirty);
 }
 
 static inline uint32_t fileId(CXFile file)
@@ -202,17 +205,23 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
         clang_getSpellingLocation(location, &file, 0, 0, &start);
         if (file) {
             ret = Location(file, start);
+            const uint32_t fileId = ret.fileId();
             if (blocked) {
-                const uint32_t fileId = ret.fileId();
                 PathState &state = mPaths[fileId];
+                assert(state != Reference);
                 if (state == Unset) {
                     state = mIndexer->visitFile(fileId, mIn) ? Index : DontIndex;
                 }
-                if (state == DontIndex) {
+                if (state != Index) {
                     *blocked = true;
                     return Location();
                 }
                 *blocked = false;
+            } else {
+                PathState &state = mPaths[fileId];
+                if (state == Unset || state == DontIndex) {
+                    state = Reference;
+                }
             }
         }
     }
@@ -617,23 +626,44 @@ void IndexerJob::execute()
                 mDependencies[*it].insert(mFileId);
             }
         }
-        mIndexer->addDependencies(mDependencies);
-        assert(mDependencies[mFileId].contains(mFileId));
         scope.cleanup();
 
         if (!isAborted()) {
-            Set<uint32_t> dirtyFiles;
+            if (!strcmp(mIn.fileName(), "a.cpp")) {
+                printf("Sleeping...\n");
+                sleep(2);
+                printf("Woke up\n");
+            }
+            Set<uint32_t> fileIds;
+            Set<uint32_t> dirtySymbolNames;
             for (Map<uint32_t, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
                 if (it->second == Index) {
-                    (void)visited[it->first];
+                    visited[it->first] = List<ByteArray>();
                     if (mFlags & NeedsDirty) {
-                        dirtyFiles.insert(it->first);
+                        fileIds.insert(it->first);
+                        if (mDirty.contains(it->first))
+                            dirtySymbolNames.insert(it->first);
                     }
+                } else if (mFlags & NeedsDirty && it->second == Reference) {
+                    fileIds.insert(it->first);
+                    if (mDirty.contains(it->first))
+                        dirtySymbolNames.insert(it->first);
                 }
             }
             if (mFlags & NeedsDirty) {
-                Rdm::dirty(dirtyFiles);
+                Map<uint32_t, Set<uint32_t> > dirty = mIndexer->dependencies(fileIds);
+                for (Map<uint32_t, Set<uint32_t> >::iterator it = dirty.begin(); it != dirty.end(); ++it) {
+                    it->second.unite(mDirty);
+                }
+
+                error() << "about to dirty for " << mIn << " " << dirty
+                        << mPaths;
+                Rdm::dirtySymbols(dirty);
+                Rdm::dirtySymbolNames(dirtySymbolNames);
             }
+            mIndexer->addDependencies(mDependencies);
+            assert(mDependencies[mFileId].contains(mFileId));
+
             mIndexer->setDiagnostics(visited, fixIts);
             Rdm::writeSymbols(mSymbols, mReferences, mFileId);
             Rdm::writeSymbolNames(mSymbolNames);

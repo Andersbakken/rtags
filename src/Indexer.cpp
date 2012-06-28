@@ -1,6 +1,5 @@
 #include "Database.h"
 #include "Server.h"
-#include "DirtyJob.h"
 #include "Indexer.h"
 #include "IndexerJob.h"
 #include "MemoryMonitor.h"
@@ -160,16 +159,12 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
         mVisitedFiles -= dirtyFiles;
     }
 
-    if (dirtyFiles.size() > 1) {
-        Server::instance()->threadPool()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
-    } else {
-        for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
-            index(it->first, it->second, IndexerJob::DirtyPch|IndexerJob::NeedsDirty);
-        }
+    for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
+        index(it->first, it->second, IndexerJob::DirtyPch|IndexerJob::NeedsDirty, dirtyFiles);
+    }
 
-        for (Map<Path, List<ByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
-            index(it->first, it->second, IndexerJob::Dirty|IndexerJob::NeedsDirty);
-        }
+    for (Map<Path, List<ByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
+        index(it->first, it->second, IndexerJob::Dirty|IndexerJob::NeedsDirty, dirtyFiles);
     }
 }
 
@@ -276,14 +271,15 @@ void Indexer::onJobFinished(IndexerJob *job)
 }
 
 
-int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags)
+int Indexer::index(const Path &input, const List<ByteArray> &arguments,
+                   unsigned indexerJobFlags, const Set<uint32_t> &dirty)
 {
     MutexLocker locker(&mMutex);
 
     const uint32_t fileId = Location::insertFile(input);
 
     const int id = ++mJobCounter;
-    IndexerJob *job = new IndexerJob(this, id, indexerJobFlags, input, arguments);
+    IndexerJob *job = new IndexerJob(this, id, indexerJobFlags, input, arguments, dirty);
 
     if (needsToWaitForPch(job)) {
         mWaitingForPCH[id] = job;
@@ -398,16 +394,12 @@ void Indexer::onDirectoryChanged(const Path &p)
     if (toIndex.isEmpty() && toIndexPch.isEmpty())
         return;
 
-    if (dirtyFiles.size() > 1) {
-        Server::instance()->threadPool()->start(new DirtyJob(this, dirtyFiles, toIndexPch, toIndex));
-    } else {
-        for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
-            index(it->first, it->second, IndexerJob::DirtyPch|IndexerJob::NeedsDirty);
-        }
+    for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
+        index(it->first, it->second, IndexerJob::DirtyPch|IndexerJob::NeedsDirty, dirtyFiles);
+    }
 
-        for (Map<Path, List<ByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
-            index(it->first, it->second, IndexerJob::Dirty|IndexerJob::NeedsDirty);
-        }
+    for (Map<Path, List<ByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
+        index(it->first, it->second, IndexerJob::Dirty|IndexerJob::NeedsDirty, dirtyFiles);
     }
 }
 
@@ -433,6 +425,18 @@ void Indexer::addDependencies(const DependencyMap &deps)
     MutexLocker lock(&mMutex);
     commitDependencies(deps, true);
 }
+
+DependencyMap Indexer::dependencies(const Set<uint32_t> &fileIds) const
+{
+    MutexLocker lock(&mMutex);
+    DependencyMap ret;
+    for (Set<uint32_t>::const_iterator it = fileIds.begin(); it != fileIds.end(); ++it) {
+        ret[*it] = mDependencies.at(*it);
+    }
+
+    return ret;
+}
+
 
 PchUSRMap Indexer::pchUSRMap(const List<Path> &pchFiles) const
 {

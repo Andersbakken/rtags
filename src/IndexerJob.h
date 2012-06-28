@@ -22,7 +22,8 @@ public:
         FixIt = 0x020
     };
     IndexerJob(Indexer *indexer, int id, unsigned flags,
-               const Path &input, const List<ByteArray> &arguments);
+               const Path &input, const List<ByteArray> &arguments,
+               const Set<uint32_t> &dirty);
     int priority() const { return mFlags & Priorities; }
     virtual void run();
     void execute();
@@ -30,7 +31,7 @@ public:
     const int mId;
     unsigned mFlags;
     bool mIsPch;
-    Location createLocation(const CXCursor &cursor , bool *blocked);
+    Location createLocation(const CXCursor &cursor, bool *blocked);
     ByteArray addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDb);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static void inclusionVisitor(CXFile included_file, CXSourceLocation *include_stack,
@@ -52,7 +53,8 @@ public:
     enum PathState {
         Unset,
         Index,
-        DontIndex
+        DontIndex,
+        Reference
     };
     Map<uint32_t, PathState> mPaths;
     Map<Str, CXCursor> mHeaderMap;
@@ -65,6 +67,7 @@ public:
     Set<uint32_t> mPchDependencies;
     Indexer *mIndexer;
     Map<ByteArray, Location> mPchUSRMap;
+    const Set<uint32_t> mDirty;
 
     List<Path> mPchHeaders;
     CXTranslationUnit mUnit;

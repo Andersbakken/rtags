@@ -658,7 +658,7 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
     for (int i=0; i<c; ++i) {
         const Path &input = inputFiles.at(i);
         if (arguments != Rdm::compileArgs(Location::insertFile(input))) {
-            mIndexer->index(input, arguments, IndexerJob::Makefile);
+            mIndexer->index(input, arguments, IndexerJob::Makefile, Set<uint32_t>());
         } else {
             warning() << input << "is not dirty. ignoring";
         }

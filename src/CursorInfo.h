@@ -29,8 +29,7 @@ public:
         Unchanged = 0,
         Modified = 1
     };
-    template <typename T>
-    DirtyState dirty(T dirty, bool selfDirty)
+    DirtyState dirty(const Set<uint32_t> &dirty, bool selfDirty)
     {
         bool changed = false;
         if (selfDirty && symbolLength) {
@@ -41,14 +40,15 @@ public:
             changed = true;
         }
 
-        if (match(dirty, target)) {
+        const uint32_t targetFileId = target.fileId();
+        if (targetFileId && dirty.contains(targetFileId)) {
             changed = true;
             target.clear();
         }
 
         Set<Location>::iterator it = references.begin();
         while (it != references.end()) {
-            if (match(dirty, it->fileId())) {
+            if (dirty.contains(it->fileId())) {
                 changed = true;
                 references.erase(it++);
             } else {
@@ -67,31 +67,22 @@ public:
     bool unite(const CursorInfo &other)
     {
         bool changed = false;
-        if (target.isNull() && !other.target.isNull()) {
+        if (!target && other.target) {
             target = other.target;
             changed = true;
         }
 
-        // ### this is not ideal, we can probably know this rather than check all of them
-        if (symbolName.isEmpty() && !other.symbolName.isEmpty()) {
-            symbolName = other.symbolName;
-            changed = true;
-        }
-
-        if (kind == CXCursor_FirstInvalid) {
-            kind = other.kind;
-            changed = true;
-        }
-        isDefinition = isDefinition || other.isDefinition; // ### hm
-
         if (!symbolLength && other.symbolLength) {
             symbolLength = other.symbolLength;
+            kind = other.kind;
+            isDefinition = other.isDefinition;
+            symbolName = other.symbolName;
             changed = true;
         }
         const int oldSize = references.size();
         if (!oldSize) {
             references = other.references;
-            if (!other.references.isEmpty())
+            if (!references.isEmpty())
                 changed = true;
         } else {
             references.unite(other.references);

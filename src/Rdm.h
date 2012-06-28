@@ -177,8 +177,9 @@ int writePchDepencies(const Map<Path, Set<uint32_t> > &pchDependencies);
 int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t lastTouched);
 int writePchUSRMaps(const Map<Path, PchUSRMap> &maps);
 int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, uint32_t fileId);
-int dirty(const Set<uint32_t> &dirtyFileIds);
-int dirty(uint32_t fileId, int maxOffset, const Set<uint32_t> &dependencies);
+int dirtySymbols(const Map<uint32_t, Set<uint32_t> > &dirty);
+int dirtySymbolNames(const Set<uint32_t> &dirty);
+
 List<ByteArray> compileArgs(uint32_t fileId);
 // the symbols will be modified before writing and we don't want to detach so we
 // work on a non-const reference
