@@ -3,6 +3,10 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+if(CMAKE_BUILD_TYPE MATCHES "Debug")
+  add_definitions(-DRTAGS_DEBUG)
+endif()
+
 add_definitions(-Wall "-DCLANG_INCLUDEPATH=\"${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/clang_install/lib/clang/3.1/include/\"")
 add_definitions(-DOS_${CMAKE_SYSTEM_NAME})
 

@@ -105,9 +105,9 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
             if (path.isFile()) {
                 const FileInformation fi = it->value<FileInformation>();
                 if (!fi.compileArgs.isEmpty()) {
-#ifdef QT_DEBUG
+#ifdef RTAGS_DEBUG
                     if (path.isHeader() && !Rdm::isPch(fi.compileArgs)) {
-                        error() << path; // << fi.compileArgs << fileId;
+                        error() << path << fi.compileArgs << fileId;
                         assert(0);
                     }
 #endif
@@ -138,7 +138,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
                     } else {
                         mVisitedFiles += dependencies;
                     }
-                    warning() << "checking if" << path << "is dirty =>" << dirty;
+                    warning() << "checking if " << path << " is dirty => " << dirty;
                 }
             } else {
                 batch.remove(key);
