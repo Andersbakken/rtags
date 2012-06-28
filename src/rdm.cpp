@@ -62,8 +62,8 @@ void signalHandler(int signal)
     free(symbols);
 #endif
     fflush(stderr);
-    delete Server::instance();
-    _exit(1);
+    // delete Server::instance();
+    exit(1);
 }
 
 void usage(FILE *f)
