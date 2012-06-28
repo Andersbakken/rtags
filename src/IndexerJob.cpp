@@ -541,7 +541,7 @@ void IndexerJob::execute()
         Map<Location, std::pair<int, ByteArray> > fixIts;
         Map<uint32_t, List<ByteArray> > visited;
         const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
-        bool hasCompilationErrors = false;
+        // bool hasCompilationErrors = false;
         for (unsigned i=0; i<diagnosticCount; ++i) {
             CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
             int logLevel = INT_MAX;
@@ -551,7 +551,7 @@ void IndexerJob::execute()
             case CXDiagnostic_Fatal:
             case CXDiagnostic_Warning:
                 logLevel = CompilationError;
-                hasCompilationErrors = true;
+                // hasCompilationErrors = true;
                 break;
             case CXDiagnostic_Note:
                 logLevel = Debug;
