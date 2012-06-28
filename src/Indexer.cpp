@@ -293,6 +293,8 @@ int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned
     IndexerJob *existing = mJobs.value(fileId);
     if (existing) {
         existing->abort();
+        if (existing->mFlags & IndexerJob::NeedsDirty)
+            job->mFlags |= IndexerJob::NeedsDirty;
         IndexerJob *&j = mWaitingForAbort[fileId];
         // ### if we're already waiting for this file, is it worth it to spawn a
         // ### new thread? what about the id?

@@ -211,6 +211,41 @@ int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, uint32_t fi
     return totalWritten;
 }
 
+template <typename T>
+static int dirtySymbolNames(T dirty)
+{
+    int ret = 0;
+    ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Write);
+
+    RTags::Ptr<Iterator> it(db->createIterator());
+    it->seekToFirst();
+    while (it->isValid()) {
+        Set<Location> locations = it->value<Set<Location> >();
+        Set<Location>::iterator i = locations.begin();
+        bool changed = false;
+        while (i != locations.end()) {
+            if (match(dirty, *i)) {
+                changed = true;
+                locations.erase(i++);
+                ++ret;
+            } else {
+                ++i;
+            }
+        }
+        if (changed) {
+            if (locations.isEmpty()) {
+                debug() << "No references to " << it->key() << " anymore. Removing";
+                db->remove(it->key());
+            } else {
+                debug() << "References to " << it->key() << " modified. Changing";
+                db->setValue<Set<Location> >(it->key(), locations);
+            }
+        }
+        it->next();
+    }
+    return ret;
+}
+
 int dirty(const Set<uint32_t> &dirtyFileIds)
 {
     Timer timer;
@@ -243,37 +278,48 @@ int dirty(const Set<uint32_t> &dirtyFileIds)
         }
     }
 
-    {
-        ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Write);
+    ret += dirtySymbolNames(dirtyFileIds);
+    warning() << "dirtied " << dirtyFileIds.size() << " files in " << timer.elapsed() << "ms";
+    return ret;
+}
 
+// maxOffset of -1 will be > everything
+
+int dirty(uint32_t fileId, int maxOffset, const Set<uint32_t> &dependencies)
+{
+    int ret = 0;
+    {
+        ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Write);
         RTags::Ptr<Iterator> it(db->createIterator());
-        it->seekToFirst();
-        while (it->isValid()) {
-            Set<Location> locations = it->value<Set<Location> >();
-            Set<Location>::iterator i = locations.begin();
-            bool changed = false;
-            while (i != locations.end()) {
-                if (dirtyFileIds.contains((*i).fileId())) {
-                    changed = true;
-                    locations.erase(i++);
+        char key[8];
+        for (Set<uint32_t>::const_iterator i = dependencies.begin(); i != dependencies.end(); ++i) {
+            const Location loc(*i, 0);
+            loc.toKey(key);
+            it->seek(Slice(key, sizeof(key)));
+            while (it->isValid()) {
+                const Slice key = it->key();
+                assert(key.size() == 8);
+                const Location loc = Location::fromKey(key.data());
+                if (loc.fileId() != fileId || loc.offset() > static_cast<uint32_t>(maxOffset))
+                    break;
+                CursorInfo cursorInfo = it->value<CursorInfo>();
+                switch (cursorInfo.dirty(fileId, true)) {
+                case CursorInfo::Unchanged:
+                    break;
+                case CursorInfo::Modified:
+                    db->setValue<CursorInfo>(key, cursorInfo);
                     ++ret;
-                } else {
-                    ++i;
-                }
-            }
-            if (changed) {
-                if (locations.isEmpty()) {
-                    debug() << "No references to " << it->key() << " anymore. Removing";
+                    break;
+                case CursorInfo::Empty:
                     db->remove(it->key());
-                } else {
-                    debug() << "References to " << it->key() << " modified. Changing";
-                    db->setValue<Set<Location> >(it->key(), locations);
+                    ++ret;
+                    break;
                 }
+                it->next();
             }
-            it->next();
         }
     }
-    warning() << "dirtied " << dirtyFileIds.size() << " files in " << timer.elapsed() << "ms";
+    ret += dirtySymbolNames(fileId);
     return ret;
 }
 
@@ -285,5 +331,4 @@ List<ByteArray> compileArgs(uint32_t fileId)
     FileInformation fi = db->value<FileInformation>(key);
     return fi.compileArgs;
 }
-
 }

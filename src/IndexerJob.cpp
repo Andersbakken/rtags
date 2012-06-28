@@ -547,8 +547,8 @@ void IndexerJob::execute()
             int logLevel = INT_MAX;
             const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diagnostic);
             switch (severity) {
-            case CXDiagnostic_Error:
             case CXDiagnostic_Fatal:
+            case CXDiagnostic_Error:
             case CXDiagnostic_Warning:
                 logLevel = CompilationError;
                 // hasCompilationErrors = true;

@@ -8,17 +8,6 @@
 #include "Location.h"
 #include "Rdm.h"
 
-static inline bool match(uint32_t fileId, const Location &loc)
-{
-    return loc.fileId() == fileId;
-}
-
-static inline bool match(const Set<uint32_t> &fileIds, const Location &loc)
-{
-    return fileIds.contains(loc.fileId());
-}
-
-
 class CursorInfo
 {
 public:

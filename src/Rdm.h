@@ -34,6 +34,16 @@ public:
     CXString string;
 };
 
+static inline bool match(uint32_t fileId, const Location &loc)
+{
+    return loc.fileId() == fileId;
+}
+
+static inline bool match(const Set<uint32_t> &fileIds, const Location &loc)
+{
+    return fileIds.contains(loc.fileId());
+}
+
 struct FileInformation {
     FileInformation(time_t lt = 0, const List<ByteArray> &args = List<ByteArray>())
         : lastTouched(lt), compileArgs(args)
@@ -168,6 +178,7 @@ int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t la
 int writePchUSRMaps(const Map<Path, PchUSRMap> &maps);
 int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, uint32_t fileId);
 int dirty(const Set<uint32_t> &dirtyFileIds);
+int dirty(uint32_t fileId, int maxOffset, const Set<uint32_t> &dependencies);
 List<ByteArray> compileArgs(uint32_t fileId);
 // the symbols will be modified before writing and we don't want to detach so we
 // work on a non-const reference

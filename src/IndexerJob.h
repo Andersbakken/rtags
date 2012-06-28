@@ -28,7 +28,7 @@ public:
     void execute();
 
     const int mId;
-    const unsigned mFlags;
+    unsigned mFlags;
     bool mIsPch;
     Location createLocation(const CXCursor &cursor , bool *blocked);
     ByteArray addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDb);
