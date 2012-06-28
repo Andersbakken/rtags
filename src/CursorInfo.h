@@ -34,8 +34,6 @@ public:
             kind = CXCursor_FirstInvalid;
             isDefinition = false;
             symbolName.clear();
-            target.clear();
-            // references are still kept
         }
 
         if (fileIds.contains(target.fileId())) {
