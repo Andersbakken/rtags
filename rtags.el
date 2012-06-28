@@ -3,9 +3,6 @@
   :group 'tools
   :prefix "rtags-")
 
-(require 'highlight)
-(require 'bookmark)
-
 (defun rtags-find-ancestor-file(pattern)
   "Find a file named \a file in as shallow a path as possible,
   e.g. if there's a Makefile in /foobar/rtags/rc/Makefile and one
@@ -144,12 +141,12 @@
         (setq tagname input))
     (if (get-buffer "*RTags Complete*")
         (kill-buffer "*RTags Complete*"))
-    (switch-to-buffer-other-window (generate-new-buffer "*RTags Complete*"))
-    (rtags-call-rc references switch tagname "-l")
-    (rtags-handle-completion-buffer)
+    (with-current-buffer (generate-new-buffer "*RTags Complete*")
+      (rtags-call-rc references switch tagname "-l")
+      (rtags-handle-completion-buffer)
+      )
+    )
   )
-  )
-
 
 (defun rtags-remove-completions-buffer ()
   (interactive)
@@ -318,12 +315,11 @@ return t if rtags is allowed to modify this file"
   (let ((arg (rtags-current-location)))
     (if (get-buffer "*RTags Complete*")
         (kill-buffer "*RTags Complete*"))
-    (switch-to-buffer-other-window (generate-new-buffer "*RTags Complete*"))
-    (if samefile
-        (rtags-call-rc nil "-l" "-z" "-r" arg)
-      (rtags-call-rc t "-l" "-r" arg)) ; ### is this right, I kinda hate that samefile stuff, it should just use path-filter
-
-    (rtags-handle-completion-buffer)
+    (with-current-buffer (generate-new-buffer "*RTags Complete*")
+      (if samefile
+          (rtags-call-rc nil "-l" "-z" "-r" arg)
+        (rtags-call-rc t "-l" "-r" arg)) ; ### is this right, I kinda hate that samefile stuff, it should just use path-filter
+      (rtags-handle-completion-buffer))
     )
   )
 
@@ -468,13 +464,12 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-handle-completion-buffer ()
   (let ((empty (= (point-min) (point-max))))
-    (cond (empty
-           (rtags-remove-completions-buffer))
+    (cond (empty t)
           ((= (count-lines (point-min) (point-max)) 1)
            (progn
-             (delete-other-windows)
              (rtags-goto-location (buffer-string))))
           (t (progn
+               (switch-to-buffer-other-window "*RTags Complete*")
                (goto-char (point-min))
                (compilation-mode)
                (if rtags-jump-to-first-match
