@@ -227,9 +227,17 @@ int dirty(const Set<uint32_t> &dirtyFileIds)
             const Location loc = Location::fromKey(key.data());
             // debug() << "looking at" << key;
             CursorInfo cursorInfo = it->value<CursorInfo>();
-            if (cursorInfo.dirty(dirtyFileIds, dirtyFileIds.contains(loc.fileId()))) {
+            switch (cursorInfo.dirty(dirtyFileIds, dirtyFileIds.contains(loc.fileId()))) {
+            case CursorInfo::Unchanged:
+                break;
+            case CursorInfo::Modified:
                 db->setValue<CursorInfo>(key, cursorInfo);
                 ++ret;
+                break;
+            case CursorInfo::Empty:
+                db->remove(it->key());
+                ++ret;
+                break;
             }
             it->next();
         }

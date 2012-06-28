@@ -21,7 +21,7 @@ void CursorInfoJob::execute()
     const CursorInfo cursorInfo = Rdm::findCursorInfo(db, location, &found);
     if (isAborted())
         return;
-    if (!cursorInfo.isNull()) {
+    if (cursorInfo.symbolLength) {
         char buf[1024];
         const CXStringScope kind(clang_getCursorKindSpelling(cursorInfo.kind));
         const int w = snprintf(buf, sizeof(buf), "%s symbolName: %s kind: %s isDefinition: %s symbolLength: %d",

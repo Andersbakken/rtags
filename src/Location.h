@@ -47,6 +47,11 @@ public:
         clang_getSpellingLocation(location, &file, 0, 0, &offset);
         *this = Location(file, offset);
     }
+
+    inline bool operator!() const
+    {
+        return !mData;
+    }
     static inline uint32_t fileId(const Path &path)
     {
         ReadLocker lock(&sLock);

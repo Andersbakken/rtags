@@ -8,14 +8,23 @@
 #include "Location.h"
 #include "Rdm.h"
 
+static inline bool match(uint32_t fileId, const Location &loc)
+{
+    return loc.fileId() == fileId;
+}
+
+static inline bool match(const Set<uint32_t> &fileIds, const Location &loc)
+{
+    return fileIds.contains(loc.fileId());
+}
+
+
 class CursorInfo
 {
 public:
     CursorInfo()
         : symbolLength(0), kind(CXCursor_FirstInvalid), isDefinition(false)
     {}
-    bool isNull() const { return !symbolLength; }
-    bool isValid() const { return symbolLength; }
     void clear()
     {
         symbolLength = 0;
@@ -26,31 +35,44 @@ public:
         symbolName.clear();
     }
 
-    bool dirty(const Set<uint32_t> &fileIds, bool selfDirty)
+    enum DirtyState {
+        Empty = -1,
+        Unchanged = 0,
+        Modified = 1
+    };
+    template <typename T>
+    DirtyState dirty(T dirty, bool selfDirty)
     {
-        bool changed = selfDirty;
-        if (selfDirty) {
+        bool changed = false;
+        if (selfDirty && symbolLength) {
             symbolLength = 0;
             kind = CXCursor_FirstInvalid;
             isDefinition = false;
             symbolName.clear();
+            changed = true;
         }
 
-        if (fileIds.contains(target.fileId())) {
+        if (match(dirty, target)) {
             changed = true;
             target.clear();
         }
 
         Set<Location>::iterator it = references.begin();
         while (it != references.end()) {
-            if (fileIds.contains((*it).fileId())) {
+            if (match(dirty, it->fileId())) {
                 changed = true;
                 references.erase(it++);
             } else {
                 ++it;
             }
         }
-        return changed;
+        return changed ? (isEmpty() ? Empty : Modified) : Unchanged;
+    }
+
+    bool isEmpty() const
+    {
+        assert(symbolLength || symbolName.isEmpty() && symbolLength || kind == CXCursor_FirstInvalid); // these should be coupled
+        return !symbolLength && !target && references.isEmpty();
     }
 
     bool unite(const CursorInfo &other)

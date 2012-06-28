@@ -52,7 +52,7 @@ void ReferencesJob::execute()
             }
         }
 
-        if (cursorInfo.isValid()) {
+        if (cursorInfo.symbolLength) {
             if (cursorInfo.target.isValid()) {
                 if (excludeDefsAndDecls) {
                     filtered.insert(cursorInfo.target);
