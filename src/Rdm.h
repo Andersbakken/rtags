@@ -13,6 +13,11 @@
 #include "ResponseMessage.h"
 #include "CursorInfo.h"
 
+#define eintrwrap(VAR, BLOCK)                  \
+    do {                                       \
+        VAR = BLOCK;                           \
+    } while (VAR == -1 && errno == EINTR)
+
 class CursorInfo;
 class CXStringScope
 {

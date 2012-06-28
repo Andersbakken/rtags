@@ -2,6 +2,7 @@
 #include "Event.h"
 #include "Log.h"
 #include "EventLoop.h"
+#include "Rdm.h"
 #include <unistd.h>
 #include <Timer.h>
 #include <fcntl.h>
@@ -9,11 +10,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <algorithm>
-
-#define eintrwrap(VAR, BLOCK)                  \
-    do {                                       \
-        VAR = BLOCK;                           \
-    } while (VAR == -1 && errno == EINTR)
 
 class DelayedWriteEvent : public Event
 {

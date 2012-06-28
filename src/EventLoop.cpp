@@ -2,16 +2,12 @@
 #include "Event.h"
 #include "EventReceiver.h"
 #include "MutexLocker.h"
+#include "Rdm.h"
 #include <unistd.h>
 #include <errno.h>
 #include <sys/select.h>
 #include <fcntl.h>
 #include <algorithm>
-
-#define eintrwrap(VAR, BLOCK)                  \
-    do {                                       \
-        VAR = BLOCK;                           \
-    } while (VAR == -1 && errno == EINTR)
 
 EventLoop* EventLoop::sInstance = 0;
 

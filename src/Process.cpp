@@ -1,16 +1,12 @@
 #include "Process.h"
 #include "EventLoop.h"
 #include "Log.h"
+#include "Rdm.h"
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-
-#define eintrwrap(VAR, BLOCK)                  \
-    do {                                       \
-        VAR = BLOCK;                           \
-    } while (VAR == -1 && errno == EINTR)
 
 Process::Process()
     : mPid(-1), mReturn(0), mStdInIndex(0), mStdOutIndex(0), mStdErrIndex(0)

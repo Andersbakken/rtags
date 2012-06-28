@@ -1,6 +1,7 @@
 #include "LocalServer.h"
 #include "LocalClient.h"
 #include "EventLoop.h"
+#include "Rdm.h"
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/types.h>
@@ -10,11 +11,6 @@
 #include "Log.h"
 
 #define LISTEN_BACKLOG 5
-
-#define eintrwrap(VAR, BLOCK)                  \
-    do {                                       \
-        VAR = BLOCK;                           \
-    } while (VAR == -1 && errno == EINTR)
 
 LocalServer::LocalServer()
     : mFd(-1)
