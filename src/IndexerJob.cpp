@@ -395,16 +395,16 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         info.kind = cursor.kind;
         const bool isReference = Rdm::isReference(info.kind);
 
-        if (!isReference && !info.isDefinition) {
-            CXSourceRange range = clang_getCursorExtent(cursor.cursor);
-            unsigned end;
-            clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-            info.symbolLength = end - cursor.location.offset();
-        } else {
-            CXStringScope name = clang_getCursorSpelling(cursor.cursor);
-            const char *cstr = clang_getCString(name.string);
-            info.symbolLength = cstr ? strlen(cstr) : 0;
-        }
+        // if (!isReference && !info.isDefinition) {
+        //     CXSourceRange range = clang_getCursorExtent(cursor.cursor);
+        //     unsigned end;
+        //     clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
+        //     info.symbolLength = end - cursor.location.offset();
+        // } else {
+        CXStringScope name = clang_getCursorSpelling(cursor.cursor);
+        const char *cstr = clang_getCString(name.string);
+        info.symbolLength = cstr ? strlen(cstr) : 0;
+        // }
         if (!info.symbolLength) {
             mSymbols.remove(cursor.location);
             return CXChildVisit_Recurse;
