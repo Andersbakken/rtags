@@ -107,8 +107,10 @@ static inline bool gettime(timeval* time, int timeout)
 {
     timespec spec;
     const int ret = ::clock_gettime(CLOCK_MONOTONIC_RAW, &spec);
-    if (ret == -1)
+    if (ret == -1) {
+        memset(time, 0, sizeof(timeval));
         return false;
+    }
     time->tv_sec = spec.tv_sec;
     time->tv_usec = spec.tv_nsec / 1000;
     if (timeout) {
