@@ -628,11 +628,6 @@ void IndexerJob::execute()
         scope.cleanup();
 
         if (!isAborted()) {
-            if (!strcmp(mIn.fileName(), "a.cpp")) {
-                printf("Sleeping...\n");
-                sleep(2);
-                printf("Woke up\n");
-            }
             Set<uint32_t> fileIds;
             Set<uint32_t> dirtySymbolNames;
             for (Map<uint32_t, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {

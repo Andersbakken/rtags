@@ -282,7 +282,7 @@ public:
     {
         char buf[32];
         const int w = snprintf(buf, sizeof(buf), "%lld", num);
-        return ByteArray(buf, w + 1);
+        return ByteArray(buf, w);
     }
 
     static ByteArray join(const List<ByteArray> &list, char ch)
