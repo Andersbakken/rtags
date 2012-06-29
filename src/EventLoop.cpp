@@ -139,7 +139,7 @@ static inline bool gettime(timeval* time, int timeout)
         return false;
     time->tv_sec = spec.tv_sec;
     time->tv_usec = spec.tv_nsec / 1000;
-    if (timeout != -1) {
+    if (timeout) {
         time->tv_sec += timeout / 1000;
         time->tv_usec += (timeout % 1000) * 1000;
         if (time->tv_usec >= MAX_USEC) {
@@ -193,7 +193,7 @@ void EventLoop::run()
         }
         if (timeout) {
             timeval newtime;
-            gettime(&newtime, -1);
+            gettime(&newtime, 0);
             if (timevalGreaterEqualThan(&newtime, timeout)) {
                 // the first timer has elapsed at the very least
                 assert(mTimerData.begin() != mTimerData.end());
