@@ -87,7 +87,7 @@ void EventLoop::addFileDescriptor(int fd, unsigned int flags, FdFunc callback, v
         int r;
         do {
             eintrwrap(r, ::write(mEventPipe[1], &c, 1));
-        } while (r == -1 && errno == EAGAIN);
+        } while (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
     }
 }
 
@@ -109,7 +109,7 @@ void EventLoop::removeFileDescriptor(int fd)
         int r;
         do {
             eintrwrap(r, ::write(mEventPipe[1], &c, 1));
-        } while (r == -1 && errno == EAGAIN);
+        } while (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
         mCond.wait(&mMutex);
     }
 }
@@ -126,7 +126,7 @@ void EventLoop::postEvent(EventReceiver* receiver, Event* event)
     int r;
     do {
         eintrwrap(r, ::write(mEventPipe[1], &c, 1));
-    } while (r == -1 && errno == EAGAIN);
+    } while (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
 }
 
 #define MAX_USEC 1000000
@@ -304,5 +304,5 @@ void EventLoop::exit()
     int r;
     do {
         eintrwrap(r, ::write(mEventPipe[1], &q, 1));
-    } while (r == -1 && errno == EAGAIN);
+    } while (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
 }
