@@ -8,6 +8,7 @@
 
 class Event;
 class EventReceiver;
+struct timeval;
 
 class EventLoop
 {
@@ -19,8 +20,11 @@ public:
 
     enum { Read = 1, Write = 2 };
     typedef void(*FdFunc)(int, unsigned int, void*);
+    typedef void(*TimerFunc)(int, void*);
 
     // The following three functions are thread safe
+    int addTimer(int timeout, TimerFunc callback, void* userData);
+    void removeTimer(int handle);
     void addFileDescriptor(int fd, unsigned int flags, FdFunc callback, void* userData);
     void removeFileDescriptor(int fd);
     void postEvent(EventReceiver* object, Event* event);
@@ -47,6 +51,18 @@ private:
         void* userData;
     };
     std::vector<FdData> mFdData;
+
+    int mNextTimerHandle;
+    struct TimerData {
+        int handle;
+        int timeout;
+        TimerFunc callback;
+        void* userData;
+    };
+    std::vector<TimerData*> mTimerData;
+    std::map<int, TimerData*> mTimerByHandle;
+
+    static bool timerLessThan(TimerData* a, TimerData* b);
 
     struct EventData {
         EventReceiver* receiver;
