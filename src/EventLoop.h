@@ -22,17 +22,17 @@ public:
     typedef void(*FdFunc)(int, unsigned int, void*);
     typedef void(*TimerFunc)(int, void*);
 
-    // The following three functions are thread safe
     int addTimer(int timeout, TimerFunc callback, void* userData);
     void removeTimer(int handle);
     void addFileDescriptor(int fd, unsigned int flags, FdFunc callback, void* userData);
     void removeFileDescriptor(int fd);
-    void postEvent(EventReceiver* object, Event* event);
 
     void run();
-    void exit();
-
     pthread_t thread() const { return mThread; }
+
+    // The following two functions are thread safe
+    void postEvent(EventReceiver* object, Event* event);
+    void exit();
 private:
     void handlePipe();
     void sendPostedEvents();
@@ -45,12 +45,11 @@ private:
     WaitCondition mCond;
 
     struct FdData {
-        int fd;
         unsigned int flags;
         FdFunc callback;
         void* userData;
     };
-    std::vector<FdData> mFdData;
+    Map<int, FdData> mFdData;
 
     int mNextTimerHandle;
     struct TimerData {
@@ -59,8 +58,8 @@ private:
         TimerFunc callback;
         void* userData;
     };
-    std::vector<TimerData*> mTimerData;
-    std::map<int, TimerData*> mTimerByHandle;
+    List<TimerData*> mTimerData;
+    Map<int, TimerData*> mTimerByHandle;
 
     static bool timerLessThan(TimerData* a, TimerData* b);
 
