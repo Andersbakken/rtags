@@ -20,7 +20,7 @@ public:
 
     void setPchDependencies(const Path &pchHeader, const Set<uint32_t> &deps);
     void addDependencies(const DependencyMap &hash);
-    DependencyMap dependencies(const Set<uint32_t> &files) const;
+    Set<uint32_t> dependencies(uint32_t fileId) const;
     Set<uint32_t> pchDependencies(const Path &pchHeader) const;
     Map<ByteArray, Location> pchUSRMap(const List<Path> &pchFiles) const;
     void setPchUSRMap(const Path &pch, const PchUSRMap &astMap);

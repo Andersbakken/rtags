@@ -425,17 +425,10 @@ void Indexer::addDependencies(const DependencyMap &deps)
     commitDependencies(deps, true);
 }
 
-DependencyMap Indexer::dependencies(const Set<uint32_t> &fileIds) const
+Set<uint32_t> Indexer::dependencies(uint32_t fileId) const
 {
     MutexLocker lock(&mMutex);
-    DependencyMap ret;
-    for (Set<uint32_t>::const_iterator it = fileIds.begin(); it != fileIds.end(); ++it) {
-        const Set<uint32_t> deps = mDependencies.value(*it);
-        if (!deps.isEmpty())
-            ret[*it] = deps;
-    }
-
-    return ret;
+    return mDependencies.value(fileId);
 }
 
 

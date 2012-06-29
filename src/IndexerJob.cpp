@@ -628,34 +628,49 @@ void IndexerJob::execute()
         scope.cleanup();
 
         if (!isAborted()) {
-            Set<uint32_t> fileIds;
-            Set<uint32_t> dirtySymbolNames;
+            Set<uint32_t> indexed;
+            Set<uint32_t> referenced;
             for (Map<uint32_t, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
                 if (it->second == Index) {
                     visited[it->first] = List<ByteArray>();
                     if (mFlags & NeedsDirty) {
-                        fileIds.insert(it->first);
-                        if (mDirty.contains(it->first))
-                            dirtySymbolNames.insert(it->first);
+                        indexed.insert(it->first);
                     }
                 } else if (mFlags & NeedsDirty && it->second == Reference) {
-                    fileIds.insert(it->first);
-                    if (mDirty.contains(it->first))
-                        dirtySymbolNames.insert(it->first);
+                    referenced.insert(it->first);
                 }
             }
             if (mFlags & NeedsDirty) {
-                Map<uint32_t, Set<uint32_t> > dirty = mIndexer->dependencies(fileIds);
-                // Log log(Error);
-                // log << "About to dirty for " << mIn;
-                for (Map<uint32_t, Set<uint32_t> >::iterator it = dirty.begin(); it != dirty.end(); ++it) {
-                    // log << " " << Location::path(it->first);
-                    it->second.unite(mDirty);
+                Set<uint32_t> oldDeps = mIndexer->dependencies(mFileId);
+                Map<uint32_t, Set<uint32_t> > dirty;
+                for (Set<uint32_t>::const_iterator it = indexed.begin(); it != indexed.end(); ++it) {
+                    Set<uint32_t> &v = dirty[*it];
+                    v.unite(indexed);
                 }
 
-                debug() << "about to dirty for " << mIn << " " << dirty << mPaths;
+                for (Set<uint32_t>::const_iterator it = referenced.begin(); it != referenced.end(); ++it) {
+                    Set<uint32_t> &v = dirty[*it];
+                    v.unite(indexed);
+                }
+
+                for (Set<uint32_t>::const_iterator it = oldDeps.begin(); it != oldDeps.end(); ++it) {
+                    Set<uint32_t> &v = dirty[*it];
+                    v.unite(indexed);
+                }
+
+                // Log log(Error);
+                // log << "About to dirty for " << mIn;
+                // for (Map<uint32_t, Set<uint32_t> >::iterator it = dirty.begin(); it != dirty.end(); ++it) {
+                //     log << " " << Location::path(it->first);
+                //     for (Set<uint32_t>::const_iterator i = it->second.begin(); i != it->second.end(); ++i) {
+                //         log << ", " << Location::path(*i);
+                //     }
+                //     log << "\n";
+                // }
+
+                // debug() << "about to dirty for " << mIn << " " << dirty << mPaths;
                 Rdm::dirtySymbols(dirty);
-                Rdm::dirtySymbolNames(dirtySymbolNames);
+                Rdm::dirtySymbolNames(indexed);
             }
             mIndexer->addDependencies(mDependencies);
             assert(mDependencies[mFileId].contains(mFileId));
