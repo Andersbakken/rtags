@@ -232,6 +232,7 @@ static inline bool isInteresting(CXCursorKind kind)
     if (clang_isInvalid(kind))
         return false;
     switch (kind) {
+    case CXCursor_AsmStmt:
     case CXCursor_CXXThisExpr:
     case CXCursor_CXXTypeidExpr:
     case CXCursor_CXXStaticCastExpr:
@@ -254,6 +255,13 @@ static inline bool isInteresting(CXCursorKind kind)
     case CXCursor_WhileStmt:
     case CXCursor_DoStmt:
     case CXCursor_IfStmt:
+    case CXCursor_SwitchStmt:
+    case CXCursor_CXXTryStmt:
+    case CXCursor_CXXCatchStmt:
+    case CXCursor_ContinueStmt:
+    case CXCursor_CXXThrowExpr:
+    case CXCursor_NullStmt:
+    case CXCursor_ArraySubscriptExpr:
     case CXCursor_CXXBoolLiteralExpr:
     case CXCursor_CharacterLiteral:
     case CXCursor_UnaryOperator:
@@ -269,6 +277,17 @@ static inline bool isInteresting(CXCursorKind kind)
     return true;
 }
 
+static inline bool needsRef(CXCursorKind kind)
+{
+    switch (kind) {
+    case CXCursor_UnexposedExpr:
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
+
 CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
                                             CXCursor /*parent*/,
                                             CXClientData client_data)
@@ -277,10 +296,17 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     if (job->isAborted())
         return CXChildVisit_Break;
 
-    if (testLog(Debug))
-        debug() << "indexVisitor " << cursor << " " << clang_getCursorReferenced(cursor);
     const CXCursorKind kind = clang_getCursorKind(cursor);
-    if (!isInteresting(kind))
+    const bool interesting = isInteresting(kind);
+    if (testLog(VerboseDebug))
+        verboseDebug() << "indexVisitor " << cursor << " " << clang_getCursorReferenced(cursor);
+    if (!interesting)
+        return CXChildVisit_Recurse;
+
+    CXCursor ref = clang_getCursorReferenced(cursor);
+    const CXCursorKind refKind = clang_getCursorKind(ref);
+    // the kind won't change even if the reference is looked up from elsewhere
+    if (refKind == CXCursor_InvalidFile && needsRef(kind))
         return CXChildVisit_Recurse;
 
     bool blocked = false;
@@ -305,9 +331,6 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     } else if (loc.isNull()) {
         return CXChildVisit_Recurse;
     }
-    CXCursor ref = clang_getCursorReferenced(cursor);
-    const CXCursorKind refKind = clang_getCursorKind(ref);
-    // the kind won't change even if the reference is looked up from elsewhere
 
     /* CXCursor_CallExpr is the right thing to use for invocations of constructors */
     if (kind == CXCursor_CallExpr && (refKind == CXCursor_CXXMethod || refKind == CXCursor_FunctionDecl))
@@ -395,20 +418,14 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         info.kind = cursor.kind;
         const bool isReference = Rdm::isReference(info.kind);
 
-        // if (!isReference && !info.isDefinition) {
-        //     CXSourceRange range = clang_getCursorExtent(cursor.cursor);
-        //     unsigned end;
-        //     clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-        //     info.symbolLength = end - cursor.location.offset();
-        // } else {
         CXStringScope name = clang_getCursorSpelling(cursor.cursor);
         const char *cstr = clang_getCString(name.string);
         info.symbolLength = cstr ? strlen(cstr) : 0;
-        // }
         if (!info.symbolLength) {
             mSymbols.remove(cursor.location);
             return CXChildVisit_Recurse;
         }
+
         info.symbolName = addNamePermutations(cursor.cursor, cursor.location, !isReference);
     } else if (info.kind == CXCursor_Constructor && cursor.kind == CXCursor_TypeRef) {
         return CXChildVisit_Recurse;
