@@ -495,52 +495,15 @@ void IndexerJob::execute()
     if (!mPchHeaders.isEmpty())
         mPchUSRMap = mIndexer->pchUSRMap(mPchHeaders);
 
-    List<const char*> clangArgs(mArgs.size(), 0);
-    ByteArray clangLine = "clang ";
-    bool nextIsPch = false, nextIsX = false;
-    ByteArray pchName;
-
-    List<Path> pchFiles;
-    int idx = 0;
-    const int count = mArgs.size();
-    for (int i=0; i<count; ++i) {
-        const ByteArray &arg = mArgs.at(i);
-        if (arg.isEmpty())
-            continue;
-
-        if (nextIsPch) {
-            nextIsPch = false;
-            pchFiles.append(pchFileName(arg));
-            clangArgs[idx++] = pchFiles.back().constData();
-            clangLine += pchFiles.back().constData();
-            clangLine += " ";
-            continue;
-        }
-
-        if (nextIsX) {
-            nextIsX = false;
-            mIsPch = (arg == "c++-header" || arg == "c-header");
-        }
-        clangArgs[idx++] = arg.constData();
-        clangLine += arg;
-        clangLine += " ";
-        if (arg == "-include-pch") {
-            nextIsPch = true;
-        } else if (arg == "-x") {
-            nextIsX = true;
-        }
-    }
-    if (mIsPch) {
-        pchName = pchFileName(mIn);
-    }
-    clangLine += mIn;
-
+    List<const char*> clangArgs;
+    ByteArray clangLine, pchName;
+    const int clangArgCount = IndexerJob::prepareClangArguments(mArgs, mIn, clangArgs, pchName, mIsPch, clangLine);
     if (isAborted()) {
         return;
     }
     CXIndex index = clang_createIndex(1, 0);
     mUnit = clang_parseTranslationUnit(index, mIn.constData(),
-                                       clangArgs.data(), idx, 0, 0,
+                                       clangArgs.data(), clangArgCount, 0, 0,
                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
     Scope scope = { mHeaderMap, mUnit, index, mFlags };
     const time_t timeStamp = time(0);
@@ -782,4 +745,51 @@ IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind ki
     }
     const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
     return ret;
+}
+int IndexerJob::prepareClangArguments(const List<ByteArray> &args, const Path &input,
+                                      List<const char *> &clangArgs,
+                                      ByteArray &pchName,
+                                      bool &isPch,
+                                      ByteArray &clangLine)
+{
+    clangArgs.resize(args.size());
+    clangLine = "clang ";
+    isPch = false;
+    bool nextIsPch = false, nextIsX = false;
+
+    List<Path> pchFiles;
+    int idx = 0;
+    const int count = args.size();
+    for (int i=0; i<count; ++i) {
+        const ByteArray &arg = args.at(i);
+        if (arg.isEmpty())
+            continue;
+
+        if (nextIsPch) {
+            nextIsPch = false;
+            pchFiles.append(pchFileName(arg));
+            clangArgs[idx++] = pchFiles.back().constData();
+            clangLine += pchFiles.back().constData();
+            clangLine += " ";
+            continue;
+        }
+
+        if (nextIsX) {
+            nextIsX = false;
+            isPch = (arg == "c++-header" || arg == "c-header");
+        }
+        clangArgs[idx++] = arg.constData();
+        clangLine += arg;
+        clangLine += " ";
+        if (arg == "-include-pch") {
+            nextIsPch = true;
+        } else if (arg == "-x") {
+            nextIsX = true;
+        }
+    }
+    if (isPch) {
+        pchName = pchFileName(input);
+    }
+    clangLine += input;
+    return idx;
 }
