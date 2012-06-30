@@ -47,6 +47,6 @@ MACRO (ADD_PCH_RULE _header_filename _src_list _cflag_list)
   add_custom_command(OUTPUT ${_gch_filename}
     COMMAND rm -f ${_gch_filename}
     COMMAND ${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_ARG1} -x c++-header ${_args}
-    DEPENDS ${_header_filename} ByteArray.h List.h RTags.h Map.h Set.h)
+    DEPENDS ${_header_filename} ByteArray.h List.h RTags.h Map.h Set.h Log.h Location.h)
   set_source_files_properties(${${_src_list}} PROPERTIES OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${_header_filename})
 ENDMACRO()
