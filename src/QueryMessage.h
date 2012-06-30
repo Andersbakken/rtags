@@ -39,7 +39,8 @@ public:
         SameFile = 0x80
     };
 
-    QueryMessage(Type type = Invalid, const ByteArray &query = ByteArray(), unsigned flags = 0);
+    QueryMessage(Type type = Invalid, const ByteArray &query = ByteArray(),
+                 unsigned flags = 0, const Map<Path, ByteArray> &unsavedFiles = Map<Path, ByteArray>());
 
     List<ByteArray> pathFilters() const { return mPathFilters; }
     void setPathFilters(const List<ByteArray> &pathFilters) { mPathFilters = pathFilters; std::sort(mPathFilters.begin(), mPathFilters.end()); }
@@ -47,6 +48,8 @@ public:
     int messageId() const { return MessageId; }
     // ### it should be possible to put an already parsed Location in here instead of a query that needs to be reparsed
     List<ByteArray> query() const { return mQuery; }
+
+    Map<Path, ByteArray> unsavedFiles() const { return mUnsavedFiles; }
 
     Type type() const { return mType; }
     unsigned flags() const { return mFlags; }
@@ -61,6 +64,7 @@ private:
     Type mType;
     unsigned mFlags;
     List<ByteArray> mPathFilters;
+    Map<Path, ByteArray> mUnsavedFiles;
 };
 
 DECLARE_NATIVE_TYPE(QueryMessage::Type);
