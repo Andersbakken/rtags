@@ -36,11 +36,10 @@ public:
     static void inclusionVisitor(CXFile included_file, CXSourceLocation *include_stack,
                                  unsigned include_len, CXClientData client_data);
 
-    static int prepareClangArguments(const List<ByteArray> &args, const Path &input,
-                                     List<const char *> &clangArgs,
-                                     ByteArray &clangLine,
-                                     bool &isPch,
-                                     ByteArray &pchName);
+    static void prepareClangArguments(const List<ByteArray> &args, const Path &input,
+                                      List<const char *> &clangArgs,
+                                      ByteArray &pchName,
+                                      ByteArray &clangLine);
     struct Cursor {
         CXCursor cursor;
         Location location;

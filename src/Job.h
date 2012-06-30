@@ -19,7 +19,7 @@ public:
     };
     enum Priority {
         QueryJobPriority = 10,
-        CompletionMatchJobPriority = 0
+        CompletionJobPriority = 1
     };
     Job(int id, Priority priority, unsigned flags = None);
     ~Job();

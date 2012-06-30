@@ -497,13 +497,14 @@ void IndexerJob::execute()
 
     List<const char*> clangArgs;
     ByteArray clangLine, pchName;
-    const int clangArgCount = IndexerJob::prepareClangArguments(mArgs, mIn, clangArgs, pchName, mIsPch, clangLine);
+    IndexerJob::prepareClangArguments(mArgs, mIn, clangArgs, pchName, clangLine);
     if (isAborted()) {
         return;
     }
+    mIsPch = !pchName.isEmpty();
     CXIndex index = clang_createIndex(1, 0);
     mUnit = clang_parseTranslationUnit(index, mIn.constData(),
-                                       clangArgs.data(), clangArgCount, 0, 0,
+                                       clangArgs.data(), clangArgs.size(), 0, 0,
                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
     Scope scope = { mHeaderMap, mUnit, index, mFlags };
     const time_t timeStamp = time(0);
@@ -746,15 +747,15 @@ IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind ki
     const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
     return ret;
 }
-int IndexerJob::prepareClangArguments(const List<ByteArray> &args, const Path &input,
+
+void IndexerJob::prepareClangArguments(const List<ByteArray> &args, const Path &input,
                                       List<const char *> &clangArgs,
                                       ByteArray &pchName,
-                                      bool &isPch,
                                       ByteArray &clangLine)
 {
     clangArgs.resize(args.size());
     clangLine = "clang ";
-    isPch = false;
+    bool isPch = false;
     bool nextIsPch = false, nextIsX = false;
 
     List<Path> pchFiles;
@@ -791,5 +792,5 @@ int IndexerJob::prepareClangArguments(const List<ByteArray> &args, const Path &i
         pchName = pchFileName(input);
     }
     clangLine += input;
-    return idx;
+    clangArgs.resize(idx);
 }
