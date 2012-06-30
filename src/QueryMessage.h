@@ -50,7 +50,7 @@ public:
 
     int messageId() const { return MessageId; }
     // ### it should be possible to put an already parsed Location in here instead of a query that needs to be reparsed
-    List<ByteArray> query() const { return mQuery; }
+    ByteArray query() const { return mQuery; }
 
     Map<Path, ByteArray> unsavedFiles() const { return mUnsavedFiles; }
 
@@ -63,7 +63,7 @@ public:
     void fromData(const char *data, int size);
 
 private:
-    List<ByteArray> mQuery;
+    ByteArray mQuery;
     Type mType;
     unsigned mFlags;
     List<ByteArray> mPathFilters;

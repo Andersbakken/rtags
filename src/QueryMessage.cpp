@@ -4,9 +4,8 @@
 
 QueryMessage::QueryMessage(Type type, const ByteArray& query, unsigned flags,
                            const Map<Path, ByteArray> &unsavedFiles)
-    : mType(type), mFlags(flags), mUnsavedFiles(unsavedFiles)
+    : mQuery(query), mType(type), mFlags(flags), mUnsavedFiles(unsavedFiles)
 {
-    mQuery.append(query);
 }
 
 ByteArray QueryMessage::encode() const

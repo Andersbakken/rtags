@@ -300,11 +300,11 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         assert(0);
         break;
     case QueryMessage::Reindex: {
-        reindex(message->query().value(0));
+        reindex(message->query());
         conn->finish();
         return; }
     case QueryMessage::Remake: {
-        remake(message->query().value(0), conn);
+        remake(message->query(), conn);
         return; }
     case QueryMessage::ClearDatabase: {
         delete mThreadPool;
@@ -390,7 +390,7 @@ int Server::nextId()
 
 int Server::followLocation(const QueryMessage &query)
 {
-    const Location loc = Location::decodeClientLocation(query.query().value(0));
+    const Location loc = Location::decodeClientLocation(query.query());
     if (loc.isNull()) {
         return 0;
     }
@@ -408,7 +408,7 @@ int Server::followLocation(const QueryMessage &query)
 
 int Server::cursorInfo(const QueryMessage &query)
 {
-    const Location loc = Location::decodeClientLocation(query.query().value(0));
+    const Location loc = Location::decodeClientLocation(query.query());
     if (loc.isNull()) {
         return 0;
     }
@@ -427,7 +427,7 @@ int Server::cursorInfo(const QueryMessage &query)
 
 int Server::referencesForLocation(const QueryMessage &query)
 {
-    const Location loc = Location::decodeClientLocation(query.query().value(0));
+    const Location loc = Location::decodeClientLocation(query.query());
     if (loc.isNull()) {
         return 0;
     }
@@ -447,7 +447,7 @@ int Server::referencesForName(const QueryMessage& query)
 {
     const int id = nextId();
 
-    const ByteArray name = query.query().value(0);
+    const ByteArray name = query.query();
     error("rc -R \"%s\"", name.constData());
 
     ReferencesJob *job = new ReferencesJob(id, name, query.flags());
@@ -459,7 +459,7 @@ int Server::referencesForName(const QueryMessage& query)
 
 int Server::findSymbols(const QueryMessage &query)
 {
-    const ByteArray partial = query.query().value(0);
+    const ByteArray partial = query.query();
     const int id = nextId();
 
     error("rc -F \"%s\"", partial.constData());
@@ -472,7 +472,7 @@ int Server::findSymbols(const QueryMessage &query)
 
 int Server::listSymbols(const QueryMessage &query)
 {
-    const ByteArray partial = query.query().value(0);
+    const ByteArray partial = query.query();
     const int id = nextId();
 
     error("rc -S \"%s\"", partial.constData());
@@ -487,9 +487,9 @@ int Server::status(const QueryMessage &query)
 {
     const int id = nextId();
 
-    error("rc -s \"%s\"", query.query().value(0).constData());
+    error("rc -s \"%s\"", query.query().constData());
 
-    StatusJob *job = new StatusJob(id, query.query().value(0));
+    StatusJob *job = new StatusJob(id, query.query());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     startJob(job);
     return id;
@@ -497,7 +497,7 @@ int Server::status(const QueryMessage &query)
 
 int Server::runTest(const QueryMessage &query)
 {
-    Path path = query.query().value(0);
+    Path path = query.query();
     if (!path.isFile()) {
         return 0;
     }
@@ -512,7 +512,7 @@ int Server::runTest(const QueryMessage &query)
 
 int Server::test(const QueryMessage &query)
 {
-    Path path = query.query().value(0);
+    Path path = query.query();
     if (!path.isFile()) {
         return 0;
     }
@@ -527,7 +527,7 @@ int Server::test(const QueryMessage &query)
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)
 {
-    const ByteArray fixIts = mIndexer->fixIts(query.query().value(0));
+    const ByteArray fixIts = mIndexer->fixIts(query.query());
 
     error("rc -x \"%s\"", fixIts.constData());
 
@@ -538,7 +538,7 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
 
 void Server::errors(const QueryMessage &query, Connection *conn)
 {
-    const ByteArray errors = mIndexer->errors(query.query().value(0));
+    const ByteArray errors = mIndexer->errors(query.query());
 
     error("rc -Q \"%s\"", errors.constData());
 

@@ -8,7 +8,7 @@
 
 ListSymbolsJob::ListSymbolsJob(int i, const QueryMessage &query)
     : Job(i, QueryJobPriority, query.flags() & QueryMessage::ElispList ? Job::QuoteOutput : Job::None),
-      string(query.query().front()), queryFlags(query.flags())
+      string(query.query()), queryFlags(query.flags())
 {
     setPathFilters(query.pathFilters(), queryFlags & QueryMessage::FilterSystemIncludes);
 }
