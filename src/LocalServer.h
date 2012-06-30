@@ -13,7 +13,7 @@ public:
     LocalServer();
     ~LocalServer();
 
-    bool listen(const ByteArray& name);
+    bool listen(const Path& path);
 
     LocalClient* nextClient();
 

@@ -26,8 +26,10 @@ LocalServer::~LocalServer()
     }
 }
 
-bool LocalServer::listen(const ByteArray& name)
+bool LocalServer::listen(const Path& path)
 {
+    if (path.exists())
+        return false;
     struct sockaddr_un address;
 
     mFd = socket(PF_UNIX, SOCK_STREAM, 0);
@@ -36,17 +38,18 @@ bool LocalServer::listen(const ByteArray& name)
         return false;
     }
 
-    unlink(name.constData());
-
     memset(&address, 0, sizeof(struct sockaddr_un));
 
-    if (static_cast<int>(sizeof(address.sun_path)) - 1 <= name.size()) {
-        error("LocalServer::listen() Path too long %s", name.constData());
+    if (static_cast<int>(sizeof(address.sun_path)) - 1 <= path.size()) {
+        int ret;
+        eintrwrap(ret, ::close(mFd));
+        mFd = -1;
+        error("LocalServer::listen() Path too long %s", path.constData());
         return false;
     }
 
     address.sun_family = AF_UNIX;
-    memcpy(address.sun_path, name.nullTerminated(), name.size() + 1);
+    memcpy(address.sun_path, path.nullTerminated(), path.size() + 1);
 
     if (bind(mFd, (struct sockaddr*)&address, sizeof(struct sockaddr_un)) != 0) {
         int ret;

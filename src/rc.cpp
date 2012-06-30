@@ -207,7 +207,7 @@ int main(int argc, char** argv)
     List<ByteArray> extraFlags;
     Set<ByteArray> pathFilters;
     unsigned queryFlags = 0;
-    unsigned clientFlags = 0;
+    unsigned clientFlags = Client::QuitOnDisconnect;
     List<ByteArray> rdmArgs;
     ByteArray name;
 

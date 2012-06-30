@@ -32,8 +32,9 @@ static void registerMessage()
 {
     const int id = T::MessageId;
     WriteLocker lock(&sLock);
-    assert(!sFactory.contains(id));
-    sFactory[id] = new MessageCreator<T>();
+    MessageCreatorBase *&base = sFactory[id];
+    if (!base)
+        base = new MessageCreator<T>();
 }
 
 void Messages::init()

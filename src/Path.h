@@ -59,6 +59,7 @@ public:
     inline bool isAbsolute() const { return (!isEmpty() && at(0) == '/'); }
     const char *fileName() const;
     const char *extension() const;
+    static bool exists(const Path &path) { return path.exists(); }
     static bool mkdir(const Path &path);
     static bool rm(const Path &file);
     bool mksubdir(const ByteArray &subdir) const;
