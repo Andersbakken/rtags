@@ -30,6 +30,7 @@ ByteArray Completions::completions(const Path &path, unsigned queryFlags, const 
     MutexLocker lock(&mMutex);
     Entry *&e = mEntries[path];
     if (!e) {
+
         // if (m
         // e = new Entry
     }

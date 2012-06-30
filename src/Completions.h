@@ -37,6 +37,7 @@ public:
         List<const char*> clangArgs;
         ReadWriteLock lock;
         Entry *previous, *next;
+        ByteArray unsaved;
     };
 private:
     const int mMax;
