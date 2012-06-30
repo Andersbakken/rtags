@@ -544,13 +544,6 @@ void Server::errors(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::rdmLog(const QueryMessage &query, Connection *conn)
-{
-    const char *q = query.query().front().constData();
-    const int level = *reinterpret_cast<const int *>(q);
-    new LogObject(conn, level);
-}
-
 static const char *const dbNames[] = {
     "general.db",
     "dependencies.db",

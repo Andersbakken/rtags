@@ -20,23 +20,21 @@ enum LogLevel {
     VerboseDebug = 3
 };
 
-class Output
-{
-public:
-    Output();
-    virtual ~Output();
-
-    virtual bool testLog(int level) const = 0;
-    virtual void log(const char */*msg*/, int /*len*/) = 0;
-};
-
-class LogOutput : public Output
+class LogOutput
 {
 public:
     LogOutput(int logLevel);
     virtual ~LogOutput();
 
-    virtual bool testLog(int level) const { return level <= mLogLevel; }
+    virtual bool testLog(int level) const
+    {
+        switch (level) {
+        case CompilationError:
+            return mLogLevel == CompilationError;
+        default:
+            return level <= mLogLevel;
+        }
+    }
     virtual void log(const char */*msg*/, int /*len*/) { }
 
     int logLevel() const { return mLogLevel; }

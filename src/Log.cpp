@@ -9,7 +9,7 @@
 
 static unsigned sFlags = 0;
 static Timer sStart;
-static Set<Output*> sOutputs;
+static Set<LogOutput*> sOutputs;
 static Mutex sOutputsMutex;
 static int sLevel = 0;
 
@@ -87,8 +87,8 @@ static void log(int level, const char *format, va_list v)
     }
 
     MutexLocker lock(&sOutputsMutex);
-    for (Set<Output*>::const_iterator it = sOutputs.begin(); it != sOutputs.end(); ++it) {
-        Output *output = *it;
+    for (Set<LogOutput*>::const_iterator it = sOutputs.begin(); it != sOutputs.end(); ++it) {
+        LogOutput *output = *it;
         if (output->testLog(level)) {
             output->log(msg, n);
         }
@@ -141,7 +141,7 @@ void error(const char *format, ...)
 static inline void removeOutputs()
 {
     MutexLocker lock(&sOutputsMutex);
-    for (Set<Output*>::const_iterator it = sOutputs.begin(); it != sOutputs.end(); ++it)
+    for (Set<LogOutput*>::const_iterator it = sOutputs.begin(); it != sOutputs.end(); ++it)
         delete *it;
     sOutputs.clear();
 }
@@ -149,7 +149,7 @@ static inline void removeOutputs()
 bool testLog(int level)
 {
     MutexLocker lock(&sOutputsMutex);
-    for (Set<Output*>::const_iterator it = sOutputs.begin(); it != sOutputs.end(); ++it) {
+    for (Set<LogOutput*>::const_iterator it = sOutputs.begin(); it != sOutputs.end(); ++it) {
         if ((*it)->testLog(level))
             return true;
     }
@@ -208,23 +208,15 @@ Log &Log::operator=(const Log &other)
     return *this;
 }
 
-Output::Output()
+LogOutput::LogOutput(int logLevel)
+    : mLogLevel(logLevel)
 {
     MutexLocker lock(&sOutputsMutex);
     sOutputs.insert(this);
 }
 
-Output::~Output()
+LogOutput::~LogOutput()
 {
     MutexLocker lock(&sOutputsMutex);
     sOutputs.remove(this);
-}
-
-LogOutput::LogOutput(int logLevel)
-    : mLogLevel(logLevel)
-{
-}
-
-LogOutput::~LogOutput()
-{
 }

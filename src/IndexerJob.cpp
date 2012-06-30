@@ -566,7 +566,7 @@ void IndexerJob::execute()
         Map<Location, std::pair<int, ByteArray> > fixIts;
         Map<uint32_t, List<ByteArray> > visited;
         const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
-        // bool hasCompilationErrors = false;
+        bool hasCompilationErrors = false;
         for (unsigned i=0; i<diagnosticCount; ++i) {
             CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
             int logLevel = INT_MAX;
@@ -574,19 +574,21 @@ void IndexerJob::execute()
             switch (severity) {
             case CXDiagnostic_Fatal:
             case CXDiagnostic_Error:
+                logLevel = Error;
+                hasCompilationErrors = true;
+                break;
             case CXDiagnostic_Warning:
-                logLevel = CompilationError;
-                // hasCompilationErrors = true;
+                logLevel = Warning;
+                hasCompilationErrors = true;
                 break;
             case CXDiagnostic_Note:
                 logLevel = Debug;
                 break;
             case CXDiagnostic_Ignored:
-                logLevel = INT_MAX;
                 break;
             }
 
-            if (testLog(logLevel)) {
+            if (testLog(logLevel) || (logLevel >= Warning && testLog(CompilationError))) {
                 CXSourceLocation loc = clang_getDiagnosticLocation(diagnostic);
                 const ByteArray string = Rdm::eatString(clang_formatDiagnostic(diagnostic,
                                                                                CXDiagnostic_DisplaySourceLocation|
@@ -601,6 +603,7 @@ void IndexerJob::execute()
                     visited[Location(file, 0).fileId()].append(string);
 
                 log(logLevel, "%s", string.constData());
+                log(CompilationError, "%s", string.constData());
             }
 
             const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
@@ -619,9 +622,9 @@ void IndexerJob::execute()
 
             clang_disposeDiagnostic(diagnostic);
         }
-        // if (!hasCompilationErrors) {
-        //     log(CompilationError, "%s parsed", mIn.constData()); ### this is annoying for rdm, we need something better
-        // }
+        if (!hasCompilationErrors) {
+            log(CompilationError, "%s parsed", mIn.constData());
+        }
 
         clang_getInclusions(mUnit, inclusionVisitor, this);
 
