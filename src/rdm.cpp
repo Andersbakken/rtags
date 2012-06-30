@@ -70,22 +70,23 @@ void usage(FILE *f)
 {
     fprintf(f,
             "rdm [...options...]\n"
-            "  --help|-h                  Display this page\n"
-            "  --include-path|-I [arg]    Add additional include path to clang\n"
-            "  --include|-i [arg]         Add additional include directive to clang\n"
-            "  --define|-D [arg]          Add additional define directive to clang\n"
-            "  --log-file|-L [arg]        Log to this file\n"
-            "  --append|-A                Append to log file\n"
-            "  --verbose|-v               Change verbosity, multiple -v's are allowed\n"
-            "  --clean-slate|-C           Start from a clean slate\n"
-            "  --datadir|-d [arg]         Use this as datadir (default ~/.rtags\n"
-            "  --disable-sighandler|-s    Disable signal handler to dump stack for crashes\n"
-            "  --cache-size|-c [size]     Cache size in MB (one cache per db, default 128MB)\n"
-            "  --name|-n [name]           Name to use for server (default ~/.rtags/server)\n"
-            "  --no-clang-includepath|-p  Don't use clang include paths by default\n"
-            "  --usedashB|-B              Use -B for make instead of makelib\n"
-            "  --silent|-S                No logging to stdout\n"
-            "  --thread-count|-j [arg]    Spawn this many threads for thread pool\n");
+            "  --help|-h                       Display this page\n"
+            "  --include-path|-I [arg]         Add additional include path to clang\n"
+            "  --include|-i [arg]              Add additional include directive to clang\n"
+            "  --define|-D [arg]               Add additional define directive to clang\n"
+            "  --log-file|-L [arg]             Log to this file\n"
+            "  --append|-A                     Append to log file\n"
+            "  --verbose|-v                    Change verbosity, multiple -v's are allowed\n"
+            "  --clean-slate|-C                Start from a clean slate\n"
+            "  --datadir|-d [arg]              Use this as datadir (default ~/.rtags\n"
+            "  --disable-sighandler|-s         Disable signal handler to dump stack for crashes\n"
+            "  --cache-size|-c [size]          Cache size in MB (one cache per db, default 128MB)\n"
+            "  --name|-n [name]                Name to use for server (default ~/.rtags/server)\n"
+            "  --no-clang-includepath|-p       Don't use clang include paths by default\n"
+            "  --usedashB|-B                   Use -B for make instead of makelib\n"
+            "  --silent|-S                     No logging to stdout\n"
+            "  --max-completion-units|-x [arg] Max translation units to keep in memory for completions (default 10)\n"
+            "  --thread-count|-j [arg]         Spawn this many threads for thread pool\n");
 }
 
 int main(int argc, char** argv)
@@ -108,6 +109,7 @@ int main(int argc, char** argv)
         { "name", required_argument, 0, 'n' },
         { "usedashB", no_argument, 0, 'B' },
         { "silent", no_argument, 0, 'S' },
+        { "max-completion-units", required_argument, 0, 'x' },
         { 0, 0, 0, 0 }
     };
 
@@ -121,6 +123,7 @@ int main(int argc, char** argv)
     Path datadir = RTags::rtagsDir();
     const ByteArray shortOptions = RTags::shortOptions(opts);
     int cacheSize = 128;
+    int maxCompletionUnits = 10;
     bool enableSignalHandler = true;
     ByteArray name;
     while (true) {
@@ -131,6 +134,15 @@ int main(int argc, char** argv)
         case 'S':
             logLevel = -1;
             break;
+        case 'x': {
+            const ByteArray arg(optarg);
+            bool ok;
+            maxCompletionUnits = arg.toULongLong(&ok);
+            if (!ok) {
+                fprintf(stderr, "%s is not a valid argument for -x\n", optarg);
+                return 1;
+            }
+            break; }
         case 'n':
             name = optarg;
             break;
@@ -154,7 +166,7 @@ int main(int argc, char** argv)
             break;
         case 'c': {
             bool ok;
-            cacheSize = ByteArray(optarg, strlen(optarg)).toUInt(&ok);
+            cacheSize = ByteArray(optarg, strlen(optarg)).toULongLong(&ok);
             if (!ok) {
                 fprintf(stderr, "Can't parse argument to -c %s\n", optarg);
                 return 1;
@@ -219,6 +231,7 @@ int main(int argc, char** argv)
 
     Server *server = new Server;
     Server::Options serverOpts;
+    serverOpts.maxCompletionUnits = maxCompletionUnits;
     serverOpts.options = options;
     serverOpts.defaultArguments = defaultArguments;
     serverOpts.cacheSizeMB = cacheSize;

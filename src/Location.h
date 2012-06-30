@@ -272,7 +272,7 @@ public:
             return Location();
         }
         bool ok;
-        const uint32_t fileId = ByteArray(pathAndOffset.constData() + comma + 1, pathAndOffset.size() - comma - 1).toUInt(&ok);
+        const uint32_t fileId = ByteArray(pathAndOffset.constData() + comma + 1, pathAndOffset.size() - comma - 1).toULongLong(&ok);
         if (!ok) {
             error("Can't create location from this: %s", pathAndOffset.constData());
             return Location();

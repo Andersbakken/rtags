@@ -2,7 +2,7 @@
 #include "IndexerJob.h"
 
 CompletionJob::CompletionJob(int id, const Path &input, const List<ByteArray> &args, const ByteArray &u)
-    : Job(id, CompletionJobPriority), result(new Entry), unsaved(u)
+    : Job(id, CompletionJobPriority), result(new Completions::Entry), unsaved(u)
 {
     result->index = 0;
     result->unit = 0;
@@ -11,7 +11,7 @@ CompletionJob::CompletionJob(int id, const Path &input, const List<ByteArray> &a
     IndexerJob::prepareClangArguments(result->args, result->input, result->clangArgs, result->pchName, result->clangLine);
 }
 
-CompletionJob::CompletionJob(int id, Entry *entry, const ByteArray &u)
+CompletionJob::CompletionJob(int id, Completions::Entry *entry, const ByteArray &u)
     : Job(id, CompletionJobPriority), result(entry), unsaved(u)
 {
 
@@ -38,6 +38,7 @@ void CompletionJob::run()
                                                unsaved.isEmpty() ? 0 : 1,
                                                &unsavedFile,
                                                clang_defaultReparseOptions(result->unit));
+        (void)res;
     }
 }
 

@@ -50,11 +50,12 @@ public:
     List<ByteArray> defaultArguments() const { return mOptions.defaultArguments; }
     inline ScopedDB db(DatabaseType type, ScopedDB::LockType lockType) const { return ScopedDB(mDBs[type], lockType); }
     struct Options {
-        Options() : options(0), cacheSizeMB(0) {}
+        Options() : options(0), cacheSizeMB(0), maxCompletionUnits(0) {}
         unsigned options;
         List<ByteArray> defaultArguments;
         long cacheSizeMB;
         ByteArray name;
+        int maxCompletionUnits;
     };
     bool init(const Options &options);
     Indexer *indexer() const { return mIndexer; }

@@ -269,10 +269,18 @@ public:
         return ret;
     }
 
-    unsigned long long toUInt(bool *ok = 0) const
+    unsigned long long toULongLong(bool *ok = 0) const
     {
         errno = 0;
         const unsigned ret = strtoull(constData(), 0, 10);
+        if (ok)
+            *ok = !errno;
+        return ret;
+    }
+    unsigned long long toLongLong(bool *ok = 0) const
+    {
+        errno = 0;
+        const unsigned ret = strtoll(constData(), 0, 10);
         if (ok)
             *ok = !errno;
         return ret;

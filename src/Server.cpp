@@ -105,7 +105,7 @@ bool Server::init(const Options &options)
         mOptions.defaultArguments.append(clangPath);
     }
 
-    mCompletions = new Completions;
+    mCompletions = new Completions(mOptions.maxCompletionUnits);
 
     Messages::init();
 
