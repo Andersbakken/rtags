@@ -10,14 +10,20 @@ public:
     ReadWriteLock();
     ~ReadWriteLock();
 
-    void lockForRead();
-    void lockForWrite();
+    enum LockType {
+        Read,
+        Write
+    };
 
-    bool tryLockForRead();
-    bool tryLockForWrite();
+    void lockForRead() { lock(Read); }
+    void lockForWrite() { lock(Write); }
+    void lock(LockType type);
+
+    bool tryLockForRead() { return tryLock(Read); }
+    bool tryLockForWrite() { return tryLock(Write); }
+    bool tryLock(LockType type);
 
     void unlock();
-
 private:
     Mutex mMutex;
     WaitCondition mCond;

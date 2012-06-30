@@ -11,53 +11,32 @@ ReadWriteLock::~ReadWriteLock()
 {
 }
 
-void ReadWriteLock::lockForRead()
+void ReadWriteLock::lock(LockType type)
 {
     MutexLocker locker(&mMutex);
-    if (mWrite) {
+    if (type == Read) {
+        if (mWrite) {
+            for (;;) {
+                mCond.wait(&mMutex);
+                if (!mWrite) {
+                    ++mCount;
+                    return;
+                }
+            }
+        } else {
+            ++mCount;
+        }
+    } else {
         for (;;) {
-            mCond.wait(&mMutex);
-            if (!mWrite) {
-                ++mCount;
+            if (!mCount) {
+                assert(!mWrite);
+                mCount = 1;
+                mWrite = true;
                 return;
             }
+            mCond.wait(&mMutex);
         }
-    } else
-        ++mCount;
-}
-
-void ReadWriteLock::lockForWrite()
-{
-    MutexLocker locker(&mMutex);
-    for (;;) {
-        if (!mCount) {
-            assert(!mWrite);
-            mCount = 1;
-            mWrite = true;
-            return;
-        }
-        mCond.wait(&mMutex);
     }
-}
-
-bool ReadWriteLock::tryLockForRead()
-{
-    MutexLocker locker(&mMutex);
-    if (mWrite)
-        return false;
-    ++mCount;
-    return true;
-}
-
-bool ReadWriteLock::tryLockForWrite()
-{
-    MutexLocker locker(&mMutex);
-    if (mCount > 0)
-        return false;
-    assert(!mWrite && !mCount);
-    mCount = 1;
-    mWrite = true;
-    return true;
 }
 
 void ReadWriteLock::unlock()
@@ -73,4 +52,22 @@ void ReadWriteLock::unlock()
     assert(!mCount);
     mWrite = false;
     mCond.wakeAll();
+}
+
+bool ReadWriteLock::tryLock(LockType type)
+{
+    MutexLocker locker(&mMutex);
+    if (type == Read) {
+        if (mWrite)
+            return false;
+        ++mCount;
+        return true;
+    } else {
+        if (mCount > 0)
+            return false;
+        assert(!mWrite && !mCount);
+        mCount = 1;
+        mWrite = true;
+        return true;
+    }
 }
