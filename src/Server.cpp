@@ -603,15 +603,8 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
     RegExp rx(pattern);
     for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
         if (rx.isEmpty() || rx.indexIn(it->first) != -1) {
-            if (conn) {
-                ResponseMessage msg("Remaking " + it->first);
-                conn->send(&msg);
-            }
             make(it->first, it->second.makefileArgs, it->second.extraFlags, conn);
         }
-    }
-    if (conn) {
-        conn->finish();
     }
 }
 
