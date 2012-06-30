@@ -84,13 +84,6 @@ void usage(FILE *f)
             "  --name|-n [name]           Name to use for server (default ~/.rtags/server)\n"
             "  --no-clang-includepath|-p  Don't use clang include paths by default\n"
             "  --usedashB|-B              Use -B for make instead of makelib\n"
-            "  --watch-source-files|-S    Instead of watching directories watch monitored source files directly\n"
-            "                             This might risk running out of resources.\n"
-#ifdef OS_Linux
-            "                             It might be a good to increase the number in\n"
-            "                             /proc/sys/fs/inotify/max_user_watches\n"
-#endif
-            "                             (Not implemented yet)\n"
             "  --thread-count|-j [arg]    Spawn this many threads for thread pool\n");
 }
 
@@ -113,7 +106,6 @@ int main(int argc, char** argv)
         { "disable-sighandler", no_argument, 0, 's' },
         { "name", required_argument, 0, 'n' },
         { "usedashB", no_argument, 0, 'B' },
-        { "watch-source-files", no_argument, 0, 'S' },
         { 0, 0, 0, 0 }
     };
 
@@ -148,9 +140,6 @@ int main(int argc, char** argv)
             break;
         case 'p':
             options |= Server::NoClangIncludePath;
-            break;
-        case 'S':
-            options |= Server::WatchSourceFiles;
             break;
         case 's':
             enableSignalHandler = false;
