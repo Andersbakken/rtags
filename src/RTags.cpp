@@ -88,6 +88,19 @@ ByteArray shortOptions(const option *longOptions)
             break;
         }
     }
+#if 0
+    ByteArray unused;
+    for (char ch='a'; ch<='z'; ++ch) {
+        if (!ret.contains(ch)) {
+            unused.append(ch);
+        }
+        const char upper = toupper(ch);
+        if (!ret.contains(upper)) {
+            unused.append(upper);
+        }
+    }
+    printf("Unused letters: %s\n", unused.nullTerminated());
+#endif
     return ret;
 }
 
