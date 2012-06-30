@@ -465,7 +465,7 @@ struct Scope {
     void cleanup()
     {
         headerMap.clear();
-        if (unit) {
+        if (unit && !(flags & IndexerJob::PersistTranslationUnit)) {
             clang_disposeTranslationUnit(unit);
             unit = 0;
         }
@@ -478,6 +478,7 @@ struct Scope {
     Map<Str, CXCursor> &headerMap;
     CXTranslationUnit &unit;
     CXIndex &index;
+    const unsigned flags;
 };
 
 void IndexerJob::run()
@@ -541,7 +542,7 @@ void IndexerJob::execute()
     mUnit = clang_parseTranslationUnit(index, mIn.constData(),
                                        clangArgs.data(), idx, 0, 0,
                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
-    Scope scope = { mHeaderMap, mUnit, index };
+    Scope scope = { mHeaderMap, mUnit, index, mFlags };
     const time_t timeStamp = time(0);
     // fprintf(stdout, "%s => %d\n", clangLine.nullTerminated(), (mUnit != 0));
 

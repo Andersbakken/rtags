@@ -16,8 +16,9 @@ public:
     enum Flag {
         DirtyPch = 0x04,
         Dirty = 0x02,
-        Makefile = 0x1, // these are used as ThreadPool priorites
-        Priorities = DirtyPch|Dirty|Makefile
+        Makefile = 0x1,
+        Priorities = DirtyPch|Dirty|Makefile,
+        PersistTranslationUnit = 0x8
     };
     IndexerJob(Indexer *indexer, int id, unsigned flags,
                const Path &input, const List<ByteArray> &arguments,
