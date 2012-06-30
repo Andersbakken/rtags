@@ -200,7 +200,7 @@ int main(int argc, char** argv)
         { 0, 0, 0, 0 }
     };
 
-    // Not taken: b j k w y d
+    // Unused: bBdjJkKwWXyYZ
 
     int logLevel = 0;
     ByteArray logFile;
@@ -217,7 +217,7 @@ int main(int argc, char** argv)
 
     const ByteArray shortOptions = RTags::shortOptions(opts);
 
-    for (;;) {
+    while (true) {
         const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
         if (c == -1)
             break;
