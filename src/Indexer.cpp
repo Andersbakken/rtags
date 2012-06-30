@@ -161,11 +161,11 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     }
 
     for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
-        index(it->first, it->second, IndexerJob::DirtyPch|IndexerJob::NeedsDirty, dirtyFiles);
+        index(it->first, it->second, IndexerJob::DirtyPch, dirtyFiles);
     }
 
     for (Map<Path, List<ByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
-        index(it->first, it->second, IndexerJob::Dirty|IndexerJob::NeedsDirty, dirtyFiles);
+        index(it->first, it->second, IndexerJob::Dirty, dirtyFiles);
     }
 }
 
@@ -290,8 +290,7 @@ int Indexer::index(const Path &input, const List<ByteArray> &arguments,
     IndexerJob *existing = mJobs.value(fileId);
     if (existing) {
         existing->abort();
-        if (existing->mFlags & IndexerJob::NeedsDirty)
-            job->mFlags |= IndexerJob::NeedsDirty;
+        job->mFlags |= (existing->mFlags & (IndexerJob::Dirty|IndexerJob::DirtyPch));
         IndexerJob *&j = mWaitingForAbort[fileId];
         // ### if we're already waiting for this file, is it worth it to spawn a
         // ### new thread? what about the id?
@@ -394,11 +393,11 @@ void Indexer::onDirectoryChanged(const Path &p)
     }
 
     for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
-        index(it->first, it->second, IndexerJob::DirtyPch|IndexerJob::NeedsDirty, dirtyFiles);
+        index(it->first, it->second, IndexerJob::DirtyPch, dirtyFiles);
     }
 
     for (Map<Path, List<ByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
-        index(it->first, it->second, IndexerJob::Dirty|IndexerJob::NeedsDirty, dirtyFiles);
+        index(it->first, it->second, IndexerJob::Dirty, dirtyFiles);
     }
 }
 

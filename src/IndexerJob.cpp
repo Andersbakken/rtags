@@ -34,7 +34,6 @@ IndexerJob::IndexerJob(Indexer *indexer, int id, unsigned flags,
       mDirty(dirty), mPchHeaders(extractPchFiles(arguments)), mUnit(0)
 {
     setAutoDelete(false);
-    assert(mDirty.isEmpty() || flags & NeedsDirty);
 }
 
 static inline uint32_t fileId(CXFile file)
@@ -653,14 +652,14 @@ void IndexerJob::execute()
             for (Map<uint32_t, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
                 if (it->second == Index) {
                     visited[it->first] = List<ByteArray>();
-                    if (mFlags & NeedsDirty) {
+                    if (mFlags & (DirtyPch|Dirty)) {
                         indexed.insert(it->first);
                     }
-                } else if (mFlags & NeedsDirty && it->second == Reference) {
+                } else if (mFlags & (DirtyPch|Dirty) && it->second == Reference) {
                     referenced.insert(it->first);
                 }
             }
-            if (mFlags & NeedsDirty) {
+            if (mFlags & (DirtyPch|Dirty)) {
                 Set<uint32_t> oldDeps = mIndexer->dependencies(mFileId);
                 Map<uint32_t, Set<uint32_t> > dirty;
                 for (Set<uint32_t>::const_iterator it = indexed.begin(); it != indexed.end(); ++it) {
@@ -707,14 +706,14 @@ void IndexerJob::execute()
     char buf[1024];
     const char *strings[] = { "", " (pch)", " (dirty)", " (pch, dirty)" };
     enum {
-        None = 0x0,
-        Pch = 0x1,
-        Dirty = 0x2
+        IdxNone = 0x0,
+        IdxPch = 0x1,
+        IdxDirty = 0x2
     };
     const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %sms. (%d syms, %d refs, %d deps, %d symNames)%s",
                            mIn.constData(), compileError ? "error" : "success", ByteArray::number(timer.elapsed()).constData(),
                            mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size(),
-                           strings[(mPchHeaders.isEmpty() ? None : Pch) | (mFlags & NeedsDirty ? Dirty : None)]);
+                           strings[(mPchHeaders.isEmpty() ? IdxNone : IdxPch) | (mFlags & (DirtyPch|Dirty) ? IdxDirty : IdxNone)]);
     mMessage = ByteArray(buf, w);
     if (testLog(Warning)) {
         warning() << "We're using " << double(MemoryMonitor::usage()) / double(1024 * 1024) << " MB of memory " << timer.elapsed() << "ms";
