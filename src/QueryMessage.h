@@ -25,6 +25,7 @@ public:
         Errors,
         Reindex,
         Remake,
+        Completions,
         Shutdown
     };
 

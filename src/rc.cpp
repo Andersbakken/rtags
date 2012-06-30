@@ -317,6 +317,7 @@ int main(int argc, char** argv)
             break; }
         case 'f':
         case 'U':
+        case 'c':
         case 'r': {
             const ByteArray encoded = encodeLocation(optarg);
             if (encoded.isEmpty()) {
@@ -328,6 +329,7 @@ int main(int argc, char** argv)
             case 'f': type = QueryMessage::FollowLocation; break;
             case 'U': type = QueryMessage::CursorInfo; break;
             case 'r': type = QueryMessage::ReferencesLocation; break;
+            case 'c': type = QueryMessage::Completions; break;
             }
             commands.append(new QueryCommand(type, encoded, queryFlags, pathFilters, unsavedFiles));
             break; }

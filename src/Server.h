@@ -95,6 +95,7 @@ private:
     void startJob(Job *job);
     void reindex(const ByteArray &pattern);
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);
+    void completions(const QueryMessage &query, Connection *conn);
 private:
     static Server *sInstance;
     Options mOptions;

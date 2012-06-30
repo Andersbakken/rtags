@@ -319,6 +319,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::FixIts:
         fixIts(*message, conn);
         return;
+    case QueryMessage::Completions:
+        completions(*message, conn);
+        break;
     case QueryMessage::Errors:
         errors(*message, conn);
         return;
@@ -704,3 +707,7 @@ void Server::event(const Event *event)
     }
 }
 
+void Server::completions(const QueryMessage &query, Connection *conn)
+{
+    // ByteArray ret = mIndexer->completions(query.input);
+}
