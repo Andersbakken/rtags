@@ -23,6 +23,7 @@ class LocalServer;
 class Database;
 class GccArguments;
 class MakefileParser;
+class Completions;
 class Server : public EventReceiver
 {
 public:
@@ -111,6 +112,7 @@ private:
     Database *mDBs[DatabaseTypeCount];
     ThreadPool *mThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
+    Completions *mCompletions;
 };
 
 #endif

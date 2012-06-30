@@ -1,24 +1,26 @@
 #include "Server.h"
 
-#include "Event.h"
 #include "Client.h"
-#include "EventLoop.h"
-#include "LocalClient.h"
+#include "Completions.h"
+#include "Completions.h"
 #include "Connection.h"
+#include "CreateOutputMessage.h"
 #include "CursorInfoJob.h"
 #include "Database.h"
+#include "Event.h"
+#include "EventLoop.h"
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
 #include "Indexer.h"
 #include "IndexerJob.h"
 #include "ListSymbolsJob.h"
+#include "LocalClient.h"
 #include "LocalServer.h"
 #include "LogObject.h"
 #include "MakefileMessage.h"
 #include "MakefileParser.h"
 #include "Message.h"
 #include "Messages.h"
-#include "CreateOutputMessage.h"
 #include "Path.h"
 #include "QueryMessage.h"
 #include "Rdm.h"
@@ -61,7 +63,7 @@ public:
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mIndexer(0), mServer(0), mVerbose(false), mJobId(0), mThreadPool(0)
+    : mIndexer(0), mServer(0), mVerbose(false), mJobId(0), mThreadPool(0), mCompletions(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -70,7 +72,6 @@ Server::Server()
 
 Server::~Server()
 {
-    delete mIndexer;
     clear();
     assert(sInstance = this);
     sInstance = 0;
@@ -78,6 +79,10 @@ Server::~Server()
 
 void Server::clear()
 {
+    delete mIndexer;
+    mIndexer = 0;
+    delete mCompletions;
+    mCompletions = 0;
     delete mServer;
     mServer = 0;
     for (int i=0; i<DatabaseTypeCount; ++i) {
@@ -99,6 +104,8 @@ bool Server::init(const Options &options)
         clangPath.prepend("-I");
         mOptions.defaultArguments.append(clangPath);
     }
+
+    mCompletions = new Completions;
 
     Messages::init();
 
@@ -707,7 +714,13 @@ void Server::event(const Event *event)
     }
 }
 
-void Server::completions(const QueryMessage &query, Connection *conn)
+void Server::completions(const QueryMessage &query, Connection *connection)
 {
-    // ByteArray ret = mIndexer->completions(query.input);
+    const ByteArray ret = mCompletions->completions(query.query(), query.flags(), query.unsavedFiles());
+    if (!ret.isEmpty()) {
+        ResponseMessage msg(ret);
+        connection->send(&msg);
+    }
+    connection->finish();
+
 }

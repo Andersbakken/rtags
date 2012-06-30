@@ -71,6 +71,7 @@ set(rtags_HDRS
     LocalServer.h
     Process.h
     CompletionJob.h
+    Completions.h
     )
 
 set(rtags_SRCS
@@ -113,6 +114,7 @@ set(rtags_SRCS
     LocalServer.cpp
     Process.cpp
     CompletionJob.cpp
+    Completions.cpp
 )
 
 include(clang.cmake)
