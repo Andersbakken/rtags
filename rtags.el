@@ -437,7 +437,11 @@ return t if rtags is allowed to modify this file"
             (eq (process-status rtags-diagnostics-process) 'exit))
         (progn
           (setq rtags-diagnostics-process
-                (start-process "RTags Diagnostics" buf (executable-find "rc") "-G"))
+                (start-process
+                 "RTags Diagnostics"
+                 buf (executable-find "rc")
+                 "-G"
+                 (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm")))
           (rtags-clear-diagnostics))
       )
     )
