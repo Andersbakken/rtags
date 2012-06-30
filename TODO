@@ -20,8 +20,6 @@ make -g work when we start rdm using -a, I don't think it currently does
 
 Connection doesn't seem to know it's gone and we keep writing to it.
 
-add a --silent mode
-
 we seem to have a bug with references to structs. It doesn't have
    enough of them
 
