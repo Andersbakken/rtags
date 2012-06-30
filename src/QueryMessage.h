@@ -4,6 +4,7 @@
 #include "Message.h"
 #include "Path.h"
 #include <Serializer.h>
+#include "Map.h"
 
 class QueryMessage : public Message
 {
@@ -40,8 +41,9 @@ public:
         SameFile = 0x80
     };
 
+    typedef Map<Path, ByteArray> UnsavedFilesMap;
     QueryMessage(Type type = Invalid, const ByteArray &query = ByteArray(),
-                 unsigned flags = 0, const Map<Path, ByteArray> &unsavedFiles = Map<Path, ByteArray>());
+                 unsigned flags = 0, const UnsavedFilesMap &unsaved = UnsavedFilesMap());
 
     List<ByteArray> pathFilters() const { return mPathFilters; }
     void setPathFilters(const List<ByteArray> &pathFilters) { mPathFilters = pathFilters; std::sort(mPathFilters.begin(), mPathFilters.end()); }
