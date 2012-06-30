@@ -84,6 +84,7 @@ void usage(FILE *f)
             "  --name|-n [name]           Name to use for server (default ~/.rtags/server)\n"
             "  --no-clang-includepath|-p  Don't use clang include paths by default\n"
             "  --usedashB|-B              Use -B for make instead of makelib\n"
+            "  --silent|-S                No logging to stdout\n"
             "  --thread-count|-j [arg]    Spawn this many threads for thread pool\n");
 }
 
@@ -106,6 +107,7 @@ int main(int argc, char** argv)
         { "disable-sighandler", no_argument, 0, 's' },
         { "name", required_argument, 0, 'n' },
         { "usedashB", no_argument, 0, 'B' },
+        { "silent", no_argument, 0, 'S' },
         { 0, 0, 0, 0 }
     };
 
@@ -126,6 +128,9 @@ int main(int argc, char** argv)
         if (c == -1)
             break;
         switch (c) {
+        case 'S':
+            logLevel = -1;
+            break;
         case 'n':
             name = optarg;
             break;
@@ -179,7 +184,8 @@ int main(int argc, char** argv)
             logFile = optarg;
             break;
         case 'v':
-            ++logLevel;
+            if (logLevel >= 0)
+                ++logLevel;
             break;
         case '?':
             usage(stderr);
