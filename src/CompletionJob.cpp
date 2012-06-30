@@ -3,6 +3,7 @@
 
 CompletionJob::CompletionJob(int id, const Path &input, const List<ByteArray> &args, const ByteArray &unsaved)
     : Job(id, CompletionJobPriority), result(new Completions::Entry)
+
 {
     result->index = 0;
     result->unit = 0;

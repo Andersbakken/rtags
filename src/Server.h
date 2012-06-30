@@ -66,6 +66,7 @@ public:
     ThreadPool *threadPool() const { return mThreadPool; }
     void onNewConnection();
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
+    void startJob(Job *job);
 protected:
     void event(const Event *event);
     void onFileReady(const GccArguments &file, MakefileParser *parser);
@@ -94,7 +95,6 @@ private:
     int test(const QueryMessage &query);
     int runTest(const QueryMessage &query);
     int nextId();
-    void startJob(Job *job);
     void reindex(const ByteArray &pattern);
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);
     void completions(const QueryMessage &query, Connection *conn);

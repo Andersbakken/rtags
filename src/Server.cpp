@@ -716,7 +716,12 @@ void Server::event(const Event *event)
 
 void Server::completions(const QueryMessage &query, Connection *connection)
 {
-    const ByteArray ret = mCompletions->completions(query.query(), query.flags(), query.unsavedFiles());
+    const Location loc = Location::decodeClientLocation(query.query());
+    if (loc.isNull()) {
+        connection->finish();
+        return;
+    }
+    const ByteArray ret = mCompletions->completions(loc, query.flags(), query.unsavedFiles());
     if (!ret.isEmpty()) {
         ResponseMessage msg(ret);
         connection->send(&msg);

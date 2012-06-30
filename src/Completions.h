@@ -6,6 +6,8 @@
 #include "Mutex.h"
 #include "Map.h"
 #include "ReadWriteLock.h"
+#include "Rdm.h"
+#include "Location.h"
 
 class Completions : public EventReceiver
 {
@@ -14,7 +16,7 @@ public:
     ~Completions();
     virtual void event(const Event *event);
 
-    ByteArray completions(const Path &query, unsigned queryFlags, const Map<Path, ByteArray> &unsavedFiles);
+    ByteArray completions(const Location &loc, unsigned queryFlags, const Map<Path, ByteArray> &unsavedFiles);
 
     struct Entry {
         Entry()
@@ -40,10 +42,11 @@ public:
         ByteArray unsaved;
     };
 private:
+    static ByteArray completion(const Entry *entry, uint32_t offset);
     const int mMax;
     Mutex mMutex;
     Entry *mEntriesByUsage;
-    Map<Path, Entry*> mEntries;
+    Map<uint32_t, Entry*> mEntries;
 };
 
 #endif
