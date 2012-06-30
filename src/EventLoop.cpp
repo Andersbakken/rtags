@@ -132,6 +132,7 @@ static inline bool timevalGreaterEqualThan(timeval* a, timeval* b)
 
 void EventLoop::run()
 {
+    mQuit = false;
     mThread = pthread_self();
     fd_set rset, wset;
     int max;
