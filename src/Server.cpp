@@ -2,7 +2,6 @@
 
 #include "Client.h"
 #include "Completions.h"
-#include "Completions.h"
 #include "Connection.h"
 #include "CreateOutputMessage.h"
 #include "CursorInfoJob.h"
@@ -326,9 +325,14 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::FixIts:
         fixIts(*message, conn);
         return;
-    case QueryMessage::Completions:
-        completions(*message, conn);
-        break;
+    case QueryMessage::Completions: {
+        const ByteArray ret = completions(*message);
+        if (!ret.isEmpty()) {
+            ResponseMessage msg(ret);
+            conn->send(&msg);
+        }
+        conn->finish();
+        return; }
     case QueryMessage::Errors:
         errors(*message, conn);
         return;
@@ -714,18 +718,12 @@ void Server::event(const Event *event)
     }
 }
 
-void Server::completions(const QueryMessage &query, Connection *connection)
+ByteArray Server::completions(const QueryMessage &query)
 {
     const Location loc = Location::decodeClientLocation(query.query());
     if (loc.isNull()) {
-        connection->finish();
-        return;
+        return ByteArray();
     }
-    const ByteArray ret = mCompletions->completions(loc, query.flags(), query.unsavedFiles());
-    if (!ret.isEmpty()) {
-        ResponseMessage msg(ret);
-        connection->send(&msg);
-    }
-    connection->finish();
-
+    const ByteArray ret = mCompletions->completions(loc, query.flags(), query.unsavedFiles().value(loc.path()));
+    return ret;
 }

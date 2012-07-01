@@ -16,11 +16,11 @@ public:
     ~Completions();
     virtual void event(const Event *event);
 
-    ByteArray completions(const Location &loc, unsigned queryFlags, const Map<Path, ByteArray> &unsavedFiles);
+    ByteArray completions(const Location &loc, unsigned queryFlags, const ByteArray &unsaved);
 
     struct Entry {
         Entry()
-            : index(0), unit(0), previous(0), next(0)
+            : index(0), unit(0), previous(0), next(0), finished(false)
         {}
 
         ~Entry()
@@ -37,16 +37,15 @@ public:
         ByteArray clangLine, pchName;
         List<ByteArray> args;
         List<const char*> clangArgs;
-        ReadWriteLock lock;
         Entry *previous, *next;
         ByteArray unsaved;
+        bool finished;
     };
 private:
     static ByteArray completion(const Entry *entry, uint32_t offset);
     const int mMax;
-    Mutex mMutex;
-    Entry *mEntriesByUsage;
-    Map<uint32_t, Entry*> mEntries;
+    // Entry *mEntriesByUsage;
+    Map<Path, Entry*> mEntries;
 };
 
 #endif

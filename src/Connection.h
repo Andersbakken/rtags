@@ -3,6 +3,7 @@
 
 #include "Messages.h"
 #include "EventReceiver.h"
+#include "LocalClient.h"
 #include <ByteArray.h>
 #include <Map.h>
 #include <signalslot.h>
@@ -26,6 +27,8 @@ public:
     void send(int id, const ByteArray& message);
     void write(const ByteArray &out);
     void finish();
+
+    bool isConnected() const { return mClient->isConnected(); }
 
     signalslot::Signal0 &connected() { return mConnected; }
     signalslot::Signal0 &disconnected() { return mDisconnected; }

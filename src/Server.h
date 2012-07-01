@@ -97,7 +97,7 @@ private:
     int nextId();
     void reindex(const ByteArray &pattern);
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);
-    void completions(const QueryMessage &query, Connection *conn);
+    ByteArray completions(const QueryMessage &query);
 private:
     static Server *sInstance;
     Options mOptions;

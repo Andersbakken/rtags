@@ -1,10 +1,12 @@
 #include "CompletionJob.h"
 #include "IndexerJob.h"
+#include "EventLoop.h"
 
-CompletionJob::CompletionJob(int id, const Path &input, const List<ByteArray> &args, const ByteArray &unsaved)
-    : Job(id, CompletionJobPriority), result(new Completions::Entry)
+CompletionJob::CompletionJob(Completions *c, const Path &input, const List<ByteArray> &args, const ByteArray &unsaved)
+    : Job(-1, CompletionJobPriority), result(new Completions::Entry), completions(c)
 
 {
+    result->finished = false;
     result->index = 0;
     result->unit = 0;
     result->input = input;
@@ -13,12 +15,10 @@ CompletionJob::CompletionJob(int id, const Path &input, const List<ByteArray> &a
     IndexerJob::prepareClangArguments(result->args, result->input, result->clangArgs, result->pchName, result->clangLine);
 }
 
-CompletionJob::CompletionJob(int id, Completions::Entry *entry)
-    : Job(id, CompletionJobPriority), result(entry)
+CompletionJob::CompletionJob(Completions *c, Completions::Entry *entry)
+    : Job(-1, CompletionJobPriority), result(entry), completions(c)
 {
-
 }
-
 
 void CompletionJob::run()
 {
@@ -35,12 +35,15 @@ void CompletionJob::run()
                                                   |CXTranslationUnit_PrecompiledPreamble
                                                   |CXTranslationUnit_CacheCompletionResults
                                                   |CXTranslationUnit_CXXPrecompiledPreamble);
+        error("parsed %d", result->unit != 0);
     } else {
         int res = clang_reparseTranslationUnit(result->unit,
                                                result->unsaved.isEmpty() ? 0 : 1,
                                                &unsavedFile,
                                                clang_defaultReparseOptions(result->unit));
+        error("got reparsed %d", res);
         (void)res;
     }
+    completions->postEvent(new CompletionJobFinishedEvent(this));
 }
 
