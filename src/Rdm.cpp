@@ -45,11 +45,15 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
     if (it->isValid()) {
         const Slice key = it->key();
         found = (key == needle);
-        if (!found)
+        if (!found) {
             it->previous();
+        } else {
+            cursorInfo = it->value<CursorInfo>();
+        }
     } else {
         it->seekToLast();
     }
+
     if (!found && it->isValid()) {
         const Slice key = it->key();
         const Location loc = Location::fromKey(key.data());
@@ -59,6 +63,7 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
             if (cursorInfo.symbolLength > off) {
                 found = true;
             } else {
+                cursorInfo.clear();
                 debug("offsets wrong symbolLength %d offset %d %d/%d", cursorInfo.symbolLength,
                       off, location.offset(), loc.offset());
             }
@@ -66,17 +71,11 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
             debug() << "wrong path" << location.path() << loc.path() << key;
         }
     }
+    assert(found == (cursorInfo.symbolLength != 0));
     if (found) {
-        if (!cursorInfo.symbolLength) {
-            cursorInfo = it->value<CursorInfo>();
-        }
         if (loc) {
             *loc = Location::fromKey(it->key().data());
         }
-    }
-    if (!found) {
-        // printf("[%s] %s:%d: if (!found) {\n", __func__, __FILE__, __LINE__);
-        cursorInfo.clear();
     }
     // error() << "found" << found << location << cursorInfo.target << cursorInfo.references << cursorInfo.symbolLength
     //         << cursorInfo.symbolName;
