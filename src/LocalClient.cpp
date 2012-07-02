@@ -41,8 +41,10 @@ LocalClient::~LocalClient()
     disconnect();
 }
 
-bool LocalClient::connect(const ByteArray& name, int maxTime)
+bool LocalClient::connect(const Path& name, int maxTime)
 {
+    if (!name.isFile())
+        return false;
     Timer timer;
     struct sockaddr_un address;
     memset(&address, 0, sizeof(struct sockaddr_un));

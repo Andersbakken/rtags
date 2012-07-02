@@ -12,7 +12,7 @@ public:
     LocalClient();
     virtual ~LocalClient();
 
-    bool connect(const ByteArray& name, int maxTime = -1);
+    bool connect(const Path& name, int maxTime = -1);
     void disconnect();
 
     bool isConnected() const { return mFd != -1; }
