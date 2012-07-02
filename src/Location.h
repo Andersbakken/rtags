@@ -112,6 +112,11 @@ public:
     inline bool isNull() const { return !mData; }
     inline bool isValid() const { return mData; }
     inline void clear() { mData = 0; mCachedPath.clear(); }
+    inline bool operator==(const ByteArray &str) const
+    {
+        const Location fromPath = Location::fromPathAndOffset(str);
+        return operator==(fromPath);
+    }
     inline bool operator==(const Location &other) const { return mData == other.mData; }
     inline bool operator!=(const Location &other) const { return mData != other.mData; }
     inline bool operator<(const Location &other) const

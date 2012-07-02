@@ -38,7 +38,7 @@ void ValidateDBJob::execute()
                 stream << " " << *rit;
             }
 
-            // batch.remove(it->key());
+            batch.remove(it->key());
             ++errors;
         }
         it->next();

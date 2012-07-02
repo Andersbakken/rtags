@@ -269,6 +269,8 @@ static inline bool isInteresting(CXCursorKind kind)
     case CXCursor_CXXConstCastExpr:
     case CXCursor_CXXDynamicCastExpr:
     case CXCursor_CXXReinterpretCastExpr:
+    case CXCursor_TemplateTypeParameter:
+    case CXCursor_NonTypeTemplateParameter:
         return false;
     default:
         break;
@@ -405,6 +407,9 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         }
         return CXChildVisit_Recurse;
     }
+    const bool refOk = (!clang_isInvalid(ref.kind) && !ref.location.isNull() && ref.location != cursor.location);
+    if (refOk && !isInteresting(ref.kind))
+        return CXChildVisit_Recurse;
 
     CursorInfo &info = mSymbols[cursor.location];
     if (!info.symbolLength) {
@@ -431,7 +436,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         return CXChildVisit_Recurse;
     }
 
-    if (!clang_isInvalid(ref.kind) && !ref.location.isNull() && ref.location != cursor.location) {
+    if (refOk) {
         info.target = ref.location;
         Rdm::ReferenceType referenceType = Rdm::NormalReference;
         if (ref.kind == cursor.kind) {
