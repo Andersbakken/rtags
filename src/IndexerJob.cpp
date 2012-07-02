@@ -407,6 +407,11 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         }
         return CXChildVisit_Recurse;
     }
+    if (cursor.kind == CXCursor_MacroExpansion
+        && ref.kind == CXCursor_MacroDefinition
+        && mSymbols.contains(ref.location)) {
+        processCursor(ref, ref);
+    }
     const bool refOk = (!clang_isInvalid(ref.kind) && !ref.location.isNull() && ref.location != cursor.location);
     if (refOk && !isInteresting(ref.kind))
         return CXChildVisit_Recurse;
