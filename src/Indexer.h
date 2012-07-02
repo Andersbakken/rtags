@@ -13,7 +13,7 @@ class IndexerJob;
 class Indexer : public EventReceiver
 {
 public:
-    Indexer();
+    Indexer(bool validate);
     ~Indexer();
 
     int index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags, const Set<uint32_t> &dirty);
@@ -41,9 +41,10 @@ private:
     void commitDependencies(const DependencyMap &deps, bool sync);
     enum InitMode {
         Normal,
+        NoValidate,
         ForceDirty
     };
-    void initDB(InitMode forceDirty = Normal, const ByteArray &pattern = ByteArray());
+    void initDB(InitMode forceDirty, const ByteArray &pattern = ByteArray());
     bool needsToWaitForPch(IndexerJob *job) const;
     void startJob(IndexerJob *job);
 

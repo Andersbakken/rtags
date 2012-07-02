@@ -28,8 +28,9 @@ LocalServer::~LocalServer()
 
 bool LocalServer::listen(const Path& path)
 {
-    if (path.exists())
+    if (path.exists()) {
         return false;
+    }
     struct sockaddr_un address;
 
     mFd = socket(PF_UNIX, SOCK_STREAM, 0);

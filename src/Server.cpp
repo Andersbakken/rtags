@@ -178,11 +178,12 @@ bool Server::init(const Options &options)
 
     error() << "running with " << mOptions.defaultArguments << " clang version " << Rdm::eatString(clang_getClangVersion());
 
-    mIndexer = new Indexer;
+    mIndexer = new Indexer(!(mOptions.options & NoValidateOnStartup));
     mIndexer->indexingDone().connect(this, &Server::onIndexingDone);
 
-    remake();
 
+    if (!(mOptions.options & NoValidateOnStartup))
+        remake();
     return true;
 }
 

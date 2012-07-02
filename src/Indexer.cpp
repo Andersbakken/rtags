@@ -13,7 +13,7 @@
 #include <Log.h>
 #include <math.h>
 
-Indexer::Indexer()
+Indexer::Indexer(bool validate)
 {
     mJobCounter = 0;
     mTimerRunning = false;
@@ -48,8 +48,7 @@ Indexer::Indexer()
         commitDependencies(dependencies, false);
     }
 
-
-    initDB();
+    initDB(validate ? Normal : NoValidate);
 }
 
 Indexer::~Indexer()
@@ -58,7 +57,7 @@ Indexer::~Indexer()
 
 static inline bool isFile(uint32_t fileId)
 {
-    return Location::path(fileId).isFile(); // ### not ideal
+    return Location::path(fileId).isFile();
 }
 
 void Indexer::initDB(InitMode mode, const ByteArray &pattern)
@@ -88,6 +87,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
         }
     }
 
+
     Set<uint32_t> dirtyFiles;
     Map<Path, List<ByteArray> > toIndex, toIndexPch;
     int checked = 0;
@@ -116,17 +116,33 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
                     bool dirty = false;
                     const Set<uint32_t> dependencies = deps.value(fileId);
                     assert(dependencies.contains(fileId));
-                    for (Set<uint32_t>::const_iterator it = dependencies.begin(); it != dependencies.end(); ++it) {
-                        const uint32_t id = *it;
-                        if (dirtyFiles.contains(id)) {
-                            dirty = true;
-                        } else {
-                            const Path p = Location::path(id);
-                            if ((mode == ForceDirty && (pattern.isEmpty() || rx.indexIn(p) != -1))
-                                || p.lastModified() > fi.lastTouched) {
-                                dirtyFiles.insert(id);
-                                dirtyFiles += depsReversed.value(id);
+                    if (mode != NoValidate) {
+                        for (Set<uint32_t>::const_iterator it = dependencies.begin(); it != dependencies.end(); ++it) {
+                            const uint32_t id = *it;
+                            if (dirtyFiles.contains(id)) {
                                 dirty = true;
+                            } else {
+                                const Path p = Location::path(id);
+                                bool pdirty = false;
+                                switch (mode) {
+                                case NoValidate:
+                                    assert(0);
+                                    break;
+                                case ForceDirty:
+                                    if (pattern.isEmpty() || rx.indexIn(p) != -1) {
+                                        pdirty = true;
+                                        break;
+                                    }
+                                    // fall through
+                                case Normal:
+                                    pdirty = (p.lastModified() > fi.lastTouched);
+                                    break;
+                                }
+                                if (pdirty) {
+                                    dirty = true;
+                                    dirtyFiles.insert(id);
+                                    dirtyFiles += depsReversed.value(id);
+                                }
                             }
                         }
                     }

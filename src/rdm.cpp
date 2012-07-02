@@ -86,6 +86,7 @@ void usage(FILE *f)
             "  --usedashB|-B                   Use -B for make instead of makelib\n"
             "  --silent|-S                     No logging to stdout\n"
             "  --max-completion-units|-x [arg] Max translation units to keep in memory for completions (default 10)\n"
+            "  --no-validate-on-startup|-V     Disable validation of database on startup\n"
             "  --thread-count|-j [arg]         Spawn this many threads for thread pool\n");
 }
 
@@ -110,6 +111,7 @@ int main(int argc, char** argv)
         { "usedashB", no_argument, 0, 'B' },
         { "silent", no_argument, 0, 'S' },
         { "max-completion-units", required_argument, 0, 'x' },
+        { "no-validate-on-startup", no_argument, 0, 'V' },
         { 0, 0, 0, 0 }
     };
 
@@ -151,6 +153,9 @@ int main(int argc, char** argv)
             return 0;
         case 'B':
             options |= Server::UseDashB;
+            break;
+        case 'V':
+            options |= Server::NoValidateOnStartup;
             break;
         case 'd':
             datadir = Path::resolved(optarg);
