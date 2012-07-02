@@ -71,7 +71,7 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
             debug() << "wrong path" << location.path() << loc.path() << key;
         }
     }
-    assert(found == (cursorInfo.symbolLength != 0));
+    // assert(found == (cursorInfo.symbolLength != 0));
     if (found) {
         if (loc) {
             *loc = Location::fromKey(it->key().data());
