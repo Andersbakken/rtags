@@ -12,7 +12,7 @@ CompletionJob::CompletionJob(Completions *c, const Path &input, const List<ByteA
     result->input = input;
     result->args = args;
     result->unsaved = unsaved;
-    IndexerJob::prepareClangArguments(result->args, result->input, result->clangArgs, result->pchName, result->clangLine);
+    // IndexerJob::prepareClangArguments(result->args, result->input, result->clangArgs, result->pchName, result->clangLine);
 }
 
 CompletionJob::CompletionJob(Completions *c, Completions::Entry *entry)
