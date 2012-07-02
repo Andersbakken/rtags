@@ -78,6 +78,7 @@ Server::~Server()
 
 void Server::clear()
 {
+    Path::rm(mOptions.name);
     delete mIndexer;
     mIndexer = 0;
     delete mCompletions;
