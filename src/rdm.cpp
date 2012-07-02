@@ -240,7 +240,7 @@ int main(int argc, char** argv)
     serverOpts.options = options;
     serverOpts.defaultArguments = defaultArguments;
     serverOpts.cacheSizeMB = cacheSize;
-    serverOpts.name = (name.isEmpty() ? ByteArray(RTags::rtagsDir() + "server") : name );
+    serverOpts.socketPath = (name.isEmpty() ? ByteArray(RTags::rtagsDir() + "server") : name );
     if (!server->init(serverOpts)) {
         delete server;
         return 1;

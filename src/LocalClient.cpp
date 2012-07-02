@@ -41,16 +41,16 @@ LocalClient::~LocalClient()
     disconnect();
 }
 
-bool LocalClient::connect(const Path& name, int maxTime)
+bool LocalClient::connect(const Path& path, int maxTime)
 {
-    if (!name.isSocket())
+    if (!path.isSocket())
         return false;
     Timer timer;
     struct sockaddr_un address;
     memset(&address, 0, sizeof(struct sockaddr_un));
     address.sun_family = AF_UNIX;
-    const int sz = std::min<int>(sizeof(address.sun_path) - 1, name.size());
-    memcpy(address.sun_path, name.constData(), sz);
+    const int sz = std::min<int>(sizeof(address.sun_path) - 1, path.size());
+    memcpy(address.sun_path, path.constData(), sz);
     address.sun_path[sz] = '\0';
     while (true) {
         mFd = ::socket(PF_UNIX, SOCK_STREAM, 0);

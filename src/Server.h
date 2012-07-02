@@ -55,12 +55,12 @@ public:
         unsigned options;
         List<ByteArray> defaultArguments;
         long cacheSizeMB;
-        ByteArray name;
+        Path socketPath;
         int maxCompletionUnits;
     };
     bool init(const Options &options);
     Indexer *indexer() const { return mIndexer; }
-    ByteArray name() const { return mOptions.name; }
+    ByteArray name() const { return mOptions.socketPath; }
     static bool setBaseDirectory(const ByteArray &base, bool clear);
     static Path databaseDir(DatabaseType type);
     static Path pchDir();

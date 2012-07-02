@@ -78,7 +78,7 @@ Server::~Server()
 
 void Server::clear()
 {
-    Path::rm(mOptions.name);
+    Path::rm(mOptions.socketPath);
     delete mIndexer;
     mIndexer = 0;
     delete mCompletions;
@@ -111,21 +111,21 @@ bool Server::init(const Options &options)
 
     for (int i=0; i<10; ++i) {
         mServer = new LocalServer;
-        if (mServer->listen(mOptions.name)) {
+        if (mServer->listen(mOptions.socketPath)) {
             break;
         }
         delete mServer;
         mServer = 0;
         if (!i) {
-            Client client(mOptions.name, Client::DontWarnOnConnectionFailure);
+            Client client(mOptions.socketPath, Client::DontWarnOnConnectionFailure);
             QueryMessage msg(QueryMessage::Shutdown);
             client.message(&msg);
         }
         sleep(1);
-        Path::rm(mOptions.name);
+        Path::rm(mOptions.socketPath);
     }
     if (!mServer) {
-        error("Unable to listen on %s", mOptions.name.constData());
+        error("Unable to listen on %s", mOptions.socketPath.constData());
         return false;
     }
 
