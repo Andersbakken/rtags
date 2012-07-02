@@ -322,6 +322,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         case CXCursor_StructDecl:
         case CXCursor_Namespace:
         case CXCursor_ClassTemplate:
+        case CXCursor_UnexposedDecl:
             return CXChildVisit_Recurse;
         default:
             break;
