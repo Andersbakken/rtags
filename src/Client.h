@@ -14,7 +14,7 @@ class Message;
 class Client
 {
 public:
-    Client(const ByteArray &name, unsigned flags = 0, const List<ByteArray> &rdmArgs = List<ByteArray>());
+    Client(const Path &path, unsigned flags = 0, const List<ByteArray> &rdmArgs = List<ByteArray>());
     enum Flag {
         None = 0x0,
         AutostartRdm = 0x1,
@@ -34,7 +34,7 @@ private:
     Connection *mConnection;
     unsigned mFlags;
     List<ByteArray> mRdmArgs;
-    const ByteArray mName;
+    const Path mName;
 };
 
 template<typename T>

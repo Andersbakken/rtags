@@ -7,8 +7,8 @@
 #include <Log.h>
 #include <unistd.h>
 
-Client::Client(const ByteArray &name, unsigned flags, const List<ByteArray> &rdmArgs)
-    : mConnection(0), mFlags(flags), mRdmArgs(rdmArgs), mName(name)
+Client::Client(const Path &path, unsigned flags, const List<ByteArray> &rdmArgs)
+    : mConnection(0), mFlags(flags), mRdmArgs(rdmArgs), mName(path)
 {
     if ((mFlags & (RestartRdm|AutostartRdm)) == (RestartRdm|AutostartRdm)) {
         mFlags &= ~AutostartRdm; // this is implied and would upset connectToServer

@@ -43,7 +43,7 @@ LocalClient::~LocalClient()
 
 bool LocalClient::connect(const Path& name, int maxTime)
 {
-    if (!name.isFile())
+    if (!name.isSocket())
         return false;
     Timer timer;
     struct sockaddr_un address;

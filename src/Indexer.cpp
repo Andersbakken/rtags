@@ -321,6 +321,11 @@ int Indexer::index(const Path &input, const List<ByteArray> &arguments,
 
 void Indexer::startJob(IndexerJob *job)
 {
+    if (mJobs.contains(job->mFileId)) {
+        error("We're already indexing %s", job->mIn.constData());
+        delete job;
+        return;
+    }
     assert(!mJobs.contains(job->mFileId));
     // mMutex is always held at this point
     mJobs[job->mFileId] = job;
