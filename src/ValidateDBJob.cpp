@@ -34,6 +34,10 @@ void ValidateDBJob::execute()
                    << " isDefinition: " << (ci.isDefinition ? "true" : "false")
                    << " target: " << ci.target
                    << " references: " << ci.references;
+            for (Set<Location>::const_iterator rit = ci.references.begin(); rit != ci.references.end(); ++rit) {
+                stream << " " << *rit;
+            }
+
             // batch.remove(it->key());
             ++errors;
         }
