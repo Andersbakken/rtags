@@ -566,7 +566,7 @@ void IndexerJob::execute()
                 if (file)
                     visited[Location(file, 0).fileId()].append(string);
 
-                log(logLevel, "%s", string.constData());
+                log(logLevel, "%s: %s => %s", mIn.constData(), string.constData(), clangLine.constData());
                 log(CompilationError, "%s", string.constData());
             }
 
