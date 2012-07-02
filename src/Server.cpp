@@ -1,6 +1,7 @@
 #include "Server.h"
 
 #include "Client.h"
+#include "ValidateDBJob.h"
 #include "Completions.h"
 #include "Connection.h"
 #include "CreateOutputMessage.h"
@@ -133,7 +134,7 @@ bool Server::init(const Options &options)
         mDBs[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(),
                                options.cacheSizeMB, i == Server::Symbol);
         if (!mDBs[i]->isOpened()) {
-            error() << "Failed to open db" << mDBs[i]->openError();
+            error() << "Failed to open db: " << mDBs[i]->openError();
             return false;
         }
     }
@@ -180,7 +181,7 @@ bool Server::init(const Options &options)
 
     mIndexer = new Indexer(!(mOptions.options & NoValidateOnStartup));
     mIndexer->indexingDone().connect(this, &Server::onIndexingDone);
-
+    mIndexer->jobsComplete().connect(this, &Server::onJobsComplete);
 
     if (!(mOptions.options & NoValidateOnStartup))
         remake();
@@ -728,4 +729,8 @@ ByteArray Server::completions(const QueryMessage &query)
     }
     const ByteArray ret = mCompletions->completions(loc, query.flags(), query.unsavedFiles().value(loc.path()));
     return ret;
+}
+void Server::onJobsComplete()
+{
+    startJob(new ValidateDBJob);
 }

@@ -19,7 +19,8 @@ public:
     };
     enum Priority {
         QueryJobPriority = 10,
-        CompletionJobPriority = 1
+        CompletionJobPriority = 1,
+        ValidateDBJobPriority = 0
     };
     Job(int id, Priority priority, unsigned flags = None);
     ~Job();

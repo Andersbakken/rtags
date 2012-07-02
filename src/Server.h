@@ -69,6 +69,7 @@ public:
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
     void startJob(Job *job);
 protected:
+    void onJobsComplete();
     void event(const Event *event);
     void onFileReady(const GccArguments &file, MakefileParser *parser);
     void onNewMessage(Message *message, Connection *conn);
