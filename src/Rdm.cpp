@@ -193,17 +193,13 @@ int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, uint32_t fi
             it->first.toKey(buf);
             const Slice key(buf, 8);
             const CursorInfo added = it->second;
-            if (it->first.fileId() != fileId) {
-                bool ok;
-                CursorInfo current = db->value<CursorInfo>(key, &ok);
-                if (ok) {
-                    if (current.unite(added))
-                        totalWritten += batch.add(key, current);
-                    ++it;
-                    continue;
-                }
+            bool ok;
+            CursorInfo current = db->value<CursorInfo>(key, &ok);
+            if (!ok) {
+                totalWritten += batch.add(key, added);
+            } else if (current.unite(added)) {
+                totalWritten += batch.add(key, current);
             }
-            totalWritten += batch.add(key, added);
             ++it;
         }
     }
