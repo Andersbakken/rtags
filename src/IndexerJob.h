@@ -71,6 +71,8 @@ public:
     CXTranslationUnit mUnit;
 
     ByteArray mMessage;
+
+    Map<ByteArray, uint32_t> mFileIds;
 };
 
 class IndexerJobFinishedEvent : public Event

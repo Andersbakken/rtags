@@ -216,8 +216,11 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
         unsigned start;
         clang_getSpellingLocation(location, &file, 0, 0, &start);
         if (file) {
-            ret = Location(file, start);
-            const uint32_t fileId = ret.fileId();
+            ByteArray fileName = Rdm::eatString(clang_getFileName(file));
+            uint32_t &fileId = mFileIds[fileName];
+            if (!fileId)
+                fileId = Location::insertFile(fileName);
+            ret = Location(fileId, start);
             if (blocked) {
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
