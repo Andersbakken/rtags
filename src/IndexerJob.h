@@ -31,6 +31,7 @@ public:
     unsigned mFlags;
     bool mIsPch;
     Location createLocation(const CXCursor &cursor, bool *blocked);
+    static Location createLocation(const CXCursor &cursor);
     ByteArray addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDb);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static void inclusionVisitor(CXFile included_file, CXSourceLocation *include_stack,

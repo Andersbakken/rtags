@@ -194,6 +194,20 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
     return ret;
 }
 
+Location IndexerJob::createLocation(const CXCursor &cursor)
+{
+    CXSourceLocation location = clang_getCursorLocation(cursor);
+    if (!clang_equalLocations(location, clang_getNullLocation())) {
+        CXFile file;
+        unsigned start;
+        clang_getSpellingLocation(location, &file, 0, 0, &start);
+        if (file) {
+            return Location(file, start);
+        }
+    }
+    return Location();
+}
+
 Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
@@ -411,9 +425,24 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         }
         return CXChildVisit_Recurse;
     }
-    if (cursor.kind == CXCursor_MacroExpansion
-        && ref.kind == CXCursor_MacroDefinition
-        && !mSymbols.contains(ref.location)) {
+    bool processRef = false;
+    switch (cursor.kind) {
+    case CXCursor_MacroExpansion:
+        processRef = (ref.kind == CXCursor_MacroDefinition);
+        break;
+    case CXCursor_TypeRef:
+        switch (ref.kind) {
+        case CXCursor_ClassDecl:
+        case CXCursor_StructDecl:
+            processRef = true;
+            break;
+        default:
+            break;
+        }
+    default:
+        break;
+    }
+    if (processRef && !mSymbols.contains(ref.location)) {
         processCursor(ref, ref);
     }
     const bool refOk = (!clang_isInvalid(ref.kind) && !ref.location.isNull() && ref.location != cursor.location);
