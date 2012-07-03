@@ -411,6 +411,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
                 info.kind = cursor.kind;
                 info.isDefinition = false;
                 info.symbolLength = end - cursor.location.offset();
+                assert(info.symbolLength > 0);
                 for (unsigned i=0; i<tokenCount; ++i) {
                     if (clang_getTokenKind(tokens[i]) == CXToken_Literal) {
                         CXStringScope scope(clang_getTokenSpelling(mUnit, tokens[i]));
