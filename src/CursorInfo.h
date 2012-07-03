@@ -79,18 +79,6 @@ public:
         return changed;
     }
 
-    uint16_t calculateReferenceCount() const
-    {
-        uint16_t ref = !target ? 0 : 1;
-        Set<uint32_t> unique;
-        for (Set<Location>::const_iterator it = references.begin(); it != references.end(); ++it) {
-            unique.insert(it->fileId());
-        }
-        ref += unique.size();
-        return ref;
-    }
-
-
     int symbolLength; // this is just the symbol name e.g. foo
     ByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
     CXCursorKind kind;
