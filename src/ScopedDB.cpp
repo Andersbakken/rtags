@@ -1,21 +1,21 @@
 #include "ScopedDB.h"
 #include "Database.h"
 
-ScopedDB::ScopedDB(Database *db, LockType lockType)
+ScopedDB::ScopedDB(Database *db, ReadWriteLock::LockType lockType)
     : mData(new Data(db, lockType))
 {
 }
 
-ScopedDB::Data::Data(Database *database, LockType lockType)
-    : db(database), lock(lockType)
+ScopedDB::Data::Data(Database *database, ReadWriteLock::LockType type)
+    : db(database), lockType(type)
 {
-    if (db && lockType == Write) {
-        db->lockForWrite();
+    if (db) {
+        db->lock(lockType);
     }
 }
 
 ScopedDB::Data::~Data()
 {
-    if (db && lock == Write)
+    if (db)
         db->unlock();
 }

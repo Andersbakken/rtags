@@ -142,8 +142,7 @@ class Database
 public:
     Database(const char *path, int cacheSizeMB, bool locationKeys);
     ~Database();
-    void lockForRead() { mLock.lockForRead(); }
-    void lockForWrite() { mLock.lockForWrite(); }
+    void lock(ReadWriteLock::LockType type) { mLock.lock(type); }
     void unlock() { mLock.unlock(); }
     bool isOpened() const;
     void close();

@@ -30,6 +30,7 @@ public:
         Unchanged = 0,
         Modified = 1
     };
+
     DirtyState dirty(const Set<uint32_t> &dirty, bool selfDirty)
     {
         bool changed = false;

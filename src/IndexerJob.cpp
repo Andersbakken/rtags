@@ -738,7 +738,7 @@ void IndexerJob::execute()
             assert(mDependencies[mFileId].contains(mFileId));
 
             mIndexer->setDiagnostics(visited, fixIts);
-            Rdm::writeSymbols(mSymbols, mReferences, mFileId);
+            Rdm::writeSymbols(mSymbols, mReferences);
             Rdm::writeSymbolNames(mSymbolNames);
             Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
             if (mIsPch)

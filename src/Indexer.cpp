@@ -20,7 +20,7 @@ Indexer::Indexer(bool validate)
 
     mWatcher.modified().connect(this, &Indexer::onDirectoryChanged);
     {
-        ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         while (it->isValid()) {
@@ -29,12 +29,12 @@ Indexer::Indexer(bool validate)
         }
     }
     {
-        ScopedDB db = Server::instance()->db(Server::General, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::General, ReadWriteLock::Read);
         mPchDependencies = db->value<Map<Path, Set<uint32_t> > >("pchDependencies");
     }
     {
         // watcher
-        ScopedDB db = Server::instance()->db(Server::Dependency, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         DependencyMap dependencies;
@@ -66,7 +66,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     Timer timer;
     Map<uint32_t, Set<uint32_t> > deps, depsReversed;
 
-    ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ScopedDB::Read);
+    ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ReadWriteLock::Read);
     RTags::Ptr<Iterator> it(dependencyDB->createIterator());
     it->seekToFirst();
     {
@@ -93,7 +93,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     int checked = 0;
 
     {
-        ScopedDB fileInformationDB = Server::instance()->db(Server::FileInformation, ScopedDB::Write);
+        ScopedDB fileInformationDB = Server::instance()->db(Server::FileInformation, ReadWriteLock::Write);
         Batch batch(fileInformationDB);
         it.reset(fileInformationDB->createIterator());
         it->seekToFirst();
@@ -360,7 +360,7 @@ void Indexer::onDirectoryChanged(const Path &p)
         Set<WatchedPair>::const_iterator wend = it->second.end();
         List<ByteArray> args;
 
-        ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::FileInformation, ReadWriteLock::Read);
         while (wit != wend) {
             // weird API, Set<>::iterator does not allow for modifications to the referenced value
             file = (p + (*wit).first);

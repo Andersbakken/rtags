@@ -140,7 +140,7 @@ bool Server::init(const Options &options)
     }
 
     {
-        ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
+        ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
         bool ok;
         const int version = general->value<int>("version", &ok);
         if (!ok) {
@@ -158,7 +158,7 @@ bool Server::init(const Options &options)
 
     {
         // fileids
-        ScopedDB db = Server::instance()->db(Server::FileIds, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::FileIds, ReadWriteLock::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         Map<uint32_t, Path> idsToPaths;
@@ -254,7 +254,7 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
     const MakefileInformation mi(makefile.lastModified(), message->arguments(), message->extraFlags());
     mMakefiles[makefile] = mi;
     mMakefilesWatcher.watch(makefile);
-    ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
+    ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
     general->setValue("makefiles", mMakefiles);
     MakeEvent *ev = new MakeEvent;
     ev->makefile = message->makefile();
@@ -686,7 +686,7 @@ void Server::onMakefileModified(const Path &path)
 void Server::onMakefileRemoved(const Path &path)
 {
     mMakefiles.remove(path);
-    ScopedDB general = Server::instance()->db(Server::General, ScopedDB::Write);
+    ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
     general->setValue("makefiles", mMakefiles);
 }
 

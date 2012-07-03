@@ -16,7 +16,7 @@ FollowLocationJob::~FollowLocationJob()
 
 void FollowLocationJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Read);
+    ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
     CursorInfo cursorInfo = Rdm::findCursorInfo(db, location);
     if (isAborted())
         return;

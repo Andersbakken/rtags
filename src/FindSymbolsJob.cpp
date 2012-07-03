@@ -18,7 +18,7 @@ FindSymbolsJob::FindSymbolsJob(int i, const QueryMessage &query)
 
 void FindSymbolsJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Read);
+    ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Read);
     // const bool hasFilter = !pathFilters().isEmpty();
 
     RTags::Ptr<Iterator> it(db->createIterator());

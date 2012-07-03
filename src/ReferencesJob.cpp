@@ -18,14 +18,14 @@ ReferencesJob::ReferencesJob(int i, const ByteArray &sym, unsigned fl)
 void ReferencesJob::execute()
 {
     if (!symbolName.isEmpty()) {
-        ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Read);
         locations = db->value<Set<Location> >(symbolName);
         if (locations.isEmpty()) {
             return;
         }
     }
     const bool excludeDefsAndDecls = !(flags & QueryMessage::IncludeDeclarationsAndDefinitions);
-    ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Read);
+    ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
     const unsigned keyFlags = QueryMessage::keyFlags(flags);
     const uint32_t fileFilterId = (flags & QueryMessage::SameFile && symbolName.isEmpty() ? locations.begin()->fileId() : 0);
     Set<Location> refs;

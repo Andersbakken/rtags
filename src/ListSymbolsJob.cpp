@@ -15,7 +15,7 @@ ListSymbolsJob::ListSymbolsJob(int i, const QueryMessage &query)
 
 void ListSymbolsJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Read);
+    ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Read);
     const bool hasFilter = !pathFilters().isEmpty();
     const bool skipParentheses = queryFlags & QueryMessage::SkipParentheses;
     const bool elispList = queryFlags & QueryMessage::ElispList;

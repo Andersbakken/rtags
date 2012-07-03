@@ -16,7 +16,7 @@ StatusJob::StatusJob(int i, const ByteArray &q)
 void StatusJob::execute()
 {
     if (query.isEmpty() || query == "general") {
-        ScopedDB db = Server::instance()->db(Server::General, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::General, ReadWriteLock::Read);
         write(delimiter);
         write(Server::databaseDir(Server::General));
         write("    version: " + ByteArray::number(db->value<int>("version")));
@@ -34,7 +34,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "dependencies") {
-        ScopedDB db = Server::instance()->db(Server::Dependency, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Read);
         write(delimiter);
         write(Server::databaseDir(Server::Dependency));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -56,7 +56,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "symbols") {
-        ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
         write(delimiter);
         write(Server::databaseDir(Server::Symbol));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -86,7 +86,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "symbolnames") {
-        ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Read);
         write(delimiter);
         write(Server::databaseDir(Server::SymbolName));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -108,7 +108,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "fileinfos") {
-        ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::FileInformation, ReadWriteLock::Read);
         write(delimiter);
         write(Server::databaseDir(Server::FileInformation));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -130,7 +130,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "pch") {
-        ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Read);
         write(delimiter);
         write(Server::databaseDir(Server::PCHUsrMaps));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -154,7 +154,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "fileids") {
-        ScopedDB db = Server::instance()->db(Server::FileIds, ScopedDB::Read);
+        ScopedDB db = Server::instance()->db(Server::FileIds, ReadWriteLock::Read);
         write(delimiter);
         write(Server::databaseDir(Server::FileIds));
         RTags::Ptr<Iterator> it(db->createIterator());

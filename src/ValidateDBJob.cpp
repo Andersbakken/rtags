@@ -14,7 +14,7 @@ ValidateDBJob::ValidateDBJob()
 
 void ValidateDBJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Write);
+    ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Write);
     Batch batch(db);
     RTags::Ptr<Iterator> it(db->createIterator());
     it->seekToFirst();

@@ -16,7 +16,7 @@ CursorInfoJob::~CursorInfoJob()
 
 void CursorInfoJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Read);
+    ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
     Location found;
     const CursorInfo cursorInfo = Rdm::findCursorInfo(db, location, &found);
     if (isAborted())

@@ -85,7 +85,7 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
 int writeSymbolNames(SymbolNameMap &symbolNames)
 {
     Timer timer;
-    ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Write);
+    ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Write);
 
     Batch batch(db);
     int totalWritten = 0;
@@ -111,7 +111,7 @@ int writeSymbolNames(SymbolNameMap &symbolNames)
 int writeDependencies(const DependencyMap &dependencies)
 {
     Timer timer;
-    ScopedDB db = Server::instance()->db(Server::Dependency, ScopedDB::Write);
+    ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Write);
 
     Batch batch(db);
     int totalWritten = 0;
@@ -134,7 +134,7 @@ int writeDependencies(const DependencyMap &dependencies)
 int writePchDepencies(const Map<Path, Set<uint32_t> > &pchDependencies)
 {
     Timer timer;
-    ScopedDB db = Server::instance()->db(Server::General, ScopedDB::Write);
+    ScopedDB db = Server::instance()->db(Server::General, ReadWriteLock::Write);
     if (!pchDependencies.isEmpty())
         return db->setValue("pchDependencies", pchDependencies);
     return 0;
@@ -142,7 +142,7 @@ int writePchDepencies(const Map<Path, Set<uint32_t> > &pchDependencies)
 int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t lastTouched)
 {
     Timer timer;
-    ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Write);
+    ScopedDB db = Server::instance()->db(Server::FileInformation, ReadWriteLock::Write);
     if (Location::path(fileId).isHeader() && !isPch(args)) {
         error() << "Somehow we're writing fileInformation for a header that isn't pch"
                 << Location::path(fileId) << args << lastTouched;
@@ -154,7 +154,7 @@ int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t la
 int writePchUSRMaps(const Map<Path, PchUSRMap> &pchUSRMaps)
 {
     Timer timer;
-    ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ScopedDB::Write);
+    ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Write);
     int totalWritten = 0;
     Batch batch(db);
     for (Map<Path, PchUSRMap>::const_iterator it = pchUSRMaps.begin(); it != pchUSRMaps.end(); ++it) {
@@ -163,10 +163,10 @@ int writePchUSRMaps(const Map<Path, PchUSRMap> &pchUSRMaps)
     return totalWritten;
 }
 
-int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, uint32_t fileId)
+int writeSymbols(SymbolMap &symbols, const ReferenceMap &references)
 {
     Timer timer;
-    ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Write);
+    ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Write);
     Batch batch(db);
     int totalWritten = 0;
 
@@ -209,7 +209,7 @@ int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, uint32_t fi
 int dirtySymbolNames(const Set<uint32_t> &dirty)
 {
     int ret = 0;
-    ScopedDB db = Server::instance()->db(Server::SymbolName, ScopedDB::Write);
+    ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Write);
 
     RTags::Ptr<Iterator> it(db->createIterator());
     it->seekToFirst();
@@ -243,7 +243,7 @@ int dirtySymbolNames(const Set<uint32_t> &dirty)
 int dirtySymbols(const Map<uint32_t, Set<uint32_t> > &dirty)
 {
     int ret = 0;
-    ScopedDB db = Server::instance()->db(Server::Symbol, ScopedDB::Write);
+    ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Write);
     RTags::Ptr<Iterator> it(db->createIterator());
     char key[8];
     for (Map<uint32_t, Set<uint32_t> >::const_iterator i = dirty.begin(); i != dirty.end(); ++i) {
@@ -281,7 +281,7 @@ int dirtySymbols(const Map<uint32_t, Set<uint32_t> > &dirty)
 
 List<ByteArray> compileArgs(uint32_t fileId)
 {
-    ScopedDB db = Server::instance()->db(Server::FileInformation, ScopedDB::Read);
+    ScopedDB db = Server::instance()->db(Server::FileInformation, ReadWriteLock::Read);
     const char *ch = reinterpret_cast<const char*>(&fileId);
     const Slice key(ch, sizeof(fileId));
     FileInformation fi = db->value<FileInformation>(key);
