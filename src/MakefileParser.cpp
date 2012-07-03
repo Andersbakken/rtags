@@ -98,7 +98,7 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     assert(!mProc);
     mProc = new Process;
 
-    std::list<ByteArray> environment = Process::environment();
+    List<ByteArray> environment = Process::environment();
     if (!args.contains("-B")) {
         Path p = RTags::applicationDirPath();
 #ifdef OS_Mac
@@ -119,7 +119,7 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     warning(MAKE " -j1 -w -f %s -C %s\n",
             makefile.constData(), mTracker->path().constData());
 
-    std::list<ByteArray> a;
+    List<ByteArray> a;
     a.push_back("-j1");
     a.push_back("-w");
     a.push_back("-f");

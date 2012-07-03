@@ -2,6 +2,7 @@
 #include "gccopts_gperf.h"
 #include "Log.h"
 #include "RTags.h"
+#include "Process.h"
 
 class GccArgumentsImpl
 {
@@ -289,46 +290,17 @@ bool GccArguments::parse(ByteArray args, const Path &base)
         clear();
         return false;
     }
-    if (!mImpl->outputFile.isResolved() && !mImpl->outputFile.isAbsolute()) {
-        mImpl->outputFile = path + "/" + mImpl->outputFile;
-    }
 
-    mImpl->compiler = split.front();
-    if (!mImpl->compiler.isResolved()) {
-        static Map<Path, Path> resolvedFromPath;
-        static List<Path> paths;
-        mImpl->compiler = mImpl->compiler.fileName();
-        Path resolved = resolvedFromPath.value(mImpl->compiler);
-        if (resolved.isEmpty()) {
-            if (paths.isEmpty()) {
-                const ByteArray p = getenv("PATH");
-                const List<ByteArray> split = p.split(':');
-                const int splitCount = split.size();
-                for (int i=0; i<splitCount; ++i) {
-                    Path path = split.at(i);
-                    if (path.resolve()) {
-                        if (!path.endsWith('/'))
-                            path.append('/');
-                        paths.append(path);
-                    }
-                }
-            }
-            const char *fncstr = mImpl->compiler.fileName();
-            const ByteArray fn(fncstr);
-            const int pathCount = paths.size();
-            for (int i=0; i<pathCount; ++i) {
-                const Path &path = paths.at(i);
-                Path c = path + fn;
-                if (c.isFile()) {
-                    resolvedFromPath[mImpl->compiler] = c;
-                    mImpl->compiler = c;
-                    break;
-                }
-            }
+    mImpl->outputFile = Path::resolved(mImpl->outputFile, path);
+    static Map<Path, Path> resolvedFromPath;
+    Path &compiler = resolvedFromPath[split.front()];
+    if (compiler.isEmpty()) {
+        compiler = Process::findCommand(split.front());
+        if (compiler.isEmpty()) {
+            compiler = split.front();
         }
-
     }
-
+    mImpl->compiler = compiler;
     return true;
 }
 

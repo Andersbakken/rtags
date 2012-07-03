@@ -2,8 +2,9 @@
 #define PROCESS_H
 
 #include "ByteArray.h"
+#include "Path.h"
+#include "List.h"
 #include <signalslot.h>
-#include <list>
 #include <deque>
 
 class Process
@@ -12,11 +13,11 @@ public:
     Process();
     ~Process();
 
-    void setCwd(const ByteArray& cwd);
+    void setCwd(const Path& cwd);
 
-    void start(const ByteArray& command, const std::list<ByteArray>& arguments);
-    void start(const ByteArray& command, const std::list<ByteArray>& arguments,
-               const std::list<ByteArray>& environ);
+    void start(const ByteArray& command, const List<ByteArray>& arguments);
+    void start(const ByteArray& command, const List<ByteArray>& arguments,
+               const List<ByteArray>& environ);
 
     void write(const ByteArray& data);
     void closeStdIn();
@@ -33,7 +34,9 @@ public:
     signalslot::Signal0& readyReadStdErr() { return mReadyReadStdErr; }
     signalslot::Signal0& finished() { return mFinished; }
 
-    static std::list<ByteArray> environment();
+    static List<ByteArray> environment();
+
+    static Path findCommand(const ByteArray& command);
 
 private:
     static void processCallback(int fd, unsigned int flags, void* userData);
@@ -44,8 +47,6 @@ private:
     void handleInput(int fd);
     void handleOutput(int fd, ByteArray& buffer, int& index, signalslot::Signal0& signal);
     void handleTerminated();
-
-    ByteArray findCommand(const ByteArray& command) const;
 
 private:
     int mStdIn[2];
@@ -59,7 +60,7 @@ private:
     ByteArray mStdOutBuffer, mStdErrBuffer;
     int mStdInIndex, mStdOutIndex, mStdErrIndex;
 
-    ByteArray mCwd;
+    Path mCwd;
 
     signalslot::Signal0 mReadyReadStdOut, mReadyReadStdErr, mFinished;
 };

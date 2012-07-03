@@ -60,26 +60,12 @@ int64_t Path::fileSize() const
 Path Path::resolved(const ByteArray &path, const Path &cwd, bool *ok)
 {
     Path ret(path);
-    if (ret.isResolved() && ret.exists()) {
-        if (ok)
-            *ok = true;
-        return ret;
-    } else if (ret.resolve(cwd) && ok) {
+    if (ret.resolve(cwd) && ok) {
         *ok = true;
     } else if (ok) {
         *ok = false;
     }
     return ret;
-}
-
-bool Path::isResolved() const
-{
-    return isAbsolute() && isCanonical();
-}
-
-bool Path::isCanonical() const
-{
-    return lastIndexOf("/../") == -1;
 }
 
 int Path::canonicalize()

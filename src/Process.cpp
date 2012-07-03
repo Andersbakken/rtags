@@ -28,43 +28,38 @@ Process::~Process()
     closeStdErr();
 }
 
-void Process::setCwd(const ByteArray& cwd)
+void Process::setCwd(const Path& cwd)
 {
     mCwd = cwd;
 }
 
 void Process::start(const ByteArray& command,
-                    const std::list<ByteArray>& arguments)
+                    const List<ByteArray>& arguments)
 {
-    start(command, arguments, std::list<ByteArray>());
+    start(command, arguments, List<ByteArray>());
 }
 
-ByteArray Process::findCommand(const ByteArray& command) const
+Path Process::findCommand(const ByteArray& command)
 {
     if (command.isEmpty() || command.at(0) == '/')
         return command;
 
-    ByteArray ret;
-    bool found = false;
     const char* path = getenv("PATH");
     if (!path)
-        return ByteArray();
-    List<ByteArray> paths = ByteArray(path).split(':');
+        return Path();
+    bool ok;
+    const List<ByteArray> paths = ByteArray(path).split(':');
     for (List<ByteArray>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
-        ret = *it + "/" + command;
-        if (!access(ret.nullTerminated(), R_OK | X_OK)) {
-            found = true;
-            break;
-        }
+        const Path ret = Path::resolved(command, *it, &ok);
+        if (ok && !access(ret.nullTerminated(), R_OK | X_OK))
+            return ret;
     }
-    if (!found)
-        ret.clear();
-    return ret;
+    return Path();
 }
 
 void Process::start(const ByteArray& command,
-                    const std::list<ByteArray>& arguments,
-                    const std::list<ByteArray>& environ)
+                    const List<ByteArray>& arguments,
+                    const List<ByteArray>& environ)
 {
     ByteArray cmd = findCommand(command);
     if (cmd.isEmpty())
@@ -80,7 +75,7 @@ void Process::start(const ByteArray& command,
     args[arguments.size() + 1] = 0;
     args[0] = cmd.nullTerminated();
     int pos = 1;
-    for(std::list<ByteArray>::const_iterator it = arguments.begin(); it != arguments.end(); ++it) {
+    for(List<ByteArray>::const_iterator it = arguments.begin(); it != arguments.end(); ++it) {
         args[pos] = it->nullTerminated();
         //printf("arg: '%s'\n", args[pos]);
         ++pos;
@@ -89,7 +84,7 @@ void Process::start(const ByteArray& command,
     env[environ.size()] = 0;
     pos = 0;
     //printf("fork, about to exec '%s'\n", cmd.nullTerminated());
-    for(std::list<ByteArray>::const_iterator it = environ.begin(); it != environ.end(); ++it) {
+    for(List<ByteArray>::const_iterator it = environ.begin(); it != environ.end(); ++it) {
         env[pos] = it->nullTerminated();
         //printf("env: '%s'\n", env[pos]);
         ++pos;
@@ -326,11 +321,11 @@ void Process::stop()
     eintrwrap(err, ::waitpid(mPid, &mReturn, 0));
 }
 
-std::list<ByteArray> Process::environment()
+List<ByteArray> Process::environment()
 {
     extern char** environ;
     char** cur = environ;
-    std::list<ByteArray> env;
+    List<ByteArray> env;
     while (*cur) {
         env.push_back(*cur);
         ++cur;

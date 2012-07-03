@@ -69,8 +69,6 @@ public:
     bool isSystem() const { return Path::isSystem(constData()); }
     static bool isSystem(const char *path);
     bool isHeader() const;
-    bool isResolved() const;
-    bool isCanonical() const;
     bool isSymLink() const { return type() == SymLink; }
     Path parentDir() const;
     Type type() const;

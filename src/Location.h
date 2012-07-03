@@ -34,7 +34,7 @@ public:
         const char *cstr = clang_getCString(fn);
         if (!cstr)
             return;
-        const Path p = Path::canonicalized(cstr);
+        const Path p = Path::resolved(cstr);
         clang_disposeString(fn);
         uint32_t fileId = insertFile(p);
         mData = (uint64_t(offset) << 32) | fileId;
