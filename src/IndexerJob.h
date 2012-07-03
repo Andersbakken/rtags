@@ -21,8 +21,7 @@ public:
         PersistTranslationUnit = 0x8
     };
     IndexerJob(Indexer *indexer, int id, unsigned flags,
-               const Path &input, const List<ByteArray> &arguments,
-               const Set<uint32_t> &dirty);
+               const Path &input, const List<ByteArray> &arguments);
     int priority() const { return mFlags & Priorities; }
     virtual void run();
     void execute();
@@ -67,7 +66,6 @@ public:
     Set<uint32_t> mPchDependencies;
     Indexer *mIndexer;
     Map<ByteArray, Location> mPchUSRMap;
-    const Set<uint32_t> mDirty;
 
     List<Path> mPchHeaders;
     CXTranslationUnit mUnit;

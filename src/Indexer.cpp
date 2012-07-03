@@ -1,4 +1,5 @@
 #include "Database.h"
+#include "DirtyJob.h"
 #include "Server.h"
 #include "Indexer.h"
 #include "IndexerJob.h"
@@ -168,7 +169,9 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
         error() << "Checked " << checked << " files. Found " << dirtyFiles.size() << " dirty files and "
                 << (toIndex.size() + toIndexPch.size()) << " sources to reindex in " << timer.elapsed() << "ms";
 
-    if (toIndex.isEmpty() && toIndexPch.isEmpty())
+    assert(dirtyFiles.isEmpty() == (toIndex.isEmpty() && toIndexPch.isEmpty()));
+
+    if (dirtyFiles.isEmpty())
         return;
 
     {
@@ -176,12 +179,14 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
         mVisitedFiles -= dirtyFiles;
     }
 
+    Server::instance()->threadPool()->start(new DirtyJob(dirtyFiles), DirtyJob::Priority);
+
     for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
-        index(it->first, it->second, IndexerJob::DirtyPch, dirtyFiles);
+        index(it->first, it->second, IndexerJob::DirtyPch);
     }
 
     for (Map<Path, List<ByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
-        index(it->first, it->second, IndexerJob::Dirty, dirtyFiles);
+        index(it->first, it->second, IndexerJob::Dirty);
     }
 }
 
@@ -288,15 +293,14 @@ void Indexer::onJobFinished(IndexerJob *job)
 }
 
 
-int Indexer::index(const Path &input, const List<ByteArray> &arguments,
-                   unsigned indexerJobFlags, const Set<uint32_t> &dirty)
+int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags)
 {
     MutexLocker locker(&mMutex);
 
     const uint32_t fileId = Location::insertFile(input);
 
     const int id = ++mJobCounter;
-    IndexerJob *job = new IndexerJob(this, id, indexerJobFlags, input, arguments, dirty);
+    IndexerJob *job = new IndexerJob(this, id, indexerJobFlags, input, arguments);
 
     if (needsToWaitForPch(job)) {
         mWaitingForPCH[id] = job;
@@ -413,12 +417,14 @@ void Indexer::onDirectoryChanged(const Path &p)
         }
     }
 
+    Server::instance()->threadPool()->start(new DirtyJob(dirtyFiles), DirtyJob::Priority);
+
     for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
-        index(it->first, it->second, IndexerJob::DirtyPch, dirtyFiles);
+        index(it->first, it->second, IndexerJob::DirtyPch);
     }
 
     for (Map<Path, List<ByteArray> >::const_iterator it = toIndex.begin(); it != toIndex.end(); ++it) {
-        index(it->first, it->second, IndexerJob::Dirty, dirtyFiles);
+        index(it->first, it->second, IndexerJob::Dirty);
     }
 }
 

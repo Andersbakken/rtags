@@ -192,7 +192,7 @@ int writeSymbols(SymbolMap &symbols, const ReferenceMap &references)
             char buf[8];
             it->first.toKey(buf);
             const Slice key(buf, 8);
-            const CursorInfo added = it->second;
+            CursorInfo added = it->second;
             bool ok;
             CursorInfo current = db->value<CursorInfo>(key, &ok);
             if (!ok) {
@@ -204,79 +204,6 @@ int writeSymbols(SymbolMap &symbols, const ReferenceMap &references)
         }
     }
     return totalWritten;
-}
-
-int dirtySymbolNames(const Set<uint32_t> &dirty)
-{
-    int ret = 0;
-    ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Write);
-
-    RTags::Ptr<Iterator> it(db->createIterator());
-    it->seekToFirst();
-    while (it->isValid()) {
-        Set<Location> locations = it->value<Set<Location> >();
-        Set<Location>::iterator i = locations.begin();
-        bool changed = false;
-        while (i != locations.end()) {
-            if (dirty.contains(*i)) {
-                changed = true;
-                locations.erase(i++);
-                ++ret;
-            } else {
-                ++i;
-            }
-        }
-        if (changed) {
-            if (locations.isEmpty()) {
-                debug() << "No references to " << it->key() << " anymore. Removing";
-                db->remove(it->key());
-            } else {
-                debug() << "References to " << it->key() << " modified. Changing";
-                db->setValue<Set<Location> >(it->key(), locations);
-            }
-        }
-        it->next();
-    }
-    return ret;
-}
-
-int dirtySymbols(const Map<uint32_t, Set<uint32_t> > &dirty)
-{
-    int ret = 0;
-    ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Write);
-    RTags::Ptr<Iterator> it(db->createIterator());
-    char key[8];
-    for (Map<uint32_t, Set<uint32_t> >::const_iterator i = dirty.begin(); i != dirty.end(); ++i) {
-        {
-            const Location loc(i->first, 0);
-            loc.toKey(key);
-        }
-        const bool selfDirty = i->second.contains(i->first);
-        it->seek(Slice(key, sizeof(key)));
-        while (it->isValid()) {
-            const Slice key = it->key();
-            assert(key.size() == 8);
-            const Location loc = Location::fromKey(key.data());
-            if (loc.fileId() != i->first)
-                break;
-            CursorInfo cursorInfo = it->value<CursorInfo>();
-            const CursorInfo::DirtyState dirtyState = cursorInfo.dirty(i->second, selfDirty);
-            switch (dirtyState) {
-            case CursorInfo::Unchanged:
-                break;
-            case CursorInfo::Modified:
-                db->setValue<CursorInfo>(key, cursorInfo);
-                ++ret;
-                break;
-            case CursorInfo::Empty:
-                db->remove(it->key());
-                ++ret;
-                break;
-            }
-            it->next();
-        }
-    }
-    return ret;
 }
 
 List<ByteArray> compileArgs(uint32_t fileId)

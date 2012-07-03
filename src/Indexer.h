@@ -16,7 +16,7 @@ public:
     Indexer(bool validate);
     ~Indexer();
 
-    int index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags, const Set<uint32_t> &dirty);
+    int index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
 
     void setPchDependencies(const Path &pchHeader, const Set<uint32_t> &deps);
     void addDependencies(const DependencyMap &hash);

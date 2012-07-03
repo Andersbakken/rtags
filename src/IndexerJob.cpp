@@ -26,12 +26,11 @@ static inline List<Path> extractPchFiles(const List<ByteArray> &args)
 }
 
 IndexerJob::IndexerJob(Indexer *indexer, int id, unsigned flags,
-                       const Path &input, const List<ByteArray> &arguments,
-                       const Set<uint32_t> &dirty)
+                       const Path &input, const List<ByteArray> &arguments)
 
     : mId(id), mFlags(flags), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
-      mDirty(dirty), mPchHeaders(extractPchFiles(arguments)), mUnit(0)
+      mPchHeaders(extractPchFiles(arguments)), mUnit(0)
 {
     setAutoDelete(false);
 }
@@ -712,27 +711,6 @@ void IndexerJob::execute()
                 } else if (mFlags & (DirtyPch|Dirty) && it->second == Reference) {
                     referenced.insert(it->first);
                 }
-            }
-            if (mFlags & (DirtyPch|Dirty)) {
-                Set<uint32_t> oldDeps = mIndexer->dependencies(mFileId);
-                Map<uint32_t, Set<uint32_t> > dirty;
-                for (Set<uint32_t>::const_iterator it = indexed.begin(); it != indexed.end(); ++it) {
-                    Set<uint32_t> &v = dirty[*it];
-                    v.unite(indexed);
-                }
-
-                for (Set<uint32_t>::const_iterator it = referenced.begin(); it != referenced.end(); ++it) {
-                    Set<uint32_t> &v = dirty[*it];
-                    v.unite(indexed);
-                }
-
-                for (Set<uint32_t>::const_iterator it = oldDeps.begin(); it != oldDeps.end(); ++it) {
-                    Set<uint32_t> &v = dirty[*it];
-                    v.unite(indexed);
-                }
-
-                Rdm::dirtySymbols(dirty);
-                Rdm::dirtySymbolNames(indexed);
             }
             mIndexer->addDependencies(mDependencies);
             assert(mDependencies[mFileId].contains(mFileId));

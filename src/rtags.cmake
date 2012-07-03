@@ -71,6 +71,7 @@ set(rtags_HDRS
     LocalClient.h
     LocalServer.h
     Process.h
+    DirtyJob.h
     CompletionJob.h
     Completions.h
     )
@@ -115,6 +116,7 @@ set(rtags_SRCS
     LocalClient.cpp
     LocalServer.cpp
     Process.cpp
+    DirtyJob.cpp
     CompletionJob.cpp
     Completions.cpp
 )

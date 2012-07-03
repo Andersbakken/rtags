@@ -24,23 +24,9 @@ public:
         symbolName.clear();
     }
 
-    enum DirtyState {
-        Empty = -1,
-        Unchanged = 0,
-        Modified = 1
-    };
-
-    DirtyState dirty(const Set<uint32_t> &dirty, bool selfDirty)
+    bool dirty(const Set<uint32_t> &dirty)
     {
         bool changed = false;
-        if (selfDirty && symbolLength) {
-            symbolLength = 0;
-            kind = CXCursor_FirstInvalid;
-            isDefinition = false;
-            symbolName.clear();
-            changed = true;
-        }
-
         const uint32_t targetFileId = target.fileId();
         if (targetFileId && dirty.contains(targetFileId)) {
             changed = true;
@@ -56,7 +42,7 @@ public:
                 ++it;
             }
         }
-        return changed ? (isEmpty() ? Empty : Modified) : Unchanged;
+        return changed;
     }
 
     bool isEmpty() const
@@ -91,6 +77,17 @@ public:
                 changed = true;
         }
         return changed;
+    }
+
+    uint16_t calculateReferenceCount() const
+    {
+        uint16_t ref = !target ? 0 : 1;
+        Set<uint32_t> unique;
+        for (Set<Location>::const_iterator it = references.begin(); it != references.end(); ++it) {
+            unique.insert(it->fileId());
+        }
+        ref += unique.size();
+        return ref;
     }
 
 
