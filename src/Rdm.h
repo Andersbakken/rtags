@@ -89,7 +89,7 @@ static inline Deserializer &operator>>(Deserializer &s, MakefileInformation &mi)
 }
 
 namespace Rdm {
-enum { DatabaseVersion = 12 };
+enum { DatabaseVersion = 13 };
 
 enum ReferenceType {
     NormalReference,

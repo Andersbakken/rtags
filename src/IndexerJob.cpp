@@ -60,7 +60,7 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
         job->mDependencies[fileId].insert(fileId);
         if (job->mIsPch)
             job->mPchDependencies.insert(fileId);
-    } else if (!path.isSystem()) {
+    } else {
         for (unsigned i=0; i<includeLen; ++i) {
             CXFile originatingFile;
             clang_getSpellingLocation(includeStack[i], &originatingFile, 0, 0, 0);
