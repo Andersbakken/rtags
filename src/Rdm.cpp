@@ -28,7 +28,7 @@ ByteArray cursorToString(CXCursor cursor)
     clang_getSpellingLocation(loc, &file, &line, &col, &off);
     const ByteArray fileName = eatString(clang_getFileName(file));
     if (!fileName.isEmpty()) {
-        ret += " " + fileName + ':' + ByteArray::number(line) + ":" + ByteArray::number(col) + ": (" + ByteArray::number(off) + ")"; // + eatString(clang_getCursorUSR(cursor));
+        ret += " " + fileName + ',' + ByteArray::number(off);
     }
     return ret;
 }
