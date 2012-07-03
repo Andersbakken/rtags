@@ -33,7 +33,7 @@ void ValidateDBJob::execute()
                    << " kind: " << Rdm::eatString(clang_getCursorKindSpelling(ci.kind))
                    << " isDefinition: " << (ci.isDefinition ? "true" : "false")
                    << " target: " << ci.target
-                   << " references: " << ci.references;
+                   << " references:";
             for (Set<Location>::const_iterator rit = ci.references.begin(); rit != ci.references.end(); ++rit) {
                 stream << " " << *rit;
             }
