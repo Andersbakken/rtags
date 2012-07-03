@@ -433,6 +433,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         switch (ref.kind) {
         case CXCursor_ClassDecl:
         case CXCursor_StructDecl:
+        case CXCursor_UnionDecl:
             processRef = true;
             break;
         default:
@@ -445,8 +446,10 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         processCursor(ref, ref);
     }
     const bool refOk = (!clang_isInvalid(ref.kind) && !ref.location.isNull() && ref.location != cursor.location);
-    if (refOk && !isInteresting(ref.kind))
+    if (refOk && !isInteresting(ref.kind)) {
+        verboseDebug() << "ref.kind is not interesting and cursor wants a ref " << cursor.cursor << " ref " << ref.cursor;
         return CXChildVisit_Recurse;
+    }
 
     CursorInfo &info = mSymbols[cursor.location];
     if (!info.symbolLength) {
@@ -466,6 +469,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         if (!info.symbolLength) {
             switch (info.kind) {
             case CXCursor_ClassDecl:
+            case CXCursor_UnionDecl:
                 info.symbolLength = 5;
                 break;
             case CXCursor_StructDecl:
