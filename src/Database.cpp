@@ -1,6 +1,7 @@
 #include "Database.h"
 #include <leveldb/cache.h>
 #include <leveldb/comparator.h>
+#include "ScopedDB.h"
 
 // ================== Slice ==================
 
@@ -193,9 +194,11 @@ Iterator *Database::createIterator() const
     return new Iterator(mDB->NewIterator(leveldb::ReadOptions()));
 }
 
-Batch::Batch(Database *d)
-    : mDB(d), mSize(0), mTotal(0)
-{}
+Batch::Batch(ScopedDB &db)
+    : mDB(db.database()), mSize(0), mTotal(0)
+{
+    assert(db.lockType() == ReadWriteLock::Write);
+}
 
 Batch::~Batch()
 {

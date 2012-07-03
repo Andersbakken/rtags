@@ -159,9 +159,10 @@ private:
     friend struct Batch;
 };
 
+class ScopedDB;
 struct Batch {
     enum { BatchThreshold = 1024 * 1024 };
-    Batch(Database *d);
+    Batch(ScopedDB &d);
     ~Batch();
     int flush();
     template <typename T> int add(const Slice &key, const T &t)

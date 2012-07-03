@@ -11,6 +11,7 @@ public:
     Database *operator->() { return mData->db; }
     operator Database *() { return mData->db; }
 
+    Database *database() const { return mData->db; }
     ReadWriteLock::LockType lockType() const { return mData->lockType; }
 private:
     class Data

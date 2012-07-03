@@ -14,8 +14,7 @@ ValidateDBJob::ValidateDBJob()
 
 void ValidateDBJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Write);
-    Batch batch(db);
+    ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
     RTags::Ptr<Iterator> it(db->createIterator());
     it->seekToFirst();
     int errors = 0;
@@ -38,7 +37,6 @@ void ValidateDBJob::execute()
                 stream << " " << *rit;
             }
 
-            batch.remove(it->key());
             ++errors;
         }
         it->next();

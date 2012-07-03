@@ -67,7 +67,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     Timer timer;
     Map<uint32_t, Set<uint32_t> > deps, depsReversed;
 
-    ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ReadWriteLock::Read);
+    ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ReadWriteLock::Write);
     RTags::Ptr<Iterator> it(dependencyDB->createIterator());
     it->seekToFirst();
     {
