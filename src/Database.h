@@ -71,17 +71,11 @@ template <> inline Set<Location> decode(const Slice &slice)
 
 template <> inline ByteArray encode(const CursorInfo &info)
 {
-    // null-terminated symbolName, uint16_t(ref), uint32_t(symbolLength), uint32_t(kind),
-    // unsigned char(isDefinition), uint64_t(target.location), uint64_t(refs)...
+    // null-terminated symbolName, uint32_t(symbolLength), uint32_t(kind), unsigned char(isDefinition), uint64_t(target.location), uint64_t(refs)...
     ByteArray out(info.symbolName.size() + 1 + (sizeof(uint32_t) * 2) + sizeof(unsigned char)
-                  + sizeof(uint16_t) + (sizeof(uint64_t) * (1 + info.references.size())), '\0');
-
-    char *ch = out.data();
-    memcpy(ch, info.symbolName.constData(), info.symbolName.size() + 1);
-    ch += info.symbolName.size() + 1;
-    *reinterpret_cast<uint16_t*>(ch) = info.ref;
-    ch += sizeof(uint16_t);
-    uint32_t *ptr = reinterpret_cast<uint32_t*>(ch);
+                   + (sizeof(uint64_t) * (1 + info.references.size())), '\0');
+    memcpy(out.data(), info.symbolName.constData(), info.symbolName.size() + 1);
+    uint32_t *ptr = reinterpret_cast<uint32_t*>(out.data() + (info.symbolName.size() + 1));
     *ptr++ = info.symbolLength;
     *ptr++ = info.kind;
     unsigned char *isDefinitionPtr = reinterpret_cast<unsigned char*>(ptr);
@@ -98,10 +92,7 @@ template <> inline CursorInfo decode(const Slice &slice)
 {
     CursorInfo ret;
     ret.symbolName = ByteArray(slice.data()); // 0-terminated
-    const char *ch = slice.data() + ret.symbolName.size() + 1;
-    ret.ref = *reinterpret_cast<const uint16_t*>(ch);
-    ch += sizeof(uint16_t);
-    const uint32_t *ptr = reinterpret_cast<const uint32_t*>(ch);
+    const uint32_t *ptr = reinterpret_cast<const uint32_t*>(slice.data() + ret.symbolName.size() + 1);
     ret.symbolLength = *ptr++;
     ret.kind = static_cast<CXCursorKind>(*ptr++);
     const unsigned char *isDefinitionPtr = reinterpret_cast<const unsigned char*>(ptr);

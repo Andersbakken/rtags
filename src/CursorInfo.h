@@ -12,7 +12,7 @@ class CursorInfo
 {
 public:
     CursorInfo()
-        : symbolLength(0), kind(CXCursor_FirstInvalid), isDefinition(false), ref(0)
+        : symbolLength(0), kind(CXCursor_FirstInvalid), isDefinition(false)
     {}
     void clear()
     {
@@ -22,7 +22,6 @@ public:
         target.clear();
         references.clear();
         symbolName.clear();
-        ref = 0;
     }
 
     enum DirtyState {
@@ -101,7 +100,6 @@ public:
     bool isDefinition;
     Location target;
     Set<Location> references;
-    uint16_t ref;
 };
 
 #endif
