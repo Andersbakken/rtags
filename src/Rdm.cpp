@@ -251,8 +251,10 @@ int dirtySymbols(const Map<uint32_t, Set<uint32_t> > &dirty)
     RTags::Ptr<Iterator> it(db->createIterator());
     char key[8];
     for (Map<uint32_t, Set<uint32_t> >::const_iterator i = dirty.begin(); i != dirty.end(); ++i) {
-        const Location loc(i->first, 0);
-        loc.toKey(key);
+        {
+            const Location loc(i->first, 0);
+            loc.toKey(key);
+        }
         const bool selfDirty = i->second.contains(i->first);
         it->seek(Slice(key, sizeof(key)));
         while (it->isValid()) {
@@ -262,7 +264,8 @@ int dirtySymbols(const Map<uint32_t, Set<uint32_t> > &dirty)
             if (loc.fileId() != i->first)
                 break;
             CursorInfo cursorInfo = it->value<CursorInfo>();
-            switch (cursorInfo.dirty(i->second, selfDirty)) {
+            const CursorInfo::DirtyState dirtyState = cursorInfo.dirty(i->second, selfDirty);
+            switch (dirtyState) {
             case CursorInfo::Unchanged:
                 break;
             case CursorInfo::Modified:

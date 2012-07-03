@@ -25,7 +25,7 @@ public:
     Map<ByteArray, Location> pchUSRMap(const List<Path> &pchFiles) const;
     void setPchUSRMap(const Path &pch, const PchUSRMap &astMap);
     void abort();
-    bool visitFile(uint32_t fileId, const Path &p);
+    bool visitFile(uint32_t fileId, const Path &p, bool isPch);
     Set<uint32_t> visitedFiles() const { MutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path) const;
@@ -79,12 +79,10 @@ private:
     signalslot::Signal0 mJobsComplete;
 };
 
-inline bool Indexer::visitFile(uint32_t fileId, const Path &path)
+inline bool Indexer::visitFile(uint32_t fileId, const Path &path, bool isPch)
 {
-    if (!strcmp(path.fileName(), "b.cpp") && Location::path(fileId) == "foo.h")
-        return false;
     MutexLocker lock(&mVisitedFilesMutex);
-    if (mVisitedFiles.contains(fileId)) {
+    if (!isPch && mVisitedFiles.contains(fileId)) {
         return false;
     }
     mVisitedFiles.insert(fileId);

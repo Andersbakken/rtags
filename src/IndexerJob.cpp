@@ -208,7 +208,7 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
             if (blocked) {
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
-                    state = mIndexer->visitFile(fileId, mIn) ? Index : DontIndex;
+                    state = mIndexer->visitFile(fileId, mIn, mIsPch) ? Index : DontIndex;
                 }
                 if (state != Index) {
                     *blocked = true;
@@ -298,17 +298,20 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         return CXChildVisit_Break;
 
     const CXCursorKind kind = clang_getCursorKind(cursor);
+
     const bool interesting = isInteresting(kind);
     if (testLog(VerboseDebug))
         verboseDebug() << "indexVisitor " << cursor << " " << clang_getCursorReferenced(cursor);
-    if (!interesting)
+    if (!interesting) {
         return CXChildVisit_Recurse;
+    }
 
     CXCursor ref = clang_getCursorReferenced(cursor);
     const CXCursorKind refKind = clang_getCursorKind(ref);
     // the kind won't change even if the reference is looked up from elsewhere
-    if (refKind == CXCursor_InvalidFile && needsRef(kind))
+    if (refKind == CXCursor_InvalidFile && needsRef(kind)) {
         return CXChildVisit_Recurse;
+    }
 
     bool blocked = false;
     const Location loc = job->createLocation(cursor, &blocked);
@@ -335,8 +338,9 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     }
 
     /* CXCursor_CallExpr is the right thing to use for invocations of constructors */
-    if (kind == CXCursor_CallExpr && (refKind == CXCursor_CXXMethod || refKind == CXCursor_FunctionDecl))
+    if (kind == CXCursor_CallExpr && (refKind == CXCursor_CXXMethod || refKind == CXCursor_FunctionDecl)) {
         return CXChildVisit_Recurse;
+    }
 
     const Cursor c = { cursor, loc, kind };
     Location refLoc;
@@ -432,11 +436,20 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         const char *cstr = clang_getCString(name.string);
         info.symbolLength = cstr ? strlen(cstr) : 0;
         if (!info.symbolLength) {
-            mSymbols.remove(cursor.location);
-            return CXChildVisit_Recurse;
+            switch (info.kind) {
+            case CXCursor_ClassDecl:
+                info.symbolLength = 5;
+                break;
+            case CXCursor_StructDecl:
+                info.symbolLength = 6;
+                break;
+            default:
+                mSymbols.remove(cursor.location);
+                return CXChildVisit_Recurse;
+            }
+        } else {
+            info.symbolName = addNamePermutations(cursor.cursor, cursor.location, !isReference);
         }
-
-        info.symbolName = addNamePermutations(cursor.cursor, cursor.location, !isReference);
     } else if (info.kind == CXCursor_Constructor && cursor.kind == CXCursor_TypeRef) {
         return CXChildVisit_Recurse;
     }
@@ -689,17 +702,6 @@ void IndexerJob::execute()
                     v.unite(indexed);
                 }
 
-                // Log log(Error);
-                // log << "About to dirty for " << mIn;
-                // for (Map<uint32_t, Set<uint32_t> >::iterator it = dirty.begin(); it != dirty.end(); ++it) {
-                //     log << " " << Location::path(it->first);
-                //     for (Set<uint32_t>::const_iterator i = it->second.begin(); i != it->second.end(); ++i) {
-                //         log << ", " << Location::path(*i);
-                //     }
-                //     log << "\n";
-                // }
-
-                // debug() << "about to dirty for " << mIn << " " << dirty << mPaths;
                 Rdm::dirtySymbols(dirty);
                 Rdm::dirtySymbolNames(indexed);
             }
