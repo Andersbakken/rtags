@@ -150,9 +150,11 @@ public:
     bool contains(const Slice &key) const;
     void remove(const Slice &key);
     Iterator *createIterator() const;
+    Path path() const { return mPath; }
 private:
     ReadWriteLock mLock;
     leveldb::DB *mDB;
+    Path mPath;
     const leveldb::WriteOptions mWriteOptions;
     ByteArray mOpenError;
     LocationComparator *mLocationComparator;
