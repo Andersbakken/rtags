@@ -17,16 +17,16 @@ public:
     signalslot::Signal1<const Path&> &removed() { return mRemoved; }
     signalslot::Signal1<const Path&> &modified() { return mModified; }
 private:
-#ifdef OS_Linux
     Mutex mMutex;
-    int mInotifyFd;
+    static void notifyCallback(int, unsigned int, void *user) { reinterpret_cast<FileSystemWatcher*>(user)->notifyReadyRead(); }
+    void notifyReadyRead();
+    int mFd;
     Map<Path, int> mWatchedByPath;
     Map<int, Path> mWatchedById;
-    void inotifyReadyRead();
-    static void iNotifyCallback(int, unsigned int, void *user) { reinterpret_cast<FileSystemWatcher*>(user)->inotifyReadyRead(); }
     signalslot::Signal1<const Path&> mRemoved, mModified;
-#else
-#warning "FileSystemWatcher not implemented on this platform"
+
+#if !defined(OS_Linux) && !defined(OS_FreeBSD)
+#error "FileSystemWatcher not implemented on this platform"
 #endif
 };
 #endif
