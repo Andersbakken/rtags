@@ -252,7 +252,9 @@ void findApplicationDirPath(const char *argv0)
             Path p(path, size);
             if (p.resolve()) {
                 // ### bit of a hack
+                assert(p.isFile());
                 sApplicationDirPath = p.parentDir();
+                assert(sApplicationDirPath.isDir());
                 return;
             }
         }
