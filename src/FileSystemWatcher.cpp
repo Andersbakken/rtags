@@ -55,7 +55,7 @@ bool FileSystemWatcher::watch(const Path &path)
         break;
 #endif
     default:
-        error("FileSystemWatcher::watch() %s doesn't not seem to be watchable", path.constData());
+        error("FileSystemWatcher::watch() '%s' doesn't not seem to be watchable", path.constData());
         return false;
     }
 
@@ -70,11 +70,17 @@ bool FileSystemWatcher::watch(const Path &path)
         struct kevent change;
         struct timespec nullts = { 0, 0 };
         EV_SET(&change, ret, EVFILT_VNODE, EV_ADD|EV_ENABLE|EV_CLEAR, flags, 0, 0);
-        ::kevent(mFd, &change, 1, 0, 0, &nullts);
+        if (::kevent(mFd, &change, 1, 0, 0, &nullts) == -1) {
+            // bad things have happened
+            error("FileSystemWatcher::watch() kevent failed for '%s' (%d) %s",
+                  path.constData(), errno, strerror(errno));
+            ::close(ret);
+            return false;
+        }
     }
 #endif
     if (ret == -1) {
-        error("FileSystemWatcher::watch() watch failed for %s (%d) %s",
+        error("FileSystemWatcher::watch() watch failed for '%s' (%d) %s",
               path.constData(), errno, strerror(errno));
         return false;
     }
@@ -97,7 +103,11 @@ bool FileSystemWatcher::unwatch(const Path &path)
         struct kevent change;
         struct timespec nullts = { 0, 0 };
         EV_SET(&change, wd, EVFILT_VNODE, EV_DELETE, 0, 0, 0);
-        ::kevent(mFd, &change, 1, 0, 0, &nullts);
+        if (::kevent(mFd, &change, 1, 0, 0, &nullts) == -1) {
+            // bad stuff
+            error("FileSystemWatcher::unwatch() kevent failed for '%s' (%d) %s",
+                  path.constData(), errno, strerror(errno));
+        }
         ::close(wd);
 #endif
         return true;
@@ -165,17 +175,24 @@ void FileSystemWatcher::notifyReadyRead()
             if (ret == 0) {
                 break;
             } else if (ret == -1) {
-                error("kevent returned %d, errno %d", ret, errno);
+                error("FileSystemWatcher::notifyReadyRead() kevent failed (%d) %s",
+                      errno, strerror(errno));
                 break;
             }
             assert(ret > 0 && ret <= MaxEvents);
             for (int i = 0; i < ret; ++i) {
                 const struct kevent& event = events[i];
                 const Path p = mWatchedById.value(event.ident);
+                if (event.flags & EV_ERROR) {
+                    error("FileSystemWatcher::notifyReadyRead() kevent element failed for '%s' (%ld) %s",
+                          p.constData(), event.data, strerror(event.data));
+                    continue;
+                }
                 if (p.isEmpty()) {
                     warning() << "FileSystemWatcher::notifyReadyRead() We don't seem to be watching " << p;
                     continue;
                 }
+
                 if (event.fflags & (NOTE_DELETE|NOTE_REVOKE|NOTE_RENAME)) {
                     const int wd = event.ident;
                     mWatchedById.remove(wd);
