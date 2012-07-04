@@ -2,6 +2,9 @@
 #include <sys/types.h>
 #include <dirent.h>
 #include <fcntl.h>
+#ifdef OS_FreeBSD
+#include <sys/sysctl.h>
+#endif
 
 namespace RTags {
 
@@ -238,6 +241,19 @@ void findApplicationDirPath(const char *argv0)
         if (p.resolve()) {
             sApplicationDirPath = p;
             return;
+        }
+    }
+#elif defined(OS_FreeBSD)
+    {
+        int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
+        char path[PATH_MAX];
+        size_t size = sizeof(path);
+        if (!sysctl(mib, 4, path, &size, 0, 0)) {
+            Path p(path, size);
+            if (p.resolve()) {
+                sApplicationDirPath = p;
+                return;
+            }
         }
     }
 #else
