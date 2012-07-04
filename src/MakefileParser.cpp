@@ -113,6 +113,7 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     }
 
     mProc->readyReadStdOut().connect(this, &MakefileParser::processMakeOutput);
+    mProc->readyReadStdErr().connect(this, &MakefileParser::processMakeError);
     mProc->finished().connect(this, &MakefileParser::onDone);
 
     mTracker->init(makefile.parentDir());
@@ -155,6 +156,12 @@ void MakefileParser::processMakeOutput()
         mData = mData.mid(nextNewline + 1);
         nextNewline = mData.indexOf('\n');
     }
+}
+
+void MakefileParser::processMakeError()
+{
+    assert(mProc);
+    error("got stderr from make: '%s'", mProc->readAllStdErr().nullTerminated());
 }
 
 void MakefileParser::processMakeLine(const ByteArray &line)

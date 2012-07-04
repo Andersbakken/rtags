@@ -31,6 +31,7 @@ public:
     int pchCount() const { return mPchCount; }
 private:
     void processMakeOutput();
+    void processMakeError();
     void processMakeLine(const ByteArray &line);
     void onDone();
 
