@@ -161,7 +161,7 @@ void FileSystemWatcher::notifyReadyRead()
         struct timespec nullts = { 0, 0 };
         int ret;
         for (;;) {
-            ret = ::kevent(mFd, 0, 0, events, 5, &nullts);
+            ret = ::kevent(mFd, 0, 0, events, MaxEvents, &nullts);
             if (ret == 0) {
                 break;
             } else if (ret == -1) {
