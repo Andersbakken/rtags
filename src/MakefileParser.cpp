@@ -136,7 +136,8 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     }
 
     unlink("/tmp/makelib.log");
-    mProc->start(MAKE, a, environment);
+    if (!mProc->start(MAKE, a, environment))
+        error() << "Process failed" << mProc->errorString();
 }
 
 bool MakefileParser::isDone() const

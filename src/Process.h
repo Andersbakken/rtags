@@ -15,9 +15,11 @@ public:
 
     void setCwd(const Path& cwd);
 
-    void start(const ByteArray& command, const List<ByteArray>& arguments);
-    void start(const ByteArray& command, const List<ByteArray>& arguments,
+    bool start(const ByteArray& command, const List<ByteArray>& arguments);
+    bool start(const ByteArray& command, const List<ByteArray>& arguments,
                const List<ByteArray>& environ);
+
+    ByteArray errorString() const { return mErrorString; }
 
     void write(const ByteArray& data);
     void closeStdIn();
@@ -61,6 +63,8 @@ private:
     int mStdInIndex, mStdOutIndex, mStdErrIndex;
 
     Path mCwd;
+
+    ByteArray mErrorString;
 
     signalslot::Signal0 mReadyReadStdOut, mReadyReadStdErr, mFinished;
 };

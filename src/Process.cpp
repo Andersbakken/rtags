@@ -34,10 +34,10 @@ void Process::setCwd(const Path& cwd)
     mCwd = cwd;
 }
 
-void Process::start(const ByteArray& command,
+bool Process::start(const ByteArray& command,
                     const List<ByteArray>& arguments)
 {
-    start(command, arguments, List<ByteArray>());
+    return start(command, arguments, List<ByteArray>());
 }
 
 Path Process::findCommand(const ByteArray& command)
@@ -58,13 +58,17 @@ Path Process::findCommand(const ByteArray& command)
     return Path();
 }
 
-void Process::start(const ByteArray& command,
+bool Process::start(const ByteArray& command,
                     const List<ByteArray>& arguments,
                     const List<ByteArray>& environ)
 {
+    mErrorString.clear();
+
     ByteArray cmd = findCommand(command);
-    if (cmd.isEmpty())
-        return;
+    if (cmd.isEmpty()) {
+        mErrorString = "Command not found";
+        return false;
+    }
 
     int err;
 
@@ -93,7 +97,7 @@ void Process::start(const ByteArray& command,
 
     mPid = ::fork();
     if (mPid == -1) {
-        printf("fork, something horrible has happened %d\n", errno);
+        //printf("fork, something horrible has happened %d\n", errno);
         // bail out
         eintrwrap(err, ::close(mStdIn[1]));
         eintrwrap(err, ::close(mStdIn[0]));
@@ -101,7 +105,8 @@ void Process::start(const ByteArray& command,
         eintrwrap(err, ::close(mStdOut[0]));
         eintrwrap(err, ::close(mStdErr[1]));
         eintrwrap(err, ::close(mStdErr[0]));
-        return;
+        mErrorString = "Fork failed";
+        return false;
     } else if (mPid == 0) {
         //printf("fork, in child\n");
         // child, should do some error checking here really
@@ -146,6 +151,7 @@ void Process::start(const ByteArray& command,
         EventLoop::instance()->addFileDescriptor(mStdOut[0], EventLoop::Read, processCallback, this);
         EventLoop::instance()->addFileDescriptor(mStdErr[0], EventLoop::Read, processCallback, this);
     }
+    return true;
 }
 
 void Process::write(const ByteArray& data)
