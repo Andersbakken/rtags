@@ -18,8 +18,12 @@ EventLoop::EventLoop()
 {
     if (!sInstance)
         sInstance = this;
-    int err;
-    eintrwrap(err, ::pipe2(mEventPipe, O_NONBLOCK));
+    int flg;
+    eintrwrap(flg, ::pipe(mEventPipe));
+    eintrwrap(flg, ::fcntl(mEventPipe[0], F_GETFL, 0));
+    eintrwrap(flg, ::fcntl(mEventPipe[0], F_SETFL, flg | O_NONBLOCK));
+    eintrwrap(flg, ::fcntl(mEventPipe[1], F_GETFL, 0));
+    eintrwrap(flg, ::fcntl(mEventPipe[1], F_SETFL, flg | O_NONBLOCK));
 }
 
 EventLoop::~EventLoop()
@@ -106,7 +110,12 @@ void EventLoop::postEvent(EventReceiver* receiver, Event* event)
 static inline bool gettime(timeval* time, int timeout)
 {
     timespec spec;
-    const int ret = ::clock_gettime(CLOCK_MONOTONIC_RAW, &spec);
+#if defined(OS_Linux)
+    const clockid_t cid = CLOCK_MONOTONIC_RAW;
+#elif defined(OS_FreeBSD)
+    const clockid_t cid = CLOCK_MONOTONIC;
+#endif
+    const int ret = ::clock_gettime(cid, &spec);
     if (ret == -1) {
         memset(time, 0, sizeof(timeval));
         return false;
