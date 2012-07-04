@@ -12,6 +12,8 @@ add_definitions(-DOS_${CMAKE_SYSTEM_NAME})
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
   set(system_LIBS rt)
+elseif(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+  add_definitions("-DMAKE=\"gmake\"")
 endif()
 
 include(rtags.cmake)
