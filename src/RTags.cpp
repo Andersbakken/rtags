@@ -251,7 +251,8 @@ void findApplicationDirPath(const char *argv0)
         if (!sysctl(mib, 4, path, &size, 0, 0)) {
             Path p(path, size);
             if (p.resolve()) {
-                sApplicationDirPath = p;
+                // ### bit of a hack
+                sApplicationDirPath = p.parentDir();
                 return;
             }
         }
