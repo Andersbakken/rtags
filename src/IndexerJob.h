@@ -2,8 +2,7 @@
 #define IndexerJob_h
 
 #include "Indexer.h"
-#include <RTags.h>
-#include "Rdm.h"
+#include "RTags.h"
 #include "Job.h"
 #include "Str.h"
 #include "ThreadPool.h"

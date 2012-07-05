@@ -1,5 +1,5 @@
 #include "Job.h"
-#include "Rdm.h"
+#include "RTags.h"
 #include "EventLoop.h"
 #include "Server.h"
 
@@ -60,7 +60,7 @@ bool Job::filter(const ByteArray &val) const
     if (mPathFilters.isEmpty() || (!mFilterSystemIncludes && Path::isSystem(val.constData()))) {
         return true;
     }
-    return Rdm::startsWith(mPathFilters, val);
+    return RTags::startsWith(mPathFilters, val);
 }
 void Job::run()
 {

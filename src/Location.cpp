@@ -20,16 +20,16 @@ ByteArray Location::key(unsigned flags) const
     int extra = 0;
     const int off = offset();
     int line = 0, col = 0;
-    if (flags & RTags::Padded) {
+    if (flags & Location::Padded) {
         extra = 7;
-    } else if (flags & RTags::ShowLineNumbers && convertOffset(line, col)) {
+    } else if (flags & Location::ShowLineNumbers && convertOffset(line, col)) {
         extra = RTags::digits(line) + RTags::digits(col) + 3;
     } else {
-        flags &= ~RTags::ShowLineNumbers;
+        flags &= ~Location::ShowLineNumbers;
         extra = RTags::digits(off) + 1;
     }
     ByteArray ctx;
-    if (flags & RTags::ShowContext) {
+    if (flags & Location::ShowContext) {
         ctx += '\t';
         ctx += context();
         extra += ctx.size();
@@ -39,10 +39,10 @@ ByteArray Location::key(unsigned flags) const
 
     ByteArray ret(p.size() + extra, '0');
 
-    if (flags & RTags::Padded) {
+    if (flags & Location::Padded) {
         snprintf(ret.data(), ret.size() + extra + 1, "%s,%06d%s", p.constData(),
                  off, ctx.constData());
-    } else if (flags & RTags::ShowLineNumbers) {
+    } else if (flags & Location::ShowLineNumbers) {
         snprintf(ret.data(), ret.size() + extra + 1, "%s:%d:%d:%s", p.constData(),
                  line, col, ctx.constData());
     } else {

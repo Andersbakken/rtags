@@ -4,7 +4,6 @@
 #include "ScopedDB.h"
 #include "Log.h"
 #include "RTags.h"
-#include "Rdm.h"
 
 ListSymbolsJob::ListSymbolsJob(int i, const QueryMessage &query)
     : Job(i, QueryJobPriority, query.flags() & QueryMessage::ElispList ? Job::QuoteOutput : Job::None),

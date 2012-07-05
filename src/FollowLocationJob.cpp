@@ -1,5 +1,5 @@
 #include "FollowLocationJob.h"
-#include "Rdm.h"
+#include "RTags.h"
 #include "ScopedDB.h"
 #include "Server.h"
 #include "leveldb/db.h"
@@ -17,7 +17,7 @@ FollowLocationJob::~FollowLocationJob()
 void FollowLocationJob::execute()
 {
     ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
-    CursorInfo cursorInfo = Rdm::findCursorInfo(db, location);
+    CursorInfo cursorInfo = RTags::findCursorInfo(db, location);
     if (isAborted())
         return;
     if (!cursorInfo.target.isNull()) {
@@ -28,9 +28,9 @@ void FollowLocationJob::execute()
         case CXCursor_Constructor:
             break;
         default: {
-            const CursorInfo target = Rdm::findCursorInfo(db, cursorInfo.target);
-            // error() << "cursorInfo is" << Rdm::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
-            //          << Rdm::eatString(clang_getCursorKindSpelling(target.kind));
+            const CursorInfo target = RTags::findCursorInfo(db, cursorInfo.target);
+            // error() << "cursorInfo is" << RTags::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
+            //          << RTags::eatString(clang_getCursorKindSpelling(target.kind));
             if (!target.isDefinition && !target.target.isNull()) {
                 write(target.target.key(flags));
                 return;

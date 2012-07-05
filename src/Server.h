@@ -9,9 +9,10 @@
 #include "Connection.h"
 #include "ThreadPool.h"
 #include "Job.h"
-#include "Rdm.h"
+#include "RTags.h"
 #include "ScopedDB.h"
 #include "EventReceiver.h"
+#include "MakefileInformation.h"
 
 class Connection;
 class Indexer;

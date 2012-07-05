@@ -1,11 +1,11 @@
 #include "StatusJob.h"
-#include "Database.h"
-#include "Server.h"
-#include "RTags.h"
-#include "Indexer.h"
-#include <clang-c/Index.h>
-#include <Rdm.h>
 #include "CursorInfo.h"
+#include "Database.h"
+#include "Indexer.h"
+#include "RTags.h"
+#include "Server.h"
+#include "FileInformation.h"
+#include <clang-c/Index.h>
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(int i, const ByteArray &q)
@@ -24,7 +24,7 @@ void StatusJob::execute()
         const Map<Path, MakefileInformation> makefiles = db->value<Map<Path, MakefileInformation> >("makefiles");
         for (Map<Path, MakefileInformation>::const_iterator it = makefiles.begin(); it != makefiles.end(); ++it) {
             ByteArray out = "    " + it->first;
-            out += " last touched: " + Rdm::timeToString(it->second.lastTouched);
+            out += " last touched: " + RTags::timeToString(it->second.lastTouched);
             if (!it->second.makefileArgs.isEmpty())
                 out += " args: " + ByteArray::join(it->second.makefileArgs, " ");
             if (!it->second.extraFlags.isEmpty())
@@ -135,7 +135,7 @@ void StatusJob::execute()
             const uint32_t fileId = *reinterpret_cast<const uint32_t*>(it->key().data());
             snprintf(buf, 1024, "  %s: last compiled: %s compile args: %s",
                      Location::path(fileId).constData(),
-                     Rdm::timeToString(fi.lastTouched).constData(),
+                     RTags::timeToString(fi.lastTouched).constData(),
                      ByteArray::join(fi.compileArgs, " ").constData());
             write(buf);
             it->next();

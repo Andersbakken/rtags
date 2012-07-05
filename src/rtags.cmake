@@ -44,7 +44,6 @@ set(rtags_HDRS
     Pch.h
     QueryMessage.h
     RTags.h
-    Rdm.h
     ReadLocker.h
     ReadWriteLock.h
     ReferencesJob.h
@@ -101,7 +100,6 @@ set(rtags_SRCS
     Path.cpp
     QueryMessage.cpp
     RTags.cpp
-    Rdm.cpp
     ReadWriteLock.cpp
     ReferencesJob.cpp
     RunTestJob.cpp

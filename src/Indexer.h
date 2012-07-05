@@ -1,11 +1,12 @@
 #ifndef INDEXER_H
 #define INDEXER_H
 
-#include "Rdm.h"
+#include "RTags.h"
 #include "CursorInfo.h"
 #include "EventReceiver.h"
 #include "ReadWriteLock.h"
 #include "FileSystemWatcher.h"
+#include "MutexLocker.h"
 #include <clang-c/Index.h>
 #include <Timer.h>
 

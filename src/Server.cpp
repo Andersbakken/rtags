@@ -1,7 +1,6 @@
 #include "Server.h"
 
 #include "Client.h"
-#include "ValidateDBJob.h"
 #include "Completions.h"
 #include "Connection.h"
 #include "CreateOutputMessage.h"
@@ -23,13 +22,14 @@
 #include "Messages.h"
 #include "Path.h"
 #include "QueryMessage.h"
-#include "Rdm.h"
+#include "RTags.h"
 #include "ReferencesJob.h"
 #include "RegExp.h"
 #include "RunTestJob.h"
 #include "SHA256.h"
 #include "StatusJob.h"
 #include "TestJob.h"
+#include "ValidateDBJob.h"
 #include "leveldb/cache.h"
 #include "leveldb/db.h"
 #include <Log.h>
@@ -144,9 +144,9 @@ bool Server::init(const Options &options)
         bool ok;
         const int version = general->value<int>("version", &ok);
         if (!ok) {
-            general->setValue<int>("version", Rdm::DatabaseVersion);
-        } else if (version != Rdm::DatabaseVersion) {
-            error("Wrong version, expected %d, got %d. Run with -C to regenerate database", Rdm::DatabaseVersion, version);
+            general->setValue<int>("version", RTags::DatabaseVersion);
+        } else if (version != RTags::DatabaseVersion) {
+            error("Wrong version, expected %d, got %d. Run with -C to regenerate database", RTags::DatabaseVersion, version);
             return false;
         }
         mMakefiles = general->value<Map<Path, MakefileInformation> >("makefiles");
@@ -177,7 +177,7 @@ bool Server::init(const Options &options)
     }
     mServer->clientConnected().connect(this, &Server::onNewConnection);
 
-    error() << "running with " << mOptions.defaultArguments << " clang version " << Rdm::eatString(clang_getClangVersion());
+    error() << "running with " << mOptions.defaultArguments << " clang version " << RTags::eatString(clang_getClangVersion());
 
     mIndexer = new Indexer(!(mOptions.options & NoValidateOnStartup));
     mIndexer->indexingDone().connect(this, &Server::onIndexingDone);
@@ -671,7 +671,7 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
     const int c = inputFiles.size();
     for (int i=0; i<c; ++i) {
         const Path &input = inputFiles.at(i);
-        if (arguments != Rdm::compileArgs(Location::insertFile(input))) {
+        if (arguments != RTags::compileArgs(Location::insertFile(input))) {
             mIndexer->index(input, arguments, IndexerJob::Makefile);
         } else {
             debug() << input << " is not dirty. ignoring";

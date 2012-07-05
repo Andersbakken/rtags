@@ -4,6 +4,7 @@
 #include "MemoryMonitor.h"
 #include "Server.h"
 #include "EventLoop.h"
+#include "FileInformation.h"
 
 static inline List<Path> extractPchFiles(const List<ByteArray> &args)
 {
@@ -216,7 +217,7 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
         unsigned start;
         clang_getSpellingLocation(location, &file, 0, 0, &start);
         if (file) {
-            ByteArray fileName = Rdm::eatString(clang_getFileName(file));
+            ByteArray fileName = RTags::eatString(clang_getFileName(file));
             uint32_t &fileId = mFileIds[fileName];
             if (!fileId)
                 fileId = Location::insertFile(fileName);
@@ -459,14 +460,14 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
     CursorInfo &info = mSymbols[cursor.location];
     if (!info.symbolLength) {
         if (mIsPch) {
-            const ByteArray usr = Rdm::eatString(clang_getCursorUSR(cursor.cursor));
+            const ByteArray usr = RTags::eatString(clang_getCursorUSR(cursor.cursor));
             if (!usr.isEmpty()) {
                 mPchUSRMap[usr] = cursor.location;
             }
         }
         info.isDefinition = clang_isCursorDefinition(cursor.cursor);
         info.kind = cursor.kind;
-        const bool isReference = Rdm::isReference(info.kind);
+        const bool isReference = RTags::isReference(info.kind);
 
         CXStringScope name = clang_getCursorSpelling(cursor.cursor);
         const char *cstr = clang_getCString(name.string);
@@ -550,7 +551,7 @@ void IndexerJob::run()
 void IndexerJob::execute()
 {
     Timer timer;
-    // while (!Rdm::waitForMemory(10000)) {
+    // while (!RTags::waitForMemory(10000)) {
     //     error("%s Waiting for rdm to shrink", mIn.constData());
     // }
     if (!mPchHeaders.isEmpty())
@@ -622,7 +623,7 @@ void IndexerJob::execute()
         fi.compileArgs = mArgs;
         fi.lastTouched = timeStamp;
 
-        Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
+        RTags::writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
         Map<Location, std::pair<int, ByteArray> > fixIts;
         Map<uint32_t, List<ByteArray> > visited;
@@ -651,7 +652,7 @@ void IndexerJob::execute()
 
             if (testLog(logLevel) || (logLevel >= Warning && testLog(CompilationError))) {
                 CXSourceLocation loc = clang_getDiagnosticLocation(diagnostic);
-                const ByteArray string = Rdm::eatString(clang_formatDiagnostic(diagnostic,
+                const ByteArray string = RTags::eatString(clang_formatDiagnostic(diagnostic,
                                                                                CXDiagnostic_DisplaySourceLocation|
                                                                                CXDiagnostic_DisplayColumn|
                                                                                CXDiagnostic_DisplaySourceRanges|
@@ -678,7 +679,7 @@ void IndexerJob::execute()
                 error("Fixit (%d/%d) for %s: [%s] %s-%d", f + 1, fixItCount, mIn.constData(),
                       clang_getCString(string), start.key().constData(), endOffset);
                 // ### can there be more than one fixit starting at the same location? Probably not.
-                fixIts[start] = std::pair<int, ByteArray>(endOffset - start.offset(), Rdm::eatString(string));
+                fixIts[start] = std::pair<int, ByteArray>(endOffset - start.offset(), RTags::eatString(string));
             }
 
             clang_disposeDiagnostic(diagnostic);
@@ -725,9 +726,9 @@ void IndexerJob::execute()
             assert(mDependencies[mFileId].contains(mFileId));
 
             mIndexer->setDiagnostics(visited, fixIts);
-            Rdm::writeSymbols(mSymbols, mReferences);
-            Rdm::writeSymbolNames(mSymbolNames);
-            Rdm::writeFileInformation(mFileId, mArgs, timeStamp);
+            RTags::writeSymbols(mSymbols, mReferences);
+            RTags::writeSymbolNames(mSymbolNames);
+            RTags::writeFileInformation(mFileId, mArgs, timeStamp);
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
         }

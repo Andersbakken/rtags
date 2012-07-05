@@ -1,17 +1,18 @@
+#include "Indexer.h"
+
 #include "Database.h"
 #include "DirtyJob.h"
-#include "Server.h"
-#include "Indexer.h"
+#include "FileInformation.h"
 #include "IndexerJob.h"
+#include "Log.h"
 #include "MemoryMonitor.h"
 #include "Path.h"
 #include "RTags.h"
-#include "Rdm.h"
-#include "SHA256.h"
 #include "ReadLocker.h"
 #include "RegExp.h"
+#include "SHA256.h"
+#include "Server.h"
 #include "WriteLocker.h"
-#include <Log.h>
 #include <math.h>
 
 Indexer::Indexer(bool validate)
@@ -108,7 +109,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
                 const FileInformation fi = it->value<FileInformation>();
                 if (!fi.compileArgs.isEmpty()) {
 #ifdef RTAGS_DEBUG
-                    if (path.isHeader() && !Rdm::isPch(fi.compileArgs)) {
+                    if (path.isHeader() && !RTags::isPch(fi.compileArgs)) {
                         error() << path << fi.compileArgs << fileId;
                         assert(0);
                     }
@@ -148,7 +149,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
                         }
                     }
                     if (dirty) {
-                        if (Rdm::isPch(fi.compileArgs)) {
+                        if (RTags::isPch(fi.compileArgs)) {
                             toIndexPch[path] = fi.compileArgs;
                         } else {
                             toIndex[path] = fi.compileArgs;
@@ -208,7 +209,7 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
         }
     }
     if (sync && !newDependencies.isEmpty())
-        Rdm::writeDependencies(newDependencies);
+        RTags::writeDependencies(newDependencies);
 
     Path parentPath;
     Set<ByteArray> watchPaths;
@@ -369,7 +370,7 @@ void Indexer::onDirectoryChanged(const Path &p)
             // weird API, Set<>::iterator does not allow for modifications to the referenced value
             file = (p + (*wit).first);
             warning() << "comparing " << file << " " << (file.lastModified() == (*wit).second)
-                      << " " << Rdm::timeToString(file.lastModified());
+                      << " " << RTags::timeToString(file.lastModified());
             if (!file.exists() || file.lastModified() != (*wit).second) {
                 warning() << file << " has changed";
                 const uint32_t fileId = Location::fileId(file);
@@ -397,7 +398,7 @@ void Indexer::onDirectoryChanged(const Path &p)
                         memcpy(buf, &pathId, 4);
                         const FileInformation fi = db->value<FileInformation>(Slice(buf, 4), &ok);
                         if (ok) {
-                            if (Rdm::isPch(fi.compileArgs)) {
+                            if (RTags::isPch(fi.compileArgs)) {
                                 toIndexPch[path] = fi.compileArgs;
                             } else {
                                 toIndex[path] = fi.compileArgs;
@@ -436,7 +437,7 @@ void Indexer::setPchDependencies(const Path &pchHeader, const Set<uint32_t> &dep
     } else {
         mPchDependencies[pchHeader] = deps;
     }
-    Rdm::writePchDepencies(mPchDependencies);
+    RTags::writePchDepencies(mPchDependencies);
 }
 
 Set<uint32_t> Indexer::pchDependencies(const Path &pchHeader) const
@@ -482,7 +483,7 @@ void Indexer::setPchUSRMap(const Path &pch, const PchUSRMap &astMap)
 {
     WriteLocker lock(&mPchUSRMapLock);
     mPchUSRMaps[pch] = astMap;
-    Rdm::writePchUSRMaps(mPchUSRMaps);
+    RTags::writePchUSRMaps(mPchUSRMaps);
 }
 bool Indexer::needsToWaitForPch(IndexerJob *job) const
 {

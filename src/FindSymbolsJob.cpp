@@ -3,7 +3,6 @@
 #include "Server.h"
 #include "Log.h"
 #include "RTags.h"
-#include "Rdm.h"
 
 static inline unsigned jobFlags(unsigned queryFlags)
 {

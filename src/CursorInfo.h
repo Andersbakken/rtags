@@ -4,9 +4,8 @@
 #include <ByteArray.h>
 #include <clang-c/Index.h>
 #include <Path.h>
-#include <RTags.h>
+#include "RTags.h"
 #include "Location.h"
-#include "Rdm.h"
 
 class CursorInfo
 {

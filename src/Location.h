@@ -143,7 +143,14 @@ public:
     ByteArray context() const;
     bool convertOffset(int &line, int &col) const;
 
-    ByteArray key(unsigned flags = 0) const;
+    enum KeyFlag {
+        NoFlag = 0x0,
+        Padded = 0x1,
+        ShowContext = 0x2,
+        ShowLineNumbers = 0x4
+    };
+
+    ByteArray key(unsigned flags = NoFlag) const;
     bool toKey(char buf[8]) const
     {
         if (isNull()) {

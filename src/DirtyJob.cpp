@@ -1,8 +1,7 @@
 #include "DirtyJob.h"
-#include "Server.h"
-#include "Rdm.h"
-#include "RTags.h"
 #include "Database.h"
+#include "RTags.h"
+#include "Server.h"
 
 DirtyJob::DirtyJob(const Set<uint32_t> &dirtyFileIds)
     : mDirtyFileIds(dirtyFileIds),

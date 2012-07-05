@@ -1,7 +1,7 @@
 #include "Database.h"
 #include "ReferencesJob.h"
 #include "Server.h"
-#include "Rdm.h"
+#include "RTags.h"
 #include "CursorInfo.h"
 
 ReferencesJob::ReferencesJob(int i, const Location &loc, unsigned fl)
@@ -36,14 +36,14 @@ void ReferencesJob::execute()
 
         const Location &location = *it;
         Location realLoc;
-        CursorInfo cursorInfo = Rdm::findCursorInfo(db, location, &realLoc);
-        if (Rdm::isReference(cursorInfo.kind)) {
+        CursorInfo cursorInfo = RTags::findCursorInfo(db, location, &realLoc);
+        if (RTags::isReference(cursorInfo.kind)) {
             if (excludeDefsAndDecls) {
                 filtered.insert(cursorInfo.target);
             } else {
                 refs.insert(cursorInfo.target);
             }
-            cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
+            cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
         } else {
             if (excludeDefsAndDecls) {
                 filtered.insert(realLoc);
@@ -67,7 +67,7 @@ void ReferencesJob::execute()
                 }
             }
             if (cursorInfo.target.isValid() && cursorInfo.kind != CXCursor_VarDecl) {
-                cursorInfo = Rdm::findCursorInfo(db, cursorInfo.target);
+                cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
                 for (Set<Location>::const_iterator it = cursorInfo.references.begin(); it != cursorInfo.references.end(); ++it) {
                     const Location &l = *it;
                     if ((!fileFilterId || l.fileId() == fileFilterId) && (!excludeDefsAndDecls || !filtered.contains(l))) {

@@ -1,11 +1,11 @@
 #include "MakefileParser.h"
-#include <Log.h>
-#include <List.h>
-#include <stdio.h>
-#include <RegExp.h>
-#include <RTags.h>
-#include "Rdm.h"
+
+#include "List.h"
+#include "Log.h"
 #include "Process.h"
+#include "RTags.h"
+#include "RegExp.h"
+#include <stdio.h>
 
 #ifndef MAKE
 #define MAKE "make"

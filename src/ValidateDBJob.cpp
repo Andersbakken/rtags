@@ -1,11 +1,10 @@
 #include "ValidateDBJob.h"
-#include "Database.h"
-#include "Server.h"
-#include "RTags.h"
-#include "Indexer.h"
-#include <clang-c/Index.h>
-#include <Rdm.h>
 #include "CursorInfo.h"
+#include "Database.h"
+#include "Indexer.h"
+#include "RTags.h"
+#include "Server.h"
+#include <clang-c/Index.h>
 
 ValidateDBJob::ValidateDBJob()
     : Job(-1, ValidateDBJobPriority, 0)
@@ -29,7 +28,7 @@ void ValidateDBJob::execute()
             Log stream(Error);
             stream << "Invalid entry for " << loc
                    << " symbolName: " << ci.symbolName
-                   << " kind: " << Rdm::eatString(clang_getCursorKindSpelling(ci.kind))
+                   << " kind: " << RTags::eatString(clang_getCursorKindSpelling(ci.kind))
                    << " isDefinition: " << (ci.isDefinition ? "true" : "false")
                    << " target: " << ci.target
                    << " references:";

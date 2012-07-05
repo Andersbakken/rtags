@@ -26,11 +26,11 @@ void QueryMessage::fromData(const char *data, int size)
 
 unsigned QueryMessage::keyFlags(unsigned queryFlags)
 {
-    unsigned ret = RTags::NoFlag;
+    unsigned ret = Location::NoFlag;
     if (!(queryFlags & QueryMessage::NoContext))
-        ret |= RTags::ShowContext;
+        ret |= Location::ShowContext;
     if (queryFlags & QueryMessage::LineNumbers)
-        ret |= RTags::ShowLineNumbers;
+        ret |= Location::ShowLineNumbers;
     return ret;
 }
 
