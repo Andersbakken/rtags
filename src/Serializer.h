@@ -94,6 +94,9 @@ DECLARE_NATIVE_TYPE(uint32_t);
 DECLARE_NATIVE_TYPE(int32_t);
 DECLARE_NATIVE_TYPE(uint64_t);
 DECLARE_NATIVE_TYPE(int64_t);
+#ifdef OS_Darwin
+DECLARE_NATIVE_TYPE(long);
+#endif
 #ifndef __x86_64__
 DECLARE_NATIVE_TYPE(time_t);
 #endif
