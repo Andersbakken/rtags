@@ -9,6 +9,38 @@
 #include <stdio.h>
 #include <assert.h>
 #include <getopt.h>
+#include "Location.h"
+
+#define eintrwrap(VAR, BLOCK)                  \
+    do {                                       \
+        VAR = BLOCK;                           \
+    } while (VAR == -1 && errno == EINTR)
+
+class CursorInfo;
+class CXStringScope
+{
+public:
+    CXStringScope(CXString str)
+        : string(str)
+    {
+    }
+
+    ~CXStringScope()
+    {
+        clang_disposeString(string);
+    }
+    CXString string;
+};
+
+static inline bool match(uint32_t fileId, const Location &loc)
+{
+    return loc.fileId() == fileId;
+}
+
+static inline bool match(const Set<uint32_t> &fileIds, const Location &loc)
+{
+    return fileIds.contains(loc.fileId());
+}
 
 namespace RTags {
 enum UnitType { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };

@@ -13,37 +13,6 @@
 #include "ResponseMessage.h"
 #include "CursorInfo.h"
 
-#define eintrwrap(VAR, BLOCK)                  \
-    do {                                       \
-        VAR = BLOCK;                           \
-    } while (VAR == -1 && errno == EINTR)
-
-class CursorInfo;
-class CXStringScope
-{
-public:
-    CXStringScope(CXString str)
-        : string(str)
-    {
-    }
-
-    ~CXStringScope()
-    {
-        clang_disposeString(string);
-    }
-    CXString string;
-};
-
-static inline bool match(uint32_t fileId, const Location &loc)
-{
-    return loc.fileId() == fileId;
-}
-
-static inline bool match(const Set<uint32_t> &fileIds, const Location &loc)
-{
-    return fileIds.contains(loc.fileId());
-}
-
 struct FileInformation {
     FileInformation(time_t lt = 0, const List<ByteArray> &args = List<ByteArray>())
         : lastTouched(lt), compileArgs(args)
