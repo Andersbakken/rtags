@@ -5,6 +5,78 @@
 #include "Server.h"
 #include "EventLoop.h"
 #include "FileInformation.h"
+#include "Database.h"
+
+static inline int writeSymbolNames(SymbolNameMap &symbolNames)
+{
+    Timer timer;
+    ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Write);
+
+    Batch batch(db);
+    int totalWritten = 0;
+
+    SymbolNameMap::iterator it = symbolNames.begin();
+    const SymbolNameMap::const_iterator end = symbolNames.end();
+    while (it != end) {
+        const char *key = it->first.constData();
+        const Set<Location> added = it->second;
+        bool ok;
+        Set<Location> current = db->value<Set<Location> >(key, &ok);
+        if (!ok) {
+            totalWritten += batch.add(key, added);
+        } else if (RTags::addTo(current, added)) {
+            totalWritten += batch.add(key, current);
+        }
+        ++it;
+    }
+
+    return totalWritten;
+}
+
+
+static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &references)
+{
+    Timer timer;
+    ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Write);
+    Batch batch(db);
+    int totalWritten = 0;
+
+    if (!references.isEmpty()) {
+        const ReferenceMap::const_iterator end = references.end();
+        for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
+            CursorInfo &ci = symbols[it->second.first];
+            ci.references.insert(it->first);
+            if (it->second.second != RTags::NormalReference) {
+                CursorInfo &other = symbols[it->first];
+                // error() << "trying to join" << it->first << "and" << it->second.front();
+                if (other.target.isNull())
+                    other.target = it->second.first;
+                if (ci.target.isNull())
+                    ci.target = it->first;
+            }
+        }
+    }
+    if (!symbols.isEmpty()) {
+        SymbolMap::iterator it = symbols.begin();
+        const SymbolMap::const_iterator end = symbols.end();
+        while (it != end) {
+            char buf[8];
+            it->first.toKey(buf);
+            const Slice key(buf, 8);
+            CursorInfo added = it->second;
+            bool ok;
+            CursorInfo current = db->value<CursorInfo>(key, &ok);
+            if (!ok) {
+                totalWritten += batch.add(key, added);
+            } else if (current.unite(added)) {
+                totalWritten += batch.add(key, current);
+            }
+            ++it;
+        }
+    }
+    return totalWritten;
+}
+
 
 static inline List<Path> extractPchFiles(const List<ByteArray> &args)
 {
@@ -25,6 +97,19 @@ static inline List<Path> extractPchFiles(const List<ByteArray> &args)
     }
     return out;
 }
+
+static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t lastTouched)
+{
+    Timer timer;
+    ScopedDB db = Server::instance()->db(Server::FileInformation, ReadWriteLock::Write);
+    if (Location::path(fileId).isHeader() && !RTags::isPch(args)) {
+        error() << "Somehow we're writing fileInformation for a header that isn't pch"
+                << Location::path(fileId) << args << lastTouched;
+    }
+    const char *ch = reinterpret_cast<const char*>(&fileId);
+    return db->setValue(Slice(ch, sizeof(fileId)), FileInformation(lastTouched, args));
+}
+
 
 IndexerJob::IndexerJob(Indexer *indexer, int id, unsigned flags,
                        const Path &input, const List<ByteArray> &arguments)
@@ -623,7 +708,7 @@ void IndexerJob::execute()
         fi.compileArgs = mArgs;
         fi.lastTouched = timeStamp;
 
-        RTags::writeFileInformation(mFileId, mArgs, timeStamp);
+        writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
         Map<Location, std::pair<int, ByteArray> > fixIts;
         Map<uint32_t, List<ByteArray> > visited;
@@ -726,9 +811,9 @@ void IndexerJob::execute()
             assert(mDependencies[mFileId].contains(mFileId));
 
             mIndexer->setDiagnostics(visited, fixIts);
-            RTags::writeSymbols(mSymbols, mReferences);
-            RTags::writeSymbolNames(mSymbolNames);
-            RTags::writeFileInformation(mFileId, mArgs, timeStamp);
+            writeSymbols(mSymbols, mReferences);
+            writeSymbolNames(mSymbolNames);
+            writeFileInformation(mFileId, mArgs, timeStamp);
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
         }

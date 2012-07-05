@@ -208,8 +208,25 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
             mDependencies[it->first].unite(it->second);
         }
     }
-    if (sync && !newDependencies.isEmpty())
-        RTags::writeDependencies(newDependencies);
+    if (sync && !newDependencies.isEmpty()) {
+        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Write);
+
+        Batch batch(db);
+        DependencyMap::const_iterator it = newDependencies.begin();
+        const DependencyMap::const_iterator end = newDependencies.end();
+        char buf[4];
+        const Slice key(buf, 4);
+        while (it != end) {
+            memcpy(buf, &it->first, sizeof(buf));
+            Set<uint32_t> added = it->second;
+            Set<uint32_t> current = db->value<Set<uint32_t> >(key);
+            const int oldSize = current.size();
+            if (current.unite(added).size() > oldSize) {
+                batch.add(key, current);
+            }
+            ++it;
+        }
+    }
 
     Path parentPath;
     Set<ByteArray> watchPaths;
@@ -437,7 +454,8 @@ void Indexer::setPchDependencies(const Path &pchHeader, const Set<uint32_t> &dep
     } else {
         mPchDependencies[pchHeader] = deps;
     }
-    RTags::writePchDepencies(mPchDependencies);
+    ScopedDB db = Server::instance()->db(Server::General, ReadWriteLock::Write);
+    db->setValue("pchDependencies", mPchDependencies);
 }
 
 Set<uint32_t> Indexer::pchDependencies(const Path &pchHeader) const
@@ -483,8 +501,13 @@ void Indexer::setPchUSRMap(const Path &pch, const PchUSRMap &astMap)
 {
     WriteLocker lock(&mPchUSRMapLock);
     mPchUSRMaps[pch] = astMap;
-    RTags::writePchUSRMaps(mPchUSRMaps);
+    ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Write);
+    Batch batch(db);
+    for (Map<Path, PchUSRMap>::const_iterator it = mPchUSRMaps.begin(); it != mPchUSRMaps.end(); ++it) {
+        batch.add(it->first, it->second);
+    }
 }
+
 bool Indexer::needsToWaitForPch(IndexerJob *job) const
 {
     for (List<Path>::const_iterator it = job->mPchHeaders.begin(); it != job->mPchHeaders.end(); ++it) {

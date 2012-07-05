@@ -1,19 +1,18 @@
 #ifndef RTags_h
 #define RTags_h
 
-#include <typeinfo>
-#include <ByteArray.h>
-#include <Path.h>
-#include <Log.h>
-#include <memory>
-#include <stdio.h>
+#include "ByteArray.h"
+#include "CursorInfo.h"
+#include "Location.h"
+#include "Log.h"
+#include "Path.h"
 #include <assert.h>
 #include <getopt.h>
-#include "Location.h"
-
+#include <memory>
+#include <stdio.h>
+#include <typeinfo>
 
 class Database;
-class CursorInfo;
 namespace RTags {
 
 enum { DatabaseVersion = 13 };
@@ -97,13 +96,6 @@ static inline bool addTo(Container &container, const Value &value)
 }
 
 CursorInfo findCursorInfo(Database *db, const Location &key, Location *loc = 0);
-int writeSymbolNames(SymbolNameMap &symbolNames);
-int writeDependencies(const DependencyMap &dependencies);
-int writePchDepencies(const Map<Path, Set<uint32_t> > &pchDependencies);
-int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t lastTouched);
-int writePchUSRMaps(const Map<Path, PchUSRMap> &maps);
-int writeSymbols(SymbolMap &symbols, const ReferenceMap &references);
-
 List<ByteArray> compileArgs(uint32_t fileId);
 // the symbols will be modified before writing and we don't want to detach so we
 // work on a non-const reference

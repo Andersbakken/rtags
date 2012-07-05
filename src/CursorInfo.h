@@ -1,11 +1,10 @@
 #ifndef CursorInfo_h
 #define CursorInfo_h
 
-#include <ByteArray.h>
-#include <clang-c/Index.h>
-#include <Path.h>
-#include "RTags.h"
+#include "ByteArray.h"
 #include "Location.h"
+#include "Path.h"
+#include <clang-c/Index.h>
 
 class CursorInfo
 {

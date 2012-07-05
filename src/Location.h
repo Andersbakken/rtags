@@ -1,16 +1,16 @@
 #ifndef Location_h
 #define Location_h
 
-#include <ByteArray.h>
-#include <Path.h>
-#include <Log.h>
-#include <stdio.h>
-#include <assert.h>
-#include "ReadWriteLock.h"
+#include "ByteArray.h"
+#include "Log.h"
+#include "Path.h"
 #include "ReadLocker.h"
+#include "ReadWriteLock.h"
+#include "Serializer.h"
 #include "WriteLocker.h"
+#include <assert.h>
 #include <clang-c/Index.h>
-#include <Serializer.h>
+#include <stdio.h>
 
 class Location
 {

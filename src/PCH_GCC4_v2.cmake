@@ -49,6 +49,7 @@ MACRO (ADD_PCH_RULE _header_filename _src_list _cflag_list)
     COMMAND ${CMAKE_CXX_COMPILER} ${CMAKE_CXX_COMPILER_ARG1} -x c++-header ${_args}
     DEPENDS ${_header_filename}
             ByteArray.h
+            CursorInfo.h
             List.h
             Location.h
             Log.h
