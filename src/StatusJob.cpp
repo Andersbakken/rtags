@@ -38,6 +38,7 @@ void StatusJob::execute()
         write(delimiter);
         write(Server::databaseDir(Server::Dependency));
         RTags::Ptr<Iterator> it(db->createIterator());
+        Map<uint32_t, Set<uint32_t> > depsReversed;
         it->seekToFirst();
         char buf[1024];
         while (it->isValid()) {
@@ -50,9 +51,21 @@ void StatusJob::execute()
             for (Set<uint32_t>::const_iterator dit = deps.begin(); dit != deps.end(); ++dit) {
                 snprintf(buf, sizeof(buf), "    %s (%d)", Location::path(*dit).constData(), *dit);
                 write(buf);
+                depsReversed[*dit].insert(key);
             }
             it->next();
         }
+        for (Map<uint32_t, Set<uint32_t> >::const_iterator it = depsReversed.begin(); it != depsReversed.end(); ++it) {
+            snprintf(buf, sizeof(buf), "  %s (%d) depends on", Location::path(it->first).constData(), it->first);
+            write(buf);
+            const Set<uint32_t> &deps = it->second;
+            for (Set<uint32_t>::const_iterator dit = deps.begin(); dit != deps.end(); ++dit) {
+                snprintf(buf, sizeof(buf), "    %s (%d)", Location::path(*dit).constData(), *dit);
+                write(buf);
+            }
+        }
+
+
     }
 
     if (query.isEmpty() || query == "symbols") {
