@@ -12,7 +12,7 @@ public:
 
     bool contains(const T &t) const
     {
-        return find(t) != std::set<T>::end();
+        return std::set<T>::find(t) != std::set<T>::end();
     }
 
     bool isEmpty() const
@@ -22,7 +22,7 @@ public:
 
     bool remove(const T &t)
     {
-        typename std::set<T>::iterator it = find(t);
+        typename std::set<T>::iterator it = std::set<T>::find(t);
         if (it != std::set<T>::end()) {
             erase(it);
             return true;

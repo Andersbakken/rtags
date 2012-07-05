@@ -24,14 +24,14 @@ public:
 
     void append(const T &t)
     {
-        push_back(t);
+        std::vector<T>::push_back(t);
     }
 
     void append(const List<T> &t)
     {
         const int size = t.size();
         for (int i=0; i<size; ++i)
-            append(t.at(i));
+            std::vector<T>::append(t.at(i));
     }
 
     int size() const

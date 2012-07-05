@@ -12,7 +12,7 @@ public:
 
     bool contains(const Key &t) const
     {
-        return find(t) != std::map<Key, Value>::end();
+        return std::map<Key, Value>::find(t) != std::map<Key, Value>::end();
     }
 
     bool isEmpty() const
@@ -22,7 +22,7 @@ public:
 
     Value value(const Key &key, const Value &defaultValue = Value()) const
     {
-        typename std::map<Key, Value>::const_iterator it = find(key);
+        typename std::map<Key, Value>::const_iterator it = std::map<Key, Value>::find(key);
         if (it == std::map<Key, Value>::end()) {
             return defaultValue;
         }
@@ -31,7 +31,7 @@ public:
 
     bool remove(const Key &t, Value *value = 0)
     {
-        typename std::map<Key, Value>::iterator it = find(t);
+        typename std::map<Key, Value>::iterator it = std::map<Key, Value>::find(t);
         if (it != std::map<Key, Value>::end()) {
             if (value)
                 *value = it->second;
