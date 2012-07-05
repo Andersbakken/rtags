@@ -63,6 +63,7 @@ set(rtags_HDRS
     TestJob.h
     Thread.h
     ThreadPool.h
+    ThreadLocal.h
     WaitCondition.h
     WriteLocker.h
     EventLoop.h
