@@ -493,22 +493,22 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
 
     if (refOk) {
         info.target = ref.location;
-        Rdm::ReferenceType referenceType = Rdm::NormalReference;
+        RTags::ReferenceType referenceType = RTags::NormalReference;
         if (ref.kind == cursor.kind) {
             switch (ref.kind) {
             case CXCursor_Constructor:
             case CXCursor_Destructor:
             case CXCursor_CXXMethod:
-                referenceType = Rdm::MemberFunction;
+                referenceType = RTags::MemberFunction;
                 break;
             case CXCursor_FunctionDecl:
-                referenceType = Rdm::GlobalFunction;
+                referenceType = RTags::GlobalFunction;
                 break;
             default:
                 break;
             }
         }
-        mReferences[cursor.location] = std::pair<Location, Rdm::ReferenceType>(ref.location, referenceType);
+        mReferences[cursor.location] = std::pair<Location, RTags::ReferenceType>(ref.location, referenceType);
     }
     return CXChildVisit_Recurse;
 }

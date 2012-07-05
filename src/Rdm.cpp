@@ -175,7 +175,7 @@ int writeSymbols(SymbolMap &symbols, const ReferenceMap &references)
         for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
             CursorInfo &ci = symbols[it->second.first];
             ci.references.insert(it->first);
-            if (it->second.second != Rdm::NormalReference) {
+            if (it->second.second != RTags::NormalReference) {
                 CursorInfo &other = symbols[it->first];
                 // error() << "trying to join" << it->first << "and" << it->second.front();
                 if (other.target.isNull())

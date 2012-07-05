@@ -11,39 +11,20 @@
 #include <getopt.h>
 #include "Location.h"
 
-#define eintrwrap(VAR, BLOCK)                  \
-    do {                                       \
-        VAR = BLOCK;                           \
-    } while (VAR == -1 && errno == EINTR)
-
-class CursorInfo;
-class CXStringScope
+namespace RTags
 {
-public:
-    CXStringScope(CXString str)
-        : string(str)
-    {
-    }
-
-    ~CXStringScope()
-    {
-        clang_disposeString(string);
-    }
-    CXString string;
+enum ReferenceType {
+    NormalReference,
+    MemberFunction,
+    GlobalFunction
 };
 
-static inline bool match(uint32_t fileId, const Location &loc)
-{
-    return loc.fileId() == fileId;
-}
-
-static inline bool match(const Set<uint32_t> &fileIds, const Location &loc)
-{
-    return fileIds.contains(loc.fileId());
-}
-
-namespace RTags {
-enum UnitType { CompileC, CompileCPlusPlus, PchC, PchCPlusPlus };
+enum UnitType {
+    CompileC,
+    CompileCPlusPlus,
+    PchC,
+    PchCPlusPlus
+};
 
 static inline Path rtagsDir() {
     char buf[128];
@@ -87,5 +68,48 @@ bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs);
 void findApplicationDirPath(const char *argv0);
 Path applicationDirPath();
 }
+
+class FileInformation;
+class CursorInfo;
+typedef Map<Location, CursorInfo> SymbolMap;
+typedef Map<Location, std::pair<Location, RTags::ReferenceType> > ReferenceMap;
+typedef Map<ByteArray, Set<Location> > SymbolNameMap;
+typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
+typedef std::pair<ByteArray, time_t> WatchedPair;
+typedef Map<ByteArray, Location> PchUSRMap;
+typedef Map<Path, Set<WatchedPair> > WatchedMap;
+typedef Map<uint32_t, FileInformation> InformationMap;
+
+#define eintrwrap(VAR, BLOCK)                  \
+    do {                                       \
+        VAR = BLOCK;                           \
+    } while (VAR == -1 && errno == EINTR)
+
+class CursorInfo;
+class CXStringScope
+{
+public:
+    CXStringScope(CXString str)
+        : string(str)
+    {
+    }
+
+    ~CXStringScope()
+    {
+        clang_disposeString(string);
+    }
+    CXString string;
+};
+
+static inline bool match(uint32_t fileId, const Location &loc)
+{
+    return loc.fileId() == fileId;
+}
+
+static inline bool match(const Set<uint32_t> &fileIds, const Location &loc)
+{
+    return fileIds.contains(loc.fileId());
+}
+
 
 #endif

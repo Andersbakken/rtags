@@ -12,27 +12,7 @@
 #include "Log.h"
 #include "ResponseMessage.h"
 #include "CursorInfo.h"
-
-struct FileInformation {
-    FileInformation(time_t lt = 0, const List<ByteArray> &args = List<ByteArray>())
-        : lastTouched(lt), compileArgs(args)
-    {}
-
-    time_t lastTouched;
-    List<ByteArray> compileArgs;
-};
-
-static inline Serializer &operator<<(Serializer &s, const FileInformation &ci)
-{
-    s << ci.lastTouched << ci.compileArgs;
-    return s;
-}
-
-static inline Deserializer &operator>>(Deserializer &ds, FileInformation &ci)
-{
-    ds >> ci.lastTouched >> ci.compileArgs;
-    return ds;
-}
+#include "FileInformation.h"
 
 struct MakefileInformation {
     MakefileInformation(time_t lt = 0,
@@ -60,23 +40,9 @@ static inline Deserializer &operator>>(Deserializer &s, MakefileInformation &mi)
 namespace Rdm {
 enum { DatabaseVersion = 13 };
 
-enum ReferenceType {
-    NormalReference,
-    MemberFunction,
-    GlobalFunction
-};
 }
 
 class Database;
-typedef Map<Location, CursorInfo> SymbolMap;
-typedef Map<Location, std::pair<Location, Rdm::ReferenceType> > ReferenceMap;
-typedef Map<ByteArray, Set<Location> > SymbolNameMap;
-typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
-typedef std::pair<ByteArray, time_t> WatchedPair;
-typedef Map<ByteArray, Location> PchUSRMap;
-typedef Map<Path, Set<WatchedPair> > WatchedMap;
-typedef Map<uint32_t, FileInformation> InformationMap;
-
 namespace Rdm {
 static inline ByteArray timeToString(time_t t)
 {
