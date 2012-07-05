@@ -25,7 +25,7 @@ private:
     Map<int, Path> mWatchedById;
     signalslot::Signal1<const Path&> mRemoved, mModified;
 
-#if !defined(OS_Linux) && !defined(OS_FreeBSD)
+#if !defined(OS_Linux) && !defined(OS_FreeBSD) && !defined(OS_Darwin)
 #error "FileSystemWatcher not implemented on this platform"
 #endif
 };

@@ -3,6 +3,7 @@
 #include "EventReceiver.h"
 #include "MutexLocker.h"
 #include "Rdm.h"
+#include "ThreadLocal.h"
 #include <unistd.h>
 #include <errno.h>
 #include <sys/select.h>
@@ -10,6 +11,20 @@
 #include <time.h>
 #include <fcntl.h>
 #include <algorithm>
+
+#ifdef OS_Darwin
+#include <mach/mach.h>
+#include <mach/mach_time.h>
+
+static pthread_once_t sEventLoopInit = PTHREAD_ONCE_INIT;
+static ThreadLocal<mach_timebase_info_data_t>* sTimebaseInfo;
+
+static void initTimebaseInfo()
+{
+    // static leak
+    sTimebaseInfo = new ThreadLocal<mach_timebase_info_data_t>();
+}
+#endif
 
 EventLoop* EventLoop::sInstance = 0;
 
@@ -109,6 +124,17 @@ void EventLoop::postEvent(EventReceiver* receiver, Event* event)
 
 static inline bool gettime(timeval* time, int timeout)
 {
+#ifdef OS_Darwin
+    pthread_once(&sEventLoopInit, initTimebaseInfo);
+
+    mach_timebase_info_data_t& info = sTimebaseInfo->get();
+    uint64_t machtime = mach_absolute_time();
+    if (info.denom == 0)
+        (void)mach_timebase_info(&info);
+    machtime = machtime * info.numer / (info.denom * 1000); // microseconds
+    time->tv_sec = machtime / 1000000;
+    time->tv_usec = machtime % 1000000;
+#else
     timespec spec;
 #if defined(OS_Linux)
     const clockid_t cid = CLOCK_MONOTONIC_RAW;
@@ -130,6 +156,7 @@ static inline bool gettime(timeval* time, int timeout)
             time->tv_usec -= MAX_USEC;
         }
     }
+#endif
     return true;
 }
 

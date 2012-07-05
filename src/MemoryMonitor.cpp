@@ -63,7 +63,7 @@ static inline uint64_t usageFreeBSD()
 #warning "implement me"
     return 0;
 }
-#elif defined(OS_Mac)
+#elif defined(OS_Darwin)
 static inline uint64_t usageOSX()
 {
 #warning "implement me"
@@ -77,7 +77,7 @@ uint64_t MemoryMonitor::usage()
     return usageLinux();
 #elif defined(OS_FreeBSD)
     return usageFreeBSD();
-#elif defined(OS_Mac)
+#elif defined(OS_Darwin)
     return usageOSX();
 #else
 #error "MemoryMonitor does not support this system"

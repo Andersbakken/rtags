@@ -8,6 +8,9 @@
 #   include <sys/sysctl.h>
 #elif defined (OS_Linux)
 #   include <unistd.h>
+#elif defined (OS_Darwin)
+#   include <sys/param.h>
+#   include <sys/sysctl.h>
 #endif
 
 ThreadPool* ThreadPool::sGlobalInstance = 0;
@@ -149,6 +152,16 @@ int ThreadPool::idealThreadCount()
     return cores;
 #elif defined (OS_Linux)
     return (int)sysconf(_SC_NPROCESSORS_ONLN);
+#elif defined (OS_Darwin)
+    int cores;
+    size_t len = sizeof(cores);
+    int mib[2] = { CTL_HW, HW_AVAILCPU };
+    if (sysctl(mib, 2, &cores, &len, NULL, 0)) {
+        mib[1] = HW_NCPU;
+        if (sysctl(mib, 2, &cores, &len, NULL, 0))
+            return 1;
+    }
+    return cores;
 #else
 #   warning idealthreadcount not implemented on this platform
     return 1;

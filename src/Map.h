@@ -35,7 +35,7 @@ public:
         if (it != std::map<Key, Value>::end()) {
             if (value)
                 *value = it->second;
-            erase(it);
+            std::map<Key, Value>::erase(it);
             return true;
         }
         return false;
@@ -55,7 +55,7 @@ public:
     {
         typename std::map<Key, Value>::iterator it = other.begin();
         while (it != other.end()) {
-            erase(*it);
+            std::map<Key, Value>::erase(*it);
             ++it;
         }
         return *this;

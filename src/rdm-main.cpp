@@ -14,9 +14,6 @@
 #include <execinfo.h>
 #include <cxxabi.h>
 #endif
-#ifdef OS_Mac
-#include <mach-o/dyld.h>
-#endif
 
 void signalHandler(int signal)
 {

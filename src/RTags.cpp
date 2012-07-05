@@ -5,6 +5,9 @@
 #ifdef OS_FreeBSD
 #include <sys/sysctl.h>
 #endif
+#ifdef OS_Darwin
+#include <mach-o/dyld.h>
+#endif
 
 namespace RTags {
 
@@ -233,14 +236,18 @@ void findApplicationDirPath(const char *argv0)
         sApplicationDirPath = p;
         return;
     }
-#elif defined(OS_Mac)
-    char path[PATH_MAX];
-    uint32_t size = sizeof(path);
-    if (_NSGetExecutablePath(path, &size) == 0) {
-        Path p(path, size);
-        if (p.resolve()) {
-            sApplicationDirPath = p;
-            return;
+#elif defined(OS_Darwin)
+    {
+        char path[PATH_MAX];
+        uint32_t size = sizeof(path);
+        if (_NSGetExecutablePath(path, &size) == 0) {
+            Path p(path, size);
+            if (p.resolve()) {
+                assert(p.isFile());
+                sApplicationDirPath = p.parentDir();
+                assert(sApplicationDirPath.isDir());
+                return;
+            }
         }
     }
 #elif defined(OS_FreeBSD)

@@ -5,7 +5,7 @@
 #if defined(OS_Linux)
 #include <sys/inotify.h>
 #include <sys/ioctl.h>
-#elif defined(OS_FreeBSD)
+#elif defined(OS_FreeBSD) || defined(OS_Darwin)
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
@@ -17,7 +17,7 @@ FileSystemWatcher::FileSystemWatcher()
 {
 #if defined(OS_Linux)
     mFd = inotify_init();
-#elif defined(OS_FreeBSD)
+#elif defined(OS_FreeBSD) || defined(OS_Darwin)
     mFd = kqueue();
 #endif
     assert(mFd != -1);
@@ -48,7 +48,7 @@ bool FileSystemWatcher::watch(const Path &path)
     case Path::Directory:
         flags = IN_MOVE|IN_CREATE|IN_DELETE|IN_DELETE_SELF|IN_ATTRIB;
         break;
-#elif defined(OS_FreeBSD)
+#elif defined(OS_FreeBSD) || defined(OS_Darwin)
     case Path::File:
     case Path::Directory:
         flags = NOTE_RENAME|NOTE_DELETE|NOTE_EXTEND|NOTE_WRITE|NOTE_ATTRIB|NOTE_REVOKE;
@@ -64,7 +64,7 @@ bool FileSystemWatcher::watch(const Path &path)
     }
 #if defined(OS_Linux)
     const int ret = inotify_add_watch(mFd, path.constData(), flags);
-#elif defined(OS_FreeBSD)
+#elif defined(OS_FreeBSD) || defined(OS_Darwin)
     int ret = ::open(path.nullTerminated(), O_RDONLY);
     if (ret != -1) {
         struct kevent change;
@@ -99,7 +99,7 @@ bool FileSystemWatcher::unwatch(const Path &path)
         mWatchedById.remove(wd);
 #if defined(OS_Linux)
         inotify_rm_watch(mFd, wd);
-#elif defined(OS_FreeBSD)
+#elif defined(OS_FreeBSD) || defined(OS_Darwin)
         struct kevent change;
         struct timespec nullts = { 0, 0 };
         EV_SET(&change, wd, EVFILT_VNODE, EV_DELETE, 0, 0, 0);
@@ -163,7 +163,7 @@ void FileSystemWatcher::notifyReadyRead()
         if (buf != staticBuf)
             delete []buf;
     }
-#elif defined(OS_FreeBSD)
+#elif defined(OS_FreeBSD) || defined(OS_Darwin)
     {
         enum { MaxEvents = 5 };
         MutexLocker lock(&mMutex);

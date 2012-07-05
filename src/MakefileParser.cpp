@@ -101,8 +101,8 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     List<ByteArray> environment = Process::environment();
     if (!args.contains("-B")) {
         Path p = RTags::applicationDirPath();
-#ifdef OS_Mac
-        p += "/../makelib/libmakelib.dylib";
+#ifdef OS_Darwin
+        p += "/../makelib/libmakelib.so";
         p.resolve();
         environment.push_back("DYLD_INSERT_LIBRARIES=" + p);
 #else

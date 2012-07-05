@@ -24,7 +24,7 @@ public:
     {
         typename std::set<T>::iterator it = std::set<T>::find(t);
         if (it != std::set<T>::end()) {
-            erase(it);
+            std::set<T>::erase(it);
             return true;
         }
         return false;
@@ -54,7 +54,7 @@ public:
     {
         typename std::set<T>::iterator it = other.begin();
         while (it != other.end()) {
-            erase(*it);
+            std::set<T>::erase(*it);
             ++it;
         }
         return *this;
