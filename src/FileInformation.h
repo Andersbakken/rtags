@@ -6,7 +6,9 @@
 #include <List.h>
 #include <ByteArray.h>
 
-struct FileInformation {
+class FileInformation
+{
+public:
     FileInformation(time_t lt = 0, const List<ByteArray> &args = List<ByteArray>())
         : lastTouched(lt), compileArgs(args)
     {}
