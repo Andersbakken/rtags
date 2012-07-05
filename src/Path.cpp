@@ -6,6 +6,8 @@
 // this doesn't check if *this actually is a real file
 Path Path::parentDir() const
 {
+    if (isEmpty())
+        return Path();
     Path copy = *this;
     int i = copy.size() - 1;
     while (copy.at(i) == '/')

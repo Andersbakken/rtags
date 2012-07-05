@@ -15,10 +15,11 @@ StatusJob::StatusJob(int i, const ByteArray &q)
 
 void StatusJob::execute()
 {
+    Server *server = Server::instance();
     if (query.isEmpty() || query == "general") {
-        ScopedDB db = Server::instance()->db(Server::General, ReadWriteLock::Read);
+        ScopedDB db = server->db(Server::General, ReadWriteLock::Read);
         write(delimiter);
-        write(Server::databaseDir(Server::General));
+        write(server->databaseDir(Server::General));
         write("    version: " + ByteArray::number(db->value<int>("version")));
 
         const Map<Path, MakefileInformation> makefiles = db->value<Map<Path, MakefileInformation> >("makefiles");
@@ -34,9 +35,9 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "dependencies") {
-        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Read);
+        ScopedDB db = server->db(Server::Dependency, ReadWriteLock::Read);
         write(delimiter);
-        write(Server::databaseDir(Server::Dependency));
+        write(server->databaseDir(Server::Dependency));
         RTags::Ptr<Iterator> it(db->createIterator());
         Map<uint32_t, Set<uint32_t> > depsReversed;
         it->seekToFirst();
@@ -69,9 +70,9 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "symbols") {
-        ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
+        ScopedDB db = server->db(Server::Symbol, ReadWriteLock::Read);
         write(delimiter);
-        write(Server::databaseDir(Server::Symbol));
+        write(server->databaseDir(Server::Symbol));
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         char buf[1024];
@@ -99,9 +100,9 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "symbolnames") {
-        ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Read);
+        ScopedDB db = server->db(Server::SymbolName, ReadWriteLock::Read);
         write(delimiter);
-        write(Server::databaseDir(Server::SymbolName));
+        write(server->databaseDir(Server::SymbolName));
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         char buf[1024];
@@ -121,9 +122,9 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "fileinfos") {
-        ScopedDB db = Server::instance()->db(Server::FileInformation, ReadWriteLock::Read);
+        ScopedDB db = server->db(Server::FileInformation, ReadWriteLock::Read);
         write(delimiter);
-        write(Server::databaseDir(Server::FileInformation));
+        write(server->databaseDir(Server::FileInformation));
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         char buf[1024];
@@ -143,9 +144,9 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "pch") {
-        ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Read);
+        ScopedDB db = server->db(Server::PCHUsrMaps, ReadWriteLock::Read);
         write(delimiter);
-        write(Server::databaseDir(Server::PCHUsrMaps));
+        write(server->databaseDir(Server::PCHUsrMaps));
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         char buf[1024];
@@ -167,9 +168,9 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "fileids") {
-        ScopedDB db = Server::instance()->db(Server::FileIds, ReadWriteLock::Read);
+        ScopedDB db = server->db(Server::FileIds, ReadWriteLock::Read);
         write(delimiter);
-        write(Server::databaseDir(Server::FileIds));
+        write(server->databaseDir(Server::FileIds));
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         char buf[1024];
@@ -183,7 +184,7 @@ void StatusJob::execute()
         write(delimiter);
         write("visitedFiles");
         char buf[1024];
-        const Set<uint32_t> visitedFiles = Server::instance()->indexer()->visitedFiles();
+        const Set<uint32_t> visitedFiles = server->indexer()->visitedFiles();
 
         for (Set<uint32_t>::const_iterator it = visitedFiles.begin(); it != visitedFiles.end(); ++it) {
             const uint32_t id = *it;

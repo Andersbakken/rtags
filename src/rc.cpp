@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <Log.h>
+#include <dirent.h>
+#include <fnmatch.h>
 
 static void help(FILE *f, const char* app)
 {
@@ -50,6 +52,7 @@ static void help(FILE *f, const char* app)
             "  --restart-rdm|-e [args]                   Restart rdm with [args] before doing the rest of the commands\n"
             "  --run-test|-T [file]                      Run tests from file\n"
             "  --diagnostics|-G                          Open a connection that prints diagnostics\n"
+            "  --project|-w [optional regexp]            With arg, select project matching that if unique, otherwise list all projects\n"
             "  --clear-db|-C                             Clear database, use with care\n"
             "  --reindex|-V [optional regexp]            Reindex all files or all files matching pattern\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
@@ -197,10 +200,11 @@ int main(int argc, char** argv)
         { "errors", required_argument, 0, 'Q' },
         { "reindex", optional_argument, 0, 'V' },
         { "diagnostics", no_argument, 0, 'G' },
+        { "project", optional_argument, 0, 'w' },
         { 0, 0, 0, 0 }
     };
 
-    // Unused: bBdjJkKwWXyYZ
+    // Unused: bBdjJkKWXyYZ
 
     int logLevel = 0;
     ByteArray logFile;
@@ -346,8 +350,15 @@ int main(int argc, char** argv)
             commands.append(new QueryCommand(QueryMessage::Shutdown, ByteArray(), queryFlags, pathFilters, unsavedFiles));
             break;
         case 'V':
+        case 'w':
         case 'M': {
-            const QueryMessage::Type type = (c == 'V' ? QueryMessage::Reindex : QueryMessage::Remake);
+            QueryMessage::Type type = QueryMessage::Invalid;
+            switch (c) {
+            case 'V': type = QueryMessage::Reindex; break;
+            case 'w': type = QueryMessage::Project; break;
+            case 'M': type = QueryMessage::Remake; break;
+            }
+
             if (optarg) {
                 commands.append(new QueryCommand(type, optarg, queryFlags, pathFilters, unsavedFiles));
             } else if (optind < argc && argv[optind][0] != '-') {

@@ -35,6 +35,8 @@
 #include <Log.h>
 #include <clang-c/Index.h>
 #include <stdio.h>
+#include <dirent.h>
+#include <fnmatch.h>
 
 Path Server::sBase;
 
@@ -60,14 +62,31 @@ public:
     MakefileParser *parser;
 };
 
+static const char *const dbNames[] = {
+    "dependencies.db",
+    "symbols.db",
+    "symbolnames.db",
+    "fileinfos.db",
+    "pchusrhashes.db",
+    "general.db",
+    "fileids.db",
+    0
+};
+
+static inline Path databaseDir(Server::DatabaseType type, const char *base)
+{
+    char ret[PATH_MAX];
+    const int w = snprintf(ret, sizeof(ret), "%s%s", base, dbNames[type]);
+    return Path(ret, w);
+}
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mIndexer(0), mServer(0), mVerbose(false), mJobId(0), mThreadPool(0), mCompletions(0)
+    : mServer(0), mVerbose(false), mJobId(0), mCurrentProject(0), mFileIdsDB(0),
+      mGeneralDB(0), mThreadPool(0), mCompletions(0)
 {
     assert(!sInstance);
     sInstance = this;
-    memset(mDBs, 0, sizeof(mDBs));
 }
 
 Server::~Server()
@@ -80,16 +99,19 @@ Server::~Server()
 void Server::clear()
 {
     Path::rm(mOptions.socketPath);
-    delete mIndexer;
-    mIndexer = 0;
     delete mCompletions;
     mCompletions = 0;
     delete mServer;
     mServer = 0;
-    for (int i=0; i<DatabaseTypeCount; ++i) {
-        delete mDBs[i];
-        mDBs[i] = 0;
+    delete mFileIdsDB;
+    mFileIdsDB = 0;
+    delete mGeneralDB;
+    mGeneralDB = 0;
+    for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+        delete it->second;
     }
+    mProjects.clear();
+    mCurrentProject = 0;
 }
 
 bool Server::init(const Options &options)
@@ -129,15 +151,27 @@ bool Server::init(const Options &options)
         error("Unable to listen on %s", mOptions.socketPath.constData());
         return false;
     }
-
-    for (int i=0; i<DatabaseTypeCount; ++i) {
-        mDBs[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(),
-                               options.cacheSizeMB, i == Server::Symbol);
-        if (!mDBs[i]->isOpened()) {
-            error() << "Failed to open db: " << mDBs[i]->openError();
-            return false;
-        }
+    mFileIdsDB = new Database(databaseDir(FileIds), options.cacheSizeMB, Database::NoFlag);
+    if (!mFileIdsDB->isOpened()) {
+        error() << "Failed to open db " << databaseDir(FileIds) << " " << mFileIdsDB->openError();
+        return false;
     }
+
+    mGeneralDB = new Database(databaseDir(General), options.cacheSizeMB, Database::NoFlag);
+    if (!mGeneralDB->isOpened()) {
+        error() << "Failed to open db " << databaseDir(General) << " " << mGeneralDB->openError();
+        return false;
+    }
+
+
+    // for (int i=0; i<DatabaseTypeCount; ++i) {
+    //     mDBs[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(),
+    //                            options.cacheSizeMB, i == Server::Symbol);
+    //     if (!mDBs[i]->isOpened()) {
+    //         error() << "Failed to open db: " << mDBs[i]->openError();
+    //         return false;
+    //     }
+    // }
 
     {
         ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
@@ -178,10 +212,6 @@ bool Server::init(const Options &options)
     mServer->clientConnected().connect(this, &Server::onNewConnection);
 
     error() << "running with " << mOptions.defaultArguments << " clang version " << RTags::eatString(clang_getClangVersion());
-
-    mIndexer = new Indexer(!(mOptions.options & NoValidateOnStartup));
-    mIndexer->indexingDone().connect(this, &Server::onIndexingDone);
-    mIndexer->jobsComplete().connect(this, &Server::onJobsComplete);
 
     if (!(mOptions.options & NoValidateOnStartup))
         remake();
@@ -307,6 +337,36 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     switch (message->type()) {
     case QueryMessage::Invalid:
         assert(0);
+        break;
+    case QueryMessage::Project:
+        if (message->query().isEmpty()) {
+            for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+                conn->write(it->first);
+            }
+        } else {
+            Path currentPath;
+            Project *current = 0;
+            bool error = false;
+            RegExp rx(message->query());
+            for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+                if (rx.indexIn(it->first) != -1) {
+                    if (error) {
+                        conn->write(it->first);
+                    } else if (current) {
+                        error = true;
+                        conn->write("Multiple matches for " + message->query());
+                        conn->write(currentPath);
+                    } else {
+                        currentPath = it->first;
+                        current = it->second;
+                    }
+                }
+            }
+            if (!error && current) {
+                conn->write("Selected project: " + currentPath);
+            }
+        }
+        conn->finish();
         break;
     case QueryMessage::Reindex: {
         reindex(message->query());
@@ -541,7 +601,7 @@ int Server::test(const QueryMessage &query)
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)
 {
-    const ByteArray fixIts = mIndexer->fixIts(query.query());
+    const ByteArray fixIts = indexer()->fixIts(query.query());
 
     error("rc -x \"%s\"", fixIts.constData());
 
@@ -552,7 +612,7 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
 
 void Server::errors(const QueryMessage &query, Connection *conn)
 {
-    const ByteArray errors = mIndexer->errors(query.query());
+    const ByteArray errors = indexer()->errors(query.query());
 
     error("rc -Q \"%s\"", errors.constData());
 
@@ -561,22 +621,14 @@ void Server::errors(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-static const char *const dbNames[] = {
-    "general.db",
-    "dependencies.db",
-    "symbols.db",
-    "symbolnames.db",
-    "fileinfos.db",
-    "pchusrhashes.db",
-    "fileids.db",
-    0
-};
-
 Path Server::databaseDir(DatabaseType type)
 {
-    if (sBase.isEmpty())
-        return Path();
-    return sBase + dbNames[type];
+    if (type < static_cast<int>(ProjectSpecificDatabaseTypeCount)) {
+        return (mCurrentProject
+                ? ::databaseDir(type, mCurrentProject->projectPath.constData())
+                : Path());
+    }
+    return ::databaseDir(type, sBase.constData());
 }
 
 Path Server::pchDir()
@@ -584,6 +636,13 @@ Path Server::pchDir()
     if (sBase.isEmpty())
         return Path();
     return sBase + "pch/";
+}
+
+Path Server::projectsPath()
+{
+    if (sBase.isEmpty())
+        return Path();
+    return sBase + "projects/";
 }
 
 bool Server::setBaseDirectory(const ByteArray& base, bool clear)
@@ -602,8 +661,10 @@ bool Server::setBaseDirectory(const ByteArray& base, bool clear)
 
     if (clear) {
         RTags::removeDirectory(Server::pchDir().constData());
-        for (int i=0; i<DatabaseTypeCount; ++i)
-            RTags::removeDirectory(databaseDir(static_cast<Server::DatabaseType>(i)).constData());
+        RTags::removeDirectory(Server::projectsPath().constData());
+
+        for (int i=ProjectSpecificDatabaseTypeCount; i<DatabaseTypeCount; ++i)
+            RTags::removeDirectory(::databaseDir(static_cast<Server::DatabaseType>(i), sBase.constData()).constData());
         error() << "cleared database dir" << base;
     }
     return true;
@@ -611,7 +672,7 @@ bool Server::setBaseDirectory(const ByteArray& base, bool clear)
 
 void Server::reindex(const ByteArray &pattern)
 {
-    mIndexer->reindex(pattern);
+    indexer()->reindex(pattern);
 }
 
 void Server::remake(const ByteArray &pattern, Connection *conn)
@@ -630,9 +691,108 @@ void Server::startJob(Job *job)
     mThreadPool->start(job, job->priority());
 }
 
+/* Same behavior as rtags-default-current-project() */
+
+enum FindAncestorFlag {
+    Shallow = 0x1,
+    Wildcard = 0x2
+};
+static inline Path findAncestor(Path path, const char *fn, unsigned flags)
+{
+    Path ret;
+    int slash = path.size();
+    const int len = strlen(fn) + 1;
+    struct stat st;
+    char buf[PATH_MAX + sizeof(dirent) + 1];
+    dirent *direntBuf = 0, *entry = 0;
+    if (flags & Wildcard)
+        direntBuf = reinterpret_cast<struct dirent *>(malloc(sizeof(buf)));
+
+    memcpy(buf, path.constData(), path.size() + 1);
+    while ((slash = path.lastIndexOf('/', slash - 1)) > 0) { // We don't want to search in /
+        if (!(flags & Wildcard)) {
+            memcpy(buf + slash + 1, fn, len);
+            if (!stat(buf, &st)) {
+                buf[slash + 1] = '\0';
+                ret = buf;
+                if (flags & Shallow) {
+                    break;
+                }
+            }
+        } else {
+            buf[slash + 1] = '\0';
+            DIR *dir = opendir(buf);
+            bool found = false;
+            if (dir) {
+                while (!readdir_r(dir, direntBuf, &entry) && entry) {
+                    const int l = strlen(entry->d_name) + 1;
+                    switch (l - 1) {
+                    case 1:
+                        if (entry->d_name[0] == '.')
+                            continue;
+                        break;
+                    case 2:
+                        if (entry->d_name[0] == '.' && entry->d_name[1] == '.')
+                            continue;
+                        break;
+                    }
+                    assert(buf[slash] == '/');
+                    assert(l + slash + 1 < static_cast<int>(sizeof(buf)));
+                    memcpy(buf + slash + 1, entry->d_name, l);
+                    if (!fnmatch(fn, buf, 0)) {
+                        ret = buf;
+                        ret.truncate(slash + 1);
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            closedir(dir);
+            if (found && flags & Shallow)
+                break;
+        }
+    }
+    if (flags & Wildcard)
+        free(direntBuf);
+
+    return ret;
+}
+
+static Path findProjectRoot(const Path &path)
+{
+    struct Entry {
+        const char *name;
+        const unsigned flags;
+    } entries[] = {
+        { "GTAGS", 0 },
+        { "configure", 0 },
+        { ".git", 0 },
+        { "CMakeLists.txt", 0 },
+        { "*.pro", Wildcard },
+        { "scons.1", 0 },
+        { "*.scons", Wildcard },
+        { "SConstruct", 0 },
+        { "autogen.*", Wildcard },
+        { "Makefile*", Wildcard },
+        { "GNUMakefile*", Wildcard },
+        { "INSTALL*", Wildcard },
+        { "README*", Wildcard },
+        { 0, 0 }
+    };
+    for (int i=0; entries[i].name; ++i) {
+        const Path p = findAncestor(path, entries[i].name, entries[i].flags);
+        if (!p.isEmpty()) {
+            return p;
+        }
+    }
+    return Path();
+}
+
 void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 {
-    if (args.inputFiles().isEmpty()) {
+    List<Path> inputFiles = args.inputFiles();
+    const int c = inputFiles.size();
+    if (!c) {
         warning("no input file?");
         return;
     } else if (args.outputFile().isEmpty()) {
@@ -641,6 +801,20 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
     } else if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
         return;
     }
+
+    const Path projectRoot = findProjectRoot(*inputFiles.begin());
+    printf("%s => %s\n", inputFiles.begin()->constData(), projectRoot.constData());
+    // return;
+    if (projectRoot.isEmpty()) {
+        error("Can't find project root for %s", inputFiles.begin()->constData());
+        return;
+    }
+    Project *proj = initProject(projectRoot);
+    if (!proj) {
+        error("Can't find project for %s", projectRoot.constData());
+        return;
+    }
+    printf("%s => %s => %s\n", inputFiles.begin()->constData(), proj->projectPath.constData(), projectRoot.constData());
 
     if (args.type() == GccArguments::Pch) {
         ByteArray output = args.outputFile();
@@ -667,17 +841,18 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
     }
     arguments.append(mOptions.defaultArguments);
 
-    List<Path> inputFiles = args.inputFiles();
-    const int c = inputFiles.size();
     for (int i=0; i<c; ++i) {
         const Path &input = inputFiles.at(i);
+        std::swap(mCurrentProject, proj);
         if (arguments != RTags::compileArgs(Location::insertFile(input))) {
-            mIndexer->index(input, arguments, IndexerJob::Makefile);
+            proj->indexer->index(input, arguments, IndexerJob::Makefile);
         } else {
             debug() << input << " is not dirty. ignoring";
         }
+        std::swap(mCurrentProject, proj);
     }
 }
+
 void Server::onMakefileModified(const Path &path)
 {
     remake(path, 0);
@@ -733,4 +908,60 @@ ByteArray Server::completions(const QueryMessage &query)
 void Server::onJobsComplete()
 {
     startJob(new ValidateDBJob);
+}
+
+ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType) const
+{
+    switch (type) {
+    case FileIds:
+        return ScopedDB(mFileIdsDB, lockType);
+    case General:
+        return ScopedDB(mGeneralDB, lockType);
+    default:
+        if (!mCurrentProject)
+            return ScopedDB();
+        return ScopedDB(mCurrentProject->databases[type], lockType);
+    }
+}
+
+Indexer *Server::indexer() const
+{
+    return mCurrentProject->indexer;
+}
+
+bool Server::setCurrentProject(const Path &path)
+{
+    Project *proj = initProject(path);
+    if (!proj)
+        return false;
+    mCurrentProject = proj;
+    return true;
+}
+Server::Project *Server::initProject(const Path &path)
+{
+    Project *&project = mProjects[path];
+    if (!project) {
+        if (path.contains("<underscore>")) {
+            error("Invalid folder name %s", path.constData());
+            return false;
+        }
+        project = new Project;
+        ByteArray tmp = path;
+        tmp.replace("_", "<underscore>");
+        tmp.replace("/", "_");
+        project->projectPath = RTags::rtagsDir() + tmp;
+        Path::mkdir(project->projectPath);
+        Project *prev = mCurrentProject;
+        mCurrentProject = project;
+        for (int i=0; i<ProjectSpecificDatabaseTypeCount; ++i) {
+            const unsigned flags = (i == Server::Symbol ? Database::LocationKeys : Database::NoFlag);
+            project->databases[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(),
+                                                 mOptions.cacheSizeMB, flags);
+        }
+        project->indexer = new Indexer(!(mOptions.options & NoValidateOnStartup));
+        project->indexer->indexingDone().connect(this, &Server::onIndexingDone);
+        project->indexer->jobsComplete().connect(this, &Server::onJobsComplete);
+        mCurrentProject = prev;
+    }
+    return project;
 }

@@ -79,7 +79,7 @@ void DirectoryTracker::leaveDirectory(const ByteArray &dir)
 
 MakefileParser::MakefileParser(const List<ByteArray> &extraFlags, Connection *conn)
     : mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags),
-      mSourceCount(0), mPchCount(0), mConnection(conn)
+      mSourceCount(0), mPchCount(0), mConnection(conn), mHasProject(false)
 {
 }
 

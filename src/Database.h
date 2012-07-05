@@ -8,7 +8,8 @@
 #include "CursorInfo.h"
 #include "ReadWriteLock.h"
 
-struct Slice {
+struct Slice
+{
     Slice(const std::string &str);
     Slice(const ByteArray &d);
     Slice(const char *d = 0, int s = -1);
@@ -131,8 +132,14 @@ class LocationComparator;
 class Database
 {
 public:
-    Database(const char *path, int cacheSizeMB, bool locationKeys);
+    enum Flag {
+        NoFlag = 0x0,
+        LocationKeys = 0x1
+    };
+    Database(const Path &path, int cacheSizeMB, unsigned flags);
     ~Database();
+
+    unsigned flags() const { return mFlags; }
     void lock(ReadWriteLock::LockType type) { mLock.lock(type); }
     void unlock() { mLock.unlock(); }
     bool isOpened() const;
@@ -158,6 +165,7 @@ private:
     const leveldb::WriteOptions mWriteOptions;
     ByteArray mOpenError;
     LocationComparator *mLocationComparator;
+    const unsigned mFlags;
     friend struct Batch;
 };
 

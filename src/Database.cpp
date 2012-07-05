@@ -127,18 +127,18 @@ public:
     void FindShortSuccessor(std::string*) const { }
 };
 
-Database::Database(const char *path, int cacheSizeMB, bool locationKeys)
-    : mDB(0), mLocationComparator(locationKeys ? new LocationComparator : 0)
+Database::Database(const Path &path, int cacheSizeMB, unsigned flags)
+    : mDB(0), mLocationComparator(flags & LocationKeys ? new LocationComparator : 0), mFlags(flags)
 {
     leveldb::Options opt;
     opt.create_if_missing = true;
-    if (locationKeys)
+    if (flags & LocationKeys)
         opt.comparator = mLocationComparator;
     if (cacheSizeMB)
         opt.block_cache = leveldb::NewLRUCache(cacheSizeMB * 1024 * 1024);
-    leveldb::Status status = leveldb::DB::Open(opt, path, &mDB);
+    leveldb::Status status = leveldb::DB::Open(opt, path.constData(), &mDB);
     if (!status.ok()) {
-        mOpenError = status.ToString().c_str();
+        mOpenError = status.ToString();
     } else {
         mPath = path;
     }

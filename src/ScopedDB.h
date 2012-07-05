@@ -7,6 +7,7 @@ class Database;
 class ScopedDB
 {
 public:
+    ScopedDB();
     ScopedDB(Database *db, ReadWriteLock::LockType lockType);
     Database *operator->() { return mData->db; }
     operator Database *() { return mData->db; }

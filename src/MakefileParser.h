@@ -29,6 +29,9 @@ public:
 
     int sourceCount() const { return mSourceCount; }
     int pchCount() const { return mPchCount; }
+    Map<Path, List<ByteArray> > &pendingFiles() { return mPendingFiles; }
+    bool hasProject() const { return mHasProject; }
+    void setHasProject(bool hasProject) { mHasProject = hasProject; }
 private:
     void processMakeOutput();
     void processMakeError();
@@ -45,6 +48,8 @@ private:
     Connection *mConnection;
     signalslot::Signal1<MakefileParser*> mDone;
     signalslot::Signal2<const GccArguments &, MakefileParser*> mFileReady;
+    bool mHasProject;
+    Map<Path, List<ByteArray> > mPendingFiles;
 };
 
 #endif // MAKEFILEPARSER_H

@@ -27,6 +27,7 @@ public:
         Reindex,
         Remake,
         Completions,
+        Project,
         Shutdown
     };
 

@@ -5,6 +5,8 @@
 #include <ByteArray.h>
 #include <List.h>
 #include <Map.h>
+#include "Indexer.h"
+#include "Database.h"
 #include "QueryMessage.h"
 #include "Connection.h"
 #include "ThreadPool.h"
@@ -38,19 +40,19 @@ public:
         NoValidateOnStartup = 0x4
     };
     enum DatabaseType {
-        General,
         Dependency,
         Symbol,
         SymbolName,
         FileInformation,
         PCHUsrMaps,
+        General,
         FileIds,
         DatabaseTypeCount
     };
 
     static Server *instance() { return sInstance; }
     List<ByteArray> defaultArguments() const { return mOptions.defaultArguments; }
-    inline ScopedDB db(DatabaseType type, ReadWriteLock::LockType lockType) const { return ScopedDB(mDBs[type], lockType); }
+    ScopedDB db(DatabaseType type, ReadWriteLock::LockType lockType) const;
     struct Options {
         Options() : options(0), cacheSizeMB(0), maxCompletionUnits(0) {}
         unsigned options;
@@ -60,15 +62,17 @@ public:
         int maxCompletionUnits;
     };
     bool init(const Options &options);
-    Indexer *indexer() const { return mIndexer; }
+    Indexer *indexer() const;
     ByteArray name() const { return mOptions.socketPath; }
     static bool setBaseDirectory(const ByteArray &base, bool clear);
-    static Path databaseDir(DatabaseType type);
+    Path databaseDir(DatabaseType type);
     static Path pchDir();
+    static Path projectsPath();
     ThreadPool *threadPool() const { return mThreadPool; }
     void onNewConnection();
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
     void startJob(Job *job);
+    bool setCurrentProject(const Path &path);
 protected:
     void onJobsComplete();
     void event(const Event *event);
@@ -82,6 +86,8 @@ protected:
     void make(const Path &path, List<ByteArray> makefileArgs = List<ByteArray>(),
               const List<ByteArray> &extraFlags = List<ByteArray>(), Connection *conn = 0);
 private:
+    struct Project;
+    Project *initProject(const Path &path);
     void handleMakefileMessage(MakefileMessage *message, Connection *conn);
     void handleQueryMessage(QueryMessage *message, Connection *conn);
     void handleErrorMessage(ErrorMessage *message, Connection *conn);
@@ -104,7 +110,6 @@ private:
 private:
     static Server *sInstance;
     Options mOptions;
-    Indexer *mIndexer;
     LocalServer *mServer;
     Map<int, Connection*> mPendingIndexes;
     Map<int, Connection*> mPendingLookups;
@@ -113,7 +118,28 @@ private:
     static Path sBase;
     Map<Path, MakefileInformation> mMakefiles;
     FileSystemWatcher mMakefilesWatcher;
-    Database *mDBs[DatabaseTypeCount];
+    enum { ProjectSpecificDatabaseTypeCount = 5 };
+    struct Project {
+        Project()
+            : indexer(0)
+        {
+            memset(databases, 0, sizeof(databases));
+        }
+
+        ~Project()
+        {
+            delete indexer;
+            for (int i=0; i<ProjectSpecificDatabaseTypeCount; ++i) {
+                delete databases[i];
+            }
+        }
+        Path projectPath;
+        Database *databases[ProjectSpecificDatabaseTypeCount];
+        Indexer *indexer;
+    };
+    Map<Path, Project*> mProjects;
+    Project *mCurrentProject;
+    Database *mFileIdsDB, *mGeneralDB;
     ThreadPool *mThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
     Completions *mCompletions;

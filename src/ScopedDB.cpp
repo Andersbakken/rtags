@@ -6,6 +6,11 @@ ScopedDB::ScopedDB(Database *db, ReadWriteLock::LockType lockType)
 {
 }
 
+ScopedDB::ScopedDB()
+    : mData(new Data(0, ReadWriteLock::Read))
+{
+}
+
 ScopedDB::Data::Data(Database *database, ReadWriteLock::LockType type)
     : db(database), lockType(type)
 {
