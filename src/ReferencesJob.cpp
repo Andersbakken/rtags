@@ -27,7 +27,6 @@ void ReferencesJob::execute()
     const bool excludeDefsAndDecls = !(flags & QueryMessage::IncludeDeclarationsAndDefinitions);
     ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
     const unsigned keyFlags = QueryMessage::keyFlags(flags);
-    const uint32_t fileFilterId = (symbolName.isEmpty() ? locations.begin()->fileId() : 0);
     Set<Location> refs;
     Set<Location> filtered;
     for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
@@ -56,13 +55,13 @@ void ReferencesJob::execute()
             if (cursorInfo.target.isValid()) {
                 if (excludeDefsAndDecls) {
                     filtered.insert(cursorInfo.target);
-                } else if (!fileFilterId || cursorInfo.target.fileId() == fileFilterId) {
+                } else {
                     refs.insert(cursorInfo.target);
                 }
             }
             for (Set<Location>::const_iterator it = cursorInfo.references.begin(); it != cursorInfo.references.end(); ++it) {
                 const Location &l = *it;
-                if ((!fileFilterId || l.fileId() == fileFilterId) && (!excludeDefsAndDecls || !filtered.contains(l))) {
+                if (!excludeDefsAndDecls || !filtered.contains(l)) {
                     refs.insert(l);
                 }
             }
@@ -70,7 +69,7 @@ void ReferencesJob::execute()
                 cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
                 for (Set<Location>::const_iterator it = cursorInfo.references.begin(); it != cursorInfo.references.end(); ++it) {
                     const Location &l = *it;
-                    if ((!fileFilterId || l.fileId() == fileFilterId) && (!excludeDefsAndDecls || !filtered.contains(l))) {
+                    if (!excludeDefsAndDecls || !filtered.contains(l)) {
                         refs.insert(l);
                     }
                 }
