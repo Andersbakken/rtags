@@ -309,8 +309,6 @@ void Indexer::onJobFinished(IndexerJob *job)
             mJobCounter = 0;
             jobsComplete()(this);
         }
-
-        mIndexingDone(job->mId);
     }
 
     delete job;

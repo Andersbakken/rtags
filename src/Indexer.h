@@ -36,7 +36,6 @@ public:
                         const Map<Location, std::pair<int, ByteArray> > &fixIts);
     void reindex(const ByteArray &pattern);
     void event(const Event *event);
-    signalslot::Signal1<int> &indexingDone() { return mIndexingDone; }
     signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
     void onDirectoryChanged(const Path &path);
     Path srcRoot() const { return mSrcRoot; }
@@ -80,7 +79,6 @@ private:
     Map<uint32_t, ByteArray> mErrors;
     mutable ReadWriteLock mFixItsAndErrorsLock;
 
-    signalslot::Signal1<int> mIndexingDone;
     signalslot::Signal1<Indexer*> mJobsComplete;
 };
 

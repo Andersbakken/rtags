@@ -79,7 +79,6 @@ protected:
     void event(const Event *event);
     void onFileReady(const GccArguments &file, MakefileParser *parser);
     void onNewMessage(Message *message, Connection *conn);
-    void onIndexingDone(int id);
     void onConnectionDestroyed(Connection *o);
     void onMakefileParserDone(MakefileParser *parser);
     void onMakefileModified(const Path &path);

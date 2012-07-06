@@ -441,15 +441,6 @@ void Server::handleErrorMessage(ErrorMessage *message, Connection *)
     error("Error message: %s", message->message().constData());
 }
 
-void Server::onIndexingDone(int id)
-{
-    Map<int, Connection*>::iterator it = mPendingIndexes.find(id);
-    if (it == mPendingIndexes.end())
-        return;
-    ErrorMessage msg("Hello, world");
-    it->second->send(&msg);
-}
-
 int Server::nextId()
 {
     ++mJobId;
@@ -908,7 +899,7 @@ ByteArray Server::completions(const QueryMessage &query)
 void Server::onJobsComplete(Indexer *indexer)
 {
     if (!mCurrentProject) {
-        setCurrentProject(indexer->srcRoot()); // ### hack, should also fold this and onIndexingComplete
+        setCurrentProject(indexer->srcRoot());
     }
     startJob(new ValidateDBJob(indexer->srcRoot()));
 }
@@ -965,7 +956,6 @@ Server::Project *Server::initProject(const Path &path)
         }
         project->indexer = new Indexer;
         project->indexer->init(path, !(mOptions.options & NoValidateOnStartup));
-        project->indexer->indexingDone().connect(this, &Server::onIndexingDone);
         project->indexer->jobsComplete().connect(this, &Server::onJobsComplete);
         mCurrentProject = prev;
     }
