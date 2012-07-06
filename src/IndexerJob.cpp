@@ -629,6 +629,7 @@ void IndexerJob::run()
     execute();
     EventLoop::instance()->postEvent(mIndexer, new IndexerJobFinishedEvent(this));
 }
+
 void IndexerJob::execute()
 {
     Timer timer;

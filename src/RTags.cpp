@@ -437,3 +437,17 @@ ByteArray backtrace(int maxFrames)
     return ret;
 }
 }
+
+#ifdef RTAGS_DEBUG
+void Mutex::lock()
+{
+    Timer timer;
+    while (!tryLock()) {
+        usleep(10000);
+        if (timer.elapsed() >= 10000) {
+            error("Couldn't acquire lock in 10 seconds\n%s", RTags::backtrace().constData());
+            timer.restart();
+        }
+    }
+}
+#endif
