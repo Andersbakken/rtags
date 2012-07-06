@@ -5,15 +5,6 @@
 #include "Event.h"
 
 
-class EventReceiver;
-class DeleteInEventLoopEvent : public Event
-{
-public:
-    enum { Type = -1 };
-    DeleteInEventLoopEvent()
-        : Event(Type)
-    {}
-};
 class EventReceiver
 {
 public:
@@ -24,15 +15,24 @@ public:
     {
         EventLoop::instance()->postEvent(this, event);
     }
-    void deleteInEventLoop() { postEvent(new DeleteInEventLoopEvent); }
+    void deleteLater() { postEvent(new DeleteLaterEvent); }
 protected:
     virtual void event(const Event* event)
     {
-        if (event->type() == DeleteInEventLoopEvent::Type)
+        if (event->type() == DeleteLaterEvent::Type)
             delete this;
     }
 
 private:
+    class DeleteLaterEvent : public Event
+    {
+    public:
+        enum { Type = -1 };
+        DeleteLaterEvent()
+            : Event(Type)
+        {}
+    };
+
     friend class EventLoop;
 };
 

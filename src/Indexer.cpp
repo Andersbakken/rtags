@@ -304,7 +304,7 @@ void Indexer::onJobFinished(ThreadPool::Job *j)
         }
     }
 
-    job->deleteInEventLoop();
+    job->deleteLater();
 }
 
 

@@ -122,7 +122,7 @@ void Connection::dataWritten(int bytes)
             sendComplete()();
         if (mDone) {
             mClient->disconnect();
-            deleteInEventLoop();
+            deleteLater();
         }
     }
 }

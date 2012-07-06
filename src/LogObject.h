@@ -17,7 +17,7 @@ public:
 
     void shutdown()
     {
-        deleteInEventLoop();
+        deleteLater();
     }
 
     virtual void log(const char *msg, int len)
