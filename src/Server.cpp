@@ -950,24 +950,13 @@ bool Server::updateProjectForLocation(const Location &location)
 {
     const Path path = location.path();
     Map<Path, Project*>::const_iterator it = mProjects.lower_bound(path);
-    for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        printf("%s => %s => %d\n", it->first.constData(), path.constData(),
-               strcmp(path.constData(), it->first.constData()));
-    }
-
     if (it != mProjects.begin()) {
         --it;
         if (!strncmp(it->first.constData(), path.constData(), it->first.size())) {
             setCurrentProject(it->second);
-            printf("We found some shit %s for %s\n", it->first.constData(), location.key().constData());
             return true;
         }
     }
-    // it = mProjects.upper_bound(path);
-    // if (it != mProjects.end()) {
-    //     error() << "found upperbound" << it->second->projectPath << " for " << location;
-    //     return true;
-    // }
 
     return false;
 }
