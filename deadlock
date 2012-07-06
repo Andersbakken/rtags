@@ -1,0 +1,186 @@
+e25b659b6d9509b9d14e30ec92884ac89fbc7933
+Thread 17 (Thread 0xaf7beb40 (LWP 7975)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb70e11fb in write () at ../sysdeps/unix/syscall-template.S:82
+#2  0x08115e46 in EventLoop::postEvent (this=0xbffff148, receiver=0xa6ef960, event=0xac2dce78)
+    at /home/abakken/dev/rtags/src/EventLoop.cpp:119
+#3  0x08148d5c in IndexerJob::run (this=0xa6efc40) at /home/abakken/dev/rtags/src/IndexerJob.cpp:630
+#4  0x0811211c in ThreadPoolThread::run (this=0x81e7f30) at /home/abakken/dev/rtags/src/ThreadPool.cpp:66
+#5  0x081672ac in Thread::internalStart (arg=0x81e7f30) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xaf7beb40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 16 (Thread 0xaffbfb40 (LWP 7974)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb6ff696b in pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/i386/i686/../i486/pthread_cond_wait.S:169
+#2  0xb70ff3dc in __pthread_cond_wait (cond=0x81e7a1c, mutex=0x81e7a04) at forward.c:139
+#3  0x080f6622 in WaitCondition::wait (this=0x81e7a1c, mutex=0x81e7a04) at /home/abakken/dev/rtags/src/WaitCondition.h:12
+#4  0x08112043 in ThreadPoolThread::run (this=0x81e7e80) at /home/abakken/dev/rtags/src/ThreadPool.cpp:57
+#5  0x081672ac in Thread::internalStart (arg=0x81e7e80) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xaffbfb40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 15 (Thread 0xb07c0b40 (LWP 7973)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb70e11fb in write () at ../sysdeps/unix/syscall-template.S:82
+#2  0x08115e46 in EventLoop::postEvent (this=0xbffff148, receiver=0x81e7820, event=0xaddd9f90)
+    at /home/abakken/dev/rtags/src/EventLoop.cpp:119
+#3  0x08155b2c in Job::writeRaw (this=0xa23eb10, out=...) at /home/abakken/dev/rtags/src/Job.cpp:76
+#4  0x081559bb in Job::write (this=0xa23eb10, out=...) at /home/abakken/dev/rtags/src/Job.cpp:53
+#5  0x0810c7d2 in StatusJob::execute (this=0xa23eb10) at /home/abakken/dev/rtags/src/StatusJob.cpp:111
+#6  0x08155a48 in Job::run (this=0xa23eb10) at /home/abakken/dev/rtags/src/Job.cpp:67
+#7  0x0811211c in ThreadPoolThread::run (this=0x81e7bd8) at /home/abakken/dev/rtags/src/ThreadPool.cpp:66
+#8  0x081672ac in Thread::internalStart (arg=0x81e7bd8) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#9  0xb6ff2d4c in start_thread (arg=0xb07c0b40) at pthread_create.c:308
+#10 0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 14 (Thread 0xb0fc1b40 (LWP 7972)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb6ff696b in pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/i386/i686/../i486/pthread_cond_wait.S:169
+---Type <return> to continue, or q <return> to quit---
+#2  0xb70ff3dc in __pthread_cond_wait (cond=0x81e7a1c, mutex=0x81e7a04) at forward.c:139
+#3  0x080f6622 in WaitCondition::wait (this=0x81e7a1c, mutex=0x81e7a04) at /home/abakken/dev/rtags/src/WaitCondition.h:12
+#4  0x08112043 in ThreadPoolThread::run (this=0x81e7d38) at /home/abakken/dev/rtags/src/ThreadPool.cpp:57
+#5  0x081672ac in Thread::internalStart (arg=0x81e7d38) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xb0fc1b40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 13 (Thread 0xb17c2b40 (LWP 7971)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb6ff696b in pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/i386/i686/../i486/pthread_cond_wait.S:169
+#2  0xb70ff3dc in __pthread_cond_wait (cond=0x81e7a1c, mutex=0x81e7a04) at forward.c:139
+#3  0x080f6622 in WaitCondition::wait (this=0x81e7a1c, mutex=0x81e7a04) at /home/abakken/dev/rtags/src/WaitCondition.h:12
+#4  0x08112043 in ThreadPoolThread::run (this=0x81e7c88) at /home/abakken/dev/rtags/src/ThreadPool.cpp:57
+#5  0x081672ac in Thread::internalStart (arg=0x81e7c88) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xb17c2b40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 12 (Thread 0xb1fc3b40 (LWP 7970)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb6ff696b in pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/i386/i686/../i486/pthread_cond_wait.S:169
+#2  0xb70ff3dc in __pthread_cond_wait (cond=0x81e7a1c, mutex=0x81e7a04) at forward.c:139
+#3  0x080f6622 in WaitCondition::wait (this=0x81e7a1c, mutex=0x81e7a04) at /home/abakken/dev/rtags/src/WaitCondition.h:12
+#4  0x08112043 in ThreadPoolThread::run (this=0x81e7bc0) at /home/abakken/dev/rtags/src/ThreadPool.cpp:57
+#5  0x081672ac in Thread::internalStart (arg=0x81e7bc0) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xb1fc3b40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 11 (Thread 0xb27c4b40 (LWP 7969)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb6ff696b in pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/i386/i686/../i486/pthread_cond_wait.S:169
+#2  0xb70ff3dc in __pthread_cond_wait (cond=0x81e7a1c, mutex=0x81e7a04) at forward.c:139
+#3  0x080f6622 in WaitCondition::wait (this=0x81e7a1c, mutex=0x81e7a04) at /home/abakken/dev/rtags/src/WaitCondition.h:12
+#4  0x08112043 in ThreadPoolThread::run (this=0x81e7b00) at /home/abakken/dev/rtags/src/ThreadPool.cpp:57
+#5  0x081672ac in Thread::internalStart (arg=0x81e7b00) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xb27c4b40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 10 (Thread 0xb2fc5b40 (LWP 7968)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+---Type <return> to continue, or q <return> to quit---
+#1  0xb6ff696b in pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/i386/i686/../i486/pthread_cond_wait.S:169
+#2  0xb70ff3dc in __pthread_cond_wait (cond=0x81e7a1c, mutex=0x81e7a04) at forward.c:139
+#3  0x080f6622 in WaitCondition::wait (this=0x81e7a1c, mutex=0x81e7a04) at /home/abakken/dev/rtags/src/WaitCondition.h:12
+#4  0x08112043 in ThreadPoolThread::run (this=0x81e79a8) at /home/abakken/dev/rtags/src/ThreadPool.cpp:57
+#5  0x081672ac in Thread::internalStart (arg=0x81e79a8) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xb2fc5b40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 9 (Thread 0xb37c6b40 (LWP 7967)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb6ff696b in pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/i386/i686/../i486/pthread_cond_wait.S:169
+#2  0xb70ff3dc in __pthread_cond_wait (cond=0x81e720c, mutex=0x81e71f4) at forward.c:139
+#3  0x080f6622 in WaitCondition::wait (this=0x81e720c, mutex=0x81e71f4) at /home/abakken/dev/rtags/src/WaitCondition.h:12
+#4  0x08112043 in ThreadPoolThread::run (this=0x81e7718) at /home/abakken/dev/rtags/src/ThreadPool.cpp:57
+#5  0x081672ac in Thread::internalStart (arg=0x81e7718) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xb37c6b40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 8 (Thread 0xb3fc7b40 (LWP 7966)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb6ff696b in pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/i386/i686/../i486/pthread_cond_wait.S:169
+#2  0xb70ff3dc in __pthread_cond_wait (cond=0x81e720c, mutex=0x81e71f4) at forward.c:139
+#3  0x080f6622 in WaitCondition::wait (this=0x81e720c, mutex=0x81e71f4) at /home/abakken/dev/rtags/src/WaitCondition.h:12
+#4  0x08112043 in ThreadPoolThread::run (this=0x81e7668) at /home/abakken/dev/rtags/src/ThreadPool.cpp:57
+#5  0x081672ac in Thread::internalStart (arg=0x81e7668) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xb3fc7b40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 7 (Thread 0xb47c8b40 (LWP 7965)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb6ff696b in pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/i386/i686/../i486/pthread_cond_wait.S:169
+#2  0xb70ff3dc in __pthread_cond_wait (cond=0x81e720c, mutex=0x81e71f4) at forward.c:139
+#3  0x080f6622 in WaitCondition::wait (this=0x81e720c, mutex=0x81e71f4) at /home/abakken/dev/rtags/src/WaitCondition.h:12
+#4  0x08112043 in ThreadPoolThread::run (this=0x81e73c0) at /home/abakken/dev/rtags/src/ThreadPool.cpp:57
+#5  0x081672ac in Thread::internalStart (arg=0x81e73c0) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xb47c8b40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 6 (Thread 0xb4fc9b40 (LWP 7964)):
+---Type <return> to continue, or q <return> to quit---
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb6ff696b in pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/i386/i686/../i486/pthread_cond_wait.S:169
+#2  0xb70ff3dc in __pthread_cond_wait (cond=0x81e720c, mutex=0x81e71f4) at forward.c:139
+#3  0x080f6622 in WaitCondition::wait (this=0x81e720c, mutex=0x81e71f4) at /home/abakken/dev/rtags/src/WaitCondition.h:12
+#4  0x08112043 in ThreadPoolThread::run (this=0x81e7520) at /home/abakken/dev/rtags/src/ThreadPool.cpp:57
+#5  0x081672ac in Thread::internalStart (arg=0x81e7520) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xb4fc9b40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 5 (Thread 0xb57cab40 (LWP 7963)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb6ff696b in pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/i386/i686/../i486/pthread_cond_wait.S:169
+#2  0xb70ff3dc in __pthread_cond_wait (cond=0x81e720c, mutex=0x81e71f4) at forward.c:139
+#3  0x080f6622 in WaitCondition::wait (this=0x81e720c, mutex=0x81e71f4) at /home/abakken/dev/rtags/src/WaitCondition.h:12
+#4  0x08112043 in ThreadPoolThread::run (this=0x81e7470) at /home/abakken/dev/rtags/src/ThreadPool.cpp:57
+#5  0x081672ac in Thread::internalStart (arg=0x81e7470) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xb57cab40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 4 (Thread 0xb5fcbb40 (LWP 7962)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb6ff696b in pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/i386/i686/../i486/pthread_cond_wait.S:169
+#2  0xb70ff3dc in __pthread_cond_wait (cond=0x81e720c, mutex=0x81e71f4) at forward.c:139
+#3  0x080f6622 in WaitCondition::wait (this=0x81e720c, mutex=0x81e71f4) at /home/abakken/dev/rtags/src/WaitCondition.h:12
+#4  0x08112043 in ThreadPoolThread::run (this=0x81e73a8) at /home/abakken/dev/rtags/src/ThreadPool.cpp:57
+#5  0x081672ac in Thread::internalStart (arg=0x81e73a8) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xb5fcbb40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 3 (Thread 0xb67ccb40 (LWP 7961)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb6ff696b in pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/i386/i686/../i486/pthread_cond_wait.S:169
+#2  0xb70ff3dc in __pthread_cond_wait (cond=0x81e720c, mutex=0x81e71f4) at forward.c:139
+#3  0x080f6622 in WaitCondition::wait (this=0x81e720c, mutex=0x81e71f4) at /home/abakken/dev/rtags/src/WaitCondition.h:12
+#4  0x08112043 in ThreadPoolThread::run (this=0x81e7178) at /home/abakken/dev/rtags/src/ThreadPool.cpp:57
+#5  0x081672ac in Thread::internalStart (arg=0x81e7178) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xb67ccb40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+---Type <return> to continue, or q <return> to quit---
+Thread 2 (Thread 0xb6fcdb40 (LWP 7960)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb6ff696b in pthread_cond_wait@@GLIBC_2.3.2 () at ../nptl/sysdeps/unix/sysv/linux/i386/i686/../i486/pthread_cond_wait.S:169
+#2  0xb70ff3dc in __pthread_cond_wait (cond=0x81e720c, mutex=0x81e71f4) at forward.c:139
+#3  0x080f6622 in WaitCondition::wait (this=0x81e720c, mutex=0x81e71f4) at /home/abakken/dev/rtags/src/WaitCondition.h:12
+#4  0x08112043 in ThreadPoolThread::run (this=0x81e7160) at /home/abakken/dev/rtags/src/ThreadPool.cpp:57
+#5  0x081672ac in Thread::internalStart (arg=0x81e7160) at /home/abakken/dev/rtags/src/Thread.cpp:14
+#6  0xb6ff2d4c in start_thread (arg=0xb6fcdb40) at pthread_create.c:308
+#7  0xb70f1ace in clone () at ../sysdeps/unix/sysv/linux/i386/clone.S:130
+
+Thread 1 (Thread 0xb6fcf700 (LWP 7957)):
+#0  0xb7fdd424 in __kernel_vsyscall ()
+#1  0xb70bac16 in nanosleep () at ../sysdeps/unix/syscall-template.S:82
+#2  0xb70eb57d in usleep (useconds=10000) at ../sysdeps/unix/sysv/linux/usleep.c:33
+#3  0x080f35a8 in Mutex::lock (this=0xa6efc48) at /home/abakken/dev/rtags/src/RTags.cpp:446
+#4  0x080ef292 in MutexLocker::MutexLocker (this=0xbfffebb8, mutex=0xa6efc48) at /home/abakken/dev/rtags/src/MutexLocker.h:12
+#5  0x08112bdc in ThreadPool::Job::~Job (this=0xa6efc40, __in_chrg=<optimized out>)
+    at /home/abakken/dev/rtags/src/ThreadPool.cpp:186
+#6  0x08155265 in IndexerJob::~IndexerJob (this=0xa6efc40, __in_chrg=<optimized out>)
+    at /home/abakken/dev/rtags/src/IndexerJob.h:13
+#7  0x08136642 in Indexer::onJobFinished (this=0xa6ef960, job=0xa6efc40) at /home/abakken/dev/rtags/src/Indexer.cpp:314
+#8  0x0813602f in Indexer::event (this=0xa6ef960, event=0xac2dce78) at /home/abakken/dev/rtags/src/Indexer.cpp:259
+#9  0x08116b33 in EventLoop::sendPostedEvents (this=0xbffff148) at /home/abakken/dev/rtags/src/EventLoop.cpp:299
+#10 0x08116a8b in EventLoop::handlePipe (this=0xbffff148) at /home/abakken/dev/rtags/src/EventLoop.cpp:280
+#11 0x081166b6 in EventLoop::run (this=0xbffff148) at /home/abakken/dev/rtags/src/EventLoop.cpp:246
+#12 0x080ec660 in main (argc=1, argv=0xbffff2b4) at /home/abakken/dev/rtags/src/rdm.cpp:247
