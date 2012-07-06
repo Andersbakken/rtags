@@ -83,7 +83,7 @@ void LocalClient::disconnect()
         eintrwrap(ret, ::close(mFd));
         EventLoop::instance()->removeFileDescriptor(mFd);
         mFd = -1;
-        mDisconnected();
+        disconnected()();
     }
 }
 
