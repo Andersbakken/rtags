@@ -93,14 +93,14 @@ static inline List<Path> extractPchFiles(const List<ByteArray> &args)
     return out;
 }
 
-static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t lastTouched)
+static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &args,
+                                       time_t lastTouched, ScopedDB db)
 {
     if (Location::path(fileId).isHeader() && !RTags::isPch(args)) {
         error() << "Somehow we're writing fileInformation for a header that isn't pch"
                 << Location::path(fileId) << args << lastTouched;
     }
     const char *ch = reinterpret_cast<const char*>(&fileId);
-    ScopedDB db = Server::instance()->db(Server::FileInformation, ReadWriteLock::Write);
     return db->setValue(Slice(ch, sizeof(fileId)), FileInformation(lastTouched, args));
 }
 
@@ -693,16 +693,15 @@ void IndexerJob::execute()
     }
 
     mDependencies[mFileId].insert(mFileId);
+    const Path srcRoot = mIndexer->srcRoot();
+    writeFileInformation(mFileId, mArgs, timeStamp,
+                         Server::instance()->db(Server::FileInformation, ReadWriteLock::Write, srcRoot));
     bool compileError = false;
     if (!mUnit) {
         compileError = true;
         error() << "got 0 unit for " << clangLine;
         mIndexer->addDependencies(mDependencies);
-        FileInformation fi;
-        fi.compileArgs = mArgs;
-        fi.lastTouched = timeStamp;
 
-        writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
         Map<Location, std::pair<int, ByteArray> > fixIts;
         Map<uint32_t, List<ByteArray> > visited;
@@ -805,10 +804,9 @@ void IndexerJob::execute()
             assert(mDependencies[mFileId].contains(mFileId));
 
             mIndexer->setDiagnostics(visited, fixIts);
-            writeSymbols(mSymbols, mReferences, Server::instance()->db(Server::Symbol, ReadWriteLock::Write, mIndexer));
+            writeSymbols(mSymbols, mReferences, Server::instance()->db(Server::Symbol, ReadWriteLock::Write, srcRoot));
 
-            writeSymbolNames(mSymbolNames, Server::instance()->db(Server::SymbolName, ReadWriteLock::Write, mIndexer));
-            writeFileInformation(mFileId, mArgs, timeStamp);
+            writeSymbolNames(mSymbolNames, Server::instance()->db(Server::SymbolName, ReadWriteLock::Write, srcRoot));
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
         }

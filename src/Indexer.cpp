@@ -25,7 +25,7 @@ void Indexer::init(const Path &srcRoot, bool validate)
     mSrcRoot = srcRoot;
     mWatcher.modified().connect(this, &Indexer::onDirectoryChanged);
     {
-        ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Read);
+        ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Read, srcRoot);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         while (it->isValid()) {
@@ -34,20 +34,20 @@ void Indexer::init(const Path &srcRoot, bool validate)
         }
     }
     {
-        ScopedDB db = Server::instance()->db(Server::General, ReadWriteLock::Read);
-        mPchDependencies = db->value<Map<Path, Set<uint32_t> > >("pchDependencies");
-    }
-    {
         // watcher
-        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Read);
+        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Read, srcRoot);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         DependencyMap dependencies;
         while (it->isValid()) {
             const Slice key = it->key();
-            const uint32_t fileId = *reinterpret_cast<const uint32_t*>(key.data());
-            const Set<uint32_t> deps = it->value<Set<uint32_t> >();
-            dependencies[fileId] = deps;
+            if (key.size() == 15 && !strncmp(key.data(), "pchDependencies", 15)) {
+                mPchDependencies = db->value<Map<Path, Set<uint32_t> > >("pchDependencies");
+            } else {
+                const uint32_t fileId = *reinterpret_cast<const uint32_t*>(key.data());
+                const Set<uint32_t> deps = it->value<Set<uint32_t> >();
+                dependencies[fileId] = deps;
+            }
             it->next();
         }
         commitDependencies(dependencies, false);
@@ -72,7 +72,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     Map<uint32_t, Set<uint32_t> > deps, depsReversed;
     RTags::Ptr<Iterator> it;
     {
-        ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ReadWriteLock::Write);
+        ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ReadWriteLock::Write, mSrcRoot);
         it.reset(dependencyDB->createIterator());
         it->seekToFirst();
         {
@@ -100,7 +100,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     int checked = 0;
 
     {
-        ScopedDB fileInformationDB = Server::instance()->db(Server::FileInformation, ReadWriteLock::Write);
+        ScopedDB fileInformationDB = Server::instance()->db(Server::FileInformation, ReadWriteLock::Write, mSrcRoot);
         Batch batch(fileInformationDB);
         it.reset(fileInformationDB->createIterator());
         it->seekToFirst();
@@ -172,7 +172,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     }
 
     if (checked)
-        error() << "Checked " << checked << " files. Found " << dirtyFiles.size() << " dirty files and "
+        error() << mSrcRoot << ": Checked " << checked << " files. Found " << dirtyFiles.size() << " dirty files and "
                 << (toIndex.size() + toIndexPch.size()) << " sources to reindex in " << timer.elapsed() << "ms";
 
     assert(dirtyFiles.isEmpty() == (toIndex.isEmpty() && toIndexPch.isEmpty()));
@@ -214,7 +214,7 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
         }
     }
     if (sync && !newDependencies.isEmpty()) {
-        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Write); // ### inefficent
+        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Write, mSrcRoot);
         Batch batch(db);
         DependencyMap::const_iterator it = newDependencies.begin();
         const DependencyMap::const_iterator end = newDependencies.end();
@@ -388,7 +388,7 @@ void Indexer::onDirectoryChanged(const Path &p)
         Set<WatchedPair>::const_iterator wend = it->second.end();
         List<ByteArray> args;
 
-        ScopedDB db = Server::instance()->db(Server::FileInformation, ReadWriteLock::Read);
+        ScopedDB db = Server::instance()->db(Server::FileInformation, ReadWriteLock::Read, mSrcRoot);
         while (wit != wend) {
             // weird API, Set<>::iterator does not allow for modifications to the referenced value
             file = (p + (*wit).first);
@@ -460,7 +460,7 @@ void Indexer::setPchDependencies(const Path &pchHeader, const Set<uint32_t> &dep
     } else {
         mPchDependencies[pchHeader] = deps;
     }
-    ScopedDB db = Server::instance()->db(Server::General, ReadWriteLock::Write);
+    ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Write, mSrcRoot);
     db->setValue("pchDependencies", mPchDependencies);
 }
 
@@ -507,7 +507,7 @@ void Indexer::setPchUSRMap(const Path &pch, const PchUSRMap &astMap)
 {
     WriteLocker lock(&mPchUSRMapLock);
     mPchUSRMaps[pch] = astMap;
-    ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Write);
+    ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Write, mSrcRoot);
     Batch batch(db);
     for (Map<Path, PchUSRMap>::const_iterator it = mPchUSRMaps.begin(); it != mPchUSRMaps.end(); ++it) {
         batch.add(it->first, it->second);

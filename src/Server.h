@@ -47,13 +47,13 @@ public:
         PCHUsrMaps,
         General,
         FileIds,
-        DatabaseTypeCount
+        DatabaseTypeCount,
+        ProjectSpecificDatabaseTypeCount = PCHUsrMaps + 1
     };
 
     static Server *instance() { return sInstance; }
     List<ByteArray> defaultArguments() const { return mOptions.defaultArguments; }
-    ScopedDB db(DatabaseType type, ReadWriteLock::LockType lockType, Indexer *indexer = 0) const;
-    ScopedDB db(DatabaseType type, ReadWriteLock::LockType lockType, const Path &path) const;
+    ScopedDB db(DatabaseType type, ReadWriteLock::LockType lockType, const Path &path = Path()) const;
     struct Options {
         Options() : options(0), cacheSizeMB(0), maxCompletionUnits(0) {}
         unsigned options;
@@ -119,7 +119,6 @@ private:
     static Path sBase;
     Map<Path, MakefileInformation> mMakefiles;
     FileSystemWatcher mMakefilesWatcher;
-    enum { ProjectSpecificDatabaseTypeCount = 2 };
     Database *mDBs[DatabaseTypeCount - ProjectSpecificDatabaseTypeCount];
     struct Project {
         Project()

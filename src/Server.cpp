@@ -353,7 +353,7 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
             }
         }
         conn->finish();
-        break;
+        return;
     case QueryMessage::Reindex: {
         reindex(message->query());
         conn->finish();
@@ -894,21 +894,6 @@ void Server::onJobsComplete(Indexer *indexer)
         setCurrentProject(indexer->srcRoot()); // ### hack, should also fold this and onIndexingComplete
     }
     startJob(new ValidateDBJob(indexer->srcRoot()));
-}
-
-ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType, Indexer *indexer) const
-{
-    if (type >= static_cast<int>(ProjectSpecificDatabaseTypeCount)) {
-        assert(!indexer);
-        return ScopedDB(mDBs[type - ProjectSpecificDatabaseTypeCount], lockType);
-    } else if (indexer) {
-        return db(type, lockType, indexer->srcRoot());
-    } else if (mCurrentProject) {
-        return ScopedDB(mCurrentProject->databases[type], lockType);
-    } else {
-        error() << "No DB here " << type << " " << lockType;
-        return ScopedDB();
-    }
 }
 
 ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType, const Path &root) const
