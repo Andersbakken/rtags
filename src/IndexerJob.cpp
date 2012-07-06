@@ -7,11 +7,8 @@
 #include "FileInformation.h"
 #include "Database.h"
 
-static inline int writeSymbolNames(SymbolNameMap &symbolNames)
+static inline int writeSymbolNames(SymbolNameMap &symbolNames, ScopedDB db)
 {
-    Timer timer;
-    ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Write);
-
     Batch batch(db);
     int totalWritten = 0;
 
@@ -34,10 +31,8 @@ static inline int writeSymbolNames(SymbolNameMap &symbolNames)
 }
 
 
-static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &references)
+static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, ScopedDB db)
 {
-    Timer timer;
-    ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Write);
     Batch batch(db);
     int totalWritten = 0;
 
@@ -98,10 +93,8 @@ static inline List<Path> extractPchFiles(const List<ByteArray> &args)
     return out;
 }
 
-static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t lastTouched)
+static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t lastTouched, ScopedDB db)
 {
-    Timer timer;
-    ScopedDB db = Server::instance()->db(Server::FileInformation, ReadWriteLock::Write);
     if (Location::path(fileId).isHeader() && !RTags::isPch(args)) {
         error() << "Somehow we're writing fileInformation for a header that isn't pch"
                 << Location::path(fileId) << args << lastTouched;
@@ -708,7 +701,8 @@ void IndexerJob::execute()
         fi.compileArgs = mArgs;
         fi.lastTouched = timeStamp;
 
-        writeFileInformation(mFileId, mArgs, timeStamp);
+        writeFileInformation(mFileId, mArgs, timeStamp,
+                             Server::instance()->db(Server::FileInformation, ReadWriteLock::Write, mIndexer));
     } else {
         Map<Location, std::pair<int, ByteArray> > fixIts;
         Map<uint32_t, List<ByteArray> > visited;
@@ -738,12 +732,12 @@ void IndexerJob::execute()
             if (testLog(logLevel) || (logLevel >= Warning && testLog(CompilationError))) {
                 CXSourceLocation loc = clang_getDiagnosticLocation(diagnostic);
                 const ByteArray string = RTags::eatString(clang_formatDiagnostic(diagnostic,
-                                                                               CXDiagnostic_DisplaySourceLocation|
-                                                                               CXDiagnostic_DisplayColumn|
-                                                                               CXDiagnostic_DisplaySourceRanges|
-                                                                               CXDiagnostic_DisplayOption|
-                                                                               CXDiagnostic_DisplayCategoryId|
-                                                                               CXDiagnostic_DisplayCategoryName));
+                                                                                 CXDiagnostic_DisplaySourceLocation|
+                                                                                 CXDiagnostic_DisplayColumn|
+                                                                                 CXDiagnostic_DisplaySourceRanges|
+                                                                                 CXDiagnostic_DisplayOption|
+                                                                                 CXDiagnostic_DisplayCategoryId|
+                                                                                 CXDiagnostic_DisplayCategoryName));
                 CXFile file;
                 clang_getSpellingLocation(loc, &file, 0, 0, 0);
                 if (file)
@@ -811,9 +805,11 @@ void IndexerJob::execute()
             assert(mDependencies[mFileId].contains(mFileId));
 
             mIndexer->setDiagnostics(visited, fixIts);
-            writeSymbols(mSymbols, mReferences);
-            writeSymbolNames(mSymbolNames);
-            writeFileInformation(mFileId, mArgs, timeStamp);
+            writeSymbols(mSymbols, mReferences, Server::instance()->db(Server::Symbol, ReadWriteLock::Write, mIndexer));
+
+            writeSymbolNames(mSymbolNames, Server::instance()->db(Server::SymbolName, ReadWriteLock::Write, mIndexer));
+            writeFileInformation(mFileId, mArgs, timeStamp,
+                                 Server::instance()->db(Server::FileInformation, ReadWriteLock::Write, mIndexer));
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
         }

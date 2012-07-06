@@ -37,6 +37,7 @@ FileSystemWatcher::~FileSystemWatcher()
 
 bool FileSystemWatcher::watch(const Path &path)
 {
+    assert(!path.isEmpty());
     MutexLocker lock(&mMutex);
     const Path::Type type = path.type();
     uint32_t flags = 0;

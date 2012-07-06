@@ -6,9 +6,11 @@
 class ValidateDBJob : public Job
 {
 public:
-    ValidateDBJob();
+    ValidateDBJob(const Path &root);
 protected:
     virtual void execute();
+private:
+    const Path mRoot;
 };
 
 #endif

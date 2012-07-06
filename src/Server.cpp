@@ -803,8 +803,6 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
     }
 
     const Path projectRoot = findProjectRoot(*inputFiles.begin());
-    printf("%s => %s\n", inputFiles.begin()->constData(), projectRoot.constData());
-    // return;
     if (projectRoot.isEmpty()) {
         error("Can't find project root for %s", inputFiles.begin()->constData());
         return;
@@ -814,7 +812,8 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
         error("Can't find project for %s", projectRoot.constData());
         return;
     }
-    printf("%s => %s => %s\n", inputFiles.begin()->constData(), proj->projectPath.constData(), projectRoot.constData());
+    assert(proj);
+    assert(proj->indexer);
 
     if (args.type() == GccArguments::Pch) {
         ByteArray output = args.outputFile();
@@ -843,13 +842,14 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 
     for (int i=0; i<c; ++i) {
         const Path &input = inputFiles.at(i);
-        std::swap(mCurrentProject, proj);
+        Project *old = mCurrentProject;
+        mCurrentProject = proj;
         if (arguments != RTags::compileArgs(Location::insertFile(input))) {
             proj->indexer->index(input, arguments, IndexerJob::Makefile);
         } else {
             debug() << input << " is not dirty. ignoring";
         }
-        std::swap(mCurrentProject, proj);
+        mCurrentProject = old;
     }
 }
 
@@ -905,13 +905,18 @@ ByteArray Server::completions(const QueryMessage &query)
     const ByteArray ret = mCompletions->completions(loc, query.flags(), query.unsavedFiles().value(loc.path()));
     return ret;
 }
-void Server::onJobsComplete()
+void Server::onJobsComplete(Indexer *indexer)
 {
-    startJob(new ValidateDBJob);
+    if (!mCurrentProject) {
+        setCurrentProject(indexer->srcRoot()); // ### hack, should also fold this and onIndexingComplete
+    }
+    startJob(new ValidateDBJob(indexer->srcRoot()));
 }
 
-ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType) const
+ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType, Indexer *indexer) const
 {
+    if (indexer)
+        return db(type, lockType, indexer->srcRoot());
     switch (type) {
     case FileIds:
         return ScopedDB(mFileIdsDB, lockType);
@@ -923,6 +928,24 @@ ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType) const
         return ScopedDB(mCurrentProject->databases[type], lockType);
     }
 }
+
+ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType, const Path &root) const
+{
+    switch (type) {
+    case FileIds:
+        return ScopedDB(mFileIdsDB, lockType);
+    case General:
+        return ScopedDB(mGeneralDB, lockType);
+    default:
+        break;
+    }
+
+    Project *proj = mProjects.value(root, mCurrentProject);
+    if (!proj)
+        return ScopedDB();
+    return ScopedDB(proj->databases[type], lockType);
+}
+
 
 Indexer *Server::indexer() const
 {
@@ -958,7 +981,7 @@ Server::Project *Server::initProject(const Path &path)
             project->databases[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(),
                                                  mOptions.cacheSizeMB, flags);
         }
-        project->indexer = new Indexer(!(mOptions.options & NoValidateOnStartup));
+        project->indexer = new Indexer(path, !(mOptions.options & NoValidateOnStartup));
         project->indexer->indexingDone().connect(this, &Server::onIndexingDone);
         project->indexer->jobsComplete().connect(this, &Server::onJobsComplete);
         mCurrentProject = prev;

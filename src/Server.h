@@ -52,7 +52,8 @@ public:
 
     static Server *instance() { return sInstance; }
     List<ByteArray> defaultArguments() const { return mOptions.defaultArguments; }
-    ScopedDB db(DatabaseType type, ReadWriteLock::LockType lockType) const;
+    ScopedDB db(DatabaseType type, ReadWriteLock::LockType lockType, Indexer *indexer = 0) const;
+    ScopedDB db(DatabaseType type, ReadWriteLock::LockType lockType, const Path &path) const;
     struct Options {
         Options() : options(0), cacheSizeMB(0), maxCompletionUnits(0) {}
         unsigned options;
@@ -74,7 +75,7 @@ public:
     void startJob(Job *job);
     bool setCurrentProject(const Path &path);
 protected:
-    void onJobsComplete();
+    void onJobsComplete(Indexer *indexer);
     void event(const Event *event);
     void onFileReady(const GccArguments &file, MakefileParser *parser);
     void onNewMessage(Message *message, Connection *conn);
@@ -137,6 +138,7 @@ private:
         Database *databases[ProjectSpecificDatabaseTypeCount];
         Indexer *indexer;
     };
+
     Map<Path, Project*> mProjects;
     Project *mCurrentProject;
     Database *mFileIdsDB, *mGeneralDB;

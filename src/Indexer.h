@@ -14,7 +14,7 @@ class IndexerJob;
 class Indexer : public EventReceiver
 {
 public:
-    Indexer(bool validate);
+    Indexer(const Path &srcRoot, bool validate);
     ~Indexer();
 
     int index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
@@ -35,8 +35,9 @@ public:
     void reindex(const ByteArray &pattern);
     void event(const Event *event);
     signalslot::Signal1<int> &indexingDone() { return mIndexingDone; }
-    signalslot::Signal0 &jobsComplete() { return mJobsComplete; }
+    signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
     void onDirectoryChanged(const Path &path);
+    Path srcRoot() const { return mSrcRoot; }
 private:
     void onJobFinished(IndexerJob *job);
     void commitDependencies(const DependencyMap &deps, bool sync);
@@ -67,6 +68,7 @@ private:
     bool mTimerRunning;
     Timer mTimer;
 
+    const Path mSrcRoot;
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
     Mutex mWatchedMutex;
@@ -77,7 +79,7 @@ private:
     mutable ReadWriteLock mFixItsAndErrorsLock;
 
     signalslot::Signal1<int> mIndexingDone;
-    signalslot::Signal0 mJobsComplete;
+    signalslot::Signal1<Indexer*> mJobsComplete;
 };
 
 inline bool Indexer::visitFile(uint32_t fileId, const Path &path, bool isPch)

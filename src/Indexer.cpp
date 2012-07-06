@@ -15,14 +15,15 @@
 #include "WriteLocker.h"
 #include <math.h>
 
-Indexer::Indexer(bool validate)
+Indexer::Indexer(const Path &srcRoot, bool validate)
+    : mSrcRoot(srcRoot)
 {
     mJobCounter = 0;
     mTimerRunning = false;
 
     mWatcher.modified().connect(this, &Indexer::onDirectoryChanged);
     {
-        ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Read);
+        ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Read, this);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         while (it->isValid()) {
@@ -36,7 +37,7 @@ Indexer::Indexer(bool validate)
     }
     {
         // watcher
-        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Read);
+        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Read, this);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         DependencyMap dependencies;
@@ -68,7 +69,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     Timer timer;
     Map<uint32_t, Set<uint32_t> > deps, depsReversed;
 
-    ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ReadWriteLock::Write);
+    ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ReadWriteLock::Write, this);
     RTags::Ptr<Iterator> it(dependencyDB->createIterator());
     it->seekToFirst();
     {
@@ -95,7 +96,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     int checked = 0;
 
     {
-        ScopedDB fileInformationDB = Server::instance()->db(Server::FileInformation, ReadWriteLock::Write);
+        ScopedDB fileInformationDB = Server::instance()->db(Server::FileInformation, ReadWriteLock::Write, this);
         Batch batch(fileInformationDB);
         it.reset(fileInformationDB->createIterator());
         it->seekToFirst();
@@ -209,7 +210,7 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
         }
     }
     if (sync && !newDependencies.isEmpty()) {
-        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Write);
+        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Write, this); // ### inefficent
 
         Batch batch(db);
         DependencyMap::const_iterator it = newDependencies.begin();
@@ -234,6 +235,7 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
     MutexLocker lock(&mWatchedMutex);
     for (DependencyMap::const_iterator it = newDependencies.begin(); it != end; ++it) {
         const Path path = Location::path(it->first);
+        printf("%s\n", path.constData());
         parentPath = path.parentDir();
         WatchedMap::iterator wit = mWatched.find(parentPath);
         //debug() << "watching" << path << "in" << parentPath;
@@ -301,7 +303,7 @@ void Indexer::onJobFinished(IndexerJob *job)
             error() << "jobs took " << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using "
                     << MemoryMonitor::usage() / (1024.0 * 1024.0) << " mb of memory";
             mJobCounter = 0;
-            jobsComplete()();
+            jobsComplete()(this);
         }
 
         mIndexingDone(job->mId);
@@ -501,7 +503,7 @@ void Indexer::setPchUSRMap(const Path &pch, const PchUSRMap &astMap)
 {
     WriteLocker lock(&mPchUSRMapLock);
     mPchUSRMaps[pch] = astMap;
-    ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Write);
+    ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Write, this);
     Batch batch(db);
     for (Map<Path, PchUSRMap>::const_iterator it = mPchUSRMaps.begin(); it != mPchUSRMaps.end(); ++it) {
         batch.add(it->first, it->second);
