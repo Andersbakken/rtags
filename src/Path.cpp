@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include "RTags.h"
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
 
 // this doesn't check if *this actually is a real file
 Path Path::parentDir() const
@@ -190,4 +192,31 @@ bool Path::mkdir(const Path &path)
 bool Path::rm(const Path &file)
 {
     return !unlink(file.constData());
+}
+
+void Path::visit(VisitCallback callback, void *userData)
+{
+    if (!callback)
+        return;
+    DIR *d = opendir(constData());
+    if (!d)
+        return;
+    char buf[PATH_MAX + sizeof(dirent) + 1];
+    dirent *dbuf = reinterpret_cast<dirent*>(buf);
+
+    dirent *p;
+    Path path = *this;
+    if (!path.endsWith('/'))
+        path.append('/');
+    const int s = path.size();
+    path.reserve(s + 128);
+    while (!readdir_r(d, dbuf, &p) && p) {
+        if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, ".."))
+            continue;
+        path.truncate(s);
+        path.append(p->d_name);
+        if (!callback(path, userData))
+            break;
+    }
+    closedir(d);
 }
