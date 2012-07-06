@@ -44,11 +44,11 @@ bool Connection::connectToServer(const ByteArray &name)
     return mClient->connect(name, 1000);
 }
 
-void Connection::send(int id, const ByteArray &message)
+bool Connection::send(int id, const ByteArray &message)
 {
     if (!mClient->isConnected()) {
         ::error("Trying to send message to unconnected client (%d)", id);
-        return;
+        return false;
     }
 
     ByteArray header, data;
@@ -64,8 +64,7 @@ void Connection::send(int id, const ByteArray &message)
         }
     }
     mPendingWrite += (header.size() + data.size());
-    mClient->write(header);
-    mClient->write(data);
+    return mClient->write(header) && mClient->write(data);
 }
 
 int Connection::pendingWrite() const

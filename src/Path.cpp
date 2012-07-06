@@ -215,7 +215,7 @@ void Path::visit(VisitCallback callback, void *userData)
             continue;
         path.truncate(s);
         path.append(p->d_name);
-        if (!callback(path, userData))
+        if (callback(path, userData) == Abort)
             break;
     }
     closedir(d);

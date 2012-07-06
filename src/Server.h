@@ -89,6 +89,7 @@ protected:
 private:
     struct Project;
     Project *initProject(const Path &path);
+    static Path::VisitResult projectsVisitor(const Path &path, void *);
     void handleMakefileMessage(MakefileMessage *message, Connection *conn);
     void handleQueryMessage(QueryMessage *message, Connection *conn);
     void handleErrorMessage(ErrorMessage *message, Connection *conn);

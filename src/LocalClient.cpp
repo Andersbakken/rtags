@@ -121,13 +121,14 @@ int LocalClient::read(char *buf, int size)
     return size;
 }
 
-void LocalClient::write(const ByteArray& data)
+bool LocalClient::write(const ByteArray& data)
 {
     if (pthread_equal(pthread_self(), EventLoop::instance()->thread())) {
         mBuffers.push_back(data);
-        writeMore();
+        return writeMore();
     } else {
         EventLoop::instance()->postEvent(this, new DelayedWriteEvent(data));
+        return true;
     }
 }
 
@@ -167,8 +168,9 @@ void LocalClient::readMore()
         disconnect();
 }
 
-void LocalClient::writeMore()
+bool LocalClient::writeMore()
 {
+    bool ret = true;
     // printf("Writemore called %p %p\n", (void*)pthread_self(),
     //        (void*)EventLoop::instance()->thread());
     int written = 0;
@@ -178,8 +180,10 @@ void LocalClient::writeMore()
         const ByteArray& front = mBuffers.front();
         int w;
         eintrwrap(w, ::write(mFd, &front[mBufferIdx], front.size() - mBufferIdx));
-        if (w == -1) // check EWOULDBLOCK / EAGAIN?
+        if (w == -1) { // check EWOULDBLOCK / EAGAIN?
+            ret = false;
             break;
+        }
         written += w;
         mBufferIdx += w;
         if (mBufferIdx == front.size()) {
@@ -191,6 +195,7 @@ void LocalClient::writeMore()
     }
     if (written)
         mBytesWritten(written);
+    return ret;
 }
 
 void LocalClient::event(const Event* event)

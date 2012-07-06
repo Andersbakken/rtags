@@ -8,8 +8,8 @@
 #include <clang-c/Index.h>
 
 const char *StatusJob::delimiter = "*********************************";
-StatusJob::StatusJob(int i, const ByteArray &q)
-    : Job(i, QueryJobPriority, WriteUnfiltered), query(q)
+StatusJob::StatusJob(int i, const ByteArray &q, Indexer *indexer)
+    : Job(i, QueryJobPriority, WriteUnfiltered), query(q), mIndexer(indexer)
 {
 }
 
@@ -33,6 +33,23 @@ void StatusJob::execute()
             write(out);
         }
     }
+
+    if (query.isEmpty() || query == "fileids") {
+        ScopedDB db = server->db(Server::FileIds, ReadWriteLock::Read);
+        write(delimiter);
+        write(server->databaseDir(Server::FileIds));
+        RTags::Ptr<Iterator> it(db->createIterator());
+        it->seekToFirst();
+        char buf[1024];
+        while (it->isValid()) {
+            snprintf(buf, 1024, "  %s: %d", it->key().byteArray().constData(), it->value<uint32_t>());
+            write(buf);
+            it->next();
+        }
+    }
+
+    if (!mIndexer)
+        return;
 
     if (query.isEmpty() || query == "dependencies") {
         ScopedDB db = server->db(Server::Dependency, ReadWriteLock::Read);
@@ -65,8 +82,6 @@ void StatusJob::execute()
                 write(buf);
             }
         }
-
-
     }
 
     if (query.isEmpty() || query == "symbols") {
@@ -167,19 +182,6 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || query == "fileids") {
-        ScopedDB db = server->db(Server::FileIds, ReadWriteLock::Read);
-        write(delimiter);
-        write(server->databaseDir(Server::FileIds));
-        RTags::Ptr<Iterator> it(db->createIterator());
-        it->seekToFirst();
-        char buf[1024];
-        while (it->isValid()) {
-            snprintf(buf, 1024, "  %s: %d", it->key().byteArray().constData(), it->value<uint32_t>());
-            write(buf);
-            it->next();
-        }
-    }
     if (query.isEmpty() || query == "visitedFiles") {
         write(delimiter);
         write("visitedFiles");

@@ -20,7 +20,7 @@ public:
     ByteArray readAll();
     int read(char *buf, int size);
     int bytesAvailable() const { return mReadBuffer.size() - mReadBufferPos; }
-    void write(const ByteArray& data);
+    bool write(const ByteArray& data);
 
     signalslot::Signal0& dataAvailable() { return mDataAvailable; }
     signalslot::Signal0& connected() { return mConnected; }
@@ -31,7 +31,7 @@ protected:
 private:
     static void dataCallback(int fd, unsigned int flags, void* userData);
 
-    void writeMore();
+    bool writeMore();
     void readMore();
     LocalClient(int fd);
     friend class LocalServer;

@@ -198,6 +198,8 @@ bool Server::init(const Options &options)
     mServer->clientConnected().connect(this, &Server::onNewConnection);
 
     error() << "running with " << mOptions.defaultArguments << " clang version " << RTags::eatString(clang_getClangVersion());
+    Path p = RTags::rtagsDir() + "projects/";
+    p.visit(projectsVisitor, this);
 
     if (!(mOptions.options & NoValidateOnStartup))
         remake();
@@ -327,7 +329,11 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::Project:
         if (message->query().isEmpty()) {
             for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-                conn->write(it->first);
+                ByteArray b = it->first;
+                if (it->second == mCurrentProject)
+                    b.append(" <=");
+                ResponseMessage msg(b);
+                conn->send(&msg);
             }
         } else {
             Path currentPath;
@@ -337,11 +343,14 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
             for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
                 if (rx.indexIn(it->first) != -1) {
                     if (error) {
-                        conn->write(it->first);
+                        ResponseMessage msg(it->first);
+                        conn->send(&msg);
                     } else if (current) {
                         error = true;
-                        conn->write("Multiple matches for " + message->query());
-                        conn->write(currentPath);
+                        ResponseMessage msg("Multiple matches for " + currentPath);
+                        conn->send(&msg);
+                        msg.setData(it->first);
+                        conn->send(&msg);
                     } else {
                         currentPath = it->first;
                         current = it->second;
@@ -349,7 +358,8 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
                 }
             }
             if (!error && current) {
-                conn->write("Selected project: " + currentPath);
+                ResponseMessage msg("Selected project: " + currentPath);
+                conn->send(&msg);
             }
         }
         conn->finish();
@@ -549,7 +559,7 @@ int Server::status(const QueryMessage &query)
 
     error("rc -s \"%s\"", query.query().constData());
 
-    StatusJob *job = new StatusJob(id, query.query());
+    StatusJob *job = new StatusJob(id, query.query(), mCurrentProject ? mCurrentProject->indexer : 0);
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     startJob(job);
     return id;
@@ -647,6 +657,11 @@ bool Server::setBaseDirectory(const Path &base, bool clear)
     }
     if (!sBase.mksubdir("pch")) {
         error("Can't create directory [%s/pch]", sBase.constData());
+        return false;
+    }
+
+    if (!sBase.mksubdir("projects")) {
+        error("Can't create directory [%s/projects]", sBase.constData());
         return false;
     }
 
@@ -864,7 +879,9 @@ void Server::event(const Event *event)
         if (it == mPendingLookups.end())
             break;
         ResponseMessage msg(e->out);
-        it->second->send(&msg);
+        if (!it->second->send(&msg)) {
+            e->job->abort();
+        }
         break; }
     case MakeEvent::Type: {
         const MakeEvent *e = static_cast<const MakeEvent*>(event);
@@ -937,7 +954,7 @@ Server::Project *Server::initProject(const Path &path)
         tmp.replace("_", "<underscore>");
         tmp.replace("/", "_");
         tmp.append("/");
-        project->projectPath = RTags::rtagsDir() + tmp;
+        project->projectPath = RTags::rtagsDir() + "projects/" + tmp;
         Path::mkdir(project->projectPath);
         Project *prev = mCurrentProject;
         mCurrentProject = project;
@@ -953,4 +970,21 @@ Server::Project *Server::initProject(const Path &path)
         mCurrentProject = prev;
     }
     return project;
+}
+
+Path::VisitResult Server::projectsVisitor(const Path &path, void *server)
+{
+    Server *s = reinterpret_cast<Server*>(server);
+    Path p = path;
+    p.remove(0, RTags::rtagsDir().size() + 9);
+    p.replace("_", "/");
+    p.replace("<underscore>", "_");
+
+    error() << p << " " << path;
+    if (!s->mCurrentProject) {
+        s->setCurrentProject(p);
+    } else {
+        s->initProject(p);
+    }
+    return Path::Continue;
 }

@@ -23,8 +23,8 @@ public:
     int pendingWrite() const;
 
     template<typename T>
-    void send(const T *message);
-    void send(int id, const ByteArray& message);
+    bool send(const T *message);
+    bool send(int id, const ByteArray& message);
     void write(const ByteArray &out);
     void finish();
 
@@ -52,9 +52,9 @@ private:
 };
 
 template<typename T>
-void Connection::send(const T *message)
+bool Connection::send(const T *message)
 {
-    send(message->messageId(), message->encode());
+    return send(message->messageId(), message->encode());
 }
 
 #endif // CONNECTION_H

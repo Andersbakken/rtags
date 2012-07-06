@@ -79,7 +79,12 @@ public:
     static Path resolved(const ByteArray &path, const Path &cwd = Path(), bool *ok = 0);
     static Path canonicalized(const ByteArray &path);
 
-    typedef bool (*VisitCallback)(const Path &path, void *userData);
+    enum VisitResult {
+        Abort,
+        Continue
+        // ### recurse?
+    };
+    typedef VisitResult (*VisitCallback)(const Path &path, void *userData);
     void visit(VisitCallback callback, void *userData);
 };
 
