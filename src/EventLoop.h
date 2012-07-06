@@ -18,7 +18,11 @@ public:
 
     static EventLoop* instance();
 
-    enum { Read = 1, Write = 2 };
+    enum Flag {
+        Read = 0x1,
+        Write = 0x2,
+        Disconnected = 0x4
+    };
     typedef void(*FdFunc)(int, unsigned int, void*);
     typedef void(*TimerFunc)(int, void*);
 

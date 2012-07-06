@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/select.h>
+#include <sys/ioctl.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
@@ -248,8 +249,16 @@ void EventLoop::run()
 
         Map<int, FdData>::const_iterator it = fds.begin();
         while (it != fds.end()) {
-            if ((it->second.flags & Read) && FD_ISSET(it->first, &rset)) {
-                unsigned int flag = Read;
+            if ((it->second.flags & (Read|Disconnected)) && FD_ISSET(it->first, &rset)) {
+                unsigned int flag = it->second.flags & Read;
+                if (it->second.flags & Disconnected) {
+                    size_t nbytes = 0;
+                    int ret = ioctl(it->first, FIONREAD, reinterpret_cast<char*>(&nbytes));
+                    if (!ret && !nbytes) {
+                        flag |= Disconnected;
+                    }
+                }
+
                 if ((it->second.flags & Write) && FD_ISSET(it->first, &wset))
                     flag |= Write;
                 it->second.callback(it->first, flag, it->second.userData);
