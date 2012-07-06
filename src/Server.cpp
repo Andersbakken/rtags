@@ -39,6 +39,7 @@
 #include <fnmatch.h>
 
 Path Server::sBase;
+Path Server::sProjectsDir;
 
 class MakeEvent : public Event
 {
@@ -198,8 +199,7 @@ bool Server::init(const Options &options)
     mServer->clientConnected().connect(this, &Server::onNewConnection);
 
     error() << "running with " << mOptions.defaultArguments << " clang version " << RTags::eatString(clang_getClangVersion());
-    Path p = RTags::rtagsDir() + "projects/";
-    p.visit(projectsVisitor, this);
+    sProjectsDir.visit(projectsVisitor, this);
 
     if (!(mOptions.options & NoValidateOnStartup))
         remake();
@@ -618,13 +618,6 @@ Path Server::databaseDir(DatabaseType type)
     return ::databaseDir(type, sBase.constData());
 }
 
-Path Server::pchDir()
-{
-    if (sBase.isEmpty())
-        return Path();
-    return sBase + "pch/";
-}
-
 Path Server::projectsPath()
 {
     if (sBase.isEmpty())
@@ -646,15 +639,11 @@ bool Server::setBaseDirectory(const Path &base, bool clear)
         error("Can't create directory [%s]", sBase.constData());
         return false;
     }
-    if (!sBase.mksubdir("pch")) {
-        error("Can't create directory [%s/pch]", sBase.constData());
-        return false;
-    }
-
     if (!sBase.mksubdir("projects")) {
         error("Can't create directory [%s/projects]", sBase.constData());
         return false;
     }
+    sProjectsDir = base + "projects/";
 
     return true;
 }
@@ -945,7 +934,7 @@ Server::Project *Server::initProject(const Path &path)
         tmp.replace("_", "<underscore>");
         tmp.replace("/", "_");
         tmp.append("/");
-        project->projectPath = RTags::rtagsDir() + "projects/" + tmp;
+        project->projectPath = sProjectsDir + tmp;
         Path::mkdir(project->projectPath);
         Project *prev = mCurrentProject;
         mCurrentProject = project;
@@ -955,7 +944,7 @@ Server::Project *Server::initProject(const Path &path)
                                                  mOptions.cacheSizeMB, flags);
         }
         project->indexer = new Indexer;
-        project->indexer->init(path, !(mOptions.options & NoValidateOnStartup));
+        project->indexer->init(path, mCurrentProject->projectPath, !(mOptions.options & NoValidateOnStartup));
         project->indexer->jobsComplete().connect(this, &Server::onJobsComplete);
         mCurrentProject = prev;
     }

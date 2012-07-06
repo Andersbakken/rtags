@@ -17,7 +17,7 @@ public:
     Indexer();
     ~Indexer();
 
-    void init(const Path &srcRoot, bool validate);
+    void init(const Path &srcRoot, const Path &projectRoot, bool validate);
 
     int index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
 
@@ -38,7 +38,8 @@ public:
     void event(const Event *event);
     signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
     void onDirectoryChanged(const Path &path);
-    Path srcRoot() const { return mSrcRoot; }
+    Path srcRoot() const { return mSrcRoot; } // ~/src/foobar
+    Path projectRoot() const { return mProjectRoot; } // ~/.rtags/projects/[_foobar_]
 private:
     void onJobFinished(IndexerJob *job);
     void commitDependencies(const DependencyMap &deps, bool sync);
@@ -69,7 +70,7 @@ private:
     bool mTimerRunning;
     Timer mTimer;
 
-    Path mSrcRoot;
+    Path mSrcRoot, mProjectRoot;
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
     Mutex mWatchedMutex;

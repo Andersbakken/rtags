@@ -593,9 +593,9 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
     return CXChildVisit_Recurse;
 }
 
-static ByteArray pchFileName(const ByteArray &header)
+static ByteArray pchFileName(const Path &pchDir, const ByteArray &header)
 {
-    return Server::pchDir() + SHA256::hash(header.constData());
+    return pchDir + "/pch/" + SHA256::hash(header.constData());
 }
 
 struct Scope {
@@ -644,6 +644,7 @@ void IndexerJob::execute()
     List<Path> pchFiles;
     int idx = 0;
     const int count = mArgs.size();
+    const Path projectRoot = mIndexer->projectRoot();
     for (int i=0; i<count; ++i) {
         const ByteArray &arg = mArgs.at(i);
         if (arg.isEmpty())
@@ -651,7 +652,7 @@ void IndexerJob::execute()
 
         if (nextIsPch) {
             nextIsPch = false;
-            pchFiles.append(pchFileName(arg));
+            pchFiles.append(pchFileName(projectRoot, arg));
             clangArgs[idx++] = pchFiles.back().constData();
             clangLine += pchFiles.back().constData();
             clangLine += " ";
@@ -672,7 +673,7 @@ void IndexerJob::execute()
         }
     }
     if (mIsPch) {
-        pchName = pchFileName(mIn);
+        pchName = pchFileName(projectRoot, mIn);
     }
     clangLine += mIn;
 

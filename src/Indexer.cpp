@@ -20,9 +20,10 @@ Indexer::Indexer()
 {
 }
 
-void Indexer::init(const Path &srcRoot, bool validate)
+void Indexer::init(const Path &srcRoot, const Path &projectRoot, bool validate)
 {
     mSrcRoot = srcRoot;
+    mProjectRoot = projectRoot;
     mWatcher.modified().connect(this, &Indexer::onDirectoryChanged);
     {
         ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Read, srcRoot);

@@ -67,7 +67,6 @@ public:
     ByteArray name() const { return mOptions.socketPath; }
     static bool setBaseDirectory(const Path &base, bool clear);
     Path databaseDir(DatabaseType type);
-    static Path pchDir();
     static Path projectsPath();
     ThreadPool *threadPool() const { return mThreadPool; }
     void onNewConnection();
@@ -141,6 +140,7 @@ private:
 
     Map<Path, Project*> mProjects;
     Project *mCurrentProject;
+    static Path sProjectsDir;
     ThreadPool *mThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
     Completions *mCompletions;
