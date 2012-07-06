@@ -925,15 +925,13 @@ Server::Project *Server::initProject(const Path &path)
 {
     Project *&project = mProjects[path];
     if (!project) {
-        if (path.contains("<underscore>")) {
+        Path tmp = path;
+        if (!RTags::encodePath(tmp)) {
             error("Invalid folder name %s", path.constData());
-            return false;
+            return 0;
         }
+        tmp.append('/');
         project = new Project;
-        ByteArray tmp = path;
-        tmp.replace("_", "<underscore>");
-        tmp.replace("/", "_");
-        tmp.append("/");
         project->projectPath = sProjectsDir + tmp;
         Path::mkdir(project->projectPath);
         Project *prev = mCurrentProject;
@@ -956,10 +954,7 @@ Path::VisitResult Server::projectsVisitor(const Path &path, void *server)
     Server *s = reinterpret_cast<Server*>(server);
     Path p = path;
     p.remove(0, RTags::rtagsDir().size() + 9);
-    p.replace("_", "/");
-    p.replace("<underscore>", "_");
-
-    error() << p << " " << path;
+    RTags::decodePath(p);
     if (!s->mCurrentProject) {
         s->setCurrentProject(p);
     } else {

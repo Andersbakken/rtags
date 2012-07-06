@@ -116,13 +116,12 @@ inline Path rtagsDir()
     return Path(buf, w);
 }
 
-inline Path encodePath(Path path)
+inline bool encodePath(Path &path)
 {
     int size = path.size();
     enum { EncodedUnderscoreLength = 12 };
     for (int i=0; i<size; ++i) {
         char &ch = path[i];
-        printf("%d/%d %c\n", i, size, ch);
         switch (ch) {
         case '/':
             ch = '_';
@@ -133,21 +132,17 @@ inline Path encodePath(Path path)
             i += EncodedUnderscoreLength - 1;
             break;
         case '<':
-            printf("%d %d\n",
-                   i + EncodedUnderscoreLength <= size,
-                   !strncmp(&ch + 1, "underscore>", EncodedUnderscoreLength - 1));
-
             if (i + EncodedUnderscoreLength <= size && !strncmp(&ch + 1, "underscore>", EncodedUnderscoreLength - 1)) {
                 error("Invalid folder name %s", path.constData());
-                return Path();
+                return false;
             }
             break;
         }
     }
-    return path;
+    return true;
 }
 
-inline Path decodePath(Path path)
+inline void decodePath(Path &path)
 {
     int size = path.size();
     enum { EncodedUnderscoreLength = 12 };
@@ -165,7 +160,6 @@ inline Path decodePath(Path path)
             break;
         }
     }
-    return path;
 }
 
 
