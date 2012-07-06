@@ -41,18 +41,6 @@
 Path Server::sBase;
 Path Server::sProjectsDir;
 
-class MakeEvent : public Event
-{
-public:
-    enum { Type = 3 };
-    MakeEvent()
-        : Event(Type)
-    {}
-    Path makefile;
-    List<ByteArray> makefileArgs, extraFlags;
-    Connection *connection;
-};
-
 class MakefileParserDoneEvent : public Event
 {
 public:
@@ -274,13 +262,6 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
     mMakefilesWatcher.watch(makefile);
     ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
     general->setValue("makefiles", mMakefiles);
-    // MakeEvent *ev = new MakeEvent;
-    // ev->makefile = message->makefile();
-    // ev->makefileArgs = message->arguments();
-    // ev->extraFlags = message->extraFlags();
-    // ev->connection = conn;
-    // EventLoop::instance()->postEvent(this, ev);
-    // conn->finish();
     make(message->makefile(), message->arguments(), message->extraFlags(), conn);
 }
 
@@ -859,13 +840,9 @@ void Server::event(const Event *event)
         if (it == mPendingLookups.end())
             break;
         ResponseMessage msg(e->out);
-        if (!it->second->send(&msg)) {
+        if (it->second->isConnected() && !it->second->send(&msg)) {
             e->job->abort();
         }
-        break; }
-    case MakeEvent::Type: {
-        const MakeEvent *e = static_cast<const MakeEvent*>(event);
-        make(e->makefile, e->makefileArgs, e->extraFlags, e->connection);
         break; }
     case MakefileParserDoneEvent::Type: {
         delete static_cast<const MakefileParserDoneEvent*>(event)->parser;

@@ -171,8 +171,6 @@ void LocalClient::readMore()
 bool LocalClient::writeMore()
 {
     bool ret = true;
-    // printf("Writemore called %p %p\n", (void*)pthread_self(),
-    //        (void*)EventLoop::instance()->thread());
     int written = 0;
     for (;;) {
         if (mBuffers.empty())
@@ -180,8 +178,8 @@ bool LocalClient::writeMore()
         const ByteArray& front = mBuffers.front();
         int w;
         eintrwrap(w, ::write(mFd, &front[mBufferIdx], front.size() - mBufferIdx));
-        if (w == -1) { // check EWOULDBLOCK / EAGAIN?
-            ret = false;
+        if (w == -1) {
+            ret = (errno == EWOULDBLOCK || errno == EAGAIN); // apparently these can be different
             break;
         }
         written += w;
