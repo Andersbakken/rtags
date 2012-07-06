@@ -140,8 +140,16 @@ public:
     ~Database();
 
     unsigned flags() const { return mFlags; }
-    void lock(ReadWriteLock::LockType type) { mLock.lock(type); }
-    void unlock() { mLock.unlock(); }
+    void lock(ReadWriteLock::LockType type) {
+        printf("lock %s\n", mPath.constData());
+        mLock.lock(type);
+        printf("[%s] %s:%d: mLock.lock(type); [after]\n", __func__, __FILE__, __LINE__);
+    }
+    void unlock() {
+        printf("unlock %s\n", mPath.constData());
+        mLock.unlock();
+        printf("[%s] %s:%d: mLock.unlock(); [after]\n", __func__, __FILE__, __LINE__);
+    }
     bool isOpened() const;
     void close();
     ByteArray openError() const;

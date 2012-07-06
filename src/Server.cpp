@@ -63,9 +63,9 @@ public:
 };
 
 static const char *const dbNames[] = {
-    "dependencies.db",
     "symbols.db",
     "symbolnames.db",
+    "dependencies.db",
     "fileinfos.db",
     "pchusrhashes.db",
     "general.db",
@@ -82,8 +82,8 @@ static inline Path databaseDir(Server::DatabaseType type, const char *base)
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mServer(0), mVerbose(false), mJobId(0), mCurrentProject(0), mFileIdsDB(0),
-      mGeneralDB(0), mThreadPool(0), mCompletions(0)
+    : mServer(0), mVerbose(false), mJobId(0), mCurrentProject(0),
+      mThreadPool(0), mCompletions(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -103,10 +103,11 @@ void Server::clear()
     mCompletions = 0;
     delete mServer;
     mServer = 0;
-    delete mFileIdsDB;
-    mFileIdsDB = 0;
-    delete mGeneralDB;
-    mGeneralDB = 0;
+    for (unsigned i=0; i<sizeof(mDBs) / sizeof(Database*); ++i) {
+        delete mDBs[i];
+        mDBs[i] = 0;
+    }
+
     for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         delete it->second;
     }
@@ -151,27 +152,14 @@ bool Server::init(const Options &options)
         error("Unable to listen on %s", mOptions.socketPath.constData());
         return false;
     }
-    mFileIdsDB = new Database(databaseDir(FileIds), options.cacheSizeMB, Database::NoFlag);
-    if (!mFileIdsDB->isOpened()) {
-        error() << "Failed to open db " << databaseDir(FileIds) << " " << mFileIdsDB->openError();
-        return false;
+    for (unsigned i=0; i<sizeof(mDBs) / sizeof(Database*); ++i) {
+        const DatabaseType type = static_cast<DatabaseType>(i + ProjectSpecificDatabaseTypeCount);
+        error() << type << " " << i << " " << databaseDir(type);
+        mDBs[i] = new Database(databaseDir(type), options.cacheSizeMB, Database::NoFlag);
+        if (!mDBs[i]->isOpened()) {
+            error() << "Failed to open db " << databaseDir(type) << " " << mDBs[i]->openError();
+        }
     }
-
-    mGeneralDB = new Database(databaseDir(General), options.cacheSizeMB, Database::NoFlag);
-    if (!mGeneralDB->isOpened()) {
-        error() << "Failed to open db " << databaseDir(General) << " " << mGeneralDB->openError();
-        return false;
-    }
-
-
-    // for (int i=0; i<DatabaseTypeCount; ++i) {
-    //     mDBs[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(),
-    //                            options.cacheSizeMB, i == Server::Symbol);
-    //     if (!mDBs[i]->isOpened()) {
-    //         error() << "Failed to open db: " << mDBs[i]->openError();
-    //         return false;
-    //     }
-    // }
 
     {
         ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
@@ -286,14 +274,14 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
     mMakefilesWatcher.watch(makefile);
     ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
     general->setValue("makefiles", mMakefiles);
-    MakeEvent *ev = new MakeEvent;
-    ev->makefile = message->makefile();
-    ev->makefileArgs = message->arguments();
-    ev->extraFlags = message->extraFlags();
-    ev->connection = conn;
-    EventLoop::instance()->postEvent(this, ev);
+    // MakeEvent *ev = new MakeEvent;
+    // ev->makefile = message->makefile();
+    // ev->makefileArgs = message->arguments();
+    // ev->extraFlags = message->extraFlags();
+    // ev->connection = conn;
+    // EventLoop::instance()->postEvent(this, ev);
     // conn->finish();
-    // make(message->makefile(), message->arguments(), message->extraFlags(), conn);
+    make(message->makefile(), message->arguments(), message->extraFlags(), conn);
 }
 
 void Server::make(const Path &path, List<ByteArray> makefileArgs, const List<ByteArray> &extraFlags, Connection *conn)
@@ -645,11 +633,16 @@ Path Server::projectsPath()
     return sBase + "projects/";
 }
 
-bool Server::setBaseDirectory(const ByteArray& base, bool clear)
+bool Server::setBaseDirectory(const Path &base, bool clear)
 {
     sBase = base;
     if (!sBase.endsWith('/'))
         sBase.append('/');
+    if (clear) {
+        RTags::removeDirectory(base);
+        error() << "cleared database dir " << base;
+    }
+
     if (!Path::mkdir(sBase)) {
         error("Can't create directory [%s]", sBase.constData());
         return false;
@@ -659,14 +652,6 @@ bool Server::setBaseDirectory(const ByteArray& base, bool clear)
         return false;
     }
 
-    if (clear) {
-        RTags::removeDirectory(Server::pchDir().constData());
-        RTags::removeDirectory(Server::projectsPath().constData());
-
-        for (int i=ProjectSpecificDatabaseTypeCount; i<DatabaseTypeCount; ++i)
-            RTags::removeDirectory(::databaseDir(static_cast<Server::DatabaseType>(i), sBase.constData()).constData());
-        error() << "cleared database dir" << base;
-    }
     return true;
 }
 
@@ -915,34 +900,28 @@ void Server::onJobsComplete(Indexer *indexer)
 
 ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType, Indexer *indexer) const
 {
-    if (indexer)
+    if (type > static_cast<int>(ProjectSpecificDatabaseTypeCount)) {
+        return ScopedDB(mDBs[type - ProjectSpecificDatabaseTypeCount], lockType);
+    } else if (indexer) {
         return db(type, lockType, indexer->srcRoot());
-    switch (type) {
-    case FileIds:
-        return ScopedDB(mFileIdsDB, lockType);
-    case General:
-        return ScopedDB(mGeneralDB, lockType);
-    default:
-        if (!mCurrentProject)
-            return ScopedDB();
+    } else if (mCurrentProject) {
         return ScopedDB(mCurrentProject->databases[type], lockType);
+    } else {
+        error() << "No DB here " << type << " " << lockType;
+        return ScopedDB();
     }
 }
 
 ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType, const Path &root) const
 {
-    switch (type) {
-    case FileIds:
-        return ScopedDB(mFileIdsDB, lockType);
-    case General:
-        return ScopedDB(mGeneralDB, lockType);
-    default:
-        break;
+    if (type > static_cast<int>(ProjectSpecificDatabaseTypeCount)) {
+        return ScopedDB(mDBs[type - ProjectSpecificDatabaseTypeCount], lockType);
     }
-
     Project *proj = mProjects.value(root, mCurrentProject);
-    if (!proj)
+    if (!proj) {
+        error() << "No DB here " << root << " " << type << " " << lockType;
         return ScopedDB();
+    }
     return ScopedDB(proj->databases[type], lockType);
 }
 
@@ -972,6 +951,7 @@ Server::Project *Server::initProject(const Path &path)
         ByteArray tmp = path;
         tmp.replace("_", "<underscore>");
         tmp.replace("/", "_");
+        tmp.append("/");
         project->projectPath = RTags::rtagsDir() + tmp;
         Path::mkdir(project->projectPath);
         Project *prev = mCurrentProject;
@@ -981,7 +961,8 @@ Server::Project *Server::initProject(const Path &path)
             project->databases[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(),
                                                  mOptions.cacheSizeMB, flags);
         }
-        project->indexer = new Indexer(path, !(mOptions.options & NoValidateOnStartup));
+        project->indexer = new Indexer;
+        project->indexer->init(path, !(mOptions.options & NoValidateOnStartup));
         project->indexer->indexingDone().connect(this, &Server::onIndexingDone);
         project->indexer->jobsComplete().connect(this, &Server::onJobsComplete);
         mCurrentProject = prev;

@@ -40,9 +40,9 @@ public:
         NoValidateOnStartup = 0x4
     };
     enum DatabaseType {
-        Dependency,
         Symbol,
         SymbolName,
+        Dependency,
         FileInformation,
         PCHUsrMaps,
         General,
@@ -65,7 +65,7 @@ public:
     bool init(const Options &options);
     Indexer *indexer() const;
     ByteArray name() const { return mOptions.socketPath; }
-    static bool setBaseDirectory(const ByteArray &base, bool clear);
+    static bool setBaseDirectory(const Path &base, bool clear);
     Path databaseDir(DatabaseType type);
     static Path pchDir();
     static Path projectsPath();
@@ -119,7 +119,8 @@ private:
     static Path sBase;
     Map<Path, MakefileInformation> mMakefiles;
     FileSystemWatcher mMakefilesWatcher;
-    enum { ProjectSpecificDatabaseTypeCount = 5 };
+    enum { ProjectSpecificDatabaseTypeCount = 2 };
+    Database *mDBs[DatabaseTypeCount - ProjectSpecificDatabaseTypeCount];
     struct Project {
         Project()
             : indexer(0)
@@ -141,7 +142,6 @@ private:
 
     Map<Path, Project*> mProjects;
     Project *mCurrentProject;
-    Database *mFileIdsDB, *mGeneralDB;
     ThreadPool *mThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
     Completions *mCompletions;

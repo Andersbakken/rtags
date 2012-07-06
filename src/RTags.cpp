@@ -96,6 +96,7 @@ List<ByteArray> compileArgs(uint32_t fileId)
     const char *ch = reinterpret_cast<const char*>(&fileId);
     const Slice key(ch, sizeof(fileId));
     FileInformation fi = db->value<FileInformation>(key);
+    error() << "read shit from db " << db->path() << " " << Location::path(fileId) << " " << fi.compileArgs;
     return fi.compileArgs;
 }
 
@@ -198,19 +199,17 @@ ByteArray shortOptions(const option *longOptions)
     return ret;
 }
 
-bool removeDirectory(const char *path)
+void removeDirectory(const Path &path)
 {
-    DIR *d = opendir(path);
-    size_t path_len = strlen(path);
-    int r = -1;
+    DIR *d = opendir(path.constData());
+    size_t path_len = path.size();
+    char buf[PATH_MAX];
+    dirent *dbuf = reinterpret_cast<dirent*>(buf);
 
     if (d) {
-        struct dirent *p;
+        dirent *p;
 
-        r = 0;
-
-        while (!r && (p=readdir(d))) {
-            int r2 = -1;
+        while (!readdir_r(d, dbuf, &p) && p) {
             char *buf;
             size_t len;
 
@@ -224,29 +223,21 @@ bool removeDirectory(const char *path)
 
             if (buf) {
                 struct stat statbuf;
-                snprintf(buf, len, "%s/%s", path, p->d_name);
+                snprintf(buf, len, "%s/%s", path.constData(), p->d_name);
                 if (!stat(buf, &statbuf)) {
                     if (S_ISDIR(statbuf.st_mode)) {
-                        r2 = removeDirectory(buf);
+                        removeDirectory(buf);
                     } else {
-                        r2 = unlink(buf);
+                        unlink(buf);
                     }
                 }
 
                 free(buf);
             }
-
-            r = r2;
         }
-
         closedir(d);
     }
-
-    if (!r) {
-        r = rmdir(path);
-    }
-
-    return !r;
+    rmdir(path.constData());
 }
 bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs)
 {

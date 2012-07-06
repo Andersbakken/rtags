@@ -15,12 +15,14 @@
 #include "WriteLocker.h"
 #include <math.h>
 
-Indexer::Indexer(const Path &srcRoot, bool validate)
-    : mSrcRoot(srcRoot)
+Indexer::Indexer()
+    : mJobCounter(0), mTimerRunning(false)
 {
-    mJobCounter = 0;
-    mTimerRunning = false;
+}
 
+void Indexer::init(const Path &srcRoot, bool validate)
+{
+    mSrcRoot = srcRoot;
     mWatcher.modified().connect(this, &Indexer::onDirectoryChanged);
     {
         ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Read, this);
@@ -32,11 +34,12 @@ Indexer::Indexer(const Path &srcRoot, bool validate)
         }
     }
     {
-        ScopedDB db = Server::instance()->db(Server::General, ReadWriteLock::Read);
+        ScopedDB db = Server::instance()->db(Server::General, ReadWriteLock::Read, this);
         mPchDependencies = db->value<Map<Path, Set<uint32_t> > >("pchDependencies");
     }
     {
         // watcher
+        printf("[%s] %s:%d: ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Read, this); [before]\n", __func__, __FILE__, __LINE__);
         ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Read, this);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
@@ -68,25 +71,29 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     assert(mode == ForceDirty || pattern.isEmpty());
     Timer timer;
     Map<uint32_t, Set<uint32_t> > deps, depsReversed;
-
-    ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ReadWriteLock::Write, this);
-    RTags::Ptr<Iterator> it(dependencyDB->createIterator());
-    it->seekToFirst();
+    \
+    RTags::Ptr<Iterator> it;
     {
-        Batch batch(dependencyDB);
-        while (it->isValid()) {
-            const Slice key = it->key();
-            const uint32_t file = *reinterpret_cast<const uint32_t*>(key.data());
-            if (isFile(file)) {
-                const Set<uint32_t> v = it->value<Set<uint32_t> >();
-                depsReversed[file] = v;
-                for (Set<uint32_t>::const_iterator vit = v.begin(); vit != v.end(); ++vit) {
-                    deps[*vit].insert(file);
+        printf("[%s] %s:%d: ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ReadWriteLock::Write, this); [before]\n", __func__, __FILE__, __LINE__);
+        ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ReadWriteLock::Write, this);
+        it.reset(dependencyDB->createIterator());
+        it->seekToFirst();
+        {
+            Batch batch(dependencyDB);
+            while (it->isValid()) {
+                const Slice key = it->key();
+                const uint32_t file = *reinterpret_cast<const uint32_t*>(key.data());
+                if (isFile(file)) {
+                    const Set<uint32_t> v = it->value<Set<uint32_t> >();
+                    depsReversed[file] = v;
+                    for (Set<uint32_t>::const_iterator vit = v.begin(); vit != v.end(); ++vit) {
+                        deps[*vit].insert(file);
+                    }
+                } else {
+                    batch.remove(key);
                 }
-            } else {
-                batch.remove(key);
+                it->next();
             }
-            it->next();
         }
     }
 
@@ -210,8 +217,8 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
         }
     }
     if (sync && !newDependencies.isEmpty()) {
+        printf("[%s] %s:%d: ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Write, this); // ### inefficent [after]\n", __func__, __FILE__, __LINE__);
         ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Write, this); // ### inefficent
-
         Batch batch(db);
         DependencyMap::const_iterator it = newDependencies.begin();
         const DependencyMap::const_iterator end = newDependencies.end();
@@ -235,15 +242,16 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
     MutexLocker lock(&mWatchedMutex);
     for (DependencyMap::const_iterator it = newDependencies.begin(); it != end; ++it) {
         const Path path = Location::path(it->first);
-        printf("%s\n", path.constData());
         parentPath = path.parentDir();
-        WatchedMap::iterator wit = mWatched.find(parentPath);
-        //debug() << "watching" << path << "in" << parentPath;
-        if (wit == mWatched.end()) {
-            mWatched[parentPath].insert(std::pair<ByteArray, time_t>(path.fileName(), path.lastModified()));
-            mWatcher.watch(parentPath);
-        } else {
-            wit->second.insert(std::pair<ByteArray, time_t>(path.fileName(), path.lastModified()));
+        if (parentPath.isDir()) {
+            WatchedMap::iterator wit = mWatched.find(parentPath);
+            //debug() << "watching" << path << "in" << parentPath;
+            if (wit == mWatched.end()) {
+                mWatched[parentPath].insert(std::pair<ByteArray, time_t>(path.fileName(), path.lastModified()));
+                mWatcher.watch(parentPath);
+            } else {
+                wit->second.insert(std::pair<ByteArray, time_t>(path.fileName(), path.lastModified()));
+            }
         }
     }
 }
@@ -345,6 +353,7 @@ int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned
 
 void Indexer::startJob(IndexerJob *job)
 {
+    printf("[%s] %s:%d: void Indexer::startJob(IndexerJob *job) [after]\n", __func__, __FILE__, __LINE__);
     if (mJobs.contains(job->mFileId)) {
         error("We're already indexing %s", job->mIn.constData());
         delete job;

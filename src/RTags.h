@@ -129,7 +129,7 @@ static inline int digits(int len)
 
 ByteArray shortOptions(const option *longOptions);
 int readLine(FILE *f, char *buf = 0, int max = -1);
-bool removeDirectory(const char *path);
+void removeDirectory(const Path &path);
 int canonicalizePath(char *path, int len);
 ByteArray unescape(ByteArray command);
 

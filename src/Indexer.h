@@ -14,8 +14,10 @@ class IndexerJob;
 class Indexer : public EventReceiver
 {
 public:
-    Indexer(const Path &srcRoot, bool validate);
+    Indexer();
     ~Indexer();
+
+    void init(const Path &srcRoot, bool validate);
 
     int index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
 
@@ -68,7 +70,7 @@ private:
     bool mTimerRunning;
     Timer mTimer;
 
-    const Path mSrcRoot;
+    Path mSrcRoot;
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
     Mutex mWatchedMutex;
