@@ -142,6 +142,7 @@ void LocalClient::readMore()
     for (;;) {
         int r;
         eintrwrap(r, ::read(mFd, buf, BufSize));
+
         if (r == -1) {
             break;
         } else if (!r) {
@@ -178,6 +179,7 @@ bool LocalClient::writeMore()
         const ByteArray& front = mBuffers.front();
         int w;
         eintrwrap(w, ::write(mFd, &front[mBufferIdx], front.size() - mBufferIdx));
+
         if (w == -1) {
             ret = (errno == EWOULDBLOCK || errno == EAGAIN); // apparently these can be different
             break;
@@ -198,12 +200,14 @@ bool LocalClient::writeMore()
 
 void LocalClient::event(const Event* event)
 {
-    if (event->type() == DelayedWriteEvent::Type) {
+    switch (event->type()) {
+    case DelayedWriteEvent::Type: {
         const DelayedWriteEvent *ev = static_cast<const DelayedWriteEvent*>(event);
         assert(pthread_equal(pthread_self(), EventLoop::instance()->thread()));
         mBuffers.push_back(ev->data);
         writeMore();
-    } else {
-        assert(0);
+        break; }
+    default:
+        EventReceiver::event(event);
     }
 }

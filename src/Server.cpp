@@ -203,6 +203,7 @@ void Server::onNewConnection()
         Connection *conn = new Connection(client);
         conn->newMessage().connect(this, &Server::onNewMessage);
         conn->destroyed().connect(this, &Server::onConnectionDestroyed);
+        // client->disconnected().connect(conn, &Connection::onLoop);
     }
 }
 
@@ -850,7 +851,7 @@ void Server::event(const Event *event)
         delete static_cast<const MakefileParserDoneEvent*>(event)->parser;
         break; }
     default:
-        assert(0);
+        EventReceiver::event(event);
         break;
     }
 }

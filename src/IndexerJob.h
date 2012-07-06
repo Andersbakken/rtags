@@ -7,9 +7,10 @@
 #include "Str.h"
 #include "ThreadPool.h"
 #include "AbortInterface.h"
+#include "EventReceiver.h"
 #include <clang-c/Index.h>
 
-class IndexerJob : public ThreadPool::Job, public AbortInterface
+class IndexerJob : public ThreadPool::Job, public AbortInterface, public EventReceiver
 {
 public:
     enum Flag {

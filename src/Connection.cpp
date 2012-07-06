@@ -120,8 +120,10 @@ void Connection::dataWritten(int bytes)
     if (!mPendingWrite) {
         if (bytes)
             sendComplete()();
-        if (mDone)
+        if (mDone) {
             mClient->disconnect();
+            deleteInEventLoop();
+        }
     }
 }
 
@@ -137,5 +139,7 @@ void Connection::event(const Event *e)
         ResponseMessage msg(static_cast<const ResponseMessageEvent*>(e)->response);
         send(&msg);
         break; }
+    default:
+        EventReceiver::event(e);
     }
 }

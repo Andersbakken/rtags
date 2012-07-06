@@ -14,17 +14,6 @@
 #include "WriteLocker.h"
 #include <math.h>
 
-class IndexerJobCompleteEvent : public Event
-{
-public:
-    enum { Type = 1 };
-    IndexerJobCompleteEvent(IndexerJob *j)
-        : Event(Type), job(j)
-    {}
-
-    IndexerJob *job;
-};
-
 Indexer::Indexer()
     : mJobCounter(0), mTimerRunning(false)
 {
@@ -267,11 +256,6 @@ void Indexer::onJobFinished(ThreadPool::Job *j)
 {
     IndexerJob *job = dynamic_cast<IndexerJob*>(j);
     assert(job);
-    postEvent(new IndexerJobCompleteEvent(job));
-}
-
-void Indexer::onJobFinished(IndexerJob *job)
-{
     if (job->isAborted()) {
         Set<uint32_t> visited;
         for (Map<uint32_t, IndexerJob::PathState>::const_iterator it = job->mPaths.begin(); it != job->mPaths.end(); ++it) {
@@ -320,7 +304,7 @@ void Indexer::onJobFinished(IndexerJob *job)
         }
     }
 
-    delete job;
+    job->deleteInEventLoop();
 }
 
 
@@ -606,13 +590,3 @@ void Indexer::reindex(const ByteArray &pattern)
 {
     initDB(ForceDirty, pattern);
 }
-
-void Indexer::event(const Event *event)
-{
-    switch (event->type()) {
-    case IndexerJobCompleteEvent::Type:
-        onJobFinished(static_cast<const IndexerJobCompleteEvent*>(event)->job);
-        break;
-    }
-}
-

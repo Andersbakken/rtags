@@ -27,6 +27,8 @@ void Completions::event(const Event *event)
         }
         e->finished = true;
         break; }
+    default:
+        EventReceiver::event(event);
     }
 }
 

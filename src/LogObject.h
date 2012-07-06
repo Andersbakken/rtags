@@ -4,8 +4,9 @@
 #include <ByteArray.h>
 #include <Log.h>
 #include <Connection.h>
+#include "EventReceiver.h"
 
-class LogObject : public LogOutput
+class LogObject : public LogOutput, public EventReceiver
 {
 public:
     LogObject(Connection *conn, int level)
@@ -16,7 +17,7 @@ public:
 
     void shutdown()
     {
-        delete this;
+        deleteInEventLoop();
     }
 
     virtual void log(const char *msg, int len)
