@@ -96,7 +96,6 @@ List<ByteArray> compileArgs(uint32_t fileId)
     const char *ch = reinterpret_cast<const char*>(&fileId);
     const Slice key(ch, sizeof(fileId));
     FileInformation fi = db->value<FileInformation>(key);
-    error() << "read shit from db " << db->path() << " " << Location::path(fileId) << " " << fi.compileArgs;
     return fi.compileArgs;
 }
 

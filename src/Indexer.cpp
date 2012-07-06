@@ -25,7 +25,7 @@ void Indexer::init(const Path &srcRoot, bool validate)
     mSrcRoot = srcRoot;
     mWatcher.modified().connect(this, &Indexer::onDirectoryChanged);
     {
-        ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Read, this);
+        ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         while (it->isValid()) {
@@ -34,13 +34,12 @@ void Indexer::init(const Path &srcRoot, bool validate)
         }
     }
     {
-        ScopedDB db = Server::instance()->db(Server::General, ReadWriteLock::Read, this);
+        ScopedDB db = Server::instance()->db(Server::General, ReadWriteLock::Read);
         mPchDependencies = db->value<Map<Path, Set<uint32_t> > >("pchDependencies");
     }
     {
         // watcher
-        printf("[%s] %s:%d: ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Read, this); [before]\n", __func__, __FILE__, __LINE__);
-        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Read, this);
+        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         DependencyMap dependencies;
@@ -71,11 +70,9 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     assert(mode == ForceDirty || pattern.isEmpty());
     Timer timer;
     Map<uint32_t, Set<uint32_t> > deps, depsReversed;
-    \
     RTags::Ptr<Iterator> it;
     {
-        printf("[%s] %s:%d: ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ReadWriteLock::Write, this); [before]\n", __func__, __FILE__, __LINE__);
-        ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ReadWriteLock::Write, this);
+        ScopedDB dependencyDB = Server::instance()->db(Server::Dependency, ReadWriteLock::Write);
         it.reset(dependencyDB->createIterator());
         it->seekToFirst();
         {
@@ -103,7 +100,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     int checked = 0;
 
     {
-        ScopedDB fileInformationDB = Server::instance()->db(Server::FileInformation, ReadWriteLock::Write, this);
+        ScopedDB fileInformationDB = Server::instance()->db(Server::FileInformation, ReadWriteLock::Write);
         Batch batch(fileInformationDB);
         it.reset(fileInformationDB->createIterator());
         it->seekToFirst();
@@ -217,8 +214,7 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
         }
     }
     if (sync && !newDependencies.isEmpty()) {
-        printf("[%s] %s:%d: ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Write, this); // ### inefficent [after]\n", __func__, __FILE__, __LINE__);
-        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Write, this); // ### inefficent
+        ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Write); // ### inefficent
         Batch batch(db);
         DependencyMap::const_iterator it = newDependencies.begin();
         const DependencyMap::const_iterator end = newDependencies.end();
@@ -353,7 +349,6 @@ int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned
 
 void Indexer::startJob(IndexerJob *job)
 {
-    printf("[%s] %s:%d: void Indexer::startJob(IndexerJob *job) [after]\n", __func__, __FILE__, __LINE__);
     if (mJobs.contains(job->mFileId)) {
         error("We're already indexing %s", job->mIn.constData());
         delete job;
@@ -512,7 +507,7 @@ void Indexer::setPchUSRMap(const Path &pch, const PchUSRMap &astMap)
 {
     WriteLocker lock(&mPchUSRMapLock);
     mPchUSRMaps[pch] = astMap;
-    ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Write, this);
+    ScopedDB db = Server::instance()->db(Server::PCHUsrMaps, ReadWriteLock::Write);
     Batch batch(db);
     for (Map<Path, PchUSRMap>::const_iterator it = mPchUSRMaps.begin(); it != mPchUSRMaps.end(); ++it) {
         batch.add(it->first, it->second);

@@ -40,5 +40,5 @@ void ValidateDBJob::execute()
         }
         it->next();
     }
-    error("Checked %d cursors info objects, %d errors", total, errors);
+    error("Checked %d CursorInfo objects, %d errors", total, errors);
 }

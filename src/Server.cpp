@@ -154,7 +154,6 @@ bool Server::init(const Options &options)
     }
     for (unsigned i=0; i<sizeof(mDBs) / sizeof(Database*); ++i) {
         const DatabaseType type = static_cast<DatabaseType>(i + ProjectSpecificDatabaseTypeCount);
-        error() << type << " " << i << " " << databaseDir(type);
         mDBs[i] = new Database(databaseDir(type), options.cacheSizeMB, Database::NoFlag);
         if (!mDBs[i]->isOpened()) {
             error() << "Failed to open db " << databaseDir(type) << " " << mDBs[i]->openError();
@@ -172,7 +171,6 @@ bool Server::init(const Options &options)
             return false;
         }
         mMakefiles = general->value<Map<Path, MakefileInformation> >("makefiles");
-        error() << mMakefiles.keys();
         for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
             mMakefilesWatcher.watch(it->first);
         }
@@ -900,7 +898,8 @@ void Server::onJobsComplete(Indexer *indexer)
 
 ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType, Indexer *indexer) const
 {
-    if (type > static_cast<int>(ProjectSpecificDatabaseTypeCount)) {
+    if (type >= static_cast<int>(ProjectSpecificDatabaseTypeCount)) {
+        assert(!indexer);
         return ScopedDB(mDBs[type - ProjectSpecificDatabaseTypeCount], lockType);
     } else if (indexer) {
         return db(type, lockType, indexer->srcRoot());
@@ -914,7 +913,8 @@ ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType, Indexer
 
 ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType, const Path &root) const
 {
-    if (type > static_cast<int>(ProjectSpecificDatabaseTypeCount)) {
+    if (type >= static_cast<int>(ProjectSpecificDatabaseTypeCount)) {
+        assert(root.isEmpty());
         return ScopedDB(mDBs[type - ProjectSpecificDatabaseTypeCount], lockType);
     }
     Project *proj = mProjects.value(root, mCurrentProject);

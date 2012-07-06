@@ -93,13 +93,14 @@ static inline List<Path> extractPchFiles(const List<ByteArray> &args)
     return out;
 }
 
-static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t lastTouched, ScopedDB db)
+static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t lastTouched)
 {
     if (Location::path(fileId).isHeader() && !RTags::isPch(args)) {
         error() << "Somehow we're writing fileInformation for a header that isn't pch"
                 << Location::path(fileId) << args << lastTouched;
     }
     const char *ch = reinterpret_cast<const char*>(&fileId);
+    ScopedDB db = Server::instance()->db(Server::FileInformation, ReadWriteLock::Write);
     return db->setValue(Slice(ch, sizeof(fileId)), FileInformation(lastTouched, args));
 }
 
@@ -701,8 +702,7 @@ void IndexerJob::execute()
         fi.compileArgs = mArgs;
         fi.lastTouched = timeStamp;
 
-        writeFileInformation(mFileId, mArgs, timeStamp,
-                             Server::instance()->db(Server::FileInformation, ReadWriteLock::Write, mIndexer));
+        writeFileInformation(mFileId, mArgs, timeStamp);
     } else {
         Map<Location, std::pair<int, ByteArray> > fixIts;
         Map<uint32_t, List<ByteArray> > visited;
@@ -808,8 +808,7 @@ void IndexerJob::execute()
             writeSymbols(mSymbols, mReferences, Server::instance()->db(Server::Symbol, ReadWriteLock::Write, mIndexer));
 
             writeSymbolNames(mSymbolNames, Server::instance()->db(Server::SymbolName, ReadWriteLock::Write, mIndexer));
-            writeFileInformation(mFileId, mArgs, timeStamp,
-                                 Server::instance()->db(Server::FileInformation, ReadWriteLock::Write, mIndexer));
+            writeFileInformation(mFileId, mArgs, timeStamp);
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
         }
