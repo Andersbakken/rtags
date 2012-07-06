@@ -111,7 +111,6 @@ IndexerJob::IndexerJob(Indexer *indexer, int id, unsigned flags,
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
       mPchHeaders(extractPchFiles(arguments)), mUnit(0)
 {
-    setAutoDelete(false);
 }
 
 static inline uint32_t fileId(CXFile file)
@@ -625,6 +624,12 @@ struct Scope {
 };
 
 void IndexerJob::run()
+{
+    execute();
+    mFinished(this);
+}
+
+void IndexerJob::execute()
 {
     Timer timer;
     // while (!RTags::waitForMemory(10000)) {

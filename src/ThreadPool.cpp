@@ -64,12 +64,10 @@ void ThreadPoolThread::run()
             job->mMutex.lock();
             locker.unlock();
             job->run();
-            if (job->mAutoDelete) {
-                job->mMutex.unlock();
+            const bool isAutoDelete = job->mAutoDelete;
+            job->mMutex.unlock();
+            if (isAutoDelete) {
                 delete job;
-            } else {
-                job->mMutex.unlock();
-                job->finished()(job);
             }
         }
     }

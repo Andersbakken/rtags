@@ -24,6 +24,7 @@ public:
                const Path &input, const List<ByteArray> &arguments);
     int priority() const { return mFlags & Priorities; }
     virtual void run();
+    void execute();
 
     const int mId;
     unsigned mFlags;
@@ -34,6 +35,8 @@ public:
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static void inclusionVisitor(CXFile included_file, CXSourceLocation *include_stack,
                                  unsigned include_len, CXClientData client_data);
+
+    signalslot::Signal1<IndexerJob*> &finished() { return mFinished; }
 
     struct Cursor {
         CXCursor cursor;
@@ -72,6 +75,8 @@ public:
     ByteArray mMessage;
 
     Map<ByteArray, uint32_t> mFileIds;
+
+    signalslot::Signal1<IndexerJob*> mFinished;
 };
 
 #endif

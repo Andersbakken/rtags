@@ -40,7 +40,7 @@ public:
     Path srcRoot() const { return mSrcRoot; } // ~/src/foobar
     Path projectRoot() const { return mProjectRoot; } // ~/.rtags/projects/[_foobar_]
 private:
-    void onJobFinished(ThreadPool::Job *job);
+    void onJobFinished(IndexerJob *job);
     void commitDependencies(const DependencyMap &deps, bool sync);
     enum InitMode {
         Normal,

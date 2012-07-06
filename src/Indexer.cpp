@@ -252,10 +252,8 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
     }
 }
 
-void Indexer::onJobFinished(ThreadPool::Job *j)
+void Indexer::onJobFinished(IndexerJob *job)
 {
-    IndexerJob *job = dynamic_cast<IndexerJob*>(j);
-    assert(job);
     if (job->isAborted()) {
         Set<uint32_t> visited;
         for (Map<uint32_t, IndexerJob::PathState>::const_iterator it = job->mPaths.begin(); it != job->mPaths.end(); ++it) {
@@ -303,8 +301,6 @@ void Indexer::onJobFinished(ThreadPool::Job *j)
             jobsComplete()(this);
         }
     }
-
-    job->deleteLater();
 }
 
 
