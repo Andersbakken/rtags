@@ -8,10 +8,11 @@
 #include "ReadWriteLock.h"
 #include "ThreadPool.h"
 #include "Timer.h"
+#include "EventReceiver.h"
 #include <clang-c/Index.h>
 
 class IndexerJob;
-class Indexer
+class Indexer : public EventReceiver
 {
 public:
     Indexer();
@@ -39,7 +40,9 @@ public:
     void onDirectoryChanged(const Path &path);
     Path srcRoot() const { return mSrcRoot; } // ~/src/foobar
     Path projectRoot() const { return mProjectRoot; } // ~/.rtags/projects/[_foobar_]
+    void event(const Event *event);
 private:
+    void onJobFinished(IndexerJob *job);
     void onJobFinished(ThreadPool::Job *job);
     void commitDependencies(const DependencyMap &deps, bool sync);
     enum InitMode {
