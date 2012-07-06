@@ -3,6 +3,51 @@
   :group 'tools
   :prefix "rtags-")
 
+(defun rtags-call-rc (&rest arguments)
+  (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
+  (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
+  (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
+  (rtags-log (buffer-string))
+  (goto-char (point-min)))
+
+(defun rtags-set-current-project ()
+  (interactive)
+  (let ((projects nil)
+        (project nil)
+        (current ""))
+    (with-temp-buffer
+      (rtags-call-rc "-w")
+      (goto-char (point-min))
+      (while (not (eobp))
+        (let ((line (buffer-substring (point-at-bol) (point-at-eol))))
+          (if (string-match "^\\([^ ]*\\) .*$" line)
+              (let ((m nil))
+                (setq m (buffer-substring (point-at-bol) (+ (point-at-bol) (match-end 1))))
+                (setq projects (add-to-list 'projects m t))
+                (setq current m))
+            (setq projects (add-to-list 'projects (buffer-substring (point-at-bol) (point-at-eol)))))
+          (next-line)))
+      )
+    (setq project (completing-read
+                   (format "RTags select project (current is %s): " current)
+                   projects
+                   nil
+                   t
+                   (try-completion "" projects)))
+    (if project
+        (with-temp-buffer
+          (rtags-call-rc "-w" project)))
+    )
+  )
+    ;; (message (format "we picked %s" project))
+
+    ;; (message (combine-and-quote-strings projects))
+      ;; (while (looking-at "^\\([^ ]*\\)")
+      ;; (message (format "%s %s" (match-string 1) (match-string 2)))
+      ;; )
+  ;;   )
+  ;; )
+
 (defun rtags-find-ancestor-file(pattern)
   "Find a file named \a file in as shallow a path as possible,
   e.g. if there's a Makefile in /foobar/rtags/rc/Makefile and one
@@ -86,13 +131,6 @@
         )
     )
   )
-
-(defun rtags-call-rc (&rest arguments)
-  (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
-  (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
-  (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
-  (rtags-log (buffer-string))
-  (goto-char (point-min)))
 
 (defvar rtags-symbol-history nil)
 
@@ -254,6 +292,7 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r D") (function rtags-diagnostics))
   (define-key map (kbd "C-x r G") (function rtags-clear-diagnostics))
   (define-key map (kbd "C-x r M") (function rtags-index-project))
+  (define-key map (kbd "C-x r p") (function rtags-set-current-project))
   )
 
 (defun rtags-print-current-location ()
@@ -314,7 +353,7 @@ return t if rtags is allowed to modify this file"
     (if (get-buffer "*RTags Complete*")
         (kill-buffer "*RTags Complete*"))
     (with-current-buffer (generate-new-buffer "*RTags Complete*")
-      (rtags-call-rc "-l" "-r" arg))
+      (rtags-call-rc "-l" "-r" arg)
       (rtags-handle-completion-buffer))
     )
   )
@@ -343,7 +382,6 @@ return t if rtags is allowed to modify this file"
                 (rtags-call-rc "-E" "-O" "-N" "-r" (format "%s,%d" file pos))
                 (while (looking-at "^\\(.*\\),\\([0-9]+\\)$")
                   (message (buffer-substring (point-at-bol) (point-at-eol)))
-                  (message (format "%s %s" (match-string 1) (match-string 2)))
                   (let ((fn (match-string 1))
                         (p (string-to-number (match-string 2)))
                         (buf nil))
