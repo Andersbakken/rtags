@@ -231,6 +231,19 @@ public:
         }
     }
 
+    int replace(char from, char to)
+    {
+        int count = 0;
+        for (int i=size() - 1; i>=0; --i) {
+            char &ch = operator[](i);
+            if (ch == from) {
+                ch = to;
+                ++count;
+            }
+        }
+        return count;
+    }
+
     ByteArray mid(int from, int l = -1) const
     {
         if (l == -1)
