@@ -15,6 +15,30 @@ FindSymbolsJob::FindSymbolsJob(int i, const QueryMessage &query)
     setPathFilters(query.pathFilters(), queryFlags & QueryMessage::FilterSystemIncludes);
 }
 
+struct LocationAndDefinitionNode
+{
+    LocationAndDefinitionNode(const Location &loc, bool def)
+        : location(loc), isDefinition(def)
+    {}
+    LocationAndDefinitionNode() {}
+    Location location;
+    bool isDefinition;
+
+    bool operator<(const LocationAndDefinitionNode &other) const
+    {
+        if (isDefinition != other.isDefinition)
+            return isDefinition;
+        return location < other.location;
+    }
+    bool operator>(const LocationAndDefinitionNode &other) const
+    {
+        if (isDefinition != other.isDefinition)
+            return !isDefinition;
+        return location > other.location;
+    }
+};
+
+
 void FindSymbolsJob::execute()
 {
     ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Read);
@@ -39,17 +63,22 @@ void FindSymbolsJob::execute()
         }
         it->next();
     }
-    List<Location> sorted = out.toList();
-    if (queryFlags & QueryMessage::ReverseSort && false) {
-        std::sort(sorted.begin(), sorted.end(), std::greater<Location>());
+    List<LocationAndDefinitionNode> sorted;
+    sorted.reserve(out.size());
+    db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
+    for (Set<Location>::const_iterator it = out.begin(); it != out.end(); ++it) {
+        sorted.push_back(LocationAndDefinitionNode(*it, RTags::findCursorInfo(db, *it).isDefinition));
+    }
+
+    if (queryFlags & QueryMessage::ReverseSort) {
+        std::sort(sorted.begin(), sorted.end(), std::greater<LocationAndDefinitionNode>());
     } else {
         std::sort(sorted.begin(), sorted.end());
     }
     const uint32_t keyFlags = QueryMessage::keyFlags(queryFlags);
     const int count = sorted.size();
     for (int i=0; i<count; ++i) {
-        const Location &loc = sorted.at(i);
-        write(loc.key(keyFlags));
+        write(sorted.at(i).location.key(keyFlags));
     }
 }
 

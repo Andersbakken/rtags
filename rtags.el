@@ -10,6 +10,14 @@
   (rtags-log (buffer-string))
   (goto-char (point-min)))
 
+(defun rtags-reparse-file(&optional buffer)
+  (interactive)
+  (with-temp-buffer
+    (rtags-call-rc "-V" (buffer-name buffer)))
+    (message (format "Dirtied %s" (buffer-name buffer))
+    )
+  )
+
 (defun rtags-set-current-project ()
   (interactive)
   (let ((projects nil)
@@ -293,6 +301,7 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r G") (function rtags-clear-diagnostics))
   (define-key map (kbd "C-x r M") (function rtags-index-project))
   (define-key map (kbd "C-x r p") (function rtags-set-current-project))
+  (define-key map (kbd "C-x r R") (function rtags-reparse-file))
   )
 
 (defun rtags-print-current-location ()
