@@ -86,6 +86,7 @@ protected:
               const List<ByteArray> &extraFlags = List<ByteArray>(), Connection *conn = 0);
 private:
     struct Project;
+    Project *setCurrentProject(Project *project);
     Project *initProject(const Path &path);
     static Path::VisitResult projectsVisitor(const Path &path, void *);
     void handleMakefileMessage(MakefileMessage *message, Connection *conn);
@@ -107,6 +108,7 @@ private:
     void reindex(const ByteArray &pattern);
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);
     ByteArray completions(const QueryMessage &query);
+    bool updateProjectForLocation(const Location &location);
 private:
     static Server *sInstance;
     Options mOptions;

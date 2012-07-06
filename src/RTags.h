@@ -98,9 +98,7 @@ inline bool addTo(Container &container, const Value &value)
 }
 
 CursorInfo findCursorInfo(Database *db, const Location &key, Location *loc = 0);
-List<ByteArray> compileArgs(uint32_t fileId);
-// the symbols will be modified before writing and we don't want to detach so we
-// work on a non-const reference
+List<ByteArray> compileArgs(uint32_t fileId, const Path &path);
 
 inline ByteArray timeToString(time_t t)
 {

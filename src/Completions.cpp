@@ -37,7 +37,7 @@ ByteArray Completions::completions(const Location &loc, unsigned queryFlags, con
     Entry *&e = mEntries[path];
     if (!e) {
         // ### need to kill one of the existing entries if there's too many
-        const List<ByteArray> args = RTags::compileArgs(loc.fileId());
+        const List<ByteArray> args = RTags::compileArgs(loc.fileId(), Path());
         // ### need to think of something for headers, find the first dependency maybe
         if (args.isEmpty()) {
             error("We're not indexing this file %s", path.constData());

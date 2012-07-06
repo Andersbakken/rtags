@@ -101,7 +101,7 @@ void Server::clear()
         delete it->second;
     }
     mProjects.clear();
-    mCurrentProject = 0;
+    setCurrentProject(0);
 }
 
 bool Server::init(const Options &options)
@@ -319,6 +319,7 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         } else {
             Path currentPath;
             bool error = false;
+            Project *project = 0;
             RegExp rx(message->query());
             for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
                 if (rx.indexIn(it->first) != -1) {
@@ -333,10 +334,12 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
                         conn->send(&msg);
                     } else {
                         currentPath = it->first;
+                        project = it->second;
                     }
                 }
             }
             if (!error && !currentPath.isEmpty()) {
+                setCurrentProject(project);
                 setCurrentProject(currentPath);
                 ResponseMessage msg("Selected project: " + currentPath);
                 conn->send(&msg);
@@ -435,6 +438,7 @@ int Server::followLocation(const QueryMessage &query)
     if (loc.isNull()) {
         return 0;
     }
+    updateProjectForLocation(loc);
 
     const int id = nextId();
 
@@ -453,6 +457,7 @@ int Server::cursorInfo(const QueryMessage &query)
     if (loc.isNull()) {
         return 0;
     }
+    updateProjectForLocation(loc);
 
     const int id = nextId();
 
@@ -472,6 +477,7 @@ int Server::referencesForLocation(const QueryMessage &query)
     if (loc.isNull()) {
         return 0;
     }
+    updateProjectForLocation(loc);
 
     const int id = nextId();
 
@@ -800,14 +806,11 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 
     for (int i=0; i<c; ++i) {
         const Path &input = inputFiles.at(i);
-        Project *old = mCurrentProject;
-        mCurrentProject = proj;
-        if (arguments != RTags::compileArgs(Location::insertFile(input))) {
+        if (arguments != RTags::compileArgs(Location::insertFile(input), projectRoot)) {
             proj->indexer->index(input, arguments, IndexerJob::Makefile);
         } else {
             debug() << input << " is not dirty. ignoring";
         }
-        mCurrentProject = old;
     }
 }
 
@@ -858,6 +861,8 @@ ByteArray Server::completions(const QueryMessage &query)
     if (loc.isNull()) {
         return ByteArray();
     }
+    updateProjectForLocation(loc);
+
     const ByteArray ret = mCompletions->completions(loc, query.flags(), query.unsavedFiles().value(loc.path()));
     return ret;
 }
@@ -897,6 +902,7 @@ bool Server::setCurrentProject(const Path &path)
     mCurrentProject = proj;
     return true;
 }
+
 Server::Project *Server::initProject(const Path &path)
 {
     Project *&project = mProjects[path];
@@ -937,4 +943,35 @@ Path::VisitResult Server::projectsVisitor(const Path &path, void *server)
         s->initProject(p);
     }
     return Path::Continue;
+}
+
+bool Server::updateProjectForLocation(const Location &location)
+{
+    const Path path = location.path();
+    Map<Path, Project*>::const_iterator it = mProjects.lower_bound(path);
+    for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+        printf("%s => %s => %d\n", it->first.constData(), path.constData(),
+               strcmp(path.constData(), it->first.constData()));
+    }
+
+    if (it != mProjects.begin()) {
+        --it;
+        if (!strncmp(it->first.constData(), path.constData(), it->first.size())) {
+            setCurrentProject(it->second);
+            printf("We found some shit %s for %s\n", it->first.constData(), location.key().constData());
+            return true;
+        }
+    }
+    // it = mProjects.upper_bound(path);
+    // if (it != mProjects.end()) {
+    //     error() << "found upperbound" << it->second->projectPath << " for " << location;
+    //     return true;
+    // }
+
+    return false;
+}
+Server::Project *Server::setCurrentProject(Project *project)
+{
+    std::swap(project, mCurrentProject);
+    return project;
 }
