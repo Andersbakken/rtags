@@ -17,6 +17,8 @@
 void signalHandler(int signal)
 {
     fprintf(stderr, "Caught signal %d\n", signal);
+    ByteArray trace = RTags::backtrace();
+    fprintf(stderr, "%s", trace.constData());
 #ifdef OS_Linux
     enum { StackSize = 50 };
     void *callstack[StackSize];

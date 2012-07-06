@@ -303,6 +303,7 @@ Path applicationDirPath()
 {
     return sApplicationDirPath;
 }
+
 void findApplicationDirPath(const char *argv0)
 {
 #if defined(OS_Linux)
@@ -367,6 +368,72 @@ void findApplicationDirPath(const char *argv0)
     fprintf(stderr, "Can't find applicationDirPath");
 }
 
+#include <execinfo.h>
+#include <cxxabi.h>
+
+static inline char *demangle(const char *str)
+{
+    if (!str)
+        return 0;
+    int status;
+#ifdef OS_Darwin
+    char paren[1024];
+    sscanf(str, "%*d %*s %*s %s %*s %*d", paren);
+#else
+    const char *paren = strchr(str, '(');
+    if (!paren) {
+        paren = str;
+    } else {
+        ++paren;
+    }
+#endif
+    size_t l;
+    if (const char *plus = strchr(paren, '+')) {
+        l = plus - paren;
+    } else {
+        l = strlen(paren);
+    }
+
+    char buf[1024];
+    size_t len = sizeof(buf);
+    if (l >= len)
+        return 0;
+    memcpy(buf, paren, l + 1);
+    buf[l] = '\0';
+    char *ret = abi::__cxa_demangle(buf, 0, 0, &status);
+    if (status != 0) {
+        if (ret)
+            free(ret);
+#ifdef OS_Darwin
+        return strdup(paren);
+#else
+        return 0;
+#endif
+    }
+    return ret;
 }
 
+ByteArray backtrace(int maxFrames)
+{
+    enum { SIZE = 1024 };
+    void *stack[SIZE];
 
+    int frameCount = backtrace(stack, sizeof(stack) / sizeof(void*));
+    if (frameCount <= 0)
+        return ByteArray("Couldn't get stack trace");
+    ByteArray ret;
+    char **symbols = backtrace_symbols(stack, frameCount);
+    if (symbols) {
+        char frame[1024];
+        for (int i=1; i<frameCount && (maxFrames < 0 || i - 1 < maxFrames); ++i) {
+            char *demangled = demangle(symbols[i]);
+            snprintf(frame, sizeof(frame), "%d/%d %s\n", i, frameCount - 1, demangled ? demangled : symbols[i]);
+            ret += frame;
+            if (demangled)
+                free(demangled);
+        }
+        free(symbols);
+    }
+    return ret;
+}
+}

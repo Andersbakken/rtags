@@ -61,6 +61,8 @@ inline bool isPch(const List<ByteArray> &args)
     return false;
 }
 
+ByteArray backtrace(int maxFrames = -1);
+
 inline bool isReference(CXCursorKind kind)
 {
     return (clang_isReference(kind) || (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr));
