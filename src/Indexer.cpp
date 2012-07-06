@@ -252,17 +252,10 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync)
     }
 }
 
-void Indexer::event(const Event *event)
+void Indexer::onJobFinished(ThreadPool::Job *j)
 {
-    switch (event->type()) {
-    case IndexerJobFinishedEvent::Type:
-        onJobFinished(static_cast<const IndexerJobFinishedEvent*>(event)->job);
-        break;
-    }
-}
-
-void Indexer::onJobFinished(IndexerJob *job)
-{
+    IndexerJob *job = dynamic_cast<IndexerJob*>(j);
+    assert(job);
     if (job->isAborted()) {
         Set<uint32_t> visited;
         for (Map<uint32_t, IndexerJob::PathState>::const_iterator it = job->mPaths.begin(); it != job->mPaths.end(); ++it) {
@@ -323,6 +316,7 @@ int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned
 
     const int id = ++mJobCounter;
     IndexerJob *job = new IndexerJob(this, id, indexerJobFlags, input, arguments);
+    job->finished().connect(this, &Indexer::onJobFinished);
 
     if (needsToWaitForPch(job)) {
         mWaitingForPCH[id] = job;

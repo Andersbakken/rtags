@@ -1,17 +1,17 @@
 #ifndef INDEXER_H
 #define INDEXER_H
 
-#include "RTags.h"
 #include "CursorInfo.h"
-#include "EventReceiver.h"
-#include "ReadWriteLock.h"
 #include "FileSystemWatcher.h"
 #include "MutexLocker.h"
+#include "RTags.h"
+#include "ReadWriteLock.h"
+#include "ThreadPool.h"
+#include "Timer.h"
 #include <clang-c/Index.h>
-#include <Timer.h>
 
 class IndexerJob;
-class Indexer : public EventReceiver
+class Indexer
 {
 public:
     Indexer();
@@ -35,13 +35,12 @@ public:
     void setDiagnostics(const Map<uint32_t, List<ByteArray> > &errors,
                         const Map<Location, std::pair<int, ByteArray> > &fixIts);
     void reindex(const ByteArray &pattern);
-    void event(const Event *event);
     signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
     void onDirectoryChanged(const Path &path);
     Path srcRoot() const { return mSrcRoot; } // ~/src/foobar
     Path projectRoot() const { return mProjectRoot; } // ~/.rtags/projects/[_foobar_]
 private:
-    void onJobFinished(IndexerJob *job);
+    void onJobFinished(ThreadPool::Job *job);
     void commitDependencies(const DependencyMap &deps, bool sync);
     enum InitMode {
         Normal,

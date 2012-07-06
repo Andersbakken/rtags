@@ -61,12 +61,15 @@ void ThreadPoolThread::run()
             assert(item != mPool->mJobs.end());
             ThreadPool::Job* job = *item;
             mPool->mJobs.erase(item);
-            MutexLocker jobLocker(&job->mMutex);
+            job->mMutex.lock();
             locker.unlock();
             job->run();
             if (job->mAutoDelete) {
-                jobLocker.unlock();
+                job->mMutex.unlock();
                 delete job;
+            } else {
+                job->mMutex.unlock();
+                job->finished()(job);
             }
         }
     }

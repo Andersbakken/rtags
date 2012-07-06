@@ -4,6 +4,7 @@
 #include "Mutex.h"
 #include "WaitCondition.h"
 #include <vector>
+#include <signalslot.h>
 
 class ThreadPoolThread;
 
@@ -20,6 +21,7 @@ public:
     public:
         Job();
         virtual ~Job();
+        signalslot::Signal1<ThreadPool::Job*> &finished() { return mFinished; }
 
     protected:
         virtual void run() = 0;
@@ -30,6 +32,7 @@ public:
         int mPriority;
         Mutex mMutex;
         bool mAutoDelete;
+        signalslot::Signal1<ThreadPool::Job*> mFinished;
 
         friend class ThreadPool;
         friend class ThreadPoolThread;

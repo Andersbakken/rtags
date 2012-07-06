@@ -23,7 +23,6 @@ public:
                const Path &input, const List<ByteArray> &arguments);
     int priority() const { return mFlags & Priorities; }
     virtual void run();
-    void execute();
 
     const int mId;
     unsigned mFlags;
@@ -72,17 +71,6 @@ public:
     ByteArray mMessage;
 
     Map<ByteArray, uint32_t> mFileIds;
-};
-
-class IndexerJobFinishedEvent : public Event
-{
-public:
-    enum { Type = 1 };
-    IndexerJobFinishedEvent(IndexerJob *j)
-        : Event(Type), job(j)
-    {}
-
-    IndexerJob *job;
 };
 
 #endif

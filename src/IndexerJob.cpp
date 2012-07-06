@@ -626,12 +626,6 @@ struct Scope {
 
 void IndexerJob::run()
 {
-    execute();
-    EventLoop::instance()->postEvent(mIndexer, new IndexerJobFinishedEvent(this));
-}
-
-void IndexerJob::execute()
-{
     Timer timer;
     // while (!RTags::waitForMemory(10000)) {
     //     error("%s Waiting for rdm to shrink", mIn.constData());
