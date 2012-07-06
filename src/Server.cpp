@@ -318,7 +318,6 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
             }
         } else {
             Path currentPath;
-            Project *current = 0;
             bool error = false;
             RegExp rx(message->query());
             for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
@@ -326,7 +325,7 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
                     if (error) {
                         ResponseMessage msg(it->first);
                         conn->send(&msg);
-                    } else if (current) {
+                    } else if (!currentPath.isEmpty()) {
                         error = true;
                         ResponseMessage msg("Multiple matches for " + currentPath);
                         conn->send(&msg);
@@ -334,11 +333,11 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
                         conn->send(&msg);
                     } else {
                         currentPath = it->first;
-                        current = it->second;
                     }
                 }
             }
-            if (!error && current) {
+            if (!error && !currentPath.isEmpty()) {
+                setCurrentProject(currentPath);
                 ResponseMessage msg("Selected project: " + currentPath);
                 conn->send(&msg);
             }
