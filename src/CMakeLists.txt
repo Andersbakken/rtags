@@ -7,7 +7,9 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
   add_definitions(-DRTAGS_DEBUG)
 endif()
 
-add_definitions(-Wall "-DCLANG_INCLUDEPATH=\"${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/clang_install/lib/clang/3.1/include/\"")
+add_definitions(-Wall "-DCLANG_INCLUDEPATH=\"${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/clang_install/lib/clang/3.1/include/\""
+  "-DCLANG_BIN=\"${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/clang_install/bin/\"")
+
 add_definitions(-DOS_${CMAKE_SYSTEM_NAME})
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")

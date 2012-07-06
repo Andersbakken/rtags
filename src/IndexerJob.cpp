@@ -643,7 +643,7 @@ void IndexerJob::execute()
         mPchUSRMap = mIndexer->pchUSRMap(mPchHeaders);
 
     List<const char*> clangArgs(mArgs.size(), 0);
-    ByteArray clangLine = "clang ";
+    ByteArray clangLine = CLANG_BIN "clang ";
     bool nextIsPch = false, nextIsX = false;
     ByteArray pchName;
 
