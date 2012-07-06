@@ -59,7 +59,8 @@ void Client::onDisconnected()
 {
     delete mConnection;
     mConnection = 0;
-    EventLoop::instance()->exit();
+    if (mFlags & ExitEventLoopOnDisconnect)
+        EventLoop::instance()->exit();
 }
 bool Client::connectToServer()
 {
