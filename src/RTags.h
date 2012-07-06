@@ -43,7 +43,7 @@ typedef Map<Path, Set<WatchedPair> > WatchedMap;
 typedef Map<uint32_t, FileInformation> InformationMap;
 
 namespace RTags {
-static inline bool isPch(const List<ByteArray> &args)
+inline bool isPch(const List<ByteArray> &args)
 {
     const int size = args.size();
     bool nextIsX = false;
@@ -61,7 +61,7 @@ static inline bool isPch(const List<ByteArray> &args)
     return false;
 }
 
-static inline bool isReference(CXCursorKind kind)
+inline bool isReference(CXCursorKind kind)
 {
     return (clang_isReference(kind) || (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr));
 }
@@ -69,7 +69,7 @@ static inline bool isReference(CXCursorKind kind)
 ByteArray eatString(CXString str);
 ByteArray cursorToString(CXCursor cursor);
 template <typename T>
-static inline bool startsWith(const List<T> &list, const T &str)
+inline bool startsWith(const List<T> &list, const T &str)
 {
     if (!list.isEmpty()) {
         typename List<T>::const_iterator it = std::upper_bound(list.begin(), list.end(), str);
@@ -88,7 +88,7 @@ static inline bool startsWith(const List<T> &list, const T &str)
 }
 
 template <typename Container, typename Value>
-static inline bool addTo(Container &container, const Value &value)
+inline bool addTo(Container &container, const Value &value)
 {
     const int oldSize = container.size();
     container += value;
@@ -100,7 +100,7 @@ List<ByteArray> compileArgs(uint32_t fileId);
 // the symbols will be modified before writing and we don't want to detach so we
 // work on a non-const reference
 
-static inline ByteArray timeToString(time_t t)
+inline ByteArray timeToString(time_t t)
 {
     char buf[32];
     tm tm;
@@ -109,15 +109,67 @@ static inline ByteArray timeToString(time_t t)
     return ByteArray(buf, w);
 }
 
-
-static inline Path rtagsDir()
+inline Path rtagsDir()
 {
     char buf[128];
     int w = snprintf(buf, sizeof(buf), "%s/.rtags/", getenv("HOME"));
     return Path(buf, w);
 }
 
-static inline int digits(int len)
+inline Path encodePath(Path path)
+{
+    int size = path.size();
+    enum { EncodedUnderscoreLength = 12 };
+    for (int i=0; i<size; ++i) {
+        char &ch = path[i];
+        printf("%d/%d %c\n", i, size, ch);
+        switch (ch) {
+        case '/':
+            ch = '_';
+            break;
+        case '_':
+            path.replace(i, 1, "<underscore>");
+            size += EncodedUnderscoreLength - 1;
+            i += EncodedUnderscoreLength - 1;
+            break;
+        case '<':
+            printf("%d %d\n",
+                   i + EncodedUnderscoreLength <= size,
+                   !strncmp(&ch + 1, "underscore>", EncodedUnderscoreLength - 1));
+
+            if (i + EncodedUnderscoreLength <= size && !strncmp(&ch + 1, "underscore>", EncodedUnderscoreLength - 1)) {
+                error("Invalid folder name %s", path.constData());
+                return Path();
+            }
+            break;
+        }
+    }
+    return path;
+}
+
+inline Path decodePath(Path path)
+{
+    int size = path.size();
+    enum { EncodedUnderscoreLength = 12 };
+    for (int i=0; i<size; ++i) {
+        char &ch = path[i];
+        switch (ch) {
+        case '_':
+            ch = '/';
+            break;
+        case '<':
+            if (i + EncodedUnderscoreLength <= size && !strncmp(&ch + 1, "underscore>", EncodedUnderscoreLength - 1)) {
+                path.replace(i, EncodedUnderscoreLength, "_");
+                size -= EncodedUnderscoreLength - 1;
+            }
+            break;
+        }
+    }
+    return path;
+}
+
+
+inline int digits(int len)
 {
     int ret = 1;
     while (len >= 10) {
@@ -147,9 +199,9 @@ void findApplicationDirPath(const char *argv0);
 Path applicationDirPath();
 }
 
-#define eintrwrap(VAR, BLOCK)                  \
-    do {                                       \
-        VAR = BLOCK;                           \
+#define eintrwrap(VAR, BLOCK)                   \
+    do {                                        \
+        VAR = BLOCK;                            \
     } while (VAR == -1 && errno == EINTR)
 
 class CursorInfo;
@@ -168,23 +220,23 @@ public:
     CXString string;
 };
 
-static inline bool match(uint32_t fileId, const Location &loc)
+inline bool match(uint32_t fileId, const Location &loc)
 {
     return loc.fileId() == fileId;
 }
 
-static inline bool match(const Set<uint32_t> &fileIds, const Location &loc)
+inline bool match(const Set<uint32_t> &fileIds, const Location &loc)
 {
     return fileIds.contains(loc.fileId());
 }
 
-static inline std::ostringstream &operator<<(std::ostringstream &dbg, CXCursor cursor)
+inline std::ostringstream &operator<<(std::ostringstream &dbg, CXCursor cursor)
 {
     dbg << RTags::cursorToString(cursor);
     return dbg;
 }
 
-static inline std::ostringstream &operator<<(std::ostringstream &dbg, CXCursorKind kind)
+inline std::ostringstream &operator<<(std::ostringstream &dbg, CXCursorKind kind)
 {
     dbg << RTags::eatString(clang_getCursorKindSpelling(kind));
     return dbg;
