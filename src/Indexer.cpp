@@ -10,7 +10,6 @@
 #include "RTags.h"
 #include "ReadLocker.h"
 #include "RegExp.h"
-#include "SHA256.h"
 #include "Server.h"
 #include "WriteLocker.h"
 #include <math.h>

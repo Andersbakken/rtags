@@ -1,6 +1,5 @@
 #include "IndexerJob.h"
 #include "Timer.h"
-#include "SHA256.h"
 #include "MemoryMonitor.h"
 #include "Server.h"
 #include "EventLoop.h"
@@ -593,9 +592,12 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
     return CXChildVisit_Recurse;
 }
 
-static ByteArray pchFileName(const Path &pchDir, const ByteArray &header)
+static ByteArray pchFileName(const Path &pchDir, const Path &header)
 {
-    return pchDir + "/pch/" + SHA256::hash(header.constData());
+    Path ret = header;
+    RTags::encodePath(ret);
+    ret.prepend(pchDir + "/pch/");
+    return ret;
 }
 
 struct Scope {
