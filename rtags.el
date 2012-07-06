@@ -309,24 +309,18 @@ return t if rtags is allowed to modify this file"
     )
   )
 
-(defun rtags-find-references-at-point(&optional samefile)
+(defun rtags-find-references-at-point()
   (interactive)
   (rtags-save-location)
   (let ((arg (rtags-current-location)))
     (if (get-buffer "*RTags Complete*")
         (kill-buffer "*RTags Complete*"))
     (with-current-buffer (generate-new-buffer "*RTags Complete*")
-      (if samefile
-          (rtags-call-rc nil "-l" "-z" "-r" arg)
-        (rtags-call-rc t "-l" "-r" arg)) ; ### is this right, I kinda hate that samefile stuff, it should just use path-filter
+      (rtags-call-rc t "-l" "-r" arg))
       (rtags-handle-completion-buffer))
     )
   )
 
-
-(defun rtags-find-references-at-point-samefile()
-  (interactive)
-  (rtags-find-references-at-point t))
 
 (defun rtags-rename-symbol ()
   (interactive)

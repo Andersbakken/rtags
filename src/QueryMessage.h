@@ -38,8 +38,7 @@ public:
         SkipParentheses = 0x08,
         IncludeDeclarationsAndDefinitions = 0x10,
         ReverseSort = 0x20,
-        ElispList = 0x40,
-        SameFile = 0x80
+        ElispList = 0x40
     };
 
     typedef Map<Path, ByteArray> UnsavedFilesMap;

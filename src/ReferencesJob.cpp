@@ -27,7 +27,7 @@ void ReferencesJob::execute()
     const bool excludeDefsAndDecls = !(flags & QueryMessage::IncludeDeclarationsAndDefinitions);
     ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
     const unsigned keyFlags = QueryMessage::keyFlags(flags);
-    const uint32_t fileFilterId = (flags & QueryMessage::SameFile && symbolName.isEmpty() ? locations.begin()->fileId() : 0);
+    const uint32_t fileFilterId = (symbolName.isEmpty() ? locations.begin()->fileId() : 0);
     Set<Location> refs;
     Set<Location> filtered;
     for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
