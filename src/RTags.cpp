@@ -368,6 +368,7 @@ void findApplicationDirPath(const char *argv0)
     fprintf(stderr, "Can't find applicationDirPath");
 }
 
+#if defined(OS_Linux) || defined(OS_Darwin)
 #include <execinfo.h>
 #include <cxxabi.h>
 
@@ -436,6 +437,12 @@ ByteArray backtrace(int maxFrames)
     }
     return ret;
 }
+#else
+ByteArray backtrace(int)
+{
+    return ByteArray();
+}
+#endif
 }
 
 #ifdef RTAGS_DEBUG
