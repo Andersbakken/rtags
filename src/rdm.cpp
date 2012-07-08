@@ -61,8 +61,7 @@ void signalHandler(int signal)
     free(symbols);
 #endif
     fflush(stderr);
-    Server::instance()->clear();
-    exit(1);
+    EventLoop::instance()->exit();
 }
 
 void usage(FILE *f)
