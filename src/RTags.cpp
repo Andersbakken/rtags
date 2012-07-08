@@ -368,7 +368,7 @@ void findApplicationDirPath(const char *argv0)
     fprintf(stderr, "Can't find applicationDirPath");
 }
 
-#if defined(OS_Linux) || defined(OS_Darwin)
+#ifdef HAVE_BACKTRACE
 #include <execinfo.h>
 #include <cxxabi.h>
 

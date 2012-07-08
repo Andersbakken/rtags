@@ -9,7 +9,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef OS_Linux
+#ifdef HAVE_BACKTRACE
 #include <execinfo.h>
 #include <cxxabi.h>
 #endif
@@ -19,7 +19,7 @@ void signalHandler(int signal)
     fprintf(stderr, "Caught signal %d\n", signal);
     ByteArray trace = RTags::backtrace();
     fprintf(stderr, "%s", trace.constData());
-#ifdef OS_Linux
+#ifdef HAVE_BACKTRACE
     enum { StackSize = 50 };
     void *callstack[StackSize];
     const int c = backtrace(callstack, StackSize);

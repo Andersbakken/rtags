@@ -3,6 +3,8 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+include(CheckCXXSymbolExists)
+
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
   add_definitions(-DRTAGS_DEBUG)
 endif()
@@ -17,6 +19,11 @@ if(CMAKE_SYSTEM_NAME MATCHES "Linux")
 elseif(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
   add_definitions("-DMAKE=\"gmake\"")
 endif()
+
+check_cxx_symbol_exists(backtrace "execinfo.h" HAVE_BACKTRACE)
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
+               ${CMAKE_CURRENT_BINARY_DIR}/config.h)
 
 include(rtags.cmake)
 
