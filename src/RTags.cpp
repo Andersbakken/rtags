@@ -8,6 +8,7 @@
 #include "ScopedDB.h"
 #include "Server.h"
 #include "FileInformation.h"
+#include "config.h"
 #ifdef OS_FreeBSD
 #include <sys/sysctl.h>
 #endif

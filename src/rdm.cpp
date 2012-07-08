@@ -5,6 +5,7 @@
 #include "Thread.h"
 #include "Thread.h"
 #include "ThreadPool.h"
+#include "config.h"
 #include <getopt.h>
 #include <signal.h>
 #include <stdio.h>
