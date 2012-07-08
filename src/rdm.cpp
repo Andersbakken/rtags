@@ -32,7 +32,7 @@ void signalHandler(int signal)
         for (int j=0; frame[j]; ++j) {
             switch (frame[j]) {
             case '(':
-                assert(from = -1);
+                assert(from == -1);
                 from = j;
                 break;
             case '+':
