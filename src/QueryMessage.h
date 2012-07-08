@@ -28,6 +28,7 @@ public:
         Remake,
         Completions,
         Project,
+        DeleteProject,
         Shutdown
     };
 

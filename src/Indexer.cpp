@@ -515,6 +515,7 @@ bool Indexer::needsToWaitForPch(IndexerJob *job) const
 
 void Indexer::abort()
 {
+#warning this function needs to block until jobs have finished, that includes any statusjobs. Maybe if Indexer is a shared_ptr this would be easier.
     MutexLocker lock(&mMutex);
     for (Map<int, IndexerJob*>::const_iterator it = mWaitingForPCH.begin(); it != mWaitingForPCH.end(); ++it) {
         delete it->second;

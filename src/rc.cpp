@@ -52,6 +52,7 @@ static void help(FILE *f, const char* app)
             "  --run-test|-T [file]                      Run tests from file\n"
             "  --diagnostics|-G                          Open a connection that prints diagnostics\n"
             "  --project|-w [optional regexp]            With arg, select project matching that if unique, otherwise list all projects\n"
+            "  --delete-project|-W [regexp]              Delete all projects matching regexp\n"
             "  --clear-db|-C                             Clear database, use with care\n"
             "  --reindex|-V [optional regexp]            Reindex all files or all files matching pattern\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
@@ -199,10 +200,11 @@ int main(int argc, char** argv)
         { "reindex", optional_argument, 0, 'V' },
         { "diagnostics", no_argument, 0, 'G' },
         { "project", optional_argument, 0, 'w' },
+        { "delete-project", required_argument, 0, 'W' },
         { 0, 0, 0, 0 }
     };
 
-    // Unused: bBdjJkKWXyYZ
+    // Unused: bBdjJkKXyYZ
 
     int logLevel = 0;
     ByteArray logFile;
@@ -343,6 +345,9 @@ int main(int argc, char** argv)
             break;
         case 'q':
             commands.append(new QueryCommand(QueryMessage::Shutdown, ByteArray(), queryFlags, pathFilters, unsavedFiles));
+            break;
+        case 'W':
+            commands.append(new QueryCommand(QueryMessage::DeleteProject, optarg, queryFlags, pathFilters, unsavedFiles));
             break;
         case 'V':
         case 'w':

@@ -308,6 +308,21 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::Invalid:
         assert(0);
         break;
+    case QueryMessage::DeleteProject: {
+        RegExp rx(message->query());
+        Map<Path, Project*>::iterator it = mProjects.begin();
+        while (it != mProjects.end()) {
+            if (rx.indexIn(it->first) != -1) {
+                it->second->indexer->abort(); // ### this isn't really safe until this function blocks until properly finished
+                delete it->second;
+                ResponseMessage msg("Erased " + it->first);
+                conn->send(&msg);
+                mProjects.erase(it++);
+            } else {
+                ++it;
+            }
+        }
+        break; }
     case QueryMessage::Project:
         if (message->query().isEmpty()) {
             for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
