@@ -4,6 +4,7 @@
 #include "MutexLocker.h"
 #include "RTags.h"
 #include "ThreadLocal.h"
+#include "config.h"
 #include <algorithm>
 #include <errno.h>
 #include <fcntl.h>
@@ -13,7 +14,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#ifdef OS_Darwin
+#ifdef HAVE_MACH_ABSOLUTE_TIME
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 
@@ -125,7 +126,7 @@ void EventLoop::postEvent(EventReceiver* receiver, Event* event)
 
 static inline bool gettime(timeval* time, int timeout)
 {
-#ifdef OS_Darwin
+#if defined(HAVE_MACH_ABSOLUTE_TIME)
     pthread_once(&sEventLoopInit, initTimebaseInfo);
 
     mach_timebase_info_data_t& info = sTimebaseInfo->get();
@@ -135,11 +136,11 @@ static inline bool gettime(timeval* time, int timeout)
     machtime = machtime * info.numer / (info.denom * 1000); // microseconds
     time->tv_sec = machtime / 1000000;
     time->tv_usec = machtime % 1000000;
-#else
+#elif defined(HAVE_CLOCK_MONOTONIC_RAW) || defined(HAVE_CLOCK_MONOTONIC)
     timespec spec;
-#if defined(OS_Linux)
+#if defined(HAVE_CLOCK_MONOTONIC_RAW)
     const clockid_t cid = CLOCK_MONOTONIC_RAW;
-#elif defined(OS_FreeBSD)
+#else
     const clockid_t cid = CLOCK_MONOTONIC;
 #endif
     const int ret = ::clock_gettime(cid, &spec);
@@ -157,6 +158,8 @@ static inline bool gettime(timeval* time, int timeout)
             time->tv_usec -= MAX_USEC;
         }
     }
+#else
+#error No EventLoop::gettime() implementation
 #endif
     return true;
 }

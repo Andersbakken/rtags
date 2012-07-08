@@ -2,22 +2,25 @@
 #include "EventLoop.h"
 #include "MutexLocker.h"
 #include "Log.h"
-#if defined(OS_Linux)
+#include "config.h"
+#if defined(HAVE_INOTIFY)
 #include <sys/inotify.h>
 #include <sys/ioctl.h>
-#elif defined(OS_FreeBSD) || defined(OS_Darwin)
+#elif defined(HAVE_KQUEUE)
 #include <sys/types.h>
 #include <sys/event.h>
 #include <sys/time.h>
 #include <fcntl.h>
+#else
+#error FileSystemWatcher not implemented on this platform
 #endif
 #include <errno.h>
 
 FileSystemWatcher::FileSystemWatcher()
 {
-#if defined(OS_Linux)
+#if defined(HAVE_INOTIFY)
     mFd = inotify_init();
-#elif defined(OS_FreeBSD) || defined(OS_Darwin)
+#elif defined(HAVE_KQUEUE)
     mFd = kqueue();
 #endif
     assert(mFd != -1);
@@ -26,13 +29,26 @@ FileSystemWatcher::FileSystemWatcher()
 
 FileSystemWatcher::~FileSystemWatcher()
 {
+#if defined(HAVE_KQUEUE)
+    struct kevent change;
+    struct timespec nullts = { 0, 0 };
+#endif
+
     EventLoop::instance()->removeFileDescriptor(mFd);
-#if defined(OS_Linux)
     for (Map<Path, int>::const_iterator it = mWatchedByPath.begin(); it != mWatchedByPath.end(); ++it) {
+#if defined(HAVE_INOTIFY)
         inotify_rm_watch(mFd, it->second);
+#elif defined(HAVE_KQUEUE)
+        EV_SET(&change, it->second, EVFILT_VNODE, EV_DELETE, 0, 0, 0);
+        if (::kevent(mFd, &change, 1, 0, 0, &nullts) == -1) {
+            // bad stuff
+            error("FileSystemWatcher::~FileSystemWatcher() kevent failed for '%s' (%d) %s",
+                  it->first.constData(), errno, strerror(errno));
+        }
+        ::close(it->second);
+#endif
     }
     close(mFd);
-#endif
 }
 
 bool FileSystemWatcher::watch(const Path &path)
@@ -42,14 +58,14 @@ bool FileSystemWatcher::watch(const Path &path)
     const Path::Type type = path.type();
     uint32_t flags = 0;
     switch (type) {
-#if defined(OS_Linux)
+#if defined(HAVE_INOTIFY)
     case Path::File:
         flags = IN_MODIFY|IN_DELETE_SELF|IN_MOVE_SELF|IN_ATTRIB; // ### qt uses IN_MOVE on file which makes no sense to me
         break;
     case Path::Directory:
         flags = IN_MOVE|IN_CREATE|IN_DELETE|IN_DELETE_SELF|IN_ATTRIB;
         break;
-#elif defined(OS_FreeBSD) || defined(OS_Darwin)
+#elif defined(HAVE_KQUEUE)
     case Path::File:
     case Path::Directory:
         flags = NOTE_RENAME|NOTE_DELETE|NOTE_EXTEND|NOTE_WRITE|NOTE_ATTRIB|NOTE_REVOKE;
@@ -63,9 +79,9 @@ bool FileSystemWatcher::watch(const Path &path)
     if (mWatchedByPath.contains(path)) {
         return false;
     }
-#if defined(OS_Linux)
+#if defined(HAVE_INOTIFY)
     const int ret = inotify_add_watch(mFd, path.constData(), flags);
-#elif defined(OS_FreeBSD) || defined(OS_Darwin)
+#elif defined(HAVE_KQUEUE)
     int ret = ::open(path.nullTerminated(), O_RDONLY);
     if (ret != -1) {
         struct kevent change;
@@ -98,9 +114,9 @@ bool FileSystemWatcher::unwatch(const Path &path)
     if (mWatchedByPath.remove(path, &wd)) {
         debug("FileSystemWatcher::unwatch(\"%s\")", path.constData());
         mWatchedById.remove(wd);
-#if defined(OS_Linux)
+#if defined(HAVE_INOTIFY)
         inotify_rm_watch(mFd, wd);
-#elif defined(OS_FreeBSD) || defined(OS_Darwin)
+#elif defined(HAVE_KQUEUE)
         struct kevent change;
         struct timespec nullts = { 0, 0 };
         EV_SET(&change, wd, EVFILT_VNODE, EV_DELETE, 0, 0, 0);
@@ -120,7 +136,7 @@ bool FileSystemWatcher::unwatch(const Path &path)
 void FileSystemWatcher::notifyReadyRead()
 {
     Map<Path, bool> notifications;
-#if defined(OS_Linux)
+#if defined(HAVE_INOTIFY)
     {
         MutexLocker lock(&mMutex);
 
@@ -164,7 +180,7 @@ void FileSystemWatcher::notifyReadyRead()
         if (buf != staticBuf)
             delete []buf;
     }
-#elif defined(OS_FreeBSD) || defined(OS_Darwin)
+#elif defined(HAVE_KQUEUE)
     {
         enum { MaxEvents = 5 };
         MutexLocker lock(&mMutex);

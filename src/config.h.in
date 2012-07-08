@@ -2,5 +2,10 @@
 #define CONFIG_H
 
 #cmakedefine HAVE_BACKTRACE
+#cmakedefine HAVE_CLOCK_MONOTONIC_RAW
+#cmakedefine HAVE_CLOCK_MONOTONIC
+#cmakedefine HAVE_MACH_ABSOLUTE_TIME
+#cmakedefine HAVE_INOTIFY
+#cmakedefine HAVE_KQUEUE
 
 #endif
