@@ -81,7 +81,7 @@ Server::Server()
 Server::~Server()
 {
     clear();
-    assert(sInstance == this);
+    assert(sInstance = this);
     sInstance = 0;
 }
 
@@ -883,7 +883,7 @@ ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType, const P
     }
     Project *proj = mProjects.value(root, mCurrentProject);
     if (!proj) {
-        error() << "No DB here " << root << " " << type << " " << lockType;
+        // error() << "No DB here " << root << " " << type << " " << lockType;
         return ScopedDB();
     }
     return ScopedDB(proj->databases[type], lockType);
