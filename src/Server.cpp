@@ -81,7 +81,7 @@ Server::Server()
 Server::~Server()
 {
     clear();
-    assert(sInstance = this);
+    //assert(sInstance == this);
     sInstance = 0;
 }
 
