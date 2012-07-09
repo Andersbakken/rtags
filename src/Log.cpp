@@ -87,10 +87,14 @@ static void log(int level, const char *format, va_list v)
     }
 
     MutexLocker lock(&sOutputsMutex);
-    for (Set<LogOutput*>::const_iterator it = sOutputs.begin(); it != sOutputs.end(); ++it) {
-        LogOutput *output = *it;
-        if (output->testLog(level)) {
-            output->log(msg, n);
+    if (sOutputs.isEmpty()) {
+        printf("%s\n", msg);
+    } else {
+        for (Set<LogOutput*>::const_iterator it = sOutputs.begin(); it != sOutputs.end(); ++it) {
+            LogOutput *output = *it;
+            if (output->testLog(level)) {
+                output->log(msg, n);
+            }
         }
     }
 
@@ -149,6 +153,8 @@ static inline void removeOutputs()
 bool testLog(int level)
 {
     MutexLocker lock(&sOutputsMutex);
+    if (sOutputs.isEmpty())
+        return true;
     for (Set<LogOutput*>::const_iterator it = sOutputs.begin(); it != sOutputs.end(); ++it) {
         if ((*it)->testLog(level))
             return true;
