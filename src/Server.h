@@ -63,7 +63,7 @@ public:
         int maxCompletionUnits;
     };
     bool init(const Options &options);
-    Indexer *indexer() const;
+    std::tr1::shared_ptr<Indexer> indexer() const;
     ByteArray name() const { return mOptions.socketPath; }
     static bool setBaseDirectory(const Path &base, bool clear);
     Path databaseDir(DatabaseType type);
@@ -123,21 +123,19 @@ private:
     Database *mDBs[DatabaseTypeCount - ProjectSpecificDatabaseTypeCount];
     struct Project {
         Project()
-            : indexer(0)
         {
             memset(databases, 0, sizeof(databases));
         }
 
         ~Project()
         {
-            delete indexer;
             for (int i=0; i<ProjectSpecificDatabaseTypeCount; ++i) {
                 delete databases[i];
             }
         }
         Path projectPath;
         Database *databases[ProjectSpecificDatabaseTypeCount];
-        Indexer *indexer;
+        std::tr1::shared_ptr<Indexer> indexer;
     };
 
     Map<Path, Project*> mProjects;

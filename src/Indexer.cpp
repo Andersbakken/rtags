@@ -300,6 +300,7 @@ void Indexer::onJobFinished(IndexerJob *job)
             mJobCounter = 0;
             jobsComplete()(this);
         }
+        mWaitCondition.wakeAll();
     }
 }
 
@@ -515,16 +516,22 @@ bool Indexer::needsToWaitForPch(IndexerJob *job) const
 
 void Indexer::abort()
 {
-#warning this function needs to block until jobs have finished, that includes any statusjobs. Maybe if Indexer is a shared_ptr this would be easier.
     MutexLocker lock(&mMutex);
     for (Map<int, IndexerJob*>::const_iterator it = mWaitingForPCH.begin(); it != mWaitingForPCH.end(); ++it) {
         delete it->second;
     }
-
     mWaitingForPCH.clear();
+
+    for (Map<int, IndexerJob*>::const_iterator it = mWaitingForAbort.begin(); it != mWaitingForAbort.end(); ++it) {
+        delete it->second;
+    }
+    mWaitingForAbort.clear();
+
     for (Map<int, IndexerJob*>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
         it->second->abort();
     }
+    while (!mJobs.isEmpty())
+        mWaitCondition.wait(&mMutex);
 }
 
 ByteArray Indexer::fixIts(const Path &path) const

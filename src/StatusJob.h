@@ -9,13 +9,13 @@ class Indexer;
 class StatusJob : public Job
 {
 public:
-    StatusJob(int i, const ByteArray &query, Indexer *indexer);
+    StatusJob(int i, const ByteArray &query, std::tr1::shared_ptr<Indexer> indexer);
     static const char *delimiter;
 protected:
     virtual void execute();
 private:
     const ByteArray query;
-    Indexer *mIndexer;
+    std::tr1::shared_ptr<Indexer> mIndexer;
 };
 
 #endif

@@ -62,6 +62,7 @@ private:
     int mJobCounter;
 
     mutable Mutex mMutex;
+    WaitCondition mWaitCondition;
 
     ByteArray mPath;
     Map<int, IndexerJob*> mJobs, mWaitingForPCH, mWaitingForAbort;

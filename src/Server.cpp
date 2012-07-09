@@ -552,7 +552,7 @@ int Server::status(const QueryMessage &query)
 
     error("rc -s \"%s\"", query.query().constData());
 
-    StatusJob *job = new StatusJob(id, query.query(), mCurrentProject ? mCurrentProject->indexer : 0);
+    StatusJob *job = new StatusJob(id, query.query(), mCurrentProject ? mCurrentProject->indexer : std::tr1::shared_ptr<Indexer>());
     job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
     startJob(job);
     return id;
@@ -905,9 +905,9 @@ ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType, const P
 }
 
 
-Indexer *Server::indexer() const
+std::tr1::shared_ptr<Indexer> Server::indexer() const
 {
-    return mCurrentProject->indexer;
+    return mCurrentProject ? mCurrentProject->indexer : std::tr1::shared_ptr<Indexer>();
 }
 
 bool Server::setCurrentProject(const Path &path)
@@ -939,7 +939,7 @@ Server::Project *Server::initProject(const Path &path)
             project->databases[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(),
                                                  mOptions.cacheSizeMB, flags);
         }
-        project->indexer = new Indexer;
+        project->indexer.reset(new Indexer);
         project->indexer->init(path, mCurrentProject->projectPath, !(mOptions.options & NoValidateOnStartup));
         project->indexer->jobsComplete().connect(this, &Server::onJobsComplete);
         mCurrentProject = prev;

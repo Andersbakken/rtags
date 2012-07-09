@@ -8,7 +8,7 @@
 #include <clang-c/Index.h>
 
 const char *StatusJob::delimiter = "*********************************";
-StatusJob::StatusJob(int i, const ByteArray &q, Indexer *indexer)
+StatusJob::StatusJob(int i, const ByteArray &q, std::tr1::shared_ptr<Indexer> indexer)
     : Job(i, QueryJobPriority, WriteUnfiltered), query(q), mIndexer(indexer)
 {
 }
@@ -115,7 +115,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "symbolnames") {
-        ScopedDB db = server->db(Server::SymbolName, ReadWriteLock::Read);
+        ScopedDB db = server->db(Server::SymbolName, ReadWriteLock::Read, mIndexer->srcRoot());
         write(delimiter);
         write(server->databaseDir(Server::SymbolName));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -137,7 +137,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "fileinfos") {
-        ScopedDB db = server->db(Server::FileInformation, ReadWriteLock::Read);
+        ScopedDB db = server->db(Server::FileInformation, ReadWriteLock::Read, mIndexer->srcRoot());
         write(delimiter);
         write(server->databaseDir(Server::FileInformation));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -159,7 +159,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "pch") {
-        ScopedDB db = server->db(Server::PCHUsrMaps, ReadWriteLock::Read);
+        ScopedDB db = server->db(Server::PCHUsrMaps, ReadWriteLock::Read, mIndexer->srcRoot());
         write(delimiter);
         write(server->databaseDir(Server::PCHUsrMaps));
         RTags::Ptr<Iterator> it(db->createIterator());
