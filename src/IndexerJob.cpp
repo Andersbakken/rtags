@@ -206,6 +206,7 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
             case CXCursor_StructDecl:
             case CXCursor_CXXMethod:
             case CXCursor_Constructor:
+            case CXCursor_Destructor:
             case CXCursor_FunctionDecl:
                 ok = true;
                 break;
@@ -255,6 +256,7 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
             case CXCursor_CXXMethod:
             case CXCursor_Constructor:
             case CXCursor_FunctionDecl:
+            case CXCursor_Destructor:
             case CXCursor_VarDecl:
             case CXCursor_ParmDecl:
             case CXCursor_FieldDecl:
