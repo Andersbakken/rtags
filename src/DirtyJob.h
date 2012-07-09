@@ -11,7 +11,7 @@ class DirtyJob : public ThreadPool::Job, public AbortInterface
 {
 public:
     enum { Priority = 100 };
-    DirtyJob(const Set<uint32_t> &dirtyFileIds);
+    DirtyJob(const Set<uint32_t> &dirtyFileIds, const Path &srcRoot);
 protected:
     virtual void run();
 private:

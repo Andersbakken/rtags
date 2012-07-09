@@ -185,7 +185,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
         mVisitedFiles -= dirtyFiles;
     }
 
-    Server::instance()->threadPool()->start(new DirtyJob(dirtyFiles), DirtyJob::Priority);
+    Server::instance()->threadPool()->start(new DirtyJob(dirtyFiles, mSrcRoot), DirtyJob::Priority);
 
     for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
         index(it->first, it->second, IndexerJob::DirtyPch);
@@ -430,7 +430,7 @@ void Indexer::onDirectoryChanged(const Path &p)
         }
     }
 
-    Server::instance()->threadPool()->start(new DirtyJob(dirtyFiles), DirtyJob::Priority);
+    Server::instance()->threadPool()->start(new DirtyJob(dirtyFiles, mSrcRoot), DirtyJob::Priority);
 
     for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
         index(it->first, it->second, IndexerJob::DirtyPch);
