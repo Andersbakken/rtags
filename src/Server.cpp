@@ -29,7 +29,6 @@
 #include "SHA256.h"
 #include "StatusJob.h"
 #include "TestJob.h"
-#include "ValidateDBJob.h"
 #include "leveldb/cache.h"
 #include "leveldb/db.h"
 #include <Log.h>
@@ -887,7 +886,6 @@ void Server::onJobsComplete(Indexer *indexer)
     if (!mCurrentProject) {
         setCurrentProject(indexer->srcRoot());
     }
-    startJob(new ValidateDBJob(indexer->srcRoot()));
 }
 
 ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType, const Path &root) const

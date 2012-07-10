@@ -1,5 +1,6 @@
 #include "Indexer.h"
 
+#include "ValidateDBJob.h"
 #include "Database.h"
 #include "DirtyJob.h"
 #include "FileInformation.h"
@@ -299,6 +300,9 @@ void Indexer::onJobFinished(IndexerJob *job)
                     << MemoryMonitor::usage() / (1024.0 * 1024.0) << " mb of memory";
             mJobCounter = 0;
             jobsComplete()(this);
+            ValidateDBJob *validateJob = new ValidateDBJob(mSrcRoot, mPreviousErrors);
+            validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
+            Server::instance()->startJob(validateJob);
         }
         mWaitCondition.wakeAll();
     }
@@ -593,4 +597,9 @@ void Indexer::setDiagnostics(const Map<uint32_t, List<ByteArray> > &diagnostics,
 void Indexer::reindex(const ByteArray &pattern)
 {
     initDB(ForceDirty, pattern);
+}
+void Indexer::onValidateDBJobErrors(const Set<Location> &errors)
+{
+    MutexLocker lock(&mMutex);
+    mPreviousErrors = errors;
 }

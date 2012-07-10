@@ -6,8 +6,8 @@
 #include "Server.h"
 #include <clang-c/Index.h>
 
-ValidateDBJob::ValidateDBJob(const Path &root)
-    : Job(-1, ValidateDBJobPriority, 0), mRoot(root)
+ValidateDBJob::ValidateDBJob(const Path &root, const Set<Location> &prev)
+    : Job(-1, ValidateDBJobPriority, 0), mRoot(root), mPrevious(prev)
 {
 }
 
@@ -18,6 +18,7 @@ void ValidateDBJob::execute()
     it->seekToFirst();
     int errors = 0;
     int total = 0;
+    Set<Location> newErrors;
     while (it->isValid()) {
         ++total;
         if (isAborted())
@@ -25,20 +26,24 @@ void ValidateDBJob::execute()
         const CursorInfo ci = it->value<CursorInfo>();
         if (!ci.symbolLength) {
             const Location loc = Location::fromKey(it->key().data());
-            Log stream(Error);
-            stream << "Invalid entry for " << loc
-                   << " symbolName: " << ci.symbolName
-                   << " kind: " << RTags::eatString(clang_getCursorKindSpelling(ci.kind))
-                   << " isDefinition: " << (ci.isDefinition ? "true" : "false")
-                   << " target: " << ci.target
-                   << " references:";
-            for (Set<Location>::const_iterator rit = ci.references.begin(); rit != ci.references.end(); ++rit) {
-                stream << " " << *rit;
+            if (!mPrevious.contains(loc)) {
+                Log stream(Error);
+                stream << "Invalid entry for " << loc
+                       << " symbolName: " << ci.symbolName
+                       << " kind: " << RTags::eatString(clang_getCursorKindSpelling(ci.kind))
+                       << " isDefinition: " << (ci.isDefinition ? "true" : "false")
+                       << " target: " << ci.target
+                       << " references:";
+                for (Set<Location>::const_iterator rit = ci.references.begin(); rit != ci.references.end(); ++rit) {
+                    stream << " " << *rit;
+                }
             }
+            newErrors.insert(loc);
 
             ++errors;
         }
         it->next();
     }
+    mErrors(newErrors);
     error("Checked %d CursorInfo objects, %d errors", total, errors);
 }

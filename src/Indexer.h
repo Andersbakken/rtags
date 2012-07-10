@@ -40,6 +40,7 @@ public:
     Path srcRoot() const { return mSrcRoot; } // ~/src/foobar
     Path projectRoot() const { return mProjectRoot; } // ~/.rtags/projects/[_foobar_]
 private:
+    void onValidateDBJobErrors(const Set<Location> &errors);
     void onJobFinished(IndexerJob *job);
     void commitDependencies(const DependencyMap &deps, bool sync);
     enum InitMode {
@@ -79,6 +80,8 @@ private:
     Map<Location, std::pair<int, ByteArray> > mFixIts;
     Map<uint32_t, ByteArray> mErrors;
     mutable ReadWriteLock mFixItsAndErrorsLock;
+
+    Set<Location> mPreviousErrors;
 
     signalslot::Signal1<Indexer*> mJobsComplete;
 };
