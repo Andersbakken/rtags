@@ -414,7 +414,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     if (kind >= CXCursor_FirstStmt && kind <= CXCursor_LastStmt)
         return CXChildVisit_Recurse;
     if (!interesting) {
-        return CXChildVisit_Continue;
+        return CXChildVisit_Recurse;
     }
 
     CXCursor ref = clang_getCursorReferenced(cursor);
