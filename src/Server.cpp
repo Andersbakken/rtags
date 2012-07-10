@@ -764,6 +764,24 @@ static Path findProjectRoot(const Path &path)
             return p;
         }
     }
+
+    {
+        const Path configStatus = findAncestor(path, "config.status", 0);
+        if (!configStatus.isEmpty()) {
+            FILE *f = fopen((configStatus + "config.status").constData(), "r");
+            char line[1024];
+            enum { MaxLines = 10 };
+            for (int i=0; i<MaxLines; ++i) {
+                int r = RTags::readLine(f, line, sizeof(line));
+                if (r == -1)
+                    break;
+                char *configure = strstr(line, "configure");
+                if (configure) {
+                    return Path::resolved(ByteArray(line, configure - line));
+                }
+            }
+        }
+    }
     return Path();
 }
 
