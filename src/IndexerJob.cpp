@@ -199,15 +199,17 @@ static inline void addToSymbolNames(const ByteArray &arg, bool hasTemplates, con
     }
 }
 
+static const CXCursor nullCursor = clang_getNullCursor();
+
 ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDB)
 {
     ByteArray ret, qname, qparam, qnoparam;
 
-    CXCursor cur = cursor, null = clang_getNullCursor();
+    CXCursor cur = cursor;
     CXCursorKind kind;
     bool first = true;
     for (;;) {
-        if (clang_equalCursors(cur, null))
+        if (clang_equalCursors(cur, nullCursor))
             break;
         kind = clang_getCursorKind(cur);
         if (!first) {
@@ -474,7 +476,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     } else {
         if (!clang_isCursorDefinition(cursor)) {
             ref = clang_getCursorDefinition(cursor);
-            if (!clang_equalCursors(clang_getNullCursor(), ref)) {
+            if (!clang_equalCursors(nullCursor, ref)) {
                 assert(!clang_equalCursors(cursor, ref));
                 refLoc = job->createLocation(ref, 0);
                 if (testLog(Debug)) {
@@ -885,13 +887,13 @@ IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind ki
         break;
     }
     if (!ok) {
-        const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
+        const Cursor ret = { nullCursor, Location(), CXCursor_FirstInvalid };
         return ret;
     }
 
     const Str usr(clang_getCursorUSR(cursor));
     if (!usr.length()) {
-        const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
+        const Cursor ret = { nullCursor, Location(), CXCursor_FirstInvalid };
         return ret;
     }
 
@@ -910,6 +912,6 @@ IndexerJob::Cursor IndexerJob::findByUSR(const CXCursor &cursor, CXCursorKind ki
         assert(!clang_equalCursors(ref, cursor)); // ### why is this happening?
         return ret;
     }
-    const Cursor ret = { clang_getNullCursor(), Location(), CXCursor_FirstInvalid };
+    const Cursor ret = { nullCursor, Location(), CXCursor_FirstInvalid };
     return ret;
 }
