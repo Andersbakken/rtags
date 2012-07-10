@@ -186,7 +186,10 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
         mVisitedFiles -= dirtyFiles;
     }
 
-    Server::instance()->threadPool()->start(new DirtyJob(dirtyFiles, mSrcRoot), DirtyJob::Priority);
+    ScopedDB symbols = Server::instance()->db(Server::Symbol, ReadWriteLock::Write, mSrcRoot);
+    ScopedDB symbolNames = Server::instance()->db(Server::SymbolName, ReadWriteLock::Write, mSrcRoot);
+
+    Server::instance()->threadPool()->start(new DirtyJob(dirtyFiles, symbols, symbolNames), DirtyJob::Priority);
 
     for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
         index(it->first, it->second, IndexerJob::DirtyPch);
@@ -434,7 +437,13 @@ void Indexer::onDirectoryChanged(const Path &p)
         }
     }
 
-    Server::instance()->threadPool()->start(new DirtyJob(dirtyFiles, mSrcRoot), DirtyJob::Priority);
+    if (dirtyFiles.isEmpty())
+        return;
+
+    ScopedDB symbolNames = Server::instance()->db(Server::SymbolName, ReadWriteLock::Write, mSrcRoot);
+    ScopedDB symbols = Server::instance()->db(Server::Symbol, ReadWriteLock::Write, mSrcRoot);
+
+    Server::instance()->threadPool()->start(new DirtyJob(dirtyFiles, symbols, symbolNames), DirtyJob::Priority);
 
     for (Map<Path, List<ByteArray> >::const_iterator it = toIndexPch.begin(); it != toIndexPch.end(); ++it) {
         index(it->first, it->second, IndexerJob::DirtyPch);
