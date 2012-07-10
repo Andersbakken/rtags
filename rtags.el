@@ -341,7 +341,9 @@ return t if rtags is allowed to modify this file"
                    t
                    (if (file-exists-p (concat default-directory "/Makefile")) "Makefile" nil))))
     (if (file-exists-p makefile)
-        (rtags-call-rc "-m" makefile))))
+        (with-temp-buffer
+          (rtags-call-rc "-m" makefile)
+          (message (buffer-string))))))
 
 (defun rtags-follow-symbol-at-point()
   (interactive)
