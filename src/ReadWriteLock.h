@@ -29,6 +29,7 @@ private:
     WaitCondition mCond;
     int mCount;
     bool mWrite;
+    pthread_t mOwner;
 };
 
 #endif

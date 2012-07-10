@@ -3,7 +3,7 @@
 #include <assert.h>
 
 ReadWriteLock::ReadWriteLock()
-    : mCount(0), mWrite(false)
+    : mCount(0), mWrite(false), mOwner(0)
 {
 }
 
@@ -32,6 +32,7 @@ void ReadWriteLock::lock(LockType type)
                 assert(!mWrite);
                 mCount = 1;
                 mWrite = true;
+                mOwner = pthread_self();
                 return;
             }
             mCond.wait(&mMutex);
@@ -51,6 +52,7 @@ void ReadWriteLock::unlock()
     --mCount;
     assert(!mCount);
     mWrite = false;
+    mOwner = 0;
     mCond.wakeAll();
 }
 
