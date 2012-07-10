@@ -411,8 +411,10 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     const bool interesting = isInteresting(kind);
     if (testLog(VerboseDebug))
         verboseDebug() << "indexVisitor " << cursor << " " << clang_getCursorReferenced(cursor);
-    if (!interesting) {
+    if (kind >= CXCursor_FirstStmt && kind <= CXCursor_LastStmt)
         return CXChildVisit_Recurse;
+    if (!interesting) {
+        return CXChildVisit_Continue;
     }
 
     CXCursor ref = clang_getCursorReferenced(cursor);
@@ -441,6 +443,20 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         default:
             break;
         }
+#if 0
+        FILE *f = fopen("/tmp/smart", "r");
+        if (f) {
+            char line[1024];
+            while ((RTags::readLine(f, line, sizeof(line))) != -1) {
+                int id = atoi(line);
+                if (id == kind) {
+                    fclose(f);
+                    return CXChildVisit_Recurse;
+                }
+            }
+            fclose(f);
+        }
+#endif
         return CXChildVisit_Continue;
     } else if (loc.isNull()) {
         return CXChildVisit_Recurse;
