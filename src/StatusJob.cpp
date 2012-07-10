@@ -15,8 +15,10 @@ StatusJob::StatusJob(int i, const ByteArray &q, std::tr1::shared_ptr<Indexer> in
 
 void StatusJob::execute()
 {
+    bool matched = false;
     Server *server = Server::instance();
     if (query.isEmpty() || query == "general") {
+        matched = true;
         ScopedDB db = server->db(Server::General, ReadWriteLock::Read);
         write(delimiter);
         write(server->databaseDir(Server::General));
@@ -35,6 +37,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "fileids") {
+        matched = true;
         ScopedDB db = server->db(Server::FileIds, ReadWriteLock::Read);
         write(delimiter);
         write(server->databaseDir(Server::FileIds));
@@ -48,10 +51,16 @@ void StatusJob::execute()
         }
     }
 
-    if (!mIndexer)
+    const char *alternatives = "general|fileids|dependencies|fileinfos|symbols|symbolnames|pch|visitedfiles";
+    if (!mIndexer) {
+        if (!matched) {
+            write(alternatives);
+        }
         return;
+    }
 
     if (query.isEmpty() || query == "dependencies") {
+        matched = true;
         ScopedDB db = server->db(Server::Dependency, ReadWriteLock::Read);
         write(delimiter);
         write(server->databaseDir(Server::Dependency));
@@ -85,6 +94,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "symbols") {
+        matched = true;
         ScopedDB db = server->db(Server::Symbol, ReadWriteLock::Read);
         write(delimiter);
         write(server->databaseDir(Server::Symbol));
@@ -115,6 +125,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "symbolnames") {
+        matched = true;
         ScopedDB db = server->db(Server::SymbolName, ReadWriteLock::Read, mIndexer->srcRoot());
         write(delimiter);
         write(server->databaseDir(Server::SymbolName));
@@ -137,6 +148,7 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "fileinfos") {
+        matched = true;
         ScopedDB db = server->db(Server::FileInformation, ReadWriteLock::Read, mIndexer->srcRoot());
         write(delimiter);
         write(server->databaseDir(Server::FileInformation));
@@ -159,9 +171,10 @@ void StatusJob::execute()
     }
 
     if (query.isEmpty() || query == "pch") {
-        ScopedDB db = server->db(Server::PCHUsrMaps, ReadWriteLock::Read, mIndexer->srcRoot());
+        matched = true;
+        ScopedDB db = server->db(Server::PchUsrMaps, ReadWriteLock::Read, mIndexer->srcRoot());
         write(delimiter);
-        write(server->databaseDir(Server::PCHUsrMaps));
+        write(server->databaseDir(Server::PchUsrMaps));
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         char buf[1024];
@@ -182,9 +195,10 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || query == "visitedFiles") {
+    if (query.isEmpty() || query == "visitedfiles") {
+        matched = true;
         write(delimiter);
-        write("visitedFiles");
+        write("visitedfiles");
         char buf[1024];
         const Set<uint32_t> visitedFiles = server->indexer()->visitedFiles();
 
@@ -194,4 +208,8 @@ void StatusJob::execute()
             write(buf);
         }
     }
+    if (!matched) {
+        write(alternatives);
+    }
+
 }

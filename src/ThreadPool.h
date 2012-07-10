@@ -3,7 +3,7 @@
 
 #include "Mutex.h"
 #include "WaitCondition.h"
-#include <vector>
+#include <deque>
 
 class ThreadPoolThread;
 
@@ -22,7 +22,7 @@ public:
         virtual ~Job();
 
     protected:
-        virtual void run() = 0;
+        virtual void run() {}
 
         void setAutoDelete(bool autoDelete);
 
@@ -34,6 +34,8 @@ public:
         friend class ThreadPool;
         friend class ThreadPoolThread;
     };
+
+    enum { Guaranteed = -1 };
 
     void start(Job* job, int priority = 0);
 
@@ -47,8 +49,9 @@ private:
     int mConcurrentJobs;
     Mutex mMutex;
     WaitCondition mCond;
-    std::vector<Job*> mJobs;
-    std::vector<ThreadPoolThread*> mThreads;
+    std::deque<Job*> mJobs;
+    List<ThreadPoolThread*> mThreads;
+    int mBusyThreads;
 
     static ThreadPool* sGlobalInstance;
 

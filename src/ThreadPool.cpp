@@ -19,7 +19,7 @@ class ThreadPoolThread : public Thread
 {
 public:
     ThreadPoolThread(ThreadPool* pool);
-    ~ThreadPoolThread();
+    ThreadPoolThread(ThreadPool::Job* job);
 
     void stop();
 
@@ -27,17 +27,21 @@ protected:
     virtual void run();
 
 private:
+    ThreadPool::Job *mJob;
     ThreadPool* mPool;
     bool mStopped;
 };
 
 ThreadPoolThread::ThreadPoolThread(ThreadPool* pool)
-    : mPool(pool), mStopped(false)
+    : mJob(0), mPool(pool), mStopped(false)
 {
+    setAutoDelete(true);
 }
 
-ThreadPoolThread::~ThreadPoolThread()
+ThreadPoolThread::ThreadPoolThread(ThreadPool::Job* job)
+    : mJob(job), mPool(0), mStopped(false)
 {
+    setAutoDelete(true);
 }
 
 void ThreadPoolThread::stop()
@@ -49,32 +53,46 @@ void ThreadPoolThread::stop()
 
 void ThreadPoolThread::run()
 {
+    if (mJob) {
+        mJob->mMutex.lock();
+        mJob->run();
+        const bool isAutoDelete = mJob->mAutoDelete;
+        mJob->mMutex.unlock();
+        if (isAutoDelete) {
+            delete mJob;
+        }
+        return;
+    }
+    bool first = true;
     for (;;) {
         MutexLocker locker(&mPool->mMutex);
+        if (!first) {
+            --mPool->mBusyThreads;
+        } else {
+            first = false;
+        }
+        while (mPool->mJobs.empty() && !mStopped)
+            mPool->mCond.wait(&mPool->mMutex);
         if (mStopped)
             break;
-        if (mPool->mJobs.empty()) {
-            mPool->mCond.wait(&mPool->mMutex);
-        }
-        else {
-            std::vector<ThreadPool::Job*>::iterator item = mPool->mJobs.begin();
-            assert(item != mPool->mJobs.end());
-            ThreadPool::Job* job = *item;
-            mPool->mJobs.erase(item);
-            job->mMutex.lock();
-            locker.unlock();
-            job->run();
-            const bool isAutoDelete = job->mAutoDelete;
-            job->mMutex.unlock();
-            if (isAutoDelete) {
-                delete job;
-            }
+        std::deque<ThreadPool::Job*>::iterator item = mPool->mJobs.begin();
+        assert(item != mPool->mJobs.end());
+        ThreadPool::Job* job = *item;
+        mPool->mJobs.erase(item);
+        job->mMutex.lock();
+        ++mPool->mBusyThreads;
+        locker.unlock();
+        job->run();
+        const bool isAutoDelete = job->mAutoDelete;
+        job->mMutex.unlock();
+        if (isAutoDelete) {
+            delete job;
         }
     }
 }
 
 ThreadPool::ThreadPool(int concurrentJobs)
-    : mConcurrentJobs(concurrentJobs)
+    : mConcurrentJobs(concurrentJobs), mBusyThreads(0)
 {
     for (int i = 0; i < mConcurrentJobs; ++i) {
         mThreads.push_back(new ThreadPoolThread(this));
@@ -85,18 +103,17 @@ ThreadPool::ThreadPool(int concurrentJobs)
 ThreadPool::~ThreadPool()
 {
     MutexLocker locker(&mMutex);
-    for (std::vector<Job*>::const_iterator it = mJobs.begin();
+    for (std::deque<Job*>::const_iterator it = mJobs.begin();
          it != mJobs.end(); ++it) {
         delete *it;
     }
     mJobs.clear();
     locker.unlock();
-    for (std::vector<ThreadPoolThread*>::iterator it = mThreads.begin();
+    for (List<ThreadPoolThread*>::iterator it = mThreads.begin();
          it != mThreads.end(); ++it) {
         ThreadPoolThread* t = *it;
         t->stop();
         t->join();
-        delete t;
     }
 }
 
@@ -128,12 +145,18 @@ void ThreadPool::setConcurrentJobs(int concurrentJobs)
 
 bool ThreadPool::jobLessThan(const Job* l, const Job* r)
 {
-    return l->mPriority < r->mPriority;
+    return static_cast<unsigned>(l->mPriority) < static_cast<unsigned>(r->mPriority);
 }
 
 void ThreadPool::start(Job* job, int priority)
 {
     job->mPriority = priority;
+    if (priority == Guaranteed) {
+        ThreadPoolThread *t = new ThreadPoolThread(job);
+        t->start();
+        return;
+    }
+
     MutexLocker locker(&mMutex);
     mJobs.push_back(job);
     std::sort(mJobs.begin(), mJobs.end(), jobLessThan);

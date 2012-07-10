@@ -44,23 +44,24 @@ public:
         SymbolName,
         Dependency,
         FileInformation,
-        PCHUsrMaps,
+        PchUsrMaps,
         General,
         FileIds,
         DatabaseTypeCount,
-        ProjectSpecificDatabaseTypeCount = PCHUsrMaps + 1
+        ProjectSpecificDatabaseTypeCount = PchUsrMaps + 1
     };
 
     static Server *instance() { return sInstance; }
     List<ByteArray> defaultArguments() const { return mOptions.defaultArguments; }
     ScopedDB db(DatabaseType type, ReadWriteLock::LockType lockType, const Path &path = Path()) const;
     struct Options {
-        Options() : options(0), cacheSizeMB(0), maxCompletionUnits(0) {}
+        Options() : options(0), cacheSizeMB(0), maxCompletionUnits(0), threadCount(0) {}
         unsigned options;
         List<ByteArray> defaultArguments;
         long cacheSizeMB;
         Path socketPath;
         int maxCompletionUnits;
+        int threadCount;
     };
     bool init(const Options &options);
     std::tr1::shared_ptr<Indexer> indexer() const;

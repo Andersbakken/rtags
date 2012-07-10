@@ -3,10 +3,8 @@
 #include "RTags.h"
 #include "Server.h"
 
-DirtyJob::DirtyJob(const Set<uint32_t> &dirtyFileIds, const Path &srcRoot)
-    : mDirtyFileIds(dirtyFileIds),
-      mSymbols(Server::instance()->db(Server::Symbol, ReadWriteLock::Write, srcRoot)),
-      mSymbolNames(Server::instance()->db(Server::SymbolName, ReadWriteLock::Write, srcRoot))
+DirtyJob::DirtyJob(const Set<uint32_t> &dirtyFileIds, ScopedDB symbols, ScopedDB symbolNames)
+    : mDirtyFileIds(dirtyFileIds), mSymbols(symbols), mSymbolNames(symbolNames)
 {
     assert(mSymbols.lockType() == ReadWriteLock::Write);
     assert(mSymbolNames.lockType() == ReadWriteLock::Write);

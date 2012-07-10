@@ -446,7 +446,7 @@ ByteArray backtrace(int)
 #endif
 }
 
-#ifdef RTAGS_DEBUG
+#ifdef RTAGS_DEBUG_MUTEX
 void Mutex::lock()
 {
     Timer timer;

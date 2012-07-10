@@ -71,10 +71,17 @@ static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &reference
     return totalWritten;
 }
 
-
-static inline List<Path> extractPchFiles(const List<ByteArray> &args)
+static ByteArray pchFileName(const Path &pchDir, const Path &header)
 {
-    List<Path> out;
+    Path ret = header;
+    RTags::encodePath(ret);
+    ret.prepend(pchDir + "/pch/");
+    return ret;
+}
+
+static inline Map<Path, Path> extractPchFiles(const Path &pchDir, const List<ByteArray> &args)
+{
+    Map<Path, Path> out;
     bool nextIsPch = false;
     const int count = args.size();
     for (int i=0; i<count; ++i) {
@@ -84,7 +91,13 @@ static inline List<Path> extractPchFiles(const List<ByteArray> &args)
 
         if (nextIsPch) {
             nextIsPch = false;
-            out.append(arg);
+            const Path header = arg;
+            const time_t lastModified = header.lastModified();
+            const Path pchFile = pchFileName(pchDir, header);
+            const time_t lastModifiedPch = pchFile.lastModified();
+            if (lastModified && lastModified <= lastModifiedPch) {
+                out[header] = pchFile;
+            }
         } else if (arg == "-include-pch") {
             nextIsPch = true;
         }
@@ -109,7 +122,7 @@ IndexerJob::IndexerJob(Indexer *indexer, int id, unsigned flags,
 
     : mId(id), mFlags(flags), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
-      mPchHeaders(extractPchFiles(arguments)), mUnit(0)
+      mPchHeaders(extractPchFiles(mIndexer->projectRoot(), arguments)), mUnit(0)
 {
 }
 
@@ -593,14 +606,6 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
     return CXChildVisit_Recurse;
 }
 
-static ByteArray pchFileName(const Path &pchDir, const Path &header)
-{
-    Path ret = header;
-    RTags::encodePath(ret);
-    ret.prepend(pchDir + "/pch/");
-    return ret;
-}
-
 struct Scope {
     ~Scope()
     {
@@ -638,44 +643,42 @@ void IndexerJob::execute()
     //     error("%s Waiting for rdm to shrink", mIn.constData());
     // }
     if (!mPchHeaders.isEmpty())
-        mPchUSRMap = mIndexer->pchUSRMap(mPchHeaders);
+        mPchUSRMap = mIndexer->pchUSRMap(mPchHeaders.keys());
 
     List<const char*> clangArgs(mArgs.size(), 0);
     ByteArray clangLine = CLANG_BIN "clang ";
-    bool nextIsPch = false, nextIsX = false;
+    bool nextIsX = false;
     ByteArray pchName;
 
-    List<Path> pchFiles;
     int idx = 0;
     const int count = mArgs.size();
     const Path projectRoot = mIndexer->projectRoot();
     for (int i=0; i<count; ++i) {
-        const ByteArray &arg = mArgs.at(i);
+        ByteArray arg = mArgs.at(i);
         if (arg.isEmpty())
             continue;
-
-        if (nextIsPch) {
-            nextIsPch = false;
-            pchFiles.append(pchFileName(projectRoot, arg));
-            clangArgs[idx++] = pchFiles.back().constData();
-            clangLine += pchFiles.back().constData();
-            clangLine += " ";
-            continue;
-        }
 
         if (nextIsX) {
             nextIsX = false;
             mIsPch = (arg == "c++-header" || arg == "c-header");
         }
+        if (arg == "-include-pch") {
+            ++i;
+            continue;
+        }
         clangArgs[idx++] = arg.constData();
+        arg.replace("\"", "\\\"");
         clangLine += arg;
         clangLine += " ";
-        if (arg == "-include-pch") {
-            nextIsPch = true;
-        } else if (arg == "-x") {
+        if (arg == "-x") {
             nextIsX = true;
         }
     }
+    for (Map<Path, Path>::const_iterator it = mPchHeaders.begin(); it != mPchHeaders.end(); ++it) {
+        clangArgs[idx++] = "-include-pch";
+        clangArgs[idx++] = it->second.constData();
+    }
+
     if (mIsPch) {
         pchName = pchFileName(projectRoot, mIn);
     }
@@ -706,7 +709,6 @@ void IndexerJob::execute()
         compileError = true;
         error() << "got 0 unit for " << clangLine;
         mIndexer->addDependencies(mDependencies);
-
     } else {
         Map<Location, std::pair<int, ByteArray> > fixIts;
         Map<uint32_t, List<ByteArray> > visited;
@@ -782,9 +784,8 @@ void IndexerJob::execute()
                 mIndexer->setPchUSRMap(mIn, mPchUSRMap);
             }
         }
-        const int pchHeaderCount = mPchHeaders.size();
-        for (int i=0; i<pchHeaderCount; ++i) {
-            const Path &pchHeader = mPchHeaders.at(i);
+        for (Map<Path, Path>::const_iterator it = mPchHeaders.begin(); it != mPchHeaders.end(); ++it) {
+            const Path &pchHeader = it->first;
             const Set<uint32_t> pchDeps = mIndexer->pchDependencies(pchHeader);
             for (Set<uint32_t>::const_iterator it = pchDeps.begin(); it != pchDeps.end(); ++it) {
                 mDependencies[*it].insert(mFileId);

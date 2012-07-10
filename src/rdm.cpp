@@ -216,7 +216,6 @@ int main(int argc, char** argv)
         signal(SIGINT, signalHandler);
     }
 
-    ThreadPool::globalInstance()->setConcurrentJobs(jobs);
     if (!initLogging(logLevel, logFile, logFlags)) {
         fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
                 logLevel, logFile ? logFile : "", logFlags);
@@ -238,6 +237,7 @@ int main(int argc, char** argv)
     serverOpts.options = options;
     serverOpts.defaultArguments = defaultArguments;
     serverOpts.cacheSizeMB = cacheSize;
+    serverOpts.threadCount = jobs;
     serverOpts.socketPath = (name.isEmpty() ? ByteArray(RTags::rtagsDir() + "server") : name );
     if (!server->init(serverOpts)) {
         delete server;

@@ -11,6 +11,7 @@
 #include <clang-c/Index.h>
 
 class IndexerJob;
+class DirtyJob;
 class Indexer
 {
 public:
@@ -29,7 +30,7 @@ public:
     void setPchUSRMap(const Path &pch, const PchUSRMap &astMap);
     void abort();
     bool visitFile(uint32_t fileId, const Path &p, bool isPch);
-    Set<uint32_t> visitedFiles() const { MutexLocker lock(&mVisitedFilesMutex); return mVisitedFiles; }
+    Set<uint32_t> visitedFiles() const { MutexLocker lock(&mMutex); return mVisitedFiles; }
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path) const;
     void setDiagnostics(const Map<uint32_t, List<ByteArray> > &errors,
@@ -42,7 +43,12 @@ public:
 private:
     void onValidateDBJobErrors(const Set<Location> &errors);
     void onJobFinished(IndexerJob *job);
+    void onDirtyJobComplete(DirtyJob *job);
     void commitDependencies(const DependencyMap &deps, bool sync);
+    void dirty(const Set<uint32_t> &dirtyFileIds,
+               const Map<Path, List<ByteArray> > &dirtyPch,
+               const Map<Path, List<ByteArray> > &dirty);
+
     enum InitMode {
         Normal,
         NoValidate,
@@ -52,13 +58,10 @@ private:
     bool needsToWaitForPch(IndexerJob *job) const;
     void startJob(IndexerJob *job);
 
-    mutable ReadWriteLock mPchUSRMapLock;
     Map<Path, PchUSRMap> mPchUSRMaps;
 
-    mutable Mutex mVisitedFilesMutex;
     Set<uint32_t> mVisitedFiles;
 
-    mutable ReadWriteLock mPchDependenciesLock;
     Map<Path, Set<uint32_t> > mPchDependencies;
     int mJobCounter;
 
@@ -66,7 +69,7 @@ private:
     WaitCondition mWaitCondition;
 
     ByteArray mPath;
-    Map<int, IndexerJob*> mJobs, mWaitingForPCH, mWaitingForAbort;
+    Map<int, IndexerJob*> mJobs, mWaitingForPch, mWaitingForAbort;
 
     bool mTimerRunning;
     Timer mTimer;
@@ -74,12 +77,10 @@ private:
     Path mSrcRoot, mProjectRoot;
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
-    Mutex mWatchedMutex;
     WatchedMap mWatched;
 
     Map<Location, std::pair<int, ByteArray> > mFixIts;
     Map<uint32_t, ByteArray> mErrors;
-    mutable ReadWriteLock mFixItsAndErrorsLock;
 
     Set<Location> mPreviousErrors;
 
@@ -88,7 +89,7 @@ private:
 
 inline bool Indexer::visitFile(uint32_t fileId, const Path &path, bool isPch)
 {
-    MutexLocker lock(&mVisitedFilesMutex);
+    MutexLocker lock(&mMutex);
     if (!isPch && mVisitedFiles.contains(fileId)) {
         return false;
     }

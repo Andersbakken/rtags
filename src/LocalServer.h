@@ -1,7 +1,7 @@
 #ifndef LOCALSERVER_H
 #define LOCALSERVER_H
 
-#include "ByteArray.h"
+#include "Path.h"
 #include <signalslot.h>
 #include <deque>
 

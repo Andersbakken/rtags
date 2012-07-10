@@ -3,11 +3,7 @@
 #include <assert.h>
 
 ReadWriteLock::ReadWriteLock()
-    : mCount(0), mWrite(false), mOwner(0)
-{
-}
-
-ReadWriteLock::~ReadWriteLock()
+    : mCount(0), mWrite(false)
 {
 }
 
@@ -15,29 +11,15 @@ void ReadWriteLock::lock(LockType type)
 {
     MutexLocker locker(&mMutex);
     if (type == Read) {
-        if (mWrite) {
-            for (;;) {
-                mCond.wait(&mMutex);
-                if (!mWrite) {
-                    ++mCount;
-                    return;
-                }
-            }
-        } else {
-            ++mCount;
-        }
-    } else {
-        for (;;) {
-            if (!mCount) {
-                assert(!mWrite);
-                mCount = 1;
-                mWrite = true;
-                mOwner = pthread_self();
-                return;
-            }
-            assert(!pthread_equal(mOwner, pthread_self()));
+        while (mWrite)
             mCond.wait(&mMutex);
-        }
+        ++mCount;
+    } else {
+        while (mCount)
+            mCond.wait(&mMutex);
+        assert(!mWrite);
+        mCount = 1;
+        mWrite = true;
     }
 }
 
@@ -53,7 +35,6 @@ void ReadWriteLock::unlock()
     --mCount;
     assert(!mCount);
     mWrite = false;
-    mOwner = 0;
     mCond.wakeAll();
 }
 

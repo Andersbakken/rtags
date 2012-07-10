@@ -69,7 +69,7 @@ public:
     Indexer *mIndexer;
     Map<ByteArray, Location> mPchUSRMap;
 
-    List<Path> mPchHeaders;
+    Map<Path, Path> mPchHeaders;
     CXTranslationUnit mUnit;
 
     ByteArray mMessage;

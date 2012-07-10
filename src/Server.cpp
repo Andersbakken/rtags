@@ -105,7 +105,7 @@ void Server::clear()
 
 bool Server::init(const Options &options)
 {
-    mThreadPool = new ThreadPool(ThreadPool::idealThreadCount());
+    mThreadPool = new ThreadPool(options.threadCount);
 
     mMakefilesWatcher.modified().connect(this, &Server::onMakefileModified);
     mMakefilesWatcher.removed().connect(this, &Server::onMakefileRemoved);

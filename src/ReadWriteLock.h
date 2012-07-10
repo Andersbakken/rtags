@@ -8,7 +8,6 @@ class ReadWriteLock
 {
 public:
     ReadWriteLock();
-    ~ReadWriteLock();
 
     enum LockType {
         Read,
@@ -29,7 +28,6 @@ private:
     WaitCondition mCond;
     int mCount;
     bool mWrite;
-    pthread_t mOwner;
 };
 
 #endif
