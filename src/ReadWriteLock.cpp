@@ -35,6 +35,7 @@ void ReadWriteLock::lock(LockType type)
                 mOwner = pthread_self();
                 return;
             }
+            assert(!pthread_equal(mOwner, pthread_self()));
             mCond.wait(&mMutex);
         }
     }
