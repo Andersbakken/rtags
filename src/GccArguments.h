@@ -25,6 +25,7 @@ public:
     void addFlags(const List<ByteArray> &extraFlags);
     List<ByteArray> clangArgs() const;
     List<Path> inputFiles() const;
+    List<Path> unresolvedInputFiles() const;
     List<ByteArray> explicitIncludes() const;
     Path outputFile() const;
     Path baseDirectory() const;

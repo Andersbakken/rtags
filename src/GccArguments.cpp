@@ -10,12 +10,10 @@ public:
     GccArgumentsImpl() : type(GccArguments::NoType), lang(GccArguments::NoLang) { }
 
     List<ByteArray> clangArgs;
-    List<Path> inputFiles;
-    List<Path> includes;
-    Path outputFile;
+    List<Path> inputFiles, unresolvedInputFiles, includes;
+    Path outputFile, base, compiler;
     GccArguments::Type type;
     GccArguments::Lang lang;
-    Path base, compiler;
 };
 
 GccArguments::GccArguments()
@@ -177,8 +175,6 @@ bool GccArguments::parse(ByteArray args, const Path &base)
         return false;
     }
 
-    List<ByteArray> unresolvedInputs;
-
     bool pathok = false;
     char prevopt = '\1'; // skip the initial binary name
 
@@ -265,8 +261,7 @@ bool GccArguments::parse(ByteArray args, const Path &base)
             Path input = Path::resolved(cur, path, &pathok);
             if (pathok)
                 mImpl->inputFiles.append(input);
-            else
-                unresolvedInputs.append(cur);
+            mImpl->unresolvedInputFiles.append(cur);
         }
     }
 
@@ -277,9 +272,9 @@ bool GccArguments::parse(ByteArray args, const Path &base)
 
     if (mImpl->inputFiles.isEmpty()) {
         error("Unable to find or resolve input files");
-        const int c = unresolvedInputs.size();
+        const int c = mImpl->unresolvedInputFiles.size();
         for (int i=0; i<c; ++i) {
-            const ByteArray &input = unresolvedInputs.at(i);
+            const ByteArray &input = mImpl->unresolvedInputFiles.at(i);
             error("  %s", input.constData());
         }
         clear();
@@ -322,6 +317,11 @@ List<ByteArray> GccArguments::clangArgs() const
 List<Path> GccArguments::inputFiles() const
 {
     return mImpl->inputFiles;
+}
+
+List<Path> GccArguments::unresolvedInputFiles() const
+{
+    return mImpl->unresolvedInputFiles;
 }
 
 List<ByteArray> GccArguments::explicitIncludes() const

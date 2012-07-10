@@ -798,8 +798,13 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
     } else if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
         return;
     }
+    const Path unresolved = *args.unresolvedInputFiles().begin();
 
-    const Path projectRoot = findProjectRoot(*inputFiles.begin());
+    Path projectRoot = findProjectRoot(unresolved);
+    if (projectRoot.isEmpty()) {
+        projectRoot = findProjectRoot(*inputFiles.begin());
+    }
+
     if (projectRoot.isEmpty()) {
         error("Can't find project root for %s", inputFiles.begin()->constData());
         return;
