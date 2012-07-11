@@ -17,6 +17,8 @@
 
 void signalHandler(int signal)
 {
+    extern bool inSignalHandler;
+    inSignalHandler = true;
     fprintf(stderr, "Caught signal %d\n", signal);
     ByteArray trace = RTags::backtrace();
     fprintf(stderr, "%s", trace.constData());

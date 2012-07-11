@@ -47,7 +47,9 @@ private:
     {
         if (err) {
             error("Mutex tryLock failure %d %s\n", err, strerror(err));
-            assert(0);
+            extern bool inSignalHandler;
+            if (!inSignalHandler)
+                assert(0);
         }
     }
 

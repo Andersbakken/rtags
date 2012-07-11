@@ -16,6 +16,8 @@
 #include <mach-o/dyld.h>
 #endif
 
+bool inSignalHandler = false;
+
 namespace RTags {
 ByteArray eatString(CXString str)
 {
