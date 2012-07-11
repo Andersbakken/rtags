@@ -758,9 +758,10 @@ static Path findProjectRoot(const Path &path)
         { "README*", Wildcard },
         { 0, 0 }
     };
+    const Path home = Path::home();
     for (int i=0; entries[i].name; ++i) {
         const Path p = findAncestor(path, entries[i].name, entries[i].flags);
-        if (!p.isEmpty()) {
+        if (!p.isEmpty() && p != home) {
             return p;
         }
     }
@@ -780,7 +781,8 @@ static Path findProjectRoot(const Path &path)
                     Path ret = Path::resolved(ByteArray(line, configure - line));
                     if (!ret.endsWith('/'))
                         ret.append('/');
-                    return ret;
+                    if (ret != home)
+                        return ret;
                 }
             }
         }

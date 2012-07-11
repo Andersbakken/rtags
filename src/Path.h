@@ -42,6 +42,16 @@ public:
         return *this;
     }
 
+    bool operator==(const Path &other) const
+    {
+        return Path::resolved(*this) == Path::resolved(other);
+    }
+
+    bool operator!=(const Path &other) const
+    {
+        return !Path::operator==(other);
+    }
+
     enum Type {
         Invalid,
         File,
@@ -63,6 +73,7 @@ public:
     static bool exists(const Path &path) { return path.exists(); }
     static bool mkdir(const Path &path);
     static bool rm(const Path &file);
+    static Path home() { return Path::resolved(getenv("HOME")); }
     bool mksubdir(const ByteArray &subdir) const;
     bool isSource() const;
     static bool isSource(const char *extension, int len);
