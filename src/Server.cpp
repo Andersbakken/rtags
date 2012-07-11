@@ -777,7 +777,10 @@ static Path findProjectRoot(const Path &path)
                     break;
                 char *configure = strstr(line, "configure");
                 if (configure) {
-                    return Path::resolved(ByteArray(line, configure - line));
+                    Path ret = Path::resolved(ByteArray(line, configure - line));
+                    if (!ret.endsWith('/'))
+                        ret.append('/');
+                    return ret;
                 }
             }
         }

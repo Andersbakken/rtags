@@ -19,7 +19,7 @@ static inline void dirtySymbolNames(ScopedDB &db, const Set<uint32_t> &dirty)
         Set<Location>::iterator i = locations.begin();
         bool changed = false;
         while (i != locations.end()) {
-            if (dirty.contains(*i)) {
+            if (dirty.contains(i->fileId())) {
                 changed = true;
                 locations.erase(i++);
             } else {

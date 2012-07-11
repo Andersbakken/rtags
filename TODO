@@ -24,5 +24,3 @@ we seem to have a bug with references to structs. It doesn't have
    enough of them
 
 if a file is deleted and reappears we seem to crash.
-
-rc command to delete an entire project from a running rdm

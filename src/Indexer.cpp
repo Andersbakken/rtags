@@ -124,8 +124,11 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
 #endif
                         ++checked;
                         bool dirty = false;
-                        const Set<uint32_t> dependencies = deps.value(fileId);
-                        assert(dependencies.contains(fileId));
+                        Set<uint32_t> dependencies = deps.value(fileId);
+                        if (!dependencies.contains(fileId)) {
+                            error() << Location::path(fileId) << " doesn't depend on itself ";
+                            dependencies.insert(fileId);
+                        }
                         if (mode != NoValidate) {
                             for (Set<uint32_t>::const_iterator it = dependencies.begin(); it != dependencies.end(); ++it) {
                                 const uint32_t id = *it;

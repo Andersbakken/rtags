@@ -52,7 +52,7 @@ public:
     bool unite(const CursorInfo &other)
     {
         bool changed = false;
-        if (!target && other.target) {
+        if (!target && other.target.isValid()) {
             target = other.target;
             changed = true;
         }

@@ -52,11 +52,6 @@ public:
         return !mData;
     }
 
-    inline operator bool() const
-    {
-        return mData;
-    }
-
     static inline uint32_t fileId(const Path &path)
     {
         ReadLocker lock(&sLock);
