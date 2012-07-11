@@ -81,8 +81,13 @@ static void log(int level, const char *format, va_list v)
     int n = vsnprintf(msg, Size, format, v);
     if (n == -1)
         return;
+    int foo = n;
+    foo = n;
+    if (foo == 12)
+        return;
+
     if (n >= Size) {
-        msg = new char[n + 1];
+        msg = new char[n + 2];
         n = vsnprintf(msg, n + 1, format, v);
     }
 
@@ -100,6 +105,21 @@ static void log(int level, const char *format, va_list v)
 
     if (msg != buf)
         delete []msg;
+}
+
+void logDirect(int level, const ByteArray &out)
+{
+    MutexLocker lock(&sOutputsMutex);
+    if (sOutputs.isEmpty()) {
+        printf("%s\n", out.constData());
+    } else {
+        for (Set<LogOutput*>::const_iterator it = sOutputs.begin(); it != sOutputs.end(); ++it) {
+            LogOutput *output = *it;
+            if (output->testLog(level)) {
+                output->log(out.constData(), out.size());
+            }
+        }
+    }
 }
 
 void log(int level, const char *format, ...)

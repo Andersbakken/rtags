@@ -654,6 +654,30 @@ void IndexerJob::run()
     mFinished(this);
 }
 
+struct VerboseVisitorUserData
+{
+    int indent;
+    ByteArray out;
+};
+static inline CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData)
+{
+    CXCursor ref = clang_getCursorReferenced(cursor);
+
+    VerboseVisitorUserData *u = reinterpret_cast<VerboseVisitorUserData*>(userData);
+    u->out += ByteArray(u->indent, ' ');
+    u->out += RTags::cursorToString(cursor);
+    if (clang_equalCursors(ref, cursor)) {
+        u->out += " refs self";
+    } else if (!clang_equalCursors(ref, nullCursor)) {
+        u->out += " refs " + RTags::cursorToString(ref);
+    }
+    u->out += '\n';
+    u->indent += 2;
+    clang_visitChildren(cursor, verboseVisitor, userData);
+    u->indent -= 2;
+    return CXChildVisit_Continue;
+}
+
 void IndexerJob::execute()
 {
     Timer timer;
@@ -709,6 +733,12 @@ void IndexerJob::execute()
     mUnit = clang_parseTranslationUnit(index, mIn.constData(),
                                        clangArgs.data(), idx, 0, 0,
                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+    if (mUnit && testLog(VerboseDebug)) {
+        VerboseVisitorUserData u = { 0, "<VerboseVisitor " + clangLine + ">" };
+        clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
+        u.out += "</VerboseVisitor " + clangLine + ">";
+        logDirect(VerboseDebug, u.out);
+    }
     Scope scope = { mHeaderMap, mUnit, index, mFlags };
     const time_t timeStamp = time(0);
     // fprintf(stdout, "%s => %d\n", clangLine.nullTerminated(), (mUnit != 0));

@@ -56,6 +56,8 @@ void verboseDebug(const char *format, ...);
 void warning(const char *format, ...);
 void error(const char *format, ...);
 #endif
+void logDirect(int level, const ByteArray &out);
+
 enum LogFlag {
     Append = 0x1,
     DontRotate = 0x2,

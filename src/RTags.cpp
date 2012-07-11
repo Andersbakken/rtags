@@ -28,8 +28,11 @@ ByteArray cursorToString(CXCursor cursor)
 {
     ByteArray ret = eatString(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
     const ByteArray name = eatString(clang_getCursorDisplayName(cursor));
+    const ByteArray other = eatString(clang_getCursorSpelling(cursor));
     if (!name.isEmpty())
         ret += " " + name;
+    if (other != name && !other.isEmpty())
+        ret += " " + other;
 
     CXFile file;
     unsigned off, line, col;
