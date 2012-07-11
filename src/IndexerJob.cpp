@@ -200,7 +200,6 @@ static inline void addToSymbolNames(const ByteArray &arg, bool hasTemplates, con
 }
 
 static const CXCursor nullCursor = clang_getNullCursor();
-
 ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDB)
 {
     ByteArray ret, qname, qparam, qnoparam;
@@ -288,10 +287,11 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
     return ret;
 }
 
+static const CXSourceLocation nullLocation = clang_getNullLocation();
 Location IndexerJob::createLocation(const CXCursor &cursor)
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
-    if (!clang_equalLocations(location, clang_getNullLocation())) {
+    if (!clang_equalLocations(location, nullLocation)) {
         CXFile file;
         unsigned start;
         clang_getSpellingLocation(location, &file, 0, 0, &start);
@@ -306,7 +306,7 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
     Location ret;
-    if (!clang_equalLocations(location, clang_getNullLocation())) {
+    if (!clang_equalLocations(location, nullLocation)) {
         CXFile file;
         unsigned start;
         clang_getSpellingLocation(location, &file, 0, 0, &start);
@@ -658,6 +658,7 @@ struct VerboseVisitorUserData
 {
     int indent;
     ByteArray out;
+    IndexerJob *job;
 };
 static inline CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData)
 {
@@ -671,7 +672,20 @@ static inline CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXCli
     } else if (!clang_equalCursors(ref, nullCursor)) {
         u->out += " refs " + RTags::cursorToString(ref);
     }
-    u->out += '\n';
+
+    Location loc = u->job->createLocation(cursor);
+    if (loc.fileId() && u->job->mPaths.value(loc.fileId()) == IndexerJob::Index) {
+        if (u->job->mReferences.contains(loc)) {
+            u->out += ", used as reference\n";
+        } else if (u->job->mSymbols.contains(loc)) {
+            u->out += ", used as cursor\n";
+        } else {
+            u->out += ", not used\n";
+        }
+    } else {
+        u->out += ", not indexed\n";
+    }
+
     u->indent += 2;
     clang_visitChildren(cursor, verboseVisitor, userData);
     u->indent -= 2;
@@ -733,12 +747,6 @@ void IndexerJob::execute()
     mUnit = clang_parseTranslationUnit(index, mIn.constData(),
                                        clangArgs.data(), idx, 0, 0,
                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
-    if (mUnit && testLog(VerboseDebug)) {
-        VerboseVisitorUserData u = { 0, "<VerboseVisitor " + clangLine + ">" };
-        clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
-        u.out += "</VerboseVisitor " + clangLine + ">";
-        logDirect(VerboseDebug, u.out);
-    }
     Scope scope = { mHeaderMap, mUnit, index, mFlags };
     const time_t timeStamp = time(0);
     // fprintf(stdout, "%s => %d\n", clangLine.nullTerminated(), (mUnit != 0));
@@ -824,6 +832,13 @@ void IndexerJob::execute()
         clang_getInclusions(mUnit, inclusionVisitor, this);
 
         clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
+        if (testLog(VerboseDebug)) {
+            VerboseVisitorUserData u = { 0, "<VerboseVisitor " + clangLine + ">", this };
+            clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
+            u.out += "</VerboseVisitor " + clangLine + ">";
+            logDirect(VerboseDebug, u.out);
+        }
+
         if (mIsPch) {
             assert(!pchName.isEmpty());
             if (clang_saveTranslationUnit(mUnit, pchName.constData(), clang_defaultSaveOptions(mUnit)) != CXSaveError_None) {
