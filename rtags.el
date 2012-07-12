@@ -301,7 +301,8 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r G") (function rtags-clear-diagnostics))
   (define-key map (kbd "C-x r M") (function rtags-index-project))
   (define-key map (kbd "C-x r p") (function rtags-set-current-project))
-  (define-key map (kbd "C-x r R") (function rtags-reparse-file))
+  (define-key map (kbd "C-x r e") (function rtags-reparse-file))
+  (define-key map (kbd "C-x r R") (function rtags-rename-symbol))
   )
 
 (defun rtags-print-current-location ()
