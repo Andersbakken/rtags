@@ -77,7 +77,7 @@ public:
         return changed;
     }
 
-    int symbolLength; // this is just the symbol name e.g. foo
+    int symbolLength; // this is just the symbol name length e.g. foo => 3
     ByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
     CXCursorKind kind;
     bool isDefinition;
