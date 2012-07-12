@@ -11,7 +11,7 @@
 #include <clang-c/Index.h>
 
 class IndexerJob;
-class DirtyJob;
+class DirtyThread;
 class Indexer
 {
 public:
@@ -43,7 +43,7 @@ public:
 private:
     void onValidateDBJobErrors(const Set<Location> &errors);
     void onJobFinished(IndexerJob *job);
-    void onDirtyJobComplete(DirtyJob *job);
+    void onDirtyThreadComplete(DirtyThread *job);
     void commitDependencies(const DependencyMap &deps, bool sync);
     void dirty(const Set<uint32_t> &dirtyFileIds,
                const Map<Path, List<ByteArray> > &dirtyPch,

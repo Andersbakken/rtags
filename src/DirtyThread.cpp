@@ -1,11 +1,12 @@
-#include "DirtyJob.h"
+#include "DirtyThread.h"
 #include "Database.h"
 #include "RTags.h"
 #include "Server.h"
 
-DirtyJob::DirtyJob(const Set<uint32_t> &dirtyFileIds, ScopedDB symbols, ScopedDB symbolNames)
+DirtyThread::DirtyThread(const Set<uint32_t> &dirtyFileIds, ScopedDB symbols, ScopedDB symbolNames)
     : mDirtyFileIds(dirtyFileIds), mSymbols(symbols), mSymbolNames(symbolNames)
 {
+    setAutoDelete(true);
     assert(mSymbols.lockType() == ReadWriteLock::Write);
     assert(mSymbolNames.lockType() == ReadWriteLock::Write);
 }
@@ -64,7 +65,7 @@ static inline int dirtySymbols(ScopedDB &db, const Set<uint32_t> &dirty)
     return ret;
 }
 
-void DirtyJob::run()
+void DirtyThread::run()
 {
     dirtySymbols(mSymbols, mDirtyFileIds);
     dirtySymbolNames(mSymbolNames, mDirtyFileIds);
