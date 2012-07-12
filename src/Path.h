@@ -44,7 +44,7 @@ public:
 
     bool operator==(const Path &other) const
     {
-        return Path::resolved(*this) == Path::resolved(other);
+        return Path::resolved(*this).ByteArray::operator==(Path::resolved(other));
     }
 
     bool operator!=(const Path &other) const
