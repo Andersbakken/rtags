@@ -549,8 +549,11 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         case CXCursor_ClassDecl:
         case CXCursor_StructDecl:
         case CXCursor_UnionDecl:
-            if (!clang_isCursorDefinition(ref.cursor))
-                processRef = true;
+            if (clang_isCursorDefinition(ref.cursor))
+                break;
+            // fall through
+        case CXCursor_TypedefDecl:
+            processRef = true;
             break;
         default:
             break;
