@@ -34,7 +34,7 @@ public:
 
         Set<Location> *sets[2] = { &references, &additionalReferences };
         for (int i=0; i<2; ++i) {
-            Set<Location> set = *sets[i];
+            Set<Location> &set = *sets[i];
             Set<Location>::iterator it = set.begin();
             while (it != set.end()) {
                 if (dirty.contains(it->fileId())) {
@@ -69,26 +69,21 @@ public:
             symbolName = other.symbolName;
             changed = true;
         }
-        int oldSize = references.size();
-        if (!oldSize) {
-            references = other.references;
-            if (!references.isEmpty())
-                changed = true;
-        } else {
-            references.unite(other.references);
-            if (oldSize != references.size())
-                changed = true;
-        }
-
-        oldSize = additionalReferences.size();
-        if (!oldSize) {
-            additionalReferences = other.additionalReferences;
-            if (!additionalReferences.isEmpty())
-                changed = true;
-        } else {
-            additionalReferences.unite(other.additionalReferences);
-            if (oldSize != additionalReferences.size())
-                changed = true;
+        const Set<Location> *srcs[2] = { &other.references, &other.additionalReferences };
+        Set<Location> *targets[2] = { &references, &additionalReferences };
+        for (int i=0; i<2; ++i) {
+            const Set<Location> &src = *srcs[i];
+            Set<Location> &target = *targets[i];
+            const int oldSize = target.size();
+            if (!oldSize) {
+                target = src;
+                if (!src.isEmpty())
+                    changed = true;
+            } else {
+                target.unite(src);
+                if (oldSize != target.size())
+                    changed = true;
+            }
         }
 
         return changed;
