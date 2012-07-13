@@ -540,6 +540,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         return CXChildVisit_Recurse;
     }
     bool processRef = false;
+    bool checkImplicit = false;
     switch (cursor.kind) {
     case CXCursor_MacroExpansion:
         processRef = (ref.kind == CXCursor_MacroDefinition);
@@ -558,15 +559,27 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         default:
             break;
         }
+    case CXCursor_DeclRefExpr:
+    case CXCursor_UnexposedExpr:
+        checkImplicit = (ref.kind == CXCursor_CXXMethod && RTags::eatString(clang_getCursorSpelling(ref.cursor)) == "operator=");
+        break;
+    case CXCursor_CallExpr:
+        checkImplicit = (ref.kind == CXCursor_Constructor && RTags::eatString(clang_getCursorDisplayName(ref.cursor)).endsWith("()"));
+        break;
     default:
         break;
     }
     if (processRef && !mSymbols.contains(ref.location)) {
         processCursor(ref, ref);
     }
+    if (checkImplicit && clang_equalLocations(clang_getCursorLocation(ref.cursor),
+                                              clang_getCursorLocation(clang_getCursorSemanticParent(ref.cursor)))) {
+        debug() << "tossing reference to implicit cursor " << cursor.cursor << " " << ref.cursor;
+        return CXChildVisit_Recurse;
+    }
     const bool refOk = (!clang_isInvalid(ref.kind) && !ref.location.isNull() && ref.location != cursor.location);
     if (refOk && !isInteresting(ref.kind)) {
-        verboseDebug() << "ref.kind is not interesting and cursor wants a ref " << cursor.cursor << " ref " << ref.cursor;
+        debug() << "ref.kind is not interesting and cursor wants a ref " << cursor.cursor << " ref " << ref.cursor;
         return CXChildVisit_Recurse;
     }
 
@@ -696,14 +709,14 @@ static inline CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXCli
     Location loc = u->job->createLocation(cursor);
     if (loc.fileId() && u->job->mPaths.value(loc.fileId()) == IndexerJob::Index) {
         if (u->job->mReferences.contains(loc)) {
-            u->out += ", used as reference\n";
+            u->out += " used as reference\n";
         } else if (u->job->mSymbols.contains(loc)) {
-            u->out += ", used as cursor\n";
+            u->out += " used as cursor\n";
         } else {
-            u->out += ", not used\n";
+            u->out += " not used\n";
         }
     } else {
-        u->out += ", not indexed\n";
+        u->out += " not indexed\n";
     }
 
     u->indent += 2;
