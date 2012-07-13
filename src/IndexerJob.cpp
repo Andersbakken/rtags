@@ -622,6 +622,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
                 break;
             }
         }
+#warning do we get a lot of dupes here?
         mReferences[cursor.location] = std::pair<Location, RTags::ReferenceType>(ref.location, referenceType);
     }
     return CXChildVisit_Recurse;
