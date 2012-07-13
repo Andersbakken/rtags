@@ -22,5 +22,3 @@ we seem to have a bug with references to structs. It doesn't have
    enough of them
 
 if a file is deleted and reappears we seem to crash.
-
-there's a bug with NetworkAccessFilter::isSecure, can't follow by location but follow by symbol name works
