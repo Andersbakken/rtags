@@ -43,15 +43,15 @@ static inline void dirtySymbolNames(ScopedDB &db, const Set<uint32_t> &dirty)
 static inline int dirtySymbols(ScopedDB &db, const Set<uint32_t> &dirty)
 {
     int ret = 0;
-    Batch batch(db);
     RTags::Ptr<Iterator> it(db->createIterator());
+    Batch batch(db);
     it->seekToFirst();
     while (it->isValid()) {
         const Slice key = it->key();
         assert(key.size() == 8);
         const Location loc = Location::fromKey(key.data());
         if (dirty.contains(loc.fileId())) {
-            batch.remove(it->key());
+            batch.remove(key);
             ++ret;
         } else {
             CursorInfo cursorInfo = it->value<CursorInfo>();
@@ -62,6 +62,7 @@ static inline int dirtySymbols(ScopedDB &db, const Set<uint32_t> &dirty)
         }
         it->next();
     }
+
     return ret;
 }
 
