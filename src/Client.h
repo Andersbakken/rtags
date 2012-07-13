@@ -19,8 +19,7 @@ public:
         None = 0x0,
         AutostartRdm = 0x1,
         RestartRdm = 0x2,
-        DontWarnOnConnectionFailure = 0x4,
-        ExitEventLoopOnDisconnect = 0x8
+        DontWarnOnConnectionFailure = 0x4
     };
 
     List<ByteArray> rdmArgs() const { return mRdmArgs; }
