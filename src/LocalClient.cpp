@@ -3,10 +3,12 @@
 #include "EventLoop.h"
 #include "Log.h"
 #include "RTags.h"
+#include "config.h"
 #include <Timer.h>
 #include <algorithm>
 #include <fcntl.h>
 #include <string.h>
+#include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
@@ -33,6 +35,10 @@ LocalClient::LocalClient(int fd)
     int flags;
     eintrwrap(flags, fcntl(mFd, F_GETFL, 0));
     eintrwrap(flags, fcntl(mFd, F_SETFL, flags | O_NONBLOCK));
+#ifdef HAVE_NOSIGPIPE
+    flags = 1;
+    ::setsockopt(mFd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&flags, sizeof(int));
+#endif
     EventLoop::instance()->addFileDescriptor(mFd, EventLoop::Read | EventLoop::Write, dataCallback, this);
 }
 
@@ -58,8 +64,13 @@ bool LocalClient::connect(const Path& path, int maxTime)
             return false;
         int ret;
         eintrwrap(ret, ::connect(mFd, (struct sockaddr *)&address, sizeof(struct sockaddr_un)));
-        if (!ret)
+        if (!ret) {
+#ifdef HAVE_NOSIGPIPE
+            ret = 1;
+            ::setsockopt(mFd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&ret, sizeof(int));
+#endif
             break;
+        }
         eintrwrap(ret, ::close(mFd));
         mFd = -1;
         if (maxTime > 0 && timer.elapsed() >= maxTime)
@@ -136,12 +147,17 @@ void LocalClient::readMore()
 {
     enum { BufSize = 1024, MaxBufferSize = 1024 * 1024 * 16 };
 
+#ifdef HAVE_NOSIGNAL
+    const int recvflags = MSG_NOSIGNAL;
+#else
+    const int recvflags = 0;
+#endif
     char buf[BufSize];
     int read = 0;
     bool wasDisconnected = false;
     for (;;) {
         int r;
-        eintrwrap(r, ::read(mFd, buf, BufSize));
+        eintrwrap(r, ::recv(mFd, buf, BufSize, recvflags));
 
         if (r == -1) {
             break;
@@ -173,12 +189,17 @@ bool LocalClient::writeMore()
 {
     bool ret = true;
     int written = 0;
+#ifdef HAVE_NOSIGNAL
+    const int sendflags = MSG_NOSIGNAL;
+#else
+    const int sendflags = 0;
+#endif
     for (;;) {
         if (mBuffers.empty())
             break;
         const ByteArray& front = mBuffers.front();
         int w;
-        eintrwrap(w, ::write(mFd, &front[mBufferIdx], front.size() - mBufferIdx));
+        eintrwrap(w, ::send(mFd, &front[mBufferIdx], front.size() - mBufferIdx, sendflags));
 
         if (w == -1) {
             ret = (errno == EWOULDBLOCK || errno == EAGAIN); // apparently these can be different

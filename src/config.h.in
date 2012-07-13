@@ -7,5 +7,7 @@
 #cmakedefine HAVE_MACH_ABSOLUTE_TIME
 #cmakedefine HAVE_INOTIFY
 #cmakedefine HAVE_KQUEUE
+#cmakedefine HAVE_NOSIGPIPE
+#cmakedefine HAVE_NOSIGNAL
 
 #endif
