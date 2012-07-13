@@ -153,9 +153,9 @@ bool Server::init(const Options &options)
         bool ok;
         const int version = general->value<int>("version", &ok);
         if (!ok) {
-            general->setValue<int>("version", RTags::DatabaseVersion);
-        } else if (version != RTags::DatabaseVersion) {
-            error("Wrong version, expected %d, got %d. Run with -C to regenerate database", RTags::DatabaseVersion, version);
+            general->setValue<int>("version", Database::Version);
+        } else if (version != Database::Version) {
+            error("Wrong version, expected %d, got %d. Run with -C to regenerate database", Database::Version, version);
             return false;
         }
         mMakefiles = general->value<Map<Path, MakefileInformation> >("makefiles");

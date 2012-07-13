@@ -19,6 +19,7 @@ public:
         isDefinition = false;
         target.clear();
         references.clear();
+        additionalReferences.clear();
         symbolName.clear();
     }
 
@@ -31,13 +32,17 @@ public:
             target.clear();
         }
 
-        Set<Location>::iterator it = references.begin();
-        while (it != references.end()) {
-            if (dirty.contains(it->fileId())) {
-                changed = true;
-                references.erase(it++);
-            } else {
-                ++it;
+        Set<Location> *sets[2] = { &references, &additionalReferences };
+        for (int i=0; i<2; ++i) {
+            Set<Location> set = *sets[i];
+            Set<Location>::iterator it = set.begin();
+            while (it != set.end()) {
+                if (dirty.contains(it->fileId())) {
+                    changed = true;
+                    set.erase(it++);
+                } else {
+                    ++it;
+                }
             }
         }
         return changed;
@@ -46,7 +51,7 @@ public:
     bool isEmpty() const
     {
         assert((symbolLength || symbolName.isEmpty()) && (symbolLength || kind == CXCursor_FirstInvalid)); // these should be coupled
-        return !symbolLength && !target && references.isEmpty();
+        return !symbolLength && !target && references.isEmpty() && additionalReferences.isEmpty();
     }
 
     bool unite(const CursorInfo &other)
@@ -64,7 +69,7 @@ public:
             symbolName = other.symbolName;
             changed = true;
         }
-        const int oldSize = references.size();
+        int oldSize = references.size();
         if (!oldSize) {
             references = other.references;
             if (!references.isEmpty())
@@ -74,15 +79,27 @@ public:
             if (oldSize != references.size())
                 changed = true;
         }
+
+        oldSize = additionalReferences.size();
+        if (!oldSize) {
+            additionalReferences = other.additionalReferences;
+            if (!additionalReferences.isEmpty())
+                changed = true;
+        } else {
+            additionalReferences.unite(other.additionalReferences);
+            if (oldSize != additionalReferences.size())
+                changed = true;
+        }
+
         return changed;
     }
 
-    int symbolLength; // this is just the symbol name length e.g. foo => 3
+    unsigned char symbolLength; // this is just the symbol name length e.g. foo => 3
     ByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
     CXCursorKind kind;
     bool isDefinition;
     Location target;
-    Set<Location> references;
+    Set<Location> references, additionalReferences;
 };
 
 #endif

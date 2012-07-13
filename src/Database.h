@@ -70,41 +70,92 @@ template <> inline Set<Location> decode(const Slice &slice)
     return ret;
 }
 
+template <typename T> inline void writeNativeType(char *&data, T t)
+{
+    *reinterpret_cast<T*>(data) = t;
+    data += sizeof(T);
+}
+
 template <> inline ByteArray encode(const CursorInfo &info)
 {
-    // null-terminated symbolName, uint32_t(symbolLength), uint32_t(kind), unsigned char(isDefinition), uint64_t(target.location), uint64_t(refs)...
-    ByteArray out(info.symbolName.size() + 1 + (sizeof(uint32_t) * 2) + sizeof(unsigned char)
-                   + (sizeof(uint64_t) * (1 + info.references.size())), '\0');
-    memcpy(out.data(), info.symbolName.constData(), info.symbolName.size() + 1);
-    uint32_t *ptr = reinterpret_cast<uint32_t*>(out.data() + (info.symbolName.size() + 1));
-    *ptr++ = info.symbolLength;
-    *ptr++ = info.kind;
-    unsigned char *isDefinitionPtr = reinterpret_cast<unsigned char*>(ptr);
-    *isDefinitionPtr++ = info.isDefinition;
-    uint64_t *locPtr = reinterpret_cast<uint64_t*>(isDefinitionPtr);
-    *locPtr++ = info.target.mData;
-    for (Set<Location>::const_iterator it = info.references.begin(); it != info.references.end(); ++it) {
-        *locPtr++ = it->mData;
+    int size = info.symbolName.size() + 1; // null terminated symbolName
+    size += sizeof(unsigned char); // symbolLength
+    size += sizeof(int16_t); // kind, negative if not definition
+    size += sizeof(uint64_t); // target
+    size += sizeof(uint16_t); // references count
+    size += sizeof(uint64_t) * info.references.size(); // references
+    size += sizeof(uint64_t) * info.additionalReferences.size(); // references
+    ByteArray out(size, '\0');
+    char *data = out.data();
+    memcpy(data, info.symbolName.constData(), info.symbolName.size() + 1);
+    data += (info.symbolName.size() + 1);
+    if (info.symbolName.contains("foobar"))
+        printf("[%s] %s:%d: pos %ld\n", __func__, __FILE__, __LINE__, data - out.data());
+    writeNativeType<unsigned char>(data, info.symbolLength);
+    if (info.symbolName.contains("foobar"))
+        printf("[%s] %s:%d: pos %ld\n", __func__, __FILE__, __LINE__, data - out.data());
+    writeNativeType<int16_t>(data, info.isDefinition ? static_cast<int16_t>(info.kind) : -static_cast<int16_t>(info.kind));
+    if (info.symbolName.contains("foobar"))
+        printf("[%s] %s:%d: pos %ld\n", __func__, __FILE__, __LINE__, data - out.data());
+    writeNativeType<uint64_t>(data, info.target.mData);
+    if (info.symbolName.contains("foobar"))
+        printf("[%s] %s:%d: pos %ld\n", __func__, __FILE__, __LINE__, data - out.data());
+    writeNativeType<uint16_t>(data, info.references.size());
+    if (info.symbolName.contains("foobar"))
+        printf("[%s] %s:%d: pos %ld\n", __func__, __FILE__, __LINE__, data - out.data());
+    for (Set<Location>::const_iterator it = info.references.begin(); it != info.references.end(); ++it)
+        writeNativeType<uint64_t>(data, it->mData);
+    if (info.symbolName.contains("foobar"))
+        printf("[%s] %s:%d: pos %ld\n", __func__, __FILE__, __LINE__, data - out.data());
+    for (Set<Location>::const_iterator it = info.additionalReferences.begin(); it != info.additionalReferences.end(); ++it) {
+        writeNativeType<uint64_t>(data, it->mData);
     }
+    if (info.symbolName.contains("foobar"))
+        printf("[%s] %s:%d: pos %ld\n", __func__, __FILE__, __LINE__, data - out.data());
+    if (info.symbolName.contains("foobar"))
+        error() << "encoded " << info.symbolName << (data - out.data()) << " " << size;
+    // error() << "encoded " << size << " " << (data - out.data) << " "; // << info;
+
     return out;
+}
+
+template <typename T> inline T readNativeType(const char *&data)
+{
+    const T ret = *reinterpret_cast<const T*>(data);
+    data += sizeof(T);
+    return ret;
 }
 
 template <> inline CursorInfo decode(const Slice &slice)
 {
     CursorInfo ret;
     ret.symbolName = ByteArray(slice.data()); // 0-terminated
-    const uint32_t *ptr = reinterpret_cast<const uint32_t*>(slice.data() + ret.symbolName.size() + 1);
-    ret.symbolLength = *ptr++;
-    ret.kind = static_cast<CXCursorKind>(*ptr++);
-    const unsigned char *isDefinitionPtr = reinterpret_cast<const unsigned char*>(ptr);
-    ret.isDefinition = *isDefinitionPtr++;
-    const uint64_t *locPtr = reinterpret_cast<const uint64_t*>(isDefinitionPtr);
-    const int count = ((slice.size() - ret.symbolName.size() - sizeof(char) - (sizeof(uint32_t) * 2) - sizeof(unsigned char)) / sizeof(uint64_t));
-    ret.target.mData = *locPtr++;
-    for (int i=0; i<count - 1; ++i) {
-        const Location loc(*locPtr++);
+    const char *data = slice.data() + ret.symbolName.size() + 1;
+    ret.symbolLength = readNativeType<unsigned char>(data);
+    int16_t kindAndDefinition = readNativeType<int16_t>(data);
+    if (kindAndDefinition > 0) {
+        ret.isDefinition = true;
+        ret.kind = static_cast<CXCursorKind>(kindAndDefinition);
+    } else {
+        ret.isDefinition = false;
+        ret.kind = static_cast<CXCursorKind>(-kindAndDefinition);
+    }
+    ret.target.mData = readNativeType<uint64_t>(data);
+    uint16_t refCount = readNativeType<uint16_t>(data);
+    for (uint16_t i=0; i<refCount; ++i) {
+        const Location loc(readNativeType<uint64_t>(data));
         ret.references.insert(loc);
     }
+
+    int pos = data - slice.data();
+    int remainingBytes = slice.size() - pos;
+    for (int i=0; i<remainingBytes; i+=sizeof(uint64_t)) {
+        const Location loc(readNativeType<uint64_t>(data));
+        ret.additionalReferences.insert(loc);
+    }
+    if (ret.symbolName.contains("foobar"))
+        error() << "decoded " << ret.symbolName << " " << slice.size();
+
     return ret;
 }
 
@@ -132,6 +183,8 @@ class LocationComparator;
 class Database
 {
 public:
+    enum { Version = 14 };
+
     enum Flag {
         NoFlag = 0x0,
         LocationKeys = 0x1

@@ -15,8 +15,6 @@
 class Database;
 namespace RTags {
 
-enum { DatabaseVersion = 13 };
-
 enum ReferenceType {
     NormalReference,
     MemberFunction,
@@ -66,6 +64,19 @@ ByteArray backtrace(int maxFrames = -1);
 inline bool isReference(CXCursorKind kind)
 {
     return (clang_isReference(kind) || (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr));
+}
+
+inline bool hasAdditionalReferences(CXCursorKind kind)
+{
+    switch (kind) {
+    case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
+    case CXCursor_Constructor:
+    case CXCursor_Destructor:
+        return true;
+    default:
+        return false;
+    }
 }
 
 ByteArray eatString(CXString str);
