@@ -314,7 +314,7 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
             ByteArray fileName = RTags::eatString(clang_getFileName(file));
             uint32_t &fileId = mFileIds[fileName];
             if (!fileId)
-                fileId = Location::insertFile(fileName);
+                fileId = Location::insertFile(Path::resolved(fileName));
             ret = Location(fileId, start);
             if (blocked) {
                 PathState &state = mPaths[fileId];
