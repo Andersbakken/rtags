@@ -15,6 +15,7 @@ public:
 protected:
     virtual void execute();
 private:
+    void process(ScopedDB &db, const Location &loc, Set<Location> &refs, Set<Location> *additionalReferences);
     Set<Location> locations;
     const ByteArray symbolName;
     const unsigned flags;

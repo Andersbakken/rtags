@@ -24,58 +24,27 @@ void ReferencesJob::execute()
             return;
         }
     }
-    const bool allReferences = flags & QueryMessage::AllReferences;
     ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
     const unsigned keyFlags = QueryMessage::keyFlags(flags);
-    Set<Location> refs;
-    Set<Location> filtered;
+    Set<Location> refs, additionalReferences;
     for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
+        // error() << "looking up refs for " << it->key() << " " << bool(flags & QueryMessage::AllReferences);
         if (isAborted())
             return;
 
-        const Location &location = *it;
-        Location realLoc;
-        CursorInfo cursorInfo = RTags::findCursorInfo(db, location, &realLoc);
-        if (RTags::isReference(cursorInfo.kind)) {
-            if (allReferences) {
-                refs.insert(cursorInfo.target);
-            } else {
-                filtered.insert(cursorInfo.target);
-            }
-            cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
-        } else {
-            if (allReferences) {
-                refs.insert(realLoc);
-            } else {
-                filtered.insert(realLoc);
-            }
-        }
+        process(db, *it, refs, flags & QueryMessage::AllReferences ? &additionalReferences : 0);
+        // for (Set<Location>::const_iterator b = refs.begin(); b != refs.end(); ++b) {
+        //     error() << "found " << b->key();
+        // }
 
-        if (cursorInfo.symbolLength) {
-            if (cursorInfo.target.isValid()) {
-                if (allReferences) {
-                    refs.insert(cursorInfo.target);
-                } else {
-                    filtered.insert(cursorInfo.target);
-                }
-            }
-            for (Set<Location>::const_iterator it = cursorInfo.references.begin(); it != cursorInfo.references.end(); ++it) {
-                const Location &l = *it;
-                if (allReferences || !filtered.contains(l)) {
-                    refs.insert(l);
-                }
-            }
-            if (cursorInfo.target.isValid() && cursorInfo.kind != CXCursor_VarDecl) {
-                cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
-                for (Set<Location>::const_iterator it = cursorInfo.references.begin(); it != cursorInfo.references.end(); ++it) {
-                    const Location &l = *it;
-                    if (allReferences || !filtered.contains(l)) {
-                        refs.insert(l);
-                    }
-                }
-            }
-        }
     }
+    for (Set<Location>::const_iterator it = additionalReferences.begin(); it != additionalReferences.end(); ++it) {
+        if (isAborted())
+            return;
+
+        process(db, *it, refs, 0);
+    }
+
     List<Location> sorted = refs.toList();
     if (flags & QueryMessage::ReverseSort) {
         std::sort(sorted.begin(), sorted.end(), std::greater<Location>());
@@ -86,4 +55,46 @@ void ReferencesJob::execute()
         const Location &l = *it;
         write(l.key(keyFlags));
     }
+}
+
+void ReferencesJob::process(ScopedDB &db, const Location &location, Set<Location> &refs, Set<Location> *additionalReferences)
+{
+    const bool allReferences = flags & QueryMessage::AllReferences;
+    Location realLoc;
+    CursorInfo cursorInfo = RTags::findCursorInfo(db, location, &realLoc);
+    if (RTags::isReference(cursorInfo.kind)) {
+        realLoc = cursorInfo.target;
+        cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
+    }
+
+    // error() << "refs for " << location.key() << " " << allReferences
+    //         << " " << cursorInfo.isValid();
+
+    if (cursorInfo.isValid()) {
+        const bool wantsReferences = (!allReferences
+                                      || cursorInfo.kind == CXCursor_StructDecl
+                                      || cursorInfo.kind == CXCursor_ClassDecl);
+        if (additionalReferences)
+            *additionalReferences += cursorInfo.additionalReferences;
+        if (wantsReferences)
+            refs += cursorInfo.references;
+        if (cursorInfo.target.isValid() && cursorInfo.kind != CXCursor_VarDecl) {
+            if (wantsReferences)
+                refs += cursorInfo.references;
+            if (allReferences) {
+                refs.insert(cursorInfo.target);
+            } else {
+                refs.remove(cursorInfo.target);
+            }
+            cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
+            if (additionalReferences)
+                *additionalReferences += cursorInfo.additionalReferences;
+        }
+        if (allReferences) {
+            refs.insert(realLoc);
+        } else {
+            refs.remove(realLoc);
+        }
+    }
+
 }

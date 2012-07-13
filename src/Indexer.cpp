@@ -82,7 +82,6 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
             it.reset(dependencyDB->createIterator());
             it->seekToFirst();
             {
-                Batch batch(dependencyDB);
                 while (it->isValid()) {
                     const Slice key = it->key();
                     const uint32_t file = *reinterpret_cast<const uint32_t*>(key.data());
@@ -93,7 +92,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
                             deps[*vit].insert(file);
                         }
                     } else {
-                        batch.remove(key);
+                        dependencyDB->remove(key);
                     }
                     it->next();
                 }
