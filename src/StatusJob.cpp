@@ -17,7 +17,7 @@ void StatusJob::execute()
 {
     bool matched = false;
     Server *server = Server::instance();
-    if (query.isEmpty() || query == "general") {
+    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "general")) {
         matched = true;
         ScopedDB db = server->db(Server::General, ReadWriteLock::Read);
         write(delimiter);
@@ -36,7 +36,7 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || query == "fileids") {
+    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileids")) {
         matched = true;
         ScopedDB db = server->db(Server::FileIds, ReadWriteLock::Read);
         write(delimiter);
@@ -59,7 +59,7 @@ void StatusJob::execute()
         return;
     }
 
-    if (query.isEmpty() || query == "dependencies") {
+    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "dependencies")) {
         matched = true;
         ScopedDB db = server->db(Server::Dependency, ReadWriteLock::Read);
         write(delimiter);
@@ -93,7 +93,7 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || query == "symbols") {
+    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "symbols")) {
         matched = true;
         ScopedDB db = server->db(Server::Symbol, ReadWriteLock::Read);
         write(delimiter);
@@ -129,7 +129,7 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || query == "symbolnames") {
+    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "symbolnames")) {
         matched = true;
         ScopedDB db = server->db(Server::SymbolName, ReadWriteLock::Read, mIndexer->srcRoot());
         write(delimiter);
@@ -152,7 +152,7 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || query == "fileinfos") {
+    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileinfos")) {
         matched = true;
         ScopedDB db = server->db(Server::FileInformation, ReadWriteLock::Read, mIndexer->srcRoot());
         write(delimiter);
@@ -175,7 +175,7 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || query == "pch") {
+    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "pch")) {
         matched = true;
         ScopedDB db = server->db(Server::PchUsrMaps, ReadWriteLock::Read, mIndexer->srcRoot());
         write(delimiter);
@@ -200,7 +200,7 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || query == "visitedfiles") {
+    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "visitedfiles")) {
         matched = true;
         write(delimiter);
         write("visitedfiles");
