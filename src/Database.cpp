@@ -187,9 +187,9 @@ bool Database::contains(const Slice &key) const
     return ok;
 }
 
-void Database::remove(const Slice &key)
+bool Database::remove(const Slice &key)
 {
-    mDB->Delete(mWriteOptions, key.mSlice);
+    return mDB->Delete(mWriteOptions, key.mSlice).ok();
 }
 
 Iterator *Database::createIterator() const

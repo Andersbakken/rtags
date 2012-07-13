@@ -187,7 +187,7 @@ public:
     int setRawValue(const Slice &key, const Slice &value);
     template <typename T> int setValue(const Slice &key, const T &t) { return setRawValue(key, encode(t)); }
     bool contains(const Slice &key) const;
-    void remove(const Slice &key);
+    bool remove(const Slice &key);
     Iterator *createIterator() const;
     Path path() const { return mPath; }
 private:
