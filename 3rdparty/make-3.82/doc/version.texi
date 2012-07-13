@@ -1,4 +1,0 @@
-@set UPDATED 19 July 2010
-@set UPDATED-MONTH July 2010
-@set EDITION 3.82
-@set VERSION 3.82
