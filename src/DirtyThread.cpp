@@ -51,16 +51,7 @@ static inline int dirtySymbols(ScopedDB &db, const Set<uint32_t> &dirty)
         assert(key.size() == 8);
         const Location loc = Location::fromKey(key.data());
         if (dirty.contains(loc.fileId())) {
-            db->remove(it->key());
-            // At some point we got an invalid read from batch.remove() here and
-            // changing it to db->remove() seemed to fix it.  The internal data
-            // of the batch seemed busted and int
-            // WriteBatchInternal::Count(const WriteBatch* b); ended up return a
-            // negative number which in turn meant that SetCount got called with
-            // a negative number and std::string blew up. Sadly I can't
-            // reproduce it anymore
-            //
-            // batch.remove(it->key());
+            batch.remove(it->key());
             ++ret;
         } else {
             CursorInfo cursorInfo = it->value<CursorInfo>();
