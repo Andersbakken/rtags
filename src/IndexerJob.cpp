@@ -601,6 +601,22 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         } else {
             info.symbolName = addNamePermutations(cursor.cursor, cursor.location, !isReference);
         }
+        switch (info.kind) {
+        case CXCursor_Constructor:
+        case CXCursor_Destructor: {
+            Location parentLocation = createLocation(clang_getCursorSemanticParent(cursor.cursor));
+            // consider doing this for only declaration/inline definition since
+            // declaration and definition should know of one another
+            if (parentLocation.isValid()) {
+                CursorInfo &parent = mSymbols[parentLocation];
+                parent.additionalReferences.insert(cursor.location);
+                info.additionalReferences.insert(parentLocation);
+            }
+            break; }
+
+        default:
+            break;
+        }
     } else if (info.kind == CXCursor_Constructor && cursor.kind == CXCursor_TypeRef) {
         return CXChildVisit_Recurse;
     }

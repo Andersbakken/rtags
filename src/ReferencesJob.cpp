@@ -24,7 +24,7 @@ void ReferencesJob::execute()
             return;
         }
     }
-    const bool excludeDefsAndDecls = !(flags & QueryMessage::IncludeDeclarationsAndDefinitions);
+    const bool allReferences = flags & QueryMessage::AllReferences;
     ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
     const unsigned keyFlags = QueryMessage::keyFlags(flags);
     Set<Location> refs;
@@ -37,31 +37,31 @@ void ReferencesJob::execute()
         Location realLoc;
         CursorInfo cursorInfo = RTags::findCursorInfo(db, location, &realLoc);
         if (RTags::isReference(cursorInfo.kind)) {
-            if (excludeDefsAndDecls) {
-                filtered.insert(cursorInfo.target);
-            } else {
+            if (allReferences) {
                 refs.insert(cursorInfo.target);
+            } else {
+                filtered.insert(cursorInfo.target);
             }
             cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
         } else {
-            if (excludeDefsAndDecls) {
-                filtered.insert(realLoc);
-            } else {
+            if (allReferences) {
                 refs.insert(realLoc);
+            } else {
+                filtered.insert(realLoc);
             }
         }
 
         if (cursorInfo.symbolLength) {
             if (cursorInfo.target.isValid()) {
-                if (excludeDefsAndDecls) {
-                    filtered.insert(cursorInfo.target);
-                } else {
+                if (allReferences) {
                     refs.insert(cursorInfo.target);
+                } else {
+                    filtered.insert(cursorInfo.target);
                 }
             }
             for (Set<Location>::const_iterator it = cursorInfo.references.begin(); it != cursorInfo.references.end(); ++it) {
                 const Location &l = *it;
-                if (!excludeDefsAndDecls || !filtered.contains(l)) {
+                if (allReferences || !filtered.contains(l)) {
                     refs.insert(l);
                 }
             }
@@ -69,7 +69,7 @@ void ReferencesJob::execute()
                 cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
                 for (Set<Location>::const_iterator it = cursorInfo.references.begin(); it != cursorInfo.references.end(); ++it) {
                     const Location &l = *it;
-                    if (!excludeDefsAndDecls || !filtered.contains(l)) {
+                    if (allReferences || !filtered.contains(l)) {
                         refs.insert(l);
                     }
                 }

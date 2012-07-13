@@ -89,32 +89,14 @@ template <> inline ByteArray encode(const CursorInfo &info)
     char *data = out.data();
     memcpy(data, info.symbolName.constData(), info.symbolName.size() + 1);
     data += (info.symbolName.size() + 1);
-    if (info.symbolName.contains("foobar"))
-        printf("[%s] %s:%d: pos %ld\n", __func__, __FILE__, __LINE__, data - out.data());
     writeNativeType<unsigned char>(data, info.symbolLength);
-    if (info.symbolName.contains("foobar"))
-        printf("[%s] %s:%d: pos %ld\n", __func__, __FILE__, __LINE__, data - out.data());
     writeNativeType<int16_t>(data, info.isDefinition ? static_cast<int16_t>(info.kind) : -static_cast<int16_t>(info.kind));
-    if (info.symbolName.contains("foobar"))
-        printf("[%s] %s:%d: pos %ld\n", __func__, __FILE__, __LINE__, data - out.data());
     writeNativeType<uint64_t>(data, info.target.mData);
-    if (info.symbolName.contains("foobar"))
-        printf("[%s] %s:%d: pos %ld\n", __func__, __FILE__, __LINE__, data - out.data());
     writeNativeType<uint16_t>(data, info.references.size());
-    if (info.symbolName.contains("foobar"))
-        printf("[%s] %s:%d: pos %ld\n", __func__, __FILE__, __LINE__, data - out.data());
     for (Set<Location>::const_iterator it = info.references.begin(); it != info.references.end(); ++it)
         writeNativeType<uint64_t>(data, it->mData);
-    if (info.symbolName.contains("foobar"))
-        printf("[%s] %s:%d: pos %ld\n", __func__, __FILE__, __LINE__, data - out.data());
-    for (Set<Location>::const_iterator it = info.additionalReferences.begin(); it != info.additionalReferences.end(); ++it) {
+    for (Set<Location>::const_iterator it = info.additionalReferences.begin(); it != info.additionalReferences.end(); ++it)
         writeNativeType<uint64_t>(data, it->mData);
-    }
-    if (info.symbolName.contains("foobar"))
-        printf("[%s] %s:%d: pos %ld\n", __func__, __FILE__, __LINE__, data - out.data());
-    if (info.symbolName.contains("foobar"))
-        error() << "encoded " << info.symbolName << (data - out.data()) << " " << size;
-    // error() << "encoded " << size << " " << (data - out.data) << " "; // << info;
 
     return out;
 }
@@ -153,9 +135,6 @@ template <> inline CursorInfo decode(const Slice &slice)
         const Location loc(readNativeType<uint64_t>(data));
         ret.additionalReferences.insert(loc);
     }
-    if (ret.symbolName.contains("foobar"))
-        error() << "decoded " << ret.symbolName << " " << slice.size();
-
     return ret;
 }
 

@@ -25,7 +25,7 @@ static void help(FILE *f, const char* app)
             "  --remake|-M [optional regexp]             Remake makefiles matching regexp or all if no regexp\n"
             "  --reference-name|-R [arg]                 Find references matching arg\n"
             "  --reference-location|-r [arg]             Find references matching this location\n"
-            "  --include-declarations-and-definitions|-E Include reference to referenced location\n"
+            "  --all-references|-E                       Include definitions/declarations/constructors/destructors for references. Used for rename symbol.\n"
             "  --reverse-sort|-O                         Sort output reversed\n"
             "  --list-symbols|-S [arg]                   List symbol names matching arg\n"
             "  --find-symbols|-F [arg]                   Find symbols matching arg\n"
@@ -191,7 +191,7 @@ int main(int argc, char** argv)
         { "test", required_argument, 0, 't' },
         { "quit-rdm", no_argument, 0, 'q' },
         { "restart-rdm", optional_argument, 0, 'e' },
-        { "include-declarations-and-definitions", no_argument, 0, 'E' },
+        { "all-references", no_argument, 0, 'E' },
         { "elisp-list", no_argument, 0, 'P' },
         { "run-test", required_argument, 0, 'T' },
         { "clear-db", no_argument, 0, 'C' },
@@ -245,7 +245,7 @@ int main(int argc, char** argv)
                 rdmArgs = ByteArray(optarg, strlen(optarg)).split(' ');
             break;
         case 'E':
-            queryFlags |= QueryMessage::IncludeDeclarationsAndDefinitions;
+            queryFlags |= QueryMessage::AllReferences;
             break;
         case 'O':
             queryFlags |= QueryMessage::ReverseSort;
