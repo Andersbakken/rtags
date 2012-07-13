@@ -48,6 +48,11 @@ public:
         return changed;
     }
 
+    bool isValid() const
+    {
+        return !isEmpty();
+    }
+
     bool isEmpty() const
     {
         assert((symbolLength || symbolName.isEmpty()) && (symbolLength || kind == CXCursor_FirstInvalid)); // these should be coupled
