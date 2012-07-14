@@ -651,7 +651,9 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
                 break;
             }
         }
-#warning do we get a lot of dupes here?
+        // ### For RTags we seem to get this count:
+        // Duplicates: 18278 Non-duplicates: 69444 Overwrites: 2018
+        // not sure if we should fix this.
         mReferences[cursor.location] = std::pair<Location, RTags::ReferenceType>(ref.location, referenceType);
     }
     return CXChildVisit_Recurse;
