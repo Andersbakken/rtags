@@ -63,16 +63,13 @@ void ReferencesJob::process(ScopedDB &db, const Location &location, Set<Location
     const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
     Location realLoc;
     CursorInfo cursorInfo = RTags::findCursorInfo(db, location, &realLoc);
-    error() << location.key() << " " << cursorInfo.kind;
+    // error() << location.key() << " " << cursorInfo.kind;
     if (RTags::isReference(cursorInfo.kind)) {
-        printf("[%s] %s:%d: if (RTags::isReference(cursorInfo.kind)) { [after]\n", __func__, __FILE__, __LINE__);
         realLoc = cursorInfo.target;
         cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
-    } else {
-        printf("[%s] %s:%d: } else { [after]\n", __func__, __FILE__, __LINE__);
     }
-    error() << "refs for " << location.key() << " " << allReferences
-            << " " << cursorInfo.isValid() << " " << realLoc.key();
+    // error() << "refs for " << location.key() << " " << allReferences
+    //         << " " << cursorInfo.isValid() << " " << realLoc.key();
 
     if (cursorInfo.isValid()) {
         const bool noReferences = allReferences && (cursorInfo.kind == CXCursor_Constructor || cursorInfo.kind == CXCursor_Destructor);
