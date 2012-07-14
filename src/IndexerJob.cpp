@@ -39,7 +39,6 @@ static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &reference
         const ReferenceMap::const_iterator end = references.end();
         for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
             CursorInfo &ci = symbols[it->second.first];
-            ci.references.insert(it->first);
             if (it->second.second != RTags::NormalReference) {
                 CursorInfo &other = symbols[it->first];
                 // error() << "trying to join" << it->first << "and" << it->second.front();
@@ -47,6 +46,8 @@ static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &reference
                     other.target = it->second.first;
                 if (ci.target.isNull())
                     ci.target = it->first;
+            } else {
+                ci.references.insert(it->first);
             }
         }
     }

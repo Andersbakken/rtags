@@ -83,8 +83,6 @@ void ReferencesJob::process(ScopedDB &db, const Location &location, Set<Location
                 refs += cursorInfo.references;
             if (allReferences) {
                 refs.insert(cursorInfo.target);
-            } else {
-                refs.remove(cursorInfo.target);
             }
             cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
             if (additionalReferences)
@@ -92,8 +90,6 @@ void ReferencesJob::process(ScopedDB &db, const Location &location, Set<Location
         }
         if (allReferences) {
             refs.insert(realLoc);
-        } else {
-            refs.remove(realLoc);
         }
     }
 
