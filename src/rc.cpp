@@ -55,6 +55,7 @@ static void help(FILE *f, const char* app)
             "  --delete-project|-W [regexp]              Delete all projects matching regexp\n"
             "  --clear-db|-C                             Clear database, use with care\n"
             "  --reindex|-V [optional regexp]            Reindex all files or all files matching pattern\n"
+            "  --wait-for-indexing|-X                    Wait for indexing to finish before doing query\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
             app);
 }
@@ -201,10 +202,11 @@ int main(int argc, char** argv)
         { "diagnostics", no_argument, 0, 'G' },
         { "project", optional_argument, 0, 'w' },
         { "delete-project", required_argument, 0, 'W' },
+        { "wait-for-indexing", no_argument, 0, 'X' },
         { 0, 0, 0, 0 }
     };
 
-    // Unused: bBdjJkKXyYZ
+    // Unused: bBdjJkKyYZ
 
     int logLevel = 0;
     ByteArray logFile;
@@ -245,7 +247,10 @@ int main(int argc, char** argv)
                 rdmArgs = ByteArray(optarg, strlen(optarg)).split(' ');
             break;
         case 'E':
-            queryFlags |= QueryMessage::AllReferences;
+            queryFlags |= QueryMessage::ReferencesForRenameSymbol;
+            break;
+        case 'X':
+            queryFlags |= QueryMessage::WaitForIndexing;
             break;
         case 'O':
             queryFlags |= QueryMessage::ReverseSort;

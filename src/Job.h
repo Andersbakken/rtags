@@ -8,6 +8,8 @@
 #include "Event.h"
 #include "signalslot.h"
 
+class CursorInfo;
+class Location;
 class Job : public ThreadPool::Job, public AbortInterface
 {
 public:
@@ -17,12 +19,7 @@ public:
         QuoteOutput = 0x2,
         OutputSignalEnabled = 0x4
     };
-    enum Priority {
-        QueryJobPriority = 10,
-        CompletionJobPriority = 1,
-        ValidateDBJobPriority = 0
-    };
-    Job(int id, Priority priority, unsigned flags = None);
+    Job(int id, unsigned flags = 0);
     ~Job();
     void setPathFilters(const List<ByteArray> &filter, bool filterSystemIncludes);
     List<ByteArray> pathFilters() const;
@@ -34,12 +31,11 @@ public:
     bool filter(const ByteArray &val) const;
     virtual void run();
     virtual void execute() {}
-    int priority() const { return mPriority; }
     signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
+    void write(const Location &location, const CursorInfo &info);
 private:
     const int mId;
-    const Priority mPriority;
-    int mFlags;
+    unsigned mFlags;
     List<ByteArray> mPathFilters;
     bool mFilterSystemIncludes;
     signalslot::Signal1<const ByteArray &> mOutput;

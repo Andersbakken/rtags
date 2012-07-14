@@ -37,9 +37,10 @@ public:
         LineNumbers = 0x02,
         FilterSystemIncludes = 0x04,
         SkipParentheses = 0x08,
-        AllReferences = 0x10,
+        ReferencesForRenameSymbol = 0x10,
         ReverseSort = 0x20,
-        ElispList = 0x40
+        ElispList = 0x40,
+        WaitForIndexing = 0x80
     };
 
     typedef Map<Path, ByteArray> UnsavedFilesMap;

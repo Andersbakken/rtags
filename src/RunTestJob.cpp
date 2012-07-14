@@ -9,7 +9,7 @@
 #include "ReferencesJob.h"
 
 RunTestJob::RunTestJob(const Path &p, int i)
-    : Job(i, QueryJobPriority, WriteUnfiltered), path(p)
+    : Job(i, WriteUnfiltered), path(p)
 {
 }
 

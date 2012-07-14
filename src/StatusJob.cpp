@@ -9,7 +9,7 @@
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(int i, const ByteArray &q, std::tr1::shared_ptr<Indexer> indexer)
-    : Job(i, QueryJobPriority, WriteUnfiltered), query(q), mIndexer(indexer)
+    : Job(i, WriteUnfiltered), query(q), mIndexer(indexer)
 {
 }
 
@@ -100,31 +100,12 @@ void StatusJob::execute()
         write(server->databaseDir(Server::Symbol));
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
-        char buf[1024];
         while (it->isValid()) {
             if (isAborted())
                 return;
             const CursorInfo ci = it->value<CursorInfo>();
-            CXString kind = clang_getCursorKindSpelling(ci.kind);
-            Location loc = Location::fromKey(it->key().data());
-            snprintf(buf, sizeof(buf),
-                     "  %s symbolName: %s kind: %s isDefinition: %s symbolLength: %d target: %s%s",
-                     loc.key().constData(), ci.symbolName.constData(),
-                     clang_getCString(kind), ci.isDefinition ? "true" : "false", ci.symbolLength,
-                     ci.target.key().constData(),
-                     (ci.references.isEmpty() && ci.additionalReferences.isEmpty() ? "" : " references:"));
-            clang_disposeString(kind);
-            write(buf);
-            for (Set<Location>::const_iterator rit = ci.references.begin(); rit != ci.references.end(); ++rit) {
-                const Location &l = *rit;
-                snprintf(buf, sizeof(buf), "    %s", l.key().constData());
-                write(buf);
-            }
-            for (Set<Location>::const_iterator rit = ci.additionalReferences.begin(); rit != ci.additionalReferences.end(); ++rit) {
-                const Location &l = *rit;
-                snprintf(buf, sizeof(buf), "    %s (additional)", l.key().constData());
-                write(buf);
-            }
+            const Location loc = Location::fromKey(it->key().data());
+            write(loc, ci);
             it->next();
         }
     }

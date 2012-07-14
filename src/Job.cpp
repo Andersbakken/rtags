@@ -2,11 +2,12 @@
 #include "RTags.h"
 #include "EventLoop.h"
 #include "Server.h"
+#include "CursorInfo.h"
 
 // static int count = 0;
 // static int active = 0;
-Job::Job(int id, Priority p, unsigned flags)
-    : mId(id), mPriority(p), mFlags(flags), mFilterSystemIncludes(false)
+Job::Job(int id, unsigned flags)
+    : mId(id), mFlags(flags), mFilterSystemIncludes(false)
 {
     // error() << metaObject()->className() << "born" << ++count << ++active;
     setAutoDelete(false);
@@ -75,4 +76,29 @@ void Job::writeRaw(const ByteArray &out)
     } else {
         EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, out));
     }
+}
+
+void Job::write(const Location &location, const CursorInfo &ci)
+{
+    if (ci.symbolLength) {
+        char buf[1024];
+        const CXStringScope kind(clang_getCursorKindSpelling(ci.kind));
+        const int w = snprintf(buf, sizeof(buf), "%s symbolName: %s kind: %s isDefinition: %s symbolLength: %d %s%s%s",
+                               location.key().constData(), ci.symbolName.constData(),
+                               clang_getCString(kind.string), ci.isDefinition ? "true" : "false",
+                               ci.symbolLength, ci.target.isValid() ? "target: " : "", ci.target.isValid() ? ci.target.key().constData() : "",
+                               (ci.references.isEmpty() && ci.additionalReferences.isEmpty() ? "" : " references:"));
+        write(ByteArray(buf, w));
+        for (Set<Location>::const_iterator rit = ci.references.begin(); rit != ci.references.end(); ++rit) {
+            const Location &l = *rit;
+            snprintf(buf, sizeof(buf), "    %s", l.key().constData());
+            write(buf);
+        }
+        for (Set<Location>::const_iterator rit = ci.additionalReferences.begin(); rit != ci.additionalReferences.end(); ++rit) {
+            const Location &l = *rit;
+            snprintf(buf, sizeof(buf), "    %s (additional)", l.key().constData());
+            write(buf);
+        }
+    }
+
 }

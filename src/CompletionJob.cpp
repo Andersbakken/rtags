@@ -3,7 +3,7 @@
 #include "EventLoop.h"
 
 CompletionJob::CompletionJob(Completions *c, const Path &input, const List<ByteArray> &args, const ByteArray &unsaved)
-    : Job(-1, CompletionJobPriority), result(new Completions::Entry), completions(c)
+    : Job(-1), result(new Completions::Entry), completions(c)
 
 {
     result->finished = false;
@@ -16,7 +16,7 @@ CompletionJob::CompletionJob(Completions *c, const Path &input, const List<ByteA
 }
 
 CompletionJob::CompletionJob(Completions *c, Completions::Entry *entry)
-    : Job(-1, CompletionJobPriority), result(entry), completions(c)
+    : Job(-1), result(entry), completions(c)
 {
 }
 

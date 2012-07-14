@@ -5,13 +5,13 @@
 #include "CursorInfo.h"
 
 ReferencesJob::ReferencesJob(int i, const Location &loc, unsigned fl)
-    : Job(i, QueryJobPriority), symbolName(ByteArray()), flags(fl)
+    : Job(i), symbolName(ByteArray()), flags(fl)
 {
     locations.insert(loc);
 }
 
 ReferencesJob::ReferencesJob(int i, const ByteArray &sym, unsigned fl)
-    : Job(i, QueryJobPriority), symbolName(sym), flags(fl)
+    : Job(i), symbolName(sym), flags(fl)
 {
 }
 
@@ -32,7 +32,7 @@ void ReferencesJob::execute()
         if (isAborted())
             return;
 
-        process(db, *it, refs, flags & QueryMessage::AllReferences ? &additionalReferences : 0);
+        process(db, *it, refs, flags & QueryMessage::ReferencesForRenameSymbol ? &additionalReferences : 0);
         // for (Set<Location>::const_iterator b = refs.begin(); b != refs.end(); ++b) {
         //     error() << "found " << b->key();
         // }
@@ -59,36 +59,38 @@ void ReferencesJob::execute()
 
 void ReferencesJob::process(ScopedDB &db, const Location &location, Set<Location> &refs, Set<Location> *additionalReferences)
 {
-    const bool allReferences = flags & QueryMessage::AllReferences;
+    const bool allReferences = flags & QueryMessage::ReferencesForRenameSymbol;
     Location realLoc;
     CursorInfo cursorInfo = RTags::findCursorInfo(db, location, &realLoc);
+    error() << location.key() << " " << cursorInfo.kind;
     if (RTags::isReference(cursorInfo.kind)) {
+        printf("[%s] %s:%d: if (RTags::isReference(cursorInfo.kind)) { [after]\n", __func__, __FILE__, __LINE__);
         realLoc = cursorInfo.target;
         cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
+    } else {
+        printf("[%s] %s:%d: } else { [after]\n", __func__, __FILE__, __LINE__);
     }
-
-    // error() << "refs for " << location.key() << " " << allReferences
-    //         << " " << cursorInfo.isValid();
+    error() << "refs for " << location.key() << " " << allReferences
+            << " " << cursorInfo.isValid() << " " << realLoc.key();
 
     if (cursorInfo.isValid()) {
-        const bool wantsReferences = (!allReferences
-                                      || cursorInfo.kind == CXCursor_StructDecl
-                                      || cursorInfo.kind == CXCursor_ClassDecl);
+        const bool noReferences = allReferences && (cursorInfo.kind == CXCursor_Constructor || cursorInfo.kind == CXCursor_Destructor);
         if (additionalReferences)
             *additionalReferences += cursorInfo.additionalReferences;
-        if (wantsReferences)
+        error() << noReferences << " " << location.key();
+        if (!noReferences)
             refs += cursorInfo.references;
         if (cursorInfo.target.isValid() && cursorInfo.kind != CXCursor_VarDecl) {
-            if (wantsReferences)
-                refs += cursorInfo.references;
             if (allReferences) {
                 refs.insert(cursorInfo.target);
             }
             cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
+            if (!noReferences)
+                refs += cursorInfo.references;
             if (additionalReferences)
                 *additionalReferences += cursorInfo.additionalReferences;
         }
-        if (allReferences) {
+        if (!noReferences && allReferences) {
             refs.insert(realLoc);
         }
     }

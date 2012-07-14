@@ -63,7 +63,7 @@ ByteArray backtrace(int maxFrames = -1);
 
 inline bool isReference(CXCursorKind kind)
 {
-    return (clang_isReference(kind) || (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr));
+    return (clang_isReference(kind) || (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr) || kind == CXCursor_UnexposedExpr); // ### not sure about this one
 }
 
 inline bool hasAdditionalReferences(CXCursorKind kind)

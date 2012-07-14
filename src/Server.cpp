@@ -667,7 +667,7 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
 
 void Server::startJob(Job *job)
 {
-    mThreadPool->start(job, job->priority());
+    mThreadPool->start(job); //, job->priority());
 }
 
 /* Same behavior as rtags-default-current-project() */
