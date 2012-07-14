@@ -10,8 +10,9 @@ static inline unsigned jobFlags(unsigned queryFlags)
 }
 
 FindSymbolsJob::FindSymbolsJob(int i, const QueryMessage &query)
-    : Job(i, ::jobFlags(query.flags()), query.flags()), string(query.query())
+    : Job(::jobFlags(query.flags()), query.flags()), string(query.query())
 {
+    setId(i);
     setPathFilters(query.pathFilters());
 }
 

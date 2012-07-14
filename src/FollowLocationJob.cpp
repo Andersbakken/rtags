@@ -6,8 +6,9 @@
 #include "CursorInfo.h"
 
 FollowLocationJob::FollowLocationJob(int i, const Location &loc, unsigned f)
-    : Job(i, 0, f), location(loc)
+    : Job(0, f), location(loc)
 {
+    setId(i);
 }
 
 FollowLocationJob::~FollowLocationJob()

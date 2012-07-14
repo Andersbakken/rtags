@@ -7,7 +7,7 @@
 #include <clang-c/Index.h>
 
 ValidateDBJob::ValidateDBJob(const Path &root, const Set<Location> &prev)
-    : Job(-1, 0, 0), mRoot(root), mPrevious(prev)
+    : Job(0, 0), mRoot(root), mPrevious(prev)
 {
 }
 

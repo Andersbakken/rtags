@@ -5,14 +5,16 @@
 #include "CursorInfo.h"
 
 ReferencesJob::ReferencesJob(int i, const Location &loc, unsigned flags)
-    : Job(i, 0, flags), symbolName(ByteArray())
+    : Job(0, flags), symbolName(ByteArray())
 {
+    setId(i);
     locations.insert(loc);
 }
 
 ReferencesJob::ReferencesJob(int i, const ByteArray &sym, unsigned flags)
-    : Job(i, 0, flags), symbolName(sym)
+    : Job(0, flags), symbolName(sym)
 {
+    setId(i);
 }
 
 void ReferencesJob::execute()

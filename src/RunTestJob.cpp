@@ -10,8 +10,9 @@
 #include "QueryMessage.h"
 
 RunTestJob::RunTestJob(const Path &p, int i, const QueryMessage &query)
-    : Job(i, WriteUnfiltered, query.flags()), path(p)
+    : Job(WriteUnfiltered, query.flags()), path(p)
 {
+    setId(i);
 }
 
 static bool inline endsWith(const char *haystack, int haystackLength, const char *needle)

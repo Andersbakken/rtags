@@ -3,8 +3,9 @@
 #include "ScopedDB.h"
 
 TestJob::TestJob(const Path &p, int i)
-    : Job(i, 0, 0), path(p)
+    : Job(0, 0), path(p)
 {
+    setId(i);
 }
 
 void TestJob::execute()

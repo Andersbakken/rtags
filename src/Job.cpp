@@ -6,8 +6,8 @@
 
 // static int count = 0;
 // static int active = 0;
-Job::Job(int id, unsigned jobFlags, unsigned queryFlags)
-    : mId(id), mJobFlags(jobFlags), mQueryFlags(queryFlags)
+Job::Job(unsigned jobFlags, unsigned queryFlags)
+    : mJobFlags(jobFlags), mQueryFlags(queryFlags)
 {
     // error() << metaObject()->className() << "born" << ++count << ++active;
     setAutoDelete(false);

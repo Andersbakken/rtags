@@ -19,11 +19,12 @@ public:
         QuoteOutput = 0x2,
         OutputSignalEnabled = 0x4
     };
-    Job(int id, unsigned jobFlags, unsigned queryFlags);
+    Job(unsigned jobFlags, unsigned queryFlags);
     ~Job();
     void setPathFilters(const List<ByteArray> &filter);
     List<ByteArray> pathFilters() const;
     int id() const { return mId; }
+    void setId(int id) { mId = id; }
     void write(const ByteArray &out);
     void writeRaw(const ByteArray &out);
     unsigned jobFlags() const { return mJobFlags; }
@@ -37,7 +38,7 @@ public:
     signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
     void write(const Location &location, const CursorInfo &info);
 private:
-    const int mId;
+    int mId;
     unsigned mJobFlags;
     unsigned mQueryFlags;
     List<ByteArray> mPathFilters;
