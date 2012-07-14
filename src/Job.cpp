@@ -6,18 +6,23 @@
 
 // static int count = 0;
 // static int active = 0;
-Job::Job(unsigned jobFlags, unsigned queryFlags)
-    : mJobFlags(jobFlags), mQueryFlags(queryFlags)
+Job::Job(unsigned jobFlags)
+    : mJobFlags(jobFlags), mQueryFlags(0)
 {
-    // error() << metaObject()->className() << "born" << ++count << ++active;
     setAutoDelete(false);
 }
 
-Job::~Job()
+Job::Job(const QueryMessage &query, unsigned jobFlags)
+    : mJobFlags(jobFlags), mQueryFlags(query.flags())
 {
-    // error() << metaObject()->className() << "died" << count << --active;
+    setPathFilters(query.pathFilters());
+    setAutoDelete(false);
 }
 
+
+Job::~Job()
+{
+}
 
 void Job::setPathFilters(const List<ByteArray> &filter)
 {

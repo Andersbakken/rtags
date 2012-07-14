@@ -10,10 +10,9 @@ static inline unsigned jobFlags(unsigned queryFlags)
 }
 
 FindSymbolsJob::FindSymbolsJob(int i, const QueryMessage &query)
-    : Job(::jobFlags(query.flags()), query.flags()), string(query.query())
+    : Job(query, ::jobFlags(query.flags())), string(query.query())
 {
     setId(i);
-    setPathFilters(query.pathFilters());
 }
 
 struct LocationAndDefinitionNode

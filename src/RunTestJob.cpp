@@ -10,7 +10,7 @@
 #include "QueryMessage.h"
 
 RunTestJob::RunTestJob(const Path &p, int i, const QueryMessage &query)
-    : Job(WriteUnfiltered, query.flags()), path(p)
+    : Job(query, WriteUnfiltered), path(p)
 {
     setId(i);
 }
@@ -100,7 +100,7 @@ void RunTestJob::execute()
                         write("Can't parse line [" + line + "] during symbol tests");
                         return;
                     }
-                    const ByteArray cursorInfo = runJob(new CursorInfoJob(-1, loc, 0)).toList().value(0);
+                    const ByteArray cursorInfo = runJob(new CursorInfoJob(-1, loc, QueryMessage())).toList().value(0);
                     if (strncmp(cursorInfo.constData(), line.constData() + 2, cursorInfo.size())) {
                         write("Failed test, something's different here");
                     }

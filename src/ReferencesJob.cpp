@@ -4,15 +4,15 @@
 #include "RTags.h"
 #include "CursorInfo.h"
 
-ReferencesJob::ReferencesJob(int i, const Location &loc, unsigned flags)
-    : Job(0, flags), symbolName(ByteArray())
+ReferencesJob::ReferencesJob(int i, const Location &loc, const QueryMessage &query)
+    : Job(query, 0)
 {
     setId(i);
     locations.insert(loc);
 }
 
-ReferencesJob::ReferencesJob(int i, const ByteArray &sym, unsigned flags)
-    : Job(0, flags), symbolName(sym)
+ReferencesJob::ReferencesJob(int i, const ByteArray &sym, const QueryMessage &query)
+    : Job(query, 0), symbolName(sym)
 {
     setId(i);
 }

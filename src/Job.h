@@ -10,6 +10,7 @@
 
 class CursorInfo;
 class Location;
+class QueryMessage;
 class Job : public ThreadPool::Job, public AbortInterface
 {
 public:
@@ -19,7 +20,8 @@ public:
         QuoteOutput = 0x2,
         OutputSignalEnabled = 0x4
     };
-    Job(unsigned jobFlags, unsigned queryFlags);
+    Job(const QueryMessage &msg, unsigned jobFlags);
+    Job(unsigned jobFlags);
     ~Job();
     void setPathFilters(const List<ByteArray> &filter);
     List<ByteArray> pathFilters() const;

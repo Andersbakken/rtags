@@ -5,8 +5,8 @@
 #include "leveldb/db.h"
 #include "CursorInfo.h"
 
-FollowLocationJob::FollowLocationJob(int i, const Location &loc, unsigned f)
-    : Job(0, f), location(loc)
+FollowLocationJob::FollowLocationJob(int i, const Location &loc, const QueryMessage &query)
+    : Job(query, 0), location(loc)
 {
     setId(i);
 }

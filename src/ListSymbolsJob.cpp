@@ -6,10 +6,9 @@
 #include "RTags.h"
 
 ListSymbolsJob::ListSymbolsJob(int i, const QueryMessage &query)
-    : Job(query.flags() & QueryMessage::ElispList ? Job::QuoteOutput : Job::None, query.flags()), string(query.query())
+    : Job(query, query.flags() & QueryMessage::ElispList ? Job::QuoteOutput : Job::None), string(query.query())
 {
     setId(i);
-    setPathFilters(query.pathFilters());
 }
 
 void ListSymbolsJob::execute()

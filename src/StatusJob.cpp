@@ -9,7 +9,7 @@
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(int i, const QueryMessage &q, std::tr1::shared_ptr<Indexer> indexer)
-    : Job(WriteUnfiltered, q.flags()), query(q.query()), mIndexer(indexer)
+    : Job(q, WriteUnfiltered), query(q.query()), mIndexer(indexer)
 {
     setId(i);
 }
