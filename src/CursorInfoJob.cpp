@@ -5,13 +5,8 @@
 #include "leveldb/db.h"
 #include "CursorInfo.h"
 
-CursorInfoJob::CursorInfoJob(int id, const Location &loc, const QueryMessage &query)
+CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query)
     : Job(query, 0), location(loc)
-{
-    setId(id);
-}
-
-CursorInfoJob::~CursorInfoJob()
 {
 }
 

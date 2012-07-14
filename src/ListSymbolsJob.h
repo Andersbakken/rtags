@@ -9,7 +9,7 @@
 class ListSymbolsJob : public Job
 {
 public:
-    ListSymbolsJob(int i, const QueryMessage &query);
+    ListSymbolsJob(const QueryMessage &query);
 protected:
     virtual void execute();
 private:

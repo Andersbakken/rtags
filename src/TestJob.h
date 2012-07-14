@@ -7,7 +7,7 @@
 class TestJob : public Job
 {
 public:
-    TestJob(const Path &path, int id);
+    TestJob(const Path &path);
 protected:
     virtual void execute();
 private:

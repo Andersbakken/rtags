@@ -10,8 +10,8 @@
 class ReferencesJob : public Job
 {
 public:
-    ReferencesJob(int id, const Location &location, const QueryMessage &query);
-    ReferencesJob(int id, const ByteArray &symbolName, const QueryMessage &query);
+    ReferencesJob(const Location &location, const QueryMessage &query);
+    ReferencesJob(const ByteArray &symbolName, const QueryMessage &query);
 protected:
     virtual void execute();
 private:

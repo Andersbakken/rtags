@@ -11,8 +11,7 @@ class QueryMessage;
 class CursorInfoJob : public Job
 {
 public:
-    CursorInfoJob(int id, const Location &loc, const QueryMessage &query);
-    ~CursorInfoJob();
+    CursorInfoJob(const Location &loc, const QueryMessage &query);
 protected:
     virtual void execute();
 private:

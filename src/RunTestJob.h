@@ -31,7 +31,7 @@ class QueryMessage;
 class RunTestJob : public Job
 {
 public:
-    RunTestJob(const Path &path, int id, const QueryMessage &query);
+    RunTestJob(const Path &path, const QueryMessage &query);
 protected:
     virtual void execute();
     void testSymbolNames(const ByteArray &symbolName, const Set<ByteArray> &expectedLocations);

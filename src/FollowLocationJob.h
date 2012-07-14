@@ -10,7 +10,7 @@
 class FollowLocationJob : public Job
 {
 public:
-    FollowLocationJob(int id, const Location &loc, const QueryMessage &query);
+    FollowLocationJob(const Location &loc, const QueryMessage &query);
     ~FollowLocationJob();
 protected:
     virtual void execute();

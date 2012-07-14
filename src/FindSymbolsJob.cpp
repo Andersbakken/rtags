@@ -9,10 +9,9 @@ static inline unsigned jobFlags(unsigned queryFlags)
     return (queryFlags & QueryMessage::ElispList) ? Job::WriteUnfiltered|Job::QuoteOutput : Job::WriteUnfiltered;
 }
 
-FindSymbolsJob::FindSymbolsJob(int i, const QueryMessage &query)
+FindSymbolsJob::FindSymbolsJob(const QueryMessage &query)
     : Job(query, ::jobFlags(query.flags())), string(query.query())
 {
-    setId(i);
 }
 
 struct LocationAndDefinitionNode

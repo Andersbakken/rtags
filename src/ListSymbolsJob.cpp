@@ -5,10 +5,9 @@
 #include "Log.h"
 #include "RTags.h"
 
-ListSymbolsJob::ListSymbolsJob(int i, const QueryMessage &query)
+ListSymbolsJob::ListSymbolsJob(const QueryMessage &query)
     : Job(query, query.flags() & QueryMessage::ElispList ? Job::QuoteOutput : Job::None), string(query.query())
 {
-    setId(i);
 }
 
 void ListSymbolsJob::execute()

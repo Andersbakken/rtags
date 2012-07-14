@@ -455,14 +455,13 @@ int Server::followLocation(const QueryMessage &query)
     }
     updateProjectForLocation(loc);
 
-    const int id = nextId();
-
     error("rc -f %s", loc.key().constData());
 
-    FollowLocationJob *job = new FollowLocationJob(id, loc, query);
+    FollowLocationJob *job = new FollowLocationJob(loc, query);
+    job->setId(nextId());
     startJob(job);
 
-    return id;
+    return job->id();
 }
 
 int Server::cursorInfo(const QueryMessage &query)
@@ -473,14 +472,13 @@ int Server::cursorInfo(const QueryMessage &query)
     }
     updateProjectForLocation(loc);
 
-    const int id = nextId();
-
     error("rc -U %s", loc.key().constData());
 
-    CursorInfoJob *job = new CursorInfoJob(id, loc, query);
+    CursorInfoJob *job = new CursorInfoJob(loc, query);
+    job->setId(nextId());
     startJob(job);
 
-    return id;
+    return job->id();
 }
 
 
@@ -492,64 +490,62 @@ int Server::referencesForLocation(const QueryMessage &query)
     }
     updateProjectForLocation(loc);
 
-    const int id = nextId();
-
     error("rc -r %s", loc.key().constData());
 
-    ReferencesJob *job = new ReferencesJob(id, loc, query);
+    ReferencesJob *job = new ReferencesJob(loc, query);
+    job->setId(nextId());
+
     startJob(job);
 
-    return id;
+    return job->id();
 }
 
 int Server::referencesForName(const QueryMessage& query)
 {
-    const int id = nextId();
-
     const ByteArray name = query.query();
     error("rc -R \"%s\"", name.constData());
 
-    ReferencesJob *job = new ReferencesJob(id, name, query);
+    ReferencesJob *job = new ReferencesJob(name, query);
+    job->setId(nextId());
     startJob(job);
 
-    return id;
+    return job->id();
 }
 
 int Server::findSymbols(const QueryMessage &query)
 {
     const ByteArray partial = query.query();
-    const int id = nextId();
 
     error("rc -F \"%s\"", partial.constData());
 
-    FindSymbolsJob *job = new FindSymbolsJob(id, query);
+    FindSymbolsJob *job = new FindSymbolsJob(query);
+    job->setId(nextId());
     startJob(job);
 
-    return id;
+    return job->id();
 }
 
 int Server::listSymbols(const QueryMessage &query)
 {
     const ByteArray partial = query.query();
-    const int id = nextId();
 
     error("rc -S \"%s\"", partial.constData());
 
-    ListSymbolsJob *job = new ListSymbolsJob(id, query);
+    ListSymbolsJob *job = new ListSymbolsJob(query);
+    job->setId(nextId());
     startJob(job);
 
-    return id;
+    return job->id();
 }
 
 int Server::status(const QueryMessage &query)
 {
-    const int id = nextId();
-
     error("rc -s \"%s\"", query.query().constData());
 
-    StatusJob *job = new StatusJob(id, query, mCurrentProject ? mCurrentProject->indexer : std::tr1::shared_ptr<Indexer>());
+    StatusJob *job = new StatusJob(query, mCurrentProject ? mCurrentProject->indexer : std::tr1::shared_ptr<Indexer>());
+    job->setId(nextId());
     startJob(job);
-    return id;
+    return job->id();
 }
 
 int Server::runTest(const QueryMessage &query)
@@ -558,13 +554,12 @@ int Server::runTest(const QueryMessage &query)
     if (!path.isFile()) {
         return 0;
     }
-    const int id = nextId();
-
     error("rc -T \"%s\"", path.constData());
 
-    RunTestJob *job = new RunTestJob(path, id, query);
+    RunTestJob *job = new RunTestJob(path, query);
+    job->setId(nextId());
     startJob(job);
-    return id;
+    return job->id();
 }
 
 int Server::test(const QueryMessage &query)
@@ -573,13 +568,12 @@ int Server::test(const QueryMessage &query)
     if (!path.isFile()) {
         return 0;
     }
-    const int id = nextId();
-
     error("rc -t \"%s\"", path.constData());
 
-    TestJob *job = new TestJob(path, id);
+    TestJob *job = new TestJob(path);
+    job->setId(nextId());
     startJob(job);
-    return id;
+    return job->id();
 }
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)

@@ -2,10 +2,9 @@
 #include "Server.h"
 #include "ScopedDB.h"
 
-TestJob::TestJob(const Path &p, int i)
+TestJob::TestJob(const Path &p)
     : Job(0), path(p)
 {
-    setId(i);
 }
 
 void TestJob::execute()

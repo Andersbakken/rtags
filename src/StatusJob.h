@@ -10,7 +10,7 @@ class QueryMessage;
 class StatusJob : public Job
 {
 public:
-    StatusJob(int i, const QueryMessage &query, std::tr1::shared_ptr<Indexer> indexer);
+    StatusJob(const QueryMessage &query, std::tr1::shared_ptr<Indexer> indexer);
     static const char *delimiter;
 protected:
     virtual void execute();
