@@ -19,15 +19,18 @@ public:
         QuoteOutput = 0x2,
         OutputSignalEnabled = 0x4
     };
-    Job(int id, unsigned flags = 0);
+    Job(int id, unsigned jobFlags, unsigned queryFlags);
     ~Job();
-    void setPathFilters(const List<ByteArray> &filter, bool filterSystemIncludes);
+    void setPathFilters(const List<ByteArray> &filter);
     List<ByteArray> pathFilters() const;
     int id() const { return mId; }
     void write(const ByteArray &out);
     void writeRaw(const ByteArray &out);
-    unsigned flags() const { return mFlags; }
-    void setFlags(unsigned flags) { mFlags = flags; }
+    unsigned jobFlags() const { return mJobFlags; }
+    void setJobFlags(unsigned flags) { mJobFlags = flags; }
+    unsigned queryFlags() const { return mQueryFlags; }
+    void setQueryFlags(unsigned queryFlags) { mQueryFlags = queryFlags; }
+    unsigned keyFlags() const;
     bool filter(const ByteArray &val) const;
     virtual void run();
     virtual void execute() {}
@@ -35,9 +38,9 @@ public:
     void write(const Location &location, const CursorInfo &info);
 private:
     const int mId;
-    unsigned mFlags;
+    unsigned mJobFlags;
+    unsigned mQueryFlags;
     List<ByteArray> mPathFilters;
-    bool mFilterSystemIncludes;
     signalslot::Signal1<const ByteArray &> mOutput;
 };
 

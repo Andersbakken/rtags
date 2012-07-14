@@ -6,16 +6,16 @@
 #include "RTags.h"
 
 ListSymbolsJob::ListSymbolsJob(int i, const QueryMessage &query)
-    : Job(i, query.flags() & QueryMessage::ElispList ? Job::QuoteOutput : Job::None),
-      string(query.query()), queryFlags(query.flags())
+    : Job(i, query.flags() & QueryMessage::ElispList ? Job::QuoteOutput : Job::None, query.flags()), string(query.query())
 {
-    setPathFilters(query.pathFilters(), queryFlags & QueryMessage::FilterSystemIncludes);
+    setPathFilters(query.pathFilters());
 }
 
 void ListSymbolsJob::execute()
 {
     ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Read);
     const bool hasFilter = !pathFilters().isEmpty();
+    const unsigned queryFlags = Job::queryFlags();
     const bool skipParentheses = queryFlags & QueryMessage::SkipParentheses;
     const bool elispList = queryFlags & QueryMessage::ElispList;
 

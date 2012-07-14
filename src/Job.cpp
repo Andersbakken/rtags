@@ -6,8 +6,8 @@
 
 // static int count = 0;
 // static int active = 0;
-Job::Job(int id, unsigned flags)
-    : mId(id), mFlags(flags), mFilterSystemIncludes(false)
+Job::Job(int id, unsigned jobFlags, unsigned queryFlags)
+    : mId(id), mJobFlags(jobFlags), mQueryFlags(queryFlags)
 {
     // error() << metaObject()->className() << "born" << ++count << ++active;
     setAutoDelete(false);
@@ -19,10 +19,9 @@ Job::~Job()
 }
 
 
-void Job::setPathFilters(const List<ByteArray> &filter, bool filterSystemIncludes)
+void Job::setPathFilters(const List<ByteArray> &filter)
 {
     mPathFilters = filter;
-    mFilterSystemIncludes = filterSystemIncludes;
 }
 
 List<ByteArray> Job::pathFilters() const
@@ -32,8 +31,8 @@ List<ByteArray> Job::pathFilters() const
 
 void Job::write(const ByteArray &out)
 {
-    if (mFlags & WriteUnfiltered || mPathFilters.isEmpty() || filter(out)) {
-        if (mFlags & QuoteOutput) {
+    if (mJobFlags & WriteUnfiltered || mPathFilters.isEmpty() || filter(out)) {
+        if (mJobFlags & QuoteOutput) {
             ByteArray o((out.size() * 2) + 2, '"');
             char *ch = o.data() + 1;
             int l = 2;
@@ -58,7 +57,7 @@ void Job::write(const ByteArray &out)
 
 bool Job::filter(const ByteArray &val) const
 {
-    if (mPathFilters.isEmpty() || (!mFilterSystemIncludes && Path::isSystem(val.constData()))) {
+    if (mPathFilters.isEmpty() || ((!mQueryFlags & QueryMessage::FilterSystemIncludes) && Path::isSystem(val.constData()))) {
         return true;
     }
     return RTags::startsWith(mPathFilters, val);
@@ -71,7 +70,7 @@ void Job::run()
 }
 void Job::writeRaw(const ByteArray &out)
 {
-    if (mFlags & OutputSignalEnabled) {
+    if (mJobFlags & OutputSignalEnabled) {
         output()(out);
     } else {
         EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, out));
@@ -101,4 +100,8 @@ void Job::write(const Location &location, const CursorInfo &ci)
         }
     }
 
+}
+unsigned Job::keyFlags() const
+{
+    return QueryMessage::keyFlags(mQueryFlags);
 }

@@ -16,7 +16,6 @@ protected:
     virtual void execute();
 private:
     const Location location;
-    const unsigned flags;
 };
 
 #endif

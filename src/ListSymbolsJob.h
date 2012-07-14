@@ -14,7 +14,6 @@ protected:
     virtual void execute();
 private:
     const ByteArray string;
-    const unsigned queryFlags;
 };
 
 #endif

@@ -4,14 +4,14 @@
 #include "RTags.h"
 #include "CursorInfo.h"
 
-ReferencesJob::ReferencesJob(int i, const Location &loc, unsigned fl)
-    : Job(i), symbolName(ByteArray()), flags(fl)
+ReferencesJob::ReferencesJob(int i, const Location &loc, unsigned flags)
+    : Job(i, 0, flags), symbolName(ByteArray())
 {
     locations.insert(loc);
 }
 
-ReferencesJob::ReferencesJob(int i, const ByteArray &sym, unsigned fl)
-    : Job(i), symbolName(sym), flags(fl)
+ReferencesJob::ReferencesJob(int i, const ByteArray &sym, unsigned flags)
+    : Job(i, 0, flags), symbolName(sym)
 {
 }
 
@@ -25,7 +25,8 @@ void ReferencesJob::execute()
         }
     }
     ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
-    const unsigned keyFlags = QueryMessage::keyFlags(flags);
+    const unsigned keyFlags = Job::keyFlags();
+    const unsigned flags = queryFlags();
     Set<Location> refs, additionalReferences;
     for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
         // error() << "looking up refs for " << it->key() << " " << bool(flags & QueryMessage::AllReferences);
@@ -59,7 +60,7 @@ void ReferencesJob::execute()
 
 void ReferencesJob::process(ScopedDB &db, const Location &location, Set<Location> &refs, Set<Location> *additionalReferences)
 {
-    const bool allReferences = flags & QueryMessage::ReferencesForRenameSymbol;
+    const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
     Location realLoc;
     CursorInfo cursorInfo = RTags::findCursorInfo(db, location, &realLoc);
     error() << location.key() << " " << cursorInfo.kind;

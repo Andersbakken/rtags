@@ -10,13 +10,12 @@
 class CursorInfoJob : public Job
 {
 public:
-    CursorInfoJob(int id, const Location &loc, unsigned flags);
+    CursorInfoJob(int id, const Location &loc, unsigned queryFlags);
     ~CursorInfoJob();
 protected:
     virtual void execute();
 private:
     const Location location;
-    const unsigned flags;
 };
 
 #endif

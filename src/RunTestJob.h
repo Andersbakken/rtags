@@ -11,7 +11,7 @@ public:
     {}
     Set<ByteArray> runJob(Job *job)
     {
-        job->setFlags(job->flags() | Job::OutputSignalEnabled);
+        job->setJobFlags(job->jobFlags() | Job::OutputSignalEnabled);
         job->output().connect(this, &JobRunner::onOutput);
         job->execute();
         delete job;
@@ -27,10 +27,11 @@ private:
     Set<ByteArray> lines;
 };
 
+class QueryMessage;
 class RunTestJob : public Job
 {
 public:
-    RunTestJob(const Path &path, int id);
+    RunTestJob(const Path &path, int id, const QueryMessage &query);
 protected:
     virtual void execute();
     void testSymbolNames(const ByteArray &symbolName, const Set<ByteArray> &expectedLocations);

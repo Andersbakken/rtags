@@ -8,8 +8,8 @@
 #include <clang-c/Index.h>
 
 const char *StatusJob::delimiter = "*********************************";
-StatusJob::StatusJob(int i, const ByteArray &q, std::tr1::shared_ptr<Indexer> indexer)
-    : Job(i, WriteUnfiltered), query(q), mIndexer(indexer)
+StatusJob::StatusJob(int i, const QueryMessage &q, std::tr1::shared_ptr<Indexer> indexer)
+    : Job(i, WriteUnfiltered, q.flags()), query(q.query()), mIndexer(indexer)
 {
 }
 

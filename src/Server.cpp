@@ -459,8 +459,8 @@ int Server::followLocation(const QueryMessage &query)
 
     error("rc -f %s", loc.key().constData());
 
-    FollowLocationJob *job = new FollowLocationJob(id, loc, query.keyFlags());
-    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
+    FollowLocationJob *job = new FollowLocationJob(id, loc, query.flags());
+    job->setPathFilters(query.pathFilters());
     startJob(job);
 
     return id;
@@ -479,7 +479,7 @@ int Server::cursorInfo(const QueryMessage &query)
     error("rc -U %s", loc.key().constData());
 
     CursorInfoJob *job = new CursorInfoJob(id, loc, query.keyFlags());
-    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
+    job->setPathFilters(query.pathFilters());
     startJob(job);
 
     return id;
@@ -499,7 +499,7 @@ int Server::referencesForLocation(const QueryMessage &query)
     error("rc -r %s", loc.key().constData());
 
     ReferencesJob *job = new ReferencesJob(id, loc, query.flags());
-    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
+    job->setPathFilters(query.pathFilters());
     startJob(job);
 
     return id;
@@ -513,7 +513,7 @@ int Server::referencesForName(const QueryMessage& query)
     error("rc -R \"%s\"", name.constData());
 
     ReferencesJob *job = new ReferencesJob(id, name, query.flags());
-    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
+    job->setPathFilters(query.pathFilters());
     startJob(job);
 
     return id;
@@ -551,8 +551,8 @@ int Server::status(const QueryMessage &query)
 
     error("rc -s \"%s\"", query.query().constData());
 
-    StatusJob *job = new StatusJob(id, query.query(), mCurrentProject ? mCurrentProject->indexer : std::tr1::shared_ptr<Indexer>());
-    job->setPathFilters(query.pathFilters(), query.flags() & QueryMessage::FilterSystemIncludes);
+    StatusJob *job = new StatusJob(id, query, mCurrentProject ? mCurrentProject->indexer : std::tr1::shared_ptr<Indexer>());
+    job->setPathFilters(query.pathFilters());
     startJob(job);
     return id;
 }
@@ -567,7 +567,7 @@ int Server::runTest(const QueryMessage &query)
 
     error("rc -T \"%s\"", path.constData());
 
-    RunTestJob *job = new RunTestJob(path, id);
+    RunTestJob *job = new RunTestJob(path, id, query);
     startJob(job);
     return id;
 }

@@ -7,9 +7,10 @@
 #include "CursorInfoJob.h"
 #include "FollowLocationJob.h"
 #include "ReferencesJob.h"
+#include "QueryMessage.h"
 
-RunTestJob::RunTestJob(const Path &p, int i)
-    : Job(i, WriteUnfiltered), path(p)
+RunTestJob::RunTestJob(const Path &p, int i, const QueryMessage &query)
+    : Job(i, WriteUnfiltered, query.flags()), path(p)
 {
 }
 

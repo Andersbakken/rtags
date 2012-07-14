@@ -6,7 +6,7 @@
 #include "CursorInfo.h"
 
 FollowLocationJob::FollowLocationJob(int i, const Location &loc, unsigned f)
-    : Job(i), location(loc), flags(f)
+    : Job(i, 0, f), location(loc)
 {
 }
 
@@ -32,11 +32,11 @@ void FollowLocationJob::execute()
             // error() << "cursorInfo is" << RTags::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
             //          << RTags::eatString(clang_getCursorKindSpelling(target.kind));
             if (!target.isDefinition && !target.target.isNull()) {
-                write(target.target.key(flags));
+                write(target.target.key(keyFlags()));
                 return;
             }
             break; }
         }
-        write(cursorInfo.target.key(flags));
+        write(cursorInfo.target.key(keyFlags()));
     }
 }

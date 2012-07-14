@@ -5,8 +5,8 @@
 #include "leveldb/db.h"
 #include "CursorInfo.h"
 
-CursorInfoJob::CursorInfoJob(int i, const Location &loc, unsigned f)
-    : Job(i), location(loc), flags(f & ~Location::ShowContext)
+CursorInfoJob::CursorInfoJob(int i, const Location &loc, unsigned queryFlags)
+    : Job(i, 0, queryFlags), location(loc)
 {
 }
 

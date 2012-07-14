@@ -10,9 +10,9 @@ static inline unsigned jobFlags(unsigned queryFlags)
 }
 
 FindSymbolsJob::FindSymbolsJob(int i, const QueryMessage &query)
-    : Job(i), string(query.query()), queryFlags(query.flags())
+    : Job(i, ::jobFlags(query.flags()), query.flags()), string(query.query())
 {
-    setPathFilters(query.pathFilters(), queryFlags & QueryMessage::FilterSystemIncludes);
+    setPathFilters(query.pathFilters());
 }
 
 struct LocationAndDefinitionNode
@@ -70,12 +70,12 @@ void FindSymbolsJob::execute()
         sorted.push_back(LocationAndDefinitionNode(*it, RTags::findCursorInfo(db, *it).isDefinition));
     }
 
-    if (queryFlags & QueryMessage::ReverseSort) {
+    if (queryFlags() & QueryMessage::ReverseSort) {
         std::sort(sorted.begin(), sorted.end(), std::greater<LocationAndDefinitionNode>());
     } else {
         std::sort(sorted.begin(), sorted.end());
     }
-    const uint32_t keyFlags = QueryMessage::keyFlags(queryFlags);
+    const uint32_t keyFlags = QueryMessage::keyFlags(queryFlags());
     const int count = sorted.size();
     for (int i=0; i<count; ++i) {
         write(sorted.at(i).location.key(keyFlags));

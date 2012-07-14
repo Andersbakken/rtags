@@ -3,7 +3,7 @@
 #include "ScopedDB.h"
 
 TestJob::TestJob(const Path &p, int i)
-    : Job(i), path(p)
+    : Job(i, 0, 0), path(p)
 {
 }
 

@@ -6,10 +6,11 @@
 #include "Job.h"
 
 class Indexer;
+class QueryMessage;
 class StatusJob : public Job
 {
 public:
-    StatusJob(int i, const ByteArray &query, std::tr1::shared_ptr<Indexer> indexer);
+    StatusJob(int i, const QueryMessage &query, std::tr1::shared_ptr<Indexer> indexer);
     static const char *delimiter;
 protected:
     virtual void execute();
