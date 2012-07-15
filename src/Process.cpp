@@ -69,16 +69,15 @@ ProcessThread::ProcessThread()
     eintrwrap(flg, ::fcntl(sProcessPipe[1], F_GETFL, 0));
     eintrwrap(flg, ::fcntl(sProcessPipe[1], F_SETFL, flg | O_NONBLOCK));
 
+#ifdef HAVE_SIGINFO
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
-#ifdef HAVE_SIGINFO
     sa.sa_sigaction = ProcessThread::processSignalHandler;
     sa.sa_flags = SA_RESTART | SA_SIGINFO;
+    ::sigaction(SIGCHLD, &sa, 0);
 #else
-    sa.sa_handler = ProcessThread::processSignalHandler;
-    sa.sa_flags = SA_RESTART;
+    ::signal(SIGCHLD, ProcessThread::processSignalHandler);
 #endif
-    sigaction(SIGCHLD, &sa, 0);
 }
 
 void ProcessThread::addPid(pid_t pid, Process* process)
