@@ -28,7 +28,7 @@ public:
     ByteArray readAllStdOut();
     ByteArray readAllStdErr();
 
-    bool isDone() const { return mPid == -1; }
+    bool isFinished() const { return mPid == -1; }
     int returnCode() const { return mReturn; }
 
     void stop();
@@ -52,7 +52,6 @@ private:
 
     void handleInput(int fd);
     void handleOutput(int fd, ByteArray& buffer, int& index, signalslot::Signal0& signal);
-    void handleTerminated();
 
 private:
     int mStdIn[2];

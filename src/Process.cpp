@@ -52,10 +52,13 @@ class ProcessFinishedEvent : public Event
 public:
     enum { Type = 1 };
 
-    ProcessFinishedEvent()
-        : Event(Type)
+    ProcessFinishedEvent(pid_t p, int r)
+        : Event(Type), pid(p), returnCode(r)
     {
     }
+
+    const pid_t pid;
+    const int returnCode;
 };
 
 ProcessThread* ProcessThread::sProcessThread = 0;
@@ -120,14 +123,14 @@ void ProcessThread::run()
             //printf("got a full pid %d\n", pid);
             if (pid == 0) { // if our pid is 0 due to siginfo_t having an invalid si_pid then we have a misbehaving kernel.
                             // regardless, we need to go through all children and call a non-blocking waitpid on each of them
-                int res;
+                int ret;
                 pid_t p;
                 MutexLocker locker(&sProcessMutex);
                 std::map<pid_t, Process*>::iterator proc = sProcesses.begin();
                 const std::map<pid_t, Process*>::const_iterator end = sProcesses.end();
                 while (proc != end) {
                     //printf("testing pid %d\n", proc->first);
-                    p = ::waitpid(proc->first, &res, WNOHANG);
+                    p = ::waitpid(proc->first, &ret, WNOHANG);
                     switch(p) {
                     case 0:
                     case -1:
@@ -136,7 +139,11 @@ void ProcessThread::run()
                         break;
                     default:
                         //printf("successfully waited for pid (got %d)\n", p);
-                        proc->second->postEvent(new ProcessFinishedEvent);
+                        if (WIFEXITED(ret))
+                            ret = WEXITSTATUS(ret);
+                        else
+                            ret = -1;
+                        proc->second->postEvent(new ProcessFinishedEvent(proc->first, ret));
                         sProcesses.erase(proc++);
                     }
                 }
@@ -150,7 +157,11 @@ void ProcessThread::run()
                 MutexLocker locker(&sProcessMutex);
                 std::map<pid_t, Process*>::iterator proc = sProcesses.find(pid);
                 if (proc != sProcesses.end()) {
-                    proc->second->postEvent(new ProcessFinishedEvent);
+                    if (WIFEXITED(ret))
+                        ret = WEXITSTATUS(ret);
+                    else
+                        ret = -1;
+                    proc->second->postEvent(new ProcessFinishedEvent(pid, ret));
                     sProcesses.erase(proc);
                 }
             }
@@ -226,7 +237,21 @@ Process::~Process()
 void Process::event(const Event* event)
 {
     assert(event->type() == ProcessFinishedEvent::Type);
-    handleTerminated();
+    const ProcessFinishedEvent* pevent = static_cast<const ProcessFinishedEvent*>(event);
+    if (mPid == -1) {
+        error() << "process already finished, pid " << pevent->pid;
+        return;
+    }
+    assert(mPid == pevent->pid);
+    mPid = -1;
+    mReturn = pevent->returnCode;
+
+    mStdInBuffer.clear();
+    closeStdIn();
+    closeStdOut();
+    closeStdErr();
+
+    mFinished();
 }
 
 void Process::setCwd(const Path& cwd)
@@ -500,31 +525,12 @@ void Process::handleOutput(int fd, ByteArray& buffer, int& index, signalslot::Si
         signal();
 }
 
-void Process::handleTerminated()
-{
-    if (mPid == -1)
-        return;
-
-    mStdInBuffer.clear();
-    closeStdIn();
-    closeStdOut();
-    closeStdErr();
-
-    int err;
-    eintrwrap(err, ::waitpid(mPid, &mReturn, WNOHANG));
-    mPid = -1;
-
-    mFinished();
-}
-
 void Process::stop()
 {
     if (mPid == -1)
         return;
 
     ::kill(mPid, SIGTERM);
-    int err;
-    eintrwrap(err, ::waitpid(mPid, &mReturn, 0));
 }
 
 List<ByteArray> Process::environment()

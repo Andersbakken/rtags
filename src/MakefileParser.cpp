@@ -142,7 +142,7 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
 
 bool MakefileParser::isDone() const
 {
-    return mProc && mProc->isDone();
+    return mProc && mProc->isFinished();
 }
 
 void MakefileParser::processMakeOutput()
