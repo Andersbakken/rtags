@@ -268,7 +268,6 @@ public:
 
     List<ByteArray> split(char ch) const
     {
-        // ### is this right?
         List<ByteArray> ret;
         int last = 0;
         while (1) {

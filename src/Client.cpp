@@ -15,7 +15,7 @@ Client::Client(const Path &path, unsigned flags, const List<ByteArray> &rdmArgs)
     }
     Messages::init();
     const bool ret = connectToServer();
-    if (mFlags & RestartRdm) { // ### something about this is buggy
+    if (mFlags & RestartRdm) {
         if (ret) {
             QueryMessage msg(QueryMessage::Shutdown);
             message(&msg);
