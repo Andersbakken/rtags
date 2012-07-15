@@ -29,6 +29,7 @@ check_cxx_symbol_exists(inotify_init "sys/inotify.h" HAVE_INOTIFY)
 check_cxx_symbol_exists(kqueue "sys/types.h;sys/event.h" HAVE_KQUEUE)
 check_cxx_symbol_exists(SO_NOSIGPIPE "sys/types.h;sys/socket.h" HAVE_NOSIGPIPE)
 check_cxx_symbol_exists(MSG_NOSIGNAL "sys/types.h;sys/socket.h" HAVE_NOSIGNAL)
+check_cxx_symbol_exists(SA_SIGINFO "signal.h" HAVE_SIGINFO)
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/config.h)

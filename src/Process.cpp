@@ -2,6 +2,13 @@
 #include "EventLoop.h"
 #include "Log.h"
 #include "RTags.h"
+#include "Thread.h"
+#include "Mutex.h"
+#include "MutexLocker.h"
+#include "config.h"
+#include <map>
+#include <assert.h>
+#include <pthread.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
@@ -9,9 +16,187 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+static pthread_once_t sProcessHandler = PTHREAD_ONCE_INIT;
+
+class ProcessThread : public Thread
+{
+public:
+    static void stop();
+    static void installProcessHandler();
+    static void addPid(pid_t pid, Process* process);
+
+protected:
+    void run();
+
+private:
+    ProcessThread();
+
+#ifdef HAVE_SIGINFO
+    static void processSignalHandler(int sig, siginfo_t* info, void* /*context*/);
+#else
+    static void processSignalHandler(int sig);
+#endif
+    static void sendPid(pid_t pid);
+
+private:
+    static ProcessThread* sProcessThread;
+    static int sProcessPipe[2];
+
+    static Mutex sProcessMutex;
+    static std::map<pid_t, Process*> sProcesses;
+};
+
+class ProcessFinishedEvent : public Event
+{
+public:
+    enum { Type = 1 };
+
+    ProcessFinishedEvent()
+        : Event(Type)
+    {
+    }
+};
+
+ProcessThread* ProcessThread::sProcessThread = 0;
+int ProcessThread::sProcessPipe[2];
+Mutex ProcessThread::sProcessMutex;
+std::map<pid_t, Process*> ProcessThread::sProcesses;
+
+ProcessThread::ProcessThread()
+{
+    int flg;
+    eintrwrap(flg, ::pipe(sProcessPipe));
+    eintrwrap(flg, ::fcntl(sProcessPipe[1], F_GETFL, 0));
+    eintrwrap(flg, ::fcntl(sProcessPipe[1], F_SETFL, flg | O_NONBLOCK));
+
+    struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+#ifdef HAVE_SIGINFO
+    sa.sa_sigaction = ProcessThread::processSignalHandler;
+    sa.sa_flags = SA_RESTART | SA_SIGINFO;
+#else
+    sa.sa_handler = ProcessThread::processSignalHandler;
+    sa.sa_flags = SA_RESTART;
+#endif
+    sigaction(SIGCHLD, &sa, 0);
+}
+
+void ProcessThread::addPid(pid_t pid, Process* process)
+{
+    MutexLocker locker(&sProcessMutex);
+    sProcesses[pid] = process;
+}
+
+void ProcessThread::stop()
+{
+    const pid_t stopPid = 1; // assume that no user process has a pid of 1
+    sendPid(stopPid);
+}
+
+void ProcessThread::run()
+{
+    pid_t pid;
+    char* buf = reinterpret_cast<char*>(&pid);
+    ssize_t hasread = 0, r;
+    for (;;) {
+        //printf("reading pid (%lu remaining)\n", sizeof(pid_t) - hasread);
+        r = ::read(sProcessPipe[0], &buf[hasread], sizeof(pid_t) - hasread);
+        //printf("did read %ld\n", r);
+        if (r >= 0)
+            hasread += r;
+        else {
+            if (errno != EINTR) {
+                error() << "ProcessThread is dying, errno " << errno << " strerror " << strerror(errno);
+                break;
+            }
+        }
+        if (hasread == sizeof(pid_t)) {
+            //printf("got a full pid %d\n", pid);
+            if (pid == 0) { // if our pid is 0 due to siginfo_t having an invalid si_pid then we have a misbehaving kernel.
+                            // regardless, we need to go through all children and call a non-blocking waitpid on each of them
+                int res;
+                pid_t p;
+                MutexLocker locker(&sProcessMutex);
+                std::map<pid_t, Process*>::iterator proc = sProcesses.begin();
+                const std::map<pid_t, Process*>::const_iterator end = sProcesses.end();
+                while (proc != end) {
+                    //printf("testing pid %d\n", proc->first);
+                    p = ::waitpid(proc->first, &res, WNOHANG);
+                    switch(p) {
+                    case 0:
+                    case -1:
+                        //printf("this is not the pid I'm looking for\n");
+                        ++proc;
+                        break;
+                    default:
+                        //printf("successfully waited for pid (got %d)\n", p);
+                        proc->second->postEvent(new ProcessFinishedEvent);
+                        sProcesses.erase(proc++);
+                    }
+                }
+            } else if (pid == 1) { // stopped
+                break;
+            } else {
+                int ret;
+                //printf("blocking wait pid %d\n", pid);
+                ::waitpid(pid, &ret, 0);
+                //printf("wait complete\n");
+                MutexLocker locker(&sProcessMutex);
+                std::map<pid_t, Process*>::iterator proc = sProcesses.find(pid);
+                if (proc != sProcesses.end()) {
+                    proc->second->postEvent(new ProcessFinishedEvent);
+                    sProcesses.erase(proc);
+                }
+            }
+            hasread = 0;
+        }
+    }
+    debug() << "ProcessThread dead";
+    //printf("process thread died for some reason\n");
+}
+
+void ProcessThread::sendPid(pid_t pid)
+{
+    const char* buf = reinterpret_cast<const char*>(&pid);
+    ssize_t written = 0, w;
+    //printf("sending pid %d\n", pid);
+    do {
+        w = ::write(sProcessPipe[1], &buf[written], sizeof(pid_t) - written);
+        if (w >= 0)
+            written += w;
+    } while ((static_cast<size_t>(written) < sizeof(pid_t))
+             || (w == -1 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)));
+    //printf("sent pid %ld\n", written);
+}
+
+#ifdef HAVE_SIGINFO
+void ProcessThread::processSignalHandler(int sig, siginfo_t* info, void*)
+{
+    assert(sig == SIGCHLD);
+    (void)sig;
+    sendPid(info->si_pid);
+}
+#else
+void ProcessThread::processSignalHandler(int sig)
+{
+    assert(sig == SIGCHLD);
+    (void)sig;
+    sendPid(0);
+}
+#endif
+
+void ProcessThread::installProcessHandler()
+{
+    assert(sProcessThread == 0);
+    sProcessThread = new ProcessThread;
+    sProcessThread->start();
+}
+
 Process::Process()
     : mPid(-1), mReturn(0), mStdInIndex(0), mStdOutIndex(0), mStdErrIndex(0)
 {
+    pthread_once(&sProcessHandler, ProcessThread::installProcessHandler);
+
     mStdIn[0] = mStdIn[1] = -1;
     mStdOut[0] = mStdOut[1] = -1;
     mStdErr[0] = mStdErr[1] = -1;
@@ -27,6 +212,12 @@ Process::~Process()
     closeStdIn();
     closeStdOut();
     closeStdErr();
+}
+
+void Process::event(const Event* event)
+{
+    assert(event->type() == ProcessFinishedEvent::Type);
+    handleTerminated();
 }
 
 void Process::setCwd(const Path& cwd)
@@ -132,6 +323,8 @@ bool Process::start(const ByteArray& command,
         (void)ret;
         //printf("fork, exec seemingly failed %d, %d %s\n", ret, errno, strerror(errno));
     } else {
+        ProcessThread::addPid(mPid, this);
+
         // parent
         eintrwrap(err, ::close(mStdIn[0]));
         eintrwrap(err, ::close(mStdOut[1]));
@@ -259,16 +452,15 @@ void Process::handleOutput(int fd, ByteArray& buffer, int& index, signalslot::Si
     enum { BufSize = 1024, MaxSize = (1024 * 1024 * 16) };
     char buf[BufSize];
     int total = 0;
-    bool term = false;
     for (;;) {
         int r;
         eintrwrap(r, ::read(fd, buf, BufSize));
         if (r == -1) {
             //printf("Process::handleOutput %d returning -1, errno %d %s\n", fd, errno, strerror(errno));
             break;
-        } else if (r == 0) { // Assume process terminated
+        } else if (r == 0) { // file descriptor closed, remove it
             //printf("Process::handleOutput %d returning 0\n", fd);
-            term = true;
+            EventLoop::instance()->removeFileDescriptor(fd);
             break;
         } else {
             //printf("Process::handleOutput in loop %d\n", fd);
@@ -297,8 +489,6 @@ void Process::handleOutput(int fd, ByteArray& buffer, int& index, signalslot::Si
 
     if (total)
         signal();
-    if (term)
-        handleTerminated();
 }
 
 void Process::handleTerminated()

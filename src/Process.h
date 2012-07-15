@@ -2,12 +2,13 @@
 #define PROCESS_H
 
 #include "ByteArray.h"
+#include "EventReceiver.h"
 #include "Path.h"
 #include "List.h"
 #include <signalslot.h>
 #include <deque>
 
-class Process
+class Process : public EventReceiver
 {
 public:
     Process();
@@ -39,6 +40,9 @@ public:
     static List<ByteArray> environment();
 
     static Path findCommand(const ByteArray& command);
+
+protected:
+    virtual void event(const Event* event);
 
 private:
     static void processCallback(int fd, unsigned int flags, void* userData);

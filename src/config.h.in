@@ -9,5 +9,6 @@
 #cmakedefine HAVE_KQUEUE
 #cmakedefine HAVE_NOSIGPIPE
 #cmakedefine HAVE_NOSIGNAL
+#cmakedefine HAVE_SIGINFO
 
 #endif
