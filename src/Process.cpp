@@ -24,6 +24,7 @@ public:
     static void stop();
     static void installProcessHandler();
     static void addPid(pid_t pid, Process* process);
+    static void removePid(pid_t pid);
 
 protected:
     void run();
@@ -84,6 +85,12 @@ void ProcessThread::addPid(pid_t pid, Process* process)
 {
     MutexLocker locker(&sProcessMutex);
     sProcesses[pid] = process;
+}
+
+void ProcessThread::removePid(pid_t pid)
+{
+    MutexLocker locker(&sProcessMutex);
+    sProcesses.erase(pid);
 }
 
 void ProcessThread::stop()
@@ -203,6 +210,9 @@ Process::Process()
 
 Process::~Process()
 {
+    if (mPid != -1)
+        ProcessThread::removePid(mPid);
+
     if (mStdIn[0] != -1) {
         // try to finish off any pending writes
         handleInput(mStdIn[1]);
