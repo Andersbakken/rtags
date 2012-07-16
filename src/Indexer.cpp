@@ -319,6 +319,7 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
         return;
     }
 
+    ++mJobCounter;
     IndexerJob *job = new IndexerJob(this, indexerJobFlags, input, arguments);
     job->finished().connect(this, &Indexer::onJobFinished);
 
@@ -337,7 +338,6 @@ void Indexer::startJob(IndexerJob *job)
         delete job;
         return;
     }
-    ++mJobCounter;
     assert(!mJobs.contains(job->mFileId));
     // mMutex is always held at this point
     mJobs[job->mFileId] = job;
