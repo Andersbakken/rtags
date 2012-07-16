@@ -111,7 +111,7 @@ struct QueryCommand : public Command
 
     virtual ByteArray description() const
     {
-        return ("QueryMessage " + ByteArray::number(type) + " " + query); // ### query might be binary data
+        return ("QueryMessage " + ByteArray::number(type) + " " + query);
     }
 };
 

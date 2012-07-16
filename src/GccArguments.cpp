@@ -330,7 +330,6 @@ List<ByteArray> GccArguments::explicitIncludes() const
     const int c = mImpl->includes.size();
     for (int i=0; i<c; ++i)
         incs.append(mImpl->includes.at(i));
-    // ### ????
     return incs;
 }
 

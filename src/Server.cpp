@@ -312,7 +312,7 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         Map<Path, Project*>::iterator it = mProjects.begin();
         while (it != mProjects.end()) {
             if (rx.indexIn(it->first) != -1) {
-                it->second->indexer->abort(); // ### this isn't really safe until this function blocks until properly finished
+                it->second->indexer->abort();
                 delete it->second;
                 ResponseMessage msg("Erased " + it->first);
                 conn->send(&msg);
