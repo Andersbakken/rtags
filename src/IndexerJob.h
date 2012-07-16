@@ -20,13 +20,12 @@ public:
         Priorities = DirtyPch|Dirty|Makefile,
         PersistTranslationUnit = 0x8
     };
-    IndexerJob(Indexer *indexer, int id, unsigned flags,
+    IndexerJob(Indexer *indexer, unsigned flags,
                const Path &input, const List<ByteArray> &arguments);
     int priority() const { return mFlags & Priorities; }
     virtual void run();
     void execute();
 
-    const int mId;
     unsigned mFlags;
     bool mIsPch;
     Location createLocation(const CXCursor &cursor, bool *blocked);

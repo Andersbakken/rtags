@@ -20,7 +20,7 @@ public:
 
     void init(const Path &srcRoot, const Path &projectRoot, bool validate);
 
-    int index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
+    void index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
 
     void setPchDependencies(const Path &pchHeader, const Set<uint32_t> &deps);
     void addDependencies(const DependencyMap &hash);
@@ -69,7 +69,8 @@ private:
     WaitCondition mWaitCondition;
 
     ByteArray mPath;
-    Map<int, IndexerJob*> mJobs, mWaitingForPch, mWaitingForAbort;
+    Map<int, IndexerJob*> mJobs, mWaitingForAbort;
+    Set<IndexerJob*> mWaitingForPch;
 
     bool mTimerRunning;
     Timer mTimer;

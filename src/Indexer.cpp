@@ -264,9 +264,9 @@ void Indexer::onJobFinished(IndexerJob *job)
     {
         mJobs.remove(job->mFileId);
         if (job->mIsPch) {
-            Map<int, IndexerJob*>::iterator it = mWaitingForPch.begin();
+            Set<IndexerJob*>::iterator it = mWaitingForPch.begin();
             while (it != mWaitingForPch.end()) {
-                IndexerJob *job = it->second;
+                IndexerJob *job = *it;
                 if (!needsToWaitForPch(job)) {
                     mWaitingForPch.erase(it++);
                     startJob(job);
@@ -304,20 +304,19 @@ void Indexer::onJobFinished(IndexerJob *job)
 }
 
 
-int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags)
+void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags)
 {
     MutexLocker locker(&mMutex);
 
-    const uint32_t fileId = Location::insertFile(input);
-
-    const int id = ++mJobCounter;
-    IndexerJob *job = new IndexerJob(this, id, indexerJobFlags, input, arguments);
+    IndexerJob *job = new IndexerJob(this, indexerJobFlags, input, arguments);
     job->finished().connect(this, &Indexer::onJobFinished);
 
     if (needsToWaitForPch(job)) {
-        mWaitingForPch[id] = job;
-        return id;
+        mWaitingForPch.insert(job); // ### this could use the pch file(s) it waits for as key
+        return;
     }
+
+    const uint32_t fileId = Location::insertFile(input);
 
     IndexerJob *existing = mJobs.value(fileId);
     if (existing) {
@@ -328,11 +327,10 @@ int Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned
         // ### new thread? what about the id?
         delete j;
         j = job;
-        return -1;
+        return;
     }
 
     startJob(job);
-    return id;
 }
 
 void Indexer::startJob(IndexerJob *job)
@@ -342,6 +340,7 @@ void Indexer::startJob(IndexerJob *job)
         delete job;
         return;
     }
+    ++mJobCounter;
     assert(!mJobs.contains(job->mFileId));
     // mMutex is always held at this point
     mJobs[job->mFileId] = job;
@@ -515,8 +514,8 @@ bool Indexer::needsToWaitForPch(IndexerJob *job) const
 void Indexer::abort()
 {
     MutexLocker lock(&mMutex);
-    for (Map<int, IndexerJob*>::const_iterator it = mWaitingForPch.begin(); it != mWaitingForPch.end(); ++it) {
-        delete it->second;
+    for (Set<IndexerJob*>::const_iterator it = mWaitingForPch.begin(); it != mWaitingForPch.end(); ++it) {
+        delete *it;
     }
     mWaitingForPch.clear();
 

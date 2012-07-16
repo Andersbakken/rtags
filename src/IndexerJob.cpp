@@ -93,12 +93,8 @@ static inline Map<Path, Path> extractPchFiles(const Path &pchDir, const List<Byt
         if (nextIsPch) {
             nextIsPch = false;
             const Path header = arg;
-            const time_t lastModified = header.lastModified();
             const Path pchFile = pchFileName(pchDir, header);
-            const time_t lastModifiedPch = pchFile.lastModified();
-            if (lastModified && lastModified <= lastModifiedPch) {
-                out[header] = pchFile;
-            }
+            out[header] = pchFile;
         } else if (arg == "-include-pch") {
             nextIsPch = true;
         }
@@ -118,10 +114,10 @@ static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &a
 }
 
 
-IndexerJob::IndexerJob(Indexer *indexer, int id, unsigned flags,
+IndexerJob::IndexerJob(Indexer *indexer, unsigned flags,
                        const Path &input, const List<ByteArray> &arguments)
 
-    : mId(id), mFlags(flags), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
+    : mFlags(flags), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
       mPchHeaders(extractPchFiles(mIndexer->projectRoot(), arguments)), mUnit(0)
 {
@@ -731,9 +727,6 @@ static inline CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXCli
 void IndexerJob::execute()
 {
     Timer timer;
-    // while (!RTags::waitForMemory(10000)) {
-    //     error("%s Waiting for rdm to shrink", mIn.constData());
-    // }
     if (!mPchHeaders.isEmpty())
         mPchUSRMap = mIndexer->pchUSRMap(mPchHeaders.keys());
 
