@@ -524,11 +524,13 @@ void Indexer::abort()
     }
     mWaitingForAbort.clear();
 
-    for (Map<int, IndexerJob*>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
-        it->second->abort();
+    if (!mJobs.isEmpty()) {
+        for (Map<int, IndexerJob*>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
+            it->second->abort();
+        }
+        while (!mJobs.isEmpty())
+            mWaitCondition.wait(&mMutex);
     }
-    while (!mJobs.isEmpty())
-        mWaitCondition.wait(&mMutex);
 }
 
 ByteArray Indexer::fixIts(const Path &path) const
