@@ -293,11 +293,9 @@ void Indexer::onJobFinished(IndexerJob *job)
                     << MemoryMonitor::usage() / (1024.0 * 1024.0) << " mb of memory";
             mJobCounter = 0;
             jobsComplete()(this);
-            // if (mPendingModifiedDirectories.isEmpty()) {
             ValidateDBJob *validateJob = new ValidateDBJob(mSrcRoot, mPreviousErrors);
             validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
             Server::instance()->startJob(validateJob);
-            // }
         }
         mWaitCondition.wakeAll();
     }
@@ -308,25 +306,24 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
 {
     MutexLocker locker(&mMutex);
 
-    IndexerJob *job = new IndexerJob(this, indexerJobFlags, input, arguments);
-    job->finished().connect(this, &Indexer::onJobFinished);
-
-    if (needsToWaitForPch(job)) {
-        mWaitingForPch.insert(job); // ### this could use the pch file(s) it waits for as key
-        return;
-    }
-
     const uint32_t fileId = Location::insertFile(input);
 
     IndexerJob *existing = mJobs.value(fileId);
     if (existing) {
         existing->abort();
-        job->mFlags |= (existing->mFlags & (IndexerJob::Dirty|IndexerJob::DirtyPch));
         IndexerJob *&j = mWaitingForAbort[fileId];
-        // ### if we're already waiting for this file, is it worth it to spawn a
-        // ### new thread? what about the id?
-        delete j;
-        j = job;
+        if (!j || j->mArgs != arguments || j->mFlags != indexerJobFlags)
+            delete j;
+        j = new IndexerJob(this, indexerJobFlags, input, arguments);
+        j->finished().connect(this, &Indexer::onJobFinished);
+        return;
+    }
+
+    IndexerJob *job = new IndexerJob(this, indexerJobFlags, input, arguments);
+    job->finished().connect(this, &Indexer::onJobFinished);
+
+    if (needsToWaitForPch(job)) {
+        mWaitingForPch.insert(job); // ### this could use the pch file(s) it waits for as key
         return;
     }
 
