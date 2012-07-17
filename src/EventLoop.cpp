@@ -162,13 +162,23 @@ static inline bool timevalGreaterEqualThan(timeval* a, timeval* b)
             || (a->tv_sec == b->tv_sec && a->tv_usec >= b->tv_usec));
 }
 
+static inline void timevalAdd(timeval* a, int diff)
+{
+    a->tv_sec += diff / 1000;
+    a->tv_usec += (diff % 1000) * 1000;
+    if (a->tv_usec >= MAX_USEC) {
+        ++a->tv_sec;
+        a->tv_usec -= MAX_USEC;
+    }
+}
+
 void EventLoop::run()
 {
     mQuit = false;
     mThread = pthread_self();
     fd_set rset, wset;
     int max;
-    timeval timedata, timeselect;
+    timeval timedata, timeexpire;
     for (;;) {
         FD_ZERO(&rset);
         FD_ZERO(&wset);
@@ -190,7 +200,8 @@ void EventLoop::run()
             timeout = &timedata;
             timedata.tv_sec = next / 1000;
             timedata.tv_usec = (next % 1000) * 1000;
-            gettime(&timeselect);
+            gettime(&timeexpire);
+            timevalAdd(&timeexpire, next);
         }
         int r;
         // ### use poll instead? easier to catch exactly what fd that was problematic in the EBADF case
@@ -201,10 +212,10 @@ void EventLoop::run()
         if (timeout) {
             timeval timenew;
             gettime(&timenew);
-            if (timevalGreaterEqualThan(&timenew, &timeselect)) {
+            if (timevalGreaterEqualThan(&timenew, &timeexpire)) {
                 // the first timer has elapsed at the very least
                 assert(mTimerData.begin() != mTimerData.end());
-                int prevtimeout, diff;
+                int prevtimeout;
                 List<TimerData> copy;
                 {
                     List<TimerData*>::const_iterator it = mTimerData.begin();
@@ -230,13 +241,7 @@ void EventLoop::run()
 
                         if (it == end)
                             break;
-                        diff = it->timeout - prevtimeout;
-                        timeout->tv_sec += diff / 1000;
-                        timeout->tv_usec += (diff % 1000) * 1000;
-                        if (timeout->tv_usec >= MAX_USEC) {
-                            ++timeout->tv_sec;
-                            timeout->tv_usec -= MAX_USEC;
-                        }
+                        timevalAdd(timeout, it->timeout - prevtimeout);
                     }
                 }
             }
