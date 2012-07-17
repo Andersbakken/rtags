@@ -124,7 +124,7 @@ void EventLoop::postEvent(EventReceiver* receiver, Event* event)
 
 #define MAX_USEC 1000000
 
-static inline bool gettime(timeval* time, int timeout)
+static inline bool gettime(timeval* time)
 {
 #if defined(HAVE_MACH_ABSOLUTE_TIME)
     pthread_once(&sEventLoopInit, initTimebaseInfo);
@@ -150,14 +150,6 @@ static inline bool gettime(timeval* time, int timeout)
     }
     time->tv_sec = spec.tv_sec;
     time->tv_usec = spec.tv_nsec / 1000;
-    if (timeout) {
-        time->tv_sec += timeout / 1000;
-        time->tv_usec += (timeout % 1000) * 1000;
-        if (time->tv_usec >= MAX_USEC) {
-            ++time->tv_sec;
-            time->tv_usec -= MAX_USEC;
-        }
-    }
 #else
 #error No EventLoop::gettime() implementation
 #endif
@@ -176,7 +168,7 @@ void EventLoop::run()
     mThread = pthread_self();
     fd_set rset, wset;
     int max;
-    timeval timedata;
+    timeval timedata, timeselect;
     for (;;) {
         FD_ZERO(&rset);
         FD_ZERO(&wset);
@@ -191,11 +183,14 @@ void EventLoop::run()
             max = std::max(max, it->first);
         }
         timeval* timeout;
-        if (mTimerData.empty())
+        if (mTimerData.empty()) {
             timeout = 0;
-        else {
+        } else {
+            const int& next = (*mTimerData.begin())->timeout;
             timeout = &timedata;
-            gettime(timeout, (*mTimerData.begin())->timeout);
+            timedata.tv_sec = next / 1000;
+            timedata.tv_usec = (next % 1000) * 1000;
+            gettime(&timeselect);
         }
         int r;
         // ### use poll instead? easier to catch exactly what fd that was problematic in the EBADF case
@@ -204,9 +199,9 @@ void EventLoop::run()
             return;
         }
         if (timeout) {
-            timeval newtime;
-            gettime(&newtime, 0);
-            if (timevalGreaterEqualThan(&newtime, timeout)) {
+            timeval timenew;
+            gettime(&timenew);
+            if (timevalGreaterEqualThan(&timenew, &timeselect)) {
                 // the first timer has elapsed at the very least
                 assert(mTimerData.begin() != mTimerData.end());
                 int prevtimeout, diff;
@@ -224,7 +219,7 @@ void EventLoop::run()
                 if (it != end) {
                     while (true) {
                         prevtimeout = it->timeout;
-                        if (!timevalGreaterEqualThan(&newtime, timeout))
+                        if (!timevalGreaterEqualThan(&timenew, timeout))
                             break;
                         it->callback(it->handle, it->userData);
                         while (true) {
