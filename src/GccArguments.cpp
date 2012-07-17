@@ -4,37 +4,28 @@
 #include "RTags.h"
 #include "Process.h"
 
-class GccArgumentsImpl
-{
-public:
-    GccArgumentsImpl() : type(GccArguments::NoType), lang(GccArguments::NoLang) { }
-
-    List<ByteArray> clangArgs;
-    List<Path> inputFiles, unresolvedInputFiles, includes;
-    Path outputFile, base, compiler;
-    GccArguments::Type type;
-    GccArguments::Lang lang;
-};
-
 GccArguments::GccArguments()
-    : mImpl(new GccArgumentsImpl)
+    : mType(NoType), mLang(NoLang)
 {
 }
 
 GccArguments::GccArguments(const ByteArray &args, const Path &base)
-    : mImpl(new GccArgumentsImpl)
+    : mType(NoType), mLang(NoLang)
 {
     parse(args, base);
 }
 
-GccArguments::~GccArguments()
-{
-    delete mImpl;
-}
-
 void GccArguments::clear()
 {
-    *mImpl = GccArgumentsImpl();
+    mClangArgs.clear();
+    mInputFiles.clear();
+    mUnresolvedInputFiles.clear();
+    mIncludes.clear();
+    mOutputFile.clear();
+    mBase.clear();
+    mCompiler.clear();
+    mType = NoType;
+    mLang = NoLang;
 }
 
 static inline GccArguments::Lang guessLang(const Path &fullPath)
@@ -106,11 +97,11 @@ static inline ByteArray trim(const char *start, int size)
 
 bool GccArguments::parse(ByteArray args, const Path &base)
 {
-    mImpl->type = NoType;
-    mImpl->lang = NoLang;
-    mImpl->clangArgs.clear();
-    mImpl->inputFiles.clear();
-    mImpl->base = base;
+    mType = NoType;
+    mLang = NoLang;
+    mClangArgs.clear();
+    mInputFiles.clear();
+    mBase = base;
 
     char quote = '\0';
     List<ByteArray> split;
@@ -169,8 +160,8 @@ bool GccArguments::parse(ByteArray args, const Path &base)
         path = base;
     }
 
-    mImpl->lang = guessLang(split.front());
-    if (mImpl->lang == NoLang) {
+    mLang = guessLang(split.front());
+    if (mLang == NoLang) {
         clear();
         return false;
     }
@@ -187,35 +178,35 @@ bool GccArguments::parse(ByteArray args, const Path &base)
             switch (prevopt) {
             case 'x':
                 if (!strcmp(cur, "c-header")) {
-                    mImpl->type = Pch;
-                    assert(mImpl->lang == C);
+                    mType = Pch;
+                    assert(mLang == C);
                 } else if (!strcmp(cur, "c++-header")) {
-                    mImpl->type = Pch;
-                    assert(mImpl->lang == CPlusPlus);
+                    mType = Pch;
+                    assert(mLang == CPlusPlus);
                 }
-                mImpl->clangArgs.append("-x");
-                mImpl->clangArgs.append(cur);
+                mClangArgs.append("-x");
+                mClangArgs.append(cur);
                 break;
             case 'i': {
                 Path inc = Path::resolved(cur + ByteArray(".gch"), path, &pathok);
                 if (!pathok) // try without .gch postfix
                     inc = Path::resolved(cur, path, &pathok);
                 if (pathok) {
-                    mImpl->includes.append(inc);
+                    mIncludes.append(inc);
                 } else {
                     if (!inc.isAbsolute()) {
-                        mImpl->includes.append(Path(path + "/" + cur + ByteArray(".gch"))); // ### is assuming .gch correct here?
+                        mIncludes.append(Path(path + "/" + cur + ByteArray(".gch"))); // ### is assuming .gch correct here?
                     } else {
                         warning("-include %s could not be resolved", cur);
                     }
                 } }
                 break;
             case 'o': {
-                if (!mImpl->outputFile.isEmpty())
+                if (!mOutputFile.isEmpty())
                     warning("Already have an output file: %s (new %s)",
-                            mImpl->outputFile.constData(), cur);
+                            mOutputFile.constData(), cur);
                 Path out = Path::resolved(cur, path);
-                mImpl->outputFile = out; }
+                mOutputFile = out; }
                 break;
             default:
                 break;
@@ -242,7 +233,7 @@ bool GccArguments::parse(ByteArray args, const Path &base)
                     } else {
                         arg = cur;
                     }
-                    mImpl->clangArgs.append(arg);
+                    mClangArgs.append(arg);
                 } else if (!strncmp(cur, "-I", 2)) {
                     Path inc;
                     pathok = false;
@@ -252,41 +243,41 @@ bool GccArguments::parse(ByteArray args, const Path &base)
                         inc = Path::resolved(split.at(++i), path, &pathok);
                     }
                     if (pathok)
-                        mImpl->clangArgs.append("-I" + inc);
-                } else if (mImpl->type == NoType && !strcmp(cur, "-c")) {
-                    mImpl->type = Compile;
+                        mClangArgs.append("-I" + inc);
+                } else if (mType == NoType && !strcmp(cur, "-c")) {
+                    mType = Compile;
                 }
             }
         } else { // input file?
             Path input = Path::resolved(cur, path, &pathok);
             if (pathok)
-                mImpl->inputFiles.append(input);
-            mImpl->unresolvedInputFiles.append(cur);
+                mInputFiles.append(input);
+            mUnresolvedInputFiles.append(cur);
         }
     }
 
-    if (mImpl->type == NoType) {
+    if (mType == NoType) {
         clear();
         return false;
     }
 
-    if (mImpl->inputFiles.isEmpty()) {
+    if (mInputFiles.isEmpty()) {
         error("Unable to find or resolve input files");
-        const int c = mImpl->unresolvedInputFiles.size();
+        const int c = mUnresolvedInputFiles.size();
         for (int i=0; i<c; ++i) {
-            const ByteArray &input = mImpl->unresolvedInputFiles.at(i);
+            const ByteArray &input = mUnresolvedInputFiles.at(i);
             error("  %s", input.constData());
         }
         clear();
         return false;
     }
-    if (mImpl->outputFile.isEmpty() && mImpl->type == Pch) {
+    if (mOutputFile.isEmpty() && mType == Pch) {
         error("Output file is empty for pch");
         clear();
         return false;
     }
 
-    mImpl->outputFile = Path::resolved(mImpl->outputFile, path);
+    mOutputFile = Path::resolved(mOutputFile, path);
     static Map<Path, Path> resolvedFromPath;
     Path &compiler = resolvedFromPath[split.front()];
     if (compiler.isEmpty()) {
@@ -295,52 +286,52 @@ bool GccArguments::parse(ByteArray args, const Path &base)
             compiler = split.front();
         }
     }
-    mImpl->compiler = compiler;
+    mCompiler = compiler;
     return true;
 }
 
 GccArguments::Type GccArguments::type() const
 {
-    return mImpl->type;
+    return mType;
 }
 
 GccArguments::Lang GccArguments::lang() const
 {
-    return mImpl->lang;
+    return mLang;
 }
 
 List<ByteArray> GccArguments::clangArgs() const
 {
-    return mImpl->clangArgs;
+    return mClangArgs;
 }
 
 List<Path> GccArguments::inputFiles() const
 {
-    return mImpl->inputFiles;
+    return mInputFiles;
 }
 
 List<Path> GccArguments::unresolvedInputFiles() const
 {
-    return mImpl->unresolvedInputFiles;
+    return mUnresolvedInputFiles;
 }
 
 List<ByteArray> GccArguments::explicitIncludes() const
 {
     List<ByteArray> incs;
-    const int c = mImpl->includes.size();
+    const int c = mIncludes.size();
     for (int i=0; i<c; ++i)
-        incs.append(mImpl->includes.at(i));
+        incs.append(mIncludes.at(i));
     return incs;
 }
 
 Path GccArguments::outputFile() const
 {
-    return mImpl->outputFile;
+    return mOutputFile;
 }
 
 Path GccArguments::baseDirectory() const
 {
-    return mImpl->base;
+    return mBase;
 }
 
 void GccArguments::addFlags(const List<ByteArray> &extraFlags)
@@ -352,12 +343,11 @@ void GccArguments::addFlags(const List<ByteArray> &extraFlags)
             Path p = Path::resolved(flag.constData() + 2);
             flag.replace(2, flag.size() - 2, p);
         }
-        mImpl->clangArgs.append(flag);
+        mClangArgs.append(flag);
     }
 }
 
 Path GccArguments::compiler() const
 {
-    return mImpl->compiler;
+    return mCompiler;
 }
-

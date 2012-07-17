@@ -15,7 +15,6 @@ public:
 
     GccArguments();
     GccArguments(const ByteArray &args, const Path &base);
-    ~GccArguments();
 
     bool parse(ByteArray args, const Path &base);
     Type type() const;
@@ -31,9 +30,12 @@ public:
     Path baseDirectory() const;
     Path compiler() const;
 private:
-    GccArguments(const GccArguments &);
-    GccArguments &operator=(const GccArguments&);
-    GccArgumentsImpl *mImpl;
+    List<ByteArray> mClangArgs;
+    List<Path> mInputFiles, mUnresolvedInputFiles, mIncludes;
+    Path mOutputFile, mBase, mCompiler;
+    GccArguments::Type mType;
+    GccArguments::Lang mLang;
+    friend class MakefileParser;
 };
 
 #endif
