@@ -787,6 +787,7 @@ void IndexerJob::execute()
 
     mDependencies[mFileId].insert(mFileId);
     const Path srcRoot = mIndexer->srcRoot();
+    // error() << "writing file information " << mFileId << " " << mIn;
     writeFileInformation(mFileId, mArgs, timeStamp,
                          Server::instance()->db(Server::FileInformation, ReadWriteLock::Write, srcRoot));
     bool compileError = false;

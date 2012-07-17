@@ -602,8 +602,13 @@ void Indexer::dirty(const Set<uint32_t> &dirtyFileIds,
 {
     ScopedDB symbols = Server::instance()->db(Server::Symbol, ReadWriteLock::Write, mSrcRoot);
     ScopedDB symbolNames = Server::instance()->db(Server::SymbolName, ReadWriteLock::Write, mSrcRoot);
+#if 0
     DirtyThread *dirtyJob = new DirtyThread(dirtyFileIds, symbols, symbolNames);
     dirtyJob->start();
+#else
+    RTags::dirtySymbols(symbols, dirtyFileIds);
+    RTags::dirtySymbolNames(symbolNames, dirtyFileIds);
+#endif
 
     for (Map<Path, List<ByteArray> >::const_iterator it = dirtyPch.begin(); it != dirtyPch.end(); ++it) {
         index(it->first, it->second, IndexerJob::DirtyPch);

@@ -13,6 +13,7 @@
 #include <typeinfo>
 
 class Database;
+class ScopedDB;
 namespace RTags {
 
 enum ReferenceType {
@@ -41,6 +42,9 @@ typedef Map<Path, Set<WatchedPair> > WatchedMap;
 typedef Map<uint32_t, FileInformation> InformationMap;
 
 namespace RTags {
+void dirtySymbolNames(ScopedDB &db, const Set<uint32_t> &dirty);
+int dirtySymbols(ScopedDB &db, const Set<uint32_t> &dirty);
+
 inline bool isPch(const List<ByteArray> &args)
 {
     const int size = args.size();
