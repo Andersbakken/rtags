@@ -13,7 +13,7 @@ Job::Job(unsigned jobFlags)
 }
 
 Job::Job(const QueryMessage &query, unsigned jobFlags)
-    : mJobFlags(jobFlags), mQueryFlags(query.flags())
+    : mId(-1), mJobFlags(jobFlags), mQueryFlags(query.flags())
 {
     setPathFilters(query.pathFilters());
     setAutoDelete(false);
