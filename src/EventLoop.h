@@ -5,6 +5,7 @@
 #include "WaitCondition.h"
 #include "Thread.h"
 #include <vector>
+#include <sys/time.h>
 
 class Event;
 class EventReceiver;
@@ -40,6 +41,7 @@ public:
 private:
     void handlePipe();
     void sendPostedEvents();
+    bool reinsertTimer(int handle, timeval* now);
 
 private:
     int mEventPipe[2];
@@ -59,6 +61,7 @@ private:
     struct TimerData {
         int handle;
         int timeout;
+        timeval when;
         TimerFunc callback;
         void* userData;
     };

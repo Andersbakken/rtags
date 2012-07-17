@@ -10,7 +10,6 @@
 #include <fcntl.h>
 #include <sys/select.h>
 #include <sys/ioctl.h>
-#include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -27,6 +26,83 @@ static void initTimebaseInfo()
     sTimebaseInfo = new ThreadLocal<mach_timebase_info_data_t>();
 }
 #endif
+
+#define MAX_USEC 1000000
+
+static inline bool timevalGreaterEqualThan(const timeval* a, const timeval* b)
+{
+    return (a->tv_sec > b->tv_sec
+            || (a->tv_sec == b->tv_sec && a->tv_usec >= b->tv_usec));
+}
+
+static inline void timevalAdd(timeval* a, int diff)
+{
+    a->tv_sec += diff / 1000;
+    a->tv_usec += (diff % 1000) * 1000;
+    if (a->tv_usec >= MAX_USEC) {
+        ++a->tv_sec;
+        a->tv_usec -= MAX_USEC;
+    }
+}
+
+static inline void timevalSub(timeval* a, timeval* b)
+{
+    a->tv_sec -= b->tv_sec;
+    a->tv_usec -= b->tv_usec;
+    if (a->tv_sec < 0) {
+        a->tv_sec = a->tv_usec = 0;
+    } else if (a->tv_usec < 0) {
+        if (--a->tv_sec < 0) {
+            a->tv_sec = a->tv_usec = 0;
+        } else {
+            a->tv_usec += MAX_USEC;
+        }
+    }
+}
+
+static inline uint64_t timevalMs(timeval* a)
+{
+    return (a->tv_sec * 1000LLU) + (a->tv_usec / 1000LLU);
+}
+
+static inline int timevalDiff(timeval* a, timeval* b)
+{
+    const uint64_t ams = timevalMs(a);
+    const uint64_t bms = timevalMs(b);
+    return ams - bms;
+}
+
+static inline bool gettime(timeval* time)
+{
+#if defined(HAVE_MACH_ABSOLUTE_TIME)
+    pthread_once(&sEventLoopInit, initTimebaseInfo);
+
+    mach_timebase_info_data_t& info = sTimebaseInfo->get();
+    uint64_t machtime = mach_absolute_time();
+    if (info.denom == 0)
+        (void)mach_timebase_info(&info);
+    machtime = machtime * info.numer / (info.denom * 1000); // microseconds
+    time->tv_sec = machtime / 1000000;
+    time->tv_usec = machtime % 1000000;
+#elif defined(HAVE_CLOCK_MONOTONIC_RAW) || defined(HAVE_CLOCK_MONOTONIC)
+    timespec spec;
+#if defined(HAVE_CLOCK_MONOTONIC_RAW)
+    const clockid_t cid = CLOCK_MONOTONIC_RAW;
+#else
+    const clockid_t cid = CLOCK_MONOTONIC;
+#endif
+    const int ret = ::clock_gettime(cid, &spec);
+    if (ret == -1) {
+        memset(time, 0, sizeof(timeval));
+        return false;
+    }
+    time->tv_sec = spec.tv_sec;
+    time->tv_usec = spec.tv_nsec / 1000;
+#else
+#error No EventLoop::gettime() implementation
+#endif
+    return true;
+}
 
 EventLoop* EventLoop::sInstance = 0;
 
@@ -57,7 +133,7 @@ EventLoop* EventLoop::instance()
 
 bool EventLoop::timerLessThan(TimerData* a, TimerData* b)
 {
-    return a->timeout < b->timeout;
+    return !timevalGreaterEqualThan(&a->when, &b->when);
 }
 
 int EventLoop::addTimer(int timeout, TimerFunc callback, void* userData)
@@ -71,6 +147,8 @@ int EventLoop::addTimer(int timeout, TimerFunc callback, void* userData)
     data->timeout = timeout;
     data->callback = callback;
     data->userData = userData;
+    gettime(&data->when);
+    timevalAdd(&data->when, timeout);
     mTimerByHandle[handle] = data;
 
     List<TimerData*>::iterator it = std::lower_bound(mTimerData.begin(), mTimerData.end(),
@@ -122,63 +200,13 @@ void EventLoop::postEvent(EventReceiver* receiver, Event* event)
     } while (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
 }
 
-#define MAX_USEC 1000000
-
-static inline bool gettime(timeval* time)
-{
-#if defined(HAVE_MACH_ABSOLUTE_TIME)
-    pthread_once(&sEventLoopInit, initTimebaseInfo);
-
-    mach_timebase_info_data_t& info = sTimebaseInfo->get();
-    uint64_t machtime = mach_absolute_time();
-    if (info.denom == 0)
-        (void)mach_timebase_info(&info);
-    machtime = machtime * info.numer / (info.denom * 1000); // microseconds
-    time->tv_sec = machtime / 1000000;
-    time->tv_usec = machtime % 1000000;
-#elif defined(HAVE_CLOCK_MONOTONIC_RAW) || defined(HAVE_CLOCK_MONOTONIC)
-    timespec spec;
-#if defined(HAVE_CLOCK_MONOTONIC_RAW)
-    const clockid_t cid = CLOCK_MONOTONIC_RAW;
-#else
-    const clockid_t cid = CLOCK_MONOTONIC;
-#endif
-    const int ret = ::clock_gettime(cid, &spec);
-    if (ret == -1) {
-        memset(time, 0, sizeof(timeval));
-        return false;
-    }
-    time->tv_sec = spec.tv_sec;
-    time->tv_usec = spec.tv_nsec / 1000;
-#else
-#error No EventLoop::gettime() implementation
-#endif
-    return true;
-}
-
-static inline bool timevalGreaterEqualThan(timeval* a, timeval* b)
-{
-    return (a->tv_sec > b->tv_sec
-            || (a->tv_sec == b->tv_sec && a->tv_usec >= b->tv_usec));
-}
-
-static inline void timevalAdd(timeval* a, int diff)
-{
-    a->tv_sec += diff / 1000;
-    a->tv_usec += (diff % 1000) * 1000;
-    if (a->tv_usec >= MAX_USEC) {
-        ++a->tv_sec;
-        a->tv_usec -= MAX_USEC;
-    }
-}
-
 void EventLoop::run()
 {
     mQuit = false;
     mThread = pthread_self();
     fd_set rset, wset;
     int max;
-    timeval timedata, timeexpire;
+    timeval timedata, timenow;
     for (;;) {
         FD_ZERO(&rset);
         FD_ZERO(&wset);
@@ -196,12 +224,10 @@ void EventLoop::run()
         if (mTimerData.empty()) {
             timeout = 0;
         } else {
-            const int& next = (*mTimerData.begin())->timeout;
+            gettime(&timenow);
+            timedata = (*mTimerData.begin())->when;
+            timevalSub(&timedata, &timenow);
             timeout = &timedata;
-            timedata.tv_sec = next / 1000;
-            timedata.tv_usec = (next % 1000) * 1000;
-            gettime(&timeexpire);
-            timevalAdd(&timeexpire, next);
         }
         int r;
         // ### use poll instead? easier to catch exactly what fd that was problematic in the EBADF case
@@ -210,39 +236,34 @@ void EventLoop::run()
             return;
         }
         if (timeout) {
-            timeval timenew;
-            gettime(&timenew);
-            if (timevalGreaterEqualThan(&timenew, &timeexpire)) {
-                // the first timer has elapsed at the very least
-                assert(mTimerData.begin() != mTimerData.end());
-                int prevtimeout;
-                List<TimerData> copy;
-                {
-                    List<TimerData*>::const_iterator it = mTimerData.begin();
-                    const List<TimerData*>::const_iterator end = mTimerData.end();
-                    while (it != end) {
-                        copy.push_back(*(*it));
-                        ++it;
-                    }
-                }
-                List<TimerData>::const_iterator it = copy.begin();
-                const List<TimerData>::const_iterator end = copy.end();
-                if (it != end) {
-                    while (true) {
-                        prevtimeout = it->timeout;
-                        if (!timevalGreaterEqualThan(&timenew, &timeexpire))
-                            break;
-                        it->callback(it->handle, it->userData);
-                        while (true) {
-                            ++it;
-                            if (it == end || mTimerByHandle.contains(it->handle))
-                                break;
-                        }
+            gettime(&timenow);
 
-                        if (it == end)
+            assert(mTimerData.begin() != mTimerData.end());
+            List<TimerData> copy;
+            {
+                List<TimerData*>::const_iterator it = mTimerData.begin();
+                const List<TimerData*>::const_iterator end = mTimerData.end();
+                while (it != end) {
+                    copy.push_back(*(*it));
+                    ++it;
+                }
+            }
+            List<TimerData>::const_iterator it = copy.begin();
+            const List<TimerData>::const_iterator end = copy.end();
+            if (it != end) {
+                while (true) {
+                    if (!timevalGreaterEqualThan(&timenow, &it->when))
+                        break;
+                    if (reinsertTimer(it->handle, &timenow))
+                        it->callback(it->handle, it->userData);
+                    while (true) {
+                        ++it;
+                        if (it == end || mTimerByHandle.contains(it->handle))
                             break;
-                        timevalAdd(&timeexpire, it->timeout - prevtimeout);
                     }
+
+                    if (it == end)
+                        break;
                 }
             }
         }
@@ -278,6 +299,28 @@ void EventLoop::run()
         if (mQuit)
             break;
     }
+}
+
+bool EventLoop::reinsertTimer(int handle, timeval* now)
+{
+    // first, find the handle in the list and remove it
+    List<TimerData*>::iterator it = mTimerData.begin();
+    const List<TimerData*>::const_iterator end = mTimerData.end();
+    while (it != end) {
+        if ((*it)->handle == handle) {
+            TimerData* data = *it;
+            mTimerData.erase(it);
+            const int overtime = timevalDiff(now, &data->when);
+            data->when = *now;
+            timevalAdd(&data->when, std::max(data->timeout - overtime, 0));
+            it = std::lower_bound(mTimerData.begin(), mTimerData.end(),
+                                  data, timerLessThan);
+            mTimerData.insert(it, data);
+            return true;
+        }
+        ++it;
+    }
+    return false;
 }
 
 void EventLoop::handlePipe()
