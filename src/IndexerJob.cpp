@@ -113,7 +113,6 @@ static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &a
     return db->setValue(Slice(ch, sizeof(fileId)), FileInformation(lastTouched, args));
 }
 
-
 IndexerJob::IndexerJob(Indexer *indexer, unsigned flags,
                        const Path &input, const List<ByteArray> &arguments)
 
@@ -772,6 +771,7 @@ void IndexerJob::execute()
     if (isAborted()) {
         return;
     }
+
     CXIndex index = clang_createIndex(1, 0);
     mUnit = clang_parseTranslationUnit(index, mIn.constData(),
                                        clangArgs.data(), idx, 0, 0,
@@ -787,9 +787,9 @@ void IndexerJob::execute()
 
     mDependencies[mFileId].insert(mFileId);
     const Path srcRoot = mIndexer->srcRoot();
-    // error() << "writing file information " << mFileId << " " << mIn;
     writeFileInformation(mFileId, mArgs, timeStamp,
                          Server::instance()->db(Server::FileInformation, ReadWriteLock::Write, srcRoot));
+
     bool compileError = false;
     if (!mUnit) {
         compileError = true;

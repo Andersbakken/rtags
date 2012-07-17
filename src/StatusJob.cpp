@@ -45,7 +45,7 @@ void StatusJob::execute()
         it->seekToFirst();
         char buf[1024];
         while (it->isValid()) {
-            snprintf(buf, 1024, "  %s: %d", it->key().byteArray().constData(), it->value<uint32_t>());
+            snprintf(buf, 1024, "  %u: %s", it->value<uint32_t>(), it->key().byteArray().constData());
             write(buf);
             it->next();
         }

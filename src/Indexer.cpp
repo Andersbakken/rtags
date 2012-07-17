@@ -111,14 +111,16 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
             while (it->isValid()) {
                 const Slice key = it->key();
                 const uint32_t fileId = *reinterpret_cast<const uint32_t*>(key.data());
+                assert(key.size() == 4);
                 const Path path = Location::path(fileId);
                 if (path.isFile()) {
                     const FileInformation fi = it->value<FileInformation>();
                     if (!fi.compileArgs.isEmpty()) {
 #ifdef RTAGS_DEBUG
                         if (path.isHeader() && !RTags::isPch(fi.compileArgs)) {
-                            error() << path << fi.compileArgs << fileId;
-                            assert(0);
+                            error() << fileId << " " << path << " " << fi.compileArgs << " " << fileId;
+                            it->next();
+                            continue;
                         }
 #endif
                         ++checked;
