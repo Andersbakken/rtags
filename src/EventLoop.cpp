@@ -230,7 +230,7 @@ void EventLoop::run()
                 if (it != end) {
                     while (true) {
                         prevtimeout = it->timeout;
-                        if (!timevalGreaterEqualThan(&timenew, timeout))
+                        if (!timevalGreaterEqualThan(&timenew, &timeexpire))
                             break;
                         it->callback(it->handle, it->userData);
                         while (true) {
@@ -241,7 +241,7 @@ void EventLoop::run()
 
                         if (it == end)
                             break;
-                        timevalAdd(timeout, it->timeout - prevtimeout);
+                        timevalAdd(&timeexpire, it->timeout - prevtimeout);
                     }
                 }
             }
