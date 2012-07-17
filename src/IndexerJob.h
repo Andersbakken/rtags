@@ -17,8 +17,7 @@ public:
         DirtyPch = 0x04,
         Dirty = 0x02,
         Makefile = 0x1,
-        Priorities = DirtyPch|Dirty|Makefile,
-        PersistTranslationUnit = 0x8
+        Priorities = DirtyPch|Dirty|Makefile
     };
     IndexerJob(Indexer *indexer, unsigned flags,
                const Path &input, const List<ByteArray> &arguments);

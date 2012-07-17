@@ -675,7 +675,7 @@ struct Scope {
     void cleanup()
     {
         headerMap.clear();
-        if (unit && !(flags & IndexerJob::PersistTranslationUnit)) {
+        if (unit) {
             clang_disposeTranslationUnit(unit);
             unit = 0;
         }
