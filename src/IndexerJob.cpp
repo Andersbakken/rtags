@@ -338,46 +338,59 @@ static inline bool isInteresting(CXCursorKind kind)
     if (clang_isInvalid(kind))
         return false;
     switch (kind) {
-    case CXCursor_AsmStmt:
-    case CXCursor_CXXThisExpr:
-    case CXCursor_CXXTypeidExpr:
-    case CXCursor_CXXStaticCastExpr:
-    case CXCursor_CXXNullPtrLiteralExpr:
-    case CXCursor_CXXNewExpr: // ### Are these right?
-    case CXCursor_CXXDeleteExpr:
-    case CXCursor_CompoundAssignOperator: // ### Are these right?
-    case CXCursor_CompoundStmt:
-    case CXCursor_ParenExpr:
-    case CXCursor_StringLiteral:
-    case CXCursor_IntegerLiteral:
-    case CXCursor_InitListExpr:
-    case CXCursor_BreakStmt:
-    case CXCursor_DefaultStmt:
-    case CXCursor_BinaryOperator:
-    case CXCursor_CaseStmt:
-    case CXCursor_ConditionalOperator:
-    case CXCursor_CStyleCastExpr:
-    case CXCursor_ForStmt:
-    case CXCursor_WhileStmt:
-    case CXCursor_DoStmt:
-    case CXCursor_IfStmt:
-    case CXCursor_SwitchStmt:
-    case CXCursor_CXXTryStmt:
-    case CXCursor_CXXCatchStmt:
-    case CXCursor_ContinueStmt:
-    case CXCursor_CXXThrowExpr:
-    case CXCursor_NullStmt:
     case CXCursor_ArraySubscriptExpr:
-    case CXCursor_CXXBoolLiteralExpr:
-    case CXCursor_CharacterLiteral:
-    case CXCursor_UnaryOperator:
-    case CXCursor_ReturnStmt:
+    case CXCursor_AsmStmt:
+    case CXCursor_BinaryOperator:
+    case CXCursor_BreakStmt:
+    case CXCursor_CStyleCastExpr:
     case CXCursor_CXXAccessSpecifier:
+    case CXCursor_CXXBoolLiteralExpr:
+    case CXCursor_CXXCatchStmt:
     case CXCursor_CXXConstCastExpr:
     case CXCursor_CXXDynamicCastExpr:
+    case CXCursor_CXXForRangeStmt:
+    case CXCursor_CXXNewExpr:
+    case CXCursor_CXXNullPtrLiteralExpr:
     case CXCursor_CXXReinterpretCastExpr:
-    case CXCursor_TemplateTypeParameter:
+    case CXCursor_CXXStaticCastExpr:
+    case CXCursor_CXXThisExpr:
+    case CXCursor_CXXThrowExpr:
+    case CXCursor_CXXTryStmt:
+    case CXCursor_CXXTypeidExpr:
+    case CXCursor_CharacterLiteral:
+    case CXCursor_CompoundAssignOperator:
+    case CXCursor_CompoundStmt:
+    case CXCursor_ConditionalOperator:
+    case CXCursor_ContinueStmt:
+    case CXCursor_DeclStmt:
+    case CXCursor_DefaultStmt:
+    case CXCursor_DoStmt:
+    case CXCursor_ForStmt:
+    case CXCursor_GotoStmt:
+    case CXCursor_IfStmt:
+    case CXCursor_IndirectGotoStmt:
+    case CXCursor_InitListExpr:
+    case CXCursor_IntegerLiteral:
     case CXCursor_NonTypeTemplateParameter:
+    case CXCursor_NullStmt:
+    case CXCursor_ObjCAtCatchStmt:
+    case CXCursor_ObjCAtFinallyStmt:
+    case CXCursor_ObjCAtSynchronizedStmt:
+    case CXCursor_ObjCAtThrowStmt:
+    case CXCursor_ObjCAtTryStmt:
+    case CXCursor_ObjCAutoreleasePoolStmt:
+    case CXCursor_ObjCForCollectionStmt:
+    case CXCursor_ParenExpr:
+    case CXCursor_ReturnStmt:
+    case CXCursor_SEHExceptStmt:
+    case CXCursor_SEHFinallyStmt:
+    case CXCursor_SEHTryStmt:
+    case CXCursor_StringLiteral:
+    case CXCursor_SwitchStmt:
+    case CXCursor_TemplateTypeParameter:
+    case CXCursor_UnaryOperator:
+    case CXCursor_UnexposedStmt:
+    case CXCursor_WhileStmt:
         return false;
     default:
         break;
@@ -409,8 +422,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     const bool interesting = isInteresting(kind);
     if (testLog(VerboseDebug))
         verboseDebug() << "indexVisitor " << cursor << " " << clang_getCursorReferenced(cursor);
-    if (kind >= CXCursor_FirstStmt && kind <= CXCursor_LastStmt)
-        return CXChildVisit_Recurse;
+
     if (!interesting) {
         return CXChildVisit_Recurse;
     }
@@ -475,8 +487,8 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
             if (!clang_equalCursors(nullCursor, ref)) {
                 assert(!clang_equalCursors(cursor, ref));
                 refLoc = job->createLocation(ref, 0);
-                if (testLog(Debug)) {
-                    debug() << "Looked up definition for ref " << ref << " " << cursor;
+                if (testLog(VerboseDebug)) {
+                    verboseDebug() << "Looked up definition for ref " << ref << " " << cursor;
                 }
             }
         }
