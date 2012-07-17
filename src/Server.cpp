@@ -1,5 +1,6 @@
 #include "Server.h"
 
+#include "FileInformation.h"
 #include "Client.h"
 #include "Completions.h"
 #include "Connection.h"
@@ -780,6 +781,22 @@ static Path findProjectRoot(const Path &path)
     return Path();
 }
 
+static inline bool isIndexed(const Path &path, const List<ByteArray> &args, const Path &projectRoot)
+{
+    ScopedDB db = Server::instance()->db(Server::FileInformation, ReadWriteLock::Write, projectRoot);
+    const uint32_t fileId = Location::insertFile(path);
+    const char *ch = reinterpret_cast<const char*>(&fileId);
+    const Slice key(ch, sizeof(fileId));
+    FileInformation fi = db->value<FileInformation>(key);
+    if (fi.compileArgs != args) {
+        fi.compileArgs = args;
+        fi.lastTouched = 0;
+        db->setValue(key, fi);
+        return false;
+    }
+    return true;
+}
+
 void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 {
     List<Path> inputFiles = args.inputFiles();
@@ -839,7 +856,7 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 
     for (int i=0; i<c; ++i) {
         const Path &input = inputFiles.at(i);
-        if (arguments != RTags::compileArgs(Location::insertFile(input), projectRoot)) {
+        if (!isIndexed(input, arguments, projectRoot)) {
             proj->indexer->index(input, arguments, IndexerJob::Makefile);
         } else {
             debug() << input << " is not dirty. ignoring";
