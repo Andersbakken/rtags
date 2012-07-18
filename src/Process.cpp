@@ -248,6 +248,11 @@ void Process::event(const Event* event)
 
     mStdInBuffer.clear();
     closeStdIn();
+
+    // try to read all remaining data on stdout and stderr
+    handleOutput(mStdOut[0], mStdOutBuffer, mStdOutIndex, mReadyReadStdOut);
+    handleOutput(mStdErr[0], mStdErrBuffer, mStdErrIndex, mReadyReadStdErr);
+
     closeStdOut();
     closeStdErr();
 
