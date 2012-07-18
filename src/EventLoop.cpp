@@ -310,16 +310,22 @@ bool EventLoop::reinsertTimer(int handle, timeval* now)
         if ((*it)->handle == handle) {
             TimerData* data = *it;
             mTimerData.erase(it);
+            // how much over the target time are we?
             const int overtime = timevalDiff(now, &data->when);
             data->when = *now;
+            // the next time we want to fire is now + timeout - overtime
+            // but we don't want a negative time
             timevalAdd(&data->when, std::max(data->timeout - overtime, 0));
+            // insert the time so that the list stays sorted by absolute time
             it = std::lower_bound(mTimerData.begin(), mTimerData.end(),
                                   data, timerLessThan);
             mTimerData.insert(it, data);
+            // all done
             return true;
         }
         ++it;
     }
+    // didn't find our timer handle in the list
     return false;
 }
 
