@@ -634,6 +634,24 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
                 info.additionalReferences.insert(parentLocation);
             }
             break; }
+        case CXCursor_CXXMethod: {
+#if 0
+            // might have to find by USR for pch'ed cursors.
+            CXCursor *overridden;
+            unsigned count;
+            clang_getOverriddenCursors(cursor.cursor, &overridden, &count);
+            for (unsigned i=0; i<count; ++i) {
+                // error() << cursor.cursor << " " << i << "/" << count << ": " << overridden[i];
+                Location loc = createLocation(overridden[i], 0);
+                CursorInfo &o = mSymbols[loc];
+                o.additionalReferences.insert(cursor.location);
+                info.additionalReferences.insert(loc);
+            }
+
+            clang_disposeOverriddenCursors(overridden);
+#endif
+            break;
+        }
 
         default:
             break;
