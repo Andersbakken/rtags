@@ -26,10 +26,8 @@ public:
     void addDependencies(const DependencyMap &hash);
     Set<uint32_t> dependencies(uint32_t fileId) const;
     Set<uint32_t> pchDependencies(const Path &pchHeader) const;
-    Map<ByteArray, Location> pchUSRMap(const List<Path> &pchFiles) const;
-    void setPchUSRMap(const Path &pch, const PchUSRMap &astMap);
     void abort();
-    bool visitFile(uint32_t fileId, const Path &p, bool isPch);
+    bool visitFile(uint32_t fileId, const Path &p);
     Set<uint32_t> visitedFiles() const { MutexLocker lock(&mMutex); return mVisitedFiles; }
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path) const;
@@ -57,8 +55,6 @@ private:
     void initDB(InitMode forceDirty, const ByteArray &pattern = ByteArray());
     bool needsToWaitForPch(IndexerJob *job) const;
     void startJob(IndexerJob *job);
-
-    Map<Path, PchUSRMap> mPchUSRMaps;
 
     Set<uint32_t> mVisitedFiles;
 
@@ -88,10 +84,10 @@ private:
     signalslot::Signal1<Indexer*> mJobsComplete;
 };
 
-inline bool Indexer::visitFile(uint32_t fileId, const Path &path, bool isPch)
+inline bool Indexer::visitFile(uint32_t fileId, const Path &path)
 {
     MutexLocker lock(&mMutex);
-    if (!isPch && mVisitedFiles.contains(fileId)) {
+    if (mVisitedFiles.contains(fileId)) {
         return false;
     }
     mVisitedFiles.insert(fileId);

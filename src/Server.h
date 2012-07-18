@@ -45,11 +45,10 @@ public:
         SymbolName,
         Dependency,
         FileInformation,
-        PchUsrMaps,
         General,
         FileIds,
         DatabaseTypeCount,
-        ProjectSpecificDatabaseTypeCount = PchUsrMaps + 1
+        ProjectSpecificDatabaseTypeCount = FileInformation + 1
     };
 
     static Server *instance() { return sInstance; }

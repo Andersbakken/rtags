@@ -65,7 +65,6 @@ public:
     DependencyMap mDependencies;
     Set<uint32_t> mPchDependencies;
     Indexer *mIndexer;
-    Map<ByteArray, Location> mPchUSRMap;
 
     Map<Path, Path> mPchHeaders;
     CXTranslationUnit mUnit;

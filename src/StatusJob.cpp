@@ -156,31 +156,6 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "pch")) {
-        matched = true;
-        ScopedDB db = server->db(Server::PchUsrMaps, ReadWriteLock::Read, mIndexer->srcRoot());
-        write(delimiter);
-        write(server->databaseDir(Server::PchUsrMaps));
-        RTags::Ptr<Iterator> it(db->createIterator());
-        it->seekToFirst();
-        char buf[1024];
-        while (it->isValid()) {
-            if (isAborted())
-                return;
-
-            const PchUSRMap hash = it->value<PchUSRMap>();
-            write(it->key().byteArray());
-            snprintf(buf, 1024, "  %s", it->key().byteArray().constData());
-            write(buf);
-            for (PchUSRMap::const_iterator i = hash.begin(); i != hash.end(); ++i) {
-                snprintf(buf, 1024, "    %s: %s", i->first.constData(), i->second.key().constData());
-                write(buf);
-            }
-
-            it->next();
-        }
-    }
-
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "visitedfiles")) {
         matched = true;
         write(delimiter);

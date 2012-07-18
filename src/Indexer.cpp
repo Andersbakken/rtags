@@ -26,15 +26,6 @@ void Indexer::init(const Path &srcRoot, const Path &projectRoot, bool validate)
     mProjectRoot = projectRoot;
     mWatcher.modified().connect(this, &Indexer::onDirectoryChanged);
     {
-        ScopedDB db = Server::instance()->db(Server::PchUsrMaps, ReadWriteLock::Read, srcRoot);
-        RTags::Ptr<Iterator> it(db->createIterator());
-        it->seekToFirst();
-        while (it->isValid()) {
-            mPchUSRMaps[it->key().byteArray()] = it->value<PchUSRMap>();
-            it->next();
-        }
-    }
-    {
         // watcher
         ScopedDB db = Server::instance()->db(Server::Dependency, ReadWriteLock::Read, srcRoot);
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -465,38 +456,6 @@ Set<uint32_t> Indexer::dependencies(uint32_t fileId) const
 {
     MutexLocker lock(&mMutex);
     return mDependencies.value(fileId);
-}
-
-
-PchUSRMap Indexer::pchUSRMap(const List<Path> &pchFiles) const
-{
-    MutexLocker lock(&mMutex);
-    const int count = pchFiles.size();
-    switch (pchFiles.size()) {
-    case 0: return PchUSRMap();
-    case 1: return mPchUSRMaps.value(pchFiles.front());
-    default:
-        break;
-    }
-    PchUSRMap ret = mPchUSRMaps.value(pchFiles.front());
-    for (int i=1; i<count; ++i) {
-        const PchUSRMap h = mPchUSRMaps.value(pchFiles.at(i));
-        for (PchUSRMap::const_iterator it = h.begin(); it != h.end(); ++it) {
-            ret[it->first] = it->second;
-        }
-    }
-    return ret;
-}
-
-void Indexer::setPchUSRMap(const Path &pch, const PchUSRMap &astMap)
-{
-    MutexLocker lock(&mMutex);
-    mPchUSRMaps[pch] = astMap;
-    ScopedDB db = Server::instance()->db(Server::PchUsrMaps, ReadWriteLock::Write, mSrcRoot);
-    Batch batch(db);
-    for (Map<Path, PchUSRMap>::const_iterator it = mPchUSRMaps.begin(); it != mPchUSRMaps.end(); ++it) {
-        batch.add(it->first, it->second);
-    }
 }
 
 bool Indexer::needsToWaitForPch(IndexerJob *job) const
