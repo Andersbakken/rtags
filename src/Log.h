@@ -9,6 +9,7 @@
 #include <sstream>
 #include <Path.h>
 #include <cxxabi.h>
+#include <assert.h>
 
 class Path;
 
@@ -73,21 +74,50 @@ public:
     Log(int level = 0);
     Log(const Log &other);
     Log &operator=(const Log &other);
-    template <typename T> Log &operator<<(const T &t)
+    Log operator<<(long long number) { return addStringStream(number); }
+    Log operator<<(unsigned long long number) { return addStringStream(number); }
+    Log operator<<(long number) { return addStringStream(number); }
+    Log operator<<(unsigned long number) { return addStringStream(number); }
+    Log operator<<(int number) { return addStringStream(number); }
+    Log operator<<(unsigned int number) { return addStringStream(number); }
+    Log operator<<(short number) { return addStringStream(number); }
+    Log operator<<(unsigned short number) { return addStringStream(number); }
+    Log operator<<(char number) { return addStringStream(number); }
+    Log operator<<(unsigned char number) { return addStringStream(number); }
+    Log operator<<(float number) { return addStringStream(number); }
+    Log operator<<(double number) { return addStringStream(number); }
+    Log operator<<(long double number) { return addStringStream(number); }
+    Log operator<<(bool boolean) { return write(boolean ? "true" : "false"); }
+    Log operator<<(const char *string) { return write(string); }
+    Log write(const char *data, int len = -1)
     {
-        if (mData) {
-            mData->dbg << t;
-        }
-        return *this;
-    }
-    Log &operator<<(const std::string &string)
-    {
-        if (mData) {
-            mData->dbg << string;
+        if (len == -1)
+            len = strlen(data);
+        assert(len >= 0);
+        if (mData && len) {
+            const int outLength = mData->out.size();
+            if (outLength && !isspace(mData->out.at(mData->out.size() - 1)) && !isspace(*data)) {
+                mData->out.resize(outLength + len + 1);
+                mData->out[outLength] = ' ';
+                memcpy(mData->out.data() + outLength + 1, data, len);
+            } else {
+                mData->out.resize(outLength + len);
+                memcpy(mData->out.data() + outLength, data, len);
+            }
         }
         return *this;
     }
 private:
+    template <typename T> Log addStringStream(T t)
+    {
+        if (mData) {
+            std::ostringstream str;
+            str << t;
+            const std::string string = str.str();
+            return write(string.data(), string.size());
+        }
+        return *this;
+    }
     class Data
     {
     public:
@@ -97,11 +127,12 @@ private:
         }
         ~Data()
         {
-            log(level, "%s", dbg.str().c_str());
+            if (!out.isEmpty())
+                log(level, "%s", out.constData());
         }
 
         const int level;
-        std::ostringstream dbg;
+        ByteArray out;
     };
 
     std::tr1::shared_ptr<Data> mData;
@@ -120,7 +151,7 @@ template <typename T> inline ByteArray typeName()
 }
 
 template <typename T>
-inline std::ostringstream &operator<<(std::ostringstream &stream, const List<T> &list)
+inline Log operator<<(Log stream, const List<T> &list)
 {
     stream << "List<" << typeName<T>().constData() << ">(";
     bool first = true;
@@ -137,7 +168,7 @@ inline std::ostringstream &operator<<(std::ostringstream &stream, const List<T> 
 }
 
 template <typename T>
-inline std::ostringstream &operator<<(std::ostringstream &stream, const Set<T> &set)
+inline Log operator<<(Log stream, const Set<T> &set)
 {
     stream << "List<" << typeName<T>().constData() << ">(";
     bool first = true;
@@ -154,7 +185,7 @@ inline std::ostringstream &operator<<(std::ostringstream &stream, const Set<T> &
 }
 
 template <typename Key, typename Value>
-inline std::ostringstream &operator<<(std::ostringstream &stream, const Map<Key, Value> &map)
+inline Log operator<<(Log stream, const Map<Key, Value> &map)
 {
     stream << "Key<" << typeName<Key>().constData() << ", " << typeName<Value>().constData() << ">(";
     bool first = true;
@@ -173,7 +204,7 @@ inline std::ostringstream &operator<<(std::ostringstream &stream, const Map<Key,
     return stream;
 }
 
-inline std::ostringstream &operator<<(std::ostringstream &stream, const ByteArray &byteArray)
+inline Log operator<<(Log stream, const ByteArray &byteArray)
 {
     stream.write(byteArray.constData(), byteArray.size());
     return stream;

@@ -29,7 +29,7 @@ void ReferencesJob::execute()
     const unsigned flags = queryFlags();
     Set<Location> refs, additionalReferences;
     for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
-        // error() << "looking up refs for " << it->key() << " " << bool(flags & QueryMessage::AllReferences);
+        // error() << "looking up refs for " << it->key() << bool(flags & QueryMessage::AllReferences);
         if (isAborted())
             return;
 
@@ -63,19 +63,19 @@ void ReferencesJob::process(ScopedDB &db, const Location &location, Set<Location
     const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
     Location realLoc;
     CursorInfo cursorInfo = RTags::findCursorInfo(db, location, &realLoc);
-    // error() << location.key() << " " << cursorInfo.kind;
+    // error() << location.key() << cursorInfo.kind;
     if (RTags::isReference(cursorInfo.kind)) {
         realLoc = cursorInfo.target;
         cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
     }
-    // error() << "refs for " << location.key() << " " << allReferences
-    //         << " " << cursorInfo.isValid() << " " << realLoc.key();
+    // error() << "refs for " << location.key() << allReferences
+    //         << cursorInfo.isValid() << realLoc.key();
 
     if (cursorInfo.isValid()) {
         const bool noReferences = allReferences && (cursorInfo.kind == CXCursor_Constructor || cursorInfo.kind == CXCursor_Destructor);
         if (additionalReferences)
             *additionalReferences += cursorInfo.additionalReferences;
-        error() << noReferences << " " << location.key();
+        error() << noReferences << location.key();
         if (!noReferences)
             refs += cursorInfo.references;
         if (cursorInfo.target.isValid() && cursorInfo.kind != CXCursor_VarDecl) {

@@ -27,9 +27,9 @@ private:
     friend struct Batch;
 };
 
-static inline Log &operator<<(Log &dbg, const Slice &slice)
+static inline Log operator<<(Log dbg, const Slice &slice)
 {
-    dbg << std::string(slice.data(), slice.size()).c_str();
+    dbg.write(slice.data(), slice.size());
     return dbg;
 }
 

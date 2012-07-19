@@ -239,13 +239,13 @@ inline bool match(const Set<uint32_t> &fileIds, const Location &loc)
     return fileIds.contains(loc.fileId());
 }
 
-inline std::ostringstream &operator<<(std::ostringstream &dbg, CXCursor cursor)
+inline Log operator<<(Log dbg, CXCursor cursor)
 {
     dbg << RTags::cursorToString(cursor);
     return dbg;
 }
 
-inline std::ostringstream &operator<<(std::ostringstream &dbg, CXCursorKind kind)
+inline Log operator<<(Log dbg, CXCursorKind kind)
 {
     dbg << RTags::eatString(clang_getCursorKindSpelling(kind));
     return dbg;

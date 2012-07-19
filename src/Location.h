@@ -217,7 +217,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, Location &t)
     return s;
 }
 
-static inline Log &operator<<(Log &dbg, const Location &loc)
+static inline Log operator<<(Log dbg, const Location &loc)
 {
     const ByteArray out = "Location(" + loc.key() + ")";
     return (dbg << out);
