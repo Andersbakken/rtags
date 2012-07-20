@@ -96,7 +96,7 @@ public:
         assert(len >= 0);
         if (mData && len) {
             const int outLength = mData->out.size();
-            if (outLength && !isspace(mData->out.at(mData->out.size() - 1)) && !isspace(*data)) {
+            if (mData->spacing && outLength && !isspace(mData->out.at(mData->out.size() - 1)) && !isspace(*data)) {
                 mData->out.resize(outLength + len + 1);
                 mData->out[outLength] = ' ';
                 memcpy(mData->out.data() + outLength + 1, data, len);
@@ -106,6 +106,20 @@ public:
             }
         }
         return *this;
+    }
+    bool setSpacing(bool on)
+    {
+        if (mData) {
+            const bool ret = mData->spacing;
+            mData->spacing = on;
+            return ret;
+        }
+        return false;
+    }
+
+    bool spacing() const
+    {
+        return mData && mData->spacing;
     }
 private:
     template <typename T> Log addStringStream(T t)
@@ -122,20 +136,37 @@ private:
     {
     public:
         Data(int lvl)
-            : level(lvl)
+            : level(lvl), spacing(true)
         {
         }
         ~Data()
         {
             if (!out.isEmpty())
-                log(level, "%s", out.constData());
+                log(level, "%s", out.nullTerminated());
         }
 
         const int level;
         ByteArray out;
+        bool spacing;
     };
 
     std::tr1::shared_ptr<Data> mData;
+};
+
+class DisableSpacesScope
+{
+public:
+    DisableSpacesScope(Log &log)
+        : mLog(log)
+    {
+        mOld = mLog.setSpacing(false);
+    }
+    ~DisableSpacesScope()
+    {
+        mLog.setSpacing(mOld);
+    }
+    Log &mLog;
+    bool mOld;
 };
 
 template <typename T> inline ByteArray typeName()
@@ -153,6 +184,7 @@ template <typename T> inline ByteArray typeName()
 template <typename T>
 inline Log operator<<(Log stream, const List<T> &list)
 {
+    DisableSpacesScope scope(stream);
     stream << "List<" << typeName<T>().constData() << ">(";
     bool first = true;
     for (typename List<T>::const_iterator it = list.begin(); it != list.end(); ++it) {
@@ -170,6 +202,7 @@ inline Log operator<<(Log stream, const List<T> &list)
 template <typename T>
 inline Log operator<<(Log stream, const Set<T> &set)
 {
+    DisableSpacesScope scope(stream);
     stream << "List<" << typeName<T>().constData() << ">(";
     bool first = true;
     for (typename Set<T>::const_iterator it = set.begin(); it != set.end(); ++it) {
@@ -187,6 +220,7 @@ inline Log operator<<(Log stream, const Set<T> &set)
 template <typename Key, typename Value>
 inline Log operator<<(Log stream, const Map<Key, Value> &map)
 {
+    DisableSpacesScope scope(stream);
     stream << "Key<" << typeName<Key>().constData() << ", " << typeName<Value>().constData() << ">(";
     bool first = true;
     for (typename Map<Key, Value>::const_iterator it = map.begin(); it != map.end(); ++it) {
