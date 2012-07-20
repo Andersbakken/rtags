@@ -118,6 +118,7 @@ set(rtags_SRCS
     DirtyThread.cpp
     CompletionJob.cpp
     Completions.cpp
+    CursorInfo.cpp
 )
 
 include(clang.cmake)

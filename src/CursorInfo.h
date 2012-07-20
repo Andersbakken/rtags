@@ -4,6 +4,7 @@
 #include "ByteArray.h"
 #include "Location.h"
 #include "Path.h"
+#include "Log.h"
 #include <clang-c/Index.h>
 
 class CursorInfo
@@ -94,6 +95,8 @@ public:
         return changed;
     }
 
+    ByteArray toString() const;
+
     unsigned char symbolLength; // this is just the symbol name length e.g. foo => 3
     ByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
     CXCursorKind kind;
@@ -101,5 +104,11 @@ public:
     Location target;
     Set<Location> references, additionalReferences;
 };
+
+inline Log operator<<(Log log, const CursorInfo &info)
+{
+    log << info.toString();
+    return log;
+}
 
 #endif
