@@ -42,18 +42,10 @@ public:
 
     struct Capture {
         Capture()
-            : index(-1), size(0), byteArray(0)
+            : index(-1)
         {}
-        int index, size;
-        const ByteArray *byteArray;
-
-        ByteArray capture() const
-        {
-            if (byteArray && index >= 0 && size > 0) {
-                return byteArray->mid(index, size);
-            }
-            return ByteArray();
-        }
+        int index;
+        ByteArray capture;
     };
 
     int indexIn(const ByteArray &string, int offset = 0, List<Capture> *caps = 0, uint32_t flags = 0) const
@@ -68,9 +60,8 @@ public:
             for (unsigned i=0; i<sizeof(captures) / sizeof(regmatch_t); ++i) {
                 if (captures[i].rm_so != -1) {
                     Capture capture;
-                    capture.byteArray = &string;
                     capture.index = captures[i].rm_so;
-                    capture.size = captures[i].rm_eo - capture.index;
+                    capture.capture = string.mid(capture.index, captures[i].rm_eo - capture.index);
                     caps->append(capture);
                 } else {
                     break;

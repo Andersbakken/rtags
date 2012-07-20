@@ -45,14 +45,14 @@ void DirectoryTracker::track(const ByteArray &line)
     List<RegExp::Capture> captures;
     if (rx.indexIn(line, 0, &captures) != -1) {
         assert(captures.size() >= 3);
-        if (captures.at(1).capture() == "Entering") {
-            enterDirectory(captures.at(2).capture());
-        } else if (captures.at(1).capture() == "Leaving") {
-            leaveDirectory(captures.at(2).capture());
+        if (captures.at(1).capture == "Entering") {
+            enterDirectory(captures.at(2).capture);
+        } else if (captures.at(1).capture == "Leaving") {
+            leaveDirectory(captures.at(2).capture);
         } else {
             error("Invalid directory track: %s %s",
-                  captures.at(1).capture().constData(),
-                  captures.at(2).capture().constData());
+                  captures.at(1).capture.constData(),
+                  captures.at(2).capture.constData());
         }
     }
 }
