@@ -41,9 +41,9 @@ void DirectoryTracker::init(const Path &path)
 void DirectoryTracker::track(const ByteArray &line)
 {
     // printf("Tracking %s\n", line.constData());
-    static RegExp rx("make[^:]*: ([^ ]+) directory `([^']+)'");
+    static RegExp rx("make[^:]*: ([^ ]+) directory `([^']+)'", REG_EXTENDED);
     List<RegExp::Capture> captures;
-    if (rx.indexIn(line.constData(), 0, &captures) != -1) {
+    if (rx.indexIn(line, 0, &captures) != -1) {
         assert(captures.size() >= 3);
         if (captures.at(1).capture() == "Entering") {
             enterDirectory(captures.at(2).capture());
