@@ -38,11 +38,13 @@ ByteArray cursorToString(CXCursor cursor)
 
     CXFile file;
     unsigned off, line, col;
-    CXSourceLocation loc = clang_getCursorLocation(cursor);
-    clang_getSpellingLocation(loc, &file, &line, &col, &off);
+    CXSourceRange range = clang_getCursorExtent(cursor);
+    clang_getSpellingLocation(clang_getRangeStart(range), &file, &line, &col, &off);
+    unsigned int end;
+    clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
     const ByteArray fileName = eatString(clang_getFileName(file));
     if (!fileName.isEmpty()) {
-        ret += " " + fileName + ',' + ByteArray::number(off);
+        ret += " " + fileName + ',' + ByteArray::number(off) + "-" + ByteArray::number(end);
     }
     return ret;
 }
