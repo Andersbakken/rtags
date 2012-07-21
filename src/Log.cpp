@@ -42,7 +42,7 @@ public:
     {}
     virtual void log(const char *msg, int)
     {
-        fprintf(stderr, "%s\n", msg);
+        fprintf(stdout, "%s\n", msg);
     }
 };
 
