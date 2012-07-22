@@ -22,3 +22,5 @@ we seem to have a bug with references to structs. It doesn't have
    enough of them
 
 if a file is deleted and reappears we seem to crash.
+
+constructor initializers to members with constructors are not renamed right
