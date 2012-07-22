@@ -44,7 +44,7 @@ ByteArray cursorToString(CXCursor cursor)
     clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
     const ByteArray fileName = eatString(clang_getFileName(file));
     if (!fileName.isEmpty()) {
-        ret += " " + fileName + ',' + ByteArray::number(off) + "-" + ByteArray::number(end);
+        ret += " " + fileName + ',' + ByteArray::number(off) + " (" + ByteArray::number(end) + ")";
     }
     return ret;
 }
