@@ -39,6 +39,7 @@ void ReferencesJob::execute()
         // }
 
     }
+    error() << "got additionalReferences" << additionalReferences;
     for (Set<Location>::const_iterator it = additionalReferences.begin(); it != additionalReferences.end(); ++it) {
         if (isAborted())
             return;
@@ -69,13 +70,15 @@ void ReferencesJob::process(ScopedDB &db, const Location &location, Set<Location
         cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
     }
     // error() << "refs for " << location.key() << allReferences
-    //         << cursorInfo.isValid() << realLoc.key();
+    //         << cursorInfo << realLoc.key() << "isReference" << RTags::isReference(cursorInfo.kind);
 
     if (cursorInfo.isValid()) {
-        const bool noReferences = allReferences && (cursorInfo.kind == CXCursor_Constructor || cursorInfo.kind == CXCursor_Destructor);
+        const bool noReferences = (allReferences
+                                   && (cursorInfo.kind == CXCursor_Constructor || cursorInfo.kind == CXCursor_Destructor)
+                                   && additionalReferences);
         if (additionalReferences)
             *additionalReferences += cursorInfo.additionalReferences;
-        error() << noReferences << location.key();
+        // error() << noReferences << location.key();
         if (!noReferences)
             refs += cursorInfo.references;
         if (cursorInfo.target.isValid() && cursorInfo.kind != CXCursor_VarDecl) {
@@ -88,6 +91,7 @@ void ReferencesJob::process(ScopedDB &db, const Location &location, Set<Location
             if (additionalReferences)
                 *additionalReferences += cursorInfo.additionalReferences;
         }
+        // error() << "here" << cursorInfo.symbolName << "noReferences" << noReferences << "allReferences" << allReferences << realLoc;
         if (!noReferences && allReferences) {
             refs.insert(realLoc);
         }
