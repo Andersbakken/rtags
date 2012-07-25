@@ -36,7 +36,7 @@ public:
 
     void removeLast()
     {
-        std::vector<T>::erase(std::vector<T>::begin() + (std::vector<T>::size() - 1));
+        std::vector<T>::pop_back();
     }
 
     int size() const
