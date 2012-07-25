@@ -503,6 +503,34 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     return job->processCursor(c, r);
 }
 
+void IndexerJob::addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos)
+{
+    CXCursor *overridden;
+    unsigned count;
+    clang_getOverriddenCursors(cursor, &overridden, &count);
+    if (!overridden)
+        return;
+    for (unsigned i=0; i<count; ++i) {
+        Location loc = createLocation(overridden[i], 0);
+        CursorInfo &o = mSymbols[loc];
+
+        error() << "adding overridden (1) " << location << " to " << o;
+        o.additionalReferences.insert(location);
+        List<CursorInfo*>::const_iterator inf = infos.begin();
+        const List<CursorInfo*>::const_iterator infend = infos.end();
+        while (inf != infend) {
+            error() << "adding overridden (2) " << loc << " to " << *(*inf);
+            (*inf)->additionalReferences.insert(loc);
+            ++inf;
+        }
+
+        infos.append(&o);
+        addOverriddenCursors(overridden[i], loc, infos);
+        infos.removeLast();
+    }
+    clang_disposeOverriddenCursors(overridden);
+}
+
 CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor &ref)
 {
     if (testLog(VerboseDebug))
@@ -629,21 +657,10 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
             }
             break; }
         case CXCursor_CXXMethod: {
-#if 0
             // might have to find by USR for pch'ed cursors.
-            CXCursor *overridden;
-            unsigned count;
-            clang_getOverriddenCursors(cursor.cursor, &overridden, &count);
-            for (unsigned i=0; i<count; ++i) {
-                // error() << cursor.cursor << " " << i << "/" << count << ": " << overridden[i];
-                Location loc = createLocation(overridden[i], 0);
-                CursorInfo &o = mSymbols[loc];
-                o.additionalReferences.insert(cursor.location);
-                info.additionalReferences.insert(loc);
-            }
-
-            clang_disposeOverriddenCursors(overridden);
-#endif
+            List<CursorInfo*> infos;
+            infos.append(&info);
+            addOverriddenCursors(cursor.cursor, cursor.location, infos);
             break;
         }
 

@@ -44,6 +44,7 @@ public:
 
     CXChildVisitResult processCursor(const Cursor &cursor, const Cursor &ref);
     Cursor findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc);
+    void addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos);
 
     List<Cursor> mDelayed;
     SymbolMap mSymbols;
