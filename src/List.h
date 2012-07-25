@@ -34,6 +34,11 @@ public:
             std::vector<T>::push_back(t.at(i));
     }
 
+    void removeLast()
+    {
+        std::vector<T>::erase(std::vector<T>::begin() + (std::vector<T>::size() - 1));
+    }
+
     int size() const
     {
         return std::vector<T>::size();
