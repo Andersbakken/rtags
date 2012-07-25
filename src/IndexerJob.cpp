@@ -514,12 +514,12 @@ void IndexerJob::addOverriddenCursors(const CXCursor& cursor, const Location& lo
         Location loc = createLocation(overridden[i], 0);
         CursorInfo &o = mSymbols[loc];
 
-        error() << "adding overridden (1) " << location << " to " << o;
+        //error() << "adding overridden (1) " << location << " to " << o;
         o.additionalReferences.insert(location);
         List<CursorInfo*>::const_iterator inf = infos.begin();
         const List<CursorInfo*>::const_iterator infend = infos.end();
         while (inf != infend) {
-            error() << "adding overridden (2) " << loc << " to " << *(*inf);
+            //error() << "adding overridden (2) " << loc << " to " << *(*inf);
             (*inf)->additionalReferences.insert(loc);
             ++inf;
         }
