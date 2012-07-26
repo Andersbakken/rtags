@@ -434,6 +434,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     const CXCursorKind refKind = clang_getCursorKind(ref);
     // the kind won't change even if the reference is looked up from elsewhere
     if (refKind == CXCursor_InvalidFile && needsRef(kind)) {
+        // this is a rather big optimization
         return CXChildVisit_Recurse;
     }
 
@@ -456,27 +457,17 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         default:
             break;
         }
-#if 0
-        FILE *f = fopen("/tmp/smart", "r");
-        if (f) {
-            char line[1024];
-            while ((RTags::readLine(f, line, sizeof(line))) != -1) {
-                int id = atoi(line);
-                if (id == kind) {
-                    fclose(f);
-                    return CXChildVisit_Recurse;
-                }
-            }
-            fclose(f);
-        }
-#endif
         return CXChildVisit_Continue;
     } else if (loc.isNull()) {
         return CXChildVisit_Recurse;
     }
 
-    /* CXCursor_CallExpr is the right thing to use for invocations of constructors */
-    if (kind == CXCursor_CallExpr && (refKind == CXCursor_CXXMethod || refKind == CXCursor_FunctionDecl)) {
+    /* CXCursor_CallExpr is the right thing to use for invocations of
+     * constructors but for CXXMethod it causes problems. Specifically because
+     * the ref is position on the member and is visited before the DeclRefExpr
+     * which we want.
+     */
+    if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
         return CXChildVisit_Recurse;
     }
 
@@ -660,7 +651,6 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
             }
             break; }
         case CXCursor_CXXMethod: {
-            // might have to find by USR for pch'ed cursors.
             List<CursorInfo*> infos;
             infos.append(&info);
             addOverriddenCursors(cursor.cursor, cursor.location, infos);
@@ -670,8 +660,6 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         default:
             break;
         }
-    } else if (info.kind == CXCursor_Constructor && cursor.kind == CXCursor_TypeRef) {
-        return CXChildVisit_Recurse;
     }
 
     if (refOk) {
