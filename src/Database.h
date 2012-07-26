@@ -24,7 +24,7 @@ private:
     leveldb::Slice mSlice;
     friend class Database;
     friend class Iterator;
-    friend struct Batch;
+    friend class Batch;
 };
 
 static inline Log operator<<(Log dbg, const Slice &slice)
@@ -68,6 +68,16 @@ template <> inline Set<Location> decode(const Slice &slice)
         ret.insert(Location(*ptr++));
     }
     return ret;
+}
+
+template <> inline ByteArray encode(const ByteArray &byteArray)
+{
+    return byteArray;
+}
+
+template <> inline ByteArray decode(const Slice &slice)
+{
+    return slice.byteArray();
 }
 
 template <typename T> inline void writeNativeType(char *&data, T t)
@@ -150,7 +160,7 @@ class LocationComparator;
 class Database
 {
 public:
-    enum { Version = 14 };
+    enum { Version = 15 };
 
     enum Flag {
         NoFlag = 0x0,
@@ -186,12 +196,13 @@ private:
     ByteArray mOpenError;
     LocationComparator *mLocationComparator;
     const unsigned mFlags;
-    friend struct Batch;
+    friend class Batch;
 };
 
 class ScopedDB;
-struct Batch {
-    enum { BatchThreshold = 1024 * 1024 };
+class Batch
+{
+public:
     Batch(ScopedDB &d);
     ~Batch();
     int flush();
@@ -206,6 +217,7 @@ struct Batch {
     int total() const { return mTotal; }
     int addEncoded(const Slice &key, const Slice &data);
 private:
+    enum { BatchThreshold = 1024 * 1024 };
     Database *mDB;
     int mSize, mTotal;
     leveldb::WriteBatch mBatch;

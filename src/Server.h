@@ -44,6 +44,7 @@ public:
         Symbol,
         SymbolName,
         Dependency,
+        Files,
         FileInformation,
         General,
         FileIds,

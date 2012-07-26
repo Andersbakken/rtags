@@ -18,7 +18,7 @@ Slice::Slice(const ByteArray &d)
 {}
 
 Slice::Slice(const char *d, int s)
-    : mSlice(d, s == -1 ? strlen(d) : s)
+    : mSlice(d, d ? (s == -1 ? strlen(d) : s) : 0)
 {}
 
 bool Slice::operator==(const Slice &other) const

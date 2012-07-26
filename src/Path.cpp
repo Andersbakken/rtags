@@ -194,7 +194,7 @@ bool Path::rm(const Path &file)
     return !unlink(file.constData());
 }
 
-void Path::visit(VisitCallback callback, void *userData)
+void Path::visit(VisitCallback callback, void *userData) const
 {
     if (!callback)
         return;
@@ -210,13 +210,29 @@ void Path::visit(VisitCallback callback, void *userData)
         path.append('/');
     const int s = path.size();
     path.reserve(s + 128);
+    List<ByteArray> recurseDirs;
     while (!readdir_r(d, dbuf, &p) && p) {
         if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, ".."))
             continue;
         path.truncate(s);
         path.append(p->d_name);
-        if (callback(path, userData) == Abort)
+        switch (callback(path, userData)) {
+        case Abort:
+            p = 0;
             break;
+        case Recurse:
+            if (path.isDir())
+                recurseDirs.append(p->d_name);
+            break;
+        case Continue:
+            break;
+        }
     }
     closedir(d);
+    const int count = recurseDirs.size();
+    for (int i=0; i<count; ++i) {
+        path.truncate(s);
+        path.append(recurseDirs.at(i));
+        path.visit(callback, userData);
+    }
 }

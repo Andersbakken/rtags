@@ -52,6 +52,7 @@ static const char *const dbNames[] = {
     "symbols.db",
     "symbolnames.db",
     "dependencies.db",
+    "files.db",
     "fileinfos.db",
     "pchusrhashes.db",
     "general.db",

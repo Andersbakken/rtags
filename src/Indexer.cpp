@@ -1,6 +1,7 @@
 #include "Indexer.h"
 
 #include "ValidateDBJob.h"
+#include "RecurseJob.h"
 #include "Database.h"
 #include "DirtyThread.h"
 #include "FileInformation.h"
@@ -47,6 +48,7 @@ void Indexer::init(const Path &srcRoot, const Path &projectRoot, bool validate)
     }
 
     initDB(validate ? Normal : NoValidate);
+    recurseDirs();
 }
 
 Indexer::~Indexer()
@@ -578,4 +580,9 @@ void Indexer::dirty(const Set<uint32_t> &dirtyFileIds,
     for (Map<Path, List<ByteArray> >::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
         index(it->first, it->second, IndexerJob::Dirty);
     }
+}
+
+void Indexer::recurseDirs()
+{
+    Server::instance()->threadPool()->start(new RecurseJob(mSrcRoot));
 }

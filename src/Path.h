@@ -92,11 +92,11 @@ public:
 
     enum VisitResult {
         Abort,
-        Continue
-        // ### recurse?
+        Continue,
+        Recurse
     };
     typedef VisitResult (*VisitCallback)(const Path &path, void *userData);
-    void visit(VisitCallback callback, void *userData);
+    void visit(VisitCallback callback, void *userData) const;
 };
 
 #endif

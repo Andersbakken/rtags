@@ -27,6 +27,7 @@ public:
     Set<uint32_t> dependencies(uint32_t fileId) const;
     Set<uint32_t> pchDependencies(const Path &pchHeader) const;
     void abort();
+    void recurseDirs();
     bool visitFile(uint32_t fileId, const Path &p);
     Set<uint32_t> visitedFiles() const { MutexLocker lock(&mMutex); return mVisitedFiles; }
     ByteArray fixIts(const Path &path) const;
