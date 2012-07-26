@@ -82,16 +82,14 @@ void ReferencesJob::process(ScopedDB &db, const Location &pos, const CursorInfo 
     if (!cursorInfo.isValid())
         return;
     const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
-    const bool renamingClass = allReferences && (cursorInfo.kind == CXCursor_StructDecl || cursorInfo.kind == CXCursor_ClassDecl);
+    const bool classOrStruct = (cursorInfo.kind == CXCursor_StructDecl || cursorInfo.kind == CXCursor_ClassDecl);
     // error() << pos << cursorInfo << "allReferences" << allReferences;
     assert(!RTags::isReference(cursorInfo.kind));
     if (allReferences) {
         references.insert(pos);
         references += cursorInfo.references;
-        if (renamingClass) {
-            for (Set<Location>::const_iterator it = cursorInfo.additionalReferences.begin();
-                 it != cursorInfo.additionalReferences.end(); ++it) {
-
+        if (classOrStruct) {
+            for (Set<Location>::const_iterator it = cursorInfo.additionalReferences.begin(); it != cursorInfo.additionalReferences.end(); ++it) {
                 CursorInfo ci = RTags::findCursorInfo(db, *it);
                 if (ci.kind == CXCursor_Destructor) {
                     references.insert(Location(it->fileId(), it->offset() + 1));
@@ -101,6 +99,18 @@ void ReferencesJob::process(ScopedDB &db, const Location &pos, const CursorInfo 
             }
         }
     } else {
-        references += cursorInfo.references;
+        if (classOrStruct) {
+            for (Set<Location>::const_iterator it = cursorInfo.references.begin(); it != cursorInfo.references.end(); ++it) {
+                const CursorInfo ci = RTags::findCursorInfo(db, *it);
+                // This is some awful stuff right here. We have references to
+                // the class that should be to the constructor, we need them for
+                // renaming but not for normal references so we do this.
+                if (ci.target == pos) {
+                    references.insert(*it);
+                }
+            }
+        } else {
+            references += cursorInfo.references;
+        }
     }
 }
