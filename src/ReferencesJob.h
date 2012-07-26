@@ -7,6 +7,7 @@
 #include "Job.h"
 #include "Location.h"
 
+class CursorInfo;
 class ReferencesJob : public Job
 {
 public:
@@ -15,9 +16,10 @@ public:
 protected:
     virtual void execute();
 private:
-    void process(ScopedDB &db, const Location &loc, Set<Location> &refs, Set<Location> *additionalReferences);
-    Set<Location> locations;
+    void process(const Location &pos, const CursorInfo &cursorInfo);
+    Set<Location> locations, references;
     const ByteArray symbolName;
+    bool renamingClass;
 };
 
 #endif
