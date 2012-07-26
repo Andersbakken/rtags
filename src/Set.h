@@ -45,23 +45,30 @@ public:
         return std::set<T>::insert(t).second;
     }
 
-    Set<T> &unite(const Set<T> &other)
+    Set<T> &unite(const Set<T> &other, int *count = 0)
     {
+        int c = 0;
         typename std::set<T>::iterator it = other.begin();
         while (it != other.end()) {
-            insert(*it);
+            if (insert(*it))
+                ++c;
             ++it;
         }
+        if (count)
+            *count = c;
         return *this;
     }
 
-    Set<T> &subtract(const Set<T> &other)
+    Set<T> &subtract(const Set<T> &other, int *count = 0)
     {
+        int c = 0;
         typename std::set<T>::iterator it = other.begin();
         while (it != other.end()) {
-            std::set<T>::erase(*it);
+            c += std::set<T>::erase(*it);
             ++it;
         }
+        if (count)
+            *count = c;
         return *this;
     }
 
