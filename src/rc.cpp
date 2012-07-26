@@ -19,7 +19,7 @@ static void help(FILE *f, const char* app)
             "  --help|-h                                 Display this help\n"
             "  --verbose|-v                              Be more verbose\n"
             "  --skip-paren|-p                           Skip parens in Makefile parsing\n"
-            "  --elisp-list|-P                           Output elisp: (list \"one\" \"two\" ...)\n"
+            "  --elisp-list|-Y                           Output elisp: (list \"one\" \"two\" ...)\n"
             "  --follow-location|-f [arg]                Follow this location\n"
             "  --makefile|-m [arg]                       Process this makefile\n"
             "  --remake|-M [optional regexp]             Remake makefiles matching regexp or all if no regexp\n"
@@ -193,7 +193,7 @@ int main(int argc, char** argv)
         { "quit-rdm", no_argument, 0, 'q' },
         { "restart-rdm", optional_argument, 0, 'e' },
         { "all-references", no_argument, 0, 'E' },
-        { "elisp-list", no_argument, 0, 'P' },
+        { "elisp-list", no_argument, 0, 'Y' },
         { "run-test", required_argument, 0, 'T' },
         { "clear-db", no_argument, 0, 'C' },
         { "fixits", required_argument, 0, 'x' },
@@ -206,7 +206,7 @@ int main(int argc, char** argv)
         { 0, 0, 0, 0 }
     };
 
-    // Unused: bBdjJkKyYZ
+    // Unused: bBdjJkKyPZ
 
     int logLevel = 0;
     ByteArray logFile;
@@ -255,7 +255,7 @@ int main(int argc, char** argv)
         case 'O':
             queryFlags |= QueryMessage::ReverseSort;
             break;
-        case 'P':
+        case 'Y':
             queryFlags |= QueryMessage::ElispList;
             break;
         case 'H':

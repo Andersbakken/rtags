@@ -199,7 +199,7 @@
 
 (defun rtags-symbolname-completion-get (string)
   (with-temp-buffer
-    (rtags-call-rc "-P" "-S" string)
+    (rtags-call-rc "-Y" "-S" string)
     (eval (read (buffer-string)))))
 
 (defun rtags-symbolname-completion-exactmatch (string)
