@@ -403,7 +403,7 @@ return t if rtags is allowed to modify this file"
             (setq replacewith (read-from-minibuffer (format "Replace '%s' with: " prev)))
             (unless (equal replacewith "")
               (with-temp-buffer
-                (rtags-call-rc "-E" "-O" "-N" "-r" (format "%s,%d" file pos))
+                (rtags-call-rc "-E" "-O" "-N" "-r" (format "%s,%d" file (- pos 1)))
                 (while (looking-at "^\\(.*\\),\\([0-9]+\\)$")
                   (message (buffer-substring (point-at-bol) (point-at-eol)))
                   (let ((fn (match-string 1))
