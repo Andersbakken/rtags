@@ -40,11 +40,16 @@ public:
         return ret;
     }
 
+    bool insert(const T &t)
+    {
+        return std::set<T>::insert(t).second;
+    }
+
     Set<T> &unite(const Set<T> &other)
     {
         typename std::set<T>::iterator it = other.begin();
         while (it != other.end()) {
-            std::set<T>::insert(*it);
+            insert(*it);
             ++it;
         }
         return *this;
