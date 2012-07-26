@@ -20,7 +20,6 @@ public:
         isDefinition = false;
         target.clear();
         references.clear();
-        additionalReferences.clear();
         symbolName.clear();
     }
 
@@ -33,17 +32,13 @@ public:
             target.clear();
         }
 
-        Set<Location> *sets[2] = { &references, &additionalReferences };
-        for (int i=0; i<2; ++i) {
-            Set<Location> &set = *sets[i];
-            Set<Location>::iterator it = set.begin();
-            while (it != set.end()) {
-                if (dirty.contains(it->fileId())) {
-                    changed = true;
-                    set.erase(it++);
-                } else {
-                    ++it;
-                }
+        Set<Location>::iterator it = references.begin();
+        while (it != references.end()) {
+            if (dirty.contains(it->fileId())) {
+                changed = true;
+                references.erase(it++);
+            } else {
+                ++it;
             }
         }
         return changed;
@@ -57,7 +52,7 @@ public:
     bool isEmpty() const
     {
         assert((symbolLength || symbolName.isEmpty()) && (symbolLength || kind == CXCursor_FirstInvalid)); // these should be coupled
-        return !symbolLength && !target && references.isEmpty() && additionalReferences.isEmpty();
+        return !symbolLength && !target && references.isEmpty();
     }
 
     bool unite(const CursorInfo &other)
@@ -75,21 +70,16 @@ public:
             symbolName = other.symbolName;
             changed = true;
         }
-        const Set<Location> *srcs[2] = { &other.references, &other.additionalReferences };
-        Set<Location> *targets[2] = { &references, &additionalReferences };
-        for (int i=0; i<2; ++i) {
-            const Set<Location> &src = *srcs[i];
-            Set<Location> &target = *targets[i];
-            const int oldSize = target.size();
-            if (!oldSize) {
-                target = src;
-                if (!src.isEmpty())
-                    changed = true;
-            } else {
-                target.unite(src);
-                if (oldSize != target.size())
-                    changed = true;
-            }
+        const int oldSize = references.size();
+        if (!oldSize) {
+            references = other.references;
+            if (!references.isEmpty())
+                changed = true;
+        } else {
+            int inserted = 0;
+            references.unite(other.references, &inserted);
+            if (inserted)
+                changed = true;
         }
 
         return changed;
@@ -102,7 +92,7 @@ public:
     CXCursorKind kind;
     bool isDefinition;
     Location target;
-    Set<Location> references, additionalReferences;
+    Set<Location> references;
 };
 
 inline Log operator<<(Log log, const CursorInfo &info)

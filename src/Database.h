@@ -82,9 +82,7 @@ template <> inline ByteArray encode(const CursorInfo &info)
     size += sizeof(unsigned char); // symbolLength
     size += sizeof(int16_t); // kind, negative if not definition
     size += sizeof(uint64_t); // target
-    size += sizeof(uint16_t); // references count
     size += sizeof(uint64_t) * info.references.size(); // references
-    size += sizeof(uint64_t) * info.additionalReferences.size(); // references
     ByteArray out(size, '\0');
     char *data = out.data();
     memcpy(data, info.symbolName.constData(), info.symbolName.size() + 1);
@@ -92,12 +90,8 @@ template <> inline ByteArray encode(const CursorInfo &info)
     writeNativeType<unsigned char>(data, info.symbolLength);
     writeNativeType<int16_t>(data, info.isDefinition ? static_cast<int16_t>(info.kind) : -static_cast<int16_t>(info.kind));
     writeNativeType<uint64_t>(data, info.target.mData);
-    writeNativeType<uint16_t>(data, info.references.size());
     for (Set<Location>::const_iterator it = info.references.begin(); it != info.references.end(); ++it)
         writeNativeType<uint64_t>(data, it->mData);
-    for (Set<Location>::const_iterator it = info.additionalReferences.begin(); it != info.additionalReferences.end(); ++it)
-        writeNativeType<uint64_t>(data, it->mData);
-
     return out;
 }
 
@@ -123,17 +117,11 @@ template <> inline CursorInfo decode(const Slice &slice)
         ret.kind = static_cast<CXCursorKind>(-kindAndDefinition);
     }
     ret.target.mData = readNativeType<uint64_t>(data);
-    uint16_t refCount = readNativeType<uint16_t>(data);
-    for (uint16_t i=0; i<refCount; ++i) {
-        const Location loc(readNativeType<uint64_t>(data));
-        ret.references.insert(loc);
-    }
-
-    int pos = data - slice.data();
-    int remainingBytes = slice.size() - pos;
+    const int pos = data - slice.data();
+    const int remainingBytes = slice.size() - pos;
     for (int i=0; i<remainingBytes; i+=sizeof(uint64_t)) {
         const Location loc(readNativeType<uint64_t>(data));
-        ret.additionalReferences.insert(loc);
+        ret.references.insert(loc);
     }
     return ret;
 }

@@ -38,14 +38,14 @@ static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &reference
     if (!references.isEmpty()) {
         const ReferenceMap::const_iterator end = references.end();
         for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
-            const Set<Location> refs = it->second.first;
-            for (Set<Location>::const_iterator rit = refs.begin(); rit != refs.end(); ++rit) {
-                CursorInfo &ci = symbols[*rit];
-                if (it->second.second != RTags::NormalReference) {
+            const Map<Location, RTags::ReferenceType> refs = it->second;
+            for (Map<Location, RTags::ReferenceType>::const_iterator rit = refs.begin(); rit != refs.end(); ++rit) {
+                CursorInfo &ci = symbols[rit->first];
+                if (rit->second != RTags::NormalReference) {
                     CursorInfo &other = symbols[it->first];
                     // error() << "trying to join" << it->first << "and" << it->second.front();
                     if (other.target.isNull())
-                        other.target = *rit;
+                        other.target = rit->first;
                     if (ci.target.isNull())
                         ci.target = it->first;
                 } else {
@@ -518,12 +518,12 @@ void IndexerJob::addOverriddenCursors(const CXCursor& cursor, const Location& lo
         CursorInfo &o = mSymbols[loc];
 
         //error() << "adding overridden (1) " << location << " to " << o;
-        o.additionalReferences.insert(location);
+        o.references.insert(location);
         List<CursorInfo*>::const_iterator inf = infos.begin();
         const List<CursorInfo*>::const_iterator infend = infos.end();
         while (inf != infend) {
             //error() << "adding overridden (2) " << loc << " to " << *(*inf);
-            (*inf)->additionalReferences.insert(loc);
+            (*inf)->references.insert(loc);
             ++inf;
         }
 
@@ -655,8 +655,8 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
             // declaration and definition should know of one another
             if (parentLocation.isValid()) {
                 CursorInfo &parent = mSymbols[parentLocation];
-                parent.additionalReferences.insert(cursor.location);
-                info.additionalReferences.insert(parentLocation);
+                parent.references.insert(cursor.location);
+                info.references.insert(parentLocation);
             }
             break; }
         case CXCursor_CXXMethod: {
@@ -694,9 +694,8 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         // ### For RTags we seem to get this count:
         // Duplicates: 18278 Non-duplicates: 69444 Overwrites: 2018
         // not sure if we should fix this.
-        std::pair<Set<Location>, RTags::ReferenceType> &val = mReferences[cursor.location];
-        if (!val.first.insert(ref.location))
-            val.second = referenceType;
+        Map<Location, RTags::ReferenceType> &val = mReferences[cursor.location];
+        val[ref.location] = referenceType;
     }
     return CXChildVisit_Recurse;
 }

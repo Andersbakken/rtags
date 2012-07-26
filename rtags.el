@@ -427,6 +427,9 @@ return t if rtags is allowed to modify this file"
                               (progn
                                 (incf modifications)
                                 (goto-char (+ p 1))
+                                (if (looking-at "~")
+                                    (forward-char))
+
                                 ;; (message (format "About to replace %s with %s at %d in %s"
                                 ;;                  (buffer-substring (point) (+ (point) len))
                                 ;;                  replacewith

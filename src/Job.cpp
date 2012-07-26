@@ -93,16 +93,11 @@ void Job::write(const Location &location, const CursorInfo &ci)
                                RTags::isReference(ci.kind) ? "true" : "false",
                                ci.isDefinition ? "true" : "false",
                                ci.symbolLength, ci.target.isValid() ? "target: " : "", ci.target.isValid() ? ci.target.key().constData() : "",
-                               (ci.references.isEmpty() && ci.additionalReferences.isEmpty() ? "" : " references:"));
+                               ci.references.isEmpty() ? "" : " references:");
         write(ByteArray(buf, w));
         for (Set<Location>::const_iterator rit = ci.references.begin(); rit != ci.references.end(); ++rit) {
             const Location &l = *rit;
             snprintf(buf, sizeof(buf), "    %s", l.key().constData());
-            write(buf);
-        }
-        for (Set<Location>::const_iterator rit = ci.additionalReferences.begin(); rit != ci.additionalReferences.end(); ++rit) {
-            const Location &l = *rit;
-            snprintf(buf, sizeof(buf), "    %s (additional)", l.key().constData());
             write(buf);
         }
     }
