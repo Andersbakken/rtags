@@ -595,12 +595,13 @@ return t if rtags is allowed to modify this file"
     (with-current-buffer (generate-new-buffer "*RTags Complete*")
       (rtags-call-rc "-K" "-P" tagname)
       (cond ((= (point-min) (point-max)) t)
-            ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-string)))
+            ((= (count-lines (point-min) (point-max)) 1) (rtags-find-file-on-return-pressed))
             (t (progn
                   (switch-to-buffer-other-window "*RTags Complete*")
                   (goto-char (point-min))
                   (local-set-key (kbd "RET") (function rtags-find-file-on-return-pressed))
                   (local-set-key (kbd "ENTER") (function rtags-find-file-on-return-pressed)))))
+      ; Should add support for putting offset in there as well, ignore it on completion and apply it at the end
       )
     )
   )
