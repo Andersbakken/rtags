@@ -130,13 +130,12 @@ public:
 Database::Database(const Path &path, int cacheSizeMB, unsigned flags)
     : mDB(0), mLocationComparator(flags & LocationKeys ? new LocationComparator : 0), mFlags(flags)
 {
-    leveldb::Options opt;
-    opt.create_if_missing = true;
+    mOptions.create_if_missing = true;
     if (flags & LocationKeys)
-        opt.comparator = mLocationComparator;
+        mOptions.comparator = mLocationComparator;
     if (cacheSizeMB)
-        opt.block_cache = leveldb::NewLRUCache(cacheSizeMB * 1024 * 1024);
-    leveldb::Status status = leveldb::DB::Open(opt, path.constData(), &mDB);
+        mOptions.block_cache = leveldb::NewLRUCache(cacheSizeMB * 1024 * 1024);
+    leveldb::Status status = leveldb::DB::Open(mOptions, path.constData(), &mDB);
     if (!status.ok()) {
         mOpenError = status.ToString();
     } else {
@@ -159,11 +158,25 @@ void Database::close()
     delete mDB;
     mDB = 0;
     mOpenError.clear();
+    mPath.clear();
 }
 
 ByteArray Database::openError() const
 {
     return mOpenError;
+}
+
+void Database::clear()
+{
+    const Path path = mPath;
+    close();
+    RTags::removeDirectory(path);
+    leveldb::Status status = leveldb::DB::Open(mOptions, path.constData(), &mDB);
+    if (!status.ok()) {
+        mOpenError = status.ToString();
+    } else {
+        mPath = path;
+    }
 }
 
 std::string Database::rawValue(const Slice &key, bool *ok) const

@@ -13,7 +13,7 @@ ValidateDBJob::ValidateDBJob(const Path &root, const Set<Location> &prev)
 
 void ValidateDBJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read, mRoot);
+    ScopedDB db = Server::instance()->db(Server::Symbol, Server::Read, mRoot);
     RTags::Ptr<Iterator> it(db->createIterator());
     it->seekToFirst();
     int errors = 0;

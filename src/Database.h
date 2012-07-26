@@ -188,9 +188,11 @@ public:
     bool remove(const Slice &key);
     Iterator *createIterator() const;
     Path path() const { return mPath; }
+    void clear();
 private:
     ReadWriteLock mLock;
     leveldb::DB *mDB;
+    leveldb::Options mOptions;
     Path mPath;
     const leveldb::WriteOptions mWriteOptions;
     ByteArray mOpenError;

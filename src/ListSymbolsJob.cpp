@@ -12,7 +12,7 @@ ListSymbolsJob::ListSymbolsJob(const QueryMessage &query)
 
 void ListSymbolsJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Read);
+    ScopedDB db = Server::instance()->db(Server::SymbolName, Server::Read);
     const bool hasFilter = !pathFilters().isEmpty();
     const unsigned queryFlags = Job::queryFlags();
     const bool skipParentheses = queryFlags & QueryMessage::SkipParentheses;

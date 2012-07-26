@@ -54,7 +54,12 @@ public:
 
     static Server *instance() { return sInstance; }
     List<ByteArray> defaultArguments() const { return mOptions.defaultArguments; }
-    ScopedDB db(DatabaseType type, ReadWriteLock::LockType lockType, const Path &path = Path()) const;
+    enum DatabaseLockType {
+        Read = ReadWriteLock::Read,
+        Write = ReadWriteLock::Write,
+        Erase
+    };
+    ScopedDB db(DatabaseType type, DatabaseLockType lockType, const Path &path = Path()) const;
     struct Options {
         Options() : options(0), cacheSizeMB(0), maxCompletionUnits(0), threadCount(0) {}
         Path path;
@@ -107,6 +112,7 @@ private:
     int status(const QueryMessage &query);
     int test(const QueryMessage &query);
     int runTest(const QueryMessage &query);
+    int findFile(const QueryMessage &query);
     int nextId();
     void reindex(const ByteArray &pattern);
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);

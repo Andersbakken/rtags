@@ -1,6 +1,5 @@
 #include "Server.h"
 
-#include "FileInformation.h"
 #include "Client.h"
 #include "Completions.h"
 #include "Connection.h"
@@ -9,6 +8,8 @@
 #include "Database.h"
 #include "Event.h"
 #include "EventLoop.h"
+#include "FileInformation.h"
+#include "FindFileJob.h"
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
 #include "Indexer.h"
@@ -34,9 +35,9 @@
 #include "leveldb/db.h"
 #include <Log.h>
 #include <clang-c/Index.h>
-#include <stdio.h>
 #include <dirent.h>
 #include <fnmatch.h>
+#include <stdio.h>
 
 class MakefileParserDoneEvent : public Event
 {
@@ -155,7 +156,7 @@ bool Server::init(const Options &options)
     }
 
     {
-        ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
+        ScopedDB general = Server::instance()->db(Server::General, Server::Write);
         bool ok;
         const int version = general->value<int>("version", &ok);
         if (!ok) {
@@ -172,7 +173,7 @@ bool Server::init(const Options &options)
 
     {
         // fileids
-        ScopedDB db = Server::instance()->db(Server::FileIds, ReadWriteLock::Read);
+        ScopedDB db = Server::instance()->db(Server::FileIds, Server::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         Map<uint32_t, Path> idsToPaths;
@@ -268,7 +269,7 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
     const MakefileInformation mi(makefile.lastModified(), message->arguments(), message->extraFlags());
     mMakefiles[makefile] = mi;
     mMakefilesWatcher.watch(makefile);
-    ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
+    ScopedDB general = Server::instance()->db(Server::General, Server::Write);
     general->setValue("makefiles", mMakefiles);
     make(message->makefile(), message->arguments(), message->extraFlags(), conn);
 }
@@ -314,6 +315,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     switch (message->type()) {
     case QueryMessage::Invalid:
         assert(0);
+        break;
+    case QueryMessage::FindFile:
+        id = findFile(*message);
         break;
     case QueryMessage::DeleteProject: {
         RegExp rx(message->query());
@@ -469,6 +473,17 @@ int Server::followLocation(const QueryMessage &query)
     job->setId(nextId());
     startJob(job);
 
+    return job->id();
+}
+
+int Server::findFile(const QueryMessage &query)
+{
+    error("rc -P %s", query.query().constData());
+    if (!mCurrentProject)
+        return -1;
+    FindFileJob *job = new FindFileJob(query);
+    job->setId(nextId());
+    startJob(job);
     return job->id();
 }
 
@@ -783,7 +798,7 @@ static Path findProjectRoot(const Path &path)
 
 static inline bool isIndexed(const Path &path, const List<ByteArray> &args, const Path &projectRoot)
 {
-    ScopedDB db = Server::instance()->db(Server::FileInformation, ReadWriteLock::Write, projectRoot);
+    ScopedDB db = Server::instance()->db(Server::FileInformation, Server::Write, projectRoot);
     const uint32_t fileId = Location::insertFile(path);
     const char *ch = reinterpret_cast<const char*>(&fileId);
     const Slice key(ch, sizeof(fileId));
@@ -872,7 +887,7 @@ void Server::onMakefileModified(const Path &path)
 void Server::onMakefileRemoved(const Path &path)
 {
     mMakefiles.remove(path);
-    ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
+    ScopedDB general = Server::instance()->db(Server::General, Server::Write);
     general->setValue("makefiles", mMakefiles);
 }
 
@@ -923,18 +938,32 @@ void Server::onJobsComplete(Indexer *indexer)
     }
 }
 
-ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType, const Path &root) const
+ScopedDB Server::db(DatabaseType type, Server::DatabaseLockType lockType, const Path &root) const
 {
+    ReadWriteLock::LockType l;
+    bool erase = false;
+    switch (lockType) {
+    case Read:
+        l = ReadWriteLock::Read;
+        break;
+    case Erase:
+        erase = true;
+        l = ReadWriteLock::Write;
+        break;
+    case Write:
+        l = ReadWriteLock::Write;
+        break;
+    }
     if (type >= static_cast<int>(ProjectSpecificDatabaseTypeCount)) {
         assert(root.isEmpty());
-        return ScopedDB(mDBs[type - ProjectSpecificDatabaseTypeCount], lockType);
+        return ScopedDB(mDBs[type - ProjectSpecificDatabaseTypeCount], l, erase);
     }
     Project *proj = mProjects.value(root, mCurrentProject);
     if (!proj) {
         // error() << "No DB here " << root << " " << type << " " << lockType;
         return ScopedDB();
     }
-    return ScopedDB(proj->databases[type], lockType);
+    return ScopedDB(proj->databases[type], l, erase);
 }
 
 

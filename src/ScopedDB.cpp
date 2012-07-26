@@ -1,9 +1,14 @@
 #include "ScopedDB.h"
 #include "Database.h"
 
-ScopedDB::ScopedDB(Database *db, ReadWriteLock::LockType lockType)
+ScopedDB::ScopedDB(Database *db, ReadWriteLock::LockType lockType, bool clear)
     : mData(new Data(db, lockType))
 {
+    if (clear) {
+        assert(db);
+        assert(lockType == ReadWriteLock::Write);
+        db->clear();
+    }
 }
 
 ScopedDB::ScopedDB()

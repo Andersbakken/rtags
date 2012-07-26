@@ -7,7 +7,7 @@
 class RegExp
 {
 public:
-    RegExp(const ByteArray &pattern, uint32_t flags = 0)
+    RegExp(const ByteArray &pattern = ByteArray(), uint32_t flags = 0)
         : mPattern(pattern), mFlags(flags), mState(Unset)
     {}
 
@@ -71,8 +71,8 @@ public:
         return captures[0].rm_so;
     }
 private:
-    const ByteArray mPattern;
-    const uint32_t mFlags;
+    ByteArray mPattern;
+    uint32_t mFlags;
     mutable regex_t mRegex;
     enum State {
         Unset,

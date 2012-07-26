@@ -12,7 +12,7 @@ CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query)
 
 void CursorInfoJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
+    ScopedDB db = Server::instance()->db(Server::Symbol, Server::Read);
     Location found;
     const CursorInfo ci = RTags::findCursorInfo(db, location, &found);
     if (isAborted())

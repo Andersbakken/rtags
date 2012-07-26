@@ -59,6 +59,7 @@ set(rtags_HDRS
     StatusJob.h
     ValidateDBJob.h
     RecurseJob.h
+    FindFileJob.h
     Str.h
     TestJob.h
     Thread.h
@@ -110,6 +111,7 @@ set(rtags_SRCS
     StatusJob.cpp
     ValidateDBJob.cpp
     RecurseJob.cpp
+    FindFileJob.cpp
     TestJob.cpp
     Thread.cpp
     ThreadPool.cpp

@@ -18,14 +18,14 @@ ReferencesJob::ReferencesJob(const ByteArray &sym, const QueryMessage &query)
 void ReferencesJob::execute()
 {
     if (!symbolName.isEmpty()) {
-        ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Read);
+        ScopedDB db = Server::instance()->db(Server::SymbolName, Server::Read);
         locations = db->value<Set<Location> >(symbolName);
         if (locations.isEmpty()) {
             return;
         }
     }
     const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
-    ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
+    ScopedDB db = Server::instance()->db(Server::Symbol, Server::Read);
     const unsigned keyFlags = Job::keyFlags();
     for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
         // error() << "looking up refs for " << it->key() << bool(flags & QueryMessage::ReferencesForRenameSymbol);

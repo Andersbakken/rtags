@@ -820,7 +820,7 @@ void IndexerJob::execute()
     mDependencies[mFileId].insert(mFileId);
     const Path srcRoot = mIndexer->srcRoot();
     writeFileInformation(mFileId, mArgs, timeStamp,
-                         Server::instance()->db(Server::FileInformation, ReadWriteLock::Write, srcRoot));
+                         Server::instance()->db(Server::FileInformation, Server::Write, srcRoot));
 
     bool compileError = false;
     if (!mUnit) {
@@ -934,9 +934,9 @@ void IndexerJob::execute()
             assert(mDependencies[mFileId].contains(mFileId));
 
             mIndexer->setDiagnostics(visited, fixIts);
-            writeSymbols(mSymbols, mReferences, Server::instance()->db(Server::Symbol, ReadWriteLock::Write, srcRoot));
+            writeSymbols(mSymbols, mReferences, Server::instance()->db(Server::Symbol, Server::Write, srcRoot));
 
-            writeSymbolNames(mSymbolNames, Server::instance()->db(Server::SymbolName, ReadWriteLock::Write, srcRoot));
+            writeSymbolNames(mSymbolNames, Server::instance()->db(Server::SymbolName, Server::Write, srcRoot));
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
         }

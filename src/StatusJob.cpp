@@ -19,7 +19,7 @@ void StatusJob::execute()
     Server *server = Server::instance();
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "general")) {
         matched = true;
-        ScopedDB db = server->db(Server::General, ReadWriteLock::Read);
+        ScopedDB db = server->db(Server::General, Server::Read);
         write(delimiter);
         write(server->databaseDir(Server::General));
         write("    version: " + ByteArray::number(db->value<int>("version")));
@@ -38,7 +38,7 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileids")) {
         matched = true;
-        ScopedDB db = server->db(Server::FileIds, ReadWriteLock::Read);
+        ScopedDB db = server->db(Server::FileIds, Server::Read);
         write(delimiter);
         write(server->databaseDir(Server::FileIds));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -61,7 +61,7 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "dependencies")) {
         matched = true;
-        ScopedDB db = server->db(Server::Dependency, ReadWriteLock::Read);
+        ScopedDB db = server->db(Server::Dependency, Server::Read);
         write(delimiter);
         write(server->databaseDir(Server::Dependency));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -95,7 +95,7 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "symbols")) {
         matched = true;
-        ScopedDB db = server->db(Server::Symbol, ReadWriteLock::Read);
+        ScopedDB db = server->db(Server::Symbol, Server::Read);
         write(delimiter);
         write(server->databaseDir(Server::Symbol));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -112,7 +112,7 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "symbolnames")) {
         matched = true;
-        ScopedDB db = server->db(Server::SymbolName, ReadWriteLock::Read, mIndexer->srcRoot());
+        ScopedDB db = server->db(Server::SymbolName, Server::Read, mIndexer->srcRoot());
         write(delimiter);
         write(server->databaseDir(Server::SymbolName));
         RTags::Ptr<Iterator> it(db->createIterator());
@@ -135,7 +135,7 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileinfos")) {
         matched = true;
-        ScopedDB db = server->db(Server::FileInformation, ReadWriteLock::Read, mIndexer->srcRoot());
+        ScopedDB db = server->db(Server::FileInformation, Server::Read, mIndexer->srcRoot());
         write(delimiter);
         write(server->databaseDir(Server::FileInformation));
         RTags::Ptr<Iterator> it(db->createIterator());

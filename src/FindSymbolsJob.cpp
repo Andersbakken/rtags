@@ -40,7 +40,7 @@ struct LocationAndDefinitionNode
 
 void FindSymbolsJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::SymbolName, ReadWriteLock::Read);
+    ScopedDB db = Server::instance()->db(Server::SymbolName, Server::Read);
     // const bool hasFilter = !pathFilters().isEmpty();
 
     RTags::Ptr<Iterator> it(db->createIterator());
@@ -64,7 +64,7 @@ void FindSymbolsJob::execute()
     }
     List<LocationAndDefinitionNode> sorted;
     sorted.reserve(out.size());
-    db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
+    db = Server::instance()->db(Server::Symbol, Server::Read);
     for (Set<Location>::const_iterator it = out.begin(); it != out.end(); ++it) {
         sorted.push_back(LocationAndDefinitionNode(*it, RTags::findCursorInfo(db, *it).isDefinition));
     }

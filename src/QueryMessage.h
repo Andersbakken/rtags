@@ -29,18 +29,20 @@ public:
         Completions,
         Project,
         DeleteProject,
+        FindFile,
         Shutdown
     };
 
     enum Flag {
-        NoContext = 0x01,
-        LineNumbers = 0x02,
-        FilterSystemIncludes = 0x04,
-        SkipParentheses = 0x08,
-        ReferencesForRenameSymbol = 0x10,
-        ReverseSort = 0x20,
-        ElispList = 0x40,
-        WaitForIndexing = 0x80
+        NoContext = 0x001,
+        LineNumbers = 0x002,
+        FilterSystemIncludes = 0x004,
+        SkipParentheses = 0x008,
+        ReferencesForRenameSymbol = 0x010,
+        ReverseSort = 0x020,
+        ElispList = 0x040,
+        WaitForIndexing = 0x080,
+        MatchRegExp = 0x100
     };
 
     typedef Map<Path, ByteArray> UnsavedFilesMap;
