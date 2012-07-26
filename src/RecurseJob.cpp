@@ -18,6 +18,7 @@ void RecurseJob::run()
         mBatch = &batch;
         mPath.visit(&RecurseJob::visit, this);
     }
+    finished()(mDirectories);
 }
 
 static inline bool filter(const Path &path, Path::Type type, int maxSymLinks, bool &isDir)
@@ -49,9 +50,12 @@ Path::VisitResult RecurseJob::visit(const Path &path, void *userData)
     bool dir = false;
     if (!filter(path, type, 10, dir))
         return Path::Continue;
-    if (dir)
-        return Path::Recurse;
+
     RecurseJob *recurseJob = reinterpret_cast<RecurseJob*>(userData);
+    if (dir) {
+        recurseJob->mDirectories.append(path);
+        return Path::Recurse;
+    }
     const Path chopped = path.mid(recurseJob->mPath.size());
     recurseJob->mBatch->add(chopped, true);
     return Path::Continue;

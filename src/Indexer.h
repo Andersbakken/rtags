@@ -43,6 +43,7 @@ private:
     void onValidateDBJobErrors(const Set<Location> &errors);
     void onJobFinished(IndexerJob *job);
     void onDirtyThreadComplete(DirtyThread *job);
+    void onRecurseJobFinished(const List<Path> &mPaths);
     void commitDependencies(const DependencyMap &deps, bool sync);
     void dirty(const Set<uint32_t> &dirtyFileIds,
                const Map<Path, List<ByteArray> > &dirtyPch,

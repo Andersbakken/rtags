@@ -12,12 +12,13 @@ class RecurseJob : public ThreadPool::Job, public AbortInterface
 public:
     RecurseJob(const Path &path);
     virtual void run();
-    // signalslot::Signal1<const List<Path> &> &finished() { return mFinished; }
+    signalslot::Signal1<const List<Path> &> &finished() { return mFinished; }
 private:
     static Path::VisitResult visit(const Path &path, void *userData);
     Path mPath;
     Batch *mBatch;
-    // signalslot::Signal1<const List<Path> &> mFinished;
+    List<Path> mDirectories;
+    signalslot::Signal1<const List<Path> &> mFinished;
 };
 
 #endif

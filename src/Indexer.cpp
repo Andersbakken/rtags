@@ -584,5 +584,15 @@ void Indexer::dirty(const Set<uint32_t> &dirtyFileIds,
 
 void Indexer::recurseDirs()
 {
-    Server::instance()->threadPool()->start(new RecurseJob(mSrcRoot));
+    RecurseJob *job = new RecurseJob(mSrcRoot);
+    job->finished().connect(this, &Indexer::onRecurseJobFinished);
+    Server::instance()->threadPool()->start(job);
+}
+
+void Indexer::onRecurseJobFinished(const List<Path> &mPaths)
+{
+    // ### need to watch these directories for changes, probably only care when
+    // ### files are added or removed so FileSystemWatcher needs to be beefed up
+#warning not done
+    // error() << mPaths;
 }
