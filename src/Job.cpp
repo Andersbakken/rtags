@@ -87,9 +87,11 @@ void Job::write(const Location &location, const CursorInfo &ci)
     if (ci.symbolLength) {
         char buf[1024];
         const CXStringScope kind(clang_getCursorKindSpelling(ci.kind));
-        const int w = snprintf(buf, sizeof(buf), "%s symbolName: %s kind: %s isDefinition: %s symbolLength: %d %s%s%s",
+        const int w = snprintf(buf, sizeof(buf), "%s symbolName: %s kind: %s isReference: %s isDefinition: %s symbolLength: %d %s%s%s",
                                location.key().constData(), ci.symbolName.constData(),
-                               clang_getCString(kind.string), ci.isDefinition ? "true" : "false",
+                               clang_getCString(kind.string),
+                               RTags::isReference(ci.kind) ? "true" : "false",
+                               ci.isDefinition ? "true" : "false",
                                ci.symbolLength, ci.target.isValid() ? "target: " : "", ci.target.isValid() ? ci.target.key().constData() : "",
                                (ci.references.isEmpty() && ci.additionalReferences.isEmpty() ? "" : " references:"));
         write(ByteArray(buf, w));
