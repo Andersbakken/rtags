@@ -236,3 +236,16 @@ void Path::visit(VisitCallback callback, void *userData) const
         path.visit(callback, userData);
     }
 }
+
+Path Path::followLink(bool *ok) const
+{
+    if (isSymLink()) {
+        char buf[PATH_MAX];
+        int w = readlink(constData(), buf, sizeof(buf) - 1);
+        if (w != -1) {
+            buf[w] = '\0';
+            return buf;
+        }
+    }
+    return *this;
+}

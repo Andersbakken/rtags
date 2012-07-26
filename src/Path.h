@@ -68,6 +68,8 @@ public:
     inline bool isFile() const { return type() == File; }
     inline bool isSocket() const { return type() == Socket; }
     inline bool isAbsolute() const { return (!isEmpty() && at(0) == '/'); }
+    inline bool isSymLink() const { return type() == SymLink; }
+    Path followLink(bool *ok = 0) const;
     const char *fileName() const;
     const char *extension() const;
     static bool exists(const Path &path) { return path.exists(); }
@@ -80,7 +82,6 @@ public:
     bool isSystem() const { return Path::isSystem(constData()); }
     static bool isSystem(const char *path);
     bool isHeader() const;
-    bool isSymLink() const { return type() == SymLink; }
     Path parentDir() const;
     Type type() const;
     bool resolve(const Path &cwd = Path());

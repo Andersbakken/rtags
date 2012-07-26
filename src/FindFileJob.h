@@ -11,10 +11,11 @@
 class FindFileJob : public Job
 {
 public:
-    FindFileJob(const QueryMessage &query);
+    FindFileJob(const Path &srcRoot, const QueryMessage &query);
 protected:
     virtual void execute();
 private:
+    const Path mSrcRoot;
     ByteArray mPattern;
     RegExp mRegExp;
 };

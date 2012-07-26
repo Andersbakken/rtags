@@ -57,6 +57,7 @@ static void help(FILE *f, const char* app)
             "  --reindex|-V [optional regexp]            Reindex all files or all files matching pattern\n"
             "  --wait-for-indexing|-X                    Wait for indexing to finish before doing query\n"
             "  --path|-P [optional pattern]              Print files matching pattern\n"
+            "  --absolute-path|-K                        Print files with absolute path\n"
             "  --path-match-regexp|-Z                    Treat argument to -P as a regexp\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
             app);
@@ -207,10 +208,11 @@ int main(int argc, char** argv)
         { "wait-for-indexing", no_argument, 0, 'X' },
         { "path", optional_argument, 0, 'P' },
         { "path-match-regexp", no_argument, 0, 'Z' },
+        { "absolute-path", no_argument, 0, 'K' },
         { 0, 0, 0, 0 }
     };
 
-    // Unused: bBdjJkKy
+    // Unused: bBdjJky
 
     int logLevel = 0;
     ByteArray logFile;
@@ -255,6 +257,9 @@ int main(int argc, char** argv)
             break;
         case 'Z':
             queryFlags |= QueryMessage::MatchRegExp;
+            break;
+        case 'K':
+            queryFlags |= QueryMessage::AbsolutePath;
             break;
         case 'X':
             queryFlags |= QueryMessage::WaitForIndexing;

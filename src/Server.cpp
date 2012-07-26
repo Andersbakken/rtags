@@ -479,9 +479,10 @@ int Server::followLocation(const QueryMessage &query)
 int Server::findFile(const QueryMessage &query)
 {
     error("rc -P %s", query.query().constData());
-    if (!mCurrentProject)
+    std::tr1::shared_ptr<Indexer> idx = indexer();
+    if (!idx)
         return -1;
-    FindFileJob *job = new FindFileJob(query);
+    FindFileJob *job = new FindFileJob(idx->srcRoot(), query);
     job->setId(nextId());
     startJob(job);
     return job->id();

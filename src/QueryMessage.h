@@ -42,7 +42,8 @@ public:
         ReverseSort = 0x020,
         ElispList = 0x040,
         WaitForIndexing = 0x080,
-        MatchRegExp = 0x100
+        MatchRegExp = 0x100,
+        AbsolutePath = 0x200
     };
 
     typedef Map<Path, ByteArray> UnsavedFilesMap;

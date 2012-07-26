@@ -5,8 +5,8 @@
 #include "leveldb/db.h"
 #include "CursorInfo.h"
 
-FindFileJob::FindFileJob(const QueryMessage &query)
-    : Job(query, 0)
+FindFileJob::FindFileJob(const Path &root, const QueryMessage &query)
+    : Job(query, 0), mSrcRoot(root)
 {
     const ByteArray q = query.query();
     if (!q.isEmpty()) {
@@ -20,27 +20,51 @@ FindFileJob::FindFileJob(const QueryMessage &query)
 
 void FindFileJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::Files, Server::Read);
+    ScopedDB db = Server::instance()->db(Server::Files, Server::Read, mSrcRoot);
     RTags::Ptr<Iterator> it(db->createIterator());
     it->seekToFirst();
+    char buf[PATH_MAX];
+    if (mSrcRoot.size() >= static_cast<int>(sizeof(buf)))
+        return;
+    char *outbuf = queryFlags() & QueryMessage::AbsolutePath ? buf : 0;
+    int outbufSize = 0;
+    if (outbuf) {
+        memcpy(buf, mSrcRoot.constData(), mSrcRoot.size());
+        outbufSize = sizeof(buf) - mSrcRoot.size();
+        outbuf += mSrcRoot.size();
+    }
+    enum Mode {
+        All,
+        RegExp,
+        Pattern
+    } mode = All;
     if (mRegExp.isValid()) {
-        while (it->isValid()) {
-            const ByteArray key = it->key().byteArray();
-            if (mRegExp.indexIn(key) != -1)
-                write(key);
-            it->next();
-        }
+        mode = RegExp;
     } else if (!mPattern.isEmpty()) {
-        while (it->isValid()) {
-            const ByteArray key = it->key().byteArray();
-            if (key.contains(mPattern))
+        mode = Pattern;
+    }
+    while (it->isValid()) {
+        const ByteArray key = it->key().byteArray();
+        bool ok;
+        switch (mode) {
+        case All:
+            ok = true;
+            break;
+        case RegExp:
+            ok = mRegExp.indexIn(key) != -1;
+            break;
+        case Pattern:
+            ok = key.contains(mPattern);
+            break;
+        }
+        if (ok) {
+            if (!outbuf) {
                 write(key);
-            it->next();
+            } else if (key.size() + 1 < outbufSize) {
+                memcpy(outbuf, key.constData(), key.size() + 1);
+                write(ByteArray(buf, mSrcRoot.size() + key.size() + 1));
+            }
         }
-    } else {
-        while (it->isValid()) {
-            write(it->key().byteArray());
-            it->next();
-        }
+        it->next();
     }
 }

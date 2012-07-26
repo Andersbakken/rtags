@@ -16,7 +16,6 @@ public:
 private:
     static Path::VisitResult visit(const Path &path, void *userData);
     Path mPath;
-    // List<Path> mPaths;
     Batch *mBatch;
     // signalslot::Signal1<const List<Path> &> mFinished;
 };
