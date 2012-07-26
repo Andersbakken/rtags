@@ -24,9 +24,9 @@ void ReferencesJob::execute()
             return;
         }
     }
+    const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
     ScopedDB db = Server::instance()->db(Server::Symbol, ReadWriteLock::Read);
     const unsigned keyFlags = Job::keyFlags();
-    const unsigned flags = queryFlags();
     for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
         // error() << "looking up refs for " << it->key() << bool(flags & QueryMessage::ReferencesForRenameSymbol);
         if (isAborted())
@@ -38,8 +38,7 @@ void ReferencesJob::execute()
             pos = cursorInfo.target;
             cursorInfo = RTags::findCursorInfo(db, cursorInfo.target);
         }
-        if (queryFlags() & QueryMessage::ReferencesForRenameSymbol
-            && (cursorInfo.kind == CXCursor_Constructor || cursorInfo.kind == CXCursor_Destructor)) {
+        if (allReferences && (cursorInfo.kind == CXCursor_Constructor || cursorInfo.kind == CXCursor_Destructor)) {
             if (!cursorInfo.additionalReferences.empty()) {
                 const Location &loc = *cursorInfo.additionalReferences.begin();
                 const CursorInfo container = RTags::findCursorInfo(db, loc);
@@ -50,16 +49,25 @@ void ReferencesJob::execute()
             }
             continue;
         }
+        Set<Location> additionalReferences;
         process(db, pos, cursorInfo);
+        if (cursorInfo.kind == CXCursor_CXXMethod)
+            additionalReferences += cursorInfo.additionalReferences;
         if (cursorInfo.target.isValid()) {
             const CursorInfo target = RTags::findCursorInfo(db, cursorInfo.target);
-            if (target.kind == cursorInfo.kind)
+            if (target.kind == cursorInfo.kind) {
                 process(db, cursorInfo.target, target);
+                if (target.kind == CXCursor_CXXMethod)
+                    additionalReferences += target.additionalReferences;
+            }
+        }
+        for (Set<Location>::const_iterator ait = additionalReferences.begin(); ait != additionalReferences.end(); ++ait) {
+            process(db, *ait, RTags::findCursorInfo(db, *ait));
         }
     }
 
     List<Location> sorted = references.toList();
-    if (flags & QueryMessage::ReverseSort) {
+    if (queryFlags() & QueryMessage::ReverseSort) {
         std::sort(sorted.begin(), sorted.end(), std::greater<Location>());
     } else {
         std::sort(sorted.begin(), sorted.end());
@@ -94,7 +102,5 @@ void ReferencesJob::process(ScopedDB &db, const Location &pos, const CursorInfo 
         }
     } else {
         references += cursorInfo.references;
-        if (cursorInfo.kind == CXCursor_CXXMethod)
-            references += cursorInfo.additionalReferences;
     }
 }
