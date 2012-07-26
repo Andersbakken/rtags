@@ -386,7 +386,7 @@ return t if rtags is allowed to modify this file"
 (defun rtags-rename-symbol ()
   (interactive)
   (save-some-buffers) ; it all kinda falls apart when buffers are unsaved
-  (let (len file pos replacewith prev (modifications 0) (filesopened 0))
+  (let (len file pos destructor replacewith prev (modifications 0) (filesopened 0))
     (save-excursion
       (if (looking-at "[0-9A-Za-z_~#]")
           (progn
@@ -396,12 +396,18 @@ return t if rtags is allowed to modify this file"
                 (forward-char))
             (setq file (buffer-file-name (current-buffer)))
             (setq pos (point))
+            (if (looking-at "~")
+                (progn
+                  (setq pos (+ pos 1))
+                  (setq destructor t)))
             (while (looking-at "[0-9A-Za-z_~#]")
               (forward-char))
             (setq prev (buffer-substring pos (point)))
             (setq len (- (point) pos))
             (setq replacewith (read-from-minibuffer (format "Replace '%s' with: " prev)))
             (unless (equal replacewith "")
+              (if destructor
+                  (setq pos (- pos 1)))
               (with-temp-buffer
                 (rtags-call-rc "-E" "-O" "-N" "-r" (format "%s,%d" file (- pos 1)))
                 (while (looking-at "^\\(.*\\),\\([0-9]+\\)$")

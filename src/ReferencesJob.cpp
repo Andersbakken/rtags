@@ -5,13 +5,13 @@
 #include "CursorInfo.h"
 
 ReferencesJob::ReferencesJob(const Location &loc, const QueryMessage &query)
-    : Job(query, 0), renamingClass(false)
+    : Job(query, 0)
 {
     locations.insert(loc);
 }
 
 ReferencesJob::ReferencesJob(const ByteArray &sym, const QueryMessage &query)
-    : Job(query, 0), symbolName(sym), renamingClass(false)
+    : Job(query, 0), symbolName(sym)
 {
 }
 
@@ -28,7 +28,7 @@ void ReferencesJob::execute()
     const unsigned keyFlags = Job::keyFlags();
     const unsigned flags = queryFlags();
     for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
-        error() << "looking up refs for " << it->key() << bool(flags & QueryMessage::ReferencesForRenameSymbol);
+        // error() << "looking up refs for " << it->key() << bool(flags & QueryMessage::ReferencesForRenameSymbol);
         if (isAborted())
             return;
 
@@ -45,16 +45,16 @@ void ReferencesJob::execute()
                 const CursorInfo container = RTags::findCursorInfo(db, loc);
                 if (container.isValid()) {
                     assert(container.kind == CXCursor_ClassDecl || container.kind == CXCursor_StructDecl);
-                    process(loc, container);
+                    process(db, loc, container);
                 }
             }
             continue;
         }
-        process(pos, cursorInfo);
+        process(db, pos, cursorInfo);
         if (cursorInfo.target.isValid()) {
             const CursorInfo target = RTags::findCursorInfo(db, cursorInfo.target);
             if (target.kind == cursorInfo.kind)
-                process(cursorInfo.target, target);
+                process(db, cursorInfo.target, target);
         }
     }
 
@@ -65,30 +65,33 @@ void ReferencesJob::execute()
         std::sort(sorted.begin(), sorted.end());
     }
     for (List<Location>::const_iterator it = sorted.begin(); it != sorted.end(); ++it) {
-        Location l = *it;
-        if (renamingClass) {
-            CursorInfo ci = RTags::findCursorInfo(db, l);
-            if (ci.kind == CXCursor_Destructor) {
-                l = Location(l.fileId(), l.offset() + 1);
-            }
-        }
-
-        write(l.key(keyFlags));
+        write(it->key(keyFlags));
     }
 }
 
-void ReferencesJob::process(const Location &pos, const CursorInfo &cursorInfo)
+void ReferencesJob::process(ScopedDB &db, const Location &pos, const CursorInfo &cursorInfo)
 {
     if (!cursorInfo.isValid())
         return;
-    if (cursorInfo.kind == CXCursor_StructDecl || cursorInfo.kind == CXCursor_ClassDecl)
-        renamingClass = true;
     const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
-    error() << pos << cursorInfo << "allReferences" << allReferences;
+    const bool renamingClass = allReferences && (cursorInfo.kind == CXCursor_StructDecl || cursorInfo.kind == CXCursor_ClassDecl);
+    // error() << pos << cursorInfo << "allReferences" << allReferences;
     assert(!RTags::isReference(cursorInfo.kind));
     if (allReferences) {
         references.insert(pos);
-        references += cursorInfo.references + cursorInfo.additionalReferences;
+        references += cursorInfo.references;
+        if (renamingClass) {
+            for (Set<Location>::const_iterator it = cursorInfo.additionalReferences.begin();
+                 it != cursorInfo.additionalReferences.end(); ++it) {
+
+                CursorInfo ci = RTags::findCursorInfo(db, *it);
+                if (ci.kind == CXCursor_Destructor) {
+                    references.insert(Location(it->fileId(), it->offset() + 1));
+                } else {
+                    references.insert(*it);
+                }
+            }
+        }
     } else {
         references += cursorInfo.references;
         if (cursorInfo.kind == CXCursor_CXXMethod)

@@ -33,7 +33,7 @@ enum UnitType {
 class FileInformation;
 class CursorInfo;
 typedef Map<Location, CursorInfo> SymbolMap;
-typedef Map<Location, std::pair<Location, RTags::ReferenceType> > ReferenceMap;
+typedef Map<Location, std::pair<Set<Location>, RTags::ReferenceType> > ReferenceMap;
 typedef Map<ByteArray, Set<Location> > SymbolNameMap;
 typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
 typedef std::pair<ByteArray, time_t> WatchedPair;

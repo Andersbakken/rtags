@@ -38,16 +38,19 @@ static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &reference
     if (!references.isEmpty()) {
         const ReferenceMap::const_iterator end = references.end();
         for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
-            CursorInfo &ci = symbols[it->second.first];
-            if (it->second.second != RTags::NormalReference) {
-                CursorInfo &other = symbols[it->first];
-                // error() << "trying to join" << it->first << "and" << it->second.front();
-                if (other.target.isNull())
-                    other.target = it->second.first;
-                if (ci.target.isNull())
-                    ci.target = it->first;
-            } else {
-                ci.references.insert(it->first);
+            const Set<Location> refs = it->second.first;
+            for (Set<Location>::const_iterator rit = refs.begin(); rit != refs.end(); ++rit) {
+                CursorInfo &ci = symbols[*rit];
+                if (it->second.second != RTags::NormalReference) {
+                    CursorInfo &other = symbols[it->first];
+                    // error() << "trying to join" << it->first << "and" << it->second.front();
+                    if (other.target.isNull())
+                        other.target = *rit;
+                    if (ci.target.isNull())
+                        ci.target = it->first;
+                } else {
+                    ci.references.insert(it->first);
+                }
             }
         }
     }
@@ -577,7 +580,6 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
     }
     bool processRef = false;
     bool checkImplicit = false;
-    bool addAdditionalReference = false;
     switch (cursor.kind) {
     case CXCursor_MacroExpansion:
         processRef = (ref.kind == CXCursor_MacroDefinition);
@@ -586,7 +588,6 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         switch (ref.kind) {
         case CXCursor_ClassDecl:
         case CXCursor_StructDecl:
-            addAdditionalReference = true;
         case CXCursor_UnionDecl:
             if (clang_isCursorDefinition(ref.cursor))
                 break;
@@ -609,11 +610,6 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
     }
     if (processRef && !mSymbols.contains(ref.location)) {
         processCursor(ref, ref);
-    }
-    if (addAdditionalReference) {
-        CursorInfo &ci = mSymbols[ref.location];
-        if (!ci.references.contains(cursor.location))
-            ci.additionalReferences.insert(cursor.location);
     }
     if (checkImplicit && clang_equalLocations(clang_getCursorLocation(ref.cursor),
                                               clang_getCursorLocation(clang_getCursorSemanticParent(ref.cursor)))) {
@@ -698,7 +694,9 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         // ### For RTags we seem to get this count:
         // Duplicates: 18278 Non-duplicates: 69444 Overwrites: 2018
         // not sure if we should fix this.
-        mReferences[cursor.location] = std::pair<Location, RTags::ReferenceType>(ref.location, referenceType);
+        std::pair<Set<Location>, RTags::ReferenceType> &val = mReferences[cursor.location];
+        if (!val.first.insert(ref.location))
+            val.second = referenceType;
     }
     return CXChildVisit_Recurse;
 }
