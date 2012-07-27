@@ -56,8 +56,9 @@ time_t Path::lastModified() const
 int64_t Path::fileSize() const
 {
     struct stat st;
-    if (!stat(constData(), &st) && st.st_mode == S_IFREG)
+    if (!stat(constData(), &st)) {// && st.st_mode == S_IFREG)
         return st.st_size;
+    }
     return -1;
 }
 

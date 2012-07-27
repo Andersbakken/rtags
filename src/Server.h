@@ -103,6 +103,7 @@ private:
     void handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn);
     void fixIts(const QueryMessage &query, Connection *conn);
     void errors(const QueryMessage &query, Connection *conn);
+    int parse(const QueryMessage &query);
     int followLocation(const QueryMessage &query);
     int cursorInfo(const QueryMessage &query);
     int referencesForLocation(const QueryMessage &query);

@@ -22,6 +22,7 @@
 #include "MakefileParser.h"
 #include "Message.h"
 #include "Messages.h"
+#include "ParseJob.h"
 #include "Path.h"
 #include "QueryMessage.h"
 #include "RTags.h"
@@ -319,6 +320,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::FindFile:
         id = findFile(*message);
         break;
+    case QueryMessage::Parse:
+        id = parse(*message);
+        break;
     case QueryMessage::DeleteProject: {
         RegExp rx(message->query());
         Map<Path, Project*>::iterator it = mProjects.begin();
@@ -473,6 +477,15 @@ int Server::followLocation(const QueryMessage &query)
     job->setId(nextId());
     startJob(job);
 
+    return job->id();
+}
+
+int Server::parse(const QueryMessage &query)
+{
+    error("rc -y %s", query.query().constData());
+    ParseJob *job = new ParseJob(query);
+    job->setId(nextId());
+    startJob(job);
     return job->id();
 }
 
