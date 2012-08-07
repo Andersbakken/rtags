@@ -353,7 +353,7 @@ void EventLoop::sendPostedEvents()
 {
     MutexLocker locker(&mMutex);
     while (!mEvents.empty()) {
-        List<EventData>::iterator first = mEvents.begin();
+        std::deque<EventData>::iterator first = mEvents.begin();
         EventData data = *first;
         mEvents.erase(first);
         locker.unlock();

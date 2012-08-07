@@ -4,7 +4,7 @@
 #include "Mutex.h"
 #include "WaitCondition.h"
 #include "Thread.h"
-#include <vector>
+#include <deque>
 #include <sys/time.h>
 
 class Event;
@@ -74,7 +74,7 @@ private:
         EventReceiver* receiver;
         Event* event;
     };
-    std::vector<EventData> mEvents;
+    std::deque<EventData> mEvents;
 
     static EventLoop* sInstance;
 
