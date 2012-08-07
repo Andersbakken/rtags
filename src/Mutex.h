@@ -46,7 +46,7 @@ private:
     inline void check(const char *function, int err)
     {
         if (err) {
-            error("Mutex tryLock failure %d %s", err, strerror(err));
+            error("Mutex %s failure %d %s", function, err, strerror(err));
             extern bool inSignalHandler;
             if (!inSignalHandler)
                 assert(0);
