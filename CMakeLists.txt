@@ -5,6 +5,7 @@ endif()
 
 add_subdirectory(makelib)
 add_subdirectory(src)
+add_subdirectory(parser)
 
 add_custom_target(3rdparty 
     COMMAND cmake . && \$\(MAKE\)
