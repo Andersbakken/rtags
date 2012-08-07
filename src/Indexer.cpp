@@ -17,7 +17,8 @@
 #include <math.h>
 
 Indexer::Indexer()
-    : mJobCounter(0), mTimerRunning(false)
+    : mJobCounter(0), mTimerRunning(false), mWatcher(FileSystemWatcher::Modified),
+      mRecurseWatcher(0), mRecurseJob(0), mRecurseDirty(false)
 {
 }
 
@@ -583,15 +584,40 @@ void Indexer::dirty(const Set<uint32_t> &dirtyFileIds,
 
 void Indexer::recurseDirs()
 {
-    RecurseJob *job = new RecurseJob(mSrcRoot);
-    job->finished().connect(this, &Indexer::onRecurseJobFinished);
-    Server::instance()->threadPool()->start(job);
+    MutexLocker lock(&mMutex);
+    delete mRecurseWatcher;
+    mRecurseWatcher = 0;
+    mRecurseDirty = false;
+    if (!mRecurseJob) {
+        mRecurseJob = new RecurseJob(mSrcRoot);
+        mRecurseJob->finished().connect(this, &Indexer::onRecurseJobFinished);
+        Server::instance()->threadPool()->start(mRecurseJob);
+    } else {
+        mRecurseDirty = true;
+    }
 }
 
 void Indexer::onRecurseJobFinished(const List<Path> &mPaths)
 {
-    // ### need to watch these directories for changes, probably only care when
-    // ### files are added or removed so FileSystemWatcher needs to be beefed up
-#warning not done
-    // error() << mPaths;
+    bool dirty = false;
+    {
+        MutexLocker lock(&mMutex);
+        std::swap(mRecurseDirty, dirty);
+        assert(!mRecurseWatcher);
+        if (!dirty) {
+            mRecurseWatcher = new FileSystemWatcher(FileSystemWatcher::Added|FileSystemWatcher::Removed);
+            mRecurseWatcher->modified().connect(this, &Indexer::onRecurseWatcherChanged);
+            for (List<Path>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it)
+                mRecurseWatcher->watch(*it);
+        }
+        assert(mRecurseJob);
+        mRecurseJob = 0;
+    }
+    if (dirty)
+        recurseDirs();
+}
+
+void Indexer::onRecurseWatcherChanged(const Path &dir)
+{
+    recurseDirs();
 }

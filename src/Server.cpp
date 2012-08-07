@@ -70,8 +70,9 @@ static inline Path databaseDir(Server::DatabaseType type, const char *base)
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mServer(0), mVerbose(false), mJobId(0), mCurrentProject(0),
-      mThreadPool(0), mCompletions(0)
+    : mServer(0), mVerbose(false), mJobId(0),
+      mMakefilesWatcher(FileSystemWatcher::Modified|FileSystemWatcher::Removed),
+      mCurrentProject(0), mThreadPool(0), mCompletions(0)
 {
     assert(!sInstance);
     sInstance = this;

@@ -16,7 +16,8 @@
 #endif
 #include <errno.h>
 
-FileSystemWatcher::FileSystemWatcher()
+FileSystemWatcher::FileSystemWatcher(unsigned flags)
+    : mFlags(flags)
 {
 #if defined(HAVE_INOTIFY)
     mFd = inotify_init();
@@ -55,19 +56,31 @@ bool FileSystemWatcher::watch(const Path &path)
 {
     assert(!path.isEmpty());
     MutexLocker lock(&mMutex);
+    if (mWatchedByPath.contains(path)) {
+        return false;
+    }
     const Path::Type type = path.type();
     uint32_t flags = 0;
     switch (type) {
 #if defined(HAVE_INOTIFY)
     case Path::File:
-        flags = IN_MODIFY|IN_DELETE_SELF|IN_MOVE_SELF|IN_ATTRIB; // ### qt uses IN_MOVE on file which makes no sense to me
+        if (mFlags & Removed)
+            flags |= IN_DELETE_SELF|IN_MOVE_SELF|IN_UNMOUNT;
+        if (mFlags & Modified)
+            flags |= IN_ATTRIB|IN_MODIFY;
         break;
     case Path::Directory:
-        flags = IN_MOVE|IN_CREATE|IN_DELETE|IN_DELETE_SELF|IN_ATTRIB;
+        if (mFlags & Added)
+            flags |= IN_CREATE|IN_MOVED_TO;
+        if (mFlags & Removed)
+            flags |= IN_DELETE_SELF|IN_DELETE|IN_MOVED_FROM|IN_UNMOUNT;
+        if (mFlags & Modified)
+            flags |= IN_ATTRIB;
         break;
 #elif defined(HAVE_KQUEUE)
     case Path::File:
     case Path::Directory:
+#warning this may not work correctly anymore, look at inotify
         flags = NOTE_RENAME|NOTE_DELETE|NOTE_EXTEND|NOTE_WRITE|NOTE_ATTRIB|NOTE_REVOKE;
         break;
 #endif
@@ -76,9 +89,6 @@ bool FileSystemWatcher::watch(const Path &path)
         return false;
     }
 
-    if (mWatchedByPath.contains(path)) {
-        return false;
-    }
 #if defined(HAVE_INOTIFY)
     const int ret = inotify_add_watch(mFd, path.constData(), flags);
 #elif defined(HAVE_KQUEUE)
@@ -139,8 +149,6 @@ void FileSystemWatcher::notifyReadyRead()
 #if defined(HAVE_INOTIFY)
     {
         MutexLocker lock(&mMutex);
-
-        // qDebug() << "QInotifyFileSystemWatcherEngine::readFromInotify";
 
         int s = 0;
         ioctl(mFd, FIONREAD, &s);

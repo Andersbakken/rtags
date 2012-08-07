@@ -9,9 +9,15 @@
 class FileSystemWatcher
 {
 public:
-    FileSystemWatcher();
+    enum Flag {
+        Added = 0x1,
+        Removed = 0x2,
+        Modified = 0x4
+    };
+    FileSystemWatcher(unsigned flags);
     ~FileSystemWatcher();
 
+    unsigned flags() const { return mFlags; }
     bool watch(const Path &path);
     bool unwatch(const Path &path);
     signalslot::Signal1<const Path&> &removed() { return mRemoved; }
@@ -24,5 +30,6 @@ private:
     Map<Path, int> mWatchedByPath;
     Map<int, Path> mWatchedById;
     signalslot::Signal1<const Path&> mRemoved, mModified;
+    const unsigned mFlags;
 };
 #endif
