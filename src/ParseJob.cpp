@@ -56,7 +56,6 @@ void ParseJob::run()
     char *buf = reinterpret_cast<char*>(calloc(fileSize + 1, 1));
     fread(buf, 1, fileSize, f);
     fclose(f);
-    buf[fileSize] = '\0';
     char *ch = buf;
     char *end;
     while (*ch) {
