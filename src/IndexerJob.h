@@ -24,8 +24,6 @@ public:
     virtual void run();
     void execute();
 
-    unsigned mFlags;
-    bool mIsPch;
     Location createLocation(const CXCursor &cursor, bool *blocked);
     static Location createLocation(const CXCursor &cursor);
     ByteArray addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDb);
@@ -44,6 +42,10 @@ public:
     CXChildVisitResult processCursor(const Cursor &cursor, const Cursor &ref);
     Cursor findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc);
     void addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos);
+
+    unsigned mFlags;
+    const time_t mTimeStamp;
+    bool mIsPch;
 
     List<Cursor> mDelayed;
     SymbolMap mSymbols;

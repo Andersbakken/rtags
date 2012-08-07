@@ -116,10 +116,9 @@ static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &a
     return db->setValue(Slice(ch, sizeof(fileId)), FileInformation(lastTouched, args));
 }
 
-IndexerJob::IndexerJob(Indexer *indexer, unsigned flags,
-                       const Path &input, const List<ByteArray> &arguments)
+IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &input, const List<ByteArray> &arguments)
 
-    : mFlags(flags), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
+    : mFlags(flags), mTimeStamp(time(0)), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
       mPchHeaders(extractPchFiles(mIndexer->projectRoot(), arguments)), mUnit(0)
 {
@@ -809,7 +808,6 @@ void IndexerJob::execute()
                                        clangArgs.data(), idx, 0, 0,
                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
     Scope scope = { mHeaderMap, mUnit, index, mFlags };
-    const time_t timeStamp = time(0);
     // fprintf(stdout, "%s => %d\n", clangLine.nullTerminated(), (mUnit != 0));
 
     warning() << "loading unit " << clangLine << " " << (mUnit != 0);
@@ -819,7 +817,7 @@ void IndexerJob::execute()
 
     mDependencies[mFileId].insert(mFileId);
     const Path srcRoot = mIndexer->srcRoot();
-    writeFileInformation(mFileId, mArgs, timeStamp,
+    writeFileInformation(mFileId, mArgs, mTimeStamp,
                          Server::instance()->db(Server::FileInformation, Server::Write, srcRoot));
 
     bool compileError = false;

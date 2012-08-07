@@ -299,6 +299,8 @@ void Indexer::onJobFinished(IndexerJob *job)
 
 void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags)
 {
+    IndexerJob *job = new IndexerJob(this, indexerJobFlags, input, arguments);
+    job->finished().connect(this, &Indexer::onJobFinished);
     MutexLocker locker(&mMutex);
 
     const uint32_t fileId = Location::insertFile(input);
@@ -309,14 +311,11 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
         IndexerJob *&j = mWaitingForAbort[fileId];
         if (!j || j->mArgs != arguments || j->mFlags != indexerJobFlags)
             delete j;
-        j = new IndexerJob(this, indexerJobFlags, input, arguments);
-        j->finished().connect(this, &Indexer::onJobFinished);
+        j = job;
         return;
     }
 
     ++mJobCounter;
-    IndexerJob *job = new IndexerJob(this, indexerJobFlags, input, arguments);
-    job->finished().connect(this, &Indexer::onJobFinished);
 
     if (needsToWaitForPch(job)) {
         mWaitingForPch.insert(job); // ### this could use the pch file(s) it waits for as key
