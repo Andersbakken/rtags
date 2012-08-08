@@ -111,6 +111,7 @@ public:
                 break;
             case tok::l_paren:
                 handleLeftParen(token, entries);
+                targetKind = tok::r_paren;
                 break;
             case tok::semi:
                 handleSemi(token, entries);
