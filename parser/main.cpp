@@ -103,8 +103,16 @@ public:
                 handleLeftBrace(token, entries);
                 break;
             case tok::colon:
-                if (mState.top().type == Container && tokenKind(-1) == tok::r_paren)
-                    targetKind = tok::l_brace; // need to read past the initializer list
+                switch (mState.top().type) {
+                case Container:
+                    if (tokenKind(-1) == tok::r_paren)
+                        targetKind = tok::l_brace; // need to read past the initializer list
+                    break;
+                case ContainerPending:
+                    if (mState.top().pendingContainerIndex == -1)
+                        mState.top().pendingContainerIndex = findLastToken(tok::raw_identifier, -1);
+                    break;
+                }
                 break;
             case tok::r_brace:
                 handleRightBrace(token);
@@ -128,9 +136,12 @@ private:
         int idx;
         switch (mState.top().type) {
         case ContainerPending:
-            mState.pop();
             assert(!mState.empty());
-            if ((idx = findLastToken(tok::raw_identifier, -1)) != -1) {
+            idx = (mState.top().pendingContainerIndex != -1
+                   ? mState.top().pendingContainerIndex
+                   : findLastToken(tok::raw_identifier, -1));
+            mState.pop();
+            if (idx != -1) {
                 const Token &token = mTokens[idx];
                 Entry entry;
                 entry.offset = tokenOffset(token);
@@ -142,7 +153,6 @@ private:
                     mContainerScope.append("::");
                 mContainerScope.append(entry.name);
                 entries.append(entry);
-
             }
             break;
         case Global:
@@ -328,11 +338,12 @@ private:
     };
     struct State {
         State(StateType t = Global, int idx = -1, const ByteArray &n = ByteArray())
-            : type(t), braceIndex(idx), name(n)
+            : type(t), braceIndex(idx), name(n), pendingContainerIndex(-1)
         {}
         StateType type;
         int braceIndex; // what brace index this state should get popped on or -1
         ByteArray name; // for classes/structs/namespaces
+        int pendingContainerIndex; // index of where the real class is for pending container states
     };
     std::stack<State> mState;
     ByteArray mContainerScope;
@@ -341,14 +352,16 @@ private:
 
 int main(int argc, char **argv)
 {
-    Parser parser(argc > 1 ? argv[1] : "test.cpp");
+    Path path(argc > 1 ? argv[1] : "test.cpp");
+    path.resolve();
+    Parser parser(path.constData());
 
     List<Entry> entries;
     parser.parse(entries);
     for (List<Entry>::const_iterator it = entries.begin(); it != entries.end(); ++it) {
         const Entry &e = *it;
-        printf("%s%s%s %d%s\n", e.scope.nullTerminated(), e.scope.isEmpty() ? "" : "::",
-               e.name.constData(), e.offset, e.reference ? " reference" : "");
+        printf("%s%s%s %s,%d%s\n", e.scope.nullTerminated(), e.scope.isEmpty() ? "" : "::",
+               e.name.constData(), path.nullTerminated(), e.offset, e.reference ? " reference" : "");
     }
 
 
