@@ -141,14 +141,18 @@ bool Path::isHeader() const
 {
     if (exists()) {
         const char *ext = extension();
-        if (ext) {
-            const char *headers[] = { "h", "hpp", "hxx", "hh", "tcc", 0 };
-            const int len = strlen(ext);
-            for (int i=0; headers[i]; ++i) {
-                if (!strncasecmp(ext, headers[i], len))
-                    return true;
-            }
-        }
+        if (ext)
+            return isHeader(ext, strlen(ext));
+    }
+    return false;
+}
+
+bool Path::isHeader(const char *ext, int len)
+{
+    const char *headers[] = { "h", "hpp", "hxx", "hh", "tcc", 0 };
+    for (int i=0; headers[i]; ++i) {
+        if (!strncasecmp(ext, headers[i], len))
+            return true;
     }
     return false;
 }

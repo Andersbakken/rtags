@@ -82,6 +82,7 @@ public:
     bool isSystem() const { return Path::isSystem(constData()); }
     static bool isSystem(const char *path);
     bool isHeader() const;
+    static bool isHeader(const char *extension, int len);
     Path parentDir() const;
     Type type() const;
     bool resolve(const Path &cwd = Path());
