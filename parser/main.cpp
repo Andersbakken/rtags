@@ -49,7 +49,7 @@ class Parser
 {
 public:
     Parser(const char *file)
-        : mFileName(file), mBraceCount(0), mFunctionBraceCount(-1)
+        : mFileName(file), mBraceCount(0)
     {
         FILE *f = fopen(mFileName, "r");
         assert(f);
@@ -78,7 +78,7 @@ public:
         entries.clear();
         Token token;
         int idx;
-        mState.push(Global);
+        mState.push(std::make_pair(Global, -1));
         while (true) {
             if (mLexer->LexFromRawLexer(token))
                 break;
@@ -86,12 +86,12 @@ public:
             if (getenv("VERBOSE") && isInteresting(token.getKind())) {
                 const char *names[] = { "global", "functionbody", "contextpending", "functionpending" };
                 printf("%d %s \"%s\" state: %s\n",
-                       tokenOffset(token), token.getName(), tokenSpelling(token).constData(), names[mState.top()]);
+                       tokenOffset(token), token.getName(), tokenSpelling(token).constData(), names[mState.top().first]);
             }
 
             switch (token.getKind()) {
             case tok::l_brace:
-                switch (mState.top()) {
+                switch (mState.top().first) {
                 case ContextPending:
                     if ((idx = findLastToken(tok::raw_identifier, -1)) != -1) {
                         const Token &token = mTokens[idx];
@@ -125,9 +125,7 @@ public:
                             entries.append(entry);
                             // printf("Added one %s %s %d %d\n", entry.scope.nullTerminated(), entry.name.nullTerminated(),
                             //        entry.offset, __LINE__);
-                            mState.push(FunctionBody);
-                            assert(mFunctionBraceCount == -1);
-                            mFunctionBraceCount = mBraceCount;
+                            mState.push(std::make_pair(FunctionBody, mBraceCount));
                         }
                         // printf("Pushed to function %d\n", mFunctionBraceCount);
                     }
@@ -145,14 +143,12 @@ public:
                         mScope.truncate(mScope.size() - (mContextScope.top().first.size() + 2));
                     }
                     mContextScope.pop();
-                } else if (mBraceCount == mFunctionBraceCount) {
-                    mFunctionBraceCount = -1;
-                    assert(mState.top() == FunctionBody);
-                    mState.pop();
                 }
+                if (mState.top().second == mBraceCount)
+                    mState.pop();
                 break;
             case tok::l_paren:
-                if (mState.top() == FunctionBody) {
+                if (mState.top().first == FunctionBody) {
                     const int idx = findLastToken(tok::raw_identifier, -1);
                     if (idx != -1) {
                         const Token &token = mTokens[idx];
@@ -187,7 +183,7 @@ public:
             case tok::r_paren:
                 break;
             case tok::semi:
-                switch (mState.top()) {
+                switch (mState.top().first) {
                 case ContextPending:
                     mState.pop();
                     break;
@@ -215,7 +211,7 @@ public:
             case tok::arrow:
                 break;
             case tok::raw_identifier:
-                switch (mState.top()) {
+                switch (mState.top().first) {
                 case Global:
                 case FunctionBody: {
                     const char *tokenSpl;
@@ -234,7 +230,7 @@ public:
                         break;
                     }
                     if (contextScope) {
-                        mState.push(ContextPending);
+                        mState.push(std::make_pair(ContextPending, -1));
                     }
                     break; }
                 default:
@@ -292,7 +288,7 @@ private:
     }
     const char *mFileName;
     Lexer *mLexer;
-    int mBraceCount, mSize, mFunctionBraceCount;
+    int mBraceCount, mSize;
     char *mBuf;
     enum State {
         Global,
@@ -300,7 +296,7 @@ private:
         ContextPending,
         FunctionPending
     };
-    std::stack<State> mState;
+    std::stack<std::pair<State, int> > mState;
     std::stack<std::pair<ByteArray, int> > mContextScope;
     ByteArray mScope;
     List<Token> mTokens;
