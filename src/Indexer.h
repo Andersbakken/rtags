@@ -12,7 +12,6 @@
 
 class IndexerJob;
 class DirtyThread;
-class RecurseJob;
 class Indexer
 {
 public:
@@ -41,7 +40,6 @@ public:
     Path srcRoot() const { return mSrcRoot; } // ~/src/foobar
     Path projectRoot() const { return mProjectRoot; } // ~/.rtags/projects/[_foobar_]
 private:
-    void onRecurseWatcherChanged(const Path &path);
     void onValidateDBJobErrors(const Set<Location> &errors);
     void onJobFinished(IndexerJob *job);
     void onDirtyThreadComplete(DirtyThread *job);
@@ -86,10 +84,6 @@ private:
     Set<Location> mPreviousErrors;
 
     signalslot::Signal1<Indexer*> mJobsComplete;
-
-    FileSystemWatcher *mRecurseWatcher;
-    RecurseJob *mRecurseJob;
-    bool mRecurseDirty;
 };
 
 inline bool Indexer::visitFile(uint32_t fileId, const Path &path)

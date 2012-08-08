@@ -41,9 +41,7 @@ static inline bool filter(const Path &path, Path::Type type, int maxSymLinks, bo
     }
     isDir = false;
     const char *extension = path.extension();
-    if (extension)
-        return strcmp(extension, "o") && strcmp(extension, "obj");
-    return true;
+    return !extension || strcmp(extension, "o");
 }
 
 Path::VisitResult RecurseJob::visit(const Path &path, void *userData)
