@@ -538,6 +538,7 @@ return t if rtags is allowed to modify this file"
              (rtags-goto-location (buffer-string))))
           (t (progn
                (switch-to-buffer-other-window "*RTags Complete*")
+               (shrink-window-if-larger-than-buffer)
                (goto-char (point-min))
                (compilation-mode)
                (if rtags-jump-to-first-match
@@ -598,6 +599,7 @@ return t if rtags is allowed to modify this file"
             ((= (count-lines (point-min) (point-max)) 1) (rtags-find-file-on-return-pressed))
             (t (progn
                   (switch-to-buffer-other-window "*RTags Complete*")
+                  (shrink-window-if-larger-than-buffer)
                   (goto-char (point-min))
                   (local-set-key (kbd "RET") (function rtags-find-file-on-return-pressed))
                   (local-set-key (kbd "ENTER") (function rtags-find-file-on-return-pressed)))))
