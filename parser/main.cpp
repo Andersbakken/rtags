@@ -142,7 +142,9 @@ public:
             case tok::raw_identifier:
             case tok::coloncolon:
             case tok::colon:
-            case tok::greater: // without this one c++ style casts looks like real function calls to us.
+            case tok::tilde:
+            case tok::greater: // without this one c++ style casts look like real function calls to us.
+            case tok::equal: // without this one variable assignments look like real function calls to us.
                 mTokens.append(token);
                 break;
             default:
@@ -227,13 +229,16 @@ private:
             break; }
         case FunctionPending: {
             int function = mState.top().pendingIndex;
-            // printf("Got into function pending %d %d %s\n", mCurrentToken, function,
-            //        tok::getTokenName(tokenKind(function)));
             assert(function != -1);
             Entry entry;
             const Token &token = mTokens.at(function);
             entry.offset = tokenOffset(token);
             entry.name = tokenSpelling(token);
+            // printf("Got into function pending prev is %s cur is %s for %s %s,%d\n",
+            //        tok::getTokenName(tokenKind(function - 1)),
+            //        tok::getTokenName(tokenKind(function)),
+            //        entry.name.constData(), mFileName, entry.offset);
+
             if (tokenKind(function - 1) == tok::tilde) {
                 // printf("[%s] %s:%d: if (tokenKind(function - 1) == tok::tilde) { [after]\n", __func__, __FILE__, __LINE__);
                 entry.name.prepend('~');
@@ -281,7 +286,7 @@ private:
                     keyWord = !strncmp(tokenSpl, "if", 2) || !strncmp(tokenSpl, "do", 2);
                     break;
                 case 3:
-                    keyWord = !strncmp(tokenSpl, "for", 3);
+                    keyWord = !strncmp(tokenSpl, "for", 3) || !strncmp(tokenSpl, "new", 3);
                     break;
                 case 4:
                     keyWord = !strncmp(tokenSpl, "void", 4);
@@ -290,7 +295,8 @@ private:
                     keyWord = !strncmp(tokenSpl, "while", 5);
                     break;
                 case 6:
-                    keyWord = !strncmp(tokenSpl, "switch", 6) || !strncmp(tokenSpl, "return", 6);
+                    keyWord = (!strncmp(tokenSpl, "switch", 6) || !strncmp(tokenSpl, "return", 6)
+                               || !strncmp(tokenSpl,  "delete", 6));
                     break;
                 case 8:
                     keyWord = !strncmp(tokenSpl, "operator", 8);
@@ -345,10 +351,11 @@ private:
             assert(!mState.empty());
             break;
         case FunctionPending:
-            if (tokenKind(mCurrentToken - 1) == tok::r_paren) {
+            switch (tokenKind(mCurrentToken - 1)) {
+            case tok::equal:
+            case tok::r_paren: {
                 const int pending = mState.top().pendingIndex;
                 assert(pending != -1);
-                mState.pop();
                 Entry entry;
                 entry.scope = mContainerScope;
                 const Token &token = mTokens.at(pending);
@@ -359,7 +366,11 @@ private:
                     entry.name.prepend('~');
                 }
                 mEntries->append(entry);
+                break; }
+            default:
+                break;
             }
+            mState.pop();
             break;
         }
     }
