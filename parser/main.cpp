@@ -78,170 +78,171 @@ public:
         entries.clear();
         Token token;
         int idx;
-        mState.push(std::make_pair(Global, -1));
+        mState.push(State(Global));
         while (true) {
             if (mLexer->LexFromRawLexer(token))
                 break;
             mTokens.append(token);
             if (getenv("VERBOSE") && isInteresting(token.getKind())) {
-                const char *names[] = { "global", "functionbody", "contextpending", "functionpending" };
+                const char *names[] = { "Global", "FunctionBody", "ContainerPending",
+                                        "FunctionPending", "Container" };
                 printf("%d %s \"%s\" state: %s\n",
-                       tokenOffset(token), token.getName(), tokenSpelling(token).constData(), names[mState.top().first]);
+                       tokenOffset(token), token.getName(), tokenSpelling(token).constData(), names[mState.top().type]);
             }
 
             switch (token.getKind()) {
             case tok::l_brace:
-                switch (mState.top().first) {
-                case ContextPending:
-                    if ((idx = findLastToken(tok::raw_identifier, -1)) != -1) {
-                        const Token &token = mTokens[idx];
-                        Entry entry;
-                        entry.offset = tokenOffset(token);
-                        entry.name = tokenSpelling(token);
-                        entry.scope = mScope;
-                        // printf("Used a scope %s\n", mScope.nullTerminated());
-                        mContextScope.push(std::make_pair(entry.name, mBraceCount));
-                        mScope.reserve(mScope.size() + entry.name.size() + 2);
-                        if (!mScope.isEmpty())
-                            mScope.append("::");
-                        mScope.append(entry.name);
-                        // printf("Scope is now %s\n", mScope.nullTerminated());
-                        // printf("Added one %s %s %d %d\n", entry.scope.nullTerminated(), entry.name.nullTerminated(),
-                        // entry.offset, __LINE__);
-                        entries.append(entry);
-
-                    }
-                    mState.pop();
-                    break;
-                case Global:
-                    if ((idx = findLastToken(tok::l_paren, -1)) != -1) {
-                        if ((idx = findLastToken(tok::raw_identifier, idx)) != -1) {
-                            Entry entry;
-                            entry.offset = tokenOffset(mTokens.at(idx));
-                            entry.name = tokenSpelling(mTokens.at(idx));
-                            entry.scope = mScope;
-                            addContext(idx, entry.scope);
-                            // printf("used scope %s %s for %s\n", mScope.constData(), entry.scope.constData(), entry.name.constData());
-                            entries.append(entry);
-                            // printf("Added one %s %s %d %d\n", entry.scope.nullTerminated(), entry.name.nullTerminated(),
-                            //        entry.offset, __LINE__);
-                            mState.push(std::make_pair(FunctionBody, mBraceCount));
-                        }
-                        // printf("Pushed to function %d\n", mFunctionBraceCount);
-                    }
-                    break;
-                }
-                ++mBraceCount;
+                handleLeftBrace(token, entries);
                 break;
             case tok::r_brace:
-                --mBraceCount;
-                // printf("Got rightbrace %d\n", mFunctionBraceCount);
-                if (!mContextScope.empty() && mContextScope.top().second == mBraceCount) {
-                    if (mContextScope.size() == 1) {
-                        mScope.clear();
-                    } else {
-                        mScope.truncate(mScope.size() - (mContextScope.top().first.size() + 2));
-                    }
-                    mContextScope.pop();
-                }
-                if (mState.top().second == mBraceCount)
-                    mState.pop();
+                handleRightBrace(token);
                 break;
             case tok::l_paren:
-                if (mState.top().first == FunctionBody) {
-                    const int idx = findLastToken(tok::raw_identifier, -1);
-                    if (idx != -1) {
-                        const Token &token = mTokens[idx];
-                        const char *tokenSpl;
-                        int tokenLength;
-                        tokenSpelling(token, tokenSpl, tokenLength);
-                        bool keyWord = false;
-                        switch (tokenLength) {
-                        case 2:
-                            keyWord = !strncmp(tokenSpl, "if", 2) || !strncmp(tokenSpl, "do", 2);
-                            break;
-                        case 3:
-                            keyWord = !strncmp(tokenSpl, "for", 3);
-                            break;
-                        case 5:
-                            keyWord = !strncmp(tokenSpl, "while", 5);
-                            break;
-                        }
-
-                        if (!keyWord) {
-                            Entry entry;
-                            entry.offset = tokenOffset(token);
-                            entry.name = tokenSpelling(token);
-                            entry.reference = true;
-                            entries.append(entry);
-                            // printf("Added one %s %s %d %d\n", entry.scope.nullTerminated(), entry.name.nullTerminated(),
-                            //        entry.offset, __LINE__);
-                        }
-                    }
-                }
-                break;
-            case tok::r_paren:
+                handleLeftParen(token, entries);
                 break;
             case tok::semi:
-                switch (mState.top().first) {
-                case ContextPending:
-                    mState.pop();
-                    break;
-                case Global:
-                    // printf("Got some stuff here %d %d %d\n", (int)mContextScope.size(), findLastToken(tok::raw_identifier),
-                    //        tokenOffset(token));
-                    if (!mContextScope.empty()
-                        && mTokens.at(mTokens.size() - 2).getKind() == tok::r_paren
-                        && (idx = findLastToken(tok::l_paren, -1)) != -1) {
-                        if ((idx = findLastToken(tok::raw_identifier, idx)) != -1) {
-                            Entry entry;
-                            entry.scope = mScope;
-                            // printf("Used a scope %s\n", mScope.nullTerminated());
-                            entry.offset = tokenOffset(mTokens.at(idx));
-                            entry.name = tokenSpelling(mTokens.at(idx));
-                            entries.append(entry);
-                            // printf("Added one %s %s %d %d %d\n", entry.scope.nullTerminated(), entry.name.nullTerminated(),
-                            //        entry.offset, __LINE__, tokenOffset(token));
-                        }
-                    }
-                    break;
-                }
-                break;
-            case tok::period:
-            case tok::arrow:
+                handleSemi(token, entries);
                 break;
             case tok::raw_identifier:
-                switch (mState.top().first) {
-                case Global:
-                case FunctionBody: {
-                    const char *tokenSpl;
-                    int tokenLength;
-                    tokenSpelling(token, tokenSpl, tokenLength);
-                    bool contextScope = false;
-                    switch (tokenLength) {
-                    case 5:
-                        contextScope = !strncmp(tokenSpl, "class", 5);
-                        break;
-                    case 6:
-                        contextScope = !strncmp(tokenSpl, "struct", 6);
-                        break;
-                    case 9:
-                        contextScope = !strncmp(tokenSpl, "namespace", 9);
-                        break;
-                    }
-                    if (contextScope) {
-                        mState.push(std::make_pair(ContextPending, -1));
-                    }
-                    break; }
-                default:
-                    break;
-                }
+                handleRawIdentifier(token);
                 break;
             }
         }
     }
 private:
-    void addContext(int idx, ByteArray &ctx) const
+    inline void handleLeftBrace(const Token &token, List<Entry> &entries)
+    {
+        int idx;
+        switch (mState.top().type) {
+        case ContainerPending:
+            mState.pop();
+            if ((idx = findLastToken(tok::raw_identifier, -1)) != -1) {
+                const Token &token = mTokens[idx];
+                Entry entry;
+                entry.offset = tokenOffset(token);
+                entry.name = tokenSpelling(token);
+                entry.scope = mContainerScope;
+                mState.push(State(Container, mBraceCount, entry.name));
+                mContainerScope.reserve(mContainerScope.size() + entry.name.size() + 2);
+                if (!mContainerScope.isEmpty())
+                    mContainerScope.append("::");
+                mContainerScope.append(entry.name);
+                entries.append(entry);
+
+            }
+            break;
+        case Global:
+        case Container:
+            if ((idx = findLastToken(tok::l_paren, -1)) != -1) {
+                if ((idx = findLastToken(tok::raw_identifier, idx)) != -1) {
+                    Entry entry;
+                    entry.offset = tokenOffset(mTokens.at(idx));
+                    entry.name = tokenSpelling(mTokens.at(idx));
+                    entry.scope = mContainerScope;
+                    addContext(idx, entry.scope);
+                    entries.append(entry);
+                    mState.push(State(FunctionBody, mBraceCount));
+                }
+            }
+            break;
+        }
+        ++mBraceCount;
+    }
+    inline void handleLeftParen(const Token &token, List<Entry> &entries)
+    {
+        if (mState.top().type == FunctionBody) {
+            const int idx = findLastToken(tok::raw_identifier, -1);
+            if (idx != -1) {
+                const Token &token = mTokens[idx];
+                const char *tokenSpl;
+                int tokenLength;
+                tokenSpelling(token, tokenSpl, tokenLength);
+                bool keyWord = false;
+                switch (tokenLength) {
+                case 2:
+                    keyWord = !strncmp(tokenSpl, "if", 2) || !strncmp(tokenSpl, "do", 2);
+                    break;
+                case 3:
+                    keyWord = !strncmp(tokenSpl, "for", 3);
+                    break;
+                case 5:
+                    keyWord = !strncmp(tokenSpl, "while", 5);
+                    break;
+                }
+
+                if (!keyWord) {
+                    Entry entry;
+                    entry.offset = tokenOffset(token);
+                    entry.name = tokenSpelling(token);
+                    entry.reference = true;
+                    entries.append(entry);
+                }
+            }
+        }
+    }
+    inline void handleRightBrace(const Token &token)
+    {
+        --mBraceCount;
+        if (mState.top().braceIndex == mBraceCount) {
+            const State &top = mState.top();
+            if (top.type == Container) {
+                assert(!top.name.isEmpty());
+                if (mContainerScope.size() == top.name.size()) {
+                    mContainerScope.clear();
+                } else {
+                    mContainerScope.truncate(mContainerScope.size() - (top.name.size() + 2));
+                }
+            }
+            mState.pop();
+        }
+    }
+    inline void handleSemi(const Token &tokem, List<Entry> &entries)
+    {
+        int idx;
+        switch (mState.top().type) {
+        case ContainerPending: // forward declaration
+            mState.pop();
+            break;
+        case Global:
+        case Container:
+            if (!mContainerScope.isEmpty()
+                && mTokens.at(mTokens.size() - 2).getKind() == tok::r_paren
+                && (idx = findLastToken(tok::l_paren, -1)) != -1) {
+                if ((idx = findLastToken(tok::raw_identifier, idx)) != -1) {
+                    Entry entry;
+                    entry.scope = mContainerScope;
+                    entry.offset = tokenOffset(mTokens.at(idx));
+                    entry.name = tokenSpelling(mTokens.at(idx));
+                    entries.append(entry);
+                }
+            }
+            break;
+        }
+    }
+    inline void handleRawIdentifier(const Token &token)
+    {
+        switch (mState.top().type) {
+        case Global:
+        case Container:
+        case FunctionBody: {
+            const char *tokenSpl;
+            int tokenLength;
+            tokenSpelling(token, tokenSpl, tokenLength);
+            bool contextScope = false;
+            switch (tokenLength) {
+            case 5: contextScope = !strncmp(tokenSpl, "class", 5); break;
+            case 6: contextScope = !strncmp(tokenSpl, "struct", 6); break;
+            case 9: contextScope = !strncmp(tokenSpl, "namespace", 9); break;
+            }
+            if (contextScope) {
+                mState.push(State(ContainerPending));
+            }
+            break; }
+        default:
+            break;
+        }
+    }
+    inline void addContext(int idx, ByteArray &ctx) const
     {
         const int old = idx;
         while (idx >= 2 && mTokens.at(idx - 1).getKind() == tok::coloncolon && mTokens.at(idx - 2).getKind() == tok::raw_identifier) {
@@ -251,15 +252,13 @@ private:
             const int p = tokenOffset(mTokens.at(idx));
             if (ctx.isEmpty()) {
                 ctx = ByteArray(mBuf + p, tokenOffset(mTokens.at(old - 1)) - p);
-                // printf("added some context here %s\n", ctx.constData());
             } else {
-                // printf("addContext not empty %s\n", ctx.constData());
                 ctx.append("::");
                 ctx += ByteArray(mBuf + p, tokenOffset(mTokens.at(old - 1)) - p);
             }
         }
     }
-    int findLastToken(tok::TokenKind kind, int from) const
+    inline int findLastToken(tok::TokenKind kind, int from) const
     {
         if (from == -1)
             from = mTokens.size() - 1;
@@ -271,13 +270,22 @@ private:
         }
         return from;
     }
-    void tokenSpelling(const Token &token, const char *&string, int &length) const
+    inline void tokenSpelling(const Token &token, const char *&string, int &length) const
     {
         string = mBuf + tokenOffset(token);
         length = token.getLength();
     }
 
-    ByteArray tokenSpelling(const Token &token) const
+    inline tok::TokenKind tokenKind(int idx) const // index <= 0 means from end
+    {
+        if (idx <= 0) {
+            return mTokens.at(mTokens.size() - 1 + idx).getKind();
+        } else {
+            return mTokens.at(idx).getKind();
+        }
+    }
+
+    inline ByteArray tokenSpelling(const Token &token) const
     {
         return ByteArray(mBuf + tokenOffset(token), token.getLength());
     }
@@ -290,15 +298,23 @@ private:
     Lexer *mLexer;
     int mBraceCount, mSize;
     char *mBuf;
-    enum State {
+    enum StateType {
         Global,
         FunctionBody,
-        ContextPending,
-        FunctionPending
+        ContainerPending,
+        FunctionPending,
+        Container
     };
-    std::stack<std::pair<State, int> > mState;
-    std::stack<std::pair<ByteArray, int> > mContextScope;
-    ByteArray mScope;
+    struct State {
+        State(StateType t = Global, int idx = -1, const ByteArray &n = ByteArray())
+            : type(t), braceIndex(idx), name(n)
+        {}
+        StateType type;
+        int braceIndex; // what brace index this state should get popped on or -1
+        ByteArray name; // for classes/structs/namespaces
+    };
+    std::stack<State> mState;
+    ByteArray mContainerScope;
     List<Token> mTokens;
 };
 
