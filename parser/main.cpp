@@ -92,6 +92,8 @@ public:
         int idx;
         mState.push(State(Global));
         tok::TokenKind targetKind = tok::NUM_TOKENS;
+#warning this targetKind stuff isnt right. It needs to keep more state, e.g. if I am trying to read to the end of the parentheses for this:
+#warning foo(const std::string &str = std::string(), int evil)
         while (true) {
             if (mLexer->LexFromRawLexer(token))
                 break;
