@@ -28,6 +28,7 @@ struct Entry
     ByteArray name, scope;
     int offset;
     bool reference;
+    // consider adding all raw_identifiers as separate entries
 };
 
 class Parser
