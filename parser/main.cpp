@@ -39,6 +39,8 @@ static inline bool isInteresting(tok::TokenKind kind)
     case tok::semi:
     case tok::raw_identifier:
     case tok::coloncolon:
+    case tok::colon:
+    case tok::tilde:
         return true;
     default:
         return false;
@@ -79,9 +81,15 @@ public:
         Token token;
         int idx;
         mState.push(State(Global));
+        tok::TokenKind targetKind = tok::NUM_TOKENS;
         while (true) {
             if (mLexer->LexFromRawLexer(token))
                 break;
+            if (targetKind != tok::NUM_TOKENS) {
+                if (token.getKind() != targetKind)
+                    continue;
+                targetKind = tok::NUM_TOKENS;
+            }
             mTokens.append(token);
             if (getenv("VERBOSE") && isInteresting(token.getKind())) {
                 const char *names[] = { "Global", "FunctionBody", "ContainerPending",
@@ -93,6 +101,10 @@ public:
             switch (token.getKind()) {
             case tok::l_brace:
                 handleLeftBrace(token, entries);
+                break;
+            case tok::colon:
+                if (mState.top().type == Container && tokenKind(-1) == tok::r_paren)
+                    targetKind = tok::l_brace; // need to read past the initializer list
                 break;
             case tok::r_brace:
                 handleRightBrace(token);
@@ -116,6 +128,7 @@ private:
         switch (mState.top().type) {
         case ContainerPending:
             mState.pop();
+            assert(!mState.empty());
             if ((idx = findLastToken(tok::raw_identifier, -1)) != -1) {
                 const Token &token = mTokens[idx];
                 Entry entry;
@@ -138,6 +151,8 @@ private:
                     Entry entry;
                     entry.offset = tokenOffset(mTokens.at(idx));
                     entry.name = tokenSpelling(mTokens.at(idx));
+                    if (idx > 0 && tokenKind(idx - 1) == tok::tilde)
+                        entry.name.prepend('~');
                     entry.scope = mContainerScope;
                     addContext(idx, entry.scope);
                     entries.append(entry);
@@ -182,7 +197,8 @@ private:
     }
     inline void handleRightBrace(const Token &token)
     {
-        --mBraceCount;
+        if (mBraceCount > 0)
+            --mBraceCount;
         if (mState.top().braceIndex == mBraceCount) {
             const State &top = mState.top();
             if (top.type == Container) {
@@ -194,6 +210,7 @@ private:
                 }
             }
             mState.pop();
+            assert(!mState.empty());
         }
     }
     inline void handleSemi(const Token &tokem, List<Entry> &entries)
@@ -202,6 +219,7 @@ private:
         switch (mState.top().type) {
         case ContainerPending: // forward declaration
             mState.pop();
+            assert(!mState.empty());
             break;
         case Global:
         case Container:
@@ -213,6 +231,8 @@ private:
                     entry.scope = mContainerScope;
                     entry.offset = tokenOffset(mTokens.at(idx));
                     entry.name = tokenSpelling(mTokens.at(idx));
+                    if (idx > 0 && tokenKind(idx - 1) == tok::tilde)
+                        entry.name.prepend('~');
                     entries.append(entry);
                 }
             }
