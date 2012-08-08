@@ -77,8 +77,7 @@ public:
     {
         entries.clear();
         Token token;
-        int tokenLength, idx;
-        const char *tokenSpl;
+        int idx;
         mState.push(Global);
         while (true) {
             if (mLexer->LexFromRawLexer(token))
@@ -122,7 +121,7 @@ public:
                             entry.name = tokenSpelling(mTokens.at(idx));
                             entry.scope = mScope;
                             addContext(idx, entry.scope);
-                            printf("used scope %s %s for %s\n", mScope.constData(), entry.scope.constData(), entry.name.constData());
+                            // printf("used scope %s %s for %s\n", mScope.constData(), entry.scope.constData(), entry.name.constData());
                             entries.append(entry);
                             // printf("Added one %s %s %d %d\n", entry.scope.nullTerminated(), entry.name.nullTerminated(),
                             //        entry.offset, __LINE__);
@@ -157,13 +156,31 @@ public:
                     const int idx = findLastToken(tok::raw_identifier, -1);
                     if (idx != -1) {
                         const Token &token = mTokens[idx];
-                        Entry entry;
-                        entry.offset = tokenOffset(token);
-                        entry.name = tokenSpelling(token);
-                        entry.reference = true;
-                        entries.append(entry);
-                        // printf("Added one %s %s %d %d\n", entry.scope.nullTerminated(), entry.name.nullTerminated(),
-                        //        entry.offset, __LINE__);
+                        const char *tokenSpl;
+                        int tokenLength;
+                        tokenSpelling(token, tokenSpl, tokenLength);
+                        bool keyWord = false;
+                        switch (tokenLength) {
+                        case 2:
+                            keyWord = !strncmp(tokenSpl, "if", 2) || !strncmp(tokenSpl, "do", 2);
+                            break;
+                        case 3:
+                            keyWord = !strncmp(tokenSpl, "for", 3);
+                            break;
+                        case 5:
+                            keyWord = !strncmp(tokenSpl, "while", 5);
+                            break;
+                        }
+
+                        if (!keyWord) {
+                            Entry entry;
+                            entry.offset = tokenOffset(token);
+                            entry.name = tokenSpelling(token);
+                            entry.reference = true;
+                            entries.append(entry);
+                            // printf("Added one %s %s %d %d\n", entry.scope.nullTerminated(), entry.name.nullTerminated(),
+                            //        entry.offset, __LINE__);
+                        }
                     }
                 }
                 break;
@@ -177,7 +194,9 @@ public:
                 case Global:
                     // printf("Got some stuff here %d %d %d\n", (int)mContextScope.size(), findLastToken(tok::raw_identifier),
                     //        tokenOffset(token));
-                    if (!mContextScope.empty() && (idx = findLastToken(tok::l_paren, -1)) != -1) {
+                    if (!mContextScope.empty()
+                        && mTokens.at(mTokens.size() - 2).getKind() == tok::r_paren
+                        && (idx = findLastToken(tok::l_paren, -1)) != -1) {
                         if ((idx = findLastToken(tok::raw_identifier, idx)) != -1) {
                             Entry entry;
                             entry.scope = mScope;
@@ -185,8 +204,8 @@ public:
                             entry.offset = tokenOffset(mTokens.at(idx));
                             entry.name = tokenSpelling(mTokens.at(idx));
                             entries.append(entry);
-                            printf("Added one %s %s %d %d %d\n", entry.scope.nullTerminated(), entry.name.nullTerminated(),
-                                   entry.offset, __LINE__, tokenOffset(token));
+                            // printf("Added one %s %s %d %d %d\n", entry.scope.nullTerminated(), entry.name.nullTerminated(),
+                            //        entry.offset, __LINE__, tokenOffset(token));
                         }
                     }
                     break;
@@ -199,6 +218,8 @@ public:
                 switch (mState.top()) {
                 case Global:
                 case FunctionBody: {
+                    const char *tokenSpl;
+                    int tokenLength;
                     tokenSpelling(token, tokenSpl, tokenLength);
                     bool contextScope = false;
                     switch (tokenLength) {
