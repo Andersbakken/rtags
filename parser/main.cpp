@@ -10,6 +10,7 @@
 #include <clang/Basic/SourceLocation.h>
 #include <stack>
 #include <ByteArray.h>
+#include <Timer.h>
 
 using namespace clang;
 static inline int tokenOffset(const Token &token)
@@ -50,7 +51,11 @@ static inline bool isInteresting(tok::TokenKind kind)
 class Parser
 {
 public:
-    Parser(const char *file)
+    enum Option {
+        None = 0x0,
+        CPlusPlus = 0x1
+    };
+    Parser(const char *file, unsigned opts)
         : mFileName(file), mBraceCount(0)
     {
         FILE *f = fopen(mFileName, "r");
@@ -61,12 +66,17 @@ public:
         mBuf = new char[mSize + 1];
         const int ret = fread(mBuf, sizeof(char), mSize, f);
         fclose(f);
+        if (ret != mSize) {
+            printf("Read error %d %d %d %s - %s\n", ret, mSize, errno, strerror(errno), file);
+        }
         assert(ret == mSize);
         mBuf[ret] = 0;
         SourceLocation loc;
         LangOptions options;
-        options.CPlusPlus = true;
-        options.CPlusPlus0x = true;
+        if (opts & CPlusPlus) {
+            options.CPlusPlus = true;
+            options.CPlusPlus0x = true;
+        }
         mLexer = new Lexer(loc, options, mBuf, mBuf, mBuf + ret);
     }
 
@@ -194,6 +204,8 @@ private:
                 case 5:
                     keyWord = !strncmp(tokenSpl, "while", 5);
                     break;
+                case 6:
+                    keyWord = !strncmp(tokenSpl, "switch", 5);
                 }
 
                 if (!keyWord) {
@@ -350,18 +362,44 @@ private:
     List<Token> mTokens;
 };
 
+static Path::VisitResult visit(const Path &path, void *userData)
+{
+    if (path.isFile()) {
+        const char *ext = path.extension();
+        if (ext) {
+            const int len = strlen(ext);
+            if (Path::isSource(ext, len) || Path::isHeader(ext, len)) {
+                Parser parser(path.constData(), Parser::CPlusPlus);
+                List<Entry> entries;
+                parser.parse(entries);
+                ++*reinterpret_cast<int*>(userData);
+                // printf("%d %s => %d entries\n", *reinterpret_cast<int*>(userData),
+                //        path.constData(), entries.size());
+            }
+        }
+    }
+    return Path::Recurse;
+}
+
 int main(int argc, char **argv)
 {
+    Timer timer;
     Path path(argc > 1 ? argv[1] : "test.cpp");
     path.resolve();
-    Parser parser(path.constData());
+    if (path.isDir()) {
+        int count = 0;
+        path.visit(::visit, &count);
+        printf("%d files in %dms\n", count, timer.elapsed());
+    } else {
+        Parser parser(path.constData(), Parser::CPlusPlus);
 
-    List<Entry> entries;
-    parser.parse(entries);
-    for (List<Entry>::const_iterator it = entries.begin(); it != entries.end(); ++it) {
-        const Entry &e = *it;
-        printf("%s%s%s %s,%d%s\n", e.scope.nullTerminated(), e.scope.isEmpty() ? "" : "::",
-               e.name.constData(), path.nullTerminated(), e.offset, e.reference ? " reference" : "");
+        List<Entry> entries;
+        parser.parse(entries);
+        for (List<Entry>::const_iterator it = entries.begin(); it != entries.end(); ++it) {
+            const Entry &e = *it;
+            printf("%s%s%s %s,%d%s\n", e.scope.nullTerminated(), e.scope.isEmpty() ? "" : "::",
+                   e.name.constData(), path.nullTerminated(), e.offset, e.reference ? " reference" : "");
+        }
     }
 
 
