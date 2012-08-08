@@ -100,6 +100,16 @@ public:
             close = tok::l_brace;
             open = tok::r_brace;
             break;
+        case tok::less:
+            direction = 1;
+            close = tok::greater;
+            open = tok::less;
+            break;
+        case tok::greater:
+            direction = -1;
+            close = tok::less;
+            open = tok::greater;
+            break;
         default:
             assert(0);
             return -1;
@@ -143,6 +153,8 @@ public:
             case tok::coloncolon:
             case tok::colon:
             case tok::tilde:
+            case tok::less:
+            case tok::comma:
             case tok::greater: // without this one c++ style casts look like real function calls to us.
             case tok::equal: // without this one variable assignments look like real function calls to us.
                 mTokens.append(token);
@@ -186,20 +198,27 @@ private:
         switch (mState.top().type) {
         case Global:
         case Container:
-        case FunctionBody: {
-            const char *tokenSpl;
-            int tokenLength;
-            tokenSpelling(mTokens.at(mCurrentToken), tokenSpl, tokenLength);
-            bool contextScope = false;
-            switch (tokenLength) {
-            case 5: contextScope = !strncmp(tokenSpl, "class", 5); break;
-            case 6: contextScope = !strncmp(tokenSpl, "struct", 6); break;
-            case 9: contextScope = !strncmp(tokenSpl, "namespace", 9); break;
+        case FunctionBody:
+            switch (tokenKind(mCurrentToken - 1)) {
+            case tok::comma:
+            case tok::less:
+                break;
+            default: {
+                const char *tokenSpl;
+                int tokenLength;
+                tokenSpelling(mTokens.at(mCurrentToken), tokenSpl, tokenLength);
+                bool contextScope = false;
+                switch (tokenLength) {
+                case 5: contextScope = !strncmp(tokenSpl, "class", 5) || !strncmp(tokenSpl, "union", 5); break;
+                case 6: contextScope = !strncmp(tokenSpl, "struct", 6); break;
+                case 9: contextScope = !strncmp(tokenSpl, "namespace", 9); break;
+                }
+                if (contextScope) {
+                    mState.push(State(ContainerPending));
+                }
+                break; }
             }
-            if (contextScope) {
-                mState.push(State(ContainerPending));
-            }
-            break; }
+            break;
         default:
             break;
         }
@@ -254,15 +273,7 @@ private:
         }
         ++mBraceCount;
     }
-#if 0
-    class foo : public bar
-    {
-    public:
-        foo()
-        // : balle(1)
-        {}
-    };
-#endif
+
     inline void handleColon()
     {
         if (mState.top().type == ContainerPending
@@ -271,12 +282,29 @@ private:
             mState.top().pendingIndex = mCurrentToken - 1;
         }
     }
+
     inline void handleLeftParen()
     {
         switch (mState.top().type) {
-        case FunctionBody:
-            if (tokenKind(mCurrentToken - 1) == tok::raw_identifier) {
-                const Token &token = mTokens[mCurrentToken - 1];
+        case FunctionBody: {
+            int idx = -1;
+            switch (tokenKind(mCurrentToken - 1)) {
+            case tok::raw_identifier:
+                idx = mCurrentToken - 1;
+                break;
+            case tok::greater:
+                idx = findMatching(mCurrentToken - 1);
+                if (tokenKind(idx - 1) == tok::raw_identifier) {
+                    --idx;
+                } else {
+                    idx = -1;
+                }
+                break;
+            default:
+                break;
+            }
+            if (idx != -1) {
+                const Token &token = mTokens[idx];
                 const char *tokenSpl;
                 int tokenLength;
                 tokenSpelling(token, tokenSpl, tokenLength);
@@ -312,7 +340,7 @@ private:
                     mEntries->append(entry);
                 }
             }
-            break;
+            break; }
         case Container:
         case Global:
             if (tokenKind(mCurrentToken - 1) == tok::raw_identifier) {
