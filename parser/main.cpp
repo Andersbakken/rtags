@@ -317,7 +317,7 @@ private:
                     keyWord = !strncmp(tokenSpl, "for", 3) || !strncmp(tokenSpl, "new", 3);
                     break;
                 case 4:
-                    keyWord = !strncmp(tokenSpl, "void", 4);
+                    keyWord = !strncmp(tokenSpl, "void", 4) || !strncmp(tokenSpl, "case", 4);
                     break;
                 case 5:
                     keyWord = !strncmp(tokenSpl, "while", 5);
