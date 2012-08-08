@@ -136,6 +136,11 @@ public:
         mString.insert(0, other);
     }
 
+    void prepend(char ch)
+    {
+        mString.insert(0, &ch, 1);
+    }
+
     void append(char ch)
     {
         mString += ch;
