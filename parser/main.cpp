@@ -85,41 +85,98 @@ public:
         delete mLexer;
         delete[] mBuf;
     }
+    // inline bool forwardTo(tok::TokenKind kind) const
+    // {
+    //     const int s = mTokens.size();
+    //     while (mCurrentToken < s && mTokens.at(mCurrentToken).getKind() != kind)
+    //         ++mCurrentToken;
+    //     return mCurrentToken < s;
+    // }
+
+    // inline bool backwardTo(tok::TokenKind kind) const
+    // {
+    //     while (mCurrentToken >= 0 && mTokens.at(mCurrentToken).getKind() != kind)
+    //         --mCurrentToken;
+    //     return mCurrentToken >= 0;
+    // }
+
+    inline tok::TokenKind kind(int idx) const
+    {
+        if (idx < 0 || idx >= mTokens.size())
+            return tok::NUM_TOKENS;
+        return mTokens.at(idx).getKind();
+    }
+
+    inline int findMatching(int idx) const
+    {
+        tok::TokenKind close, open;
+        int direction;
+        switch (kind(idx)) {
+        case tok::l_paren:
+            direction = 1;
+            close = tok::r_paren;
+            open = tok::l_paren;
+            break;
+        case tok::r_paren:
+            direction = -1;
+            close = tok::l_paren;
+            open = tok::r_paren;
+            break;
+        case tok::l_brace:
+            direction = 1;
+            close = tok::r_brace;
+            open = tok::l_brace;
+            break;
+        case tok::r_brace:
+            direction = -1;
+            close = tok::l_brace;
+            open = tok::r_brace;
+            break;
+        default:
+            assert(0);
+            return -1;
+        }
+
+        int count = 1;
+        int i = idx + direction;
+        while (true) {
+            const tok::TokenKind k = kind(i);
+            if (k == open) {
+                ++count;
+            } else if (k == close) {
+                if (!--count)
+                    return i;
+            } else if (k == tok::NUM_TOKENS) {
+                break;
+            }
+        }
+        return -1;
+    }
+
     void parse(List<Entry> &entries)
     {
-        entries.clear();
-        Token token;
-        int idx;
-        mState.push(State(Global));
-        tok::TokenKind targetKind = tok::NUM_TOKENS;
-#warning this targetKind stuff isnt right. It needs to keep more state, e.g. if I am trying to read to the end of the parentheses for this:
-#warning foo(const std::string &str = std::string(), int evil)
-        while (true) {
-            if (mLexer->LexFromRawLexer(token))
-                break;
-            if (targetKind != tok::NUM_TOKENS) {
-                if (token.getKind() != targetKind)
-                    continue;
-                targetKind = tok::NUM_TOKENS;
-            }
-            mTokens.append(token);
-            if (getenv("VERBOSE") && isInteresting(token.getKind())) {
-                const char *names[] = { "Global", "FunctionBody", "ContainerPending",
-                                        "FunctionPending", "Container" };
-                printf("%d %s \"%s\" state: %s\n",
-                       tokenOffset(token), token.getName(), tokenSpelling(token).constData(), names[mState.top().type]);
-            }
+        const int verbosity = atoi(getenv("VERBOSE"));
+        const char *names[] = { "Global", "FunctionBody", "ContainerPending",
+                                "FunctionPending", "Container" };
 
-            switch (token.getKind()) {
+        mTokens.clear();
+        while (!mLexer->LexFromRawLexer(token)) {
+            if (verbosity)
+                printf("%d %s \"%s\"\n", tokenOffset(token), token.getName(), tokenSpelling(token).constData());
+            mTokens.append(token);
+        }
+
+        entries.clear();
+        mEntries = &entries;
+        mState.push(State(Global));
+        const int size = mTokens.size();
+        for (int i=0; i<size; ++i) {
+            switch (kind(i)) {
             case tok::l_brace:
-                handleLeftBrace(token, entries);
+                handleLeftBrace(i, entries);
                 break;
             case tok::colon:
                 switch (mState.top().type) {
-                case Container:
-                    if (tokenKind(-1) == tok::r_paren)
-                        targetKind = tok::l_brace; // need to read past the initializer list
-                    break;
                 case ContainerPending:
                     if (mState.top().pendingContainerIndex == -1)
                         mState.top().pendingContainerIndex = findLastToken(tok::raw_identifier, -1);
@@ -127,14 +184,14 @@ public:
                 }
                 break;
             case tok::r_brace:
-                handleRightBrace(token);
+                handleRightBrace(i);
                 break;
             case tok::l_paren:
-                handleLeftParen(token, entries);
+                handleLeftParen(i, entries);
                 targetKind = tok::r_paren;
                 break;
             case tok::semi:
-                handleSemi(token, entries);
+                handleSemi(i, entries);
                 break;
             case tok::raw_identifier:
                 handleRawIdentifier(token);
@@ -143,9 +200,8 @@ public:
         }
     }
 private:
-    inline void handleLeftBrace(const Token &token, List<Entry> &entries)
+    inline void handleLeftBrace(int idx, List<Entry> &entries)
     {
-        int idx;
         switch (mState.top().type) {
         case ContainerPending:
             assert(!mState.empty());
