@@ -12,7 +12,6 @@
 
 class IndexerJob;
 class DirtyThread;
-class GRTags;
 class Indexer
 {
 public:
@@ -84,8 +83,6 @@ private:
     Set<Location> mPreviousErrors;
 
     signalslot::Signal1<Indexer*> mJobsComplete;
-
-    GRTags *mGRTags;
 };
 
 inline bool Indexer::visitFile(uint32_t fileId, const Path &path)

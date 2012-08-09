@@ -3,14 +3,14 @@
 #include "Server.h"
 #include "Indexer.h"
 
-GRTags::GRTags(Indexer *indexer)
-    : mIndexer(indexer)
+GRTags::GRTags(const Path &srcRoot)
+    : mSrcRoot(srcRoot)
 {
 }
 
 void GRTags::recurseDirs()
 {
-    GRJob *job = new GRJob(mIndexer);
+    GRJob *job = new GRJob(mSrcRoot);
     job->finished().connect(this, &GRTags::onRecurseJobFinished);
     Server::instance()->threadPool()->start(job);
 }

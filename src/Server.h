@@ -15,6 +15,7 @@
 #include "ScopedDB.h"
 #include "EventReceiver.h"
 #include "MakefileInformation.h"
+#include "GRTags.h"
 
 class Connection;
 class Indexer;
@@ -46,11 +47,11 @@ public:
         Dependency,
         Files,
         FileInformation,
-        GRTags,
+        GR,
         General,
         FileIds,
         DatabaseTypeCount,
-        ProjectSpecificDatabaseTypeCount = GRTags + 1
+        ProjectSpecificDatabaseTypeCount = GR + 1
     };
 
     static Server *instance() { return sInstance; }
@@ -146,6 +147,7 @@ private:
         Path projectPath;
         Database *databases[ProjectSpecificDatabaseTypeCount];
         std::tr1::shared_ptr<Indexer> indexer;
+        std::tr1::shared_ptr<GRTags> grtags;
     };
 
     Map<Path, Project*> mProjects;

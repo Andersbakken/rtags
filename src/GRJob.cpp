@@ -2,8 +2,8 @@
 #include "GRJob.h"
 #include "Server.h"
 
-GRJob::GRJob(Indexer *indexer)
-    : mPath(indexer->srcRoot()), mIndexer(indexer), mFilesBatch(0), mDB(0)
+GRJob::GRJob(const Path &path)
+    : mPath(path), mBatch(0)
 {
     if (!mPath.endsWith('/'))
         mPath.append('/');
@@ -12,15 +12,12 @@ GRJob::GRJob(Indexer *indexer)
 
 void GRJob::run()
 {
-    ScopedDB filesDB = Server::instance()->db(Server::Files, Server::Erase, mPath);
-    ScopedDB grDB = Server::instance()->db(Server::GRTags, Server::Write, mPath);
-    mDB = &grDB;
     {
-        Batch filesBatch(filesDB);
-        mFilesBatch = &filesBatch;
+        ScopedDB db = Server::instance()->db(Server::Files, Server::Erase, mPath);
+        Batch batch(db);
+        mBatch = &batch;
         mPath.visit(&GRJob::visit, this);
     }
-    mDB = 0;
     finished()(mDirectories);
 }
 
@@ -78,18 +75,16 @@ Path::VisitResult GRJob::visit(const Path &path, void *userData)
         recurseJob->mDirectories.append(path);
         return Path::Recurse;
     case C:
-    case CPlusPlus:
-        if (!recurseJob->mIndexer->isVisited(path)) {
-            GRParser parser;
-            Timer timer;
-            const int count = parser.parse(*recurseJob->mDB, path, result == C ? GRParser::None : GRParser::CPlusPlus);
-            error("Parsed %s, %d entries in %dms", path.constData(), count, timer.elapsed());
-        }
-        break;
+    case CPlusPlus: {
+        // GRParser parser;
+        // Timer timer;
+        // const int count = parser.parse(*recurseJob->mDB, path, result == C ? GRParser::None : GRParser::CPlusPlus);
+        // error("Parsed %s, %d entries in %dms", path.constData(), count, timer.elapsed());
+        break; }
     case File:
         break;
     }
     const Path chopped = path.mid(recurseJob->mPath.size());
-    recurseJob->mFilesBatch->add(chopped, true);
+    recurseJob->mBatch->add(chopped, true);
     return Path::Continue;
 }

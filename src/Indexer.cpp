@@ -3,7 +3,6 @@
 #include "ValidateDBJob.h"
 #include "Database.h"
 #include "DirtyThread.h"
-#include "GRTags.h"
 #include "FileInformation.h"
 #include "IndexerJob.h"
 #include "Log.h"
@@ -48,12 +47,10 @@ void Indexer::init(const Path &srcRoot, const Path &projectRoot, bool validate)
     }
 
     initDB(validate ? Normal : NoValidate);
-    mGRTags = new GRTags(this);
 }
 
 Indexer::~Indexer()
 {
-    delete mGRTags;
 }
 
 static inline bool isFile(uint32_t fileId)
@@ -292,7 +289,6 @@ void Indexer::onJobFinished(IndexerJob *job)
             ValidateDBJob *validateJob = new ValidateDBJob(mSrcRoot, mPreviousErrors);
             validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
             Server::instance()->startJob(validateJob);
-            mGRTags->recurseDirs();
         }
         mWaitCondition.wakeAll();
     }

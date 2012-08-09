@@ -5,15 +5,14 @@
 #include "List.h"
 #include "FileSystemWatcher.h"
 
-class Indexer;
 class GRTags
 {
 public:
-    GRTags(Indexer *indexer);
+    GRTags(const Path &srcRoot);
     void recurseDirs();
     void onRecurseJobFinished(const List<Path> &mPaths);
 private:
-    Indexer *mIndexer;
+    const Path mSrcRoot;
     FileSystemWatcher *mWatcher;
 };
 
