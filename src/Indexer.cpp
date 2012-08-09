@@ -48,7 +48,7 @@ void Indexer::init(const Path &srcRoot, const Path &projectRoot, bool validate)
     }
 
     initDB(validate ? Normal : NoValidate);
-    mGRTags = new GRTags(mSrcRoot);
+    mGRTags = new GRTags(this);
 }
 
 Indexer::~Indexer()
@@ -292,6 +292,7 @@ void Indexer::onJobFinished(IndexerJob *job)
             ValidateDBJob *validateJob = new ValidateDBJob(mSrcRoot, mPreviousErrors);
             validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
             Server::instance()->startJob(validateJob);
+            mGRTags->recurseDirs();
         }
         mWaitCondition.wakeAll();
     }

@@ -29,6 +29,7 @@ public:
     Set<uint32_t> pchDependencies(const Path &pchHeader) const;
     void abort();
     bool visitFile(uint32_t fileId, const Path &p);
+    bool isVisited(const Path &path) const;
     Set<uint32_t> visitedFiles() const { MutexLocker lock(&mMutex); return mVisitedFiles; }
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path) const;
@@ -93,7 +94,16 @@ inline bool Indexer::visitFile(uint32_t fileId, const Path &path)
     if (mVisitedFiles.contains(fileId)) {
         return false;
     }
+
     mVisitedFiles.insert(fileId);
     return true;
 }
+
+inline bool Indexer::isVisited(const Path &path) const
+{
+    const uint32_t fileId = Location::insertFile(path);
+    MutexLocker lock(&mMutex);
+    return mVisitedFiles.contains(fileId);
+}
+
 #endif

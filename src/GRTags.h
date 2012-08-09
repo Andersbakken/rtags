@@ -1,19 +1,19 @@
 #ifndef GRTags_h
 #define GRTags_h
 
-#include "EventReceiver.h"
 #include "Path.h"
 #include "List.h"
 #include "FileSystemWatcher.h"
 
-class GRTags : public EventReceiver
+class Indexer;
+class GRTags
 {
 public:
-    GRTags(const Path &root);
+    GRTags(Indexer *indexer);
     void recurseDirs();
     void onRecurseJobFinished(const List<Path> &mPaths);
 private:
-    const Path mSrcRoot;
+    Indexer *mIndexer;
     FileSystemWatcher *mWatcher;
 };
 
