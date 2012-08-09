@@ -14,6 +14,8 @@ public:
 
     Database *database() const { return mData->db; }
     ReadWriteLock::LockType lockType() const { return mData->lockType; }
+
+    void reset() { mData.reset(); }
 private:
     class Data
     {

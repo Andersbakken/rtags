@@ -13,11 +13,12 @@ GRJob::GRJob(const Path &path)
 void GRJob::run()
 {
     {
-        ScopedDB db = Server::instance()->db(Server::GRFiles, Server::Erase, mPath);
-        Batch batch(db);
+        mDB = Server::instance()->db(Server::GRFiles, Server::Erase, mPath);
+        Batch batch(mDB);
         mBatch = &batch;
         mPath.visit(&GRJob::visit, this);
     }
+    mDB.reset();
     finished()(mDirectories);
 }
 
@@ -86,7 +87,9 @@ Path::VisitResult GRJob::visit(const Path &path, void *userData)
     case File:
         break;
     }
-    const Path chopped = path.mid(recurseJob->mPath.size());
-    recurseJob->mBatch->add(chopped, true);
+    const int size = recurseJob->mPath.size();
+    const char *chopped = path.constData() + size;
+    // writebatch will copy the data
+    recurseJob->mBatch->add(Slice(chopped, path.size() - size), true);
     return Path::Continue;
 }
