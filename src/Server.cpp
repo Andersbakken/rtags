@@ -56,6 +56,7 @@ static const char *const dbNames[] = {
     "dependencies.db",
     "files.db",
     "fileinfos.db",
+    "grtags.db",
     "general.db",
     "fileids.db",
     0

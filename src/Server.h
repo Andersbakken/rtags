@@ -46,10 +46,11 @@ public:
         Dependency,
         Files,
         FileInformation,
+        GRTags,
         General,
         FileIds,
         DatabaseTypeCount,
-        ProjectSpecificDatabaseTypeCount = FileInformation + 1
+        ProjectSpecificDatabaseTypeCount = GRTags + 1
     };
 
     static Server *instance() { return sInstance; }

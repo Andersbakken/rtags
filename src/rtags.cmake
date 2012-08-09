@@ -77,6 +77,7 @@ set(rtags_HDRS
     CompletionJob.h
     Completions.h
     ParseJob.h
+    GRTags.h
     )
 
 set(rtags_SRCS
@@ -125,6 +126,7 @@ set(rtags_SRCS
     CompletionJob.cpp
     Completions.cpp
     CursorInfo.cpp
+    GRTags.cpp
 )
 
 include(clang.cmake)

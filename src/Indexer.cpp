@@ -1,9 +1,9 @@
 #include "Indexer.h"
 
 #include "ValidateDBJob.h"
-#include "RecurseJob.h"
 #include "Database.h"
 #include "DirtyThread.h"
+#include "GRTags.h"
 #include "FileInformation.h"
 #include "IndexerJob.h"
 #include "Log.h"
@@ -48,11 +48,12 @@ void Indexer::init(const Path &srcRoot, const Path &projectRoot, bool validate)
     }
 
     initDB(validate ? Normal : NoValidate);
-    recurseDirs();
+    mGRTags = new GRTags(mSrcRoot);
 }
 
 Indexer::~Indexer()
 {
+    delete mGRTags;
 }
 
 static inline bool isFile(uint32_t fileId)
@@ -579,19 +580,4 @@ void Indexer::dirty(const Set<uint32_t> &dirtyFileIds,
     for (Map<Path, List<ByteArray> >::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
         index(it->first, it->second, IndexerJob::Dirty);
     }
-}
-
-void Indexer::recurseDirs()
-{
-    RecurseJob *job = new RecurseJob(mSrcRoot);
-    job->finished().connect(this, &Indexer::onRecurseJobFinished);
-    Server::instance()->threadPool()->start(job);
-}
-
-void Indexer::onRecurseJobFinished(const List<Path> &mPaths)
-{
-    // ### need to watch these directories for changes, probably only care when
-    // ### files are added or removed so FileSystemWatcher needs to be beefed up
-#warning not done
-    // error() << mPaths;
 }

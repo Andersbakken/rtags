@@ -12,6 +12,7 @@
 
 class IndexerJob;
 class DirtyThread;
+class GRTags;
 class Indexer
 {
 public:
@@ -27,7 +28,6 @@ public:
     Set<uint32_t> dependencies(uint32_t fileId) const;
     Set<uint32_t> pchDependencies(const Path &pchHeader) const;
     void abort();
-    void recurseDirs();
     bool visitFile(uint32_t fileId, const Path &p);
     Set<uint32_t> visitedFiles() const { MutexLocker lock(&mMutex); return mVisitedFiles; }
     ByteArray fixIts(const Path &path) const;
@@ -43,7 +43,6 @@ private:
     void onValidateDBJobErrors(const Set<Location> &errors);
     void onJobFinished(IndexerJob *job);
     void onDirtyThreadComplete(DirtyThread *job);
-    void onRecurseJobFinished(const List<Path> &mPaths);
     void commitDependencies(const DependencyMap &deps, bool sync);
     void dirty(const Set<uint32_t> &dirtyFileIds,
                const Map<Path, List<ByteArray> > &dirtyPch,
@@ -84,6 +83,8 @@ private:
     Set<Location> mPreviousErrors;
 
     signalslot::Signal1<Indexer*> mJobsComplete;
+
+    GRTags *mGRTags;
 };
 
 inline bool Indexer::visitFile(uint32_t fileId, const Path &path)
