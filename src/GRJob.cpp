@@ -13,7 +13,7 @@ GRJob::GRJob(const Path &path)
 void GRJob::run()
 {
     {
-        ScopedDB db = Server::instance()->db(Server::Files, Server::Erase, mPath);
+        ScopedDB db = Server::instance()->db(Server::GRFiles, Server::Erase, mPath);
         Batch batch(db);
         mBatch = &batch;
         mPath.visit(&GRJob::visit, this);

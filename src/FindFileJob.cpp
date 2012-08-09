@@ -20,7 +20,7 @@ FindFileJob::FindFileJob(const Path &root, const QueryMessage &query)
 
 void FindFileJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::Files, Server::Read, mSrcRoot);
+    ScopedDB db = Server::instance()->db(Server::GRFiles, Server::Read, mSrcRoot);
     RTags::Ptr<Iterator> it(db->createIterator());
     it->seekToFirst();
     char buf[PATH_MAX];
