@@ -4,6 +4,7 @@
 #include "EventReceiver.h"
 #include "Path.h"
 #include "List.h"
+#include "FileSystemWatcher.h"
 
 class GRTags : public EventReceiver
 {
@@ -13,6 +14,7 @@ public:
     void onRecurseJobFinished(const List<Path> &mPaths);
 private:
     const Path mSrcRoot;
+    FileSystemWatcher *mWatcher;
 };
 
 #endif

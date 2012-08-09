@@ -1,5 +1,5 @@
 #include "GRTags.h"
-#include "RecurseJob.h"
+#include "GRJob.h"
 #include "Server.h"
 
 GRTags::GRTags(const Path &srcRoot)
@@ -10,7 +10,7 @@ GRTags::GRTags(const Path &srcRoot)
 
 void GRTags::recurseDirs()
 {
-    RecurseJob *job = new RecurseJob(mSrcRoot);
+    GRJob *job = new GRJob(mSrcRoot);
     job->finished().connect(this, &GRTags::onRecurseJobFinished);
     Server::instance()->threadPool()->start(job);
 }
