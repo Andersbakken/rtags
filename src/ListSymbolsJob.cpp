@@ -53,18 +53,48 @@ void ListSymbolsJob::execute()
         }
         it->next();
     }
+    if (queryFlags & QueryMessage::EnableGRTags) {
+        db = Server::instance()->db(Server::GRTags, Server::Read);
+        it.reset(db->createIterator());
+        if (string.isEmpty()) {
+            it->seekToFirst();
+        } else {
+            it->seek(string.constData());
+        }
+        List<ByteArray> out;
+        while (it->isValid() && !isAborted()) {
+            const ByteArray entry = it->key().byteArray();
+            if (!string.isEmpty() && !entry.startsWith(string))
+                break;
+            if (!skipParentheses || !entry.contains('(')) {
+                const Map<Location, bool> locations = it->value<Map<Location, bool> >();
+                for (Map<Location, bool>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
+                    if (!it->second && (!hasFilter || filter(it->first.path()))) {
+                        if (elispList) {
+                            write(entry);
+                        } else {
+                            out.append(entry);
+                        }
+                        break;
+                    }
+                }
+            }
+            it->next();
+        }
+    }
+
     if (elispList) {
         writeRaw(")");
-        return;
-    }
-    if (queryFlags & QueryMessage::ReverseSort) {
-        std::sort(out.begin(), out.end(), std::greater<ByteArray>());
     } else {
-        std::sort(out.begin(), out.end());
-    }
-    const int count = out.size();
-    for (int i=0; i<count; ++i) {
-        write(out.at(i));
+        if (queryFlags & QueryMessage::ReverseSort) {
+            std::sort(out.begin(), out.end(), std::greater<ByteArray>());
+        } else {
+            std::sort(out.begin(), out.end());
+        }
+        const int count = out.size();
+        for (int i=0; i<count; ++i) {
+            write(out.at(i));
+        }
     }
 }
 
