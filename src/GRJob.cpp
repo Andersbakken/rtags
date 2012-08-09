@@ -54,6 +54,8 @@ static inline FilterResult filter(const Path &path, Path::Type type, int maxSymL
             return Filtered;
         } else if (!strcmp(extension, "obj")) {
             return Filtered;
+        } else if (!strcmp(extension, "lo")) {
+            return Filtered;
         } else if (!strcmp(extension, "c")) {
             return C;
         } else if (path.isSource()) {
