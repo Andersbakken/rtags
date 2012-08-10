@@ -22,7 +22,6 @@ static void help(FILE *f, const char* app)
             "  --elisp-list|-Y                           Output elisp: (list \"one\" \"two\" ...)\n"
             "  --follow-location|-f [arg]                Follow this location\n"
             "  --makefile|-m [arg]                       Process this makefile\n"
-            "  --grtags|-b                               Enable grtags\n"
             "  --remake|-M [optional regexp]             Remake makefiles matching regexp or all if no regexp\n"
             "  --reference-name|-R [arg]                 Find references matching arg\n"
             "  --reference-location|-r [arg]             Find references matching this location\n"
@@ -212,11 +211,10 @@ int main(int argc, char** argv)
         { "path-match-regexp", no_argument, 0, 'Z' },
         { "absolute-path", no_argument, 0, 'K' },
         { "parse", required_argument, 0, 'y' },
-        { "grtags", no_argument, 0, 'b' },
         { 0, 0, 0, 0 }
     };
 
-    // Unused: BdjJk
+    // Unused: bBdjJk
 
     int logLevel = 0;
     ByteArray logFile;
@@ -245,9 +243,6 @@ int main(int argc, char** argv)
             return 0;
         case 'n':
             name = optarg;
-            break;
-        case 'b':
-            queryFlags |= QueryMessage::EnableGRTags;
             break;
         case 'a':
             clientFlags |= Client::AutostartRdm;
