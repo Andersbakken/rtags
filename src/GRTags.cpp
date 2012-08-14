@@ -37,7 +37,7 @@ void GRTags::init()
             }
         }
     }
-    recurseDirs();
+    // recurseDirs();
 }
 
 void GRTags::recurseDirs()
@@ -73,7 +73,6 @@ void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
             files[i->first.fileName()] = 0;
         }
     }
-    error() << "files are" << mFiles;
 }
 
 void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Location, bool> > &entries)
@@ -180,7 +179,6 @@ void GRTags::dirty(uint32_t fileId, ScopedDB &db)
 }
 void GRTags::parse(const Path &path, unsigned flags)
 {
-    error() << "Parsing" << path << flags;
     GRParseJob *job = new GRParseJob(path, flags);
     job->finished().connect(this, &GRTags::onParseJobFinished);
     Server::instance()->threadPool()->start(job);

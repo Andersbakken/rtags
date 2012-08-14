@@ -34,6 +34,7 @@
 #include "TestJob.h"
 #include "leveldb/cache.h"
 #include "leveldb/db.h"
+#include "GRTagMessage.h"
 #include <Log.h>
 #include <clang-c/Index.h>
 #include <dirent.h>
@@ -249,6 +250,9 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case MakefileMessage::MessageId:
         handleMakefileMessage(static_cast<MakefileMessage*>(message), connection);
         break;
+    case GRTagMessage::MessageId:
+        handleGRTagMessage(static_cast<GRTagMessage*>(message), connection);
+        break;
     case QueryMessage::MessageId:
         handleQueryMessage(static_cast<QueryMessage*>(message), connection);
         break;
@@ -275,6 +279,18 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
     general->setValue("makefiles", mMakefiles);
     make(message->makefile(), message->arguments(), message->extraFlags(), conn);
 }
+
+void Server::handleGRTagMessage(GRTagMessage *message, Connection *conn)
+{
+    const Path dir = message->path();
+    if (mGRTags.insert(dir)) {
+        ScopedDB general = Server::instance()->db(Server::General, Server::Write);
+        general->setValue("grtags", mGRTags);
+        // initProject(
+        // make(message->makefile(), message->arguments(), message->extraFlags(), conn);
+    }
+}
+
 
 void Server::make(const Path &path, List<ByteArray> makefileArgs, const List<ByteArray> &extraFlags, Connection *conn)
 {
@@ -1000,7 +1016,7 @@ bool Server::setCurrentProject(const Path &path)
     return true;
 }
 
-Server::Project *Server::initProject(const Path &path)
+Server::Project *Server::initProject(const Path &path, unsigned flags)
 {
     Project *&project = mProjects[path];
     if (!project) {

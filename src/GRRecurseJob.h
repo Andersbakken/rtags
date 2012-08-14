@@ -1,5 +1,5 @@
-#ifndef GRJob_h
-#define GRJob_h
+#ifndef GRRecurseJob_h
+#define GRRecurseJob_h
 
 #include "ThreadPool.h"
 #include "AbortInterface.h"

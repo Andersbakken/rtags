@@ -2,6 +2,7 @@
 #include "QueryMessage.h"
 #include "CreateOutputMessage.h"
 #include "MakefileMessage.h"
+#include "GRTagMessage.h"
 #include "EventLoop.h"
 #include "RTags.h"
 #include <ByteArray.h>
@@ -22,6 +23,8 @@ static void help(FILE *f, const char* app)
             "  --elisp-list|-Y                           Output elisp: (list \"one\" \"two\" ...)\n"
             "  --follow-location|-f [arg]                Follow this location\n"
             "  --makefile|-m [arg]                       Process this makefile\n"
+            "  --grtag|-k [arg]                          Index this directory\n"
+            "  --enable-grtags|-b                        Enable grtags\n"
             "  --remake|-M [optional regexp]             Remake makefiles matching regexp or all if no regexp\n"
             "  --reference-name|-R [arg]                 Find references matching arg\n"
             "  --reference-location|-r [arg]             Find references matching this location\n"
@@ -161,6 +164,27 @@ struct MakefileCommand : public Command
     }
 };
 
+struct GRTagCommand : public Command
+{
+    GRTagCommand(const Path &dir)
+        : directory(dir)
+    {}
+    const Path directory;
+    virtual void exec(Client *client)
+    {
+        if (!directory.isDir()) {
+            error() << directory << "is not a file";
+            return;
+        }
+        GRTagMessage msg(directory);
+        client->message(&msg);
+    }
+    virtual ByteArray description() const
+    {
+        return ("GRTagMessage " + directory);
+    }
+};
+
 int main(int argc, char** argv)
 {
     RTags::findApplicationDirPath(*argv);
@@ -211,10 +235,12 @@ int main(int argc, char** argv)
         { "path-match-regexp", no_argument, 0, 'Z' },
         { "absolute-path", no_argument, 0, 'K' },
         { "parse", required_argument, 0, 'y' },
+        { "enable-grtags", no_argument, 0, 'b' },
+        { "grtag", optional_argument, 0, 'k' },
         { 0, 0, 0, 0 }
     };
 
-    // Unused: bBdjJk
+    // Unused: BdjJ
 
     int logLevel = 0;
     ByteArray logFile;
@@ -243,6 +269,9 @@ int main(int argc, char** argv)
             return 0;
         case 'n':
             name = optarg;
+            break;
+        case 'b':
+            queryFlags |= QueryMessage::EnableGRTags;
             break;
         case 'a':
             clientFlags |= Client::AutostartRdm;
@@ -388,6 +417,15 @@ int main(int argc, char** argv)
                 commands.append(new QueryCommand(type, ByteArray(), queryFlags, pathFilters, unsavedFiles));
             }
             break; }
+        case 'k':
+            if (optarg) {
+                commands.append(new GRTagCommand(Path::resolved(optarg)));
+            } else if (optind < argc && argv[optind][0] != '-') {
+                commands.append(new GRTagCommand(Path::resolved(argv[optind++])));
+            } else {
+                commands.append(new GRTagCommand(Path::resolved(".")));
+            }
+            break;
         case 't':
         case 'x':
         case 'Q':

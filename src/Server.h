@@ -17,6 +17,7 @@
 #include "MakefileInformation.h"
 #include "GRTags.h"
 
+class GRTagMessage;
 class Connection;
 class Indexer;
 class Message;
@@ -98,9 +99,14 @@ private:
     void clearDataDir();
     struct Project;
     Project *setCurrentProject(Project *project);
-    Project *initProject(const Path &path);
+    enum InitProjectFlag {
+        None = 0x0,
+        EnableIndexer = 0x1
+    };
+    Project *initProject(const Path &path, unsigned flags = EnableIndexer);
     static Path::VisitResult projectsVisitor(const Path &path, void *);
     void handleMakefileMessage(MakefileMessage *message, Connection *conn);
+    void handleGRTagMessage(GRTagMessage *message, Connection *conn);
     void handleQueryMessage(QueryMessage *message, Connection *conn);
     void handleErrorMessage(ErrorMessage *message, Connection *conn);
     void handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn);
@@ -131,6 +137,7 @@ private:
     bool mVerbose;
     int mJobId;
     Map<Path, MakefileInformation> mMakefiles;
+    Set<Path> mGRTags;
     FileSystemWatcher mMakefilesWatcher;
     Database *mDBs[DatabaseTypeCount - ProjectSpecificDatabaseTypeCount];
     struct Project {
