@@ -23,7 +23,7 @@ static void help(FILE *f, const char* app)
             "  --elisp-list|-Y                           Output elisp: (list \"one\" \"two\" ...)\n"
             "  --follow-location|-f [arg]                Follow this location\n"
             "  --makefile|-m [arg]                       Process this makefile\n"
-            "  --grtag|-k [arg]                          Index this directory\n"
+            "  --grtag|-t [arg]                          Index this directory\n"
             "  --enable-grtags|-b                        Enable grtags\n"
             "  --remake|-M [optional regexp]             Remake makefiles matching regexp or all if no regexp\n"
             "  --reference-name|-R [arg]                 Find references matching arg\n"
@@ -43,7 +43,7 @@ static void help(FILE *f, const char* app)
             "  --includepath|-I [arg]                    Add additional include path, must be combined with --makefile\n"
             "  --define|-D [arg]                         Add additional define, must be combined with --makefile\n"
             "  --compiler-flag|-o [arg]                  Add additional compiler flags, must be combined with --makefile\n"
-            "  --test|-t [arg]                           Test whether rtags knows about this source file\n"
+            "  --test|-T [arg]                           Test whether rtags knows about this source file\n"
             "  --fixits|-x [file]                        Get fixits for file\n"
             "  --errors|-Q [file]                        Get errors for file\n"
             "  --rdm-log|-g                              Receive logs from rdm\n"
@@ -52,7 +52,7 @@ static void help(FILE *f, const char* app)
             "  --name|-n [name]                          Name to use for server (default ~/.rtags/server)\n"
             "  --autostart-rdm|-a [args]                 Start rdm with [args] if rc fails to connect\n"
             "  --restart-rdm|-e [args]                   Restart rdm with [args] before doing the rest of the commands\n"
-            "  --run-test|-T [file]                      Run tests from file\n"
+            "  --run-test|-k [file]                      Run tests from file\n"
             "  --diagnostics|-G                          Open a connection that prints diagnostics\n"
             "  --project|-w [optional regexp]            With arg, select project matching that if unique, otherwise list all projects\n"
             "  --delete-project|-W [regexp]              Delete all projects matching regexp\n"
@@ -217,12 +217,12 @@ int main(int argc, char** argv)
         { "includepath", required_argument, 0, 'I' },
         { "define", required_argument, 0, 'D' },
         { "compiler-flag", required_argument, 0, 'o' },
-        { "test", required_argument, 0, 't' },
+        { "test", required_argument, 0, 'T' },
         { "quit-rdm", no_argument, 0, 'q' },
         { "restart-rdm", optional_argument, 0, 'e' },
         { "all-references", no_argument, 0, 'E' },
         { "elisp-list", no_argument, 0, 'Y' },
-        { "run-test", required_argument, 0, 'T' },
+        { "run-test", required_argument, 0, 'k' },
         { "clear-db", no_argument, 0, 'C' },
         { "fixits", required_argument, 0, 'x' },
         { "errors", required_argument, 0, 'Q' },
@@ -236,7 +236,7 @@ int main(int argc, char** argv)
         { "absolute-path", no_argument, 0, 'K' },
         { "parse", required_argument, 0, 'y' },
         { "enable-grtags", no_argument, 0, 'b' },
-        { "grtag", optional_argument, 0, 'k' },
+        { "grtag", optional_argument, 0, 't' },
         { 0, 0, 0, 0 }
     };
 
@@ -417,7 +417,7 @@ int main(int argc, char** argv)
                 commands.append(new QueryCommand(type, ByteArray(), queryFlags, pathFilters, unsavedFiles));
             }
             break; }
-        case 'k':
+        case 't':
             if (optarg) {
                 commands.append(new GRTagCommand(Path::resolved(optarg)));
             } else if (optind < argc && argv[optind][0] != '-') {
@@ -426,11 +426,11 @@ int main(int argc, char** argv)
                 commands.append(new GRTagCommand(Path::resolved(".")));
             }
             break;
-        case 't':
+        case 'T':
         case 'x':
         case 'Q':
         case 'y':
-        case 'T': {
+        case 'k': {
             const Path p = Path::resolved(optarg);
             if (!p.isFile()) {
                 fprintf(stderr, "%s is not a file\n", optarg);
@@ -438,10 +438,10 @@ int main(int argc, char** argv)
             }
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (c) {
-            case 't': type = QueryMessage::Test; break;
+            case 'T': type = QueryMessage::Test; break;
             case 'x': type = QueryMessage::FixIts; break;
             case 'Q': type = QueryMessage::Errors; break;
-            case 'T': type = QueryMessage::RunTest; break;
+            case 'k': type = QueryMessage::RunTest; break;
             case 'y': type = QueryMessage::Parse; break;
             }
 

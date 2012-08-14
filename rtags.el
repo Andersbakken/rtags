@@ -524,7 +524,7 @@ return t if rtags is allowed to modify this file"
   (unless buffer
     (setq buffer (current-buffer)))
   (with-temp-buffer
-    (rtags-call-rc "-t" (buffer-file-name buffer))
+    (rtags-call-rc "-T" (buffer-file-name buffer))
     (goto-char (point-min))
     (looking-at "1")
   )
