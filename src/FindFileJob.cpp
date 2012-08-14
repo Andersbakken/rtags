@@ -4,10 +4,12 @@
 #include "Server.h"
 #include "leveldb/db.h"
 #include "CursorInfo.h"
+#include "GRTags.h"
 
-FindFileJob::FindFileJob(const Path &root, const QueryMessage &query)
-    : Job(query, 0), mSrcRoot(root)
+FindFileJob::FindFileJob(const std::tr1::shared_ptr<GRTags> &tags, const QueryMessage &query)
+    : Job(query, 0), mTags(tags)
 {
+    assert(mTags);
     const ByteArray q = query.query();
     if (!q.isEmpty()) {
         if (query.flags() & QueryMessage::MatchRegExp) {
@@ -20,19 +22,8 @@ FindFileJob::FindFileJob(const Path &root, const QueryMessage &query)
 
 void FindFileJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::GRFiles, Server::Read, mSrcRoot);
-    RTags::Ptr<Iterator> it(db->createIterator());
-    it->seekToFirst();
-    char buf[PATH_MAX];
-    if (mSrcRoot.size() >= static_cast<int>(sizeof(buf)))
-        return;
-    char *outbuf = queryFlags() & QueryMessage::AbsolutePath ? buf : 0;
-    int outbufSize = 0;
-    if (outbuf) {
-        memcpy(buf, mSrcRoot.constData(), mSrcRoot.size());
-        outbufSize = sizeof(buf) - mSrcRoot.size();
-        outbuf += mSrcRoot.size();
-    }
+    const Path &srcRoot = mTags->srcRoot();
+
     enum Mode {
         All,
         RegExp,
@@ -43,28 +34,45 @@ void FindFileJob::execute()
     } else if (!mPattern.isEmpty()) {
         mode = Pattern;
     }
-    while (it->isValid()) {
-        const ByteArray key = it->key().byteArray();
-        bool ok;
-        switch (mode) {
-        case All:
-            ok = true;
-            break;
-        case RegExp:
-            ok = mRegExp.indexIn(key) != -1;
-            break;
-        case Pattern:
-            ok = key.contains(mPattern);
-            break;
-        }
-        if (ok) {
-            if (!outbuf) {
-                write(key);
-            } else if (key.size() + 1 < outbufSize) {
-                memcpy(outbuf, key.constData(), key.size() + 1);
-                write(ByteArray(buf, mSrcRoot.size() + key.size() + 1));
+    ByteArray out;
+    out.reserve(PATH_MAX);
+    const bool absolutePath = (queryFlags() & QueryMessage::AbsolutePath);
+    if (absolutePath) {
+        out.append(srcRoot);
+        assert(srcRoot.endsWith('/'));
+    }
+
+
+    ScopedDB db = Server::instance()->db(Server::GRFiles, Server::Read, srcRoot); // we're using this as a read write lock for GRTags::mFiles
+    const Map<Path, Map<ByteArray, time_t> > &dirs = mTags->mFiles;
+    Map<Path, Map<ByteArray, time_t> >::const_iterator dirit = dirs.begin();
+    while (dirit != dirs.end()) {
+
+        const Path &dir = dirit->first;
+        out.append(dir.constData() + srcRoot.size(), dir.size() - srcRoot.size());
+
+        const Map<ByteArray, time_t> &files = dirit->second;
+        for (Map<ByteArray, time_t>::const_iterator it = files.begin(); it != files.end(); ++it) {
+            const ByteArray &key = it->first;
+            out.append(key);
+            bool ok;
+            switch (mode) {
+            case All:
+                ok = true;
+                break;
+            case RegExp:
+                ok = mRegExp.indexIn(out) != -1;
+                break;
+            case Pattern:
+                ok = out.contains(mPattern);
+                break;
             }
+            if (ok) {
+                write(out);
+            }
+            out.resize(absolutePath ? srcRoot.size() : 0);
         }
-        it->next();
+
+        ++dirit;
     }
 }

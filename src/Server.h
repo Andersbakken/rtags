@@ -74,6 +74,7 @@ public:
     };
     bool init(const Options &options);
     std::tr1::shared_ptr<Indexer> indexer() const;
+    std::tr1::shared_ptr<GRTags> grtags() const;
     ByteArray name() const { return mOptions.socketPath; }
     Path databaseDir(DatabaseType type);
     Path projectsPath() const;

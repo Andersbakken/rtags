@@ -493,10 +493,10 @@ int Server::parse(const QueryMessage &query)
 int Server::findFile(const QueryMessage &query)
 {
     error("rc -P %s", query.query().constData());
-    std::tr1::shared_ptr<Indexer> idx = indexer();
-    if (!idx)
+    std::tr1::shared_ptr<GRTags> tags = grtags();
+    if (!tags)
         return -1;
-    FindFileJob *job = new FindFileJob(idx->srcRoot(), query);
+    FindFileJob *job = new FindFileJob(tags, query);
     job->setId(nextId());
     startJob(job);
     return job->id();
@@ -981,10 +981,14 @@ ScopedDB Server::db(DatabaseType type, Server::DatabaseLockType lockType, const 
     return ScopedDB(proj->databases[type], l, erase);
 }
 
-
 std::tr1::shared_ptr<Indexer> Server::indexer() const
 {
     return mCurrentProject ? mCurrentProject->indexer : std::tr1::shared_ptr<Indexer>();
+}
+
+std::tr1::shared_ptr<GRTags> Server::grtags() const
+{
+    return mCurrentProject ? mCurrentProject->grtags : std::tr1::shared_ptr<GRTags>();
 }
 
 bool Server::setCurrentProject(const Path &path)
@@ -1019,6 +1023,8 @@ Server::Project *Server::initProject(const Path &path)
         project->indexer.reset(new Indexer);
         project->indexer->init(path, mCurrentProject->projectPath, !(mOptions.options & NoValidateOnStartup));
         project->indexer->jobsComplete().connect(this, &Server::onJobsComplete);
+        project->grtags.reset(new GRTags(path));
+        project->grtags->init();
         mCurrentProject = prev;
     }
     return project;

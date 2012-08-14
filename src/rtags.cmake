@@ -58,7 +58,7 @@ set(rtags_HDRS
     Source.h
     StatusJob.h
     ValidateDBJob.h
-    GRJob.h
+    GRRecurseJob.h
     FindFileJob.h
     Str.h
     TestJob.h
@@ -79,6 +79,7 @@ set(rtags_HDRS
     ParseJob.h
     GRTags.h
     GRParser.h
+    GRParseJob.h
     )
 
 set(rtags_SRCS
@@ -113,7 +114,7 @@ set(rtags_SRCS
     Server.cpp
     StatusJob.cpp
     ValidateDBJob.cpp
-    GRJob.cpp
+    GRRecurseJob.cpp
     FindFileJob.cpp
     TestJob.cpp
     Thread.cpp
@@ -129,6 +130,7 @@ set(rtags_SRCS
     CursorInfo.cpp
     GRTags.cpp
     GRParser.cpp
+    GRParseJob.cpp
 )
 
 include(clang.cmake)

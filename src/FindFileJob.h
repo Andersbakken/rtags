@@ -8,14 +8,15 @@
 #include "Location.h"
 #include "RegExp.h"
 
+class GRTags;
 class FindFileJob : public Job
 {
 public:
-    FindFileJob(const Path &srcRoot, const QueryMessage &query);
+    FindFileJob(const std::tr1::shared_ptr<GRTags> &tags, const QueryMessage &query);
 protected:
     virtual void execute();
 private:
-    const Path mSrcRoot;
+    std::tr1::shared_ptr<GRTags> mTags;
     ByteArray mPattern;
     RegExp mRegExp;
 };

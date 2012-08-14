@@ -1,31 +1,24 @@
 #include "GRParser.h"
-#include "GRJob.h"
+#include "GRRecurseJob.h"
 #include "Server.h"
 
-GRJob::GRJob(const Path &path)
-    : mPath(path), mBatch(0)
+GRRecurseJob::GRRecurseJob(const Path &path)
+    : mPath(path)
 {
     if (!mPath.endsWith('/'))
         mPath.append('/');
 
 }
 
-void GRJob::run()
+void GRRecurseJob::run()
 {
-    {
-        mDB = Server::instance()->db(Server::GRFiles, Server::Erase, mPath);
-        Batch batch(mDB);
-        mBatch = &batch;
-        mPath.visit(&GRJob::visit, this);
-    }
-    mDB.reset();
-    finished()(mDirectories);
+    mPath.visit(&GRRecurseJob::visit, this);
+    mFinished(mPaths);
 }
 
 enum FilterResult {
     File,
-    C,
-    CPlusPlus,
+    Source,
     Directory,
     Filtered
 };
@@ -57,39 +50,29 @@ static inline FilterResult filter(const Path &path, Path::Type type, int maxSymL
             return Filtered;
         } else if (!strcmp(extension, "lo")) {
             return Filtered;
-        } else if (!strcmp(extension, "c")) {
-            return C;
         } else if (path.isSource()) {
-            return CPlusPlus;
+            return Source;
         }
     }
     return File;
 }
 
-Path::VisitResult GRJob::visit(const Path &path, void *userData)
+Path::VisitResult GRRecurseJob::visit(const Path &path, void *userData)
 {
     const Path::Type type = path.type();
     const FilterResult result = filter(path, type, 10);
-    GRJob *recurseJob = reinterpret_cast<GRJob*>(userData);
+    GRRecurseJob *recurseJob = reinterpret_cast<GRRecurseJob*>(userData);
     switch (result) {
     case Filtered:
         return Path::Continue;
     case Directory:
-        recurseJob->mDirectories.append(path);
         return Path::Recurse;
-    case C:
-    case CPlusPlus: {
-        // GRParser parser;
-        // Timer timer;
-        // const int count = parser.parse(*recurseJob->mDB, path, result == C ? GRParser::None : GRParser::CPlusPlus);
-        // error("Parsed %s, %d entries in %dms", path.constData(), count, timer.elapsed());
-        break; }
+    case Source:
+        recurseJob->mPaths[path] = true;
+        break;
     case File:
+        recurseJob->mPaths[path] = false;
         break;
     }
-    const int size = recurseJob->mPath.size();
-    const char *chopped = path.constData() + size;
-    // writebatch will copy the data
-    recurseJob->mBatch->add(Slice(chopped, path.size() - size), true);
     return Path::Continue;
 }

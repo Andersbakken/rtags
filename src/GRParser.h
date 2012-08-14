@@ -13,20 +13,18 @@
 #include "ByteArray.h"
 #include "Timer.h"
 #include "Log.h"
-#include "Database.h"
-#include "ScopedDB.h"
+#include "GRParseJob.h"
 
 class GRParser
 {
 public:
     enum Option {
         None = 0x0,
-        CPlusPlus = 0x1,
-        Dirty = 0x2
+        CPlusPlus = 0x1
     };
     GRParser();
     ~GRParser();
-    int parse(ScopedDB &db, const Path &file, unsigned opts);
+    int parse(const Path &file, unsigned opts, Map<ByteArray, Map<Location, bool> > &entries);
 private:
     void addEntry(const ByteArray &name, const ByteArray &containerScope, int offset);
     void addReference(const ByteArray &name, int offset);
@@ -87,8 +85,8 @@ private:
     std::stack<State> mState;
     ByteArray mContainerScope;
     List<clang::Token> mTokens;
-    Map<ByteArray, Map<Location, bool> > mEntries;
     uint32_t mFileId;
+    Map<ByteArray, Map<Location, bool> > *mEntries;
 };
 
 #endif

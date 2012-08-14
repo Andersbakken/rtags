@@ -1,7 +1,7 @@
 #include "GRParser.h"
 
 GRParser::GRParser()
-    : mLexer(0), mBraceCount(0), mSize(0), mCount(0), mCurrentToken(0), mBuf(0), mFileId(0)
+    : mLexer(0), mBraceCount(0), mSize(0), mCount(0), mCurrentToken(0), mBuf(0), mFileId(0), mEntries(0)
 {}
 
 GRParser::~GRParser()
@@ -10,11 +10,14 @@ GRParser::~GRParser()
     delete[] mBuf;
 }
 
-int GRParser::parse(ScopedDB &db, const Path &file, unsigned opts)
+int GRParser::parse(const Path &file, unsigned opts, Map<ByteArray, Map<Location, bool> > &entries)
 {
     mFileName = file;
     FILE *f = fopen(mFileName.constData(), "r");
-    assert(f);
+    if (!f) {
+        error("Can't open %s for reading %s\n", mFileName.constData(), strerror(errno));
+        return 0;
+    }
     fseek(f, 0, SEEK_END);
     mSize = ftell(f);
     fseek(f, 0, SEEK_SET);
@@ -25,6 +28,7 @@ int GRParser::parse(ScopedDB &db, const Path &file, unsigned opts)
         error("Read error %d %d %d %s - %s", ret, mSize, errno, strerror(errno), file.constData());
         return 0;
     }
+    mEntries = &entries;
     mFileId = Location::insertFile(file);
     assert(ret == mSize);
     mBuf[ret] = 0;
@@ -89,46 +93,7 @@ int GRParser::parse(ScopedDB &db, const Path &file, unsigned opts)
         }
         ++mCurrentToken;
     }
-    if (opts & Dirty) {
-        Batch batch(db);
-        RTags::Ptr<Iterator> it(db->createIterator());
-        it->seekToFirst();
-        while (it->isValid()) {
-            Map<Location, bool> val = it->value<Map<Location, bool> >();
-            Map<Location, bool>::iterator i = val.begin();
-            bool changed = false;
-            while (i != val.end()) {
-                if (i->first.fileId() == mFileId) {
-                    val.erase(i++);
-                    changed = true;
-                } else {
-                    ++i;
-                }
-            }
-            if (changed) {
-                if (val.isEmpty()) {
-                    batch.remove(it->key());
-                } else {
-                    batch.add(it->key(), val);
-                }
-            }
-            it->next();
-        }
-    }
-
-    // for the Dirty case we could do it in one pass instead of two
-    Batch batch(db);
-    for (Map<ByteArray, Map<Location, bool> >::const_iterator it = mEntries.begin(); it != mEntries.end(); ++it) {
-        const Map<Location, bool> val = it->second;
-        Map<Location, bool> old = db->value<Map<Location, bool> >(it->first);
-        for (Map<Location, bool>::const_iterator i = val.begin(); i != val.end(); ++i) {
-            old[i->first] = i->second;
-        }
-
-        batch.add(it->first, old);
-    }
-
-    mEntries.clear();
+    mEntries = 0;
     return mCount;
 }
 
@@ -136,16 +101,16 @@ void GRParser::addEntry(const ByteArray &name, const ByteArray &containerScope, 
 {
     ++mCount;
     const Location loc(mFileId, offset);
-    mEntries[name][loc] = false;
+    (*mEntries)[name][loc] = false;
     if (!containerScope.isEmpty()) // ### this isn't quite right, might want to consider just keeping these as a list as well
-        mEntries[containerScope + name][loc] = false;
+        (*mEntries)[containerScope + name][loc] = false;
 }
 
 void GRParser::addReference(const ByteArray &name, int offset)
 {
     ++mCount;
     const Location loc(mFileId, offset);
-    mEntries[name][loc] = true;
+    (*mEntries)[name][loc] = true;
 }
 
 int GRParser::findMatching(int idx) const

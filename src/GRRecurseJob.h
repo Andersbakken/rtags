@@ -8,19 +8,17 @@
 #include "signalslot.h"
 #include "ScopedDB.h"
 
-class GRJob : public ThreadPool::Job, public AbortInterface
+class GRRecurseJob : public ThreadPool::Job, public AbortInterface
 {
 public:
-    GRJob(const Path &path);
+    GRRecurseJob(const Path &path);
     virtual void run();
-    signalslot::Signal1<const List<Path> &> &finished() { return mFinished; }
+    signalslot::Signal1<Map<Path, bool> &> &finished() { return mFinished; }
 private:
     static Path::VisitResult visit(const Path &path, void *userData);
-    ScopedDB mDB;
     Path mPath;
-    Batch *mBatch;
-    List<Path> mDirectories;
-    signalslot::Signal1<const List<Path> &> mFinished;
+    Map<Path, bool> mPaths;
+    signalslot::Signal1<Map<Path, bool> &> mFinished; // value => true means it's a source file
 };
 
 #endif
