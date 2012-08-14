@@ -34,7 +34,7 @@ class Server : public EventReceiver
 public:
     Server();
     ~Server();
-    void clear();
+    static Server *instance() { return sInstance; }
     enum Option {
         NoOptions = 0x0,
         NoClangIncludePath = 0x1,
@@ -54,15 +54,17 @@ public:
         DatabaseTypeCount,
         ProjectSpecificDatabaseTypeCount = GR + 1
     };
-
-    static Server *instance() { return sInstance; }
-    List<ByteArray> defaultArguments() const { return mOptions.defaultArguments; }
     enum DatabaseLockType {
         Read = ReadWriteLock::Read,
         Write = ReadWriteLock::Write,
         Erase
     };
     ScopedDB db(DatabaseType type, DatabaseLockType lockType, const Path &path = Path()) const;
+    ThreadPool *threadPool() const { return mThreadPool; }
+    void startJob(Job *job);
+    Path databaseDir(DatabaseType type);
+    std::tr1::shared_ptr<Indexer> indexer() const;
+    std::tr1::shared_ptr<GRTags> grtags() const;
     struct Options {
         Options() : options(0), cacheSizeMB(0), maxCompletionUnits(0), threadCount(0) {}
         Path path;
@@ -74,17 +76,15 @@ public:
         int threadCount;
     };
     bool init(const Options &options);
-    std::tr1::shared_ptr<Indexer> indexer() const;
-    std::tr1::shared_ptr<GRTags> grtags() const;
+
+private:
+    void clear();
+    List<ByteArray> defaultArguments() const { return mOptions.defaultArguments; }
     ByteArray name() const { return mOptions.socketPath; }
-    Path databaseDir(DatabaseType type);
     Path projectsPath() const;
-    ThreadPool *threadPool() const { return mThreadPool; }
     void onNewConnection();
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
-    void startJob(Job *job);
     bool setCurrentProject(const Path &path);
-protected:
     void onJobsComplete(Indexer *indexer);
     void event(const Event *event);
     void onFileReady(const GccArguments &file, MakefileParser *parser);
@@ -95,7 +95,6 @@ protected:
     void onMakefileRemoved(const Path &path);
     void make(const Path &path, List<ByteArray> makefileArgs = List<ByteArray>(),
               const List<ByteArray> &extraFlags = List<ByteArray>(), Connection *conn = 0);
-private:
     void clearDataDir();
     struct Project;
     Project *setCurrentProject(Project *project);
