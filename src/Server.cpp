@@ -158,6 +158,7 @@ bool Server::init(const Options &options)
         }
     }
 
+    ByteArray currentProject;
     {
         ScopedDB general = Server::instance()->db(Server::General, Server::Write);
         bool ok;
@@ -172,6 +173,7 @@ bool Server::init(const Options &options)
         for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
             mMakefilesWatcher.watch(it->first);
         }
+        currentProject = general->value<ByteArray>("currentProject");
     }
 
     {
@@ -199,6 +201,8 @@ bool Server::init(const Options &options)
 
     error() << "running with " << mOptions.defaultArguments << " clang version " << RTags::eatString(clang_getClangVersion());
     mProjectsDir.visit(projectsVisitor, this);
+    if (!currentProject.isEmpty())
+        setCurrentProject(currentProject);
 
     if (!(mOptions.options & NoValidateOnStartup))
         remake();
@@ -367,7 +371,6 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         } else {
             Path currentPath;
             bool error = false;
-            Project *project = 0;
             RegExp rx(message->query());
             for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
                 if (rx.indexIn(it->first) != -1) {
@@ -382,12 +385,10 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
                         conn->send(&msg);
                     } else {
                         currentPath = it->first;
-                        project = it->second;
                     }
                 }
             }
             if (!error && !currentPath.isEmpty()) {
-                setCurrentProject(project);
                 setCurrentProject(currentPath);
                 ResponseMessage msg("Selected project: " + currentPath);
                 conn->send(&msg);
@@ -509,7 +510,7 @@ int Server::parse(const QueryMessage &query)
 int Server::findFile(const QueryMessage &query)
 {
     error("rc -P %s", query.query().constData());
-    std::tr1::shared_ptr<GRTags> tags = grtags();
+    std::tr1::shared_ptr<GRTags> tags = currentGRTags();
     if (!tags)
         return -1;
     FindFileJob *job = new FindFileJob(tags, query);
@@ -632,7 +633,7 @@ int Server::test(const QueryMessage &query)
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)
 {
-    const ByteArray fixIts = indexer()->fixIts(query.query());
+    const ByteArray fixIts = currentIndexer()->fixIts(query.query());
 
     error("rc -x \"%s\"", fixIts.constData());
 
@@ -643,7 +644,7 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
 
 void Server::errors(const QueryMessage &query, Connection *conn)
 {
-    const ByteArray errors = indexer()->errors(query.query());
+    const ByteArray errors = currentIndexer()->errors(query.query());
 
     error("rc -Q \"%s\"", errors.constData());
 
@@ -688,7 +689,7 @@ void Server::clearDataDir()
 
 void Server::reindex(const ByteArray &pattern)
 {
-    indexer()->reindex(pattern);
+    currentIndexer()->reindex(pattern);
 }
 
 void Server::remake(const ByteArray &pattern, Connection *conn)
@@ -867,7 +868,7 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
         error("Can't find project root for %s", inputFiles.begin()->constData());
         return;
     }
-    Project *proj = initProject(projectRoot);
+    Project *proj = initProject(projectRoot, EnableIndexer);
     if (!proj) {
         error("Can't find project for %s", projectRoot.constData());
         return;
@@ -997,23 +998,24 @@ ScopedDB Server::db(DatabaseType type, Server::DatabaseLockType lockType, const 
     return ScopedDB(proj->databases[type], l, erase);
 }
 
-std::tr1::shared_ptr<Indexer> Server::indexer() const
+std::tr1::shared_ptr<Indexer> Server::currentIndexer() const
 {
     return mCurrentProject ? mCurrentProject->indexer : std::tr1::shared_ptr<Indexer>();
 }
 
-std::tr1::shared_ptr<GRTags> Server::grtags() const
+std::tr1::shared_ptr<GRTags> Server::currentGRTags() const
 {
     return mCurrentProject ? mCurrentProject->grtags : std::tr1::shared_ptr<GRTags>();
 }
 
 bool Server::setCurrentProject(const Path &path)
 {
-    Project *proj = initProject(path);
-    if (!proj)
-        return false;
-    mCurrentProject = proj;
-    return true;
+    Project *project = mProjects.value(path);
+    if (project) {
+        setCurrentProject(project);
+        return true;
+    }
+    return false;
 }
 
 Server::Project *Server::initProject(const Path &path, unsigned flags)
@@ -1029,34 +1031,46 @@ Server::Project *Server::initProject(const Path &path, unsigned flags)
         project = new Project;
         project->projectPath = mProjectsDir + tmp;
         Path::mkdir(project->projectPath);
-        Project *prev = mCurrentProject;
-        mCurrentProject = project;
-        for (int i=0; i<ProjectSpecificDatabaseTypeCount; ++i) {
-            const unsigned flags = (i == Server::Symbol ? Database::LocationKeys : Database::NoFlag);
-            project->databases[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(),
-                                                 mOptions.cacheSizeMB, flags);
+    }
+    Project *prev = setCurrentProject(project);
+    if (flags & EnableIndexer && !project->indexer) {
+        for (int i=0; i<GRFiles; ++i) {
+            const unsigned f = (i == Server::Symbol ? Database::LocationKeys : Database::NoFlag);
+            assert(!project->databases[i]);
+            project->databases[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(), mOptions.cacheSizeMB, f);
         }
         project->indexer.reset(new Indexer);
         project->indexer->init(path, mCurrentProject->projectPath, !(mOptions.options & NoValidateOnStartup));
         project->indexer->jobsComplete().connect(this, &Server::onJobsComplete);
+    }
+    if (flags & EnableGRTags && !project->grtags) {
+        for (int i=GRFiles; i<=GR; ++i) {
+            assert(!project->databases[i]);
+            project->databases[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(),
+                                                 mOptions.cacheSizeMB, Database::NoFlag);
+        }
+
         project->grtags.reset(new GRTags(path));
         project->grtags->init();
-        mCurrentProject = prev;
     }
+    setCurrentProject(prev);
     return project;
 }
 
 Path::VisitResult Server::projectsVisitor(const Path &path, void *server)
 {
     Server *s = reinterpret_cast<Server*>(server);
-    Path p = path;
-    p.remove(0, RTags::rtagsDir().size() + 9);
+    unsigned flags = EnableNone;
+    if (Path::resolved("symbols.db", path).isDir())
+        flags |= EnableIndexer;
+    if (Path::resolved("gr.db", path).isDir())
+        flags |= EnableIndexer;
+
+    Path p = path.mid(RTags::rtagsDir().size() + 9);
     RTags::decodePath(p);
-    if (!s->mCurrentProject) {
-        s->setCurrentProject(p);
-    } else {
-        s->initProject(p);
-    }
+    Project *proj = s->initProject(p, EnableIndexer);
+    if (!s->mCurrentProject)
+        s->setCurrentProject(proj);
     return Path::Continue;
 }
 
@@ -1074,8 +1088,17 @@ bool Server::updateProjectForLocation(const Location &location)
 
     return false;
 }
+
 Server::Project *Server::setCurrentProject(Project *project)
 {
+    if (project) {
+        ByteArray srcRoot = project->srcRoot();
+        if (!srcRoot.isEmpty()) {
+            ScopedDB general = Server::instance()->db(Server::General, Server::Write);
+            general->setValue<ByteArray>("currentProject", srcRoot);
+        }
+    }
     std::swap(project, mCurrentProject);
     return project;
 }
+

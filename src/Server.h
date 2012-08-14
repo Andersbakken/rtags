@@ -63,8 +63,8 @@ public:
     ThreadPool *threadPool() const { return mThreadPool; }
     void startJob(Job *job);
     Path databaseDir(DatabaseType type);
-    std::tr1::shared_ptr<Indexer> indexer() const;
-    std::tr1::shared_ptr<GRTags> grtags() const;
+    std::tr1::shared_ptr<Indexer> currentIndexer() const;
+    std::tr1::shared_ptr<GRTags> currentGRTags() const;
     struct Options {
         Options() : options(0), cacheSizeMB(0), maxCompletionUnits(0), threadCount(0) {}
         Path path;
@@ -85,6 +85,8 @@ private:
     void onNewConnection();
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
     bool setCurrentProject(const Path &path);
+    struct Project;
+    Project *setCurrentProject(Project *project);
     void onJobsComplete(Indexer *indexer);
     void event(const Event *event);
     void onFileReady(const GccArguments &file, MakefileParser *parser);
@@ -97,12 +99,12 @@ private:
               const List<ByteArray> &extraFlags = List<ByteArray>(), Connection *conn = 0);
     void clearDataDir();
     struct Project;
-    Project *setCurrentProject(Project *project);
     enum InitProjectFlag {
-        None = 0x0,
-        EnableIndexer = 0x1
+        EnableNone = 0x0,
+        EnableIndexer = 0x1,
+        EnableGRTags = 0x2
     };
-    Project *initProject(const Path &path, unsigned flags = EnableIndexer);
+    Project *initProject(const Path &path, unsigned flags);
     static Path::VisitResult projectsVisitor(const Path &path, void *);
     void handleMakefileMessage(MakefileMessage *message, Connection *conn);
     void handleGRTagMessage(GRTagMessage *message, Connection *conn);
@@ -155,6 +157,14 @@ private:
         Database *databases[ProjectSpecificDatabaseTypeCount];
         std::tr1::shared_ptr<Indexer> indexer;
         std::tr1::shared_ptr<GRTags> grtags;
+        inline ByteArray srcRoot() const
+        {
+            if (indexer)
+                return indexer->srcRoot();
+            if (grtags)
+                return grtags->srcRoot();
+            return ByteArray();
+        }
     };
 
     Map<Path, Project*> mProjects;

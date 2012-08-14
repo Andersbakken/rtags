@@ -161,7 +161,7 @@ void StatusJob::execute()
         write(delimiter);
         write("visitedfiles");
         char buf[1024];
-        const Set<uint32_t> visitedFiles = server->indexer()->visitedFiles();
+        const Set<uint32_t> visitedFiles = server->currentIndexer()->visitedFiles();
 
         for (Set<uint32_t>::const_iterator it = visitedFiles.begin(); it != visitedFiles.end(); ++it) {
             const uint32_t id = *it;
