@@ -26,6 +26,8 @@ private:
     weak_ptr<Project> mProject;
     Path mSrcRoot;
     friend class FindFileJob;
+    Mutex mMutex;
+    int mCount, mActive;
 };
 
 #endif

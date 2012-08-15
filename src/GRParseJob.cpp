@@ -14,7 +14,6 @@ void GRParseJob::run()
     const unsigned flags = extension && strcmp("c", extension) ? GRParser::CPlusPlus : GRParser::None;
     mParseTime = time(0);
     const int count = parser.parse(mPath, flags, mEntries);
-    error() << "Parsed" << (mPath + ":") << count << "items in" << timer.elapsed() << "ms";
     if (count)
         mFinished(this, mEntries);
 }

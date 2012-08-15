@@ -3,9 +3,10 @@
 #include "Server.h"
 #include "Indexer.h"
 #include "GRParseJob.h"
+#include <math.h>
 
 GRTags::GRTags()
-    : mWatcher(new FileSystemWatcher)
+    : mWatcher(new FileSystemWatcher), mCount(0), mActive(0)
 {
     mWatcher->modified().connect(this, &GRTags::onDirectoryModified);
 }
@@ -81,6 +82,17 @@ void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
 
 void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Location, bool> > &entries)
 {
+    {
+        MutexLocker lock(&mMutex);
+        --mActive;
+        const int idx = mCount - mActive;
+        error("[%3d%%] Tagged %s %d/%d. %d entries.",
+              static_cast<int>(round((static_cast<double>(idx) / static_cast<double>(mCount)) * 100.0)),
+              job->path().constData(), idx, mCount, entries.size());
+        if (mActive == 0)
+            mCount = 0;
+    }
+
     const Path &file = job->path();
     const time_t parseTime = job->parseTime();
     if (file.lastModified() > parseTime) { // already outdated
@@ -186,6 +198,11 @@ void GRTags::dirty(uint32_t fileId, ScopedDB &db)
 }
 void GRTags::parse(const Path &path, unsigned flags)
 {
+    {
+        MutexLocker lock(&mMutex);
+        ++mCount;
+        ++mActive;
+    }
     GRParseJob *job = new GRParseJob(path, flags);
     job->finished().connect(this, &GRTags::onParseJobFinished);
     Server::instance()->threadPool()->start(job);
