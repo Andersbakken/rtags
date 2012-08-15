@@ -39,6 +39,7 @@ void GRTags::init(const shared_ptr<Project> &proj)
                     parse(path, GRParseJob::Dirty);
                 }
             }
+            it->next();
         }
     }
     recurseDirs();
@@ -68,6 +69,7 @@ void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
         } else {
             paths.erase(found);
         }
+        p.resize(mSrcRoot.size());
         it->next();
     }
     for (Map<Path, bool>::const_iterator i = paths.begin(); i != paths.end(); ++i) {

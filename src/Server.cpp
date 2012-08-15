@@ -1087,11 +1087,11 @@ Path::VisitResult Server::projectsVisitor(const Path &path, void *server)
     if (Path::resolved("symbols.db", path).isDir())
         flags |= EnableIndexer;
     if (Path::resolved("gr.db", path).isDir())
-        flags |= EnableIndexer;
+        flags |= EnableGRTags;
 
     Path p = path.mid(RTags::rtagsDir().size() + 9);
     RTags::decodePath(p);
-    s->initProject(p, EnableIndexer);
+    s->initProject(p, flags);
     return Path::Continue;
 }
 
