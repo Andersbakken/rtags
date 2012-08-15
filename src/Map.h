@@ -41,6 +41,15 @@ public:
         return false;
     }
 
+    // bool insert(const Key &key, const Value &value)
+    // {
+    //     typedef typename std::map<Key, Value>::iterator Iterator;
+    //     typedef std::pair<Iterator, bool> Tuple;
+    //     Tuple tup = std::map<Key, Value>::insert(key, value);
+    //     return std::map<Key, Value>::insert(key, value).second;
+    //     // return tup->second;
+    // }
+
     Map<Key, Value> &unite(const Map<Key, Value> &other)
     {
         typename std::map<Key, Value>::iterator it = other.begin();
