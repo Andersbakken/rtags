@@ -68,6 +68,7 @@ enum LogFlag {
 };
 bool testLog(int level);
 bool initLogging(int logLevel, const Path &logFile, unsigned flags);
+void cleanupLogging();
 int logLevel();
 void restartTime();
 class Log

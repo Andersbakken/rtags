@@ -217,6 +217,16 @@ bool initLogging(int level, const Path &file, unsigned flags)
     return true;
 }
 
+void cleanupLogging()
+{
+    Set<LogOutput*>::const_iterator it = sOutputs.begin();
+    while (it != sOutputs.end()) {
+        LogOutput *out = *it;
+        sOutputs.erase(it++);
+        delete out;
+    }
+}
+
 Log::Log(int level)
 {
     if (testLog(level))

@@ -62,8 +62,10 @@ Server::Server()
 Server::~Server()
 {
     clear();
+    delete mThreadPool;
     assert(sInstance == this);
     sInstance = 0;
+    Messages::cleanup();
 }
 
 void Server::clear()
@@ -73,7 +75,7 @@ void Server::clear()
     mCompletions = 0;
     delete mServer;
     mServer = 0;
-    for (unsigned i=0; i<sizeof(mDBs) / sizeof(Database*); ++i) {
+    for (int i=0; i<DatabaseTypeCount; ++i) {
         delete mDBs[i];
         mDBs[i] = 0;
     }

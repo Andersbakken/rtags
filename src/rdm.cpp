@@ -239,10 +239,12 @@ int main(int argc, char** argv)
     serverOpts.socketPath = (name.isEmpty() ? ByteArray(RTags::rtagsDir() + "server") : name );
     if (!server->init(serverOpts)) {
         delete server;
+        cleanupLogging();
         return 1;
     }
 
     loop.run();
     delete server;
+    cleanupLogging();
     return 0;
 }

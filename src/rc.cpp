@@ -523,11 +523,13 @@ int main(int argc, char** argv)
     if (!initLogging(logLevel, logFile, logFlags)) {
         fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
                 logLevel, logFile.constData(), logFlags);
+        cleanupLogging();
         return 1;
     }
 
     if (commands.isEmpty() && !(clientFlags & (Client::RestartRdm|Client::AutostartRdm))) {
         help(stderr, argv[0]);
+        cleanupLogging();
         return 1;
     }
 
@@ -551,5 +553,6 @@ int main(int argc, char** argv)
         cmd->exec(&client);
         delete cmd;
     }
+    cleanupLogging();
     return 0;
 }

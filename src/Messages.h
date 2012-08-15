@@ -12,6 +12,7 @@ class Messages
 {
 public:
     static void init();
+    static void cleanup();
     static Message *create(const char *data, int size);
 };
 

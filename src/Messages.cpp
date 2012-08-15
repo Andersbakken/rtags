@@ -71,3 +71,10 @@ Message * Messages::create(const char *data, int size)
     }
     return message;
 }
+void Messages::cleanup()
+{
+    WriteLocker lock(&sLock);
+    for (Map<int, MessageCreatorBase *>::const_iterator it = sFactory.begin(); it != sFactory.end(); ++it)
+        delete it->second;
+    sFactory.clear();
+}

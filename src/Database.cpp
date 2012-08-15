@@ -145,6 +145,8 @@ Database::Database(const Path &path, int cacheSizeMB, unsigned flags)
 
 Database::~Database()
 {
+    delete mDB;
+    delete mOptions.block_cache;
     delete mLocationComparator;
 }
 
