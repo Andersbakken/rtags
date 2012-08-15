@@ -104,4 +104,16 @@ inline const Set<T> operator-(const Set<T> &l, const Set<T> &r)
     return ret;
 }
 
+template <typename T>
+Set<T> List<T>::toSet() const
+{
+    Set<T> ret;
+    const int s = size();
+    for (int i=0; i<s; ++i) {
+        ret.insert(std::vector<T>::at(i));
+    }
+    return ret;
+}
+
+
 #endif

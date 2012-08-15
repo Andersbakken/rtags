@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <assert.h>
 
+template <typename T> class Set;
+
 template <typename T>
 class List : public std::vector<T>
 {
@@ -55,6 +57,7 @@ public:
         assert(count <= size());
         std::vector<T>::resize(size() - count);
     }
+    Set<T> toSet() const; // implemented in Set.h
 };
 
 #endif
