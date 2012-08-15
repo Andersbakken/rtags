@@ -267,7 +267,9 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
 void Server::handleGRTagMessage(GRTagsMessage *message, Connection *conn)
 {
     const Path dir = message->path();
-    initProject(dir, EnableGRTags);
+    shared_ptr<Project> proj = initProject(dir, EnableGRTags);
+    if (proj)
+        mCurrentProject = proj;
     conn->finish();
 }
 
@@ -932,6 +934,7 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
         error("Can't find project for %s", projectRoot.constData());
         return;
     }
+    mCurrentProject = proj;
     assert(proj->indexer);
 
     if (args.type() == GccArguments::Pch) {
@@ -1075,8 +1078,6 @@ shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
         project->grtags->init(project);
     }
 
-    if (!mCurrentProject)
-        mCurrentProject = project;
     return project;
 }
 
@@ -1091,7 +1092,9 @@ Path::VisitResult Server::projectsVisitor(const Path &path, void *server)
 
     Path p = path.mid(RTags::rtagsDir().size() + 9);
     RTags::decodePath(p);
-    s->initProject(p, flags);
+    shared_ptr<Project> proj = s->initProject(p, flags);
+    if (!s->mCurrentProject && proj)
+        s->mCurrentProject = proj;
     return Path::Continue;
 }
 
