@@ -13,7 +13,6 @@ void GRParseJob::run()
     const char *extension = mPath.extension();
     const unsigned flags = extension && strcmp("c", extension) ? GRParser::CPlusPlus : GRParser::None;
     mParseTime = time(0);
-    const int count = parser.parse(mPath, flags, mEntries);
-    if (count)
-        mFinished(this, mEntries);
+    parser.parse(mPath, flags, mEntries);
+    mFinished(this, mEntries);
 }

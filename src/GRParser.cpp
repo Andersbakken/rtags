@@ -97,13 +97,20 @@ int GRParser::parse(const Path &file, unsigned opts, Map<ByteArray, Map<Location
     return mCount;
 }
 
-void GRParser::addEntry(const ByteArray &name, const ByteArray &containerScope, int offset)
+void GRParser::addEntry(const ByteArray &name, const List<ByteArray> &containerScope, int offset)
 {
     ++mCount;
     const Location loc(mFileId, offset);
     (*mEntries)[name][loc] = false;
-    if (!containerScope.isEmpty()) // ### this isn't quite right, might want to consider just keeping these as a list as well
-        (*mEntries)[containerScope + name][loc] = false;
+    if (!containerScope.isEmpty()) {
+        ByteArray entry = name;
+        entry.reserve(256); // ### does this help for prepend?
+        for (int i=containerScope.size() - 1; i>=0; --i) {
+            entry.prepend("::");
+            entry.prepend(containerScope.at(i));
+            (*mEntries)[entry][loc] = false;
+        }
+    }
 }
 
 void GRParser::addReference(const ByteArray &name, int offset)
@@ -213,17 +220,11 @@ void GRParser::handleLeftBrace()
         if (containerIndex != -1) {
             const clang::Token &token = mTokens[containerIndex];
             const ByteArray name = tokenSpelling(token);
+            const int added = addContext(containerIndex);
             addEntry(tokenSpelling(token), mContainerScope, tokenOffset(token));
-            // GREntry entry;
-            // entry.offset = tokenOffset(token);
-            // entry.name = tokenSpelling(token);
-            // entry.scope = mContainerScope;
+            mContainerScope.chop(added);
             mState.push(State(Container, mBraceCount, name));
-            mContainerScope.reserve(mContainerScope.isEmpty() ? 2 : 4 + mContainerScope.size() + name.size());
-            if (!mContainerScope.isEmpty())
-                mContainerScope.append("::");
             mContainerScope.append(name);
-            mContainerScope.append("::");
         }
         break; }
     case FunctionPending: {
@@ -238,9 +239,9 @@ void GRParser::handleLeftBrace()
             --offset;
             --function;
         }
-        ByteArray scope = mContainerScope;
-        addContext(function, scope);
-        addEntry(name, scope, offset);
+        const int added = addContext(function);
+        addEntry(name, mContainerScope, offset);
+        mContainerScope.chop(added);
         mState.pop();
         mState.push(State(FunctionBody, mBraceCount));
         break; }
@@ -344,11 +345,7 @@ void GRParser::handleRightBrace()
         const State &top = mState.top();
         if (top.type == Container) {
             assert(!top.name.isEmpty());
-            if (mContainerScope.size() == top.name.size()) {
-                mContainerScope.clear();
-            } else {
-                mContainerScope.truncate(mContainerScope.size() - (top.name.size() + 2));
-            }
+            mContainerScope.resize(mContainerScope.size() - 1);
         }
         mState.pop();
         assert(!mState.empty());
@@ -385,7 +382,7 @@ void GRParser::handleSemi()
         break;
     }
 }
-void GRParser::addContext(int idx, ByteArray &ctx) const
+int GRParser::addContext(int idx)
 {
     const int old = idx;
     // printf("Calling addContext cur %s -1 %s -2  %s\n",
@@ -395,15 +392,10 @@ void GRParser::addContext(int idx, ByteArray &ctx) const
     while (idx >= 2 && kind(idx - 1) == clang::tok::coloncolon && kind(idx - 2) == clang::tok::raw_identifier) {
         idx -= 2;
     }
-    if (idx != old) {
-        const int p = tokenOffset(mTokens.at(idx));
-        if (ctx.isEmpty()) {
-            ctx = ByteArray(mBuf + p, tokenOffset(mTokens.at(old - 1)) - p);
-        } else {
-            ctx.append("::");
-            ctx += ByteArray(mBuf + p, tokenOffset(mTokens.at(old - 1)) - p);
-        }
-        ctx.append("::");
+    for (int i=idx; i<old; i+=2) {
+        const clang::Token &token = mTokens.at(i);
+        mContainerScope.append(tokenSpelling(token));
     }
+    return (old - idx) / 2;
 }
 

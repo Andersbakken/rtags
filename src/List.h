@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <algorithm>
+#include <assert.h>
 
 template <typename T>
 class List : public std::vector<T>
@@ -47,6 +48,12 @@ public:
     T value(int idx, const T &defaultValue = T())
     {
         return idx < size() ? std::vector<T>::at(idx) : defaultValue;
+    }
+
+    void chop(int count)
+    {
+        assert(count <= size());
+        std::vector<T>::resize(size() - count);
     }
 };
 

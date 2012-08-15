@@ -50,7 +50,7 @@ static inline FilterResult filter(const Path &path, Path::Type type, int maxSymL
             return Filtered;
         } else if (!strcmp(extension, "lo")) {
             return Filtered;
-        } else if (path.isSource()) {
+        } else if (path.isSource() || path.isHeader()) {
             return Source;
         }
     }

@@ -26,7 +26,7 @@ public:
     ~GRParser();
     int parse(const Path &file, unsigned opts, Map<ByteArray, Map<Location, bool> > &entries);
 private:
-    void addEntry(const ByteArray &name, const ByteArray &containerScope, int offset);
+    void addEntry(const ByteArray &name, const List<ByteArray> &containerScope, int offset);
     void addReference(const ByteArray &name, int offset);
     inline clang::tok::TokenKind kind(int idx) const
     {
@@ -42,7 +42,7 @@ private:
     void handleLeftParen();
     void handleRightBrace();
     void handleSemi();
-    void addContext(int idx, ByteArray &ctx) const;
+    int addContext(int idx); // returns number added
     inline void tokenSpelling(const clang::Token &token, const char *&string, int &length) const
     {
         string = mBuf + tokenOffset(token);
@@ -83,7 +83,7 @@ private:
                           // pendingfunction
     };
     std::stack<State> mState;
-    ByteArray mContainerScope;
+    List<ByteArray> mContainerScope;
     List<clang::Token> mTokens;
     uint32_t mFileId;
     Map<ByteArray, Map<Location, bool> > *mEntries;
