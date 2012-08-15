@@ -21,8 +21,9 @@ void ValidateDBJob::execute()
     Set<Location> newErrors;
     while (it->isValid()) {
         ++total;
-        if (isAborted())
+        if (isAborted()) {
             return;
+        }
         const CursorInfo ci = it->value<CursorInfo>();
         if (!ci.symbolLength) {
             const Location loc = Location::fromKey(it->key().data());
@@ -30,7 +31,7 @@ void ValidateDBJob::execute()
                 Log stream(Error);
                 stream << "Invalid entry for " << loc
                        << " symbolName: " << ci.symbolName
-                       << " kind: " << RTags::eatString(clang_getCursorKindSpelling(ci.kind))
+                       // << " kind: " << RTags::eatString(clang_getCursorKindSpelling(ci.kind)) // this somehow seems to hang
                        << " isDefinition: " << (ci.isDefinition ? "true" : "false")
                        << " target: " << ci.target
                        << " references:";
@@ -39,7 +40,6 @@ void ValidateDBJob::execute()
                 }
             }
             newErrors.insert(loc);
-
             ++errors;
         }
         it->next();

@@ -52,7 +52,8 @@ void GRTags::recurseDirs()
 
 void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
 {
-    ScopedDB database = mProject->db(Project::GRFiles, ReadWriteLock::Write);
+    shared_ptr<Project> project = mProject.lock();
+    ScopedDB database = project->db(Project::GRFiles, ReadWriteLock::Write);
     RTags::Ptr<Iterator> it(database->createIterator());
     it->seekToFirst();
     Path p = mSrcRoot;
@@ -88,13 +89,14 @@ void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Locati
     }
     const Path dir = file.parentDir();
     const Slice fileName(file.constData() + mSrcRoot.size(), file.size() - mSrcRoot.size());
-    ScopedDB database = mProject->db(Project::GRFiles, ReadWriteLock::Write);
+    shared_ptr<Project> project = mProject.lock();
+    ScopedDB database = project->db(Project::GRFiles, ReadWriteLock::Write);
     Map<ByteArray, time_t> &files = mFiles[dir];
     files[fileName.byteArray()] = parseTime;
     if (files.size() == 1)
         mWatcher->watch(dir);
     database->setValue(fileName, parseTime);
-    database = mProject->db(Project::GR, ReadWriteLock::Write);
+    database = project->db(Project::GR, ReadWriteLock::Write);
     if (job->flags() & GRParseJob::Dirty) {
         dirty(Location::fileId(file), database);
     }
@@ -145,11 +147,12 @@ void GRTags::onDirectoryModified(const Path &path)
 
 void GRTags::remove(const Path &file, ScopedDB *grfiles, ScopedDB *gr)
 {
-    ScopedDB database = (grfiles ? *grfiles : mProject->db(Project::GRFiles, ReadWriteLock::Write));
+    shared_ptr<Project> project = mProject.lock();
+    ScopedDB database = (grfiles ? *grfiles : project->db(Project::GRFiles, ReadWriteLock::Write));
     RTags::Ptr<Iterator> it(database->createIterator());
     const Slice key(file.constData() + mSrcRoot.size(), file.size() - mSrcRoot.size());
     database->remove(key);
-    database = (gr ? *gr : mProject->db(Project::GR, ReadWriteLock::Write));
+    database = (gr ? *gr : project->db(Project::GR, ReadWriteLock::Write));
     dirty(Location::fileId(file), database);
 }
 

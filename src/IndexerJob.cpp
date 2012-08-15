@@ -121,6 +121,7 @@ IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &input, cons
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
       mPchHeaders(extractPchFiles(mIndexer->projectPath(), arguments)), mUnit(0)
 {
+    setAutoDelete(true);
 }
 
 static inline uint32_t fileId(CXFile file)

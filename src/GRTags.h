@@ -23,7 +23,7 @@ public:
 private:
     Map<Path, Map<ByteArray, time_t> > mFiles; // key: dir, value: fileName, last modified
     FileSystemWatcher *mWatcher;
-    shared_ptr<Project> mProject;
+    weak_ptr<Project> mProject;
     Path mSrcRoot;
     friend class FindFileJob;
 };

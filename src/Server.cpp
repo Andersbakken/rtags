@@ -322,18 +322,21 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         Map<Path, shared_ptr<Project> >::iterator it = mProjects.begin();
         while (it != mProjects.end()) {
             if (rx.indexIn(it->first) != -1) {
-                it->second->indexer->abort();
+                if (it->second->indexer)
+                    it->second->indexer->abort();
                 ResponseMessage msg("Erased " + it->first);
                 conn->send(&msg);
-                if (it->second == mCurrentProject)
+                if (it->second.get() == mCurrentProject.get()) {
                     mCurrentProject.reset();
+                }
                 mProjects.erase(it++);
             } else {
                 ++it;
             }
         }
-        if (!mCurrentProject && !mProjects.isEmpty())
+        if (!mCurrentProject && !mProjects.isEmpty()) {
             mCurrentProject = mProjects.begin()->second;
+        }
         break; }
     case QueryMessage::Project:
         if (message->query().isEmpty()) {
@@ -982,6 +985,7 @@ void Server::event(const Event *event)
     case JobCompleteEvent::Type: {
         const JobCompleteEvent *e = static_cast<const JobCompleteEvent*>(event);
         Map<int, Connection*>::iterator it = mPendingLookups.find(e->job->id());
+        delete e->job;
         if (it == mPendingLookups.end())
             return;
         it->second->finish();
@@ -1066,6 +1070,9 @@ shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
         project->grtags = new GRTags;
         project->grtags->init(project);
     }
+
+    if (!mCurrentProject)
+        mCurrentProject = project;
     return project;
 }
 
