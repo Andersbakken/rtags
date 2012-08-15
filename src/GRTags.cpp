@@ -40,7 +40,7 @@ void GRTags::init(const shared_ptr<Project> &proj)
             }
         }
     }
-    // recurseDirs();
+    recurseDirs();
 }
 
 void GRTags::recurseDirs()

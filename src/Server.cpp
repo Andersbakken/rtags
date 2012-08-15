@@ -1039,16 +1039,19 @@ shared_ptr<Project> Server::setCurrentProject(const Path &path)
 
 shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
 {
-    shared_ptr<Project> &project = mProjects[path];
+    Path tmp = path;
+    if (!tmp.endsWith('/'))
+        tmp.append('/');
+    shared_ptr<Project> &project = mProjects[tmp];
     if (!project) {
-        Path tmp = path;
+        project.reset(new Project);
+        project->srcRoot = tmp;
         if (!RTags::encodePath(tmp)) {
             error("Invalid folder name %s", path.constData());
             mProjects.remove(path);
             return shared_ptr<Project>();
         }
         tmp.append('/');
-        project.reset(new Project);
         project->projectPath = mProjectsDir + tmp;
         Path::mkdir(project->projectPath);
     }
