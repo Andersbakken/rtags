@@ -219,10 +219,11 @@ void GRParser::handleLeftBrace()
             // entry.name = tokenSpelling(token);
             // entry.scope = mContainerScope;
             mState.push(State(Container, mBraceCount, name));
-            mContainerScope.reserve(mContainerScope.size() + name.size() + 2);
+            mContainerScope.reserve(mContainerScope.isEmpty() ? 2 : 4 + mContainerScope.size() + name.size());
             if (!mContainerScope.isEmpty())
                 mContainerScope.append("::");
             mContainerScope.append(name);
+            mContainerScope.append("::");
         }
         break; }
     case FunctionPending: {
