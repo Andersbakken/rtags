@@ -16,6 +16,7 @@ public:
     bool unwatch(const Path &path);
     signalslot::Signal1<const Path&> &removed() { return mRemoved; }
     signalslot::Signal1<const Path&> &modified() { return mModified; }
+    Set<Path> watchedPaths() const { return mWatchedByPath.keys().toSet(); } // ### slow
 private:
     Mutex mMutex;
     static void notifyCallback(int, unsigned int, void *user) { reinterpret_cast<FileSystemWatcher*>(user)->notifyReadyRead(); }
