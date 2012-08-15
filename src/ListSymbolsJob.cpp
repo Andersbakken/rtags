@@ -64,17 +64,15 @@ void ListSymbolsJob::execute()
         } else {
             it->seek(string.constData());
         }
-        List<ByteArray> out;
         while (it->isValid() && !isAborted()) {
             const ByteArray entry = it->key().byteArray();
-            // printf("%s\n", entry.nullTerminated());
             if (!string.isEmpty() && !entry.startsWith(string))
                 break;
             if (!skipParentheses || !entry.contains('(')) {
                 const Map<Location, bool> locations = it->value<Map<Location, bool> >();
-                error() << entry << locations;
-                for (Map<Location, bool>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
-                    if (!it->second && (!hasFilter || filter(it->first.path()))) {
+                error() << entry << locations.size();
+                for (Map<Location, bool>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
+                    if (!i->second && (!hasFilter || filter(i->first.path()))) {
                         if (elispList) {
                             write(entry);
                         } else {
