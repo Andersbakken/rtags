@@ -13,12 +13,13 @@ ValidateDBJob::ValidateDBJob(const shared_ptr<Project> &proj, const Set<Location
 
 void ValidateDBJob::execute()
 {
-    ScopedDB db = project()->db(Project::FileInformation, ReadWriteLock::Read);
-    RTags::Ptr<Iterator> it(db->createIterator());
-    it->seekToFirst();
     int errors = 0;
     int total = 0;
     Set<Location> newErrors;
+
+    ScopedDB db = project()->db(Project::Symbol, ReadWriteLock::Read);
+    RTags::Ptr<Iterator> it(db->createIterator());
+    it->seekToFirst();
     while (it->isValid()) {
         ++total;
         if (isAborted()) {
@@ -26,13 +27,15 @@ void ValidateDBJob::execute()
         }
         const CursorInfo ci = it->value<CursorInfo>();
         if (!ci.symbolLength) {
+            assert(it->key().size() == sizeof(uint64_t));
             const Location loc = Location::fromKey(it->key().data());
             if (!mPrevious.contains(loc)) {
                 Log stream(Error);
                 stream << "Invalid entry for " << loc
-                       << " symbolName: " << ci.symbolName
-                       // << " kind: " << RTags::eatString(clang_getCursorKindSpelling(ci.kind)) // this somehow seems to hang
-                       << " isDefinition: " << (ci.isDefinition ? "true" : "false")
+                       << " symbolName: " << ci.symbolName;
+                if (ci.kind)
+                    stream << " kind: " << RTags::eatString(clang_getCursorKindSpelling(ci.kind));// this somehow seems to hang when kind == 0
+                stream << " isDefinition: " << (ci.isDefinition ? "true" : "false")
                        << " target: " << ci.target
                        << " references:";
                 for (Set<Location>::const_iterator rit = ci.references.begin(); rit != ci.references.end(); ++rit) {

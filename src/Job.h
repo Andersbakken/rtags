@@ -57,11 +57,11 @@ class JobCompleteEvent : public Event
 {
 public:
     enum { Type = 1 };
-    JobCompleteEvent(Job *j)
-        : Event(Type), job(j)
+    JobCompleteEvent(int i)
+        : Event(Type), id(i)
     {}
 
-    Job *job;
+    const int id;
 };
 
 

@@ -758,7 +758,7 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
 
 void Server::startJob(Job *job)
 {
-    mThreadPool->start(job); //, job->priority());
+    mThreadPool->start(job);
 }
 
 /* Same behavior as rtags-default-current-project() */
@@ -984,8 +984,7 @@ void Server::event(const Event *event)
     switch (event->type()) {
     case JobCompleteEvent::Type: {
         const JobCompleteEvent *e = static_cast<const JobCompleteEvent*>(event);
-        Map<int, Connection*>::iterator it = mPendingLookups.find(e->job->id());
-        delete e->job;
+        Map<int, Connection*>::iterator it = mPendingLookups.find(e->id);
         if (it == mPendingLookups.end())
             return;
         it->second->finish();

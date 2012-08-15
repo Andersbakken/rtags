@@ -11,13 +11,13 @@ Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project>
     : mId(-1), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj)
 {
     setPathFilters(query.pathFilters());
-    setAutoDelete(false);
+    setAutoDelete(true);
 }
 
 Job::Job(unsigned jobFlags, const shared_ptr<Project> &proj)
     : mJobFlags(jobFlags), mQueryFlags(0), mProject(proj)
 {
-    setAutoDelete(false);
+    setAutoDelete(true);
 }
 
 void Job::setPathFilters(const List<ByteArray> &filter)
@@ -67,7 +67,7 @@ void Job::run()
 {
     execute();
     if (mId != -1)
-        EventLoop::instance()->postEvent(Server::instance(), new JobCompleteEvent(this));
+        EventLoop::instance()->postEvent(Server::instance(), new JobCompleteEvent(mId));
 }
 void Job::writeRaw(const ByteArray &out)
 {
