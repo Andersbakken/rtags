@@ -304,6 +304,18 @@ void GRParser::handleLeftParen()
             case 8:
                 keyWord = !strncmp(tokenSpl, "operator", 8);
                 break;
+            case 10:
+                keyWord = !strncmp(tokenSpl, "const_cast", 10);
+                break;
+            case 11:
+                keyWord = !strncmp(tokenSpl, "static_cast", 11);
+                break;
+            case 12:
+                keyWord = !strncmp(tokenSpl, "dynamic_cast", 12);
+                break;
+            case 16:
+                keyWord = !strncmp(tokenSpl, "reinterpret_cast", 16);
+                break;
                 // we could add sizeof and typeid here but it's kinda neat to find references to them
             }
 
