@@ -72,9 +72,8 @@ private:
     Path projectsPath() const;
     void onNewConnection();
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
-    Map<Path, shared_ptr<Project> >::const_iterator setCurrentProject(const Path &path);
-    Map<Path, shared_ptr<Project> >::const_iterator setCurrentProject(const Map<Path, shared_ptr<Project> >::const_iterator &it);
-    void onJobsComplete(Indexer *indexer);
+    shared_ptr<Project> setCurrentProject(const Path &path);
+    shared_ptr<Project> setCurrentProject(const shared_ptr<Project> &proj);
     void event(const Event *event);
     void onFileReady(const GccArguments &file, MakefileParser *parser);
     void onNewMessage(Message *message, Connection *conn);
@@ -90,7 +89,7 @@ private:
         EnableIndexer = 0x1,
         EnableGRTags = 0x2
     };
-    Map<Path, shared_ptr<Project> >::const_iterator initProject(const Path &path, unsigned flags);
+    shared_ptr<Project> initProject(const Path &path, unsigned flags);
     static Path::VisitResult projectsVisitor(const Path &path, void *);
     void handleMakefileMessage(MakefileMessage *message, Connection *conn);
     void handleGRTagMessage(GRTagMessage *message, Connection *conn);
@@ -115,7 +114,7 @@ private:
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);
     ByteArray completions(const QueryMessage &query);
     bool updateProjectForLocation(const Location &location);
-    shared_ptr<Project> currentProject() const { return mCurrentProject == mProjects.end() ? shared_ptr<Project>() : mCurrentProject->second; }
+    shared_ptr<Project> currentProject() const { return mCurrentProject; }
 
     static Server *sInstance;
     Options mOptions;
@@ -129,7 +128,7 @@ private:
     Database *mDBs[DatabaseTypeCount];
 
     Map<Path, shared_ptr<Project> > mProjects;
-    Map<Path, shared_ptr<Project> >::const_iterator mCurrentProject;
+    shared_ptr<Project> mCurrentProject;
     Path mProjectsDir;
     ThreadPool *mThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;

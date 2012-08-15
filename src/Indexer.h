@@ -37,9 +37,9 @@ public:
     void reindex(const ByteArray &pattern);
     signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
     void onDirectoryChanged(const Path &path);
-    shared_ptr<Project> project() const { return mProject; }
-    Path srcRoot() const { return mProject->srcRoot; } // ~/src/foobar
-    Path projectPath() const { return mProject->projectPath; } // ~/.rtags/projects/[_foobar_]
+    shared_ptr<Project> project() const { return mProject.lock(); }
+    Path srcRoot() const { return mProject.lock()->srcRoot; } // ~/src/foobar
+    Path projectPath() const { return mProject.lock()->projectPath; } // ~/.rtags/projects/[_foobar_]
 private:
     void onValidateDBJobErrors(const Set<Location> &errors);
     void onJobFinished(IndexerJob *job);
@@ -73,7 +73,7 @@ private:
     bool mTimerRunning;
     Timer mTimer;
 
-    shared_ptr<Project> mProject;
+    weak_ptr<Project> mProject;
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
     WatchedMap mWatched;

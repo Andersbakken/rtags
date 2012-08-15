@@ -53,7 +53,7 @@ void StatusJob::execute()
 
     const char *alternatives = "general|fileids|dependencies|fileinfos|symbols|symbolnames|pch|visitedfiles";
     shared_ptr<Project> proj = project();
-    if (!proj) {
+    if (!proj || !proj->indexer) {
         if (!matched) {
             write(alternatives);
         }
@@ -157,7 +157,7 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "visitedfiles") && proj->indexer) {
+    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "visitedfiles")) {
         matched = true;
         write(delimiter);
         write("visitedfiles");

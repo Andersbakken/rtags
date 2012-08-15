@@ -26,7 +26,7 @@ void Indexer::init(const shared_ptr<Project> &proj, bool validate)
     mWatcher.modified().connect(this, &Indexer::onDirectoryChanged);
     {
         // watcher
-        ScopedDB db = mProject->db(Project::Dependency, ReadWriteLock::Read);
+        ScopedDB db = proj->db(Project::Dependency, ReadWriteLock::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         DependencyMap dependencies;
@@ -59,6 +59,8 @@ static inline bool isFile(uint32_t fileId)
 
 void Indexer::initDB(InitMode mode, const ByteArray &pattern)
 {
+    shared_ptr<Project> proj = project();
+    assert(proj);
     Set<uint32_t> dirtyFiles;
     Map<Path, List<ByteArray> > toIndex, toIndexPch;
     {
@@ -68,7 +70,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
         Map<uint32_t, Set<uint32_t> > deps, depsReversed;
         RTags::Ptr<Iterator> it;
         {
-            ScopedDB dependencyDB = mProject->db(Project::Dependency, ReadWriteLock::Write);
+            ScopedDB dependencyDB = proj->db(Project::Dependency, ReadWriteLock::Write);
             it.reset(dependencyDB->createIterator());
             it->seekToFirst();
             {
@@ -91,9 +93,8 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
 
 
         int checked = 0;
-
         {
-            ScopedDB fileInformationDB = mProject->db(Project::FileInformation, ReadWriteLock::Write);
+            ScopedDB fileInformationDB = proj->db(Project::FileInformation, ReadWriteLock::Write);
             Batch batch(fileInformationDB);
             it.reset(fileInformationDB->createIterator());
             it->seekToFirst();
@@ -169,7 +170,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
         }
 
         if (checked)
-            error() << mProject->srcRoot << ": Checked " << checked << " files. Found " << dirtyFiles.size() << " dirty files and "
+            error() << proj->srcRoot << ": Checked " << checked << " files. Found " << dirtyFiles.size() << " dirty files and "
                     << (toIndex.size() + toIndexPch.size()) << " sources to reindex in " << timer.elapsed() << "ms";
 
         assert(dirtyFiles.isEmpty() == (toIndex.isEmpty() && toIndexPch.isEmpty()));
@@ -201,8 +202,9 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync) // always
             mDependencies[it->first].unite(it->second);
         }
     }
+    shared_ptr<Project> proj = project();
     if (sync && !newDependencies.isEmpty()) {
-        ScopedDB db = mProject->db(Project::Dependency, ReadWriteLock::Write);
+        ScopedDB db = proj->db(Project::Dependency, ReadWriteLock::Write);
         Batch batch(db);
         DependencyMap::const_iterator it = newDependencies.begin();
         const DependencyMap::const_iterator end = newDependencies.end();
@@ -285,7 +287,7 @@ void Indexer::onJobFinished(IndexerJob *job)
                     << MemoryMonitor::usage() / (1024.0 * 1024.0) << " mb of memory";
             mJobCounter = 0;
             jobsComplete()(this);
-            ValidateDBJob *validateJob = new ValidateDBJob(mProject, mPreviousErrors);
+            ValidateDBJob *validateJob = new ValidateDBJob(project(), mPreviousErrors);
             validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
             Server::instance()->startJob(validateJob);
         }
@@ -363,7 +365,7 @@ void Indexer::onDirectoryChanged(const Path &p)
             Set<WatchedPair>::const_iterator wend = it->second.end();
             List<ByteArray> args;
 
-            ScopedDB db = mProject->db(Project::FileInformation, ReadWriteLock::Read);
+            ScopedDB db = project()->db(Project::FileInformation, ReadWriteLock::Read);
             while (wit != wend) {
                 // weird API, Set<>::iterator does not allow for modifications to the referenced value
                 file = (p + (*wit).first);
@@ -434,7 +436,7 @@ void Indexer::setPchDependencies(const Path &pchHeader, const Set<uint32_t> &dep
     } else {
         mPchDependencies[pchHeader] = deps;
     }
-    ScopedDB db = mProject->db(Project::Dependency, ReadWriteLock::Write);
+    ScopedDB db = project()->db(Project::Dependency, ReadWriteLock::Write);
     db->setValue("pchDependencies", mPchDependencies);
 }
 
@@ -559,8 +561,9 @@ void Indexer::dirty(const Set<uint32_t> &dirtyFileIds,
                     const Map<Path, List<ByteArray> > &dirtyPch,
                     const Map<Path, List<ByteArray> > &dirty)
 {
-    ScopedDB symbols = mProject->db(Project::Symbol, ReadWriteLock::Write);
-    ScopedDB symbolNames = mProject->db(Project::SymbolName, ReadWriteLock::Write);
+    shared_ptr<Project> proj = project();
+    ScopedDB symbols = proj->db(Project::Symbol, ReadWriteLock::Write);
+    ScopedDB symbolNames = proj->db(Project::SymbolName, ReadWriteLock::Write);
 #if 0
     DirtyThread *dirtyJob = new DirtyThread(dirtyFileIds, symbols, symbolNames);
     dirtyJob->start();

@@ -4,6 +4,7 @@
 #include "Server.h"
 
 Project::Project()
+    : indexer(0), grtags(0)
 {
     memset(databases, 0, sizeof(databases));
 }
