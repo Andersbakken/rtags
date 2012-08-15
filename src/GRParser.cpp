@@ -403,6 +403,7 @@ void GRParser::addContext(int idx, ByteArray &ctx) const
             ctx.append("::");
             ctx += ByteArray(mBuf + p, tokenOffset(mTokens.at(old - 1)) - p);
         }
+        ctx.append("::");
     }
 }
 

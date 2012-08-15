@@ -17,56 +17,66 @@ ReferencesJob::ReferencesJob(const ByteArray &sym, const QueryMessage &query, co
 
 void ReferencesJob::execute()
 {
-    if (!symbolName.isEmpty()) {
-        ScopedDB database = db(Project::SymbolName, ReadWriteLock::Read);
-        locations = database->value<Set<Location> >(symbolName);
-        if (locations.isEmpty()) {
-            return;
+    const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
+    if (project()->indexer) {
+        if (!symbolName.isEmpty()) {
+            ScopedDB database = db(Project::SymbolName, ReadWriteLock::Read);
+            locations = database->value<Set<Location> >(symbolName);
+        }
+        if (!locations.isEmpty()) {
+            ScopedDB database = db(Project::Symbol, ReadWriteLock::Read);
+            for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
+                // error() << "looking up refs for " << it->key() << bool(flags & QueryMessage::ReferencesForRenameSymbol);
+                if (isAborted())
+                    return;
+
+                Location pos;
+                CursorInfo cursorInfo = RTags::findCursorInfo(database, *it, &pos);
+                if (RTags::isReference(cursorInfo.kind)) {
+                    pos = cursorInfo.target;
+                    cursorInfo = RTags::findCursorInfo(database, cursorInfo.target);
+                }
+                if (allReferences && (cursorInfo.kind == CXCursor_Constructor || cursorInfo.kind == CXCursor_Destructor)) {
+                    for (Set<Location>::const_iterator rit = references.begin(); rit != references.end(); ++rit) {
+                        const CursorInfo container = RTags::findCursorInfo(database, *rit);
+                        if (container.kind == CXCursor_ClassDecl || container.kind == CXCursor_StructDecl) {
+                            process(database, *rit, container);
+                            break;
+                        }
+                    }
+                    continue;
+                }
+                process(database, pos, cursorInfo);
+                if (cursorInfo.target.isValid()) {
+                    const CursorInfo target = RTags::findCursorInfo(database, cursorInfo.target);
+                    if (target.kind == cursorInfo.kind) {
+                        process(database, cursorInfo.target, target);
+                    }
+                }
+
+                for (Set<Location>::const_iterator ait = additional.begin(); ait != additional.end(); ++ait) {
+                    cursorInfo = RTags::findCursorInfo(database, *ait);
+                    process(database, *ait, cursorInfo);
+                    if (cursorInfo.target.isValid()) {
+                        const CursorInfo target = RTags::findCursorInfo(database, cursorInfo.target);
+                        if (target.kind == cursorInfo.kind) {
+                            process(database, cursorInfo.target, target);
+                        }
+                    }
+                }
+                additional.clear();
+            }
         }
     }
-    const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
-    ScopedDB database = db(Project::Symbol, ReadWriteLock::Read);
-    const unsigned keyFlags = Job::keyFlags();
-    for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
-        // error() << "looking up refs for " << it->key() << bool(flags & QueryMessage::ReferencesForRenameSymbol);
-        if (isAborted())
-            return;
 
-        Location pos;
-        CursorInfo cursorInfo = RTags::findCursorInfo(database, *it, &pos);
-        if (RTags::isReference(cursorInfo.kind)) {
-            pos = cursorInfo.target;
-            cursorInfo = RTags::findCursorInfo(database, cursorInfo.target);
+    if (!symbolName.isEmpty() && queryFlags() & QueryMessage::EnableGRTags && project()->grtags) { // grtags can become non-null at any given time
+        ScopedDB database = db(Project::GR, ReadWriteLock::Read);
+        const Map<Location, bool> values = database->value<Map<Location, bool> >(symbolName);
+        database.reset();
+        for (Map<Location, bool>::const_iterator it = values.begin(); it != values.end(); ++it) {
+            if (allReferences || it->second)
+                references.insert(it->first);
         }
-        if (allReferences && (cursorInfo.kind == CXCursor_Constructor || cursorInfo.kind == CXCursor_Destructor)) {
-            for (Set<Location>::const_iterator rit = references.begin(); rit != references.end(); ++rit) {
-                const CursorInfo container = RTags::findCursorInfo(database, *rit);
-                if (container.kind == CXCursor_ClassDecl || container.kind == CXCursor_StructDecl) {
-                    process(database, *rit, container);
-                    break;
-                }
-            }
-            continue;
-        }
-        process(database, pos, cursorInfo);
-        if (cursorInfo.target.isValid()) {
-            const CursorInfo target = RTags::findCursorInfo(database, cursorInfo.target);
-            if (target.kind == cursorInfo.kind) {
-                process(database, cursorInfo.target, target);
-            }
-        }
-
-        for (Set<Location>::const_iterator ait = additional.begin(); ait != additional.end(); ++ait) {
-            cursorInfo = RTags::findCursorInfo(database, *ait);
-            process(database, *ait, cursorInfo);
-            if (cursorInfo.target.isValid()) {
-                const CursorInfo target = RTags::findCursorInfo(database, cursorInfo.target);
-                if (target.kind == cursorInfo.kind) {
-                    process(database, cursorInfo.target, target);
-                }
-            }
-        }
-        additional.clear();
     }
 
     List<Location> sorted = references.toList();
@@ -75,6 +85,7 @@ void ReferencesJob::execute()
     } else {
         std::sort(sorted.begin(), sorted.end());
     }
+    const unsigned keyFlags = Job::keyFlags();
     for (List<Location>::const_iterator it = sorted.begin(); it != sorted.end(); ++it) {
         write(it->key(keyFlags));
     }

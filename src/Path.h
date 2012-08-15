@@ -78,7 +78,7 @@ public:
     static Path home() { return Path::resolved(getenv("HOME")); }
     bool mksubdir(const ByteArray &subdir) const;
     bool isSource() const;
-    static bool isSource(const char *extension, int len);
+    static bool isSource(const char *extension);
     bool isSystem() const { return Path::isSystem(constData()); }
     static bool isSystem(const char *path);
     bool isHeader() const;

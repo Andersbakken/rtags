@@ -4,7 +4,7 @@
   :prefix "rtags-")
 
 (defun rtags-call-rc (&rest arguments)
-  (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
+  (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm" "--enable-grtags") arguments)
   (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
   (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
   (rtags-log (buffer-string))

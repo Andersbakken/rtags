@@ -18,6 +18,8 @@ void ListSymbolsJob::execute()
     const bool skipParentheses = queryFlags & QueryMessage::SkipParentheses;
     const bool elispList = queryFlags & QueryMessage::ElispList;
 
+    if (elispList)
+        writeRaw("(list");
     if (project()->indexer) {
         ScopedDB database = db(Project::SymbolName, ReadWriteLock::Read);
         RTags::Ptr<Iterator> it = database->createIterator();
@@ -26,8 +28,6 @@ void ListSymbolsJob::execute()
         } else {
             it->seek(string.constData());
         }
-        if (elispList)
-            writeRaw("(list");
         while (it->isValid() && !isAborted()) {
             const ByteArray entry = it->key().byteArray();
             if (!string.isEmpty() && !entry.startsWith(string))
@@ -70,7 +70,6 @@ void ListSymbolsJob::execute()
                 break;
             if (!skipParentheses || !entry.contains('(')) {
                 const Map<Location, bool> locations = it->value<Map<Location, bool> >();
-                error() << entry << locations.size();
                 for (Map<Location, bool>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
                     if (!i->second && (!hasFilter || filter(i->first.path()))) {
                         if (elispList) {

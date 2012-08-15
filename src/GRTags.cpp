@@ -63,7 +63,7 @@ void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
         p.append(slice.data(), slice.size());
         const Map<Path, bool>::iterator found = paths.find(p);
         if (found == paths.end()) { // file is removed
-            remove(p, &database, 0);
+            remove(p, &database);
         } else {
             paths.erase(found);
         }
@@ -145,14 +145,15 @@ void GRTags::onDirectoryModified(const Path &path)
     }
 }
 
-void GRTags::remove(const Path &file, ScopedDB *grfiles, ScopedDB *gr)
+void GRTags::remove(const Path &file, ScopedDB *grfiles)
 {
     shared_ptr<Project> project = mProject.lock();
     ScopedDB database = (grfiles ? *grfiles : project->db(Project::GRFiles, ReadWriteLock::Write));
     RTags::Ptr<Iterator> it(database->createIterator());
     const Slice key(file.constData() + mSrcRoot.size(), file.size() - mSrcRoot.size());
     database->remove(key);
-    database = (gr ? *gr : project->db(Project::GR, ReadWriteLock::Write));
+    database.reset();
+    database = project->db(Project::GR, ReadWriteLock::Write);
     dirty(Location::fileId(file), database);
 }
 

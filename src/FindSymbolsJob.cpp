@@ -40,44 +40,78 @@ struct LocationAndDefinitionNode
 
 void FindSymbolsJob::execute()
 {
-    ScopedDB database = db(Project::SymbolName, ReadWriteLock::Read);
-    // const bool hasFilter = !pathFilters().isEmpty();
+    ScopedDB symbolDB;
+    Map<Location, bool> out;
+    if (queryFlags() & QueryMessage::EnableGRTags && project()->grtags) { // grtags can become non-null at any given time
+        ScopedDB database = db(Project::GR, ReadWriteLock::Read);
+        RTags::Ptr<Iterator> it(database->createIterator());
 
-    RTags::Ptr<Iterator> it(database->createIterator());
-
-    if (string.isEmpty()) {
-        it->seekToFirst();
-    } else {
-        it->seek(string.constData());
-    }
-    Set<Location> out;
-    while (it->isValid() && !isAborted()) {
-        const ByteArray entry = it->key().byteArray();
-        const int cmp = strcmp(string.constData(), entry.constData());
-        if (!cmp) {
-            const Set<Location> locations = it->value<Set<Location> >();
-            out += locations;
-        } else if (cmp > 0) {
-            break;
+        if (string.isEmpty()) {
+            it->seekToFirst();
+        } else {
+            it->seek(string.constData());
         }
-        it->next();
-    }
-    List<LocationAndDefinitionNode> sorted;
-    sorted.reserve(out.size());
-    database = db(Project::Symbol, ReadWriteLock::Read);
-    for (Set<Location>::const_iterator it = out.begin(); it != out.end(); ++it) {
-        sorted.push_back(LocationAndDefinitionNode(*it, RTags::findCursorInfo(database, *it).isDefinition));
+        while (it->isValid() && !isAborted()) {
+            const ByteArray entry = it->key().byteArray();
+            const int cmp = strcmp(string.constData(), entry.constData());
+            if (!cmp) {
+                const Map<Location, bool> locations = it->value<Map<Location, bool> >();
+                for (Map<Location, bool>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
+                    if (!i->second) {
+                        out[i->first] = false;
+                    }
+                }
+            } else if (cmp > 0) {
+                break;
+            }
+            it->next();
+        }
     }
 
-    if (queryFlags() & QueryMessage::ReverseSort) {
-        std::sort(sorted.begin(), sorted.end(), std::greater<LocationAndDefinitionNode>());
-    } else {
-        std::sort(sorted.begin(), sorted.end());
+    if (project()->indexer) {
+        ScopedDB database = db(Project::SymbolName, ReadWriteLock::Read);
+        // const bool hasFilter = !pathFilters().isEmpty();
+
+        RTags::Ptr<Iterator> it(database->createIterator());
+
+        if (string.isEmpty()) {
+            it->seekToFirst();
+        } else {
+            it->seek(string.constData());
+        }
+        while (it->isValid() && !isAborted()) {
+            const ByteArray entry = it->key().byteArray();
+            const int cmp = strcmp(string.constData(), entry.constData());
+            if (!cmp) {
+                const Set<Location> locations = it->value<Set<Location> >();
+                for (Set<Location>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
+                    out[*i] = true;
+                }
+            } else if (cmp > 0) {
+                break;
+            }
+            it->next();
+        }
+        symbolDB = db(Project::Symbol, ReadWriteLock::Read);
     }
-    const uint32_t keyFlags = QueryMessage::keyFlags(queryFlags());
-    const int count = sorted.size();
-    for (int i=0; i<count; ++i) {
-        write(sorted.at(i).location.key(keyFlags));
+
+    if (out.size()) {
+        List<LocationAndDefinitionNode> sorted;
+        sorted.reserve(out.size());
+        for (Map<Location, bool>::const_iterator it = out.begin(); it != out.end(); ++it) {
+            sorted.push_back(LocationAndDefinitionNode(it->first, it->second ? RTags::findCursorInfo(symbolDB, it->first).isDefinition : false));
+        }
+
+        if (queryFlags() & QueryMessage::ReverseSort) {
+            std::sort(sorted.begin(), sorted.end(), std::greater<LocationAndDefinitionNode>());
+        } else {
+            std::sort(sorted.begin(), sorted.end());
+        }
+        const uint32_t keyFlags = QueryMessage::keyFlags(queryFlags());
+        const int count = sorted.size();
+        for (int i=0; i<count; ++i) {
+            write(sorted.at(i).location.key(keyFlags));
+        }
     }
 }
 

@@ -117,11 +117,11 @@ const char * Path::extension() const
     return constData() + dot + 1;
 }
 
-bool Path::isSource(const char *ext, int len)
+bool Path::isSource(const char *ext)
 {
-    const char *sources[] = { "c", "cpp", "cxx", "cc", "moc", 0 };
+    const char *sources[] = { "c", "cc", "cpp", "cxx", "moc", 0 };
     for (int i=0; sources[i]; ++i) {
-        if (!strncasecmp(ext, sources[i], len))
+        if (!strcasecmp(ext, sources[i]))
             return true;
     }
     return false;
@@ -132,7 +132,7 @@ bool Path::isSource() const
     if (exists()) {
         const char *ext = extension();
         if (ext)
-            return isSource(ext, strlen(ext));
+            return isSource(ext);
     }
     return false;
 }
