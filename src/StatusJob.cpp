@@ -8,8 +8,8 @@
 #include <clang-c/Index.h>
 
 const char *StatusJob::delimiter = "*********************************";
-StatusJob::StatusJob(const QueryMessage &q, std::tr1::shared_ptr<Indexer> indexer)
-    : Job(q, WriteUnfiltered), query(q.query()), mIndexer(indexer)
+StatusJob::StatusJob(const QueryMessage &q, const shared_ptr<Project> &project)
+    : Job(q, WriteUnfiltered, project), query(q.query())
 {
 }
 
@@ -19,12 +19,12 @@ void StatusJob::execute()
     Server *server = Server::instance();
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "general")) {
         matched = true;
-        ScopedDB db = server->db(Server::General, Server::Read);
+        ScopedDB database = server->db(Server::General, ReadWriteLock::Read);
         write(delimiter);
         write(server->databaseDir(Server::General));
-        write("    version: " + ByteArray::number(db->value<int>("version")));
+        write("    version: " + ByteArray::number(database->value<int>("version")));
 
-        const Map<Path, MakefileInformation> makefiles = db->value<Map<Path, MakefileInformation> >("makefiles");
+        const Map<Path, MakefileInformation> makefiles = database->value<Map<Path, MakefileInformation> >("makefiles");
         for (Map<Path, MakefileInformation>::const_iterator it = makefiles.begin(); it != makefiles.end(); ++it) {
             ByteArray out = "    " + it->first;
             out += " last touched: " + RTags::timeToString(it->second.lastTouched);
@@ -38,10 +38,10 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileids")) {
         matched = true;
-        ScopedDB db = server->db(Server::FileIds, Server::Read);
+        ScopedDB database = server->db(Server::FileIds, ReadWriteLock::Read);
         write(delimiter);
         write(server->databaseDir(Server::FileIds));
-        RTags::Ptr<Iterator> it(db->createIterator());
+        RTags::Ptr<Iterator> it(database->createIterator());
         it->seekToFirst();
         char buf[1024];
         while (it->isValid()) {
@@ -52,7 +52,8 @@ void StatusJob::execute()
     }
 
     const char *alternatives = "general|fileids|dependencies|fileinfos|symbols|symbolnames|pch|visitedfiles";
-    if (!mIndexer) {
+    shared_ptr<Project> proj = project();
+    if (!proj) {
         if (!matched) {
             write(alternatives);
         }
@@ -61,10 +62,10 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "dependencies")) {
         matched = true;
-        ScopedDB db = server->db(Server::Dependency, Server::Read);
+        ScopedDB database = db(Project::Dependency, ReadWriteLock::Read);
         write(delimiter);
-        write(server->databaseDir(Server::Dependency));
-        RTags::Ptr<Iterator> it(db->createIterator());
+        write(proj->databaseDir(Project::Dependency));
+        RTags::Ptr<Iterator> it(database->createIterator());
         Map<uint32_t, Set<uint32_t> > depsReversed;
         it->seekToFirst();
         char buf[1024];
@@ -95,10 +96,10 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "symbols")) {
         matched = true;
-        ScopedDB db = server->db(Server::Symbol, Server::Read);
+        ScopedDB database = db(Project::Symbol, ReadWriteLock::Read);
         write(delimiter);
-        write(server->databaseDir(Server::Symbol));
-        RTags::Ptr<Iterator> it(db->createIterator());
+        write(project()->databaseDir(Project::Symbol));
+        RTags::Ptr<Iterator> it(database->createIterator());
         it->seekToFirst();
         while (it->isValid()) {
             if (isAborted())
@@ -112,10 +113,10 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "symbolnames")) {
         matched = true;
-        ScopedDB db = server->db(Server::SymbolName, Server::Read, mIndexer->srcRoot());
+        ScopedDB database = db(Project::SymbolName, ReadWriteLock::Read);
         write(delimiter);
-        write(server->databaseDir(Server::SymbolName));
-        RTags::Ptr<Iterator> it(db->createIterator());
+        write(project()->databaseDir(Project::SymbolName));
+        RTags::Ptr<Iterator> it(database->createIterator());
         it->seekToFirst();
         char buf[1024];
         while (it->isValid()) {
@@ -135,10 +136,10 @@ void StatusJob::execute()
 
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileinfos")) {
         matched = true;
-        ScopedDB db = server->db(Server::FileInformation, Server::Read, mIndexer->srcRoot());
+        ScopedDB database = db(Project::FileInformation, ReadWriteLock::Read);
         write(delimiter);
-        write(server->databaseDir(Server::FileInformation));
-        RTags::Ptr<Iterator> it(db->createIterator());
+        write(project()->databaseDir(Project::FileInformation));
+        RTags::Ptr<Iterator> it(database->createIterator());
         it->seekToFirst();
         char buf[1024];
         while (it->isValid()) {
@@ -156,12 +157,12 @@ void StatusJob::execute()
         }
     }
 
-    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "visitedfiles")) {
+    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "visitedfiles") && proj->indexer) {
         matched = true;
         write(delimiter);
         write("visitedfiles");
         char buf[1024];
-        const Set<uint32_t> visitedFiles = server->currentIndexer()->visitedFiles();
+        const Set<uint32_t> visitedFiles = proj->indexer->visitedFiles();
 
         for (Set<uint32_t>::const_iterator it = visitedFiles.begin(); it != visitedFiles.end(); ++it) {
             const uint32_t id = *it;

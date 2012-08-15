@@ -5,16 +5,16 @@
 #include "leveldb/db.h"
 #include "CursorInfo.h"
 
-CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query)
-    : Job(query, 0), location(loc)
+CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query, const shared_ptr<Project> &proj)
+    : Job(query, 0, proj), location(loc)
 {
 }
 
 void CursorInfoJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::Symbol, Server::Read);
+    ScopedDB database = db(Project::Symbol, ReadWriteLock::Read);
     Location found;
-    const CursorInfo ci = RTags::findCursorInfo(db, location, &found);
+    const CursorInfo ci = RTags::findCursorInfo(database, location, &found);
     if (isAborted())
         return;
     write(found, ci);

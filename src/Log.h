@@ -11,6 +11,8 @@
 #include <cxxabi.h>
 #include <assert.h>
 
+using namespace std::tr1;
+
 class Path;
 
 enum LogLevel {
@@ -150,7 +152,7 @@ private:
         bool spacing;
     };
 
-    std::tr1::shared_ptr<Data> mData;
+    shared_ptr<Data> mData;
 };
 
 class DisableSpacesScope

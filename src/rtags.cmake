@@ -81,6 +81,7 @@ set(rtags_HDRS
     GRParser.h
     GRParseJob.h
     GRTagMessage.h
+    Project.h
     )
 
 set(rtags_SRCS
@@ -133,6 +134,7 @@ set(rtags_SRCS
     GRParser.cpp
     GRParseJob.cpp
     GRTagMessage.cpp
+    Project.cpp
 )
 
 include(clang.cmake)

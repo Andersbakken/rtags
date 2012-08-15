@@ -6,14 +6,14 @@
 #include "Server.h"
 #include <clang-c/Index.h>
 
-ValidateDBJob::ValidateDBJob(const Path &root, const Set<Location> &prev)
-    : Job(0), mRoot(root), mPrevious(prev)
+ValidateDBJob::ValidateDBJob(const shared_ptr<Project> &proj, const Set<Location> &prev)
+    : Job(0, proj), mPrevious(prev)
 {
 }
 
 void ValidateDBJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::Symbol, Server::Read, mRoot);
+    ScopedDB db = project()->db(Project::FileInformation, ReadWriteLock::Read);
     RTags::Ptr<Iterator> it(db->createIterator());
     it->seekToFirst();
     int errors = 0;

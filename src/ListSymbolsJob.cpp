@@ -5,20 +5,20 @@
 #include "Log.h"
 #include "RTags.h"
 
-ListSymbolsJob::ListSymbolsJob(const QueryMessage &query)
-    : Job(query, query.flags() & QueryMessage::ElispList ? Job::QuoteOutput : Job::None), string(query.query())
+ListSymbolsJob::ListSymbolsJob(const QueryMessage &query, const shared_ptr<Project> &proj)
+    : Job(query, query.flags() & QueryMessage::ElispList ? Job::QuoteOutput : Job::None, proj), string(query.query())
 {
 }
 
 void ListSymbolsJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::SymbolName, Server::Read);
+    ScopedDB database = db(Project::SymbolName, ReadWriteLock::Read);
     const bool hasFilter = !pathFilters().isEmpty();
     const unsigned queryFlags = Job::queryFlags();
     const bool skipParentheses = queryFlags & QueryMessage::SkipParentheses;
     const bool elispList = queryFlags & QueryMessage::ElispList;
 
-    RTags::Ptr<Iterator> it(db->createIterator());
+    RTags::Ptr<Iterator> it(database->createIterator());
     if (string.isEmpty()) {
         it->seekToFirst();
     } else {
@@ -54,8 +54,8 @@ void ListSymbolsJob::execute()
         it->next();
     }
     if (queryFlags & QueryMessage::EnableGRTags) {
-        db = Server::instance()->db(Server::GR, Server::Read);
-        it.reset(db->createIterator());
+        database = db(Project::GR, ReadWriteLock::Read);
+        it.reset(database->createIterator());
         if (string.isEmpty()) {
             it->seekToFirst();
         } else {

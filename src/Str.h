@@ -45,7 +45,7 @@ private:
         CXString string;
         mutable int length;
     };
-    std::tr1::shared_ptr<Shared> mData;
+    shared_ptr<Shared> mData;
 };
 
 #endif

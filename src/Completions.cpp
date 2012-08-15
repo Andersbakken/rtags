@@ -34,45 +34,45 @@ void Completions::event(const Event *event)
 
 ByteArray Completions::completions(const Location &loc, unsigned queryFlags, const ByteArray &unsaved)
 {
-    Entry *entry = 0;
-    const Path path = loc.path();
-    Entry *&e = mEntries[path];
-    if (!e) {
-        // ### need to kill one of the existing entries if there's too many
-        const List<ByteArray> args = RTags::compileArgs(loc.fileId(), Path());
-        // ### need to think of something for headers, find the first dependency maybe
-        if (args.isEmpty()) {
-            error("We're not indexing this file %s", path.constData());
-            mEntries.remove(path);
-            return ByteArray();
-        }
+    // Entry *entry = 0;
+    // const Path path = loc.path();
+    // Entry *&e = mEntries[path];
+    // if (!e) {
+    //     // ### need to kill one of the existing entries if there's too many
+    //     const List<ByteArray> args = RTags::compileArgs(loc.fileId(), project());
+    //     // ### need to think of something for headers, find the first dependency maybe
+    //     if (args.isEmpty()) {
+    //         error("We're not indexing this file %s", path.constData());
+    //         mEntries.remove(path);
+    //         return ByteArray();
+    //     }
 
-        CompletionJob *job = new CompletionJob(this, path, args, unsaved);
-        e = job->result;
-        Server::instance()->startJob(job);
-    } else {
-        if (e->unsaved != unsaved) {
-            if (!e->finished) {
-                error("We're already parsing %s with different unsaved contents", path.constData());
-                // ### maybe spawn a new job and somehow detect that the old one is not interesting
-            } else {
-                e->unsaved = unsaved;
-                e->finished = false;
-                CompletionJob *job = new CompletionJob(this, e);
-                Server::instance()->startJob(job);
-            }
-        } else if (e->finished) {
-            entry = e;
-        } else {
-            error("We're already parsing a lock for %s", path.constData());
-        }
-    }
+    //     CompletionJob *job = new CompletionJob(this, path, args, unsaved);
+    //     e = job->result;
+    //     Server::instance()->startJob(job);
+    // } else {
+    //     if (e->unsaved != unsaved) {
+    //         if (!e->finished) {
+    //             error("We're already parsing %s with different unsaved contents", path.constData());
+    //             // ### maybe spawn a new job and somehow detect that the old one is not interesting
+    //         } else {
+    //             e->unsaved = unsaved;
+    //             e->finished = false;
+    //             CompletionJob *job = new CompletionJob(this, e);
+    //             Server::instance()->startJob(job);
+    //         }
+    //     } else if (e->finished) {
+    //         entry = e;
+    //     } else {
+    //         error("We're already parsing a lock for %s", path.constData());
+    //     }
+    // }
 
-    if (!entry) {
-        return ByteArray();
-    }
-    const ByteArray result = completion(entry, loc.offset());
-    return result;
+    // if (!entry) {
+    //     return ByteArray();
+    // }
+    // const ByteArray result = completion(entry, loc.offset());
+    // return result;
 }
 ByteArray Completions::completion(const Entry *entry, uint32_t offset)
 {

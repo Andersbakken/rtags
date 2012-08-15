@@ -6,10 +6,9 @@
 #include "CursorInfo.h"
 #include "GRTags.h"
 
-FindFileJob::FindFileJob(const std::tr1::shared_ptr<GRTags> &tags, const QueryMessage &query)
-    : Job(query, 0), mTags(tags)
+FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &project)
+    : Job(query, 0, project)
 {
-    assert(mTags);
     const ByteArray q = query.query();
     if (!q.isEmpty()) {
         if (query.flags() & QueryMessage::MatchRegExp) {
@@ -22,7 +21,8 @@ FindFileJob::FindFileJob(const std::tr1::shared_ptr<GRTags> &tags, const QueryMe
 
 void FindFileJob::execute()
 {
-    const Path &srcRoot = mTags->srcRoot();
+    shared_ptr<Project> proj = project();
+    const Path &srcRoot = proj->srcRoot;
 
     enum Mode {
         All,
@@ -42,9 +42,8 @@ void FindFileJob::execute()
         assert(srcRoot.endsWith('/'));
     }
 
-
-    ScopedDB db = Server::instance()->db(Server::GRFiles, Server::Read, srcRoot); // we're using this as a read write lock for GRTags::mFiles
-    const Map<Path, Map<ByteArray, time_t> > &dirs = mTags->mFiles;
+    ScopedDB db = proj->db(Project::GRFiles, ReadWriteLock::Read); // we're using this as a read write lock for GRTags::mFiles
+    const Map<Path, Map<ByteArray, time_t> > &dirs = proj->grtags->mFiles;
     Map<Path, Map<ByteArray, time_t> >::const_iterator dirit = dirs.begin();
     while (dirit != dirs.end()) {
 

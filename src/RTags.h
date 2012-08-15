@@ -12,9 +12,18 @@
 #include <stdio.h>
 #include <typeinfo>
 
+using namespace std::tr1;
+
 class Database;
+class Project;
 class ScopedDB;
 namespace RTags {
+
+enum DatabaseLockType {
+    Read = ReadWriteLock::Read,
+    Write = ReadWriteLock::Write,
+    Erase
+};
 
 enum ReferenceType {
     NormalReference,
@@ -113,7 +122,7 @@ inline bool addTo(Container &container, const Value &value)
 }
 
 CursorInfo findCursorInfo(Database *db, const Location &key, Location *loc = 0);
-List<ByteArray> compileArgs(uint32_t fileId, const Path &path);
+List<ByteArray> compileArgs(uint32_t fileId, const shared_ptr<Project> &proj);
 
 inline ByteArray timeToString(time_t t)
 {
@@ -194,13 +203,13 @@ void removeDirectory(const Path &path);
 int canonicalizePath(char *path, int len);
 ByteArray unescape(ByteArray command);
 
-template <typename T> class Ptr : public std::tr1::shared_ptr<T>
+template <typename T> class Ptr : public shared_ptr<T>
 {
 public:
     Ptr(T *t = 0)
-        : std::tr1::shared_ptr<T>(t)
+        : shared_ptr<T>(t)
     {}
-    operator T*() const { return std::tr1::shared_ptr<T>::get(); }
+    operator T*() const { return shared_ptr<T>::get(); }
 };
 bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs);
 

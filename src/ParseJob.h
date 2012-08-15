@@ -9,7 +9,7 @@
 class ParseJob : public Job
 {
 public:
-    ParseJob(const QueryMessage &msg);
+    ParseJob(const QueryMessage &msg, const shared_ptr<Project> &proj);
     virtual void run();
 private:
     const Path mPath;

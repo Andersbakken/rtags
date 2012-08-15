@@ -9,8 +9,8 @@
 #include "ReferencesJob.h"
 #include "QueryMessage.h"
 
-RunTestJob::RunTestJob(const Path &p, const QueryMessage &query)
-    : Job(query, WriteUnfiltered), path(p)
+RunTestJob::RunTestJob(const Path &p, const QueryMessage &query, const shared_ptr<Project> &proj)
+    : Job(query, WriteUnfiltered, proj), path(p)
 {
 }
 
@@ -37,7 +37,7 @@ void RunTestJob::execute()
     Set<ByteArray> allSymbolNames;
     {
         const QueryMessage msg(QueryMessage::ListSymbols);
-        expectedLocations = runJob(new ListSymbolsJob(msg));
+        expectedLocations = runJob(new ListSymbolsJob(msg, project()));
     }
 
     // symbols
@@ -99,7 +99,7 @@ void RunTestJob::execute()
                         write("Can't parse line [" + line + "] during symbol tests");
                         return;
                     }
-                    const ByteArray cursorInfo = runJob(new CursorInfoJob(loc, QueryMessage())).toList().value(0);
+                    const ByteArray cursorInfo = runJob(new CursorInfoJob(loc, QueryMessage(), project())).toList().value(0);
                     if (strncmp(cursorInfo.constData(), line.constData() + 2, cursorInfo.size())) {
                         write("Failed test, something's different here");
                     }
@@ -124,7 +124,7 @@ void RunTestJob::execute()
 void RunTestJob::testSymbolNames(const ByteArray &symbolName, const Set<ByteArray> &expectedLocations)
 {
     const QueryMessage msg(QueryMessage::FindSymbols, symbolName, QueryMessage::NoContext);
-    const Set<ByteArray> actual = runJob(new FindSymbolsJob(msg));
+    const Set<ByteArray> actual = runJob(new FindSymbolsJob(msg, project()));
     Set<ByteArray> missing = expectedLocations - actual;
     Set<ByteArray> unexpected = actual - expectedLocations;
     if (!missing.isEmpty() || !unexpected.isEmpty()) {

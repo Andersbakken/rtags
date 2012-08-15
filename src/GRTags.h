@@ -7,11 +7,12 @@
 #include "Mutex.h"
 
 class GRParseJob;
+class Project;
 class GRTags
 {
 public:
-    GRTags(const Path &srcRoot);
-    void init();
+    GRTags();
+    void init(const shared_ptr<Project> &proj);
     void recurseDirs();
     void onDirectoryModified(const Path &path);
     void onRecurseJobFinished(Map<Path, bool> &mPaths);
@@ -19,11 +20,11 @@ public:
     void remove(const Path &file, ScopedDB *grfiles = 0, ScopedDB *gr = 0);
     void dirty(uint32_t fileId, ScopedDB &db);
     void parse(const Path &path, unsigned flags);
-    const Path &srcRoot() const { return mSrcRoot; }
 private:
-    const Path mSrcRoot;
     Map<Path, Map<ByteArray, time_t> > mFiles; // key: dir, value: fileName, last modified
     FileSystemWatcher *mWatcher;
+    shared_ptr<Project> mProject;
+    Path mSrcRoot;
     friend class FindFileJob;
 };
 

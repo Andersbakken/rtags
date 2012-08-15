@@ -117,10 +117,9 @@ static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &a
 }
 
 IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &input, const List<ByteArray> &arguments)
-
     : mFlags(flags), mTimeStamp(time(0)), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
-      mPchHeaders(extractPchFiles(mIndexer->projectRoot(), arguments)), mUnit(0)
+      mPchHeaders(extractPchFiles(mIndexer->projectPath(), arguments)), mUnit(0)
 {
 }
 
@@ -758,6 +757,8 @@ static inline CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXCli
 
 void IndexerJob::execute()
 {
+    shared_ptr<Project> project = mIndexer->project();
+    assert(project);
     Timer timer;
 
     List<const char*> clangArgs(mArgs.size(), 0);
@@ -767,7 +768,6 @@ void IndexerJob::execute()
 
     int idx = 0;
     const int count = mArgs.size();
-    const Path projectRoot = mIndexer->projectRoot();
     for (int i=0; i<count; ++i) {
         ByteArray arg = mArgs.at(i);
         if (arg.isEmpty())
@@ -795,7 +795,7 @@ void IndexerJob::execute()
     }
 
     if (mIsPch) {
-        pchName = pchFileName(projectRoot, mIn);
+        pchName = pchFileName(mIndexer->projectPath(), mIn);
     }
     clangLine += mIn;
 
@@ -818,7 +818,7 @@ void IndexerJob::execute()
     mDependencies[mFileId].insert(mFileId);
     const Path srcRoot = mIndexer->srcRoot();
     writeFileInformation(mFileId, mArgs, mTimeStamp,
-                         Server::instance()->db(Server::FileInformation, Server::Write, srcRoot));
+                         mIndexer->project()->db(Project::FileInformation, ReadWriteLock::Write));
 
     bool compileError = false;
     if (!mUnit) {
@@ -932,9 +932,9 @@ void IndexerJob::execute()
             assert(mDependencies[mFileId].contains(mFileId));
 
             mIndexer->setDiagnostics(visited, fixIts);
-            writeSymbols(mSymbols, mReferences, Server::instance()->db(Server::Symbol, Server::Write, srcRoot));
+            writeSymbols(mSymbols, mReferences, project->db(Project::Symbol, ReadWriteLock::Write));
 
-            writeSymbolNames(mSymbolNames, Server::instance()->db(Server::SymbolName, Server::Write, srcRoot));
+            writeSymbolNames(mSymbolNames, project->db(Project::SymbolName, ReadWriteLock::Write));
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
         }

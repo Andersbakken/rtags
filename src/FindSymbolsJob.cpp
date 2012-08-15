@@ -9,8 +9,8 @@ static inline unsigned jobFlags(unsigned queryFlags)
     return (queryFlags & QueryMessage::ElispList) ? Job::WriteUnfiltered|Job::QuoteOutput : Job::WriteUnfiltered;
 }
 
-FindSymbolsJob::FindSymbolsJob(const QueryMessage &query)
-    : Job(query, ::jobFlags(query.flags())), string(query.query())
+FindSymbolsJob::FindSymbolsJob(const QueryMessage &query, const shared_ptr<Project> &proj)
+    : Job(query, ::jobFlags(query.flags()), proj), string(query.query())
 {
 }
 
@@ -40,10 +40,10 @@ struct LocationAndDefinitionNode
 
 void FindSymbolsJob::execute()
 {
-    ScopedDB db = Server::instance()->db(Server::SymbolName, Server::Read);
+    ScopedDB database = db(Project::SymbolName, ReadWriteLock::Read);
     // const bool hasFilter = !pathFilters().isEmpty();
 
-    RTags::Ptr<Iterator> it(db->createIterator());
+    RTags::Ptr<Iterator> it(database->createIterator());
 
     if (string.isEmpty()) {
         it->seekToFirst();
@@ -64,9 +64,9 @@ void FindSymbolsJob::execute()
     }
     List<LocationAndDefinitionNode> sorted;
     sorted.reserve(out.size());
-    db = Server::instance()->db(Server::Symbol, Server::Read);
+    database = db(Project::Symbol, ReadWriteLock::Read);
     for (Set<Location>::const_iterator it = out.begin(); it != out.end(); ++it) {
-        sorted.push_back(LocationAndDefinitionNode(*it, RTags::findCursorInfo(db, *it).isDefinition));
+        sorted.push_back(LocationAndDefinitionNode(*it, RTags::findCursorInfo(database, *it).isDefinition));
     }
 
     if (queryFlags() & QueryMessage::ReverseSort) {

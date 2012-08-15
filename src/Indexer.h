@@ -8,6 +8,7 @@
 #include "ReadWriteLock.h"
 #include "ThreadPool.h"
 #include "Timer.h"
+#include "Project.h"
 #include <clang-c/Index.h>
 
 class IndexerJob;
@@ -18,10 +19,9 @@ public:
     Indexer();
     ~Indexer();
 
-    void init(const Path &srcRoot, const Path &projectRoot, bool validate);
+    void init(const shared_ptr<Project> &project, bool validate);
 
     void index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
-
     void setPchDependencies(const Path &pchHeader, const Set<uint32_t> &deps);
     void addDependencies(const DependencyMap &hash);
     Set<uint32_t> dependencies(uint32_t fileId) const;
@@ -37,8 +37,9 @@ public:
     void reindex(const ByteArray &pattern);
     signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
     void onDirectoryChanged(const Path &path);
-    Path srcRoot() const { return mSrcRoot; } // ~/src/foobar
-    Path projectRoot() const { return mProjectRoot; } // ~/.rtags/projects/[_foobar_]
+    shared_ptr<Project> project() const { return mProject; }
+    Path srcRoot() const { return mProject->srcRoot; } // ~/src/foobar
+    Path projectPath() const { return mProject->projectPath; } // ~/.rtags/projects/[_foobar_]
 private:
     void onValidateDBJobErrors(const Set<Location> &errors);
     void onJobFinished(IndexerJob *job);
@@ -72,7 +73,7 @@ private:
     bool mTimerRunning;
     Timer mTimer;
 
-    Path mSrcRoot, mProjectRoot;
+    shared_ptr<Project> mProject;
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
     WatchedMap mWatched;

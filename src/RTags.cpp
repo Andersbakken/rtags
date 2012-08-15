@@ -98,9 +98,9 @@ CursorInfo findCursorInfo(Database *db, const Location &location, Location *loc)
     return cursorInfo;
 }
 
-List<ByteArray> compileArgs(uint32_t fileId, const Path &root)
+List<ByteArray> compileArgs(uint32_t fileId, const shared_ptr<Project> &proj)
 {
-    ScopedDB db = Server::instance()->db(Server::FileInformation, Server::Read, root);
+    ScopedDB db = proj->db(Project::FileInformation, ReadWriteLock::Read);
     const char *ch = reinterpret_cast<const char*>(&fileId);
     const Slice key(ch, sizeof(fileId));
     FileInformation fi = db->value<FileInformation>(key);

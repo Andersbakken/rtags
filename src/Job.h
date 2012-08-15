@@ -7,10 +7,13 @@
 #include <ByteArray.h>
 #include "Event.h"
 #include "signalslot.h"
+#include "Server.h"
+#include <tr1/memory>
 
 class CursorInfo;
 class Location;
 class QueryMessage;
+class Project;
 class Job : public ThreadPool::Job, public AbortInterface
 {
 public:
@@ -20,9 +23,8 @@ public:
         QuoteOutput = 0x2,
         OutputSignalEnabled = 0x4
     };
-    Job(const QueryMessage &msg, unsigned jobFlags);
-    Job(unsigned jobFlags);
-    ~Job();
+    Job(const QueryMessage &msg, unsigned jobFlags, const shared_ptr<Project> &proj);
+    Job(unsigned jobFlags, const shared_ptr<Project> &project);
     void setPathFilters(const List<ByteArray> &filter);
     List<ByteArray> pathFilters() const;
     int id() const { return mId; }
@@ -39,12 +41,16 @@ public:
     virtual void execute() {}
     signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
     void write(const Location &location, const CursorInfo &info);
+    shared_ptr<Project> project() const { return mProject; }
+    ScopedDB db(Server::DatabaseType type, ReadWriteLock::LockType lockType) const;
+    ScopedDB db(Project::DatabaseType type, ReadWriteLock::LockType lockType) const;
 private:
     int mId;
     unsigned mJobFlags;
     unsigned mQueryFlags;
     List<ByteArray> mPathFilters;
     signalslot::Signal1<const ByteArray &> mOutput;
+    shared_ptr<Project> mProject;
 };
 
 class JobCompleteEvent : public Event

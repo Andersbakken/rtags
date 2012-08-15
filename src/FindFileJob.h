@@ -12,11 +12,10 @@ class GRTags;
 class FindFileJob : public Job
 {
 public:
-    FindFileJob(const std::tr1::shared_ptr<GRTags> &tags, const QueryMessage &query);
+    FindFileJob(const QueryMessage &query, const shared_ptr<Project> &project);
 protected:
     virtual void execute();
 private:
-    std::tr1::shared_ptr<GRTags> mTags;
     ByteArray mPattern;
     RegExp mRegExp;
 };

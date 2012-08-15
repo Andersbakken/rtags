@@ -6,22 +6,18 @@
 
 // static int count = 0;
 // static int active = 0;
-Job::Job(unsigned jobFlags)
-    : mJobFlags(jobFlags), mQueryFlags(0)
-{
-    setAutoDelete(false);
-}
 
-Job::Job(const QueryMessage &query, unsigned jobFlags)
-    : mId(-1), mJobFlags(jobFlags), mQueryFlags(query.flags())
+Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project> &proj)
+    : mId(-1), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj)
 {
     setPathFilters(query.pathFilters());
     setAutoDelete(false);
 }
 
-
-Job::~Job()
+Job::Job(unsigned jobFlags, const shared_ptr<Project> &proj)
+    : mJobFlags(jobFlags), mQueryFlags(0), mProject(proj)
 {
+    setAutoDelete(false);
 }
 
 void Job::setPathFilters(const List<ByteArray> &filter)
@@ -105,4 +101,14 @@ void Job::write(const Location &location, const CursorInfo &ci)
 unsigned Job::keyFlags() const
 {
     return QueryMessage::keyFlags(mQueryFlags);
+}
+
+ScopedDB Job::db(Server::DatabaseType type, ReadWriteLock::LockType lockType) const
+{
+    return Server::instance()->db(type, lockType);
+}
+
+ScopedDB Job::db(Project::DatabaseType type, ReadWriteLock::LockType lockType) const
+{
+    return mProject ? mProject->db(type, lockType) : ScopedDB();
 }

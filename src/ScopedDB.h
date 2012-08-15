@@ -8,7 +8,7 @@ class ScopedDB
 {
 public:
     ScopedDB();
-    ScopedDB(Database *db, ReadWriteLock::LockType lockType, bool clear);
+    ScopedDB(Database *db, ReadWriteLock::LockType lockType);
     Database *operator->() { return mData->db; }
     operator Database *() { return mData->db; }
 
@@ -25,7 +25,7 @@ private:
         Database *db;
         const ReadWriteLock::LockType lockType;
     };
-    std::tr1::shared_ptr<Data> mData;
+    shared_ptr<Data> mData;
 };
 
 #endif

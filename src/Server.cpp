@@ -51,29 +51,9 @@ public:
     MakefileParser *parser;
 };
 
-static const char *const dbNames[] = {
-    "symbols.db",
-    "symbolnames.db",
-    "dependencies.db",
-    "fileinfos.db",
-    "grfiles.db",
-    "gr.db",
-    "general.db",
-    "fileids.db",
-    0
-};
-
-static inline Path databaseDir(Server::DatabaseType type, const char *base)
-{
-    char ret[PATH_MAX];
-    const int w = snprintf(ret, sizeof(ret), "%s%s", base, dbNames[type]);
-    return Path(ret, w);
-}
-
 Server *Server::sInstance = 0;
 Server::Server()
-    : mServer(0), mVerbose(false), mJobId(0), mCurrentProject(0),
-      mThreadPool(0), mCompletions(0)
+    : mServer(0), mVerbose(false), mJobId(0), mThreadPool(0), mCompletions(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -98,9 +78,6 @@ void Server::clear()
         mDBs[i] = 0;
     }
 
-    for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        delete it->second;
-    }
     mProjects.clear();
     setCurrentProject(0);
 }
@@ -150,8 +127,8 @@ bool Server::init(const Options &options)
         return false;
     }
 
-    for (unsigned i=0; i<sizeof(mDBs) / sizeof(Database*); ++i) {
-        const DatabaseType type = static_cast<DatabaseType>(i + ProjectSpecificDatabaseTypeCount);
+    for (unsigned i=0; i<DatabaseTypeCount; ++i) {
+        const DatabaseType type = static_cast<DatabaseType>(i);
         mDBs[i] = new Database(databaseDir(type), options.cacheSizeMB, Database::NoFlag);
         if (!mDBs[i]->isOpened()) {
             error() << "Failed to open db " << databaseDir(type) << " " << mDBs[i]->openError();
@@ -160,7 +137,7 @@ bool Server::init(const Options &options)
 
     ByteArray currentProject;
     {
-        ScopedDB general = Server::instance()->db(Server::General, Server::Write);
+        ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
         bool ok;
         const int version = general->value<int>("version", &ok);
         if (!ok) {
@@ -178,7 +155,7 @@ bool Server::init(const Options &options)
 
     {
         // fileids
-        ScopedDB db = Server::instance()->db(Server::FileIds, Server::Read);
+        ScopedDB db = Server::instance()->db(Server::FileIds, ReadWriteLock::Read);
         RTags::Ptr<Iterator> it(db->createIterator());
         it->seekToFirst();
         Map<uint32_t, Path> idsToPaths;
@@ -201,8 +178,9 @@ bool Server::init(const Options &options)
 
     error() << "running with " << mOptions.defaultArguments << " clang version " << RTags::eatString(clang_getClangVersion());
     mProjectsDir.visit(projectsVisitor, this);
-    if (!currentProject.isEmpty())
+    if (!currentProject.isEmpty()) {
         setCurrentProject(currentProject);
+    }
 
     if (!(mOptions.options & NoValidateOnStartup))
         remake();
@@ -279,7 +257,7 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
     const MakefileInformation mi(makefile.lastModified(), message->arguments(), message->extraFlags());
     mMakefiles[makefile] = mi;
     mMakefilesWatcher.watch(makefile);
-    ScopedDB general = Server::instance()->db(Server::General, Server::Write);
+    ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
     general->setValue("makefiles", mMakefiles);
     make(message->makefile(), message->arguments(), message->extraFlags(), conn);
 }
@@ -287,14 +265,12 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
 void Server::handleGRTagMessage(GRTagMessage *message, Connection *conn)
 {
     const Path dir = message->path();
-    if (mGRTags.insert(dir)) {
-        ScopedDB general = Server::instance()->db(Server::General, Server::Write);
-        general->setValue("grtags", mGRTags);
-        // initProject(
-        // make(message->makefile(), message->arguments(), message->extraFlags(), conn);
+    Map<Path, shared_ptr<Project> >::const_iterator it = initProject(dir, EnableGRTags);
+    if (it != mProjects.end()) {
+        setCurrentProject(it);
     }
+    conn->finish();
 }
-
 
 void Server::make(const Path &path, List<ByteArray> makefileArgs, const List<ByteArray> &extraFlags, Connection *conn)
 {
@@ -346,11 +322,10 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         break;
     case QueryMessage::DeleteProject: {
         RegExp rx(message->query());
-        Map<Path, Project*>::iterator it = mProjects.begin();
+        Map<Path, shared_ptr<Project> >::iterator it = mProjects.begin();
         while (it != mProjects.end()) {
             if (rx.indexIn(it->first) != -1) {
                 it->second->indexer->abort();
-                delete it->second;
                 ResponseMessage msg("Erased " + it->first);
                 conn->send(&msg);
                 mProjects.erase(it++);
@@ -361,9 +336,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         break; }
     case QueryMessage::Project:
         if (message->query().isEmpty()) {
-            for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+            for (Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
                 ByteArray b = it->first;
-                if (it->second == mCurrentProject)
+                if (it == mCurrentProject)
                     b.append(" <=");
                 ResponseMessage msg(b);
                 conn->send(&msg);
@@ -372,7 +347,7 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
             Path currentPath;
             bool error = false;
             RegExp rx(message->query());
-            for (Map<Path, Project*>::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+            for (Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
                 if (rx.indexIn(it->first) != -1) {
                     if (error) {
                         ResponseMessage msg(it->first);
@@ -491,7 +466,13 @@ int Server::followLocation(const QueryMessage &query)
 
     error("rc -f %s", loc.key().constData());
 
-    FollowLocationJob *job = new FollowLocationJob(loc, query);
+    shared_ptr<Project> project = currentProject();
+    if (!project) {
+        error("No project");
+        return 0;
+    }
+
+    FollowLocationJob *job = new FollowLocationJob(loc, query, project);
     job->setId(nextId());
     startJob(job);
 
@@ -501,7 +482,13 @@ int Server::followLocation(const QueryMessage &query)
 int Server::parse(const QueryMessage &query)
 {
     error("rc -y %s", query.query().constData());
-    ParseJob *job = new ParseJob(query);
+    shared_ptr<Project> project = currentProject();
+    if (!project) {
+        error("No project");
+        return 0;
+    }
+
+    ParseJob *job = new ParseJob(query, project);
     job->setId(nextId());
     startJob(job);
     return job->id();
@@ -510,10 +497,13 @@ int Server::parse(const QueryMessage &query)
 int Server::findFile(const QueryMessage &query)
 {
     error("rc -P %s", query.query().constData());
-    std::tr1::shared_ptr<GRTags> tags = currentGRTags();
-    if (!tags)
-        return -1;
-    FindFileJob *job = new FindFileJob(tags, query);
+    shared_ptr<Project> project = currentProject();
+    if (!project || !project->grtags) {
+        error("No project");
+        return 0;
+    }
+
+    FindFileJob *job = new FindFileJob(query, project);
     job->setId(nextId());
     startJob(job);
     return job->id();
@@ -529,7 +519,13 @@ int Server::cursorInfo(const QueryMessage &query)
 
     error("rc -U %s", loc.key().constData());
 
-    CursorInfoJob *job = new CursorInfoJob(loc, query);
+    shared_ptr<Project> project = currentProject();
+    if (!project) {
+        error("No project");
+        return 0;
+    }
+
+    CursorInfoJob *job = new CursorInfoJob(loc, query, project);
     job->setId(nextId());
     startJob(job);
 
@@ -547,7 +543,13 @@ int Server::referencesForLocation(const QueryMessage &query)
 
     error("rc -r %s", loc.key().constData());
 
-    ReferencesJob *job = new ReferencesJob(loc, query);
+    shared_ptr<Project> project = currentProject();
+    if (!project) {
+        error("No project");
+        return 0;
+    }
+
+    ReferencesJob *job = new ReferencesJob(loc, query, project);
     job->setId(nextId());
 
     startJob(job);
@@ -560,7 +562,13 @@ int Server::referencesForName(const QueryMessage& query)
     const ByteArray name = query.query();
     error("rc -R \"%s\"", name.constData());
 
-    ReferencesJob *job = new ReferencesJob(name, query);
+    shared_ptr<Project> project = currentProject();
+    if (!project) {
+        error("No project");
+        return 0;
+    }
+
+    ReferencesJob *job = new ReferencesJob(name, query, project);
     job->setId(nextId());
     startJob(job);
 
@@ -573,7 +581,13 @@ int Server::findSymbols(const QueryMessage &query)
 
     error("rc -F \"%s\"", partial.constData());
 
-    FindSymbolsJob *job = new FindSymbolsJob(query);
+    shared_ptr<Project> project = currentProject();
+    if (!project) {
+        error("No project");
+        return 0;
+    }
+
+    FindSymbolsJob *job = new FindSymbolsJob(query, project);
     job->setId(nextId());
     startJob(job);
 
@@ -586,7 +600,13 @@ int Server::listSymbols(const QueryMessage &query)
 
     error("rc -S \"%s\"", partial.constData());
 
-    ListSymbolsJob *job = new ListSymbolsJob(query);
+    shared_ptr<Project> project = currentProject();
+    if (!project) {
+        error("No project");
+        return 0;
+    }
+
+    ListSymbolsJob *job = new ListSymbolsJob(query, project);
     job->setId(nextId());
     startJob(job);
 
@@ -597,7 +617,13 @@ int Server::status(const QueryMessage &query)
 {
     error("rc -s \"%s\"", query.query().constData());
 
-    StatusJob *job = new StatusJob(query, mCurrentProject ? mCurrentProject->indexer : std::tr1::shared_ptr<Indexer>());
+    shared_ptr<Project> project = currentProject();
+    if (!project) {
+        error("No project");
+        return 0;
+    }
+
+    StatusJob *job = new StatusJob(query, project);
     job->setId(nextId());
     startJob(job);
     return job->id();
@@ -611,7 +637,13 @@ int Server::runTest(const QueryMessage &query)
     }
     error("rc -T \"%s\"", path.constData());
 
-    RunTestJob *job = new RunTestJob(path, query);
+    shared_ptr<Project> project = currentProject();
+    if (!project) {
+        error("No project");
+        return 0;
+    }
+
+    RunTestJob *job = new RunTestJob(path, query, project);
     job->setId(nextId());
     startJob(job);
     return job->id();
@@ -633,9 +665,16 @@ int Server::test(const QueryMessage &query)
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)
 {
-    const ByteArray fixIts = currentIndexer()->fixIts(query.query());
+    error("rc -x \"%s\"", query.query().constData());
 
-    error("rc -x \"%s\"", fixIts.constData());
+    shared_ptr<Project> project = currentProject();
+    if (!project || !project->indexer) {
+        error("No project");
+        conn->finish();
+        return;
+    }
+
+    const ByteArray fixIts = project->indexer->fixIts(query.query());
 
     ResponseMessage msg(fixIts);
     conn->send(&msg);
@@ -644,23 +683,27 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
 
 void Server::errors(const QueryMessage &query, Connection *conn)
 {
-    const ByteArray errors = currentIndexer()->errors(query.query());
+    error("rc -Q \"%s\"", query.query().constData());
+    shared_ptr<Project> project = currentProject();
+    if (!project || !project->indexer) {
+        error("No project");
+        conn->finish();
+        return;
+    }
 
-    error("rc -Q \"%s\"", errors.constData());
+    const ByteArray errors = project->indexer->errors(query.query());
 
     ResponseMessage msg(errors);
     conn->send(&msg);
     conn->finish();
 }
 
-Path Server::databaseDir(DatabaseType type)
+Path Server::databaseDir(DatabaseType type) const
 {
-    if (type < static_cast<int>(ProjectSpecificDatabaseTypeCount)) {
-        return (mCurrentProject
-                ? ::databaseDir(type, mCurrentProject->projectPath.constData())
-                : Path());
-    }
-    return ::databaseDir(type, mOptions.path.constData());
+    const char *const dbNames[] = { "general.db", "fileids.db" };
+    char ret[PATH_MAX];
+    const int w = snprintf(ret, sizeof(ret), "%s%s", mOptions.path.constData(), dbNames[type]);
+    return Path(ret, w);
 }
 
 Path Server::projectsPath() const
@@ -689,7 +732,13 @@ void Server::clearDataDir()
 
 void Server::reindex(const ByteArray &pattern)
 {
-    currentIndexer()->reindex(pattern);
+    shared_ptr<Project> project = currentProject();
+    if (!project || project->indexer) {
+        error("No project");
+        return;
+    }
+
+    project->indexer->reindex(pattern);
 }
 
 void Server::remake(const ByteArray &pattern, Connection *conn)
@@ -828,9 +877,9 @@ static Path findProjectRoot(const Path &path)
     return Path();
 }
 
-static inline bool isIndexed(const Path &path, const List<ByteArray> &args, const Path &projectRoot)
+static inline bool isIndexed(const Path &path, const List<ByteArray> &args, const shared_ptr<Project> &project)
 {
-    ScopedDB db = Server::instance()->db(Server::FileInformation, Server::Write, projectRoot);
+    ScopedDB db = project->db(Project::FileInformation, ReadWriteLock::Write);
     const uint32_t fileId = Location::insertFile(path);
     const char *ch = reinterpret_cast<const char*>(&fileId);
     const Slice key(ch, sizeof(fileId));
@@ -868,13 +917,12 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
         error("Can't find project root for %s", inputFiles.begin()->constData());
         return;
     }
-    Project *proj = initProject(projectRoot, EnableIndexer);
-    if (!proj) {
+    Map<Path, shared_ptr<Project> >::const_iterator proj = initProject(projectRoot, EnableIndexer);
+    if (proj == mProjects.end()) {
         error("Can't find project for %s", projectRoot.constData());
         return;
     }
-    assert(proj);
-    assert(proj->indexer);
+    assert(proj->second->indexer);
 
     if (args.type() == GccArguments::Pch) {
         ByteArray output = args.outputFile();
@@ -903,8 +951,8 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 
     for (int i=0; i<c; ++i) {
         const Path &input = inputFiles.at(i);
-        if (!isIndexed(input, arguments, projectRoot)) {
-            proj->indexer->index(input, arguments, IndexerJob::Makefile);
+        if (!isIndexed(input, arguments, proj->second)) {
+            proj->second->indexer->index(input, arguments, IndexerJob::Makefile);
         } else {
             debug() << input << " is not dirty. ignoring";
         }
@@ -919,7 +967,7 @@ void Server::onMakefileModified(const Path &path)
 void Server::onMakefileRemoved(const Path &path)
 {
     mMakefiles.remove(path);
-    ScopedDB general = Server::instance()->db(Server::General, Server::Write);
+    ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
     general->setValue("makefiles", mMakefiles);
 }
 
@@ -965,96 +1013,60 @@ ByteArray Server::completions(const QueryMessage &query)
 }
 void Server::onJobsComplete(Indexer *indexer)
 {
-    if (!mCurrentProject) {
+    if (!currentProject()) {
         setCurrentProject(indexer->srcRoot());
     }
 }
 
-ScopedDB Server::db(DatabaseType type, Server::DatabaseLockType lockType, const Path &root) const
+ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType) const
 {
-    ReadWriteLock::LockType l;
-    bool erase = false;
-    switch (lockType) {
-    case Read:
-        l = ReadWriteLock::Read;
-        break;
-    case Erase:
-        erase = true;
-        l = ReadWriteLock::Write;
-        break;
-    case Write:
-        l = ReadWriteLock::Write;
-        break;
-    }
-    if (type >= static_cast<int>(ProjectSpecificDatabaseTypeCount)) {
-        assert(root.isEmpty());
-        return ScopedDB(mDBs[type - ProjectSpecificDatabaseTypeCount], l, erase);
-    }
-    Project *proj = mProjects.value(root, mCurrentProject);
-    if (!proj) {
-        // error() << "No DB here " << root << " " << type << " " << lockType;
-        return ScopedDB();
-    }
-    return ScopedDB(proj->databases[type], l, erase);
+    return ScopedDB(mDBs[type], lockType);
 }
 
-std::tr1::shared_ptr<Indexer> Server::currentIndexer() const
+Map<Path, shared_ptr<Project> >::const_iterator Server::setCurrentProject(const Path &path)
 {
-    return mCurrentProject ? mCurrentProject->indexer : std::tr1::shared_ptr<Indexer>();
-}
-
-std::tr1::shared_ptr<GRTags> Server::currentGRTags() const
-{
-    return mCurrentProject ? mCurrentProject->grtags : std::tr1::shared_ptr<GRTags>();
-}
-
-bool Server::setCurrentProject(const Path &path)
-{
-    Project *project = mProjects.value(path);
-    if (project) {
-        setCurrentProject(project);
-        return true;
+    Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.find(path);
+    if (it != mProjects.end()) {
+        setCurrentProject(it);
     }
-    return false;
+    return it;
 }
 
-Server::Project *Server::initProject(const Path &path, unsigned flags)
+Map<Path, shared_ptr<Project> >::const_iterator Server::initProject(const Path &path, unsigned flags)
 {
-    Project *&project = mProjects[path];
+    shared_ptr<Project> &project = mProjects[path];
     if (!project) {
         Path tmp = path;
         if (!RTags::encodePath(tmp)) {
             error("Invalid folder name %s", path.constData());
-            return 0;
+            return mProjects.end();
         }
         tmp.append('/');
-        project = new Project;
+        project.reset(new Project);
         project->projectPath = mProjectsDir + tmp;
         Path::mkdir(project->projectPath);
     }
-    Project *prev = setCurrentProject(project);
     if (flags & EnableIndexer && !project->indexer) {
-        for (int i=0; i<GRFiles; ++i) {
-            const unsigned f = (i == Server::Symbol ? Database::LocationKeys : Database::NoFlag);
+        for (int i=0; i<Project::GRFiles; ++i) {
+            const unsigned f = (i == Project::Symbol ? Database::LocationKeys : Database::NoFlag);
             assert(!project->databases[i]);
             project->databases[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(), mOptions.cacheSizeMB, f);
         }
-        project->indexer.reset(new Indexer);
-        project->indexer->init(path, mCurrentProject->projectPath, !(mOptions.options & NoValidateOnStartup));
+        project->indexer = new Indexer;
+        project->indexer->init(project, !(mOptions.options & NoValidateOnStartup));
         project->indexer->jobsComplete().connect(this, &Server::onJobsComplete);
     }
     if (flags & EnableGRTags && !project->grtags) {
-        for (int i=GRFiles; i<=GR; ++i) {
+        for (int i=Project::GRFiles; i<=Project::GR; ++i) {
             assert(!project->databases[i]);
             project->databases[i] = new Database(databaseDir(static_cast<DatabaseType>(i)).constData(),
                                                  mOptions.cacheSizeMB, Database::NoFlag);
         }
 
-        project->grtags.reset(new GRTags(path));
-        project->grtags->init();
+        project->grtags = new GRTags;
+        project->grtags->init(project);
     }
-    setCurrentProject(prev);
-    return project;
+    return mProjects.find(path); // ### nasty
 }
 
 Path::VisitResult Server::projectsVisitor(const Path &path, void *server)
@@ -1068,8 +1080,8 @@ Path::VisitResult Server::projectsVisitor(const Path &path, void *server)
 
     Path p = path.mid(RTags::rtagsDir().size() + 9);
     RTags::decodePath(p);
-    Project *proj = s->initProject(p, EnableIndexer);
-    if (!s->mCurrentProject)
+    Map<Path, shared_ptr<Project> >::const_iterator proj = s->initProject(p, EnableIndexer);
+    if (!s->currentProject())
         s->setCurrentProject(proj);
     return Path::Continue;
 }
@@ -1077,11 +1089,11 @@ Path::VisitResult Server::projectsVisitor(const Path &path, void *server)
 bool Server::updateProjectForLocation(const Location &location)
 {
     const Path path = location.path();
-    Map<Path, Project*>::const_iterator it = mProjects.lower_bound(path);
+    Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.lower_bound(path);
     if (it != mProjects.begin()) {
         --it;
         if (!strncmp(it->first.constData(), path.constData(), it->first.size())) {
-            setCurrentProject(it->second);
+            setCurrentProject(it);
             return true;
         }
     }
@@ -1089,16 +1101,17 @@ bool Server::updateProjectForLocation(const Location &location)
     return false;
 }
 
-Server::Project *Server::setCurrentProject(Project *project)
+Map<Path, shared_ptr<Project> >::const_iterator Server::setCurrentProject(const Map<Path, shared_ptr<Project> >::const_iterator &it)
 {
-    if (project) {
-        ByteArray srcRoot = project->srcRoot();
+    if (it != mProjects.end()) {
+        ByteArray srcRoot = it->second->srcRoot;
         if (!srcRoot.isEmpty()) {
-            ScopedDB general = Server::instance()->db(Server::General, Server::Write);
+            ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
             general->setValue<ByteArray>("currentProject", srcRoot);
         }
     }
-    std::swap(project, mCurrentProject);
-    return project;
+    Map<Path, shared_ptr<Project> >::const_iterator old = mCurrentProject;
+    mCurrentProject = it;
+    return old;
 }
 

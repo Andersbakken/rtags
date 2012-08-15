@@ -10,12 +10,12 @@
 #include "QueryMessage.h"
 #include "Connection.h"
 #include "ThreadPool.h"
-#include "Job.h"
 #include "RTags.h"
 #include "ScopedDB.h"
 #include "EventReceiver.h"
 #include "MakefileInformation.h"
 #include "GRTags.h"
+#include "Project.h"
 
 class GRTagMessage;
 class Connection;
@@ -29,6 +29,7 @@ class Database;
 class GccArguments;
 class MakefileParser;
 class Completions;
+class Job;
 class Server : public EventReceiver
 {
 public:
@@ -43,28 +44,15 @@ public:
         ClearDatadir = 0x8
     };
     enum DatabaseType {
-        Symbol,
-        SymbolName,
-        Dependency,
-        FileInformation,
-        GRFiles,
-        GR,
         General,
         FileIds,
-        DatabaseTypeCount,
-        ProjectSpecificDatabaseTypeCount = GR + 1
+        DatabaseTypeCount
     };
-    enum DatabaseLockType {
-        Read = ReadWriteLock::Read,
-        Write = ReadWriteLock::Write,
-        Erase
-    };
-    ScopedDB db(DatabaseType type, DatabaseLockType lockType, const Path &path = Path()) const;
+
+    ScopedDB db(DatabaseType type, ReadWriteLock::LockType lockType) const;
     ThreadPool *threadPool() const { return mThreadPool; }
     void startJob(Job *job);
-    Path databaseDir(DatabaseType type);
-    std::tr1::shared_ptr<Indexer> currentIndexer() const;
-    std::tr1::shared_ptr<GRTags> currentGRTags() const;
+    Path databaseDir(DatabaseType type) const;
     struct Options {
         Options() : options(0), cacheSizeMB(0), maxCompletionUnits(0), threadCount(0) {}
         Path path;
@@ -84,9 +72,8 @@ private:
     Path projectsPath() const;
     void onNewConnection();
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
-    bool setCurrentProject(const Path &path);
-    struct Project;
-    Project *setCurrentProject(Project *project);
+    Map<Path, shared_ptr<Project> >::const_iterator setCurrentProject(const Path &path);
+    Map<Path, shared_ptr<Project> >::const_iterator setCurrentProject(const Map<Path, shared_ptr<Project> >::const_iterator &it);
     void onJobsComplete(Indexer *indexer);
     void event(const Event *event);
     void onFileReady(const GccArguments &file, MakefileParser *parser);
@@ -98,13 +85,12 @@ private:
     void make(const Path &path, List<ByteArray> makefileArgs = List<ByteArray>(),
               const List<ByteArray> &extraFlags = List<ByteArray>(), Connection *conn = 0);
     void clearDataDir();
-    struct Project;
     enum InitProjectFlag {
         EnableNone = 0x0,
         EnableIndexer = 0x1,
         EnableGRTags = 0x2
     };
-    Project *initProject(const Path &path, unsigned flags);
+    Map<Path, shared_ptr<Project> >::const_iterator initProject(const Path &path, unsigned flags);
     static Path::VisitResult projectsVisitor(const Path &path, void *);
     void handleMakefileMessage(MakefileMessage *message, Connection *conn);
     void handleGRTagMessage(GRTagMessage *message, Connection *conn);
@@ -129,7 +115,8 @@ private:
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);
     ByteArray completions(const QueryMessage &query);
     bool updateProjectForLocation(const Location &location);
-private:
+    shared_ptr<Project> currentProject() const { return mCurrentProject == mProjects.end() ? shared_ptr<Project>() : mCurrentProject->second; }
+
     static Server *sInstance;
     Options mOptions;
     LocalServer *mServer;
@@ -138,37 +125,11 @@ private:
     bool mVerbose;
     int mJobId;
     Map<Path, MakefileInformation> mMakefiles;
-    Set<Path> mGRTags;
     FileSystemWatcher mMakefilesWatcher;
-    Database *mDBs[DatabaseTypeCount - ProjectSpecificDatabaseTypeCount];
-    struct Project {
-        Project()
-        {
-            memset(databases, 0, sizeof(databases));
-        }
+    Database *mDBs[DatabaseTypeCount];
 
-        ~Project()
-        {
-            for (int i=0; i<ProjectSpecificDatabaseTypeCount; ++i) {
-                delete databases[i];
-            }
-        }
-        Path projectPath;
-        Database *databases[ProjectSpecificDatabaseTypeCount];
-        std::tr1::shared_ptr<Indexer> indexer;
-        std::tr1::shared_ptr<GRTags> grtags;
-        inline ByteArray srcRoot() const
-        {
-            if (indexer)
-                return indexer->srcRoot();
-            if (grtags)
-                return grtags->srcRoot();
-            return ByteArray();
-        }
-    };
-
-    Map<Path, Project*> mProjects;
-    Project *mCurrentProject;
+    Map<Path, shared_ptr<Project> > mProjects;
+    Map<Path, shared_ptr<Project> >::const_iterator mCurrentProject;
     Path mProjectsDir;
     ThreadPool *mThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;

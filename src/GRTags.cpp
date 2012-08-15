@@ -4,20 +4,23 @@
 #include "Indexer.h"
 #include "GRParseJob.h"
 
-GRTags::GRTags(const Path &srcRoot)
-    : mSrcRoot(srcRoot), mWatcher(new FileSystemWatcher)
+GRTags::GRTags()
+    : mWatcher(new FileSystemWatcher)
 {
     mWatcher->modified().connect(this, &GRTags::onDirectoryModified);
-    assert(mSrcRoot.endsWith('/'));
 }
 
-void GRTags::init()
+void GRTags::init(const shared_ptr<Project> &proj)
 {
-    ScopedDB db = Server::instance()->db(Server::GRFiles, Server::Write, mSrcRoot);
-    RTags::Ptr<Iterator> it(db->createIterator());
+    mProject = proj;
+    mSrcRoot = proj->srcRoot;
+    assert(mSrcRoot.endsWith('/'));
+
+    ScopedDB database = proj->db(Project::GRFiles, ReadWriteLock::Write);
+    RTags::Ptr<Iterator> it(database->createIterator());
     it->seekToFirst();
     {
-        Batch batch(db);
+        Batch batch(database);
         while (it->isValid()) {
             const ByteArray fileName = it->key().byteArray();
             const Path path = mSrcRoot + fileName;
@@ -49,8 +52,8 @@ void GRTags::recurseDirs()
 
 void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
 {
-    ScopedDB db = Server::instance()->db(Server::GRFiles, Server::Write, mSrcRoot);
-    RTags::Ptr<Iterator> it(db->createIterator());
+    ScopedDB database = mProject->db(Project::GRFiles, ReadWriteLock::Write);
+    RTags::Ptr<Iterator> it(database->createIterator());
     it->seekToFirst();
     Path p = mSrcRoot;
     p.reserve(PATH_MAX);
@@ -59,7 +62,7 @@ void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
         p.append(slice.data(), slice.size());
         const Map<Path, bool>::iterator found = paths.find(p);
         if (found == paths.end()) { // file is removed
-            remove(p, &db, 0);
+            remove(p, &database, 0);
         } else {
             paths.erase(found);
         }
@@ -85,22 +88,22 @@ void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Locati
     }
     const Path dir = file.parentDir();
     const Slice fileName(file.constData() + mSrcRoot.size(), file.size() - mSrcRoot.size());
-    ScopedDB db = Server::instance()->db(Server::GRFiles, Server::Write, mSrcRoot);
+    ScopedDB database = mProject->db(Project::GRFiles, ReadWriteLock::Write);
     Map<ByteArray, time_t> &files = mFiles[dir];
     files[fileName.byteArray()] = parseTime;
     if (files.size() == 1)
         mWatcher->watch(dir);
-    db->setValue(fileName, parseTime);
-    db = Server::instance()->db(Server::GR, Server::Write, mSrcRoot);
+    database->setValue(fileName, parseTime);
+    database = mProject->db(Project::GR, ReadWriteLock::Write);
     if (job->flags() & GRParseJob::Dirty) {
-        dirty(Location::fileId(file), db);
+        dirty(Location::fileId(file), database);
     }
 
     // for the Dirty case we could do it in one pass instead of two
-    Batch batch(db);
+    Batch batch(database);
     for (Map<ByteArray, Map<Location, bool> >::const_iterator it = entries.begin(); it != entries.end(); ++it) {
         const Map<Location, bool> val = it->second;
-        Map<Location, bool> old = db->value<Map<Location, bool> >(it->first);
+        Map<Location, bool> old = database->value<Map<Location, bool> >(it->first);
         for (Map<Location, bool>::const_iterator i = val.begin(); i != val.end(); ++i) {
             old[i->first] = i->second;
         }
@@ -142,12 +145,12 @@ void GRTags::onDirectoryModified(const Path &path)
 
 void GRTags::remove(const Path &file, ScopedDB *grfiles, ScopedDB *gr)
 {
-    ScopedDB db = (grfiles ? *grfiles : Server::instance()->db(Server::GRFiles, Server::Write, mSrcRoot));
-    RTags::Ptr<Iterator> it(db->createIterator());
+    ScopedDB database = (grfiles ? *grfiles : mProject->db(Project::GRFiles, ReadWriteLock::Write));
+    RTags::Ptr<Iterator> it(database->createIterator());
     const Slice key(file.constData() + mSrcRoot.size(), file.size() - mSrcRoot.size());
-    db->remove(key);
-    db = (gr ? *gr : Server::instance()->db(Server::GR, Server::Write, mSrcRoot));
-    dirty(Location::fileId(file), db);
+    database->remove(key);
+    database = (gr ? *gr : mProject->db(Project::GR, ReadWriteLock::Write));
+    dirty(Location::fileId(file), database);
 }
 
 void GRTags::dirty(uint32_t fileId, ScopedDB &db)

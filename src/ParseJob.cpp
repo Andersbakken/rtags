@@ -1,7 +1,7 @@
 #include "ParseJob.h"
 
-ParseJob::ParseJob(const QueryMessage &query)
-    : Job(query, WriteUnfiltered), mPath(query.query())
+ParseJob::ParseJob(const QueryMessage &query, const shared_ptr<Project> &project)
+    : Job(query, WriteUnfiltered, project), mPath(query.query())
 {
 }
 
