@@ -1,12 +1,12 @@
-#include "GRTagMessage.h"
+#include "GRTagsMessage.h"
 #include <Serializer.h>
 
-GRTagMessage::GRTagMessage(const Path &dir)
+GRTagsMessage::GRTagsMessage(const Path &dir)
     : mPath(dir)
 {
 }
 
-ByteArray GRTagMessage::encode() const
+ByteArray GRTagsMessage::encode() const
 {
     ByteArray data;
     {
@@ -16,7 +16,7 @@ ByteArray GRTagMessage::encode() const
     return data;
 }
 
-void GRTagMessage::fromData(const char *data, int size)
+void GRTagsMessage::fromData(const char *data, int size)
 {
     Deserializer stream(data, size);
     stream >> mPath;

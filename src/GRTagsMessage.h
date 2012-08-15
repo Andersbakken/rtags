@@ -1,17 +1,17 @@
-#ifndef GRTagMessage_h
-#define GRTagMessage_h
+#ifndef GRTagsMessage_h
+#define GRTagsMessage_h
 
 #include <List.h>
 #include <ByteArray.h>
 #include "Message.h"
 #include "RTags.h"
 
-class GRTagMessage : public Message
+class GRTagsMessage : public Message
 {
 public:
     enum { MessageId = 7 };
 
-    GRTagMessage(const Path &path = Path());
+    GRTagsMessage(const Path &path = Path());
 
     virtual int messageId() const { return MessageId; }
 

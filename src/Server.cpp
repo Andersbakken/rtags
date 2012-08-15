@@ -34,7 +34,7 @@
 #include "TestJob.h"
 #include "leveldb/cache.h"
 #include "leveldb/db.h"
-#include "GRTagMessage.h"
+#include "GRTagsMessage.h"
 #include <Log.h>
 #include <clang-c/Index.h>
 #include <dirent.h>
@@ -232,8 +232,8 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case MakefileMessage::MessageId:
         handleMakefileMessage(static_cast<MakefileMessage*>(message), connection);
         break;
-    case GRTagMessage::MessageId:
-        handleGRTagMessage(static_cast<GRTagMessage*>(message), connection);
+    case GRTagsMessage::MessageId:
+        handleGRTagMessage(static_cast<GRTagsMessage*>(message), connection);
         break;
     case QueryMessage::MessageId:
         handleQueryMessage(static_cast<QueryMessage*>(message), connection);
@@ -262,7 +262,7 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
     make(message->makefile(), message->arguments(), message->extraFlags(), conn);
 }
 
-void Server::handleGRTagMessage(GRTagMessage *message, Connection *conn)
+void Server::handleGRTagMessage(GRTagsMessage *message, Connection *conn)
 {
     const Path dir = message->path();
     initProject(dir, EnableGRTags);

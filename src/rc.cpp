@@ -2,7 +2,7 @@
 #include "QueryMessage.h"
 #include "CreateOutputMessage.h"
 #include "MakefileMessage.h"
-#include "GRTagMessage.h"
+#include "GRTagsMessage.h"
 #include "EventLoop.h"
 #include "RTags.h"
 #include <ByteArray.h>
@@ -176,7 +176,7 @@ struct GRTagCommand : public Command
             error() << directory << "is not a file";
             return;
         }
-        GRTagMessage msg(directory);
+        GRTagsMessage msg(directory);
         client->message(&msg);
     }
     virtual ByteArray description() const

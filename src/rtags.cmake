@@ -80,7 +80,7 @@ set(rtags_HDRS
     GRTags.h
     GRParser.h
     GRParseJob.h
-    GRTagMessage.h
+    GRTagsMessage.h
     Project.h
     )
 
@@ -133,7 +133,7 @@ set(rtags_SRCS
     GRTags.cpp
     GRParser.cpp
     GRParseJob.cpp
-    GRTagMessage.cpp
+    GRTagsMessage.cpp
     Project.cpp
 )
 

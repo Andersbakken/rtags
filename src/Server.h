@@ -17,7 +17,7 @@
 #include "GRTags.h"
 #include "Project.h"
 
-class GRTagMessage;
+class GRTagsMessage;
 class Connection;
 class Indexer;
 class Message;
@@ -92,7 +92,7 @@ private:
     shared_ptr<Project> initProject(const Path &path, unsigned flags);
     static Path::VisitResult projectsVisitor(const Path &path, void *);
     void handleMakefileMessage(MakefileMessage *message, Connection *conn);
-    void handleGRTagMessage(GRTagMessage *message, Connection *conn);
+    void handleGRTagMessage(GRTagsMessage *message, Connection *conn);
     void handleQueryMessage(QueryMessage *message, Connection *conn);
     void handleErrorMessage(ErrorMessage *message, Connection *conn);
     void handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn);

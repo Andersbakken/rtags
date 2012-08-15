@@ -22,6 +22,8 @@ FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &p
 void FindFileJob::execute()
 {
     shared_ptr<Project> proj = project();
+    if (!proj || !proj->grtags)
+        return;
     const Path &srcRoot = proj->srcRoot;
 
     enum Mode {

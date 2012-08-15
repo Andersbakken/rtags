@@ -44,6 +44,7 @@ void Messages::init()
     registerMessage<ResponseMessage>();
     registerMessage<CreateOutputMessage>();
     registerMessage<MakefileMessage>();
+    registerMessage<GRTagsMessage>();
 }
 
 Message * Messages::create(const char *data, int size)

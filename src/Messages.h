@@ -6,6 +6,7 @@
 #include "ErrorMessage.h"
 #include "ResponseMessage.h"
 #include "CreateOutputMessage.h"
+#include "GRTagsMessage.h"
 
 class Messages
 {
