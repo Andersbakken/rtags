@@ -15,7 +15,7 @@ Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project>
 }
 
 Job::Job(unsigned jobFlags, const shared_ptr<Project> &proj)
-    : mJobFlags(jobFlags), mQueryFlags(0), mProject(proj)
+    : mId(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj)
 {
     setAutoDelete(true);
 }
