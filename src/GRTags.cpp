@@ -32,7 +32,7 @@ void GRTags::init(const shared_ptr<Project> &proj)
                 const time_t modified = path.lastModified();
                 const Path dir = path.parentDir();
                 Map<ByteArray, time_t> &files = mFiles[dir];
-                files[fileName] = value;
+                files[path.fileName()] = value;
                 if (files.size() == 1) {
                     mWatcher->watch(dir);
                 }
@@ -84,8 +84,11 @@ void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
             printf("%s %s was found which wasn't there before, parsing\n", __FUNCTION__, i->first.constData());
             parse(i->first, GRParseJob::None); // not dirty
         } else {
-            Map<ByteArray, time_t> &files = mFiles[i->first.parentDir()];
+            const Path dir = i->first.parentDir();
+            Map<ByteArray, time_t> &files = mFiles[dir];
             files[i->first.fileName()] = 0;
+            if (files.size() == 1)
+                mWatcher->watch(dir);
         }
     }
 }
@@ -117,12 +120,12 @@ void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Locati
     shared_ptr<Project> project = mProject.lock();
     ScopedDB database = project->db(Project::GRFiles, ReadWriteLock::Write);
     Map<ByteArray, time_t> &files = mFiles[dir];
-    const ByteArray fn = fileName.byteArray();
-    files[fn] = parseTime;
+    printf("%s %s %d\n", file.constData(), dir.constData(), files.size());
+    files[file.fileName()] = parseTime;
     if (files.size() == 1)
         mWatcher->watch(dir);
     database->setValue(fileName, parseTime);
-    printf("Setting value of %s to %s\n", fn.constData(), RTags::timeToString(parseTime).constData());
+    printf("Setting value of %s to %s\n", fileName.byteArray().constData(), RTags::timeToString(parseTime).constData());
     assert(database->value<time_t>(fileName) == parseTime);
     database.reset();
     {
@@ -150,6 +153,7 @@ void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Locati
 
 void GRTags::onDirectoryModified(const Path &path)
 {
+    printf("%s modified\n", path.constData());
     Map<ByteArray, time_t> &files = mFiles[path];
     Path p(path);
     p.resize(PATH_MAX); // this is okay because stat(2) is called with a null terminated string, not Path::size()
@@ -161,7 +165,7 @@ void GRTags::onDirectoryModified(const Path &path)
         // printf("%s\n", key.constData());
         if (key.size() < PATH_MAX - path.size()) {
             strncpy(dest, key.nullTerminated(), key.size() + 1);
-            // printf("%s %ld\n", p.constData(), it->second);
+            printf("%s %ld\n", p.constData(), it->second);
             const time_t lastModified = p.lastModified(); // 0 means failed to stat so probably removed
             if (!lastModified) {
                 printf("%s Removing %s\n", __FUNCTION__, p.constData());
@@ -187,9 +191,13 @@ void GRTags::onDirectoryModified(const Path &path)
 
 void GRTags::remove(const Path &file, ScopedDB *grfiles)
 {
+    const Path dir = file.parentDir();
+    Map<ByteArray, time_t> &map = mFiles[dir];
+    map.remove(file.fileName());
+    if (map.isEmpty())
+        mFiles.remove(dir);
     shared_ptr<Project> project = mProject.lock();
     ScopedDB database = (grfiles ? *grfiles : project->db(Project::GRFiles, ReadWriteLock::Write));
-    RTags::Ptr<Iterator> it(database->createIterator());
     const Slice key(file.constData() + mSrcRoot.size(), file.size() - mSrcRoot.size());
     database->remove(key);
     database.reset();
