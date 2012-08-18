@@ -3,7 +3,7 @@
 #include "Server.h"
 #include "Indexer.h"
 #include "GRParseJob.h"
- #include <math.h>
+#include <math.h>
 
 GRTags::GRTags()
     : mWatcher(new FileSystemWatcher), mCount(0), mActive(0)
@@ -20,11 +20,9 @@ void GRTags::init(const shared_ptr<Project> &proj)
     ScopedDB database = proj->db(Project::GRFiles, ReadWriteLock::Write);
     RTags::Ptr<Iterator> it(database->createIterator());
     it->seekToFirst();
-    bool existing = false;
     {
         Batch batch(database);
         while (it->isValid()) {
-            existing = true;
             const ByteArray fileName = it->key().byteArray();
             const Path path = mSrcRoot + fileName;
             if (!path.exists()) {
@@ -43,9 +41,7 @@ void GRTags::init(const shared_ptr<Project> &proj)
         }
     }
     database.reset();
-    if (!existing)
-        recurseDirs();
-    error() << mWatcher->watchedPaths();
+    recurseDirs();
 }
 
 void GRTags::recurseDirs()
@@ -57,7 +53,6 @@ void GRTags::recurseDirs()
 
 void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
 {
-    error() << paths;
     // paths are absolute
     shared_ptr<Project> project = mProject.lock();
     ScopedDB database = project->db(Project::GRFiles, ReadWriteLock::Write);
@@ -65,12 +60,7 @@ void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
     it->seekToFirst();
     Path p = mSrcRoot;
     p.reserve(PATH_MAX);
-    bool first = true;
     while (it->isValid()) {
-        if (!first) {
-            p.resize(mSrcRoot.size());
-            first = false;
-        }
         const Slice slice = it->key();
         p.append(slice.data(), slice.size());
         const Map<Path, bool>::iterator found = paths.find(p);
@@ -79,6 +69,7 @@ void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
         } else {
             paths.erase(found);
         }
+        p.resize(mSrcRoot.size());
         it->next();
     }
     for (Map<Path, bool>::const_iterator i = paths.begin(); i != paths.end(); ++i) {
@@ -150,7 +141,7 @@ void GRTags::onDirectoryModified(const Path &path)
                 continue;
             }
             if (it->second && lastModified > it->second) {
-                parse(Path(p.constData(), strlen(p.constData())), GRParseJob::Dirty);
+                parse(Path(p.constData(), path.size() + key.size()), GRParseJob::Dirty);
                 // without this we end up with Path with 4096 bytes in it
             }
         }
