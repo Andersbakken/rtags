@@ -54,6 +54,11 @@ void GRTags::enableParsing()
         }
         mFlags |= Parse;
     }
+    {
+        ScopedDB database = mProject.lock()->db(Project::GRFiles, ReadWriteLock::Write);
+        mFiles.clear();
+    }
+
     recurseDirs();
 }
 
