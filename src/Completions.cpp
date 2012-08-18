@@ -73,6 +73,7 @@ ByteArray Completions::completions(const Location &loc, unsigned queryFlags, con
     // }
     // const ByteArray result = completion(entry, loc.offset());
     // return result;
+    return ByteArray();
 }
 ByteArray Completions::completion(const Entry *entry, uint32_t offset)
 {
