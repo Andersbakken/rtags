@@ -89,7 +89,7 @@ bool Server::init(const Options &options)
     mThreadPool = new ThreadPool(options.threadCount);
 
     mMakefilesWatcher.modified().connect(this, &Server::onMakefileModified);
-    mMakefilesWatcher.removed().connect(this, &Server::onMakefileRemoved);
+    // mMakefilesWatcher.removed().connect(this, &Server::onMakefileRemoved);
 
     mOptions = options;
     if (!(options.options & NoClangIncludePath)) {
@@ -98,7 +98,7 @@ bool Server::init(const Options &options)
         mOptions.defaultArguments.append(clangPath);
     }
 
-    mCompletions = new Completions(mOptions.maxCompletionUnits);
+    // mCompletions = new Completions(mOptions.maxCompletionUnits);
 
     mProjectsDir = mOptions.path + "projects/";
 
@@ -1015,6 +1015,7 @@ void Server::event(const Event *event)
 
 ByteArray Server::completions(const QueryMessage &query)
 {
+    return ByteArray();
     const Location loc = Location::decodeClientLocation(query.query());
     if (loc.isNull()) {
         return ByteArray();

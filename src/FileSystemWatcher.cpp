@@ -60,7 +60,7 @@ bool FileSystemWatcher::watch(const Path &path)
     switch (type) {
 #if defined(HAVE_INOTIFY)
     case Path::File:
-        flags = IN_MODIFY|IN_DELETE_SELF|IN_MOVE_SELF|IN_ATTRIB; // ### qt uses IN_MOVE on file which makes no sense to me
+        flags = IN_MODIFY|IN_DELETE_SELF|IN_MOVE_SELF|IN_ATTRIB|IN_MOVE|IN_DELETE;
         break;
     case Path::Directory:
         flags = IN_MOVE|IN_CREATE|IN_DELETE|IN_DELETE_SELF|IN_ATTRIB;
@@ -80,7 +80,7 @@ bool FileSystemWatcher::watch(const Path &path)
         return false;
     }
 #if defined(HAVE_INOTIFY)
-    const int ret = inotify_add_watch(mFd, path.constData(), flags);
+    const int ret = inotify_add_watch(mFd, path.nullTerminated(), flags);
 #elif defined(HAVE_KQUEUE)
     int ret = ::open(path.nullTerminated(), O_RDONLY);
     if (ret != -1) {
@@ -133,9 +133,43 @@ bool FileSystemWatcher::unwatch(const Path &path)
     }
 }
 
+#if defined(HAVE_INOTIFY)
+static inline void dump(unsigned mask)
+{
+    if (mask & IN_ACCESS)
+        printf("IN_ACCESS ");
+    if (mask & IN_MODIFY)
+        printf("IN_MODIFY ");
+    if (mask & IN_ATTRIB)
+        printf("IN_ATTRIB ");
+    if (mask & IN_CLOSE_WRITE)
+        printf("IN_CLOSE_WRITE ");
+    if (mask & IN_CLOSE_NOWRITE)
+        printf("IN_CLOSE_NOWRITE ");
+    if (mask & IN_CLOSE)
+        printf("IN_CLOSE ");
+    if (mask & IN_OPEN)
+        printf("IN_OPEN ");
+    if (mask & IN_MOVED_FROM)
+        printf("IN_MOVED_FROM ");
+    if (mask & IN_MOVED_TO)
+        printf("IN_MOVED_TO ");
+    if (mask & IN_MOVE)
+        printf("IN_MOVE ");
+    if (mask & IN_CREATE)
+        printf("IN_CREATE ");
+    if (mask & IN_DELETE)
+        printf("IN_DELETE ");
+    if (mask & IN_DELETE_SELF)
+        printf("IN_DELETE_SELF ");
+    if (mask & IN_MOVE_SELF)
+        printf("IN_MOVE_SELF ");
+}
+#endif
+
 void FileSystemWatcher::notifyReadyRead()
 {
-    Map<Path, bool> notifications;
+    Map<Path, unsigned> changes;
 #if defined(HAVE_INOTIFY)
     {
         MutexLocker lock(&mMutex);
@@ -148,10 +182,14 @@ void FileSystemWatcher::notifyReadyRead()
         char staticBuf[StaticBufSize];
         char *buf = s > StaticBufSize ? new char[s] : staticBuf;
         const int read = ::read(mFd, buf, s);
+        // printf("Read %d bytres out of %d\n", read, s);
         int idx = 0;
         Map<int, inotify_event *> events;
         while (idx < read) {
             inotify_event *event = reinterpret_cast<inotify_event*>(buf + idx);
+            printf("foo: %s ", event->name);
+            dump(event->mask);
+            printf("\n");
             inotify_event *&ev = events[event->wd];
             if (!ev) {
                 ev = event;
@@ -168,14 +206,27 @@ void FileSystemWatcher::notifyReadyRead()
                 warning() << "FileSystemWatcher::notifyReadyRead() We don't seem to be watching " << p;
                 continue;
             }
-            if (event->mask & (IN_DELETE_SELF|IN_MOVE_SELF|IN_UNMOUNT)) {
-                mWatchedById.remove(event->wd);
-                mWatchedByPath.remove(p);
-                inotify_rm_watch(mFd, event->wd);
-                notifications[p] = true;
-            } else {
-                notifications[p] = false;
-            }
+            unsigned &c = changes[p];
+            if (event->mask & (IN_DELETE_SELF|IN_MOVE_SELF|IN_UNMOUNT))
+                c |= SelfRemoved;
+            if (event->mask & IN_CREATE)
+                c |= SubAdded;
+            if (event->mask & IN_DELETE)
+                c |= SubRemoved;
+            if (event->mask & IN_ATTRIB)
+                c |= Modified;
+            printf("%s ", p.constData());
+            dump(event->mask);
+            printf("0x%x\n", c);
+
+            // if (event->mask & (IN_DELETE_SELF|IN_MOVE_SELF|IN_UNMOUNT)) {
+            //     mWatchedById.remove(event->wd);
+            //     mWatchedByPath.remove(p);
+            //     inotify_rm_watch(mFd, event->wd);
+            //     notifications[p] = true;
+            // } else {
+            //     notifications[p] = false;
+            // }
         }
         if (buf != staticBuf)
             delete []buf;
@@ -227,11 +278,7 @@ void FileSystemWatcher::notifyReadyRead()
         }
     }
 #endif
-    for (Map<Path, bool>::const_iterator it = notifications.begin(); it != notifications.end(); ++it) {
-        if (it->second) {
-            mRemoved(it->first);
-        } else {
-            mModified(it->first);
-        }
+    for (Map<Path, unsigned>::const_iterator it = changes.begin(); it != changes.end(); ++it) {
+        mChanged(it->first, it->second);
     }
 }
