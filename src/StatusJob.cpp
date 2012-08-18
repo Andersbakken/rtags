@@ -180,35 +180,39 @@ void StatusJob::execute()
             write(project()->databaseDir(Project::GRFiles));
             RTags::Ptr<Iterator> it(database->createIterator());
             it->seekToFirst();
-            while (it->isValid()) {
-                if (isAborted())
-                    return;
-                write(it->key().byteArray());
-                it->next();
-            }
-        }
-        if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "gr")) {
-            matched = true;
-            ScopedDB database = db(Project::GR, ReadWriteLock::Read);
-            write(delimiter);
-            write(project()->databaseDir(Project::GR));
-            RTags::Ptr<Iterator> it(database->createIterator());
-            it->seekToFirst();
             char buf[1024];
             while (it->isValid()) {
                 if (isAborted())
                     return;
-                snprintf(buf, sizeof(buf), "  %s:", it->key().byteArray().constData());
-                write(buf);
-                const Map<Location, bool> locations = it->value<Map<Location, bool> >();
-                for (Map<Location, bool>::const_iterator lit = locations.begin(); lit != locations.end(); ++lit) {
-                    snprintf(buf, sizeof(buf), "    %s%s", lit->first.key().constData(), lit->second ? "ref" : "");
-                    write(buf);
-                }
-                it->next();
-            }
+                time_t time = it->value<time_t>();
+                snprintf(buf, sizeof(buf), "    %s %s", it->key().byteArray().nullTerminated(),
+                         time ? RTags::timeToString(time).constData() : "");
+            write(buf);
+            it->next();
         }
     }
+    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "gr")) {
+        matched = true;
+        ScopedDB database = db(Project::GR, ReadWriteLock::Read);
+        write(delimiter);
+        write(project()->databaseDir(Project::GR));
+        RTags::Ptr<Iterator> it(database->createIterator());
+        it->seekToFirst();
+        char buf[1024];
+        while (it->isValid()) {
+            if (isAborted())
+                return;
+            snprintf(buf, sizeof(buf), "  %s:", it->key().byteArray().constData());
+            write(buf);
+            const Map<Location, bool> locations = it->value<Map<Location, bool> >();
+            for (Map<Location, bool>::const_iterator lit = locations.begin(); lit != locations.end(); ++lit) {
+                snprintf(buf, sizeof(buf), "    %s%s", lit->first.key().constData(), lit->second ? "ref" : "");
+                write(buf);
+            }
+            it->next();
+        }
+    }
+}
     if (!matched) {
         write(alternatives);
     }

@@ -17,11 +17,14 @@ public:
     void onDirectoryModified(const Path &path);
     void onRecurseJobFinished(Map<Path, bool> &mPaths);
     void onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Location, bool> > &entries);
-    void remove(const Path &file, ScopedDB *grfiles = 0);
     void dirty(uint32_t fileId, ScopedDB &db);
     void parse(const Path &path, unsigned flags);
+    void addFile(const Path &file, time_t time, ScopedDB *db);
+    void removeFile(const Path &file, ScopedDB *grfiles = 0);
 private:
-    Map<Path, Map<ByteArray, time_t> > mFiles; // key: dir, value: fileName, last modified
+    // key: absolute path to directory, value: Map<fileName, last modified>,
+    // last modified is 0 for non-source files
+    Map<Path, Map<ByteArray, time_t> > mFiles;
     FileSystemWatcher *mWatcher;
     weak_ptr<Project> mProject;
     Path mSrcRoot;

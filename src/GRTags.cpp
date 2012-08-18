@@ -3,7 +3,7 @@
 #include "Server.h"
 #include "Indexer.h"
 #include "GRParseJob.h"
-#include <math.h>
+ #include <math.h>
 
 GRTags::GRTags()
     : mWatcher(new FileSystemWatcher), mCount(0), mActive(0)
@@ -20,34 +20,31 @@ void GRTags::init(const shared_ptr<Project> &proj)
     ScopedDB database = proj->db(Project::GRFiles, ReadWriteLock::Write);
     RTags::Ptr<Iterator> it(database->createIterator());
     it->seekToFirst();
+    bool existing = false;
     {
         Batch batch(database);
         while (it->isValid()) {
+            existing = true;
             const ByteArray fileName = it->key().byteArray();
             const Path path = mSrcRoot + fileName;
             if (!path.exists()) {
                 batch.remove(it->key());
             } else {
                 const time_t value = it->value<time_t>();
-                const time_t modified = path.lastModified();
-                const Path dir = path.parentDir();
-                Map<ByteArray, time_t> &files = mFiles[dir];
-                files[path.fileName()] = value;
-                if (files.size() == 1) {
-                    mWatcher->watch(dir);
-                }
-                if (modified > value) {
-                    printf("%s is dirty last modified %s from db %s (startup) \n", path.constData(),
-                           RTags::timeToString(modified).constData(),
-                           RTags::timeToString(value).constData());
-                    parse(path, GRParseJob::Dirty);
+                addFile(path, value, 0);
+                if (value) {
+                    const time_t modified = path.lastModified();
+                    if (modified > value) {
+                        parse(path, GRParseJob::Dirty);
+                    }
                 }
             }
             it->next();
         }
     }
     database.reset();
-    recurseDirs();
+    if (!existing)
+        recurseDirs();
     error() << mWatcher->watchedPaths();
 }
 
@@ -60,35 +57,34 @@ void GRTags::recurseDirs()
 
 void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
 {
+    error() << paths;
+    // paths are absolute
     shared_ptr<Project> project = mProject.lock();
     ScopedDB database = project->db(Project::GRFiles, ReadWriteLock::Write);
     RTags::Ptr<Iterator> it(database->createIterator());
     it->seekToFirst();
     Path p = mSrcRoot;
     p.reserve(PATH_MAX);
+    bool first = true;
     while (it->isValid()) {
+        if (!first) {
+            p.resize(mSrcRoot.size());
+            first = false;
+        }
         const Slice slice = it->key();
         p.append(slice.data(), slice.size());
         const Map<Path, bool>::iterator found = paths.find(p);
         if (found == paths.end()) { // file is removed
-            printf("%s %s was removed\n", __FUNCTION__, p.constData());
-            remove(p, &database);
+            removeFile(p, &database);
         } else {
             paths.erase(found);
         }
-        p.resize(mSrcRoot.size());
         it->next();
     }
     for (Map<Path, bool>::const_iterator i = paths.begin(); i != paths.end(); ++i) {
+        addFile(i->first, 0, &database);
         if (i->second) {
-            printf("%s %s was found which wasn't there before, parsing\n", __FUNCTION__, i->first.constData());
             parse(i->first, GRParseJob::None); // not dirty
-        } else {
-            const Path dir = i->first.parentDir();
-            Map<ByteArray, time_t> &files = mFiles[dir];
-            files[i->first.fileName()] = 0;
-            if (files.size() == 1)
-                mWatcher->watch(dir);
         }
     }
 }
@@ -112,28 +108,12 @@ void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Locati
         parse(file, job->flags());
         return;
     }
-    printf("%s was parsed, %s parseTime (%s last modified)\n", file.constData(),
-           RTags::timeToString(parseTime).constData(),
-           RTags::timeToString(file.lastModified()).constData());
-    const Path dir = file.parentDir();
-    const Slice fileName(file.constData() + mSrcRoot.size(), file.size() - mSrcRoot.size());
     shared_ptr<Project> project = mProject.lock();
-    ScopedDB database = project->db(Project::GRFiles, ReadWriteLock::Write);
-    Map<ByteArray, time_t> &files = mFiles[dir];
-    printf("%s %s %d\n", file.constData(), dir.constData(), files.size());
-    files[file.fileName()] = parseTime;
-    if (files.size() == 1)
-        mWatcher->watch(dir);
-    database->setValue(fileName, parseTime);
-    printf("Setting value of %s to %s\n", fileName.byteArray().constData(), RTags::timeToString(parseTime).constData());
-    assert(database->value<time_t>(fileName) == parseTime);
-    database.reset();
     {
-        ScopedDB db = project->db(Project::GRFiles, ReadWriteLock::Read);
-        assert(db->value<time_t>(fileName) == parseTime);
+        ScopedDB database = project->db(Project::GRFiles, ReadWriteLock::Write);
+        addFile(file, parseTime, &database);
     }
-
-    database = project->db(Project::GR, ReadWriteLock::Write);
+    ScopedDB database = project->db(Project::GR, ReadWriteLock::Write);
     if (job->flags() & GRParseJob::Dirty) {
         dirty(Location::fileId(file), database);
     }
@@ -153,7 +133,6 @@ void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Locati
 
 void GRTags::onDirectoryModified(const Path &path)
 {
-    printf("%s modified\n", path.constData());
     Map<ByteArray, time_t> &files = mFiles[path];
     Path p(path);
     p.resize(PATH_MAX); // this is okay because stat(2) is called with a null terminated string, not Path::size()
@@ -162,22 +141,17 @@ void GRTags::onDirectoryModified(const Path &path)
     while (it != files.end()) {
         // ### we need to do another recursejob when files are added/removed though
         const ByteArray &key = it->first;
-        // printf("%s\n", key.constData());
         if (key.size() < PATH_MAX - path.size()) {
             strncpy(dest, key.nullTerminated(), key.size() + 1);
-            printf("%s %ld\n", p.constData(), it->second);
             const time_t lastModified = p.lastModified(); // 0 means failed to stat so probably removed
             if (!lastModified) {
-                printf("%s Removing %s\n", __FUNCTION__, p.constData());
-                remove(p);
+                removeFile(p);
                 files.erase(it++);
                 continue;
             }
             if (it->second && lastModified > it->second) {
-                printf("%s %s is dirty lastModified %s files %s\n", __FUNCTION__, p.constData(),
-                       RTags::timeToString(lastModified).constData(),
-                       RTags::timeToString(it->second).constData());
-                parse(p, GRParseJob::Dirty);
+                parse(Path(p.constData(), strlen(p.constData())), GRParseJob::Dirty);
+                // without this we end up with Path with 4096 bytes in it
             }
         }
         ++it;
@@ -189,7 +163,7 @@ void GRTags::onDirectoryModified(const Path &path)
     }
 }
 
-void GRTags::remove(const Path &file, ScopedDB *grfiles)
+void GRTags::removeFile(const Path &file, ScopedDB *grfiles)
 {
     const Path dir = file.parentDir();
     Map<ByteArray, time_t> &map = mFiles[dir];
@@ -242,4 +216,18 @@ void GRTags::parse(const Path &path, unsigned flags)
     GRParseJob *job = new GRParseJob(path, flags);
     job->finished().connect(this, &GRTags::onParseJobFinished);
     Server::instance()->threadPool()->start(job);
+}
+
+void GRTags::addFile(const Path &file, time_t time, ScopedDB *db)
+{
+    const Path dir = file.parentDir();
+    const Path fileName = file.fileName();
+    Map<ByteArray, time_t> &files = mFiles[dir];
+    files[fileName] = time;
+    if (files.size() == 1)
+        mWatcher->watch(dir);
+    if (db) {
+        const Slice fileName(file.constData() + mSrcRoot.size(), file.size() - mSrcRoot.size());
+        (*db)->setValue(fileName, time);
+    }
 }
