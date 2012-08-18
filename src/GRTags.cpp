@@ -1,5 +1,5 @@
 #include "GRTags.h"
-#include "GRRecurseJob.h"
+#include "GRScanJob.h"
 #include "Server.h"
 #include "Indexer.h"
 #include "GRParseJob.h"
@@ -64,7 +64,7 @@ void GRTags::enableParsing()
 
 void GRTags::recurseDirs()
 {
-    GRRecurseJob *job = new GRRecurseJob(mSrcRoot);
+    GRScanJob *job = new GRScanJob(mSrcRoot);
     job->finished().connect(this, &GRTags::onRecurseJobFinished);
     Server::instance()->threadPool()->start(job);
 }
@@ -186,15 +186,20 @@ void GRTags::removeFile(const Path &file, ScopedDB *grfiles)
         mFiles.remove(dir);
     shared_ptr<Project> project = mProject.lock();
     ScopedDB database = (grfiles ? *grfiles : project->db(Project::GRFiles, ReadWriteLock::Write));
+    assert(database.database());
     const Slice key(file.constData() + mSrcRoot.size(), file.size() - mSrcRoot.size());
     database->remove(key);
-    database.reset();
-    database = project->db(Project::GR, ReadWriteLock::Write);
-    dirty(Location::fileId(file), database);
+    if (mFlags & Parse) {
+        database.reset();
+        database = project->db(Project::GR, ReadWriteLock::Write);
+        assert(database.database());
+        dirty(Location::fileId(file), database);
+    }
 }
 
 void GRTags::dirty(uint32_t fileId, ScopedDB &db)
 {
+    assert(db.database());
     Batch batch(db);
     RTags::Ptr<Iterator> it(db->createIterator());
     it->seekToFirst();

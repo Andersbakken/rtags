@@ -1,5 +1,5 @@
-#ifndef GRRecurseJob_h
-#define GRRecurseJob_h
+#ifndef GRScanJob_h
+#define GRScanJob_h
 
 #include "ThreadPool.h"
 #include "AbortInterface.h"
@@ -8,10 +8,10 @@
 #include "signalslot.h"
 #include "ScopedDB.h"
 
-class GRRecurseJob : public ThreadPool::Job, public AbortInterface
+class GRScanJob : public ThreadPool::Job, public AbortInterface
 {
 public:
-    GRRecurseJob(const Path &path);
+    GRScanJob(const Path &path);
     virtual void run();
     signalslot::Signal1<Map<Path, bool> &> &finished() { return mFinished; }
 private:

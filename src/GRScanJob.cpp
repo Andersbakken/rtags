@@ -1,8 +1,8 @@
 #include "GRParser.h"
-#include "GRRecurseJob.h"
+#include "GRScanJob.h"
 #include "Server.h"
 
-GRRecurseJob::GRRecurseJob(const Path &path)
+GRScanJob::GRScanJob(const Path &path)
     : mPath(path)
 {
     if (!mPath.endsWith('/'))
@@ -10,9 +10,9 @@ GRRecurseJob::GRRecurseJob(const Path &path)
 
 }
 
-void GRRecurseJob::run()
+void GRScanJob::run()
 {
-    mPath.visit(&GRRecurseJob::visit, this);
+    mPath.visit(&GRScanJob::visit, this);
     mFinished(mPaths);
 }
 
@@ -57,11 +57,11 @@ static inline FilterResult filter(const Path &path, Path::Type type, int maxSymL
     return File;
 }
 
-Path::VisitResult GRRecurseJob::visit(const Path &path, void *userData)
+Path::VisitResult GRScanJob::visit(const Path &path, void *userData)
 {
     const Path::Type type = path.type();
     const FilterResult result = filter(path, type, 10);
-    GRRecurseJob *recurseJob = reinterpret_cast<GRRecurseJob*>(userData);
+    GRScanJob *recurseJob = reinterpret_cast<GRScanJob*>(userData);
     switch (result) {
     case Filtered:
         return Path::Continue;
