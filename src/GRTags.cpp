@@ -159,8 +159,8 @@ void GRTags::onDirectoryModified(const Path &path)
             strncpy(dest, key.nullTerminated(), key.size() + 1);
             const time_t lastModified = p.lastModified(); // 0 means failed to stat so probably removed
             if (!lastModified) {
+                ++it;
                 removeFile(p);
-                files.erase(it++);
                 continue;
             }
             if (it->second && lastModified > it->second) {
