@@ -6,13 +6,14 @@
 #include <math.h>
 
 GRTags::GRTags()
-    : mWatcher(new FileSystemWatcher), mCount(0), mActive(0)
+    : mWatcher(new FileSystemWatcher), mCount(0), mActive(0), mFlags(0)
 {
     mWatcher->modified().connect(this, &GRTags::onDirectoryModified);
 }
 
-void GRTags::init(const shared_ptr<Project> &proj)
+void GRTags::init(const shared_ptr<Project> &proj, unsigned flags)
 {
+    mFlags = flags;
     mProject = proj;
     mSrcRoot = proj->srcRoot;
     assert(mSrcRoot.endsWith('/'));
@@ -30,7 +31,7 @@ void GRTags::init(const shared_ptr<Project> &proj)
             } else {
                 const time_t value = it->value<time_t>();
                 addFile(path, value, 0);
-                if (value) {
+                if (value && mFlags & Parse) {
                     const time_t modified = path.lastModified();
                     if (modified > value) {
                         parse(path, GRParseJob::Dirty);
@@ -41,6 +42,18 @@ void GRTags::init(const shared_ptr<Project> &proj)
         }
     }
     database.reset();
+    recurseDirs();
+}
+
+void GRTags::enableParsing()
+{
+    {
+        MutexLocker lock(&mMutex);
+        if (mFlags & Parse) {
+            return;
+        }
+        mFlags |= Parse;
+    }
     recurseDirs();
 }
 
@@ -72,9 +85,14 @@ void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
         p.resize(mSrcRoot.size());
         it->next();
     }
+    bool parsingEnabled;
+    {
+        MutexLocker lock(&mMutex);
+        parsingEnabled = mFlags & Parse;
+    }
     for (Map<Path, bool>::const_iterator i = paths.begin(); i != paths.end(); ++i) {
         addFile(i->first, 0, &database);
-        if (i->second) {
+        if (i->second && parsingEnabled) {
             parse(i->first, GRParseJob::None); // not dirty
         }
     }

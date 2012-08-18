@@ -85,7 +85,6 @@ private:
               const List<ByteArray> &extraFlags = List<ByteArray>(), Connection *conn = 0);
     void clearDataDir();
     enum InitProjectFlag {
-        EnableNone = 0x0,
         EnableIndexer = 0x1,
         EnableGRTags = 0x2
     };

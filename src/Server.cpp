@@ -1042,6 +1042,7 @@ shared_ptr<Project> Server::setCurrentProject(const Path &path)
 
 shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
 {
+    // printf("%s %x\n", path.constData(), flags);
     Path tmp = path;
     if (!tmp.endsWith('/'))
         tmp.append('/');
@@ -1067,15 +1068,18 @@ shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
         project->indexer = new Indexer;
         project->indexer->init(project, !(mOptions.options & NoValidateOnStartup));
     }
-    if (flags & EnableGRTags && !project->grtags) {
-        for (int i=Project::GRFiles; i<=Project::GR; ++i) {
-            assert(!project->databases[i]);
+    for (int i=Project::GRFiles; i<=Project::GR; ++i) {
+        if (!project->databases[i] && (i != Project::GR || flags & EnableGRTags)) {
             project->databases[i] = new Database(project->databaseDir(static_cast<Project::DatabaseType>(i)).constData(),
                                                  mOptions.cacheSizeMB, Database::NoFlag);
         }
+    }
 
+    if (!project->grtags) {
         project->grtags = new GRTags;
-        project->grtags->init(project);
+        project->grtags->init(project, flags & EnableGRTags ? GRTags::Parse : GRTags::None);
+    } else if (flags & EnableGRTags) {
+        project->grtags->enableParsing();
     }
 
     return project;
@@ -1084,17 +1088,18 @@ shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
 Path::VisitResult Server::projectsVisitor(const Path &path, void *server)
 {
     Server *s = reinterpret_cast<Server*>(server);
-    unsigned flags = EnableNone;
+    unsigned flags = 0;
     if (Path::resolved("symbols.db", path).isDir())
         flags |= EnableIndexer;
     if (Path::resolved("gr.db", path).isDir())
         flags |= EnableGRTags;
-
-    Path p = path.mid(RTags::rtagsDir().size() + 9);
-    RTags::decodePath(p);
-    shared_ptr<Project> proj = s->initProject(p, flags);
-    if (!s->mCurrentProject && proj)
-        s->mCurrentProject = proj;
+    if (flags) {
+        Path p = path.mid(RTags::rtagsDir().size() + 9);
+        RTags::decodePath(p);
+        shared_ptr<Project> proj = s->initProject(p, flags);
+        if (!s->mCurrentProject && proj)
+            s->mCurrentProject = proj;
+    }
     return Path::Continue;
 }
 

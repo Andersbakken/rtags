@@ -12,7 +12,13 @@ class GRTags
 {
 public:
     GRTags();
-    void init(const shared_ptr<Project> &proj);
+    enum Flag {
+        None = 0x0,
+        Parse = 0x1
+    };
+    void init(const shared_ptr<Project> &proj, unsigned flags);
+    void enableParsing();
+    unsigned flags() const { return mFlags; }
     void recurseDirs();
     void onDirectoryModified(const Path &path);
     void onRecurseJobFinished(Map<Path, bool> &mPaths);
@@ -31,6 +37,7 @@ private:
     friend class FindFileJob;
     Mutex mMutex;
     int mCount, mActive;
+    unsigned mFlags;
 };
 
 #endif
