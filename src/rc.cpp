@@ -24,7 +24,7 @@ static void help(FILE *f, const char* app)
             "  --follow-location|-f [arg]                Follow this location\n"
             "  --makefile|-m [arg]                       Process this makefile\n"
             "  --grtag|-t [arg]                          Index this directory\n"
-            "  --enable-grtags|-b                        Enable grtags\n"
+            "  --disable-grtags|-b                       Disable grtags for query\n"
             "  --remake|-M [optional regexp]             Remake makefiles matching regexp or all if no regexp\n"
             "  --reference-name|-R [arg]                 Find references matching arg\n"
             "  --reference-location|-r [arg]             Find references matching this location\n"
@@ -271,7 +271,7 @@ int main(int argc, char** argv)
             name = optarg;
             break;
         case 'b':
-            queryFlags |= QueryMessage::EnableGRTags;
+            queryFlags |= QueryMessage::DisableGRTags;
             break;
         case 'a':
             clientFlags |= Client::AutostartRdm;

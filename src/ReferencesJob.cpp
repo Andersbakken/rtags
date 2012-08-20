@@ -69,7 +69,7 @@ void ReferencesJob::execute()
         }
     }
 
-    if (!symbolName.isEmpty() && (queryFlags() & QueryMessage::EnableGRTags) && (project()->grtags->flags() & GRTags::Parse)) {
+    if (!symbolName.isEmpty() && !(queryFlags() & QueryMessage::DisableGRTags) && (project()->grtags->flags() & GRTags::Parse)) {
         ScopedDB database = db(Project::GR, ReadWriteLock::Read);
         const Map<Location, bool> values = database->value<Map<Location, bool> >(symbolName);
         database.reset();

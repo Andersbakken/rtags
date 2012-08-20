@@ -42,7 +42,7 @@ void FindSymbolsJob::execute()
 {
     ScopedDB symbolDB;
     Map<Location, bool> out;
-    if ((queryFlags() & QueryMessage::EnableGRTags) && (project()->grtags->flags() & GRTags::Parse)) {
+    if (!(queryFlags() & QueryMessage::DisableGRTags) && (project()->grtags->flags() & GRTags::Parse)) {
         ScopedDB database = db(Project::GR, ReadWriteLock::Read);
         RTags::Ptr<Iterator> it(database->createIterator());
 
