@@ -107,9 +107,14 @@ void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Locati
         MutexLocker lock(&mMutex);
         --mActive;
         const int idx = mCount - mActive;
-        error("[%3d%%] Tagged %s %d/%d. %d entries.",
-              static_cast<int>(round((static_cast<double>(idx) / static_cast<double>(mCount)) * 100.0)),
-              job->path().constData(), idx, mCount, entries.size());
+        if (idx % 50 == 0) {
+            error("[%3d%%] Tagged %d/%d",
+                  static_cast<int>(round((static_cast<double>(idx) / static_cast<double>(mCount)) * 100.0)), idx, mCount);
+        }
+
+        // error("[%3d%%] Tagged %s %d/%d. %d entries.",
+        //       static_cast<int>(round((static_cast<double>(idx) / static_cast<double>(mCount)) * 100.0)),
+        //       job->path().constData(), idx, mCount, entries.size());
         if (mActive == 0)
             mCount = 0;
     }
@@ -145,34 +150,7 @@ void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Locati
 
 void GRTags::onDirectoryModified(const Path &path)
 {
-    Map<ByteArray, time_t> &files = mFiles[path];
-    Path p(path);
-    p.resize(PATH_MAX); // this is okay because stat(2) is called with a null terminated string, not Path::size()
-    char *dest = p.data() + path.size();
-    Map<ByteArray, time_t>::iterator it = files.begin();
-    while (it != files.end()) {
-        // ### we need to do another recursejob when files are added/removed though
-        const ByteArray &key = it->first;
-        if (key.size() < PATH_MAX - path.size()) {
-            strncpy(dest, key.nullTerminated(), key.size() + 1);
-            const time_t lastModified = p.lastModified(); // 0 means failed to stat so probably removed
-            if (!lastModified) {
-                ++it;
-                removeFile(p);
-                continue;
-            }
-            if (it->second && lastModified > it->second) {
-                parse(Path(p.constData(), path.size() + key.size()), GRParseJob::Dirty);
-                // without this we end up with Path with 4096 bytes in it
-            }
-        }
-        ++it;
-    }
-
-    if (files.isEmpty()) {
-        mWatcher->unwatch(path);
-        mFiles.remove(path);
-    }
+    recurseDirs();
 }
 
 void GRTags::removeFile(const Path &file, ScopedDB *grfiles)
