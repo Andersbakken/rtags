@@ -24,7 +24,6 @@ public:
     Project();
     ~Project();
 
-
     Database *databases[DatabaseTypeCount];
     Indexer *indexer;
     GRTags *grtags;
