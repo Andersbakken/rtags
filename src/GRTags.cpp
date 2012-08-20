@@ -87,7 +87,7 @@ void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
         const Map<Path, bool>::iterator found = paths.find(p);
         if (found == paths.end()) {
             removeFile(p, &database);
-        } else if (!parsingEnabled || time || !found->second) {
+        } else if (!parsingEnabled || !found->second || (time >= p.lastModified())) {
             paths.erase(found);
         }
         p.resize(mSrcRoot.size());
