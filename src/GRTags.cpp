@@ -107,7 +107,7 @@ void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Locati
         MutexLocker lock(&mMutex);
         --mActive;
         const int idx = mCount - mActive;
-        if (idx % 50 == 0) {
+        if (idx % 50 == 0 || idx == mCount) {
             error("[%3d%%] Tagged %d/%d",
                   static_cast<int>(round((static_cast<double>(idx) / static_cast<double>(mCount)) * 100.0)), idx, mCount);
         }
