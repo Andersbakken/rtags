@@ -54,10 +54,6 @@ void GRTags::enableParsing()
         }
         mFlags |= Parse;
     }
-    {
-        ScopedDB database = mProject.lock()->db(Project::GRFiles, ReadWriteLock::Write);
-        mFiles.clear();
-    }
 
     recurseDirs();
 }
@@ -78,22 +74,24 @@ void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
     it->seekToFirst();
     Path p = mSrcRoot;
     p.reserve(PATH_MAX);
-    while (it->isValid()) {
-        const Slice slice = it->key();
-        p.append(slice.data(), slice.size());
-        const Map<Path, bool>::iterator found = paths.find(p);
-        if (found == paths.end()) { // file is removed
-            removeFile(p, &database);
-        } else {
-            paths.erase(found);
-        }
-        p.resize(mSrcRoot.size());
-        it->next();
-    }
     bool parsingEnabled;
     {
         MutexLocker lock(&mMutex);
         parsingEnabled = mFlags & Parse;
+    }
+
+    while (it->isValid()) {
+        const Slice slice = it->key();
+        const time_t time = it->value<time_t>();
+        p.append(slice.data(), slice.size());
+        const Map<Path, bool>::iterator found = paths.find(p);
+        if (found == paths.end()) {
+            removeFile(p, &database);
+        } else if (!parsingEnabled || time || !found->second) {
+            paths.erase(found);
+        }
+        p.resize(mSrcRoot.size());
+        it->next();
     }
     for (Map<Path, bool>::const_iterator i = paths.begin(); i != paths.end(); ++i) {
         addFile(i->first, 0, &database);

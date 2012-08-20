@@ -1059,6 +1059,12 @@ shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
         project->projectPath = mProjectsDir + tmp;
         Path::mkdir(project->projectPath);
     }
+
+    if (!project->databases[Project::GRFiles]) {
+        project->databases[Project::GRFiles] = new Database(project->databaseDir(static_cast<Project::DatabaseType>(Project::GRFiles)).constData(),
+                                                            mOptions.cacheSizeMB, Database::NoFlag);
+    }
+
     if (flags & EnableIndexer && !project->indexer) {
         for (int i=0; i<Project::GRFiles; ++i) {
             const unsigned f = (i == Project::Symbol ? Database::LocationKeys : Database::NoFlag);
@@ -1068,11 +1074,10 @@ shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
         project->indexer = new Indexer;
         project->indexer->init(project, !(mOptions.options & NoValidateOnStartup));
     }
-    for (int i=Project::GRFiles; i<=Project::GR; ++i) {
-        if (!project->databases[i] && (i != Project::GR || flags & EnableGRTags)) {
-            project->databases[i] = new Database(project->databaseDir(static_cast<Project::DatabaseType>(i)).constData(),
-                                                 mOptions.cacheSizeMB, Database::NoFlag);
-        }
+
+    if (flags & EnableGRTags && !project->databases[Project::GR]) {
+        project->databases[Project::GR] = new Database(project->databaseDir(static_cast<Project::DatabaseType>(Project::GR)).constData(),
+                                                       mOptions.cacheSizeMB, Database::NoFlag);
     }
 
     if (!project->grtags) {
