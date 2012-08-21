@@ -12,6 +12,8 @@ Project::Project()
 Project::~Project()
 {
     delete grtags;
+    if (indexer)
+        indexer->abort();
     delete indexer;
     for (int i=0; i<DatabaseTypeCount; ++i) {
         delete databases[i];

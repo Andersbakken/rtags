@@ -75,12 +75,11 @@ void Server::clear()
     mCompletions = 0;
     delete mServer;
     mServer = 0;
+    mProjects.clear();
     for (int i=0; i<DatabaseTypeCount; ++i) {
         delete mDBs[i];
         mDBs[i] = 0;
     }
-
-    mProjects.clear();
     setCurrentProject(0);
 }
 
