@@ -57,7 +57,7 @@ void Client::onNewMessage(Message *message, Connection *)
 
 void Client::onDisconnected()
 {
-    delete mConnection;
+    mConnection->deleteLater();
     mConnection = 0;
     EventLoop::instance()->exit();
 }
