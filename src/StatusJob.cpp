@@ -100,6 +100,7 @@ void StatusJob::execute()
             ScopedDB database = db(Project::Symbol, ReadWriteLock::Read);
             write(delimiter);
             write(project()->databaseDir(Project::Symbol));
+            write(delimiter);
             RTags::Ptr<Iterator> it(database->createIterator());
             it->seekToFirst();
             while (it->isValid()) {
@@ -117,6 +118,7 @@ void StatusJob::execute()
             ScopedDB database = db(Project::SymbolName, ReadWriteLock::Read);
             write(delimiter);
             write(project()->databaseDir(Project::SymbolName));
+            write(delimiter);
             RTags::Ptr<Iterator> it(database->createIterator());
             it->seekToFirst();
             char buf[1024];
@@ -140,6 +142,7 @@ void StatusJob::execute()
             ScopedDB database = db(Project::FileInformation, ReadWriteLock::Read);
             write(delimiter);
             write(project()->databaseDir(Project::FileInformation));
+            write(delimiter);
             RTags::Ptr<Iterator> it(database->createIterator());
             it->seekToFirst();
             char buf[1024];
@@ -172,30 +175,32 @@ void StatusJob::execute()
             }
         }
     }
-    if (proj->grtags) {
-        if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "grfiles")) {
-            matched = true;
-            ScopedDB database = db(Project::GRFiles, ReadWriteLock::Read);
-            write(delimiter);
-            write(project()->databaseDir(Project::GRFiles));
-            RTags::Ptr<Iterator> it(database->createIterator());
-            it->seekToFirst();
-            char buf[1024];
-            while (it->isValid()) {
-                if (isAborted())
-                    return;
-                time_t time = it->value<time_t>();
-                snprintf(buf, sizeof(buf), "    %s %s", it->key().byteArray().nullTerminated(),
-                         time ? RTags::timeToString(time).constData() : "");
+    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "grfiles")) {
+        matched = true;
+        ScopedDB database = db(Project::GRFiles, ReadWriteLock::Read);
+        write(delimiter);
+        write(project()->databaseDir(Project::GRFiles));
+        write(delimiter);
+
+        RTags::Ptr<Iterator> it(database->createIterator());
+        it->seekToFirst();
+        char buf[1024];
+        while (it->isValid()) {
+            if (isAborted())
+                return;
+            time_t time = it->value<time_t>();
+            snprintf(buf, sizeof(buf), "    %s %s", it->key().byteArray().nullTerminated(),
+                     time ? RTags::timeToString(time).constData() : "");
             write(buf);
             it->next();
         }
     }
-    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "gr")) {
+    if ((query.isEmpty() || !strcasecmp(query.nullTerminated(), "gr")) && project()->grtags->flags() & GRTags::Parse)  {
         matched = true;
         ScopedDB database = db(Project::GR, ReadWriteLock::Read);
         write(delimiter);
         write(project()->databaseDir(Project::GR));
+        write(delimiter);
         RTags::Ptr<Iterator> it(database->createIterator());
         it->seekToFirst();
         char buf[1024];
@@ -212,7 +217,7 @@ void StatusJob::execute()
             it->next();
         }
     }
-}
+
     if (!matched) {
         write(alternatives);
     }

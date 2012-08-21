@@ -45,9 +45,7 @@ typedef Map<Location, CursorInfo> SymbolMap;
 typedef Map<Location, Map<Location, RTags::ReferenceType> > ReferenceMap;
 typedef Map<ByteArray, Set<Location> > SymbolNameMap;
 typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
-typedef std::pair<ByteArray, time_t> WatchedPair;
 typedef Map<ByteArray, Location> PchUSRMap;
-typedef Map<Path, Set<WatchedPair> > WatchedMap;
 typedef Map<uint32_t, FileInformation> InformationMap;
 
 namespace RTags {

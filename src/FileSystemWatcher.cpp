@@ -190,9 +190,9 @@ void FileSystemWatcher::notifyReadyRead()
         Map<int, inotify_event *> events;
         while (idx < read) {
             inotify_event *event = reinterpret_cast<inotify_event*>(buf + idx);
-            printf("foo: %s ", event->name);
-            dump(event->mask);
-            printf("\n");
+            // printf("foo: %s ", event->name);
+            // dump(event->mask);
+            // printf("\n");
             inotify_event *&ev = events[event->wd];
             if (!ev) {
                 ev = event;
@@ -284,7 +284,6 @@ void FileSystemWatcher::notifyReadyRead()
         { mAdded, added }
     };
     const unsigned count = sizeof(signals) / sizeof(signals[0]);
-    error() << count << modified << removed << added;
     for (unsigned i=0; i<count; ++i) {
         for (Set<Path>::const_iterator it = signals[i].paths.begin(); it != signals[i].paths.end(); ++it) {
             signals[i].signal(*it);

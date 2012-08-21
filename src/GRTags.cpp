@@ -8,7 +8,6 @@
 GRTags::GRTags()
     : mWatcher(new FileSystemWatcher), mCount(0), mActive(0), mFlags(0)
 {
-    mWatcher->watch("/tmp/watched");
     mWatcher->modified().connect(this, &GRTags::onDirectoryModified);
 }
 

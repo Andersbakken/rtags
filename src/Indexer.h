@@ -12,7 +12,6 @@
 #include <clang-c/Index.h>
 
 class IndexerJob;
-class DirtyThread;
 class Indexer
 {
 public:
@@ -36,14 +35,13 @@ public:
                         const Map<Location, std::pair<int, ByteArray> > &fixIts);
     void reindex(const ByteArray &pattern);
     signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
-    void onDirectoryChanged(const Path &path);
+    void onFileModified(const Path &);
     shared_ptr<Project> project() const { return mProject.lock(); }
     Path srcRoot() const { return mProject.lock()->srcRoot; } // ~/src/foobar
     Path projectPath() const { return mProject.lock()->projectPath; } // ~/.rtags/projects/[_foobar_]
 private:
     void onValidateDBJobErrors(const Set<Location> &errors);
     void onJobFinished(IndexerJob *job);
-    void onDirtyThreadComplete(DirtyThread *job);
     void commitDependencies(const DependencyMap &deps, bool sync);
     void dirty(const Set<uint32_t> &dirtyFileIds,
                const Map<Path, List<ByteArray> > &dirtyPch,
@@ -76,7 +74,8 @@ private:
     weak_ptr<Project> mProject;
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
-    WatchedMap mWatched;
+
+    Set<Path> mWatchedPaths;
 
     Map<Location, std::pair<int, ByteArray> > mFixIts;
     Map<uint32_t, ByteArray> mErrors;
