@@ -35,13 +35,13 @@ private:
 ThreadPoolThread::ThreadPoolThread(ThreadPool* pool)
     : mJob(0), mPool(pool), mStopped(false)
 {
-    setAutoDelete(true);
+    setAutoDelete(false);
 }
 
 ThreadPoolThread::ThreadPoolThread(ThreadPool::Job* job)
     : mJob(job), mPool(0), mStopped(false)
 {
-    setAutoDelete(true);
+    setAutoDelete(false);
 }
 
 void ThreadPoolThread::stop()
@@ -114,6 +114,7 @@ ThreadPool::~ThreadPool()
         ThreadPoolThread* t = *it;
         t->stop();
         t->join();
+        delete t;
     }
 }
 
