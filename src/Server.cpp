@@ -104,9 +104,9 @@ bool Server::init(const Options &options)
     Messages::init();
     if (mOptions.options & ClearDatadir) {
         clearDataDir();
-    } else {
-        Path::mkdir(mOptions.path);
     }
+    Path::mkdir(mOptions.path);
+    Path::mkdir(mProjectsDir);
 
     for (int i=0; i<10; ++i) {
         mServer = new LocalServer;

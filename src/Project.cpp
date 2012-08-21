@@ -22,6 +22,7 @@ Project::~Project()
 
 ScopedDB Project::db(DatabaseType type, ReadWriteLock::LockType lockType) const
 {
+    assert(databases[type]);
     return ScopedDB(databases[type], lockType);
 }
 

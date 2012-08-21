@@ -138,6 +138,7 @@ Database::Database(const Path &path, int cacheSizeMB, unsigned flags)
     leveldb::Status status = leveldb::DB::Open(mOptions, path.constData(), &mDB);
     if (!status.ok()) {
         mOpenError = status.ToString();
+        error("Couldn't open database %s: %s", path.constData(), mOpenError.constData());
     } else {
         mPath = path;
     }
