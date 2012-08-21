@@ -51,8 +51,9 @@ FileSystemWatcher::~FileSystemWatcher()
     close(mFd);
 }
 
-bool FileSystemWatcher::watch(const Path &path)
+bool FileSystemWatcher::watch(const Path &p)
 {
+    Path path = p;
     assert(!path.isEmpty());
     MutexLocker lock(&mMutex);
     const Path::Type type = path.type();
@@ -64,6 +65,8 @@ bool FileSystemWatcher::watch(const Path &path)
         break;
     case Path::Directory:
         flags = IN_MOVE|IN_CREATE|IN_DELETE|IN_DELETE_SELF|IN_ATTRIB;
+        if (!path.endsWith('/'))
+            path.append('/');
         break;
 #elif defined(HAVE_KQUEUE)
     case Path::File:
@@ -169,7 +172,7 @@ static inline void dump(unsigned mask)
 
 void FileSystemWatcher::notifyReadyRead()
 {
-    Map<Path, unsigned> changes;
+    Set<Path> modified, removed, added;
 #if defined(HAVE_INOTIFY)
     {
         MutexLocker lock(&mMutex);
@@ -202,31 +205,25 @@ void FileSystemWatcher::notifyReadyRead()
             const inotify_event *event = it->second;
             assert(event->wd == it->first);
             const Path p = mWatchedById.value(event->wd);
+            const bool isDir = p.isDir();
+            assert(!isDir || p.endsWith('/'));
             if (p.isEmpty()) {
                 warning() << "FileSystemWatcher::notifyReadyRead() We don't seem to be watching " << p;
                 continue;
             }
-            unsigned &c = changes[p];
             if (event->mask & (IN_DELETE_SELF|IN_MOVE_SELF|IN_UNMOUNT))
-                c |= SelfRemoved;
-            if (event->mask & IN_CREATE)
-                c |= SubAdded;
-            if (event->mask & IN_DELETE)
-                c |= SubRemoved;
-            if (event->mask & IN_ATTRIB)
-                c |= Modified;
-            printf("%s ", p.constData());
-            dump(event->mask);
-            printf("0x%x\n", c);
-
-            // if (event->mask & (IN_DELETE_SELF|IN_MOVE_SELF|IN_UNMOUNT)) {
-            //     mWatchedById.remove(event->wd);
-            //     mWatchedByPath.remove(p);
-            //     inotify_rm_watch(mFd, event->wd);
-            //     notifications[p] = true;
-            // } else {
-            //     notifications[p] = false;
-            // }
+                removed.insert(p);
+            if (event->mask & IN_CREATE) {
+                added.insert(p + event->name);
+            } else if (event->mask & IN_DELETE) {
+                removed.insert(p + event->name);
+            } else if (event->mask & IN_ATTRIB) {
+                if (isDir) {
+                    modified.insert(p + event->name);
+                } else {
+                    modified.insert(p);
+                }
+            }
         }
         if (buf != staticBuf)
             delete []buf;
@@ -278,7 +275,19 @@ void FileSystemWatcher::notifyReadyRead()
         }
     }
 #endif
-    for (Map<Path, unsigned>::const_iterator it = changes.begin(); it != changes.end(); ++it) {
-        mChanged(it->first, it->second);
+    struct {
+        signalslot::Signal1<const Path&> &signal;
+        const Set<Path> &paths;
+    } signals[] = {
+        { mModified, modified },
+        { mRemoved, removed },
+        { mAdded, added }
+    };
+    const unsigned count = sizeof(signals) / sizeof(signals[0]);
+    error() << count << modified << removed << added;
+    for (unsigned i=0; i<count; ++i) {
+        for (Set<Path>::const_iterator it = signals[i].paths.begin(); it != signals[i].paths.end(); ++it) {
+            signals[i].signal(*it);
+        }
     }
 }

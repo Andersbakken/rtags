@@ -14,16 +14,9 @@ public:
 
     bool watch(const Path &path);
     bool unwatch(const Path &path);
-    // signalslot::Signal1<const Path&> &removed() { return mRemoved; }
-    signalslot::Signal1<const Path&> &modified() { return mModified; }
-    enum Change {
-        Modified = 0x1,
-        SelfRemoved = 0x2,
-        SubRemoved = 0x4,
-        SubAdded = 0x8
-    };
-
-    signalslot::Signal2<const Path&, unsigned> &changed() { return mChanged; }
+    signalslot::Signal1<const Path &> &removed() { return mRemoved; }
+    signalslot::Signal1<const Path &> &added() { return mAdded; }
+    signalslot::Signal1<const Path &> &modified() { return mModified; }
     Set<Path> watchedPaths() const { return mWatchedByPath.keys().toSet(); } // ### slow
 private:
     Mutex mMutex;
@@ -32,7 +25,6 @@ private:
     int mFd;
     Map<Path, int> mWatchedByPath;
     Map<int, Path> mWatchedById;
-    signalslot::Signal1<const Path&> mRemoved, mModified;
-    signalslot::Signal2<const Path&, unsigned> mChanged;
+    signalslot::Signal1<const Path&> mRemoved, mModified, mAdded;
 };
 #endif
