@@ -16,14 +16,7 @@ void GRScanJob::run()
     mFinished(mPaths);
 }
 
-enum FilterResult {
-    File,
-    Source,
-    Directory,
-    Filtered
-};
-
-static inline FilterResult filter(const Path &path, Path::Type type, int maxSymLinks)
+GRScanJob::FilterResult GRScanJob::filter(const Path &path, Path::Type type, int maxSymLinks)
 {
     switch (type) {
     case Path::SymLink: {

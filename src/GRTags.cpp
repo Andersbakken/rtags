@@ -8,11 +8,14 @@
 GRTags::GRTags()
     : mWatcher(new FileSystemWatcher), mCount(0), mActive(0), mFlags(0)
 {
-    mWatcher->modified().connect(this, &GRTags::onDirectoryModified);
+    mWatcher->added().connect(this, &GRTags::onFileAdded);
+    mWatcher->removed().connect(this, &GRTags::onFileRemoved);
 }
 
 void GRTags::init(const shared_ptr<Project> &proj, unsigned flags)
 {
+    if (flags & Parse)
+        mWatcher->modified().connect(this, &GRTags::onFileModified);
     mFlags = flags;
     mProject = proj;
     mSrcRoot = proj->srcRoot;
@@ -53,6 +56,7 @@ void GRTags::enableParsing()
             return;
         }
         mFlags |= Parse;
+        mWatcher->removed().connect(this, &GRTags::onFileModified);
     }
 
     recurseDirs();
@@ -148,16 +152,12 @@ void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Locati
     }
 }
 
-void GRTags::onDirectoryModified(const Path &path)
-{
-    recurseDirs();
-}
-
 void GRTags::removeFile(const Path &file, ScopedDB *grfiles)
 {
     const Path dir = file.parentDir();
     Map<ByteArray, time_t> &map = mFiles[dir];
-    map.remove(file.fileName());
+    time_t prev = 0;
+    map.remove(file.fileName(), &prev);
     if (map.isEmpty())
         mFiles.remove(dir);
     shared_ptr<Project> project = mProject.lock();
@@ -165,7 +165,7 @@ void GRTags::removeFile(const Path &file, ScopedDB *grfiles)
     assert(database.database());
     const Slice key(file.constData() + mSrcRoot.size(), file.size() - mSrcRoot.size());
     database->remove(key);
-    if (mFlags & Parse) {
+    if ((mFlags & Parse) && prev) {
         database.reset();
         database = project->db(Project::GR, ReadWriteLock::Write);
         assert(database.database());
@@ -219,10 +219,65 @@ void GRTags::addFile(const Path &file, time_t time, ScopedDB *db)
     const Path fileName = file.fileName();
     Map<ByteArray, time_t> &files = mFiles[dir];
     files[fileName] = time;
-    if (files.size() == 1)
+    if (files.size() == 1) {
+        // printf("Watching %s\n", dir.constData());
         mWatcher->watch(dir);
+    }
     if (db) {
         const Slice fileName(file.constData() + mSrcRoot.size(), file.size() - mSrcRoot.size());
         (*db)->setValue(fileName, time);
     }
+}
+
+void GRTags::onFileModified(const Path &file)
+{
+    // printf("%s modified\n", file.constData());
+    assert(mFlags & Parse);
+    {
+        shared_ptr<Project> project = mProject.lock();
+        ScopedDB database = project->db(Project::GRFiles, ReadWriteLock::Read);
+        const Path dir = file.parentDir();
+        const Path fileName = file.fileName();
+        const Map<ByteArray, time_t> &files = mFiles[dir];
+        if (!files.value(fileName))
+            return;
+    }
+    parse(file, GRParseJob::Dirty);
+}
+
+void GRTags::onFileAdded(const Path &path)
+{
+    // printf("%s added\n", path.constData());
+    shared_ptr<Project> project = mProject.lock();
+    const GRScanJob::FilterResult res = GRScanJob::filter(path, path.type(), 10);
+    bool source = false;
+    switch (res) {
+    case GRScanJob::Source:
+        source = mFlags & Parse;
+        break;
+    case GRScanJob::File:
+        break;
+    case GRScanJob::Directory:
+        // printf("Watching %s\n", path.constData());
+        mWatcher->watch(path);
+        return;
+    case GRScanJob::Filtered:
+        return;
+    }
+
+    {
+        ScopedDB database = project->db(Project::GRFiles, ReadWriteLock::Write);
+        addFile(path, 0, &database);
+    }
+    if (source) {
+        parse(path, GRParseJob::None);
+    }
+}
+
+void GRTags::onFileRemoved(const Path &path)
+{
+    shared_ptr<Project> project = mProject.lock();
+    ScopedDB database = project->db(Project::GRFiles, ReadWriteLock::Write);
+    // printf("%s removed\n", path.constData());
+    removeFile(path, &database);
 }

@@ -14,6 +14,15 @@ public:
     GRScanJob(const Path &path);
     virtual void run();
     signalslot::Signal1<Map<Path, bool> &> &finished() { return mFinished; }
+
+    enum FilterResult {
+        File,
+        Source,
+        Directory,
+        Filtered
+    };
+
+    static FilterResult filter(const Path &path, Path::Type type, int maxSymLinks);
 private:
     static Path::VisitResult visit(const Path &path, void *userData);
     Path mPath;

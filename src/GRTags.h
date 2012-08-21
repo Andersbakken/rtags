@@ -20,7 +20,9 @@ public:
     void enableParsing();
     unsigned flags() const { return mFlags; }
     void recurseDirs();
-    void onDirectoryModified(const Path &path);
+    void onFileAdded(const Path &path);
+    void onFileRemoved(const Path &path);
+    void onFileModified(const Path &path);
     void onRecurseJobFinished(Map<Path, bool> &mPaths);
     void onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Location, bool> > &entries);
     void dirty(uint32_t fileId, ScopedDB &db);
@@ -35,7 +37,7 @@ private:
     weak_ptr<Project> mProject;
     Path mSrcRoot;
     friend class FindFileJob;
-    Mutex mMutex;
+    mutable Mutex mMutex;
     int mCount, mActive;
     unsigned mFlags;
 };
