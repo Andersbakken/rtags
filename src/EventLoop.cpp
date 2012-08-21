@@ -185,6 +185,20 @@ void EventLoop::removeFileDescriptor(int fd)
     mFdData.remove(fd);
 }
 
+void EventLoop::removeEvents(EventReceiver *receiver)
+{
+    MutexLocker locker(&mMutex);
+    std::deque<EventData>::iterator it = mEvents.begin();
+    while (it != mEvents.end()) {
+        if (it->receiver == receiver) {
+            delete it->event;
+            it = mEvents.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 void EventLoop::postEvent(EventReceiver* receiver, Event* event)
 {
     {

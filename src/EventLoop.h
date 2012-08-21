@@ -38,6 +38,7 @@ public:
     // The following two functions are thread safe
     void postEvent(EventReceiver* object, Event* event);
     void exit();
+    void removeEvents(EventReceiver *e);
 private:
     void handlePipe();
     void sendPostedEvents();

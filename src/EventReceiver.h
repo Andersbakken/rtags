@@ -8,7 +8,11 @@ class EventReceiver
 {
 public:
     EventReceiver() {}
-    virtual ~EventReceiver() {}
+    virtual ~EventReceiver()
+    {
+        if (EventLoop *loop = EventLoop::instance())
+            loop->removeEvents(this);
+    }
 
     void postEvent(Event *event) // threadsafe
     {
