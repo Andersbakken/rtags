@@ -28,6 +28,7 @@ protected:
         switch (event->type()) {
         case DeleteLaterEvent::Type:
             delete this;
+            break;
         case signalslot::SignalEventBase::Type:
             static_cast<const signalslot::SignalEventBase*>(event)->send();
             break;
