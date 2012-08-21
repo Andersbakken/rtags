@@ -54,8 +54,12 @@ void ParseJob::run()
     }
     const int fileSize = mPath.fileSize();
     char *buf = reinterpret_cast<char*>(calloc(fileSize + 1, 1));
-    fread(buf, 1, fileSize, f);
+    const int read = fread(buf, 1, fileSize, f);
     fclose(f);
+    if (read != fileSize) {
+        error() << "Read error. Wanted " << fileSize << "got" << read;
+        return;
+    }
     char *ch = buf;
     char *end;
     while (*ch) {
