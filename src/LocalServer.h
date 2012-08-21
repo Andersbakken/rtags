@@ -2,7 +2,7 @@
 #define LOCALSERVER_H
 
 #include "Path.h"
-#include <signalslot.h>
+#include <SignalSlot.h>
 #include <deque>
 
 class LocalClient;

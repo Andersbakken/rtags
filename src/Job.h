@@ -6,7 +6,7 @@
 #include <List.h>
 #include <ByteArray.h>
 #include "Event.h"
-#include "signalslot.h"
+#include "SignalSlot.h"
 #include "Server.h"
 #include <tr1/memory>
 

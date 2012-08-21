@@ -4,7 +4,7 @@
 #include "ThreadPool.h"
 #include "Path.h"
 #include "AbortInterface.h"
-#include "signalslot.h"
+#include "SignalSlot.h"
 
 class GRParseJob : public ThreadPool::Job, public AbortInterface
 {

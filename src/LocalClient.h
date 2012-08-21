@@ -3,7 +3,7 @@
 
 #include "ByteArray.h"
 #include "EventReceiver.h"
-#include <signalslot.h>
+#include <SignalSlot.h>
 #include <deque>
 
 class LocalClient : public EventReceiver

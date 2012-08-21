@@ -4,7 +4,7 @@
 #include <Path.h>
 #include <Map.h>
 #include <Mutex.h>
-#include <signalslot.h>
+#include <SignalSlot.h>
 
 class FileSystemWatcher
 {

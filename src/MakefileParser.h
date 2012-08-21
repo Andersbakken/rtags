@@ -5,7 +5,7 @@
 #include "GccArguments.h"
 #include <List.h>
 #include <Map.h>
-#include <signalslot.h>
+#include <SignalSlot.h>
 
 class DirectoryTracker;
 class Connection;

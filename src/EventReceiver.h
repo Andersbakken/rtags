@@ -3,6 +3,7 @@
 
 #include "EventLoop.h"
 #include "Event.h"
+#include "SignalSlot.h"
 
 class EventReceiver
 {
@@ -24,8 +25,13 @@ public:
 protected:
     virtual void event(const Event* event)
     {
-        if (event->type() == DeleteLaterEvent::Type)
+        switch (event->type()) {
+        case DeleteLaterEvent::Type:
             delete this;
+        case signalslot::SignalEventBase::Type:
+            static_cast<const signalslot::SignalEventBase*>(event)->send();
+            break;
+        }
     }
 
 private:

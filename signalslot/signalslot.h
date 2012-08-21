@@ -46,6 +46,16 @@ protected:
     std::vector<const SignalBase<Delegate>*> mSignals;
 };
 
+template <typename T>
+class SignalEventBase : public Event
+{
+public:
+    enum { Type = 1001 };
+    SignalEventBase()
+        : Event(Type)
+    {}
+};
+
 class Signal0 : public SignalBase<fastdelegate::FastDelegate0<> >
 {
 public:
@@ -56,7 +66,7 @@ public:
     void operator()()
     {
         std::vector<Type>::const_iterator delit = SignalBase<Type>::mDelegates.begin();
-        const  std::vector<Type>::const_iterator delend = SignalBase<Type>::mDelegates.end();
+        const std::vector<Type>::const_iterator delend = SignalBase<Type>::mDelegates.end();
         while (delit != delend) {
             (*delit)();
             ++delit;
@@ -73,6 +83,13 @@ public:
     void connect(Class* object, void (Class::*function)())
     {
         SignalBase<Type>::mDelegates.push_back(fastdelegate::MakeDelegate(object, function));
+    }
+
+    template<typename EventReceiver>
+    void connectAsync(EventReceiver* object, void (EventReceiver::*function)())
+    {
+        // EventLoop::instance()->postEvent(new
+        // SignalBase<Type>::mDelegates.push_back(fastdelegate::MakeDelegate(object, function));
     }
 
     void connect(const Signal0& signal)

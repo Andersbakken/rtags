@@ -7,7 +7,6 @@ include_directories(
 include_directories(
     ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ../signalslot
     ../3rdparty/leveldb/include)
 
 set(rtags_HDRS
@@ -82,6 +81,8 @@ set(rtags_HDRS
     GRParseJob.h
     GRTagsMessage.h
     Project.h
+    FastDelegate.h
+    SignalSlot.h
     )
 
 set(rtags_SRCS

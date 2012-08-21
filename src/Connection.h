@@ -6,7 +6,7 @@
 #include "LocalClient.h"
 #include <ByteArray.h>
 #include <Map.h>
-#include <signalslot.h>
+#include <SignalSlot.h>
 
 class ConnectionPrivate;
 class LocalClient;
