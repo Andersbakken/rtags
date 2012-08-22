@@ -69,6 +69,17 @@ public:
         return at(size() - 1);
     }
 
+    List<T> &operator+=(const T &t)
+    {
+        append(t);
+        return *this;
+    }
+
+    List<T> &operator+=(const List<T> &t)
+    {
+        append(t);
+        return *this;
+    }
 };
 
 #endif
