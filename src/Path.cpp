@@ -221,6 +221,13 @@ void Path::visit(VisitCallback callback, void *userData) const
             continue;
         path.truncate(s);
         path.append(p->d_name);
+#if defined(_DIRENT_HAVE_D_TYPE) && defined(_BSD_SOURCE)
+        if (p->d_type == DT_DIR)
+            path.append('/');
+#else
+        if (path.isDir())
+            path.append('/');
+#endif
         switch (callback(path, userData)) {
         case Abort:
             p = 0;
