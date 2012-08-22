@@ -246,28 +246,31 @@ void Indexer::onJobFinished(IndexerJob *job)
 
     {
         mJobs.remove(job->mFileId);
+        std::pair<IndexerJob*, WaitType> waiting;
+        if (mWaiting.remove(job->mFileId, &waiting)) {
+            assert(waiting.second == Abort);
+            startJob(waiting.first);
+        }
+
         if (job->mIsPch) {
-            Set<IndexerJob*>::iterator it = mWaitingForPch.begin();
-            while (it != mWaitingForPch.end()) {
-                IndexerJob *job = *it;
-                if (!needsToWaitForPch(job)) {
-                    mWaitingForPch.erase(it++);
-                    startJob(job);
-                } else {
-                    ++it;
+            Map<uint32_t, std::pair<IndexerJob*, WaitType> >::iterator it = mWaiting.begin();
+            while (it != mWaiting.end()) {
+                if (it->second.second == PCH) {
+                    IndexerJob *job = it->second.first;
+                    if (!needsToWaitForPch(job)) {
+                        mWaiting.erase(it++);
+                        startJob(job);
+                        continue;
+                    }
                 }
+                ++it;
             }
         }
-        const int idx = mJobCounter - (mJobs.size() + mWaitingForPch.size());
+        const int idx = mJobCounter - mJobs.size();
         error("[%3d%%] %d/%d %s. Pending jobs %d. %d mb mem.",
               static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-              job->mMessage.constData(), mJobs.size() + mWaitingForPch.size(),
+              job->mMessage.constData(), mJobs.size(),
               int((MemoryMonitor::usage() / (1024 * 1024))));
-        IndexerJob *waiting = 0;
-        if (mWaitingForAbort.remove(job->mFileId, &waiting)) {
-            assert(waiting);
-            startJob(waiting);
-        }
 
         if (mJobs.isEmpty()) {
             assert(mTimerRunning);
@@ -287,26 +290,24 @@ void Indexer::onJobFinished(IndexerJob *job)
 
 void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags)
 {
-    IndexerJob *job = new IndexerJob(this, indexerJobFlags, input, arguments);
-    job->finished().connect(this, &Indexer::onJobFinished);
     MutexLocker locker(&mMutex);
 
     const uint32_t fileId = Location::insertFile(input);
-
-    IndexerJob *existing = mJobs.value(fileId);
-    if (existing) {
-        existing->abort();
-        IndexerJob *&j = mWaitingForAbort[fileId];
-        if (!j || j->mArgs != arguments || j->mFlags != indexerJobFlags)
-            delete j;
-        j = job;
+    if (mWaiting.contains(fileId))
         return;
-    }
+
+    IndexerJob *job = new IndexerJob(this, indexerJobFlags, input, arguments);
+    job->finished().connect(this, &Indexer::onJobFinished);
 
     ++mJobCounter;
 
-    if (needsToWaitForPch(job)) {
-        mWaitingForPch.insert(job); // ### this could use the pch file(s) it waits for as key
+    IndexerJob *existing = mJobs.value(fileId);
+    if (existing) {
+        mWaiting[fileId] = std::make_pair(job, Abort);
+        existing->abort();
+        return;
+    } else if (needsToWaitForPch(job)) {
+        mWaiting[fileId] = std::make_pair(job, PCH);
         return;
     }
 
@@ -408,18 +409,13 @@ bool Indexer::needsToWaitForPch(IndexerJob *job) const
 void Indexer::abort()
 {
     MutexLocker lock(&mMutex);
-    for (Set<IndexerJob*>::const_iterator it = mWaitingForPch.begin(); it != mWaitingForPch.end(); ++it) {
-        delete *it;
+    for (Map<uint32_t, std::pair<IndexerJob*, WaitType> >::const_iterator it = mWaiting.begin(); it != mWaiting.end(); ++it) {
+        delete it->second.first;
     }
-    mWaitingForPch.clear();
-
-    for (Map<int, IndexerJob*>::const_iterator it = mWaitingForAbort.begin(); it != mWaitingForAbort.end(); ++it) {
-        delete it->second;
-    }
-    mWaitingForAbort.clear();
+    mWaiting.clear();
 
     if (!mJobs.isEmpty()) {
-        for (Map<int, IndexerJob*>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
+        for (Map<uint32_t, IndexerJob*>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
             it->second->abort();
         }
         while (!mJobs.isEmpty())

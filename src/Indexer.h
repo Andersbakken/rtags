@@ -65,8 +65,12 @@ private:
     WaitCondition mWaitCondition;
 
     ByteArray mPath;
-    Map<int, IndexerJob*> mJobs, mWaitingForAbort;
-    Set<IndexerJob*> mWaitingForPch;
+    Map<uint32_t, IndexerJob*> mJobs;
+    enum WaitType {
+        Abort,
+        PCH
+    };
+    Map<uint32_t, std::pair<IndexerJob*, WaitType> > mWaiting;
 
     bool mTimerRunning;
     Timer mTimer;
