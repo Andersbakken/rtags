@@ -38,8 +38,7 @@ void FindFileJob::execute()
     }
     ByteArray out;
     out.reserve(PATH_MAX);
-    const bool absolutePath = (queryFlags() & QueryMessage::AbsolutePath);
-    if (absolutePath) {
+    if (queryFlags() & QueryMessage::AbsolutePath) {
         out.append(srcRoot);
         assert(srcRoot.endsWith('/'));
     }
@@ -48,7 +47,6 @@ void FindFileJob::execute()
     const Map<Path, Map<ByteArray, time_t> > &dirs = proj->grtags->mFiles;
     Map<Path, Map<ByteArray, time_t> >::const_iterator dirit = dirs.begin();
     while (dirit != dirs.end()) {
-
         const Path &dir = dirit->first;
         out.append(dir.constData() + srcRoot.size(), dir.size() - srcRoot.size());
 
@@ -71,9 +69,9 @@ void FindFileJob::execute()
             if (ok) {
                 write(out);
             }
-            out.resize(absolutePath ? srcRoot.size() : 0);
+            out.chop(key.size());
         }
-
+        out.chop(dir.size() - srcRoot.size());
         ++dirit;
     }
 }
