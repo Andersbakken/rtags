@@ -266,10 +266,10 @@ void Indexer::onJobFinished(IndexerJob *job)
                 ++it;
             }
         }
-        const int idx = mJobCounter - mJobs.size();
+        const int idx = mJobCounter - mJobs.size() - mWaiting.size();
         error("[%3d%%] %d/%d %s. Pending jobs %d. %d mb mem.",
               static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-              job->mMessage.constData(), mJobs.size(),
+              job->mMessage.constData(), mJobs.size() + mWaiting.size(),
               int((MemoryMonitor::usage() / (1024 * 1024))));
 
         if (mJobs.isEmpty()) {
