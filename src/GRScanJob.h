@@ -23,6 +23,14 @@ public:
     };
 
     static FilterResult filter(const Path &path, Path::Type type, int maxSymLinks);
+    struct Filter
+    {
+        ByteArray filter;
+        enum Type {
+            Absolute,
+            Wildcard
+        } type;
+    };
 private:
     static Path::VisitResult visit(const Path &path, void *userData);
     Path mPath;

@@ -16,6 +16,7 @@
 #include "MakefileInformation.h"
 #include "GRTags.h"
 #include "Project.h"
+#include "GRScanJob.h"
 
 class GRTagsMessage;
 class Connection;
@@ -62,14 +63,12 @@ public:
         Path socketPath;
         int maxCompletionUnits;
         int threadCount;
+        List<GRScanJob::Filter> excludeFilter;
     };
     bool init(const Options &options);
-
+    const List<GRScanJob::Filter> &excludeFilter() const { return mOptions.excludeFilter; }
 private:
     void clear();
-    List<ByteArray> defaultArguments() const { return mOptions.defaultArguments; }
-    ByteArray name() const { return mOptions.socketPath; }
-    Path projectsPath() const;
     void onNewConnection();
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
     shared_ptr<Project> setCurrentProject(const Path &path);

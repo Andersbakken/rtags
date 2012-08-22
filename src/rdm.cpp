@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "GRScanJob.h"
 #ifdef HAVE_BACKTRACE
 #include <execinfo.h>
 #include <cxxabi.h>
@@ -66,6 +67,7 @@ void signalHandler(int signal)
     EventLoop::instance()->exit();
 }
 
+#define EXCLUDEFILTER_DEFAULT "*.o;*.a;*.so*;*.obj;*.lo"
 void usage(FILE *f)
 {
     fprintf(f,
@@ -85,9 +87,31 @@ void usage(FILE *f)
             "  --no-clang-includepath|-p       Don't use clang include paths by default\n"
             "  --usedashB|-B                   Use -B for make instead of makelib\n"
             "  --silent|-S                     No logging to stdout\n"
-            "  --max-completion-units|-x [arg] Max translation units to keep in memory for completions (default 10)\n"
+            "  --max-completion-units|-m [arg] Max translation units to keep in memory for completions (default 10)\n"
             "  --no-validate-on-startup|-V     Disable validation of database on startup\n"
+            "  --exclude-filter|-x [arg]       Files to exclude from grtags, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
             "  --thread-count|-j [arg]         Spawn this many threads for thread pool\n");
+}
+
+static inline void parseFilter(const char *string, List<GRScanJob::Filter> &filters)
+{
+    char staticBuf[1024];
+    char *buf = staticBuf;
+    const unsigned len = strlen(string);
+    if (len >= sizeof(staticBuf)) {
+        buf = new char[len + 1];
+    }
+    strcpy(buf, string);
+    char *saveptr;
+    for (char *str=strtok_r(&buf[0], ";", &saveptr); str; str = strtok_r(0, ";", &saveptr)) {
+        filters.append(GRScanJob::Filter());
+        GRScanJob::Filter &filter = filters.last();
+        filter.filter = str;
+        filter.type = filter.filter.contains("*") ? GRScanJob::Filter::Wildcard : GRScanJob::Filter::Absolute;
+    }
+
+    if (buf != staticBuf)
+        delete[] buf;
 }
 
 int main(int argc, char** argv)
@@ -110,14 +134,16 @@ int main(int argc, char** argv)
         { "name", required_argument, 0, 'n' },
         { "usedashB", no_argument, 0, 'B' },
         { "silent", no_argument, 0, 'S' },
-        { "max-completion-units", required_argument, 0, 'x' },
+        { "max-completion-units", required_argument, 0, 'm' },
         { "no-validate-on-startup", no_argument, 0, 'V' },
+        { "exclude-filter", required_argument, 0, 'x' },
         { 0, 0, 0, 0 }
     };
 
     int jobs = ThreadPool::idealThreadCount();
     unsigned options = 0;
     List<ByteArray> defaultArguments;
+    const char *excludeFilter = 0;
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;
@@ -135,7 +161,7 @@ int main(int argc, char** argv)
         case 'S':
             logLevel = -1;
             break;
-        case 'x': {
+        case 'm': {
             const ByteArray arg(optarg);
             bool ok;
             maxCompletionUnits = arg.toULongLong(&ok);
@@ -229,6 +255,7 @@ int main(int argc, char** argv)
     Server *server = new Server;
     Server::Options serverOpts;
     serverOpts.path = dataDir;
+    parseFilter(excludeFilter ? excludeFilter : EXCLUDEFILTER_DEFAULT, serverOpts.excludeFilter);
     if (!serverOpts.path.endsWith('/'))
         serverOpts.path.append('/');
     serverOpts.maxCompletionUnits = maxCompletionUnits;

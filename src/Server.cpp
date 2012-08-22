@@ -713,13 +713,6 @@ Path Server::databaseDir(DatabaseType type) const
     return Path(ret, w);
 }
 
-Path Server::projectsPath() const
-{
-    if (mOptions.path.isEmpty())
-        return Path();
-    return mOptions.path + "projects/";
-}
-
 void Server::clearDataDir()
 {
     RTags::removeDirectory(mOptions.path + "/projects");
