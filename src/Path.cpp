@@ -264,3 +264,26 @@ Path Path::followLink(bool *ok) const
     }
     return *this;
 }
+
+int Path::readAll(char *&buf) const
+{
+    FILE *f = fopen(constData(), "r");
+    buf = 0;
+    if (!f) {
+        return -1;
+    }
+    fseek(f, 0, SEEK_END);
+    int size = ftell(f);
+    if (size) {
+        fseek(f, 0, SEEK_SET);
+        buf = new char[size + 1];
+        const int ret = fread(buf, sizeof(char), size, f);
+        if (ret != size) {
+            size = -1;
+            delete[] buf;
+        }
+        buf[size] = '\0';
+    }
+    fclose(f);
+    return size;
+}

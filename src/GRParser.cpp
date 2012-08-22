@@ -13,32 +13,25 @@ GRParser::~GRParser()
 int GRParser::parse(const Path &file, unsigned opts, Map<ByteArray, Map<Location, bool> > &entries)
 {
     mFileName = file;
-    FILE *f = fopen(mFileName.constData(), "r");
-    if (!f) {
-        error("Can't open %s for reading %s\n", mFileName.constData(), strerror(errno));
+    mSize = mFileName.readAll(mBuf);
+    switch (mSize) {
+    case 0:
         return 0;
-    }
-    fseek(f, 0, SEEK_END);
-    mSize = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    mBuf = new char[mSize + 1];
-    const int ret = fread(mBuf, sizeof(char), mSize, f);
-    fclose(f);
-    if (ret != mSize) {
-        error("Read error %d %d %d %s - %s", ret, mSize, errno, strerror(errno), file.constData());
+    case -1:
+        error("Read error %s", mFileName.constData());
         return 0;
+    default:
+        break;
     }
     mEntries = &entries;
     mFileId = Location::insertFile(file);
-    assert(ret == mSize);
-    mBuf[ret] = 0;
     clang::SourceLocation loc;
     clang::LangOptions options;
     if (opts & CPlusPlus) {
         options.CPlusPlus = true;
         options.CPlusPlus0x = true;
     }
-    mLexer = new clang::Lexer(loc, options, mBuf, mBuf, mBuf + ret);
+    mLexer = new clang::Lexer(loc, options, mBuf, mBuf, mBuf + mSize);
     const int verbosity = getenv("VERBOSE") ? atoi(getenv("VERBOSE")) : 0;
     mTokens.clear();
     clang::Token token;
