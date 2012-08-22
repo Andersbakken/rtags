@@ -61,10 +61,10 @@ bool FileSystemWatcher::watch(const Path &p)
     switch (type) {
 #if defined(HAVE_INOTIFY)
     case Path::File:
-        flags = IN_MODIFY|IN_DELETE_SELF|IN_MOVE_SELF|IN_ATTRIB|IN_MOVE|IN_DELETE;
+        flags = IN_MODIFY|IN_DELETE_SELF|IN_MOVE_SELF|IN_ATTRIB|IN_DELETE|IN_MODIFY;
         break;
     case Path::Directory:
-        flags = IN_MOVE|IN_CREATE|IN_DELETE|IN_DELETE_SELF|IN_ATTRIB;
+        flags = IN_MOVED_FROM|IN_MOVED_TO|IN_CREATE|IN_DELETE|IN_DELETE_SELF|IN_ATTRIB|IN_MODIFY;
         if (!path.endsWith('/'))
             path.append('/');
         break;
@@ -157,8 +157,6 @@ static inline void dump(unsigned mask)
         printf("IN_MOVED_FROM ");
     if (mask & IN_MOVED_TO)
         printf("IN_MOVED_TO ");
-    if (mask & IN_MOVE)
-        printf("IN_MOVE ");
     if (mask & IN_CREATE)
         printf("IN_CREATE ");
     if (mask & IN_DELETE)
@@ -176,53 +174,38 @@ void FileSystemWatcher::notifyReadyRead()
 #if defined(HAVE_INOTIFY)
     {
         MutexLocker lock(&mMutex);
-
-        // qDebug() << "QInotifyFileSystemWatcherEngine::readFromInotify";
-
         int s = 0;
         ioctl(mFd, FIONREAD, &s);
         enum { StaticBufSize = 4096 };
         char staticBuf[StaticBufSize];
         char *buf = s > StaticBufSize ? new char[s] : staticBuf;
         const int read = ::read(mFd, buf, s);
-        // printf("Read %d bytres out of %d\n", read, s);
         int idx = 0;
-        Map<int, inotify_event *> events;
         while (idx < read) {
+            Path path;
             inotify_event *event = reinterpret_cast<inotify_event*>(buf + idx);
-            // printf("foo: %s ", event->name);
+            idx += sizeof(inotify_event) + event->len;
+            path = mWatchedById.value(event->wd);
+            // printf("%s [%s]", path.constData(), event->name);
             // dump(event->mask);
             // printf("\n");
-            inotify_event *&ev = events[event->wd];
-            if (!ev) {
-                ev = event;
-            } else {
-                ev->mask |= event->mask;
-            }
-            idx += sizeof(inotify_event) + event->len;
-        }
-        for (Map<int, inotify_event*>::const_iterator it = events.begin(); it != events.end(); ++it) {
-            const inotify_event *event = it->second;
-            assert(event->wd == it->first);
-            const Path p = mWatchedById.value(event->wd);
-            const bool isDir = p.isDir();
-            assert(!isDir || p.endsWith('/'));
-            if (p.isEmpty()) {
-                warning() << "FileSystemWatcher::notifyReadyRead() We don't seem to be watching " << p;
-                continue;
-            }
-            if (event->mask & (IN_DELETE_SELF|IN_MOVE_SELF|IN_UNMOUNT))
-                removed.insert(p);
-            if (event->mask & IN_CREATE) {
-                added.insert(p + event->name);
-            } else if (event->mask & IN_DELETE) {
-                removed.insert(p + event->name);
-            } else if (event->mask & IN_ATTRIB) {
+
+            const bool isDir = path.isDir();
+
+            if (event->mask & (IN_DELETE_SELF|IN_MOVE_SELF|IN_UNMOUNT)) {
+                added.insert(path);
+            } else if (event->mask & (IN_CREATE|IN_MOVED_TO)) {
+                path.append(event->name);
+                added.insert(path);
+            } else if (event->mask & (IN_DELETE|IN_MOVED_FROM)) {
+                path.append(event->name);
+                added.remove(path);
+                removed.insert(path);
+            } else if (event->mask & (IN_ATTRIB|IN_MODIFY)) {
                 if (isDir) {
-                    modified.insert(p + event->name);
-                } else {
-                    modified.insert(p);
+                    path.append(event->name);
                 }
+                modified.insert(path);
             }
         }
         if (buf != staticBuf)
@@ -275,6 +258,7 @@ void FileSystemWatcher::notifyReadyRead()
         }
     }
 #endif
+
     struct {
         signalslot::Signal1<const Path&> &signal;
         const Set<Path> &paths;
@@ -289,4 +273,5 @@ void FileSystemWatcher::notifyReadyRead()
             signals[i].signal(*it);
         }
     }
+    // error() << modified << removed << added;
 }

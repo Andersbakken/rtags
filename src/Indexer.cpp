@@ -335,6 +335,7 @@ void Indexer::startJob(IndexerJob *job)
 
 void Indexer::onFileModified(const Path &file)
 {
+    // error() << file << "was modified";
     const uint32_t fileId = Location::fileId(file);
     if (!fileId)
         return;
