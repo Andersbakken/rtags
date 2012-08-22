@@ -39,6 +39,12 @@ GRScanJob::FilterResult GRScanJob::filter(const Path &path, Path::Type type, int
     if (extension) {
         if (!strcmp(extension, "o")) {
             return Filtered;
+        } else if (!strcmp(extension, "a")) {
+            return Filtered;
+        } else if (!strcmp(extension, "so")) {
+            return Filtered;
+        } else if (!strncmp(extension, "so.", 3)) {
+            return Filtered;
         } else if (!strcmp(extension, "obj")) {
             return Filtered;
         } else if (!strcmp(extension, "lo")) {
