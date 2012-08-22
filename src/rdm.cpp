@@ -82,7 +82,7 @@ void usage(FILE *f)
             "  --clean-slate|-C                Start from a clean slate\n"
             "  --datadir|-d [arg]              Use this as datadir (default ~/.rtags\n"
             "  --disable-sighandler|-s         Disable signal handler to dump stack for crashes\n"
-            "  --cache-size|-c [size]          Cache size in MB (one cache per db, default 128MB)\n"
+            "  --cache-size|-a [size]          Cache size in MB (one cache per db, default 128MB)\n"
             "  --name|-n [name]                Name to use for server (default ~/.rtags/server)\n"
             "  --no-clang-includepath|-p       Don't use clang include paths by default\n"
             "  --usedashB|-B                   Use -B for make instead of makelib\n"
@@ -90,12 +90,15 @@ void usage(FILE *f)
             "  --max-completion-units|-m [arg] Max translation units to keep in memory for completions (default 10)\n"
             "  --no-validate-on-startup|-V     Disable validation of database on startup\n"
             "  --exclude-filter|-x [arg]       Files to exclude from grtags, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
+            "  --no-rc|-N                      Don't load any rc files\n"
+            "  --rc-file|-c [arg]              Use this file instead of ~/.rdmrc\n"
             "  --thread-count|-j [arg]         Spawn this many threads for thread pool\n");
 }
 
 int main(int argc, char** argv)
 {
     RTags::findApplicationDirPath(*argv);
+
     struct option opts[] = {
         { "help", no_argument, 0, 'h' },
         { "include-path", required_argument, 0, 'I' },
@@ -108,7 +111,7 @@ int main(int argc, char** argv)
         { "thread-count", required_argument, 0, 'j' },
         { "datadir", required_argument, 0, 'd' },
         { "clean-slate", no_argument, 0, 'C' },
-        { "cache-size", required_argument, 0, 'c' },
+        { "cache-size", required_argument, 0, 'a' },
         { "disable-sighandler", no_argument, 0, 's' },
         { "name", required_argument, 0, 'n' },
         { "usedashB", no_argument, 0, 'B' },
@@ -116,8 +119,64 @@ int main(int argc, char** argv)
         { "max-completion-units", required_argument, 0, 'm' },
         { "no-validate-on-startup", no_argument, 0, 'V' },
         { "exclude-filter", required_argument, 0, 'x' },
+        { "rc-file", required_argument, 0, 'c' },
+        { "no-rc", no_argument, 0, 'N' },
         { 0, 0, 0, 0 }
     };
+    const ByteArray shortOptions = RTags::shortOptions(opts);
+
+    List<ByteArray> argCopy;
+    List<char*> argList;
+    {
+        bool norc = false;
+        Path rcfile = Path::home() + "/.rdmrc";
+        opterr = 0;
+        while (true) {
+            const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
+            if (c == -1)
+                break;
+            switch (c) {
+            case 'N':
+                norc = true;
+                break;
+            case 'c':
+                rcfile = optarg;
+                break;
+            default:
+                break;
+            }
+        }
+        opterr = 1;
+        argList.append(argv[0]);
+        if (!norc) {
+            char *rc;
+            int size = Path("/etc/rdmrc").readAll(rc);
+            if (rc) {
+                argCopy = ByteArray(rc, size).split('\n');
+                delete[] rc;
+            }
+            if (!rcfile.isEmpty()) {
+                size = rcfile.readAll(rc);
+                if (rc) {
+                    List<ByteArray> split = ByteArray(rc, size).split('\n');
+                    argCopy.append(split);
+                    delete[] rc;
+                }
+            }
+            const int s = argCopy.size();
+            for (int i=0; i<s; ++i) {
+                ByteArray &arg = argCopy.at(i);
+                if (!arg.isEmpty() && !arg.startsWith('#') && !arg.startsWith(' '))
+                    argList.append(arg.data());
+            }
+        }
+        for (int i=1; i<argc; ++i) {
+            argList.append(argv[i]);
+        }
+
+
+        optind = 1;
+    }
 
     int jobs = ThreadPool::idealThreadCount();
     unsigned options = 0;
@@ -127,16 +186,21 @@ int main(int argc, char** argv)
     unsigned logFlags = 0;
     int logLevel = 0;
     Path dataDir = RTags::rtagsDir();
-    const ByteArray shortOptions = RTags::shortOptions(opts);
     int cacheSize = 128;
     int maxCompletionUnits = 10;
     bool enableSignalHandler = true;
     ByteArray name;
+    int argCount = argList.size();
+    char **args = argList.data();
     while (true) {
-        const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
+        const int c = getopt_long(argCount, args, shortOptions.constData(), opts, 0);
         if (c == -1)
             break;
         switch (c) {
+        case 'N':
+        case 'c':
+            // ignored
+            break;
         case 'S':
             logLevel = -1;
             break;
@@ -173,7 +237,7 @@ int main(int argc, char** argv)
         case 'C':
             options |= Server::ClearDatadir;
             break;
-        case 'c': {
+        case 'a': {
             bool ok;
             cacheSize = ByteArray(optarg, strlen(optarg)).toULongLong(&ok);
             if (!ok) {
@@ -213,8 +277,8 @@ int main(int argc, char** argv)
             return 1;
         }
     }
-    if (optind < argc) {
-        fprintf(stderr, "rdm: unexpected option -- '%s'\n", argv[optind]);
+    if (optind < argCount) {
+        fprintf(stderr, "rdm: unexpected option -- '%s'\n", args[optind]);
         return 1;
     }
 
