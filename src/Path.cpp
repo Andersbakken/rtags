@@ -104,9 +104,12 @@ bool Path::resolve(const Path &cwd)
     return false;
 }
 
-const char * Path::fileName() const
+const char * Path::fileName(int *len) const
 {
-    return constData() + lastIndexOf('/') + 1;
+    const int idx = lastIndexOf('/') + 1;
+    if (len)
+        *len = size() - idx;
+    return constData() + idx;
 }
 
 const char * Path::extension() const

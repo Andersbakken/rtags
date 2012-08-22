@@ -70,7 +70,7 @@ public:
     inline bool isAbsolute() const { return (!isEmpty() && at(0) == '/'); }
     inline bool isSymLink() const { return type() == SymLink; }
     Path followLink(bool *ok = 0) const;
-    const char *fileName() const;
+    const char *fileName(int *len = 0) const;
     const char *extension() const;
     static bool exists(const Path &path) { return path.exists(); }
     static bool mkdir(const Path &path);
