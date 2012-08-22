@@ -265,15 +265,16 @@ Path Path::followLink(bool *ok) const
     return *this;
 }
 
-int Path::readAll(char *&buf) const
+int Path::readAll(char *&buf, int max) const
 {
     FILE *f = fopen(constData(), "r");
     buf = 0;
-    if (!f) {
+    if (!f)
         return -1;
-    }
     fseek(f, 0, SEEK_END);
     int size = ftell(f);
+    if (max > 0 && max < size)
+        size = max;
     if (size) {
         fseek(f, 0, SEEK_SET);
         buf = new char[size + 1];

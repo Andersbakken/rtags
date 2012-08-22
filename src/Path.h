@@ -91,7 +91,7 @@ public:
     int64_t fileSize() const;
     static Path resolved(const ByteArray &path, const Path &cwd = Path(), bool *ok = 0);
     static Path canonicalized(const ByteArray &path);
-    int readAll(char *&) const;
+    int readAll(char *&, int max = -1) const;
 
     enum VisitResult {
         Abort,
