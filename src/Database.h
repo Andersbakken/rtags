@@ -160,7 +160,7 @@ class LocationComparator;
 class Database
 {
 public:
-    enum { Version = 15 };
+    enum { Version = 16 };
 
     enum Flag {
         NoFlag = 0x0,
