@@ -233,6 +233,10 @@ public:
     {
         clang_disposeString(string);
     }
+    const char *data() const
+    {
+        return clang_getCString(string);
+    }
     CXString string;
 };
 

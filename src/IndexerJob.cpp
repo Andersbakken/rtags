@@ -588,12 +588,29 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
         default:
             break;
         }
+    case CXCursor_CallExpr:
+        if (ref.kind == CXCursor_Constructor) {
+            CXStringScope scope = clang_getCursorDisplayName(ref.cursor);
+            const char *data = scope.data();
+            const int len = data ? strlen(data) : 0;
+            if (len > 2 && !strncmp(data + len - 2, "()", 2)) {
+                checkImplicit = true;
+            }
+            break;
+        }
+        // fall through
     case CXCursor_DeclRefExpr:
     case CXCursor_UnexposedExpr:
-        checkImplicit = (ref.kind == CXCursor_CXXMethod && RTags::eatString(clang_getCursorSpelling(ref.cursor)) == "operator=");
-        break;
-    case CXCursor_CallExpr:
-        checkImplicit = (ref.kind == CXCursor_Constructor && RTags::eatString(clang_getCursorDisplayName(ref.cursor)).endsWith("()"));
+        if (ref.kind == CXCursor_CXXMethod) {
+            CXStringScope scope = clang_getCursorDisplayName(ref.cursor);
+            const char *data = scope.data();
+            if (data && !strncmp(data, "operator", 8)) {
+                checkImplicit = true;
+            } else {
+                // error() << "tossed" << cursor.cursor << "ref to" << ref.cursor;
+                return CXChildVisit_Recurse;
+            }
+        }
         break;
     default:
         break;
@@ -601,16 +618,18 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
     if (processRef && !mSymbols.contains(ref.location)) {
         processCursor(ref, ref);
     }
-    if (checkImplicit && clang_equalLocations(clang_getCursorLocation(ref.cursor),
-                                              clang_getCursorLocation(clang_getCursorSemanticParent(ref.cursor)))) {
-        debug() << "tossing reference to implicit cursor " << cursor.cursor << " " << ref.cursor;
-        return CXChildVisit_Recurse;
-    }
     const bool refOk = (!clang_isInvalid(ref.kind) && !ref.location.isNull() && ref.location != cursor.location);
     if (refOk && !isInteresting(ref.kind)) {
         debug() << "ref.kind is not interesting and cursor wants a ref " << cursor.cursor << " ref " << ref.cursor;
         return CXChildVisit_Recurse;
     }
+
+    if (checkImplicit && clang_equalLocations(clang_getCursorLocation(ref.cursor),
+                                              clang_getCursorLocation(clang_getCursorSemanticParent(ref.cursor)))) {
+        debug() << "tossing reference to implicit cursor " << cursor.cursor << " " << ref.cursor;
+        return CXChildVisit_Recurse;
+    }
+
 
     CursorInfo &info = mSymbols[cursor.location];
     if (!info.symbolLength) {
@@ -678,9 +697,7 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
                 break;
             }
         }
-        // ### For RTags we seem to get this count:
-        // Duplicates: 18278 Non-duplicates: 69444 Overwrites: 2018
-        // not sure if we should fix this.
+
         Map<Location, RTags::ReferenceType> &val = mReferences[cursor.location];
         val[ref.location] = referenceType;
     }
@@ -804,7 +821,7 @@ void IndexerJob::execute()
         return;
     }
 
-    CXIndex index = clang_createIndex(0, 0);
+    CXIndex index = clang_createIndex(0, 1);
     mUnit = clang_parseTranslationUnit(index, mIn.constData(),
                                        clangArgs.data(), idx, 0, 0,
                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
