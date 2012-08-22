@@ -121,6 +121,11 @@ public:
             mString.resize(size);
     }
 
+    void chop(int s)
+    {
+        mString.resize(size() - s);
+    }
+
     void resize(int size)
     {
         mString.resize(size);
