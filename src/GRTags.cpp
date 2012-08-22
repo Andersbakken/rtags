@@ -6,7 +6,7 @@
 #include <math.h>
 
 GRTags::GRTags()
-    : mWatcher(new FileSystemWatcher), mCount(0), mActive(0), mFlags(0)
+    : mWatcher(new FileSystemWatcher), mCount(0), mActive(0), mFlags(0), mFilters(Server::instance()->excludeFilter())
 {
     mWatcher->added().connect(this, &GRTags::onFileAdded);
     mWatcher->removed().connect(this, &GRTags::onFileRemoved);
@@ -249,7 +249,7 @@ void GRTags::onFileAdded(const Path &path)
 {
     // printf("%s added\n", path.constData());
     shared_ptr<Project> project = mProject.lock();
-    const GRScanJob::FilterResult res = GRScanJob::filter(path, path.type(), 10);
+    const GRScanJob::FilterResult res = GRScanJob::filter(path, mFilters);
     bool source = false;
     switch (res) {
     case GRScanJob::Source:

@@ -40,6 +40,7 @@ private:
     mutable Mutex mMutex;
     int mCount, mActive;
     unsigned mFlags;
+    const List<ByteArray> &mFilters;
 };
 
 #endif

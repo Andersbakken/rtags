@@ -63,10 +63,10 @@ public:
         Path socketPath;
         int maxCompletionUnits;
         int threadCount;
-        List<GRScanJob::Filter> excludeFilter;
+        List<ByteArray> excludeFilter;
     };
     bool init(const Options &options);
-    const List<GRScanJob::Filter> &excludeFilter() const { return mOptions.excludeFilter; }
+    const List<ByteArray> &excludeFilter() const { return mOptions.excludeFilter; }
 private:
     void clear();
     void onNewConnection();

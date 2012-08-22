@@ -16,24 +16,17 @@ public:
     signalslot::Signal1<Map<Path, bool> &> &finished() { return mFinished; }
 
     enum FilterResult {
+        Filtered,
         File,
         Source,
-        Directory,
-        Filtered
+        Directory
     };
 
-    static FilterResult filter(const Path &path, Path::Type type, int maxSymLinks);
-    struct Filter
-    {
-        ByteArray filter;
-        enum Type {
-            Absolute,
-            Wildcard
-        } type;
-    };
+    static FilterResult filter(const Path &path, const List<ByteArray> &filters);
 private:
     static Path::VisitResult visit(const Path &path, void *userData);
     Path mPath;
+    const List<ByteArray> &mFilters;
     Map<Path, bool> mPaths;
     signalslot::Signal1<Map<Path, bool> &> mFinished; // value => true means it's a source file
 };

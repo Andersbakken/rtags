@@ -67,7 +67,7 @@ void signalHandler(int signal)
     EventLoop::instance()->exit();
 }
 
-#define EXCLUDEFILTER_DEFAULT "*.o;*.a;*.so*;*.obj;*.lo"
+#define EXCLUDEFILTER_DEFAULT "*.o;*.a;*.so*;*.obj;*.lo;*.git/objects*"
 void usage(FILE *f)
 {
     fprintf(f,
@@ -91,27 +91,6 @@ void usage(FILE *f)
             "  --no-validate-on-startup|-V     Disable validation of database on startup\n"
             "  --exclude-filter|-x [arg]       Files to exclude from grtags, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
             "  --thread-count|-j [arg]         Spawn this many threads for thread pool\n");
-}
-
-static inline void parseFilter(const char *string, List<GRScanJob::Filter> &filters)
-{
-    char staticBuf[1024];
-    char *buf = staticBuf;
-    const unsigned len = strlen(string);
-    if (len >= sizeof(staticBuf)) {
-        buf = new char[len + 1];
-    }
-    strcpy(buf, string);
-    char *saveptr;
-    for (char *str=strtok_r(&buf[0], ";", &saveptr); str; str = strtok_r(0, ";", &saveptr)) {
-        filters.append(GRScanJob::Filter());
-        GRScanJob::Filter &filter = filters.last();
-        filter.filter = str;
-        filter.type = filter.filter.contains("*") ? GRScanJob::Filter::Wildcard : GRScanJob::Filter::Absolute;
-    }
-
-    if (buf != staticBuf)
-        delete[] buf;
 }
 
 int main(int argc, char** argv)
@@ -255,7 +234,7 @@ int main(int argc, char** argv)
     Server *server = new Server;
     Server::Options serverOpts;
     serverOpts.path = dataDir;
-    parseFilter(excludeFilter ? excludeFilter : EXCLUDEFILTER_DEFAULT, serverOpts.excludeFilter);
+    serverOpts.excludeFilter = ByteArray(excludeFilter ? excludeFilter : EXCLUDEFILTER_DEFAULT).split(';');
     if (!serverOpts.path.endsWith('/'))
         serverOpts.path.append('/');
     serverOpts.maxCompletionUnits = maxCompletionUnits;
