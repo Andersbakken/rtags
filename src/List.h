@@ -58,6 +58,17 @@ public:
         std::vector<T>::resize(size() - count);
     }
     Set<T> toSet() const; // implemented in Set.h
+
+    T &last()
+    {
+        return operator[](size() - 1);
+    }
+
+    const T &last() const
+    {
+        return at(size() - 1);
+    }
+
 };
 
 #endif
