@@ -7,6 +7,7 @@
 #include "Timer.h"
 #include "ScopedDB.h"
 #include "Server.h"
+#include "Str.h"
 #include "FileInformation.h"
 #include "config.h"
 #ifdef OS_FreeBSD
@@ -38,13 +39,14 @@ ByteArray cursorToString(CXCursor cursor)
 
     CXFile file;
     unsigned off, line, col;
-    CXSourceRange range = clang_getCursorExtent(cursor);
-    clang_getSpellingLocation(clang_getRangeStart(range), &file, &line, &col, &off);
-    unsigned int end;
-    clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-    const ByteArray fileName = eatString(clang_getFileName(file));
-    if (!fileName.isEmpty()) {
-        ret += " " + fileName + ',' + ByteArray::number(off) + " (" + ByteArray::number(end) + ")";
+    CXSourceLocation location = clang_getCursorLocation(cursor);
+    clang_getSpellingLocation(location, &file, &line, &col, &off);
+    const Str fileName(clang_getFileName(file));
+    if (fileName.data() && *fileName.data()) {
+        ret += ' ';
+        ret += fileName.data();
+        ret += ',';
+        ret += ByteArray::number(off);
     }
     return ret;
 }
