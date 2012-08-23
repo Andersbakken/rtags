@@ -287,7 +287,6 @@ void Indexer::onJobFinished(IndexerJob *job)
     }
 }
 
-
 void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags)
 {
     MutexLocker locker(&mMutex);

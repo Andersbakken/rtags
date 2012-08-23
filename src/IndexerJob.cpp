@@ -466,8 +466,14 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
      * the ref is position on the member and is visited before the DeclRefExpr
      * which we want.
      */
-    if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
-        return CXChildVisit_Recurse;
+    if (kind == CXCursor_CallExpr) {
+        switch (refKind) {
+        case CXCursor_CXXMethod:
+        case CXCursor_FunctionDecl:
+            return CXChildVisit_Recurse;
+        default:
+            break;
+        }
     }
 
     const Cursor c = { cursor, loc, kind };
@@ -596,20 +602,15 @@ CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor 
             if (len > 2 && !strncmp(data + len - 2, "()", 2)) {
                 checkImplicit = true;
             }
-            break;
         }
-        // fall through
+        break;
     case CXCursor_DeclRefExpr:
     case CXCursor_UnexposedExpr:
         if (ref.kind == CXCursor_CXXMethod) {
             CXStringScope scope = clang_getCursorDisplayName(ref.cursor);
             const char *data = scope.data();
-            if (data && !strncmp(data, "operator", 8)) {
+            if (data && !strncmp(data, "operator", 8))
                 checkImplicit = true;
-            } else {
-                // error() << "tossed" << cursor.cursor << "ref to" << ref.cursor;
-                return CXChildVisit_Recurse;
-            }
         }
         break;
     default:
@@ -742,35 +743,42 @@ struct VerboseVisitorUserData
 };
 static inline CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData)
 {
-    CXCursor ref = clang_getCursorReferenced(cursor);
-
     VerboseVisitorUserData *u = reinterpret_cast<VerboseVisitorUserData*>(userData);
-    u->out += ByteArray(u->indent, ' ');
-    u->out += RTags::cursorToString(cursor);
-    if (clang_equalCursors(ref, cursor)) {
-        u->out += " refs self";
-    } else if (!clang_equalCursors(ref, nullCursor)) {
-        u->out += " refs " + RTags::cursorToString(ref);
-    }
-    u->out += " " + RTags::eatString(clang_getCursorUSR(cursor));
-
     Location loc = u->job->createLocation(cursor);
-    if (loc.fileId() && u->job->mPaths.value(loc.fileId()) == IndexerJob::Index) {
-        if (u->job->mReferences.contains(loc)) {
-            u->out += " used as reference\n";
-        } else if (u->job->mSymbols.contains(loc)) {
-            u->out += " used as cursor\n";
-        } else {
-            u->out += " not used\n";
-        }
-    } else {
-        u->out += " not indexed\n";
-    }
+    if (loc.fileId()) {
+        CXCursor ref = clang_getCursorReferenced(cursor);
 
-    u->indent += 2;
-    clang_visitChildren(cursor, verboseVisitor, userData);
-    u->indent -= 2;
-    return CXChildVisit_Continue;
+        VerboseVisitorUserData *u = reinterpret_cast<VerboseVisitorUserData*>(userData);
+        if (u->indent >= 0)
+            u->out += ByteArray(u->indent, ' ');
+        u->out += RTags::cursorToString(cursor);
+        if (clang_equalCursors(ref, cursor)) {
+            u->out += " refs self";
+        } else if (!clang_equalCursors(ref, nullCursor)) {
+            u->out += " refs " + RTags::cursorToString(ref);
+        }
+        u->out += " " + RTags::eatString(clang_getCursorUSR(cursor));
+
+        if (loc.fileId() && u->job->mPaths.value(loc.fileId()) == IndexerJob::Index) {
+            if (u->job->mReferences.contains(loc)) {
+                u->out += " used as reference\n";
+            } else if (u->job->mSymbols.contains(loc)) {
+                u->out += " used as cursor\n";
+            } else {
+                u->out += " not used\n";
+            }
+        } else {
+            u->out += " not indexed\n";
+        }
+    }
+    if (u->indent >= 0) {
+        u->indent += 2;
+        clang_visitChildren(cursor, verboseVisitor, userData);
+        u->indent -= 2;
+        return CXChildVisit_Continue;
+    } else {
+        return CXChildVisit_Recurse;
+    }
 }
 
 void IndexerJob::execute()
@@ -826,7 +834,6 @@ void IndexerJob::execute()
                                        clangArgs.data(), idx, 0, 0,
                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
     Scope scope = { mHeaderMap, mUnit, index, mFlags };
-    // fprintf(stdout, "%s => %d\n", clangLine.nullTerminated(), (mUnit != 0));
 
     warning() << "loading unit " << clangLine << " " << (mUnit != 0);
     if (isAborted()) {
@@ -912,10 +919,18 @@ void IndexerJob::execute()
         if (!mIsPch) {
             clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
             if (testLog(VerboseDebug)) {
-                VerboseVisitorUserData u = { 0, "<VerboseVisitor " + clangLine + ">", this };
-                clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
-                u.out += "</VerboseVisitor " + clangLine + ">";
-                logDirect(VerboseDebug, u.out);
+                {
+                    VerboseVisitorUserData u = { 0, "<VerboseVisitor " + clangLine + ">", this };
+                    clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
+                    u.out += "</VerboseVisitor " + clangLine + ">";
+                    logDirect(VerboseDebug, u.out);
+                }
+                // {
+                //     VerboseVisitorUserData u = { -1, "<VerboseVisitor2 " + clangLine + ">", this };
+                //     clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
+                //     u.out += "</VerboseVisitor2 " + clangLine + ">";
+                //     logDirect(VerboseDebug, u.out);
+                // }
             }
         }
         if (mIsPch) {
