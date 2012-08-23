@@ -1,33 +1,17 @@
-// #include "header.h"
-
-class Outer
+namespace N
 {
-public:
-    void foo();
-    void inlinefunc()
-    {}
-    void inlinefunc2()
-    {
-        inlinefunc();
-    }
-    
+void f();
 };
 
-void bar()
-{
-}
-
+using namespace N;
 int main()
 {
-    // Enum e = Foo;
-    Outer o;
-
-    o.foo();
-    return 0;
+    N::f();
+    f();
 }
 
-void Outer::foo()
+void N::f()
 {
-    bar();
-    foo();
+
+
 }

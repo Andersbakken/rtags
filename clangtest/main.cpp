@@ -4,6 +4,7 @@
 #include <ByteArray.h>
 #include <Timer.h>
 #include <Log.h>
+#include <RTags.h>
 
 // static inline const char *kindToString(CXIdxEntityKind kind)
 // {
@@ -100,13 +101,15 @@ static inline CXChildVisitResult visitAll(CXCursor cursor, CXCursor, CXClientDat
 
         clang_getInstantiationLocation(start, &f, &l, &c, &o);
         clang_getInstantiationLocation(end, &f2, &l2, &c2, &o2);
-        error() << ByteArray(reinterpret_cast<long>(userData), ' ').constData()
+        char buf[1024];
+        realpath(String(clang_getFileName(f)).data(), buf);
+        int len = strlen(buf);
+        snprintf(buf + len, 1024 - len, ",%d (len %d)", o, o2 - o);
+
+        error() << ByteArray(std::max(0l, reinterpret_cast<long>(userData)), ' ').constData()
                 << String(clang_getCursorKindSpelling(clang_getCursorKind(cursor))).data()
                 << String(clang_getCursorSpelling(cursor)).data()
-                << "extent is" << String(clang_getFileName(f)).data()
-                << l << c << o << "to" << String(clang_getFileName(f2)).data()
-                << l2 << c2 << o2
-                << String(clang_getCursorKindSpelling(clang_getCursorKind(clang_getCursorLexicalParent(cursor)))).data()
+                << buf << String(clang_getCursorKindSpelling(clang_getCursorKind(clang_getCursorLexicalParent(cursor)))).data()
                 << String(clang_getCursorSpelling(clang_getCursorLexicalParent(cursor))).data();
     }
 
@@ -119,8 +122,8 @@ static inline CXChildVisitResult visitAll(CXCursor cursor, CXCursor, CXClientDat
     //        line2, col2,
     //        String(clang_getCursorKindSpelling(clang_getCursorKind(ref))).data(),
     //        String(clang_getCursorSpelling(ref)).data());
-    clang_visitChildren(cursor, visitAll, reinterpret_cast<void*>(reinterpret_cast<long>(userData) + 2));
-    return CXChildVisit_Continue;
+    clang_visitChildren(cursor, visitAll, reinterpret_cast<void*>(reinterpret_cast<long>(userData)));
+    return CXChildVisit_Recurse;
 }
 
 // void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
