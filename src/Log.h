@@ -94,18 +94,20 @@ public:
     Log operator<<(const char *string) { return write(string); }
     Log write(const char *data, int len = -1)
     {
-        if (len == -1)
-            len = strlen(data);
-        assert(len >= 0);
-        if (mData && len) {
-            const int outLength = mData->out.size();
-            if (mData->spacing && outLength && !isspace(mData->out.at(mData->out.size() - 1)) && !isspace(*data)) {
-                mData->out.resize(outLength + len + 1);
-                mData->out[outLength] = ' ';
-                memcpy(mData->out.data() + outLength + 1, data, len);
-            } else {
-                mData->out.resize(outLength + len);
-                memcpy(mData->out.data() + outLength, data, len);
+        if (data && mData) {
+            if (len == -1)
+                len = strlen(data);
+            assert(len >= 0);
+            if (len) {
+                const int outLength = mData->out.size();
+                if (mData->spacing && outLength && !isspace(mData->out.at(mData->out.size() - 1)) && !isspace(*data)) {
+                    mData->out.resize(outLength + len + 1);
+                    mData->out[outLength] = ' ';
+                    memcpy(mData->out.data() + outLength + 1, data, len);
+                } else {
+                    mData->out.resize(outLength + len);
+                    memcpy(mData->out.data() + outLength, data, len);
+                }
             }
         }
         return *this;
