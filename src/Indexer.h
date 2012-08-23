@@ -96,6 +96,10 @@ inline bool Indexer::visitFile(uint32_t fileId, const Path &path)
         return false;
     }
 
+    if (Location::path(fileId) == "/home/abakken/dev/rtags/src/GRTags.h") {
+        error() << path << "WON IT";
+    }
+
     mVisitedFiles.insert(fileId);
     return true;
 }

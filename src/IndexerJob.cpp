@@ -445,8 +445,15 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         return CXChildVisit_Recurse; // ### continue
     }
 
+
     bool blocked = false;
     const Location loc = job->createLocation(cursor, &blocked);
+    if (job->createLocation(cursor, 0) == "/home/abakken/dev/rtags/src/GRTags.h,549") {
+        error() << "indexing" << Location::path(job->mFileId)
+                << "blocked" << blocked << cursor << type;
+        if (!blocked)
+            exit(0);
+    }
     if (blocked) {
         switch (kind) {
         case CXCursor_FunctionDecl:
@@ -467,9 +474,13 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         return CXChildVisit_Continue;
     } else if (loc.isNull()) {
         return CXChildVisit_Recurse;
+    } else if (job->mSymbols.contains(loc)) {
+        return CXChildVisit_Continue;
     }
-
-    // error() << "processing" << cursor << type;
+    // if (loc == "/usr/include/c++/4.6/bits/deque.tcc,15200" || loc == "/usr/include/c++/4.6/bits/char_traits.h,5236") {
+    //     error() << "processing" << cursor << type << clang_getCursorReferenced(cursor);
+    //     exit(0);
+    // }
 
     switch (type) {
     case Declaration:
@@ -552,25 +563,24 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
                 checkImplicit = true;
         }
         break;
-    case CXCursor_TypeRef:
-        switch (refKind) {
-        case CXCursor_ClassDecl:
-        case CXCursor_StructDecl:
-        case CXCursor_UnionDecl:
-            if (clang_isCursorDefinition(ref))
-                break;
-            // fall through
-        case CXCursor_TypedefDecl: {
-            const Location refLoc = createLocation(ref, 0);
-            if (!refLoc.isValid())
-                return;
-            if (!mSymbols.contains(refLoc))
-                addCursor(ref, refKind, refLoc);
-            break; }
-        default:
-            break;
-        }
-        break;
+    case CXCursor_TypeRef: {
+        // switch (refKind) {
+        // case CXCursor_ClassDecl:
+        // case CXCursor_StructDecl:
+        // case CXCursor_UnionDecl:
+        //     if (clang_isCursorDefinition(ref))
+        //         break;
+        //     // fall through
+        // case CXCursor_TypedefDecl: {
+        const Location refLoc = createLocation(ref, 0);
+        if (!refLoc.isValid())
+            return;
+        if (!mSymbols.contains(refLoc))
+            addCursor(ref, refKind, refLoc);
+        //     break; }
+        // default:
+        //     break;
+        break; }
     default:
         break;
     }
@@ -675,6 +685,14 @@ static inline bool isInline(const CXCursor &cursor)
 void IndexerJob::addCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const CXCursor *ref)
 {
     CursorInfo &info = mSymbols[location];
+    if (info.symbolLength) {
+        if (!ref)
+            return;
+        static int max = 20;
+        if (max-- > 0)
+            error() << "current" << info << "\nnew" << cursor << (ref ? *ref : clang_getNullCursor());
+        return;
+    }
     if (!info.symbolLength) {
         info.isDefinition = clang_isCursorDefinition(cursor);
         info.kind = kind;
