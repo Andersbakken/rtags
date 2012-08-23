@@ -29,7 +29,28 @@ ByteArray eatString(CXString str)
 
 ByteArray cursorToString(CXCursor cursor)
 {
-    ByteArray ret = eatString(clang_getCursorKindSpelling(clang_getCursorKind(cursor)));
+    const CXCursorKind kind = clang_getCursorKind(cursor);
+    ByteArray ret = eatString(clang_getCursorKindSpelling(kind));
+
+    if (clang_isReference(kind)) {
+        ret += " reference";
+    } else if (clang_isDeclaration(kind)) {
+        ret += " declaration";
+    } else if (clang_isExpression(kind)) {
+        ret += " expression";
+    } else if (clang_isStatement(kind)) {
+        ret += " statement";
+    } else if (clang_isAttribute(kind)) {
+        ret += " attribute";
+    } else if (clang_isPreprocessing(kind)) {
+        ret += " preprocessing";
+    } else if (clang_isUnexposed(kind)) {
+        ret += " unexposed";
+    } else if (clang_isInvalid(kind)) {
+        ret += " invalid";
+    } else {
+        ret += " other";
+    }
     const ByteArray name = eatString(clang_getCursorDisplayName(cursor));
     const ByteArray other = eatString(clang_getCursorSpelling(cursor));
     if (!name.isEmpty())

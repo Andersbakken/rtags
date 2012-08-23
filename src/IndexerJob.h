@@ -39,8 +39,13 @@ public:
         CXCursorKind kind;
     };
 
+    void addCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const CXCursor *ref = 0);
+    void handlePreprocessing(const CXCursor &cursor, CXCursorKind, const Location &location);
+    void handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc);
+
+    void addInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     CXChildVisitResult processCursor(const Cursor &cursor, const Cursor &ref);
-    Cursor findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc);
+    Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
     void addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos);
 
     unsigned mFlags;
@@ -58,7 +63,7 @@ public:
         Reference
     };
     Map<uint32_t, PathState> mPaths;
-    Map<Str, CXCursor> mHeaderMap;
+    Map<Str, Location> mHeaderMap;
     bool mDoneFullUSRScan;
     ReferenceMap mReferences;
     const Path mIn;
