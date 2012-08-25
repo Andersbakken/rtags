@@ -456,24 +456,25 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
                 checkImplicit = true;
         }
         break;
-    case CXCursor_TypeRef: {
-        // switch (refKind) {
-        // case CXCursor_ClassDecl:
-        // case CXCursor_StructDecl:
-        // case CXCursor_UnionDecl:
-        //     if (clang_isCursorDefinition(ref))
-        //         break;
-        //     // fall through
-        // case CXCursor_TypedefDecl: {
+    case CXCursor_TypeRef:
+        switch (refKind) {
+        case CXCursor_ClassDecl:
+        case CXCursor_StructDecl:
+        case CXCursor_UnionDecl:
+            if (clang_isCursorDefinition(ref))
+                break;
+            // fall through
+        case CXCursor_TypedefDecl: {
         const Location refLoc = createLocation(ref, 0);
         if (!refLoc.isValid())
             return;
         if (!mSymbols.contains(refLoc))
             handleCursor(ref, refKind, refLoc);
-        //     break; }
-        // default:
-        //     break;
         break; }
+        default:
+            break;
+        }
+        break;
     default:
         break;
     }
