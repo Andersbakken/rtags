@@ -39,12 +39,9 @@ public:
         CXCursorKind kind;
     };
 
-    void addCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const CXCursor *ref = 0);
-    void handlePreprocessing(const CXCursor &cursor, CXCursorKind, const Location &location);
+    void handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const CXCursor *ref = 0);
     void handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc);
-
-    void addInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
-    CXChildVisitResult processCursor(const Cursor &cursor, const Cursor &ref);
+    void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
     void addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos);
 

@@ -430,17 +430,17 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         return CXChildVisit_Recurse;
 
     enum Type {
-        Preprocessing,
-        Declaration,
+        Include,
+        Cursor,
         Reference,
         Other
     } type = Other;
     if (RTags::isReference(kind)) {
         type = Reference;
-    } else if (clang_isDeclaration(kind)) {
-        type = Declaration;
-    } else if (clang_isPreprocessing(kind)) {
-        type = Preprocessing;
+    } else if (RTags::isCursor(kind)) {
+        type = Cursor;
+    } else if (kind == CXCursor_InclusionDirective) {
+        type = Include;
     } else {
         return CXChildVisit_Recurse; // ### continue
     }
@@ -448,12 +448,12 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
 
     bool blocked = false;
     const Location loc = job->createLocation(cursor, &blocked);
-    if (job->createLocation(cursor, 0) == "/home/abakken/dev/rtags/src/GRTags.h,549") {
-        error() << "indexing" << Location::path(job->mFileId)
-                << "blocked" << blocked << cursor << type;
-        if (!blocked)
-            exit(0);
-    }
+    // if (job->createLocation(cursor, 0) == "/home/abakken/dev/rtags/src/GRTags.h,549") {
+    //     error() << "indexing" << Location::path(job->mFileId)
+    //             << "blocked" << blocked << cursor << type;
+    //     if (!blocked)
+    //         exit(0);
+    // }
     if (blocked) {
         switch (kind) {
         case CXCursor_FunctionDecl:
@@ -467,15 +467,16 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         case CXCursor_Namespace:
         case CXCursor_ClassTemplate:
         case CXCursor_UnexposedDecl:
+        case CXCursor_InclusionDirective:
             return CXChildVisit_Recurse;
         default:
             break;
         }
-        return CXChildVisit_Continue;
+        return CXChildVisit_Recurse;
     } else if (loc.isNull()) {
         return CXChildVisit_Recurse;
     } else if (job->mSymbols.contains(loc)) {
-        return CXChildVisit_Continue;
+        return CXChildVisit_Recurse;
     }
     // if (loc == "/usr/include/c++/4.6/bits/deque.tcc,15200" || loc == "/usr/include/c++/4.6/bits/char_traits.h,5236") {
     //     error() << "processing" << cursor << type << clang_getCursorReferenced(cursor);
@@ -483,11 +484,11 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     // }
 
     switch (type) {
-    case Declaration:
-        job->addCursor(cursor, kind, loc);
+    case Cursor:
+        job->handleCursor(cursor, kind, loc);
         break;
-    case Preprocessing:
-        job->handlePreprocessing(cursor, kind, loc);
+    case Include:
+        job->handleInclude(cursor, kind, loc);
         break;
     case Reference:
         job->handleReference(cursor, kind, loc);
@@ -497,32 +498,6 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         break;
     }
     return CXChildVisit_Recurse; // ### recurse?
-}
-
-void IndexerJob::handlePreprocessing(const CXCursor &cursor, CXCursorKind kind, const Location &loc)
-{
-    switch (kind) {
-    case CXCursor_InclusionDirective:
-        addInclude(cursor, kind, loc);
-        break;
-    case CXCursor_MacroExpansion: {
-        const CXCursor ref = clang_getCursorReferenced(cursor);
-        const CXCursorKind refKind = clang_getCursorKind(ref);
-        if (refKind != CXCursor_MacroDefinition)
-            break;
-        const Location refLoc = createLocation(ref, 0);
-        if (!refLoc.isValid())
-            break;
-        if (!mSymbols.contains(refLoc))
-            addCursor(ref, refKind, refLoc);
-        addCursor(cursor, kind, loc, &ref);
-        break; }
-    case CXCursor_MacroDefinition:
-        addCursor(cursor, kind, loc);
-        break;
-    default:
-        break;
-    }
 }
 
 void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc)
@@ -576,7 +551,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         if (!refLoc.isValid())
             return;
         if (!mSymbols.contains(refLoc))
-            addCursor(ref, refKind, refLoc);
+            handleCursor(ref, refKind, refLoc);
         //     break; }
         // default:
         //     break;
@@ -597,7 +572,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         error() << "adding a reference now and all" << cursor << ref;
     }
 
-    addCursor(cursor, kind, loc, &ref);
+    handleCursor(cursor, kind, loc, &ref);
 }
 
 void IndexerJob::addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos)
@@ -628,7 +603,7 @@ void IndexerJob::addOverriddenCursors(const CXCursor& cursor, const Location& lo
     clang_disposeOverriddenCursors(overridden);
 }
 
-void IndexerJob::addInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location)
+void IndexerJob::handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
     assert(kind == CXCursor_InclusionDirective);
     (void)kind;
@@ -682,15 +657,15 @@ static inline bool isInline(const CXCursor &cursor)
     }
 }
 
-void IndexerJob::addCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const CXCursor *ref)
+void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const CXCursor *ref)
 {
     CursorInfo &info = mSymbols[location];
     if (info.symbolLength) {
-        if (!ref)
-            return;
-        static int max = 20;
-        if (max-- > 0)
-            error() << "current" << info << "\nnew" << cursor << (ref ? *ref : clang_getNullCursor());
+        // if (!ref)
+        //     return;
+        // static int max = 20;
+        // if (max-- > 0)
+        error() << "current" << info << "\nnew" << cursor << (ref ? *ref : clang_getNullCursor());
         return;
     }
     if (!info.symbolLength) {
@@ -785,181 +760,6 @@ void IndexerJob::addCursor(const CXCursor &cursor, CXCursorKind kind, const Loca
     }
 }
 
-CXChildVisitResult IndexerJob::processCursor(const Cursor &cursor, const Cursor &ref)
-{
-    if (testLog(VerboseDebug))
-        verboseDebug() << "processCursor " << cursor.cursor << " " << ref.cursor;
-
-    if (cursor.kind == CXCursor_InclusionDirective) {
-        CXFile includedFile = clang_getIncludedFile(cursor.cursor);
-        if (includedFile) {
-            const Location refLoc(includedFile, 0);
-            if (!refLoc.isNull()) {
-                {
-                    ByteArray include = "#include ";
-                    const Path path = refLoc.path();
-                    mSymbolNames[(include + path)].insert(cursor.location);
-                    mSymbolNames[(include + path.fileName())].insert(cursor.location);
-                }
-                CXSourceRange range = clang_getCursorExtent(cursor.cursor);
-                unsigned int end;
-                clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-                unsigned tokenCount = 0;
-                CXToken *tokens = 0;
-                clang_tokenize(mUnit, range, &tokens, &tokenCount);
-                CursorInfo &info = mSymbols[cursor.location];
-                info.target = refLoc;
-                info.kind = cursor.kind;
-                info.isDefinition = false;
-                info.symbolLength = end - cursor.location.offset();
-                assert(info.symbolLength > 0);
-                for (unsigned i=0; i<tokenCount; ++i) {
-                    if (clang_getTokenKind(tokens[i]) == CXToken_Literal) {
-                        CXStringScope scope(clang_getTokenSpelling(mUnit, tokens[i]));
-                        info.symbolName = "#include ";
-                        info.symbolName += clang_getCString(scope.string);
-                        mSymbolNames[info.symbolName].insert(cursor.location);
-                        break;
-                    }
-                }
-                if (tokens) {
-                    clang_disposeTokens(mUnit, tokens, tokenCount);
-                }
-            }
-        }
-        return CXChildVisit_Recurse;
-    }
-    bool processRef = false;
-    bool checkImplicit = false;
-    switch (cursor.kind) {
-    case CXCursor_MacroExpansion:
-        processRef = (ref.kind == CXCursor_MacroDefinition);
-        break;
-    case CXCursor_TypeRef:
-        switch (ref.kind) {
-        case CXCursor_ClassDecl:
-        case CXCursor_StructDecl:
-        case CXCursor_UnionDecl:
-            if (clang_isCursorDefinition(ref.cursor))
-                break;
-            // fall through
-        case CXCursor_TypedefDecl:
-            processRef = true;
-            break;
-        default:
-            break;
-        }
-    case CXCursor_CallExpr:
-        if (ref.kind == CXCursor_Constructor) {
-            CXStringScope scope = clang_getCursorDisplayName(ref.cursor);
-            const char *data = scope.data();
-            const int len = data ? strlen(data) : 0;
-            if (len > 2 && !strncmp(data + len - 2, "()", 2)) {
-                checkImplicit = true;
-            }
-        }
-        break;
-    case CXCursor_DeclRefExpr:
-    case CXCursor_UnexposedExpr:
-        if (ref.kind == CXCursor_CXXMethod) {
-            CXStringScope scope = clang_getCursorDisplayName(ref.cursor);
-            const char *data = scope.data();
-            if (data && !strncmp(data, "operator", 8))
-                checkImplicit = true;
-        }
-        break;
-    default:
-        break;
-    }
-    if (processRef && !mSymbols.contains(ref.location)) {
-        processCursor(ref, ref);
-    }
-    const bool refOk = (!clang_isInvalid(ref.kind) && !ref.location.isNull() && ref.location != cursor.location);
-    CXChildVisitResult res = CXChildVisit_Recurse;
-    if (refOk && !isInteresting(ref.kind, res)) {
-        debug() << "ref.kind is not interesting and cursor wants a ref " << cursor.cursor << " ref " << ref.cursor;
-        return res;
-    }
-
-    if (checkImplicit && clang_equalLocations(clang_getCursorLocation(ref.cursor),
-                                              clang_getCursorLocation(clang_getCursorSemanticParent(ref.cursor)))) {
-        debug() << "tossing reference to implicit cursor " << cursor.cursor << " " << ref.cursor;
-        return CXChildVisit_Recurse;
-    }
-
-    CursorInfo &info = mSymbols[cursor.location];
-    if (!info.symbolLength) {
-        info.isDefinition = clang_isCursorDefinition(cursor.cursor);
-        info.kind = cursor.kind;
-        const bool isReference = RTags::isReference(info.kind);
-
-        CXStringScope name = clang_getCursorSpelling(cursor.cursor);
-        const char *cstr = clang_getCString(name.string);
-        info.symbolLength = cstr ? strlen(cstr) : 0;
-        if (!info.symbolLength) {
-            switch (info.kind) {
-            case CXCursor_ClassDecl:
-            case CXCursor_UnionDecl:
-                info.symbolLength = 5;
-                break;
-            case CXCursor_StructDecl:
-                info.symbolLength = 6;
-                break;
-            default:
-                mSymbols.remove(cursor.location);
-                return CXChildVisit_Recurse;
-            }
-        } else {
-            info.symbolName = addNamePermutations(cursor.cursor, cursor.location, !isReference);
-        }
-        switch (info.kind) {
-        case CXCursor_Constructor:
-        case CXCursor_Destructor: {
-            Location parentLocation = createLocation(clang_getCursorSemanticParent(cursor.cursor));
-            // consider doing this for only declaration/inline definition since
-            // declaration and definition should know of one another
-            if (parentLocation.isValid()) {
-                CursorInfo &parent = mSymbols[parentLocation];
-                parent.references.insert(cursor.location);
-                info.references.insert(parentLocation);
-            }
-            break; }
-        case CXCursor_CXXMethod: {
-            List<CursorInfo*> infos;
-            infos.append(&info);
-            addOverriddenCursors(cursor.cursor, cursor.location, infos);
-            break;
-        }
-
-        default:
-            break;
-        }
-    }
-
-    if (refOk) {
-        info.target = ref.location;
-        RTags::ReferenceType referenceType = RTags::NormalReference;
-        if (ref.kind == cursor.kind) {
-            switch (ref.kind) {
-            case CXCursor_Constructor:
-            case CXCursor_Destructor:
-            case CXCursor_CXXMethod:
-                referenceType = RTags::MemberFunction;
-                break;
-            case CXCursor_FunctionDecl:
-                referenceType = RTags::GlobalFunction;
-                break;
-            default:
-                break;
-            }
-        }
-
-        Map<Location, RTags::ReferenceType> &val = mReferences[cursor.location];
-        val[ref.location] = referenceType;
-    }
-    return CXChildVisit_Recurse;
-}
-
 struct Scope {
     ~Scope()
     {
@@ -1043,7 +843,7 @@ void IndexerJob::execute()
     Timer timer;
 
     List<const char*> clangArgs(mArgs.size(), 0);
-    ByteArray clangLine = CLANG_BIN "clang ";
+    ByteArray clangLine = Server::instance()->clangPath();
     bool nextIsX = false;
     ByteArray pchName;
 
