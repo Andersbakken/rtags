@@ -125,6 +125,11 @@
       (rtags-call-rc "-U" loc)
       (buffer-string))))
 
+(defun rtags-print-cursorinfo (&optional location)
+  (interactive)
+  (message (rtags-cursorinfo)))
+
+
 (defun rtags-current-location ()
   (format "%s,%d" (buffer-file-name) (- (point) 1)))
 
@@ -304,6 +309,7 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r p") (function rtags-set-current-project))
   (define-key map (kbd "C-x r e") (function rtags-reparse-file))
   (define-key map (kbd "C-x r R") (function rtags-rename-symbol))
+  (define-key map (kbd "C-x r U") (function rtags-print-cursorinfo))
   (define-key map (kbd "C-x r ;") (function rtags-find-file))
   )
 
