@@ -80,13 +80,28 @@ inline bool isReference(CXCursorKind kind)
     case CXCursor_DeclRefExpr:
     case CXCursor_UnexposedDecl:
     case CXCursor_MacroExpansion:
+    case CXCursor_MemberRefExpr:
         return true;
     default:
         break;
     }
     return false;
-    // }|| (kind >= CXCursor_FirstExpr && kind <= CXCursor_LastExpr) || kind == CXCursor_UnexposedExpr); // ### not sure about this one
 }
+
+inline bool isCursor(CXCursorKind kind)
+{
+    if (clang_isDeclaration(kind))
+        return true;
+    switch (kind) {
+    case CXCursor_LabelStmt:
+    case CXCursor_MacroDefinition:
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
+
 
 inline bool hasAdditionalReferences(CXCursorKind kind)
 {
