@@ -96,6 +96,7 @@ bool Server::init(const Options &options)
         clangPath.prepend("-I");
         mOptions.defaultArguments.append(clangPath);
     }
+    mClangPath = Path::resolved(CLANG_BIN "clang ");
 
     // mCompletions = new Completions(mOptions.maxCompletionUnits);
 

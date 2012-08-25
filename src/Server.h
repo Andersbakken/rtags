@@ -67,6 +67,7 @@ public:
     };
     bool init(const Options &options);
     const List<ByteArray> &excludeFilter() const { return mOptions.excludeFilter; }
+    const Path &clangPath() const { return mClangPath; }
 private:
     void clear();
     void onNewConnection();
@@ -131,6 +132,7 @@ private:
     ThreadPool *mThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
     Completions *mCompletions;
+    Path mClangPath;
 };
 
 #endif
