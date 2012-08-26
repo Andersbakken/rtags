@@ -61,7 +61,6 @@ public:
     };
     Map<uint32_t, PathState> mPaths;
     Map<Str, Location> mHeaderMap;
-    bool mDoneFullUSRScan;
     ReferenceMap mReferences;
     const Path mIn;
     const uint32_t mFileId;

@@ -117,16 +117,11 @@ static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &a
 }
 
 IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &input, const List<ByteArray> &arguments)
-    : mFlags(flags), mTimeStamp(time(0)), mIsPch(false), mDoneFullUSRScan(false), mIn(input),
+    : mFlags(flags), mTimeStamp(time(0)), mIsPch(false), mIn(input),
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
       mPchHeaders(extractPchFiles(mIndexer->projectPath(), arguments)), mUnit(0)
 {
     setAutoDelete(true);
-}
-
-static inline uint32_t fileId(CXFile file)
-{
-    return Location(file, 0).fileId();
 }
 
 void IndexerJob::inclusionVisitor(CXFile includedFile,
