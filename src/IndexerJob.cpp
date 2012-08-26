@@ -164,18 +164,6 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
     }
 }
 
-static inline bool mayHaveTemplates(CXCursorKind kind)
-{
-    switch (kind) {
-    case CXCursor_ClassTemplate:
-    case CXCursor_Constructor:
-    case CXCursor_Destructor:
-        return true;
-    default:
-        return false;
-    }
-}
-
 static inline void addToSymbolNames(const ByteArray &arg, bool hasTemplates, const Location &location, SymbolNameMap &symbolNames)
 {
     symbolNames[arg].insert(location);
@@ -252,7 +240,17 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
         }
 
         assert(!qparam.isEmpty());
-        const bool hasTemplates = mayHaveTemplates(kind) && qnoparam.contains('<');
+        bool hasTemplates = false;
+        switch (kind) {
+        case CXCursor_ClassTemplate:
+        case CXCursor_Constructor:
+        case CXCursor_Destructor:
+            hasTemplates = qnoparam.contains('<');
+            break;
+        default:
+            break;
+        }
+
         addToSymbolNames(qparam, hasTemplates, location, mSymbolNames);
         if (!qnoparam.isEmpty()) {
             assert(!qnoparam.isEmpty());
