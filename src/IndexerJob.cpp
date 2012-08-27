@@ -406,6 +406,27 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     return CXChildVisit_Recurse; // ### recurse?
 }
 
+// Could set a flag when we get to template functions and continue but visit with a different visitor
+#warning templatized functions only get indexed if called seemingly, maybe even the same with inline ones. If so, the file that wins it could end up not using it
+static inline bool inTemplateFunction(CXCursor cursor)
+{
+    while (true) {
+        switch (clang_getCursorKind(cursor)) {
+        case CXCursor_FunctionDecl:
+        case CXCursor_CXXMethod:
+        case CXCursor_ClassDecl:
+        case CXCursor_StructDecl:
+            break;
+        case CXCursor_TranslationUnit:
+            return false;
+        default:
+            cursor = clang_getCursorSemanticParent(cursor); // lexical?
+            break;
+        }
+    }
+    return true;
+}
+
 void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc)
 {
     CXCursor ref = clang_getCursorReferenced(cursor);
