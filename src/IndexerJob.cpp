@@ -384,6 +384,11 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         return CXChildVisit_Continue;
     }
 
+    // if (loc == "/usr/include/getopt.h,3843" || loc == "/home/abakken/dev/rtags/src/RTags.h,5430" || loc == "/home/abakken/dev/rtags/src/rdm.cpp,3970") {
+    //     error() << "got some stuff here" << cursor << type << job->mIn
+    //             << clang_getCursorReferenced(cursor);
+    // }
+
     switch (type) {
     case Cursor:
         job->handleCursor(cursor, kind, loc);
@@ -447,9 +452,6 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         case CXCursor_ClassDecl:
         case CXCursor_StructDecl:
         case CXCursor_UnionDecl:
-            if (clang_isCursorDefinition(ref))
-                break;
-            // fall through
         case CXCursor_TemplateTypeParameter:
         case CXCursor_TypedefDecl:
             processRef = true;
@@ -459,8 +461,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         }
         break;
     case CXCursor_MacroExpansion:
-        if (refKind == CXCursor_MacroDefinition)
-            processRef = true;
+        processRef = true;
         break;
     default:
         break;
@@ -469,17 +470,10 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
 
     if (processRef) {
         const Location refLoc = createLocation(ref, 0);
-        if (!refLoc.isValid())
-            return;
-        if (!mSymbols.value(refLoc).symbolLength)
+        if (refLoc.isValid() && mPaths.value(refLoc.fileId()) == Index && !mSymbols.contains(refLoc)) {
             handleCursor(ref, refKind, refLoc);
-    } else {
-        bool blocked = true;
-        const Location refLoc = createLocation(ref, &blocked);
-        if (refLoc.isValid() && !blocked && !mSymbols.value(refLoc).symbolLength)
-            handleCursor(ref, refKind, refLoc);
+        }
     }
-
 
     if (checkImplicit && clang_equalLocations(clang_getCursorLocation(ref),
                                               clang_getCursorLocation(clang_getCursorSemanticParent(ref)))) {
