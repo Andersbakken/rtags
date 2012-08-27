@@ -88,7 +88,7 @@ void usage(FILE *f)
             "  --usedashB|-B                   Use -B for make instead of makelib\n"
             "  --silent|-S                     No logging to stdout\n"
             "  --max-completion-units|-m [arg] Max translation units to keep in memory for completions (default 10)\n"
-            "  --no-validate-on-startup|-V     Disable validation of database on startup\n"
+            "  --no-validate|-V                Disable validation of database on startup and after indexing\n"
             "  --exclude-filter|-x [arg]       Files to exclude from grtags, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
             "  --no-rc|-N                      Don't load any rc files\n"
             "  --rc-file|-c [arg]              Use this file instead of ~/.rdmrc\n"
@@ -117,7 +117,7 @@ int main(int argc, char** argv)
         { "usedashB", no_argument, 0, 'B' },
         { "silent", no_argument, 0, 'S' },
         { "max-completion-units", required_argument, 0, 'm' },
-        { "no-validate-on-startup", no_argument, 0, 'V' },
+        { "no-validate", no_argument, 0, 'V' },
         { "exclude-filter", required_argument, 0, 'x' },
         { "rc-file", required_argument, 0, 'c' },
         { "no-rc", no_argument, 0, 'N' },
@@ -223,7 +223,7 @@ int main(int argc, char** argv)
             options |= Server::UseDashB;
             break;
         case 'V':
-            options |= Server::NoValidateOnStartup;
+            options |= Server::NoValidate;
             break;
         case 'd':
             dataDir = Path::resolved(optarg);

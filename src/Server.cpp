@@ -184,7 +184,7 @@ bool Server::init(const Options &options)
         setCurrentProject(currentProject);
     }
 
-    if (!(mOptions.options & NoValidateOnStartup))
+    if (!(mOptions.options & NoValidate))
         remake();
     return true;
 }
@@ -1066,7 +1066,7 @@ shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
             project->databases[i] = new Database(project->databaseDir(static_cast<Project::DatabaseType>(i)).constData(), mOptions.cacheSizeMB, f);
         }
         project->indexer = new Indexer;
-        project->indexer->init(project, !(mOptions.options & NoValidateOnStartup));
+        project->indexer->init(project, !(mOptions.options & NoValidate));
     }
 
     if (flags & EnableGRTags && !project->databases[Project::GR]) {

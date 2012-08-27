@@ -41,7 +41,7 @@ public:
         NoOptions = 0x0,
         NoClangIncludePath = 0x1,
         UseDashB = 0x2,
-        NoValidateOnStartup = 0x4,
+        NoValidate = 0x4,
         ClearDatadir = 0x8
     };
     enum DatabaseType {

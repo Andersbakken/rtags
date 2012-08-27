@@ -15,12 +15,13 @@
 #include <math.h>
 
 Indexer::Indexer()
-    : mJobCounter(0), mTimerRunning(false)
+    : mJobCounter(0), mTimerRunning(false), mValidate(false)
 {
 }
 
 void Indexer::init(const shared_ptr<Project> &proj, bool validate)
 {
+    mValidate = validate;
     mProject = proj;
     mWatcher.modified().connect(this, &Indexer::onFileModified);
     {
@@ -279,9 +280,11 @@ void Indexer::onJobFinished(IndexerJob *job)
                     << MemoryMonitor::usage() / (1024.0 * 1024.0) << " mb of memory";
             mJobCounter = 0;
             jobsComplete()(this);
-            ValidateDBJob *validateJob = new ValidateDBJob(project(), mPreviousErrors);
-            validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
-            Server::instance()->startJob(validateJob);
+            if (mValidate) {
+                ValidateDBJob *validateJob = new ValidateDBJob(project(), mPreviousErrors);
+                validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
+                Server::instance()->startJob(validateJob);
+            }
         }
         mWaitCondition.wakeAll();
     }

@@ -87,6 +87,7 @@ private:
     Set<Location> mPreviousErrors;
 
     signalslot::Signal1<Indexer*> mJobsComplete;
+    bool mValidate;
 };
 
 inline bool Indexer::visitFile(uint32_t fileId, const Path &path)

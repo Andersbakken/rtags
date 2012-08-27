@@ -359,12 +359,6 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
 
     bool blocked = false;
     const Location loc = job->createLocation(cursor, &blocked);
-    // if (job->createLocation(cursor, 0) == "/home/abakken/dev/rtags/src/GRTags.h,549") {
-    //     error() << "indexing" << Location::path(job->mFileId)
-    //             << "blocked" << blocked << cursor << type;
-    //     if (!blocked)
-    //         exit(0);
-    // }
     if (blocked) {
         switch (kind) {
         case CXCursor_FunctionDecl:
@@ -383,16 +377,12 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         default:
             break;
         }
-        return CXChildVisit_Recurse;
+        return CXChildVisit_Continue;
     } else if (loc.isNull()) {
         return CXChildVisit_Recurse;
-    } else if (job->mSymbols.contains(loc)) {
-        return CXChildVisit_Recurse;
+    } else if (job->mSymbols.value(loc).symbolLength) {
+        return CXChildVisit_Continue;
     }
-    // if (loc == "/usr/include/c++/4.6/bits/deque.tcc,15200" || loc == "/usr/include/c++/4.6/bits/char_traits.h,5236") {
-    //     error() << "processing" << cursor << type << clang_getCursorReferenced(cursor);
-    //     exit(0);
-    // }
 
     switch (type) {
     case Cursor:
@@ -415,8 +405,11 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
 {
     CXCursor ref = clang_getCursorReferenced(cursor);
     const CXCursorKind refKind = clang_getCursorKind(ref);
+    if (clang_isInvalid(refKind))
+        return;
 
     bool checkImplicit = false;
+    bool processRef = false;
 
     switch (kind) {
     case CXCursor_CallExpr:
@@ -457,31 +450,41 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
             if (clang_isCursorDefinition(ref))
                 break;
             // fall through
-        case CXCursor_TypedefDecl: {
-        const Location refLoc = createLocation(ref, 0);
-        if (!refLoc.isValid())
-            return;
-        if (!mSymbols.contains(refLoc))
-            handleCursor(ref, refKind, refLoc);
-        break; }
+        case CXCursor_TemplateTypeParameter:
+        case CXCursor_TypedefDecl:
+            processRef = true;
+            break;
         default:
             break;
         }
+        break;
+    case CXCursor_MacroExpansion:
+        if (refKind == CXCursor_MacroDefinition)
+            processRef = true;
         break;
     default:
         break;
     }
 
-    if (clang_isInvalid(refKind))
-        return;
+
+    if (processRef) {
+        const Location refLoc = createLocation(ref, 0);
+        if (!refLoc.isValid())
+            return;
+        if (!mSymbols.value(refLoc).symbolLength)
+            handleCursor(ref, refKind, refLoc);
+    } else {
+        bool blocked = true;
+        const Location refLoc = createLocation(ref, &blocked);
+        if (refLoc.isValid() && !blocked && !mSymbols.value(refLoc).symbolLength)
+            handleCursor(ref, refKind, refLoc);
+    }
+
 
     if (checkImplicit && clang_equalLocations(clang_getCursorLocation(ref),
                                               clang_getCursorLocation(clang_getCursorSemanticParent(ref)))) {
         debug() << "tossing reference to implicit cursor " << cursor << " " << ref;
         return;
-    }
-    if (loc == "/home/abakken/dev/rtags/src/IndexerJob.cpp,15881") {
-        error() << "adding a reference now and all" << cursor << ref;
     }
 
     handleCursor(cursor, kind, loc, &ref);
@@ -571,13 +574,12 @@ static inline bool isInline(const CXCursor &cursor)
 
 void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const CXCursor *ref)
 {
+    // if (location == "/home/abakken/dev/rtags/src/rc.cpp,8221")
+    //     error() << cursor << "refs" << (ref ? *ref : clang_getNullCursor()) << mIn;
+
     CursorInfo &info = mSymbols[location];
     if (info.symbolLength) {
-        // if (!ref)
-        //     return;
-        // static int max = 20;
-        // if (max-- > 0)
-        error() << "current" << info << "\nnew" << cursor << (ref ? *ref : clang_getNullCursor());
+        // error() << "current" << info << "\nnew" << cursor << (ref ? *ref : clang_getNullCursor());
         return;
     }
     if (!info.symbolLength) {
@@ -712,6 +714,8 @@ static inline CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXCli
 {
     VerboseVisitorUserData *u = reinterpret_cast<VerboseVisitorUserData*>(userData);
     Location loc = u->job->createLocation(cursor);
+    if (loc == "/usr/include/c++/4.6/bits/sstream.tcc,4477")
+        printf("[%s] %s:%d: if (loc == \"/usr/include/c++/4.6/bits/sstream.tcc,4477\") [after]\n", __func__, __FILE__, __LINE__);
     if (loc.fileId()) {
         CXCursor ref = clang_getCursorReferenced(cursor);
 
@@ -890,7 +894,13 @@ void IndexerJob::execute()
                     VerboseVisitorUserData u = { 0, "<VerboseVisitor " + clangLine + ">", this };
                     clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
                     u.out += "</VerboseVisitor " + clangLine + ">";
-                    logDirect(VerboseDebug, u.out);
+                    char buf[1024];
+                    snprintf(buf, sizeof(buf), "/tmp/%s.log", mIn.fileName());
+                    FILE *f = fopen(buf, "w");
+                    assert(f);
+                    fwrite(u.out.constData(), 1, u.out.size(), f);
+                    fclose(f);
+                    // logDirect(VerboseDebug, u.out);
                 }
                 // {
                 //     VerboseVisitorUserData u = { -1, "<VerboseVisitor2 " + clangLine + ">", this };
