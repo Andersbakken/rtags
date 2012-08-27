@@ -366,18 +366,16 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         case CXCursor_Destructor:
         case CXCursor_Constructor:
             job->mHeaderMap[clang_getCursorUSR(cursor)] = job->createLocation(cursor, 0);
-            break;
+            return CXChildVisit_Continue;
         case CXCursor_ClassDecl:
         case CXCursor_StructDecl:
         case CXCursor_Namespace:
         case CXCursor_ClassTemplate:
         case CXCursor_UnexposedDecl:
-        case CXCursor_InclusionDirective:
             return CXChildVisit_Recurse;
         default:
-            break;
+            return CXChildVisit_Continue;
         }
-        return CXChildVisit_Continue;
     } else if (loc.isNull()) {
         return CXChildVisit_Recurse;
     } else if (job->mSymbols.value(loc).symbolLength) {
@@ -729,8 +727,6 @@ static inline CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXCli
 {
     VerboseVisitorUserData *u = reinterpret_cast<VerboseVisitorUserData*>(userData);
     Location loc = u->job->createLocation(cursor);
-    if (loc == "/usr/include/c++/4.6/bits/sstream.tcc,4477")
-        printf("[%s] %s:%d: if (loc == \"/usr/include/c++/4.6/bits/sstream.tcc,4477\") [after]\n", __func__, __FILE__, __LINE__);
     if (loc.fileId()) {
         CXCursor ref = clang_getCursorReferenced(cursor);
 
@@ -743,7 +739,6 @@ static inline CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXCli
         } else if (!clang_equalCursors(ref, nullCursor)) {
             u->out += " refs " + RTags::cursorToString(ref);
         }
-        u->out += " " + RTags::eatString(clang_getCursorUSR(cursor));
 
         if (loc.fileId() && u->job->mPaths.value(loc.fileId()) == IndexerJob::Index) {
             if (u->job->mReferences.contains(loc)) {
