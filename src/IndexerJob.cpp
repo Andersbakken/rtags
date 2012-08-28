@@ -346,10 +346,10 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         Reference,
         Other
     } type = Other;
-    if (RTags::isReference(kind)) {
-        type = Reference;
-    } else if (RTags::isCursor(kind)) {
+    if (RTags::isCursor(kind)) {
         type = Cursor;
+    } else if (RTags::isReference(kind)) {
+        type = Reference;
     } else if (kind == CXCursor_InclusionDirective) {
         type = Include;
     } else {
