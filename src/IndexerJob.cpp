@@ -377,9 +377,9 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
             return CXChildVisit_Continue;
         }
     } else if (loc.isNull()) {
-        return CXChildVisit_Recurse;
-    } else if (job->mSymbols.value(loc).symbolLength) {
         return CXChildVisit_Continue;
+    } else if (job->mSymbols.value(loc).symbolLength) {
+        return CXChildVisit_Recurse;
     }
 
     // if (loc == "/usr/include/getopt.h,3843" || loc == "/home/abakken/dev/rtags/src/RTags.h,5430" || loc == "/home/abakken/dev/rtags/src/rdm.cpp,3970") {
