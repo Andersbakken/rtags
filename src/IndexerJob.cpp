@@ -486,13 +486,9 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         break;
     }
 
-
-    if (processRef) {
-        const Location refLoc = createLocation(ref, 0);
-        if (refLoc.isValid() && mPaths.value(refLoc.fileId()) == Index && !mSymbols.contains(refLoc)) {
-            handleCursor(ref, refKind, refLoc);
-        }
-    }
+    const Location refLoc = createLocation(ref, 0);
+    if (!refLoc.isValid())
+        return;
 
     if (checkImplicit && clang_equalLocations(clang_getCursorLocation(ref),
                                               clang_getCursorLocation(clang_getCursorSemanticParent(ref)))) {
@@ -500,7 +496,12 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         return;
     }
 
-    handleCursor(cursor, kind, loc, &ref);
+    if (processRef) {
+        if (!mSymbols.value(refLoc).symbolLength)
+            handleCursor(ref, refKind, refLoc);
+    }
+
+    handleCursor(cursor, kind, loc, &refLoc);
 }
 
 void IndexerJob::addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos)
@@ -585,7 +586,7 @@ static inline bool isInline(const CXCursor &cursor)
     }
 }
 
-void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const CXCursor *ref)
+void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const Location *ref)
 {
     // if (location == "/home/abakken/dev/rtags/src/rc.cpp,8221")
     //     error() << cursor << "refs" << (ref ? *ref : clang_getNullCursor()) << mIn;
@@ -648,7 +649,8 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
     }
     Location refLoc;
     if (ref) {
-        refLoc = createLocation(*ref, 0);
+        refLoc = *ref;
+        assert(refLoc.isValid());
     } else if (referenceType != RTags::NormalReference) {
         if (info.isDefinition) {
             bool ok = false;
@@ -680,7 +682,7 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
         }
     }
 
-    if (refLoc.fileId()) {
+    if (refLoc.isValid()) {
         Map<Location, RTags::ReferenceType> &val = mReferences[location];
         val[refLoc] = referenceType;
         info.target = refLoc;

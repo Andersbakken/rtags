@@ -39,7 +39,7 @@ public:
         CXCursorKind kind;
     };
 
-    void handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const CXCursor *ref = 0);
+    void handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const Location *refLoc = 0);
     void handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
