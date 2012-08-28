@@ -169,8 +169,7 @@ public:
         uint32_t offset;
         memcpy(&offset, data.constData() + data.size() - sizeof(offset), sizeof(offset));
         const Path path(data.constData(), data.size() - sizeof(offset));
-        ReadLocker lock(&sLock);
-        const uint32_t fileId = sPathsToIds.value(path, 0);
+        const uint32_t fileId = Location::fileId(path);
         if (fileId)
             return Location(fileId, offset);
         error("Failed to make location from [%s,%d]", path.constData(), offset);

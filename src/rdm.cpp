@@ -16,54 +16,20 @@
 #include <cxxabi.h>
 #endif
 
-void signalHandler(int signal)
+void sigSegvHandler(int signal)
 {
-    extern bool inSignalHandler;
-    inSignalHandler = true;
     fprintf(stderr, "Caught signal %d\n", signal);
     ByteArray trace = RTags::backtrace();
-    fprintf(stderr, "%s", trace.constData());
-#ifdef HAVE_BACKTRACE
-    enum { StackSize = 50 };
-    void *callstack[StackSize];
-    const int c = backtrace(callstack, StackSize);
-    char **symbols = backtrace_symbols(callstack, c);
-    for (int i=0; i<c; ++i) {
-        const char *frame = symbols[i];
-        int from = -1;
-        int to = -1;
-        for (int j=0; frame[j]; ++j) {
-            switch (frame[j]) {
-            case '(':
-                assert(from == -1);
-                from = j;
-                break;
-            case '+':
-                if (from != -1) {
-                    to = j;
-                    break;
-                }
-                break;
-            }
-        }
-        if (from != -1 && to != -1) {
-            char buf[1024];
-            size_t len = sizeof(buf);
-            assert(to - from < (int)len);
-            memcpy(buf, frame + from + 1, to - from - 1);
-            buf[to - from - 1] = '\0';
-            int status;
-            abi::__cxa_demangle(buf, buf, &len, &status);
-            if (!status) {
-                fprintf(stderr, "  %d/%d %s [%p]\n", i + 1, c, buf, callstack[i]);
-                continue;
-            }
-        }
-        fprintf(stderr, "  %d/%d %s\n", i + 1, c, frame);
+    if (!trace.isEmpty()) {
+        fprintf(stderr, "%s", trace.constData());
     }
-    free(symbols);
-#endif
     fflush(stderr);
+    _exit(1);
+}
+
+
+void sigIntHandler(int signal)
+{
     EventLoop::instance()->exit();
 }
 
@@ -283,7 +249,8 @@ int main(int argc, char** argv)
     }
 
     if (enableSignalHandler) {
-        signal(SIGINT, signalHandler);
+        signal(SIGINT, sigIntHandler);
+        signal(SIGSEGV, sigSegvHandler);
     }
 
     if (!initLogging(logLevel, logFile, logFlags)) {

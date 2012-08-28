@@ -405,7 +405,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
 }
 
 // Could set a flag when we get to template functions and continue but visit with a different visitor
-#warning templatized functions only get indexed if called seemingly, maybe even the same with inline ones. If so, the file that wins it could end up not using it
+// #warning templatized functions only get indexed if called seemingly, maybe even the same with inline ones. If so, the file that wins it could end up not using it
 static inline bool inTemplateFunction(CXCursor cursor)
 {
     while (true) {

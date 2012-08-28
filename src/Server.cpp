@@ -70,6 +70,14 @@ Server::~Server()
 
 void Server::clear()
 {
+    Map<Path, shared_ptr<Project> >::iterator it = mProjects.begin();
+    while (it != mProjects.end()) {
+        if (it->second->indexer) {
+            it->second->indexer->abort();
+        }
+        ++it;
+    }
+
     Path::rm(mOptions.socketPath);
     delete mCompletions;
     mCompletions = 0;
