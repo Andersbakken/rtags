@@ -467,6 +467,9 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
             break;
         }
         break;
+    case CXCursor_MemberRefExpr:
+        processRef = (refKind == CXCursor_FieldDecl);
+        break;
     case CXCursor_MacroExpansion:
     case CXCursor_LabelRef:
         processRef = true;
