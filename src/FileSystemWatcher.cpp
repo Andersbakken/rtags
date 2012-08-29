@@ -61,10 +61,10 @@ bool FileSystemWatcher::watch(const Path &p)
     switch (type) {
 #if defined(HAVE_INOTIFY)
     case Path::File:
-        flags = IN_MODIFY|IN_DELETE_SELF|IN_MOVE_SELF|IN_ATTRIB|IN_DELETE|IN_MODIFY;
+        flags = IN_DELETE_SELF|IN_MOVE_SELF|IN_ATTRIB|IN_DELETE|IN_CLOSE_WRITE;
         break;
     case Path::Directory:
-        flags = IN_MOVED_FROM|IN_MOVED_TO|IN_CREATE|IN_DELETE|IN_DELETE_SELF|IN_ATTRIB|IN_MODIFY;
+        flags = IN_MOVED_FROM|IN_MOVED_TO|IN_CREATE|IN_DELETE|IN_DELETE_SELF|IN_ATTRIB|IN_CLOSE_WRITE;
         if (!path.endsWith('/'))
             path.append('/');
         break;
@@ -201,7 +201,7 @@ void FileSystemWatcher::notifyReadyRead()
                 path.append(event->name);
                 added.remove(path);
                 removed.insert(path);
-            } else if (event->mask & (IN_ATTRIB|IN_MODIFY)) {
+            } else if (event->mask & (IN_ATTRIB|IN_CLOSE_WRITE)) {
                 if (isDir) {
                     path.append(event->name);
                 }

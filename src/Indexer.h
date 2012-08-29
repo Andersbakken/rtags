@@ -40,6 +40,12 @@ public:
     Path srcRoot() const { return mProject.lock()->srcRoot; } // ~/src/foobar
     Path projectPath() const { return mProject.lock()->projectPath; } // ~/.rtags/projects/[_foobar_]
 private:
+    void onFilesModifiedTimeout();
+    static void onFilesModifiedTimeout(int id, void *userData)
+    {
+        EventLoop::instance()->removeTimer(id);
+        static_cast<Indexer*>(userData)->onFilesModifiedTimeout();
+    }
     void onValidateDBJobErrors(const Set<Location> &errors);
     void onJobFinished(IndexerJob *job);
     void commitDependencies(const DependencyMap &deps, bool sync);
@@ -71,6 +77,9 @@ private:
         PCH
     };
     Map<uint32_t, std::pair<IndexerJob*, WaitType> > mWaiting;
+
+    Set<uint32_t> mModifiedFiles;
+    int mModifiedFilesTimerId;
 
     bool mTimerRunning;
     Timer mTimer;

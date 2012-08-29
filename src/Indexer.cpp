@@ -15,7 +15,7 @@
 #include <math.h>
 
 Indexer::Indexer()
-    : mJobCounter(0), mTimerRunning(false), mValidate(false)
+    : mJobCounter(0), mModifiedFilesTimerId(-1), mTimerRunning(false), mValidate(false)
 {
 }
 
@@ -347,31 +347,13 @@ void Indexer::onFileModified(const Path &file)
     const uint32_t fileId = Location::fileId(file);
     if (!fileId)
         return;
-    Set<uint32_t> dirtyFiles;
-    Map<Path, List<ByteArray> > toIndex, toIndexPch;
-    {
-        MutexLocker lock(&mMutex);
-        dirtyFiles.insert(fileId);
-        dirtyFiles.unite(mDependencies.at(fileId));
-        ScopedDB db = project()->db(Project::FileInformation, ReadWriteLock::Read);
-        bool ok;
-        char buf[4];
-        for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
-            const uint32_t id = *it;
-            memcpy(buf, &id, sizeof(buf));
-            const FileInformation fi = db->value<FileInformation>(Slice(buf, sizeof(buf)), &ok);
-            if (ok) {
-                const Path path = Location::path(id);
-                if (RTags::isPch(fi.compileArgs)) {
-                    toIndexPch[path] = fi.compileArgs;
-                } else {
-                    toIndex[path] = fi.compileArgs;
-                }
-            }
-            dirtyFiles.insert(id);
-        }
+    mModifiedFiles.insert(fileId);
+    if (mModifiedFilesTimerId != -1) {
+        EventLoop::instance()->removeTimer(mModifiedFilesTimerId);
+        mModifiedFilesTimerId = -1;
     }
-    dirty(dirtyFiles, toIndexPch, toIndex);
+    enum { Timeout = 100 };
+    mModifiedFilesTimerId = EventLoop::instance()->addTimer(Timeout, &Indexer::onFilesModifiedTimeout, this);
 }
 
 void Indexer::setPchDependencies(const Path &pchHeader, const Set<uint32_t> &deps)
@@ -519,4 +501,34 @@ void Indexer::dirty(const Set<uint32_t> &dirtyFileIds,
     for (Map<Path, List<ByteArray> >::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
         index(it->first, it->second, IndexerJob::Dirty);
     }
+}
+void Indexer::onFilesModifiedTimeout()
+{
+    Set<uint32_t> dirtyFiles;
+    Map<Path, List<ByteArray> > toIndex, toIndexPch;
+    {
+        MutexLocker lock(&mMutex);
+        for (Set<uint32_t>::const_iterator it = mModifiedFiles.begin(); it != mModifiedFiles.end(); ++it) {
+            dirtyFiles.insert(*it);
+            dirtyFiles.unite(mDependencies.at(*it));
+        }
+        mModifiedFiles.clear();
+        ScopedDB db = project()->db(Project::FileInformation, ReadWriteLock::Read);
+        bool ok;
+        char buf[4];
+        for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
+            const uint32_t id = *it;
+            memcpy(buf, &id, sizeof(buf));
+            const FileInformation fi = db->value<FileInformation>(Slice(buf, sizeof(buf)), &ok);
+            if (ok) {
+                const Path path = Location::path(id);
+                if (RTags::isPch(fi.compileArgs)) {
+                    toIndexPch[path] = fi.compileArgs;
+                } else {
+                    toIndex[path] = fi.compileArgs;
+                }
+            }
+        }
+    }
+    dirty(dirtyFiles, toIndexPch, toIndex);
 }
