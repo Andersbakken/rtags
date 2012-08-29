@@ -146,7 +146,7 @@ void ThreadPool::setConcurrentJobs(int concurrentJobs)
 
 bool ThreadPool::jobLessThan(const Job* l, const Job* r)
 {
-    return static_cast<unsigned>(l->mPriority) < static_cast<unsigned>(r->mPriority);
+    return static_cast<unsigned>(l->mPriority) > static_cast<unsigned>(r->mPriority);
 }
 
 void ThreadPool::start(Job* job, int priority)
@@ -159,8 +159,18 @@ void ThreadPool::start(Job* job, int priority)
     }
 
     MutexLocker locker(&mMutex);
-    mJobs.push_back(job);
-    std::sort(mJobs.begin(), mJobs.end(), jobLessThan);
+    if (mJobs.empty()) {
+        mJobs.push_back(job);
+    } else {
+        if (mJobs.at(mJobs.size() - 1)->mPriority >= priority) {
+            mJobs.push_back(job);
+        } else if (mJobs.at(0)->mPriority < priority) {
+            mJobs.push_front(job);
+        } else {
+            mJobs.push_back(job);
+            std::sort(mJobs.begin(), mJobs.end(), jobLessThan);
+        }
+    }
     mCond.wakeOne();
 }
 
