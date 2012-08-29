@@ -276,7 +276,8 @@ void Indexer::onJobFinished(IndexerJob *job)
 
     const int idx = mJobCounter - mJobs.size() - mWaiting.size();
 
-    error("[%3d%%] %d/%d %s. Pending jobs %d. %d mb mem.",
+    error("[%3d%%] %d/%d %s %s. Pending jobs %d. %d mb mem.",
+          RTags::timeToString(time(0)).constData(),
           static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
           job->mMessage.constData(), mJobs.size() + mWaiting.size(),
           int((MemoryMonitor::usage() / (1024 * 1024))));
@@ -314,13 +315,11 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
     if (existing) {
         mWaiting[fileId] = std::make_pair(job, Abort);
         existing->abort();
-        return;
     } else if (needsToWaitForPch(job)) {
         mWaiting[fileId] = std::make_pair(job, PCH);
-        return;
+    } else {
+        startJob(job);
     }
-
-    startJob(job);
 }
 
 void Indexer::startJob(IndexerJob *job)
