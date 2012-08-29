@@ -1044,7 +1044,6 @@ shared_ptr<Project> Server::setCurrentProject(const Path &path)
 
 shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
 {
-    // printf("%s %x\n", path.constData(), flags);
     Path tmp = path;
     if (!tmp.endsWith('/'))
         tmp.append('/');
@@ -1057,7 +1056,6 @@ shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
             mProjects.remove(path);
             return shared_ptr<Project>();
         }
-        tmp.append('/');
         project->projectPath = mProjectsDir + tmp;
         Path::mkdir(project->projectPath);
     }
