@@ -148,12 +148,30 @@ inline bool addTo(Container &container, const Value &value)
 CursorInfo findCursorInfo(Database *db, const Location &key, Location *loc = 0);
 List<ByteArray> compileArgs(uint32_t fileId, const shared_ptr<Project> &proj);
 
-inline ByteArray timeToString(time_t t)
+enum TimeFormat {
+    DateTime,
+    Time,
+    Date
+};
+inline ByteArray timeToString(time_t t, TimeFormat fmt)
 {
+    const char *format = 0;
+    switch (fmt) {
+    case DateTime:
+        format = "%Y-%m-%d %H:%M:%S";
+        break;
+    case Date:
+        format = "%Y-%m-%d";
+        break;
+    case Time:
+        format = "%H:%M:%S";
+        break;
+    }
+
     char buf[32];
     tm tm;
     localtime_r(&t, &tm);
-    const int w = strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm);
+    const int w = strftime(buf, sizeof(buf), format, &tm);
     return ByteArray(buf, w);
 }
 

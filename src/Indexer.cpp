@@ -278,7 +278,7 @@ void Indexer::onJobFinished(IndexerJob *job)
 
     error("[%3d%%] %d/%d %s %s. Pending jobs %d. %d mb mem.",
           static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-          RTags::timeToString(time(0)).constData(),
+          RTags::timeToString(time(0), RTags::Time).constData(),
           job->mMessage.constData(), mJobs.size() + mWaiting.size(),
           int((MemoryMonitor::usage() / (1024 * 1024))));
 

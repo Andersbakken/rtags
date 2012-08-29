@@ -27,7 +27,7 @@ void StatusJob::execute()
         const Map<Path, MakefileInformation> makefiles = database->value<Map<Path, MakefileInformation> >("makefiles");
         for (Map<Path, MakefileInformation>::const_iterator it = makefiles.begin(); it != makefiles.end(); ++it) {
             ByteArray out = "    " + it->first;
-            out += " last touched: " + RTags::timeToString(it->second.lastTouched);
+            out += " last touched: " + RTags::timeToString(it->second.lastTouched, RTags::DateTime);
             if (!it->second.makefileArgs.isEmpty())
                 out += " args: " + ByteArray::join(it->second.makefileArgs, " ");
             if (!it->second.extraFlags.isEmpty())
@@ -154,7 +154,7 @@ void StatusJob::execute()
                 const uint32_t fileId = *reinterpret_cast<const uint32_t*>(it->key().data());
                 snprintf(buf, 1024, "  %s: last compiled: %s compile args: %s",
                          Location::path(fileId).constData(),
-                         RTags::timeToString(fi.lastTouched).constData(),
+                         RTags::timeToString(fi.lastTouched, RTags::DateTime).constData(),
                          ByteArray::join(fi.compileArgs, " ").constData());
                 write(buf);
                 it->next();
@@ -190,7 +190,7 @@ void StatusJob::execute()
                 return;
             time_t time = it->value<time_t>();
             snprintf(buf, sizeof(buf), "    %s %s", it->key().byteArray().nullTerminated(),
-                     time ? RTags::timeToString(time).constData() : "");
+                     time ? RTags::timeToString(time, RTags::DateTime).constData() : "");
             write(buf);
             it->next();
         }
