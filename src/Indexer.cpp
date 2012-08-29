@@ -234,6 +234,7 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync) // always
 void Indexer::onJobFinished(IndexerJob *job)
 {
     MutexLocker lock(&mMutex);
+    mJobs.remove(job->mFileId);
     if (job->isAborted()) {
         Set<uint32_t> visited;
         for (Map<uint32_t, IndexerJob::PathState>::const_iterator it = job->mPaths.begin(); it != job->mPaths.end(); ++it) {
@@ -242,52 +243,58 @@ void Indexer::onJobFinished(IndexerJob *job)
         }
 
         mVisitedFiles -= visited;
-        job->mMessage += job->mIn + " Aborted";
-    }
 
-    {
-        mJobs.remove(job->mFileId);
+        shared_ptr<Project> proj = project();
+
+        job->mMessage += job->mIn + " Aborted";
+
         std::pair<IndexerJob*, WaitType> waiting;
         if (mWaiting.remove(job->mFileId, &waiting)) {
             assert(waiting.second == Abort);
             startJob(waiting.first);
         }
+        lock.unlock();
 
-        if (job->mIsPch) {
-            Map<uint32_t, std::pair<IndexerJob*, WaitType> >::iterator it = mWaiting.begin();
-            while (it != mWaiting.end()) {
-                if (it->second.second == PCH) {
-                    IndexerJob *job = it->second.first;
-                    if (!needsToWaitForPch(job)) {
-                        mWaiting.erase(it++);
-                        startJob(job);
-                        continue;
-                    }
+        ScopedDB symbols = proj->db(Project::Symbol, ReadWriteLock::Write);
+        ScopedDB symbolNames = proj->db(Project::SymbolName, ReadWriteLock::Write);
+        RTags::dirtySymbols(symbols, visited);
+        RTags::dirtySymbolNames(symbolNames, visited);
+    } else if (job->mIsPch) {
+        Map<uint32_t, std::pair<IndexerJob*, WaitType> >::iterator it = mWaiting.begin();
+        while (it != mWaiting.end()) {
+            if (it->second.second == PCH) {
+                IndexerJob *job = it->second.first;
+                if (!needsToWaitForPch(job)) {
+                    mWaiting.erase(it++);
+                    startJob(job);
+                    continue;
                 }
-                ++it;
             }
+            ++it;
         }
-        const int idx = mJobCounter - mJobs.size() - mWaiting.size();
-        error("[%3d%%] %d/%d %s. Pending jobs %d. %d mb mem.",
-              static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-              job->mMessage.constData(), mJobs.size() + mWaiting.size(),
-              int((MemoryMonitor::usage() / (1024 * 1024))));
-
-        if (mJobs.isEmpty()) {
-            assert(mTimerRunning);
-            mTimerRunning = false;
-            error() << "jobs took " << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using "
-                    << MemoryMonitor::usage() / (1024.0 * 1024.0) << " mb of memory";
-            mJobCounter = 0;
-            jobsComplete()(this);
-            if (mValidate) {
-                ValidateDBJob *validateJob = new ValidateDBJob(project(), mPreviousErrors);
-                validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
-                Server::instance()->startJob(validateJob);
-            }
-        }
-        mWaitCondition.wakeAll();
     }
+
+    const int idx = mJobCounter - mJobs.size() - mWaiting.size();
+
+    error("[%3d%%] %d/%d %s. Pending jobs %d. %d mb mem.",
+          static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
+          job->mMessage.constData(), mJobs.size() + mWaiting.size(),
+          int((MemoryMonitor::usage() / (1024 * 1024))));
+
+    if (mJobs.isEmpty()) {
+        assert(mTimerRunning);
+        mTimerRunning = false;
+        error() << "jobs took " << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using "
+                << MemoryMonitor::usage() / (1024.0 * 1024.0) << " mb of memory";
+        mJobCounter = 0;
+        jobsComplete()(this);
+        if (mValidate) {
+            ValidateDBJob *validateJob = new ValidateDBJob(project(), mPreviousErrors);
+            validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
+            Server::instance()->startJob(validateJob);
+        }
+    }
+    mWaitCondition.wakeAll();
 }
 
 void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags)
