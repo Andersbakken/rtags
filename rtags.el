@@ -442,22 +442,21 @@ return t if rtags is allowed to modify this file"
                 )))
         (message (format "Opened %d new files and made %d modifications" filesopened modifications))))))
 
-(defun rtags-find-symbol ()
-  (interactive)
-  (rtags-find-symbols-by-name-internal "Find symbol" nil nil))
+(defun rtags-find-symbol (prefix)
+  (interactive "P")
+  (rtags-find-symbols-by-name-internal "Find symbol" nil (if prefix buffer-file-name nil)))
 
-(defun rtags-find-references ()
-  (interactive)
-  (rtags-find-symbols-by-name-internal "Find references" t nil))
+(defun rtags-find-references (prefix)
+  (interactive "P")
+  (rtags-find-symbols-by-name-internal "Find references" t (if prefix buffer-file-name nil)))
 
 (defun rtags-find-symbol-current-file ()
   (interactive)
-  (rtags-find-symbols-by-name-internal "Find symbol" nil buffer-file-name))
+  (rtags-find-symbol t))
 
 (defun rtags-find-references-current-file ()
   (interactive)
-  (setq rtags-path-filter buffer-file-name)
-  (rtags-find-symbols-by-name-internal "Find references" t buffer-file-name))
+  (rtags-find-references t))
 
 (defun rtags-dir-filter()
   (concat (substring buffer-file-name
