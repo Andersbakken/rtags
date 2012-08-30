@@ -436,6 +436,9 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         default:
             break;
         }
+    case CXCursor_TemplateRef:
+        processRef = (refKind == CXCursor_ClassTemplate);
+        break;
     case CXCursor_DeclRefExpr:
         switch (refKind) {
         case CXCursor_FunctionDecl:
