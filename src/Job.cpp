@@ -40,17 +40,6 @@ Job::~Job()
     delete mPathFiltersRegExp;
 }
 
-List<ByteArray> Job::pathFilters() const
-{
-    return mPathFilters ? *mPathFilters : List<ByteArray>();
-}
-
-List<RegExp> Job::pathFiltersRegExp() const
-{
-    return mPathFiltersRegExp ? *mPathFiltersRegExp : List<RegExp>();
-}
-
-
 void Job::write(const ByteArray &out)
 {
     if (mJobFlags & WriteUnfiltered || filter(out)) {

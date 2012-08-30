@@ -28,8 +28,6 @@ public:
     Job(unsigned jobFlags, const shared_ptr<Project> &project);
     ~Job();
 
-    List<ByteArray> pathFilters() const;
-    List<RegExp> pathFiltersRegExp() const;
     bool hasFilter() const { return mPathFilters || mPathFiltersRegExp; }
     int id() const { return mId; }
     void setId(int id) { mId = id; }

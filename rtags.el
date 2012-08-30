@@ -346,8 +346,9 @@ return t if rtags is allowed to modify this file"
           (rtags-call-rc "-m" makefile)
           (message (buffer-string))))))
 
-(defun rtags-follow-symbol-at-point()
-  (interactive)
+(defun rtags-follow-symbol-at-point (prefix)
+  (interactive "P")
+  (if prefix (setq rtags-path-filter buffer-file-name))
   (rtags-save-location)
   (let ((arg (rtags-current-location)))
     (with-temp-buffer
@@ -356,10 +357,12 @@ return t if rtags is allowed to modify this file"
           (rtags-goto-location (buffer-string)))
       )
     )
+  (if prefix (setq rtags-path-filter nil))
   )
 
-(defun rtags-find-references-at-point()
-  (interactive)
+(defun rtags-find-references-at-point(prefix)
+  (interactive "P")
+  (if prefix (setq rtags-path-filter buffer-file-name))
   (rtags-save-location)
   (let ((arg (rtags-current-location)))
     (if (get-buffer "*RTags Complete*")
@@ -368,6 +371,7 @@ return t if rtags is allowed to modify this file"
       (rtags-call-rc "-l" "-r" arg)
       (rtags-handle-completion-buffer))
     )
+  (if prefix (setq rtags-path-filter nil))
   )
 
 (defun rtags-find-all-references-at-point()
