@@ -5,10 +5,16 @@
 
 (defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
+(defvar rtags-path-filter-regex nil)
 
 (defun rtags-call-rc (&rest arguments)
   (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
-  (if rtags-path-filter (push (format "--path-filter=%s" rtags-path-filter) arguments))
+  (if rtags-path-filter
+      (progn
+	(push (format "--path-filter=%s" rtags-path-filter) arguments)
+	(if rtags-path-filter-regex
+	    (push "-Z" arguments))))
+
   (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
   (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
   (rtags-log (buffer-string))
@@ -374,9 +380,10 @@ return t if rtags is allowed to modify this file"
   (if prefix (setq rtags-path-filter nil))
   )
 
-(defun rtags-find-all-references-at-point()
-  (interactive)
+(defun rtags-find-all-references-at-point(prefix)
+  (interactive "P")
   (rtags-save-location)
+  (if prefix (setq rtags-path-filter buffer-file-name))
   (let ((arg (rtags-current-location)))
     (if (get-buffer "*RTags Complete*")
         (kill-buffer "*RTags Complete*"))
@@ -384,6 +391,7 @@ return t if rtags is allowed to modify this file"
       (rtags-call-rc "-l" "-E" "-r" arg)
       (rtags-handle-completion-buffer))
     )
+  (if prefix (setq rtags-path-filter nil))
   )
 
 (defun rtags-rename-symbol ()
@@ -472,12 +480,16 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-find-symbol-current-dir ()
   (interactive)
-  (rtags-find-symbols-by-name-internal "Find symbol" nil (rtags-dir-filter)))
+  (setq rtags-path-filter-regex t)
+  (rtags-find-symbols-by-name-internal "Find symbol" nil (rtags-dir-filter))
+  (setq rtags-path-filter-regex nil))
 
 (defun rtags-find-references-current-dir ()
   (interactive)
-  (setq rtags-path-filter buffer-file-name)
-  (rtags-find-symbols-by-name-internal "Find references" t (rtags-dir-filter)))
+  (setq rtags-path-filter-regex t)
+  (rtags-find-symbols-by-name-internal "Find references" t (rtags-dir-filter))
+  (setq rtags-path-filter-regex nil))
+
 
 (defun rtags-fixit()
   (interactive)
