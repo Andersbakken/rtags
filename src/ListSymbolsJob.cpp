@@ -6,7 +6,8 @@
 #include "RTags.h"
 
 ListSymbolsJob::ListSymbolsJob(const QueryMessage &query, const shared_ptr<Project> &proj)
-    : Job(query, query.flags() & QueryMessage::ElispList ? Job::QuoteOutput : Job::None, proj), string(query.query())
+    : Job(query, query.flags() & QueryMessage::ElispList ? Job::QuoteOutput|Job::WriteUnfiltered : Job::WriteUnfiltered, proj),
+      string(query.query())
 {
 }
 
