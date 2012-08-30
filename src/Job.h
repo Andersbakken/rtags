@@ -36,7 +36,7 @@ public:
     unsigned queryFlags() const { return mQueryFlags; }
     void setQueryFlags(unsigned queryFlags) { mQueryFlags = queryFlags; }
     unsigned keyFlags() const;
-    bool filter(const ByteArray &val) const;
+    inline bool filter(const ByteArray &val) const;
     virtual void run();
     virtual void execute() {}
     signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
@@ -52,6 +52,15 @@ private:
     signalslot::Signal1<const ByteArray &> mOutput;
     shared_ptr<Project> mProject;
 };
+
+inline bool Job::filter(const ByteArray &val) const
+{
+    if (mPathFilters.isEmpty() || ((!mQueryFlags & QueryMessage::FilterSystemIncludes) && Path::isSystem(val.constData()))) {
+        return true;
+    }
+    return RTags::startsWith(mPathFilters, val);
+}
+
 
 class JobCompleteEvent : public Event
 {

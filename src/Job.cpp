@@ -32,7 +32,7 @@ List<ByteArray> Job::pathFilters() const
 
 void Job::write(const ByteArray &out)
 {
-    if (mJobFlags & WriteUnfiltered || mPathFilters.isEmpty() || filter(out)) {
+    if (mJobFlags & WriteUnfiltered || filter(out)) {
         if (mJobFlags & QuoteOutput) {
             ByteArray o((out.size() * 2) + 2, '"');
             char *ch = o.data() + 1;
@@ -56,13 +56,6 @@ void Job::write(const ByteArray &out)
     }
 }
 
-bool Job::filter(const ByteArray &val) const
-{
-    if (mPathFilters.isEmpty() || ((!mQueryFlags & QueryMessage::FilterSystemIncludes) && Path::isSystem(val.constData()))) {
-        return true;
-    }
-    return RTags::startsWith(mPathFilters, val);
-}
 void Job::run()
 {
     execute();
