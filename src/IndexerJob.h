@@ -20,6 +20,7 @@ public:
     };
     IndexerJob(Indexer *indexer, unsigned flags,
                const Path &input, const List<ByteArray> &arguments);
+    void addDirty(const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pendingFiles);
     int priority() const { return mFlags & Priorities; }
     virtual void run();
     void execute();
@@ -56,8 +57,7 @@ public:
     enum PathState {
         Unset,
         Index,
-        DontIndex,
-        Reference
+        DontIndex
     };
     Map<uint32_t, PathState> mPaths;
     Map<Str, Location> mHeaderMap;
@@ -77,6 +77,9 @@ public:
     Map<ByteArray, uint32_t> mFileIds;
 
     signalslot::Signal1<IndexerJob*> mFinished;
+
+    Set<uint32_t> mDirty;
+    Map<Path, List<ByteArray> > mPendingSources;
 };
 
 #endif

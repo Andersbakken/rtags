@@ -20,7 +20,10 @@ public:
 
     void init(const shared_ptr<Project> &project, bool validate);
 
-    void index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
+    typedef Map<Path, List<ByteArray> > PendingMap; // without this clang 3.1 complains
+    void index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags,
+               const Set<uint32_t> &dirtyFiles = Set<uint32_t>(),
+               const PendingMap &pending = PendingMap());
     void setPchDependencies(const Path &pchHeader, const Set<uint32_t> &deps);
     void addDependencies(const DependencyMap &hash);
     Set<uint32_t> dependencies(uint32_t fileId) const;

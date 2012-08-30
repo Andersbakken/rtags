@@ -2,6 +2,7 @@
 #include <leveldb/cache.h>
 #include <leveldb/comparator.h>
 #include "ScopedDB.h"
+#include "RTags.h"
 
 // ================== Slice ==================
 

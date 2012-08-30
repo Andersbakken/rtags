@@ -298,15 +298,23 @@ void Indexer::onJobFinished(IndexerJob *job)
     mWaitCondition.wakeAll();
 }
 
-void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags)
+void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags,
+                    const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pending)
 {
     MutexLocker locker(&mMutex);
 
     const uint32_t fileId = Location::insertFile(input);
-    if (mWaiting.contains(fileId))
+    if (IndexerJob *waiting = mWaiting.value(fileId).first) {
+        if (!dirtyFiles.isEmpty() || !pending.isEmpty())
+            waiting->addDirty(dirtyFiles, pending);
         return;
+    }
 
     IndexerJob *job = new IndexerJob(this, indexerJobFlags, input, arguments);
+    if (!dirtyFiles.isEmpty() || !pending.isEmpty())
+        mVisitedFiles -= dirtyFiles;
+        job->addDirty(dirtyFiles, pending);
+
     job->finished().connect(this, &Indexer::onJobFinished);
 
     ++mJobCounter;
@@ -505,13 +513,16 @@ void Indexer::dirty(const Set<uint32_t> &dirtyFileIds,
 void Indexer::onFilesModifiedTimeout()
 {
     Set<uint32_t> dirtyFiles;
-    Map<Path, List<ByteArray> > toIndex, toIndexPch;
+    Path src;
+    List<ByteArray> args;
+    Map<Path, List<ByteArray> > toIndex;
     {
         MutexLocker lock(&mMutex);
         for (Set<uint32_t>::const_iterator it = mModifiedFiles.begin(); it != mModifiedFiles.end(); ++it) {
             dirtyFiles.insert(*it);
             dirtyFiles.unite(mDependencies.at(*it));
         }
+        error() << mModifiedFiles << dirtyFiles;
         mModifiedFiles.clear();
         ScopedDB db = project()->db(Project::FileInformation, ReadWriteLock::Read);
         bool ok;
@@ -523,12 +534,20 @@ void Indexer::onFilesModifiedTimeout()
             if (ok) {
                 const Path path = Location::path(id);
                 if (RTags::isPch(fi.compileArgs)) {
-                    toIndexPch[path] = fi.compileArgs;
+                    src = path;
+                    args = fi.compileArgs;
                 } else {
                     toIndex[path] = fi.compileArgs;
                 }
             }
         }
     }
-    dirty(dirtyFiles, toIndexPch, toIndex);
+    if (src.isEmpty() && !toIndex.isEmpty()) {
+        src = toIndex.begin()->first;
+        args = toIndex.begin()->second;
+        toIndex.erase(toIndex.begin());
+    }
+    if (!src.isEmpty()) {
+        index(src, args, IndexerJob::Dirty, dirtyFiles, toIndex);
+    }
 }

@@ -5,6 +5,7 @@
 #include "Path.h"
 #include "AbortInterface.h"
 #include "SignalSlot.h"
+#include "Location.h"
 
 class GRParseJob : public ThreadPool::Job, public AbortInterface
 {

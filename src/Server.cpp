@@ -62,7 +62,6 @@ Server::Server()
 Server::~Server()
 {
     clear();
-    delete mThreadPool;
     assert(sInstance == this);
     sInstance = 0;
     Messages::cleanup();
@@ -70,6 +69,11 @@ Server::~Server()
 
 void Server::clear()
 {
+    if (mThreadPool) {
+        mThreadPool->clearBackLog();
+        delete mThreadPool;
+        mThreadPool = 0;
+    }
     Map<Path, shared_ptr<Project> >::iterator it = mProjects.begin();
     while (it != mProjects.end()) {
         if (it->second->indexer) {
@@ -763,7 +767,7 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
 
 void Server::startJob(Job *job)
 {
-    mThreadPool->start(job);
+    mThreadPool->start(job, Job::Priority);
 }
 
 /* Same behavior as rtags-default-current-project() */
@@ -939,28 +943,29 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
     assert(proj->indexer);
 
     if (args.type() == GccArguments::Pch) {
-        ByteArray output = args.outputFile();
-        assert(!output.isEmpty());
-        const int ext = output.lastIndexOf(".gch/c");
-        if (ext != -1) {
-            output = output.left(ext + 4);
-        } else if (!output.endsWith(".gch")) {
-            error("couldn't find .gch in pch output");
-            return;
-        }
-        const ByteArray input = args.inputFiles().front();
-        parser->setPch(output, input);
+        return;
+        // ByteArray output = args.outputFile();
+        // assert(!output.isEmpty());
+        // const int ext = output.lastIndexOf(".gch/c");
+        // if (ext != -1) {
+        //     output = output.left(ext + 4);
+        // } else if (!output.endsWith(".gch")) {
+        //     error("couldn't find .gch in pch output");
+        //     return;
+        // }
+        // const ByteArray input = args.inputFiles().front();
+        // parser->setPch(output, input);
     }
 
     List<ByteArray> arguments = args.clangArgs();
-    if (args.lang() == GccArguments::CPlusPlus) {
-        const List<ByteArray> pchs = parser->mapPchToInput(args.explicitIncludes());
-        for (List<ByteArray>::const_iterator it = pchs.begin(); it != pchs.end(); ++it) {
-            const ByteArray &pch = *it;
-            arguments.append("-include-pch");
-            arguments.append(pch);
-        }
-    }
+    // if (args.lang() == GccArguments::CPlusPlus) {
+    //     const List<ByteArray> pchs = parser->mapPchToInput(args.explicitIncludes());
+    //     for (List<ByteArray>::const_iterator it = pchs.begin(); it != pchs.end(); ++it) {
+    //         const ByteArray &pch = *it;
+    //         arguments.append("-include-pch");
+    //         arguments.append(pch);
+    //     }
+    // }
     arguments.append(mOptions.defaultArguments);
 
     for (int i=0; i<c; ++i) {

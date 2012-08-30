@@ -24,6 +24,7 @@ public:
         QuoteOutput = 0x2,
         OutputSignalEnabled = 0x4
     };
+    enum { Priority = 10 };
     Job(const QueryMessage &msg, unsigned jobFlags, const shared_ptr<Project> &proj);
     Job(unsigned jobFlags, const shared_ptr<Project> &project);
     ~Job();

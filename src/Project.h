@@ -8,6 +8,7 @@
 class Database;
 class Indexer;
 class GRTags;
+class ScopedDB;
 class Project
 {
 public:

@@ -6,12 +6,15 @@
 #include "FileInformation.h"
 #include "Database.h"
 
-static inline int writeSymbolNames(SymbolNameMap &symbolNames, ScopedDB db)
+static inline int writeSymbolNames(const SymbolNameMap &symbolNames, const Set<uint32_t> &dirty, ScopedDB db)
 {
+    // error() << "writeSymbolNames" << dirty << symbolNames.size();
+    if (!dirty.isEmpty())
+        RTags::dirtySymbolNames(db, dirty);
     Batch batch(db);
     int totalWritten = 0;
 
-    SymbolNameMap::iterator it = symbolNames.begin();
+    SymbolNameMap::const_iterator it = symbolNames.begin();
     const SymbolNameMap::const_iterator end = symbolNames.end();
     while (it != end) {
         const char *key = it->first.constData();
@@ -30,8 +33,11 @@ static inline int writeSymbolNames(SymbolNameMap &symbolNames, ScopedDB db)
 }
 
 
-static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, ScopedDB db)
+static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, const Set<uint32_t> &dirty, ScopedDB db)
 {
+    // error() <<"writeSymbols" << dirty << symbols.size() << references.size();
+    if (!dirty.isEmpty())
+        RTags::dirtySymbols(db, dirty);
     Batch batch(db);
     int totalWritten = 0;
 
@@ -121,7 +127,6 @@ IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &input, cons
       mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
       mPchHeaders(extractPchFiles(mIndexer->projectPath(), arguments)), mUnit(0)
 {
-    setAutoDelete(true);
 }
 
 void IndexerJob::inclusionVisitor(CXFile includedFile,
@@ -317,11 +322,6 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
                     return Location();
                 }
                 *blocked = false;
-            } else {
-                PathState &state = mPaths[fileId];
-                if (state == Unset || state == DontIndex) {
-                    state = Reference;
-                }
             }
         }
     }
@@ -355,7 +355,6 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
     } else {
         return CXChildVisit_Recurse; // ### continue
     }
-
 
     bool blocked = false;
     const Location loc = job->createLocation(cursor, &blocked);
@@ -759,6 +758,7 @@ static inline CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXCli
 
 void IndexerJob::execute()
 {
+    mDirty.clear();
     shared_ptr<Project> project = mIndexer->project();
     assert(project);
     Timer timer;
@@ -914,8 +914,7 @@ void IndexerJob::execute()
                 //     logDirect(VerboseDebug, u.out);
                 // }
             }
-        }
-        if (mIsPch) {
+        } else {
             assert(!pchName.isEmpty());
             if (clang_saveTranslationUnit(mUnit, pchName.constData(), clang_defaultSaveOptions(mUnit)) != CXSaveError_None) {
                 error() << "Couldn't save pch file" << mIn << pchName;
@@ -931,27 +930,17 @@ void IndexerJob::execute()
         scope.cleanup();
 
         if (!isAborted()) {
-            Set<uint32_t> indexed;
-            Set<uint32_t> referenced;
-            for (Map<uint32_t, PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
-                if (it->second == Index) {
-                    visited[it->first] = List<ByteArray>();
-                    if (mFlags & (DirtyPch|Dirty)) {
-                        indexed.insert(it->first);
-                    }
-                } else if (mFlags & (DirtyPch|Dirty) && it->second == Reference) {
-                    referenced.insert(it->first);
-                }
-            }
             mIndexer->addDependencies(mDependencies);
             assert(mDependencies[mFileId].contains(mFileId));
 
             mIndexer->setDiagnostics(visited, fixIts);
-            writeSymbols(mSymbols, mReferences, project->db(Project::Symbol, ReadWriteLock::Write));
-
-            writeSymbolNames(mSymbolNames, project->db(Project::SymbolName, ReadWriteLock::Write));
+            writeSymbols(mSymbols, mReferences, mDirty, project->db(Project::Symbol, ReadWriteLock::Write));
+            writeSymbolNames(mSymbolNames, mDirty, project->db(Project::SymbolName, ReadWriteLock::Write));
             if (mIsPch)
                 mIndexer->setPchDependencies(mIn, mPchDependencies);
+        }
+        for (Map<Path, List<ByteArray> >::const_iterator it = mPendingSources.begin(); it != mPendingSources.end(); ++it) {
+            mIndexer->index(it->first, it->second, IndexerJob::Dirty);
         }
     }
 
@@ -972,3 +961,18 @@ void IndexerJob::execute()
     }
 }
 
+void IndexerJob::addDirty(const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pendingFiles)
+{
+    if (mDirty.isEmpty()) {
+        mDirty = dirtyFiles;
+    } else {
+        mDirty += dirtyFiles;
+    }
+    if (mPendingSources.isEmpty()) {
+        mPendingSources = pendingFiles;
+    } else {
+        for (Map<Path, List<ByteArray> >::const_iterator it = pendingFiles.begin(); it != pendingFiles.end(); ++it) {
+            mPendingSources[it->first] = it->second;
+        }
+    }
+}

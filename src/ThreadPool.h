@@ -14,6 +14,7 @@ public:
     ~ThreadPool();
 
     void setConcurrentJobs(int concurrentJobs);
+    void clearBackLog();
 
     class Job
     {
@@ -23,13 +24,9 @@ public:
 
     protected:
         virtual void run() {}
-
-        void setAutoDelete(bool autoDelete);
-
     private:
         int mPriority;
         Mutex mMutex;
-        bool mAutoDelete;
 
         friend class ThreadPool;
         friend class ThreadPoolThread;

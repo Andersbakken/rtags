@@ -56,11 +56,8 @@ void ThreadPoolThread::run()
     if (mJob) {
         mJob->mMutex.lock();
         mJob->run();
-        const bool isAutoDelete = mJob->mAutoDelete;
         mJob->mMutex.unlock();
-        if (isAutoDelete) {
-            delete mJob;
-        }
+        delete mJob;
         return;
     }
     bool first = true;
@@ -83,11 +80,8 @@ void ThreadPoolThread::run()
         ++mPool->mBusyThreads;
         locker.unlock();
         job->run();
-        const bool isAutoDelete = job->mAutoDelete;
         job->mMutex.unlock();
-        if (isAutoDelete) {
-            delete job;
-        }
+        delete job;
     }
 }
 
@@ -211,7 +205,7 @@ ThreadPool* ThreadPool::globalInstance()
 }
 
 ThreadPool::Job::Job()
-    : mPriority(0), mAutoDelete(true)
+    : mPriority(0)
 {
 }
 
@@ -221,8 +215,11 @@ ThreadPool::Job::~Job()
     MutexLocker jobLocker(&mMutex);
 }
 
-void ThreadPool::Job::setAutoDelete(bool autoDelete)
+void ThreadPool::clearBackLog()
 {
     MutexLocker locker(&mMutex);
-    mAutoDelete = autoDelete;
+    for (std::deque<Job*>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
+        delete *it;
+    }
+    mJobs.clear();
 }

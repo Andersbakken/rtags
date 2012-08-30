@@ -5,7 +5,9 @@
 #include "List.h"
 #include "FileSystemWatcher.h"
 #include "Mutex.h"
+#include "Location.h"
 
+class ScopedDB;
 class GRParseJob;
 class Project;
 class GRTags
