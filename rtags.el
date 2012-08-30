@@ -3,8 +3,12 @@
   :group 'tools
   :prefix "rtags-")
 
+(defvar rtags-last-buffer nil)
+(defvar rtags-path-filter nil)
+
 (defun rtags-call-rc (&rest arguments)
   (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
+  (if rtags-path-filter (push (format "--path-filter=%s" rtags-path-filter) arguments))
   (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
   (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
   (rtags-log (buffer-string))
@@ -76,7 +80,6 @@
   (let ((match (rtags-find-ancestor-file pattern)))
     (if match
         (substring match 0 (string-match "[^/]*/?$" match)))))
-
 (defun rtags-default-current-project ()
   (cond
    ((gtags-get-rootpath))
@@ -91,20 +94,10 @@
    ((rtags-find-ancestor-file-directory "README*"))
    (t nil)))
 
-;; (defvar rtags-current-project-function rtags-default-current-project)
-
-;; (defun rtags-create-path-filter()
-;;   (if (functionp rtags-current-project-function)
-;;       (concat "-i" (apply 'rtags-current-project-function))
-;;     nil))
-
 (defcustom rtags-after-find-file-hook nil
   "Run after rtags has jumped to a location possibly in a new file"
   :group 'rtags
   :type 'hook)
-
-(defvar rtags-last-buffer nil)
-(defvar rtags-path-filter nil)
 
 (defun rtags-current-symbol ()
   (cond
@@ -149,7 +142,6 @@
 
 (defun rtags-save-location()
   (setq rtags-last-buffer (current-buffer))
-  (setq rtags-path-filter (rtags-default-current-project))
   (rtags-bookmark-push))
 
 (defun rtags-goto-location(location &optional nobookmark)
@@ -174,10 +166,9 @@
         (t nil))
   )
 
-
-
-(defun rtags-find-symbols-by-name-internal (p references)
+(defun rtags-find-symbols-by-name-internal (p references pathfilter)
   (rtags-save-location)
+  (setq rtags-path-filter pathfilter)
   (let ((tagname (rtags-current-symbol))
         (switch (if references "-R" "-F"))
         prompt
@@ -192,6 +183,7 @@
         (kill-buffer "*RTags Complete*"))
     (with-current-buffer (generate-new-buffer "*RTags Complete*")
       (rtags-call-rc switch tagname "-l")
+      (setq rtags-path-filter nil)
       (rtags-handle-completion-buffer)
       )
     )
@@ -452,11 +444,37 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-find-symbol ()
   (interactive)
-  (rtags-find-symbols-by-name-internal "Find symbol" nil))
+  (rtags-find-symbols-by-name-internal "Find symbol" nil nil))
 
 (defun rtags-find-references ()
   (interactive)
-  (rtags-find-symbols-by-name-internal "Find references" t))
+  (rtags-find-symbols-by-name-internal "Find references" t nil))
+
+(defun rtags-find-symbol-current-file ()
+  (interactive)
+  (rtags-find-symbols-by-name-internal "Find symbol" nil buffer-file-name))
+
+(defun rtags-find-references-current-file ()
+  (interactive)
+  (setq rtags-path-filter buffer-file-name)
+  (rtags-find-symbols-by-name-internal "Find references" t buffer-file-name))
+
+(defun rtags-dir-filter()
+  (concat (substring buffer-file-name
+                     0
+                     (string-match
+                      "[^/]*/?$"
+                      buffer-file-name))
+          "[^/]*/?$"))
+
+(defun rtags-find-symbol-current-dir ()
+  (interactive)
+  (rtags-find-symbols-by-name-internal "Find symbol" nil (rtags-dir-filter)))
+
+(defun rtags-find-references-current-dir ()
+  (interactive)
+  (setq rtags-path-filter buffer-file-name)
+  (rtags-find-symbols-by-name-internal "Find references" t (rtags-dir-filter)))
 
 (defun rtags-fixit()
   (interactive)

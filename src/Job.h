@@ -8,6 +8,7 @@
 #include "Event.h"
 #include "SignalSlot.h"
 #include "Server.h"
+#include "RegExp.h"
 #include <tr1/memory>
 
 class CursorInfo;
@@ -25,8 +26,11 @@ public:
     };
     Job(const QueryMessage &msg, unsigned jobFlags, const shared_ptr<Project> &proj);
     Job(unsigned jobFlags, const shared_ptr<Project> &project);
-    void setPathFilters(const List<ByteArray> &filter);
+    ~Job();
+
     List<ByteArray> pathFilters() const;
+    List<RegExp> pathFiltersRegExp() const;
+    bool hasFilter() const { return mPathFilters || mPathFiltersRegExp; }
     int id() const { return mId; }
     void setId(int id) { mId = id; }
     void write(const ByteArray &out);
@@ -48,19 +52,29 @@ private:
     int mId;
     unsigned mJobFlags;
     unsigned mQueryFlags;
-    List<ByteArray> mPathFilters;
     signalslot::Signal1<const ByteArray &> mOutput;
     shared_ptr<Project> mProject;
+    List<ByteArray> *mPathFilters;
+    List<RegExp> *mPathFiltersRegExp;
 };
 
 inline bool Job::filter(const ByteArray &val) const
 {
-    if (mPathFilters.isEmpty() || ((!mQueryFlags & QueryMessage::FilterSystemIncludes) && Path::isSystem(val.constData()))) {
+    if ((!mPathFilters && !mPathFiltersRegExp)
+        || ((!mQueryFlags & QueryMessage::FilterSystemIncludes) && Path::isSystem(val.constData()))) {
         return true;
+    } else if (mPathFilters) {
+        return RTags::startsWith(*mPathFilters, val);
     }
-    return RTags::startsWith(mPathFilters, val);
-}
 
+    const int count = mPathFiltersRegExp->size();
+    for (int i=0; i<count; ++i) {
+        if (mPathFiltersRegExp->at(i).indexIn(val) != -1)
+            return true;
+
+    }
+    return false;
+}
 
 class JobCompleteEvent : public Event
 {

@@ -43,7 +43,7 @@ public:
         ReverseSort = 0x020,
         ElispList = 0x040,
         WaitForIndexing = 0x080,
-        MatchRegExp = 0x100,
+        PathMatchRegExp = 0x100,
         AbsolutePath = 0x200,
         DisableGRTags = 0x400
     };
@@ -52,8 +52,12 @@ public:
     QueryMessage(Type type = Invalid, const ByteArray &query = ByteArray(),
                  unsigned flags = 0, const UnsavedFilesMap &unsaved = UnsavedFilesMap());
 
-    List<ByteArray> pathFilters() const { return mPathFilters; }
-    void setPathFilters(const List<ByteArray> &pathFilters) { mPathFilters = pathFilters; std::sort(mPathFilters.begin(), mPathFilters.end()); }
+    const List<ByteArray> &pathFilters() const { return mPathFilters; }
+    void setPathFilters(const List<ByteArray> &pathFilters)
+    {
+        mPathFilters = pathFilters;
+        std::sort(mPathFilters.begin(), mPathFilters.end());
+    }
 
     int messageId() const { return MessageId; }
     // ### it should be possible to put an already parsed Location in here instead of a query that needs to be reparsed

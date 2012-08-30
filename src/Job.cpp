@@ -3,32 +3,53 @@
 #include "EventLoop.h"
 #include "Server.h"
 #include "CursorInfo.h"
+#include "RegExp.h"
+#include "QueryMessage.h"
 
 // static int count = 0;
 // static int active = 0;
 
 Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project> &proj)
-    : mId(-1), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj)
+    : mId(-1), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj), mPathFilters(0), mPathFiltersRegExp(0)
 {
-    setPathFilters(query.pathFilters());
+    const List<ByteArray> &pathFilters = query.pathFilters();
+    if (!pathFilters.isEmpty()) {
+        if (mQueryFlags & QueryMessage::PathMatchRegExp) {
+            mPathFiltersRegExp = new List<RegExp>();
+            const int size = pathFilters.size();
+            mPathFiltersRegExp->reserve(size);
+            for (int i=0; i<size; ++i) {
+                mPathFiltersRegExp->append(pathFilters.at(i));
+            }
+        } else {
+            mPathFilters = new List<ByteArray>(pathFilters);
+        }
+    }
     setAutoDelete(true);
 }
 
 Job::Job(unsigned jobFlags, const shared_ptr<Project> &proj)
-    : mId(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj)
+    : mId(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0), mPathFiltersRegExp(0)
 {
     setAutoDelete(true);
 }
 
-void Job::setPathFilters(const List<ByteArray> &filter)
+Job::~Job()
 {
-    mPathFilters = filter;
+    delete mPathFilters;
+    delete mPathFiltersRegExp;
 }
 
 List<ByteArray> Job::pathFilters() const
 {
-    return mPathFilters;
+    return mPathFilters ? *mPathFilters : List<ByteArray>();
 }
+
+List<RegExp> Job::pathFiltersRegExp() const
+{
+    return mPathFiltersRegExp ? *mPathFiltersRegExp : List<RegExp>();
+}
+
 
 void Job::write(const ByteArray &out)
 {

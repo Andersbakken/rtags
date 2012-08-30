@@ -11,7 +11,7 @@ FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &p
 {
     const ByteArray q = query.query();
     if (!q.isEmpty()) {
-        if (query.flags() & QueryMessage::MatchRegExp) {
+        if (query.flags() & QueryMessage::PathMatchRegExp) {
             mRegExp = q;
         } else {
             mPattern = q;

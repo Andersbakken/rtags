@@ -14,7 +14,7 @@ ListSymbolsJob::ListSymbolsJob(const QueryMessage &query, const shared_ptr<Proje
 void ListSymbolsJob::execute()
 {
     List<ByteArray> out;
-    const bool hasFilter = !pathFilters().isEmpty();
+    const bool hasFilter = Job::hasFilter();
     const unsigned queryFlags = Job::queryFlags();
     const bool skipParentheses = queryFlags & QueryMessage::SkipParentheses;
     const bool elispList = queryFlags & QueryMessage::ElispList;

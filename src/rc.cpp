@@ -61,7 +61,7 @@ static void help(FILE *f, const char* app)
             "  --wait-for-indexing|-X                    Wait for indexing to finish before doing query\n"
             "  --path|-P [optional pattern]              Print files matching pattern\n"
             "  --absolute-path|-K                        Print files with absolute path\n"
-            "  --path-match-regexp|-Z                    Treat argument to -P as a regexp\n"
+            "  --path-match-regexp|-Z                    Treat arguments to -P or -i as a regexps\n"
             "  --parse|-y [file]                         Parse file\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
             app);
@@ -287,7 +287,7 @@ int main(int argc, char** argv)
             queryFlags |= QueryMessage::ReferencesForRenameSymbol;
             break;
         case 'Z':
-            queryFlags |= QueryMessage::MatchRegExp;
+            queryFlags |= QueryMessage::PathMatchRegExp;
             break;
         case 'K':
             queryFlags |= QueryMessage::AbsolutePath;
