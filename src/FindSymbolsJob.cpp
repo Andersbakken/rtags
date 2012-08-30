@@ -6,7 +6,7 @@
 
 static inline unsigned jobFlags(unsigned queryFlags)
 {
-    return (queryFlags & QueryMessage::ElispList) ? Job::WriteUnfiltered|Job::QuoteOutput : Job::WriteUnfiltered;
+    return (queryFlags & QueryMessage::ElispList) ? Job::QuoteOutput : Job::None;
 }
 
 FindSymbolsJob::FindSymbolsJob(const QueryMessage &query, const shared_ptr<Project> &proj)
