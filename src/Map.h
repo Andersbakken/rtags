@@ -52,9 +52,9 @@ public:
 
     Map<Key, Value> &unite(const Map<Key, Value> &other)
     {
-        typename std::map<Key, Value>::iterator it = other.begin();
+        typename std::map<Key, Value>::const_iterator it = other.begin();
         while (it != other.end()) {
-            std::map<Key, Value>::insert(*it);
+            operator[](it->first) = it->second;
             ++it;
         }
         return *this;
