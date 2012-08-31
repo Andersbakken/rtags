@@ -217,24 +217,21 @@ void Indexer::commitDependencies(const DependencyMap &deps, bool sync) // always
 void Indexer::onJobFinished(IndexerJob *job)
 {
     MutexLocker lock(&mMutex);
-    mJobs.remove(job->mFileId);
+    const uint32_t fileId = job->fileId();
+    mJobs.remove(fileId);
+    ByteArray message = job->message();
     if (job->isAborted()) {
-        Set<uint32_t> visited;
-        for (Map<uint32_t, IndexerJob::PathState>::const_iterator it = job->mPaths.begin(); it != job->mPaths.end(); ++it) {
-            if (it->second == IndexerJob::Index)
-                visited.insert(it->first);
-        }
-
+        const Set<uint32_t> visited = job->visitedFiles();
         mVisitedFiles -= visited;
 
         shared_ptr<Project> proj = project();
 
-        job->mMessage += job->mIn + " Aborted";
+        message += job->path() + " Aborted";
 
-        IndexerJob* waiting;
-        if (mWaiting.remove(job->mFileId, &waiting)) {
-            startJob(waiting);
-        }
+        // IndexerJob* waiting;
+        // if (mWaiting.remove(fileId, &waiting)) {
+        //     startJob(waiting);
+        // }
         lock.unlock();
 
         ScopedDB symbols = proj->db(Project::Symbol, ReadWriteLock::Write);
@@ -243,13 +240,12 @@ void Indexer::onJobFinished(IndexerJob *job)
         RTags::dirtySymbolNames(symbolNames, visited);
     }
 
-    const int idx = mJobCounter - mJobs.size() - mWaiting.size();
+    const int idx = mJobCounter - mJobs.size();
 
     error("[%3d%%] %d/%d %s %s. Pending jobs %d. %d mb mem.",
           static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
           RTags::timeToString(time(0), RTags::Time).constData(),
-          job->mMessage.constData(), mJobs.size() + mWaiting.size(),
-          int((MemoryMonitor::usage() / (1024 * 1024))));
+          message.constData(), mJobs.size(), int((MemoryMonitor::usage() / (1024 * 1024))));
 
     if (mJobs.isEmpty()) {
         assert(mTimerRunning);
@@ -273,41 +269,17 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
     MutexLocker locker(&mMutex);
 
     const uint32_t fileId = Location::insertFile(input);
-    if (IndexerJob *waiting = mWaiting.value(fileId)) {
-        if (!dirtyFiles.isEmpty() || !pending.isEmpty())
-            waiting->addDirty(dirtyFiles, pending);
+    IndexerJob *&job = mJobs[fileId];
+    if (job && job->restart(time(0), dirtyFiles, pending))
         return;
-    }
 
-    IndexerJob *job = new IndexerJob(this, indexerJobFlags, input, arguments);
+    job = new IndexerJob(this, indexerJobFlags, input, arguments, dirtyFiles, pending);
     if (!dirtyFiles.isEmpty() || !pending.isEmpty())
         mVisitedFiles -= dirtyFiles;
-        job->addDirty(dirtyFiles, pending);
 
     job->finished().connect(this, &Indexer::onJobFinished);
 
     ++mJobCounter;
-
-    IndexerJob *existing = mJobs.value(fileId);
-    if (existing) {
-        mWaiting[fileId] = job;
-        existing->abort();
-    } else {
-        startJob(job);
-    }
-}
-
-void Indexer::startJob(IndexerJob *job)
-{
-    if (mJobs.contains(job->mFileId)) {
-        error("We're already indexing %s", job->mIn.constData());
-        delete job;
-        return;
-    }
-    assert(!mJobs.contains(job->mFileId));
-    // mMutex is always held at this point
-    mJobs[job->mFileId] = job;
-
     if (!mTimerRunning) {
         mTimerRunning = true;
         mTimer.start();
@@ -346,17 +318,14 @@ Set<uint32_t> Indexer::dependencies(uint32_t fileId) const
 void Indexer::abort()
 {
     MutexLocker lock(&mMutex);
-    for (Map<uint32_t, IndexerJob*>::const_iterator it = mWaiting.begin(); it != mWaiting.end(); ++it) {
-        delete it->second;
-    }
-    mWaiting.clear();
 
     if (!mJobs.isEmpty()) {
         for (Map<uint32_t, IndexerJob*>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
             it->second->abort();
         }
-        while (!mJobs.isEmpty())
+        while (!mJobs.isEmpty()) {
             mWaitCondition.wait(&mMutex);
+        }
     }
 }
 

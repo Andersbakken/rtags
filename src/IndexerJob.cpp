@@ -6,11 +6,9 @@
 #include "FileInformation.h"
 #include "Database.h"
 
-static inline int writeSymbolNames(const SymbolNameMap &symbolNames, const Set<uint32_t> &dirty, ScopedDB db)
+static inline int writeSymbolNames(const SymbolNameMap &symbolNames, ScopedDB db)
 {
     // error() << "writeSymbolNames" << dirty << symbolNames.size();
-    if (!dirty.isEmpty())
-        RTags::dirtySymbolNames(db, dirty);
     Batch batch(db);
     int totalWritten = 0;
 
@@ -33,11 +31,9 @@ static inline int writeSymbolNames(const SymbolNameMap &symbolNames, const Set<u
 }
 
 
-static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, const Set<uint32_t> &dirty, ScopedDB db)
+static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, ScopedDB db)
 {
     // error() <<"writeSymbols" << dirty << symbols.size() << references.size();
-    if (!dirty.isEmpty())
-        RTags::dirtySymbols(db, dirty);
     Batch batch(db);
     int totalWritten = 0;
 
@@ -88,9 +84,11 @@ static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &a
     return db->setValue(Slice(ch, sizeof(fileId)), FileInformation(lastTouched, args));
 }
 
-IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &input, const List<ByteArray> &arguments)
-    : mFlags(flags), mTimeStamp(time(0)), mIn(input), mFileId(Location::insertFile(input)),
-      mArgs(arguments), mIndexer(indexer), mUnit(0)
+IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &input, const List<ByteArray> &arguments,
+                       const Set<uint32_t> &dirty, const Map<Path, List<ByteArray> > &pending)
+    : mFlags(flags), mTimeStamp(0), mIn(input), mFileId(Location::insertFile(input)),
+      mArgs(arguments), mIndexer(indexer), mUnit(0), mIndex(0), mState(Starting), mDirty(dirty), mPendingSources(pending),
+      mVisitCount(0)
 {
 }
 
@@ -100,8 +98,6 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
                                   CXClientData userData)
 {
     IndexerJob *job = static_cast<IndexerJob*>(userData);
-    if (job->isAborted())
-        return;
     const Location l(includedFile, 0);
 
     const Path path = l.path();
@@ -293,8 +289,11 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
                                             CXClientData client_data)
 {
     IndexerJob *job = static_cast<IndexerJob*>(client_data);
-    if (job->isAborted())
-        return CXChildVisit_Break;
+    if (!(++job->mVisitCount % 100)) {
+        // MutexLocker lock(&job->mStateMutex);
+        if (job->mState != Visiting)
+            return CXChildVisit_Break;
+    }
 
     const CXCursorKind kind = clang_getCursorKind(cursor);
     if (clang_isStatement(kind))
@@ -641,34 +640,115 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
     }
 }
 
-struct Scope {
-    ~Scope()
-    {
-        cleanup();
-    }
-    void cleanup()
-    {
-        headerMap.clear();
-        if (unit) {
-            clang_disposeTranslationUnit(unit);
-            unit = 0;
-        }
-        if (index) {
-            clang_disposeIndex(index);
-            index = 0;
-        }
-    }
-
-    Map<Str, Location> &headerMap;
-    CXTranslationUnit &unit;
-    CXIndex &index;
-    const unsigned flags;
-};
-
-void IndexerJob::run()
+unsigned IndexerJob::parse()
 {
-    execute();
-    mFinished(this);
+    mHeaderMap.clear();
+    if (!mIndex) {
+        mIndex = clang_createIndex(0, 1);
+        if (!mIndex)
+            return Dirtying; // dirty?
+    }
+
+    mTimeStamp = time(0);
+    if (!mUnit) {
+        List<const char*> clangArgs(mArgs.size(), 0);
+        mClangLine = Server::instance()->clangPath();
+
+        int idx = 0;
+        const int count = mArgs.size();
+        for (int i=0; i<count; ++i) {
+            ByteArray arg = mArgs.at(i);
+            if (arg.isEmpty())
+                continue;
+
+            clangArgs[idx++] = arg.constData();
+            arg.replace("\"", "\\\"");
+            mClangLine += arg;
+            mClangLine += " ";
+        }
+
+        mClangLine += mIn;
+
+        mUnit = clang_parseTranslationUnit(mIndex, mIn.constData(),
+                                           clangArgs.data(), idx, 0, 0,
+                                           CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+        warning() << "loading unit " << mClangLine << " " << (mUnit != 0);
+    } else {
+        clang_reparseTranslationUnit(mUnit, 0, 0, clang_defaultReparseOptions(mUnit));
+    }
+    if (!mUnit) {
+        mDependencies[mFileId].insert(mFileId);
+        return Dirtying;
+    }
+    return Visiting;
+}
+
+void IndexerJob::diagnose()
+{
+    const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
+    bool hasCompilationErrors = false;
+    for (unsigned i=0; i<diagnosticCount; ++i) {
+        CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
+        int logLevel = INT_MAX;
+        const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diagnostic);
+        switch (severity) {
+        case CXDiagnostic_Fatal:
+        case CXDiagnostic_Error:
+            logLevel = Error;
+            hasCompilationErrors = true;
+            break;
+        case CXDiagnostic_Warning:
+            logLevel = Warning;
+            hasCompilationErrors = true;
+            break;
+        case CXDiagnostic_Note:
+            logLevel = Debug;
+            break;
+        case CXDiagnostic_Ignored:
+            break;
+        }
+
+        CXSourceLocation loc = clang_getDiagnosticLocation(diagnostic);
+        const unsigned diagnosticOptions = (CXDiagnostic_DisplaySourceLocation|
+                                            CXDiagnostic_DisplayColumn|
+                                            CXDiagnostic_DisplaySourceRanges|
+                                            CXDiagnostic_DisplayOption|
+                                            CXDiagnostic_DisplayCategoryId|
+                                            CXDiagnostic_DisplayCategoryName);
+
+        ByteArray string;
+        CXFile file;
+        clang_getSpellingLocation(loc, &file, 0, 0, 0);
+        if (file) {
+            string = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
+            mDiagnostics[Location(file, 0).fileId()].append(string);
+        }
+        if (testLog(logLevel) || (logLevel >= Warning && testLog(CompilationError))) {
+            if (string.isEmpty())
+                string = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
+            log(logLevel, "%s: %s => %s", mIn.constData(), mClangLine.constData(), string.constData());
+            log(CompilationError, "%s", string.constData());
+        }
+
+        const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
+        for (unsigned f=0; f<fixItCount; ++f) {
+            CXSourceRange range;
+            ByteArray string = RTags::eatString(clang_getDiagnosticFixIt(diagnostic, f, &range));
+            const Location start(clang_getRangeStart(range));
+            unsigned endOffset = 0;
+            clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
+
+            error("Fixit (%d/%d) for %s: [%s] %s-%d", f + 1, fixItCount, mIn.constData(),
+                  string.constData(), start.key().constData(), endOffset);
+            // ### can there be more than one fixit starting at the same location? Probably not.
+            mFixIts[start] = std::pair<int, ByteArray>(endOffset - start.offset(), string);
+        }
+
+        clang_disposeDiagnostic(diagnostic);
+    }
+    if (!hasCompilationErrors) {
+        log(CompilationError, "%s parsed", mIn.constData());
+    }
 }
 
 struct VerboseVisitorUserData
@@ -677,7 +757,143 @@ struct VerboseVisitorUserData
     ByteArray out;
     IndexerJob *job;
 };
-static inline CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData)
+
+#define TEST_STATE(state)                       \
+    do {                                        \
+        switch (setState(state)) {              \
+        case Aborted:                           \
+            return Aborted;                     \
+        case Parsing:                           \
+            return Parsing;                     \
+        default:                                \
+            break;                              \
+        }                                       \
+    } while (false)
+
+unsigned IndexerJob::visit()
+{
+    assert(mUnit);
+    diagnose();
+    TEST_STATE(Visiting);
+
+    clang_getInclusions(mUnit, inclusionVisitor, this);
+    TEST_STATE(Visiting);
+
+    mVisitCount = 0;
+
+    clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
+    TEST_STATE(Visiting);
+    if (testLog(VerboseDebug)) {
+        {
+            VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLine + ">", this };
+            clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
+            u.out += "</VerboseVisitor " + mClangLine + ">";
+            char buf[1024];
+            snprintf(buf, sizeof(buf), "/tmp/%s.log", mIn.fileName());
+            FILE *f = fopen(buf, "w");
+            assert(f);
+            fwrite(u.out.constData(), 1, u.out.size(), f);
+            fclose(f);
+            // logDirect(VerboseDebug, u.out);
+        }
+        // {
+        //     VerboseVisitorUserData u = { -1, "<VerboseVisitor2 " + clangLine + ">", this };
+        //     clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
+        //     u.out += "</VerboseVisitor2 " + clangLine + ">";
+        //     logDirect(VerboseDebug, u.out);
+        // }
+    }
+    return Dirtying;
+}
+
+unsigned IndexerJob::dirty()
+{
+    if (!mDirty.isEmpty()) {
+        shared_ptr<Project> project = mIndexer->project();
+        assert(project);
+        {
+            ScopedDB db = project->db(Project::Symbol, ReadWriteLock::Write);
+            RTags::dirtySymbols(db, mDirty);
+        }
+        TEST_STATE(Dirtying);
+        {
+
+            ScopedDB db = project->db(Project::Symbol, ReadWriteLock::Write);
+            RTags::dirtySymbols(db, mDirty);
+        }
+    }
+    return Writing;
+}
+
+unsigned IndexerJob::write()
+{
+    assert(mDependencies[mFileId].contains(mFileId));
+    mIndexer->addDependencies(mDependencies);
+    TEST_STATE(Writing);
+    mIndexer->setDiagnostics(mDiagnostics, mFixIts);
+    TEST_STATE(Writing);
+    shared_ptr<Project> project = mIndexer->project();
+    assert(project);
+    writeSymbols(mSymbols, mReferences, project->db(Project::Symbol, ReadWriteLock::Write));
+    TEST_STATE(Writing);
+    writeSymbolNames(mSymbolNames, project->db(Project::SymbolName, ReadWriteLock::Write));
+    return Finishing;
+}
+
+unsigned IndexerJob::finish()
+{
+    for (Map<Path, List<ByteArray> >::const_iterator it = mPendingSources.begin(); it != mPendingSources.end(); ++it) {
+        mIndexer->index(it->first, it->second, IndexerJob::Dirty);
+    }
+    char buf[1024];
+    const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %sms. (%d syms, %d refs, %d deps, %d symNames)%s",
+                           mIn.constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
+                           mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size(),
+                           mFlags & Dirty ? " (dirty)" : "");
+    mMessage = ByteArray(buf, w);
+    if (testLog(Warning)) {
+        warning() << "We're using " << double(MemoryMonitor::usage()) / double(1024 * 1024) << " MB of memory " << mTimer.elapsed() << "ms";
+    }
+
+    return Done;
+}
+
+
+void IndexerJob::run()
+{
+    unsigned targetState = Parsing;
+    do {
+        targetState = setState(targetState);
+        switch (targetState) {
+        case Parsing:
+            targetState = parse();
+            break;
+        case Visiting:
+            targetState = visit();
+            break;
+        case Dirtying:
+            targetState = dirty();
+        case Writing:
+            targetState = write();
+            break;
+        case Finishing:
+            targetState = finish();
+            break;
+        }
+    } while (!(targetState & (Done|Aborted)));
+    mHeaderMap.clear();
+    if (mUnit) {
+        clang_disposeTranslationUnit(mUnit);
+        mUnit = 0;
+    }
+    if (mIndex) {
+        clang_disposeIndex(mIndex);
+        mIndex = 0;
+    }
+    mFinished(this);
+}
+
+CXChildVisitResult IndexerJob::verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData)
 {
     VerboseVisitorUserData *u = reinterpret_cast<VerboseVisitorUserData*>(userData);
     Location loc = u->job->createLocation(cursor);
@@ -716,181 +932,113 @@ static inline CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXCli
     }
 }
 
-void IndexerJob::execute()
+bool IndexerJob::restart(time_t time, const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pendingFiles)
 {
-    mDirty.clear();
-    shared_ptr<Project> project = mIndexer->project();
-    assert(project);
-    Timer timer;
-
-    List<const char*> clangArgs(mArgs.size(), 0);
-    ByteArray clangLine = Server::instance()->clangPath();
-
-    int idx = 0;
-    const int count = mArgs.size();
-    for (int i=0; i<count; ++i) {
-        ByteArray arg = mArgs.at(i);
-        if (arg.isEmpty())
-            continue;
-
-        clangArgs[idx++] = arg.constData();
-        arg.replace("\"", "\\\"");
-        clangLine += arg;
-        clangLine += " ";
-    }
-
-    clangLine += mIn;
-
-    if (isAborted()) {
-        return;
-    }
-
-    CXIndex index = clang_createIndex(0, 1);
-    mUnit = clang_parseTranslationUnit(index, mIn.constData(),
-                                       clangArgs.data(), idx, 0, 0,
-                                       CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
-    Scope scope = { mHeaderMap, mUnit, index, mFlags };
-
-    warning() << "loading unit " << clangLine << " " << (mUnit != 0);
-    if (isAborted()) {
-        return;
-    }
-
-    mDependencies[mFileId].insert(mFileId);
-    const Path srcRoot = mIndexer->srcRoot();
-    writeFileInformation(mFileId, mArgs, mTimeStamp,
-                         mIndexer->project()->db(Project::FileInformation, ReadWriteLock::Write));
-
-    bool compileError = false;
-    if (!mUnit) {
-        compileError = true;
-        error() << "got 0 unit for " << clangLine;
-        mIndexer->addDependencies(mDependencies);
-    } else {
-        Map<Location, std::pair<int, ByteArray> > fixIts;
-        Map<uint32_t, List<ByteArray> > visited;
-        const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
-        bool hasCompilationErrors = false;
-        for (unsigned i=0; i<diagnosticCount; ++i) {
-            CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
-            int logLevel = INT_MAX;
-            const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diagnostic);
-            switch (severity) {
-            case CXDiagnostic_Fatal:
-            case CXDiagnostic_Error:
-                logLevel = Error;
-                hasCompilationErrors = true;
-                break;
-            case CXDiagnostic_Warning:
-                logLevel = Warning;
-                hasCompilationErrors = true;
-                break;
-            case CXDiagnostic_Note:
-                logLevel = Debug;
-                break;
-            case CXDiagnostic_Ignored:
-                break;
-            }
-
-            if (testLog(logLevel) || (logLevel >= Warning && testLog(CompilationError))) {
-                CXSourceLocation loc = clang_getDiagnosticLocation(diagnostic);
-                const ByteArray string = RTags::eatString(clang_formatDiagnostic(diagnostic,
-                                                                                 CXDiagnostic_DisplaySourceLocation|
-                                                                                 CXDiagnostic_DisplayColumn|
-                                                                                 CXDiagnostic_DisplaySourceRanges|
-                                                                                 CXDiagnostic_DisplayOption|
-                                                                                 CXDiagnostic_DisplayCategoryId|
-                                                                                 CXDiagnostic_DisplayCategoryName));
-                CXFile file;
-                clang_getSpellingLocation(loc, &file, 0, 0, 0);
-                if (file)
-                    visited[Location(file, 0).fileId()].append(string);
-
-                log(logLevel, "%s: %s => %s", mIn.constData(), string.constData(), clangLine.constData());
-                log(CompilationError, "%s", string.constData());
-            }
-
-            const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
-            for (unsigned f=0; f<fixItCount; ++f) {
-                CXSourceRange range;
-                CXString string = clang_getDiagnosticFixIt(diagnostic, f, &range);
-                const Location start(clang_getRangeStart(range));
-                unsigned endOffset = 0;
-                clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
-
-                error("Fixit (%d/%d) for %s: [%s] %s-%d", f + 1, fixItCount, mIn.constData(),
-                      clang_getCString(string), start.key().constData(), endOffset);
-                // ### can there be more than one fixit starting at the same location? Probably not.
-                fixIts[start] = std::pair<int, ByteArray>(endOffset - start.offset(), RTags::eatString(string));
-            }
-
-            clang_disposeDiagnostic(diagnostic);
+    MutexLocker lock(&mStateMutex);
+    switch (mState) {
+    case Starting:
+        mDirty.unite(dirtyFiles);
+        mPendingSources.unite(pendingFiles);
+        break;
+    case Parsing:
+        mDirty.unite(dirtyFiles);
+        mPendingSources.unite(pendingFiles);
+        if (time > mTimeStamp) {
+            mState |= Reparse;
         }
-        if (!hasCompilationErrors) {
-            log(CompilationError, "%s parsed", mIn.constData());
+        break;
+    case Visiting:
+        mDirty.unite(dirtyFiles);
+        mPendingSources.unite(pendingFiles);
+        if (time > mTimeStamp) {
+            mState |= Reparse;
         }
-
-        clang_getInclusions(mUnit, inclusionVisitor, this);
-
-        clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
-        if (testLog(VerboseDebug)) {
-            {
-                VerboseVisitorUserData u = { 0, "<VerboseVisitor " + clangLine + ">", this };
-                clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
-                u.out += "</VerboseVisitor " + clangLine + ">";
-                char buf[1024];
-                snprintf(buf, sizeof(buf), "/tmp/%s.log", mIn.fileName());
-                FILE *f = fopen(buf, "w");
-                assert(f);
-                fwrite(u.out.constData(), 1, u.out.size(), f);
-                fclose(f);
-                // logDirect(VerboseDebug, u.out);
-            }
-            // {
-            //     VerboseVisitorUserData u = { -1, "<VerboseVisitor2 " + clangLine + ">", this };
-            //     clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
-            //     u.out += "</VerboseVisitor2 " + clangLine + ">";
-            //     logDirect(VerboseDebug, u.out);
-            // }
+        break;
+    case Dirtying: {
+        mPendingSources.unite(pendingFiles);
+        if (time > mTimeStamp) {
+            mState |= Reparse;
         }
-        scope.cleanup();
-
-        if (!isAborted()) {
-            mIndexer->addDependencies(mDependencies);
-            assert(mDependencies[mFileId].contains(mFileId));
-
-            mIndexer->setDiagnostics(visited, fixIts);
-            writeSymbols(mSymbols, mReferences, mDirty, project->db(Project::Symbol, ReadWriteLock::Write));
-            writeSymbolNames(mSymbolNames, mDirty, project->db(Project::SymbolName, ReadWriteLock::Write));
+        int count = 0;
+        mDirty.unite(dirtyFiles, &count);
+        if (count)
+            mState |= Reparse;
+        break; }
+    case Writing: {
+        mPendingSources.unite(pendingFiles);
+        if (time > mTimeStamp) {
+            mState |= Reparse;
+            mDirty.unite(visitedFiles());
         }
-        for (Map<Path, List<ByteArray> >::const_iterator it = mPendingSources.begin(); it != mPendingSources.end(); ++it) {
-            mIndexer->index(it->first, it->second, IndexerJob::Dirty);
-        }
+        int count = 0;
+        mDirty.unite(dirtyFiles, &count);
+        if (count)
+            mState |= Reparse;
+        break; }
+    case Finishing:
+    case Done:
+        return false; // ###
     }
-
-    char buf[1024];
-    const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %sms. (%d syms, %d refs, %d deps, %d symNames)%s",
-                           mIn.constData(), compileError ? "error" : "success", ByteArray::number(timer.elapsed()).constData(),
-                           mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size(),
-                           mFlags & Dirty ? " (dirty)" : "");
-    mMessage = ByteArray(buf, w);
-    if (testLog(Warning)) {
-        warning() << "We're using " << double(MemoryMonitor::usage()) / double(1024 * 1024) << " MB of memory " << timer.elapsed() << "ms";
-    }
+    return true;
 }
 
-void IndexerJob::addDirty(const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pendingFiles)
+static inline List<ByteArray> stateName(unsigned state)
 {
-    if (mDirty.isEmpty()) {
-        mDirty = dirtyFiles;
-    } else {
-        mDirty += dirtyFiles;
+    List<ByteArray> ret;
+    if (state & IndexerJob::Starting)
+        ret.append("Starting");
+    if (state & IndexerJob::Parsing)
+        ret.append("Parsing");
+    if (state & IndexerJob::Failed)
+        ret.append("Failed");
+    if (state & IndexerJob::Visiting)
+        ret.append("Visiting");
+    if (state & IndexerJob::Dirtying)
+        ret.append("Dirtying");
+    if (state & IndexerJob::Writing)
+        ret.append("Writing");
+    if (state & IndexerJob::Finishing)
+        ret.append("Finishing");
+    if (state & IndexerJob::Done)
+        ret.append("Done");
+    if (state & IndexerJob::Aborted)
+        ret.append("Aborted");
+    if (state & IndexerJob::Reparse)
+        ret.append("Reparse");
+    if (ret.isEmpty())
+        ret.append("None");
+    return ret;
+}
+unsigned IndexerJob::setState(unsigned state)
+{
+    MutexLocker lock(&mStateMutex);
+
+    // if (mState != state)
+    //     error() << mIn << "from" << ByteArray::join(stateName(mState), "|") << "to" << ByteArray::join(stateName(state), "|");
+
+    if (mState & Aborted) {
+        return Aborted;
+    } else if (mState & Reparse) {
+        state = Parsing;
     }
-    if (mPendingSources.isEmpty()) {
-        mPendingSources = pendingFiles;
-    } else {
-        for (Map<Path, List<ByteArray> >::const_iterator it = pendingFiles.begin(); it != pendingFiles.end(); ++it) {
-            mPendingSources[it->first] = it->second;
-        }
+    mState = state;
+    return mState;
+}
+
+unsigned IndexerJob::abort()
+{
+    MutexLocker lock(&mStateMutex);
+    const unsigned ret = mState;
+    mState |= Aborted;
+    return ret;
+}
+
+Set<uint32_t> IndexerJob::visitedFiles() const
+{
+    Set<uint32_t> visited;
+    for (Map<uint32_t, IndexerJob::PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
+        if (it->second == IndexerJob::Index)
+            visited.insert(it->first);
     }
+    return visited;
 }

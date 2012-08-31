@@ -69,7 +69,6 @@ private:
 
     ByteArray mPath;
     Map<uint32_t, IndexerJob*> mJobs;
-    Map<uint32_t, IndexerJob*> mWaiting;
 
     Set<uint32_t> mModifiedFiles;
     int mModifiedFilesTimerId;
