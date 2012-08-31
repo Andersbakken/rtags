@@ -54,7 +54,11 @@ public:
     {
         typename std::map<Key, Value>::const_iterator it = other.begin();
         while (it != other.end()) {
-            operator[](it->first) = it->second;
+            const Key &key = it->first;
+            const Value &val = it->second;
+            operator[](key) = val;
+            // std::map<Key, Value>::insert(it);
+            // std::map<Key, Value>::operator[](it->first) = it->second;
             ++it;
         }
         return *this;
