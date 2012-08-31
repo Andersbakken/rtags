@@ -177,13 +177,8 @@ bool GccArguments::parse(ByteArray args, const Path &base)
         if (prevopt != '\0') {
             switch (prevopt) {
             case 'x':
-                if (!strcmp(cur, "c-header")) {
-                    mType = Pch;
-                    assert(mLang == C);
-                } else if (!strcmp(cur, "c++-header")) {
-                    mType = Pch;
-                    assert(mLang == CPlusPlus);
-                }
+                if (!strcmp(cur, "c-header") || !strcmp(cur, "c++-header"))
+                    return false;
                 mClangArgs.append("-x");
                 mClangArgs.append(cur);
                 break;
@@ -268,11 +263,6 @@ bool GccArguments::parse(ByteArray args, const Path &base)
             const ByteArray &input = mUnresolvedInputFiles.at(i);
             error("  %s", input.constData());
         }
-        clear();
-        return false;
-    }
-    if (mOutputFile.isEmpty() && mType == Pch) {
-        error("Output file is empty for pch");
         clear();
         return false;
     }

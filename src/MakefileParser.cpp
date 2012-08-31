@@ -79,7 +79,7 @@ void DirectoryTracker::leaveDirectory(const ByteArray &dir)
 
 MakefileParser::MakefileParser(const List<ByteArray> &extraFlags, Connection *conn)
     : mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags),
-      mSourceCount(0), mPchCount(0), mConnection(conn), mHasProject(false)
+      mSourceCount(0), mConnection(conn), mHasProject(false)
 {
 }
 
@@ -173,35 +173,11 @@ void MakefileParser::processMakeLine(const ByteArray &line)
     GccArguments args;
     if (args.parse(line, mTracker->path())) {
         args.addFlags(mExtraFlags);
-        if (args.type() == GccArguments::Pch) {
-            ++mPchCount;
-        } else {
-            ++mSourceCount;
-        }
+        ++mSourceCount;
         fileReady()(args, this);
     } else {
         mTracker->track(line);
     }
-}
-
-List<ByteArray> MakefileParser::mapPchToInput(const List<ByteArray> &input) const
-{
-    List<ByteArray> output;
-    Map<ByteArray, ByteArray>::const_iterator pchit;
-    const Map<ByteArray, ByteArray>::const_iterator pchend = mPchs.end();
-    const int count = input.size();
-    for (int i=0; i<count; ++i) {
-        const ByteArray &in = input.at(i);
-        pchit = mPchs.find(in);
-        if (pchit != pchend)
-            output.append(pchit->second);
-    }
-    return output;
-}
-
-void MakefileParser::setPch(const ByteArray &output, const ByteArray &input)
-{
-    mPchs[output] = input;
 }
 
 void MakefileParser::onDone()

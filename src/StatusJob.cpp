@@ -51,7 +51,7 @@ void StatusJob::execute()
         }
     }
 
-    const char *alternatives = "general|fileids|dependencies|fileinfos|symbols|symbolnames|pch|visitedfiles|grfiles|gr";
+    const char *alternatives = "general|fileids|dependencies|fileinfos|symbols|symbolnames|visitedfiles|grfiles|gr";
     shared_ptr<Project> proj = project();
     if (!proj) {
         if (!matched) {

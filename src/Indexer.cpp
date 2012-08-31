@@ -32,13 +32,9 @@ void Indexer::init(const shared_ptr<Project> &proj, bool validate)
         DependencyMap dependencies;
         while (it->isValid()) {
             const Slice key = it->key();
-            if (key.size() == 15 && !strncmp(key.data(), "pchDependencies", 15)) {
-                mPchDependencies = db->value<Map<Path, Set<uint32_t> > >("pchDependencies");
-            } else {
-                const uint32_t fileId = *reinterpret_cast<const uint32_t*>(key.data());
-                const Set<uint32_t> deps = it->value<Set<uint32_t> >();
-                dependencies[fileId] = deps;
-            }
+            const uint32_t fileId = *reinterpret_cast<const uint32_t*>(key.data());
+            const Set<uint32_t> deps = it->value<Set<uint32_t> >();
+            dependencies[fileId] = deps;
             it->next();
         }
         MutexLocker lock(&mMutex);
@@ -62,7 +58,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
     shared_ptr<Project> proj = project();
     assert(proj);
     Set<uint32_t> dirtyFiles;
-    Map<Path, List<ByteArray> > toIndex, toIndexPch;
+    Map<Path, List<ByteArray> > toIndex;
     {
         MutexLocker lock(&mMutex);
         assert(mode == ForceDirty || pattern.isEmpty());
@@ -106,13 +102,6 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
                 if (path.isFile()) {
                     const FileInformation fi = it->value<FileInformation>();
                     if (!fi.compileArgs.isEmpty()) {
-#ifdef RTAGS_DEBUG
-                        if (path.isHeader() && !RTags::isPch(fi.compileArgs)) {
-                            error() << fileId << " " << path << " " << fi.compileArgs << " " << fileId;
-                            it->next();
-                            continue;
-                        }
-#endif
                         ++checked;
                         bool dirty = false;
                         Set<uint32_t> dependencies = deps.value(fileId);
@@ -151,11 +140,7 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
                             }
                         }
                         if (dirty) {
-                            if (RTags::isPch(fi.compileArgs)) {
-                                toIndexPch[path] = fi.compileArgs;
-                            } else {
-                                toIndex[path] = fi.compileArgs;
-                            }
+                            toIndex[path] = fi.compileArgs;
                         } else {
                             mVisitedFiles += dependencies;
                         }
@@ -170,16 +155,14 @@ void Indexer::initDB(InitMode mode, const ByteArray &pattern)
 
         if (checked)
             error() << proj->srcRoot << ": Checked " << checked << " files. Found " << dirtyFiles.size() << " dirty files and "
-                    << (toIndex.size() + toIndexPch.size()) << " sources to reindex in " << timer.elapsed() << "ms";
+                    << toIndex.size() << " sources to reindex in " << timer.elapsed() << "ms";
 
-        assert(dirtyFiles.isEmpty() == (toIndex.isEmpty() && toIndexPch.isEmpty()));
+        assert(dirtyFiles.isEmpty() == toIndex.isEmpty());
 
-        if (dirtyFiles.isEmpty()) {
-            assert(toIndex.isEmpty() && toIndexPch.isEmpty());
-            return;
-        }
     }
-    dirty(dirtyFiles, toIndexPch, toIndex);
+    if (!dirtyFiles.isEmpty()) {
+        dirty(dirtyFiles, toIndex);
+    }
 }
 
 void Indexer::commitDependencies(const DependencyMap &deps, bool sync) // always called with mMutex held
@@ -248,10 +231,9 @@ void Indexer::onJobFinished(IndexerJob *job)
 
         job->mMessage += job->mIn + " Aborted";
 
-        std::pair<IndexerJob*, WaitType> waiting;
+        IndexerJob* waiting;
         if (mWaiting.remove(job->mFileId, &waiting)) {
-            assert(waiting.second == Abort);
-            startJob(waiting.first);
+            startJob(waiting);
         }
         lock.unlock();
 
@@ -259,19 +241,6 @@ void Indexer::onJobFinished(IndexerJob *job)
         ScopedDB symbolNames = proj->db(Project::SymbolName, ReadWriteLock::Write);
         RTags::dirtySymbols(symbols, visited);
         RTags::dirtySymbolNames(symbolNames, visited);
-    } else if (job->mIsPch) {
-        Map<uint32_t, std::pair<IndexerJob*, WaitType> >::iterator it = mWaiting.begin();
-        while (it != mWaiting.end()) {
-            if (it->second.second == PCH) {
-                IndexerJob *job = it->second.first;
-                if (!needsToWaitForPch(job)) {
-                    mWaiting.erase(it++);
-                    startJob(job);
-                    continue;
-                }
-            }
-            ++it;
-        }
     }
 
     const int idx = mJobCounter - mJobs.size() - mWaiting.size();
@@ -304,7 +273,7 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
     MutexLocker locker(&mMutex);
 
     const uint32_t fileId = Location::insertFile(input);
-    if (IndexerJob *waiting = mWaiting.value(fileId).first) {
+    if (IndexerJob *waiting = mWaiting.value(fileId)) {
         if (!dirtyFiles.isEmpty() || !pending.isEmpty())
             waiting->addDirty(dirtyFiles, pending);
         return;
@@ -321,10 +290,8 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
 
     IndexerJob *existing = mJobs.value(fileId);
     if (existing) {
-        mWaiting[fileId] = std::make_pair(job, Abort);
+        mWaiting[fileId] = job;
         existing->abort();
-    } else if (needsToWaitForPch(job)) {
-        mWaiting[fileId] = std::make_pair(job, PCH);
     } else {
         startJob(job);
     }
@@ -364,24 +331,6 @@ void Indexer::onFileModified(const Path &file)
     mModifiedFilesTimerId = EventLoop::instance()->addTimer(Timeout, &Indexer::onFilesModifiedTimeout, this);
 }
 
-void Indexer::setPchDependencies(const Path &pchHeader, const Set<uint32_t> &deps)
-{
-    MutexLocker lock(&mMutex);
-    if (deps.isEmpty()) {
-        mPchDependencies.remove(pchHeader);
-    } else {
-        mPchDependencies[pchHeader] = deps;
-    }
-    ScopedDB db = project()->db(Project::Dependency, ReadWriteLock::Write);
-    db->setValue("pchDependencies", mPchDependencies);
-}
-
-Set<uint32_t> Indexer::pchDependencies(const Path &pchHeader) const
-{
-    MutexLocker lock(&mMutex);
-    return mPchDependencies.value(pchHeader);
-}
-
 void Indexer::addDependencies(const DependencyMap &deps)
 {
     MutexLocker lock(&mMutex);
@@ -394,22 +343,11 @@ Set<uint32_t> Indexer::dependencies(uint32_t fileId) const
     return mDependencies.value(fileId);
 }
 
-bool Indexer::needsToWaitForPch(IndexerJob *job) const
-{
-    for (Map<Path, Path>::const_iterator it = job->mPchHeaders.begin(); it != job->mPchHeaders.end(); ++it) {
-        const Path &pchHeader = it->first;
-        const uint32_t fileId = Location::fileId(pchHeader);
-        if (mJobs.contains(fileId))
-            return true;
-    }
-    return false;
-}
-
 void Indexer::abort()
 {
     MutexLocker lock(&mMutex);
-    for (Map<uint32_t, std::pair<IndexerJob*, WaitType> >::const_iterator it = mWaiting.begin(); it != mWaiting.end(); ++it) {
-        delete it->second.first;
+    for (Map<uint32_t, IndexerJob*>::const_iterator it = mWaiting.begin(); it != mWaiting.end(); ++it) {
+        delete it->second;
     }
     mWaiting.clear();
 
@@ -489,7 +427,6 @@ void Indexer::onValidateDBJobErrors(const Set<Location> &errors)
 }
 
 void Indexer::dirty(const Set<uint32_t> &dirtyFileIds,
-                    const Map<Path, List<ByteArray> > &dirtyPch,
                     const Map<Path, List<ByteArray> > &dirty)
 {
     {
@@ -502,10 +439,6 @@ void Indexer::dirty(const Set<uint32_t> &dirtyFileIds,
     RTags::dirtySymbols(symbols, dirtyFileIds);
     RTags::dirtySymbolNames(symbolNames, dirtyFileIds);
 
-    for (Map<Path, List<ByteArray> >::const_iterator it = dirtyPch.begin(); it != dirtyPch.end(); ++it) {
-        index(it->first, it->second, IndexerJob::DirtyPch);
-    }
-
     for (Map<Path, List<ByteArray> >::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
         index(it->first, it->second, IndexerJob::Dirty);
     }
@@ -513,8 +446,6 @@ void Indexer::dirty(const Set<uint32_t> &dirtyFileIds,
 void Indexer::onFilesModifiedTimeout()
 {
     Set<uint32_t> dirtyFiles;
-    Path src;
-    List<ByteArray> args;
     Map<Path, List<ByteArray> > toIndex;
     {
         MutexLocker lock(&mMutex);
@@ -533,21 +464,14 @@ void Indexer::onFilesModifiedTimeout()
             const FileInformation fi = db->value<FileInformation>(Slice(buf, sizeof(buf)), &ok);
             if (ok) {
                 const Path path = Location::path(id);
-                if (RTags::isPch(fi.compileArgs)) {
-                    src = path;
-                    args = fi.compileArgs;
-                } else {
-                    toIndex[path] = fi.compileArgs;
-                }
+                toIndex[path] = fi.compileArgs;
             }
         }
     }
-    if (src.isEmpty() && !toIndex.isEmpty()) {
-        src = toIndex.begin()->first;
-        args = toIndex.begin()->second;
+    if (!toIndex.isEmpty()) {
+        const Path src = toIndex.begin()->first;
+        const List<ByteArray> args = toIndex.begin()->second;
         toIndex.erase(toIndex.begin());
-    }
-    if (!src.isEmpty()) {
         index(src, args, IndexerJob::Dirty, dirtyFiles, toIndex);
     }
 }

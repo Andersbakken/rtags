@@ -24,10 +24,8 @@ public:
     void index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags,
                const Set<uint32_t> &dirtyFiles = Set<uint32_t>(),
                const PendingMap &pending = PendingMap());
-    void setPchDependencies(const Path &pchHeader, const Set<uint32_t> &deps);
     void addDependencies(const DependencyMap &hash);
     Set<uint32_t> dependencies(uint32_t fileId) const;
-    Set<uint32_t> pchDependencies(const Path &pchHeader) const;
     void abort();
     bool visitFile(uint32_t fileId, const Path &p);
     bool isVisited(const Path &path) const;
@@ -52,9 +50,7 @@ private:
     void onValidateDBJobErrors(const Set<Location> &errors);
     void onJobFinished(IndexerJob *job);
     void commitDependencies(const DependencyMap &deps, bool sync);
-    void dirty(const Set<uint32_t> &dirtyFileIds,
-               const Map<Path, List<ByteArray> > &dirtyPch,
-               const Map<Path, List<ByteArray> > &dirty);
+    void dirty(const Set<uint32_t> &dirtyFileIds, const Map<Path, List<ByteArray> > &dirty);
 
     enum InitMode {
         Normal,
@@ -62,12 +58,10 @@ private:
         ForceDirty
     };
     void initDB(InitMode forceDirty, const ByteArray &pattern = ByteArray());
-    bool needsToWaitForPch(IndexerJob *job) const;
     void startJob(IndexerJob *job);
 
     Set<uint32_t> mVisitedFiles;
 
-    Map<Path, Set<uint32_t> > mPchDependencies;
     int mJobCounter;
 
     mutable Mutex mMutex;
@@ -75,11 +69,7 @@ private:
 
     ByteArray mPath;
     Map<uint32_t, IndexerJob*> mJobs;
-    enum WaitType {
-        Abort,
-        PCH
-    };
-    Map<uint32_t, std::pair<IndexerJob*, WaitType> > mWaiting;
+    Map<uint32_t, IndexerJob*> mWaiting;
 
     Set<uint32_t> mModifiedFiles;
     int mModifiedFilesTimerId;

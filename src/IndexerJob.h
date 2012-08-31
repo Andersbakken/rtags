@@ -13,10 +13,9 @@ class IndexerJob : public ThreadPool::Job, public AbortInterface
 {
 public:
     enum Flag {
-        DirtyPch = 0x04,
-        Dirty = 0x02,
         Makefile = 0x1,
-        Priorities = DirtyPch|Dirty|Makefile
+        Dirty = 0x02,
+        Priorities = Dirty|Makefile
     };
     IndexerJob(Indexer *indexer, unsigned flags,
                const Path &input, const List<ByteArray> &arguments);
@@ -48,7 +47,6 @@ public:
 
     unsigned mFlags;
     const time_t mTimeStamp;
-    bool mIsPch;
 
     List<Cursor> mDelayed;
     SymbolMap mSymbols;
@@ -66,10 +64,8 @@ public:
     const uint32_t mFileId;
     const List<ByteArray> mArgs;
     DependencyMap mDependencies;
-    Set<uint32_t> mPchDependencies;
     Indexer *mIndexer;
 
-    Map<Path, Path> mPchHeaders;
     CXTranslationUnit mUnit;
 
     ByteArray mMessage;

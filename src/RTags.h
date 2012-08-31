@@ -33,9 +33,7 @@ enum ReferenceType {
 
 enum UnitType {
     CompileC,
-    CompileCPlusPlus,
-    PchC,
-    PchCPlusPlus
+    CompileCPlusPlus
 };
 }
 
@@ -45,30 +43,11 @@ typedef Map<Location, CursorInfo> SymbolMap;
 typedef Map<Location, Map<Location, RTags::ReferenceType> > ReferenceMap;
 typedef Map<ByteArray, Set<Location> > SymbolNameMap;
 typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
-typedef Map<ByteArray, Location> PchUSRMap;
 typedef Map<uint32_t, FileInformation> InformationMap;
 
 namespace RTags {
 void dirtySymbolNames(ScopedDB &db, const Set<uint32_t> &dirty);
 int dirtySymbols(ScopedDB &db, const Set<uint32_t> &dirty);
-
-inline bool isPch(const List<ByteArray> &args)
-{
-    const int size = args.size();
-    bool nextIsX = false;
-    for (int i=0; i<size; ++i) {
-        const ByteArray &arg = args.at(i);
-        if (nextIsX) {
-            return (arg == "c++-header" || arg == "c-header");
-        } else if (arg == "-x") {
-            nextIsX = true;
-        } else if (arg.startsWith("-x")) {
-            const ByteArray rest = ByteArray(arg.constData() + 2, arg.size() - 2);
-            return (rest == "c++-header" || rest == "c-header");
-        }
-    }
-    return false;
-}
 
 ByteArray backtrace(int maxFrames = -1);
 

@@ -10,7 +10,7 @@ class GccArgumentsImpl;
 class GccArguments
 {
 public:
-    enum Type { NoType, Compile, Pch };
+    enum Type { NoType, Compile };
     enum Lang { NoLang, C, CPlusPlus };
 
     GccArguments();

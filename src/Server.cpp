@@ -301,13 +301,8 @@ void Server::onMakefileParserDone(MakefileParser *parser)
     Connection *connection = parser->connection();
     if (connection) {
         char buf[1024];
-        if (parser->pchCount()) {
-            snprintf(buf, sizeof(buf), "Parsed %s, %d sources, %d pch headers",
-                     parser->makefile().constData(), parser->sourceCount(), parser->pchCount());
-        } else {
-            snprintf(buf, sizeof(buf), "Parsed %s, %d sources",
-                     parser->makefile().constData(), parser->sourceCount());
-        }
+        snprintf(buf, sizeof(buf), "Parsed %s, %d sources",
+                 parser->makefile().constData(), parser->sourceCount());
         ResponseMessage msg(buf);
         connection->send(&msg);
         connection->finish();
@@ -942,30 +937,7 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
     mCurrentProject = proj;
     assert(proj->indexer);
 
-    if (args.type() == GccArguments::Pch) {
-        return;
-        // ByteArray output = args.outputFile();
-        // assert(!output.isEmpty());
-        // const int ext = output.lastIndexOf(".gch/c");
-        // if (ext != -1) {
-        //     output = output.left(ext + 4);
-        // } else if (!output.endsWith(".gch")) {
-        //     error("couldn't find .gch in pch output");
-        //     return;
-        // }
-        // const ByteArray input = args.inputFiles().front();
-        // parser->setPch(output, input);
-    }
-
     List<ByteArray> arguments = args.clangArgs();
-    // if (args.lang() == GccArguments::CPlusPlus) {
-    //     const List<ByteArray> pchs = parser->mapPchToInput(args.explicitIncludes());
-    //     for (List<ByteArray>::const_iterator it = pchs.begin(); it != pchs.end(); ++it) {
-    //         const ByteArray &pch = *it;
-    //         arguments.append("-include-pch");
-    //         arguments.append(pch);
-    //     }
-    // }
     arguments.append(mOptions.defaultArguments);
 
     for (int i=0; i<c; ++i) {

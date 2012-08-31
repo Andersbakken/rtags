@@ -81,51 +81,16 @@ static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &reference
     return totalWritten;
 }
 
-static ByteArray pchFileName(const Path &pchDir, const Path &header)
-{
-    Path ret = header;
-    RTags::encodePath(ret);
-    ret.prepend(pchDir + "/pch/");
-    return ret;
-}
-
-static inline Map<Path, Path> extractPchFiles(const Path &pchDir, const List<ByteArray> &args)
-{
-    Map<Path, Path> out;
-    bool nextIsPch = false;
-    const int count = args.size();
-    for (int i=0; i<count; ++i) {
-        const ByteArray &arg = args.at(i);
-        if (arg.isEmpty())
-            continue;
-
-        if (nextIsPch) {
-            nextIsPch = false;
-            const Path header = arg;
-            const Path pchFile = pchFileName(pchDir, header);
-            out[header] = pchFile;
-        } else if (arg == "-include-pch") {
-            nextIsPch = true;
-        }
-    }
-    return out;
-}
-
 static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &args,
                                        time_t lastTouched, ScopedDB db)
 {
-    if (Location::path(fileId).isHeader() && !RTags::isPch(args)) {
-        error() << "Somehow we're writing fileInformation for a header that isn't pch"
-                << Location::path(fileId) << args << lastTouched;
-    }
     const char *ch = reinterpret_cast<const char*>(&fileId);
     return db->setValue(Slice(ch, sizeof(fileId)), FileInformation(lastTouched, args));
 }
 
 IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &input, const List<ByteArray> &arguments)
-    : mFlags(flags), mTimeStamp(time(0)), mIsPch(false), mIn(input),
-      mFileId(Location::insertFile(input)), mArgs(arguments), mIndexer(indexer),
-      mPchHeaders(extractPchFiles(mIndexer->projectPath(), arguments)), mUnit(0)
+    : mFlags(flags), mTimeStamp(time(0)), mIn(input), mFileId(Location::insertFile(input)),
+      mArgs(arguments), mIndexer(indexer), mUnit(0)
 {
 }
 
@@ -147,8 +112,6 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
     const uint32_t fileId = l.fileId();
     if (!includeLen) {
         job->mDependencies[fileId].insert(fileId);
-        if (job->mIsPch)
-            job->mPchDependencies.insert(fileId);
     } else {
         for (unsigned i=0; i<includeLen; ++i) {
             CXFile originatingFile;
@@ -157,9 +120,6 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
             const uint32_t f = loc.fileId();
             if (f)
                 job->mDependencies[fileId].insert(f);
-        }
-        if (job->mIsPch) {
-            job->mPchDependencies.insert(fileId);
         }
     }
 }
@@ -765,8 +725,6 @@ void IndexerJob::execute()
 
     List<const char*> clangArgs(mArgs.size(), 0);
     ByteArray clangLine = Server::instance()->clangPath();
-    bool nextIsX = false;
-    ByteArray pchName;
 
     int idx = 0;
     const int count = mArgs.size();
@@ -775,30 +733,12 @@ void IndexerJob::execute()
         if (arg.isEmpty())
             continue;
 
-        if (nextIsX) {
-            nextIsX = false;
-            mIsPch = (arg == "c++-header" || arg == "c-header");
-        }
-        if (arg == "-include-pch") {
-            ++i;
-            continue;
-        }
         clangArgs[idx++] = arg.constData();
         arg.replace("\"", "\\\"");
         clangLine += arg;
         clangLine += " ";
-        if (arg == "-x") {
-            nextIsX = true;
-        }
-    }
-    for (Map<Path, Path>::const_iterator it = mPchHeaders.begin(); it != mPchHeaders.end(); ++it) {
-        clangArgs[idx++] = "-include-pch";
-        clangArgs[idx++] = it->second.constData();
     }
 
-    if (mIsPch) {
-        pchName = pchFileName(mIndexer->projectPath(), mIn);
-    }
     clangLine += mIn;
 
     if (isAborted()) {
@@ -892,40 +832,26 @@ void IndexerJob::execute()
 
         clang_getInclusions(mUnit, inclusionVisitor, this);
 
-        if (!mIsPch) {
-            clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
-            if (testLog(VerboseDebug)) {
-                {
-                    VerboseVisitorUserData u = { 0, "<VerboseVisitor " + clangLine + ">", this };
-                    clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
-                    u.out += "</VerboseVisitor " + clangLine + ">";
-                    char buf[1024];
-                    snprintf(buf, sizeof(buf), "/tmp/%s.log", mIn.fileName());
-                    FILE *f = fopen(buf, "w");
-                    assert(f);
-                    fwrite(u.out.constData(), 1, u.out.size(), f);
-                    fclose(f);
-                    // logDirect(VerboseDebug, u.out);
-                }
-                // {
-                //     VerboseVisitorUserData u = { -1, "<VerboseVisitor2 " + clangLine + ">", this };
-                //     clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
-                //     u.out += "</VerboseVisitor2 " + clangLine + ">";
-                //     logDirect(VerboseDebug, u.out);
-                // }
+        clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
+        if (testLog(VerboseDebug)) {
+            {
+                VerboseVisitorUserData u = { 0, "<VerboseVisitor " + clangLine + ">", this };
+                clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
+                u.out += "</VerboseVisitor " + clangLine + ">";
+                char buf[1024];
+                snprintf(buf, sizeof(buf), "/tmp/%s.log", mIn.fileName());
+                FILE *f = fopen(buf, "w");
+                assert(f);
+                fwrite(u.out.constData(), 1, u.out.size(), f);
+                fclose(f);
+                // logDirect(VerboseDebug, u.out);
             }
-        } else {
-            assert(!pchName.isEmpty());
-            if (clang_saveTranslationUnit(mUnit, pchName.constData(), clang_defaultSaveOptions(mUnit)) != CXSaveError_None) {
-                error() << "Couldn't save pch file" << mIn << pchName;
-            }
-        }
-        for (Map<Path, Path>::const_iterator it = mPchHeaders.begin(); it != mPchHeaders.end(); ++it) {
-            const Path &pchHeader = it->first;
-            const Set<uint32_t> pchDeps = mIndexer->pchDependencies(pchHeader);
-            for (Set<uint32_t>::const_iterator it = pchDeps.begin(); it != pchDeps.end(); ++it) {
-                mDependencies[*it].insert(mFileId);
-            }
+            // {
+            //     VerboseVisitorUserData u = { -1, "<VerboseVisitor2 " + clangLine + ">", this };
+            //     clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
+            //     u.out += "</VerboseVisitor2 " + clangLine + ">";
+            //     logDirect(VerboseDebug, u.out);
+            // }
         }
         scope.cleanup();
 
@@ -936,8 +862,6 @@ void IndexerJob::execute()
             mIndexer->setDiagnostics(visited, fixIts);
             writeSymbols(mSymbols, mReferences, mDirty, project->db(Project::Symbol, ReadWriteLock::Write));
             writeSymbolNames(mSymbolNames, mDirty, project->db(Project::SymbolName, ReadWriteLock::Write));
-            if (mIsPch)
-                mIndexer->setPchDependencies(mIn, mPchDependencies);
         }
         for (Map<Path, List<ByteArray> >::const_iterator it = mPendingSources.begin(); it != mPendingSources.end(); ++it) {
             mIndexer->index(it->first, it->second, IndexerJob::Dirty);
@@ -945,16 +869,10 @@ void IndexerJob::execute()
     }
 
     char buf[1024];
-    const char *strings[] = { "", " (pch)", " (dirty)", " (pch, dirty)" };
-    enum {
-        IdxNone = 0x0,
-        IdxPch = 0x1,
-        IdxDirty = 0x2
-    };
     const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %sms. (%d syms, %d refs, %d deps, %d symNames)%s",
                            mIn.constData(), compileError ? "error" : "success", ByteArray::number(timer.elapsed()).constData(),
                            mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size(),
-                           strings[(mPchHeaders.isEmpty() ? IdxNone : IdxPch) | (mFlags & (DirtyPch|Dirty) ? IdxDirty : IdxNone)]);
+                           mFlags & Dirty ? " (dirty)" : "");
     mMessage = ByteArray(buf, w);
     if (testLog(Warning)) {
         warning() << "We're using " << double(MemoryMonitor::usage()) / double(1024 * 1024) << " MB of memory " << timer.elapsed() << "ms";
