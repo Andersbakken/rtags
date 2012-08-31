@@ -33,12 +33,6 @@ public:
 
     signalslot::Signal1<IndexerJob*> &finished() { return mFinished; }
 
-    struct Cursor {
-        CXCursor cursor;
-        Location location;
-        CXCursorKind kind;
-    };
-
     void handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const Location *refLoc = 0);
     void handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
@@ -48,7 +42,6 @@ public:
     unsigned mFlags;
     const time_t mTimeStamp;
 
-    List<Cursor> mDelayed;
     SymbolMap mSymbols;
     SymbolNameMap mSymbolNames;
 
