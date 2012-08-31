@@ -298,7 +298,6 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r <") (function rtags-find-references))
   (define-key map (kbd "C-x r [") (function rtags-bookmark-back))
   (define-key map (kbd "C-x r ]") (function rtags-bookmark-forward))
-  (define-key map (kbd "C-x r \\") (function rtags-bookmark-current))
   (define-key map (kbd "C-x r F") (function rtags-fixit))
   (define-key map (kbd "C-x r C") (function rtags-clear-rdm))
   (define-key map (kbd "C-x r D") (function rtags-diagnostics))
