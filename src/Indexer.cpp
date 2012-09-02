@@ -421,7 +421,7 @@ void Indexer::onFilesModifiedTimeout()
             dirtyFiles.insert(*it);
             dirtyFiles.unite(mDependencies.at(*it));
         }
-        error() << mModifiedFiles << dirtyFiles;
+        // error() << mModifiedFiles << dirtyFiles;
         mModifiedFiles.clear();
         ScopedDB db = project()->db(Project::FileInformation, ReadWriteLock::Read);
         bool ok;
@@ -440,7 +440,7 @@ void Indexer::onFilesModifiedTimeout()
         const Path src = toIndex.begin()->first;
         const List<ByteArray> args = toIndex.begin()->second;
         toIndex.erase(toIndex.begin());
-        error() << "onFilesModifiedTimeout" << src << "pending" << toIndex.keys();
+        // error() << "onFilesModifiedTimeout" << src << "pending" << toIndex.keys();
         index(src, args, IndexerJob::Dirty, dirtyFiles, toIndex);
     }
 }

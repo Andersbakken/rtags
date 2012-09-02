@@ -837,6 +837,8 @@ unsigned IndexerJob::write()
     writeSymbols(mSymbols, mReferences, project->db(Project::Symbol, ReadWriteLock::Write));
     TEST_STATE(Writing);
     writeSymbolNames(mSymbolNames, project->db(Project::SymbolName, ReadWriteLock::Write));
+    TEST_STATE(Writing);
+    writeFileInformation(mFileId, mArgs, mTimeStamp, project->db(Project::FileInformation, ReadWriteLock::Write));
     return Finishing;
 }
 
