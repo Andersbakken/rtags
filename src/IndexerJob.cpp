@@ -947,6 +947,7 @@ CXChildVisitResult IndexerJob::verboseVisitor(CXCursor cursor, CXCursor, CXClien
 // ### what about visited files? should they be released?
 bool IndexerJob::restart(time_t time, const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pendingFiles)
 {
+    int count = 0;
     MutexLocker lock(&mStateMutex);
     switch (mState) {
     case Starting:
