@@ -248,7 +248,6 @@ void Indexer::onJobFinished(IndexerJob *job)
           message.constData(), mJobs.size(), int((MemoryMonitor::usage() / (1024 * 1024))));
 
     if (mJobs.isEmpty()) {
-        assert(mTimerRunning);
         mTimerRunning = false;
         error() << "jobs took " << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using "
                 << MemoryMonitor::usage() / (1024.0 * 1024.0) << " mb of memory";
@@ -290,7 +289,7 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
 
 void Indexer::onFileModified(const Path &file)
 {
-    // error() << file << "was modified";
+    error() << file << "was modified";
     const uint32_t fileId = Location::fileId(file);
     if (!fileId)
         return;
@@ -441,6 +440,7 @@ void Indexer::onFilesModifiedTimeout()
         const Path src = toIndex.begin()->first;
         const List<ByteArray> args = toIndex.begin()->second;
         toIndex.erase(toIndex.begin());
+        error() << "onFilesModifiedTimeout" << src << "pending" << toIndex.keys();
         index(src, args, IndexerJob::Dirty, dirtyFiles, toIndex);
     }
 }

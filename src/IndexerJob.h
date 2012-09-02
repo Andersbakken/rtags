@@ -48,9 +48,9 @@ private:
 
     unsigned parse();
     unsigned visit();
-    unsigned dirty();
+    unsigned dirty(const Set<uint32_t> &dirty);
     unsigned write();
-    unsigned finish();
+    unsigned finish(const Map<Path, List<ByteArray> > &pendingSources);
 
     virtual void run();
 
@@ -68,7 +68,7 @@ private:
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
     void addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos);
-    unsigned setState(unsigned state);
+    unsigned setState(unsigned state, Set<uint32_t> *dirty = 0, Map<Path, List<ByteArray> > *pendingSources = 0);
 
     unsigned mFlags;
     time_t mTimeStamp;

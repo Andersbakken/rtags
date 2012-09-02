@@ -806,7 +806,7 @@ unsigned IndexerJob::visit()
     return Dirtying;
 }
 
-unsigned IndexerJob::dirty()
+unsigned IndexerJob::dirty(const Set<uint32_t> &dirty)
 {
     if (!mDirty.isEmpty()) {
         shared_ptr<Project> project = mIndexer->project();
@@ -840,9 +840,9 @@ unsigned IndexerJob::write()
     return Finishing;
 }
 
-unsigned IndexerJob::finish()
+unsigned IndexerJob::finish(const Map<Path, List<ByteArray> > &pendingSources)
 {
-    for (Map<Path, List<ByteArray> >::const_iterator it = mPendingSources.begin(); it != mPendingSources.end(); ++it) {
+    for (Map<Path, List<ByteArray> >::const_iterator it = pendingSources.begin(); it != pendingSources.end(); ++it) {
         mIndexer->index(it->first, it->second, IndexerJob::Dirty);
     }
     char buf[1024];
@@ -862,8 +862,20 @@ unsigned IndexerJob::finish()
 void IndexerJob::run()
 {
     unsigned targetState = Parsing;
+    Set<uint32_t> dirtyFiles;
+    Map<Path, List<ByteArray> > pendingSources;
     do {
-        targetState = setState(targetState);
+        Set<uint32_t> *dirtyPtr = 0;
+        Map<Path, List<ByteArray> > *pendingSourcesPtr = 0;
+        switch (targetState) {
+        case Dirtying:
+            dirtyPtr = &dirtyFiles;
+            break;
+        case Finishing:
+            pendingSourcesPtr = &pendingSources;
+            break;
+        }
+        targetState = setState(targetState, dirtyPtr, pendingSourcesPtr);
         switch (targetState) {
         case Parsing:
             targetState = parse();
@@ -872,12 +884,12 @@ void IndexerJob::run()
             targetState = visit();
             break;
         case Dirtying:
-            targetState = dirty();
+            targetState = dirty(dirtyFiles);
         case Writing:
             targetState = write();
             break;
         case Finishing:
-            targetState = finish();
+            targetState = finish(pendingSources);
             break;
         }
     } while (!(targetState & (Done|Aborted)));
@@ -932,6 +944,7 @@ CXChildVisitResult IndexerJob::verboseVisitor(CXCursor cursor, CXCursor, CXClien
     }
 }
 
+// ### what about visited files? should they be released?
 bool IndexerJob::restart(time_t time, const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pendingFiles)
 {
     MutexLocker lock(&mStateMutex);
@@ -976,6 +989,10 @@ bool IndexerJob::restart(time_t time, const Set<uint32_t> &dirtyFiles, const Map
             mState |= Reparse;
         break; }
     case Finishing:
+        if (time > mTimeStamp)
+            mState |= Reparse;
+        mDirty.unite(dirtyFiles, &count);
+        mPendingSources.unite(pendingFiles);
     case Done:
         return false; // ###
     }
@@ -1009,7 +1026,7 @@ static inline List<ByteArray> stateName(unsigned state)
         ret.append("None");
     return ret;
 }
-unsigned IndexerJob::setState(unsigned state)
+unsigned IndexerJob::setState(unsigned state, Set<uint32_t> *dirty, Map<Path, List<ByteArray> > *pendingSources)
 {
     MutexLocker lock(&mStateMutex);
 
@@ -1021,6 +1038,10 @@ unsigned IndexerJob::setState(unsigned state)
     } else if (mState & Reparse) {
         state = Parsing;
     }
+    if (dirty)
+        *dirty = mDirty;
+    if (pendingSources)
+        *pendingSources = mPendingSources;
     mState = state;
     return mState;
 }

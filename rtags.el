@@ -11,9 +11,9 @@
   (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
   (if rtags-path-filter
       (progn
-	(push (format "--path-filter=%s" rtags-path-filter) arguments)
-	(if rtags-path-filter-regex
-	    (push "-Z" arguments))))
+        (push (format "--path-filter=%s" rtags-path-filter) arguments)
+        (if rtags-path-filter-regex
+            (push "-Z" arguments))))
 
   (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
   (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
