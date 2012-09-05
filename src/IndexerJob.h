@@ -42,7 +42,7 @@ public:
         Aborted = 0x100,
         Reparse = 0x200
     };
-    
+
 private:
     void diagnose();
 
