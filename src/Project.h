@@ -13,7 +13,6 @@ template <typename T>
 class Scope
 {
 public:
-    // T *operator->() { return mData->t; }
     T data() { return mData->t; }
 private:
     friend class Project;
