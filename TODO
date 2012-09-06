@@ -1,3 +1,5 @@
-kill IndexerJob::abort() and rather pass in a time, then the indexerjob can
-decide if it needs to restart itself in the same thread or do something else
-depending on how far it has gotten.
+Shared memory
+Fix constructor references
+Fix writing of references/cursors to "db", probably should just write all cursors first, then merge in all references.
+Kill leveldb
+fork make
