@@ -6,55 +6,6 @@
 #include "FileInformation.h"
 #include "Database.h"
 
-static inline void writeSymbolNames(const SymbolNameMap &symbolNames, SymbolNameMap &current)
-{
-    SymbolNameMap::const_iterator it = symbolNames.begin();
-    const SymbolNameMap::const_iterator end = symbolNames.end();
-    while (it != end) {
-        Set<Location> &value = current[it->first];
-        value.unite(it->second);
-        ++it;
-    }
-}
-
-
-static inline void writeSymbols(SymbolMap &symbols, const ReferenceMap &references, SymbolMap &current)
-{
-    if (!references.isEmpty()) {
-        const ReferenceMap::const_iterator end = references.end();
-        for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
-            const Map<Location, RTags::ReferenceType> refs = it->second;
-            for (Map<Location, RTags::ReferenceType>::const_iterator rit = refs.begin(); rit != refs.end(); ++rit) {
-                CursorInfo &ci = symbols[rit->first];
-                if (rit->second != RTags::NormalReference) {
-                    CursorInfo &other = symbols[it->first];
-                    // error() << "trying to join" << it->first << "and" << it->second.front();
-                    if (other.target.isNull())
-                        other.target = rit->first;
-                    if (ci.target.isNull())
-                        ci.target = it->first;
-                } else {
-                    ci.references.insert(it->first);
-                }
-            }
-        }
-    }
-    if (!symbols.isEmpty()) {
-        SymbolMap::iterator it = symbols.begin();
-        const SymbolMap::const_iterator end = symbols.end();
-        while (it != end) {
-            SymbolMap::iterator cur = current.find(it->first);
-            // ### can I just insert the iterator?
-            if (cur == current.end()) {
-                current[it->first] = it->second;
-            } else {
-                cur->second.unite(it->second);
-            }
-            ++it;
-        }
-    }
-}
-
 IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &p, const List<ByteArray> &arguments)
     : mFlags(flags), mTimeStamp(0), mPath(p), mFileId(Location::insertFile(p)),
       mArgs(arguments), mIndexer(indexer), mUnit(0), mIndex(0), mAborted(false)
@@ -763,7 +714,7 @@ void IndexerJob::visit()
 
 void IndexerJob::run()
 {
-    mData.reset(new Data);
+    mData.reset(new IndexData);
     parse();
     typedef void (IndexerJob::*Function)();
     Function functions[] = { &IndexerJob::parse, &IndexerJob::diagnose, &IndexerJob::visit };

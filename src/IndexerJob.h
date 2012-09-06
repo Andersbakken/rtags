@@ -9,19 +9,20 @@
 #include "AbortInterface.h"
 #include <clang-c/Index.h>
 
+struct IndexData {
+    ReferenceMap references;
+    SymbolMap symbols;
+    SymbolNameMap symbolNames;
+    DependencyMap dependencies;
+    FileInformation fileInformation;
+    FixitMap fixIts;
+    DiagnosticsMap diagnostics;
+    ByteArray message;
+};
+
 class IndexerJob : public ThreadPool::Job
 {
 public:
-    struct Data {
-        ReferenceMap references;
-        SymbolMap symbols;
-        SymbolNameMap symbolNames;
-        DependencyMap dependencies;
-        FileInformation fileInformation;
-        FixitMap fixIts;
-        DiagnosticsMap diagnostics;
-        ByteArray message;
-    };
     enum Flag {
         Makefile = 0x1,
         Dirty = 0x02,
@@ -30,7 +31,7 @@ public:
     IndexerJob(Indexer *indexer, unsigned flags,
                const Path &input, const List<ByteArray> &arguments);
     int priority() const { return mFlags & Priorities; }
-    shared_ptr<Data> data() const { return mData; }
+    shared_ptr<IndexData> data() const { return mData; }
     signalslot::Signal1<IndexerJob*> &finished() { return mFinished; }
     bool restart(time_t time, const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pendingFiles);
     uint32_t fileId() const { return mFileId; }
@@ -98,7 +99,7 @@ private:
     ByteArray mClangLine;
 
     Timer mTimer;
-    shared_ptr<Data> mData;
+    shared_ptr<IndexData> mData;
 };
 
 #endif

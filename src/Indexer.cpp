@@ -29,23 +29,17 @@ void Indexer::onJobFinished(IndexerJob *job)
 {
     MutexLocker lock(&mMutex);
     const uint32_t fileId = job->fileId();
-    mJobs.remove(fileId);
-    shared_ptr<IndexerJob::Data> data = job->data();
-    if (job->isAborted()) {
-        // const Set<uint32_t> visited = job->visitedFiles();
-        // mVisitedFiles -= visited;
-
-        shared_ptr<Project> proj = project();
-
-        data->message += job->path() + " Aborted";
-
-        // IndexerJob* waiting;
-        // if (mWaiting.remove(fileId, &waiting)) {
-        //     startJob(waiting);
-        // }
-        lock.unlock();
-        // proj->dirty(visited);
+    if (mJobs.value(fileId) != job) {
+        mWaitCondition.wakeAll();
+        return;
     }
+    mJobs.remove(fileId);
+    if (job->isAborted()) {
+        mWaitCondition.wakeAll();
+        return;
+    }
+    shared_ptr<IndexData> data = job->data();
+    mPendingData[fileId] = data;
 
     const int idx = mJobCounter - mJobs.size();
 
@@ -56,9 +50,12 @@ void Indexer::onJobFinished(IndexerJob *job)
 
     if (mJobs.isEmpty()) {
         mTimerRunning = false;
-        error() << "jobs took " << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using "
-                << MemoryMonitor::usage() / (1024.0 * 1024.0) << " mb of memory";
+        const int elapsed = mTimer.restart();
+        write();
         mJobCounter = 0;
+        error() << "Jobs took" << ((double)(elapsed) / 1000.0) << "secs, writing took"
+                << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
+                << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
         jobsComplete()(this);
         if (mValidate) {
             ValidateDBJob *validateJob = new ValidateDBJob(project(), mPreviousErrors);
@@ -278,4 +275,11 @@ void Indexer::onFilesModifiedTimeout()
             index(path, found->second.compileArgs, IndexerJob::Dirty);
         }
     }
+}
+
+void Indexer::write()
+{
+    shared_ptr<Project> proj = project();
+    proj->dirty(mPendingDirtyFiles);
+    mPendingDirtyFiles.clear();
 }

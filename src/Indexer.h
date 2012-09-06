@@ -13,6 +13,7 @@
 #include <clang-c/Index.h>
 
 class IndexerJob;
+class IndexData;
 class Indexer
 {
 public:
@@ -38,6 +39,7 @@ public:
     shared_ptr<Project> project() const { return mProject.lock(); }
     Path srcRoot() const { return mProject.lock()->srcRoot; } // ~/src/foobar
 private:
+    void write();
     void onFilesModifiedTimeout();
     static void onFilesModifiedTimeout(int id, void *userData)
     {
@@ -87,6 +89,7 @@ private:
     signalslot::Signal1<Indexer*> mJobsComplete;
     bool mValidate;
 
+    Map<uint32_t, shared_ptr<IndexData> > mPendingData;
     Set<uint32_t> mPendingDirtyFiles;
 };
 
