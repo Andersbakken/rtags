@@ -46,12 +46,8 @@ void GRTags::recurseDirs()
 
 void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
 {
-//     // paths are absolute
+    // paths are absolute
 //     shared_ptr<Project> project = mProject.lock();
-//     Scope<GRFilesMap&> scope
-//     ScopedDB database = project->db(Project::GRFiles, ReadWriteLock::Write);
-//     RTags::Ptr<Iterator> it(database->createIterator());
-//     it->seekToFirst();
 //     Path p = mSrcRoot;
 //     p.reserve(PATH_MAX);
 //     bool parsingEnabled;
@@ -59,6 +55,9 @@ void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
 //         MutexLocker lock(&mMutex);
 //         parsingEnabled = mFlags & Parse;
 //     }
+//     Scope<GRFilesMap&> scope;
+//     GRFilesMap &map = scope.data();
+//     GRFilesMap::const_iterator it =
 
 //     while (it->isValid()) {
 //         const Slice slice = it->key();
