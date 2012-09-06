@@ -115,6 +115,15 @@ void Indexer::addFileInformation(uint32_t fileId, const List<ByteArray> &args, t
     mFileInformations[fileId] = FileInformation(time, args);
 }
 
+FileInformation Indexer::fileInformation(uint32_t fileId) const
+{
+    if (fileId) {
+        MutexLocker lock(&mMutex);
+        return mFileInformations.value(fileId);
+    }
+    return FileInformation();
+}
+
 void Indexer::addDependencies(const DependencyMap &deps)
 {
     MutexLocker lock(&mMutex);

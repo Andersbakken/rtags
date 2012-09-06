@@ -828,29 +828,6 @@ static Path findProjectRoot(const Path &path)
     return Path();
 }
 
-
-static inline bool isIndexed(const Path &path, const List<ByteArray> &args, const shared_ptr<Project> &project)
-{
-    // ### what to do here?
-    // return project && project->indexer && project->indexer(isIndexer
-    //     return false;
-    // return project
-    // ScopedDB db = project->db(Project::FileInformation, ReadWriteLock::Write);
-    // if (!db.database())
-    //     return false;
-    // const uint32_t fileId = Location::insertFile(path);
-    // const char *ch = reinterpret_cast<const char*>(&fileId);
-    // const Slice key(ch, sizeof(fileId));
-    // FileInformation fi = db->value<FileInformation>(key);
-    // if (fi.compileArgs != args) {
-    //     fi.compileArgs = args;
-    //     fi.lastTouched = 0;
-    //     db->setValue(key, fi);
-    //     return false;
-    // }
-    return false;
-}
-
 void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 {
     List<Path> inputFiles = args.inputFiles();
@@ -888,7 +865,7 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 
     for (int i=0; i<c; ++i) {
         const Path &input = inputFiles.at(i);
-        if (!isIndexed(input, arguments, proj)) {
+        if (proj->indexer->fileInformation(Location::insertFile(input)).compileArgs != arguments) {
             proj->indexer->index(input, arguments, IndexerJob::Makefile);
         } else {
             debug() << input << " is not dirty. ignoring";

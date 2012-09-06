@@ -23,6 +23,7 @@ public:
                const Set<uint32_t> &dirtyFiles = Set<uint32_t>(),
                const PendingMap &pending = PendingMap());
     void addFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t time);
+    FileInformation fileInformation(uint32_t fileId) const;
     void addDependencies(const DependencyMap &hash);
     Set<uint32_t> dependencies(uint32_t fileId) const;
     void abort();
