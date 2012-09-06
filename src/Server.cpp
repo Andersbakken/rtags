@@ -102,7 +102,7 @@ bool Server::init(const Options &options)
         clangPath.prepend("-I");
         mOptions.defaultArguments.append(clangPath);
     }
-    mClangPath = Path::resolved(CLANG_BIN "clang ");
+    mClangPath = Path::resolved(CLANG_BIN "/clang");
     error() << "using args" << mOptions.defaultArguments;
 
     Messages::init();
