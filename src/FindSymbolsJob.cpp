@@ -37,82 +37,73 @@ struct LocationAndDefinitionNode
     }
 };
 
-#warning not done
+static inline bool isDefinition(const SymbolMap &symbols, const Location &loc)
+{
+    const SymbolMap::const_iterator it = symbols.find(loc);
+    return it != symbols.end() && it->second.isDefinition;
+}
+
 void FindSymbolsJob::execute()
 {
-//     ScopedDB symbolDB;
-//     Map<Location, bool> out;
-//     if (!(queryFlags() & QueryMessage::DisableGRTags) && (project()->grtags->flags() & GRTags::Parse)) {
-//         ScopedDB database = db(Project::GR, ReadWriteLock::Read);
-//         RTags::Ptr<Iterator> it(database->createIterator());
+    Map<Location, bool> out;
+    // if (!(queryFlags() & QueryMessage::DisableGRTags) && (project()->grtags->flags() & GRTags::Parse)) {
+    //     ScopedDB database = db(Project::GR, ReadWriteLock::Read);
+    //     RTags::Ptr<Iterator> it(database->createIterator());
 
-//         if (string.isEmpty()) {
-//             it->seekToFirst();
-//         } else {
-//             it->seek(string.constData());
-//         }
-//         while (it->isValid() && !isAborted()) {
-//             const ByteArray entry = it->key().byteArray();
-//             const int cmp = strcmp(string.constData(), entry.constData());
-//             if (!cmp) {
-//                 const Map<Location, bool> locations = it->value<Map<Location, bool> >();
-//                 for (Map<Location, bool>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
-//                     if (!i->second) {
-//                         out[i->first] = false;
-//                     }
-//                 }
-//             } else if (cmp > 0) {
-//                 break;
-//             }
-//             it->next();
-//         }
-//     }
+    //     if (string.isEmpty()) {
+    //         it->seekToFirst();
+    //     } else {
+    //         it->seek(string.constData());
+    //     }
+    //     while (it->isValid() && !isAborted()) {
+    //         const ByteArray entry = it->key().byteArray();
+    //         const int cmp = strcmp(string.constData(), entry.constData());
+    //         if (!cmp) {
+    //             const Map<Location, bool> locations = it->value<Map<Location, bool> >();
+    //             for (Map<Location, bool>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
+    //                 if (!i->second) {
+    //                     out[i->first] = false;
+    //                 }
+    //             }
+    //         } else if (cmp > 0) {
+    //             break;
+    //         }
+    //         it->next();
+    //     }
+    // }
 
-//     if (project()->indexer) {
-//         ScopedDB database = db(Project::SymbolName, ReadWriteLock::Read);
-//         // const bool hasFilter = !pathFilters().isEmpty();
+    if (project()->indexer) {
+        Scope<const SymbolNameMap &> scope = project()->lockSymbolNamesForRead();
+        const SymbolNameMap &map = scope.t();
+        const SymbolNameMap::const_iterator it = map.find(string);
+        if (it != map.end()) {
+            const Set<Location> &locations = it->second;
+            for (Set<Location>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
+                out[*i] = true;
+            }
+        }
+    }
+    if (out.size()) {
+        Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
+        const SymbolMap &map = scope.t();
+        List<LocationAndDefinitionNode> sorted;
+        sorted.reserve(out.size());
+        for (Map<Location, bool>::const_iterator it = out.begin(); it != out.end(); ++it) {
+            sorted.push_back(LocationAndDefinitionNode(it->first,
+                                                       it->second && isDefinition(map, it->first)));
+        }
 
-//         RTags::Ptr<Iterator> it(database->createIterator());
-
-//         if (string.isEmpty()) {
-//             it->seekToFirst();
-//         } else {
-//             it->seek(string.constData());
-//         }
-//         while (it->isValid() && !isAborted()) {
-//             const ByteArray entry = it->key().byteArray();
-//             const int cmp = strcmp(string.constData(), entry.constData());
-//             if (!cmp) {
-//                 const Set<Location> locations = it->value<Set<Location> >();
-//                 for (Set<Location>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
-//                     out[*i] = true;
-//                 }
-//             } else if (cmp > 0) {
-//                 break;
-//             }
-//             it->next();
-//         }
-//         symbolDB = db(Project::Symbol, ReadWriteLock::Read);
-//     }
-
-//     if (out.size()) {
-//         List<LocationAndDefinitionNode> sorted;
-//         sorted.reserve(out.size());
-//         for (Map<Location, bool>::const_iterator it = out.begin(); it != out.end(); ++it) {
-//             sorted.push_back(LocationAndDefinitionNode(it->first, it->second ? RTags::findCursorInfo(symbolDB, it->first).isDefinition : false));
-//         }
-
-//         if (queryFlags() & QueryMessage::ReverseSort) {
-//             std::sort(sorted.begin(), sorted.end(), std::greater<LocationAndDefinitionNode>());
-//         } else {
-//             std::sort(sorted.begin(), sorted.end());
-//         }
-//         const uint32_t keyFlags = QueryMessage::keyFlags(queryFlags());
-//         const int count = sorted.size();
-//         for (int i=0; i<count; ++i) {
-//             write(sorted.at(i).location.key(keyFlags));
-//         }
-//     }
+        if (queryFlags() & QueryMessage::ReverseSort) {
+            std::sort(sorted.begin(), sorted.end(), std::greater<LocationAndDefinitionNode>());
+        } else {
+            std::sort(sorted.begin(), sorted.end());
+        }
+        const uint32_t keyFlags = QueryMessage::keyFlags(queryFlags());
+        const int count = sorted.size();
+        for (int i=0; i<count; ++i) {
+            write(sorted.at(i).location.key(keyFlags));
+        }
+    }
 }
 
 
