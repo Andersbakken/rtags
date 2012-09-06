@@ -36,13 +36,12 @@ enum UnitType {
 };
 }
 
-class FileInformation;
 class CursorInfo;
 typedef Map<Location, CursorInfo> SymbolMap;
 typedef Map<Location, Map<Location, RTags::ReferenceType> > ReferenceMap;
 typedef Map<ByteArray, Set<Location> > SymbolNameMap;
 typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
-typedef Map<uint32_t, FileInformation> FileInformationMap;
+typedef Map<uint32_t, List<ByteArray> > CompileArgumentsMap;
 typedef Map<Path, Map<ByteArray, time_t> > GRFilesMap;
 typedef Map<Location, std::pair<int, ByteArray> > FixitMap;
 typedef Map<uint32_t, List<ByteArray> > DiagnosticsMap;

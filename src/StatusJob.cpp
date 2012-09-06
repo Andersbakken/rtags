@@ -4,7 +4,6 @@
 #include "Indexer.h"
 #include "RTags.h"
 #include "Server.h"
-#include "FileInformation.h"
 #include <clang-c/Index.h>
 
 const char *StatusJob::delimiter = "*********************************";

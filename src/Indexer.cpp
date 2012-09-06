@@ -2,7 +2,6 @@
 
 #include "ValidateDBJob.h"
 #include "Database.h"
-#include "FileInformation.h"
 #include "IndexerJob.h"
 #include "Log.h"
 #include "MemoryMonitor.h"
@@ -72,6 +71,7 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
     MutexLocker locker(&mMutex);
 
     const uint32_t fileId = Location::insertFile(input);
+    mCompileArguments[fileId] = arguments;
     IndexerJob *&job = mJobs[fileId];
     if (job) {
         job->abort();
@@ -105,13 +105,13 @@ void Indexer::onFileModified(const Path &file)
     mModifiedFilesTimerId = EventLoop::instance()->addTimer(Timeout, &Indexer::onFilesModifiedTimeout, this);
 }
 
-FileInformation Indexer::fileInformation(uint32_t fileId) const
+List<ByteArray> Indexer::compileArguments(uint32_t fileId) const
 {
     if (fileId) {
         MutexLocker lock(&mMutex);
-        return mFileInformations.value(fileId);
+        return mCompileArguments.value(fileId);
     }
-    return FileInformation();
+    return List<ByteArray>();
 }
 
 void Indexer::addDependencies(const DependencyMap &deps)
@@ -242,10 +242,10 @@ void Indexer::onFilesModifiedTimeout()
         mModifiedFiles.clear();
     }
     for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
-        const FileInformationMap::const_iterator found = mFileInformations.find(*it);
-        if (found != mFileInformations.end()) {
+        const CompileArgumentsMap::const_iterator found = mCompileArguments.find(*it);
+        if (found != mCompileArguments.end()) {
             const Path path = Location::path(*it);
-            index(path, found->second.compileArgs, IndexerJob::Dirty);
+            index(path, found->second, IndexerJob::Dirty);
         }
     }
 }
@@ -309,7 +309,6 @@ void Indexer::write()
     Scope<SymbolNameMap&> symbolNames = proj->lockSymbolNamesForWrite();
     for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
         const shared_ptr<IndexData> &data = it->second;
-        mFileInformations[it->first] = data->fileInformation;
         addDependencies(data->dependencies);
         addDiagnostics(data->diagnostics, data->fixIts);
         writeSymbols(data->symbols, data->references, symbols);

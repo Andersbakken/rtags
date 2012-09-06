@@ -7,7 +7,6 @@
 #include "Timer.h"
 #include "Server.h"
 #include "Str.h"
-#include "FileInformation.h"
 #include "config.h"
 #ifdef OS_FreeBSD
 #include <sys/sysctl.h>

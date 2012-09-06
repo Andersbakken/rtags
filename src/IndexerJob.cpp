@@ -3,7 +3,6 @@
 #include "MemoryMonitor.h"
 #include "Server.h"
 #include "EventLoop.h"
-#include "FileInformation.h"
 #include "Database.h"
 
 IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &p, const List<ByteArray> &arguments)
@@ -174,12 +173,12 @@ Location IndexerJob::createLocation(const CXCursor &cursor)
     return Location();
 }
 
-Location IndexerJob::createLocation(const CXCursor &cursor, CreateLocationState *result)
+Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
     Location ret;
-    if (result)
-        *result = Failed;
+    if (blocked)
+        *blocked = false;
     if (!clang_equalLocations(location, nullLocation)) {
         CXFile file;
         unsigned start;
@@ -190,20 +189,15 @@ Location IndexerJob::createLocation(const CXCursor &cursor, CreateLocationState 
             if (!fileId)
                 fileId = Location::insertFile(Path::resolved(fileName));
             ret = Location(fileId, start);
-            if (result) {
-                if (mAborted) {
-                    *result = Aborted;
-                    return ret;
-                }
+            if (blocked) {
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
                     state = mIndexer->visitFile(fileId, this) ? Index : DontIndex;
                 }
                 if (state != Index) {
-                    *result = Blocked;
+                    *blocked = true;
                     return Location();
                 }
-                *result = Allowed;
             }
         }
     }
@@ -235,12 +229,9 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         return CXChildVisit_Recurse; // ### continue
     }
 
-    CreateLocationState result;
-    const Location loc = job->createLocation(cursor, &result);
-    switch (result) {
-    case Aborted:
-        return CXChildVisit_Break;
-    case Blocked:
+    bool blocked;
+    const Location loc = job->createLocation(cursor, &blocked);
+    if (blocked) {
         switch (kind) {
         case CXCursor_FunctionDecl:
         case CXCursor_CXXMethod:
@@ -257,12 +248,10 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         default:
             return CXChildVisit_Continue;
         }
-    case Failed:
+    } else if (loc.isNull()) {
         return CXChildVisit_Continue;
-    case Allowed:
-        assert(!loc.isNull());
-        if (job->mData->symbols.value(loc).symbolLength)
-            return CXChildVisit_Recurse;
+    } else if (job->mData->symbols.value(loc).symbolLength) {
+        return CXChildVisit_Recurse;
     }
 
     // if (loc == "/usr/include/getopt.h,3843" || loc == "/home/abakken/dev/rtags/src/RTags.h,5430" || loc == "/home/abakken/dev/rtags/src/rdm.cpp,3970") {
@@ -599,8 +588,10 @@ void IndexerJob::parse()
                                        clangArgs.data(), idx, 0, 0,
                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
     warning() << "loading unit " << mClangLine << " " << (mUnit != 0);
-    if (!mUnit)
+    if (!mUnit) {
+        error() << "got failure" << mClangLine;
         mData->dependencies[mFileId].insert(mFileId);
+    }
 }
 
 void IndexerJob::diagnose()

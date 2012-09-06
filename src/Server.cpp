@@ -7,7 +7,6 @@
 #include "Database.h"
 #include "Event.h"
 #include "EventLoop.h"
-#include "FileInformation.h"
 #include "FindFileJob.h"
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
@@ -853,7 +852,7 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 
     for (int i=0; i<c; ++i) {
         const Path &input = inputFiles.at(i);
-        if (proj->indexer->fileInformation(Location::insertFile(input)).compileArgs != arguments) {
+        if (proj->indexer->compileArguments(Location::insertFile(input)) != arguments) {
             proj->indexer->index(input, arguments, IndexerJob::Makefile);
         } else {
             debug() << input << " is not dirty. ignoring";

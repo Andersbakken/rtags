@@ -14,7 +14,6 @@ struct IndexData {
     SymbolMap symbols;
     SymbolNameMap symbolNames;
     DependencyMap dependencies;
-    FileInformation fileInformation;
     FixitMap fixIts;
     DiagnosticsMap diagnostics;
     ByteArray message;
@@ -49,13 +48,7 @@ private:
 
     virtual void run();
 
-    enum CreateLocationState {
-        Failed,
-        Allowed,
-        Blocked,
-        Aborted
-    };
-    Location createLocation(const CXCursor &cursor, CreateLocationState *blocked);
+    Location createLocation(const CXCursor &cursor, bool *blocked);
     static Location createLocation(const CXCursor &cursor);
     ByteArray addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDb);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);

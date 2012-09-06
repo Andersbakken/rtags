@@ -3,7 +3,6 @@
 
 #include "CursorInfo.h"
 #include "FileSystemWatcher.h"
-#include "FileInformation.h"
 #include "MutexLocker.h"
 #include "RTags.h"
 #include "ReadWriteLock.h"
@@ -21,7 +20,7 @@ public:
 
     typedef Map<Path, List<ByteArray> > PendingMap; // without this clang 3.1 complains
     void index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
-    FileInformation fileInformation(uint32_t fileId) const;
+    List<ByteArray> compileArguments(uint32_t fileId) const;
     Set<uint32_t> dependencies(uint32_t fileId) const;
     void abort();
     bool visitFile(uint32_t fileId, IndexerJob *job);
@@ -32,7 +31,6 @@ public:
     shared_ptr<Project> project() const { return mProject.lock(); }
 private:
     void onFileModified(const Path &);
-    void addFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t time);
     void addDependencies(const DependencyMap &hash);
     void addDiagnostics(const DiagnosticsMap &errors, const FixitMap &fixIts);
     void write();
@@ -73,7 +71,7 @@ private:
     weak_ptr<Project> mProject;
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
-    FileInformationMap mFileInformations;
+    CompileArgumentsMap mCompileArguments;
 
     Set<Path> mWatchedPaths;
 
