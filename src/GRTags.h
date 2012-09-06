@@ -20,6 +20,7 @@ public:
     };
     void init(const shared_ptr<Project> &proj, unsigned flags);
     void enableParsing();
+    bool parsingEnabled() const { return mFlags & Parse; }
     unsigned flags() const { return mFlags; }
     void recurseDirs();
     void onFileAdded(const Path &path);
@@ -32,9 +33,6 @@ public:
     void addFile(const Path &file, time_t time, ScopedDB *db);
     void removeFile(const Path &file, ScopedDB *grfiles = 0);
 private:
-    // key: absolute path to directory, value: Map<fileName, last modified>,
-    // last modified is 0 for non-source files
-    Map<Path, Map<ByteArray, time_t> > mFiles;
     FileSystemWatcher *mWatcher;
     weak_ptr<Project> mProject;
     Path mSrcRoot;

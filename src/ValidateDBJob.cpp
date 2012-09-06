@@ -17,18 +17,15 @@ void ValidateDBJob::execute()
     int total = 0;
     Set<Location> newErrors;
 
-    ScopedDB db = project()->db(Project::Symbol, ReadWriteLock::Read);
-    RTags::Ptr<Iterator> it(db->createIterator());
-    it->seekToFirst();
-    while (it->isValid()) {
-        ++total;
+    Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
+    const SymbolMap &map = scope.t();
+    for (SymbolMap::const_iterator it = map.begin(); it != map.end(); ++it) {
         if (isAborted()) {
             return;
         }
-        const CursorInfo ci = it->value<CursorInfo>();
+        const CursorInfo &ci = it->second;
         if (!ci.symbolLength) {
-            assert(it->key().size() == sizeof(uint64_t));
-            const Location loc = Location::fromKey(it->key().data());
+            const Location &loc = it->first;
             if (!mPrevious.contains(loc)) {
                 Log stream(Error);
                 stream << "Invalid entry for " << loc
@@ -45,7 +42,6 @@ void ValidateDBJob::execute()
             newErrors.insert(loc);
             ++errors;
         }
-        it->next();
     }
     mErrors(newErrors);
     error("Checked %d CursorInfo objects, %d errors", total, errors);

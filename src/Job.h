@@ -45,8 +45,6 @@ public:
     signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
     void write(const Location &location, const CursorInfo &info);
     shared_ptr<Project> project() const { return mProject; }
-    ScopedDB db(Server::DatabaseType type, ReadWriteLock::LockType lockType) const;
-    ScopedDB db(Project::DatabaseType type, ReadWriteLock::LockType lockType) const;
 private:
     int mId;
     unsigned mJobFlags;

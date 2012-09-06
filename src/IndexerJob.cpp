@@ -43,22 +43,16 @@ static inline void writeSymbols(SymbolMap &symbols, const ReferenceMap &referenc
         SymbolMap::iterator it = symbols.begin();
         const SymbolMap::const_iterator end = symbols.end();
         while (it != end) {
-            SymbolMap::iterator it = current.find(it->first);
-            if (it == current.end()) {
+            SymbolMap::iterator cur = current.find(it->first);
+            // ### can I just insert the iterator?
+            if (cur == current.end()) {
                 current[it->first] = it->second;
             } else {
-                it->second.unite(it->second);
+                cur->second.unite(it->second);
             }
             ++it;
         }
     }
-}
-
-static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &args,
-                                       time_t lastTouched, ScopedDB db)
-{
-    const char *ch = reinterpret_cast<const char*>(&fileId);
-    return db->setValue(Slice(ch, sizeof(fileId)), FileInformation(lastTouched, args));
 }
 
 IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &input, const List<ByteArray> &arguments,
@@ -813,7 +807,7 @@ unsigned IndexerJob::write()
         writeSymbolNames(mSymbolNames, scope.t());
     }
     TEST_STATE(Writing);
-    writeFileInformation(mFileId, mArgs, mTimeStamp, project->db(Project::FileInformation, ReadWriteLock::Write));
+    mIndexer->addFileInformation(mFileId, mArgs, mTimeStamp);
     return Finishing;
 }
 

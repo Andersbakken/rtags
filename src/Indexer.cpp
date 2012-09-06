@@ -108,6 +108,12 @@ void Indexer::onFileModified(const Path &file)
     mModifiedFilesTimerId = EventLoop::instance()->addTimer(Timeout, &Indexer::onFilesModifiedTimeout, this);
 }
 
+void Indexer::addFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t time)
+{
+    MutexLocker lock(&mMutex);
+    mFileInformations[fileId] = FileInformation(time, args);
+}
+
 void Indexer::addDependencies(const DependencyMap &deps)
 {
     MutexLocker lock(&mMutex);
@@ -218,7 +224,7 @@ void Indexer::setDiagnostics(const Map<uint32_t, List<ByteArray> > &diagnostics,
 
 void Indexer::reindex(const ByteArray &pattern)
 {
-#warning not done
+// #warning not done
 }
 
 void Indexer::onValidateDBJobErrors(const Set<Location> &errors)
@@ -253,16 +259,11 @@ void Indexer::onFilesModifiedTimeout()
         }
         // error() << mModifiedFiles << dirtyFiles;
         mModifiedFiles.clear();
-        ScopedDB db = project()->db(Project::FileInformation, ReadWriteLock::Read);
-        bool ok;
-        char buf[4];
         for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
-            const uint32_t id = *it;
-            memcpy(buf, &id, sizeof(buf));
-            const FileInformation fi = db->value<FileInformation>(Slice(buf, sizeof(buf)), &ok);
-            if (ok) {
-                const Path path = Location::path(id);
-                toIndex[path] = fi.compileArgs;
+            const FileInformationMap::const_iterator found = mFileInformations.find(*it);
+            if (found != mFileInformations.end()) {
+                const Path path = Location::path(*it);
+                toIndex[path] = found->second.compileArgs;
             }
         }
     }

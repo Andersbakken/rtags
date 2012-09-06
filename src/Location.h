@@ -65,7 +65,6 @@ public:
 
     static inline uint32_t insertFile(const Path &path)
     {
-        bool newFile = false;
         uint32_t ret;
         {
             WriteLocker lock(&sLock);
@@ -73,16 +72,12 @@ public:
             if (!id) {
                 id = ++sLastId;
                 sIdsToPaths[id] = path;
-                newFile = true;
             }
             ret = id;
         }
-        if (newFile)
-            writeToDB(path, ret);
 
         return ret;
     }
-    static void writeToDB(const Path &path, uint32_t file);
     static void init(const Map<Path, uint32_t> &pathsToIds,
                      const Map<uint32_t, Path> &idsToPaths,
                      uint32_t maxId)
@@ -113,6 +108,22 @@ public:
     }
     inline bool operator==(const Location &other) const { return mData == other.mData; }
     inline bool operator!=(const Location &other) const { return mData != other.mData; }
+    inline int compare(const Location &other) const
+    {
+        int diff = other.fileId() - fileId();
+        if (diff < 0) {
+            return -1;
+        } else if (diff > 0) {
+            return 1;
+        }
+        diff = other.offset() - offset();
+        if (diff < 0) {
+            return -1;
+        } else if (diff > 0) {
+            return 1;
+        }
+        return 0;
+    }
     inline bool operator<(const Location &other) const
     {
         const int off = other.fileId() - fileId();

@@ -12,10 +12,11 @@ CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query, con
 
 void CursorInfoJob::execute()
 {
-    ScopedDB database = db(Project::Symbol, ReadWriteLock::Read);
-    Location found;
-    const CursorInfo ci = RTags::findCursorInfo(database, location, &found);
-    if (isAborted())
-        return;
-    write(found, ci);
+    // ScopedDB database = db(Project::Symbol, ReadWriteLock::Read);
+    // Location found;
+    // const CursorInfo ci = RTags::findCursorInfo(database, location, &found);
+    // if (isAborted())
+    //     return;
+    // write(found, ci);
+#warning not done
 }

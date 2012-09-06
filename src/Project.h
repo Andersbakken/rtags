@@ -35,39 +35,38 @@ private:
 class Project
 {
 public:
-    enum DatabaseType {
-        Symbol,
-        SymbolName,
-        Dependency,
-        FileInformation,
-        GRFiles,
-        GR,
-        DatabaseTypeCount
-    };
-
     Project();
     ~Project();
 
-    Database *databases[DatabaseTypeCount];
     Indexer *indexer;
     GRTags *grtags;
 
-    Path srcRoot, projectPath;
+    Path srcRoot;
 
-    Path databaseDir(DatabaseType type) const;
-
-    Scope<const SymbolMap&> symbolsRead();
+    Scope<const SymbolMap&> lockSymbolsForRead();
     Scope<SymbolMap&> lockSymbolsForWrite();
-    Scope<const SymbolNameMap&> symbolNamesRead();
+    Scope<const SymbolNameMap&> lockSymbolNamesForRead();
     Scope<SymbolNameMap&> lockSymbolNamesForWrite();
 
-    ScopedDB db(DatabaseType type, ReadWriteLock::LockType lockType) const;
+    Scope<const SymbolNameMap&> lockGRForRead();
+    Scope<SymbolNameMap&> lockGRForWrite();
+
+    Scope<const Map<Path, Map<ByteArray, time_t> >&> lockGRFilesForRead();
+    Scope<Map<Path, Map<ByteArray, time_t> >&> lockGRFilesForWrite();
+
     void dirty(const Set<uint32_t> &fileIds);
 private:
     SymbolMap mSymbols;
     ReadWriteLock mSymbolsLock;
+
     SymbolNameMap mSymbolNames;
     ReadWriteLock mSymbolNamesLock;
+
+    GRFilesMap mGRFiles;
+    ReadWriteLock mGRFilesLock;
+
+    SymbolNameMap mGR;
+    ReadWriteLock mGRLock;
 };
 
 #endif

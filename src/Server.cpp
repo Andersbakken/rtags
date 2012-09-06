@@ -88,10 +88,8 @@ void Server::clear()
     delete mServer;
     mServer = 0;
     mProjects.clear();
-    for (int i=0; i<DatabaseTypeCount; ++i) {
-        delete mDBs[i];
-        mDBs[i] = 0;
-    }
+    delete mDB;
+    mDB = 0;
     setCurrentProject(0);
 }
 
@@ -112,14 +110,11 @@ bool Server::init(const Options &options)
 
     // mCompletions = new Completions(mOptions.maxCompletionUnits);
 
-    mProjectsDir = mOptions.path + "projects/";
-
     Messages::init();
     if (mOptions.options & ClearDatadir) {
         clearDataDir();
     }
     Path::mkdir(mOptions.path);
-    Path::mkdir(mProjectsDir);
 
     for (int i=0; i<10; ++i) {
         mServer = new LocalServer;
@@ -140,64 +135,28 @@ bool Server::init(const Options &options)
         error("Unable to listen on %s", mOptions.socketPath.constData());
         return false;
     }
+    mDB = new Database(mOptions.path + "db.db", 0, Database::NoFlag);
 
-    for (unsigned i=0; i<DatabaseTypeCount; ++i) {
-        const DatabaseType type = static_cast<DatabaseType>(i);
-        mDBs[i] = new Database(databaseDir(type), options.cacheSizeMB, Database::NoFlag);
-        if (!mDBs[i]->isOpened()) {
-            error() << "Failed to open db " << databaseDir(type) << " " << mDBs[i]->openError();
-        }
-    }
-
-    ByteArray currentProject;
     {
-        ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
         bool ok;
-        const int version = general->value<int>("version", &ok);
+        const int version = mDB->value<int>("version", &ok);
         if (!ok) {
-            general->setValue<int>("version", Database::Version);
+            mDB->setValue<int>("version", Database::Version);
         } else if (version != Database::Version) {
             error("Wrong version, expected %d, got %d. Run with -C to regenerate database", Database::Version, version);
             return false;
         }
-        mMakefiles = general->value<Map<Path, MakefileInformation> >("makefiles");
+        mMakefiles = mDB->value<Map<Path, MakefileInformation> >("makefiles");
         for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
             mMakefilesWatcher.watch(it->first);
         }
-        currentProject = general->value<ByteArray>("currentProject");
-    }
-
-    {
-        // fileids
-        ScopedDB db = Server::instance()->db(Server::FileIds, ReadWriteLock::Read);
-        RTags::Ptr<Iterator> it(db->createIterator());
-        it->seekToFirst();
-        Map<uint32_t, Path> idsToPaths;
-        Map<Path, uint32_t> pathsToIds;
-        uint32_t maxId = 0;
-        while (it->isValid()) {
-            const Slice key = it->key();
-            const Path path(key.data(), key.size());
-            const uint32_t fileId = it->value<uint32_t>();
-            maxId = std::max(fileId, maxId);
-            idsToPaths[fileId] = path;
-            pathsToIds[path] = fileId;
-            // printf("loading fileids: %d %s\n", fileId, path.constData());
-            it->next();
-        }
-        Location::init(pathsToIds, idsToPaths, maxId);
     }
 
     mServer->clientConnected().connect(this, &Server::onNewConnection);
 
-    error() << "running with " << mOptions.defaultArguments << " clang version " << RTags::eatString(clang_getClangVersion());
-    mProjectsDir.visit(projectsVisitor, this);
-    if (!currentProject.isEmpty()) {
-        setCurrentProject(currentProject);
-    }
-
     if (!(mOptions.options & NoValidate))
         remake();
+
     return true;
 }
 
@@ -271,7 +230,7 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
     const MakefileInformation mi(makefile.lastModified(), message->arguments(), message->extraFlags());
     mMakefiles[makefile] = mi;
     mMakefilesWatcher.watch(makefile);
-    ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
+    ScopedDB general(mDB, ReadWriteLock::Write);
     general->setValue("makefiles", mMakefiles);
     make(message->makefile(), message->arguments(), message->extraFlags(), conn);
 }
@@ -713,29 +672,14 @@ void Server::errors(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-Path Server::databaseDir(DatabaseType type) const
-{
-    const char *const dbNames[] = { "general.db", "fileids.db" };
-    char ret[PATH_MAX];
-    const int w = snprintf(ret, sizeof(ret), "%s%s", mOptions.path.constData(), dbNames[type]);
-    return Path(ret, w);
-}
-
 void Server::clearDataDir()
 {
-    RTags::removeDirectory(mOptions.path + "/projects");
-    RTags::removeDirectory(databaseDir(General));
-    RTags::removeDirectory(databaseDir(FileIds));
+    RTags::removeDirectory(mOptions.path + "db.db");
 
     if (!Path::mkdir(mOptions.path)) {
         error("Can't create directory [%s]", mOptions.path.constData());
         return;
     }
-    if (!mOptions.path.mksubdir("projects")) {
-        error("Can't create directory [%s/projects]", mOptions.path.constData());
-        return;
-    }
-    mProjectsDir = mOptions.path + "projects/";
 }
 
 void Server::reindex(const ByteArray &pattern)
@@ -885,24 +829,27 @@ static Path findProjectRoot(const Path &path)
     return Path();
 }
 
+
 static inline bool isIndexed(const Path &path, const List<ByteArray> &args, const shared_ptr<Project> &project)
 {
-    if (!project)
-        return false;
-    ScopedDB db = project->db(Project::FileInformation, ReadWriteLock::Write);
-    if (!db.database())
-        return false;
-    const uint32_t fileId = Location::insertFile(path);
-    const char *ch = reinterpret_cast<const char*>(&fileId);
-    const Slice key(ch, sizeof(fileId));
-    FileInformation fi = db->value<FileInformation>(key);
-    if (fi.compileArgs != args) {
-        fi.compileArgs = args;
-        fi.lastTouched = 0;
-        db->setValue(key, fi);
-        return false;
-    }
-    return true;
+    // ### what to do here?
+    // return project && project->indexer && project->indexer(isIndexer
+    //     return false;
+    // return project
+    // ScopedDB db = project->db(Project::FileInformation, ReadWriteLock::Write);
+    // if (!db.database())
+    //     return false;
+    // const uint32_t fileId = Location::insertFile(path);
+    // const char *ch = reinterpret_cast<const char*>(&fileId);
+    // const Slice key(ch, sizeof(fileId));
+    // FileInformation fi = db->value<FileInformation>(key);
+    // if (fi.compileArgs != args) {
+    //     fi.compileArgs = args;
+    //     fi.lastTouched = 0;
+    //     db->setValue(key, fi);
+    //     return false;
+    // }
+    return false;
 }
 
 void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
@@ -958,7 +905,7 @@ void Server::onMakefileModified(const Path &path)
 void Server::onMakefileRemoved(const Path &path)
 {
     mMakefiles.remove(path);
-    ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
+    ScopedDB general(mDB, ReadWriteLock::Write);
     general->setValue("makefiles", mMakefiles);
 }
 
@@ -1004,11 +951,6 @@ ByteArray Server::completions(const QueryMessage &query)
     return ret;
 }
 
-ScopedDB Server::db(DatabaseType type, ReadWriteLock::LockType lockType) const
-{
-    return ScopedDB(mDBs[type], lockType);
-}
-
 shared_ptr<Project> Server::setCurrentProject(const Path &path)
 {
     Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.find(path);
@@ -1033,27 +975,10 @@ shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
             mProjects.remove(path);
             return shared_ptr<Project>();
         }
-        project->projectPath = mProjectsDir + tmp;
-        Path::mkdir(project->projectPath);
-    }
-
-    if (!project->databases[Project::GRFiles]) {
-        project->databases[Project::GRFiles] = new Database(project->databaseDir(static_cast<Project::DatabaseType>(Project::GRFiles)).constData(),
-                                                            mOptions.cacheSizeMB, Database::NoFlag);
     }
 
     if (flags & EnableIndexer && !project->indexer) {
-        for (int i=0; i<Project::GRFiles; ++i) {
-            const unsigned f = (i == Project::Symbol ? Database::LocationKeys : Database::NoFlag);
-            assert(!project->databases[i]);
-            project->databases[i] = new Database(project->databaseDir(static_cast<Project::DatabaseType>(i)).constData(), mOptions.cacheSizeMB, f);
-        }
         project->indexer = new Indexer(project, !(mOptions.options & NoValidate));
-    }
-
-    if (flags & EnableGRTags && !project->databases[Project::GR]) {
-        project->databases[Project::GR] = new Database(project->databaseDir(static_cast<Project::DatabaseType>(Project::GR)).constData(),
-                                                       mOptions.cacheSizeMB, Database::NoFlag);
     }
 
     if (!project->grtags) {
@@ -1101,13 +1026,13 @@ bool Server::updateProjectForLocation(const Location &location)
 
 shared_ptr<Project> Server::setCurrentProject(const shared_ptr<Project> &proj)
 {
-    if (proj) {
-        ByteArray srcRoot = proj->srcRoot;
-        if (!srcRoot.isEmpty()) {
-            ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
-            general->setValue<ByteArray>("currentProject", srcRoot);
-        }
-    }
+    // if (proj) {
+    //     ByteArray srcRoot = proj->srcRoot;
+    //     if (!srcRoot.isEmpty()) {
+    //         ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
+    //         general->setValue<ByteArray>("currentProject", srcRoot);
+    //     }
+    // }
     shared_ptr<Project> old = mCurrentProject;
     mCurrentProject = proj;
     return old;

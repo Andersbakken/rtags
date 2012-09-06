@@ -44,16 +44,8 @@ public:
         NoValidate = 0x4,
         ClearDatadir = 0x8
     };
-    enum DatabaseType {
-        General,
-        FileIds,
-        DatabaseTypeCount
-    };
-
-    ScopedDB db(DatabaseType type, ReadWriteLock::LockType lockType) const;
     ThreadPool *threadPool() const { return mThreadPool; }
     void startJob(Job *job);
-    Path databaseDir(DatabaseType type) const;
     struct Options {
         Options() : options(0), cacheSizeMB(0), maxCompletionUnits(0), threadCount(0) {}
         Path path;
@@ -124,11 +116,10 @@ private:
     int mJobId;
     Map<Path, MakefileInformation> mMakefiles;
     FileSystemWatcher mMakefilesWatcher;
-    Database *mDBs[DatabaseTypeCount];
+    Database *mDB;
 
     Map<Path, shared_ptr<Project> > mProjects;
     shared_ptr<Project> mCurrentProject;
-    Path mProjectsDir;
     ThreadPool *mThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
     Completions *mCompletions;

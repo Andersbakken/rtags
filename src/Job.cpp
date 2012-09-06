@@ -103,13 +103,3 @@ unsigned Job::keyFlags() const
 {
     return QueryMessage::keyFlags(mQueryFlags);
 }
-
-ScopedDB Job::db(Server::DatabaseType type, ReadWriteLock::LockType lockType) const
-{
-    return Server::instance()->db(type, lockType);
-}
-
-ScopedDB Job::db(Project::DatabaseType type, ReadWriteLock::LockType lockType) const
-{
-    return mProject ? mProject->db(type, lockType) : ScopedDB();
-}

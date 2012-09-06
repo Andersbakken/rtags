@@ -43,7 +43,10 @@ typedef Map<Location, CursorInfo> SymbolMap;
 typedef Map<Location, Map<Location, RTags::ReferenceType> > ReferenceMap;
 typedef Map<ByteArray, Set<Location> > SymbolNameMap;
 typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
-typedef Map<uint32_t, FileInformation> InformationMap;
+typedef Map<uint32_t, FileInformation> FileInformationMap;
+typedef Map<Path, Map<ByteArray, time_t> > GRFilesMap;
+// key: absolute path to directory, value: Map<fileName, last modified>,
+// last modified is 0 for non-source files
 
 namespace RTags {
 void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty);
@@ -124,8 +127,7 @@ inline bool addTo(Container &container, const Value &value)
     return container.size() != oldSize;
 }
 
-CursorInfo findCursorInfo(Database *db, const Location &key, Location *loc = 0);
-List<ByteArray> compileArgs(uint32_t fileId, const shared_ptr<Project> &proj);
+SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location);
 
 enum TimeFormat {
     DateTime,

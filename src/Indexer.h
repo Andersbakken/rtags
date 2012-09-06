@@ -3,6 +3,7 @@
 
 #include "CursorInfo.h"
 #include "FileSystemWatcher.h"
+#include "FileInformation.h"
 #include "MutexLocker.h"
 #include "RTags.h"
 #include "ReadWriteLock.h"
@@ -21,6 +22,7 @@ public:
     void index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags,
                const Set<uint32_t> &dirtyFiles = Set<uint32_t>(),
                const PendingMap &pending = PendingMap());
+    void addFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t time);
     void addDependencies(const DependencyMap &hash);
     Set<uint32_t> dependencies(uint32_t fileId) const;
     void abort();
@@ -36,7 +38,6 @@ public:
     void onFileModified(const Path &);
     shared_ptr<Project> project() const { return mProject.lock(); }
     Path srcRoot() const { return mProject.lock()->srcRoot; } // ~/src/foobar
-    Path projectPath() const { return mProject.lock()->projectPath; } // ~/.rtags/projects/[_foobar_]
 private:
     void onFilesModifiedTimeout();
     static void onFilesModifiedTimeout(int id, void *userData)
@@ -75,6 +76,7 @@ private:
     weak_ptr<Project> mProject;
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
+    FileInformationMap mFileInformations;
 
     Set<Path> mWatchedPaths;
 
@@ -85,6 +87,7 @@ private:
 
     signalslot::Signal1<Indexer*> mJobsComplete;
     bool mValidate;
+
 };
 
 inline bool Indexer::visitFile(uint32_t fileId, const Path &path)

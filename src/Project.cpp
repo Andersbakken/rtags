@@ -6,7 +6,6 @@
 Project::Project()
     : indexer(0), grtags(0)
 {
-    memset(databases, 0, sizeof(databases));
 }
 
 Project::~Project()
@@ -15,34 +14,9 @@ Project::~Project()
     if (indexer)
         indexer->abort();
     delete indexer;
-    for (int i=0; i<DatabaseTypeCount; ++i) {
-        delete databases[i];
-    }
 }
 
-ScopedDB Project::db(DatabaseType type, ReadWriteLock::LockType lockType) const
-{
-    assert(databases[type]);
-    return ScopedDB(databases[type], lockType);
-}
-
-Path Project::databaseDir(DatabaseType type) const
-{
-    const char *dbNames[] = {
-        "symbols.db",
-        "symbolnames.db",
-        "dependencies.db",
-        "fileinfos.db",
-        "grfiles.db",
-        "gr.db"
-    };
-
-    char ret[PATH_MAX];
-    const int w = snprintf(ret, sizeof(ret), "%s%s", projectPath.constData(), dbNames[type]);
-    return Path(ret, w);
-}
-
-Scope<const SymbolMap&> Project::symbolsRead()
+Scope<const SymbolMap&> Project::lockSymbolsForRead()
 {
     mSymbolsLock.lockForRead();
     Scope<const SymbolMap&> scope;
@@ -58,9 +32,9 @@ Scope<SymbolMap&> Project::lockSymbolsForWrite()
     return scope;
 }
 
-Scope<const SymbolNameMap&> Project::symbolNamesRead()
+Scope<const SymbolNameMap&> Project::lockSymbolNamesForRead()
 {
-    mSymbolsLock.lockForRead();
+    mSymbolNamesLock.lockForRead();
     Scope<const SymbolNameMap&> scope;
     scope.mData.reset(new Scope<const SymbolNameMap&>::Data(mSymbolNames, &mSymbolNamesLock));
     return scope;
@@ -68,11 +42,44 @@ Scope<const SymbolNameMap&> Project::symbolNamesRead()
 
 Scope<SymbolNameMap&> Project::lockSymbolNamesForWrite()
 {
-    mSymbolsLock.lockForWrite();
+    mSymbolNamesLock.lockForWrite();
     Scope<SymbolNameMap&> scope;
     scope.mData.reset(new Scope<SymbolNameMap&>::Data(mSymbolNames, &mSymbolNamesLock));
     return scope;
 }
+
+Scope<const SymbolNameMap&> Project::lockGRForRead()
+{
+    mGRLock.lockForRead();
+    Scope<const SymbolNameMap&> scope;
+    scope.mData.reset(new Scope<const SymbolNameMap&>::Data(mGR, &mGRLock));
+    return scope;
+}
+
+Scope<SymbolNameMap&> Project::lockGRForWrite()
+{
+    mGRLock.lockForWrite();
+    Scope<SymbolNameMap&> scope;
+    scope.mData.reset(new Scope<SymbolNameMap&>::Data(mGR, &mGRLock));
+    return scope;
+}
+
+Scope<const GRFilesMap&> Project::lockGRFilesForRead()
+{
+    mGRFilesLock.lockForRead();
+    Scope<const GRFilesMap&> scope;
+    scope.mData.reset(new Scope<const GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
+    return scope;
+}
+
+Scope<GRFilesMap&> Project::lockGRFilesForWrite()
+{
+    mGRFilesLock.lockForWrite();
+    Scope<GRFilesMap&> scope;
+    scope.mData.reset(new Scope<GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
+    return scope;
+}
+
 void Project::dirty(const Set<uint32_t> &fileIds)
 {
     {
