@@ -19,9 +19,7 @@ public:
     Indexer(const shared_ptr<Project> &project, bool validate);
 
     typedef Map<Path, List<ByteArray> > PendingMap; // without this clang 3.1 complains
-    void index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags,
-               const Set<uint32_t> &dirtyFiles = Set<uint32_t>(),
-               const PendingMap &pending = PendingMap());
+    void index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
     void addFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t time);
     FileInformation fileInformation(uint32_t fileId) const;
     void addDependencies(const DependencyMap &hash);
@@ -89,6 +87,7 @@ private:
     signalslot::Signal1<Indexer*> mJobsComplete;
     bool mValidate;
 
+    Set<uint32_t> mPendingDirtyFiles;
 };
 
 inline bool Indexer::visitFile(uint32_t fileId, const Path &path)

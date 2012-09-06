@@ -293,7 +293,7 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
             if (rx.indexIn(it->first) != -1) {
                 if (it->second->indexer)
                     it->second->indexer->abort();
-                ResponseMessage msg("Erased " + it->first);
+                ResponseMessage msg("Erased project: " + it->first);
                 conn->send(&msg);
                 if (it->second.get() == mCurrentProject.get()) {
                     mCurrentProject.reset();

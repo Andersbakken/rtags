@@ -55,11 +55,9 @@ static inline void writeSymbols(SymbolMap &symbols, const ReferenceMap &referenc
     }
 }
 
-IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &input, const List<ByteArray> &arguments,
-                       const Set<uint32_t> &dirty, const Map<Path, List<ByteArray> > &pending)
-    : mFlags(flags), mTimeStamp(0), mIn(input), mFileId(Location::insertFile(input)),
-      mArgs(arguments), mIndexer(indexer), mUnit(0), mIndex(0), mState(Starting), mDirty(dirty), mPendingSources(pending),
-      mVisitCount(0)
+IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &p, const List<ByteArray> &arguments)
+    : mFlags(flags), mTimeStamp(0), mPath(p), mFileId(Location::insertFile(p)),
+      mArgs(arguments), mIndexer(indexer), mUnit(0), mIndex(0), mAborted(false)
 {
 }
 
@@ -72,13 +70,13 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
     const Location l(includedFile, 0);
 
     const Path path = l.path();
-    job->mSymbolNames[path].insert(l);
+    job->mData->symbolNames[path].insert(l);
     const char *fn = path.fileName();
-    job->mSymbolNames[ByteArray(fn, strlen(fn))].insert(l);
+    job->mData->symbolNames[ByteArray(fn, strlen(fn))].insert(l);
 
     const uint32_t fileId = l.fileId();
     if (!includeLen) {
-        job->mDependencies[fileId].insert(fileId);
+        job->mData->dependencies[fileId].insert(fileId);
     } else {
         for (unsigned i=0; i<includeLen; ++i) {
             CXFile originatingFile;
@@ -86,7 +84,7 @@ void IndexerJob::inclusionVisitor(CXFile includedFile,
             Location loc(originatingFile, 0);
             const uint32_t f = loc.fileId();
             if (f)
-                job->mDependencies[fileId].insert(f);
+                job->mData->dependencies[fileId].insert(f);
         }
     }
 }
@@ -178,10 +176,10 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
             break;
         }
 
-        addToSymbolNames(qparam, hasTemplates, location, mSymbolNames);
+        addToSymbolNames(qparam, hasTemplates, location, mData->symbolNames);
         if (!qnoparam.isEmpty()) {
             assert(!qnoparam.isEmpty());
-            addToSymbolNames(qnoparam, hasTemplates, location, mSymbolNames);
+            addToSymbolNames(qnoparam, hasTemplates, location, mData->symbolNames);
         }
 
         if (first) {
@@ -225,10 +223,12 @@ Location IndexerJob::createLocation(const CXCursor &cursor)
     return Location();
 }
 
-Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
+Location IndexerJob::createLocation(const CXCursor &cursor, CreateLocationState *result)
 {
     CXSourceLocation location = clang_getCursorLocation(cursor);
     Location ret;
+    if (result)
+        *result = Failed;
     if (!clang_equalLocations(location, nullLocation)) {
         CXFile file;
         unsigned start;
@@ -239,16 +239,21 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
             if (!fileId)
                 fileId = Location::insertFile(Path::resolved(fileName));
             ret = Location(fileId, start);
-            if (blocked) {
+            if (result) {
+                MutexLocker lock(&mMutex); // ### this needs to be locked because of aborting, kinda heavy
+                if (mAborted) {
+                    *result = Aborted;
+                    return ret;
+                }
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
-                    state = mIndexer->visitFile(fileId, mIn) ? Index : DontIndex;
+                    state = mIndexer->visitFile(fileId, mPath) ? Index : DontIndex;
                 }
                 if (state != Index) {
-                    *blocked = true;
+                    *result = Blocked;
                     return Location();
                 }
-                *blocked = false;
+                *result = Allowed;
             }
         }
     }
@@ -260,12 +265,6 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
                                             CXClientData client_data)
 {
     IndexerJob *job = static_cast<IndexerJob*>(client_data);
-    if (!(++job->mVisitCount % 100)) {
-        // MutexLocker lock(&job->mStateMutex);
-        if (job->mState != Visiting)
-            return CXChildVisit_Break;
-    }
-
     const CXCursorKind kind = clang_getCursorKind(cursor);
     if (clang_isStatement(kind))
         return CXChildVisit_Recurse;
@@ -286,9 +285,12 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         return CXChildVisit_Recurse; // ### continue
     }
 
-    bool blocked = false;
-    const Location loc = job->createLocation(cursor, &blocked);
-    if (blocked) {
+    CreateLocationState result;
+    const Location loc = job->createLocation(cursor, &result);
+    switch (result) {
+    case Aborted:
+        return CXChildVisit_Break;
+    case Blocked:
         switch (kind) {
         case CXCursor_FunctionDecl:
         case CXCursor_CXXMethod:
@@ -305,14 +307,16 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         default:
             return CXChildVisit_Continue;
         }
-    } else if (loc.isNull()) {
+    case Failed:
         return CXChildVisit_Continue;
-    } else if (job->mSymbols.value(loc).symbolLength) {
-        return CXChildVisit_Recurse;
+    case Allowed:
+        assert(!loc.isNull());
+        if (job->mData->symbols.value(loc).symbolLength)
+            return CXChildVisit_Recurse;
     }
 
     // if (loc == "/usr/include/getopt.h,3843" || loc == "/home/abakken/dev/rtags/src/RTags.h,5430" || loc == "/home/abakken/dev/rtags/src/rdm.cpp,3970") {
-    //     error() << "got some stuff here" << cursor << type << job->mIn
+    //     error() << "got some stuff here" << cursor << type << job->mPath
     //             << clang_getCursorReferenced(cursor);
     // }
 
@@ -420,7 +424,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         return;
     }
 
-    if (processRef && !mSymbols.value(refLoc).symbolLength)
+    if (processRef && !mData->symbols.value(refLoc).symbolLength)
         handleCursor(ref, refKind, refLoc);
 
     handleCursor(cursor, kind, loc, &refLoc);
@@ -435,7 +439,7 @@ void IndexerJob::addOverriddenCursors(const CXCursor& cursor, const Location& lo
         return;
     for (unsigned i=0; i<count; ++i) {
         Location loc = createLocation(overridden[i], 0);
-        CursorInfo &o = mSymbols[loc];
+        CursorInfo &o = mData->symbols[loc];
 
         //error() << "adding overridden (1) " << location << " to " << o;
         o.references.insert(location);
@@ -465,8 +469,8 @@ void IndexerJob::handleInclude(const CXCursor &cursor, CXCursorKind kind, const 
             {
                 ByteArray include = "#include ";
                 const Path path = refLoc.path();
-                mSymbolNames[(include + path)].insert(location);
-                mSymbolNames[(include + path.fileName())].insert(location);
+                mData->symbolNames[(include + path)].insert(location);
+                mData->symbolNames[(include + path.fileName())].insert(location);
             }
             CXSourceRange range = clang_getCursorExtent(cursor);
             unsigned int end;
@@ -474,7 +478,7 @@ void IndexerJob::handleInclude(const CXCursor &cursor, CXCursorKind kind, const 
             unsigned tokenCount = 0;
             CXToken *tokens = 0;
             clang_tokenize(mUnit, range, &tokens, &tokenCount);
-            CursorInfo &info = mSymbols[location];
+            CursorInfo &info = mData->symbols[location];
             info.target = refLoc;
             info.kind = cursor.kind;
             info.isDefinition = false;
@@ -485,7 +489,7 @@ void IndexerJob::handleInclude(const CXCursor &cursor, CXCursorKind kind, const 
                     CXStringScope scope(clang_getTokenSpelling(mUnit, tokens[i]));
                     info.symbolName = "#include ";
                     info.symbolName += clang_getCString(scope.string);
-                    mSymbolNames[info.symbolName].insert(location);
+                    mData->symbolNames[info.symbolName].insert(location);
                     break;
                 }
             }
@@ -511,9 +515,9 @@ static inline bool isInline(const CXCursor &cursor)
 void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const Location *ref)
 {
     // if (location == "/home/abakken/dev/rtags/src/rc.cpp,8221")
-    //     error() << cursor << "refs" << (ref ? *ref : clang_getNullCursor()) << mIn;
+    //     error() << cursor << "refs" << (ref ? *ref : clang_getNullCursor()) << mPath;
 
-    CursorInfo &info = mSymbols[location];
+    CursorInfo &info = mData->symbols[location];
     if (info.symbolLength) {
         // error() << "current" << info << "\nnew" << cursor << (ref ? *ref : clang_getNullCursor());
         return;
@@ -536,7 +540,7 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
                 info.symbolLength = 6;
                 break;
             default:
-                mSymbols.remove(location);
+                mData->symbols.remove(location);
                 return;
             }
         } else {
@@ -552,7 +556,7 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
         // consider doing this for only declaration/inline definition since
         // declaration and definition should know of one another
         if (parentLocation.isValid()) {
-            CursorInfo &parent = mSymbols[parentLocation];
+            CursorInfo &parent = mData->symbols[parentLocation];
             parent.references.insert(location);
             info.references.insert(parentLocation);
         }
@@ -605,53 +609,48 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
     }
 
     if (refLoc.isValid()) {
-        Map<Location, RTags::ReferenceType> &val = mReferences[location];
+        Map<Location, RTags::ReferenceType> &val = mData->references[location];
         val[refLoc] = referenceType;
         info.target = refLoc;
     }
 }
 
-unsigned IndexerJob::parse()
+void IndexerJob::parse()
 {
     mHeaderMap.clear();
     if (!mIndex) {
         mIndex = clang_createIndex(0, 1);
-        if (!mIndex)
-            return Dirtying; // dirty?
+        if (!mIndex) {
+            abort();
+            return;
+        }
     }
 
     mTimeStamp = time(0);
-    if (!mUnit) {
-        List<const char*> clangArgs(mArgs.size(), 0);
-        mClangLine = Server::instance()->clangPath();
+    List<const char*> clangArgs(mArgs.size(), 0);
+    mClangLine = Server::instance()->clangPath();
 
-        int idx = 0;
-        const int count = mArgs.size();
-        for (int i=0; i<count; ++i) {
-            ByteArray arg = mArgs.at(i);
-            if (arg.isEmpty())
-                continue;
+    int idx = 0;
+    const int count = mArgs.size();
+    for (int i=0; i<count; ++i) {
+        ByteArray arg = mArgs.at(i);
+        if (arg.isEmpty())
+            continue;
 
-            clangArgs[idx++] = arg.constData();
-            arg.replace("\"", "\\\"");
-            mClangLine += arg;
-            mClangLine += " ";
-        }
-
-        mClangLine += mIn;
-
-        mUnit = clang_parseTranslationUnit(mIndex, mIn.constData(),
-                                           clangArgs.data(), idx, 0, 0,
-                                           CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
-        warning() << "loading unit " << mClangLine << " " << (mUnit != 0);
-    } else {
-        clang_reparseTranslationUnit(mUnit, 0, 0, clang_defaultReparseOptions(mUnit));
+        clangArgs[idx++] = arg.constData();
+        arg.replace("\"", "\\\"");
+        mClangLine += arg;
+        mClangLine += " ";
     }
-    if (!mUnit) {
-        mDependencies[mFileId].insert(mFileId);
-        return Dirtying;
-    }
-    return Visiting;
+
+    mClangLine += mPath;
+
+    mUnit = clang_parseTranslationUnit(mIndex, mPath.constData(),
+                                       clangArgs.data(), idx, 0, 0,
+                                       CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+    warning() << "loading unit " << mClangLine << " " << (mUnit != 0);
+    if (!mUnit)
+        mData->dependencies[mFileId].insert(mFileId);
 }
 
 void IndexerJob::diagnose()
@@ -692,12 +691,12 @@ void IndexerJob::diagnose()
         clang_getSpellingLocation(loc, &file, 0, 0, 0);
         if (file) {
             string = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
-            mDiagnostics[Location(file, 0).fileId()].append(string);
+            mData->diagnostics[Location(file, 0).fileId()].append(string);
         }
         if (testLog(logLevel) || (logLevel >= Warning && testLog(CompilationError))) {
             if (string.isEmpty())
                 string = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
-            log(logLevel, "%s: %s => %s", mIn.constData(), mClangLine.constData(), string.constData());
+            log(logLevel, "%s: %s => %s", mPath.constData(), mClangLine.constData(), string.constData());
             log(CompilationError, "%s", string.constData());
         }
 
@@ -709,16 +708,16 @@ void IndexerJob::diagnose()
             unsigned endOffset = 0;
             clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
 
-            error("Fixit (%d/%d) for %s: [%s] %s-%d", f + 1, fixItCount, mIn.constData(),
+            error("Fixit (%d/%d) for %s: [%s] %s-%d", f + 1, fixItCount, mPath.constData(),
                   string.constData(), start.key().constData(), endOffset);
             // ### can there be more than one fixit starting at the same location? Probably not.
-            mFixIts[start] = std::pair<int, ByteArray>(endOffset - start.offset(), string);
+            mData->fixIts[start] = std::pair<int, ByteArray>(endOffset - start.offset(), string);
         }
 
         clang_disposeDiagnostic(diagnostic);
     }
     if (!hasCompilationErrors) {
-        log(CompilationError, "%s parsed", mIn.constData());
+        log(CompilationError, "%s parsed", mPath.constData());
     }
 }
 
@@ -729,38 +728,24 @@ struct VerboseVisitorUserData
     IndexerJob *job;
 };
 
-#define TEST_STATE(state)                       \
-    do {                                        \
-        switch (setState(state)) {              \
-        case Aborted:                           \
-            return Aborted;                     \
-        case Parsing:                           \
-            return Parsing;                     \
-        default:                                \
-            break;                              \
-        }                                       \
-    } while (false)
-
-unsigned IndexerJob::visit()
+void IndexerJob::visit()
 {
-    assert(mUnit);
-    diagnose();
-    TEST_STATE(Visiting);
-
+    if (!mUnit)
+        return;
     clang_getInclusions(mUnit, inclusionVisitor, this);
-    TEST_STATE(Visiting);
-
-    mVisitCount = 0;
+    if (isAborted())
+        return;
 
     clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
-    TEST_STATE(Visiting);
+    if (isAborted())
+        return;
     if (testLog(VerboseDebug)) {
         {
             VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLine + ">", this };
             clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
             u.out += "</VerboseVisitor " + mClangLine + ">";
             char buf[1024];
-            snprintf(buf, sizeof(buf), "/tmp/%s.log", mIn.fileName());
+            snprintf(buf, sizeof(buf), "/tmp/%s.log", mPath.fileName());
             FILE *f = fopen(buf, "w");
             assert(f);
             fwrite(u.out.constData(), 1, u.out.size(), f);
@@ -774,96 +759,19 @@ unsigned IndexerJob::visit()
         //     logDirect(VerboseDebug, u.out);
         // }
     }
-    return Dirtying;
 }
-
-unsigned IndexerJob::dirty(const Set<uint32_t> &dirty)
-{
-    if (!mDirty.isEmpty()) {
-        shared_ptr<Project> project = mIndexer->project();
-        assert(project);
-        project->dirty(dirty);
-    }
-    return Writing;
-}
-
-unsigned IndexerJob::write()
-{
-    assert(mDependencies[mFileId].contains(mFileId));
-    mIndexer->addDependencies(mDependencies);
-    TEST_STATE(Writing);
-    mIndexer->setDiagnostics(mDiagnostics, mFixIts);
-    TEST_STATE(Writing);
-    shared_ptr<Project> project = mIndexer->project();
-    assert(project);
-    TEST_STATE(Writing);
-    {
-        Scope<SymbolMap&> scope = project->lockSymbolsForWrite();
-        writeSymbols(mSymbols, mReferences, scope.data());
-    }
-    TEST_STATE(Writing);
-    {
-        Scope<SymbolNameMap&> scope = project->lockSymbolNamesForWrite();
-        writeSymbolNames(mSymbolNames, scope.data());
-    }
-    TEST_STATE(Writing);
-    mIndexer->addFileInformation(mFileId, mArgs, mTimeStamp);
-    return Finishing;
-}
-
-unsigned IndexerJob::finish(const Map<Path, List<ByteArray> > &pendingSources)
-{
-    for (Map<Path, List<ByteArray> >::const_iterator it = pendingSources.begin(); it != pendingSources.end(); ++it) {
-        mIndexer->index(it->first, it->second, IndexerJob::Dirty);
-    }
-    char buf[1024];
-    const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %sms. (%d syms, %d refs, %d deps, %d symNames)%s",
-                           mIn.constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
-                           mSymbols.size(), mReferences.size(), mDependencies.size(), mSymbolNames.size(),
-                           mFlags & Dirty ? " (dirty)" : "");
-    mMessage = ByteArray(buf, w);
-    if (testLog(Warning)) {
-        warning() << "We're using " << double(MemoryMonitor::usage()) / double(1024 * 1024) << " MB of memory " << mTimer.elapsed() << "ms";
-    }
-
-    return Done;
-}
-
 
 void IndexerJob::run()
 {
-    unsigned targetState = Parsing;
-    Set<uint32_t> dirtyFiles;
-    Map<Path, List<ByteArray> > pendingSources;
-    do {
-        Set<uint32_t> *dirtyPtr = 0;
-        Map<Path, List<ByteArray> > *pendingSourcesPtr = 0;
-        switch (targetState) {
-        case Dirtying:
-            dirtyPtr = &dirtyFiles;
+    mData.reset(new Data);
+    parse();
+    typedef void (IndexerJob::*Function)();
+    Function functions[] = { &IndexerJob::parse, &IndexerJob::diagnose, &IndexerJob::visit };
+    for (unsigned i=0; i<sizeof(functions) / sizeof(Function); ++i) {
+        (this->*functions[i])();
+        if (isAborted())
             break;
-        case Finishing:
-            pendingSourcesPtr = &pendingSources;
-            break;
-        }
-        targetState = setState(targetState, dirtyPtr, pendingSourcesPtr);
-        switch (targetState) {
-        case Parsing:
-            targetState = parse();
-            break;
-        case Visiting:
-            targetState = visit();
-            break;
-        case Dirtying:
-            targetState = dirty(dirtyFiles);
-        case Writing:
-            targetState = write();
-            break;
-        case Finishing:
-            targetState = finish(pendingSources);
-            break;
-        }
-    } while (!(targetState & (Done|Aborted)));
+    }
     mHeaderMap.clear();
     if (mUnit) {
         clang_disposeTranslationUnit(mUnit);
@@ -873,6 +781,13 @@ void IndexerJob::run()
         clang_disposeIndex(mIndex);
         mIndex = 0;
     }
+    char buf[1024];
+    const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %sms. (%d syms, %d refs, %d deps, %d symNames)%s",
+                           mPath.constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
+                           mData->symbols.size(), mData->references.size(), mData->dependencies.size(), mData->symbolNames.size(),
+                           mFlags & Dirty ? " (dirty)" : "");
+    mData->message = ByteArray(buf, w);
+
     mFinished(this);
 }
 
@@ -894,9 +809,9 @@ CXChildVisitResult IndexerJob::verboseVisitor(CXCursor cursor, CXCursor, CXClien
         }
 
         if (loc.fileId() && u->job->mPaths.value(loc.fileId()) == IndexerJob::Index) {
-            if (u->job->mReferences.contains(loc)) {
+            if (u->job->mData->references.contains(loc)) {
                 u->out += " used as reference\n";
-            } else if (u->job->mSymbols.contains(loc)) {
+            } else if (u->job->mData->symbols.contains(loc)) {
                 u->out += " used as cursor\n";
             } else {
                 u->out += " not used\n";
@@ -915,123 +830,15 @@ CXChildVisitResult IndexerJob::verboseVisitor(CXCursor cursor, CXCursor, CXClien
     }
 }
 
-// ### what about visited files? should they be released?
-bool IndexerJob::restart(time_t time, const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pendingFiles)
+void IndexerJob::abort(Set<uint32_t> *visited)
 {
-    int count = 0;
-    MutexLocker lock(&mStateMutex);
-    switch (mState) {
-    case Starting:
-        mDirty.unite(dirtyFiles);
-        mPendingSources.unite(pendingFiles);
-        break;
-    case Parsing:
-        mDirty.unite(dirtyFiles);
-        mPendingSources.unite(pendingFiles);
-        if (time > mTimeStamp) {
-            mState |= Reparse;
+    MutexLocker lock(&mMutex);
+    mAborted = true;
+    if (visited) {
+        for (Map<uint32_t, IndexerJob::PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
+            if (it->second == IndexerJob::Index)
+                visited->insert(it->first);
         }
-        break;
-    case Visiting:
-        mDirty.unite(dirtyFiles);
-        mPendingSources.unite(pendingFiles);
-        if (time > mTimeStamp) {
-            mState |= Reparse;
-        }
-        break;
-    case Dirtying: {
-        mPendingSources.unite(pendingFiles);
-        if (time > mTimeStamp) {
-            mState |= Reparse;
-        }
-        int count = 0;
-        mDirty.unite(dirtyFiles, &count);
-        if (count)
-            mState |= Reparse;
-        break; }
-    case Writing: {
-        mPendingSources.unite(pendingFiles);
-        if (time > mTimeStamp) {
-            mState |= Reparse;
-            mDirty.unite(visitedFiles());
-        }
-        int count = 0;
-        mDirty.unite(dirtyFiles, &count);
-        if (count)
-            mState |= Reparse;
-        break; }
-    case Finishing:
-        if (time > mTimeStamp)
-            mState |= Reparse;
-        mDirty.unite(dirtyFiles, &count);
-        mPendingSources.unite(pendingFiles);
-    case Done:
-        return false; // ###
     }
-    return true;
 }
 
-static inline List<ByteArray> stateName(unsigned state)
-{
-    List<ByteArray> ret;
-    if (state & IndexerJob::Starting)
-        ret.append("Starting");
-    if (state & IndexerJob::Parsing)
-        ret.append("Parsing");
-    if (state & IndexerJob::Failed)
-        ret.append("Failed");
-    if (state & IndexerJob::Visiting)
-        ret.append("Visiting");
-    if (state & IndexerJob::Dirtying)
-        ret.append("Dirtying");
-    if (state & IndexerJob::Writing)
-        ret.append("Writing");
-    if (state & IndexerJob::Finishing)
-        ret.append("Finishing");
-    if (state & IndexerJob::Done)
-        ret.append("Done");
-    if (state & IndexerJob::Aborted)
-        ret.append("Aborted");
-    if (state & IndexerJob::Reparse)
-        ret.append("Reparse");
-    if (ret.isEmpty())
-        ret.append("None");
-    return ret;
-}
-unsigned IndexerJob::setState(unsigned state, Set<uint32_t> *dirty, Map<Path, List<ByteArray> > *pendingSources)
-{
-    MutexLocker lock(&mStateMutex);
-
-    // if (mState != state)
-    //     error() << mIn << "from" << ByteArray::join(stateName(mState), "|") << "to" << ByteArray::join(stateName(state), "|");
-
-    if (mState & Aborted) {
-        return Aborted;
-    } else if (mState & Reparse) {
-        state = Parsing;
-    }
-    if (dirty)
-        *dirty = mDirty;
-    if (pendingSources)
-        *pendingSources = mPendingSources;
-    mState = state;
-    return mState;
-}
-
-unsigned IndexerJob::abort()
-{
-    MutexLocker lock(&mStateMutex);
-    const unsigned ret = mState;
-    mState |= Aborted;
-    return ret;
-}
-
-Set<uint32_t> IndexerJob::visitedFiles() const
-{
-    Set<uint32_t> visited;
-    for (Map<uint32_t, IndexerJob::PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
-        if (it->second == IndexerJob::Index)
-            visited.insert(it->first);
-    }
-    return visited;
-}

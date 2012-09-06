@@ -30,21 +30,21 @@ void Indexer::onJobFinished(IndexerJob *job)
     MutexLocker lock(&mMutex);
     const uint32_t fileId = job->fileId();
     mJobs.remove(fileId);
-    ByteArray message = job->message();
+    shared_ptr<IndexerJob::Data> data = job->data();
     if (job->isAborted()) {
-        const Set<uint32_t> visited = job->visitedFiles();
-        mVisitedFiles -= visited;
+        // const Set<uint32_t> visited = job->visitedFiles();
+        // mVisitedFiles -= visited;
 
         shared_ptr<Project> proj = project();
 
-        message += job->path() + " Aborted";
+        data->message += job->path() + " Aborted";
 
         // IndexerJob* waiting;
         // if (mWaiting.remove(fileId, &waiting)) {
         //     startJob(waiting);
         // }
         lock.unlock();
-        proj->dirty(visited);
+        // proj->dirty(visited);
     }
 
     const int idx = mJobCounter - mJobs.size();
@@ -52,7 +52,7 @@ void Indexer::onJobFinished(IndexerJob *job)
     error("[%3d%%] %d/%d %s %s. Pending jobs %d. %d mb mem.",
           static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
           RTags::timeToString(time(0), RTags::Time).constData(),
-          message.constData(), mJobs.size(), int((MemoryMonitor::usage() / (1024 * 1024))));
+          data->message.constData(), mJobs.size(), int((MemoryMonitor::usage() / (1024 * 1024))));
 
     if (mJobs.isEmpty()) {
         mTimerRunning = false;
@@ -69,20 +69,19 @@ void Indexer::onJobFinished(IndexerJob *job)
     mWaitCondition.wakeAll();
 }
 
-void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags,
-                    const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pending)
+void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags)
 {
     MutexLocker locker(&mMutex);
 
     const uint32_t fileId = Location::insertFile(input);
     IndexerJob *&job = mJobs[fileId];
-    if (job && job->restart(time(0), dirtyFiles, pending))
-        return;
+    if (job) {
+        Set<uint32_t> visitedFiles;
+        job->abort(&visitedFiles);
+        mVisitedFiles -= visitedFiles;
+    }
 
-    job = new IndexerJob(this, indexerJobFlags, input, arguments, dirtyFiles, pending);
-    if (!dirtyFiles.isEmpty() || !pending.isEmpty())
-        mVisitedFiles -= dirtyFiles;
-
+    job = new IndexerJob(this, indexerJobFlags, input, arguments);
     job->finished().connect(this, &Indexer::onJobFinished);
 
     ++mJobCounter;
@@ -257,6 +256,7 @@ void Indexer::dirty(const Set<uint32_t> &dirtyFileIds,
         index(it->first, it->second, IndexerJob::Dirty);
     }
 }
+
 void Indexer::onFilesModifiedTimeout()
 {
     Set<uint32_t> dirtyFiles;
@@ -267,21 +267,15 @@ void Indexer::onFilesModifiedTimeout()
             dirtyFiles.insert(*it);
             dirtyFiles.unite(mDependencies.at(*it));
         }
-        // error() << mModifiedFiles << dirtyFiles;
+        mVisitedFiles -= dirtyFiles;
+        mPendingDirtyFiles.unite(dirtyFiles);
         mModifiedFiles.clear();
-        for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
-            const FileInformationMap::const_iterator found = mFileInformations.find(*it);
-            if (found != mFileInformations.end()) {
-                const Path path = Location::path(*it);
-                toIndex[path] = found->second.compileArgs;
-            }
-        }
     }
-    if (!toIndex.isEmpty()) {
-        const Path src = toIndex.begin()->first;
-        const List<ByteArray> args = toIndex.begin()->second;
-        toIndex.erase(toIndex.begin());
-        // error() << "onFilesModifiedTimeout" << src << "pending" << toIndex.keys();
-        index(src, args, IndexerJob::Dirty, dirtyFiles, toIndex);
+    for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
+        const FileInformationMap::const_iterator found = mFileInformations.find(*it);
+        if (found != mFileInformations.end()) {
+            const Path path = Location::path(*it);
+            index(path, found->second.compileArgs, IndexerJob::Dirty);
+        }
     }
 }
