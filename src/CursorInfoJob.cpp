@@ -12,11 +12,9 @@ CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query, con
 
 void CursorInfoJob::execute()
 {
-    // ScopedDB database = db(Project::Symbol, ReadWriteLock::Read);
-    // Location found;
-    // const CursorInfo ci = RTags::findCursorInfo(database, location, &found);
-    // if (isAborted())
-    //     return;
-    // write(found, ci);
-#warning not done
+    Scope<const SymbolMap &> scope = project()->lockSymbolsForRead();
+    const SymbolMap &map = scope.t();
+    const SymbolMap::const_iterator it = RTags::findCursorInfo(map, location);
+    if (it != map.end())
+        write(it->first, it->second);
 }

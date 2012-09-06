@@ -128,6 +128,18 @@ inline bool addTo(Container &container, const Value &value)
 }
 
 SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location);
+inline CursorInfo findCursorInfo(const SymbolMap &map, const Location &location, Location *key)
+{
+    const SymbolMap::const_iterator it = findCursorInfo(map, location);
+    if (it == map.end()) {
+        if (key)
+            key->clear();
+        return CursorInfo();
+    }
+    if (key)
+        *key = it->first;
+    return it->second;
+}
 
 enum TimeFormat {
     DateTime,

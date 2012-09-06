@@ -17,7 +17,7 @@ public:
 protected:
     virtual void execute();
 private:
-    void process(ScopedDB &db, const Location &pos, const CursorInfo &cursorInfo);
+    void process(const SymbolMap &map, const Location &pos, const CursorInfo &cursorInfo);
     Set<Location> locations, references, additional;
     const ByteArray symbolName;
 };
