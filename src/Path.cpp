@@ -95,9 +95,7 @@ bool Path::resolve(const Path &cwd)
 
     {
         char buffer[PATH_MAX + 1];
-        errno = 0;
-        realpath(constData(), buffer);
-        if (!errno) {
+        if (realpath(constData(), buffer)) {
             ByteArray::operator=(buffer);
             return true;
         }
