@@ -705,7 +705,6 @@ void IndexerJob::visit()
 void IndexerJob::run()
 {
     mData.reset(new IndexData);
-    parse();
     typedef void (IndexerJob::*Function)();
     Function functions[] = { &IndexerJob::parse, &IndexerJob::diagnose, &IndexerJob::visit };
     for (unsigned i=0; i<sizeof(functions) / sizeof(Function); ++i) {
