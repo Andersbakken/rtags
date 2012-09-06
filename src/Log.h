@@ -100,7 +100,11 @@ public:
             assert(len >= 0);
             if (len) {
                 const int outLength = mData->out.size();
-                if (mData->spacing && outLength && !isspace(mData->out.at(mData->out.size() - 1)) && !isspace(*data)) {
+                if (mData->disableSpacingOverride) {
+                    --mData->disableSpacingOverride;
+                    mData->out.resize(outLength + len);
+                    memcpy(mData->out.data() + outLength, data, len);
+                } else if (mData->spacing && outLength && !isspace(mData->out.at(mData->out.size() - 1)) && !isspace(*data)) {
                     mData->out.resize(outLength + len + 1);
                     mData->out[outLength] = ' ';
                     memcpy(mData->out.data() + outLength + 1, data, len);
@@ -111,6 +115,11 @@ public:
             }
         }
         return *this;
+    }
+    void disableNextSpacing()
+    {
+        if (mData)
+            ++mData->disableSpacingOverride;
     }
     bool setSpacing(bool on)
     {
@@ -141,7 +150,7 @@ private:
     {
     public:
         Data(int lvl)
-            : level(lvl), spacing(true)
+            : level(lvl), spacing(true), disableSpacingOverride(0)
         {
         }
         ~Data()
@@ -153,6 +162,7 @@ private:
         const int level;
         ByteArray out;
         bool spacing;
+        int disableSpacingOverride;
     };
 
     shared_ptr<Data> mData;
@@ -178,10 +188,11 @@ inline Log operator<<(Log stream, const List<T> &list)
     stream << typeName<T>() << ">(";
     bool first = true;
     for (typename List<T>::const_iterator it = list.begin(); it != list.end(); ++it) {
-        if (!first) {
-            stream << ", ";
-        } else {
+        if (first) {
+            stream.disableNextSpacing();
             first = false;
+        } else {
+            stream << ", ";
         }
         stream.setSpacing(old);
         stream << *it;
@@ -201,10 +212,11 @@ inline Log operator<<(Log stream, const Set<T> &list)
     stream << typeName<T>() << ">(";
     bool first = true;
     for (typename Set<T>::const_iterator it = list.begin(); it != list.end(); ++it) {
-        if (!first) {
-            stream << ", ";
-        } else {
+        if (first) {
+            stream.disableNextSpacing();
             first = false;
+        } else {
+            stream << ", ";
         }
         stream.setSpacing(old);
         stream << *it;
@@ -224,10 +236,11 @@ inline Log operator<<(Log stream, const Map<Key, Value> &map)
     stream << typeName<Key>() << ", " << typeName<Value>() << ">(";
     bool first = true;
     for (typename Map<Key, Value>::const_iterator it = map.begin(); it != map.end(); ++it) {
-        if (!first) {
-            stream << ", ";
-        } else {
+        if (first) {
+            stream.disableNextSpacing();
             first = false;
+        } else {
+            stream << ", ";
         }
         const Key &key = it->first;
         const Value &value = it->second;
