@@ -12,28 +12,34 @@ FollowLocationJob::FollowLocationJob(const Location &loc, const QueryMessage &qu
 
 void FollowLocationJob::execute()
 {
-    // ScopedDB database = db(Project::Symbol, ReadWriteLock::Read);
-    // CursorInfo cursorInfo = RTags::findCursorInfo(database, location);
-    // if (isAborted())
-    //     return;
-    // if (!cursorInfo.target.isNull()) {
-    //     switch (cursorInfo.kind) {
-    //     case CXCursor_FunctionDecl:
-    //     case CXCursor_CXXMethod:
-    //     case CXCursor_Destructor:
-    //     case CXCursor_Constructor:
-    //         break;
-    //     default: {
-    //         const CursorInfo target = RTags::findCursorInfo(database, cursorInfo.target);
-    //         // error() << "cursorInfo is" << RTags::eatString(clang_getCursorKindSpelling(cursorInfo.kind))
-    //         //          << RTags::eatString(clang_getCursorKindSpelling(target.kind));
-    //         if (!target.isDefinition && !target.target.isNull()) {
-    //             write(target.target.key(keyFlags()));
-    //             return;
-    //         }
-    //         break; }
-    //     }
-    //     write(cursorInfo.target.key(keyFlags()));
-    // }
-#warning not done
+    Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
+    const SymbolMap &map = scope.t();
+    const SymbolMap::const_iterator it = RTags::findCursorInfo(map, location);
+    if (it == map.end())
+        return;
+
+    const CursorInfo &cursorInfo = it->second;
+    if (cursorInfo.target.isNull())
+        return;
+
+    Location out = cursorInfo.target;
+    if (RTags::isReference(cursorInfo.kind)) {
+        SymbolMap::const_iterator target = RTags::findCursorInfo(map, cursorInfo.target);
+        if (target != map.end() && !target->second.isDefinition) {
+            switch (target->second.kind) {
+            case CXCursor_FunctionDecl:
+            case CXCursor_CXXMethod:
+            case CXCursor_Destructor:
+            case CXCursor_Constructor:
+                target = RTags::findCursorInfo(map, target->second.target);
+                if (target != map.end())
+                    out = target->first;
+                break;
+            default:
+                break;
+            }
+        }
+    }
+    assert(!out.isNull());
+    write(out.key(keyFlags()));
 }
