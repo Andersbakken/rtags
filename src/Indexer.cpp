@@ -17,6 +17,7 @@
 Indexer::Indexer(const shared_ptr<Project> &proj, bool validate)
     : mJobCounter(0), mModifiedFilesTimerId(-1), mTimerRunning(false), mProject(proj), mValidate(validate)
 {
+    mWatcher.modified().connect(this, &Indexer::onFileModified);
 }
 
 static inline bool isFile(uint32_t fileId)
