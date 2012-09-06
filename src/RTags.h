@@ -46,8 +46,8 @@ typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
 typedef Map<uint32_t, FileInformation> InformationMap;
 
 namespace RTags {
-void dirtySymbolNames(ScopedDB &db, const Set<uint32_t> &dirty);
-int dirtySymbols(ScopedDB &db, const Set<uint32_t> &dirty);
+void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty);
+void dirtySymbols(SymbolMap &map, const Set<uint32_t> &dirty);
 
 ByteArray backtrace(int maxFrames = -1);
 

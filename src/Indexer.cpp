@@ -14,204 +14,14 @@
 #include "WriteLocker.h"
 #include <math.h>
 
-Indexer::Indexer()
-    : mJobCounter(0), mModifiedFilesTimerId(-1), mTimerRunning(false), mValidate(false)
-{
-}
-
-void Indexer::init(const shared_ptr<Project> &proj, bool validate)
-{
-    mValidate = validate;
-    mProject = proj;
-    mWatcher.modified().connect(this, &Indexer::onFileModified);
-    {
-        // watcher
-        ScopedDB db = proj->db(Project::Dependency, ReadWriteLock::Read);
-        RTags::Ptr<Iterator> it(db->createIterator());
-        it->seekToFirst();
-        DependencyMap dependencies;
-        while (it->isValid()) {
-            const Slice key = it->key();
-            const uint32_t fileId = *reinterpret_cast<const uint32_t*>(key.data());
-            const Set<uint32_t> deps = it->value<Set<uint32_t> >();
-            dependencies[fileId] = deps;
-            it->next();
-        }
-        MutexLocker lock(&mMutex);
-        commitDependencies(dependencies, false);
-    }
-
-    initDB(validate ? Normal : NoValidate);
-}
-
-Indexer::~Indexer()
+Indexer::Indexer(const shared_ptr<Project> &proj, bool validate)
+    : mJobCounter(0), mModifiedFilesTimerId(-1), mTimerRunning(false), mProject(proj), mValidate(validate)
 {
 }
 
 static inline bool isFile(uint32_t fileId)
 {
     return Location::path(fileId).isFile();
-}
-
-void Indexer::initDB(InitMode mode, const ByteArray &pattern)
-{
-    shared_ptr<Project> proj = project();
-    assert(proj);
-    Set<uint32_t> dirtyFiles;
-    Map<Path, List<ByteArray> > toIndex;
-    {
-        MutexLocker lock(&mMutex);
-        assert(mode == ForceDirty || pattern.isEmpty());
-        Timer timer;
-        Map<uint32_t, Set<uint32_t> > deps, depsReversed;
-        RTags::Ptr<Iterator> it;
-        {
-            ScopedDB dependencyDB = proj->db(Project::Dependency, ReadWriteLock::Write);
-            it.reset(dependencyDB->createIterator());
-            it->seekToFirst();
-            {
-                while (it->isValid()) {
-                    const Slice key = it->key();
-                    const uint32_t file = *reinterpret_cast<const uint32_t*>(key.data());
-                    if (isFile(file)) {
-                        const Set<uint32_t> v = it->value<Set<uint32_t> >();
-                        depsReversed[file] = v;
-                        for (Set<uint32_t>::const_iterator vit = v.begin(); vit != v.end(); ++vit) {
-                            deps[*vit].insert(file);
-                        }
-                    } else {
-                        dependencyDB->remove(key);
-                    }
-                    it->next();
-                }
-            }
-        }
-
-        int checked = 0;
-        {
-            ScopedDB fileInformationDB = proj->db(Project::FileInformation, ReadWriteLock::Write);
-            Batch batch(fileInformationDB);
-            it.reset(fileInformationDB->createIterator());
-            it->seekToFirst();
-            RegExp rx(pattern);
-            while (it->isValid()) {
-                const Slice key = it->key();
-                const uint32_t fileId = *reinterpret_cast<const uint32_t*>(key.data());
-                assert(key.size() == 4);
-                const Path path = Location::path(fileId);
-                if (path.isFile()) {
-                    const FileInformation fi = it->value<FileInformation>();
-                    if (!fi.compileArgs.isEmpty()) {
-                        ++checked;
-                        bool dirty = false;
-                        Set<uint32_t> dependencies = deps.value(fileId);
-                        if (!dependencies.contains(fileId)) {
-                            error() << Location::path(fileId) << " doesn't depend on itself ";
-                            dependencies.insert(fileId);
-                        }
-                        if (mode != NoValidate) {
-                            for (Set<uint32_t>::const_iterator it = dependencies.begin(); it != dependencies.end(); ++it) {
-                                const uint32_t id = *it;
-                                if (dirtyFiles.contains(id)) {
-                                    dirty = true;
-                                } else {
-                                    const Path p = Location::path(id);
-                                    bool pdirty = false;
-                                    switch (mode) {
-                                    case NoValidate:
-                                        assert(0);
-                                        break;
-                                    case ForceDirty:
-                                        if (pattern.isEmpty() || rx.indexIn(p) != -1) {
-                                            pdirty = true;
-                                            break;
-                                        }
-                                        // fall through
-                                    case Normal:
-                                        pdirty = (p.lastModified() > fi.lastTouched);
-                                        break;
-                                    }
-                                    if (pdirty) {
-                                        dirty = true;
-                                        dirtyFiles.insert(id);
-                                        dirtyFiles += depsReversed.value(id);
-                                    }
-                                }
-                            }
-                        }
-                        if (dirty) {
-                            toIndex[path] = fi.compileArgs;
-                        } else {
-                            mVisitedFiles += dependencies;
-                        }
-                        warning() << "checking if " << path << " is dirty => " << dirty;
-                    }
-                } else {
-                    batch.remove(key);
-                }
-                it->next();
-            }
-        }
-
-        if (checked)
-            error() << proj->srcRoot << ": Checked " << checked << " files. Found " << dirtyFiles.size() << " dirty files and "
-                    << toIndex.size() << " sources to reindex in " << timer.elapsed() << "ms";
-
-        assert(dirtyFiles.isEmpty() == toIndex.isEmpty());
-
-    }
-    if (!dirtyFiles.isEmpty()) {
-        dirty(dirtyFiles, toIndex);
-    }
-}
-
-void Indexer::commitDependencies(const DependencyMap &deps, bool sync) // always called with mMutex held
-{
-    DependencyMap newDependencies;
-
-    if (mDependencies.isEmpty()) {
-        mDependencies = deps;
-        newDependencies = deps;
-    } else {
-        const DependencyMap::const_iterator end = deps.end();
-        for (DependencyMap::const_iterator it = deps.begin(); it != end; ++it) {
-            newDependencies[it->first].unite(it->second - mDependencies[it->first]);
-            DependencyMap::iterator i = newDependencies.find(it->first);
-            if (i->second.isEmpty())
-                newDependencies.erase(i);
-            mDependencies[it->first].unite(it->second);
-        }
-    }
-    shared_ptr<Project> proj = project();
-    if (sync && !newDependencies.isEmpty()) {
-        ScopedDB db = proj->db(Project::Dependency, ReadWriteLock::Write);
-        Batch batch(db);
-        DependencyMap::const_iterator it = newDependencies.begin();
-        const DependencyMap::const_iterator end = newDependencies.end();
-        char buf[4];
-        const Slice key(buf, 4);
-        while (it != end) {
-            memcpy(buf, &it->first, sizeof(buf));
-            Set<uint32_t> added = it->second;
-            Set<uint32_t> current = db->value<Set<uint32_t> >(key);
-            const int oldSize = current.size();
-            if (current.unite(added).size() > oldSize) {
-                batch.add(key, current);
-            }
-            ++it;
-        }
-    }
-
-    Path parentPath;
-    Set<ByteArray> watchPaths;
-    const DependencyMap::const_iterator end = newDependencies.end();
-    for (DependencyMap::const_iterator it = newDependencies.begin(); it != end; ++it) {
-        const Path path = Location::path(it->first);
-        parentPath = path.parentDir();
-        if (mWatchedPaths.insert(parentPath)) {
-            mWatcher.watch(parentPath);
-        }
-    }
 }
 
 void Indexer::onJobFinished(IndexerJob *job)
@@ -233,11 +43,7 @@ void Indexer::onJobFinished(IndexerJob *job)
         //     startJob(waiting);
         // }
         lock.unlock();
-
-        ScopedDB symbols = proj->db(Project::Symbol, ReadWriteLock::Write);
-        ScopedDB symbolNames = proj->db(Project::SymbolName, ReadWriteLock::Write);
-        RTags::dirtySymbols(symbols, visited);
-        RTags::dirtySymbolNames(symbolNames, visited);
+        proj->dirty(visited);
     }
 
     const int idx = mJobCounter - mJobs.size();
@@ -305,7 +111,33 @@ void Indexer::onFileModified(const Path &file)
 void Indexer::addDependencies(const DependencyMap &deps)
 {
     MutexLocker lock(&mMutex);
-    commitDependencies(deps, true);
+
+    DependencyMap newDependencies;
+
+    if (mDependencies.isEmpty()) {
+        mDependencies = deps;
+        newDependencies = deps;
+    } else {
+        const DependencyMap::const_iterator end = deps.end();
+        for (DependencyMap::const_iterator it = deps.begin(); it != end; ++it) {
+            newDependencies[it->first].unite(it->second - mDependencies[it->first]);
+            DependencyMap::iterator i = newDependencies.find(it->first);
+            if (i->second.isEmpty())
+                newDependencies.erase(i);
+            mDependencies[it->first].unite(it->second);
+        }
+    }
+
+    Path parentPath;
+    Set<ByteArray> watchPaths;
+    const DependencyMap::const_iterator end = newDependencies.end();
+    for (DependencyMap::const_iterator it = newDependencies.begin(); it != end; ++it) {
+        const Path path = Location::path(it->first);
+        parentPath = path.parentDir();
+        if (mWatchedPaths.insert(parentPath)) {
+            mWatcher.watch(parentPath);
+        }
+    }
 }
 
 Set<uint32_t> Indexer::dependencies(uint32_t fileId) const
@@ -386,8 +218,9 @@ void Indexer::setDiagnostics(const Map<uint32_t, List<ByteArray> > &diagnostics,
 
 void Indexer::reindex(const ByteArray &pattern)
 {
-    initDB(ForceDirty, pattern);
+#warning not done
 }
+
 void Indexer::onValidateDBJobErrors(const Set<Location> &errors)
 {
     MutexLocker lock(&mMutex);
@@ -402,10 +235,7 @@ void Indexer::dirty(const Set<uint32_t> &dirtyFileIds,
         mVisitedFiles -= dirtyFileIds;
     }
     shared_ptr<Project> proj = project();
-    ScopedDB symbols = proj->db(Project::Symbol, ReadWriteLock::Write);
-    ScopedDB symbolNames = proj->db(Project::SymbolName, ReadWriteLock::Write);
-    RTags::dirtySymbols(symbols, dirtyFileIds);
-    RTags::dirtySymbolNames(symbolNames, dirtyFileIds);
+    proj->dirty(dirtyFileIds);
 
     for (Map<Path, List<ByteArray> >::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
         index(it->first, it->second, IndexerJob::Dirty);

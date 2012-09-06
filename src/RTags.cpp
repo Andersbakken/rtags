@@ -475,58 +475,39 @@ ByteArray backtrace(int)
 }
 #endif
 
-void dirtySymbolNames(ScopedDB &db, const Set<uint32_t> &dirty)
+void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty)
 {
-    RTags::Ptr<Iterator> it(db->createIterator());
-    it->seekToFirst();
-    while (it->isValid()) {
-        Set<Location> locations = it->value<Set<Location> >();
+    SymbolNameMap::iterator it = map.begin();
+    while (it != map.end()) {
+        Set<Location> &locations = it->second;
         Set<Location>::iterator i = locations.begin();
-        bool changed = false;
         while (i != locations.end()) {
             if (dirty.contains(i->fileId())) {
-                changed = true;
                 locations.erase(i++);
             } else {
                 ++i;
             }
         }
-        if (changed) {
-            if (locations.isEmpty()) {
-                debug() << "No references to " << it->key() << " anymore. Removing";
-                db->remove(it->key());
-            } else {
-                debug() << "References to " << it->key() << " modified. Changing";
-                db->setValue<Set<Location> >(it->key(), locations);
-            }
+        if (locations.isEmpty()) {
+            map.erase(it++);
+        } else {
+            ++it;
         }
-        it->next();
     }
 }
 
-int dirtySymbols(ScopedDB &db, const Set<uint32_t> &dirty)
+void dirtySymbols(SymbolMap &map, const Set<uint32_t> &dirty)
 {
-    int ret = 0;
-    RTags::Ptr<Iterator> it(db->createIterator());
-    it->seekToFirst();
-    while (it->isValid()) {
-        const Slice key = it->key();
-        assert(key.size() == 8);
-        const Location loc = Location::fromKey(key.data());
-        if (dirty.contains(loc.fileId())) {
-            db->remove(key);
-            ++ret;
+    SymbolMap::iterator it = map.begin();
+    while (it != map.end()) {
+        if (dirty.contains(it->first.fileId())) {
+            map.erase(it++);
         } else {
-            CursorInfo cursorInfo = it->value<CursorInfo>();
-            if (cursorInfo.dirty(dirty)) {
-                db->setValue(key, cursorInfo);
-                ++ret;
-            }
+            CursorInfo &cursorInfo = it->second;
+            cursorInfo.dirty(dirty);
+            ++it;
         }
-        it->next();
     }
-
-    return ret;
 }
 }
 

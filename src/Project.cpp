@@ -42,3 +42,45 @@ Path Project::databaseDir(DatabaseType type) const
     return Path(ret, w);
 }
 
+Scope<const SymbolMap&> Project::symbolsRead()
+{
+    mSymbolsLock.lockForRead();
+    Scope<const SymbolMap&> scope;
+    scope.mData.reset(new Scope<const SymbolMap&>::Data(mSymbols, &mSymbolsLock));
+    return scope;
+}
+
+Scope<SymbolMap&> Project::lockSymbolsForWrite()
+{
+    mSymbolsLock.lockForWrite();
+    Scope<SymbolMap&> scope;
+    scope.mData.reset(new Scope<SymbolMap&>::Data(mSymbols, &mSymbolsLock));
+    return scope;
+}
+
+Scope<const SymbolNameMap&> Project::symbolNamesRead()
+{
+    mSymbolsLock.lockForRead();
+    Scope<const SymbolNameMap&> scope;
+    scope.mData.reset(new Scope<const SymbolNameMap&>::Data(mSymbolNames, &mSymbolNamesLock));
+    return scope;
+}
+
+Scope<SymbolNameMap&> Project::lockSymbolNamesForWrite()
+{
+    mSymbolsLock.lockForWrite();
+    Scope<SymbolNameMap&> scope;
+    scope.mData.reset(new Scope<SymbolNameMap&>::Data(mSymbolNames, &mSymbolNamesLock));
+    return scope;
+}
+void Project::dirty(const Set<uint32_t> &fileIds)
+{
+    {
+        Scope<SymbolMap&> symbols = lockSymbolsForWrite();
+        RTags::dirtySymbols(symbols.t(), fileIds);
+    }
+    {
+        Scope<SymbolNameMap&> symbolNames = lockSymbolNamesForWrite();
+        RTags::dirtySymbolNames(symbolNames.t(), fileIds);
+    }
+}

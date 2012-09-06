@@ -15,10 +15,7 @@ class IndexerJob;
 class Indexer
 {
 public:
-    Indexer();
-    ~Indexer();
-
-    void init(const shared_ptr<Project> &project, bool validate);
+    Indexer(const shared_ptr<Project> &project, bool validate);
 
     typedef Map<Path, List<ByteArray> > PendingMap; // without this clang 3.1 complains
     void index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags,
@@ -49,7 +46,6 @@ private:
     }
     void onValidateDBJobErrors(const Set<Location> &errors);
     void onJobFinished(IndexerJob *job);
-    void commitDependencies(const DependencyMap &deps, bool sync);
     void dirty(const Set<uint32_t> &dirtyFileIds, const Map<Path, List<ByteArray> > &dirty);
 
     enum InitMode {

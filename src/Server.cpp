@@ -1048,8 +1048,7 @@ shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
             assert(!project->databases[i]);
             project->databases[i] = new Database(project->databaseDir(static_cast<Project::DatabaseType>(i)).constData(), mOptions.cacheSizeMB, f);
         }
-        project->indexer = new Indexer;
-        project->indexer->init(project, !(mOptions.options & NoValidate));
+        project->indexer = new Indexer(project, !(mOptions.options & NoValidate));
     }
 
     if (flags & EnableGRTags && !project->databases[Project::GR]) {

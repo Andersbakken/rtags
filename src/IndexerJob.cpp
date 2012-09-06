@@ -6,37 +6,20 @@
 #include "FileInformation.h"
 #include "Database.h"
 
-static inline int writeSymbolNames(const SymbolNameMap &symbolNames, ScopedDB db)
+static inline void writeSymbolNames(const SymbolNameMap &symbolNames, SymbolNameMap &current)
 {
-    // error() << "writeSymbolNames" << dirty << symbolNames.size();
-    Batch batch(db);
-    int totalWritten = 0;
-
     SymbolNameMap::const_iterator it = symbolNames.begin();
     const SymbolNameMap::const_iterator end = symbolNames.end();
     while (it != end) {
-        const char *key = it->first.constData();
-        const Set<Location> added = it->second;
-        bool ok;
-        Set<Location> current = db->value<Set<Location> >(key, &ok);
-        if (!ok) {
-            totalWritten += batch.add(key, added);
-        } else if (RTags::addTo(current, added)) {
-            totalWritten += batch.add(key, current);
-        }
+        Set<Location> &value = current[it->first];
+        value.unite(it->second);
         ++it;
     }
-
-    return totalWritten;
 }
 
 
-static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &references, ScopedDB db)
+static inline void writeSymbols(SymbolMap &symbols, const ReferenceMap &references, SymbolMap &current)
 {
-    // error() <<"writeSymbols" << dirty << symbols.size() << references.size();
-    Batch batch(db);
-    int totalWritten = 0;
-
     if (!references.isEmpty()) {
         const ReferenceMap::const_iterator end = references.end();
         for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
@@ -60,21 +43,15 @@ static inline int writeSymbols(SymbolMap &symbols, const ReferenceMap &reference
         SymbolMap::iterator it = symbols.begin();
         const SymbolMap::const_iterator end = symbols.end();
         while (it != end) {
-            char buf[8];
-            it->first.toKey(buf);
-            const Slice key(buf, 8);
-            CursorInfo added = it->second;
-            bool ok;
-            CursorInfo current = db->value<CursorInfo>(key, &ok);
-            if (!ok) {
-                totalWritten += batch.add(key, added);
-            } else if (current.unite(added)) {
-                totalWritten += batch.add(key, current);
+            SymbolMap::iterator it = current.find(it->first);
+            if (it == current.end()) {
+                current[it->first] = it->second;
+            } else {
+                it->second.unite(it->second);
             }
             ++it;
         }
     }
-    return totalWritten;
 }
 
 static inline int writeFileInformation(uint32_t fileId, const List<ByteArray> &args,
@@ -811,16 +788,7 @@ unsigned IndexerJob::dirty(const Set<uint32_t> &dirty)
     if (!mDirty.isEmpty()) {
         shared_ptr<Project> project = mIndexer->project();
         assert(project);
-        {
-            ScopedDB db = project->db(Project::Symbol, ReadWriteLock::Write);
-            RTags::dirtySymbols(db, mDirty);
-        }
-        TEST_STATE(Dirtying);
-        {
-
-            ScopedDB db = project->db(Project::Symbol, ReadWriteLock::Write);
-            RTags::dirtySymbols(db, mDirty);
-        }
+        project->dirty(dirty);
     }
     return Writing;
 }
@@ -834,9 +802,16 @@ unsigned IndexerJob::write()
     TEST_STATE(Writing);
     shared_ptr<Project> project = mIndexer->project();
     assert(project);
-    writeSymbols(mSymbols, mReferences, project->db(Project::Symbol, ReadWriteLock::Write));
     TEST_STATE(Writing);
-    writeSymbolNames(mSymbolNames, project->db(Project::SymbolName, ReadWriteLock::Write));
+    {
+        Scope<SymbolMap&> scope = project->lockSymbolsForWrite();
+        writeSymbols(mSymbols, mReferences, scope.t());
+    }
+    TEST_STATE(Writing);
+    {
+        Scope<SymbolNameMap&> scope = project->lockSymbolNamesForWrite();
+        writeSymbolNames(mSymbolNames, scope.t());
+    }
     TEST_STATE(Writing);
     writeFileInformation(mFileId, mArgs, mTimeStamp, project->db(Project::FileInformation, ReadWriteLock::Write));
     return Finishing;
