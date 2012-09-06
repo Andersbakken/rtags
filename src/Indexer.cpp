@@ -29,6 +29,7 @@ void Indexer::onJobFinished(IndexerJob *job)
 {
     MutexLocker lock(&mMutex);
     const uint32_t fileId = job->fileId();
+    mVisitedFilesByJob.remove(job);
     if (mJobs.value(fileId) != job) {
         mWaitCondition.wakeAll();
         return;
@@ -73,9 +74,8 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
     const uint32_t fileId = Location::insertFile(input);
     IndexerJob *&job = mJobs[fileId];
     if (job) {
-        Set<uint32_t> visitedFiles;
-        job->abort(&visitedFiles);
-        mVisitedFiles -= visitedFiles;
+        job->abort();
+        mVisitedFiles -= mVisitedFilesByJob.value(job);
     }
 
     job = new IndexerJob(this, indexerJobFlags, input, arguments);
@@ -105,12 +105,6 @@ void Indexer::onFileModified(const Path &file)
     mModifiedFilesTimerId = EventLoop::instance()->addTimer(Timeout, &Indexer::onFilesModifiedTimeout, this);
 }
 
-void Indexer::addFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t time)
-{
-    MutexLocker lock(&mMutex);
-    mFileInformations[fileId] = FileInformation(time, args);
-}
-
 FileInformation Indexer::fileInformation(uint32_t fileId) const
 {
     if (fileId) {
@@ -122,8 +116,6 @@ FileInformation Indexer::fileInformation(uint32_t fileId) const
 
 void Indexer::addDependencies(const DependencyMap &deps)
 {
-    MutexLocker lock(&mMutex);
-
     DependencyMap newDependencies;
 
     if (mDependencies.isEmpty()) {
@@ -205,12 +197,8 @@ ByteArray Indexer::errors(const Path &path) const
     return mErrors.value(fileId);
 }
 
-
-void Indexer::setDiagnostics(const Map<uint32_t, List<ByteArray> > &diagnostics,
-                             const Map<Location, std::pair<int, ByteArray> > &fixIts)
+void Indexer::addDiagnostics(const DiagnosticsMap &diagnostics, const FixitMap &fixIts)
 {
-    MutexLocker lock(&mMutex);
-
     for (Map<uint32_t, List<ByteArray> >::const_iterator it = diagnostics.begin(); it != diagnostics.end(); ++it) {
         const uint32_t fileId = it->first;
         Map<Location, std::pair<int, ByteArray> >::iterator i = mFixIts.lower_bound(Location(fileId, 0));
@@ -277,9 +265,70 @@ void Indexer::onFilesModifiedTimeout()
     }
 }
 
+static inline void writeSymbolNames(const SymbolNameMap &symbolNames, Scope<SymbolNameMap&> &cur)
+{
+    SymbolNameMap &current = cur.data();
+    SymbolNameMap::const_iterator it = symbolNames.begin();
+    const SymbolNameMap::const_iterator end = symbolNames.end();
+    while (it != end) {
+        Set<Location> &value = current[it->first];
+        value.unite(it->second);
+        ++it;
+    }
+}
+
+static inline void writeSymbols(SymbolMap &symbols, const ReferenceMap &references, Scope<SymbolMap&> &cur)
+{
+    SymbolMap &current = cur.data();
+    if (!references.isEmpty()) {
+        const ReferenceMap::const_iterator end = references.end();
+        for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
+            const Map<Location, RTags::ReferenceType> refs = it->second;
+            for (Map<Location, RTags::ReferenceType>::const_iterator rit = refs.begin(); rit != refs.end(); ++rit) {
+                CursorInfo &ci = symbols[rit->first];
+                if (rit->second != RTags::NormalReference) {
+                    CursorInfo &other = symbols[it->first];
+                    // error() << "trying to join" << it->first << "and" << it->second.front();
+                    if (other.target.isNull())
+                        other.target = rit->first;
+                    if (ci.target.isNull())
+                        ci.target = it->first;
+                } else {
+                    ci.references.insert(it->first);
+                }
+            }
+        }
+    }
+    if (!symbols.isEmpty()) {
+        SymbolMap::iterator it = symbols.begin();
+        const SymbolMap::const_iterator end = symbols.end();
+        while (it != end) {
+            SymbolMap::iterator cur = current.find(it->first);
+            // ### can I just insert the iterator?
+            if (cur == current.end()) {
+                current[it->first] = it->second;
+            } else {
+                cur->second.unite(it->second);
+            }
+            ++it;
+        }
+    }
+}
+
 void Indexer::write()
 {
     shared_ptr<Project> proj = project();
     proj->dirty(mPendingDirtyFiles);
     mPendingDirtyFiles.clear();
+    Scope<SymbolMap&> symbols = proj->lockSymbolsForWrite();
+    Scope<SymbolNameMap&> symbolNames = proj->lockSymbolNamesForWrite();
+    for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
+        const shared_ptr<IndexData> &data = it->second;
+        mFileInformations[it->first] = data->fileInformation;
+        addDependencies(data->dependencies);
+        addDiagnostics(data->diagnostics, data->fixIts);
+        writeSymbols(data->symbols, data->references, symbols);
+        writeSymbolNames(data->symbolNames, symbolNames);
+    }
+    mPendingData.clear();
 }

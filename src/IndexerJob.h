@@ -6,7 +6,7 @@
 #include "Job.h"
 #include "Str.h"
 #include "ThreadPool.h"
-#include "AbortInterface.h"
+#include "Mutex.h"
 #include <clang-c/Index.h>
 
 struct IndexData {
@@ -35,7 +35,7 @@ public:
     signalslot::Signal1<IndexerJob*> &finished() { return mFinished; }
     bool restart(time_t time, const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pendingFiles);
     uint32_t fileId() const { return mFileId; }
-    void abort(Set<uint32_t> *visitedFiles = 0);
+    void abort();
     Path path() const { return mPath; }
     inline bool isAborted() const
     {

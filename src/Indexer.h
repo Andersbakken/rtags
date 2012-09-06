@@ -21,24 +21,23 @@ public:
 
     typedef Map<Path, List<ByteArray> > PendingMap; // without this clang 3.1 complains
     void index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
-    void addFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t time);
     FileInformation fileInformation(uint32_t fileId) const;
-    void addDependencies(const DependencyMap &hash);
     Set<uint32_t> dependencies(uint32_t fileId) const;
     void abort();
-    bool visitFile(uint32_t fileId, const Path &p);
+    bool visitFile(uint32_t fileId, IndexerJob *job);
     bool isVisited(const Path &path) const;
     Set<uint32_t> visitedFiles() const { MutexLocker lock(&mMutex); return mVisitedFiles; }
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path) const;
-    void setDiagnostics(const Map<uint32_t, List<ByteArray> > &errors,
-                        const Map<Location, std::pair<int, ByteArray> > &fixIts);
     void reindex(const ByteArray &pattern);
     signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
     void onFileModified(const Path &);
     shared_ptr<Project> project() const { return mProject.lock(); }
     Path srcRoot() const { return mProject.lock()->srcRoot; } // ~/src/foobar
 private:
+    void addFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t time);
+    void addDependencies(const DependencyMap &hash);
+    void addDiagnostics(const DiagnosticsMap &errors, const FixitMap &fixIts);
     void write();
     void onFilesModifiedTimeout();
     static void onFilesModifiedTimeout(int id, void *userData)
@@ -58,6 +57,7 @@ private:
     void initDB(InitMode forceDirty, const ByteArray &pattern = ByteArray());
     void startJob(IndexerJob *job);
 
+    Map<IndexerJob*, Set<uint32_t> > mVisitedFilesByJob;
     Set<uint32_t> mVisitedFiles;
 
     int mJobCounter;
@@ -93,7 +93,7 @@ private:
     Set<uint32_t> mPendingDirtyFiles;
 };
 
-inline bool Indexer::visitFile(uint32_t fileId, const Path &path)
+inline bool Indexer::visitFile(uint32_t fileId, IndexerJob *job)
 {
     MutexLocker lock(&mMutex);
     if (mVisitedFiles.contains(fileId)) {
@@ -101,6 +101,7 @@ inline bool Indexer::visitFile(uint32_t fileId, const Path &path)
     }
 
     mVisitedFiles.insert(fileId);
+    mVisitedFilesByJob[job].insert(fileId);
     return true;
 }
 

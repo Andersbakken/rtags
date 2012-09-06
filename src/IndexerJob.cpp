@@ -191,14 +191,13 @@ Location IndexerJob::createLocation(const CXCursor &cursor, CreateLocationState 
                 fileId = Location::insertFile(Path::resolved(fileName));
             ret = Location(fileId, start);
             if (result) {
-                MutexLocker lock(&mMutex); // ### this needs to be locked because of aborting, kinda heavy
                 if (mAborted) {
                     *result = Aborted;
                     return ret;
                 }
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
-                    state = mIndexer->visitFile(fileId, mPath) ? Index : DontIndex;
+                    state = mIndexer->visitFile(fileId, this) ? Index : DontIndex;
                 }
                 if (state != Index) {
                     *result = Blocked;
@@ -723,6 +722,7 @@ void IndexerJob::run()
         if (isAborted())
             break;
     }
+
     mHeaderMap.clear();
     if (mUnit) {
         clang_disposeTranslationUnit(mUnit);
@@ -781,15 +781,9 @@ CXChildVisitResult IndexerJob::verboseVisitor(CXCursor cursor, CXCursor, CXClien
     }
 }
 
-void IndexerJob::abort(Set<uint32_t> *visited)
+void IndexerJob::abort()
 {
     MutexLocker lock(&mMutex);
     mAborted = true;
-    if (visited) {
-        for (Map<uint32_t, IndexerJob::PathState>::const_iterator it = mPaths.begin(); it != mPaths.end(); ++it) {
-            if (it->second == IndexerJob::Index)
-                visited->insert(it->first);
-        }
-    }
 }
 
