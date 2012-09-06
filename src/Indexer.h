@@ -25,16 +25,13 @@ public:
     Set<uint32_t> dependencies(uint32_t fileId) const;
     void abort();
     bool visitFile(uint32_t fileId, IndexerJob *job);
-    bool isVisited(const Path &path) const;
-    Set<uint32_t> visitedFiles() const { MutexLocker lock(&mMutex); return mVisitedFiles; }
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path) const;
     void reindex(const ByteArray &pattern);
     signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
-    void onFileModified(const Path &);
     shared_ptr<Project> project() const { return mProject.lock(); }
-    Path srcRoot() const { return mProject.lock()->srcRoot; } // ~/src/foobar
 private:
+    void onFileModified(const Path &);
     void addFileInformation(uint32_t fileId, const List<ByteArray> &args, time_t time);
     void addDependencies(const DependencyMap &hash);
     void addDiagnostics(const DiagnosticsMap &errors, const FixitMap &fixIts);
@@ -47,7 +44,6 @@ private:
     }
     void onValidateDBJobErrors(const Set<Location> &errors);
     void onJobFinished(IndexerJob *job);
-    void dirty(const Set<uint32_t> &dirtyFileIds, const Map<Path, List<ByteArray> > &dirty);
 
     enum InitMode {
         Normal,
@@ -103,13 +99,6 @@ inline bool Indexer::visitFile(uint32_t fileId, IndexerJob *job)
     mVisitedFiles.insert(fileId);
     mVisitedFilesByJob[job].insert(fileId);
     return true;
-}
-
-inline bool Indexer::isVisited(const Path &path) const
-{
-    const uint32_t fileId = Location::insertFile(path);
-    MutexLocker lock(&mMutex);
-    return mVisitedFiles.contains(fileId);
 }
 
 #endif

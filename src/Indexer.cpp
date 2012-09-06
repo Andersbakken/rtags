@@ -227,21 +227,6 @@ void Indexer::onValidateDBJobErrors(const Set<Location> &errors)
     mPreviousErrors = errors;
 }
 
-void Indexer::dirty(const Set<uint32_t> &dirtyFileIds,
-                    const Map<Path, List<ByteArray> > &dirty)
-{
-    {
-        MutexLocker lock(&mMutex);
-        mVisitedFiles -= dirtyFileIds;
-    }
-    shared_ptr<Project> proj = project();
-    proj->dirty(dirtyFileIds);
-
-    for (Map<Path, List<ByteArray> >::const_iterator it = dirty.begin(); it != dirty.end(); ++it) {
-        index(it->first, it->second, IndexerJob::Dirty);
-    }
-}
-
 void Indexer::onFilesModifiedTimeout()
 {
     Set<uint32_t> dirtyFiles;
