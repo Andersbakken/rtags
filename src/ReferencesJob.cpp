@@ -28,17 +28,12 @@ void ReferencesJob::execute()
             const SymbolMap &map = scope.t();
             for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
                 // error() << "looking up refs for " << it->key() << bool(flags & QueryMessage::ReferencesForRenameSymbol);
-                SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it);
-                if (found == map.end())
-                    continue;
-
-                if (RTags::isReference(found->second.kind)) {
-                    found = RTags::findCursorInfo(map, found->second.target);
-                    if (found == map.end())
-                        continue;
+                Location pos;
+                CursorInfo cursorInfo = RTags::findCursorInfo(map, *it, &pos);
+                if (RTags::isReference(cursorInfo.kind)) {
+                    pos = cursorInfo.target;
+                    cursorInfo = RTags::findCursorInfo(map, cursorInfo.target, 0);
                 }
-                const CursorInfo &cursorInfo = found->second;
-                const Location &pos = found->first;
                 if (allReferences && (cursorInfo.kind == CXCursor_Constructor || cursorInfo.kind == CXCursor_Destructor)) {
                     for (Set<Location>::const_iterator rit = references.begin(); rit != references.end(); ++rit) {
                         const CursorInfo container = RTags::findCursorInfo(map, *rit, 0);
@@ -51,21 +46,19 @@ void ReferencesJob::execute()
                 }
                 process(map, pos, cursorInfo);
                 if (cursorInfo.target.isValid()) {
-                    const SymbolMap::const_iterator target = RTags::findCursorInfo(map, cursorInfo.target);
-                    if (target != map.end() && target->second.kind == cursorInfo.kind) {
-                        process(map, cursorInfo.target, target->second);
+                    const CursorInfo target = RTags::findCursorInfo(map, cursorInfo.target, 0);
+                    if (target.kind == cursorInfo.kind) {
+                        process(map, cursorInfo.target, target);
                     }
                 }
 
                 for (Set<Location>::const_iterator ait = additional.begin(); ait != additional.end(); ++ait) {
-                    const SymbolMap::const_iterator c = RTags::findCursorInfo(map, *ait);
-                    if (c == map.end())
-                        continue;
-                    process(map, *it, c->second);
-                    if (c->second.target.isValid()) {
-                        const SymbolMap::const_iterator t = RTags::findCursorInfo(map, c->second.target);
-                        if (t != map.end() && t->second.kind == c->second.kind) {
-                            process(map, t->first, t->second);
+                    cursorInfo = RTags::findCursorInfo(map, *ait, 0);
+                    process(map, *ait, cursorInfo);
+                    if (cursorInfo.target.isValid()) {
+                        const CursorInfo target = RTags::findCursorInfo(map, cursorInfo.target, 0);
+                        if (target.kind == cursorInfo.kind) {
+                            process(map, cursorInfo.target, target);
                         }
                     }
                 }
