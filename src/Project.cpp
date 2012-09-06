@@ -79,15 +79,3 @@ Scope<GRFilesMap&> Project::lockGRFilesForWrite()
     scope.mData.reset(new Scope<GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
     return scope;
 }
-
-void Project::dirty(const Set<uint32_t> &fileIds)
-{
-    {
-        Scope<SymbolMap&> symbols = lockSymbolsForWrite();
-        RTags::dirtySymbols(symbols.data(), fileIds);
-    }
-    {
-        Scope<SymbolNameMap&> symbolNames = lockSymbolNamesForWrite();
-        RTags::dirtySymbolNames(symbolNames.data(), fileIds);
-    }
-}

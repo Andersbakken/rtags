@@ -77,6 +77,7 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
         job->abort();
         mVisitedFiles -= mVisitedFilesByJob.value(job);
     }
+    mPendingData.remove(fileId);
 
     job = new IndexerJob(this, indexerJobFlags, input, arguments);
     job->finished().connect(this, &Indexer::onJobFinished);
@@ -303,10 +304,13 @@ static inline void writeSymbols(SymbolMap &symbols, const ReferenceMap &referenc
 void Indexer::write()
 {
     shared_ptr<Project> proj = project();
-    proj->dirty(mPendingDirtyFiles);
-    mPendingDirtyFiles.clear();
     Scope<SymbolMap&> symbols = proj->lockSymbolsForWrite();
     Scope<SymbolNameMap&> symbolNames = proj->lockSymbolNamesForWrite();
+    if (!mPendingDirtyFiles.isEmpty()) {
+        RTags::dirtySymbols(symbols.data(), mPendingDirtyFiles);
+        RTags::dirtySymbolNames(symbolNames.data(), mPendingDirtyFiles);
+        mPendingDirtyFiles.clear();
+    }
     for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
         const shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies);

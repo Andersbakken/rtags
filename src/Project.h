@@ -52,8 +52,6 @@ public:
 
     Scope<const Map<Path, Map<ByteArray, time_t> >&> lockGRFilesForRead();
     Scope<Map<Path, Map<ByteArray, time_t> >&> lockGRFilesForWrite();
-
-    void dirty(const Set<uint32_t> &fileIds);
 private:
     SymbolMap mSymbols;
     ReadWriteLock mSymbolsLock;
