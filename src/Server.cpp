@@ -695,7 +695,7 @@ void Server::reindex(const ByteArray &pattern)
 
 void Server::remake(const ByteArray &pattern, Connection *conn)
 {
-    error() << "remake " << pattern;
+    // error() << "remake " << pattern;
     RegExp rx(pattern);
     for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
         if (rx.isEmpty() || rx.indexIn(it->first) != -1) {

@@ -23,7 +23,7 @@ void ListSymbolsJob::execute()
         writeRaw("(list");
     if (project()->indexer) {
         Scope<const SymbolNameMap &> scope = project()->lockSymbolNamesForRead();
-        const SymbolNameMap &map = scope.t();
+        const SymbolNameMap &map = scope.data();
         SymbolNameMap::const_iterator it = string.isEmpty() ? map.begin() : map.lower_bound(string);
         while (it != map.end()) {
             const ByteArray &entry = it->first;

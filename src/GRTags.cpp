@@ -46,39 +46,39 @@ void GRTags::recurseDirs()
 
 void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
 {
-#warning not done
-    // // paths are absolute
-    // shared_ptr<Project> project = mProject.lock();
-    // ScopedDB database = project->db(Project::GRFiles, ReadWriteLock::Write);
-    // RTags::Ptr<Iterator> it(database->createIterator());
-    // it->seekToFirst();
-    // Path p = mSrcRoot;
-    // p.reserve(PATH_MAX);
-    // bool parsingEnabled;
-    // {
-    //     MutexLocker lock(&mMutex);
-    //     parsingEnabled = mFlags & Parse;
-    // }
+//     // paths are absolute
+//     shared_ptr<Project> project = mProject.lock();
+//     Scope<GRFilesMap&> scope
+//     ScopedDB database = project->db(Project::GRFiles, ReadWriteLock::Write);
+//     RTags::Ptr<Iterator> it(database->createIterator());
+//     it->seekToFirst();
+//     Path p = mSrcRoot;
+//     p.reserve(PATH_MAX);
+//     bool parsingEnabled;
+//     {
+//         MutexLocker lock(&mMutex);
+//         parsingEnabled = mFlags & Parse;
+//     }
 
-    // while (it->isValid()) {
-    //     const Slice slice = it->key();
-    //     const time_t time = it->value<time_t>();
-    //     p.append(slice.data(), slice.size());
-    //     const Map<Path, bool>::iterator found = paths.find(p);
-    //     if (found == paths.end()) {
-    //         removeFile(p, &database);
-    //     } else if (!parsingEnabled || !found->second || (time >= p.lastModified())) {
-    //         paths.erase(found);
-    //     }
-    //     p.resize(mSrcRoot.size());
-    //     it->next();
-    // }
-    // for (Map<Path, bool>::const_iterator i = paths.begin(); i != paths.end(); ++i) {
-    //     addFile(i->first, 0, &database);
-    //     if (i->second && parsingEnabled) {
-    //         parse(i->first, GRParseJob::None); // not dirty
-    //     }
-    // }
+//     while (it->isValid()) {
+//         const Slice slice = it->key();
+//         const time_t time = it->value<time_t>();
+//         p.append(slice.data(), slice.size());
+//         const Map<Path, bool>::iterator found = paths.find(p);
+//         if (found == paths.end()) {
+//             removeFile(p, &database);
+//         } else if (!parsingEnabled || !found->second || (time >= p.lastModified())) {
+//             paths.erase(found);
+//         }
+//         p.resize(mSrcRoot.size());
+//         it->next();
+//     }
+//     for (Map<Path, bool>::const_iterator i = paths.begin(); i != paths.end(); ++i) {
+//         addFile(i->first, 0, &database);
+//         if (i->second && parsingEnabled) {
+//             parse(i->first, GRParseJob::None); // not dirty
+//         }
+//     }
 }
 
 void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Location, bool> > &entries)

@@ -21,11 +21,11 @@ void ReferencesJob::execute()
     if (project()->indexer) {
         if (!symbolName.isEmpty()) {
             Scope<const SymbolNameMap&> scope = project()->lockSymbolNamesForRead();
-            locations = scope.t().value(symbolName);
+            locations = scope.data().value(symbolName);
         }
         if (!locations.isEmpty()) {
             Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
-            const SymbolMap &map = scope.t();
+            const SymbolMap &map = scope.data();
             for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
                 // error() << "looking up refs for " << it->key() << bool(flags & QueryMessage::ReferencesForRenameSymbol);
                 Location pos;

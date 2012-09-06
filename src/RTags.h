@@ -45,6 +45,7 @@ typedef Map<ByteArray, Set<Location> > SymbolNameMap;
 typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
 typedef Map<uint32_t, FileInformation> FileInformationMap;
 typedef Map<Path, Map<ByteArray, time_t> > GRFilesMap;
+typedef Map<ByteArray, Map<Location, bool> > GRMap;
 // key: absolute path to directory, value: Map<fileName, last modified>,
 // last modified is 0 for non-source files
 

@@ -799,12 +799,12 @@ unsigned IndexerJob::write()
     TEST_STATE(Writing);
     {
         Scope<SymbolMap&> scope = project->lockSymbolsForWrite();
-        writeSymbols(mSymbols, mReferences, scope.t());
+        writeSymbols(mSymbols, mReferences, scope.data());
     }
     TEST_STATE(Writing);
     {
         Scope<SymbolNameMap&> scope = project->lockSymbolNamesForWrite();
-        writeSymbolNames(mSymbolNames, scope.t());
+        writeSymbolNames(mSymbolNames, scope.data());
     }
     TEST_STATE(Writing);
     mIndexer->addFileInformation(mFileId, mArgs, mTimeStamp);

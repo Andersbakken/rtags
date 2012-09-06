@@ -48,19 +48,19 @@ Scope<SymbolNameMap&> Project::lockSymbolNamesForWrite()
     return scope;
 }
 
-Scope<const SymbolNameMap&> Project::lockGRForRead()
+Scope<const GRMap&> Project::lockGRForRead()
 {
     mGRLock.lockForRead();
-    Scope<const SymbolNameMap&> scope;
-    scope.mData.reset(new Scope<const SymbolNameMap&>::Data(mGR, &mGRLock));
+    Scope<const GRMap&> scope;
+    scope.mData.reset(new Scope<const GRMap&>::Data(mGR, &mGRLock));
     return scope;
 }
 
-Scope<SymbolNameMap&> Project::lockGRForWrite()
+Scope<GRMap&> Project::lockGRForWrite()
 {
     mGRLock.lockForWrite();
-    Scope<SymbolNameMap&> scope;
-    scope.mData.reset(new Scope<SymbolNameMap&>::Data(mGR, &mGRLock));
+    Scope<GRMap&> scope;
+    scope.mData.reset(new Scope<GRMap&>::Data(mGR, &mGRLock));
     return scope;
 }
 
@@ -84,10 +84,10 @@ void Project::dirty(const Set<uint32_t> &fileIds)
 {
     {
         Scope<SymbolMap&> symbols = lockSymbolsForWrite();
-        RTags::dirtySymbols(symbols.t(), fileIds);
+        RTags::dirtySymbols(symbols.data(), fileIds);
     }
     {
         Scope<SymbolNameMap&> symbolNames = lockSymbolNamesForWrite();
-        RTags::dirtySymbolNames(symbolNames.t(), fileIds);
+        RTags::dirtySymbolNames(symbolNames.data(), fileIds);
     }
 }

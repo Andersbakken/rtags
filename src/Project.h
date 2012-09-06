@@ -15,7 +15,7 @@ class Scope
 {
 public:
     // T *operator->() { return mData->t; }
-    T t() { return mData->t; }
+    T data() { return mData->t; }
 private:
     friend class Project;
     struct Data {
@@ -48,8 +48,8 @@ public:
     Scope<const SymbolNameMap&> lockSymbolNamesForRead();
     Scope<SymbolNameMap&> lockSymbolNamesForWrite();
 
-    Scope<const SymbolNameMap&> lockGRForRead();
-    Scope<SymbolNameMap&> lockGRForWrite();
+    Scope<const GRMap&> lockGRForRead();
+    Scope<GRMap&> lockGRForWrite();
 
     Scope<const Map<Path, Map<ByteArray, time_t> >&> lockGRFilesForRead();
     Scope<Map<Path, Map<ByteArray, time_t> >&> lockGRFilesForWrite();
@@ -65,7 +65,7 @@ private:
     GRFilesMap mGRFiles;
     ReadWriteLock mGRFilesLock;
 
-    SymbolNameMap mGR;
+    GRMap mGR;
     ReadWriteLock mGRLock;
 };
 

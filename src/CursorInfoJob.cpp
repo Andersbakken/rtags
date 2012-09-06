@@ -13,7 +13,7 @@ CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query, con
 void CursorInfoJob::execute()
 {
     Scope<const SymbolMap &> scope = project()->lockSymbolsForRead();
-    const SymbolMap &map = scope.t();
+    const SymbolMap &map = scope.data();
     const SymbolMap::const_iterator it = RTags::findCursorInfo(map, location);
     if (it != map.end())
         write(it->first, it->second);

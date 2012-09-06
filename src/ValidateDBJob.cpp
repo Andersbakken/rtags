@@ -18,7 +18,7 @@ void ValidateDBJob::execute()
     Set<Location> newErrors;
 
     Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
-    const SymbolMap &map = scope.t();
+    const SymbolMap &map = scope.data();
     for (SymbolMap::const_iterator it = map.begin(); it != map.end(); ++it) {
         if (isAborted()) {
             return;

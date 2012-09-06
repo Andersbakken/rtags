@@ -74,7 +74,7 @@ void FindSymbolsJob::execute()
 
     if (project()->indexer) {
         Scope<const SymbolNameMap &> scope = project()->lockSymbolNamesForRead();
-        const SymbolNameMap &map = scope.t();
+        const SymbolNameMap &map = scope.data();
         const SymbolNameMap::const_iterator it = map.find(string);
         if (it != map.end()) {
             const Set<Location> &locations = it->second;
@@ -85,7 +85,7 @@ void FindSymbolsJob::execute()
     }
     if (out.size()) {
         Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
-        const SymbolMap &map = scope.t();
+        const SymbolMap &map = scope.data();
         List<LocationAndDefinitionNode> sorted;
         sorted.reserve(out.size());
         for (Map<Location, bool>::const_iterator it = out.begin(); it != out.end(); ++it) {

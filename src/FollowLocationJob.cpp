@@ -13,7 +13,7 @@ FollowLocationJob::FollowLocationJob(const Location &loc, const QueryMessage &qu
 void FollowLocationJob::execute()
 {
     Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
-    const SymbolMap &map = scope.t();
+    const SymbolMap &map = scope.data();
     const SymbolMap::const_iterator it = RTags::findCursorInfo(map, location);
     if (it == map.end())
         return;
