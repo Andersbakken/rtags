@@ -26,7 +26,6 @@ public:
         Errors,
         Reindex,
         Remake,
-        Completions,
         Project,
         DeleteProject,
         FindFile,

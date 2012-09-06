@@ -32,7 +32,6 @@ static void help(FILE *f, const char* app)
             "  --reverse-sort|-O                         Sort output reversed\n"
             "  --list-symbols|-S [arg]                   List symbol names matching arg\n"
             "  --find-symbols|-F [arg]                   Find symbols matching arg\n"
-            "  --complete|-c [arg]                       Get code completion for this location\n"
             "  --cursor-info|-U [arg]                    Get cursor info for this location\n"
             "  --log-file|-L [file]                      Log to this file\n"
             "  --append|-A                               Append to log file\n"
@@ -203,7 +202,6 @@ int main(int argc, char** argv)
         { "reverse-sort", no_argument, 0, 'O' },
         { "list-symbols", optional_argument, 0, 'S' },
         { "find-symbols", required_argument, 0, 'F' },
-        { "complete", required_argument, 0, 'c' },
         { "cursor-info", required_argument, 0, 'U' },
         { "unsaved-file", required_argument, 0, 'u' },
         { "log-file", required_argument, 0, 'L' },
@@ -241,7 +239,7 @@ int main(int argc, char** argv)
         { 0, 0, 0, 0 }
     };
 
-    // Unused: BdjJ
+    // Unused: BdjJc
 
     int logLevel = 0;
     ByteArray logFile;
@@ -379,7 +377,6 @@ int main(int argc, char** argv)
             case 'f': type = QueryMessage::FollowLocation; break;
             case 'U': type = QueryMessage::CursorInfo; break;
             case 'r': type = QueryMessage::ReferencesLocation; break;
-            case 'c': type = QueryMessage::Completions; break;
             }
             commands.append(new QueryCommand(type, encoded, queryFlags, pathFilters, unsavedFiles));
             break; }

@@ -71,8 +71,6 @@ set(rtags_HDRS
     LocalClient.h
     LocalServer.h
     Process.h
-    CompletionJob.h
-    Completions.h
     ParseJob.h
     GRTags.h
     GRParser.h
@@ -124,8 +122,6 @@ set(rtags_SRCS
     LocalServer.cpp
     Process.cpp
     ParseJob.cpp
-    CompletionJob.cpp
-    Completions.cpp
     CursorInfo.cpp
     GRTags.cpp
     GRParser.cpp

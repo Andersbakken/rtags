@@ -1,7 +1,6 @@
 #include "Server.h"
 
 #include "Client.h"
-#include "Completions.h"
 #include "Connection.h"
 #include "CreateOutputMessage.h"
 #include "CursorInfoJob.h"
@@ -53,7 +52,7 @@ public:
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mServer(0), mVerbose(false), mJobId(0), mThreadPool(0), mCompletions(0)
+    : mServer(0), mVerbose(false), mJobId(0), mThreadPool(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -83,8 +82,6 @@ void Server::clear()
     }
 
     Path::rm(mOptions.socketPath);
-    delete mCompletions;
-    mCompletions = 0;
     delete mServer;
     mServer = 0;
     mProjects.clear();
@@ -107,8 +104,6 @@ bool Server::init(const Options &options)
         mOptions.defaultArguments.append(clangPath);
     }
     mClangPath = Path::resolved(CLANG_BIN "clang ");
-
-    // mCompletions = new Completions(mOptions.maxCompletionUnits);
 
     Messages::init();
     if (mOptions.options & ClearDatadir) {
@@ -364,14 +359,6 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::FixIts:
         fixIts(*message, conn);
         return;
-    case QueryMessage::Completions: {
-        const ByteArray ret = completions(*message);
-        if (!ret.isEmpty()) {
-            ResponseMessage msg(ret);
-            conn->send(&msg);
-        }
-        conn->finish();
-        return; }
     case QueryMessage::Errors:
         errors(*message, conn);
         return;
@@ -911,19 +898,6 @@ void Server::event(const Event *event)
         EventReceiver::event(event);
         break;
     }
-}
-
-ByteArray Server::completions(const QueryMessage &query)
-{
-    return ByteArray();
-    const Location loc = Location::decodeClientLocation(query.query());
-    if (loc.isNull()) {
-        return ByteArray();
-    }
-    updateProjectForLocation(loc);
-
-    const ByteArray ret = mCompletions->completions(loc, query.flags(), query.unsavedFiles().value(loc.path()));
-    return ret;
 }
 
 shared_ptr<Project> Server::setCurrentProject(const Path &path)

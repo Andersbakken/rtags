@@ -53,7 +53,6 @@ void usage(FILE *f)
             "  --no-clang-includepath|-p       Don't use clang include paths by default\n"
             "  --usedashB|-B                   Use -B for make instead of makelib\n"
             "  --silent|-S                     No logging to stdout\n"
-            "  --max-completion-units|-m [arg] Max translation units to keep in memory for completions (default 10)\n"
             "  --no-validate|-V                Disable validation of database on startup and after indexing\n"
             "  --exclude-filter|-x [arg]       Files to exclude from grtags, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
             "  --no-rc|-N                      Don't load any rc files\n"
@@ -82,7 +81,6 @@ int main(int argc, char** argv)
         { "name", required_argument, 0, 'n' },
         { "usedashB", no_argument, 0, 'B' },
         { "silent", no_argument, 0, 'S' },
-        { "max-completion-units", required_argument, 0, 'm' },
         { "no-validate", no_argument, 0, 'V' },
         { "exclude-filter", required_argument, 0, 'x' },
         { "rc-file", required_argument, 0, 'c' },
@@ -153,7 +151,6 @@ int main(int argc, char** argv)
     int logLevel = 0;
     Path dataDir = RTags::rtagsDir();
     int cacheSize = 128;
-    int maxCompletionUnits = 10;
     bool enableSignalHandler = true;
     ByteArray name;
     int argCount = argList.size();
@@ -170,15 +167,6 @@ int main(int argc, char** argv)
         case 'S':
             logLevel = -1;
             break;
-        case 'm': {
-            const ByteArray arg(optarg);
-            bool ok;
-            maxCompletionUnits = arg.toULongLong(&ok);
-            if (!ok) {
-                fprintf(stderr, "%s is not a valid argument for -x\n", optarg);
-                return 1;
-            }
-            break; }
         case 'n':
             name = optarg;
             break;
@@ -268,7 +256,6 @@ int main(int argc, char** argv)
     serverOpts.excludeFilter = ByteArray(excludeFilter ? excludeFilter : EXCLUDEFILTER_DEFAULT).split(';');
     if (!serverOpts.path.endsWith('/'))
         serverOpts.path.append('/');
-    serverOpts.maxCompletionUnits = maxCompletionUnits;
     serverOpts.options = options;
     serverOpts.defaultArguments = defaultArguments;
     serverOpts.cacheSizeMB = cacheSize;

@@ -28,7 +28,6 @@ class LocalServer;
 class Database;
 class GccArguments;
 class MakefileParser;
-class Completions;
 class Job;
 class Server : public EventReceiver
 {
@@ -46,13 +45,12 @@ public:
     ThreadPool *threadPool() const { return mThreadPool; }
     void startJob(Job *job);
     struct Options {
-        Options() : options(0), cacheSizeMB(0), maxCompletionUnits(0), threadCount(0) {}
+        Options() : options(0), cacheSizeMB(0), threadCount(0) {}
         Path path;
         unsigned options;
         List<ByteArray> defaultArguments;
         long cacheSizeMB;
         Path socketPath;
-        int maxCompletionUnits;
         int threadCount;
         List<ByteArray> excludeFilter;
     };
@@ -121,7 +119,6 @@ private:
     shared_ptr<Project> mCurrentProject;
     ThreadPool *mThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
-    Completions *mCompletions;
     Path mClangPath;
 };
 
