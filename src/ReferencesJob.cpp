@@ -63,9 +63,9 @@ void ReferencesJob::execute()
                         continue;
                     process(map, *it, c->second);
                     if (c->second.target.isValid()) {
-                        const SymbolMap::const_iterator t = RTags::findCursorInfo(c->second.target);
+                        const SymbolMap::const_iterator t = RTags::findCursorInfo(map, c->second.target);
                         if (t != map.end() && t->second.kind == c->second.kind) {
-                            process(database, cursorInfo.target, target);
+                            process(map, t->first, t->second);
                         }
                     }
                 }
@@ -74,15 +74,15 @@ void ReferencesJob::execute()
         }
     }
 
-    if (!symbolName.isEmpty() && !(queryFlags() & QueryMessage::DisableGRTags) && (project()->grtags->flags() & GRTags::Parse)) {
-        ScopedDB database = db(Project::GR, ReadWriteLock::Read);
-        const Map<Location, bool> values = database->value<Map<Location, bool> >(symbolName);
-        database.reset();
-        for (Map<Location, bool>::const_iterator it = values.begin(); it != values.end(); ++it) {
-            if (allReferences || it->second)
-                references.insert(it->first);
-        }
-    }
+    // if (!symbolName.isEmpty() && !(queryFlags() & QueryMessage::DisableGRTags) && (project()->grtags->flags() & GRTags::Parse)) {
+    //     ScopedDB database = db(Project::GR, ReadWriteLock::Read);
+    //     const Map<Location, bool> values = database->value<Map<Location, bool> >(symbolName);
+    //     database.reset();
+    //     for (Map<Location, bool>::const_iterator it = values.begin(); it != values.end(); ++it) {
+    //         if (allReferences || it->second)
+    //             references.insert(it->first);
+    //     }
+    // }
 
     List<Location> sorted = references.toList();
     if (queryFlags() & QueryMessage::ReverseSort) {
@@ -94,7 +94,6 @@ void ReferencesJob::execute()
     for (List<Location>::const_iterator it = sorted.begin(); it != sorted.end(); ++it) {
         write(it->key(keyFlags));
     }
-}
 }
 
 void ReferencesJob::process(const SymbolMap &map, const Location &pos, const CursorInfo &cursorInfo)
@@ -128,7 +127,7 @@ void ReferencesJob::process(const SymbolMap &map, const Location &pos, const Cur
         references.insert(pos);
     if (memberFunction) {
         for (Set<Location>::const_iterator it = cursorInfo.references.begin(); it != cursorInfo.references.end(); ++it) {
-            const CursorInfo ci = RTags::findCursorInfo(database, *it);
+            const CursorInfo ci = RTags::findCursorInfo(map, *it, 0);
             if (RTags::isReference(ci.kind)) {
                 references.insert(*it);
             } else {
@@ -137,7 +136,7 @@ void ReferencesJob::process(const SymbolMap &map, const Location &pos, const Cur
         }
     } else if (!allReferences && (classOrStruct || constructorOrDestructor)) {
         for (Set<Location>::const_iterator it = cursorInfo.references.begin(); it != cursorInfo.references.end(); ++it) {
-            const CursorInfo ci = RTags::findCursorInfo(database, *it);
+            const CursorInfo ci = RTags::findCursorInfo(map, *it, 0);
             if (RTags::isReference(ci.kind))
                 references.insert(*it);
         }
