@@ -104,6 +104,7 @@ bool Server::init(const Options &options)
         mOptions.defaultArguments.append(clangPath);
     }
     mClangPath = Path::resolved(CLANG_BIN "clang ");
+    error() << "using args" << mOptions.defaultArguments;
 
     Messages::init();
     if (mOptions.options & ClearDatadir) {

@@ -724,6 +724,12 @@ void IndexerJob::run()
     }
 
     mHeaderMap.clear();
+    char buf[1024];
+    const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %sms. (%d syms, %d refs, %d deps, %d symNames)%s",
+                           mPath.constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
+                           mData->symbols.size(), mData->references.size(), mData->dependencies.size(), mData->symbolNames.size(),
+                           mFlags & Dirty ? " (dirty)" : "");
+    mData->message = ByteArray(buf, w);
     if (mUnit) {
         clang_disposeTranslationUnit(mUnit);
         mUnit = 0;
@@ -732,12 +738,6 @@ void IndexerJob::run()
         clang_disposeIndex(mIndex);
         mIndex = 0;
     }
-    char buf[1024];
-    const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %sms. (%d syms, %d refs, %d deps, %d symNames)%s",
-                           mPath.constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
-                           mData->symbols.size(), mData->references.size(), mData->dependencies.size(), mData->symbolNames.size(),
-                           mFlags & Dirty ? " (dirty)" : "");
-    mData->message = ByteArray(buf, w);
 
     mFinished(this);
 }

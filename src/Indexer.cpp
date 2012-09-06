@@ -92,7 +92,7 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
 
 void Indexer::onFileModified(const Path &file)
 {
-    error() << file << "was modified";
+    // error() << file << "was modified";
     const uint32_t fileId = Location::fileId(file);
     if (!fileId)
         return;
