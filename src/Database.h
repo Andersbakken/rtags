@@ -198,32 +198,6 @@ private:
     ByteArray mOpenError;
     LocationComparator *mLocationComparator;
     const unsigned mFlags;
-    friend class Batch;
 };
-
-class ScopedDB;
-class Batch
-{
-public:
-    Batch(ScopedDB &d);
-    ~Batch();
-    int flush();
-    template <typename T> int add(const Slice &key, const T &t)
-    {
-        const ByteArray encoded = encode<T>(t);
-        return addEncoded(key, Slice(encoded));
-    }
-
-    void remove(const Slice &key);
-    int size() const { return mSize; }
-    int total() const { return mTotal; }
-    int addEncoded(const Slice &key, const Slice &data);
-private:
-    enum { BatchThreshold = 1024 * 1024 };
-    Database *mDB;
-    int mSize, mTotal;
-    leveldb::WriteBatch mBatch;
-};
-
 
 #endif

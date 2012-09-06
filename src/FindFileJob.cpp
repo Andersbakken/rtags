@@ -1,6 +1,5 @@
 #include "FindFileJob.h"
 #include "RTags.h"
-#include "ScopedDB.h"
 #include "Server.h"
 #include "leveldb/db.h"
 #include "CursorInfo.h"

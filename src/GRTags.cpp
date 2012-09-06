@@ -128,7 +128,7 @@ void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Locati
 //     }
 }
 
-void GRTags::removeFile(const Path &file, ScopedDB *grfiles)
+void GRTags::removeFile(const Path &file)
 {
 //     const Path dir = file.parentDir();
 //     Map<ByteArray, time_t> &map = mFiles[dir];
@@ -149,7 +149,7 @@ void GRTags::removeFile(const Path &file, ScopedDB *grfiles)
 //     }
 }
 
-void GRTags::dirty(uint32_t fileId, ScopedDB &db)
+void GRTags::dirty(uint32_t fileId)
 {
     // assert(db.database());
     // Batch batch(db);
@@ -189,7 +189,7 @@ void GRTags::parse(const Path &path, unsigned flags)
     // Server::instance()->threadPool()->start(job);
 }
 
-void GRTags::addFile(const Path &file, time_t time, ScopedDB *db)
+void GRTags::addFile(const Path &file, time_t time)
 {
     // const Path dir = file.parentDir();
     // const Path fileName = file.fileName();

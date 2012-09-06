@@ -50,7 +50,6 @@ set(rtags_HDRS
     ResponseMessage.h
     RunTestJob.h
     SHA256.h
-    ScopedDB.h
     Serializer.h
     Server.h
     Set.h
@@ -112,7 +111,6 @@ set(rtags_SRCS
     ReferencesJob.cpp
     RunTestJob.cpp
     SHA256.cpp
-    ScopedDB.cpp
     Server.cpp
     StatusJob.cpp
     ValidateDBJob.cpp

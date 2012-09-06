@@ -16,7 +16,6 @@ using namespace std::tr1;
 
 class Database;
 class Project;
-class ScopedDB;
 namespace RTags {
 
 enum DatabaseLockType {

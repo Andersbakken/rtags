@@ -230,8 +230,7 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
     const MakefileInformation mi(makefile.lastModified(), message->arguments(), message->extraFlags());
     mMakefiles[makefile] = mi;
     mMakefilesWatcher.watch(makefile);
-    ScopedDB general(mDB, ReadWriteLock::Write);
-    general->setValue("makefiles", mMakefiles);
+    mDB->setValue("makefiles", mMakefiles);
     make(message->makefile(), message->arguments(), message->extraFlags(), conn);
 }
 
@@ -905,8 +904,7 @@ void Server::onMakefileModified(const Path &path)
 void Server::onMakefileRemoved(const Path &path)
 {
     mMakefiles.remove(path);
-    ScopedDB general(mDB, ReadWriteLock::Write);
-    general->setValue("makefiles", mMakefiles);
+    mDB->setValue("makefiles", mMakefiles);
 }
 
 void Server::event(const Event *event)

@@ -1,7 +1,6 @@
 #include "Database.h"
 #include "ListSymbolsJob.h"
 #include "Server.h"
-#include "ScopedDB.h"
 #include "Log.h"
 #include "RTags.h"
 

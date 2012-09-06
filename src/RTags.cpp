@@ -5,7 +5,6 @@
 #include "CursorInfo.h"
 #include "Database.h"
 #include "Timer.h"
-#include "ScopedDB.h"
 #include "Server.h"
 #include "Str.h"
 #include "FileInformation.h"

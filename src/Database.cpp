@@ -1,7 +1,6 @@
 #include "Database.h"
 #include <leveldb/cache.h>
 #include <leveldb/comparator.h>
-#include "ScopedDB.h"
 #include "RTags.h"
 
 // ================== Slice ==================
@@ -214,43 +213,3 @@ Iterator *Database::createIterator() const
     return new Iterator(mDB->NewIterator(leveldb::ReadOptions()));
 }
 
-Batch::Batch(ScopedDB &db)
-    : mDB(db.database()), mSize(0), mTotal(0)
-{
-    assert(db.lockType() == ReadWriteLock::Write);
-}
-
-Batch::~Batch()
-{
-    flush();
-}
-
-int Batch::flush()
-{
-    const int was = mSize;
-    if (mSize) {
-        // error("About to write %d bytes to %p", batchSize, db);
-        mDB->mDB->Write(mDB->mWriteOptions, &mBatch);
-        mBatch.Clear();
-        mTotal += mSize;
-        // error("Wrote %d (%d) to %p", batchSize, totalWritten, db);
-        mSize = 0;
-    }
-    return was;
-}
-
-int Batch::addEncoded(const Slice &key, const Slice &data)
-{
-    mBatch.Put(key.mSlice, data.mSlice);
-    mSize += data.size();
-    if (mSize >= BatchThreshold) {
-        flush();
-    }
-    return data.size();
-}
-
-
-void Batch::remove(const Slice &key)
-{
-    mBatch.Delete(key.mSlice);
-}

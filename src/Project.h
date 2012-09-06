@@ -9,7 +9,6 @@
 class Database;
 class Indexer;
 class GRTags;
-class ScopedDB;
 template <typename T>
 class Scope
 {

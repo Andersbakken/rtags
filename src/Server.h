@@ -11,7 +11,6 @@
 #include "Connection.h"
 #include "ThreadPool.h"
 #include "RTags.h"
-#include "ScopedDB.h"
 #include "EventReceiver.h"
 #include "MakefileInformation.h"
 #include "GRTags.h"
