@@ -203,11 +203,9 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
     return ret;
 }
 
-CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
-                                            CXCursor /*parent*/,
-                                            CXClientData client_data)
+CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor, CXClientData data)
 {
-    IndexerJob *job = static_cast<IndexerJob*>(client_data);
+    IndexerJob *job = static_cast<IndexerJob*>(data);
     const CXCursorKind kind = clang_getCursorKind(cursor);
     if (clang_isStatement(kind))
         return CXChildVisit_Recurse;
@@ -249,8 +247,6 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor,
         }
     } else if (loc.isNull()) {
         return CXChildVisit_Continue;
-    } else if (job->mData->symbols.value(loc).symbolLength) {
-        return CXChildVisit_Recurse;
     }
 
     // if (loc == "/usr/include/getopt.h,3843" || loc == "/home/abakken/dev/rtags/src/RTags.h,5430" || loc == "/home/abakken/dev/rtags/src/rdm.cpp,3970") {
@@ -479,72 +475,72 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
         } else {
             info.symbolName = addNamePermutations(cursor, location, !isReference);
         }
-    }
-    RTags::ReferenceType referenceType = RTags::NormalReference;
-    switch (info.kind) {
-    case CXCursor_Constructor:
-    case CXCursor_Destructor: {
-        referenceType = RTags::MemberFunction;
-        Location parentLocation = createLocation(clang_getCursorSemanticParent(cursor));
-        // consider doing this for only declaration/inline definition since
-        // declaration and definition should know of one another
-        if (parentLocation.isValid()) {
-            CursorInfo &parent = mData->symbols[parentLocation];
-            parent.references.insert(location);
-            info.references.insert(parentLocation);
+        switch (info.kind) {
+        case CXCursor_Constructor:
+        case CXCursor_Destructor: {
+            referenceType = RTags::MemberFunction;
+            Location parentLocation = createLocation(clang_getCursorSemanticParent(cursor));
+            // consider doing this for only declaration/inline definition since
+            // declaration and definition should know of one another
+            if (parentLocation.isValid()) {
+                CursorInfo &parent = mData->symbols[parentLocation];
+                parent.references.insert(location);
+                info.references.insert(parentLocation);
+            }
+            break; }
+        case CXCursor_CXXMethod: {
+            referenceType = RTags::MemberFunction;
+            List<CursorInfo*> infos;
+            infos.append(&info);
+            addOverriddenCursors(cursor, location, infos);
+            break; }
+        case CXCursor_FunctionDecl:
+            referenceType = RTags::GlobalFunction;
+            break;
+        default:
+            break;
         }
-        break; }
-    case CXCursor_CXXMethod: {
-        referenceType = RTags::MemberFunction;
-        List<CursorInfo*> infos;
-        infos.append(&info);
-        addOverriddenCursors(cursor, location, infos);
-        break; }
-    case CXCursor_FunctionDecl:
-        referenceType = RTags::GlobalFunction;
-        break;
-    default:
-        break;
+        if (referenceType != RTags::NoReference) {
+            if (info.isDefinition) {
+                bool ok = false;
+                switch (kind) {
+                case CXCursor_FunctionDecl:
+                    ok = (location.fileId() == mFileId);
+                    break;
+                case CXCursor_CXXMethod:
+                case CXCursor_Destructor:
+                case CXCursor_Constructor:
+                    ok = (location.fileId() == mFileId && !isInline(cursor));
+                    break;
+                default:
+                    assert(0);
+                    break;
+                }
+                if (ok) {
+                    const Str usr(clang_getCursorUSR(cursor));
+                    if (usr.length()) {
+                        refLoc = mHeaderMap.value(usr);
+                    }
+                }
+            } else {
+                CXCursor other = clang_getCursorDefinition(cursor);
+                if (!clang_equalCursors(nullCursor, other)) {
+                    refLoc = createLocation(other, 0);
+                    assert(!clang_equalCursors(cursor, other));
+                }
+            }
+        }
     }
-    Location refLoc;
     if (ref) {
         refLoc = *ref;
         assert(refLoc.isValid());
-    } else if (referenceType != RTags::NormalReference) {
-        if (info.isDefinition) {
-            bool ok = false;
-            switch (kind) {
-            case CXCursor_FunctionDecl:
-                ok = (location.fileId() == mFileId);
-                break;
-            case CXCursor_CXXMethod:
-            case CXCursor_Destructor:
-            case CXCursor_Constructor:
-                ok = (location.fileId() == mFileId && !isInline(cursor));
-                break;
-            default:
-                assert(0);
-                break;
-            }
-            if (ok) {
-                const Str usr(clang_getCursorUSR(cursor));
-                if (usr.length()) {
-                    refLoc = mHeaderMap.value(usr);
-                }
-            }
-        } else {
-            CXCursor other = clang_getCursorDefinition(cursor);
-            if (!clang_equalCursors(nullCursor, other)) {
-                refLoc = createLocation(other, 0);
-                assert(!clang_equalCursors(cursor, other));
-            }
-        }
     }
 
     if (refLoc.isValid()) {
         Map<Location, RTags::ReferenceType> &val = mData->references[location];
         val[refLoc] = referenceType;
-        info.target = refLoc;
+        if (info.target.isNull())
+            info.target = refLoc;
     }
 }
 
