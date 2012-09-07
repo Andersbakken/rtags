@@ -69,6 +69,10 @@ static void remake_file (struct file *file);
 static FILE_TIMESTAMP name_mtime (const char *name);
 static const char *library_search (const char *lib, FILE_TIMESTAMP *mtime_ptr);
 
+static int rtags_fstat(int, const char *, struct stat*);
+static int rtags_stat(const char *, struct stat*);
+static int rtags_lstat(const char *, struct stat*);
+
 
 /* Remake all the goals in the `struct dep' chain GOALS.  Return -1 if nothing
    was done, 0 if all goals were updated successfully, or 1 if a goal failed.
@@ -1129,7 +1133,7 @@ touch_file (struct file *file)
 	  char buf = 'x';
           int e;
 
-          EINTRLOOP (e, fstat (fd, &statbuf));
+          EINTRLOOP (e, rtags_fstat (fd, file->name, &statbuf));
 	  if (e < 0)
 	    TOUCH_ERROR ("touch: fstat: ");
 	  /* Rewrite character 0 same as it already is.  */
@@ -1415,7 +1419,7 @@ name_mtime (const char *name)
   struct stat st;
   int e;
 
-  EINTRLOOP (e, stat (name, &st));
+  EINTRLOOP (e, rtags_stat (name, &st));
   if (e == 0)
     mtime = FILE_TIMESTAMP_STAT_MODTIME (name, st);
   else if (errno == ENOENT || errno == ENOTDIR)
@@ -1451,7 +1455,7 @@ name_mtime (const char *name)
           long llen;
           char *p;
 
-          EINTRLOOP (e, lstat (lpath, &st));
+          EINTRLOOP (e, rtags_lstat (lpath, &st));
           if (e)
             {
               /* Just take what we have so far.  */
@@ -1660,3 +1664,48 @@ library_search (const char *lib, FILE_TIMESTAMP *mtime_ptr)
   free (libpatterns);
   return file;
 }
+
+static int sharedStat(int ret, const char *filename, struct stat *stat_buf)
+{
+    if (!ret && S_ISREG(stat_buf->st_mode)) {
+        const int len = strlen(filename);
+        int found = 0;
+        int i;
+        struct {
+            const char* data;
+            int len;
+        } static const statData[] = {
+            { ".o", 2 },
+            { ".lo", 3 },
+            { ".gch", 4 },
+            { ".gch/c++", 8 },
+            { ".gch/c", 6 },
+            { 0, 0 }
+        };
+        for (i=0; statData[i].data; ++i) {
+            if (len >= statData[i].len && !strncmp(filename + len - statData[i].len, statData[i].data, statData[i].len))  {
+                found = 1;
+                stat_buf->st_mtime = 1;
+                break;
+            }
+        }
+    }
+    return ret;
+}
+
+
+static int rtags_stat(const char *name, struct stat *st)
+{
+    return sharedStat(stat(name, st), name, st);
+}
+
+static int rtags_lstat(const char *name, struct stat *st)
+{
+    return sharedStat(lstat(name, st), name, st);
+}
+
+static int rtags_fstat(int fd, const char *name, struct stat *st)
+{
+    return sharedStat(fstat(fd, st), name, st);
+}
+
