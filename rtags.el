@@ -307,7 +307,7 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r e") (function rtags-reparse-file))
   (define-key map (kbd "C-x r R") (function rtags-rename-symbol))
   (define-key map (kbd "C-x r U") (function rtags-print-cursorinfo))
-  (define-key map (kbd "C-x r O") (function rtags-goto-location))
+  (define-key map (kbd "C-x r O") (function rtags-goto-offset))
   (define-key map (kbd "C-x r ;") (function rtags-find-file))
   )
 
