@@ -78,11 +78,8 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
         --it;
     } else {
         const int cmp = it->first.compare(location);
-        if (!cmp) {
+        if (!cmp)
             return it;
-        }
-        if (cmp > 0)
-            return map.end();
         --it;
     }
     if (location.fileId() != it->first.fileId())
