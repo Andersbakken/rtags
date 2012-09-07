@@ -287,3 +287,11 @@ int Path::readAll(char *&buf, int max) const
     fclose(f);
     return size;
 }
+
+Path Path::home()
+{
+    Path ret = Path::resolved(getenv("HOME"));
+    if (!ret.endsWith('/'))
+        ret.append('/');
+    return ret;
+}
