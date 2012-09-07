@@ -452,14 +452,9 @@ static inline bool isInline(const CXCursor &cursor)
 
 void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const Location *ref)
 {
-    // if (location == "/home/abakken/dev/rtags/src/rc.cpp,8221")
-    //     error() << cursor << "refs" << (ref ? *ref : clang_getNullCursor()) << mPath;
-
     CursorInfo &info = mData->symbols[location];
-    if (info.symbolLength) {
-        // error() << "current" << info << "\nnew" << cursor << (ref ? *ref : clang_getNullCursor());
-        return;
-    }
+    RTags::ReferenceType referenceType = ref ? RTags::NormalReference : RTags::NoReference;
+    Location refLoc;
     if (!info.symbolLength) {
         info.isDefinition = clang_isCursorDefinition(cursor);
         info.kind = kind;
@@ -680,21 +675,19 @@ void IndexerJob::visit()
     if (isAborted())
         return;
     if (testLog(VerboseDebug)) {
-        {
-            VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLine + ">", this };
-            clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
-            u.out += "</VerboseVisitor " + mClangLine + ">";
-            char buf[1024];
-            snprintf(buf, sizeof(buf), "/tmp/%s.log", mPath.fileName());
-            FILE *f = fopen(buf, "w");
-            assert(f);
-            fwrite(u.out.constData(), 1, u.out.size(), f);
-            fclose(f);
-            // logDirect(VerboseDebug, u.out);
-        }
+        VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLine + ">", this };
+        clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
+        u.out += "</VerboseVisitor " + mClangLine + ">";
+        char buf[1024];
+        snprintf(buf, sizeof(buf), "/tmp/%s.log", mPath.fileName());
+        FILE *f = fopen(buf, "w");
+        assert(f);
+        fwrite(u.out.constData(), 1, u.out.size(), f);
+        fclose(f);
+        // logDirect(VerboseDebug, u.out);
         // {
         //     VerboseVisitorUserData u = { -1, "<VerboseVisitor2 " + clangLine + ">", this };
-        //     clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
+        //    clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
         //     u.out += "</VerboseVisitor2 " + clangLine + ">";
         //     logDirect(VerboseDebug, u.out);
         // }
