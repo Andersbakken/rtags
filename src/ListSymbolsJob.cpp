@@ -1,4 +1,3 @@
-#include "Database.h"
 #include "ListSymbolsJob.h"
 #include "Server.h"
 #include "Log.h"

@@ -169,13 +169,6 @@ inline ByteArray timeToString(time_t t, TimeFormat fmt)
     return ByteArray(buf, w);
 }
 
-inline Path rtagsDir()
-{
-    char buf[128];
-    int w = snprintf(buf, sizeof(buf), "%s/.rtags/", getenv("HOME"));
-    return Path(buf, w);
-}
-
 inline bool encodePath(Path &path)
 {
     int size = path.size();

@@ -21,7 +21,7 @@ public:
         Test,
         CursorInfo,
         RunTest,
-        ClearDatabase,
+        ClearProjects,
         FixIts,
         Errors,
         Reindex,

@@ -4,7 +4,6 @@
 #include "ThreadPool.h"
 #include "AbortInterface.h"
 #include "Path.h"
-#include "Database.h"
 #include "SignalSlot.h"
 
 class GRScanJob : public ThreadPool::Job, public AbortInterface

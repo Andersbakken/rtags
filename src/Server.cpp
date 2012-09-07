@@ -4,7 +4,6 @@
 #include "Connection.h"
 #include "CreateOutputMessage.h"
 #include "CursorInfoJob.h"
-#include "Database.h"
 #include "Event.h"
 #include "EventLoop.h"
 #include "FindFileJob.h"
@@ -80,12 +79,10 @@ void Server::clear()
         ++it;
     }
 
-    Path::rm(mOptions.socketPath);
+    Path::rm(mOptions.socketFile);
     delete mServer;
     mServer = 0;
     mProjects.clear();
-    delete mDB;
-    mDB = 0;
     setCurrentProject(0);
 }
 
@@ -106,46 +103,44 @@ bool Server::init(const Options &options)
     error() << "using args" << mOptions.defaultArguments;
 
     Messages::init();
-    if (mOptions.options & ClearDatadir) {
-        clearDataDir();
+    if (mOptions.options & ClearProjects) {
+        clearProjects();
     }
-    Path::mkdir(mOptions.path);
 
     for (int i=0; i<10; ++i) {
         mServer = new LocalServer;
-        if (mServer->listen(mOptions.socketPath)) {
+        if (mServer->listen(mOptions.socketFile)) {
             break;
         }
         delete mServer;
         mServer = 0;
         if (!i) {
-            Client client(mOptions.socketPath, Client::DontWarnOnConnectionFailure);
+            Client client(mOptions.socketFile, Client::DontWarnOnConnectionFailure);
             QueryMessage msg(QueryMessage::Shutdown);
             client.message(&msg);
         }
         sleep(1);
-        Path::rm(mOptions.socketPath);
+        Path::rm(mOptions.socketFile);
     }
     if (!mServer) {
-        error("Unable to listen on %s", mOptions.socketPath.constData());
+        error("Unable to listen on %s", mOptions.socketFile.constData());
         return false;
     }
-    mDB = new Database(mOptions.path + "db.db", 0, Database::NoFlag);
 
-    {
-        bool ok;
-        const int version = mDB->value<int>("version", &ok);
-        if (!ok) {
-            mDB->setValue<int>("version", Database::Version);
-        } else if (version != Database::Version) {
-            error("Wrong version, expected %d, got %d. Run with -C to regenerate database", Database::Version, version);
-            return false;
-        }
-        mMakefiles = mDB->value<Map<Path, MakefileInformation> >("makefiles");
-        for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
-            mMakefilesWatcher.watch(it->first);
-        }
-    }
+    // {
+    //     bool ok;
+    //     const int version = mDB->value<int>("version", &ok);
+    //     if (!ok) {
+    //         mDB->setValue<int>("version", Database::Version);
+    //     } else if (version != Database::Version) {
+    //         error("Wrong version, expected %d, got %d. Run with -C to regenerate database", Database::Version, version);
+    //         return false;
+    //     }
+    //     mMakefiles = mDB->value<Map<Path, MakefileInformation> >("makefiles");
+    //     for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
+    //         mMakefilesWatcher.watch(it->first);
+    //     }
+    // }
 
     mServer->clientConnected().connect(this, &Server::onNewConnection);
 
@@ -225,7 +220,7 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
     const MakefileInformation mi(makefile.lastModified(), message->arguments(), message->extraFlags());
     mMakefiles[makefile] = mi;
     mMakefilesWatcher.watch(makefile);
-    mDB->setValue("makefiles", mMakefiles);
+    // mDB->setValue("makefiles", mMakefiles);
     make(message->makefile(), message->arguments(), message->extraFlags(), conn);
 }
 
@@ -346,11 +341,11 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::Remake: {
         remake(message->query(), conn);
         return; }
-    case QueryMessage::ClearDatabase: {
+    case QueryMessage::ClearProjects: {
         delete mThreadPool;
         mThreadPool = 0;
         clear();
-        clearDataDir();
+        clearProjects();
         ResponseMessage msg("Cleared data dir");
         init(mOptions);
         conn->send(&msg);
@@ -658,14 +653,9 @@ void Server::errors(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::clearDataDir()
+void Server::clearProjects()
 {
-    RTags::removeDirectory(mOptions.path + "db.db");
-
-    if (!Path::mkdir(mOptions.path)) {
-        error("Can't create directory [%s]", mOptions.path.constData());
-        return;
-    }
+    Path::rm(mOptions.projectsFile); // ### more stuff?
 }
 
 void Server::reindex(const ByteArray &pattern)
@@ -868,7 +858,7 @@ void Server::onMakefileModified(const Path &path)
 void Server::onMakefileRemoved(const Path &path)
 {
     mMakefiles.remove(path);
-    mDB->setValue("makefiles", mMakefiles);
+    // mDB->setValue("makefiles", mMakefiles);
 }
 
 void Server::event(const Event *event)
@@ -938,24 +928,6 @@ shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
     }
 
     return project;
-}
-
-Path::VisitResult Server::projectsVisitor(const Path &path, void *server)
-{
-    Server *s = reinterpret_cast<Server*>(server);
-    unsigned flags = 0;
-    if (Path::resolved("symbols.db", path).isDir())
-        flags |= EnableIndexer;
-    if (Path::resolved("gr.db", path).isDir())
-        flags |= EnableGRTags;
-    if (flags) {
-        Path p = path.mid(RTags::rtagsDir().size() + 9);
-        RTags::decodePath(p);
-        shared_ptr<Project> proj = s->initProject(p, flags);
-        if (!s->mCurrentProject && proj)
-            s->mCurrentProject = proj;
-    }
-    return Path::Continue;
 }
 
 bool Server::updateProjectForLocation(const Location &location)

@@ -6,7 +6,6 @@
 #include "RTags.h"
 #include "ReadWriteLock.h"
 
-class Database;
 class Indexer;
 class GRTags;
 template <typename T>

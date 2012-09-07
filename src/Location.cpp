@@ -1,6 +1,5 @@
 #include "Location.h"
 #include "Server.h"
-#include "Database.h"
 #include "RTags.h"
 Map<Path, uint32_t> Location::sPathsToIds;
 Map<uint32_t, Path> Location::sIdsToPaths;

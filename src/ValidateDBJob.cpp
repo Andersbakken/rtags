@@ -1,6 +1,5 @@
 #include "ValidateDBJob.h"
 #include "CursorInfo.h"
-#include "Database.h"
 #include "Indexer.h"
 #include "RTags.h"
 #include "Server.h"

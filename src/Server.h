@@ -6,7 +6,6 @@
 #include <List.h>
 #include <Map.h>
 #include "Indexer.h"
-#include "Database.h"
 #include "QueryMessage.h"
 #include "Connection.h"
 #include "ThreadPool.h"
@@ -25,7 +24,6 @@ class ErrorMessage;
 class OutputMessage;
 class MakefileMessage;
 class LocalServer;
-class Database;
 class GccArguments;
 class MakefileParser;
 class Job;
@@ -40,19 +38,17 @@ public:
         NoClangIncludePath = 0x1,
         UseDashB = 0x2,
         NoValidate = 0x4,
-        ClearDatadir = 0x8
+        ClearProjects = 0x8
     };
     ThreadPool *threadPool() const { return mThreadPool; }
     void startJob(Job *job);
     struct Options {
         Options() : options(0), cacheSizeMB(0), threadCount(0) {}
-        Path path;
+        Path projectsFile, socketFile;
         unsigned options;
-        List<ByteArray> defaultArguments;
         long cacheSizeMB;
-        Path socketPath;
         int threadCount;
-        List<ByteArray> excludeFilter;
+        List<ByteArray> defaultArguments, excludeFilter;
     };
     bool init(const Options &options);
     const List<ByteArray> &excludeFilter() const { return mOptions.excludeFilter; }
@@ -72,13 +68,12 @@ private:
     void onMakefileRemoved(const Path &path);
     void make(const Path &path, List<ByteArray> makefileArgs = List<ByteArray>(),
               const List<ByteArray> &extraFlags = List<ByteArray>(), Connection *conn = 0);
-    void clearDataDir();
+    void clearProjects();
     enum InitProjectFlag {
         EnableIndexer = 0x1,
         EnableGRTags = 0x2
     };
     shared_ptr<Project> initProject(const Path &path, unsigned flags);
-    static Path::VisitResult projectsVisitor(const Path &path, void *);
     void handleMakefileMessage(MakefileMessage *message, Connection *conn);
     void handleGRTagMessage(GRTagsMessage *message, Connection *conn);
     void handleQueryMessage(QueryMessage *message, Connection *conn);
@@ -113,7 +108,6 @@ private:
     int mJobId;
     Map<Path, MakefileInformation> mMakefiles;
     FileSystemWatcher mMakefilesWatcher;
-    Database *mDB;
 
     Map<Path, shared_ptr<Project> > mProjects;
     shared_ptr<Project> mCurrentProject;

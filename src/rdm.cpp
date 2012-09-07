@@ -46,17 +46,18 @@ void usage(FILE *f)
             "  --append|-A                     Append to log file\n"
             "  --verbose|-v                    Change verbosity, multiple -v's are allowed\n"
             "  --clean-slate|-C                Start from a clean slate\n"
-            "  --datadir|-d [arg]              Use this as datadir (default ~/.rtags\n"
             "  --disable-sighandler|-s         Disable signal handler to dump stack for crashes\n"
             "  --cache-size|-a [size]          Cache size in MB (one cache per db, default 128MB)\n"
             "  --name|-n [name]                Name to use for server (default ~/.rtags/server)\n"
-            "  --no-clang-includepath|-p       Don't use clang include paths by default\n"
+            "  --no-clang-includepath|-P       Don't use clang include paths by default\n"
             "  --usedashB|-B                   Use -B for make instead of makelib\n"
             "  --silent|-S                     No logging to stdout\n"
             "  --no-validate|-V                Disable validation of database on startup and after indexing\n"
             "  --exclude-filter|-x [arg]       Files to exclude from grtags, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
             "  --no-rc|-N                      Don't load any rc files\n"
             "  --rc-file|-c [arg]              Use this file instead of ~/.rdmrc\n"
+            "  --projects-file|-p [arg]        Use this file as a projects file (default ~/.rtagsprojects)\n"
+            "  --socket-file|-o                Use this file for the server socket (default ~/.rdm)\n"
             "  --thread-count|-j [arg]         Spawn this many threads for thread pool\n");
 }
 
@@ -70,11 +71,10 @@ int main(int argc, char** argv)
         { "include", required_argument, 0, 'i' },
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
-        { "no-clang-includepath", no_argument, 0, 'p' },
+        { "no-clang-includepath", no_argument, 0, 'P' },
         { "append", no_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
         { "thread-count", required_argument, 0, 'j' },
-        { "datadir", required_argument, 0, 'd' },
         { "clean-slate", no_argument, 0, 'C' },
         { "cache-size", required_argument, 0, 'a' },
         { "disable-sighandler", no_argument, 0, 's' },
@@ -83,6 +83,8 @@ int main(int argc, char** argv)
         { "silent", no_argument, 0, 'S' },
         { "no-validate", no_argument, 0, 'V' },
         { "exclude-filter", required_argument, 0, 'x' },
+        { "socket-file", required_argument, 0, 'o' },
+        { "projects-file", required_argument, 0, 'p' },
         { "rc-file", required_argument, 0, 'c' },
         { "no-rc", no_argument, 0, 'N' },
         { 0, 0, 0, 0 }
@@ -149,7 +151,8 @@ int main(int argc, char** argv)
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;
-    Path dataDir = RTags::rtagsDir();
+    Path projectsFile = Path::home() + "/.rtagsprojects";
+    Path socketFile = Path::home() + "/.rdm";
     int cacheSize = 128;
     bool enableSignalHandler = true;
     ByteArray name;
@@ -179,17 +182,20 @@ int main(int argc, char** argv)
         case 'V':
             options |= Server::NoValidate;
             break;
-        case 'd':
-            dataDir = Path::resolved(optarg);
-            break;
         case 'p':
+            projectsFile = Path::resolved(optarg);
+            break;
+        case 'o':
+            socketFile = Path::resolved(optarg);
+            break;
+        case 'P':
             options |= Server::NoClangIncludePath;
             break;
         case 's':
             enableSignalHandler = false;
             break;
         case 'C':
-            options |= Server::ClearDatadir;
+            options |= Server::ClearProjects;
             break;
         case 'a': {
             bool ok;
@@ -252,15 +258,13 @@ int main(int argc, char** argv)
 
     Server *server = new Server;
     Server::Options serverOpts;
-    serverOpts.path = dataDir;
     serverOpts.excludeFilter = ByteArray(excludeFilter ? excludeFilter : EXCLUDEFILTER_DEFAULT).split(';');
-    if (!serverOpts.path.endsWith('/'))
-        serverOpts.path.append('/');
+    serverOpts.socketFile = socketFile;
     serverOpts.options = options;
     serverOpts.defaultArguments = defaultArguments;
     serverOpts.cacheSizeMB = cacheSize;
     serverOpts.threadCount = jobs;
-    serverOpts.socketPath = (name.isEmpty() ? ByteArray(RTags::rtagsDir() + "server") : name );
+    serverOpts.projectsFile = projectsFile;
     if (!server->init(serverOpts)) {
         delete server;
         cleanupLogging();

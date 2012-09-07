@@ -49,14 +49,13 @@ static void help(FILE *f, const char* app)
             "  --status|-s [arg]                         Dump status of rdm. If arg is passed it should match one of:\n"
             "                                            'general', 'fileids', dependencies', 'symbols', 'symbolnames', \n"
             "                                            'fileinfos', 'visitedfiles', 'grfiles' or 'gr' \n"
-            "  --name|-n [name]                          Name to use for server (default ~/.rtags/server)\n"
             "  --autostart-rdm|-a [args]                 Start rdm with [args] if rc fails to connect\n"
             "  --restart-rdm|-e [args]                   Restart rdm with [args] before doing the rest of the commands\n"
             "  --run-test|-k [file]                      Run tests from file\n"
             "  --diagnostics|-G                          Open a connection that prints diagnostics\n"
             "  --project|-w [optional regexp]            With arg, select project matching that if unique, otherwise list all projects\n"
             "  --delete-project|-W [regexp]              Delete all projects matching regexp\n"
-            "  --clear-db|-C                             Clear database, use with care\n"
+            "  --clear-db|-C                             Clear projects\n"
             "  --reindex|-V [optional regexp]            Reindex all files or all files matching pattern\n"
             "  --wait-for-indexing|-X                    Wait for indexing to finish before doing query\n"
             "  --path|-P [optional pattern]              Print files matching pattern\n"
@@ -207,7 +206,6 @@ int main(int argc, char** argv)
         { "log-file", required_argument, 0, 'L' },
         { "append", no_argument, 0, 'A' },
         { "no-context", no_argument, 0, 'N' },
-        { "name", required_argument, 0, 'n' },
         { "status", optional_argument, 0, 's' },
         { "rdm-log", no_argument, 0, 'g' },
         { "line-numbers", no_argument, 0, 'l' },
@@ -236,10 +234,11 @@ int main(int argc, char** argv)
         { "parse", required_argument, 0, 'y' },
         { "enable-grtags", no_argument, 0, 'b' },
         { "grtag", optional_argument, 0, 't' },
+        { "socket-file", required_argument, 0, 'B' },
         { 0, 0, 0, 0 }
     };
 
-    // Unused: BdjJc
+    // Unused: djJcn
 
     int logLevel = 0;
     ByteArray logFile;
@@ -251,7 +250,7 @@ int main(int argc, char** argv)
     unsigned queryFlags = 0;
     unsigned clientFlags = 0;
     List<ByteArray> rdmArgs;
-    ByteArray name;
+    ByteArray socketFile = Path::home() + ".rdm";
     Map<Path, ByteArray> unsavedFiles;
 
     const ByteArray shortOptions = RTags::shortOptions(opts);
@@ -266,8 +265,8 @@ int main(int argc, char** argv)
         case 'h':
             help(stdout, argv[0]);
             return 0;
-        case 'n':
-            name = optarg;
+        case 'B':
+            socketFile = optarg;
             break;
         case 'b':
             queryFlags |= QueryMessage::DisableGRTags;
@@ -381,7 +380,7 @@ int main(int argc, char** argv)
             commands.append(new QueryCommand(type, encoded, queryFlags, pathFilters, unsavedFiles));
             break; }
         case 'C':
-            commands.append(new QueryCommand(QueryMessage::ClearDatabase, ByteArray(), queryFlags, pathFilters, unsavedFiles));
+            commands.append(new QueryCommand(QueryMessage::ClearProjects, ByteArray(), queryFlags, pathFilters, unsavedFiles));
             break;
         case 'g':
             commands.append(new RdmLogCommand(logLevel));
@@ -538,12 +537,9 @@ int main(int argc, char** argv)
             l << " " << argv[i];
     }
 
-    if (name.isEmpty())
-        name = RTags::rtagsDir() + "server";
-
     EventLoop loop;
 
-    Client client(name, clientFlags, rdmArgs);
+    Client client(socketFile, clientFlags, rdmArgs);
     const int commandCount = commands.size();
     for (int i=0; i<commandCount; ++i) {
         Command *cmd = commands.at(i);

@@ -3,7 +3,6 @@
 #include "MemoryMonitor.h"
 #include "Server.h"
 #include "EventLoop.h"
-#include "Database.h"
 
 IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &p, const List<ByteArray> &arguments)
     : mFlags(flags), mTimeStamp(0), mPath(p), mFileId(Location::insertFile(p)),

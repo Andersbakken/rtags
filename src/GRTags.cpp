@@ -82,7 +82,7 @@ void GRTags::onRecurseJobFinished(Map<Path, bool> &paths)
 
 void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Location, bool> > &entries)
 {
-    #warning not done
+    // #warning not done
 //     {
 //         MutexLocker lock(&mMutex);
 //         --mActive;

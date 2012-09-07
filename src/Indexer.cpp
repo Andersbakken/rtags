@@ -1,7 +1,6 @@
 #include "Indexer.h"
 
 #include "ValidateDBJob.h"
-#include "Database.h"
 #include "IndexerJob.h"
 #include "Log.h"
 #include "MemoryMonitor.h"
