@@ -65,6 +65,7 @@ inline bool isReference(CXCursorKind kind)
     case CXCursor_UnexposedDecl:
     case CXCursor_MacroExpansion:
     case CXCursor_MemberRefExpr:
+    case CXCursor_CallExpr:
         return true;
     default:
         break;
