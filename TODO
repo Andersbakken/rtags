@@ -1,3 +1,18 @@
 Shared memory
 Fix writing of references/cursors to "db", probably should just write all cursors first, then merge in all references.
 fork make
+Still problems with constructors. At least implicitly converted ones.
+
+E.g.
+
+class Balle 
+{
+public:
+    Balle(int);
+};
+
+...
+
+Balle b = 12;
+
+12 is a reference to Balle(int) and has symbolLength of 5.
