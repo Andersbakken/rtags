@@ -2064,6 +2064,16 @@ void
 # endif
 exec_command (char **argv, char **envp)
 {
+    printf("Yo yo yo: ");
+    int i;
+    for (i=0; argv[i]; ++i) {
+        printf("%s ", argv[i]);
+    }
+    printf("\nenvironment: ");
+    for (i=0; envp[i]; ++i) {
+        printf("  %s\n", envp[i]);
+    }
+
 #ifdef VMS
   /* to work around a problem with signals and execve: ignore them */
 #ifdef SIGCHLD
