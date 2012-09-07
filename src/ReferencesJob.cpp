@@ -17,6 +17,7 @@ ReferencesJob::ReferencesJob(const ByteArray &sym, const QueryMessage &query, co
 void ReferencesJob::execute()
 {
     const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
+    Location startLocation;
     if (project()->indexer) {
         if (!symbolName.isEmpty()) {
             Scope<const SymbolNameMap&> scope = project()->lockSymbolNamesForRead();
@@ -29,6 +30,7 @@ void ReferencesJob::execute()
                 // error() << "looking up refs for " << it->key() << bool(flags & QueryMessage::ReferencesForRenameSymbol);
                 Location pos;
                 CursorInfo cursorInfo = RTags::findCursorInfo(map, *it, &pos);
+                startLocation = pos;
                 if (RTags::isReference(cursorInfo.kind)) {
                     pos = cursorInfo.target;
                     cursorInfo = RTags::findCursorInfo(map, cursorInfo.target, 0);
@@ -86,9 +88,15 @@ void ReferencesJob::execute()
     } else {
         std::sort(sorted.begin(), sorted.end());
     }
+    int startIndex = 0;
+    const int count = sorted.size();
+    if (locations.size() == 1 && !startLocation.isNull()) {
+        startIndex = sorted.indexOf(startIndex) + 1;
+    }
     const unsigned keyFlags = Job::keyFlags();
-    for (List<Location>::const_iterator it = sorted.begin(); it != sorted.end(); ++it) {
-        write(it->key(keyFlags));
+    for (int i=0; i<count; ++i) {
+        const Location &loc = sorted.at(startIndex + i % count);
+        write(loc.key(keyFlags));
     }
 }
 

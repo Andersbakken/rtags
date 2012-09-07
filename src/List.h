@@ -37,6 +37,32 @@ public:
             std::vector<T>::push_back(t.at(i));
     }
 
+    int indexOf(const T &t) const
+    {
+        const typename std::vector<T>::const_iterator beg = std::vector<T>::begin();
+        const typename std::vector<T>::const_iterator end = std::vector<T>::end();
+        const typename std::vector<T>::const_iterator it = std::find(beg, end, t);
+        return it == end ? -1 : (it - beg);
+    }
+
+    int lasIndexOf(const T &t, int from = -1) const
+    {
+        const int s = size();
+        if (from < 0) {
+            from += s;
+        }
+        from = std::min(s - 1, from);
+        if (from >= 0) {
+            const T *haystack = std::vector<T>::constData();
+            const T *needle = haystack + from + 1;
+            while (needle != haystack) {
+                if (*--needle == t)
+                    return needle - haystack;
+            }
+        }
+        return -1;
+    }
+
     void removeLast()
     {
         std::vector<T>::pop_back();
