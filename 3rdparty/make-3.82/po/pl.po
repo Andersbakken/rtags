@@ -1,0 +1,2029 @@
+# Polish translation for GNU make.
+# Copyright (C) 1996, 2002, 2005, 2006, 2010 Free Software Foundation, Inc.
+# This file is distributed under the same license as the make package.
+# Pawe³ Krawczyk <kravietz@ceti.pl>, 1996.
+# Jakub Bogusz <qboosh@pld-linux.org>, 2002-2010.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: make 3.81.91\n"
+"Report-Msgid-Bugs-To: bug-make@gnu.org\n"
+"POT-Creation-Date: 2010-07-28 01:42-0400\n"
+"PO-Revision-Date: 2010-07-25 22:15+0200\n"
+"Last-Translator: Jakub Bogusz <qboosh@pld-linux.org>\n"
+"Language-Team: Polish <translation-team-pl@lists.sourceforge.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ISO-8859-2\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: ar.c:48
+#, c-format
+msgid "attempt to use unsupported feature: `%s'"
+msgstr "próba u¿ycia nieistniej±cej funkcji: `%s'"
+
+#: ar.c:125
+msgid "touch archive member is not available on VMS"
+msgstr "element biblioteki `touch' jest niedostêpny pod VMS"
+
+#: ar.c:149
+#, c-format
+msgid "touch: Archive `%s' does not exist"
+msgstr "touch: Archiwum `%s' nie istnieje"
+
+#: ar.c:152
+#, c-format
+msgid "touch: `%s' is not a valid archive"
+msgstr "touch: `%s' nie jest poprawnym archiwum"
+
+#: ar.c:159
+#, c-format
+msgid "touch: Member `%s' does not exist in `%s'"
+msgstr "touch: Brak elementu `%s' w `%s'"
+
+#: ar.c:166
+#, c-format
+msgid "touch: Bad return code from ar_member_touch on `%s'"
+msgstr "touch: B³êdny kod powrotu z ar_member_touch w `%s'"
+
+#: arscan.c:69
+#, c-format
+msgid "lbr$set_module() failed to extract module info, status = %d"
+msgstr ""
+"Uzyskanie informacji o module przez lnr$set_module() nie uda³o siê, status = "
+"%d"
+
+#: arscan.c:175
+#, c-format
+msgid "lbr$ini_control() failed with status = %d"
+msgstr "lbr$ini_control() nie powiod³o siê, status = %d"
+
+#: arscan.c:187
+#, c-format
+msgid "unable to open library `%s' to lookup member `%s'"
+msgstr "b³±d otwarcia biblioteki `%s' podczas szukania elementu `%s'"
+
+#: arscan.c:850
+#, c-format
+msgid "Member `%s'%s: %ld bytes at %ld (%ld).\n"
+msgstr "Element `%s'%s: %ld bajtów pod %ld (%ld).\n"
+
+#: arscan.c:851
+msgid " (name might be truncated)"
+msgstr " (nazwa mo¿e zostaæ okrojona)"
+
+#: arscan.c:853
+#, c-format
+msgid "  Date %s"
+msgstr "  Data %s"
+
+#: arscan.c:854
+#, c-format
+msgid "  uid = %d, gid = %d, mode = 0%o.\n"
+msgstr "  uid = %d, gid = %d, mode = 0%o.\n"
+
+#: commands.c:499
+msgid "*** Break.\n"
+msgstr "*** Przerwano.\n"
+
+#: commands.c:622
+#, c-format
+msgid "*** [%s] Archive member `%s' may be bogus; not deleted"
+msgstr "*** [%s] Element archiwum `%s' mo¿e byæ fa³szywy; nie usuniêty"
+
+#: commands.c:625
+#, c-format
+msgid "*** Archive member `%s' may be bogus; not deleted"
+msgstr "*** Element archiwum `%s' mo¿e byæ fa³szywy; nie usuniêty"
+
+#: commands.c:638
+#, c-format
+msgid "*** [%s] Deleting file `%s'"
+msgstr "*** [%s] Kasujê plik `%s'"
+
+#: commands.c:640
+#, c-format
+msgid "*** Deleting file `%s'"
+msgstr "*** Kasujê plik `%s'"
+
+#: commands.c:676
+msgid "#  recipe to execute"
+msgstr "#  polecenia do wykonania"
+
+#: commands.c:679
+msgid " (built-in):"
+msgstr " (wbudowane):"
+
+#: commands.c:681
+#, c-format
+msgid " (from `%s', line %lu):\n"
+msgstr " (z `%s', linia %lu):\n"
+
+#: dir.c:996
+msgid ""
+"\n"
+"# Directories\n"
+msgstr ""
+"\n"
+"# Katalogi\n"
+
+#: dir.c:1008
+#, c-format
+msgid "# %s: could not be stat'd.\n"
+msgstr "# %s: stat() zwraca b³±d.\n"
+
+#: dir.c:1012
+#, c-format
+msgid "# %s (key %s, mtime %d): could not be opened.\n"
+msgstr "# %s (klucz %s, czas modyfikacji %d): otwarcie by³o niemo¿liwe.\n"
+
+#: dir.c:1016
+#, c-format
+msgid "# %s (device %d, inode [%d,%d,%d]): could not be opened.\n"
+msgstr "# %s (urz±dzenie %d, i-wêze³ [%d,%d,%d]): otwarcie by³o niemo¿liwe.\n"
+
+#: dir.c:1021
+#, c-format
+msgid "# %s (device %ld, inode %ld): could not be opened.\n"
+msgstr "# %s (urz±dzenie %ld, i-wêze³ %ld): otwarcie by³o niemo¿liwe.\n"
+
+#: dir.c:1048
+#, c-format
+msgid "# %s (key %s, mtime %d): "
+msgstr "# %s (klucz %s, czas modyfikacji %d): "
+
+#: dir.c:1052
+#, c-format
+msgid "# %s (device %d, inode [%d,%d,%d]): "
+msgstr "# %s (urz±dzenie %d, i-wêze³ [%d,%d,%d]): "
+
+#: dir.c:1057
+#, c-format
+msgid "# %s (device %ld, inode %ld): "
+msgstr "# %s (urz±dzenie %ld, i-wêze³ %ld): "
+
+#: dir.c:1063 dir.c:1084
+msgid "No"
+msgstr "Nie"
+
+#: dir.c:1066 dir.c:1087
+msgid " files, "
+msgstr " pliki, "
+
+#: dir.c:1068 dir.c:1089
+msgid "no"
+msgstr "nie"
+
+#: dir.c:1071
+msgid " impossibilities"
+msgstr " niemo¿liwo¶ci"
+
+#: dir.c:1075
+msgid " so far."
+msgstr " jak dot±d."
+
+#: dir.c:1092
+#, c-format
+msgid " impossibilities in %lu directories.\n"
+msgstr " niemo¿liwo¶ci w %lu katalogach.\n"
+
+#: expand.c:127
+#, c-format
+msgid "Recursive variable `%s' references itself (eventually)"
+msgstr "Rekurencyjna zmienna `%s' wskazuje na sam± siebie"
+
+#: expand.c:276
+msgid "unterminated variable reference"
+msgstr "niezakoñczone odwo³anie do zmiennej"
+
+#: file.c:267
+#, c-format
+msgid "Recipe was specified for file `%s' at %s:%lu,"
+msgstr "Polecenia dla pliku `%s' podano w %s:%lu,"
+
+#: file.c:272
+#, c-format
+msgid "Recipe for file `%s' was found by implicit rule search,"
+msgstr ""
+"Polecenia dla pliku `%s' zosta³y wyznaczone na podstawie regu³ standardowych,"
+
+#: file.c:275
+#, c-format
+msgid "but `%s' is now considered the same file as `%s'."
+msgstr "ale `%s' jest teraz uznawany za ten sam plik co `%s'."
+
+#: file.c:278
+#, c-format
+msgid "Recipe for `%s' will be ignored in favor of the one for `%s'."
+msgstr "Polecenia dla `%s' zosta³y zignorowane na rzecz poleceñ dla `%s'."
+
+#: file.c:298
+#, c-format
+msgid "can't rename single-colon `%s' to double-colon `%s'"
+msgstr ""
+"nie mo¿na przemianowaæ `%s' z pojedynczym dwukropkiem na `%s' z podwójnym"
+
+#: file.c:303
+#, c-format
+msgid "can't rename double-colon `%s' to single-colon `%s'"
+msgstr ""
+"nie mo¿na przemianowaæ `%s' z podwójnym dwukropkiem na `%s' z pojedynczym"
+
+#: file.c:392
+#, c-format
+msgid "*** Deleting intermediate file `%s'"
+msgstr "*** Kasowanie pliku po¶redniego `%s'"
+
+#: file.c:396
+msgid "Removing intermediate files...\n"
+msgstr "Kasowanie plików po¶rednich...\n"
+
+#: file.c:803
+#, c-format
+msgid "%s: Timestamp out of range; substituting %s"
+msgstr "%s: Oznaczenie czasu spoza zakresu; zast±piono %s"
+
+#: file.c:804
+msgid "Current time"
+msgstr "Aktualny czas"
+
+#: file.c:924
+msgid "# Not a target:"
+msgstr "# To nie jest obiekt:"
+
+#: file.c:929
+msgid "#  Precious file (prerequisite of .PRECIOUS)."
+msgstr "#  Cenny plik (zale¿no¶æ .PRECIOUS)."
+
+#: file.c:931
+msgid "#  Phony target (prerequisite of .PHONY)."
+msgstr "#  Obiekt niejawny (zale¿no¶æ .PHONY)."
+
+#: file.c:933
+msgid "#  Command line target."
+msgstr "#  Obiekt podany w linii poleceñ."
+
+#: file.c:935
+msgid "#  A default, MAKEFILES, or -include/sinclude makefile."
+msgstr "#  Makefile domy¶lny, wymieniony w MAKEFILES lub -include/sinclude."
+
+#: file.c:937
+msgid "#  Implicit rule search has been done."
+msgstr "#  Szukanie regu³ domy¶lnych zosta³o wykonane."
+
+#: file.c:938
+msgid "#  Implicit rule search has not been done."
+msgstr "#  Szukanie regu³ domy¶lnych nie zosta³o wykonane."
+
+#: file.c:940
+#, c-format
+msgid "#  Implicit/static pattern stem: `%s'\n"
+msgstr "#  Ga³±¼ wzorców domy¶lnych/statycznych: `%s'\n"
+
+#: file.c:942
+msgid "#  File is an intermediate prerequisite."
+msgstr "#  Plik jest zale¿no¶ci± przej¶ciow±."
+
+#: file.c:946
+msgid "#  Also makes:"
+msgstr "#  Robi równie¿:"
+
+#: file.c:952
+msgid "#  Modification time never checked."
+msgstr "#  Czas modyfikacji nie by³ sprawdzany."
+
+#: file.c:954
+msgid "#  File does not exist."
+msgstr "#  Plik nie istnieje."
+
+#: file.c:956
+msgid "#  File is very old."
+msgstr "#  Plik jest bardzo stary."
+
+#: file.c:961
+#, c-format
+msgid "#  Last modified %s\n"
+msgstr "#  Ostatnio modyfikowany %s\n"
+
+#: file.c:964
+msgid "#  File has been updated."
+msgstr "#  Plik zosta³ uaktualniony."
+
+#: file.c:964
+msgid "#  File has not been updated."
+msgstr "#  Plik nie zosta³ uaktualniony."
+
+#: file.c:968
+msgid "#  Recipe currently running (THIS IS A BUG)."
+msgstr "#  Aktualnie uruchamiane polecenia (TO JEST B£¡D)."
+
+#: file.c:971
+msgid "#  Dependencies recipe running (THIS IS A BUG)."
+msgstr "#  Aktualnie uruchamiane polecenia zale¿no¶ci (TO JEST B£¡D)."
+
+#: file.c:980
+msgid "#  Successfully updated."
+msgstr "#  Uaktualnienie powiod³o siê."
+
+#: file.c:984
+msgid "#  Needs to be updated (-q is set)."
+msgstr "#  Powinien byæ uaktualniony (-q jest w³±czone)."
+
+#: file.c:987
+msgid "#  Failed to be updated."
+msgstr "#  Uaktualnianie nie powiod³o siê."
+
+#: file.c:990
+msgid "#  Invalid value in `update_status' member!"
+msgstr "#  B³êdna warto¶æ w elemencie `update_status'!"
+
+#: file.c:997
+msgid "#  Invalid value in `command_state' member!"
+msgstr "#  B³êdna warto¶æ w elemencie `command_state'!"
+
+#: file.c:1016
+msgid ""
+"\n"
+"# Files"
+msgstr ""
+"\n"
+"# Pliki"
+
+#: file.c:1020
+msgid ""
+"\n"
+"# files hash-table stats:\n"
+"# "
+msgstr ""
+"\n"
+"# statystyki tablic haszuj±cych plików:\n"
+"# "
+
+#: function.c:758
+msgid "non-numeric first argument to `word' function"
+msgstr "pierwszy argument funkcji `word' nie jest numeryczny"
+
+#: function.c:763
+msgid "first argument to `word' function must be greater than 0"
+msgstr "pierwszy argument funkcji `word' musi byæ wiêkszy od 0"
+
+#: function.c:783
+msgid "non-numeric first argument to `wordlist' function"
+msgstr "pierwszy argument funkcji `wordlist' nie jest numeryczny"
+
+#: function.c:785
+msgid "non-numeric second argument to `wordlist' function"
+msgstr "drugi argument funkcji `wordlist' nie jest numeryczny"
+
+#: function.c:1458
+#, c-format
+msgid "windows32_openpipe(): DuplicateHandle(In) failed (e=%ld)\n"
+msgstr "windows32_openpipe(): DuplicateHandle(In) nie powiod³o siê (e=%ld)\n"
+
+#: function.c:1469
+#, c-format
+msgid "windows32_open_pipe(): DuplicateHandle(Err) failed (e=%ld)\n"
+msgstr "windows32_open_pipe(): DuplicateHandle(Err) nie powiod³o siê (e=%ld)\n"
+
+#: function.c:1474
+#, c-format
+msgid "CreatePipe() failed (e=%ld)\n"
+msgstr "CreatePipe() nie powiod³o siê (e=%ld)\n"
+
+#: function.c:1479
+msgid "windows32_openpipe(): process_init_fd() failed\n"
+msgstr "windows32_openpipe(): process_init_fd() nie powiod³o siê\n"
+
+#: function.c:1728
+#, c-format
+msgid "Cleaning up temporary batch file %s\n"
+msgstr "Czyszczê tymczasowy plik wsadowy %s\n"
+
+#: function.c:2150
+#, c-format
+msgid "insufficient number of arguments (%d) to function `%s'"
+msgstr "niewystarczaj±ca liczba argumentów (%d) dla funkcji `%s'"
+
+#: function.c:2162
+#, c-format
+msgid "unimplemented on this platform: function `%s'"
+msgstr "funkcja `%s' nie jest zaimplementowana na tej platformie"
+
+#: function.c:2212
+#, c-format
+msgid "unterminated call to function `%s': missing `%c'"
+msgstr "nie dokoñczone wywo³anie funkcji `%s': brak `%c'"
+
+#: getopt.c:661
+#, c-format
+msgid "%s: option `%s' is ambiguous\n"
+msgstr "%s: opcja `%s' jest niejednoznaczna\n"
+
+#: getopt.c:685
+#, c-format
+msgid "%s: option `--%s' doesn't allow an argument\n"
+msgstr "%s: opcja `--%s' nie przyjmuje argumentów\n"
+
+#: getopt.c:690
+#, c-format
+msgid "%s: option `%c%s' doesn't allow an argument\n"
+msgstr "%s: opcja `%c%s' nie przyjmuje argumentów\n"
+
+#: getopt.c:707 getopt.c:880
+#, c-format
+msgid "%s: option `%s' requires an argument\n"
+msgstr "%s: opcja `%s' wymaga argumentu\n"
+
+#: getopt.c:736
+#, c-format
+msgid "%s: unrecognized option `--%s'\n"
+msgstr "%s: nierozpoznana opcja `--%s'\n"
+
+#: getopt.c:740
+#, c-format
+msgid "%s: unrecognized option `%c%s'\n"
+msgstr "%s: nierozpoznan opcja `%c%s'\n"
+
+#: getopt.c:766
+#, c-format
+msgid "%s: illegal option -- %c\n"
+msgstr "%s: niedozwolona opcja -- %c\n"
+
+#: getopt.c:769
+#, c-format
+msgid "%s: invalid option -- %c\n"
+msgstr "%s: b³êdna opcja -- %c\n"
+
+#: getopt.c:799 getopt.c:929
+#, c-format
+msgid "%s: option requires an argument -- %c\n"
+msgstr "%s: opcja wymaga argumentu -- %c\n"
+
+#: getopt.c:846
+#, c-format
+msgid "%s: option `-W %s' is ambiguous\n"
+msgstr "%s: opcja `-W %s' jest niejednoznaczna\n"
+
+#: getopt.c:864
+#, c-format
+msgid "%s: option `-W %s' doesn't allow an argument\n"
+msgstr "%s: opcja `-W %s' nie przyjmuje argumentów\n"
+
+#: hash.c:49
+#, c-format
+msgid "can't allocate %lu bytes for hash table: memory exhausted"
+msgstr ""
+"nie mo¿na przydzieliæ %lu bajtów na tablicê haszuj±c±: pamiêæ wyczerpana"
+
+#: hash.c:280
+#, c-format
+msgid "Load=%ld/%ld=%.0f%%, "
+msgstr "Wype³nienie=%ld/%ld=%.0f%%, "
+
+#: hash.c:282
+#, c-format
+msgid "Rehash=%d, "
+msgstr "Przehaszowania=%d, "
+
+#: hash.c:283
+#, c-format
+msgid "Collisions=%ld/%ld=%.0f%%"
+msgstr "Kolizje=%ld/%ld=%.0f%%"
+
+#: implicit.c:40
+#, c-format
+msgid "Looking for an implicit rule for `%s'.\n"
+msgstr "Szukanie standardowej regu³y dla `%s'.\n"
+
+#: implicit.c:56
+#, c-format
+msgid "Looking for archive-member implicit rule for `%s'.\n"
+msgstr "Szukanie standardowej regu³y typu archive-member dla `%s'.\n"
+
+#: implicit.c:317
+msgid "Avoiding implicit rule recursion.\n"
+msgstr "Pomijanie rekurencyjnego wywo³ania regu³y standardowej.\n"
+
+#: implicit.c:491
+#, c-format
+msgid "Trying pattern rule with stem `%.*s'.\n"
+msgstr "Próbowanie regu³y wzorcowej z ga³êzi± `%.*s'.\n"
+
+#: implicit.c:674
+#, c-format
+msgid "Rejecting impossible rule prerequisite `%s'.\n"
+msgstr "Odrzucenie niemo¿liwej zale¿no¶ci regu³y `%s'.\n"
+
+#: implicit.c:675
+#, c-format
+msgid "Rejecting impossible implicit prerequisite `%s'.\n"
+msgstr "Odrzucenie niemo¿liwej zale¿no¶ci domy¶lnej `%s'.\n"
+
+#: implicit.c:688
+#, c-format
+msgid "Trying rule prerequisite `%s'.\n"
+msgstr "Próbowanie zale¿no¶ci regu³y `%s'.\n"
+
+#: implicit.c:689
+#, c-format
+msgid "Trying implicit prerequisite `%s'.\n"
+msgstr "Próbowanie zale¿no¶ci domy¶lnej `%s'.\n"
+
+#: implicit.c:728
+#, c-format
+msgid "Found prerequisite `%s' as VPATH `%s'\n"
+msgstr "Znaleziono zale¿no¶æ `%s' jako VPATH `%s'\n"
+
+#: implicit.c:742
+#, c-format
+msgid "Looking for a rule with intermediate file `%s'.\n"
+msgstr "Szukanie regu³y zawieraj±cej plik przej¶ciowy `%s'.\n"
+
+#: job.c:335
+msgid "Cannot create a temporary file\n"
+msgstr "Nie mo¿na utworzyæ pliku tymczasowego\n"
+
+#: job.c:449
+#, c-format
+msgid "*** [%s] Error 0x%x (ignored)"
+msgstr "*** [%s] B³±d 0x%x (zignorowany)"
+
+#: job.c:450
+#, c-format
+msgid "*** [%s] Error 0x%x"
+msgstr "*** [%s] B³±d 0x%x"
+
+#: job.c:454
+#, c-format
+msgid "[%s] Error %d (ignored)"
+msgstr "[%s] B³±d %d (zignorowany)"
+
+#: job.c:455
+#, c-format
+msgid "*** [%s] Error %d"
+msgstr "*** [%s] B³±d %d"
+
+#: job.c:460
+msgid " (core dumped)"
+msgstr " (zrzut pamiêci)"
+
+#: job.c:549
+msgid "*** Waiting for unfinished jobs...."
+msgstr "*** Oczekiwanie na niezakoñczone zadania...."
+
+#: job.c:579
+#, c-format
+msgid "Live child %p (%s) PID %s %s\n"
+msgstr "¯yj±cy potomek %p (%s) PID %s %s\n"
+
+#: job.c:581 job.c:760 job.c:862 job.c:1527
+msgid " (remote)"
+msgstr " (zdalne)"
+
+#: job.c:758
+#, c-format
+msgid "Reaping losing child %p PID %s %s\n"
+msgstr "Zbieranie przegrywaj±cego potomka %p PID %s %s\n"
+
+#: job.c:759
+#, c-format
+msgid "Reaping winning child %p PID %s %s\n"
+msgstr "Zbieranie wygrywaj±cego potomka %p PID %s %s\n"
+
+#: job.c:763
+#, c-format
+msgid "Cleaning up temp batch file %s\n"
+msgstr "Czyszczenie tymczasowego pliku wsadowego %s\n"
+
+#: job.c:861
+#, c-format
+msgid "Removing child %p PID %s%s from chain.\n"
+msgstr "Usuwanie potomka %p PID %s%s z kolejki.\n"
+
+#: job.c:920
+msgid "write jobserver"
+msgstr "pisz±cy serwer zadañ"
+
+#: job.c:922
+#, c-format
+msgid "Released token for child %p (%s).\n"
+msgstr "Zwolniony token dla potomka %p (%s).\n"
+
+#: job.c:1453 job.c:2094
+#, c-format
+msgid "process_easy() failed to launch process (e=%ld)\n"
+msgstr "process_easy() nie móg³ uruchomiæ procesu (e=%ld)\n"
+
+#: job.c:1457 job.c:2098
+#, c-format
+msgid ""
+"\n"
+"Counted %d args in failed launch\n"
+msgstr ""
+"\n"
+"Naliczono %d parametrów nieudanego uruchomienia\n"
+
+#: job.c:1525
+#, c-format
+msgid "Putting child %p (%s) PID %s%s on the chain.\n"
+msgstr "Wstawianie potomka %p (%s) PID %s%s do kolejki.\n"
+
+#: job.c:1778
+#, c-format
+msgid "Obtained token for child %p (%s).\n"
+msgstr "Otrzymano token dla potomka %p (%s).\n"
+
+#: job.c:1787
+msgid "read jobs pipe"
+msgstr "strumieñ czytaj±cy zadania"
+
+#: job.c:1798
+#, c-format
+msgid "Invoking recipe from %s:%lu to update target `%s'.\n"
+msgstr "Wykonywanie poleceñ z %s:%lu dla uaktualnienia obiektu `%s'.\n"
+
+#: job.c:1802
+#, c-format
+msgid "Invoking builtin recipe to update target `%s'.\n"
+msgstr "Wykonywanie wbudowanych poleceñ dla uaktualnienia obiektu `%s'.\n"
+
+#: job.c:1910
+msgid "cannot enforce load limits on this operating system"
+msgstr "niemo¿liwe wymuszenie limitów obci±¿enia w tym systemie"
+
+#: job.c:1912
+msgid "cannot enforce load limit: "
+msgstr "niemo¿liwe wymuszenie limitu obci±¿enia: "
+
+#: job.c:1985
+msgid "no more file handles: could not duplicate stdin\n"
+msgstr "nie ma wiêcej uchwytów plików: nie mo¿na powieliæ stdin\n"
+
+#: job.c:1987
+msgid "no more file handles: could not duplicate stdout\n"
+msgstr "nie ma wiêcej uchwytów plików: nie mo¿na powieliæ stdout\n"
+
+#: job.c:2015
+msgid "Could not restore stdin\n"
+msgstr "Nie mo¿na odtworzyæ stdin\n"
+
+#: job.c:2023
+msgid "Could not restore stdout\n"
+msgstr "Nie mo¿na odtworzyæ stdout\n"
+
+#: job.c:2127
+#, c-format
+msgid "make reaped child pid %s, still waiting for pid %s\n"
+msgstr "make usun±³ potomka pid %s, nadal czeka na pid %s\n"
+
+#: job.c:2168
+#, c-format
+msgid "%s: Command not found"
+msgstr "%s: Polecenie nie znalezione"
+
+#: job.c:2228
+#, c-format
+msgid "%s: Shell program not found"
+msgstr "%s: Nie znaleziono programu pow³oki"
+
+#: job.c:2237
+msgid "spawnvpe: environment space might be exhausted"
+msgstr "spawnvpe: mog³o zabrakn±æ miejsca na ¶rodowisko"
+
+#: job.c:2461
+#, c-format
+msgid "$SHELL changed (was `%s', now `%s')\n"
+msgstr "$SHELL siê zmieni³ (by³ `%s', jest `%s')\n"
+
+#: job.c:2951
+#, c-format
+msgid "Creating temporary batch file %s\n"
+msgstr "Tworzenie tymczasowego pliku wsadowego %s\n"
+
+#: job.c:2963
+#, c-format
+msgid ""
+"Batch file contents:%s\n"
+"\t%s\n"
+msgstr ""
+"Zawarto¶æ pliku wsadowego:%s\n"
+"\t%s\n"
+
+#: job.c:3065
+#, c-format
+msgid "%s (line %d) Bad shell context (!unixy && !batch_mode_shell)\n"
+msgstr "%s (linia %d) Z³y kontekst pow³oki (!unixy && !batch_mode_shell)\n"
+
+#: main.c:303
+msgid "Options:\n"
+msgstr "Opcje:\n"
+
+#: main.c:304
+msgid "  -b, -m                      Ignored for compatibility.\n"
+msgstr "  -b, -m                      Ignorowane dla kompatybilno¶ci.\n"
+
+#: main.c:306
+msgid "  -B, --always-make           Unconditionally make all targets.\n"
+msgstr ""
+"  -B, --always-make           Bezwarunkowe utworzenie wszystkich obiektów.\n"
+
+#: main.c:308
+msgid ""
+"  -C DIRECTORY, --directory=DIRECTORY\n"
+"                              Change to DIRECTORY before doing anything.\n"
+msgstr ""
+"  -C KATALOG, --directory=KATALOG\n"
+"                              Przej¶cie do KATALOGu przed robieniem\n"
+"                              czegokolwiek.\n"
+
+#: main.c:311
+msgid "  -d                          Print lots of debugging information.\n"
+msgstr ""
+"  -d                          Wy¶wietla du¿o informacji diagnostycznych.\n"
+
+#: main.c:313
+msgid ""
+"  --debug[=FLAGS]             Print various types of debugging information.\n"
+msgstr ""
+"  --debug[=FLAGI]             Wy¶wietla ró¿ne rodzaje informacji\n"
+"                              diagnostycznych.\n"
+
+#: main.c:315
+msgid ""
+"  -e, --environment-overrides\n"
+"                              Environment variables override makefiles.\n"
+msgstr ""
+"  -e, --environment-overrides\n"
+"                              Zmienne ¶rodowiska przykrywaj± makefile.\n"
+
+#: main.c:318
+msgid ""
+"  --eval=STRING               Evaluate STRING as a makefile statement.\n"
+msgstr ""
+"  --eval=£AÑCUCH              Wyznacza £AÑCUCH jako instrukcjê pliku "
+"makefile.\n"
+
+#: main.c:320
+msgid ""
+"  -f FILE, --file=FILE, --makefile=FILE\n"
+"                              Read FILE as a makefile.\n"
+msgstr ""
+"  -f PLIK, --file=PLIK, --makefile=PLIK\n"
+"                              Czyta PLIK jako makefile.\n"
+
+#: main.c:323
+msgid "  -h, --help                  Print this message and exit.\n"
+msgstr ""
+"  -h, --help                  Wy¶wietla ten komunikat i koñczy dzia³anie.\n"
+
+#: main.c:325
+msgid "  -i, --ignore-errors         Ignore errors from recipes.\n"
+msgstr "  -i, --ignore-errors         Ignoruje b³êdy poleceñ.\n"
+
+#: main.c:327
+msgid ""
+"  -I DIRECTORY, --include-dir=DIRECTORY\n"
+"                              Search DIRECTORY for included makefiles.\n"
+msgstr ""
+"  -I KATALOG, --include-dir=KATALOG\n"
+"                              Szuka do³±czanych makefile w KATALOGu.\n"
+
+#: main.c:330
+msgid ""
+"  -j [N], --jobs[=N]          Allow N jobs at once; infinite jobs with no "
+"arg.\n"
+msgstr ""
+"  -j [N], --jobs[=N]          Dopuszcza N zadañ naraz; brak N oznacza brak\n"
+"                              ograniczeñ.\n"
+
+#: main.c:332
+msgid ""
+"  -k, --keep-going            Keep going when some targets can't be made.\n"
+msgstr ""
+"  -k, --keep-going            Kontynuuj je¶li nie da siê zrobiæ jakich¶\n"
+"                              obiektów.\n"
+
+#: main.c:334
+msgid ""
+"  -l [N], --load-average[=N], --max-load[=N]\n"
+"                              Don't start multiple jobs unless load is below "
+"N.\n"
+msgstr ""
+"  -l [N], --load-average[=N], --max-load[=N]\n"
+"                              Nie uruchamiaj wielu zadañ je¶li load nie "
+"jest\n"
+"                              poni¿ej N.\n"
+
+#: main.c:337
+msgid ""
+"  -L, --check-symlink-times   Use the latest mtime between symlinks and "
+"target.\n"
+msgstr ""
+"  -L, --check-symlink-times   U¿ywanie ostatniego mtime miêdzy dowi±zaniem a "
+"celem.\n"
+
+#: main.c:339
+msgid ""
+"  -n, --just-print, --dry-run, --recon\n"
+"                              Don't actually run any recipe; just print "
+"them.\n"
+msgstr ""
+"  -n, --just-print, --dry-run, --recon\n"
+"                              Nie wykonuje poleceñ; jedynie je wy¶wietla.\n"
+
+#: main.c:342
+msgid ""
+"  -o FILE, --old-file=FILE, --assume-old=FILE\n"
+"                              Consider FILE to be very old and don't remake "
+"it.\n"
+msgstr ""
+"  -o PLIK, --old-file=PLIK, --assume-old=PLIK\n"
+"                              Uznanie PLIKu za bardzo stary i nie tworzenie "
+"go\n"
+"                              ponownie.\n"
+
+#: main.c:345
+msgid "  -p, --print-data-base       Print make's internal database.\n"
+msgstr "  -p, --print-data-base       Wy¶wietla wewnêtrzn± bazê danych make.\n"
+
+#: main.c:347
+msgid ""
+"  -q, --question              Run no recipe; exit status says if up to "
+"date.\n"
+msgstr ""
+"  -q, --question              Nie uruchamia ¿adnych poleceñ; status powrotu\n"
+"                              wskazuje aktualno¶æ.\n"
+
+#: main.c:349
+msgid "  -r, --no-builtin-rules      Disable the built-in implicit rules.\n"
+msgstr "  -r, --no-builtin-rules      Wy³±cza wbudowane regu³y standardowe.\n"
+
+#: main.c:351
+msgid "  -R, --no-builtin-variables  Disable the built-in variable settings.\n"
+msgstr ""
+"  -R, --no-builtin-variables  Wy³±cza ustawianie wbudowanych zmiennych.\n"
+
+#: main.c:353
+msgid "  -s, --silent, --quiet       Don't echo recipes.\n"
+msgstr "  -s, --silent, --quiet       Nie wypisuje poleceñ.\n"
+
+#: main.c:355
+msgid ""
+"  -S, --no-keep-going, --stop\n"
+"                              Turns off -k.\n"
+msgstr ""
+"  -S, --no-keep-going, --stop\n"
+"                              Wy³±cza -k.\n"
+
+#: main.c:358
+msgid "  -t, --touch                 Touch targets instead of remaking them.\n"
+msgstr "  -t, --touch                 Uaktualnia obiekty zamiast je robiæ.\n"
+
+#: main.c:360
+msgid ""
+"  -v, --version               Print the version number of make and exit.\n"
+msgstr ""
+"  -v, --version               Wy¶wietla wersjê make i koñczy dzia³anie.\n"
+
+#: main.c:362
+msgid "  -w, --print-directory       Print the current directory.\n"
+msgstr "  -w, --print-directory       Wy¶wietla aktualny katalog.\n"
+
+#: main.c:364
+msgid ""
+"  --no-print-directory        Turn off -w, even if it was turned on "
+"implicitly.\n"
+msgstr ""
+"  --no-print-directory        Wy³±cza -w, nawet je¶li by³o ono w³±czone\n"
+"                              domy¶lnie.\n"
+
+#: main.c:366
+msgid ""
+"  -W FILE, --what-if=FILE, --new-file=FILE, --assume-new=FILE\n"
+"                              Consider FILE to be infinitely new.\n"
+msgstr ""
+"  -W PLIK, --what-if=PLIK, --new-file=PLIK, --assume-new=PLIK\n"
+"                              Uznaje PLIK za nieskoñczenie nowy.\n"
+
+#: main.c:369
+msgid ""
+"  --warn-undefined-variables  Warn when an undefined variable is "
+"referenced.\n"
+msgstr ""
+"  --warn-undefined-variables  Ostrzega przy odwo³aniach do "
+"niezdefiniowanych\n"
+"                              zmiennych.\n"
+
+#: main.c:564
+msgid "empty string invalid as file name"
+msgstr "pusty ³añcuch nie mo¿e byæ nazw± pliku"
+
+#: main.c:650
+#, c-format
+msgid "unknown debug level specification `%s'"
+msgstr "nieznany poziom diagnostyki `%s'"
+
+#: main.c:690
+#, c-format
+msgid "%s: Interrupt/Exception caught (code = 0x%lx, addr = 0x%p)\n"
+msgstr "%s: z³apano przerwanie/wyj±tek (kod = 0x%lx, adres = 0x%p)\n"
+
+#: main.c:697
+#, c-format
+msgid ""
+"\n"
+"Unhandled exception filter called from program %s\n"
+"ExceptionCode = %lx\n"
+"ExceptionFlags = %lx\n"
+"ExceptionAddress = 0x%p\n"
+msgstr ""
+"\n"
+"Nieobs³ugiwany filtr wyj±tku wywo³any z programu %s\n"
+"ExceptionCode = %lx\n"
+"ExceptionFlags = %lx\n"
+"ExceptionAddress = 0x%p\n"
+
+#: main.c:705
+#, c-format
+msgid "Access violation: write operation at address 0x%p\n"
+msgstr "Naruszenie praw dostêpu: zapis pod adresem 0x%p\n"
+
+#: main.c:706
+#, c-format
+msgid "Access violation: read operation at address 0x%p\n"
+msgstr "Naruszenie praw dostêpu: odczyt spod adresu 0x%p\n"
+
+#: main.c:781 main.c:792
+#, c-format
+msgid "find_and_set_shell() setting default_shell = %s\n"
+msgstr "find_and_set_shell() ustawia default_shell = %s\n"
+
+#: main.c:834
+#, c-format
+msgid "find_and_set_shell() path search set default_shell = %s\n"
+msgstr "find_and_set_shell() ustawia ¶cie¿kê wyszukiwania default_shell = %s\n"
+
+#: main.c:1273
+#, c-format
+msgid "%s is suspending for 30 seconds..."
+msgstr "%s jest zawieszony na 30 sekund..."
+
+#: main.c:1275
+#, c-format
+msgid "done sleep(30). Continuing.\n"
+msgstr "zakoñczono sleep(30). Kontynuacja.\n"
+
+#: main.c:1501
+msgid "Makefile from standard input specified twice."
+msgstr "Makefile ze standardowego wej¶cia podano dwukrotnie."
+
+#: main.c:1539 vmsjobs.c:500
+msgid "fopen (temporary file)"
+msgstr "fopen (plik tymczasowy)"
+
+#: main.c:1545
+msgid "fwrite (temporary file)"
+msgstr "fwrite (plik tymczasowy)"
+
+#: main.c:1703
+msgid "Parallel jobs (-j) are not supported on this platform."
+msgstr "Równoleg³e zadania (-j) nie s± obs³ugiwane na tej platformie"
+
+#: main.c:1704
+msgid "Resetting to single job (-j1) mode."
+msgstr "Prze³±czanie w tryb jednozadaniowy (-j1)."
+
+#: main.c:1719
+msgid "internal error: multiple --jobserver-fds options"
+msgstr "b³±d wewnêtrzny: wiele opcji --jobserver-fds"
+
+#: main.c:1727
+#, c-format
+msgid "internal error: invalid --jobserver-fds string `%s'"
+msgstr "b³±d wewnêtrzny: b³êdny ³añcuch --jobserver-fds `%s'"
+
+#: main.c:1730
+#, c-format
+msgid "Jobserver client (fds %d,%d)\n"
+msgstr "Klient serwera zadañ (fds %d,%d)\n"
+
+#: main.c:1740
+msgid "warning: -jN forced in submake: disabling jobserver mode."
+msgstr "uwaga: -jN wymuszone w podzadaniu: wy³±czanie trybu serwera zadañ."
+
+#: main.c:1750
+msgid "dup jobserver"
+msgstr "duplikacja serwera zadañ"
+
+#: main.c:1753
+msgid ""
+"warning: jobserver unavailable: using -j1.  Add `+' to parent make rule."
+msgstr ""
+"uwaga: serwer zadañ niedostêpny: u¿ywanie -j1.  Nale¿y dodaæ `+' do "
+"nadrzêdnej regu³y make."
+
+#: main.c:1777
+msgid "creating jobs pipe"
+msgstr "tworzenie potoku zadañ"
+
+#: main.c:1792
+msgid "init jobserver pipe"
+msgstr "inicjowanie potoku serwera zadañ"
+
+#: main.c:1812
+msgid "Symbolic links not supported: disabling -L."
+msgstr "Dowi±zania symboliczne nie s± obs³ugiwane: wy³±czono -L."
+
+#: main.c:1892
+msgid "Updating makefiles....\n"
+msgstr "Uaktualnianie plików makefile....\n"
+
+#: main.c:1917
+#, c-format
+msgid "Makefile `%s' might loop; not remaking it.\n"
+msgstr "Makefile `%s' mo¿e siê zapêtliæ; nie przetwarzam go.\n"
+
+#: main.c:1996
+#, c-format
+msgid "Failed to remake makefile `%s'."
+msgstr "Nie uda³o siê zrobiæ makefile `%s'."
+
+#: main.c:2013
+#, c-format
+msgid "Included makefile `%s' was not found."
+msgstr "Nie znaleziono w³±czanych makefile `%s'."
+
+#: main.c:2018
+#, c-format
+msgid "Makefile `%s' was not found"
+msgstr "Nie znaleziono makefile `%s'"
+
+#: main.c:2086
+msgid "Couldn't change back to original directory."
+msgstr "Niemo¿liwy powrót do katalogu startowego."
+
+#: main.c:2102
+#, c-format
+msgid "Re-executing[%u]:"
+msgstr "Ponowne uruchamianie[%u]:"
+
+#: main.c:2215
+msgid "unlink (temporary file): "
+msgstr "unlink (plik tymczasowy): "
+
+#: main.c:2247
+msgid ".DEFAULT_GOAL contains more than one target"
+msgstr ".DEFAULT_GOAL zawiera wiêcej ni¿ jeden cel"
+
+#: main.c:2270
+msgid "No targets specified and no makefile found"
+msgstr "Nie podano obiektów i nie znaleziono makefile"
+
+#: main.c:2272
+msgid "No targets"
+msgstr "Brak obiektów"
+
+#: main.c:2277
+msgid "Updating goal targets....\n"
+msgstr "Uaktualnianie obiektów docelowych....\n"
+
+#: main.c:2306
+msgid "warning:  Clock skew detected.  Your build may be incomplete."
+msgstr "uwaga:  Wykryto przestawienie zegara. Budowanie mo¿e byæ niekompletne."
+
+#: main.c:2470
+#, c-format
+msgid "Usage: %s [options] [target] ...\n"
+msgstr "Sk³adnia: %s [opcje] [obiekt] ...\n"
+
+#: main.c:2476
+#, c-format
+msgid ""
+"\n"
+"This program built for %s\n"
+msgstr ""
+"\n"
+"Ten program zosta³ zbudowany dla %s\n"
+
+#: main.c:2478
+#, c-format
+msgid ""
+"\n"
+"This program built for %s (%s)\n"
+msgstr ""
+"\n"
+"Ten program zosta³ zbudowany dla %s (%s)\n"
+
+#: main.c:2481
+#, c-format
+msgid "Report bugs to <bug-make@gnu.org>\n"
+msgstr "B³êdy proszê zg³aszaæ na adres <bug-make@gnu.org>\n"
+
+#: main.c:2562
+#, c-format
+msgid "the `%s%s' option requires a non-empty string argument"
+msgstr "opcja `%s%s' wymaga niepustego ³añcucha jako argumentu"
+
+#: main.c:2617
+#, c-format
+msgid "the `-%c' option requires a positive integral argument"
+msgstr "opcja `-%c' wymaga argumentu ca³kowitego dodatniego"
+
+#: main.c:3054
+#, c-format
+msgid "%sBuilt for %s\n"
+msgstr "%sTen program zosta³ zbudowany dla systemu %s\n"
+
+#: main.c:3056
+#, c-format
+msgid "%sBuilt for %s (%s)\n"
+msgstr "%sTen program zosta³ zbudowany dla systemu %s (%s)\n"
+
+#: main.c:3066
+#, c-format
+msgid ""
+"%sLicense GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl."
+"html>\n"
+"%sThis is free software: you are free to change and redistribute it.\n"
+"%sThere is NO WARRANTY, to the extent permitted by law.\n"
+msgstr ""
+"%sLicencja GPLv3+: GNU GPL wersja 3 lub nowsza <http://gnu.org/licenses/gpl."
+"html>\n"
+"%sTo oprogramowanie jest wolnodostêpne: mo¿na je swobodnie zmieniaæ i "
+"rozpowszechniaæ.\n"
+"%sNie ma ¯ADNEJ GWARANCJI w zakresie dopuszczalnym przez prawo.\n"
+
+#: main.c:3086
+#, c-format
+msgid ""
+"\n"
+"# Make data base, printed on %s"
+msgstr ""
+"\n"
+"# Baza danych Make, wy¶wietlana na %s"
+
+#: main.c:3096
+#, c-format
+msgid ""
+"\n"
+"# Finished Make data base on %s\n"
+msgstr ""
+"\n"
+"# Zakoñczono tworzenie bazy danych Make na %s\n"
+
+#: main.c:3237
+#, c-format
+msgid "%s: Entering an unknown directory\n"
+msgstr "%s: Wej¶cie do nieznanego katalogu\n"
+
+#: main.c:3239
+#, c-format
+msgid "%s: Leaving an unknown directory\n"
+msgstr "%s: Opuszczenie nieznanego katalogu\n"
+
+#: main.c:3242
+#, c-format
+msgid "%s: Entering directory `%s'\n"
+msgstr "%s: Wej¶cie do katalogu `%s'\n"
+
+#: main.c:3245
+#, c-format
+msgid "%s: Leaving directory `%s'\n"
+msgstr "%s: Opuszczenie katalogu `%s'\n"
+
+#: main.c:3250
+#, c-format
+msgid "%s[%u]: Entering an unknown directory\n"
+msgstr "%s[%u]: Wej¶cie do nieznanego katalogu\n"
+
+#: main.c:3253
+#, c-format
+msgid "%s[%u]: Leaving an unknown directory\n"
+msgstr "%s[%u]: Opuszczenie nieznanego katalogu\n"
+
+#: main.c:3257
+#, c-format
+msgid "%s[%u]: Entering directory `%s'\n"
+msgstr "%s[%u]: Wej¶cie do katalogu `%s'\n"
+
+#: main.c:3260
+#, c-format
+msgid "%s[%u]: Leaving directory `%s'\n"
+msgstr "%s[%u]: Opuszczenie katalogu `%s'\n"
+
+#: misc.c:316
+msgid ".  Stop.\n"
+msgstr ". Stop.\n"
+
+#: misc.c:337
+#, c-format
+msgid "Unknown error %d"
+msgstr "Nieznany b³±d %d"
+
+#: misc.c:347
+#, c-format
+msgid "%s%s: %s"
+msgstr "%s%s: %s"
+
+#: misc.c:355
+#, c-format
+msgid "%s: %s"
+msgstr "%s: %s"
+
+#: misc.c:376 misc.c:387 misc.c:402 misc.c:419 misc.c:438 read.c:3118
+msgid "virtual memory exhausted"
+msgstr "brak pamiêci wirtualnej"
+
+#: misc.c:708
+#, c-format
+msgid "%s: user %lu (real %lu), group %lu (real %lu)\n"
+msgstr "%s: u¿ytkownik %lu (rzeczywisty %lu), grupa %lu (rzeczywista %lu)\n"
+
+#: misc.c:729
+msgid "Initialized access"
+msgstr "Zainicjalizowany dostêp"
+
+#: misc.c:808
+msgid "User access"
+msgstr "Dostêp u¿ytkownika"
+
+#: misc.c:856
+msgid "Make access"
+msgstr "Dostêp make"
+
+#: misc.c:890
+msgid "Child access"
+msgstr "Dostêp potomka"
+
+#: misc.c:954
+#, c-format
+msgid "write error: %s"
+msgstr "b³±d zapisu: %s"
+
+#: misc.c:956
+msgid "write error"
+msgstr "b³±d zapisu"
+
+#: read.c:179
+msgid "Reading makefiles...\n"
+msgstr "Czytanie makefile...\n"
+
+#: read.c:333
+#, c-format
+msgid "Reading makefile `%s'"
+msgstr "Czytanie makefile `%s'"
+
+#: read.c:335
+#, c-format
+msgid " (no default goal)"
+msgstr " (brak celu domy¶lnego)"
+
+#: read.c:337
+#, c-format
+msgid " (search path)"
+msgstr " (przeszukiwana ¶cie¿ka)"
+
+#: read.c:339
+#, c-format
+msgid " (don't care)"
+msgstr " (niewa¿ne)"
+
+#: read.c:341
+#, c-format
+msgid " (no ~ expansion)"
+msgstr " (brak rozszerzenia ~)"
+
+#: read.c:759
+msgid "invalid syntax in conditional"
+msgstr "b³êdna sk³adnia wyra¿enia warunkowego"
+
+#: read.c:891
+msgid "recipe commences before first target"
+msgstr "polecenia zaczynaj± siê przed pierwszym obiektem"
+
+#: read.c:940
+msgid "missing rule before recipe"
+msgstr "brakuje regu³y przed poleceniami"
+
+#: read.c:1027
+#, c-format
+msgid "missing separator%s"
+msgstr "brakuj±cy separator%s"
+
+#: read.c:1029
+msgid " (did you mean TAB instead of 8 spaces?)"
+msgstr " (czy¿by mia³ byæ TAB zamiast 8 spacji?)"
+
+#: read.c:1163
+msgid "missing target pattern"
+msgstr "brakuj±cy wzorzec obiektu"
+
+#: read.c:1165
+msgid "multiple target patterns"
+msgstr "wielokrotne wzorce obiektu"
+
+#: read.c:1169
+#, c-format
+msgid "target pattern contains no `%%'"
+msgstr "wzorzec obiektu nie zawiera `%%'"
+
+#: read.c:1293
+msgid "missing `endif'"
+msgstr "brakuj±cy `endif'"
+
+#: read.c:1332 read.c:1377 variable.c:1488
+msgid "empty variable name"
+msgstr "pusta nazwa zmiennej"
+
+#: read.c:1367
+msgid "extraneous text after `define' directive"
+msgstr "nadmiarowy tekst po dyrektywie `define'"
+
+#: read.c:1392
+msgid "missing `endef', unterminated `define'"
+msgstr "brakuj±cy `endef', niezakoñczone `define'"
+
+#: read.c:1420
+msgid "extraneous text after `endef' directive"
+msgstr "nadmiarowy tekst po dyrektywie `endef'"
+
+#: read.c:1490
+#, c-format
+msgid "Extraneous text after `%s' directive"
+msgstr "Niezwi±zany tekst po dyrektywie `%s'"
+
+#: read.c:1499 read.c:1513
+#, c-format
+msgid "extraneous `%s'"
+msgstr "niezwi±zany `%s'"
+
+#: read.c:1518
+msgid "only one `else' per conditional"
+msgstr "tylko jedno `else' w wyra¿eniu warunkowym"
+
+#: read.c:1797
+msgid "Malformed target-specific variable definition"
+msgstr "¬le sformu³owana definicja zmiennej dla celu"
+
+#: read.c:1855
+msgid "prerequisites cannot be defined in recipes"
+msgstr "wymagania nie mog± byæ definiowane w opisach poleceñ"
+
+#: read.c:1908
+msgid "mixed implicit and static pattern rules"
+msgstr "pomieszane standardowe i statyczne regu³y wzorców"
+
+#: read.c:1931 read.c:2112
+msgid "mixed implicit and normal rules"
+msgstr "pomieszane standardowe i normalne regu³y"
+
+#: read.c:1976
+#, c-format
+msgid "target `%s' doesn't match the target pattern"
+msgstr "obiekt `%s' nie pasuje do wzorca obiektu"
+
+#: read.c:1991 read.c:2036
+#, c-format
+msgid "target file `%s' has both : and :: entries"
+msgstr "plik obiektowy `%s' ma pozycje i : i ::"
+
+#: read.c:1997
+#, c-format
+msgid "target `%s' given more than once in the same rule."
+msgstr "obiekt `%s' wyspecyfikowany wielokrotnie w tej samej regule"
+
+#: read.c:2006
+#, c-format
+msgid "warning: overriding recipe for target `%s'"
+msgstr "uwaga: polecenia zakrywaj±ce dla obiektu `%s'"
+
+#: read.c:2009
+#, c-format
+msgid "warning: ignoring old recipe for target `%s'"
+msgstr "uwaga: ignorujê stare polecenia dla obiektu `%s'"
+
+#: read.c:2392
+msgid "warning: NUL character seen; rest of line ignored"
+msgstr "uwaga: napotka³em na znak NUL; reszta linii zignorowana"
+
+#: remake.c:234
+#, c-format
+msgid "Nothing to be done for `%s'."
+msgstr "Nie ma nic do zrobienia w `%s'."
+
+#: remake.c:235
+#, c-format
+msgid "`%s' is up to date."
+msgstr "`%s' jest aktualne."
+
+#: remake.c:306
+#, c-format
+msgid "Pruning file `%s'.\n"
+msgstr "Czyszczenie pliku `%s'.\n"
+
+#: remake.c:359
+#, c-format
+msgid "%sNo rule to make target `%s'%s"
+msgstr "%sBrak regu³ do wykonania obiektu `%s'%s"
+
+#: remake.c:361
+#, c-format
+msgid "%sNo rule to make target `%s', needed by `%s'%s"
+msgstr "%sBrak regu³ do zrobienia obiektu `%s', wymaganego przez `%s'%s"
+
+#: remake.c:413
+#, c-format
+msgid "Considering target file `%s'.\n"
+msgstr "Przetwarzanie pliku obiektowego `%s'.\n"
+
+#: remake.c:420
+#, c-format
+msgid "Recently tried and failed to update file `%s'.\n"
+msgstr "Ju¿ bez powodzenia próbowa³em uaktualniæ plik `%s'.\n"
+
+#: remake.c:432
+#, c-format
+msgid "File `%s' was considered already.\n"
+msgstr "Plik `%s' by³ ju¿ przetwarzany.\n"
+
+#: remake.c:442
+#, c-format
+msgid "Still updating file `%s'.\n"
+msgstr "Wci±¿ uaktualniam plik `%s'.\n"
+
+#: remake.c:445
+#, c-format
+msgid "Finished updating file `%s'.\n"
+msgstr "Skoñczy³em uaktualniaæ plik `%s'.\n"
+
+#: remake.c:474
+#, c-format
+msgid "File `%s' does not exist.\n"
+msgstr "Plik `%s' nie istnieje.\n"
+
+#: remake.c:481
+#, c-format
+msgid ""
+"*** Warning: .LOW_RESOLUTION_TIME file `%s' has a high resolution time stamp"
+msgstr ""
+"*** Uwaga: plik .LOW_RESOLUTION_TIME `%s' ma du¿± rozdzielczo¶æ znacznika "
+"czasu"
+
+#: remake.c:494 remake.c:1016
+#, c-format
+msgid "Found an implicit rule for `%s'.\n"
+msgstr "Znaleziono standardow± regu³ê dla `%s'.\n"
+
+#: remake.c:496 remake.c:1018
+#, c-format
+msgid "No implicit rule found for `%s'.\n"
+msgstr "Brak standardowych regu³ dla `%s'.\n"
+
+#: remake.c:502
+#, c-format
+msgid "Using default recipe for `%s'.\n"
+msgstr "Stosowanie standardowych poleceñ dla `%s'.\n"
+
+#: remake.c:535 remake.c:1057
+#, c-format
+msgid "Circular %s <- %s dependency dropped."
+msgstr "Okrê¿na dyrektywa %s <- %s porzucona."
+
+#: remake.c:651
+#, c-format
+msgid "Finished prerequisites of target file `%s'.\n"
+msgstr "Zakoñczono zale¿no¶ci pliku obiektu `%s'.\n"
+
+#: remake.c:657
+#, c-format
+msgid "The prerequisites of `%s' are being made.\n"
+msgstr "Zale¿no¶ci `%s' s± wykonywane.\n"
+
+#: remake.c:670
+#, c-format
+msgid "Giving up on target file `%s'.\n"
+msgstr "Zaniechany plik obiektowy `%s'.\n"
+
+#: remake.c:675
+#, c-format
+msgid "Target `%s' not remade because of errors."
+msgstr "Obiekt `%s' nie zosta³ wykonany z powodu b³êdów."
+
+#: remake.c:727
+#, c-format
+msgid "Prerequisite `%s' is order-only for target `%s'.\n"
+msgstr "Zale¿no¶æ `%s' dotyczy tylko kolejno¶ci dla obiektu `%s'.\n"
+
+#: remake.c:732
+#, c-format
+msgid "Prerequisite `%s' of target `%s' does not exist.\n"
+msgstr "Zale¿no¶æ `%s' obiektu `%s' nie istnieje.\n"
+
+#: remake.c:737
+#, c-format
+msgid "Prerequisite `%s' is newer than target `%s'.\n"
+msgstr "Zale¿no¶æ `%s' jest nowsza od obiektu `%s'.\n"
+
+#: remake.c:740
+#, c-format
+msgid "Prerequisite `%s' is older than target `%s'.\n"
+msgstr "Zale¿no¶æ `%s' jest starsza od obiektu `%s'.\n"
+
+#: remake.c:758
+#, c-format
+msgid "Target `%s' is double-colon and has no prerequisites.\n"
+msgstr "Obiekt `%s' jest typu double-colon i nie ma ¿adnych zale¿no¶ci.\n"
+
+#: remake.c:765
+#, c-format
+msgid "No recipe for `%s' and no prerequisites actually changed.\n"
+msgstr "Brak poleceñ dla `%s' i brak zmienionych zale¿no¶ci.\n"
+
+#: remake.c:770
+#, c-format
+msgid "Making `%s' due to always-make flag.\n"
+msgstr "Tworzenie `%s' z powodu flagi always-make.\n"
+
+#: remake.c:778
+#, c-format
+msgid "No need to remake target `%s'"
+msgstr "Nie ma potrzeby przerabiaæ obiektu `%s'"
+
+#: remake.c:780
+#, c-format
+msgid "; using VPATH name `%s'"
+msgstr "; u¿yto nazwy VPATH `%s'"
+
+#: remake.c:800
+#, c-format
+msgid "Must remake target `%s'.\n"
+msgstr "Konieczne przerobienie obiektu `%s'.\n"
+
+#: remake.c:806
+#, c-format
+msgid "  Ignoring VPATH name `%s'.\n"
+msgstr "  Zignorowano nazwê VPATH `%s'.\n"
+
+#: remake.c:815
+#, c-format
+msgid "Recipe of `%s' is being run.\n"
+msgstr "Uruchomiono polecenia dla `%s'.\n"
+
+#: remake.c:822
+#, c-format
+msgid "Failed to remake target file `%s'.\n"
+msgstr "Przerabianie pliku obiektowego `%s' nie powiod³o siê.\n"
+
+#: remake.c:825
+#, c-format
+msgid "Successfully remade target file `%s'.\n"
+msgstr "Przerabianie pliku obiektowego `%s' powiod³o siê.\n"
+
+#: remake.c:828
+#, c-format
+msgid "Target file `%s' needs remade under -q.\n"
+msgstr "Plik obiektowy `%s' powinien byæ przerobiony z opcj± -q.\n"
+
+#: remake.c:1024
+#, c-format
+msgid "Using default commands for `%s'.\n"
+msgstr "Stosowanie standardowych poleceñ dla `%s'.\n"
+
+#: remake.c:1357
+#, c-format
+msgid "Warning: File `%s' has modification time in the future"
+msgstr "Uwaga: Plik `%s' ma czas modyfikacji z przysz³o¶ci"
+
+#: remake.c:1370
+#, c-format
+msgid "Warning: File `%s' has modification time %s s in the future"
+msgstr "Uwaga: Plik `%s' ma czas modyfikacji %s s w przysz³o¶ci"
+
+#: remake.c:1569
+#, c-format
+msgid ".LIBPATTERNS element `%s' is not a pattern"
+msgstr "element .LIBPATTERNS `%s' nie jest wzorcem"
+
+#: remote-cstms.c:125
+#, c-format
+msgid "Customs won't export: %s\n"
+msgstr "Zasady nie eksportowane: %s\n"
+
+#: rule.c:499
+msgid ""
+"\n"
+"# Implicit Rules"
+msgstr ""
+"\n"
+"# Regu³y stadardowe"
+
+#: rule.c:514
+msgid ""
+"\n"
+"# No implicit rules."
+msgstr ""
+"\n"
+"# Brak standardowych regu³."
+
+#: rule.c:517
+#, c-format
+msgid ""
+"\n"
+"# %u implicit rules, %u"
+msgstr ""
+"\n"
+"# %u standardowych regu³, %u"
+
+#: rule.c:526
+msgid " terminal."
+msgstr " terminal."
+
+#: rule.c:534
+#, c-format
+msgid "BUG: num_pattern_rules is wrong!  %u != %u"
+msgstr "B£¡D: z³e num_pattern_rules! %u != %u"
+
+#: signame.c:86
+msgid "unknown signal"
+msgstr "nieznany sygna³"
+
+#: signame.c:94
+msgid "Hangup"
+msgstr "Roz³±czenie"
+
+#: signame.c:97
+msgid "Interrupt"
+msgstr "Przerwanie"
+
+#: signame.c:100
+msgid "Quit"
+msgstr "Wyj¶cie"
+
+#: signame.c:103
+msgid "Illegal Instruction"
+msgstr "B³êdna instrukcja"
+
+#: signame.c:106
+msgid "Trace/breakpoint trap"
+msgstr "Pu³apka ¶ledzenia"
+
+#: signame.c:111
+msgid "Aborted"
+msgstr "Przerwany"
+
+#: signame.c:114
+msgid "IOT trap"
+msgstr "Pu³apka IOT"
+
+#: signame.c:117
+msgid "EMT trap"
+msgstr "Pu³apka EMT"
+
+#: signame.c:120
+msgid "Floating point exception"
+msgstr "Wyj±tek zmiennoprzecinkowy"
+
+#: signame.c:123
+msgid "Killed"
+msgstr "Zabity"
+
+#: signame.c:126
+msgid "Bus error"
+msgstr "B³±d szyny"
+
+#: signame.c:129
+msgid "Segmentation fault"
+msgstr "Naruszenie ochrony pamiêci"
+
+#: signame.c:132
+msgid "Bad system call"
+msgstr "B³êdne wywo³anie systemowe"
+
+#: signame.c:135
+msgid "Broken pipe"
+msgstr "Przerwany potok"
+
+#: signame.c:138
+msgid "Alarm clock"
+msgstr "Budzik"
+
+#: signame.c:141
+msgid "Terminated"
+msgstr "Zakoñczony"
+
+#: signame.c:144
+msgid "User defined signal 1"
+msgstr "Sygna³ u¿ytkownika 1"
+
+#: signame.c:147
+msgid "User defined signal 2"
+msgstr "Sygna³ u¿ytkownika 2"
+
+#: signame.c:152 signame.c:155
+msgid "Child exited"
+msgstr "Potomek powróci³"
+
+#: signame.c:158
+msgid "Power failure"
+msgstr "Przerwa w zasilaniu"
+
+#: signame.c:161
+msgid "Stopped"
+msgstr "Zatrzymany"
+
+#: signame.c:164
+msgid "Stopped (tty input)"
+msgstr "Zatrzymany (wej¶cie z tty)"
+
+#: signame.c:167
+msgid "Stopped (tty output)"
+msgstr "Zatrzymany (wyj¶cie na tty)"
+
+#: signame.c:170
+msgid "Stopped (signal)"
+msgstr "Zatrzymany (sygna³)"
+
+#: signame.c:173
+msgid "CPU time limit exceeded"
+msgstr "Przekroczony czas CPU"
+
+#: signame.c:176
+msgid "File size limit exceeded"
+msgstr "Przekroczony limit wielko¶ci pliku"
+
+#: signame.c:179
+msgid "Virtual timer expired"
+msgstr "Wyczerpany stoper wirtualny"
+
+#: signame.c:182
+msgid "Profiling timer expired"
+msgstr "Wyczerpany stoper profiluj±cy"
+
+#: signame.c:188
+msgid "Window changed"
+msgstr "Zmienione okno"
+
+#: signame.c:191
+msgid "Continued"
+msgstr "Kontynuowany"
+
+#: signame.c:194
+msgid "Urgent I/O condition"
+msgstr "Nag³a sytuacja I/O"
+
+#: signame.c:201 signame.c:210
+msgid "I/O possible"
+msgstr "I/O mo¿liwe"
+
+#: signame.c:204
+msgid "SIGWIND"
+msgstr "SIGWIND"
+
+#: signame.c:207
+msgid "SIGPHONE"
+msgstr "SIGPHONE"
+
+#: signame.c:213
+msgid "Resource lost"
+msgstr "Zaginione zasoby"
+
+#: signame.c:216
+msgid "Danger signal"
+msgstr "Sygna³ niebezpieczeñstwa"
+
+#: signame.c:219
+msgid "Information request"
+msgstr "¯±danie informacji"
+
+#: signame.c:222
+msgid "Floating point co-processor not available"
+msgstr "Koprocesor obliczeñ zmiennoprzecinkowych niedostêpny"
+
+#: strcache.c:235
+#, c-format
+msgid ""
+"\n"
+"%s # of strings in strcache: %d / lookups = %lu / hits = %lu\n"
+msgstr ""
+"\n"
+"%s liczba ³añcuchów w strcache: %d / wyszukiwañ = %lu / trafieñ = %lu\n"
+
+#: strcache.c:237
+#, c-format
+msgid "%s # of strcache buffers: %d (* %d B/buffer = %d B)\n"
+msgstr "%s liczba buforów strcache: %d (* %d B/bufor = %d B)\n"
+
+#: strcache.c:239
+#, c-format
+msgid "%s strcache used: total = %d (%d) / max = %d / min = %d / avg = %d\n"
+msgstr ""
+"%s rozmiar strcache: ca³kowity = %d (%d) / maks = %d / min = %d / ¶r = %d\n"
+
+#: strcache.c:241
+#, c-format
+msgid "%s strcache free: total = %d (%d) / max = %d / min = %d / avg = %d\n"
+msgstr ""
+"%s wolne strcache: ca³kowite = %d (%d) / maks = %d / min = %d / ¶r = %d\n"
+
+#: strcache.c:244
+msgid ""
+"\n"
+"# strcache hash-table stats:\n"
+"# "
+msgstr ""
+"\n"
+"# statystyki tablic haszuj±cych strcache:\n"
+"# "
+
+#: variable.c:1541
+msgid "default"
+msgstr "domy¶lna"
+
+#: variable.c:1544
+msgid "environment"
+msgstr "¶rodowiskowa"
+
+#: variable.c:1547
+msgid "makefile"
+msgstr "makefile"
+
+#: variable.c:1550
+msgid "environment under -e"
+msgstr "¶rodowisko pod -e"
+
+#: variable.c:1553
+msgid "command line"
+msgstr "z linii poleceñ"
+
+#: variable.c:1556
+msgid "`override' directive"
+msgstr "dyrektywa `override'"
+
+#: variable.c:1559
+msgid "automatic"
+msgstr "automatyczna"
+
+#: variable.c:1570
+#, c-format
+msgid " (from `%s', line %lu)"
+msgstr " (z `%s', linia %lu)"
+
+#: variable.c:1612
+msgid "# variable set hash-table stats:\n"
+msgstr "# statystyki tablic haszuj±cych ustawionych zmiennych:\n"
+
+#: variable.c:1623
+msgid ""
+"\n"
+"# Variables\n"
+msgstr ""
+"\n"
+"# Zmienne\n"
+
+#: variable.c:1627
+msgid ""
+"\n"
+"# Pattern-specific Variable Values"
+msgstr ""
+"\n"
+"# Warto¶ci zmiennych dla wzorca"
+
+#: variable.c:1641
+msgid ""
+"\n"
+"# No pattern-specific variable values."
+msgstr ""
+"\n"
+"# Brak warto¶ci zmiennych dla wzorca."
+
+#: variable.c:1643
+#, c-format
+msgid ""
+"\n"
+"# %u pattern-specific variable values"
+msgstr ""
+"\n"
+"# %u warto¶ci zmiennych dla wzorca"
+
+#: variable.h:219
+#, c-format
+msgid "warning: undefined variable `%.*s'"
+msgstr "uwaga: niezdefiniowana zmienna `%.*s'"
+
+#: vmsfunctions.c:92
+#, c-format
+msgid "sys$search() failed with %d\n"
+msgstr "sys$search() nie powiod³o siê - %d\n"
+
+#: vmsjobs.c:71
+#, c-format
+msgid "Warning: Empty redirection\n"
+msgstr "Uwaga: Puste przekierowanie\n"
+
+#: vmsjobs.c:184
+#, c-format
+msgid "internal error: `%s' command_state"
+msgstr "b³±d wewnêtrzny: `%s' command_state"
+
+#: vmsjobs.c:289
+#, c-format
+msgid "-warning, you may have to re-enable CTRL-Y handling from DCL.\n"
+msgstr "-uwaga, bêdzie trzeba ponownie umo¿liwiæ obs³ugê CTRL-Y z DCL.\n"
+
+#: vmsjobs.c:421
+#, c-format
+msgid "BUILTIN [%s][%s]\n"
+msgstr "WBUDOWANE [%s][%s]\n"
+
+#: vmsjobs.c:432
+#, c-format
+msgid "BUILTIN CD %s\n"
+msgstr "WBUDOWANE CD %s\n"
+
+#: vmsjobs.c:450
+#, c-format
+msgid "BUILTIN RM %s\n"
+msgstr "WBUDOWANE RM %s\n"
+
+#: vmsjobs.c:471
+#, c-format
+msgid "Unknown builtin command '%s'\n"
+msgstr "Nieznane polecenie wbudowane '%s'\n"
+
+#: vmsjobs.c:493
+#, c-format
+msgid "Error, empty command\n"
+msgstr "B³±d, puste polecenie\n"
+
+#: vmsjobs.c:506
+#, c-format
+msgid "Redirected input from %s\n"
+msgstr "Przekierowane wej¶cie z %s\n"
+
+#: vmsjobs.c:513
+#, c-format
+msgid "Redirected error to %s\n"
+msgstr "Przekierowane wyj¶cie diagnostyczne do %s\n"
+
+#: vmsjobs.c:523
+#, c-format
+msgid "Append output to %s\n"
+msgstr "Do³±czanie wyj¶cia do %s\n"
+
+#: vmsjobs.c:529
+#, c-format
+msgid "Redirected output to %s\n"
+msgstr "Przekierowane wyj¶cie do %s\n"
+
+#: vmsjobs.c:599
+#, c-format
+msgid "Append %.*s and cleanup\n"
+msgstr "Do³±czanie %.*s i czyszczenie\n"
+
+#: vmsjobs.c:606
+#, c-format
+msgid "Executing %s instead\n"
+msgstr "Zamiast tego wykonywanie %s\n"
+
+#: vmsjobs.c:712
+#, c-format
+msgid "Error spawning, %d\n"
+msgstr "B³±d podczas uruchamiania, %d\n"
+
+#: vpath.c:586
+msgid ""
+"\n"
+"# VPATH Search Paths\n"
+msgstr ""
+"\n"
+"# ¦cie¿ki przeszukiwania VPATH\n"
+
+#: vpath.c:603
+msgid "# No `vpath' search paths."
+msgstr "# Brak ¶cie¿ek przeszukiwania `vpath'"
+
+#: vpath.c:605
+#, c-format
+msgid ""
+"\n"
+"# %u `vpath' search paths.\n"
+msgstr ""
+"\n"
+"# %u ¶cie¿ek przeszukiwania `vpath'.\n"
+
+#: vpath.c:608
+msgid ""
+"\n"
+"# No general (`VPATH' variable) search path."
+msgstr ""
+"\n"
+"# Brak ogólnej (zmienna `VPATH') ¶cie¿ki przeszukiwania."
+
+#: vpath.c:614
+msgid ""
+"\n"
+"# General (`VPATH' variable) search path:\n"
+"# "
+msgstr ""
+"\n"
+"# Ogólna (zmienna `VPATH') ¶cie¿ka przeszukiwania:\n"
+"# "
