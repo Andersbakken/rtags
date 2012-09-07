@@ -9,12 +9,15 @@
 #include "FindFileJob.h"
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
+#include "GRTagsMessage.h"
 #include "Indexer.h"
 #include "IndexerJob.h"
+#include "IniFile.h"
 #include "ListSymbolsJob.h"
 #include "LocalClient.h"
 #include "LocalServer.h"
 #include "LogObject.h"
+#include "MakefileInformation.h"
 #include "MakefileMessage.h"
 #include "MakefileParser.h"
 #include "Message.h"
@@ -29,9 +32,6 @@
 #include "SHA256.h"
 #include "StatusJob.h"
 #include "TestJob.h"
-#include "leveldb/cache.h"
-#include "leveldb/db.h"
-#include "GRTagsMessage.h"
 #include <Log.h>
 #include <clang-c/Index.h>
 #include <dirent.h>
@@ -127,20 +127,22 @@ bool Server::init(const Options &options)
         return false;
     }
 
-    // {
-    //     bool ok;
-    //     const int version = mDB->value<int>("version", &ok);
-    //     if (!ok) {
-    //         mDB->setValue<int>("version", Database::Version);
-    //     } else if (version != Database::Version) {
-    //         error("Wrong version, expected %d, got %d. Run with -C to regenerate database", Database::Version, version);
-    //         return false;
-    //     }
-    //     mMakefiles = mDB->value<Map<Path, MakefileInformation> >("makefiles");
-    //     for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
-    //         mMakefilesWatcher.watch(it->first);
-    //     }
-    // }
+    {
+        IniFile file(mOptions.projectsFile);
+        List<ByteArray> makeFiles = file.keys("Makefiles");
+        const int count = makeFiles.size();
+        for (int i=0; i<count; ++i) {
+            bool ok;
+            const ByteArray value = file.value("Makefiles", makeFiles.at(i));
+            const MakefileInformation info = MakefileInformation::fromString(value, &ok);
+            if (!ok) {
+                error("Can't parse makefile information %s", value.constData());
+                return false;
+            }
+            mMakefiles[makeFiles.at(i)] = info;
+            mMakefilesWatcher.watch(makeFiles.at(i));
+        }
+    }
 
     mServer->clientConnected().connect(this, &Server::onNewConnection);
 
@@ -217,8 +219,14 @@ void Server::onNewMessage(Message *message, Connection *connection)
 void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
 {
     const Path makefile = message->makefile();
-    const MakefileInformation mi(makefile.lastModified(), message->arguments(), message->extraFlags());
+    const MakefileInformation mi(message->arguments(), message->extraFlags());
     mMakefiles[makefile] = mi;
+    IniFile ini(mOptions.projectsFile);
+    ini.removeGroup("Makefiles");
+    for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
+        ini.setValue("Makefiles", it->first, it->second.toString());
+    }
+
     mMakefilesWatcher.watch(makefile);
     // mDB->setValue("makefiles", mMakefiles);
     make(message->makefile(), message->arguments(), message->extraFlags(), conn);

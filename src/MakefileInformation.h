@@ -7,26 +7,66 @@
 #include <ByteArray.h>
 
 struct MakefileInformation {
-    MakefileInformation(time_t lt = 0,
-                        const List<ByteArray> &args = List<ByteArray>(),
+    MakefileInformation(const List<ByteArray> &args = List<ByteArray>(),
                         const List<ByteArray> &flags = List<ByteArray>())
-        : lastTouched(lt), makefileArgs(args), extraFlags(flags)
+        : makefileArgs(args), extraFlags(flags)
     {}
-    time_t lastTouched;
     List<ByteArray> makefileArgs;
     List<ByteArray> extraFlags;
+
+    static inline MakefileInformation fromString(const ByteArray &string, bool *ok = 0);
+    inline ByteArray toString() const;
 };
 
 static inline Serializer &operator<<(Serializer &s, const MakefileInformation &mi)
 {
-    s << mi.lastTouched << mi.makefileArgs << mi.extraFlags;
+    s << mi.makefileArgs << mi.extraFlags;
     return s;
 }
 
 static inline Deserializer &operator>>(Deserializer &s, MakefileInformation &mi)
 {
-    s >> mi.lastTouched >> mi.makefileArgs >> mi.extraFlags;
+    s >> mi.makefileArgs >> mi.extraFlags;
     return s;
 }
+
+inline MakefileInformation MakefileInformation::fromString(const ByteArray &string, bool *ok)
+{
+    MakefileInformation ret;
+    if (ok)
+        *ok = true;
+    if (!string.isEmpty()) {
+        const List<ByteArray> split = string.split('|');
+        switch (split.size()) {
+        case 0:
+            assert(0);
+            return ret;
+        case 1:
+            ret.makefileArgs = string.split(' ');
+            break;
+        case 2:
+            ret.makefileArgs = split.first().split(' ');
+            ret.extraFlags = split.last().split(' ');
+            break;
+        default:
+            if (ok)
+                *ok = false;
+        }
+    }
+    return ret;
+}
+
+inline ByteArray MakefileInformation::toString() const
+{
+    ByteArray ret;
+    if (!makefileArgs.isEmpty())
+        ret = ByteArray::join(makefileArgs, ' ');
+    if (!extraFlags.isEmpty()) {
+        ret += '|';
+        ret += ByteArray::join(extraFlags, ' ');
+    }
+    return ret;
+}
+
 
 #endif

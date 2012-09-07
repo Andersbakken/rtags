@@ -11,7 +11,6 @@
 #include "ThreadPool.h"
 #include "RTags.h"
 #include "EventReceiver.h"
-#include "MakefileInformation.h"
 #include "GRTags.h"
 #include "Project.h"
 #include "GRScanJob.h"
@@ -27,6 +26,7 @@ class LocalServer;
 class GccArguments;
 class MakefileParser;
 class Job;
+class MakefileInformation;
 class Server : public EventReceiver
 {
 public:
@@ -43,10 +43,9 @@ public:
     ThreadPool *threadPool() const { return mThreadPool; }
     void startJob(Job *job);
     struct Options {
-        Options() : options(0), cacheSizeMB(0), threadCount(0) {}
+        Options() : options(0), threadCount(0) {}
         Path projectsFile, socketFile;
         unsigned options;
-        long cacheSizeMB;
         int threadCount;
         List<ByteArray> defaultArguments, excludeFilter;
     };

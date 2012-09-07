@@ -6,6 +6,5 @@ add_executable(parser main.cpp)
 target_link_libraries(parser
   ${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/clang_install/lib/liblibclang.so
   ${CMAKE_CURRENT_BINARY_DIR}/../src/librtags.a
-  rt
-  ${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/leveldb/libleveldb.a)
+  rt)
 

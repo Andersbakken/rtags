@@ -75,7 +75,7 @@ public:
     static bool exists(const Path &path) { return path.exists(); }
     static bool mkdir(const Path &path);
     static bool rm(const Path &file);
-    static Path home() { return Path::resolved(getenv("HOME")); }
+    static Path home();
     bool mksubdir(const ByteArray &subdir) const;
     bool isSource() const;
     static bool isSource(const char *extension);

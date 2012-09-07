@@ -36,13 +36,11 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
 
 include(rtags.cmake)
 
-set(leveldb_LIBS ${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/leveldb/libleveldb.a)
-
 include_directories(${CMAKE_CURRENT_LIST_DIR})
 add_executable(rdm rdm.cpp)
-target_link_libraries(rdm rtags ${leveldb_LIBS} ${clang_LIBS} ${system_LIBS})
+target_link_libraries(rdm rtags ${clang_LIBS} ${system_LIBS})
 add_dependencies(rdm rtags)
 
 add_executable(rc rc.cpp)
-target_link_libraries(rc rtags ${leveldb_LIBS} ${clang_LIBS} ${system_LIBS})
+target_link_libraries(rc rtags ${clang_LIBS} ${system_LIBS})
 add_dependencies(rc rtags)

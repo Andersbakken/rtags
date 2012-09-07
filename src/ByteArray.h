@@ -258,6 +258,8 @@ public:
     {
         if (l == -1)
             l = size() - from;
+        if (from == 0 && l == size())
+            return *this;
         return mString.substr(from, l);
     }
 

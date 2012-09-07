@@ -23,6 +23,7 @@ static void help(FILE *f, const char* app)
             "  --elisp-list|-Y                           Output elisp: (list \"one\" \"two\" ...)\n"
             "  --follow-location|-f [arg]                Follow this location\n"
             "  --makefile|-m [arg]                       Process this makefile\n"
+            "  --socket-file|-n [arg]                    Use this socket file (default ~/.rdm)\n"
             "  --grtag|-t [arg]                          Index this directory\n"
             "  --disable-grtags|-b                       Disable grtags for query\n"
             "  --remake|-M [optional regexp]             Remake makefiles matching regexp or all if no regexp\n"
@@ -234,11 +235,11 @@ int main(int argc, char** argv)
         { "parse", required_argument, 0, 'y' },
         { "enable-grtags", no_argument, 0, 'b' },
         { "grtag", optional_argument, 0, 't' },
-        { "socket-file", required_argument, 0, 'B' },
+        { "socket-file", required_argument, 0, 'n' },
         { 0, 0, 0, 0 }
     };
 
-    // Unused: djJcn
+    // Unused: djJcB
 
     int logLevel = 0;
     ByteArray logFile;
@@ -265,7 +266,7 @@ int main(int argc, char** argv)
         case 'h':
             help(stdout, argv[0]);
             return 0;
-        case 'B':
+        case 'n':
             socketFile = optarg;
             break;
         case 'b':

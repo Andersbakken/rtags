@@ -20,8 +20,7 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     ${clang_ROOT}/lib/libclangSerialization.a
     ${clang_ROOT}/lib/libclangDriver.a
     ${clang_ROOT}/lib/libclangEdit.a
-    ${clang_ROOT}/lib/libclangAnalysis.a
-    ${PARENT_DIR}/3rdparty/leveldb/libleveldb.a)
+    ${clang_ROOT}/lib/libclangAnalysis.a)
 else()
-    set(clang_LIBS ${clang_ROOT}/lib/liblibclang.so ${PARENT_DIR}/3rdparty/leveldb/libleveldb.a crypto)
+    set(clang_LIBS ${clang_ROOT}/lib/liblibclang.so)
 endif()

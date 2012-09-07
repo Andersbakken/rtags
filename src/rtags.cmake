@@ -6,26 +6,39 @@ include_directories(
 
 include_directories(
     ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ../3rdparty/leveldb/include)
+    ${CMAKE_CURRENT_SOURCE_DIR})
 
 set(rtags_HDRS
     AbortInterface.h
     ByteArray.h
     Client.h
     Connection.h
+    CreateOutputMessage.h
     CursorInfo.h
     CursorInfoJob.h
     ErrorMessage.h
+    Event.h
+    EventLoop.h
+    EventReceiver.h
+    FastDelegate.h
     FileSystemWatcher.h
+    FindFileJob.h
     FindSymbolsJob.h
     FollowLocationJob.h
+    GRParseJob.h
+    GRParser.h
+    GRScanJob.h
+    GRTags.h
+    GRTagsMessage.h
     GccArguments.h
     Indexer.h
     IndexerJob.h
+    IniFile.h
     Job.h
     List.h
     ListSymbolsJob.h
+    LocalClient.h
+    LocalServer.h
     Location.h
     Log.h
     LogObject.h
@@ -37,9 +50,11 @@ set(rtags_HDRS
     Messages.h
     Mutex.h
     MutexLocker.h
-    CreateOutputMessage.h
+    ParseJob.h
     Path.h
     Pch.h
+    Process.h
+    Project.h
     QueryMessage.h
     RTags.h
     ReadLocker.h
@@ -52,55 +67,54 @@ set(rtags_HDRS
     Serializer.h
     Server.h
     Set.h
+    SignalSlot.h
     Source.h
     StatusJob.h
-    ValidateDBJob.h
-    GRScanJob.h
-    FindFileJob.h
     Str.h
     TestJob.h
     Thread.h
-    ThreadPool.h
     ThreadLocal.h
+    ThreadPool.h
+    ValidateDBJob.h
     WaitCondition.h
     WriteLocker.h
-    EventLoop.h
-    EventReceiver.h
-    Event.h
-    LocalClient.h
-    LocalServer.h
-    Process.h
-    ParseJob.h
-    GRTags.h
-    GRParser.h
-    GRParseJob.h
-    GRTagsMessage.h
-    Project.h
-    FastDelegate.h
-    SignalSlot.h
     )
 
 set(rtags_SRCS
     Client.cpp
     Connection.cpp
+    CreateOutputMessage.cpp
+    CursorInfo.cpp
     CursorInfoJob.cpp
     ErrorMessage.cpp
+    EventLoop.cpp
     FileSystemWatcher.cpp
+    FindFileJob.cpp
     FindSymbolsJob.cpp
     FollowLocationJob.cpp
+    GRParseJob.cpp
+    GRParser.cpp
+    GRScanJob.cpp
+    GRTags.cpp
+    GRTagsMessage.cpp
     GccArguments.cpp
     Indexer.cpp
     IndexerJob.cpp
+    IniFile.cpp
     Job.cpp
     ListSymbolsJob.cpp
+    LocalClient.cpp
+    LocalServer.cpp
     Location.cpp
     Log.cpp
     MakefileMessage.cpp
     MakefileParser.cpp
     MemoryMonitor.cpp
     Messages.cpp
-    CreateOutputMessage.cpp
+    ParseJob.cpp
     Path.cpp
+    Process.cpp
+    Project.cpp
     QueryMessage.cpp
     RTags.cpp
     ReadWriteLock.cpp
@@ -109,23 +123,10 @@ set(rtags_SRCS
     SHA256.cpp
     Server.cpp
     StatusJob.cpp
-    ValidateDBJob.cpp
-    GRScanJob.cpp
-    FindFileJob.cpp
     TestJob.cpp
     Thread.cpp
     ThreadPool.cpp
-    EventLoop.cpp
-    LocalClient.cpp
-    LocalServer.cpp
-    Process.cpp
-    ParseJob.cpp
-    CursorInfo.cpp
-    GRTags.cpp
-    GRParser.cpp
-    GRParseJob.cpp
-    GRTagsMessage.cpp
-    Project.cpp
+    ValidateDBJob.cpp
 )
 
 include(clang.cmake)

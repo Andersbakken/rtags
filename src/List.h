@@ -59,6 +59,15 @@ public:
     }
     Set<T> toSet() const; // implemented in Set.h
 
+    T &first()
+    {
+        return std::vector<T>::operator[](0);
+    }
+    const T &first() const
+    {
+        return std::vector<T>::at(0);
+    }
+
     T &last()
     {
         return operator[](size() - 1);

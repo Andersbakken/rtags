@@ -47,8 +47,6 @@ void usage(FILE *f)
             "  --verbose|-v                    Change verbosity, multiple -v's are allowed\n"
             "  --clean-slate|-C                Start from a clean slate\n"
             "  --disable-sighandler|-s         Disable signal handler to dump stack for crashes\n"
-            "  --cache-size|-a [size]          Cache size in MB (one cache per db, default 128MB)\n"
-            "  --name|-n [name]                Name to use for server (default ~/.rtags/server)\n"
             "  --no-clang-includepath|-P       Don't use clang include paths by default\n"
             "  --usedashB|-B                   Use -B for make instead of makelib\n"
             "  --silent|-S                     No logging to stdout\n"
@@ -57,7 +55,7 @@ void usage(FILE *f)
             "  --no-rc|-N                      Don't load any rc files\n"
             "  --rc-file|-c [arg]              Use this file instead of ~/.rdmrc\n"
             "  --projects-file|-p [arg]        Use this file as a projects file (default ~/.rtagsprojects)\n"
-            "  --socket-file|-o                Use this file for the server socket (default ~/.rdm)\n"
+            "  --socket-file|-n                Use this file for the server socket (default ~/.rdm)\n"
             "  --thread-count|-j [arg]         Spawn this many threads for thread pool\n");
 }
 
@@ -76,14 +74,12 @@ int main(int argc, char** argv)
         { "verbose", no_argument, 0, 'v' },
         { "thread-count", required_argument, 0, 'j' },
         { "clean-slate", no_argument, 0, 'C' },
-        { "cache-size", required_argument, 0, 'a' },
         { "disable-sighandler", no_argument, 0, 's' },
-        { "name", required_argument, 0, 'n' },
         { "usedashB", no_argument, 0, 'B' },
         { "silent", no_argument, 0, 'S' },
         { "no-validate", no_argument, 0, 'V' },
         { "exclude-filter", required_argument, 0, 'x' },
-        { "socket-file", required_argument, 0, 'o' },
+        { "socket-file", required_argument, 0, 'n' },
         { "projects-file", required_argument, 0, 'p' },
         { "rc-file", required_argument, 0, 'c' },
         { "no-rc", no_argument, 0, 'N' },
@@ -95,7 +91,7 @@ int main(int argc, char** argv)
     List<char*> argList;
     {
         bool norc = false;
-        Path rcfile = Path::home() + "/.rdmrc";
+        Path rcfile = Path::home() + ".rdmrc";
         opterr = 0;
         while (true) {
             const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
@@ -151,9 +147,8 @@ int main(int argc, char** argv)
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;
-    Path projectsFile = Path::home() + "/.rtagsprojects";
-    Path socketFile = Path::home() + "/.rdm";
-    int cacheSize = 128;
+    Path projectsFile = Path::home() + ".rtagsprojects";
+    Path socketFile = Path::home() + ".rdm";
     bool enableSignalHandler = true;
     ByteArray name;
     int argCount = argList.size();
@@ -171,7 +166,7 @@ int main(int argc, char** argv)
             logLevel = -1;
             break;
         case 'n':
-            name = optarg;
+            socketFile = optarg;
             break;
         case 'h':
             usage(stdout);
@@ -197,14 +192,6 @@ int main(int argc, char** argv)
         case 'C':
             options |= Server::ClearProjects;
             break;
-        case 'a': {
-            bool ok;
-            cacheSize = ByteArray(optarg, strlen(optarg)).toULongLong(&ok);
-            if (!ok) {
-                fprintf(stderr, "Can't parse argument to -c %s\n", optarg);
-                return 1;
-            }
-            break; }
         case 'j':
             jobs = atoi(optarg);
             if (jobs <= 0) {
@@ -262,7 +249,6 @@ int main(int argc, char** argv)
     serverOpts.socketFile = socketFile;
     serverOpts.options = options;
     serverOpts.defaultArguments = defaultArguments;
-    serverOpts.cacheSizeMB = cacheSize;
     serverOpts.threadCount = jobs;
     serverOpts.projectsFile = projectsFile;
     if (!server->init(serverOpts)) {

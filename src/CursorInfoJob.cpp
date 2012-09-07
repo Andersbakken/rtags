@@ -1,7 +1,6 @@
 #include "CursorInfoJob.h"
 #include "RTags.h"
 #include "Server.h"
-#include "leveldb/db.h"
 #include "CursorInfo.h"
 
 CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query, const shared_ptr<Project> &proj)

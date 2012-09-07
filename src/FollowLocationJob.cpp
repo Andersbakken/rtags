@@ -1,7 +1,6 @@
 #include "FollowLocationJob.h"
 #include "RTags.h"
 #include "Server.h"
-#include "leveldb/db.h"
 #include "CursorInfo.h"
 
 FollowLocationJob::FollowLocationJob(const Location &loc, const QueryMessage &query, const shared_ptr<Project> &project)

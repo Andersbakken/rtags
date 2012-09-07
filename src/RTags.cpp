@@ -159,7 +159,10 @@ ByteArray shortOptions(const option *longOptions)
 {
     ByteArray ret;
     for (int i=0; longOptions[i].name; ++i) {
-        assert(!ret.contains(longOptions[i].val));
+        if (ret.contains(longOptions[i].val)) {
+            error("%c (%s) is already used", longOptions[i].val, longOptions[i].name);
+            assert(!ret.contains(longOptions[i].val));
+        }
         ret.append(longOptions[i].val);
         switch (longOptions[i].has_arg) {
         case no_argument:
