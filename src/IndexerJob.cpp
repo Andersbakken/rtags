@@ -203,7 +203,7 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
     return ret;
 }
 
-CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor, CXClientData data)
+CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CXClientData data)
 {
     IndexerJob *job = static_cast<IndexerJob*>(data);
     const CXCursorKind kind = clang_getCursorKind(cursor);
@@ -247,7 +247,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor, CXClientD
         job->handleInclude(cursor, kind, loc);
         break;
     case RTags::Reference:
-        job->handleReference(cursor, kind, loc);
+        job->handleReference(cursor, kind, loc, clang_getCursorReferenced(cursor));
         break;
     case RTags::Other:
         assert(0);
@@ -256,9 +256,8 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor, CXClientD
     return CXChildVisit_Recurse; // ### recurse?
 }
 
-void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc)
+void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc, const CXCursor &ref)
 {
-    CXCursor ref = clang_getCursorReferenced(cursor);
     const CXCursorKind refKind = clang_getCursorKind(ref);
     if (clang_isInvalid(refKind))
         return;
