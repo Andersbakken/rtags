@@ -81,16 +81,16 @@ inline bool isReference(CXCursorKind kind)
 
 inline bool isCursor(CXCursorKind kind)
 {
-    if (clang_isDeclaration(kind))
-        return true;
     switch (kind) {
     case CXCursor_LabelStmt:
     case CXCursor_MacroDefinition:
         return true;
+    case CXCursor_CXXAccessSpecifier:
+        return false;
     default:
         break;
     }
-    return false;
+    return clang_isDeclaration(kind);
 }
 
 static inline CursorType cursorType(CXCursorKind kind)
