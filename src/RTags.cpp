@@ -29,25 +29,21 @@ ByteArray cursorToString(CXCursor cursor)
     const CXCursorKind kind = clang_getCursorKind(cursor);
     ByteArray ret = eatString(clang_getCursorKindSpelling(kind));
 
-    if (clang_isReference(kind)) {
-        ret += " reference";
-    } else if (clang_isDeclaration(kind)) {
-        ret += " declaration";
-    } else if (clang_isExpression(kind)) {
-        ret += " expression";
-    } else if (clang_isStatement(kind)) {
-        ret += " statement";
-    } else if (clang_isAttribute(kind)) {
-        ret += " attribute";
-    } else if (clang_isPreprocessing(kind)) {
-        ret += " preprocessing";
-    } else if (clang_isUnexposed(kind)) {
-        ret += " unexposed";
-    } else if (clang_isInvalid(kind)) {
-        ret += " invalid";
-    } else {
-        ret += " other";
+    switch (RTags::cursorType(kind)) {
+    case Reference:
+        ret += " r";
+        break;
+    case Cursor:
+        ret += " c";
+        break;
+    case Other:
+        ret += " o";
+        break;
+    case Include:
+        ret += " i";
+        break;
     }
+        
     const ByteArray name = eatString(clang_getCursorDisplayName(cursor));
     const ByteArray other = eatString(clang_getCursorSpelling(cursor));
     if (!name.isEmpty())
@@ -65,9 +61,19 @@ ByteArray cursorToString(CXCursor cursor)
         ret += fileName.data();
         ret += ',';
         ret += ByteArray::number(off);
+        ret += " (";
+        CXSourceRange range = clang_getCursorExtent(cursor);
+        unsigned start, end;
+        clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
+        clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
+        ret += ByteArray::number(start);
+        ret += '-';
+        ret += ByteArray::number(end);
+        ret += ')';
     }
     return ret;
 }
+    
 
 SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location)
 {

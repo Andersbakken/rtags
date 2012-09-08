@@ -207,24 +207,9 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor, CXClientD
 {
     IndexerJob *job = static_cast<IndexerJob*>(data);
     const CXCursorKind kind = clang_getCursorKind(cursor);
-    if (clang_isStatement(kind))
+    const RTags::CursorType type = RTags::cursorType(kind);
+    if (type == RTags::Other)
         return CXChildVisit_Recurse;
-
-    enum Type {
-        Include,
-        Cursor,
-        Reference,
-        Other
-    } type = Other;
-    if (RTags::isCursor(kind)) {
-        type = Cursor;
-    } else if (RTags::isReference(kind)) {
-        type = Reference;
-    } else if (kind == CXCursor_InclusionDirective) {
-        type = Include;
-    } else {
-        return CXChildVisit_Recurse; // ### continue
-    }
 
     bool blocked;
     const Location loc = job->createLocation(cursor, &blocked);
@@ -255,16 +240,16 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor, CXClientD
     // }
 
     switch (type) {
-    case Cursor:
+    case RTags::Cursor:
         job->handleCursor(cursor, kind, loc);
         break;
-    case Include:
+    case RTags::Include:
         job->handleInclude(cursor, kind, loc);
         break;
-    case Reference:
+    case RTags::Reference:
         job->handleReference(cursor, kind, loc);
         break;
-    case Other:
+    case RTags::Other:
         assert(0);
         break;
     }
@@ -558,6 +543,7 @@ void IndexerJob::parse()
     mTimeStamp = time(0);
     List<const char*> clangArgs(mArgs.size(), 0);
     mClangLine = Server::instance()->clangPath();
+    mClangLine += ' ';
 
     int idx = 0;
     const int count = mArgs.size();
@@ -569,7 +555,7 @@ void IndexerJob::parse()
         clangArgs[idx++] = arg.constData();
         arg.replace("\"", "\\\"");
         mClangLine += arg;
-        mClangLine += " ";
+        mClangLine += ' ';
     }
 
     mClangLine += mPath;
@@ -671,7 +657,7 @@ void IndexerJob::visit()
     if (isAborted())
         return;
     if (testLog(VerboseDebug)) {
-        VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLine + ">", this };
+        VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLine + ">\n", this };
         clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
         u.out += "</VerboseVisitor " + mClangLine + ">";
         char buf[1024];
@@ -764,4 +750,3 @@ void IndexerJob::abort()
     MutexLocker lock(&mMutex);
     mAborted = true;
 }
-

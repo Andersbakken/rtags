@@ -35,6 +35,12 @@ enum UnitType {
     CompileC,
     CompileCPlusPlus
 };
+enum CursorType {
+    Include,
+    Cursor,
+    Reference,
+    Other
+};
 }
 
 class CursorInfo;
@@ -87,17 +93,18 @@ inline bool isCursor(CXCursorKind kind)
     return false;
 }
 
-
-inline bool hasAdditionalReferences(CXCursorKind kind)
-{
-    switch (kind) {
-    case CXCursor_ClassDecl:
-    case CXCursor_StructDecl:
-    case CXCursor_Constructor:
-    case CXCursor_Destructor:
-        return true;
-    default:
-        return false;
+static inline CursorType cursorType(CXCursorKind kind)
+{ 
+    if (clang_isStatement(kind)) {
+        return Other;
+    } else if (RTags::isCursor(kind)) {
+        return Cursor;
+    } else if (RTags::isReference(kind)) {
+        return Reference;
+    } else if (kind == CXCursor_InclusionDirective) {
+        return Include;
+    } else {
+        return Other;
     }
 }
 
