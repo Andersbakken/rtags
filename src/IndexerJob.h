@@ -58,7 +58,7 @@ private:
                                  unsigned include_len, CXClientData client_data);
 
     void handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const Location *refLoc = 0);
-    void handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc, const CXCursor &ref);
+    void handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc, const CXCursor &ref, CXCursorKind refKind);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
     void addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos);
@@ -93,6 +93,8 @@ private:
 
     Timer mTimer;
     shared_ptr<IndexData> mData;
+
+    bool mIgnoreConstructorRefs;
 };
 
 #endif

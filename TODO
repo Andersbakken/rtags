@@ -1,18 +1,18 @@
 Shared memory
 Fix writing of references/cursors to "db", probably should just write all cursors first, then merge in all references.
 fork make
-Still problems with constructors. At least implicitly converted ones.
+Still at least one problem with constructors:
 
-E.g.
-
-class Balle 
+struct F
 {
-public:
-    Balle(int);
+F();
+F(const F &f) {}
 };
 
-...
+int main()
+{
+    F f = F();
+}
 
-Balle b = 12;
-
-12 is a reference to Balle(int) and has symbolLength of 5.
+somehow the F() call refers to the struct F, not the default
+constructor, also, f does not refer to the copy constructor.
