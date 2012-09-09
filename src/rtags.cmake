@@ -88,7 +88,6 @@ set(rtags_SRCS
     CursorInfoJob.cpp
     ErrorMessage.cpp
     EventLoop.cpp
-    FileSystemWatcher.cpp
     FindFileJob.cpp
     FindSymbolsJob.cpp
     FollowLocationJob.cpp
@@ -128,6 +127,14 @@ set(rtags_SRCS
     ThreadPool.cpp
     ValidateDBJob.cpp
 )
+
+if(HAVE_INOTIFY EQUAL 1)
+  list(APPEND rtags_SRCS FileSystemWatcher_inotify.cpp)
+elseif(HAVE_FSEVENTS EQUAL 1)
+  list(APPEND rtags_SRCS FileSystemWatcher_fsevents.cpp)
+elseif(HAVE_KQUEUE EQUAL 1)
+  list(APPEND rtags_SRCS FileSystemWatcher_kqueue.cpp)
+endif()
 
 include(clang.cmake)
 include(PCH_GCC4_v2.cmake)
