@@ -11,8 +11,8 @@
 #include "Project.h"
 #include <clang-c/Index.h>
 
+struct IndexData;
 class IndexerJob;
-class IndexData;
 class Indexer
 {
 public:

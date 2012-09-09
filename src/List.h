@@ -101,7 +101,7 @@ public:
 
     const T &last() const
     {
-        return at(size() - 1);
+        return std::vector<T>::at(size() - 1);
     }
 
     List<T> &operator+=(const T &t)

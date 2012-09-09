@@ -26,7 +26,7 @@ class LocalServer;
 class GccArguments;
 class MakefileParser;
 class Job;
-class MakefileInformation;
+struct MakefileInformation;
 class Server : public EventReceiver
 {
 public:
