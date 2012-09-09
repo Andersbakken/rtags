@@ -43,7 +43,7 @@ ByteArray cursorToString(CXCursor cursor)
         ret += " i";
         break;
     }
-        
+
     const ByteArray name = eatString(clang_getCursorDisplayName(cursor));
     const ByteArray other = eatString(clang_getCursorSpelling(cursor));
     if (!name.isEmpty())
@@ -73,7 +73,7 @@ ByteArray cursorToString(CXCursor cursor)
     }
     return ret;
 }
-    
+
 
 SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location)
 {
