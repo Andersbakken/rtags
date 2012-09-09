@@ -10,5 +10,6 @@
 #cmakedefine HAVE_NOSIGPIPE
 #cmakedefine HAVE_NOSIGNAL
 #cmakedefine HAVE_SIGINFO
+#cmakedefine HAVE_FSEVENTS
 
 #endif
