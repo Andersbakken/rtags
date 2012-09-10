@@ -63,8 +63,7 @@ void logDirect(int level, const ByteArray &out);
 
 enum LogFlag {
     Append = 0x1,
-    DontRotate = 0x2,
-    AbsoluteTime = 0x4
+    DontRotate = 0x2
 };
 bool testLog(int level);
 bool initLogging(int logLevel, const Path &logFile, unsigned flags);

@@ -23,12 +23,14 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   find_program(SW_VER sw_vers)
   execute_process(COMMAND "${SW_VER}" -productVersion OUTPUT_VARIABLE osver)
   string(REPLACE "\n" "" osver "${osver}")
-  if(${osver} VERSION_LESS "10.5")
-    message(FATAL_ERROR "OS X version too old, need 10.5 or greater")
+  if(${osver} VERSION_LESS "10.7")
+    message(FATAL_ERROR "OS X version too old, need 10.7 or greater")
   endif()
   set(HAVE_FSEVENTS 1)
   find_library(CORESERVICES_LIBRARY CoreServices)
   find_path(CORESERVICES_INCLUDE "CoreServices/CoreServices.h")
+  find_library(COREFOUNDATION_LIBRARY CoreFoundation)
+  find_path(COREFOUNDATION_INCLUDE "CoreFoundation/CoreFoundation.h")
 endif()
 
 check_cxx_symbol_exists(backtrace "execinfo.h" HAVE_BACKTRACE)
@@ -46,9 +48,9 @@ configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in
 
 include(rtags.cmake)
 
-include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE})
+include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE})
 add_executable(rdm rdm.cpp)
-target_link_libraries(rdm rtags ${clang_LIBS} ${system_LIBS} ${CORESERVICES_LIBRARY})
+target_link_libraries(rdm rtags ${clang_LIBS} ${system_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY})
 add_dependencies(rdm rtags)
 
 add_executable(rc rc.cpp)
