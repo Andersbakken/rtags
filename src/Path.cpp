@@ -167,6 +167,10 @@ bool Path::isSystem(const char *path)
 #endif
         return true;
     }
+#ifdef OS_Darwin
+    if (!strncmp("/System/", path, 8))
+        return true;
+#endif
     return false;
 }
 
