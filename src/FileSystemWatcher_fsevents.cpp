@@ -1,17 +1,69 @@
 #include "FileSystemWatcher.h"
+#include "Event.h"
+#include "EventReceiver.h"
 #include "EventLoop.h"
 #include "MutexLocker.h"
 #include "WaitCondition.h"
 #include "Log.h"
 #include "Thread.h"
 #include "config.h"
+#include <string.h>
 #include <errno.h>
 #include <CoreFoundation/CoreFoundation.h>
+
+class WatcherEvent : public Event
+{
+public:
+    enum Type { Created = 505, Removed, Modified };
+
+    WatcherEvent(Type t, const List<Path>& p) : Event(t), type(t), paths(p) { }
+
+    Type type;
+    List<Path> paths;
+};
+
+class WatcherReceiver : public EventReceiver
+{
+public:
+    WatcherReceiver(FileSystemWatcher* w);
+
+protected:
+    virtual void event(const Event* event);
+
+private:
+    FileSystemWatcher* watcher;
+};
+
+WatcherReceiver::WatcherReceiver(FileSystemWatcher* w)
+    : watcher(w)
+{
+}
+
+void WatcherReceiver::event(const Event* event)
+{
+    const WatcherEvent* we = static_cast<const WatcherEvent*>(event);
+    List<Path>::const_iterator path = we->paths.begin();
+    const List<Path>::const_iterator end = we->paths.end();
+    while (path != end) {
+        switch(we->type) {
+        case WatcherEvent::Created:
+            watcher->mAdded(*path);
+            break;
+        case WatcherEvent::Removed:
+            watcher->mRemoved(*path);
+            break;
+        case WatcherEvent::Modified:
+            watcher->mModified(*path);
+            break;
+        }
+        ++path;
+    }
+}
 
 class WatcherThread : public Thread
 {
 public:
-    WatcherThread();
+    WatcherThread(WatcherReceiver* r);
 
     void waitForStarted();
     void stop();
@@ -30,6 +82,7 @@ private:
     WaitCondition waiter;
     bool started;
     bool stopped;
+    WatcherReceiver* receiver;
 
     CFRunLoopRef loop;
     CFRunLoopSourceRef source;
@@ -41,9 +94,11 @@ private:
                                const FSEventStreamEventId[]);
 };
 
-WatcherThread::WatcherThread()
-    : started(false), stopped(true), fss(0), since(kFSEventStreamEventIdSinceNow)
+WatcherThread::WatcherThread(WatcherReceiver* r)
+    : started(false), stopped(false), receiver(r), fss(0)
 {
+    // ### is this right?
+    since = kFSEventStreamEventIdSinceNow;
     CFRunLoopSourceContext ctx;
     memset(&ctx, '\0', sizeof(CFRunLoopSourceContext));
     ctx.info = this;
@@ -77,16 +132,27 @@ void WatcherThread::perform(void* thread)
         return;
     }
 
-    const void* first = watcher->paths.data();
-    CFArrayRef list = CFArrayCreate(kCFAllocatorDefault,
-                                    &first,
-                                    watcher->paths.size(),
-                                    0);
-
     if (watcher->fss) {
+        // ### might make sense to have multiple streams instead of recreating one for each change
+        // ### and then merge them if the stream count reaches a given treshold
         FSEventStreamStop(watcher->fss);
         FSEventStreamInvalidate(watcher->fss);
+        if (watcher->paths.empty()) {
+            watcher->fss = 0;
+            return;
+        }
     }
+
+    const int pathSize = watcher->paths.size();
+    CFStringRef refs[pathSize];
+    for (int i = 0; i < pathSize; ++i)
+        refs[i] = CFStringCreateWithCString(kCFAllocatorDefault,
+                                            watcher->paths[i].nullTerminated(),
+                                            kCFStringEncodingUTF8);
+    CFArrayRef list = CFArrayCreate(kCFAllocatorDefault,
+                                    reinterpret_cast<const void**>(refs),
+                                    pathSize,
+                                    0);
 
     FSEventStreamContext ctx = { 0, watcher, 0, 0, 0 };
     watcher->fss = FSEventStreamCreate(kCFAllocatorDefault,
@@ -114,8 +180,29 @@ void WatcherThread::notifyCallback(ConstFSEventStreamRef streamRef,
     MutexLocker locker(&watcher->mutex);
     watcher->since = FSEventStreamGetLatestEventId(streamRef);
     char** paths = reinterpret_cast<char**>(eventPaths);
+    List<Path> created, removed, modified;
     for(size_t i = 0; i < numEvents; ++i) {
-        printf("path %s modified\n", paths[i]);
+        const FSEventStreamEventFlags flags = eventFlags[i];
+        if (flags & kFSEventStreamEventFlagHistoryDone)
+            continue;
+        if (flags & kFSEventStreamEventFlagItemIsFile) {
+            if (flags & kFSEventStreamEventFlagItemCreated) {
+                created.push_back(Path(paths[i]));
+            } else if (flags & kFSEventStreamEventFlagItemRemoved) {
+                removed.push_back(Path(paths[i]));
+            } else if (flags & (kFSEventStreamEventFlagItemModified
+                                | kFSEventStreamEventFlagItemInodeMetaMod)) {
+                modified.push_back(Path(paths[i]));
+            }
+        }
+    }
+
+    if (!created.empty())
+        watcher->receiver->postEvent(new WatcherEvent(WatcherEvent::Created, created));
+    if (!removed.empty())
+        watcher->receiver->postEvent(new WatcherEvent(WatcherEvent::Removed, removed));
+    if (!modified.empty()) {
+        watcher->receiver->postEvent(new WatcherEvent(WatcherEvent::Modified, modified));
     }
 }
 
@@ -172,7 +259,8 @@ bool WatcherThread::unwatch(const Path& path)
 
 FileSystemWatcher::FileSystemWatcher()
 {
-    mWatcher = new WatcherThread;
+    mReceiver = new WatcherReceiver(this);
+    mWatcher = new WatcherThread(mReceiver);
     mWatcher->start();
     mWatcher->waitForStarted();
 }
@@ -182,6 +270,7 @@ FileSystemWatcher::~FileSystemWatcher()
     mWatcher->stop();
     mWatcher->join();
     delete mWatcher;
+    delete mReceiver;
 }
 
 bool FileSystemWatcher::watch(const Path &p)
@@ -190,6 +279,7 @@ bool FileSystemWatcher::watch(const Path &p)
     const Path::Type type = path.type();
     switch (type) {
     case Path::File:
+        path = path.parentDir();
         break;
     case Path::Directory:
         break;
@@ -201,8 +291,11 @@ bool FileSystemWatcher::watch(const Path &p)
     return mWatcher->watch(path);
 }
 
-bool FileSystemWatcher::unwatch(const Path &path)
+bool FileSystemWatcher::unwatch(const Path &p)
 {
+    Path path = p;
+    if (path.isFile())
+        path = path.parentDir();
     if (mWatcher->unwatch(path)) {
         debug("FileSystemWatcher::unwatch(\"%s\")", path.constData());
         return true;
@@ -210,26 +303,3 @@ bool FileSystemWatcher::unwatch(const Path &path)
         return false;
     }
 }
-
-/*
-void FileSystemWatcher::notifyReadyRead()
-{
-    Set<Path> modified, removed, added;
-
-    struct {
-        signalslot::Signal1<const Path&> &signal;
-        const Set<Path> &paths;
-    } signals[] = {
-        { mModified, modified },
-        { mRemoved, removed },
-        { mAdded, added }
-    };
-    const unsigned count = sizeof(signals) / sizeof(signals[0]);
-    for (unsigned i=0; i<count; ++i) {
-        for (Set<Path>::const_iterator it = signals[i].paths.begin(); it != signals[i].paths.end(); ++it) {
-            signals[i].signal(*it);
-        }
-    }
-    // error() << modified << removed << added;
-}
-*/

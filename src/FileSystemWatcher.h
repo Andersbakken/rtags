@@ -10,6 +10,7 @@
 #include <CoreServices/CoreServices.h>
 
 class WatcherThread;
+class WatcherReceiver;
 #endif
 
 class FileSystemWatcher
@@ -31,6 +32,8 @@ public:
 private:
 #ifdef HAVE_FSEVENTS
     WatcherThread* mWatcher;
+    WatcherReceiver* mReceiver;
+    friend class WatcherReceiver;
 #else
     Mutex mMutex;
     static void notifyCallback(int, unsigned int, void *user) { reinterpret_cast<FileSystemWatcher*>(user)->notifyReadyRead(); }
