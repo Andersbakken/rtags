@@ -84,7 +84,6 @@ int Path::canonicalize()
 
 bool Path::resolve(const Path &cwd)
 {
-    // Q_ASSERT(!isResolved()); // probably best to avoid re-resolving
     if (!cwd.isEmpty() && !isAbsolute()) {
         Path copy = cwd + '/' + *this;
         if (copy.resolve()) {
@@ -162,7 +161,7 @@ bool Path::isHeader(const char *ext)
 bool Path::isSystem(const char *path)
 {
     if (!strncmp("/usr/", path, 5)) {
-#ifdef Q_OS_BSD4
+#ifdef OS_FreeBSD
         if (!strncmp("home/", path + 5, 5))
             return false;
 #endif
