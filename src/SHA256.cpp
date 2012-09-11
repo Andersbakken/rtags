@@ -30,7 +30,7 @@ SHA256::~SHA256()
     delete priv;
 }
 
-void SHA256::update(const char *data, uint size)
+void SHA256::update(const char *data, unsigned int size)
 {
     if (priv->finalized)
         priv->finalized = false;
@@ -82,7 +82,7 @@ ByteArray SHA256::hash(const ByteArray& data, MapType type)
     return SHA256::hash(data.constData(), data.size(), type);
 }
 
-ByteArray SHA256::hash(const char* data, uint size, MapType type)
+ByteArray SHA256::hash(const char* data, unsigned int size, MapType type)
 {
     SHA256Private priv;
     SHA256_Init(&priv.ctx);
