@@ -293,7 +293,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
                 return CXChildVisit_Recurse;
             } else {
                 refKind = CXCursor_Constructor;
-                job->handleReference(cursor, kind, loc, ref, refKind);
+                job->handleReference(cursor, kind, loc, ref, refKind, parent);
                 job->mIgnoreConstructorRefs = true;
                 clang_visitChildren(cursor, indexVisitor, job);
                 job->mIgnoreConstructorRefs = false;
@@ -310,16 +310,8 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
             // f rather than on f2. We can fix this by taking the location from
             // our parent.
             loc = job->createLocation(parent, 0);
-        } else if (kind == CXCursor_TypeRef
-                   && (refKind == CXCursor_ClassDecl || refKind == CXCursor_StructDecl) // what about template classes?
-                   && clang_getCursorKind(parent) == CXCursor_CXXFunctionalCastExpr) {
-            // these must be eaten or certain calls to constructors turn into references to the class:
-            // e.g.
-            // struct Foo { Foo(int) };
-            // Foo(12); => refers to struct Foo instead of Foo(int)
-            return CXChildVisit_Recurse;
         }
-        job->handleReference(cursor, kind, loc, ref, refKind);
+        job->handleReference(cursor, kind, loc, ref, refKind, parent);
         break; }
     case RTags::Other:
         assert(0);
@@ -328,13 +320,19 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
     return CXChildVisit_Recurse; // ### recurse?
 }
 
-void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc, const CXCursor &ref, CXCursorKind refKind)
+static inline bool isImplicit(const CXCursor &cursor)
+{
+    return clang_equalLocations(clang_getCursorLocation(cursor),
+                                clang_getCursorLocation(clang_getCursorSemanticParent(cursor)));
+}
+
+void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind,
+                                 const Location &loc, const CXCursor &ref, CXCursorKind refKind, const CXCursor &parent)
 {
     assert(!clang_isInvalid(refKind));
     if (mIgnoreConstructorRefs && refKind == CXCursor_Constructor)
         return;
 
-    bool checkImplicit = false;
     bool processRef = false;
 
     switch (kind) {
@@ -352,8 +350,23 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
             CXStringScope scope = clang_getCursorDisplayName(ref);
             const char *data = scope.data();
             const int len = data ? strlen(data) : 0;
-            if (len > 2 && !strncmp(data + len - 2, "()", 2)) {
-                checkImplicit = true;
+            if (len > 2 && !strncmp(data + len - 2, "()", 2) && isImplicit(ref))
+                return;
+
+            if (clang_getCursorKind(parent) == CXCursor_CXXFunctionalCastExpr) {
+                SymbolMap::iterator it = mData->symbols.find(loc);
+                if (it != mData->symbols.end() && it->second.kind == CXCursor_TypeRef) {
+                    const CXCursorKind existingRefKind = mData->symbols.value(it->second.target).kind;
+                    if (existingRefKind == CXCursor_FirstInvalid || existingRefKind == CXCursor_Constructor) {
+                        it->second.symbolLength = 0;
+                        it->second.target.clear();
+                    }
+                    // The typeRef comes first but we want the callexpr to be the cursor
+                    // e.g.
+                    // struct Foo { Foo(int) };
+                    // Foo(12); => refers to struct Foo instead of Foo(int)
+                    // we do want the reference on struct Foo for renaming reasons
+                }
             }
             break; }
         default:
@@ -394,8 +407,8 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         if (refKind == CXCursor_CXXMethod) {
             CXStringScope scope = clang_getCursorDisplayName(ref);
             const char *data = scope.data();
-            if (data && !strncmp(data, "operator", 8))
-                checkImplicit = true;
+            if (data && !strncmp(data, "operator", 8) && isImplicit(ref))
+                return;
         }
         break;
     case CXCursor_TypeRef:
@@ -425,12 +438,6 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     const Location refLoc = createLocation(ref, 0);
     if (!refLoc.isValid())
         return;
-
-    if (checkImplicit && clang_equalLocations(clang_getCursorLocation(ref),
-                                              clang_getCursorLocation(clang_getCursorSemanticParent(ref)))) {
-        debug() << "tossing reference to implicit cursor " << cursor << " " << ref;
-        return;
-    }
 
     if (processRef && !mData->symbols.value(refLoc).symbolLength)
         handleCursor(ref, refKind, refLoc);
