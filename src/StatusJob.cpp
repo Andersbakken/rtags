@@ -13,7 +13,7 @@ StatusJob::StatusJob(const QueryMessage &q, const shared_ptr<Project> &project)
 
 void StatusJob::execute()
 {
-//     bool matched = false;
+    bool matched = false;
 //     Server *server = Server::instance();
 //     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "general")) {
 //         matched = true;
@@ -49,14 +49,14 @@ void StatusJob::execute()
 //         }
 //     }
 
-//     const char *alternatives = "general|fileids|dependencies|fileinfos|symbols|symbolnames|visitedfiles|grfiles|gr";
-//     shared_ptr<Project> proj = project();
-//     if (!proj) {
-//         if (!matched) {
-//             write(alternatives);
-//         }
-//         return;
-//     }
+    const char *alternatives = "general|fileids|dependencies|fileinfos|symbols|symbolnames|visitedfiles|grfiles|gr";
+    shared_ptr<Project> proj = project();
+    if (!proj) {
+        if (!matched) {
+            write(alternatives);
+        }
+        return;
+    }
 
 //     if (proj->indexer) {
 //         if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "dependencies")) {
@@ -93,47 +93,45 @@ void StatusJob::execute()
 //             }
 //         }
 
-//         if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "symbols")) {
-//             matched = true;
-//             ScopedDB database = db(Project::Symbol, ReadWriteLock::Read);
-//             write(delimiter);
-//             write(project()->databaseDir(Project::Symbol));
-//             write(delimiter);
-//             RTags::Ptr<Iterator> it(database->createIterator());
-//             it->seekToFirst();
-//             while (it->isValid()) {
-//                 if (isAborted())
-//                     return;
-//                 const CursorInfo ci = it->value<CursorInfo>();
-//                 const Location loc = Location::fromKey(it->key().data());
-//                 write(loc, ci);
-//                 it->next();
-//             }
-//         }
+    if (proj->indexer) {
+        if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "symbols")) {
+            matched = true;
+            Scope<const SymbolMap&> scope = proj->lockSymbolsForRead();
+            const SymbolMap &map = scope.data();
+            write(delimiter);
+            write("symbols");
+            write(delimiter);
+            for (SymbolMap::const_iterator it = map.begin(); it != map.end(); ++it) {
+                if (isAborted())
+                    return;
+                const CursorInfo ci = it->second;
+                const Location loc = it->first;
+                write(loc, ci);
+            }
+        }
 
-//         if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "symbolnames")) {
-//             matched = true;
-//             ScopedDB database = db(Project::SymbolName, ReadWriteLock::Read);
-//             write(delimiter);
-//             write(project()->databaseDir(Project::SymbolName));
-//             write(delimiter);
-//             RTags::Ptr<Iterator> it(database->createIterator());
-//             it->seekToFirst();
-//             char buf[1024];
-//             while (it->isValid()) {
-//                 if (isAborted())
-//                     return;
-//                 snprintf(buf, sizeof(buf), "  %s:", it->key().byteArray().constData());
-//                 write(buf);
-//                 const Set<Location> locations = it->value<Set<Location> >();
-//                 for (Set<Location>::const_iterator lit = locations.begin(); lit != locations.end(); ++lit) {
-//                     const Location &loc = *lit;
-//                     snprintf(buf, sizeof(buf), "    %s", loc.key().constData());
-//                     write(buf);
-//                 }
-//                 it->next();
-//             }
-//         }
+        if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "symbolnames")) {
+            matched = true;
+            Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead();
+            const SymbolNameMap &map = scope.data();
+            write(delimiter);
+            write("symbolnames");
+            write(delimiter);
+            char buf[1024];
+            for (SymbolNameMap::const_iterator it = map.begin(); it != map.end(); ++it) {
+                if (isAborted())
+                    return;
+                snprintf(buf, sizeof(buf), "  %s", it->first.constData());
+                write(buf);
+                const Set<Location> &locations = it->second;
+                for (Set<Location>::const_iterator lit = locations.begin(); lit != locations.end(); ++lit) {
+                    const Location &loc = *lit;
+                    snprintf(buf, sizeof(buf), "    %s", loc.key().constData());
+                    write(buf);
+                }
+            }
+        }
+    }
 
 //         if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileinfos")) {
 //             matched = true;
