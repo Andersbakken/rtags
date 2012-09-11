@@ -68,6 +68,9 @@ void Indexer::onJobFinished(IndexerJob *job)
 void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags)
 {
     MutexLocker locker(&mMutex);
+    static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
+    if (fileFilter && !strstr(input.constData(), fileFilter))
+        return;
 
     const uint32_t fileId = Location::insertFile(input);
     mCompileArguments[fileId] = arguments;
