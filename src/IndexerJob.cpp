@@ -310,6 +310,14 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
             // f rather than on f2. We can fix this by taking the location from
             // our parent.
             loc = job->createLocation(parent, 0);
+        } else if (kind == CXCursor_TypeRef
+                   && (refKind == CXCursor_ClassDecl || refKind == CXCursor_StructDecl) // what about template classes?
+                   && clang_getCursorKind(parent) == CXCursor_CXXFunctionalCastExpr) {
+            // these must be eaten or certain calls to constructors turn into references to the class:
+            // e.g.
+            // struct Foo { Foo(int) };
+            // Foo(12); => refers to struct Foo instead of Foo(int)
+            return CXChildVisit_Recurse;
         }
         job->handleReference(cursor, kind, loc, ref, refKind);
         break; }
@@ -723,13 +731,16 @@ void IndexerJob::visit()
         VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLine + ">\n", this };
         clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
         u.out += "</VerboseVisitor " + mClangLine + ">";
-        char buf[1024];
-        snprintf(buf, sizeof(buf), "/tmp/%s.log", mPath.fileName());
-        FILE *f = fopen(buf, "w");
-        assert(f);
-        fwrite(u.out.constData(), 1, u.out.size(), f);
-        fclose(f);
-        // logDirect(VerboseDebug, u.out);
+        if (getenv("RTAGS_INDEXERJOB_DUMP_TO_FILE")) {
+            char buf[1024];
+            snprintf(buf, sizeof(buf), "/tmp/%s.log", mPath.fileName());
+            FILE *f = fopen(buf, "w");
+            assert(f);
+            fwrite(u.out.constData(), 1, u.out.size(), f);
+            fclose(f);
+        } else {
+            logDirect(VerboseDebug, u.out);
+        }
         // {
         //     VerboseVisitorUserData u = { -1, "<VerboseVisitor2 " + clangLine + ">", this };
         //    clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
