@@ -132,38 +132,45 @@ void WatcherThread::perform(void* thread)
         return;
     }
 
-    if (watcher->fss) {
-        // ### might make sense to have multiple streams instead of recreating one for each change
-        // ### and then merge them if the stream count reaches a given treshold
-        FSEventStreamStop(watcher->fss);
-        FSEventStreamInvalidate(watcher->fss);
-        if (watcher->paths.empty()) {
-            watcher->fss = 0;
-            return;
-        }
-    }
+    // ### might make sense to have multiple streams instead of recreating one for each change
+    // ### and then merge them if the stream count reaches a given treshold
 
     const int pathSize = watcher->paths.size();
-    CFStringRef refs[pathSize];
-    for (int i = 0; i < pathSize; ++i)
-        refs[i] = CFStringCreateWithCString(kCFAllocatorDefault,
-                                            watcher->paths[i].nullTerminated(),
-                                            kCFStringEncodingUTF8);
-    CFArrayRef list = CFArrayCreate(kCFAllocatorDefault,
-                                    reinterpret_cast<const void**>(refs),
-                                    pathSize,
-                                    0);
+    FSEventStreamRef newfss = 0;
 
-    FSEventStreamContext ctx = { 0, watcher, 0, 0, 0 };
-    watcher->fss = FSEventStreamCreate(kCFAllocatorDefault,
-                                       notifyCallback,
-                                       &ctx,
-                                       list,
-                                       watcher->since,
-                                       .5,
-                                       kFSEventStreamCreateFlagWatchRoot
-                                       | kFSEventStreamCreateFlagIgnoreSelf
-                                       | kFSEventStreamCreateFlagFileEvents);
+    if (pathSize) {
+        CFStringRef refs[pathSize];
+        for (int i = 0; i < pathSize; ++i)
+            refs[i] = CFStringCreateWithCString(kCFAllocatorDefault,
+                                                watcher->paths[i].nullTerminated(),
+                                                kCFStringEncodingUTF8);
+
+        CFArrayRef list = CFArrayCreate(kCFAllocatorDefault,
+                                        reinterpret_cast<const void**>(refs),
+                                        pathSize,
+                                        0);
+
+        FSEventStreamContext ctx = { 0, watcher, 0, 0, 0 };
+        newfss = FSEventStreamCreate(kCFAllocatorDefault,
+                                     notifyCallback,
+                                     &ctx,
+                                     list,
+                                     watcher->since,
+                                     .5,
+                                     kFSEventStreamCreateFlagWatchRoot
+                                     | kFSEventStreamCreateFlagIgnoreSelf
+                                     | kFSEventStreamCreateFlagFileEvents);
+    }
+
+    if (!newfss)
+        return;
+
+    if (watcher->fss) {
+        FSEventStreamStop(watcher->fss);
+        FSEventStreamInvalidate(watcher->fss);
+    }
+
+    watcher->fss = newfss;
 
     FSEventStreamScheduleWithRunLoop(watcher->fss, watcher->loop, kCFRunLoopDefaultMode);
     FSEventStreamStart(watcher->fss);
