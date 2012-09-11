@@ -173,7 +173,7 @@ struct GRTagCommand : public Command
     virtual void exec(Client *client)
     {
         if (!directory.isDir()) {
-            error() << directory << "is not a file";
+            error() << directory << "is not a directory";
             return;
         }
         GRTagsMessage msg(directory);
