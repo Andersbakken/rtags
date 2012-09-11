@@ -1,33 +1,24 @@
 class A
 {
 public:
-    A() {}
+    A(int = 13) {}
+    A(const A &) {}
 };
 
-template <typename T>
-class Pointer
+void foo(A)
 {
-public:
-    Pointer()
-    {}
-    void reset(T *t)
-    {}
-};
-
-class B
-{
-public:
-    void send(Pointer<A> a)
-    {
-
-    }
-};
-
+}
 
 int main()
 {
-    B b;
-    Pointer<A> a;
-    a.reset(new A);
-    b.send(a);
+    A a;
+    A aa = 12;
+    A aaa(12);
+    A aaaa = A();
+    A aaaaa = A(12);
+    A();
+    A(12);
+    foo(a);
+    foo(12);
+    foo(A(12));
 }

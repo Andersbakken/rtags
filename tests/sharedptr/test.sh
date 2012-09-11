@@ -1,6 +1,6 @@
 #!/bin/bash
 
-rdm --projects-file=project  &
+rdm --projects-file=project -L rdm.log --silent &
 sleep 3
 
 check()
@@ -13,6 +13,25 @@ check()
     fi
 }
 
-check "rc -f main.cpp,233 -N" main.cpp,83
+checkFollow()
+{
+    if [ -n "$2" ]; then
+        check "rc -f main.cpp,$1 -N" "main.cpp,$2"
+    else
+        check "rc -f main.cpp,$1 -N" ""
+    fi
+}
+
+checkFollow 97 22
+checkFollow 106 22
+checkFollow 121 22
+checkFollow 111
+checkFollow 126
+checkFollow 173 22
+checkFollow 182 22
+checkFollow 184
+checkFollow 193 66
+checkFollow 205 66
+checkFollow 197 97
 
 rc -q
