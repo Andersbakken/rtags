@@ -368,6 +368,24 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         case CXCursor_NonTypeTemplateParameter:
             processRef = true;
             break;
+        case CXCursor_VarDecl: {
+            SymbolMap::iterator it = mData->symbols.find(loc);
+            if (it != mData->symbols.end() && it->second.kind == CXCursor_CallExpr) {
+                const CXCursorKind existingRefKind = mData->symbols.value(it->second.target).kind;
+                if (existingRefKind == CXCursor_FirstInvalid || existingRefKind == CXCursor_Constructor) {
+                    it->second.symbolLength = 0;
+                    it->second.target.clear();
+                    // terrible hack for things like this:
+                    // struct Foo { Foo(int) {} Foo(const Foo &) {} };
+                    // void foo(Foo foo); // note the missing &
+                    // Foo f;
+                    // foo(f);
+                    //
+                    // without this hack the argument in foo(f) would refer to Foo(int) rather than the variable f;
+                    // note that we do want the reference to Foo(const Foo &)
+                }
+            }
+            break; }
         default:
             break;
         }
