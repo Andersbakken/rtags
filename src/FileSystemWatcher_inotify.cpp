@@ -16,6 +16,7 @@ FileSystemWatcher::FileSystemWatcher()
 
 FileSystemWatcher::~FileSystemWatcher()
 {
+    EventLoop::instance()->removeFileDescriptor(mFd);
     for (Map<Path, int>::const_iterator it = mWatchedByPath.begin(); it != mWatchedByPath.end(); ++it) {
         inotify_rm_watch(mFd, it->second);
     }
