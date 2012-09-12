@@ -48,7 +48,6 @@ void usage(FILE *f)
             "  --clean-slate|-C                Start from a clean slate\n"
             "  --disable-sighandler|-s         Disable signal handler to dump stack for crashes\n"
             "  --no-clang-includepath|-P       Don't use clang include paths by default\n"
-            "  --usedashB|-B                   Use -B for make instead of makelib\n"
             "  --silent|-S                     No logging to stdout\n"
             "  --no-validate|-V                Disable validation of database on startup and after indexing\n"
             "  --exclude-filter|-x [arg]       Files to exclude from grtags, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
@@ -75,7 +74,6 @@ int main(int argc, char** argv)
         { "thread-count", required_argument, 0, 'j' },
         { "clean-slate", no_argument, 0, 'C' },
         { "disable-sighandler", no_argument, 0, 's' },
-        { "usedashB", no_argument, 0, 'B' },
         { "silent", no_argument, 0, 'S' },
         { "no-validate", no_argument, 0, 'V' },
         { "exclude-filter", required_argument, 0, 'x' },
@@ -142,9 +140,6 @@ int main(int argc, char** argv)
 
     int jobs = ThreadPool::idealThreadCount();
     unsigned options = 0;
-#ifdef OS_Darwin
-    options |= Server::UseDashB;
-#endif
     List<ByteArray> defaultArguments;
     const char *excludeFilter = 0;
     const char *logFile = 0;
@@ -174,9 +169,6 @@ int main(int argc, char** argv)
         case 'h':
             usage(stdout);
             return 0;
-        case 'B':
-            options |= Server::UseDashB;
-            break;
         case 'V':
             options |= Server::NoValidate;
             break;

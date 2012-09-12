@@ -36,9 +36,8 @@ public:
     enum Option {
         NoOptions = 0x0,
         NoClangIncludePath = 0x1,
-        UseDashB = 0x2,
-        NoValidate = 0x4,
-        ClearProjects = 0x8
+        NoValidate = 0x2,
+        ClearProjects = 0x4
     };
     ThreadPool *threadPool() const { return mThreadPool; }
     void startJob(Job *job);
@@ -65,7 +64,7 @@ private:
     void onMakefileParserDone(MakefileParser *parser);
     void onMakefileModified(const Path &path);
     void onMakefileRemoved(const Path &path);
-    void make(const Path &path, List<ByteArray> makefileArgs = List<ByteArray>(),
+    void make(const Path &path, const List<ByteArray> &makefileArgs = List<ByteArray>(),
               const List<ByteArray> &extraFlags = List<ByteArray>(), Connection *conn = 0);
     void clearProjects();
     enum InitProjectFlag {

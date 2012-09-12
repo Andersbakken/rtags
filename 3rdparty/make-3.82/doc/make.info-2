@@ -1,4 +1,6 @@
-This is make.info, produced by makeinfo version 4.13 from make.texi.
+This is /home/abakken/dev/rtags/3rdparty/make-3.82/doc/make.info,
+produced by makeinfo version 4.13 from
+/home/abakken/dev/rtags/3rdparty/make-3.82/doc/make.texi.
 
 This file documents the GNU `make' utility, which determines
 automatically which pieces of a large program need to be recompiled,

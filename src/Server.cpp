@@ -241,13 +241,12 @@ void Server::handleGRTagMessage(GRTagsMessage *message, Connection *conn)
     conn->finish();
 }
 
-void Server::make(const Path &path, List<ByteArray> makefileArgs, const List<ByteArray> &extraFlags, Connection *conn)
+void Server::make(const Path &path, const List<ByteArray> &makefileArgs,
+                  const List<ByteArray> &extraFlags, Connection *conn)
 {
     MakefileParser *parser = new MakefileParser(extraFlags, conn);
     parser->fileReady().connect(this, &Server::onFileReady);
     parser->done().connect(this, &Server::onMakefileParserDone);
-    if (mOptions.options & UseDashB)
-        makefileArgs.append("-B");
     parser->run(path, makefileArgs);
 }
 

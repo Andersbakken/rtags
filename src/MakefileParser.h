@@ -7,7 +7,6 @@
 #include <Map.h>
 #include <SignalSlot.h>
 
-class DirectoryTracker;
 class Connection;
 class Process;
 
@@ -37,7 +36,6 @@ private:
 
     Process *mProc;
     ByteArray mData;
-    DirectoryTracker *mTracker;
     const List<ByteArray> mExtraFlags;
     int mSourceCount;
     Path mMakefile;
@@ -46,6 +44,7 @@ private:
     signalslot::Signal2<const GccArguments &, MakefileParser*> mFileReady;
     bool mHasProject;
     Map<Path, List<ByteArray> > mPendingFiles;
+    Path mCurrentPath;
 };
 
 #endif // MAKEFILEPARSER_H

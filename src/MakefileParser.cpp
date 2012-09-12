@@ -11,75 +11,8 @@
 #define MAKE "make"
 #endif
 
-class DirectoryTracker
-{
-public:
-    DirectoryTracker();
-
-    void init(const Path &path);
-    void track(const ByteArray &line);
-
-    const Path &path() const { return mPaths.back(); }
-
-private:
-    void enterDirectory(const ByteArray &dir);
-    void leaveDirectory(const ByteArray &dir);
-
-private:
-    List<Path> mPaths;
-};
-
-DirectoryTracker::DirectoryTracker()
-{
-}
-
-void DirectoryTracker::init(const Path &path)
-{
-    mPaths.push_back(path);
-}
-
-void DirectoryTracker::track(const ByteArray &line)
-{
-    // printf("Tracking %s\n", line.constData());
-    static RegExp rx("make[^:]*: ([^ ]+) directory `([^']+)'", REG_EXTENDED);
-    List<RegExp::Capture> captures;
-    if (rx.indexIn(line, 0, &captures) != -1) {
-        assert(captures.size() >= 3);
-        if (captures.at(1).capture == "Entering") {
-            enterDirectory(captures.at(2).capture);
-        } else if (captures.at(1).capture == "Leaving") {
-            leaveDirectory(captures.at(2).capture);
-        } else {
-            error("Invalid directory track: %s %s",
-                  captures.at(1).capture.constData(),
-                  captures.at(2).capture.constData());
-        }
-    }
-}
-
-void DirectoryTracker::enterDirectory(const ByteArray &dir)
-{
-    bool ok;
-    Path newPath = Path::resolved(dir, path(), &ok);
-    if (ok) {
-        mPaths.push_back(newPath);
-        debug("New directory resolved: %s", newPath.constData());
-    } else {
-        error("Unable to resolve path %s (%s)", dir.constData(), path().constData());
-    }
-}
-
-void DirectoryTracker::leaveDirectory(const ByteArray &dir)
-{
-    verboseDebug() << "leaveDirectory" << dir;
-    // enter and leave share the same code for now
-    mPaths.pop_back();
-    // enterDirectory(dir);
-}
-
 MakefileParser::MakefileParser(const List<ByteArray> &extraFlags, Connection *conn)
-    : mProc(0), mTracker(new DirectoryTracker), mExtraFlags(extraFlags),
-      mSourceCount(0), mConnection(conn), mHasProject(false)
+    : mProc(0), mExtraFlags(extraFlags), mSourceCount(0), mConnection(conn), mHasProject(false)
 {
 }
 
@@ -89,45 +22,33 @@ MakefileParser::~MakefileParser()
         mProc->stop();
         delete mProc;
     }
-    delete mTracker;
 }
 
 void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
 {
+    Path make = MAKE;
+    if (make.isAbsolute())
+        make.resolve();
     mMakefile = makefile;
     assert(!mProc);
     mProc = new Process;
-
-    List<ByteArray> environment = Process::environment();
-//     if (!args.contains("-B")) {
-//         Path p = RTags::applicationDirPath();
-// #ifdef OS_Darwin
-//         p += "/../makelib/libmakelib.so";
-//         p.resolve();
-//         environment.push_back("DYLD_INSERT_LIBRARIES=" + p);
-// #else
-//         p += "/../makelib/libmakelib.so";
-//         p.resolve();
-//         environment.push_back("LD_PRELOAD=" + p);
-// #endif
-//     }
 
     mProc->readyReadStdOut().connect(this, &MakefileParser::processMakeOutput);
     mProc->readyReadStdErr().connect(this, &MakefileParser::processMakeError);
     mProc->finished().connect(this, &MakefileParser::onDone);
 
-    mTracker->init(makefile.parentDir());
-    warning(MAKE " -j1 -w -f %s -C %s\n",
-            makefile.constData(), mTracker->path().constData());
+    mCurrentPath = makefile.parentDir();
+    warning("%s -f %s -C %s\n",
+            make.constData(),
+            makefile.constData(),
+            mCurrentPath.constData());
 
     List<ByteArray> a;
-    // a.push_back("-j1");
-    // a.push_back("-w");
     a.push_back("-n");
     a.push_back("-f");
     a.push_back(makefile);
     a.push_back("-C");
-    a.push_back(mTracker->path());
+    a.push_back(mCurrentPath);
     a.push_back("AM_DEFAULT_VERBOSITY=1");
     a.push_back("VERBOSE=1");
 
@@ -137,7 +58,7 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     }
 
     // unlink("/tmp/makelib.log");
-    if (!mProc->start(MAKE, a, environment))
+    if (!mProc->start(make, a))
         error() << "Process failed" << mProc->errorString();
 }
 
@@ -168,19 +89,30 @@ void MakefileParser::processMakeError()
 
 void MakefileParser::processMakeLine(const ByteArray &line)
 {
-    if (line.startsWith("RTAGS ")) {
-        // GccArguments
+    int from = -1;
+    if (line.startsWith("RTAGS PWD=")) {
+        const int pipe = line.indexOf('|', 10);
+        if (!pipe) {
+            error("Can't parse line, no pipe [%s]", line.constData());
+            return;
+        }
+        const Path pwd = line.mid(10, pipe - 10);
+        mCurrentPath = pwd;
+        from = pipe + 1;
+    } else if (line.startsWith("RTAGS|")) {
+        from = 6;
+    } else {
+        return;
     }
-    //printf("processMakeLine '%s'\n", line.nullTerminated());
-    if (testLog(VerboseDebug))
-        verboseDebug("%s", line.constData());
+
+    const ByteArray rest = line.mid(from);
+    warning("Parsing line [%s] in [%s]\n", rest.constData(), mCurrentPath.constData());
+
     GccArguments args;
-    if (args.parse(line, mTracker->path())) {
+    if (args.parse(rest, mCurrentPath)) {
         args.addFlags(mExtraFlags);
         ++mSourceCount;
         fileReady()(args, this);
-    } else {
-        mTracker->track(line);
     }
 }
 
