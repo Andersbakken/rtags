@@ -3,8 +3,8 @@
 #include "GRTags.h"
 #include "Server.h"
 
-Project::Project()
-    : indexer(0), grtags(0)
+Project::Project(const Path &src)
+    : indexer(0), grtags(0), srcRoot(src)
 {
 }
 

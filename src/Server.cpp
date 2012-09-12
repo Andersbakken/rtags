@@ -128,18 +128,18 @@ bool Server::init(const Options &options)
 
     {
         IniFile file(mOptions.projectsFile);
-        List<ByteArray> makeFiles = file.keys("Makefiles");
-        const int count = makeFiles.size();
+        List<ByteArray> makefiles = file.keys("Makefiles");
+        const int count = makefiles.size();
         for (int i=0; i<count; ++i) {
             bool ok;
-            const ByteArray value = file.value("Makefiles", makeFiles.at(i));
+            const ByteArray value = file.value("Makefiles", makefiles.at(i));
             const MakefileInformation info = MakefileInformation::fromString(value, &ok);
             if (!ok) {
                 error("Can't parse makefile information %s", value.constData());
                 return false;
             }
-            mMakefiles[makeFiles.at(i)] = info;
-            mMakefilesWatcher.watch(makeFiles.at(i));
+            mMakefiles[makefiles.at(i)] = info;
+            mMakefilesWatcher.watch(makefiles.at(i));
         }
     }
 
@@ -220,29 +220,32 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
     const Path makefile = message->makefile();
     const MakefileInformation mi(message->arguments(), message->extraFlags());
     mMakefiles[makefile] = mi;
-    IniFile ini(mOptions.projectsFile);
-    ini.removeGroup("Makefiles");
-    for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
-        ini.setValue("Makefiles", it->first, it->second.toString());
-    }
-
-    mMakefilesWatcher.watch(makefile);
-    // mDB->setValue("makefiles", mMakefiles);
+    syncMakefiles();
     make(message->makefile(), message->arguments(), message->extraFlags(), conn);
 }
 
 void Server::handleGRTagMessage(GRTagsMessage *message, Connection *conn)
 {
     const Path dir = message->path();
-    shared_ptr<Project> proj = initProject(dir, EnableGRTags);
-    if (proj)
-        mCurrentProject = proj;
+    shared_ptr<Project> &project = mProjects[dir];
+    if (project)
+        return;
+    project.reset(new Project(dir));
+    project->grtags = new GRTags;
+    project->grtags->init(project, GRTags::Parse);
+    setCurrentProject(project);
     conn->finish();
 }
 
 void Server::make(const Path &path, const List<ByteArray> &makefileArgs,
                   const List<ByteArray> &extraFlags, Connection *conn)
 {
+    shared_ptr<Project> project = mProjects.value(path);
+    if (project) {
+        assert(project->indexer);
+        project->indexer->beginMakefile();
+    }
+
     MakefileParser *parser = new MakefileParser(extraFlags, conn);
     parser->fileReady().connect(this, &Server::onFileReady);
     parser->done().connect(this, &Server::onMakefileParserDone);
@@ -253,6 +256,7 @@ void Server::onMakefileParserDone(MakefileParser *parser)
 {
     assert(parser);
     Connection *connection = parser->connection();
+    shared_ptr<Project> project = mProjects.value(parser->makefile());
     if (connection) {
         char buf[1024];
         snprintf(buf, sizeof(buf), "Parsed %s, %d sources",
@@ -260,6 +264,10 @@ void Server::onMakefileParserDone(MakefileParser *parser)
         ResponseMessage msg(buf);
         connection->send(&msg);
         connection->finish();
+    }
+    if (project) {
+        assert(project->indexer);
+        project->indexer->endMakefile();
     }
     EventLoop::instance()->postEvent(this, new MakefileParserDoneEvent(parser));
 }
@@ -281,23 +289,16 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         break;
     case QueryMessage::DeleteProject: {
         RegExp rx(message->query());
-        Map<Path, shared_ptr<Project> >::iterator it = mProjects.begin();
-        while (it != mProjects.end()) {
-            if (rx.indexIn(it->first) != -1) {
-                if (it->second->indexer)
-                    it->second->indexer->abort();
-                ResponseMessage msg("Erased project: " + it->first);
-                conn->send(&msg);
-                if (it->second.get() == mCurrentProject.get()) {
-                    mCurrentProject.reset();
-                }
-                mProjects.erase(it++);
-            } else {
-                ++it;
-            }
+        Set<Path> remove;
+        for (Map<Path, shared_ptr<Project> >::iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+            if (rx.indexIn(it->first) != -1)
+                remove.insert(it->first);
         }
-        if (!mCurrentProject && !mProjects.isEmpty()) {
-            mCurrentProject = mProjects.begin()->second;
+
+        for (Set<Path>::const_iterator it = remove.begin(); it != remove.end(); ++it) {
+            ResponseMessage msg("Erased project: " + *it);
+            conn->send(&msg);
+            removeProject(*it);
         }
         break; }
     case QueryMessage::Project:
@@ -795,7 +796,7 @@ static Path findProjectRoot(const Path &path)
 
 void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 {
-    List<Path> inputFiles = args.inputFiles();
+    const List<Path> inputFiles = args.inputFiles();
     const int c = inputFiles.size();
     if (!c) {
         warning("no input file?");
@@ -806,32 +807,33 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
     } else if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
         return;
     }
-    const Path unresolved = *args.unresolvedInputFiles().begin();
-
-    Path projectRoot = findProjectRoot(unresolved);
-    if (projectRoot.isEmpty()) {
-        projectRoot = findProjectRoot(*inputFiles.begin());
+    const Path makefile = parser->makefile();
+    shared_ptr<Project> &project = mProjects[makefile];
+    if (!project) {
+        Path srcRoot = findProjectRoot(*args.unresolvedInputFiles().begin());
+        if (srcRoot.isEmpty())
+            srcRoot = findProjectRoot(*inputFiles.begin());
+        if (srcRoot.isEmpty()) {
+            mProjects.remove(makefile);
+            error("Can't find project root for %s", inputFiles.begin()->constData());
+            parser->stop();
+            return;
+        }
+        project.reset(new Project(srcRoot));
+        project->indexer = new Indexer(project, !(mOptions.options & NoValidate));
+        project->indexer->beginMakefile();
+        project->grtags = new GRTags;
+        project->grtags->init(project, GRTags::None);
     }
-
-    if (projectRoot.isEmpty()) {
-        error("Can't find project root for %s", inputFiles.begin()->constData());
-        return;
-    }
-    shared_ptr<Project> proj = initProject(projectRoot, EnableIndexer);
-    if (!proj) {
-        error("Can't find project for %s", projectRoot.constData());
-        return;
-    }
-    mCurrentProject = proj;
-    assert(proj->indexer);
+    setCurrentProject(project);
 
     List<ByteArray> arguments = args.clangArgs();
     arguments.append(mOptions.defaultArguments);
 
     for (int i=0; i<c; ++i) {
         const Path &input = inputFiles.at(i);
-        if (proj->indexer->compileArguments(Location::insertFile(input)) != arguments) {
-            proj->indexer->index(input, arguments, IndexerJob::Makefile);
+        if (project->indexer->compileArguments(Location::insertFile(input)) != arguments) {
+            project->indexer->index(input, arguments, IndexerJob::Makefile);
         } else {
             debug() << input << " is not dirty. ignoring";
         }
@@ -841,12 +843,6 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 void Server::onMakefileModified(const Path &path)
 {
     remake(path, 0);
-}
-
-void Server::onMakefileRemoved(const Path &path)
-{
-    mMakefiles.remove(path);
-    // mDB->setValue("makefiles", mMakefiles);
 }
 
 void Server::event(const Event *event)
@@ -888,62 +884,52 @@ shared_ptr<Project> Server::setCurrentProject(const Path &path)
     return shared_ptr<Project>();
 }
 
-shared_ptr<Project> Server::initProject(const Path &path, unsigned flags)
-{
-    Path tmp = path;
-    if (!tmp.endsWith('/'))
-        tmp.append('/');
-    shared_ptr<Project> &project = mProjects[tmp];
-    if (!project) {
-        project.reset(new Project);
-        project->srcRoot = tmp;
-        if (!RTags::encodePath(tmp)) {
-            error("Invalid folder name %s", path.constData());
-            mProjects.remove(path);
-            return shared_ptr<Project>();
-        }
-    }
-
-    if (flags & EnableIndexer && !project->indexer) {
-        project->indexer = new Indexer(project, !(mOptions.options & NoValidate));
-    }
-
-    if (!project->grtags) {
-        project->grtags = new GRTags;
-        project->grtags->init(project, flags & EnableGRTags ? GRTags::Parse : GRTags::None);
-    } else if (flags & EnableGRTags) {
-        project->grtags->enableParsing();
-    }
-
-    return project;
-}
-
 bool Server::updateProjectForLocation(const Location &location)
 {
     const Path path = location.path();
-    Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.lower_bound(path);
-    if (it != mProjects.begin()) {
-        --it;
-        if (!strncmp(it->first.constData(), path.constData(), it->first.size())) {
+    for (Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+        if (!strncmp(it->second->srcRoot.constData(), path.constData(), it->second->srcRoot.size())) {
             setCurrentProject(it->second);
             return true;
         }
-    }
 
+    }
     return false;
 }
 
 shared_ptr<Project> Server::setCurrentProject(const shared_ptr<Project> &proj)
 {
-    // if (proj) {
-    //     ByteArray srcRoot = proj->srcRoot;
-    //     if (!srcRoot.isEmpty()) {
-    //         ScopedDB general = Server::instance()->db(Server::General, ReadWriteLock::Write);
-    //         general->setValue<ByteArray>("currentProject", srcRoot);
-    //     }
-    // }
     shared_ptr<Project> old = mCurrentProject;
     mCurrentProject = proj;
     return old;
 }
 
+void Server::syncMakefiles()
+{
+    IniFile ini(mOptions.projectsFile);
+    ini.removeGroup("Makefiles");
+    mMakefilesWatcher.clear();
+    for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
+        ini.setValue("Makefiles", it->first, it->second.toString());
+        mMakefilesWatcher.watch(it->first);
+    }
+}
+
+void Server::removeProject(const Path &path)
+{
+    Map<Path, shared_ptr<Project> >::iterator it = mProjects.find(path);
+    if (it == mProjects.end())
+        return;
+    if (it->second->indexer)
+        it->second->indexer->abort();
+    if (mMakefiles.remove(path))
+        syncMakefiles();
+
+    if (it->second == mCurrentProject)
+        mCurrentProject.reset();
+
+    mProjects.remove(path);
+
+    if (!mCurrentProject && !mProjects.isEmpty())
+        setCurrentProject(mProjects.begin()->first);
+}

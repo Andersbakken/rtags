@@ -17,6 +17,7 @@ public:
         None = 0x0,
         Parse = 0x1
     };
+    Path sourceRoot() const { return mSrcRoot; } // ### do we need to lock?
     void init(const shared_ptr<Project> &proj, unsigned flags);
     void enableParsing();
     bool parsingEnabled() const { return mFlags & Parse; }

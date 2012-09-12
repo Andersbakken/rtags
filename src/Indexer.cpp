@@ -13,7 +13,7 @@
 #include <math.h>
 
 Indexer::Indexer(const shared_ptr<Project> &proj, bool validate)
-    : mJobCounter(0), mModifiedFilesTimerId(-1), mTimerRunning(false), mProject(proj), mValidate(validate)
+    : mJobCounter(0), mInMakefile(false), mModifiedFilesTimerId(-1), mTimerRunning(false), mProject(proj), mValidate(validate)
 {
     mWatcher.modified().connect(this, &Indexer::onFileModified);
 }
@@ -47,21 +47,7 @@ void Indexer::onJobFinished(IndexerJob *job)
           RTags::timeToString(time(0), RTags::Time).constData(),
           data->message.constData(), mJobs.size(), int((MemoryMonitor::usage() / (1024 * 1024))));
 
-    if (mJobs.isEmpty()) {
-        mTimerRunning = false;
-        const int elapsed = mTimer.restart();
-        write();
-        mJobCounter = 0;
-        error() << "Jobs took" << ((double)(elapsed) / 1000.0) << "secs, writing took"
-                << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
-                << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-        jobsComplete()(this);
-        if (mValidate) {
-            ValidateDBJob *validateJob = new ValidateDBJob(project(), mPreviousErrors);
-            validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
-            Server::instance()->startJob(validateJob);
-        }
-    }
+    checkFinished();
     mWaitCondition.wakeAll();
 }
 
@@ -321,4 +307,36 @@ void Indexer::write()
         writeSymbolNames(data->symbolNames, symbolNames);
     }
     mPendingData.clear();
+}
+
+void Indexer::beginMakefile()
+{
+    MutexLocker lock(&mMutex);
+    mInMakefile = true;
+}
+
+void Indexer::endMakefile()
+{
+    MutexLocker lock(&mMutex);
+    mInMakefile = false;
+    checkFinished();
+}
+
+void Indexer::checkFinished() // lock always held
+{
+    if (mJobs.isEmpty() && !mInMakefile) {
+        mTimerRunning = false;
+        const int elapsed = mTimer.restart();
+        write();
+        mJobCounter = 0;
+        error() << "Jobs took" << ((double)(elapsed) / 1000.0) << "secs, writing took"
+                << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
+                << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+        jobsComplete()(this);
+        if (mValidate) {
+            ValidateDBJob *validateJob = new ValidateDBJob(project(), mPreviousErrors);
+            validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
+            Server::instance()->startJob(validateJob);
+        }
+    }
 }

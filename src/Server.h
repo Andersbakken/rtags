@@ -67,11 +67,6 @@ private:
     void make(const Path &path, const List<ByteArray> &makefileArgs = List<ByteArray>(),
               const List<ByteArray> &extraFlags = List<ByteArray>(), Connection *conn = 0);
     void clearProjects();
-    enum InitProjectFlag {
-        EnableIndexer = 0x1,
-        EnableGRTags = 0x2
-    };
-    shared_ptr<Project> initProject(const Path &path, unsigned flags);
     void handleMakefileMessage(MakefileMessage *message, Connection *conn);
     void handleGRTagMessage(GRTagsMessage *message, Connection *conn);
     void handleQueryMessage(QueryMessage *message, Connection *conn);
@@ -94,7 +89,9 @@ private:
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);
     ByteArray completions(const QueryMessage &query);
     bool updateProjectForLocation(const Location &location);
+    void syncMakefiles();
     shared_ptr<Project> currentProject() const { return mCurrentProject; }
+    void removeProject(const Path &key);
 
     static Server *sInstance;
     Options mOptions;

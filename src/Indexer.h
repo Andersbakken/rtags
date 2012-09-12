@@ -29,7 +29,10 @@ public:
     void reindex(const ByteArray &pattern);
     signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
     shared_ptr<Project> project() const { return mProject.lock(); }
+    void beginMakefile();
+    void endMakefile();
 private:
+    void checkFinished();
     void onFileModified(const Path &);
     void addDependencies(const DependencyMap &hash);
     void addDiagnostics(const DiagnosticsMap &errors, const FixitMap &fixIts);
@@ -55,6 +58,7 @@ private:
     Set<uint32_t> mVisitedFiles;
 
     int mJobCounter;
+    bool mInMakefile;
 
     mutable Mutex mMutex;
     WaitCondition mWaitCondition;

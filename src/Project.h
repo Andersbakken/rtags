@@ -32,13 +32,13 @@ private:
 class Project
 {
 public:
-    Project();
+    Project(const Path &src);
     ~Project();
 
     Indexer *indexer;
     GRTags *grtags;
 
-    Path srcRoot;
+    const Path srcRoot;
 
     Scope<const SymbolMap&> lockSymbolsForRead();
     Scope<SymbolMap&> lockSymbolsForWrite();
