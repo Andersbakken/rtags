@@ -1186,6 +1186,22 @@ start_job_command (struct child *child)
 
   if (just_print_flag && !(flags & COMMANDS_RECURSE))
     {
+        int i;
+        printf("RTAGS");
+        char **envp = child->environment ? : environ;
+        for (i=0; envp[i]; ++i) {
+            if (!strncmp(envp[i], "PWD=", 4)) {
+                printf(" %s\nRTAGS", envp[i]);
+                break;
+            }
+        }
+        for (i=0; argv[i]; ++i) {
+            printf(" %s", argv[i]);
+        }
+
+        printf("\n");
+        fflush(stdout);
+
 #ifndef VMS
       free (argv[0]);
       free (argv);
@@ -2064,16 +2080,6 @@ void
 # endif
 exec_command (char **argv, char **envp)
 {
-    printf("Yo yo yo: ");
-    int i;
-    for (i=0; argv[i]; ++i) {
-        printf("%s ", argv[i]);
-    }
-    printf("\nenvironment: ");
-    for (i=0; envp[i]; ++i) {
-        printf("  %s\n", envp[i]);
-    }
-
 #ifdef VMS
   /* to work around a problem with signals and execve: ignore them */
 #ifdef SIGCHLD
