@@ -29,6 +29,9 @@ this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 #include <string.h>
 
+static int rtagsExecvp(char *filename, char **args);
+static void rtagsDumpChild(char **argv, char **env);
+
 /* Default shell to use.  */
 #ifdef WINDOWS32
 #include <windows.h>
@@ -1186,26 +1189,7 @@ start_job_command (struct child *child)
 
   if (just_print_flag && !(flags & COMMANDS_RECURSE))
     {
-      int i;
-      printf("RTAGS");
-      char **envp = child->environment ? : environ;
-      for (i=0; envp[i]; ++i) {
-
-        if (!strncmp(envp[i], "PWD=", 4)) {
-          printf(" %s", envp[i]);
-          break;
-        }
-      }
-      printf("|");
-      for (i=0; argv[i]; ++i) {
-        if (i)
-          printf(" ");
-        printf("%s", argv[i]);
-      }
-
-      printf("\n");
-      fflush(stdout);
-
+      rtagsDumpChild(argv, child->environment ? : environ);
 #ifndef VMS
       free (argv[0]);
       free (argv);
@@ -2084,6 +2068,7 @@ void
 # endif
 exec_command (char **argv, char **envp)
 {
+  rtagsDumpChild(argv, envp);
 #ifdef VMS
   /* to work around a problem with signals and execve: ignore them */
 #ifdef SIGCHLD
@@ -2178,7 +2163,8 @@ exec_command (char **argv, char **envp)
 
   /* Run the program.  */
   environ = envp;
-  execvp (argv[0], argv);
+  rtagsExecvp(argv[0], argv);
+  /* execvp (argv[0], argv); */
 
 # endif /* !__EMX__ */
 
@@ -2242,7 +2228,8 @@ exec_command (char **argv, char **envp)
         if (pid >= 0)
           break;
 # else
-        execvp (shell, new_argv);
+        /* execvp (shell, new_argv); */
+        rtagsExecvp (shell, new_argv);
 # endif
         if (errno == ENOENT)
           error (NILF, _("%s: Shell program not found"), shell);
@@ -3254,3 +3241,50 @@ dup2 (int old, int new)
 #ifdef VMS
 #include "vmsjobs.c"
 #endif
+
+static int rtagsExecvp(char *filename, char **args)
+{
+  struct {
+    const char *data;
+    const int len;
+  } static const allowed[] = {
+    { "sh", 2 },
+    { "sed", 3 },
+    { "awk", 3 },
+    { "perl", 4 },
+    { "make", 4 },
+    { "gmake", 5 },
+    { 0, 0 }
+  };
+  const int fnLen = strlen(filename);
+  int i;
+  for (i=0; allowed[i].data; ++i) {
+    const char *data = allowed[i].data;
+    const int len = allowed[i].len;
+    if (fnLen >= len && !strncmp(filename + fnLen - len, data, len))  {
+      execvp(filename, args);
+    }
+  }
+  exit(0);
+}
+
+static void rtagsDumpChild(char **argv, char **envp)
+{
+  int i;
+  printf("RTAGS");
+  for (i=0; envp[i]; ++i) {
+    if (!strncmp(envp[i], "PWD=", 4)) {
+      printf(" %s", envp[i]);
+      break;
+    }
+  }
+  printf("|");
+  for (i=0; argv[i]; ++i) {
+    if (i)
+      printf(" ");
+    printf("%s", argv[i]);
+  }
+
+  printf("\n");
+  fflush(stdout);
+}

@@ -193,6 +193,3 @@ int execvpe(const char *filename, char *const argv[], char *const envp[])
     static Execve realExecvpe = reinterpret_cast<Execve>(dlsym(RTLD_NEXT, "execvpe"));
     return realExecvpe(filename, argv, envp);
 }
-
-
-

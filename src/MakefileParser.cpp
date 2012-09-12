@@ -44,7 +44,6 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
             mCurrentPath.constData());
 
     List<ByteArray> a;
-    a.push_back("-n");
     a.push_back("-f");
     a.push_back(makefile);
     a.push_back("-C");
