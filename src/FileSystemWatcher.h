@@ -24,6 +24,7 @@ public:
     signalslot::Signal1<const Path &> &removed() { return mRemoved; }
     signalslot::Signal1<const Path &> &added() { return mAdded; }
     signalslot::Signal1<const Path &> &modified() { return mModified; }
+    void clear();
 #ifdef HAVE_FSEVENTS
     Set<Path> watchedPaths() const;
 #else

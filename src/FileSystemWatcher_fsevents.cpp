@@ -317,3 +317,12 @@ bool FileSystemWatcher::unwatch(const Path &p)
         return false;
     }
 }
+
+void FileSystemWatcher::clear()
+{
+#warning likely not efficient
+    const Set<Path> watched = mWatcher->watchedPaths();
+    for (Set<Path>::const_iterator it = watched.begin(); it != watched.end(); ++it) {
+        unwatch(*it);
+    }
+}

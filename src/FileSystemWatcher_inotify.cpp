@@ -22,6 +22,15 @@ FileSystemWatcher::~FileSystemWatcher()
     close(mFd);
 }
 
+void FileSystemWatcher::clear()
+{
+    for (Map<Path, int>::const_iterator it = mWatchedByPath.begin(); it != mWatchedByPath.end(); ++it) {
+        inotify_rm_watch(mFd, it->second);
+    }
+    mWatchedByPath.clear();
+    mWatchedById.clear();
+}
+
 bool FileSystemWatcher::watch(const Path &p)
 {
     Path path = p;
