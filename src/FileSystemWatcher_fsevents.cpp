@@ -71,6 +71,8 @@ public:
     bool watch(const Path& path);
     bool unwatch(const Path& path);
 
+    Set<Path> watchedPaths() const { MutexLocker locker(&mutex); return paths; }
+
 protected:
     void run();
 
@@ -78,8 +80,9 @@ private:
     static void perform(void* thread);
 
 private:
-    Mutex mutex;
+    mutable Mutex mutex;
     WaitCondition waiter;
+
     bool started;
     bool stopped;
     WatcherReceiver* receiver;
@@ -277,6 +280,11 @@ FileSystemWatcher::~FileSystemWatcher()
     mWatcher->join();
     delete mWatcher;
     delete mReceiver;
+}
+
+Set<Path> FileSystemWatcher::watchedPaths() const
+{
+    return mWatcher->watchedPaths();
 }
 
 bool FileSystemWatcher::watch(const Path &p)
