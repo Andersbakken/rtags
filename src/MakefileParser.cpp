@@ -99,18 +99,18 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     mProc = new Process;
 
     List<ByteArray> environment = Process::environment();
-    if (!args.contains("-B")) {
-        Path p = RTags::applicationDirPath();
-#ifdef OS_Darwin
-        p += "/../makelib/libmakelib.so";
-        p.resolve();
-        environment.push_back("DYLD_INSERT_LIBRARIES=" + p);
-#else
-        p += "/../makelib/libmakelib.so";
-        p.resolve();
-        environment.push_back("LD_PRELOAD=" + p);
-#endif
-    }
+//     if (!args.contains("-B")) {
+//         Path p = RTags::applicationDirPath();
+// #ifdef OS_Darwin
+//         p += "/../makelib/libmakelib.so";
+//         p.resolve();
+//         environment.push_back("DYLD_INSERT_LIBRARIES=" + p);
+// #else
+//         p += "/../makelib/libmakelib.so";
+//         p.resolve();
+//         environment.push_back("LD_PRELOAD=" + p);
+// #endif
+//     }
 
     mProc->readyReadStdOut().connect(this, &MakefileParser::processMakeOutput);
     mProc->readyReadStdErr().connect(this, &MakefileParser::processMakeError);
@@ -121,8 +121,9 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
             makefile.constData(), mTracker->path().constData());
 
     List<ByteArray> a;
-    a.push_back("-j1");
-    a.push_back("-w");
+    // a.push_back("-j1");
+    // a.push_back("-w");
+    a.push_back("-n");
     a.push_back("-f");
     a.push_back(makefile);
     a.push_back("-C");
@@ -135,7 +136,7 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
         a.push_back(args.at(i));
     }
 
-    unlink("/tmp/makelib.log");
+    // unlink("/tmp/makelib.log");
     if (!mProc->start(MAKE, a, environment))
         error() << "Process failed" << mProc->errorString();
 }
@@ -167,6 +168,9 @@ void MakefileParser::processMakeError()
 
 void MakefileParser::processMakeLine(const ByteArray &line)
 {
+    if (line.startsWith("RTAGS ")) {
+        // GccArguments
+    }
     //printf("processMakeLine '%s'\n", line.nullTerminated());
     if (testLog(VerboseDebug))
         verboseDebug("%s", line.constData());

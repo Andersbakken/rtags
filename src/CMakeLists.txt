@@ -10,15 +10,16 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
   add_definitions(-DRTAGS_DEBUG)
 endif()
 
-add_definitions(-Wall "-DCLANG_INCLUDEPATH=\"${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/clang_install/lib/clang/3.1/include/\""
-  "-DCLANG_BIN=\"${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/clang_install/bin/\"")
-
+add_definitions(-Wall)
+add_definitions("-DCLANG_INCLUDEPATH=\"${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/clang_install/lib/clang/3.1/include/\"")
+add_definitions("-DCLANG_BIN=\"${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/clang_install/bin/\"")
+add_definitions("-DMAKEN=\"${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/make_install/bin/make\"")
 add_definitions(-DOS_${CMAKE_SYSTEM_NAME})
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
   set(system_LIBS rt)
 elseif(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
-  add_definitions("-DMAKE=\"gmake\"")
+#  add_definitions("-DMAKE=\"gmake\"")
 elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   find_program(SW_VER sw_vers)
   execute_process(COMMAND "${SW_VER}" -productVersion OUTPUT_VARIABLE osver)
