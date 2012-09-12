@@ -142,6 +142,9 @@ int main(int argc, char** argv)
 
     int jobs = ThreadPool::idealThreadCount();
     unsigned options = 0;
+#ifdef OS_Darwin
+    options |= Server::UseDashB;
+#endif
     List<ByteArray> defaultArguments;
     const char *excludeFilter = 0;
     const char *logFile = 0;
