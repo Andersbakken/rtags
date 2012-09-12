@@ -16,10 +16,10 @@ class WatcherEvent : public Event
 public:
     enum Type { Created = 505, Removed, Modified };
 
-    WatcherEvent(Type t, const List<Path>& p) : Event(t), type(t), paths(p) { }
+    WatcherEvent(Type t, const Set<Path>& p) : Event(t), type(t), paths(p) { }
 
     Type type;
-    List<Path> paths;
+    Set<Path> paths;
 };
 
 class WatcherReceiver : public EventReceiver
@@ -42,8 +42,8 @@ WatcherReceiver::WatcherReceiver(FileSystemWatcher* w)
 void WatcherReceiver::event(const Event* event)
 {
     const WatcherEvent* we = static_cast<const WatcherEvent*>(event);
-    List<Path>::const_iterator path = we->paths.begin();
-    const List<Path>::const_iterator end = we->paths.end();
+    Set<Path>::const_iterator path = we->paths.begin();
+    const Set<Path>::const_iterator end = we->paths.end();
     while (path != end) {
         switch(we->type) {
         case WatcherEvent::Created:
@@ -88,7 +88,7 @@ private:
     CFRunLoopSourceRef source;
     FSEventStreamRef fss;
     FSEventStreamEventId since;
-    List<Path> paths;
+    Set<Path> paths;
     static void notifyCallback(ConstFSEventStreamRef, void*, size_t, void *,
                                const FSEventStreamEventFlags[],
                                const FSEventStreamEventId[]);
@@ -140,10 +140,20 @@ void WatcherThread::perform(void* thread)
 
     if (pathSize) {
         CFStringRef refs[pathSize];
-        for (int i = 0; i < pathSize; ++i)
-            refs[i] = CFStringCreateWithCString(kCFAllocatorDefault,
-                                                watcher->paths[i].nullTerminated(),
-                                                kCFStringEncodingUTF8);
+        int i = 0;
+        Set<Path>::const_iterator path = watcher->paths.begin();
+        const Set<Path>::const_iterator end = watcher->paths.end();
+        while (path != end) {
+            // CFStringCreateWithCString copies the string data
+            // ### use CFStringCreateWithCStringNoCopy instead?
+            refs[i++] = CFStringCreateWithCString(kCFAllocatorDefault,
+                                                  path->nullTerminated(),
+                                                  kCFStringEncodingUTF8);
+            ++path;
+        }
+
+        // don't need to hold the mutex beyond this point
+        locker.unlock();
 
         CFArrayRef list = CFArrayCreate(kCFAllocatorDefault,
                                         reinterpret_cast<const void**>(refs),
@@ -187,19 +197,19 @@ void WatcherThread::notifyCallback(ConstFSEventStreamRef streamRef,
     MutexLocker locker(&watcher->mutex);
     watcher->since = FSEventStreamGetLatestEventId(streamRef);
     char** paths = reinterpret_cast<char**>(eventPaths);
-    List<Path> created, removed, modified;
+    Set<Path> created, removed, modified;
     for(size_t i = 0; i < numEvents; ++i) {
         const FSEventStreamEventFlags flags = eventFlags[i];
         if (flags & kFSEventStreamEventFlagHistoryDone)
             continue;
         if (flags & kFSEventStreamEventFlagItemIsFile) {
             if (flags & kFSEventStreamEventFlagItemCreated) {
-                created.push_back(Path(paths[i]));
+                created.insert(Path(paths[i]));
             } else if (flags & kFSEventStreamEventFlagItemRemoved) {
-                removed.push_back(Path(paths[i]));
+                removed.insert(Path(paths[i]));
             } else if (flags & (kFSEventStreamEventFlagItemModified
                                 | kFSEventStreamEventFlagItemInodeMetaMod)) {
-                modified.push_back(Path(paths[i]));
+                modified.insert(Path(paths[i]));
             }
         }
     }
@@ -234,14 +244,9 @@ void WatcherThread::waitForStarted()
 bool WatcherThread::watch(const Path& path)
 {
     MutexLocker locker(&mutex);
-    List<Path>::const_iterator it = paths.begin();
-    const List<Path>::const_iterator end = paths.end();
-    while (it != end) {
-        if (*it == path)
-            return false;
-        ++it;
-    }
-    paths.push_back(path);
+    if (paths.contains(path))
+        return false;
+    paths.insert(path);
     CFRunLoopSourceSignal(source);
     CFRunLoopWakeUp(loop);
     return true;
@@ -250,16 +255,10 @@ bool WatcherThread::watch(const Path& path)
 bool WatcherThread::unwatch(const Path& path)
 {
     MutexLocker locker(&mutex);
-    List<Path>::iterator it = paths.begin();
-    const List<Path>::const_iterator end = paths.end();
-    while (it != end) {
-        if (*it == path) {
-            paths.erase(it);
-            CFRunLoopSourceSignal(source);
-            CFRunLoopWakeUp(loop);
-            return false;
-        }
-        ++it;
+    if (paths.remove(path)) {
+        CFRunLoopSourceSignal(source);
+        CFRunLoopWakeUp(loop);
+        return true;
     }
     return false;
 }
