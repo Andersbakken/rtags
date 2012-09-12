@@ -29,7 +29,6 @@ public:
         Project,
         DeleteProject,
         FindFile,
-        Parse,
         Shutdown
     };
 

@@ -62,7 +62,6 @@ static void help(FILE *f, const char* app)
             "  --path|-P [optional pattern]              Print files matching pattern\n"
             "  --absolute-path|-K                        Print files with absolute path\n"
             "  --path-match-regexp|-Z                    Treat arguments to -P or -i as a regexps\n"
-            "  --parse|-y [file]                         Parse file\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
             app);
 }
@@ -232,14 +231,13 @@ int main(int argc, char** argv)
         { "path", optional_argument, 0, 'P' },
         { "path-match-regexp", no_argument, 0, 'Z' },
         { "absolute-path", no_argument, 0, 'K' },
-        { "parse", required_argument, 0, 'y' },
         { "enable-grtags", no_argument, 0, 'b' },
         { "grtag", optional_argument, 0, 't' },
         { "socket-file", required_argument, 0, 'n' },
         { 0, 0, 0, 0 }
     };
 
-    // Unused: djJcB
+    // Unused: djJcBy
 
     int logLevel = 0;
     ByteArray logFile;
@@ -427,7 +425,6 @@ int main(int argc, char** argv)
         case 'T':
         case 'x':
         case 'Q':
-        case 'y':
         case 'k': {
             const Path p = Path::resolved(optarg);
             if (!p.isFile()) {
@@ -440,7 +437,6 @@ int main(int argc, char** argv)
             case 'x': type = QueryMessage::FixIts; break;
             case 'Q': type = QueryMessage::Errors; break;
             case 'k': type = QueryMessage::RunTest; break;
-            case 'y': type = QueryMessage::Parse; break;
             }
 
             commands.append(new QueryCommand(type, p, queryFlags, pathFilters, unsavedFiles));

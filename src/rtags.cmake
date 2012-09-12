@@ -50,7 +50,6 @@ set(rtags_HDRS
     Messages.h
     Mutex.h
     MutexLocker.h
-    ParseJob.h
     Path.h
     Pch.h
     Process.h
@@ -110,7 +109,6 @@ set(rtags_SRCS
     MakefileParser.cpp
     MemoryMonitor.cpp
     Messages.cpp
-    ParseJob.cpp
     Path.cpp
     Process.cpp
     Project.cpp
