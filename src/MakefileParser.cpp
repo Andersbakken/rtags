@@ -44,10 +44,9 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
             mCurrentPath.constData());
 
     List<ByteArray> a;
-    a.push_back("-f");
-    a.push_back(makefile);
-    a.push_back("-C");
-    a.push_back(mCurrentPath);
+    a.push_back("--dry-run");
+    a.push_back("--makefile=" + makefile);
+    a.push_back("--directory=" + mCurrentPath);
     a.push_back("AM_DEFAULT_VERBOSITY=1");
     a.push_back("VERBOSE=1");
 
@@ -109,9 +108,13 @@ void MakefileParser::processMakeLine(const ByteArray &line)
 
     GccArguments args;
     if (args.parse(rest, mCurrentPath)) {
+        // error("Parsed line [%s] in [%s] => [%s]", rest.constData(), mCurrentPath.constData(), args.inputFiles().value(0).constData());
+
         args.addFlags(mExtraFlags);
         ++mSourceCount;
         fileReady()(args, this);
+    // } else {
+    //     error("This didn't mean anything to me: [%s] in %s", rest.constData(), mCurrentPath.constData());
     }
 }
 
