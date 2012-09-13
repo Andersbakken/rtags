@@ -32,8 +32,9 @@ public:
     bool hasFilter() const { return mPathFilters || mPathFiltersRegExp; }
     int id() const { return mId; }
     void setId(int id) { mId = id; }
-    void write(const ByteArray &out);
-    void writeRaw(const ByteArray &out);
+    bool write(const ByteArray &out);
+    bool writeRaw(const ByteArray &out);
+    bool write(const Location &location, const CursorInfo &info);
     unsigned jobFlags() const { return mJobFlags; }
     void setJobFlags(unsigned flags) { mJobFlags = flags; }
     unsigned queryFlags() const { return mQueryFlags; }
@@ -43,7 +44,6 @@ public:
     virtual void run();
     virtual void execute() {}
     signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
-    void write(const Location &location, const CursorInfo &info);
     shared_ptr<Project> project() const { return mProject; }
 private:
     int mId;
@@ -53,6 +53,7 @@ private:
     shared_ptr<Project> mProject;
     List<ByteArray> *mPathFilters;
     List<RegExp> *mPathFiltersRegExp;
+    int mMax;
 };
 
 inline bool Job::filter(const ByteArray &val) const

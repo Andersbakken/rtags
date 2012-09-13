@@ -361,9 +361,6 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         reindex(message->query());
         conn->finish();
         return; }
-    case QueryMessage::Remake: {
-        remake(message->query(), conn);
-        return; }
     case QueryMessage::ClearProjects: {
         delete mThreadPool;
         mThreadPool = 0;

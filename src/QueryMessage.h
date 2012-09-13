@@ -25,7 +25,6 @@ public:
         FixIts,
         Errors,
         Reindex,
-        Remake,
         Project,
         DeleteProject,
         FindFile,
@@ -48,7 +47,7 @@ public:
 
     typedef Map<Path, ByteArray> UnsavedFilesMap;
     QueryMessage(Type type = Invalid, const ByteArray &query = ByteArray(),
-                 unsigned flags = 0, const UnsavedFilesMap &unsaved = UnsavedFilesMap());
+                 unsigned flags = 0, int max = -1, const UnsavedFilesMap &unsaved = UnsavedFilesMap());
 
     const List<ByteArray> &pathFilters() const { return mPathFilters; }
     void setPathFilters(const List<ByteArray> &pathFilters)
@@ -63,6 +62,8 @@ public:
 
     Map<Path, ByteArray> unsavedFiles() const { return mUnsavedFiles; }
 
+    int max() const { return mMax; }
+
     Type type() const { return mType; }
     unsigned flags() const { return mFlags; }
     static unsigned keyFlags(unsigned queryFlags);
@@ -75,6 +76,7 @@ private:
     ByteArray mQuery;
     Type mType;
     unsigned mFlags;
+    int mMax;
     List<ByteArray> mPathFilters;
     Map<Path, ByteArray> mUnsavedFiles;
 };

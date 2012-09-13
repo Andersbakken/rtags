@@ -10,7 +10,7 @@
 // static int active = 0;
 
 Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project> &proj)
-    : mId(-1), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj), mPathFilters(0), mPathFiltersRegExp(0)
+    : mId(-1), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj), mPathFilters(0), mPathFiltersRegExp(0), mMax(query.max())
 {
     const List<ByteArray> &pathFilters = query.pathFilters();
     if (!pathFilters.isEmpty()) {
@@ -28,7 +28,7 @@ Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project>
 }
 
 Job::Job(unsigned jobFlags, const shared_ptr<Project> &proj)
-    : mId(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0), mPathFiltersRegExp(0)
+    : mId(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0), mPathFiltersRegExp(0), mMax(-1)
 {
 }
 
@@ -38,7 +38,7 @@ Job::~Job()
     delete mPathFiltersRegExp;
 }
 
-void Job::write(const ByteArray &out)
+bool Job::write(const ByteArray &out)
 {
     if (mJobFlags & WriteUnfiltered || filter(out)) {
         if (mJobFlags & QuoteOutput) {
@@ -57,29 +57,35 @@ void Job::write(const ByteArray &out)
                 }
             }
             o.truncate(l);
-            writeRaw(o);
+            return writeRaw(o);
         } else {
-            writeRaw(out);
+            return writeRaw(out);
         }
     }
+    return true;
 }
 
-void Job::run()
+bool Job::writeRaw(const ByteArray &out)
 {
-    execute();
-    if (mId != -1)
-        EventLoop::instance()->postEvent(Server::instance(), new JobCompleteEvent(mId));
-}
-void Job::writeRaw(const ByteArray &out)
-{
+    switch (mMax) {
+    case 0:
+        return false;
+    case -1:
+        break;
+    default:
+        --mMax;
+        break;
+    }
+
     if (mJobFlags & OutputSignalEnabled) {
         output()(out);
     } else {
         EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, out));
     }
+    return true;
 }
 
-void Job::write(const Location &location, const CursorInfo &ci)
+bool Job::write(const Location &location, const CursorInfo &ci)
 {
     if (ci.symbolLength) {
         char buf[1024];
@@ -94,11 +100,19 @@ void Job::write(const Location &location, const CursorInfo &ci)
         for (Set<Location>::const_iterator rit = ci.references.begin(); rit != ci.references.end(); ++rit) {
             const Location &l = *rit;
             snprintf(buf, sizeof(buf), "    %s", l.key().constData());
-            write(buf);
+            return write(buf);
         }
     }
-
+    return true;
 }
+
+void Job::run()
+{
+    execute();
+    if (mId != -1)
+        EventLoop::instance()->postEvent(Server::instance(), new JobCompleteEvent(mId));
+}
+
 unsigned Job::keyFlags() const
 {
     return QueryMessage::keyFlags(mQueryFlags);

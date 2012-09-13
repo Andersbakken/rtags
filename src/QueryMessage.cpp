@@ -3,8 +3,8 @@
 #include <Serializer.h>
 
 QueryMessage::QueryMessage(Type type, const ByteArray& query, unsigned flags,
-                           const Map<Path, ByteArray> &unsavedFiles)
-    : mQuery(query), mType(type), mFlags(flags), mUnsavedFiles(unsavedFiles)
+                           int max, const Map<Path, ByteArray> &unsavedFiles)
+    : mQuery(query), mType(type), mFlags(flags), mMax(max), mUnsavedFiles(unsavedFiles)
 {
 }
 
@@ -13,7 +13,7 @@ ByteArray QueryMessage::encode() const
     ByteArray data;
     {
         Serializer stream(data);
-        stream << mQuery << mType << mFlags << mPathFilters << mUnsavedFiles;
+        stream << mQuery << mType << mFlags << mMax << mPathFilters << mUnsavedFiles;
     }
     return data;
 }
@@ -21,7 +21,7 @@ ByteArray QueryMessage::encode() const
 void QueryMessage::fromData(const char *data, int size)
 {
     Deserializer stream(data, size);
-    stream >> mQuery >> mType >> mFlags >> mPathFilters >> mUnsavedFiles;
+    stream >> mQuery >> mType >> mFlags >> mMax >> mPathFilters >> mUnsavedFiles;
 }
 
 unsigned QueryMessage::keyFlags(unsigned queryFlags)
@@ -33,4 +33,3 @@ unsigned QueryMessage::keyFlags(unsigned queryFlags)
         ret |= Location::ShowLineNumbers;
     return ret;
 }
-
