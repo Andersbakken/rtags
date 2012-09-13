@@ -1,8 +1,9 @@
 #include "GRParseJob.h"
 #include "GRParser.h"
+#include "Project.h"
 
-GRParseJob::GRParseJob(const Path &path, unsigned flags)
-    : mPath(path), mFlags(flags), mParseTime(0)
+GRParseJob::GRParseJob(const Path &path, unsigned flags, const shared_ptr<Project> &project)
+    : mPath(path), mFlags(flags), mParseTime(0), mProject(project)
 {
 }
 
@@ -14,5 +15,6 @@ void GRParseJob::run()
     const unsigned flags = extension && strcmp("c", extension) ? GRParser::CPlusPlus : GRParser::None;
     mParseTime = time(0);
     parser.parse(mPath, flags, mEntries);
-    mFinished(this, mEntries);
+    if (shared_ptr<Project> project = mProject.lock())
+        mFinished(this, mEntries);
 }

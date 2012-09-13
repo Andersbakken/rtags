@@ -3,8 +3,8 @@
 #include "Server.h"
 #include <fnmatch.h>
 
-GRScanJob::GRScanJob(const Path &path, const shared_ptr<Project> &project)
-    : mPath(path), mFilters(Server::instance()->excludeFilter()), mProject(project)
+GRScanJob::GRScanJob(Mode mode, const Path &path, const shared_ptr<Project> &project)
+    : mMode(mode), mPath(path), mFilters(Server::instance()->excludeFilter()), mProject(project)
 {
     if (!mPath.endsWith('/'))
         mPath.append('/');
@@ -44,11 +44,12 @@ Path::VisitResult GRScanJob::visit(const Path &path, void *userData)
         return Path::Continue;
     case Directory:
         return Path::Recurse;
-    case Source:
-        recurseJob->mPaths[path] = true;
-        break;
     case File:
-        recurseJob->mPaths[path] = false;
+        if (recurseJob->mMode == Sources)
+            break;
+        // fall through
+    case Source:
+        recurseJob->mPaths.insert(path);
         break;
     }
     return Path::Continue;

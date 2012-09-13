@@ -45,14 +45,18 @@ public:
 
     Scope<const SymbolMap&> lockSymbolsForRead();
     Scope<SymbolMap&> lockSymbolsForWrite();
+
     Scope<const SymbolNameMap&> lockSymbolNamesForRead();
     Scope<SymbolNameMap&> lockSymbolNamesForWrite();
 
-    Scope<const GRMap&> lockGRForRead();
-    Scope<GRMap&> lockGRForWrite();
-
     Scope<const FilesMap&> lockFilesForRead();
     Scope<FilesMap&> lockFilesForWrite();
+
+    Scope<const GRFilesMap&> lockGRFilesForRead();
+    Scope<GRFilesMap&> lockGRFilesForWrite();
+
+    Scope<const GRMap&> lockGRForRead();
+    Scope<GRMap&> lockGRForWrite();
 private:
     SymbolMap mSymbols;
     ReadWriteLock mSymbolsLock;
@@ -62,6 +66,9 @@ private:
 
     FilesMap mFiles;
     ReadWriteLock mFilesLock;
+
+    GRFilesMap mGRFiles;
+    ReadWriteLock mGRFilesLock;
 
     GRMap mGR;
     ReadWriteLock mGRLock;

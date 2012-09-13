@@ -7,6 +7,7 @@
 #include "SignalSlot.h"
 #include "Location.h"
 
+class Project;
 class GRParseJob : public ThreadPool::Job, public AbortInterface
 {
 public:
@@ -14,7 +15,7 @@ public:
         None = 0x0,
         Dirty = 0x1
     };
-    GRParseJob(const Path &path, unsigned flags);
+    GRParseJob(const Path &path, unsigned flags, const shared_ptr<Project> &project);
     const Path &path() const { return mPath; }
     unsigned flags() const { return mFlags; }
     virtual void run();
@@ -27,6 +28,7 @@ private:
     const Path mPath;
     const unsigned mFlags;
     time_t mParseTime;
+    weak_ptr<Project> mProject;
 };
 
 #endif

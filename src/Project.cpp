@@ -50,6 +50,22 @@ Scope<SymbolNameMap&> Project::lockSymbolNamesForWrite()
     return scope;
 }
 
+Scope<const FilesMap&> Project::lockFilesForRead()
+{
+    mFilesLock.lockForRead();
+    Scope<const FilesMap&> scope;
+    scope.mData.reset(new Scope<const FilesMap&>::Data(mFiles, &mFilesLock));
+    return scope;
+}
+
+Scope<FilesMap&> Project::lockFilesForWrite()
+{
+    mFilesLock.lockForWrite();
+    Scope<FilesMap&> scope;
+    scope.mData.reset(new Scope<FilesMap&>::Data(mFiles, &mFilesLock));
+    return scope;
+}
+
 Scope<const GRMap&> Project::lockGRForRead()
 {
     mGRLock.lockForRead();
@@ -66,18 +82,19 @@ Scope<GRMap&> Project::lockGRForWrite()
     return scope;
 }
 
-Scope<const FilesMap&> Project::lockFilesForRead()
+Scope<const GRFilesMap&> Project::lockGRFilesForRead()
 {
-    mFilesLock.lockForRead();
-    Scope<const FilesMap&> scope;
-    scope.mData.reset(new Scope<const FilesMap&>::Data(mFiles, &mFilesLock));
+    mGRLock.lockForRead();
+    Scope<const GRFilesMap&> scope;
+    scope.mData.reset(new Scope<const GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
     return scope;
 }
 
-Scope<FilesMap&> Project::lockFilesForWrite()
+Scope<GRFilesMap&> Project::lockGRFilesForWrite()
 {
-    mFilesLock.lockForWrite();
-    Scope<FilesMap&> scope;
-    scope.mData.reset(new Scope<FilesMap&>::Data(mFiles, &mFilesLock));
+    mGRLock.lockForWrite();
+    Scope<GRFilesMap&> scope;
+    scope.mData.reset(new Scope<GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
     return scope;
 }
+

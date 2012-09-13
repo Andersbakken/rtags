@@ -52,7 +52,8 @@ typedef Map<uint32_t, List<ByteArray> > CompileArgumentsMap;
 typedef Map<Path, Set<ByteArray> > FilesMap;
 typedef Map<Location, std::pair<int, ByteArray> > FixitMap;
 typedef Map<uint32_t, List<ByteArray> > DiagnosticsMap;
-// typedef Map<Path, Map<ByteArray, time_t> > GR
+typedef Map<uint32_t, time_t> GRFilesMap;
+// file id to last modified, time_t means currently parsing
 typedef Map<ByteArray, Map<Location, bool> > GRMap;
 // symbolName to Map<location, bool> bool == true means cursor, false means reference
 

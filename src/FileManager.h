@@ -16,9 +16,8 @@ public:
     void recurseDirs();
     void onFileAdded(const Path &path);
     void onFileRemoved(const Path &path);
-    void onRecurseJobFinished(const Map<Path, bool> &mPaths);
+    void onRecurseJobFinished(const Set<Path> &mPaths);
 private:
-    const List<ByteArray> &mFilters;
     FileSystemWatcher mWatcher;
     weak_ptr<Project> mProject;
 };
