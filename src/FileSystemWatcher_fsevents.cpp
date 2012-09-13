@@ -70,6 +70,7 @@ public:
 
     bool watch(const Path& path);
     bool unwatch(const Path& path);
+    void clear();
 
     Set<Path> watchedPaths() const { MutexLocker locker(&mutex); return paths; }
 
@@ -83,8 +84,12 @@ private:
     mutable Mutex mutex;
     WaitCondition waiter;
 
-    bool started;
-    bool stopped;
+    enum Flags {
+        Start = 0x1,
+        Stop = 0x2,
+        Clear = 0x4
+    };
+    int flags;
     WatcherReceiver* receiver;
 
     CFRunLoopRef loop;
@@ -98,7 +103,7 @@ private:
 };
 
 WatcherThread::WatcherThread(WatcherReceiver* r)
-    : started(false), stopped(false), receiver(r), fss(0)
+    : flags(0), receiver(r), fss(0)
 {
     // ### is this right?
     since = kFSEventStreamEventIdSinceNow;
@@ -115,7 +120,7 @@ void WatcherThread::run()
         MutexLocker locker(&mutex);
         loop = CFRunLoopGetCurrent();
         CFRunLoopAddSource(loop, source, kCFRunLoopCommonModes);
-        started = true;
+        flags |= Start;
         waiter.wakeOne();
     }
     CFRunLoopRun();
@@ -125,7 +130,7 @@ void WatcherThread::perform(void* thread)
 {
     WatcherThread* watcher = static_cast<WatcherThread*>(thread);
     MutexLocker locker(&watcher->mutex);
-    if (watcher->stopped) {
+    if (watcher->flags & Stop) {
         if (watcher->fss) {
             FSEventStreamStop(watcher->fss);
             FSEventStreamInvalidate(watcher->fss);
@@ -133,6 +138,18 @@ void WatcherThread::perform(void* thread)
         CFRunLoopSourceInvalidate(watcher->source);
         CFRunLoopStop(watcher->loop);
         return;
+    } else if (watcher->flags & Clear) {
+        watcher->flags &= ~Clear;
+
+        if (watcher->fss) {
+            FSEventStreamStop(watcher->fss);
+            FSEventStreamInvalidate(watcher->fss);
+            watcher->fss = 0;
+        }
+
+        // We might have paths added since the clear operation was inititated
+        if (watcher->paths.empty())
+            return;
     }
 
     // ### might make sense to have multiple streams instead of recreating one for each change
@@ -229,7 +246,7 @@ void WatcherThread::notifyCallback(ConstFSEventStreamRef streamRef,
 void WatcherThread::stop()
 {
     MutexLocker locker(&mutex);
-    stopped = true;
+    flags |= Stop;
     CFRunLoopSourceSignal(source);
     CFRunLoopWakeUp(loop);
 }
@@ -237,11 +254,20 @@ void WatcherThread::stop()
 void WatcherThread::waitForStarted()
 {
     MutexLocker locker(&mutex);
-    if (started)
+    if (flags & Start)
         return;
     do {
         waiter.wait(&mutex);
-    } while (!started);
+    } while (!(flags & Start));
+}
+
+void WatcherThread::clear()
+{
+    MutexLocker locker(&mutex);
+    flags |= Clear;
+    paths.clear();
+    CFRunLoopSourceSignal(source);
+    CFRunLoopWakeUp(loop);
 }
 
 bool WatcherThread::watch(const Path& path)
@@ -320,9 +346,5 @@ bool FileSystemWatcher::unwatch(const Path &p)
 
 void FileSystemWatcher::clear()
 {
-#warning likely not efficient
-    const Set<Path> watched = mWatcher->watchedPaths();
-    for (Set<Path>::const_iterator it = watched.begin(); it != watched.end(); ++it) {
-        unwatch(*it);
-    }
+    mWatcher->clear();
 }
