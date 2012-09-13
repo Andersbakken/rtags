@@ -6,6 +6,7 @@
 #include <Map.h>
 #include <Mutex.h>
 #include <SignalSlot.h>
+#include <stdint.h>
 #ifdef HAVE_FSEVENTS
 #include <CoreServices/CoreServices.h>
 
@@ -42,6 +43,13 @@ private:
     int mFd;
     Map<Path, int> mWatchedByPath;
     Map<int, Path> mWatchedById;
+#ifdef HAVE_KQUEUE
+    Map<Path, uint64_t> mTimes;
+    static Path::VisitResult scanFiles(const Path& path, void* userData);
+    static Path::VisitResult updateFiles(const Path& path, void* userData);
+
+    bool isWatching(const Path& path) const;
+#endif
 #endif
     signalslot::Signal1<const Path&> mRemoved, mModified, mAdded;
 };
