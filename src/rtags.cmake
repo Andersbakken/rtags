@@ -28,7 +28,7 @@ set(rtags_HDRS
     GRParseJob.h
     GRParser.h
     GRScanJob.h
-    GRTags.h
+    GRFiles.h
     GRTagsMessage.h
     GccArguments.h
     Indexer.h
@@ -93,7 +93,7 @@ set(rtags_SRCS
     GRParseJob.cpp
     GRParser.cpp
     GRScanJob.cpp
-    GRTags.cpp
+    GRFiles.cpp
     GRTagsMessage.cpp
     GccArguments.cpp
     Indexer.cpp

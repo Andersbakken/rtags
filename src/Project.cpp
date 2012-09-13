@@ -1,16 +1,16 @@
 #include "Project.h"
 #include "Indexer.h"
-#include "GRTags.h"
+#include "GRFiles.h"
 #include "Server.h"
 
 Project::Project(const Path &src)
-    : indexer(0), grtags(0), srcRoot(src)
+    : indexer(0), grfiles(0), srcRoot(src)
 {
 }
 
 Project::~Project()
 {
-    delete grtags;
+    delete grfiles;
     if (indexer)
         indexer->abort();
     delete indexer;

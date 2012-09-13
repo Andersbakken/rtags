@@ -7,7 +7,7 @@
 #include "ReadWriteLock.h"
 
 class Indexer;
-class GRTags;
+class GRFiles;
 template <typename T>
 class Scope
 {
@@ -36,7 +36,7 @@ public:
     ~Project();
 
     Indexer *indexer;
-    GRTags *grtags;
+    GRFiles *grfiles;
 
     const Path srcRoot;
 
@@ -48,8 +48,8 @@ public:
     Scope<const GRMap&> lockGRForRead();
     Scope<GRMap&> lockGRForWrite();
 
-    Scope<const Map<Path, Map<ByteArray, time_t> >&> lockGRFilesForRead();
-    Scope<Map<Path, Map<ByteArray, time_t> >&> lockGRFilesForWrite();
+    Scope<const GRFilesMap&> lockGRFilesForRead();
+    Scope<GRFilesMap&> lockGRFilesForWrite();
 private:
     SymbolMap mSymbols;
     ReadWriteLock mSymbolsLock;

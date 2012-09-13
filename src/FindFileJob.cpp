@@ -2,7 +2,7 @@
 #include "RTags.h"
 #include "Server.h"
 #include "CursorInfo.h"
-#include "GRTags.h"
+#include "GRFiles.h"
 
 FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &project)
     : Job(query, 0, project)
@@ -20,7 +20,7 @@ FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &p
 void FindFileJob::execute()
 {
     shared_ptr<Project> proj = project();
-    if (!proj || !proj->grtags)
+    if (!proj || !proj->grfiles)
         return;
     const Path &srcRoot = proj->srcRoot;
 
@@ -42,15 +42,15 @@ void FindFileJob::execute()
     }
 
     Scope<const GRFilesMap&> scope = proj->lockGRFilesForRead();
-    const Map<Path, Map<ByteArray, time_t> > &dirs = scope.data();
-    Map<Path, Map<ByteArray, time_t> >::const_iterator dirit = dirs.begin();
+    const Map<Path, Set<ByteArray> > &dirs = scope.data();
+    Map<Path, Set<ByteArray> >::const_iterator dirit = dirs.begin();
     while (dirit != dirs.end()) {
         const Path &dir = dirit->first;
         out.append(dir.constData() + srcRoot.size(), dir.size() - srcRoot.size());
 
-        const Map<ByteArray, time_t> &files = dirit->second;
-        for (Map<ByteArray, time_t>::const_iterator it = files.begin(); it != files.end(); ++it) {
-            const ByteArray &key = it->first;
+        const Set<ByteArray> &files = dirit->second;
+        for (Set<ByteArray>::const_iterator it = files.begin(); it != files.end(); ++it) {
+            const ByteArray &key = *it;
             out.append(key);
             bool ok;
             switch (mode) {

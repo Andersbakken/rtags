@@ -3,6 +3,7 @@ Fix writing of references/cursors to "db", probably should just write all cursor
 We should sort output from C-x r / with definitions first (like symbolName)
 We're having make issues with at least directfb and openssl, for the
 latter eatAutoTools is not doing the right thing.
+Forward declarations are not references to classes
 
 Still at least one problem with constructors:
 

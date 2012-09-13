@@ -231,8 +231,8 @@ void Server::handleGRTagMessage(GRTagsMessage *message, Connection *conn)
     if (project)
         return;
     project.reset(new Project(dir));
-    project->grtags = new GRTags;
-    project->grtags->init(project, GRTags::Parse);
+    project->grfiles = new GRFiles;
+    project->grfiles->init(project);
     setCurrentProject(project);
     conn->finish();
 }
@@ -442,7 +442,7 @@ int Server::findFile(const QueryMessage &query)
 {
     error("rc -P %s", query.query().constData());
     shared_ptr<Project> project = currentProject();
-    if (!project || !project->grtags) {
+    if (!project || !project->grfiles) {
         error("No project");
         return 0;
     }
@@ -822,8 +822,8 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
         project.reset(new Project(srcRoot));
         project->indexer = new Indexer(project, !(mOptions.options & NoValidate));
         project->indexer->beginMakefile();
-        project->grtags = new GRTags;
-        project->grtags->init(project, GRTags::None);
+        project->grfiles = new GRFiles;
+        project->grfiles->init(project);
     }
     setCurrentProject(project);
 
