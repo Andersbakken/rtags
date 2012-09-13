@@ -26,14 +26,14 @@ public:
     void onFileAdded(const Path &path);
     void onFileRemoved(const Path &path);
     void onFileModified(const Path &path);
-    void onRecurseJobFinished(Map<Path, bool> &mPaths);
+    void onRecurseJobFinished(const Map<Path, bool> &mPaths);
     void onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Location, bool> > &entries);
     void dirty(uint32_t fileId);
     void parse(const Path &path, unsigned flags);
     void addFile(const Path &file, time_t time);
     void removeFile(const Path &file);
 private:
-    FileSystemWatcher *mWatcher;
+    FileSystemWatcher mWatcher;
     weak_ptr<Project> mProject;
     Path mSrcRoot;
     mutable Mutex mMutex;

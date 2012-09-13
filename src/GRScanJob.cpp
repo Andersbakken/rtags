@@ -3,8 +3,8 @@
 #include "Server.h"
 #include <fnmatch.h>
 
-GRScanJob::GRScanJob(const Path &path)
-    : mPath(path), mFilters(Server::instance()->excludeFilter())
+GRScanJob::GRScanJob(const Path &path, const shared_ptr<Project> &project)
+    : mPath(path), mFilters(Server::instance()->excludeFilter()), mProject(project)
 {
     if (!mPath.endsWith('/'))
         mPath.append('/');
@@ -13,7 +13,8 @@ GRScanJob::GRScanJob(const Path &path)
 void GRScanJob::run()
 {
     mPath.visit(&GRScanJob::visit, this);
-    mFinished(mPaths);
+    if (shared_ptr<Project> project = mProject.lock())
+        mFinished(mPaths);
 }
 
 GRScanJob::FilterResult GRScanJob::filter(const Path &path, const List<ByteArray> &filters)
