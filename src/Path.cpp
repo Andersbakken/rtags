@@ -10,6 +10,8 @@ Path Path::parentDir() const
 {
     if (isEmpty())
         return Path();
+    if (size() == 1 && at(0) == '/')
+        return *this;
     Path copy = *this;
     int i = copy.size() - 1;
     while (copy.at(i) == '/')
