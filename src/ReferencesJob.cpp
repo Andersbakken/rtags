@@ -16,15 +16,16 @@ ReferencesJob::ReferencesJob(const ByteArray &sym, const QueryMessage &query, co
 
 void ReferencesJob::execute()
 {
+    shared_ptr<Project> proj = project();
     const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
     Location startLocation;
-    if (project()->indexer) {
+    if (proj->indexer) {
         if (!symbolName.isEmpty()) {
-            Scope<const SymbolNameMap&> scope = project()->lockSymbolNamesForRead();
+            Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead();
             locations = scope.data().value(symbolName);
         }
         if (!locations.isEmpty()) {
-            Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
+            Scope<const SymbolMap&> scope = proj->lockSymbolsForRead();
             const SymbolMap &map = scope.data();
             for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
                 // error() << "looking up refs for " << it->key() << bool(flags & QueryMessage::ReferencesForRenameSymbol);
@@ -72,15 +73,18 @@ void ReferencesJob::execute()
         }
     }
 
-    // if (!symbolName.isEmpty() && !(queryFlags() & QueryMessage::DisableGRTags) && (project()->grtags->flags() & GRTags::Parse)) {
-    //     ScopedDB database = db(Project::GR, ReadWriteLock::Read);
-    //     const Map<Location, bool> values = database->value<Map<Location, bool> >(symbolName);
-    //     database.reset();
-    //     for (Map<Location, bool>::const_iterator it = values.begin(); it != values.end(); ++it) {
-    //         if (allReferences || it->second)
-    //             references.insert(it->first);
-    //     }
-    // }
+    if (!symbolName.isEmpty() && !(queryFlags() & QueryMessage::DisableGRTags) && proj->grtags) {
+        Scope<const GRMap&> scope = proj->lockGRForRead();
+        const GRMap &map = scope.data();
+        const GRMap::const_iterator it = map.find(symbolName);
+        if (it != map.end()) {
+            const Map<Location, bool> &values = it->second;
+            for (Map<Location, bool>::const_iterator it = values.begin(); it != values.end(); ++it) {
+                if (allReferences || it->second)
+                    references.insert(it->first);
+            }
+        }
+    }
 
     List<Location> sorted = references.toList();
     if (queryFlags() & QueryMessage::ReverseSort) {

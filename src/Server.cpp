@@ -9,6 +9,7 @@
 #include "FindFileJob.h"
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
+#include "GRTags.h"
 #include "GRTagsMessage.h"
 #include "Indexer.h"
 #include "IndexerJob.h"
@@ -129,7 +130,7 @@ bool Server::init(const Options &options)
     {
         IniFile file(mOptions.projectsFile);
         List<ByteArray> makefiles = file.keys("Makefiles");
-        const int count = makefiles.size();
+        int count = makefiles.size();
         for (int i=0; i<count; ++i) {
             bool ok;
             const ByteArray value = file.value("Makefiles", makefiles.at(i));
@@ -141,12 +142,17 @@ bool Server::init(const Options &options)
             mMakefiles[makefiles.at(i)] = info;
             mMakefilesWatcher.watch(makefiles.at(i));
         }
+        List<ByteArray> grtags = file.keys("GRTags");
+        count = grtags.size();
+        for (int i=0; i<count; ++i) {
+            grtag(grtags.at(i));
+        }
+
     }
 
     mServer->clientConnected().connect(this, &Server::onNewConnection);
 
-    if (!(mOptions.options & NoValidate))
-        remake();
+    remake();
 
     return true;
 }
@@ -220,21 +226,31 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
     const Path makefile = message->makefile();
     const MakefileInformation mi(message->arguments(), message->extraFlags());
     mMakefiles[makefile] = mi;
-    syncMakefiles();
+    writeProjects();
     make(message->makefile(), message->arguments(), message->extraFlags(), conn);
 }
 
 void Server::handleGRTagMessage(GRTagsMessage *message, Connection *conn)
 {
-    const Path dir = message->path();
+    if (grtag(message->path()))
+        conn->write("Parsing " + message->path());
+    conn->finish();
+}
+
+bool Server::grtag(const Path &dir)
+{
     shared_ptr<Project> &project = mProjects[dir];
     if (project)
-        return;
+        return false;
     project.reset(new Project(dir));
     project->fileManager = new FileManager;
     project->fileManager->init(project);
+    project->grtags = new GRTags;
+    project->grtags->init(project);
+    mGRTagsDirs.insert(dir);
+    writeProjects();
     setCurrentProject(project);
-    conn->finish();
+    return true;
 }
 
 void Server::make(const Path &path, const List<ByteArray> &makefileArgs,
@@ -904,7 +920,7 @@ shared_ptr<Project> Server::setCurrentProject(const shared_ptr<Project> &proj)
     return old;
 }
 
-void Server::syncMakefiles()
+void Server::writeProjects()
 {
     IniFile ini(mOptions.projectsFile);
     ini.removeGroup("Makefiles");
@@ -912,6 +928,10 @@ void Server::syncMakefiles()
     for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
         ini.setValue("Makefiles", it->first, it->second.toString());
         mMakefilesWatcher.watch(it->first);
+    }
+    error() << mGRTagsDirs;
+    for (Set<Path>::const_iterator it = mGRTagsDirs.begin(); it != mGRTagsDirs.end(); ++it) {
+        ini.setValue("GRTags", *it);
     }
 }
 
@@ -923,7 +943,7 @@ void Server::removeProject(const Path &path)
     if (it->second->indexer)
         it->second->indexer->abort();
     if (mMakefiles.remove(path))
-        syncMakefiles();
+        writeProjects();
 
     if (it->second == mCurrentProject)
         mCurrentProject.reset();

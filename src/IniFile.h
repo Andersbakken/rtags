@@ -6,6 +6,7 @@
 #include "List.h"
 #include "ByteArray.h"
 
+// consider only syncing when it goes out of scope, or is told to
 class IniFile
 {
 public:
@@ -16,7 +17,7 @@ public:
 
     typedef Map<ByteArray, Map<ByteArray, ByteArray> > MapMap;
     const MapMap &values() const { return mValues; }
-    bool setValue(const ByteArray &group, const ByteArray &key, const ByteArray &value);
+    bool setValue(const ByteArray &group, const ByteArray &key, const ByteArray &value = ByteArray());
     bool remove(const ByteArray &group, const ByteArray &key);
     bool removeGroup(const ByteArray &group);
     List<ByteArray> keys(const ByteArray &group) const { return mValues.value(group).keys(); }

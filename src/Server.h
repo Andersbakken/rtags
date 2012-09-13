@@ -89,7 +89,8 @@ private:
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);
     ByteArray completions(const QueryMessage &query);
     bool updateProjectForLocation(const Location &location);
-    void syncMakefiles();
+    void writeProjects();
+    bool grtag(const Path &dir);
     shared_ptr<Project> currentProject() const { return mCurrentProject; }
     void removeProject(const Path &key);
 
@@ -101,6 +102,7 @@ private:
     bool mVerbose;
     int mJobId;
     Map<Path, MakefileInformation> mMakefiles;
+    Set<Path> mGRTagsDirs;
     FileSystemWatcher mMakefilesWatcher;
 
     Map<Path, shared_ptr<Project> > mProjects;

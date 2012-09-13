@@ -1,6 +1,7 @@
 #ifndef GRParseJob_h
 #define GRParseJob_h
 
+#include "RTags.h"
 #include "ThreadPool.h"
 #include "Path.h"
 #include "AbortInterface.h"
@@ -20,11 +21,11 @@ public:
     unsigned flags() const { return mFlags; }
     virtual void run();
     time_t parseTime() const { return mParseTime; }
-    signalslot::Signal2<GRParseJob *, const Map<ByteArray, Map<Location, bool> > &> &finished() { return mFinished; }
+    signalslot::Signal2<GRParseJob *, const GRMap &> &finished() { return mFinished; }
 private:
-    signalslot::Signal2<GRParseJob *, const Map<ByteArray, Map<Location, bool> > &> mFinished;
+    signalslot::Signal2<GRParseJob *, const GRMap &> mFinished;
 
-    Map<ByteArray, Map<Location, bool> > mEntries;
+    GRMap mEntries;
     const Path mPath;
     const unsigned mFlags;
     time_t mParseTime;

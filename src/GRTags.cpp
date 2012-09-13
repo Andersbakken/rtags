@@ -2,12 +2,14 @@
 #include "Server.h"
 #include "GRScanJob.h"
 #include "GRParseJob.h"
+#include <math.h>
 
 GRTags::GRTags()
+    : mActive(0), mCount(0)
 {
     mWatcher.added().connect(this, &GRTags::onFileAdded);
     mWatcher.removed().connect(this, &GRTags::onFileRemoved);
-    mWatcher.removed().connect(this, &GRTags::onFileModified);
+    mWatcher.modified().connect(this, &GRTags::add);
 }
 
 void GRTags::init(const shared_ptr<Project> &project)
@@ -23,11 +25,6 @@ void GRTags::recurse()
     GRScanJob *job = new GRScanJob(GRScanJob::Sources, project->srcRoot, project);
     job->finished().connect(this, &GRTags::onRecurseJobFinished);
     Server::instance()->threadPool()->start(job);
-}
-
-void GRTags::onFileModified(const Path &path)
-{
-
 }
 
 void GRTags::onFileRemoved(const Path &path)
@@ -66,16 +63,77 @@ void GRTags::add(const Path &source)
     GRFilesMap::const_iterator it = map.find(fileId);
     unsigned flags = 0;
     if (it != map.end()) {
-        if (!it->second)
+        if (it->second >= source.lastModified())
             return;
         flags = GRParseJob::Dirty;
     }
-    map[fileId] = 0;
     GRParseJob *job = new GRParseJob(source, flags, project);
+    ++mActive;
+    ++mCount;
     job->finished().connect(this, &GRTags::onParseJobFinished);
     Server::instance()->threadPool()->start(job);
 }
-void GRTags::onParseJobFinished(GRParseJob *job, const Map<ByteArray, Map<Location, bool> > &data)
+void GRTags::onParseJobFinished(GRParseJob *job, const GRMap &data)
 {
-    // need to dirty existing if job->flags() & Dirty, stick it into mGR and update GRFiles with parsetime
+    uint32_t fileId = Location::insertFile(job->path());
+    const time_t time = job->parseTime();
+    shared_ptr<Project> project = mProject.lock();
+    {
+        Scope<GRFilesMap&> scope = project->lockGRFilesForWrite();
+        GRFilesMap &map = scope.data();
+        time_t &ref = map[fileId];
+        --mActive;
+        if (ref >= time) {
+            if (!mActive)
+                mCount = 0;
+            return;
+        }
+        ref = time;
+        const int idx = mCount - mActive;
+        if (idx % 50 == 0 || idx == mCount) {
+            error("[%3d%%] Tagged %d/%d",
+                  static_cast<int>(round((static_cast<double>(idx) / static_cast<double>(mCount)) * 100.0)), idx, mCount);
+        }
+        if (mActive == 0)
+            mCount = 0;
+    }
+    {
+        Scope<GRMap&> scope = project->lockGRForWrite();
+        GRMap &map = scope.data();
+        if (job->flags() & GRParseJob::Dirty)
+            dirty(fileId, map);
+        if (map.isEmpty()) {
+            map = data;
+        } else {
+            for (GRMap::const_iterator it = data.begin(); it != data.end(); ++it) {
+                Map<Location, bool> &existing = map[it->first];
+                if (existing.isEmpty()) {
+                    existing = it->second;
+                } else {
+                    existing.unite(it->second);
+                }
+            }
+        }
+    }
+}
+
+void GRTags::dirty(uint32_t fileId, GRMap &map)
+{
+    GRMap::iterator it = map.begin();
+    while (it != map.end()) {
+        Map<Location, bool> &val = it->second;
+        Map<Location, bool>::iterator i = val.begin();
+        while (i != val.end()) {
+            if (i->first.fileId() == fileId) {
+                val.erase(i++);
+            } else {
+                ++i;
+            }
+        }
+        if (val.isEmpty()) {
+            map.remove(it++->first);
+        } else {
+            ++it;
+        }
+    }
 }

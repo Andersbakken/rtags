@@ -10,7 +10,7 @@ GRParser::~GRParser()
     delete[] mBuf;
 }
 
-int GRParser::parse(const Path &file, unsigned opts, Map<ByteArray, Map<Location, bool> > &entries)
+int GRParser::parse(const Path &file, unsigned opts, GRMap &entries)
 {
     mFileName = file;
     mSize = mFileName.readAll(mBuf);

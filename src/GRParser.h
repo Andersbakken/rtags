@@ -14,6 +14,7 @@
 #include "Timer.h"
 #include "Log.h"
 #include "GRParseJob.h"
+#include "RTags.h"
 
 class GRParser
 {
@@ -24,7 +25,7 @@ public:
     };
     GRParser();
     ~GRParser();
-    int parse(const Path &file, unsigned opts, Map<ByteArray, Map<Location, bool> > &entries);
+    int parse(const Path &file, unsigned opts, GRMap &entries);
 private:
     void addEntry(const ByteArray &name, const List<ByteArray> &containerScope, int offset);
     void addReference(const ByteArray &name, int offset);
@@ -86,7 +87,7 @@ private:
     List<ByteArray> mContainerScope;
     List<clang::Token> mTokens;
     uint32_t mFileId;
-    Map<ByteArray, Map<Location, bool> > *mEntries;
+    GRMap *mEntries;
 };
 
 #endif

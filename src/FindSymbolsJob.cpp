@@ -45,32 +45,6 @@ static inline bool isDefinition(const SymbolMap &symbols, const Location &loc)
 void FindSymbolsJob::execute()
 {
     Map<Location, bool> out;
-    // if (!(queryFlags() & QueryMessage::DisableGRTags) && (project()->grtags->flags() & GRTags::Parse)) {
-    //     ScopedDB database = db(Project::GR, ReadWriteLock::Read);
-    //     RTags::Ptr<Iterator> it(database->createIterator());
-
-    //     if (string.isEmpty()) {
-    //         it->seekToFirst();
-    //     } else {
-    //         it->seek(string.constData());
-    //     }
-    //     while (it->isValid() && !isAborted()) {
-    //         const ByteArray entry = it->key().byteArray();
-    //         const int cmp = strcmp(string.constData(), entry.constData());
-    //         if (!cmp) {
-    //             const Map<Location, bool> locations = it->value<Map<Location, bool> >();
-    //             for (Map<Location, bool>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
-    //                 if (!i->second) {
-    //                     out[i->first] = false;
-    //                 }
-    //             }
-    //         } else if (cmp > 0) {
-    //             break;
-    //         }
-    //         it->next();
-    //     }
-    // }
-
     if (project()->indexer) {
         Scope<const SymbolNameMap &> scope = project()->lockSymbolNamesForRead();
         const SymbolNameMap &map = scope.data();
@@ -82,6 +56,19 @@ void FindSymbolsJob::execute()
             }
         }
     }
+    if (!(queryFlags() & QueryMessage::DisableGRTags) && project()->grtags) {
+        Scope<const GRMap &> scope = project()->lockGRForRead();
+        const GRMap &map = scope.data();
+        GRMap::const_iterator it = map.find(string);
+        if (it != map.end()) {
+            const Map<Location, bool> &locations = it->second;
+            for (Map<Location, bool>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
+                if (!i->second)
+                    out[i->first] = false;
+            }
+        }
+    }
+
     if (out.size()) {
         Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
         const SymbolMap &map = scope.data();

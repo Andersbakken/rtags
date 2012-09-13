@@ -55,7 +55,7 @@ typedef Map<uint32_t, List<ByteArray> > DiagnosticsMap;
 typedef Map<uint32_t, time_t> GRFilesMap;
 // file id to last modified, time_t means currently parsing
 typedef Map<ByteArray, Map<Location, bool> > GRMap;
-// symbolName to Map<location, bool> bool == true means cursor, false means reference
+// symbolName to Map<location, bool> bool == false means cursor, true means reference
 
 namespace RTags {
 void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty);
@@ -95,7 +95,7 @@ inline bool isCursor(CXCursorKind kind)
 }
 
 static inline CursorType cursorType(CXCursorKind kind)
-{ 
+{
     if (clang_isStatement(kind)) {
         return Other;
     } else if (RTags::isCursor(kind)) {

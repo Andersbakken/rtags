@@ -50,34 +50,30 @@ void ListSymbolsJob::execute()
             ++it;
         }
     }
-    // if (!(queryFlags & QueryMessage::DisableGRTags) && (project()->grtags->flags() & GRTags::Parse)) {
-    //     RTags::Ptr<Iterator> it = database->createIterator();
-    //     it.reset(database->createIterator());
-    //     if (string.isEmpty()) {
-    //         it->seekToFirst();
-    //     } else {
-    //         it->seek(string.constData());
-    //     }
-    //     while (it->isValid() && !isAborted()) {
-    //         const ByteArray entry = it->key().byteArray();
-    //         if (!string.isEmpty() && !entry.startsWith(string))
-    //             break;
-    //         if (!skipParentheses || !entry.contains('(')) {
-    //             const Map<Location, bool> locations = it->value<Map<Location, bool> >();
-    //             for (Map<Location, bool>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
-    //                 if (!i->second && (!hasFilter || filter(i->first.path()))) {
-    //                     if (elispList) {
-    //                         write(entry);
-    //                     } else {
-    //                         out.append(entry);
-    //                     }
-    //                     break;
-    //                 }
-    //             }
-    //         }
-    //         it->next();
-    //     }
-    // }
+
+    if (!(queryFlags & QueryMessage::DisableGRTags) && project()->grtags) {
+        Scope<const GRMap &> scope = project()->lockGRForRead();
+        const GRMap &map = scope.data();
+        GRMap::const_iterator it = string.isEmpty() ? map.begin() : map.lower_bound(string);
+        while (it != map.end()) {
+            const ByteArray &entry = it->first;
+            if (!string.isEmpty() && !entry.startsWith(string))
+                break;
+
+            const Map<Location, bool> &locations = it->second;
+            for (Map<Location, bool>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
+                if (!i->second && (!hasFilter || filter(i->first.path()))) {
+                    if (elispList) {
+                        write(entry);
+                    } else {
+                        out.append(entry);
+                    }
+                    break;
+                }
+            }
+            ++it;
+        }
+    }
 
     if (elispList) {
         writeRaw(")");
@@ -93,5 +89,3 @@ void ListSymbolsJob::execute()
         }
     }
 }
-
-

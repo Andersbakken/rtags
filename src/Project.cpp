@@ -84,7 +84,7 @@ Scope<GRMap&> Project::lockGRForWrite()
 
 Scope<const GRFilesMap&> Project::lockGRFilesForRead()
 {
-    mGRLock.lockForRead();
+    mGRFilesLock.lockForRead();
     Scope<const GRFilesMap&> scope;
     scope.mData.reset(new Scope<const GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
     return scope;
@@ -92,9 +92,8 @@ Scope<const GRFilesMap&> Project::lockGRFilesForRead()
 
 Scope<GRFilesMap&> Project::lockGRFilesForWrite()
 {
-    mGRLock.lockForWrite();
+    mGRFilesLock.lockForWrite();
     Scope<GRFilesMap&> scope;
     scope.mData.reset(new Scope<GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
     return scope;
 }
-

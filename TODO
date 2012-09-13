@@ -4,7 +4,6 @@ We should sort output from C-x r / with definitions first (like symbolName)
 We're having make issues with at least directfb and openssl, for the
 latter eatAutoTools is not doing the right thing.
 Forward declarations are not references to classes
-Make GR work again.
 
 Still at least one problem with constructors:
 
@@ -23,4 +22,3 @@ somehow the F() call refers to the struct F, not the default
 constructor, also, f does not refer to the copy constructor.
 
 Trying to improve the current hacks in origin/workonstupidconstuctor
-
