@@ -1,5 +1,5 @@
-#ifndef GRFiles_h
-#define GRFiles_h
+#ifndef FileManager_h
+#define FileManager_h
 
 #include "Path.h"
 #include "List.h"
@@ -8,10 +8,10 @@
 #include "Location.h"
 
 class Project;
-class GRFiles
+class FileManager
 {
 public:
-    GRFiles();
+    FileManager();
     void init(const shared_ptr<Project> &proj);
     void recurseDirs();
     void onFileAdded(const Path &path);

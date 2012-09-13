@@ -6,8 +6,6 @@
 #include "RTags.h"
 #include "ReadWriteLock.h"
 
-class Indexer;
-class GRFiles;
 template <typename T>
 class Scope
 {
@@ -29,6 +27,10 @@ private:
     };
     shared_ptr<Data> mData;
 };
+
+class Indexer;
+class FileManager;
+class GRTags;
 class Project
 {
 public:
@@ -36,7 +38,8 @@ public:
     ~Project();
 
     Indexer *indexer;
-    GRFiles *grfiles;
+    FileManager *fileManager;
+    GRTags *grtags;
 
     const Path srcRoot;
 
@@ -48,8 +51,8 @@ public:
     Scope<const GRMap&> lockGRForRead();
     Scope<GRMap&> lockGRForWrite();
 
-    Scope<const GRFilesMap&> lockGRFilesForRead();
-    Scope<GRFilesMap&> lockGRFilesForWrite();
+    Scope<const FilesMap&> lockFilesForRead();
+    Scope<FilesMap&> lockFilesForWrite();
 private:
     SymbolMap mSymbols;
     ReadWriteLock mSymbolsLock;
@@ -57,8 +60,8 @@ private:
     SymbolNameMap mSymbolNames;
     ReadWriteLock mSymbolNamesLock;
 
-    GRFilesMap mGRFiles;
-    ReadWriteLock mGRFilesLock;
+    FilesMap mFiles;
+    ReadWriteLock mFilesLock;
 
     GRMap mGR;
     ReadWriteLock mGRLock;

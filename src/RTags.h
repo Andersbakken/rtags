@@ -49,12 +49,12 @@ typedef Map<Location, Map<Location, RTags::ReferenceType> > ReferenceMap;
 typedef Map<ByteArray, Set<Location> > SymbolNameMap;
 typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
 typedef Map<uint32_t, List<ByteArray> > CompileArgumentsMap;
-typedef Map<Path, Set<ByteArray> > GRFilesMap;
+typedef Map<Path, Set<ByteArray> > FilesMap;
 typedef Map<Location, std::pair<int, ByteArray> > FixitMap;
 typedef Map<uint32_t, List<ByteArray> > DiagnosticsMap;
+// typedef Map<Path, Map<ByteArray, time_t> > GR
 typedef Map<ByteArray, Map<Location, bool> > GRMap;
-// key: absolute path to directory, value: Map<fileName, last modified>,
-// last modified is 0 for non-source files
+// symbolName to Map<location, bool> bool == true means cursor, false means reference
 
 namespace RTags {
 void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty);

@@ -1,16 +1,18 @@
 #include "Project.h"
 #include "Indexer.h"
-#include "GRFiles.h"
+#include "FileManager.h"
+#include "GRTags.h"
 #include "Server.h"
 
 Project::Project(const Path &src)
-    : indexer(0), grfiles(0), srcRoot(src)
+    : indexer(0), fileManager(0), grtags(0), srcRoot(src)
 {
 }
 
 Project::~Project()
 {
-    delete grfiles;
+    delete grtags;
+    delete fileManager;
     if (indexer)
         indexer->abort();
     delete indexer;
@@ -64,18 +66,18 @@ Scope<GRMap&> Project::lockGRForWrite()
     return scope;
 }
 
-Scope<const GRFilesMap&> Project::lockGRFilesForRead()
+Scope<const FilesMap&> Project::lockFilesForRead()
 {
-    mGRFilesLock.lockForRead();
-    Scope<const GRFilesMap&> scope;
-    scope.mData.reset(new Scope<const GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
+    mFilesLock.lockForRead();
+    Scope<const FilesMap&> scope;
+    scope.mData.reset(new Scope<const FilesMap&>::Data(mFiles, &mFilesLock));
     return scope;
 }
 
-Scope<GRFilesMap&> Project::lockGRFilesForWrite()
+Scope<FilesMap&> Project::lockFilesForWrite()
 {
-    mGRFilesLock.lockForWrite();
-    Scope<GRFilesMap&> scope;
-    scope.mData.reset(new Scope<GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
+    mFilesLock.lockForWrite();
+    Scope<FilesMap&> scope;
+    scope.mData.reset(new Scope<FilesMap&>::Data(mFiles, &mFilesLock));
     return scope;
 }

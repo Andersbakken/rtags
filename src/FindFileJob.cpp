@@ -2,7 +2,7 @@
 #include "RTags.h"
 #include "Server.h"
 #include "CursorInfo.h"
-#include "GRFiles.h"
+#include "FileManager.h"
 
 FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &project)
     : Job(query, 0, project)
@@ -20,7 +20,7 @@ FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &p
 void FindFileJob::execute()
 {
     shared_ptr<Project> proj = project();
-    if (!proj || !proj->grfiles)
+    if (!proj || !proj->fileManager)
         return;
     const Path &srcRoot = proj->srcRoot;
 
@@ -41,7 +41,7 @@ void FindFileJob::execute()
         assert(srcRoot.endsWith('/'));
     }
 
-    Scope<const GRFilesMap&> scope = proj->lockGRFilesForRead();
+    Scope<const FilesMap&> scope = proj->lockFilesForRead();
     const Map<Path, Set<ByteArray> > &dirs = scope.data();
     Map<Path, Set<ByteArray> >::const_iterator dirit = dirs.begin();
     while (dirit != dirs.end()) {

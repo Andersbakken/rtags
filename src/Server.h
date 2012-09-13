@@ -11,7 +11,7 @@
 #include "ThreadPool.h"
 #include "RTags.h"
 #include "EventReceiver.h"
-#include "GRFiles.h"
+#include "FileManager.h"
 #include "Project.h"
 #include "GRScanJob.h"
 
