@@ -240,11 +240,14 @@ void Server::handleGRTagMessage(GRTagsMessage *message, Connection *conn)
 bool Server::grtag(const Path &dir)
 {
     shared_ptr<Project> &project = mProjects[dir];
-    if (project)
+    if (!project)
+        project.reset(new Project(dir));
+    if (project->grtags)
         return false;
-    project.reset(new Project(dir));
-    project->fileManager = new FileManager;
-    project->fileManager->init(project);
+    if (!project->fileManager) {
+        project->fileManager = new FileManager;
+        project->fileManager->init(project);
+    }
     project->grtags = new GRTags;
     project->grtags->init(project);
     mGRTagsDirs.insert(dir);
