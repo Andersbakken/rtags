@@ -3,12 +3,39 @@
 #include <List.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 MemoryMonitor::MemoryMonitor()
 {
 }
 
+typedef bool (*LineVisitor)(char*, void*);
+static void visitLine(FILE* stream, LineVisitor visitor, void* userData)
+{
+    enum { BufferSize = 4096 };
+    char buffer[BufferSize];
+    char* r;
+
+    while (!feof(stream)) {
+        r = fgets(buffer, BufferSize, stream);
+        if (r)
+            visitor(r, userData);
+    }
+}
+
 #if defined(OS_Linux)
+struct
+
+static bool lineVisitor(char* line, void* userData)
+{
+    int* total = static_cast<int*>(userData);
+    if (!strncmp("Private_Clean:", line, 14))
+        *total += (atoll(line + 14) * 1024);
+    else if (!strncmp("Private_Dirty:", line, 14))
+        *total += (atoll(line + 14) * 1024);
+    return true;
+}
+
 static inline uint64_t usageLinux()
 {
     uint64_t total = 0;
@@ -17,41 +44,8 @@ static inline uint64_t usageLinux()
     if (!file)
         return 0;
 
-    enum { BufferSize = 4096 };
-    int lastnewline = 0, lastread = BufferSize;
-    char buffer[BufferSize];
-
-    for (;;) {
-        if (lastnewline) {
-            memmove(buffer, buffer + lastnewline + 1, lastread - lastnewline);
-            lastread = lastnewline + 1;
-        }
-
-        lastread = fread(buffer + BufferSize - lastread, 1, lastread, file);
-        if (!lastread)
-            break;
-
-        const char* end = buffer + lastread;
-        char* entry;
-        int nextnewline = 0;
-        for (;;) {
-            entry = buffer + nextnewline;
-            lastnewline = nextnewline;
-            for (char* nl = entry; nl != end; ++nl) {
-                if (*nl == '\n') {
-                    nextnewline = (nl - buffer) + 1;
-                    break;
-                }
-            }
-            if (lastnewline == nextnewline)
-                break;
-
-            if (!strncmp("Private_Clean:", entry, 14))
-                total += (atoll(entry + 14) * 1024);
-            else if (!strncmp("Private_Dirty:", entry, 14))
-                total += (atoll(entry + 14) * 1024);
-        }
-    }
+    int total = 0;
+    visitLine(file, lineVisitor, &total);
 
     fclose(file);
 
@@ -64,10 +58,41 @@ static inline uint64_t usageFreeBSD()
     return 0;
 }
 #elif defined(OS_Darwin)
+struct VisitorData
+{
+    bool regionFound;
+    int total;
+};
+
+static bool lineVisitor(char* line, void* userData)
+{
+    VisitorData* data = static_cast<VisitorData*>(userData);
+
+    if (!strncmp("REGION TYPE", line, 11))
+        data->regionFound = true;
+    if (data->regionFound && !strncmp("TOTAL", line, 5)) {
+        data->total = (atof(line + 5) * (1024 * 1024));
+        return false;
+    }
+
+    return true;
+}
+
 static inline uint64_t usageOSX()
 {
-#warning "implement me"
-    return 0;
+    const pid_t pid = getpid();
+    char buf[64];
+    snprintf(buf, 64, "/usr/bin/vmmap %d", pid);
+    FILE* p = popen(buf, "r");
+    if (!p)
+        return 0;
+
+    VisitorData data = { false, 0 };
+    visitLine(p, lineVisitor, &data);
+
+    pclose(p);
+
+    return data.total;
 }
 #endif
 
