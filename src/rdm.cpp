@@ -27,10 +27,13 @@ void sigSegvHandler(int signal)
     _exit(1);
 }
 
-
 void sigIntHandler(int signal)
 {
-    EventLoop::instance()->exit();
+    static bool first = true;
+    if (first) {
+        first = false;
+        EventLoop::instance()->exit();
+    }
 }
 
 #define EXCLUDEFILTER_DEFAULT "*.o;*.a;*.so*;*.obj;*.lo;*.git/objects*"
