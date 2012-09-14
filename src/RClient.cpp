@@ -52,7 +52,7 @@ public:
     {
         return "RdmLogCommand";
     }
-    const int &mLevel;
+    const int mLevel;
 };
 
 class MakefileCommand : public RCCommand
