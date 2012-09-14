@@ -56,7 +56,7 @@ public:
         while (it != other.end()) {
             const Key &key = it->first;
             const Value &val = it->second;
-            operator[](key) = val;
+            std::map<Key, Value>::operator[](key) = val;
             // std::map<Key, Value>::insert(it);
             // std::map<Key, Value>::operator[](it->first) = it->second;
             ++it;
