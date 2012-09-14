@@ -60,7 +60,7 @@ static inline uint64_t usageFreeBSD()
 struct VisitorData
 {
     bool regionFound;
-    int total;
+    uint64_t total;
 };
 
 static bool lineVisitor(char* line, void* userData)
