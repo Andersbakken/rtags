@@ -4,7 +4,6 @@ We should sort output from C-x r / with definitions first (like symbolName)
 We're having make issues with at least directfb and openssl, for the
 latter eatAutoTools is not doing the right thing.
 Forward declarations are not references to classes
-rc.cpp is a bloody mess, it needs some non-global state
 
 Still at least one problem with constructors:
 

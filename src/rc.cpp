@@ -1,8 +1,5 @@
 #include "Client.h"
 #include "QueryMessage.h"
-#include "CreateOutputMessage.h"
-#include "MakefileMessage.h"
-#include "GRTagsMessage.h"
 #include "EventLoop.h"
 #include "RTags.h"
 #include <ByteArray.h>
@@ -13,6 +10,7 @@
 #include <Log.h>
 #include <dirent.h>
 #include <fnmatch.h>
+#include "RCCommands.h"
 
 static void help(FILE *f, const char* app)
 {
@@ -88,103 +86,6 @@ static inline ByteArray encodeLocation(const ByteArray &key)
     return out;
 }
 
-struct Command
-{
-    virtual ~Command() {}
-    virtual void exec(Client *client) = 0;
-    virtual ByteArray description() const = 0;
-};
-
-struct QueryCommand : public Command
-{
-    QueryCommand(QueryMessage::Type t, const ByteArray &q, const unsigned &qf, const Set<ByteArray> &p,
-                 const int &m, const Map<Path, ByteArray> &unsaved)
-        : type(t), query(q), queryFlags(qf), pathFilters(p), max(m), unsavedFiles(unsaved)
-    {}
-
-    const QueryMessage::Type type;
-    const ByteArray query;
-    const unsigned &queryFlags; // eeh
-    const Set<ByteArray> &pathFilters; // eeh
-    const int &max; // eeh
-    const Map<Path, ByteArray> &unsavedFiles; // eeh
-
-    virtual void exec(Client *client)
-    {
-        QueryMessage msg(type, query, queryFlags, max, unsavedFiles);
-        msg.setPathFilters(pathFilters.toList());
-        client->message(&msg);
-    }
-
-    virtual ByteArray description() const
-    {
-        return ("QueryMessage " + ByteArray::number(type) + " " + query);
-    }
-};
-
-struct RdmLogCommand : public Command
-{
-    RdmLogCommand(const int &level)
-        : mLevel(level)
-    {
-    }
-    virtual void exec(Client *client)
-    {
-        CreateOutputMessage msg(mLevel);
-        client->message(&msg);
-    }
-    virtual ByteArray description() const
-    {
-        return "RdmLogCommand";
-    }
-private:
-    const int &mLevel;
-};
-
-struct MakefileCommand : public Command
-{
-    MakefileCommand(const Path &mf, const List<ByteArray> &args, const List<ByteArray> &ef)
-        : makefile(mf), makefileArgs(args), extraFlags(ef)
-    {}
-    const Path makefile;
-    const List<ByteArray> makefileArgs;
-    const List<ByteArray> &extraFlags; // reference
-    virtual void exec(Client *client)
-    {
-        if (!makefile.isFile()) {
-            error() << makefile << "is not a file";
-            return;
-        }
-        MakefileMessage msg(makefile, makefileArgs, extraFlags);
-        client->message(&msg);
-    }
-    virtual ByteArray description() const
-    {
-        return ("MakefileCommand " + makefile + " " + ByteArray::join(makefileArgs, " ") + " " + ByteArray::join(extraFlags, " "));
-    }
-};
-
-struct GRTagCommand : public Command
-{
-    GRTagCommand(const Path &dir)
-        : directory(dir)
-    {}
-    const Path directory;
-    virtual void exec(Client *client)
-    {
-        if (!directory.isDir()) {
-            error() << directory << "is not a directory";
-            return;
-        }
-        GRTagsMessage msg(directory);
-        client->message(&msg);
-    }
-    virtual ByteArray description() const
-    {
-        return ("GRTagMessage " + directory);
-    }
-};
-
 int main(int argc, char** argv)
 {
     RTags::findApplicationDirPath(*argv);
@@ -244,15 +145,11 @@ int main(int argc, char** argv)
     ByteArray logFile;
     unsigned logFlags = 0;
 
-    List<Command*> commands;
-    List<ByteArray> extraFlags;
-    Set<ByteArray> pathFilters;
-    unsigned queryFlags = 0;
     unsigned clientFlags = 0;
     List<ByteArray> rdmArgs;
     ByteArray socketFile = Path::home() + ".rdm";
-    Map<Path, ByteArray> unsavedFiles;
-    int max = -1;
+
+    RCCommands commands;
 
     const ByteArray shortOptions = RTags::shortOptions(opts);
 
@@ -270,7 +167,7 @@ int main(int argc, char** argv)
             socketFile = optarg;
             break;
         case 'b':
-            queryFlags |= QueryMessage::DisableGRTags;
+            commands.queryFlags |= QueryMessage::DisableGRTags;
             break;
         case 'a':
             clientFlags |= Client::AutostartRdm;
@@ -283,47 +180,47 @@ int main(int argc, char** argv)
                 rdmArgs = ByteArray(optarg, strlen(optarg)).split(' ');
             break;
         case 'E':
-            queryFlags |= QueryMessage::ReferencesForRenameSymbol;
+            commands.queryFlags |= QueryMessage::ReferencesForRenameSymbol;
             break;
         case 'Z':
-            queryFlags |= QueryMessage::PathMatchRegExp;
+            commands.queryFlags |= QueryMessage::PathMatchRegExp;
             break;
         case 'K':
-            queryFlags |= QueryMessage::AbsolutePath;
+            commands.queryFlags |= QueryMessage::AbsolutePath;
             break;
         case 'X':
-            queryFlags |= QueryMessage::WaitForIndexing;
+            commands.queryFlags |= QueryMessage::WaitForIndexing;
             break;
         case 'O':
-            queryFlags |= QueryMessage::ReverseSort;
+            commands.queryFlags |= QueryMessage::ReverseSort;
             break;
         case 'Y':
-            queryFlags |= QueryMessage::ElispList;
+            commands.queryFlags |= QueryMessage::ElispList;
             break;
         case 'H':
-            queryFlags |= QueryMessage::FilterSystemIncludes;
+            commands.queryFlags |= QueryMessage::FilterSystemIncludes;
             break;
         case 'I': {
             ByteArray flag("-I");
             flag += optarg;
-            extraFlags.append(flag);
+            commands.extraFlags.append(flag);
             break; }
         case 'D': {
             ByteArray flag("-D");
             flag += optarg;
-            extraFlags.append(flag);
+            commands.extraFlags.append(flag);
             break; }
         case 'o':
-            extraFlags.append(optarg);
+            commands.extraFlags.append(optarg);
             break;
         case 'N':
-            queryFlags |= QueryMessage::NoContext;
+            commands.queryFlags |= QueryMessage::NoContext;
             break;
         case 'i':
-            pathFilters.insert(optarg);
+            commands.pathFilters.insert(optarg);
             break;
         case 'l':
-            queryFlags |= QueryMessage::LineNumbers;
+            commands.queryFlags |= QueryMessage::LineNumbers;
             break;
         case 'v':
             ++logLevel;
@@ -335,11 +232,11 @@ int main(int argc, char** argv)
             logFile = optarg;
             break;
         case 'p':
-            queryFlags |= QueryMessage::SkipParentheses;
+            commands.queryFlags |= QueryMessage::SkipParentheses;
             break;
         case 'M':
-            max = atoi(optarg);
-            if (max <= 0) {
+            commands.max = atoi(optarg);
+            if (commands.max <= 0) {
                 fprintf(stderr, "-M [arg] must be positive integer\n");
                 return 1;
             }
@@ -368,7 +265,7 @@ int main(int argc, char** argv)
                 fprintf(stderr, "Read error %d (%s). Got %d, expected %d\n",
                         errno, strerror(errno), r, bytes);
             }
-            unsavedFiles[path] = contents;
+            commands.unsavedFiles[path] = contents;
             break; }
         case 'f':
         case 'U':
@@ -385,48 +282,52 @@ int main(int argc, char** argv)
             case 'U': type = QueryMessage::CursorInfo; break;
             case 'r': type = QueryMessage::ReferencesLocation; break;
             }
-            commands.append(new QueryCommand(type, encoded, queryFlags, pathFilters, max, unsavedFiles));
+            commands.addQuery(type, encoded);
             break; }
         case 'C':
-            commands.append(new QueryCommand(QueryMessage::ClearProjects, ByteArray(), queryFlags, pathFilters, max, unsavedFiles));
+            commands.addQuery(QueryMessage::ClearProjects);
             break;
         case 'g':
-            commands.append(new RdmLogCommand(logLevel));
+            commands.addLog(logLevel); // -g -v is different from -v -g
             break;
         case 'G':
-            commands.append(new RdmLogCommand(CompilationError));
+            commands.addLog(CompilationError);
             break;
         case 'q':
-            commands.append(new QueryCommand(QueryMessage::Shutdown, ByteArray(), queryFlags, pathFilters, max, unsavedFiles));
+            commands.addQuery(QueryMessage::Shutdown);
             break;
         case 'W':
-            commands.append(new QueryCommand(QueryMessage::DeleteProject, optarg, queryFlags, pathFilters, max, unsavedFiles));
+            commands.addQuery(QueryMessage::DeleteProject, optarg);
             break;
         case 'V':
         case 'w':
-        case 'P': {
+        case 'P':
+        case 'S':
+        case 's': {
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (c) {
             case 'V': type = QueryMessage::Reindex; break;
             case 'w': type = QueryMessage::Project; break;
             case 'P': type = QueryMessage::FindFile; break;
+            case 's': type = QueryMessage::Status; break;
+            case 'S': type = QueryMessage::ListSymbols; break;
             }
 
             if (optarg) {
-                commands.append(new QueryCommand(type, optarg, queryFlags, pathFilters, max, unsavedFiles));
+                commands.addQuery(type, optarg);
             } else if (optind < argc && argv[optind][0] != '-') {
-                commands.append(new QueryCommand(type, argv[optind++], queryFlags, pathFilters, max, unsavedFiles));
+                commands.addQuery(type, argv[optind++]);
             } else {
-                commands.append(new QueryCommand(type, ByteArray(), queryFlags, pathFilters, max, unsavedFiles));
+                commands.addQuery(type);
             }
             break; }
         case 't':
             if (optarg) {
-                commands.append(new GRTagCommand(Path::resolved(optarg)));
+                commands.addGRTag(Path::resolved(optarg));
             } else if (optind < argc && argv[optind][0] != '-') {
-                commands.append(new GRTagCommand(Path::resolved(argv[optind++])));
+                commands.addGRTag(Path::resolved(argv[optind++]));
             } else {
-                commands.append(new GRTagCommand(Path::resolved(".")));
+                commands.addGRTag(Path::resolved("."));
             }
             break;
         case 'T':
@@ -446,7 +347,7 @@ int main(int argc, char** argv)
             case 'k': type = QueryMessage::RunTest; break;
             }
 
-            commands.append(new QueryCommand(type, p, queryFlags, pathFilters, max, unsavedFiles));
+            commands.addQuery(type, p);
             break; }
         case 'm': {
             Path makefile;
@@ -480,35 +381,15 @@ int main(int argc, char** argv)
             List<ByteArray> makefileArgs;
             while (optind < argc && argv[optind][0] != '-')
                 makefileArgs.append(argv[optind++]);
-            commands.append(new MakefileCommand(makefile, makefileArgs, extraFlags));
+            commands.addMakeFile(makefile, makefileArgs);
             break; }
-        case 's':
-            if (optarg) {
-                commands.append(new QueryCommand(QueryMessage::Status, optarg, queryFlags,
-                                                 pathFilters, max, unsavedFiles));
-            } else if (optind < argc && argv[optind][0] != '-') {
-                commands.append(new QueryCommand(QueryMessage::Status, argv[optind++], queryFlags,
-                                                 pathFilters, max, unsavedFiles));
-            } else {
-                commands.append(new QueryCommand(QueryMessage::Status, ByteArray(), queryFlags,
-                                                 pathFilters, max, unsavedFiles));
-            }
-            break;
         case 'R':
-            commands.append(new QueryCommand(QueryMessage::ReferencesName, optarg, queryFlags, pathFilters, max, unsavedFiles));
-            break;
-        case 'S':
-            if (optarg) {
-                commands.append(new QueryCommand(QueryMessage::ListSymbols, optarg, queryFlags, pathFilters, max, unsavedFiles));
-            } else if (optind < argc && argv[optind][0] != '-') {
-                commands.append(new QueryCommand(QueryMessage::ListSymbols, argv[optind++], queryFlags, pathFilters, max, unsavedFiles));
-            } else {
-                commands.append(new QueryCommand(QueryMessage::ListSymbols, ByteArray(), queryFlags, pathFilters, max, unsavedFiles));
-            }
+            commands.addQuery(QueryMessage::ReferencesName, optarg);
             break;
         case 'F':
-            commands.append(new QueryCommand(QueryMessage::FindSymbols, optarg, queryFlags, pathFilters, max, unsavedFiles));
+            commands.addQuery(QueryMessage::FindSymbols, optarg);
             break;
+
         case '?':
             // getopt printed an error message already
             break;
@@ -528,7 +409,7 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (commands.isEmpty() && !(clientFlags & (Client::RestartRdm|Client::AutostartRdm))) {
+    if (commands.commands.isEmpty() && !(clientFlags & (Client::RestartRdm|Client::AutostartRdm))) {
         help(stderr, argv[0]);
         cleanupLogging();
         return 1;
@@ -544,13 +425,8 @@ int main(int argc, char** argv)
     EventLoop loop;
 
     Client client(socketFile, clientFlags, rdmArgs);
-    const int commandCount = commands.size();
-    for (int i=0; i<commandCount; ++i) {
-        Command *cmd = commands.at(i);
-        debug() << "running command " << cmd->description();
-        cmd->exec(&client);
-        delete cmd;
-    }
+    commands.client = &client;
+    commands.exec();
     cleanupLogging();
     return 0;
 }

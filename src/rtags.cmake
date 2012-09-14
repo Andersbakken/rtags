@@ -21,6 +21,7 @@ set(rtags_HDRS
     EventLoop.h
     EventReceiver.h
     FastDelegate.h
+    FileManager.h
     FileSystemWatcher.h
     FindFileJob.h
     FindSymbolsJob.h
@@ -28,7 +29,6 @@ set(rtags_HDRS
     GRParseJob.h
     GRParser.h
     GRScanJob.h
-    FileManager.h
     GRTags.h
     GRTagsMessage.h
     GccArguments.h
@@ -56,6 +56,7 @@ set(rtags_HDRS
     Process.h
     Project.h
     QueryMessage.h
+    RCCommands.h
     RTags.h
     ReadLocker.h
     ReadWriteLock.h
@@ -88,13 +89,13 @@ set(rtags_SRCS
     CursorInfoJob.cpp
     ErrorMessage.cpp
     EventLoop.cpp
+    FileManager.cpp
     FindFileJob.cpp
     FindSymbolsJob.cpp
     FollowLocationJob.cpp
     GRParseJob.cpp
     GRParser.cpp
     GRScanJob.cpp
-    FileManager.cpp
     GRTags.cpp
     GRTagsMessage.cpp
     GccArguments.cpp
@@ -115,6 +116,7 @@ set(rtags_SRCS
     Process.cpp
     Project.cpp
     QueryMessage.cpp
+    RCCommands.cpp
     RTags.cpp
     ReadWriteLock.cpp
     ReferencesJob.cpp
