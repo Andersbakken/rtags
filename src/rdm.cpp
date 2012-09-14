@@ -27,15 +27,6 @@ void sigSegvHandler(int signal)
     _exit(1);
 }
 
-void sigIntHandler(int signal)
-{
-    static bool first = true;
-    if (first) {
-        first = false;
-        EventLoop::instance()->exit();
-    }
-}
-
 #define EXCLUDEFILTER_DEFAULT "*.o;*.a;*.so*;*.obj;*.lo;*.git/objects*"
 void usage(FILE *f)
 {
@@ -228,7 +219,6 @@ int main(int argc, char** argv)
     }
 
     if (enableSignalHandler) {
-        signal(SIGINT, sigIntHandler);
         signal(SIGSEGV, sigSegvHandler);
     }
 
