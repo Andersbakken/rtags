@@ -167,8 +167,8 @@ bool FileSystemWatcher::watch(const Path &p)
         return false;
 
     int ret = ::open(path.nullTerminated(), O_RDONLY);
-    static int cnt = 0;
-    printf("wanting to watch [%05d] %s : %d\n", ++cnt, path.nullTerminated(), ret);
+    //static int cnt = 0;
+    //printf("wanting to watch [%05d] %s : %d\n", ++cnt, path.nullTerminated(), ret);
     if (ret != -1) {
         struct kevent change;
         struct timespec nullts = { 0, 0 };
