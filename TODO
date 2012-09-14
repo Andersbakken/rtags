@@ -3,8 +3,13 @@ Fix writing of references/cursors to "db", probably should just write all cursor
 We should sort output from C-x r / with definitions first (like symbolName)
 We're having make issues with at least directfb and openssl, for the
 latter eatAutoTools is not doing the right thing.
+
+### usage bugs
+
+1)
 Forward declarations are not references to classes
 
+2)
 Still at least one problem with constructors:
 
 struct F
@@ -23,10 +28,22 @@ constructor, also, f does not refer to the copy constructor.
 
 Trying to improve the current hacks in origin/workonstupidconstuctor
 
+3)
+Some template issue. Can't follow this symbol in Connection.h:
+
+template<typename T> bool Connection::send(const T *message)
+{
+     return send(...
+}            /\
+             ||
+
+
 The kqueue and fsevents watchers both have an issue where if you watch /foo,
 then /foo/bar and then unwatch /foo then none of the paths are watched.
 In addition, the kqueue watcher has an issue where if you watch /foo/bar,
 then watch /foo and then unwatch /foo, then /foo/bar is no longer watched either.
+
+
 
 *** ELISP ***
 Make completion use ido somehow
