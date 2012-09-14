@@ -37,7 +37,8 @@ public:
         NoOptions = 0x0,
         NoClangIncludePath = 0x1,
         NoValidate = 0x2,
-        ClearProjects = 0x4
+        ClearProjects = 0x4,
+        NoWall = 0x8
     };
     ThreadPool *threadPool() const { return mThreadPool; }
     void startJob(Job *job);

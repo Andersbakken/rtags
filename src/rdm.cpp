@@ -42,6 +42,7 @@ void usage(FILE *f)
             "  --clean-slate|-C                Start from a clean slate\n"
             "  --disable-sighandler|-s         Disable signal handler to dump stack for crashes\n"
             "  --no-clang-includepath|-P       Don't use clang include paths by default\n"
+            "  --no-Wall|-W                    Don't use -Wall\n"
             "  --silent|-S                     No logging to stdout\n"
             "  --no-validate|-V                Disable validation of database on startup and after indexing\n"
             "  --exclude-filter|-x [arg]       Files to exclude from grtags, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
@@ -63,6 +64,7 @@ int main(int argc, char** argv)
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
         { "no-clang-includepath", no_argument, 0, 'P' },
+        { "no-Wall", no_argument, 0, 'W' },
         { "append", no_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
         { "thread-count", required_argument, 0, 'j' },
@@ -174,6 +176,9 @@ int main(int argc, char** argv)
             break;
         case 'P':
             options |= Server::NoClangIncludePath;
+            break;
+        case 'W':
+            options |= Server::NoWall;
             break;
         case 's':
             enableSignalHandler = false;
