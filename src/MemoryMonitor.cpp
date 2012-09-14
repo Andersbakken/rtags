@@ -18,8 +18,10 @@ static void visitLine(FILE* stream, LineVisitor visitor, void* userData)
 
     while (!feof(stream)) {
         r = fgets(buffer, BufferSize, stream);
-        if (r)
-            visitor(r, userData);
+        if (r) {
+            if (!visitor(r, userData))
+                return;
+        }
     }
 }
 
