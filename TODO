@@ -27,3 +27,7 @@ The kqueue and fsevents watchers both have an issue where if you watch /foo,
 then /foo/bar and then unwatch /foo then none of the paths are watched.
 In addition, the kqueue watcher has an issue where if you watch /foo/bar,
 then watch /foo and then unwatch /foo, then /foo/bar is no longer watched either.
+
+*** ELISP ***
+Make completion use ido somehow
+Make completions work even with emptiness
