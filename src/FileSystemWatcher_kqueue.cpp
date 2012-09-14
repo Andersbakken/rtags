@@ -128,6 +128,8 @@ void FileSystemWatcher::clear()
 bool FileSystemWatcher::isWatching(const Path& p) const
 {
     Path path = p, parent;
+    if (!path.endsWith('/'))
+        path += '/';
     for (;;) {
         if (mWatchedByPath.contains(path))
             return true;
@@ -160,8 +162,10 @@ bool FileSystemWatcher::watch(const Path &p)
 
     if (!path.endsWith('/'))
         path += '/';
+
     if (isWatching(path))
         return false;
+
     int ret = ::open(path.nullTerminated(), O_RDONLY);
     static int cnt = 0;
     printf("wanting to watch [%05d] %s : %d\n", ++cnt, path.nullTerminated(), ret);
@@ -217,6 +221,10 @@ bool FileSystemWatcher::unwatch(const Path &p)
     Path path = p;
     if (path.isFile())
         path = path.parentDir();
+
+    if (!path.endsWith('/'))
+        path += '/';
+
     int wd = -1;
     if (mWatchedByPath.remove(path, &wd)) {
         debug("FileSystemWatcher::unwatch(\"%s\")", path.constData());
