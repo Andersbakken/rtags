@@ -51,15 +51,19 @@ static inline uint64_t timespecToInt(timespec spec)
 Path::VisitResult FileSystemWatcher::scanFiles(const Path& path, void* userData)
 {
     FSUserData* u = static_cast<FSUserData*>(userData);
-    if (path.isDir()) {
+    switch (path.type()) {
+    case Path::Directory:
         if (u->watcher->mWatchedByPath.contains(path))
             u->modified.insert(path);
         return Path::Recurse;
-    } else if (path.isFile()) {
+    case Path::File: {
         struct stat st;
         if (!::stat(path.nullTerminated(), &st)) {
             u->watcher->mTimes[path] = timespecToInt(st.st_mtimespec);
         }
+        break; }
+    default:
+        break;
     }
     return Path::Continue;
 }
@@ -67,9 +71,10 @@ Path::VisitResult FileSystemWatcher::scanFiles(const Path& path, void* userData)
 Path::VisitResult FileSystemWatcher::updateFiles(const Path& path, void* userData)
 {
     FSUserData* u = static_cast<FSUserData*>(userData);
-    if (path.isDir()) {
+    switch (path.type()) {
+    case Path::Directory:
         return Path::Recurse;
-    } else if (path.isFile()) {
+    case Path::File: {
         struct stat st;
         if (!::stat(path.nullTerminated(), &st)) {
             const uint64_t time = timespecToInt(st.st_mtimespec);
@@ -88,6 +93,9 @@ Path::VisitResult FileSystemWatcher::updateFiles(const Path& path, void* userDat
                 u->watcher->mTimes[path] = time;
             }
         }
+        break; }
+    default:
+        break;
     }
     return Path::Continue;
 }
@@ -152,12 +160,11 @@ bool FileSystemWatcher::watch(const Path &p)
 
     if (!path.endsWith('/'))
         path += '/';
-    if (isWatching(path)) {
+    if (isWatching(path))
         return false;
-    }
     int ret = ::open(path.nullTerminated(), O_RDONLY);
-    //static int cnt = 0;
-    //printf("wanting to watch [%05d] %s : %d\n", ++cnt, path.nullTerminated(), ret);
+    static int cnt = 0;
+    printf("wanting to watch [%05d] %s : %d\n", ++cnt, path.nullTerminated(), ret);
     if (ret != -1) {
         struct kevent change;
         struct timespec nullts = { 0, 0 };
