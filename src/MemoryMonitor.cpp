@@ -26,8 +26,6 @@ static void visitLine(FILE* stream, LineVisitor visitor, void* userData)
 }
 
 #if defined(OS_Linux)
-struct
-
 static bool lineVisitor(char* line, void* userData)
 {
     int* total = static_cast<int*>(userData);
@@ -40,7 +38,6 @@ static bool lineVisitor(char* line, void* userData)
 
 static inline uint64_t usageLinux()
 {
-    uint64_t total = 0;
     const pid_t pid = getpid();
     FILE* file = fopen(("/proc/" + ByteArray::number(pid) + "/smaps").constData(), "r");
     if (!file)
