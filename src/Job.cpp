@@ -83,11 +83,11 @@ bool Job::writeRaw(const ByteArray &out, unsigned flags)
     if (mJobFlags & OutputSignalEnabled) {
         output()(out);
     } else if (mJobFlags & WriteBuffered) {
-        enum { BufSize = 1024 };
+        enum { BufSize = 16384 };
         if (mBuffer.size() + out.size() + 1 > BufSize) {
             EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, mBuffer, false));
             mBuffer.clear();
-            mBuffer.reserve(1024);
+            mBuffer.reserve(BufSize);
         }
         mBuffer.append(out);
         mBuffer.append('\n');
