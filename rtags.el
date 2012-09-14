@@ -214,7 +214,7 @@
   (cond ((eq code nil)
          (try-completion string (rtags-symbolname-completion-get string) predicate))
         ((eq code t) (rtags-symbolname-completion-get string))
-        ((eq code 'lambda) (rtags-symbolname-completion-exactmatch string)))))
+        ((eq code 'lambda) (rtags-symbolname-completion-exactmatch string))))
 
 (defvar rtags-bookmark-index 0)
 (defvar rtags-bookmarks nil)
