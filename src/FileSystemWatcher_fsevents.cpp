@@ -81,6 +81,9 @@ private:
     static void perform(void* thread);
 
 private:
+    bool isWatching(const Path& p) const;
+
+private:
     mutable Mutex mutex;
     WaitCondition waiter;
 
@@ -261,6 +264,22 @@ void WatcherThread::waitForStarted()
     } while (!(flags & Start));
 }
 
+bool WatcherThread::isWatching(const Path& p) const
+{
+    Path path = p, parent;
+    if (!path.endsWith('/'))
+        path += '/';
+    for (;;) {
+        if (paths.contains(path))
+            return true;
+        parent = path.parentDir();
+        if (parent == path || parent.isEmpty())
+            break;
+        path = parent;
+    }
+    return false;
+}
+
 void WatcherThread::clear()
 {
     MutexLocker locker(&mutex);
@@ -273,7 +292,7 @@ void WatcherThread::clear()
 bool WatcherThread::watch(const Path& path)
 {
     MutexLocker locker(&mutex);
-    if (paths.contains(path))
+    if (isWatching(path))
         return false;
     paths.insert(path);
     CFRunLoopSourceSignal(source);
@@ -322,6 +341,8 @@ bool FileSystemWatcher::watch(const Path &p)
         path = path.parentDir();
         break;
     case Path::Directory:
+        if (!path.endsWith('/'))
+            path += '/';
         break;
     default:
         error("FileSystemWatcher::watch() '%s' doesn't not seem to be watchable", path.constData());
@@ -336,6 +357,8 @@ bool FileSystemWatcher::unwatch(const Path &p)
     Path path = p;
     if (path.isFile())
         path = path.parentDir();
+    else if (!path.endsWith('/'))
+        path += '/';
     if (mWatcher->unwatch(path)) {
         debug("FileSystemWatcher::unwatch(\"%s\")", path.constData());
         return true;
