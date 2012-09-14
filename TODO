@@ -47,4 +47,3 @@ then watch /foo and then unwatch /foo, then /foo/bar is no longer watched either
 
 *** ELISP ***
 Make completion use ido somehow
-Make completions work even with emptiness
