@@ -56,7 +56,7 @@ set(rtags_HDRS
     Process.h
     Project.h
     QueryMessage.h
-    RCCommands.h
+    RClient.h
     RTags.h
     ReadLocker.h
     ReadWriteLock.h
@@ -116,7 +116,7 @@ set(rtags_SRCS
     Process.cpp
     Project.cpp
     QueryMessage.cpp
-    RCCommands.cpp
+    RClient.cpp
     RTags.cpp
     ReadWriteLock.cpp
     ReferencesJob.cpp
