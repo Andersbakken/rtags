@@ -5,7 +5,7 @@
 #include "FileManager.h"
 
 FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &project)
-    : Job(query, 0, project)
+    : Job(query, WriteBuffered, project)
 {
     const ByteArray q = query.query();
     if (!q.isEmpty()) {

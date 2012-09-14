@@ -864,21 +864,19 @@ void Server::onMakefileModified(const Path &path)
 void Server::event(const Event *event)
 {
     switch (event->type()) {
-    case JobCompleteEvent::Type: {
-        const JobCompleteEvent *e = static_cast<const JobCompleteEvent*>(event);
-        Map<int, Connection*>::iterator it = mPendingLookups.find(e->id);
-        if (it == mPendingLookups.end())
-            return;
-        it->second->finish();
-        break; }
     case JobOutputEvent::Type: {
         const JobOutputEvent *e = static_cast<const JobOutputEvent*>(event);
         Map<int, Connection*>::iterator it = mPendingLookups.find(e->job->id());
-        if (it == mPendingLookups.end())
+        if (it == mPendingLookups.end()) {
             break;
+        }
         ResponseMessage msg(e->out);
-        if (it->second->isConnected() && !it->second->send(&msg)) {
-            e->job->abort();
+        if (it->second->isConnected()) {
+            if (!it->second->send(&msg)) {
+                e->job->abort();
+            } else if (e->finish) {
+                it->second->finish();
+            }
         }
         break; }
     case MakefileParserDoneEvent::Type: {

@@ -34,7 +34,7 @@ Connection::Connection(LocalClient* client)
 
 Connection::~Connection()
 {
-    destroyed()(this);
+    mDestroyed(this);
     delete mClient;
 }
 

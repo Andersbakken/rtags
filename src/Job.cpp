@@ -36,9 +36,11 @@ Job::~Job()
 {
     delete mPathFilters;
     delete mPathFiltersRegExp;
+    if (mId != -1)
+        EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, mBuffer, true));
 }
 
-bool Job::write(const ByteArray &out)
+bool Job::write(const ByteArray &out, unsigned flags)
 {
     if (mJobFlags & WriteUnfiltered || filter(out)) {
         if (mJobFlags & QuoteOutput) {
@@ -57,35 +59,45 @@ bool Job::write(const ByteArray &out)
                 }
             }
             o.truncate(l);
-            return writeRaw(o);
+            return writeRaw(o, flags);
         } else {
-            return writeRaw(out);
+            return writeRaw(out, flags);
         }
     }
     return true;
 }
 
-bool Job::writeRaw(const ByteArray &out)
+bool Job::writeRaw(const ByteArray &out, unsigned flags)
 {
-    switch (mMax) {
-    case 0:
-        return false;
-    case -1:
-        break;
-    default:
-        --mMax;
-        break;
+    if (!(flags & IgnoreMax)) {
+        switch (mMax) {
+        case 0:
+        case -1:
+            break;
+        default:
+            --mMax;
+            break;
+        }
     }
 
     if (mJobFlags & OutputSignalEnabled) {
         output()(out);
+    } else if (mJobFlags & WriteBuffered) {
+        enum { BufSize = 1024 };
+        if (mBuffer.size() + out.size() + 1 > BufSize) {
+            EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, mBuffer, false));
+            mBuffer.clear();
+            mBuffer.reserve(1024);
+        }
+        mBuffer.append(out);
+        mBuffer.append('\n');
     } else {
-        EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, out));
+        EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, out, false));
     }
     return true;
 }
 
-bool Job::write(const Location &location, const CursorInfo &ci)
+bool Job::write(const Location &location, const CursorInfo &ci, unsigned flags)
 {
     if (ci.symbolLength) {
         char buf[1024];
@@ -100,7 +112,7 @@ bool Job::write(const Location &location, const CursorInfo &ci)
         for (Set<Location>::const_iterator rit = ci.references.begin(); rit != ci.references.end(); ++rit) {
             const Location &l = *rit;
             snprintf(buf, sizeof(buf), "    %s", l.key().constData());
-            return write(buf);
+            return write(buf, flags);
         }
     }
     return true;
@@ -109,8 +121,6 @@ bool Job::write(const Location &location, const CursorInfo &ci)
 void Job::run()
 {
     execute();
-    if (mId != -1)
-        EventLoop::instance()->postEvent(Server::instance(), new JobCompleteEvent(mId));
 }
 
 unsigned Job::keyFlags() const

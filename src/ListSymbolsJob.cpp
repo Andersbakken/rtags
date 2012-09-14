@@ -3,8 +3,14 @@
 #include "Log.h"
 #include "RTags.h"
 
+enum {
+    DefaultFlags = Job::WriteUnfiltered|Job::WriteBuffered,
+    ElispFlags = DefaultFlags|Job::QuoteOutput
+};
+
+
 ListSymbolsJob::ListSymbolsJob(const QueryMessage &query, const shared_ptr<Project> &proj)
-    : Job(query, query.flags() & QueryMessage::ElispList ? Job::QuoteOutput|Job::WriteUnfiltered : Job::WriteUnfiltered, proj),
+    : Job(query, query.flags() & QueryMessage::ElispList ? ElispFlags : DefaultFlags, proj),
       string(query.query())
 {
 }
@@ -18,7 +24,7 @@ void ListSymbolsJob::execute()
     const bool elispList = queryFlags & QueryMessage::ElispList;
 
     if (elispList)
-        writeRaw("(list");
+        writeRaw("(list", IgnoreMax);
     if (project()->indexer) {
         Scope<const SymbolNameMap &> scope = project()->lockSymbolNamesForRead();
         const SymbolNameMap &map = scope.data();
@@ -76,7 +82,7 @@ void ListSymbolsJob::execute()
     }
 
     if (elispList) {
-        writeRaw(")");
+        writeRaw(")", IgnoreMax);
     } else {
         if (queryFlags & QueryMessage::ReverseSort) {
             std::sort(out.begin(), out.end(), std::greater<ByteArray>());

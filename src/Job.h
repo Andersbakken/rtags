@@ -22,7 +22,8 @@ public:
         None = 0x0,
         WriteUnfiltered = 0x1,
         QuoteOutput = 0x2,
-        OutputSignalEnabled = 0x4
+        OutputSignalEnabled = 0x4,
+        WriteBuffered = 0x8
     };
     enum { Priority = 10 };
     Job(const QueryMessage &msg, unsigned jobFlags, const shared_ptr<Project> &proj);
@@ -32,9 +33,13 @@ public:
     bool hasFilter() const { return mPathFilters || mPathFiltersRegExp; }
     int id() const { return mId; }
     void setId(int id) { mId = id; }
-    bool write(const ByteArray &out);
-    bool writeRaw(const ByteArray &out);
-    bool write(const Location &location, const CursorInfo &info);
+    enum WriteFlag {
+        NoWriteFlags = 0x0,
+        IgnoreMax = 0x1
+    };
+    bool write(const ByteArray &out, unsigned flags = NoWriteFlags);
+    bool writeRaw(const ByteArray &out, unsigned flags = NoWriteFlags);
+    bool write(const Location &location, const CursorInfo &info, unsigned flags = NoWriteFlags);
     unsigned jobFlags() const { return mJobFlags; }
     void setJobFlags(unsigned flags) { mJobFlags = flags; }
     unsigned queryFlags() const { return mQueryFlags; }
@@ -54,6 +59,7 @@ private:
     List<ByteArray> *mPathFilters;
     List<RegExp> *mPathFiltersRegExp;
     int mMax;
+    ByteArray mBuffer;
 };
 
 inline bool Job::filter(const ByteArray &val) const
@@ -74,28 +80,17 @@ inline bool Job::filter(const ByteArray &val) const
     return false;
 }
 
-class JobCompleteEvent : public Event
-{
-public:
-    enum { Type = 1 };
-    JobCompleteEvent(int i)
-        : Event(Type), id(i)
-    {}
-
-    const int id;
-};
-
-
 class JobOutputEvent : public Event
 {
 public:
     enum { Type = 2 };
-    JobOutputEvent(Job *j, const ByteArray &o)
-        : Event(Type), job(j), out(o)
+    JobOutputEvent(Job *j, const ByteArray &o, bool f)
+        : Event(Type), job(j), out(o), finish(f)
     {}
 
     Job *job;
     const ByteArray out;
+    const bool finish;
 };
 
 #endif
