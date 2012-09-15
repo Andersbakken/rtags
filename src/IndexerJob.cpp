@@ -575,6 +575,7 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
             infos.append(&info);
             addOverriddenCursors(cursor, location, infos);
             break; }
+        case CXCursor_FunctionTemplate:
         case CXCursor_FunctionDecl:
             referenceType = RTags::GlobalFunction;
             break;
@@ -591,6 +592,7 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
                 case CXCursor_CXXMethod:
                 case CXCursor_Destructor:
                 case CXCursor_Constructor:
+                case CXCursor_FunctionTemplate:
                     ok = (location.fileId() == mFileId && !isInline(cursor));
                     break;
                 default:

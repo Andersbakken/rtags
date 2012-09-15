@@ -37,6 +37,9 @@ template<typename T> bool Connection::send(const T *message)
 }            /\
              ||
 
+This might just be the way it is
+
+### file system watchers
 
 The kqueue and fsevents watchers both have an issue where if you watch /foo,
 then /foo/bar and then unwatch /foo then none of the paths are watched.
