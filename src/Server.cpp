@@ -929,7 +929,6 @@ void Server::writeProjects()
         ini.setValue("Makefiles", it->first, it->second.toString());
         mMakefilesWatcher.watch(it->first);
     }
-    error() << mGRTagsDirs;
     for (Set<Path>::const_iterator it = mGRTagsDirs.begin(); it != mGRTagsDirs.end(); ++it) {
         ini.setValue("GRTags", *it);
     }

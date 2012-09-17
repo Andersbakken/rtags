@@ -32,6 +32,7 @@ void MakefileParser::stop()
 
 void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
 {
+    // error() << makefile << args;
     Path make = MAKE;
     if (make.isAbsolute())
         make.resolve();
@@ -44,10 +45,6 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     mProc->finished().connect(this, &MakefileParser::onDone);
 
     mCurrentPath = makefile.parentDir();
-    warning("%s -f %s -C %s\n",
-            make.constData(),
-            makefile.constData(),
-            mCurrentPath.constData());
 
     List<ByteArray> a;
     a.push_back("--dry-run");
@@ -60,6 +57,8 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     for (int i=0; i<c; ++i) {
         a.push_back(args.at(i));
     }
+
+    warning("%s %s", make.constData(), ByteArray::join(a, " ").constData());
 
     // unlink("/tmp/makelib.log");
     if (!mProc->start(make, a))

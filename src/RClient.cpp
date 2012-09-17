@@ -62,13 +62,15 @@ public:
         : makefile(mf), makefileArgs(args)
     {}
     const Path makefile;
-    const List<ByteArray> makefileArgs;
+    List<ByteArray> makefileArgs;
     virtual void exec(RClient *rc, Client *client)
     {
         if (!makefile.isFile()) {
             error() << makefile << "is not a file";
             return;
         }
+        if (rc->makefileFlags() & RClient::UseDashB)
+            makefileArgs.append("-B");
         MakefileMessage msg(makefile, makefileArgs, rc->extraFlags());
         client->message(&msg);
     }
@@ -101,7 +103,7 @@ public:
 };
 
 RClient::RClient()
-    : mQueryFlags(0), mMax(-1), mLogLevel(0), mClientFlags(0)
+    : mQueryFlags(0), mClientFlags(0), mMakefileFlags(0), mMax(-1), mLogLevel(0)
 {
 }
 
@@ -269,13 +271,14 @@ bool RClient::parse(int &argc, char **argv)
         { "enable-grtags", no_argument, 0, 'b' },
         { "grtag", optional_argument, 0, 't' },
         { "socket-file", required_argument, 0, 'n' },
+        { "always-make", no_argument, 0, 'B' },
         { 0, 0, 0, 0 }
     };
 
     unsigned logFlags = 0;
     Path logFile;
 
-    // Unused: djJcBy
+    // Unused: djJcy
 
     const ByteArray shortOptions = RTags::shortOptions(opts);
 
@@ -294,6 +297,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case 'b':
             mQueryFlags |= QueryMessage::DisableGRTags;
+            break;
+        case 'B':
+            mMakefileFlags |= UseDashB;
             break;
         case 'a':
             mClientFlags |= Client::AutostartRdm;
