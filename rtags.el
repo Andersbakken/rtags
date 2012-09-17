@@ -18,11 +18,16 @@
   (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
   (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
   (rtags-log (buffer-string))
-  (if (= (char-after (- (point-max) 1)) 10)
+  (if (> (point-max) (point-min))
       (progn
-        (goto-char (point-max))
-        (delete-char -1)))
-  (goto-char (point-min)))
+        (if (= (char-after (- (point-max) 1)) 10)
+            (progn
+              (goto-char (point-max))
+              (delete-char -1)))
+        (goto-char (point-min))
+        t)
+    nil))
+  ;; (not (= (point-max) (point-min))))
 
 (defun rtags-reparse-file(&optional buffer)
   (interactive)
@@ -172,7 +177,6 @@
            (run-hooks rtags-after-find-file-hook)
            (goto-char (point-min))
            (forward-line (- line 1))
-           (forward-char (- column 1))
            (unless nobookmark (rtags-bookmark-push))
            t))
         ((string-match "\\(.*\\),\\([0-9]+\\)" location)
@@ -583,8 +587,9 @@ return t if rtags is allowed to modify this file"
   (let ((empty (= (point-min) (point-max))))
     (cond (empty t)
           ((= (count-lines (point-min) (point-max)) 1)
-           (progn
-             (rtags-goto-location (buffer-string))))
+           (let ((string (buffer-string)))
+             (bury-buffer)
+             (rtags-goto-location string)))
           (t (progn
                (switch-to-buffer-other-window "*RTags Complete*")
                (shrink-window-if-larger-than-buffer)
@@ -604,9 +609,11 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-filename-complete (string predicate code)
   (let ((complete-list (make-vector 63 0)))
-    (if (get-buffer "*RTags Complete*")
-        (kill-buffer "*RTags Complete*"))
-    (with-current-buffer (generate-new-buffer "*RTags Complete*")
+    (if (or (string-match "\\(.*\\),[0-9]+" string)
+            (string-match "\\(.*\\):[0-9]+:[0-9]+" string)
+            (string-match "\\(.*\\):[0-9]+" string))
+        (setq string (match-string 1 string)))
+    (with-temp-buffer
       (rtags-call-rc "-P" string)
       (goto-char (point-min))
       (if (equal "" string)
@@ -618,13 +625,12 @@ return t if rtags is allowed to modify this file"
             (if (looking-at match-string)
                 (intern (buffer-substring (match-beginning 1) (match-end 1)) complete-list))
             (forward-line))))
-      (kill-buffer (current-buffer)))
     (cond ((eq code nil)
            (try-completion string complete-list predicate))
           ((eq code t)
            (all-completions string complete-list predicate))
           ((eq code 'lambda)
-           (if (intern-soft string complete-list) t nil)))))
+           (if (intern-soft string complete-list) t nil))))))
 
 
 (defun rtags-find-file-on-return-pressed()
@@ -674,6 +680,8 @@ return t if rtags is allowed to modify this file"
                   (switch-to-buffer-other-window "*RTags Complete*")
                   (shrink-window-if-larger-than-buffer)
                   (goto-char (point-min))
+                  (setq buffer-read-only t)
+                  (highlight-regexp "." compilation-error-face)
                   (local-set-key (kbd "RET") (function rtags-find-file-on-return-pressed))
                   (local-set-key (kbd "ENTER") (function rtags-find-file-on-return-pressed)))))
       ; Should add support for putting offset in there as well, ignore it on completion and apply it at the end
