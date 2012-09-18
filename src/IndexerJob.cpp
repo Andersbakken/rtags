@@ -487,30 +487,14 @@ void IndexerJob::handleInclude(const CXCursor &cursor, CXCursorKind kind, const 
                 mData->symbolNames[(include + path)].insert(location);
                 mData->symbolNames[(include + path.fileName())].insert(location);
             }
-            CXSourceRange range = clang_getCursorExtent(cursor);
-            unsigned int end;
-            clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-            unsigned tokenCount = 0;
-            CXToken *tokens = 0;
-            clang_tokenize(mUnit, range, &tokens, &tokenCount);
             CursorInfo &info = mData->symbols[location];
             info.target = refLoc;
             info.kind = cursor.kind;
             info.isDefinition = false;
-            info.symbolLength = end - location.offset();
-            assert(info.symbolLength > 0);
-            for (unsigned i=0; i<tokenCount; ++i) {
-                if (clang_getTokenKind(tokens[i]) == CXToken_Literal) {
-                    CXStringScope scope(clang_getTokenSpelling(mUnit, tokens[i]));
-                    info.symbolName = "#include ";
-                    info.symbolName += clang_getCString(scope.string);
-                    mData->symbolNames[info.symbolName].insert(location);
-                    break;
-                }
-            }
-            if (tokens) {
-                clang_disposeTokens(mUnit, tokens, tokenCount);
-            }
+            info.symbolName = "#include " + RTags::eatString(clang_getCursorDisplayName(cursor));
+            info.symbolLength = info.symbolName.size() + 2;
+            // ### this fails for things like:
+            // # include    <foobar.h>
         }
     }
 }
