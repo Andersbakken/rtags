@@ -92,7 +92,7 @@ private:
     bool updateProjectForLocation(const Location &location);
     void writeProjects();
     bool grtag(const Path &dir);
-    shared_ptr<Project> currentProject() const { return mCurrentProject; }
+    shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void removeProject(const Path &key);
 
     static Server *sInstance;
@@ -107,7 +107,7 @@ private:
     FileSystemWatcher mMakefilesWatcher;
 
     Map<Path, shared_ptr<Project> > mProjects;
-    shared_ptr<Project> mCurrentProject;
+    weak_ptr<Project> mCurrentProject;
     ThreadPool *mThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
     Path mClangPath;

@@ -324,9 +324,10 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         break; }
     case QueryMessage::Project:
         if (message->query().isEmpty()) {
+            shared_ptr<Project> current = currentProject();
             for (Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
                 ByteArray b = it->first;
-                if (it->second == mCurrentProject)
+                if (it->second == current)
                     b.append(" <=");
                 ResponseMessage msg(b);
                 conn->send(&msg);
@@ -364,12 +365,8 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         conn->finish();
         return; }
     case QueryMessage::ClearProjects: {
-        delete mThreadPool;
-        mThreadPool = 0;
-        clear();
         clearProjects();
-        ResponseMessage msg("Cleared data dir");
-        init(mOptions);
+        ResponseMessage msg("Cleared projects");
         conn->send(&msg);
         conn->finish();
         return; }
@@ -662,7 +659,9 @@ void Server::errors(const QueryMessage &query, Connection *conn)
 
 void Server::clearProjects()
 {
-    Path::rm(mOptions.projectsFile); // ### more stuff?
+    mProjects.clear();
+    mCurrentProject.reset();
+    writeProjects();
 }
 
 void Server::reindex(const ByteArray &pattern)
@@ -915,7 +914,7 @@ bool Server::updateProjectForLocation(const Location &location)
 
 shared_ptr<Project> Server::setCurrentProject(const shared_ptr<Project> &proj)
 {
-    shared_ptr<Project> old = mCurrentProject;
+    shared_ptr<Project> old = mCurrentProject.lock();
     mCurrentProject = proj;
     return old;
 }
@@ -944,11 +943,8 @@ void Server::removeProject(const Path &path)
     if (mMakefiles.remove(path))
         writeProjects();
 
-    if (it->second == mCurrentProject)
-        mCurrentProject.reset();
-
     mProjects.remove(path);
 
-    if (!mCurrentProject && !mProjects.isEmpty())
+    if (!mCurrentProject.lock() && !mProjects.isEmpty())
         setCurrentProject(mProjects.begin()->first);
 }

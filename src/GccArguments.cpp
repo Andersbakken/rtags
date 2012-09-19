@@ -163,7 +163,6 @@ bool GccArguments::parse(ByteArray args, const Path &base)
     mLang = guessLang(split.front());
     if (mLang == NoLang) {
         clear();
-        printf("[%s] %s:%d: return false; [before]\n", __func__, __FILE__, __LINE__);
         return false;
     }
 
@@ -254,7 +253,6 @@ bool GccArguments::parse(ByteArray args, const Path &base)
 
     if (mType == NoType) {
         clear();
-        printf("[%s] %s:%d: return false; [before]\n", __func__, __FILE__, __LINE__);
         return false;
     }
 
@@ -266,7 +264,6 @@ bool GccArguments::parse(ByteArray args, const Path &base)
             error("  %s", input.constData());
         }
         clear();
-        printf("[%s] %s:%d: return false; [before]\n", __func__, __FILE__, __LINE__);
         return false;
     }
 
@@ -280,7 +277,6 @@ bool GccArguments::parse(ByteArray args, const Path &base)
         }
     }
     mCompiler = compiler;
-    error() << mCompiler << mInputFiles;
     return true;
 }
 
