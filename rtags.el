@@ -18,16 +18,7 @@
   (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
   (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
   (rtags-log (buffer-string))
-  (if (> (point-max) (point-min))
-      (progn
-        (if (= (char-after (- (point-max) 1)) 10)
-            (progn
-              (goto-char (point-max))
-              (delete-char -1)))
-        (goto-char (point-min))
-        t)
-    nil))
-  ;; (not (= (point-max) (point-min))))
+  (> (point-max) (point-min)))
 
 (defun rtags-reparse-file(&optional buffer)
   (interactive)
@@ -605,7 +596,6 @@ return t if rtags is allowed to modify this file"
   (if (and (get-buffer "*RTags Diagnostics*") (rtags-is-indexed))
       (rtags-clear-diagnostics))
   t)
-
 
 (defun rtags-filename-complete (string predicate code)
   (let ((complete-list (make-vector 63 0)))
