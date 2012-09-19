@@ -99,33 +99,24 @@ List<ByteArray> Indexer::compileArguments(uint32_t fileId) const
     return List<ByteArray>();
 }
 
-void Indexer::addDependencies(const DependencyMap &deps)
+void Indexer::addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles)
 {
-    DependencyMap newDependencies;
+    Timer timer;
 
-    if (mDependencies.isEmpty()) {
-        mDependencies = deps;
-        newDependencies = deps;
-    } else {
-        const DependencyMap::const_iterator end = deps.end();
-        for (DependencyMap::const_iterator it = deps.begin(); it != end; ++it) {
-            newDependencies[it->first].unite(it->second - mDependencies[it->first]);
-            DependencyMap::iterator i = newDependencies.find(it->first);
-            if (i->second.isEmpty())
-                newDependencies.erase(i);
-            mDependencies[it->first].unite(it->second);
+    const DependencyMap::const_iterator end = deps.end();
+    for (DependencyMap::const_iterator it = deps.begin(); it != end; ++it) {
+        Set<uint32_t> &values = mDependencies[it->first];
+        if (values.isEmpty()) {
+            values = it->second;
+        } else {
+            values.unite(it->second);
         }
-    }
-
-    Path parentPath;
-    Set<ByteArray> watchPaths;
-    const DependencyMap::const_iterator end = newDependencies.end();
-    for (DependencyMap::const_iterator it = newDependencies.begin(); it != end; ++it) {
-        const Path path = Location::path(it->first);
-        parentPath = path.parentDir();
-        if (mWatchedPaths.insert(parentPath)) {
-            mWatcher.watch(parentPath);
+        if (newFiles.isEmpty()) {
+            newFiles = it->second;
+        } else {
+            newFiles.unite(it->second);
         }
+        newFiles.insert(it->first);
     }
 }
 
@@ -233,9 +224,32 @@ static inline void writeSymbolNames(const SymbolNameMap &symbolNames, Scope<Symb
     }
 }
 
-static inline void writeSymbols(SymbolMap &symbols, const ReferenceMap &references, Scope<SymbolMap&> &cur)
+static inline void writeCursors(const SymbolMap &symbols, Scope<SymbolMap&> &cur)
 {
-    SymbolMap &current = cur.data();
+    if (!symbols.isEmpty()) {
+        SymbolMap &current = cur.data();
+        if (current.isEmpty()) {
+            current = symbols;
+        } else {
+            SymbolMap::const_iterator it = symbols.begin();
+            const SymbolMap::const_iterator end = symbols.end();
+            while (it != end) {
+                SymbolMap::iterator cur = current.find(it->first);
+                // ### can I just insert the iterator?
+                if (cur == current.end()) {
+                    current[it->first] = it->second;
+                } else {
+                    cur->second.unite(it->second);
+                }
+                ++it;
+            }
+        }
+    }
+}
+
+static inline void writeReferenecs(const ReferenceMap &references, Scope<SymbolMap&> &cur)
+{
+    SymbolMap &symbols = cur.data();
     if (!references.isEmpty()) {
         const ReferenceMap::const_iterator end = references.end();
         for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
@@ -255,21 +269,8 @@ static inline void writeSymbols(SymbolMap &symbols, const ReferenceMap &referenc
             }
         }
     }
-    if (!symbols.isEmpty()) {
-        SymbolMap::iterator it = symbols.begin();
-        const SymbolMap::const_iterator end = symbols.end();
-        while (it != end) {
-            SymbolMap::iterator cur = current.find(it->first);
-            // ### can I just insert the iterator?
-            if (cur == current.end()) {
-                current[it->first] = it->second;
-            } else {
-                cur->second.unite(it->second);
-            }
-            ++it;
-        }
-    }
 }
+
 
 void Indexer::write()
 {
@@ -281,12 +282,22 @@ void Indexer::write()
         RTags::dirtySymbolNames(symbolNames.data(), mPendingDirtyFiles);
         mPendingDirtyFiles.clear();
     }
+
+    Set<uint32_t> newFiles;
     for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
         const shared_ptr<IndexData> &data = it->second;
-        addDependencies(data->dependencies);
+        addDependencies(data->dependencies, newFiles);
         addDiagnostics(data->diagnostics, data->fixIts);
-        writeSymbols(data->symbols, data->references, symbols);
+        writeCursors(data->symbols, symbols);
+        writeReferenecs(data->references, symbols);
         writeSymbolNames(data->symbolNames, symbolNames);
+    }
+    Timer timer;
+    for (Set<uint32_t>::const_iterator it = newFiles.begin(); it != newFiles.end(); ++it) {
+        const Path dir = Location::path(*it).parentDir();
+        if (mWatchedPaths.insert(dir)) {
+            mWatcher.watch(dir);
+        }
     }
     mPendingData.clear();
 }
