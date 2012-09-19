@@ -27,6 +27,14 @@ void sigSegvHandler(int signal)
     _exit(1);
 }
 
+Path socketFile;
+
+void sigIntHandler(int)
+{
+    unlink(socketFile.constData());
+    _exit(1);
+}
+
 #define EXCLUDEFILTER_DEFAULT "*.o;*.a;*.so*;*.obj;*.lo;*.git/objects*"
 void usage(FILE *f)
 {
@@ -49,7 +57,7 @@ void usage(FILE *f)
             "  --no-rc|-N                      Don't load any rc files\n"
             "  --rc-file|-c [arg]              Use this file instead of ~/.rdmrc\n"
             "  --projects-file|-p [arg]        Use this file as a projects file (default ~/.rtagsprojects)\n"
-            "  --socket-file|-n                Use this file for the server socket (default ~/.rdm)\n"
+            "  --socket-file|-n [arg]          Use this file for the server socket (default ~/.rdm)\n"
             "  --thread-count|-j [arg]         Spawn this many threads for thread pool\n");
 }
 
@@ -130,7 +138,6 @@ int main(int argc, char** argv)
             argList.append(argv[i]);
         }
 
-
         optind = 1;
     }
 
@@ -142,7 +149,7 @@ int main(int argc, char** argv)
     unsigned logFlags = 0;
     int logLevel = 0;
     Path projectsFile = Path::home() + ".rtagsprojects";
-    Path socketFile = Path::home() + ".rdm";
+    socketFile = Path::home() + ".rdm";
     bool enableSignalHandler = true;
     ByteArray name;
     int argCount = argList.size();
@@ -170,9 +177,6 @@ int main(int argc, char** argv)
             break;
         case 'p':
             projectsFile = Path::resolved(optarg);
-            break;
-        case 'o':
-            socketFile = Path::resolved(optarg);
             break;
         case 'P':
             options |= Server::NoClangIncludePath;
@@ -225,6 +229,7 @@ int main(int argc, char** argv)
 
     if (enableSignalHandler) {
         signal(SIGSEGV, sigSegvHandler);
+        signal(SIGINT, sigIntHandler);
     }
 
     if (!initLogging(logLevel, logFile, logFlags)) {
