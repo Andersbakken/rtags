@@ -46,10 +46,10 @@ private:
     inline void check(const char *function, int err)
     {
         if (err) {
-            error("Mutex %s failure %d %s", function, err, strerror(err));
-            extern bool inSignalHandler;
-            if (!inSignalHandler)
-                assert(0);
+            error("Mutex::%s() failure %d %s", function, err, strerror(err));
+            // extern bool inSignalHandler;
+            // if (!inSignalHandler)
+            //     assert(0);
         }
     }
 
