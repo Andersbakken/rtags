@@ -71,14 +71,7 @@ void Server::clear()
         delete mThreadPool;
         mThreadPool = 0;
     }
-    Map<Path, shared_ptr<Project> >::iterator it = mProjects.begin();
-    while (it != mProjects.end()) {
-        if (it->second->indexer) {
-            it->second->indexer->abort();
-        }
-        ++it;
-    }
-
+    mProjects.clear();
     Path::rm(mOptions.socketFile);
     delete mServer;
     mServer = 0;
@@ -248,10 +241,10 @@ bool Server::grtag(const Path &dir)
     if (project->grtags)
         return false;
     if (!project->fileManager) {
-        project->fileManager = new FileManager;
+        project->fileManager.reset(new FileManager);
         project->fileManager->init(project);
     }
-    project->grtags = new GRTags;
+    project->grtags.reset(new GRTags);
     project->grtags->init(project);
     mGRTagsDirs.insert(dir);
     writeProjects();
@@ -661,7 +654,6 @@ void Server::errors(const QueryMessage &query, Connection *conn)
 void Server::clearProjects()
 {
     mProjects.clear();
-    mCurrentProject.reset();
     writeProjects();
 }
 
@@ -838,9 +830,9 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
             return;
         }
         project.reset(new Project(srcRoot));
-        project->indexer = new Indexer(project, !(mOptions.options & NoValidate));
+        project->indexer.reset(new Indexer(project, !(mOptions.options & NoValidate)));
         project->indexer->beginMakefile();
-        project->fileManager = new FileManager;
+        project->fileManager.reset(new FileManager);
         project->fileManager->init(project);
     }
     setCurrentProject(project);
@@ -939,9 +931,12 @@ void Server::removeProject(const Path &path)
     Map<Path, shared_ptr<Project> >::iterator it = mProjects.find(path);
     if (it == mProjects.end())
         return;
-    if (it->second->indexer)
-        it->second->indexer->abort();
+    bool write = false;
     if (mMakefiles.remove(path))
+        write = true;
+    if (mGRTagsDirs.remove(path))
+        write = true;
+    if (write)
         writeProjects();
 
     mProjects.remove(path);

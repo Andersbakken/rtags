@@ -5,17 +5,8 @@
 #include "Server.h"
 
 Project::Project(const Path &src)
-    : indexer(0), fileManager(0), grtags(0), srcRoot(src)
+    : srcRoot(src)
 {
-}
-
-Project::~Project()
-{
-    delete grtags;
-    delete fileManager;
-    if (indexer)
-        indexer->abort();
-    delete indexer;
 }
 
 Scope<const SymbolMap&> Project::lockSymbolsForRead()

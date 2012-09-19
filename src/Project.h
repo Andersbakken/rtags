@@ -35,11 +35,10 @@ class Project
 {
 public:
     Project(const Path &src);
-    ~Project();
 
-    Indexer *indexer;
-    FileManager *fileManager;
-    GRTags *grtags;
+    shared_ptr<Indexer> indexer;
+    shared_ptr<FileManager> fileManager;
+    shared_ptr<GRTags> grtags;
 
     const Path srcRoot;
 

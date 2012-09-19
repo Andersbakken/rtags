@@ -27,20 +27,16 @@ public:
         Dirty = 0x02,
         Priorities = Dirty|Makefile
     };
-    IndexerJob(Indexer *indexer, unsigned flags,
+    IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags,
                const Path &input, const List<ByteArray> &arguments);
     int priority() const { return mFlags & Priorities; }
     shared_ptr<IndexData> data() const { return mData; }
-    signalslot::Signal1<IndexerJob*> &finished() { return mFinished; }
     bool restart(time_t time, const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pendingFiles);
     uint32_t fileId() const { return mFileId; }
-    void abort();
     Path path() const { return mPath; }
-    inline bool isAborted() const
-    {
-        MutexLocker lock(&mMutex);
-        return mAborted;
-    }
+    bool isAborted() { return !indexer(); }
+    void abort() { MutexLocker lock(&mMutex); mIndexer.reset(); }
+    shared_ptr<Indexer> indexer() { MutexLocker lock(&mMutex); return mIndexer.lock(); }
 private:
     void parse();
     void visit();
@@ -78,17 +74,14 @@ private:
     const Path mPath;
     const uint32_t mFileId;
     const List<ByteArray> mArgs;
-    Indexer *mIndexer;
+
+    Mutex mMutex;
+    weak_ptr<Indexer> mIndexer;
 
     CXTranslationUnit mUnit;
     CXIndex mIndex;
 
     Map<ByteArray, uint32_t> mFileIds;
-
-    signalslot::Signal1<IndexerJob*> mFinished;
-
-    mutable Mutex mMutex;
-    bool mAborted;
 
     ByteArray mClangLine;
 

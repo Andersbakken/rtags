@@ -4,9 +4,9 @@
 #include "Server.h"
 #include "EventLoop.h"
 
-IndexerJob::IndexerJob(Indexer *indexer, unsigned flags, const Path &p, const List<ByteArray> &arguments)
+IndexerJob::IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags, const Path &p, const List<ByteArray> &arguments)
     : mFlags(flags), mTimeStamp(0), mPath(p), mFileId(Location::insertFile(p)),
-      mArgs(arguments), mIndexer(indexer), mUnit(0), mIndex(0), mAborted(false),
+      mArgs(arguments), mIndexer(indexer), mUnit(0), mIndex(0),
       mIgnoreConstructorRefs(false)
 {
 }
@@ -192,7 +192,8 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
             if (blocked) {
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
-                    state = mIndexer->visitFile(fileId, this) ? Index : DontIndex;
+                    shared_ptr<Indexer> indexer = mIndexer.lock();
+                    state = indexer && indexer->visitFile(fileId, this) ? Index : DontIndex;
                 }
                 if (state != Index) {
                     *blocked = true;
@@ -788,7 +789,8 @@ void IndexerJob::run()
         mIndex = 0;
     }
 
-    mFinished(this);
+    if (shared_ptr<Indexer> idx = indexer())
+        idx->onJobFinished(this);
 }
 
 CXChildVisitResult IndexerJob::verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData)
@@ -828,10 +830,4 @@ CXChildVisitResult IndexerJob::verboseVisitor(CXCursor cursor, CXCursor, CXClien
     } else {
         return CXChildVisit_Recurse;
     }
-}
-
-void IndexerJob::abort()
-{
-    MutexLocker lock(&mMutex);
-    mAborted = true;
 }

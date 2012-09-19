@@ -13,7 +13,7 @@
 
 struct IndexData;
 class IndexerJob;
-class Indexer
+class Indexer : public enable_shared_from_this<Indexer>
 {
 public:
     Indexer(const shared_ptr<Project> &project, bool validate);
@@ -22,7 +22,6 @@ public:
     void index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
     List<ByteArray> compileArguments(uint32_t fileId) const;
     Set<uint32_t> dependencies(uint32_t fileId) const;
-    void abort();
     bool visitFile(uint32_t fileId, IndexerJob *job);
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path) const;
@@ -31,6 +30,7 @@ public:
     shared_ptr<Project> project() const { return mProject.lock(); }
     void beginMakefile();
     void endMakefile();
+    void onJobFinished(IndexerJob *job);
 private:
     void checkFinished();
     void onFileModified(const Path &);
@@ -44,7 +44,6 @@ private:
         static_cast<Indexer*>(userData)->onFilesModifiedTimeout();
     }
     void onValidateDBJobErrors(const Set<Location> &errors);
-    void onJobFinished(IndexerJob *job);
 
     enum InitMode {
         Normal,
@@ -61,7 +60,6 @@ private:
     bool mInMakefile;
 
     mutable Mutex mMutex;
-    WaitCondition mWaitCondition;
 
     ByteArray mPath;
     Map<uint32_t, IndexerJob*> mJobs;

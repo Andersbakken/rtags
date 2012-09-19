@@ -29,12 +29,10 @@ void Indexer::onJobFinished(IndexerJob *job)
     const uint32_t fileId = job->fileId();
     mVisitedFilesByJob.remove(job);
     if (mJobs.value(fileId) != job) {
-        mWaitCondition.wakeAll();
         return;
     }
     mJobs.remove(fileId);
     if (job->isAborted()) {
-        mWaitCondition.wakeAll();
         return;
     }
     shared_ptr<IndexData> data = job->data();
@@ -48,7 +46,6 @@ void Indexer::onJobFinished(IndexerJob *job)
           data->message.constData(), mJobs.size(), int((MemoryMonitor::usage() / (1024 * 1024))));
 
     checkFinished();
-    mWaitCondition.wakeAll();
 }
 
 void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags)
@@ -63,12 +60,11 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
     IndexerJob *&job = mJobs[fileId];
     if (job) {
         job->abort();
-        mVisitedFiles -= mVisitedFilesByJob.value(job);
+        mVisitedFiles -= mVisitedFilesByJob.take(job);
     }
     mPendingData.remove(fileId);
 
-    job = new IndexerJob(this, indexerJobFlags, input, arguments);
-    job->finished().connect(this, &Indexer::onJobFinished);
+    job = new IndexerJob(shared_from_this(), indexerJobFlags, input, arguments);
 
     ++mJobCounter;
     if (!mTimerRunning) {
@@ -137,20 +133,6 @@ Set<uint32_t> Indexer::dependencies(uint32_t fileId) const
 {
     MutexLocker lock(&mMutex);
     return mDependencies.value(fileId);
-}
-
-void Indexer::abort()
-{
-    MutexLocker lock(&mMutex);
-
-    if (!mJobs.isEmpty()) {
-        for (Map<uint32_t, IndexerJob*>::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
-            it->second->abort();
-        }
-        while (!mJobs.isEmpty()) {
-            mWaitCondition.wait(&mMutex);
-        }
-    }
 }
 
 ByteArray Indexer::fixIts(const Path &path) const

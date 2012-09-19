@@ -29,6 +29,18 @@ public:
         return it->second;
     }
 
+    Value take(const Key &key, bool *ok = false)
+    {
+        Value ret;
+        if (remove(key, &ret)) {
+            if (ok)
+                *ok = true;
+        } else if (ok) {
+            *ok = false;
+        }
+        return ret;
+    }
+
     bool remove(const Key &t, Value *value = 0)
     {
         typename std::map<Key, Value>::iterator it = std::map<Key, Value>::find(t);
