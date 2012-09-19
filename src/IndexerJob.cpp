@@ -242,6 +242,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
         case CXCursor_CXXMethod:
         case CXCursor_Destructor:
         case CXCursor_Constructor:
+        case CXCursor_VarDecl:
             job->mHeaderMap[clang_getCursorUSR(cursor)] = job->createLocation(cursor, 0);
             return CXChildVisit_Continue;
         case CXCursor_ClassDecl:
@@ -543,7 +544,7 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
         switch (info.kind) {
         case CXCursor_Constructor:
         case CXCursor_Destructor: {
-            referenceType = RTags::MemberFunction;
+            referenceType = RTags::LinkedReference;
             Location parentLocation = createLocation(clang_getCursorSemanticParent(cursor));
             // consider doing this for only declaration/inline definition since
             // declaration and definition should know of one another
@@ -554,40 +555,39 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
             }
             break; }
         case CXCursor_CXXMethod: {
-            referenceType = RTags::MemberFunction;
+            referenceType = RTags::LinkedReference;
             List<CursorInfo*> infos;
             infos.append(&info);
             addOverriddenCursors(cursor, location, infos);
             break; }
         case CXCursor_FunctionTemplate:
         case CXCursor_FunctionDecl:
-            referenceType = RTags::GlobalFunction;
+        case CXCursor_VarDecl:
+            referenceType = RTags::LinkedReference;
             break;
         default:
             break;
         }
         if (referenceType != RTags::NoReference) {
             if (info.isDefinition) {
-                bool ok = false;
                 switch (kind) {
-                case CXCursor_FunctionDecl:
-                    ok = (location.fileId() == mFileId);
-                    break;
                 case CXCursor_CXXMethod:
                 case CXCursor_Destructor:
                 case CXCursor_Constructor:
                 case CXCursor_FunctionTemplate:
-                    ok = (location.fileId() == mFileId && !isInline(cursor));
-                    break;
-                default:
-                    assert(0);
-                    break;
-                }
-                if (ok) {
+                    if (isInline(cursor))
+                        break;
+                    // fall throughg
+                case CXCursor_FunctionDecl:
+                case CXCursor_VarDecl: {
                     const Str usr(clang_getCursorUSR(cursor));
                     if (usr.length()) {
                         refLoc = mHeaderMap.value(usr);
                     }
+                    break; }
+                default:
+                    assert(0);
+                    break;
                 }
             } else {
                 CXCursor other = clang_getCursorDefinition(cursor);

@@ -51,6 +51,11 @@ ByteArray cursorToString(CXCursor cursor)
     if (other != name && !other.isEmpty())
         ret += " " + other;
 
+    if (clang_isCursorDefinition(cursor))
+        ret += " def";
+
+    // ret += " " + eatString(clang_getCursorUSR(cursor));
+
     CXFile file;
     unsigned off, line, col;
     CXSourceLocation location = clang_getCursorLocation(cursor);

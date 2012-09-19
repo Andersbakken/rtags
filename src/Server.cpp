@@ -141,8 +141,9 @@ bool Server::init(const Options &options)
                 error("Can't parse makefile information %s", value.constData());
                 return false;
             }
-            mMakefiles[makefiles.at(i)] = info;
-            mMakefilesWatcher.watch(makefiles.at(i));
+            const Path path = Path::resolved(makefiles.at(i));
+            mMakefiles[path] = info;
+            mMakefilesWatcher.watch(path);
         }
         List<ByteArray> grtags = file.keys("GRTags");
         count = grtags.size();

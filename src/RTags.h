@@ -27,8 +27,7 @@ enum DatabaseLockType {
 enum ReferenceType {
     NoReference,
     NormalReference,
-    MemberFunction,
-    GlobalFunction
+    LinkedReference
 };
 
 enum UnitType {
