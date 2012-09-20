@@ -186,6 +186,28 @@ public:
         error("Failed to make location from [%s,%d]", path.constData(), offset);
         return Location();
     }
+    static ByteArray encodeClientLocation(const ByteArray &key)
+    {
+        const int lastComma = key.lastIndexOf(',');
+        if (lastComma <= 0 || lastComma + 1 >= key.size())
+            return ByteArray();
+
+        char *endPtr;
+        uint32_t offset = strtoull(key.constData() + lastComma + 1, &endPtr, 10);
+        if (*endPtr != '\0')
+            return ByteArray();
+        Path path = Path::resolved(key.left(lastComma));
+        ByteArray out;
+        {
+            out = path;
+            char buf[4];
+            memcpy(buf, &offset, sizeof(buf));
+            out += ByteArray(buf, 4);
+        }
+
+        return out;
+    }
+
     static Location fromPathAndOffset(const ByteArray &pathAndOffset)
     {
         const int comma = pathAndOffset.lastIndexOf(',');

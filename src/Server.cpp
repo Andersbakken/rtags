@@ -421,7 +421,7 @@ int Server::nextId()
 
 int Server::followLocation(const QueryMessage &query)
 {
-    const Location loc = Location::decodeClientLocation(query.query());
+    const Location loc = query.location();
     if (loc.isNull()) {
         return 0;
     }
@@ -459,7 +459,7 @@ int Server::findFile(const QueryMessage &query)
 
 int Server::cursorInfo(const QueryMessage &query)
 {
-    const Location loc = Location::decodeClientLocation(query.query());
+    const Location loc = query.location();
     if (loc.isNull()) {
         return 0;
     }
@@ -483,7 +483,7 @@ int Server::cursorInfo(const QueryMessage &query)
 
 int Server::referencesForLocation(const QueryMessage &query)
 {
-    const Location loc = Location::decodeClientLocation(query.query());
+    const Location loc = query.location();
     if (loc.isNull()) {
         return 0;
     }

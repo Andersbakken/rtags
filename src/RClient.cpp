@@ -198,28 +198,6 @@ static void help(FILE *f, const char* app)
             app);
 }
 
-static inline ByteArray encodeLocation(const ByteArray &key)
-{
-    const int lastComma = key.lastIndexOf(',');
-    if (lastComma <= 0 || lastComma + 1 >= key.size())
-        return ByteArray();
-
-    char *endPtr;
-    uint32_t offset = strtoull(key.constData() + lastComma + 1, &endPtr, 10);
-    if (*endPtr != '\0')
-        return ByteArray();
-    Path path = Path::resolved(key.left(lastComma));
-    ByteArray out;
-    {
-        out = path;
-        char buf[4];
-        memcpy(buf, &offset, sizeof(buf));
-        out += ByteArray(buf, 4);
-    }
-
-    return out;
-}
-
 bool RClient::parse(int &argc, char **argv)
 {
     RTags::findApplicationDirPath(*argv);
@@ -399,7 +377,7 @@ bool RClient::parse(int &argc, char **argv)
         case 'U':
         case 'c':
         case 'r': {
-            const ByteArray encoded = encodeLocation(optarg);
+            const ByteArray encoded = Location::encodeClientLocation(optarg);
             if (encoded.isEmpty()) {
                 fprintf(stderr, "Can't resolve argument %s\n", optarg);
                 return false;

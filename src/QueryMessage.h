@@ -5,6 +5,7 @@
 #include "Path.h"
 #include <Serializer.h>
 #include "Map.h"
+#include "Location.h"
 
 class QueryMessage : public Message
 {
@@ -56,8 +57,8 @@ public:
     }
 
     int messageId() const { return MessageId; }
-    // ### it should be possible to put an already parsed Location in here instead of a query that needs to be reparsed
     ByteArray query() const { return mQuery; }
+    Location location() const { return Location::decodeClientLocation(mQuery); }
 
     Map<Path, ByteArray> unsavedFiles() const { return mUnsavedFiles; }
 
