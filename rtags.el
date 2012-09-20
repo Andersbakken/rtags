@@ -18,6 +18,7 @@
 
   (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
   (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
+  (goto-char (point-min))
   (rtags-log (buffer-string))
   (> (point-max) (point-min)))
 
@@ -426,7 +427,7 @@ return t if rtags is allowed to modify this file"
               (with-temp-buffer
                 (rtags-call-rc "-E" "-O" "-N" "-r" (format "%s,%d" file (- pos 1)))
                 (while (looking-at "^\\(.*\\),\\([0-9]+\\)$")
-                  (message (buffer-substring (point-at-bol) (point-at-eol)))
+                  ;;(message (buffer-substring (point-at-bol) (point-at-eol)))
                   (let ((fn (match-string 1))
                         (p (string-to-number (match-string 2)))
                         (buf nil))
