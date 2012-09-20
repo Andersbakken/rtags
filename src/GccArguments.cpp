@@ -20,7 +20,6 @@ void GccArguments::clear()
     mClangArgs.clear();
     mInputFiles.clear();
     mUnresolvedInputFiles.clear();
-    mIncludes.clear();
     mOutputFile.clear();
     mBase.clear();
     mCompiler.clear();
@@ -182,20 +181,6 @@ bool GccArguments::parse(ByteArray args, const Path &base)
                 mClangArgs.append("-x");
                 mClangArgs.append(cur);
                 break;
-            case 'i': {
-                Path inc = Path::resolved(cur + ByteArray(".gch"), path, &pathok);
-                if (!pathok) // try without .gch postfix
-                    inc = Path::resolved(cur, path, &pathok);
-                if (pathok) {
-                    mIncludes.append(inc);
-                } else {
-                    if (!inc.isAbsolute()) {
-                        mIncludes.append(Path(path + "/" + cur + ByteArray(".gch"))); // ### is assuming .gch correct here?
-                    } else {
-                        warning("-include %s could not be resolved", cur);
-                    }
-                } }
-                break;
             case 'o': {
                 if (!mOutputFile.isEmpty())
                     warning("Already have an output file: %s (new %s)",
@@ -215,8 +200,6 @@ bool GccArguments::parse(ByteArray args, const Path &base)
                     prevopt = 'x';
                 else if (!strcmp(cur, "-o"))
                     prevopt = 'o';
-                else if (!strcmp(cur, "-include"))
-                    prevopt = 'i';
                 else
                     prevopt = '\1';
                 continue;
@@ -303,15 +286,6 @@ List<Path> GccArguments::inputFiles() const
 List<Path> GccArguments::unresolvedInputFiles() const
 {
     return mUnresolvedInputFiles;
-}
-
-List<ByteArray> GccArguments::explicitIncludes() const
-{
-    List<ByteArray> incs;
-    const int c = mIncludes.size();
-    for (int i=0; i<c; ++i)
-        incs.append(mIncludes.at(i));
-    return incs;
 }
 
 Path GccArguments::outputFile() const

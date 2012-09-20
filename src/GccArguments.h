@@ -25,13 +25,12 @@ public:
     List<ByteArray> clangArgs() const;
     List<Path> inputFiles() const;
     List<Path> unresolvedInputFiles() const;
-    List<ByteArray> explicitIncludes() const;
     Path outputFile() const;
     Path baseDirectory() const;
     Path compiler() const;
 private:
     List<ByteArray> mClangArgs;
-    List<Path> mInputFiles, mUnresolvedInputFiles, mIncludes;
+    List<Path> mInputFiles, mUnresolvedInputFiles;
     Path mOutputFile, mBase, mCompiler;
     GccArguments::Type mType;
     GccArguments::Lang mLang;
