@@ -40,7 +40,7 @@ public:
         ReverseSort = 0x020,
         ElispList = 0x040,
         WaitForIndexing = 0x080,
-        PathMatchRegExp = 0x100,
+        MatchRegexp = 0x100,
         AbsolutePath = 0x200,
         DisableGRTags = 0x400
     };

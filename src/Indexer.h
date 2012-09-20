@@ -25,9 +25,9 @@ public:
     bool visitFile(uint32_t fileId, IndexerJob *job);
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path) const;
-    void reindex(const ByteArray &pattern);
+    int reindex(const ByteArray &pattern, bool regexp);
     signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
-    shared_ptr<Project> project() const { return mProject.lock(); }
+   shared_ptr<Project> project() const { return mProject.lock(); }
     void beginMakefile();
     void endMakefile();
     void onJobFinished(IndexerJob *job);

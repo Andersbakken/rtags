@@ -9,7 +9,7 @@ FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &p
 {
     const ByteArray q = query.query();
     if (!q.isEmpty()) {
-        if (query.flags() & QueryMessage::PathMatchRegExp) {
+        if (query.flags() & QueryMessage::MatchRegexp) {
             mRegExp = q;
         } else {
             mPattern = q;

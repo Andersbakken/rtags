@@ -355,8 +355,7 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         conn->finish();
         return;
     case QueryMessage::Reindex: {
-        reindex(message->query());
-        conn->finish();
+        reindex(*message, conn);
         return; }
     case QueryMessage::ClearProjects: {
         clearProjects();
@@ -657,15 +656,24 @@ void Server::clearProjects()
     writeProjects();
 }
 
-void Server::reindex(const ByteArray &pattern)
+void Server::reindex(const QueryMessage &query, Connection *conn)
 {
     shared_ptr<Project> project = currentProject();
-    if (!project || project->indexer) {
-        error("No project");
+    if (!project || !project->indexer) {
+        conn->write("No project");
         return;
     }
 
-    project->indexer->reindex(pattern);
+    const int count = project->indexer->reindex(query.query(), query.flags() & QueryMessage::MatchRegexp);
+    error() << count << query.query();
+    if (count) {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "Dirtied %d files", count);
+        conn->write(buf);
+    } else {
+        conn->write("No matches");
+    }
+    conn->finish();
 }
 
 void Server::remake(const ByteArray &pattern, Connection *conn)

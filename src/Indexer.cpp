@@ -178,9 +178,37 @@ void Indexer::addDiagnostics(const DiagnosticsMap &diagnostics, const FixitMap &
     }
 }
 
-void Indexer::reindex(const ByteArray &pattern)
+int Indexer::reindex(const ByteArray &pattern, bool regexp)
 {
-// #warning not done
+    Set<uint32_t> dirty;
+    {
+        MutexLocker lock(&mMutex);
+        RegExp rx;
+        if (regexp)
+            rx = RegExp(pattern);
+
+        const DependencyMap::const_iterator end = mDependencies.end();
+        for (DependencyMap::const_iterator it = mDependencies.begin(); it != end; ++it) {
+            if (!mPendingDirtyFiles.contains(it->first)) {
+                if (pattern.isEmpty()) {
+                    dirty.insert(it->first);
+                } else {
+                    const Path path = Location::path(it->first);
+                    if (regexp) {
+                        if (rx.indexIn(path) != -1)
+                            dirty.insert(it->first);
+                    } else if (path.contains(pattern)) {
+                        dirty.insert(it->first);
+                    }
+                }
+            }
+        }
+        if (dirty.isEmpty())
+            return 0;
+        mModifiedFiles += dirty;
+    }
+    onFilesModifiedTimeout();
+    return dirty.size();
 }
 
 void Indexer::onValidateDBJobErrors(const Set<Location> &errors)

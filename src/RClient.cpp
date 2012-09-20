@@ -194,7 +194,7 @@ static void help(FILE *f, const char* app)
             "  --wait-for-indexing|-X                    Wait for indexing to finish before doing query\n"
             "  --path|-P [optional pattern]              Print files matching pattern\n"
             "  --absolute-path|-K                        Print files with absolute path\n"
-            "  --path-match-regexp|-Z                    Treat arguments to -P or -i as a regexps\n"
+            "  --match-regexp|-Z                         Treat various text patterns as regexps (-P, -i, -V)\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
             app);
 }
@@ -266,7 +266,7 @@ bool RClient::parse(int &argc, char **argv)
         { "delete-project", required_argument, 0, 'W' },
         { "wait-for-indexing", no_argument, 0, 'X' },
         { "path", optional_argument, 0, 'P' },
-        { "path-match-regexp", no_argument, 0, 'Z' },
+        { "match-regexp", no_argument, 0, 'Z' },
         { "absolute-path", no_argument, 0, 'K' },
         { "enable-grtags", no_argument, 0, 'b' },
         { "grtag", optional_argument, 0, 't' },
@@ -315,7 +315,7 @@ bool RClient::parse(int &argc, char **argv)
             mQueryFlags |= QueryMessage::ReferencesForRenameSymbol;
             break;
         case 'Z':
-            mQueryFlags |= QueryMessage::PathMatchRegExp;
+            mQueryFlags |= QueryMessage::MatchRegexp;
             break;
         case 'K':
             mQueryFlags |= QueryMessage::AbsolutePath;

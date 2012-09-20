@@ -14,7 +14,7 @@ Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project>
 {
     const List<ByteArray> &pathFilters = query.pathFilters();
     if (!pathFilters.isEmpty()) {
-        if (mQueryFlags & QueryMessage::PathMatchRegExp) {
+        if (mQueryFlags & QueryMessage::MatchRegexp) {
             mPathFiltersRegExp = new List<RegExp>();
             const int size = pathFilters.size();
             mPathFiltersRegExp->reserve(size);
