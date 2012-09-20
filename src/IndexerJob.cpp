@@ -319,7 +319,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
         assert(0);
         break;
     }
-    return CXChildVisit_Recurse; // ### recurse?
+    return CXChildVisit_Recurse;
 }
 
 static inline bool isImplicit(const CXCursor &cursor)
@@ -495,7 +495,7 @@ void IndexerJob::handleInclude(const CXCursor &cursor, CXCursorKind kind, const 
             info.isDefinition = false;
             info.symbolName = "#include " + RTags::eatString(clang_getCursorDisplayName(cursor));
             info.symbolLength = info.symbolName.size() + 2;
-            // ### this fails for things like:
+            // this fails for things like:
             // # include    <foobar.h>
         }
     }
@@ -710,7 +710,6 @@ void IndexerJob::diagnose()
 
             error("Fixit (%d/%d) for %s: [%s] %s-%d", f + 1, fixItCount, mPath.constData(),
                   string.constData(), start.key().constData(), endOffset);
-            // ### can there be more than one fixit starting at the same location? Probably not.
             mData->fixIts[start] = std::pair<int, ByteArray>(endOffset - start.offset(), string);
         }
 

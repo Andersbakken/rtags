@@ -263,7 +263,6 @@ static inline void writeCursors(const SymbolMap &symbols, Scope<SymbolMap&> &cur
             const SymbolMap::const_iterator end = symbols.end();
             while (it != end) {
                 SymbolMap::iterator cur = current.find(it->first);
-                // ### can I just insert the iterator?
                 if (cur == current.end()) {
                     current[it->first] = it->second;
                 } else {
