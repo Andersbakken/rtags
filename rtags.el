@@ -3,6 +3,7 @@
   :group 'tools
   :prefix "rtags-")
 
+(require 'ido)
 (defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
 (defvar rtags-path-filter-regex nil)
@@ -46,12 +47,9 @@
             (setq projects (add-to-list 'projects (buffer-substring (point-at-bol) (point-at-eol)))))
           (next-line)))
       )
-    (setq project (completing-read
+    (setq project (ido-completing-read
                    (format "RTags select project (current is %s): " current)
-                   projects
-                   nil
-                   t
-                   (try-completion "" projects)))
+                   projects))
     (if project
         (with-temp-buffer
           (rtags-call-rc "-w" project)))
