@@ -94,12 +94,13 @@ void ReferencesJob::execute()
     }
     int startIndex = 0;
     const int count = sorted.size();
-    if (locations.size() == 1 && !startLocation.isNull()) {
-        startIndex = sorted.indexOf(startIndex) + 1;
+    if (sorted.size() != 1 && !startLocation.isNull()) {
+        startIndex = sorted.indexOf(startLocation) + 1;
     }
     const unsigned keyFlags = Job::keyFlags();
+
     for (int i=0; i<count; ++i) {
-        const Location &loc = sorted.at(startIndex + i % count);
+        const Location &loc = sorted.at((startIndex + i) % count);
         write(loc.key(keyFlags));
     }
 }
