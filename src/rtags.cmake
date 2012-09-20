@@ -63,7 +63,6 @@ set(rtags_HDRS
     ReferencesJob.h
     RegExp.h
     ResponseMessage.h
-    RunTestJob.h
     SHA256.h
     Serializer.h
     Server.h
@@ -120,7 +119,6 @@ set(rtags_SRCS
     RTags.cpp
     ReadWriteLock.cpp
     ReferencesJob.cpp
-    RunTestJob.cpp
     SHA256.cpp
     Server.cpp
     StatusJob.cpp

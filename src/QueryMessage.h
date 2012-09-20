@@ -20,7 +20,6 @@ public:
         Status,
         Test,
         CursorInfo,
-        RunTest,
         ClearProjects,
         FixIts,
         Errors,

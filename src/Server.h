@@ -83,7 +83,6 @@ private:
     int listSymbols(const QueryMessage &query);
     int status(const QueryMessage &query);
     int test(const QueryMessage &query);
-    int runTest(const QueryMessage &query);
     int findFile(const QueryMessage &query);
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);

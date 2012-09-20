@@ -28,7 +28,6 @@
 #include "RTags.h"
 #include "ReferencesJob.h"
 #include "RegExp.h"
-#include "RunTestJob.h"
 #include "SHA256.h"
 #include "StatusJob.h"
 #include "TestJob.h"
@@ -397,9 +396,6 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::Test:
         id = test(*message);
         break;
-    case QueryMessage::RunTest:
-        id = runTest(*message);
-        break;
     }
     if (!id) {
         ResponseMessage msg;
@@ -576,26 +572,6 @@ int Server::status(const QueryMessage &query)
     }
 
     StatusJob *job = new StatusJob(query, project);
-    job->setId(nextId());
-    startJob(job);
-    return job->id();
-}
-
-int Server::runTest(const QueryMessage &query)
-{
-    Path path = query.query();
-    if (!path.isFile()) {
-        return 0;
-    }
-    error("rc -T \"%s\"", path.constData());
-
-    shared_ptr<Project> project = currentProject();
-    if (!project) {
-        error("No project");
-        return 0;
-    }
-
-    RunTestJob *job = new RunTestJob(path, query, project);
     job->setId(nextId());
     startJob(job);
     return job->id();

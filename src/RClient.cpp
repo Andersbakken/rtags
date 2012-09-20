@@ -185,7 +185,6 @@ static void help(FILE *f, const char* app)
             "                                            'fileinfos', 'visitedfiles', 'grfiles' or 'gr' \n"
             "  --autostart-rdm|-a [args]                 Start rdm with [args] if rc fails to connect\n"
             "  --restart-rdm|-e [args]                   Restart rdm with [args] before doing the rest of the commands\n"
-            "  --run-test|-k [file]                      Run tests from file\n"
             "  --diagnostics|-G                          Open a connection that prints diagnostics\n"
             "  --project|-w [optional regexp]            With arg, select project matching that if unique, otherwise list all projects\n"
             "  --delete-project|-W [regexp]              Delete all projects matching regexp\n"
@@ -256,7 +255,6 @@ bool RClient::parse(int &argc, char **argv)
         { "restart-rdm", optional_argument, 0, 'e' },
         { "all-references", no_argument, 0, 'E' },
         { "elisp-list", no_argument, 0, 'Y' },
-        { "run-test", required_argument, 0, 'k' },
         { "clear-db", no_argument, 0, 'C' },
         { "fixits", required_argument, 0, 'x' },
         { "errors", required_argument, 0, 'Q' },
@@ -278,14 +276,12 @@ bool RClient::parse(int &argc, char **argv)
     unsigned logFlags = 0;
     Path logFile;
 
-    // Unused: djJcy
+    // Unused: djJcyk
 
     const ByteArray shortOptions = RTags::shortOptions(opts);
 
-    while (true) {
-        const int c = getopt_long(argc, argv, shortOptions.constData(), opts, 0);
-        if (c == -1)
-            break;
+    int c;
+    while ((c = getopt_long(argc, argv, shortOptions.constData(), opts, 0)) != -1) {
         switch (c) {
         case 0:
             break;
@@ -464,8 +460,7 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case 'T':
         case 'x':
-        case 'Q':
-        case 'k': {
+        case 'Q': {
             const Path p = Path::resolved(optarg);
             if (!p.isFile()) {
                 fprintf(stderr, "%s is not a file\n", optarg);
@@ -476,7 +471,6 @@ bool RClient::parse(int &argc, char **argv)
             case 'T': type = QueryMessage::Test; break;
             case 'x': type = QueryMessage::FixIts; break;
             case 'Q': type = QueryMessage::Errors; break;
-            case 'k': type = QueryMessage::RunTest; break;
             }
 
             addQuery(type, p);
