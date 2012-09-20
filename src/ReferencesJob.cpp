@@ -92,9 +92,14 @@ void ReferencesJob::execute()
     } else {
         std::sort(sorted.begin(), sorted.end());
     }
+    // We don't want to do the startIndex stuff when renaming. The only way to
+    // tell the difference between rtags-find-all-references and
+    // rtags-rename-symbol is that the latter does a reverse sort. It kinda
+    // doesn't make sense to have this behavior in reverse sort anyway so I
+    // won't formalize the rename parameters to indicate that we're renaming
     int startIndex = 0;
     const int count = sorted.size();
-    if (sorted.size() != 1 && !startLocation.isNull()) {
+    if (!(queryFlags() && QueryMessage::ReverseSort) && sorted.size() != 1 && !startLocation.isNull()) {
         startIndex = sorted.indexOf(startLocation) + 1;
     }
     const unsigned keyFlags = Job::keyFlags();
