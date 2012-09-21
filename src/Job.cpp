@@ -89,8 +89,9 @@ bool Job::writeRaw(const ByteArray &out, unsigned flags)
             mBuffer.clear();
             mBuffer.reserve(BufSize);
         }
+        if (!mBuffer.isEmpty())
+            mBuffer.append('\n');
         mBuffer.append(out);
-        mBuffer.append('\n');
     } else {
         EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, out, false));
     }
