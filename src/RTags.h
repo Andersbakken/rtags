@@ -109,7 +109,14 @@ static inline CursorType cursorType(CXCursorKind kind)
 }
 
 ByteArray eatString(CXString str);
-ByteArray cursorToString(CXCursor cursor);
+enum CursorToStringFlags {
+    NoCursorToStringFlags = 0x0,
+    IncludeUSR = 0x1,
+    IncludeRange = 0x2,
+    DefaultCursorToStringFlags = IncludeRange,
+    AllCursorToStringFlags = IncludeUSR|IncludeRange
+};
+ByteArray cursorToString(CXCursor cursor, unsigned = DefaultCursorToStringFlags);
 template <typename T>
 inline bool startsWith(const List<T> &list, const T &str)
 {

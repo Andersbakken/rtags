@@ -24,10 +24,12 @@ ByteArray eatString(CXString str)
     return ret;
 }
 
-ByteArray cursorToString(CXCursor cursor)
+ByteArray cursorToString(CXCursor cursor, unsigned flags)
 {
     const CXCursorKind kind = clang_getCursorKind(cursor);
-    ByteArray ret = eatString(clang_getCursorKindSpelling(kind));
+    ByteArray ret;
+    ret.reserve(256);
+    ret += eatString(clang_getCursorKindSpelling(kind));
 
     switch (RTags::cursorType(kind)) {
     case Reference:
@@ -54,7 +56,8 @@ ByteArray cursorToString(CXCursor cursor)
     if (clang_isCursorDefinition(cursor))
         ret += " def";
 
-    // ret += " " + eatString(clang_getCursorUSR(cursor));
+    if (flags & IncludeUSR)
+        ret += " " + eatString(clang_getCursorUSR(cursor));
 
     CXFile file;
     unsigned off, line, col;
@@ -66,15 +69,18 @@ ByteArray cursorToString(CXCursor cursor)
         ret += fileName.data();
         ret += ',';
         ret += ByteArray::number(off);
-        ret += " (";
-        CXSourceRange range = clang_getCursorExtent(cursor);
-        unsigned start, end;
-        clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
-        clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-        ret += ByteArray::number(start);
-        ret += '-';
-        ret += ByteArray::number(end);
-        ret += ')';
+
+        if (flags & IncludeRange) {
+            ret += " (";
+            CXSourceRange range = clang_getCursorExtent(cursor);
+            unsigned start, end;
+            clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
+            clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
+            ret += ByteArray::number(start);
+            ret += '-';
+            ret += ByteArray::number(end);
+            ret += ')';
+        }
     }
     return ret;
 }

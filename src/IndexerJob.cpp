@@ -859,18 +859,17 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
     assert(dump->job);
     Location loc = dump->job->createLocation(cursor);
     if (loc.fileId()) {
-
         CXCursor ref = clang_getCursorReferenced(cursor);
 
         ByteArray out;
         out.reserve(256);
         if (dump->indent >= 0)
             out += ByteArray(dump->indent, ' ');
-        out += RTags::cursorToString(cursor);
+        out += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
         if (clang_equalCursors(ref, cursor)) {
             out += " refs self";
         } else if (!clang_equalCursors(ref, nullCursor)) {
-            out += " refs " + RTags::cursorToString(ref);
+            out += " refs " + RTags::cursorToString(ref, RTags::AllCursorToStringFlags);
         }
         dump->job->write(out);
     }
