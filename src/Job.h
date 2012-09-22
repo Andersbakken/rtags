@@ -46,8 +46,6 @@ public:
     void setQueryFlags(unsigned queryFlags) { mQueryFlags = queryFlags; }
     unsigned keyFlags() const;
     inline bool filter(const ByteArray &val) const;
-    virtual void run();
-    virtual void execute() {}
     signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
     shared_ptr<Project> project() const { return mProject; }
 private:

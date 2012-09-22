@@ -11,7 +11,7 @@ StatusJob::StatusJob(const QueryMessage &q, const shared_ptr<Project> &project)
 {
 }
 
-void StatusJob::execute()
+void StatusJob::run()
 {
     bool matched = false;
 //     Server *server = Server::instance();

@@ -15,7 +15,7 @@ ListSymbolsJob::ListSymbolsJob(const QueryMessage &query, const shared_ptr<Proje
 {
 }
 
-void ListSymbolsJob::execute()
+void ListSymbolsJob::run()
 {
     List<ByteArray> out;
     const bool hasFilter = Job::hasFilter();

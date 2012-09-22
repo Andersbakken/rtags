@@ -301,6 +301,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::FindFile:
         id = findFile(*message);
         break;
+    case QueryMessage::DumpFile:
+        id = dumpFile(*message, conn);
+        break;
     case QueryMessage::DeleteProject: {
         RegExp rx(message->query());
         Set<Path> remove;
@@ -452,6 +455,34 @@ int Server::findFile(const QueryMessage &query)
     }
 
     FindFileJob *job = new FindFileJob(query, project);
+    job->setId(nextId());
+    startJob(job);
+    return job->id();
+}
+
+int Server::dumpFile(const QueryMessage &query, Connection *conn)
+{
+    const uint32_t fileId = Location::fileId(query.query());
+    if (!fileId) {
+        conn->write(query.query() + " is not indexed");
+        return 0;
+    }
+
+    Location loc(fileId, 0);
+    updateProjectForLocation(loc);
+
+    shared_ptr<Project> project = currentProject();
+    if (!project || !project->indexer) {
+        conn->write(query.query() + " is not indexed");
+        return 0;
+    }
+    const List<ByteArray> args = project->indexer->compileArguments(fileId);
+    if (args.isEmpty()) {
+        conn->write(query.query() + " is not indexed");
+        return 0;
+    }
+
+    IndexerJob *job = new IndexerJob(query, project, Location::path(fileId), args);
     job->setId(nextId());
     startJob(job);
     return job->id();

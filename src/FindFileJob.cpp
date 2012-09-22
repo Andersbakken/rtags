@@ -17,7 +17,7 @@ FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &p
     }
 }
 
-void FindFileJob::execute()
+void FindFileJob::run()
 {
     shared_ptr<Project> proj = project();
     if (!proj || !proj->fileManager)

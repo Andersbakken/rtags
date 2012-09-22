@@ -19,7 +19,7 @@ struct IndexData {
     ByteArray message;
 };
 
-class IndexerJob : public ThreadPool::Job
+class IndexerJob : public Job
 {
 public:
     enum Flag {
@@ -29,6 +29,9 @@ public:
     };
     IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags,
                const Path &input, const List<ByteArray> &arguments);
+    IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
+               const Path &input, const List<ByteArray> &arguments);
+
     int priority() const { return mFlags & Priorities; }
     shared_ptr<IndexData> data() const { return mData; }
     bool restart(time_t time, const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pendingFiles);
@@ -49,6 +52,7 @@ private:
     ByteArray addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDb);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData);
+    static CXChildVisitResult dumpVisitor(CXCursor cursor, CXCursor, CXClientData userData);
 
     static void inclusionVisitor(CXFile included_file, CXSourceLocation *include_stack,
                                  unsigned include_len, CXClientData client_data);

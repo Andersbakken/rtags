@@ -42,7 +42,7 @@ static inline bool isDefinition(const SymbolMap &symbols, const Location &loc)
     return it != symbols.end() && it->second.isDefinition;
 }
 
-void FindSymbolsJob::execute()
+void FindSymbolsJob::run()
 {
     Map<Location, bool> out;
     if (project()->indexer) {

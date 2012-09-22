@@ -14,7 +14,7 @@ class FindFileJob : public Job
 public:
     FindFileJob(const QueryMessage &query, const shared_ptr<Project> &project);
 protected:
-    virtual void execute();
+    virtual void run();
 private:
     ByteArray mPattern;
     RegExp mRegExp;

@@ -192,6 +192,7 @@ static void help(FILE *f, const char* app)
             "  --reindex|-V [optional regexp]            Reindex all files or all files matching pattern\n"
             "  --wait-for-indexing|-X                    Wait for indexing to finish before doing query\n"
             "  --path|-P [optional pattern]              Print files matching pattern\n"
+            "  --dump-file|-d [file]                     Dump source file\n"
             "  --absolute-path|-K                        Print files with absolute path\n"
             "  --match-regexp|-Z                         Treat various text patterns as regexps (-P, -i, -V)\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
@@ -248,13 +249,14 @@ bool RClient::parse(int &argc, char **argv)
         { "grtag", optional_argument, 0, 't' },
         { "socket-file", required_argument, 0, 'n' },
         { "always-make", no_argument, 0, 'B' },
+        { "dump-file", required_argument, 0, 'd' },
         { 0, 0, 0, 0 }
     };
 
     unsigned logFlags = 0;
     Path logFile;
 
-    // Unused: djJcyk
+    // Unused: jJcyk
 
     const ByteArray shortOptions = RTags::shortOptions(opts);
 
@@ -438,6 +440,7 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case 'T':
         case 'x':
+        case 'd':
         case 'Q': {
             const Path p = Path::resolved(optarg);
             if (!p.isFile()) {
@@ -449,6 +452,7 @@ bool RClient::parse(int &argc, char **argv)
             case 'T': type = QueryMessage::Test; break;
             case 'x': type = QueryMessage::FixIts; break;
             case 'Q': type = QueryMessage::Errors; break;
+            case 'd': type = QueryMessage::DumpFile; break;
             }
 
             addQuery(type, p);

@@ -4,10 +4,34 @@
 #include "Server.h"
 #include "EventLoop.h"
 
+struct DumpUserData {
+    int indent;
+    IndexerJob *job;
+};
+
+struct FindImplicitEqualsConstructorUserData {
+    CXCursor &ref;
+    bool &success;
+};
+
+struct VerboseVisitorUserData {
+    int indent;
+    ByteArray out;
+    IndexerJob *job;
+};
+
 IndexerJob::IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags, const Path &p, const List<ByteArray> &arguments)
-    : mFlags(flags), mTimeStamp(0), mPath(p), mFileId(Location::insertFile(p)),
+    : Job(0, indexer->project()),
+      mFlags(flags), mTimeStamp(0), mPath(p), mFileId(Location::insertFile(p)),
       mArgs(arguments), mIndexer(indexer), mUnit(0), mIndex(0),
       mIgnoreConstructorRefs(false)
+{
+}
+
+IndexerJob::IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
+                       const Path &input, const List<ByteArray> &arguments)
+    : Job(msg, WriteUnfiltered|WriteBuffered, project), mFlags(0), mTimeStamp(0), mPath(input), mFileId(Location::insertFile(input)),
+      mArgs(arguments), mUnit(0), mIndex(0), mIgnoreConstructorRefs(false)
 {
 }
 
@@ -205,11 +229,6 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
     return ret;
 }
 
-struct FindImplicitEqualsConstructorUserData
-{
-    CXCursor &ref;
-    bool &success;
-};
 static CXChildVisitResult findImplicitEqualsConstructor(CXCursor cursor, CXCursor, CXClientData data)
 {
     if (clang_getCursorKind(cursor) == CXCursor_UnexposedExpr) {
@@ -235,7 +254,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
     if (type == RTags::Other)
         return CXChildVisit_Recurse;
 
-    bool blocked;
+    bool blocked = false;
     Location loc = job->createLocation(cursor, &blocked);
     if (blocked) {
         switch (kind) {
@@ -244,6 +263,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
         case CXCursor_Destructor:
         case CXCursor_Constructor:
         case CXCursor_VarDecl:
+        case CXCursor_FunctionTemplate:
             job->mHeaderMap[clang_getCursorUSR(cursor)] = job->createLocation(cursor, 0);
             return CXChildVisit_Continue;
         case CXCursor_ClassDecl:
@@ -720,13 +740,6 @@ void IndexerJob::diagnose()
     }
 }
 
-struct VerboseVisitorUserData
-{
-    int indent;
-    ByteArray out;
-    IndexerJob *job;
-};
-
 void IndexerJob::visit()
 {
     if (!mUnit)
@@ -764,21 +777,29 @@ void IndexerJob::visit()
 void IndexerJob::run()
 {
     mData.reset(new IndexData);
-    typedef void (IndexerJob::*Function)();
-    Function functions[] = { &IndexerJob::parse, &IndexerJob::diagnose, &IndexerJob::visit };
-    for (unsigned i=0; i<sizeof(functions) / sizeof(Function); ++i) {
-        (this->*functions[i])();
-        if (isAborted())
-            break;
-    }
+    if (mIndexer.lock()) {
+        typedef void (IndexerJob::*Function)();
+        Function functions[] = { &IndexerJob::parse, &IndexerJob::diagnose, &IndexerJob::visit };
+        for (unsigned i=0; i<sizeof(functions) / sizeof(Function); ++i) {
+            (this->*functions[i])();
+            if (isAborted())
+                break;
+        }
 
-    mHeaderMap.clear();
-    char buf[1024];
-    const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %sms. (%d syms, %d refs, %d deps, %d symNames)%s",
-                           mPath.constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
-                           mData->symbols.size(), mData->references.size(), mData->dependencies.size(), mData->symbolNames.size(),
-                           mFlags & Dirty ? " (dirty)" : "");
-    mData->message = ByteArray(buf, w);
+        mHeaderMap.clear();
+        char buf[1024];
+        const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %sms. (%d syms, %d refs, %d deps, %d symNames)%s",
+                               mPath.constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
+                               mData->symbols.size(), mData->references.size(), mData->dependencies.size(), mData->symbolNames.size(),
+                               mFlags & Dirty ? " (dirty)" : "");
+        mData->message = ByteArray(buf, w);
+    } else {
+        parse();
+        if (mUnit) {
+            DumpUserData u = { 0, this };
+            clang_visitChildren(clang_getTranslationUnitCursor(mUnit), dumpVisitor, &u);
+        }
+    }
     if (mUnit) {
         clang_disposeTranslationUnit(mUnit);
         mUnit = 0;
@@ -825,6 +846,37 @@ CXChildVisitResult IndexerJob::verboseVisitor(CXCursor cursor, CXCursor, CXClien
         u->indent += 2;
         clang_visitChildren(cursor, verboseVisitor, userData);
         u->indent -= 2;
+        return CXChildVisit_Continue;
+    } else {
+        return CXChildVisit_Recurse;
+    }
+}
+
+CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientData userData)
+{
+    DumpUserData *dump = reinterpret_cast<DumpUserData*>(userData);
+    assert(dump);
+    assert(dump->job);
+    Location loc = dump->job->createLocation(cursor);
+    if (loc.fileId()) {
+
+        CXCursor ref = clang_getCursorReferenced(cursor);
+
+        ByteArray out;
+        out.reserve(256);
+        if (dump->indent >= 0)
+            out += ByteArray(dump->indent, ' ');
+        out += RTags::cursorToString(cursor);
+        if (clang_equalCursors(ref, cursor)) {
+            out += " refs self";
+        } else if (!clang_equalCursors(ref, nullCursor)) {
+            out += " refs " + RTags::cursorToString(ref);
+        }
+        dump->job->write(out);
+    }
+    if (dump->indent >= 0) {
+        DumpUserData userData = { dump->indent + 2, dump->job };
+        clang_visitChildren(cursor, dumpVisitor, &userData);
         return CXChildVisit_Continue;
     } else {
         return CXChildVisit_Recurse;

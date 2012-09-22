@@ -15,7 +15,7 @@ public:
     ReferencesJob(const Location &location, const QueryMessage &query, const shared_ptr<Project> &project);
     ReferencesJob(const ByteArray &symbolName, const QueryMessage &query, const shared_ptr<Project> &project);
 protected:
-    virtual void execute();
+    virtual void run();
 private:
     void process(const SymbolMap &map, const Location &pos, const CursorInfo &cursorInfo);
     Set<Location> locations, references, additional;

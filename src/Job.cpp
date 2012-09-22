@@ -119,11 +119,6 @@ bool Job::write(const Location &location, const CursorInfo &ci, unsigned flags)
     return true;
 }
 
-void Job::run()
-{
-    execute();
-}
-
 unsigned Job::keyFlags() const
 {
     return QueryMessage::keyFlags(mQueryFlags);

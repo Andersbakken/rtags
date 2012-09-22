@@ -14,7 +14,7 @@ ReferencesJob::ReferencesJob(const ByteArray &sym, const QueryMessage &query, co
 {
 }
 
-void ReferencesJob::execute()
+void ReferencesJob::run()
 {
     shared_ptr<Project> proj = project();
     const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;

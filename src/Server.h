@@ -84,6 +84,7 @@ private:
     int status(const QueryMessage &query);
     int test(const QueryMessage &query);
     int findFile(const QueryMessage &query);
+    int dumpFile(const QueryMessage &query, Connection *conn);
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);

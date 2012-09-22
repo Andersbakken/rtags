@@ -28,6 +28,7 @@ public:
         Project,
         DeleteProject,
         FindFile,
+        DumpFile,
         Shutdown
     };
 
