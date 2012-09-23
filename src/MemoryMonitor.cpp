@@ -67,9 +67,10 @@ static bool lineVisitor(char* line, void* userData)
 {
     VisitorData* data = static_cast<VisitorData*>(userData);
 
-    if (!strncmp("REGION TYPE", line, 11))
-        data->regionFound = true;
-    if (data->regionFound && !strncmp("TOTAL", line, 5)) {
+    if (!data->regionFound) {
+        if (!strncmp("REGION TYPE", line, 11))
+            data->regionFound = true;
+    } else if (!strncmp("TOTAL", line, 5)) {
         data->total = (atof(line + 5) * (1024 * 1024));
         return false;
     }
