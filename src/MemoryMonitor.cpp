@@ -1,14 +1,26 @@
 #include "MemoryMonitor.h"
-#include <ByteArray.h>
-#include <List.h>
+#include "ByteArray.h"
+#include "List.h"
+#include "Log.h"
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
+#ifdef OS_Darwin
+# include "Mutex.h"
+# include "MutexLocker.h"
+# include <pthread.h>
+# include <mach/mach_traps.h>
+# include <mach/mach_init.h>
+# include <mach/mach_port.h>
+# include <mach/mach_vm.h>
+#endif
 
 MemoryMonitor::MemoryMonitor()
 {
 }
 
+#if defined(OS_Linux)
 typedef bool (*LineVisitor)(char*, void*);
 static void visitLine(FILE* stream, LineVisitor visitor, void* userData)
 {
@@ -25,7 +37,6 @@ static void visitLine(FILE* stream, LineVisitor visitor, void* userData)
     }
 }
 
-#if defined(OS_Linux)
 static bool lineVisitor(char* line, void* userData)
 {
     int* total = static_cast<int*>(userData);
@@ -57,42 +68,52 @@ static inline uint64_t usageFreeBSD()
     return 0;
 }
 #elif defined(OS_Darwin)
-struct VisitorData
+static pthread_once_t mutexOnce = PTHREAD_ONCE_INIT;
+static Mutex* mutex;
+
+static void initMutex()
 {
-    bool regionFound;
-    uint64_t total;
-};
-
-static bool lineVisitor(char* line, void* userData)
-{
-    VisitorData* data = static_cast<VisitorData*>(userData);
-
-    if (!data->regionFound) {
-        if (!strncmp("REGION TYPE", line, 11))
-            data->regionFound = true;
-    } else if (!strncmp("TOTAL", line, 5)) {
-        data->total = (atof(line + 5) * (1024 * 1024));
-        return false;
-    }
-
-    return true;
+    mutex = new Mutex;
 }
 
 static inline uint64_t usageOSX()
 {
-    const pid_t pid = getpid();
-    char buf[64];
-    snprintf(buf, 64, "/usr/bin/vmmap %d", pid);
-    FILE* p = popen(buf, "r");
-    if (!p)
-        return 0;
+    if (pthread_once(&mutexOnce, initMutex)) {
+        // something bad happened
+        error("MemoryMonitor::usageOSX: pthread_once failure %d %s\n",
+              errno, strerror(errno));
+        abort();
+    }
 
-    VisitorData data = { false, 0 };
-    visitLine(p, lineVisitor, &data);
+    MutexLocker locker(mutex);
 
-    pclose(p);
+    int total = 0;
 
-    return data.total;
+    kern_return_t kr;
+    mach_vm_size_t vmsize;
+    mach_vm_address_t address;
+    vm_region_basic_info_data_64_t info;
+    mach_msg_type_number_t info_count;
+    memory_object_name_t object;
+
+    const vm_map_t task = mach_task_self();
+    const vm_region_flavor_t flavor = VM_REGION_BASIC_INFO_64;
+
+    do {
+        info_count = VM_REGION_BASIC_INFO_COUNT_64;
+        kr = mach_vm_region(task, &address, &vmsize, flavor,
+                            (vm_region_info_t)&info, &info_count, &object);
+        if (kr == KERN_SUCCESS) {
+            if (info.inheritance == VM_INHERIT_COPY) {
+                total += vmsize;
+            }
+            address += vmsize;
+        } else if (kr != KERN_INVALID_ADDRESS) {
+            return 0;
+        }
+    } while (kr != KERN_INVALID_ADDRESS);
+
+    return total;
 }
 #endif
 
