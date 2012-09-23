@@ -29,7 +29,7 @@ public:
         return it->second;
     }
 
-    Value take(const Key &key, bool *ok = false)
+    Value take(const Key &key, bool *ok = 0)
     {
         Value ret;
         if (remove(key, &ret)) {
