@@ -909,13 +909,21 @@ shared_ptr<Project> Server::setCurrentProject(const Path &path)
 
 bool Server::updateProjectForLocation(const Location &location)
 {
+    shared_ptr<Project> match;
+    int longest = -1;
     const Path path = location.path();
     for (Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         if (!strncmp(it->second->srcRoot.constData(), path.constData(), it->second->srcRoot.size())) {
-            setCurrentProject(it->second);
-            return true;
+            const int matchLength = it->second->srcRoot.size();
+            if (matchLength > longest) {
+                match = it->second;
+                longest = matchLength;
+            }
         }
-
+    }
+    if (match) {
+        setCurrentProject(match);
+        return true;
     }
     return false;
 }
