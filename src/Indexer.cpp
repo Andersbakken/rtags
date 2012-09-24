@@ -274,13 +274,13 @@ static inline void writeCursors(const SymbolMap &symbols, Scope<SymbolMap&> &cur
     }
 }
 
-static inline void writeReferenecs(const ReferenceMap &references, Scope<SymbolMap&> &cur)
+static inline void writeReferences(const ReferenceMap &references, Scope<SymbolMap&> &cur)
 {
     SymbolMap &symbols = cur.data();
     if (!references.isEmpty()) {
         const ReferenceMap::const_iterator end = references.end();
         for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
-            const Map<Location, RTags::ReferenceType> refs = it->second;
+            const Map<Location, RTags::ReferenceType> &refs = it->second;
             for (Map<Location, RTags::ReferenceType>::const_iterator rit = refs.begin(); rit != refs.end(); ++rit) {
                 CursorInfo &ci = symbols[rit->first];
                 if (rit->second != RTags::NormalReference) {
@@ -316,7 +316,7 @@ void Indexer::write()
         addDependencies(data->dependencies, newFiles);
         addDiagnostics(data->diagnostics, data->fixIts);
         writeCursors(data->symbols, symbols);
-        writeReferenecs(data->references, symbols);
+        writeReferences(data->references, symbols);
         writeSymbolNames(data->symbolNames, symbolNames);
     }
     Timer timer;
