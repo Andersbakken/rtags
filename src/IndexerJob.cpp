@@ -797,6 +797,16 @@ void IndexerJob::run()
         parse();
         if (mUnit) {
             DumpUserData u = { 0, this };
+            // FILE *f = fopen(mPath.constData(), "r");
+            // if (f) {
+            //     char line[1024];
+            //     int len;
+            //     while ((len = RTags::readLine(f, line, sizeof(line))) != -1) {
+            //         u.lines.append(ByteArray(line, len));
+            //         u.longest = std::max(u.longest, len);
+            //     }
+            //     fclose(f);
+            // }
             clang_visitChildren(clang_getTranslationUnitCursor(mUnit), dumpVisitor, &u);
         }
     }
@@ -861,10 +871,18 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
     if (loc.fileId()) {
         CXCursor ref = clang_getCursorReferenced(cursor);
 
-        ByteArray out;
+        ByteArray out = loc.context();
         out.reserve(256);
-        if (dump->indent >= 0)
-            out += ByteArray(dump->indent, ' ');
+        enum { Width = 80 };
+        int indent = dump->indent;
+        if (out.size() > Width) {
+            out.truncate(Width);
+            indent += 1;
+        } else {
+            indent += (Width - out.size()) + 1;
+        }
+        if (indent >= 0)
+            out += ByteArray(indent, ' ');
         out += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
         if (clang_equalCursors(ref, cursor)) {
             out += " refs self";
@@ -873,11 +891,8 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
         }
         dump->job->write(out);
     }
-    if (dump->indent >= 0) {
-        DumpUserData userData = { dump->indent + 2, dump->job };
-        clang_visitChildren(cursor, dumpVisitor, &userData);
-        return CXChildVisit_Continue;
-    } else {
-        return CXChildVisit_Recurse;
-    }
+    dump->indent += 2;
+    clang_visitChildren(cursor, dumpVisitor, userData);
+    dump->indent -= 2;
+    return CXChildVisit_Continue;
 }
