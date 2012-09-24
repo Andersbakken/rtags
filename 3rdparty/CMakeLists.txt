@@ -25,7 +25,7 @@ ExternalProject_Add(
     llvm
     SOURCE_DIR ./llvm
     GIT_REPOSITORY "http://llvm.org/git/llvm.git"
-    GIT_TAG "release_31"
+    #GIT_TAG "release_31"
     BINARY_DIR "llvm_build"
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/clang_install -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     UPDATE_COMMAND ""
@@ -42,7 +42,7 @@ ExternalProject_Add(
     clang
     SOURCE_DIR ./clang
     GIT_REPOSITORY "http://llvm.org/git/clang.git"
-    GIT_TAG "release_31"
+    #GIT_TAG "release_31"
     BINARY_DIR "clang_build"
     UPDATE_COMMAND ""
     CMAKE_ARGS -DCLANG_PATH_TO_LLVM_BUILD=../llvm_build -DCLANG_PATH_TO_LLVM_SOURCE=../llvm -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/clang_install -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}

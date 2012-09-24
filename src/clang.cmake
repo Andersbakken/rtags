@@ -22,5 +22,5 @@ if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
     ${clang_ROOT}/lib/libclangEdit.a
     ${clang_ROOT}/lib/libclangAnalysis.a)
 else()
-    set(clang_LIBS ${clang_ROOT}/lib/liblibclang.so)
+    set(clang_LIBS ${clang_ROOT}/lib/libclang.so)
 endif()
