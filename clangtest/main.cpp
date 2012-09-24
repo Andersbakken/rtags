@@ -95,6 +95,82 @@ void Node::dump(int indent)
     }
 }
 
+
+static inline const char *kindToString(CXIdxEntityKind kind)
+{
+    switch (kind) {
+    case CXIdxEntity_Unexposed: return "Unexposed";
+    case CXIdxEntity_Typedef: return "Typedef";
+    case CXIdxEntity_Function: return "Function";
+    case CXIdxEntity_Variable: return "Variable";
+    case CXIdxEntity_Field: return "Field";
+    case CXIdxEntity_EnumConstant: return "EnumConstant";
+    case CXIdxEntity_ObjCClass: return "ObjCClass";
+    case CXIdxEntity_ObjCProtocol: return "ObjCProtocol";
+    case CXIdxEntity_ObjCCategory: return "ObjCCategory";
+    case CXIdxEntity_ObjCInstanceMethod: return "ObjCInstanceMethod";
+    case CXIdxEntity_ObjCClassMethod: return "ObjCClassMethod";
+    case CXIdxEntity_ObjCProperty: return "ObjCProperty";
+    case CXIdxEntity_ObjCIvar: return "ObjCIvar";
+    case CXIdxEntity_Enum: return "Enum";
+    case CXIdxEntity_Struct: return "Struct";
+    case CXIdxEntity_Union: return "Union";
+    case CXIdxEntity_CXXClass: return "CXXClass";
+    case CXIdxEntity_CXXNamespace: return "CXXNamespace";
+    case CXIdxEntity_CXXNamespaceAlias: return "CXXNamespaceAlias";
+    case CXIdxEntity_CXXStaticVariable: return "CXXStaticVariable";
+    case CXIdxEntity_CXXStaticMethod: return "CXXStaticMethod";
+    case CXIdxEntity_CXXInstanceMethod: return "CXXInstanceMethod";
+    case CXIdxEntity_CXXConstructor: return "CXXConstructor";
+    case CXIdxEntity_CXXDestructor: return "CXXDestructor";
+    case CXIdxEntity_CXXConversionFunction: return "CXXConversionFunction";
+    case CXIdxEntity_CXXTypeAlias: return "CXXTypeAlias";
+    }
+    return "";
+}
+
+void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
+{
+    CXFile f;
+    unsigned l, c, o;
+    clang_indexLoc_getFileLocation(decl->loc, 0, &f, &l, &c, &o);
+    char buf[1024];
+    getcwd(buf, sizeof(buf));
+    printf("%s/%s,%d %s %s\n",
+           buf, RTags::eatString(clang_getFileName(f)).constData(),
+           o, kindToString(decl->entityInfo->kind), decl->entityInfo->name);
+    switch (decl->entityInfo->kind) {
+    case CXIdxEntity_Field:
+    case CXIdxEntity_Variable:
+    case CXIdxEntity_Function:
+    case CXIdxEntity_CXXInstanceMethod:
+    case CXIdxEntity_CXXConstructor:
+        // clang_visitChildren(decl->cursor, visitor, 0);
+        break;
+    default:
+        break;
+    }
+}
+
+void indexEntityReference(CXClientData, const CXIdxEntityRefInfo *ref)
+{
+    CXFile f;
+    unsigned l, c, o;
+    clang_indexLoc_getFileLocation(ref->loc, 0, &f, &l, &c, &o);
+
+    CXSourceLocation loc = clang_getCursorLocation(ref->referencedEntity->cursor);
+    CXFile f2;
+    unsigned l2, c2, o2;
+    clang_getInstantiationLocation(loc, &f2, &l2, &c2, &o2);
+    char buf[1024];
+    getcwd(buf, sizeof(buf));
+    printf("%s/%s,%d ref of %s/%s,%d %s %s\n", buf,
+           RTags::eatString(clang_getFileName(f)).constData(), o,
+           buf, RTags::eatString(clang_getFileName(f2)).constData(), o2,
+           kindToString(ref->referencedEntity->kind),
+           ref->referencedEntity->name);
+}
+
 int main(int argc, char **argv)
 {
     Timer timer;
@@ -109,7 +185,24 @@ int main(int argc, char **argv)
         clang_visitChildren(clang_getTranslationUnitCursor(unit), visitAll, &root);
         root.dump();
         clang_disposeTranslationUnit(unit);
+        unit = 0;
     }
+    clang_IndexAction_create(index);
+    CXIndexAction b;
+    CXIndexAction action = clang_IndexAction_create(index);
+    IndexerCallbacks cb;
+    memset(&cb, 0, sizeof(IndexerCallbacks));
+    cb.indexDeclaration = indexDeclaration;
+    cb.indexEntityReference = indexEntityReference;
+
+    const char* filename = (argc < 2 ? "test.cpp" : argv[1]);
+
+    clang_indexSourceFile(action, 0, &cb, sizeof(IndexerCallbacks),
+                          CXIndexOpt_IndexFunctionLocalSymbols,
+                          filename,
+                          args, sizeof(args) / sizeof(args[0]),
+                          0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
+
     clang_disposeIndex(index);
     return 0;
 }
