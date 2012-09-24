@@ -540,8 +540,10 @@ return t if rtags is allowed to modify this file"
       (setq buffer-read-only t)
       (compilation-mode)
       (local-set-key "c" 'rtags-clear-diagnostics))
-    (if (or (not rtags-diagnostics-process)
-            (eq (process-status rtags-diagnostics-process) 'exit))
+    (if (cond ((not rtags-diagnostics-process) t)
+              ((eq (process-status rtags-diagnostics-process) 'exit) t)
+              ((eq (process-status rtags-diagnostics-process) 'signal) t)
+              (t nil))
         (progn
           (setq rtags-diagnostics-process
                 (start-process
