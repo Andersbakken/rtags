@@ -5,7 +5,7 @@
 #include "EventLoop.h"
 
 struct DumpUserData {
-    int indent;
+    int indentLevel;
     IndexerJob *job;
 };
 
@@ -871,28 +871,30 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
     if (loc.fileId()) {
         CXCursor ref = clang_getCursorReferenced(cursor);
 
-        ByteArray out = loc.context();
+        ByteArray out;
         out.reserve(256);
-        enum { Width = 80 };
-        int indent = dump->indent;
-        if (out.size() > Width) {
-            out.truncate(Width);
-            indent += 1;
+        int col = -1;
+        out.append(loc.context(&col));
+        if (col != -1) {
+            char buf[32];
+            const int w = snprintf(buf, sizeof(buf), " // %d, %d: ", col, dump->indentLevel);
+            out.append(buf, w);
         } else {
-            indent += (Width - out.size()) + 1;
+            char buf[32];
+            const int w = snprintf(buf, sizeof(buf), " // %d: ", dump->indentLevel);
+            out.append(buf, w);
         }
-        if (indent >= 0)
-            out += ByteArray(indent, ' ');
-        out += RTags::cursorToString(cursor, RTags::AllCursorToStringFlags);
+        out.append(RTags::cursorToString(cursor, RTags::AllCursorToStringFlags));
         if (clang_equalCursors(ref, cursor)) {
-            out += " refs self";
+            out.append(" refs self");
         } else if (!clang_equalCursors(ref, nullCursor)) {
-            out += " refs " + RTags::cursorToString(ref, RTags::AllCursorToStringFlags);
+            out.append(" refs ");
+            out.append(RTags::cursorToString(ref, RTags::AllCursorToStringFlags));
         }
         dump->job->write(out);
     }
-    dump->indent += 2;
+    ++dump->indentLevel;
     clang_visitChildren(cursor, dumpVisitor, userData);
-    dump->indent -= 2;
+    --dump->indentLevel;
     return CXChildVisit_Continue;
 }

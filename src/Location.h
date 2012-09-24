@@ -146,7 +146,7 @@ public:
         return offset() > other.offset();
     }
 
-    ByteArray context() const;
+    ByteArray context(int *column = 0) const;
     bool convertOffset(int &line, int &col) const;
 
     enum KeyFlag {

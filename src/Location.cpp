@@ -45,7 +45,7 @@ ByteArray Location::key(unsigned flags) const
     return ret;
 }
 
-ByteArray Location::context() const
+ByteArray Location::context(int *column) const
 {
     const uint32_t off = offset();
     uint32_t o = off;
@@ -64,6 +64,8 @@ ByteArray Location::context() const
         char buf[1024] = { '\0' };
         const int len = RTags::readLine(f, buf, 1023);
         fclose(f);
+        if (column)
+            *column = (off - o - 1);
         return ByteArray(buf, len);
     }
     if (f)
