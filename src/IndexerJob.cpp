@@ -793,7 +793,7 @@ void IndexerJob::run()
                                mData->symbols.size(), mData->references.size(), mData->dependencies.size(), mData->symbolNames.size(),
                                mFlags & Dirty ? " (dirty)" : "");
         mData->message = ByteArray(buf, w);
-    } else {
+    } else if (project()) {
         parse();
         if (mUnit) {
             DumpUserData u = { 0, this };
