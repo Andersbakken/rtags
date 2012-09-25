@@ -339,6 +339,16 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     case CXCursor_MemberRefExpr:
         processRef = (refKind == CXCursor_FieldDecl);
         break;
+    case CXCursor_CallExpr:
+        if (refKind == CXCursor_CXXMethod) {
+            // these are bullshit, for this construct:
+            // foo.bar();
+            // the position of the cursor is at the foo, not the bar.
+            // They are not interesting for followLocation, renameSymbol or find
+            // references so we toss them.
+            return;
+        }
+        break;
     case CXCursor_MacroExpansion:
     case CXCursor_LabelRef:
         processRef = true;
