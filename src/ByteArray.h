@@ -341,7 +341,7 @@ public:
         return ret;
     }
     template <int StaticBufSize>
-    static ByteArray snprintf(int bufferSize, const char *format, ...)
+    static ByteArray snprintf(const char *format, ...)
     {
         va_list args;
         va_start(args, format);

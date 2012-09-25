@@ -229,7 +229,7 @@ void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
 void Server::handleGRTagMessage(GRTagsMessage *message, Connection *conn)
 {
     if (grtag(message->path()))
-        conn->write("Parsing " + message->path());
+        conn->write<256>("Parsing %s", message->path().constData());
     conn->finish();
 }
 
@@ -465,21 +465,21 @@ int Server::dumpFile(const QueryMessage &query, Connection *conn)
 {
     const uint32_t fileId = Location::fileId(query.query());
     if (!fileId) {
-        conn->write(query.query() + " is not indexed");
+        conn->write<256>("%s is not indexed", query.query().constData());
         return 0;
-    }
+ }
 
     Location loc(fileId, 0);
     updateProjectForLocation(loc);
 
     shared_ptr<Project> project = currentProject();
     if (!project || !project->indexer) {
-        conn->write(query.query() + " is not indexed");
+        conn->write<256>("%s is not indexed", query.query().constData());
         return 0;
     }
     const List<ByteArray> args = project->indexer->compileArguments(fileId);
     if (args.isEmpty()) {
-        conn->write(query.query() + " is not indexed");
+        conn->write<256>("%s is not indexed", query.query().constData());
         return 0;
     }
 
@@ -673,11 +673,9 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
     }
 
     const int count = project->indexer->reindex(query.query(), query.flags() & QueryMessage::MatchRegexp);
-    error() << count << query.query();
+    // error() << count << query.query();
     if (count) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "Dirtied %d files", count);
-        conn->write(buf);
+        conn->write<128>("Dirtied %d files", count);
     } else {
         conn->write("No matches");
     }

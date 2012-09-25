@@ -127,7 +127,7 @@ void Connection::dataWritten(int bytes)
     }
 }
 
-void Connection::write(const ByteArray &out)
+void Connection::writeAsync(const ByteArray &out)
 {
     EventLoop::instance()->postEvent(this, new ResponseMessageEvent(out));
 }

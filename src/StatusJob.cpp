@@ -117,17 +117,14 @@ void StatusJob::run()
             write(delimiter);
             write("symbolnames");
             write(delimiter);
-            char buf[1024];
             for (SymbolNameMap::const_iterator it = map.begin(); it != map.end(); ++it) {
                 if (isAborted())
                     return;
-                snprintf(buf, sizeof(buf), "  %s", it->first.constData());
-                write(buf);
+                write<128>("  %s", it->first.constData());
                 const Set<Location> &locations = it->second;
                 for (Set<Location>::const_iterator lit = locations.begin(); lit != locations.end(); ++lit) {
                     const Location &loc = *lit;
-                    snprintf(buf, sizeof(buf), "    %s", loc.key().constData());
-                    write(buf);
+                    write<1024>("    %s", loc.key().constData());
                 }
             }
         }

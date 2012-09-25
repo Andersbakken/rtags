@@ -25,7 +25,23 @@ public:
     template<typename T>
     bool send(const T *message);
     bool send(int id, const ByteArray& message);
-    void write(const ByteArray &out);
+    template <int StaticBufSize>
+    void write(const char *format, ...)
+    {
+        va_list args;
+        va_start(args, format);
+        const ByteArray ret = ByteArray::snprintf<StaticBufSize>(format, args);
+        va_end(args);
+        ResponseMessage msg(ret);
+        send(&msg);
+    }
+    void write(const ByteArray &out)
+    {
+        ResponseMessage msg(out);
+        send(&msg);
+    }
+
+    void writeAsync(const ByteArray &out);
     void finish();
 
     bool isConnected() const { return mClient->isConnected(); }

@@ -22,7 +22,7 @@ public:
 
     virtual void log(const char *msg, int len)
     {
-        mConnection->write(ByteArray(msg, len));
+        mConnection->writeAsync(ByteArray(msg, len));
     }
 private:
     Connection *mConnection;

@@ -43,7 +43,7 @@ Job::~Job()
 bool Job::write(const ByteArray &out, unsigned flags)
 {
     if (mJobFlags & WriteUnfiltered || filter(out)) {
-        if (mJobFlags & QuoteOutput) {
+        if ((mJobFlags & QuoteOutput) && !(flags & DontQuote)) {
             ByteArray o((out.size() * 2) + 2, '"');
             char *ch = o.data() + 1;
             int l = 2;

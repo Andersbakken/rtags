@@ -35,11 +35,13 @@ public:
     void setId(int id) { mId = id; }
     enum WriteFlag {
         NoWriteFlags = 0x0,
-        IgnoreMax = 0x1
+        IgnoreMax = 0x1,
+        DontQuote = 0x2
     };
     bool write(const ByteArray &out, unsigned flags = NoWriteFlags);
-    bool writeRaw(const ByteArray &out, unsigned flags = NoWriteFlags);
     bool write(const Location &location, const CursorInfo &info, unsigned flags = NoWriteFlags);
+    template <int StaticBufSize> bool write(unsigned flags, const char *format, ...);
+    template <int StaticBufSize> bool write(const char *format, ...);
     unsigned jobFlags() const { return mJobFlags; }
     void setJobFlags(unsigned flags) { mJobFlags = flags; }
     unsigned queryFlags() const { return mQueryFlags; }
@@ -49,6 +51,7 @@ public:
     signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
     shared_ptr<Project> project() const { return mProject; }
 private:
+    bool writeRaw(const ByteArray &out, unsigned flags);
     int mId;
     unsigned mJobFlags;
     unsigned mQueryFlags;
@@ -59,6 +62,26 @@ private:
     int mMax;
     ByteArray mBuffer;
 };
+
+template <int StaticBufSize>
+inline bool Job::write(unsigned flags, const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    const ByteArray ret = ByteArray::snprintf<StaticBufSize>(format, args);
+    va_end(args);
+    return write(ret, flags);
+}
+
+template <int StaticBufSize>
+inline bool Job::write(const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    const ByteArray ret = ByteArray::snprintf<StaticBufSize>(format, args);
+    va_end(args);
+    return write(ret);
+}
 
 inline bool Job::filter(const ByteArray &val) const
 {

@@ -24,7 +24,7 @@ void ListSymbolsJob::run()
     const bool elispList = queryFlags & QueryMessage::ElispList;
 
     if (elispList)
-        writeRaw("(list", IgnoreMax);
+        write("(list", IgnoreMax|DontQuote);
     if (project()->indexer) {
         Scope<const SymbolNameMap &> scope = project()->lockSymbolNamesForRead();
         const SymbolNameMap &map = scope.data();
@@ -82,7 +82,7 @@ void ListSymbolsJob::run()
     }
 
     if (elispList) {
-        writeRaw(")", IgnoreMax);
+        write(")", IgnoreMax|DontQuote);
     } else {
         if (queryFlags & QueryMessage::ReverseSort) {
             std::sort(out.begin(), out.end(), std::greater<ByteArray>());

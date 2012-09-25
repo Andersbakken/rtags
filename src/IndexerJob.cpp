@@ -644,12 +644,11 @@ void IndexerJob::run()
         }
 
         mHeaderMap.clear();
-        char buf[1024];
-        const int w = snprintf(buf, sizeof(buf), "Visited %s (%s) in %sms. (%d syms, %d refs, %d deps, %d symNames)%s",
-                               mPath.constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
-                               mData->symbols.size(), mData->references.size(), mData->dependencies.size(), mData->symbolNames.size(),
-                               mFlags & Dirty ? " (dirty)" : "");
-        mData->message = ByteArray(buf, w);
+        mData->message = ByteArray::snprintf<1024>("Visited %s (%s) in %sms. (%d syms, %d refs, %d deps, %d symNames)%s",
+                                                   mPath.constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
+                                                   mData->symbols.size(), mData->references.size(), mData->dependencies.size(), mData->symbolNames.size(),
+                                                   mFlags & Dirty ? " (dirty)" : "");
+
     } else if (project()) {
         parse();
         if (mUnit) {
@@ -733,13 +732,9 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
         int col = -1;
         out.append(loc.context(&col));
         if (col != -1) {
-            char buf[32];
-            const int w = snprintf(buf, sizeof(buf), " // %d, %d: ", col, dump->indentLevel);
-            out.append(buf, w);
+            out.append(ByteArray::snprintf<32>(" // %d, %d: ", col, dump->indentLevel));
         } else {
-            char buf[32];
-            const int w = snprintf(buf, sizeof(buf), " // %d: ", dump->indentLevel);
-            out.append(buf, w);
+            out.append(ByteArray::snprintf<32>(" // %d: ", dump->indentLevel));
         }
         out.append(RTags::cursorToString(cursor, RTags::AllCursorToStringFlags));
         if (clang_equalCursors(ref, cursor)) {
