@@ -24,7 +24,7 @@ public:
     {}
 
     ByteArray(const ByteArray &ba)
-        : mString(ba.mString)
+    : mString(ba.mString)
     {}
 
     ByteArray(const std::string &str)
@@ -313,7 +313,7 @@ public:
     static ByteArray number(long long num)
     {
         char buf[32];
-        const int w = snprintf(buf, sizeof(buf), "%lld", num);
+        const int w = ::snprintf(buf, sizeof(buf), "%lld", num);
         return ByteArray(buf, w);
     }
 
@@ -337,6 +337,36 @@ public:
             if (sepSize && i + 1 < list.size())
                 ret.append(sep);
         }
+        return ret;
+    }
+    template <int StaticBufSize>
+    static ByteArray snprintf(int bufferSize, const char *format, ...)
+    {
+        va_list args;
+        va_start(args, format);
+        const ByteArray ret = ByteArray::snprintf<StaticBufSize>(format, args);
+        va_end(args);
+        return ret;
+    }
+
+    template <int StaticBufSize>
+    static ByteArray snprintf(const char *format, va_list args)
+    {
+        va_list copy;
+        va_copy(copy, args);
+
+        char buffer[StaticBufSize];
+        char *ch = buffer;
+        int size = vsnprintf(buffer, StaticBufSize, format, args);
+        if (size >= StaticBufSize) {
+            ch = reinterpret_cast<char*>(malloc(size + 1));
+            size = vsnprintf(ch, size+1, format, copy);
+        }
+        ch[size] = 0;
+        va_end(copy);
+        const ByteArray ret(ch, size);
+        if (ch != buffer)
+            free(ch);
         return ret;
     }
 private:
