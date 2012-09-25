@@ -123,6 +123,7 @@ bool Server::init(const Options &options)
 
     {
         IniFile file(mOptions.projectsFile);
+        const Path resolvePath = mOptions.projectsFile.parentDir();
         List<ByteArray> makefiles = file.keys("Makefiles");
         int count = makefiles.size();
         for (int i=0; i<count; ++i) {
@@ -133,7 +134,7 @@ bool Server::init(const Options &options)
                 error("Can't parse makefile information %s", value.constData());
                 return false;
             }
-            const Path path = Path::resolved(makefiles.at(i));
+            const Path path = Path::resolved(makefiles.at(i), resolvePath);
             mMakefiles[path] = info;
             mMakefilesWatcher.watch(path);
         }
