@@ -80,9 +80,7 @@ bool Job::writeRaw(const ByteArray &out, unsigned flags)
         }
     }
 
-    if (mJobFlags & OutputSignalEnabled) {
-        output()(out);
-    } else if (mJobFlags & WriteBuffered) {
+    if (mJobFlags & WriteBuffered) {
         enum { BufSize = 16384 };
         if (mBuffer.size() + out.size() + 1 > BufSize) {
             EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, mBuffer, false));
