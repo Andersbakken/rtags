@@ -33,8 +33,7 @@ void ReferencesJob::run()
                 CursorInfo cursorInfo = RTags::findCursorInfo(map, *it, &pos);
                 startLocation = pos;
                 if (RTags::isReference(cursorInfo.kind)) {
-                    pos = cursorInfo.target;
-                    cursorInfo = RTags::findCursorInfo(map, cursorInfo.target, 0);
+                    cursorInfo = cursorInfo.bestTarget(map, &pos);
                 }
                 if (allReferences && (cursorInfo.kind == CXCursor_Constructor || cursorInfo.kind == CXCursor_Destructor)) {
                     // In this case we have additional references that are the
@@ -51,21 +50,21 @@ void ReferencesJob::run()
                     continue;
                 }
                 process(map, pos, cursorInfo);
-                if (cursorInfo.target.isValid()) {
-                    const CursorInfo target = RTags::findCursorInfo(map, cursorInfo.target, 0);
+                const Map<Location, CursorInfo> targets = cursorInfo.targetInfos(map);
+                for (Map<Location, CursorInfo>::const_iterator t = targets.begin(); t != targets.end(); ++t) {
+                    const CursorInfo &target = t->second;
                     if (target.kind == cursorInfo.kind) {
-                        process(map, cursorInfo.target, target);
+                        process(map, t->first, target);
                     }
                 }
 
                 for (Set<Location>::const_iterator ait = additional.begin(); ait != additional.end(); ++ait) {
                     cursorInfo = RTags::findCursorInfo(map, *ait, 0);
                     process(map, *ait, cursorInfo);
-                    if (cursorInfo.target.isValid()) {
-                        const CursorInfo target = RTags::findCursorInfo(map, cursorInfo.target, 0);
-                        if (target.kind == cursorInfo.kind) {
-                            process(map, cursorInfo.target, target);
-                        }
+                    Location l;
+                    const CursorInfo target = cursorInfo.bestTarget(map, &l);
+                    if (target.kind == cursorInfo.kind) {
+                        process(map, l, target);
                     }
                 }
                 additional.clear();

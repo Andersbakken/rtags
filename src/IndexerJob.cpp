@@ -358,42 +358,6 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind,
     bool processRef = false;
 
     switch (kind) {
-    case CXCursor_CallExpr:
-        /* CXCursor_CallExpr is the right thing to use for invocations of
-         * constructors but for CXXMethod it causes problems. Specifically because
-         * the ref is position on the member and is visited before the DeclRefExpr
-         * which we want.
-         */
-        switch (refKind) {
-        case CXCursor_CXXMethod:
-        case CXCursor_FunctionDecl:
-            return;
-        case CXCursor_Constructor: {
-            CXStringScope scope = clang_getCursorDisplayName(ref);
-            const char *data = scope.data();
-            const int len = data ? strlen(data) : 0;
-            if (len > 2 && !strncmp(data + len - 2, "()", 2) && isImplicit(ref))
-                return;
-
-            if (clang_getCursorKind(parent) == CXCursor_CXXFunctionalCastExpr) {
-                SymbolMap::iterator it = mData->symbols.find(loc);
-                if (it != mData->symbols.end() && it->second.kind == CXCursor_TypeRef) {
-                    const CXCursorKind existingRefKind = mData->symbols.value(it->second.target).kind;
-                    if (existingRefKind == CXCursor_FirstInvalid || existingRefKind == CXCursor_Constructor) {
-                        it->second.symbolLength = 0;
-                        it->second.target.clear();
-                    }
-                    // The typeRef comes first but we want the callexpr to be the cursor
-                    // e.g.
-                    // struct Foo { Foo(int) };
-                    // Foo(12); => refers to struct Foo instead of Foo(int)
-                    // we do want the reference on struct Foo for renaming reasons
-                }
-            }
-            break; }
-        default:
-            break;
-        }
     case CXCursor_TemplateRef:
         processRef = (refKind == CXCursor_ClassTemplate);
         break;
@@ -403,24 +367,6 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind,
         case CXCursor_NonTypeTemplateParameter:
             processRef = true;
             break;
-        case CXCursor_VarDecl: {
-            SymbolMap::iterator it = mData->symbols.find(loc);
-            if (it != mData->symbols.end() && it->second.kind == CXCursor_CallExpr) {
-                const CXCursorKind existingRefKind = mData->symbols.value(it->second.target).kind;
-                if (existingRefKind == CXCursor_FirstInvalid || existingRefKind == CXCursor_Constructor) {
-                    it->second.symbolLength = 0;
-                    it->second.target.clear();
-                    // terrible hack for things like this:
-                    // struct Foo { Foo(int) {} Foo(const Foo &) {} };
-                    // void foo(Foo foo); // note the missing &
-                    // Foo f;
-                    // foo(f);
-                    //
-                    // without this hack the argument in foo(f) would refer to Foo(int) rather than the variable f;
-                    // note that we do want the reference to Foo(const Foo &)
-                }
-            }
-            break; }
         default:
             break;
         }
@@ -510,7 +456,7 @@ void IndexerJob::handleInclude(const CXCursor &cursor, CXCursorKind kind, const 
                 mData->symbolNames[(include + path.fileName())].insert(location);
             }
             CursorInfo &info = mData->symbols[location];
-            info.target = refLoc;
+            info.targets.insert(refLoc);
             info.kind = cursor.kind;
             info.isDefinition = false;
             info.symbolName = "#include " + RTags::eatString(clang_getCursorDisplayName(cursor));
@@ -627,8 +573,7 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
     if (refLoc.isValid()) {
         Map<Location, RTags::ReferenceType> &val = mData->references[location];
         val[refLoc] = referenceType;
-        if (info.target.isNull())
-            info.target = refLoc;
+        info.targets.insert(refLoc);
     }
 }
 

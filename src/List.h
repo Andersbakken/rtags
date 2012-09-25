@@ -73,7 +73,7 @@ public:
         return std::vector<T>::size();
     }
 
-    T value(int idx, const T &defaultValue = T())
+    T value(int idx, const T &defaultValue = T()) const
     {
         return idx < size() ? std::vector<T>::at(idx) : defaultValue;
     }

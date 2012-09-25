@@ -17,27 +17,26 @@ void FollowLocationJob::run()
         return;
 
     const CursorInfo &cursorInfo = it->second;
-    if (cursorInfo.target.isNull())
-        return;
 
-    Location out = cursorInfo.target;
-    if (RTags::isReference(cursorInfo.kind)) {
-        SymbolMap::const_iterator target = RTags::findCursorInfo(map, cursorInfo.target);
-        if (target != map.end() && !target->second.isDefinition) {
-            switch (target->second.kind) {
-            case CXCursor_FunctionDecl:
-            case CXCursor_CXXMethod:
-            case CXCursor_Destructor:
-            case CXCursor_Constructor:
-                target = RTags::findCursorInfo(map, target->second.target);
-                if (target != map.end())
-                    out = target->first;
-                break;
-            default:
-                break;
+    Location loc;
+    CursorInfo target = cursorInfo.bestTarget(map, &loc);
+    if (!target.isNull()) {
+        if (RTags::isReference(cursorInfo.kind)) {
+            if (!target.isDefinition && !target.targets.isEmpty()) {
+                switch (target.kind) {
+                case CXCursor_FunctionDecl:
+                case CXCursor_CXXMethod:
+                case CXCursor_Destructor:
+                case CXCursor_Constructor:
+                    target = target.bestTarget(map, &loc);
+                    break;
+                default:
+                    break;
+                }
             }
         }
+        if (!loc.isNull()) {
+            write(loc.key(keyFlags()));
+        }
     }
-    assert(!out.isNull());
-    write(out.key(keyFlags()));
 }

@@ -32,7 +32,7 @@ void ValidateDBJob::run()
                 if (ci.kind)
                     stream << " kind: " << RTags::eatString(clang_getCursorKindSpelling(ci.kind));// this somehow seems to hang when kind == 0
                 stream << " isDefinition: " << (ci.isDefinition ? "true" : "false")
-                       << " target: " << ci.target
+                       << " target: " << ci.targets
                        << " references:";
                 for (Set<Location>::const_iterator rit = ci.references.begin(); rit != ci.references.end(); ++rit) {
                     stream << " " << *rit;

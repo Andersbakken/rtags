@@ -5,8 +5,11 @@
 #include "Location.h"
 #include "Path.h"
 #include "Log.h"
+#include "List.h"
 #include <clang-c/Index.h>
 
+class CursorInfo;
+typedef Map<Location, CursorInfo> SymbolMap;
 class CursorInfo
 {
 public:
@@ -18,7 +21,7 @@ public:
         symbolLength = 0;
         kind = CXCursor_FirstInvalid;
         isDefinition = false;
-        target.clear();
+        targets.clear();
         references.clear();
         symbolName.clear();
     }
@@ -26,19 +29,17 @@ public:
     bool dirty(const Set<uint32_t> &dirty)
     {
         bool changed = false;
-        const uint32_t targetFileId = target.fileId();
-        if (targetFileId && dirty.contains(targetFileId)) {
-            changed = true;
-            target.clear();
-        }
-
-        Set<Location>::iterator it = references.begin();
-        while (it != references.end()) {
-            if (dirty.contains(it->fileId())) {
-                changed = true;
-                references.erase(it++);
-            } else {
-                ++it;
+        Set<Location> *locations[] = { &targets, &references };
+        for (int i=0; i<2; ++i) {
+            Set<Location> &l = *locations[i];
+            Set<Location>::iterator it = l.begin();
+            while (it != l.end()) {
+                if (dirty.contains(it->fileId())) {
+                    changed = true;
+                    l.erase(it++);
+                } else {
+                    ++it;
+                }
             }
         }
         return changed;
@@ -49,18 +50,32 @@ public:
         return !isEmpty();
     }
 
+    bool isNull() const
+    {
+        return isEmpty();
+    }
+
+    CursorInfo bestTarget(const SymbolMap &map, Location *loc = 0) const;
+    Map<Location, CursorInfo> targetInfos(const SymbolMap &map) const;
+    Map<Location, CursorInfo> referenceInfos(const SymbolMap &map) const;
+
     bool isEmpty() const
     {
         assert((symbolLength || symbolName.isEmpty()) && (symbolLength || kind == CXCursor_FirstInvalid)); // these should be coupled
-        return !symbolLength && !target && references.isEmpty();
+        return !symbolLength && targets.isEmpty() && references.isEmpty();
     }
 
     bool unite(const CursorInfo &other)
     {
         bool changed = false;
-        if (!target && other.target.isValid()) {
-            target = other.target;
+        if (targets.isEmpty() && !other.targets.isEmpty()) {
+            targets = other.targets;
             changed = true;
+        } else if (!other.targets.isEmpty()) {
+            int count = 0;
+            targets.unite(other.targets, &count);
+            if (count)
+                changed = true;
         }
 
         if (!symbolLength && other.symbolLength) {
@@ -91,7 +106,7 @@ public:
     ByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
     CXCursorKind kind;
     bool isDefinition;
-    Location target;
+    Set<Location> targets;
     Set<Location> references;
 };
 

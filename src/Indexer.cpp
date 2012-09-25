@@ -286,10 +286,8 @@ static inline void writeReferences(const ReferenceMap &references, Scope<SymbolM
                 if (rit->second != RTags::NormalReference) {
                     CursorInfo &other = symbols[it->first];
                     // error() << "trying to join" << it->first << "and" << it->second.front();
-                    if (other.target.isNull())
-                        other.target = rit->first;
-                    if (ci.target.isNull())
-                        ci.target = it->first;
+                    other.targets.insert(rit->first);
+                    ci.targets.insert(it->first);
                 } else {
                     ci.references.insert(it->first);
                 }
