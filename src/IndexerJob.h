@@ -90,6 +90,8 @@ private:
 
     Timer mTimer;
     shared_ptr<IndexData> mData;
+
+    bool mDump;
 };
 
 #endif

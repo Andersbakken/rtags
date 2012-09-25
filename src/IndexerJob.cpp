@@ -23,14 +23,14 @@ struct VerboseVisitorUserData {
 IndexerJob::IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags, const Path &p, const List<ByteArray> &arguments)
     : Job(0, indexer->project()),
       mFlags(flags), mTimeStamp(0), mPath(p), mFileId(Location::insertFile(p)),
-      mArgs(arguments), mIndexer(indexer), mUnit(0), mIndex(0)
+      mArgs(arguments), mIndexer(indexer), mUnit(0), mIndex(0), mDump(false)
 {
 }
 
 IndexerJob::IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
                        const Path &input, const List<ByteArray> &arguments)
     : Job(msg, WriteUnfiltered|WriteBuffered, project), mFlags(0), mTimeStamp(0), mPath(input), mFileId(Location::insertFile(input)),
-      mArgs(arguments), mUnit(0), mIndex(0)
+      mArgs(arguments), mUnit(0), mIndex(0), mDump(true)
 {
 }
 
@@ -622,19 +622,22 @@ void IndexerJob::visit()
         } else {
             logDirect(VerboseDebug, u.out);
         }
-        // {
-        //     VerboseVisitorUserData u = { -1, "<VerboseVisitor2 " + clangLine + ">", this };
-        //    clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
-        //     u.out += "</VerboseVisitor2 " + clangLine + ">";
-        //     logDirect(VerboseDebug, u.out);
-        // }
     }
 }
 
 void IndexerJob::run()
 {
     mData.reset(new IndexData);
-    if (mIndexer.lock()) {
+    if (mDump) {
+        assert(id() != -1);
+        if (shared_ptr<Project> p = project()) {
+            parse();
+            if (mUnit) {
+                DumpUserData u = { 0, this };
+                clang_visitChildren(clang_getTranslationUnitCursor(mUnit), dumpVisitor, &u);
+            }
+        }
+    } else if (mIndexer.lock()) {
         typedef void (IndexerJob::*Function)();
         Function functions[] = { &IndexerJob::parse, &IndexerJob::diagnose, &IndexerJob::visit };
         for (unsigned i=0; i<sizeof(functions) / sizeof(Function); ++i) {
@@ -648,23 +651,6 @@ void IndexerJob::run()
                                                    mPath.constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
                                                    mData->symbols.size(), mData->references.size(), mData->dependencies.size(), mData->symbolNames.size(),
                                                    mFlags & Dirty ? " (dirty)" : "");
-
-    } else if (project()) {
-        parse();
-        if (mUnit) {
-            DumpUserData u = { 0, this };
-            // FILE *f = fopen(mPath.constData(), "r");
-            // if (f) {
-            //     char line[1024];
-            //     int len;
-            //     while ((len = RTags::readLine(f, line, sizeof(line))) != -1) {
-            //         u.lines.append(ByteArray(line, len));
-            //         u.longest = std::max(u.longest, len);
-            //     }
-            //     fclose(f);
-            // }
-            clang_visitChildren(clang_getTranslationUnitCursor(mUnit), dumpVisitor, &u);
-        }
     }
     if (mUnit) {
         clang_disposeTranslationUnit(mUnit);
