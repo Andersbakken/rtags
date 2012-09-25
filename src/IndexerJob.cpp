@@ -299,22 +299,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     if (clang_isInvalid(refKind))
         return;
 
-    bool processRef = false;
-
     switch (kind) {
-    case CXCursor_TemplateRef:
-        processRef = (refKind == CXCursor_ClassTemplate);
-        break;
-    case CXCursor_DeclRefExpr:
-        switch (refKind) {
-        case CXCursor_FunctionDecl:
-        case CXCursor_NonTypeTemplateParameter:
-            processRef = true;
-            break;
-        default:
-            break;
-        }
-        // fall through
     case CXCursor_UnexposedExpr:
         if (refKind == CXCursor_CXXMethod) {
             CXStringScope scope = clang_getCursorDisplayName(ref);
@@ -323,35 +308,22 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
                 return;
         }
         break;
-    case CXCursor_TypeRef:
-        switch (refKind) {
-        case CXCursor_ClassDecl:
-        case CXCursor_StructDecl:
-        case CXCursor_UnionDecl:
-        case CXCursor_TemplateTypeParameter:
-        case CXCursor_TypedefDecl:
-            processRef = true;
-            break;
-        default:
-            break;
-        }
-        break;
-    case CXCursor_MemberRefExpr:
-        processRef = (refKind == CXCursor_FieldDecl);
-        break;
     case CXCursor_CallExpr:
-        if (refKind == CXCursor_CXXMethod) {
+        switch (refKind) {
+        case CXCursor_CXXMethod:
             // these are bullshit, for this construct:
             // foo.bar();
             // the position of the cursor is at the foo, not the bar.
             // They are not interesting for followLocation, renameSymbol or find
             // references so we toss them.
             return;
+        case CXCursor_Constructor:
+            if (isImplicit(ref))
+                return;
+            break;
+        default:
+            break;
         }
-        break;
-    case CXCursor_MacroExpansion:
-    case CXCursor_LabelRef:
-        processRef = true;
         break;
     default:
         break;
@@ -361,7 +333,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     if (!refLoc.isValid())
         return;
 
-    if (processRef && !mData->symbols.value(refLoc).symbolLength)
+    if (!mData->symbols.value(refLoc).symbolLength)
         handleCursor(ref, refKind, refLoc);
 
     handleCursor(cursor, kind, loc, &refLoc);
