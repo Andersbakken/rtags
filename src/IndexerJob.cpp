@@ -299,34 +299,20 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     if (clang_isInvalid(refKind))
         return;
 
-    switch (kind) {
-    case CXCursor_UnexposedExpr:
-        if (refKind == CXCursor_CXXMethod) {
-            CXStringScope scope = clang_getCursorDisplayName(ref);
-            const char *data = scope.data();
-            if (data && !strncmp(data, "operator", 8) && isImplicit(ref))
-                return;
-        }
-        break;
-    case CXCursor_CallExpr:
-        switch (refKind) {
-        case CXCursor_CXXMethod:
-            // these are bullshit, for this construct:
-            // foo.bar();
-            // the position of the cursor is at the foo, not the bar.
-            // They are not interesting for followLocation, renameSymbol or find
-            // references so we toss them.
+    if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
+        // these are bullshit, for this construct:
+        // foo.bar();
+        // the position of the cursor is at the foo, not the bar.
+        // They are not interesting for followLocation, renameSymbol or find
+        // references so we toss them.
+        return;
+    } else if (refKind == CXCursor_Constructor && isImplicit(ref)) {
+        return;
+    } else if (refKind == CXCursor_CXXMethod) {
+        CXStringScope scope = clang_getCursorDisplayName(ref);
+        const char *data = scope.data();
+        if (data && !strncmp(data, "operator", 8) && isImplicit(ref))
             return;
-        case CXCursor_Constructor:
-            if (isImplicit(ref))
-                return;
-            break;
-        default:
-            break;
-        }
-        break;
-    default:
-        break;
     }
 
     const Location refLoc = createLocation(ref, 0);
