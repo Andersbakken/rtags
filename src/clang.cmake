@@ -5,22 +5,11 @@ endif()
 
 get_filename_component(PARENT_DIR ${CMAKE_CURRENT_LIST_DIR} PATH)
 
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
 include_directories(${clang_ROOT}/include)
 if(${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    set(clang_LIBS
-    ${clang_ROOT}/lib/liblibclang.a
-    ${clang_ROOT}/lib/libclangBasic.a
-    ${clang_ROOT}/lib/libclangLex.a
-    ${clang_ROOT}/lib/libclangParse.a
-    ${clang_ROOT}/lib/libclangAST.a
-    ${clang_ROOT}/lib/libclangfrontend.a
-    ${clang_ROOT}/lib/libLLVMSupport.a
-    ${clang_ROOT}/lib/libclangsema.a
-    ${clang_ROOT}/lib/libLLVMMC.a
-    ${clang_ROOT}/lib/libclangSerialization.a
-    ${clang_ROOT}/lib/libclangDriver.a
-    ${clang_ROOT}/lib/libclangEdit.a
-    ${clang_ROOT}/lib/libclangAnalysis.a)
+    set(clang_LIBS ${clang_ROOT}/lib/libclang.dylib)
 else()
     set(clang_LIBS ${clang_ROOT}/lib/libclang.so)
 endif()
