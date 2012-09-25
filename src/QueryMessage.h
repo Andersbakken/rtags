@@ -47,8 +47,9 @@ public:
     };
 
     typedef Map<Path, ByteArray> UnsavedFilesMap;
-    QueryMessage(Type type = Invalid, const ByteArray &query = ByteArray(),
-                 unsigned flags = 0, int max = -1, const UnsavedFilesMap &unsaved = UnsavedFilesMap());
+    QueryMessage(Type type = Invalid);
+
+    Type type() const { return mType; }
 
     const List<ByteArray> &pathFilters() const { return mPathFilters; }
     void setPathFilters(const List<ByteArray> &pathFilters)
@@ -58,15 +59,24 @@ public:
     }
 
     int messageId() const { return MessageId; }
+
     ByteArray query() const { return mQuery; }
     Location location() const { return Location::decodeClientLocation(mQuery); }
+    void setQuery(const ByteArray &query) { mQuery = query; }
 
     Map<Path, ByteArray> unsavedFiles() const { return mUnsavedFiles; }
+    void setUnsavedFiles(const Map<Path, ByteArray> &unsavedFiles) { mUnsavedFiles = unsavedFiles; }
 
     int max() const { return mMax; }
+    void setMax(int max) { mMax = max; }
 
-    Type type() const { return mType; }
+    int lockTimeout() const { return mLockTimeout; }
+    void setLockTimeout(int timeout) { mLockTimeout = timeout; }
+
+
     unsigned flags() const { return mFlags; }
+    void setFlags(unsigned flags) { mFlags = flags; }
+
     static unsigned keyFlags(unsigned queryFlags);
     inline unsigned keyFlags() const { return keyFlags(mFlags); }
 
@@ -77,7 +87,7 @@ private:
     ByteArray mQuery;
     Type mType;
     unsigned mFlags;
-    int mMax;
+    int mMax, mLockTimeout;
     List<ByteArray> mPathFilters;
     Map<Path, ByteArray> mUnsavedFiles;
 };

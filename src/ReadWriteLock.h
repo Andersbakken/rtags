@@ -14,9 +14,9 @@ public:
         Write
     };
 
-    void lockForRead() { lock(Read); }
-    void lockForWrite() { lock(Write); }
-    void lock(LockType type);
+    bool lockForRead(int maxTime = 0) { return lock(Read, maxTime); }
+    bool lockForWrite(int maxTime = 0) { return lock(Write, maxTime); }
+    bool lock(LockType type, int maxTime = 0);
 
     bool tryLockForRead() { return tryLock(Read); }
     bool tryLockForWrite() { return tryLock(Write); }

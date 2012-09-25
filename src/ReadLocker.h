@@ -9,9 +9,14 @@ public:
     ReadLocker(ReadWriteLock* lock)
         : mLock(lock)
     {
-        mLock->lockForRead();
+        if (mLock && !mLock->lockForRead())
+            mLock = 0;
     }
-    ~ReadLocker() { mLock->unlock(); }
+    ~ReadLocker()
+    {
+        if (mLock)
+            mLock->unlock();
+    }
 
 private:
     ReadWriteLock* mLock;

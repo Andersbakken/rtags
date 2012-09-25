@@ -9,12 +9,18 @@ public:
     WriteLocker(ReadWriteLock* lock)
         : mLock(lock)
     {
-        mLock->lockForWrite();
+        if (mLock && !mLock->lockForWrite())
+            mLock = 0;
     }
-    ~WriteLocker() { mLock->unlock(); }
+    ~WriteLocker()
+    {
+        if (mLock)
+            mLock->unlock();
+    }
 
 private:
     ReadWriteLock* mLock;
+
 };
 
 #endif

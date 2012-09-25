@@ -49,6 +49,7 @@ public:
     inline bool filter(const ByteArray &val) const;
     signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
     shared_ptr<Project> project() const { return mProject; }
+    int lockTimeout() const { return mLockTimeout; }
 private:
     bool writeRaw(const ByteArray &out, unsigned flags);
     int mId;
@@ -60,6 +61,7 @@ private:
     List<RegExp> *mPathFiltersRegExp;
     int mMax;
     ByteArray mBuffer;
+    const int mLockTimeout;
 };
 
 template <int StaticBufSize>

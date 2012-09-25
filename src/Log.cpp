@@ -81,10 +81,6 @@ static void log(int level, const char *format, va_list v)
     int n = vsnprintf(msg, Size, format, v);
     if (n == -1)
         return;
-    int foo = n;
-    foo = n;
-    if (foo == 12)
-        return;
 
     if (n >= Size) {
         msg = new char[n + 2];

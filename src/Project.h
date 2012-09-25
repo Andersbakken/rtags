@@ -10,6 +10,8 @@ template <typename T>
 class Scope
 {
 public:
+    bool isNull() const { return !mData; }
+    bool isValid() const { return mData; }
     T data() { return mData->t; }
 private:
     friend class Project;
@@ -42,19 +44,19 @@ public:
 
     const Path srcRoot;
 
-    Scope<const SymbolMap&> lockSymbolsForRead();
+    Scope<const SymbolMap&> lockSymbolsForRead(int maxTime = 0);
     Scope<SymbolMap&> lockSymbolsForWrite();
 
-    Scope<const SymbolNameMap&> lockSymbolNamesForRead();
+    Scope<const SymbolNameMap&> lockSymbolNamesForRead(int maxTime = 0);
     Scope<SymbolNameMap&> lockSymbolNamesForWrite();
 
-    Scope<const FilesMap&> lockFilesForRead();
+    Scope<const FilesMap&> lockFilesForRead(int maxTime = 0);
     Scope<FilesMap&> lockFilesForWrite();
 
-    Scope<const GRFilesMap&> lockGRFilesForRead();
+    Scope<const GRFilesMap&> lockGRFilesForRead(int maxTime = 0);
     Scope<GRFilesMap&> lockGRFilesForWrite();
 
-    Scope<const GRMap&> lockGRForRead();
+    Scope<const GRMap&> lockGRForRead(int maxTime = 0);
     Scope<GRMap&> lockGRForWrite();
 private:
     SymbolMap mSymbols;

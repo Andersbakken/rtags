@@ -16,6 +16,8 @@
         (if rtags-path-filter-regex
             (push "-Z" arguments))))
 
+  (if rtags-lock-timeout
+      (push (format "--lock-timeout=%d" rtags-lock-timeout) arguments))
   (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
   (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
   (goto-char (point-min))
@@ -274,6 +276,11 @@ return t if rtags is allowed to modify this file"
   "If t, jump to first match"
   :group 'rtags
   :type 'boolean)
+
+(defcustom rtags-lock-timeout nil
+  "Max amount of ms to wait for a database lock"
+  :group 'rtags
+  :type 'integer)
 
 (defcustom rtags-max-bookmark-count 100
   "How many bookmarks to keep in stack"

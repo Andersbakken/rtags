@@ -9,82 +9,82 @@ Project::Project(const Path &src)
 {
 }
 
-Scope<const SymbolMap&> Project::lockSymbolsForRead()
+Scope<const SymbolMap&> Project::lockSymbolsForRead(int maxTime)
 {
-    mSymbolsLock.lockForRead();
     Scope<const SymbolMap&> scope;
-    scope.mData.reset(new Scope<const SymbolMap&>::Data(mSymbols, &mSymbolsLock));
+    if (mSymbolsLock.lockForRead(maxTime))
+        scope.mData.reset(new Scope<const SymbolMap&>::Data(mSymbols, &mSymbolsLock));
     return scope;
 }
 
 Scope<SymbolMap&> Project::lockSymbolsForWrite()
 {
-    mSymbolsLock.lockForWrite();
     Scope<SymbolMap&> scope;
+    mSymbolsLock.lockForWrite();
     scope.mData.reset(new Scope<SymbolMap&>::Data(mSymbols, &mSymbolsLock));
     return scope;
 }
 
-Scope<const SymbolNameMap&> Project::lockSymbolNamesForRead()
+Scope<const SymbolNameMap&> Project::lockSymbolNamesForRead(int maxTime)
 {
-    mSymbolNamesLock.lockForRead();
     Scope<const SymbolNameMap&> scope;
-    scope.mData.reset(new Scope<const SymbolNameMap&>::Data(mSymbolNames, &mSymbolNamesLock));
+    if (mSymbolNamesLock.lockForRead(maxTime))
+        scope.mData.reset(new Scope<const SymbolNameMap&>::Data(mSymbolNames, &mSymbolNamesLock));
     return scope;
 }
 
 Scope<SymbolNameMap&> Project::lockSymbolNamesForWrite()
 {
-    mSymbolNamesLock.lockForWrite();
     Scope<SymbolNameMap&> scope;
+    mSymbolNamesLock.lockForWrite();
     scope.mData.reset(new Scope<SymbolNameMap&>::Data(mSymbolNames, &mSymbolNamesLock));
     return scope;
 }
 
-Scope<const FilesMap&> Project::lockFilesForRead()
+Scope<const FilesMap&> Project::lockFilesForRead(int maxTime)
 {
-    mFilesLock.lockForRead();
     Scope<const FilesMap&> scope;
-    scope.mData.reset(new Scope<const FilesMap&>::Data(mFiles, &mFilesLock));
+    if (mFilesLock.lockForRead(maxTime))
+        scope.mData.reset(new Scope<const FilesMap&>::Data(mFiles, &mFilesLock));
     return scope;
 }
 
 Scope<FilesMap&> Project::lockFilesForWrite()
 {
-    mFilesLock.lockForWrite();
     Scope<FilesMap&> scope;
+    mFilesLock.lockForWrite();
     scope.mData.reset(new Scope<FilesMap&>::Data(mFiles, &mFilesLock));
     return scope;
 }
 
-Scope<const GRMap&> Project::lockGRForRead()
+Scope<const GRMap&> Project::lockGRForRead(int maxTime)
 {
-    mGRLock.lockForRead();
     Scope<const GRMap&> scope;
-    scope.mData.reset(new Scope<const GRMap&>::Data(mGR, &mGRLock));
+    if (mGRLock.lockForRead(maxTime))
+        scope.mData.reset(new Scope<const GRMap&>::Data(mGR, &mGRLock));
     return scope;
 }
 
 Scope<GRMap&> Project::lockGRForWrite()
 {
-    mGRLock.lockForWrite();
     Scope<GRMap&> scope;
+    mGRLock.lockForWrite();
     scope.mData.reset(new Scope<GRMap&>::Data(mGR, &mGRLock));
     return scope;
 }
 
-Scope<const GRFilesMap&> Project::lockGRFilesForRead()
+Scope<const GRFilesMap&> Project::lockGRFilesForRead(int maxTime)
 {
-    mGRFilesLock.lockForRead();
     Scope<const GRFilesMap&> scope;
-    scope.mData.reset(new Scope<const GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
+    if (mGRFilesLock.lockForRead(maxTime))
+        scope.mData.reset(new Scope<const GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
     return scope;
 }
 
 Scope<GRFilesMap&> Project::lockGRFilesForWrite()
 {
-    mGRFilesLock.lockForWrite();
     Scope<GRFilesMap&> scope;
+    mGRFilesLock.lockForWrite();
     scope.mData.reset(new Scope<GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
     return scope;
 }

@@ -2,9 +2,8 @@
 #include "RTags.h"
 #include <Serializer.h>
 
-QueryMessage::QueryMessage(Type type, const ByteArray& query, unsigned flags,
-                           int max, const Map<Path, ByteArray> &unsavedFiles)
-    : mQuery(query), mType(type), mFlags(flags), mMax(max), mUnsavedFiles(unsavedFiles)
+QueryMessage::QueryMessage(Type type)
+    : mType(type), mFlags(0), mMax(-1), mLockTimeout(0)
 {
 }
 

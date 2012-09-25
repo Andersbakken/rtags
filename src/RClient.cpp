@@ -24,8 +24,13 @@ public:
 
     virtual void exec(RClient *rc, Client *client)
     {
-        QueryMessage msg(type, query, rc->queryFlags(), rc->max(), rc->unsavedFiles());
+        QueryMessage msg(type);
+        msg.setQuery(query);
+        msg.setFlags(rc->queryFlags());
+        msg.setMax(rc->max());
+        msg.setUnsavedFiles(rc->unsavedFiles());
         msg.setPathFilters(rc->pathFilters().toList());
+        msg.setLockTimeout(rc->lockTimeout());
         client->message(&msg);
     }
 
@@ -103,7 +108,7 @@ public:
 };
 
 RClient::RClient()
-    : mQueryFlags(0), mClientFlags(0), mMakefileFlags(0), mMax(-1), mLogLevel(0)
+    : mQueryFlags(0), mClientFlags(0), mMakefileFlags(0), mMax(-1), mLogLevel(0), mLockTimeout(0)
 {
 }
 
@@ -195,6 +200,7 @@ static void help(FILE *f, const char* app)
             "  --dump-file|-d [file]                     Dump source file\n"
             "  --absolute-path|-K                        Print files with absolute path\n"
             "  --match-regexp|-Z                         Treat various text patterns as regexps (-P, -i, -V)\n"
+            "  --lock-timeout|-y [arg]                   Max time in ms to wait for a database lock (default no timeout)\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
             app);
 }
@@ -250,13 +256,14 @@ bool RClient::parse(int &argc, char **argv)
         { "socket-file", required_argument, 0, 'n' },
         { "always-make", no_argument, 0, 'B' },
         { "dump-file", required_argument, 0, 'd' },
+        { "locktimeout", required_argument, 0, 'y' },
         { 0, 0, 0, 0 }
     };
 
     unsigned logFlags = 0;
     Path logFile;
 
-    // Unused: jJcyk
+    // Unused: jJck
 
     const ByteArray shortOptions = RTags::shortOptions(opts);
 
@@ -346,6 +353,13 @@ bool RClient::parse(int &argc, char **argv)
             mMax = atoi(optarg);
             if (mMax <= 0) {
                 fprintf(stderr, "-M [arg] must be positive integer\n");
+                return false;
+            }
+            break;
+        case 'y':
+            mLockTimeout = atoi(optarg);
+            if (mMax <= 0) {
+                fprintf(stderr, "-y [arg] must be positive integer\n");
                 return false;
             }
             break;

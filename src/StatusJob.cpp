@@ -96,7 +96,9 @@ void StatusJob::run()
     if (proj->indexer) {
         if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "symbols")) {
             matched = true;
-            Scope<const SymbolMap&> scope = proj->lockSymbolsForRead();
+            Scope<const SymbolMap&> scope = proj->lockSymbolsForRead(lockTimeout());
+            if (scope.isNull())
+                return;
             const SymbolMap &map = scope.data();
             write(delimiter);
             write("symbols");
@@ -112,7 +114,9 @@ void StatusJob::run()
 
         if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "symbolnames")) {
             matched = true;
-            Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead();
+            Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead(lockTimeout());
+            if (scope.isNull())
+                return;
             const SymbolNameMap &map = scope.data();
             write(delimiter);
             write("symbolnames");

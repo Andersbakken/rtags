@@ -7,20 +7,25 @@ ReadWriteLock::ReadWriteLock()
 {
 }
 
-void ReadWriteLock::lock(LockType type)
+bool ReadWriteLock::lock(LockType type, int maxTime)
 {
     MutexLocker locker(&mMutex);
     if (type == Read) {
-        while (mWrite)
-            mCond.wait(&mMutex);
+        while (mWrite) {
+            if (!mCond.wait(&mMutex, maxTime))
+                return false;
+        }
         ++mCount;
     } else {
-        while (mCount)
-            mCond.wait(&mMutex);
+        while (mCount) {
+            if (!mCond.wait(&mMutex, maxTime))
+                return false;
+        }
         assert(!mWrite);
         mCount = 1;
         mWrite = true;
     }
+    return true;
 }
 
 void ReadWriteLock::unlock()
