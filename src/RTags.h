@@ -101,11 +101,17 @@ static inline CursorType cursorType(CXCursorKind kind)
         return Cursor;
     } else if (RTags::isReference(kind)) {
         return Reference;
-    } else if (kind == CXCursor_InclusionDirective) {
-        return Include;
     } else {
-        return Other;
+        switch (kind) {
+        case CXCursor_InclusionDirective:
+            return Include;
+        case CXCursor_MacroDefinition:
+            return Cursor;
+        default:
+            break;
+        }
     }
+    return Other;
 }
 
 ByteArray eatString(CXString str);

@@ -258,7 +258,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
             return CXChildVisit_Continue;
         }
     } else if (loc.isNull()) {
-        return CXChildVisit_Continue;
+        return CXChildVisit_Recurse;
     }
 
     if (testLog(VerboseDebug)) {
@@ -307,7 +307,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     if (clang_isInvalid(refKind))
         return;
 
-    if (kind == CXCursor_CallExpr && refKind == CXCursor_CXXMethod) {
+    if (kind == CXCursor_CallExpr && (refKind == CXCursor_CXXMethod || refKind == CXCursor_ConversionFunction)) {
         // these are bullshit, for this construct:
         // foo.bar();
         // the position of the cursor is at the foo, not the bar.
@@ -327,10 +327,40 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     if (!refLoc.isValid())
         return;
 
-    if (!mData->symbols.value(refLoc).symbolLength)
+    CursorInfo &refInfo = mData->symbols[refLoc];
+    if (!refInfo.symbolLength) {
         handleCursor(ref, refKind, refLoc);
+    }
+    refInfo.targets.insert(loc);
 
-    handleCursor(cursor, kind, loc, &refLoc);
+    CursorInfo &info = mData->symbols[loc];
+    if (!info.symbolLength) {
+        info.isDefinition = false;
+        info.kind = kind;
+        CXStringScope name = clang_getCursorSpelling(ref);
+        const char *cstr = clang_getCString(name.string);
+        info.symbolLength = cstr ? strlen(cstr) : 0;
+        info.targets.insert(refLoc);
+        if (!info.symbolLength) {
+            switch (kind) {
+            case CXCursor_ClassDecl:
+            case CXCursor_UnionDecl:
+                info.symbolLength = 5;
+                break;
+            case CXCursor_StructDecl:
+                info.symbolLength = 6;
+                break;
+            default:
+                mData->symbols.remove(loc);
+                return;
+            }
+        } else {
+            info.symbolName = addNamePermutations(cursor, loc, false);
+        }
+    }
+
+    Map<Location, RTags::ReferenceType> &val = mData->references[loc];
+    val[refLoc] = RTags::NormalReference;
 }
 
 void IndexerJob::addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos)
@@ -399,16 +429,13 @@ static inline bool isInline(const CXCursor &cursor)
     }
 }
 
-void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const Location *ref)
+void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
     CursorInfo &info = mData->symbols[location];
-    RTags::ReferenceType referenceType = ref ? RTags::NormalReference : RTags::NoReference;
-    Location refLoc;
+    RTags::ReferenceType referenceType = RTags::NoReference;
     if (!info.symbolLength) {
         info.isDefinition = clang_isCursorDefinition(cursor);
         info.kind = kind;
-        const bool isReference = RTags::isReference(kind);
-
         CXStringScope name = clang_getCursorSpelling(cursor);
         const char *cstr = clang_getCString(name.string);
         info.symbolLength = cstr ? strlen(cstr) : 0;
@@ -426,7 +453,7 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
                 return;
             }
         } else {
-            info.symbolName = addNamePermutations(cursor, location, !isReference);
+            info.symbolName = addNamePermutations(cursor, location, true);
         }
         switch (info.kind) {
         case CXCursor_Constructor:
@@ -456,6 +483,7 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
             break;
         }
         if (referenceType != RTags::NoReference) {
+            Location refLoc;
             if (info.isDefinition) {
                 switch (kind) {
                 case CXCursor_CXXMethod:
@@ -483,17 +511,12 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
                     assert(!clang_equalCursors(cursor, other));
                 }
             }
+            if (refLoc.isValid()) {
+                Map<Location, RTags::ReferenceType> &val = mData->references[location];
+                val[refLoc] = referenceType;
+                info.targets.insert(refLoc);
+            }
         }
-    }
-    if (ref) {
-        refLoc = *ref;
-        assert(refLoc.isValid());
-    }
-
-    if (refLoc.isValid()) {
-        Map<Location, RTags::ReferenceType> &val = mData->references[location];
-        val[refLoc] = referenceType;
-        info.targets.insert(refLoc);
     }
 }
 

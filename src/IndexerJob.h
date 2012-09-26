@@ -57,7 +57,7 @@ private:
     static void inclusionVisitor(CXFile included_file, CXSourceLocation *include_stack,
                                  unsigned include_len, CXClientData client_data);
 
-    void handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location, const Location *refLoc = 0);
+    void handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     void handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc, const CXCursor &reference);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
