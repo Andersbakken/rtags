@@ -16,7 +16,6 @@ set(rtags_HDRS
     CreateOutputMessage.h
     CursorInfo.h
     CursorInfoJob.h
-    ErrorMessage.h
     Event.h
     EventLoop.h
     EventReceiver.h
@@ -85,7 +84,6 @@ set(rtags_SRCS
     CreateOutputMessage.cpp
     CursorInfo.cpp
     CursorInfoJob.cpp
-    ErrorMessage.cpp
     EventLoop.cpp
     FileManager.cpp
     FindFileJob.cpp

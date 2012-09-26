@@ -200,9 +200,6 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case QueryMessage::MessageId:
         handleQueryMessage(static_cast<QueryMessage*>(message), connection);
         break;
-    case ErrorMessage::MessageId:
-        handleErrorMessage(static_cast<ErrorMessage*>(message), connection);
-        break;
     case CreateOutputMessage::MessageId:
         handleCreateOutputMessage(static_cast<CreateOutputMessage*>(message), connection);
         break;
@@ -415,11 +412,6 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     } else {
         mPendingLookups[id] = conn;
     }
-}
-
-void Server::handleErrorMessage(ErrorMessage *message, Connection *)
-{
-    error("Error message: %s", message->message().constData());
 }
 
 int Server::nextId()

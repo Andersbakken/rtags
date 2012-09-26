@@ -40,7 +40,6 @@ static void registerMessage()
 void Messages::init()
 {
     registerMessage<QueryMessage>();
-    registerMessage<ErrorMessage>();
     registerMessage<ResponseMessage>();
     registerMessage<CreateOutputMessage>();
     registerMessage<ProjectMessage>();

@@ -3,7 +3,6 @@
 
 #include "QueryMessage.h"
 #include "ProjectMessage.h"
-#include "ErrorMessage.h"
 #include "ResponseMessage.h"
 #include "CreateOutputMessage.h"
 
