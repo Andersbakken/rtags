@@ -331,7 +331,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     if (!refInfo.symbolLength) {
         handleCursor(ref, refKind, refLoc);
     }
-    refInfo.targets.insert(loc);
+    refInfo.references.insert(loc);
 
     CursorInfo &info = mData->symbols[loc];
     if (!info.symbolLength) {
