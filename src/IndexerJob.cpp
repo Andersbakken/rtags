@@ -540,6 +540,8 @@ void IndexerJob::parse()
 
 void IndexerJob::diagnose()
 {
+    if (!mUnit)
+        return;
     const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
     bool hasCompilationErrors = false;
     for (unsigned i=0; i<diagnosticCount; ++i) {
