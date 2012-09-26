@@ -11,22 +11,33 @@ class MakefileMessage : public Message
 public:
     enum { MessageId = 6 };
 
-    MakefileMessage(const Path &makefile = Path(),
-                    const List<ByteArray> &arguments = List<ByteArray>(),
-                    const List<ByteArray> &extraFlags = List<ByteArray>());
+    enum Flag {
+        NoFlag = 0x0,
+        UseDashB = 0x1,
+        NoMakeTricks = 0x2
+    };
+
+    MakefileMessage(const Path &makefile = Path());
 
     virtual int messageId() const { return MessageId; }
 
     Path makefile() const { return mMakefile; }
+
     List<ByteArray> arguments() const { return mArgs; }
-    List<ByteArray> extraFlags() const { return mExtraFlags; }
+    void setArguments(const List<ByteArray> &arguments) { mArgs = arguments; }
+
+    List<ByteArray> extraCompilerFlags() const { return mExtraCompilerFlags; }
+    void setExtraFlags(const List<ByteArray> &f) { mExtraCompilerFlags = f; }
+
+    unsigned flags() const { return mFlags; }
+    void setFlags(unsigned flags) { mFlags = flags; }
 
     ByteArray encode() const;
     void fromData(const char *data, int size);
-
 private:
     Path mMakefile;
-    List<ByteArray> mArgs, mExtraFlags;
+    List<ByteArray> mArgs, mExtraCompilerFlags;
+    unsigned mFlags;
 };
 
 #endif // MAKEFILEMESSAGE_H

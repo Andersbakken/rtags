@@ -12,7 +12,7 @@
 #endif
 
 MakefileParser::MakefileParser(const List<ByteArray> &extraFlags, Connection *conn)
-    : mProc(0), mExtraFlags(extraFlags), mSourceCount(0), mConnection(conn)
+    : mProc(0), mExtraCompilerFlags(extraFlags), mSourceCount(0), mConnection(conn)
 {
 }
 
@@ -30,12 +30,26 @@ void MakefileParser::stop()
     mProc = 0; // ###???
 }
 
-void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
+void MakefileParser::run(const Path &makefile, const List<ByteArray> &arguments)
 {
-    // error() << makefile << args;
-    Path make = MAKE;
-    if (make.isAbsolute())
-        make.resolve();
+    // error() << makefile << arguments;
+    List<ByteArray> args = arguments;
+    bool noTricks = false;
+    const int noTricksIndex = arguments.indexOf("<no-make-tricks>");
+    if (noTricksIndex != -1) {
+        args.removeAt(noTricksIndex);
+        noTricks = true;
+    }
+    Path make;
+    if (noTricks) {
+#ifdef OS_FreeBSD
+        make = "gmake";
+#else
+        make = "make";
+#endif
+    } else {
+        make = MAKE;
+    }
     mMakefile = makefile;
     assert(!mProc);
     mProc = new Process;
@@ -47,7 +61,9 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &args)
     mCurrentPath = makefile.parentDir();
 
     List<ByteArray> a;
-    a.push_back("--dry-run");
+    if (!noTricks)
+        a.push_back("--dry-run");
+
     a.push_back("--makefile=" + makefile);
     a.push_back("--directory=" + mCurrentPath);
     a.push_back("AM_DEFAULT_VERBOSITY=1");
@@ -115,7 +131,7 @@ void MakefileParser::processMakeLine(const ByteArray &line)
     if (args.parse(rest, mCurrentPath)) {
         // error("Parsed line [%s] in [%s] => [%s]", rest.constData(), mCurrentPath.constData(), args.inputFiles().value(0).constData());
 
-        args.addFlags(mExtraFlags);
+        args.addFlags(mExtraCompilerFlags);
         ++mSourceCount;
         fileReady()(args, this);
     // } else {

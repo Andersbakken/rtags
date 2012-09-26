@@ -13,13 +13,13 @@ class Process;
 class MakefileParser
 {
 public:
-    MakefileParser(const List<ByteArray> &extraFlags, Connection *conn);
+    MakefileParser(const List<ByteArray> &extraCompilerFlags, Connection *conn);
     ~MakefileParser();
 
     void run(const Path &makefile, const List<ByteArray> &args);
     void stop();
     bool isDone() const;
-    List<ByteArray> extraFlags() const { return mExtraFlags; }
+    List<ByteArray> extraCompilerFlags() const { return mExtraCompilerFlags; }
     Path makefile() const { return mMakefile; }
     Connection *connection() const { return mConnection; }
     signalslot::Signal1<MakefileParser*> &done() { return mDone; }
@@ -33,7 +33,7 @@ private:
 
     Process *mProc;
     ByteArray mData;
-    const List<ByteArray> mExtraFlags;
+    const List<ByteArray> mExtraCompilerFlags;
     int mSourceCount;
     Path mMakefile;
     Connection *mConnection;

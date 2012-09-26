@@ -74,9 +74,10 @@ public:
             error() << makefile << "is not a file";
             return;
         }
-        if (rc->makefileFlags() & RClient::UseDashB)
-            makefileArgs.append("-B");
-        MakefileMessage msg(makefile, makefileArgs, rc->extraFlags());
+        MakefileMessage msg(makefile);
+        msg.setFlags(rc->makefileFlags());
+        msg.setExtraFlags(rc->extraCompilerFlags());
+        msg.setArguments(makefileArgs);
         client->message(&msg);
     }
     virtual ByteArray description() const
@@ -201,6 +202,9 @@ static void help(FILE *f, const char* app)
             "  --absolute-path|-K                        Print files with absolute path\n"
             "  --match-regexp|-Z                         Treat various text patterns as regexps (-P, -i, -V)\n"
             "  --lock-timeout|-y [arg]                   Max time in ms to wait for a database lock (default no timeout)\n"
+            "  --sniff-make|-J                           No make trickery, only parse the output, don't try avoid invoking the\n"
+            "                                            compiler or tricking make into thinking targets are old when they're not\n"
+            "                                            Assumes that you've run make clean first\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
             app);
 }
@@ -257,13 +261,14 @@ bool RClient::parse(int &argc, char **argv)
         { "always-make", no_argument, 0, 'B' },
         { "dump-file", required_argument, 0, 'd' },
         { "locktimeout", required_argument, 0, 'y' },
+        { "sniff-make", no_argument, 0, 'J' },
         { 0, 0, 0, 0 }
     };
 
     unsigned logFlags = 0;
     Path logFile;
 
-    // Unused: jJck
+    // Unused: jck
 
     const ByteArray shortOptions = RTags::shortOptions(opts);
 
@@ -282,7 +287,10 @@ bool RClient::parse(int &argc, char **argv)
             mQueryFlags |= QueryMessage::DisableGRTags;
             break;
         case 'B':
-            mMakefileFlags |= UseDashB;
+            mMakefileFlags |= MakefileMessage::UseDashB;
+            break;
+        case 'J':
+            mMakefileFlags |= MakefileMessage::NoMakeTricks;
             break;
         case 'a':
             mClientFlags |= Client::AutostartRdm;
@@ -318,15 +326,15 @@ bool RClient::parse(int &argc, char **argv)
         case 'I': {
             ByteArray flag("-I");
             flag += optarg;
-            mExtraFlags.append(flag);
+            mExtraCompilerFlags.append(flag);
             break; }
         case 'D': {
             ByteArray flag("-D");
             flag += optarg;
-            mExtraFlags.append(flag);
+            mExtraCompilerFlags.append(flag);
             break; }
         case 'o':
-            mExtraFlags.append(optarg);
+            mExtraCompilerFlags.append(optarg);
             break;
         case 'N':
             mQueryFlags |= QueryMessage::NoContext;

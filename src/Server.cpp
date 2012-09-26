@@ -220,10 +220,15 @@ void Server::onNewMessage(Message *message, Connection *connection)
 void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
 {
     const Path makefile = message->makefile();
-    const MakefileInformation mi(message->arguments(), message->extraFlags());
+    List<ByteArray> args = message->arguments();
+    if (message->flags() & MakefileMessage::UseDashB)
+        args.append("-B");
+    if (message->flags() & MakefileMessage::NoMakeTricks)
+        args.append("<no-make-tricks>");
+    const MakefileInformation mi(args, message->extraCompilerFlags());
     mMakefiles[makefile] = mi;
     writeProjects();
-    make(message->makefile(), message->arguments(), message->extraFlags(), conn);
+    make(message->makefile(), args, message->extraCompilerFlags(), conn);
 }
 
 void Server::handleGRTagMessage(GRTagsMessage *message, Connection *conn)
@@ -253,7 +258,7 @@ bool Server::grtag(const Path &dir)
 }
 
 void Server::make(const Path &path, const List<ByteArray> &makefileArgs,
-                  const List<ByteArray> &extraFlags, Connection *conn)
+                  const List<ByteArray> &extraCompilerFlags, Connection *conn)
 {
     shared_ptr<Project> project = mProjects.value(path);
     if (project) {
@@ -261,7 +266,7 @@ void Server::make(const Path &path, const List<ByteArray> &makefileArgs,
         project->indexer->beginMakefile();
     }
 
-    MakefileParser *parser = new MakefileParser(extraFlags, conn);
+    MakefileParser *parser = new MakefileParser(extraCompilerFlags, conn);
     parser->fileReady().connect(this, &Server::onFileReady);
     parser->done().connect(this, &Server::onMakefileParserDone);
     parser->run(path, makefileArgs);
@@ -688,7 +693,7 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
     RegExp rx(pattern);
     for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
         if (rx.isEmpty() || rx.indexIn(it->first) != -1) {
-            make(it->first, it->second.makefileArgs, it->second.extraFlags, conn);
+            make(it->first, it->second.makefileArgs, it->second.extraCompilerFlags, conn);
         }
     }
 }

@@ -1,34 +1,22 @@
 #ifndef MakefileInformation_h
 #define MakefileInformation_h
 
-#include "Serializer.h"
 #include <stdint.h>
 #include <List.h>
 #include <ByteArray.h>
 
-struct MakefileInformation {
+struct MakefileInformation
+{
     MakefileInformation(const List<ByteArray> &args = List<ByteArray>(),
                         const List<ByteArray> &flags = List<ByteArray>())
-        : makefileArgs(args), extraFlags(flags)
+        : makefileArgs(args), extraCompilerFlags(flags)
     {}
     List<ByteArray> makefileArgs;
-    List<ByteArray> extraFlags;
+    List<ByteArray> extraCompilerFlags;
 
     static inline MakefileInformation fromString(const ByteArray &string, bool *ok = 0);
     inline ByteArray toString() const;
 };
-
-static inline Serializer &operator<<(Serializer &s, const MakefileInformation &mi)
-{
-    s << mi.makefileArgs << mi.extraFlags;
-    return s;
-}
-
-static inline Deserializer &operator>>(Deserializer &s, MakefileInformation &mi)
-{
-    s >> mi.makefileArgs >> mi.extraFlags;
-    return s;
-}
 
 inline MakefileInformation MakefileInformation::fromString(const ByteArray &string, bool *ok)
 {
@@ -46,7 +34,7 @@ inline MakefileInformation MakefileInformation::fromString(const ByteArray &stri
             break;
         case 2:
             ret.makefileArgs = split.first().split(' ');
-            ret.extraFlags = split.last().split(' ');
+            ret.extraCompilerFlags = split.last().split(' ');
             break;
         default:
             if (ok)
@@ -61,9 +49,9 @@ inline ByteArray MakefileInformation::toString() const
     ByteArray ret;
     if (!makefileArgs.isEmpty())
         ret = ByteArray::join(makefileArgs, ' ');
-    if (!extraFlags.isEmpty()) {
+    if (!extraCompilerFlags.isEmpty()) {
         ret += '|';
-        ret += ByteArray::join(extraFlags, ' ');
+        ret += ByteArray::join(extraCompilerFlags, ' ');
     }
     return ret;
 }

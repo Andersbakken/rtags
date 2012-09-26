@@ -22,7 +22,7 @@ public:
 
     const Map<Path, ByteArray> &unsavedFiles() const { return mUnsavedFiles; }
 
-    const List<ByteArray> &extraFlags() const { return mExtraFlags; }
+    const List<ByteArray> &extraCompilerFlags() const { return mExtraCompilerFlags; }
     const List<ByteArray> &rdmArgs() const { return mRdmArgs; }
 
     ByteArray socketFile() const { return mSocketFile; }
@@ -30,11 +30,6 @@ public:
     unsigned queryFlags() const { return mQueryFlags; }
     unsigned clientFlags() const { return mClientFlags; }
     unsigned makefileFlags() const { return mMakefileFlags; }
-
-    enum MakefileFlag {
-        None = 0x0,
-        UseDashB = 0x1
-    };
 private:
     void addQuery(QueryMessage::Type t, const ByteArray &query = ByteArray());
     void addLog(int level);
@@ -45,7 +40,7 @@ private:
     int mMax, mLogLevel, mLockTimeout;
     Set<ByteArray> mPathFilters;
     Map<Path, ByteArray> mUnsavedFiles;
-    List<ByteArray> mExtraFlags;
+    List<ByteArray> mExtraCompilerFlags;
     List<RCCommand*> rCommands;
     List<ByteArray> mRdmArgs;
     ByteArray mSocketFile;

@@ -66,7 +66,8 @@ private:
     void onMakefileModified(const Path &path);
     void onMakefileRemoved(const Path &path);
     void make(const Path &path, const List<ByteArray> &makefileArgs = List<ByteArray>(),
-              const List<ByteArray> &extraFlags = List<ByteArray>(), Connection *conn = 0);
+              const List<ByteArray> &extraCompilerFlags = List<ByteArray>(),
+              Connection *conn = 0);
     void clearProjects();
     void handleMakefileMessage(MakefileMessage *message, Connection *conn);
     void handleGRTagMessage(GRTagsMessage *message, Connection *conn);
