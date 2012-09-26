@@ -22,8 +22,7 @@ public:
 
     int pendingWrite() const;
 
-    template<typename T>
-    bool send(const T *message);
+    template<typename T> bool send(const T *message);
     bool send(int id, const ByteArray& message);
     template <int StaticBufSize>
     void write(const char *format, ...)

@@ -277,7 +277,16 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
         job->handleInclude(cursor, kind, loc);
         break;
     case RTags::Reference:
-        job->handleReference(cursor, kind, loc);
+        if (kind == CXCursor_OverloadedDeclRef) {
+            const int count = clang_getNumOverloadedDecls(cursor);
+            for (int i=0; i<count; ++i) {
+                const CXCursor ref = clang_getOverloadedDecl(cursor, i);
+                job->handleReference(cursor, kind, loc, ref);
+            }
+        } else {
+            const CXCursor ref = clang_getCursorReferenced(cursor);
+            job->handleReference(cursor, kind, loc, ref);
+        }
         break;
     case RTags::Other:
         assert(0);
@@ -292,9 +301,8 @@ static inline bool isImplicit(const CXCursor &cursor)
                                 clang_getCursorLocation(clang_getCursorSemanticParent(cursor)));
 }
 
-void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc)
+void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc, const CXCursor &ref)
 {
-    const CXCursor ref = clang_getCursorReferenced(cursor);
     const CXCursorKind refKind = clang_getCursorKind(ref);
     if (clang_isInvalid(refKind))
         return;
