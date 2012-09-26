@@ -10,38 +10,39 @@ template <typename T> class Set;
 template <typename T>
 class List : public std::vector<T>
 {
+    typedef std::vector<T> Base;
 public:
     List(int count = 0, const T &defaultValue = T())
-        : std::vector<T>(count, defaultValue)
+        : Base(count, defaultValue)
     {}
 
     bool contains(const T &t) const
     {
-        return std::find(std::vector<T>::begin(), std::vector<T>::end(), t) != std::vector<T>::end();
+        return std::find(Base::begin(), Base::end(), t) != Base::end();
     }
 
     bool isEmpty() const
     {
-        return std::vector<T>::empty();
+        return Base::empty();
     }
 
     void append(const T &t)
     {
-        std::vector<T>::push_back(t);
+        Base::push_back(t);
     }
 
     void append(const List<T> &t)
     {
         const int size = t.size();
         for (int i=0; i<size; ++i)
-            std::vector<T>::push_back(t.at(i));
+            Base::push_back(t.at(i));
     }
 
     int indexOf(const T &t) const
     {
-        const typename std::vector<T>::const_iterator beg = std::vector<T>::begin();
-        const typename std::vector<T>::const_iterator end = std::vector<T>::end();
-        const typename std::vector<T>::const_iterator it = std::find(beg, end, t);
+        const typename Base::const_iterator beg = Base::begin();
+        const typename Base::const_iterator end = Base::end();
+        const typename Base::const_iterator it = std::find(beg, end, t);
         return it == end ? -1 : (it - beg);
     }
 
@@ -53,7 +54,7 @@ public:
         }
         from = std::min(s - 1, from);
         if (from >= 0) {
-            const T *haystack = std::vector<T>::constData();
+            const T *haystack = Base::constData();
             const T *needle = haystack + from + 1;
             while (needle != haystack) {
                 if (*--needle == t)
@@ -63,35 +64,40 @@ public:
         return -1;
     }
 
+    void removeAt(int idx)
+    {
+        Base::erase(Base::begin() + idx);
+    }
+
     void removeLast()
     {
-        std::vector<T>::pop_back();
+        Base::pop_back();
     }
 
     int size() const
     {
-        return std::vector<T>::size();
+        return Base::size();
     }
 
     T value(int idx, const T &defaultValue = T()) const
     {
-        return idx < size() ? std::vector<T>::at(idx) : defaultValue;
+        return idx < size() ? Base::at(idx) : defaultValue;
     }
 
     void chop(int count)
     {
         assert(count <= size());
-        std::vector<T>::resize(size() - count);
+        Base::resize(size() - count);
     }
     Set<T> toSet() const; // implemented in Set.h
 
     T &first()
     {
-        return std::vector<T>::operator[](0);
+        return Base::operator[](0);
     }
     const T &first() const
     {
-        return std::vector<T>::at(0);
+        return Base::at(0);
     }
 
     T &last()
@@ -101,7 +107,7 @@ public:
 
     const T &last() const
     {
-        return std::vector<T>::at(size() - 1);
+        return Base::at(size() - 1);
     }
 
     List<T> &operator+=(const T &t)
