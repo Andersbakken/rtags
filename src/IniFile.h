@@ -15,6 +15,8 @@ public:
     Path path() const { return mPath; }
     bool isValid() const { return mValid; }
 
+    ByteArray error() const { return mError; }
+
     typedef Map<ByteArray, Map<ByteArray, ByteArray> > MapMap;
     const MapMap &values() const { return mValues; }
     bool setValue(const ByteArray &group, const ByteArray &key, const ByteArray &value = ByteArray());
@@ -29,6 +31,7 @@ private:
     const Path mPath;
     bool mValid;
     MapMap mValues;
+    ByteArray mError;
 };
 
 #endif

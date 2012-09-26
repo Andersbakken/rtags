@@ -49,12 +49,12 @@ bool IniFile::syncFromFile()
             continue;
         if (*start == '[') {
             if (*end != ']')  {
-                error("Parse error at line %d (%s)", line, buf);
+                mError = ByteArray::snprintf<128>("Parse error at line %d (%s)", line, buf);
                 return false;
             }
             group = ByteArray(start + 1, len - 2);
         } else if (group.isEmpty()) {
-            error("Parse error at line %d (%s). Value without group", line, buf);
+            mError = ByteArray::snprintf<128>("Parse error at line %d (%s). Value without group", line, buf);
             return false;
         } else {
             if (hash)
@@ -76,7 +76,7 @@ bool IniFile::syncToFile()
 {
     FILE *f = fopen(mPath.constData(), "w");
     if (!f) {
-        error("Can't open %s for writing", mPath.constData());
+        ::error("Can't open %s for writing", mPath.constData());
         return false;
     }
 
@@ -122,7 +122,7 @@ bool IniFile::removeGroup(const ByteArray &group)
 bool IniFile::setValue(const ByteArray &group, const ByteArray &key, const ByteArray &value)
 {
     if (group.contains('=')) {
-        error("Invalid group key %s", group.constData());
+        ::error("Invalid group key %s", group.constData());
         return false;
     }
     mValues[group][key] = value;

@@ -60,6 +60,7 @@ private:
     shared_ptr<Project> setCurrentProject(const shared_ptr<Project> &proj);
     void event(const Event *event);
     void onFileReady(const GccArguments &file, MakefileParser *parser);
+    bool processSourceFile(const GccArguments &args, const Path &makefile);
     void onNewMessage(Message *message, Connection *conn);
     void onConnectionDestroyed(Connection *o);
     void onMakefileParserDone(MakefileParser *parser);
@@ -69,6 +70,7 @@ private:
               const List<ByteArray> &extraCompilerFlags = List<ByteArray>(),
               Connection *conn = 0);
     void clearProjects();
+    bool processProjectFile(const Path &path, Connection *conn);
     void handleMakefileMessage(MakefileMessage *message, Connection *conn);
     void handleGRTagMessage(GRTagsMessage *message, Connection *conn);
     void handleQueryMessage(QueryMessage *message, Connection *conn);

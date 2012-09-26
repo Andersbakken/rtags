@@ -220,6 +220,8 @@ void Server::onNewMessage(Message *message, Connection *connection)
 void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
 {
     const Path makefile = message->makefile();
+    if (processProjectFile(makefile, conn))
+        return;
     List<ByteArray> args = message->arguments();
     if (message->flags() & MakefileMessage::UseDashB)
         args.append("-B");
@@ -825,18 +827,120 @@ static Path findProjectRoot(const Path &path)
 
 void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 {
+    if (!processSourceFile(args, parser->makefile()))
+        parser->stop();
+}
+
+struct ProjectFileUserData {
+    List<RegExp> includes, excludes;
+    List<ByteArray> includesWildcard, excludesWildcard;
+    List<Path> files;
+    bool recurse;
+};
+
+static inline bool match(const Path &path, const List<ByteArray> &wildcards, const List<RegExp> &regexps)
+{
+    const char *p = path.constData();
+    for (int i=0; i<wildcards.size(); ++i) {
+        if (!fnmatch(wildcards.at(i).constData(), p, 0))
+            return true;
+    }
+    for (int i=0; i<regexps.size(); ++i) {
+        if (regexps.at(i).indexIn(path) != -1)
+            return true;
+    }
+    return false;
+}
+
+static Path::VisitResult projectFileVisitor(const Path &path, void *userData)
+{
+    assert(userData);
+    ProjectFileUserData &ud = *reinterpret_cast<ProjectFileUserData*>(userData);
+    if (path.isFile()) {
+        if (match(path, ud.includesWildcard, ud.includes) && !match(path, ud.excludesWildcard, ud.excludes))
+            ud.files.append(path);
+    } else if (ud.recurse && path.isDir()) {
+        return Path::Recurse;
+    }
+    return Path::Continue;
+}
+
+bool Server::processProjectFile(const Path &path, Connection *conn)
+{
+    IniFile file(path);
+    if (!file.isValid())
+        return false;
+    const List<ByteArray> dirs = file.keys("Directories");
+    if (dirs.isEmpty())
+        return false;
+    ProjectFileUserData userData;
+    struct {
+        List<RegExp> &rx;
+        List<ByteArray> &wc;
+        const char *group;
+    } lists[] = {
+        { userData.includes, userData.includesWildcard, "Include" },
+        { userData.excludes, userData.excludesWildcard, "Exclude" }
+    };
+    for (unsigned j=0; j<sizeof(lists) / sizeof(lists[0]); ++j) {
+        const List<ByteArray> keys = file.keys(lists[j].group);
+        for (int i=0; i<keys.size(); ++i) {
+            const ByteArray type = file.value(lists[j].group, keys.at(i));
+            if (!strcasecmp(type.constData(), "wildcard")) {
+                lists[j].wc.append(keys.at(i));
+            } else if (!type.isEmpty()) {
+                error("Invalid type for %s: %s", lists[j].group, type.constData());
+                return false;
+            } else {
+                lists[j].rx.append(RegExp(keys.at(i)));
+                if (!lists[j].rx.last().isValid()) {
+                    error("Invalid regexp: %s", keys.at(i).constData());
+                    return false;
+                }
+            }
+        }
+    }
+
+    if (userData.includes.isEmpty() && userData.includesWildcard.isEmpty()) {
+        error("Nothing to include for %s", path.constData());
+        return false;
+    }
+
+    const Path dir = path.parentDir();
+    for (int i=0; i<dirs.size(); ++i) {
+        Path p = Path::resolved(dirs.at(i), dir);
+        if (!p.isDir()) {
+            error("%s is not a directory", dirs.at(i).constData());
+            return false;
+        }
+        const ByteArray type = file.value("Directories", dirs.at(i));
+        if (!strcasecmp(type.constData(), "recurse")) {
+            userData.recurse = true;
+        } else if (!type.isEmpty()) {
+            error("Invalid type for directory: %s", type.constData());
+            return false;
+        } else {
+            userData.recurse = false;
+        }
+        p.visit(::projectFileVisitor, &userData);
+    }
+
+    return false;
+}
+
+bool Server::processSourceFile(const GccArguments &args, const Path &makefile)
+{
     const List<Path> inputFiles = args.inputFiles();
     const int c = inputFiles.size();
     if (!c) {
         warning("no input file?");
-        return;
+        return true;
     } else if (args.outputFile().isEmpty()) {
         warning("no output file?");
-        return;
+        return true;
     } else if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
-        return;
+        return true;
     }
-    const Path makefile = parser->makefile();
     shared_ptr<Project> &project = mProjects[makefile];
     if (!project) {
         Path srcRoot = findProjectRoot(*args.unresolvedInputFiles().begin());
@@ -845,8 +949,7 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
         if (srcRoot.isEmpty()) {
             mProjects.remove(makefile);
             error("Can't find project root for %s", inputFiles.begin()->constData());
-            parser->stop();
-            return;
+            return false;
         }
         project.reset(new Project(srcRoot));
         project->indexer.reset(new Indexer(project, !(mOptions.options & NoValidate)));
@@ -867,6 +970,7 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
             debug() << input << " is not dirty. ignoring";
         }
     }
+    return true;
 }
 
 void Server::onMakefileModified(const Path &path)
