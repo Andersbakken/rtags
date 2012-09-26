@@ -2,11 +2,10 @@
 #define MESSAGES_H
 
 #include "QueryMessage.h"
-#include "MakefileMessage.h"
+#include "ProjectMessage.h"
 #include "ErrorMessage.h"
 #include "ResponseMessage.h"
 #include "CreateOutputMessage.h"
-#include "GRTagsMessage.h"
 
 class Messages
 {

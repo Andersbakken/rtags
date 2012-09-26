@@ -1,7 +1,6 @@
 #include "RClient.h"
 #include "CreateOutputMessage.h"
-#include "MakefileMessage.h"
-#include "GRTagsMessage.h"
+#include "ProjectMessage.h"
 #include "EventLoop.h"
 
 class RCCommand
@@ -60,51 +59,42 @@ public:
     const int mLevel;
 };
 
-class MakefileCommand : public RCCommand
+class ProjectCommand : public RCCommand
 {
 public:
-    MakefileCommand(const Path &mf, const List<ByteArray> &args)
-        : makefile(mf), makefileArgs(args)
+    ProjectCommand(ProjectMessage::Type t, const Path &p, const List<ByteArray> &a = List<ByteArray>())
+        : type(t), path(p), args(a)
     {}
-    const Path makefile;
-    List<ByteArray> makefileArgs;
+    const ProjectMessage::Type type;
+    const Path path;
+    const List<ByteArray> args;
     virtual void exec(RClient *rc, Client *client)
     {
-        if (!makefile.isFile()) {
-            error() << makefile << "is not a file";
-            return;
+        switch (path.type()) {
+        case Path::Directory:
+            if (type == ProjectMessage::MakefileType) {
+                error() << path << "is not a makefile";
+                return;
+            }
+            break;
+        case Path::File:
+            if (type != ProjectMessage::MakefileType) {
+                error() << path << "is not a directory";
+                return;
+            }
+            break;
+        default:
+            error() << "Invalid path" << path;
         }
-        MakefileMessage msg(makefile);
+        ProjectMessage msg(type, path);
         msg.setFlags(rc->makefileFlags());
         msg.setExtraFlags(rc->extraCompilerFlags());
-        msg.setArguments(makefileArgs);
+        msg.setArguments(args);
         client->message(&msg);
     }
     virtual ByteArray description() const
     {
-        return ("MakefileCommand " + makefile + " " + ByteArray::join(makefileArgs, " "));
-    }
-};
-
-class GRTagCommand : public RCCommand
-{
-public:
-    GRTagCommand(const Path &dir)
-        : directory(dir)
-    {}
-    const Path directory;
-    virtual void exec(RClient *rc, Client *client)
-    {
-        if (!directory.isDir()) {
-            error() << directory << "is not a directory";
-            return;
-        }
-        GRTagsMessage msg(directory);
-        client->message(&msg);
-    }
-    virtual ByteArray description() const
-    {
-        return ("GRTagMessage " + directory);
+        return ("ProjectMessage " + path);
     }
 };
 
@@ -127,14 +117,19 @@ void RClient::addLog(int level)
     rCommands.append(new RdmLogCommand(level));
 }
 
-void RClient::addMakeFile(const Path &makefile, const List<ByteArray> &args)
+void RClient::addMakeFile(const Path &path, const List<ByteArray> &args)
 {
-    rCommands.append(new MakefileCommand(makefile, args));
+    rCommands.append(new ProjectCommand(ProjectMessage::MakefileType, path, args));
 }
 
-void RClient::addGRTag(const Path &dir)
+void RClient::addGRTag(const Path &path)
 {
-    rCommands.append(new GRTagCommand(dir));
+    rCommands.append(new ProjectCommand(ProjectMessage::GRTagsType, path));
+}
+
+void RClient::addSmartProject(const Path &path)
+{
+    rCommands.append(new ProjectCommand(ProjectMessage::SmartType, path));
 }
 
 void RClient::exec()
@@ -179,9 +174,9 @@ static void help(FILE *f, const char* app)
             "  --line-numbers|-l                         Output line numbers instead of offsets\n"
             "  --path-filter|-i [arg]                    Filter out results not matching with arg\n"
             "  --filter-system-headers|-H                Don't exempt system headers from path filters\n"
-            "  --includepath|-I [arg]                    Add additional include path, must be combined with --makefile\n"
-            "  --define|-D [arg]                         Add additional define, must be combined with --makefile\n"
-            "  --compiler-flag|-o [arg]                  Add additional compiler flags, must be combined with --makefile\n"
+            "  --includepath|-I [arg]                    Add additional include path, must be combined with -m or -j\n"
+            "  --define|-D [arg]                         Add additional define, must be combined with -m or -j\n"
+            "  --compiler-flag|-o [arg]                  Add additional compiler flags, must be combined with -m or -j\n"
             "  --test|-T [arg]                           Test whether rtags knows about this source file\n"
             "  --fixits|-x [file]                        Get fixits for file\n"
             "  --errors|-Q [file]                        Get errors for file\n"
@@ -205,6 +200,7 @@ static void help(FILE *f, const char* app)
             "  --sniff-make|-J                           No make trickery, only parse the output, don't try avoid invoking the\n"
             "                                            compiler or tricking make into thinking targets are old when they're not\n"
             "                                            Assumes that you've run make clean first\n"
+            "  --smart-project|-j [path]                 Try to guess the source files and includepaths for a certain path. Often has to be combined with -D\n"
             "  --quit-rdm|-q                             Tell server to shut down\n",
             app);
 }
@@ -262,13 +258,14 @@ bool RClient::parse(int &argc, char **argv)
         { "dump-file", required_argument, 0, 'd' },
         { "locktimeout", required_argument, 0, 'y' },
         { "sniff-make", no_argument, 0, 'J' },
+        { "smart-project", no_argument, 0, 'j' },
         { 0, 0, 0, 0 }
     };
 
     unsigned logFlags = 0;
     Path logFile;
 
-    // Unused: jck
+    // Unused: ck
 
     const ByteArray shortOptions = RTags::shortOptions(opts);
 
@@ -287,10 +284,10 @@ bool RClient::parse(int &argc, char **argv)
             mQueryFlags |= QueryMessage::DisableGRTags;
             break;
         case 'B':
-            mMakefileFlags |= MakefileMessage::UseDashB;
+            mMakefileFlags |= ProjectMessage::UseDashB;
             break;
         case 'J':
-            mMakefileFlags |= MakefileMessage::NoMakeTricks;
+            mMakefileFlags |= ProjectMessage::NoMakeTricks;
             break;
         case 'a':
             mClientFlags |= Client::AutostartRdm;

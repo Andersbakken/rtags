@@ -10,20 +10,20 @@
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
 #include "GRTags.h"
-#include "GRTagsMessage.h"
 #include "Indexer.h"
 #include "IndexerJob.h"
 #include "IniFile.h"
 #include "ListSymbolsJob.h"
 #include "LocalClient.h"
 #include "LocalServer.h"
+#include "Log.h"
 #include "LogObject.h"
 #include "MakefileInformation.h"
-#include "MakefileMessage.h"
 #include "MakefileParser.h"
 #include "Message.h"
 #include "Messages.h"
 #include "Path.h"
+#include "ProjectMessage.h"
 #include "QueryMessage.h"
 #include "RTags.h"
 #include "ReferencesJob.h"
@@ -31,7 +31,6 @@
 #include "SHA256.h"
 #include "StatusJob.h"
 #include "TestJob.h"
-#include <Log.h>
 #include <clang-c/Index.h>
 #include <dirent.h>
 #include <fnmatch.h>
@@ -195,11 +194,8 @@ void Server::onConnectionDestroyed(Connection *o)
 void Server::onNewMessage(Message *message, Connection *connection)
 {
     switch (message->messageId()) {
-    case MakefileMessage::MessageId:
-        handleMakefileMessage(static_cast<MakefileMessage*>(message), connection);
-        break;
-    case GRTagsMessage::MessageId:
-        handleGRTagMessage(static_cast<GRTagsMessage*>(message), connection);
+    case ProjectMessage::MessageId:
+        handleProjectMessage(static_cast<ProjectMessage*>(message), connection);
         break;
     case QueryMessage::MessageId:
         handleQueryMessage(static_cast<QueryMessage*>(message), connection);
@@ -217,27 +213,31 @@ void Server::onNewMessage(Message *message, Connection *connection)
     }
 }
 
-void Server::handleMakefileMessage(MakefileMessage *message, Connection *conn)
+void Server::handleProjectMessage(ProjectMessage *message, Connection *conn)
 {
-    const Path makefile = message->makefile();
-    if (processProjectFile(makefile, conn))
-        return;
-    List<ByteArray> args = message->arguments();
-    if (message->flags() & MakefileMessage::UseDashB)
-        args.append("-B");
-    if (message->flags() & MakefileMessage::NoMakeTricks)
-        args.append("<no-make-tricks>");
-    const MakefileInformation mi(args, message->extraCompilerFlags());
-    mMakefiles[makefile] = mi;
-    writeProjects();
-    make(message->makefile(), args, message->extraCompilerFlags(), conn);
-}
-
-void Server::handleGRTagMessage(GRTagsMessage *message, Connection *conn)
-{
-    if (grtag(message->path()))
-        conn->write<256>("Parsing %s", message->path().constData());
-    conn->finish();
+    switch (message->type()) {
+    case ProjectMessage::NoType:
+        break;
+    case ProjectMessage::MakefileType: {
+        const Path makefile = message->path();
+        List<ByteArray> args = message->arguments();
+        if (message->flags() & ProjectMessage::UseDashB)
+            args.append("-B");
+        if (message->flags() & ProjectMessage::NoMakeTricks)
+            args.append("<no-make-tricks>");
+        const MakefileInformation mi(args, message->extraCompilerFlags());
+        mMakefiles[makefile] = mi;
+        writeProjects();
+        make(makefile, args, message->extraCompilerFlags(), conn);
+        break; }
+    case ProjectMessage::GRTagsType:
+        if (grtag(message->path()))
+            conn->write<256>("Parsing %s", message->path().constData());
+        conn->finish();
+        break;
+    case ProjectMessage::SmartType:
+        break;
+    }
 }
 
 bool Server::grtag(const Path &dir)
@@ -474,7 +474,7 @@ int Server::dumpFile(const QueryMessage &query, Connection *conn)
     if (!fileId) {
         conn->write<256>("%s is not indexed", query.query().constData());
         return 0;
- }
+    }
 
     Location loc(fileId, 0);
     updateProjectForLocation(loc);

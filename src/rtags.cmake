@@ -30,7 +30,6 @@ set(rtags_HDRS
     GRParser.h
     GRScanJob.h
     GRTags.h
-    GRTagsMessage.h
     GccArguments.h
     Indexer.h
     IndexerJob.h
@@ -43,7 +42,6 @@ set(rtags_HDRS
     Location.h
     Log.h
     LogObject.h
-    MakefileMessage.h
     MakefileParser.h
     Map.h
     MemoryMonitor.h
@@ -55,6 +53,7 @@ set(rtags_HDRS
     Pch.h
     Process.h
     Project.h
+    ProjectMessage.h
     QueryMessage.h
     RClient.h
     RTags.h
@@ -96,7 +95,6 @@ set(rtags_SRCS
     GRParser.cpp
     GRScanJob.cpp
     GRTags.cpp
-    GRTagsMessage.cpp
     GccArguments.cpp
     Indexer.cpp
     IndexerJob.cpp
@@ -107,13 +105,13 @@ set(rtags_SRCS
     LocalServer.cpp
     Location.cpp
     Log.cpp
-    MakefileMessage.cpp
     MakefileParser.cpp
     MemoryMonitor.cpp
     Messages.cpp
     Path.cpp
     Process.cpp
     Project.cpp
+    ProjectMessage.cpp
     QueryMessage.cpp
     RClient.cpp
     RTags.cpp

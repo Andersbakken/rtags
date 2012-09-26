@@ -1,12 +1,12 @@
-#ifndef MAKEFILEMESSAGE_H
-#define MAKEFILEMESSAGE_H
+#ifndef ProjectMessage_h
+#define ProjectMessage_h
 
 #include <List.h>
 #include <ByteArray.h>
 #include "Message.h"
 #include "RTags.h"
 
-class MakefileMessage : public Message
+class ProjectMessage : public Message
 {
 public:
     enum { MessageId = 6 };
@@ -17,11 +17,19 @@ public:
         NoMakeTricks = 0x2
     };
 
-    MakefileMessage(const Path &makefile = Path());
+    enum Type {
+        NoType,
+        MakefileType,
+        GRTagsType,
+        SmartType
+    };
+
+    ProjectMessage(Type type = NoType, const Path &path = Path());
 
     virtual int messageId() const { return MessageId; }
 
-    Path makefile() const { return mMakefile; }
+    Type type() const { return mType; }
+    Path path() const { return mPath; }
 
     List<ByteArray> arguments() const { return mArgs; }
     void setArguments(const List<ByteArray> &arguments) { mArgs = arguments; }
@@ -35,9 +43,10 @@ public:
     ByteArray encode() const;
     void fromData(const char *data, int size);
 private:
-    Path mMakefile;
+    Type mType;
+    Path mPath;
     List<ByteArray> mArgs, mExtraCompilerFlags;
     unsigned mFlags;
 };
 
-#endif // MAKEFILEMESSAGE_H
+#endif

@@ -43,8 +43,7 @@ void Messages::init()
     registerMessage<ErrorMessage>();
     registerMessage<ResponseMessage>();
     registerMessage<CreateOutputMessage>();
-    registerMessage<MakefileMessage>();
-    registerMessage<GRTagsMessage>();
+    registerMessage<ProjectMessage>();
 }
 
 Message * Messages::create(const char *data, int size)

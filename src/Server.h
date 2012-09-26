@@ -21,7 +21,7 @@ class Indexer;
 class Message;
 class ErrorMessage;
 class OutputMessage;
-class MakefileMessage;
+class ProjectMessage;
 class LocalServer;
 class GccArguments;
 class MakefileParser;
@@ -71,8 +71,7 @@ private:
               Connection *conn = 0);
     void clearProjects();
     bool processProjectFile(const Path &path, Connection *conn);
-    void handleMakefileMessage(MakefileMessage *message, Connection *conn);
-    void handleGRTagMessage(GRTagsMessage *message, Connection *conn);
+    void handleProjectMessage(ProjectMessage *message, Connection *conn);
     void handleQueryMessage(QueryMessage *message, Connection *conn);
     void handleErrorMessage(ErrorMessage *message, Connection *conn);
     void handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn);

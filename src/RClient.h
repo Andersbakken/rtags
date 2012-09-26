@@ -34,6 +34,7 @@ private:
     void addQuery(QueryMessage::Type t, const ByteArray &query = ByteArray());
     void addLog(int level);
     void addMakeFile(const Path &makefile, const List<ByteArray> &args);
+    void addSmartProject(const Path &dir);
     void addGRTag(const Path &dir);
 
     unsigned mQueryFlags, mClientFlags, mMakefileFlags;
