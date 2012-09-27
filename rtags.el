@@ -9,7 +9,7 @@
 (defvar rtags-path-filter-regex nil)
 
 (defun rtags-call-rc (&rest arguments)
-  ;;(push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
+  (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
   (if rtags-path-filter
       (progn
         (push (format "--path-filter=%s" rtags-path-filter) arguments)

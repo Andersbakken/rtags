@@ -260,7 +260,7 @@ bool RClient::parse(int &argc, char **argv)
         { "socket-file", required_argument, 0, 'n' },
         { "always-make", no_argument, 0, 'B' },
         { "dump-file", required_argument, 0, 'd' },
-        { "locktimeout", required_argument, 0, 'y' },
+        { "lock-timeout", required_argument, 0, 'y' },
         { "sniff-make", no_argument, 0, 'J' },
         { "smart-project", optional_argument, 0, 'j' },
         { 0, 0, 0, 0 }
@@ -367,7 +367,7 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case 'y':
             mLockTimeout = atoi(optarg);
-            if (mMax <= 0) {
+            if (mLockTimeout <= 0) {
                 fprintf(stderr, "-y [arg] must be positive integer\n");
                 return false;
             }
