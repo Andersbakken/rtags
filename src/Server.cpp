@@ -958,6 +958,8 @@ void Server::removeProject(const Path &path)
         write = true;
     if (mGRTagsDirs.remove(path))
         write = true;
+    if (mSmartProjects.remove(path))
+        write = true;
     if (write)
         writeProjects();
 
