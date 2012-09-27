@@ -32,7 +32,7 @@ void Client::sendMessage(int id, const ByteArray &msg)
 {
     if (!mConnection && !connectToServer() && !(mFlags & (RestartRdm|AutostartRdm))) {
         if (!(mFlags & DontWarnOnConnectionFailure))
-            error("Can't seem to connect to server");
+            fprintf(stderr, "Can't seem to connect to server\n");
         return;
     }
 
