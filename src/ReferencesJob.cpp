@@ -103,7 +103,7 @@ void ReferencesJob::run()
     // won't formalize the rename parameters to indicate that we're renaming
     int startIndex = 0;
     const int count = sorted.size();
-    if (!(queryFlags() && QueryMessage::ReverseSort) && sorted.size() != 1 && !startLocation.isNull()) {
+    if (!(queryFlags() & QueryMessage::ReverseSort) && sorted.size() != 1 && !startLocation.isNull()) {
         startIndex = sorted.indexOf(startLocation) + 1;
     }
     const unsigned keyFlags = Job::keyFlags();
