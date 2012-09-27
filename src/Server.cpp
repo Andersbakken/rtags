@@ -237,7 +237,7 @@ void Server::handleProjectMessage(ProjectMessage *message, Connection *conn)
         conn->finish();
         break;
     case ProjectMessage::SmartType:
-        if (smartProject(message->path()))
+        if (smartProject(message->path(), message->extraCompilerFlags()))
             conn->write<256>("Parsing %s", message->path().constData());
         conn->finish();
         break;
@@ -1002,7 +1002,7 @@ static Path::VisitResult projectFileVisitor(const Path &path, void *userData)
     return Path::Continue;
 }
 
-bool Server::smartProject(const Path &path)
+bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompilerFlags)
 {
     if (mProjects.contains(path))
         return false;
@@ -1040,6 +1040,7 @@ bool Server::smartProject(const Path &path)
         for (Set<Path>::const_iterator it = ud.includePaths.begin(); it != ud.includePaths.end(); ++it) {
             args.mClangArgs.append("-I" + *it);
         }
+        args.mClangArgs += extraCompilerFlags;
         processSourceFile(args, path);
     }
     project->indexer->endMakefile();

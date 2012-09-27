@@ -93,7 +93,7 @@ private:
     bool updateProjectForLocation(const Location &location);
     void writeProjects();
     bool grtag(const Path &dir);
-    bool smartProject(const Path &path);
+    bool smartProject(const Path &path, const List<ByteArray> &extraCompilerFlags);
     shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void removeProject(const Path &key);
 
