@@ -143,6 +143,12 @@ bool Server::init(const Options &options)
             grtag(grtags.at(i));
         }
 
+        List<ByteArray> smartProjects = file.keys("SmartProjects");
+        count = smartProjects.size();
+        for (int i=0; i<count; ++i) {
+            const ByteArray value = file.value("SmartProjects", smartProjects.at(i));
+            smartProject(smartProjects.at(i), value.split('|'));
+        }
     }
 
     mServer->clientConnected().connect(this, &Server::onNewConnection);
@@ -932,8 +938,13 @@ void Server::writeProjects()
         ini.setValue("Makefiles", it->first, it->second.toString());
         mMakefilesWatcher.watch(it->first);
     }
+    ini.removeGroup("GRTags");
     for (Set<Path>::const_iterator it = mGRTagsDirs.begin(); it != mGRTagsDirs.end(); ++it) {
         ini.setValue("GRTags", *it);
+    }
+    ini.removeGroup("SmartProjects");
+    for (Map<Path, List<ByteArray> >::const_iterator it = mSmartProjects.begin(); it != mSmartProjects.end(); ++it) {
+        ini.setValue("SmartProjects", it->first, ByteArray::join(it->second, '|'));
     }
 }
 
@@ -988,11 +999,10 @@ static Path::VisitResult projectFileVisitor(const Path &path, void *userData)
         if (match(path, ud.includesWildcard, ud.includes)
             && !match(path, ud.excludesWildcard, ud.excludes)) {
             ud.sources.append(path);
-        } else if (path.isHeader()) {
-            ud.includePaths.insert(path.parentDir());
         }
         break;
     case Path::Directory:
+        ud.includePaths.insert(path);
         if (ud.recurse)
             return Path::Recurse;
         break;
@@ -1032,6 +1042,7 @@ bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompiler
     project->fileManager->init(project);
     for (Map<Path, ProjectFileUserData>::iterator it = dirs.begin(); it != dirs.end(); ++it) {
         ProjectFileUserData &ud = it->second;
+        ud.includePaths.insert(path); // ###
         it->first.visit(projectFileVisitor, &ud);
         GccArguments args;
         args.mInputFiles = ud.sources;
@@ -1047,5 +1058,7 @@ bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompiler
 
     // error() << userData.includePaths;
     // error() << userData.sources;
+    mSmartProjects[path] = extraCompilerFlags;
+    writeProjects();
     return true;
 }

@@ -106,6 +106,7 @@ private:
     int mJobId;
     Map<Path, MakefileInformation> mMakefiles;
     Set<Path> mGRTagsDirs;
+    Map<Path, List<ByteArray> > mSmartProjects;
     FileSystemWatcher mMakefilesWatcher;
 
     Map<Path, shared_ptr<Project> > mProjects;
