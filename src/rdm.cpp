@@ -48,7 +48,8 @@ void usage(FILE *f)
             "  --append|-A                     Append to log file\n"
             "  --verbose|-v                    Change verbosity, multiple -v's are allowed\n"
             "  --clean-slate|-C                Start from a clean slate\n"
-            "  --disable-sighandler|-s         Disable signal handler to dump stack for crashes\n"
+            "  --enable-sighandler|-s          Enable signal handler to dump stack for crashes.\n"
+            "                                  Note that this might not play well with clang's signal handler\n"
             "  --no-clang-includepath|-P       Don't use clang include paths by default\n"
             "  --no-Wall|-W                    Don't use -Wall\n"
             "  --silent|-S                     No logging to stdout\n"
@@ -77,7 +78,7 @@ int main(int argc, char** argv)
         { "verbose", no_argument, 0, 'v' },
         { "thread-count", required_argument, 0, 'j' },
         { "clean-slate", no_argument, 0, 'C' },
-        { "disable-sighandler", no_argument, 0, 's' },
+        { "enable-sighandler", no_argument, 0, 's' },
         { "silent", no_argument, 0, 'S' },
         { "no-validate", no_argument, 0, 'V' },
         { "exclude-filter", required_argument, 0, 'x' },
@@ -150,7 +151,7 @@ int main(int argc, char** argv)
     int logLevel = 0;
     Path projectsFile = Path::home() + ".rtagsprojects";
     socketFile = Path::home() + ".rdm";
-    bool enableSignalHandler = true;
+    bool enableSignalHandler = false;
     ByteArray name;
     int argCount = argList.size();
     char **args = argList.data();
@@ -185,7 +186,7 @@ int main(int argc, char** argv)
             options |= Server::NoWall;
             break;
         case 's':
-            enableSignalHandler = false;
+            enableSignalHandler = true;
             break;
         case 'C':
             options |= Server::ClearProjects;
