@@ -79,6 +79,10 @@ Map<Location, CursorInfo> CursorInfo::targetInfos(const SymbolMap &map) const
         SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it);
         if (found != map.end()) {
             ret[*it] = found->second;
+        } else {
+            ret[*it] = CursorInfo();
+            // we need this one for inclusion directives which target a
+            // non-existing CursorInfo
         }
     }
     return ret;

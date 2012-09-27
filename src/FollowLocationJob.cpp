@@ -23,7 +23,7 @@ void FollowLocationJob::run()
 
     Location loc;
     CursorInfo target = cursorInfo.bestTarget(map, &loc);
-    if (!target.isNull()) {
+    if (!loc.isNull()) {
         if (RTags::isReference(cursorInfo.kind)) {
             if (!target.isDefinition && !target.targets.isEmpty()) {
                 switch (target.kind) {

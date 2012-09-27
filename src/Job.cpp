@@ -100,24 +100,25 @@ bool Job::writeRaw(const ByteArray &out, unsigned flags)
 bool Job::write(const Location &location, const CursorInfo &ci, unsigned flags)
 {
     if (ci.symbolLength) {
-        char buf[1024];
         const CXStringScope kind(clang_getCursorKindSpelling(ci.kind));
-        const int w = snprintf(buf, sizeof(buf), "%s symbolName: %s kind: %s %s symbolLength: %d",
-                               location.key().constData(), ci.symbolName.constData(),
-                               clang_getCString(kind.string),
-                               ci.isDefinition ? "Definition" : RTags::isReference(ci.kind) ? "Reference" : "Declaration",
-                               ci.symbolLength);
-        write(ByteArray(buf, w));
+        if (!write<512>(flags, "%s symbolName: %s kind: %s %s symbolLength: %d",
+                        location.key().constData(), ci.symbolName.constData(),
+                        clang_getCString(kind.string),
+                        ci.isDefinition ? "Definition" : RTags::isReference(ci.kind) ? "Reference" : "Declaration",
+                        ci.symbolLength)) {
+            return false;
+        }
         const Set<Location> *locations[] = { &ci.targets, &ci.references };
         const char *names[] = { "targets:", "references:" };
         for (int i=0; i<2; ++i) {
             const Set<Location> &l = *locations[i];
             if (!l.isEmpty()) {
-                snprintf(buf, sizeof(buf), "  %s", names[i]);
+                if (!write<32>(flags, "  %s", names[i]))
+                    return false;
                 for (Set<Location>::const_iterator it = l.begin(); it != l.end(); ++it) {
                     const Location &l = *it;
-                    snprintf(buf, sizeof(buf), "    %s", l.key().constData());
-                    return write(buf, flags);
+                    if (!write<256>(flags, "    %s", l.key().constData()))
+                        return false;
                 }
             }
         }
