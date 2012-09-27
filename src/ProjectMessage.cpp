@@ -11,7 +11,7 @@ ByteArray ProjectMessage::encode() const
     ByteArray data;
     {
         Serializer stream(data);
-        stream << static_cast<int>(mType) << mPath << mArgs << mExtraCompilerFlags << mFlags;
+        stream << mRaw << static_cast<int>(mType) << mPath << mArgs << mExtraCompilerFlags << mFlags;
     }
     return data;
 }
@@ -20,6 +20,6 @@ void ProjectMessage::fromData(const char *data, int size)
 {
     Deserializer stream(data, size);
     int type;
-    stream >> type >> mPath >> mArgs >> mExtraCompilerFlags >> mFlags;
+    stream >> mRaw >> type >> mPath >> mArgs >> mExtraCompilerFlags >> mFlags;
     mType = static_cast<Type>(type);
 }

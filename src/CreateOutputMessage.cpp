@@ -16,7 +16,7 @@ ByteArray CreateOutputMessage::encode() const
     ByteArray data;
     {
         Serializer stream(data);
-        stream << mLevel;
+        stream << mRaw << mLevel;
     }
     return data;
 }
@@ -24,5 +24,5 @@ ByteArray CreateOutputMessage::encode() const
 void CreateOutputMessage::fromData(const char *data, int size)
 {
     Deserializer ds(data, size);
-    ds >> mLevel;
+    ds >> mRaw >> mLevel;
 }

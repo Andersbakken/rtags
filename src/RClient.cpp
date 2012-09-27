@@ -24,6 +24,7 @@ public:
     virtual void exec(RClient *rc, Client *client)
     {
         QueryMessage msg(type);
+        msg.init(rc->argc(), rc->argv());
         msg.setQuery(query);
         msg.setFlags(rc->queryFlags());
         msg.setMax(rc->max());
@@ -50,6 +51,7 @@ public:
     virtual void exec(RClient *rc, Client *client)
     {
         CreateOutputMessage msg(mLevel == Default ? rc->logLevel() : mLevel);
+        msg.init(rc->argc(), rc->argv());
         client->message(&msg);
     }
     virtual ByteArray description() const
@@ -87,6 +89,7 @@ public:
             error() << "Invalid path" << path;
         }
         ProjectMessage msg(type, path);
+        msg.init(rc->argc(), rc->argv());
         msg.setFlags(rc->makefileFlags());
         msg.setExtraFlags(rc->extraCompilerFlags());
         msg.setArguments(args);
@@ -99,7 +102,8 @@ public:
 };
 
 RClient::RClient()
-    : mQueryFlags(0), mClientFlags(0), mMakefileFlags(0), mMax(-1), mLogLevel(0), mLockTimeout(0)
+    : mQueryFlags(0), mClientFlags(0), mMakefileFlags(0), mMax(-1),
+      mLogLevel(0), mLockTimeout(0), mArgc(0), mArgv(0)
 {
 }
 
@@ -555,5 +559,8 @@ bool RClient::parse(int &argc, char **argv)
         for (int i = 0; i < argc; ++i)
             l << " " << argv[i];
     }
+    mArgc = argc;
+    mArgv = argv;
+
     return true;
 }

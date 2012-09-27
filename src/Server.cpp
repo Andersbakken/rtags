@@ -193,6 +193,10 @@ void Server::onConnectionDestroyed(Connection *o)
 
 void Server::onNewMessage(Message *message, Connection *connection)
 {
+    ClientMessage *m = static_cast<ClientMessage*>(message);
+    const ByteArray raw = m->raw();
+    if (!raw.isEmpty())
+        error() << raw;
     switch (message->messageId()) {
     case ProjectMessage::MessageId:
         handleProjectMessage(static_cast<ProjectMessage*>(message), connection);
@@ -433,8 +437,6 @@ int Server::followLocation(const QueryMessage &query)
     }
     updateProjectForLocation(loc);
 
-    error("rc -f %s", loc.key().constData());
-
     shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
@@ -450,7 +452,6 @@ int Server::followLocation(const QueryMessage &query)
 
 int Server::findFile(const QueryMessage &query)
 {
-    error("rc -P %s", query.query().constData());
     shared_ptr<Project> project = currentProject();
     if (!project || !project->fileManager) {
         error("No project");
@@ -499,8 +500,6 @@ int Server::cursorInfo(const QueryMessage &query)
     }
     updateProjectForLocation(loc);
 
-    error("rc -U %s", loc.key().constData());
-
     shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
@@ -523,8 +522,6 @@ int Server::referencesForLocation(const QueryMessage &query)
     }
     updateProjectForLocation(loc);
 
-    error("rc -r %s", loc.key().constData());
-
     shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
@@ -542,7 +539,6 @@ int Server::referencesForLocation(const QueryMessage &query)
 int Server::referencesForName(const QueryMessage& query)
 {
     const ByteArray name = query.query();
-    error("rc -R \"%s\"", name.constData());
 
     shared_ptr<Project> project = currentProject();
     if (!project) {
@@ -561,8 +557,6 @@ int Server::findSymbols(const QueryMessage &query)
 {
     const ByteArray partial = query.query();
 
-    error("rc -F \"%s\"", partial.constData());
-
     shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
@@ -580,8 +574,6 @@ int Server::listSymbols(const QueryMessage &query)
 {
     const ByteArray partial = query.query();
 
-    error("rc -S \"%s\"", partial.constData());
-
     shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
@@ -597,8 +589,6 @@ int Server::listSymbols(const QueryMessage &query)
 
 int Server::status(const QueryMessage &query)
 {
-    error("rc -s \"%s\"", query.query().constData());
-
     shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
@@ -617,8 +607,6 @@ int Server::test(const QueryMessage &query)
     if (!path.isFile()) {
         return 0;
     }
-    error("rc -t \"%s\"", path.constData());
-
     TestJob *job = new TestJob(path);
     job->setId(nextId());
     startJob(job);
@@ -627,8 +615,6 @@ int Server::test(const QueryMessage &query)
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)
 {
-    error("rc -x \"%s\"", query.query().constData());
-
     shared_ptr<Project> project = currentProject();
     if (!project || !project->indexer) {
         error("No project");
@@ -645,7 +631,6 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
 
 void Server::errors(const QueryMessage &query, Connection *conn)
 {
-    error("rc -Q \"%s\"", query.query().constData());
     shared_ptr<Project> project = currentProject();
     if (!project || !project->indexer) {
         error("No project");

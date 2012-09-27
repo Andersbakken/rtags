@@ -1,10 +1,10 @@
 #ifndef OutputMessage_h
 #define OutputMessage_h
 
-#include "Message.h"
+#include "ClientMessage.h"
 #include <ByteArray.h>
 
-class CreateOutputMessage : public Message
+class CreateOutputMessage : public ClientMessage
 {
 public:
     enum { MessageId = 5 };

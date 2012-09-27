@@ -3,10 +3,10 @@
 
 #include <List.h>
 #include <ByteArray.h>
-#include "Message.h"
+#include "ClientMessage.h"
 #include "RTags.h"
 
-class ProjectMessage : public Message
+class ProjectMessage : public ClientMessage
 {
 public:
     enum { MessageId = 6 };

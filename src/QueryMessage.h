@@ -1,13 +1,13 @@
 #ifndef QUERYMESSAGE_H
 #define QUERYMESSAGE_H
 
-#include "Message.h"
+#include "ClientMessage.h"
 #include "Path.h"
 #include <Serializer.h>
 #include "Map.h"
 #include "Location.h"
 
-class QueryMessage : public Message
+class QueryMessage : public ClientMessage
 {
 public:
     enum { MessageId = 4 };
