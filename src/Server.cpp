@@ -233,6 +233,9 @@ void Server::handleProjectMessage(ProjectMessage *message, Connection *conn)
         conn->finish();
         break;
     case ProjectMessage::SmartType:
+        if (smartProject(message->path()))
+            conn->write<256>("Parsing %s", message->path().constData());
+        conn->finish();
         break;
     }
 }
@@ -823,123 +826,23 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
         parser->stop();
 }
 
-struct ProjectFileUserData {
-    List<RegExp> includes, excludes;
-    List<ByteArray> includesWildcard, excludesWildcard;
-    List<Path> files;
-    bool recurse;
-};
-
-static inline bool match(const Path &path, const List<ByteArray> &wildcards, const List<RegExp> &regexps)
-{
-    const char *p = path.constData();
-    for (int i=0; i<wildcards.size(); ++i) {
-        if (!fnmatch(wildcards.at(i).constData(), p, 0))
-            return true;
-    }
-    for (int i=0; i<regexps.size(); ++i) {
-        if (regexps.at(i).indexIn(path) != -1)
-            return true;
-    }
-    return false;
-}
-
-static Path::VisitResult projectFileVisitor(const Path &path, void *userData)
-{
-    assert(userData);
-    ProjectFileUserData &ud = *reinterpret_cast<ProjectFileUserData*>(userData);
-    if (path.isFile()) {
-        if (match(path, ud.includesWildcard, ud.includes) && !match(path, ud.excludesWildcard, ud.excludes))
-            ud.files.append(path);
-    } else if (ud.recurse && path.isDir()) {
-        return Path::Recurse;
-    }
-    return Path::Continue;
-}
-
-bool Server::processProjectFile(const Path &path, Connection *conn)
-{
-    IniFile file(path);
-    if (!file.isValid())
-        return false;
-    const List<ByteArray> dirs = file.keys("Directories");
-    if (dirs.isEmpty())
-        return false;
-    ProjectFileUserData userData;
-    struct {
-        List<RegExp> &rx;
-        List<ByteArray> &wc;
-        const char *group;
-    } lists[] = {
-        { userData.includes, userData.includesWildcard, "Include" },
-        { userData.excludes, userData.excludesWildcard, "Exclude" }
-    };
-    for (unsigned j=0; j<sizeof(lists) / sizeof(lists[0]); ++j) {
-        const List<ByteArray> keys = file.keys(lists[j].group);
-        for (int i=0; i<keys.size(); ++i) {
-            const ByteArray type = file.value(lists[j].group, keys.at(i));
-            if (!strcasecmp(type.constData(), "wildcard")) {
-                lists[j].wc.append(keys.at(i));
-            } else if (!type.isEmpty()) {
-                error("Invalid type for %s: %s", lists[j].group, type.constData());
-                return false;
-            } else {
-                lists[j].rx.append(RegExp(keys.at(i)));
-                if (!lists[j].rx.last().isValid()) {
-                    error("Invalid regexp: %s", keys.at(i).constData());
-                    return false;
-                }
-            }
-        }
-    }
-
-    if (userData.includes.isEmpty() && userData.includesWildcard.isEmpty()) {
-        error("Nothing to include for %s", path.constData());
-        return false;
-    }
-
-    const Path dir = path.parentDir();
-    for (int i=0; i<dirs.size(); ++i) {
-        Path p = Path::resolved(dirs.at(i), dir);
-        if (!p.isDir()) {
-            error("%s is not a directory", dirs.at(i).constData());
-            return false;
-        }
-        const ByteArray type = file.value("Directories", dirs.at(i));
-        if (!strcasecmp(type.constData(), "recurse")) {
-            userData.recurse = true;
-        } else if (!type.isEmpty()) {
-            error("Invalid type for directory: %s", type.constData());
-            return false;
-        } else {
-            userData.recurse = false;
-        }
-        p.visit(::projectFileVisitor, &userData);
-    }
-
-    return false;
-}
-
-bool Server::processSourceFile(const GccArguments &args, const Path &makefile)
+bool Server::processSourceFile(const GccArguments &args, const Path &proj)
 {
     const List<Path> inputFiles = args.inputFiles();
     const int c = inputFiles.size();
     if (!c) {
         warning("no input file?");
         return true;
-    } else if (args.outputFile().isEmpty()) {
-        warning("no output file?");
-        return true;
     } else if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
         return true;
     }
-    shared_ptr<Project> &project = mProjects[makefile];
+    shared_ptr<Project> &project = mProjects[proj];
     if (!project) {
         Path srcRoot = findProjectRoot(*args.unresolvedInputFiles().begin());
         if (srcRoot.isEmpty())
             srcRoot = findProjectRoot(*inputFiles.begin());
         if (srcRoot.isEmpty()) {
-            mProjects.remove(makefile);
+            mProjects.remove(proj);
             error("Can't find project root for %s", inputFiles.begin()->constData());
             return false;
         }
@@ -1066,4 +969,97 @@ void Server::removeProject(const Path &path)
 
     if (!mCurrentProject.lock() && !mProjects.isEmpty())
         setCurrentProject(mProjects.begin()->first);
+}
+
+static inline bool match(const Path &path, const List<ByteArray> &wildcards, const List<RegExp> &regexps)
+{
+    // error() << "matching" << path << "vs" << wildcards; // << regexps;
+    const char *p = path.constData();
+    for (int i=0; i<wildcards.size(); ++i) {
+        if (!fnmatch(wildcards.at(i).constData(), p, 0))
+            return true;
+    }
+    for (int i=0; i<regexps.size(); ++i) {
+        if (regexps.at(i).indexIn(path) != -1)
+            return true;
+    }
+    return false;
+}
+
+struct ProjectFileUserData {
+    List<RegExp> includes, excludes;
+    List<ByteArray> includesWildcard, excludesWildcard;
+    List<Path> sources;
+    Set<Path> includePaths;
+    bool recurse;
+};
+
+static Path::VisitResult projectFileVisitor(const Path &path, void *userData)
+{
+    assert(userData);
+    ProjectFileUserData &ud = *reinterpret_cast<ProjectFileUserData*>(userData);
+    switch (path.type()) {
+    case Path::File:
+        if (match(path, ud.includesWildcard, ud.includes)
+            && !match(path, ud.excludesWildcard, ud.excludes)) {
+            ud.sources.append(path);
+        } else if (path.isHeader()) {
+            ud.includePaths.insert(path.parentDir());
+        }
+        break;
+    case Path::Directory:
+        if (ud.recurse)
+            return Path::Recurse;
+        break;
+    default:
+        break;
+    }
+    return Path::Continue;
+}
+
+bool Server::smartProject(const Path &path)
+{
+    if (mProjects.contains(path))
+        return false;
+    Map<Path, ProjectFileUserData> dirs;
+    switch (path.type()) {
+    case Path::File:
+        break;
+    case Path::Directory: {
+        ProjectFileUserData &data = dirs[path];
+        data.recurse = true;
+        data.includesWildcard.append("*.c");
+        data.includesWildcard.append("*.cpp");
+        data.includesWildcard.append("*.cc");
+        data.includesWildcard.append("*.cxx");
+        data.includesWildcard.append("*.C");
+        break; }
+    default:
+        break;
+    }
+    if (dirs.isEmpty())
+        return false;
+    shared_ptr<Project> &project = mProjects[path];
+    project.reset(new Project(path));
+    project->indexer.reset(new Indexer(project, !(mOptions.options & NoValidate)));
+    project->indexer->beginMakefile();
+    project->fileManager.reset(new FileManager);
+    project->fileManager->init(project);
+    for (Map<Path, ProjectFileUserData>::iterator it = dirs.begin(); it != dirs.end(); ++it) {
+        ProjectFileUserData &ud = it->second;
+        it->first.visit(projectFileVisitor, &ud);
+        GccArguments args;
+        args.mInputFiles = ud.sources;
+        args.mType = GccArguments::Compile;
+        args.mLang = GccArguments::CPlusPlus; // ### lying a little
+        for (Set<Path>::const_iterator it = ud.includePaths.begin(); it != ud.includePaths.end(); ++it) {
+            args.mClangArgs.append("-I" + *it);
+        }
+        processSourceFile(args, path);
+    }
+    project->indexer->endMakefile();
+
+    // error() << userData.includePaths;
+    // error() << userData.sources;
+    return true;
 }

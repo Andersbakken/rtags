@@ -258,7 +258,7 @@ bool RClient::parse(int &argc, char **argv)
         { "dump-file", required_argument, 0, 'd' },
         { "locktimeout", required_argument, 0, 'y' },
         { "sniff-make", no_argument, 0, 'J' },
-        { "smart-project", no_argument, 0, 'j' },
+        { "smart-project", optional_argument, 0, 'j' },
         { 0, 0, 0, 0 }
     };
 
@@ -455,6 +455,15 @@ bool RClient::parse(int &argc, char **argv)
                 addGRTag(Path::resolved(argv[optind++]));
             } else {
                 addGRTag(Path::resolved("."));
+            }
+            break;
+        case 'j':
+            if (optarg) {
+                addSmartProject(Path::resolved(optarg));
+            } else if (optind < argc && argv[optind][0] != '-') {
+                addSmartProject(Path::resolved(argv[optind++]));
+            } else {
+                addSmartProject(Path::resolved("."));
             }
             break;
         case 'T':

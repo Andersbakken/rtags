@@ -44,9 +44,18 @@ ExternalProject_Add(
     GIT_REPOSITORY "http://llvm.org/git/clang.git"
     #GIT_TAG "release_31"
     BINARY_DIR "clang_build"
-    UPDATE_COMMAND ""
+    #UPDATE_COMMAND ""
     CMAKE_ARGS -DCLANG_PATH_TO_LLVM_BUILD=../llvm_build -DCLANG_PATH_TO_LLVM_SOURCE=../llvm -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/clang_install -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
     DEPENDS llvm
+    )
+
+ExternalProject_Add(
+    picojson
+    SOURCE_DIR ./picojson
+    GIT_REPOSITORY "git://github.com/kazuho/picojson.git"
+    BUILD_COMMAND ""
+    CONFIGURE_COMMAND ""
+    INSTALL_COMMAND ""
     )
 
 add_custom_target (

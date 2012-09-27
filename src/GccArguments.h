@@ -35,6 +35,7 @@ private:
     GccArguments::Type mType;
     GccArguments::Lang mLang;
     friend class MakefileParser;
+    friend class Server;
 };
 
 #endif

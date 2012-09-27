@@ -1,12 +1,17 @@
 cmake_minimum_required(VERSION 2.8.3)
+include(clang.cmake)
 include(PCH_GCC4_v2.cmake)
 include_directories(
   ${CMAKE_CURRENT_LIST_DIR}
 )
 
 include_directories(
-    ${CMAKE_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR})
+    ${CMAKE_SOURCE_DIR} 
+    ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}../3rdparty/picojson
+    )
+
 
 set(rtags_HDRS
     AbortInterface.h
@@ -132,8 +137,6 @@ elseif(HAVE_KQUEUE EQUAL 1)
   list(APPEND rtags_SRCS FileSystemWatcher_kqueue.cpp)
 endif()
 
-include(clang.cmake)
-include(PCH_GCC4_v2.cmake)
 
 add_pch_rule(Pch.h rtags_SRCS rtags_PCHFLAGS)
 add_definitions(${rtags_PCHFLAGS})

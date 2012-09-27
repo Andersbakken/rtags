@@ -18,7 +18,7 @@ public:
     ByteArray error() const { return mError; }
 
     typedef Map<ByteArray, Map<ByteArray, ByteArray> > MapMap;
-    const MapMap &values() const { return mValues; }
+    // const MapMap &values() const { return mValues; }
     bool setValue(const ByteArray &group, const ByteArray &key, const ByteArray &value = ByteArray());
     bool remove(const ByteArray &group, const ByteArray &key);
     bool removeGroup(const ByteArray &group);

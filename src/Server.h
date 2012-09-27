@@ -70,7 +70,6 @@ private:
               const List<ByteArray> &extraCompilerFlags = List<ByteArray>(),
               Connection *conn = 0);
     void clearProjects();
-    bool processProjectFile(const Path &path, Connection *conn);
     void handleProjectMessage(ProjectMessage *message, Connection *conn);
     void handleQueryMessage(QueryMessage *message, Connection *conn);
     void handleErrorMessage(ErrorMessage *message, Connection *conn);
@@ -94,6 +93,7 @@ private:
     bool updateProjectForLocation(const Location &location);
     void writeProjects();
     bool grtag(const Path &dir);
+    bool smartProject(const Path &path);
     shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void removeProject(const Path &key);
 
