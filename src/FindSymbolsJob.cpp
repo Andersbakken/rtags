@@ -34,11 +34,11 @@ struct Node
         case CXCursor_FunctionDecl:
         case CXCursor_CXXMethod:
         case CXCursor_Constructor:
-            val = 10;
+            val = 5;
             break;
         case CXCursor_ClassDecl:
         case CXCursor_StructDecl:
-            val = 5;
+            val = 10;
             break;
         default:
             val = 1;
