@@ -23,9 +23,9 @@ checkFollow()
 }
 
 checkFollow 97 22
-checkFollow 106 22
+checkFollow 106
 checkFollow 121 22
-checkFollow 111
+checkFollow 111 22
 checkFollow 126
 checkFollow 173 22
 checkFollow 182 22

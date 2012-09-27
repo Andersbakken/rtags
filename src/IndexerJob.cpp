@@ -340,7 +340,6 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         CXStringScope name = clang_getCursorSpelling(ref);
         const char *cstr = clang_getCString(name.string);
         info.symbolLength = cstr ? strlen(cstr) : 0;
-        info.targets.insert(refLoc);
         if (!info.symbolLength) {
             switch (kind) {
             case CXCursor_ClassDecl:
@@ -358,7 +357,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
             info.symbolName = addNamePermutations(cursor, loc, false);
         }
     }
-
+    info.targets.insert(refLoc);
     Map<Location, RTags::ReferenceType> &val = mData->references[loc];
     val[refLoc] = RTags::NormalReference;
 }
