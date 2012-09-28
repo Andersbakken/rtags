@@ -16,6 +16,8 @@ public:
     CursorInfo()
         : symbolLength(0), kind(CXCursor_FirstInvalid), isDefinition(false)
     {}
+
+    static int cursorRank(CXCursorKind kind);
     void clear()
     {
         symbolLength = 0;
@@ -106,8 +108,7 @@ public:
     ByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
     CXCursorKind kind;
     bool isDefinition;
-    Set<Location> targets;
-    Set<Location> references;
+    Set<Location> targets, references;
 };
 
 inline Log operator<<(Log log, const CursorInfo &info)

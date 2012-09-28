@@ -37,7 +37,7 @@ ByteArray CursorInfo::toString() const
     return ret;
 }
 
-static inline int cursorRank(CXCursorKind kind)
+int CursorInfo::cursorRank(CXCursorKind kind)
 {
     switch (kind) {
     case CXCursor_Constructor: // this one should be more than class/struct decl
