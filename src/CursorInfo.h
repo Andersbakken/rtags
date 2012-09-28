@@ -14,12 +14,13 @@ class CursorInfo
 {
 public:
     CursorInfo()
-        : symbolLength(0), kind(CXCursor_FirstInvalid), isDefinition(false)
+        : symbolLength(0), kind(CXCursor_FirstInvalid), isDefinition(false), start(-1), end(-1)
     {}
 
     static int cursorRank(CXCursorKind kind);
     void clear()
     {
+        start = end = -1;
         symbolLength = 0;
         kind = CXCursor_FirstInvalid;
         isDefinition = false;
@@ -64,7 +65,7 @@ public:
     bool isEmpty() const
     {
         assert((symbolLength || symbolName.isEmpty()) && (symbolLength || kind == CXCursor_FirstInvalid)); // these should be coupled
-        return !symbolLength && targets.isEmpty() && references.isEmpty();
+        return !symbolLength && targets.isEmpty() && references.isEmpty() && start == -1 && end == -1;
     }
 
     bool unite(const CursorInfo &other)
@@ -78,6 +79,12 @@ public:
             targets.unite(other.targets, &count);
             if (count)
                 changed = true;
+        }
+
+        if (end == -1 && start == -1 && other.start != -1 && other.end != -1) {
+            start = other.start;
+            end = other.end;
+            changed = true;
         }
 
         if (!symbolLength && other.symbolLength) {
@@ -109,6 +116,7 @@ public:
     CXCursorKind kind;
     bool isDefinition;
     Set<Location> targets, references;
+    int start, end;
 };
 
 inline Log operator<<(Log log, const CursorInfo &info)

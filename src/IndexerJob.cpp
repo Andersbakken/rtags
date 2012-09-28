@@ -346,6 +346,12 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     // better, gets to decide on the symbolLength
 
     if (!info.symbolLength || info.bestTarget(mData->symbols).kind == refKind) {
+        CXSourceRange range = clang_getCursorExtent(cursor);
+        unsigned start, end;
+        clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
+        clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
+        info.start = start;
+        info.end = end;
         info.isDefinition = false;
         info.kind = kind;
         CXStringScope name = clang_getCursorSpelling(ref);
@@ -444,6 +450,13 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
     CursorInfo &info = mData->symbols[location];
     RTags::ReferenceType referenceType = RTags::NoReference;
     if (!info.symbolLength) {
+        CXSourceRange range = clang_getCursorExtent(cursor);
+        unsigned start, end;
+        clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
+        clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
+        info.start = start;
+        info.end = end;
+
         info.isDefinition = clang_isCursorDefinition(cursor);
         info.kind = kind;
         CXStringScope name = clang_getCursorSpelling(cursor);

@@ -99,29 +99,8 @@ bool Job::writeRaw(const ByteArray &out, unsigned flags)
 
 bool Job::write(const Location &location, const CursorInfo &ci, unsigned flags)
 {
-    if (ci.symbolLength) {
-        const CXStringScope kind(clang_getCursorKindSpelling(ci.kind));
-        if (!write<512>(flags, "%s symbolName: %s kind: %s %s symbolLength: %d",
-                        location.key().constData(), ci.symbolName.constData(),
-                        clang_getCString(kind.string),
-                        ci.isDefinition ? "Definition" : RTags::isReference(ci.kind) ? "Reference" : "Declaration",
-                        ci.symbolLength)) {
-            return false;
-        }
-        const Set<Location> *locations[] = { &ci.targets, &ci.references };
-        const char *names[] = { "targets:", "references:" };
-        for (int i=0; i<2; ++i) {
-            const Set<Location> &l = *locations[i];
-            if (!l.isEmpty()) {
-                if (!write<32>(flags, "  %s", names[i]))
-                    return false;
-                for (Set<Location>::const_iterator it = l.begin(); it != l.end(); ++it) {
-                    const Location &l = *it;
-                    if (!write<256>(flags, "    %s", l.key().constData()))
-                        return false;
-                }
-            }
-        }
+    if (ci.symbolLength && !write<1024>(flags, "%s %s", location.key().constData(), ci.toString().constData())) {
+        return false;
     }
     return true;
 }

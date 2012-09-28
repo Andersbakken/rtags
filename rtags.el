@@ -365,17 +365,22 @@ return t if rtags is allowed to modify this file"
           (rtags-call-rc "-m" makefile)
           (message (buffer-string))))))
 
+(defun rtags-target (&optional location)
+  (unless location
+    (setq location (rtags-current-location)))
+  (with-temp-buffer
+    (rtags-call-rc "-N" "-f" location)
+    (if (< (point-min) (point-max))
+        (buffer-substring (point-min) (- (point-max) 1))
+      nil)))
+
 (defun rtags-follow-symbol-at-point (prefix)
   (interactive "P")
   (setq rtags-path-filter (if prefix buffer-file-name nil))
   (rtags-save-location)
-  (let ((arg (rtags-current-location)))
-    (with-temp-buffer
-      (rtags-call-rc "-N" "-f" arg)
-      (setq rtags-path-filter nil)
-      (if (< (point-min) (point-max))
-          (rtags-goto-location (buffer-string)))
-      )
+  (let ((target (rtags-target)))
+    (if target
+        (rtags-goto-location target))
     )
   )
 
@@ -693,5 +698,40 @@ return t if rtags is allowed to modify this file"
   (interactive "NOffset: ")
   (if offset
       (goto-char (+ 1 offset))))
+
+(defun rtags-target-content (&optional location)
+  (let ((cursorinfo (rtags-cursorinfo (rtags-target location))))
+    (if (string-match "^\\(.*\\),[0-9]+ CursorInfo(\\([0-9]+\\)-\\([0-9]+\\) " cursorinfo)
+        (let ((file (match-string 1 cursorinfo))
+              (start (+ (string-to-int (match-string 2 cursorinfo)) 1))
+              (end (+ (string-to-int (match-string 3 cursorinfo)) 1))
+              (tip))
+          (save-excursion
+            (find-file file)
+            (buffer-substring start end))))))
+
+(defun rtags-tooltip ()
+  (interactive)
+  (let ((cursorinfo (rtags-cursorinfo (rtags-target))))
+    (message cursorinfo)
+    (if (rtags-target)
+        (message (rtags-target)))
+    (if (string-match "^\\(.*\\),[0-9]+ CursorInfo(\\([0-9]+\\)-\\([0-9]+\\) " cursorinfo)
+        (let ((file (match-string 1 cursorinfo))
+              (start (+ (string-to-int (match-string 2 cursorinfo)) 1))
+              (end (+ (string-to-int (match-string 3 cursorinfo)) 1))
+              (tip))
+          (save-excursion
+            (find-file file)
+            (setq tip (buffer-substring start end))
+            tip)
+          )
+      )
+    )
+  )
+
+
+
+
 
 (provide 'rtags)
