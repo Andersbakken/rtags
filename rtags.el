@@ -54,6 +54,9 @@
 
 
 
+(defun rtags-executable-find (exe)
+  (if rtags-path (concat rtags-path "/" exe) (executable-find exe)))
+
 (defun rtags-call-rc (&rest arguments)
   (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
   (if rtags-path-filter
@@ -64,8 +67,8 @@
 
   (if rtags-timeout
       (push (format "--timeout=%d" rtags-timeout) arguments))
-  (rtags-log (concat (executable-find "rc") " " (combine-and-quote-strings arguments)))
-  (apply #'call-process (executable-find "rc") nil (list t nil) nil arguments)
+  (rtags-log (concat (rtags-executable-find "rc") " " (combine-and-quote-strings arguments)))
+  (apply #'call-process (rtags-executable-find "rc") nil (list t nil) nil arguments)
   (goto-char (point-min))
   (rtags-log (buffer-string))
   (> (point-max) (point-min)))
@@ -352,6 +355,11 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'integer)
 
+(defcustom rtags-path nil
+  "Path to rtags executables"
+  :group 'rtags
+  :type 'string)
+
 (defcustom rtags-max-bookmark-count 100
   "How many bookmarks to keep in stack"
   :group 'rtags
@@ -400,12 +408,12 @@ return t if rtags is allowed to modify this file"
   (message (rtags-current-location)))
 
 (defun rtags-quit-rdm () (interactive)
-  (call-process (executable-find "rc") nil nil nil "--quit-rdm"))
+  (call-process (rtags-executable-find "rc") nil nil nil "--quit-rdm"))
 
 (defun rtags-clear-rdm (&optional dontask) (interactive)
   "Use with care, it will destroy the database without possibility of undoing"
   (if (or dontask (y-or-n-p "This will clear the database. Are you sure?"))
-      (call-process (executable-find "rc") nil nil nil "-C")))
+      (call-process (rtags-executable-find "rc") nil nil nil "-C")))
 
 (defun rtags-bookmark-forward()
   (interactive)
@@ -647,7 +655,7 @@ return t if rtags is allowed to modify this file"
           (setq rtags-diagnostics-process
                 (start-process
                  "RTags Diagnostics"
-                 buf (executable-find "rc")
+                 buf (rtags-executable-find "rc")
                  "-G"
                  (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm")))
           (rtags-clear-diagnostics))
@@ -701,6 +709,7 @@ return t if rtags is allowed to modify this file"
                (goto-char (point-min))
                (rtags-mode)
                (setq rtags-no-otherbuffer nil)
+               (local-set-key "q" 'delete-window)
                (if rtags-jump-to-first-match
                    (rtags-select-other-buffer)))))
     (not empty))
