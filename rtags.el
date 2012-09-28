@@ -551,7 +551,8 @@ return t if rtags is allowed to modify this file"
     (with-current-buffer buf
       (setq buffer-read-only t)
       (compilation-mode)
-      (local-set-key "c" 'rtags-clear-diagnostics))
+      (local-set-key "c" 'rtags-clear-diagnostics)
+      (local-set-key "q" 'bury-buffer))
     (if (cond ((not rtags-diagnostics-process) t)
               ((eq (process-status rtags-diagnostics-process) 'exit) t)
               ((eq (process-status rtags-diagnostics-process) 'signal) t)
