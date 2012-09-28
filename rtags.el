@@ -705,13 +705,10 @@ return t if rtags is allowed to modify this file"
     (if (string-match "^\\(.*\\),[0-9]+ CursorInfo(\\([0-9]+\\)-\\([0-9]+\\) " cursorinfo)
         (let ((file (match-string 1 cursorinfo))
               (start (+ (string-to-int (match-string 2 cursorinfo)) 1))
-              (end (+ (string-to-int (match-string 3 cursorinfo)) 1))
-              (prev (buffer-file-name))
-              (tip))
-          (find-file file)
-          (setq tip (buffer-substring start end))
-          (find-file prev)
-          tip))))
+              (end (+ (string-to-int (match-string 3 cursorinfo)) 1)))
+          (with-temp-buffer
+            (insert-file-contents file start end)
+            (buffer-string))))))
 
 (defun rtags-tooltip ()
   (interactive)
