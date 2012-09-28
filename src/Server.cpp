@@ -306,7 +306,16 @@ void Server::onMakefileParserDone(MakefileParser *parser)
 
 void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn)
 {
-    new LogObject(conn, message->level());
+    LogObject *obj = new LogObject(conn, message->level());
+    if (message->level() == CompilationError) {
+        shared_ptr<Project> project = currentProject();
+        if (project && project->indexer) {
+            const ByteArray errors = project->indexer->errors();
+            if (!errors.isEmpty()) {
+                obj->log(errors.constData(), errors.size());
+            }
+        }
+    }
 }
 
 void Server::handleQueryMessage(QueryMessage *message, Connection *conn)

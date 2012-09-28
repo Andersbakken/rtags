@@ -152,28 +152,30 @@ ByteArray Indexer::fixIts(const Path &path) const
 
 ByteArray Indexer::errors(const Path &path) const
 {
-    uint32_t fileId = Location::fileId(path);
+    MutexLocker lock(&mMutex);
+    if (path.isEmpty())
+        return ByteArray::join(mErrors.values(), '\n');
+    const uint32_t fileId = Location::fileId(path);
     if (!fileId)
         return ByteArray();
-    MutexLocker lock(&mMutex);
     return mErrors.value(fileId);
 }
 
 void Indexer::addDiagnostics(const DiagnosticsMap &diagnostics, const FixitMap &fixIts)
 {
-    for (Map<uint32_t, List<ByteArray> >::const_iterator it = diagnostics.begin(); it != diagnostics.end(); ++it) {
+    for (DiagnosticsMap::const_iterator it = diagnostics.begin(); it != diagnostics.end(); ++it) {
         const uint32_t fileId = it->first;
-        Map<Location, std::pair<int, ByteArray> >::iterator i = mFixIts.lower_bound(Location(fileId, 0));
+        FixitMap::iterator i = mFixIts.lower_bound(Location(fileId, 0));
         while (i != mFixIts.end() && i->first.fileId() == fileId) {
             mFixIts.erase(i++);
         }
         if (it->second.isEmpty()) {
             mErrors.remove(it->first);
         } else {
-            mErrors[it->first] = ByteArray::join(it->second, "\n");
+            mErrors[it->first] = ByteArray::join(it->second, '\n');
         }
     }
-    for (Map<Location, std::pair<int, ByteArray> >::const_iterator it = fixIts.begin(); it != fixIts.end(); ++it) {
+    for (FixitMap::const_iterator it = fixIts.begin(); it != fixIts.end(); ++it) {
         mFixIts[it->first] = (*it).second;
     }
 }

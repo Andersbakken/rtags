@@ -24,7 +24,7 @@ public:
     Set<uint32_t> dependencies(uint32_t fileId) const;
     bool visitFile(uint32_t fileId, IndexerJob *job);
     ByteArray fixIts(const Path &path) const;
-    ByteArray errors(const Path &path) const;
+    ByteArray errors(const Path &path = Path()) const;
     int reindex(const ByteArray &pattern, bool regexp);
     signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
     shared_ptr<Project> project() const { return mProject.lock(); }
