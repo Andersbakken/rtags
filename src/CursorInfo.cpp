@@ -40,13 +40,13 @@ ByteArray CursorInfo::toString() const
 static inline int cursorRank(CXCursorKind kind)
 {
     switch (kind) {
-    case CXCursor_VarDecl:
-    case CXCursor_FieldDecl:
-        return 2;
     case CXCursor_Constructor: // this one should be more than class/struct decl
         return 1;
-    default:
+    case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
         return 0;
+    default:
+        return 2;
     }
 }
 
