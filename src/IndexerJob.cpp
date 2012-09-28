@@ -84,35 +84,45 @@ static inline void addToSymbolNames(const ByteArray &arg, bool hasTemplates, con
 }
 
 static const CXCursor nullCursor = clang_getNullCursor();
+
+static inline bool walk(CXCursorKind kind)
+{
+    switch (kind) {
+    case CXCursor_CXXMethod:
+    case CXCursor_Constructor:
+    case CXCursor_FunctionDecl:
+    case CXCursor_Destructor:
+    case CXCursor_VarDecl:
+    case CXCursor_ParmDecl:
+    case CXCursor_FieldDecl:
+    case CXCursor_ClassTemplate:
+    case CXCursor_Namespace:
+    case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
+
 ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location)
 {
-    ByteArray ret, qname, qparam, qnoparam;
+    ByteArray qparam, qnoparam;
 
     CXCursor cur = cursor;
     CXCursorKind kind;
+
     bool first = true;
-    for (;;) {
+    while (true) {
         if (clang_equalCursors(cur, nullCursor))
             break;
         kind = clang_getCursorKind(cur);
-        if (!first) {
-            bool ok = false;
-            switch (kind) {
-            case CXCursor_Namespace:
-            case CXCursor_ClassDecl:
-            case CXCursor_ClassTemplate:
-            case CXCursor_StructDecl:
-            case CXCursor_CXXMethod:
-            case CXCursor_Constructor:
-            case CXCursor_Destructor:
-            case CXCursor_FunctionDecl:
-                ok = true;
-                break;
-            default:
-                break;
-            }
-            if (!ok)
-                break;
+
+        if (first) {
+            first = false;
+        } else if (!walk(kind)) {
+            return qparam;
         }
 
         CXStringScope displayName(clang_getCursorDisplayName(cur));
@@ -120,10 +130,7 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
         if (!name || !strlen(name)) {
             break;
         }
-        qname = ByteArray(name);
-        if (ret.isEmpty()) {
-            ret = qname;
-        }
+        const ByteArray qname(name);
         if (qparam.isEmpty()) {
             qparam = qname;
             const int sp = qparam.indexOf('(');
@@ -153,30 +160,11 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
             addToSymbolNames(qnoparam, hasTemplates, location, mData->symbolNames);
         }
 
-        if (first) {
-            first = false;
-            switch (kind) {
-            case CXCursor_Namespace:
-            case CXCursor_ClassDecl:
-            case CXCursor_StructDecl:
-            case CXCursor_CXXMethod:
-            case CXCursor_Constructor:
-            case CXCursor_FunctionDecl:
-            case CXCursor_Destructor:
-            case CXCursor_VarDecl:
-            case CXCursor_ParmDecl:
-            case CXCursor_FieldDecl:
-            case CXCursor_ClassTemplate:
-                break;
-            default:
-                // these don't need the scope
-                return ret;
-            }
-        }
-
+        if (!walk(kind))
+            return qparam;
         cur = clang_getCursorSemanticParent(cur);
     }
-    return ret;
+    return qparam;
 }
 
 static const CXSourceLocation nullLocation = clang_getNullLocation();
@@ -354,26 +342,8 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         info.end = end;
         info.isDefinition = false;
         info.kind = kind;
-        CXStringScope name = clang_getCursorSpelling(ref);
-        const char *cstr = clang_getCString(name.string);
-        if (cstr) {
-            info.symbolName = cstr;
-            info.symbolLength = info.symbolName.size();
-        }
-        if (!info.symbolLength) {
-            switch (kind) {
-            case CXCursor_ClassDecl:
-            case CXCursor_UnionDecl:
-                info.symbolLength = 5;
-                break;
-            case CXCursor_StructDecl:
-                info.symbolLength = 6;
-                break;
-            default:
-                mData->symbols.remove(loc);
-                return;
-            }
-        }
+        info.symbolLength = refInfo.symbolLength;
+        info.symbolName = refInfo.symbolName;
     }
     Map<Location, RTags::ReferenceType> &val = mData->references[loc];
     val[refLoc] = RTags::NormalReference;

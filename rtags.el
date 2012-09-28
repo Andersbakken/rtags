@@ -107,17 +107,19 @@
   :type 'hook)
 
 (defun rtags-current-symbol ()
-  (cond
-   ((looking-at "[0-9A-Za-z_]")
-    (while (and (not (bolp)) (looking-at "[0-9A-Za-z_]"))
-      (forward-char -1))
-    (if (not (looking-at "[0-9A-Za-z_]")) (forward-char 1)))
-   (t
-    (while (looking-at "[ \t]")
-      (forward-char 1))))
-  (if (looking-at "[A-Za-z_][A-Za-z_0-9]*")
-      (buffer-substring (match-beginning 0) (match-end 0))
-    nil))
+  (let ((name (rtags-current-symbol-name)))
+    (unless name
+      (cond
+       ((looking-at "[0-9A-Za-z_]")
+        (while (and (not (bolp)) (looking-at "[0-9A-Za-z_]"))
+          (forward-char -1))
+        (if (not (looking-at "[0-9A-Za-z_]")) (forward-char 1)))
+       (t
+        (while (looking-at "[ \t]")
+          (forward-char 1))))
+      (if (looking-at "[A-Za-z_][A-Za-z_0-9]*")
+          (setq name (buffer-substring (match-beginning 0) (match-end 0)))))
+    name))
 
 (defun rtags-cursorinfo (&optional location)
   (let ((loc (if location location (rtags-current-location))))
@@ -699,6 +701,11 @@ return t if rtags is allowed to modify this file"
   (interactive "NOffset: ")
   (if offset
       (goto-char (+ 1 offset))))
+
+(defun rtags-current-symbol-name ()
+  (let ((cursorinfo (rtags-cursorinfo)))
+    (if (string-match "^.*symbolName: \\(.*\\) kind: .*$" cursorinfo)
+        (match-string 1 cursorinfo))))
 
 (defun rtags-target-content (&optional location)
   (let ((cursorinfo (rtags-cursorinfo (rtags-target location))))
