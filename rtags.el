@@ -681,7 +681,9 @@ return t if rtags is allowed to modify this file"
                   (setq buffer-read-only t)
                   (highlight-regexp "." compilation-error-face)
                   (local-set-key (kbd "RET") (function rtags-find-file-on-return-pressed))
-                  (local-set-key (kbd "ENTER") (function rtags-find-file-on-return-pressed)))))
+                  (local-set-key (kbd "ENTER") (function rtags-find-file-on-return-pressed))
+                  (local-set-key (kbd "q") (function bury-buffer)))))
+
       ; Should add support for putting offset in there as well, ignore it on completion and apply it at the end
       )
     )
