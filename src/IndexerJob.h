@@ -49,7 +49,7 @@ private:
 
     Location createLocation(const CXCursor &cursor, bool *blocked);
     static Location createLocation(const CXCursor &cursor);
-    ByteArray addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDb);
+    ByteArray addNamePermutations(const CXCursor &cursor, const Location &location);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
     static CXChildVisitResult verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData);
     static CXChildVisitResult dumpVisitor(CXCursor cursor, CXCursor, CXClientData userData);

@@ -84,7 +84,7 @@ static inline void addToSymbolNames(const ByteArray &arg, bool hasTemplates, con
 }
 
 static const CXCursor nullCursor = clang_getNullCursor();
-ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location, bool addToDB)
+ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location)
 {
     ByteArray ret, qname, qparam, qnoparam;
 
@@ -123,8 +123,6 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
         qname = ByteArray(name);
         if (ret.isEmpty()) {
             ret = qname;
-            if (!addToDB)
-                return ret;
         }
         if (qparam.isEmpty()) {
             qparam = qname;
@@ -328,18 +326,34 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         return;
 
     CursorInfo &refInfo = mData->symbols[refLoc];
-    if (!refInfo.symbolLength) {
+    if (!refInfo.symbolLength)
         handleCursor(ref, refKind, refLoc);
-    }
     refInfo.references.insert(loc);
 
     CursorInfo &info = mData->symbols[loc];
-    if (!info.symbolLength) {
+    info.targets.insert(refLoc);
+
+    // We need the new cursor to replace the symbolLength. This is important
+    // in the following case:
+    // struct R { R(const &r); ... }
+    // R foo();
+    // ...
+    // R r = foo();
+
+    // The first cursor on foo() will be a reference to the copy constructor and
+    // this cursor will have a symbolLength of 1. Thus you won't be able to jump
+    // to foo from the o. This is fixed by making sure the newer target, if
+    // better, gets to decide on the symbolLength
+
+    if (!info.symbolLength || info.bestTarget(mData->symbols).kind == refKind) {
         info.isDefinition = false;
         info.kind = kind;
         CXStringScope name = clang_getCursorSpelling(ref);
         const char *cstr = clang_getCString(name.string);
-        info.symbolLength = cstr ? strlen(cstr) : 0;
+        if (cstr) {
+            info.symbolName = cstr;
+            info.symbolLength = info.symbolName.size();
+        }
         if (!info.symbolLength) {
             switch (kind) {
             case CXCursor_ClassDecl:
@@ -353,11 +367,8 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
                 mData->symbols.remove(loc);
                 return;
             }
-        } else {
-            info.symbolName = addNamePermutations(cursor, loc, false);
         }
     }
-    info.targets.insert(refLoc);
     Map<Location, RTags::ReferenceType> &val = mData->references[loc];
     val[refLoc] = RTags::NormalReference;
 }
@@ -452,7 +463,7 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
                 return;
             }
         } else {
-            info.symbolName = addNamePermutations(cursor, location, true);
+            info.symbolName = addNamePermutations(cursor, location);
         }
         switch (info.kind) {
         case CXCursor_Constructor:
