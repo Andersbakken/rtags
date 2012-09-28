@@ -353,23 +353,22 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
             for (Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
                 if (rx.indexIn(it->first) != -1) {
                     if (error) {
-                        ResponseMessage msg(it->first);
-                        conn->send(&msg);
+                        conn->write(it->first);
                     } else if (selected) {
                         error = true;
-                        ResponseMessage msg("Multiple matches for " + message->query());
-                        conn->send(&msg);
-                        msg.setData(it->first);
-                        conn->send(&msg);
+                        conn->write<128>("Multiple matches for %s", message->query().constData());
+                        conn->write(it->first);
+                        selected.reset();
                     } else {
                         selected = it->second;
                     }
                 }
             }
-            if (!error && selected) {
+            if (selected) {
                 setCurrentProject(selected);
-                ResponseMessage msg("Selected project: " + selected->srcRoot);
-                conn->send(&msg);
+                conn->write<128>("Selected project: %s", selected->srcRoot.constData());
+            } else if (!error) {
+                conn->write<128>("No matches for %s", message->query().constData());
             }
         }
         conn->finish();
