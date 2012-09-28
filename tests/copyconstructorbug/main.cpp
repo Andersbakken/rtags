@@ -1,6 +1,7 @@
 class R
 {
 public:
+    R() {}
     R(const R &r) {}
 };
 
