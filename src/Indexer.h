@@ -27,7 +27,7 @@ public:
     ByteArray errors(const Path &path) const;
     int reindex(const ByteArray &pattern, bool regexp);
     signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
-   shared_ptr<Project> project() const { return mProject.lock(); }
+    shared_ptr<Project> project() const { return mProject.lock(); }
     void beginMakefile();
     void endMakefile();
     void onJobFinished(IndexerJob *job);

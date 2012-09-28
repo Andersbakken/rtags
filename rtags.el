@@ -705,10 +705,12 @@ return t if rtags is allowed to modify this file"
         (let ((file (match-string 1 cursorinfo))
               (start (+ (string-to-int (match-string 2 cursorinfo)) 1))
               (end (+ (string-to-int (match-string 3 cursorinfo)) 1))
+              (prev (buffer-file-name))
               (tip))
-          (save-excursion
-            (find-file file)
-            (buffer-substring start end))))))
+          (find-file file)
+          (setq tip (buffer-substring start end))
+          (find-file prev)
+          tip))))
 
 (defun rtags-tooltip ()
   (interactive)
