@@ -17,7 +17,6 @@ ReferencesJob::ReferencesJob(const ByteArray &sym, const QueryMessage &query, co
 void ReferencesJob::run()
 {
     shared_ptr<Project> proj = project();
-    const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
     Location startLocation;
     Set<Location> references;
     if (proj->indexer) {
@@ -34,7 +33,6 @@ void ReferencesJob::run()
 
             const SymbolMap &map = scope.data();
             for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
-                // error() << "looking up refs for " << it->key() << bool(flags & QueryMessage::ReferencesForRenameSymbol);
                 Location pos;
                 CursorInfo cursorInfo = RTags::findCursorInfo(map, *it, &pos);
                 if (startLocation.isNull())
@@ -56,23 +54,26 @@ void ReferencesJob::run()
                     }
 
                     for (SymbolMap::const_iterator a = all.begin(); a != all.end(); ++a) {
-                        if (!classRename || !RTags::isReference(a->second.kind)) {
+                        if (!classRename) {
                             references.insert(a->first);
                         } else {
                             enum State {
                                 FoundConstructor = 0x1,
-                                FoundClass = 0x2
+                                FoundClass = 0x2,
+                                FoundReferences = 0x4
                             };
                             unsigned state = 0;
                             const SymbolMap targets = a->second.targetInfos(map);
                             for (SymbolMap::const_iterator t = targets.begin(); t != targets.end(); ++t) {
+                                if (t->second.kind != a->second.kind)
+                                    state |= FoundReferences;
                                 if (t->second.kind == CXCursor_Constructor) {
                                     state |= FoundConstructor;
                                 } else if (t->second.isClass()) {
                                     state |= FoundClass;
                                 }
                             }
-                            if (state != FoundConstructor) {
+                            if ((state & (FoundConstructor|FoundClass)) != FoundConstructor || !(state & FoundReferences)) {
                                 references.insert(a->first);
                             }
                         }
@@ -98,6 +99,7 @@ void ReferencesJob::run()
         const GRMap::const_iterator it = map.find(symbolName);
         if (it != map.end()) {
             const Map<Location, bool> &values = it->second;
+            const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
             for (Map<Location, bool>::const_iterator it = values.begin(); it != values.end(); ++it) {
                 if (allReferences || it->second)
                     references.insert(it->first);
