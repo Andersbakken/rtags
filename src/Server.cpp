@@ -820,7 +820,7 @@ void Server::event(const Event *event)
             e->job->abort();
             break;
         }
-        if (!it->second->write(e->out)) {
+        if (!e->out.isEmpty() && !it->second->write(e->out)) {
             e->job->abort();
             break;
         }
