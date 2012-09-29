@@ -59,8 +59,11 @@ public:
     }
 
     CursorInfo bestTarget(const SymbolMap &map, Location *loc = 0) const;
-    Map<Location, CursorInfo> targetInfos(const SymbolMap &map) const;
-    Map<Location, CursorInfo> referenceInfos(const SymbolMap &map) const;
+    SymbolMap targetInfos(const SymbolMap &map) const;
+    SymbolMap referenceInfos(const SymbolMap &map) const;
+    SymbolMap callers(const SymbolMap &map) const;
+    SymbolMap allReferences(const SymbolMap &map) const;
+    SymbolMap virtuals(const SymbolMap &map) const;
 
     bool isEmpty() const
     {

@@ -155,56 +155,57 @@ void RClient::exec()
 static void help(FILE *f, const char* app)
 {
     fprintf(f, "%s options...\n"
-            "  --help|-h                                 Display this help\n"
-            "  --verbose|-v                              Be more verbose\n"
-            "  --skip-paren|-p                           Skip parens in Makefile parsing\n"
-            "  --elisp-list|-Y                           Output elisp: (list \"one\" \"two\" ...)\n"
-            "  --follow-location|-f [arg]                Follow this location\n"
-            "  --makefile|-m [arg]                       Process this makefile\n"
-            "  --socket-file|-n [arg]                    Use this socket file (default ~/.rdm)\n"
-            "  --grtag|-t [arg]                          Index this directory\n"
-            "  --disable-grtags|-b                       Disable grtags for query\n"
-            "  --max|-M [count]                          Max lines of output for queries\n"
-            "  --reference-name|-R [arg]                 Find references matching arg\n"
-            "  --reference-location|-r [arg]             Find references matching this location\n"
+            "  --help|-h                                 Display this help.\n"
+            "  --verbose|-v                              Be more verbose.\n"
+            "  --skip-paren|-p                           Skip parens in Makefile parsing.\n"
+            "  --elisp-list|-Y                           Output elisp: (list \"one\" \"two\" ...).\n"
+            "  --follow-location|-f [arg]                Follow this location.\n"
+            "  --makefile|-m [arg]                       Process this makefile.\n"
+            "  --socket-file|-n [arg]                    Use this socket file (default ~/.rdm).\n"
+            "  --grtag|-t [arg]                          Index this directory.\n"
+            "  --disable-grtags|-b                       Disable grtags for query.\n"
+            "  --max|-M [count]                          Max lines of output for queries.\n"
+            "  --reference-name|-R [arg]                 Find references matching arg.\n"
+            "  --reference-location|-r [arg]             Find references matching this location.\n"
+            "  --find-virtuals|-k                        Use in combinations with -R or -r to show other implementations of this function.\n"
             "  --all-references|-E                       Include definitions/declarations/constructors/destructors for references. Used for rename symbol.\n"
-            "  --reverse-sort|-O                         Sort output reversed\n"
-            "  --list-symbols|-S [arg]                   List symbol names matching arg\n"
-            "  --find-symbols|-F [arg]                   Find symbols matching arg\n"
-            "  --cursor-info|-U [arg]                    Get cursor info for this location\n"
-            "  --log-file|-L [file]                      Log to this file\n"
-            "  --no-context|-N                           Don't print context for locations\n"
-            "  --line-numbers|-l                         Output line numbers instead of offsets\n"
-            "  --path-filter|-i [arg]                    Filter out results not matching with arg\n"
-            "  --filter-system-headers|-H                Don't exempt system headers from path filters\n"
-            "  --includepath|-I [arg]                    Add additional include path, must be combined with -m or -j\n"
-            "  --define|-D [arg]                         Add additional define, must be combined with -m or -j\n"
-            "  --compiler-flag|-o [arg]                  Add additional compiler flags, must be combined with -m or -j\n"
-            "  --test|-T [arg]                           Test whether rtags knows about this source file\n"
-            "  --fixits|-x [file]                        Get fixits for file\n"
-            "  --errors|-Q [file]                        Get errors for file\n"
-            "  --rdm-log|-g                              Receive logs from rdm\n"
-            "  --status|-s [arg]                         Dump status of rdm. If arg is passed it should match one of:\n"
-            "                                            'general', 'fileids', dependencies', 'symbols', 'symbolnames', \n"
-            "                                            'fileinfos', 'visitedfiles', 'grfiles' or 'gr' \n"
-            "  --autostart-rdm|-a [args]                 Start rdm with [args] if rc fails to connect\n"
-            "  --restart-rdm|-e [args]                   Restart rdm with [args] before doing the rest of the commands\n"
-            "  --diagnostics|-G                          Open a connection that prints diagnostics\n"
-            "  --project|-w [optional regexp]            With arg, select project matching that if unique, otherwise list all projects\n"
-            "  --delete-project|-W [regexp]              Delete all projects matching regexp\n"
-            "  --clear-db|-C                             Clear projects\n"
-            "  --reindex|-V [optional regexp]            Reindex all files or all files matching pattern\n"
-            "  --wait-for-indexing|-X                    Wait for indexing to finish before doing query\n"
-            "  --path|-P [optional pattern]              Print files matching pattern\n"
-            "  --dump-file|-d [file]                     Dump source file\n"
-            "  --absolute-path|-K                        Print files with absolute path\n"
-            "  --match-regexp|-Z                         Treat various text patterns as regexps (-P, -i, -V)\n"
-            "  --lock-timeout|-y [arg]                   Max time in ms to wait for a database lock (default no timeout)\n"
-            "  --sniff-make|-J                           No make trickery, only parse the output, don't try avoid invoking the\n"
-            "                                            compiler or tricking make into thinking targets are old when they're not\n"
-            "                                            Assumes that you've run make clean first\n"
-            "  --smart-project|-j [path]                 Try to guess the source files and includepaths for a certain path. Often has to be combined with -D\n"
-            "  --quit-rdm|-q                             Tell server to shut down\n",
+            "  --reverse-sort|-O                         Sort output reversed.\n"
+            "  --list-symbols|-S [arg]                   List symbol names matching arg.\n"
+            "  --find-symbols|-F [arg]                   Find symbols matching arg.\n"
+            "  --cursor-info|-U [arg]                    Get cursor info for this location.\n"
+            "  --log-file|-L [file]                      Log to this file.\n"
+            "  --no-context|-N                           Don't print context for locations.\n"
+            "  --line-numbers|-l                         Output line numbers instead of offsets.\n"
+            "  --path-filter|-i [arg]                    Filter out results not matching with arg.\n"
+            "  --filter-system-headers|-H                Don't exempt system headers from path filters.\n"
+            "  --includepath|-I [arg]                    Add additional include path, must be combined with -m or -j.\n"
+            "  --define|-D [arg]                         Add additional define, must be combined with -m or -j.\n"
+            "  --compiler-flag|-o [arg]                  Add additional compiler flags, must be combined with -m or -j.\n"
+            "  --test|-T [arg]                           Test whether rtags knows about this source file.\n"
+            "  --fixits|-x [file]                        Get fixits for file.\n"
+            "  --errors|-Q [file]                        Get errors for file.\n"
+            "  --rdm-log|-g                              Receive logs from rdm.\n"
+            "  --status|-s [arg]                         Dump status of rdm. If arg is passed it should match one of:.\n"
+            "                                            'general', 'fileids', dependencies', 'symbols', 'symbolnames', .\n"
+            "                                            'fileinfos', 'visitedfiles', 'grfiles' or 'gr' .\n"
+            "  --autostart-rdm|-a [args]                 Start rdm with [args] if rc fails to connect.\n"
+            "  --restart-rdm|-e [args]                   Restart rdm with [args] before doing the rest of the commands.\n"
+            "  --diagnostics|-G                          Open a connection that prints diagnostics.\n"
+            "  --project|-w [optional regexp]            With arg, select project matching that if unique, otherwise list all projects.\n"
+            "  --delete-project|-W [regexp]              Delete all projects matching regexp.\n"
+            "  --clear-db|-C                             Clear projects.\n"
+            "  --reindex|-V [optional regexp]            Reindex all files or all files matching pattern.\n"
+            "  --wait-for-indexing|-X                    Wait for indexing to finish before doing query.\n"
+            "  --path|-P [optional pattern]              Print files matching pattern.\n"
+            "  --dump-file|-d [file]                     Dump source file.\n"
+            "  --absolute-path|-K                        Print files with absolute path.\n"
+            "  --match-regexp|-Z                         Treat various text patterns as regexps (-P, -i, -V).\n"
+            "  --lock-timeout|-y [arg]                   Max time in ms to wait for a database lock (default no timeout).\n"
+            "  --sniff-make|-J                           No make trickery, only parse the output, don't try avoid invoking the.\n"
+            "                                            compiler or tricking make into thinking targets are old when they're not.\n"
+            "                                            Assumes that you've run make clean first.\n"
+            "  --smart-project|-j [path]                 Try to guess the source files and includepaths for a certain path. Often has to be combined with -D.\n"
+            "  --quit-rdm|-q                             Tell server to shut down.\n",
             app);
 }
 
@@ -260,13 +261,14 @@ bool RClient::parse(int &argc, char **argv)
         { "lock-timeout", required_argument, 0, 'y' },
         { "sniff-make", no_argument, 0, 'J' },
         { "smart-project", optional_argument, 0, 'j' },
+        { "find-virtuals", no_argument, 0, 'k' },
         { 0, 0, 0, 0 }
     };
 
     unsigned logFlags = 0;
     Path logFile;
 
-    // Unused: Abckz
+    // Unused: Abcz
 
     const ByteArray shortOptions = RTags::shortOptions(opts);
 
@@ -280,6 +282,9 @@ bool RClient::parse(int &argc, char **argv)
             return 0;
         case 'n':
             mSocketFile = optarg;
+            break;
+        case 'k':
+            mQueryFlags |= QueryMessage::FindVirtuals;
             break;
         case 'B':
             mMakefileFlags |= ProjectMessage::UseDashB;

@@ -36,10 +36,23 @@ void ReferencesJob::run()
                 // error() << "looking up refs for " << it->key() << bool(flags & QueryMessage::ReferencesForRenameSymbol);
                 Location pos;
                 CursorInfo cursorInfo = RTags::findCursorInfo(map, *it, &pos);
-                startLocation = pos;
+                if (startLocation.isNull())
+                    startLocation = pos;
                 if (RTags::isReference(cursorInfo.kind)) {
                     cursorInfo = cursorInfo.bestTarget(map, &pos);
                 }
+                if (queryFlags() & QueryMessage::ReferencesForRenameSymbol) {
+                    findForRename(cursorInfo, *it, map);
+                } else if (queryFlags() & QueryMessage::FindVirtuals) {
+                    findVirtuals(cursorInfo, *it, map);
+                } else {
+                    const SymbolMap callers = cursorInfo.callers(map);
+                    for (SymbolMap::const_iterator c = callers.begin(); c != callers.end(); ++c) {
+                        references.insert(c->first);
+                    }
+                }
+                continue;
+
                 if (allReferences && (cursorInfo.kind == CXCursor_Constructor || cursorInfo.kind == CXCursor_Destructor)) {
                     // In this case we have additional references that are the
                     // actual class and structs that we want to include. Also,
@@ -55,8 +68,8 @@ void ReferencesJob::run()
                     continue;
                 }
                 process(map, pos, cursorInfo);
-                const Map<Location, CursorInfo> targets = cursorInfo.targetInfos(map);
-                for (Map<Location, CursorInfo>::const_iterator t = targets.begin(); t != targets.end(); ++t) {
+                const SymbolMap targets = cursorInfo.targetInfos(map);
+                for (SymbolMap::const_iterator t = targets.begin(); t != targets.end(); ++t) {
                     const CursorInfo &target = t->second;
                     if (target.kind == cursorInfo.kind) {
                         process(map, t->first, target);
@@ -173,4 +186,13 @@ void ReferencesJob::process(const SymbolMap &map, const Location &pos, const Cur
     } else {
         references += cursorInfo.references;
     }
+}
+void ReferencesJob::findForRename(const CursorInfo &info, const Location &loc, const SymbolMap &map)
+{
+
+}
+
+void ReferencesJob::findVirtuals(const CursorInfo &info, const Location &loc, const SymbolMap &map)
+{
+
 }

@@ -53,11 +53,11 @@ int CursorInfo::cursorRank(CXCursorKind kind)
 
 CursorInfo CursorInfo::bestTarget(const SymbolMap &map, Location *loc) const
 {
-    const Map<Location, CursorInfo> targets = targetInfos(map);
+    const SymbolMap targets = targetInfos(map);
 
-    Map<Location, CursorInfo>::const_iterator best = targets.end();
+    SymbolMap::const_iterator best = targets.end();
     int bestRank = -1;
-    for (Map<Location, CursorInfo>::const_iterator it = targets.begin(); it != targets.end(); ++it) {
+    for (SymbolMap::const_iterator it = targets.begin(); it != targets.end(); ++it) {
         const CursorInfo &ci = it->second;
         const int r = cursorRank(ci.kind);
         if (r > bestRank) {
@@ -73,9 +73,9 @@ CursorInfo CursorInfo::bestTarget(const SymbolMap &map, Location *loc) const
     return CursorInfo();
 }
 
-Map<Location, CursorInfo> CursorInfo::targetInfos(const SymbolMap &map) const
+SymbolMap CursorInfo::targetInfos(const SymbolMap &map) const
 {
-    Map<Location, CursorInfo> ret;
+    SymbolMap ret;
     for (Set<Location>::const_iterator it = targets.begin(); it != targets.end(); ++it) {
         SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it);
         if (found != map.end()) {
@@ -89,9 +89,9 @@ Map<Location, CursorInfo> CursorInfo::targetInfos(const SymbolMap &map) const
     return ret;
 }
 
-Map<Location, CursorInfo> CursorInfo::referenceInfos(const SymbolMap &map) const
+SymbolMap CursorInfo::referenceInfos(const SymbolMap &map) const
 {
-    Map<Location, CursorInfo> ret;
+    SymbolMap ret;
     for (Set<Location>::const_iterator it = references.begin(); it != references.end(); ++it) {
         SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it);
         if (found != map.end()) {
@@ -99,4 +99,33 @@ Map<Location, CursorInfo> CursorInfo::referenceInfos(const SymbolMap &map) const
         }
     }
     return ret;
+}
+
+SymbolMap CursorInfo::callers(const SymbolMap &map) const
+{
+    assert(!RTags::isReference(kind));
+    const CursorInfo other = bestTarget(map);
+    const CursorInfo *infos[] = { this, (other.kind == kind ? &other : 0), 0 };
+    SymbolMap ret;
+    for (int i=0; infos[i]; ++i) {
+        for (Set<Location>::const_iterator it = infos[i]->references.begin(); it != infos[i]->references.end(); ++it) {
+            const SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it);
+            if (found == map.end())
+                continue;
+            if (RTags::isReference(found->second.kind)) { // is this always right?
+                ret[*it] = found->second;
+            }
+        }
+    }
+    return ret;
+}
+
+SymbolMap CursorInfo::allReferences(const SymbolMap &map) const
+{
+
+}
+
+SymbolMap CursorInfo::virtuals(const SymbolMap &map) const
+{
+
 }
