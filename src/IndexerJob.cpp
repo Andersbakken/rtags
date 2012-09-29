@@ -333,7 +333,10 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     // to foo from the o. This is fixed by making sure the newer target, if
     // better, gets to decide on the symbolLength
 
-    if (!info.symbolLength || info.bestTarget(mData->symbols).kind == refKind) {
+    // The !isCursor is var decls and field decls where we set up a target even
+    // if they're not considered references
+
+    if (!RTags::isCursor(info.kind) && (!info.symbolLength || info.bestTarget(mData->symbols).kind == refKind)) {
         CXSourceRange range = clang_getCursorExtent(cursor);
         unsigned start, end;
         clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
