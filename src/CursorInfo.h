@@ -61,9 +61,23 @@ public:
     CursorInfo bestTarget(const SymbolMap &map, Location *loc = 0) const;
     SymbolMap targetInfos(const SymbolMap &map) const;
     SymbolMap referenceInfos(const SymbolMap &map) const;
-    SymbolMap callers(const SymbolMap &map) const;
-    SymbolMap allReferences(const SymbolMap &map) const;
-    SymbolMap virtuals(const SymbolMap &map) const;
+    SymbolMap callers(const Location &loc, const SymbolMap &map) const;
+    SymbolMap allReferences(const Location &loc, const SymbolMap &map) const;
+    SymbolMap virtuals(const Location &loc, const SymbolMap &map) const;
+    SymbolMap declarationAndDefinition(const Location &loc, const SymbolMap &map) const;
+
+    bool isClass() const
+    {
+        switch (kind) {
+        case CXCursor_ClassDecl:
+        case CXCursor_ClassTemplate:
+        case CXCursor_StructDecl:
+            return true;
+        default:
+            break;
+        }
+        return false;
+    }
 
     bool isEmpty() const
     {

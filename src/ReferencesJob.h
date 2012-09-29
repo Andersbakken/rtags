@@ -17,10 +17,7 @@ public:
 protected:
     virtual void run();
 private:
-    void findForRename(const CursorInfo &info, const Location &loc, const SymbolMap &map);
-    void findVirtuals(const CursorInfo &info, const Location &loc, const SymbolMap &map);
-    void process(const SymbolMap &map, const Location &pos, const CursorInfo &cursorInfo);
-    Set<Location> locations, references, additional;
+    Set<Location> locations;
     const ByteArray symbolName;
 };
 

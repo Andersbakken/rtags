@@ -38,6 +38,7 @@ struct Node
             break;
         case CXCursor_ClassDecl:
         case CXCursor_StructDecl:
+        case CXCursor_ClassTemplate:
             val = 10;
             break;
         default:

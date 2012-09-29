@@ -19,6 +19,7 @@ void ReferencesJob::run()
     shared_ptr<Project> proj = project();
     const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
     Location startLocation;
+    Set<Location> references;
     if (proj->indexer) {
         if (!symbolName.isEmpty()) {
             Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead(lockTimeout());
@@ -42,50 +43,51 @@ void ReferencesJob::run()
                     cursorInfo = cursorInfo.bestTarget(map, &pos);
                 }
                 if (queryFlags() & QueryMessage::ReferencesForRenameSymbol) {
-                    findForRename(cursorInfo, *it, map);
+                    const SymbolMap all = cursorInfo.allReferences(pos, map);
+                    bool classRename = false;
+                    switch (cursorInfo.kind) {
+                    case CXCursor_Constructor:
+                    case CXCursor_Destructor:
+                        classRename = true;
+                        break;
+                    default:
+                        classRename = cursorInfo.isClass();
+                        break;
+                    }
+
+                    for (SymbolMap::const_iterator a = all.begin(); a != all.end(); ++a) {
+                        if (!classRename || !RTags::isReference(a->second.kind)) {
+                            references.insert(a->first);
+                        } else {
+                            enum State {
+                                FoundConstructor = 0x1,
+                                FoundClass = 0x2
+                            };
+                            unsigned state = 0;
+                            const SymbolMap targets = a->second.targetInfos(map);
+                            for (SymbolMap::const_iterator t = targets.begin(); t != targets.end(); ++t) {
+                                if (t->second.kind == CXCursor_Constructor) {
+                                    state |= FoundConstructor;
+                                } else if (t->second.isClass()) {
+                                    state |= FoundClass;
+                                }
+                            }
+                            if (state != FoundConstructor) {
+                                references.insert(a->first);
+                            }
+                        }
+                    }
                 } else if (queryFlags() & QueryMessage::FindVirtuals) {
-                    findVirtuals(cursorInfo, *it, map);
+                    const SymbolMap virtuals = cursorInfo.virtuals(pos, map);
+                    for (SymbolMap::const_iterator v = virtuals.begin(); v != virtuals.end(); ++v) {
+                        references.insert(v->first);
+                    }
                 } else {
-                    const SymbolMap callers = cursorInfo.callers(map);
+                    const SymbolMap callers = cursorInfo.callers(pos, map);
                     for (SymbolMap::const_iterator c = callers.begin(); c != callers.end(); ++c) {
                         references.insert(c->first);
                     }
                 }
-                continue;
-
-                if (allReferences && (cursorInfo.kind == CXCursor_Constructor || cursorInfo.kind == CXCursor_Destructor)) {
-                    // In this case we have additional references that are the
-                    // actual class and structs that we want to include. Also,
-                    // we don't want to include actual calls to the constructor
-                    // or destructor for renaming purposes.
-                    for (Set<Location>::const_iterator rit = references.begin(); rit != references.end(); ++rit) {
-                        const CursorInfo container = RTags::findCursorInfo(map, *rit, 0);
-                        if (container.kind == CXCursor_ClassDecl || container.kind == CXCursor_StructDecl) {
-                            process(map, *rit, container);
-                            break;
-                        }
-                    }
-                    continue;
-                }
-                process(map, pos, cursorInfo);
-                const SymbolMap targets = cursorInfo.targetInfos(map);
-                for (SymbolMap::const_iterator t = targets.begin(); t != targets.end(); ++t) {
-                    const CursorInfo &target = t->second;
-                    if (target.kind == cursorInfo.kind) {
-                        process(map, t->first, target);
-                    }
-                }
-
-                for (Set<Location>::const_iterator ait = additional.begin(); ait != additional.end(); ++ait) {
-                    cursorInfo = RTags::findCursorInfo(map, *ait, 0);
-                    process(map, *ait, cursorInfo);
-                    Location l;
-                    const CursorInfo target = cursorInfo.bestTarget(map, &l);
-                    if (target.kind == cursorInfo.kind) {
-                        process(map, l, target);
-                    }
-                }
-                additional.clear();
             }
         }
     }
@@ -125,74 +127,4 @@ void ReferencesJob::run()
         const Location &loc = sorted.at((startIndex + i) % count);
         write(loc.key(keyFlags));
     }
-}
-
-void ReferencesJob::process(const SymbolMap &map, const Location &pos, const CursorInfo &cursorInfo)
-{
-    if (!cursorInfo.isValid())
-        return;
-    const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
-    bool classOrStruct = false;
-    bool constructorOrDestructor = false;
-    bool memberFunction = false;
-    switch (cursorInfo.kind) {
-    case CXCursor_CXXMethod:
-        memberFunction = true;
-        break;
-    case CXCursor_StructDecl:
-    case CXCursor_ClassDecl:
-        classOrStruct = true;
-        break;
-    case CXCursor_Constructor:
-    case CXCursor_Destructor:
-        assert(!allReferences);
-        constructorOrDestructor = true;
-        break;
-    default:
-        break;
-    }
-
-    // error() << pos << cursorInfo << "allReferences" << allReferences;
-    assert(!RTags::isReference(cursorInfo.kind));
-    if (allReferences)
-        references.insert(pos);
-    if (memberFunction) {
-        for (Set<Location>::const_iterator it = cursorInfo.references.begin(); it != cursorInfo.references.end(); ++it) {
-            const CursorInfo ci = RTags::findCursorInfo(map, *it, 0);
-            // since member functions can have other reimplementations of the
-            // same virtual function in their references we have to make sure
-            // it's an actual reference before adding it.
-            if (RTags::isReference(ci.kind)) {
-                references.insert(*it);
-            } else {
-                additional.insert(*it);
-            }
-        }
-    } else if (!allReferences && (classOrStruct || constructorOrDestructor)) {
-        for (Set<Location>::const_iterator it = cursorInfo.references.begin(); it != cursorInfo.references.end(); ++it) {
-            const CursorInfo ci = RTags::findCursorInfo(map, *it, 0);
-            // since classes, structs, constructors and destructors have
-            // additional stuff in their references we have ot have sure it's an
-            // actual reference before adding it. For constructors we also have
-            // to include CXCursor_VarDecl since they're a cursor in their own
-            // right in addition to be being references to a constructor.
-            //
-            // In the case of constructor initalizer lists the actual type is
-            // CXCursor_MemberRef so it returns true for RTags::isReference.
-            if (RTags::isReference(ci.kind) || (cursorInfo.kind == CXCursor_Constructor && ci.kind == CXCursor_VarDecl)) {
-                references.insert(*it);
-            }
-        }
-    } else {
-        references += cursorInfo.references;
-    }
-}
-void ReferencesJob::findForRename(const CursorInfo &info, const Location &loc, const SymbolMap &map)
-{
-
-}
-
-void ReferencesJob::findVirtuals(const CursorInfo &info, const Location &loc, const SymbolMap &map)
-{
-
 }

@@ -45,6 +45,7 @@ int CursorInfo::cursorRank(CXCursorKind kind)
         return 1;
     case CXCursor_ClassDecl:
     case CXCursor_StructDecl:
+    case CXCursor_ClassTemplate:
         return 0;
     default:
         return 2;
@@ -101,14 +102,13 @@ SymbolMap CursorInfo::referenceInfos(const SymbolMap &map) const
     return ret;
 }
 
-SymbolMap CursorInfo::callers(const SymbolMap &map) const
+SymbolMap CursorInfo::callers(const Location &loc, const SymbolMap &map) const
 {
     assert(!RTags::isReference(kind));
-    const CursorInfo other = bestTarget(map);
-    const CursorInfo *infos[] = { this, (other.kind == kind ? &other : 0), 0 };
     SymbolMap ret;
-    for (int i=0; infos[i]; ++i) {
-        for (Set<Location>::const_iterator it = infos[i]->references.begin(); it != infos[i]->references.end(); ++it) {
+    const SymbolMap cursors = virtuals(loc, map);
+    for (SymbolMap::const_iterator c = cursors.begin(); c != cursors.end(); ++c) {
+        for (Set<Location>::const_iterator it = c->second.references.begin(); it != c->second.references.end(); ++it) {
             const SymbolMap::const_iterator found = RTags::findCursorInfo(map, *it);
             if (found == map.end())
                 continue;
@@ -120,12 +120,50 @@ SymbolMap CursorInfo::callers(const SymbolMap &map) const
     return ret;
 }
 
-SymbolMap CursorInfo::allReferences(const SymbolMap &map) const
+static inline void allImpl(const SymbolMap &map, const Location &loc, const CursorInfo &info, SymbolMap &out)
 {
-
+    assert(!out.contains(loc));
+    out[loc] = info;
+    typedef SymbolMap (CursorInfo::*Function)(const SymbolMap &map) const;
+    Function functions[] = { &CursorInfo::referenceInfos, &CursorInfo::targetInfos };
+    for (unsigned i=0; i<sizeof(functions) / sizeof(Function); ++i) {
+        const SymbolMap ret = (info.*functions[i])(map);
+        for (SymbolMap::const_iterator r = ret.begin(); r != ret.end(); ++r) {
+            if (!out.contains(r->first)) {
+                allImpl(map, r->first, r->second, out);
+            }
+        }
+    }
 }
 
-SymbolMap CursorInfo::virtuals(const SymbolMap &map) const
-{
 
+SymbolMap CursorInfo::allReferences(const Location &loc, const SymbolMap &map) const
+{
+    SymbolMap ret;
+    allImpl(map, loc, *this, ret);
+    return ret;
+}
+
+SymbolMap CursorInfo::virtuals(const Location &loc, const SymbolMap &map) const
+{
+    const SymbolMap all = allReferences(loc, map);
+    SymbolMap ret;
+    for (SymbolMap::const_iterator a = all.begin(); a != all.end(); ++a) {
+        if (a->second.kind == kind)
+            ret[a->first] = a->second;
+    }
+    return ret;
+}
+
+SymbolMap CursorInfo::declarationAndDefinition(const Location &loc, const SymbolMap &map) const
+{
+    SymbolMap cursors;
+    cursors[loc] = *this;
+
+    Location l;
+    CursorInfo t = bestTarget(map, &l);
+
+    if (t.kind == kind)
+        cursors[l] = t;
+    return cursors;
 }
