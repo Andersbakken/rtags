@@ -42,8 +42,7 @@ public:
         ElispList = 0x040,
         WaitForIndexing = 0x080,
         MatchRegexp = 0x100,
-        AbsolutePath = 0x200,
-        DisableGRTags = 0x400
+        AbsolutePath = 0x200
     };
 
     typedef Map<Path, ByteArray> UnsavedFilesMap;

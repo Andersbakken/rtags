@@ -77,7 +77,7 @@ void ReferencesJob::run()
         }
     }
 
-    if (!symbolName.isEmpty() && !(queryFlags() & QueryMessage::DisableGRTags) && proj->grtags) {
+    if (!symbolName.isEmpty() && proj->grtags) {
         Scope<const GRMap&> scope = proj->lockGRForRead();
         const GRMap &map = scope.data();
         const GRMap::const_iterator it = map.find(symbolName);

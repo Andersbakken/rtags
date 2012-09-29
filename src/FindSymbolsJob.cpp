@@ -91,7 +91,7 @@ void FindSymbolsJob::run()
             }
         }
     }
-    if (!(queryFlags() & QueryMessage::DisableGRTags) && project()->grtags) {
+    if (project()->grtags) {
         Scope<const GRMap &> scope = project()->lockGRForRead();
         const GRMap &map = scope.data();
         GRMap::const_iterator it = map.find(string);

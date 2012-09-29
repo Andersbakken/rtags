@@ -59,7 +59,7 @@ void ListSymbolsJob::run()
         }
     }
 
-    if (!(queryFlags & QueryMessage::DisableGRTags) && project()->grtags) {
+    if (project()->grtags) {
         Scope<const GRMap &> scope = project()->lockGRForRead();
         const GRMap &map = scope.data();
         GRMap::const_iterator it = string.isEmpty() ? map.begin() : map.lower_bound(string);

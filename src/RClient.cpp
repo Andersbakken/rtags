@@ -173,7 +173,6 @@ static void help(FILE *f, const char* app)
             "  --find-symbols|-F [arg]                   Find symbols matching arg\n"
             "  --cursor-info|-U [arg]                    Get cursor info for this location\n"
             "  --log-file|-L [file]                      Log to this file\n"
-            "  --append|-A                               Append to log file\n"
             "  --no-context|-N                           Don't print context for locations\n"
             "  --line-numbers|-l                         Output line numbers instead of offsets\n"
             "  --path-filter|-i [arg]                    Filter out results not matching with arg\n"
@@ -229,7 +228,6 @@ bool RClient::parse(int &argc, char **argv)
         { "cursor-info", required_argument, 0, 'U' },
         { "unsaved-file", required_argument, 0, 'u' },
         { "log-file", required_argument, 0, 'L' },
-        { "append", no_argument, 0, 'A' },
         { "no-context", no_argument, 0, 'N' },
         { "status", optional_argument, 0, 's' },
         { "rdm-log", no_argument, 0, 'g' },
@@ -255,7 +253,6 @@ bool RClient::parse(int &argc, char **argv)
         { "path", optional_argument, 0, 'P' },
         { "match-regexp", no_argument, 0, 'Z' },
         { "absolute-path", no_argument, 0, 'K' },
-        { "enable-grtags", no_argument, 0, 'b' },
         { "grtag", optional_argument, 0, 't' },
         { "socket-file", required_argument, 0, 'n' },
         { "always-make", no_argument, 0, 'B' },
@@ -269,7 +266,7 @@ bool RClient::parse(int &argc, char **argv)
     unsigned logFlags = 0;
     Path logFile;
 
-    // Unused: ck
+    // Unused: Abckz
 
     const ByteArray shortOptions = RTags::shortOptions(opts);
 
@@ -283,9 +280,6 @@ bool RClient::parse(int &argc, char **argv)
             return 0;
         case 'n':
             mSocketFile = optarg;
-            break;
-        case 'b':
-            mQueryFlags |= QueryMessage::DisableGRTags;
             break;
         case 'B':
             mMakefileFlags |= ProjectMessage::UseDashB;
@@ -348,9 +342,6 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case 'v':
             ++mLogLevel;
-            break;
-        case 'A':
-            logFlags |= Append;
             break;
         case 'L':
             logFile = optarg;
