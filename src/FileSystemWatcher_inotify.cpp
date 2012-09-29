@@ -119,6 +119,8 @@ void FileSystemWatcher::notifyReadyRead()
         MutexLocker lock(&mMutex);
         int s = 0;
         ioctl(mFd, FIONREAD, &s);
+        if (!s)
+            return;
         enum { StaticBufSize = 4096 };
         char staticBuf[StaticBufSize];
         char *buf = s > StaticBufSize ? new char[s] : staticBuf;
