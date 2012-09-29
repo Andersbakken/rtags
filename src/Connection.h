@@ -25,19 +25,19 @@ public:
     template<typename T> bool send(const T *message);
     bool send(int id, const ByteArray& message);
     template <int StaticBufSize>
-    void write(const char *format, ...)
+    bool write(const char *format, ...)
     {
         va_list args;
         va_start(args, format);
         const ByteArray ret = ByteArray::snprintf<StaticBufSize>(format, args);
         va_end(args);
         ResponseMessage msg(ret);
-        send(&msg);
+        return send(&msg);
     }
-    void write(const ByteArray &out)
+    bool write(const ByteArray &out)
     {
         ResponseMessage msg(out);
-        send(&msg);
+        return send(&msg);
     }
 
     void writeAsync(const ByteArray &out);

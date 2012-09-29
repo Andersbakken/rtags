@@ -173,26 +173,13 @@ void Server::onNewConnection()
 
 void Server::onConnectionDestroyed(Connection *o)
 {
-    {
-        Map<int, Connection*>::iterator it = mPendingIndexes.begin();
-        const Map<int, Connection*>::const_iterator end = mPendingIndexes.end();
-        while (it != end) {
-            if (it->second == o) {
-                mPendingIndexes.erase(it++);
-            } else {
-                ++it;
-            }
-        }
-    }
-    {
-        Map<int, Connection*>::iterator it = mPendingLookups.begin();
-        const Map<int, Connection*>::const_iterator end = mPendingLookups.end();
-        while (it != end) {
-            if (it->second == o) {
-                mPendingLookups.erase(it++);
-            } else {
-                ++it;
-            }
+    Map<int, Connection*>::iterator it = mPendingLookups.begin();
+    const Map<int, Connection*>::const_iterator end = mPendingLookups.end();
+    while (it != end) {
+        if (it->second == o) {
+            mPendingLookups.erase(it++);
+        } else {
+            ++it;
         }
     }
 }
@@ -290,11 +277,8 @@ void Server::onMakefileParserDone(MakefileParser *parser)
     Connection *connection = parser->connection();
     shared_ptr<Project> project = mProjects.value(parser->makefile());
     if (connection) {
-        char buf[1024];
-        snprintf(buf, sizeof(buf), "Parsed %s, %d sources",
-                 parser->makefile().constData(), parser->sourceCount());
-        ResponseMessage msg(buf);
-        connection->send(&msg);
+        connection->write<64>("Parsed %s, %d sources",
+                              parser->makefile().constData(), parser->sourceCount());
         connection->finish();
     }
     if (project) {
@@ -320,118 +304,61 @@ void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection 
 
 void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
 {
-    int id = 0;
     switch (message->type()) {
     case QueryMessage::Invalid:
         assert(0);
         break;
     case QueryMessage::FindFile:
-        id = findFile(*message);
+        findFile(*message, conn);
         break;
     case QueryMessage::DumpFile:
-        id = dumpFile(*message, conn);
+        dumpFile(*message, conn);
         break;
-    case QueryMessage::DeleteProject: {
-        RegExp rx(message->query());
-        Set<Path> remove;
-        for (Map<Path, shared_ptr<Project> >::iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-            if (rx.indexIn(it->first) != -1)
-                remove.insert(it->first);
-        }
-
-        for (Set<Path>::const_iterator it = remove.begin(); it != remove.end(); ++it) {
-            ResponseMessage msg("Erased project: " + *it);
-            conn->send(&msg);
-            removeProject(*it);
-        }
-        break; }
+    case QueryMessage::DeleteProject:
+        deleteProject(*message, conn);
+        break;
     case QueryMessage::Project:
-        if (message->query().isEmpty()) {
-            shared_ptr<Project> current = currentProject();
-            for (Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-                ByteArray b = it->first;
-                if (it->second == current)
-                    b.append(" <=");
-                ResponseMessage msg(b);
-                conn->send(&msg);
-            }
-        } else {
-            shared_ptr<Project> selected;
-            bool error = false;
-            RegExp rx(message->query());
-            for (Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-                if (rx.indexIn(it->first) != -1) {
-                    if (error) {
-                        conn->write(it->first);
-                    } else if (selected) {
-                        error = true;
-                        conn->write<128>("Multiple matches for %s", message->query().constData());
-                        conn->write(it->first);
-                        selected.reset();
-                    } else {
-                        selected = it->second;
-                    }
-                }
-            }
-            if (selected) {
-                setCurrentProject(selected);
-                conn->write<128>("Selected project: %s", selected->srcRoot.constData());
-            } else if (!error) {
-                conn->write<128>("No matches for %s", message->query().constData());
-            }
-        }
-        conn->finish();
-        return;
+        project(*message, conn);
+        break;
     case QueryMessage::Reindex: {
         reindex(*message, conn);
-        return; }
-    case QueryMessage::ClearProjects: {
-        clearProjects();
-        ResponseMessage msg("Cleared projects");
-        conn->send(&msg);
-        conn->finish();
-        return; }
+        break; }
+    case QueryMessage::ClearProjects:
+        clearProjects(*message, conn);
+        break;
     case QueryMessage::FixIts:
         fixIts(*message, conn);
-        return;
+        break;
     case QueryMessage::Errors:
         errors(*message, conn);
-        return;
+        break;
     case QueryMessage::CursorInfo:
-        id = cursorInfo(*message);
+        cursorInfo(*message, conn);
         break;
     case QueryMessage::Shutdown:
-        EventLoop::instance()->exit();
-        conn->finish();
-        return;
+        shutdown(*message, conn);
+        break;
     case QueryMessage::FollowLocation:
-        id = followLocation(*message);
+        followLocation(*message, conn);
         break;
     case QueryMessage::ReferencesLocation:
-        id = referencesForLocation(*message);
+        referencesForLocation(*message, conn);
         break;
     case QueryMessage::ReferencesName:
-        id = referencesForName(*message);
+        referencesForName(*message, conn);
         break;
     case QueryMessage::ListSymbols:
-        id = listSymbols(*message);
+        listSymbols(*message, conn);
         break;
     case QueryMessage::FindSymbols:
-        id = findSymbols(*message);
+        findSymbols(*message, conn);
         break;
     case QueryMessage::Status:
-        id = status(*message);
+        status(*message, conn);
         break;
     case QueryMessage::Test:
-        id = test(*message);
+        test(*message, conn);
         break;
-    }
-    if (!id) {
-        ResponseMessage msg;
-        conn->send(&msg);
-        conn->finish();
-    } else {
-        mPendingLookups[id] = conn;
     }
 }
 
@@ -443,47 +370,50 @@ int Server::nextId()
     return mJobId;
 }
 
-int Server::followLocation(const QueryMessage &query)
+void Server::followLocation(const QueryMessage &query, Connection *conn)
 {
     const Location loc = query.location();
     if (loc.isNull()) {
-        return 0;
+        conn->finish();
+        return;
     }
     updateProjectForLocation(loc);
 
     shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
-        return 0;
+        conn->finish();
+        return;
     }
 
     FollowLocationJob *job = new FollowLocationJob(loc, query, project);
     job->setId(nextId());
+    mPendingLookups[job->id()] = conn;
     startJob(job);
-
-    return job->id();
 }
 
-int Server::findFile(const QueryMessage &query)
+void Server::findFile(const QueryMessage &query, Connection *conn)
 {
     shared_ptr<Project> project = currentProject();
     if (!project || !project->fileManager) {
         error("No project");
-        return 0;
+        conn->finish();
+        return;
     }
 
     FindFileJob *job = new FindFileJob(query, project);
     job->setId(nextId());
+    mPendingLookups[job->id()] = conn;
     startJob(job);
-    return job->id();
 }
 
-int Server::dumpFile(const QueryMessage &query, Connection *conn)
+void Server::dumpFile(const QueryMessage &query, Connection *conn)
 {
     const uint32_t fileId = Location::fileId(query.query());
     if (!fileId) {
         conn->write<256>("%s is not indexed", query.query().constData());
-        return 0;
+        conn->finish();
+        return;
     }
 
     Location loc(fileId, 0);
@@ -492,139 +422,144 @@ int Server::dumpFile(const QueryMessage &query, Connection *conn)
     shared_ptr<Project> project = currentProject();
     if (!project || !project->indexer) {
         conn->write<256>("%s is not indexed", query.query().constData());
-        return 0;
+        conn->finish();
+        return;
     }
     const List<ByteArray> args = project->indexer->compileArguments(fileId);
     if (args.isEmpty()) {
         conn->write<256>("%s is not indexed", query.query().constData());
-        return 0;
+        conn->finish();
+        return;
     }
 
     IndexerJob *job = new IndexerJob(query, project, Location::path(fileId), args);
     job->setId(nextId());
+    mPendingLookups[job->id()] = conn;
     startJob(job);
-    return job->id();
 }
 
-int Server::cursorInfo(const QueryMessage &query)
+void Server::cursorInfo(const QueryMessage &query, Connection *conn)
 {
     const Location loc = query.location();
     if (loc.isNull()) {
-        return 0;
+        conn->finish();
+        return;
     }
     updateProjectForLocation(loc);
 
     shared_ptr<Project> project = currentProject();
     if (!project) {
-        error("No project");
-        return 0;
+        conn->finish();
+        return;
     }
 
     CursorInfoJob *job = new CursorInfoJob(loc, query, project);
     job->setId(nextId());
+    mPendingLookups[job->id()] = conn;
     startJob(job);
-
-    return job->id();
 }
 
 
-int Server::referencesForLocation(const QueryMessage &query)
+void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
 {
     const Location loc = query.location();
     if (loc.isNull()) {
-        return 0;
+        conn->finish();
+        return;
     }
     updateProjectForLocation(loc);
 
     shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
-        return 0;
+        conn->finish();
+        return;
     }
 
     ReferencesJob *job = new ReferencesJob(loc, query, project);
     job->setId(nextId());
-
+    mPendingLookups[job->id()] = conn;
     startJob(job);
-
-    return job->id();
 }
 
-int Server::referencesForName(const QueryMessage& query)
+void Server::referencesForName(const QueryMessage& query, Connection *conn)
 {
     const ByteArray name = query.query();
 
     shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
-        return 0;
+        conn->finish();
+        return;
     }
 
     ReferencesJob *job = new ReferencesJob(name, query, project);
     job->setId(nextId());
+    mPendingLookups[job->id()] = conn;
     startJob(job);
-
-    return job->id();
 }
 
-int Server::findSymbols(const QueryMessage &query)
+void Server::findSymbols(const QueryMessage &query, Connection *conn)
 {
     const ByteArray partial = query.query();
 
     shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
-        return 0;
+        conn->finish();
+        return;
     }
 
     FindSymbolsJob *job = new FindSymbolsJob(query, project);
     job->setId(nextId());
+    mPendingLookups[job->id()] = conn;
     startJob(job);
-
-    return job->id();
 }
 
-int Server::listSymbols(const QueryMessage &query)
+void Server::listSymbols(const QueryMessage &query, Connection *conn)
 {
     const ByteArray partial = query.query();
 
     shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
-        return 0;
+        conn->finish();
+        return;
     }
 
     ListSymbolsJob *job = new ListSymbolsJob(query, project);
     job->setId(nextId());
+    mPendingLookups[job->id()] = conn;
     startJob(job);
-
-    return job->id();
 }
 
-int Server::status(const QueryMessage &query)
+void Server::status(const QueryMessage &query, Connection *conn)
 {
     shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
-        return 0;
+        conn->finish();
+        return;
     }
 
     StatusJob *job = new StatusJob(query, project);
     job->setId(nextId());
+    mPendingLookups[job->id()] = conn;
     startJob(job);
-    return job->id();
 }
 
-int Server::test(const QueryMessage &query)
+void Server::test(const QueryMessage &query, Connection *conn)
 {
     Path path = query.query();
     if (!path.isFile()) {
-        return 0;
+        conn->write("0");
+        conn->finish();
+        return;
     }
     TestJob *job = new TestJob(path);
     job->setId(nextId());
+    mPendingLookups[job->id()] = conn;
     startJob(job);
-    return job->id();
 }
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)
@@ -638,8 +573,7 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
 
     const ByteArray fixIts = project->indexer->fixIts(query.query());
 
-    ResponseMessage msg(fixIts);
-    conn->send(&msg);
+    conn->write(fixIts);
     conn->finish();
 }
 
@@ -654,8 +588,7 @@ void Server::errors(const QueryMessage &query, Connection *conn)
 
     const ByteArray errors = project->indexer->errors(query.query());
 
-    ResponseMessage msg(errors);
-    conn->send(&msg);
+    conn->write(errors);
     conn->finish();
 }
 
@@ -669,7 +602,8 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
 {
     shared_ptr<Project> project = currentProject();
     if (!project || !project->indexer) {
-        conn->write("No project");
+        error("No project");
+        conn->finish();
         return;
     }
 
@@ -879,15 +813,20 @@ void Server::event(const Event *event)
         const JobOutputEvent *e = static_cast<const JobOutputEvent*>(event);
         Map<int, Connection*>::iterator it = mPendingLookups.find(e->job->id());
         if (it == mPendingLookups.end()) {
+            e->job->abort();
             break;
         }
-        ResponseMessage msg(e->out);
-        if (it->second->isConnected()) {
-            if (!it->second->send(&msg)) {
-                e->job->abort();
-            } else if (e->finish) {
-                it->second->finish();
-            }
+        if (!it->second->isConnected()) {
+            e->job->abort();
+            break;
+        }
+        if (!it->second->write(e->out)) {
+            e->job->abort();
+            break;
+        }
+
+        if (e->finish) {
+            it->second->finish();
         }
         break; }
     case MakefileParserDoneEvent::Type: {
@@ -1071,4 +1010,67 @@ bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompiler
     mSmartProjects[path] = extraCompilerFlags;
     writeProjects();
     return true;
+}
+void Server::deleteProject(const QueryMessage &query, Connection *conn)
+{
+    RegExp rx(query.query());
+    Set<Path> remove;
+    for (Map<Path, shared_ptr<Project> >::iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+        if (rx.indexIn(it->first) != -1)
+            remove.insert(it->first);
+    }
+
+    for (Set<Path>::const_iterator it = remove.begin(); it != remove.end(); ++it) {
+        conn->write<128>("Erased project: %s", it->constData());
+        removeProject(*it);
+    }
+    conn->finish();
+}
+void Server::project(const QueryMessage &query, Connection *conn)
+{
+    if (query.query().isEmpty()) {
+        shared_ptr<Project> current = currentProject();
+        for (Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+            conn->write<128>("%s%s",
+                             it->first.constData(),
+                             it->second == current ? " <=" : "");
+        }
+    } else {
+        shared_ptr<Project> selected;
+        bool error = false;
+        RegExp rx(query.query());
+        for (Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+            if (rx.indexIn(it->first) != -1) {
+                if (error) {
+                    conn->write(it->first);
+                } else if (selected) {
+                    error = true;
+                    conn->write<128>("Multiple matches for %s", query.query().constData());
+                    conn->write(it->first);
+                    selected.reset();
+                } else {
+                    selected = it->second;
+                }
+            }
+        }
+        if (selected) {
+            setCurrentProject(selected);
+            conn->write<128>("Selected project: %s", selected->srcRoot.constData());
+        } else if (!error) {
+            conn->write<128>("No matches for %s", query.query().constData());
+        }
+    }
+    conn->finish();
+}
+void Server::clearProjects(const QueryMessage &query, Connection *conn)
+{
+    clearProjects();
+    conn->write("Cleared projects");
+    conn->finish();
+}
+void Server::shutdown(const QueryMessage &query, Connection *conn)
+{
+    EventLoop::instance()->exit();
+    conn->write("Shutting down");
+    conn->finish();
 }
