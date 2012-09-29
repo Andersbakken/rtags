@@ -30,7 +30,7 @@ public:
         msg.setMax(rc->max());
         msg.setUnsavedFiles(rc->unsavedFiles());
         msg.setPathFilters(rc->pathFilters().toList());
-        msg.setLockTimeout(rc->lockTimeout());
+        msg.setTimeout(rc->timeout());
         client->message(&msg);
     }
 
@@ -103,7 +103,7 @@ public:
 
 RClient::RClient()
     : mQueryFlags(0), mClientFlags(0), mMakefileFlags(0), mMax(-1),
-      mLogLevel(0), mLockTimeout(0), mArgc(0), mArgv(0)
+      mLogLevel(0), mTimeout(0), mArgc(0), mArgv(0)
 {
 }
 
@@ -200,7 +200,7 @@ static void help(FILE *f, const char* app)
             "  --dump-file|-d [file]                     Dump source file.\n"
             "  --absolute-path|-K                        Print files with absolute path.\n"
             "  --match-regexp|-Z                         Treat various text patterns as regexps (-P, -i, -V).\n"
-            "  --lock-timeout|-y [arg]                   Max time in ms to wait for a database lock (default no timeout).\n"
+            "  --timeout|-y [arg]                        Max time in ms to wait for job to finish (default no timeout).\n"
             "  --sniff-make|-J                           No make trickery, only parse the output, don't try avoid invoking the.\n"
             "                                            compiler or tricking make into thinking targets are old when they're not.\n"
             "                                            Assumes that you've run make clean first.\n"
@@ -258,7 +258,7 @@ bool RClient::parse(int &argc, char **argv)
         { "socket-file", required_argument, 0, 'n' },
         { "always-make", no_argument, 0, 'B' },
         { "dump-file", required_argument, 0, 'd' },
-        { "lock-timeout", required_argument, 0, 'y' },
+        { "timeout", required_argument, 0, 'y' },
         { "sniff-make", no_argument, 0, 'J' },
         { "smart-project", optional_argument, 0, 'j' },
         { "find-virtuals", no_argument, 0, 'k' },
@@ -362,8 +362,8 @@ bool RClient::parse(int &argc, char **argv)
             }
             break;
         case 'y':
-            mLockTimeout = atoi(optarg);
-            if (mLockTimeout <= 0) {
+            mTimeout = atoi(optarg);
+            if (mTimeout <= 0) {
                 fprintf(stderr, "-y [arg] must be positive integer\n");
                 return false;
             }

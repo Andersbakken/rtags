@@ -17,7 +17,7 @@ void FindSymbolsJob::run()
 {
     Map<Location, bool> out;
     if (project()->indexer) {
-        Scope<const SymbolNameMap&> scope = project()->lockSymbolNamesForRead(lockTimeout());
+        Scope<const SymbolNameMap&> scope = project()->lockSymbolNamesForRead();
         if (scope.isNull())
             return;
         const SymbolNameMap &map = scope.data();
@@ -43,7 +43,7 @@ void FindSymbolsJob::run()
     }
 
     if (out.size()) {
-        Scope<const SymbolMap&> scope = project()->lockSymbolsForRead(lockTimeout());
+        Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
         const SymbolMap *map = &scope.data();
         List<RTags::SortedCursor> sorted;
         sorted.reserve(out.size());

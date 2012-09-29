@@ -3,7 +3,7 @@
 #include <Serializer.h>
 
 QueryMessage::QueryMessage(Type type)
-    : mType(type), mFlags(0), mMax(-1), mLockTimeout(0)
+    : mType(type), mFlags(0), mMax(-1), mTimeout(0)
 {
 }
 
@@ -13,7 +13,7 @@ ByteArray QueryMessage::encode() const
     {
         Serializer stream(data);
         stream << mRaw << mQuery << mType << mFlags << mMax
-               << mPathFilters << mUnsavedFiles << mLockTimeout;
+               << mPathFilters << mUnsavedFiles << mTimeout;
     }
     return data;
 }
@@ -22,7 +22,7 @@ void QueryMessage::fromData(const char *data, int size)
 {
     Deserializer stream(data, size);
     stream >> mRaw >> mQuery >> mType >> mFlags >> mMax
-           >> mPathFilters >> mUnsavedFiles >> mLockTimeout;
+           >> mPathFilters >> mUnsavedFiles >> mTimeout;
 }
 
 unsigned QueryMessage::keyFlags(unsigned queryFlags)

@@ -356,7 +356,7 @@ void Indexer::checkFinished() // lock always held
         if (mValidate) {
             ValidateDBJob *validateJob = new ValidateDBJob(project(), mPreviousErrors);
             validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
-            Server::instance()->startJob(validateJob);
+            Server::instance()->startJob(validateJob, 0);
         }
     }
 }

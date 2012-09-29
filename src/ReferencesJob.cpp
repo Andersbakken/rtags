@@ -21,13 +21,13 @@ void ReferencesJob::run()
     Set<Location> references;
     if (proj->indexer) {
         if (!symbolName.isEmpty()) {
-            Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead(lockTimeout());
+            Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead();
             if (scope.isNull())
                 return;
             locations = scope.data().value(symbolName);
         }
         if (!locations.isEmpty()) {
-            Scope<const SymbolMap&> scope = proj->lockSymbolsForRead(lockTimeout());
+            Scope<const SymbolMap&> scope = proj->lockSymbolsForRead();
             if (scope.isNull())
                 return;
 

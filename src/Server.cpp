@@ -389,7 +389,7 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
     FollowLocationJob *job = new FollowLocationJob(loc, query, project);
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startJob(job, query.timeout());
 }
 
 void Server::findFile(const QueryMessage &query, Connection *conn)
@@ -404,7 +404,7 @@ void Server::findFile(const QueryMessage &query, Connection *conn)
     FindFileJob *job = new FindFileJob(query, project);
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startJob(job, query.timeout());
 }
 
 void Server::dumpFile(const QueryMessage &query, Connection *conn)
@@ -435,7 +435,7 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
     IndexerJob *job = new IndexerJob(query, project, Location::path(fileId), args);
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startJob(job, query.timeout());
 }
 
 void Server::cursorInfo(const QueryMessage &query, Connection *conn)
@@ -456,7 +456,7 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
     CursorInfoJob *job = new CursorInfoJob(loc, query, project);
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startJob(job, query.timeout());
 }
 
 
@@ -479,7 +479,7 @@ void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
     ReferencesJob *job = new ReferencesJob(loc, query, project);
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startJob(job, query.timeout());
 }
 
 void Server::referencesForName(const QueryMessage& query, Connection *conn)
@@ -496,7 +496,7 @@ void Server::referencesForName(const QueryMessage& query, Connection *conn)
     ReferencesJob *job = new ReferencesJob(name, query, project);
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startJob(job, query.timeout());
 }
 
 void Server::findSymbols(const QueryMessage &query, Connection *conn)
@@ -513,7 +513,7 @@ void Server::findSymbols(const QueryMessage &query, Connection *conn)
     FindSymbolsJob *job = new FindSymbolsJob(query, project);
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startJob(job, query.timeout());
 }
 
 void Server::listSymbols(const QueryMessage &query, Connection *conn)
@@ -530,7 +530,7 @@ void Server::listSymbols(const QueryMessage &query, Connection *conn)
     ListSymbolsJob *job = new ListSymbolsJob(query, project);
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startJob(job, query.timeout());
 }
 
 void Server::status(const QueryMessage &query, Connection *conn)
@@ -545,7 +545,7 @@ void Server::status(const QueryMessage &query, Connection *conn)
     StatusJob *job = new StatusJob(query, project);
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startJob(job, query.timeout());
 }
 
 void Server::test(const QueryMessage &query, Connection *conn)
@@ -559,7 +559,7 @@ void Server::test(const QueryMessage &query, Connection *conn)
     TestJob *job = new TestJob(path);
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startJob(job, query.timeout());
 }
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)
@@ -628,8 +628,15 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
     }
 }
 
-void Server::startJob(Job *job)
+static void jobTimeout(int, void*)
 {
+    #warning not done
+}
+
+void Server::startJob(Job *job, int timeout)
+{
+    if (timeout > 0 && job->id() != -1)
+        EventLoop::instance()->addTimer(timeout, jobTimeout, reinterpret_cast<void*>(job->id()));
     mThreadPool->start(job, Job::Priority);
 }
 

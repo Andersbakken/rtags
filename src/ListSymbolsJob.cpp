@@ -26,7 +26,7 @@ void ListSymbolsJob::run()
     if (elispList)
         write("(list", IgnoreMax|DontQuote);
     if (project()->indexer) {
-        Scope<const SymbolNameMap&> scope = project()->lockSymbolNamesForRead(lockTimeout());
+        Scope<const SymbolNameMap&> scope = project()->lockSymbolNamesForRead();
         if (scope.isNull())
             return;
         const SymbolNameMap &map = scope.data();

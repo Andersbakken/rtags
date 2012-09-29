@@ -20,8 +20,10 @@ public:
         EventLoop::instance()->postEvent(this, event);
     }
 
-    void deleteLater() { postEvent(new DeleteLaterEvent); }
-
+    void deleteLater()
+    {
+        postEvent(new DeleteLaterEvent);
+    }
 protected:
     virtual void event(const Event* event)
     {

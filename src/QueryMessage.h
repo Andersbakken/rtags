@@ -70,9 +70,8 @@ public:
     int max() const { return mMax; }
     void setMax(int max) { mMax = max; }
 
-    int lockTimeout() const { return mLockTimeout; }
-    void setLockTimeout(int timeout) { mLockTimeout = timeout; }
-
+    int timeout() const { return mTimeout; }
+    void setTimeout(int timeout) { mTimeout = timeout; }
 
     unsigned flags() const { return mFlags; }
     void setFlags(unsigned flags) { mFlags = flags; }
@@ -87,7 +86,7 @@ private:
     ByteArray mQuery;
     Type mType;
     unsigned mFlags;
-    int mMax, mLockTimeout;
+    int mMax, mTimeout;
     List<ByteArray> mPathFilters;
     Map<Path, ByteArray> mUnsavedFiles;
 };

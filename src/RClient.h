@@ -16,7 +16,7 @@ public:
 
     int max() const { return mMax; }
     int logLevel() const { return mLogLevel; }
-    int lockTimeout() const { return mLockTimeout; }
+    int timeout() const { return mTimeout; }
 
     const Set<ByteArray> &pathFilters() const { return mPathFilters; }
 
@@ -41,7 +41,7 @@ private:
     void addGRTag(const Path &dir);
 
     unsigned mQueryFlags, mClientFlags, mMakefileFlags;
-    int mMax, mLogLevel, mLockTimeout;
+    int mMax, mLogLevel, mTimeout;
     Set<ByteArray> mPathFilters;
     Map<Path, ByteArray> mUnsavedFiles;
     List<ByteArray> mExtraCompilerFlags;

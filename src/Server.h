@@ -41,7 +41,7 @@ public:
         NoWall = 0x8
     };
     ThreadPool *threadPool() const { return mThreadPool; }
-    void startJob(Job *job);
+    void startJob(Job *job, int timeout);
     struct Options {
         Options() : options(0), threadCount(0) {}
         Path projectsFile, socketFile;
