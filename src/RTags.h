@@ -237,7 +237,6 @@ inline void decodePath(Path &path)
     }
 }
 
-
 inline int digits(int len)
 {
     int ret = 1;
@@ -247,6 +246,70 @@ inline int digits(int len)
     }
     return ret;
 }
+
+struct SortedCursor
+{
+    SortedCursor(const Location &loc = Location())
+        : location(loc), isDefinition(false), kind(CXCursor_FirstInvalid)
+    {}
+
+    Location location;
+    bool isDefinition;
+    CXCursorKind kind;
+
+    int rank() const
+    {
+        int val = 0;
+        switch (kind) {
+        case CXCursor_VarDecl:
+        case CXCursor_FieldDecl:
+            val = 2;
+            break;
+        case CXCursor_FunctionDecl:
+        case CXCursor_CXXMethod:
+        case CXCursor_Constructor:
+            val = 5;
+            break;
+        case CXCursor_ClassDecl:
+        case CXCursor_StructDecl:
+        case CXCursor_ClassTemplate:
+            val = 10;
+            break;
+        default:
+            val = 1;
+            break;
+        }
+        if (isDefinition)
+            val += 100;
+        return val;
+    }
+
+    bool operator<(const SortedCursor &other) const
+    {
+        const int me = rank();
+        const int him = other.rank();
+        // error() << "comparing<" << location << "and" << other.location
+        //         << me << him << isDefinition << other.isDefinition
+        //         << RTags::eatString(clang_getCursorKindSpelling(kind))
+        //         << RTags::eatString(clang_getCursorKindSpelling(other.kind));
+        if (me != him)
+            return me > him;
+        return location < other.location;
+    }
+    bool operator>(const SortedCursor &other) const
+    {
+        const int me = rank();
+        const int him = other.rank();
+        // error() << "comparing>" << location << "and" << other.location
+        //         << me << him << isDefinition << other.isDefinition
+        //         << RTags::eatString(clang_getCursorKindSpelling(kind))
+        //         << RTags::eatString(clang_getCursorKindSpelling(other.kind));
+        if (me != him)
+            return me > him;
+        return location > other.location;
+    }
+};
+
 
 ByteArray shortOptions(const option *longOptions);
 int readLine(FILE *f, char *buf = 0, int max = -1);

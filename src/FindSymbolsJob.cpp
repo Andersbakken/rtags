@@ -13,69 +13,6 @@ FindSymbolsJob::FindSymbolsJob(const QueryMessage &query, const shared_ptr<Proje
 {
 }
 
-struct Node
-{
-    Node(const Location &loc = Location())
-        : location(loc), isDefinition(false), kind(CXCursor_FirstInvalid)
-    {}
-
-    Location location;
-    bool isDefinition;
-    CXCursorKind kind;
-
-    int rank() const
-    {
-        int val = 0;
-        switch (kind) {
-        case CXCursor_VarDecl:
-        case CXCursor_FieldDecl:
-            val = 2;
-            break;
-        case CXCursor_FunctionDecl:
-        case CXCursor_CXXMethod:
-        case CXCursor_Constructor:
-            val = 5;
-            break;
-        case CXCursor_ClassDecl:
-        case CXCursor_StructDecl:
-        case CXCursor_ClassTemplate:
-            val = 10;
-            break;
-        default:
-            val = 1;
-            break;
-        }
-        if (isDefinition)
-            val += 100;
-        return val;
-    }
-
-    bool operator<(const Node &other) const
-    {
-        const int me = rank();
-        const int him = other.rank();
-        // error() << "comparing<" << location << "and" << other.location
-        //         << me << him << isDefinition << other.isDefinition
-        //         << RTags::eatString(clang_getCursorKindSpelling(kind))
-        //         << RTags::eatString(clang_getCursorKindSpelling(other.kind));
-        if (me != him)
-            return me > him;
-        return location < other.location;
-    }
-    bool operator>(const Node &other) const
-    {
-        const int me = rank();
-        const int him = other.rank();
-        // error() << "comparing>" << location << "and" << other.location
-        //         << me << him << isDefinition << other.isDefinition
-        //         << RTags::eatString(clang_getCursorKindSpelling(kind))
-        //         << RTags::eatString(clang_getCursorKindSpelling(other.kind));
-        if (me != him)
-            return me > him;
-        return location > other.location;
-    }
-};
-
 void FindSymbolsJob::run()
 {
     Map<Location, bool> out;
@@ -108,10 +45,10 @@ void FindSymbolsJob::run()
     if (out.size()) {
         Scope<const SymbolMap&> scope = project()->lockSymbolsForRead(lockTimeout());
         const SymbolMap *map = &scope.data();
-        List<Node> sorted;
+        List<RTags::SortedCursor> sorted;
         sorted.reserve(out.size());
         for (Map<Location, bool>::const_iterator it = out.begin(); it != out.end(); ++it) {
-            Node node(it->first);
+            RTags::SortedCursor node(it->first);
             if (it->second && map) {
                 const SymbolMap::const_iterator found = map->find(it->first);
                 if (found != map->end()) {
@@ -123,7 +60,7 @@ void FindSymbolsJob::run()
         }
 
         if (queryFlags() & QueryMessage::ReverseSort) {
-            std::sort(sorted.begin(), sorted.end(), std::greater<Node>());
+            std::sort(sorted.begin(), sorted.end(), std::greater<RTags::SortedCursor>());
         } else {
             std::sort(sorted.begin(), sorted.end());
         }
