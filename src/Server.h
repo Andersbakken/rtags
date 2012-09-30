@@ -53,6 +53,8 @@ public:
     const List<ByteArray> &excludeFilter() const { return mOptions.excludeFilter; }
     const Path &clangPath() const { return mClangPath; }
 private:
+    void stopJob(int id);
+    static void jobTimeout(int id, void *);
     void clear();
     void onNewConnection();
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }

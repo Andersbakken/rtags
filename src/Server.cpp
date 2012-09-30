@@ -628,16 +628,29 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
     }
 }
 
-static void jobTimeout(int, void*)
+void Server::jobTimeout(int timerId, void *jobId)
 {
-    #warning not done
+    EventLoop::instance()->removeTimer(timerId);
+    int id;
+    memcpy(&id, &jobId, sizeof(int));
+    Server::instance()->stopJob(id);
 }
 
 void Server::startJob(Job *job, int timeout)
 {
-    if (timeout > 0 && job->id() != -1)
-        EventLoop::instance()->addTimer(timeout, jobTimeout, reinterpret_cast<void*>(job->id()));
+    if (timeout > 0 && job->id() != -1) {
+        void *uv = 0;
+        const int id = job->id();
+        memcpy(&uv, &id, sizeof(int));
+        EventLoop::instance()->addTimer(timeout, jobTimeout, uv);
+    }
     mThreadPool->start(job, Job::Priority);
+}
+
+void Server::stopJob(int id)
+{
+    if (Connection *conn = mPendingLookups.take(id))
+        conn->finish();
 }
 
 /* Same behavior as rtags-default-current-project() */
