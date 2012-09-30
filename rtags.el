@@ -7,6 +7,47 @@
 (defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
 (defvar rtags-path-filter-regex nil)
+(defvar rtags-no-otherbuffer nil)
+(defface rtags-path nil "Path" :group 'rtags)
+(defface rtags-context nil "Context" :group 'rtags)
+(defvar rtags-path-face 'rtags-path "Path part")
+(defvar rtags-context-face 'rtags-context "Context part")
+
+(defvar rtags-faces
+  '(("^[^ ]*" . rtags-path-face)
+    (" .*$" . rtags-context-face))
+  )
+
+(defvar rtags-mode-map nil)
+;; assign command to keys
+(setq rtags-mode-map (make-sparse-keymap))
+(define-key rtags-mode-map (kbd "RET") 'rtags-select-other-buffer)
+(define-key rtags-mode-map (kbd "ENTER") 'rtags-select-other-buffer)
+(define-key rtags-mode-map (kbd "SPC") 'rtags-select)
+(define-key rtags-mode-map (kbd "q") 'bury-buffer)
+(define-key rtags-mode-map (kbd "j") 'next-line)
+(define-key rtags-mode-map (kbd "k") 'previous-line)
+
+(define-derived-mode rtags-mode fundamental-mode
+  (setq font-lock-defaults '(rtags-faces))
+  (setq mode-name "rtags")
+  (use-local-map rtags-mode-map)
+  (run-hooks 'rtags-mode-hook)
+  (setq buffer-read-only t)
+  )
+
+(defun rtags-next-match () (interactive (rtags-next-prev-match t)))
+(defun rtags-previous-match () (interactive (rtags-next-prev-match nil)))
+
+(defun rtags-next-prev-match (next)
+  (if (get-buffer "*RTags Complete*")
+      (with-current-buffer "*RTags Complete*"
+        (let ((pos (point)))
+          (beginning-of-line)
+          (if next (next-line) (previous-line))
+          (unless (= pos (point))
+            (rtags-select))))))
+
 
 (defun rtags-call-rc (&rest arguments)
   (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
@@ -23,6 +64,7 @@
   (goto-char (point-min))
   (rtags-log (buffer-string))
   (> (point-max) (point-min)))
+
 
 (defun rtags-reparse-file(&optional buffer)
   (interactive)
@@ -101,11 +143,6 @@
    ((rtags-find-ancestor-file-directory "README*"))
    (t nil)))
 
-(defcustom rtags-after-find-file-hook nil
-  "Run after rtags has jumped to a location possibly in a new file"
-  :group 'rtags
-  :type 'hook)
-
 (defun rtags-current-symbol ()
   (let ((name (rtags-current-symbol-name)))
     (unless name
@@ -153,12 +190,15 @@
   (setq rtags-last-buffer (current-buffer))
   (rtags-bookmark-push))
 
-(defun rtags-goto-location(location &optional nobookmark)
-  "Go to a location passed in. It can be either: file,12 or file:13:14"
+(defun rtags-goto-location(location &optional nobookmark &optional otherbuffer)
+  (if rtags-no-otherbuffer (setq otherbuffer nil))
+  "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
   (cond ((string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" location)
          (let ((line (string-to-int (match-string 2 location)))
                (column (string-to-int (match-string 3 location))))
-           (find-file (match-string 1 location))
+           (if otherbuffer
+               (find-file-other-window (match-string 1 location))
+             (find-file (match-string 1 location)))
            (run-hooks rtags-after-find-file-hook)
            (goto-char (point-min))
            (forward-line (- line 1))
@@ -167,7 +207,9 @@
            t))
         ((string-match "\\(.*\\):\\([0-9]+\\)" location)
          (let ((line (string-to-int (match-string 2 location))))
-           (find-file (match-string 1 location))
+           (if otherbuffer
+               (find-file-other-window (match-string 1 location))
+             (find-file (match-string 1 location)))
            (run-hooks rtags-after-find-file-hook)
            (goto-char (point-min))
            (forward-line (- line 1))
@@ -175,12 +217,19 @@
            t))
         ((string-match "\\(.*\\),\\([0-9]+\\)" location)
          (let ((offset (string-to-int (match-string 2 location))))
-           (find-file (match-string 1 location))
+           (if otherbuffer
+               (find-file-other-window (match-string 1 location))
+             (find-file (match-string 1 location)))
            (run-hooks rtags-after-find-file-hook)
            (goto-char (+ offset 1))
            (unless nobookmark (rtags-bookmark-push))
            t))
-        (t (find-file location)))
+        (t
+         (if otherbuffer
+             (find-file-other-window location)
+           (find-file location))
+         )
+        )
   )
 
 (defun rtags-find-symbols-by-name-internal (p references pathfilter)
@@ -265,8 +314,17 @@
     )
   )
 
-
 ; **************************** API *********************************
+
+(defcustom rtags-after-find-file-hook nil
+  "Run after rtags has jumped to a location possibly in a new file"
+  :group 'rtags
+  :type 'hook)
+
+(defcustom rtags-mode-hook nil
+  "Run when rtags-mode is started"
+  :group 'rtags
+  :type 'hook)
 
 (defcustom rtags-edit-hook nil
   "Run before rtags tries to modify a buffer (from rtags-rename)
@@ -567,7 +625,7 @@ return t if rtags is allowed to modify this file"
   (let ((buf (get-buffer-create "*RTags Diagnostics*")))
     (with-current-buffer buf
       (setq buffer-read-only t)
-      (compilation-mode)
+      (compilation-mode) ;; ### hmm
       (local-set-key "c" 'rtags-clear-diagnostics)
       (local-set-key "q" 'bury-buffer))
     (if (cond ((not rtags-diagnostics-process) t)
@@ -616,9 +674,10 @@ return t if rtags is allowed to modify this file"
                (switch-to-buffer-other-window "*RTags Complete*")
                (shrink-window-if-larger-than-buffer)
                (goto-char (point-min))
-               (compilation-mode)
+               (rtags-mode)
+               (setq rtags-no-otherbuffer nil)
                (if rtags-jump-to-first-match
-                   (compile-goto-error)))))
+                   (rtags-select-other-buffer)))))
     (not empty))
   )
 
@@ -654,11 +713,15 @@ return t if rtags is allowed to modify this file"
            (if (intern-soft string complete-list) t nil))))))
 
 
-(defun rtags-find-file-on-return-pressed()
+(defun rtags-select()
   (interactive)
   (let ((file (buffer-substring (point-at-bol) (point-at-eol))))
     (bury-buffer)
     (rtags-goto-location file)))
+
+(defun rtags-select-other-buffer()
+  (interactive)
+  (rtags-goto-location (buffer-substring (point-at-bol) (point-at-eol)) nil t))
 
 (defvar rtags-find-file-history nil)
 (defun rtags-find-file (&optional tagname)
@@ -696,17 +759,12 @@ return t if rtags is allowed to modify this file"
             (t nil))
       ;(message (format "Got lines and shit %d\n[%s]" (count-lines (point-min) (point-max)) (buffer-string)))
       (cond ((= (point-min) (point-max)) t)
-            ((= (count-lines (point-min) (point-max)) 1) (rtags-find-file-on-return-pressed))
+            ((= (count-lines (point-min) (point-max)) 1) (rtags-select))
             (t (progn
                   (switch-to-buffer-other-window "*RTags Complete*")
                   (shrink-window-if-larger-than-buffer)
-                  (goto-char (point-min))
-                  (setq buffer-read-only t)
-                  (highlight-regexp "." compilation-error-face)
-                  (local-set-key (kbd "RET") (function rtags-find-file-on-return-pressed))
-                  (local-set-key (kbd "ENTER") (function rtags-find-file-on-return-pressed))
-                  (local-set-key (kbd "q") (function bury-buffer)))))
-
+                  (rtags-mode)
+                  (setq rtags-no-otherbuffer t))))
       ; Should add support for putting offset in there as well, ignore it on completion and apply it at the end
       )
     )
@@ -751,9 +809,5 @@ return t if rtags is allowed to modify this file"
       )
     )
   )
-
-
-
-
 
 (provide 'rtags)
