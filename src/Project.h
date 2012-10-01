@@ -12,7 +12,7 @@ class Scope
 public:
     bool isNull() const { return !mData; }
     bool isValid() const { return mData; }
-    T data() { return mData->t; }
+    T data() const { return mData->t; }
 private:
     friend class Project;
     struct Data {

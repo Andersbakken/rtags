@@ -359,6 +359,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::IsIndexed:
         isIndexed(*message, conn);
         break;
+    case QueryMessage::HasFileManager:
+        hasFileManager(*message, conn);
+        break;
     }
 }
 
@@ -554,8 +557,7 @@ void Server::isIndexed(const QueryMessage &query, Connection *conn)
     if (path.isFile()) {
         const uint32_t fileId = Location::fileId(path);
         if (fileId) {
-            const Location loc(fileId, 0);
-            updateProjectForLocation(loc);
+            updateProjectForLocation(path);
             shared_ptr<Project> cur = currentProject();
             if (cur && cur->isIndexed(fileId)) {
                 conn->write("1");
@@ -566,6 +568,19 @@ void Server::isIndexed(const QueryMessage &query, Connection *conn)
     }
 
     conn->write("0");
+    conn->finish();
+}
+
+void Server::hasFileManager(const QueryMessage &query, Connection *conn)
+{
+    const Path path = query.query();
+    updateProjectForLocation(path);
+    shared_ptr<Project> cur = currentProject();
+    if (cur && cur->fileManager->contains(path)) {
+        conn->write("1");
+    } else {
+        conn->write("0");
+    }
     conn->finish();
 }
 
@@ -860,9 +875,13 @@ shared_ptr<Project> Server::setCurrentProject(const Path &path)
 
 bool Server::updateProjectForLocation(const Location &location)
 {
+    return updateProjectForLocation(location.path());
+}
+
+bool Server::updateProjectForLocation(const Path &path)
+{
     shared_ptr<Project> match;
     int longest = -1;
-    const Path path = location.path();
     for (Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         if (!strncmp(it->second->srcRoot.constData(), path.constData(), it->second->srcRoot.size())) {
             const int matchLength = it->second->srcRoot.size();

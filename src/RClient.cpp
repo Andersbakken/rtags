@@ -210,7 +210,8 @@ enum {
     Timeout,
     SniffMake,
     SmartProject,
-    FindVirtuals
+    FindVirtuals,
+    HasFileManager
 };
 
 struct Option {
@@ -250,7 +251,8 @@ struct Option opts[] = {
     { FindSymbols, "find-symbols", 'F', required_argument, "Find symbols matching arg." },
     { CursorInfo, "cursor-info", 'U', required_argument, "Get cursor info for this location." },
     { Status, "status", 's', optional_argument, "Dump status of rdm. Arg can be symbols or symbolNames." },
-    { IsIndexed, "is-indexed", 'T', required_argument, "Ask if rtags knows about, and is ready to return information about, this source file." },
+    { IsIndexed, "is-indexed", 'T', required_argument, "Check if rtags knows about, and is ready to return information about, this source file." },
+    { HasFileManager, "has-filemanager", 0, optional_argument, "Check if rtags has info about files in this directory." },
     { Reindex, "reindex", 'V', optional_argument, "Reindex all files or all files matching pattern." },
     { FindFile, "path", 'P', optional_argument, "Print files matching pattern." },
     { DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
@@ -568,6 +570,14 @@ bool RClient::parse(int &argc, char **argv)
                 addSmartProject(Path::resolved("."));
             }
             break;
+        case HasFileManager: {
+            const Path p = Path::resolved(optarg ? optarg : ".");
+            if (!p.exists()) {
+                fprintf(stderr, "%s does not seem to exist\n", optarg);
+                return false;
+            }
+            addQuery(QueryMessage::HasFileManager, p);
+            break; }
         case IsIndexed:
         case Fixits:
         case DumpFile:

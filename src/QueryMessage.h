@@ -29,6 +29,7 @@ public:
         DeleteProject,
         FindFile,
         DumpFile,
+        HasFileManager,
         Shutdown
     };
 

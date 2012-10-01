@@ -86,6 +86,7 @@ private:
     void listSymbols(const QueryMessage &query, Connection *conn);
     void status(const QueryMessage &query, Connection *conn);
     void isIndexed(const QueryMessage &query, Connection *conn);
+    void hasFileManager(const QueryMessage &query, Connection *conn);
     void findFile(const QueryMessage &query, Connection *conn);
     void dumpFile(const QueryMessage &query, Connection *conn);
     void deleteProject(const QueryMessage &query, Connection *conn);
@@ -97,6 +98,7 @@ private:
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);
     ByteArray completions(const QueryMessage &query);
     bool updateProjectForLocation(const Location &location);
+    bool updateProjectForLocation(const Path &path);
     void writeProjects();
     bool grtag(const Path &dir);
     bool smartProject(const Path &path, const List<ByteArray> &extraCompilerFlags);

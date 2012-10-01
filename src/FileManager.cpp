@@ -88,3 +88,14 @@ void FileManager::onFileRemoved(const Path &path)
         map.remove(parent);
     }
 }
+
+bool FileManager::contains(const Path &path)
+{
+    shared_ptr<Project> proj = mProject.lock();
+    if (proj) {
+        const Scope<const FilesMap&> scope = proj->lockFilesForRead();
+        // ### is this a potential dead-lock from the main thread?
+        return scope.isValid() && scope.data().contains(path);
+    }
+    return false;
+}
