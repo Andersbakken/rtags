@@ -19,7 +19,7 @@ public:
         ListSymbols,
         FindSymbols,
         Status,
-        Test,
+        IsIndexed,
         CursorInfo,
         ClearProjects,
         FixIts,

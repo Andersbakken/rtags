@@ -88,3 +88,12 @@ Scope<GRFilesMap&> Project::lockGRFilesForWrite()
     scope.mData.reset(new Scope<GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
     return scope;
 }
+
+bool Project::isIndexed(uint32_t fileId) const
+{
+    if (indexer)
+        return indexer->isIndexed(fileId);
+    if (grtags)
+        return grtags->isIndexed(fileId);
+    return false;
+}

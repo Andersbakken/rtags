@@ -853,7 +853,7 @@ return t if rtags is allowed to modify this file"
             (progn
             ;; (message (format "height is %d percentage %f" height rtags-other-buffer-window-size-percentage))
               (setq height (/ height 100))
-              (message (format "height is %d percentage %f" height rtags-other-buffer-window-size-percentage))
+              ;; (message (format "height is %d percentage %f" height rtags-other-buffer-window-size-percentage))
               (setq rtags-other-buffer-window (split-window nil height))
               (select-window rtags-other-buffer-window)
               (rtags-goto-location target)

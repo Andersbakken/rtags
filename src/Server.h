@@ -85,7 +85,7 @@ private:
     void findSymbols(const QueryMessage &query, Connection *conn);
     void listSymbols(const QueryMessage &query, Connection *conn);
     void status(const QueryMessage &query, Connection *conn);
-    void test(const QueryMessage &query, Connection *conn);
+    void isIndexed(const QueryMessage &query, Connection *conn);
     void findFile(const QueryMessage &query, Connection *conn);
     void dumpFile(const QueryMessage &query, Connection *conn);
     void deleteProject(const QueryMessage &query, Connection *conn);

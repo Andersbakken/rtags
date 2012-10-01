@@ -58,6 +58,8 @@ public:
 
     Scope<const GRMap&> lockGRForRead(int maxTime = 0);
     Scope<GRMap&> lockGRForWrite();
+
+    bool isIndexed(uint32_t fileId) const;
 private:
     SymbolMap mSymbols;
     ReadWriteLock mSymbolsLock;

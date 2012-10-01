@@ -17,6 +17,7 @@ public:
     void add(const Path &source);
     void onParseJobFinished(GRParseJob *job, const GRMap &data);
     void dirty(uint32_t fileId, GRMap &map);
+    bool isIndexed(uint32_t fileId) const;
 private:
     weak_ptr<Project> mProject;
     FileSystemWatcher mWatcher;

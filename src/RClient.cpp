@@ -181,7 +181,7 @@ static void help(FILE *f, const char* app)
             "  --includepath|-I [arg]                    Add additional include path, must be combined with -m or -j.\n"
             "  --define|-D [arg]                         Add additional define, must be combined with -m or -j.\n"
             "  --compiler-flag|-o [arg]                  Add additional compiler flags, must be combined with -m or -j.\n"
-            "  --test|-T [arg]                           Test whether rtags knows about this source file.\n"
+            "  --is-indexed|-T [arg]                     Ask if rtags knows about, and is ready to return information about, this source file.\n"
             "  --fixits|-x [file]                        Get fixits for file.\n"
             "  --errors|-Q [file]                        Get errors for file.\n"
             "  --rdm-log|-g                              Receive logs from rdm.\n"
@@ -477,7 +477,7 @@ bool RClient::parse(int &argc, char **argv)
             }
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (c) {
-            case 'T': type = QueryMessage::Test; break;
+            case 'T': type = QueryMessage::IsIndexed; break;
             case 'x': type = QueryMessage::FixIts; break;
             case 'Q': type = QueryMessage::Errors; break;
             case 'd': type = QueryMessage::DumpFile; break;

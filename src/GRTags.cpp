@@ -137,3 +137,8 @@ void GRTags::dirty(uint32_t fileId, GRMap &map)
         }
     }
 }
+
+bool GRTags::isIndexed(uint32_t fileId) const
+{
+    return true; // what do here? Can I grab the GRLock from main thread?
+}

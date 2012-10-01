@@ -356,8 +356,8 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::Status:
         status(*message, conn);
         break;
-    case QueryMessage::Test:
-        test(*message, conn);
+    case QueryMessage::IsIndexed:
+        isIndexed(*message, conn);
         break;
     }
 }
@@ -548,18 +548,25 @@ void Server::status(const QueryMessage &query, Connection *conn)
     startJob(job, query.timeout());
 }
 
-void Server::test(const QueryMessage &query, Connection *conn)
+void Server::isIndexed(const QueryMessage &query, Connection *conn)
 {
-    Path path = query.query();
-    if (!path.isFile()) {
-        conn->write("0");
-        conn->finish();
-        return;
+    const Path path = query.query();
+    if (path.isFile()) {
+        const uint32_t fileId = Location::fileId(path);
+        if (fileId) {
+            const Location loc(fileId, 0);
+            updateProjectForLocation(loc);
+            shared_ptr<Project> cur = currentProject();
+            if (cur && cur->isIndexed(fileId)) {
+                conn->write("1");
+                conn->finish();
+                return;
+            }
+        }
     }
-    TestJob *job = new TestJob(path);
-    job->setId(nextId());
-    mPendingLookups[job->id()] = conn;
-    startJob(job, query.timeout());
+
+    conn->write("0");
+    conn->finish();
 }
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)

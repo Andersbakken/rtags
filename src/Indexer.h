@@ -31,6 +31,7 @@ public:
     void beginMakefile();
     void endMakefile();
     void onJobFinished(IndexerJob *job);
+    bool isIndexed(uint32_t fileId) const;
 private:
     void checkFinished();
     void onFileModified(const Path &);
