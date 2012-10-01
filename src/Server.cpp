@@ -386,7 +386,7 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    FollowLocationJob *job = new FollowLocationJob(loc, query, project);
+    shared_ptr<FollowLocationJob> job(new FollowLocationJob(loc, query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -401,7 +401,7 @@ void Server::findFile(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    FindFileJob *job = new FindFileJob(query, project);
+    shared_ptr<FindFileJob> job(new FindFileJob(query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -432,7 +432,7 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    IndexerJob *job = new IndexerJob(query, project, Location::path(fileId), args);
+    shared_ptr<IndexerJob> job(new IndexerJob(query, project, Location::path(fileId), args));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -453,7 +453,7 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    CursorInfoJob *job = new CursorInfoJob(loc, query, project);
+    shared_ptr<CursorInfoJob> job(new CursorInfoJob(loc, query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -476,7 +476,7 @@ void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    ReferencesJob *job = new ReferencesJob(loc, query, project);
+    shared_ptr<ReferencesJob> job(new ReferencesJob(loc, query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -493,7 +493,7 @@ void Server::referencesForName(const QueryMessage& query, Connection *conn)
         return;
     }
 
-    ReferencesJob *job = new ReferencesJob(name, query, project);
+    shared_ptr<ReferencesJob> job(new ReferencesJob(name, query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -510,7 +510,7 @@ void Server::findSymbols(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    FindSymbolsJob *job = new FindSymbolsJob(query, project);
+    shared_ptr<FindSymbolsJob> job(new FindSymbolsJob(query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -527,7 +527,7 @@ void Server::listSymbols(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    ListSymbolsJob *job = new ListSymbolsJob(query, project);
+    shared_ptr<ListSymbolsJob> job(new ListSymbolsJob(query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -542,7 +542,7 @@ void Server::status(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    StatusJob *job = new StatusJob(query, project);
+    shared_ptr<StatusJob> job(new StatusJob(query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -635,7 +635,7 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
     }
 }
 
-void Server::startJob(Job *job)
+void Server::startJob(const shared_ptr<Job> &job)
 {
     mThreadPool->start(job, Job::Priority);
 }
@@ -818,17 +818,20 @@ void Server::event(const Event *event)
     switch (event->type()) {
     case JobOutputEvent::Type: {
         const JobOutputEvent *e = static_cast<const JobOutputEvent*>(event);
-        Map<int, Connection*>::iterator it = mPendingLookups.find(e->job->id());
+        Map<int, Connection*>::iterator it = mPendingLookups.find(e->id);
         if (it == mPendingLookups.end()) {
-            e->job->abort();
+            if (shared_ptr<Job> job = e->job.lock())
+                job->abort();
             break;
         }
         if (!it->second->isConnected()) {
-            e->job->abort();
+            if (shared_ptr<Job> job = e->job.lock())
+                job->abort();
             break;
         }
         if (!e->out.isEmpty() && !it->second->write(e->out)) {
-            e->job->abort();
+            if (shared_ptr<Job> job = e->job.lock())
+                job->abort();
             break;
         }
 

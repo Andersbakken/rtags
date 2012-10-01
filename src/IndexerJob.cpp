@@ -654,7 +654,7 @@ void IndexerJob::visit()
     }
 }
 
-void IndexerJob::run()
+void IndexerJob::execute()
 {
     mData.reset(new IndexData);
     if (mDump) {

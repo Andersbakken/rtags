@@ -45,7 +45,7 @@ private:
     void visit();
     void diagnose();
 
-    virtual void run();
+    virtual void execute();
 
     Location createLocation(const CXCursor &cursor, bool *blocked);
     static Location createLocation(const CXCursor &cursor);

@@ -24,7 +24,7 @@ void GRTags::recurse()
     shared_ptr<Project> project = mProject.lock();
     GRScanJob *job = new GRScanJob(GRScanJob::Sources, project->srcRoot, project);
     job->finished().connect(this, &GRTags::onRecurseJobFinished);
-    Server::instance()->threadPool()->start(job);
+    Server::instance()->threadPool()->start(shared_ptr<ThreadPool::Job>(job));
 }
 
 void GRTags::onFileRemoved(const Path &path)
@@ -71,7 +71,7 @@ void GRTags::add(const Path &source)
     ++mActive;
     ++mCount;
     job->finished().connect(this, &GRTags::onParseJobFinished);
-    Server::instance()->threadPool()->start(job);
+    Server::instance()->threadPool()->start(shared_ptr<ThreadPool::Job>(job));
 }
 void GRTags::onParseJobFinished(GRParseJob *job, const GRMap &data)
 {

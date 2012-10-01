@@ -15,7 +15,8 @@ class CursorInfo;
 class Location;
 class QueryMessage;
 class Project;
-class Job : public ThreadPool::Job, public AbortInterface
+class Job : public ThreadPool::Job, public AbortInterface,
+            public enable_shared_from_this<Job>
 {
 public:
     enum Flag {
@@ -49,6 +50,8 @@ public:
     inline bool filter(const ByteArray &val) const;
     signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
     shared_ptr<Project> project() const { return mProject; }
+    virtual void run();
+    virtual void execute() = 0;
 private:
     bool writeRaw(const ByteArray &out, unsigned flags);
     int mId;
@@ -104,13 +107,14 @@ class JobOutputEvent : public Event
 {
 public:
     enum { Type = 2 };
-    JobOutputEvent(Job *j, const ByteArray &o, bool f)
-        : Event(Type), job(j), out(o), finish(f)
+    JobOutputEvent(const shared_ptr<Job> &j, const ByteArray &o, bool f)
+        : Event(Type), job(j), out(o), finish(f), id(j->id())
     {}
 
-    Job *job;
+    weak_ptr<Job> job;
     const ByteArray out;
     const bool finish;
+    const int id;
 };
 
 #endif

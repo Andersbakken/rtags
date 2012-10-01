@@ -28,7 +28,7 @@ void Indexer::onJobFinished(IndexerJob *job)
     MutexLocker lock(&mMutex);
     const uint32_t fileId = job->fileId();
     mVisitedFilesByJob.remove(job);
-    if (mJobs.value(fileId) != job) {
+    if (mJobs.value(fileId).get() != job) {
         return;
     }
     mJobs.remove(fileId);
@@ -57,14 +57,14 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
 
     const uint32_t fileId = Location::insertFile(input);
     mCompileArguments[fileId] = arguments;
-    IndexerJob *&job = mJobs[fileId];
+    shared_ptr<IndexerJob> &job = mJobs[fileId];
     if (job) {
         job->abort();
-        mVisitedFiles -= mVisitedFilesByJob.take(job);
+        mVisitedFiles -= mVisitedFilesByJob.take(job.get());
     }
     mPendingData.remove(fileId);
 
-    job = new IndexerJob(shared_from_this(), indexerJobFlags, input, arguments);
+    job.reset(new IndexerJob(shared_from_this(), indexerJobFlags, input, arguments));
 
     ++mJobCounter;
     if (!mTimerRunning) {
@@ -354,7 +354,7 @@ void Indexer::checkFinished() // lock always held
                 << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
         jobsComplete()(this);
         if (mValidate) {
-            ValidateDBJob *validateJob = new ValidateDBJob(project(), mPreviousErrors);
+            shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(project(), mPreviousErrors));
             validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
             Server::instance()->startJob(validateJob);
         }

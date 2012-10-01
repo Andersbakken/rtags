@@ -63,7 +63,7 @@ private:
     mutable Mutex mMutex;
 
     ByteArray mPath;
-    Map<uint32_t, IndexerJob*> mJobs;
+    Map<uint32_t, shared_ptr<IndexerJob> > mJobs;
 
     Set<uint32_t> mModifiedFiles;
     int mModifiedFilesTimerId;

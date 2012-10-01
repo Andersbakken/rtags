@@ -37,8 +37,6 @@ Job::~Job()
 {
     delete mPathFilters;
     delete mPathFiltersRegExp;
-    if (mId != -1)
-        EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, mBuffer, true));
 }
 
 bool Job::write(const ByteArray &out, unsigned flags)
@@ -84,7 +82,7 @@ bool Job::writeRaw(const ByteArray &out, unsigned flags)
     if (mJobFlags & WriteBuffered) {
         enum { BufSize = 16384 };
         if (mBuffer.size() + out.size() + 1 > BufSize) {
-            EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, mBuffer, false));
+            EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(shared_from_this(), mBuffer, false));
             mBuffer.clear();
             mBuffer.reserve(BufSize);
         }
@@ -92,7 +90,7 @@ bool Job::writeRaw(const ByteArray &out, unsigned flags)
             mBuffer.append('\n');
         mBuffer.append(out);
     } else {
-        EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(this, out, false));
+        EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(shared_from_this(), out, false));
     }
     return true;
 }
@@ -108,4 +106,10 @@ bool Job::write(const Location &location, const CursorInfo &ci, unsigned flags)
 unsigned Job::keyFlags() const
 {
     return QueryMessage::keyFlags(mQueryFlags);
+}
+void Job::run()
+{
+    execute();
+    if (mId != -1)
+        EventLoop::instance()->postEvent(Server::instance(), new JobOutputEvent(shared_from_this(), mBuffer, true));
 }

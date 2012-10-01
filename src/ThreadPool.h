@@ -34,19 +34,19 @@ public:
 
     enum { Guaranteed = -1 };
 
-    void start(Job* job, int priority = 0);
+    void start(const shared_ptr<Job> &job, int priority = 0);
 
     static int idealThreadCount();
     static ThreadPool* globalInstance();
 
 private:
-    static bool jobLessThan(const Job* l, const Job* r);
+    static bool jobLessThan(const shared_ptr<Job> &l, const shared_ptr<Job> &r);
 
 private:
     int mConcurrentJobs;
     Mutex mMutex;
     WaitCondition mCond;
-    std::deque<Job*> mJobs;
+    std::deque<shared_ptr<Job> > mJobs;
     List<ThreadPoolThread*> mThreads;
     int mBusyThreads;
 
