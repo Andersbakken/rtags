@@ -23,12 +23,12 @@ static inline bool isFile(uint32_t fileId)
     return Location::path(fileId).isFile();
 }
 
-void Indexer::onJobFinished(IndexerJob *job)
+void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
 {
     MutexLocker lock(&mMutex);
     const uint32_t fileId = job->fileId();
     mVisitedFilesByJob.remove(job);
-    if (mJobs.value(fileId).get() != job) {
+    if (mJobs.value(fileId) != job) {
         return;
     }
     mJobs.remove(fileId);
@@ -60,7 +60,7 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
     shared_ptr<IndexerJob> &job = mJobs[fileId];
     if (job) {
         job->abort();
-        mVisitedFiles -= mVisitedFilesByJob.take(job.get());
+        mVisitedFiles -= mVisitedFilesByJob.take(job);
     }
     mPendingData.remove(fileId);
 
@@ -368,7 +368,7 @@ bool Indexer::isIndexed(uint32_t fileId) const
 
     if (!mVisitedFiles.contains(fileId))
         return false;
-    for (Map<IndexerJob*, Set<uint32_t> >::const_iterator it = mVisitedFilesByJob.begin(); it != mVisitedFilesByJob.end(); ++it) {
+    for (Map<shared_ptr<IndexerJob>, Set<uint32_t> >::const_iterator it = mVisitedFilesByJob.begin(); it != mVisitedFilesByJob.end(); ++it) {
         if (it->second.contains(fileId))
             return false;
     }

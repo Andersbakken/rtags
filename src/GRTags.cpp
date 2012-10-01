@@ -67,13 +67,13 @@ void GRTags::add(const Path &source)
             return;
         flags = GRParseJob::Dirty;
     }
-    GRParseJob *job = new GRParseJob(source, flags, project);
+    shared_ptr<GRParseJob> job(new GRParseJob(source, flags, project));
     ++mActive;
     ++mCount;
     job->finished().connect(this, &GRTags::onParseJobFinished);
-    Server::instance()->threadPool()->start(shared_ptr<ThreadPool::Job>(job));
+    Server::instance()->threadPool()->start(job);
 }
-void GRTags::onParseJobFinished(GRParseJob *job, const GRMap &data)
+void GRTags::onParseJobFinished(const shared_ptr<GRParseJob> &job, const GRMap &data)
 {
     uint32_t fileId = Location::insertFile(job->path());
     const time_t time = job->parseTime();

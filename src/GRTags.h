@@ -15,13 +15,12 @@ public:
     void onRecurseJobFinished(const Set<Path> &files);
     void recurse();
     void add(const Path &source);
-    void onParseJobFinished(GRParseJob *job, const GRMap &data);
+    void onParseJobFinished(const shared_ptr<GRParseJob> &job, const GRMap &data);
     void dirty(uint32_t fileId, GRMap &map);
     bool isIndexed(uint32_t fileId) const;
 private:
     weak_ptr<Project> mProject;
     FileSystemWatcher mWatcher;
-    Map<uint32_t, GRParseJob*> mPending;
     int mActive, mCount;
 };
 

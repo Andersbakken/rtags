@@ -14,7 +14,7 @@ ReferencesJob::ReferencesJob(const ByteArray &sym, const QueryMessage &query, co
 {
 }
 
-void ReferencesJob::run()
+void ReferencesJob::execute()
 {
     shared_ptr<Project> proj = project();
     Location startLocation;

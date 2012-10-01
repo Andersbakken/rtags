@@ -10,7 +10,7 @@ ValidateDBJob::ValidateDBJob(const shared_ptr<Project> &proj, const Set<Location
 {
 }
 
-void ValidateDBJob::run()
+void ValidateDBJob::execute()
 {
     int errors = 0;
     int total = 0;

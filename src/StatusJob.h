@@ -12,7 +12,7 @@ public:
     StatusJob(const QueryMessage &query, const shared_ptr<Project> &project);
     static const char *delimiter;
 protected:
-    virtual void run();
+    virtual void execute();
 private:
     const ByteArray query;
 };

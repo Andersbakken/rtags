@@ -11,7 +11,7 @@ class FindSymbolsJob : public Job
 public:
     FindSymbolsJob(const QueryMessage &query, const shared_ptr<Project> &project);
 protected:
-    virtual void run();
+    virtual void execute();
 private:
     const ByteArray string;
 };

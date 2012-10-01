@@ -13,7 +13,7 @@ FindSymbolsJob::FindSymbolsJob(const QueryMessage &query, const shared_ptr<Proje
 {
 }
 
-void FindSymbolsJob::run()
+void FindSymbolsJob::execute()
 {
     Map<Location, bool> out;
     if (project()->indexer) {

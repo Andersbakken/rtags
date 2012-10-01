@@ -8,7 +8,7 @@ CursorInfoJob::CursorInfoJob(const Location &loc, const QueryMessage &query, con
 {
 }
 
-void CursorInfoJob::run()
+void CursorInfoJob::execute()
 {
     Scope<const SymbolMap &> scope = project()->lockSymbolsForRead();
     if (scope.isNull())

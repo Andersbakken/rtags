@@ -9,7 +9,7 @@ class TestJob : public Job
 public:
     TestJob(const Path &path);
 protected:
-    virtual void run();
+    virtual void execute();
 private:
     const Path path;
 };

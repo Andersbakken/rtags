@@ -8,7 +8,7 @@ FollowLocationJob::FollowLocationJob(const Location &loc, const QueryMessage &qu
 {
 }
 
-void FollowLocationJob::run()
+void FollowLocationJob::execute()
 {
     Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
     if (scope.isNull())

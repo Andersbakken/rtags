@@ -202,7 +202,8 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
                     shared_ptr<Indexer> indexer = mIndexer.lock();
-                    state = indexer && indexer->visitFile(fileId, this) ? Index : DontIndex;
+                    shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
+                    state = indexer && indexer->visitFile(fileId, job) ? Index : DontIndex;
                 }
                 if (state != Index) {
                     *blocked = true;
@@ -690,8 +691,10 @@ void IndexerJob::execute()
         mIndex = 0;
     }
 
-    if (shared_ptr<Indexer> idx = indexer())
-        idx->onJobFinished(this);
+    if (shared_ptr<Indexer> idx = indexer()) {
+        shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
+        idx->onJobFinished(job);
+    }
 }
 
 CXChildVisitResult IndexerJob::verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData)

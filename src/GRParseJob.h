@@ -9,7 +9,7 @@
 #include "Location.h"
 
 class Project;
-class GRParseJob : public ThreadPool::Job, public AbortInterface
+class GRParseJob : public ThreadPool::Job, public AbortInterface, public enable_shared_from_this<GRParseJob>
 {
 public:
     enum Flag {
@@ -21,9 +21,9 @@ public:
     unsigned flags() const { return mFlags; }
     virtual void run();
     time_t parseTime() const { return mParseTime; }
-    signalslot::Signal2<GRParseJob *, const GRMap &> &finished() { return mFinished; }
+    signalslot::Signal2<const shared_ptr<GRParseJob> &, const GRMap &> &finished() { return mFinished; }
 private:
-    signalslot::Signal2<GRParseJob *, const GRMap &> mFinished;
+    signalslot::Signal2<const shared_ptr<GRParseJob> &, const GRMap &> mFinished;
 
     GRMap mEntries;
     const Path mPath;

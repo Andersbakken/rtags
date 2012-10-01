@@ -15,7 +15,7 @@ public:
         All
     };
     GRScanJob(Mode mode, const Path &path, const shared_ptr<Project> &project);
-    virtual void run();
+    virtual void execute();
     signalslot::Signal1<const Set<Path> &>&finished() { return mFinished; }
 
     enum FilterResult {

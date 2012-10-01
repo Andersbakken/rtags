@@ -13,7 +13,7 @@ class CursorInfoJob : public Job
 public:
     CursorInfoJob(const Location &loc, const QueryMessage &query, const shared_ptr<Project> &proj);
 protected:
-    virtual void run();
+    virtual void execute();
 private:
     const Location location;
 };

@@ -22,7 +22,7 @@ public:
     void index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
     List<ByteArray> compileArguments(uint32_t fileId) const;
     Set<uint32_t> dependencies(uint32_t fileId) const;
-    bool visitFile(uint32_t fileId, IndexerJob *job);
+    bool visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &job);
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path = Path()) const;
     int reindex(const ByteArray &pattern, bool regexp);
@@ -30,7 +30,7 @@ public:
     shared_ptr<Project> project() const { return mProject.lock(); }
     void beginMakefile();
     void endMakefile();
-    void onJobFinished(IndexerJob *job);
+    void onJobFinished(const shared_ptr<IndexerJob> &job);
     bool isIndexed(uint32_t fileId) const;
 private:
     void checkFinished();
@@ -52,9 +52,9 @@ private:
         ForceDirty
     };
     void initDB(InitMode forceDirty, const ByteArray &pattern = ByteArray());
-    void startJob(IndexerJob *job);
+    void startJob(shared_ptr<IndexerJob> job);
 
-    Map<IndexerJob*, Set<uint32_t> > mVisitedFilesByJob;
+    Map<shared_ptr<IndexerJob>, Set<uint32_t> > mVisitedFilesByJob;
     Set<uint32_t> mVisitedFiles;
 
     int mJobCounter;
@@ -90,7 +90,7 @@ private:
     Set<uint32_t> mPendingDirtyFiles;
 };
 
-inline bool Indexer::visitFile(uint32_t fileId, IndexerJob *job)
+inline bool Indexer::visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &job)
 {
     MutexLocker lock(&mMutex);
     if (mVisitedFiles.contains(fileId)) {

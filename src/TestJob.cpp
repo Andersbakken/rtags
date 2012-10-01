@@ -6,7 +6,7 @@ TestJob::TestJob(const Path &p)
 {
 }
 
-void TestJob::run()
+void TestJob::execute()
 {
     const bool found = Location::fileId(path);
     write(found ? "1" : "0");

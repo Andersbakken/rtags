@@ -10,7 +10,7 @@ GRScanJob::GRScanJob(Mode mode, const Path &path, const shared_ptr<Project> &pro
         mPath.append('/');
 }
 
-void GRScanJob::run()
+void GRScanJob::execute()
 {
     mPath.visit(&GRScanJob::visit, this);
     if (shared_ptr<Project> project = mProject.lock())
