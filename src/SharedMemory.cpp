@@ -7,42 +7,22 @@
 
 #define PROJID 3946
 
-SharedMemory::SharedMemory(int key, unsigned int size)
+SharedMemory::SharedMemory(int key, unsigned int size, CreateFlag flag)
     : mAddr(0)
 {
-    int flg = IPC_CREAT | IPC_EXCL;
-    do {
-        mShm = shmget(key, size, flg);
-        if (mShm == -1) {
-            if (flg && errno == EEXIST)
-                flg = 0;
-            else if (!flg && errno == ENOENT)
-                flg = IPC_CREAT | IPC_EXCL;
-            else
-                break;
-        }
-    } while (mShm == -1);
+    const int flg = (flag == Create) ? (IPC_CREAT | IPC_EXCL) : 0;
+    mShm = shmget(key, size, flg);
     mOwner = ((flg & IPC_CREAT) == IPC_CREAT);
 }
 
-SharedMemory::SharedMemory(const Path& filename, unsigned int size)
+SharedMemory::SharedMemory(const Path& filename, unsigned int size, CreateFlag flag)
     : mShm(-1), mOwner(false), mAddr(0)
 {
     const key_t key = ftok(filename.nullTerminated(), PROJID);
     if (key == -1)
         return;
-    int flg = IPC_CREAT | IPC_EXCL;
-    do {
-        mShm = shmget(key, size, flg);
-        if (mShm == -1) {
-            if (flg && errno == EEXIST)
-                flg = 0;
-            else if (!flg && errno == ENOENT)
-                flg = IPC_CREAT | IPC_EXCL;
-            else
-                break;
-        }
-    } while (mShm == -1);
+    const int flg = (flag == Create) ? (IPC_CREAT | IPC_EXCL) : 0;
+    mShm = shmget(key, size, flg);
     mOwner = ((flg & IPC_CREAT) == IPC_CREAT);
 }
 
@@ -56,10 +36,10 @@ SharedMemory::~SharedMemory()
         shmctl(mShm, IPC_RMID, 0);
 }
 
-void* SharedMemory::attach(Flags flags, void* address)
+void* SharedMemory::attach(AttachFlag flag, void* address)
 {
     int flg = SHM_RND;
-    if (!(flags & Write))
+    if (!(flag & Write))
         flg |= SHM_RDONLY;
     mAddr = shmat(mShm, address, flg);
     return mAddr;

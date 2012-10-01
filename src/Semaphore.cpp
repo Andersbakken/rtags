@@ -7,41 +7,21 @@
 
 #define PROJID 3945
 
-Semaphore::Semaphore(int key, int value)
+Semaphore::Semaphore(int key, CreateFlag flag, int value)
 {
-    int flg = IPC_CREAT | IPC_EXCL;
-    do {
-        mSem = semget(key, value, flg);
-        if (mSem == -1) {
-            if (flg && errno == EEXIST)
-                flg = 0;
-            else if (!flg && errno == ENOENT)
-                flg = IPC_CREAT | IPC_EXCL;
-            else
-                break;
-        }
-    } while (mSem == -1);
+    const int flg = (flag == Create) ? (IPC_CREAT | IPC_EXCL) : 0;
+    mSem = semget(key, value, flg);
     mOwner = ((flg & IPC_CREAT) == IPC_CREAT);
 }
 
-Semaphore::Semaphore(const Path& filename, int value)
+Semaphore::Semaphore(const Path& filename, CreateFlag flag, int value)
     : mSem(-1), mOwner(false)
 {
     const key_t key = ftok(filename.nullTerminated(), PROJID);
     if (key == -1)
         return;
-    int flg = IPC_CREAT | IPC_EXCL;
-    do {
-        mSem = semget(key, value, flg);
-        if (mSem == -1) {
-            if (flg && errno == EEXIST)
-                flg = 0;
-            else if (!flg && errno == ENOENT)
-                flg = IPC_CREAT | IPC_EXCL;
-            else
-                break;
-        }
-    } while (mSem == -1);
+    const int flg = (flag == Create) ? (IPC_CREAT | IPC_EXCL) : 0;
+    mSem = semget(key, value, flg);
     mOwner = ((flg & IPC_CREAT) == IPC_CREAT);
 }
 

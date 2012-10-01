@@ -6,8 +6,10 @@
 class Semaphore
 {
 public:
-    Semaphore(int key, int value = 1);
-    Semaphore(const Path& filename, int value = 1);
+    enum CreateFlag { None, Create };
+
+    Semaphore(int key, CreateFlag flag = None, int value = 1);
+    Semaphore(const Path& filename, CreateFlag flag = None, int value = 1);
     ~Semaphore();
 
     void acquire(int num = 1);
