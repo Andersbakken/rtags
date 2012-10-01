@@ -161,292 +161,385 @@ void RClient::exec()
     rCommands.clear();
 }
 
+enum {
+    None = 0,
+    Verbose,
+    Help,
+    SkipParen,
+    AutostartRdm,
+    FollowLocation,
+    Makefile,
+    Max,
+    ReferenceName,
+    ReferenceLocation,
+    ReverseSort,
+    ListSymbols,
+    FindSymbols,
+    CursorInfo,
+    // UnsavedFile,
+    LogFile,
+    NoContext,
+    Status,
+    RdmLog,
+    LineNumbers,
+    PathFilter,
+    FilterSystemHeaders,
+    Includepath,
+    Define,
+    CompilerFlag,
+    IsIndexed,
+    QuitRdm,
+    RestartRdm,
+    AllReferences,
+    ElispList,
+    Clear,
+    Fixits,
+    Errors,
+    Reindex,
+    Diagnostics,
+    Project,
+    DeleteProject,
+    WaitForIndexing,
+    FindFile,
+    MatchRegexp,
+    AbsolutePath,
+    GRTag,
+    SocketFile,
+    AlwaysMake,
+    DumpFile,
+    Timeout,
+    SniffMake,
+    SmartProject,
+    FindVirtuals
+};
+
+struct Option {
+    const int option;
+    const char *longOpt;
+    const char shortOpt;
+    const int argument;
+    const char *description;
+};
+
+struct Option opts[] = {
+    { None, 0, 0, 0, "Options:" },
+    { Verbose, "verbose", 'v', no_argument, "Be more verbose." },
+    { Help, "help", 'h', no_argument, "Display this help." },
+
+    { None, 0, 0, 0, "" },
+    { None, 0, 0, 0, "Rdm:" },
+    { QuitRdm, "quit-rdm", 'q', no_argument, "Tell server to shut down." },
+    { RestartRdm, "restart-rdm", 'e', optional_argument, "Restart rdm [args] before doing the rest of the commands." },
+    { AutostartRdm, "autostart-rdm", 'a', optional_argument, "Output elisp: (list \"one\" \"two\" ...)." },
+
+    { None, 0, 0, 0, "" },
+    { None, 0, 0, 0, "Project management:" },
+    { Makefile, "makefile", 'm', optional_argument, "Process this makefile." },
+    { Clear, "clear", 'C', no_argument, "Clear projects." },
+    { Project, "project", 'w', optional_argument, "With arg, select project matching that if unique, otherwise list all projects." },
+    { DeleteProject, "delete-project", 'W', required_argument, "Delete all projects matching regexp." },
+    { GRTag, "grtag", 't', optional_argument, "Index this directory using grtags." },
+    { SmartProject, "smart-project", 'j', optional_argument, "Try to guess the source files and includepaths for a certain path. Often has to be combined with -D." },
+
+    { None, 0, 0, 0, "" },
+    { None, 0, 0, 0, "Commands:" },
+    { FollowLocation, "follow-location", 'f', required_argument, "Follow this location." },
+    { ReferenceName, "references-name", 'R', required_argument, "Find references matching arg." },
+    { ReferenceLocation, "references", 'r', required_argument, "Find references matching this location." },
+    { ListSymbols, "list-symbols", 'S', optional_argument, "List symbol names matching arg." },
+    { FindSymbols, "find-symbols", 'F', required_argument, "Find symbols matching arg." },
+    { CursorInfo, "cursor-info", 'U', required_argument, "Get cursor info for this location." },
+    { Status, "status", 's', optional_argument, "Dump status of rdm. Arg can be symbols or symbolNames." },
+    { IsIndexed, "is-indexed", 'T', required_argument, "Ask if rtags knows about, and is ready to return information about, this source file." },
+    { Reindex, "reindex", 'V', optional_argument, "Reindex all files or all files matching pattern." },
+    { FindFile, "path", 'P', optional_argument, "Print files matching pattern." },
+    { DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
+    { RdmLog, "rdm-log", 'g', no_argument, "Receive logs from rdm." },
+
+    { None, 0, 0, 0, "" },
+    { None, 0, 0, 0, "Command flags:" },
+    { SkipParen, "skip-paren", 'p', no_argument, "Skip parens in various contexts." },
+    { Max, "max", 'M', required_argument, "Max lines of output for queries." },
+    { ReverseSort, "reverse-sort", 'O', no_argument, "Sort output reversed." },
+//        { UnsavedFile, "unsaved-file", 'u', required_argument, },
+    { LogFile, "log-file", 'L', required_argument, "Log to this file." },
+    { NoContext, "no-context", 'N', no_argument, "Don't print context for locations." },
+    { LineNumbers, "line-numbers", 'l', no_argument, "Output line numbers instead of offsets." },
+    { PathFilter, "path-filter", 'i', required_argument, "Filter out results not matching with arg." },
+    { FilterSystemHeaders, "filter-system-headers", 'H', no_argument, "Don't exempt system headers from path filters." },
+    { Includepath, "includepath", 'I', required_argument, "Add additional include path." },
+    { Define, "define", 'D', required_argument, "Add additional define." },
+    { CompilerFlag, "compiler-flag", 'o', required_argument, "Add additional compiler flags." },
+    { AllReferences, "all-references", 'E', no_argument, "Include definitions/declarations/constructors/destructors for references. Used for rename symbol." },
+    { ElispList, "elisp-list", 'Y', no_argument, "Output elisp: (list \"one\" \"two\" ...)." },
+    { Fixits, "fixits", 'x', required_argument, "Get fixits for file." },
+    { Errors, "errors", 'Q', required_argument, "Get errors for file." },
+    { Diagnostics, "diagnostics", 'G', no_argument, "Receive continual diagnostics from rdm." },
+    { WaitForIndexing, "wait-for-indexing", 'X', no_argument, "Wait for indexing to finish before doing query." },
+    { MatchRegexp, "match-regexp", 'Z', no_argument, "Treat various text patterns as regexps (-P, -i, -V)." },
+    { AbsolutePath, "absolute-path", 'K', no_argument, "Print files with absolute path." },
+    { SocketFile, "socket-file", 'n', required_argument, "Use this socket file (default ~/.rdm)." },
+    { AlwaysMake, "always-make", 'B', no_argument, "Pass -B to make for rc -m." },
+    { Timeout, "timeout", 'y', required_argument, "Max time in ms to wait for job to finish (default no timeout)." },
+    { SniffMake, "sniff-make", 'J', no_argument, "No make trickery, only parse the output. Assumes you've run make clean first." },
+    { FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
+    { None, 0, 0, 0, 0 }
+};
+
 static void help(FILE *f, const char* app)
 {
-    fprintf(f, "%s options...\n"
-            "  --help|-h                                 Display this help.\n"
-            "  --verbose|-v                              Be more verbose.\n"
-            "  --skip-paren|-p                           Skip parens in Makefile parsing.\n"
-            "  --elisp-list|-Y                           Output elisp: (list \"one\" \"two\" ...).\n"
-            "  --follow-location|-f [arg]                Follow this location.\n"
-            "  --makefile|-m [arg]                       Process this makefile.\n"
-            "  --socket-file|-n [arg]                    Use this socket file (default ~/.rdm).\n"
-            "  --grtag|-t [arg]                          Index this directory.\n"
-            "  --disable-grtags|-b                       Disable grtags for query.\n"
-            "  --max|-M [count]                          Max lines of output for queries.\n"
-            "  --reference-name|-R [arg]                 Find references matching arg.\n"
-            "  --reference-location|-r [arg]             Find references matching this location.\n"
-            "  --find-virtuals|-k                        Use in combinations with -R or -r to show other implementations of this function.\n"
-            "  --all-references|-E                       Include definitions/declarations/constructors/destructors for references. Used for rename symbol.\n"
-            "  --reverse-sort|-O                         Sort output reversed.\n"
-            "  --list-symbols|-S [arg]                   List symbol names matching arg.\n"
-            "  --find-symbols|-F [arg]                   Find symbols matching arg.\n"
-            "  --cursor-info|-U [arg]                    Get cursor info for this location.\n"
-            "  --log-file|-L [file]                      Log to this file.\n"
-            "  --no-context|-N                           Don't print context for locations.\n"
-            "  --line-numbers|-l                         Output line numbers instead of offsets.\n"
-            "  --path-filter|-i [arg]                    Filter out results not matching with arg.\n"
-            "  --filter-system-headers|-H                Don't exempt system headers from path filters.\n"
-            "  --includepath|-I [arg]                    Add additional include path, must be combined with -m or -j.\n"
-            "  --define|-D [arg]                         Add additional define, must be combined with -m or -j.\n"
-            "  --compiler-flag|-o [arg]                  Add additional compiler flags, must be combined with -m or -j.\n"
-            "  --is-indexed|-T [arg]                     Ask if rtags knows about, and is ready to return information about, this source file.\n"
-            "  --fixits|-x [file]                        Get fixits for file.\n"
-            "  --errors|-Q [file]                        Get errors for file.\n"
-            "  --rdm-log|-g                              Receive logs from rdm.\n"
-            "  --status|-s [arg]                         Dump status of rdm. If arg is passed it should match one of:.\n"
-            "                                            'general', 'fileids', dependencies', 'symbols', 'symbolnames', .\n"
-            "                                            'fileinfos', 'visitedfiles', 'grfiles' or 'gr' .\n"
-            "  --autostart-rdm|-a [args]                 Start rdm with [args] if rc fails to connect.\n"
-            "  --restart-rdm|-e [args]                   Restart rdm with [args] before doing the rest of the commands.\n"
-            "  --diagnostics|-G                          Open a connection that prints diagnostics.\n"
-            "  --project|-w [optional regexp]            With arg, select project matching that if unique, otherwise list all projects.\n"
-            "  --delete-project|-W [regexp]              Delete all projects matching regexp.\n"
-            "  --clear-db|-C                             Clear projects.\n"
-            "  --reindex|-V [optional regexp]            Reindex all files or all files matching pattern.\n"
-            "  --wait-for-indexing|-X                    Wait for indexing to finish before doing query.\n"
-            "  --path|-P [optional pattern]              Print files matching pattern.\n"
-            "  --dump-file|-d [file]                     Dump source file.\n"
-            "  --absolute-path|-K                        Print files with absolute path.\n"
-            "  --match-regexp|-Z                         Treat various text patterns as regexps (-P, -i, -V).\n"
-            "  --timeout|-y [arg]                        Max time in ms to wait for job to finish (default no timeout).\n"
-            "  --sniff-make|-J                           No make trickery, only parse the output, don't try avoid invoking the.\n"
-            "                                            compiler or tricking make into thinking targets are old when they're not.\n"
-            "                                            Assumes that you've run make clean first.\n"
-            "  --smart-project|-j [path]                 Try to guess the source files and includepaths for a certain path. Often has to be combined with -D.\n"
-            "  --quit-rdm|-q                             Tell server to shut down.\n",
-            app);
+    List<ByteArray> out;
+    int longest = 0;
+    for (int i=0; opts[i].description; ++i) {
+        if (!opts[i].longOpt && !opts[i].shortOpt) {
+            out.append(ByteArray());
+        } else {
+            out.append(ByteArray::snprintf<64>("  %s%s%s%s",
+                                               opts[i].longOpt ? ByteArray::snprintf<4>("--%s", opts[i].longOpt).constData() : "",
+                                               opts[i].longOpt && opts[i].shortOpt ? "|" : "",
+                                               opts[i].shortOpt ? ByteArray::snprintf<2>("-%c", opts[i].shortOpt).constData() : "",
+                                               opts[i].argument == required_argument ? " [arg] "
+                                               : opts[i].argument == optional_argument ? " [optional arg] " : ""));
+            longest = std::max<int>(out[i].size(), longest);
+        }
+    }
+    fprintf(f, "%s options...\n", app);
+    const int count = out.size();
+    for (int i=0; i<count; ++i) {
+        if (out.at(i).isEmpty()) {
+            fprintf(f, "%s\n", opts[i].description);
+        } else {
+            fprintf(f, "%s%s%s\n",
+                    out.at(i).constData(),
+                    ByteArray(longest - out.at(i).size(), ' ').constData(),
+                    opts[i].description);
+        }
+    }
 }
 
 bool RClient::parse(int &argc, char **argv)
 {
     RTags::findApplicationDirPath(*argv);
     mSocketFile = Path::home() + ".rdm";
-    struct option opts[] = {
-        { "verbose", no_argument, 0, 'v' },
-        { "skip-paren", no_argument, 0, 'p' },
-        { "help", no_argument, 0, 'h' },
-        { "autostart-rdm", optional_argument, 0, 'a' },
-        { "follow-location", required_argument, 0, 'f' },
-        { "makefile", optional_argument, 0, 'm' },
-        { "max", required_argument, 0, 'M' },
-        { "reference-name", required_argument, 0, 'R' },
-        { "reference-location", required_argument, 0, 'r' },
-        { "reverse-sort", no_argument, 0, 'O' },
-        { "list-symbols", optional_argument, 0, 'S' },
-        { "find-symbols", required_argument, 0, 'F' },
-        { "cursor-info", required_argument, 0, 'U' },
-        { "unsaved-file", required_argument, 0, 'u' },
-        { "log-file", required_argument, 0, 'L' },
-        { "no-context", no_argument, 0, 'N' },
-        { "status", optional_argument, 0, 's' },
-        { "rdm-log", no_argument, 0, 'g' },
-        { "line-numbers", no_argument, 0, 'l' },
-        { "path-filter", required_argument, 0, 'i' },
-        { "filter-system-headers", no_argument, 0, 'H' },
-        { "includepath", required_argument, 0, 'I' },
-        { "define", required_argument, 0, 'D' },
-        { "compiler-flag", required_argument, 0, 'o' },
-        { "test", required_argument, 0, 'T' },
-        { "quit-rdm", no_argument, 0, 'q' },
-        { "restart-rdm", optional_argument, 0, 'e' },
-        { "all-references", no_argument, 0, 'E' },
-        { "elisp-list", no_argument, 0, 'Y' },
-        { "clear-db", no_argument, 0, 'C' },
-        { "fixits", required_argument, 0, 'x' },
-        { "errors", required_argument, 0, 'Q' },
-        { "reindex", optional_argument, 0, 'V' },
-        { "diagnostics", no_argument, 0, 'G' },
-        { "project", optional_argument, 0, 'w' },
-        { "delete-project", required_argument, 0, 'W' },
-        { "wait-for-indexing", no_argument, 0, 'X' },
-        { "path", optional_argument, 0, 'P' },
-        { "match-regexp", no_argument, 0, 'Z' },
-        { "absolute-path", no_argument, 0, 'K' },
-        { "grtag", optional_argument, 0, 't' },
-        { "socket-file", required_argument, 0, 'n' },
-        { "always-make", no_argument, 0, 'B' },
-        { "dump-file", required_argument, 0, 'd' },
-        { "timeout", required_argument, 0, 'y' },
-        { "sniff-make", no_argument, 0, 'J' },
-        { "smart-project", optional_argument, 0, 'j' },
-        { "find-virtuals", no_argument, 0, 'k' },
-        { 0, 0, 0, 0 }
-    };
 
-    unsigned logFlags = 0;
+    List<option> options;
+    options.reserve(sizeof(opts) / sizeof(Option));
+
+    ByteArray shortOptionString;
+    Map<int, Option*> shortOptions, longOptions;
+    for (int i=0; opts[i].description; ++i) {
+        if (opts[i].option != None) {
+            const option opt = { opts[i].longOpt, opts[i].argument, 0, opts[i].shortOpt };
+            if (opts[i].shortOpt) {
+                shortOptionString.append(opts[i].shortOpt);
+                switch (opts[i].argument) {
+                case no_argument:
+                    break;
+                case required_argument:
+                    shortOptionString.append(':');
+                    break;
+                case optional_argument:
+                    shortOptionString.append("::");
+                    break;
+                }
+                assert(!shortOptions.contains(opts[i].shortOpt));
+                shortOptions[opts[i].shortOpt] = &opts[i];
+            }
+            if (opts[i].longOpt)
+                longOptions[options.size()] = &opts[i];
+            options.push_back(opt);
+        }
+    }
+    {
+        const option opt = { 0, 0, 0, 0 };
+        options.push_back(opt);
+    }
+
     Path logFile;
+    unsigned logFlags = 0;
 
     // Unused: Abcz
 
-    const ByteArray shortOptions = RTags::shortOptions(opts);
-
-    int c;
-    while ((c = getopt_long(argc, argv, shortOptions.constData(), opts, 0)) != -1) {
+    while (true) {
+        int idx = -1;
+        const int c = getopt_long(argc, argv, shortOptionString.constData(), options.data(), &idx);
+        bool done = false;
         switch (c) {
-        case 0:
+        case -1:
+        case '?':
+        case ':':
+            done = true;
             break;
-        case 'h':
+        default:
+            break;
+        }
+        if (done)
+            break;
+
+        const Option *opt = (idx == -1 ? shortOptions.value(c) : longOptions.value(idx));
+        assert(opt);
+
+        switch (opt->option) {
+        case Help:
             help(stdout, argv[0]);
             return 0;
-        case 'n':
+        case SocketFile:
             mSocketFile = optarg;
             break;
-        case 'k':
+        case FindVirtuals:
             mQueryFlags |= QueryMessage::FindVirtuals;
             break;
-        case 'B':
+        case AlwaysMake:
             mMakefileFlags |= ProjectMessage::UseDashB;
             break;
-        case 'J':
+        case SniffMake:
             mMakefileFlags |= ProjectMessage::NoMakeTricks;
             break;
-        case 'a':
+        case AutostartRdm:
             mClientFlags |= Client::AutostartRdm;
             if (optarg)
                 mRdmArgs = ByteArray(optarg, strlen(optarg)).split(' ');
             break;
-        case 'e':
+        case RestartRdm:
             mClientFlags |= Client::RestartRdm;
             if (optarg)
                 mRdmArgs = ByteArray(optarg, strlen(optarg)).split(' ');
             break;
-        case 'E':
+        case AllReferences:
             mQueryFlags |= QueryMessage::ReferencesForRenameSymbol;
             break;
-        case 'Z':
+        case MatchRegexp:
             mQueryFlags |= QueryMessage::MatchRegexp;
             break;
-        case 'K':
+        case AbsolutePath:
             mQueryFlags |= QueryMessage::AbsolutePath;
             break;
-        case 'X':
+        case WaitForIndexing:
             mQueryFlags |= QueryMessage::WaitForIndexing;
             break;
-        case 'O':
+        case ReverseSort:
             mQueryFlags |= QueryMessage::ReverseSort;
             break;
-        case 'Y':
+        case ElispList:
             mQueryFlags |= QueryMessage::ElispList;
             break;
-        case 'H':
+        case FilterSystemHeaders:
             mQueryFlags |= QueryMessage::FilterSystemIncludes;
             break;
-        case 'I': {
+        case Includepath: {
             ByteArray flag("-I");
             flag += optarg;
             mExtraCompilerFlags.append(flag);
             break; }
-        case 'D': {
+        case Define: {
             ByteArray flag("-D");
             flag += optarg;
             mExtraCompilerFlags.append(flag);
             break; }
-        case 'o':
+        case CompilerFlag:
             mExtraCompilerFlags.append(optarg);
             break;
-        case 'N':
+        case NoContext:
             mQueryFlags |= QueryMessage::NoContext;
             break;
-        case 'i':
+        case PathFilter:
             mPathFilters.insert(optarg);
             break;
-        case 'l':
+        case LineNumbers:
             mQueryFlags |= QueryMessage::LineNumbers;
             break;
-        case 'v':
+        case Verbose:
             ++mLogLevel;
             break;
-        case 'L':
+        case LogFile:
             logFile = optarg;
             break;
-        case 'p':
+        case SkipParen:
             mQueryFlags |= QueryMessage::SkipParentheses;
             break;
-        case 'M':
+        case Max:
             mMax = atoi(optarg);
             if (mMax <= 0) {
                 fprintf(stderr, "-M [arg] must be positive integer\n");
                 return false;
             }
             break;
-        case 'y':
+        case Timeout:
             mTimeout = atoi(optarg);
             if (mTimeout <= 0) {
                 fprintf(stderr, "-y [arg] must be positive integer\n");
                 return false;
             }
             break;
-        case 'u': {
-            const ByteArray arg(optarg);
-            const int colon = arg.lastIndexOf(':');
-            if (colon == -1) {
-                fprintf(stderr, "Can't parse -u [%s]\n", optarg);
-                return false;
-            }
-            const int bytes = atoi(arg.constData() + colon + 1);
-            if (!bytes) {
-                fprintf(stderr, "Can't parse -u [%s]\n", optarg);
-                return false;
-            }
-            const Path path = Path::resolved(arg.left(colon));
-            if (!path.isFile()) {
-                fprintf(stderr, "Can't open [%s] for reading\n", arg.left(colon).nullTerminated());
-                return false;
-            }
+            // case UnsavedFile: {
+            //     const ByteArray arg(optarg);
+            //     const int colon = arg.lastIndexOf(':');
+            //     if (colon == -1) {
+            //         fprintf(stderr, "Can't parse -u [%s]\n", optarg);
+            //         return false;
+            //     }
+            //     const int bytes = atoi(arg.constData() + colon + 1);
+            //     if (!bytes) {
+            //         fprintf(stderr, "Can't parse -u [%s]\n", optarg);
+            //         return false;
+            //     }
+            //     const Path path = Path::resolved(arg.left(colon));
+            //     if (!path.isFile()) {
+            //         fprintf(stderr, "Can't open [%s] for reading\n", arg.left(colon).nullTerminated());
+            //         return false;
+            //     }
 
-            ByteArray contents(bytes, '\0');
-            const int r = fread(contents.data(), 1, bytes, stdin);
-            if (r != bytes) {
-                fprintf(stderr, "Read error %d (%s). Got %d, expected %d\n",
-                        errno, strerror(errno), r, bytes);
-            }
-            mUnsavedFiles[path] = contents;
-            break; }
-        case 'f':
-        case 'U':
-        case 'c':
-        case 'r': {
+            //     ByteArray contents(bytes, '\0');
+            //     const int r = fread(contents.data(), 1, bytes, stdin);
+            //     if (r != bytes) {
+            //         fprintf(stderr, "Read error %d (%s). Got %d, expected %d\n",
+            //                 errno, strerror(errno), r, bytes);
+            //     }
+            //     mUnsavedFiles[path] = contents;
+            //     break; }
+        case FollowLocation:
+        case CursorInfo:
+        case ReferenceLocation: {
             const ByteArray encoded = Location::encodeClientLocation(optarg);
             if (encoded.isEmpty()) {
                 fprintf(stderr, "Can't resolve argument %s\n", optarg);
                 return false;
             }
             QueryMessage::Type type = QueryMessage::Invalid;
-            switch (c) {
-            case 'f': type = QueryMessage::FollowLocation; break;
-            case 'U': type = QueryMessage::CursorInfo; break;
-            case 'r': type = QueryMessage::ReferencesLocation; break;
+            switch (opt->option) {
+            case FollowLocation: type = QueryMessage::FollowLocation; break;
+            case CursorInfo: type = QueryMessage::CursorInfo; break;
+            case ReferenceLocation: type = QueryMessage::ReferencesLocation; break;
             }
             addQuery(type, encoded);
             break; }
-        case 'C':
+        case Clear:
             addQuery(QueryMessage::ClearProjects);
             break;
-        case 'g':
+        case RdmLog:
             addLog(RdmLogCommand::Default);
             break;
-        case 'G':
+        case Diagnostics:
             addLog(CompilationError);
             break;
-        case 'q':
+        case QuitRdm:
             addQuery(QueryMessage::Shutdown);
             break;
-        case 'W':
+        case DeleteProject:
             addQuery(QueryMessage::DeleteProject, optarg);
             break;
-        case 'V':
-        case 'w':
-        case 'P':
-        case 'S':
-        case 's': {
+        case Reindex:
+        case Project:
+        case FindFile:
+        case ListSymbols:
+        case Status: {
             QueryMessage::Type type = QueryMessage::Invalid;
-            switch (c) {
-            case 'V': type = QueryMessage::Reindex; break;
-            case 'w': type = QueryMessage::Project; break;
-            case 'P': type = QueryMessage::FindFile; break;
-            case 's': type = QueryMessage::Status; break;
-            case 'S': type = QueryMessage::ListSymbols; break;
+            switch (opt->option) {
+            case Reindex: type = QueryMessage::Reindex; break;
+            case Project: type = QueryMessage::Project; break;
+            case FindFile: type = QueryMessage::FindFile; break;
+            case Status: type = QueryMessage::Status; break;
+            case ListSymbols: type = QueryMessage::ListSymbols; break;
             }
 
             if (optarg) {
@@ -457,7 +550,7 @@ bool RClient::parse(int &argc, char **argv)
                 addQuery(type);
             }
             break; }
-        case 't':
+        case GRTag:
             if (optarg) {
                 addGRTag(Path::resolved(optarg));
             } else if (optind < argc && argv[optind][0] != '-') {
@@ -466,7 +559,7 @@ bool RClient::parse(int &argc, char **argv)
                 addGRTag(Path::resolved("."));
             }
             break;
-        case 'j':
+        case SmartProject:
             if (optarg) {
                 addSmartProject(Path::resolved(optarg));
             } else if (optind < argc && argv[optind][0] != '-') {
@@ -475,26 +568,26 @@ bool RClient::parse(int &argc, char **argv)
                 addSmartProject(Path::resolved("."));
             }
             break;
-        case 'T':
-        case 'x':
-        case 'd':
-        case 'Q': {
+        case IsIndexed:
+        case Fixits:
+        case DumpFile:
+        case Errors: {
             const Path p = Path::resolved(optarg);
             if (!p.isFile()) {
                 fprintf(stderr, "%s is not a file\n", optarg);
                 return false;
             }
             QueryMessage::Type type = QueryMessage::Invalid;
-            switch (c) {
-            case 'T': type = QueryMessage::IsIndexed; break;
-            case 'x': type = QueryMessage::FixIts; break;
-            case 'Q': type = QueryMessage::Errors; break;
-            case 'd': type = QueryMessage::DumpFile; break;
+            switch (opt->option) {
+            case IsIndexed: type = QueryMessage::IsIndexed; break;
+            case Fixits: type = QueryMessage::FixIts; break;
+            case Errors: type = QueryMessage::Errors; break;
+            case DumpFile: type = QueryMessage::DumpFile; break;
             }
 
             addQuery(type, p);
             break; }
-        case 'm': {
+        case Makefile: {
             Path makefile;
             if (optarg) {
                 makefile = Path::resolved(optarg);
@@ -528,17 +621,14 @@ bool RClient::parse(int &argc, char **argv)
                 makefileArgs.append(argv[optind++]);
             addMakeFile(makefile, makefileArgs);
             break; }
-        case 'R':
+        case ReferenceName:
             addQuery(QueryMessage::ReferencesName, optarg);
             break;
-        case 'F':
+        case FindSymbols:
             addQuery(QueryMessage::FindSymbols, optarg);
             break;
-
-        case '?':
-            // getopt printed an error message already
-            break;
         default:
+            assert(0);
             break;
         }
     }
