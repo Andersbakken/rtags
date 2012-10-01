@@ -24,7 +24,7 @@ void FollowLocationJob::execute()
     Location loc;
     CursorInfo target = cursorInfo.bestTarget(map, &loc);
     if (!loc.isNull()) {
-        if (RTags::isReference(cursorInfo.kind)) {
+        if (cursorInfo.kind != target.kind) {
             if (!target.isDefinition && !target.targets.isEmpty()) {
                 switch (target.kind) {
                 case CXCursor_FunctionDecl:
