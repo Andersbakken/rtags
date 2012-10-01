@@ -348,7 +348,7 @@ return t if rtags is allowed to modify this file"
   :type 'boolean)
 
 (defcustom rtags-timeout nil
-  "Max amount of ms to wait for a database lock"
+  "Max amount of ms to wait before timing out requests"
   :group 'rtags
   :type 'integer)
 
@@ -821,5 +821,42 @@ return t if rtags is allowed to modify this file"
       )
     )
   )
+
+(defvar rtags-other-buffer-window nil)
+(defun rtags-remove-other-buffer ()
+  (interactive)
+  (let ((ret ""))
+    (if (and (> (length (window-list nil nil)) 1)
+             rtags-other-buffer-window
+             (window-live-p rtags-other-buffer-window))
+        (progn
+          (select-window rtags-other-buffer-window)
+          (setq ret (rtags-current-location))
+          (delete-window rtags-other-buffer-window)
+          (setq rtags-other-buffer-window nil)))
+    ret))
+
+(defcustom rtags-timeout nil
+  "Max amount of ms to wait for a database lock"
+  :group 'rtags
+  :type 'integer)
+
+(defcustom rtags-other-buffer-window-size-percentage 30 "Percentage size of other buffer" :group 'rtags :type 'integer)
+(defun rtags-show-target-in-other-buffer ()
+  (interactive)
+  (let ((target (rtags-target)))
+    (if target
+        (let ((other-buffer-content (rtags-remove-other-buffer))
+              (win (selected-window))
+              (height (* (window-height) (- 100 rtags-other-buffer-window-size-percentage))))
+          (unless (string= target other-buffer-content)
+            (progn
+            ;; (message (format "height is %d percentage %f" height rtags-other-buffer-window-size-percentage))
+              (setq height (/ height 100))
+              (message (format "height is %d percentage %f" height rtags-other-buffer-window-size-percentage))
+              (setq rtags-other-buffer-window (split-window nil height))
+              (select-window rtags-other-buffer-window)
+              (rtags-goto-location target)
+              (select-window win)))))))
 
 (provide 'rtags)
