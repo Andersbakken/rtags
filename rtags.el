@@ -445,7 +445,7 @@ return t if rtags is allowed to modify this file"
         (buffer-substring (point-min) (- (point-max) 1))
       nil)))
 
-(defalias 'rtags-follow-symbol-at-point 'rtags-find-symbol-at-point)
+(defalias 'rtags-find-symbol-at-point 'rtags-follow-symbol-at-point)
 (defun rtags-find-symbol-at-point (prefix)
   (interactive "P")
   (setq rtags-path-filter (if prefix buffer-file-name nil))
@@ -667,10 +667,12 @@ return t if rtags is allowed to modify this file"
 (defun rtags-is-indexed (&optional buffer)
   (unless buffer
     (setq buffer (current-buffer)))
-  (with-temp-buffer
-    (rtags-call-rc "-T" (buffer-file-name buffer))
-    (goto-char (point-min))
-    (looking-at "1")
+  (let ((fn (buffer-file-name buffer)))
+    (if fn
+        (with-temp-buffer
+          (rtags-call-rc "-T" (buffer-file-name buffer))
+          (goto-char (point-min))
+          (looking-at "1")))
   )
 )
 
