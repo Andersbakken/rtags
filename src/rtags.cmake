@@ -67,6 +67,7 @@ set(rtags_HDRS
     RegExp.h
     ResponseMessage.h
     SHA256.h
+    Semaphore.h
     Serializer.h
     Server.h
     Set.h
@@ -121,6 +122,7 @@ set(rtags_SRCS
     ReadWriteLock.cpp
     ReferencesJob.cpp
     SHA256.cpp
+    Semaphore.cpp
     Server.cpp
     StatusJob.cpp
     TestJob.cpp
