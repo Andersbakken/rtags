@@ -151,8 +151,8 @@
    ((rtags-find-ancestor-file-directory "README*"))
    (t nil)))
 
-(defun rtags-current-symbol ()
-  (let ((name (rtags-current-symbol-name)))
+(defun rtags-current-symbol (&optional no-symbol-name)
+  (let ((name (if no-symbol-name nil (rtags-current-symbol-name))))
     (unless name
       (cond
        ((looking-at "[0-9A-Za-z_]")
@@ -676,6 +676,7 @@ return t if rtags is allowed to modify this file"
   (unless buffer
     (setq buffer (current-buffer)))
   (let ((fn (buffer-file-name buffer)))
+    (unless fn (setq fn default-directory))
     (if fn
         (with-temp-buffer
           (rtags-call-rc "-T" fn)
@@ -763,7 +764,7 @@ return t if rtags is allowed to modify this file"
 (defun rtags-find-file (&optional tagname)
   (interactive)
   (rtags-save-location)
-  (let ((tagname (rtags-current-symbol)) prompt input offset line column)
+  (let ((tagname (rtags-current-symbol t)) prompt input offset line column)
     (if tagname
         (setq prompt (concat (format "Find files (default %s): " tagname)))
       (setq prompt "Find files: "))
@@ -800,7 +801,7 @@ return t if rtags is allowed to modify this file"
                   (switch-to-buffer-other-window "*RTags*")
                   (shrink-window-if-larger-than-buffer)
                   (rtags-mode)
-                  (setq rtags-no-otherbuffer t))))
+                  (setq foo-rtags-no-otherbuffer t))))
       ; Should add support for putting offset in there as well, ignore it on completion and apply it at the end
       )
     )

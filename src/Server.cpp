@@ -565,8 +565,15 @@ void Server::isIndexed(const QueryMessage &query, Connection *conn)
                 return;
             }
         }
+    } else if (path.isDir()) {
+        updateProjectForLocation(path);
+        shared_ptr<Project> cur = currentProject();
+        if (cur && cur->fileManager->contains(path)) {
+            conn->write("1");
+            conn->finish();
+            return;
+        }
     }
-
     conn->write("0");
     conn->finish();
 }

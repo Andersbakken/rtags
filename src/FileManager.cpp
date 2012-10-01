@@ -92,7 +92,10 @@ void FileManager::onFileRemoved(const Path &path)
 bool FileManager::contains(const Path &path) const
 {
     shared_ptr<Project> proj = mProject.lock();
-    return (proj
-            && path.size() >= proj->srcRoot.size()
-            && !strncmp(path.constData(), proj->srcRoot.constData(), proj->srcRoot.size()));
+    if(!proj)
+        return false;
+    Path resolvedPath = proj->srcRoot;
+    resolvedPath.resolve();
+    return (path.size() >= resolvedPath.size()
+            && !strncmp(path.constData(), resolvedPath.constData(), resolvedPath.size()));
 }

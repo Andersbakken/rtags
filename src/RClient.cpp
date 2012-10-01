@@ -592,11 +592,13 @@ bool RClient::parse(int &argc, char **argv)
         case Fixits:
         case DumpFile:
         case Errors: {
-            const Path p = Path::resolved(optarg);
-            if (!p.isFile()) {
-                fprintf(stderr, "%s is not a file\n", optarg);
+            Path p = Path::resolved(optarg);
+            if (!p.exists()) {
+                fprintf(stderr, "%s does not exist\n", optarg);
                 return false;
             }
+            if (p.isDir())
+                p.append('/');
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (opt->option) {
             case IsIndexed: type = QueryMessage::IsIndexed; break;
