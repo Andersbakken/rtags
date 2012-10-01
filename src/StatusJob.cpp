@@ -14,8 +14,8 @@ StatusJob::StatusJob(const QueryMessage &q, const shared_ptr<Project> &project)
 void StatusJob::execute()
 {
     bool matched = false;
-    const char *alternatives = "fileids|dependencies|fileinfos|symbols|symbolnames"; //|visitedfiles|grfiles|gr";
-   if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileids")) {
+    const char *alternatives = "fileids|dependencies|fileinfos|symbols|symbolnames"; //|grfiles|gr";
+    if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileids")) {
         matched = true;
         write(delimiter);
         write("fileids");
@@ -99,46 +99,19 @@ void StatusJob::execute()
                 }
             }
         }
+
+        if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileinfos")) {
+            matched = true;
+            const CompileArgumentsMap map = proj->indexer->compileArguments();
+            write(delimiter);
+            write("fileinfos");
+            write(delimiter);
+            for (CompileArgumentsMap::const_iterator it = map.begin(); it != map.end(); ++it) {
+                write<512>("  %s: args: %s", Location::path(it->first).constData(), ByteArray::join(it->second, " ").constData());
+            }
+        }
     }
 
-//         if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileinfos")) {
-//             matched = true;
-//             ScopedDB database = db(Project::FileInformation, ReadWriteLock::Read);
-//             write(delimiter);
-//             write(project()->databaseDir(Project::FileInformation));
-//             write(delimiter);
-//             RTags::Ptr<Iterator> it(database->createIterator());
-//             it->seekToFirst();
-//             char buf[1024];
-//             while (it->isValid()) {
-//                 if (isAborted())
-//                     return;
-
-//                 const FileInformation fi = it->value<FileInformation>();
-//                 const uint32_t fileId = *reinterpret_cast<const uint32_t*>(it->key().data());
-//                 snprintf(buf, 1024, "  %s: last compiled: %s compile args: %s",
-//                          Location::path(fileId).constData(),
-//                          RTags::timeToString(fi.lastTouched, RTags::DateTime).constData(),
-//                          ByteArray::join(fi.compileArgs, " ").constData());
-//                 write(buf);
-//                 it->next();
-//             }
-//         }
-
-//         if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "visitedfiles")) {
-//             matched = true;
-//             write(delimiter);
-//             write("visitedfiles");
-//             char buf[1024];
-//             const Set<uint32_t> visitedFiles = proj->indexer->visitedFiles();
-
-//             for (Set<uint32_t>::const_iterator it = visitedFiles.begin(); it != visitedFiles.end(); ++it) {
-//                 const uint32_t id = *it;
-//                 snprintf(buf, sizeof(buf), "  %s: %d", Location::path(id).constData(), id);
-//                 write(buf);
-//             }
-//         }
-//     }
 //     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "grfiles")) {
 //         matched = true;
     //     ScopedDB database = db(Project::GRFiles, ReadWriteLock::Read);
