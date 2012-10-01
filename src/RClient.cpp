@@ -30,7 +30,6 @@ public:
         msg.setMax(rc->max());
         msg.setUnsavedFiles(rc->unsavedFiles());
         msg.setPathFilters(rc->pathFilters().toList());
-        msg.setTimeout(rc->timeout());
         client->message(&msg);
     }
 
@@ -136,6 +135,13 @@ void RClient::addSmartProject(const Path &path)
     rCommands.append(new ProjectCommand(ProjectMessage::SmartType, path));
 }
 
+static void timeout(int timerId, void *userData)
+{
+    EventLoop *loop = static_cast<EventLoop*>(userData);
+    loop->removeTimer(timerId);
+    loop->exit();
+}
+
 void RClient::exec()
 {
     EventLoop loop;
@@ -146,7 +152,10 @@ void RClient::exec()
     for (int i=0; i<commandCount; ++i) {
         RCCommand *cmd = rCommands.at(i);
         debug() << "running command " << cmd->description();
+        const int timeoutId = (mTimeout ? loop.addTimer(mTimeout, ::timeout, &loop) : -1);
         cmd->exec(this, &client);
+        if (timeoutId != -1)
+            loop.removeTimer(timeoutId);
         delete cmd;
     }
     rCommands.clear();
