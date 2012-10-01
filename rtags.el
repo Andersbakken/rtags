@@ -374,7 +374,7 @@ return t if rtags is allowed to modify this file"
   (interactive)
   (unless map
     (setq map c-mode-base-map))
-  (define-key map (kbd "C-x r .") (function rtags-follow-symbol-at-point))
+  (define-key map (kbd "C-x r .") (function rtags-find-symbol-at-point))
   (define-key map (kbd "C-x r ,") (function rtags-find-references-at-point))
   (define-key map (kbd "C-x r v") (function rtags-find-virtuals-at-point))
   (define-key map (kbd "C-x r /") (function rtags-find-all-references-at-point))
@@ -445,7 +445,8 @@ return t if rtags is allowed to modify this file"
         (buffer-substring (point-min) (- (point-max) 1))
       nil)))
 
-(defun rtags-follow-symbol-at-point (prefix)
+(defalias 'rtags-follow-symbol-at-point 'rtags-find-symbol-at-point)
+(defun rtags-find-symbol-at-point (prefix)
   (interactive "P")
   (setq rtags-path-filter (if prefix buffer-file-name nil))
   (rtags-save-location)
@@ -837,7 +838,7 @@ return t if rtags is allowed to modify this file"
     ret))
 
 (defcustom rtags-timeout nil
-  "Max amount of ms to wait for a database lock"
+  "Max amount of ms to wait for operation to finish"
   :group 'rtags
   :type 'integer)
 
