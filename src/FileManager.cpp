@@ -19,9 +19,9 @@ void FileManager::recurseDirs()
 {
     shared_ptr<Project> project = mProject.lock();
     assert(project);
-    GRScanJob *job = new GRScanJob(GRScanJob::All, project->srcRoot, mProject.lock());
+    shared_ptr<GRScanJob> job(new GRScanJob(GRScanJob::All, project->srcRoot, mProject.lock()));
     job->finished().connect(this, &FileManager::onRecurseJobFinished);
-    Server::instance()->threadPool()->start(shared_ptr<ThreadPool::Job>(job));
+    Server::instance()->threadPool()->start(job);
 }
 
 void FileManager::onRecurseJobFinished(const Set<Path> &paths)
