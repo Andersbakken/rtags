@@ -71,6 +71,7 @@ set(rtags_HDRS
     Serializer.h
     Server.h
     Set.h
+    SharedMemory.h
     SignalSlot.h
     Source.h
     StatusJob.h
@@ -124,6 +125,7 @@ set(rtags_SRCS
     SHA256.cpp
     Semaphore.cpp
     Server.cpp
+    SharedMemory.cpp
     StatusJob.cpp
     TestJob.cpp
     Thread.cpp

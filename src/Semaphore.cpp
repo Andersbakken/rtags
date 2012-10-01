@@ -25,9 +25,9 @@ Semaphore::Semaphore(int key, int value)
 }
 
 Semaphore::Semaphore(const Path& filename, int value)
-    : mSem(-1)
+    : mSem(-1), mOwner(false)
 {
-    key_t key = ftok(filename.nullTerminated(), PROJID);
+    const key_t key = ftok(filename.nullTerminated(), PROJID);
     if (key == -1)
         return;
     int flg = IPC_CREAT | IPC_EXCL;
