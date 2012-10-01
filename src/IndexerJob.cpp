@@ -489,7 +489,7 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
                 case CXCursor_FunctionTemplate:
                     if (isInline(cursor))
                         break;
-                    // fall throughg
+                    // fall through
                 case CXCursor_FunctionDecl:
                 case CXCursor_VarDecl: {
                     const Str usr(clang_getCursorUSR(cursor));
