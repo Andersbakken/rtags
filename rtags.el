@@ -670,11 +670,23 @@ return t if rtags is allowed to modify this file"
   (let ((fn (buffer-file-name buffer)))
     (if fn
         (with-temp-buffer
-          (rtags-call-rc "-T" (buffer-file-name buffer))
+          (rtags-call-rc "-T" fn)
           (goto-char (point-min))
           (looking-at "1")))
+    )
   )
-)
+
+(defun rtags-has-filemanager (&optional buffer)
+  (unless buffer
+    (setq buffer (current-buffer)))
+  (let ((fn (buffer-file-name buffer)))
+    (unless fn (setq fn default-directory))
+    (with-temp-buffer
+      (rtags-call-rc "--has-filemanager" fn)
+      (goto-char (point-min))
+      (looking-at "1")))
+  )
+
 
 (defun rtags-handle-completion-buffer ()
   (let ((empty (= (point-min) (point-max))))

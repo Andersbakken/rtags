@@ -301,7 +301,7 @@ static void help(FILE *f, const char* app)
                                                opts[i].longOpt && opts[i].shortOpt ? "|" : "",
                                                opts[i].shortOpt ? ByteArray::snprintf<2>("-%c", opts[i].shortOpt).constData() : "",
                                                opts[i].argument == required_argument ? " [arg] "
-                                               : opts[i].argument == optional_argument ? " [optional arg] " : ""));
+                                               : opts[i].argument == optional_argument ? " [optional] " : ""));
             longest = std::max<int>(out[i].size(), longest);
         }
     }
@@ -571,11 +571,21 @@ bool RClient::parse(int &argc, char **argv)
             }
             break;
         case HasFileManager: {
-            const Path p = Path::resolved(optarg ? optarg : ".");
+            Path p;
+            if (optarg) {
+                p = Path::resolved(optarg);
+            } else if (optind < argc && argv[optind][0] != '-') {
+                p = Path::resolved(argv[optind++]);
+            } else {
+                p = Path::resolved(".");
+            }
+
             if (!p.exists()) {
                 fprintf(stderr, "%s does not seem to exist\n", optarg);
                 return false;
             }
+            if (p.isDir())
+                p.append('/');
             addQuery(QueryMessage::HasFileManager, p);
             break; }
         case IsIndexed:
