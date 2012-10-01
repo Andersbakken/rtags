@@ -32,6 +32,8 @@ public:
     void endMakefile();
     void onJobFinished(const shared_ptr<IndexerJob> &job);
     bool isIndexed(uint32_t fileId) const;
+    CompileArgumentsMap compileArguments() const;
+    DependencyMap dependencies() const;
 private:
     void checkFinished();
     void onFileModified(const Path &);

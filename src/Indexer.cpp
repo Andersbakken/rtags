@@ -375,3 +375,14 @@ bool Indexer::isIndexed(uint32_t fileId) const
 
     return true;
 }
+
+CompileArgumentsMap Indexer::compileArguments() const
+{
+    MutexLocker lock(&mMutex);
+    return mCompileArguments;
+}
+DependencyMap Indexer::dependencies() const
+{
+    MutexLocker lock(&mMutex);
+    return mDependencies;
+}

@@ -224,6 +224,8 @@ public:
         return Location(Location::insertFile(Path(pathAndOffset.left(comma))), fileId);
     }
     uint64_t mData;
+    static Map<uint32_t, Path>  idsToPaths() { ReadLocker lock(&sLock); return sIdsToPaths; }
+    static Map<Path, uint32_t>  pathsToIds() { ReadLocker lock(&sLock); return sPathsToIds; }
 private:
     static Map<Path, uint32_t> sPathsToIds;
     static Map<uint32_t, Path> sIdsToPaths;
