@@ -38,6 +38,9 @@ SharedMemory::~SharedMemory()
 
 void* SharedMemory::attach(AttachFlag flag, void* address)
 {
+    if (mAddr)
+        return mAddr;
+
     int flg = SHM_RND;
     if (!(flag & Write))
         flg |= SHM_RDONLY;
@@ -49,6 +52,7 @@ void SharedMemory::detach()
 {
     if (!mAddr)
         return;
+
     shmdt(mAddr);
     mAddr = 0;
 }
