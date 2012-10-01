@@ -45,6 +45,8 @@ void* SharedMemory::attach(AttachFlag flag, void* address)
     if (!(flag & Write))
         flg |= SHM_RDONLY;
     mAddr = shmat(mShm, address, flg);
+    if (mAddr == reinterpret_cast<void*>(-1))
+        mAddr = 0;
     return mAddr;
 }
 
