@@ -857,6 +857,7 @@ return t if rtags is allowed to modify this file"
               (setq rtags-other-buffer-window (split-window nil height))
               (select-window rtags-other-buffer-window)
               (rtags-goto-location target)
+              (recenter-top-bottom 0)
               (select-window win)))))))
 
 (provide 'rtags)
