@@ -8,8 +8,8 @@ ExternalProject_Add(
     make-3.82
     SOURCE_DIR ./make-3.82
     CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/make-3.82/configure -prefix=${CMAKE_CURRENT_BINARY_DIR}/make_install
-    BUILD_COMMAND make
-    # INSTALL_COMMAND make install
+    BUILD_COMMAND \$\(MAKE\)
+    # INSTALL_COMMAND \$\(MAKE\) install
     UPDATE_COMMAND ""
     )
 
