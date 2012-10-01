@@ -807,6 +807,13 @@ return t if rtags is allowed to modify this file"
     (if (string-match "^.*symbolName: \\(.*\\) kind: .*$" cursorinfo)
         (match-string 1 cursorinfo))))
 
+(defun rtags-cursor-extent (&optional location)
+  (let ((cursorinfo (rtags-cursorinfo location)))
+    (if (string-match "^\\(.*\\),[0-9]+ CursorInfo(\\([0-9]+\\)-\\([0-9]+\\) " cursorinfo)
+        (let ((start (+ (string-to-int (match-string 2 cursorinfo)) 1))
+              (end (+ (string-to-int (match-string 3 cursorinfo)) 1)))
+          (cons start end)))))
+
 (defun rtags-target-content (&optional location)
   (let ((cursorinfo (rtags-cursorinfo (rtags-target location))))
     (if (string-match "^\\(.*\\),[0-9]+ CursorInfo(\\([0-9]+\\)-\\([0-9]+\\) " cursorinfo)
@@ -866,9 +873,7 @@ return t if rtags is allowed to modify this file"
               (height (* (window-height) (- 100 rtags-other-buffer-window-size-percentage))))
           (unless (string= target other-buffer-content)
             (progn
-            ;; (message (format "height is %d percentage %f" height rtags-other-buffer-window-size-percentage))
               (setq height (/ height 100))
-              ;; (message (format "height is %d percentage %f" height rtags-other-buffer-window-size-percentage))
               (setq rtags-other-buffer-window (split-window nil height))
               (select-window rtags-other-buffer-window)
               (rtags-goto-location target)
