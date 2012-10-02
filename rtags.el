@@ -89,7 +89,11 @@
 (defun rtags-preprocess-file (&optional buffer)
   (interactive)
   (let ((fn (buffer-file-name buffer))
-        (bufname))
+        bufname narrow-start narrow-end)
+    (if (and mark-active
+             (not (equal (region-beginning) (region-end))))
+        (setq narrow-start (+ 1 (count-lines (point-min) (region-beginning)))
+              narrow-end (+ 1 (count-lines (point-min) (region-end)))))
     (if fn
         (progn
           (setq bufname (format "*RTags preprocessed %s*" fn))
@@ -97,8 +101,27 @@
               (kill-buffer bufname))
           (switch-to-buffer (generate-new-buffer bufname))
           (rtags-call-rc nil "--preprocess" fn)
+          (if (and narrow-start narrow-end)
+                (let ((match-regexp (concat "^# \\([0-9]*\\) \"" (file-truename fn) "\""))
+                       last-match last-line start end)
+                  (while (re-search-forward match-regexp nil t)
+                    (let ((current-line (string-to-int (match-string 1))))
+                      (if (and (not start) (> current-line narrow-start)) (setq start (+ (count-lines (point-min) last-match) (- narrow-start last-line))))
+                      (if (and (not end) (> current-line narrow-end)) (setq end (+ (count-lines (point-min) last-match) (- narrow-end last-line))))
+                      (setq last-line current-line)
+                      (setq last-match (point))))
+                  (if last-match
+                      (progn
+                        (if (not start) (setq start (+ (count-lines (point-min) last-match) (- narrow-start last-line))))
+                        (if (not end) (setq end (+ (count-lines (point-min) last-match) (- narrow-end last-line))))))
+                  (if (and start end) 
+                      (progn 
+                        (goto-char (point-min))
+                        (narrow-to-region (point-at-bol (+ start 1)) (point-at-bol (+ end 1)))))))
+          (setq buffer-read-only t)
           (c++-mode)
-          (setq buffer-read-only nil)))))
+          (local-set-key "q" 'bury-buffer)
+))))
 
 (defun rtags-reparse-file(&optional buffer)
   (interactive)
