@@ -48,15 +48,15 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
     checkFinished();
 }
 
-void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags)
+void Indexer::index(const CompileArgs &c, unsigned indexerJobFlags)
 {
     MutexLocker locker(&mMutex);
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
-    if (fileFilter && !strstr(input.constData(), fileFilter))
+    if (fileFilter && !strstr(c.sourceFile.constData(), fileFilter))
         return;
 
-    const uint32_t fileId = Location::insertFile(input);
-    mCompileArguments[fileId] = arguments;
+    const uint32_t fileId = Location::insertFile(c.sourceFile);
+    mCompileArguments[fileId] = c;
     shared_ptr<IndexerJob> &job = mJobs[fileId];
     if (job) {
         job->abort();
@@ -64,7 +64,7 @@ void Indexer::index(const Path &input, const List<ByteArray> &arguments, unsigne
     }
     mPendingData.remove(fileId);
 
-    job.reset(new IndexerJob(shared_from_this(), indexerJobFlags, input, arguments));
+    job.reset(new IndexerJob(shared_from_this(), indexerJobFlags, c.sourceFile, c.args));
 
     ++mJobCounter;
     if (!mTimerRunning) {
@@ -90,13 +90,13 @@ void Indexer::onFileModified(const Path &file)
     mModifiedFilesTimerId = EventLoop::instance()->addTimer(Timeout, &Indexer::onFilesModifiedTimeout, this);
 }
 
-List<ByteArray> Indexer::compileArguments(uint32_t fileId) const
+CompileArgs Indexer::compileArguments(uint32_t fileId) const
 {
     if (fileId) {
         MutexLocker lock(&mMutex);
         return mCompileArguments.value(fileId);
     }
-    return List<ByteArray>();
+    return CompileArgs();
 }
 
 void Indexer::addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles)
@@ -236,8 +236,7 @@ void Indexer::onFilesModifiedTimeout()
     for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
         const CompileArgumentsMap::const_iterator found = mCompileArguments.find(*it);
         if (found != mCompileArguments.end()) {
-            const Path path = Location::path(*it);
-            index(path, found->second, IndexerJob::Dirty);
+            index(found->second, IndexerJob::Dirty);
         }
     }
 }

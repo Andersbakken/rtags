@@ -19,8 +19,8 @@ public:
     Indexer(const shared_ptr<Project> &project, bool validate);
 
     typedef Map<Path, List<ByteArray> > PendingMap; // without this clang 3.1 complains
-    void index(const Path &input, const List<ByteArray> &arguments, unsigned indexerJobFlags);
-    List<ByteArray> compileArguments(uint32_t fileId) const;
+    void index(const CompileArgs &args, unsigned indexerJobFlags);
+    CompileArgs compileArguments(uint32_t fileId) const;
     Set<uint32_t> dependencies(uint32_t fileId) const;
     bool visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &job);
     ByteArray fixIts(const Path &path) const;

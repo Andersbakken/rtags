@@ -107,7 +107,8 @@ void StatusJob::execute()
             write("fileinfos");
             write(delimiter);
             for (CompileArgumentsMap::const_iterator it = map.begin(); it != map.end(); ++it) {
-                write<512>("  %s: args: %s", Location::path(it->first).constData(), ByteArray::join(it->second, " ").constData());
+                write<512>("  %s: %s %s", Location::path(it->first).constData(), it->second.compiler.constData(),
+                           ByteArray::join(it->second.args, " ").constData());
             }
         }
     }

@@ -435,14 +435,14 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         conn->finish();
         return;
     }
-    const List<ByteArray> args = project->indexer->compileArguments(fileId);
-    if (args.isEmpty()) {
+    const CompileArgs c = project->indexer->compileArguments(fileId);
+    if (c.args.isEmpty()) {
         conn->write<256>("%s is not indexed", query.query().constData());
         conn->finish();
         return;
     }
 
-    shared_ptr<IndexerJob> job(new IndexerJob(query, project, Location::path(fileId), args));
+    shared_ptr<IndexerJob> job(new IndexerJob(query, project, c.sourceFile, c.args));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -610,13 +610,13 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
     }
 
     const uint32_t fileId = Location::fileId(path);
-    const List<ByteArray> args = project->indexer->compileArguments(fileId);
-    if (args.isEmpty()) {
+    const CompileArgs c = project->indexer->compileArguments(fileId);
+    if (c.args.isEmpty()) {
         conn->write("No arguments for " + path);
         conn->finish();
         return;
     }
-    Preprocessor* pre = new Preprocessor(path, args, conn);
+    Preprocessor* pre = new Preprocessor(c, conn);
     pre->preprocess();
 }
 
@@ -820,8 +820,8 @@ void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 bool Server::processSourceFile(const GccArguments &args, const Path &proj)
 {
     const List<Path> inputFiles = args.inputFiles();
-    const int c = inputFiles.size();
-    if (!c) {
+    const int count = inputFiles.size();
+    if (!count) {
         warning("no input file?");
         return true;
     } else if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
@@ -848,12 +848,15 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
     List<ByteArray> arguments = args.clangArgs();
     arguments.append(mOptions.defaultArguments);
 
-    for (int i=0; i<c; ++i) {
-        const Path &input = inputFiles.at(i);
-        if (project->indexer->compileArguments(Location::insertFile(input)) != arguments) {
-            project->indexer->index(input, arguments, IndexerJob::Makefile);
+    CompileArgs c = { Path(), arguments, args.compiler() };
+    for (int i=0; i<count; ++i) {
+        c.sourceFile = inputFiles.at(i);
+
+        const CompileArgs existing = project->indexer->compileArguments(Location::insertFile(c.sourceFile));
+        if (existing != c) {
+            project->indexer->index(c, IndexerJob::Makefile);
         } else {
-            debug() << input << " is not dirty. ignoring";
+            debug() << c.sourceFile << " is not dirty. ignoring";
         }
     }
     return true;
