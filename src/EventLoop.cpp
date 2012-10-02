@@ -187,10 +187,8 @@ void EventLoop::removeFileDescriptor(int fd, unsigned int flags)
     else {
         FdData &data = mFdData[fd];
         data.flags &= ~flags;
-        if (!data.flags) {
+        if (!data.flags)
             mFdData.remove(fd);
-            return;
-        }
     }
 }
 
