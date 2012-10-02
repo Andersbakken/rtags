@@ -18,7 +18,6 @@ public:
     void preprocess();
 
 private:
-    void onProcessReadyRead();
     void onProcessFinished();
 
 private:
@@ -26,7 +25,6 @@ private:
     Connection *mConnection;
 
     Process *mProc;
-    bool mWrittenArguments;
 };
 
 #endif
