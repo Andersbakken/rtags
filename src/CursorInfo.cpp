@@ -120,7 +120,7 @@ SymbolMap CursorInfo::callers(const Location &loc, const SymbolMap &map) const
     return ret;
 }
 
-static inline void allImpl(const SymbolMap &map, const Location &loc, const CursorInfo &info, SymbolMap &out)
+static inline void allImpl(const SymbolMap &map, const Location &loc, const CursorInfo &info, SymbolMap &out, bool recurse)
 {
     assert(!out.contains(loc));
     out[loc] = info;
@@ -130,7 +130,11 @@ static inline void allImpl(const SymbolMap &map, const Location &loc, const Curs
         const SymbolMap ret = (info.*functions[i])(map);
         for (SymbolMap::const_iterator r = ret.begin(); r != ret.end(); ++r) {
             if (!out.contains(r->first)) {
-                allImpl(map, r->first, r->second, out);
+                if (recurse) {
+                    allImpl(map, r->first, r->second, out, recurse);
+                } else if (i == 0 || r->second.kind == info.kind) {
+                    out[r->first] = r->second;
+                }
             }
         }
     }
@@ -140,17 +144,29 @@ static inline void allImpl(const SymbolMap &map, const Location &loc, const Curs
 SymbolMap CursorInfo::allReferences(const Location &loc, const SymbolMap &map) const
 {
     SymbolMap ret;
-    allImpl(map, loc, *this, ret);
+    bool recurse = false;
+    switch (kind) {
+    case CXCursor_Constructor:
+    case CXCursor_Destructor:
+        recurse = true;
+        break;
+    default:
+        recurse = isClass();
+        break;
+    }
+
+    allImpl(map, loc, *this, ret, recurse);
     return ret;
 }
 
 SymbolMap CursorInfo::virtuals(const Location &loc, const SymbolMap &map) const
 {
-    const SymbolMap all = allReferences(loc, map);
     SymbolMap ret;
-    for (SymbolMap::const_iterator a = all.begin(); a != all.end(); ++a) {
-        if (a->second.kind == kind)
-            ret[a->first] = a->second;
+    ret[loc] = *this;
+    const SymbolMap s = (kind == CXCursor_CXXMethod ? allReferences(loc, map) : targetInfos(map));
+    for (SymbolMap::const_iterator it = s.begin(); it != s.end(); ++it) {
+        if (it->second.kind == kind)
+            ret[it->first] = it->second;
     }
     return ret;
 }
