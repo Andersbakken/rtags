@@ -567,11 +567,11 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-find-symbol (prefix)
   (interactive "P")
-  (rtags-find-symbols-by-name-internal "Find Rsymbol" nil (if prefix buffer-file-name nil)))
+  (rtags-find-symbols-by-name-internal "Find rsymbol" nil (if prefix buffer-file-name nil)))
 
 (defun rtags-find-references (prefix)
   (interactive "P")
-  (rtags-find-symbols-by-name-internal "Find Rreferences" t (if prefix buffer-file-name nil)))
+  (rtags-find-symbols-by-name-internal "Find rreferences" t (if prefix buffer-file-name nil)))
 
 (defun rtags-find-symbol-current-file ()
   (interactive)
@@ -592,13 +592,13 @@ return t if rtags is allowed to modify this file"
 (defun rtags-find-symbol-current-dir ()
   (interactive)
   (setq rtags-path-filter-regex t)
-  (rtags-find-symbols-by-name-internal "Find Rsymbol" nil (rtags-dir-filter))
+  (rtags-find-symbols-by-name-internal "Find rsymbol" nil (rtags-dir-filter))
   (setq rtags-path-filter-regex nil))
 
 (defun rtags-find-references-current-dir ()
   (interactive)
   (setq rtags-path-filter-regex t)
-  (rtags-find-symbols-by-name-internal "Find Rreferences" t (rtags-dir-filter))
+  (rtags-find-symbols-by-name-internal "Find rreferences" t (rtags-dir-filter))
   (setq rtags-path-filter-regex nil))
 
 (defun rtags-fixit()
@@ -766,8 +766,8 @@ return t if rtags is allowed to modify this file"
   (rtags-save-location)
   (let ((tagname (rtags-current-symbol t)) prompt input offset line column)
     (if tagname
-        (setq prompt (concat (format "Find Rfiles (default %s): " tagname)))
-      (setq prompt "Find Rfiles: "))
+        (setq prompt (concat (format "Find rfiles (default %s): " tagname)))
+      (setq prompt "Find rfiles: "))
     (setq input (completing-read prompt (function rtags-filename-complete) nil nil nil rtags-find-file-history))
     (cond ((string-match "\\(.*\\),\\([0-9]+\\)" input)
            (progn
