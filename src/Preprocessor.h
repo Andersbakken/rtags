@@ -12,7 +12,7 @@ class Process;
 class Preprocessor : public EventReceiver
 {
 public:
-    Preprocessor(const Path& filename, const List<ByteArray>& arguments, Connection* connection);
+    Preprocessor(const Path &filename, const List<ByteArray> &arguments, Connection *connection);
     ~Preprocessor();
 
     void preprocess();
@@ -22,11 +22,12 @@ private:
     void onProcessFinished();
 
 private:
-    Path mFilename;
+    const Path mFilename;
     List<ByteArray> mArguments;
-    Connection* mConnection;
+    Connection *mConnection;
 
-    Process* mProc;
+    Process *mProc;
+    bool mWrittenArguments;
 };
 
 #endif

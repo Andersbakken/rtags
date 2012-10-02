@@ -82,6 +82,20 @@
       (buffer-file-name buffer)
     default-directory))
 
+(defun rtags-preprocess-file (&optional buffer)
+  (interactive)
+  (let ((fn (buffer-file-name buffer))
+        (bufname))
+    (if fn
+        (progn
+          (setq bufname (format "*RTags preprocessed %s*" fn))
+          (if (get-buffer bufname)
+              (kill-buffer bufname))
+          (switch-to-buffer (generate-new-buffer bufname))
+          (rtags-call-rc nil "--preprocess" fn)
+          (c++-mode)
+          (setq buffer-read-only nil)))))
+
 (defun rtags-reparse-file(&optional buffer)
   (interactive)
   (let ((path (rtags-path-for-project)))
@@ -418,6 +432,7 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r M") (function rtags-index-project))
   (define-key map (kbd "C-x r p") (function rtags-set-current-project))
   (define-key map (kbd "C-x r e") (function rtags-reparse-file))
+  (define-key map (kbd "C-x r E") (function rtags-preprocess-file))
   (define-key map (kbd "C-x r R") (function rtags-rename-symbol))
   (define-key map (kbd "C-x r U") (function rtags-print-cursorinfo))
   (define-key map (kbd "C-x r O") (function rtags-goto-offset))

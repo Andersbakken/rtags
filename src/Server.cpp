@@ -600,14 +600,15 @@ void Server::hasFileManager(const QueryMessage &query, Connection *conn)
 
 void Server::preprocessFile(const QueryMessage &query, Connection *conn)
 {
+    const Path path = query.query();
+    updateProjectForLocation(path);
     shared_ptr<Project> project = currentProject();
     if (!project || !project->indexer) {
-        error("No project");
+        conn->write("No project");
         conn->finish();
         return;
     }
 
-    const Path path = query.query();
     const uint32_t fileId = Location::fileId(path);
     const List<ByteArray> args = project->indexer->compileArguments(fileId);
     if (args.isEmpty()) {

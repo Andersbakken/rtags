@@ -598,17 +598,10 @@ bool RClient::parse(int &argc, char **argv)
                 p.append('/');
             addQuery(QueryMessage::HasFileManager, p);
             break; }
-        case PreprocessFile: {
-            Path p = Path::resolved(optarg);
-            if (!p.exists()) {
-                fprintf(stderr, "%s does not exist\n", optarg);
-                return false;
-            }
-            addQuery(QueryMessage::PreprocessFile, p);
-            break; }
         case IsIndexed:
         case Fixits:
         case DumpFile:
+        case PreprocessFile:
         case Errors: {
             Path p = Path::resolved(optarg);
             if (!p.exists()) {
@@ -623,6 +616,7 @@ bool RClient::parse(int &argc, char **argv)
             case Fixits: type = QueryMessage::FixIts; break;
             case Errors: type = QueryMessage::Errors; break;
             case DumpFile: type = QueryMessage::DumpFile; break;
+            case PreprocessFile: type = QueryMessage::PreprocessFile; break;
             }
 
             addQuery(type, p);
