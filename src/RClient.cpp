@@ -214,7 +214,8 @@ enum {
     SniffMake,
     SmartProject,
     FindVirtuals,
-    HasFileManager
+    HasFileManager,
+    PreprocessFile
 };
 
 struct Option {
@@ -256,6 +257,7 @@ struct Option opts[] = {
     { Status, "status", 's', optional_argument, "Dump status of rdm. Arg can be symbols or symbolNames." },
     { IsIndexed, "is-indexed", 'T', required_argument, "Check if rtags knows about, and is ready to return information about, this source file." },
     { HasFileManager, "has-filemanager", 0, optional_argument, "Check if rtags has info about files in this directory." },
+    { PreprocessFile, "preprocess", 0, required_argument, "Preprocess file." },
     { Reindex, "reindex", 'V', optional_argument, "Reindex all files or all files matching pattern." },
     { FindFile, "path", 'P', optional_argument, "Print files matching pattern." },
     { DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
@@ -595,6 +597,14 @@ bool RClient::parse(int &argc, char **argv)
             if (p.isDir())
                 p.append('/');
             addQuery(QueryMessage::HasFileManager, p);
+            break; }
+        case PreprocessFile: {
+            Path p = Path::resolved(optarg);
+            if (!p.exists()) {
+                fprintf(stderr, "%s does not exist\n", optarg);
+                return false;
+            }
+            addQuery(QueryMessage::PreprocessFile, p);
             break; }
         case IsIndexed:
         case Fixits:

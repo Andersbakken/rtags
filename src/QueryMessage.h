@@ -30,6 +30,7 @@ public:
         FindFile,
         DumpFile,
         HasFileManager,
+        PreprocessFile,
         Shutdown
     };
 

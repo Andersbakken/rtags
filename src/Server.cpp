@@ -23,6 +23,7 @@
 #include "Message.h"
 #include "Messages.h"
 #include "Path.h"
+#include "Preprocessor.h"
 #include "ProjectMessage.h"
 #include "QueryMessage.h"
 #include "RTags.h"
@@ -365,6 +366,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::HasFileManager:
         hasFileManager(*message, conn);
         break;
+    case QueryMessage::PreprocessFile:
+        preprocessFile(*message, conn);
+        break;
     }
 }
 
@@ -592,6 +596,27 @@ void Server::hasFileManager(const QueryMessage &query, Connection *conn)
         conn->write("0");
     }
     conn->finish();
+}
+
+void Server::preprocessFile(const QueryMessage &query, Connection *conn)
+{
+    shared_ptr<Project> project = currentProject();
+    if (!project || !project->indexer) {
+        error("No project");
+        conn->finish();
+        return;
+    }
+
+    const Path path = query.query();
+    const uint32_t fileId = Location::fileId(path);
+    const List<ByteArray> args = project->indexer->compileArguments(fileId);
+    if (args.isEmpty()) {
+        conn->write("No arguments for " + path);
+        conn->finish();
+        return;
+    }
+    Preprocessor* pre = new Preprocessor(path, args, conn);
+    pre->preprocess();
 }
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)

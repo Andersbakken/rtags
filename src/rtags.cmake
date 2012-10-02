@@ -55,6 +55,7 @@ set(rtags_HDRS
     MutexLocker.h
     Path.h
     Pch.h
+    Preprocessor.h
     Process.h
     Project.h
     ProjectMessage.h
@@ -114,6 +115,7 @@ set(rtags_SRCS
     MemoryMonitor.cpp
     Messages.cpp
     Path.cpp
+    Preprocessor.cpp
     Process.cpp
     Project.cpp
     ProjectMessage.cpp
