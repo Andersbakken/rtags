@@ -33,6 +33,10 @@
   (setq mode-name "rtags")
   (use-local-map rtags-mode-map)
   (run-hooks 'rtags-mode-hook)
+  (goto-char (point-max))
+  (if (= (point-at-bol) (point-max))
+      (delete-char -1))
+  (goto-char (point-min))
   (setq buffer-read-only t)
   )
 
