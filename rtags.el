@@ -82,9 +82,9 @@
   (> (point-max) (point-min)))
 
 (defun rtags-path-for-project (&optional buffer)
-  (if (buffer-file-name buffer)
-      (buffer-file-name buffer)
-    default-directory))
+  (expand-file-name (if (buffer-file-name buffer)
+                        (buffer-file-name buffer)
+                      default-directory)))
 
 (defun rtags-preprocess-file (&optional buffer)
   (interactive)
