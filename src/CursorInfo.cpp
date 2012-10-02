@@ -1,7 +1,7 @@
 #include "CursorInfo.h"
 #include "RTags.h"
 
-ByteArray CursorInfo::toString() const
+ByteArray CursorInfo::toString(unsigned keyFlags) const
 {
     ByteArray ret(16384, '\0');
     char *buf = ret.data();
@@ -17,7 +17,7 @@ ByteArray CursorInfo::toString() const
         buf += w;
         for (Set<Location>::const_iterator tit = targets.begin(); tit != targets.end() && w < ret.size(); ++tit) {
             const Location &l = *tit;
-            w = snprintf(buf, ret.size() - pos, "    %s", l.key().constData());
+            w = snprintf(buf, ret.size() - pos, "    %s\n", l.key(keyFlags).constData());
             buf += w;
             pos += w;
         }
@@ -29,7 +29,7 @@ ByteArray CursorInfo::toString() const
         buf += w;
         for (Set<Location>::const_iterator rit = references.begin(); rit != references.end() && w < ret.size(); ++rit) {
             const Location &l = *rit;
-            w = snprintf(buf, ret.size() - pos, "    %s", l.key().constData());
+            w = snprintf(buf, ret.size() - pos, "    %s\n", l.key(keyFlags).constData());
             buf += w;
             pos += w;
         }

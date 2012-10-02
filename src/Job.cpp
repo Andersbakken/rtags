@@ -97,7 +97,8 @@ bool Job::writeRaw(const ByteArray &out, unsigned flags)
 
 bool Job::write(const Location &location, const CursorInfo &ci, unsigned flags)
 {
-    if (ci.symbolLength && !write<1024>(flags, "%s %s", location.key().constData(), ci.toString().constData())) {
+    const unsigned kf = keyFlags();
+    if (ci.symbolLength && !write<1024>(flags, "%s %s", location.key(kf).constData(), ci.toString(kf).constData())) {
         return false;
     }
     return true;

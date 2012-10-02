@@ -126,7 +126,7 @@ public:
         return changed;
     }
 
-    ByteArray toString() const;
+    ByteArray toString(unsigned keyFlags = 0) const;
 
     unsigned char symbolLength; // this is just the symbol name length e.g. foo => 3
     ByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
