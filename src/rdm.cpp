@@ -59,6 +59,7 @@ void usage(FILE *f)
             "  --rc-file|-c [arg]              Use this file instead of ~/.rdmrc\n"
             "  --projects-file|-p [arg]        Use this file as a projects file (default ~/.rtagsprojects)\n"
             "  --socket-file|-n [arg]          Use this file for the server socket (default ~/.rdm)\n"
+            "  --setenv|-e [arg]               Set this environment variable (--setenv \"foobar=1\")\n"
             "  --thread-count|-j [arg]         Spawn this many threads for thread pool\n");
 }
 
@@ -73,6 +74,7 @@ int main(int argc, char** argv)
         { "define", required_argument, 0, 'D' },
         { "log-file", required_argument, 0, 'L' },
         { "no-clang-includepath", no_argument, 0, 'P' },
+        { "setenv", required_argument, 0, 'e' },
         { "no-Wall", no_argument, 0, 'W' },
         { "append", no_argument, 0, 'A' },
         { "verbose", no_argument, 0, 'v' },
@@ -175,6 +177,9 @@ int main(int argc, char** argv)
             return 0;
         case 'V':
             options |= Server::NoValidate;
+            break;
+        case 'e':
+            putenv(optarg);
             break;
         case 'p':
             projectsFile = Path::resolved(optarg);
