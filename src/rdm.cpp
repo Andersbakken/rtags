@@ -233,10 +233,9 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (enableSignalHandler) {
+    if (enableSignalHandler)
         signal(SIGSEGV, sigSegvHandler);
-        signal(SIGINT, sigIntHandler);
-    }
+    signal(SIGINT, sigIntHandler);
 
     if (!initLogging(logLevel, logFile, logFlags)) {
         fprintf(stderr, "Can't initialize logging with %d %s 0x%0x\n",
