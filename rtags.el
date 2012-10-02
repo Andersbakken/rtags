@@ -95,15 +95,14 @@
         (setq narrow-start (+ 1 (count-lines (point-min) (region-beginning)))
               narrow-end (+ 1 (count-lines (point-min) (region-end)))))
     (if fn
-        (progn
-          (setq bufname (format "*RTags preprocessed %s*" fn))
-          (if (get-buffer bufname)
-              (kill-buffer bufname))
-          (switch-to-buffer (generate-new-buffer bufname))
-          (rtags-call-rc nil "--preprocess" fn)
-          (if (and narrow-start narrow-end)
+        (let ((preprocess-buffer (get-buffer-create (format "*RTags preprocessed %s*" fn))))
+          (with-current-buffer preprocess-buffer
+            (setq buffer-read-only nil)
+            (erase-buffer)
+            (rtags-call-rc nil "--preprocess" fn)
+            (if (and narrow-start narrow-end)
                 (let ((match-regexp (concat "^# \\([0-9]*\\) \"" (file-truename fn) "\""))
-                       last-match last-line start end)
+                      last-match last-line start end)
                   (while (re-search-forward match-regexp nil t)
                     (let ((current-line (string-to-int (match-string 1))))
                       (if (and (not start) (> current-line narrow-start)) (setq start (+ (count-lines (point-min) last-match) (- narrow-start last-line))))
@@ -118,10 +117,11 @@
                       (progn 
                         (goto-char (point-min))
                         (narrow-to-region (point-at-bol (+ start 1)) (point-at-bol (+ end 1)))))))
-          (setq buffer-read-only t)
-          (c++-mode)
-          (local-set-key "q" 'bury-buffer)
-))))
+            (setq buffer-read-only t)
+            (c++-mode)
+            (local-set-key "q" 'bury-buffer))
+          (display-buffer preprocess-buffer))
+)))
 
 (defun rtags-reparse-file(&optional buffer)
   (interactive)
