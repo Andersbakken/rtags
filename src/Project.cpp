@@ -7,6 +7,10 @@
 Project::Project(const Path &src)
     : srcRoot(src)
 {
+    resolvedSrcRoot = src;
+    resolvedSrcRoot.resolve();
+    if (resolvedSrcRoot == srcRoot)
+        resolvedSrcRoot.clear();
 }
 
 Scope<const SymbolMap&> Project::lockSymbolsForRead(int maxTime)

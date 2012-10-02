@@ -98,7 +98,7 @@ private:
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);
     ByteArray completions(const QueryMessage &query);
     bool updateProjectForLocation(const Location &location);
-    bool updateProjectForLocation(const Path &path);
+    bool updateProjectForLocation(const Path &path, Path *key = 0);
     void writeProjects();
     bool grtag(const Path &dir);
     bool smartProject(const Path &path, const List<ByteArray> &extraCompilerFlags);

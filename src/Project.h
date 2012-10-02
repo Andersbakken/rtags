@@ -43,6 +43,7 @@ public:
     shared_ptr<GRTags> grtags;
 
     const Path srcRoot;
+    Path resolvedSrcRoot;
 
     Scope<const SymbolMap&> lockSymbolsForRead(int maxTime = 0);
     Scope<SymbolMap&> lockSymbolsForWrite();

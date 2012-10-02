@@ -15,18 +15,19 @@ class QueryCommand : public RCCommand
 {
 public:
     QueryCommand(QueryMessage::Type t, const ByteArray &q)
-        : type(t), query(q)
+        : type(t), query(q), extraQueryFlags(0)
     {}
 
     const QueryMessage::Type type;
     const ByteArray query;
+    unsigned extraQueryFlags;
 
     virtual void exec(RClient *rc, Client *client)
     {
         QueryMessage msg(type);
         msg.init(rc->argc(), rc->argv());
         msg.setQuery(query);
-        msg.setFlags(rc->queryFlags());
+        msg.setFlags(extraQueryFlags | rc->queryFlags());
         msg.setMax(rc->max());
         msg.setUnsavedFiles(rc->unsavedFiles());
         msg.setPathFilters(rc->pathFilters().toList());
@@ -111,28 +112,30 @@ RClient::~RClient()
     cleanupLogging();
 }
 
-void RClient::addQuery(QueryMessage::Type t, const ByteArray &query)
+QueryCommand *RClient::addQuery(QueryMessage::Type t, const ByteArray &query)
 {
-    rCommands.append(new QueryCommand(t, query));
+    QueryCommand *cmd = new QueryCommand(t, query);
+    mCommands.append(cmd);
+    return cmd;
 }
 void RClient::addLog(int level)
 {
-    rCommands.append(new RdmLogCommand(level));
+    mCommands.append(new RdmLogCommand(level));
 }
 
 void RClient::addMakeFile(const Path &path, const List<ByteArray> &args)
 {
-    rCommands.append(new ProjectCommand(ProjectMessage::MakefileType, path, args));
+    mCommands.append(new ProjectCommand(ProjectMessage::MakefileType, path, args));
 }
 
 void RClient::addGRTag(const Path &path)
 {
-    rCommands.append(new ProjectCommand(ProjectMessage::GRTagsType, path));
+    mCommands.append(new ProjectCommand(ProjectMessage::GRTagsType, path));
 }
 
 void RClient::addSmartProject(const Path &path)
 {
-    rCommands.append(new ProjectCommand(ProjectMessage::SmartType, path));
+    mCommands.append(new ProjectCommand(ProjectMessage::SmartType, path));
 }
 
 static void timeout(int timerId, void *userData)
@@ -148,9 +151,9 @@ void RClient::exec()
 
     Client client(mSocketFile, mClientFlags, mRdmArgs);
 
-    const int commandCount = rCommands.size();
+    const int commandCount = mCommands.size();
     for (int i=0; i<commandCount; ++i) {
-        RCCommand *cmd = rCommands.at(i);
+        RCCommand *cmd = mCommands.at(i);
         debug() << "running command " << cmd->description();
         const int timeoutId = (mTimeout ? loop.addTimer(mTimeout, ::timeout, &loop) : -1);
         cmd->exec(this, &client);
@@ -158,7 +161,7 @@ void RClient::exec()
             loop.removeTimer(timeoutId);
         delete cmd;
     }
-    rCommands.clear();
+    mCommands.clear();
 }
 
 enum {
@@ -326,6 +329,7 @@ bool RClient::parse(int &argc, char **argv)
 
     List<option> options;
     options.reserve(sizeof(opts) / sizeof(Option));
+    List<QueryCommand*> projectCommands;
 
     ByteArray shortOptionString;
     Map<int, Option*> shortOptions, longOptions;
@@ -544,13 +548,17 @@ bool RClient::parse(int &argc, char **argv)
             case ListSymbols: type = QueryMessage::ListSymbols; break;
             }
 
+            QueryCommand *cmd;
             if (optarg) {
-                addQuery(type, optarg);
+                cmd = addQuery(type, optarg);
             } else if (optind < argc && argv[optind][0] != '-') {
-                addQuery(type, argv[optind++]);
+                cmd = addQuery(type, argv[optind++]);
             } else {
-                addQuery(type);
+                cmd = addQuery(type);
             }
+            assert(cmd);
+            if (type == QueryMessage::Project)
+                projectCommands.append(cmd);
             break; }
         case GRTag:
             if (optarg) {
@@ -665,9 +673,23 @@ bool RClient::parse(int &argc, char **argv)
         return false;
     }
 
-    if (rCommands.isEmpty() && !(mClientFlags & (Client::RestartRdm|Client::AutostartRdm))) {
+
+    if (mCommands.isEmpty() && !(mClientFlags & (Client::RestartRdm|Client::AutostartRdm))) {
         help(stderr, argv[0]);
         return false;
+    }
+    if (mCommands.size() > projectCommands.size()) {
+        // If there's more than one command one likely does not want output from
+        // the queryCommand (unless there's no arg specified for it). This is so
+        // we don't have to pass a different flag for auto-updating project
+        // using the current buffer but rather piggy-back on --project
+        const int count = projectCommands.size();
+        for (int i=0; i<count; ++i) {
+            QueryCommand *cmd = projectCommands[i];
+            if (!cmd->query.isEmpty()) {
+                cmd->extraQueryFlags |= QueryMessage::Silent;
+            }
+        }
     }
 
     if (!logFile.isEmpty() || mLogLevel > 0) {

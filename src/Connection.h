@@ -18,6 +18,9 @@ public:
     Connection(LocalClient *client);
     ~Connection();
 
+    void setSilent(bool on) { mSilent = on; }
+    bool isSilent() const { return mSilent; }
+
     bool connectToServer(const ByteArray &name);
 
     int pendingWrite() const;
@@ -59,7 +62,7 @@ private:
 
     LocalClient *mClient;
     int mPendingRead, mPendingWrite;
-    bool mDone;
+    bool mDone, mSilent;
 
     signalslot::Signal0 mConnected, mDisconnected, mError, mSendComplete;
     signalslot::Signal2<Message*, Connection*> mNewMessage;

@@ -6,6 +6,7 @@
 #include <Client.h>
 class RCCommand;
 class Client;
+class QueryCommand;
 class RClient
 {
 public:
@@ -34,7 +35,7 @@ public:
     int argc() const { return mArgc; }
     char **argv() const { return mArgv; }
 private:
-    void addQuery(QueryMessage::Type t, const ByteArray &query = ByteArray());
+    QueryCommand *addQuery(QueryMessage::Type t, const ByteArray &query = ByteArray());
     void addLog(int level);
     void addMakeFile(const Path &makefile, const List<ByteArray> &args);
     void addSmartProject(const Path &dir);
@@ -45,7 +46,7 @@ private:
     Set<ByteArray> mPathFilters;
     Map<Path, ByteArray> mUnsavedFiles;
     List<ByteArray> mExtraCompilerFlags;
-    List<RCCommand*> rCommands;
+    List<RCCommand*> mCommands;
     List<ByteArray> mRdmArgs;
     ByteArray mSocketFile;
 

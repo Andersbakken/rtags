@@ -44,7 +44,8 @@ public:
         WaitForIndexing = 0x080,
         MatchRegexp = 0x100,
         AbsolutePath = 0x200,
-        FindVirtuals = 0x400
+        FindVirtuals = 0x400,
+        Silent = 0x800
     };
 
     typedef Map<Path, ByteArray> UnsavedFilesMap;

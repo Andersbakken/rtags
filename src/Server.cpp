@@ -304,6 +304,9 @@ void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection 
 
 void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
 {
+    if (message->flags() & QueryMessage::Silent)
+        conn->setSilent(true);
+
     switch (message->type()) {
     case QueryMessage::Invalid:
         assert(0);
@@ -885,7 +888,7 @@ bool Server::updateProjectForLocation(const Location &location)
     return updateProjectForLocation(location.path());
 }
 
-bool Server::updateProjectForLocation(const Path &path)
+bool Server::updateProjectForLocation(const Path &path, Path *key)
 {
     shared_ptr<Project> match;
     int longest = -1;
@@ -895,8 +898,21 @@ bool Server::updateProjectForLocation(const Path &path)
             if (matchLength > longest) {
                 match = it->second;
                 longest = matchLength;
+                if (key)
+                    *key = it->first;
             }
         }
+        if (!it->second->resolvedSrcRoot.isEmpty()
+            && !strncmp(it->second->resolvedSrcRoot.constData(), path.constData(), it->second->resolvedSrcRoot.size())) {
+            const int matchLength = it->second->srcRoot.size();
+            if (matchLength > longest) {
+                match = it->second;
+                longest = matchLength;
+                if (key)
+                    *key = it->first;
+            }
+        }
+
     }
     if (match) {
         setCurrentProject(match);
@@ -1074,26 +1090,38 @@ void Server::project(const QueryMessage &query, Connection *conn)
     } else {
         shared_ptr<Project> selected;
         bool error = false;
-        RegExp rx(query.query());
-        for (Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-            if (rx.indexIn(it->first) != -1) {
-                if (error) {
-                    conn->write(it->first);
-                } else if (selected) {
-                    error = true;
-                    conn->write<128>("Multiple matches for %s", query.query().constData());
-                    conn->write(it->first);
-                    selected.reset();
-                } else {
-                    selected = it->second;
+        const Path path = query.query();
+        Path key;
+        if (path.exists() && updateProjectForLocation(path, &key)) {
+            conn->write<128>("Selected project: %s", key.constData());
+        } else {
+            RegExp rx(query.query());
+            for (Map<Path, shared_ptr<Project> >::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+                const Path *paths[] = { &it->first, &it->second->srcRoot, &it->second->resolvedSrcRoot, 0 };
+                if (paths[2]->isEmpty())
+                    paths[2] = 0;
+                for (int i=0; paths[i]; ++i) {
+                    if (rx.indexIn(*paths[i]) != -1) {
+                        if (error) {
+                            conn->write(it->first);
+                        } else if (selected) {
+                            error = true;
+                            conn->write<128>("Multiple matches for %s", query.query().constData());
+                            conn->write(it->first);
+                            selected.reset();
+                        } else {
+                            selected = it->second;
+                            break;
+                        }
+                    }
                 }
             }
-        }
-        if (selected) {
-            setCurrentProject(selected);
-            conn->write<128>("Selected project: %s", selected->srcRoot.constData());
-        } else if (!error) {
-            conn->write<128>("No matches for %s", query.query().constData());
+            if (selected) {
+                setCurrentProject(selected);
+                conn->write<128>("Selected project: %s", selected->srcRoot.constData());
+            } else if (!error) {
+                conn->write<128>("No matches for %s", query.query().constData());
+            }
         }
     }
     conn->finish();

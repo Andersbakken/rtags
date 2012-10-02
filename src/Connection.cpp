@@ -15,7 +15,7 @@ public:
 };
 
 Connection::Connection()
-    : mClient(new LocalClient), mPendingRead(0), mPendingWrite(0), mDone(false)
+    : mClient(new LocalClient), mPendingRead(0), mPendingWrite(0), mDone(false), mSilent(false)
 {
     mClient->connected().connect(mConnected);
     mClient->disconnected().connect(mDisconnected);
@@ -24,7 +24,7 @@ Connection::Connection()
 }
 
 Connection::Connection(LocalClient* client)
-    : mClient(client), mPendingRead(0), mPendingWrite(0), mDone(false)
+    : mClient(client), mPendingRead(0), mPendingWrite(0), mDone(false), mSilent(false)
 {
     assert(client->isConnected());
     mClient->disconnected().connect(mDisconnected);
@@ -50,6 +50,9 @@ bool Connection::send(int id, const ByteArray &message)
         ::error("Trying to send message to unconnected client (%d)", id);
         return false;
     }
+
+    if (mSilent)
+        return true;
 
     ByteArray header, data;
     {
