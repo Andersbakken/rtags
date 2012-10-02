@@ -58,7 +58,8 @@
   (if rtags-path (concat rtags-path "/" exe) (executable-find exe)))
 
 (defun rtags-call-rc (&rest arguments)
-  (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments)
+  (if rtags-autostart-rdm
+      (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments))
   (if rtags-path-filter
       (progn
         (push (format "--path-filter=%s" rtags-path-filter) arguments)
@@ -376,6 +377,10 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-autostart-rdm t
+  "If autostart rdm"
+  :group 'rtags
+  :type 'boolean)
 
 
 (defun rtags-enable-standard-keybindings (&optional map)
@@ -657,7 +662,8 @@ return t if rtags is allowed to modify this file"
                  "RTags Diagnostics"
                  buf (rtags-executable-find "rc")
                  "-G"
-                 (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm")))
+                 (if rtags-autostart-rdm
+                     (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm"))))
           (rtags-clear-diagnostics))
       )
     )
