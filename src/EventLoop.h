@@ -30,7 +30,7 @@ public:
     int addTimer(int timeout, TimerFunc callback, void* userData);
     void removeTimer(int handle);
     void addFileDescriptor(int fd, unsigned int flags, FdFunc callback, void* userData);
-    void removeFileDescriptor(int fd);
+    void removeFileDescriptor(int fd, unsigned int flags = 0);
 
     void run();
     pthread_t thread() const { return mThread; }

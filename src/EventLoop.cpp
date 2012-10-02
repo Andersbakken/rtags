@@ -180,9 +180,18 @@ void EventLoop::addFileDescriptor(int fd, unsigned int flags, FdFunc callback, v
     data.userData = userData;
 }
 
-void EventLoop::removeFileDescriptor(int fd)
+void EventLoop::removeFileDescriptor(int fd, unsigned int flags)
 {
-    mFdData.remove(fd);
+    if (!flags)
+        mFdData.remove(fd);
+    else {
+        FdData &data = mFdData[fd];
+        data.flags &= ~flags;
+        if (!data.flags) {
+            mFdData.remove(fd);
+            return;
+        }
+    }
 }
 
 void EventLoop::removeEvents(EventReceiver *receiver)

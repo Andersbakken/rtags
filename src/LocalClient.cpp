@@ -39,7 +39,7 @@ LocalClient::LocalClient(int fd)
     flags = 1;
     ::setsockopt(mFd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&flags, sizeof(int));
 #endif
-    EventLoop::instance()->addFileDescriptor(mFd, EventLoop::Read | EventLoop::Write, dataCallback, this);
+    EventLoop::instance()->addFileDescriptor(mFd, EventLoop::Read, dataCallback, this);
 }
 
 LocalClient::~LocalClient()
@@ -81,7 +81,11 @@ bool LocalClient::connect(const Path& path, int maxTime)
     int flags;
     eintrwrap(flags, fcntl(mFd, F_GETFL, 0));
     eintrwrap(flags, fcntl(mFd, F_SETFL, flags | O_NONBLOCK));
-    EventLoop::instance()->addFileDescriptor(mFd, EventLoop::Read | EventLoop::Write, dataCallback, this);
+
+    unsigned int fdflags = EventLoop::Read;
+    if (!mBuffers.empty())
+        fdflags |= EventLoop::Write;
+    EventLoop::instance()->addFileDescriptor(mFd, fdflags, dataCallback, this);
 
     mConnected();
     return true;
@@ -135,6 +139,8 @@ int LocalClient::read(char *buf, int size)
 bool LocalClient::write(const ByteArray& data)
 {
     if (pthread_equal(pthread_self(), EventLoop::instance()->thread())) {
+        if (mBuffers.empty())
+            EventLoop::instance()->addFileDescriptor(mFd, EventLoop::Read | EventLoop::Write, dataCallback, this);
         mBuffers.push_back(data);
         return writeMore();
     } else {
@@ -195,8 +201,10 @@ bool LocalClient::writeMore()
     const int sendflags = 0;
 #endif
     for (;;) {
-        if (mBuffers.empty())
+        if (mBuffers.empty()) {
+            EventLoop::instance()->removeFileDescriptor(mFd, EventLoop::Write);
             break;
+        }
         const ByteArray& front = mBuffers.front();
         int w;
         eintrwrap(w, ::send(mFd, &front[mBufferIdx], front.size() - mBufferIdx, sendflags));
@@ -225,6 +233,8 @@ void LocalClient::event(const Event* event)
     case DelayedWriteEvent::Type: {
         const DelayedWriteEvent *ev = static_cast<const DelayedWriteEvent*>(event);
         assert(pthread_equal(pthread_self(), EventLoop::instance()->thread()));
+        if (mBuffers.empty())
+            EventLoop::instance()->addFileDescriptor(mFd, EventLoop::Read | EventLoop::Write, dataCallback, this);
         mBuffers.push_back(ev->data);
         writeMore();
         break; }
