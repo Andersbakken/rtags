@@ -60,8 +60,10 @@ bool LocalClient::connect(const Path& path, int maxTime)
     address.sun_path[sz] = '\0';
     while (true) {
         mFd = ::socket(PF_UNIX, SOCK_STREAM, 0);
-        if (mFd == -1)
+        if (mFd == -1) {
+            Path::rm(path);
             return false;
+        }
         int ret;
         eintrwrap(ret, ::connect(mFd, (struct sockaddr *)&address, sizeof(struct sockaddr_un)));
         if (!ret) {
@@ -73,8 +75,10 @@ bool LocalClient::connect(const Path& path, int maxTime)
         }
         eintrwrap(ret, ::close(mFd));
         mFd = -1;
-        if (maxTime > 0 && timer.elapsed() >= maxTime)
+        if (maxTime > 0 && timer.elapsed() >= maxTime) {
+            Path::rm(path);
             return false;
+        }
     }
 
     assert(mFd != -1);
