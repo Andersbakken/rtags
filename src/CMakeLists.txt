@@ -58,3 +58,10 @@ add_dependencies(rdm rtags)
 add_executable(rc rc.cpp)
 target_link_libraries(rc rtags ${clang_LIBS} ${system_LIBS})
 add_dependencies(rc rtags)
+
+if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+  add_custom_command(TARGET rdm POST_BUILD
+                     COMMAND install_name_tool -change @executable_path/../lib/libclang.3.2.dylib @executable_path/../3rdparty/clang_install/lib/libclang.3.2.dylib rdm)
+  add_custom_command(TARGET rc POST_BUILD
+                     COMMAND install_name_tool -change @executable_path/../lib/libclang.3.2.dylib @executable_path/../3rdparty/clang_install/lib/libclang.3.2.dylib rc)
+endif()
