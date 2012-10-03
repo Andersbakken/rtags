@@ -286,8 +286,9 @@ int Path::readAll(char *&buf, int max) const
         if (ret != size) {
             size = -1;
             delete[] buf;
+        } else {
+            buf[size] = '\0';
         }
-        buf[size] = '\0';
     }
     fclose(f);
     return size;
