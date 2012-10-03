@@ -12,43 +12,24 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}../3rdparty/picojson
     )
 
-
-set(rtags_HDRS
+set(rtags_client_HDRS
     AbortInterface.h
     ByteArray.h
     Client.h
     Connection.h
     CreateOutputMessage.h
-    CursorInfo.h
-    CursorInfoJob.h
     Event.h
     EventLoop.h
     EventReceiver.h
     FastDelegate.h
-    FileManager.h
-    FileSystemWatcher.h
-    FindFileJob.h
-    FindSymbolsJob.h
-    FollowLocationJob.h
-    GRParseJob.h
-    GRParser.h
-    GRScanJob.h
-    GRTags.h
-    GccArguments.h
-    Indexer.h
-    IndexerJob.h
     IniFile.h
     Job.h
     List.h
-    ListSymbolsJob.h
     LocalClient.h
-    LocalServer.h
     Location.h
     Log.h
     LogObject.h
-    MakefileParser.h
     Map.h
-    MemoryMonitor.h
     Message.h
     Messages.h
     Mutex.h
@@ -57,81 +38,109 @@ set(rtags_HDRS
     Pch.h
     Preprocessor.h
     Process.h
-    Project.h
     ProjectMessage.h
     QueryMessage.h
     RClient.h
-    RTags.h
     ReadLocker.h
-    ReadWriteLock.h
-    ReferencesJob.h
     RegExp.h
     ResponseMessage.h
     Semaphore.h
     Serializer.h
-    Server.h
     Set.h
     SharedMemory.h
     SignalSlot.h
     SourceInformation.h
-    StatusJob.h
+    ReadWriteLock.h
     Str.h
-    TestJob.h
     Thread.h
     ThreadLocal.h
     ThreadPool.h
-    ValidateDBJob.h
     WaitCondition.h
     WriteLocker.h
-    )
+    RTags.h
+   )
 
-set(rtags_SRCS
+set(rtags_client_SRCS
     Client.cpp
     Connection.cpp
     CreateOutputMessage.cpp
-    CursorInfo.cpp
-    CursorInfoJob.cpp
     EventLoop.cpp
-    FileManager.cpp
-    FindFileJob.cpp
-    FindSymbolsJob.cpp
-    FollowLocationJob.cpp
-    GRParseJob.cpp
-    GRParser.cpp
-    GRScanJob.cpp
-    GRTags.cpp
-    GccArguments.cpp
-    Indexer.cpp
-    IndexerJob.cpp
-    IniFile.cpp
-    Job.cpp
-    ListSymbolsJob.cpp
     LocalClient.cpp
-    LocalServer.cpp
     Location.cpp
     Log.cpp
-    MakefileParser.cpp
-    MemoryMonitor.cpp
     Messages.cpp
     Path.cpp
     Preprocessor.cpp
     Process.cpp
-    Project.cpp
     ProjectMessage.cpp
     QueryMessage.cpp
     RClient.cpp
-    RTags.cpp
     ReadWriteLock.cpp
-    ReferencesJob.cpp
     Semaphore.cpp
-    Server.cpp
     SharedMemory.cpp
-    StatusJob.cpp
-    TestJob.cpp
     Thread.cpp
     ThreadPool.cpp
+    RTags.cpp
+    )
+
+set(rtags_HDRS
+    ${rtags_client_HDRS}
+    FindFileJob.h
+    CursorInfoJob.h
+    FindSymbolsJob.h
+    FollowLocationJob.h
+    GRParseJob.h
+    GRScanJob.h
+    IndexerJob.h
+    ListSymbolsJob.h
+    ReferencesJob.h
+    StatusJob.h
+    TestJob.h
+    ValidateDBJob.h
+    Server.h
+    FileSystemWatcher.h
+    GccArguments.h
+    LocalServer.h
+    MemoryMonitor.h
+    MakefileParser.h
+    CursorInfo.h
+    GRParser.h
+    GRTags.h
+    Indexer.h
+    FileManager.h
+    Project.h
+    RTagsClang.h
+    )
+
+set(rtags_SRCS
+    ${rtags_client_SRCS}
+    CursorInfoJob.cpp
+    FindFileJob.cpp
+    FindSymbolsJob.cpp
+    FollowLocationJob.cpp
+    GRParseJob.cpp
+    GRScanJob.cpp
+    IndexerJob.cpp
+    IniFile.cpp
+    Job.cpp
+    ListSymbolsJob.cpp
+    ReferencesJob.cpp
+    StatusJob.cpp
+    TestJob.cpp
     ValidateDBJob.cpp
-)
+    LocalServer.cpp
+    CursorInfo.cpp
+    Server.cpp
+    MakefileParser.cpp
+    MemoryMonitor.cpp
+    GRParser.cpp
+    GRTags.cpp
+    GccArguments.cpp
+    Indexer.cpp
+    FileManager.cpp
+    Project.cpp
+    RTagsClang.cpp
+   )
 
 if(HAVE_INOTIFY EQUAL 1)
   list(APPEND rtags_SRCS FileSystemWatcher_inotify.cpp)

@@ -10,6 +10,7 @@
 #include "Server.h"
 #include "RegExp.h"
 #include <tr1/memory>
+#include <RTagsClang.h>
 
 class CursorInfo;
 class Location;

@@ -55,8 +55,8 @@ add_executable(rdm rdm.cpp)
 target_link_libraries(rdm rtags ${clang_LIBS} ${system_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY})
 add_dependencies(rdm rtags)
 
-add_executable(rc rc.cpp)
-target_link_libraries(rc rtags ${clang_LIBS} ${system_LIBS})
+add_executable(rc rc.cpp ${rtags_client_SRCS})
+target_link_libraries(rc ${system_LIBS})
 add_dependencies(rc rtags)
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")

@@ -1,5 +1,5 @@
 #include "CursorInfo.h"
-#include "RTags.h"
+#include "RTagsClang.h"
 
 ByteArray CursorInfo::toString(unsigned keyFlags) const
 {

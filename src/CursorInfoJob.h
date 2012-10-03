@@ -3,7 +3,7 @@
 
 #include <ByteArray.h>
 #include <List.h>
-#include "RTags.h"
+#include "RTagsClang.h"
 #include "Job.h"
 #include "Location.h"
 

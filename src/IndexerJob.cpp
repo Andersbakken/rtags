@@ -3,6 +3,7 @@
 #include "MemoryMonitor.h"
 #include "Server.h"
 #include "EventLoop.h"
+#include "RTagsClang.h"
 
 struct DumpUserData {
     int indentLevel;
