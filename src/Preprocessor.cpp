@@ -5,7 +5,7 @@
 #include "RTags.h"
 
 Preprocessor::Preprocessor(const CompileArgs &args, Connection *connection)
-    : mArgs(args), mConnection(connection), mProc(0), mWrittenArguments(false)
+    : mArgs(args), mConnection(connection), mProc(0)
 {
 }
 
