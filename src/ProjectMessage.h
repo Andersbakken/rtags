@@ -1,8 +1,8 @@
 #ifndef ProjectMessage_h
 #define ProjectMessage_h
 
-#include <List.h>
-#include <ByteArray.h>
+#include "List.h"
+#include "ByteArray.h"
 #include "ClientMessage.h"
 #include "RTags.h"
 

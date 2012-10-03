@@ -538,13 +538,16 @@ void IndexerJob::parse()
     mClangLine += ' ';
 
     int idx = 0;
+#ifdef OS_Darwin
+    clangArgs[idx++] = "-I/usr/lib/c++/v1";
+#endif
     const int count = mArgs.size();
     for (int i=0; i<count; ++i) {
         ByteArray arg = mArgs.at(i);
         if (arg.isEmpty())
             continue;
 
-        clangArgs[idx++] = arg.constData();
+        clangArgs[idx++] = mArgs.at(i).constData();
         arg.replace("\"", "\\\"");
         mClangLine += arg;
         mClangLine += ' ';

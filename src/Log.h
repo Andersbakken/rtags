@@ -2,14 +2,14 @@
 #define Log_h
 
 #include <memory>
-#include <ByteArray.h>
-#include <Map.h>
-#include <Set.h>
-#include <List.h>
 #include <sstream>
-#include <Path.h>
 #include <cxxabi.h>
 #include <assert.h>
+#include "ByteArray.h"
+#include "Map.h"
+#include "Set.h"
+#include "List.h"
+#include "Path.h"
 
 class Path;
 

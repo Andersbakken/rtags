@@ -222,7 +222,7 @@ bool GccArguments::parse(ByteArray args, const Path &base)
                     }
                     if (pathok)
                         mClangArgs.append("-I" + inc);
-                } else if (!strncmp(cur, "-std=", 5)) {
+                } else if (!strncmp(cur, "-std", 4)) {
                     mClangArgs.append(cur);
                 } else if (mType == NoType && !strcmp(cur, "-c")) {
                     mType = Compile;

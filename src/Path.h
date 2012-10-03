@@ -6,8 +6,8 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <Set.h>
-#include <ByteArray.h>
+#include "Set.h"
+#include "ByteArray.h"
 
 class Path : public ByteArray
 {
