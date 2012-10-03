@@ -34,7 +34,6 @@ public:
 
     int priority() const { return mFlags & Priorities; }
     shared_ptr<IndexData> data() const { return mData; }
-    bool restart(time_t time, const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pendingFiles);
     uint32_t fileId() const { return mFileId; }
     Path path() const { return mPath; }
     bool isAborted() { return !indexer() && !project(); }
