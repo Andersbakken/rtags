@@ -12,7 +12,7 @@
 #include "WriteLocker.h"
 #include <math.h>
 
-Indexer::Indexer(const shared_ptr<Project> &proj, bool validate)
+Indexer::Indexer(const std::shared_ptr<Project> &proj, bool validate)
     : mJobCounter(0), mInMakefile(false), mModifiedFilesTimerId(-1), mTimerRunning(false), mProject(proj), mValidate(validate)
 {
     mWatcher.modified().connect(this, &Indexer::onFileModified);
@@ -23,7 +23,7 @@ static inline bool isFile(uint32_t fileId)
     return Location::path(fileId).isFile();
 }
 
-void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
+void Indexer::onJobFinished(const std::shared_ptr<IndexerJob> &job)
 {
     MutexLocker lock(&mMutex);
     const uint32_t fileId = job->fileId();
@@ -35,10 +35,12 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
     if (job->isAborted()) {
         return;
     }
-    shared_ptr<IndexData> data = job->data();
+    std::shared_ptr<IndexData> data = job->data();
     mPendingData[fileId] = data;
 
     const int idx = mJobCounter - mJobs.size();
+
+    mSources[fileId].parsed = job->parseTime();
 
     error("[%3d%%] %d/%d %s %s. Pending jobs %d. %d mb mem.",
           static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
@@ -57,7 +59,7 @@ void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
         return;
 
     const uint32_t fileId = Location::insertFile(c.sourceFile);
-    shared_ptr<IndexerJob> &job = mJobs[fileId];
+    std::shared_ptr<IndexerJob> &job = mJobs[fileId];
     if (job) {
         if (job->abortIfStarted()) {
             mVisitedFiles -= mVisitedFilesByJob.take(job);
@@ -305,7 +307,7 @@ static inline void writeReferences(const ReferenceMap &references, Scope<SymbolM
 
 void Indexer::write()
 {
-    shared_ptr<Project> proj = project();
+    std::shared_ptr<Project> proj = project();
     Scope<SymbolMap&> symbols = proj->lockSymbolsForWrite();
     Scope<SymbolNameMap&> symbolNames = proj->lockSymbolNamesForWrite();
     if (!mPendingDirtyFiles.isEmpty()) {
@@ -315,8 +317,8 @@ void Indexer::write()
     }
 
     Set<uint32_t> newFiles;
-    for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
-        const shared_ptr<IndexData> &data = it->second;
+    for (Map<uint32_t, std::shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
+        const std::shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
         addDiagnostics(data->diagnostics, data->fixIts);
         writeCursors(data->symbols, symbols);
@@ -358,7 +360,7 @@ void Indexer::checkFinished() // lock always held
                 << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
         mJobsComplete(this);
         if (mValidate) {
-            shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(project(), mPreviousErrors));
+            std::shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(project(), mPreviousErrors));
             validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
             Server::instance()->startJob(validateJob);
         }
@@ -372,7 +374,7 @@ bool Indexer::isIndexed(uint32_t fileId) const
 
     if (!mVisitedFiles.contains(fileId))
         return false;
-    for (Map<shared_ptr<IndexerJob>, Set<uint32_t> >::const_iterator it = mVisitedFilesByJob.begin(); it != mVisitedFilesByJob.end(); ++it) {
+    for (Map<std::shared_ptr<IndexerJob>, Set<uint32_t> >::const_iterator it = mVisitedFilesByJob.begin(); it != mVisitedFilesByJob.end(); ++it) {
         if (it->second.contains(fileId))
             return false;
     }
@@ -400,44 +402,49 @@ bool Indexer::save(Serializer &out)
 
 static inline bool isDirty(uint32_t fileId, time_t time)
 {
+    // if (Location::path(fileId).lastModified() > time) {
+    //     error() << Location::path(fileId) << RTags::timeToString(time, RTags::DateTime)
+    //             << RTags::timeToString(Location::path(fileId).lastModified(), RTags::DateTime);
+    // }
     return Location::path(fileId).lastModified() > time;
 }
 
 bool Indexer::restore(Deserializer &in)
 {
-    MutexLocker lock(&mMutex);
-    error() << "restoring indexer";
-    in >> mDependencies;
-    error() << "got dependencies" << mDependencies.size();
-    in >> mSources;
-    error() << "got sources" << mSources.size();
+    bool dirtyFiles = false;
+    {
+        MutexLocker lock(&mMutex);
+        // error() << "restoring indexer";
+        in >> mDependencies;
+        // error() << "got dependencies" << mDependencies.size();
+        in >> mSources;
+        // error() << "got sources" << mSources.size() << mSources;
 
-    Set<uint32_t> allFiles;
-    for (SourceInformationMap::iterator it = mSources.begin(); it != mSources.end(); ++it) {
-        const time_t parsed = it->second.parsed;
-        assert(mDependencies.value(it->first).contains(it->first));
-        bool dirty = false;
-        assert(mDependencies.contains(it->first));
-        const Set<uint32_t> &deps = mDependencies[it->first];
-        allFiles += deps;
-        for (Set<uint32_t>::const_iterator d = deps.begin(); d != deps.end(); ++d) {
-            if (isDirty(*d, parsed)) {
-                dirty = true;
-                break;
+        Set<uint32_t> allFiles;
+        for (SourceInformationMap::iterator it = mSources.begin(); it != mSources.end(); ++it) {
+            const time_t parsed = it->second.parsed;
+            // error() << "parsed" << RTags::timeToString(parsed, RTags::DateTime) << parsed;
+            assert(mDependencies.value(it->first).contains(it->first));
+            assert(mDependencies.contains(it->first));
+            const Set<uint32_t> &deps = mDependencies[it->first];
+            allFiles += deps;
+            for (Set<uint32_t>::const_iterator d = deps.begin(); d != deps.end(); ++d) {
+                if (!mModifiedFiles.contains(*d) && isDirty(*d, parsed))
+                    mModifiedFiles.insert(*d);
+            }
+
+        }
+        dirtyFiles = !mModifiedFiles.isEmpty();
+        for (Set<uint32_t>::const_iterator it = allFiles.begin(); it != allFiles.end(); ++it) {
+            const Path dir = Location::path(*it).parentDir();
+            if (mWatchedPaths.insert(dir)) {
+                mWatcher.watch(dir);
             }
         }
+    }
 
-        error() << it->second.sourceFile << dirty;
-        if (dirty) {
-            mModifiedFiles += deps;
-        }
-    }
-    for (Set<uint32_t>::const_iterator it = allFiles.begin(); it != allFiles.end(); ++it) {
-        const Path dir = Location::path(*it).parentDir();
-        if (mWatchedPaths.insert(dir)) {
-            mWatcher.watch(dir);
-        }
-    }
+    if (dirtyFiles)
+        onFilesModifiedTimeout();
 
     return true;
 }

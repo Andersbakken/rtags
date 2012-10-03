@@ -12,7 +12,7 @@ class GRTags;
 class FindFileJob : public Job
 {
 public:
-    FindFileJob(const QueryMessage &query, const shared_ptr<Project> &project);
+    FindFileJob(const QueryMessage &query, const std::shared_ptr<Project> &project);
 protected:
     virtual void execute();
 private:

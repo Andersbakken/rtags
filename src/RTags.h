@@ -12,8 +12,6 @@
 #include <stdio.h>
 #include <typeinfo>
 
-using namespace std::tr1;
-
 class Database;
 class Project;
 namespace RTags {
@@ -51,7 +49,7 @@ typedef Map<uint32_t, SourceInformation> SourceInformationMap;
 typedef Map<Path, Set<ByteArray> > FilesMap;
 typedef Map<Location, std::pair<int, ByteArray> > FixitMap;
 typedef Map<uint32_t, List<ByteArray> > DiagnosticsMap;
-typedef Map<Path, shared_ptr<Project> > ProjectsMap;
+typedef Map<Path, std::shared_ptr<Project> > ProjectsMap;
 typedef Map<uint32_t, time_t> GRFilesMap;
 // file id to last modified, time_t means currently parsing
 typedef Map<ByteArray, Map<Location, bool> > GRMap;
@@ -161,13 +159,13 @@ void removeDirectory(const Path &path);
 int canonicalizePath(char *path, int len);
 ByteArray unescape(ByteArray command);
 
-template <typename T> class Ptr : public shared_ptr<T>
+template <typename T> class Ptr : public std::shared_ptr<T>
 {
 public:
     Ptr(T *t = 0)
-        : shared_ptr<T>(t)
+        : std::shared_ptr<T>(t)
     {}
-    operator T*() const { return shared_ptr<T>::get(); }
+    operator T*() const { return std::shared_ptr<T>::get(); }
 };
 bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs);
 

@@ -31,16 +31,16 @@ Semaphore::~Semaphore()
         semctl(mSem, 0, IPC_RMID, 0);
 }
 
-void Semaphore::acquire(int num)
+void Semaphore::acquire(short num)
 {
-    sembuf buf = { 0, num * -1, SEM_UNDO };
+    sembuf buf = { 0, static_cast<short>(num * -1), SEM_UNDO };
     int ret;
     eintrwrap(ret, semop(mSem, &buf, 1));
     if (ret == -1 && errno == EIDRM)
         mSem = -1;
 }
 
-void Semaphore::release(int num)
+void Semaphore::release(short num)
 {
     sembuf buf = { 0, num, SEM_UNDO };
     int ret;
@@ -49,7 +49,7 @@ void Semaphore::release(int num)
         mSem = -1;
 }
 
-void Semaphore::op(int num)
+void Semaphore::op(short num)
 {
     sembuf buf = { 0, num, SEM_UNDO };
     int ret;

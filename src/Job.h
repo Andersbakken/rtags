@@ -9,7 +9,7 @@
 #include "SignalSlot.h"
 #include "Server.h"
 #include "RegExp.h"
-#include <tr1/memory>
+#include <memory>
 #include <RTagsClang.h>
 
 class CursorInfo;
@@ -17,7 +17,7 @@ class Location;
 class QueryMessage;
 class Project;
 class Job : public ThreadPool::Job, public AbortInterface,
-            public enable_shared_from_this<Job>
+            public std::enable_shared_from_this<Job>
 {
 public:
     enum Flag {
@@ -27,8 +27,8 @@ public:
         WriteBuffered = 0x4
     };
     enum { Priority = 10 };
-    Job(const QueryMessage &msg, unsigned jobFlags, const shared_ptr<Project> &proj);
-    Job(unsigned jobFlags, const shared_ptr<Project> &project);
+    Job(const QueryMessage &msg, unsigned jobFlags, const std::shared_ptr<Project> &proj);
+    Job(unsigned jobFlags, const std::shared_ptr<Project> &project);
     ~Job();
 
     bool hasFilter() const { return mPathFilters || mPathFiltersRegExp; }
@@ -50,7 +50,7 @@ public:
     unsigned keyFlags() const;
     inline bool filter(const ByteArray &val) const;
     signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
-    shared_ptr<Project> project() const { return mProject; }
+    std::shared_ptr<Project> project() const { return mProject; }
     void resetProject() { mProject.reset(); }
     virtual void run();
     virtual void execute() = 0;
@@ -60,7 +60,7 @@ private:
     unsigned mJobFlags;
     unsigned mQueryFlags;
     signalslot::Signal1<const ByteArray &> mOutput;
-    shared_ptr<Project> mProject;
+    std::shared_ptr<Project> mProject;
     List<ByteArray> *mPathFilters;
     List<RegExp> *mPathFiltersRegExp;
     int mMax;
@@ -109,11 +109,11 @@ class JobOutputEvent : public Event
 {
 public:
     enum { Type = 2 };
-    JobOutputEvent(const shared_ptr<Job> &j, const ByteArray &o, bool f)
+    JobOutputEvent(const std::shared_ptr<Job> &j, const ByteArray &o, bool f)
         : Event(Type), job(j), out(o), finish(f), id(j->id())
     {}
 
-    weak_ptr<Job> job;
+    std::weak_ptr<Job> job;
     const ByteArray out;
     const bool finish;
     const int id;

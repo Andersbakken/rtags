@@ -151,6 +151,7 @@ elseif(HAVE_KQUEUE EQUAL 1)
 endif()
 
 
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++0x")
 add_pch_rule(Pch.h rtags_SRCS rtags_PCHFLAGS)
 add_definitions(${rtags_PCHFLAGS})
 
@@ -169,4 +170,3 @@ add_custom_target(
 
 add_library(rtags ${rtags_SRCS})
 add_dependencies(rtags gperf)
-

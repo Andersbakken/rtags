@@ -12,7 +12,7 @@ class FileManager
 {
 public:
     FileManager();
-    void init(const shared_ptr<Project> &proj);
+    void init(const std::shared_ptr<Project> &proj);
     void recurseDirs();
     void onFileAdded(const Path &path);
     void onFileRemoved(const Path &path);
@@ -20,7 +20,7 @@ public:
     bool contains(const Path &path) const;
 private:
     FileSystemWatcher mWatcher;
-    weak_ptr<Project> mProject;
+    std::weak_ptr<Project> mProject;
 };
 
 #endif

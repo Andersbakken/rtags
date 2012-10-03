@@ -3,20 +3,20 @@
 #include "RTags.h"
 #include "CursorInfo.h"
 
-ReferencesJob::ReferencesJob(const Location &loc, const QueryMessage &query, const shared_ptr<Project> &proj)
+ReferencesJob::ReferencesJob(const Location &loc, const QueryMessage &query, const std::shared_ptr<Project> &proj)
     : Job(query, 0, proj)
 {
     locations.insert(loc);
 }
 
-ReferencesJob::ReferencesJob(const ByteArray &sym, const QueryMessage &query, const shared_ptr<Project> &proj)
+ReferencesJob::ReferencesJob(const ByteArray &sym, const QueryMessage &query, const std::shared_ptr<Project> &proj)
     : Job(query, 0, proj), symbolName(sym)
 {
 }
 
 void ReferencesJob::execute()
 {
-    shared_ptr<Project> proj = project();
+    std::shared_ptr<Project> proj = project();
     Location startLocation;
     Set<Location> references;
     if (proj->indexer) {

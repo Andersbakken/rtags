@@ -12,7 +12,7 @@ GRTags::GRTags()
     mWatcher.modified().connect(this, &GRTags::add);
 }
 
-void GRTags::init(const shared_ptr<Project> &project)
+void GRTags::init(const std::shared_ptr<Project> &project)
 {
     assert(project);
     mProject = project;
@@ -21,10 +21,10 @@ void GRTags::init(const shared_ptr<Project> &project)
 
 void GRTags::recurse()
 {
-    shared_ptr<Project> project = mProject.lock();
+    std::shared_ptr<Project> project = mProject.lock();
     GRScanJob *job = new GRScanJob(GRScanJob::Sources, project->srcRoot, project);
     job->finished().connect(this, &GRTags::onRecurseJobFinished);
-    Server::instance()->threadPool()->start(shared_ptr<ThreadPool::Job>(job));
+    Server::instance()->threadPool()->start(std::shared_ptr<ThreadPool::Job>(job));
 }
 
 void GRTags::onFileRemoved(const Path &path)
@@ -55,7 +55,7 @@ void GRTags::onRecurseJobFinished(const Set<Path> &files)
 
 void GRTags::add(const Path &source)
 {
-    shared_ptr<Project> project = mProject.lock();
+    std::shared_ptr<Project> project = mProject.lock();
     assert(project);
     const uint32_t fileId = Location::insertFile(source);
     Scope<GRFilesMap&> scope = project->lockGRFilesForWrite();
@@ -67,17 +67,17 @@ void GRTags::add(const Path &source)
             return;
         flags = GRParseJob::Dirty;
     }
-    shared_ptr<GRParseJob> job(new GRParseJob(source, flags, project));
+    std::shared_ptr<GRParseJob> job(new GRParseJob(source, flags, project));
     ++mActive;
     ++mCount;
     job->finished().connect(this, &GRTags::onParseJobFinished);
     Server::instance()->threadPool()->start(job);
 }
-void GRTags::onParseJobFinished(const shared_ptr<GRParseJob> &job, const GRMap &data)
+void GRTags::onParseJobFinished(const std::shared_ptr<GRParseJob> &job, const GRMap &data)
 {
     uint32_t fileId = Location::insertFile(job->path());
     const time_t time = job->parseTime();
-    shared_ptr<Project> project = mProject.lock();
+    std::shared_ptr<Project> project = mProject.lock();
     {
         Scope<GRFilesMap&> scope = project->lockGRFilesForWrite();
         GRFilesMap &map = scope.data();

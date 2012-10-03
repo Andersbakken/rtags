@@ -2,7 +2,7 @@
 #define Str_h
 
 #include <clang-c/Index.h>
-#include <tr1/memory>
+#include <memory>
 
 class Str
 {
@@ -45,7 +45,7 @@ private:
         CXString string;
         mutable int length;
     };
-    shared_ptr<Shared> mData;
+    std::shared_ptr<Shared> mData;
 };
 
 #endif

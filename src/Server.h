@@ -41,7 +41,7 @@ public:
         NoWall = 0x8
     };
     ThreadPool *threadPool() const { return mThreadPool; }
-    void startJob(const shared_ptr<Job> &job);
+    void startJob(const std::shared_ptr<Job> &job);
     struct Options {
         Options() : options(0), threadCount(0) {}
         Path projectsFile, socketFile;
@@ -62,8 +62,8 @@ private:
     void clear();
     void onNewConnection();
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
-    shared_ptr<Project> setCurrentProject(const Path &path);
-    shared_ptr<Project> setCurrentProject(const shared_ptr<Project> &proj);
+    std::shared_ptr<Project> setCurrentProject(const Path &path);
+    std::shared_ptr<Project> setCurrentProject(const std::shared_ptr<Project> &proj);
     void event(const Event *event);
     void onFileReady(const GccArguments &file, MakefileParser *parser);
     bool processSourceFile(const GccArguments &args, const Path &makefile);
@@ -107,7 +107,7 @@ private:
     void writeProjects();
     bool grtag(const Path &dir);
     bool smartProject(const Path &path, const List<ByteArray> &extraCompilerFlags);
-    shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
+    std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void removeProject(const Path &key);
 
     static Server *sInstance;
@@ -122,7 +122,7 @@ private:
     FileSystemWatcher mMakefilesWatcher;
 
     ProjectsMap mProjects;
-    weak_ptr<Project> mCurrentProject;
+    std::weak_ptr<Project> mCurrentProject;
     ThreadPool *mThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
     Path mClangPath;

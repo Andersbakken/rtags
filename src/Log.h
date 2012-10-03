@@ -1,7 +1,7 @@
 #ifndef Log_h
 #define Log_h
 
-#include <tr1/memory>
+#include <memory>
 #include <ByteArray.h>
 #include <Map.h>
 #include <Set.h>
@@ -10,8 +10,6 @@
 #include <Path.h>
 #include <cxxabi.h>
 #include <assert.h>
-
-using namespace std::tr1;
 
 class Path;
 
@@ -164,7 +162,7 @@ private:
         int disableSpacingOverride;
     };
 
-    shared_ptr<Data> mData;
+    std::shared_ptr<Data> mData;
 };
 
 template <typename T> inline ByteArray typeName()

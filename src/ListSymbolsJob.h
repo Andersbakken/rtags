@@ -9,7 +9,7 @@
 class ListSymbolsJob : public Job
 {
 public:
-    ListSymbolsJob(const QueryMessage &query, const shared_ptr<Project> &proj);
+    ListSymbolsJob(const QueryMessage &query, const std::shared_ptr<Project> &proj);
 protected:
     virtual void execute();
 private:

@@ -2,7 +2,7 @@
 #include "Server.h"
 
 TestJob::TestJob(const Path &p)
-    : Job(0, shared_ptr<Project>()), path(p)
+    : Job(0, std::shared_ptr<Project>()), path(p)
 {
 }
 

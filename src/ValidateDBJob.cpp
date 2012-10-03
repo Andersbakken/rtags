@@ -5,7 +5,7 @@
 #include "Server.h"
 #include <clang-c/Index.h>
 
-ValidateDBJob::ValidateDBJob(const shared_ptr<Project> &proj, const Set<Location> &prev)
+ValidateDBJob::ValidateDBJob(const std::shared_ptr<Project> &proj, const Set<Location> &prev)
     : Job(0, proj), mPrevious(prev)
 {
 }

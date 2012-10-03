@@ -12,10 +12,10 @@ public:
     Semaphore(const Path& filename, CreateFlag flag = None, int value = 1);
     ~Semaphore();
 
-    void acquire(int num = 1);
-    void release(int nul = 1);
+    void acquire(short num = 1);
+    void release(short nul = 1);
 
-    void op(int value);
+    void op(short value);
 
     bool isValid() const { return mSem != -1; }
 

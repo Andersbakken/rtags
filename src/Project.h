@@ -1,7 +1,7 @@
 #ifndef Project_h
 #define Project_h
 
-#include <tr1/memory>
+#include <memory>
 #include "Path.h"
 #include "RTags.h"
 #include "ReadWriteLock.h"
@@ -27,7 +27,7 @@ private:
         T t;
         ReadWriteLock *lock;
     };
-    shared_ptr<Data> mData;
+    std::shared_ptr<Data> mData;
 };
 
 class Indexer;
@@ -38,9 +38,9 @@ class Project
 public:
     Project(const Path &src);
 
-    shared_ptr<Indexer> indexer;
-    shared_ptr<FileManager> fileManager;
-    shared_ptr<GRTags> grtags;
+    std::shared_ptr<Indexer> indexer;
+    std::shared_ptr<FileManager> fileManager;
+    std::shared_ptr<GRTags> grtags;
 
     const Path srcRoot;
     Path resolvedSrcRoot;
