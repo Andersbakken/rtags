@@ -14,6 +14,7 @@
 #include "FileManager.h"
 #include "Project.h"
 #include "GRScanJob.h"
+#include "MakefileInformation.h"
 
 class GRTagsMessage;
 class Connection;
@@ -26,7 +27,6 @@ class LocalServer;
 class GccArguments;
 class MakefileParser;
 class Job;
-struct MakefileInformation;
 class Server : public EventReceiver
 {
 public:

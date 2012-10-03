@@ -5,6 +5,7 @@
 #include "Path.h"
 #include "RTags.h"
 #include "ReadWriteLock.h"
+#include "CursorInfo.h"
 
 template <typename T>
 class Scope
