@@ -24,7 +24,7 @@
 (define-key rtags-mode-map (kbd "RET") 'rtags-select-other-buffer)
 (define-key rtags-mode-map (kbd "ENTER") 'rtags-select-other-buffer)
 (define-key rtags-mode-map (kbd "SPC") 'rtags-select)
-(define-key rtags-mode-map (kbd "q") 'bury-buffer)
+(define-key rtags-mode-map (kbd "q") 'delete-window)
 (define-key rtags-mode-map (kbd "j") 'next-line)
 (define-key rtags-mode-map (kbd "k") 'previous-line)
 
@@ -768,7 +768,6 @@ return t if rtags is allowed to modify this file"
                (goto-char (point-min))
                (rtags-mode)
                (setq rtags-no-otherbuffer nil)
-               (local-set-key "q" 'delete-window)
                (if rtags-jump-to-first-match
                    (rtags-select-other-buffer)))))
     (not empty))
