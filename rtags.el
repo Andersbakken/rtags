@@ -113,8 +113,8 @@
                       (progn
                         (if (not start) (setq start (+ (count-lines (point-min) last-match) (- narrow-start last-line))))
                         (if (not end) (setq end (+ (count-lines (point-min) last-match) (- narrow-end last-line))))))
-                  (if (and start end) 
-                      (progn 
+                  (if (and start end)
+                      (progn
                         (goto-char (point-min))
                         (narrow-to-region (point-at-bol (+ start 1)) (point-at-bol (+ end 1)))))))
             (setq buffer-read-only t)
