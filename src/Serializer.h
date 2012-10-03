@@ -131,8 +131,10 @@ DECLARE_NATIVE_TYPE(time_t);
 template <>
 inline Serializer &operator<<(Serializer &s, const ByteArray &byteArray)
 {
-    s << byteArray.size();
-    s.write(byteArray.constData(), byteArray.size()); // do I need to write out null terminator?
+    const int size = byteArray.size();
+    s << size;
+    if (size)
+        s.write(byteArray.constData(), byteArray.size()); // do I need to write out null terminator?
     return s;
 }
 
@@ -140,8 +142,10 @@ inline Serializer &operator<<(Serializer &s, const ByteArray &byteArray)
 template <>
 inline Serializer &operator<<(Serializer &s, const Path &path)
 {
-    s << path.size();
-    s.write(path.constData(), path.size());
+    const int size = path.size();
+    s << size;
+    if (size)
+        s.write(path.constData(), size);
     return s;
 }
 
@@ -151,12 +155,14 @@ Serializer &operator<<(Serializer &s, const List<T> &list)
 {
     const int size = list.size();
     s << size;
-    const int fixed = fixedSize<T>(T());
-    if (fixed) {
-        s.write(reinterpret_cast<const char*>(list.data()), fixed * size);
-    } else {
-        for (int i=0; i<size; ++i) {
-            s << list.at(i);
+    if (size) {
+        const int fixed = fixedSize<T>(T());
+        if (fixed) {
+            s.write(reinterpret_cast<const char*>(list.data()), fixed * size);
+        } else {
+            for (int i=0; i<size; ++i) {
+                s << list.at(i);
+            }
         }
     }
     return s;
@@ -165,7 +171,7 @@ Serializer &operator<<(Serializer &s, const List<T> &list)
 template <typename Key, typename Value>
 Serializer &operator<<(Serializer &s, const Map<Key, Value> &map)
 {
-    int size = map.size();
+    const int size = map.size();
     s << size;
     for (typename Map<Key, Value>::const_iterator it = map.begin(); it != map.end(); ++it) {
         s << it->first << it->second;
@@ -198,14 +204,16 @@ Deserializer &operator>>(Deserializer &s, Map<Key, Value> &map)
     int size;
     s >> size;
     // error() << "about to read map here with" << size << "elements" << map;
-    Key key;
-    Value value;
-    for (int i=0; i<size; ++i) {
-        // if (i && i % 1000 == 0) {
-        //     error() << "read" << i << size;
-        // }
-        s >> key >> value;
-        map[key] = value;
+    if (size) {
+        Key key;
+        Value value;
+        for (int i=0; i<size; ++i) {
+            // if (i && i % 1000 == 0) {
+            //     error() << "read" << i << size;
+            // }
+            s >> key >> value;
+            map[key] = value;
+        }
     }
     return s;
 }
@@ -215,13 +223,15 @@ Deserializer &operator>>(Deserializer &s, List<T> &list)
 {
     int size;
     s >> size;
-    const int fixed = fixedSize<T>(T());
     list.resize(size);
-    if (fixed) {
-        s.read(reinterpret_cast<char*>(list.data()), fixed * size);
-    } else {
-        for (int i=0; i<size; ++i) {
-            s >> list[i];
+    if (size) {
+        const int fixed = fixedSize<T>(T());
+        if (fixed) {
+            s.read(reinterpret_cast<char*>(list.data()), fixed * size);
+        } else {
+            for (int i=0; i<size; ++i) {
+                s >> list[i];
+            }
         }
     }
     return s;
@@ -232,10 +242,12 @@ Deserializer &operator>>(Deserializer &s, Set<T> &set)
 {
     int size;
     s >> size;
-    T t;
-    for (int i=0; i<size; ++i) {
-        s >> t;
-        set.insert(t);
+    if (size) {
+        T t;
+        for (int i=0; i<size; ++i) {
+            s >> t;
+            set.insert(t);
+        }
     }
     return s;
 }
@@ -246,7 +258,8 @@ inline Deserializer &operator>>(Deserializer &s, ByteArray &byteArray)
     int size;
     s >> size;
     byteArray.resize(size);
-    s.read(byteArray.data(), size);
+    if (size)
+        s.read(byteArray.data(), size);
     return s;
 }
 
@@ -263,10 +276,9 @@ inline Deserializer &operator>>(Deserializer &s, Path &path)
     int size;
     s >> size;
     path.resize(size);
-    s.read(path.data(), size);
+    if (size)
+        s.read(path.data(), size);
     return s;
 }
-
-
 
 #endif
