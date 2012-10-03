@@ -24,13 +24,14 @@ public:
     }
     bool write(const char *data, int len)
     {
+        assert(len > 0);
         if (mOut) {
             mOut->append(data, len);
             return true;
         } else {
             assert(mOutFile);
             const size_t ret = fwrite(data, sizeof(char), len, mOutFile);
-            return (ret == len);
+            return (ret == static_cast<size_t>(len));
         }
     }
 private:
