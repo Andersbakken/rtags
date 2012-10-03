@@ -1,5 +1,5 @@
 #include "ProjectMessage.h"
-#include <Serializer.h>
+#include "Serializer.h"
 
 ProjectMessage::ProjectMessage(Type type, const Path &path)
     : mType(type), mPath(path), mFlags(0)

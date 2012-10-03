@@ -669,6 +669,7 @@ void IndexerJob::execute()
 {
     if (isAborted())
         return;
+    mTimer.start();
     mData.reset(new IndexData);
     if (mDump) {
         assert(id() != -1);

@@ -5,7 +5,7 @@
 #include "EventReceiver.h"
 #include "Path.h"
 #include "List.h"
-#include <SignalSlot.h>
+#include "SignalSlot.h"
 #include <deque>
 
 class Process : public EventReceiver

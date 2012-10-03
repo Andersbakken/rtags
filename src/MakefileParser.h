@@ -3,9 +3,9 @@
 
 #include "Path.h"
 #include "GccArguments.h"
-#include <List.h>
-#include <Map.h>
-#include <SignalSlot.h>
+#include "List.h"
+#include "Map.h"
+#include "SignalSlot.h"
 
 class Connection;
 class Process;

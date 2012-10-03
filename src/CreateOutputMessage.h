@@ -2,7 +2,7 @@
 #define OutputMessage_h
 
 #include "ClientMessage.h"
-#include <ByteArray.h>
+#include "ByteArray.h"
 
 class CreateOutputMessage : public ClientMessage
 {

@@ -1,8 +1,8 @@
 #ifndef FindFileJob_h
 #define FindFileJob_h
 
-#include <ByteArray.h>
-#include <List.h>
+#include "ByteArray.h"
+#include "List.h"
 #include "RTagsClang.h"
 #include "Job.h"
 #include "Location.h"

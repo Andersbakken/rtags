@@ -4,7 +4,7 @@
 #include "Job.h"
 #include "Set.h"
 #include "Location.h"
-#include <SignalSlot.h>
+#include "SignalSlot.h"
 
 class ValidateDBJob : public Job
 {

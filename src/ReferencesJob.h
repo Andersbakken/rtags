@@ -1,9 +1,9 @@
 #ifndef ReferencesJob_h
 #define ReferencesJob_h
 
-#include <ByteArray.h>
-#include <List.h>
-#include <RTags.h>
+#include "ByteArray.h"
+#include "List.h"
+#include "RTags.h"
 #include "Job.h"
 #include "Location.h"
 #include <memory>

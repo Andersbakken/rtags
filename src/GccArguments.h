@@ -2,8 +2,8 @@
 #define GCCARGUMENTS_H
 
 #include "Path.h"
-#include <List.h>
-#include <ByteArray.h>
+#include "List.h"
+#include "ByteArray.h"
 
 class GccArgumentsImpl;
 

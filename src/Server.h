@@ -1,10 +1,10 @@
 #ifndef Server_h
 #define Server_h
 
-#include <FileSystemWatcher.h>
-#include <ByteArray.h>
-#include <List.h>
-#include <Map.h>
+#include "FileSystemWatcher.h"
+#include "ByteArray.h"
+#include "List.h"
+#include "Map.h"
 #include "Indexer.h"
 #include "QueryMessage.h"
 #include "Connection.h"

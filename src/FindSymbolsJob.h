@@ -1,8 +1,8 @@
 #ifndef FindSymbolsJob_h
 #define FindSymbolsJob_h
 
-#include <ByteArray.h>
-#include <List.h>
+#include "ByteArray.h"
+#include "List.h"
 #include "QueryMessage.h"
 #include "Job.h"
 

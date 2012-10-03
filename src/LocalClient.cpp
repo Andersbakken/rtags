@@ -4,7 +4,7 @@
 #include "Log.h"
 #include "RTags.h"
 #include "config.h"
-#include <Timer.h>
+#include "Timer.h"
 #include <algorithm>
 #include <fcntl.h>
 #include <string.h>

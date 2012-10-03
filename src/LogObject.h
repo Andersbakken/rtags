@@ -1,9 +1,9 @@
 #ifndef LogObject_h
 #define LogObject_h
 
-#include <ByteArray.h>
-#include <Log.h>
-#include <Connection.h>
+#include "ByteArray.h"
+#include "Log.h"
+#include "Connection.h"
 #include "EventReceiver.h"
 
 class LogObject : public LogOutput, public EventReceiver

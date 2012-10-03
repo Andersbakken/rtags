@@ -4,9 +4,9 @@
 #include "GccArguments.h"
 #include "Path.h"
 #include "QueryMessage.h"
-#include <ByteArray.h>
-#include <Map.h>
-#include <List.h>
+#include "ByteArray.h"
+#include "Map.h"
+#include "List.h"
 
 class Connection;
 class Message;

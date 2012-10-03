@@ -1,9 +1,9 @@
 #ifndef RClient_cpp
 #define RClient_cpp
 
-#include <List.h>
-#include <ByteArray.h>
-#include <Client.h>
+#include "List.h"
+#include "ByteArray.h"
+#include "Client.h"
 class RCCommand;
 class Client;
 class QueryCommand;

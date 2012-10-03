@@ -3,8 +3,8 @@
 #include "Connection.h"
 #include "MakefileParser.h"
 #include "ResponseMessage.h"
-#include <EventLoop.h>
-#include <Log.h>
+#include "EventLoop.h"
+#include "Log.h"
 #include <unistd.h>
 
 Client::Client(const Path &path, unsigned flags, const List<ByteArray> &rdmArgs)

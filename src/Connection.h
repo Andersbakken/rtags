@@ -4,9 +4,9 @@
 #include "Messages.h"
 #include "EventReceiver.h"
 #include "LocalClient.h"
-#include <ByteArray.h>
-#include <Map.h>
-#include <SignalSlot.h>
+#include "ByteArray.h"
+#include "Map.h"
+#include "SignalSlot.h"
 
 class ConnectionPrivate;
 class LocalClient;

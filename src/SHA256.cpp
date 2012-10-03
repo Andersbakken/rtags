@@ -1,7 +1,7 @@
 #include "SHA256.h"
 #include <stdio.h>
 #ifdef OS_Darwin
-#include <CommonCrypto/CommonDigest.h>
+#include "CommonCrypto/CommonDigest.h"
 #define SHA256_Update        CC_SHA256_Update
 #define SHA256_Init          CC_SHA256_Init
 #define SHA256_Final         CC_SHA256_Final

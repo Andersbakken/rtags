@@ -1,4 +1,4 @@
-#include <RTagsClang.h>
+#include "RTagsClang.h"
 
 namespace RTags {
 ByteArray eatString(CXString str)

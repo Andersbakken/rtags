@@ -3,14 +3,14 @@
 
 #include "AbortInterface.h"
 #include "ThreadPool.h"
-#include <List.h>
-#include <ByteArray.h>
+#include "List.h"
+#include "ByteArray.h"
 #include "Event.h"
 #include "SignalSlot.h"
 #include "Server.h"
 #include "RegExp.h"
 #include <memory>
-#include <RTagsClang.h>
+#include "RTagsClang.h"
 
 class CursorInfo;
 class Location;

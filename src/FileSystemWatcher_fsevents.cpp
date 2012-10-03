@@ -9,7 +9,7 @@
 #include "config.h"
 #include <string.h>
 #include <errno.h>
-#include <CoreFoundation/CoreFoundation.h>
+#include "CoreFoundation/CoreFoundation.h"
 
 class WatcherEvent : public Event
 {

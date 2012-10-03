@@ -2,8 +2,8 @@
 #define MakefileInformation_h
 
 #include <stdint.h>
-#include <List.h>
-#include <ByteArray.h>
+#include "List.h"
+#include "ByteArray.h"
 
 struct MakefileInformation
 {

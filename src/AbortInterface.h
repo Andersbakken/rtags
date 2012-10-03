@@ -1,8 +1,8 @@
 #ifndef AbortInterface_h
 #define AbortInterface_h
 
-#include <Mutex.h>
-#include <MutexLocker.h>
+#include "Mutex.h"
+#include "MutexLocker.h"
 
 class AbortInterface
 {

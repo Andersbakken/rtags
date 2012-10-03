@@ -1,6 +1,6 @@
 #include "QueryMessage.h"
 #include "RTags.h"
-#include <Serializer.h>
+#include "Serializer.h"
 
 QueryMessage::QueryMessage(Type type)
     : mType(type), mFlags(0), mMax(-1)

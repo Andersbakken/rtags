@@ -1,8 +1,8 @@
 #ifndef StatusJob_h
 #define StatusJob_h
 
-#include <ByteArray.h>
-#include <List.h>
+#include "ByteArray.h"
+#include "List.h"
 #include "Job.h"
 
 class QueryMessage;

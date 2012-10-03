@@ -2,7 +2,7 @@
 #define RegExp_h
 
 #include <regex.h>
-#include <ByteArray.h>
+#include "ByteArray.h"
 
 class RegExp
 {

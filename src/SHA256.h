@@ -1,7 +1,7 @@
 #ifndef SHA256_H
 #define SHA256_H
 
-#include <ByteArray.h>
+#include "ByteArray.h"
 
 class SHA256Private;
 
