@@ -43,5 +43,14 @@ template <> inline Deserializer &operator>>(Deserializer &s, SourceInformation &
     return s;
 }
 
+static inline Log operator<<(Log dbg, const SourceInformation &s)
+{
+    dbg << ByteArray::snprintf<256>("SourceInformation(%s %s %s ... %d)",
+                                    s.compiler.constData(),
+                                    ByteArray::join(s.args, ' ').constData(),
+                                    s.sourceFile.constData(),
+                                    s.parsed);
+    return dbg;
+}
 
 #endif
