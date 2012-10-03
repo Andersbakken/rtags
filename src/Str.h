@@ -3,6 +3,7 @@
 
 #include <clang-c/Index.h>
 #include <memory>
+#include <string.h>
 
 class Str
 {
