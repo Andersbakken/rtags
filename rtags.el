@@ -59,27 +59,31 @@
 
 
 (defun rtags-executable-find (exe)
-  (if rtags-path (concat rtags-path "/" exe) (executable-find exe)))
+  (let ((result (if rtags-path (concat rtags-path "/" exe) (executable-find exe))))
+    (if (file-exists-p result) result nil)))
 
 (defun rtags-call-rc (path &rest arguments)
-  (if rtags-autostart-rdm
-      (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments))
-  (if rtags-path-filter
-      (progn
-        (push (format "--path-filter=%s" rtags-path-filter) arguments)
-        (if rtags-path-filter-regex
-            (push "-Z" arguments))))
+  (let ((rc (rtags-executable-find "rc")))
+    (if rc
+        (progn
+          (if rtags-autostart-rdm
+              (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments))
+          (if rtags-path-filter
+              (progn
+                (push (format "--path-filter=%s" rtags-path-filter) arguments)
+                (if rtags-path-filter-regex
+                    (push "-Z" arguments))))
 
-  (if rtags-timeout
-      (push (format "--timeout=%d" rtags-timeout) arguments))
-  (if (and path rtags-auto-update-project)
-      (push (concat "--project=" path) arguments))
+          (if rtags-timeout
+              (push (format "--timeout=%d" rtags-timeout) arguments))
+          (if (and path rtags-auto-update-project)
+              (push (concat "--project=" path) arguments))
 
-  (rtags-log (concat (rtags-executable-find "rc") " " (combine-and-quote-strings arguments)))
-  (apply #'call-process (rtags-executable-find "rc") nil (list t nil) nil arguments)
-  (goto-char (point-min))
-  (rtags-log (buffer-string))
-  (> (point-max) (point-min)))
+          (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
+          (apply #'call-process rc nil (list t nil) nil arguments)
+          (goto-char (point-min))
+          (rtags-log (buffer-string))
+          (> (point-max) (point-min))))))
 
 (defun rtags-path-for-project (&optional buffer)
   (expand-file-name (if (buffer-file-name buffer)
