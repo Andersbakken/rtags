@@ -843,22 +843,22 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
         project->indexer.reset(new Indexer(project, !(mOptions.options & NoValidate)));
         project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
         project->indexer->jobStarted().connect(this, &Server::onJobStarted);
-        {
-            Path makeFilePath = proj;
-            RTags::encodePath(makeFilePath);
-            const Path p = ByteArray::snprintf<128>("%s/.rtags/%s", Path::home().constData(), makeFilePath.constData());
-            char *buf = 0;
-            int len = p.readAll(buf);
-            if (buf && len > 0) {
-                Deserializer in(buf, len);
-                if (!project->restore(in)) {
-                    error("Can't restore project %s", proj.constData());
-                } else if (!project->indexer->restore(in)) {
-                    error("Can't restore project %s", proj.constData());
-                }
-            }
-            delete [] buf;
-        }
+        // {
+        //     Path makeFilePath = proj;
+        //     RTags::encodePath(makeFilePath);
+        //     const Path p = ByteArray::snprintf<128>("%s/.rtags/%s", Path::home().constData(), makeFilePath.constData());
+        //     char *buf = 0;
+        //     int len = p.readAll(buf);
+        //     if (buf && len > 0) {
+        //         Deserializer in(buf, len);
+        //         if (!project->restore(in)) {
+        //             error("Can't restore project %s", proj.constData());
+        //         } else if (!project->indexer->restore(in)) {
+        //             error("Can't restore project %s", proj.constData());
+        //         }
+        //     }
+        //     delete [] buf;
+        // }
 
         project->indexer->beginMakefile();
         project->fileManager.reset(new FileManager);
@@ -1261,18 +1261,18 @@ void Server::onJobStarted(Indexer *, const Path &path)
 }
 void Server::restore()
 {
-    Timer timer;
-    Path path = ByteArray::snprintf<128>("%s/.rtags/", Path::home().constData());
-    {
-        const Path p = path + "fileids";
-        FILE *f = fopen(p.constData(), "r");
-        if (!f) {
-            return;
-        }
-        Map<Path, uint32_t> pathsToIds;
-        Deserializer in(f);
-        in >> pathsToIds;
-        Location::init(pathsToIds);
-        fclose(f);
-    }
+//     Timer timer;
+//     Path path = ByteArray::snprintf<128>("%s/.rtags/", Path::home().constData());
+//     {
+//         const Path p = path + "fileids";
+//         FILE *f = fopen(p.constData(), "r");
+//         if (!f) {
+//             return;
+//         }
+//         Map<Path, uint32_t> pathsToIds;
+//         Deserializer in(f);
+//         in >> pathsToIds;
+//         Location::init(pathsToIds);
+//         fclose(f);
+//     }
 }
