@@ -15,6 +15,7 @@
 class Location
 {
 public:
+    uint64_t mData;
     Location()
         : mData(0)
     {}
@@ -77,14 +78,6 @@ public:
         }
 
         return ret;
-    }
-    static void init(const Map<Path, uint32_t> &pathsToIds,
-                     const Map<uint32_t, Path> &idsToPaths,
-                     uint32_t maxId)
-    {
-        sPathsToIds = pathsToIds;
-        sIdsToPaths = idsToPaths;
-        sLastId = maxId;
     }
 
     inline uint32_t fileId() const { return uint32_t(mData); }
@@ -223,9 +216,26 @@ public:
         }
         return Location(Location::insertFile(Path(pathAndOffset.left(comma))), fileId);
     }
-    uint64_t mData;
-    static Map<uint32_t, Path>  idsToPaths() { ReadLocker lock(&sLock); return sIdsToPaths; }
-    static Map<Path, uint32_t>  pathsToIds() { ReadLocker lock(&sLock); return sPathsToIds; }
+    static Map<uint32_t, Path> idsToPaths()
+    {
+        ReadLocker lock(&sLock);
+        return sIdsToPaths;
+    }
+    static Map<Path, uint32_t> pathsToIds()
+    {
+        ReadLocker lock(&sLock);
+        return sPathsToIds;
+    }
+    static void init(const Map<Path, uint32_t> &pathsToIds)
+    {
+        WriteLocker lock(&sLock);
+        sPathsToIds = pathsToIds;
+        sLastId = sPathsToIds.size();
+        for (Map<Path, uint32_t>::const_iterator it = sPathsToIds.begin(); it != sPathsToIds.end(); ++it) {
+            assert(it->second <= it->second);
+            sIdsToPaths[it->second] = it->first;
+        }
+    }
 private:
     static Map<Path, uint32_t> sPathsToIds;
     static Map<uint32_t, Path> sIdsToPaths;

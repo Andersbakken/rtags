@@ -18,22 +18,25 @@ class Indexer : public enable_shared_from_this<Indexer>
 public:
     Indexer(const shared_ptr<Project> &project, bool validate);
 
-    typedef Map<Path, List<ByteArray> > PendingMap; // without this clang 3.1 complains
     void index(const SourceInformation &args, unsigned indexerJobFlags);
-    SourceInformation compileArguments(uint32_t fileId) const;
+    SourceInformation sourceInfo(uint32_t fileId) const;
     Set<uint32_t> dependencies(uint32_t fileId) const;
     bool visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &job);
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path = Path()) const;
     int reindex(const ByteArray &pattern, bool regexp);
     signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
+    signalslot::Signal2<Indexer*, const Path &> &jobComplete() { return mJobComplete; }
+    signalslot::Signal2<Indexer*, const Path &> &jobStarted() { return mJobStarted; }
     shared_ptr<Project> project() const { return mProject.lock(); }
     void beginMakefile();
     void endMakefile();
     void onJobFinished(const shared_ptr<IndexerJob> &job);
     bool isIndexed(uint32_t fileId) const;
-    SourceInformationMap compileArguments() const;
+    SourceInformationMap sources() const;
     DependencyMap dependencies() const;
+    bool save(Serializer &out);
+    bool restore(Deserializer &in);
 private:
     void checkFinished();
     void onFileModified(const Path &);
@@ -53,8 +56,6 @@ private:
         NoValidate,
         ForceDirty
     };
-    void initDB(InitMode forceDirty, const ByteArray &pattern = ByteArray());
-    void startJob(shared_ptr<IndexerJob> job);
 
     Map<shared_ptr<IndexerJob>, Set<uint32_t> > mVisitedFilesByJob;
     Set<uint32_t> mVisitedFiles;
@@ -76,7 +77,7 @@ private:
     weak_ptr<Project> mProject;
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
-    SourceInformationMap mCompileArguments;
+    SourceInformationMap mSources;
 
     Set<Path> mWatchedPaths;
 
@@ -86,6 +87,7 @@ private:
     Set<Location> mPreviousErrors;
 
     signalslot::Signal1<Indexer*> mJobsComplete;
+    signalslot::Signal2<Indexer*, const Path &> mJobComplete, mJobStarted;
     bool mValidate;
 
     Map<uint32_t, shared_ptr<IndexData> > mPendingData;

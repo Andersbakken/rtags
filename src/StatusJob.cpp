@@ -102,7 +102,7 @@ void StatusJob::execute()
 
         if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileinfos")) {
             matched = true;
-            const SourceInformationMap map = proj->indexer->compileArguments();
+            const SourceInformationMap map = proj->indexer->sources();
             write(delimiter);
             write("fileinfos");
             write(delimiter);

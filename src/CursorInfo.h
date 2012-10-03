@@ -136,6 +136,23 @@ public:
     int start, end;
 };
 
+
+template <> inline Serializer &operator<<(Serializer &s, const CursorInfo &t)
+{
+    s << t.symbolLength << t.symbolName << static_cast<int>(t.kind)
+      << t.isDefinition << t.targets << t.references << t.start << t.end;
+    return s;
+}
+
+template <> inline Deserializer &operator>>(Deserializer &s, CursorInfo &t)
+{
+    int kind;
+    s >> t.symbolLength >> t.symbolName >> kind
+      >> t.isDefinition >> t.targets >> t.references >> t.start >> t.end;
+    t.kind = static_cast<CXCursorKind>(kind);
+    return s;
+}
+
 inline Log operator<<(Log log, const CursorInfo &info)
 {
     log << info.toString();

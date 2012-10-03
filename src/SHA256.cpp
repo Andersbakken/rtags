@@ -57,7 +57,7 @@ static inline ByteArray hashToHex(SHA256Private* priv)
     ByteArray out(SHA256_DIGEST_LENGTH * 2, '\0');
     const unsigned char* get = priv->hash;
     char* put = out.data();
-    const char* const end = out.data() + out.size();;
+    const char* const end = out.data() + out.size();
     for (; put != end; ++get) {
         *(put++) = hexLookup[(*get >> 4) & 0xf];
         *(put++) = hexLookup[*get & 0xf];

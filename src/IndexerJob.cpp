@@ -23,14 +23,15 @@ struct VerboseVisitorUserData {
 IndexerJob::IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags, const Path &p, const List<ByteArray> &arguments)
     : Job(0, indexer->project()),
       mFlags(flags), mTimeStamp(0), mPath(p), mFileId(Location::insertFile(p)),
-      mArgs(arguments), mIndexer(indexer), mUnit(0), mIndex(0), mDump(false)
+      mArgs(arguments), mIndexer(indexer), mUnit(0), mIndex(0), mDump(false), mParseTime(0),
+      mStarted(false)
 {
 }
 
 IndexerJob::IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
                        const Path &input, const List<ByteArray> &arguments)
     : Job(msg, WriteUnfiltered|WriteBuffered, project), mFlags(0), mTimeStamp(0), mPath(input), mFileId(Location::insertFile(input)),
-      mArgs(arguments), mUnit(0), mIndex(0), mDump(true)
+      mArgs(arguments), mUnit(0), mIndex(0), mDump(true), mParseTime(0), mStarted(false)
 {
 }
 
@@ -550,6 +551,7 @@ void IndexerJob::parse()
 
     mClangLine += mPath;
 
+    const time_t now = time(0);
     mUnit = clang_parseTranslationUnit(mIndex, mPath.constData(),
                                        clangArgs.data(), idx, 0, 0,
                                        CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
@@ -557,6 +559,8 @@ void IndexerJob::parse()
     if (!mUnit) {
         error() << "got failure" << mClangLine;
         mData->dependencies[mFileId].insert(mFileId);
+    } else {
+        mParseTime = now;
     }
 }
 
@@ -659,6 +663,8 @@ void IndexerJob::visit()
 
 void IndexerJob::execute()
 {
+    if (isAborted())
+        return;
     mData.reset(new IndexData);
     if (mDump) {
         assert(id() != -1);
@@ -769,4 +775,14 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
     clang_visitChildren(cursor, dumpVisitor, userData);
     --dump->indentLevel;
     return CXChildVisit_Continue;
+}
+bool IndexerJob::abortIfStarted()
+{
+    MutexLocker lock(&mMutex);
+    if (mStarted) {
+        resetProject();
+        mIndexer.reset();
+        return true;
+    }
+    return false;
 }

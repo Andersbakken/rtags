@@ -67,14 +67,13 @@ set(rtags_HDRS
     ReferencesJob.h
     RegExp.h
     ResponseMessage.h
-    SHA256.h
     Semaphore.h
     Serializer.h
     Server.h
     Set.h
     SharedMemory.h
     SignalSlot.h
-    Source.h
+    SourceInformation.h
     StatusJob.h
     Str.h
     TestJob.h
@@ -124,7 +123,6 @@ set(rtags_SRCS
     RTags.cpp
     ReadWriteLock.cpp
     ReferencesJob.cpp
-    SHA256.cpp
     Semaphore.cpp
     Server.cpp
     SharedMemory.cpp

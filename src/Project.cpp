@@ -101,3 +101,34 @@ bool Project::isIndexed(uint32_t fileId) const
         return grtags->isIndexed(fileId);
     return false;
 }
+bool Project::save(Serializer &out)
+{
+    {
+        Scope<const SymbolMap &> map = lockSymbolsForRead();
+        out << map.data();
+        error() << "wrote" << map.data().size() << "elements for symbols";
+    }
+    {
+        Scope<const SymbolNameMap &> map = lockSymbolNamesForRead();
+        error() << "wrote" << map.data().size() << "elements for symbolnames";
+        out << map.data();
+    }
+    return true;
+}
+
+bool Project::restore(Deserializer &in)
+{
+    error() << "restoring project" << srcRoot;
+    {
+        Scope<SymbolMap &> map = lockSymbolsForWrite();
+        in >> map.data();
+        error() << "got symbols" << map.data().size();
+    }
+    {
+        Scope<SymbolNameMap &> map = lockSymbolNamesForWrite();
+        in >> map.data();
+        error() << "got symbolnames" << map.data().size();
+    }
+    return true;
+
+}

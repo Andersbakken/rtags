@@ -1,54 +1,78 @@
 #ifndef Serializer_h
 #define Serializer_h
 
-#include <stdint.h>
-#include <ByteArray.h>
-#include <List.h>
+#include "ByteArray.h"
+#include "List.h"
+#include "Log.h"
+#include "Map.h"
+#include "Path.h"
+#include "Set.h"
 #include <assert.h>
-#include <Set.h>
-#include <Map.h>
-#include <Path.h>
+#include <stdint.h>
 
 class Serializer
 {
 public:
     Serializer(ByteArray &out)
-        : mOut(out)
+        : mOut(&out), mOutFile(0)
     {}
-    void write(const char *data, int len)
+
+    Serializer(FILE *f)
+        : mOut(0), mOutFile(f)
     {
-        mOut.append(data, len);
+        assert(f);
     }
-    int size() const { return mOut.size(); }
+    bool write(const char *data, int len)
+    {
+        if (mOut) {
+            mOut->append(data, len);
+            return true;
+        } else {
+            assert(mOutFile);
+            const size_t ret = fwrite(data, sizeof(char), len, mOutFile);
+            return (ret == len);
+        }
+    }
 private:
-    ByteArray &mOut;
+    ByteArray *mOut;
+    FILE *mOutFile;
 };
 
 class Deserializer
 {
 public:
     Deserializer(const char *data, int length)
-        : mData(data), mLength(length), mPos(0)
+        : mData(data), mLength(length), mPos(0), mFile(0)
     {}
-    void read(char *target, int len)
+
+    Deserializer(FILE *file)
+        : mData(0), mLength(0), mFile(file)
     {
-        assert(mPos + len <= mLength);
-        memcpy(target, mData + mPos, len);
-        mPos += len;
+        assert(file);
+    }
+    int read(char *target, int len)
+    {
+        assert(len > 0);
+        if (mData) {
+            assert(mPos + len <= mLength);
+            memcpy(target, mData + mPos, len);
+            mPos += len;
+            return len;
+        } else {
+            assert(mFile);
+            return fread(target, sizeof(char), len, mFile);
+        }
     }
 
     int pos() const
     {
         return mPos;
     }
-    int size() const
-    {
-        return mLength;
-    }
 private:
     const char *mData;
     const int mLength;
     int mPos;
+    FILE *mFile;
 };
 
 template <typename T>
@@ -65,7 +89,10 @@ Deserializer &operator>>(Deserializer &s, T &t)
     return s;
 }
 
-template <typename T> inline int fixedSize(const T &) { return 0; }
+template <typename T> inline int fixedSize(const T &)
+{
+    return 0;
+}
 #define DECLARE_NATIVE_TYPE(type)                                       \
     template <> inline int fixedSize(const type &)                      \
     {                                                                   \
@@ -138,7 +165,7 @@ Serializer &operator<<(Serializer &s, const List<T> &list)
 template <typename Key, typename Value>
 Serializer &operator<<(Serializer &s, const Map<Key, Value> &map)
 {
-    const int size = map.size();
+    int size = map.size();
     s << size;
     for (typename Map<Key, Value>::const_iterator it = map.begin(); it != map.end(); ++it) {
         s << it->first << it->second;
@@ -170,9 +197,13 @@ Deserializer &operator>>(Deserializer &s, Map<Key, Value> &map)
 {
     int size;
     s >> size;
+    // error() << "about to read map here with" << size << "elements" << map;
     Key key;
     Value value;
     for (int i=0; i<size; ++i) {
+        // if (i && i % 1000 == 0) {
+        //     error() << "read" << i << size;
+        // }
         s >> key >> value;
         map[key] = value;
     }

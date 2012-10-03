@@ -61,6 +61,9 @@ public:
     Scope<GRMap&> lockGRForWrite();
 
     bool isIndexed(uint32_t fileId) const;
+
+    bool save(Serializer &out);
+    bool restore(Deserializer &in);
 private:
     SymbolMap mSymbols;
     ReadWriteLock mSymbolsLock;

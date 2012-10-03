@@ -53,8 +53,12 @@ public:
     const List<ByteArray> &excludeFilter() const { return mOptions.excludeFilter; }
     const Path &clangPath() const { return mClangPath; }
 private:
-    void stopJob(int id);
-    static void jobTimeout(int id, void *);
+    void onJobsComplete(Indexer *);
+    void onJobStarted(Indexer *, const Path &);
+
+    static void saveTimerCallback(int id, void *userData);
+    void save();
+    void restore();
     void clear();
     void onNewConnection();
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
@@ -117,11 +121,13 @@ private:
     Map<Path, List<ByteArray> > mSmartProjects;
     FileSystemWatcher mMakefilesWatcher;
 
-    Map<Path, shared_ptr<Project> > mProjects;
+    ProjectsMap mProjects;
     weak_ptr<Project> mCurrentProject;
     ThreadPool *mThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
     Path mClangPath;
+
+    int mSaveTimerId;
 };
 
 #endif

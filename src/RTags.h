@@ -6,6 +6,7 @@
 #include "Location.h"
 #include "Log.h"
 #include "Path.h"
+#include "SourceInformation.h"
 #include <assert.h>
 #include <getopt.h>
 #include <memory>
@@ -47,25 +48,11 @@ typedef Map<Location, CursorInfo> SymbolMap;
 typedef Map<Location, Map<Location, RTags::ReferenceType> > ReferenceMap;
 typedef Map<ByteArray, Set<Location> > SymbolNameMap;
 typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
-struct SourceInformation
-{
-    Path sourceFile;
-    List<ByteArray> args;
-    Path compiler;
-    bool operator==(const SourceInformation &other) const
-    {
-        return (sourceFile == other.sourceFile && args == other.args && compiler == other.compiler);
-    }
-    bool operator!=(const SourceInformation &other) const
-    {
-        return (sourceFile != other.sourceFile || args != other.args || compiler != other.compiler);
-    }
-};
-
 typedef Map<uint32_t, SourceInformation> SourceInformationMap;
 typedef Map<Path, Set<ByteArray> > FilesMap;
 typedef Map<Location, std::pair<int, ByteArray> > FixitMap;
 typedef Map<uint32_t, List<ByteArray> > DiagnosticsMap;
+typedef Map<Path, shared_ptr<Project> > ProjectsMap;
 typedef Map<uint32_t, time_t> GRFilesMap;
 // file id to last modified, time_t means currently parsing
 typedef Map<ByteArray, Map<Location, bool> > GRMap;

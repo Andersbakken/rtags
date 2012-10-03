@@ -38,7 +38,9 @@ public:
     Path path() const { return mPath; }
     bool isAborted() { return !indexer() && !project(); }
     void abort() { MutexLocker lock(&mMutex); mIndexer.reset(); resetProject(); }
+    bool abortIfStarted();
     shared_ptr<Indexer> indexer() { MutexLocker lock(&mMutex); return mIndexer.lock(); }
+    time_t parseTime() const { return mParseTime; }
 private:
     void parse();
     void visit();
@@ -91,6 +93,10 @@ private:
     shared_ptr<IndexData> mData;
 
     bool mDump;
+
+    time_t mParseTime;
+
+    bool mStarted;
 };
 
 #endif
