@@ -50,6 +50,7 @@ public:
     inline bool filter(const ByteArray &val) const;
     signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
     shared_ptr<Project> project() const { return mProject; }
+    void resetProject() { mProject.reset(); }
     virtual void run();
     virtual void execute() = 0;
 private:

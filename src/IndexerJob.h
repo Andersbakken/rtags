@@ -37,8 +37,8 @@ public:
     bool restart(time_t time, const Set<uint32_t> &dirtyFiles, const Map<Path, List<ByteArray> > &pendingFiles);
     uint32_t fileId() const { return mFileId; }
     Path path() const { return mPath; }
-    bool isAborted() { return !indexer(); }
-    void abort() { MutexLocker lock(&mMutex); mIndexer.reset(); }
+    bool isAborted() { return !indexer() && !project(); }
+    void abort() { MutexLocker lock(&mMutex); mIndexer.reset(); resetProject(); }
     shared_ptr<Indexer> indexer() { MutexLocker lock(&mMutex); return mIndexer.lock(); }
 private:
     void parse();
