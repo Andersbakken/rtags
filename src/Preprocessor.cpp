@@ -4,7 +4,7 @@
 #include "Log.h"
 #include "RTags.h"
 
-Preprocessor::Preprocessor(const CompileArgs &args, Connection *connection)
+Preprocessor::Preprocessor(const SourceInformation &args, Connection *connection)
     : mArgs(args), mConnection(connection), mProc(0)
 {
 }

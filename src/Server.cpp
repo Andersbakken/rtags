@@ -435,7 +435,7 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         conn->finish();
         return;
     }
-    const CompileArgs c = project->indexer->compileArguments(fileId);
+    const SourceInformation c = project->indexer->compileArguments(fileId);
     if (c.args.isEmpty()) {
         conn->write<256>("%s is not indexed", query.query().constData());
         conn->finish();
@@ -610,7 +610,7 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
     }
 
     const uint32_t fileId = Location::fileId(path);
-    const CompileArgs c = project->indexer->compileArguments(fileId);
+    const SourceInformation c = project->indexer->compileArguments(fileId);
     if (c.args.isEmpty()) {
         conn->write("No arguments for " + path);
         conn->finish();
@@ -848,11 +848,11 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
     List<ByteArray> arguments = args.clangArgs();
     arguments.append(mOptions.defaultArguments);
 
-    CompileArgs c = { Path(), arguments, args.compiler() };
+    SourceInformation c = { Path(), arguments, args.compiler() };
     for (int i=0; i<count; ++i) {
         c.sourceFile = inputFiles.at(i);
 
-        const CompileArgs existing = project->indexer->compileArguments(Location::insertFile(c.sourceFile));
+        const SourceInformation existing = project->indexer->compileArguments(Location::insertFile(c.sourceFile));
         if (existing != c) {
             project->indexer->index(c, IndexerJob::Makefile);
         } else {

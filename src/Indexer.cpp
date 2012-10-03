@@ -48,7 +48,7 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
     checkFinished();
 }
 
-void Indexer::index(const CompileArgs &c, unsigned indexerJobFlags)
+void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
 {
     MutexLocker locker(&mMutex);
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
@@ -90,13 +90,13 @@ void Indexer::onFileModified(const Path &file)
     mModifiedFilesTimerId = EventLoop::instance()->addTimer(Timeout, &Indexer::onFilesModifiedTimeout, this);
 }
 
-CompileArgs Indexer::compileArguments(uint32_t fileId) const
+SourceInformation Indexer::compileArguments(uint32_t fileId) const
 {
     if (fileId) {
         MutexLocker lock(&mMutex);
         return mCompileArguments.value(fileId);
     }
-    return CompileArgs();
+    return SourceInformation();
 }
 
 void Indexer::addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles)
@@ -234,7 +234,7 @@ void Indexer::onFilesModifiedTimeout()
         mModifiedFiles.clear();
     }
     for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
-        const CompileArgumentsMap::const_iterator found = mCompileArguments.find(*it);
+        const SourceInformationMap::const_iterator found = mCompileArguments.find(*it);
         if (found != mCompileArguments.end()) {
             index(found->second, IndexerJob::Dirty);
         }
@@ -375,7 +375,7 @@ bool Indexer::isIndexed(uint32_t fileId) const
     return true;
 }
 
-CompileArgumentsMap Indexer::compileArguments() const
+SourceInformationMap Indexer::compileArguments() const
 {
     MutexLocker lock(&mMutex);
     return mCompileArguments;

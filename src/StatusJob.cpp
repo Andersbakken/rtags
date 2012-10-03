@@ -102,11 +102,11 @@ void StatusJob::execute()
 
         if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileinfos")) {
             matched = true;
-            const CompileArgumentsMap map = proj->indexer->compileArguments();
+            const SourceInformationMap map = proj->indexer->compileArguments();
             write(delimiter);
             write("fileinfos");
             write(delimiter);
-            for (CompileArgumentsMap::const_iterator it = map.begin(); it != map.end(); ++it) {
+            for (SourceInformationMap::const_iterator it = map.begin(); it != map.end(); ++it) {
                 write<512>("  %s: %s %s", Location::path(it->first).constData(), it->second.compiler.constData(),
                            ByteArray::join(it->second.args, " ").constData());
             }

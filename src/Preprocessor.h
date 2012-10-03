@@ -12,7 +12,7 @@ class Process;
 class Preprocessor : public EventReceiver
 {
 public:
-    Preprocessor(const CompileArgs &args, Connection *connection);
+    Preprocessor(const SourceInformation &args, Connection *connection);
     ~Preprocessor();
 
     void preprocess();
@@ -21,7 +21,7 @@ private:
     void onProcessFinished();
 
 private:
-    CompileArgs mArgs;
+    SourceInformation mArgs;
     Connection *mConnection;
 
     Process *mProc;

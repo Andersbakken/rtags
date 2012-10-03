@@ -47,22 +47,22 @@ typedef Map<Location, CursorInfo> SymbolMap;
 typedef Map<Location, Map<Location, RTags::ReferenceType> > ReferenceMap;
 typedef Map<ByteArray, Set<Location> > SymbolNameMap;
 typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
-struct CompileArgs
+struct SourceInformation
 {
     Path sourceFile;
     List<ByteArray> args;
     Path compiler;
-    bool operator==(const CompileArgs &other) const
+    bool operator==(const SourceInformation &other) const
     {
         return (sourceFile == other.sourceFile && args == other.args && compiler == other.compiler);
     }
-    bool operator!=(const CompileArgs &other) const
+    bool operator!=(const SourceInformation &other) const
     {
         return (sourceFile != other.sourceFile || args != other.args || compiler != other.compiler);
     }
 };
 
-typedef Map<uint32_t, CompileArgs> CompileArgumentsMap;
+typedef Map<uint32_t, SourceInformation> SourceInformationMap;
 typedef Map<Path, Set<ByteArray> > FilesMap;
 typedef Map<Location, std::pair<int, ByteArray> > FixitMap;
 typedef Map<uint32_t, List<ByteArray> > DiagnosticsMap;
