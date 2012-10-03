@@ -92,7 +92,7 @@ template <typename T, typename Arg1>
 class SignalEvent1 : public SignalEventBase
 {
 public:
-    SignalEvent1(const T &tt, const Arg1 &arg)
+    SignalEvent1(const T &tt, const Arg1 arg)
         : t(tt), arg1(arg)
     {}
     virtual void send() const
@@ -108,7 +108,7 @@ template <typename T, typename Arg1, typename Arg2>
 class SignalEvent2 : public SignalEventBase
 {
 public:
-    SignalEvent2(const T &tt, const Arg1 &a1, const Arg2 &a2)
+    SignalEvent2(const T &tt, const Arg1 a1, const Arg2 a2)
         : t(tt), arg1(a1), arg2(a2)
     {}
     virtual void send() const
@@ -125,7 +125,7 @@ template <typename T, typename Arg1, typename Arg2, typename Arg3>
 class SignalEvent3 : public SignalEventBase
 {
 public:
-    SignalEvent3(const T &tt, const Arg1 &a1, const Arg2 &a2, const Arg3 &a3)
+    SignalEvent3(const T &tt, const Arg1 a1, const Arg2 a2, const Arg3 a3)
         : t(tt), arg1(a1), arg2(a2), arg3(a3)
     {}
     virtual void send() const
@@ -143,7 +143,7 @@ template <typename T, typename Arg1, typename Arg2, typename Arg3, typename Arg4
 class SignalEvent4 : public SignalEventBase
 {
 public:
-    SignalEvent4(const T &tt, const Arg1 &a1, const Arg2 &a2, const Arg3 &a3, const Arg4 &a4)
+    SignalEvent4(const T &tt, const Arg1 a1, const Arg2 a2, const Arg3 a3, const Arg4 a4)
         : t(tt), arg1(a1), arg2(a2), arg3(a3), arg4(a4)
     {}
     virtual void send() const
@@ -162,7 +162,7 @@ template <typename T, typename Arg1, typename Arg2, typename Arg3, typename Arg4
 class SignalEvent5 : public SignalEventBase
 {
 public:
-    SignalEvent5(const T &tt, const Arg1 &a1, const Arg2 &a2, const Arg3 &a3, const Arg4 &a4, const Arg5 &a5)
+    SignalEvent5(const T &tt, const Arg1 a1, const Arg2 a2, const Arg3 a3, const Arg4 a4, const Arg5 a5)
         : t(tt), arg1(a1), arg2(a2), arg3(a3), arg4(a4), arg5(a5)
     {}
     virtual void send() const
