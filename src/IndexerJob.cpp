@@ -685,9 +685,9 @@ void IndexerJob::execute()
         }
 
         mHeaderMap.clear();
-        mData->message = ByteArray::snprintf<1024>("Visited %s (%s) in %sms. (%d syms, %d refs, %d deps, %d symNames)%s",
+        mData->message = ByteArray::snprintf<1024>("%s (%s) in %sms. (%d syms, %d symNames, %d refs, %d deps)%s",
                                                    mPath.constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
-                                                   mData->symbols.size(), mData->references.size(), mData->dependencies.size(), mData->symbolNames.size(),
+                                                   mData->symbols.size(), mData->symbolNames.size(), mData->references.size(), mData->dependencies.size(),
                                                    mFlags & Dirty ? " (dirty)" : "");
     }
     if (mUnit) {
