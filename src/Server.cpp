@@ -1094,7 +1094,7 @@ bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompiler
     project.reset(new Project(path));
     project->indexer.reset(new Indexer(project, !(mOptions.options & NoValidate)));
     project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
-    project->indexer->jobStarted().connect(this, &Server::onJobStarted);
+    project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
     project->indexer->beginMakefile();
     project->fileManager.reset(new FileManager);
     project->fileManager->init(project);
@@ -1268,7 +1268,7 @@ void Server::saveTimerCallback(int id, void *userData)
     // ### should maybe not do this in the main thread
 }
 
-void Server::onJobStarted(std::shared_ptr<Indexer> indexer, const Path &path)
+void Server::onJobStarted(std::shared_ptr<Indexer> indexer, Path path)
 {
     // error() << path.constData() << "started";
     const int id = mSaveTimers.take(indexer);

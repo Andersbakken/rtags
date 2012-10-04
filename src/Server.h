@@ -54,7 +54,7 @@ public:
     const Path &clangPath() const { return mClangPath; }
 private:
     void onJobsComplete(std::shared_ptr<Indexer> indexer, int count);
-    void onJobStarted(std::shared_ptr<Indexer> indexer, const Path &path);
+    void onJobStarted(std::shared_ptr<Indexer> indexer, Path path);
 
     static void saveTimerCallback(int id, void *userData);
     void save(const std::shared_ptr<Indexer> &indexer);

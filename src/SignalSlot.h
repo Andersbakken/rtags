@@ -8,6 +8,14 @@
 class EventReceiver;
 namespace signalslot {
 
+template <typename T> void youCantUseConstRefsForAsyncSignals(bool ok = false)
+{
+    if (ok) {
+        T t;
+        (void)t;
+    }
+}
+
 template<typename Delegate>
 class SignalBase
 {
@@ -306,6 +314,7 @@ public:
     template<typename Class>
     void connectAsync(Class* object, void (Class::*function)(Arg1))
     {
+        youCantUseConstRefsForAsyncSignals<Arg1>();
         assert(object);
         assert(EventLoop::instance());
         fastdelegate::FastDelegate1<Arg1> delegate = fastdelegate::MakeDelegate(object, function);
@@ -383,6 +392,9 @@ public:
     template<typename Class>
     void connectAsync(Class* object, void (Class::*function)(Arg1, Arg2))
     {
+        youCantUseConstRefsForAsyncSignals<Arg1>();
+        youCantUseConstRefsForAsyncSignals<Arg2>();
+
         assert(object);
         assert(EventLoop::instance());
         fastdelegate::FastDelegate2<Arg1, Arg2> delegate = fastdelegate::MakeDelegate(object, function);
@@ -460,6 +472,9 @@ public:
     template<typename Class>
     void connectAsync(Class* object, void (Class::*function)(Arg1, Arg2, Arg3))
     {
+        youCantUseConstRefsForAsyncSignals<Arg1>();
+        youCantUseConstRefsForAsyncSignals<Arg2>();
+        youCantUseConstRefsForAsyncSignals<Arg3>();
         assert(object);
         assert(EventLoop::instance());
         fastdelegate::FastDelegate3<Arg1, Arg2, Arg3> delegate = fastdelegate::MakeDelegate(object, function);
@@ -537,6 +552,10 @@ public:
     template<typename Class>
     void connectAsync(Class* object, void (Class::*function)(Arg1, Arg2, Arg3, Arg4))
     {
+        youCantUseConstRefsForAsyncSignals<Arg1>();
+        youCantUseConstRefsForAsyncSignals<Arg2>();
+        youCantUseConstRefsForAsyncSignals<Arg3>();
+        youCantUseConstRefsForAsyncSignals<Arg4>();
         assert(object);
         assert(EventLoop::instance());
         fastdelegate::FastDelegate4<Arg1, Arg2, Arg3, Arg4> delegate = fastdelegate::MakeDelegate(object, function);
@@ -614,6 +633,12 @@ public:
     template<typename Class>
     void connectAsync(Class* object, void (Class::*function)(Arg1, Arg2, Arg3, Arg4, Arg5))
     {
+        youCantUseConstRefsForAsyncSignals<Arg1>();
+        youCantUseConstRefsForAsyncSignals<Arg2>();
+        youCantUseConstRefsForAsyncSignals<Arg3>();
+        youCantUseConstRefsForAsyncSignals<Arg4>();
+        youCantUseConstRefsForAsyncSignals<Arg5>();
+
         assert(object);
         assert(EventLoop::instance());
         fastdelegate::FastDelegate5<Arg1, Arg2, Arg3, Arg4, Arg5> delegate = fastdelegate::MakeDelegate(object, function);
