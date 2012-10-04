@@ -63,6 +63,7 @@ MACRO (ADD_PCH_RULE _header_filename _src_list _cflag_list)
             Set.h
             SourceInformation.h
             WaitCondition.h
-            WriteLocker.h)
+            WriteLocker.h
+            ../3rdparty/clang_install/include/clang-c/Index.h)
   set_source_files_properties(${${_src_list}} PROPERTIES OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${_header_filename})
 ENDMACRO()
