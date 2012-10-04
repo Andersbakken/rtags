@@ -14,7 +14,7 @@ StatusJob::StatusJob(const QueryMessage &q, const std::shared_ptr<Project> &proj
 void StatusJob::execute()
 {
     bool matched = false;
-    const char *alternatives = "fileids|dependencies|fileinfos|symbols|symbolnames"; //|grfiles|gr";
+    const char *alternatives = "fileids|dependencies|fileinfos|symbols|symbolnames"; //|gr";
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileids")) {
         matched = true;
         write(delimiter);
@@ -113,26 +113,6 @@ void StatusJob::execute()
         }
     }
 
-//     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "grfiles")) {
-//         matched = true;
-    //     ScopedDB database = db(Project::GRFiles, ReadWriteLock::Read);
-    //     write(delimiter);
-    //     write(project()->databaseDir(Project::GRFiles));
-    //     write(delimiter);
-
-    //     RTags::Ptr<Iterator> it(database->createIterator());
-    //     it->seekToFirst();
-    //     char buf[1024];
-    //     while (it->isValid()) {
-    //         if (isAborted())
-    //             return;
-    //         time_t time = it->value<time_t>();
-    //         snprintf(buf, sizeof(buf), "    %s %s", it->key().byteArray().nullTerminated(),
-    //                  time ? RTags::timeToString(time, RTags::DateTime).constData() : "");
-    //         write(buf);
-    //         it->next();
-    //     }
-    // }
     // if ((query.isEmpty() || !strcasecmp(query.nullTerminated(), "gr")) && project()->grtags->flags() & GRTags::Parse)  {
     //     matched = true;
     //     ScopedDB database = db(Project::GR, ReadWriteLock::Read);
