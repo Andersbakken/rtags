@@ -352,7 +352,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         info.end = end;
         info.isDefinition = false;
         info.kind = kind;
-        info.symbolLength = refInfo.symbolLength;
+        info.symbolLength = end - start;
         info.symbolName = refInfo.symbolName;
     }
     Map<Location, RTags::ReferenceType> &val = mData->references[loc];
@@ -597,6 +597,7 @@ void IndexerJob::diagnose()
             hasCompilationErrors = true;
             break;
         case CXDiagnostic_Note:
+            hasCompilationErrors = true;
             logLevel = Debug;
             break;
         case CXDiagnostic_Ignored:
@@ -618,7 +619,7 @@ void IndexerJob::diagnose()
             string = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
             mData->diagnostics[Location(file, 0).fileId()].append(string);
         }
-        if (testLog(logLevel) || (logLevel >= Warning && testLog(CompilationError))) {
+        if (testLog(logLevel) || testLog(CompilationError)) {
             if (string.isEmpty())
                 string = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
             log(logLevel, "%s: %s => %s", mPath.constData(), mClangLine.constData(), string.constData());
