@@ -356,6 +356,11 @@ void Indexer::checkFinished() // lock always held
         error() << "Jobs took" << ((double)(elapsed) / 1000.0) << "secs, writing took"
                 << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
                 << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+        if (testLog(CompilationError)) {
+            Log(CompilationError) << "Jobs took" << ((double)(elapsed) / 1000.0) << "secs, writing took"
+                                  << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
+                                  << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+        }
 
         mJobsComplete(shared_from_this(), mJobCounter);
         mJobCounter = 0;
