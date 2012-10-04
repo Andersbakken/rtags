@@ -241,8 +241,10 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
             return CXChildVisit_Continue;
         case CXCursor_ClassDecl:
         case CXCursor_StructDecl:
-        case CXCursor_Namespace:
         case CXCursor_ClassTemplate:
+            job->mHeaderMap[clang_getCursorUSR(cursor)] = job->createLocation(cursor, 0);
+           // fall through
+        case CXCursor_Namespace:
         case CXCursor_UnexposedDecl:
             return CXChildVisit_Recurse;
         default:
@@ -478,6 +480,9 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
         case CXCursor_FunctionTemplate:
         case CXCursor_FunctionDecl:
         case CXCursor_VarDecl:
+        case CXCursor_ClassDecl:
+        case CXCursor_StructDecl:
+        case CXCursor_ClassTemplate:
             referenceType = RTags::LinkedReference;
             break;
         default:
@@ -494,6 +499,9 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
                     if (isInline(cursor))
                         break;
                     // fall through
+                case CXCursor_ClassTemplate:
+                case CXCursor_ClassDecl:
+                case CXCursor_StructDecl:
                 case CXCursor_FunctionDecl:
                 case CXCursor_VarDecl: {
                     const Str usr(clang_getCursorUSR(cursor));

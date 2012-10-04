@@ -20,6 +20,8 @@ void FollowLocationJob::execute()
         return;
 
     const CursorInfo &cursorInfo = it->second;
+    if (cursorInfo.isClass() && cursorInfo.isDefinition)
+        return;
 
     Location loc;
     CursorInfo target = cursorInfo.bestTarget(map, &loc);
@@ -27,6 +29,9 @@ void FollowLocationJob::execute()
         if (cursorInfo.kind != target.kind) {
             if (!target.isDefinition && !target.targets.isEmpty()) {
                 switch (target.kind) {
+                case CXCursor_ClassDecl:
+                case CXCursor_ClassTemplate:
+                case CXCursor_StructDecl:
                 case CXCursor_FunctionDecl:
                 case CXCursor_CXXMethod:
                 case CXCursor_Destructor:
