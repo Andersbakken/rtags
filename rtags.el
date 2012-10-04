@@ -728,12 +728,10 @@ return t if rtags is allowed to modify this file"
               (t nil))
         (progn
           (setq rtags-diagnostics-process
-                (start-process
-                 "RTags Diagnostics"
-                 buf (rtags-executable-find "rc")
-                 "-G"
-                 (if rtags-autostart-rdm
-                     (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm"))))
+                (if rtags-autostart-rdm
+                    (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-G"
+                                   (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm"))
+                  (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-G")))
           (rtags-clear-diagnostics))
       )
     )
