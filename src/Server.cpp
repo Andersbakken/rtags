@@ -49,7 +49,7 @@ public:
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mServer(0), mVerbose(false), mJobId(0), mThreadPool(0), mSaveTimerId(-1)
+    : mServer(0), mVerbose(false), mJobId(0), mThreadPool(0)
 {
     assert(!sInstance);
     sInstance = this;
@@ -654,7 +654,7 @@ void Server::errors(const QueryMessage &query, Connection *conn)
 void Server::clearProjects()
 {
     mProjects.clear();
-    RTags::removeDirectory(ByteArray::snprintf<128>("%s/.rtags", Path::home().constData()));
+    RTags::removeDirectory(mOptions.dataDir);
     writeProjects();
 }
 
@@ -842,23 +842,28 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
         project.reset(new Project(srcRoot));
         project->indexer.reset(new Indexer(project, !(mOptions.options & NoValidate)));
         project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
-        project->indexer->jobStarted().connect(this, &Server::onJobStarted);
-        // {
-        //     Path makeFilePath = proj;
-        //     RTags::encodePath(makeFilePath);
-        //     const Path p = ByteArray::snprintf<128>("%s/.rtags/%s", Path::home().constData(), makeFilePath.constData());
-        //     char *buf = 0;
-        //     int len = p.readAll(buf);
-        //     if (buf && len > 0) {
-        //         Deserializer in(buf, len);
-        //         if (!project->restore(in)) {
-        //             error("Can't restore project %s", proj.constData());
-        //         } else if (!project->indexer->restore(in)) {
-        //             error("Can't restore project %s", proj.constData());
-        //         }
-        //     }
-        //     delete [] buf;
-        // }
+        project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
+        {
+            Timer timer;
+            Path makeFilePath = proj;
+            RTags::encodePath(makeFilePath);
+            const Path p = ByteArray::snprintf<128>("%s%s", mOptions.dataDir.constData(), makeFilePath.constData());
+            if (FILE *f = fopen(p.constData(), "r")) {
+                Deserializer in(f);
+                int version;
+                in >> version;
+                if (version == DatabaseVersion) {
+                    if (!project->restore(in)) {
+                        error("Can't restore project %s", proj.constData());
+                    } else if (!project->indexer->restore(in)) {
+                        error("Can't restore project %s", proj.constData());
+                    } else {
+                        error("Restored project %s from %s in %dms", proj.constData(), p.constData(), timer.elapsed());
+                    }
+                }
+                fclose(f);
+            }
+        }
 
         project->indexer->beginMakefile();
         project->fileManager.reset(new FileManager);
@@ -1125,7 +1130,10 @@ void Server::deleteProject(const QueryMessage &query, Connection *conn)
     }
 
     for (Set<Path>::const_iterator it = remove.begin(); it != remove.end(); ++it) {
-        conn->write<128>("Erased project: %s", it->constData());
+        Path path = *it;
+        conn->write<128>("Erased project: %s", path.constData());
+        RTags::encodePath(path);
+        Path::rm(mOptions.dataDir + path);
         removeProject(*it);
     }
     conn->finish();
@@ -1191,16 +1199,14 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::save()
+void Server::save(const std::shared_ptr<Indexer> &indexer)
 {
-    Timer timer;
-    Path path = ByteArray::snprintf<128>("%s/.rtags/", Path::home().constData());
-    if (!Path::mkdir(path)) {
-        error("Can't create directory [%s]", path.constData());
+    if (!Path::mkdir(mOptions.dataDir)) {
+        error("Can't create directory [%s]", mOptions.dataDir.constData());
         return;
     }
     {
-        const Path p = path + "fileids";
+        const Path p = mOptions.dataDir + "fileids";
         FILE *f = fopen(p.constData(), "w");
         if (!f) {
             error("Can't open file %s", p.constData());
@@ -1208,21 +1214,23 @@ void Server::save()
         }
         const Map<Path, uint32_t> pathsToIds = Location::pathsToIds();
         Serializer out(f);
-        out << pathsToIds;
+        out << static_cast<int>(DatabaseVersion) << pathsToIds;
         fclose(f);
     }
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (!it->second->indexer)
+        if (it->second->indexer != indexer)
             continue;
+        Timer timer;
         Path makeFilePath = it->first;
         RTags::encodePath(makeFilePath);
-        const Path p = path + makeFilePath;
+        const Path p = mOptions.dataDir + makeFilePath;
         FILE *f = fopen(p.constData(), "w");
         if (!f) {
             error("Can't open file %s", p.constData());
             return;
         }
         Serializer out(f);
+        out << static_cast<int>(DatabaseVersion);
         if (!it->second->save(out)) {
             error("Can't save project %s", it->first.constData());
             fclose(f);
@@ -1233,46 +1241,57 @@ void Server::save()
             fclose(f);
             return;
         }
+        error() << "saved project" << it->first << "to" << p << "in" << ByteArray::snprintf<12>("%dms", timer.elapsed()).constData();
         fclose(f);
+        break;
     }
-    error() << "Saved data in" << timer.elapsed() << "ms";
 }
 
-void Server::onJobsComplete(Indexer *)
+void Server::onJobsComplete(std::shared_ptr<Indexer> indexer, int count)
 {
-    if (mSaveTimerId != -1)
-        EventLoop::instance()->removeTimer(mSaveTimerId);
-    enum { SaveTimerInterval = 5000 };
-    mSaveTimerId = EventLoop::instance()->addTimer(SaveTimerInterval, Server::saveTimerCallback, this);
-}
-void Server::saveTimerCallback(int id, void *userData)
-{
-    EventLoop::instance()->removeTimer(id);
-    static_cast<Server*>(userData)->save();
-    // ### should maybe not do this in the main thread
-}
-void Server::onJobStarted(Indexer *, const Path &path)
-{
-    // error() << path.constData() << "started";
-    if (mSaveTimerId != -1) {
-        EventLoop::instance()->removeTimer(mSaveTimerId);
-        mSaveTimerId = -1;
+    const int id = mSaveTimers.take(indexer);
+    if (id != -1)
+        EventLoop::instance()->removeTimer(id);
+    if (count) {
+        enum { SaveTimerInterval = 5000 };
+        mSaveTimers[indexer] = EventLoop::instance()->addTimer(SaveTimerInterval, Server::saveTimerCallback,
+                                                               new std::shared_ptr<Indexer>(indexer));
     }
 }
+
+void Server::saveTimerCallback(int id, void *userData)
+{
+    std::shared_ptr<Indexer> *indexer = static_cast<std::shared_ptr<Indexer> *>(userData);
+    EventLoop::instance()->removeTimer(id);
+    Server::instance()->save(*indexer);
+    delete indexer;
+    // ### should maybe not do this in the main thread
+}
+
+void Server::onJobStarted(std::shared_ptr<Indexer> indexer, const Path &path)
+{
+    // error() << path.constData() << "started";
+    const int id = mSaveTimers.take(indexer);
+    if (id != -1)
+        EventLoop::instance()->removeTimer(id);
+}
+
 void Server::restore()
 {
-//     Timer timer;
-//     Path path = ByteArray::snprintf<128>("%s/.rtags/", Path::home().constData());
-//     {
-//         const Path p = path + "fileids";
-//         FILE *f = fopen(p.constData(), "r");
-//         if (!f) {
-//             return;
-//         }
-//         Map<Path, uint32_t> pathsToIds;
-//         Deserializer in(f);
-//         in >> pathsToIds;
-//         Location::init(pathsToIds);
-//         fclose(f);
-//     }
+    {
+        const Path p = mOptions.dataDir + "fileids";
+        FILE *f = fopen(p.constData(), "r");
+        if (!f) {
+            return;
+        }
+        Map<Path, uint32_t> pathsToIds;
+        Deserializer in(f);
+        int version;
+        in >> version;
+        if (version == DatabaseVersion) {
+            in >> pathsToIds;
+            Location::init(pathsToIds);
+            fclose(f);
+        }
+    }
 }

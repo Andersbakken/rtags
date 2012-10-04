@@ -25,9 +25,8 @@ public:
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path = Path()) const;
     int reindex(const ByteArray &pattern, bool regexp);
-    signalslot::Signal1<Indexer*> &jobsComplete() { return mJobsComplete; }
-    signalslot::Signal2<Indexer*, const Path &> &jobComplete() { return mJobComplete; }
-    signalslot::Signal2<Indexer*, const Path &> &jobStarted() { return mJobStarted; }
+    signalslot::Signal2<std::shared_ptr<Indexer>, int> &jobsComplete() { return mJobsComplete; }
+    signalslot::Signal2<std::shared_ptr<Indexer>, const Path &> &jobStarted() { return mJobStarted; }
     std::shared_ptr<Project> project() const { return mProject.lock(); }
     void beginMakefile();
     void endMakefile();
@@ -86,8 +85,8 @@ private:
 
     Set<Location> mPreviousErrors;
 
-    signalslot::Signal1<Indexer*> mJobsComplete;
-    signalslot::Signal2<Indexer*, const Path &> mJobComplete, mJobStarted;
+    signalslot::Signal2<std::shared_ptr<Indexer>, int> mJobsComplete;
+    signalslot::Signal2<std::shared_ptr<Indexer>, const Path &> mJobStarted;
     bool mValidate;
 
     Map<uint32_t, std::shared_ptr<IndexData> > mPendingData;

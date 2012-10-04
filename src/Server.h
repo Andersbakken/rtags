@@ -44,7 +44,7 @@ public:
     void startJob(const std::shared_ptr<Job> &job);
     struct Options {
         Options() : options(0), threadCount(0) {}
-        Path projectsFile, socketFile;
+        Path projectsFile, socketFile, dataDir;
         unsigned options;
         int threadCount;
         List<ByteArray> defaultArguments, excludeFilter;
@@ -53,11 +53,11 @@ public:
     const List<ByteArray> &excludeFilter() const { return mOptions.excludeFilter; }
     const Path &clangPath() const { return mClangPath; }
 private:
-    void onJobsComplete(Indexer *);
-    void onJobStarted(Indexer *, const Path &);
+    void onJobsComplete(std::shared_ptr<Indexer> indexer, int count);
+    void onJobStarted(std::shared_ptr<Indexer> indexer, const Path &path);
 
     static void saveTimerCallback(int id, void *userData);
-    void save();
+    void save(const std::shared_ptr<Indexer> &indexer);
     void restore();
     void clear();
     void onNewConnection();
@@ -127,7 +127,9 @@ private:
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
     Path mClangPath;
 
-    int mSaveTimerId;
+    Map<std::shared_ptr<Indexer>, int> mSaveTimers;
+
+    enum { DatabaseVersion = 1 };
 };
 
 #endif

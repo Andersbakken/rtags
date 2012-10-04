@@ -47,7 +47,6 @@ void Indexer::onJobFinished(const std::shared_ptr<IndexerJob> &job)
           RTags::timeToString(time(0), RTags::Time).constData(),
           data->message.constData(), mJobs.size(), int((MemoryMonitor::usage() / (1024 * 1024))));
 
-    mJobComplete(this, job->path());
     checkFinished();
 }
 
@@ -78,7 +77,7 @@ void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
         mTimerRunning = true;
         mTimer.start();
     }
-    mJobStarted(this, c.sourceFile);
+    mJobStarted(shared_from_this(), c.sourceFile);
     Server::instance()->threadPool()->start(job, job->priority());
 }
 
@@ -354,11 +353,13 @@ void Indexer::checkFinished() // lock always held
         mTimerRunning = false;
         const int elapsed = mTimer.restart();
         write();
-        mJobCounter = 0;
         error() << "Jobs took" << ((double)(elapsed) / 1000.0) << "secs, writing took"
                 << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
                 << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-        mJobsComplete(this);
+
+        mJobsComplete(shared_from_this(), mJobCounter);
+        mJobCounter = 0;
+
         if (mValidate) {
             std::shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(project(), mPreviousErrors));
             validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
@@ -396,16 +397,12 @@ DependencyMap Indexer::dependencies() const
 bool Indexer::save(Serializer &out)
 {
     MutexLocker lock(&mMutex);
-    out << mDependencies << mSources; // do we want to store mVisitedFiles
+    out << mDependencies << mSources << mVisitedFiles;
     return true;
 }
 
 static inline bool isDirty(uint32_t fileId, time_t time)
 {
-    // if (Location::path(fileId).lastModified() > time) {
-    //     error() << Location::path(fileId) << RTags::timeToString(time, RTags::DateTime)
-    //             << RTags::timeToString(Location::path(fileId).lastModified(), RTags::DateTime);
-    // }
     return Location::path(fileId).lastModified() > time;
 }
 
@@ -414,33 +411,35 @@ bool Indexer::restore(Deserializer &in)
     bool dirtyFiles = false;
     {
         MutexLocker lock(&mMutex);
-        // error() << "restoring indexer";
-        in >> mDependencies;
-        // error() << "got dependencies" << mDependencies.size();
-        in >> mSources;
-        // error() << "got sources" << mSources.size() << mSources;
+        in >> mDependencies >> mSources >> mVisitedFiles;
 
-        Set<uint32_t> allFiles;
+        DependencyMap reversedDependencies;
+        // these dependencies are in the form of:
+        // Path.cpp: Path.h, ByteArray.h ...
+        // mDependencies are like this:
+        // Path.h: Path.cpp, Server.cpp ...
+
+        for (DependencyMap::const_iterator it = mDependencies.begin(); it != mDependencies.end(); ++it) {
+            const Path dir = Location::path(it->first).parentDir();
+            if (mWatchedPaths.insert(dir))
+                mWatcher.watch(dir);
+            for (Set<uint32_t>::const_iterator s = it->second.begin(); s != it->second.end(); ++s) {
+                reversedDependencies[*s].insert(it->first);
+            }
+        }
+
         for (SourceInformationMap::iterator it = mSources.begin(); it != mSources.end(); ++it) {
             const time_t parsed = it->second.parsed;
             // error() << "parsed" << RTags::timeToString(parsed, RTags::DateTime) << parsed;
             assert(mDependencies.value(it->first).contains(it->first));
             assert(mDependencies.contains(it->first));
-            const Set<uint32_t> &deps = mDependencies[it->first];
-            allFiles += deps;
+            const Set<uint32_t> &deps = reversedDependencies[it->first];
             for (Set<uint32_t>::const_iterator d = deps.begin(); d != deps.end(); ++d) {
                 if (!mModifiedFiles.contains(*d) && isDirty(*d, parsed))
                     mModifiedFiles.insert(*d);
             }
-
         }
         dirtyFiles = !mModifiedFiles.isEmpty();
-        for (Set<uint32_t>::const_iterator it = allFiles.begin(); it != allFiles.end(); ++it) {
-            const Path dir = Location::path(*it).parentDir();
-            if (mWatchedPaths.insert(dir)) {
-                mWatcher.watch(dir);
-            }
-        }
     }
 
     if (dirtyFiles)

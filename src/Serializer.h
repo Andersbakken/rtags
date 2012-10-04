@@ -204,14 +204,11 @@ Deserializer &operator>>(Deserializer &s, Map<Key, Value> &map)
 {
     int size;
     s >> size;
-    // error() << "about to read map here with" << size << "elements" << map;
+    map.clear();
     if (size) {
         Key key;
         Value value;
         for (int i=0; i<size; ++i) {
-            // if (i && i % 1000 == 0) {
-            //     error() << "read" << i << size;
-            // }
             s >> key >> value;
             map[key] = value;
         }
@@ -241,6 +238,7 @@ Deserializer &operator>>(Deserializer &s, List<T> &list)
 template <typename T>
 Deserializer &operator>>(Deserializer &s, Set<T> &set)
 {
+    set.clear();
     int size;
     s >> size;
     if (size) {

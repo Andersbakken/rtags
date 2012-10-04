@@ -106,11 +106,9 @@ bool Project::save(Serializer &out)
     {
         Scope<const SymbolMap &> map = lockSymbolsForRead();
         out << map.data();
-        error() << "wrote" << map.data().size() << "elements for symbols";
     }
     {
         Scope<const SymbolNameMap &> map = lockSymbolNamesForRead();
-        error() << "wrote" << map.data().size() << "elements for symbolnames";
         out << map.data();
     }
     return true;
@@ -118,16 +116,15 @@ bool Project::save(Serializer &out)
 
 bool Project::restore(Deserializer &in)
 {
-    error() << "restoring project" << srcRoot;
     {
-        Scope<SymbolMap &> map = lockSymbolsForWrite();
-        in >> map.data();
-        error() << "got symbols" << map.data().size();
+        Scope<SymbolMap &> scope = lockSymbolsForWrite();
+        SymbolMap &map = scope.data();
+        in >> map;
     }
     {
-        Scope<SymbolNameMap &> map = lockSymbolNamesForWrite();
-        in >> map.data();
-        error() << "got symbolnames" << map.data().size();
+        Scope<SymbolNameMap &> scope = lockSymbolNamesForWrite();
+        SymbolNameMap &map = scope.data();
+        in >> map;
     }
     return true;
 

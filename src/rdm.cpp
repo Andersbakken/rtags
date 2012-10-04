@@ -27,7 +27,7 @@ void sigSegvHandler(int signal)
     _exit(1);
 }
 
-Path socketFile;
+static Path socketFile;
 
 void sigIntHandler(int)
 {
@@ -58,6 +58,7 @@ void usage(FILE *f)
             "  --no-rc|-N                      Don't load any rc files\n"
             "  --rc-file|-c [arg]              Use this file instead of ~/.rdmrc\n"
             "  --projects-file|-p [arg]        Use this file as a projects file (default ~/.rtagsprojects)\n"
+            "  --data-dir|-d [arg]             Use this directory to contains .rtags directory (default ~/)\n"
             "  --socket-file|-n [arg]          Use this file for the server socket (default ~/.rdm)\n"
             "  --setenv|-e [arg]               Set this environment variable (--setenv \"foobar=1\")\n"
             "  --thread-count|-j [arg]         Spawn this many threads for thread pool\n");
@@ -88,6 +89,7 @@ int main(int argc, char** argv)
         { "projects-file", required_argument, 0, 'p' },
         { "rc-file", required_argument, 0, 'c' },
         { "no-rc", no_argument, 0, 'N' },
+        { "data-dir", required_argument, 0, 'd' },
         { 0, 0, 0, 0 }
     };
     const ByteArray shortOptions = RTags::shortOptions(opts);
@@ -151,8 +153,9 @@ int main(int argc, char** argv)
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;
-    Path projectsFile = Path::home() + ".rtagsprojects";
-    socketFile = Path::home() + ".rdm";
+    Path projectsFile = ByteArray::snprintf<128>("%s/.rtagsprojects", Path::home().constData());
+    Path dataDir = ByteArray::snprintf<128>("%s/.rtags", Path::home().constData());
+    socketFile = ByteArray::snprintf<128>("%s/.rdm", Path::home().constData());
     bool enableSignalHandler = false;
     ByteArray name;
     int argCount = argList.size();
@@ -171,6 +174,9 @@ int main(int argc, char** argv)
             break;
         case 'n':
             socketFile = optarg;
+            break;
+        case 'd':
+            dataDir = ByteArray::snprintf<128>("%s/.rtags", Path::resolved(optarg).constData());
             break;
         case 'h':
             usage(stdout);
@@ -251,6 +257,9 @@ int main(int argc, char** argv)
     serverOpts.excludeFilter = ByteArray(excludeFilter ? excludeFilter : EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.socketFile = socketFile;
     serverOpts.options = options;
+    serverOpts.dataDir = dataDir;
+    if (!serverOpts.dataDir.endsWith('/'))
+        serverOpts.dataDir.append('/');
     serverOpts.defaultArguments = defaultArguments;
     serverOpts.threadCount = jobs;
     serverOpts.projectsFile = projectsFile;
