@@ -1249,8 +1249,9 @@ void Server::save(const std::shared_ptr<Indexer> &indexer)
 
 void Server::onJobsComplete(std::shared_ptr<Indexer> indexer, int count)
 {
-    const int id = mSaveTimers.take(indexer);
-    if (id != -1)
+    bool ok;
+    const int id = mSaveTimers.take(indexer, &ok);
+    if (ok && id != -1)
         EventLoop::instance()->removeTimer(id);
     if (count) {
         enum { SaveTimerInterval = 5000 };
@@ -1271,8 +1272,9 @@ void Server::saveTimerCallback(int id, void *userData)
 void Server::onJobStarted(std::shared_ptr<Indexer> indexer, Path path)
 {
     // error() << path.constData() << "started";
-    const int id = mSaveTimers.take(indexer);
-    if (id != -1)
+    bool ok;
+    const int id = mSaveTimers.take(indexer, &ok);
+    if (ok && id != -1)
         EventLoop::instance()->removeTimer(id);
 }
 
