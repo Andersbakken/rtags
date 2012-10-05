@@ -8,6 +8,7 @@
 struct DumpUserData {
     int indentLevel;
     IndexerJob *job;
+    bool showContext;
 };
 
 struct FindImplicitEqualsConstructorUserData {
@@ -686,7 +687,7 @@ void IndexerJob::execute()
         if (std::shared_ptr<Project> p = project()) {
             parse();
             if (mUnit) {
-                DumpUserData u = { 0, this };
+                DumpUserData u = { 0, this, !(queryFlags() & QueryMessage::NoContext) };
                 clang_visitChildren(clang_getTranslationUnitCursor(mUnit), dumpVisitor, &u);
             }
         }
@@ -771,11 +772,15 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
         ByteArray out;
         out.reserve(256);
         int col = -1;
-        out.append(loc.context(&col));
-        if (col != -1) {
-            out.append(ByteArray::snprintf<32>(" // %d, %d: ", col, dump->indentLevel));
+        if (dump->showContext) {
+            out.append(loc.context(&col));
+            if (col != -1) {
+                out.append(ByteArray::snprintf<32>(" // %d, %d: ", col, dump->indentLevel));
+            } else {
+                out.append(ByteArray::snprintf<32>(" // %d: ", dump->indentLevel));
+            }
         } else {
-            out.append(ByteArray::snprintf<32>(" // %d: ", dump->indentLevel));
+            out.append(ByteArray(dump->indentLevel * 2, ' '));
         }
         out.append(RTags::cursorToString(cursor, RTags::AllCursorToStringFlags));
         if (clang_equalCursors(ref, cursor)) {
