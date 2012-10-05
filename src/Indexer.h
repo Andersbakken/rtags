@@ -36,6 +36,7 @@ public:
     DependencyMap dependencies() const;
     bool save(Serializer &out);
     bool restore(Deserializer &in);
+    Set<Path> watchedPaths() const { return mWatchedPaths; }
 private:
     void checkFinished();
     void onFileModified(const Path &);

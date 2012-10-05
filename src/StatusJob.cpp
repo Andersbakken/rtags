@@ -14,7 +14,7 @@ StatusJob::StatusJob(const QueryMessage &q, const std::shared_ptr<Project> &proj
 void StatusJob::execute()
 {
     bool matched = false;
-    const char *alternatives = "fileids|dependencies|fileinfos|symbols|symbolnames"; //|gr";
+    const char *alternatives = "fileids|dependencies|fileinfos|symbols|symbolnames|watchedpaths";
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "fileids")) {
         matched = true;
         write(delimiter);
@@ -36,6 +36,17 @@ void StatusJob::execute()
     }
 
     if (proj->indexer) {
+        if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "watchedpaths")) {
+            matched = true;
+            write(delimiter);
+            write("watchedpaths");
+            write(delimiter);
+            const Set<Path> watched = proj->indexer->watchedPaths();
+            for (Set<Path>::const_iterator it = watched.begin(); it != watched.end(); ++it) {
+                write<256>("  %s", it->constData());
+            }
+        }
+
         if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "dependencies")) {
             matched = true;
             const DependencyMap map = proj->indexer->dependencies();
