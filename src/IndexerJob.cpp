@@ -320,12 +320,9 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     if (!refLoc.isValid())
         return;
 
-    {
-        CursorInfo &refInfo = mData->symbols[refLoc];
-        if (!refInfo.symbolLength)
-            handleCursor(ref, refKind, refLoc);
-    }
     CursorInfo &refInfo = mData->symbols[refLoc];
+    if (!refInfo.symbolLength && !handleCursor(ref, refKind, refLoc))
+        return;
     refInfo.references.insert(loc);
 
     CursorInfo &info = mData->symbols[loc];
@@ -428,7 +425,7 @@ static inline bool isInline(const CXCursor &cursor)
     }
 }
 
-void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
+bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
     CursorInfo &info = mData->symbols[location];
     RTags::ReferenceType referenceType = RTags::NoReference;
@@ -456,7 +453,7 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
                 break;
             default:
                 mData->symbols.remove(location);
-                return;
+                return false;
             }
         } else {
             info.symbolName = addNamePermutations(cursor, location);
@@ -530,6 +527,7 @@ void IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
             }
         }
     }
+    return true;
 }
 
 void IndexerJob::parse()
