@@ -47,6 +47,8 @@ int CursorInfo::cursorRank(CXCursorKind kind)
     case CXCursor_StructDecl:
     case CXCursor_ClassTemplate:
         return 0;
+    case CXCursor_MacroDefinition:
+        return 3;
     default:
         return 2;
     }

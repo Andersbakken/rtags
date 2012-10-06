@@ -324,6 +324,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     CursorInfo &refInfo = mData->symbols[refLoc];
     if (!refInfo.symbolLength && !handleCursor(ref, refKind, refLoc))
         return;
+
     refInfo.references.insert(loc);
 
     CursorInfo &info = mData->symbols[loc];
@@ -353,7 +354,14 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         info.end = end;
         info.isDefinition = false;
         info.kind = kind;
-        info.symbolLength = end - start;
+        switch (kind) {
+        case CXCursor_MacroExpansion:
+            info.symbolLength = refInfo.symbolLength;
+            break;
+        default:
+            info.symbolLength = end - start;
+            break;
+        }
         info.symbolName = refInfo.symbolName;
     }
     Map<Location, RTags::ReferenceType> &val = mData->references[loc];
