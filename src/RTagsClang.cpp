@@ -44,9 +44,13 @@ ByteArray cursorToString(CXCursor cursor, unsigned flags)
         ret += " " + eatString(clang_getCursorUSR(cursor));
 
     CXFile file;
-    unsigned off, line, col;
+    unsigned off, line, col; //presumedLine, presumedCol, instantiationLoc, expansionLoc;
     CXSourceLocation location = clang_getCursorLocation(cursor);
     clang_getSpellingLocation(location, &file, &line, &col, &off);
+    // clang_getPresumedLocation(location, 0, &presumedLine, &presumedCol);
+    // clang_getInstantiationLocation(location, 0, 0, 0, &instantiationLoc);
+    // clang_getExpansionLocation(location, 0, 0, 0, &expansionLoc);
+
     const Str fileName(clang_getFileName(file));
     if (fileName.data() && *fileName.data()) {
         ret += ' ';
@@ -65,6 +69,14 @@ ByteArray cursorToString(CXCursor cursor, unsigned flags)
             ret += ByteArray::number(end);
             ret += ')';
         }
+
+        // if (presumedLine != line || presumedCol != col)
+        //     ret += ByteArray::snprintf<32>("presumed: %d:%d", presumedLine, presumedCol);
+        // if (instantiationLoc != off)
+        //     ret += ByteArray::snprintf<32>("instantiation: %d", instantiationLoc);
+        // if (expansionLoc != off)
+        //     ret += ByteArray::snprintf<32>("expansion: %d", expansionLoc);
+
     }
     return ret;
 }
