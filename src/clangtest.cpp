@@ -1,11 +1,13 @@
 #include <clang-c/Index.h>
 #include <string.h>
 #include <stdlib.h>
-#include <ByteArray.h>
-#include <Timer.h>
-#include <Log.h>
-#include <RTags.h>
-#include <Location.h>
+#include "ByteArray.h"
+#include "Timer.h"
+#include "Log.h"
+#include "RTagsClang.h"
+#include "RTags.h"
+#include "Location.h"
+#include "GccArguments.h"
 
 static const CXSourceLocation nullLocation = clang_getNullLocation();
 static inline Location createLocation(const CXCursor &cursor)
@@ -99,6 +101,7 @@ void Node::dump(int indent)
 static inline const char *kindToString(CXIdxEntityKind kind)
 {
     switch (kind) {
+    case CXIdxEntity_CXXInterface: return "CXXInterface";
     case CXIdxEntity_Unexposed: return "Unexposed";
     case CXIdxEntity_Typedef: return "Typedef";
     case CXIdxEntity_Function: return "Function";
@@ -173,36 +176,51 @@ void indexEntityReference(CXClientData, const CXIdxEntityRefInfo *ref)
 
 int main(int argc, char **argv)
 {
+    RTags::findApplicationDirPath(*argv);
     Timer timer;
     CXIndex index = clang_createIndex(1, 1);
-    const char *args[] = { "-I.", "-x", "c++" }; //, "-include-pch", "/tmp/pch.pch" };
-    CXTranslationUnit unit = clang_parseTranslationUnit(index, "test.cpp",
-                                                        args, sizeof(args) / sizeof(char*),
-                                                        0, 0, clang_defaultEditingTranslationUnitOptions());
-    if (unit) {
-        CXCursor rootCursor(clang_getTranslationUnitCursor(unit));
-        Node root(rootCursor, 0);
-        clang_visitChildren(clang_getTranslationUnitCursor(unit), visitAll, &root);
-        root.dump();
-        clang_disposeTranslationUnit(unit);
-        unit = 0;
+    ByteArray ba;
+    for (int i=1; i<argc; ++i) {
+        if (i > 1) {
+            ba.append(' ');
+        }
+        ba.append(argv[i]);
     }
-    clang_IndexAction_create(index);
-    CXIndexAction b;
-    CXIndexAction action = clang_IndexAction_create(index);
-    IndexerCallbacks cb;
-    memset(&cb, 0, sizeof(IndexerCallbacks));
-    cb.indexDeclaration = indexDeclaration;
-    cb.indexEntityReference = indexEntityReference;
 
-    const char* filename = (argc < 2 ? "test.cpp" : argv[1]);
+    GccArguments args;
+    if (args.parse(ba, RTags::applicationDirPath())) {
+        const List<ByteArray> clangArgs = args.clangArgs();
+        const char **a = new const char*[clangArgs.size()];
+        for (int i=0; i<clangArgs.size(); ++i)
+            a[i] = clangArgs.at(i).constData();
+        CXTranslationUnit unit = clang_parseTranslationUnit(index, args.inputFiles().first().constData(),
+                                                            a, clangArgs.size(),
+                                                            0, 0, clang_defaultEditingTranslationUnitOptions());
+        if (unit) {
+            CXCursor rootCursor(clang_getTranslationUnitCursor(unit));
+            Node root(rootCursor, 0);
+            clang_visitChildren(clang_getTranslationUnitCursor(unit), visitAll, &root);
+            root.dump();
+            clang_disposeTranslationUnit(unit);
+            unit = 0;
+        }
+        // clang_IndexAction_create(index);
+        // CXIndexAction b;
+        // CXIndexAction action = clang_IndexAction_create(index);
+        // IndexerCallbacks cb;
+        // memset(&cb, 0, sizeof(IndexerCallbacks));
+        // cb.indexDeclaration = indexDeclaration;
+        // cb.indexEntityReference = indexEntityReference;
 
-    clang_indexSourceFile(action, 0, &cb, sizeof(IndexerCallbacks),
-                          CXIndexOpt_IndexFunctionLocalSymbols,
-                          filename,
-                          args, sizeof(args) / sizeof(args[0]),
-                          0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
+        // const char* filename = (argc < 2 ? "test.cpp" : argv[1]);
 
-    clang_disposeIndex(index);
+        // clang_indexSourceFile(action, 0, &cb, sizeof(IndexerCallbacks),
+        //                       CXIndexOpt_IndexFunctionLocalSymbols,
+        //                       filename,
+        //                       args, sizeof(args) / sizeof(args[0]),
+        //                       0, 0, &unit, clang_defaultEditingTranslationUnitOptions());
+
+        clang_disposeIndex(index);
+    }
     return 0;
 }

@@ -55,6 +55,11 @@ add_executable(rdm rdm.cpp)
 target_link_libraries(rdm rtags ${clang_LIBS} ${system_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY})
 add_dependencies(rdm rtags)
 
+include_directories(${CMAKE_CURRENT_LIST_DIR} ${CORESERVICES_INCLUDE} ${COREFOUNDATION_INCLUDE})
+add_executable(clangtest clangtest.cpp)
+target_link_libraries(clangtest rtags ${clang_LIBS} ${system_LIBS} ${CORESERVICES_LIBRARY} ${COREFOUNDATION_LIBRARY})
+add_dependencies(clangtest rtags)
+
 add_executable(rc rc.cpp ${rtags_client_SRCS})
 target_link_libraries(rc ${system_LIBS})
 add_dependencies(rc rtags)
