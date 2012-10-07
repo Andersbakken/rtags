@@ -25,7 +25,7 @@ public:
     {}
 
     ByteArray(const ByteArray &ba)
-    : mString(ba.mString)
+        : mString(ba.mString)
     {}
 
     ByteArray(const std::string &str)

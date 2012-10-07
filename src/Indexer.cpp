@@ -426,6 +426,10 @@ bool Indexer::restore(Deserializer &in)
 
         for (DependencyMap::const_iterator it = mDependencies.begin(); it != mDependencies.end(); ++it) {
             const Path dir = Location::path(it->first).parentDir();
+            if (dir.isEmpty()) {
+                error() << "File busted" << it->first << Location::path(it->first);
+                continue;
+            }
             if (mWatchedPaths.insert(dir))
                 mWatcher.watch(dir);
             for (Set<uint32_t>::const_iterator s = it->second.begin(); s != it->second.end(); ++s) {
