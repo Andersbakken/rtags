@@ -794,7 +794,7 @@ return t if rtags is allowed to modify this file"
             (string-match "\\(.*\\):[0-9]+" string))
         (setq string (match-string 1 string)))
     (with-temp-buffer
-      (rtags-call-rc nil "-P" string)
+      (rtags-call-rc nil "-P" "-c" string)
       (goto-char (point-min))
       (if (equal "" string)
           (while (not (eobp))
@@ -855,7 +855,7 @@ return t if rtags is allowed to modify this file"
     (if (get-buffer rtags-buffer-name)
         (kill-buffer rtags-buffer-name))
     (with-current-buffer (generate-new-buffer rtags-buffer-name)
-      (rtags-call-rc path "-K" "-P" tagname)
+      (rtags-call-rc path "-K" "-c" "-P" tagname)
       (cond (offset (replace-regexp "$" (format ",%d" offset)))
             ((and line column) (replace-regexp "$" (format ":%d:%d" line column)))
             ((and line) (replace-regexp "$" (format ":%d" line)))

@@ -12,6 +12,11 @@
 class ByteArray
 {
 public:
+    enum CaseSensitivity
+    {
+        CaseSensitive,
+        CaseInsensitive
+    };
     ByteArray(const char *data = 0, int len = -1)
     {
         if (data) {
@@ -38,34 +43,130 @@ public:
         return *this;
     }
 
-    int lastIndexOf(char ch, int from = -1) const
+    int lastIndexOf(char ch, int from = -1, CaseSensitivity cs = CaseSensitive) const
     {
-        return mString.rfind(ch, from == -1 ? std::string::npos : size_t(from));
+        if (cs == CaseSensitive)
+            return mString.rfind(ch, from == -1 ? std::string::npos : size_t(from));
+        const char *data = mString.c_str();
+        if (from == -1)
+            from = mString.size() - 1;
+        ch = tolower(ch);
+        while (from >= 0) {
+            if (tolower(data[from]) == ch)
+                return from;
+            --from;
+        }
+        return -1;
     }
 
-    int indexOf(char ch, int from = 0) const
+    int indexOf(char ch, int from = 0, CaseSensitivity cs = CaseSensitive) const
     {
-        return mString.find(ch, from);
+        if (cs == CaseSensitive)
+            return mString.find(ch, from);
+        const char *data = mString.c_str();
+        ch = tolower(ch);
+        const int size = mString.size();
+        while (from < size) {
+            if (tolower(data[from]) == ch)
+                return from;
+            ++from;
+        }
+        return -1;
     }
 
-    bool contains(const ByteArray &other) const
+    bool contains(const ByteArray &other, CaseSensitivity cs = CaseSensitive) const
     {
-        return indexOf(other) != -1;
+        return indexOf(other, 0, cs) != -1;
     }
 
-    bool contains(char ch) const
+    bool contains(char ch, CaseSensitivity cs = CaseSensitive) const
     {
-        return indexOf(ch) != -1;
+        return indexOf(ch, 0, cs) != -1;
     }
 
-    int lastIndexOf(const ByteArray &ba, int from = -1) const
+    int lastIndexOf(const ByteArray &ba, int from = -1, CaseSensitivity cs = CaseSensitive) const
     {
-        return mString.rfind(ba.mString, from == -1 ? std::string::npos : size_t(from));
+        if (ba.isEmpty())
+            return -1;
+        if (ba.size() == 1)
+            return lastIndexOf(first(), from, cs);
+        if (cs == CaseSensitive)
+            return mString.rfind(ba.mString, from == -1 ? std::string::npos : size_t(from));
+        if (from == -1)
+            from = mString.size() - 1;
+        const ByteArray lowered = ba.toLower();
+        const int needleSize = lowered.size();
+        int matched = 0;
+        while (from >= 0) {
+            if (lowered.at(needleSize - matched - 1) != tolower(at(from))) {
+                matched = 0;
+            } else if (++matched == needleSize) {
+                return from;
+            }
+
+            --from;
+        }
+        return -1;
     }
 
-    int indexOf(const ByteArray &ba, int from = 0) const
+    int indexOf(const ByteArray &ba, int from = 0, CaseSensitivity cs = CaseSensitive) const
     {
-        return mString.find(ba.mString, from);
+        if (ba.isEmpty())
+            return -1;
+        if (ba.size() == 1)
+            return indexOf(first(), from, cs);
+        if (cs == CaseSensitive)
+            return mString.find(ba.mString, from);
+
+        const ByteArray lowered = ba.toLower();
+        const int count = size();
+        int matched = 0;
+
+        for (int i=from; i<count; ++i) {
+            if (lowered.at(matched) != tolower(at(i))) {
+                matched = 0;
+            } else if (++matched == lowered.size()) {
+                return i - matched + 1;
+            }
+        }
+        return -1;
+    }
+
+    char first() const
+    {
+        return at(0);
+    }
+
+    char &first()
+    {
+        return operator[](0);
+    }
+
+    char last() const
+    {
+        assert(!isEmpty());
+        return at(size() - 1);
+    }
+
+    char &last()
+    {
+        assert(!isEmpty());
+        return operator[](size() - 1);
+    }
+
+
+    ByteArray toLower() const
+    {
+        std::string ret = mString;
+        std::transform(ret.begin(), ret.end(), ret.begin(), ::tolower);
+        return ret;
+    }
+
+    ByteArray toUpper() const
+    {
+        std::string ret = mString;
+        std::transform(ret.begin(), ret.end(), ret.begin(), ::toupper);
+        return ret;
     }
 
     char *data()
@@ -205,24 +306,38 @@ public:
         return s && at(s - 1) == ch;
     }
 
-    bool startsWith(char ch) const
+    bool startsWith(char ch, CaseSensitivity c = CaseSensitive) const
     {
-        return !isEmpty() && at(0) == ch;
+        if (!isEmpty()) {
+            return (c == CaseInsensitive
+                    ? tolower(at(0)) == tolower(ch)
+                    : at(0) == ch);
+        }
+        return false;
     }
 
-
-    bool endsWith(const ByteArray &str) const
+    bool endsWith(const ByteArray &str, CaseSensitivity cs = CaseSensitive) const
     {
         const int len = str.size();
         const int s = mString.size();
-        return s >= len && !strncmp(str.constData(), constData() + s - len, len);
+        if (s >= len) {
+            return (cs == CaseInsensitive
+                    ? !strncasecmp(str.constData(), constData() + s - len, len)
+                    : !strncmp(str.constData(), constData() + s - len, len));
+        }
+        return false;
     }
 
-    bool startsWith(const ByteArray &str) const
+    bool startsWith(const ByteArray &str, CaseSensitivity cs = CaseSensitive) const
     {
         const int s = mString.size();
         const int len = str.size();
-        return s >= len && !strncmp(str.constData(), constData(), len);
+        if (s >= len) {
+            return (cs == CaseInsensitive
+                    ? !strncasecmp(str.constData(), constData(), len)
+                    : !strncmp(str.constData(), constData(), len));
+        }
+        return false;
     }
 
     void replace(int idx, int len, const ByteArray &with)

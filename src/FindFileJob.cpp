@@ -30,18 +30,21 @@ void FindFileJob::execute()
         RegExp,
         Pattern
     } mode = All;
+    ByteArray::CaseSensitivity cs = ByteArray::CaseSensitive;
     if (mRegExp.isValid()) {
         mode = RegExp;
     } else if (!mPattern.isEmpty()) {
         mode = Pattern;
     }
+    if (queryFlags() & QueryMessage::MatchCaseInsensitive)
+        cs = ByteArray::CaseInsensitive;
+
     ByteArray out;
     out.reserve(PATH_MAX);
     if (queryFlags() & QueryMessage::AbsolutePath) {
         out.append(srcRoot);
         assert(srcRoot.endsWith('/'));
     }
-
     Scope<const FilesMap&> scope = proj->lockFilesForRead();
     const Map<Path, Set<ByteArray> > &dirs = scope.data();
     Map<Path, Set<ByteArray> >::const_iterator dirit = dirs.begin();
@@ -62,7 +65,7 @@ void FindFileJob::execute()
                 ok = mRegExp.indexIn(out) != -1;
                 break;
             case Pattern:
-                ok = out.contains(mPattern);
+                ok = out.contains(mPattern, cs);
                 break;
             }
             if (ok) {

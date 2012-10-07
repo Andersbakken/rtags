@@ -35,18 +35,19 @@ public:
     };
 
     enum Flag {
-        NoContext = 0x001,
-        LineNumbers = 0x002,
-        FilterSystemIncludes = 0x004,
-        SkipParentheses = 0x008,
-        ReferencesForRenameSymbol = 0x010,
-        ReverseSort = 0x020,
-        ElispList = 0x040,
-        WaitForIndexing = 0x080,
-        MatchRegexp = 0x100,
-        AbsolutePath = 0x200,
-        FindVirtuals = 0x400,
-        Silent = 0x800
+        NoContext = 0x0001,
+        LineNumbers = 0x0002,
+        FilterSystemIncludes = 0x0004,
+        SkipParentheses = 0x0008,
+        ReferencesForRenameSymbol = 0x0010,
+        ReverseSort = 0x0020,
+        ElispList = 0x0040,
+        WaitForIndexing = 0x0080,
+        MatchRegexp = 0x0100,
+        MatchCaseInsensitive = 0x0200,
+        FindVirtuals = 0x0400,
+        Silent = 0x0800,
+        AbsolutePath = 0x1000
     };
 
     typedef Map<Path, ByteArray> UnsavedFilesMap;

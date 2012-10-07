@@ -166,56 +166,57 @@ void RClient::exec()
 
 enum {
     None = 0,
-    Verbose,
-    Help,
-    SkipParen,
-    AutostartRdm,
-    FollowLocation,
-    Makefile,
-    Max,
-    ReferenceName,
-    ReferenceLocation,
-    ReverseSort,
-    ListSymbols,
-    FindSymbols,
-    CursorInfo,
     // UnsavedFile,
-    LogFile,
-    NoContext,
-    Status,
-    RdmLog,
-    LineNumbers,
-    PathFilter,
-    FilterSystemHeaders,
-    Includepath,
-    Define,
-    CompilerFlag,
-    IsIndexed,
-    QuitRdm,
-    RestartRdm,
-    AllReferences,
-    ElispList,
-    Clear,
-    Fixits,
-    Errors,
-    Reindex,
-    Diagnostics,
-    Project,
-    DeleteProject,
-    WaitForIndexing,
-    FindFile,
-    MatchRegexp,
     AbsolutePath,
-    GRTag,
-    SocketFile,
+    AllReferences,
     AlwaysMake,
+    AutostartRdm,
+    Clear,
+    CompilerFlag,
+    CursorInfo,
+    Define,
+    DeleteProject,
+    Diagnostics,
     DumpFile,
-    Timeout,
-    SniffMake,
-    SmartProject,
+    ElispList,
+    Errors,
+    FilterSystemHeaders,
+    FindFile,
+    FindSymbols,
     FindVirtuals,
+    Fixits,
+    FollowLocation,
+    GRTag,
     HasFileManager,
-    PreprocessFile
+    Help,
+    Includepath,
+    IsIndexed,
+    LineNumbers,
+    ListSymbols,
+    LogFile,
+    Makefile,
+    MatchCaseInsensitive,
+    MatchRegexp,
+    Max,
+    NoContext,
+    PathFilter,
+    PreprocessFile,
+    Project,
+    QuitRdm,
+    RdmLog,
+    ReferenceLocation,
+    ReferenceName,
+    Reindex,
+    RestartRdm,
+    ReverseSort,
+    SkipParen,
+    SmartProject,
+    SniffMake,
+    SocketFile,
+    Status,
+    Timeout,
+    Verbose,
+    WaitForIndexing
 };
 
 struct Option {
@@ -284,6 +285,7 @@ struct Option opts[] = {
     { Diagnostics, "diagnostics", 'G', no_argument, "Receive continual diagnostics from rdm." },
     { WaitForIndexing, "wait-for-indexing", 'X', no_argument, "Wait for indexing to finish before doing query." },
     { MatchRegexp, "match-regexp", 'Z', no_argument, "Treat various text patterns as regexps (-P, -i, -V)." },
+    { MatchCaseInsensitive, "match-icase", 'c', no_argument, "Match case insensitively" },
     { AbsolutePath, "absolute-path", 'K', no_argument, "Print files with absolute path." },
     { SocketFile, "socket-file", 'n', required_argument, "Use this socket file (default ~/.rdm)." },
     { AlwaysMake, "always-make", 'B', no_argument, "Pass -B to make for rc -m." },
@@ -366,7 +368,7 @@ bool RClient::parse(int &argc, char **argv)
     Path logFile;
     unsigned logFlags = 0;
 
-    // Unused: Abcz
+    // Unused: Abz
 
     while (true) {
         int idx = -1;
@@ -415,6 +417,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case AllReferences:
             mQueryFlags |= QueryMessage::ReferencesForRenameSymbol;
+            break;
+        case MatchCaseInsensitive:
+            mQueryFlags |= QueryMessage::MatchCaseInsensitive;
             break;
         case MatchRegexp:
             mQueryFlags |= QueryMessage::MatchRegexp;
