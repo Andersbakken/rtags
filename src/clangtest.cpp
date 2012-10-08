@@ -28,27 +28,36 @@ struct Node
     Node(const CXCursor &cursor, Node *parent);
     ~Node();
 
-    void dump(int indent = 0);
+    void dump(int indent = -1);
 
     Location location;
     CXCursorKind kind;
     ByteArray symbolName, usr, referencedUsr;
     Node *firstChild, *lastChild, *prev, *next, *parent;
+    CXCursor cursor;
+};
+
+struct UserData
+{
+    Node *parent;
+    Map<Location, List<Node*> > &nodes;
 };
 
 static inline CXChildVisitResult visitAll(CXCursor cursor, CXCursor, CXClientData userData)
 {
-    Node *parent = reinterpret_cast<Node*>(userData);
-    Node *node = new Node(cursor, parent);
-    clang_visitChildren(cursor, visitAll, node);
+    UserData *u = reinterpret_cast<UserData*>(userData);
+    Node *node = new Node(cursor, u->parent);
+    u->nodes[node->location].append(node);
+    UserData u2 = { node, u->nodes };
+    clang_visitChildren(cursor, visitAll, &u2);
     return CXChildVisit_Continue;
 }
 
-Node::Node(const CXCursor &cursor, Node *p)
-    : location(createLocation(cursor)), kind(clang_getCursorKind(cursor)),
-      symbolName(RTags::eatString(clang_getCursorDisplayName(cursor))),
-      usr(RTags::eatString(clang_getCursorUSR(cursor))),
-      firstChild(0), lastChild(0), prev(0), next(0), parent(p)
+Node::Node(const CXCursor &c, Node *p)
+    : location(createLocation(c)), kind(clang_getCursorKind(c)),
+      symbolName(RTags::eatString(clang_getCursorDisplayName(c))),
+      usr(RTags::eatString(clang_getCursorUSR(c))),
+      firstChild(0), lastChild(0), prev(0), next(0), parent(p), cursor(c)
 {
     CXCursor ref = clang_getCursorReferenced(cursor);
     if (!clang_isInvalid(clang_getCursorKind(ref)))
@@ -91,9 +100,11 @@ void Node::dump(int indent)
             printf(" %s", referencedUsr.constData());
         printf("\n");
     }
-    ++indent;
-    for (Node *n=firstChild; n; n = n->next) {
-        n->dump(indent);
+    if (indent >= 0) {
+        ++indent;
+        for (Node *n=firstChild; n; n = n->next) {
+            n->dump(indent);
+        }
     }
 }
 
@@ -199,8 +210,18 @@ int main(int argc, char **argv)
         if (unit) {
             CXCursor rootCursor(clang_getTranslationUnitCursor(unit));
             Node root(rootCursor, 0);
-            clang_visitChildren(clang_getTranslationUnitCursor(unit), visitAll, &root);
-            root.dump();
+            Map<Location, List<Node*> > nodes;
+            UserData u = { &root, nodes };
+            clang_visitChildren(clang_getTranslationUnitCursor(unit), visitAll, &u);
+            root.dump(0);
+            for (Map<Location, List<Node*> >::const_iterator it = nodes.begin(); it != nodes.end(); ++it) {
+                // if (it->second.size() > 1) {
+                printf("--------Got %d cursor(s) on %s----------\n",
+                       it->second.size(), it->first.key().constData());
+                for (int i=0; i<it->second.size(); ++i) {
+                    printf("%s\n", RTags::cursorToString(it->second.at(i)->cursor, RTags::AllCursorToStringFlags).constData());
+                }
+            }
             clang_disposeTranslationUnit(unit);
             unit = 0;
         }
