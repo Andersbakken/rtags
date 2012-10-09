@@ -86,7 +86,11 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
 {
     if (map.isEmpty())
         return map.end();
-    SymbolMap::const_iterator it = map.lower_bound(location);
+
+    SymbolMap::const_iterator it = map.find(location);
+    if (it != map.end())
+        return it;
+    it = map.lower_bound(location);
     if (it == map.end()) {
         --it;
     } else {
