@@ -53,16 +53,18 @@ public:
     }
     int read(char *target, int len)
     {
-        assert(len > 0);
-        if (mData) {
-            assert(mPos + len <= mLength);
-            memcpy(target, mData + mPos, len);
-            mPos += len;
-            return len;
-        } else {
-            assert(mFile);
-            return fread(target, sizeof(char), len, mFile);
+        if (len) {
+            if (mData) {
+                assert(mPos + len <= mLength);
+                memcpy(target, mData + mPos, len);
+                mPos += len;
+                return len;
+            } else {
+                assert(mFile);
+                return fread(target, sizeof(char), len, mFile);
+            }
         }
+        return 0;
     }
 
     int pos() const
