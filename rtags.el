@@ -129,7 +129,8 @@
                         (narrow-to-region (point-at-bol (+ start 1)) (point-at-bol (+ end 1)))))))
             (setq buffer-read-only t)
             (c++-mode)
-            (local-set-key "q" 'bury-buffer))
+            ;; (local-set-key "q" 'bury-buffer)
+            )
           (display-buffer preprocess-buffer))
 )))
 
@@ -794,7 +795,7 @@ return t if rtags is allowed to modify this file"
             (string-match "\\(.*\\):[0-9]+" string))
         (setq string (match-string 1 string)))
     (with-temp-buffer
-      (rtags-call-rc nil "-P" "-c" string)
+      (rtags-call-rc nil "-c" "-P" string)
       (goto-char (point-min))
       (if (equal "" string)
           (while (not (eobp))
