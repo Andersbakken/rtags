@@ -42,6 +42,7 @@ enum CursorType {
 
 class CursorInfo;
 typedef Map<Location, CursorInfo> SymbolMap;
+typedef Map<ByteArray, Set<Location> > UsrMap;
 typedef Map<Location, Map<Location, RTags::ReferenceType> > ReferenceMap;
 typedef Map<ByteArray, Set<Location> > SymbolNameMap;
 typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
@@ -58,6 +59,7 @@ typedef Map<ByteArray, Map<Location, bool> > GRMap;
 namespace RTags {
 void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty);
 void dirtySymbols(SymbolMap &map, const Set<uint32_t> &dirty);
+void dirtyUsr(UsrMap &map, const Set<uint32_t> &dirty);
 
 ByteArray backtrace(int maxFrames = -1);
 

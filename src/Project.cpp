@@ -45,6 +45,22 @@ Scope<SymbolNameMap&> Project::lockSymbolNamesForWrite()
     return scope;
 }
 
+Scope<const UsrMap&> Project::lockUsrForRead(int maxTime)
+{
+    Scope<const UsrMap&> scope;
+    if (mUsrLock.lockForRead(maxTime))
+        scope.mData.reset(new Scope<const UsrMap&>::Data(mUsr, &mUsrLock));
+    return scope;
+}
+
+Scope<UsrMap&> Project::lockUsrForWrite()
+{
+    Scope<UsrMap&> scope;
+    mUsrLock.lockForWrite();
+    scope.mData.reset(new Scope<UsrMap&>::Data(mUsr, &mUsrLock));
+    return scope;
+
+}
 Scope<const FilesMap&> Project::lockFilesForRead(int maxTime)
 {
     Scope<const FilesMap&> scope;

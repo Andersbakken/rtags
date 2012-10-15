@@ -55,6 +55,9 @@ public:
     Scope<const FilesMap&> lockFilesForRead(int maxTime = 0);
     Scope<FilesMap&> lockFilesForWrite();
 
+    Scope<const UsrMap&> lockUsrForRead(int maxTime = 0);
+    Scope<UsrMap&> lockUsrForWrite();
+
     Scope<const GRFilesMap&> lockGRFilesForRead(int maxTime = 0);
     Scope<GRFilesMap&> lockGRFilesForWrite();
 
@@ -71,6 +74,9 @@ private:
 
     SymbolNameMap mSymbolNames;
     ReadWriteLock mSymbolNamesLock;
+
+    UsrMap mUsr;
+    ReadWriteLock mUsrLock;
 
     FilesMap mFiles;
     ReadWriteLock mFilesLock;

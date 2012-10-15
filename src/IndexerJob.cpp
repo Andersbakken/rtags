@@ -231,26 +231,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
     bool blocked = false;
     Location loc = job->createLocation(cursor, &blocked);
     if (blocked) {
-        switch (kind) {
-        case CXCursor_FunctionDecl:
-        case CXCursor_CXXMethod:
-        case CXCursor_Destructor:
-        case CXCursor_Constructor:
-        case CXCursor_VarDecl:
-        case CXCursor_FunctionTemplate:
-            job->mHeaderMap[clang_getCursorUSR(cursor)] = job->createLocation(cursor, 0);
-            return CXChildVisit_Continue;
-        case CXCursor_ClassDecl:
-        case CXCursor_StructDecl:
-        case CXCursor_ClassTemplate:
-            job->mHeaderMap[clang_getCursorUSR(cursor)] = job->createLocation(cursor, 0);
-           // fall through
-        case CXCursor_Namespace:
-        case CXCursor_UnexposedDecl:
-            return CXChildVisit_Recurse;
-        default:
-            return CXChildVisit_Continue;
-        }
+        return CXChildVisit_Continue;
     } else if (loc.isNull()) {
         return CXChildVisit_Recurse;
     }
@@ -363,6 +344,9 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
             break;
         }
         info.symbolName = refInfo.symbolName;
+        info.usr = RTags::eatString(clang_getCursorUSR(cursor));
+        mData->usrMap[info.usr].insert(loc);
+
     }
     Map<Location, RTags::ReferenceType> &val = mData->references[loc];
     val[refLoc] = RTags::NormalReference;
@@ -437,17 +421,7 @@ static inline bool isInline(const CXCursor &cursor)
 bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
     CursorInfo &info = mData->symbols[location];
-    RTags::ReferenceType referenceType = RTags::NoReference;
     if (!info.symbolLength) {
-        CXSourceRange range = clang_getCursorExtent(cursor);
-        unsigned start, end;
-        clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
-        clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
-        info.start = start;
-        info.end = end;
-
-        info.isDefinition = clang_isCursorDefinition(cursor);
-        info.kind = kind;
         CXStringScope name = clang_getCursorSpelling(cursor);
         const char *cstr = clang_getCString(name.string);
         info.symbolLength = cstr ? strlen(cstr) : 0;
@@ -467,10 +441,21 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
         } else {
             info.symbolName = addNamePermutations(cursor, location);
         }
+        CXSourceRange range = clang_getCursorExtent(cursor);
+        unsigned start, end;
+        clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
+        clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
+        info.start = start;
+        info.end = end;
+
+        info.isDefinition = clang_isCursorDefinition(cursor);
+        info.kind = kind;
+        info.usr = RTags::eatString(clang_getCursorUSR(cursor));
+        mData->usrMap[info.usr].insert(location);
+
         switch (info.kind) {
         case CXCursor_Constructor:
         case CXCursor_Destructor: {
-            referenceType = RTags::LinkedReference;
             Location parentLocation = createLocation(clang_getCursorSemanticParent(cursor));
             // consider doing this for only declaration/inline definition since
             // declaration and definition should know of one another
@@ -481,59 +466,12 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
             }
             break; }
         case CXCursor_CXXMethod: {
-            referenceType = RTags::LinkedReference;
             List<CursorInfo*> infos;
             infos.append(&info);
             addOverriddenCursors(cursor, location, infos);
             break; }
-        case CXCursor_FunctionTemplate:
-        case CXCursor_FunctionDecl:
-        case CXCursor_VarDecl:
-        case CXCursor_ClassDecl:
-        case CXCursor_StructDecl:
-        case CXCursor_ClassTemplate:
-            referenceType = RTags::LinkedReference;
-            break;
         default:
             break;
-        }
-        if (referenceType != RTags::NoReference) {
-            Location refLoc;
-            if (info.isDefinition) {
-                switch (kind) {
-                case CXCursor_CXXMethod:
-                case CXCursor_Destructor:
-                case CXCursor_Constructor:
-                case CXCursor_FunctionTemplate:
-                    if (isInline(cursor))
-                        break;
-                    // fall through
-                case CXCursor_ClassTemplate:
-                case CXCursor_ClassDecl:
-                case CXCursor_StructDecl:
-                case CXCursor_FunctionDecl:
-                case CXCursor_VarDecl: {
-                    const Str usr(clang_getCursorUSR(cursor));
-                    if (usr.length()) {
-                        refLoc = mHeaderMap.value(usr);
-                    }
-                    break; }
-                default:
-                    assert(0);
-                    break;
-                }
-            } else {
-                CXCursor other = clang_getCursorDefinition(cursor);
-                if (!clang_equalCursors(nullCursor, other)) {
-                    refLoc = createLocation(other, 0);
-                    assert(!clang_equalCursors(cursor, other));
-                }
-            }
-            if (refLoc.isValid()) {
-                Map<Location, RTags::ReferenceType> &val = mData->references[location];
-                val[refLoc] = referenceType;
-                info.targets.insert(refLoc);
-            }
         }
     }
     return true;
@@ -541,7 +479,6 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
 
 void IndexerJob::parse()
 {
-    mHeaderMap.clear();
     if (!mIndex) {
         mIndex = clang_createIndex(0, 1);
         if (!mIndex) {
@@ -708,7 +645,6 @@ void IndexerJob::execute()
                 break;
         }
 
-        mHeaderMap.clear();
         mData->message = ByteArray::snprintf<1024>("%s (%s) in %sms. (%d syms, %d symNames, %d refs, %d deps)%s",
                                                    mPath.constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
                                                    mData->symbols.size(), mData->symbolNames.size(), mData->references.size(), mData->dependencies.size(),

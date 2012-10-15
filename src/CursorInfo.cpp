@@ -5,9 +5,10 @@ ByteArray CursorInfo::toString(unsigned keyFlags) const
 {
     ByteArray ret(16384, '\0');
     char *buf = ret.data();
-    int pos = snprintf(buf, ret.size(), "CursorInfo(%ssymbolLength: %u symbolName: %s kind: %s%s",
+    int pos = snprintf(buf, ret.size(), "CursorInfo(%ssymbolLength: %u symbolName: %s usr: %s kind: %s%s",
                        start != -1 && end != -1 ? ByteArray::snprintf<16>("%d-%d ", start, end).constData() : "",
-                       symbolLength, symbolName.constData(), RTags::eatString(clang_getCursorKindSpelling(kind)).constData(),
+                       symbolLength, symbolName.constData(), usr.constData(),
+                       RTags::eatString(clang_getCursorKindSpelling(kind)).constData(),
                        isDefinition ? " definition" : "");
     buf += pos;
 

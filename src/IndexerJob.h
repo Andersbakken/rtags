@@ -17,6 +17,7 @@ struct IndexData {
     FixitMap fixIts;
     DiagnosticsMap diagnostics;
     ByteArray message;
+    UsrMap usrMap;
 };
 
 class IndexerJob : public Job
@@ -74,7 +75,6 @@ private:
     };
     Map<uint32_t, PathState> mPaths;
 
-    Map<Str, Location> mHeaderMap;
     const Path mPath;
     const uint32_t mFileId;
     const List<ByteArray> mArgs;

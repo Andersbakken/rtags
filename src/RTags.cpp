@@ -400,6 +400,26 @@ void dirtySymbols(SymbolMap &map, const Set<uint32_t> &dirty)
         }
     }
 }
+void dirtyUsr(UsrMap &map, const Set<uint32_t> &dirty)
+{
+    UsrMap::iterator it = map.begin();
+    while (it != map.end()) {
+        Set<Location> &locations = it->second;
+        Set<Location>::iterator i = locations.begin();
+        while (i != locations.end()) {
+            if (dirty.contains(i->fileId())) {
+                locations.erase(i++);
+            } else {
+                ++i;
+            }
+        }
+        if (locations.isEmpty()) {
+            map.erase(it++);
+        } else {
+            ++it;
+        }
+    }
+}
 }
 
 #ifdef RTAGS_DEBUG_MUTEX

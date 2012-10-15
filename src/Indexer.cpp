@@ -259,6 +259,18 @@ static inline void writeSymbolNames(const SymbolNameMap &symbolNames, Scope<Symb
     }
 }
 
+static inline void writeUsr(const UsrMap &symbolNames, Scope<UsrMap&> &cur)
+{
+    UsrMap &current = cur.data();
+    UsrMap::const_iterator it = symbolNames.begin();
+    const UsrMap::const_iterator end = symbolNames.end();
+    while (it != end) {
+        Set<Location> &value = current[it->first];
+        value.unite(it->second);
+        ++it;
+    }
+}
+
 static inline void writeCursors(const SymbolMap &symbols, Scope<SymbolMap&> &cur)
 {
     if (!symbols.isEmpty()) {
@@ -309,9 +321,11 @@ void Indexer::write()
     std::shared_ptr<Project> proj = project();
     Scope<SymbolMap&> symbols = proj->lockSymbolsForWrite();
     Scope<SymbolNameMap&> symbolNames = proj->lockSymbolNamesForWrite();
+    Scope<UsrMap&> usr = proj->lockUsrForWrite();
     if (!mPendingDirtyFiles.isEmpty()) {
         RTags::dirtySymbols(symbols.data(), mPendingDirtyFiles);
         RTags::dirtySymbolNames(symbolNames.data(), mPendingDirtyFiles);
+        RTags::dirtyUsr(usr.data(), mPendingDirtyFiles);
         mPendingDirtyFiles.clear();
     }
 
@@ -323,6 +337,7 @@ void Indexer::write()
         writeCursors(data->symbols, symbols);
         writeReferences(data->references, symbols);
         writeSymbolNames(data->symbolNames, symbolNames);
+        writeUsr(data->usrMap, usr);
     }
     Timer timer;
     for (Set<uint32_t>::const_iterator it = newFiles.begin(); it != newFiles.end(); ++it) {
