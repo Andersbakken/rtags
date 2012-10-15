@@ -64,7 +64,7 @@ CursorInfo CursorInfo::bestTarget(const SymbolMap &map, Location *loc) const
     for (SymbolMap::const_iterator it = targets.begin(); it != targets.end(); ++it) {
         const CursorInfo &ci = it->second;
         const int r = cursorRank(ci.kind);
-        if (r > bestRank) {
+        if (r > bestRank || (r == bestRank && ci.isDefinition)) {
             bestRank = r;
             best = it;
         }
