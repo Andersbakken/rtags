@@ -276,7 +276,7 @@ static inline bool isImplicit(const CXCursor &cursor)
                                 clang_getCursorLocation(clang_getCursorSemanticParent(cursor)));
 }
 
-void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc, const CXCursor &ref)
+void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &location, const CXCursor &ref)
 {
     const CXCursorKind refKind = clang_getCursorKind(ref);
     if (clang_isInvalid(refKind))
@@ -306,9 +306,9 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     if (!refInfo.symbolLength && !handleCursor(ref, refKind, refLoc))
         return;
 
-    refInfo.references.insert(loc);
+    refInfo.references.insert(location);
 
-    CursorInfo &info = mData->symbols[loc];
+    CursorInfo &info = mData->symbols[location];
     info.targets.insert(refLoc);
 
     // We need the new cursor to replace the symbolLength. This is important
@@ -345,11 +345,12 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         }
         info.symbolName = refInfo.symbolName;
         info.usr = RTags::eatString(clang_getCursorUSR(cursor));
-        mData->usrMap[info.usr].insert(loc);
+        if (!info.usr.isEmpty())
+            mData->usrMap[info.usr].insert(location);
 
     }
-    Map<Location, RTags::ReferenceType> &val = mData->references[loc];
-    val[refLoc] = RTags::NormalReference;
+    Set<Location> &val = mData->references[location];
+    val.insert(refLoc);
 }
 
 void IndexerJob::addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos)
@@ -451,7 +452,8 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
         info.isDefinition = clang_isCursorDefinition(cursor);
         info.kind = kind;
         info.usr = RTags::eatString(clang_getCursorUSR(cursor));
-        mData->usrMap[info.usr].insert(location);
+        if (!info.usr.isEmpty())
+            mData->usrMap[info.usr].insert(location);
 
         switch (info.kind) {
         case CXCursor_Constructor:

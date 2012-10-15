@@ -22,12 +22,6 @@ enum DatabaseLockType {
     Erase
 };
 
-enum ReferenceType {
-    NoReference,
-    NormalReference,
-    LinkedReference
-};
-
 enum UnitType {
     CompileC,
     CompileCPlusPlus
@@ -43,7 +37,7 @@ enum CursorType {
 class CursorInfo;
 typedef Map<Location, CursorInfo> SymbolMap;
 typedef Map<ByteArray, Set<Location> > UsrMap;
-typedef Map<Location, Map<Location, RTags::ReferenceType> > ReferenceMap;
+typedef Map<Location, Set<Location> > ReferenceMap;
 typedef Map<ByteArray, Set<Location> > SymbolNameMap;
 typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
 typedef Map<uint32_t, SourceInformation> SourceInformationMap;

@@ -247,9 +247,8 @@ void Indexer::onFilesModifiedTimeout()
     }
 }
 
-static inline void writeSymbolNames(const SymbolNameMap &symbolNames, Scope<SymbolNameMap&> &cur)
+static inline void writeSymbolNames(const SymbolNameMap &symbolNames, SymbolNameMap &current)
 {
-    SymbolNameMap &current = cur.data();
     SymbolNameMap::const_iterator it = symbolNames.begin();
     const SymbolNameMap::const_iterator end = symbolNames.end();
     while (it != end) {
@@ -259,22 +258,38 @@ static inline void writeSymbolNames(const SymbolNameMap &symbolNames, Scope<Symb
     }
 }
 
-static inline void writeUsr(const UsrMap &symbolNames, Scope<UsrMap&> &cur)
+static inline void joinCursors(SymbolMap &symbols, const Set<Location> &locations)
 {
-    UsrMap &current = cur.data();
-    UsrMap::const_iterator it = symbolNames.begin();
-    const UsrMap::const_iterator end = symbolNames.end();
+    for (Set<Location>::const_iterator it = locations.begin(); it != locations.end(); ++it) {
+        SymbolMap::iterator c = symbols.find(*it);
+        if (c != symbols.end()) {
+            CursorInfo &cursorInfo = c->second;
+            for (Set<Location>::const_iterator innerIt = locations.begin(); innerIt != locations.end(); ++innerIt) {
+                if (innerIt != it)
+                    cursorInfo.targets.insert(*innerIt);
+            }
+            // ### this is filthy, we could likely think of something better
+        }
+    }
+}
+
+static inline void writeUsr(const UsrMap &usr, UsrMap &current, SymbolMap &symbols)
+{
+    UsrMap::const_iterator it = usr.begin();
+    const UsrMap::const_iterator end = usr.end();
     while (it != end) {
         Set<Location> &value = current[it->first];
-        value.unite(it->second);
+        int count = 0;
+        value.unite(it->second, &count);
+        if (count && value.size() > 1)
+            joinCursors(symbols, value);
         ++it;
     }
 }
 
-static inline void writeCursors(const SymbolMap &symbols, Scope<SymbolMap&> &cur)
+static inline void writeCursors(const SymbolMap &symbols, SymbolMap &current)
 {
     if (!symbols.isEmpty()) {
-        SymbolMap &current = cur.data();
         if (current.isEmpty()) {
             current = symbols;
         } else {
@@ -293,23 +308,15 @@ static inline void writeCursors(const SymbolMap &symbols, Scope<SymbolMap&> &cur
     }
 }
 
-static inline void writeReferences(const ReferenceMap &references, Scope<SymbolMap&> &cur)
+static inline void writeReferences(const ReferenceMap &references, SymbolMap &symbols)
 {
-    SymbolMap &symbols = cur.data();
     if (!references.isEmpty()) {
         const ReferenceMap::const_iterator end = references.end();
         for (ReferenceMap::const_iterator it = references.begin(); it != end; ++it) {
-            const Map<Location, RTags::ReferenceType> &refs = it->second;
-            for (Map<Location, RTags::ReferenceType>::const_iterator rit = refs.begin(); rit != refs.end(); ++rit) {
-                CursorInfo &ci = symbols[rit->first];
-                if (rit->second != RTags::NormalReference) {
-                    CursorInfo &other = symbols[it->first];
-                    // error() << "trying to join" << it->first << "and" << it->second.front();
-                    other.targets.insert(rit->first);
-                    ci.targets.insert(it->first);
-                } else {
-                    ci.references.insert(it->first);
-                }
+            const Set<Location> &refs = it->second;
+            for (Set<Location>::const_iterator rit = refs.begin(); rit != refs.end(); ++rit) {
+                CursorInfo &ci = symbols[*rit];
+                ci.references.insert(it->first);
             }
         }
     }
@@ -334,10 +341,10 @@ void Indexer::write()
         const std::shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
         addDiagnostics(data->diagnostics, data->fixIts);
-        writeCursors(data->symbols, symbols);
-        writeReferences(data->references, symbols);
-        writeSymbolNames(data->symbolNames, symbolNames);
-        writeUsr(data->usrMap, usr);
+        writeCursors(data->symbols, symbols.data());
+        writeUsr(data->usrMap, usr.data(), symbols.data());
+        writeReferences(data->references, symbols.data());
+        writeSymbolNames(data->symbolNames, symbolNames.data());
     }
     Timer timer;
     for (Set<uint32_t>::const_iterator it = newFiles.begin(); it != newFiles.end(); ++it) {
