@@ -117,6 +117,8 @@ SymbolMap CursorInfo::callers(const Location &loc, const SymbolMap &map) const
                 continue;
             if (RTags::isReference(found->second.kind)) { // is this always right?
                 ret[*it] = found->second;
+            } else if (kind == CXCursor_Constructor && (found->second.kind == CXCursor_VarDecl || found->second.kind == CXCursor_FieldDecl)) {
+                ret[*it] = found->second;
             }
         }
     }
