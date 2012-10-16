@@ -19,13 +19,19 @@
     (" .*$" . rtags-context-face))
   )
 
+(defun rtags-bury-or-delete ()
+  (interactive)
+  (if (> (length (window-list nil nil)) 1)
+      (delete-window)
+    (bury-buffer)))
+
 (defvar rtags-mode-map nil)
 ;; assign command to keys
 (setq rtags-mode-map (make-sparse-keymap))
 (define-key rtags-mode-map (kbd "RET") 'rtags-select-other-buffer)
 (define-key rtags-mode-map (kbd "ENTER") 'rtags-select-other-buffer)
 (define-key rtags-mode-map (kbd "SPC") 'rtags-select)
-(define-key rtags-mode-map (kbd "q") 'delete-window)
+(define-key rtags-mode-map (kbd "q") 'rtags-bury-or-delete)
 (define-key rtags-mode-map (kbd "j") 'next-line)
 (define-key rtags-mode-map (kbd "k") 'previous-line)
 
@@ -128,8 +134,8 @@
                         (goto-char (point-min))
                         (narrow-to-region (point-at-bol (+ start 1)) (point-at-bol (+ end 1)))))))
             (setq buffer-read-only t)
+            (local-set-key "q" 'bury-buffer)
             (c++-mode)
-            ;; (local-set-key "q" 'bury-buffer)
             )
           (display-buffer preprocess-buffer))
 )))
