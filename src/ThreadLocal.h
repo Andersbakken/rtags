@@ -20,6 +20,8 @@ public:
 
     operator const T& () const { return get(); }
     operator T& () { return get(); }
+    ThreadLocal<T>& operator=(const T& other) { set(other); return *this; }
+    ThreadLocal<T>& operator=(const ThreadLocal<T>& other) { set(other.get()); return *this; }
 
 private:
     void init()
@@ -41,7 +43,7 @@ private:
     }
 
 private:
-    mutable pthread_key_t mKey;
+    pthread_key_t mKey;
 };
 
 #endif
