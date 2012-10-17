@@ -858,7 +858,7 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
                     } else if (!project->indexer->restore(in)) {
                         error("Can't restore project %s", proj.constData());
                     } else {
-                        error("Restored project %s from %s in %dms", proj.constData(), p.constData(), timer.elapsed());
+                        error("Restored project %s in %dms", proj.constData(), timer.elapsed());
                     }
                 }
                 fclose(f);
@@ -947,8 +947,11 @@ bool Server::updateProjectForLocation(const Path &path, Path *key)
 {
     std::shared_ptr<Project> match;
     int longest = -1;
+    std::shared_ptr<Project> cur = mCurrentProject.lock();
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         if (!strncmp(it->second->srcRoot.constData(), path.constData(), it->second->srcRoot.size())) {
+            if (it->second == cur)
+                return true;
             const int matchLength = it->second->srcRoot.size();
             if (matchLength > longest) {
                 match = it->second;
