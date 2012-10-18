@@ -89,7 +89,6 @@ set(rtags_HDRS
     ListSymbolsJob.h
     ReferencesJob.h
     StatusJob.h
-    TestJob.h
     ValidateDBJob.h
     Server.h
     FileSystemWatcher.h
@@ -120,7 +119,6 @@ set(rtags_SRCS
     ListSymbolsJob.cpp
     ReferencesJob.cpp
     StatusJob.cpp
-    TestJob.cpp
     ValidateDBJob.cpp
     LocalServer.cpp
     CursorInfo.cpp
