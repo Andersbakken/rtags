@@ -1,0 +1,10 @@
+How to set up rtags:
+
+cd /path/to/rtags
+cmake .
+make 3rdparty
+make
+export PATH=/path/to/rtags/src:$PATH
+rdm &
+cd /path/to/builddirforproject
+rc -m 
