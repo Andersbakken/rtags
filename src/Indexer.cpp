@@ -16,6 +16,7 @@ Indexer::Indexer(const std::shared_ptr<Project> &proj, bool validate)
     : mJobCounter(0), mInMakefile(false), mModifiedFilesTimerId(-1), mTimerRunning(false), mProject(proj), mValidate(validate)
 {
     mWatcher.modified().connect(this, &Indexer::onFileModified);
+    mWatcher.removed().connect(this, &Indexer::onFileRemoved);
 }
 
 static inline bool isFile(uint32_t fileId)
@@ -94,6 +95,15 @@ void Indexer::onFileModified(const Path &file)
     }
     enum { Timeout = 100 };
     mModifiedFilesTimerId = EventLoop::instance()->addTimer(Timeout, &Indexer::onFilesModifiedTimeout, this);
+}
+
+void Indexer::onFileRemoved(const Path &file)
+{
+    onFileModified(file);
+    {
+        MutexLocker lock(&mMutex);
+        mSources.remove(Location::fileId(file));
+    }
 }
 
 SourceInformation Indexer::sourceInfo(uint32_t fileId) const

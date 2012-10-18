@@ -40,6 +40,7 @@ public:
 private:
     void checkFinished();
     void onFileModified(const Path &);
+    void onFileRemoved(const Path &);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addDiagnostics(const DiagnosticsMap &errors, const FixitMap &fixIts);
     void write();
