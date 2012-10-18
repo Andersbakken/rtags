@@ -249,11 +249,23 @@ void Indexer::onFilesModifiedTimeout()
         mPendingDirtyFiles.unite(dirtyFiles);
         mModifiedFiles.clear();
     }
+    bool indexed = false;
     for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
         const SourceInformationMap::const_iterator found = mSources.find(*it);
         if (found != mSources.end()) {
             index(found->second, IndexerJob::Dirty);
+            indexed = true;
         }
+    }
+    if (!indexed && !mPendingDirtyFiles.isEmpty()) {
+        std::shared_ptr<Project> proj = project();
+        Scope<SymbolMap&> symbols = proj->lockSymbolsForWrite();
+        Scope<SymbolNameMap&> symbolNames = proj->lockSymbolNamesForWrite();
+        Scope<UsrMap&> usr = proj->lockUsrForWrite();
+        RTags::dirtySymbols(symbols.data(), mPendingDirtyFiles);
+        RTags::dirtySymbolNames(symbolNames.data(), mPendingDirtyFiles);
+        RTags::dirtyUsr(usr.data(), mPendingDirtyFiles);
+        mPendingDirtyFiles.clear();
     }
 }
 
