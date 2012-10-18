@@ -419,17 +419,7 @@ void Indexer::checkFinished() // lock always held
 bool Indexer::isIndexed(uint32_t fileId) const
 {
     MutexLocker lock(&mMutex);
-    if (mJobs.contains(fileId))
-        return false;
-
-    if (!mVisitedFiles.contains(fileId))
-        return false;
-    for (Map<std::shared_ptr<IndexerJob>, Set<uint32_t> >::const_iterator it = mVisitedFilesByJob.begin(); it != mVisitedFilesByJob.end(); ++it) {
-        if (it->second.contains(fileId))
-            return false;
-    }
-
-    return true;
+    return mVisitedFiles.contains(fileId) || mSources.contains(fileId);
 }
 
 SourceInformationMap Indexer::sources() const

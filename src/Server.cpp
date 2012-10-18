@@ -31,7 +31,6 @@
 #include "RegExp.h"
 #include "SHA256.h"
 #include "StatusJob.h"
-#include "TestJob.h"
 #include <clang-c/Index.h>
 #include <dirent.h>
 #include <fnmatch.h>
@@ -565,13 +564,18 @@ void Server::isIndexed(const QueryMessage &query, Connection *conn)
     if (path.isFile()) {
         const uint32_t fileId = Location::fileId(path);
         if (fileId) {
+            std::shared_ptr<Project> old = mCurrentProject.lock();
             updateProjectForLocation(path);
             std::shared_ptr<Project> cur = currentProject();
             if (cur && cur->isIndexed(fileId)) {
                 conn->write("1");
                 conn->finish();
+                if (old)
+                    mCurrentProject = old;
                 return;
             }
+            if (old)
+                mCurrentProject = old;
         }
     } else if (path.isDir()) {
         updateProjectForLocation(path);
