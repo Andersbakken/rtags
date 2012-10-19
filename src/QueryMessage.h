@@ -47,7 +47,8 @@ public:
         MatchCaseInsensitive = 0x0200,
         FindVirtuals = 0x0400,
         Silent = 0x0800,
-        AbsolutePath = 0x1000
+        AbsolutePath = 0x1000,
+        FindFilePreferExact = 0x2000
     };
 
     typedef Map<Path, ByteArray> UnsavedFilesMap;

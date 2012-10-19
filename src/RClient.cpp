@@ -184,6 +184,7 @@ enum {
     FindFile,
     FindSymbols,
     FindVirtuals,
+    FindFilePreferExact,
     Fixits,
     FollowLocation,
     GRTag,
@@ -292,6 +293,7 @@ struct Option opts[] = {
     { Timeout, "timeout", 'y', required_argument, "Max time in ms to wait for job to finish (default no timeout)." },
     { SniffMake, "sniff-make", 'J', no_argument, "No make trickery, only parse the output. Assumes you've run make clean first." },
     { FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
+    { FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial" },
     { None, 0, 0, 0, 0 }
 };
 
@@ -368,7 +370,7 @@ bool RClient::parse(int &argc, char **argv)
     Path logFile;
     unsigned logFlags = 0;
 
-    // Unused: Abz
+    // Unused: bz
 
     while (true) {
         int idx = -1;
@@ -398,6 +400,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case FindVirtuals:
             mQueryFlags |= QueryMessage::FindVirtuals;
+            break;
+        case FindFilePreferExact:
+            mQueryFlags |= QueryMessage::FindFilePreferExact;
             break;
         case AlwaysMake:
             mMakefileFlags |= ProjectMessage::UseDashB;

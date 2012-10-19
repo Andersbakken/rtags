@@ -76,6 +76,7 @@
     (if (file-exists-p result) result nil)))
 
 (defun rtags-call-rc (path &rest arguments)
+  (setq arguments (remove-if '(lambda (arg) (not arg)) arguments))
   (let ((rc (rtags-executable-find "rc")))
     (if rc
         (progn
@@ -804,9 +805,7 @@ return t if rtags is allowed to modify this file"
             (string-match "\\(.*\\):[0-9]+" string))
         (setq string (match-string 1 string)))
     (with-temp-buffer
-      (if rtags-find-file-case-insensitive
-          (rtags-call-rc nil "-c" "-P" string)
-        (rtags-call-rc nil "-P" string))
+      (rtags-call-rc nil "-P" string (if rtags-find-file-case-insensitive "-c"))
 
       (goto-char (point-min))
       (if (equal "" string)
@@ -839,11 +838,13 @@ return t if rtags is allowed to modify this file"
   (rtags-goto-location (buffer-substring (point-at-bol) (point-at-eol)) nil t))
 
 (defvar rtags-find-file-history nil)
-(defun rtags-find-file (&optional tagname)
-  (interactive)
+(defun rtags-find-file (prefix &optional tagname)
+  (interactive "P")
   (rtags-save-location)
   (let ((tagname (rtags-current-symbol t)) prompt input offset line column
-        (path (rtags-path-for-project)))
+        (prefer-exact rtags-find-file-prefer-exact-match))
+    (if prefix
+        (setq prefer-exact (not prefer-exact)))
     (if tagname
         (setq prompt (concat (format "Find rfiles (default %s): " tagname)))
       (setq prompt "Find rfiles: "))
@@ -868,9 +869,15 @@ return t if rtags is allowed to modify this file"
     (if (get-buffer rtags-buffer-name)
         (kill-buffer rtags-buffer-name))
     (with-current-buffer (generate-new-buffer rtags-buffer-name)
-      (if rtags-find-file-case-insensitive
-          (rtags-call-rc nil "-K" "-c" "-P" tagname)
-        (rtags-call-rc nil "-K" "-P" tagname))
+      ;; (let ((args (list "-K" "-P" tagname)))
+      ;;   (if rtags-find-file-case-insensitive
+      ;;       (push "-c" args))
+      ;;   (if prefer-exact
+      ;;       (push "-c" args))
+
+      (rtags-call-rc nil "-K" "-P" tagname
+                     (if rtags-find-file-case-insensitive "-c")
+                     (if prefer-exact "-A"))
       (cond (offset (replace-regexp "$" (format ",%d" offset)))
             ((and line column) (replace-regexp "$" (format ":%d:%d" line column)))
             ((and line) (replace-regexp "$" (format ":%d" line)))
@@ -962,8 +969,8 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'boolean)
 
-(defcustom rtags-prefer-exact-match nil
-  "Max amount of ms to wait for operation to finish"
+(defcustom rtags-find-file-prefer-exact-match t
+  "Jump directly to files that exactly match the filename for rtags-find-file"
   :group 'rtags
   :type 'boolean)
 

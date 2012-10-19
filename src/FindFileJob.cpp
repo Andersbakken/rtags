@@ -48,6 +48,10 @@ void FindFileJob::execute()
     Scope<const FilesMap&> scope = proj->lockFilesForRead();
     const Map<Path, Set<ByteArray> > &dirs = scope.data();
     Map<Path, Set<ByteArray> >::const_iterator dirit = dirs.begin();
+    bool foundExact = false;
+    const int patternSize = mPattern.size();
+    List<ByteArray> matches;
+    const bool preferExact = queryFlags() & QueryMessage::FindFilePreferExact;
     while (dirit != dirs.end()) {
         const Path &dir = dirit->first;
         out.append(dir.constData() + srcRoot.size(), dir.size() - srcRoot.size());
@@ -65,11 +69,29 @@ void FindFileJob::execute()
                 ok = mRegExp.indexIn(out) != -1;
                 break;
             case Pattern:
-                ok = out.contains(mPattern, cs);
+                if (!preferExact) {
+                    ok = out.contains(mPattern, cs);
+                } else {
+                    const int outSize = out.size();
+                    const bool exact = (outSize > patternSize && out.endsWith(mPattern) && out.at(outSize - (patternSize + 1)) == '/');
+                    if (exact) {
+                        ok = true;
+                        if (!foundExact) {
+                            matches.clear();
+                            foundExact = true;
+                        }
+                    } else {
+                        ok = out.contains(mPattern, cs);
+                    }
+                }
                 break;
             }
             if (ok) {
-                write(out);
+                if (preferExact && !foundExact) {
+                    matches.append(out);
+                } else {
+                    write(out);
+                }
             }
             out.chop(key.size());
         }
