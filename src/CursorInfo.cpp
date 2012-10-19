@@ -7,14 +7,12 @@ ByteArray CursorInfo::toString(unsigned keyFlags) const
                                               "Kind: %s\n"
                                               "Type: %s\n"
                                               "SymbolLength: %u\n"
-                                              "%s" // USR
                                               "%s" // range
                                               "%s", // definition
                                               symbolName.constData(),
                                               RTags::eatString(clang_getCursorKindSpelling(kind)).constData(),
                                               RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
                                               symbolLength,
-                                              usr.isEmpty() ? "" : ByteArray::snprintf<64>("USR: %s\n", usr.constData()).constData(),
                                               start != -1 && end != -1 ? ByteArray::snprintf<16>("Range: %d-%d\n", start, end).constData() : "",
                                               isDefinition ? "Definition\n" : "");
 

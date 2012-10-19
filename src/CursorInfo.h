@@ -28,7 +28,6 @@ public:
         targets.clear();
         references.clear();
         symbolName.clear();
-        usr.clear();
     }
 
     bool dirty(const Set<uint32_t> &dirty)
@@ -84,7 +83,7 @@ public:
     bool isEmpty() const
     {
         assert((symbolLength || symbolName.isEmpty()) && (symbolLength || kind == CXCursor_FirstInvalid)); // these should be coupled
-        return !symbolLength && targets.isEmpty() && references.isEmpty() && start == -1 && end == -1 && usr.isEmpty();
+        return !symbolLength && targets.isEmpty() && references.isEmpty() && start == -1 && end == -1;
     }
 
     bool unite(const CursorInfo &other)
@@ -125,11 +124,6 @@ public:
                 changed = true;
         }
 
-        if (usr.isEmpty() && !other.usr.isEmpty()) {
-            usr = other.usr;
-            changed = true;
-        }
-
         return changed;
     }
 
@@ -137,7 +131,6 @@ public:
 
     unsigned char symbolLength; // this is just the symbol name length e.g. foo => 3
     ByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
-    ByteArray usr;
     CXCursorKind kind;
     CXTypeKind type;
     bool isDefinition;
@@ -148,7 +141,7 @@ public:
 
 template <> inline Serializer &operator<<(Serializer &s, const CursorInfo &t)
 {
-    s << t.symbolLength << t.symbolName << t.usr << static_cast<int>(t.kind)
+    s << t.symbolLength << t.symbolName << static_cast<int>(t.kind)
       << static_cast<int>(t.type) << t.isDefinition << t.targets << t.references << t.start << t.end;
     return s;
 }
@@ -156,7 +149,7 @@ template <> inline Serializer &operator<<(Serializer &s, const CursorInfo &t)
 template <> inline Deserializer &operator>>(Deserializer &s, CursorInfo &t)
 {
     int kind, type;
-    s >> t.symbolLength >> t.symbolName >> t.usr >> kind >> type
+    s >> t.symbolLength >> t.symbolName >> kind >> type
       >> t.isDefinition >> t.targets >> t.references >> t.start >> t.end;
     t.kind = static_cast<CXCursorKind>(kind);
     t.type = static_cast<CXTypeKind>(type);

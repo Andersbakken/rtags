@@ -129,7 +129,7 @@ private:
 
     Map<shared_ptr<Indexer>, int> mSaveTimers;
 
-    enum { DatabaseVersion = 2 };
+    enum { DatabaseVersion = 3 };
 };
 
 #endif
