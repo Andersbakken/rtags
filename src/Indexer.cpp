@@ -243,7 +243,7 @@ void Indexer::onFilesModifiedTimeout()
         MutexLocker lock(&mMutex);
         for (Set<uint32_t>::const_iterator it = mModifiedFiles.begin(); it != mModifiedFiles.end(); ++it) {
             dirtyFiles.insert(*it);
-            dirtyFiles.unite(mDependencies.at(*it));
+            dirtyFiles.unite(mDependencies.value(*it));
         }
         mVisitedFiles -= dirtyFiles;
         mPendingDirtyFiles.unite(dirtyFiles);
@@ -370,8 +370,11 @@ void Indexer::write()
     }
     Timer timer;
     for (Set<uint32_t>::const_iterator it = newFiles.begin(); it != newFiles.end(); ++it) {
-        const Path dir = Location::path(*it).parentDir();
-        if (mWatchedPaths.insert(dir)) {
+        const Path path = Location::path(*it);
+        const Path dir = path.parentDir();
+        if (dir.isEmpty()) {
+            error() << "Got empty parent dir for" << path << *it;
+        } else if (mWatchedPaths.insert(dir)) {
             mWatcher.watch(dir);
         }
     }
