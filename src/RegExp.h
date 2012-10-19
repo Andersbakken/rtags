@@ -40,6 +40,20 @@ public:
         return mPattern;
     }
 
+    RegExp &operator=(const ByteArray &pattern)
+    {
+        clear();
+        mPattern = pattern;
+        return *this;
+    }
+
+    void clear()
+    {
+        mPattern.clear();
+        mFlags = 0;
+        mState = Unset;
+    }
+
     struct Capture {
         Capture()
             : index(-1)
