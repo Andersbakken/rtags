@@ -95,16 +95,26 @@ bool Job::writeRaw(const ByteArray &out, unsigned flags)
     return true;
 }
 
-bool Job::write(const Location &location, const CursorInfo &ci, unsigned flags)
+bool Job::write(const Location &location, unsigned flags)
 {
     if (location.isNull())
         return false;
     const unsigned kf = keyFlags();
-    if (!write<1024>(flags, "%s %s", location.key(kf).constData(), ci.toString(kf).constData())) {
+    if (!write<1024>(flags, "%s", location.key(kf).constData()))
         return false;
-    }
     return true;
 }
+
+bool Job::write(const CursorInfo &ci, unsigned flags)
+{
+    if (ci.isNull())
+        return false;
+    const unsigned kf = keyFlags();
+    if (!write<1024>(flags, "%s", ci.toString(kf).constData()))
+        return false;
+    return true;
+}
+
 
 unsigned Job::keyFlags() const
 {

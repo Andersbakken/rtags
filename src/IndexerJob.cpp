@@ -345,6 +345,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         }
         info.symbolName = refInfo.symbolName;
         info.usr = RTags::eatString(clang_getCursorUSR(cursor));
+        info.type = clang_getCursorType(cursor).kind;
         if (!info.usr.isEmpty())
             mData->usrMap[info.usr].insert(location);
 
@@ -451,6 +452,7 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
 
         info.isDefinition = clang_isCursorDefinition(cursor);
         info.kind = kind;
+        info.type = clang_getCursorType(cursor).kind;
         info.usr = RTags::eatString(clang_getCursorUSR(cursor));
         if (!info.usr.isEmpty())
             mData->usrMap[info.usr].insert(location);

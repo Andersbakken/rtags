@@ -5,15 +5,25 @@ ByteArray CursorInfo::toString(unsigned keyFlags) const
 {
     ByteArray ret(16384, '\0');
     char *buf = ret.data();
-    int pos = snprintf(buf, ret.size(), "CursorInfo(%ssymbolLength: %u symbolName: %s usr: %s kind: %s%s",
-                       start != -1 && end != -1 ? ByteArray::snprintf<16>("%d-%d ", start, end).constData() : "",
-                       symbolLength, symbolName.constData(), usr.constData(),
+    int pos = snprintf(buf, ret.size(),
+                       "SymbolName: %s\n"
+                       "Kind: %s\n"
+                       "Type: %s\n"
+                       "SymbolLength: %u\n"
+                       "USR: %s\n"
+                       "%s" // range
+                       "%s", // definition
+                       symbolName.constData(),
                        RTags::eatString(clang_getCursorKindSpelling(kind)).constData(),
-                       isDefinition ? " definition" : "");
+                       RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
+                       symbolLength,
+                       usr.constData(),
+                       start != -1 && end != -1 ? ByteArray::snprintf<16>("Range: %d-%d\n", start, end).constData() : "",
+                       isDefinition ? "Definition\n" : "");
     buf += pos;
 
     if (pos < ret.size() && !targets.isEmpty()) {
-        int w = snprintf(buf, ret.size() - pos, " targets:\n");
+        int w = snprintf(buf, ret.size() - pos, "Targets:\n");
         pos += w;
         buf += w;
         for (Set<Location>::const_iterator tit = targets.begin(); tit != targets.end() && w < ret.size(); ++tit) {
@@ -25,7 +35,7 @@ ByteArray CursorInfo::toString(unsigned keyFlags) const
     }
 
     if (pos < ret.size() && !references.isEmpty()) {
-        int w = snprintf(buf, ret.size() - pos, " references:\n");
+        int w = snprintf(buf, ret.size() - pos, "References:\n");
         pos += w;
         buf += w;
         for (Set<Location>::const_iterator rit = references.begin(); rit != references.end() && w < ret.size(); ++rit) {

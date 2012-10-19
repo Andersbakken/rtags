@@ -84,9 +84,10 @@ void StatusJob::execute()
             for (SymbolMap::const_iterator it = map.begin(); it != map.end(); ++it) {
                 if (isAborted())
                     return;
-                const CursorInfo ci = it->second;
                 const Location loc = it->first;
-                write(loc, ci);
+                const CursorInfo ci = it->second;
+                write(loc);
+                write(ci);
             }
         }
 

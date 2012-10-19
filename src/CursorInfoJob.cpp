@@ -15,6 +15,8 @@ void CursorInfoJob::execute()
         return;
     const SymbolMap &map = scope.data();
     const SymbolMap::const_iterator it = RTags::findCursorInfo(map, location);
-    if (it != map.end())
-        write(it->first, it->second);
+    if (it != map.end()) {
+        write(it->first);
+        write(it->second);
+    }
 }
