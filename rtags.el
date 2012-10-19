@@ -804,7 +804,10 @@ return t if rtags is allowed to modify this file"
             (string-match "\\(.*\\):[0-9]+" string))
         (setq string (match-string 1 string)))
     (with-temp-buffer
-      (rtags-call-rc nil "-c" "-P" string)
+      (if rtags-find-file-case-insensitive
+          (rtags-call-rc nil "-c" "-P" string)
+        (rtags-call-rc nil "-P" string))
+
       (goto-char (point-min))
       (if (equal "" string)
           (while (not (eobp))
@@ -865,7 +868,9 @@ return t if rtags is allowed to modify this file"
     (if (get-buffer rtags-buffer-name)
         (kill-buffer rtags-buffer-name))
     (with-current-buffer (generate-new-buffer rtags-buffer-name)
-      (rtags-call-rc path "-K" "-c" "-P" tagname)
+      (if rtags-find-file-case-insensitive
+          (rtags-call-rc nil "-K" "-c" "-P" tagname)
+        (rtags-call-rc nil "-K" "-P" tagname))
       (cond (offset (replace-regexp "$" (format ",%d" offset)))
             ((and line column) (replace-regexp "$" (format ":%d:%d" line column)))
             ((and line) (replace-regexp "$" (format ":%d" line)))
@@ -951,6 +956,16 @@ return t if rtags is allowed to modify this file"
   "Max amount of ms to wait for operation to finish"
   :group 'rtags
   :type 'integer)
+
+(defcustom rtags-find-file-case-insensitive nil
+  "Treat files case insensitively"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-prefer-exact-match nil
+  "Max amount of ms to wait for operation to finish"
+  :group 'rtags
+  :type 'boolean)
 
 (defcustom rtags-other-buffer-window-size-percentage 30 "Percentage size of other buffer" :group 'rtags :type 'integer)
 (defun rtags-show-target-in-other-buffer ()
