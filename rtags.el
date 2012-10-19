@@ -891,7 +891,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-current-symbol-name ()
   (let ((cursorinfo (rtags-cursorinfo)))
-    (if (string-match "^.*symbolName: \\(.*\\) kind: .*$" cursorinfo)
+    (if (string-match "^.*symbolName: \\(.*\\) usr: .*$" cursorinfo)
         (match-string 1 cursorinfo))))
 
 (defun rtags-cursor-extent (&optional location)
