@@ -136,7 +136,7 @@ inline Serializer &operator<<(Serializer &s, const ByteArray &byteArray)
 {
     const int size = byteArray.size();
     s << size;
-    if (size)
+    if (byteArray.size())
         s.write(byteArray.constData(), byteArray.size()); // do I need to write out null terminator?
     return s;
 }
@@ -147,7 +147,7 @@ inline Serializer &operator<<(Serializer &s, const Path &path)
 {
     const int size = path.size();
     s << size;
-    if (size)
+    if (path.size())
         s.write(path.constData(), size);
     return s;
 }
@@ -158,7 +158,7 @@ Serializer &operator<<(Serializer &s, const List<T> &list)
 {
     const int size = list.size();
     s << size;
-    if (size) {
+    if (list.size()) {
         const int fixed = fixedSize<T>(T());
         if (fixed) {
             s.write(reinterpret_cast<const char*>(list.data()), fixed * size);
