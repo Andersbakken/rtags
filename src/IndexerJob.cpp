@@ -574,16 +574,24 @@ void IndexerJob::diagnose()
         }
 
         const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
+        RegExp rx;
+        if (mFlags & IgnorePrintfFixits) {
+            rx = "^%[A-Za-z0-9]\\+$";
+        }
         for (unsigned f=0; f<fixItCount; ++f) {
             CXSourceRange range;
             ByteArray string = RTags::eatString(clang_getDiagnosticFixIt(diagnostic, f, &range));
             const Location start(clang_getRangeStart(range));
             unsigned endOffset = 0;
             clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
-
-            error("Fixit (%d/%d) for %s: [%s] %s-%d", f + 1, fixItCount, mPath.constData(),
-                  string.constData(), start.key().constData(), endOffset);
-            mData->fixIts[start] = std::pair<int, ByteArray>(endOffset - start.offset(), string);
+            if (mFlags & IgnorePrintfFixits && rx.indexIn(string) == 0) {
+                error("Ignored fixit (%d/%d) for %s: [%s] %s-%d", f + 1, fixItCount, mPath.constData(),
+                      string.constData(), start.key().constData(), endOffset);
+            } else {
+                error("Fixit (%d/%d) for %s: [%s] %s-%d", f + 1, fixItCount, mPath.constData(),
+                      string.constData(), start.key().constData(), endOffset);
+                mData->fixIts[start] = std::pair<int, ByteArray>(endOffset - start.offset(), string);
+            }
         }
 
         clang_disposeDiagnostic(diagnostic);

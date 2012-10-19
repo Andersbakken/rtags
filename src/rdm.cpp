@@ -56,6 +56,7 @@ void usage(FILE *f)
             "  --no-validate|-V                Disable validation of database on startup and after indexing\n"
             "  --exclude-filter|-x [arg]       Files to exclude from grtags, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
             "  --no-rc|-N                      Don't load any rc files\n"
+            "  --ignore-printf-fixits|-F       Disregard any clang fixit that looks like it's trying to fix format for printf and friends\n"
             "  --rc-file|-c [arg]              Use this file instead of ~/.rdmrc\n"
             "  --projects-file|-p [arg]        Use this file as a projects file (default ~/.rtagsprojects)\n"
             "  --data-dir|-d [arg]             Use this directory to contains .rtags directory (default ~/)\n"
@@ -90,6 +91,7 @@ int main(int argc, char** argv)
         { "rc-file", required_argument, 0, 'c' },
         { "no-rc", no_argument, 0, 'N' },
         { "data-dir", required_argument, 0, 'd' },
+        { "ignore-printf-fixits", no_argument, 0, 'F' },
         { 0, 0, 0, 0 }
     };
     const ByteArray shortOptions = RTags::shortOptions(opts);
@@ -183,6 +185,9 @@ int main(int argc, char** argv)
             return 0;
         case 'V':
             options |= Server::NoValidate;
+            break;
+        case 'F':
+            options |= Server::IgnorePrintfFixits;
             break;
         case 'e':
             putenv(optarg);

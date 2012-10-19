@@ -24,9 +24,10 @@ class IndexerJob : public Job
 {
 public:
     enum Flag {
-        Makefile = 0x1,
+        Makefile = 0x01,
         Dirty = 0x02,
-        Priorities = Dirty|Makefile
+        Priorities = Dirty|Makefile,
+        IgnorePrintfFixits = 0x10
     };
     IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags,
                const Path &input, const List<ByteArray> &arguments);

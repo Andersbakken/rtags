@@ -34,11 +34,12 @@ public:
     ~Server();
     static Server *instance() { return sInstance; }
     enum Option {
-        NoOptions = 0x0,
-        NoClangIncludePath = 0x1,
-        NoValidate = 0x2,
-        ClearProjects = 0x4,
-        NoWall = 0x8
+        NoOptions = 0x00,
+        NoClangIncludePath = 0x01,
+        NoValidate = 0x02,
+        ClearProjects = 0x04,
+        NoWall = 0x08,
+        IgnorePrintfFixits = 0x10
     };
     ThreadPool *threadPool() const { return mThreadPool; }
     void startJob(const shared_ptr<Job> &job);

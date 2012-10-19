@@ -12,8 +12,8 @@
 #include "WriteLocker.h"
 #include <math.h>
 
-Indexer::Indexer(const shared_ptr<Project> &proj, bool validate)
-    : mJobCounter(0), mInMakefile(false), mModifiedFilesTimerId(-1), mTimerRunning(false), mProject(proj), mValidate(validate)
+Indexer::Indexer(const shared_ptr<Project> &proj, unsigned flags)
+    : mJobCounter(0), mInMakefile(false), mModifiedFilesTimerId(-1), mTimerRunning(false), mProject(proj), mFlags(flags)
 {
     mWatcher.modified().connect(this, &Indexer::onFileModified);
     mWatcher.removed().connect(this, &Indexer::onFileRemoved);
@@ -70,6 +70,9 @@ void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
     }
     mSources[fileId] = c;
     mPendingData.remove(fileId);
+
+    if (mFlags & IgnorePrintfFixits)
+        indexerJobFlags |= IndexerJob::IgnorePrintfFixits;
 
     job.reset(new IndexerJob(shared_from_this(), indexerJobFlags, c.sourceFile, c.args));
 
@@ -412,7 +415,7 @@ void Indexer::checkFinished() // lock always held
         mJobsComplete(shared_from_this(), mJobCounter);
         mJobCounter = 0;
 
-        if (mValidate) {
+        if (mFlags & Validate) {
             shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(project(), mPreviousErrors));
             validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
             Server::instance()->startJob(validateJob);

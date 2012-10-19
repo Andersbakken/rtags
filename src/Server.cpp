@@ -844,7 +844,12 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
             return false;
         }
         project.reset(new Project(srcRoot));
-        project->indexer.reset(new Indexer(project, !(mOptions.options & NoValidate)));
+        unsigned flags = Indexer::None;
+        if (!(mOptions.options & NoValidate))
+            flags |= Indexer::Validate;
+        if (mOptions.options & IgnorePrintfFixits)
+            flags |= Indexer::IgnorePrintfFixits;
+        project->indexer.reset(new Indexer(project, flags));
         project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
         project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
         {
@@ -1099,7 +1104,12 @@ bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompiler
         return false;
     shared_ptr<Project> &project = mProjects[path];
     project.reset(new Project(path));
-    project->indexer.reset(new Indexer(project, !(mOptions.options & NoValidate)));
+    unsigned flags = Indexer::None;
+    if (!(mOptions.options & NoValidate))
+        flags |= Indexer::Validate;
+    if (mOptions.options & IgnorePrintfFixits)
+        flags |= Indexer::IgnorePrintfFixits;
+    project->indexer.reset(new Indexer(project, flags));
     project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
     project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
     project->indexer->beginMakefile();
@@ -1112,7 +1122,13 @@ bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompiler
         GccArguments args;
         args.mInputFiles = ud.sources;
         args.mType = GccArguments::Compile;
-        args.mLang = GccArguments::CPlusPlus; // ### lying a little
+        const char *suffix = path.extension();
+        if (suffix && !strcmp(suffix, "c")) {
+            args.mLang = GccArguments::C;
+        } else {
+            args.mLang = GccArguments::CPlusPlus;
+        }
+
         for (Set<Path>::const_iterator it = ud.includePaths.begin(); it != ud.includePaths.end(); ++it) {
             args.mClangArgs.append("-I" + *it);
         }

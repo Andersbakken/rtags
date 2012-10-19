@@ -16,7 +16,12 @@ class IndexerJob;
 class Indexer : public enable_shared_from_this<Indexer>
 {
 public:
-    Indexer(const shared_ptr<Project> &project, bool validate);
+    enum Flag {
+        None = 0x0,
+        Validate = 0x1,
+        IgnorePrintfFixits = 0x2
+    };
+    Indexer(const shared_ptr<Project> &project, unsigned flags);
 
     void index(const SourceInformation &args, unsigned indexerJobFlags);
     SourceInformation sourceInfo(uint32_t fileId) const;
@@ -89,7 +94,7 @@ private:
 
     signalslot::Signal2<shared_ptr<Indexer>, int> mJobsComplete;
     signalslot::Signal2<shared_ptr<Indexer>, Path> mJobStarted;
-    bool mValidate;
+    unsigned mFlags;
 
     Map<uint32_t, shared_ptr<IndexData> > mPendingData;
     Set<uint32_t> mPendingDirtyFiles;
