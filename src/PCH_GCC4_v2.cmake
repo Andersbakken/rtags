@@ -61,6 +61,7 @@ MACRO (ADD_PCH_RULE _header_filename _src_list _cflag_list)
             ReadWriteLock.h
             Serializer.h
             Set.h
+            Memory.h
             SourceInformation.h
             WaitCondition.h
             WriteLocker.h
