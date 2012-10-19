@@ -16,15 +16,6 @@
 #ifdef HAVE_MACH_ABSOLUTE_TIME
 #include <mach/mach.h>
 #include <mach/mach_time.h>
-
-static pthread_once_t sEventLoopInit = PTHREAD_ONCE_INIT;
-static ThreadLocal<mach_timebase_info_data_t>* sTimebaseInfo;
-
-static void initTimebaseInfo()
-{
-    // static leak
-    sTimebaseInfo = new ThreadLocal<mach_timebase_info_data_t>();
-}
 #endif
 
 #define MAX_USEC 1000000
@@ -72,15 +63,16 @@ static inline int timevalDiff(timeval* a, timeval* b)
     return ams - bms;
 }
 
-static inline bool gettime(timeval* time)
+static bool gettime(timeval* time)
 {
 #if defined(HAVE_MACH_ABSOLUTE_TIME)
-    pthread_once(&sEventLoopInit, initTimebaseInfo);
-
-    mach_timebase_info_data_t& info = sTimebaseInfo->get();
+    static mach_timebase_info_data_t info;
+    static bool first = true;
     uint64_t machtime = mach_absolute_time();
-    if (info.denom == 0)
-        (void)mach_timebase_info(&info);
+    if (first) {
+        first = false;
+        mach_timebase_info(&info);
+    }
     machtime = machtime * info.numer / (info.denom * 1000); // microseconds
     time->tv_sec = machtime / 1000000;
     time->tv_usec = machtime % 1000000;
