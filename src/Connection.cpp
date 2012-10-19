@@ -56,15 +56,13 @@ bool Connection::send(int id, const ByteArray &message)
 
     ByteArray header, data;
     {
-        {
+        if (message.size()) {
             Serializer strm(data);
             strm << id;
             strm.write(message.constData(), message.size());
         }
-        {
-            Serializer strm(header);
-            strm << data.size();
-        }
+        Serializer strm(header);
+        strm << data.size();
     }
     mPendingWrite += (header.size() + data.size());
     return mClient->write(header) && mClient->write(data);
