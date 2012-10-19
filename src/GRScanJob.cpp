@@ -3,7 +3,7 @@
 #include "Server.h"
 #include <fnmatch.h>
 
-GRScanJob::GRScanJob(Mode mode, const Path &path, const std::shared_ptr<Project> &project)
+GRScanJob::GRScanJob(Mode mode, const Path &path, const shared_ptr<Project> &project)
     : mMode(mode), mPath(path), mFilters(Server::instance()->excludeFilter()), mProject(project)
 {
     if (!mPath.endsWith('/'))
@@ -13,7 +13,7 @@ GRScanJob::GRScanJob(Mode mode, const Path &path, const std::shared_ptr<Project>
 void GRScanJob::run()
 {
     mPath.visit(&GRScanJob::visit, this);
-    if (std::shared_ptr<Project> project = mProject.lock())
+    if (shared_ptr<Project> project = mProject.lock())
         mFinished(mPaths);
 }
 

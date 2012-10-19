@@ -1,16 +1,17 @@
 #ifndef Log_h
 #define Log_h
 
-#include <memory>
-#include <sstream>
-#include <cxxabi.h>
-#include <assert.h>
 #include "ByteArray.h"
-#include "Map.h"
-#include "Set.h"
 #include "List.h"
+#include "Map.h"
+#include "Memory.h"
 #include "Path.h"
+#include "Set.h"
+#include <assert.h>
+#include <cxxabi.h>
+#include <sstream>
 
+using std::shared_ptr;
 class Path;
 
 enum LogLevel {
@@ -162,7 +163,7 @@ private:
         int disableSpacingOverride;
     };
 
-    std::shared_ptr<Data> mData;
+    shared_ptr<Data> mData;
 };
 
 template <typename T> inline ByteArray typeName()

@@ -41,7 +41,7 @@ public:
         NoWall = 0x8
     };
     ThreadPool *threadPool() const { return mThreadPool; }
-    void startJob(const std::shared_ptr<Job> &job);
+    void startJob(const shared_ptr<Job> &job);
     struct Options {
         Options() : options(0), threadCount(0) {}
         Path projectsFile, socketFile, dataDir;
@@ -53,17 +53,17 @@ public:
     const List<ByteArray> &excludeFilter() const { return mOptions.excludeFilter; }
     const Path &clangPath() const { return mClangPath; }
 private:
-    void onJobsComplete(std::shared_ptr<Indexer> indexer, int count);
-    void onJobStarted(std::shared_ptr<Indexer> indexer, Path path);
+    void onJobsComplete(shared_ptr<Indexer> indexer, int count);
+    void onJobStarted(shared_ptr<Indexer> indexer, Path path);
 
     static void saveTimerCallback(int id, void *userData);
-    void save(const std::shared_ptr<Indexer> &indexer);
+    void save(const shared_ptr<Indexer> &indexer);
     void restore();
     void clear();
     void onNewConnection();
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
-    std::shared_ptr<Project> setCurrentProject(const Path &path);
-    std::shared_ptr<Project> setCurrentProject(const std::shared_ptr<Project> &proj);
+    shared_ptr<Project> setCurrentProject(const Path &path);
+    shared_ptr<Project> setCurrentProject(const shared_ptr<Project> &proj);
     void event(const Event *event);
     void onFileReady(const GccArguments &file, MakefileParser *parser);
     bool processSourceFile(const GccArguments &args, const Path &makefile);
@@ -107,7 +107,7 @@ private:
     void writeProjects();
     bool grtag(const Path &dir);
     bool smartProject(const Path &path, const List<ByteArray> &extraCompilerFlags);
-    std::shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
+    shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void removeProject(const Path &key);
 
     static Server *sInstance;
@@ -122,12 +122,12 @@ private:
     FileSystemWatcher mMakefilesWatcher;
 
     ProjectsMap mProjects;
-    std::weak_ptr<Project> mCurrentProject;
+    weak_ptr<Project> mCurrentProject;
     ThreadPool *mThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
     Path mClangPath;
 
-    Map<std::shared_ptr<Indexer>, int> mSaveTimers;
+    Map<shared_ptr<Indexer>, int> mSaveTimers;
 
     enum { DatabaseVersion = 2 };
 };

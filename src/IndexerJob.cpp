@@ -22,7 +22,7 @@ struct VerboseVisitorUserData {
     IndexerJob *job;
 };
 
-IndexerJob::IndexerJob(const std::shared_ptr<Indexer> &indexer, unsigned flags, const Path &p, const List<ByteArray> &arguments)
+IndexerJob::IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags, const Path &p, const List<ByteArray> &arguments)
     : Job(0, indexer->project()),
       mFlags(flags), mTimeStamp(0), mPath(p), mFileId(Location::insertFile(p)),
       mArgs(arguments), mIndexer(indexer), mUnit(0), mIndex(0), mDump(false), mParseTime(0),
@@ -30,7 +30,7 @@ IndexerJob::IndexerJob(const std::shared_ptr<Indexer> &indexer, unsigned flags, 
 {
 }
 
-IndexerJob::IndexerJob(const QueryMessage &msg, const std::shared_ptr<Project> &project,
+IndexerJob::IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
                        const Path &input, const List<ByteArray> &arguments)
     : Job(msg, WriteUnfiltered|WriteBuffered, project), mFlags(0), mTimeStamp(0), mPath(input), mFileId(Location::insertFile(input)),
       mArgs(arguments), mUnit(0), mIndex(0), mDump(true), mParseTime(0), mStarted(false)
@@ -206,8 +206,8 @@ Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
             if (blocked) {
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
-                    std::shared_ptr<Indexer> indexer = mIndexer.lock();
-                    std::shared_ptr<IndexerJob> job = std::static_pointer_cast<IndexerJob>(shared_from_this());
+                    shared_ptr<Indexer> indexer = mIndexer.lock();
+                    shared_ptr<IndexerJob> job = std::static_pointer_cast<IndexerJob>(shared_from_this());
                     state = indexer && indexer->visitFile(fileId, job) ? Index : DontIndex;
                 }
                 if (state != Index) {
@@ -631,7 +631,7 @@ void IndexerJob::execute()
     mData.reset(new IndexData);
     if (mDump) {
         assert(id() != -1);
-        if (std::shared_ptr<Project> p = project()) {
+        if (shared_ptr<Project> p = project()) {
             parse();
             if (mUnit) {
                 DumpUserData u = { 0, this, !(queryFlags() & QueryMessage::NoContext) };
@@ -661,8 +661,8 @@ void IndexerJob::execute()
         mIndex = 0;
     }
 
-    if (std::shared_ptr<Indexer> idx = indexer()) {
-        std::shared_ptr<IndexerJob> job = std::static_pointer_cast<IndexerJob>(shared_from_this());
+    if (shared_ptr<Indexer> idx = indexer()) {
+        shared_ptr<IndexerJob> job = std::static_pointer_cast<IndexerJob>(shared_from_this());
         idx->onJobFinished(job);
     }
 }

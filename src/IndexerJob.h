@@ -28,19 +28,19 @@ public:
         Dirty = 0x02,
         Priorities = Dirty|Makefile
     };
-    IndexerJob(const std::shared_ptr<Indexer> &indexer, unsigned flags,
+    IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags,
                const Path &input, const List<ByteArray> &arguments);
-    IndexerJob(const QueryMessage &msg, const std::shared_ptr<Project> &project,
+    IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
                const Path &input, const List<ByteArray> &arguments);
 
     int priority() const { return mFlags & Priorities; }
-    std::shared_ptr<IndexData> data() const { return mData; }
+    shared_ptr<IndexData> data() const { return mData; }
     uint32_t fileId() const { return mFileId; }
     Path path() const { return mPath; }
     bool isAborted() { return !indexer() && !project(); }
     void abort() { MutexLocker lock(&mMutex); mIndexer.reset(); resetProject(); }
     bool abortIfStarted();
-    std::shared_ptr<Indexer> indexer() { MutexLocker lock(&mMutex); return mIndexer.lock(); }
+    shared_ptr<Indexer> indexer() { MutexLocker lock(&mMutex); return mIndexer.lock(); }
     time_t parseTime() const { return mParseTime; }
 private:
     void parse();
@@ -80,7 +80,7 @@ private:
     const List<ByteArray> mArgs;
 
     Mutex mMutex;
-    std::weak_ptr<Indexer> mIndexer;
+    weak_ptr<Indexer> mIndexer;
 
     CXTranslationUnit mUnit;
     CXIndex mIndex;
@@ -90,7 +90,7 @@ private:
     ByteArray mClangLine;
 
     Timer mTimer;
-    std::shared_ptr<IndexData> mData;
+    shared_ptr<IndexData> mData;
 
     bool mDump;
 

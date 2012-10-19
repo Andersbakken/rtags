@@ -13,24 +13,24 @@
 
 struct IndexData;
 class IndexerJob;
-class Indexer : public std::enable_shared_from_this<Indexer>
+class Indexer : public enable_shared_from_this<Indexer>
 {
 public:
-    Indexer(const std::shared_ptr<Project> &project, bool validate);
+    Indexer(const shared_ptr<Project> &project, bool validate);
 
     void index(const SourceInformation &args, unsigned indexerJobFlags);
     SourceInformation sourceInfo(uint32_t fileId) const;
     Set<uint32_t> dependencies(uint32_t fileId) const;
-    bool visitFile(uint32_t fileId, const std::shared_ptr<IndexerJob> &job);
+    bool visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &job);
     ByteArray fixIts(const Path &path) const;
     ByteArray errors(const Path &path = Path()) const;
     int reindex(const ByteArray &pattern, bool regexp);
-    signalslot::Signal2<std::shared_ptr<Indexer>, int> &jobsComplete() { return mJobsComplete; }
-    signalslot::Signal2<std::shared_ptr<Indexer>, Path> &jobStarted() { return mJobStarted; }
-    std::shared_ptr<Project> project() const { return mProject.lock(); }
+    signalslot::Signal2<shared_ptr<Indexer>, int> &jobsComplete() { return mJobsComplete; }
+    signalslot::Signal2<shared_ptr<Indexer>, Path> &jobStarted() { return mJobStarted; }
+    shared_ptr<Project> project() const { return mProject.lock(); }
     void beginMakefile();
     void endMakefile();
-    void onJobFinished(const std::shared_ptr<IndexerJob> &job);
+    void onJobFinished(const shared_ptr<IndexerJob> &job);
     bool isIndexed(uint32_t fileId) const;
     SourceInformationMap sources() const;
     DependencyMap dependencies() const;
@@ -58,7 +58,7 @@ private:
         ForceDirty
     };
 
-    Map<std::shared_ptr<IndexerJob>, Set<uint32_t> > mVisitedFilesByJob;
+    Map<shared_ptr<IndexerJob>, Set<uint32_t> > mVisitedFilesByJob;
     Set<uint32_t> mVisitedFiles;
 
     int mJobCounter;
@@ -67,7 +67,7 @@ private:
     mutable Mutex mMutex;
 
     ByteArray mPath;
-    Map<uint32_t, std::shared_ptr<IndexerJob> > mJobs;
+    Map<uint32_t, shared_ptr<IndexerJob> > mJobs;
 
     Set<uint32_t> mModifiedFiles;
     int mModifiedFilesTimerId;
@@ -75,7 +75,7 @@ private:
     bool mTimerRunning;
     Timer mTimer;
 
-    std::weak_ptr<Project> mProject;
+    weak_ptr<Project> mProject;
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
     SourceInformationMap mSources;
@@ -87,15 +87,15 @@ private:
 
     Set<Location> mPreviousErrors;
 
-    signalslot::Signal2<std::shared_ptr<Indexer>, int> mJobsComplete;
-    signalslot::Signal2<std::shared_ptr<Indexer>, Path> mJobStarted;
+    signalslot::Signal2<shared_ptr<Indexer>, int> mJobsComplete;
+    signalslot::Signal2<shared_ptr<Indexer>, Path> mJobStarted;
     bool mValidate;
 
-    Map<uint32_t, std::shared_ptr<IndexData> > mPendingData;
+    Map<uint32_t, shared_ptr<IndexData> > mPendingData;
     Set<uint32_t> mPendingDirtyFiles;
 };
 
-inline bool Indexer::visitFile(uint32_t fileId, const std::shared_ptr<IndexerJob> &job)
+inline bool Indexer::visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &job)
 {
     MutexLocker lock(&mMutex);
     if (mVisitedFiles.contains(fileId)) {

@@ -9,7 +9,7 @@ FileManager::FileManager()
     mWatcher.removed().connect(this, &FileManager::onFileRemoved);
 }
 
-void FileManager::init(const std::shared_ptr<Project> &proj)
+void FileManager::init(const shared_ptr<Project> &proj)
 {
     mProject = proj;
     recurseDirs();
@@ -17,16 +17,16 @@ void FileManager::init(const std::shared_ptr<Project> &proj)
 
 void FileManager::recurseDirs()
 {
-    std::shared_ptr<Project> project = mProject.lock();
+    shared_ptr<Project> project = mProject.lock();
     assert(project);
-    std::shared_ptr<GRScanJob> job(new GRScanJob(GRScanJob::All, project->srcRoot, mProject.lock()));
+    shared_ptr<GRScanJob> job(new GRScanJob(GRScanJob::All, project->srcRoot, mProject.lock()));
     job->finished().connect(this, &FileManager::onRecurseJobFinished);
     Server::instance()->threadPool()->start(job);
 }
 
 void FileManager::onRecurseJobFinished(const Set<Path> &paths)
 {
-    std::shared_ptr<Project> project = mProject.lock();
+    shared_ptr<Project> project = mProject.lock();
     assert(project);
     Scope<FilesMap&> scope = project->lockFilesForWrite();
     FilesMap &map = scope.data();
@@ -61,7 +61,7 @@ void FileManager::onFileAdded(const Path &path)
         break;
     }
 
-    std::shared_ptr<Project> project = mProject.lock();
+    shared_ptr<Project> project = mProject.lock();
     assert(project);
     Scope<FilesMap&> scope = project->lockFilesForWrite();
     FilesMap &map = scope.data();
@@ -74,7 +74,7 @@ void FileManager::onFileAdded(const Path &path)
 
 void FileManager::onFileRemoved(const Path &path)
 {
-    std::shared_ptr<Project> project = mProject.lock();
+    shared_ptr<Project> project = mProject.lock();
     Scope<FilesMap&> scope = project->lockFilesForWrite();
     FilesMap &map = scope.data();
     if (map.contains(path)) {
@@ -91,7 +91,7 @@ void FileManager::onFileRemoved(const Path &path)
 
 bool FileManager::contains(const Path &path) const
 {
-    std::shared_ptr<Project> proj = mProject.lock();
+    shared_ptr<Project> proj = mProject.lock();
     if(!proj)
         return false;
     Path resolvedPath = proj->srcRoot;

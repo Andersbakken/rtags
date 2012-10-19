@@ -4,7 +4,7 @@
 #include "CursorInfo.h"
 #include "FileManager.h"
 
-FindFileJob::FindFileJob(const QueryMessage &query, const std::shared_ptr<Project> &project)
+FindFileJob::FindFileJob(const QueryMessage &query, const shared_ptr<Project> &project)
     : Job(query, WriteBuffered, project)
 {
     const ByteArray q = query.query();
@@ -19,7 +19,7 @@ FindFileJob::FindFileJob(const QueryMessage &query, const std::shared_ptr<Projec
 
 void FindFileJob::execute()
 {
-    std::shared_ptr<Project> proj = project();
+    shared_ptr<Project> proj = project();
     if (!proj || !proj->fileManager) {
         return;
     }

@@ -74,7 +74,7 @@ void Server::clear()
     delete mServer;
     mServer = 0;
     mProjects.clear();
-    setCurrentProject(std::shared_ptr<Project>());
+    setCurrentProject(shared_ptr<Project>());
 }
 
 bool Server::init(const Options &options)
@@ -240,7 +240,7 @@ void Server::handleProjectMessage(ProjectMessage *message, Connection *conn)
 
 bool Server::grtag(const Path &dir)
 {
-    std::shared_ptr<Project> &project = mProjects[dir];
+    shared_ptr<Project> &project = mProjects[dir];
     if (!project)
         project.reset(new Project(dir));
     if (project->grtags)
@@ -260,7 +260,7 @@ bool Server::grtag(const Path &dir)
 void Server::make(const Path &path, const List<ByteArray> &makefileArgs,
                   const List<ByteArray> &extraCompilerFlags, Connection *conn)
 {
-    std::shared_ptr<Project> project = mProjects.value(path);
+    shared_ptr<Project> project = mProjects.value(path);
     if (project) {
         assert(project->indexer);
         project->indexer->beginMakefile();
@@ -276,7 +276,7 @@ void Server::onMakefileParserDone(MakefileParser *parser)
 {
     assert(parser);
     Connection *connection = parser->connection();
-    std::shared_ptr<Project> project = mProjects.value(parser->makefile());
+    shared_ptr<Project> project = mProjects.value(parser->makefile());
     if (connection) {
         connection->write<64>("Parsed %s, %d sources",
                               parser->makefile().constData(), parser->sourceCount());
@@ -293,7 +293,7 @@ void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection 
 {
     LogObject *obj = new LogObject(conn, message->level());
     if (message->level() == CompilationError) {
-        std::shared_ptr<Project> project = currentProject();
+        shared_ptr<Project> project = currentProject();
         if (project && project->indexer) {
             const ByteArray errors = project->indexer->errors();
             if (!errors.isEmpty()) {
@@ -389,14 +389,14 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
     }
     updateProjectForLocation(loc);
 
-    std::shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
         conn->finish();
         return;
     }
 
-    std::shared_ptr<FollowLocationJob> job(new FollowLocationJob(loc, query, project));
+    shared_ptr<FollowLocationJob> job(new FollowLocationJob(loc, query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -404,14 +404,14 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
 
 void Server::findFile(const QueryMessage &query, Connection *conn)
 {
-    std::shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = currentProject();
     if (!project || !project->fileManager) {
         error("No project");
         conn->finish();
         return;
     }
 
-    std::shared_ptr<FindFileJob> job(new FindFileJob(query, project));
+    shared_ptr<FindFileJob> job(new FindFileJob(query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -429,7 +429,7 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
     Location loc(fileId, 0);
     updateProjectForLocation(loc);
 
-    std::shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = currentProject();
     if (!project || !project->indexer) {
         conn->write<256>("%s is not indexed", query.query().constData());
         conn->finish();
@@ -442,7 +442,7 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    std::shared_ptr<IndexerJob> job(new IndexerJob(query, project, c.sourceFile, c.args));
+    shared_ptr<IndexerJob> job(new IndexerJob(query, project, c.sourceFile, c.args));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -457,13 +457,13 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
     }
     updateProjectForLocation(loc);
 
-    std::shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = currentProject();
     if (!project) {
         conn->finish();
         return;
     }
 
-    std::shared_ptr<CursorInfoJob> job(new CursorInfoJob(loc, query, project));
+    shared_ptr<CursorInfoJob> job(new CursorInfoJob(loc, query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -479,14 +479,14 @@ void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
     }
     updateProjectForLocation(loc);
 
-    std::shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
         conn->finish();
         return;
     }
 
-    std::shared_ptr<ReferencesJob> job(new ReferencesJob(loc, query, project));
+    shared_ptr<ReferencesJob> job(new ReferencesJob(loc, query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -496,14 +496,14 @@ void Server::referencesForName(const QueryMessage& query, Connection *conn)
 {
     const ByteArray name = query.query();
 
-    std::shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
         conn->finish();
         return;
     }
 
-    std::shared_ptr<ReferencesJob> job(new ReferencesJob(name, query, project));
+    shared_ptr<ReferencesJob> job(new ReferencesJob(name, query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -513,14 +513,14 @@ void Server::findSymbols(const QueryMessage &query, Connection *conn)
 {
     const ByteArray partial = query.query();
 
-    std::shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
         conn->finish();
         return;
     }
 
-    std::shared_ptr<FindSymbolsJob> job(new FindSymbolsJob(query, project));
+    shared_ptr<FindSymbolsJob> job(new FindSymbolsJob(query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -530,14 +530,14 @@ void Server::listSymbols(const QueryMessage &query, Connection *conn)
 {
     const ByteArray partial = query.query();
 
-    std::shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
         conn->finish();
         return;
     }
 
-    std::shared_ptr<ListSymbolsJob> job(new ListSymbolsJob(query, project));
+    shared_ptr<ListSymbolsJob> job(new ListSymbolsJob(query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -545,14 +545,14 @@ void Server::listSymbols(const QueryMessage &query, Connection *conn)
 
 void Server::status(const QueryMessage &query, Connection *conn)
 {
-    std::shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
         conn->finish();
         return;
     }
 
-    std::shared_ptr<StatusJob> job(new StatusJob(query, project));
+    shared_ptr<StatusJob> job(new StatusJob(query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startJob(job);
@@ -564,9 +564,9 @@ void Server::isIndexed(const QueryMessage &query, Connection *conn)
     if (path.isFile()) {
         const uint32_t fileId = Location::fileId(path);
         if (fileId) {
-            std::shared_ptr<Project> old = mCurrentProject.lock();
+            shared_ptr<Project> old = mCurrentProject.lock();
             updateProjectForLocation(path);
-            std::shared_ptr<Project> cur = currentProject();
+            shared_ptr<Project> cur = currentProject();
             if (cur && cur->isIndexed(fileId)) {
                 conn->write("1");
                 conn->finish();
@@ -579,7 +579,7 @@ void Server::isIndexed(const QueryMessage &query, Connection *conn)
         }
     } else if (path.isDir()) {
         updateProjectForLocation(path);
-        std::shared_ptr<Project> cur = currentProject();
+        shared_ptr<Project> cur = currentProject();
         if (cur && cur->fileManager->contains(path)) {
             conn->write("1");
             conn->finish();
@@ -594,7 +594,7 @@ void Server::hasFileManager(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
     updateProjectForLocation(path);
-    std::shared_ptr<Project> cur = currentProject();
+    shared_ptr<Project> cur = currentProject();
     if (cur && cur->fileManager->contains(path)) {
         conn->write("1");
     } else {
@@ -607,7 +607,7 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
     updateProjectForLocation(path);
-    std::shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = currentProject();
     if (!project || !project->indexer) {
         conn->write("No project");
         conn->finish();
@@ -627,7 +627,7 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)
 {
-    std::shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = currentProject();
     if (!project || !project->indexer) {
         error("No project");
         conn->finish();
@@ -642,7 +642,7 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
 
 void Server::errors(const QueryMessage &query, Connection *conn)
 {
-    std::shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = currentProject();
     if (!project || !project->indexer) {
         error("No project");
         conn->finish();
@@ -664,7 +664,7 @@ void Server::clearProjects()
 
 void Server::reindex(const QueryMessage &query, Connection *conn)
 {
-    std::shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = currentProject();
     if (!project || !project->indexer) {
         error("No project");
         conn->finish();
@@ -692,7 +692,7 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
     }
 }
 
-void Server::startJob(const std::shared_ptr<Job> &job)
+void Server::startJob(const shared_ptr<Job> &job)
 {
     mThreadPool->start(job, Job::Priority);
 }
@@ -833,7 +833,7 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
     } else if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
         return true;
     }
-    std::shared_ptr<Project> &project = mProjects[proj];
+    shared_ptr<Project> &project = mProjects[proj];
     if (!project) {
         Path srcRoot = findProjectRoot(*args.unresolvedInputFiles().begin());
         if (srcRoot.isEmpty())
@@ -904,17 +904,17 @@ void Server::event(const Event *event)
         const JobOutputEvent *e = static_cast<const JobOutputEvent*>(event);
         Map<int, Connection*>::iterator it = mPendingLookups.find(e->id);
         if (it == mPendingLookups.end()) {
-            if (std::shared_ptr<Job> job = e->job.lock())
+            if (shared_ptr<Job> job = e->job.lock())
                 job->abort();
             break;
         }
         if (!it->second->isConnected()) {
-            if (std::shared_ptr<Job> job = e->job.lock())
+            if (shared_ptr<Job> job = e->job.lock())
                 job->abort();
             break;
         }
         if (!e->out.isEmpty() && !it->second->write(e->out)) {
-            if (std::shared_ptr<Job> job = e->job.lock())
+            if (shared_ptr<Job> job = e->job.lock())
                 job->abort();
             break;
         }
@@ -932,14 +932,14 @@ void Server::event(const Event *event)
     }
 }
 
-std::shared_ptr<Project> Server::setCurrentProject(const Path &path)
+shared_ptr<Project> Server::setCurrentProject(const Path &path)
 {
     ProjectsMap::const_iterator it = mProjects.find(path);
     if (it != mProjects.end()) {
         setCurrentProject(it->second);
         return it->second;
     }
-    return std::shared_ptr<Project>();
+    return shared_ptr<Project>();
 }
 
 bool Server::updateProjectForLocation(const Location &location)
@@ -949,9 +949,9 @@ bool Server::updateProjectForLocation(const Location &location)
 
 bool Server::updateProjectForLocation(const Path &path, Path *key)
 {
-    std::shared_ptr<Project> match;
+    shared_ptr<Project> match;
     int longest = -1;
-    std::shared_ptr<Project> cur = mCurrentProject.lock();
+    shared_ptr<Project> cur = mCurrentProject.lock();
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         if (!strncmp(it->second->srcRoot.constData(), path.constData(), it->second->srcRoot.size())) {
             if (it->second == cur)
@@ -983,9 +983,9 @@ bool Server::updateProjectForLocation(const Path &path, Path *key)
     return false;
 }
 
-std::shared_ptr<Project> Server::setCurrentProject(const std::shared_ptr<Project> &proj)
+shared_ptr<Project> Server::setCurrentProject(const shared_ptr<Project> &proj)
 {
-    std::shared_ptr<Project> old = mCurrentProject.lock();
+    shared_ptr<Project> old = mCurrentProject.lock();
     mCurrentProject = proj;
     return old;
 }
@@ -1097,7 +1097,7 @@ bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompiler
     }
     if (dirs.isEmpty())
         return false;
-    std::shared_ptr<Project> &project = mProjects[path];
+    shared_ptr<Project> &project = mProjects[path];
     project.reset(new Project(path));
     project->indexer.reset(new Indexer(project, !(mOptions.options & NoValidate)));
     project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
@@ -1148,14 +1148,14 @@ void Server::deleteProject(const QueryMessage &query, Connection *conn)
 void Server::project(const QueryMessage &query, Connection *conn)
 {
     if (query.query().isEmpty()) {
-        std::shared_ptr<Project> current = currentProject();
+        shared_ptr<Project> current = currentProject();
         for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
             conn->write<128>("%s%s",
                              it->first.constData(),
                              it->second == current ? " <=" : "");
         }
     } else {
-        std::shared_ptr<Project> selected;
+        shared_ptr<Project> selected;
         bool error = false;
         const Path path = query.query();
         Path key;
@@ -1206,7 +1206,7 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::save(const std::shared_ptr<Indexer> &indexer)
+void Server::save(const shared_ptr<Indexer> &indexer)
 {
     if (!Path::mkdir(mOptions.dataDir)) {
         error("Can't create directory [%s]", mOptions.dataDir.constData());
@@ -1254,7 +1254,7 @@ void Server::save(const std::shared_ptr<Indexer> &indexer)
     }
 }
 
-void Server::onJobsComplete(std::shared_ptr<Indexer> indexer, int count)
+void Server::onJobsComplete(shared_ptr<Indexer> indexer, int count)
 {
     bool ok;
     const int id = mSaveTimers.take(indexer, &ok);
@@ -1263,20 +1263,20 @@ void Server::onJobsComplete(std::shared_ptr<Indexer> indexer, int count)
     if (count) {
         enum { SaveTimerInterval = 5000 };
         mSaveTimers[indexer] = EventLoop::instance()->addTimer(SaveTimerInterval, Server::saveTimerCallback,
-                                                               new std::shared_ptr<Indexer>(indexer));
+                                                               new shared_ptr<Indexer>(indexer));
     }
 }
 
 void Server::saveTimerCallback(int id, void *userData)
 {
-    std::shared_ptr<Indexer> *indexer = static_cast<std::shared_ptr<Indexer> *>(userData);
+    shared_ptr<Indexer> *indexer = static_cast<shared_ptr<Indexer> *>(userData);
     EventLoop::instance()->removeTimer(id);
     Server::instance()->save(*indexer);
     delete indexer;
     // ### should maybe not do this in the main thread
 }
 
-void Server::onJobStarted(std::shared_ptr<Indexer> indexer, Path path)
+void Server::onJobStarted(shared_ptr<Indexer> indexer, Path path)
 {
     // error() << path.constData() << "started";
     bool ok;

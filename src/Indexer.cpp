@@ -12,7 +12,7 @@
 #include "WriteLocker.h"
 #include <math.h>
 
-Indexer::Indexer(const std::shared_ptr<Project> &proj, bool validate)
+Indexer::Indexer(const shared_ptr<Project> &proj, bool validate)
     : mJobCounter(0), mInMakefile(false), mModifiedFilesTimerId(-1), mTimerRunning(false), mProject(proj), mValidate(validate)
 {
     mWatcher.modified().connect(this, &Indexer::onFileModified);
@@ -24,7 +24,7 @@ static inline bool isFile(uint32_t fileId)
     return Location::path(fileId).isFile();
 }
 
-void Indexer::onJobFinished(const std::shared_ptr<IndexerJob> &job)
+void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
 {
     MutexLocker lock(&mMutex);
     const uint32_t fileId = job->fileId();
@@ -36,7 +36,7 @@ void Indexer::onJobFinished(const std::shared_ptr<IndexerJob> &job)
     if (job->isAborted()) {
         return;
     }
-    std::shared_ptr<IndexData> data = job->data();
+    shared_ptr<IndexData> data = job->data();
     mPendingData[fileId] = data;
 
     const int idx = mJobCounter - mJobs.size();
@@ -59,7 +59,7 @@ void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
         return;
 
     const uint32_t fileId = Location::insertFile(c.sourceFile);
-    std::shared_ptr<IndexerJob> &job = mJobs[fileId];
+    shared_ptr<IndexerJob> &job = mJobs[fileId];
     if (job) {
         if (job->abortIfStarted()) {
             mVisitedFiles -= mVisitedFilesByJob.take(job);
@@ -258,7 +258,7 @@ void Indexer::onFilesModifiedTimeout()
         }
     }
     if (!indexed && !mPendingDirtyFiles.isEmpty()) {
-        std::shared_ptr<Project> proj = project();
+        shared_ptr<Project> proj = project();
         Scope<SymbolMap&> symbols = proj->lockSymbolsForWrite();
         Scope<SymbolNameMap&> symbolNames = proj->lockSymbolNamesForWrite();
         Scope<UsrMap&> usr = proj->lockUsrForWrite();
@@ -347,7 +347,7 @@ static inline void writeReferences(const ReferenceMap &references, SymbolMap &sy
 
 void Indexer::write()
 {
-    std::shared_ptr<Project> proj = project();
+    shared_ptr<Project> proj = project();
     Scope<SymbolMap&> symbols = proj->lockSymbolsForWrite();
     Scope<SymbolNameMap&> symbolNames = proj->lockSymbolNamesForWrite();
     Scope<UsrMap&> usr = proj->lockUsrForWrite();
@@ -359,8 +359,8 @@ void Indexer::write()
     }
 
     Set<uint32_t> newFiles;
-    for (Map<uint32_t, std::shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
-        const std::shared_ptr<IndexData> &data = it->second;
+    for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
+        const shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
         addDiagnostics(data->diagnostics, data->fixIts);
         writeCursors(data->symbols, symbols.data());
@@ -413,7 +413,7 @@ void Indexer::checkFinished() // lock always held
         mJobCounter = 0;
 
         if (mValidate) {
-            std::shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(project(), mPreviousErrors));
+            shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(project(), mPreviousErrors));
             validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
             Server::instance()->startJob(validateJob);
         }

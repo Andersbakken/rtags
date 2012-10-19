@@ -1,11 +1,10 @@
 #ifndef Project_h
 #define Project_h
 
-#include <memory>
+#include "CursorInfo.h"
 #include "Path.h"
 #include "RTags.h"
 #include "ReadWriteLock.h"
-#include "CursorInfo.h"
 
 template <typename T>
 class Scope
@@ -28,7 +27,7 @@ private:
         T t;
         ReadWriteLock *lock;
     };
-    std::shared_ptr<Data> mData;
+    shared_ptr<Data> mData;
 };
 
 class Indexer;
@@ -39,9 +38,9 @@ class Project
 public:
     Project(const Path &src);
 
-    std::shared_ptr<Indexer> indexer;
-    std::shared_ptr<FileManager> fileManager;
-    std::shared_ptr<GRTags> grtags;
+    shared_ptr<Indexer> indexer;
+    shared_ptr<FileManager> fileManager;
+    shared_ptr<GRTags> grtags;
 
     const Path srcRoot;
     Path resolvedSrcRoot;

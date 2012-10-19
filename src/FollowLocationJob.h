@@ -10,7 +10,7 @@
 class FollowLocationJob : public Job
 {
 public:
-    FollowLocationJob(const Location &loc, const QueryMessage &query, const std::shared_ptr<Project> &project);
+    FollowLocationJob(const Location &loc, const QueryMessage &query, const shared_ptr<Project> &project);
 protected:
     virtual void execute();
 private:
