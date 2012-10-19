@@ -3,49 +3,36 @@
 
 ByteArray CursorInfo::toString(unsigned keyFlags) const
 {
-    ByteArray ret(16384, '\0');
-    char *buf = ret.data();
-    int pos = snprintf(buf, ret.size(),
-                       "SymbolName: %s\n"
-                       "Kind: %s\n"
-                       "Type: %s\n"
-                       "SymbolLength: %u\n"
-                       "USR: %s\n"
-                       "%s" // range
-                       "%s", // definition
-                       symbolName.constData(),
-                       RTags::eatString(clang_getCursorKindSpelling(kind)).constData(),
-                       RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
-                       symbolLength,
-                       usr.constData(),
-                       start != -1 && end != -1 ? ByteArray::snprintf<16>("Range: %d-%d\n", start, end).constData() : "",
-                       isDefinition ? "Definition\n" : "");
-    buf += pos;
+    ByteArray ret = ByteArray::snprintf<1024>("SymbolName: %s\n"
+                                              "Kind: %s\n"
+                                              "Type: %s\n"
+                                              "SymbolLength: %u\n"
+                                              "%s" // USR
+                                              "%s" // range
+                                              "%s", // definition
+                                              symbolName.constData(),
+                                              RTags::eatString(clang_getCursorKindSpelling(kind)).constData(),
+                                              RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
+                                              symbolLength,
+                                              usr.isEmpty() ? "" : ByteArray::snprintf<64>("USR: %s\n", usr.constData()).constData(),
+                                              start != -1 && end != -1 ? ByteArray::snprintf<16>("Range: %d-%d\n", start, end).constData() : "",
+                                              isDefinition ? "Definition\n" : "");
 
-    if (pos < ret.size() && !targets.isEmpty()) {
-        int w = snprintf(buf, ret.size() - pos, "Targets:\n");
-        pos += w;
-        buf += w;
-        for (Set<Location>::const_iterator tit = targets.begin(); tit != targets.end() && w < ret.size(); ++tit) {
+    if (!targets.isEmpty()) {
+        ret.append("Targets:\n");
+        for (Set<Location>::const_iterator tit = targets.begin(); tit != targets.end(); ++tit) {
             const Location &l = *tit;
-            w = snprintf(buf, ret.size() - pos, "    %s\n", l.key(keyFlags).constData());
-            buf += w;
-            pos += w;
+            ret.append(ByteArray::snprintf<128>("    %s\n", l.key(keyFlags).constData()));
         }
     }
 
-    if (pos < ret.size() && !references.isEmpty()) {
-        int w = snprintf(buf, ret.size() - pos, "References:\n");
-        pos += w;
-        buf += w;
-        for (Set<Location>::const_iterator rit = references.begin(); rit != references.end() && w < ret.size(); ++rit) {
+    if (!references.isEmpty()) {
+        ret.append("References:\n");
+        for (Set<Location>::const_iterator rit = references.begin(); rit != references.end(); ++rit) {
             const Location &l = *rit;
-            w = snprintf(buf, ret.size() - pos, "    %s\n", l.key(keyFlags).constData());
-            buf += w;
-            pos += w;
+            ret.append(ByteArray::snprintf<128>("    %s\n", l.key(keyFlags).constData()));
         }
     }
-    ret.truncate(pos);
     return ret;
 }
 
