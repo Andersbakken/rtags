@@ -1264,7 +1264,7 @@ void Server::save(const shared_ptr<Indexer> &indexer)
             fclose(f);
             return;
         }
-        error() << "saved project" << it->first << "to" << p << "in" << ByteArray::snprintf<12>("%dms", timer.elapsed()).constData();
+        error() << "saved project" << it->first << "in" << ByteArray::snprintf<12>("%dms", timer.elapsed()).constData();
         fclose(f);
         break;
     }
