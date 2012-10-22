@@ -134,7 +134,7 @@ static inline void allImpl(const SymbolMap &map, const Location &loc, const Curs
     typedef SymbolMap (CursorInfo::*Function)(const SymbolMap &map) const;
     const SymbolMap targets = info.targetInfos(map);
     for (SymbolMap::const_iterator t = targets.begin(); t != targets.end(); ++t) {
-        bool ok;
+        bool ok = false;
         switch (mode) {
         case VirtualRefs:
         case NormalRefs:
