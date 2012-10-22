@@ -98,4 +98,6 @@ void FindFileJob::execute()
         out.chop(dir.size() - srcRoot.size());
         ++dirit;
     }
+    for (List<ByteArray>::const_iterator it = matches.begin(); it != matches.end(); ++it)
+        write(*it);
 }
