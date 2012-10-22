@@ -81,7 +81,7 @@ void FindFileJob::execute()
                             foundExact = true;
                         }
                     } else {
-                        ok = out.contains(mPattern, cs);
+                        ok = !foundExact && out.contains(mPattern, cs);
                     }
                 }
                 break;
