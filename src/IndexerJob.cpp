@@ -488,14 +488,12 @@ void IndexerJob::parse()
     }
 
     mTimeStamp = time(0);
-    List<const char*> clangArgs(mArgs.size(), 0);
     mClangLine = Server::instance()->clangPath();
     mClangLine += ' ';
 
     int idx = 0;
-#ifdef OS_Darwin
-    clangArgs[idx++] = "-I/usr/lib/c++/v1";
-#endif
+    List<const char*> clangArgs(mArgs.size(), 0);
+
     const int count = mArgs.size();
     for (int i=0; i<count; ++i) {
         ByteArray arg = mArgs.at(i);
