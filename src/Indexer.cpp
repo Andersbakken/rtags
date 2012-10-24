@@ -381,11 +381,13 @@ void Indexer::beginMakefile()
     mInMakefile = true;
 }
 
-void Indexer::endMakefile()
+int Indexer::endMakefile()
 {
     MutexLocker lock(&mMutex);
     mInMakefile = false;
+    const int ret = mJobCounter;
     checkFinished();
+    return ret;
 }
 
 void Indexer::checkFinished() // lock always held

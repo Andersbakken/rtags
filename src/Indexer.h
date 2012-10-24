@@ -34,7 +34,7 @@ public:
     signalslot::Signal2<shared_ptr<Indexer>, Path> &jobStarted() { return mJobStarted; }
     shared_ptr<Project> project() const { return mProject.lock(); }
     void beginMakefile();
-    void endMakefile();
+    int endMakefile();
     void onJobFinished(const shared_ptr<IndexerJob> &job);
     bool isIndexed(uint32_t fileId) const;
     SourceInformationMap sources() const;

@@ -277,15 +277,17 @@ void Server::onMakefileParserDone(MakefileParser *parser)
     assert(parser);
     Connection *connection = parser->connection();
     shared_ptr<Project> project = mProjects.value(parser->makefile());
-    if (connection) {
-        connection->write<64>("Parsed %s, %d sources",
-                              parser->makefile().constData(), parser->sourceCount());
-        connection->finish();
-    }
+    int sourceCount = 0;
     if (project) {
         assert(project->indexer);
-        project->indexer->endMakefile();
+        sourceCount = project->indexer->endMakefile();
     }
+    if (connection) {
+        connection->write<64>("Parsed %s, %d sources",
+                              parser->makefile().constData(), sourceCount);
+        connection->finish();
+    }
+
     EventLoop::instance()->postEvent(this, new MakefileParserDoneEvent(parser));
 }
 
