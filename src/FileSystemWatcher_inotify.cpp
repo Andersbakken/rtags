@@ -34,6 +34,8 @@ void FileSystemWatcher::clear()
 
 bool FileSystemWatcher::watch(const Path &p)
 {
+    if (p.isEmpty())
+        return false;
     Path path = p;
     assert(!path.isEmpty());
     MutexLocker lock(&mMutex);
