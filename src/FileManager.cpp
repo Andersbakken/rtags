@@ -66,10 +66,14 @@ void FileManager::onFileAdded(const Path &path)
     Scope<FilesMap&> scope = project->lockFilesForWrite();
     FilesMap &map = scope.data();
     const Path parent = path.parentDir();
-    Set<ByteArray> &dir = map[parent];
-    if (dir.isEmpty())
-        mWatcher.watch(parent);
-    dir.insert(path.fileName());
+    if (!parent.isEmpty()) {
+        Set<ByteArray> &dir = map[parent];
+        if (dir.isEmpty())
+            mWatcher.watch(parent);
+        dir.insert(path.fileName());
+    } else {
+        error() << "Got empty parent here" << path;
+    }
 }
 
 void FileManager::onFileRemoved(const Path &path)
