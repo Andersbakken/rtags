@@ -11,7 +11,6 @@
 #include <cxxabi.h>
 #include <sstream>
 
-using std::shared_ptr;
 class Path;
 
 enum LogLevel {

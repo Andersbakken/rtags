@@ -16,7 +16,7 @@ void GRParseJob::run()
     mParseTime = time(0);
     parser.parse(mPath, flags, mEntries);
     if (shared_ptr<Project> project = mProject.lock()) {
-        shared_ptr<GRParseJob> job = std::static_pointer_cast<GRParseJob>(shared_from_this());
+        shared_ptr<GRParseJob> job = static_pointer_cast<GRParseJob>(shared_from_this());
         mFinished(job, mEntries);
     }
 }
