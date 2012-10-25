@@ -832,7 +832,7 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
     if (!count) {
         warning("no input file?");
         return true;
-    } else if (args.type() == GccArguments::NoType || args.lang() == GccArguments::NoLang) {
+    } else if (args.lang() == GccArguments::NoLang) {
         return true;
     }
     shared_ptr<Project> &project = mProjects[proj];
@@ -1123,7 +1123,6 @@ bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompiler
         it->first.visit(projectFileVisitor, &ud);
         GccArguments args;
         args.mInputFiles = ud.sources;
-        args.mType = GccArguments::Compile;
         const char *suffix = path.extension();
         if (suffix && !strcmp(suffix, "c")) {
             args.mLang = GccArguments::C;
