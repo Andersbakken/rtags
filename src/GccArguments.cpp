@@ -1,5 +1,4 @@
 #include "GccArguments.h"
-#include "gccopts_gperf.h"
 #include "Log.h"
 #include "RTags.h"
 #include "Process.h"
@@ -165,74 +164,58 @@ bool GccArguments::parse(ByteArray args, const Path &base)
         return false;
     }
 
-    bool pathok = false;
-    char prevopt = '\1'; // skip the initial binary name
-
-    gccopts_gperf gccopts;
     const int s = split.size();
     for (int i=0; i<s; ++i) {
         const ByteArray &arg = split.at(i);
-        const char *cur = arg.constData();
-        if (prevopt != '\0') {
-            switch (prevopt) {
-            case 'x':
-                if (!strcmp(cur, "c-header") || !strcmp(cur, "c++-header"))
+        if (arg.isEmpty())
+            continue;
+        if (arg.startsWith('-')) {
+            if (arg.startsWith("-x")) {
+                ByteArray a;
+                if (arg.size() == 2 && i + 1 < s) {
+                    a = split.at(++i);
+                } else {
+                    a = arg.mid(2);
+                }
+                if (a == "c-header" || a == "c++-header")
                     return false;
                 mClangArgs.append("-x");
-                mClangArgs.append(cur);
-                break;
-            case 'o': {
-                if (!mOutputFile.isEmpty())
-                    warning("Already have an output file: %s (new %s)",
-                            mOutputFile.constData(), cur);
-                Path out = Path::resolved(cur, path);
-                mOutputFile = out; }
-                break;
-            default:
-                break;
-            }
-            prevopt = '\0';
-            continue;
-        }
-        if (!strncmp(cur, "-", 1)) { // option
-            if (gccopts.in_word_set(cur, strlen(cur))) {
-                if (!strcmp(cur, "-x"))
-                    prevopt = 'x';
-                else if (!strcmp(cur, "-o"))
-                    prevopt = 'o';
-                else
-                    prevopt = '\1';
-                continue;
-            } else {
-                if (!strncmp(cur, "-D", 2)) {
-                    ByteArray arg;
-                    if (arg.size() == 2 && i + 1 < s) {
-                        arg = (cur + split.at(++i));
-                    } else {
-                        arg = cur;
-                    }
-                    mClangArgs.append(arg);
-                } else if (!strncmp(cur, "-I", 2)) {
-                    Path inc;
-                    pathok = false;
-                    if (arg.size() > 2) {
-                        inc = Path::resolved(cur + 2, path, &pathok);
-                    } else if (i + 1 < s) {
-                        inc = Path::resolved(split.at(++i), path, &pathok);
-                    }
-                    if (pathok)
-                        mClangArgs.append("-I" + inc);
-                } else if (!strncmp(cur, "-std", 4)) {
-                    mClangArgs.append(cur);
-                } else if (mType == NoType && !strcmp(cur, "-c")) {
-                    mType = Compile;
+                mClangArgs.append(a);
+            } else if (arg.startsWith("-o")) {
+                if (!mOutputFile.isEmpty()) {
+                    warning("Already have an output file: %s (new %s)", mOutputFile.constData(), arg.constData());
                 }
+                const Path out = Path::resolved(arg, path);
+                mOutputFile = out;
+            } else if (arg.startsWith("-D")) {
+                ByteArray a;
+                if (arg.size() == 2 && i + 1 < s) {
+                    a = (arg + split.at(++i));
+                } else {
+                    a = arg;
+                }
+                mClangArgs.append(a);
+            } else if (arg.startsWith("-I")) {
+                Path inc;
+                bool ok = false;
+                if (arg.size() > 2) {
+                    inc = Path::resolved(arg.mid(2), path, &ok);
+                } else if (i + 1 < s) {
+                    inc = Path::resolved(split.at(++i), path, &ok);
+                }
+                if (ok)
+                    mClangArgs.append("-I" + inc);
+            } else if (arg.startsWith("-std") || arg == "-m32") {
+                mClangArgs.append(arg);
+            } else if (mType == NoType && arg == "-c") {
+                mType = Compile;
             }
-        } else { // input file?
-            Path input = Path::resolved(cur, path, &pathok);
-            if (pathok)
+        } else if (mType == Compile) {
+            bool ok;
+            Path input = Path::resolved(arg, path, &ok);
+            if (ok)
                 mInputFiles.append(input);
-            mUnresolvedInputFiles.append(cur);
+            mUnresolvedInputFiles.append(arg);
         }
     }
 

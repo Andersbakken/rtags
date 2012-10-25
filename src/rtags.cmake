@@ -156,18 +156,5 @@ endif()
 add_pch_rule(Pch.h rtags_SRCS rtags_PCHFLAGS)
 add_definitions(${rtags_PCHFLAGS})
 
-add_custom_command(
-    OUTPUT gccopts_gperf.h
-    DEPENDS gccopts.gperf
-    PRE_BUILD
-    COMMAND gperf -I -C -l -L C++ gccopts.gperf -Z gccopts_gperf > gccopts_gperf.h
-    VERBATIM
-    )
-
-add_custom_target(
-    gperf
-    DEPENDS gccopts_gperf.h
-    )
-
 add_library(rtags ${rtags_SRCS})
 add_dependencies(rtags gperf)
