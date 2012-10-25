@@ -10,14 +10,12 @@ class GccArgumentsImpl;
 class GccArguments
 {
 public:
-    enum Type { NoType, Compile };
     enum Lang { NoLang, C, CPlusPlus };
 
     GccArguments();
     GccArguments(const ByteArray &args, const Path &base);
 
     bool parse(ByteArray args, const Path &base);
-    Type type() const;
     Lang lang() const;
     void clear();
 
@@ -32,7 +30,6 @@ private:
     List<ByteArray> mClangArgs;
     List<Path> mInputFiles, mUnresolvedInputFiles;
     Path mOutputFile, mBase, mCompiler;
-    GccArguments::Type mType;
     GccArguments::Lang mLang;
     friend class MakefileParser;
     friend class Server;

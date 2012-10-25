@@ -4,12 +4,12 @@
 #include "Process.h"
 
 GccArguments::GccArguments()
-    : mType(NoType), mLang(NoLang)
+    : mLang(NoLang)
 {
 }
 
 GccArguments::GccArguments(const ByteArray &args, const Path &base)
-    : mType(NoType), mLang(NoLang)
+    : mLang(NoLang)
 {
     parse(args, base);
 }
@@ -22,7 +22,6 @@ void GccArguments::clear()
     mOutputFile.clear();
     mBase.clear();
     mCompiler.clear();
-    mType = NoType;
     mLang = NoLang;
 }
 
@@ -95,7 +94,6 @@ static inline ByteArray trim(const char *start, int size)
 
 bool GccArguments::parse(ByteArray args, const Path &base)
 {
-    mType = NoType;
     mLang = NoLang;
     mClangArgs.clear();
     mInputFiles.clear();
@@ -165,6 +163,7 @@ bool GccArguments::parse(ByteArray args, const Path &base)
     }
 
     const int s = split.size();
+    bool seenCompiler = false;
     for (int i=0; i<s; ++i) {
         const ByteArray &arg = split.at(i);
         if (arg.isEmpty())
@@ -207,19 +206,23 @@ bool GccArguments::parse(ByteArray args, const Path &base)
                     mClangArgs.append("-I" + inc);
             } else if (arg.startsWith("-std") || arg == "-m32") {
                 mClangArgs.append(arg);
-            } else if (mType == NoType && arg == "-c") {
-                mType = Compile;
             }
-        } else if (mType == Compile) {
-            bool ok;
-            Path input = Path::resolved(arg, path, &ok);
-            if (ok)
-                mInputFiles.append(input);
-            mUnresolvedInputFiles.append(arg);
+        } else {
+            if (!seenCompiler) {
+                seenCompiler = true;
+            } else {
+                bool ok;
+                Path input = Path::resolved(arg, path, &ok);
+                if (input.isSource()) {
+                    if (ok)
+                        mInputFiles.append(input);
+                    mUnresolvedInputFiles.append(arg);
+                }
+            }
         }
     }
 
-    if (mType == NoType) {
+    if (mUnresolvedInputFiles.isEmpty()) {
         clear();
         return false;
     }
@@ -246,11 +249,6 @@ bool GccArguments::parse(ByteArray args, const Path &base)
     }
     mCompiler = compiler;
     return true;
-}
-
-GccArguments::Type GccArguments::type() const
-{
-    return mType;
 }
 
 GccArguments::Lang GccArguments::lang() const
