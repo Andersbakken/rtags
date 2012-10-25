@@ -89,7 +89,7 @@ public:
         if (ba.isEmpty())
             return -1;
         if (ba.size() == 1)
-            return lastIndexOf(first(), from, cs);
+            return lastIndexOf(ba.first(), from, cs);
         if (cs == CaseSensitive)
             return mString.rfind(ba.mString, from == -1 ? std::string::npos : size_t(from));
         if (from == -1)
@@ -114,7 +114,7 @@ public:
         if (ba.isEmpty())
             return -1;
         if (ba.size() == 1)
-            return indexOf(first(), from, cs);
+            return indexOf(ba.first(), from, cs);
         if (cs == CaseSensitive)
             return mString.find(ba.mString, from);
 
