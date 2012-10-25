@@ -248,6 +248,7 @@ void EventLoop::run()
         // ### use poll instead? easier to catch exactly what fd that was problematic in the EBADF case
         eintrwrap(r, ::select(max + 1, &rset, &wset, 0, timeout));
         if (r == -1) { // ow
+            error("Got error from select %d %s max %d used %d ", errno, strerror(errno), FD_SETSIZE, max + 1);
             return;
         }
         if (timeout) {
