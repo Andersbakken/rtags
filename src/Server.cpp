@@ -302,8 +302,7 @@ void Server::onMakefileParserDone(MakefileParser *parser)
     Connection *connection = parser->connection();
     shared_ptr<Project> project = mProjects.value(parser->makefile());
     int sourceCount = 0;
-    if (project) {
-        assert(project->indexer);
+    if (project && project->indexer) {
         sourceCount = project->indexer->endMakefile();
     }
     if (connection) {
