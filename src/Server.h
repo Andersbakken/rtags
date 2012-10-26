@@ -98,7 +98,7 @@ private:
     void dumpFile(const QueryMessage &query, Connection *conn);
     void removeProject(const QueryMessage &query, Connection *conn);
     void reloadProjects(const QueryMessage &query, Connection *conn);
-    void project(const QueryMessage &query, Connection *conn);
+    bool project(const QueryMessage &query, Connection *conn);
     void clearProjects(const QueryMessage &query, Connection *conn);
     void shutdown(const QueryMessage &query, Connection *conn);
     int nextId();

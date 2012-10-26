@@ -331,8 +331,7 @@ void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection 
 
 void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
 {
-    if (message->flags() & QueryMessage::Silent)
-        conn->setSilent(true);
+    conn->setSilent(message->flags() & QueryMessage::Silent);
 
     switch (message->type()) {
     case QueryMessage::Invalid:
@@ -354,7 +353,8 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         reloadProjects(*message, conn);
         break;
     case QueryMessage::Project:
-        project(*message, conn);
+        if (!conn->hasUpdatedProject() && project(*message, conn))
+            conn->setHasUpdatedProject(true);
         break;
     case QueryMessage::Reindex: {
         reindex(*message, conn);
@@ -1003,7 +1003,6 @@ bool Server::updateProjectForLocation(const Path &path)
                 longest = matchLength;
             }
         }
-
     }
     if (match) {
         setCurrentProject(match);
@@ -1207,12 +1206,13 @@ void Server::reloadProjects(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::project(const QueryMessage &query, Connection *conn)
+bool Server::project(const QueryMessage &query, Connection *conn)
 {
+    bool ret = false;
     if (query.query().isEmpty()) {
         shared_ptr<Project> current = currentProject();
         for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-            conn->write<128>("%s%s",
+            conn->write<128>("%s%s%s",
                              it->first.constData(),
                              it->second->isValid() ? " (loaded)" : "",
                              it->second == current ? " <=" : "");
@@ -1244,14 +1244,18 @@ void Server::project(const QueryMessage &query, Connection *conn)
                 }
             }
             if (selected) {
-                setCurrentProject(selected);
-                conn->write<128>("Selected project: %s for %s", selected->path().constData(), path.constData());
+                if (selected != currentProject()) {
+                    setCurrentProject(selected);
+                    ret = true;
+                    conn->write<128>("Selected project: %s for %s", selected->path().constData(), path.constData());
+                }
             } else if (!error) {
                 conn->write<128>("No matches for %s", path.constData());
             }
         }
     }
     conn->finish();
+    return ret;
 }
 void Server::clearProjects(const QueryMessage &query, Connection *conn)
 {

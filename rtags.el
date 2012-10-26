@@ -90,6 +90,8 @@
 
           (if rtags-timeout
               (push (format "--timeout=%d" rtags-timeout) arguments))
+          (if (and path rtags-auto-update-project (not rtags-inhibit-auto-update-until-next-goto-location) compilation-directory)
+              (push (concat "--project=" compilation-directory) arguments))
           (if (and path rtags-auto-update-project (not rtags-inhibit-auto-update-until-next-goto-location))
               (push (concat "--project=" path) arguments))
 
