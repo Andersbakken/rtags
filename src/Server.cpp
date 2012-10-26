@@ -986,7 +986,7 @@ bool Server::updateProjectForLocation(const Path &path)
     shared_ptr<Project> cur = mCurrentProject.lock();
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         const Path srcRoot = it->second->srcRoot();
-        if (!strncmp(srcRoot.constData(), path.constData(), srcRoot.size())) {
+        if (!srcRoot.isEmpty() && !strncmp(srcRoot.constData(), path.constData(), srcRoot.size())) {
             if (it->second == cur)
                 return true;
             const int matchLength = srcRoot.size();
@@ -995,10 +995,9 @@ bool Server::updateProjectForLocation(const Path &path)
                 longest = matchLength;
             }
         }
-        Path resolvedSrcRoot = it->second->resolvedSrcRoot();
-        if (!resolvedSrcRoot.isEmpty()
-            && !strncmp(resolvedSrcRoot.constData(), path.constData(), resolvedSrcRoot.size())) {
-            const int matchLength = srcRoot.size();
+        const Path resolvedSrcRoot = it->second->resolvedSrcRoot();
+        if (!resolvedSrcRoot.isEmpty() && !strncmp(resolvedSrcRoot.constData(), path.constData(), resolvedSrcRoot.size())) {
+            const int matchLength = resolvedSrcRoot.size();
             if (matchLength > longest) {
                 match = it->second;
                 longest = matchLength;
