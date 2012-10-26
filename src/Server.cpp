@@ -129,7 +129,7 @@ bool Server::init(const Options &options)
 bool Server::addProject(const Path &path, const ProjectEntry &newEntry)
 {
     ProjectEntry &entry = mProjects[path];
-    if (!entry.project || newEntry == entry) {
+    if (!entry.project || newEntry != entry) {
         if (entry.project)
             unloadProject(path);
         entry = newEntry;
@@ -907,7 +907,6 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
         }
 
         project->indexer->beginMakefile();
-        mCurrentProject = project;
     }
 
     List<ByteArray> arguments = args.clangArgs();
@@ -971,7 +970,6 @@ void Server::event(const Event *event)
 
 shared_ptr<Project> Server::setCurrentProject(const Path &path)
 {
-    error() << "setCurrentProject" << path;
     ProjectsMap::const_iterator it = mProjects.find(path);
     if (it != mProjects.end()) {
         mCurrentProject = it->second.project;
@@ -1077,8 +1075,9 @@ void Server::unloadProject(const Path &path)
     ProjectsMap::iterator it = mProjects.find(path);
     if (it == mProjects.end())
         return;
-    if (mCurrentProject.lock() == it->second.project)
+    if (mCurrentProject.lock() == it->second.project) {
         mCurrentProject.reset();
+    }
     it->second.project->unload();
 }
 
