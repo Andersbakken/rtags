@@ -14,7 +14,6 @@
 #include "FileManager.h"
 #include "Project.h"
 #include "GRScanJob.h"
-#include "MakefileInformation.h"
 
 class GRTagsMessage;
 class Connection;
@@ -65,7 +64,6 @@ private:
     void onNewConnection();
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
     shared_ptr<Project> setCurrentProject(const Path &path);
-    shared_ptr<Project> setCurrentProject(const shared_ptr<Project> &proj);
     void event(const Event *event);
     void onFileReady(const GccArguments &file, MakefileParser *parser);
     bool processSourceFile(const GccArguments &args, const Path &makefile);
@@ -74,7 +72,7 @@ private:
     void onMakefileParserDone(MakefileParser *parser);
     void onMakefileModified(const Path &path);
     void onMakefileRemoved(const Path &path);
-    void make(const Path &path, const List<ByteArray> &makefileArgs = List<ByteArray>(),
+    bool make(const Path &path, const List<ByteArray> &makefileArgs = List<ByteArray>(),
               const List<ByteArray> &extraCompilerFlags = List<ByteArray>(),
               Connection *conn = 0);
     void clearProjects();
@@ -108,12 +106,35 @@ private:
     bool updateProjectForLocation(const Location &location);
     bool updateProjectForLocation(const Path &path);
     void writeProjects();
-    bool grtag(const Path &dir);
-    bool smartProject(const Path &path, const List<ByteArray> &extraCompilerFlags);
+    struct ProjectEntry;
+    bool initSmartProject(const ProjectEntry &entry);
     shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void removeProject(const Path &key);
     void unloadProject(const Path &key);
     void reloadProjects();
+    bool addProject(const Path &path, const ProjectEntry &entry);
+
+    struct ProjectEntry
+    {
+        ProjectEntry(unsigned t = 0)
+            : type(t)
+        {}
+        unsigned type;
+        List<ByteArray> flags, args;
+        shared_ptr<Project> project;
+
+        inline bool operator==(const ProjectEntry &other) const
+        {
+            return (type == other.type && flags == other.flags && args == other.args);
+        }
+        inline bool operator!=(const ProjectEntry &other) const
+        {
+            return (type != other.type || flags != other.flags || args != other.args);
+        }
+    };
+    typedef Map<Path, ProjectEntry> ProjectsMap;
+    ProjectsMap mProjects;
+    weak_ptr<Project> mCurrentProject;
 
     static Server *sInstance;
     Options mOptions;
@@ -121,13 +142,8 @@ private:
     Map<int, Connection*> mPendingLookups;
     bool mVerbose;
     int mJobId;
-    Map<Path, MakefileInformation> mMakefiles;
-    Set<Path> mGRTagsDirs;
-    Map<Path, List<ByteArray> > mSmartProjects;
-    FileSystemWatcher mMakefilesWatcher;
 
-    ProjectsMap mProjects;
-    weak_ptr<Project> mCurrentProject;
+    FileSystemWatcher mMakefilesWatcher;
     ThreadPool *mThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
     Path mClangPath;

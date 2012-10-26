@@ -44,7 +44,6 @@ typedef Map<uint32_t, SourceInformation> SourceInformationMap;
 typedef Map<Path, Set<ByteArray> > FilesMap;
 typedef Map<Location, std::pair<int, ByteArray> > FixitMap;
 typedef Map<uint32_t, List<ByteArray> > DiagnosticsMap;
-typedef Map<Path, shared_ptr<Project> > ProjectsMap;
 typedef Map<uint32_t, time_t> GRFilesMap;
 // file id to last modified, time_t means currently parsing
 typedef Map<ByteArray, Map<Location, bool> > GRMap;
@@ -71,6 +70,16 @@ enum TimeFormat {
     Time,
     Date
 };
+
+enum ProjectType {
+    Type_None = 0x00,
+    Type_Makefile = 0x01,
+    Type_SmartProject = 0x02,
+    Type_GRTags = 0x04,
+    Type_Command = 0x08,
+    Type_Synthesized = 0x10
+};
+
 inline ByteArray timeToString(time_t t, TimeFormat fmt)
 {
     const char *format = 0;

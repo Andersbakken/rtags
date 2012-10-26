@@ -18,7 +18,6 @@
 #include "LocalServer.h"
 #include "Log.h"
 #include "LogObject.h"
-#include "MakefileInformation.h"
 #include "MakefileParser.h"
 #include "Message.h"
 #include "Messages.h"
@@ -74,7 +73,7 @@ void Server::clear()
     delete mServer;
     mServer = 0;
     mProjects.clear();
-    setCurrentProject(shared_ptr<Project>());
+    mCurrentProject.reset();
 }
 
 bool Server::init(const Options &options)
@@ -127,53 +126,74 @@ bool Server::init(const Options &options)
     return true;
 }
 
+bool Server::addProject(const Path &path, const ProjectEntry &newEntry)
+{
+    ProjectEntry &entry = mProjects[path];
+    if (!entry.project || newEntry == entry) {
+        if (entry.project)
+            unloadProject(path);
+        entry = newEntry;
+        unsigned flags = Project::FileManagerEnabled;
+        if (entry.type & RTags::Type_GRTags) {
+            flags |= Project::GRTagsEnabled;
+        } else {
+            flags |= Project::IndexerEnabled;
+        }
+
+        entry.project.reset(new Project(flags, path));
+        return true;
+    }
+    return false;
+}
+
 void Server::reloadProjects()
 {
     mMakefilesWatcher.clear();
     IniFile file(mOptions.projectsFile);
     const Path resolvePath = mOptions.projectsFile.parentDir();
     Set<Path> previous = mProjects.keys().toSet();
-    {
-        const List<ByteArray> makefiles = file.keys("Makefiles");
-        const int count = makefiles.size();
-        mMakefiles.clear();
+    struct Entry {
+        const unsigned type;
+        const char *key;
+    } entries[] = {
+        { RTags::Type_Makefile, "Makefiles" },
+        { RTags::Type_SmartProject, "SmartProjects" },
+        { RTags::Type_GRTags, "GRTags" },
+        { RTags::Type_Command|RTags::Type_Makefile, "MakefileCommands" },
+        { RTags::Type_Command|RTags::Type_SmartProject, "SmartProjectCommands" },
+        { RTags::Type_Command|RTags::Type_GRTags, "GRTagsCommands" },
+        { 0, 0 }
+    };
+    for (int i=0; entries[i].key; ++i) {
+        const Entry &e = entries[i];
+        const List<ByteArray> keys = file.keys(e.key);
+        const int count = keys.size();
         for (int i=0; i<count; ++i) {
-            bool ok;
-            const ByteArray value = file.value("Makefiles", makefiles.at(i));
-            const MakefileInformation info = MakefileInformation::fromString(value, &ok);
-            if (!ok) {
-                error("Can't parse makefile information %s", value.constData());
-                return;
+            ProjectEntry entry;
+            entry.type = e.type;
+            const ByteArray value = file.value(e.key, keys.at(i));
+            if (!value.isEmpty()) {
+                const List<ByteArray> split = value.split('|');
+                switch (split.size()) {
+                case 1:
+                    entry.args = value.split(' ');
+                    break;
+                case 2:
+                    entry.args = split.first().split(' ');
+                    entry.flags = split.last().split(' ');
+                    break;
+                default:
+                    error("Parse error for %s=%s", keys.at(i).constData(), value.constData());
+                    continue;
+                }
             }
-            const Path path = Path::resolved(makefiles.at(i), resolvePath);
-            mMakefiles[path] = info;
-            mMakefilesWatcher.watch(path);
-            if (!previous.remove(path))
-                mProjects[path].reset(new Project(Project::FileManagerEnabled|Project::IndexerEnabled, path));
-        }
-    }
-    {
-        mGRTagsDirs.clear();
-        const List<ByteArray> grtags = file.keys("GRTags");
-        const int count = grtags.size();
-        for (int i=0; i<count; ++i) {
-            if (!previous.remove(grtags.at(i))) {
-                grtag(grtags.at(i));
-            }
-        }
-    }
-    {
-        const List<ByteArray> smartProjects = file.keys("SmartProjects");
-        mSmartProjects.clear();
-        const int count = smartProjects.size();
-        for (int i=0; i<count; ++i) {
-            const ByteArray value = file.value("SmartProjects", smartProjects.at(i));
-            if (!mProjects.remove(smartProjects.at(i)))
-                smartProject(smartProjects.at(i), value.split('|'));
+            const Path path = Path::resolved(keys.at(i), resolvePath);
+            addProject(path, entry);
         }
     }
     for (Set<Path>::const_iterator it = previous.begin(); it != previous.end(); ++it) {
-        removeProject(*it);
+        if (!mProjects.contains(*it))
+            removeProject(*it);
     }
 }
 
@@ -229,78 +249,64 @@ void Server::onNewMessage(Message *message, Connection *connection)
 void Server::handleProjectMessage(ProjectMessage *message, Connection *conn)
 {
     switch (message->type()) {
-    case ProjectMessage::NoType:
+    case RTags::Type_None:
+    case RTags::Type_Synthesized:
+        assert(0);
         break;
-    case ProjectMessage::MakefileType: {
-        const Path makefile = message->path();
+    case RTags::Type_Command:
+        break;
+    case RTags::Type_Makefile:
+    case RTags::Type_GRTags:
+    case RTags::Type_SmartProject: {
+        ProjectEntry entry;
+        entry.type = message->type();
+        const Path path = message->path();
         List<ByteArray> args = message->arguments();
         if (message->flags() & ProjectMessage::UseDashB)
             args.append("-B");
-        if (message->flags() & ProjectMessage::NoMakeTricks)
-            args.append("<no-make-tricks>");
-        const MakefileInformation mi(args, message->extraCompilerFlags());
-        mMakefiles[makefile] = mi;
-        writeProjects();
-        shared_ptr<Project> &proj = mProjects[makefile];
-        if (!proj) {
-            proj.reset(new Project(Project::FileManagerEnabled|Project::IndexerEnabled, makefile));
-            conn->write<128>("Added project %s", makefile.constData());
+        entry.args = args;
+        entry.flags = message->extraCompilerFlags();
+        if (addProject(path, entry)) {
+            conn->write<128>("Added project %s", path.constData());
         } else {
-            conn->write<128>("%s is already added", makefile.constData());
+            conn->write<128>("%s is already added", path.constData());
         }
-        if (proj->isValid() || message->flags() & ProjectMessage::Automake) {
-            make(makefile, args, message->extraCompilerFlags(), conn);
-        } else {
+        ProjectEntry &e = mProjects[path];
+        bool finish = true;
+        if (e.type & RTags::Type_Makefile) {
+            if ((e.project && e.project->isValid()) || (message->flags() & ProjectMessage::Automake))
+                finish = !make(path, args, message->extraCompilerFlags(), conn);
+        }
+        if (finish)
             conn->finish();
-        }
+        writeProjects();
         break; }
-    case ProjectMessage::GRTagsType:
-        if (grtag(message->path()))
-            conn->write<256>("Parsing %s", message->path().constData());
-        conn->finish();
-        break;
-    case ProjectMessage::SmartType:
-        if (smartProject(message->path(), message->extraCompilerFlags()))
-            conn->write<256>("Parsing %s", message->path().constData());
-        conn->finish();
-        break;
     }
 }
 
-bool Server::grtag(const Path &dir)
-{
-    shared_ptr<Project> &project = mProjects[dir];
-    if (project) {
-        return false;
-    }
-    project.reset(new Project(Project::GRTagsEnabled|Project::FileManagerEnabled, dir));
-    project->init(dir);
-    mGRTagsDirs.insert(dir);
-    writeProjects();
-    setCurrentProject(project);
-    return true;
-}
-
-void Server::make(const Path &path, const List<ByteArray> &makefileArgs,
+bool Server::make(const Path &path, const List<ByteArray> &makefileArgs,
                   const List<ByteArray> &extraCompilerFlags, Connection *conn)
 {
-    shared_ptr<Project> project = mProjects.value(path);
-    if (project && project->isValid()) {
-        assert(project->indexer);
-        project->indexer->beginMakefile();
+    ProjectEntry entry = mProjects.value(path);
+    if (!entry.project || !(entry.type & RTags::Type_Makefile))
+        return false;
+    if (entry.project && entry.project->isValid()) {
+        assert(entry.project->indexer);
+        entry.project->indexer->beginMakefile();
     }
 
     MakefileParser *parser = new MakefileParser(extraCompilerFlags, conn);
     parser->fileReady().connect(this, &Server::onFileReady);
     parser->done().connect(this, &Server::onMakefileParserDone);
     parser->run(path, makefileArgs);
+    return true;
 }
 
 void Server::onMakefileParserDone(MakefileParser *parser)
 {
     assert(parser);
     Connection *connection = parser->connection();
-    shared_ptr<Project> project = mProjects.value(parser->makefile());
+    shared_ptr<Project> project = mProjects.value(parser->makefile()).project;
     int sourceCount = 0;
     if (project && project->indexer) {
         sourceCount = project->indexer->endMakefile();
@@ -716,9 +722,9 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
 {
     // error() << "remake " << pattern;
     RegExp rx(pattern);
-    for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
-        if (rx.isEmpty() || rx.indexIn(it->first) != -1) {
-            make(it->first, it->second.makefileArgs, it->second.extraCompilerFlags, conn);
+    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+        if ((it->second.type & RTags::Type_Makefile) && (rx.isEmpty() || rx.indexIn(it->first) != -1)) {
+            make(it->first, it->second.args, it->second.flags, conn);
         }
     }
 }
@@ -864,7 +870,7 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
     } else if (args.lang() == GccArguments::NoLang) {
         return true;
     }
-    shared_ptr<Project> project = mProjects.value(proj);
+    shared_ptr<Project> project = mProjects.value(proj).project;
     if (!project) {
         error("No project for this file %s %s", inputFiles.begin()->constData(), proj.constData());
         return false;
@@ -901,8 +907,8 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
         }
 
         project->indexer->beginMakefile();
+        mCurrentProject = project;
     }
-    setCurrentProject(project);
 
     List<ByteArray> arguments = args.clangArgs();
     arguments.append(mOptions.defaultArguments);
@@ -923,7 +929,7 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
 
 void Server::onMakefileModified(const Path &path)
 {
-    shared_ptr<Project> project = mProjects.value(path);
+    shared_ptr<Project> project = mProjects.value(path).project;
     if (project && project->indexer)
         remake(path, 0);
 }
@@ -965,10 +971,18 @@ void Server::event(const Event *event)
 
 shared_ptr<Project> Server::setCurrentProject(const Path &path)
 {
+    error() << "setCurrentProject" << path;
     ProjectsMap::const_iterator it = mProjects.find(path);
     if (it != mProjects.end()) {
-        setCurrentProject(it->second);
-        return it->second;
+        mCurrentProject = it->second.project;
+        if (!it->second.project->isValid()) {
+            if (it->second.type & RTags::Type_Makefile) {
+                remake(it->first, 0);
+            } else if (it->second.type & RTags::Type_SmartProject) {
+                initSmartProject(it->second);
+            }
+        }
+        return it->second.project;
     }
     return shared_ptr<Project>();
 }
@@ -980,61 +994,69 @@ bool Server::updateProjectForLocation(const Location &location)
 
 bool Server::updateProjectForLocation(const Path &path)
 {
-    shared_ptr<Project> match;
+    Path match;
     int longest = -1;
     shared_ptr<Project> cur = mCurrentProject.lock();
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        const Path srcRoot = it->second->srcRoot();
+        const Path srcRoot = it->second.project->srcRoot();
         if (!srcRoot.isEmpty() && !strncmp(srcRoot.constData(), path.constData(), srcRoot.size())) {
-            if (it->second == cur)
+            if (it->second.project == cur)
                 return true;
             const int matchLength = srcRoot.size();
             if (matchLength > longest) {
-                match = it->second;
+                match = it->first;
                 longest = matchLength;
             }
         }
-        const Path resolvedSrcRoot = it->second->resolvedSrcRoot();
+        const Path resolvedSrcRoot = it->second.project->resolvedSrcRoot();
         if (!resolvedSrcRoot.isEmpty() && !strncmp(resolvedSrcRoot.constData(), path.constData(), resolvedSrcRoot.size())) {
             const int matchLength = resolvedSrcRoot.size();
             if (matchLength > longest) {
-                match = it->second;
+                match = it->first;
                 longest = matchLength;
             }
         }
     }
-    if (match) {
+    if (!match.isEmpty()) {
         setCurrentProject(match);
         return true;
     }
     return false;
 }
 
-shared_ptr<Project> Server::setCurrentProject(const shared_ptr<Project> &proj)
-{
-    shared_ptr<Project> old = mCurrentProject.lock();
-    mCurrentProject = proj;
-    if (proj && !proj->isValid())
-        remake(proj->path(), 0);
-    return old;
-}
-
 void Server::writeProjects()
 {
+    Path::rm(mOptions.projectsFile);
     IniFile ini(mOptions.projectsFile);
-    ini.removeGroup("Makefiles");
     mMakefilesWatcher.clear();
-    for (Map<Path, MakefileInformation>::const_iterator it = mMakefiles.begin(); it != mMakefiles.end(); ++it) {
-        ini.setValue("Makefiles", it->first, it->second.toString());
-        mMakefilesWatcher.watch(it->first);
-    }
-    ini.removeGroup("GRTags");
-    for (Set<Path>::const_iterator it = mGRTagsDirs.begin(); it != mGRTagsDirs.end(); ++it) {
-        ini.setValue("GRTags", *it);
-    }
-    ini.removeGroup("SmartProjects");
-    for (Map<Path, List<ByteArray> >::const_iterator it = mSmartProjects.begin(); it != mSmartProjects.end(); ++it) {
-        ini.setValue("SmartProjects", it->first, ByteArray::join(it->second, '|'));
+    for (ProjectsMap::iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+        if (it->second.type & RTags::Type_Makefile)
+            mMakefilesWatcher.watch(it->first);
+        if (it->second.type & RTags::Type_Synthesized)
+            continue;
+        const char *key = 0;
+        switch (it->second.type) {
+        case RTags::Type_Makefile: key = "Makefiles"; break;
+        case RTags::Type_SmartProject: key = "SmartProjects"; break;
+        case RTags::Type_GRTags: key = "GRTags"; break;
+        case RTags::Type_Command|RTags::Type_Makefile: key = "MakefileCommands"; break;
+        case RTags::Type_Command|RTags::Type_SmartProject: key = "SmartProjectCommands"; break;
+        case RTags::Type_Command|RTags::Type_GRTags: key = "GRTagsCommands"; break;
+        default:
+            assert(0);
+        }
+        assert(key);
+        if (key) {
+            ByteArray details;
+            if (!it->second.args.isEmpty())
+                details = ByteArray::join(it->second.args, ' ');
+            if (!it->second.flags.isEmpty()) {
+                details += '|';
+                details += ByteArray::join(it->second.flags, ' ');
+            }
+
+            ini.setValue(key, it->first, details);
+        }
     }
 }
 
@@ -1043,21 +1065,11 @@ void Server::removeProject(const Path &path)
     ProjectsMap::iterator it = mProjects.find(path);
     if (it == mProjects.end())
         return;
-    it->second->unload();
-    bool write = false;
-    if (mMakefiles.remove(path))
-        write = true;
-    if (mGRTagsDirs.remove(path))
-        write = true;
-    if (mSmartProjects.remove(path))
-        write = true;
+    it->second.project->unload();
+    const bool write = !(it->second.type & RTags::Type_Synthesized);
+    mProjects.remove(path);
     if (write)
         writeProjects();
-
-    mProjects.remove(path);
-
-    if (!mCurrentProject.lock() && !mProjects.isEmpty())
-        setCurrentProject(mProjects.begin()->first);
 }
 
 void Server::unloadProject(const Path &path)
@@ -1065,9 +1077,9 @@ void Server::unloadProject(const Path &path)
     ProjectsMap::iterator it = mProjects.find(path);
     if (it == mProjects.end())
         return;
-    if (mCurrentProject.lock() == it->second)
+    if (mCurrentProject.lock() == it->second.project)
         mCurrentProject.reset();
-    it->second->unload();
+    it->second.project->unload();
 }
 
 static inline bool match(const Path &path, const List<ByteArray> &wildcards, const List<RegExp> &regexps)
@@ -1085,7 +1097,7 @@ static inline bool match(const Path &path, const List<ByteArray> &wildcards, con
     return false;
 }
 
-struct ProjectFileUserData {
+struct SmartProjectFileUserData {
     List<RegExp> includes, excludes;
     List<ByteArray> includesWildcard, excludesWildcard;
     List<Path> sources;
@@ -1093,10 +1105,10 @@ struct ProjectFileUserData {
     bool recurse;
 };
 
-static Path::VisitResult projectFileVisitor(const Path &path, void *userData)
+static Path::VisitResult smartProjectFileVisitor(const Path &path, void *userData)
 {
     assert(userData);
-    ProjectFileUserData &ud = *reinterpret_cast<ProjectFileUserData*>(userData);
+    SmartProjectFileUserData &ud = *reinterpret_cast<SmartProjectFileUserData*>(userData);
     switch (path.type()) {
     case Path::File:
         if (match(path, ud.includesWildcard, ud.includes)
@@ -1115,16 +1127,17 @@ static Path::VisitResult projectFileVisitor(const Path &path, void *userData)
     return Path::Continue;
 }
 
-bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompilerFlags)
+bool Server::initSmartProject(const ProjectEntry &entry)
 {
-    if (mProjects.contains(path))
-        return false;
-    Map<Path, ProjectFileUserData> dirs;
+    if (entry.project->isValid())
+        return true;
+    const Path path = entry.project->path();
+    Map<Path, SmartProjectFileUserData> dirs;
     switch (path.type()) {
     case Path::File:
         break;
     case Path::Directory: {
-        ProjectFileUserData &data = dirs[path];
+        SmartProjectFileUserData &data = dirs[path];
         data.recurse = true;
         data.includesWildcard.append("*.c");
         data.includesWildcard.append("*.cpp");
@@ -1137,18 +1150,14 @@ bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompiler
     }
     if (dirs.isEmpty())
         return false;
-    shared_ptr<Project> &project = mProjects[path];
-    project.reset(new Project(Project::FileManagerEnabled|Project::IndexerEnabled, path));
-    project->init(path);
-    project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
-    project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
-    project->indexer->beginMakefile();
-    project->fileManager.reset(new FileManager);
-    project->fileManager->init(project);
-    for (Map<Path, ProjectFileUserData>::iterator it = dirs.begin(); it != dirs.end(); ++it) {
-        ProjectFileUserData &ud = it->second;
+    entry.project->init(path);
+    entry.project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
+    entry.project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
+    entry.project->indexer->beginMakefile();
+    for (Map<Path, SmartProjectFileUserData>::iterator it = dirs.begin(); it != dirs.end(); ++it) {
+        SmartProjectFileUserData &ud = it->second;
         ud.includePaths.insert(path); // ###
-        it->first.visit(projectFileVisitor, &ud);
+        it->first.visit(smartProjectFileVisitor, &ud);
         GccArguments args;
         args.mInputFiles = ud.sources;
         const char *suffix = path.extension();
@@ -1161,15 +1170,13 @@ bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompiler
         for (Set<Path>::const_iterator it = ud.includePaths.begin(); it != ud.includePaths.end(); ++it) {
             args.mClangArgs.append("-I" + *it);
         }
-        args.mClangArgs += extraCompilerFlags;
+        args.mClangArgs += entry.flags;
         processSourceFile(args, path);
     }
-    project->indexer->endMakefile();
+    entry.project->indexer->endMakefile();
 
     // error() << userData.includePaths;
     // error() << userData.sources;
-    mSmartProjects[path] = extraCompilerFlags;
-    writeProjects();
     return true;
 }
 void Server::removeProject(const QueryMessage &query, Connection *conn)
@@ -1213,11 +1220,11 @@ bool Server::project(const QueryMessage &query, Connection *conn)
         for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
             conn->write<128>("%s%s%s",
                              it->first.constData(),
-                             it->second->isValid() ? " (loaded)" : "",
-                             it->second == current ? " <=" : "");
+                             it->second.project->isValid() ? " (loaded)" : "",
+                             it->second.project == current ? " <=" : "");
         }
     } else {
-        shared_ptr<Project> selected;
+        Path selected;
         bool error = false;
         const Path path = query.query();
         if (path.exists() && updateProjectForLocation(path)) {
@@ -1225,28 +1232,29 @@ bool Server::project(const QueryMessage &query, Connection *conn)
         } else {
             RegExp rx(query.query());
             for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-                const Path paths[] = { it->first, it->second->srcRoot(), it->second->resolvedSrcRoot() };
+                const Path paths[] = { it->first, it->second.project->srcRoot(), it->second.project->resolvedSrcRoot() };
                 for (int i=0; i<3; ++i) {
                     if (!paths[i].isEmpty() && rx.indexIn(paths[i]) != -1) {
                         if (error) {
                             conn->write(it->first);
-                        } else if (selected) {
+                        } else if (!selected.isEmpty()) {
                             error = true;
                             conn->write<128>("Multiple matches for %s", path.constData());
                             conn->write(it->first);
-                            selected.reset();
+                            selected.clear();
                         } else {
-                            selected = it->second;
+                            selected = it->first;
                             break;
                         }
                     }
                 }
             }
-            if (selected) {
-                if (selected != currentProject()) {
+            if (!selected.isEmpty()) {
+                shared_ptr<Project> current = currentProject();
+                if (!current || selected != current->path()) {
                     setCurrentProject(selected);
                     ret = true;
-                    conn->write<128>("Selected project: %s for %s", selected->path().constData(), path.constData());
+                    conn->write<128>("Selected project: %s for %s", selected.constData(), path.constData());
                 }
             } else if (!error) {
                 conn->write<128>("No matches for %s", path.constData());
@@ -1288,7 +1296,7 @@ void Server::save(const shared_ptr<Indexer> &indexer)
         fclose(f);
     }
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second->indexer != indexer)
+        if (it->second.project->indexer != indexer)
             continue;
         Timer timer;
         Path makeFilePath = it->first;
@@ -1301,12 +1309,12 @@ void Server::save(const shared_ptr<Indexer> &indexer)
         }
         Serializer out(f);
         out << static_cast<int>(DatabaseVersion);
-        if (!it->second->save(out)) {
+        if (!it->second.project->save(out)) {
             error("Can't save project %s", it->first.constData());
             fclose(f);
             return;
         }
-        if (!it->second->indexer->save(out)) {
+        if (!it->second.project->indexer->save(out)) {
             error("Can't save project %s", it->first.constData());
             fclose(f);
             return;

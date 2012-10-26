@@ -14,22 +14,14 @@ public:
     enum Flag {
         NoFlag = 0x0,
         UseDashB = 0x1,
-        NoMakeTricks = 0x2,
-        Automake = 0x4
+        Automake = 0x2
     };
 
-    enum Type {
-        NoType,
-        MakefileType,
-        GRTagsType,
-        SmartType
-    };
-
-    ProjectMessage(Type type = NoType, const Path &path = Path());
+    ProjectMessage(RTags::ProjectType type = RTags::Type_None, const Path &path = Path());
 
     virtual int messageId() const { return MessageId; }
 
-    Type type() const { return mType; }
+    RTags::ProjectType type() const { return mType; }
     Path path() const { return mPath; }
 
     List<ByteArray> arguments() const { return mArgs; }
@@ -44,7 +36,7 @@ public:
     ByteArray encode() const;
     void fromData(const char *data, int size);
 private:
-    Type mType;
+    RTags::ProjectType mType;
     Path mPath;
     List<ByteArray> mArgs, mExtraCompilerFlags;
     unsigned mFlags;

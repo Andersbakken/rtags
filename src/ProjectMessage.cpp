@@ -1,7 +1,7 @@
 #include "ProjectMessage.h"
 #include "Serializer.h"
 
-ProjectMessage::ProjectMessage(Type type, const Path &path)
+ProjectMessage::ProjectMessage(RTags::ProjectType type, const Path &path)
     : mType(type), mPath(path), mFlags(0)
 {
 }
@@ -21,5 +21,5 @@ void ProjectMessage::fromData(const char *data, int size)
     Deserializer stream(data, size);
     int type;
     stream >> mRaw >> type >> mPath >> mArgs >> mExtraCompilerFlags >> mFlags;
-    mType = static_cast<Type>(type);
+    mType = static_cast<RTags::ProjectType>(type);
 }

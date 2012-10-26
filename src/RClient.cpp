@@ -64,23 +64,23 @@ public:
 class ProjectCommand : public RCCommand
 {
 public:
-    ProjectCommand(ProjectMessage::Type t, const Path &p, const List<ByteArray> &a = List<ByteArray>())
+    ProjectCommand(RTags::ProjectType t, const Path &p, const List<ByteArray> &a = List<ByteArray>())
         : type(t), path(p), args(a)
     {}
-    const ProjectMessage::Type type;
+    const RTags::ProjectType type;
     const Path path;
     const List<ByteArray> args;
     virtual void exec(RClient *rc, Client *client)
     {
         switch (path.type()) {
         case Path::Directory:
-            if (type == ProjectMessage::MakefileType) {
+            if (type == RTags::Type_Makefile) {
                 error() << path << "is not a makefile";
                 return;
             }
             break;
         case Path::File:
-            if (type != ProjectMessage::MakefileType) {
+            if (type != RTags::Type_Makefile && type != RTags::Type_Command) {
                 error() << path << "is not a directory";
                 return;
             }
@@ -125,17 +125,17 @@ void RClient::addLog(int level)
 
 void RClient::addMakeFile(const Path &path, const List<ByteArray> &args)
 {
-    mCommands.append(new ProjectCommand(ProjectMessage::MakefileType, path, args));
+    mCommands.append(new ProjectCommand(RTags::Type_Makefile, path, args));
 }
 
 void RClient::addGRTag(const Path &path)
 {
-    mCommands.append(new ProjectCommand(ProjectMessage::GRTagsType, path));
+    mCommands.append(new ProjectCommand(RTags::Type_GRTags, path));
 }
 
 void RClient::addSmartProject(const Path &path)
 {
-    mCommands.append(new ProjectCommand(ProjectMessage::SmartType, path));
+    mCommands.append(new ProjectCommand(RTags::Type_SmartProject, path));
 }
 
 static void timeout(int timerId, void *userData)
@@ -413,9 +413,6 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case AlwaysMake:
             mMakefileFlags |= ProjectMessage::UseDashB;
-            break;
-        case SniffMake:
-            mMakefileFlags |= ProjectMessage::NoMakeTricks;
             break;
         case AutostartRdm:
             mClientFlags |= Client::AutostartRdm;
