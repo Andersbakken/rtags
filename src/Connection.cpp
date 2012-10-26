@@ -15,8 +15,7 @@ public:
 };
 
 Connection::Connection()
-    : mClient(new LocalClient), mPendingRead(0), mPendingWrite(0), mDone(false), mSilent(false),
-      mHasUpdatedProject(false)
+    : mClient(new LocalClient), mPendingRead(0), mPendingWrite(0), mDone(false), mSilent(false)
 {
     mClient->connected().connect(mConnected);
     mClient->disconnected().connect(mDisconnected);
@@ -25,8 +24,7 @@ Connection::Connection()
 }
 
 Connection::Connection(LocalClient* client)
-    : mClient(client), mPendingRead(0), mPendingWrite(0), mDone(false), mSilent(false),
-      mHasUpdatedProject(false)
+    : mClient(client), mPendingRead(0), mPendingWrite(0), mDone(false), mSilent(false)
 {
     assert(client->isConnected());
     mClient->disconnected().connect(mDisconnected);

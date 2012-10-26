@@ -21,9 +21,6 @@ public:
     void setSilent(bool on) { mSilent = on; }
     bool isSilent() const { return mSilent; }
 
-    bool hasUpdatedProject() const { return mHasUpdatedProject; }
-    void setHasUpdatedProject(bool on) { mHasUpdatedProject = on; }
-
     bool connectToServer(const ByteArray &name);
 
     int pendingWrite() const;
@@ -65,7 +62,7 @@ private:
 
     LocalClient *mClient;
     int mPendingRead, mPendingWrite;
-    bool mDone, mSilent, mHasUpdatedProject;
+    bool mDone, mSilent;
 
     signalslot::Signal0 mConnected, mDisconnected, mError, mSendComplete;
     signalslot::Signal2<Message*, Connection*> mNewMessage;

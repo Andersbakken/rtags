@@ -358,8 +358,7 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         reloadProjects(*message, conn);
         break;
     case QueryMessage::Project:
-        if (!conn->hasUpdatedProject() && project(*message, conn))
-            conn->setHasUpdatedProject(true);
+        project(*message, conn);
         break;
     case QueryMessage::Reindex: {
         reindex(*message, conn);
