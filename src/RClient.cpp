@@ -640,26 +640,33 @@ bool RClient::parse(int &argc, char **argv)
             Path makefile;
             if (optarg) {
                 makefile = Path::resolved(optarg);
-                if (!makefile.isFile()) {
+                if (makefile.isDir()) {
+                    makefile = Path::resolved("Makefile", makefile);
+                    if (!makefile.isFile()) {
+                        fprintf(stderr, "Can't find a makefile in %s\n", optarg);
+                        return false;
+                    }
+                } else if (!makefile.isDir()) {
                     fprintf(stderr, "%s is not a file\n", optarg);
                     return false;
                 }
             } else {
                 if (optind < argc) {
-                    makefile = Path::resolved(argv[optind]);
-                    if (!makefile.isFile()) {
-                        makefile = Path::resolved("Makefile");
+                    makefile = Path::resolved(argv[optind++]);
+                    if (makefile.isDir()) {
+                        makefile = Path::resolved("Makefile", makefile);
                         if (!makefile.isFile()) {
-                            fprintf(stderr, "%s is not a file", argv[optind]);
+                            fprintf(stderr, "Can't find a makefile in %s\n", argv[optind - 1]);
                             return false;
                         }
-                    } else {
-                        ++optind;
+                    } else if (makefile.isFile()) {
+                        fprintf(stderr, "%s is not a file\n", argv[optind - 1]);
+                        return false;
                     }
                 } else {
                     makefile = Path::resolved("Makefile");
                     if (!makefile.isFile()) {
-                        fprintf(stderr, "Can't find a Makefile here\n");
+                        fprintf(stderr, "Can't find a makefile here\n");
                         return false;
                     }
                 }
