@@ -90,10 +90,10 @@
 
           (if rtags-timeout
               (push (format "--timeout=%d" rtags-timeout) arguments))
-          (if (and path rtags-auto-update-project (not rtags-inhibit-auto-update-until-next-goto-location) compilation-directory)
-              (push (concat "--project=" compilation-directory) arguments))
           (if (and path rtags-auto-update-project (not rtags-inhibit-auto-update-until-next-goto-location))
               (push (concat "--project=" path) arguments))
+          (if (and path rtags-auto-update-project (not rtags-inhibit-auto-update-until-next-goto-location) compilation-directory)
+              (push (concat "--project=" compilation-directory) arguments))
 
           (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
           (apply #'call-process rc nil (list t nil) nil arguments)
