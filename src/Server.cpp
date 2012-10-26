@@ -123,38 +123,42 @@ bool Server::init(const Options &options)
     {
         IniFile file(mOptions.projectsFile);
         const Path resolvePath = mOptions.projectsFile.parentDir();
-        List<ByteArray> makefiles = file.keys("Makefiles");
-        int count = makefiles.size();
-        for (int i=0; i<count; ++i) {
-            bool ok;
-            const ByteArray value = file.value("Makefiles", makefiles.at(i));
-            const MakefileInformation info = MakefileInformation::fromString(value, &ok);
-            if (!ok) {
-                error("Can't parse makefile information %s", value.constData());
-                return false;
+        {
+            const List<ByteArray> makefiles = file.keys("Makefiles");
+            const int count = makefiles.size();
+            for (int i=0; i<count; ++i) {
+                bool ok;
+                const ByteArray value = file.value("Makefiles", makefiles.at(i));
+                const MakefileInformation info = MakefileInformation::fromString(value, &ok);
+                if (!ok) {
+                    error("Can't parse makefile information %s", value.constData());
+                    return false;
+                }
+                const Path path = Path::resolved(makefiles.at(i), resolvePath);
+                mMakefiles[path] = info;
+                mMakefilesWatcher.watch(path);
+                mProjects[path].reset(new Project(Project::FileManagerEnabled|Project::IndexerEnabled, path));
             }
-            const Path path = Path::resolved(makefiles.at(i), resolvePath);
-            mMakefiles[path] = info;
-            mMakefilesWatcher.watch(path);
         }
-        List<ByteArray> grtags = file.keys("GRTags");
-        count = grtags.size();
-        for (int i=0; i<count; ++i) {
-            grtag(grtags.at(i));
+        {
+            const List<ByteArray> grtags = file.keys("GRTags");
+            const int count = grtags.size();
+            for (int i=0; i<count; ++i) {
+                grtag(grtags.at(i));
+            }
         }
-
-        List<ByteArray> smartProjects = file.keys("SmartProjects");
-        count = smartProjects.size();
-        for (int i=0; i<count; ++i) {
-            const ByteArray value = file.value("SmartProjects", smartProjects.at(i));
-            smartProject(smartProjects.at(i), value.split('|'));
+        {
+            const List<ByteArray> smartProjects = file.keys("SmartProjects");
+            const int count = smartProjects.size();
+            for (int i=0; i<count; ++i) {
+                const ByteArray value = file.value("SmartProjects", smartProjects.at(i));
+                smartProject(smartProjects.at(i), value.split('|'));
+            }
         }
         restore();
     }
 
     mServer->clientConnected().connect(this, &Server::onNewConnection);
-
-    remake();
 
     return true;
 }
@@ -223,7 +227,18 @@ void Server::handleProjectMessage(ProjectMessage *message, Connection *conn)
         const MakefileInformation mi(args, message->extraCompilerFlags());
         mMakefiles[makefile] = mi;
         writeProjects();
-        make(makefile, args, message->extraCompilerFlags(), conn);
+        shared_ptr<Project> &proj = mProjects[makefile];
+        if (!proj) {
+            proj.reset(new Project(Project::FileManagerEnabled|Project::IndexerEnabled, makefile));
+            conn->write<128>("Added project %s", makefile.constData());
+        } else {
+            conn->write<128>("%s is already added", makefile.constData());
+        }
+        if (proj->isValid() || message->flags() & ProjectMessage::Automake) {
+            make(makefile, args, message->extraCompilerFlags(), conn);
+        } else {
+            conn->finish();
+        }
         break; }
     case ProjectMessage::GRTagsType:
         if (grtag(message->path()))
@@ -240,28 +255,29 @@ void Server::handleProjectMessage(ProjectMessage *message, Connection *conn)
 
 bool Server::grtag(const Path &dir)
 {
-    shared_ptr<Project> &project = mProjects[dir];
-    if (!project)
-        project.reset(new Project(dir));
-    if (project->grtags)
-        return false;
-    if (!project->fileManager) {
-        project->fileManager.reset(new FileManager);
-        project->fileManager->init(project);
-    }
-    project->grtags.reset(new GRTags);
-    project->grtags->init(project);
-    mGRTagsDirs.insert(dir);
-    writeProjects();
-    setCurrentProject(project);
-    return true;
+    // shared_ptr<Project> &project = mProjects[dir];
+    // if (!project)
+    //     project.reset(new Project(dir));
+    // if (project->grtags)
+    //     return false;
+    // if (!project->fileManager) {
+    //     project->fileManager.reset(new FileManager);
+    //     project->fileManager->init(project);
+    // }
+    // project->grtags.reset(new GRTags);
+    // project->grtags->init(project);
+    // mGRTagsDirs.insert(dir);
+    // writeProjects();
+    // setCurrentProject(project);
+    // return true;
+    return false;
 }
 
 void Server::make(const Path &path, const List<ByteArray> &makefileArgs,
                   const List<ByteArray> &extraCompilerFlags, Connection *conn)
 {
     shared_ptr<Project> project = mProjects.value(path);
-    if (project) {
+    if (project && project->isValid()) {
         assert(project->indexer);
         project->indexer->beginMakefile();
     }
@@ -835,50 +851,43 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
     } else if (args.lang() == GccArguments::NoLang) {
         return true;
     }
-    shared_ptr<Project> &project = mProjects[proj];
+    shared_ptr<Project> project = mProjects.value(proj);
     if (!project) {
+        error("No project for this file %s %s", inputFiles.begin()->constData(), proj.constData());
+        return false;
+    }
+    if (!project->isValid()) {
         Path srcRoot = findProjectRoot(*args.unresolvedInputFiles().begin());
         if (srcRoot.isEmpty())
             srcRoot = findProjectRoot(*inputFiles.begin());
         if (srcRoot.isEmpty()) {
-            mProjects.remove(proj);
             error("Can't find project root for %s", inputFiles.begin()->constData());
             return false;
         }
-        project.reset(new Project(srcRoot));
-        unsigned flags = Indexer::None;
-        if (!(mOptions.options & NoValidate))
-            flags |= Indexer::Validate;
-        if (mOptions.options & IgnorePrintfFixits)
-            flags |= Indexer::IgnorePrintfFixits;
-        project->indexer.reset(new Indexer(project, flags));
+        project->init(srcRoot);
         project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
         project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
-        {
-            Timer timer;
-            Path makeFilePath = proj;
-            RTags::encodePath(makeFilePath);
-            const Path p = ByteArray::snprintf<128>("%s%s", mOptions.dataDir.constData(), makeFilePath.constData());
-            if (FILE *f = fopen(p.constData(), "r")) {
-                Deserializer in(f);
-                int version;
-                in >> version;
-                if (version == DatabaseVersion) {
-                    if (!project->restore(in)) {
-                        error("Can't restore project %s", proj.constData());
-                    } else if (!project->indexer->restore(in)) {
-                        error("Can't restore project %s", proj.constData());
-                    } else {
-                        error("Restored project %s in %dms", proj.constData(), timer.elapsed());
-                    }
+        Timer timer;
+        Path makeFilePath = proj;
+        RTags::encodePath(makeFilePath);
+        const Path p = ByteArray::snprintf<128>("%s%s", mOptions.dataDir.constData(), makeFilePath.constData());
+        if (FILE *f = fopen(p.constData(), "r")) {
+            Deserializer in(f);
+            int version;
+            in >> version;
+            if (version == DatabaseVersion) {
+                if (!project->restore(in)) {
+                    error("Can't restore project %s", proj.constData());
+                } else if (!project->indexer->restore(in)) {
+                    error("Can't restore project %s", proj.constData());
+                } else {
+                    error("Restored project %s in %dms", proj.constData(), timer.elapsed());
                 }
-                fclose(f);
             }
+            fclose(f);
         }
 
         project->indexer->beginMakefile();
-        project->fileManager.reset(new FileManager);
-        project->fileManager->init(project);
     }
     setCurrentProject(project);
 
@@ -901,7 +910,9 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
 
 void Server::onMakefileModified(const Path &path)
 {
-    remake(path, 0);
+    shared_ptr<Project> project = mProjects.value(path);
+    if (project && project->indexer)
+        remake(path, 0);
 }
 
 void Server::event(const Event *event)
@@ -954,31 +965,29 @@ bool Server::updateProjectForLocation(const Location &location)
     return updateProjectForLocation(location.path());
 }
 
-bool Server::updateProjectForLocation(const Path &path, Path *key)
+bool Server::updateProjectForLocation(const Path &path)
 {
     shared_ptr<Project> match;
     int longest = -1;
     shared_ptr<Project> cur = mCurrentProject.lock();
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (!strncmp(it->second->srcRoot.constData(), path.constData(), it->second->srcRoot.size())) {
+        const Path srcRoot = it->second->srcRoot();
+        if (!strncmp(srcRoot.constData(), path.constData(), srcRoot.size())) {
             if (it->second == cur)
                 return true;
-            const int matchLength = it->second->srcRoot.size();
+            const int matchLength = srcRoot.size();
             if (matchLength > longest) {
                 match = it->second;
                 longest = matchLength;
-                if (key)
-                    *key = it->first;
             }
         }
-        if (!it->second->resolvedSrcRoot.isEmpty()
-            && !strncmp(it->second->resolvedSrcRoot.constData(), path.constData(), it->second->resolvedSrcRoot.size())) {
-            const int matchLength = it->second->srcRoot.size();
+        Path resolvedSrcRoot = it->second->resolvedSrcRoot();
+        if (!resolvedSrcRoot.isEmpty()
+            && !strncmp(resolvedSrcRoot.constData(), path.constData(), resolvedSrcRoot.size())) {
+            const int matchLength = srcRoot.size();
             if (matchLength > longest) {
                 match = it->second;
                 longest = matchLength;
-                if (key)
-                    *key = it->first;
             }
         }
 
@@ -994,6 +1003,8 @@ shared_ptr<Project> Server::setCurrentProject(const shared_ptr<Project> &proj)
 {
     shared_ptr<Project> old = mCurrentProject.lock();
     mCurrentProject = proj;
+    if (proj && !proj->isValid())
+        remake(proj->path(), 0);
     return old;
 }
 
@@ -1052,97 +1063,98 @@ static inline bool match(const Path &path, const List<ByteArray> &wildcards, con
     return false;
 }
 
-struct ProjectFileUserData {
-    List<RegExp> includes, excludes;
-    List<ByteArray> includesWildcard, excludesWildcard;
-    List<Path> sources;
-    Set<Path> includePaths;
-    bool recurse;
-};
+// struct ProjectFileUserData {
+//     List<RegExp> includes, excludes;
+//     List<ByteArray> includesWildcard, excludesWildcard;
+//     List<Path> sources;
+//     Set<Path> includePaths;
+//     bool recurse;
+// };
 
-static Path::VisitResult projectFileVisitor(const Path &path, void *userData)
-{
-    assert(userData);
-    ProjectFileUserData &ud = *reinterpret_cast<ProjectFileUserData*>(userData);
-    switch (path.type()) {
-    case Path::File:
-        if (match(path, ud.includesWildcard, ud.includes)
-            && !match(path, ud.excludesWildcard, ud.excludes)) {
-            ud.sources.append(path);
-        }
-        break;
-    case Path::Directory:
-        ud.includePaths.insert(path);
-        if (ud.recurse)
-            return Path::Recurse;
-        break;
-    default:
-        break;
-    }
-    return Path::Continue;
-}
+// static Path::VisitResult projectFileVisitor(const Path &path, void *userData)
+// {
+//     assert(userData);
+//     ProjectFileUserData &ud = *reinterpret_cast<ProjectFileUserData*>(userData);
+//     switch (path.type()) {
+//     case Path::File:
+//         if (match(path, ud.includesWildcard, ud.includes)
+//             && !match(path, ud.excludesWildcard, ud.excludes)) {
+//             ud.sources.append(path);
+//         }
+//         break;
+//     case Path::Directory:
+//         ud.includePaths.insert(path);
+//         if (ud.recurse)
+//             return Path::Recurse;
+//         break;
+//     default:
+//         break;
+//     }
+//     return Path::Continue;
+// }
 
 bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompilerFlags)
 {
-    if (mProjects.contains(path))
-        return false;
-    Map<Path, ProjectFileUserData> dirs;
-    switch (path.type()) {
-    case Path::File:
-        break;
-    case Path::Directory: {
-        ProjectFileUserData &data = dirs[path];
-        data.recurse = true;
-        data.includesWildcard.append("*.c");
-        data.includesWildcard.append("*.cpp");
-        data.includesWildcard.append("*.cc");
-        data.includesWildcard.append("*.cxx");
-        data.includesWildcard.append("*.C");
-        break; }
-    default:
-        break;
-    }
-    if (dirs.isEmpty())
-        return false;
-    shared_ptr<Project> &project = mProjects[path];
-    project.reset(new Project(path));
-    unsigned flags = Indexer::None;
-    if (!(mOptions.options & NoValidate))
-        flags |= Indexer::Validate;
-    if (mOptions.options & IgnorePrintfFixits)
-        flags |= Indexer::IgnorePrintfFixits;
-    project->indexer.reset(new Indexer(project, flags));
-    project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
-    project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
-    project->indexer->beginMakefile();
-    project->fileManager.reset(new FileManager);
-    project->fileManager->init(project);
-    for (Map<Path, ProjectFileUserData>::iterator it = dirs.begin(); it != dirs.end(); ++it) {
-        ProjectFileUserData &ud = it->second;
-        ud.includePaths.insert(path); // ###
-        it->first.visit(projectFileVisitor, &ud);
-        GccArguments args;
-        args.mInputFiles = ud.sources;
-        const char *suffix = path.extension();
-        if (suffix && !strcmp(suffix, "c")) {
-            args.mLang = GccArguments::C;
-        } else {
-            args.mLang = GccArguments::CPlusPlus;
-        }
+    return false;
+    // if (mProjects.contains(path))
+    //     return false;
+    // Map<Path, ProjectFileUserData> dirs;
+    // switch (path.type()) {
+    // case Path::File:
+    //     break;
+    // case Path::Directory: {
+    //     ProjectFileUserData &data = dirs[path];
+    //     data.recurse = true;
+    //     data.includesWildcard.append("*.c");
+    //     data.includesWildcard.append("*.cpp");
+    //     data.includesWildcard.append("*.cc");
+    //     data.includesWildcard.append("*.cxx");
+    //     data.includesWildcard.append("*.C");
+    //     break; }
+    // default:
+    //     break;
+    // }
+    // if (dirs.isEmpty())
+    //     return false;
+    // shared_ptr<Project> &project = mProjects[path];
+    // project.reset(new Project(path));
+    // unsigned flags = Indexer::None;
+    // if (!(mOptions.options & NoValidate))
+    //     flags |= Indexer::Validate;
+    // if (mOptions.options & IgnorePrintfFixits)
+    //     flags |= Indexer::IgnorePrintfFixits;
+    // project->indexer.reset(new Indexer(project, flags));
+    // project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
+    // project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
+    // project->indexer->beginMakefile();
+    // project->fileManager.reset(new FileManager);
+    // project->fileManager->init(project);
+    // for (Map<Path, ProjectFileUserData>::iterator it = dirs.begin(); it != dirs.end(); ++it) {
+    //     ProjectFileUserData &ud = it->second;
+    //     ud.includePaths.insert(path); // ###
+    //     it->first.visit(projectFileVisitor, &ud);
+    //     GccArguments args;
+    //     args.mInputFiles = ud.sources;
+    //     const char *suffix = path.extension();
+    //     if (suffix && !strcmp(suffix, "c")) {
+    //         args.mLang = GccArguments::C;
+    //     } else {
+    //         args.mLang = GccArguments::CPlusPlus;
+    //     }
 
-        for (Set<Path>::const_iterator it = ud.includePaths.begin(); it != ud.includePaths.end(); ++it) {
-            args.mClangArgs.append("-I" + *it);
-        }
-        args.mClangArgs += extraCompilerFlags;
-        processSourceFile(args, path);
-    }
-    project->indexer->endMakefile();
+    //     for (Set<Path>::const_iterator it = ud.includePaths.begin(); it != ud.includePaths.end(); ++it) {
+    //         args.mClangArgs.append("-I" + *it);
+    //     }
+    //     args.mClangArgs += extraCompilerFlags;
+    //     processSourceFile(args, path);
+    // }
+    // project->indexer->endMakefile();
 
-    // error() << userData.includePaths;
-    // error() << userData.sources;
-    mSmartProjects[path] = extraCompilerFlags;
-    writeProjects();
-    return true;
+    // // error() << userData.includePaths;
+    // // error() << userData.sources;
+    // mSmartProjects[path] = extraCompilerFlags;
+    // writeProjects();
+    // return true;
 }
 void Server::deleteProject(const QueryMessage &query, Connection *conn)
 {
@@ -1169,28 +1181,26 @@ void Server::project(const QueryMessage &query, Connection *conn)
         for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
             conn->write<128>("%s%s",
                              it->first.constData(),
+                             it->second->isValid() ? " (loaded)" : "",
                              it->second == current ? " <=" : "");
         }
     } else {
         shared_ptr<Project> selected;
         bool error = false;
         const Path path = query.query();
-        Path key;
-        if (path.exists() && updateProjectForLocation(path, &key)) {
-            conn->write<128>("Selected project: %s", key.constData());
+        if (path.exists() && updateProjectForLocation(path)) {
+            conn->write<128>("Selected project: %s for %s", mCurrentProject.lock()->path().constData(), path.constData());
         } else {
             RegExp rx(query.query());
             for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-                const Path *paths[] = { &it->first, &it->second->srcRoot, &it->second->resolvedSrcRoot, 0 };
-                if (paths[2]->isEmpty())
-                    paths[2] = 0;
-                for (int i=0; paths[i]; ++i) {
-                    if (rx.indexIn(*paths[i]) != -1) {
+                const Path paths[] = { it->first, it->second->srcRoot(), it->second->resolvedSrcRoot() };
+                for (int i=0; i<3; ++i) {
+                    if (!paths[i].isEmpty() && rx.indexIn(paths[i]) != -1) {
                         if (error) {
                             conn->write(it->first);
                         } else if (selected) {
                             error = true;
-                            conn->write<128>("Multiple matches for %s", query.query().constData());
+                            conn->write<128>("Multiple matches for %s", path.constData());
                             conn->write(it->first);
                             selected.reset();
                         } else {
@@ -1202,9 +1212,9 @@ void Server::project(const QueryMessage &query, Connection *conn)
             }
             if (selected) {
                 setCurrentProject(selected);
-                conn->write<128>("Selected project: %s", selected->srcRoot.constData());
+                conn->write<128>("Selected project: %s for %s", selected->path().constData(), path.constData());
             } else if (!error) {
-                conn->write<128>("No matches for %s", query.query().constData());
+                conn->write<128>("No matches for %s", path.constData());
             }
         }
     }

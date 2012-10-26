@@ -14,7 +14,8 @@ public:
     enum Flag {
         NoFlag = 0x0,
         UseDashB = 0x1,
-        NoMakeTricks = 0x2
+        NoMakeTricks = 0x2,
+        Automake = 0x4
     };
 
     enum Type {

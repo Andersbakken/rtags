@@ -33,17 +33,26 @@ private:
 class Indexer;
 class FileManager;
 class GRTags;
-class Project
+class Project : public enable_shared_from_this<Project>
 {
 public:
-    Project(const Path &src);
+    enum Flag {
+        IndexerEnabled = 0x1,
+        GRTagsEnabled = 0x2,
+        FileManagerEnabled = 0x4
+    };
+    Project(unsigned flags, const Path &path);
+    bool isValid() const;
+    void init(const Path &srcRoot);
 
+    unsigned flags() const { return mFlags; }
     shared_ptr<Indexer> indexer;
     shared_ptr<FileManager> fileManager;
     shared_ptr<GRTags> grtags;
 
-    const Path srcRoot;
-    Path resolvedSrcRoot;
+    Path srcRoot() const { return mSrcRoot; }
+    Path resolvedSrcRoot() const { return mResolvedSrcRoot; }
+    Path path() const { return mPath; }
 
     Scope<const SymbolMap&> lockSymbolsForRead(int maxTime = 0);
     Scope<SymbolMap&> lockSymbolsForWrite();
@@ -68,6 +77,12 @@ public:
     bool save(Serializer &out);
     bool restore(Deserializer &in);
 private:
+    const unsigned mFlags;
+    const Path mPath;
+
+    Path mSrcRoot;
+    Path mResolvedSrcRoot;
+
     SymbolMap mSymbols;
     ReadWriteLock mSymbolsLock;
 

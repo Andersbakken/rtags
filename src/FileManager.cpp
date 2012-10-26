@@ -19,7 +19,7 @@ void FileManager::recurseDirs()
 {
     shared_ptr<Project> project = mProject.lock();
     assert(project);
-    shared_ptr<GRScanJob> job(new GRScanJob(GRScanJob::All, project->srcRoot, mProject.lock()));
+    shared_ptr<GRScanJob> job(new GRScanJob(GRScanJob::All, project->srcRoot(), project));
     job->finished().connect(this, &FileManager::onRecurseJobFinished);
     Server::instance()->threadPool()->start(job);
 }
@@ -98,8 +98,5 @@ bool FileManager::contains(const Path &path) const
     shared_ptr<Project> proj = mProject.lock();
     if(!proj)
         return false;
-    Path resolvedPath = proj->srcRoot;
-    resolvedPath.resolve();
-    return (path.size() >= resolvedPath.size()
-            && !strncmp(path.constData(), resolvedPath.constData(), resolvedPath.size()));
+    return path.startsWith(proj->resolvedSrcRoot()) || path.startsWith(proj->srcRoot());
 }

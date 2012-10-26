@@ -4,13 +4,42 @@
 #include "GRTags.h"
 #include "Server.h"
 
-Project::Project(const Path &src)
-    : srcRoot(src)
+Project::Project(unsigned flags, const Path &path)
+    : mFlags(flags), mPath(path)
 {
-    resolvedSrcRoot = src;
-    resolvedSrcRoot.resolve();
-    if (resolvedSrcRoot == srcRoot)
-        resolvedSrcRoot.clear();
+}
+
+void Project::init(const Path &src)
+{
+    assert(!isValid());
+    mResolvedSrcRoot = mSrcRoot = src;
+    mResolvedSrcRoot.resolve();
+    if (mResolvedSrcRoot == mSrcRoot)
+        mResolvedSrcRoot.clear();
+
+    if (mFlags & FileManagerEnabled) {
+        fileManager.reset(new FileManager);
+        fileManager->init(shared_from_this());
+    }
+    if (mFlags & IndexerEnabled) {
+        unsigned flags = Indexer::None;
+        const unsigned options = Server::instance()->options().options;
+        if (!(options & Server::NoValidate))
+            flags |= Indexer::Validate;
+        if (options & Server::IgnorePrintfFixits)
+            flags |= Indexer::IgnorePrintfFixits;
+        indexer.reset(new Indexer(shared_from_this(), flags));
+    }
+
+    if (mFlags & GRTagsEnabled) {
+        grtags.reset(new GRTags);
+        grtags->init(shared_from_this());
+    }
+}
+
+bool Project::isValid() const
+{
+    return indexer || grtags;
 }
 
 Scope<const SymbolMap&> Project::lockSymbolsForRead(int maxTime)

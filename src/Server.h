@@ -53,6 +53,7 @@ public:
     bool init(const Options &options);
     const List<ByteArray> &excludeFilter() const { return mOptions.excludeFilter; }
     const Path &clangPath() const { return mClangPath; }
+    const Options &options() const { return mOptions; }
 private:
     void onJobsComplete(shared_ptr<Indexer> indexer, int count);
     void onJobStarted(shared_ptr<Indexer> indexer, Path path);
@@ -104,7 +105,7 @@ private:
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);
     ByteArray completions(const QueryMessage &query);
     bool updateProjectForLocation(const Location &location);
-    bool updateProjectForLocation(const Path &path, Path *key = 0);
+    bool updateProjectForLocation(const Path &path);
     void writeProjects();
     bool grtag(const Path &dir);
     bool smartProject(const Path &path, const List<ByteArray> &extraCompilerFlags);

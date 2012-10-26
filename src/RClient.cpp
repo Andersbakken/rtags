@@ -170,6 +170,7 @@ enum {
     AbsolutePath,
     AllReferences,
     AlwaysMake,
+    AutoMakeProject,
     AutostartRdm,
     Clear,
     CompilerFlag,
@@ -182,9 +183,9 @@ enum {
     Errors,
     FilterSystemHeaders,
     FindFile,
+    FindFilePreferExact,
     FindSymbols,
     FindVirtuals,
-    FindFilePreferExact,
     Fixits,
     FollowLocation,
     GRTag,
@@ -294,6 +295,7 @@ struct Option opts[] = {
     { SniffMake, "sniff-make", 'J', no_argument, "No make trickery, only parse the output. Assumes you've run make clean first." },
     { FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
     { FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial" },
+    { AutoMakeProject, "auto-make-project", 'b', no_argument, "Use to make adding projects (with -m) automatically index them" },
     { None, 0, 0, 0, 0 }
 };
 
@@ -370,7 +372,7 @@ bool RClient::parse(int &argc, char **argv)
     Path logFile;
     unsigned logFlags = 0;
 
-    // Unused: bz
+    // Unused: z
 
     while (true) {
         int idx = -1;
@@ -403,6 +405,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case FindFilePreferExact:
             mQueryFlags |= QueryMessage::FindFilePreferExact;
+            break;
+        case AutoMakeProject:
+            mMakefileFlags |= ProjectMessage::Automake;
             break;
         case AlwaysMake:
             mMakefileFlags |= ProjectMessage::UseDashB;
