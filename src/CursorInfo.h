@@ -82,7 +82,6 @@ public:
 
     bool isEmpty() const
     {
-        assert((symbolLength || symbolName.isEmpty()) && (symbolLength || kind == CXCursor_FirstInvalid)); // these should be coupled
         return !symbolLength && targets.isEmpty() && references.isEmpty() && start == -1 && end == -1;
     }
 
