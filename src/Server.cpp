@@ -255,22 +255,16 @@ void Server::handleProjectMessage(ProjectMessage *message, Connection *conn)
 
 bool Server::grtag(const Path &dir)
 {
-    // shared_ptr<Project> &project = mProjects[dir];
-    // if (!project)
-    //     project.reset(new Project(dir));
-    // if (project->grtags)
-    //     return false;
-    // if (!project->fileManager) {
-    //     project->fileManager.reset(new FileManager);
-    //     project->fileManager->init(project);
-    // }
-    // project->grtags.reset(new GRTags);
-    // project->grtags->init(project);
-    // mGRTagsDirs.insert(dir);
-    // writeProjects();
-    // setCurrentProject(project);
-    // return true;
-    return false;
+    shared_ptr<Project> &project = mProjects[dir];
+    if (project) {
+        return false;
+    }
+    project.reset(new Project(Project::GRTagsEnabled|Project::FileManagerEnabled, dir));
+    project->init(dir);
+    mGRTagsDirs.insert(dir);
+    writeProjects();
+    setCurrentProject(project);
+    return true;
 }
 
 void Server::make(const Path &path, const List<ByteArray> &makefileArgs,
@@ -1063,98 +1057,92 @@ static inline bool match(const Path &path, const List<ByteArray> &wildcards, con
     return false;
 }
 
-// struct ProjectFileUserData {
-//     List<RegExp> includes, excludes;
-//     List<ByteArray> includesWildcard, excludesWildcard;
-//     List<Path> sources;
-//     Set<Path> includePaths;
-//     bool recurse;
-// };
+struct ProjectFileUserData {
+    List<RegExp> includes, excludes;
+    List<ByteArray> includesWildcard, excludesWildcard;
+    List<Path> sources;
+    Set<Path> includePaths;
+    bool recurse;
+};
 
-// static Path::VisitResult projectFileVisitor(const Path &path, void *userData)
-// {
-//     assert(userData);
-//     ProjectFileUserData &ud = *reinterpret_cast<ProjectFileUserData*>(userData);
-//     switch (path.type()) {
-//     case Path::File:
-//         if (match(path, ud.includesWildcard, ud.includes)
-//             && !match(path, ud.excludesWildcard, ud.excludes)) {
-//             ud.sources.append(path);
-//         }
-//         break;
-//     case Path::Directory:
-//         ud.includePaths.insert(path);
-//         if (ud.recurse)
-//             return Path::Recurse;
-//         break;
-//     default:
-//         break;
-//     }
-//     return Path::Continue;
-// }
+static Path::VisitResult projectFileVisitor(const Path &path, void *userData)
+{
+    assert(userData);
+    ProjectFileUserData &ud = *reinterpret_cast<ProjectFileUserData*>(userData);
+    switch (path.type()) {
+    case Path::File:
+        if (match(path, ud.includesWildcard, ud.includes)
+            && !match(path, ud.excludesWildcard, ud.excludes)) {
+            ud.sources.append(path);
+        }
+        break;
+    case Path::Directory:
+        ud.includePaths.insert(path);
+        if (ud.recurse)
+            return Path::Recurse;
+        break;
+    default:
+        break;
+    }
+    return Path::Continue;
+}
 
 bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompilerFlags)
 {
-    return false;
-    // if (mProjects.contains(path))
-    //     return false;
-    // Map<Path, ProjectFileUserData> dirs;
-    // switch (path.type()) {
-    // case Path::File:
-    //     break;
-    // case Path::Directory: {
-    //     ProjectFileUserData &data = dirs[path];
-    //     data.recurse = true;
-    //     data.includesWildcard.append("*.c");
-    //     data.includesWildcard.append("*.cpp");
-    //     data.includesWildcard.append("*.cc");
-    //     data.includesWildcard.append("*.cxx");
-    //     data.includesWildcard.append("*.C");
-    //     break; }
-    // default:
-    //     break;
-    // }
-    // if (dirs.isEmpty())
-    //     return false;
-    // shared_ptr<Project> &project = mProjects[path];
-    // project.reset(new Project(path));
-    // unsigned flags = Indexer::None;
-    // if (!(mOptions.options & NoValidate))
-    //     flags |= Indexer::Validate;
-    // if (mOptions.options & IgnorePrintfFixits)
-    //     flags |= Indexer::IgnorePrintfFixits;
-    // project->indexer.reset(new Indexer(project, flags));
-    // project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
-    // project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
-    // project->indexer->beginMakefile();
-    // project->fileManager.reset(new FileManager);
-    // project->fileManager->init(project);
-    // for (Map<Path, ProjectFileUserData>::iterator it = dirs.begin(); it != dirs.end(); ++it) {
-    //     ProjectFileUserData &ud = it->second;
-    //     ud.includePaths.insert(path); // ###
-    //     it->first.visit(projectFileVisitor, &ud);
-    //     GccArguments args;
-    //     args.mInputFiles = ud.sources;
-    //     const char *suffix = path.extension();
-    //     if (suffix && !strcmp(suffix, "c")) {
-    //         args.mLang = GccArguments::C;
-    //     } else {
-    //         args.mLang = GccArguments::CPlusPlus;
-    //     }
+    if (mProjects.contains(path))
+        return false;
+    Map<Path, ProjectFileUserData> dirs;
+    switch (path.type()) {
+    case Path::File:
+        break;
+    case Path::Directory: {
+        ProjectFileUserData &data = dirs[path];
+        data.recurse = true;
+        data.includesWildcard.append("*.c");
+        data.includesWildcard.append("*.cpp");
+        data.includesWildcard.append("*.cc");
+        data.includesWildcard.append("*.cxx");
+        data.includesWildcard.append("*.C");
+        break; }
+    default:
+        break;
+    }
+    if (dirs.isEmpty())
+        return false;
+    shared_ptr<Project> &project = mProjects[path];
+    project.reset(new Project(Project::FileManagerEnabled|Project::IndexerEnabled, path));
+    project->init(path);
+    project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
+    project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
+    project->indexer->beginMakefile();
+    project->fileManager.reset(new FileManager);
+    project->fileManager->init(project);
+    for (Map<Path, ProjectFileUserData>::iterator it = dirs.begin(); it != dirs.end(); ++it) {
+        ProjectFileUserData &ud = it->second;
+        ud.includePaths.insert(path); // ###
+        it->first.visit(projectFileVisitor, &ud);
+        GccArguments args;
+        args.mInputFiles = ud.sources;
+        const char *suffix = path.extension();
+        if (suffix && !strcmp(suffix, "c")) {
+            args.mLang = GccArguments::C;
+        } else {
+            args.mLang = GccArguments::CPlusPlus;
+        }
 
-    //     for (Set<Path>::const_iterator it = ud.includePaths.begin(); it != ud.includePaths.end(); ++it) {
-    //         args.mClangArgs.append("-I" + *it);
-    //     }
-    //     args.mClangArgs += extraCompilerFlags;
-    //     processSourceFile(args, path);
-    // }
-    // project->indexer->endMakefile();
+        for (Set<Path>::const_iterator it = ud.includePaths.begin(); it != ud.includePaths.end(); ++it) {
+            args.mClangArgs.append("-I" + *it);
+        }
+        args.mClangArgs += extraCompilerFlags;
+        processSourceFile(args, path);
+    }
+    project->indexer->endMakefile();
 
-    // // error() << userData.includePaths;
-    // // error() << userData.sources;
-    // mSmartProjects[path] = extraCompilerFlags;
-    // writeProjects();
-    // return true;
+    // error() << userData.includePaths;
+    // error() << userData.sources;
+    mSmartProjects[path] = extraCompilerFlags;
+    writeProjects();
+    return true;
 }
 void Server::deleteProject(const QueryMessage &query, Connection *conn)
 {
