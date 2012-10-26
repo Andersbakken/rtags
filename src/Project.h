@@ -45,6 +45,8 @@ public:
     bool isValid() const;
     void init(const Path &srcRoot);
 
+    void unload();
+
     unsigned flags() const { return mFlags; }
     shared_ptr<Indexer> indexer;
     shared_ptr<FileManager> fileManager;

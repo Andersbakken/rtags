@@ -96,7 +96,8 @@ private:
     void preprocessFile(const QueryMessage &query, Connection *conn);
     void findFile(const QueryMessage &query, Connection *conn);
     void dumpFile(const QueryMessage &query, Connection *conn);
-    void deleteProject(const QueryMessage &query, Connection *conn);
+    void removeProject(const QueryMessage &query, Connection *conn);
+    void reloadProjects(const QueryMessage &query, Connection *conn);
     void project(const QueryMessage &query, Connection *conn);
     void clearProjects(const QueryMessage &query, Connection *conn);
     void shutdown(const QueryMessage &query, Connection *conn);
@@ -111,6 +112,8 @@ private:
     bool smartProject(const Path &path, const List<ByteArray> &extraCompilerFlags);
     shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void removeProject(const Path &key);
+    void unloadProject(const Path &key);
+    void reloadProjects();
 
     static Server *sInstance;
     Options mOptions;

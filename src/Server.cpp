@@ -120,47 +120,61 @@ bool Server::init(const Options &options)
         return false;
     }
 
+    restore();
+    mServer->clientConnected().connect(this, &Server::onNewConnection);
+    reloadProjects();
+
+    return true;
+}
+
+void Server::reloadProjects()
+{
+    mMakefilesWatcher.clear();
+    IniFile file(mOptions.projectsFile);
+    const Path resolvePath = mOptions.projectsFile.parentDir();
+    Set<Path> previous = mProjects.keys().toSet();
     {
-        IniFile file(mOptions.projectsFile);
-        const Path resolvePath = mOptions.projectsFile.parentDir();
-        {
-            const List<ByteArray> makefiles = file.keys("Makefiles");
-            const int count = makefiles.size();
-            for (int i=0; i<count; ++i) {
-                bool ok;
-                const ByteArray value = file.value("Makefiles", makefiles.at(i));
-                const MakefileInformation info = MakefileInformation::fromString(value, &ok);
-                if (!ok) {
-                    error("Can't parse makefile information %s", value.constData());
-                    return false;
-                }
-                const Path path = Path::resolved(makefiles.at(i), resolvePath);
-                mMakefiles[path] = info;
-                mMakefilesWatcher.watch(path);
-                mProjects[path].reset(new Project(Project::FileManagerEnabled|Project::IndexerEnabled, path));
+        const List<ByteArray> makefiles = file.keys("Makefiles");
+        const int count = makefiles.size();
+        mMakefiles.clear();
+        for (int i=0; i<count; ++i) {
+            bool ok;
+            const ByteArray value = file.value("Makefiles", makefiles.at(i));
+            const MakefileInformation info = MakefileInformation::fromString(value, &ok);
+            if (!ok) {
+                error("Can't parse makefile information %s", value.constData());
+                return;
             }
+            const Path path = Path::resolved(makefiles.at(i), resolvePath);
+            mMakefiles[path] = info;
+            mMakefilesWatcher.watch(path);
+            if (!previous.remove(path))
+                mProjects[path].reset(new Project(Project::FileManagerEnabled|Project::IndexerEnabled, path));
         }
-        {
-            const List<ByteArray> grtags = file.keys("GRTags");
-            const int count = grtags.size();
-            for (int i=0; i<count; ++i) {
+    }
+    {
+        mGRTagsDirs.clear();
+        const List<ByteArray> grtags = file.keys("GRTags");
+        const int count = grtags.size();
+        for (int i=0; i<count; ++i) {
+            if (!previous.remove(grtags.at(i))) {
                 grtag(grtags.at(i));
             }
         }
-        {
-            const List<ByteArray> smartProjects = file.keys("SmartProjects");
-            const int count = smartProjects.size();
-            for (int i=0; i<count; ++i) {
-                const ByteArray value = file.value("SmartProjects", smartProjects.at(i));
-                smartProject(smartProjects.at(i), value.split('|'));
-            }
-        }
-        restore();
     }
-
-    mServer->clientConnected().connect(this, &Server::onNewConnection);
-
-    return true;
+    {
+        const List<ByteArray> smartProjects = file.keys("SmartProjects");
+        mSmartProjects.clear();
+        const int count = smartProjects.size();
+        for (int i=0; i<count; ++i) {
+            const ByteArray value = file.value("SmartProjects", smartProjects.at(i));
+            if (!mProjects.remove(smartProjects.at(i)))
+                smartProject(smartProjects.at(i), value.split('|'));
+        }
+    }
+    for (Set<Path>::const_iterator it = previous.begin(); it != previous.end(); ++it) {
+        removeProject(*it);
+    }
 }
 
 void Server::onNewConnection()
@@ -331,7 +345,13 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
         dumpFile(*message, conn);
         break;
     case QueryMessage::DeleteProject:
-        deleteProject(*message, conn);
+        removeProject(*message, conn);
+        break;
+    case QueryMessage::UnloadProject:
+        removeProject(*message, conn);
+        break;
+    case QueryMessage::ReloadProjects:
+        reloadProjects(*message, conn);
         break;
     case QueryMessage::Project:
         project(*message, conn);
@@ -1026,6 +1046,7 @@ void Server::removeProject(const Path &path)
     ProjectsMap::iterator it = mProjects.find(path);
     if (it == mProjects.end())
         return;
+    it->second->unload();
     bool write = false;
     if (mMakefiles.remove(path))
         write = true;
@@ -1040,6 +1061,16 @@ void Server::removeProject(const Path &path)
 
     if (!mCurrentProject.lock() && !mProjects.isEmpty())
         setCurrentProject(mProjects.begin()->first);
+}
+
+void Server::unloadProject(const Path &path)
+{
+    ProjectsMap::iterator it = mProjects.find(path);
+    if (it == mProjects.end())
+        return;
+    if (mCurrentProject.lock() == it->second)
+        mCurrentProject.reset();
+    it->second->unload();
 }
 
 static inline bool match(const Path &path, const List<ByteArray> &wildcards, const List<RegExp> &regexps)
@@ -1144,7 +1175,7 @@ bool Server::smartProject(const Path &path, const List<ByteArray> &extraCompiler
     writeProjects();
     return true;
 }
-void Server::deleteProject(const QueryMessage &query, Connection *conn)
+void Server::removeProject(const QueryMessage &query, Connection *conn)
 {
     RegExp rx(query.query());
     Set<Path> remove;
@@ -1152,16 +1183,31 @@ void Server::deleteProject(const QueryMessage &query, Connection *conn)
         if (rx.indexIn(it->first) != -1)
             remove.insert(it->first);
     }
+    const bool unload = query.type() == QueryMessage::UnloadProject;
 
     for (Set<Path>::const_iterator it = remove.begin(); it != remove.end(); ++it) {
         Path path = *it;
-        conn->write<128>("Erased project: %s", path.constData());
-        RTags::encodePath(path);
-        Path::rm(mOptions.dataDir + path);
-        removeProject(*it);
+        conn->write<128>("%s project: %s", unload ? "Unloaded" : "Deleted", path.constData());
+        if (!unload) {
+            RTags::encodePath(path);
+            Path::rm(mOptions.dataDir + path);
+            removeProject(*it);
+        } else {
+            unloadProject(*it);
+        }
     }
     conn->finish();
 }
+
+void Server::reloadProjects(const QueryMessage &query, Connection *conn)
+{
+    const int old = mProjects.size();
+    reloadProjects();
+    const int cur = mProjects.size();
+    conn->write<128>("Changed from %d to %d projects", old, cur);
+    conn->finish();
+}
+
 void Server::project(const QueryMessage &query, Connection *conn)
 {
     if (query.query().isEmpty()) {

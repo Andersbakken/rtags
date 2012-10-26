@@ -181,5 +181,14 @@ bool Project::restore(Deserializer &in)
     }
 
     return true;
+}
 
+void Project::unload()
+{
+    if (indexer) {
+        indexer->abort();
+        indexer.reset();
+        fileManager.reset();
+        // ### should unload grtags too probably
+    }
 }

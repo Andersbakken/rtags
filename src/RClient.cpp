@@ -209,6 +209,7 @@ enum {
     ReferenceLocation,
     ReferenceName,
     Reindex,
+    ReloadProjects,
     RestartRdm,
     ReverseSort,
     SkipParen,
@@ -217,6 +218,7 @@ enum {
     SocketFile,
     Status,
     Timeout,
+    UnloadProject,
     Verbose,
     WaitForIndexing
 };
@@ -248,6 +250,8 @@ struct Option opts[] = {
     { DeleteProject, "delete-project", 'W', required_argument, "Delete all projects matching regexp." },
     { GRTag, "grtag", 't', optional_argument, "Index this directory using grtags." },
     { SmartProject, "smart-project", 'j', optional_argument, "Try to guess the source files and includepaths for a certain path. Often has to be combined with -D." },
+    { UnloadProject, "unload", 'u', required_argument, "Unload project(s) matching argument." },
+    { ReloadProjects, "reload-projects", 'z', no_argument, "Reload projects from projects file." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Commands:" },
@@ -271,7 +275,7 @@ struct Option opts[] = {
     { SkipParen, "skip-paren", 'p', no_argument, "Skip parens in various contexts." },
     { Max, "max", 'M', required_argument, "Max lines of output for queries." },
     { ReverseSort, "reverse-sort", 'O', no_argument, "Sort output reversed." },
-//        { UnsavedFile, "unsaved-file", 'u', required_argument, },
+//        { UnsavedFile, "unsaved-file", 0, required_argument, },
     { LogFile, "log-file", 'L', required_argument, "Log to this file." },
     { NoContext, "no-context", 'N', no_argument, "Don't print context for locations." },
     { LineNumbers, "line-numbers", 'l', no_argument, "Output line numbers instead of offsets." },
@@ -371,8 +375,6 @@ bool RClient::parse(int &argc, char **argv)
 
     Path logFile;
     unsigned logFlags = 0;
-
-    // Unused: z
 
     while (true) {
         int idx = -1;
@@ -536,6 +538,9 @@ bool RClient::parse(int &argc, char **argv)
             }
             addQuery(type, encoded);
             break; }
+        case ReloadProjects:
+            addQuery(QueryMessage::ReloadProjects);
+            break;
         case Clear:
             addQuery(QueryMessage::ClearProjects);
             break;
@@ -550,6 +555,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case DeleteProject:
             addQuery(QueryMessage::DeleteProject, optarg);
+            break;
+        case UnloadProject:
+            addQuery(QueryMessage::UnloadProject, optarg);
             break;
         case Reindex:
         case Project:

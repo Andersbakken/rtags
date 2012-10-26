@@ -54,6 +54,8 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
 void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
 {
     MutexLocker locker(&mMutex);
+    if (!mProject.lock())
+        return;
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
     if (fileFilter && !strstr(c.sourceFile.constData(), fileFilter))
         return;
@@ -488,4 +490,12 @@ bool Indexer::restore(Deserializer &in)
         onFilesModifiedTimeout();
 
     return true;
+}
+void Indexer::abort()
+{
+    MutexLocker lock(&mMutex);
+    mProject.reset();
+    for (Map<uint32_t, shared_ptr<IndexerJob> >::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
+        it->second->abort();
+    }
 }

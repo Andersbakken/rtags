@@ -22,6 +22,7 @@ public:
         IgnorePrintfFixits = 0x2
     };
     Indexer(const shared_ptr<Project> &project, unsigned flags);
+    void abort();
 
     void index(const SourceInformation &args, unsigned indexerJobFlags);
     SourceInformation sourceInfo(uint32_t fileId) const;

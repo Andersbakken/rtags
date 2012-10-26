@@ -12,26 +12,28 @@ class QueryMessage : public ClientMessage
 public:
     enum { MessageId = 4 };
     enum Type {
-        Invalid,
+        ClearProjects,
+        CursorInfo,
+        DeleteProject,
+        DumpFile,
+        Errors,
+        FindFile,
+        FindSymbols,
+        FixIts,
         FollowLocation,
+        HasFileManager,
+        Invalid,
+        IsIndexed,
+        ListSymbols,
+        PreprocessFile,
+        Project,
         ReferencesLocation,
         ReferencesName,
-        ListSymbols,
-        FindSymbols,
-        Status,
-        IsIndexed,
-        CursorInfo,
-        ClearProjects,
-        FixIts,
-        Errors,
         Reindex,
-        Project,
-        DeleteProject,
-        FindFile,
-        DumpFile,
-        HasFileManager,
-        PreprocessFile,
-        Shutdown
+        ReloadProjects,
+        Shutdown,
+        Status,
+        UnloadProject
     };
 
     enum Flag {
