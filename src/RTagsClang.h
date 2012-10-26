@@ -123,6 +123,7 @@ struct SortedCursor
         case CXCursor_FunctionDecl:
         case CXCursor_CXXMethod:
         case CXCursor_Constructor:
+        case CXCursor_FunctionTemplate:
             val = 5;
             break;
         case CXCursor_ClassDecl:
