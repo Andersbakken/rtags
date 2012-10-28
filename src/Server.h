@@ -40,8 +40,9 @@ public:
         NoWall = 0x08,
         IgnorePrintfFixits = 0x10
     };
-    ThreadPool *threadPool() const { return mThreadPool; }
-    void startJob(const shared_ptr<Job> &job);
+    ThreadPool *threadPool() const { return mIndexerThreadPool; }
+    void startQueryJob(const shared_ptr<Job> &job);
+    void startIndexerJob(const shared_ptr<IndexerJob> &job, int priority);
     struct Options {
         Options() : options(0), threadCount(0) {}
         Path projectsFile, socketFile, dataDir;
@@ -144,7 +145,8 @@ private:
     int mJobId;
 
     FileSystemWatcher mMakefilesWatcher;
-    ThreadPool *mThreadPool;
+    ThreadPool *mIndexerThreadPool;
+    ThreadPool mQueryThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
     Path mClangPath;
 

@@ -47,7 +47,7 @@ public:
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mServer(0), mVerbose(false), mJobId(0), mThreadPool(0)
+    : mServer(0), mVerbose(false), mJobId(0), mIndexerThreadPool(0), mQueryThreadPool(1)
 {
     assert(!sInstance);
     sInstance = this;
@@ -63,10 +63,10 @@ Server::~Server()
 
 void Server::clear()
 {
-    if (mThreadPool) {
-        mThreadPool->clearBackLog();
-        delete mThreadPool;
-        mThreadPool = 0;
+    if (mIndexerThreadPool) {
+        mIndexerThreadPool->clearBackLog();
+        delete mIndexerThreadPool;
+        mIndexerThreadPool = 0;
     }
     mProjects.clear();
     Path::rm(mOptions.socketFile);
@@ -78,7 +78,7 @@ void Server::clear()
 
 bool Server::init(const Options &options)
 {
-    mThreadPool = new ThreadPool(options.threadCount);
+    mIndexerThreadPool = new ThreadPool(options.threadCount);
 
     mMakefilesWatcher.modified().connect(this, &Server::onMakefileModified);
     // mMakefilesWatcher.removed().connect(this, &Server::onMakefileRemoved);
@@ -436,7 +436,7 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
     shared_ptr<FollowLocationJob> job(new FollowLocationJob(loc, query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startQueryJob(job);
 }
 
 void Server::findFile(const QueryMessage &query, Connection *conn)
@@ -451,7 +451,7 @@ void Server::findFile(const QueryMessage &query, Connection *conn)
     shared_ptr<FindFileJob> job(new FindFileJob(query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startQueryJob(job);
 }
 
 void Server::dumpFile(const QueryMessage &query, Connection *conn)
@@ -482,7 +482,7 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
     shared_ptr<IndexerJob> job(new IndexerJob(query, project, c.sourceFile, c.args));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startQueryJob(job);
 }
 
 void Server::cursorInfo(const QueryMessage &query, Connection *conn)
@@ -503,7 +503,7 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
     shared_ptr<CursorInfoJob> job(new CursorInfoJob(loc, query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startQueryJob(job);
 }
 
 
@@ -526,7 +526,7 @@ void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
     shared_ptr<ReferencesJob> job(new ReferencesJob(loc, query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startQueryJob(job);
 }
 
 void Server::referencesForName(const QueryMessage& query, Connection *conn)
@@ -543,7 +543,7 @@ void Server::referencesForName(const QueryMessage& query, Connection *conn)
     shared_ptr<ReferencesJob> job(new ReferencesJob(name, query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startQueryJob(job);
 }
 
 void Server::findSymbols(const QueryMessage &query, Connection *conn)
@@ -560,7 +560,7 @@ void Server::findSymbols(const QueryMessage &query, Connection *conn)
     shared_ptr<FindSymbolsJob> job(new FindSymbolsJob(query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startQueryJob(job);
 }
 
 void Server::listSymbols(const QueryMessage &query, Connection *conn)
@@ -577,7 +577,7 @@ void Server::listSymbols(const QueryMessage &query, Connection *conn)
     shared_ptr<ListSymbolsJob> job(new ListSymbolsJob(query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startQueryJob(job);
 }
 
 void Server::status(const QueryMessage &query, Connection *conn)
@@ -592,7 +592,7 @@ void Server::status(const QueryMessage &query, Connection *conn)
     shared_ptr<StatusJob> job(new StatusJob(query, project));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
-    startJob(job);
+    startQueryJob(job);
 }
 
 void Server::isIndexed(const QueryMessage &query, Connection *conn)
@@ -729,9 +729,14 @@ void Server::remake(const ByteArray &pattern, Connection *conn)
     }
 }
 
-void Server::startJob(const shared_ptr<Job> &job)
+void Server::startIndexerJob(const shared_ptr<IndexerJob> &job, int priority)
 {
-    mThreadPool->start(job, Job::Priority);
+    mIndexerThreadPool->start(job, priority);
+}
+
+void Server::startQueryJob(const shared_ptr<Job> &job)
+{
+    mQueryThreadPool.start(job);
 }
 
 /* Same behavior as rtags-default-current-project() */

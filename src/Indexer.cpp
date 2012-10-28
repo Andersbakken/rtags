@@ -84,7 +84,7 @@ void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
         mTimer.start();
     }
     mJobStarted(shared_from_this(), c.sourceFile);
-    Server::instance()->threadPool()->start(job, job->priority());
+    Server::instance()->startIndexerJob(job, job->priority());
 }
 
 void Indexer::onFileModified(const Path &file)
@@ -413,7 +413,7 @@ void Indexer::checkFinished() // lock always held
         if (mFlags & Validate) {
             shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(project(), mPreviousErrors));
             validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
-            Server::instance()->startJob(validateJob);
+            Server::instance()->startQueryJob(validateJob);
         }
     }
 }
