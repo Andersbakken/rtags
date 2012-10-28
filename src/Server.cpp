@@ -274,8 +274,9 @@ void Server::handleProjectMessage(ProjectMessage *message, Connection *conn)
         ProjectEntry &e = mProjects[path];
         bool finish = true;
         if (e.type & RTags::Type_Makefile) {
-            if ((e.project && e.project->isValid()) || (message->flags() & ProjectMessage::Automake))
+            if ((e.project && e.project->isValid()) || (message->flags() & ProjectMessage::Automake)) {
                 finish = !make(path, args, message->extraCompilerFlags(), conn);
+            }
         }
         if (finish)
             conn->finish();
@@ -907,6 +908,8 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
 
         project->indexer->beginMakefile();
     }
+    if (!mCurrentProject.lock())
+        mCurrentProject = project;
 
     List<ByteArray> arguments = args.clangArgs();
     arguments.append(mOptions.defaultArguments);
