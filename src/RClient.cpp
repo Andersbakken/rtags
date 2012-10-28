@@ -651,7 +651,7 @@ bool RClient::parse(int &argc, char **argv)
                         fprintf(stderr, "Can't find a makefile in %s\n", optarg);
                         return false;
                     }
-                } else if (!makefile.isDir()) {
+                } else if (!makefile.isFile()) {
                     fprintf(stderr, "%s is not a file\n", optarg);
                     return false;
                 }
@@ -664,7 +664,7 @@ bool RClient::parse(int &argc, char **argv)
                             fprintf(stderr, "Can't find a makefile in %s\n", argv[optind - 1]);
                             return false;
                         }
-                    } else if (makefile.isFile()) {
+                    } else if (!makefile.isFile()) {
                         fprintf(stderr, "%s is not a file\n", argv[optind - 1]);
                         return false;
                     }
