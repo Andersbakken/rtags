@@ -23,6 +23,7 @@
 #include "Messages.h"
 #include "Path.h"
 #include "Preprocessor.h"
+#include "Process.h"
 #include "ProjectMessage.h"
 #include "QueryMessage.h"
 #include "RTags.h"
@@ -126,21 +127,61 @@ bool Server::init(const Options &options)
     return true;
 }
 
+class CommandProcess : public Process
+{
+public:
+    CommandProcess(const Server::ProjectEntry &entry)
+        : mEntry(entry)
+    {
+        finished().connect(this, &CommandProcess::onFinished);
+    }
+    void onFinished()
+    {
+        const List<ByteArray> lines = readAllStdOut().split('\n');
+        Server *server = Server::instance();
+        if (server) {
+            const Server::ProjectEntry e(RTags::Type_Makefile|RTags::Type_Synthesized);
+            for (int i=0; i<lines.size(); ++i) {
+                const Path path = lines.at(i);
+                if (path.exists()) {
+                    server->addProject(server, e);
+                }
+            }
+        }
+        deleteLater();
+    }
+private:
+    const Server::ProjectEntry mEntry;
+};
+
 bool Server::addProject(const Path &path, const ProjectEntry &newEntry)
 {
+    if (newEntry.type & RTags::Type_Command) {
+        CommandProcess *proc = new CommandProcess(newEntry);
+        proc->start(path, newEntry.args);
+        return true;
+    }
     ProjectEntry &entry = mProjects[path];
     if (!entry.project || newEntry != entry) {
         if (entry.project)
             unloadProject(path);
         entry = newEntry;
         unsigned flags = Project::FileManagerEnabled;
+        Path p = path;
         if (entry.type & RTags::Type_GRTags) {
             flags |= Project::GRTagsEnabled;
         } else {
             flags |= Project::IndexerEnabled;
+            if (entry.type & RTags::Type_Makefile && p.isDir()) {
+                p.resolve("Makefile");
+                if (!p.isFile()) {
+                    error() << path << "is not a Makefile";
+                    return false;
+                }
+            }
         }
 
-        entry.project.reset(new Project(flags, path));
+        entry.project.reset(new Project(flags, p));
         return true;
     }
     return false;

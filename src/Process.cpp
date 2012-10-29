@@ -236,27 +236,30 @@ Process::~Process()
 
 void Process::event(const Event* event)
 {
-    assert(event->type() == ProcessFinishedEvent::Type);
-    const ProcessFinishedEvent* pevent = static_cast<const ProcessFinishedEvent*>(event);
-    if (mPid == -1) {
-        error() << "process already finished, pid " << pevent->pid;
-        return;
+    if (event->type() == ProcessFinishedEvent::Type) {
+        const ProcessFinishedEvent* pevent = static_cast<const ProcessFinishedEvent*>(event);
+        if (mPid == -1) {
+            error() << "process already finished, pid " << pevent->pid;
+            return;
+        }
+        assert(mPid == pevent->pid);
+        mPid = -1;
+        mReturn = pevent->returnCode;
+
+        mStdInBuffer.clear();
+        closeStdIn();
+
+        // try to read all remaining data on stdout and stderr
+        handleOutput(mStdOut[0], mStdOutBuffer, mStdOutIndex, mReadyReadStdOut);
+        handleOutput(mStdErr[0], mStdErrBuffer, mStdErrIndex, mReadyReadStdErr);
+
+        closeStdOut();
+        closeStdErr();
+
+        mFinished();
+    } else {
+        EventReceiver::event(event);
     }
-    assert(mPid == pevent->pid);
-    mPid = -1;
-    mReturn = pevent->returnCode;
-
-    mStdInBuffer.clear();
-    closeStdIn();
-
-    // try to read all remaining data on stdout and stderr
-    handleOutput(mStdOut[0], mStdOutBuffer, mStdOutIndex, mReadyReadStdOut);
-    handleOutput(mStdErr[0], mStdErrBuffer, mStdErrIndex, mReadyReadStdErr);
-
-    closeStdOut();
-    closeStdErr();
-
-    mFinished();
 }
 
 void Process::setCwd(const Path& cwd)

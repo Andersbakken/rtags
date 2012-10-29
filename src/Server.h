@@ -153,6 +153,7 @@ private:
     Map<shared_ptr<Indexer>, int> mSaveTimers;
 
     enum { DatabaseVersion = 3 };
+    friend class CommandProcess;
 };
 
 #endif
