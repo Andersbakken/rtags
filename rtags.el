@@ -92,9 +92,9 @@
           (if path
               (progn
                (if rtags-match-source-file-to-project
-                   (let (mapped (rtags-match-source-file-to-project path))
-                     (push (concat "--project=" mapped) arguments))
-                 (push (concat "--project=" path) arguments))))
+                   (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
+                     (if (and mapped (length mapped)) (push (concat "--project=" mapped) arguments))))
+                 (push (concat "--project=" path) arguments)))
 
           (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
           (apply #'call-process rc nil (list t nil) nil arguments)
@@ -974,11 +974,7 @@ return t if rtags is allowed to modify this file"
   :group 'rtags
   :type 'boolean)
 
-(defun rtags-match-source-file-to-project (file)
-  (if (string-match "^\\(.*/\\)[^/]*$" file)
-      (match-string 1 file)))
-
-(defcustom rtags-match-source-file-to-project rtags-match-source-file-to-project
+(defcustom rtags-match-source-file-to-project nil
   "Function to match source file to a build directory"
   :group 'rtags
   :type 'function)
