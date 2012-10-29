@@ -130,8 +130,8 @@ bool Server::init(const Options &options)
 class CommandProcess : public Process
 {
 public:
-    CommandProcess(const Server::ProjectEntry &entry)
-        : mEntry(entry)
+    CommandProcess(unsigned type)
+        : mType(type)
     {
         finished().connect(this, &CommandProcess::onFinished);
     }
@@ -140,26 +140,35 @@ public:
         const List<ByteArray> lines = readAllStdOut().split('\n');
         Server *server = Server::instance();
         if (server) {
-            const Server::ProjectEntry e(RTags::Type_Makefile|RTags::Type_Synthesized);
+            const Server::ProjectEntry e(mType | RTags::Type_Synthesized);
             for (int i=0; i<lines.size(); ++i) {
                 const Path path = lines.at(i);
                 if (path.exists()) {
-                    server->addProject(server, e);
+                    server->addProject(path, e);
                 }
             }
         }
         deleteLater();
     }
 private:
-    const Server::ProjectEntry mEntry;
+    const unsigned mType;
 };
 
-bool Server::addProject(const Path &path, const ProjectEntry &newEntry)
+bool Server::addProject(const Path &p, const ProjectEntry &newEntry)
 {
     if (newEntry.type & RTags::Type_Command) {
-        CommandProcess *proc = new CommandProcess(newEntry);
-        proc->start(path, newEntry.args);
+        const unsigned type = newEntry.type & (RTags::Type_Makefile|RTags::Type_SmartProject|RTags::Type_GRTags);
+        CommandProcess *proc = new CommandProcess(type);
+        proc->start(p, newEntry.args);
         return true;
+    }
+    Path path = p;
+    if (newEntry.type & RTags::Type_Makefile && path.isDir()) {
+        path = Path::resolved("Makefile", path);
+        if (!path.isFile()) {
+            error() << path << "is not a Makefile";
+            return false;
+        }
     }
     ProjectEntry &entry = mProjects[path];
     if (!entry.project || newEntry != entry) {
@@ -172,13 +181,6 @@ bool Server::addProject(const Path &path, const ProjectEntry &newEntry)
             flags |= Project::GRTagsEnabled;
         } else {
             flags |= Project::IndexerEnabled;
-            if (entry.type & RTags::Type_Makefile && p.isDir()) {
-                p.resolve("Makefile");
-                if (!p.isFile()) {
-                    error() << path << "is not a Makefile";
-                    return false;
-                }
-            }
         }
 
         entry.project.reset(new Project(flags, p));
