@@ -3,6 +3,7 @@
 
 #include <regex.h>
 #include "ByteArray.h"
+#include "Log.h"
 
 class RegExp
 {
@@ -94,5 +95,11 @@ private:
         Success
     } mutable mState;
 };
+
+inline Log operator<<(Log stream, const RegExp &rx)
+{
+    stream << "RegExp(" << rx.pattern() << ")";
+    return stream;
+}
 
 #endif
