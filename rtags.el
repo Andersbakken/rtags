@@ -12,7 +12,6 @@
 (defface rtags-context nil "Context" :group 'rtags)
 (defvar rtags-path-face 'rtags-path "Path part")
 (defvar rtags-context-face 'rtags-context "Context part")
-(defvar rtags-inhibit-auto-update-until-next-goto-location nil)
 (defconst rtags-buffer-name "*RTags*")
 
 (defvar rtags-faces
@@ -90,10 +89,12 @@
 
           (if rtags-timeout
               (push (format "--timeout=%d" rtags-timeout) arguments))
-          (if (and path rtags-auto-update-project (not rtags-inhibit-auto-update-until-next-goto-location))
-              (push (concat "--project=" path) arguments))
-          (if (and path rtags-auto-update-project (not rtags-inhibit-auto-update-until-next-goto-location) compilation-directory)
-              (push (concat "--project=" compilation-directory) arguments))
+          (if path
+              (progn
+               (if rtags-match-source-file-to-project
+                   (let (mapped (rtags-match-source-file-to-project path))
+                     (push (concat "--project=" mapped) arguments))
+                 (push (concat "--project=" path) arguments))))
 
           (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
           (apply #'call-process rc nil (list t nil) nil arguments)
@@ -175,9 +176,7 @@
                    (format "RTags select project (current is %s): " current)
                    projects))
     (if project
-        (progn
-          (with-temp-buffer (rtags-call-rc nil "-w" project))
-          (setq rtags-inhibit-auto-update-until-next-goto-location t)))
+        (with-temp-buffer (rtags-call-rc nil "-w" project)))
     )
   )
     ;; (message (format "we picked %s" project))
@@ -275,7 +274,6 @@
 ;;  (message (format "rtags-goto-location \"%s\"" location))
   (if (length location)
       (progn
-        (setq rtags-inhibit-auto-update-until-next-goto-location nil)
         (if rtags-no-otherbuffer (setq otherbuffer nil))
         "Go to a location passed in. It can be either: file,12 or file:13:14 or plain file"
         (cond ((string-match "\\(.*\\):\\([0-9]+\\):\\([0-9]+\\)" location)
@@ -975,6 +973,15 @@ return t if rtags is allowed to modify this file"
   "Jump directly to files that exactly match the filename for rtags-find-file"
   :group 'rtags
   :type 'boolean)
+
+(defun rtags-match-source-file-to-project (file)
+  (if (string-match "^\\(.*/\\)[^/]*$" file)
+      (match-string 1 file)))
+
+(defcustom rtags-match-source-file-to-project rtags-match-source-file-to-project
+  "Function to match source file to a build directory"
+  :group 'rtags
+  :type 'function)
 
 (defcustom rtags-other-buffer-window-size-percentage 30 "Percentage size of other buffer" :group 'rtags :type 'integer)
 (defun rtags-show-target-in-other-buffer ()

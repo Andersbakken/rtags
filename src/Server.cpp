@@ -137,7 +137,12 @@ public:
     }
     void onFinished()
     {
+        const ByteArray err = readAllStdErr();
+        if (!err.isEmpty()) {
+            error() << "Got error" << err;
+        }
         const List<ByteArray> lines = readAllStdOut().split('\n');
+        // error()  << lines;
         Server *server = Server::instance();
         if (server) {
             const Server::ProjectEntry e(mType | RTags::Type_Synthesized);
@@ -160,6 +165,7 @@ bool Server::addProject(const Path &p, const ProjectEntry &newEntry)
         const unsigned type = newEntry.type & (RTags::Type_Makefile|RTags::Type_SmartProject|RTags::Type_GRTags);
         CommandProcess *proc = new CommandProcess(type);
         proc->start(p, newEntry.args);
+        // error() << "Calling start" << p << newEntry.args;
         return true;
     }
     Path path = p;
