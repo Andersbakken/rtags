@@ -1052,7 +1052,7 @@ bool Server::updateProjectForLocation(const Path &path)
     int longest = -1;
     shared_ptr<Project> cur = mCurrentProject.lock();
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if((*it).first == path) {
+        if ((*it).first == path) {
             match = path;
             break;
         }
@@ -1285,47 +1285,33 @@ bool Server::project(const QueryMessage &query, Connection *conn)
     } else {
         Path selected;
         bool error = false;
-        List<Path> paths;
-        Path path = query.query();
-        paths.push_back(path);
-        if(path.resolve())
-            paths.push_back(path);
-        for(List<Path>::const_iterator pit = paths.begin(); pit != paths.end(); ++pit) {
-            if ((*pit).exists() && updateProjectForLocation((*pit))) {
-                conn->write<128>("Selected project: %s for %s", mCurrentProject.lock()->path().constData(), (*pit).constData());
-                break;
-            } else {
-                RegExp rx(query.query());
-                for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-                    const Path paths[] = { it->first, it->second.project->srcRoot(), it->second.project->resolvedSrcRoot() };
-                    for (int i=0; i<3; ++i) {
-                        if (!paths[i].isEmpty() && rx.indexIn(paths[i]) != -1) {
-                            if (error) {
-                                conn->write(it->first);
-                            } else if (!selected.isEmpty()) {
-                                error = true;
-                                conn->write<128>("Multiple matches for %s", (*pit).constData());
-                                conn->write(it->first);
-                                selected.clear();
-                            } else {
-                                selected = it->first;
-                                break;
-                            }
-                        }
-                    }
-                }
-                if (!selected.isEmpty()) {
-                    shared_ptr<Project> current = currentProject();
-                    if (!current || selected != current->path()) {
-                        setCurrentProject(selected);
-                        ret = true;
-                        conn->write<128>("Selected project: %s for %s", selected.constData(), (*pit).constData());
-                        break;
-                    }
-                } else if (!error) {
-                    conn->write<128>("No matches for %s", (*pit).constData());
+        RegExp rx(query.query());
+        const Path path = query.query();
+        const bool isPath = path.exists();
+        for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+            if (isPath ? it->second.project->match(path) : it->second.project->match(rx)) {
+                if (error) {
+                    conn->write(it->first);
+                } else if (!selected.isEmpty()) {
+                    error = true;
+                    conn->write<128>("Multiple matches for %s", path.constData());
+                    conn->write(selected);
+                    conn->write(it->first);
+                    selected.clear();
+                } else {
+                    selected = it->first;
                 }
             }
+        }
+        if (!selected.isEmpty()) {
+            shared_ptr<Project> current = currentProject();
+            if (!current || selected != current->path()) {
+                setCurrentProject(selected);
+                ret = true;
+                conn->write<128>("Selected project: %s for %s", selected.constData(), path.constData());
+            }
+        } else if (!error) {
+            conn->write<128>("No matches for %s", path.constData());
         }
     }
     conn->finish();

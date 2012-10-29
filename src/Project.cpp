@@ -14,8 +14,13 @@ void Project::init(const Path &src)
     assert(!isValid());
     mResolvedSrcRoot = mSrcRoot = src;
     mResolvedSrcRoot.resolve();
-    if (mResolvedSrcRoot == mSrcRoot)
+    if (!mSrcRoot.endsWith('/'))
+        mSrcRoot.append('/');
+    if (mResolvedSrcRoot == mSrcRoot) {
         mResolvedSrcRoot.clear();
+    } else if (!mResolvedSrcRoot.endsWith('/')) {
+        mResolvedSrcRoot.append('/');
+    }
 
     if (mFlags & FileManagerEnabled) {
         fileManager.reset(new FileManager);
@@ -191,4 +196,32 @@ void Project::unload()
         fileManager.reset();
         // ### should unload grtags too probably
     }
+}
+
+bool Project::match(const Path &p) const
+{
+    Path paths[] = { p, p };
+    paths[1].resolve();
+    const int count = paths[1] != p ? 2 : 1;
+    for (int i=0; i<count; ++i) {
+        const Path &path = paths[i];
+        if (!mSrcRoot.isEmpty() && mSrcRoot.startsWith(path))
+            return true;
+        if (!mResolvedSrcRoot.isEmpty() && mResolvedSrcRoot.startsWith(path))
+            return true;
+        if (!mPath.isEmpty() && mPath.startsWith(path))
+            return true;
+    }
+    return false;
+}
+
+bool Project::match(const RegExp &rx) const
+{
+    if (!mSrcRoot.isEmpty() && rx.indexIn(mSrcRoot) != -1)
+        return true;
+    if (!mResolvedSrcRoot.isEmpty() && rx.indexIn(mResolvedSrcRoot) != -1)
+        return true;
+    if (!mPath.isEmpty() && rx.indexIn(mPath) != -1)
+        return true;
+    return false;
 }
