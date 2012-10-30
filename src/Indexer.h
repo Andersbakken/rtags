@@ -13,6 +13,25 @@
 
 struct IndexData;
 class IndexerJob;
+struct CachedUnit
+{
+    CachedUnit()
+        : next(0), index(0)
+    {}
+    ~CachedUnit()
+    {
+        if (unit)
+            clang_disposeTranslationUnit(unit);
+        if (index)
+            clang_disposeIndex(index);
+    }
+    CachedUnit *next;
+    CXTranslationUnit unit;
+    CXIndex index;
+    Path path;
+    List<ByteArray> arguments;
+};
+
 class Indexer : public enable_shared_from_this<Indexer>
 {
 public:
@@ -44,12 +63,14 @@ public:
     bool restore(Deserializer &in);
     Set<Path> watchedPaths() const { return mWatchedPaths; }
 private:
+    bool initJobFromCache(const Path &path, const List<ByteArray> &args, CXIndex &index, CXTranslationUnit &unit);
     void checkFinished();
     void onFileModified(const Path &);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addDiagnostics(const DiagnosticsMap &errors, const FixitMap &fixIts);
     void write();
     void onFilesModifiedTimeout();
+    void addCachedUnit(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
     static void onFilesModifiedTimeout(int id, void *userData)
     {
         EventLoop::instance()->removeTimer(id);
@@ -98,6 +119,9 @@ private:
 
     Map<uint32_t, shared_ptr<IndexData> > mPendingData;
     Set<uint32_t> mPendingDirtyFiles;
+
+    CachedUnit *mFirstCachedUnit, *mLastCachedUnit;
+    int mUnitCacheSize;
 };
 
 inline bool Indexer::visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &job)

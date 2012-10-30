@@ -22,10 +22,11 @@ struct VerboseVisitorUserData {
     IndexerJob *job;
 };
 
-IndexerJob::IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags, const Path &p, const List<ByteArray> &arguments)
+IndexerJob::IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags, const Path &p, const List<ByteArray> &arguments,
+                       CXIndex index, CXTranslationUnit unit)
     : Job(0, indexer->project()),
       mFlags(flags), mTimeStamp(0), mPath(p), mFileId(Location::insertFile(p)),
-      mArgs(arguments), mIndexer(indexer), mUnit(0), mIndex(0), mDump(false), mParseTime(0),
+      mArgs(arguments), mIndexer(indexer), mUnit(unit), mIndex(index), mDump(false), mParseTime(0),
       mStarted(false)
 {
 }
@@ -488,36 +489,48 @@ void IndexerJob::parse()
     }
 
     mTimeStamp = time(0);
-    mClangLine = Server::instance()->clangPath();
-    mClangLine += ' ';
-
-    int idx = 0;
-    List<const char*> clangArgs(mArgs.size(), 0);
-
-    const int count = mArgs.size();
-    for (int i=0; i<count; ++i) {
-        ByteArray arg = mArgs.at(i);
-        if (arg.isEmpty())
-            continue;
-
-        clangArgs[idx++] = mArgs.at(i).constData();
-        arg.replace("\"", "\\\"");
-        mClangLine += arg;
-        mClangLine += ' ';
-    }
-
-    mClangLine += mPath;
-
-    const time_t now = time(0);
-    mUnit = clang_parseTranslationUnit(mIndex, mPath.constData(),
-                                       clangArgs.data(), idx, 0, 0,
-                                       CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
-    warning() << "loading unit " << mClangLine << " " << (mUnit != 0);
     if (!mUnit) {
-        error() << "got failure" << mClangLine;
-        mData->dependencies[mFileId].insert(mFileId);
+        mClangLine = Server::instance()->clangPath();
+        mClangLine += ' ';
+
+        int idx = 0;
+        List<const char*> clangArgs(mArgs.size(), 0);
+
+        const int count = mArgs.size();
+        for (int i=0; i<count; ++i) {
+            ByteArray arg = mArgs.at(i);
+            if (arg.isEmpty())
+                continue;
+
+            clangArgs[idx++] = mArgs.at(i).constData();
+            arg.replace("\"", "\\\"");
+            mClangLine += arg;
+            mClangLine += ' ';
+        }
+
+        mClangLine += mPath;
+
+        const time_t now = time(0);
+        mUnit = clang_parseTranslationUnit(mIndex, mPath.constData(),
+                                           clangArgs.data(), idx, 0, 0,
+                                           CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+        warning() << "loading unit " << mClangLine << " " << (mUnit != 0);
+        if (!mUnit) {
+            error() << "got failure" << mClangLine;
+            mData->dependencies[mFileId].insert(mFileId);
+        } else {
+            mParseTime = now;
+        }
     } else {
-        mParseTime = now;
+        const time_t now = time(0);
+        warning() << "Reparsing" << mPath << mArgs;
+        if (clang_reparseTranslationUnit(mUnit, 0, 0, clang_defaultReparseOptions(mUnit))) {
+            clang_disposeTranslationUnit(mUnit);
+            mUnit = 0;
+            error() << "got failure when reparsing" << mPath << mArgs;
+        } else {
+            mParseTime = now;
+        }
     }
 }
 
@@ -656,6 +669,10 @@ void IndexerJob::execute()
                                                    mData->symbols.size(), mData->symbolNames.size(), mData->references.size(), mData->dependencies.size(),
                                                    mFlags & Dirty ? " (dirty)" : "");
     }
+    if (shared_ptr<Indexer> idx = indexer()) {
+        shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
+        idx->onJobFinished(job);
+    }
     if (mUnit) {
         clang_disposeTranslationUnit(mUnit);
         mUnit = 0;
@@ -663,11 +680,6 @@ void IndexerJob::execute()
     if (mIndex) {
         clang_disposeIndex(mIndex);
         mIndex = 0;
-    }
-
-    if (shared_ptr<Indexer> idx = indexer()) {
-        shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
-        idx->onJobFinished(job);
     }
 }
 
@@ -755,4 +767,20 @@ bool IndexerJob::abortIfStarted()
         return true;
     }
     return false;
+}
+
+CXTranslationUnit IndexerJob::takeTranslationUnit()
+{
+    MutexLocker lock(&mMutex);
+    CXTranslationUnit tmp = mUnit;
+    mUnit = 0;
+    return tmp;
+}
+
+CXIndex IndexerJob::takeIndex()
+{
+    MutexLocker lock(&mMutex);
+    CXIndex tmp = mIndex;
+    mIndex = 0;
+    return tmp;
 }

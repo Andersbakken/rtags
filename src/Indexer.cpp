@@ -13,7 +13,8 @@
 #include <math.h>
 
 Indexer::Indexer(const shared_ptr<Project> &proj, unsigned flags)
-    : mJobCounter(0), mInMakefile(false), mModifiedFilesTimerId(-1), mTimerRunning(false), mProject(proj), mFlags(flags)
+    : mJobCounter(0), mInMakefile(false), mModifiedFilesTimerId(-1), mTimerRunning(false), mProject(proj), mFlags(flags),
+      mFirstCachedUnit(0), mLastCachedUnit(0), mUnitCacheSize(0)
 {
     mWatcher.modified().connect(this, &Indexer::onFileModified);
     mWatcher.removed().connect(this, &Indexer::onFileModified);
@@ -36,6 +37,9 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
     if (job->isAborted()) {
         return;
     }
+    CXTranslationUnit unit = job->takeTranslationUnit();
+    if (unit)
+        addCachedUnit(job->path(), job->arguments(), job->takeIndex(), unit);
     shared_ptr<IndexData> data = job->data();
     mPendingData[fileId] = data;
 
@@ -76,7 +80,10 @@ void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
     if (mFlags & IgnorePrintfFixits)
         indexerJobFlags |= IndexerJob::IgnorePrintfFixits;
 
-    job.reset(new IndexerJob(shared_from_this(), indexerJobFlags, c.sourceFile, c.args));
+    CXIndex index = 0;
+    CXTranslationUnit unit = 0;
+    initJobFromCache(c.sourceFile, c.args, index, unit);
+    job.reset(new IndexerJob(shared_from_this(), indexerJobFlags, c.sourceFile, c.args, index, unit));
 
     ++mJobCounter;
     if (!mTimerRunning) {
@@ -498,4 +505,68 @@ void Indexer::abort()
     for (Map<uint32_t, shared_ptr<IndexerJob> >::const_iterator it = mJobs.begin(); it != mJobs.end(); ++it) {
         it->second->abort();
     }
+}
+
+void Indexer::addCachedUnit(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit)
+{
+    assert(index);
+    assert(unit);
+    CachedUnit *cachedUnit = new CachedUnit;
+    cachedUnit->path = path;
+    cachedUnit->index = index;
+    cachedUnit->unit = unit;
+    cachedUnit->arguments = args;
+    enum { MaxCacheSize = 10 };
+    if (!mFirstCachedUnit) {
+        assert(!mLastCachedUnit);
+        assert(!mUnitCacheSize);
+        mFirstCachedUnit = mLastCachedUnit = cachedUnit;
+        mUnitCacheSize = 1;
+        return;
+    }
+
+    assert(MaxCacheSize > 1);
+    if (mUnitCacheSize == MaxCacheSize) {
+        CachedUnit *tmp = mFirstCachedUnit;
+        mFirstCachedUnit = tmp->next;
+        delete tmp;
+    } else {
+        ++mUnitCacheSize;
+    }
+    assert(mLastCachedUnit);
+    assert(!mLastCachedUnit->next);
+    mLastCachedUnit->next = cachedUnit;
+    mLastCachedUnit = cachedUnit;
+}
+
+bool Indexer::initJobFromCache(const Path &path, const List<ByteArray> &args, CXIndex &index, CXTranslationUnit &unit)
+{
+    CachedUnit *prev = 0;
+    CachedUnit *cachedUnit = mFirstCachedUnit;
+    while (cachedUnit) {
+        if (cachedUnit->path == path && args == cachedUnit->arguments) {
+            index = cachedUnit->index;
+            unit = cachedUnit->unit;
+            cachedUnit->unit = 0;
+            cachedUnit->index = 0;
+            if (prev) {
+                prev->next = cachedUnit->next;
+                if (cachedUnit == mLastCachedUnit)
+                    mLastCachedUnit = prev;
+            } else {
+                mFirstCachedUnit = cachedUnit->next;
+                if (!mFirstCachedUnit)
+                    mLastCachedUnit = 0;
+            }
+            --mUnitCacheSize;
+            assert(mUnitCacheSize >= 0);
+            delete cachedUnit;
+            return true;
+        }
+        prev = cachedUnit;
+        cachedUnit = cachedUnit->next;
+    }
+    index = 0;
+    unit = 0;
+    return false;
 }

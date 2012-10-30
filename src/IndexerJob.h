@@ -30,17 +30,21 @@ public:
         IgnorePrintfFixits = 0x10
     };
     IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags,
-               const Path &input, const List<ByteArray> &arguments);
+               const Path &input, const List<ByteArray> &args,
+               CXIndex index = 0 , CXTranslationUnit unit = 0);
     IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
                const Path &input, const List<ByteArray> &arguments);
 
     int priority() const { return mFlags & Priorities; }
     shared_ptr<IndexData> data() const { return mData; }
+    CXTranslationUnit takeTranslationUnit();
+    CXIndex takeIndex();
     uint32_t fileId() const { return mFileId; }
     Path path() const { return mPath; }
     bool isAborted() { return !indexer() && !project(); }
     void abort() { MutexLocker lock(&mMutex); mIndexer.reset(); resetProject(); }
     bool abortIfStarted();
+    List<ByteArray> arguments() const { return mArgs; }
     shared_ptr<Indexer> indexer() { MutexLocker lock(&mMutex); return mIndexer.lock(); }
     time_t parseTime() const { return mParseTime; }
 private:
