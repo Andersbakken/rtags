@@ -98,6 +98,7 @@ private:
     bool project(const QueryMessage &query, Connection *conn);
     void clearProjects(const QueryMessage &query, Connection *conn);
     void shutdown(const QueryMessage &query, Connection *conn);
+    void codeCompleteAt(const QueryMessage &query, Connection *conn);
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);

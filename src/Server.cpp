@@ -398,6 +398,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::Invalid:
         assert(0);
         break;
+    case QueryMessage::CodeCompleteAt:
+        codeCompleteAt(*message, conn);
+        break;
     case QueryMessage::FindFile:
         findFile(*message, conn);
         break;
@@ -1297,6 +1300,24 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
 {
     EventLoop::instance()->exit();
     conn->write("Shutting down");
+    conn->finish();
+}
+
+void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
+{
+    if (shared_ptr<Project> project = currentProject()) {
+        const ByteArray data = query.query();
+        Deserializer deserializer(data);
+        Path path;
+        int line, column;
+        deserializer >> path >> line >> column;
+        CXIndex index;
+        CXTranslationUnit unit;
+
+
+        return;
+    }
+
     conn->finish();
 }
 

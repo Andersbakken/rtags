@@ -12,6 +12,7 @@ class QueryMessage : public ClientMessage
 public:
     enum { MessageId = 4 };
     enum Type {
+        CodeCompleteAt,
         ClearProjects,
         CursorInfo,
         DeleteProject,

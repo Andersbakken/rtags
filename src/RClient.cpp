@@ -2,6 +2,7 @@
 #include "CreateOutputMessage.h"
 #include "ProjectMessage.h"
 #include "EventLoop.h"
+#include "RegExp.h"
 
 class RCCommand
 {
@@ -173,6 +174,7 @@ enum {
     AutoMakeProject,
     AutostartRdm,
     Clear,
+    CodeCompleteAt,
     CompilerFlag,
     CursorInfo,
     Define,
@@ -266,6 +268,7 @@ struct Option opts[] = {
     { FindFile, "path", 'P', optional_argument, "Print files matching pattern." },
     { DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
     { RdmLog, "rdm-log", 'g', no_argument, "Receive logs from rdm." },
+    { CodeCompleteAt, "code-complete-at", 'x', required_argument, "Get code completion from location (must be specified with path:line:column)." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -425,6 +428,27 @@ bool RClient::parse(int &argc, char **argv)
             if (optarg)
                 mRdmArgs = ByteArray(optarg, strlen(optarg)).split(' ');
             break;
+        case CodeCompleteAt: {
+            const ByteArray arg = optarg;
+            List<RegExp::Capture> caps;
+            RegExp rx("^(.*):([0-9]+):([0-9]+)$");
+            if (rx.indexIn(arg, 0, &caps) != 0 || caps.size() != 3) {
+                fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
+                return false;
+            }
+            const Path path = Path::resolved(caps[0].capture);
+            if (!path.exists()) {
+                fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
+                return false;
+            }
+
+            ByteArray out;
+            {
+                Serializer serializer(out);
+                serializer << path << atoi(caps[1].capture.constData()) << atoi(caps[2].capture.constData());
+            }
+            addQuery(QueryMessage::CodeCompleteAt, out);
+            break; }
         case RestartRdm:
             mClientFlags |= Client::RestartRdm;
             if (optarg)

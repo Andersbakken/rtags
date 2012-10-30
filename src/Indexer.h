@@ -16,7 +16,7 @@ class IndexerJob;
 struct CachedUnit
 {
     CachedUnit()
-        : next(0), index(0)
+        : next(0), unit(0), index(0)
     {}
     ~CachedUnit()
     {
