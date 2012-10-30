@@ -122,8 +122,10 @@ private:
         {}
         unsigned type;
         List<ByteArray> flags, args;
+        Path saveKey;
         shared_ptr<Project> project;
 
+        // ### these do not compare saveKey
         inline bool operator==(const ProjectEntry &other) const
         {
             return (type == other.type && flags == other.flags && args == other.args);

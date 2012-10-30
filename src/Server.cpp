@@ -213,6 +213,7 @@ void Server::reloadProjects()
         { RTags::Type_Command|RTags::Type_GRTags, "GRTagsCommands" },
         { 0, 0 }
     };
+    const Path home = Path::home();
     for (int i=0; entries[i].key; ++i) {
         const Entry &e = entries[i];
         const List<ByteArray> keys = file.keys(e.key);
@@ -236,7 +237,12 @@ void Server::reloadProjects()
                     continue;
                 }
             }
-            const Path path = Path::resolved(keys.at(i), resolvePath);
+            Path path = entry.saveKey = keys.at(i);
+            if (path.startsWith("$HOME"))
+                path.replace(0, 5, home);
+            if (path.startsWith('~'))
+                path.replace(0, 1, home);
+            path = Path::resolved(path, resolvePath);
             addProject(path, entry);
         }
     }
@@ -1113,7 +1119,7 @@ void Server::writeProjects()
                 details += ByteArray::join(it->second.flags, ' ');
             }
 
-            ini.setValue(key, it->first, details);
+            ini.setValue(key, it->second.saveKey, details);
         }
     }
 }
