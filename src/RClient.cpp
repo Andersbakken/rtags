@@ -362,6 +362,18 @@ bool RClient::parse(int &argc, char **argv)
             options.push_back(opt);
         }
     }
+
+#if 0
+    ByteArray unused;
+    for (int i=0; i<26; ++i) {
+        if (!shortOptionString.contains('a' + i))
+            unused.append('a' + i);
+        if (!shortOptionString.contains('A' + i))
+            unused.append('A' + i);
+    }
+    printf("Unused: %s\n", unused.constData());
+#endif
+
     {
         const option opt = { 0, 0, 0, 0 };
         options.push_back(opt);
