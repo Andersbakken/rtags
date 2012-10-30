@@ -180,13 +180,11 @@ enum {
     Diagnostics,
     DumpFile,
     ElispList,
-    Errors,
     FilterSystemHeaders,
     FindFile,
     FindFilePreferExact,
     FindSymbols,
     FindVirtuals,
-    Fixits,
     FollowLocation,
     GRTag,
     HasFileManager,
@@ -285,8 +283,6 @@ struct Option opts[] = {
     { CompilerFlag, "compiler-flag", 'o', required_argument, "Add additional compiler flags." },
     { AllReferences, "all-references", 'E', no_argument, "Include definitions/declarations/constructors/destructors for references. Used for rename symbol." },
     { ElispList, "elisp-list", 'Y', no_argument, "Output elisp: (list \"one\" \"two\" ...)." },
-    { Fixits, "fixits", 'x', required_argument, "Get fixits for file." },
-    { Errors, "errors", 'Q', required_argument, "Get errors for file." },
     { Diagnostics, "diagnostics", 'G', no_argument, "Receive continual diagnostics from rdm." },
     { WaitForIndexing, "wait-for-indexing", 'X', no_argument, "Wait for indexing to finish before doing query." },
     { MatchRegexp, "match-regexp", 'Z', no_argument, "Treat various text patterns as regexps (-P, -i, -V)." },
@@ -617,10 +613,8 @@ bool RClient::parse(int &argc, char **argv)
             addQuery(QueryMessage::HasFileManager, p);
             break; }
         case IsIndexed:
-        case Fixits:
         case DumpFile:
-        case PreprocessFile:
-        case Errors: {
+        case PreprocessFile: {
             Path p = Path::resolved(optarg);
             if (!p.exists()) {
                 fprintf(stderr, "%s does not exist\n", optarg);
@@ -631,8 +625,6 @@ bool RClient::parse(int &argc, char **argv)
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (opt->option) {
             case IsIndexed: type = QueryMessage::IsIndexed; break;
-            case Fixits: type = QueryMessage::FixIts; break;
-            case Errors: type = QueryMessage::Errors; break;
             case DumpFile: type = QueryMessage::DumpFile; break;
             case PreprocessFile: type = QueryMessage::PreprocessFile; break;
             }

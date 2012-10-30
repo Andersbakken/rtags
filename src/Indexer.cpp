@@ -34,9 +34,10 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
         return;
     }
     mJobs.remove(fileId);
-    if (job->isAborted()) {
+    addDiagnostics(job->path(), job->arguments(), job->diagnostics());
+    if (job->isAborted())
         return;
-    }
+
     CXTranslationUnit unit = job->takeTranslationUnit();
     if (unit)
         addCachedUnit(job->path(), job->arguments(), job->takeIndex(), unit);
@@ -145,58 +146,25 @@ Set<uint32_t> Indexer::dependencies(uint32_t fileId) const
     return mDependencies.value(fileId);
 }
 
-ByteArray Indexer::fixIts(const Path &path) const
+ByteArray Indexer::errors() const
 {
-    uint32_t fileId = Location::fileId(path);
-    if (!fileId)
-        return ByteArray();
     MutexLocker lock(&mMutex);
-    Map<Location, std::pair<int, ByteArray> >::const_iterator it = mFixIts.lower_bound(Location(fileId, 0));
     ByteArray ret;
-    char buf[1024];
-    while (it != mFixIts.end() && it->first.fileId() == fileId) {
-        int w;
-        if ((*it).second.first) {
-            w = snprintf(buf, sizeof(buf), "%d-%d %s%s", it->first.offset(), (*it).second.first,
-                         (*it).second.second.constData(), ret.isEmpty() ? "" : "\n");
-        } else {
-            w = snprintf(buf, sizeof(buf), "%d %s%s", it->first.offset(),
-                         (*it).second.second.constData(), ret.isEmpty() ? "" : "\n");
-        }
-        ret.prepend(ByteArray(buf, w)); // we want the last ones front()
-        ++it;
+    for (std::deque<ByteArray>::const_iterator it = mErrors.begin(); it != mErrors.end(); ++it) {
+        ret.append(*it);
+        ret.append('\n');
     }
     return ret;
 }
 
-ByteArray Indexer::errors(const Path &path) const
+void Indexer::addDiagnostics(const Path &path, const List<ByteArray> &args, const List<ByteArray> &diagnostics)
 {
-    MutexLocker lock(&mMutex);
-    if (path.isEmpty())
-        return ByteArray::join(mErrors.values(), '\n');
-    const uint32_t fileId = Location::fileId(path);
-    if (!fileId)
-        return ByteArray();
-    return mErrors.value(fileId);
-}
-
-void Indexer::addDiagnostics(const DiagnosticsMap &diagnostics, const FixitMap &fixIts)
-{
-    for (DiagnosticsMap::const_iterator it = diagnostics.begin(); it != diagnostics.end(); ++it) {
-        const uint32_t fileId = it->first;
-        FixitMap::iterator i = mFixIts.lower_bound(Location(fileId, 0));
-        while (i != mFixIts.end() && i->first.fileId() == fileId) {
-            mFixIts.erase(i++);
-        }
-        if (it->second.isEmpty()) {
-            mErrors.remove(it->first);
-        } else {
-            mErrors[it->first] = ByteArray::join(it->second, '\n');
-        }
-    }
-    for (FixitMap::const_iterator it = fixIts.begin(); it != fixIts.end(); ++it) {
-        mFixIts[it->first] = (*it).second;
-    }
+    for (int i=0; i<diagnostics.size(); ++i)
+        mErrors.push_back(diagnostics.at(i));
+    mErrors.push_back(ByteArray::snprintf<512>("Parsed %s %s", path.constData(), ByteArray::join(args, ' ').constData()));
+    enum { MaxErrors = 1024 };
+    while (mErrors.size() > MaxErrors)
+        mErrors.pop_front();
 }
 
 int Indexer::reindex(const ByteArray &pattern, bool regexp)
@@ -365,7 +333,6 @@ void Indexer::write()
     for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
         const shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
-        addDiagnostics(data->diagnostics, data->fixIts);
         writeCursors(data->symbols, symbols.data());
         writeUsr(data->usrMap, usr.data(), symbols.data());
         writeReferences(data->references, symbols.data());
@@ -408,11 +375,6 @@ void Indexer::checkFinished() // lock always held
         error() << "Jobs took" << ((double)(elapsed) / 1000.0) << "secs, writing took"
                 << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
                 << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-        if (testLog(CompilationError)) {
-            Log(CompilationError) << "Jobs took" << ((double)(elapsed) / 1000.0) << "secs, writing took"
-                                  << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
-                                  << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-        }
 
         mJobsComplete(shared_from_this(), mJobCounter);
         mJobCounter = 0;

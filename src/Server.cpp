@@ -422,12 +422,6 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::ClearProjects:
         clearProjects(*message, conn);
         break;
-    case QueryMessage::FixIts:
-        fixIts(*message, conn);
-        break;
-    case QueryMessage::Errors:
-        errors(*message, conn);
-        break;
     case QueryMessage::CursorInfo:
         cursorInfo(*message, conn);
         break;
@@ -715,36 +709,6 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
     }
     Preprocessor* pre = new Preprocessor(c, conn);
     pre->preprocess();
-}
-
-void Server::fixIts(const QueryMessage &query, Connection *conn)
-{
-    shared_ptr<Project> project = currentProject();
-    if (!project || !project->indexer) {
-        error("No project");
-        conn->finish();
-        return;
-    }
-
-    const ByteArray fixIts = project->indexer->fixIts(query.query());
-
-    conn->write(fixIts);
-    conn->finish();
-}
-
-void Server::errors(const QueryMessage &query, Connection *conn)
-{
-    shared_ptr<Project> project = currentProject();
-    if (!project || !project->indexer) {
-        error("No project");
-        conn->finish();
-        return;
-    }
-
-    const ByteArray errors = project->indexer->errors(query.query());
-
-    conn->write(errors);
-    conn->finish();
 }
 
 void Server::clearProjects()

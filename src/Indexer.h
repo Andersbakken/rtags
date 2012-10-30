@@ -48,7 +48,7 @@ public:
     Set<uint32_t> dependencies(uint32_t fileId) const;
     bool visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &job);
     ByteArray fixIts(const Path &path) const;
-    ByteArray errors(const Path &path = Path()) const;
+    ByteArray errors() const;
     int reindex(const ByteArray &pattern, bool regexp);
     signalslot::Signal2<shared_ptr<Indexer>, int> &jobsComplete() { return mJobsComplete; }
     signalslot::Signal2<shared_ptr<Indexer>, Path> &jobStarted() { return mJobStarted; }
@@ -67,7 +67,7 @@ private:
     void checkFinished();
     void onFileModified(const Path &);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
-    void addDiagnostics(const DiagnosticsMap &errors, const FixitMap &fixIts);
+    void addDiagnostics(const Path &path, const List<ByteArray> &args, const List<ByteArray> &errors);
     void write();
     void onFilesModifiedTimeout();
     void addCachedUnit(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
@@ -108,8 +108,7 @@ private:
 
     Set<Path> mWatchedPaths;
 
-    Map<Location, std::pair<int, ByteArray> > mFixIts;
-    Map<uint32_t, ByteArray> mErrors;
+    std::deque<ByteArray> mErrors;
 
     Set<Location> mPreviousErrors;
 

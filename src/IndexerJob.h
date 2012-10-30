@@ -14,8 +14,6 @@ struct IndexData {
     SymbolMap symbols;
     SymbolNameMap symbolNames;
     DependencyMap dependencies;
-    FixitMap fixIts;
-    DiagnosticsMap diagnostics;
     ByteArray message;
     UsrMap usrMap;
 };
@@ -47,6 +45,7 @@ public:
     List<ByteArray> arguments() const { return mArgs; }
     shared_ptr<Indexer> indexer() { MutexLocker lock(&mMutex); return mIndexer.lock(); }
     time_t parseTime() const { return mParseTime; }
+    List<ByteArray> diagnostics() const { return mDiagnostics; }
 private:
     void parse();
     void visit();
@@ -93,6 +92,7 @@ private:
     Map<ByteArray, uint32_t> mFileIds;
 
     ByteArray mClangLine;
+    List<ByteArray> mDiagnostics;
 
     Timer mTimer;
     shared_ptr<IndexData> mData;

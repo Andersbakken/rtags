@@ -539,7 +539,6 @@ void IndexerJob::diagnose()
     if (!mUnit)
         return;
     const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
-    bool hasCompilationErrors = false;
     for (unsigned i=0; i<diagnosticCount; ++i) {
         CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
         int logLevel = INT_MAX;
@@ -548,21 +547,16 @@ void IndexerJob::diagnose()
         case CXDiagnostic_Fatal:
         case CXDiagnostic_Error:
             logLevel = Error;
-            hasCompilationErrors = true;
             break;
         case CXDiagnostic_Warning:
             logLevel = Warning;
-            hasCompilationErrors = true;
             break;
         case CXDiagnostic_Note:
-            hasCompilationErrors = true;
             logLevel = Debug;
             break;
         case CXDiagnostic_Ignored:
             break;
         }
-
-        CXSourceLocation loc = clang_getDiagnosticLocation(diagnostic);
         const unsigned diagnosticOptions = (CXDiagnostic_DisplaySourceLocation|
                                             CXDiagnostic_DisplayColumn|
                                             CXDiagnostic_DisplaySourceRanges|
@@ -570,44 +564,16 @@ void IndexerJob::diagnose()
                                             CXDiagnostic_DisplayCategoryId|
                                             CXDiagnostic_DisplayCategoryName);
 
-        ByteArray string;
-        CXFile file;
-        clang_getSpellingLocation(loc, &file, 0, 0, 0);
-        if (file) {
-            string = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
-            mData->diagnostics[Location(file, 0).fileId()].append(string);
-        }
+        mDiagnostics.append(RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions)));
         if (testLog(logLevel) || testLog(CompilationError)) {
-            if (string.isEmpty())
-                string = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
+            const ByteArray &string = mDiagnostics.last();
             log(logLevel, "%s: %s => %s", mPath.constData(), mClangLine.constData(), string.constData());
             log(CompilationError, "%s", string.constData());
         }
 
-        const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
-        RegExp rx;
-        if (mFlags & IgnorePrintfFixits) {
-            rx = "^%[A-Za-z0-9]\\+$";
-        }
-        for (unsigned f=0; f<fixItCount; ++f) {
-            CXSourceRange range;
-            ByteArray string = RTags::eatString(clang_getDiagnosticFixIt(diagnostic, f, &range));
-            const Location start(clang_getRangeStart(range));
-            unsigned endOffset = 0;
-            clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
-            if (mFlags & IgnorePrintfFixits && rx.indexIn(string) == 0) {
-                error("Ignored fixit (%d/%d) for %s: [%s] %s-%d", f + 1, fixItCount, mPath.constData(),
-                      string.constData(), start.key().constData(), endOffset);
-            } else {
-                error("Fixit (%d/%d) for %s: [%s] %s-%d", f + 1, fixItCount, mPath.constData(),
-                      string.constData(), start.key().constData(), endOffset);
-                mData->fixIts[start] = std::pair<int, ByteArray>(endOffset - start.offset(), string);
-            }
-        }
-
         clang_disposeDiagnostic(diagnostic);
     }
-    if (!hasCompilationErrors) {
+    if (testLog(CompilationError)) {
         log(CompilationError, "%s parsed", mPath.constData());
     }
 }

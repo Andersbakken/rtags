@@ -43,7 +43,6 @@ typedef Map<uint32_t, Set<uint32_t> > DependencyMap;
 typedef Map<uint32_t, SourceInformation> SourceInformationMap;
 typedef Map<Path, Set<ByteArray> > FilesMap;
 typedef Map<Location, std::pair<int, ByteArray> > FixitMap;
-typedef Map<uint32_t, List<ByteArray> > DiagnosticsMap;
 typedef Map<uint32_t, time_t> GRFilesMap;
 // file id to last modified, time_t means currently parsing
 typedef Map<ByteArray, Map<Location, bool> > GRMap;
