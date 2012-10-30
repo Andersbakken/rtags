@@ -181,15 +181,15 @@ bool Server::addProject(const Path &p, const ProjectEntry &newEntry)
         if (entry.project)
             unloadProject(path);
         entry = newEntry;
+        entry.saveKey = p;
         unsigned flags = Project::FileManagerEnabled;
-        Path p = path;
         if (entry.type & RTags::Type_GRTags) {
             flags |= Project::GRTagsEnabled;
         } else {
             flags |= Project::IndexerEnabled;
         }
 
-        entry.project.reset(new Project(flags, p));
+        entry.project.reset(new Project(flags, path));
         return true;
     }
     return false;
