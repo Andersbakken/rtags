@@ -71,6 +71,7 @@ private:
     void onFileModified(const Path &);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addDiagnostics(const Path &path, const List<ByteArray> &args, const List<ByteArray> &errors);
+    void addFixIts(const DependencyMap &visited, const FixItMap &fixIts);
     void write();
     void onFilesModifiedTimeout();
     void addCachedUnit(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
@@ -112,6 +113,7 @@ private:
     Set<Path> mWatchedPaths;
 
     std::deque<ByteArray> mErrors;
+    FixItMap mFixIts;
 
     Set<Location> mPreviousErrors;
 

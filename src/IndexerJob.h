@@ -16,6 +16,7 @@ struct IndexData {
     DependencyMap dependencies;
     ByteArray message;
     UsrMap usrMap;
+    FixItMap fixIts;
 };
 
 class IndexerJob : public Job

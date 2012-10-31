@@ -571,6 +571,30 @@ void IndexerJob::diagnose()
             log(CompilationError, "%s", string.constData());
         }
 
+        const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
+        RegExp rx;
+        if (mFlags & IgnorePrintfFixits) {
+            rx = "^%[A-Za-z0-9]\\+$";
+        }
+        for (unsigned f=0; f<fixItCount; ++f) {
+            CXSourceRange range;
+            const ByteArray string = RTags::eatString(clang_getDiagnosticFixIt(diagnostic, f, &range));
+            unsigned startOffset;
+            CXFile file;
+            clang_getSpellingLocation(clang_getRangeStart(range), &file, 0, 0, &startOffset);
+            unsigned endOffset;
+            clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &endOffset);
+            const Location loc(file, startOffset);
+            if (mFlags & IgnorePrintfFixits && rx.indexIn(string) == 0) {
+                error("Ignored fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
+                      startOffset, endOffset, string.constData());
+            } else {
+                error("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
+                      startOffset, endOffset, string.constData());
+                mData->fixIts[loc.fileId()].insert(FixIt(startOffset, endOffset, string));
+            }
+        }
+
         clang_disposeDiagnostic(diagnostic);
     }
     if (testLog(CompilationError)) {

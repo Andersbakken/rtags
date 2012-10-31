@@ -333,6 +333,7 @@ void Indexer::write()
     for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
         const shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
+        addFixIts(data->dependencies, data->fixIts);
         writeCursors(data->symbols, symbols.data());
         writeUsr(data->usrMap, usr.data(), symbols.data());
         writeReferences(data->references, symbols.data());
@@ -546,4 +547,12 @@ void Indexer::addToCache(const Path &path, const List<ByteArray> &args, CXIndex 
 {
     MutexLocker lock(&mMutex);
     addCachedUnit(path, args, index, unit);
+}
+
+void Indexer::addFixIts(const DependencyMap &visited, const FixItMap &fixIts)
+{
+    MutexLocker lock(&mMutex);
+    for (DependencyMap::const_iterator it = visited.begin(); it != visited.end(); ++it) {
+        mFixIts[it->first] = fixIts.value(it->first);
+    }
 }
