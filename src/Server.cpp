@@ -295,6 +295,9 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case CreateOutputMessage::MessageId:
         handleCreateOutputMessage(static_cast<CreateOutputMessage*>(message), connection);
         break;
+    case CompletionMessage::MessageId:
+        handleCompletionMessage(static_cast<CompletionMessage*>(message), connection);
+        break;
     case ResponseMessage::MessageId:
     default:
         error("Unknown message: %d", message->messageId());
@@ -398,9 +401,6 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     switch (message->type()) {
     case QueryMessage::Invalid:
         assert(0);
-        break;
-    case QueryMessage::CodeCompleteAt:
-        codeCompleteAt(*message, conn);
         break;
     case QueryMessage::FindFile:
         findFile(*message, conn);
@@ -1279,14 +1279,9 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
+void Server::handleCompletionMessage(CompletionMessage *message, Connection *conn)
 {
-    const ByteArray data = query.query();
-    Deserializer deserializer(data.constData(), data.size());
-    Path path;
-    int line, column;
-    deserializer >> path >> line >> column;
-
+    const Path path = message->path();
     updateProjectForLocation(path);
 
     shared_ptr<Project> project = currentProject();
@@ -1305,8 +1300,8 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    shared_ptr<CompletionJob> job(new CompletionJob(query, project));
-    job->init(index, unit, path, args, line, column, ByteArray());
+    shared_ptr<CompletionJob> job(new CompletionJob(project));
+    job->init(index, unit, path, args, message->line(), message->column(), message->contents());
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startQueryJob(job);

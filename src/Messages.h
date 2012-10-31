@@ -5,6 +5,7 @@
 #include "ProjectMessage.h"
 #include "ResponseMessage.h"
 #include "CreateOutputMessage.h"
+#include "CompletionMessage.h"
 
 class Messages
 {

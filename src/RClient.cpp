@@ -1,6 +1,7 @@
 #include "RClient.h"
 #include "CreateOutputMessage.h"
 #include "ProjectMessage.h"
+#include "CompletionMessage.h"
 #include "EventLoop.h"
 #include "RegExp.h"
 
@@ -30,7 +31,6 @@ public:
         msg.setQuery(query);
         msg.setFlags(extraQueryFlags | rc->queryFlags());
         msg.setMax(rc->max());
-        msg.setUnsavedFiles(rc->unsavedFiles());
         msg.setPathFilters(rc->pathFilters().toList());
         client->message(&msg);
     }
@@ -39,6 +39,32 @@ public:
     {
         return ("QueryMessage " + ByteArray::number(type) + " " + query);
     }
+};
+
+class CompletionCommand : public RCCommand
+{
+public:
+    CompletionCommand(const Path &p, int l, int c)
+        : path(p), line(l), column(c)
+    {}
+
+    const Path path;
+    const int line;
+    const int column;
+
+    virtual void exec(RClient *rc, Client *client)
+    {
+        CompletionMessage msg(path, line, column);
+        msg.init(rc->argc(), rc->argv());
+        msg.setContents(rc->unsavedFiles().value(path));
+        client->message(&msg);
+    }
+
+    virtual ByteArray description() const
+    {
+        return ByteArray::snprintf<128>("CompletionMessage %s:%d:%d", path.constData(), line, column);
+    }
+
 };
 
 class RdmLogCommand : public RCCommand
@@ -167,7 +193,6 @@ void RClient::exec()
 
 enum {
     None = 0,
-    // UnsavedFile,
     AbsolutePath,
     AllReferences,
     AlwaysMake,
@@ -218,6 +243,7 @@ enum {
     Status,
     Timeout,
     UnloadProject,
+    UnsavedFile,
     Verbose,
     WaitForIndexing
 };
@@ -275,7 +301,7 @@ struct Option opts[] = {
     { SkipParen, "skip-paren", 'p', no_argument, "Skip parens in various contexts." },
     { Max, "max", 'M', required_argument, "Max lines of output for queries." },
     { ReverseSort, "reverse-sort", 'O', no_argument, "Sort output reversed." },
-//        { UnsavedFile, "unsaved-file", 0, required_argument, },
+    { UnsavedFile, "unsaved-file", 0, required_argument, },
     { LogFile, "log-file", 'L', required_argument, "Log to this file." },
     { NoContext, "no-context", 'N', no_argument, "Don't print context for locations." },
     { LineNumbers, "line-numbers", 'l', no_argument, "Output line numbers instead of offsets." },
@@ -447,7 +473,8 @@ bool RClient::parse(int &argc, char **argv)
                 Serializer serializer(out);
                 serializer << path << atoi(caps[2].capture.constData()) << atoi(caps[3].capture.constData());
             }
-            addQuery(QueryMessage::CodeCompleteAt, out);
+            CompletionCommand *cmd = new CompletionCommand(path, atoi(caps[2].capture.constData()), atoi(caps[3].capture.constData()));
+            mCommands.append(cmd);
             break; }
         case RestartRdm:
             mClientFlags |= Client::RestartRdm;
@@ -523,32 +550,33 @@ bool RClient::parse(int &argc, char **argv)
                 return false;
             }
             break;
-            // case UnsavedFile: {
-            //     const ByteArray arg(optarg);
-            //     const int colon = arg.lastIndexOf(':');
-            //     if (colon == -1) {
-            //         fprintf(stderr, "Can't parse -u [%s]\n", optarg);
-            //         return false;
-            //     }
-            //     const int bytes = atoi(arg.constData() + colon + 1);
-            //     if (!bytes) {
-            //         fprintf(stderr, "Can't parse -u [%s]\n", optarg);
-            //         return false;
-            //     }
-            //     const Path path = Path::resolved(arg.left(colon));
-            //     if (!path.isFile()) {
-            //         fprintf(stderr, "Can't open [%s] for reading\n", arg.left(colon).nullTerminated());
-            //         return false;
-            //     }
+        case UnsavedFile: {
+            const ByteArray arg(optarg);
+            const int colon = arg.lastIndexOf(':');
+            if (colon == -1) {
+                fprintf(stderr, "Can't parse -u [%s]\n", optarg);
+                return false;
+            }
+            const int bytes = atoi(arg.constData() + colon + 1);
+            if (!bytes) {
+                fprintf(stderr, "Can't parse -u [%s]\n", optarg);
+                return false;
+            }
+            const Path path = Path::resolved(arg.left(colon));
+            if (!path.isFile()) {
+                fprintf(stderr, "Can't open [%s] for reading\n", arg.left(colon).nullTerminated());
+                return false;
+            }
 
-            //     ByteArray contents(bytes, '\0');
-            //     const int r = fread(contents.data(), 1, bytes, stdin);
-            //     if (r != bytes) {
-            //         fprintf(stderr, "Read error %d (%s). Got %d, expected %d\n",
-            //                 errno, strerror(errno), r, bytes);
-            //     }
-            //     mUnsavedFiles[path] = contents;
-            //     break; }
+            ByteArray contents(bytes, '\0');
+            const int r = fread(contents.data(), 1, bytes, stdin);
+            if (r != bytes) {
+                fprintf(stderr, "Read error %d (%s). Got %d, expected %d\n",
+                        errno, strerror(errno), r, bytes);
+                return false;
+            }
+            mUnsavedFiles[path] = contents;
+            break; }
         case FollowLocation:
         case CursorInfo:
         case ReferenceLocation: {

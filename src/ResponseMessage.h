@@ -7,7 +7,7 @@
 class ResponseMessage : public Message
 {
 public:
-    enum { MessageId = 3 };
+    enum { MessageId = ResponseId };
 
     ResponseMessage(const ByteArray &data = ByteArray())
         : mData(data)

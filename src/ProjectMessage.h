@@ -9,7 +9,7 @@
 class ProjectMessage : public ClientMessage
 {
 public:
-    enum { MessageId = 6 };
+    enum { MessageId = ProjectId };
 
     enum Flag {
         NoFlag = 0x0,

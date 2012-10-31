@@ -164,7 +164,7 @@
       (goto-char (point-min))
       (while (not (eobp))
         (let ((line (buffer-substring (point-at-bol) (point-at-eol))))
-          (if (string-match "^\\([^ ]*\\) .*$" line)
+          (if (string-match "^\\([^ ]*\\).*<=$" line)
               (let ((m nil))
                 (setq m (buffer-substring (point-at-bol) (+ (point-at-bol) (match-end 1))))
                 (setq projects (add-to-list 'projects m t))

@@ -10,9 +10,8 @@
 class QueryMessage : public ClientMessage
 {
 public:
-    enum { MessageId = 4 };
+    enum { MessageId = QueryId };
     enum Type {
-        CodeCompleteAt,
         ClearProjects,
         CursorInfo,
         DeleteProject,
@@ -52,7 +51,6 @@ public:
         FindFilePreferExact = 0x2000
     };
 
-    typedef Map<Path, ByteArray> UnsavedFilesMap;
     QueryMessage(Type type = Invalid);
 
     Type type() const { return mType; }
@@ -69,9 +67,6 @@ public:
     ByteArray query() const { return mQuery; }
     Location location() const { return Location::decodeClientLocation(mQuery); }
     void setQuery(const ByteArray &query) { mQuery = query; }
-
-    Map<Path, ByteArray> unsavedFiles() const { return mUnsavedFiles; }
-    void setUnsavedFiles(const Map<Path, ByteArray> &unsavedFiles) { mUnsavedFiles = unsavedFiles; }
 
     int max() const { return mMax; }
     void setMax(int max) { mMax = max; }
@@ -91,7 +86,6 @@ private:
     unsigned mFlags;
     int mMax;
     List<ByteArray> mPathFilters;
-    Map<Path, ByteArray> mUnsavedFiles;
 };
 
 DECLARE_NATIVE_TYPE(QueryMessage::Type);

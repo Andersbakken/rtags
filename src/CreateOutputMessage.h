@@ -7,11 +7,11 @@
 class CreateOutputMessage : public ClientMessage
 {
 public:
-    enum { MessageId = 5 };
+    enum { MessageId = CreateOutputId };
 
     CreateOutputMessage(int level = 0);
 
-    int messageId() const { return MessageId; }
+    virtual int messageId() const { return MessageId; }
 
     int level() const;
 

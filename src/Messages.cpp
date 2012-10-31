@@ -33,12 +33,14 @@ static void registerMessage()
     const int id = T::MessageId;
     WriteLocker lock(&sLock);
     MessageCreatorBase *&base = sFactory[id];
+    assert(!base);
     if (!base)
         base = new MessageCreator<T>();
 }
 
 void Messages::init()
 {
+    registerMessage<CompletionMessage>();
     registerMessage<QueryMessage>();
     registerMessage<ResponseMessage>();
     registerMessage<CreateOutputMessage>();

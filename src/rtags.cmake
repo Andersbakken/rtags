@@ -10,6 +10,7 @@ set(rtags_client_HDRS
     AbortInterface.h
     ByteArray.h
     Client.h
+    CompletionMessage.h
     Connection.h
     CreateOutputMessage.h
     Event.h
@@ -56,6 +57,7 @@ set(rtags_client_HDRS
 
 set(rtags_client_SRCS
     Client.cpp
+    CompletionMessage.cpp
     Connection.cpp
     CreateOutputMessage.cpp
     EventLoop.cpp

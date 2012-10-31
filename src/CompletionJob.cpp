@@ -2,8 +2,8 @@
 #include "IndexerJob.h"
 #include "EventLoop.h"
 
-CompletionJob::CompletionJob(const QueryMessage &msg, const shared_ptr<Project> &project)
-    : Job(msg, 0, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1)
+CompletionJob::CompletionJob(const shared_ptr<Project> &project)
+    : Job(0, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1)
 {}
 
 void CompletionJob::init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<ByteArray> &args,

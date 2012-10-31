@@ -78,6 +78,7 @@ private:
               Connection *conn = 0);
     void clearProjects();
     void handleProjectMessage(ProjectMessage *message, Connection *conn);
+    void handleCompletionMessage(CompletionMessage *message, Connection *conn);
     void handleQueryMessage(QueryMessage *message, Connection *conn);
     void handleErrorMessage(ErrorMessage *message, Connection *conn);
     void handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn);
@@ -98,11 +99,9 @@ private:
     bool project(const QueryMessage &query, Connection *conn);
     void clearProjects(const QueryMessage &query, Connection *conn);
     void shutdown(const QueryMessage &query, Connection *conn);
-    void codeCompleteAt(const QueryMessage &query, Connection *conn);
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
     void remake(const ByteArray &pattern = ByteArray(), Connection *conn = 0);
-    ByteArray completions(const QueryMessage &query);
     bool updateProjectForLocation(const Location &location);
     bool updateProjectForLocation(const Path &path);
     void writeProjects();
