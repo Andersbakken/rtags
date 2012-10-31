@@ -80,8 +80,16 @@
     (if (file-exists-p result) result nil)))
 
 (defun rtags-call-rc (path &rest arguments)
-  (setq arguments (remove-if '(lambda (arg) (not arg)) arguments))
-  (let ((rc (rtags-executable-find "rc")))
+  (apply #'rtags-call-rc-helper path nil nil arguments))
+
+(defun rtags-call-rc-unsaved (path output &rest arguments)
+  (apply #'rtags-call-rc-helper path t output arguments))
+
+(defun rtags-call-rc-helper (path unsaved output &rest arguments)
+  (let ((rc (rtags-executable-find "rc"))
+	(has-unsaved nil))
+    (setq arguments (remove-if '(lambda (arg) (not arg))
+			       arguments))
     (if rc
         (progn
           (if rtags-autostart-rdm
@@ -102,7 +110,9 @@
                  (push (concat "--project=" path) arguments)))
 
           (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
-          (apply #'call-process rc nil (list t nil) nil arguments)
+	  (if (not unsaved)
+	      (apply #'call-process rc nil (list output nil) nil arguments)
+	    (apply #'call-process-region (point-min) (point-max) rc nil (list output t) nil arguments))
           (goto-char (point-min))
           (rtags-log (buffer-string))
           (> (point-max) (point-min))))))
@@ -721,26 +731,23 @@ return t if rtags is allowed to modify this file"
         (funcall rtags-expand-function)
         (setq dabbrev-search-these-buffers-only was-search))
     (let ((buffer (current-buffer))
-          (path (rtags-path-for-project))
-          (line (line-number-at-pos))
-          (column (+ (rtags-find-symbol-start) 1))
-          (completions (get-buffer-create "*RTags Completions*")))
       (save-excursion
-        (set-buffer completions)
-        (erase-buffer)
-        (rtags-call-rc path  "-x" (concat (buffer-file-name buffer) ":" (number-to-string line) ":" (number-to-string column)))
-        (if (not (equal (point-min) (point-max)))
-            (progn
-              (setq rtags-completions (current-buffer))
-              (setq rtags-completions-buffer (buffer-file-name buffer))
-              (setq rtags-completions-line line)
-              (setq rtags-completions-column column))
-          (progn
-              (setq rtags-completions nil)
-              (setq rtags-completions-buffer "")
-              (setq rtags-completions-line 0)
-              (setq rtags-completions-column 0)))))
-
+	(with-current-buffer completions
+	  (erase-buffer))
+	(let ((complete-at (concat (buffer-file-name buffer) ":" (number-to-string line) ":" (number-to-string column)))
+	      (unsaved-buffer (concat (buffer-file-name buffer) ":" (number-to-string buffer-size))))
+	  (rtags-call-rc-unsaved path completions "-x" complete-at "--unsaved-file" unsaved-buffer)
+	  (if (not (equal (point-min) (point-max)))
+	    (progn
+	      (setq rtags-completions (current-buffer))
+	      (setq rtags-completions-buffer (buffer-file-name buffer))
+	      (setq rtags-completions-line line)
+	      (setq rtags-completions-column column))
+	  (progn
+	      (setq rtags-completions nil)
+	      (setq rtags-completions-buffer "")
+	      (setq rtags-completions-line 0)
+	      (setq rtags-completions-column 0))))))
     )
   )
 
