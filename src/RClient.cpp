@@ -301,7 +301,7 @@ struct Option opts[] = {
     { SkipParen, "skip-paren", 'p', no_argument, "Skip parens in various contexts." },
     { Max, "max", 'M', required_argument, "Max lines of output for queries." },
     { ReverseSort, "reverse-sort", 'O', no_argument, "Sort output reversed." },
-    { UnsavedFile, "unsaved-file", 0, required_argument, "" },
+    { UnsavedFile, "unsaved-file", 0, required_argument, "Pass unsaved file on command line. E.g. --unsaved-file=main.cpp:1200 then write 1200 bytes on stdin." },
     { LogFile, "log-file", 'L', required_argument, "Log to this file." },
     { NoContext, "no-context", 'N', no_argument, "Don't print context for locations." },
     { LineNumbers, "line-numbers", 'l', no_argument, "Output line numbers instead of offsets." },
