@@ -402,6 +402,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::Invalid:
         assert(0);
         break;
+    case QueryMessage::FixIts:
+        fixIts(*message, conn);
+        break;
     case QueryMessage::FindFile:
         findFile(*message, conn);
         break;
@@ -559,6 +562,18 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
     startQueryJob(job);
 }
 
+void Server::fixIts(const QueryMessage &query, Connection *conn)
+{
+    const Path path = query.query();
+    updateProjectForLocation(path);
+    shared_ptr<Project> project = currentProject();
+    if (project && project->indexer) {
+        ByteArray out = project->indexer->fixIts(Location::fileId(path));
+        if (!out.isEmpty())
+            conn->write(out);
+    }
+    conn->finish();
+}
 
 void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
 {

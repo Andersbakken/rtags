@@ -549,10 +549,30 @@ void Indexer::addToCache(const Path &path, const List<ByteArray> &args, CXIndex 
     addCachedUnit(path, args, index, unit);
 }
 
-void Indexer::addFixIts(const DependencyMap &visited, const FixItMap &fixIts)
+void Indexer::addFixIts(const DependencyMap &visited, const FixItMap &fixIts) // lock always held
 {
-    MutexLocker lock(&mMutex);
     for (DependencyMap::const_iterator it = visited.begin(); it != visited.end(); ++it) {
         mFixIts[it->first] = fixIts.value(it->first);
     }
+}
+
+ByteArray Indexer::fixIts(uint32_t fileId) const
+{
+    MutexLocker lock(&mMutex);
+    const FixItMap::const_iterator it = mFixIts.find(fileId);
+    ByteArray out;
+    if (it != mFixIts.end()) {
+        const Set<FixIt> &fixIts = it->second;
+        if (!fixIts.isEmpty()) {
+            Set<FixIt>::const_iterator f = fixIts.end();
+            do {
+                --f;
+                if (!out.isEmpty())
+                    out.append('\n');
+                out.append(ByteArray::snprintf<32>("%d-%d %s", f->start, f->end, f->text.constData()));
+
+            } while (f != fixIts.begin());
+        }
+    }
+    return out;
 }

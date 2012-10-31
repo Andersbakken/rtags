@@ -7,14 +7,14 @@
 # _header_filename
 #	header to make a .gch
 #
-# _src_list 
+# _src_list
 #   the variable name (do not use ${..}) which contains a
 #     a list of sources (a.cpp b.cpp c.cpp ...)
 #  This macro will append a header file to it, then this src_list can be used in
 #	"add_executable..."
 #
 #
-# Now a .gch file should be generated and gcc should use it. 
+# Now a .gch file should be generated and gcc should use it.
 #       	(add -Winvalid-pch to the cpp flags to verify)
 #
 # make clean should delete the pch file
@@ -50,10 +50,12 @@ MACRO (ADD_PCH_RULE _header_filename _src_list _cflag_list)
     DEPENDS ${_header_filename}
             ByteArray.h
             CursorInfo.h
+            FixIt.h
             List.h
             Location.h
             Log.h
             Map.h
+            Memory.h
             Mutex.h
             Path.h
             RTags.h
@@ -61,7 +63,6 @@ MACRO (ADD_PCH_RULE _header_filename _src_list _cflag_list)
             ReadWriteLock.h
             Serializer.h
             Set.h
-            Memory.h
             SourceInformation.h
             WaitCondition.h
             WriteLocker.h

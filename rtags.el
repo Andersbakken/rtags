@@ -494,6 +494,7 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r U") (function rtags-print-cursorinfo))
   (define-key map (kbd "C-x r O") (function rtags-goto-offset))
   (define-key map (kbd "C-x r ;") (function rtags-find-file))
+  (define-key map (kbd "C-x r F") (function rtags-fixit))
   )
 
 (defun rtags-print-current-location ()
@@ -697,14 +698,14 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-find-symbol-start()
   (let* ((beginning (point-at-bol))
-	 (found-at beginning))
+         (found-at beginning))
     (save-excursion
       (while (cond ((= (point) beginning) nil)
-		   ((looking-at "[\.>]") (progn
-					   (setq found-at (+ (point) 1))
-					   nil))
-		   (t t))
-	(backward-char))
+                   ((looking-at "[\.>]") (progn
+                                           (setq found-at (+ (point) 1))
+                                           nil))
+                   (t t))
+        (backward-char))
       )
     (- found-at beginning))
   )
@@ -712,33 +713,33 @@ return t if rtags is allowed to modify this file"
 (defun rtags-expand()
   (interactive)
   (if (and rtags-completions
-	   (= (line-number-at-pos) rtags-completions-line)
-	   (= (+ (rtags-find-symbol-start) 1) rtags-completions-column)
-	   (string= (buffer-file-name (current-buffer)) rtags-completions-buffer))
+           (= (line-number-at-pos) rtags-completions-line)
+           (= (+ (rtags-find-symbol-start) 1) rtags-completions-column)
+           (string= (buffer-file-name (current-buffer)) rtags-completions-buffer))
       (let (was-search dabbrev-search-these-buffers-only)
-	(setq dabbrev-search-these-buffers-only (list rtags-completions))
-	(funcall rtags-expand-function)
-	(setq dabbrev-search-these-buffers-only was-search))
+        (setq dabbrev-search-these-buffers-only (list rtags-completions))
+        (funcall rtags-expand-function)
+        (setq dabbrev-search-these-buffers-only was-search))
     (let ((buffer (current-buffer))
-	  (path (rtags-path-for-project))
-	  (line (line-number-at-pos))
-	  (column (+ (rtags-find-symbol-start) 1))
-	  (completions (get-buffer-create "*RTags Completions*")))
+          (path (rtags-path-for-project))
+          (line (line-number-at-pos))
+          (column (+ (rtags-find-symbol-start) 1))
+          (completions (get-buffer-create "*RTags Completions*")))
       (save-excursion
-	(set-buffer completions)
-	(erase-buffer)
-	(rtags-call-rc path  "-x" (concat (buffer-file-name buffer) ":" (number-to-string line) ":" (number-to-string column)))
-	(if (not (equal (point-min) (point-max)))
-	    (progn
-	      (setq rtags-completions (current-buffer))
-	      (setq rtags-completions-buffer (buffer-file-name buffer))
-	      (setq rtags-completions-line line)
-	      (setq rtags-completions-column column))
-	  (progn
-	      (setq rtags-completions nil)
-	      (setq rtags-completions-buffer "")
-	      (setq rtags-completions-line 0)
-	      (setq rtags-completions-column 0)))))
+        (set-buffer completions)
+        (erase-buffer)
+        (rtags-call-rc path  "-x" (concat (buffer-file-name buffer) ":" (number-to-string line) ":" (number-to-string column)))
+        (if (not (equal (point-min) (point-max)))
+            (progn
+              (setq rtags-completions (current-buffer))
+              (setq rtags-completions-buffer (buffer-file-name buffer))
+              (setq rtags-completions-line line)
+              (setq rtags-completions-column column))
+          (progn
+              (setq rtags-completions nil)
+              (setq rtags-completions-buffer "")
+              (setq rtags-completions-line 0)
+              (setq rtags-completions-column 0)))))
 
     )
   )
@@ -929,6 +930,33 @@ return t if rtags is allowed to modify this file"
                   ;; (setq rtags-no-otherbuffer t)
                   )))
       ; Should add support for putting offset in there as well, ignore it on completion and apply it at the end
+      )
+    )
+  )
+
+(defun rtags-fixit (&optional buffer)
+  (interactive)
+  (unless buffer
+    (setq buffer (current-buffer)))
+  (save-excursion
+    (let ((path (buffer-file-name buffer)) line)
+      (with-temp-buffer
+        (rtags-call-rc path "--fixit" path)
+        (goto-char (point-min))
+        (while (not (eobp))
+          (let ((line (buffer-substring (point-at-bol) (point-at-eol))))
+            (if (string-match "^\\([0-9]+\\)-\\([0-9]+\\) \\(.*\\)$" line)
+                (let ((start (string-to-int (match-string 1 line)))
+                      (end (string-to-int (match-string 2 line)))
+                      (text (match-string 3 line)))
+                  (save-excursion
+                    (set-buffer buffer)
+                    (goto-char (+ start 1)) ; emacs offsets start at 1 for some reason
+                    (delete-char (- end start)) ; may be 0
+                    (insert text)))))
+          ;; (message (format "got something %d to %d => [%s]" start end text))))
+          (next-line))
+        )
       )
     )
   )

@@ -212,6 +212,7 @@ enum {
     FindFilePreferExact,
     FindSymbols,
     FindVirtuals,
+    FixIts,
     FollowLocation,
     GRTag,
     HasFileManager,
@@ -295,6 +296,7 @@ struct Option opts[] = {
     { DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
     { RdmLog, "rdm-log", 'g', no_argument, "Receive logs from rdm." },
     { CodeCompleteAt, "code-complete-at", 'x', required_argument, "Get code completion from location (must be specified with path:line:column)." },
+    { FixIts, "fixits", 0, required_argument, "Get fixits for file.\n" },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -678,16 +680,24 @@ bool RClient::parse(int &argc, char **argv)
             break; }
         case IsIndexed:
         case DumpFile:
+        case FixIts:
         case PreprocessFile: {
             Path p = Path::resolved(optarg);
             if (!p.exists()) {
                 fprintf(stderr, "%s does not exist\n", optarg);
                 return false;
             }
-            if (p.isDir())
-                p.append('/');
+            if (p.isDir()) {
+                if (opt->option == IsIndexed) {
+                    p.append('/');
+                } else {
+                    fprintf(stderr, "%s is not a file\n", optarg);
+                    return false;
+                }
+            }
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (opt->option) {
+            case FixIts: type = QueryMessage::FixIts; break;
             case IsIndexed: type = QueryMessage::IsIndexed; break;
             case DumpFile: type = QueryMessage::DumpFile; break;
             case PreprocessFile: type = QueryMessage::PreprocessFile; break;

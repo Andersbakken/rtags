@@ -18,6 +18,7 @@ public:
         DumpFile,
         FindFile,
         FindSymbols,
+        FixIts,
         FollowLocation,
         HasFileManager,
         Invalid,

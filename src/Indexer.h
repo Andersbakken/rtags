@@ -47,7 +47,7 @@ public:
     SourceInformation sourceInfo(uint32_t fileId) const;
     Set<uint32_t> dependencies(uint32_t fileId) const;
     bool visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &job);
-    ByteArray fixIts(const Path &path) const;
+    ByteArray fixIts(uint32_t fileId) const;
     ByteArray errors() const;
     int reindex(const ByteArray &pattern, bool regexp);
     signalslot::Signal2<shared_ptr<Indexer>, int> &jobsComplete() { return mJobsComplete; }
