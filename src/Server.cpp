@@ -1319,7 +1319,8 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
     deserializer >> path >> line >> column;
     CXIndex index;
     CXTranslationUnit unit;
-    if (!project->indexer->fetchFromCache(path, index, unit)) {
+    List<ByteArray> args;
+    if (!project->indexer->fetchFromCache(path, args, index, unit)) {
         project->indexer->reindex(path, false);
         conn->write<128>("Scheduled rebuild of %s", path.constData());
         conn->finish();
@@ -1327,7 +1328,7 @@ void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
     }
 
     shared_ptr<CompletionJob> job(new CompletionJob(query, project));
-    job->init(index, unit, path, line, column, ByteArray());
+    job->init(index, unit, path, args, line, column, ByteArray());
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startQueryJob(job);

@@ -62,9 +62,11 @@ public:
     bool save(Serializer &out);
     bool restore(Deserializer &in);
     Set<Path> watchedPaths() const { return mWatchedPaths; }
-    bool fetchFromCache(const Path &path, CXIndex &index, CXTranslationUnit &unit);
+    bool fetchFromCache(const Path &path, List<ByteArray> &args, CXIndex &index, CXTranslationUnit &unit);
+    void addToCache(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
 private:
-    bool initJobFromCache(const Path &path, const List<ByteArray> &args, CXIndex &index, CXTranslationUnit &unit);
+    bool initJobFromCache(const Path &path, const List<ByteArray> &args,
+                          CXIndex &index, CXTranslationUnit &unit, List<ByteArray> *argsOut);
     void checkFinished();
     void onFileModified(const Path &);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);

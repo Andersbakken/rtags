@@ -83,7 +83,7 @@ void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
 
     CXIndex index = 0;
     CXTranslationUnit unit = 0;
-    initJobFromCache(c.sourceFile, c.args, index, unit);
+    initJobFromCache(c.sourceFile, c.args, index, unit, 0);
     job.reset(new IndexerJob(shared_from_this(), indexerJobFlags, c.sourceFile, c.args, index, unit));
 
     ++mJobCounter;
@@ -501,7 +501,8 @@ void Indexer::addCachedUnit(const Path &path, const List<ByteArray> &args, CXInd
     mLastCachedUnit = cachedUnit;
 }
 
-bool Indexer::initJobFromCache(const Path &path, const List<ByteArray> &args, CXIndex &index, CXTranslationUnit &unit)
+bool Indexer::initJobFromCache(const Path &path, const List<ByteArray> &args,
+                               CXIndex &index, CXTranslationUnit &unit, List<ByteArray> *argsOut)
 {
     CachedUnit *prev = 0;
     CachedUnit *cachedUnit = mFirstCachedUnit;
@@ -522,6 +523,8 @@ bool Indexer::initJobFromCache(const Path &path, const List<ByteArray> &args, CX
             }
             --mUnitCacheSize;
             assert(mUnitCacheSize >= 0);
+            if (argsOut)
+                *argsOut = cachedUnit->arguments;
             delete cachedUnit;
             return true;
         }
@@ -533,8 +536,14 @@ bool Indexer::initJobFromCache(const Path &path, const List<ByteArray> &args, CX
     return false;
 }
 
-bool Indexer::fetchFromCache(const Path &path, CXIndex &index, CXTranslationUnit &unit)
+bool Indexer::fetchFromCache(const Path &path, List<ByteArray> &args, CXIndex &index, CXTranslationUnit &unit)
 {
     MutexLocker lock(&mMutex);
-    return initJobFromCache(path, List<ByteArray>(), index, unit);
+    return initJobFromCache(path, List<ByteArray>(), index, unit, &args);
+}
+
+void Indexer::addToCache(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit)
+{
+    MutexLocker lock(&mMutex);
+    addCachedUnit(path, args, index, unit);
 }

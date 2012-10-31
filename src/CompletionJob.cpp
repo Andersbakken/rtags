@@ -6,11 +6,13 @@ CompletionJob::CompletionJob(const QueryMessage &msg, const shared_ptr<Project> 
     : Job(msg, 0, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1)
 {}
 
-void CompletionJob::init(CXIndex index, CXTranslationUnit unit, const Path &path, int line, int column, const ByteArray &unsaved)
+void CompletionJob::init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<ByteArray> &args,
+                         int line, int column, const ByteArray &unsaved)
 {
     mIndex = index;
     mUnit = unit;
     mPath = path;
+    mArgs = args;
     mLine = line;
     mColumn = column;
     mUnsaved = unsaved;
@@ -32,5 +34,6 @@ void CompletionJob::execute()
     if (results) {
         error() << "Got some results for" << mPath << mLine << mColumn;
         clang_disposeCodeCompleteResults(results);
+        project()->indexer->addToCache(mPath, mArgs, mIndex, mUnit);
     }
 }
