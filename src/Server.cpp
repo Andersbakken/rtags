@@ -1022,36 +1022,11 @@ bool Server::updateProjectForLocation(const Location &location)
 
 bool Server::updateProjectForLocation(const Path &path)
 {
-    Path match;
-    int longest = -1;
-    shared_ptr<Project> cur = mCurrentProject.lock();
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if ((*it).first == path) {
-            match = path;
-            break;
+        if (it->second.project->match(path)) {
+            setCurrentProject(it->second.project->path());
+            return true;
         }
-        const Path srcRoot = it->second.project->srcRoot();
-        if (!srcRoot.isEmpty() && !strncmp(srcRoot.constData(), path.constData(), srcRoot.size())) {
-            if (it->second.project == cur)
-                return true;
-            const int matchLength = srcRoot.size();
-            if (matchLength > longest) {
-                match = it->first;
-                longest = matchLength;
-            }
-        }
-        const Path resolvedSrcRoot = it->second.project->resolvedSrcRoot();
-        if (!resolvedSrcRoot.isEmpty() && !strncmp(resolvedSrcRoot.constData(), path.constData(), resolvedSrcRoot.size())) {
-            const int matchLength = resolvedSrcRoot.size();
-            if (matchLength > longest) {
-                match = it->first;
-                longest = matchLength;
-            }
-        }
-    }
-    if (!match.isEmpty()) {
-        setCurrentProject(match);
-        return true;
     }
     return false;
 }
@@ -1306,17 +1281,20 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
 
 void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
 {
+    const ByteArray data = query.query();
+    Deserializer deserializer(data.constData(), data.size());
+    Path path;
+    int line, column;
+    deserializer >> path >> line >> column;
+
+    updateProjectForLocation(path);
+
     shared_ptr<Project> project = currentProject();
     if (!project || !project->indexer) {
         conn->finish();
         return;
     }
 
-    const ByteArray data = query.query();
-    Deserializer deserializer(data.constData(), data.size());
-    Path path;
-    int line, column;
-    deserializer >> path >> line >> column;
     CXIndex index;
     CXTranslationUnit unit;
     List<ByteArray> args;

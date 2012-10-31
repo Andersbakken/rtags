@@ -205,6 +205,7 @@ bool Project::match(const Path &p) const
     const int count = paths[1] != p ? 2 : 1;
     for (int i=0; i<count; ++i) {
         const Path &path = paths[i];
+        // error() << "comparing" << path << mSrcRoot << mResolvedSrcRoot << mPath;
         if (!mSrcRoot.isEmpty() && mSrcRoot.startsWith(path))
             return true;
         if (!mResolvedSrcRoot.isEmpty() && mResolvedSrcRoot.startsWith(path))
