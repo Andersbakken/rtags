@@ -431,12 +431,12 @@ bool RClient::parse(int &argc, char **argv)
         case CodeCompleteAt: {
             const ByteArray arg = optarg;
             List<RegExp::Capture> caps;
-            RegExp rx("^(.*):([0-9]+):([0-9]+)$");
-            if (rx.indexIn(arg, 0, &caps) != 0 || caps.size() != 3) {
+            RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)$");
+            if (rx.indexIn(arg, 0, &caps) != 0 || caps.size() != 4) {
                 fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
                 return false;
             }
-            const Path path = Path::resolved(caps[0].capture);
+            const Path path = Path::resolved(caps[1].capture);
             if (!path.exists()) {
                 fprintf(stderr, "Can't decode argument for --code-complete-at [%s]\n", optarg);
                 return false;
@@ -445,7 +445,7 @@ bool RClient::parse(int &argc, char **argv)
             ByteArray out;
             {
                 Serializer serializer(out);
-                serializer << path << atoi(caps[1].capture.constData()) << atoi(caps[2].capture.constData());
+                serializer << path << atoi(caps[2].capture.constData()) << atoi(caps[3].capture.constData());
             }
             addQuery(QueryMessage::CodeCompleteAt, out);
             break; }

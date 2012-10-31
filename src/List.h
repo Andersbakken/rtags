@@ -102,7 +102,7 @@ public:
 
     T &last()
     {
-        return operator[](size() - 1);
+        return Base::operator[](size() - 1);
     }
 
     const T &last() const

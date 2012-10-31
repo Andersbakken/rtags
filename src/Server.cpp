@@ -1,6 +1,7 @@
 #include "Server.h"
 
 #include "Client.h"
+#include "CompletionJob.h"
 #include "Connection.h"
 #include "CreateOutputMessage.h"
 #include "CursorInfoJob.h"
@@ -1305,20 +1306,31 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
 
 void Server::codeCompleteAt(const QueryMessage &query, Connection *conn)
 {
-    if (shared_ptr<Project> project = currentProject()) {
-        const ByteArray data = query.query();
-        Deserializer deserializer(data);
-        Path path;
-        int line, column;
-        deserializer >> path >> line >> column;
-        CXIndex index;
-        CXTranslationUnit unit;
-
-
+    shared_ptr<Project> project = currentProject();
+    if (!project || !project->indexer) {
+        conn->finish();
         return;
     }
 
-    conn->finish();
+    const ByteArray data = query.query();
+    Deserializer deserializer(data.constData(), data.size());
+    Path path;
+    int line, column;
+    deserializer >> path >> line >> column;
+    CXIndex index;
+    CXTranslationUnit unit;
+    if (!project->indexer->fetchFromCache(path, index, unit)) {
+        project->indexer->reindex(path, false);
+        conn->write<128>("Scheduled rebuild of %s", path.constData());
+        conn->finish();
+        return;
+    }
+
+    shared_ptr<CompletionJob> job(new CompletionJob(query, project));
+    job->init(index, unit, path, line, column, ByteArray());
+    job->setId(nextId());
+    mPendingLookups[job->id()] = conn;
+    startQueryJob(job);
 }
 
 void Server::save(const shared_ptr<Indexer> &indexer)

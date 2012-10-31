@@ -80,7 +80,7 @@ set(rtags_client_SRCS
 set(rtags_HDRS
     ${rtags_client_HDRS}
     FindFileJob.h
-    CompletionJob.cpp
+    CompletionJob.h
     CursorInfoJob.h
     FindSymbolsJob.h
     FollowLocationJob.h
@@ -108,7 +108,7 @@ set(rtags_HDRS
 
 set(rtags_SRCS
     ${rtags_client_SRCS}
-    CompletionJob.h
+    CompletionJob.cpp
     CursorInfoJob.cpp
     FindFileJob.cpp
     FindSymbolsJob.cpp

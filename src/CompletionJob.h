@@ -7,20 +7,21 @@
 #include "Path.h"
 #include "AbortInterface.h"
 #include "Event.h"
-#include <clang-c/Indexer.h>
+#include <clang-c/Index.h>
 
 class CompletionJob : public Job
 {
 public:
-    CompletionJob(CXIndex index, CXTranslationUnit unit, const Path &path, int line, int column, const ByteArray &unsaved = ByteArray());
+    CompletionJob(const QueryMessage &query, const shared_ptr<Project> &project);
+    void init(CXIndex index, CXTranslationUnit unit, const Path &path, int line, int column, const ByteArray &unsaved);
+
     virtual void execute();
 private:
     CXIndex mIndex;
     CXTranslationUnit mUnit;
-    const Path mPath;
-    const int mLine;
-    const int mColumn;
-    const ByteArray mUnsaved;
+    Path mPath;
+    int mLine, mColumn;
+    ByteArray mUnsaved;
 };
 
 #endif

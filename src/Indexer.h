@@ -62,6 +62,7 @@ public:
     bool save(Serializer &out);
     bool restore(Deserializer &in);
     Set<Path> watchedPaths() const { return mWatchedPaths; }
+    bool fetchFromCache(const Path &path, CXIndex &index, CXTranslationUnit &unit);
 private:
     bool initJobFromCache(const Path &path, const List<ByteArray> &args, CXIndex &index, CXTranslationUnit &unit);
     void checkFinished();

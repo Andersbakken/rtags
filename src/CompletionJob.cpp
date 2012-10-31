@@ -2,9 +2,18 @@
 #include "IndexerJob.h"
 #include "EventLoop.h"
 
-CompletionJob::CompletionJob(CXIndex index, CXTranslationUnit unit, const Path &path, int line, int column, const ByteArray &unsaved)
-    : mIndex(index), mUnit(unit), mPath(path), mLine(line), mColumn(column), mUnsaved(unsaved)
+CompletionJob::CompletionJob(const QueryMessage &msg, const shared_ptr<Project> &project)
+    : Job(msg, 0, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1)
+{}
+
+void CompletionJob::init(CXIndex index, CXTranslationUnit unit, const Path &path, int line, int column, const ByteArray &unsaved)
 {
+    mIndex = index;
+    mUnit = unit;
+    mPath = path;
+    mLine = line;
+    mColumn = column;
+    mUnsaved = unsaved;
 }
 
 void CompletionJob::execute()
@@ -18,7 +27,10 @@ void CompletionJob::execute()
                                                           mLine, mColumn,
                                                           &unsavedFile,
                                                           mUnsaved.isEmpty() ? 0 : 1,
-                                                          clang_defaultCodeCompleteOptions(mUnit));
+                                                          clang_defaultCodeCompleteOptions());
 
-    clang_disposeCodeCompleteResults(results);
+    if (results) {
+        error() << "Got some results for" << mPath << mLine << mColumn;
+        clang_disposeCodeCompleteResults(results);
+    }
 }

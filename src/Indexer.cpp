@@ -506,7 +506,7 @@ bool Indexer::initJobFromCache(const Path &path, const List<ByteArray> &args, CX
     CachedUnit *prev = 0;
     CachedUnit *cachedUnit = mFirstCachedUnit;
     while (cachedUnit) {
-        if (cachedUnit->path == path && args == cachedUnit->arguments) {
+        if (cachedUnit->path == path && (args.isEmpty() || args == cachedUnit->arguments)) {
             index = cachedUnit->index;
             unit = cachedUnit->unit;
             cachedUnit->unit = 0;
@@ -531,4 +531,10 @@ bool Indexer::initJobFromCache(const Path &path, const List<ByteArray> &args, CX
     index = 0;
     unit = 0;
     return false;
+}
+
+bool Indexer::fetchFromCache(const Path &path, CXIndex &index, CXTranslationUnit &unit)
+{
+    MutexLocker lock(&mMutex);
+    return initJobFromCache(path, List<ByteArray>(), index, unit);
 }
