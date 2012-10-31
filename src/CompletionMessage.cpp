@@ -5,7 +5,8 @@
 
 CompletionMessage::CompletionMessage(const Path &path, int line, int column)
     : mPath(path), mLine(line), mColumn(column)
-{}
+{
+}
 
 ByteArray CompletionMessage::encode() const
 {

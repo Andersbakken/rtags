@@ -47,7 +47,7 @@ void Messages::init()
     registerMessage<ProjectMessage>();
 }
 
-Message * Messages::create(const char *data, int size)
+Message* Messages::create(const char *data, int size)
 {
     if (size < static_cast<int>(sizeof(int))) {
         error("Can't create message from data (%d)", size);
@@ -71,6 +71,7 @@ Message * Messages::create(const char *data, int size)
     }
     return message;
 }
+
 void Messages::cleanup()
 {
     WriteLocker lock(&sLock);

@@ -4,6 +4,7 @@
   :prefix "rtags-")
 
 (require 'ido)
+(require 'dabbrev)
 (defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
 (defvar rtags-path-filter-regex nil)
@@ -13,6 +14,10 @@
 (defvar rtags-path-face 'rtags-path "Path part")
 (defvar rtags-context-face 'rtags-context "Context part")
 (defconst rtags-buffer-name "*RTags*")
+(defvar rtags-completions nil)
+(defvar rtags-completions-buffer "")
+(defvar rtags-completions-line 0)
+(defvar rtags-completions-column 0)
 
 (defvar rtags-faces
   '(("^[^ ]*" . rtags-path-face)
@@ -402,6 +407,11 @@
 
 ; **************************** API *********************************
 
+(defcustom rtags-expand-function '(lambda() (dabbrev-expand nil))
+  "What function to call for expansions"
+  :group 'rtags
+  :type 'function)
+
 (defcustom rtags-after-find-file-hook nil
   "Run after rtags has jumped to a location possibly in a new file"
   :group 'rtags
@@ -473,7 +483,6 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r <") (function rtags-find-references))
   (define-key map (kbd "C-x r [") (function rtags-bookmark-back))
   (define-key map (kbd "C-x r ]") (function rtags-bookmark-forward))
-  (define-key map (kbd "C-x r F") (function rtags-fixit))
   (define-key map (kbd "C-x r C") (function rtags-clear-rdm))
   (define-key map (kbd "C-x r D") (function rtags-diagnostics))
   (define-key map (kbd "C-x r G") (function rtags-clear-diagnostics))
@@ -686,25 +695,53 @@ return t if rtags is allowed to modify this file"
   (rtags-find-symbols-by-name-internal "Find rreferences" t (rtags-dir-filter))
   (setq rtags-path-filter-regex nil))
 
-(defun rtags-fixit()
+(defun rtags-find-symbol-start()
+  (let* ((beginning (point-at-bol))
+	 (found-at beginning))
+    (save-excursion
+      (while (cond ((= (point) beginning) nil)
+		   ((looking-at "[\.>]") (progn
+					   (setq found-at (+ (point) 1))
+					   nil))
+		   (t t))
+	(backward-char))
+      )
+    (- found-at beginning))
+  )
+
+(defun rtags-expand()
   (interactive)
-  (if (buffer-modified-p)
-      (message "I refuse to modifiy a modified buffer")
+  (if (and rtags-completions
+	   (= (line-number-at-pos) rtags-completions-line)
+	   (= (+ (rtags-find-symbol-start) 1) rtags-completions-column)
+	   (string= (buffer-file-name (current-buffer)) rtags-completions-buffer))
+      (let (was-search dabbrev-search-these-buffers-only)
+	(setq dabbrev-search-these-buffers-only (list rtags-completions))
+	(funcall rtags-expand-function)
+	(setq dabbrev-search-these-buffers-only was-search))
     (let ((buffer (current-buffer))
-          (path (rtags-path-for-project)))
-      (with-temp-buffer
-        (rtags-call-rc path  "-x" (buffer-file-name buffer))
-        (goto-char (point-min))
-        (while (looking-at "^\\([0-9]+\\)-?\\([0-9]+\\)? \\(.*\\)$")
-          (let ((from (string-to-int (match-string 1)))
-                (len (if (stringp (match-string 2)) (string-to-int (match-string 2)) 0))
-                (text (match-string 3)))
-            (save-excursion
-              (set-buffer buffer)
-              (goto-char (+ from 1)) ; emacs offsets start at 1 for some reason
-              (delete-char len) ; may be 0
-              (insert text)))
-          (next-line))))))
+	  (path (rtags-path-for-project))
+	  (line (line-number-at-pos))
+	  (column (+ (rtags-find-symbol-start) 1))
+	  (completions (get-buffer-create "*RTags Completions*")))
+      (save-excursion
+	(set-buffer completions)
+	(erase-buffer)
+	(rtags-call-rc path  "-x" (concat (buffer-file-name buffer) ":" (number-to-string line) ":" (number-to-string column)))
+	(if (not (equal (point-min) (point-max)))
+	    (progn
+	      (setq rtags-completions (current-buffer))
+	      (setq rtags-completions-buffer (buffer-file-name buffer))
+	      (setq rtags-completions-line line)
+	      (setq rtags-completions-column column))
+	  (progn
+	      (setq rtags-completions nil)
+	      (setq rtags-completions-buffer "")
+	      (setq rtags-completions-line 0)
+	      (setq rtags-completions-column 0)))))
+
+    )
+  )
 
 (defvar rtags-diagnostics-process nil)
 
