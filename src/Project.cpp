@@ -210,8 +210,16 @@ bool Project::match(const Path &p) const
             return true;
         if (!mResolvedSrcRoot.isEmpty() && mResolvedSrcRoot.startsWith(path))
             return true;
-        if (!mPath.isEmpty() && mPath.startsWith(path))
-            return true;
+        if (!mPath.isEmpty()) {
+            if (mPath.startsWith(path)) {
+                return true;
+            } else if (mPath.isFile()) {
+                const int lastSlash = mPath.lastIndexOf('/');
+                if (lastSlash != -1 && path.size() >= lastSlash && !strncmp(mPath.constData(), path.constData(), lastSlash - 1))
+                    return true;
+            }
+        }
+
     }
     return false;
 }
