@@ -31,6 +31,11 @@ public:
         Base::push_back(t);
     }
 
+    void prepend(const T &t)
+    {
+        Base::insert(Base::begin(), t);
+    }
+
     void append(const List<T> &t)
     {
         const int size = t.size();
