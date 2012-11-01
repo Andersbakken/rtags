@@ -730,25 +730,29 @@ return t if rtags is allowed to modify this file"
         (setq dabbrev-search-these-buffers-only (list rtags-completions))
         (funcall rtags-expand-function)
         (setq dabbrev-search-these-buffers-only was-search))
-    (let ((buffer (current-buffer))
-          (save-excursion
-            (with-current-buffer completions
-              (erase-buffer))
-            (let ((complete-at (concat (buffer-file-name buffer) ":" (number-to-string line) ":" (number-to-string column)))
-                  (unsaved-buffer (concat (buffer-file-name buffer) ":" (number-to-string buffer-size))))
-              (rtags-call-rc-unsaved path completions "-x" complete-at "--unsaved-file" unsaved-buffer)
-              (if (not (equal (point-min) (point-max)))
-                  (progn
-                    (setq rtags-completions (current-buffer))
-                    (setq rtags-completions-buffer (buffer-file-name buffer))
-                    (setq rtags-completions-line line)
-                    (setq rtags-completions-column column))
-                (progn
-                  (setq rtags-completions nil)
-                  (setq rtags-completions-buffer "")
-                  (setq rtags-completions-line 0)
-                  (setq rtags-completions-column 0))))))
-      )
+     (let ((buffer (current-buffer))
+          (path (rtags-path-for-project))
+	  (buffer-size (- (point-max) (point-min)))
+          (line (line-number-at-pos))
+          (column (+ (rtags-find-symbol-start) 1))
+          (completions (get-buffer-create "*RTags Completions*")))
+       (save-excursion
+	 (with-current-buffer completions
+	   (erase-buffer))
+	 (let ((complete-at (concat (buffer-file-name buffer) ":" (number-to-string line) ":" (number-to-string column)))
+	       (unsaved-buffer (concat (buffer-file-name buffer) ":" (number-to-string buffer-size))))
+	   (rtags-call-rc-unsaved path completions "-x" complete-at "--unsaved-file" unsaved-buffer)
+	   (if (not (equal (point-min) (point-max)))
+	       (progn
+		 (setq rtags-completions (current-buffer))
+		 (setq rtags-completions-buffer (buffer-file-name buffer))
+		 (setq rtags-completions-line line)
+		 (setq rtags-completions-column column))
+	     (progn
+	       (setq rtags-completions nil)
+	       (setq rtags-completions-buffer "")
+	       (setq rtags-completions-line 0)
+	       (setq rtags-completions-column 0))))))
     )
   )
 
