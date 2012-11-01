@@ -47,6 +47,15 @@ static inline const char *completionChunkKindToString(CXCompletionChunkKind kind
     return "";
 }
 
+static int compareCompletionResult(const void *left, const void *right)
+{
+    const int l = clang_getCompletionPriority(reinterpret_cast<const CXCompletionResult*>(left)->CompletionString);
+    const int r = clang_getCompletionPriority(reinterpret_cast<const CXCompletionResult*>(right)->CompletionString);
+    if (l != r)
+        return l < r ? -1 : 1;
+    return 0;
+}
+
 void CompletionJob::execute()
 {
     CXUnsavedFile unsavedFile = { mUnsaved.isEmpty() ? 0 : mPath.constData(),
@@ -60,10 +69,8 @@ void CompletionJob::execute()
                                                           mUnsaved.isEmpty() ? 0 : 1,
                                                           clang_defaultCodeCompleteOptions());
 
-    Set<ByteArray> out;
-
     if (results) {
-        clang_sortCodeCompletionResults(results->Results, results->NumResults);
+        qsort(results->Results, results->NumResults, sizeof(CXCompletionResult), compareCompletionResult);
         for (unsigned i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
             if (kind == CXCursor_Destructor)
@@ -81,23 +88,17 @@ void CompletionJob::execute()
             const int chunkCount = clang_getNumCompletionChunks(string);
             for (int j=0; j<chunkCount; ++j) {
                 const CXCompletionChunkKind chunkKind = clang_getCompletionChunkKind(string, j);
-                const ByteArray chunkText = RTags::eatString(clang_getCompletionChunkText(string, j));
-                //error() << "    chunk " << (j + 1) << "of" << chunkCount << completionChunkKindToString(chunkKind)
-                //        << ByteArray::snprintf<64>("[%s]", chunkText.constData());
                 if (chunkKind == CXCompletionChunk_TypedText) {
-                    out.insert(chunkText);
+                    const ByteArray chunkText = RTags::eatString(clang_getCompletionChunkText(string, j));
+                    // error() << "    chunk " << (j + 1) << "of" << chunkCount << completionChunkKindToString(chunkKind)
+                    //         << ByteArray::snprintf<64>("[%s]", chunkText.constData()) << "priority" << priority;
+                    write(chunkText);
+                    break;
                 }
             }
         }
 
         clang_disposeCodeCompleteResults(results);
         project()->indexer->addToCache(mPath, mArgs, mIndex, mUnit);
-    }
-
-    Set<ByteArray>::const_iterator it = out.begin();
-    const Set<ByteArray>::const_iterator end = out.end();
-    while (it != end) {
-        write(*it);
-        ++it;
     }
 }
