@@ -291,18 +291,29 @@ Path Process::findCommand(const ByteArray& command)
     return Path();
 }
 
-bool Process::start(const ByteArray& command,
-                    const List<ByteArray>& arguments,
-                    const List<ByteArray>& environ)
+bool Process::start(const ByteArray& command, const List<ByteArray>& a, const List<ByteArray>& environ)
 {
     mErrorString.clear();
 
-    ByteArray cmd = findCommand(command);
+    Path cmd = findCommand(command);
     if (cmd.isEmpty()) {
         mErrorString = "Command not found";
         return false;
     }
+    List<ByteArray> arguments = a;
+#if 0
+    char *contents;
+    const int read = cmd.readAll(contents, 33);
 
+    contents[std::min(read, 32)] = '\0';
+    if (read > 2 && !strncmp(contents, "#!", 2)) {
+        char *newLine = strchr(contents, '\n');
+        if (newLine) {
+            arguments.prepend(command);
+            cmd = findCommand(ByteArray(contents + 2, newLine - contents - 2));
+        }
+    }
+#endif
     int err;
 
     eintrwrap(err, ::pipe(mStdIn));
