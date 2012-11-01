@@ -17,9 +17,10 @@
 (defvar rtags-context-face 'rtags-context "Context part")
 (defconst rtags-buffer-name "*RTags*")
 (defvar rtags-completions nil)
-(defvar rtags-completions-buffer "")
-(defvar rtags-completions-line 0)
-(defvar rtags-completions-column 0)
+(defvar rtags-completions-cache-file-name "")
+(defvar rtags-completions-cache-line 0)
+(defvar rtags-completions-cache-column 0)
+(defvar rtags-completions-cache-line-contents "")
 
 (defvar rtags-faces
   '(("^[^ ]*" . rtags-path-face)
@@ -88,35 +89,36 @@
   (apply #'rtags-call-rc-helper path t output arguments))
 
 (defun rtags-call-rc-helper (path unsaved output &rest arguments)
-  (let ((rc (rtags-executable-find "rc")))
-    (setq arguments (remove-if '(lambda (arg) (not arg))
-                               arguments))
-    (if rc
-        (progn
-          (if rtags-autostart-rdm
-              (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments))
-          (if rtags-path-filter
-              (progn
-                (push (format "--path-filter=%s" rtags-path-filter) arguments)
-                (if rtags-path-filter-regex
-                    (push "-Z" arguments))))
+  (save-excursion
+    (let ((rc (rtags-executable-find "rc")))
+      (setq arguments (remove-if '(lambda (arg) (not arg))
+                                 arguments))
+      (if rc
+          (progn
+            (if rtags-autostart-rdm
+                (push (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm") arguments))
+            (if rtags-path-filter
+                (progn
+                  (push (format "--path-filter=%s" rtags-path-filter) arguments)
+                  (if rtags-path-filter-regex
+                      (push "-Z" arguments))))
 
-          (if rtags-timeout
-              (push (format "--timeout=%d" rtags-timeout) arguments))
-          (if path
-              (progn
-                (if rtags-match-source-file-to-project
-                    (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
-                      (if (and mapped (length mapped)) (push (concat "--project=" mapped) arguments))))
-                (push (concat "--project=" path) arguments)))
+            (if rtags-timeout
+                (push (format "--timeout=%d" rtags-timeout) arguments))
+            (if path
+                (progn
+                  (if rtags-match-source-file-to-project
+                      (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
+                        (if (and mapped (length mapped)) (push (concat "--project=" mapped) arguments))))
+                  (push (concat "--project=" path) arguments)))
 
-          (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
-          (if (not unsaved)
-              (apply #'call-process rc nil (list output nil) nil arguments)
-            (apply #'call-process-region (point-min) (point-max) rc nil (list output t) nil arguments))
-          (goto-char (point-min))
-          (rtags-log (buffer-string))
-          (> (point-max) (point-min))))))
+            (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
+            (if (not unsaved)
+                (apply #'call-process rc nil (list output nil) nil arguments)
+              (apply #'call-process-region (point-min) (point-max) rc nil (list output t) nil arguments))
+            (goto-char (point-min))
+            (rtags-log (buffer-string))
+            (> (point-max) (point-min)))))))
 
 (defun rtags-path-for-project (&optional buffer)
   (expand-file-name (if (buffer-file-name buffer)
@@ -728,10 +730,11 @@ return t if rtags is allowed to modify this file"
           (goto-char (point-min))
           (if (looking-at "Scheduled rebuild")
               (progn
-                (setq rtags-completions nil)
-                (setq rtags-completions-line 0)
-                (setq rtags-completions-column 0)
-                (setq rtags-completions-buffer "")))))))
+                (setq rtags-completions nil
+                      rtags-completions-cache-line 0
+                      rtags-completions-cache-column 0
+                      rtags-completions-cache-line-contents ""
+                      rtags-completions-cache-file-name "")))))))
   (if rtags-completions
       (let ((was-search dabbrev-search-these-buffers-only))
         (condition-case nil
@@ -741,16 +744,18 @@ return t if rtags is allowed to modify this file"
               (setq dabbrev-search-these-buffers-only was-search))
           (error
            (setq dabbrev-search-these-buffers-only was-search))))
-    (if (not (string= rtags-completions-buffer ""))
+    (if (not (string= rtags-completions-cache-file-name ""))
         (funcall rtags-expand-function)))
   )
 
 (defun rtags-expand()
   (interactive)
   (cond
-   ((and (= (line-number-at-pos) rtags-completions-line)
-         (= (+ (rtags-find-symbol-start) 1) rtags-completions-column)
-         (string= (buffer-file-name (current-buffer)) rtags-completions-buffer))
+   ((and (= (line-number-at-pos) rtags-completions-cache-line)
+         (= (+ (rtags-find-symbol-start) 1) rtags-completions-cache-column)
+         (string= (buffer-file-name (current-buffer)) rtags-completions-cache-file-name)
+         (string= (buffer-substring (point-at-bol) (+ (point-at-bol) rtags-completions-cache-column))
+                                    rtags-completions-cache-line-contents))
     (progn
       (cond (rtags-completions (rtags-expand-internal))
             (t (funcall rtags-expand-function)))))
@@ -767,10 +772,11 @@ return t if rtags is allowed to modify this file"
         (let ((complete-at (concat (buffer-file-name buffer) ":" (number-to-string line) ":" (number-to-string column)))
               (unsaved-buffer (concat (buffer-file-name buffer) ":" (number-to-string buffer-size))))
           (rtags-call-rc-unsaved path completions "-x" complete-at "--unsaved-file" unsaved-buffer)
-          (setq rtags-completions-buffer (buffer-file-name buffer))
-          (setq rtags-completions-line line)
-          (setq rtags-completions-column column)
-          (setq rtags-completions completions)
+          (setq rtags-completions completions
+                rtags-completions-cache-file-name (buffer-file-name buffer)
+                rtags-completions-cache-line line
+                rtags-completions-cache-column column
+                rtags-completions-cache-line-contents (buffer-substring (point-at-bol) (+ (point-at-bol) column)))
           (run-at-time "0 sec" nil 'rtags-expand-internal)))
       )
     )
