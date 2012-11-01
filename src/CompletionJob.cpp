@@ -65,7 +65,11 @@ void CompletionJob::execute()
     if (results) {
         clang_sortCodeCompletionResults(results->Results, results->NumResults);
         for (unsigned i = 0; i < results->NumResults; ++i) {
-            CXCompletionString &string = results->Results[i].CompletionString;
+            const CXCursorKind kind = results->Results[i].CursorKind;
+            if (kind == CXCursor_Destructor)
+                continue;
+
+            const CXCompletionString &string = results->Results[i].CompletionString;
             const CXAvailabilityKind availabilityKind = clang_getCompletionAvailability(string);
             if (availabilityKind != CXAvailability_Available)
                 continue;
@@ -78,8 +82,8 @@ void CompletionJob::execute()
             for (int j=0; j<chunkCount; ++j) {
                 const CXCompletionChunkKind chunkKind = clang_getCompletionChunkKind(string, j);
                 const ByteArray chunkText = RTags::eatString(clang_getCompletionChunkText(string, j));
-                error() << "    chunk " << (j + 1) << "of" << chunkCount << completionChunkKindToString(chunkKind)
-                        << ByteArray::snprintf<64>("[%s]", chunkText.constData());
+                //error() << "    chunk " << (j + 1) << "of" << chunkCount << completionChunkKindToString(chunkKind)
+                //        << ByteArray::snprintf<64>("[%s]", chunkText.constData());
                 if (chunkKind == CXCompletionChunk_TypedText) {
                     out.insert(chunkText);
                 }
