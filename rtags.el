@@ -80,7 +80,7 @@
     (if (file-exists-p result) result nil)))
 
 (defun rtags-call-rc (path &rest arguments)
-  (apply #'rtags-call-rc-helper path nil nil arguments))
+  (apply #'rtags-call-rc-helper path nil t arguments))
 
 (defun rtags-call-rc-unsaved (path output &rest arguments)
   (apply #'rtags-call-rc-helper path t output arguments))
