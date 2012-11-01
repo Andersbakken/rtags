@@ -86,8 +86,7 @@
   (apply #'rtags-call-rc-helper path t output arguments))
 
 (defun rtags-call-rc-helper (path unsaved output &rest arguments)
-  (let ((rc (rtags-executable-find "rc"))
-        (has-unsaved nil))
+  (let ((rc (rtags-executable-find "rc")))
     (setq arguments (remove-if '(lambda (arg) (not arg))
                                arguments))
     (if rc
@@ -744,7 +743,7 @@ return t if rtags is allowed to modify this file"
 	   (rtags-call-rc-unsaved path completions "-x" complete-at "--unsaved-file" unsaved-buffer)
 	   (if (not (equal (point-min) (point-max)))
 	       (progn
-		 (setq rtags-completions (current-buffer))
+		 (setq rtags-completions completions)
 		 (setq rtags-completions-buffer (buffer-file-name buffer))
 		 (setq rtags-completions-line line)
 		 (setq rtags-completions-column column))
