@@ -3,8 +3,9 @@
 #include "EventLoop.h"
 
 CompletionJob::CompletionJob(const shared_ptr<Project> &project)
-    : Job(0, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1)
-{}
+    : Job(WriteBuffered|WriteUnfiltered, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1)
+{
+}
 
 void CompletionJob::init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<ByteArray> &args,
                          int line, int column, const ByteArray &unsaved)
@@ -93,7 +94,7 @@ void CompletionJob::execute()
     Set<ByteArray>::const_iterator it = out.begin();
     const Set<ByteArray>::const_iterator end = out.end();
     while (it != end) {
-        txt += *it + '\n';
+        write(*it);
         ++it;
     }
     write(txt);
