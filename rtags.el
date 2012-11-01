@@ -5,6 +5,8 @@
 
 (require 'ido)
 (require 'dabbrev)
+(require 'cc-mode)
+
 (defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
 (defvar rtags-path-filter-regex nil)
@@ -705,18 +707,16 @@ return t if rtags is allowed to modify this file"
   (rtags-find-symbols-by-name-internal "Find rreferences" t (rtags-dir-filter))
   (setq rtags-path-filter-regex nil))
 
-(defun rtags-find-symbol-start()
-  (let* ((beginning (point-at-bol))
-         (found-at beginning))
-    (save-excursion
-      (while (cond ((= (point) beginning) nil)
-                   ((looking-at "[\.>]") (progn
-                                           (setq found-at (+ (point) 1))
-                                           nil))
-                   (t t))
-        (backward-char))
-      )
-    (- found-at beginning))
+(defun rtags-find-symbol-start() ;; returns column
+  (save-excursion
+    (let ((looking-at-space (looking-at "[ \t\n]")))
+      (skip-chars-backward " \t" (point-at-bol))
+      (if (and (> (point) (point-at-bol)) looking-at-space)
+          (backward-char))
+      (if (looking-at "[A-Za-z0-9_]")
+          (c-beginning-of-current-token)
+        (forward-char))
+    (- (point) (point-at-bol))))
   )
 
 (defun rtags-expand-internal()
