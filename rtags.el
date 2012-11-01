@@ -103,10 +103,10 @@
               (push (format "--timeout=%d" rtags-timeout) arguments))
           (if path
               (progn
-               (if rtags-match-source-file-to-project
-                   (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
-                     (if (and mapped (length mapped)) (push (concat "--project=" mapped) arguments))))
-                 (push (concat "--project=" path) arguments)))
+		(if rtags-match-source-file-to-project
+		    (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
+		      (if (and mapped (length mapped)) (push (concat "--project=" mapped) arguments))))
+		(push (concat "--project=" path) arguments)))
 
           (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
           (if (not unsaved)
@@ -157,7 +157,7 @@
             (c++-mode)
             )
           (display-buffer preprocess-buffer))
-)))
+      )))
 
 (defun rtags-reparse-file(&optional buffer)
   (interactive)
@@ -193,14 +193,14 @@
         (with-temp-buffer (rtags-call-rc nil "-w" project)))
     )
   )
-    ;; (message (format "we picked %s" project))
+;; (message (format "we picked %s" project))
 
-    ;; (message (combine-and-quote-strings projects))
-      ;; (while (looking-at "^\\([^ ]*\\)")
-      ;; (message (format "%s %s" (match-string 1) (match-string 2)))
-      ;; )
-  ;;   )
-  ;; )
+;; (message (combine-and-quote-strings projects))
+;; (while (looking-at "^\\([^ ]*\\)")
+;; (message (format "%s %s" (match-string 1) (match-string 2)))
+;; )
+;;   )
+;; )
 
 (defun rtags-find-ancestor-file(pattern)
   "Find a file named \a file in as shallow a path as possible,
@@ -229,7 +229,7 @@
    ((rtags-find-ancestor-file-directory "configure"))
    ((rtags-find-ancestor-file-directory "CMakeLists.txt"))
    ((rtags-find-ancestor-file-directory "*.pro"))
-   ((rtags-find-ancestor-file-directory "scons.1")) ; Is this the right way to determine this?
+   ((rtags-find-ancestor-file-directory "scons.1")) ;; Is this the right way to determine this?
    ((rtags-find-ancestor-file-directory "autogen.*"))
    ((rtags-find-ancestor-file-directory "Makefile*"))
    ((rtags-find-ancestor-file-directory "INSTALL*"))
@@ -285,7 +285,7 @@
   (rtags-bookmark-push))
 
 (defun rtags-goto-location(location &optional nobookmark &optional otherbuffer)
-;;  (message (format "rtags-goto-location \"%s\"" location))
+  ;;  (message (format "rtags-goto-location \"%s\"" location))
   (if (length location)
       (progn
         (if rtags-no-otherbuffer (setq otherbuffer nil))
@@ -414,7 +414,7 @@
     )
   )
 
-; **************************** API *********************************
+;; **************************** API *********************************
 
 (defcustom rtags-expand-function '(lambda() (dabbrev-expand nil))
   "What function to call for expansions"
@@ -611,7 +611,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-rename-symbol ()
   (interactive)
-  (save-some-buffers) ; it all kinda falls apart when buffers are unsaved
+  (save-some-buffers) ;; it all kinda falls apart when buffers are unsaved
   (let (len file pos destructor replacewith prev (modifications 0) (filesopened 0))
     (save-excursion
       (if (looking-at "[0-9A-Za-z_~#]")
@@ -720,10 +720,29 @@ return t if rtags is allowed to modify this file"
   )
 
 (defun rtags-expand-internal()
-  (let (was-search dabbrev-search-these-buffers-only)
-    (setq dabbrev-search-these-buffers-only (list rtags-completions))
-    (funcall rtags-expand-function)
-    (setq dabbrev-search-these-buffers-only was-search))
+  (save-excursion
+    (with-current-buffer rtags-completions
+      (if (= (point-min) (point-max))
+	  (setq rtags-completions nil)
+	(progn
+	  (goto-char (point-min))
+	  (if (looking-at "Scheduled rebuild")
+	      (progn
+		(setq rtags-completions nil)
+		(setq rtags-completions-line 0)
+		(setq rtags-completions-column 0)
+		(setq rtags-completions-buffer "")))))))
+  (if rtags-completions
+      (let ((was-search dabbrev-search-these-buffers-only))
+	(condition-case nil
+	    (progn
+	      (setq dabbrev-search-these-buffers-only (list rtags-completions))
+	      (funcall rtags-expand-function)
+	      (setq dabbrev-search-these-buffers-only was-search))
+	  (error
+	   (setq dabbrev-search-these-buffers-only was-search))))
+    (if (not (string= rtags-completions-buffer ""))
+	(funcall rtags-expand-function)))
   )
 
 (defun rtags-expand()
@@ -732,8 +751,9 @@ return t if rtags is allowed to modify this file"
    ((and (= (line-number-at-pos) rtags-completions-line)
 	 (= (+ (rtags-find-symbol-start) 1) rtags-completions-column)
 	 (string= (buffer-file-name (current-buffer)) rtags-completions-buffer))
-    (cond (rtags-completions (rtags-expand-internal))
-	  (t (funcall rtags-expand-function))))
+    (progn
+      (cond (rtags-completions (rtags-expand-internal))
+	    (t (funcall rtags-expand-function)))))
    (t
     (let ((buffer (current-buffer))
 	  (path (rtags-path-for-project))
@@ -750,15 +770,8 @@ return t if rtags is allowed to modify this file"
 	  (setq rtags-completions-buffer (buffer-file-name buffer))
 	  (setq rtags-completions-line line)
 	  (setq rtags-completions-column column)
-	  (if (not (equal (point-min) (point-max)))
-	      (progn
-		(setq rtags-completions completions)
-		;; no clue why I have to start a timer here,
-		;; the buffer contents doesn't seem available otherwise
-		(run-at-time "0 sec" nil 'rtags-expand-internal))
-	    (progn
-	      (setq rtags-completions nil)
-	      (funcall rtags-expand-function)))))
+	  (setq rtags-completions completions)
+	  (run-at-time "0 sec" nil 'rtags-expand-internal)))
       )
     )
    )
@@ -875,12 +888,12 @@ return t if rtags is allowed to modify this file"
             (if (looking-at match-string)
                 (intern (buffer-substring (match-beginning 1) (match-end 1)) complete-list))
             (forward-line))))
-    (cond ((eq code nil)
-           (try-completion string complete-list predicate))
-          ((eq code t)
-           (all-completions string complete-list predicate))
-          ((eq code 'lambda)
-           (if (intern-soft string complete-list) t nil))))))
+      (cond ((eq code nil)
+	     (try-completion string complete-list predicate))
+	    ((eq code t)
+	     (all-completions string complete-list predicate))
+	    ((eq code 'lambda)
+	     (if (intern-soft string complete-list) t nil))))))
 
 
 (defun rtags-select()
@@ -940,16 +953,16 @@ return t if rtags is allowed to modify this file"
             ((and line column) (replace-regexp "$" (format ":%d:%d" line column)))
             ((and line) (replace-regexp "$" (format ":%d" line)))
             (t nil))
-      ;(message (format "Got lines and shit %d\n[%s]" (count-lines (point-min) (point-max)) (buffer-string)))
+      ;; (message (format "Got lines and shit %d\n[%s]" (count-lines (point-min) (point-max)) (buffer-string)))
       (cond ((= (point-min) (point-max)) t)
             ((= (count-lines (point-min) (point-max)) 1) (rtags-select))
             (t (progn
-                  (switch-to-buffer-other-window rtags-buffer-name)
-                  (shrink-window-if-larger-than-buffer)
-                  (rtags-mode)
-                  ;; (setq rtags-no-otherbuffer t)
-                  )))
-      ; Should add support for putting offset in there as well, ignore it on completion and apply it at the end
+		 (switch-to-buffer-other-window rtags-buffer-name)
+		 (shrink-window-if-larger-than-buffer)
+		 (rtags-mode)
+		 ;; (setq rtags-no-otherbuffer t)
+		 )))
+      ;; Should add support for putting offset in there as well, ignore it on completion and apply it at the end
       )
     )
   )
@@ -971,8 +984,8 @@ return t if rtags is allowed to modify this file"
                       (text (match-string 3 line)))
                   (save-excursion
                     (set-buffer buffer)
-                    (goto-char (+ start 1)) ; emacs offsets start at 1 for some reason
-                    (delete-char (- end start)) ; may be 0
+                    (goto-char (+ start 1)) ;; emacs offsets start at 1 for some reason
+                    (delete-char (- end start)) ;; may be 0
                     (insert text)))))
           ;; (message (format "got something %d to %d => [%s]" start end text))))
           (next-line))
