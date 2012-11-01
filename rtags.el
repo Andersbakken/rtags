@@ -719,40 +719,49 @@ return t if rtags is allowed to modify this file"
     (- found-at beginning))
   )
 
+(defun rtags-expand-internal()
+  (let (was-search dabbrev-search-these-buffers-only)
+    (setq dabbrev-search-these-buffers-only (list rtags-completions))
+    (funcall rtags-expand-function)
+    (setq dabbrev-search-these-buffers-only was-search))
+  )
+
 (defun rtags-expand()
   (interactive)
-  (if (and rtags-completions
-           (= (line-number-at-pos) rtags-completions-line)
-           (= (+ (rtags-find-symbol-start) 1) rtags-completions-column)
-           (string= (buffer-file-name (current-buffer)) rtags-completions-buffer))
-      (let (was-search dabbrev-search-these-buffers-only)
-        (setq dabbrev-search-these-buffers-only (list rtags-completions))
-        (funcall rtags-expand-function)
-        (setq dabbrev-search-these-buffers-only was-search))
-     (let ((buffer (current-buffer))
-          (path (rtags-path-for-project))
+  (cond
+   ((and (= (line-number-at-pos) rtags-completions-line)
+	 (= (+ (rtags-find-symbol-start) 1) rtags-completions-column)
+	 (string= (buffer-file-name (current-buffer)) rtags-completions-buffer))
+    (cond (rtags-completions (rtags-expand-internal))
+	  (t (funcall rtags-expand-function))))
+   (t
+    (let ((buffer (current-buffer))
+	  (path (rtags-path-for-project))
 	  (buffer-size (- (point-max) (point-min)))
-          (line (line-number-at-pos))
-          (column (+ (rtags-find-symbol-start) 1))
-          (completions (get-buffer-create "*RTags Completions*")))
-       (save-excursion
-	 (with-current-buffer completions
-	   (erase-buffer))
-	 (let ((complete-at (concat (buffer-file-name buffer) ":" (number-to-string line) ":" (number-to-string column)))
-	       (unsaved-buffer (concat (buffer-file-name buffer) ":" (number-to-string buffer-size))))
-	   (rtags-call-rc-unsaved path completions "-x" complete-at "--unsaved-file" unsaved-buffer)
-	   (if (not (equal (point-min) (point-max)))
-	       (progn
-		 (setq rtags-completions completions)
-		 (setq rtags-completions-buffer (buffer-file-name buffer))
-		 (setq rtags-completions-line line)
-		 (setq rtags-completions-column column))
-	     (progn
-	       (setq rtags-completions nil)
-	       (setq rtags-completions-buffer "")
-	       (setq rtags-completions-line 0)
-	       (setq rtags-completions-column 0))))))
+	  (line (line-number-at-pos))
+	  (column (+ (rtags-find-symbol-start) 1))
+	  (completions (get-buffer-create "*RTags Completions*")))
+      (save-excursion
+	(with-current-buffer completions
+	  (erase-buffer))
+	(let ((complete-at (concat (buffer-file-name buffer) ":" (number-to-string line) ":" (number-to-string column)))
+	      (unsaved-buffer (concat (buffer-file-name buffer) ":" (number-to-string buffer-size))))
+	  (rtags-call-rc-unsaved path completions "-x" complete-at "--unsaved-file" unsaved-buffer)
+	  (setq rtags-completions-buffer (buffer-file-name buffer))
+	  (setq rtags-completions-line line)
+	  (setq rtags-completions-column column)
+	  (if (not (equal (point-min) (point-max)))
+	      (progn
+		(setq rtags-completions completions)
+		;; no clue why I have to start a timer here,
+		;; the buffer contents doesn't seem available otherwise
+		(run-at-time "0 sec" nil 'rtags-expand-internal))
+	    (progn
+	      (setq rtags-completions nil)
+	      (funcall rtags-expand-function)))))
+      )
     )
+   )
   )
 
 (defvar rtags-diagnostics-process nil)
