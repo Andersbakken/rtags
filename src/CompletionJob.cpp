@@ -90,12 +90,10 @@ void CompletionJob::execute()
         project()->indexer->addToCache(mPath, mArgs, mIndex, mUnit);
     }
 
-    ByteArray txt;
     Set<ByteArray>::const_iterator it = out.begin();
     const Set<ByteArray>::const_iterator end = out.end();
     while (it != end) {
         write(*it);
         ++it;
     }
-    write(txt);
 }
