@@ -109,7 +109,7 @@ bool Server::init(const Options &options)
         delete mServer;
         mServer = 0;
         if (!i) {
-            Client client(mOptions.socketFile, Client::DontWarnOnConnectionFailure);
+            Client client(mOptions.socketFile, Client::DontWarnOnConnectionFailure | Client::DontInitMessages);
             QueryMessage msg(QueryMessage::Shutdown);
             client.message(&msg);
         }

@@ -13,7 +13,9 @@ Client::Client(const Path &path, unsigned flags, const List<ByteArray> &rdmArgs)
     if ((mFlags & (RestartRdm|AutostartRdm)) == (RestartRdm|AutostartRdm)) {
         mFlags &= ~AutostartRdm; // this is implied and would upset connectToServer
     }
-    Messages::init();
+    if (!(mFlags & DontInitMessages)) {
+        Messages::init();
+    }
     const bool ret = connectToServer();
     if (mFlags & RestartRdm) {
         if (ret) {
