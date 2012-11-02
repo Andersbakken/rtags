@@ -44,27 +44,20 @@ public:
 
 static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& column)
 {
-    const int nl = data.indexOf('\n');
-    if (nl == -1)
+    List<RegExp::Capture> caps;
+    RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)\n");
+    if (rx.indexIn(data, 0, &caps) != 0 || caps.size() != 4)
         return false;
-    const ByteArray& ln = data.left(nl);
-    data = data.mid(nl + 1);
-    const int c1 = ln.indexOf(':');
-    if (c1 == -1)
-        return false;
-    const int c2 = ln.indexOf(':', c1 + 1);
-    if (c2 == -1 || c2 + 1 == ln.size())
-        return false;
-    path = Path(ln.left(c1));
 
-    char* endptr;
-    const char* lineData = ln.nullTerminated();
-    line = ::strtol(lineData + c1 + 1, &endptr, 10);
-    if (endptr != lineData + c2)
+    data = data.mid(caps[0].capture.size());
+
+    path = Path::resolved(caps[1].capture);
+    if (!path.exists())
         return false;
-    column = ::strtol(lineData + c2 + 1, &endptr, 10);
-    if (endptr != lineData + ln.size())
-        return false;
+
+    line = atoi(caps[2].capture.constData());
+    column = atoi(caps[2].capture.constData());
+
     return true;
 }
 
