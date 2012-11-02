@@ -711,7 +711,7 @@ void Server::hasFileManager(const QueryMessage &query, Connection *conn)
     const Path path = query.query();
     updateProjectForLocation(path);
     shared_ptr<Project> cur = currentProject();
-    if (cur && cur->fileManager->contains(path)) {
+    if (cur && cur->fileManager && cur->fileManager->contains(path)) {
         conn->write("1");
     } else {
         conn->write("0");
@@ -1502,26 +1502,24 @@ void Server::onJobStarted(shared_ptr<Indexer> indexer, Path path)
 
 void Server::restore()
 {
-    {
-        const Path p = mOptions.dataDir + "fileids";
-        FILE *f = fopen(p.constData(), "r");
-        if (!f)
-            return;
-        Map<Path, uint32_t> pathsToIds;
-        Deserializer in(f);
-        int version;
-        in >> version;
-        if (version == DatabaseVersion) {
-            int size;
-            in >> size;
-            if (size != RTags::fileSize(f)) {
-                error("Refusing to load corrupted file %s", p.constData());
-            } else {
-                in >> pathsToIds;
-                Location::init(pathsToIds);
-                mRestoreProjects = true;
-            }
-            fclose(f);
+    const Path p = mOptions.dataDir + "fileids";
+    FILE *f = fopen(p.constData(), "r");
+    if (!f)
+        return;
+    Map<Path, uint32_t> pathsToIds;
+    Deserializer in(f);
+    int version;
+    in >> version;
+    if (version == DatabaseVersion) {
+        int size;
+        in >> size;
+        if (size != RTags::fileSize(f)) {
+            error("Refusing to load corrupted file %s", p.constData());
+        } else {
+            in >> pathsToIds;
+            Location::init(pathsToIds);
+            mRestoreProjects = true;
         }
+        fclose(f);
     }
 }
