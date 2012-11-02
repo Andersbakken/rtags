@@ -189,7 +189,7 @@
                 (setq projects (add-to-list 'projects m t))
                 (setq current m))
             (setq projects (add-to-list 'projects (buffer-substring (point-at-bol) (point-at-eol)))))
-          (next-line)))
+          (next-line)))))
       )
     (setq project (ido-completing-read
                    (format "RTags select project (current is %s): " current)
