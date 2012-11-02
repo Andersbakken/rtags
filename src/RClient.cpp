@@ -130,11 +130,14 @@ public:
                 that->data += ByteArray(buffer, r);
                 u -= r;
             }
-            that->rclient->setUnsavedFile(p, that->data.left(tu));
-            that->data = that->data.mid(tu);
 
             CompletionMessage msg(CompletionMessage::None, p, l, c);
+            msg.init(that->rclient->argc(), that->rclient->argv());
+            msg.setContents(that->data.left(tu));
+            msg.setProjects(that->rclient->projects());
             that->client->message(&msg, Client::SendDontRunEventLoop);
+
+            that->data = that->data.mid(tu);
         }
     }
 };
