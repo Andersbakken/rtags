@@ -42,11 +42,11 @@ public:
     }
 };
 
-static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& column)
+static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& column, int& unsavedSize)
 {
     List<RegExp::Capture> caps;
-    RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)\n");
-    if (rx.indexIn(data, 0, &caps) != 0 || caps.size() != 4)
+    RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)\n");
+    if (rx.indexIn(data, 0, &caps) != 0 || caps.size() != 5)
         return false;
 
     data = data.mid(caps[0].capture.size());
@@ -57,6 +57,7 @@ static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& 
 
     line = atoi(caps[2].capture.constData());
     column = atoi(caps[3].capture.constData());
+    unsavedSize = atoi(caps[4].capture.constData());
 
     return true;
 }
@@ -77,10 +78,12 @@ public:
     const int column;
     const bool stream;
     Client* client;
+    RClient* rclient;
     ByteArray data;
 
     virtual void exec(RClient *rc, Client *cl)
     {
+        rclient = rc;
         client = cl;
         if (stream) {
             CompletionMessage msg(CompletionMessage::Stream);
@@ -106,7 +109,7 @@ public:
     {
         CompletionCommand* that = static_cast<CompletionCommand*>(userData);
         static char buffer[8192];
-        const ssize_t r = ::read(fd, buffer, sizeof(buffer));
+        ssize_t r = ::read(fd, buffer, sizeof(buffer));
         if (r == -1) {
             EventLoop::instance()->removeFileDescriptor(fd);
             return;
@@ -114,9 +117,22 @@ public:
         that->data += ByteArray(buffer, r);
 
         Path p;
-        int l, c;
-        while (parseCompletion(that->data, p, l, c)) {
-            error() << "sending message" << p << l << c;
+        int l, c, u, tu;
+        while (parseCompletion(that->data, p, l, c, u)) {
+            tu = u;
+            u -= that->data.size();
+            while (u > 0) {
+                r = ::read(fd, buffer, sizeof(buffer));
+                if (r == -1) {
+                    EventLoop::instance()->removeFileDescriptor(fd);
+                    return;
+                }
+                that->data += ByteArray(buffer, r);
+                u -= r;
+            }
+            that->rclient->setUnsavedFile(p, that->data.left(tu));
+            that->data = that->data.mid(tu);
+
             CompletionMessage msg(CompletionMessage::None, p, l, c);
             that->client->message(&msg, Client::SendDontRunEventLoop);
         }

@@ -22,11 +22,11 @@ public:
     const Set<ByteArray> &pathFilters() const { return mPathFilters; }
 
     const Map<Path, ByteArray> &unsavedFiles() const { return mUnsavedFiles; }
+    void setUnsavedFile(const Path& path, const ByteArray& data) { mUnsavedFiles[path] = data; }
 
     const List<ByteArray> &extraCompilerFlags() const { return mExtraCompilerFlags; }
     const List<ByteArray> &rdmArgs() const { return mRdmArgs; }
     const List<ByteArray> &projects() const { return mProjects; }
-
 
     ByteArray socketFile() const { return mSocketFile; }
 
