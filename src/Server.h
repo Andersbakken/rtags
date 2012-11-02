@@ -60,6 +60,8 @@ private:
     void onJobsComplete(shared_ptr<Indexer> indexer, int count);
     void onJobStarted(shared_ptr<Indexer> indexer, Path path);
 
+    bool isCompletionStream(Connection* conn) const;
+
     static void saveTimerCallback(int id, void *userData);
     void save(const shared_ptr<Indexer> &indexer);
     void restore();
@@ -116,7 +118,6 @@ private:
     void unloadProject(const Path &key);
     void reloadProjects();
     void onCompletionStreamDisconnected(LocalClient *client);
-    void onCompletionStreamDataAvailable(LocalClient *client);
     bool addProject(const Path &path, const ProjectEntry &entry);
 
     struct ProjectEntry

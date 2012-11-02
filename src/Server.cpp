@@ -1011,7 +1011,8 @@ void Server::event(const Event *event)
         }
 
         if (e->finish) {
-            it->second->finish();
+            if (!isCompletionStream(it->second))
+                it->second->finish();
         }
         break; }
     case MakefileParserDoneEvent::Type: {
@@ -1359,7 +1360,8 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
 
     shared_ptr<Project> project = currentProject();
     if (!project || !project->indexer) {
-        conn->finish();
+        if (!isCompletionStream(conn))
+            conn->finish();
         return;
     }
 
@@ -1369,7 +1371,8 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
     if (!project->indexer->fetchFromCache(path, args, index, unit)) {
         project->indexer->reindex(path, false);
         conn->write<128>("Scheduled rebuild of %s", path.constData());
-        conn->finish();
+        if (!isCompletionStream(conn))
+            conn->finish();
         return;
     }
 
@@ -1380,14 +1383,15 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
     startQueryJob(job);
 }
 
+bool Server::isCompletionStream(Connection* conn) const
+{
+    LocalClient *client = conn->client();
+    return (mCompletionStreams.find(client) != mCompletionStreams.end());
+}
+
 void Server::onCompletionStreamDisconnected(LocalClient *client)
 {
     mCompletionStreams.remove(client);
-}
-
-void Server::onCompletionStreamDataAvailable(LocalClient *client)
-{
-
 }
 
 void Server::handleCompletionStream(CompletionMessage *message, Connection *conn)
@@ -1395,7 +1399,6 @@ void Server::handleCompletionStream(CompletionMessage *message, Connection *conn
     LocalClient *client = conn->client();
     assert(client);
     client->disconnected().connect(this, &Server::onCompletionStreamDisconnected);
-    client->dataAvailable().connect(this, &Server::onCompletionStreamDataAvailable);
     mCompletionStreams[client] = conn;
 }
 

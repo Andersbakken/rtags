@@ -42,29 +42,58 @@ public:
     }
 };
 
+static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& column)
+{
+    const int nl = data.indexOf('\n');
+    if (nl == -1)
+        return false;
+    const ByteArray& ln = data.left(nl);
+    data = data.mid(nl + 1);
+    const int c1 = ln.indexOf(':');
+    if (c1 == -1)
+        return false;
+    const int c2 = ln.indexOf(':', c1 + 1);
+    if (c2 == -1 || c2 + 1 == ln.size())
+        return false;
+    path = Path(ln.left(c1));
+
+    char* endptr;
+    const char* lineData = ln.nullTerminated();
+    line = ::strtol(lineData + c1 + 1, &endptr, 10);
+    if (endptr != lineData + c2)
+        return false;
+    column = ::strtol(lineData + c2 + 1, &endptr, 10);
+    if (endptr != lineData + ln.size())
+        return false;
+    return true;
+}
+
 class CompletionCommand : public RCCommand
 {
 public:
     CompletionCommand(const Path &p, int l, int c)
-        : path(p), line(l), column(c), stream(false)
+        : path(p), line(l), column(c), stream(false), client(0)
     {}
     CompletionCommand()
-        : line(-1), column(-1), stream(true)
+        : line(-1), column(-1), stream(true), client(0)
     {
     }
-
 
     const Path path;
     const int line;
     const int column;
     const bool stream;
+    Client* client;
+    ByteArray data;
 
-    virtual void exec(RClient *rc, Client *client)
+    virtual void exec(RClient *rc, Client *cl)
     {
+        client = cl;
         if (stream) {
             CompletionMessage msg(CompletionMessage::Stream);
             msg.init(rc->argc(), rc->argv());
             msg.setProjects(rc->projects());
+            EventLoop::instance()->addFileDescriptor(STDIN_FILENO, EventLoop::Read, stdinReady, this);
             client->message(&msg);
         } else {
             CompletionMessage msg(CompletionMessage::None, path, line, column);
@@ -80,6 +109,25 @@ public:
         return ByteArray::snprintf<128>("CompletionMessage %s:%d:%d", path.constData(), line, column);
     }
 
+    static void stdinReady(int fd, unsigned int flags, void* userData)
+    {
+        CompletionCommand* that = static_cast<CompletionCommand*>(userData);
+        static char buffer[8192];
+        const ssize_t r = ::read(fd, buffer, sizeof(buffer));
+        if (r == -1) {
+            EventLoop::instance()->removeFileDescriptor(fd);
+            return;
+        }
+        that->data += ByteArray(buffer, r);
+
+        Path p;
+        int l, c;
+        while (parseCompletion(that->data, p, l, c)) {
+            error() << "sending message" << p << l << c;
+            CompletionMessage msg(CompletionMessage::None, p, l, c);
+            that->client->message(&msg, Client::SendDontRunEventLoop);
+        }
+    }
 };
 
 class RdmLogCommand : public RCCommand

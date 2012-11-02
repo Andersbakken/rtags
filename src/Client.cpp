@@ -30,7 +30,7 @@ Client::Client(const Path &path, unsigned flags, const List<ByteArray> &rdmArgs)
     }
 }
 
-void Client::sendMessage(int id, const ByteArray &msg)
+void Client::sendMessage(int id, const ByteArray &msg, SendFlag flag)
 {
     if (!mConnection && !connectToServer() && !(mFlags & (RestartRdm|AutostartRdm))) {
         if (!(mFlags & DontWarnOnConnectionFailure))
@@ -38,10 +38,13 @@ void Client::sendMessage(int id, const ByteArray &msg)
         return;
     }
 
-    mConnection->disconnected().connect(this, &Client::onDisconnected);
-    mConnection->newMessage().connect(this, &Client::onNewMessage);
+    if (flag != SendDontRunEventLoop) {
+        mConnection->disconnected().connect(this, &Client::onDisconnected);
+        mConnection->newMessage().connect(this, &Client::onNewMessage);
+    }
     mConnection->send(id, msg);
-    EventLoop::instance()->run();
+    if (flag != SendDontRunEventLoop)
+        EventLoop::instance()->run();
 }
 
 void Client::onNewMessage(Message *message, Connection *)
@@ -59,9 +62,11 @@ void Client::onNewMessage(Message *message, Connection *)
 
 void Client::onDisconnected()
 {
-    mConnection->deleteLater();
-    mConnection = 0;
-    EventLoop::instance()->exit();
+    if (mConnection) {
+        mConnection->deleteLater();
+        mConnection = 0;
+        EventLoop::instance()->exit();
+    }
 }
 bool Client::connectToServer()
 {

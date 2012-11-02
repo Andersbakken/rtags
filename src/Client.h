@@ -22,16 +22,20 @@ public:
         DontWarnOnConnectionFailure = 0x4,
         DontInitMessages = 0x8
     };
+    enum SendFlag {
+        SendNone,
+        SendDontRunEventLoop
+    };
 
     List<ByteArray> rdmArgs() const { return mRdmArgs; }
     unsigned flags() const { return mFlags; }
     template<typename T>
-    void message(const T *msg);
+    void message(const T *msg, SendFlag flag = SendNone);
     bool connectToServer();
     void onDisconnected();
     void onNewMessage(Message *message, Connection *);
 private:
-    void sendMessage(int id, const ByteArray& msg);
+    void sendMessage(int id, const ByteArray& msg, SendFlag flag);
     Connection *mConnection;
     unsigned mFlags;
     List<ByteArray> mRdmArgs;
@@ -39,9 +43,9 @@ private:
 };
 
 template<typename T>
-void Client::message(const T *msg)
+void Client::message(const T *msg, SendFlag flag)
 {
-    sendMessage(msg->messageId(), msg->encode());
+    sendMessage(msg->messageId(), msg->encode(), flag);
 }
 
 #endif

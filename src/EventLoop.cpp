@@ -203,6 +203,7 @@ void EventLoop::removeEvents(EventReceiver *receiver)
 void EventLoop::postEvent(EventReceiver* receiver, Event* event)
 {
     {
+        assert(receiver);
         EventData data = { receiver, event };
 
         MutexLocker locker(&mMutex);
