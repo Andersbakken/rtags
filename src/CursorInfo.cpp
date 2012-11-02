@@ -105,7 +105,6 @@ SymbolMap CursorInfo::referenceInfos(const SymbolMap &map) const
 
 SymbolMap CursorInfo::callers(const Location &loc, const SymbolMap &map) const
 {
-    assert(!RTags::isReference(kind));
     SymbolMap ret;
     const SymbolMap cursors = virtuals(loc, map);
     for (SymbolMap::const_iterator c = cursors.begin(); c != cursors.end(); ++c) {
