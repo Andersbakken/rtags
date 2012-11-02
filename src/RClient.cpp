@@ -121,30 +121,33 @@ public:
             EventLoop::instance()->removeFileDescriptor(fd);
             return;
         }
-        that->data += ByteArray(buffer, r);
+
+        RClient*& rc = that->rclient;
+        ByteArray& data = that->data;
+        data += ByteArray(buffer, r);
 
         Path p;
         int l, c, u, tu;
-        while (parseCompletion(that->data, p, l, c, u)) {
+        while (parseCompletion(data, p, l, c, u)) {
             tu = u;
-            u -= that->data.size();
+            u -= data.size();
             while (u > 0) {
                 r = ::read(fd, buffer, sizeof(buffer));
                 if (r == -1) {
                     EventLoop::instance()->removeFileDescriptor(fd);
                     return;
                 }
-                that->data += ByteArray(buffer, r);
+                data += ByteArray(buffer, r);
                 u -= r;
             }
 
             CompletionMessage msg(CompletionMessage::None, p, l, c);
-            msg.init(that->rclient->argc(), that->rclient->argv());
-            msg.setContents(that->data.left(tu));
-            msg.setProjects(that->rclient->projects());
+            msg.init(rc->argc(), rc->argv());
+            msg.setContents(data.left(tu));
+            msg.setProjects(rc->projects());
             that->client->message(&msg, Client::SendDontRunEventLoop);
 
-            that->data = that->data.mid(tu);
+            data = data.mid(tu);
         }
     }
 };
