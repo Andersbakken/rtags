@@ -11,9 +11,9 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
 endif()
 
 add_definitions(-Wall)
-add_definitions("-DCLANG_INCLUDEPATH=\"${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/clang_install/lib/clang/3.2/include/\"")
-add_definitions("-DCLANG_BIN=\"${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/clang_install/bin/\"")
-add_definitions("-DMAKE=\"${CMAKE_CURRENT_BINARY_DIR}/../3rdparty/make_install/bin/make\"")
+add_definitions("-DCLANG_INCLUDEPATH=\"${PROJECT_SOURCE_DIR}/3rdparty/clang_install/lib/clang/3.2/include/\"")
+add_definitions("-DCLANG_BIN=\"${PROJECT_SOURCE_DIR}/3rdparty/clang_install/bin/\"")
+add_definitions("-DMAKE=\"${PROJECT_SOURCE_DIR}/3rdparty/make_install/bin/make\"")
 add_definitions(-DOS_${CMAKE_SYSTEM_NAME})
 
 if(CMAKE_SYSTEM_NAME MATCHES "Linux")
