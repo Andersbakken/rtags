@@ -45,9 +45,16 @@ public:
 static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& column, int& unsavedSize)
 {
     List<RegExp::Capture> caps;
-    RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)\n");
-    if (rx.indexIn(data, 0, &caps) != 0 || caps.size() != 5)
+
+    const int nl = data.indexOf('\n');
+    if (nl == -1)
         return false;
+
+    RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)\n");
+    if (rx.indexIn(data, 0, &caps) != 0 || caps.size() != 5) {
+        data = data.mid(nl + 1);
+        return false;
+    }
 
     data = data.mid(caps[0].capture.size());
 
