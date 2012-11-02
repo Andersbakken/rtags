@@ -1476,7 +1476,7 @@ void Server::onJobsComplete(shared_ptr<Indexer> indexer, int count)
     if (ok && id != -1)
         EventLoop::instance()->removeTimer(id);
     if (count) {
-        enum { SaveTimerInterval = 5000 };
+        enum { SaveTimerInterval = 1000 };
         mSaveTimers[indexer] = EventLoop::instance()->addTimer(SaveTimerInterval, Server::saveTimerCallback,
                                                                new shared_ptr<Indexer>(indexer));
     }
