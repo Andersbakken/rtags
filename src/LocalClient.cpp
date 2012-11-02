@@ -91,7 +91,7 @@ bool LocalClient::connect(const Path& path, int maxTime)
         fdflags |= EventLoop::Write;
     EventLoop::instance()->addFileDescriptor(mFd, fdflags, dataCallback, this);
 
-    mConnected();
+    mConnected(this);
     return true;
 }
 
@@ -102,7 +102,7 @@ void LocalClient::disconnect()
         eintrwrap(ret, ::close(mFd));
         EventLoop::instance()->removeFileDescriptor(mFd);
         mFd = -1;
-        disconnected()();
+        mDisconnected(this);
     }
 }
 
@@ -190,7 +190,7 @@ void LocalClient::readMore()
     }
 
     if (read && !mReadBuffer.isEmpty())
-        mDataAvailable();
+        mDataAvailable(this);
     if (wasDisconnected)
         disconnect();
 }
@@ -227,7 +227,7 @@ bool LocalClient::writeMore()
         }
     }
     if (written)
-        mBytesWritten(written);
+        mBytesWritten(this, written);
     return ret;
 }
 

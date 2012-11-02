@@ -54,11 +54,15 @@ public:
     signalslot::Signal2<Message*, Connection*> &newMessage() { return mNewMessage; }
     signalslot::Signal0 &sendComplete() { return mSendComplete; }
     signalslot::Signal1<Connection*> &destroyed() { return mDestroyed; }
+
+    LocalClient *client() const { return mClient; }
 protected:
     void event(const Event *e);
 private:
-    void dataAvailable();
-    void dataWritten(int bytes);
+    void onClientConnected(LocalClient *) { mConnected(); }
+    void onClientDisconnected(LocalClient *) { mDisconnected(); }
+    void dataAvailable(LocalClient *);
+    void dataWritten(LocalClient *, int bytes);
 
     LocalClient *mClient;
     int mPendingRead, mPendingWrite;

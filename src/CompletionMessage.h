@@ -10,9 +10,16 @@ class CompletionMessage : public ClientMessage
 public:
     enum { MessageId = CompletionId };
 
-    CompletionMessage(const Path &path = Path(), int line = -1, int column = -1);
+    enum Flag {
+        None = 0x0,
+        Stream = 0x1
+    };
+
+    CompletionMessage(unsigned flags = 0,
+                      const Path &path = Path(), int line = -1, int column = -1);
     virtual int messageId() const { return MessageId; }
 
+    unsigned flags() const { return mFlags; }
     Path path() const { return mPath; }
     int line() const { return mLine; }
     int column() const { return mColumn; }
@@ -26,6 +33,7 @@ public:
     void setProjects(const List<ByteArray> &projects) { mProjects = projects; }
     List<ByteArray> projects() const { return mProjects; }
 private:
+    unsigned mFlags;
     Path mPath;
     int mLine, mColumn;
     ByteArray mContents;

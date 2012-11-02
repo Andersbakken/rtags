@@ -22,10 +22,10 @@ public:
     int bytesAvailable() const { return mReadBuffer.size() - mReadBufferPos; }
     bool write(const ByteArray& data);
 
-    signalslot::Signal0& dataAvailable() { return mDataAvailable; }
-    signalslot::Signal0& connected() { return mConnected; }
-    signalslot::Signal0& disconnected() { return mDisconnected; }
-    signalslot::Signal1<int>& bytesWritten() { return mBytesWritten; }
+    signalslot::Signal1<LocalClient*> &dataAvailable() { return mDataAvailable; }
+    signalslot::Signal1<LocalClient*> &connected() { return mConnected; }
+    signalslot::Signal1<LocalClient*> &disconnected() { return mDisconnected; }
+    signalslot::Signal2<LocalClient*, int>& bytesWritten() { return mBytesWritten; }
 protected:
     virtual void event(const Event* event);
 private:
@@ -36,8 +36,8 @@ private:
     LocalClient(int fd);
     friend class LocalServer;
     int mFd;
-    signalslot::Signal0 mDataAvailable, mConnected, mDisconnected;
-    signalslot::Signal1<int> mBytesWritten;
+    signalslot::Signal1<LocalClient*> mDataAvailable, mConnected, mDisconnected;
+    signalslot::Signal2<LocalClient*, int> mBytesWritten;
 
     std::deque<ByteArray> mBuffers;
     int mBufferIdx;

@@ -17,8 +17,8 @@ public:
 Connection::Connection()
     : mClient(new LocalClient), mPendingRead(0), mPendingWrite(0), mDone(false), mSilent(false)
 {
-    mClient->connected().connect(mConnected);
-    mClient->disconnected().connect(mDisconnected);
+    mClient->connected().connect(this, &Connection::onClientConnected);
+    mClient->disconnected().connect(this, &Connection::onClientDisconnected);
     mClient->dataAvailable().connect(this, &Connection::dataAvailable);
     mClient->bytesWritten().connect(this, &Connection::dataWritten);
 }
@@ -27,7 +27,7 @@ Connection::Connection(LocalClient* client)
     : mClient(client), mPendingRead(0), mPendingWrite(0), mDone(false), mSilent(false)
 {
     assert(client->isConnected());
-    mClient->disconnected().connect(mDisconnected);
+    mClient->disconnected().connect(this, &Connection::onClientDisconnected);
     mClient->dataAvailable().connect(this, &Connection::dataAvailable);
     mClient->bytesWritten().connect(this, &Connection::dataWritten);
 }
@@ -75,10 +75,10 @@ int Connection::pendingWrite() const
 void Connection::finish()
 {
     mDone = true;
-    dataWritten(0);
+    dataWritten(mClient, 0);
 }
 
-void Connection::dataAvailable()
+void Connection::dataAvailable(LocalClient *)
 {
     while (true) {
         int available = mClient->bytesAvailable();
@@ -111,10 +111,11 @@ void Connection::dataAvailable()
             delete[] buffer;
 
         mPendingRead = 0;
+        // mClient->dataAvailable().disconnect(this, &Connection::dataAvailable);
     }
 }
 
-void Connection::dataWritten(int bytes)
+void Connection::dataWritten(LocalClient *, int bytes)
 {
     assert(mPendingWrite >= bytes);
     mPendingWrite -= bytes;

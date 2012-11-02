@@ -295,9 +295,14 @@ void Server::onNewMessage(Message *message, Connection *connection)
     case CreateOutputMessage::MessageId:
         handleCreateOutputMessage(static_cast<CreateOutputMessage*>(message), connection);
         break;
-    case CompletionMessage::MessageId:
-        handleCompletionMessage(static_cast<CompletionMessage*>(message), connection);
-        break;
+    case CompletionMessage::MessageId: {
+        CompletionMessage *completionMessage = static_cast<CompletionMessage*>(message);
+        if (completionMessage->flags() & CompletionMessage::Stream) {
+            handleCompletionStream(completionMessage, connection);
+        } else {
+            handleCompletionMessage(static_cast<CompletionMessage*>(message), connection);
+        }
+        break; }
     case ResponseMessage::MessageId:
         assert(0);
         connection->finish();
@@ -1373,6 +1378,25 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startQueryJob(job);
+}
+
+void Server::onCompletionStreamDisconnected(LocalClient *client)
+{
+    mCompletionStreams.remove(client);
+}
+
+void Server::onCompletionStreamDataAvailable(LocalClient *client)
+{
+
+}
+
+void Server::handleCompletionStream(CompletionMessage *message, Connection *conn)
+{
+    LocalClient *client = conn->client();
+    assert(client);
+    client->disconnected().connect(this, &Server::onCompletionStreamDisconnected);
+    client->dataAvailable().connect(this, &Server::onCompletionStreamDataAvailable);
+    mCompletionStreams[client] = conn;
 }
 
 void Server::save(const shared_ptr<Indexer> &indexer)

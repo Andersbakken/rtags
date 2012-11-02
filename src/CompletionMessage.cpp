@@ -3,8 +3,8 @@
 #include "Serializer.h"
 
 
-CompletionMessage::CompletionMessage(const Path &path, int line, int column)
-    : mPath(path), mLine(line), mColumn(column)
+CompletionMessage::CompletionMessage(unsigned flags, const Path &path, int line, int column)
+    : mFlags(flags), mPath(path), mLine(line), mColumn(column)
 {
 }
 
@@ -13,7 +13,7 @@ ByteArray CompletionMessage::encode() const
     ByteArray data;
     {
         Serializer stream(data);
-        stream << mRaw << mPath << mLine << mColumn << mContents << mProjects;
+        stream << mRaw << mFlags << mPath << mLine << mColumn << mContents << mProjects;
     }
     return data;
 }
@@ -21,5 +21,5 @@ ByteArray CompletionMessage::encode() const
 void CompletionMessage::fromData(const char *data, int size)
 {
     Deserializer stream(data, size);
-    stream >> mRaw >> mPath >> mLine >> mColumn >> mContents >> mProjects;
+    stream >> mRaw >> mFlags >> mPath >> mLine >> mColumn >> mContents >> mProjects;
 }

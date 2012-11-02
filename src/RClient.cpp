@@ -46,20 +46,33 @@ class CompletionCommand : public RCCommand
 {
 public:
     CompletionCommand(const Path &p, int l, int c)
-        : path(p), line(l), column(c)
+        : path(p), line(l), column(c), stream(false)
     {}
+    CompletionCommand()
+        : line(-1), column(-1), stream(true)
+    {
+    }
+
 
     const Path path;
     const int line;
     const int column;
+    const bool stream;
 
     virtual void exec(RClient *rc, Client *client)
     {
-        CompletionMessage msg(path, line, column);
-        msg.init(rc->argc(), rc->argv());
-        msg.setContents(rc->unsavedFiles().value(path));
-        msg.setProjects(rc->projects());
-        client->message(&msg);
+        if (stream) {
+            CompletionMessage msg(CompletionMessage::Stream);
+            msg.init(rc->argc(), rc->argv());
+            msg.setProjects(rc->projects());
+            client->message(&msg);
+        } else {
+            CompletionMessage msg(CompletionMessage::None, path, line, column);
+            msg.init(rc->argc(), rc->argv());
+            msg.setContents(rc->unsavedFiles().value(path));
+            msg.setProjects(rc->projects());
+            client->message(&msg);
+        }
     }
 
     virtual ByteArray description() const
@@ -131,8 +144,8 @@ public:
 };
 
 RClient::RClient()
-    : mQueryFlags(0), mClientFlags(0), mMakefileFlags(0), mMax(-1),
-      mLogLevel(0), mTimeout(0), mArgc(0), mArgv(0)
+    : mQueryFlags(0), mClientFlags(0), mMakefileFlags(0),
+      mMax(-1), mLogLevel(0), mTimeout(0), mArgc(0), mArgv(0)
 {
 }
 
@@ -201,6 +214,7 @@ enum {
     AutoMakeProject,
     AutostartRdm,
     Clear,
+    CodeComplete,
     CodeCompleteAt,
     CompilerFlag,
     CursorInfo,
@@ -299,6 +313,7 @@ struct Option opts[] = {
     { DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
     { RdmLog, "rdm-log", 'g', no_argument, "Receive logs from rdm." },
     { CodeCompleteAt, "code-complete-at", 'x', required_argument, "Get code completion from location (must be specified with path:line:column)." },
+    { CodeComplete, "code-complete", 0, no_argument, "Get code completion from stream written to stdin." },
     { FixIts, "fixits", 0, required_argument, "Get fixits for file.\n" },
 
     { None, 0, 0, 0, "" },
@@ -459,6 +474,9 @@ bool RClient::parse(int &argc, char **argv)
             mClientFlags |= Client::AutostartRdm;
             if (optarg)
                 mRdmArgs = ByteArray(optarg, strlen(optarg)).split(' ');
+            break;
+        case CodeComplete:
+            mCommands.append(new CompletionCommand);
             break;
         case CodeCompleteAt: {
             const ByteArray arg = optarg;

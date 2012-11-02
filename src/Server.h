@@ -81,6 +81,7 @@ private:
     void clearProjects();
     void handleProjectMessage(ProjectMessage *message, Connection *conn);
     void handleCompletionMessage(CompletionMessage *message, Connection *conn);
+    void handleCompletionStream(CompletionMessage *message, Connection *conn);
     void handleQueryMessage(QueryMessage *message, Connection *conn);
     void handleErrorMessage(ErrorMessage *message, Connection *conn);
     void handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn);
@@ -114,6 +115,8 @@ private:
     void removeProject(const Path &key);
     void unloadProject(const Path &key);
     void reloadProjects();
+    void onCompletionStreamDisconnected(LocalClient *client);
+    void onCompletionStreamDataAvailable(LocalClient *client);
     bool addProject(const Path &path, const ProjectEntry &entry);
 
     struct ProjectEntry
@@ -154,6 +157,8 @@ private:
     Path mClangPath;
 
     Map<shared_ptr<Indexer>, int> mSaveTimers;
+
+    Map<LocalClient*, Connection*> mCompletionStreams;
 
     enum { DatabaseVersion = 3 };
     friend class CommandProcess;
