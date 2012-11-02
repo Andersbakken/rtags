@@ -92,6 +92,7 @@ public:
     static Path resolved(const ByteArray &path, const Path &cwd = Path(), bool *ok = 0);
     static Path canonicalized(const ByteArray &path);
     int readAll(char *&, int max = -1) const;
+    Path toTilde() const;
 
     enum VisitResult {
         Abort,
