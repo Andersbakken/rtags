@@ -172,6 +172,8 @@
     )
   )
 
+;; /home/abakken/dev (loaded) <=
+
 (defun rtags-set-current-project ()
   (interactive)
   (let ((projects nil)
@@ -182,14 +184,13 @@
       (goto-char (point-min))
       (while (not (eobp))
         (let ((line (buffer-substring (point-at-bol) (point-at-eol))))
-          (if (string-match "^\\([^ ]*\\).*<=$" line)
-              (let ((m nil))
-                (message (
-                (setq m (buffer-substring (point-at-bol) (+ (point-at-bol) (match-end 1))))
-                (setq projects (add-to-list 'projects m t))
-                (setq current m))
-            (setq projects (add-to-list 'projects (buffer-substring (point-at-bol) (point-at-eol)))))
-          (next-line)))))
+          (if (string-match "^\\([^ ]+\\)[^<]*<=$" line)
+              (let ((name (match-string 1 line)))
+                (setq projects (add-to-list 'projects name t))
+                (setq current name))
+            (if (string-match "^\\([^ ]+\\)[^<]*$" line)
+                (setq projects (add-to-list 'projects (match-string 1 line))))))
+        (next-line))
       )
     (setq project (ido-completing-read
                    (format "RTags select project (current is %s): " current)
