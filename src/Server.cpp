@@ -49,7 +49,8 @@ public:
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mServer(0), mVerbose(false), mJobId(0), mIndexerThreadPool(0), mQueryThreadPool(1)
+    : mServer(0), mVerbose(false), mJobId(0), mIndexerThreadPool(0), mQueryThreadPool(1),
+      mRestoreProjects(false)
 {
     assert(!sInstance);
     sInstance = this;
@@ -939,24 +940,31 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
         project->init(srcRoot);
         project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
         project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
-        Timer timer;
-        Path makeFilePath = proj;
-        RTags::encodePath(makeFilePath);
-        const Path p = ByteArray::snprintf<128>("%s%s", mOptions.dataDir.constData(), makeFilePath.constData());
-        if (FILE *f = fopen(p.constData(), "r")) {
-            Deserializer in(f);
-            int version;
-            in >> version;
-            if (version == DatabaseVersion) {
-                if (!project->restore(in)) {
-                    error("Can't restore project %s", proj.constData());
-                } else if (!project->indexer->restore(in)) {
-                    error("Can't restore project %s", proj.constData());
-                } else {
-                    error("Restored project %s in %dms", proj.constData(), timer.elapsed());
+        if (mRestoreProjects) {
+            Timer timer;
+            Path makeFilePath = proj;
+            RTags::encodePath(makeFilePath);
+            const Path p = ByteArray::snprintf<128>("%s%s", mOptions.dataDir.constData(), makeFilePath.constData());
+            if (FILE *f = fopen(p.constData(), "r")) {
+                Deserializer in(f);
+                int version;
+                in >> version;
+                if (version == DatabaseVersion) {
+                    int fs;
+                    in >> fs;
+                    if (fs != RTags::fileSize(f)) {
+                        error("%s seems to be corrupted, refusing to restore %s",
+                              p.constData(), proj.constData());
+                    } else if (!project->restore(in)) {
+                        error("Can't restore project %s", proj.constData());
+                    } else if (!project->indexer->restore(in)) {
+                        error("Can't restore project %s", proj.constData());
+                    } else {
+                        error("Restored project %s in %dms", proj.constData(), timer.elapsed());
+                    }
                 }
+                fclose(f);
             }
-            fclose(f);
         }
 
         project->indexer->beginMakefile();
@@ -1417,7 +1425,12 @@ void Server::save(const shared_ptr<Indexer> &indexer)
         }
         const Map<Path, uint32_t> pathsToIds = Location::pathsToIds();
         Serializer out(f);
-        out << static_cast<int>(DatabaseVersion) << pathsToIds;
+        out << static_cast<int>(DatabaseVersion);
+        const int pos = ftell(f);
+        out << static_cast<int>(0) << pathsToIds;
+        const int size = ftell(f);
+        fseek(f, pos, SEEK_SET);
+        out << size;
         fclose(f);
     }
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
@@ -1434,6 +1447,8 @@ void Server::save(const shared_ptr<Indexer> &indexer)
         }
         Serializer out(f);
         out << static_cast<int>(DatabaseVersion);
+        const int pos = ftell(f);
+        out << static_cast<int>(0);
         if (!it->second.project->save(out)) {
             error("Can't save project %s", it->first.constData());
             fclose(f);
@@ -1444,6 +1459,10 @@ void Server::save(const shared_ptr<Indexer> &indexer)
             fclose(f);
             return;
         }
+        const int size = ftell(f);
+        fseek(f, pos, SEEK_SET);
+        out << size;
+
         error() << "saved project" << it->first << "in" << ByteArray::snprintf<12>("%dms", timer.elapsed()).constData();
         fclose(f);
         break;
@@ -1486,16 +1505,22 @@ void Server::restore()
     {
         const Path p = mOptions.dataDir + "fileids";
         FILE *f = fopen(p.constData(), "r");
-        if (!f) {
+        if (!f)
             return;
-        }
         Map<Path, uint32_t> pathsToIds;
         Deserializer in(f);
         int version;
         in >> version;
         if (version == DatabaseVersion) {
-            in >> pathsToIds;
-            Location::init(pathsToIds);
+            int size;
+            in >> size;
+            if (size != RTags::fileSize(f)) {
+                error("Refusing to load corrupted file %s", p.constData());
+            } else {
+                in >> pathsToIds;
+                Location::init(pathsToIds);
+                mRestoreProjects = true;
+            }
             fclose(f);
         }
     }

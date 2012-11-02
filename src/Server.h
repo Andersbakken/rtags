@@ -161,7 +161,9 @@ private:
 
     Map<LocalClient*, Connection*> mCompletionStreams;
 
-    enum { DatabaseVersion = 3 };
+    bool mRestoreProjects;
+
+    enum { DatabaseVersion = 4 };
     friend class CommandProcess;
 };
 

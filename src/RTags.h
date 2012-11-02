@@ -160,6 +160,15 @@ inline int digits(int len)
 
 ByteArray shortOptions(const option *longOptions);
 int readLine(FILE *f, char *buf = 0, int max = -1);
+inline int fileSize(FILE *f)
+{
+    assert(f);
+    const int pos = ftell(f);
+    fseek(f, 0, SEEK_END);
+    const int ret = ftell(f);
+    fseek(f, pos, SEEK_SET);
+    return ret;
+}
 void removeDirectory(const Path &path);
 int canonicalizePath(char *path, int len);
 ByteArray unescape(ByteArray command);

@@ -51,6 +51,7 @@ public:
     {
         assert(file);
     }
+
     int read(char *target, int len)
     {
         if (len) {
