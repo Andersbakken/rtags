@@ -552,7 +552,12 @@ void Indexer::addToCache(const Path &path, const List<ByteArray> &args, CXIndex 
 void Indexer::addFixIts(const DependencyMap &visited, const FixItMap &fixIts) // lock always held
 {
     for (DependencyMap::const_iterator it = visited.begin(); it != visited.end(); ++it) {
-        mFixIts[it->first] = fixIts.value(it->first);
+        const FixItMap::const_iterator fit = fixIts.find(it->first);
+        if (fit == fixIts.end()) {
+            mFixIts.erase(it->first);
+        } else {
+            mFixIts[it->first] = fit->second;
+        }
     }
 }
 
