@@ -56,7 +56,7 @@ static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& 
         return false;
 
     line = atoi(caps[2].capture.constData());
-    column = atoi(caps[2].capture.constData());
+    column = atoi(caps[3].capture.constData());
 
     return true;
 }
