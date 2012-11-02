@@ -299,8 +299,12 @@ void Server::onNewMessage(Message *message, Connection *connection)
         handleCompletionMessage(static_cast<CompletionMessage*>(message), connection);
         break;
     case ResponseMessage::MessageId:
+        assert(0);
+        connection->finish();
+        break;
     default:
         error("Unknown message: %d", message->messageId());
+        connection->finish();
         break;
     }
 }
@@ -397,6 +401,7 @@ void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection 
 void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
 {
     conn->setSilent(message->flags() & QueryMessage::Silent);
+    updateProject(message->projects());
 
     switch (message->type()) {
     case QueryMessage::Invalid:
@@ -1235,9 +1240,56 @@ void Server::reloadProjects(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-bool Server::project(const QueryMessage &query, Connection *conn)
+bool Server::selectProject(const ByteArray &pattern, Connection *conn)
 {
-    bool ret = false;
+    Path selected;
+    bool error = false;
+    RegExp rx(pattern);
+    const Path path = pattern;
+    const bool isPath = path.exists();
+    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+        if (isPath ? it->second.project->match(path) : it->second.project->match(rx)) {
+            if (error) {
+                if (conn)
+                    conn->write(it->first);
+            } else if (!selected.isEmpty()) {
+                error = true;
+                if (conn) {
+                    conn->write<128>("Multiple matches for %s", path.constData());
+                    conn->write(selected);
+                    conn->write(it->first);
+                }
+                selected.clear();
+            } else {
+                selected = it->first;
+            }
+        }
+    }
+    if (!selected.isEmpty()) {
+        shared_ptr<Project> current = currentProject();
+        if (!current || selected != current->path()) {
+            setCurrentProject(selected);
+            if (conn)
+                conn->write<128>("Selected project: %s for %s", selected.constData(), path.constData());
+        }
+        return true;
+    } else if (!error && conn) {
+        conn->write<128>("No matches for %s", path.constData());
+    }
+    return false;
+}
+
+bool Server::updateProject(const List<ByteArray> &projects)
+{
+    for (int i=0; i<projects.size(); ++i) {
+        if (selectProject(projects.at(i), 0))
+            return true;
+    }
+    return false;
+}
+
+void Server::project(const QueryMessage &query, Connection *conn)
+{
     if (query.query().isEmpty()) {
         shared_ptr<Project> current = currentProject();
         for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
@@ -1271,7 +1323,6 @@ bool Server::project(const QueryMessage &query, Connection *conn)
             shared_ptr<Project> current = currentProject();
             if (!current || selected != current->path()) {
                 setCurrentProject(selected);
-                ret = true;
                 conn->write<128>("Selected project: %s for %s", selected.constData(), path.constData());
             }
         } else if (!error) {
@@ -1279,14 +1330,15 @@ bool Server::project(const QueryMessage &query, Connection *conn)
         }
     }
     conn->finish();
-    return ret;
 }
+
 void Server::clearProjects(const QueryMessage &query, Connection *conn)
 {
     clearProjects();
     conn->write("Cleared projects");
     conn->finish();
 }
+
 void Server::shutdown(const QueryMessage &query, Connection *conn)
 {
     EventLoop::instance()->exit();
@@ -1296,6 +1348,7 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
 
 void Server::handleCompletionMessage(CompletionMessage *message, Connection *conn)
 {
+    updateProject(message->projects());
     const Path path = message->path();
     updateProjectForLocation(path);
 

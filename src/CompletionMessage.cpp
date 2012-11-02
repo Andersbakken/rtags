@@ -13,7 +13,7 @@ ByteArray CompletionMessage::encode() const
     ByteArray data;
     {
         Serializer stream(data);
-        stream << mRaw << mPath << mLine << mColumn << mContents;
+        stream << mRaw << mPath << mLine << mColumn << mContents << mProjects;
     }
     return data;
 }
@@ -21,5 +21,5 @@ ByteArray CompletionMessage::encode() const
 void CompletionMessage::fromData(const char *data, int size)
 {
     Deserializer stream(data, size);
-    stream >> mRaw >> mPath >> mLine >> mColumn >> mContents;
+    stream >> mRaw >> mPath >> mLine >> mColumn >> mContents >> mProjects;
 }

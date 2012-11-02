@@ -23,10 +23,13 @@ public:
     ByteArray encode() const;
     void fromData(const char *data, int size);
 
+    void setProjects(const List<ByteArray> &projects) { mProjects = projects; }
+    List<ByteArray> projects() const { return mProjects; }
 private:
     Path mPath;
     int mLine, mColumn;
     ByteArray mContents;
+    List<ByteArray> mProjects;
 };
 
 #endif

@@ -32,6 +32,7 @@ public:
         msg.setFlags(extraQueryFlags | rc->queryFlags());
         msg.setMax(rc->max());
         msg.setPathFilters(rc->pathFilters().toList());
+        msg.setProjects(rc->projects());
         client->message(&msg);
     }
 
@@ -57,6 +58,7 @@ public:
         CompletionMessage msg(path, line, column);
         msg.init(rc->argc(), rc->argv());
         msg.setContents(rc->unsavedFiles().value(path));
+        msg.setProjects(rc->projects());
         client->message(&msg);
     }
 
@@ -246,7 +248,8 @@ enum {
     UnloadProject,
     UnsavedFile,
     Verbose,
-    WaitForIndexing
+    WaitForIndexing,
+    WithProject
 };
 
 struct Option {
@@ -325,6 +328,7 @@ struct Option opts[] = {
     { FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
     { FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial" },
     { AutoMakeProject, "auto-make-project", 'b', no_argument, "Use to make adding projects (with -m) automatically index them" },
+    { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -595,6 +599,9 @@ bool RClient::parse(int &argc, char **argv)
             }
             addQuery(type, encoded);
             break; }
+        case WithProject:
+            mProjects.append(optarg);
+            break;
         case ReloadProjects:
             addQuery(QueryMessage::ReloadProjects);
             break;
@@ -751,9 +758,6 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case FindSymbols:
             addQuery(QueryMessage::FindSymbols, optarg);
-            break;
-        default:
-            assert(0);
             break;
         }
     }

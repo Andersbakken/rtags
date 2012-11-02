@@ -81,12 +81,15 @@ public:
     ByteArray encode() const;
     void fromData(const char *data, int size);
 
+    void setProjects(const List<ByteArray> &projects) { mProjects = projects; }
+    List<ByteArray> projects() const { return mProjects; }
 private:
     ByteArray mQuery;
     Type mType;
     unsigned mFlags;
     int mMax;
     List<ByteArray> mPathFilters;
+    List<ByteArray> mProjects;
 };
 
 DECLARE_NATIVE_TYPE(QueryMessage::Type);

@@ -25,6 +25,8 @@ public:
 
     const List<ByteArray> &extraCompilerFlags() const { return mExtraCompilerFlags; }
     const List<ByteArray> &rdmArgs() const { return mRdmArgs; }
+    const List<ByteArray> &projects() const { return mProjects; }
+
 
     ByteArray socketFile() const { return mSocketFile; }
 
@@ -49,6 +51,7 @@ private:
     List<RCCommand*> mCommands;
     List<ByteArray> mRdmArgs;
     ByteArray mSocketFile;
+    List<ByteArray> mProjects;
 
     int mArgc;
     char **mArgv;

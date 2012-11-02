@@ -55,6 +55,8 @@ public:
     const Path &clangPath() const { return mClangPath; }
     const Options &options() const { return mOptions; }
 private:
+    bool selectProject(const ByteArray &pattern, Connection *conn);
+    bool updateProject(const List<ByteArray> &projects);
     void onJobsComplete(shared_ptr<Indexer> indexer, int count);
     void onJobStarted(shared_ptr<Indexer> indexer, Path path);
 
@@ -97,7 +99,7 @@ private:
     void dumpFile(const QueryMessage &query, Connection *conn);
     void removeProject(const QueryMessage &query, Connection *conn);
     void reloadProjects(const QueryMessage &query, Connection *conn);
-    bool project(const QueryMessage &query, Connection *conn);
+    void project(const QueryMessage &query, Connection *conn);
     void clearProjects(const QueryMessage &query, Connection *conn);
     void shutdown(const QueryMessage &query, Connection *conn);
     int nextId();

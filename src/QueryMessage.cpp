@@ -12,7 +12,8 @@ ByteArray QueryMessage::encode() const
     ByteArray data;
     {
         Serializer stream(data);
-        stream << mRaw << mQuery << mType << mFlags << mMax << mPathFilters;
+        stream << mRaw << mQuery << mType << mFlags << mMax
+               << mPathFilters << mProjects;
     }
     return data;
 }
@@ -20,7 +21,8 @@ ByteArray QueryMessage::encode() const
 void QueryMessage::fromData(const char *data, int size)
 {
     Deserializer stream(data, size);
-    stream >> mRaw >> mQuery >> mType >> mFlags >> mMax >> mPathFilters;
+    stream >> mRaw >> mQuery >> mType >> mFlags >> mMax
+           >> mPathFilters >> mProjects;
 }
 
 unsigned QueryMessage::keyFlags(unsigned queryFlags)

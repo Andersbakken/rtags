@@ -109,8 +109,8 @@
                 (progn
                   (if rtags-match-source-file-to-project
                       (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
-                        (if (and mapped (length mapped)) (push (concat "--project=" mapped) arguments))))
-                  (push (concat "--project=" path) arguments)))
+                        (if (and mapped (length mapped)) (push (concat "--with-project=" mapped) arguments))))
+                  (push (concat "--with-project=" path) arguments)))
 
             (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
             (if unsaved-pos
