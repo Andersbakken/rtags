@@ -188,9 +188,8 @@ Location IndexerJob::createLocation(const CXCursor &cursor)
     return Location();
 }
 
-Location IndexerJob::createLocation(const CXCursor &cursor, bool *blocked)
+Location IndexerJob::createLocation(const CXSourceLocation &location, bool *blocked)
 {
-    CXSourceLocation location = clang_getCursorLocation(cursor);
     Location ret;
     if (blocked)
         *blocked = false;
@@ -563,12 +562,13 @@ void IndexerJob::diagnose()
                                             CXDiagnostic_DisplayOption|
                                             CXDiagnostic_DisplayCategoryId|
                                             CXDiagnostic_DisplayCategoryName);
-
-        mDiagnostics.append(RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions)));
+        const uint32_t fileId = createLocation(clang_getDiagnosticLocation(diagnostic), 0).fileId();
+        const ByteArray text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
+        if (fileId)
+            mData->diagnostics[fileId].append(text);
         if (testLog(logLevel) || testLog(CompilationError)) {
-            const ByteArray &string = mDiagnostics.last();
-            log(logLevel, "%s: %s => %s", mPath.constData(), mClangLine.constData(), string.constData());
-            log(CompilationError, "%s", string.constData());
+            log(logLevel, "%s: %s => %s", mPath.constData(), mClangLine.constData(), text.constData());
+            log(CompilationError, "%s", text.constData());
         }
 
         const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
@@ -598,7 +598,7 @@ void IndexerJob::diagnose()
         clang_disposeDiagnostic(diagnostic);
     }
     if (testLog(CompilationError)) {
-        log(CompilationError, "%s parsed", mPath.constData());
+        log(CompilationError, "%s parsed %s", mPath.constData(), ByteArray::join(mArgs, ' ').constData());
     }
 }
 

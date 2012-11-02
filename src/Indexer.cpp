@@ -1,5 +1,4 @@
 #include "Indexer.h"
-
 #include "ValidateDBJob.h"
 #include "IndexerJob.h"
 #include "Log.h"
@@ -34,7 +33,6 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
         return;
     }
     mJobs.remove(fileId);
-    addDiagnostics(job->path(), job->arguments(), job->diagnostics());
     if (job->isAborted())
         return;
 
@@ -146,25 +144,14 @@ Set<uint32_t> Indexer::dependencies(uint32_t fileId) const
     return mDependencies.value(fileId);
 }
 
-ByteArray Indexer::errors() const
+ByteArray Indexer::diagnostics() const
 {
     MutexLocker lock(&mMutex);
-    ByteArray ret;
-    for (std::deque<ByteArray>::const_iterator it = mErrors.begin(); it != mErrors.end(); ++it) {
-        ret.append(*it);
-        ret.append('\n');
+    List<ByteArray> ret;
+    for (DiagnosticsMap::const_iterator it = mDiagnostics.begin(); it != mDiagnostics.end(); ++it) {
+        ret += it->second;
     }
-    return ret;
-}
-
-void Indexer::addDiagnostics(const Path &path, const List<ByteArray> &args, const List<ByteArray> &diagnostics)
-{
-    for (int i=0; i<diagnostics.size(); ++i)
-        mErrors.push_back(diagnostics.at(i));
-    mErrors.push_back(ByteArray::snprintf<512>("Parsed %s %s", path.constData(), ByteArray::join(args, ' ').constData()));
-    enum { MaxErrors = 1024 };
-    while (mErrors.size() > MaxErrors)
-        mErrors.pop_front();
+    return ByteArray::join(ret, '\n');
 }
 
 int Indexer::reindex(const ByteArray &pattern, bool regexp)
@@ -333,7 +320,7 @@ void Indexer::write()
     for (Map<uint32_t, shared_ptr<IndexData> >::iterator it = mPendingData.begin(); it != mPendingData.end(); ++it) {
         const shared_ptr<IndexData> &data = it->second;
         addDependencies(data->dependencies, newFiles);
-        addFixIts(data->dependencies, data->fixIts);
+        addDiagnostics(data->dependencies, data->diagnostics, data->fixIts);
         writeCursors(data->symbols, symbols.data());
         writeUsr(data->usrMap, usr.data(), symbols.data());
         writeReferences(data->references, symbols.data());
@@ -549,7 +536,7 @@ void Indexer::addToCache(const Path &path, const List<ByteArray> &args, CXIndex 
     addCachedUnit(path, args, index, unit);
 }
 
-void Indexer::addFixIts(const DependencyMap &visited, const FixItMap &fixIts) // lock always held
+void Indexer::addDiagnostics(const DependencyMap &visited, const DiagnosticsMap &diagnostics, const FixItMap &fixIts) // lock always held
 {
     for (DependencyMap::const_iterator it = visited.begin(); it != visited.end(); ++it) {
         const FixItMap::const_iterator fit = fixIts.find(it->first);
@@ -558,6 +545,13 @@ void Indexer::addFixIts(const DependencyMap &visited, const FixItMap &fixIts) //
         } else {
             mFixIts[it->first] = fit->second;
         }
+        const DiagnosticsMap::const_iterator dit = diagnostics.find(it->first);
+        if (dit == diagnostics.end()) {
+            mDiagnostics.erase(it->first);
+        } else {
+            mDiagnostics[it->first] = dit->second;
+        }
+
     }
 }
 

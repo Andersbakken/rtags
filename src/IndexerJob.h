@@ -17,6 +17,7 @@ struct IndexData {
     ByteArray message;
     UsrMap usrMap;
     FixItMap fixIts;
+    DiagnosticsMap diagnostics;
 };
 
 class IndexerJob : public Job
@@ -46,7 +47,6 @@ public:
     List<ByteArray> arguments() const { return mArgs; }
     shared_ptr<Indexer> indexer() { MutexLocker lock(&mMutex); return mIndexer.lock(); }
     time_t parseTime() const { return mParseTime; }
-    List<ByteArray> diagnostics() const { return mDiagnostics; }
 private:
     void parse();
     void visit();
@@ -54,7 +54,11 @@ private:
 
     virtual void execute();
 
-    Location createLocation(const CXCursor &cursor, bool *blocked);
+    Location createLocation(const CXSourceLocation &location, bool *blocked);
+    inline Location createLocation(const CXCursor &cursor, bool *blocked)
+    {
+        return createLocation(clang_getCursorLocation(cursor), blocked);
+    }
     static Location createLocation(const CXCursor &cursor);
     ByteArray addNamePermutations(const CXCursor &cursor, const Location &location);
     static CXChildVisitResult indexVisitor(CXCursor cursor, CXCursor parent, CXClientData client_data);
@@ -93,7 +97,6 @@ private:
     Map<ByteArray, uint32_t> mFileIds;
 
     ByteArray mClangLine;
-    List<ByteArray> mDiagnostics;
 
     Timer mTimer;
     shared_ptr<IndexData> mData;

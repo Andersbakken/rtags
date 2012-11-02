@@ -396,7 +396,7 @@ void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection 
     if (message->level() == CompilationError) {
         shared_ptr<Project> project = currentProject();
         if (project && project->indexer) {
-            const ByteArray errors = project->indexer->errors();
+            const ByteArray errors = project->indexer->diagnostics();
             if (!errors.isEmpty()) {
                 obj->log(errors.constData(), errors.size());
             }
