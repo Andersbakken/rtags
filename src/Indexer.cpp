@@ -46,10 +46,10 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
 
     mSources[fileId].parsed = job->parseTime();
 
-    error("[%3d%%] %d/%d %s %s. Pending jobs %d. %d mb mem.",
+    error("[%3d%%] %d/%d %s %s. %d mb mem.",
           static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
           RTags::timeToString(time(0), RTags::Time).constData(),
-          data->message.constData(), mJobs.size(), int((MemoryMonitor::usage() / (1024 * 1024))));
+          data->message.constData(), int((MemoryMonitor::usage() / (1024 * 1024))));
 
     checkFinished();
 }
