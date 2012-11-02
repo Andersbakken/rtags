@@ -85,10 +85,10 @@
 (defun rtags-call-rc (path &rest arguments)
   (apply #'rtags-call-rc-helper path nil t arguments))
 
-(defun rtags-call-rc-unsaved (path output &rest arguments)
-  (apply #'rtags-call-rc-helper path t output arguments))
+(defun rtags-call-rc-unsaved (path unsaved-pos output &rest arguments)
+  (apply #'rtags-call-rc-helper path unsaved-pos output arguments))
 
-(defun rtags-call-rc-helper (path unsaved output &rest arguments)
+(defun rtags-call-rc-helper (path unsaved-pos output &rest arguments)
   (save-excursion
     (let ((rc (rtags-executable-find "rc")))
       (setq arguments (remove-if '(lambda (arg) (not arg))
@@ -113,9 +113,9 @@
                   (push (concat "--project=" path) arguments)))
 
             (rtags-log (concat rc " " (combine-and-quote-strings arguments)))
-            (if (not unsaved)
-                (apply #'call-process rc nil (list output nil) nil arguments)
-              (apply #'call-process-region (point-min) (point-max) rc nil (list output t) nil arguments))
+            (if unsaved-pos
+                (apply #'call-process-region (point-min) unsaved-pos rc nil (list output t) nil arguments)
+              (apply #'call-process rc nil (list output nil) nil arguments))
             (goto-char (point-min))
             (rtags-log (buffer-string))
             (> (point-max) (point-min)))))))
@@ -748,36 +748,39 @@ return t if rtags is allowed to modify this file"
         (funcall rtags-expand-function)))
   )
 
-(defun rtags-expand()
+(defun rtags-completion-cache-is-valid ()
+  (and (= (line-number-at-pos) rtags-completions-cache-line)
+       (= (+ (rtags-find-symbol-start) 1) rtags-completions-cache-column)
+       (string= (buffer-file-name (current-buffer)) rtags-completions-cache-file-name)
+       (string= (buffer-substring (point-at-bol) (+ (point-at-bol) rtags-completions-cache-column))
+                rtags-completions-cache-line-contents)))
+
+(defun rtags-expand(&optional preparecache)
   (interactive)
   (cond
-   ((and (= (line-number-at-pos) rtags-completions-cache-line)
-         (= (+ (rtags-find-symbol-start) 1) rtags-completions-cache-column)
-         (string= (buffer-file-name (current-buffer)) rtags-completions-cache-file-name)
-         (string= (buffer-substring (point-at-bol) (+ (point-at-bol) rtags-completions-cache-column))
-                                    rtags-completions-cache-line-contents))
-    (progn
-      (cond (rtags-completions (rtags-expand-internal))
-            (t (funcall rtags-expand-function)))))
+   ((rtags-completion-cache-is-valid)
+    (cond (rtags-completions (rtags-expand-internal)) (t (funcall rtags-expand-function))))
    (t
-    (let ((buffer (current-buffer))
+    (let* ((buffer (current-buffer))
           (path (rtags-path-for-project))
           (buffer-size (- (point-max) (point-min)))
           (line (line-number-at-pos))
           (column (+ (rtags-find-symbol-start) 1))
+          (pos (+ (point-at-bol) column))
           (completions (get-buffer-create "*RTags Completions*")))
       (save-excursion
         (with-current-buffer completions
           (erase-buffer))
         (let ((complete-at (concat (buffer-file-name buffer) ":" (number-to-string line) ":" (number-to-string column)))
-              (unsaved-buffer (concat (buffer-file-name buffer) ":" (number-to-string buffer-size))))
-          (rtags-call-rc-unsaved path completions "-x" complete-at "--unsaved-file" unsaved-buffer)
+              (unsaved-buffer (concat (buffer-file-name buffer) ":" (number-to-string (- pos 1)))))
+          (rtags-call-rc-unsaved path pos completions "-x" complete-at "--unsaved-file" unsaved-buffer)
           (setq rtags-completions completions
                 rtags-completions-cache-file-name (buffer-file-name buffer)
                 rtags-completions-cache-line line
                 rtags-completions-cache-column column
                 rtags-completions-cache-line-contents (buffer-substring (point-at-bol) (+ (point-at-bol) column)))
-          (run-at-time "0 sec" nil 'rtags-expand-internal)))
+          (unless preparecache
+            (run-at-time "0 sec" nil 'rtags-expand-internal))))
       )
     )
    )
@@ -999,6 +1002,13 @@ return t if rtags is allowed to modify this file"
       )
     )
   )
+
+(defun rtags-post-command-update-completion-cache()
+  (if (and (or (eq major-mode 'c++-mode)
+               (eq major-mode 'c-mode))
+           (not (rtags-completion-cache-is-valid)))
+      (rtags-expand t)))
+;;(add-hook 'post-command-hook 'rtags-post-command-update-completion-cache)
 
 (defun rtags-goto-offset(offset)
   (interactive "NOffset: ")
