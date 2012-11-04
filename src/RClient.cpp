@@ -84,13 +84,11 @@ public:
     const int line;
     const int column;
     const bool stream;
-    Client* client;
-    RClient* rclient;
+    Client *client;
     ByteArray data;
 
     virtual void exec(RClient *rc, Client *cl)
     {
-        rclient = rc;
         client = cl;
         if (stream) {
             CompletionMessage msg(CompletionMessage::Stream);
@@ -122,7 +120,6 @@ public:
             return;
         }
 
-        RClient*& rc = that->rclient;
         ByteArray& data = that->data;
         data += ByteArray(buffer, r);
 
@@ -142,9 +139,10 @@ public:
             }
 
             CompletionMessage msg(CompletionMessage::None, p, l, c);
-            msg.init(rc->argc(), rc->argv());
+            ByteArray args = ByteArray::snprintf<64>("%s:%d:%d:%d", p.constData(), l, c, tu);
+            const char *argv[] = { "completionStream", args.constData() };
+            msg.init(2, argv);
             msg.setContents(data.left(tu));
-            msg.setProjects(rc->projects());
             that->client->message(&msg, Client::SendDontRunEventLoop);
 
             data = data.mid(tu);

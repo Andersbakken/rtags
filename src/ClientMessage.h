@@ -7,7 +7,7 @@
 class ClientMessage : public Message
 {
 public:
-    void init(int argc, char **argv)
+    inline void init(int argc, const char **argv)
     {
         mRaw.reserve(256);
         for (int i=0; i<argc; ++i) {
@@ -16,7 +16,12 @@ public:
             mRaw.append(argv[i]);
         }
     }
-    ByteArray raw() const
+    inline void init(int argc, char **argv)
+    {
+        init(argc, const_cast<const char**>(argv));
+    }
+
+    inline ByteArray raw() const
     {
         return mRaw;
     }

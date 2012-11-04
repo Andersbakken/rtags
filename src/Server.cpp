@@ -1018,10 +1018,11 @@ void Server::event(const Event *event)
             break;
         }
 
-        if (e->finish) {
-            if (!isCompletionStream(it->second))
-                it->second->finish();
-        }
+        printf("%d [%s]\n", isCompletionStream(it->second),
+               e->out.constData());
+
+        if (e->finish && !isCompletionStream(it->second))
+            it->second->finish();
         break; }
     case MakefileParserDoneEvent::Type: {
         delete static_cast<const MakefileParserDoneEvent*>(event)->parser;
@@ -1399,11 +1400,13 @@ bool Server::isCompletionStream(Connection* conn) const
 
 void Server::onCompletionStreamDisconnected(LocalClient *client)
 {
+    printf("[%s] %s:%d: void Server::onCompletionStreamDisconnected(LocalClient *client) [after]\n", __func__, __FILE__, __LINE__);
     mCompletionStreams.remove(client);
 }
 
 void Server::handleCompletionStream(CompletionMessage *message, Connection *conn)
 {
+    printf("[%s] %s:%d: void Server::handleCompletionStream(CompletionMessage *message, Connection *conn) [after]\n", __func__, __FILE__, __LINE__);
     LocalClient *client = conn->client();
     assert(client);
     client->disconnected().connect(this, &Server::onCompletionStreamDisconnected);

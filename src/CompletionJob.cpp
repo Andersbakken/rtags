@@ -71,6 +71,7 @@ void CompletionJob::execute()
 
     if (results) {
         qsort(results->Results, results->NumResults, sizeof(CXCompletionResult), compareCompletionResult);
+        bool sentHeader = false;
         for (unsigned i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
             if (kind == CXCursor_Destructor)
@@ -90,9 +91,12 @@ void CompletionJob::execute()
                 const CXCompletionChunkKind chunkKind = clang_getCompletionChunkKind(string, j);
                 if (chunkKind == CXCompletionChunk_TypedText) {
                     const ByteArray chunkText = RTags::eatString(clang_getCompletionChunkText(string, j));
-                    // error() << "    chunk " << (j + 1) << "of" << chunkCount << completionChunkKindToString(chunkKind)
-                    //         << ByteArray::snprintf<64>("[%s]", chunkText.constData()) << "priority" << priority;
-                    write(chunkText);
+                    if (!sentHeader) {
+                        write<64>("`%s", chunkText.constData());
+                        sentHeader = true;
+                    } else {
+                        write(chunkText);
+                    }
                     break;
                 }
             }
