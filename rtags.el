@@ -826,6 +826,18 @@ return t if rtags is allowed to modify this file"
             (goto-char (point-max))
             (let (deactivate-mark)
               (insert output))
+            (goto-char (point-min))
+            (if (looking-at "Scheduled rebuild")
+                (progn
+                  (let (deactivate-mark)
+                    (erase-buffer))
+                  (setq rtags-completions nil
+                        rtags-completions-cache-line 0
+                        rtags-completions-cache-column 0
+                        rtags-completions-cache-line-contents ""
+                        rtags-completions-cache-file-name "")
+                  (run-at-time "1 sec" nil 'rtags-prepare-completions))
+	      )
             )
           )
         )
