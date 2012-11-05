@@ -778,8 +778,7 @@ return t if rtags is allowed to modify this file"
                (buffer-size (- (point-max) (point-min)))
                (line (line-number-at-pos))
                (column (rtags-find-symbol-start))
-               (pos (+ (point-at-bol) column))
-               (header (format "%s:%d:%d:%d\n" (buffer-file-name buffer) line (+ column 1) pos)))
+               (header (format "%s:%d:%d:%d\n" (buffer-file-name buffer) line (+ column 1) (- (point-max) (point-min)))))
           (setq rtags-completions (get-buffer-create "*RTags Completions*")
                 rtags-completions-cache-file-name (buffer-file-name buffer)
                 rtags-completions-cache-line line
@@ -787,7 +786,7 @@ return t if rtags is allowed to modify this file"
                 rtags-completions-cache-line-contents (buffer-substring (point-at-bol) (+ (point-at-bol) column)))
           ;;(message "writing shit %s" header )
           (process-send-string rtags-completion-stream-process header)
-          (process-send-string rtags-completion-stream-process (buffer-substring (point-min) (+ pos 1))))
+          (process-send-string rtags-completion-stream-process (buffer-substring (point-min) (point-max))))
         )
     )
   )
