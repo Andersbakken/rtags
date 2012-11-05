@@ -837,7 +837,7 @@ return t if rtags is allowed to modify this file"
                         rtags-completions-cache-line-contents ""
                         rtags-completions-cache-file-name "")
                   (run-at-time "1 sec" nil 'rtags-prepare-completions))
-	      )
+              )
             )
           )
         )
