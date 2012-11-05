@@ -846,6 +846,7 @@ return t if rtags is allowed to modify this file"
                                                "*RTags Completions*"
                                                (rtags-executable-find "rc")
                                                "--code-complete"))
+        (buffer-disable-undo "*RTags Completions*")
         (set-process-filter rtags-completion-stream-process (function rtags-completion-stream-process-filter))
         t)
     t)
