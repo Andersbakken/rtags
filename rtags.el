@@ -822,7 +822,14 @@ return t if rtags is allowed to modify this file"
             (setq output (substring output (+ backtick 1))))
           (save-excursion
             (goto-char (point-max))
-            (insert output)))))))
+            (let (deactivate-mark)
+              (insert output))
+            )
+          )
+        )
+      )
+    )
+  )
 
 (defvar rtags-completion-stream-process nil)
 (defun rtags-init-completion-stream ()
