@@ -284,8 +284,8 @@ void Server::onNewMessage(Message *message, Connection *connection)
 {
     ClientMessage *m = static_cast<ClientMessage*>(message);
     const ByteArray raw = m->raw();
-    if (!raw.isEmpty())
-        error() << raw;
+    //if (!raw.isEmpty())
+    //    error() << raw;
     switch (message->messageId()) {
     case ProjectMessage::MessageId:
         handleProjectMessage(static_cast<ProjectMessage*>(message), connection);
@@ -1018,9 +1018,6 @@ void Server::event(const Event *event)
             break;
         }
 
-        printf("%d [%s]\n", isCompletionStream(it->second),
-               e->out.constData());
-
         if (e->finish && !isCompletionStream(it->second))
             it->second->finish();
         break; }
@@ -1400,13 +1397,11 @@ bool Server::isCompletionStream(Connection* conn) const
 
 void Server::onCompletionStreamDisconnected(LocalClient *client)
 {
-    printf("[%s] %s:%d: void Server::onCompletionStreamDisconnected(LocalClient *client) [after]\n", __func__, __FILE__, __LINE__);
     mCompletionStreams.remove(client);
 }
 
 void Server::handleCompletionStream(CompletionMessage *message, Connection *conn)
 {
-    printf("[%s] %s:%d: void Server::handleCompletionStream(CompletionMessage *message, Connection *conn) [after]\n", __func__, __FILE__, __LINE__);
     LocalClient *client = conn->client();
     assert(client);
     client->disconnected().connect(this, &Server::onCompletionStreamDisconnected);
