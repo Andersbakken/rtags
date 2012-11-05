@@ -768,7 +768,8 @@ return t if rtags is allowed to modify this file"
   ;;(message "prepare completions")
   (if (buffer-live-p rtags-completions)
       (with-current-buffer rtags-completions
-        (erase-buffer)))
+        (let (deactivate-mark)
+          (erase-buffer))))
   (if (rtags-init-completion-stream)
       (save-excursion
         ;;(message "prepared completions")
@@ -818,7 +819,8 @@ return t if rtags is allowed to modify this file"
       (with-current-buffer buf
         (let ((backtick (string-match "`" output)))
           (when backtick
-            (erase-buffer)
+            (let (deactivate-mark)
+              (erase-buffer))
             (setq output (substring output (+ backtick 1))))
           (save-excursion
             (goto-char (point-max))
