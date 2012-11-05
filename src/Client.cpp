@@ -53,6 +53,7 @@ void Client::onNewMessage(Message *message, Connection *)
         const ByteArray response = static_cast<ResponseMessage*>(message)->data();
         if (!response.isEmpty()) {
             printf("%s\n", response.constData());
+            fflush(stdout);
         }
     } else {
         error("Unexpected message: %d", message->messageId());

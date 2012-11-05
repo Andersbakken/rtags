@@ -765,13 +765,13 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-prepare-completions()
   (interactive)
-  (message "prepare completions")
+  ;;(message "prepare completions")
   (if (buffer-live-p rtags-completions)
       (with-current-buffer rtags-completions
         (erase-buffer)))
   (if (rtags-init-completion-stream)
       (save-excursion
-        (message "prepared completions")
+        ;;(message "prepared completions")
         (let* ((buffer (current-buffer))
                (path (rtags-path-for-project))
                (buffer-size (- (point-max) (point-min)))
@@ -784,7 +784,7 @@ return t if rtags is allowed to modify this file"
                 rtags-completions-cache-line line
                 rtags-completions-cache-column column
                 rtags-completions-cache-line-contents (buffer-substring (point-at-bol) (+ (point-at-bol) column)))
-          (message "writing shit %s" header )
+          ;;(message "writing shit %s" header )
           (process-send-string rtags-completion-stream-process header)
           (process-send-string rtags-completion-stream-process (buffer-substring (point-min) pos)))
         )
@@ -812,7 +812,7 @@ return t if rtags is allowed to modify this file"
   )
 
 (defun rtags-completion-stream-process-filter (process output)
-  (let ((buf (process-buffer proc)))
+  (let ((buf (process-buffer process)))
     (if (not (buffer-live-p buf))
         (kill-process process)
       (with-current-buffer buf
@@ -821,8 +821,8 @@ return t if rtags is allowed to modify this file"
             (erase-buffer)
             (setq output (substring output (+ backtick 1))))
           (save-excursion
-           (goto-char (point-max))
-           (insert output)))))))
+            (goto-char (point-max))
+            (insert output)))))))
 
 (defvar rtags-completion-stream-process nil)
 (defun rtags-init-completion-stream ()
@@ -837,7 +837,7 @@ return t if rtags is allowed to modify this file"
                                                "*RTags Completions*"
                                                (rtags-executable-find "rc")
                                                "--code-complete"))
-        ;; (set-process-filter rtags-completion-stream-process (function rtags-completion-stream-process-filter))
+        (set-process-filter rtags-completion-stream-process (function rtags-completion-stream-process-filter))
         t)
     t)
   )
@@ -846,8 +846,8 @@ return t if rtags is allowed to modify this file"
   (if (and (or (eq major-mode 'c++-mode)
                (eq major-mode 'c-mode))
            (not (rtags-completion-cache-is-valid)))
-      (rtags-expand t)))
-;;(add-hook 'post-command-hook 'rtags-post-command-update-completion-cache
+      (rtags-prepare-completions)))
+(add-hook 'post-command-hook 'rtags-post-command-update-completion-cache)
 
 (defun rtags-init-diagnostics-buffer-and-process ()
   (let ((buf (get-buffer-create "*RTags Diagnostics*")))
