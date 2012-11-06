@@ -198,11 +198,17 @@ void Project::unload()
     }
 }
 
-bool Project::match(const Path &p) const
+bool Project::match(const Match &p) const
 {
-    Path paths[] = { p, p };
+    if (!mSrcRoot.isEmpty() && p.match(mSrcRoot))
+        return true;
+    if (!mResolvedSrcRoot.isEmpty() && p.match(mResolvedSrcRoot))
+        return true;
+    if (!mPath.isEmpty() && p.match(mPath))
+        return true;
+    Path paths[] = { p.pattern(), p.pattern() };
     paths[1].resolve();
-    const int count = paths[1] != p ? 2 : 1;
+    const int count = paths[1] != paths[0] ? 2 : 1;
     for (int i=0; i<count; ++i) {
         const Path &path = paths[i];
         // error() << "comparing" << path << mSrcRoot << mResolvedSrcRoot << mPath;
@@ -221,16 +227,5 @@ bool Project::match(const Path &p) const
         }
 
     }
-    return false;
-}
-
-bool Project::match(const RegExp &rx) const
-{
-    if (!mSrcRoot.isEmpty() && rx.indexIn(mSrcRoot) != -1)
-        return true;
-    if (!mResolvedSrcRoot.isEmpty() && rx.indexIn(mResolvedSrcRoot) != -1)
-        return true;
-    if (!mPath.isEmpty() && rx.indexIn(mPath) != -1)
-        return true;
     return false;
 }

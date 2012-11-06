@@ -55,6 +55,7 @@ MACRO (ADD_PCH_RULE _header_filename _src_list _cflag_list)
             Location.h
             Log.h
             Map.h
+            Match.h
             Memory.h
             Mutex.h
             Path.h

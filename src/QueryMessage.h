@@ -5,6 +5,7 @@
 #include "Path.h"
 #include "Serializer.h"
 #include "Map.h"
+#include "Match.h"
 #include "Location.h"
 
 class QueryMessage : public ClientMessage
@@ -68,6 +69,8 @@ public:
     ByteArray query() const { return mQuery; }
     Location location() const { return Location::decodeClientLocation(mQuery); }
     void setQuery(const ByteArray &query) { mQuery = query; }
+
+    Match match() const;
 
     int max() const { return mMax; }
     void setMax(int max) { mMax = max; }

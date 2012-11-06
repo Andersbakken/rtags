@@ -97,6 +97,7 @@ set(rtags_HDRS
     FileSystemWatcher.h
     GccArguments.h
     LocalServer.h
+    Match.h
     MemoryMonitor.h
     MakefileParser.h
     CursorInfo.h

@@ -20,6 +20,7 @@
 #include "Log.h"
 #include "LogObject.h"
 #include "MakefileParser.h"
+#include "Match.h"
 #include "Message.h"
 #include "Messages.h"
 #include "Path.h"
@@ -757,7 +758,7 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    const int count = project->indexer->reindex(query.query(), query.flags() & QueryMessage::MatchRegexp);
+    const int count = project->indexer->reindex(query.match());
     // error() << count << query.query();
     if (count) {
         conn->write<128>("Dirtied %d files", count);
@@ -767,12 +768,11 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::remake(const ByteArray &pattern, Connection *conn)
+void Server::remake(const Match &match, Connection *conn)
 {
     // error() << "remake " << pattern;
-    RegExp rx(pattern);
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if ((it->second.type & RTags::Type_Makefile) && (rx.isEmpty() || rx.indexIn(it->first) != -1)) {
+        if ((it->second.type & RTags::Type_Makefile) && (match.isEmpty() || match.match(it->first))) {
             make(it->first, it->second.args, it->second.flags, conn);
         }
     }
@@ -1221,10 +1221,10 @@ bool Server::initSmartProject(const ProjectEntry &entry)
 }
 void Server::removeProject(const QueryMessage &query, Connection *conn)
 {
-    RegExp rx(query.query());
+    const Match match = query.match();
     Set<Path> remove;
     for (ProjectsMap::iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (rx.indexIn(it->first) != -1)
+        if (it->second.project->match(match))
             remove.insert(it->first);
     }
     const bool unload = query.type() == QueryMessage::UnloadProject;
@@ -1252,22 +1252,19 @@ void Server::reloadProjects(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-bool Server::selectProject(const ByteArray &pattern, Connection *conn)
+bool Server::selectProject(const Match &match, Connection *conn)
 {
     Path selected;
     bool error = false;
-    RegExp rx(pattern);
-    const Path path = pattern;
-    const bool isPath = path.exists();
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (isPath ? it->second.project->match(path) : it->second.project->match(rx)) {
+        if (it->second.project->match(match)) {
             if (error) {
                 if (conn)
                     conn->write(it->first);
             } else if (!selected.isEmpty()) {
                 error = true;
                 if (conn) {
-                    conn->write<128>("Multiple matches for %s", path.constData());
+                    conn->write<128>("Multiple matches for %s", match.pattern().constData());
                     conn->write(selected);
                     conn->write(it->first);
                 }
@@ -1282,11 +1279,11 @@ bool Server::selectProject(const ByteArray &pattern, Connection *conn)
         if (!current || selected != current->path()) {
             setCurrentProject(selected);
             if (conn)
-                conn->write<128>("Selected project: %s for %s", selected.constData(), path.constData());
+                conn->write<128>("Selected project: %s for %s", selected.constData(), match.pattern().constData());
         }
         return true;
     } else if (!error && conn) {
-        conn->write<128>("No matches for %s", path.constData());
+        conn->write<128>("No matches for %s", match.pattern().constData());
     }
     return false;
 }
@@ -1313,16 +1310,14 @@ void Server::project(const QueryMessage &query, Connection *conn)
     } else {
         Path selected;
         bool error = false;
-        RegExp rx(query.query());
-        const Path path = query.query();
-        const bool isPath = path.exists();
+        const Match match = query.match();
         for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-            if (isPath ? it->second.project->match(path) : it->second.project->match(rx)) {
+            if (it->second.project->match(match)) {
                 if (error) {
                     conn->write(it->first);
                 } else if (!selected.isEmpty()) {
                     error = true;
-                    conn->write<128>("Multiple matches for %s", path.constData());
+                    conn->write<128>("Multiple matches for %s", match.pattern().constData());
                     conn->write(selected);
                     conn->write(it->first);
                     selected.clear();
@@ -1335,10 +1330,10 @@ void Server::project(const QueryMessage &query, Connection *conn)
             shared_ptr<Project> current = currentProject();
             if (!current || selected != current->path()) {
                 setCurrentProject(selected);
-                conn->write<128>("Selected project: %s for %s", selected.constData(), path.constData());
+                conn->write<128>("Selected project: %s for %s", selected.constData(), match.pattern().constData());
             }
         } else if (!error) {
-            conn->write<128>("No matches for %s", path.constData());
+            conn->write<128>("No matches for %s", match.pattern().constData());
         }
     }
     conn->finish();
@@ -1383,7 +1378,7 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
 
 void Server::startCompletion(const Path &path, int line, int column, const ByteArray &contents, Connection *conn)
 {
-    error() << "starting completion" << path << line << column;
+    // error() << "starting completion" << path << line << column;
     updateProjectForLocation(path);
 
     shared_ptr<Project> project = currentProject();
@@ -1396,7 +1391,7 @@ void Server::startCompletion(const Path &path, int line, int column, const ByteA
     CXTranslationUnit unit;
     List<ByteArray> args;
     if (!project->indexer->fetchFromCache(path, args, index, unit)) {
-        project->indexer->reindex(path, false);
+        project->indexer->reindex(Match(path));
         conn->write<128>("Scheduled rebuild of %s", path.constData());
         if (!isCompletionStream(conn))
             conn->finish();
@@ -1414,14 +1409,12 @@ void Server::startCompletion(const Path &path, int line, int column, const ByteA
 
 void Server::onCompletionJobFinished(Path path)
 {
-    error() << "Got finished for" << path;
+    // error() << "Got finished for" << path;
     PendingCompletion completion = mPendingCompletions.take(path);
     if (completion.line != -1) {
-        printf("[%s] %s:%d: if (completion.line != -1) { [after]\n", __func__, __FILE__, __LINE__);
         startCompletion(path, completion.line, completion.column, completion.contents, completion.connection);
         // ### could the connection be deleted by now?
     } else {
-        printf("[%s] %s:%d: } else { [after]\n", __func__, __FILE__, __LINE__);
         mActiveCompletions.remove(path);
     }
 }

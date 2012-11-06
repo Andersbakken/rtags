@@ -8,6 +8,7 @@
 #include "ReadWriteLock.h"
 #include "ThreadPool.h"
 #include "Timer.h"
+#include "Match.h"
 #include "Project.h"
 #include <clang-c/Index.h>
 
@@ -49,7 +50,7 @@ public:
     bool visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &job);
     ByteArray fixIts(uint32_t fileId) const;
     ByteArray diagnostics() const;
-    int reindex(const ByteArray &pattern, bool regexp);
+    int reindex(const Match &match);
     signalslot::Signal2<shared_ptr<Indexer>, int> &jobsComplete() { return mJobsComplete; }
     signalslot::Signal2<shared_ptr<Indexer>, Path> &jobStarted() { return mJobStarted; }
     shared_ptr<Project> project() const { return mProject.lock(); }

@@ -34,3 +34,14 @@ unsigned QueryMessage::keyFlags(unsigned queryFlags)
         ret |= Location::ShowLineNumbers;
     return ret;
 }
+
+Match QueryMessage::match() const
+{
+    unsigned flags = Match::Flag_StringMatch;
+    if (mFlags & MatchRegexp)
+        flags |= Match::Flag_RegExp;
+    if (mFlags & MatchRegexp)
+        flags |= Match::Flag_RegExp;
+
+    return Match(mQuery, flags);
+}

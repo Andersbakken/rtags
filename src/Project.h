@@ -4,6 +4,7 @@
 #include "CursorInfo.h"
 #include "Path.h"
 #include "RTags.h"
+#include "Match.h"
 #include "RegExp.h"
 #include "ReadWriteLock.h"
 
@@ -57,8 +58,7 @@ public:
     Path resolvedSrcRoot() const { return mResolvedSrcRoot; }
     Path path() const { return mPath; }
 
-    bool match(const Path &path) const;
-    bool match(const RegExp &rx) const;
+    bool match(const Match &match) const;
 
     Scope<const SymbolMap&> lockSymbolsForRead(int maxTime = 0);
     Scope<SymbolMap&> lockSymbolsForWrite();
