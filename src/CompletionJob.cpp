@@ -105,4 +105,5 @@ void CompletionJob::execute()
         clang_disposeCodeCompleteResults(results);
         project()->indexer->addToCache(mPath, mArgs, mIndex, mUnit);
     }
+    mFinished(mPath);
 }

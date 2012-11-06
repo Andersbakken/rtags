@@ -119,6 +119,8 @@ private:
     void reloadProjects();
     void onCompletionStreamDisconnected(LocalClient *client);
     bool addProject(const Path &path, const ProjectEntry &entry);
+    void onCompletionJobFinished(Path path);
+    void startCompletion(const Path &path, int line, int column, const ByteArray &contents, Connection *conn);
 
     struct ProjectEntry
     {
@@ -160,6 +162,17 @@ private:
     Map<shared_ptr<Indexer>, int> mSaveTimers;
 
     Map<LocalClient*, Connection*> mCompletionStreams;
+    struct PendingCompletion
+    {
+        PendingCompletion()
+            : line(-1), column(-1), connection(0)
+        {}
+        int line, column;
+        ByteArray contents;
+        Connection *connection;
+    };
+    Map<Path, PendingCompletion> mPendingCompletions;
+    Set<Path> mActiveCompletions;
 
     bool mRestoreProjects;
 

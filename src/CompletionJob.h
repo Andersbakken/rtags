@@ -17,6 +17,7 @@ public:
               int line, int column, const ByteArray &unsaved);
 
     virtual void execute();
+    signalslot::Signal1<Path> &finished() { return mFinished; }
 private:
     CXIndex mIndex;
     CXTranslationUnit mUnit;
@@ -24,6 +25,7 @@ private:
     List<ByteArray> mArgs;
     int mLine, mColumn;
     ByteArray mUnsaved;
+    signalslot::Signal1<Path> mFinished;
 };
 
 #endif

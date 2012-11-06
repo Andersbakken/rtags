@@ -1370,7 +1370,28 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
             conn->finish();
         return;
     }
+    if (mActiveCompletions.contains(path)) {
+        PendingCompletion &pending = mPendingCompletions[path];
+        pending.line = message->line();
+        pending.column = message->column();
+        pending.contents = message->contents();
+        pending.connection = conn;
+    } else {
+        startCompletion(path, message->line(), message->column(), message->contents(), conn);
+    }
+}
 
+void Server::startCompletion(const Path &path, int line, int column, const ByteArray &contents, Connection *conn)
+{
+    error() << "starting completion" << path << line << column;
+    updateProjectForLocation(path);
+
+    shared_ptr<Project> project = currentProject();
+    if (!project || !project->indexer) {
+        if (!isCompletionStream(conn))
+            conn->finish();
+        return;
+    }
     CXIndex index;
     CXTranslationUnit unit;
     List<ByteArray> args;
@@ -1382,11 +1403,27 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
         return;
     }
 
+    mActiveCompletions.insert(path);
     shared_ptr<CompletionJob> job(new CompletionJob(project));
-    job->init(index, unit, path, args, message->line(), message->column(), message->contents());
+    job->init(index, unit, path, args, line, column, contents);
     job->setId(nextId());
+    job->finished().connectAsync(this, &Server::onCompletionJobFinished);
     mPendingLookups[job->id()] = conn;
     startQueryJob(job);
+}
+
+void Server::onCompletionJobFinished(Path path)
+{
+    error() << "Got finished for" << path;
+    PendingCompletion completion = mPendingCompletions.take(path);
+    if (completion.line != -1) {
+        printf("[%s] %s:%d: if (completion.line != -1) { [after]\n", __func__, __FILE__, __LINE__);
+        startCompletion(path, completion.line, completion.column, completion.contents, completion.connection);
+        // ### could the connection be deleted by now?
+    } else {
+        printf("[%s] %s:%d: } else { [after]\n", __func__, __FILE__, __LINE__);
+        mActiveCompletions.remove(path);
+    }
 }
 
 bool Server::isCompletionStream(Connection* conn) const
