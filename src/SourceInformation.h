@@ -29,6 +29,11 @@ public:
         // We're intentionally not comparing parsed here
         return (sourceFile != other.sourceFile || args != other.args || compiler != other.compiler);
     }
+
+    bool isNull() const
+    {
+        return args.isEmpty();
+    }
 };
 
 template <> inline Serializer &operator<<(Serializer &s, const SourceInformation &t)

@@ -29,9 +29,9 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
     MutexLocker lock(&mMutex);
     const uint32_t fileId = job->fileId();
     mVisitedFilesByJob.remove(job);
-    if (mJobs.value(fileId) != job) {
+    if (mJobs.value(fileId) != job)
         return;
-    }
+
     mJobs.remove(fileId);
     if (job->isAborted())
         return;
@@ -454,7 +454,6 @@ void Indexer::addCachedUnit(const Path &path, const List<ByteArray> &args, CXInd
     cachedUnit->index = index;
     cachedUnit->unit = unit;
     cachedUnit->arguments = args;
-    enum { MaxCacheSize = 10 };
     if (!mFirstCachedUnit) {
         assert(!mLastCachedUnit);
         assert(!mUnitCacheSize);
@@ -463,18 +462,25 @@ void Indexer::addCachedUnit(const Path &path, const List<ByteArray> &args, CXInd
         return;
     }
 
-    assert(MaxCacheSize > 1);
-    if (mUnitCacheSize == MaxCacheSize) {
+    const int maxCacheSize = Server::instance()->options().completionCacheSize;
+    assert(maxCacheSize >= 1);
+    if (mUnitCacheSize == maxCacheSize) {
         CachedUnit *tmp = mFirstCachedUnit;
         mFirstCachedUnit = tmp->next;
+        if (!mFirstCachedUnit)
+            mLastCachedUnit = 0;
         delete tmp;
     } else {
         ++mUnitCacheSize;
     }
-    assert(mLastCachedUnit);
-    assert(!mLastCachedUnit->next);
-    mLastCachedUnit->next = cachedUnit;
-    mLastCachedUnit = cachedUnit;
+    if (!mLastCachedUnit) {
+        mLastCachedUnit = mFirstCachedUnit = cachedUnit;
+    } else {
+        assert(mLastCachedUnit);
+        assert(!mLastCachedUnit->next);
+        mLastCachedUnit->next = cachedUnit;
+        mLastCachedUnit = cachedUnit;
+    }
 }
 
 bool Indexer::initJobFromCache(const Path &path, const List<ByteArray> &args,

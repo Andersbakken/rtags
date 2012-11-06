@@ -40,29 +40,30 @@ void usage(FILE *f)
 {
     fprintf(f,
             "rdm [...options...]\n"
-            "  --help|-h                       Display this page\n"
-            "  --include-path|-I [arg]         Add additional include path to clang\n"
-            "  --include|-i [arg]              Add additional include directive to clang\n"
-            "  --define|-D [arg]               Add additional define directive to clang\n"
-            "  --log-file|-L [arg]             Log to this file\n"
-            "  --append|-A                     Append to log file\n"
-            "  --verbose|-v                    Change verbosity, multiple -v's are allowed\n"
-            "  --clean-slate|-C                Start from a clean slate\n"
-            "  --enable-sighandler|-s          Enable signal handler to dump stack for crashes.\n"
-            "                                  Note that this might not play well with clang's signal handler\n"
-            "  --no-clang-includepath|-P       Don't use clang include paths by default\n"
-            "  --no-Wall|-W                    Don't use -Wall\n"
-            "  --silent|-S                     No logging to stdout\n"
-            "  --no-validate|-V                Disable validation of database on startup and after indexing\n"
-            "  --exclude-filter|-x [arg]       Files to exclude from grtags, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
-            "  --no-rc|-N                      Don't load any rc files\n"
-            "  --ignore-printf-fixits|-F       Disregard any clang fixit that looks like it's trying to fix format for printf and friends\n"
-            "  --rc-file|-c [arg]              Use this file instead of ~/.rdmrc\n"
-            "  --projects-file|-p [arg]        Use this file as a projects file (default ~/.rtagsprojects)\n"
-            "  --data-dir|-d [arg]             Use this directory to contains .rtags directory (default ~/)\n"
-            "  --socket-file|-n [arg]          Use this file for the server socket (default ~/.rdm)\n"
-            "  --setenv|-e [arg]               Set this environment variable (--setenv \"foobar=1\")\n"
-            "  --thread-count|-j [arg]         Spawn this many threads for thread pool\n");
+            "  --help|-h                         Display this page\n"
+            "  --include-path|-I [arg]           Add additional include path to clang\n"
+            "  --include|-i [arg]                Add additional include directive to clang\n"
+            "  --define|-D [arg]                 Add additional define directive to clang\n"
+            "  --log-file|-L [arg]               Log to this file\n"
+            "  --append|-A                       Append to log file\n"
+            "  --verbose|-v                      Change verbosity, multiple -v's are allowed\n"
+            "  --clean-slate|-C                  Start from a clean slate\n"
+            "  --enable-sighandler|-s            Enable signal handler to dump stack for crashes.\n"
+            "                                    Note that this might not play well with clang's signal handler\n"
+            "  --no-clang-includepath|-P         Don't use clang include paths by default\n"
+            "  --no-Wall|-W                      Don't use -Wall\n"
+            "  --silent|-S                       No logging to stdout\n"
+            "  --no-validate|-V                  Disable validation of database on startup and after indexing\n"
+            "  --exclude-filter|-x [arg]         Files to exclude from grtags, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
+            "  --no-rc|-N                        Don't load any rc files\n"
+            "  --ignore-printf-fixits|-F         Disregard any clang fixit that looks like it's trying to fix format for printf and friends\n"
+            "  --rc-file|-c [arg]                Use this file instead of ~/.rdmrc\n"
+            "  --projects-file|-p [arg]          Use this file as a projects file (default ~/.rtagsprojects)\n"
+            "  --data-dir|-d [arg]               Use this directory to contains .rtags directory (default ~/)\n"
+            "  --socket-file|-n [arg]            Use this file for the server socket (default ~/.rdm)\n"
+            "  --setenv|-e [arg]                 Set this environment variable (--setenv \"foobar=1\")\n"
+            "  --completion-cache-size|-a [arg]  Cache this many translation units (default 10, min 1)\n"
+            "  --thread-count|-j [arg]           Spawn this many threads for thread pool\n");
 }
 
 int main(int argc, char** argv)
@@ -92,6 +93,7 @@ int main(int argc, char** argv)
         { "no-rc", no_argument, 0, 'N' },
         { "data-dir", required_argument, 0, 'd' },
         { "ignore-printf-fixits", no_argument, 0, 'F' },
+        { "completion-cache-size", required_argument, 0, 'a' },
         { 0, 0, 0, 0 }
     };
     const ByteArray shortOptions = RTags::shortOptions(opts);
@@ -149,6 +151,7 @@ int main(int argc, char** argv)
     }
 
     int jobs = ThreadPool::idealThreadCount();
+    int completionCacheSize = 10;
     unsigned options = 0;
     List<ByteArray> defaultArguments;
     const char *excludeFilter = 0;
@@ -207,6 +210,13 @@ int main(int argc, char** argv)
         case 'C':
             options |= Server::ClearProjects;
             break;
+        case 'a':
+            completionCacheSize = atoi(optarg);
+            if (completionCacheSize < 1) {
+                fprintf(stderr, "Invalid argument to -a %s\n", optarg);
+                return 1;
+            }
+            break;
         case 'j':
             jobs = atoi(optarg);
             if (jobs <= 0) {
@@ -263,6 +273,7 @@ int main(int argc, char** argv)
     serverOpts.socketFile = socketFile;
     serverOpts.options = options;
     serverOpts.dataDir = dataDir;
+    serverOpts.completionCacheSize = completionCacheSize;
     if (!serverOpts.dataDir.endsWith('/'))
         serverOpts.dataDir.append('/');
     serverOpts.defaultArguments = defaultArguments;

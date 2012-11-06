@@ -44,10 +44,11 @@ public:
     void startQueryJob(const shared_ptr<Job> &job);
     void startIndexerJob(const shared_ptr<IndexerJob> &job, int priority);
     struct Options {
-        Options() : options(0), threadCount(0) {}
+        Options() : options(0), threadCount(0), completionCacheSize(0) {}
         Path projectsFile, socketFile, dataDir;
         unsigned options;
         int threadCount;
+        int completionCacheSize;
         List<ByteArray> defaultArguments, excludeFilter;
     };
     bool init(const Options &options);

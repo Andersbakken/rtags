@@ -1387,12 +1387,19 @@ void Server::startCompletion(const Path &path, int line, int column, const ByteA
             conn->finish();
         return;
     }
+    const uint32_t fileId = Location::fileId(path);
+    if (!fileId)
+        return;
+
     CXIndex index;
     CXTranslationUnit unit;
     List<ByteArray> args;
     if (!project->indexer->fetchFromCache(path, args, index, unit)) {
-        project->indexer->reindex(Match(path));
-        conn->write<128>("Scheduled rebuild of %s", path.constData());
+        const SourceInformation info = project->indexer->sourceInfo(fileId);
+        if (!info.isNull()) {
+            project->indexer->reindex(path);
+            conn->write<128>("Scheduled rebuild of %s", path.constData());
+        }
         if (!isCompletionStream(conn))
             conn->finish();
         return;
