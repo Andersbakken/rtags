@@ -419,7 +419,7 @@ static inline bool isInline(const CXCursor &cursor)
 bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
     CursorInfo &info = mData->symbols[location];
-    if (!info.symbolLength) {
+    if (!info.symbolLength || !RTags::isCursor(info.kind)) {
         CXStringScope name = clang_getCursorSpelling(cursor);
         const char *cstr = clang_getCString(name.string);
         info.symbolLength = cstr ? strlen(cstr) : 0;
