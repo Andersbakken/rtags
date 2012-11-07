@@ -102,7 +102,7 @@ static inline bool startsWith(const Path &left, const Path &right)
 bool FileManager::contains(const Path &path) const
 {
     shared_ptr<Project> proj = mProject.lock();
-    if(!proj)
+    if (!proj)
         return false;
     return startsWith(path, proj->resolvedSrcRoot()) || startsWith(path, proj->srcRoot());
 }

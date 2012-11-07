@@ -221,7 +221,7 @@ void WatcherThread::notifyCallback(ConstFSEventStreamRef streamRef,
     watcher->since = FSEventStreamGetLatestEventId(streamRef);
     char** paths = reinterpret_cast<char**>(eventPaths);
     Set<Path> created, removed, modified;
-    for(size_t i = 0; i < numEvents; ++i) {
+    for (size_t i = 0; i < numEvents; ++i) {
         const FSEventStreamEventFlags flags = eventFlags[i];
         if (flags & kFSEventStreamEventFlagHistoryDone)
             continue;

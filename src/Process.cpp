@@ -324,7 +324,7 @@ bool Process::start(const ByteArray& command, const List<ByteArray>& a, const Li
     args[arguments.size() + 1] = 0;
     args[0] = cmd.nullTerminated();
     int pos = 1;
-    for(List<ByteArray>::const_iterator it = arguments.begin(); it != arguments.end(); ++it) {
+    for (List<ByteArray>::const_iterator it = arguments.begin(); it != arguments.end(); ++it) {
         args[pos] = it->nullTerminated();
         //printf("arg: '%s'\n", args[pos]);
         ++pos;
@@ -333,7 +333,7 @@ bool Process::start(const ByteArray& command, const List<ByteArray>& a, const Li
     env[environ.size()] = 0;
     pos = 0;
     //printf("fork, about to exec '%s'\n", cmd.nullTerminated());
-    for(List<ByteArray>::const_iterator it = environ.begin(); it != environ.end(); ++it) {
+    for (List<ByteArray>::const_iterator it = environ.begin(); it != environ.end(); ++it) {
         env[pos] = it->nullTerminated();
         //printf("env: '%s'\n", env[pos]);
         ++pos;
