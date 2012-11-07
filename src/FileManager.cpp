@@ -93,10 +93,16 @@ void FileManager::onFileRemoved(const Path &path)
     }
 }
 
+static inline bool startsWith(const Path &left, const Path &right)
+{
+    assert(!left.isEmpty());
+    return !right.isEmpty() && left.startsWith(right);
+}
+
 bool FileManager::contains(const Path &path) const
 {
     shared_ptr<Project> proj = mProject.lock();
     if(!proj)
         return false;
-    return path.startsWith(proj->resolvedSrcRoot()) || path.startsWith(proj->srcRoot());
+    return startsWith(path, proj->resolvedSrcRoot()) || startsWith(path, proj->srcRoot());
 }
