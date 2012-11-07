@@ -125,6 +125,7 @@ public:
 
         Path p;
         int l, c, u, tu;
+        l = c = u = -1;
         while (parseCompletion(data, p, l, c, u)) {
             tu = u;
             u -= data.size();
