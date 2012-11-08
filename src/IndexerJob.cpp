@@ -259,15 +259,23 @@ static inline CXCursor findChild(CXCursor parent, CXCursorKind kind)
 static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
 {
     const CXCursor child = findFirstChild(deleteStatement);
-    if (clang_getCursorKind(child) != CXCursor_UnexposedExpr)
+    CXCursorKind kind = clang_getCursorKind(child);
+    switch (kind) {
+    case CXCursor_UnexposedExpr:
+    case CXCursor_CallExpr:
+        break;
+    default:
         return nullCursor;
+    }
 
     const CXCursor var = clang_getCursorReferenced(child);
-    CXCursorKind kind = clang_getCursorKind(var);
+    kind = clang_getCursorKind(var);
     switch (kind) {
     case CXCursor_VarDecl:
     case CXCursor_FieldDecl:
     case CXCursor_ParmDecl:
+    case CXCursor_CXXMethod:
+    case CXCursor_FunctionDecl:
         break;
     default:
         if (!clang_isInvalid(kind)) {
