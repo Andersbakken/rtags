@@ -492,6 +492,7 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
 {
     const Location loc = query.location();
     if (loc.isNull()) {
+        conn->write("Not indexed");
         conn->finish();
         return;
     }
@@ -594,6 +595,7 @@ void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
 {
     const Location loc = query.location();
     if (loc.isNull()) {
+        conn->write("Not indexed");
         conn->finish();
         return;
     }

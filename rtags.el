@@ -21,6 +21,7 @@
 (defvar rtags-completions-cache-line 0)
 (defvar rtags-completions-cache-column 0)
 (defvar rtags-completions-cache-line-contents "")
+(defvar rtags-last-request-not-indexed nil)
 
 (defvar rtags-faces
   '(("^[^ ]*" . rtags-path-face)
@@ -560,11 +561,19 @@ return t if rtags is allowed to modify this file"
     (with-temp-buffer
       (rtags-call-rc path "-N" "-f" location)
       (if (< (point-min) (point-max))
-          (buffer-substring (point-min) (- (point-max) 1))
-        nil))))
+          (let ((loc (buffer-substring (point-min) (- (point-max) 1))))
+            (if (string= loc "Not indexed")
+                (progn
+                  (setq rtags-last-request-not-indexed t)
+                  nil)
+              (setq rtags-last-request-not-indexed nil)
+              loc))
+        (progn
+          (setq rtags-last-request-not-indexed nil)
+          nil)))))
 
 (defalias 'rtags-find-symbol-at-point 'rtags-follow-symbol-at-point)
-(defun rtags-find-symbol-at-point (prefix)
+(defun rtags-find-symbol-at-point (&optional prefix)
   (interactive "P")
   (setq rtags-path-filter (if prefix buffer-file-name nil))
   (rtags-save-location)
@@ -574,7 +583,7 @@ return t if rtags is allowed to modify this file"
     )
   )
 
-(defun rtags-find-references-at-point(prefix)
+(defun rtags-find-references-at-point(&optional prefix)
   (interactive "P")
   (setq rtags-path-filter (if prefix buffer-file-name nil))
   (rtags-save-location)
@@ -584,11 +593,18 @@ return t if rtags is allowed to modify this file"
     (with-current-buffer (generate-new-buffer rtags-buffer-name)
       (rtags-call-rc nil "-l" "-r" arg)
       (setq rtags-path-filter nil)
+      (if (< (point-min) (point-max))
+          (let ((loc (buffer-substring (point-min) (- (point-max) 1))))
+            (if (string= loc "Not indexed")
+                (progn
+                  (setq rtags-last-request-not-indexed t)
+                  (erase-buffer))
+              (setq rtags-last-request-not-indexed nil))))
       (rtags-handle-completion-buffer))
     )
   )
 
-(defun rtags-find-virtuals-at-point(prefix)
+(defun rtags-find-virtuals-at-point(&optional prefix)
   (interactive "P")
   (setq rtags-path-filter (if prefix buffer-file-name nil))
   (rtags-save-location)
@@ -602,7 +618,7 @@ return t if rtags is allowed to modify this file"
     )
   )
 
-(defun rtags-find-all-references-at-point(prefix)
+(defun rtags-find-all-references-at-point(&optional prefix)
   (interactive "P")
   (setq rtags-path-filter (if prefix buffer-file-name nil))
   (rtags-save-location)
@@ -675,11 +691,11 @@ return t if rtags is allowed to modify this file"
                 )))
         (message (format "Opened %d new files and made %d modifications" filesopened modifications))))))
 
-(defun rtags-find-symbol (prefix)
+(defun rtags-find-symbol (&optional prefix)
   (interactive "P")
   (rtags-find-symbols-by-name-internal "Find rsymbol" nil (if prefix buffer-file-name nil)))
 
-(defun rtags-find-references (prefix)
+(defun rtags-find-references (&optional prefix)
   (interactive "P")
   (rtags-find-symbols-by-name-internal "Find rreferences" t (if prefix buffer-file-name nil)))
 
@@ -993,7 +1009,7 @@ return t if rtags is allowed to modify this file"
   (rtags-goto-location (buffer-substring (point-at-bol) (point-at-eol)) nil t))
 
 (defvar rtags-find-file-history nil)
-(defun rtags-find-file (prefix &optional tagname)
+(defun rtags-find-file (&optional prefix tagname)
   (interactive "P")
   (rtags-save-location)
   (let ((tagname (rtags-current-symbol t)) prompt input offset line column
