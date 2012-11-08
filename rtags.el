@@ -244,19 +244,20 @@
    (t nil)))
 
 (defun rtags-current-symbol (&optional no-symbol-name)
-  (let ((name (if no-symbol-name nil (rtags-current-symbol-name))))
-    (unless name
-      (cond
-       ((looking-at "[0-9A-Za-z_]")
-        (while (and (not (bolp)) (looking-at "[0-9A-Za-z_]"))
-          (forward-char -1))
-        (if (not (looking-at "[0-9A-Za-z_]")) (forward-char 1)))
-       (t
-        (while (looking-at "[ \t]")
-          (forward-char 1))))
-      (if (looking-at "[A-Za-z_][A-Za-z_0-9]*")
-          (setq name (buffer-substring (match-beginning 0) (match-end 0)))))
-    name))
+  (save-excursion
+    (let ((name (if no-symbol-name nil (rtags-current-symbol-name))))
+      (unless name
+        (cond
+         ((looking-at "[0-9A-Za-z_]")
+          (while (and (not (bolp)) (looking-at "[0-9A-Za-z_]"))
+            (forward-char -1))
+          (if (not (looking-at "[0-9A-Za-z_]")) (forward-char 1)))
+         (t
+          (while (looking-at "[ \t]")
+            (forward-char 1))))
+        (if (looking-at "[A-Za-z_][A-Za-z_0-9]*")
+            (setq name (buffer-substring (match-beginning 0) (match-end 0)))))
+      name)))
 
 (defun rtags-cursorinfo (&optional location)
   (let ((loc (if location location (rtags-current-location)))
