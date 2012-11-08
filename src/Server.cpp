@@ -282,8 +282,14 @@ void Server::onNewMessage(Message *message, Connection *connection)
 {
     ClientMessage *m = static_cast<ClientMessage*>(message);
     const ByteArray raw = m->raw();
-    if (!raw.isEmpty())
-        error() << raw;
+    if (!raw.isEmpty()) {
+        if (!isCompletionStream(connection)) {
+            error() << raw;
+        } else {
+            warning() << raw;
+        }
+    }
+
     switch (message->messageId()) {
     case ProjectMessage::MessageId:
         handleProjectMessage(static_cast<ProjectMessage*>(message), connection);
