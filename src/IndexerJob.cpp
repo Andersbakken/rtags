@@ -263,17 +263,22 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
         return nullCursor;
 
     const CXCursor var = clang_getCursorReferenced(child);
-    switch (clang_getCursorKind(var)) {
+    CXCursorKind kind = clang_getCursorKind(var);
+    switch (kind) {
     case CXCursor_VarDecl:
     case CXCursor_FieldDecl:
         break;
     default:
-        assert(0);
+        if (!clang_isInvalid(kind)) {
+            error() << "Got unexpected cursor" << var;
+            assert(0);
+        }
         return nullCursor;
     }
 
     const CXCursor ref = findFirstChild(var);
-    switch (clang_getCursorKind(ref)) {
+    kind = clang_getCursorKind(ref);
+    switch (kind) {
     case CXCursor_TypeRef:
     case CXCursor_TemplateRef:
         break;
@@ -282,7 +287,8 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
     }
 
     const CXCursor referenced = clang_getCursorReferenced(ref);
-    switch (clang_getCursorKind(referenced)) {
+    kind = clang_getCursorKind(referenced);
+    switch (kind) {
     case CXCursor_StructDecl:
     case CXCursor_ClassDecl:
     case CXCursor_ClassTemplate:
