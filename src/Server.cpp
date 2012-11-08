@@ -72,12 +72,11 @@ void Server::clear()
         delete mIndexerThreadPool;
         mIndexerThreadPool = 0;
     }
-    mProjects.clear();
     Path::rm(mOptions.socketFile);
     delete mServer;
     mServer = 0;
     mProjects.clear();
-    mCurrentProject.reset();
+    mCommandProjects.clear();
 }
 
 bool Server::init(const Options &options)
@@ -165,6 +164,7 @@ private:
 bool Server::addProject(const Path &p, const ProjectEntry &newEntry)
 {
     if (newEntry.type & RTags::Type_Command) {
+        mCommandProjects[p] = newEntry;
         const unsigned type = newEntry.type & (RTags::Type_Makefile|RTags::Type_SmartProject|RTags::Type_GRTags);
         CommandProcess *proc = new CommandProcess(type);
         proc->start(p, newEntry.args);
@@ -200,10 +200,11 @@ bool Server::addProject(const Path &p, const ProjectEntry &newEntry)
 
 void Server::reloadProjects()
 {
+    mProjects.clear(); // ### could keep the ones that persist somehow
+    mCommandProjects.clear();
     mMakefilesWatcher.clear();
     IniFile file(mOptions.projectsFile);
     const Path resolvePath = mOptions.projectsFile.parentDir();
-    Set<Path> previous = mProjects.keys().toSet();
     struct Entry {
         const unsigned type;
         const char *key;
@@ -248,10 +249,6 @@ void Server::reloadProjects()
             path = Path::resolved(path, resolvePath);
             addProject(path, entry);
         }
-    }
-    for (Set<Path>::const_iterator it = previous.begin(); it != previous.end(); ++it) {
-        if (!mProjects.contains(*it))
-            removeProject(*it);
     }
 }
 
@@ -1068,45 +1065,52 @@ void Server::writeProjects()
     Path::rm(mOptions.projectsFile);
     IniFile ini(mOptions.projectsFile);
     mMakefilesWatcher.clear();
-    for (ProjectsMap::iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second.type & RTags::Type_Makefile)
-            mMakefilesWatcher.watch(it->first);
-        if (it->second.type & RTags::Type_Synthesized)
-            continue;
-        const char *key = 0;
-        switch (it->second.type) {
-        case RTags::Type_Makefile: key = "Makefiles"; break;
-        case RTags::Type_SmartProject: key = "SmartProjects"; break;
-        case RTags::Type_GRTags: key = "GRTags"; break;
-        case RTags::Type_Command|RTags::Type_Makefile: key = "MakefileCommands"; break;
-        case RTags::Type_Command|RTags::Type_SmartProject: key = "SmartProjectCommands"; break;
-        case RTags::Type_Command|RTags::Type_GRTags: key = "GRTagsCommands"; break;
-        default:
-            assert(0);
-        }
-        assert(key);
-        if (key) {
-            ByteArray details;
-            if (!it->second.args.isEmpty())
-                details = ByteArray::join(it->second.args, ' ');
-            if (!it->second.flags.isEmpty()) {
-                details += '|';
-                details += ByteArray::join(it->second.flags, ' ');
+    const ProjectsMap *maps[] = { &mProjects, &mCommandProjects };
+    for (int i=0; i<2; ++i) {
+        const ProjectsMap &map = *maps[i];
+        for (ProjectsMap::const_iterator it = map.begin(); it != map.end(); ++it) {
+            if (it->second.type & RTags::Type_Makefile)
+                mMakefilesWatcher.watch(it->first);
+            if (it->second.type & RTags::Type_Synthesized)
+                continue;
+            const char *key = 0;
+            switch (it->second.type) {
+            case RTags::Type_Makefile: key = "Makefiles"; break;
+            case RTags::Type_SmartProject: key = "SmartProjects"; break;
+            case RTags::Type_GRTags: key = "GRTags"; break;
+            case RTags::Type_Command|RTags::Type_Makefile: key = "MakefileCommands"; break;
+            case RTags::Type_Command|RTags::Type_SmartProject: key = "SmartProjectCommands"; break;
+            case RTags::Type_Command|RTags::Type_GRTags: key = "GRTagsCommands"; break;
+            default:
+                assert(0);
             }
+            assert(key);
+            if (key) {
+                ByteArray details;
+                if (!it->second.args.isEmpty())
+                    details = ByteArray::join(it->second.args, ' ');
+                if (!it->second.flags.isEmpty()) {
+                    details += '|';
+                    details += ByteArray::join(it->second.flags, ' ');
+                }
 
-            ini.setValue(key, it->second.saveKey, details);
+                ini.setValue(key, it->second.saveKey, details);
+            }
         }
     }
 }
 
 void Server::removeProject(const Path &path)
 {
-    ProjectsMap::iterator it = mProjects.find(path);
-    if (it == mProjects.end())
+    bool ok;
+    ProjectEntry entry = mProjects.take(path, &ok);
+    if (!ok)
+        entry = mCommandProjects.take(path, &ok);
+    if (!ok)
         return;
-    it->second.project->unload();
-    const bool write = !(it->second.type & RTags::Type_Synthesized);
-    mProjects.remove(path);
+    if (entry.project)
+        entry.project->unload();
+    const bool write = !(entry.type & RTags::Type_Synthesized);
     if (write)
         writeProjects();
 }
@@ -1116,9 +1120,6 @@ void Server::unloadProject(const Path &path)
     ProjectsMap::iterator it = mProjects.find(path);
     if (it == mProjects.end())
         return;
-    if (mCurrentProject.lock() == it->second.project) {
-        mCurrentProject.reset();
-    }
     it->second.project->unload();
 }
 
@@ -1312,7 +1313,7 @@ void Server::project(const QueryMessage &query, Connection *conn)
         bool error = false;
         const Match match = query.match();
         for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-            if (it->second.project->match(match)) {
+            if (it->second.project && it->second.project->match(match)) {
                 if (error) {
                     conn->write(it->first);
                 } else if (!selected.isEmpty()) {

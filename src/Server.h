@@ -144,7 +144,7 @@ private:
         }
     };
     typedef Map<Path, ProjectEntry> ProjectsMap;
-    ProjectsMap mProjects;
+    ProjectsMap mProjects, mCommandProjects;
     weak_ptr<Project> mCurrentProject;
 
     static Server *sInstance;
