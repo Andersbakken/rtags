@@ -60,6 +60,7 @@ MACRO (ADD_PCH_RULE _header_filename _src_list _cflag_list)
             Mutex.h
             Path.h
             RTags.h
+            RTagsClang.h
             ReadLocker.h
             ReadWriteLock.h
             Serializer.h

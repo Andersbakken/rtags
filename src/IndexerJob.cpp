@@ -220,6 +220,80 @@ Location IndexerJob::createLocation(const CXSourceLocation &location, bool *bloc
     return ret;
 }
 
+static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
+{
+    *reinterpret_cast<CXCursor*>(data) = cursor;
+    return CXChildVisit_Break;
+}
+
+static inline CXCursor findFirstChild(CXCursor parent)
+{
+    CXCursor ret;
+    clang_visitChildren(parent, findFirstChildVisitor, &ret);
+    return ret;
+}
+
+struct FindChildVisitor
+{
+    CXCursorKind kind;
+    CXCursor cursor;
+
+};
+static CXChildVisitResult findChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
+{
+    FindChildVisitor *u = reinterpret_cast<FindChildVisitor*>(data);
+    if (clang_getCursorKind(cursor) == u->kind) {
+        u->cursor = cursor;
+        return CXChildVisit_Break;
+    }
+    return CXChildVisit_Continue;
+}
+
+static inline CXCursor findChild(CXCursor parent, CXCursorKind kind)
+{
+    FindChildVisitor u = { kind, nullCursor };
+    clang_visitChildren(parent, findChildVisitor, &u);
+    return u.cursor;
+}
+
+static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
+{
+    const CXCursor child = findFirstChild(deleteStatement);
+    if (clang_getCursorKind(child) != CXCursor_UnexposedExpr)
+        return nullCursor;
+
+    const CXCursor var = clang_getCursorReferenced(child);
+    switch (clang_getCursorKind(var)) {
+    case CXCursor_VarDecl:
+    case CXCursor_FieldDecl:
+        break;
+    default:
+        assert(0);
+        return nullCursor;
+    }
+
+    const CXCursor ref = findFirstChild(var);
+    switch (clang_getCursorKind(ref)) {
+    case CXCursor_TypeRef:
+    case CXCursor_TemplateRef:
+        break;
+    default:
+        return nullCursor;
+    }
+
+    const CXCursor referenced = clang_getCursorReferenced(ref);
+    switch (clang_getCursorKind(referenced)) {
+    case CXCursor_StructDecl:
+    case CXCursor_ClassDecl:
+    case CXCursor_ClassTemplate:
+        break;
+    default:
+        return nullCursor;
+    }
+    const CXCursor destructor = findChild(referenced, CXCursor_Destructor);
+    return destructor;
+}
+
 CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CXClientData data)
 {
     IndexerJob *job = static_cast<IndexerJob*>(data);
@@ -252,15 +326,20 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
         job->handleInclude(cursor, kind, loc);
         break;
     case RTags::Reference:
-        if (kind == CXCursor_OverloadedDeclRef) {
+        switch (kind) {
+        case CXCursor_OverloadedDeclRef: {
             const int count = clang_getNumOverloadedDecls(cursor);
             for (int i=0; i<count; ++i) {
                 const CXCursor ref = clang_getOverloadedDecl(cursor, i);
                 job->handleReference(cursor, kind, loc, ref);
             }
-        } else {
-            const CXCursor ref = clang_getCursorReferenced(cursor);
-            job->handleReference(cursor, kind, loc, ref);
+            break; }
+        case CXCursor_CXXDeleteExpr:
+            job->handleReference(cursor, kind, loc, findDestructorForDelete(cursor));
+            break;
+        default:
+            job->handleReference(cursor, kind, loc, clang_getCursorReferenced(cursor));
+            break;
         }
         break;
     case RTags::Other:

@@ -17,6 +17,7 @@ inline bool isReference(CXCursorKind kind)
     case CXCursor_MacroExpansion:
     case CXCursor_MemberRefExpr:
     case CXCursor_CallExpr:
+    case CXCursor_CXXDeleteExpr:
         return true;
     default:
         break;
@@ -46,15 +47,8 @@ static inline CursorType cursorType(CXCursorKind kind)
         return Cursor;
     } else if (RTags::isReference(kind)) {
         return Reference;
-    } else {
-        switch (kind) {
-        case CXCursor_InclusionDirective:
-            return Include;
-        case CXCursor_MacroDefinition:
-            return Cursor;
-        default:
-            break;
-        }
+    } else if (kind == CXCursor_InclusionDirective) {
+        return Include;
     }
     return Other;
 }
