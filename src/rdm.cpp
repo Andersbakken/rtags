@@ -47,7 +47,7 @@ void usage(FILE *f)
             "  --log-file|-L [arg]               Log to this file\n"
             "  --append|-A                       Append to log file\n"
             "  --verbose|-v                      Change verbosity, multiple -v's are allowed\n"
-            "  --clean-slate|-C                  Start from a clean slate\n"
+            "  --clear-project-caches|-C         Clear out project caches\n"
             "  --enable-sighandler|-s            Enable signal handler to dump stack for crashes.\n"
             "                                    Note that this might not play well with clang's signal handler\n"
             "  --no-clang-includepath|-P         Don't use clang include paths by default\n"

@@ -747,9 +747,10 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
 
 void Server::clearProjects()
 {
-    mProjects.clear();
+    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it)
+        it->second.project->unload();
     RTags::removeDirectory(mOptions.dataDir);
-    writeProjects();
+    mCurrentProject.reset();
 }
 
 void Server::reindex(const QueryMessage &query, Connection *conn)
