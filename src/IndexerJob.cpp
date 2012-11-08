@@ -267,11 +267,12 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
     switch (kind) {
     case CXCursor_VarDecl:
     case CXCursor_FieldDecl:
+    case CXCursor_ParmDecl:
         break;
     default:
         if (!clang_isInvalid(kind)) {
-            error() << "Got unexpected cursor" << var;
-            assert(0);
+            error() << "Got unexpected cursor" << deleteStatement << var;
+            // assert(0);
         }
         return nullCursor;
     }
