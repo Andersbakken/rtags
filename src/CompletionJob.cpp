@@ -92,25 +92,38 @@ void CompletionJob::execute()
             if (priority >= 75)
                 continue;
 
+            ByteArray signature, completion;
+            signature.reserve(256);
             const int chunkCount = clang_getNumCompletionChunks(string);
+            bool ok = true;
             for (int j=0; j<chunkCount; ++j) {
                 const CXCompletionChunkKind chunkKind = clang_getCompletionChunkKind(string, j);
                 if (chunkKind == CXCompletionChunk_TypedText) {
-                    const ByteArray chunkText = RTags::eatString(clang_getCompletionChunkText(string, j));
-                    if (chunkText.size() <= 8 || !chunkText.startsWith("operator") || isPartOfSymbol(chunkText.at(8))) {
-                        if (out.insert(chunkText)) {
-                            if (!sentHeader) {
-                                write<64>("`%s", chunkText.constData());
-                                sentHeader = true;
-                            } else {
-                                write(chunkText);
-                            }
-                        }
+                    completion = RTags::eatString(clang_getCompletionChunkText(string, j));
+                    if (completion.size() > 8 && completion.startsWith("operator") && !isPartOfSymbol(completion.at(8))) {
+                        j = chunkCount;
+                        ok = false;
+                        break;
                     }
-                    break;
+                    signature.append(completion);
+                } else {
+                    signature.append(RTags::eatString(clang_getCompletionChunkText(string, j)));
+                    if (chunkKind == CXCompletionChunk_ResultType)
+                        signature.append(' ');
+                }
+            }
+
+            assert(!completion.contains(' '));
+            if (ok && out.insert(completion)) {
+                if (!sentHeader) {
+                    write<128>("`%s %s", completion.constData(), signature.constData());
+                    sentHeader = true;
+                } else {
+                    write<128>("%s %s", completion.constData(), signature.constData());
                 }
             }
         }
+
 
         clang_disposeCodeCompleteResults(results);
         project()->indexer->addToCache(mPath, mArgs, mIndex, mUnit);
