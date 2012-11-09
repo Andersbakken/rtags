@@ -56,6 +56,11 @@ static int compareCompletionResult(const void *left, const void *right)
     return 0;
 }
 
+static inline bool isPartOfSymbol(char ch)
+{
+    return isalnum(ch) || ch == '_';
+}
+
 void CompletionJob::execute()
 {
     CXUnsavedFile unsavedFile = { mUnsaved.isEmpty() ? 0 : mPath.constData(),
@@ -72,6 +77,7 @@ void CompletionJob::execute()
     if (results) {
         qsort(results->Results, results->NumResults, sizeof(CXCompletionResult), compareCompletionResult);
         bool sentHeader = false;
+        Set<ByteArray> out;
         for (unsigned i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
             if (kind == CXCursor_Destructor)
@@ -91,11 +97,15 @@ void CompletionJob::execute()
                 const CXCompletionChunkKind chunkKind = clang_getCompletionChunkKind(string, j);
                 if (chunkKind == CXCompletionChunk_TypedText) {
                     const ByteArray chunkText = RTags::eatString(clang_getCompletionChunkText(string, j));
-                    if (!sentHeader) {
-                        write<64>("`%s", chunkText.constData());
-                        sentHeader = true;
-                    } else {
-                        write(chunkText);
+                    if (chunkText.size() <= 8 || !chunkText.startsWith("operator") || isPartOfSymbol(chunkText.at(8))) {
+                        if (out.insert(chunkText)) {
+                            if (!sentHeader) {
+                                write<64>("`%s", chunkText.constData());
+                                sentHeader = true;
+                            } else {
+                                write(chunkText);
+                            }
+                        }
                     }
                     break;
                 }
