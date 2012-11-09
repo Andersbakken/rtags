@@ -16,11 +16,11 @@
 (defvar rtags-path-face 'rtags-path "Path part")
 (defvar rtags-context-face 'rtags-context "Context part")
 (defconst rtags-buffer-name "*RTags*")
-(defvar rtags-completions nil)
-(defvar rtags-completions-cache-file-name "")
-(defvar rtags-completions-cache-line 0)
-(defvar rtags-completions-cache-column 0)
-(defvar rtags-completions-cache-line-contents "")
+(defvar rtags-completion nil)
+(defvar rtags-completion-cache-file-name "")
+(defvar rtags-completion-cache-line 0)
+(defvar rtags-completion-cache-column 0)
+(defvar rtags-completion-cache-line-contents "")
 (defvar rtags-last-request-not-indexed nil)
 
 (defvar rtags-faces
@@ -363,7 +363,7 @@
     )
   )
 
-(defun rtags-remove-completions-buffer ()
+(defun rtags-remove-completion-buffer ()
   (interactive)
   (kill-buffer (current-buffer))
   (switch-to-buffer rtags-last-buffer))
@@ -742,69 +742,69 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-expand-internal()
   (save-excursion
-    (with-current-buffer rtags-completions
+    (with-current-buffer rtags-completion
       (if (= (point-min) (point-max))
-          (setq rtags-completions nil)
+          (setq rtags-completion nil)
         (progn
           (goto-char (point-min))
           (if (looking-at "Scheduled rebuild")
               (progn
-                (setq rtags-completions nil
-                      rtags-completions-cache-line 0
-                      rtags-completions-cache-column 0
-                      rtags-completions-cache-line-contents ""
-                      rtags-completions-cache-file-name "")))))))
-  (if rtags-completions
+                (setq rtags-completion nil
+                      rtags-completion-cache-line 0
+                      rtags-completion-cache-column 0
+                      rtags-completion-cache-line-contents ""
+                      rtags-completion-cache-file-name "")))))))
+  (if rtags-completion
       (let ((was-search dabbrev-search-these-buffers-only))
         (condition-case nil
             (progn
-              (setq dabbrev-search-these-buffers-only (list rtags-completions))
+              (setq dabbrev-search-these-buffers-only (list rtags-completion))
               (funcall rtags-expand-function)
               (setq dabbrev-search-these-buffers-only was-search))
           (error
            (setq dabbrev-search-these-buffers-only was-search))))
-    (if (not (string= rtags-completions-cache-file-name ""))
+    (if (not (string= rtags-completion-cache-file-name ""))
         (funcall rtags-expand-function)))
   )
 
 (defun rtags-completion-cache-is-valid ()
-  (and (= (line-number-at-pos) rtags-completions-cache-line)
-       (= (rtags-find-symbol-start) rtags-completions-cache-column)
-       (string= (buffer-file-name (current-buffer)) rtags-completions-cache-file-name)
-       (string= (buffer-substring (point-at-bol) (+ (point-at-bol) rtags-completions-cache-column))
-                rtags-completions-cache-line-contents)))
+  (and (= (line-number-at-pos) rtags-completion-cache-line)
+       (= (rtags-find-symbol-start) rtags-completion-cache-column)
+       (string= (buffer-file-name (current-buffer)) rtags-completion-cache-file-name)
+       (string= (buffer-substring (point-at-bol) (+ (point-at-bol) rtags-completion-cache-column))
+                rtags-completion-cache-line-contents)))
 
 (defun rtags-expand()
   (interactive)
-  (if rtags-completions
+  (if rtags-completion
       (rtags-expand-internal)
     (funcall rtags-expand-function)))
 
-(defun rtags-prepare-completions()
+(defun rtags-prepare-completion()
   (interactive)
   (when rtags-completion-cache-timer
     (cancel-timer rtags-completion-cache-timer)
     (setq rtags-completion-cache-timer nil))
   (when (not (rtags-completion-cache-is-valid))
-    ;;(message "prepare completions")
-    (if (buffer-live-p rtags-completions)
-        (with-current-buffer rtags-completions
+    ;;(message "prepare completion")
+    (if (buffer-live-p rtags-completion)
+        (with-current-buffer rtags-completion
           (let (deactivate-mark)
             (erase-buffer))))
     (if (rtags-init-completion-stream)
         (save-excursion
-          ;;(message "prepared completions")
+          ;;(message "prepared completion")
           (let* ((buffer (current-buffer))
                  (path (rtags-path-for-project))
                  (buffer-size (- (point-max) (point-min)))
                  (line (line-number-at-pos))
                  (column (rtags-find-symbol-start))
                  (header (format "%s:%d:%d:%d\n" (buffer-file-name buffer) line (+ column 1) (- (point-max) (point-min)))))
-            (setq rtags-completions (get-buffer-create "*RTags Completions*")
-                  rtags-completions-cache-file-name (buffer-file-name buffer)
-                  rtags-completions-cache-line line
-                  rtags-completions-cache-column column
-                  rtags-completions-cache-line-contents (buffer-substring (point-at-bol) (+ (point-at-bol) column)))
+            (setq rtags-completion (get-buffer-create "*RTags Completions*")
+                  rtags-completion-cache-file-name (buffer-file-name buffer)
+                  rtags-completion-cache-line line
+                  rtags-completion-cache-column column
+                  rtags-completion-cache-line-contents (buffer-substring (point-at-bol) (+ (point-at-bol) column)))
             ;;(message "writing shit %s" header )
             (process-send-string rtags-completion-stream-process header)
             (process-send-string rtags-completion-stream-process (buffer-substring (point-min) (point-max))))
@@ -852,11 +852,11 @@ return t if rtags is allowed to modify this file"
                 (progn
                   (let (deactivate-mark)
                     (erase-buffer))
-                  (setq rtags-completions nil
-                        rtags-completions-cache-line 0
-                        rtags-completions-cache-column 0
-                        rtags-completions-cache-line-contents ""
-                        rtags-completions-cache-file-name "")
+                  (setq rtags-completion nil
+                        rtags-completion-cache-line 0
+                        rtags-completion-cache-column 0
+                        rtags-completion-cache-line-contents ""
+                        rtags-completion-cache-file-name "")
                   (run-at-time "1 sec" nil 'rtags-post-command-update-completion-cache))
               )
             )
