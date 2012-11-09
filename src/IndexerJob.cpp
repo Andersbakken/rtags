@@ -105,6 +105,7 @@ static inline bool walk(CXCursorKind kind)
     case CXCursor_StructDecl:
     case CXCursor_EnumConstantDecl:
     case CXCursor_EnumDecl:
+    case CXCursor_TypedefDecl:
         return true;
     default:
         break;
