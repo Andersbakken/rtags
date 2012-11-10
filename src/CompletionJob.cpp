@@ -77,7 +77,6 @@ void CompletionJob::execute()
     if (results) {
         qsort(results->Results, results->NumResults, sizeof(CXCompletionResult), compareCompletionResult);
         bool sentHeader = false;
-        Set<ByteArray> out;
         for (unsigned i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
             if (kind == CXCursor_Destructor)
@@ -113,7 +112,7 @@ void CompletionJob::execute()
             }
 
             assert(!completion.contains(' '));
-            if (ok && out.insert(completion)) {
+            if (ok) {
                 if (!sentHeader) {
                     write<128>("`%s %s", completion.constData(), signature.constData());
                     sentHeader = true;

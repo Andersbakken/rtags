@@ -746,11 +746,9 @@ return t if rtags is allowed to modify this file"
     (let ((end (point)))
       (backward-char)
       (c-beginning-of-current-token)
-      (message "before [%s]" (buffer-substring (point) end) rtags-completion-signatures)
       (let ((sig (gethash (buffer-substring (point) end) rtags-completion-signatures)))
-        (message "after %S " sig)
         (if sig
-            (message "RTags completion: %s" sig))))))
+            (message "%s" (combine-and-quote-strings sig "\n")))))))
 
 (defun rtags-expand-internal()
   (save-excursion
@@ -874,15 +872,12 @@ return t if rtags is allowed to modify this file"
                 (setq idx (string-match "\n" output last))
                 (if idx
                     (let* ((ws (string-match " " output last))
-                           (key (substring output last ws)))
-                      ;; (message "[%s] ws %d" (substring output last idx) (if ws ws -1))
+                           (key (substring output last ws))
+                           (cur (gethash key rtags-completion-signatures)))
                       (insert key)
                       (insert "\n")
-                        ;; (unless ws
-                      ;;   (progn
-                      ;;     (message "Couldn't find whitespace in [%s]" (substring output last idx))
-                      ;;     (setq ws last)))
-                      (puthash key (substring output (+ ws 1) idx) rtags-completion-signatures)
+                      (add-to-list 'cur (substring output (+ ws 1) idx))
+                      (puthash key cur rtags-completion-signatures)
                       (setq last (+ idx 1)))
                   (progn
                     (unless (= last (length output))
