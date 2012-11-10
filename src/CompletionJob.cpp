@@ -101,7 +101,6 @@ void CompletionJob::execute()
                 if (chunkKind == CXCompletionChunk_TypedText) {
                     completion = RTags::eatString(clang_getCompletionChunkText(string, j));
                     if (completion.size() > 8 && completion.startsWith("operator") && !isPartOfSymbol(completion.at(8))) {
-                        j = chunkCount;
                         ok = false;
                         break;
                     }

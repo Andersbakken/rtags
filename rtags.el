@@ -3,6 +3,7 @@
   :group 'tools
   :prefix "rtags-")
 
+(require 'cl)
 (require 'ido)
 (require 'dabbrev)
 (require 'cc-mode)
@@ -553,7 +554,7 @@ return t if rtags is allowed to modify this file"
     (if (file-exists-p makefile)
         (with-temp-buffer
           (rtags-call-rc nil "-m" makefile)
-          (message (buffer-string))))))
+          (eessage (buffer-string))))))
 
 (defun rtags-target (&optional location)
   (let ((path (rtags-path-for-project)))
@@ -740,6 +741,17 @@ return t if rtags is allowed to modify this file"
     (- (point) (point-at-bol))))
   )
 
+(defun rtags-post-expand()
+  (save-excursion
+    (let ((end (point)))
+      (backward-char)
+      (c-beginning-of-current-token)
+      (message "before [%s]" (buffer-substring (point) end) rtags-completion-signatures)
+      (let ((sig (gethash (buffer-substring (point) end) rtags-completion-signatures)))
+        (message "after %S " sig)
+        (if sig
+            (message "RTags completion: %s" sig))))))
+
 (defun rtags-expand-internal()
   (save-excursion
     (with-current-buffer rtags-completion
@@ -760,11 +772,13 @@ return t if rtags is allowed to modify this file"
             (progn
               (setq dabbrev-search-these-buffers-only (list rtags-completion))
               (funcall rtags-expand-function)
-              (setq dabbrev-search-these-buffers-only was-search))
+              (setq dabbrev-search-these-buffers-only was-search)
+              (rtags-post-expand))
           (error
            (setq dabbrev-search-these-buffers-only was-search))))
-    (if (not (string= rtags-completion-cache-file-name ""))
-        (funcall rtags-expand-function)))
+    (when (not (string= rtags-completion-cache-file-name ""))
+      (funcall rtags-expand-function)
+      (rtags-post-expand)))
   )
 
 (defun rtags-completion-cache-is-valid ()
@@ -778,7 +792,11 @@ return t if rtags is allowed to modify this file"
   (interactive)
   (if rtags-completion
       (rtags-expand-internal)
-    (funcall rtags-expand-function)))
+    (progn
+      (funcall rtags-expand-function)
+      (rtags-post-expand)))
+  )
+
 
 (defun rtags-prepare-completion()
   (interactive)
@@ -833,6 +851,8 @@ return t if rtags is allowed to modify this file"
     )
   )
 
+(defvar rtags-completion-signatures (make-hash-table :test 'equal))
+(defvar rtags-completion-buffer-pending nil)
 (defun rtags-completion-stream-process-filter (process output)
   (let ((buf (process-buffer process)))
     (if (not (buffer-live-p buf))
@@ -840,13 +860,37 @@ return t if rtags is allowed to modify this file"
       (with-current-buffer buf
         (let ((backtick (string-match "`" output)))
           (when backtick
+            (setq rtags-completion-signatures (make-hash-table :test 'equal))
             (let (deactivate-mark)
               (erase-buffer))
             (setq output (substring output (+ backtick 1))))
           (save-excursion
             (goto-char (point-max))
-            (let (deactivate-mark)
-              (insert output))
+            (when rtags-completion-buffer-pending
+              (setq output (concat rtags-completion-buffer-pending output))
+              (setq rtags-completion-buffer-pending nil))
+            (let ((deactivate-mark) (continue t) (idx 0) (last 0))
+              (while continue
+                (setq idx (string-match "\n" output last))
+                (if idx
+                    (let* ((ws (string-match " " output last))
+                           (key (substring output last ws)))
+                      ;; (message "[%s] ws %d" (substring output last idx) (if ws ws -1))
+                      (insert key)
+                      (insert "\n")
+                        ;; (unless ws
+                      ;;   (progn
+                      ;;     (message "Couldn't find whitespace in [%s]" (substring output last idx))
+                      ;;     (setq ws last)))
+                      (puthash key (substring output (+ ws 1) idx) rtags-completion-signatures)
+                      (setq last (+ idx 1)))
+                  (progn
+                    (unless (= last (length output))
+                      (setq rtags-completion-buffer-pending (substring output last)))
+                    (setq continue nil))
+                  )
+                )
+              )
             (goto-char (point-min))
             (if (looking-at "Scheduled rebuild")
                 (progn
@@ -892,10 +936,13 @@ return t if rtags is allowed to modify this file"
             (eq major-mode 'c-mode))
     (if rtags-completion-cache-timer
         (cancel-timer rtags-completion-cache-timer))
-    (setq rtags-completion-cache-timer (run-with-idle-timer .1 nil 'rtags-prepare-completions))))
+    (setq rtags-completion-cache-timer (run-with-idle-timer .1 nil 'rtags-prepare-completion))
+    )
+  )
 
 (defun rtags-post-command-update-completion-cache()
-  (rtags-restart-completion-cache-timer))
+  (rtags-restart-completion-cache-timer)
+  )
 (add-hook 'post-command-hook 'rtags-post-command-update-completion-cache)
 
 (defun rtags-init-diagnostics-buffer-and-process ()
