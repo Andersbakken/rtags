@@ -149,7 +149,8 @@ void indexDeclaration(CXClientData, const CXIdxDeclInfo *decl)
     unsigned l, c, o;
     clang_indexLoc_getFileLocation(decl->loc, 0, &f, &l, &c, &o);
     char buf[1024];
-    getcwd(buf, sizeof(buf));
+    if (!getcwd(buf, sizeof(buf)))
+        return;
     printf("%s/%s,%d %s %s\n",
            buf, RTags::eatString(clang_getFileName(f)).constData(),
            o, kindToString(decl->entityInfo->kind), decl->entityInfo->name);
@@ -177,7 +178,8 @@ void indexEntityReference(CXClientData, const CXIdxEntityRefInfo *ref)
     unsigned l2, c2, o2;
     clang_getInstantiationLocation(loc, &f2, &l2, &c2, &o2);
     char buf[1024];
-    getcwd(buf, sizeof(buf));
+    if (!getcwd(buf, sizeof(buf)))
+        return;
     printf("%s/%s,%d ref of %s/%s,%d %s %s\n", buf,
            RTags::eatString(clang_getFileName(f)).constData(), o,
            buf, RTags::eatString(clang_getFileName(f2)).constData(), o2,
