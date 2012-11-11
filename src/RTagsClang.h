@@ -53,6 +53,24 @@ static inline CursorType cursorType(CXCursorKind kind)
     return Other;
 }
 
+static inline bool isContainer(CXCursorKind kind)
+{
+    switch (kind) {
+    case CXCursor_CXXMethod:
+    case CXCursor_Constructor:
+    case CXCursor_FunctionDecl:
+    case CXCursor_Destructor:
+    case CXCursor_ClassTemplate:
+    case CXCursor_Namespace:
+    case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
+
 static inline bool needsQualifiers(CXCursorKind kind)
 {
     switch (kind) {

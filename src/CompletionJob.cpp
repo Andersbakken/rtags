@@ -91,15 +91,16 @@ static inline ByteArray fullyQualifiedName(CXCursor cursor)
 {
     ByteArray ret;
     ret.reserve(128);
-    while (true) {
-        const CXCursorKind kind = clang_getCursorKind(cursor);
-        if (clang_isInvalid(kind))
-            break;
+    CXCursorKind kind = clang_getCursorKind(cursor);
+
+    do {
         ret.prepend(RTags::eatString(clang_getCursorDisplayName(cursor)));
         if (!RTags::needsQualifiers(kind))
             break;
         cursor = clang_getCursorSemanticParent(cursor);
-    }
+        kind = clang_getCursorKind(cursor);
+    } while (RTags::isContainer(kind));
+
     return ret;
 }
 
