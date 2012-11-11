@@ -62,6 +62,47 @@ static inline bool isPartOfSymbol(char ch)
     return isalnum(ch) || ch == '_';
 }
 
+static inline CXCursor findContainer(CXCursor cursor)
+{
+    do {
+        switch (clang_getCursorKind(cursor)) {
+        case CXCursor_FunctionDecl:
+        case CXCursor_FunctionTemplate:
+        case CXCursor_CXXMethod:
+        case CXCursor_Constructor:
+        case CXCursor_Destructor:
+        case CXCursor_ClassDecl:
+        case CXCursor_ClassTemplate:
+        case CXCursor_StructDecl:
+        case CXCursor_Namespace:
+            return cursor;
+        default:
+            break;
+        }
+        cursor = clang_getCursorSemanticParent(cursor);
+    } while (!clang_isInvalid(clang_getCursorKind(cursor)));
+
+    assert(clang_equalCursors(cursor, clang_getNullCursor()));
+
+    return cursor;
+}
+
+static inline ByteArray fullyQualifiedName(CXCursor cursor)
+{
+    ByteArray ret;
+    ret.reserve(128);
+    while (true) {
+        const CXCursorKind kind = clang_getCursorKind(cursor);
+        if (clang_isInvalid(kind))
+            break;
+        ret.prepend(RTags::eatString(clang_getCursorDisplayName(cursor)));
+        if (!RTags::needsQualifiers(kind))
+            break;
+        cursor = clang_getCursorSemanticParent(cursor);
+    }
+    return ret;
+}
+
 void CompletionJob::execute()
 {
     CXUnsavedFile unsavedFile = { mUnsaved.isEmpty() ? 0 : mPath.constData(),
@@ -75,24 +116,42 @@ void CompletionJob::execute()
                                                           mUnsaved.isEmpty() ? 0 : 1,
                                                           clang_defaultCodeCompleteOptions());
 
+    ByteArray current, parent;
+    if (CXFile f = clang_getFile(mUnit, mPath.constData())) {
+        // printf("%p %s\n", f, f ? RTags::eatString(clang_getFileName(f)).constData() : "none");
 
-    // const CXSourceLocation loc = clang_getLocationForOffset(mUnit, clang_getFile(mUnit, mPath.constData()), mPos);
-    // const CXCursor cursor = clang_getCursor(mUnit, loc);
-    // if (!clang_isInvalid(clang_getCursorKind(cursor))) {
-    //     const CXStringScope cursorDisplayName = clang_getCursorDisplayName(cursor);
-    //     const char *cursorCString = clang_getCString(cursorDisplayName.string);
-    //     const CXCursor parent = clang_getCursorSemanticParent(parent);
-    //     const CXStringScope parentDisplayName = clang_getCursorDisplayName(parent);
-    //     const char *parentCString = clang_getCString(parentDisplayName.string);
-    //     error("[%s][%s]", cursorCString, parentCString);
-    //     // write<128>("`%s%s%s",
-    //     //            cursorCString ? cursorCString : "",
-    //     //            parentCString ? "|" : "",
-    //     //            parentCString ? parentCString : "");
-    //     write("`");
-    // } else {
-    //     write("`");
-    // }
+        CXSourceLocation loc = clang_getLocationForOffset(mUnit, f, mPos);
+        CXCursor cursor = clang_getCursor(mUnit, loc);
+        // error() << cursor;
+        if (!clang_isInvalid(clang_getCursorKind(cursor))) {
+            CXCursor ref = clang_getCursorReferenced(cursor);
+            if (!clang_isInvalid(clang_getCursorKind(ref))) {
+                current = fullyQualifiedName(ref);
+            } else {
+                current = fullyQualifiedName(cursor);
+            }
+            parent = fullyQualifiedName(findContainer(cursor));
+        } else if (!mUnsaved.isEmpty()) {
+            CXCursor parents[2];
+            const int offsets[] = { -1, 1 };
+            bool valid[2] = { false, false };
+            for (int i=0; i<2; ++i) {
+                int pos = mPos;
+                while (pos >= 0 && pos < mUnsaved.size() && isspace(mUnsaved.at(pos)))
+                    pos += offsets[i];
+                if (pos >= 0 && pos < mUnsaved.size()) {
+                    loc = clang_getLocationForOffset(mUnit, f, mPos);
+                    parents[i] = findContainer(clang_getCursor(mUnit, loc));
+                    valid[i] = !clang_isInvalid(clang_getCursorKind(parents[i]));
+                }
+            }
+            if ((valid[0] || valid[1]) && (clang_equalCursors(parents[0], parents[1]) || valid[0] != valid[1])) {
+                parent = fullyQualifiedName(valid[0] ? parents[0] : parents[1]);
+            }
+        }
+    }
+
+    error("[%s][%s]", current.constData(), parent.constData());
 
     if (results) {
         qsort(results->Results, results->NumResults, sizeof(CXCompletionResult), compareCompletionResult);

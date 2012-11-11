@@ -89,30 +89,6 @@ static inline void addToSymbolNames(const ByteArray &arg, bool hasTemplates, con
 
 static const CXCursor nullCursor = clang_getNullCursor();
 
-static inline bool walk(CXCursorKind kind)
-{
-    switch (kind) {
-    case CXCursor_CXXMethod:
-    case CXCursor_Constructor:
-    case CXCursor_FunctionDecl:
-    case CXCursor_Destructor:
-    case CXCursor_VarDecl:
-    case CXCursor_ParmDecl:
-    case CXCursor_FieldDecl:
-    case CXCursor_ClassTemplate:
-    case CXCursor_Namespace:
-    case CXCursor_ClassDecl:
-    case CXCursor_StructDecl:
-    case CXCursor_EnumConstantDecl:
-    case CXCursor_EnumDecl:
-    case CXCursor_TypedefDecl:
-        return true;
-    default:
-        break;
-    }
-    return false;
-}
-
 ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location)
 {
     ByteArray qparam, qnoparam;
@@ -128,12 +104,12 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
 
         if (first) {
             first = false;
-        } else if (!walk(kind)) {
+        } else if (!RTags::needsQualifiers(kind)) {
             return qparam;
         }
 
         CXStringScope displayName(clang_getCursorDisplayName(cur));
-        const char *name = clang_getCString(displayName.string);
+        const char *name = displayName.data();
         if (!name || !strlen(name)) {
             break;
         }
@@ -167,7 +143,7 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
             addToSymbolNames(qnoparam, hasTemplates, location, mData->symbolNames);
         }
 
-        if (!walk(kind))
+        if (!RTags::needsQualifiers(kind))
             return qparam;
         cur = clang_getCursorSemanticParent(cur);
     }
@@ -516,7 +492,7 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
     CursorInfo &info = mData->symbols[location];
     if (!info.symbolLength || !RTags::isCursor(info.kind)) {
         CXStringScope name = clang_getCursorSpelling(cursor);
-        const char *cstr = clang_getCString(name.string);
+        const char *cstr = name.data();
         info.symbolLength = cstr ? strlen(cstr) : 0;
         if (!info.symbolLength) {
             switch (kind) {

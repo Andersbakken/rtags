@@ -53,6 +53,31 @@ static inline CursorType cursorType(CXCursorKind kind)
     return Other;
 }
 
+static inline bool needsQualifiers(CXCursorKind kind)
+{
+    switch (kind) {
+    case CXCursor_CXXMethod:
+    case CXCursor_Constructor:
+    case CXCursor_FunctionDecl:
+    case CXCursor_Destructor:
+    case CXCursor_VarDecl:
+    case CXCursor_ParmDecl:
+    case CXCursor_FieldDecl:
+    case CXCursor_ClassTemplate:
+    case CXCursor_Namespace:
+    case CXCursor_ClassDecl:
+    case CXCursor_StructDecl:
+    case CXCursor_EnumConstantDecl:
+    case CXCursor_EnumDecl:
+    case CXCursor_TypedefDecl:
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
+
+
 ByteArray eatString(CXString str);
 enum CursorToStringFlags {
     NoCursorToStringFlags = 0x0,
@@ -179,6 +204,7 @@ public:
     {
         return clang_getCString(string);
     }
+private:
     CXString string;
 };
 
