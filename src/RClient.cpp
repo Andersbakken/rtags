@@ -42,7 +42,7 @@ public:
     }
 };
 
-static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& column, int& unsavedSize)
+static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& column, int &pos, int& contentsSize)
 {
     List<RegExp::Capture> caps;
 
@@ -50,8 +50,8 @@ static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& 
     if (nl == -1)
         return false;
 
-    RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)\n");
-    if (rx.indexIn(data, 0, &caps) != 0 || caps.size() != 5) {
+    RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)\n");
+    if (rx.indexIn(data, 0, &caps) != 0 || caps.size() != 6) {
         data = data.mid(nl + 1);
         return false;
     }
@@ -64,7 +64,8 @@ static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& 
 
     line = atoi(caps[2].capture.constData());
     column = atoi(caps[3].capture.constData());
-    unsavedSize = atoi(caps[4].capture.constData());
+    pos = atoi(caps[4].capture.constData());
+    contentsSize = atoi(caps[5].capture.constData());
 
     return true;
 }
@@ -123,24 +124,24 @@ public:
         ByteArray& data = that->data;
         data += ByteArray(buffer, r);
 
-        Path p;
-        int l, c, u, tu;
-        l = c = u = -1;
-        while (parseCompletion(data, p, l, c, u)) {
-            tu = u;
-            u -= data.size();
-            while (u > 0) {
+        Path path;
+        int line, column, contentsSize, tu, pos;
+        line = column = contentsSize = pos = -1;
+        while (parseCompletion(data, path, line, column, pos, contentsSize)) {
+            tu = contentsSize;
+            contentsSize -= data.size();
+            while (contentsSize > 0) {
                 r = ::read(fd, buffer, sizeof(buffer));
                 if (r == -1) {
                     EventLoop::instance()->removeFileDescriptor(fd);
                     return;
                 }
                 data += ByteArray(buffer, r);
-                u -= r;
+                contentsSize -= r;
             }
 
-            CompletionMessage msg(CompletionMessage::None, p, l, c);
-            ByteArray args = ByteArray::snprintf<64>("%s:%d:%d:%d", p.constData(), l, c, tu);
+            CompletionMessage msg(CompletionMessage::None, path, line, column, pos);
+            ByteArray args = ByteArray::snprintf<64>("%s:%d:%d:%d:%d", path.constData(), line, column, pos, tu);
             const char *argv[] = { "completionStream", args.constData() };
             msg.init(2, argv);
             msg.setContents(data.left(tu));

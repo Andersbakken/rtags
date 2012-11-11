@@ -15,14 +15,14 @@ public:
         Stream = 0x1
     };
 
-    CompletionMessage(unsigned flags = 0,
-                      const Path &path = Path(), int line = -1, int column = -1);
+    CompletionMessage(unsigned flags = 0, const Path &path = Path(), int line = -1, int column = -1, int pos = -1);
     virtual int messageId() const { return MessageId; }
 
     unsigned flags() const { return mFlags; }
     Path path() const { return mPath; }
     int line() const { return mLine; }
     int column() const { return mColumn; }
+    int pos() const { return mPos; }
 
     void setContents(const ByteArray &contents) { mContents = contents; }
     ByteArray contents() const { return mContents; }
@@ -35,7 +35,7 @@ public:
 private:
     unsigned mFlags;
     Path mPath;
-    int mLine, mColumn;
+    int mLine, mColumn, mPos;
     ByteArray mContents;
     List<ByteArray> mProjects;
 };

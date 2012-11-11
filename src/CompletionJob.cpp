@@ -3,49 +3,50 @@
 #include "EventLoop.h"
 
 CompletionJob::CompletionJob(const shared_ptr<Project> &project)
-    : Job(WriteBuffered|WriteUnfiltered, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1)
+    : Job(WriteBuffered|WriteUnfiltered, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1), mPos(-1)
 {
 }
 
 void CompletionJob::init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<ByteArray> &args,
-                         int line, int column, const ByteArray &unsaved)
+                         int line, int column, int pos, const ByteArray &unsaved)
 {
     mIndex = index;
     mUnit = unit;
     mPath = path;
     mArgs = args;
     mLine = line;
+    mPos = pos;
     mColumn = column;
     mUnsaved = unsaved;
 }
 
-static inline const char *completionChunkKindToString(CXCompletionChunkKind kind)
-{
-    switch (kind) {
-    case CXCompletionChunk_Optional: return "Optional";
-    case CXCompletionChunk_TypedText: return "TypedText";
-    case CXCompletionChunk_Text: return "Text";
-    case CXCompletionChunk_Placeholder: return "Placeholder";
-    case CXCompletionChunk_Informative: return "Informative";
-    case CXCompletionChunk_CurrentParameter: return "CurrentParameter";
-    case CXCompletionChunk_LeftParen: return "LeftParen";
-    case CXCompletionChunk_RightParen: return "RightParen";
-    case CXCompletionChunk_LeftBracket: return "LeftBracket";
-    case CXCompletionChunk_RightBracket: return "RightBracket";
-    case CXCompletionChunk_LeftBrace: return "LeftBrace";
-    case CXCompletionChunk_RightBrace: return "RightBrace";
-    case CXCompletionChunk_LeftAngle: return "LeftAngle";
-    case CXCompletionChunk_RightAngle: return "RightAngle";
-    case CXCompletionChunk_Comma: return "Comma";
-    case CXCompletionChunk_ResultType: return "ResultType";
-    case CXCompletionChunk_Colon: return "Colon";
-    case CXCompletionChunk_SemiColon: return "SemiColon";
-    case CXCompletionChunk_Equal: return "Equal";
-    case CXCompletionChunk_HorizontalSpace: return "HorizontalSpace";
-    case CXCompletionChunk_VerticalSpace: return "VerticalSpace";
-    };
-    return "";
-}
+// static inline const char *completionChunkKindToString(CXCompletionChunkKind kind)
+// {
+//     switch (kind) {
+//     case CXCompletionChunk_Optional: return "Optional";
+//     case CXCompletionChunk_TypedText: return "TypedText";
+//     case CXCompletionChunk_Text: return "Text";
+//     case CXCompletionChunk_Placeholder: return "Placeholder";
+//     case CXCompletionChunk_Informative: return "Informative";
+//     case CXCompletionChunk_CurrentParameter: return "CurrentParameter";
+//     case CXCompletionChunk_LeftParen: return "LeftParen";
+//     case CXCompletionChunk_RightParen: return "RightParen";
+//     case CXCompletionChunk_LeftBracket: return "LeftBracket";
+//     case CXCompletionChunk_RightBracket: return "RightBracket";
+//     case CXCompletionChunk_LeftBrace: return "LeftBrace";
+//     case CXCompletionChunk_RightBrace: return "RightBrace";
+//     case CXCompletionChunk_LeftAngle: return "LeftAngle";
+//     case CXCompletionChunk_RightAngle: return "RightAngle";
+//     case CXCompletionChunk_Comma: return "Comma";
+//     case CXCompletionChunk_ResultType: return "ResultType";
+//     case CXCompletionChunk_Colon: return "Colon";
+//     case CXCompletionChunk_SemiColon: return "SemiColon";
+//     case CXCompletionChunk_Equal: return "Equal";
+//     case CXCompletionChunk_HorizontalSpace: return "HorizontalSpace";
+//     case CXCompletionChunk_VerticalSpace: return "VerticalSpace";
+//     };
+//     return "";
+// }
 
 static int compareCompletionResult(const void *left, const void *right)
 {
@@ -74,9 +75,25 @@ void CompletionJob::execute()
                                                           mUnsaved.isEmpty() ? 0 : 1,
                                                           clang_defaultCodeCompleteOptions());
 
+
+    const CXSourceLocation loc = clang_getLocationForOffset(mUnit, clang_getFile(mUnit, mPath.constData()), mPos);
+    const CXCursor cursor = clang_getCursor(mUnit, loc);
+    if (!clang_isInvalid(clang_getCursorKind(cursor))) {
+        const CXStringScope cursorDisplayName = clang_getCursorDisplayName(cursor);
+        const char *cursorCString = clang_getCString(cursorDisplayName.string);
+        const CXCursor parent = clang_getCursorSemanticParent(parent);
+        const CXStringScope parentDisplayName = clang_getCursorDisplayName(cursor);
+        const char *parentCString = clang_getCString(parentDisplayName.string);
+        write<128>("`%s%s%s",
+                   cursorCString ? cursorCString : "",
+                   parentCString ? "|" : "",
+                   parentCString ? parentCString : "");
+    } else {
+        write("`");
+    }
+
     if (results) {
         qsort(results->Results, results->NumResults, sizeof(CXCompletionResult), compareCompletionResult);
-        bool sentHeader = false;
         for (unsigned i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
             if (kind == CXCursor_Destructor)
@@ -111,14 +128,13 @@ void CompletionJob::execute()
                 }
             }
 
-            assert(!completion.contains(' '));
-            if (ok) {
-                if (!sentHeader) {
-                    write<128>("`%s %s", completion.constData(), signature.constData());
-                    sentHeader = true;
-                } else {
-                    write<128>("%s %s", completion.constData(), signature.constData());
-                }
+            int pos = completion.size() - 1;
+            while (pos > 0 && isspace(completion.at(pos)))
+                --pos;
+            if (ok && pos > 0) {
+                completion.truncate(pos);
+                assert(!completion.contains(' '));
+                write<128>("%s %s", completion.constData(), signature.constData());
             }
         }
 
