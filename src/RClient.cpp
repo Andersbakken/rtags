@@ -62,10 +62,10 @@ static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& 
     if (!path.exists())
         return false;
 
-    line = atoi(caps[2].capture.constData());
-    column = atoi(caps[3].capture.constData());
-    pos = atoi(caps[4].capture.constData());
-    contentsSize = atoi(caps[5].capture.constData());
+    line = caps[2].capture.toLongLong();
+    column = caps[3].capture.toLongLong();
+    pos = caps[4].capture.toLongLong();
+    contentsSize = caps[5].capture.toLongLong();
 
     return true;
 }

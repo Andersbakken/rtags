@@ -874,11 +874,10 @@ return t if rtags is allowed to modify this file"
                 (if idx
                     (let* ((ws (string-match " " output last))
                            (key (substring output last ws))
-                           (cur (gethash key rtags-completion-signatures)))
-                      (insert key)
-                      (insert "\n")
-                      (add-to-list 'cur (substring output (+ ws 1) idx))
-                      (puthash key cur rtags-completion-signatures)
+                           (values (gethash key rtags-completion-signatures)))
+                      (setq values (add-to-list 'values (substring output (+ ws 1) idx)))
+                      (puthash key values rtags-completion-signatures)
+                      (insert (concat key "\n"))
                       (setq last (+ idx 1)))
                   (progn
                     (unless (= last (length output))

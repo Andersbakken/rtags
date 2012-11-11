@@ -76,21 +76,23 @@ void CompletionJob::execute()
                                                           clang_defaultCodeCompleteOptions());
 
 
-    const CXSourceLocation loc = clang_getLocationForOffset(mUnit, clang_getFile(mUnit, mPath.constData()), mPos);
-    const CXCursor cursor = clang_getCursor(mUnit, loc);
-    if (!clang_isInvalid(clang_getCursorKind(cursor))) {
-        const CXStringScope cursorDisplayName = clang_getCursorDisplayName(cursor);
-        const char *cursorCString = clang_getCString(cursorDisplayName.string);
-        const CXCursor parent = clang_getCursorSemanticParent(parent);
-        const CXStringScope parentDisplayName = clang_getCursorDisplayName(cursor);
-        const char *parentCString = clang_getCString(parentDisplayName.string);
-        write<128>("`%s%s%s",
-                   cursorCString ? cursorCString : "",
-                   parentCString ? "|" : "",
-                   parentCString ? parentCString : "");
-    } else {
-        write("`");
-    }
+    // const CXSourceLocation loc = clang_getLocationForOffset(mUnit, clang_getFile(mUnit, mPath.constData()), mPos);
+    // const CXCursor cursor = clang_getCursor(mUnit, loc);
+    // if (!clang_isInvalid(clang_getCursorKind(cursor))) {
+    //     const CXStringScope cursorDisplayName = clang_getCursorDisplayName(cursor);
+    //     const char *cursorCString = clang_getCString(cursorDisplayName.string);
+    //     const CXCursor parent = clang_getCursorSemanticParent(parent);
+    //     const CXStringScope parentDisplayName = clang_getCursorDisplayName(parent);
+    //     const char *parentCString = clang_getCString(parentDisplayName.string);
+    //     error("[%s][%s]", cursorCString, parentCString);
+    //     // write<128>("`%s%s%s",
+    //     //            cursorCString ? cursorCString : "",
+    //     //            parentCString ? "|" : "",
+    //     //            parentCString ? parentCString : "");
+    //     write("`");
+    // } else {
+    //     write("`");
+    // }
 
     if (results) {
         qsort(results->Results, results->NumResults, sizeof(CXCompletionResult), compareCompletionResult);
@@ -129,10 +131,10 @@ void CompletionJob::execute()
             }
 
             int pos = completion.size() - 1;
-            while (pos > 0 && isspace(completion.at(pos)))
+            while (pos >= 0 && isspace(completion.at(pos)))
                 --pos;
-            if (ok && pos > 0) {
-                completion.truncate(pos);
+            if (ok && pos >= 0) {
+                completion.truncate(pos + 1);
                 assert(!completion.contains(' '));
                 write<128>("%s %s", completion.constData(), signature.constData());
             }
