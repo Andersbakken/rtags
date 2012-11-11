@@ -190,11 +190,10 @@ bool initLogging(int level, const Path &file, unsigned flags)
     sLevel = level;
     new StdoutOutput(level);
     if (!file.isEmpty()) {
-        if (!(flags & (Append|DontRotate)) && file.exists()) {
+        if (!(flags & (Log::Append|Log::DontRotate)) && file.exists()) {
             int i = 0;
             while (true) {
-                Path rotated = file + ".";
-                rotated += ByteArray::number(++i);
+                const Path rotated = ByteArray::snprintf<64>("%s.%d", file.constData(), ++i);
                 if (!rotated.exists()) {
                     if (rename(file.constData(), rotated.constData())) {
                         char buf[1025];
@@ -205,7 +204,7 @@ bool initLogging(int level, const Path &file, unsigned flags)
                 }
             }
         }
-        FILE *f = fopen(file.constData(), flags & Append ? "a" : "w");
+        FILE *f = fopen(file.constData(), flags & Log::Append ? "a" : "w");
         if (!f)
             return false;
         new FileOutput(f);

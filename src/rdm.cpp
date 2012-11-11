@@ -235,7 +235,7 @@ int main(int argc, char** argv)
             defaultArguments.append(optarg);
             break;
         case 'A':
-            logFlags |= Append;
+            logFlags |= Log::Append;
             break;
         case 'L':
             logFile = optarg;
