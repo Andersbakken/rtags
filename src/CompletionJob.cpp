@@ -156,7 +156,7 @@ void CompletionJob::execute()
             parent.clear();
     }
     write<128>("`%s|%s", current.constData(), parent.constData());
-    error("[%s][%s]", current.constData(), parent.constData());
+    error("%d (%d:%d) => %s|%s", mPos, mLine, mColumn, current.constData(), parent.constData());
 
     if (results) {
         qsort(results->Results, results->NumResults, sizeof(CXCompletionResult), compareCompletionResult);
