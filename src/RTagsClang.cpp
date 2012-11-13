@@ -14,6 +14,8 @@ ByteArray cursorToString(CXCursor cursor, unsigned flags)
     ByteArray ret;
     ret.reserve(256);
     ret += eatString(clang_getCursorKindSpelling(kind));
+    if (clang_isInvalid(kind))
+        return ret;
 
     switch (RTags::cursorType(kind)) {
     case Reference:
@@ -115,10 +117,9 @@ static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXCli
 
 CXCursor findFirstChild(CXCursor parent)
 {
-    if (clang_isInvalid(clang_getCursorKind(parent)))
-        return clang_getNullCursor();
-    CXCursor ret;
-    clang_visitChildren(parent, findFirstChildVisitor, &ret);
+    CXCursor ret = clang_getNullCursor();
+    if (!clang_isInvalid(clang_getCursorKind(parent)))
+        clang_visitChildren(parent, findFirstChildVisitor, &ret);
     return ret;
 }
 
@@ -140,10 +141,9 @@ static CXChildVisitResult findChildVisitor(CXCursor cursor, CXCursor, CXClientDa
 
 CXCursor findChild(CXCursor parent, CXCursorKind kind)
 {
-    if (clang_isInvalid(clang_getCursorKind(parent)))
-        return clang_getNullCursor();
     FindChildVisitor u = { kind, clang_getNullCursor() };
-    clang_visitChildren(parent, findChildVisitor, &u);
+    if (!clang_isInvalid(clang_getCursorKind(parent)))
+        clang_visitChildren(parent, findChildVisitor, &u);
     return u.cursor;
 }
 }
