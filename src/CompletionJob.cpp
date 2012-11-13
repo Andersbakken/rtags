@@ -108,16 +108,15 @@ static inline ByteArray fullyQualifiedName(CXCursor cursor)
 
 void CompletionJob::execute()
 {
-    CXUnsavedFile unsavedFile = { mUnsaved.isEmpty() ? 0 : mPath.constData(),
-                                  mUnsaved.isEmpty() ? 0 : mUnsaved.constData(),
-                                  static_cast<unsigned long>(mUnsaved.size()) };
+    CXCodeCompleteResults *results = 0;
+    if (mLine != -1) {
+        CXUnsavedFile unsavedFile = { mUnsaved.isEmpty() ? 0 : mPath.constData(),
+                                      mUnsaved.isEmpty() ? 0 : mUnsaved.constData(),
+                                      static_cast<unsigned long>(mUnsaved.size()) };
 
-    CXCodeCompleteResults *results = clang_codeCompleteAt(mUnit,
-                                                          mPath.constData(),
-                                                          mLine, mColumn,
-                                                          &unsavedFile,
-                                                          mUnsaved.isEmpty() ? 0 : 1,
-                                                          clang_defaultCodeCompleteOptions());
+        results = clang_codeCompleteAt(mUnit, mPath.constData(), mLine, mColumn,
+                                       &unsavedFile, mUnsaved.isEmpty() ? 0 : 1, clang_defaultCodeCompleteOptions());
+    }
 
     ByteArray current, parent;
     if (CXFile f = clang_getFile(mUnit, mPath.constData())) {
@@ -155,10 +154,12 @@ void CompletionJob::execute()
         if (current == parent)
             parent.clear();
     }
-    write<128>("`%s|%s", current.constData(), parent.constData());
     error("%d (%d:%d) => %s|%s", mPos, mLine, mColumn, current.constData(), parent.constData());
 
-    if (results) {
+    if (!results) {
+        write<128>("@%s|%s", current.constData(), parent.constData());
+    } else {
+        write<128>("`%s|%s", current.constData(), parent.constData());
         qsort(results->Results, results->NumResults, sizeof(CXCompletionResult), compareCompletionResult);
         for (unsigned i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
