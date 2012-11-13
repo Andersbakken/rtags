@@ -299,6 +299,7 @@ enum {
     AlwaysMake,
     AutoMakeProject,
     AutostartRdm,
+    BeginningOfClassOrFunction,
     Clear,
     CodeComplete,
     CodeCompleteAt,
@@ -309,6 +310,7 @@ enum {
     Diagnostics,
     DumpFile,
     ElispList,
+    EndOfClassOrFunction,
     FilterSystemHeaders,
     FindFile,
     FindFilePreferExact,
@@ -401,6 +403,8 @@ struct Option opts[] = {
     { CodeCompleteAt, "code-complete-at", 'x', required_argument, "Get code completion from location (must be specified with path:line:column)." },
     { CodeComplete, "code-complete", 0, no_argument, "Get code completion from stream written to stdin." },
     { FixIts, "fixits", 0, required_argument, "Get fixits for file.\n" },
+    { BeginningOfClassOrFunction, "beginning-of-class-or-function", 0, required_argument, "Return beginning of current class or function." },
+    { EndOfClassOrFunction, "end-of-class-or-function", 0, required_argument, "Return end of current class or function." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -687,6 +691,8 @@ bool RClient::parse(int &argc, char **argv)
             }
             mUnsavedFiles[path] = contents;
             break; }
+        case BeginningOfClassOrFunction:
+        case EndOfClassOrFunction:
         case FollowLocation:
         case CursorInfo:
         case ReferenceLocation: {
