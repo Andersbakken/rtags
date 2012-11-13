@@ -831,7 +831,7 @@ bool RClient::parse(int &argc, char **argv)
                     return false;
                 }
             } else {
-                if (optind < argc) {
+                if (optind < argc && *argv[optind] != '-') {
                     makefile = Path::resolved(argv[optind++]);
                     if (makefile.isDir()) {
                         makefile = Path::resolved("Makefile", makefile);

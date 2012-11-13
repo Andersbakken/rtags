@@ -138,6 +138,8 @@ inline CursorInfo findCursorInfo(const SymbolMap &map, const Location &location,
     return it->second;
 }
 
+CXCursor findFirstChild(CXCursor parent);
+CXCursor findChild(CXCursor parent, CXCursorKind kind);
 
 struct SortedCursor
 {

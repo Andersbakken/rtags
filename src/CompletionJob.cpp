@@ -92,16 +92,60 @@ static inline ByteArray fullyQualifiedName(CXCursor cursor)
     ByteArray ret;
     ret.reserve(128);
     CXCursorKind kind = clang_getCursorKind(cursor);
+    const CXCursor orig = cursor;
 
     do {
         if (!ret.isEmpty())
             ret.prepend("::");
         ret.prepend(RTags::eatString(clang_getCursorDisplayName(cursor)));
-        if (!RTags::needsQualifiers(kind))
+
+        bool done = true;
+        switch (kind) {
+        case CXCursor_CXXMethod:
+        case CXCursor_Constructor:
+        case CXCursor_FunctionDecl:
+        case CXCursor_Destructor:
+        case CXCursor_FieldDecl:
+        case CXCursor_ClassTemplate:
+        case CXCursor_Namespace:
+        case CXCursor_ClassDecl:
+        case CXCursor_StructDecl:
+        case CXCursor_EnumConstantDecl:
+        case CXCursor_EnumDecl:
+        case CXCursor_TypedefDecl:
+            done = false;
             break;
+        default:
+            break;
+        }
+        if (done)
+            break;
+
         cursor = clang_getCursorSemanticParent(cursor);
         kind = clang_getCursorKind(cursor);
     } while (RTags::isContainer(kind));
+
+    const CXCursor child = RTags::findFirstChild(orig);
+    kind = clang_getCursorKind(child);
+    switch (kind) {
+    case CXCursor_TypeRef:
+    case CXCursor_TemplateRef: {
+        const CXStringScope str = clang_getCursorSpelling(child);
+        if (str.data()) {
+            const char *cstr = str.data();
+            if (!strncmp(cstr, "class ", 6)) {
+                cstr += 6;
+            } else if (!strncmp(cstr, "struct ", 7)) {
+                cstr += 7;
+            }
+            ret.prepend(' ');
+            ret.prepend(cstr);
+        }
+        break; }
+    default:
+        error() << "Got something else here" << orig << child;
+        break;
+    }
 
     return ret;
 }

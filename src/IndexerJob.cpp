@@ -197,45 +197,9 @@ Location IndexerJob::createLocation(const CXSourceLocation &location, bool *bloc
     return ret;
 }
 
-static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
-{
-    *reinterpret_cast<CXCursor*>(data) = cursor;
-    return CXChildVisit_Break;
-}
-
-static inline CXCursor findFirstChild(CXCursor parent)
-{
-    CXCursor ret;
-    clang_visitChildren(parent, findFirstChildVisitor, &ret);
-    return ret;
-}
-
-struct FindChildVisitor
-{
-    CXCursorKind kind;
-    CXCursor cursor;
-
-};
-static CXChildVisitResult findChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
-{
-    FindChildVisitor *u = reinterpret_cast<FindChildVisitor*>(data);
-    if (clang_getCursorKind(cursor) == u->kind) {
-        u->cursor = cursor;
-        return CXChildVisit_Break;
-    }
-    return CXChildVisit_Continue;
-}
-
-static inline CXCursor findChild(CXCursor parent, CXCursorKind kind)
-{
-    FindChildVisitor u = { kind, nullCursor };
-    clang_visitChildren(parent, findChildVisitor, &u);
-    return u.cursor;
-}
-
 static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
 {
-    const CXCursor child = findFirstChild(deleteStatement);
+    const CXCursor child = RTags::findFirstChild(deleteStatement);
     CXCursorKind kind = clang_getCursorKind(child);
     switch (kind) {
     case CXCursor_UnexposedExpr:
@@ -262,7 +226,7 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
         return nullCursor;
     }
 
-    const CXCursor ref = findFirstChild(var);
+    const CXCursor ref = RTags::findFirstChild(var);
     kind = clang_getCursorKind(ref);
     switch (kind) {
     case CXCursor_TypeRef:
@@ -282,7 +246,7 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
     default:
         return nullCursor;
     }
-    const CXCursor destructor = findChild(referenced, CXCursor_Destructor);
+    const CXCursor destructor = RTags::findChild(referenced, CXCursor_Destructor);
     return destructor;
 }
 

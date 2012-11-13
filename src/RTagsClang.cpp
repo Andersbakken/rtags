@@ -107,4 +107,43 @@ SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &l
     return map.end();
 }
 
+static CXChildVisitResult findFirstChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
+{
+    *reinterpret_cast<CXCursor*>(data) = cursor;
+    return CXChildVisit_Break;
+}
+
+CXCursor findFirstChild(CXCursor parent)
+{
+    if (clang_isInvalid(clang_getCursorKind(parent)))
+        return clang_getNullCursor();
+    CXCursor ret;
+    clang_visitChildren(parent, findFirstChildVisitor, &ret);
+    return ret;
+}
+
+struct FindChildVisitor
+{
+    CXCursorKind kind;
+    CXCursor cursor;
+};
+
+static CXChildVisitResult findChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
+{
+    FindChildVisitor *u = reinterpret_cast<FindChildVisitor*>(data);
+    if (clang_getCursorKind(cursor) == u->kind) {
+        u->cursor = cursor;
+        return CXChildVisit_Break;
+    }
+    return CXChildVisit_Continue;
+}
+
+CXCursor findChild(CXCursor parent, CXCursorKind kind)
+{
+    if (clang_isInvalid(clang_getCursorKind(parent)))
+        return clang_getNullCursor();
+    FindChildVisitor u = { kind, clang_getNullCursor() };
+    clang_visitChildren(parent, findChildVisitor, &u);
+    return u.cursor;
+}
 }
