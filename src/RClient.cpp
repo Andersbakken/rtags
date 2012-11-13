@@ -136,7 +136,7 @@ public:
 
         Path path;
         int line, column, contentsSize, tu, pos;
-        line = column = contentsSize = pos = -1;
+        line = column = contentsSize = pos = tu = -1;
         while (parseCompletion(data, path, line, column, pos, contentsSize)) {
             if (line != -1) {
                 tu = contentsSize;
