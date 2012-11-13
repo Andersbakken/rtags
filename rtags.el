@@ -852,6 +852,8 @@ return t if rtags is allowed to modify this file"
 
 (defvar rtags-completion-signatures (make-hash-table :test 'equal))
 (defvar rtags-completion-buffer-pending nil)
+(defvar rtags-symbol nil)
+(defvar rtags-container nil)
 (defun rtags-completion-stream-process-filter (process output)
   (let ((buf (process-buffer process)))
     (if (not (buffer-live-p buf))
@@ -859,45 +861,64 @@ return t if rtags is allowed to modify this file"
       (with-current-buffer buf
         (let ((backtick (string-match "`" output)))
           (when backtick
-            (setq rtags-completion-signatures (make-hash-table :test 'equal))
-            (let (deactivate-mark)
-              (erase-buffer))
-            (setq output (substring output (+ backtick 1))))
-          (save-excursion
-            (goto-char (point-max))
-            (when rtags-completion-buffer-pending
-              (setq output (concat rtags-completion-buffer-pending output))
-              (setq rtags-completion-buffer-pending nil))
-            (let ((deactivate-mark) (continue t) (idx 0) (last 0))
-              (while continue
-                (setq idx (string-match "\n" output last))
-                (if idx
-                    (let* ((ws (string-match " " output last))
-                           (key (substring output last ws))
-                           (values (gethash key rtags-completion-signatures)))
-                      (setq values (add-to-list 'values (substring output (+ ws 1) idx)))
-                      (puthash key values rtags-completion-signatures)
-                      (insert (concat key "\n"))
-                      (setq last (+ idx 1)))
-                  (progn
-                    (unless (= last (length output))
-                      (setq rtags-completion-buffer-pending (substring output last)))
-                    (setq continue nil))
-                  )
+            (let* ((newline (string-match "\n" output backtick))
+                   (pipe (string-match "|" output backtick))
+                   (symbol (substring output (+ backtick 1) pipe))
+                   (container (substring output (+ pipe 1) newline)))
+
+
+              ;; (when (not (string= rtags-symbol symbol))
+              ;;   (setq rtags-symbol (substring output (+ backtick 1) pipe))
+              ;; (setq rtags-container (substring output (+ pipe 1) newline))
+              (setq rtags-completion-signatures (make-hash-table :test 'equal))
+              (cond ((and symbol container) (unless (and (string= symbol rtags-symbol)
+                                                         (string= container rtags-container))
+                                              (message "%s %s" container symbol)))
+                    (symbol (unless (string= rtags-symbol symbol) (message "%s" rtags-symbol)))
+                    (container (unless (string= rtags-container container) (message "%s" rtags-container)))
+                    (t nil))
+              (setq rtags-symbol symbol rtags-container container)
+              ;; (message "Got stuff %d %d %d %s %s" backtick newline pipe
+              ;;          (if rtags-symbol rtags-symbol "(none)")
+              ;;          (if rtags-container rtags-container "(none)"))
+              (let (deactivate-mark)
+                (erase-buffer))
+              (setq rtags-completion-buffer-pending nil)
+              (setq output (substring output (+ newline 1))))))
+        (save-excursion
+          (goto-char (point-max))
+          (when rtags-completion-buffer-pending
+            (setq output (concat rtags-completion-buffer-pending output))
+            (setq rtags-completion-buffer-pending nil))
+          (let ((deactivate-mark) (continue t) (idx 0) (last 0))
+            (while continue
+              (setq idx (string-match "\n" output last))
+              (if idx
+                  (let* ((ws (string-match " " output last))
+                         (key (substring output last ws))
+                         (values (gethash key rtags-completion-signatures)))
+                    (setq values (add-to-list 'values (substring output (+ ws 1) idx)))
+                    (puthash key values rtags-completion-signatures)
+                    (insert (concat key "\n"))
+                    (setq last (+ idx 1)))
+                (progn
+                  (unless (= last (length output))
+                    (setq rtags-completion-buffer-pending (substring output last)))
+                  (setq continue nil))
                 )
               )
-            (goto-char (point-min))
-            (if (looking-at "Scheduled rebuild")
-                (progn
-                  (let (deactivate-mark)
-                    (erase-buffer))
-                  (setq rtags-completion nil
-                        rtags-completion-cache-line 0
-                        rtags-completion-cache-column 0
-                        rtags-completion-cache-line-contents ""
-                        rtags-completion-cache-file-name "")
-                  (run-at-time "1 sec" nil 'rtags-post-command-update-completion-cache))
-              )
+            )
+          (goto-char (point-min))
+          (if (looking-at "Scheduled rebuild")
+              (progn
+                (let (deactivate-mark)
+                  (erase-buffer))
+                (setq rtags-completion nil
+                      rtags-completion-cache-line 0
+                      rtags-completion-cache-column 0
+                      rtags-completion-cache-line-contents ""
+                      rtags-completion-cache-file-name "")
+                (run-at-time "1 sec" nil 'rtags-post-command-update-completion-cache))
             )
           )
         )

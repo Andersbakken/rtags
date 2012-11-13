@@ -152,8 +152,10 @@ void CompletionJob::execute()
                 parent = fullyQualifiedName(valid[0] ? parents[0] : parents[1]);
             }
         }
+        if (current == parent)
+            parent.clear();
     }
-
+    write<128>("`%s|%s", current.constData(), parent.constData());
     error("[%s][%s]", current.constData(), parent.constData());
 
     if (results) {
