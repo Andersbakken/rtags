@@ -121,7 +121,7 @@ private:
     void onCompletionStreamDisconnected(LocalClient *client);
     bool addProject(const Path &path, const ProjectEntry &entry);
     void onCompletionJobFinished(Path path);
-    void startCompletion(const Path &path, int line, int column, const ByteArray &contents, Connection *conn);
+    void startCompletion(const Path &path, int line, int column, int pos, const ByteArray &contents, Connection *conn);
 
     struct ProjectEntry
     {
@@ -166,9 +166,9 @@ private:
     struct PendingCompletion
     {
         PendingCompletion()
-            : line(-1), column(-1), connection(0)
+            : line(-1), column(-1), pos(-1), connection(0)
         {}
-        int line, column;
+        int line, column, pos;
         ByteArray contents;
         Connection *connection;
     };

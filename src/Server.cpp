@@ -1379,14 +1379,15 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
         PendingCompletion &pending = mPendingCompletions[path];
         pending.line = message->line();
         pending.column = message->column();
+        pending.pos = message->pos();
         pending.contents = message->contents();
         pending.connection = conn;
     } else {
-        startCompletion(path, message->line(), message->column(), message->contents(), conn);
+        startCompletion(path, message->line(), message->column(), message->pos(), message->contents(), conn);
     }
 }
 
-void Server::startCompletion(const Path &path, int line, int column, const ByteArray &contents, Connection *conn)
+void Server::startCompletion(const Path &path, int line, int column, int pos, const ByteArray &contents, Connection *conn)
 {
     // error() << "starting completion" << path << line << column;
     updateProjectForLocation(path);
@@ -1417,7 +1418,7 @@ void Server::startCompletion(const Path &path, int line, int column, const ByteA
 
     mActiveCompletions.insert(path);
     shared_ptr<CompletionJob> job(new CompletionJob(project));
-    job->init(index, unit, path, args, line, column, contents);
+    job->init(index, unit, path, args, line, column, pos, contents);
     job->setId(nextId());
     job->finished().connectAsync(this, &Server::onCompletionJobFinished);
     mPendingLookups[job->id()] = conn;
@@ -1429,7 +1430,7 @@ void Server::onCompletionJobFinished(Path path)
     // error() << "Got finished for" << path;
     PendingCompletion completion = mPendingCompletions.take(path);
     if (completion.line != -1) {
-        startCompletion(path, completion.line, completion.column, completion.contents, completion.connection);
+        startCompletion(path, completion.line, completion.column, completion.pos, completion.contents, completion.connection);
         // ### could the connection be deleted by now?
     } else {
         mActiveCompletions.remove(path);
@@ -1439,7 +1440,7 @@ void Server::onCompletionJobFinished(Path path)
 bool Server::isCompletionStream(Connection* conn) const
 {
     LocalClient *client = conn->client();
-    return mCompletionStreams.contains(client);
+    return (mCompletionStreams.find(client) != mCompletionStreams.end());
 }
 
 void Server::onCompletionStreamDisconnected(LocalClient *client)

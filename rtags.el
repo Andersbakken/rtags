@@ -830,7 +830,7 @@ return t if rtags is allowed to modify this file"
              (buffer-size (- (point-max) (point-min)))
              (line (line-number-at-pos))
              (column (rtags-find-symbol-start))
-             (header (format "%s:%d:%d:%d\n" (buffer-file-name buffer) line (+ column 1) (- (point-max) (point-min)))))
+             (header (format "%s:%d:%d:%d:%d\n" (buffer-file-name buffer) line (+ column 1) (- (point) 1) (- (point-max) (point-min)))))
         (setq rtags-completion (get-buffer-create "*RTags Completions*")
               rtags-completion-cache-file-name (buffer-file-name buffer)
               rtags-completion-cache-line line

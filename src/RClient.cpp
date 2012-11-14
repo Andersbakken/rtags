@@ -42,7 +42,7 @@ public:
     }
 };
 
-static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& column, int& contentsSize)
+static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& column, int &pos, int& contentsSize)
 {
     List<RegExp::Capture> caps;
 
@@ -50,8 +50,9 @@ static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& 
     if (nl == -1)
         return false;
 
-    RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)\n");
-    if (rx.indexIn(data, 0, &caps) != 0 || caps.size() != 5) {
+
+    RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)\n");
+    if (rx.indexIn(data, 0, &caps) != 0 || caps.size() != 6) {
         data.remove(0, nl + 1);
         return false;
     }
@@ -63,7 +64,8 @@ static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& 
 
     line = caps[2].capture.toLongLong();
     column = caps[3].capture.toLongLong();
-    contentsSize = caps[4].capture.toLongLong();
+    pos = caps[4].capture.toLongLong();
+    contentsSize = caps[5].capture.toLongLong();
 
     return true;
 }
@@ -123,9 +125,9 @@ public:
         data += ByteArray(buffer, r);
 
         Path path;
-        int line, column, contentsSize, tu;
-        line = column = contentsSize = tu = -1;
-        while (parseCompletion(data, path, line, column, contentsSize)) {
+        int line, column, contentsSize, tu, pos;
+        line = column = contentsSize = pos = tu = -1;
+        while (parseCompletion(data, path, line, column, pos, contentsSize)) {
             tu = contentsSize;
             contentsSize -= data.size();
             while (contentsSize > 0) {
@@ -138,13 +140,14 @@ public:
                 contentsSize -= r;
             }
 
-            warning() << "sending message" << path << line << column << tu;
-            CompletionMessage msg(CompletionMessage::None, path, line, column);
-            const ByteArray args = ByteArray::snprintf<64>("%s:%d:%d:%d", path.constData(), line, column, tu);
+            CompletionMessage msg(CompletionMessage::None, path, line, column, pos);
+            const ByteArray args = ByteArray::snprintf<64>("%s:%d:%d:%d:%d", path.constData(), line, column, pos, tu);
             const char *argv[] = { "completionStream", args.constData() };
             msg.init(2, argv);
-            msg.setContents(data.left(tu));
-            data = data.mid(tu);
+            if (line != -1) {
+                msg.setContents(data.left(tu));
+                data = data.mid(tu);
+            }
             that->client->message(&msg, Client::SendDontRunEventLoop);
         }
     }

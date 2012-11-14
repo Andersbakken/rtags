@@ -3,57 +3,21 @@
 #include "EventLoop.h"
 
 CompletionJob::CompletionJob(const shared_ptr<Project> &project)
-    : Job(WriteBuffered|WriteUnfiltered, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1)
+    : Job(WriteBuffered|WriteUnfiltered, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1), mPos(-1)
 {
 }
 
 void CompletionJob::init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<ByteArray> &args,
-                         int line, int column, const ByteArray &unsaved)
+                         int line, int column, int pos, const ByteArray &unsaved)
 {
     mIndex = index;
     mUnit = unit;
     mPath = path;
     mArgs = args;
     mLine = line;
+    mPos = pos;
     mColumn = column;
     mUnsaved = unsaved;
-}
-
-// static inline const char *completionChunkKindToString(CXCompletionChunkKind kind)
-// {
-//     switch (kind) {
-//     case CXCompletionChunk_Optional: return "Optional";
-//     case CXCompletionChunk_TypedText: return "TypedText";
-//     case CXCompletionChunk_Text: return "Text";
-//     case CXCompletionChunk_Placeholder: return "Placeholder";
-//     case CXCompletionChunk_Informative: return "Informative";
-//     case CXCompletionChunk_CurrentParameter: return "CurrentParameter";
-//     case CXCompletionChunk_LeftParen: return "LeftParen";
-//     case CXCompletionChunk_RightParen: return "RightParen";
-//     case CXCompletionChunk_LeftBracket: return "LeftBracket";
-//     case CXCompletionChunk_RightBracket: return "RightBracket";
-//     case CXCompletionChunk_LeftBrace: return "LeftBrace";
-//     case CXCompletionChunk_RightBrace: return "RightBrace";
-//     case CXCompletionChunk_LeftAngle: return "LeftAngle";
-//     case CXCompletionChunk_RightAngle: return "RightAngle";
-//     case CXCompletionChunk_Comma: return "Comma";
-//     case CXCompletionChunk_ResultType: return "ResultType";
-//     case CXCompletionChunk_Colon: return "Colon";
-//     case CXCompletionChunk_SemiColon: return "SemiColon";
-//     case CXCompletionChunk_Equal: return "Equal";
-//     case CXCompletionChunk_HorizontalSpace: return "HorizontalSpace";
-//     case CXCompletionChunk_VerticalSpace: return "VerticalSpace";
-//     };
-//     return "";
-// }
-
-static int compareCompletionResult(const void *left, const void *right)
-{
-    const int l = clang_getCompletionPriority(reinterpret_cast<const CXCompletionResult*>(left)->CompletionString);
-    const int r = clang_getCompletionPriority(reinterpret_cast<const CXCompletionResult*>(right)->CompletionString);
-    if (l != r)
-        return l < r ? -1 : 1;
-    return 0;
 }
 
 static inline bool isPartOfSymbol(char ch)
@@ -159,6 +123,30 @@ static inline ByteArray fullyQualifiedName(CXCursor cursor)
     return ret;
 }
 
+struct CompletionNode
+{
+    ByteArray completion, signature;
+    int priority, distance;
+    enum DistanceType {
+        Before,
+        After,
+        None
+    } distanceType;
+};
+
+static int compareCompletionNode(const void *left, const void *right)
+{
+    const CompletionNode *l = reinterpret_cast<const CompletionNode*>(left);
+    const CompletionNode *r = reinterpret_cast<const CompletionNode*>(right);
+    if (l->priority != r->priority)
+        return l->priority < r->priority ? -1 : 1;
+    if (l->distanceType != r->distanceType)
+        return l->distanceType < r->distanceType ? -1 : 1;
+    if (l->distance != r->distance)
+        return l->distance < r->distance ? -1 : 1;
+    return strcmp(l->completion.constData(), r->completion.constData());
+}
+
 void CompletionJob::execute()
 {
     CXUnsavedFile unsavedFile = { mUnsaved.isEmpty() ? 0 : mPath.constData(),
@@ -170,8 +158,8 @@ void CompletionJob::execute()
                                                           clang_defaultCodeCompleteOptions());
 
     if (results) {
-        bool first = true;
-        qsort(results->Results, results->NumResults, sizeof(CXCompletionResult), compareCompletionResult);
+        CompletionNode *nodes = new CompletionNode[results->NumResults];
+        int nodeCount = 0;
         for (unsigned i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
             if (kind == CXCursor_Destructor)
@@ -186,41 +174,59 @@ void CompletionJob::execute()
             if (priority >= 75)
                 continue;
 
-            ByteArray signature, completion;
-            signature.reserve(256);
+            CompletionNode &node = nodes[nodeCount];
+            node.priority = priority;
+            node.signature.reserve(256);
             const int chunkCount = clang_getNumCompletionChunks(string);
             bool ok = true;
             for (int j=0; j<chunkCount; ++j) {
                 const CXCompletionChunkKind chunkKind = clang_getCompletionChunkKind(string, j);
                 if (chunkKind == CXCompletionChunk_TypedText) {
-                    completion = RTags::eatString(clang_getCompletionChunkText(string, j));
-                    if (completion.size() > 8 && completion.startsWith("operator") && !isPartOfSymbol(completion.at(8))) {
+                    node.completion = RTags::eatString(clang_getCompletionChunkText(string, j));
+                    if (node.completion.size() > 8 && node.completion.startsWith("operator") && !isPartOfSymbol(node.completion.at(8))) {
                         ok = false;
                         break;
                     }
-                    signature.append(completion);
+                    node.signature.append(node.completion);
                 } else {
-                    signature.append(RTags::eatString(clang_getCompletionChunkText(string, j)));
+                    node.signature.append(RTags::eatString(clang_getCompletionChunkText(string, j)));
                     if (chunkKind == CXCompletionChunk_ResultType)
-                        signature.append(' ');
+                        node.signature.append(' ');
                 }
             }
 
-            int pos = completion.size() - 1;
-            while (pos >= 0 && isspace(completion.at(pos)))
-                --pos;
-            if (ok && pos >= 0) {
-                completion.truncate(pos + 1);
-                assert(!completion.contains(' '));
-                if (first) {
-                    first = false;
-                    write<128>("`%s %s", completion.constData(), signature.constData());
+            int ws = node.completion.size() - 1;
+            while (ws >= 0 && isspace(node.completion.at(ws)))
+                --ws;
+            if (ok && ws >= 0) {
+                node.completion.truncate(ws + 1);
+                int pos =  mUnsaved.lastIndexOf(node.completion, mPos - 1);
+                if (pos != -1) {
+                    node.distanceType = CompletionNode::Before;
+                    node.distance = mPos - pos;
                 } else {
-                    write<128>("%s %s", completion.constData(), signature.constData());
+                    pos = mUnsaved.indexOf(node.completion, mPos);
+                    if (pos == -1) {
+                        node.distanceType = CompletionNode::None;
+                        node.distance = -1;
+                    } else {
+                        node.distanceType = CompletionNode::After;
+                        node.distance = pos - mPos;
+                    }
                 }
+                ++nodeCount;
+            } else {
+                node.completion.clear();
+                node.signature.clear();
             }
         }
-
+        if (nodeCount) {
+            qsort(nodes, nodeCount, sizeof(CompletionNode), compareCompletionNode);
+            write<128>("`%s %s", nodes[0].completion.constData(), nodes[0].signature.constData());
+            for (int i=1; i<nodeCount; ++i) {
+                write<128>("%s %s", nodes[i].completion.constData(), nodes[i].signature.constData());
+            }
+        }
 
         clang_disposeCodeCompleteResults(results);
         project()->indexer->addToCache(mPath, mArgs, mIndex, mUnit);
