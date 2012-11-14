@@ -269,7 +269,7 @@
 
 (defun rtags-print-cursorinfo (&optional location)
   (interactive)
-  (message (rtags-cursorinfo)))
+  (message "%s" (rtags-cursorinfo)))
 
 
 (defun rtags-current-location ()
