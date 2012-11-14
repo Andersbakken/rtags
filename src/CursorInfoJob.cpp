@@ -14,6 +14,8 @@ void CursorInfoJob::execute()
     if (scope.isNull())
         return;
     const SymbolMap &map = scope.data();
+    if (map.isEmpty())
+        return;
     SymbolMap::const_iterator it = RTags::findCursorInfo(map, location);
     if (it != map.end()) {
         write(it->first);
@@ -31,9 +33,9 @@ void CursorInfoJob::execute()
             if (it->first.fileId() != fileId)
                 break;
             if (RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
-                write<128>("Container: %s %d-%d", it->first.key(keyFlags()).constData(),
-                           it->second.start, it->second.end);
-                break;
+                write("Container:");
+                write(it->first);
+                write(it->second.toString(CursorInfo::IgnoreTargets|CursorInfo::IgnoreReferences, keyFlags()).constData());
             }
             if (it == map.begin())
                 break;

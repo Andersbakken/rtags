@@ -126,7 +126,11 @@ public:
         return changed;
     }
 
-    ByteArray toString(unsigned keyFlags = 0) const;
+    enum Flag {
+        IgnoreTargets = 0x1,
+        IgnoreReferences = 0x2
+    };
+    ByteArray toString(unsigned cursorInfoFlags = 0, unsigned keyFlags = 0) const;
 
     uint16_t symbolLength; // this is just the symbol name length e.g. foo => 3
     ByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo

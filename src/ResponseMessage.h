@@ -11,10 +11,16 @@ public:
 
     ResponseMessage(const ByteArray &data = ByteArray())
         : mData(data)
-    {}
+    {
+        if (mData.endsWith('\n'))
+            mData.chop(1);
+    }
     ResponseMessage(const List<ByteArray> &data)
         : mData(ByteArray::join(data, "\n"))
-    {}
+    {
+        if (mData.endsWith('\n'))
+            mData.chop(1);
+    }
 
     virtual int messageId() const { return MessageId; }
     ByteArray data() const { return mData; }

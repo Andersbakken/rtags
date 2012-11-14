@@ -1,7 +1,7 @@
 #include "CursorInfo.h"
 #include "RTagsClang.h"
 
-ByteArray CursorInfo::toString(unsigned keyFlags) const
+ByteArray CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
 {
     ByteArray ret = ByteArray::snprintf<1024>("SymbolName: %s\n"
                                               "Kind: %s\n"
@@ -16,7 +16,7 @@ ByteArray CursorInfo::toString(unsigned keyFlags) const
                                               start != -1 && end != -1 ? ByteArray::snprintf<16>("Range: %d-%d\n", start, end).constData() : "",
                                               isDefinition ? "Definition\n" : "");
 
-    if (!targets.isEmpty()) {
+    if (!targets.isEmpty() && !(cursorInfoFlags & IgnoreTargets)) {
         ret.append("Targets:\n");
         for (Set<Location>::const_iterator tit = targets.begin(); tit != targets.end(); ++tit) {
             const Location &l = *tit;
@@ -24,7 +24,7 @@ ByteArray CursorInfo::toString(unsigned keyFlags) const
         }
     }
 
-    if (!references.isEmpty()) {
+    if (!references.isEmpty() && !(cursorInfoFlags & IgnoreReferences)) {
         ret.append("References:\n");
         for (Set<Location>::const_iterator rit = references.begin(); rit != references.end(); ++rit) {
             const Location &l = *rit;
