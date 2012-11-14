@@ -69,7 +69,8 @@ private:
                                  unsigned include_len, CXClientData client_data);
 
     bool handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location);
-    void handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc, const CXCursor &reference);
+    void handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &loc,
+                         const CXCursor &reference, const CXCursor &parent);
     void handleInclude(const CXCursor &cursor, CXCursorKind kind, const Location &location);
     Location findByUSR(const CXCursor &cursor, CXCursorKind kind, const Location &loc) const;
     void addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos);

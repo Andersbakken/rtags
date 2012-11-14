@@ -292,14 +292,14 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
             const int count = clang_getNumOverloadedDecls(cursor);
             for (int i=0; i<count; ++i) {
                 const CXCursor ref = clang_getOverloadedDecl(cursor, i);
-                job->handleReference(cursor, kind, loc, ref);
+                job->handleReference(cursor, kind, loc, ref, parent);
             }
             break; }
         case CXCursor_CXXDeleteExpr:
-            job->handleReference(cursor, kind, loc, findDestructorForDelete(cursor));
+            job->handleReference(cursor, kind, loc, findDestructorForDelete(cursor), parent);
             break;
         default:
-            job->handleReference(cursor, kind, loc, clang_getCursorReferenced(cursor));
+            job->handleReference(cursor, kind, loc, clang_getCursorReferenced(cursor), parent);
             break;
         }
         break;
@@ -316,7 +316,7 @@ static inline bool isImplicit(const CXCursor &cursor)
                                 clang_getCursorLocation(clang_getCursorSemanticParent(cursor)));
 }
 
-void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &location, const CXCursor &ref)
+void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &location, const CXCursor &ref, const CXCursor &parent)
 {
     const CXCursorKind refKind = clang_getCursorKind(ref);
     if (clang_isInvalid(refKind))
@@ -385,6 +385,32 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         }
         info.symbolName = refInfo.symbolName;
         info.type = clang_getCursorType(cursor).kind;
+        if (kind == CXCursor_TypeRef) {
+            switch (clang_getCursorKind(parent)) {
+            case CXCursor_VarDecl:
+            case CXCursor_ParmDecl:
+            case CXCursor_FieldDecl: {
+                SymbolMap::iterator it = mData->symbols.find(createLocation(parent, 0));
+                if (it != mData->symbols.end()) {
+                    CursorInfo &ci = it->second;
+                    switch (ci.type) {
+                    case CXType_Pointer:
+                        ci.symbolName.prepend(info.symbolName + " *");
+                        break;
+                    case CXType_LValueReference:
+                        ci.symbolName.prepend(info.symbolName + " &");
+                        break;
+                    default:
+                        ci.symbolName.prepend(info.symbolName + " ");
+                        break;
+                    }
+                }
+                break; }
+            default:
+                break;
+            }
+
+        }
     }
     Set<Location> &val = mData->references[location];
     val.insert(refLoc);
@@ -456,6 +482,40 @@ static inline bool isInline(const CXCursor &cursor)
     }
 }
 
+static inline bool addType(ByteArray &symbolName, CXTypeKind kind)
+{
+    const char *type = 0;
+    switch (kind) {
+    case CXType_Void: type = "void "; break;
+    case CXType_Bool: type = "bool "; break;
+    case CXType_Char_U: type = "char_u "; break;
+    case CXType_UChar: type = "unsigned char "; break;
+    case CXType_Char16: type = "char16 "; break;
+    case CXType_Char32: type = "char32 "; break;
+    case CXType_UShort: type = "unsigned short "; break;
+    case CXType_UInt: type = "unsigned int "; break;
+    case CXType_ULong: type = "unsigned long "; break;
+    case CXType_ULongLong: type = "unsigned long long "; break;
+    case CXType_UInt128: type = "uint128 "; break;
+    case CXType_Char_S: type = "char_s "; break;
+    case CXType_SChar: type = "schar "; break;
+    case CXType_WChar: type = "wchar "; break;
+    case CXType_Short: type = "short "; break;
+    case CXType_Int: type = "int "; break;
+    case CXType_Long: type = "long "; break;
+    case CXType_LongLong: type = "long long "; break;
+    case CXType_Int128: type = "int128 "; break;
+    case CXType_Float: type = "float "; break;
+    case CXType_Double: type = "double "; break;
+    case CXType_LongDouble: type = "long double "; break;
+    default:
+        return false;
+    }
+    assert(type);
+    symbolName.prepend(type);
+    return true;
+}
+
 bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const Location &location)
 {
     CursorInfo &info = mData->symbols[location];
@@ -463,6 +523,7 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
         CXStringScope name = clang_getCursorSpelling(cursor);
         const char *cstr = name.data();
         info.symbolLength = cstr ? strlen(cstr) : 0;
+        info.type = clang_getCursorType(cursor).kind;
         if (!info.symbolLength) {
             switch (kind) {
             case CXCursor_ClassDecl:
@@ -488,7 +549,6 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
 
         info.isDefinition = clang_isCursorDefinition(cursor);
         info.kind = kind;
-        info.type = clang_getCursorType(cursor).kind;
         const ByteArray usr = RTags::eatString(clang_getCursorUSR(cursor));
         if (!usr.isEmpty())
             mData->usrMap[usr].insert(location);
@@ -514,6 +574,7 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
             break;
         }
     }
+
     return true;
 }
 
