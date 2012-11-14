@@ -91,6 +91,7 @@ static const CXCursor nullCursor = clang_getNullCursor();
 
 ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location &location)
 {
+    int retLength = -1;
     ByteArray qparam, qnoparam;
 
     CXCursor cur = cursor;
@@ -105,7 +106,7 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
         if (first) {
             first = false;
         } else if (!RTags::needsQualifiers(kind)) {
-            return qparam;
+            break;
         }
 
         CXStringScope displayName(clang_getCursorDisplayName(cur));
@@ -116,6 +117,9 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
         const ByteArray qname(name);
         if (qparam.isEmpty()) {
             qparam = qname;
+            if (kind == CXCursor_VarDecl || kind == CXCursor_ParmDecl) {
+                retLength = qparam.size();
+            }
             const int sp = qparam.indexOf('(');
             if (sp != -1)
                 qnoparam = qparam.left(sp);
@@ -144,10 +148,11 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
         }
 
         if (!RTags::needsQualifiers(kind))
-            return qparam;
+            break;
         cur = clang_getCursorSemanticParent(cur);
     }
-    return qparam;
+
+    return retLength == -1 ? qparam : qparam.left(retLength);
 }
 
 static const CXSourceLocation nullLocation = clang_getNullLocation();
