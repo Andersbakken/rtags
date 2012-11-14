@@ -147,6 +147,103 @@ static int compareCompletionNode(const void *left, const void *right)
     return strcmp(l->completion.constData(), r->completion.constData());
 }
 
+struct Token
+{
+    Token(const char *data = 0, int size = 0)
+        : bytes(data), length(size)
+    {}
+
+    inline bool operator==(const Token &other) const
+    {
+        return length == other.length && !strncmp(bytes, other.bytes, length);
+    }
+    inline bool operator<(const Token &other) const
+    {
+        const int minLength = std::min(length, other.length);
+        if (minLength) {
+            const int cmp = strncmp(bytes, other.bytes, minLength);
+            if (cmp < 0)
+                return true;
+            if (cmp > 0)
+                return false;
+        }
+
+        return length > other.length;
+    }
+
+    const char *bytes;
+    int length;
+};
+
+enum TokenCharacterType {
+    NotValid,
+    ValidAll,
+    ValidStart,
+    ValidRest
+};
+
+static inline TokenCharacterType tokenCharacterType(char ch)
+{
+    switch (ch) {
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+        return ValidRest;
+    case '~':
+        return ValidStart;
+    case '_':
+        return ValidAll;
+    default:
+        break;
+    }
+    return isalpha(ch) ? ValidAll : NotValid;
+}
+
+static inline void addToken(const char *data, int pos, int len, Map<Token, int> &tokens)
+{
+    if (len > 1 || data[pos] != '~') {
+        tokens[Token(data + pos, len)] = pos;
+    }
+}
+
+static inline void tokenize(const char *data, int size, Map<Token, int> &tokens)
+{
+    int last = -1;
+    for (int i=0; i<size; ++i) {
+        switch (tokenCharacterType(data[i])) {
+        case NotValid:
+            if (last != -1) {
+                addToken(data, last, i - last, tokens);
+                last = -1;
+            }
+            break;
+        case ValidAll:
+            if (last == -1)
+                last = i;
+            break;
+        case ValidStart:
+            if (last == -1) {
+                last = i;
+            } else {
+                addToken(data, last, i - last, tokens);
+                last = -1;
+            }
+            break;
+        case ValidRest:
+            break;
+        }
+    }
+    if (last != -1)
+        addToken(data, last, size - last, tokens);
+}
+
 void CompletionJob::execute()
 {
     CXUnsavedFile unsavedFile = { mUnsaved.isEmpty() ? 0 : mPath.constData(),
