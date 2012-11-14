@@ -801,32 +801,28 @@ return t if rtags is allowed to modify this file"
   (when rtags-completion-cache-timer
     (cancel-timer rtags-completion-cache-timer)
     (setq rtags-completion-cache-timer nil))
-  (when (rtags-init-completion-stream)
-    (if (rtags-completion-cache-is-valid)
-        (process-send-string rtags-completion-stream-process (format "%s,%d\n" (buffer-file-name) (- (point) 1)))
-      (progn
-        (if (buffer-live-p rtags-completion)
-            (with-current-buffer rtags-completion
-              (let (deactivate-mark)
-                (erase-buffer))))
-        (save-excursion
-          ;;(message "prepared completion")
-          (let* ((buffer (current-buffer))
-                 (path (rtags-path-for-project))
-                 (buffer-size (- (point-max) (point-min)))
-                 (line (line-number-at-pos))
-                 (column (rtags-find-symbol-start))
-                 (header (format "%s:%d:%d:%d:%d\n" (buffer-file-name buffer) line (+ column 1) (- (point) 1) (- (point-max) (point-min)))))
-            (setq rtags-completion (get-buffer-create "*RTags Completions*")
-                  rtags-completion-cache-file-name (buffer-file-name buffer)
-                  rtags-completion-cache-line line
-                  rtags-completion-cache-column column
-                  rtags-completion-cache-line-contents (buffer-substring (point-at-bol) (+ (point-at-bol) column)))
-            ;; (message "writing shit %s" header)
-            (process-send-string rtags-completion-stream-process header)
-            (process-send-string rtags-completion-stream-process (buffer-substring (point-min) (point-max))))
-          )
-        )
+  (when (and (not (rtags-completion-cache-is-valid))
+             (rtags-init-completion-stream))
+    (if (buffer-live-p rtags-completion)
+        (with-current-buffer rtags-completion
+          (let (deactivate-mark)
+            (erase-buffer))))
+    (save-excursion
+      ;;(message "prepared completion")
+      (let* ((buffer (current-buffer))
+             (path (rtags-path-for-project))
+             (buffer-size (- (point-max) (point-min)))
+             (line (line-number-at-pos))
+             (column (rtags-find-symbol-start))
+             (header (format "%s:%d:%d:%d\n" (buffer-file-name buffer) line (+ column 1) (- (point-max) (point-min)))))
+        (setq rtags-completion (get-buffer-create "*RTags Completions*")
+              rtags-completion-cache-file-name (buffer-file-name buffer)
+              rtags-completion-cache-line line
+              rtags-completion-cache-column column
+              rtags-completion-cache-line-contents (buffer-substring (point-at-bol) (+ (point-at-bol) column)))
+        ;; (message "writing shit %s" header)
+        (process-send-string rtags-completion-stream-process header)
+        (process-send-string rtags-completion-stream-process (buffer-substring (point-min) (point-max))))
       )
     )
   )
@@ -853,65 +849,36 @@ return t if rtags is allowed to modify this file"
 
 (defvar rtags-completion-signatures (make-hash-table :test 'equal))
 (defvar rtags-completion-buffer-pending nil)
-(defvar rtags-symbol "")
-(defvar rtags-container "")
-(defun rtags-update-symbol-and-container (output delimiter newline)
-  (let* ((pipe (string-match "|" output delimiter))
-         (symbol (substring output (+ delimiter 1) pipe))
-         (container (substring output (+ pipe 1) newline)))
-    (when (not (and (string= symbol rtags-symbol)
-                    (string= container rtags-container)))
-      (setq rtags-symbol symbol rtags-container container)
-      (force-mode-line-update))
-      ;; (cond ((and rtags-symbol rtags-container) (message "%s %s" container symbol))
-      ;;       (rtags-symbol (message "%s" rtags-symbol))
-      ;;       (rtags-container (message "%s" rtags-container))
-      ;;       (t nil)))
-    )
-  )
 
 (defun rtags-completion-stream-process-filter (process output)
-  (let* ((buf (if process (process-buffer process) (get-buffer-create "*RTags Completions*")))
-         (delimiter (string-match "[`@]" output))
-         (match nil)
-         (process-output nil)
-         (newline (string-match "\n" output delimiter)))
-    (if delimiter
-        (setq match (substring output delimiter (+ delimiter 1))))
-    ;; (message "match %s delimiter %d newline %d"
-    ;;          (if match match "")
-    ;;          (if delimiter delimiter -1)
-    ;;          (if newline newline -1))
-    (cond ((string= match "@")
-           (rtags-update-symbol-and-container output delimiter newline))
-          ((string= match "`")
+  (let* ((buf (process-buffer process))
+         (process-output t)
+         (delimiter (string-match "`" output)))
+    (cond (delimiter
            (let (deactivate-mark)
-             (rtags-update-symbol-and-container output delimiter newline)
              (with-current-buffer buf
                (erase-buffer)
                (setq rtags-completion-signatures (make-hash-table :test 'equal)
                      rtags-completion-buffer-pending nil
-                     process-output t
-                     output (substring output (+ newline 1))))))
+                     output (substring output (+ delimiter 1))))))
           ((string= (substring output 0 21) "Scheduled rebuild of ")
            (progn
              (setq rtags-completion nil
                    rtags-completion-cache-line 0
                    rtags-completion-cache-column 0
-                   rtags-symbol nil
-                   rtags-container nil
                    rtags-completion-cache-line-contents ""
-                   rtags-completion-cache-file-name "")
+                   rtags-completion-cache-file-name ""
+                   process-output nil)
              (rtags-restart-completion-cache-timer)))
-          (t (setq process-output t)))
+          (rtags-completion-buffer-pending
+           (setq output (concat rtags-completion-buffer-pending output)
+                 rtags-completion-buffer-pending nil))
+          (t nil))
     (if process-output
         (with-current-buffer buf
           (let ((deactivate-mark) (continue t) (idx 0) (last 0))
             (save-excursion
               (goto-char (point-max))
-              (when rtags-completion-buffer-pending
-                (setq output (concat rtags-completion-buffer-pending output))
-                (setq rtags-completion-buffer-pending nil))
               (while continue
                 (setq idx (string-match "\n" output last))
                 (if idx
@@ -943,6 +910,8 @@ return t if rtags is allowed to modify this file"
             ((eq (process-status rtags-completion-stream-process) 'signal) t)
             (t nil))
       (let ((process-connection-type nil))  ; use a pipe
+        (if (get-buffer "*RTags Completions*")
+            (kill-buffer "*RTags Completions*"))
         (setq rtags-completion-stream-process (start-process
                                                "RTags Completions Stream"
                                                "*RTags Completions*"

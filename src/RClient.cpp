@@ -42,7 +42,7 @@ public:
     }
 };
 
-static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& column, int &pos, int& contentsSize)
+static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& column, int& contentsSize)
 {
     List<RegExp::Capture> caps;
 
@@ -50,19 +50,8 @@ static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& 
     if (nl == -1)
         return false;
 
-    const int comma = data.indexOf(',');
-    if (comma > 0 && comma + 1 < nl) {
-        pos = atoi(data.constData() + comma + 1);
-        if (pos) {
-            path = data.left(comma);
-            line = column = contentsSize = -1;
-            data.remove(0, nl + 1);
-            return true;
-        }
-    }
-
-    RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)\n");
-    if (rx.indexIn(data, 0, &caps) != 0 || caps.size() != 6) {
+    RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)\n");
+    if (rx.indexIn(data, 0, &caps) != 0 || caps.size() != 5) {
         data.remove(0, nl + 1);
         return false;
     }
@@ -74,8 +63,7 @@ static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& 
 
     line = caps[2].capture.toLongLong();
     column = caps[3].capture.toLongLong();
-    pos = caps[4].capture.toLongLong();
-    contentsSize = caps[5].capture.toLongLong();
+    contentsSize = caps[4].capture.toLongLong();
 
     return true;
 }
@@ -135,34 +123,28 @@ public:
         data += ByteArray(buffer, r);
 
         Path path;
-        int line, column, contentsSize, tu, pos;
-        line = column = contentsSize = pos = tu = -1;
-        while (parseCompletion(data, path, line, column, pos, contentsSize)) {
-            if (line != -1) {
-                tu = contentsSize;
-                contentsSize -= data.size();
-                while (contentsSize > 0) {
-                    r = ::read(fd, buffer, sizeof(buffer));
-                    if (r == -1) {
-                        EventLoop::instance()->removeFileDescriptor(fd);
-                        return;
-                    }
-                    data += ByteArray(buffer, r);
-                    contentsSize -= r;
+        int line, column, contentsSize, tu;
+        line = column = contentsSize = tu = -1;
+        while (parseCompletion(data, path, line, column, contentsSize)) {
+            tu = contentsSize;
+            contentsSize -= data.size();
+            while (contentsSize > 0) {
+                r = ::read(fd, buffer, sizeof(buffer));
+                if (r == -1) {
+                    EventLoop::instance()->removeFileDescriptor(fd);
+                    return;
                 }
-
+                data += ByteArray(buffer, r);
+                contentsSize -= r;
             }
 
-            CompletionMessage msg(CompletionMessage::None, path, line, column, pos);
-            const ByteArray args = (line == -1
-                                    ? ByteArray::snprintf<64>("%s,%d", path.constData(), pos)
-                                    : ByteArray::snprintf<64>("%s:%d:%d:%d:%d", path.constData(), line, column, pos, tu));
+            warning() << "sending message" << path << line << column << tu;
+            CompletionMessage msg(CompletionMessage::None, path, line, column);
+            const ByteArray args = ByteArray::snprintf<64>("%s:%d:%d:%d", path.constData(), line, column, tu);
             const char *argv[] = { "completionStream", args.constData() };
             msg.init(2, argv);
-            if (line != -1) {
-                msg.setContents(data.left(tu));
-                data = data.mid(tu);
-            }
+            msg.setContents(data.left(tu));
+            data = data.mid(tu);
             that->client->message(&msg, Client::SendDontRunEventLoop);
         }
     }

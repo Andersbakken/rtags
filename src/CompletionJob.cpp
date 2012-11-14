@@ -3,19 +3,18 @@
 #include "EventLoop.h"
 
 CompletionJob::CompletionJob(const shared_ptr<Project> &project)
-    : Job(WriteBuffered|WriteUnfiltered, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1), mPos(-1)
+    : Job(WriteBuffered|WriteUnfiltered, project), mIndex(0), mUnit(0), mLine(-1), mColumn(-1)
 {
 }
 
 void CompletionJob::init(CXIndex index, CXTranslationUnit unit, const Path &path, const List<ByteArray> &args,
-                         int line, int column, int pos, const ByteArray &unsaved)
+                         int line, int column, const ByteArray &unsaved)
 {
     mIndex = index;
     mUnit = unit;
     mPath = path;
     mArgs = args;
     mLine = line;
-    mPos = pos;
     mColumn = column;
     mUnsaved = unsaved;
 }
@@ -162,58 +161,16 @@ static inline ByteArray fullyQualifiedName(CXCursor cursor)
 
 void CompletionJob::execute()
 {
-    CXCodeCompleteResults *results = 0;
-    if (mLine != -1) {
-        CXUnsavedFile unsavedFile = { mUnsaved.isEmpty() ? 0 : mPath.constData(),
-                                      mUnsaved.isEmpty() ? 0 : mUnsaved.constData(),
-                                      static_cast<unsigned long>(mUnsaved.size()) };
+    CXUnsavedFile unsavedFile = { mUnsaved.isEmpty() ? 0 : mPath.constData(),
+                                  mUnsaved.isEmpty() ? 0 : mUnsaved.constData(),
+                                  static_cast<unsigned long>(mUnsaved.size()) };
 
-        results = clang_codeCompleteAt(mUnit, mPath.constData(), mLine, mColumn,
-                                       &unsavedFile, mUnsaved.isEmpty() ? 0 : 1, clang_defaultCodeCompleteOptions());
-    }
+    CXCodeCompleteResults *results = clang_codeCompleteAt(mUnit, mPath.constData(), mLine, mColumn,
+                                                          &unsavedFile, mUnsaved.isEmpty() ? 0 : 1,
+                                                          clang_defaultCodeCompleteOptions());
 
-    ByteArray current, parent;
-    if (CXFile f = clang_getFile(mUnit, mPath.constData())) {
-        // printf("%p %s\n", f, f ? RTags::eatString(clang_getFileName(f)).constData() : "none");
-
-        CXSourceLocation loc = clang_getLocationForOffset(mUnit, f, mPos);
-        CXCursor cursor = clang_getCursor(mUnit, loc);
-        // error() << cursor;
-        if (!clang_isInvalid(clang_getCursorKind(cursor))) {
-            CXCursor ref = clang_getCursorReferenced(cursor);
-            if (!clang_isInvalid(clang_getCursorKind(ref))) {
-                current = fullyQualifiedName(ref);
-            } else {
-                current = fullyQualifiedName(cursor);
-            }
-            parent = fullyQualifiedName(findContainer(cursor));
-        } else if (!mUnsaved.isEmpty()) {
-            CXCursor parents[2];
-            const int offsets[] = { -1, 1 };
-            bool valid[2] = { false, false };
-            for (int i=0; i<2; ++i) {
-                int pos = mPos;
-                while (pos >= 0 && pos < mUnsaved.size() && isspace(mUnsaved.at(pos)))
-                    pos += offsets[i];
-                if (pos >= 0 && pos < mUnsaved.size()) {
-                    loc = clang_getLocationForOffset(mUnit, f, mPos);
-                    parents[i] = findContainer(clang_getCursor(mUnit, loc));
-                    valid[i] = !clang_isInvalid(clang_getCursorKind(parents[i]));
-                }
-            }
-            if ((valid[0] || valid[1]) && (clang_equalCursors(parents[0], parents[1]) || valid[0] != valid[1])) {
-                parent = fullyQualifiedName(valid[0] ? parents[0] : parents[1]);
-            }
-        }
-        if (current == parent)
-            parent.clear();
-    }
-    error("%d (%d:%d) => %s|%s", mPos, mLine, mColumn, current.constData(), parent.constData());
-
-    if (!results) {
-        write<128>("@%s|%s", current.constData(), parent.constData());
-    } else {
-        write<128>("`%s|%s", current.constData(), parent.constData());
+    if (results) {
+        bool first = true;
         qsort(results->Results, results->NumResults, sizeof(CXCompletionResult), compareCompletionResult);
         for (unsigned i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
@@ -255,7 +212,12 @@ void CompletionJob::execute()
             if (ok && pos >= 0) {
                 completion.truncate(pos + 1);
                 assert(!completion.contains(' '));
-                write<128>("%s %s", completion.constData(), signature.constData());
+                if (first) {
+                    first = false;
+                    write<128>("`%s %s", completion.constData(), signature.constData());
+                } else {
+                    write<128>("%s %s", completion.constData(), signature.constData());
+                }
             }
         }
 
