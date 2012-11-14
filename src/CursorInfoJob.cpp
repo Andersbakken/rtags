@@ -14,9 +14,29 @@ void CursorInfoJob::execute()
     if (scope.isNull())
         return;
     const SymbolMap &map = scope.data();
-    const SymbolMap::const_iterator it = RTags::findCursorInfo(map, location);
+    SymbolMap::const_iterator it = RTags::findCursorInfo(map, location);
     if (it != map.end()) {
         write(it->first);
         write(it->second);
+    } else {
+        it = map.lower_bound(location);
+        if (it == map.end())
+            --it;
+    }
+    if (it != map.begin()) {
+        const uint32_t fileId = location.fileId();
+        const int offset = location.offset();
+        while (true) {
+            --it;
+            if (it->first.fileId() != fileId)
+                break;
+            if (RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
+                write<128>("Container: %s %d-%d", it->first.key(keyFlags()).constData(),
+                           it->second.start, it->second.end);
+                break;
+            }
+            if (it == map.begin())
+                break;
+        }
     }
 }
