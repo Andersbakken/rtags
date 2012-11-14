@@ -228,6 +228,8 @@ void CompletionJob::execute()
             }
         }
 
+        delete[] nodes;
+
         clang_disposeCodeCompleteResults(results);
         project()->indexer->addToCache(mPath, mArgs, mIndex, mUnit);
     }
