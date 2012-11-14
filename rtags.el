@@ -430,6 +430,22 @@
   :group 'rtags
   :type 'boolean)
 
+(defcustom rtags-completion-timer-interval .1
+  "Interval for completion timer"
+  :group 'rtags
+  :type 'number)
+
+
+(defcustom rtags-cursorinfo-timer-enabled t
+  "Whether rtags cursorinfo is enabled"
+  :group 'rtags
+  :type 'boolean)
+
+(defcustom rtags-cursorinfo-timer-interval 1
+  "Interval for cursorinfo timer"
+  :group 'rtags
+  :type 'number)
+
 (defcustom rtags-expand-function '(lambda() (dabbrev-expand nil))
   "What function to call for expansions"
   :group 'rtags
@@ -797,7 +813,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-prepare-completion()
   (interactive)
-  ;;  (message "prepare completion")
+  ;; (message "prepare completion")
   (when rtags-completion-cache-timer
     (cancel-timer rtags-completion-cache-timer)
     (setq rtags-completion-cache-timer nil))
@@ -924,21 +940,48 @@ return t if rtags is allowed to modify this file"
   )
 
 (defvar rtags-completion-cache-timer nil)
-(defvar rtags-completion-cache-last-pos -1)
 (defun rtags-restart-completion-cache-timer ()
   (interactive)
-  (when (and (not (= (point) rtags-completion-cache-last-pos))
-             (or (eq major-mode 'c++-mode)
-                 (eq major-mode 'c-mode)))
-    (setq rtags-completion-cache-last-pos (point))
+  (when (or (eq major-mode 'c++-mode)
+            (eq major-mode 'c-mode))
     (if rtags-completion-cache-timer
         (cancel-timer rtags-completion-cache-timer))
-    (setq rtags-completion-cache-timer (run-with-idle-timer .1 nil 'rtags-prepare-completion))
+    (setq rtags-completion-cache-timer (run-with-idle-timer rtags-completion-timer-interval nil (function rtags-prepare-completion)))
     )
   )
 
 (if rtags-completion-enabled
-    (add-hook 'post-command-hook 'rtags-restart-completion-cache-timer))
+    (add-hook 'post-command-hook (function rtags-restart-completion-cache-timer)))
+
+(defvar rtags-cursorinfo-timer nil)
+(defun rtags-restart-cursorinfo-timer ()
+  (interactive)
+  (when (or (eq major-mode 'c++-mode)
+            (eq major-mode 'c-mode))
+    (if rtags-cursorinfo-timer
+        (cancel-timer rtags-cursorinfo-timer))
+    (setq rtags-completion-cache-timer (run-with-idle-timer rtags-cursorinfo-timer-interval nil (function rtags-update-cursorinfo))))
+  )
+
+(if rtags-cursorinfo-timer-enabled
+    (add-hook 'post-command-hook (function rtags-restart-cursorinfo-timer)))
+
+(defvar rtags-cursorinfo-last-location "")
+(defvar rtags-cursorinfo-symbol-name "")
+(defvar rtags-cursorinfo-container-name "")
+(defvar rtags-cursorinfo-container-begin "")
+(defvar rtags-cursorinfo-container-end "")
+
+(defun rtags-update-cursorinfo ()
+  (let ((cur (rtags-current-location)))
+    (if (not (equal cur rtags-cursorinfo-last-location))
+        (let ((cursorinfo (rtags-cursorinfo cur)))
+          (setq rtags-cursorinfo-last-location cur)
+          (setq rtags-cursorinfo-symbol-name (rtags-current-symbol-name cursorinfo))
+          (force-mode-line-update))
+      )
+    )
+  )
 
 (defun rtags-init-diagnostics-buffer-and-process ()
   (let ((buf (get-buffer-create "*RTags Diagnostics*")))
@@ -1142,10 +1185,11 @@ return t if rtags is allowed to modify this file"
   (if offset
       (goto-char (+ 1 offset))))
 
-(defun rtags-current-symbol-name ()
-  (let ((cursorinfo (rtags-cursorinfo)))
-    (if (string-match "^SymbolName: \\(.*\\)$" cursorinfo)
-        (match-string 1 cursorinfo))))
+(defun rtags-current-symbol-name (&optional cursorinfo)
+  (unless cursorinfo
+    (setq cursorinfo (rtags-cursorinfo)))
+  (if (string-match "^SymbolName: \\(.*\\)$" cursorinfo)
+      (match-string 1 cursorinfo)))
 
 (defun rtags-cursor-extent (&optional location)
   (let ((cursorinfo (rtags-cursorinfo location)))
