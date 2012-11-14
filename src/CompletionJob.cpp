@@ -195,30 +195,36 @@ void CompletionJob::execute()
                 }
             }
 
-            int ws = node.completion.size() - 1;
-            while (ws >= 0 && isspace(node.completion.at(ws)))
-                --ws;
-            if (ok && ws >= 0) {
-                node.completion.truncate(ws + 1);
-                int pos =  mUnsaved.lastIndexOf(node.completion, mPos - 1);
-                if (pos != -1) {
-                    node.distanceType = CompletionNode::Before;
-                    node.distance = mPos - pos;
-                } else {
-                    pos = mUnsaved.indexOf(node.completion, mPos);
-                    if (pos == -1) {
-                        node.distanceType = CompletionNode::None;
-                        node.distance = -1;
-                    } else {
-                        node.distanceType = CompletionNode::After;
-                        node.distance = pos - mPos;
-                    }
+            if (ok) {
+                int ws = node.completion.size() - 1;
+                while (ws >= 0 && isspace(node.completion.at(ws)))
+                    --ws;
+                if (ws >= 0) {
+                    node.completion.truncate(ws + 1);
+                    node.distanceType = CompletionNode::None;
+                    node.distance = 0;
+                    /*
+                      int pos = mUnsaved.lastIndexOf(node.completion, mPos - 1);
+                      if (pos != -1) {
+                      node.distanceType = CompletionNode::Before;
+                      node.distance = mPos - pos;
+                      } else {
+                      pos = mUnsaved.indexOf(node.completion, mPos);
+                      if (pos == -1) {
+                      node.distanceType = CompletionNode::None;
+                      node.distance = -1;
+                      } else {
+                      node.distanceType = CompletionNode::After;
+                      node.distance = pos - mPos;
+                      }
+                      }
+                    */
+                    ++nodeCount;
+                    continue;
                 }
-                ++nodeCount;
-            } else {
-                node.completion.clear();
-                node.signature.clear();
             }
+            node.completion.clear();
+            node.signature.clear();
         }
         if (nodeCount) {
             qsort(nodes, nodeCount, sizeof(CompletionNode), compareCompletionNode);
