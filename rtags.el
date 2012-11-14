@@ -425,6 +425,11 @@
 
 ;; **************************** API *********************************
 
+(defcustom rtags-completion-enabled nil
+  "Whether rtags completion is enabled"
+  :group 'rtags
+  :type 'boolean)
+
 (defcustom rtags-expand-function '(lambda() (dabbrev-expand nil))
   "What function to call for expansions"
   :group 'rtags
@@ -434,12 +439,6 @@
   "Run after rtags has jumped to a location possibly in a new file"
   :group 'rtags
   :type 'hook)
-
-(defcustom rtags-auto-update-project t
-  "Auto-update project from current buffer"
-  :group 'rtags
-  :type 'bool)
-
 
 (defcustom rtags-mode-hook nil
   "Run when rtags-mode is started"
@@ -854,8 +853,8 @@ return t if rtags is allowed to modify this file"
 
 (defvar rtags-completion-signatures (make-hash-table :test 'equal))
 (defvar rtags-completion-buffer-pending nil)
-(defvar rtags-symbol nil)
-(defvar rtags-container nil)
+(defvar rtags-symbol "")
+(defvar rtags-container "")
 (defun rtags-update-symbol-and-container (output delimiter newline)
   (let* ((pipe (string-match "|" output delimiter))
          (symbol (substring output (+ delimiter 1) pipe))
@@ -863,10 +862,11 @@ return t if rtags is allowed to modify this file"
     (when (not (and (string= symbol rtags-symbol)
                     (string= container rtags-container)))
       (setq rtags-symbol symbol rtags-container container)
-      (cond ((and rtags-symbol rtags-container) (message "%s %s" container symbol))
-            (rtags-symbol (message "%s" rtags-symbol))
-            (rtags-container (message "%s" rtags-container))
-            (t nil)))
+      (force-mode-line-update))
+      ;; (cond ((and rtags-symbol rtags-container) (message "%s %s" container symbol))
+      ;;       (rtags-symbol (message "%s" rtags-symbol))
+      ;;       (rtags-container (message "%s" rtags-container))
+      ;;       (t nil)))
     )
   )
 
@@ -955,17 +955,21 @@ return t if rtags is allowed to modify this file"
   )
 
 (defvar rtags-completion-cache-timer nil)
+(defvar rtags-completion-cache-last-pos -1)
 (defun rtags-restart-completion-cache-timer ()
   (interactive)
-  (when (or (eq major-mode 'c++-mode)
-            (eq major-mode 'c-mode))
+  (when (and (not (= (point) rtags-completion-cache-last-pos))
+             (or (eq major-mode 'c++-mode)
+                 (eq major-mode 'c-mode)))
+    (setq rtags-completion-cache-last-pos (point))
     (if rtags-completion-cache-timer
         (cancel-timer rtags-completion-cache-timer))
     (setq rtags-completion-cache-timer (run-with-idle-timer .1 nil 'rtags-prepare-completion))
     )
   )
 
-(add-hook 'post-command-hook 'rtags-restart-completion-cache-timer)
+(if rtags-completion-enabled
+    (add-hook 'post-command-hook 'rtags-restart-completion-cache-timer))
 
 (defun rtags-init-diagnostics-buffer-and-process ()
   (let ((buf (get-buffer-create "*RTags Diagnostics*")))

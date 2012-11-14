@@ -125,25 +125,35 @@ static inline ByteArray fullyQualifiedName(CXCursor cursor)
         kind = clang_getCursorKind(cursor);
     } while (RTags::isContainer(kind));
 
-    const CXCursor child = RTags::findFirstChild(orig);
-    kind = clang_getCursorKind(child);
-    switch (kind) {
-    case CXCursor_TypeRef:
-    case CXCursor_TemplateRef: {
-        const CXStringScope str = clang_getCursorSpelling(child);
-        if (str.data()) {
-            const char *cstr = str.data();
-            if (!strncmp(cstr, "class ", 6)) {
-                cstr += 6;
-            } else if (!strncmp(cstr, "struct ", 7)) {
-                cstr += 7;
+    switch (clang_getCursorKind(orig)) {
+    case CXCursor_FieldDecl:
+    case CXCursor_ParmDecl:
+    case CXCursor_FunctionDecl:
+    case CXCursor_CXXMethod:
+    case CXCursor_VarDecl: {
+        const CXCursor child = RTags::findFirstChild(orig);
+        kind = clang_getCursorKind(child);
+        switch (kind) {
+        case CXCursor_TypeRef:
+        case CXCursor_TemplateRef: {
+            const CXStringScope str = clang_getCursorSpelling(child);
+            if (str.data()) {
+                const char *cstr = str.data();
+                if (!strncmp(cstr, "class ", 6)) {
+                    cstr += 6;
+                } else if (!strncmp(cstr, "struct ", 7)) {
+                    cstr += 7;
+                }
+                ret.prepend(' ');
+                ret.prepend(cstr);
             }
-            ret.prepend(' ');
-            ret.prepend(cstr);
+            break; }
+        default:
+            // error() << "Got something else here" << orig << child;
+            break;
         }
         break; }
     default:
-        error() << "Got something else here" << orig << child;
         break;
     }
 
