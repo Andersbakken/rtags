@@ -152,7 +152,7 @@ ByteArray IndexerJob::addNamePermutations(const CXCursor &cursor, const Location
         cur = clang_getCursorSemanticParent(cur);
     }
 
-    return retLength == -1 ? qparam : qparam.left(retLength);
+    return retLength == -1 ? qparam : qparam.right(retLength);
 }
 
 static const CXSourceLocation nullLocation = clang_getNullLocation();
