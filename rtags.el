@@ -960,17 +960,17 @@ return t if rtags is allowed to modify this file"
             (eq major-mode 'c-mode))
     (if rtags-cursorinfo-timer
         (cancel-timer rtags-cursorinfo-timer))
-    (setq rtags-completion-cache-timer (run-with-idle-timer rtags-cursorinfo-timer-interval nil (function rtags-update-cursorinfo))))
+    (setq rtags-cursorinfo-cache-timer (run-with-idle-timer rtags-cursorinfo-timer-interval nil (function rtags-update-cursorinfo))))
   )
 
 (if rtags-cursorinfo-timer-enabled
     (add-hook 'post-command-hook (function rtags-restart-cursorinfo-timer)))
 
 (defvar rtags-cursorinfo-last-location "")
-(defvar rtags-cursorinfo-symbol-name "")
-(defvar rtags-cursorinfo-container-name "")
-(defvar rtags-cursorinfo-container-begin "")
-(defvar rtags-cursorinfo-container-end "")
+(defvar rtags-cursorinfo-symbol-name nil)
+(defvar rtags-cursorinfo-container-name nil)
+(defvar rtags-cursorinfo-container-begin nil)
+(defvar rtags-cursorinfo-container-end nil)
 
 (defun rtags-update-cursorinfo ()
   (let ((cur (rtags-current-location)))
@@ -978,6 +978,7 @@ return t if rtags is allowed to modify this file"
         (let ((cursorinfo (rtags-cursorinfo cur)))
           (setq rtags-cursorinfo-last-location cur)
           (setq rtags-cursorinfo-symbol-name (rtags-current-symbol-name cursorinfo))
+          (setq rtags-cursorinfo-container-name (rtags-current-container-name cursorinfo))
           (force-mode-line-update))
       )
     )
@@ -1188,8 +1189,19 @@ return t if rtags is allowed to modify this file"
 (defun rtags-current-symbol-name (&optional cursorinfo)
   (unless cursorinfo
     (setq cursorinfo (rtags-cursorinfo)))
-  (if (string-match "^SymbolName: \\(.*\\)$" cursorinfo)
-      (match-string 1 cursorinfo)))
+  (let ((container (string-match "^Container:" cursorinfo))
+        (symbolname (string-match "^SymbolName: \\(.*\\)$" cursorinfo)))
+    (if (and symbolname (< symbolname container))
+        (match-string 1 cursorinfo))))
+
+(defun rtags-current-container-name (&optional cursorinfo)
+  (unless cursorinfo
+    (setq cursorinfo (rtags-cursorinfo)))
+  (let* ((container (string-match "^Container:" cursorinfo))
+         (symbolname (string-match "^SymbolName: \\(.*\\)$" cursorinfo (if container container 0))))
+    (if container
+        (match-string 1 cursorinfo)
+      nil)))
 
 (defun rtags-cursor-extent (&optional location)
   (let ((cursorinfo (rtags-cursorinfo location)))
