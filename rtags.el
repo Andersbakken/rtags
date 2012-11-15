@@ -869,8 +869,7 @@ return t if rtags is allowed to modify this file"
 (defun rtags-completion-stream-process-filter (process output)
   (let* ((buf (process-buffer process))
          (process-output t)
-         (delimiter (string-match "`" output))
-         (output-length (length output)))
+         (delimiter (string-match "`" output)))
     (cond (delimiter
            (let (deactivate-mark)
              (with-current-buffer buf
@@ -878,7 +877,7 @@ return t if rtags is allowed to modify this file"
                (setq rtags-completion-signatures (make-hash-table :test 'equal)
                      rtags-completion-buffer-pending nil
                      output (substring output (+ delimiter 1))))))
-          ((string= (substring output 0 (min 21 output-length)) "Scheduled rebuild of ")
+          ((string= (substring output 0 (min 21 (length output))) "Scheduled rebuild of ")
            (progn
              (setq rtags-completion nil
                    rtags-completion-cache-line 0
@@ -907,7 +906,7 @@ return t if rtags is allowed to modify this file"
                       (insert (concat key "\n"))
                       (setq last (+ idx 1)))
                   (progn
-                    (unless (= last output-length)
+                    (unless (= last (length output))
                       (setq rtags-completion-buffer-pending (substring output last)))
                     (setq continue nil))
                   )
