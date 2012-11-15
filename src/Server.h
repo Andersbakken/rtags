@@ -177,7 +177,7 @@ private:
 
     bool mRestoreProjects;
 
-    enum { DatabaseVersion = 8 };
+    enum { DatabaseVersion = 9 };
     friend class CommandProcess;
 };
 
