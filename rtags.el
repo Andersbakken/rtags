@@ -1191,7 +1191,7 @@ return t if rtags is allowed to modify this file"
     (setq cursorinfo (rtags-cursorinfo)))
   (let ((container (string-match "^Container:" cursorinfo))
         (symbolname (string-match "^SymbolName: \\(.*\\)$" cursorinfo)))
-    (if (and symbolname (< symbolname container))
+    (if (and symbolname (or (not container) (< symbolname container)))
         (match-string 1 cursorinfo))))
 
 (defun rtags-current-container-name (&optional cursorinfo)
