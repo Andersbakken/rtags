@@ -115,7 +115,8 @@ void CompletionJob::execute()
 
     CXCodeCompleteResults *results = clang_codeCompleteAt(mUnit, mPath.constData(), mLine, mColumn,
                                                           &unsavedFile, mUnsaved.isEmpty() ? 0 : 1,
-                                                          clang_defaultCodeCompleteOptions());
+                                                          CXCodeComplete_IncludeMacros
+                                                          | CXCodeComplete_IncludeCodePatterns);
 
     if (results) {
         CompletionNode *nodes = new CompletionNode[results->NumResults];
@@ -168,6 +169,7 @@ void CompletionJob::execute()
                     --ws;
                 if (ws >= 0) {
                     node.completion.truncate(ws + 1);
+                    node.signature.replace("\n", "");
                     node.distance = tokens.value(Token(node.completion.constData(), node.completion.size()), -1);
                     ++nodeCount;
                     continue;
