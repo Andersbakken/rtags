@@ -32,7 +32,7 @@ void CursorInfoJob::execute()
             --it;
             if (it->first.fileId() != fileId)
                 break;
-            if (RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
+            if (it->second.isDefinition && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
                 write("Container:");
                 write(it->first);
                 write(it->second.toString(CursorInfo::IgnoreTargets|CursorInfo::IgnoreReferences, keyFlags()).constData());
