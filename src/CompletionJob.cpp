@@ -170,73 +170,39 @@ struct Token
     int length;
 };
 
-enum TokenCharacterType {
-    NotValid,
-    ValidAll,
-    ValidStart,
-    ValidRest
-};
-
-static inline TokenCharacterType tokenCharacterType(char ch)
+static inline bool symbolChar(char ch)
 {
     switch (ch) {
-    case '0':
-    case '1':
-    case '2':
-    case '3':
-    case '4':
-    case '5':
-    case '6':
-    case '7':
-    case '8':
-    case '9':
-        return ValidRest;
-    case '~':
-        return ValidStart;
     case '_':
-        return ValidAll;
+    case '~':
+        return true;
     default:
         break;
     }
-    return isalpha(ch) ? ValidAll : NotValid;
+    return isalnum(ch);
 }
 
 static inline void addToken(const char *data, int pos, int len, Map<Token, int> &tokens)
 {
-    if (len > 1 || data[pos] != '~') {
-        tokens[Token(data + pos, len)] = pos;
-    }
+    int &val = tokens[Token(data + pos, len)];
+    if (!val)
+        val = pos;
 }
 
 static inline void tokenize(const char *data, int size, Map<Token, int> &tokens)
 {
-    int tokenStart = -1;
-    for (int i=0; i<size; ++i) {
-        switch (tokenCharacterType(data[i])) {
-        case NotValid:
-            if (tokenStart != -1) {
-                addToken(data, tokenStart, i - tokenStart, tokens);
-                tokenStart = -1;
-            }
-            break;
-        case ValidAll:
-            if (tokenStart == -1)
-                tokenStart = i;
-            break;
-        case ValidStart:
-            if (tokenStart == -1) {
-                tokenStart = i;
-            } else {
-                addToken(data, tokenStart, i - tokenStart, tokens);
-                tokenStart = -1;
-            }
-            break;
-        case ValidRest:
-            break;
+    int tokenEnd = -1;
+    for (int i=size - 1; i>=0; --i) {
+        if (symbolChar(data[i])) {
+            if (tokenEnd == -1)
+                tokenEnd = i;
+        } else if (tokenEnd != -1) {
+            addToken(data, i + 1, tokenEnd - i, tokens);
+            tokenEnd = -1;
         }
     }
-    if (tokenStart != -1)
-        addToken(data, tokenStart, size - tokenStart, tokens);
+    if (tokenEnd != -1)
+        addToken(data, 0, tokenEnd + 1, tokens);
 }
 
 void CompletionJob::execute()
@@ -254,11 +220,7 @@ void CompletionJob::execute()
         int nodeCount = 0;
         Map<Token, int> tokens;
         if (!mUnsaved.isEmpty()) {
-            const char *data = mUnsaved.constData();
-            const int length = std::min(mPos, 1024);
-            if (mPos > 1024)
-                data += (length - mPos);
-            tokenize(data, length, tokens);
+            tokenize(mUnsaved.constData(), mUnsaved.size(), tokens);
             // for (Map<Token, int>::const_iterator it = tokens.begin(); it != tokens.end(); ++it) {
             //     error() << ByteArray(it->first.data, it->first.length) << it->second;
             // }
