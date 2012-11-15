@@ -127,11 +127,6 @@ struct CompletionNode
 {
     ByteArray completion, signature;
     int priority, distance;
-    enum DistanceType {
-        Before,
-        After,
-        None
-    } distanceType;
 };
 
 static int compareCompletionNode(const void *left, const void *right)
@@ -140,28 +135,28 @@ static int compareCompletionNode(const void *left, const void *right)
     const CompletionNode *r = reinterpret_cast<const CompletionNode*>(right);
     if (l->priority != r->priority)
         return l->priority < r->priority ? -1 : 1;
-    if (l->distanceType != r->distanceType)
-        return l->distanceType < r->distanceType ? -1 : 1;
+    if ((l->distance != -1) != (r->distance != -1))
+        return l->distance != -1 ? -1 : 1;
     if (l->distance != r->distance)
-        return l->distance < r->distance ? -1 : 1;
+        return l->distance > r->distance ? -1 : 1;
     return strcmp(l->completion.constData(), r->completion.constData());
 }
 
 struct Token
 {
-    Token(const char *data = 0, int size = 0)
-        : bytes(data), length(size)
+    Token(const char *bytes = 0, int size = 0)
+        : data(bytes), length(size)
     {}
 
     inline bool operator==(const Token &other) const
     {
-        return length == other.length && !strncmp(bytes, other.bytes, length);
+        return length == other.length && !strncmp(data, other.data, length);
     }
     inline bool operator<(const Token &other) const
     {
         const int minLength = std::min(length, other.length);
         if (minLength) {
-            const int cmp = strncmp(bytes, other.bytes, minLength);
+            const int cmp = strncmp(data, other.data, minLength);
             if (cmp < 0)
                 return true;
             if (cmp > 0)
@@ -171,7 +166,7 @@ struct Token
         return length > other.length;
     }
 
-    const char *bytes;
+    const char *data;
     int length;
 };
 
@@ -215,33 +210,33 @@ static inline void addToken(const char *data, int pos, int len, Map<Token, int> 
 
 static inline void tokenize(const char *data, int size, Map<Token, int> &tokens)
 {
-    int last = -1;
+    int tokenStart = -1;
     for (int i=0; i<size; ++i) {
         switch (tokenCharacterType(data[i])) {
         case NotValid:
-            if (last != -1) {
-                addToken(data, last, i - last, tokens);
-                last = -1;
+            if (tokenStart != -1) {
+                addToken(data, tokenStart, i - tokenStart, tokens);
+                tokenStart = -1;
             }
             break;
         case ValidAll:
-            if (last == -1)
-                last = i;
+            if (tokenStart == -1)
+                tokenStart = i;
             break;
         case ValidStart:
-            if (last == -1) {
-                last = i;
+            if (tokenStart == -1) {
+                tokenStart = i;
             } else {
-                addToken(data, last, i - last, tokens);
-                last = -1;
+                addToken(data, tokenStart, i - tokenStart, tokens);
+                tokenStart = -1;
             }
             break;
         case ValidRest:
             break;
         }
     }
-    if (last != -1)
-        addToken(data, last, size - last, tokens);
+    if (tokenStart != -1)
+        addToken(data, tokenStart, size - tokenStart, tokens);
 }
 
 void CompletionJob::execute()
@@ -257,6 +252,17 @@ void CompletionJob::execute()
     if (results) {
         CompletionNode *nodes = new CompletionNode[results->NumResults];
         int nodeCount = 0;
+        Map<Token, int> tokens;
+        if (!mUnsaved.isEmpty()) {
+            const char *data = mUnsaved.constData();
+            const int length = std::min(mPos, 1024);
+            if (mPos > 1024)
+                data += (length - mPos);
+            tokenize(data, length, tokens);
+            // for (Map<Token, int>::const_iterator it = tokens.begin(); it != tokens.end(); ++it) {
+            //     error() << ByteArray(it->first.data, it->first.length) << it->second;
+            // }
+        }
         for (unsigned i = 0; i < results->NumResults; ++i) {
             const CXCursorKind kind = results->Results[i].CursorKind;
             if (kind == CXCursor_Destructor)
@@ -298,24 +304,7 @@ void CompletionJob::execute()
                     --ws;
                 if (ws >= 0) {
                     node.completion.truncate(ws + 1);
-                    node.distanceType = CompletionNode::None;
-                    node.distance = 0;
-                    /*
-                      int pos = mUnsaved.lastIndexOf(node.completion, mPos - 1);
-                      if (pos != -1) {
-                      node.distanceType = CompletionNode::Before;
-                      node.distance = mPos - pos;
-                      } else {
-                      pos = mUnsaved.indexOf(node.completion, mPos);
-                      if (pos == -1) {
-                      node.distanceType = CompletionNode::None;
-                      node.distance = -1;
-                      } else {
-                      node.distanceType = CompletionNode::After;
-                      node.distance = pos - mPos;
-                      }
-                      }
-                    */
+                    node.distance = tokens.value(Token(node.completion.constData(), node.completion.size()), -1);
                     ++nodeCount;
                     continue;
                 }
