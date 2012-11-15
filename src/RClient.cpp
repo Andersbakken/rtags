@@ -50,8 +50,7 @@ static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& 
     if (nl == -1)
         return false;
 
-
-    RegExp rx("^\\(.*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)\n");
+    RegExp rx("^\\([^:\n]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)\n");
     if (rx.indexIn(data, 0, &caps) != 0 || caps.size() != 6) {
         data.remove(0, nl + 1);
         return false;
