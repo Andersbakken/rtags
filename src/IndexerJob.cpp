@@ -387,6 +387,8 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         info.type = clang_getCursorType(cursor).kind;
         if (kind == CXCursor_TypeRef) {
             switch (clang_getCursorKind(parent)) {
+            case CXCursor_FunctionDecl:
+            case CXCursor_CXXMethod:
             case CXCursor_VarDecl:
             case CXCursor_ParmDecl:
             case CXCursor_FieldDecl: {
@@ -539,7 +541,20 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
             }
         } else {
             info.symbolName = addNamePermutations(cursor, location);
+
+            switch (kind) {
+            case CXCursor_FunctionDecl:
+            case CXCursor_CXXMethod:
+            case CXCursor_VarDecl:
+            case CXCursor_ParmDecl:
+            case CXCursor_FieldDecl:
+                addType(info.symbolName, info.type);
+                break;
+            default:
+                break;
+            }
         }
+
         CXSourceRange range = clang_getCursorExtent(cursor);
         unsigned start, end;
         clang_getSpellingLocation(clang_getRangeStart(range), 0, 0, 0, &start);
