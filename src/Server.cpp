@@ -167,6 +167,7 @@ bool Server::addProject(const Path &p, const ProjectEntry &newEntry)
         mCommandProjects[p] = newEntry;
         const unsigned type = newEntry.type & (RTags::Type_Makefile|RTags::Type_SmartProject|RTags::Type_GRTags);
         CommandProcess *proc = new CommandProcess(type);
+        // error() << "Running" << p << ByteArray::join(newEntry.args, ' ');
         proc->start(p, newEntry.args);
         // error() << "Calling start" << p << newEntry.args;
         return true;
@@ -416,6 +417,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     switch (message->type()) {
     case QueryMessage::Invalid:
         assert(0);
+        break;
+    case QueryMessage::JobCount:
+        jobCount(*message, conn);
         break;
     case QueryMessage::FixIts:
         fixIts(*message, conn);
@@ -1344,6 +1348,23 @@ void Server::project(const QueryMessage &query, Connection *conn)
             }
         } else if (!error) {
             conn->write<128>("No matches for %s", match.pattern().constData());
+        }
+    }
+    conn->finish();
+}
+
+void Server::jobCount(const QueryMessage &query, Connection *conn)
+{
+    if (query.query().isEmpty()) {
+        conn->write<128>("Running with %d jobs", mOptions.threadCount);
+    } else {
+        const int jobCount = query.query().toLongLong();
+        if (jobCount <= 0 || jobCount > 100) {
+            conn->write<128>("Invalid job count %s (%d)", query.query().constData(), jobCount);
+        } else {
+            mOptions.threadCount = jobCount;
+            mIndexerThreadPool->setConcurrentJobs(jobCount);
+            conn->write<128>("Changed jobs to %d", jobCount);
         }
     }
     conn->finish();

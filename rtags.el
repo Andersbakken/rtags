@@ -229,7 +229,7 @@
 (defun rtags-find-ancestor-file-directory(pattern)
   (let ((match (rtags-find-ancestor-file pattern)))
     (if match
-        (substring match 0 (string-match "[^/]*/?$" match)))))
+        (file-name-directory match))))
 (defun rtags-default-current-project ()
   (cond
    ((gtags-get-rootpath))

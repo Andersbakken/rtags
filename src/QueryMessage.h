@@ -24,6 +24,7 @@ public:
         HasFileManager,
         Invalid,
         IsIndexed,
+        JobCount,
         ListSymbols,
         PreprocessFile,
         Project,

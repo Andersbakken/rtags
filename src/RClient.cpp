@@ -298,6 +298,7 @@ enum {
     Help,
     Includepath,
     IsIndexed,
+    JobCount,
     LineNumbers,
     ListSymbols,
     LogFile,
@@ -358,6 +359,7 @@ struct Option opts[] = {
     { SmartProject, "smart-project", 'j', optional_argument, "Try to guess the source files and includepaths for a certain path. Often has to be combined with -D." },
     { UnloadProject, "unload", 'u', required_argument, "Unload project(s) matching argument." },
     { ReloadProjects, "reload-projects", 'z', no_argument, "Reload projects from projects file." },
+    { JobCount, "jobcount", 0, required_argument, "Set or query current job count." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Commands:" },
@@ -377,7 +379,7 @@ struct Option opts[] = {
     { RdmLog, "rdm-log", 'g', no_argument, "Receive logs from rdm." },
     { CodeCompleteAt, "code-complete-at", 'x', required_argument, "Get code completion from location (must be specified with path:line:column)." },
     { CodeComplete, "code-complete", 0, no_argument, "Get code completion from stream written to stdin." },
-    { FixIts, "fixits", 0, required_argument, "Get fixits for file.\n" },
+    { FixIts, "fixits", 0, required_argument, "Get fixits for file." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -683,6 +685,14 @@ bool RClient::parse(int &argc, char **argv)
             break; }
         case WithProject:
             mProjects.append(optarg);
+            break;
+        case JobCount:
+            if (const int count = atoi(optarg)) {
+                addQuery(QueryMessage::JobCount, ByteArray::number(count));
+            } else {
+                fprintf(stderr, "%s is not a positive integer\n", optarg);
+                return false;
+            }
             break;
         case ReloadProjects:
             addQuery(QueryMessage::ReloadProjects);

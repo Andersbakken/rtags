@@ -91,6 +91,7 @@ private:
     void followLocation(const QueryMessage &query, Connection *conn);
     void cursorInfo(const QueryMessage &query, Connection *conn);
     void fixIts(const QueryMessage &query, Connection *conn);
+    void jobCount(const QueryMessage &query, Connection *conn);
     void referencesForLocation(const QueryMessage &query, Connection *conn);
     void referencesForName(const QueryMessage &query, Connection *conn);
     void findSymbols(const QueryMessage &query, Connection *conn);
