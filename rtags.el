@@ -900,8 +900,9 @@ return t if rtags is allowed to modify this file"
                     (let* ((ws (string-match " " output last))
                            (key (substring output last ws))
                            (values (gethash key rtags-completion-signatures)))
-                      (setq values (add-to-list 'values (substring output (+ ws 1) idx)))
-                      (puthash key values rtags-completion-signatures)
+                      (when (and ws (< (+ ws 1) idx))
+                        (setq values (add-to-list 'values (substring output (+ ws 1) idx)))
+                        (puthash key values rtags-completion-signatures))
                       (insert (concat key "\n"))
                       (setq last (+ idx 1)))
                   (progn
