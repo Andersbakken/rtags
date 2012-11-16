@@ -42,33 +42,6 @@ public:
     }
 };
 
-static inline bool parseCompletion(ByteArray& data, Path& path, int& line, int& column, int &pos, int& contentsSize)
-{
-    List<RegExp::Capture> caps;
-
-    const int nl = data.indexOf('\n');
-    if (nl == -1)
-        return false;
-
-    RegExp rx("^\\([^:\n]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\):\\([0-9][0-9]*\\)\n");
-    if (rx.indexIn(data, 0, &caps) != 0 || caps.size() != 6) {
-        data.remove(0, nl + 1);
-        return false;
-    }
-    data.remove(0, nl + 1);
-
-    path = Path::resolved(caps[1].capture);
-    if (!path.exists())
-        return false;
-
-    line = caps[2].capture.toLongLong();
-    column = caps[3].capture.toLongLong();
-    pos = caps[4].capture.toLongLong();
-    contentsSize = caps[5].capture.toLongLong();
-
-    return true;
-}
-
 class CompletionCommand : public RCCommand
 {
 public:
@@ -112,43 +85,63 @@ public:
 
     static void stdinReady(int fd, unsigned int flags, void* userData)
     {
-        CompletionCommand* that = static_cast<CompletionCommand*>(userData);
-        static char buffer[8192];
-        ssize_t r = ::read(fd, buffer, sizeof(buffer));
-        if (r == -1) {
-            EventLoop::instance()->removeFileDescriptor(fd);
+        static_cast<CompletionCommand*>(userData)->processStdin();
+    }
+
+    void processStdin()
+    {
+        assert(!data.contains('\n'));
+        while (true) {
+            const int ch = getc(stdin);
+            if (ch == EOF)
+                return;
+            if (ch == '\n')
+                break;
+            data.append(static_cast<char>(ch));
+        }
+        const int colon = data.indexOf(':');
+        if (colon == -1) {
+            error() << "Failed to match completion header" << data;
+            EventLoop::instance()->removeFileDescriptor(STDIN_FILENO);
+            EventLoop::instance()->exit();
             return;
         }
 
-        ByteArray& data = that->data;
-        data += ByteArray(buffer, r);
-
-        Path path;
-        int line, column, contentsSize, tu, pos;
-        line = column = contentsSize = pos = tu = -1;
-        while (parseCompletion(data, path, line, column, pos, contentsSize)) {
-            tu = contentsSize;
-            contentsSize -= data.size();
-            while (contentsSize > 0) {
-                r = ::read(fd, buffer, sizeof(buffer));
-                if (r == -1) {
-                    EventLoop::instance()->removeFileDescriptor(fd);
-                    return;
-                }
-                data += ByteArray(buffer, r);
-                contentsSize -= r;
-            }
-
-            CompletionMessage msg(CompletionMessage::None, path, line, column, pos);
-            const ByteArray args = ByteArray::snprintf<64>("%s:%d:%d:%d:%d", path.constData(), line, column, pos, tu);
-            const char *argv[] = { "completionStream", args.constData() };
-            msg.init(2, argv);
-            if (line != -1) {
-                msg.setContents(data.left(tu));
-                data = data.mid(tu);
-            }
-            that->client->message(&msg, Client::SendDontRunEventLoop);
+        int line, column, contentsSize, pos;
+        const int ret = sscanf(data.constData() + colon + 1, "%d:%d:%d:%d", &line, &column, &pos, &contentsSize);
+        if (ret != 4) {
+            error() << "Failed to match completion header" << ret << "\n" << data;
+            EventLoop::instance()->removeFileDescriptor(STDIN_FILENO);
+            EventLoop::instance()->exit();
+            return;
         }
+        ByteArray contents(contentsSize, ' ');
+        int read = 0;
+        char *c = contents.data();
+        while (read < contentsSize) {
+            const int r = fread(c + read, sizeof(char), contentsSize - read, stdin);
+            if (r < 0) {
+                EventLoop::instance()->removeFileDescriptor(STDIN_FILENO);
+                EventLoop::instance()->exit();
+                return;
+            }
+            read += r;
+        }
+        Path path(data.constData(), colon);
+        data.clear();
+        if (!path.resolve()) {
+            error() << "Can't resolve" << path;
+            return;
+        }
+        // error() << path << line << column << contentsSize << pos << "\n" << contents.left(100)
+        //         << contents.right(100);
+
+        CompletionMessage msg(CompletionMessage::None, path, line, column, pos);
+        const ByteArray args = ByteArray::snprintf<64>("%s:%d:%d:%d:%d", path.constData(), line, column, pos, contentsSize);
+        const char *argv[] = { "completionStream", args.constData() };
+        msg.init(2, argv);
+        msg.setContents(contents);
+        client->message(&msg, Client::SendDontRunEventLoop);
     }
 };
 
@@ -546,6 +539,7 @@ bool RClient::parse(int &argc, char **argv)
                 mRdmArgs = ByteArray(optarg, strlen(optarg)).split(' ');
             break;
         case CodeComplete:
+            logFile = "/tmp/rc.log";
             mCommands.append(new CompletionCommand);
             break;
         case CodeCompleteAt: {
