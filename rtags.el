@@ -516,7 +516,7 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r <") (function rtags-find-references))
   (define-key map (kbd "C-x r [") (function rtags-bookmark-back))
   (define-key map (kbd "C-x r ]") (function rtags-bookmark-forward))
-  (define-key map (kbd "C-x r C") (function rtags-clear-rdm))
+  (define-key map (kbd "C-x r C") (function rtags-switch-to-completion-buffer))
   (define-key map (kbd "C-x r D") (function rtags-diagnostics))
   (define-key map (kbd "C-x r G") (function rtags-clear-diagnostics))
   (define-key map (kbd "C-x r M") (function rtags-index-project))
@@ -537,10 +537,9 @@ return t if rtags is allowed to modify this file"
 (defun rtags-quit-rdm () (interactive)
   (call-process (rtags-executable-find "rc") nil nil nil "--quit-rdm"))
 
-(defun rtags-clear-rdm (&optional dontask) (interactive)
-  "Use with care, it will destroy the database without possibility of undoing"
-  (if (or dontask (y-or-n-p "This will clear the database. Are you sure?"))
-      (call-process (rtags-executable-find "rc") nil nil nil "-C")))
+(defun rtags-switch-to-completion-buffer () (interactive)
+  (let ((buf (get-buffer "*RTags Completions*")))
+    (switch-to-buffer-other-window buf)))
 
 (defun rtags-bookmark-forward()
   (interactive)
