@@ -653,6 +653,7 @@ void IndexerJob::diagnose()
 {
     if (!mUnit)
         return;
+
     const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
     for (unsigned i=0; i<diagnosticCount; ++i) {
         CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
@@ -672,6 +673,7 @@ void IndexerJob::diagnose()
         case CXDiagnostic_Ignored:
             break;
         }
+
         const unsigned diagnosticOptions = (CXDiagnostic_DisplaySourceLocation|
                                             CXDiagnostic_DisplayColumn|
                                             CXDiagnostic_DisplaySourceRanges|
@@ -686,6 +688,9 @@ void IndexerJob::diagnose()
             log(logLevel, "%s: %s => %s", mPath.constData(), mClangLine.constData(), text.constData());
             log(CompilationError, "%s", text.constData());
         }
+
+
+
 
         const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
         RegExp rx;
@@ -711,10 +716,12 @@ void IndexerJob::diagnose()
             }
         }
 
+    int a = 4;
+        ++a;
         clang_disposeDiagnostic(diagnostic);
     }
     if (testLog(CompilationError)) {
-        log(CompilationError, "%s parsed %s", mPath.constData(), ByteArray::join(mArgs, ' ').constData());
+        log(CompilationError, "$");
     }
 }
 

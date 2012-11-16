@@ -7,6 +7,7 @@
 (require 'ido)
 (require 'dabbrev)
 (require 'cc-mode)
+(require 'flymake)
 
 (defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
@@ -984,6 +985,32 @@ return t if rtags is allowed to modify this file"
     )
   )
 
+(defun rtags-diagnostics-process-filter (process output)
+  (let ((dollar (string-match "\\$\s*$" output)))
+    ;; (message "%s %d" output dollar)
+    (if dollar
+        (setq output (substring output 0 dollar)))
+
+    (flymake-parse-output-and-residual output)
+
+    (when dollar
+      (flymake-parse-residual)
+      (setq flymake-err-info flymake-new-err-info)
+      (setq flymake-new-err-info nil)
+      (setq flymake-err-info (flymake-fix-line-numbers flymake-err-info 1 (flymake-count-lines)))
+      (flymake-delete-own-overlays)
+      (flymake-highlight-err-lines flymake-err-info)))
+
+  (with-current-buffer (process-buffer process)
+    (setq buffer-read-only nil)
+    (let (deactivate-mark)
+      (save-excursion
+        (goto-char (point-max))
+        (insert output)))
+    (setq buffer-read-only t))
+  )
+
+
 (defun rtags-init-diagnostics-buffer-and-process ()
   (let ((buf (get-buffer-create "*RTags Diagnostics*")))
     (with-current-buffer buf
@@ -1001,6 +1028,7 @@ return t if rtags is allowed to modify this file"
                     (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-G"
                                    (if rtags-rdm-log-enabled "--autostart-rdm=-L/tmp/rdm.log" "--autostart-rdm"))
                   (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-G")))
+          (set-process-filter rtags-diagnostics-process (function rtags-diagnostics-process-filter))
           (rtags-clear-diagnostics))
       )
     )
