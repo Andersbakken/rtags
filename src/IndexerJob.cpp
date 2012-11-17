@@ -689,9 +689,6 @@ void IndexerJob::diagnose()
             log(CompilationError, "%s", text.constData());
         }
 
-
-
-
         const unsigned fixItCount = clang_getDiagnosticNumFixIts(diagnostic);
         RegExp rx;
         if (mFlags & IgnorePrintfFixits) {
@@ -716,8 +713,6 @@ void IndexerJob::diagnose()
             }
         }
 
-    int a = 4;
-        ++a;
         clang_disposeDiagnostic(diagnostic);
     }
     if (testLog(CompilationError)) {
