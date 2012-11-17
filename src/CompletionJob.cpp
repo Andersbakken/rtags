@@ -107,6 +107,30 @@ static inline void tokenize(const char *data, int size, Map<Token, int> &tokens)
         addToken(data, 0, tokenEnd + 1, tokens);
 }
 
+void CompletionJob::processDiagnostics(CXCodeCompleteResults* results)
+{
+    if (!testLog(CompilationError))
+        return;
+
+    const unsigned int numDiags = clang_codeCompleteGetNumDiagnostics(results);
+    for (unsigned int curDiag = 0; curDiag < numDiags; ++curDiag) {
+        CXDiagnostic diagnostic = clang_codeCompleteGetDiagnostic(results, curDiag);
+        int* f;
+        printf("%p", f);
+        const unsigned diagnosticOptions = (CXDiagnostic_DisplaySourceLocation|
+                                            CXDiagnostic_DisplayColumn|
+                                            CXDiagnostic_DisplaySourceRanges|
+                                            CXDiagnostic_DisplayOption|
+                                            CXDiagnostic_DisplayCategoryId|
+                                            CXDiagnostic_DisplayCategoryName);
+        const ByteArray text = RTags::eatString(clang_formatDiagnostic(diagnostic, diagnosticOptions));
+        log(CompilationError, "%s", text.constData());
+
+        clang_disposeDiagnostic(diagnostic);
+    }
+    log(CompilationError, "$");
+}
+
 void CompletionJob::execute()
 {
     CXUnsavedFile unsavedFile = { mUnsaved.isEmpty() ? 0 : mPath.constData(),
@@ -187,6 +211,8 @@ void CompletionJob::execute()
         }
 
         delete[] nodes;
+
+        processDiagnostics(results);
 
         clang_disposeCodeCompleteResults(results);
         project()->indexer->addToCache(mPath, mArgs, mIndex, mUnit);

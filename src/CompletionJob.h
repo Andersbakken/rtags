@@ -19,6 +19,9 @@ public:
     virtual void execute();
     signalslot::Signal1<Path> &finished() { return mFinished; }
 private:
+    void processDiagnostics(CXCodeCompleteResults* results);
+
+private:
     CXIndex mIndex;
     CXTranslationUnit mUnit;
     Path mPath;
