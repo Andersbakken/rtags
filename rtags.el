@@ -985,13 +985,36 @@ return t if rtags is allowed to modify this file"
     )
   )
 
+(defun rtags-fixup-flymake-err-info ()
+  (setq flymake-err-info
+        (mapcar (lambda (elem)
+                  (let* ((err-info (car (car (cdr elem))))
+                         (err-text (flymake-ler-text err-info))
+                         (err-type (flymake-ler-type err-info)))
+                    ;;(message "err-info is %S" err-info)
+                    (when (string-match "^[0-9]+:\\(\s\\|{\\).*\\(warning:\\|error:\\)\\(.*\\)$" err-text)
+                      (if (string= (match-string 2 err-text) "warning:")
+                          (setq err-type "w"))
+                      (setq err-info (flymake-ler-make-ler
+                                      (flymake-ler-file err-info)
+                                      (flymake-ler-line err-info)
+                                      err-type
+                                      (concat (match-string 2 err-text) (match-string 3 err-text))
+                                      (flymake-ler-full-file err-info)))
+                      )
+                    ;;(message "err-info became %S" err-info)
+                    (list (car elem) (list err-info))))
+                flymake-err-info))
+)
+
 (defun rtags-diagnostics-process-filter (process output)
   (let ((dollar (string-match "\\$\s*$" output)))
     ;; (message "%s %d" output dollar)
     (if dollar
         (setq output (substring output 0 dollar)))
 
-    (flymake-parse-output-and-residual output)
+    (if (> (length output) 0)
+        (flymake-parse-output-and-residual output))
 
     (when dollar
       (flymake-parse-residual)
@@ -999,6 +1022,7 @@ return t if rtags is allowed to modify this file"
       (setq flymake-new-err-info nil)
       (setq flymake-err-info (flymake-fix-line-numbers flymake-err-info 1 (flymake-count-lines)))
       (flymake-delete-own-overlays)
+      (rtags-fixup-flymake-err-info)
       (flymake-highlight-err-lines flymake-err-info)))
 
   (with-current-buffer (process-buffer process)
