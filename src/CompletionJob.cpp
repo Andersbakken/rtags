@@ -115,8 +115,6 @@ void CompletionJob::processDiagnostics(CXCodeCompleteResults* results)
     const unsigned int numDiags = clang_codeCompleteGetNumDiagnostics(results);
     for (unsigned int curDiag = 0; curDiag < numDiags; ++curDiag) {
         CXDiagnostic diagnostic = clang_codeCompleteGetDiagnostic(results, curDiag);
-        int* f;
-        printf("%p", f);
         const unsigned diagnosticOptions = (CXDiagnostic_DisplaySourceLocation|
                                             CXDiagnostic_DisplayColumn|
                                             CXDiagnostic_DisplaySourceRanges|
