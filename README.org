@@ -28,9 +28,10 @@ To get information about a symbol or find references to it you would
 use the command line client rc.
 
 E.g.
-
+#+BEGIN_SRC
 $ rc --follow-location Job.cpp,400
 /home/abakken/dev/rtags/src/Job.h,2186      List<RegExp> *mPathFiltersRegExp;
+#+END_SRC
 
 We maintain a set of elisp bindings so you don't acually have to call
 this yourself but we feel that this architecture allows us to add
@@ -62,19 +63,21 @@ indexed that by default sits in ~/.rtagsprojects.
 Projects can be specified in different ways. Here's my
 ~/.rtagsprojects file:
 
+#+BEGIN_SRC
 [MakefileCommands]
 ~/dev/nrdp-scripts/bin/lsdev.pl=-tp -l -a build
 [Makefiles]
 /home/abakken/dev/rtags/Makefile
 /home/abakken/temp/cla/Makefile
 /home/abakken/temp/deleteit/Makefile
-
+#+END_SRC
 lsdev is a perl script that generates output like so:
-
+#+BEGIN_SRC
 /home/abakken/dev/builds/Cambo
 /home/abakken/dev/builds/nrdapp-12.4-x86
 /home/abakken/dev/rtags/3rdparty
 /home/abakken/dev/builds/nrdapp-main-x86
+#+END_SRC
 
 These are directories that all contain a Makefile.
 
@@ -82,6 +85,7 @@ The [Makefiles] section is kinda self-explanatory.
 
 Building rtags:
 
+#+BEGIN_SRC
 cd /path/to/rtags
 cmake .
 make 3rdparty # This step will take quite a while. It will download trunk of clang and llvm and build it
@@ -90,6 +94,7 @@ export PATH=/path/to/rtags/src:$PATH
 rdm & # This starts the rtags daemon
 cd /path/to/builddirforproject
 rc -m -b
+#+END_SRC
 
 # This will add the project /path/to/builddirforproject/Makefile and automatically make it current
 
