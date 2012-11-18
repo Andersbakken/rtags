@@ -1,0 +1,108 @@
+* Introduction
+
+RTags consist is a client/server application that indexes c/c++ code
+and keeps a persistent in-memory database of references, symbolnames,
+completions etc. It allows you to find symbols by name (including
+class and namespace scope), we integrate with dabbrev for intelligent
+completion (we could integrate with 'autocompletion but honestly, if
+you want that Qt Creator, eclipse and visual studio has your
+back). Most importantly we give you proper follow-symbol and
+find-references support.
+
+While existing taggers like gnu global, cscope, etags, ctags etc do a
+good job for C they often fall a little bit short for C++. With its
+incredible lexical complexity parsing C++ is an incredibly hard task
+and we make no bones about the fact that the only reason we are able
+to improve on the current tools is because of clang
+(http://clang.llvm.org/). RTags is named rtags in recognition of
+Roberto Raggi on whose C++ parsed we intended to make this project but
+he assured us clang was the way to go. The name stuck though.
+
+RTags is meant to be used like this:
+
+rdm runs in the background and monitors all your indexed files for
+changes and reindexes when a source file or one of its dependencies is
+modified.
+
+To get information about a symbol or find references to it you would
+use the command line client rc.
+
+E.g.
+
+$ rc --follow-location Job.cpp,400
+/home/abakken/dev/rtags/src/Job.h,2186      List<RegExp> *mPathFiltersRegExp;
+
+We maintain a set of elisp bindings so you don't acually have to call
+this yourself but we feel that this architecture allows us to add
+bindings to other editors (like vim) at a later point.
+
+Since clang requires us to really compile the file we need to know the
+actual c(xx)flags for parsing the source files. To make this less
+painful we parse the output from make. As anyone who has ever
+attempted parsing makefiles will attest to this is a painful ordeal of
+biblical proportions. After several iterations, including, but not
+limited to, ld_preloading our own library that hijacked stat and
+execve, we landed on the following approach. Compile our own version
+of gmake-3.82 and hack it so that it doesn't actually compile anything
+and also consider all source files dirty. We know about -B and -n but
+it fell short on several widely used make techniques. Our current
+approach works for most makefiles but for pathological cases (like
+openssl) we just do not work. We have a more manual way to specify how
+files are compiled (--smart-project) but it's not very featureful at
+the moment and people really shouldn't be writing their makefiles like
+openssl does.
+
+rdm keeps a cache of indexed data so you don't have to reindex
+everything if you restart it. The location of this data is by default
+~/.rtags but can be overridden with some switch.
+
+It also maintains an ini-format file for which projects currently are
+indexed that by default sits in ~/.rtagsprojects.
+
+Projects can be specified in different ways. Here's my
+~/.rtagsprojects file:
+
+[MakefileCommands]
+~/dev/nrdp-scripts/bin/lsdev.pl=-tp -l -a build
+[Makefiles]
+/home/abakken/dev/rtags/Makefile
+/home/abakken/temp/cla/Makefile
+/home/abakken/temp/deleteit/Makefile
+
+lsdev is a perl script that generates output like so:
+
+/home/abakken/dev/builds/Cambo
+/home/abakken/dev/builds/nrdapp-12.4-x86
+/home/abakken/dev/rtags/3rdparty
+/home/abakken/dev/builds/nrdapp-main-x86
+
+These are directories that all contain a Makefile.
+
+The [Makefiles] section is kinda self-explanatory.
+
+Building rtags:
+
+cd /path/to/rtags
+cmake .
+make 3rdparty # This step will take quite a while. It will download trunk of clang and llvm and build it
+make
+export PATH=/path/to/rtags/src:$PATH
+rdm & # This starts the rtags daemon
+cd /path/to/builddirforproject
+rc -m -b
+
+# This will add the project /path/to/builddirforproject/Makefile and automatically make it current
+
+Some videos:
+
+Completion:
+
+[[http://www.youtube.com/watch?v=W8Nac4PX6eo]]
+
+Code navigation:
+
+[[http://www.youtube.com/watch?v=j6tDy3WhcNw]]
+
+RTags is still in development and is not the most stable piece of
+software you'll ever find. We crash sometimes (though admittedly
+mostly inside clang). We're constantly working to improve on it.
