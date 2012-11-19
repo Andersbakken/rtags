@@ -104,5 +104,10 @@ bool FileManager::contains(const Path &path) const
     shared_ptr<Project> proj = mProject.lock();
     if (!proj)
         return false;
-    return startsWith(path, proj->resolvedSrcRoot()) || startsWith(path, proj->srcRoot());
+    if (startsWith(path, proj->resolvedSrcRoot()) || startsWith(path, proj->srcRoot()))
+        return true;
+    const Path p = Path::resolved(path);
+    if (p != path && (startsWith(path, proj->resolvedSrcRoot()) || startsWith(path, proj->srcRoot())))
+        return true;
+    return false;
 }
