@@ -67,19 +67,20 @@
             (win (get-buffer-window rtags-buffer-name)))
         (if win (select-window win))
         (set-buffer rtags-buffer-name)
-        (cond ((and (= (point-at-bol) (point-min)) (not next))
-               (setq target (point-max))
-               (message "*RTags* Wrapped"))
-              ((and (= (point-at-eol) (point-max)) next)
-               (setq target (point-min))
-               (message "*RTags* Wrapped"))
-              (next
-               (setq target (point-at-bol 2)))
-              (t
-               (setq target (point-at-bol -1))))
-        (goto-char target)
-        (beginning-of-line)
-        (if win (rtags-select-other-buffer) (rtags-select)))))
+        (when (> (point-max) (point-min))
+          (cond ((and (= (point-at-bol) (point-min)) (not next))
+                 (setq target (point-max))
+                 (message "*RTags* Wrapped"))
+                ((and (= (point-at-eol) (point-max)) next)
+                 (setq target (point-min))
+                 (message "*RTags* Wrapped"))
+                (next
+                 (setq target (point-at-bol 2)))
+                (t
+                 (setq target (point-at-bol -1))))
+          (goto-char target)
+          (beginning-of-line)
+          (if win (rtags-select-other-buffer) (rtags-select))))))
 
 (defun rtags-executable-find (exe)
   (let ((result (if rtags-path (concat rtags-path "/" exe) (executable-find exe))))
