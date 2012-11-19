@@ -721,7 +721,7 @@ void Server::hasFileManager(const QueryMessage &query, Connection *conn)
     const Path path = query.query();
     updateProjectForLocation(path);
     shared_ptr<Project> cur = currentProject();
-    if (cur && cur->fileManager && cur->fileManager->contains(path)) {
+    if (cur && cur->fileManager && (cur->fileManager->contains(path) || cur->match(path))) {
         conn->write("1");
     } else {
         conn->write("0");

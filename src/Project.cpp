@@ -16,7 +16,7 @@ void Project::init(const Path &src)
     mResolvedSrcRoot.resolve();
     if (!mSrcRoot.endsWith('/'))
         mSrcRoot.append('/');
-    if (mResolvedSrcRoot == mSrcRoot) {
+    if (mResolvedSrcRoot.ByteArray::operator==(mSrcRoot)) {
         mResolvedSrcRoot.clear();
     } else if (!mResolvedSrcRoot.endsWith('/')) {
         mResolvedSrcRoot.append('/');

@@ -762,13 +762,14 @@ bool RClient::parse(int &argc, char **argv)
         case HasFileManager: {
             Path p;
             if (optarg) {
-                p = Path::resolved(optarg);
+                p = optarg;
             } else if (optind < argc && argv[optind][0] != '-') {
-                p = Path::resolved(argv[optind++]);
+                p = argv[optind++];
             } else {
-                p = Path::resolved(".");
+                p = ".";
             }
-
+            if (!p.isAbsolute())
+                p.resolve();
             if (!p.exists()) {
                 fprintf(stderr, "%s does not seem to exist\n", optarg);
                 return false;
