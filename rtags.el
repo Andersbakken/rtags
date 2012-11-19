@@ -1022,23 +1022,24 @@ return t if rtags is allowed to modify this file"
     (setq rtags-diagnostics-completed nil)
     (rtags-clear-diagnostics))
 
-  (let ((dollar (string-match "\\$\s*$" output)))
-    ;; (message "%s %d" output dollar)
-    (if dollar
-        (setq output (substring output 0 dollar)))
+  (when (buffer-file-name)
+    (let ((dollar (string-match "\\$\s*$" output)))
+      ;; (message "%s %d" output dollar)
+      (if dollar
+          (setq output (substring output 0 dollar)))
 
-    (if (> (length output) 0)
-        (flymake-parse-output-and-residual output))
+      (if (> (length output) 0)
+          (flymake-parse-output-and-residual output))
 
-    (when dollar
-      (setq rtags-diagnostics-completed t)
-      (flymake-parse-residual)
-      (setq flymake-err-info flymake-new-err-info)
-      (setq flymake-new-err-info nil)
-      (setq flymake-err-info (flymake-fix-line-numbers flymake-err-info 1 (flymake-count-lines)))
-      (flymake-delete-own-overlays)
-      (rtags-fixup-flymake-err-info)
-      (flymake-highlight-err-lines flymake-err-info)))
+      (when dollar
+        (setq rtags-diagnostics-completed t)
+        (flymake-parse-residual)
+        (setq flymake-err-info flymake-new-err-info)
+        (setq flymake-new-err-info nil)
+        (setq flymake-err-info (flymake-fix-line-numbers flymake-err-info 1 (flymake-count-lines)))
+        (flymake-delete-own-overlays)
+        (rtags-fixup-flymake-err-info)
+        (flymake-highlight-err-lines flymake-err-info))))
 
   (with-current-buffer (process-buffer process)
     (setq buffer-read-only nil)
