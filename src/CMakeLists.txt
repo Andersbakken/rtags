@@ -12,6 +12,7 @@ if(CMAKE_BUILD_TYPE MATCHES "Debug")
 endif()
 
 ClangVersion("${PROJECT_SOURCE_DIR}/3rdparty/clang_install" CLANG_VERSION)
+message("Using Clang version ${CLANG_VERSION}")
 
 add_definitions(-Wall)
 add_definitions("-DCLANG_INCLUDEPATH=\"${PROJECT_SOURCE_DIR}/3rdparty/clang_install/lib/clang/${CLANG_VERSION}/include/\"")
