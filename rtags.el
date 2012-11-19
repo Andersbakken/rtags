@@ -437,7 +437,7 @@
   :type 'number)
 
 
-(defcustom rtags-cursorinfo-timer-enabled t
+(defcustom rtags-cursorinfo-timer-enabled nil
   "Whether rtags cursorinfo is enabled"
   :group 'rtags
   :type 'boolean)
