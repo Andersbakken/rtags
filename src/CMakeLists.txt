@@ -5,13 +5,16 @@ endif()
 
 include(CheckSymbolExists)
 include(CheckCXXSymbolExists)
+include(${CMAKE_CURRENT_LIST_DIR}/ClangVersion.cmake)
 
 if(CMAKE_BUILD_TYPE MATCHES "Debug")
   add_definitions(-DRTAGS_DEBUG)
 endif()
 
+ClangVersion("${PROJECT_SOURCE_DIR}/3rdparty/clang_install" CLANG_VERSION)
+
 add_definitions(-Wall)
-add_definitions("-DCLANG_INCLUDEPATH=\"${PROJECT_SOURCE_DIR}/3rdparty/clang_install/lib/clang/3.2/include/\"")
+add_definitions("-DCLANG_INCLUDEPATH=\"${PROJECT_SOURCE_DIR}/3rdparty/clang_install/lib/clang/${CLANG_VERSION}/include/\"")
 add_definitions("-DCLANG_BIN=\"${PROJECT_SOURCE_DIR}/3rdparty/clang_install/bin/\"")
 add_definitions("-DMAKE=\"${PROJECT_SOURCE_DIR}/3rdparty/make_install/bin/make\"")
 add_definitions(-DOS_${CMAKE_SYSTEM_NAME})
@@ -68,7 +71,7 @@ add_dependencies(rc rtags)
 
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   add_custom_command(TARGET rdm POST_BUILD
-                     COMMAND install_name_tool -change @executable_path/../lib/libclang.3.2.dylib @executable_path/../3rdparty/clang_install/lib/libclang.3.2.dylib rdm)
+                     COMMAND install_name_tool -change "@executable_path/../lib/libclang.${CLANG_VERSION}.dylib" "@executable_path/../3rdparty/clang_install/lib/libclang.${CLANG_VERSION}.dylib" rdm)
   add_custom_command(TARGET rc POST_BUILD
-                     COMMAND install_name_tool -change @executable_path/../lib/libclang.3.2.dylib @executable_path/../3rdparty/clang_install/lib/libclang.3.2.dylib rc)
+                     COMMAND install_name_tool -change "@executable_path/../lib/libclang.${CLANG_VERSION}.dylib" "@executable_path/../3rdparty/clang_install/lib/libclang.${CLANG_VERSION}.dylib" rc)
 endif()
