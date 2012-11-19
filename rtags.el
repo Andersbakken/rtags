@@ -437,6 +437,10 @@
   :group 'rtags
   :type 'number)
 
+(defcustom rtags-diagnostics-clear-buffer nil
+  "Whether the diagnostics buffer is cleared between each diagnostic block or not"
+  :group 'rtags
+  :type 'boolean)
 
 (defcustom rtags-cursorinfo-timer-enabled nil
   "Whether rtags cursorinfo is enabled"
@@ -488,7 +492,6 @@ return t if rtags is allowed to modify this file"
   "How many bookmarks to keep in stack"
   :group 'rtags
   :type 'integer)
-
 
 (defcustom rtags-rc-log-enabled nil
   "If t, log rc commands and responses"
@@ -855,12 +858,14 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-clear-diagnostics ()
   (interactive)
-  (if (get-buffer "*RTags Diagnostics*")
+  (when (get-buffer "*RTags Diagnostics*")
+    (let (deactivate-mark)
       (with-current-buffer "*RTags Diagnostics*"
         (setq buffer-read-only nil)
         (goto-char (point-min))
         (delete-char (- (point-max) (point-min)))
         (setq buffer-read-only t))
+      )
     )
   )
 
@@ -1010,7 +1015,13 @@ return t if rtags is allowed to modify this file"
                 flymake-err-info))
 )
 
+(defvar rtags-diagnostics-completed nil)
+
 (defun rtags-diagnostics-process-filter (process output)
+  (when (and rtags-diagnostics-clear-buffer rtags-diagnostics-completed (> (length output) 0))
+    (setq rtags-diagnostics-completed nil)
+    (rtags-clear-diagnostics))
+
   (let ((dollar (string-match "\\$\s*$" output)))
     ;; (message "%s %d" output dollar)
     (if dollar
@@ -1020,6 +1031,7 @@ return t if rtags is allowed to modify this file"
         (flymake-parse-output-and-residual output))
 
     (when dollar
+      (setq rtags-diagnostics-completed t)
       (flymake-parse-residual)
       (setq flymake-err-info flymake-new-err-info)
       (setq flymake-new-err-info nil)
