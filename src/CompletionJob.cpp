@@ -210,7 +210,7 @@ void CompletionJob::execute()
 
         delete[] nodes;
 
-        processDiagnostics(results);
+        //processDiagnostics(results);
 
         clang_disposeCodeCompleteResults(results);
         project()->indexer->addToCache(mPath, mArgs, mIndex, mUnit);
