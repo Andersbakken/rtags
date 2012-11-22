@@ -40,6 +40,7 @@
 ;; assign command to keys
 (setq rtags-mode-map (make-sparse-keymap))
 (define-key rtags-mode-map (kbd "RET") 'rtags-select-other-buffer)
+(define-key rtags-mode-map (kbd "M-RET") 'rtags-select-and-remove-rtags-buffer)
 (define-key rtags-mode-map (kbd "ENTER") 'rtags-select-other-buffer)
 (define-key rtags-mode-map (kbd "SPC") 'rtags-select)
 (define-key rtags-mode-map (kbd "q") 'rtags-bury-or-delete)
@@ -1162,6 +1163,12 @@ return t if rtags is allowed to modify this file"
 (defun rtags-select-other-buffer()
   (interactive)
   (rtags-goto-location (buffer-substring (point-at-bol) (point-at-eol)) nil t))
+
+(defun rtags-select-and-remove-rtags-buffer()
+  (interactive)
+  (let ((line (buffer-substring (point-at-bol) (point-at-eol))))
+    (delete-window)
+    (rtags-goto-location line)))
 
 (defvar rtags-find-file-history nil)
 (defun rtags-find-file (&optional prefix tagname)
