@@ -38,7 +38,8 @@ public:
         NoValidate = 0x02,
         ClearProjects = 0x04,
         NoWall = 0x08,
-        IgnorePrintfFixits = 0x10
+        IgnorePrintfFixits = 0x10,
+        NoUnlimitedErrors = 0x20
     };
     ThreadPool *threadPool() const { return mIndexerThreadPool; }
     void startQueryJob(const shared_ptr<Job> &job);

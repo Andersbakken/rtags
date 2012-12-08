@@ -63,6 +63,7 @@ void usage(FILE *f)
             "  --socket-file|-n [arg]            Use this file for the server socket (default ~/.rdm)\n"
             "  --setenv|-e [arg]                 Set this environment variable (--setenv \"foobar=1\")\n"
             "  --completion-cache-size|-a [arg]  Cache this many translation units (default 10, min 1)\n"
+            "  --no-unlimited-error|-f           Don't pass -ferror-limit=0 to clang\n"
             "  --thread-count|-j [arg]           Spawn this many threads for thread pool\n");
 }
 
@@ -93,6 +94,7 @@ int main(int argc, char** argv)
         { "no-rc", no_argument, 0, 'N' },
         { "data-dir", required_argument, 0, 'd' },
         { "ignore-printf-fixits", no_argument, 0, 'F' },
+        { "no-unlimited-errors", no_argument, 0, 'f' },
         { "completion-cache-size", required_argument, 0, 'a' },
         { 0, 0, 0, 0 }
     };
@@ -191,6 +193,9 @@ int main(int argc, char** argv)
             break;
         case 'F':
             options |= Server::IgnorePrintfFixits;
+            break;
+        case 'f':
+            options |= Server::NoUnlimitedErrors;
             break;
         case 'e':
             putenv(optarg);
