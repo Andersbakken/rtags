@@ -27,14 +27,14 @@ IndexerJob::IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags, const
     : Job(0, indexer->project()),
       mFlags(flags), mTimeStamp(0), mPath(p), mFileId(Location::insertFile(p)),
       mArgs(arguments), mIndexer(indexer), mUnit(unit), mIndex(index), mDump(false), mParseTime(0),
-      mStarted(false)
+      mState(NotStarted)
 {
 }
 
 IndexerJob::IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
                        const Path &input, const List<ByteArray> &arguments)
     : Job(msg, WriteUnfiltered|WriteBuffered, project), mFlags(0), mTimeStamp(0), mPath(input), mFileId(Location::insertFile(input)),
-      mArgs(arguments), mUnit(0), mIndex(0), mDump(true), mParseTime(0), mStarted(false)
+      mArgs(arguments), mUnit(0), mIndex(0), mDump(true), mParseTime(0), mState(NotStarted)
 {
 }
 
@@ -593,13 +593,13 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
     return true;
 }
 
-void IndexerJob::parse()
+bool IndexerJob::parse()
 {
     if (!mIndex) {
         mIndex = clang_createIndex(0, 1);
         if (!mIndex) {
             abort();
-            return;
+            return false;
         }
     }
 
@@ -647,12 +647,13 @@ void IndexerJob::parse()
             mParseTime = now;
         }
     }
+    return !isAborted();
 }
 
-void IndexerJob::diagnose()
+bool IndexerJob::diagnose()
 {
     if (!mUnit)
-        return;
+        return false;
 
     const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
     for (unsigned i=0; i<diagnosticCount; ++i) {
@@ -718,19 +719,20 @@ void IndexerJob::diagnose()
     if (testLog(CompilationError)) {
         log(CompilationError, "$");
     }
+    return !isAborted();
 }
 
-void IndexerJob::visit()
+bool IndexerJob::visit()
 {
     if (!mUnit)
-        return;
+        return false;
     clang_getInclusions(mUnit, inclusionVisitor, this);
     if (isAborted())
-        return;
+        return false;
 
     clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
     if (isAborted())
-        return;
+        return false;
     if (testLog(VerboseDebug)) {
         VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLine + ">\n", this };
         clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
@@ -746,6 +748,7 @@ void IndexerJob::visit()
             logDirect(VerboseDebug, u.out);
         }
     }
+    return !isAborted();
 }
 
 void IndexerJob::execute()
@@ -764,22 +767,28 @@ void IndexerJob::execute()
             }
         }
     } else if (mIndexer.lock()) {
-        typedef void (IndexerJob::*Function)();
-        Function functions[] = { &IndexerJob::parse, &IndexerJob::diagnose, &IndexerJob::visit };
-        for (unsigned i=0; i<sizeof(functions) / sizeof(Function); ++i) {
-            (this->*functions[i])();
-            if (isAborted())
-                break;
+        {
+            MutexLocker lock(&mMutex);
+            mState = Started;
         }
+        if (parse() && diagnose() && visit()) {
+            mData->message = ByteArray::snprintf<1024>("%s (%s) in %sms. (%d syms, %d symNames, %d refs, %d deps)%s",
+                                                       mPath.toTilde().constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
+                                                       mData->symbols.size(), mData->symbolNames.size(), mData->references.size(), mData->dependencies.size(),
+                                                       mFlags & Dirty ? " (dirty)" : "");
+            shared_ptr<Indexer> idx;
+            {
+                MutexLocker lock(&mMutex);
+                idx = mIndexer.lock();
+                if (idx)
+                    mState = Finished;
+            }
 
-        mData->message = ByteArray::snprintf<1024>("%s (%s) in %sms. (%d syms, %d symNames, %d refs, %d deps)%s",
-                                                   mPath.toTilde().constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
-                                                   mData->symbols.size(), mData->symbolNames.size(), mData->references.size(), mData->dependencies.size(),
-                                                   mFlags & Dirty ? " (dirty)" : "");
-    }
-    if (shared_ptr<Indexer> idx = indexer()) {
-        shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
-        idx->onJobFinished(job);
+            if (idx) {
+                shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
+                idx->onJobFinished(job);
+            }
+        }
     }
     if (mUnit) {
         clang_disposeTranslationUnit(mUnit);
@@ -866,15 +875,14 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
     --dump->indentLevel;
     return CXChildVisit_Continue;
 }
-bool IndexerJob::abortIfStarted()
+IndexerJob::State IndexerJob::abortIfStarted()
 {
     MutexLocker lock(&mMutex);
-    if (mStarted) {
+    if (mState == Started) {
         resetProject();
         mIndexer.reset();
-        return true;
     }
-    return false;
+    return mState;
 }
 
 CXTranslationUnit IndexerJob::takeTranslationUnit()

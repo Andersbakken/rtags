@@ -29,6 +29,12 @@ public:
         Priorities = Dirty|Makefile,
         IgnorePrintfFixits = 0x10
     };
+    enum State {
+        NotStarted,
+        Started,
+        Finished
+    };
+
     IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags,
                const Path &input, const List<ByteArray> &args,
                CXIndex index = 0 , CXTranslationUnit unit = 0);
@@ -43,14 +49,14 @@ public:
     Path path() const { return mPath; }
     bool isAborted() { return !indexer() && !project(); }
     void abort() { MutexLocker lock(&mMutex); mIndexer.reset(); resetProject(); }
-    bool abortIfStarted();
+    State abortIfStarted();
     List<ByteArray> arguments() const { return mArgs; }
     shared_ptr<Indexer> indexer() { MutexLocker lock(&mMutex); return mIndexer.lock(); }
     time_t parseTime() const { return mParseTime; }
 private:
-    void parse();
-    void visit();
-    void diagnose();
+    bool parse();
+    bool visit();
+    bool diagnose();
 
     virtual void execute();
 
@@ -106,7 +112,7 @@ private:
 
     time_t mParseTime;
 
-    bool mStarted;
+    State mState;
 };
 
 #endif
