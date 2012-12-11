@@ -50,7 +50,7 @@ public:
 
 Server *Server::sInstance = 0;
 Server::Server()
-    : mServer(0), mVerbose(false), mJobId(0), mIndexerThreadPool(0), mQueryThreadPool(1),
+    : mServer(0), mVerbose(false), mJobId(0), mIndexerThreadPool(0), mQueryThreadPool(2),
       mRestoreProjects(false)
 {
     assert(!sInstance);
