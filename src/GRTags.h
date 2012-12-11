@@ -19,10 +19,16 @@ private:
         Detect,
         Update,
         Create,
-        Dump
+        Dump,
+        FindSymbols,
+        ListSymbols,
+        FindReferences,
+        FindAll
     };
+    void findSymbols(const ByteArray &pattern);
+    void listSymbols(const ByteArray &pattern);
     void parse(const Path &sourceFile);
-    bool load(const Path &db, Mode mode);
+    bool load(const Path &db);
     bool save();
     void dump();
     static Path::VisitResult visit(const Path &path, void *userData);
@@ -34,6 +40,8 @@ private:
 
     leveldb::DB *mDB;
     Path mPath;
+    Mode mMode;
+    unsigned mKeyFlags;
 };
 
 #endif

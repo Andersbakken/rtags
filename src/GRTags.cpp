@@ -7,7 +7,7 @@
 #include <leveldb/cache.h>
 
 GRTags::GRTags()
-    : mDB(0)
+    : mDB(0), mMode(Detect), mKeyFlags(0)
 {
 }
 
@@ -17,8 +17,13 @@ bool GRTags::exec(int argc, char **argv)
         { "help", no_argument, 0, 'h' },
         { "version", no_argument, 0, 'V' },
         { "verbose", no_argument, 0, 'v' },
-        { "dir", required_argument, 0, 'd' },
         { "exclude", required_argument, 0, 'e' },
+        { "references", required_argument, 0, 'R' },
+        { "list-symbols", optional_argument, 0, 'S' },
+        { "find-symbols", required_argument, 0, 'F' },
+        { "all-symbols", required_argument, 0, 'A' },
+        { "show-context", no_argument, 0, 'C' },
+        { "dir", required_argument, 0, 'd' },
         { "dump", no_argument, 0, 's' },
         { "create", no_argument, 0, 'c' },
         { 0, 0, 0, 0 }
@@ -26,9 +31,9 @@ bool GRTags::exec(int argc, char **argv)
 
     int logLevel = 0;
     Path dir = ".";
-    Mode mode = Detect;
     int c;
-    while ((c = getopt_long(argc, argv, "hVvd:e:cs", options, 0)) != -1) {
+    ByteArray pattern;
+    while ((c = getopt_long(argc, argv, "hVCvd:e:csR:F:S::A:", options, 0)) != -1) {
         switch (c) {
         case '?':
             return false;
@@ -38,6 +43,11 @@ bool GRTags::exec(int argc, char **argv)
                    "  --version|-V            Display version information\n"
                    "  --verbose|-v            Increase verbosity\n"
                    "  --exclude|-e [filter]   Exclude this pattern (e.g. .git, *.cpp)\n"
+                   "  --references|-R [arg]   Show references to arg\n"
+                   "  --list-symbols|-S [arg] List symbols matching arg\n"
+                   "  --all-symbols|-A [arg]  List symbols and references matching arg\n"
+                   "  --find-symbols|-F [arg] Find symbols matching arg\n"
+                   "  --context|-C            Show context\n"
                    "  --dump|-s               Dump db contents\n"
                    "  --create|-c             Force creation of new DB\n"
                    "  --dir|-d [directory]    Parse this directory (default .)\n");
@@ -45,8 +55,31 @@ bool GRTags::exec(int argc, char **argv)
         case 'V':
             printf("GRTags version 0.1\n");
             return true;
+        case 'C':
+            mKeyFlags |= Location::ShowContext;
+            break;
+        case 'R':
+            mMode = FindReferences;
+            pattern = optarg;
+            break;
+        case 'F':
+            mMode = FindSymbols;
+            pattern = optarg;
+            break;
+        case 'A':
+            mMode = FindAll;
+            pattern = optarg;
+            break;
+        case 'S':
+            mMode = ListSymbols;
+            if (optarg) {
+                pattern = optarg;
+            } else if (optind < argc && *argv[optind] != '-') {
+                pattern = argv[optind++];
+            }
+            break;
         case 'c':
-            mode = Create;
+            mMode = Create;
             break;
         case 'e':
             mFilters.append(optarg);
@@ -55,7 +88,7 @@ bool GRTags::exec(int argc, char **argv)
             ++logLevel;
             break;
         case 's':
-            mode = Dump;
+            mMode = Dump;
             break;
         case 'd':
             dir = optarg;
@@ -68,7 +101,7 @@ bool GRTags::exec(int argc, char **argv)
     }
     Path db;
     dir.resolve();
-    if (mode == Detect || mode == Dump) {
+    if (mMode == Detect || mMode == Dump) {
         Path p = dir;
         while (!p.isEmpty()) {
             db = p + "/.grtags.db";
@@ -78,16 +111,16 @@ bool GRTags::exec(int argc, char **argv)
             p = p.parentDir();
         }
     }
-    if (mode == Detect)
-        mode = db.isDir() ? Update : Create;
+    if (mMode == Detect)
+        mMode = db.isDir() ? Update : Create;
 
     initLogging(logLevel, Path(), 0);
     if (db.isEmpty())
         db = dir + "/.grtags.db";
-    if (!load(db, mode))
+    if (!load(db))
         return false;
 
-    switch (mode) {
+    switch (mMode) {
     case Dump:
         dump();
         return true;
@@ -95,11 +128,77 @@ bool GRTags::exec(int argc, char **argv)
     case Create:
         dir.visit(&GRTags::visit, this);
         return save();
+    case FindReferences:
+    case FindAll:
+    case FindSymbols:
+        findSymbols(pattern);
+        break;
+    case ListSymbols:
+        listSymbols(pattern);
+        break;
     case Detect:
         break;
     }
     return false;
 }
+
+void GRTags::findSymbols(const ByteArray &pattern)
+{
+    std::string value;
+    if (mDB->Get(leveldb::ReadOptions(), leveldb::Slice(pattern.constData(), pattern.size()), &value).ok()) {
+        Deserializer deserializer(value.c_str(), value.size());
+        Map<Location, bool> symbols;
+        deserializer >> symbols;
+        for (Map<Location, bool>::const_iterator it = symbols.begin(); it != symbols.end(); ++it) {
+            bool ok;
+            switch (mMode) {
+            case FindSymbols:
+                ok = !it->second;
+                break;
+            case FindReferences:
+                ok = it->second;
+                break;
+            case FindAll:
+                ok = true;
+                break;
+            default:
+                assert(0);
+                return;
+            }
+            if (ok) {
+                error() << it->first.key(mKeyFlags);
+            }
+        }
+    }
+}
+
+void GRTags::listSymbols(const ByteArray &pattern)
+{
+    leveldb::Iterator *it = mDB->NewIterator(leveldb::ReadOptions());
+    const char *match = pattern.isEmpty() ? 0 : pattern.constData();
+    int matchSize;
+    if (match) {
+        matchSize = pattern.size();
+        it->Seek(match);
+    } else {
+        matchSize = 0;
+        it->SeekToFirst();
+    }
+    while (it->Valid()) {
+        const leveldb::Slice key = it->key();
+        assert(!key.empty());
+        if (key[0] != '/' && !isdigit(key[0])) {
+            if (!match || !strncmp(match, key.data(), std::min<int>(matchSize, key.size()))) {
+                printf("%s\n", key.ToString().c_str());
+            } else {
+                break;
+            }
+        }
+        it->Next();
+    }
+    delete it;
+}
+
 
 Path::VisitResult GRTags::visit(const Path &path, void *userData)
 {
@@ -139,10 +238,10 @@ void GRTags::parse(const Path &src)
     }
 }
 
-bool GRTags::load(const Path &db, Mode mode)
+bool GRTags::load(const Path &db)
 {
-    warning() << "Opening" << db << mode;
-    if (mode == Create) {
+    warning() << "Opening" << db << mMode;
+    if (mMode == Create) {
         // ### protect against removing wrong dir?
         RTags::removeDirectory(db);
     }
@@ -155,7 +254,7 @@ bool GRTags::load(const Path &db, Mode mode)
         return false;
     }
     mPath = db;
-    switch (mode) {
+    switch (mMode) {
     case Update:
     case Create:
     case Dump: {
@@ -167,13 +266,35 @@ bool GRTags::load(const Path &db, Mode mode)
             const leveldb::Slice value = it->value();
             assert(!key.empty());
             if (key[0] == '/') {
-                paths[Path(key.data(), key.size())] = atoi(value.data());
+                paths[Path(key.data(), key.size())] = atoi(value.ToString().c_str());
             } else if (isdigit(key[0])) {
                 mFiles[atoi(key.data())] = atoll(value.data());
             } else {
                 Map<Location, bool> &syms = mSymbols[ByteArray(key.data(), key.size())];
                 Deserializer deserializer(value.data(), value.size());
                 deserializer >> syms;
+            }
+            it->Next();
+        }
+        Location::init(paths);
+        delete it;
+        break; }
+    case ListSymbols:
+        break;
+    case FindSymbols:
+    case FindAll:
+    case FindReferences: {
+        leveldb::Iterator *it = mDB->NewIterator(leveldb::ReadOptions());
+        it->Seek(leveldb::Slice("/", 1));
+        Map<Path, uint32_t> paths;
+        while (it->Valid()) {
+            const leveldb::Slice key = it->key();
+            assert(!key.empty());
+            if (key[0] == '/') {
+                const leveldb::Slice value = it->value();
+                paths[Path(key.data(), key.size())] = atoi(value.ToString().c_str());
+            } else {
+                break;
             }
             it->Next();
         }
