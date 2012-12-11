@@ -1,23 +1,22 @@
-#include "GRParser.h"
-#include "GRScanJob.h"
+#include "ScanJob.h"
 #include "Server.h"
 #include <fnmatch.h>
 
-GRScanJob::GRScanJob(Mode mode, const Path &path, const shared_ptr<Project> &project)
+ScanJob::ScanJob(Mode mode, const Path &path, const shared_ptr<Project> &project)
     : mMode(mode), mPath(path), mFilters(Server::instance()->excludeFilter()), mProject(project)
 {
     if (!mPath.endsWith('/'))
         mPath.append('/');
 }
 
-void GRScanJob::run()
+void ScanJob::run()
 {
-    mPath.visit(&GRScanJob::visit, this);
+    mPath.visit(&ScanJob::visit, this);
     if (shared_ptr<Project> project = mProject.lock())
         mFinished(mPaths);
 }
 
-GRScanJob::FilterResult GRScanJob::filter(const Path &path, const List<ByteArray> &filters)
+ScanJob::FilterResult ScanJob::filter(const Path &path, const List<ByteArray> &filters)
 {
     const int size = filters.size();
     for (int i=0; i<size; ++i) {
@@ -35,9 +34,9 @@ GRScanJob::FilterResult GRScanJob::filter(const Path &path, const List<ByteArray
     return File;
 }
 
-Path::VisitResult GRScanJob::visit(const Path &path, void *userData)
+Path::VisitResult ScanJob::visit(const Path &path, void *userData)
 {
-    GRScanJob *recurseJob = reinterpret_cast<GRScanJob*>(userData);
+    ScanJob *recurseJob = reinterpret_cast<ScanJob*>(userData);
     const FilterResult result = filter(path, recurseJob->mFilters);
     switch (result) {
     case Filtered:

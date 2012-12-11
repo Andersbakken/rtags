@@ -233,11 +233,6 @@ void RClient::addMakeFile(const Path &path, const List<ByteArray> &args)
     mCommands.append(new ProjectCommand(RTags::Type_Makefile, path, args));
 }
 
-void RClient::addGRTag(const Path &path)
-{
-    mCommands.append(new ProjectCommand(RTags::Type_GRTags, path));
-}
-
 void RClient::addSmartProject(const Path &path)
 {
     mCommands.append(new ProjectCommand(RTags::Type_SmartProject, path));
@@ -293,7 +288,6 @@ enum {
     FindVirtuals,
     FixIts,
     FollowLocation,
-    GRTag,
     HasFileManager,
     Help,
     Includepath,
@@ -355,7 +349,6 @@ struct Option opts[] = {
     { Clear, "clear", 'C', no_argument, "Clear projects." },
     { Project, "project", 'w', optional_argument, "With arg, select project matching that if unique, otherwise list all projects." },
     { DeleteProject, "delete-project", 'W', required_argument, "Delete all projects matching regexp." },
-    { GRTag, "grtag", 't', optional_argument, "Index this directory using grtags." },
     { SmartProject, "smart-project", 'j', optional_argument, "Try to guess the source files and includepaths for a certain path. Often has to be combined with -D." },
     { UnloadProject, "unload", 'u', required_argument, "Unload project(s) matching argument." },
     { ReloadProjects, "reload-projects", 'z', no_argument, "Reload projects from projects file." },
@@ -741,15 +734,6 @@ bool RClient::parse(int &argc, char **argv)
             if (type == QueryMessage::Project)
                 projectCommands.append(cmd);
             break; }
-        case GRTag:
-            if (optarg) {
-                addGRTag(Path::resolved(optarg));
-            } else if (optind < argc && argv[optind][0] != '-') {
-                addGRTag(Path::resolved(argv[optind++]));
-            } else {
-                addGRTag(Path::resolved("."));
-            }
-            break;
         case SmartProject:
             if (optarg) {
                 addSmartProject(Path::resolved(optarg));

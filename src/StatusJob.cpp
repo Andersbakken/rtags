@@ -124,32 +124,4 @@ void StatusJob::execute()
             }
         }
     }
-
-    // if ((query.isEmpty() || !strcasecmp(query.nullTerminated(), "gr")) && project()->grtags->flags() & GRTags::Parse)  {
-    //     matched = true;
-    //     ScopedDB database = db(Project::GR, ReadWriteLock::Read);
-    //     write(delimiter);
-    //     write(project()->databaseDir(Project::GR));
-    //     write(delimiter);
-    //     RTags::Ptr<Iterator> it(database->createIterator());
-    //     it->seekToFirst();
-    //     char buf[1024];
-    //     while (it->isValid()) {
-    //         if (isAborted())
-    //             return;
-    //         snprintf(buf, sizeof(buf), "  %s:", it->key().byteArray().constData());
-    //         write(buf);
-    //         const Map<Location, bool> locations = it->value<Map<Location, bool> >();
-    //         for (Map<Location, bool>::const_iterator lit = locations.begin(); lit != locations.end(); ++lit) {
-    //             snprintf(buf, sizeof(buf), "    %s%s", lit->first.key().constData(), lit->second ? "ref" : "");
-    //             write(buf);
-    //         }
-    //         it->next();
-    //     }
-    // }
-
-    // if (!matched) {
-    //     write(alternatives);
-    // }
-
 }

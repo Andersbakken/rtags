@@ -8,7 +8,6 @@
 #include "Location.h"
 #include "RegExp.h"
 
-class GRTags;
 class FindFileJob : public Job
 {
 public:

@@ -1,11 +1,10 @@
 #include "Project.h"
 #include "Indexer.h"
 #include "FileManager.h"
-#include "GRTags.h"
 #include "Server.h"
 
-Project::Project(unsigned flags, const Path &path)
-    : mFlags(flags), mPath(path)
+Project::Project(const Path &path)
+    : mPath(path)
 {
 }
 
@@ -27,29 +26,20 @@ void Project::init(const Path &src)
     assert(!isValid());
     setSrcRoot(src);
 
-    if (mFlags & FileManagerEnabled) {
-        fileManager.reset(new FileManager);
-        fileManager->init(shared_from_this());
-    }
-    if (mFlags & IndexerEnabled) {
-        unsigned flags = Indexer::None;
-        const unsigned options = Server::instance()->options().options;
-        if (!(options & Server::NoValidate))
-            flags |= Indexer::Validate;
-        if (options & Server::IgnorePrintfFixits)
-            flags |= Indexer::IgnorePrintfFixits;
-        indexer.reset(new Indexer(shared_from_this(), flags));
-    }
-
-    if (mFlags & GRTagsEnabled) {
-        grtags.reset(new GRTags);
-        grtags->init(shared_from_this());
-    }
+    fileManager.reset(new FileManager);
+    fileManager->init(shared_from_this());
+    unsigned flags = Indexer::None;
+    const unsigned options = Server::instance()->options().options;
+    if (!(options & Server::NoValidate))
+        flags |= Indexer::Validate;
+    if (options & Server::IgnorePrintfFixits)
+        flags |= Indexer::IgnorePrintfFixits;
+    indexer.reset(new Indexer(shared_from_this(), flags));
 }
 
 bool Project::isValid() const
 {
-    return indexer || grtags;
+    return indexer.get();
 }
 
 Scope<const SymbolMap&> Project::lockSymbolsForRead(int maxTime)
@@ -116,44 +106,10 @@ Scope<FilesMap&> Project::lockFilesForWrite()
     return scope;
 }
 
-Scope<const GRMap&> Project::lockGRForRead(int maxTime)
-{
-    Scope<const GRMap&> scope;
-    if (mGRLock.lockForRead(maxTime))
-        scope.mData.reset(new Scope<const GRMap&>::Data(mGR, &mGRLock));
-    return scope;
-}
-
-Scope<GRMap&> Project::lockGRForWrite()
-{
-    Scope<GRMap&> scope;
-    mGRLock.lockForWrite();
-    scope.mData.reset(new Scope<GRMap&>::Data(mGR, &mGRLock));
-    return scope;
-}
-
-Scope<const GRFilesMap&> Project::lockGRFilesForRead(int maxTime)
-{
-    Scope<const GRFilesMap&> scope;
-    if (mGRFilesLock.lockForRead(maxTime))
-        scope.mData.reset(new Scope<const GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
-    return scope;
-}
-
-Scope<GRFilesMap&> Project::lockGRFilesForWrite()
-{
-    Scope<GRFilesMap&> scope;
-    mGRFilesLock.lockForWrite();
-    scope.mData.reset(new Scope<GRFilesMap&>::Data(mGRFiles, &mGRFilesLock));
-    return scope;
-}
-
 bool Project::isIndexed(uint32_t fileId) const
 {
     if (indexer)
         return indexer->isIndexed(fileId);
-    if (grtags)
-        return grtags->isIndexed(fileId);
     return false;
 }
 

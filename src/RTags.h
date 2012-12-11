@@ -45,10 +45,6 @@ typedef Map<uint32_t, SourceInformation> SourceInformationMap;
 typedef Map<Path, Set<ByteArray> > FilesMap;
 typedef Map<uint32_t, Set<FixIt> > FixItMap;
 typedef Map<uint32_t, List<ByteArray> > DiagnosticsMap;
-typedef Map<uint32_t, time_t> GRFilesMap;
-// file id to last modified, time_t means currently parsing
-typedef Map<ByteArray, Map<Location, bool> > GRMap;
-// symbolName to Map<location, bool> bool == false means cursor, true means reference
 
 namespace RTags {
 void dirtySymbolNames(SymbolNameMap &map, const Set<uint32_t> &dirty);
@@ -76,9 +72,8 @@ enum ProjectType {
     Type_None = 0x00,
     Type_Makefile = 0x01,
     Type_SmartProject = 0x02,
-    Type_GRTags = 0x04,
-    Type_Command = 0x08,
-    Type_Synthesized = 0x10
+    Type_Command = 0x04,
+    Type_Synthesized = 0x08
 };
 
 inline ByteArray timeToString(time_t t, TimeFormat fmt)

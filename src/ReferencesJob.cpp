@@ -93,20 +93,6 @@ void ReferencesJob::execute()
         }
     }
 
-    if (!symbolName.isEmpty() && proj->grtags) {
-        Scope<const GRMap&> scope = proj->lockGRForRead();
-        const GRMap &map = scope.data();
-        const GRMap::const_iterator it = map.find(symbolName);
-        if (it != map.end()) {
-            const Map<Location, bool> &values = it->second;
-            const bool allReferences = queryFlags() & QueryMessage::ReferencesForRenameSymbol;
-            for (Map<Location, bool>::const_iterator it = values.begin(); it != values.end(); ++it) {
-                if (allReferences || it->second)
-                    references.insert(it->first);
-            }
-        }
-    }
-
     List<Location> sorted = references.toList();
     if (queryFlags() & QueryMessage::ReverseSort) {
         std::sort(sorted.begin(), sorted.end(), std::greater<Location>());

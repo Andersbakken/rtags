@@ -13,9 +13,8 @@
 #include "EventReceiver.h"
 #include "FileManager.h"
 #include "Project.h"
-#include "GRScanJob.h"
+#include "ScanJob.h"
 
-class GRTagsMessage;
 class Connection;
 class Indexer;
 class Message;

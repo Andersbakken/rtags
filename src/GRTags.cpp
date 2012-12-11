@@ -1,6 +1,6 @@
 #include "GRTags.h"
 #include "Server.h"
-#include "GRScanJob.h"
+#include "ScanJob.h"
 #include "GRParseJob.h"
 #include <math.h>
 
@@ -22,7 +22,7 @@ void GRTags::init(const shared_ptr<Project> &project)
 void GRTags::recurse()
 {
     shared_ptr<Project> project = mProject.lock();
-    GRScanJob *job = new GRScanJob(GRScanJob::Sources, project->srcRoot(), project);
+    ScanJob *job = new ScanJob(ScanJob::Sources, project->srcRoot(), project);
     job->finished().connect(this, &GRTags::onRecurseJobFinished);
     Server::instance()->threadPool()->start(shared_ptr<ThreadPool::Job>(job));
 }
@@ -34,12 +34,12 @@ void GRTags::onFileRemoved(const Path &path)
 
 void GRTags::onFileAdded(const Path &path)
 {
-    const GRScanJob::FilterResult res = GRScanJob::filter(path, Server::instance()->excludeFilter());
+    const ScanJob::FilterResult res = ScanJob::filter(path, Server::instance()->excludeFilter());
     switch (res) {
-    case GRScanJob::Directory:
+    case ScanJob::Directory:
         recurse();
         break;
-    case GRScanJob::Source:
+    case ScanJob::Source:
         add(path);
         break;
     default:

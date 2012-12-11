@@ -1,5 +1,5 @@
-#ifndef GRScanJob_h
-#define GRScanJob_h
+#ifndef ScanJob_h
+#define ScanJob_h
 
 #include "ThreadPool.h"
 #include "AbortInterface.h"
@@ -7,14 +7,14 @@
 #include "SignalSlot.h"
 #include "Project.h"
 
-class GRScanJob : public ThreadPool::Job, public AbortInterface
+class ScanJob : public ThreadPool::Job, public AbortInterface
 {
 public:
     enum Mode {
         Sources,
         All
     };
-    GRScanJob(Mode mode, const Path &path, const shared_ptr<Project> &project);
+    ScanJob(Mode mode, const Path &path, const shared_ptr<Project> &project);
     virtual void run();
     signalslot::Signal1<const Set<Path> &>&finished() { return mFinished; }
 

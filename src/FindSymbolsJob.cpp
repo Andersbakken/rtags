@@ -29,18 +29,6 @@ void FindSymbolsJob::execute()
             }
         }
     }
-    if (project()->grtags) {
-        Scope<const GRMap &> scope = project()->lockGRForRead();
-        const GRMap &map = scope.data();
-        GRMap::const_iterator it = map.find(string);
-        if (it != map.end()) {
-            const Map<Location, bool> &locations = it->second;
-            for (Map<Location, bool>::const_iterator i = locations.begin(); i != locations.end(); ++i) {
-                if (!i->second)
-                    out[i->first] = false;
-            }
-        }
-    }
 
     if (out.size()) {
         Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();

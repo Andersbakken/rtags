@@ -86,8 +86,7 @@ set(rtags_HDRS
     CursorInfoJob.h
     FindSymbolsJob.h
     FollowLocationJob.h
-    GRParseJob.h
-    GRScanJob.h
+    ScanJob.h
     IndexerJob.h
     ListSymbolsJob.h
     ReferencesJob.h
@@ -101,8 +100,6 @@ set(rtags_HDRS
     MemoryMonitor.h
     MakefileParser.h
     CursorInfo.h
-    GRParser.h
-    GRTags.h
     Indexer.h
     FileManager.h
     Project.h
@@ -116,8 +113,7 @@ set(rtags_SRCS
     FindFileJob.cpp
     FindSymbolsJob.cpp
     FollowLocationJob.cpp
-    GRParseJob.cpp
-    GRScanJob.cpp
+    ScanJob.cpp
     IndexerJob.cpp
     IniFile.cpp
     Job.cpp
@@ -130,8 +126,6 @@ set(rtags_SRCS
     Server.cpp
     MakefileParser.cpp
     MemoryMonitor.cpp
-    GRParser.cpp
-    GRTags.cpp
     GccArguments.cpp
     Indexer.cpp
     FileManager.cpp
