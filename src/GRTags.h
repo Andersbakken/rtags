@@ -31,7 +31,7 @@ private:
     bool save();
     void dump();
     void dirty();
-    void parseFiles();
+    int parseFiles();
     static Path::VisitResult visit(const Path &path, void *userData);
     List<ByteArray> mFilters;
     Map<uint32_t, time_t> mFiles;

@@ -125,7 +125,6 @@ bool GRTags::exec(int argc, char **argv)
         db = dir + "/.grtags.db";
     if (!load(db))
         return false;
-
     switch (mMode) {
     case Dump:
         dump();
@@ -133,10 +132,12 @@ bool GRTags::exec(int argc, char **argv)
     case Update:
     case Create:
         dir.visit(&GRTags::visit, this);
-        if (mMode == Update)
+        if (mMode == Update) {
             dirty();
-        parseFiles();
-        return save();
+        }
+        if (parseFiles())
+            return save();
+        return true;
     case FindReferences:
     case FindAll:
     case FindSymbols:
@@ -198,7 +199,7 @@ void GRTags::listSymbols(const ByteArray &pattern)
         assert(!key.empty());
         if (key[0] != '/' && !isdigit(key[0])) {
             if (!match || !strncmp(match, key.data(), std::min<int>(matchSize, key.size()))) {
-                printf("%s\n", key.ToString().c_str());
+                error("%s", key.ToString().c_str());
             } else {
                 break;
             }
@@ -418,16 +419,24 @@ void GRTags::dirty()
     }
 }
 
-void GRTags::parseFiles()
+int GRTags::parseFiles()
 {
     const int count = mPending.size();
+    float percentageLast = -1;
     for (int i=0; i<count; ++i) {
         GRParser parser;
         const Path &src = mPending[i];
         const char *extension = src.extension();
         const unsigned flags = extension && strcmp("c", extension) ? GRParser::CPlusPlus : GRParser::None;
-        const int count = parser.parse(src, flags, mSymbols);
+        const int symbols = parser.parse(src, flags, mSymbols);
         mFiles[Location::insertFile(src)] = time(0);
-        warning() << "Parsed" << src << count << "symbols";
+        warning() << "Parsed" << src << symbols << "symbols";
+        const float percentage = (static_cast<float>(i + 1) / static_cast<float>(count)) * 100.0;
+        const float floored = floor(percentage);
+        if (floored != percentageLast || i + 1 == count) {
+            percentageLast = floored;
+            error("%.1f%% parsed (%d/%d)", percentage, i + 1, count);
+        }
     }
+    return count;
 }
