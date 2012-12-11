@@ -133,6 +133,9 @@ bool GRTags::exec(int argc, char **argv)
     case Update:
     case Create:
         dir.visit(&GRTags::visit, this);
+        if (mMode == Update)
+            dirty();
+        parseFiles();
         return save();
     case FindReferences:
     case FindAll:
@@ -220,28 +223,21 @@ Path::VisitResult GRTags::visit(const Path &path, void *userData)
     case Filter::File:
         grtags->mFiles[Location::insertFile(path)] = 0;
         break;
-    case Filter::Source:
-        grtags->parse(path);
-        break;
+    case Filter::Source: {
+        const uint32_t fileId = Location::insertFile(path);
+        time_t parsed = grtags->mFiles.value(fileId, 0);
+        if (!parsed) {
+            grtags->mPending.append(path);
+        } else if (parsed < path.lastModified()) {
+            grtags->mPending.append(path);
+            grtags->mDirty.insert(fileId);
+        } else {
+            warning() << path << "seems to be up to date. Parsed at" << RTags::timeToString(parsed, RTags::DateTime)
+                      << "last modified at" << RTags::timeToString(path.lastModified(), RTags::DateTime);
+        }
+        break; }
     }
     return Path::Continue;
-}
-
-void GRTags::parse(const Path &src)
-{
-    time_t &parsed = mFiles[Location::insertFile(src)];
-    if (parsed < src.lastModified()) {
-        Timer timer;
-        GRParser parser;
-        const char *extension = src.extension();
-        const unsigned flags = extension && strcmp("c", extension) ? GRParser::CPlusPlus : GRParser::None;
-        const int count = parser.parse(src, flags, mSymbols);
-        mFiles[Location::insertFile(src)] = time(0);
-        warning() << "Parsed" << src << count << "symbols";
-    } else {
-        warning() << src << "seems to be up to date. Parsed at" << RTags::timeToString(parsed, RTags::DateTime)
-                  << "last modified at" << RTags::timeToString(src.lastModified(), RTags::DateTime);
-    }
 }
 
 bool GRTags::load(const Path &db)
@@ -398,4 +394,40 @@ int main(int argc, char **argv)
 {
     GRTags grtags;
     return grtags.exec(argc, argv) ? 0 : 1;
+}
+
+void GRTags::dirty()
+{
+    if (!mDirty.isEmpty()) {
+        Map<ByteArray, Map<Location, bool> >::iterator it = mSymbols.begin();
+        while (it != mSymbols.end()) {
+            Map<Location, bool>::iterator it2 = it->second.begin();
+            while (it2 != it->second.end()) {
+                if (mDirty.contains(it2->first.fileId())) {
+                    it->second.erase(it2++);
+                } else {
+                    ++it2;
+                }
+            }
+            if (it->second.isEmpty()) {
+                mSymbols.erase(it++);
+            } else {
+                ++it;
+            }
+        }
+    }
+}
+
+void GRTags::parseFiles()
+{
+    const int count = mPending.size();
+    for (int i=0; i<count; ++i) {
+        GRParser parser;
+        const Path &src = mPending[i];
+        const char *extension = src.extension();
+        const unsigned flags = extension && strcmp("c", extension) ? GRParser::CPlusPlus : GRParser::None;
+        const int count = parser.parse(src, flags, mSymbols);
+        mFiles[Location::insertFile(src)] = time(0);
+        warning() << "Parsed" << src << count << "symbols";
+    }
 }

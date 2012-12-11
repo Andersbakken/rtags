@@ -27,10 +27,11 @@ private:
     };
     void findSymbols(const ByteArray &pattern);
     void listSymbols(const ByteArray &pattern);
-    void parse(const Path &sourceFile);
     bool load(const Path &db);
     bool save();
     void dump();
+    void dirty();
+    void parseFiles();
     static Path::VisitResult visit(const Path &path, void *userData);
     List<ByteArray> mFilters;
     Map<uint32_t, time_t> mFiles;
@@ -42,6 +43,8 @@ private:
     Path mPath;
     Mode mMode;
     unsigned mKeyFlags;
+    List<Path> mPending;
+    Set<uint32_t> mDirty;
 };
 
 #endif
