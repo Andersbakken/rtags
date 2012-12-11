@@ -3,7 +3,7 @@ include(clang.cmake)
 include(PCH_GCC4_v2.cmake)
 
 include_directories(
-    ${PROJECT_SOURCE_DIR}/3rdparty/picojson
+    ${PROJECT_SOURCE_DIR}/3rdparty/leveldb
     )
 
 set(rtags_client_HDRS

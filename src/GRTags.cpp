@@ -4,6 +4,7 @@
 #include "Log.h"
 #include <getopt.h>
 #include <math.h>
+#include "leveldb/db.h"
 
 GRTags::GRTags()
 {
@@ -68,7 +69,7 @@ bool GRTags::exec(int argc, char **argv)
         Path p = dir;
         while (!p.isEmpty()) {
             db = p + "/.grtags.db";
-            if (db.isFile()) {
+            if (db.isDir()) {
                 mode = Update;
                 break;
             }
@@ -122,7 +123,7 @@ void GRTags::load(const Path &db)
 {
     FILE *f = fopen(db.constData(), "r");
     if (f) {
-        Deserializer serializer(f);
+
     }
 }
 

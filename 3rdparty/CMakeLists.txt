@@ -52,3 +52,29 @@ ExternalProject_Add(
     CONFIGURE_COMMAND ""
     INSTALL_COMMAND ""
     )
+
+ExternalProject_Add(
+    leveldb
+    SOURCE_DIR ./leveldb
+    GIT_REPOSITORY "https://code.google.com/p/leveldb/"
+    GIT_TAG "85584d497e7b354853b72f450683d59fcf6b9c5c"
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND ""
+    INSTALL_COMMAND ""
+    UPDATE_COMMAND ""
+    )
+
+add_custom_target (
+    leveldb_make
+    ALL
+    COMMAND \$\(MAKE\)
+    WORKING_DIRECTORY ./leveldb
+    DEPENDS leveldb
+    )
+
+add_custom_target (
+    leveldb_pull
+    COMMAND git pull
+    WORKING_DIRECTORY ./leveldb
+    DEPENDS leveldb
+    )
