@@ -1,9 +1,9 @@
 #include "ScanJob.h"
 #include "Server.h"
-#include <fnmatch.h>
+#include "Filter.h"
 
-ScanJob::ScanJob(Mode mode, const Path &path, const shared_ptr<Project> &project)
-    : mMode(mode), mPath(path), mFilters(Server::instance()->excludeFilter()), mProject(project)
+ScanJob::ScanJob(const Path &path, const shared_ptr<Project> &project)
+    : mPath(path), mFilters(Server::instance()->excludeFilter()), mProject(project)
 {
     if (!mPath.endsWith('/'))
         mPath.append('/');
@@ -16,38 +16,17 @@ void ScanJob::run()
         mFinished(mPaths);
 }
 
-ScanJob::FilterResult ScanJob::filter(const Path &path, const List<ByteArray> &filters)
-{
-    const int size = filters.size();
-    for (int i=0; i<size; ++i) {
-        const ByteArray &filter = filters.at(i);
-        if (!fnmatch(filter.constData(), path.constData(), 0))
-            return Filtered;
-    }
-
-    if (path.isDir()) {
-        return Directory;
-    }
-    const char *ext = path.extension();
-    if (ext && (Path::isSource(ext) || Path::isHeader(ext)))
-        return Source;
-    return File;
-}
-
 Path::VisitResult ScanJob::visit(const Path &path, void *userData)
 {
     ScanJob *recurseJob = reinterpret_cast<ScanJob*>(userData);
-    const FilterResult result = filter(path, recurseJob->mFilters);
+    const Filter::Result result = Filter::filter(path, recurseJob->mFilters);
     switch (result) {
-    case Filtered:
+    case Filter::Filtered:
         return Path::Continue;
-    case Directory:
+    case Filter::Directory:
         return Path::Recurse;
-    case File:
-        if (recurseJob->mMode == Sources)
-            break;
-        // fall through
-    case Source:
+    case Filter::File:
+    case Filter::Source:
         recurseJob->mPaths.insert(path);
         break;
     }

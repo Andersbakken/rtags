@@ -10,24 +10,10 @@
 class ScanJob : public ThreadPool::Job, public AbortInterface
 {
 public:
-    enum Mode {
-        Sources,
-        All
-    };
-    ScanJob(Mode mode, const Path &path, const shared_ptr<Project> &project);
+    ScanJob(const Path &path, const shared_ptr<Project> &project);
     virtual void run();
     signalslot::Signal1<const Set<Path> &>&finished() { return mFinished; }
-
-    enum FilterResult {
-        Filtered,
-        File,
-        Source,
-        Directory
-    };
-
-    static FilterResult filter(const Path &path, const List<ByteArray> &filters);
 private:
-    const Mode mMode;
     static Path::VisitResult visit(const Path &path, void *userData);
     Path mPath;
     const List<ByteArray> &mFilters;

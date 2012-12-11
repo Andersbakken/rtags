@@ -1,27 +1,23 @@
 #ifndef GRTags_h
 #define GRTags_h
 
-#include "Project.h"
-#include "FileSystemWatcher.h"
+#include "Location.h"
 
-class GRParseJob;
 class GRTags
 {
 public:
     GRTags();
-    void init(const shared_ptr<Project> &project);
-    void onFileAdded(const Path &path);
-    void onFileRemoved(const Path &path);
-    void onRecurseJobFinished(const Set<Path> &files);
-    void recurse();
-    void add(const Path &source);
-    void onParseJobFinished(const shared_ptr<GRParseJob> &job, const GRMap &data);
-    void dirty(uint32_t fileId, GRMap &map);
-    bool isIndexed(uint32_t fileId) const;
+    bool exec(int argc, char **argv);
 private:
-    weak_ptr<Project> mProject;
-    FileSystemWatcher mWatcher;
-    int mActive, mCount;
+    void parse(const Path &sourceFile);
+    void load(const Path &db);
+    void save(const Path &db);
+    static Path::VisitResult visit(const Path &path, void *userData);
+    List<ByteArray> mFilters;
+    Map<uint32_t, time_t> mFiles;
+    // file id to last modified, time_t means currently parsing
+    Map<ByteArray, Map<Location, bool> > mSymbols;
+    // symbolName to Map<location, bool> bool == false means cursor, true means reference
 };
 
 #endif

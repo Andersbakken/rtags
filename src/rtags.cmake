@@ -81,29 +81,30 @@ set(rtags_client_SRCS
 
 set(rtags_HDRS
     ${rtags_client_HDRS}
-    FindFileJob.h
     CompletionJob.h
+    CursorInfo.h
     CursorInfoJob.h
+    FileManager.h
+    FileSystemWatcher.h
+    Filter.h
+    FindFileJob.h
     FindSymbolsJob.h
     FollowLocationJob.h
-    ScanJob.h
+    GccArguments.h
+    Indexer.h
     IndexerJob.h
     ListSymbolsJob.h
-    ReferencesJob.h
-    StatusJob.h
-    ValidateDBJob.h
-    Server.h
-    FileSystemWatcher.h
-    GccArguments.h
     LocalServer.h
+    MakefileParser.h
     Match.h
     MemoryMonitor.h
-    MakefileParser.h
-    CursorInfo.h
-    Indexer.h
-    FileManager.h
     Project.h
     RTagsClang.h
+    ReferencesJob.h
+    ScanJob.h
+    Server.h
+    StatusJob.h
+    ValidateDBJob.h
     )
 
 set(rtags_SRCS
@@ -132,6 +133,16 @@ set(rtags_SRCS
     Project.cpp
     RTagsClang.cpp
    )
+
+set(grtags_SRCS
+    GRParser.cpp
+    GRTags.cpp
+    Location.cpp
+    Log.cpp
+    Path.cpp
+    RTags.cpp
+    ReadWriteLock.cpp
+)
 
 if(HAVE_INOTIFY EQUAL 1)
   list(APPEND rtags_SRCS FileSystemWatcher_inotify.cpp)

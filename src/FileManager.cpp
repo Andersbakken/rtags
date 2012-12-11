@@ -2,6 +2,7 @@
 #include "ScanJob.h"
 #include "Server.h"
 #include "Indexer.h"
+#include "Filter.h"
 
 FileManager::FileManager()
 {
@@ -19,7 +20,7 @@ void FileManager::recurseDirs()
 {
     shared_ptr<Project> project = mProject.lock();
     assert(project);
-    shared_ptr<ScanJob> job(new ScanJob(ScanJob::All, project->srcRoot(), project));
+    shared_ptr<ScanJob> job(new ScanJob(project->srcRoot(), project));
     job->finished().connect(this, &FileManager::onRecurseJobFinished);
     Server::instance()->threadPool()->start(job);
 }
@@ -50,12 +51,12 @@ void FileManager::onFileAdded(const Path &path)
         error("Got empty file added here");
         return;
     }
-    const ScanJob::FilterResult res = ScanJob::filter(path, Server::instance()->excludeFilter());
+    const Filter::Result res = Filter::filter(path, Server::instance()->excludeFilter());
     switch (res) {
-    case ScanJob::Directory:
+    case Filter::Directory:
         recurseDirs();
         return;
-    case ScanJob::Filtered:
+    case Filter::Filtered:
         return;
     default:
         break;

@@ -9,11 +9,11 @@
 #include <clang/Lex/Lexer.h>
 #include <clang/Basic/SourceLocation.h>
 #include <stack>
+#include "GRTags.h"
 #include "Map.h"
 #include "ByteArray.h"
 #include "Timer.h"
 #include "Log.h"
-#include "GRParseJob.h"
 #include "RTags.h"
 
 class GRParser
@@ -25,7 +25,7 @@ public:
     };
     GRParser();
     ~GRParser();
-    int parse(const Path &file, unsigned opts, GRMap &entries);
+    int parse(const Path &file, unsigned opts, Map<ByteArray, Map<Location, bool> > &entries);
 private:
     void addEntry(const ByteArray &name, const List<ByteArray> &containerScope, int offset);
     void addReference(const ByteArray &name, int offset);
@@ -87,7 +87,7 @@ private:
     List<ByteArray> mContainerScope;
     List<clang::Token> mTokens;
     uint32_t mFileId;
-    GRMap *mEntries;
+    Map<ByteArray, Map<Location, bool> > *mEntries;
 };
 
 #endif
