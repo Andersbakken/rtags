@@ -56,6 +56,7 @@ public:
 
     Path srcRoot() const { return mSrcRoot; }
     Path resolvedSrcRoot() const { return mResolvedSrcRoot; }
+    void setSrcRoot(const Path &srcRoot);
     Path path() const { return mPath; }
 
     bool match(const Match &match) const;

@@ -196,6 +196,25 @@ bool Server::addProject(const Path &p, const ProjectEntry &newEntry)
         }
 
         entry.project.reset(new Project(flags, path));
+        RTags::encodePath(path);
+        const Path cacheFilePath = ByteArray::snprintf<128>("%s%s", mOptions.dataDir.constData(), path.constData());
+        if (FILE *f = fopen(cacheFilePath.constData(), "r")) {
+            Deserializer in(f);
+            int version;
+            in >> version;
+            if (version == DatabaseVersion) {
+                int fs;
+                in >> fs;
+                if (fs == RTags::fileSize(f)) {
+                    Path srcRoot;
+                    in >> srcRoot;
+                    if (srcRoot.isDir()) {
+                        entry.project->setSrcRoot(srcRoot);
+                    }
+                }
+            }
+            fclose(f);
+        }
         return true;
     }
     return false;
@@ -967,12 +986,16 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
                     if (fs != RTags::fileSize(f)) {
                         error("%s seems to be corrupted, refusing to restore %s",
                               p.constData(), proj.constData());
-                    } else if (!project->restore(in)) {
-                        error("Can't restore project %s", proj.constData());
-                    } else if (!project->indexer->restore(in)) {
-                        error("Can't restore project %s", proj.constData());
                     } else {
-                        error("Restored project %s in %dms", proj.constData(), timer.elapsed());
+                        Path srcRoot;
+                        in >> srcRoot; // ignored
+                        if (!project->restore(in)) {
+                            error("Can't restore project %s", proj.constData());
+                        } else if (!project->indexer->restore(in)) {
+                            error("Can't restore project %s", proj.constData());
+                        } else {
+                            error("Restored project %s in %dms", proj.constData(), timer.elapsed());
+                        }
                     }
                 }
                 fclose(f);
@@ -1318,8 +1341,12 @@ void Server::project(const QueryMessage &query, Connection *conn)
     if (query.query().isEmpty()) {
         shared_ptr<Project> current = currentProject();
         for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-            conn->write<128>("%s%s%s",
+            Path srcRoot = it->second.project->srcRoot();
+            if (!srcRoot.isEmpty())
+                srcRoot.prepend(" src: ");
+            conn->write<128>("%s%s%s%s",
                              it->first.constData(),
+                             srcRoot.constData(),
                              it->second.project->isValid() ? " (loaded)" : "",
                              it->second.project == current ? " <=" : "");
         }
@@ -1518,6 +1545,7 @@ void Server::save(const shared_ptr<Indexer> &indexer)
         out << static_cast<int>(DatabaseVersion);
         const int pos = ftell(f);
         out << static_cast<int>(0);
+        out << it->second.project->srcRoot();
         if (!it->second.project->save(out)) {
             error("Can't save project %s", it->first.constData());
             fclose(f);

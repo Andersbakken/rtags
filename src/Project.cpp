@@ -9,9 +9,8 @@ Project::Project(unsigned flags, const Path &path)
 {
 }
 
-void Project::init(const Path &src)
+void Project::setSrcRoot(const Path &src)
 {
-    assert(!isValid());
     mResolvedSrcRoot = mSrcRoot = src;
     mResolvedSrcRoot.resolve();
     if (!mSrcRoot.endsWith('/'))
@@ -21,6 +20,12 @@ void Project::init(const Path &src)
     } else if (!mResolvedSrcRoot.endsWith('/')) {
         mResolvedSrcRoot.append('/');
     }
+}
+
+void Project::init(const Path &src)
+{
+    assert(!isValid());
+    setSrcRoot(src);
 
     if (mFlags & FileManagerEnabled) {
         fileManager.reset(new FileManager);
