@@ -124,13 +124,19 @@ Path::VisitResult GRTags::visit(const Path &path, void *userData)
 
 void GRTags::parse(const Path &src)
 {
-    Timer timer;
-    GRParser parser;
-    const char *extension = src.extension();
-    const unsigned flags = extension && strcmp("c", extension) ? GRParser::CPlusPlus : GRParser::None;
-    const int count = parser.parse(src, flags, mSymbols);
-    mFiles[Location::insertFile(src)] = time(0);
-    warning() << "Parsed" << src << count << "symbols";
+    time_t &parsed = mFiles[Location::insertFile(src)];
+    if (parsed < src.lastModified()) {
+        Timer timer;
+        GRParser parser;
+        const char *extension = src.extension();
+        const unsigned flags = extension && strcmp("c", extension) ? GRParser::CPlusPlus : GRParser::None;
+        const int count = parser.parse(src, flags, mSymbols);
+        mFiles[Location::insertFile(src)] = time(0);
+        warning() << "Parsed" << src << count << "symbols";
+    } else {
+        warning() << src << "seems to be up to date. Parsed at" << RTags::timeToString(parsed, RTags::DateTime)
+                  << "last modified at" << RTags::timeToString(src.lastModified(), RTags::DateTime);
+    }
 }
 
 bool GRTags::load(const Path &db, Mode mode)
