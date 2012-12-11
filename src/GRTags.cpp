@@ -23,6 +23,7 @@ bool GRTags::exec(int argc, char **argv)
         { "find-symbols", required_argument, 0, 'F' },
         { "all-symbols", required_argument, 0, 'A' },
         { "show-context", no_argument, 0, 'C' },
+        { "path", optional_argument, 0, 'P' },
         { "dir", required_argument, 0, 'd' },
         { "dump", no_argument, 0, 's' },
         { "create", no_argument, 0, 'c' },
@@ -34,7 +35,7 @@ bool GRTags::exec(int argc, char **argv)
     Path dir = ".";
     int c;
     ByteArray pattern;
-    while ((c = getopt_long(argc, argv, "hVCvd:e:csR:F:S::A:i", options, 0)) != -1) {
+    while ((c = getopt_long(argc, argv, "hVCvd:e:csR:F:S::A:iP::", options, 0)) != -1) {
         switch (c) {
         case '?':
             return false;
@@ -52,13 +53,22 @@ bool GRTags::exec(int argc, char **argv)
                    "  --context|-C            Show context\n"
                    "  --dump|-s               Dump db contents\n"
                    "  --create|-c             Force creation of new DB\n"
-                   "  --dir|-d [directory]    Parse this directory (default .)\n");
+                   "  --path|-P [arg]         List files matching optional arg\n"
+                   "  --dir|-d [arg]          Parse this directory (default .)\n");
             return true;
         case 'V':
             printf("GRTags version 0.1\n");
             return true;
         case 'C':
             mKeyFlags |= Location::ShowContext;
+            break;
+        case 'P':
+            mMode = Paths;
+            if (optarg) {
+                pattern = optarg;
+            } else if (optind < argc && *argv[optind] != '-') {
+                pattern = argv[optind++];
+            }
             break;
         case 'R':
             mMode = FindReferences;
@@ -138,6 +148,9 @@ bool GRTags::exec(int argc, char **argv)
         if (parseFiles())
             return save();
         return true;
+    case Paths:
+        paths(pattern);
+        break;
     case FindReferences:
     case FindAll:
     case FindSymbols:
@@ -284,6 +297,7 @@ bool GRTags::load(const Path &db)
         break; }
     case ListSymbols:
         break;
+    case Paths:
     case FindSymbols:
     case FindAll:
     case FindReferences: {
@@ -302,6 +316,20 @@ bool GRTags::load(const Path &db)
             it->Next();
         }
         Location::init(paths);
+        if (mMode == Paths) {
+            it->Seek(leveldb::Slice("0", 1));
+            while (it->Valid()) {
+                const leveldb::Slice key = it->key();
+                assert(!key.empty());
+                if (isdigit(key[0])) {
+                    const leveldb::Slice value = it->value();
+                    mFiles[atoi(key.data())] = atoll(value.data());
+                } else {
+                    break;
+                }
+                it->Next();
+            }
+        }
         delete it;
         break; }
     case Detect:
@@ -439,4 +467,9 @@ int GRTags::parseFiles()
         }
     }
     return count;
+}
+
+void GRTags::paths(const ByteArray &pattern)
+{
+#warning need to do this
 }

@@ -16,17 +16,19 @@ public:
     bool exec(int argc, char **argv);
 private:
     enum Mode {
-        Detect,
-        Update,
         Create,
+        Detect,
         Dump,
+        FindAll,
+        FindReferences,
         FindSymbols,
         ListSymbols,
-        FindReferences,
-        FindAll
+        Paths,
+        Update
     };
     void findSymbols(const ByteArray &pattern);
     void listSymbols(const ByteArray &pattern);
+    void paths(const ByteArray &pattern);
     bool load(const Path &db);
     bool save();
     void dump();
