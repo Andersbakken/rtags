@@ -26,6 +26,7 @@ bool GRTags::exec(int argc, char **argv)
         { "dir", required_argument, 0, 'd' },
         { "dump", no_argument, 0, 's' },
         { "create", no_argument, 0, 'c' },
+        { "silent", no_argument, 0, 'i' },
         { 0, 0, 0, 0 }
     };
 
@@ -33,7 +34,7 @@ bool GRTags::exec(int argc, char **argv)
     Path dir = ".";
     int c;
     ByteArray pattern;
-    while ((c = getopt_long(argc, argv, "hVCvd:e:csR:F:S::A:", options, 0)) != -1) {
+    while ((c = getopt_long(argc, argv, "hVCvd:e:csR:F:S::A:i", options, 0)) != -1) {
         switch (c) {
         case '?':
             return false;
@@ -42,6 +43,7 @@ bool GRTags::exec(int argc, char **argv)
                    "  --help|-h               Display this help\n"
                    "  --version|-V            Display version information\n"
                    "  --verbose|-v            Increase verbosity\n"
+                   "  --silent|-i             Be silent\n"
                    "  --exclude|-e [filter]   Exclude this pattern (e.g. .git, *.cpp)\n"
                    "  --references|-R [arg]   Show references to arg\n"
                    "  --list-symbols|-S [arg] List symbols matching arg\n"
@@ -85,7 +87,11 @@ bool GRTags::exec(int argc, char **argv)
             mFilters.append(optarg);
             break;
         case 'v':
-            ++logLevel;
+            if (logLevel >= 0)
+                ++logLevel;
+            break;
+        case 'i':
+            logLevel = -1;
             break;
         case 's':
             mMode = Dump;
