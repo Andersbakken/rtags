@@ -332,16 +332,24 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         return;
     } else if (refKind == CXCursor_Constructor && isImplicit(ref)) {
         return;
-    } else if (refKind == CXCursor_CXXMethod || refKind == CXCursor_FunctionDecl) {
-        CXStringScope scope = clang_getCursorDisplayName(ref);
-        const char *data = scope.data();
-        if (data) {
-            const int len = strlen(data);
-            if (len > 8 && !strncmp(data, "operator", 8) && !isalnum(data[8]) && data[8] != '_') {
-                if (isImplicit(ref))
-                    return; // eat implicit operator calls
-                isOperator = true;
+    } else {
+        switch (refKind) {
+        case CXCursor_CXXMethod:
+        case CXCursor_FunctionDecl:
+        case CXCursor_FunctionTemplate: {
+            CXStringScope scope = clang_getCursorDisplayName(ref);
+            const char *data = scope.data();
+            if (data) {
+                const int len = strlen(data);
+                if (len > 8 && !strncmp(data, "operator", 8) && !isalnum(data[8]) && data[8] != '_') {
+                    if (isImplicit(ref))
+                        return; // eat implicit operator calls
+                    isOperator = true;
+                }
             }
+            break; }
+        default:
+            break;
         }
     }
 
