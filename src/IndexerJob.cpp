@@ -323,12 +323,18 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         return;
 
     bool isOperator = false;
-    if (kind == CXCursor_CallExpr && (refKind == CXCursor_CXXMethod || refKind == CXCursor_ConversionFunction)) {
+    if (kind == CXCursor_CallExpr
+        && (refKind == CXCursor_CXXMethod
+            || refKind == CXCursor_ConversionFunction
+            || refKind == CXCursor_FunctionDecl
+            || refKind == CXCursor_FunctionTemplate)) {
         // these are bullshit, for this construct:
         // foo.bar();
         // the position of the cursor is at the foo, not the bar.
         // They are not interesting for followLocation, renameSymbol or find
         // references so we toss them.
+        // For functions it can be the position of the namespace.
+        // E.g. Foo::bar(); cursor is on Foo
         return;
     } else if (refKind == CXCursor_Constructor && isImplicit(ref)) {
         return;
