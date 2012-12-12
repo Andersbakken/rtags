@@ -10,6 +10,41 @@ ValidateDBJob::ValidateDBJob(const shared_ptr<Project> &proj, const Set<Location
 {
 }
 
+static inline bool isSymbol(char ch)
+{
+    return (isalnum(ch) || ch == '_');
+}
+
+static inline bool isOperator(char ch)
+{
+    switch (ch) {
+    case '!':
+    case '%':
+    case '&':
+    case '(':
+    case ')':
+    case '+':
+    case ',':
+    case '-':
+    case '.':
+    case '/':
+    case ':':
+    case '<':
+    case '=':
+    case '>':
+    case '?':
+    case '[':
+    case ']':
+    case '^':
+    case '|':
+    case '~':
+        return true;
+    default:
+        break;
+    }
+    return false;
+}
+
 void ValidateDBJob::execute()
 {
     int errors = 0;
@@ -20,8 +55,11 @@ void ValidateDBJob::execute()
         if (scope.isNull())
             return;
         const SymbolMap &map = scope.data();
+        char *lastFileContents = 0;
+        uint32_t lastFileId = -1;
         for (SymbolMap::const_iterator it = map.begin(); it != map.end(); ++it) {
             if (isAborted()) {
+                delete []lastFileContents;
                 return;
             }
             const CursorInfo &ci = it->second;
@@ -42,8 +80,60 @@ void ValidateDBJob::execute()
                 }
                 newErrors.insert(loc);
                 ++errors;
+            } else if (it->second.kind != CXCursor_InclusionDirective) {
+                if (lastFileId != it->first.fileId()) {
+                    delete []lastFileContents;
+                    lastFileId = it->first.fileId();
+                    Location::path(lastFileId).readAll(lastFileContents);
+                }
+                int foundError = 0;
+                int offset = it->first.offset();
+                if (isOperator(lastFileContents[offset])) {
+                    for (int i=1; i<it->second.symbolLength; ++i) {
+                        if (!isOperator(lastFileContents[i + offset])) {
+                            error() << "Foumd something wrong" << it->second.kind << lastFileContents[i + offset];
+                            foundError = 1;
+                            break;
+                        }
+                    }
+                } else {
+                    if (!strncmp(lastFileContents + offset, "operator", 8)) {
+                        for (int i=8; i<it->second.symbolLength; ++i) {
+                            if (!isOperator(lastFileContents[i + offset])) {
+                                error() << "Foumd something wrong" << it->second.kind << lastFileContents[i + offset]
+                                        << i << 2;
+                                foundError = 2;
+                                break;
+                            }
+                        }
+                    } else {
+                        for (int i=0; i<it->second.symbolLength; ++i) {
+                            if (!isSymbol(lastFileContents[i + offset])) {
+                                error() << "Foumd something wrong" << it->second.kind << lastFileContents[i + offset] << i
+                                        << 3;
+                                foundError = 3;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (!foundError) {
+                    if (offset > 0 && isSymbol(lastFileContents[offset - 1])) {
+                        foundError = 2;
+                    } else if (isSymbol(lastFileContents[offset + it->second.symbolLength])) {
+                        foundError = 3;
+                    }
+                }
+                if (foundError) {
+                    error() << "Something is suspicious about" << foundError << it->first << it->second;
+                    error() << ByteArray::snprintf<64>("[%s]",
+                                                       ByteArray(lastFileContents + offset - 1,
+                                                                 it->second.symbolLength + 2).constData());
+                }
+
             }
         }
+        delete []lastFileContents;
     }
     mErrors(newErrors);
     error("Checked %d CursorInfo objects, %d errors", total, errors);

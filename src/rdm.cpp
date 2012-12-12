@@ -53,7 +53,7 @@ void usage(FILE *f)
             "  --no-clang-includepath|-P         Don't use clang include paths by default\n"
             "  --no-Wall|-W                      Don't use -Wall\n"
             "  --silent|-S                       No logging to stdout\n"
-            "  --no-validate|-V                  Disable validation of database on startup and after indexing\n"
+            "  --validate|-V                     Enable validation of database on startup and after indexing\n"
             "  --exclude-filter|-x [arg]         Files to exclude from grtags, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
             "  --no-rc|-N                        Don't load any rc files\n"
             "  --ignore-printf-fixits|-F         Disregard any clang fixit that looks like it's trying to fix format for printf and friends\n"
@@ -86,7 +86,7 @@ int main(int argc, char** argv)
         { "clean-slate", no_argument, 0, 'C' },
         { "enable-sighandler", no_argument, 0, 's' },
         { "silent", no_argument, 0, 'S' },
-        { "no-validate", no_argument, 0, 'V' },
+        { "validate", no_argument, 0, 'V' },
         { "exclude-filter", required_argument, 0, 'x' },
         { "socket-file", required_argument, 0, 'n' },
         { "projects-file", required_argument, 0, 'p' },
@@ -189,7 +189,7 @@ int main(int argc, char** argv)
             usage(stdout);
             return 0;
         case 'V':
-            options |= Server::NoValidate;
+            options |= Server::Validate;
             break;
         case 'F':
             options |= Server::IgnorePrintfFixits;

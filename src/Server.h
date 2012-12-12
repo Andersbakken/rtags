@@ -34,7 +34,7 @@ public:
     enum Option {
         NoOptions = 0x00,
         NoClangIncludePath = 0x01,
-        NoValidate = 0x02,
+        Validate = 0x02,
         ClearProjects = 0x04,
         NoWall = 0x08,
         IgnorePrintfFixits = 0x10,

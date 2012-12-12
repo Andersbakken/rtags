@@ -30,7 +30,7 @@ void Project::init(const Path &src)
     fileManager->init(shared_from_this());
     unsigned flags = Indexer::None;
     const unsigned options = Server::instance()->options().options;
-    if (!(options & Server::NoValidate))
+    if (options & Server::Validate)
         flags |= Indexer::Validate;
     if (options & Server::IgnorePrintfFixits)
         flags |= Indexer::IgnorePrintfFixits;
