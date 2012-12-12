@@ -7,6 +7,51 @@
 
 namespace RTags {
 
+ByteArray eatString(CXString str);
+enum CursorToStringFlags {
+    NoCursorToStringFlags = 0x0,
+    IncludeUSR = 0x1,
+    IncludeRange = 0x2,
+    DefaultCursorToStringFlags = IncludeRange,
+    AllCursorToStringFlags = IncludeUSR|IncludeRange
+};
+ByteArray cursorToString(CXCursor cursor, unsigned = DefaultCursorToStringFlags);
+SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location);
+inline CursorInfo findCursorInfo(const SymbolMap &map, const Location &location, Location *key)
+{
+    const SymbolMap::const_iterator it = findCursorInfo(map, location);
+    if (it == map.end()) {
+        if (key)
+            key->clear();
+        return CursorInfo();
+    }
+    if (key)
+        *key = it->first;
+    return it->second;
+}
+
+CXCursor findFirstChild(CXCursor parent);
+CXCursor findChild(CXCursor parent, CXCursorKind kind);
+
+template <typename T>
+inline bool startsWith(const List<T> &list, const T &str)
+{
+    if (!list.isEmpty()) {
+        typename List<T>::const_iterator it = std::upper_bound(list.begin(), list.end(), str);
+        if (it != list.end()) {
+            const int cmp = strncmp(str.constData(), (*it).constData(), (*it).size());
+            if (cmp == 0) {
+                return true;
+            } else if (cmp < 0 && it != list.begin() && str.startsWith(*(it - 1))) {
+                return true;
+            }
+        } else if (str.startsWith(*(it - 1))) {
+            return true;
+        }
+    }
+    return false;
+}
+
 inline bool isReference(CXCursorKind kind)
 {
     if (clang_isReference(kind))
@@ -94,53 +139,6 @@ static inline bool needsQualifiers(CXCursorKind kind)
     }
     return false;
 }
-
-
-ByteArray eatString(CXString str);
-enum CursorToStringFlags {
-    NoCursorToStringFlags = 0x0,
-    IncludeUSR = 0x1,
-    IncludeRange = 0x2,
-    DefaultCursorToStringFlags = IncludeRange,
-    AllCursorToStringFlags = IncludeUSR|IncludeRange
-};
-ByteArray cursorToString(CXCursor cursor, unsigned = DefaultCursorToStringFlags);
-template <typename T>
-inline bool startsWith(const List<T> &list, const T &str)
-{
-    if (!list.isEmpty()) {
-        typename List<T>::const_iterator it = std::upper_bound(list.begin(), list.end(), str);
-        if (it != list.end()) {
-            const int cmp = strncmp(str.constData(), (*it).constData(), (*it).size());
-            if (cmp == 0) {
-                return true;
-            } else if (cmp < 0 && it != list.begin() && str.startsWith(*(it - 1))) {
-                return true;
-            }
-        } else if (str.startsWith(*(it - 1))) {
-            return true;
-        }
-    }
-    return false;
-}
-
-SymbolMap::const_iterator findCursorInfo(const SymbolMap &map, const Location &location);
-inline CursorInfo findCursorInfo(const SymbolMap &map, const Location &location, Location *key)
-{
-    const SymbolMap::const_iterator it = findCursorInfo(map, location);
-    if (it == map.end()) {
-        if (key)
-            key->clear();
-        return CursorInfo();
-    }
-    if (key)
-        *key = it->first;
-    return it->second;
-}
-
-CXCursor findFirstChild(CXCursor parent);
-CXCursor findChild(CXCursor parent, CXCursorKind kind);
-
 struct SortedCursor
 {
     SortedCursor(const Location &loc = Location())
@@ -204,15 +202,12 @@ struct SortedCursor
         return location > other.location;
     }
 };
-
 }
 
-class CursorInfo;
 class CXStringScope
 {
 public:
-    CXStringScope(CXString str)
-        : string(str)
+    CXStringScope(CXString str) : string(str)
     {
     }
 
