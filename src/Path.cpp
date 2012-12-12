@@ -313,7 +313,7 @@ Path Path::toTilde() const
 Path Path::pwd()
 {
     char buf[PATH_MAX];
-    char *pwd = getpwd(buf, sizeof(buf));
+    char *pwd = getcwd(buf, sizeof(buf));
     if (pwd)
         return pwd;
     return Path();

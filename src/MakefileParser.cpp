@@ -34,22 +34,7 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &arguments)
 {
     // error() << makefile << arguments;
     List<ByteArray> args = arguments;
-    bool noTricks = false;
-    const int noTricksIndex = arguments.indexOf("<no-make-tricks>");
-    if (noTricksIndex != -1) {
-        args.removeAt(noTricksIndex);
-        noTricks = true;
-    }
-    Path make;
-    if (noTricks) {
-#ifdef OS_FreeBSD
-        make = "gmake";
-#else
-        make = "make";
-#endif
-    } else {
-        make = MAKE;
-    }
+    const Path make = MAKE;
     mMakefile = makefile;
     assert(!mProc);
     mProc = new Process;
@@ -61,9 +46,7 @@ void MakefileParser::run(const Path &makefile, const List<ByteArray> &arguments)
     mCurrentPath = makefile.parentDir();
 
     List<ByteArray> a;
-    if (!noTricks)
-        a.push_back("--dry-run");
-
+    a.push_back("--dry-run");
     a.push_back("--makefile=" + makefile);
     a.push_back("--directory=" + mCurrentPath);
     a.push_back("AM_DEFAULT_VERBOSITY=1");
