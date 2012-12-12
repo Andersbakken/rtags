@@ -519,10 +519,9 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    shared_ptr<FollowLocationJob> job(new FollowLocationJob(loc, query, project));
-    job->setId(nextId());
-    mPendingLookups[job->id()] = conn;
-    startQueryJob(job);
+    FollowLocationJob job(loc, query, project);
+    job.run(conn);
+    conn->finish();
 }
 
 void Server::findFile(const QueryMessage &query, Connection *conn)
@@ -534,10 +533,9 @@ void Server::findFile(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    shared_ptr<FindFileJob> job(new FindFileJob(query, project));
-    job->setId(nextId());
-    mPendingLookups[job->id()] = conn;
-    startQueryJob(job);
+    FindFileJob job(query, project);
+    job.run(conn);
+    conn->finish();
 }
 
 void Server::dumpFile(const QueryMessage &query, Connection *conn)
@@ -586,10 +584,9 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    shared_ptr<CursorInfoJob> job(new CursorInfoJob(loc, query, project));
-    job->setId(nextId());
-    mPendingLookups[job->id()] = conn;
-    startQueryJob(job);
+    CursorInfoJob job(loc, query, project);
+    job.run(conn);
+    conn->finish();
 }
 
 void Server::fixIts(const QueryMessage &query, Connection *conn)
@@ -622,10 +619,9 @@ void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    shared_ptr<ReferencesJob> job(new ReferencesJob(loc, query, project));
-    job->setId(nextId());
-    mPendingLookups[job->id()] = conn;
-    startQueryJob(job);
+    ReferencesJob job(loc, query, project);
+    job.run(conn);
+    conn->finish();
 }
 
 void Server::referencesForName(const QueryMessage& query, Connection *conn)
@@ -639,10 +635,9 @@ void Server::referencesForName(const QueryMessage& query, Connection *conn)
         return;
     }
 
-    shared_ptr<ReferencesJob> job(new ReferencesJob(name, query, project));
-    job->setId(nextId());
-    mPendingLookups[job->id()] = conn;
-    startQueryJob(job);
+    ReferencesJob job(name, query, project);
+    job.run(conn);
+    conn->finish();
 }
 
 void Server::findSymbols(const QueryMessage &query, Connection *conn)
@@ -656,10 +651,9 @@ void Server::findSymbols(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    shared_ptr<FindSymbolsJob> job(new FindSymbolsJob(query, project));
-    job->setId(nextId());
-    mPendingLookups[job->id()] = conn;
-    startQueryJob(job);
+    FindSymbolsJob job(query, project);
+    job.run(conn);
+    conn->finish();
 }
 
 void Server::listSymbols(const QueryMessage &query, Connection *conn)
@@ -673,10 +667,9 @@ void Server::listSymbols(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    shared_ptr<ListSymbolsJob> job(new ListSymbolsJob(query, project));
-    job->setId(nextId());
-    mPendingLookups[job->id()] = conn;
-    startQueryJob(job);
+    ListSymbolsJob job(query, project);
+    job.run(conn);
+    conn->finish();
 }
 
 void Server::status(const QueryMessage &query, Connection *conn)
@@ -688,10 +681,9 @@ void Server::status(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    shared_ptr<StatusJob> job(new StatusJob(query, project));
-    job->setId(nextId());
-    mPendingLookups[job->id()] = conn;
-    startQueryJob(job);
+    StatusJob job(query, project);
+    job.run(conn);
+    conn->finish();
 }
 
 void Server::isIndexed(const QueryMessage &query, Connection *conn)

@@ -55,6 +55,7 @@ public:
     void resetProject() { mProject.reset(); }
     virtual void run();
     virtual void execute() = 0;
+    void run(Connection *connection);
 private:
     bool writeRaw(const ByteArray &out, unsigned flags);
     int mId;
@@ -66,6 +67,7 @@ private:
     List<RegExp> *mPathFiltersRegExp;
     int mMax;
     ByteArray mBuffer;
+    Connection *mConnection;
 };
 
 template <int StaticBufSize>

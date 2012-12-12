@@ -31,6 +31,7 @@ void ListSymbolsJob::execute()
             return;
         const SymbolNameMap &map = scope.data();
         SymbolNameMap::const_iterator it = string.isEmpty() ? map.begin() : map.lower_bound(string);
+        int count = 0;
         while (it != map.end()) {
             const ByteArray &entry = it->first;
             if (!string.isEmpty() && !entry.startsWith(string))
@@ -56,6 +57,8 @@ void ListSymbolsJob::execute()
                 }
             }
             ++it;
+            if (!(++count % 10) && isAborted())
+                return;
         }
     }
 
