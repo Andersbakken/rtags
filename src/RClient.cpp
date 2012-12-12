@@ -772,11 +772,11 @@ bool RClient::parse(int &argc, char **argv)
                 return false;
             }
             if (p.isDir()) {
-                if (opt->option == IsIndexed) {
-                    p.append('/');
-                } else {
+                if (opt->option != IsIndexed) {
                     fprintf(stderr, "%s is not a file\n", optarg);
                     return false;
+                } else if (!p.endsWith('/')) {
+                    p.append('/');
                 }
             }
             QueryMessage::Type type = QueryMessage::Invalid;
