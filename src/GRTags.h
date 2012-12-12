@@ -5,10 +5,8 @@
 #include "Location.h"
 #include "Map.h"
 #include "Path.h"
-#include <leveldb/comparator.h>
 #include <leveldb/db.h>
 
-class LocationComparator;
 class GRTags
 {
 public:
