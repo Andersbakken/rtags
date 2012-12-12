@@ -1341,18 +1341,23 @@ void Server::project(const QueryMessage &query, Connection *conn)
         Path selected;
         bool error = false;
         const Match match = query.match();
-        for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-            if (it->second.project && it->second.project->match(match)) {
-                if (error) {
-                    conn->write(it->first);
-                } else if (!selected.isEmpty()) {
-                    error = true;
-                    conn->write<128>("Multiple matches for %s", match.pattern().constData());
-                    conn->write(selected);
-                    conn->write(it->first);
-                    selected.clear();
-                } else {
-                    selected = it->first;
+        const ProjectsMap::const_iterator it = mProjects.find(match.pattern());
+        if (it != mProjects.end() && it->second.project) {
+            selected = it->first;
+        } else {
+            for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+                if (it->second.project && it->second.project->match(match)) {
+                    if (error) {
+                        conn->write(it->first);
+                    } else if (!selected.isEmpty()) {
+                        error = true;
+                        conn->write<128>("Multiple matches for %s", match.pattern().constData());
+                        conn->write(selected);
+                        conn->write(it->first);
+                        selected.clear();
+                    } else {
+                        selected = it->first;
+                    }
                 }
             }
         }
