@@ -309,3 +309,12 @@ Path Path::toTilde() const
         return ByteArray::snprintf<64>("~/%s", constData() + home.size());
     return *this;
 }
+
+Path Path::pwd()
+{
+    char buf[PATH_MAX];
+    char *pwd = getpwd(buf, sizeof(buf));
+    if (pwd)
+        return pwd;
+    return Path();
+}
