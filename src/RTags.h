@@ -168,17 +168,7 @@ inline int fileSize(FILE *f)
 void removeDirectory(const Path &path);
 int canonicalizePath(char *path, int len);
 ByteArray unescape(ByteArray command);
-
-template <typename T> class Ptr : public shared_ptr<T>
-{
-public:
-    Ptr(T *t = 0)
-        : shared_ptr<T>(t)
-    {}
-    operator T*() const { return shared_ptr<T>::get(); }
-};
 bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs);
-
 void findApplicationDirPath(const char *argv0);
 Path applicationDirPath();
 }
