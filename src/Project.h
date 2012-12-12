@@ -51,7 +51,7 @@ public:
     void setSrcRoot(const Path &srcRoot);
     Path path() const { return mPath; }
 
-    bool match(const Match &match) const;
+    bool match(const Match &match);
 
     Scope<const SymbolMap&> lockSymbolsForRead(int maxTime = 0);
     Scope<SymbolMap&> lockSymbolsForWrite();

@@ -159,7 +159,7 @@ void Project::unload()
     }
 }
 
-bool Project::match(const Match &p) const
+bool Project::match(const Match &p)
 {
     if (!mSrcRoot.isEmpty() && p.match(mSrcRoot))
         return true;
@@ -170,8 +170,11 @@ bool Project::match(const Match &p) const
     Path paths[] = { p.pattern(), p.pattern() };
     paths[1].resolve();
     const int count = paths[1] != paths[0] ? 2 : 1;
+    Scope<const FilesMap&> files = lockFilesForRead();
     for (int i=0; i<count; ++i) {
         const Path &path = paths[i];
+        if (files.data().contains(path))
+            return true;
         // error() << "comparing" << path << mSrcRoot << mResolvedSrcRoot << mPath;
         if (!mSrcRoot.isEmpty() && mSrcRoot.startsWith(path))
             return true;
