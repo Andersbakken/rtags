@@ -959,7 +959,8 @@ return t if rtags is allowed to modify this file"
   )
 
 (if rtags-completion-enabled
-    (add-hook 'post-command-hook (function rtags-restart-completion-cache-timer)))
+    (add-hook 'post-command-hook (function rtags-restart-completion-cache-timer))
+  (remove-hook 'post-command-hook (function rtags-restart-completion-cache-timer)))
 
 (defvar rtags-cursorinfo-timer nil)
 (defun rtags-restart-cursorinfo-timer ()
@@ -972,7 +973,8 @@ return t if rtags is allowed to modify this file"
   )
 
 (if rtags-cursorinfo-timer-enabled
-    (add-hook 'post-command-hook (function rtags-restart-cursorinfo-timer)))
+    (add-hook 'post-command-hook (function rtags-restart-cursorinfo-timer))
+  (remove-hook 'post-command-hook (function rtags-restart-cursorinfo-timer)))
 
 (defvar rtags-cursorinfo-last-location "")
 (defvar rtags-cursorinfo-symbol-name nil)
