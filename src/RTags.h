@@ -188,14 +188,4 @@ Path applicationDirPath();
         VAR = BLOCK;                            \
     } while (VAR == -1 && errno == EINTR)
 
-inline bool match(uint32_t fileId, const Location &loc)
-{
-    return loc.fileId() == fileId;
-}
-
-inline bool match(const Set<uint32_t> &fileIds, const Location &loc)
-{
-    return fileIds.contains(loc.fileId());
-}
-
 #endif
