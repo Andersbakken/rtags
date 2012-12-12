@@ -375,14 +375,9 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         info.end = end;
         info.isDefinition = false;
         info.kind = kind;
-        switch (kind) {
-        case CXCursor_MacroExpansion:
-            info.symbolLength = refInfo.symbolLength;
-            break;
-        default:
-            info.symbolLength = end - start;
-            break;
-        }
+        // I am sure this is wrong for certain cursors and that we should use
+        // end - start, but it seems to be right for most things.
+        info.symbolLength = refInfo.symbolLength;
         info.symbolName = refInfo.symbolName;
         info.type = clang_getCursorType(cursor).kind;
         if (kind == CXCursor_TypeRef) {
