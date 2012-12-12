@@ -322,6 +322,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
     if (clang_isInvalid(refKind))
         return;
 
+    bool isOperator = false;
     if (kind == CXCursor_CallExpr && (refKind == CXCursor_CXXMethod || refKind == CXCursor_ConversionFunction)) {
         // these are bullshit, for this construct:
         // foo.bar();
@@ -331,11 +332,17 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         return;
     } else if (refKind == CXCursor_Constructor && isImplicit(ref)) {
         return;
-    } else if (refKind == CXCursor_CXXMethod) {
+    } else if (refKind == CXCursor_CXXMethod || refKind == CXCursor_FunctionDecl) {
         CXStringScope scope = clang_getCursorDisplayName(ref);
         const char *data = scope.data();
-        if (data && !strncmp(data, "operator", 8) && isImplicit(ref))
-            return;
+        if (data) {
+            const int len = strlen(data);
+            if (len > 8 && !strncmp(data, "operator", 8) && !isalnum(data[8]) && data[8] != '_') {
+                if (isImplicit(ref))
+                    return; // eat implicit operator calls
+                isOperator = true;
+            }
+        }
     }
 
     const Location refLoc = createLocation(ref, 0);
@@ -375,9 +382,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         info.end = end;
         info.isDefinition = false;
         info.kind = kind;
-        // I am sure this is wrong for certain cursors and that we should use
-        // end - start, but it seems to be right for most things.
-        info.symbolLength = refInfo.symbolLength;
+        info.symbolLength = isOperator ? end - start : refInfo.symbolLength;
         info.symbolName = refInfo.symbolName;
         info.type = clang_getCursorType(cursor).kind;
         if (kind == CXCursor_TypeRef) {
