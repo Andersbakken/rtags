@@ -36,6 +36,7 @@ bool GRTags::exec(int argc, char **argv)
         { "dump", no_argument, 0, 's' },
         { "create", no_argument, 0, 'c' },
         { "silent", no_argument, 0, 'i' },
+        { "update", no_argument, 0, 'u' },
         { "match-icase", no_argument, 0, 'I' },
         { "find-file-prefer-exact", no_argument, 0, 'A' },
         { "absolute-path", no_argument, 0, 'K' },
@@ -43,7 +44,7 @@ bool GRTags::exec(int argc, char **argv)
     };
 
     int logLevel = 0;
-    Path dir = ".";
+    Path dir;
     int c;
     const ByteArray shortOptions = RTags::shortOptions(options);
     ByteArray pattern;
@@ -65,6 +66,7 @@ bool GRTags::exec(int argc, char **argv)
                    "  --context|-C                 Show context\n"
                    "  --dump|-s                    Dump db contents\n"
                    "  --create|-c                  Force creation of new DB\n"
+                   "  --update|-u                  Update existing DB (noop with no DB)\n"
                    "  --find-file|-P [arg]         List files matching optional arg\n"
                    "  --match-icase|-I             Match paths case insensitively\n"
                    "  --find-file-prefer-exact|-A  Use to make --find-file prefer exact matches over partial"
@@ -118,6 +120,9 @@ bool GRTags::exec(int argc, char **argv)
         case 'c':
             mMode = Create;
             break;
+        case 'u':
+            mMode = Update;
+            break;
         case 'e':
             mFilters.append(optarg);
             break;
@@ -140,25 +145,30 @@ bool GRTags::exec(int argc, char **argv)
             break;
         }
     }
-    Path db;
-    dir.resolve();
-    if (mMode == Detect || mMode == Dump) {
-        Path p = dir;
+    if (dir.isEmpty()) {
+        Path p = Path::pwd();
         while (!p.isEmpty()) {
-            db = p + "/.grtags.db";
-            if (db.isDir())
+            const Path db = p + "/.grtags";
+            if (db.isDir()) {
+                dir = p;
                 break;
-            db.clear();
+            }
             p = p.parentDir();
         }
+        if (dir.isEmpty()) {
+            if (mMode == Detect)
+                mMode = Create;
+            if (mMode == Create)
+                dir = Path::pwd();
+        }
     }
-    if (mMode == Detect)
-        mMode = db.isDir() ? Update : Create;
+    if (dir.isEmpty()) {
+        warning() << "Can't find database";
+        return false;
+    }
 
     initLogging(logLevel, Path(), 0);
-    if (db.isEmpty())
-        db = dir + "/.grtags.db";
-    if (!load(db))
+    if (!load(dir + "/.grtags"))
         return false;
     switch (mMode) {
     case Dump:
@@ -248,10 +258,10 @@ Path::VisitResult GRTags::visit(const Path &path, void *userData)
     const Filter::Result result = Filter::filter(path, grtags->mFilters);
     switch (result) {
     case Filter::Filtered:
-        warning() << "Filtered out" << path;
+        debug() << "Filtered out" << path;
         return Path::Continue;
     case Filter::Directory:
-        warning() << "Entering directory" << path;
+        debug() << "Entering directory" << path;
         return Path::Recurse;
     case Filter::File:
         Location::insertFile(path);
@@ -260,13 +270,15 @@ Path::VisitResult GRTags::visit(const Path &path, void *userData)
         const uint32_t fileId = Location::insertFile(path);
         const time_t parsed = grtags->mFiles.value(fileId, 0);
         if (!parsed) {
+            debug() << path << "not parsed before";
             grtags->mPending.append(path);
         } else if (parsed < path.lastModified()) {
+            debug() << path << "is stale" << parsed << path.lastModified();
             grtags->mPending.append(path);
         } else {
             grtags->mDirty.remove(fileId);
-            warning() << path << "seems to be up to date. Parsed at" << RTags::timeToString(parsed, RTags::DateTime)
-                      << "last modified at" << RTags::timeToString(path.lastModified(), RTags::DateTime);
+            debug() << path << "seems to be up to date. Parsed at" << RTags::timeToString(parsed, RTags::DateTime)
+                    << "last modified at" << RTags::timeToString(path.lastModified(), RTags::DateTime);
         }
         break; }
     }
@@ -491,6 +503,7 @@ int GRTags::parseFiles()
 {
     const int count = mPending.size();
     float percentageLast = -1;
+    const bool debugging = testLog(Warning);
     for (int i=0; i<count; ++i) {
         GRParser parser;
         const Path &src = mPending[i];
@@ -505,6 +518,8 @@ int GRTags::parseFiles()
             percentageLast = floored;
             error("%.1f%% parsed (%d/%d)", percentage, i + 1, count);
         }
+        if (debugging)
+            warning() << "Parsed" << src << symbols << "symbols";
     }
     return count;
 }
