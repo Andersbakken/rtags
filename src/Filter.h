@@ -19,7 +19,7 @@ static inline Result filter(const Path &path, const List<ByteArray> &filters)
     const int size = filters.size();
     for (int i=0; i<size; ++i) {
         const ByteArray &filter = filters.at(i);
-        if (!fnmatch(filter.constData(), path.constData(), 0))
+        if (!fnmatch(filter.constData(), path.constData(), 0) || path.contains(filter))
             return Filtered;
     }
 

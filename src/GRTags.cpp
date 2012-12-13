@@ -15,8 +15,9 @@ int main(int argc, char **argv)
 }
 
 GRTags::GRTags()
-    : mDB(0), mMode(Detect), mKeyFlags(0)
+    : mDB(0), mMode(Detect), mFlags(0), mKeyFlags(0)
 {
+    mFilters.append("/.gr/");
 }
 
 bool GRTags::exec(int argc, char **argv)
@@ -69,7 +70,7 @@ bool GRTags::exec(int argc, char **argv)
                    "  --update|-u                  Update existing DB (noop with no DB)\n"
                    "  --find-file|-P [arg]         List files matching optional arg\n"
                    "  --match-icase|-I             Match paths case insensitively\n"
-                   "  --find-file-prefer-exact|-A  Use to make --find-file prefer exact matches over partial"
+                   "  --find-file-prefer-exact|-A  Use to make --find-file prefer exact matches over partial\n"
                    "  --absolute-path|-K           Print files with absolute path.\n"
                    "  --dir|-d [arg]               Parse this directory (default .)\n");
 
@@ -148,7 +149,7 @@ bool GRTags::exec(int argc, char **argv)
     if (dir.isEmpty()) {
         Path p = Path::pwd();
         while (!p.isEmpty()) {
-            const Path db = p + "/.grtags";
+            const Path db = p + "/.gr";
             if (db.isDir()) {
                 dir = p;
                 break;
@@ -168,7 +169,7 @@ bool GRTags::exec(int argc, char **argv)
     }
 
     initLogging(logLevel, Path(), 0);
-    if (!load(dir + "/.grtags"))
+    if (!load(dir + "/.gr"))
         return false;
     switch (mMode) {
     case Dump:
@@ -526,74 +527,49 @@ int GRTags::parseFiles()
 
 void GRTags::paths(const ByteArray &pattern)
 {
-    //     const Path srcRoot = mPath.parentDir();
+    const Path srcRoot = mPath.parentDir();
+    const bool absolute = mFlags & AbsolutePath;
 
-    //     const bool all = pattern.isEmpty();
-    //     const ByteArray::CaseSensitivity cs = (mFlags & MatchCaseInsensitive
-    //                                            ? ByteArray::CaseInsensitive
-    //                                            : ByteArray::CaseSensitive);
+    const bool all = pattern.isEmpty();
+    const ByteArray::CaseSensitivity cs = (mFlags & MatchCaseInsensitive
+                                           ? ByteArray::CaseInsensitive
+                                           : ByteArray::CaseSensitive);
 
-    //     ByteArray out;
-    //     out.reserve(PATH_MAX);
-    //     if (mFlags & AbsolutePath) {
-    //         out.append(srcRoot);
-    //         assert(srcRoot.endsWith('/'));
-    //     }
-    //     const Map<Path, Set<ByteArray> > &dirs = scope.data();
-    //     Map<Path, Set<ByteArray> >::const_iterator dirit = dirs.begin();
-    //     bool foundExact = false;
-    //     const int patternSize = pattern.size();
-    //     List<ByteArray> matches;
-    //     const bool preferExact = queryFlags() & QueryMessage::FindFilePreferExact;
-    //     while (dirit != dirs.end()) {
-    //         const Path &dir = dirit->first;
-    //         out.append(dir.constData() + srcRoot.size(), dir.size() - srcRoot.size());
-
-    //         const Set<ByteArray> &files = dirit->second;
-    //         for (Set<ByteArray>::const_iterator it = files.begin(); it != files.end(); ++it) {
-    //             const ByteArray &key = *it;
-    //             out.append(key);
-    //             bool ok;
-    //             switch (mode) {
-    //             case All:
-    //                 ok = true;
-    //                 break;
-    //             case RegExp:
-    //                 ok = mRegExp.indexIn(out) != -1;
-    //                 break;
-    //             case Pattern:
-    //                 if (!preferExact) {
-    //                     ok = out.contains(pattern, cs);
-    //                 } else {
-    //                     const int outSize = out.size();
-    //                     const bool exact = (outSize > patternSize && out.endsWith(pattern) && out.at(outSize - (patternSize + 1)) == '/');
-    //                     if (exact) {
-    //                         ok = true;
-    //                         if (!foundExact) {
-    //                             matches.clear();
-    //                             foundExact = true;
-    //                         }
-    //                     } else {
-    //                         ok = !foundExact && out.contains(pattern, cs);
-    //                     }
-    //                 }
-    //                 break;
-    //             }
-    //             if (ok) {
-    //                 if (preferExact && !foundExact) {
-    //                     matches.append(out);
-    //                 } else {
-    //                     if (!write(out))
-    //                         return;
-    //                 }
-    //             }
-    //             out.chop(key.size());
-    //         }
-    //         out.chop(dir.size() - srcRoot.size());
-    //         ++dirit;
-    //     }
-    //     for (List<ByteArray>::const_iterator it = matches.begin(); it != matches.end(); ++it) {
-    //         if (!write(*it))
-    //             break;
-    //     }
+    bool foundExact = false;
+    const int patternSize = pattern.size();
+    const Map<Path, uint32_t> paths = Location::pathsToIds();
+    List<const char*> matches;
+    const bool preferExact = mFlags & PreferExact;
+    const int pathStart = absolute ? 0 : srcRoot.size();
+    for (Map<Path, uint32_t>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
+        const Path &out = it->first;
+        bool ok = true;
+        if (!all) {
+            if (!preferExact) {
+                ok = out.indexOf(pattern, pathStart, cs);
+            } else {
+                const bool exact = (out.endsWith(pattern) && out.at(out.size() - (patternSize + 1)) == '/');
+                if (exact) {
+                    ok = true;
+                    if (!foundExact) {
+                        matches.clear();
+                        foundExact = true;
+                    }
+                } else {
+                    ok = !foundExact && out.indexOf(pattern, pathStart, cs);
+                }
+            }
+        }
+        if (ok) {
+            const char *str = out.constData() + pathStart;
+            if (preferExact && !foundExact) {
+                matches.append(str);
+            } else {
+                error("%s", str);
+            }
+        }
+    }
+    for (List<const char *>::const_iterator it = matches.begin(); it != matches.end(); ++it) {
+        error("%s", *it);
+    }
 }

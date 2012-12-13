@@ -70,12 +70,12 @@ add_executable(rc rc.cpp ${rtags_client_SRCS})
 target_link_libraries(rc ${system_LIBS})
 add_dependencies(rc rtags)
 
-add_executable(grtags ${grtags_SRCS})
+add_executable(gr ${grtags_SRCS})
 include_directories(${PROJECT_SOURCE_DIR}
   ${CORESERVICES_INCLUDE}
   ${COREFOUNDATION_INCLUDE}
   ${PROJECT_SOURCE_DIR}/3rdparty/leveldb/include)
-target_link_libraries(grtags
+target_link_libraries(gr
   ${clang_LIBS}
   ${system_LIBS}
   ${CORESERVICES_LIBRARY}
@@ -87,4 +87,6 @@ if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
                      COMMAND install_name_tool -change "@executable_path/../lib/libclang.${CLANG_VERSION}.dylib" "@executable_path/../3rdparty/clang_install/lib/libclang.${CLANG_VERSION}.dylib" rdm)
   add_custom_command(TARGET rc POST_BUILD
                      COMMAND install_name_tool -change "@executable_path/../lib/libclang.${CLANG_VERSION}.dylib" "@executable_path/../3rdparty/clang_install/lib/libclang.${CLANG_VERSION}.dylib" rc)
+  add_custom_command(TARGET gr POST_BUILD
+                     COMMAND install_name_tool -change "@executable_path/../lib/libclang.${CLANG_VERSION}.dylib" "@executable_path/../3rdparty/clang_install/lib/libclang.${CLANG_VERSION}.dylib" gr)
 endif()

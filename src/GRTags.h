@@ -29,7 +29,7 @@ private:
         None = 0x0,
         MatchCaseInsensitive = 0x1,
         PreferExact = 0x2,
-        AbsolutePath
+        AbsolutePath = 0x4
     };
     void findSymbols(const ByteArray &pattern);
     void listSymbols(const ByteArray &pattern);
