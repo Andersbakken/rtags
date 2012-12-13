@@ -3,8 +3,16 @@
 #include "GRParser.h"
 #include "Log.h"
 #include <getopt.h>
+#include <Memory.h>
 #include <math.h>
 #include <leveldb/cache.h>
+#include <leveldb/write_batch.h>
+
+int main(int argc, char **argv)
+{
+    GRTags grtags;
+    return grtags.exec(argc, argv) ? 0 : 1;
+}
 
 GRTags::GRTags()
     : mDB(0), mMode(Detect), mKeyFlags(0)
@@ -21,46 +29,63 @@ bool GRTags::exec(int argc, char **argv)
         { "references", required_argument, 0, 'R' },
         { "list-symbols", optional_argument, 0, 'S' },
         { "find-symbols", required_argument, 0, 'F' },
-        { "all-symbols", required_argument, 0, 'A' },
+        { "all-symbols", required_argument, 0, 'l' },
         { "show-context", no_argument, 0, 'C' },
-        { "path", optional_argument, 0, 'P' },
+        { "find-file", optional_argument, 0, 'P' },
         { "dir", required_argument, 0, 'd' },
         { "dump", no_argument, 0, 's' },
         { "create", no_argument, 0, 'c' },
         { "silent", no_argument, 0, 'i' },
+        { "match-icase", no_argument, 0, 'I' },
+        { "find-file-prefer-exact", no_argument, 0, 'A' },
+        { "absolute-path", no_argument, 0, 'K' },
         { 0, 0, 0, 0 }
     };
 
     int logLevel = 0;
     Path dir = ".";
     int c;
+    const ByteArray shortOptions = RTags::shortOptions(options);
     ByteArray pattern;
-    while ((c = getopt_long(argc, argv, "hVCvd:e:csR:F:S::A:iP::", options, 0)) != -1) {
+    while ((c = getopt_long(argc, argv, shortOptions.constData(), options, 0)) != -1) {
         switch (c) {
         case '?':
             return false;
         case 'h':
             printf("grtags [...options]\n"
-                   "  --help|-h               Display this help\n"
-                   "  --version|-V            Display version information\n"
-                   "  --verbose|-v            Increase verbosity\n"
-                   "  --silent|-i             Be silent\n"
-                   "  --exclude|-e [filter]   Exclude this pattern (e.g. .git, *.cpp)\n"
-                   "  --references|-R [arg]   Show references to arg\n"
-                   "  --list-symbols|-S [arg] List symbols matching arg\n"
-                   "  --all-symbols|-A [arg]  List symbols and references matching arg\n"
-                   "  --find-symbols|-F [arg] Find symbols matching arg\n"
-                   "  --context|-C            Show context\n"
-                   "  --dump|-s               Dump db contents\n"
-                   "  --create|-c             Force creation of new DB\n"
-                   "  --path|-P [arg]         List files matching optional arg\n"
-                   "  --dir|-d [arg]          Parse this directory (default .)\n");
+                   "  --help|-h                    Display this help\n"
+                   "  --version|-V                 Display version information\n"
+                   "  --verbose|-v                 Increase verbosity\n"
+                   "  --silent|-i                  Be silent\n"
+                   "  --exclude|-e [filter]        Exclude this pattern (e.g. .git, *.cpp)\n"
+                   "  --references|-R [arg]        Show references to arg\n"
+                   "  --list-symbols|-S [arg]      List symbols matching arg\n"
+                   "  --all-symbols|-l [arg]       List symbols and references matching arg\n"
+                   "  --find-symbols|-F [arg]      Find symbols matching arg\n"
+                   "  --context|-C                 Show context\n"
+                   "  --dump|-s                    Dump db contents\n"
+                   "  --create|-c                  Force creation of new DB\n"
+                   "  --find-file|-P [arg]         List files matching optional arg\n"
+                   "  --match-icase|-I             Match paths case insensitively\n"
+                   "  --find-file-prefer-exact|-A  Use to make --find-file prefer exact matches over partial"
+                   "  --absolute-path|-K           Print files with absolute path.\n"
+                   "  --dir|-d [arg]               Parse this directory (default .)\n");
+
             return true;
         case 'V':
-            printf("GRTags version 0.1\n");
+            printf("GRTags version 0.2\n");
             return true;
         case 'C':
             mKeyFlags |= Location::ShowContext;
+            break;
+        case 'A':
+            mFlags |= PreferExact;
+            break;
+        case 'I':
+            mFlags |= MatchCaseInsensitive;
+            break;
+        case 'K':
+            mFlags |= AbsolutePath;
             break;
         case 'P':
             mMode = Paths;
@@ -78,7 +103,7 @@ bool GRTags::exec(int argc, char **argv)
             mMode = FindSymbols;
             pattern = optarg;
             break;
-        case 'A':
+        case 'l':
             mMode = FindAll;
             pattern = optarg;
             break;
@@ -142,9 +167,6 @@ bool GRTags::exec(int argc, char **argv)
     case Update:
     case Create:
         dir.visit(&GRTags::visit, this);
-        if (mMode == Update) {
-            dirty();
-        }
         if (parseFiles())
             return save();
         return true;
@@ -197,7 +219,7 @@ void GRTags::findSymbols(const ByteArray &pattern)
 
 void GRTags::listSymbols(const ByteArray &pattern)
 {
-    leveldb::Iterator *it = mDB->NewIterator(leveldb::ReadOptions());
+    shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
     const char *match = pattern.isEmpty() ? 0 : pattern.constData();
     int matchSize;
     if (match) {
@@ -205,21 +227,18 @@ void GRTags::listSymbols(const ByteArray &pattern)
         it->Seek(match);
     } else {
         matchSize = 0;
-        it->SeekToFirst();
+        it->Seek(leveldb::Slice("A", 1));
     }
     while (it->Valid()) {
         const leveldb::Slice key = it->key();
         assert(!key.empty());
-        if (key[0] != '/' && !isdigit(key[0])) {
-            if (!match || !strncmp(match, key.data(), std::min<int>(matchSize, key.size()))) {
-                error("%s", key.ToString().c_str());
-            } else {
-                break;
-            }
+        if (!match || !strncmp(match, key.data(), std::min<int>(matchSize, key.size()))) {
+            error("%s", key.ToString().c_str());
+        } else {
+            break;
         }
         it->Next();
     }
-    delete it;
 }
 
 
@@ -235,17 +254,17 @@ Path::VisitResult GRTags::visit(const Path &path, void *userData)
         warning() << "Entering directory" << path;
         return Path::Recurse;
     case Filter::File:
-        grtags->mFiles[Location::insertFile(path)] = 0;
+        Location::insertFile(path);
         break;
     case Filter::Source: {
         const uint32_t fileId = Location::insertFile(path);
-        time_t parsed = grtags->mFiles.value(fileId, 0);
+        const time_t parsed = grtags->mFiles.value(fileId, 0);
         if (!parsed) {
             grtags->mPending.append(path);
         } else if (parsed < path.lastModified()) {
             grtags->mPending.append(path);
-            grtags->mDirty.insert(fileId);
         } else {
+            grtags->mDirty.remove(fileId);
             warning() << path << "seems to be up to date. Parsed at" << RTags::timeToString(parsed, RTags::DateTime)
                       << "last modified at" << RTags::timeToString(path.lastModified(), RTags::DateTime);
         }
@@ -257,119 +276,157 @@ Path::VisitResult GRTags::visit(const Path &path, void *userData)
 bool GRTags::load(const Path &db)
 {
     warning() << "Opening" << db << mMode;
+    leveldb::Options options;
     if (mMode == Create) {
         // ### protect against removing wrong dir?
         RTags::removeDirectory(db);
+        options.create_if_missing = true;
     }
-    leveldb::Options options;
-    options.create_if_missing = true;
-    // options.block_cache = leveldb::NewLRUCache(16 * 1024 * 1024);
-    leveldb::Status status = leveldb::DB::Open(options, db.constData(), &mDB);
+    const leveldb::Status status = leveldb::DB::Open(options, db.constData(), &mDB);
     if (!status.ok()) {
+        if (mMode == Update) {
+            mMode = Create;
+            return load(db);
+        }
         error("Couldn't open database %s: %s", db.constData(), status.ToString().c_str());
         return false;
     }
     mPath = db;
-    switch (mMode) {
-    case Update:
-    case Create:
-    case Dump: {
-        leveldb::Iterator *it = mDB->NewIterator(leveldb::ReadOptions());
+    if (mMode != Create) {
+        shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
         it->SeekToFirst();
         Map<Path, uint32_t> paths;
-        while (it->Valid()) {
-            const leveldb::Slice key = it->key();
-            const leveldb::Slice value = it->value();
-            assert(!key.empty());
-            if (key[0] == '/') {
-                paths[Path(key.data(), key.size())] = atoi(value.ToString().c_str());
-            } else if (isdigit(key[0])) {
-                mFiles[atoi(key.data())] = atoll(value.data());
-            } else {
-                Map<Location, bool> &syms = mSymbols[ByteArray(key.data(), key.size())];
-                Deserializer deserializer(value.data(), value.size());
-                deserializer >> syms;
-            }
-            it->Next();
-        }
-        Location::init(paths);
-        delete it;
-        break; }
-    case ListSymbols:
-        break;
-    case Paths:
-    case FindSymbols:
-    case FindAll:
-    case FindReferences: {
-        leveldb::Iterator *it = mDB->NewIterator(leveldb::ReadOptions());
-        it->Seek(leveldb::Slice("/", 1));
-        Map<Path, uint32_t> paths;
+        leveldb::WriteBatch batch;
+        bool hasWrites = false;
         while (it->Valid()) {
             const leveldb::Slice key = it->key();
             assert(!key.empty());
             if (key[0] == '/') {
                 const leveldb::Slice value = it->value();
-                paths[Path(key.data(), key.size())] = atoi(value.ToString().c_str());
+                assert(value.size() == sizeof(uint32_t));
+                const uint32_t fileId = *reinterpret_cast<const uint32_t*>(value.data());
+                const Path path(key.data(), key.size());
+                if (path.exists() || mMode != Update) {
+                    paths[path] = fileId;
+                } else {
+                    mDirty.insert(fileId);
+                    hasWrites = true;
+                    batch.Delete(key);
+                }
+            } else if (key[0] == ' ') {
+                if (mMode == Dump || mMode == Update) {
+                    assert(key.size() == sizeof(uint32_t) + 1);
+                    const uint32_t fileId = *reinterpret_cast<const uint32_t*>(key.data() + 1);
+                    const leveldb::Slice value = it->value();
+                    const time_t lastParsed = *reinterpret_cast<const time_t*>(value.data());
+                    // all parsed files are considered dirty until proven otherwise
+                    if (mMode == Update && !mDirty.insert(fileId)) {
+                        // this file was already marked as dirty so we know it's gone
+                        assert(hasWrites);
+                        batch.Delete(key);
+                    } else {
+                        mFiles[fileId] = lastParsed;
+                    }
+                }
             } else {
                 break;
             }
             it->Next();
         }
         Location::init(paths);
-        if (mMode == Paths) {
-            it->Seek(leveldb::Slice("0", 1));
-            while (it->Valid()) {
-                const leveldb::Slice key = it->key();
-                assert(!key.empty());
-                if (isdigit(key[0])) {
-                    const leveldb::Slice value = it->value();
-                    mFiles[atoi(key.data())] = atoll(value.data());
-                } else {
-                    break;
-                }
-                it->Next();
-            }
-        }
-        delete it;
-        break; }
-    case Detect:
-        return false;
+        if (hasWrites)
+            mDB->Write(leveldb::WriteOptions(), &batch);
     }
-
     return true;
 }
 
 bool GRTags::save()
 {
     assert(mDB);
-    leveldb::WriteOptions writeOptions;
+    leveldb::WriteBatch batch;
+    bool hasWrites = false;
     {
         Map<Path, uint32_t> paths = Location::pathsToIds();
-        char numberBuf[16];
         for (Map<Path, uint32_t>::const_iterator it = paths.begin(); it != paths.end(); ++it) {
             const leveldb::Slice key(it->first.constData(), it->first.size());
-            const int w = snprintf(numberBuf, sizeof(numberBuf), "%d", it->second);
-            mDB->Put(writeOptions, key, leveldb::Slice(numberBuf, w));
+            const leveldb::Slice value(reinterpret_cast<const char *>(&it->second), sizeof(it->second));
+            batch.Put(key, value);
+            hasWrites = true;
         }
     }
     {
-        char keyBuf[16];
-        char valueBuf[16];
-
+        char keyBuf[5];
+        keyBuf[0] = ' ';
+        const leveldb::Slice key(keyBuf, 5);
         for (Map<uint32_t, time_t>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
-            const int k = snprintf(keyBuf, sizeof(keyBuf), "%d", it->first);
-            const int v = snprintf(valueBuf, sizeof(valueBuf), "%ld", it->second);
-            mDB->Put(writeOptions, leveldb::Slice(keyBuf, k), leveldb::Slice(valueBuf, v));
+            *reinterpret_cast<uint32_t*>(keyBuf + 1) = it->first;
+            const leveldb::Slice value(reinterpret_cast<const char *>(&it->second), sizeof(it->second));
+            batch.Put(key, value);
+            hasWrites = true;
+        }
+    }
+    if (mMode == Update) {
+        shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
+        it->Seek(leveldb::Slice("A", 1));
+        while (it->Valid()) {
+            const leveldb::Slice key = it->key();
+            const leveldb::Slice value = it->value();
+            const ByteArray k(key.data(), key.size());
+            Map<Location, bool> newValue = mSymbols.take(k);
+            Map<Location, bool> oldValue;
+            {
+                Deserializer deserializer(value.data(), value.size());
+                deserializer >> oldValue;
+                assert(!oldValue.isEmpty());
+            }
+
+            bool modified = false;
+            Map<Location, bool>::iterator i = oldValue.begin();
+            while (i != oldValue.end()) {
+                if (mDirty.contains(i->first.fileId())) {
+                    const Map<Location, bool>::const_iterator found = newValue.find(i->first);
+                    if (found == newValue.end() || found->second != i->second) {
+                        oldValue.erase(i++);
+                        modified = true;
+                        continue;
+                    }
+                }
+                ++i;
+            }
+            if (!newValue.isEmpty()) {
+                for (Map<Location, bool>::const_iterator i = newValue.begin(); i != newValue.end(); ++i) {
+                    if (oldValue.insert(std::make_pair(i->first, i->second)).second) {
+                        modified = true;
+                    }
+                }
+            }
+            if (modified) {
+                hasWrites = true;
+                if (oldValue.isEmpty()) {
+                    batch.Delete(key);
+                } else {
+                    ByteArray out;
+                    out.reserve(1024);
+                    Serializer serializer(out);
+                    serializer << oldValue;
+                    batch.Put(key, leveldb::Slice(out.constData(), out.size()));
+                }
+            }
+            it->Next();
         }
     }
     for (Map<ByteArray, Map<Location, bool> >::const_iterator it = mSymbols.begin(); it != mSymbols.end(); ++it) {
         ByteArray out;
         Serializer serializer(out);
         serializer << it->second;
-        mDB->Put(writeOptions,
-                 leveldb::Slice(it->first.constData(), it->first.size()),
-                 leveldb::Slice(out.constData(), out.size()));
+        batch.Put(leveldb::Slice(it->first.constData(), it->first.size()),
+                  leveldb::Slice(out.constData(), out.size()));
+        hasWrites = true;
     }
+
+    if (hasWrites)
+        mDB->Write(leveldb::WriteOptions(), &batch);
+
     delete mDB;
     mDB = 0;
     return true;
@@ -378,8 +435,8 @@ bool GRTags::save()
 void GRTags::dump()
 {
     const char *delimiter = "-----------------------------------------------";
-    error() << "Locations:";
 
+    error() << "Locations:";
     error() << delimiter;
     Map<Path, uint32_t> pathsToIds = Location::pathsToIds();
     for (Map<Path, uint32_t>::const_iterator it = pathsToIds.begin(); it != pathsToIds.end(); ++it)
@@ -405,45 +462,28 @@ void GRTags::dump()
     error() << delimiter;
     error() << "Symbols:";
     error() << delimiter;
-
-    for (Map<ByteArray, Map<Location, bool> >::const_iterator it = mSymbols.begin(); it != mSymbols.end(); ++it) {
-        error() << "  " << it->first;
-        for (Map<Location, bool>::const_iterator it2 = it->second.begin(); it2 != it->second.end(); ++it2) {
+    
+    shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
+    it->Seek(leveldb::Slice("A", 1));
+    while (it->Valid()) {
+        const leveldb::Slice key = it->key();
+        error() << "  " << ByteArray(key.data(), key.size());
+        const leveldb::Slice value = it->value();
+        Map<Location, bool> locations;
+        {
+            Deserializer deserializer(value.data(), value.size());
+            deserializer >> locations;
+            assert(!locations.isEmpty());
+        }
+        
+        for (Map<Location, bool>::const_iterator it2 = locations.begin(); it2 != locations.end(); ++it2) {
             if (it2->second) {
                 error() << "    " << it2->first.key(Location::ShowContext) << "reference";
             } else {
                 error() << "    " << it2->first.key(Location::ShowContext);
             }
-
         }
-    }
-}
-
-int main(int argc, char **argv)
-{
-    GRTags grtags;
-    return grtags.exec(argc, argv) ? 0 : 1;
-}
-
-void GRTags::dirty()
-{
-    if (!mDirty.isEmpty()) {
-        Map<ByteArray, Map<Location, bool> >::iterator it = mSymbols.begin();
-        while (it != mSymbols.end()) {
-            Map<Location, bool>::iterator it2 = it->second.begin();
-            while (it2 != it->second.end()) {
-                if (mDirty.contains(it2->first.fileId())) {
-                    it->second.erase(it2++);
-                } else {
-                    ++it2;
-                }
-            }
-            if (it->second.isEmpty()) {
-                mSymbols.erase(it++);
-            } else {
-                ++it;
-            }
-        }
+        it->Next();
     }
 }
 
@@ -471,5 +511,74 @@ int GRTags::parseFiles()
 
 void GRTags::paths(const ByteArray &pattern)
 {
-#warning need to do this
+    //     const Path srcRoot = mPath.parentDir();
+
+    //     const bool all = pattern.isEmpty();
+    //     const ByteArray::CaseSensitivity cs = (mFlags & MatchCaseInsensitive
+    //                                            ? ByteArray::CaseInsensitive
+    //                                            : ByteArray::CaseSensitive);
+
+    //     ByteArray out;
+    //     out.reserve(PATH_MAX);
+    //     if (mFlags & AbsolutePath) {
+    //         out.append(srcRoot);
+    //         assert(srcRoot.endsWith('/'));
+    //     }
+    //     const Map<Path, Set<ByteArray> > &dirs = scope.data();
+    //     Map<Path, Set<ByteArray> >::const_iterator dirit = dirs.begin();
+    //     bool foundExact = false;
+    //     const int patternSize = pattern.size();
+    //     List<ByteArray> matches;
+    //     const bool preferExact = queryFlags() & QueryMessage::FindFilePreferExact;
+    //     while (dirit != dirs.end()) {
+    //         const Path &dir = dirit->first;
+    //         out.append(dir.constData() + srcRoot.size(), dir.size() - srcRoot.size());
+
+    //         const Set<ByteArray> &files = dirit->second;
+    //         for (Set<ByteArray>::const_iterator it = files.begin(); it != files.end(); ++it) {
+    //             const ByteArray &key = *it;
+    //             out.append(key);
+    //             bool ok;
+    //             switch (mode) {
+    //             case All:
+    //                 ok = true;
+    //                 break;
+    //             case RegExp:
+    //                 ok = mRegExp.indexIn(out) != -1;
+    //                 break;
+    //             case Pattern:
+    //                 if (!preferExact) {
+    //                     ok = out.contains(pattern, cs);
+    //                 } else {
+    //                     const int outSize = out.size();
+    //                     const bool exact = (outSize > patternSize && out.endsWith(pattern) && out.at(outSize - (patternSize + 1)) == '/');
+    //                     if (exact) {
+    //                         ok = true;
+    //                         if (!foundExact) {
+    //                             matches.clear();
+    //                             foundExact = true;
+    //                         }
+    //                     } else {
+    //                         ok = !foundExact && out.contains(pattern, cs);
+    //                     }
+    //                 }
+    //                 break;
+    //             }
+    //             if (ok) {
+    //                 if (preferExact && !foundExact) {
+    //                     matches.append(out);
+    //                 } else {
+    //                     if (!write(out))
+    //                         return;
+    //                 }
+    //             }
+    //             out.chop(key.size());
+    //         }
+    //         out.chop(dir.size() - srcRoot.size());
+    //         ++dirit;
+    //     }
+    //     for (List<ByteArray>::const_iterator it = matches.begin(); it != matches.end(); ++it) {
+    //         if (!write(*it))
+    //             break;
+    //     }
 }

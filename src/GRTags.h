@@ -6,6 +6,7 @@
 #include "Map.h"
 #include "Path.h"
 #include <leveldb/db.h>
+#include <leveldb/comparator.h>
 
 class GRTags
 {
@@ -24,13 +25,18 @@ private:
         Paths,
         Update
     };
+    enum Flag {
+        None = 0x0,
+        MatchCaseInsensitive = 0x1,
+        PreferExact = 0x2,
+        AbsolutePath
+    };
     void findSymbols(const ByteArray &pattern);
     void listSymbols(const ByteArray &pattern);
     void paths(const ByteArray &pattern);
     bool load(const Path &db);
     bool save();
     void dump();
-    void dirty();
     int parseFiles();
     static Path::VisitResult visit(const Path &path, void *userData);
     List<ByteArray> mFilters;
@@ -42,6 +48,7 @@ private:
     leveldb::DB *mDB;
     Path mPath;
     Mode mMode;
+    unsigned mFlags;
     unsigned mKeyFlags;
     List<Path> mPending;
     Set<uint32_t> mDirty;

@@ -1,5 +1,45 @@
 #include "GRParser.h"
 
+static bool isKeyWord(const char *tokenSpl, int tokenLength)
+{
+    bool keyWord = false;
+    switch (tokenLength) {
+    case 2:
+        keyWord = !strncmp(tokenSpl, "if", 2) || !strncmp(tokenSpl, "do", 2);
+        break;
+    case 3:
+        keyWord = !strncmp(tokenSpl, "for", 3) || !strncmp(tokenSpl, "new", 3);
+        break;
+    case 4:
+        keyWord = !strncmp(tokenSpl, "void", 4) || !strncmp(tokenSpl, "case", 4);
+        break;
+    case 5:
+        keyWord = !strncmp(tokenSpl, "while", 5);
+        break;
+    case 6:
+        keyWord = (!strncmp(tokenSpl, "switch", 6) || !strncmp(tokenSpl, "return", 6)
+                   || !strncmp(tokenSpl,  "delete", 6));
+        break;
+    case 8:
+        keyWord = !strncmp(tokenSpl, "operator", 8);
+        break;
+    case 10:
+        keyWord = !strncmp(tokenSpl, "const_cast", 10);
+        break;
+    case 11:
+        keyWord = !strncmp(tokenSpl, "static_cast", 11);
+        break;
+    case 12:
+        keyWord = !strncmp(tokenSpl, "dynamic_cast", 12);
+        break;
+    case 16:
+        keyWord = !strncmp(tokenSpl, "reinterpret_cast", 16);
+        break;
+        // we could add sizeof and typeid here but it's kinda neat to find references to them
+    }
+    return keyWord;
+}
+
 GRParser::GRParser()
     : mLexer(0), mBraceCount(0), mSize(0), mCount(0), mCurrentToken(0), mBuf(0), mFileId(0), mEntries(0)
 {}
@@ -213,11 +253,13 @@ void GRParser::handleLeftBrace()
         if (containerIndex != -1) {
             const clang::Token &token = mTokens[containerIndex];
             const ByteArray name = tokenSpelling(token);
-            const int added = addContext(containerIndex);
-            addEntry(tokenSpelling(token), mContainerScope, tokenOffset(token));
-            mContainerScope.chop(added);
-            mState.push(State(Container, mBraceCount, name));
-            mContainerScope.append(name);
+            if (!isKeyWord(name.constData(), name.size())) {
+                const int added = addContext(containerIndex);
+                addEntry(tokenSpelling(token), mContainerScope, tokenOffset(token));
+                mContainerScope.chop(added);
+                mState.push(State(Container, mBraceCount, name));
+                mContainerScope.append(name);
+            }
         }
         break; }
     case FunctionPending: {
@@ -226,15 +268,17 @@ void GRParser::handleLeftBrace()
         const clang::Token &token = mTokens.at(function);
         int offset = tokenOffset(token);
         ByteArray name = tokenSpelling(token);
+        if (!isKeyWord(name.constData(), name.size())) {
 
-        if (kind(function - 1) == clang::tok::tilde) {
-            name.prepend('~');
-            --offset;
-            --function;
+            if (kind(function - 1) == clang::tok::tilde) {
+                name.prepend('~');
+                --offset;
+                --function;
+            }
+            const int added = addContext(function);
+            addEntry(name, mContainerScope, offset);
+            mContainerScope.chop(added);
         }
-        const int added = addContext(function);
-        addEntry(name, mContainerScope, offset);
-        mContainerScope.chop(added);
         mState.pop();
         mState.push(State(FunctionBody, mBraceCount));
         break; }
@@ -278,43 +322,8 @@ void GRParser::handleLeftParen()
             const char *tokenSpl;
             int tokenLength;
             tokenSpelling(token, tokenSpl, tokenLength);
-            bool keyWord = false;
-            switch (tokenLength) {
-            case 2:
-                keyWord = !strncmp(tokenSpl, "if", 2) || !strncmp(tokenSpl, "do", 2);
-                break;
-            case 3:
-                keyWord = !strncmp(tokenSpl, "for", 3) || !strncmp(tokenSpl, "new", 3);
-                break;
-            case 4:
-                keyWord = !strncmp(tokenSpl, "void", 4) || !strncmp(tokenSpl, "case", 4);
-                break;
-            case 5:
-                keyWord = !strncmp(tokenSpl, "while", 5);
-                break;
-            case 6:
-                keyWord = (!strncmp(tokenSpl, "switch", 6) || !strncmp(tokenSpl, "return", 6)
-                           || !strncmp(tokenSpl,  "delete", 6));
-                break;
-            case 8:
-                keyWord = !strncmp(tokenSpl, "operator", 8);
-                break;
-            case 10:
-                keyWord = !strncmp(tokenSpl, "const_cast", 10);
-                break;
-            case 11:
-                keyWord = !strncmp(tokenSpl, "static_cast", 11);
-                break;
-            case 12:
-                keyWord = !strncmp(tokenSpl, "dynamic_cast", 12);
-                break;
-            case 16:
-                keyWord = !strncmp(tokenSpl, "reinterpret_cast", 16);
-                break;
-                // we could add sizeof and typeid here but it's kinda neat to find references to them
-            }
 
-            if (!keyWord)
+            if (!isKeyWord(tokenSpl, tokenLength))
                 addReference(tokenSpelling(token), tokenOffset(token));
         }
         break; }
@@ -364,7 +373,8 @@ void GRParser::handleSemi()
                 --offset;
                 name.prepend('~');
             }
-            addEntry(name, mContainerScope, offset);
+            if (!isKeyWord(name.constData(), name.size()))
+                addEntry(name, mContainerScope, offset);
             break; }
         default:
             break;
