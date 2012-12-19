@@ -447,15 +447,23 @@ bool Indexer::restore(Deserializer &in)
             }
         }
 
-        for (SourceInformationMap::iterator it = mSources.begin(); it != mSources.end(); ++it) {
-            const time_t parsed = it->second.parsed;
-            // error() << "parsed" << RTags::timeToString(parsed, RTags::DateTime) << parsed;
-            assert(mDependencies.value(it->first).contains(it->first));
-            assert(mDependencies.contains(it->first));
-            const Set<uint32_t> &deps = reversedDependencies[it->first];
-            for (Set<uint32_t>::const_iterator d = deps.begin(); d != deps.end(); ++d) {
-                if (!mModifiedFiles.contains(*d) && isDirty(*d, parsed))
-                    mModifiedFiles.insert(*d);
+        SourceInformationMap::iterator it = mSources.begin();
+        while (it != mSources.end()) {
+            if (!it->second.sourceFile.isFile()) {
+                error() << it->second.sourceFile << "seems to have disappeared";
+                mSources.erase(it++);
+                mModifiedFiles.insert(it->first);
+            } else {
+                const time_t parsed = it->second.parsed;
+                // error() << "parsed" << RTags::timeToString(parsed, RTags::DateTime) << parsed;
+                assert(mDependencies.value(it->first).contains(it->first));
+                assert(mDependencies.contains(it->first));
+                const Set<uint32_t> &deps = reversedDependencies[it->first];
+                for (Set<uint32_t>::const_iterator d = deps.begin(); d != deps.end(); ++d) {
+                    if (!mModifiedFiles.contains(*d) && isDirty(*d, parsed))
+                        mModifiedFiles.insert(*d);
+                }
+                ++it;
             }
         }
         dirtyFiles = !mModifiedFiles.isEmpty();
