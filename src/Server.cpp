@@ -378,6 +378,7 @@ bool Server::make(const Path &path, const List<ByteArray> &makefileArgs,
     if (entry.project && entry.project->isValid()) {
         assert(entry.project->indexer);
         entry.project->indexer->beginMakefile();
+        mCurrentProject = entry.project;
     }
 
     MakefileParser *parser = new MakefileParser(extraCompilerFlags, conn);
@@ -1088,7 +1089,7 @@ void Server::writeProjects()
     for (int i=0; i<2; ++i) {
         const ProjectsMap &map = *maps[i];
         for (ProjectsMap::const_iterator it = map.begin(); it != map.end(); ++it) {
-            if (it->second.type & RTags::Type_Makefile)
+            if (it->second.type & RTags::Type_Makefile && !(it->second.type & RTags::Type_Command))
                 mMakefilesWatcher.watch(it->first);
             if (it->second.type & RTags::Type_Synthesized)
                 continue;
