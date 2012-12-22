@@ -962,6 +962,27 @@ return t if rtags is allowed to modify this file"
     (add-hook 'post-command-hook (function rtags-restart-completion-cache-timer))
   (remove-hook 'post-command-hook (function rtags-restart-completion-cache-timer)))
 
+(defvar rtags-last-update-current-project-buffer nil)
+(defun rtags-update-current-project ()
+  (interactive)
+  (condition-case nil
+      (when (and (buffer-file-name)
+                 (not (eq (current-buffer) rtags-last-update-current-project-buffer)))
+        (setq rtags-last-update-current-project-buffer (current-buffer))
+        (let* ((rc (rtags-executable-find "rc"))
+               (path (buffer-file-name))
+               (arguments (list "-T" path)))
+          (when rc
+            (push (concat "--with-project=" path) arguments)
+            (let ((mapped (if rtags-match-source-file-to-project (apply rtags-match-source-file-to-project (list path)))))
+              (if (and mapped (length mapped)) (push (concat "--with-project=" mapped) arguments)))
+            (apply #'start-process "global-update" nil rc arguments))))
+      (error (message "Got error in rtags-update-current-project")))
+  )
+
+(add-hook 'post-command-hook (function rtags-update-current-project))
+;;(remove-hook 'post-command-hook (function rtags-update-current-project))
+
 (defvar rtags-cursorinfo-timer nil)
 (defun rtags-restart-cursorinfo-timer ()
   (interactive)
