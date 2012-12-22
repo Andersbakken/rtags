@@ -234,10 +234,19 @@ void Server::reloadProjects()
         const Entry &e = entries[i];
         const List<ByteArray> keys = file.keys(e.key);
         const int count = keys.size();
-        for (int i=0; i<count; ++i) {
+        for (int j=0; j<count; ++j) {
             ProjectEntry entry;
             entry.type = e.type;
-            const ByteArray value = file.value(e.key, keys.at(i));
+            ByteArray value = file.value(e.key, keys.at(j));
+            Path path = entry.saveKey = keys.at(j);
+            if (value.isEmpty() && keys.at(j).contains(' ')) {
+                const int space = keys.at(j).indexOf(' ');
+                path = keys.at(j).left(space);
+                value = keys.at(j).mid(space + 1);
+            } else {
+                path = keys.at(j);
+            }
+            entry.saveKey = path;
             if (!value.isEmpty()) {
                 const List<ByteArray> split = value.split('|');
                 switch (split.size()) {
@@ -249,11 +258,10 @@ void Server::reloadProjects()
                     entry.flags = split.last().split(' ');
                     break;
                 default:
-                    error("Parse error for %s=%s", keys.at(i).constData(), value.constData());
+                    error("Parse error for %s=%s", keys.at(j).constData(), value.constData());
                     continue;
                 }
             }
-            Path path = entry.saveKey = keys.at(i);
             if (path.startsWith("$HOME"))
                 path.replace(0, 5, home);
             if (path.startsWith('~'))
