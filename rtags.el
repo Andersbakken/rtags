@@ -12,6 +12,7 @@
 (defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
 (defvar rtags-path-filter-regex nil)
+(defvar rtags-mode-hook nil)
 (defvar rtags-no-otherbuffer nil)
 (defface rtags-path nil "Path" :group 'rtags)
 (defface rtags-context nil "Context" :group 'rtags)
@@ -130,6 +131,15 @@
                         (buffer-file-name buffer)
                       default-directory)))
 
+(defvar rtags-preprocess-keymap (make-sparse-keymap))
+(define-key rtags-preprocess-keymap (kbd "q") 'rtags-bury-or-delete)
+(set-keymap-parent rtags-preprocess-keymap c++-mode-map)
+(define-derived-mode rtags-preprocess-mode c++-mode
+  (setq mode-name "rtags-preprocess")
+  (use-local-map rtags-diagnostics-mode-map)
+  (setq buffer-read-only t)
+  )
+
 (defun rtags-preprocess-file (&optional buffer)
   (interactive)
   (let ((fn (buffer-file-name buffer))
@@ -161,10 +171,7 @@
                       (progn
                         (goto-char (point-min))
                         (narrow-to-region (point-at-bol (+ start 1)) (point-at-bol (+ end 1)))))))
-            (setq buffer-read-only t)
-            (local-set-key "q" 'bury-buffer)
-            (c++-mode)
-            )
+            (rtags-preprocess-mode))
           (display-buffer preprocess-buffer))
       )))
 
@@ -1074,19 +1081,25 @@ return t if rtags is allowed to modify this file"
     (setq buffer-read-only t))
   )
 
+(defvar rtags-diagnostics-mode-map (make-sparse-keymap))
+(define-key rtags-diagnostics-mode-map (kbd "q") 'rtags-bury-or-delete)
+(define-key rtags-diagnostics-mode-map (kbd "c") 'rtags-clear-diagnostics)
+(set-keymap-parent rtags-diagnostics-mode-map compilation-mode-map)
+(define-derived-mode rtags-diagnostics-mode compilation-mode
+  (setq mode-name "rtags-diagnostics")
+  (use-local-map rtags-diagnostics-mode-map)
+  (setq buffer-read-only t)
+  )
 
 (defun rtags-init-diagnostics-buffer-and-process ()
   (let ((buf (get-buffer-create "*RTags Diagnostics*")))
     (with-current-buffer buf
-      (setq buffer-read-only t)
-      (compilation-mode) ;; ### hmm
-      (local-set-key "c" 'rtags-clear-diagnostics)
-      (local-set-key "q" 'bury-buffer))
+      (rtags-diagnostics-mode))
     (if (cond ((not rtags-diagnostics-process) t)
               ((eq (process-status rtags-diagnostics-process) 'exit) t)
               ((eq (process-status rtags-diagnostics-process) 'signal) t)
               (t nil))
-        (let ((process-connection-type nil))  ; use a pipe
+        (let ((process-connection-type nil)) ;; use a pipe
           (setq rtags-diagnostics-process
                 (if rtags-autostart-rdm
                     (start-process "RTags Diagnostics" buf (rtags-executable-find "rc") "-G"
