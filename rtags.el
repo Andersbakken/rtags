@@ -26,14 +26,13 @@
 (defvar rtags-completion-cache-line-contents "")
 (defvar rtags-last-request-not-indexed nil)
 
-(defvar rtags-faces
-  '(("^[^ ]*" . rtags-path-face)
-    (" .*$" . rtags-context-face))
-  )
+(defvar rtags-faces (list
+                     (cons "^.*:[0-9]+:[0-9]+" font-lock-function-name-face)
+                     (cons ":[^0-9].*$" font-lock-constant-face)))
 
 (defun rtags-bury-or-delete ()
   (interactive)
-  (if (> (length (window-list nil nil)) 1)
+  (if (> (length (window-list)) 1)
       (delete-window)
     (bury-buffer)))
 
@@ -49,7 +48,7 @@
 (define-key rtags-mode-map (kbd "k") 'previous-line)
 
 (define-derived-mode rtags-mode fundamental-mode
-  (setq font-lock-defaults '(rtags-faces))
+  (set (make-local-variable 'font-lock-defaults) '(rtags-faces))
   (setq mode-name "rtags")
   (use-local-map rtags-mode-map)
   (run-hooks 'rtags-mode-hook)
