@@ -662,7 +662,7 @@ return t if rtags is allowed to modify this file"
 (defun rtags-rename-symbol ()
   (interactive)
   (save-some-buffers) ;; it all kinda falls apart when buffers are unsaved
-  (let (len file pos destructor replacewith prev (modifications 0) (filesopened 0))
+  (let (len file pos destructor replacewith prev (modifications 0) (filesopened 0) replacements)
     (save-excursion
       (if (looking-at "[0-9A-Za-z_~#]")
           (progn
@@ -686,38 +686,39 @@ return t if rtags is allowed to modify this file"
                   (setq pos (- pos 1)))
               (with-temp-buffer
                 (rtags-call-rc nil "-E" "-O" "-N" "-r" (format "%s,%d" file (- pos 1)))
-                (while (looking-at "^\\(.*\\),\\([0-9]+\\)$")
-                  ;;(message (buffer-substring (point-at-bol) (point-at-eol)))
-                  (let ((fn (match-string 1))
-                        (p (string-to-number (match-string 2)))
-                        (buf nil))
-                    (setq buf (find-buffer-visiting fn))
-                    (unless buf
-                      (progn
-                        (incf filesopened)
-                        (setq buf (find-file-noselect fn))))
-                    (if buf
-                        (save-excursion
-                          (set-buffer buf)
-                          (if (run-hook-with-args-until-failure rtags-edit-hook)
-                              (progn
-                                (incf modifications)
-                                (goto-char (+ p 1))
-                                (if (looking-at "~")
-                                    (forward-char))
+                ;; (message "Got renames %s" (buffer-string))
+                (dolist (line (split-string (buffer-string) "\n"))
+                  (if (string-match "^\\(.*\\),\\([0-9]+\\)$" line)
+                      (add-to-list 'replacements (cons (match-string 1 line) (string-to-int (match-string 2 line))) t))))
+              ;; (message "Got %d replacements" (length replacements))
 
-                                ;; (message (format "About to replace %s with %s at %d in %s"
-                                ;;                  (buffer-substring (point) (+ (point) len))
-                                ;;                  replacewith
-                                ;;                  (point)
-                                ;;                  fn))
-                                (delete-char len)
-                                (insert replacewith)
-                                ))
-                          )))
-                  (next-line))
-                )))
-        (message (format "Opened %d new files and made %d modifications" filesopened modifications))))))
+              (dolist (value replacements)
+                (let ((buf (find-buffer-visiting (car value))))
+                  (unless buf
+                    (progn
+                      (incf filesopened)
+                      (setq buf (find-file-noselect (car value)))))
+                  (when buf
+                    (set-buffer buf)
+                    (when (run-hook-with-args-until-failure rtags-edit-hook)
+                      (incf modifications)
+                      (goto-char (+ (cdr value) 1))
+                      (if (looking-at "~")
+                          (forward-char))
+
+                      ;; (message "About to replace %s with %s at %d in %s"
+                      ;;          (buffer-substring (point) (+ (point) len)) replacewith (point) (car value))
+                      (delete-char len)
+                      (insert replacewith)
+                      ))
+                  )
+                )
+              )
+            )
+        )
+      )
+    (message (format "Opened %d new files and made %d modifications" filesopened modifications)))
+  )
 
 (defun rtags-find-symbol (&optional prefix)
   (interactive "P")
