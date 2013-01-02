@@ -1172,22 +1172,36 @@ struct SmartProjectFileUserData {
     bool recurse;
 };
 
+static Path::VisitResult findHeaderVisitor(const Path &path, void *userData)
+{
+    if (path.isHeader()) {
+        *reinterpret_cast<bool*>(userData) = true;
+        return Path::Abort;
+    }
+    return Path::Continue;
+}
+
 static Path::VisitResult smartProjectFileVisitor(const Path &path, void *userData)
 {
+    static const int max = strtoul("RTAGS_SMART_PROJECT_MAX", 0, 10);
     assert(userData);
     SmartProjectFileUserData &ud = *reinterpret_cast<SmartProjectFileUserData*>(userData);
     switch (path.type()) {
     case Path::File:
-        if (match(path, ud.includesWildcard, ud.includes)
+        if ((!max || ud.sources.size() < max)
+            && match(path, ud.includesWildcard, ud.includes)
             && !match(path, ud.excludesWildcard, ud.excludes)) {
             ud.sources.append(path);
         }
         break;
-    case Path::Directory:
-        ud.includePaths.insert(path);
+    case Path::Directory: {
+        bool hasHeaders = false;
+        path.visit(findHeaderVisitor, &hasHeaders);
+        if (hasHeaders)
+            ud.includePaths.insert(path);
         if (ud.recurse)
             return Path::Recurse;
-        break;
+        break; }
     default:
         break;
     }
