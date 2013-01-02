@@ -26,6 +26,7 @@ public:
     const List<ByteArray> &extraCompilerFlags() const { return mExtraCompilerFlags; }
     const List<ByteArray> &rdmArgs() const { return mRdmArgs; }
     const List<ByteArray> &projects() const { return mProjects; }
+    const List<ByteArray> &smartProjectExcludes() const { return mSmartProjectExcludes; }
 
     ByteArray socketFile() const { return mSocketFile; }
 
@@ -48,6 +49,7 @@ private:
     List<ByteArray> mExtraCompilerFlags;
     List<RCCommand*> mCommands;
     List<ByteArray> mRdmArgs;
+    List<ByteArray> mSmartProjectExcludes;
     ByteArray mSocketFile;
     List<ByteArray> mProjects;
 

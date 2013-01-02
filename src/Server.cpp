@@ -1181,27 +1181,35 @@ static Path::VisitResult findHeaderVisitor(const Path &path, void *userData)
     return Path::Continue;
 }
 
+static inline bool hasHeaders(const Path &dir)
+{
+    bool hasHeaders = false;
+    dir.visit(findHeaderVisitor, &hasHeaders);
+    return hasHeaders;
+}
+
 static Path::VisitResult smartProjectFileVisitor(const Path &path, void *userData)
 {
-    static const int max = strtoul("RTAGS_SMART_PROJECT_MAX", 0, 10);
     assert(userData);
     SmartProjectFileUserData &ud = *reinterpret_cast<SmartProjectFileUserData*>(userData);
     switch (path.type()) {
     case Path::File:
-        if ((!max || ud.sources.size() < max)
-            && match(path, ud.includesWildcard, ud.includes)
+        if (match(path, ud.includesWildcard, ud.includes)
             && !match(path, ud.excludesWildcard, ud.excludes)) {
             ud.sources.append(path);
         }
         break;
-    case Path::Directory: {
-        bool hasHeaders = false;
-        path.visit(findHeaderVisitor, &hasHeaders);
-        if (hasHeaders)
-            ud.includePaths.insert(path);
-        if (ud.recurse)
-            return Path::Recurse;
-        break; }
+    case Path::Directory:
+        if (!match(path, ud.excludesWildcard, ud.excludes)) {
+            // error() << "this one is good" << path << ud.excludesWildcard << ud.excludes;
+            if (hasHeaders(path))
+                ud.includePaths.insert(path);
+            if (ud.recurse)
+                return Path::Recurse;
+        // } else {
+        //     error() << "this one is no good" << path << ud.excludesWildcard << ud.excludes;
+        }
+        break;
     default:
         break;
     }
@@ -1237,16 +1245,18 @@ bool Server::initSmartProject(const ProjectEntry &entry)
     entry.project->indexer->beginMakefile();
     for (Map<Path, SmartProjectFileUserData>::iterator it = dirs.begin(); it != dirs.end(); ++it) {
         SmartProjectFileUserData &ud = it->second;
-        ud.includePaths.insert(path); // ###
+        // for SmartProjects args are actually excludes
+        error() << "Got shit" << entry.args;
+        ud.excludesWildcard = entry.args;
+        if (hasHeaders(path))
+            ud.includePaths.insert(path);
+        // error() << ud.includePaths;
         it->first.visit(smartProjectFileVisitor, &ud);
         GccArguments args;
         args.mInputFiles = ud.sources;
-        const char *suffix = path.extension();
-        if (suffix && !strcmp(suffix, "c")) {
-            args.mLang = GccArguments::C;
-        } else {
-            args.mLang = GccArguments::CPlusPlus;
-        }
+        args.mLang = GccArguments::CPlusPlus;
+        // ### this isn't necessarily correct but we don't actually care. It
+        // ### just needs to not be NoLang
 
         for (Set<Path>::const_iterator it = ud.includePaths.begin(); it != ud.includePaths.end(); ++it) {
             args.mClangArgs.append("-I" + *it);

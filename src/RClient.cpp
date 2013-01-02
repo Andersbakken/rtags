@@ -197,7 +197,13 @@ public:
         msg.init(rc->argc(), rc->argv());
         msg.setFlags(rc->makefileFlags());
         msg.setExtraFlags(rc->extraCompilerFlags());
-        msg.setArguments(args);
+        if (type == RTags::Type_SmartProject) {
+            msg.setArguments(rc->smartProjectExcludes());
+            // We don't actually have args for smartprojects so we abuse them
+            // for the excludes
+        } else {
+            msg.setArguments(args);
+        }
         client->message(&msg);
     }
     virtual ByteArray description() const
@@ -314,6 +320,7 @@ enum {
     ReverseSort,
     SkipParen,
     SmartProject,
+    SmartProjectExclude,
     SocketFile,
     Status,
     Timeout,
@@ -402,6 +409,7 @@ struct Option opts[] = {
     { FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial" },
     { AutoMakeProject, "auto-make-project", 'b', no_argument, "Use to make adding projects (with -m) automatically index them" },
     { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
+    { SmartProjectExclude, "smart-project-exclude", 'Q', required_argument, "Wildcard that excludes files/dirs from smart project." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -742,6 +750,9 @@ bool RClient::parse(int &argc, char **argv)
             } else {
                 addSmartProject(Path::resolved("."));
             }
+            break;
+        case SmartProjectExclude:
+            mSmartProjectExcludes.append(optarg);
             break;
         case HasFileManager: {
             Path p;
