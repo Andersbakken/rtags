@@ -155,40 +155,22 @@ void Project::unload()
         indexer->abort();
         indexer.reset();
         fileManager.reset();
-        // ### should unload grtags too probably
     }
 }
 
 bool Project::match(const Match &p)
 {
-    if (!mSrcRoot.isEmpty() && p.match(mSrcRoot))
-        return true;
-    if (!mResolvedSrcRoot.isEmpty() && p.match(mResolvedSrcRoot))
-        return true;
-    if (!mPath.isEmpty() && p.match(mPath))
-        return true;
     Path paths[] = { p.pattern(), p.pattern() };
     paths[1].resolve();
     const int count = paths[1] != paths[0] ? 2 : 1;
     Scope<const FilesMap&> files = lockFilesForRead();
     for (int i=0; i<count; ++i) {
         const Path &path = paths[i];
-        if (files.data().contains(path))
+        if (files.data().contains(path) || p.match(mSrcRoot) || p.match(mResolvedSrcRoot) || p.match(mPath))
             return true;
-        // error() << "comparing" << path << mSrcRoot << mResolvedSrcRoot << mPath;
-        if (!mSrcRoot.isEmpty() && mSrcRoot.startsWith(path))
+        const uint32_t id = Location::fileId(path);
+        if (isIndexed(id))
             return true;
-        if (!mResolvedSrcRoot.isEmpty() && mResolvedSrcRoot.startsWith(path))
-            return true;
-        if (!mPath.isEmpty()) {
-            if (mPath.startsWith(path)) {
-                return true;
-            } else if (mPath.isFile()) {
-                const int lastSlash = mPath.lastIndexOf('/');
-                if (lastSlash != -1 && path.size() >= lastSlash && !strncmp(mPath.constData(), path.constData(), lastSlash - 1))
-                    return true;
-            }
-        }
 
     }
     return false;

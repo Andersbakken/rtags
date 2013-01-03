@@ -110,8 +110,9 @@ private:
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
     void remake(const Match &match = Match(), Connection *conn = 0);
-    bool updateProjectForLocation(const Location &location);
-    bool updateProjectForLocation(const Path &path);
+    shared_ptr<Project> updateProjectForLocation(const Location &location);
+    shared_ptr<Project> updateProjectForLocation(const Path &path);
+    void restoreProject(shared_ptr<Project> &project, const Path &srcRoot);
     void writeProjects();
     struct ProjectEntry;
     bool initSmartProject(const ProjectEntry &entry);

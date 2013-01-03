@@ -519,9 +519,7 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
         conn->finish();
         return;
     }
-    updateProjectForLocation(loc);
-
-    shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = updateProjectForLocation(loc);
     if (!project) {
         error("No project");
         conn->finish();
@@ -557,9 +555,8 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
     }
 
     Location loc(fileId, 0);
-    updateProjectForLocation(loc);
 
-    shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = updateProjectForLocation(loc);
     if (!project || !project->indexer) {
         conn->write<256>("%s is not indexed", query.query().constData());
         conn->finish();
@@ -585,9 +582,8 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
         conn->finish();
         return;
     }
-    updateProjectForLocation(loc);
+    shared_ptr<Project> project = updateProjectForLocation(loc);
 
-    shared_ptr<Project> project = currentProject();
     if (!project) {
         conn->finish();
         return;
@@ -601,8 +597,7 @@ void Server::cursorInfo(const QueryMessage &query, Connection *conn)
 void Server::fixIts(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
-    updateProjectForLocation(path);
-    shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = updateProjectForLocation(path);
     if (project && project->indexer) {
         ByteArray out = project->indexer->fixIts(Location::fileId(path));
         if (!out.isEmpty())
@@ -619,9 +614,8 @@ void Server::referencesForLocation(const QueryMessage &query, Connection *conn)
         conn->finish();
         return;
     }
-    updateProjectForLocation(loc);
+    shared_ptr<Project> project = updateProjectForLocation(loc);
 
-    shared_ptr<Project> project = currentProject();
     if (!project) {
         error("No project");
         conn->finish();
@@ -697,42 +691,26 @@ void Server::status(const QueryMessage &query, Connection *conn)
 
 void Server::isIndexed(const QueryMessage &query, Connection *conn)
 {
+    bool ok = false;
     const Path path = query.query();
-    if (path.isFile()) {
-        const uint32_t fileId = Location::fileId(path);
-        if (fileId) {
-            shared_ptr<Project> old = mCurrentProject.lock();
-            updateProjectForLocation(path);
-            shared_ptr<Project> cur = currentProject();
-            if (cur && cur->isIndexed(fileId)) {
-                conn->write("1");
-                conn->finish();
-                if (old)
-                    mCurrentProject = old;
-                return;
-            }
-            if (old)
-                mCurrentProject = old;
-        }
-    } else if (path.isDir()) {
-        updateProjectForLocation(path);
-        shared_ptr<Project> cur = currentProject();
-        if (cur && cur->fileManager->contains(path)) {
-            conn->write("1");
-            conn->finish();
-            return;
+    shared_ptr<Project> project = updateProjectForLocation(path);
+    if (project) {
+        if (path.isFile()) {
+            ok = project->isIndexed(Location::fileId(path));
+        } else if (path.isDir()) {
+            ok = project->fileManager->contains(path);
         }
     }
-    conn->write("0");
+
+    conn->write(ok ? "1" : "0");
     conn->finish();
 }
 
 void Server::hasFileManager(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
-    updateProjectForLocation(path);
-    shared_ptr<Project> cur = currentProject();
-    if (cur && cur->fileManager && (cur->fileManager->contains(path) || cur->match(path))) {
+    shared_ptr<Project> project = updateProjectForLocation(path);
+    if (project && project->fileManager && (project->fileManager->contains(path) || project->match(path))) {
         conn->write("1");
     } else {
         conn->write("0");
@@ -743,8 +721,7 @@ void Server::hasFileManager(const QueryMessage &query, Connection *conn)
 void Server::preprocessFile(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
-    updateProjectForLocation(path);
-    shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = updateProjectForLocation(path);
     if (!project || !project->indexer) {
         conn->write("No project");
         conn->finish();
@@ -958,44 +935,12 @@ bool Server::processSourceFile(const GccArguments &args, const Path &proj)
             error("Can't find project root for %s", inputFiles.begin()->constData());
             return false;
         }
-        project->init(srcRoot);
-        project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
-        project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
-        if (mRestoreProjects) {
-            Timer timer;
-            Path makeFilePath = proj;
-            RTags::encodePath(makeFilePath);
-            const Path p = ByteArray::snprintf<128>("%s%s", mOptions.dataDir.constData(), makeFilePath.constData());
-            if (FILE *f = fopen(p.constData(), "r")) {
-                Deserializer in(f);
-                int version;
-                in >> version;
-                if (version == DatabaseVersion) {
-                    int fs;
-                    in >> fs;
-                    if (fs != RTags::fileSize(f)) {
-                        error("%s seems to be corrupted, refusing to restore %s",
-                              p.constData(), proj.constData());
-                    } else {
-                        Path srcRoot;
-                        in >> srcRoot; // ignored
-                        if (!project->restore(in)) {
-                            error("Can't restore project %s", proj.constData());
-                        } else if (!project->indexer->restore(in)) {
-                            error("Can't restore project %s", proj.constData());
-                        } else {
-                            error("Restored project %s in %dms", proj.constData(), timer.elapsed());
-                        }
-                    }
-                }
-                fclose(f);
-            }
-        }
-
+        restoreProject(project, srcRoot);
         project->indexer->beginMakefile();
     }
-    if (!mCurrentProject.lock())
+    if (!mCurrentProject.lock()) {
         mCurrentProject = project;
+    }
 
     List<ByteArray> arguments = args.clangArgs();
     arguments.append(mOptions.defaultArguments);
@@ -1055,12 +1000,54 @@ void Server::event(const Event *event)
     }
 }
 
+void Server::restoreProject(shared_ptr<Project> &project, const Path &srcRoot)
+{
+    assert(project);
+    project->init(srcRoot);
+    project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
+    project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
+    if (mRestoreProjects) {
+        Timer timer;
+        const Path proj = project->path();
+        Path makeFilePath = proj;
+        RTags::encodePath(makeFilePath);
+        const Path p = ByteArray::snprintf<128>("%s%s", mOptions.dataDir.constData(), makeFilePath.constData());
+        if (FILE *f = fopen(p.constData(), "r")) {
+            Deserializer in(f);
+            int version;
+            in >> version;
+            if (version == DatabaseVersion) {
+                int fs;
+                in >> fs;
+                if (fs != RTags::fileSize(f)) {
+                    error("%s seems to be corrupted, refusing to restore %s",
+                          p.constData(), proj.constData());
+                } else {
+                    Path srcRoot;
+                    in >> srcRoot; // ignored
+                    if (!project->restore(in)) {
+                        error("Can't restore project %s", proj.constData());
+                    } else if (!project->indexer->restore(in)) {
+                        error("Can't restore project %s", proj.constData());
+                    } else {
+                        error("Restored project %s in %dms", proj.constData(), timer.elapsed());
+                    }
+                }
+            }
+            fclose(f);
+        }
+    }
+}
+
 shared_ptr<Project> Server::setCurrentProject(const Path &path)
 {
-    ProjectsMap::const_iterator it = mProjects.find(path);
+    ProjectsMap::iterator it = mProjects.find(path);
     if (it != mProjects.end()) {
         mCurrentProject = it->second.project;
+        assert(mCurrentProject.lock());
         if (!it->second.project->isValid()) {
+            if (!it->second.project->srcRoot().isEmpty())
+                restoreProject(it->second.project, it->second.project->srcRoot());
             if (it->second.type & RTags::Type_Makefile) {
                 remake(it->first, 0);
             } else if (it->second.type & RTags::Type_SmartProject) {
@@ -1072,20 +1059,24 @@ shared_ptr<Project> Server::setCurrentProject(const Path &path)
     return shared_ptr<Project>();
 }
 
-bool Server::updateProjectForLocation(const Location &location)
+shared_ptr<Project> Server::updateProjectForLocation(const Location &location)
 {
     return updateProjectForLocation(location.path());
 }
 
-bool Server::updateProjectForLocation(const Path &path)
+shared_ptr<Project> Server::updateProjectForLocation(const Path &path)
 {
+    shared_ptr<Project> cur = currentProject();
+    // give current a chance first to avoid switching project when using system headers etc
+    if (cur && cur->match(path))
+        return cur;
+
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         if (it->second.project->match(path)) {
-            setCurrentProject(it->second.project->path());
-            return true;
+            return setCurrentProject(it->second.project->path());
         }
     }
-    return false;
+    return shared_ptr<Project>();
 }
 
 void Server::writeProjects()
@@ -1434,9 +1425,8 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
 {
     updateProject(message->projects());
     const Path path = message->path();
-    updateProjectForLocation(path);
+    shared_ptr<Project> project = updateProjectForLocation(path);
 
-    shared_ptr<Project> project = currentProject();
     if (!project || !project->indexer) {
         if (!isCompletionStream(conn))
             conn->finish();
@@ -1457,9 +1447,7 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
 void Server::startCompletion(const Path &path, int line, int column, int pos, const ByteArray &contents, Connection *conn)
 {
     // error() << "starting completion" << path << line << column;
-    updateProjectForLocation(path);
-
-    shared_ptr<Project> project = currentProject();
+    shared_ptr<Project> project = updateProjectForLocation(path);
     if (!project || !project->indexer) {
         if (!isCompletionStream(conn))
             conn->finish();

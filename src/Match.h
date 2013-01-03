@@ -28,7 +28,11 @@ public:
 
     inline bool match(const ByteArray &text) const
     {
-        return indexIn(text) != -1;
+        if (indexIn(text) != -1)
+            return true;
+        if (mFlags & Flag_StringMatch)
+            return mPattern.indexOf(text, 0, mFlags & Flag_CaseInsensitive ? ByteArray::CaseInsensitive : ByteArray::CaseSensitive) != -1;
+        return false;
     }
 
     inline int indexIn(const ByteArray &text) const
