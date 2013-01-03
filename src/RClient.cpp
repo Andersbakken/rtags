@@ -285,7 +285,7 @@ enum {
     Clear,
     CodeComplete,
     CodeCompleteAt,
-    CompilationArgs,
+    Compile,
     CompilerFlag,
     CursorInfo,
     Define,
@@ -388,7 +388,7 @@ struct Option opts[] = {
     { CodeCompleteAt, "code-complete-at", 'x', required_argument, "Get code completion from location (must be specified with path:line:column)." },
     { CodeComplete, "code-complete", 0, no_argument, "Get code completion from stream written to stdin." },
     { FixIts, "fixits", 0, required_argument, "Get fixits for file." },
-    { CompilationArgs, "compilation-args", 0, required_argument, "Set compilation arguments" },
+    { Compile, "compile", 0, required_argument, "Pass compilation arguments to rdm." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -785,7 +785,7 @@ bool RClient::parse(int &argc, char **argv)
                 p.append('/');
             addQuery(QueryMessage::HasFileManager, p);
             break; }
-        case CompilationArgs: {
+        case Compile: {
             List<ByteArray> args(1);
             ByteArray &buf = args.first();
             buf.append(optarg);
