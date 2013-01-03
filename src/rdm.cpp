@@ -160,9 +160,9 @@ int main(int argc, char** argv)
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;
-    Path projectsFile = ByteArray::snprintf<128>("%s/.rtagsprojects", Path::home().constData());
-    Path dataDir = ByteArray::snprintf<128>("%s/.rtags", Path::home().constData());
-    socketFile = ByteArray::snprintf<128>("%s/.rdm", Path::home().constData());
+    Path projectsFile = ByteArray::format<128>("%s/.rtagsprojects", Path::home().constData());
+    Path dataDir = ByteArray::format<128>("%s/.rtags", Path::home().constData());
+    socketFile = ByteArray::format<128>("%s/.rdm", Path::home().constData());
     bool enableSignalHandler = false;
     ByteArray name;
     int argCount = argList.size();
@@ -183,7 +183,7 @@ int main(int argc, char** argv)
             socketFile = optarg;
             break;
         case 'd':
-            dataDir = ByteArray::snprintf<128>("%s/.rtags", Path::resolved(optarg).constData());
+            dataDir = ByteArray::format<128>("%s/.rtags", Path::resolved(optarg).constData());
             break;
         case 'h':
             usage(stdout);

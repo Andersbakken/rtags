@@ -75,7 +75,7 @@ inline bool Job::write(unsigned flags, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    const ByteArray ret = ByteArray::snprintf<StaticBufSize>(format, args);
+    const ByteArray ret = ByteArray::format<StaticBufSize>(format, args);
     va_end(args);
     return write(ret, flags);
 }
@@ -85,7 +85,7 @@ inline bool Job::write(const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    const ByteArray ret = ByteArray::snprintf<StaticBufSize>(format, args);
+    const ByteArray ret = ByteArray::format<StaticBufSize>(format, args);
     va_end(args);
     return write(ret);
 }

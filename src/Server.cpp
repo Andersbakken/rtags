@@ -189,7 +189,7 @@ bool Server::addProject(const Path &p, const ProjectEntry &newEntry)
         entry.saveKey = p;
         entry.project.reset(new Project(path));
         RTags::encodePath(path);
-        const Path cacheFilePath = ByteArray::snprintf<128>("%s%s", mOptions.dataDir.constData(), path.constData());
+        const Path cacheFilePath = ByteArray::format<128>("%s%s", mOptions.dataDir.constData(), path.constData());
         if (FILE *f = fopen(cacheFilePath.constData(), "r")) {
             Deserializer in(f);
             int version;
@@ -1011,7 +1011,7 @@ void Server::restoreProject(shared_ptr<Project> &project, const Path &srcRoot)
         const Path proj = project->path();
         Path makeFilePath = proj;
         RTags::encodePath(makeFilePath);
-        const Path p = ByteArray::snprintf<128>("%s%s", mOptions.dataDir.constData(), makeFilePath.constData());
+        const Path p = ByteArray::format<128>("%s%s", mOptions.dataDir.constData(), makeFilePath.constData());
         if (FILE *f = fopen(p.constData(), "r")) {
             Deserializer in(f);
             int version;
@@ -1565,7 +1565,7 @@ void Server::save(const shared_ptr<Indexer> &indexer)
         fseek(f, pos, SEEK_SET);
         out << size;
 
-        error() << "saved project" << it->first << "in" << ByteArray::snprintf<12>("%dms", timer.elapsed()).constData();
+        error() << "saved project" << it->first << "in" << ByteArray::format<12>("%dms", timer.elapsed()).constData();
         fclose(f);
         break;
     }

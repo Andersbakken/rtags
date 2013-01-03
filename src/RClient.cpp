@@ -80,7 +80,7 @@ public:
 
     virtual ByteArray description() const
     {
-        return ByteArray::snprintf<128>("CompletionMessage %s:%d:%d", path.constData(), line, column);
+        return ByteArray::format<128>("CompletionMessage %s:%d:%d", path.constData(), line, column);
     }
 
     static void stdinReady(int fd, unsigned int flags, void* userData)
@@ -137,7 +137,7 @@ public:
         //         << contents.right(100);
 
         CompletionMessage msg(CompletionMessage::None, path, line, column, pos);
-        const ByteArray args = ByteArray::snprintf<64>("%s:%d:%d:%d:%d", path.constData(), line, column, pos, contentsSize);
+        const ByteArray args = ByteArray::format<64>("%s:%d:%d:%d:%d", path.constData(), line, column, pos, contentsSize);
         const char *argv[] = { "completionStream", args.constData() };
         msg.init(2, argv);
         msg.setContents(contents);
@@ -421,10 +421,10 @@ static void help(FILE *f, const char* app)
         if (!opts[i].longOpt && !opts[i].shortOpt) {
             out.append(ByteArray());
         } else {
-            out.append(ByteArray::snprintf<64>("  %s%s%s%s",
-                                               opts[i].longOpt ? ByteArray::snprintf<4>("--%s", opts[i].longOpt).constData() : "",
+            out.append(ByteArray::format<64>("  %s%s%s%s",
+                                               opts[i].longOpt ? ByteArray::format<4>("--%s", opts[i].longOpt).constData() : "",
                                                opts[i].longOpt && opts[i].shortOpt ? "|" : "",
-                                               opts[i].shortOpt ? ByteArray::snprintf<2>("-%c", opts[i].shortOpt).constData() : "",
+                                               opts[i].shortOpt ? ByteArray::format<2>("-%c", opts[i].shortOpt).constData() : "",
                                                opts[i].argument == required_argument ? " [arg] "
                                                : opts[i].argument == optional_argument ? " [optional] " : ""));
             longest = std::max<int>(out[i].size(), longest);

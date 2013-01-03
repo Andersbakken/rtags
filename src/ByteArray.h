@@ -30,7 +30,7 @@ public:
     {}
 
     ByteArray(const ByteArray &ba)
-        : mString(ba.mString)
+    : mString(ba.mString)
     {}
 
     ByteArray(const std::string &str)
@@ -456,17 +456,17 @@ public:
         return ret;
     }
     template <int StaticBufSize>
-    static ByteArray snprintf(const char *format, ...)
+    static ByteArray format(const char *format, ...)
     {
         va_list args;
         va_start(args, format);
-        const ByteArray ret = ByteArray::snprintf<StaticBufSize>(format, args);
+        const ByteArray ret = ByteArray::format<StaticBufSize>(format, args);
         va_end(args);
         return ret;
     }
 
     template <int StaticBufSize>
-    static ByteArray snprintf(const char *format, va_list args)
+    static ByteArray format(const char *format, va_list args)
     {
         va_list copy;
         va_copy(copy, args);

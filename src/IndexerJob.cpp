@@ -786,7 +786,7 @@ void IndexerJob::execute()
             mState = Started;
         }
         if (parse() && diagnose() && visit()) {
-            mData->message = ByteArray::snprintf<1024>("%s (%s) in %sms. (%d syms, %d symNames, %d refs, %d deps)%s",
+            mData->message = ByteArray::format<1024>("%s (%s) in %sms. (%d syms, %d symNames, %d refs, %d deps)%s",
                                                        mPath.toTilde().constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
                                                        mData->symbols.size(), mData->symbolNames.size(), mData->references.size(), mData->dependencies.size(),
                                                        mFlags & Dirty ? " (dirty)" : "");
@@ -868,9 +868,9 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
         if (dump->showContext) {
             out.append(loc.context(&col));
             if (col != -1) {
-                out.append(ByteArray::snprintf<32>(" // %d, %d: ", col, dump->indentLevel));
+                out.append(ByteArray::format<32>(" // %d, %d: ", col, dump->indentLevel));
             } else {
-                out.append(ByteArray::snprintf<32>(" // %d: ", dump->indentLevel));
+                out.append(ByteArray::format<32>(" // %d: ", dump->indentLevel));
             }
         } else {
             out.append(ByteArray(dump->indentLevel * 2, ' '));

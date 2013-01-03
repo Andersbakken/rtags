@@ -306,7 +306,7 @@ Path Path::toTilde() const
 {
     const Path home = Path::home();
     if (startsWith(home))
-        return ByteArray::snprintf<64>("~/%s", constData() + home.size());
+        return ByteArray::format<64>("~/%s", constData() + home.size());
     return *this;
 }
 

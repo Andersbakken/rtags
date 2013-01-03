@@ -600,7 +600,7 @@ ByteArray Indexer::fixIts(uint32_t fileId) const
                 --f;
                 if (!out.isEmpty())
                     out.append('\n');
-                out.append(ByteArray::snprintf<32>("%d-%d %s", f->start, f->end, f->text.constData()));
+                out.append(ByteArray::format<32>("%d-%d %s", f->start, f->end, f->text.constData()));
 
             } while (f != fixIts.begin());
         }

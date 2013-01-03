@@ -49,12 +49,12 @@ bool IniFile::syncFromFile()
             continue;
         if (*start == '[') {
             if (*end != ']')  {
-                mError = ByteArray::snprintf<128>("Parse error at line %d (%s)", line, buf);
+                mError = ByteArray::format<128>("Parse error at line %d (%s)", line, buf);
                 return false;
             }
             group = ByteArray(start + 1, len - 2);
         } else if (group.isEmpty()) {
-            mError = ByteArray::snprintf<128>("Parse error at line %d (%s). Value without group", line, buf);
+            mError = ByteArray::format<128>("Parse error at line %d (%s). Value without group", line, buf);
             return false;
         } else {
             if (hash)

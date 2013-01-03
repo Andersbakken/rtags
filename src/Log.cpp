@@ -193,7 +193,7 @@ bool initLogging(int level, const Path &file, unsigned flags)
         if (!(flags & (Log::Append|Log::DontRotate)) && file.exists()) {
             int i = 0;
             while (true) {
-                const Path rotated = ByteArray::snprintf<64>("%s.%d", file.constData(), ++i);
+                const Path rotated = ByteArray::format<64>("%s.%d", file.constData(), ++i);
                 if (!rotated.exists()) {
                     if (rename(file.constData(), rotated.constData())) {
                         char buf[1025];

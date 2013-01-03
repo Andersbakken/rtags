@@ -32,7 +32,7 @@ public:
     {
         va_list args;
         va_start(args, format);
-        const ByteArray ret = ByteArray::snprintf<StaticBufSize>(format, args);
+        const ByteArray ret = ByteArray::format<StaticBufSize>(format, args);
         va_end(args);
         ResponseMessage msg(ret);
         return send(&msg);
