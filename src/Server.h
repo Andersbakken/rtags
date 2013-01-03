@@ -64,6 +64,8 @@ private:
     bool isCompletionStream(Connection* conn) const;
 
     static void saveTimerCallback(int id, void *userData);
+    static Path findProjectRoot(const Path &path);
+
     void save(const shared_ptr<Indexer> &indexer);
     void restore();
     void clear();
@@ -121,7 +123,7 @@ private:
     void unloadProject(const Path &key);
     void reloadProjects();
     void onCompletionStreamDisconnected(LocalClient *client);
-    bool addProject(const Path &path, const ProjectEntry &entry);
+    shared_ptr<Project> addProject(const Path &path, const ProjectEntry &entry);
     void onCompletionJobFinished(Path path);
     void startCompletion(const Path &path, int line, int column, int pos, const ByteArray &contents, Connection *conn);
 

@@ -162,7 +162,7 @@ private:
     const unsigned mType;
 };
 
-bool Server::addProject(const Path &p, const ProjectEntry &newEntry)
+shared_ptr<Project> Server::addProject(const Path &p, const ProjectEntry &newEntry)
 {
     if (newEntry.type & RTags::Type_Command) {
         mCommandProjects[p] = newEntry;
@@ -171,14 +171,14 @@ bool Server::addProject(const Path &p, const ProjectEntry &newEntry)
         // error() << "Running" << p << ByteArray::join(newEntry.args, ' ');
         proc->start(p, newEntry.args);
         // error() << "Calling start" << p << newEntry.args;
-        return true;
+        return shared_ptr<Project>();
     }
     Path path = p;
     if (newEntry.type & RTags::Type_Makefile && path.isDir()) {
         path = Path::resolved("Makefile", path);
         if (!path.isFile()) {
             error() << path << "is not a Makefile";
-            return false;
+            return shared_ptr<Project>();
         }
     }
     ProjectEntry &entry = mProjects[path];
@@ -207,9 +207,9 @@ bool Server::addProject(const Path &p, const ProjectEntry &newEntry)
             }
             fclose(f);
         }
-        return true;
+        return entry.project;
     }
-    return false;
+    return shared_ptr<Project>();
 }
 
 void Server::reloadProjects()
@@ -346,6 +346,26 @@ void Server::handleProjectMessage(ProjectMessage *message, Connection *conn)
     case RTags::Type_Synthesized:
         assert(0);
         break;
+    case RTags::Type_Auto: {
+        conn->finish(); // nothing to wait for
+        assert(message->arguments().size() == 1);
+        GccArguments args;
+        if (!args.parse(message->arguments().first(), message->path())) 
+            break;
+
+        Path srcRoot = findProjectRoot(args.unresolvedInputFiles().first());
+        if (srcRoot.isEmpty())
+            srcRoot = findProjectRoot(args.inputFiles().first());
+        if (srcRoot.isEmpty())
+            break;
+
+        if (!mProjects.contains(srcRoot)) {
+            shared_ptr<Project> project = addProject(srcRoot, ProjectEntry(message->type()));
+            restoreProject(project, srcRoot);
+            error() << "Added project" << srcRoot;
+        }
+        processSourceFile(args, srcRoot);
+        break; }
     case RTags::Type_Command:
         break;
     case RTags::Type_Makefile:
@@ -853,59 +873,6 @@ static inline Path findAncestor(Path path, const char *fn, unsigned flags)
     return ret;
 }
 
-static Path findProjectRoot(const Path &path)
-{
-    struct Entry {
-        const char *name;
-        const unsigned flags;
-    } entries[] = {
-        { "GTAGS", 0 },
-        { "configure", 0 },
-        { ".git", 0 },
-        { "CMakeLists.txt", 0 },
-        { "*.pro", Wildcard },
-        { "scons.1", 0 },
-        { "*.scons", Wildcard },
-        { "SConstruct", 0 },
-        { "autogen.*", Wildcard },
-        { "Makefile*", Wildcard },
-        { "GNUMakefile*", Wildcard },
-        { "INSTALL*", Wildcard },
-        { "README*", Wildcard },
-        { 0, 0 }
-    };
-    const Path home = Path::home();
-    for (int i=0; entries[i].name; ++i) {
-        const Path p = findAncestor(path, entries[i].name, entries[i].flags);
-        if (!p.isEmpty() && p != home) {
-            return p;
-        }
-    }
-
-    {
-        const Path configStatus = findAncestor(path, "config.status", 0);
-        if (!configStatus.isEmpty()) {
-            FILE *f = fopen((configStatus + "config.status").constData(), "r");
-            char line[1024];
-            enum { MaxLines = 10 };
-            for (int i=0; i<MaxLines; ++i) {
-                int r = RTags::readLine(f, line, sizeof(line));
-                if (r == -1)
-                    break;
-                char *configure = strstr(line, "configure");
-                if (configure) {
-                    Path ret = Path::resolved(ByteArray(line, configure - line));
-                    if (!ret.endsWith('/'))
-                        ret.append('/');
-                    if (ret != home)
-                        return ret;
-                }
-            }
-        }
-    }
-    return Path();
-}
-
 void Server::onFileReady(const GccArguments &args, MakefileParser *parser)
 {
     if (!processSourceFile(args, parser->makefile()))
@@ -1096,6 +1063,7 @@ void Server::writeProjects()
             switch (it->second.type) {
             case RTags::Type_Makefile: key = "Makefiles"; break;
             case RTags::Type_SmartProject: key = "SmartProjects"; break;
+            // case RTags::Type_SmartProject: key = "SmartProjects"; break;
             case RTags::Type_Command|RTags::Type_Makefile: key = "MakefileCommands"; break;
             case RTags::Type_Command|RTags::Type_SmartProject: key = "SmartProjectCommands"; break;
             default:
@@ -1625,3 +1593,57 @@ void Server::restore()
         fclose(f);
     }
 }
+
+Path Server::findProjectRoot(const Path &path)
+{
+    struct Entry {
+        const char *name;
+        const unsigned flags;
+    } entries[] = {
+        { "GTAGS", 0 },
+        { "configure", 0 },
+        { ".git", 0 },
+        { "CMakeLists.txt", 0 },
+        { "*.pro", Wildcard },
+        { "scons.1", 0 },
+        { "*.scons", Wildcard },
+        { "SConstruct", 0 },
+        { "autogen.*", Wildcard },
+        { "Makefile*", Wildcard },
+        { "GNUMakefile*", Wildcard },
+        { "INSTALL*", Wildcard },
+        { "README*", Wildcard },
+        { 0, 0 }
+    };
+    const Path home = Path::home();
+    for (int i=0; entries[i].name; ++i) {
+        const Path p = findAncestor(path, entries[i].name, entries[i].flags);
+        if (!p.isEmpty() && p != home) {
+            return p;
+        }
+    }
+
+    {
+        const Path configStatus = findAncestor(path, "config.status", 0);
+        if (!configStatus.isEmpty()) {
+            FILE *f = fopen((configStatus + "config.status").constData(), "r");
+            char line[1024];
+            enum { MaxLines = 10 };
+            for (int i=0; i<MaxLines; ++i) {
+                int r = RTags::readLine(f, line, sizeof(line));
+                if (r == -1)
+                    break;
+                char *configure = strstr(line, "configure");
+                if (configure) {
+                    Path ret = Path::resolved(ByteArray(line, configure - line));
+                    if (!ret.endsWith('/'))
+                        ret.append('/');
+                    if (ret != home)
+                        return ret;
+                }
+            }
+        }
+    }
+    return Path();
+}
+

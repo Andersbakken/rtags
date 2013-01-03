@@ -13,7 +13,6 @@ public:
     enum Lang { NoLang, C, CPlusPlus };
 
     GccArguments();
-    GccArguments(const ByteArray &args, const Path &base);
 
     bool parse(ByteArray args, const Path &base);
     Lang lang() const;

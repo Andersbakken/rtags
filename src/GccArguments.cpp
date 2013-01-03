@@ -8,12 +8,6 @@ GccArguments::GccArguments()
 {
 }
 
-GccArguments::GccArguments(const ByteArray &args, const Path &base)
-    : mLang(NoLang)
-{
-    parse(args, base);
-}
-
 void GccArguments::clear()
 {
     mClangArgs.clear();

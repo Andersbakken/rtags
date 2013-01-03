@@ -41,6 +41,7 @@ private:
     void addLog(int level);
     void addMakeFile(const Path &makefile, const List<ByteArray> &args);
     void addSmartProject(const Path &dir);
+    void addAutoProject(const Path &cwd, const List<ByteArray> &args);
 
     unsigned mQueryFlags, mClientFlags, mMakefileFlags;
     int mMax, mLogLevel, mTimeout;

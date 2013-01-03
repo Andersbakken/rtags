@@ -244,6 +244,11 @@ void RClient::addSmartProject(const Path &path)
     mCommands.append(new ProjectCommand(RTags::Type_SmartProject, path));
 }
 
+void RClient::addAutoProject(const Path &cwd, const List<ByteArray> &args)
+{
+    mCommands.append(new ProjectCommand(RTags::Type_Auto, cwd, args));
+}
+
 static void timeout(int timerId, void *userData)
 {
     EventLoop *loop = static_cast<EventLoop*>(userData);
@@ -280,6 +285,7 @@ enum {
     Clear,
     CodeComplete,
     CodeCompleteAt,
+    CompilationArgs,
     CompilerFlag,
     CursorInfo,
     Define,
@@ -358,7 +364,7 @@ struct Option opts[] = {
     { Clear, "clear", 'C', no_argument, "Clear projects." },
     { Project, "project", 'w', optional_argument, "With arg, select project matching that if unique, otherwise list all projects." },
     { DeleteProject, "delete-project", 'W', required_argument, "Delete all projects matching regexp." },
-    { SmartProject, "smart-project", 'j', optional_argument, "Try to guess the source files and includepaths for a certain path. Often has to be combined with -D." },
+    { SmartProject, "smart-project", 'j', optional_argument, "Try to guess the source files and includepaths for a certain path. Often has to be mcombined with -D." },
     { UnloadProject, "unload", 'u', required_argument, "Unload project(s) matching argument." },
     { ReloadProjects, "reload-projects", 'z', no_argument, "Reload projects from projects file." },
     { JobCount, "jobcount", 0, required_argument, "Set or query current job count." },
@@ -382,6 +388,7 @@ struct Option opts[] = {
     { CodeCompleteAt, "code-complete-at", 'x', required_argument, "Get code completion from location (must be specified with path:line:column)." },
     { CodeComplete, "code-complete", 0, no_argument, "Get code completion from stream written to stdin." },
     { FixIts, "fixits", 0, required_argument, "Get fixits for file." },
+    { CompilationArgs, "compilation-args", 0, required_argument, "Set compilation arguments" },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -777,6 +784,16 @@ bool RClient::parse(int &argc, char **argv)
             if (p.isDir())
                 p.append('/');
             addQuery(QueryMessage::HasFileManager, p);
+            break; }
+        case CompilationArgs: {
+            List<ByteArray> args(1);
+            ByteArray &buf = args.first();
+            buf.append(optarg);
+            while (optind < argc) {
+                buf.append(' ');
+                buf.append(argv[optind++]);
+            }
+            addAutoProject(Path::pwd(), args);
             break; }
         case IsIndexed:
         case DumpFile:
