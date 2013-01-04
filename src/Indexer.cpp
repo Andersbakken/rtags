@@ -60,7 +60,7 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
 
 bool Indexer::finish()
 {
-    bool ret = false;
+    int jobsSaved = 0;
     {
         MutexLocker lock(&mMutex);
         if (mJobs.isEmpty()) {
@@ -68,19 +68,21 @@ bool Indexer::finish()
             mTimer.restart();
             write();
             if (mJobCounter) {
+                jobsSaved = mJobCounter;
                 error() << "Jobs took" << ((double)(mLastJobElapsed) / 1000.0) << "secs, writing took"
                         << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
                         << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
                 mJobCounter = 0;
+            } else {
+                jobsSaved = -1; // we want to return true
             }
-            ret = true;
             EventLoop::instance()->removeTimer(mFinishedTimer);
             mFinishedTimer = -1;
         }
     }
 
-    if (ret) {
-        mJobsComplete(shared_from_this(), mJobCounter);
+    if (jobsSaved) {
+        mJobsComplete(shared_from_this(), jobsSaved);
 
         if (mFlags & Validate) {
             shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(project(), mPreviousErrors));
@@ -88,7 +90,7 @@ bool Indexer::finish()
             Server::instance()->startQueryJob(validateJob);
         }
     }
-    return ret;
+    return jobsSaved;
 }
 
 void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
@@ -379,7 +381,6 @@ void Indexer::write()
         writeReferences(data->references, symbols.data());
         writeSymbolNames(data->symbolNames, symbolNames.data());
     }
-    Timer timer;
     for (Set<uint32_t>::const_iterator it = newFiles.begin(); it != newFiles.end(); ++it) {
         const Path path = Location::path(*it);
         const Path dir = path.parentDir();

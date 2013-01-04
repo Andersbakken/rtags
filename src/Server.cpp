@@ -785,46 +785,32 @@ void Server::writeProjects()
     }
 }
 
-void Server::removeProject(const Path &path)
-{
-    bool ok;
-    shared_ptr<Project> project = mProjects.take(path, &ok);
-    if (ok) {
-        project->unload();
-        writeProjects();
-    }
-}
-
-void Server::unloadProject(const Path &path)
-{
-    ProjectsMap::iterator it = mProjects.find(path);
-    if (it == mProjects.end())
-        return;
-    it->second->unload();
-}
-
 void Server::removeProject(const QueryMessage &query, Connection *conn)
 {
-    const Match match = query.match();
-    Set<Path> remove;
-    for (ProjectsMap::iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second->match(match))
-            remove.insert(it->first);
-    }
     const bool unload = query.type() == QueryMessage::UnloadProject;
 
-    for (Set<Path>::const_iterator it = remove.begin(); it != remove.end(); ++it) {
-        Path path = *it;
-        conn->write<128>("%s project: %s", unload ? "Unloaded" : "Deleted", path.constData());
-        if (!unload) {
-            RTags::encodePath(path);
-            Path::rm(mOptions.dataDir + path);
-            removeProject(*it);
-        } else {
-            unloadProject(*it);
+    const Match match = query.match();
+    ProjectsMap::iterator it = mProjects.begin();
+    bool write = false;
+    while (it != mProjects.end()) {
+        ProjectsMap::iterator cur = it++;
+        if (cur->second->match(match)) {
+            cur->second->unload();
+            Path path = cur->first;
+            conn->write<128>("%s project: %s", unload ? "Unloaded" : "Deleted", path.constData());
+            if (!unload) {
+                RTags::encodePath(path);
+                Path::rm(mOptions.dataDir + path);
+                mProjects.erase(cur);
+                write = true;
+            }
+            if (mCurrentProject.lock() == it->second)
+                mCurrentProject.reset();
         }
     }
     conn->finish();
+    if (write)
+        writeProjects();
 }
 
 void Server::reloadProjects(const QueryMessage &query, Connection *conn)

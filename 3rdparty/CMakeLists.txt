@@ -5,14 +5,6 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 ExternalProject_Add(
-    make-3.82
-    SOURCE_DIR make-3.82
-    CONFIGURE_COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/make-3.82/configure -prefix=${CMAKE_CURRENT_BINARY_DIR}/make_install
-    BUILD_COMMAND \$\(MAKE\)
-    UPDATE_COMMAND ""
-    )
-
-ExternalProject_Add(
     llvm
     SOURCE_DIR llvm
     GIT_REPOSITORY http://llvm.org/git/llvm.git
@@ -35,18 +27,6 @@ ExternalProject_Add(
     libcxx
     SOURCE_DIR libcxx
     GIT_REPOSITORY http://llvm.org/git/libcxx.git
-    GIT_TAG origin/master
-    BUILD_COMMAND ""
-    CONFIGURE_COMMAND ""
-    INSTALL_COMMAND ""
-    )
-
-
-
-ExternalProject_Add(
-    picojson
-    SOURCE_DIR picojson
-    GIT_REPOSITORY git://github.com/kazuho/picojson.git
     GIT_TAG origin/master
     BUILD_COMMAND ""
     CONFIGURE_COMMAND ""

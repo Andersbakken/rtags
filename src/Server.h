@@ -109,8 +109,6 @@ private:
     shared_ptr<Project> updateProjectForLocation(const Path &path);
     void writeProjects();
     shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
-    void removeProject(const Path &key);
-    void unloadProject(const Path &key);
     void reloadProjects();
     void onCompletionStreamDisconnected(LocalClient *client);
     shared_ptr<Project> addProject(const Path &path);
