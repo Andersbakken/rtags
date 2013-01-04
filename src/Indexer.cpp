@@ -228,7 +228,6 @@ void Indexer::onValidateDBJobErrors(const Set<Location> &errors)
 
 void Indexer::onFilesModifiedTimeout()
 {
-    printf("[%s] %s:%d: void Indexer::onFilesModifiedTimeout() [after]\n", __func__, __FILE__, __LINE__);
     Set<uint32_t> dirtyFiles;
     Map<Path, List<ByteArray> > toIndex;
     {
