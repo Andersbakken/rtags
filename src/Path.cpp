@@ -95,9 +95,15 @@ bool Path::resolve(const Path &cwd)
     }
 
     {
-        char buffer[PATH_MAX + 1];
+        char buffer[PATH_MAX + 2];
         if (realpath(constData(), buffer)) {
-            ByteArray::operator=(buffer);
+            int len = strlen(buffer);
+            struct stat st;
+            if (!stat(buffer, &st) && st.st_mode & S_IFDIR) {
+                buffer[len++] = '/';
+                buffer[len] = '\0';
+            }
+            assign(buffer, len);
             return true;
         }
     }
@@ -314,7 +320,11 @@ Path Path::pwd()
 {
     char buf[PATH_MAX];
     char *pwd = getcwd(buf, sizeof(buf));
-    if (pwd)
-        return pwd;
+    if (pwd) {
+        Path ret(pwd);
+        if (!ret.endsWith('/'))
+            ret.append('/');
+        return ret;
+    }
     return Path();
 }
