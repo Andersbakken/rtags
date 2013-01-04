@@ -16,6 +16,16 @@ public:
         : Base(count, defaultValue)
     {}
 
+    template <typename CompatibleType>
+    List(const std::vector<CompatibleType> &other)
+        : Base(other.size(), T())
+    {
+        const int size = other.size();
+        for (int i=0; i<size; ++i) {
+            std::vector<T>::operator[](i) = other.at(i);
+        }
+    }
+
     bool contains(const T &t) const
     {
         return std::find(Base::begin(), Base::end(), t) != Base::end();
