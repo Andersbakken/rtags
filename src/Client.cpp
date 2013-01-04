@@ -34,7 +34,7 @@ void Client::sendMessage(int id, const ByteArray &msg, SendFlag flag)
 {
     if (!mConnection && !connectToServer() && !(mFlags & (RestartRdm|AutostartRdm))) {
         if (!(mFlags & DontWarnOnConnectionFailure))
-            fprintf(stderr, "Can't seem to connect to server\n");
+            error("Can't seem to connect to server");
         return;
     }
 
@@ -52,7 +52,7 @@ void Client::onNewMessage(Message *message, Connection *)
     if (message->messageId() == ResponseMessage::MessageId) {
         const ByteArray response = static_cast<ResponseMessage*>(message)->data();
         if (!response.isEmpty()) {
-            printf("%s\n", response.constData());
+            error("%s", response.constData());
             fflush(stdout);
         }
     } else {
