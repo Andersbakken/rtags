@@ -81,6 +81,7 @@ set(rtags_client_SRCS
 
 set(rtags_HDRS
     ${rtags_client_HDRS}
+    AutoProjectJob.h
     CompletionJob.h
     CursorInfo.h
     CursorInfoJob.h
@@ -109,6 +110,7 @@ set(rtags_HDRS
 
 set(rtags_SRCS
     ${rtags_client_SRCS}
+    AutoProjectJob.cpp
     CompletionJob.cpp
     CursorInfoJob.cpp
     FindFileJob.cpp

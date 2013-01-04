@@ -194,7 +194,8 @@ public:
             error() << "Invalid path" << path;
         }
         ProjectMessage msg(type, path);
-        msg.init(rc->argc(), rc->argv());
+        if (type != RTags::Type_Auto)
+            msg.init(rc->argc(), rc->argv());
         msg.setFlags(rc->makefileFlags());
         msg.setExtraFlags(rc->extraCompilerFlags());
         if (type == RTags::Type_SmartProject) {

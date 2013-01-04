@@ -1,5 +1,6 @@
 #include "Server.h"
 
+#include "AutoProjectJob.h"
 #include "Client.h"
 #include "CompletionJob.h"
 #include "Connection.h"
@@ -188,6 +189,8 @@ shared_ptr<Project> Server::addProject(const Path &p, const ProjectEntry &newEnt
         entry = newEntry;
         entry.saveKey = p;
         entry.project.reset(new Project(path));
+        if (entry.type == RTags::Type_Auto)
+            entry.project->setSrcRoot(p);
         RTags::encodePath(path);
         const Path cacheFilePath = ByteArray::format<128>("%s%s", mOptions.dataDir.constData(), path.constData());
         if (FILE *f = fopen(cacheFilePath.constData(), "r")) {
@@ -227,6 +230,7 @@ void Server::reloadProjects()
         { RTags::Type_SmartProject, "SmartProjects" },
         { RTags::Type_Command|RTags::Type_Makefile, "MakefileCommands" },
         { RTags::Type_Command|RTags::Type_SmartProject, "SmartProjectCommands" },
+        { RTags::Type_Auto, "AutoProjects" },
         { 0, 0 }
     };
     const Path home = Path::home();
@@ -346,26 +350,10 @@ void Server::handleProjectMessage(ProjectMessage *message, Connection *conn)
     case RTags::Type_Synthesized:
         assert(0);
         break;
-    case RTags::Type_Auto: {
+    case RTags::Type_Auto:
         conn->finish(); // nothing to wait for
-        assert(message->arguments().size() == 1);
-        GccArguments args;
-        if (!args.parse(message->arguments().first(), message->path())) 
-            break;
-
-        Path srcRoot = findProjectRoot(args.unresolvedInputFiles().first());
-        if (srcRoot.isEmpty())
-            srcRoot = findProjectRoot(args.inputFiles().first());
-        if (srcRoot.isEmpty())
-            break;
-
-        if (!mProjects.contains(srcRoot)) {
-            shared_ptr<Project> project = addProject(srcRoot, ProjectEntry(message->type()));
-            restoreProject(project, srcRoot);
-            error() << "Added project" << srcRoot;
-        }
-        processSourceFile(args, srcRoot);
-        break; }
+        startAutoProjectJob(*message);
+        break;
     case RTags::Type_Command:
         break;
     case RTags::Type_Makefile:
@@ -1013,8 +1001,12 @@ shared_ptr<Project> Server::setCurrentProject(const Path &path)
         mCurrentProject = it->second.project;
         assert(mCurrentProject.lock());
         if (!it->second.project->isValid()) {
-            if (!it->second.project->srcRoot().isEmpty())
+            if (!it->second.project->srcRoot().isEmpty()) {
                 restoreProject(it->second.project, it->second.project->srcRoot());
+            } else if (!it->second.type == RTags::Type_Auto) {
+                restoreProject(it->second.project, path);
+            }
+            
             if (it->second.type & RTags::Type_Makefile) {
                 remake(it->first, 0);
             } else if (it->second.type & RTags::Type_SmartProject) {
@@ -1063,9 +1055,9 @@ void Server::writeProjects()
             switch (it->second.type) {
             case RTags::Type_Makefile: key = "Makefiles"; break;
             case RTags::Type_SmartProject: key = "SmartProjects"; break;
-            // case RTags::Type_SmartProject: key = "SmartProjects"; break;
             case RTags::Type_Command|RTags::Type_Makefile: key = "MakefileCommands"; break;
             case RTags::Type_Command|RTags::Type_SmartProject: key = "SmartProjectCommands"; break;
+            case RTags::Type_Auto: key = "AutoProjects"; break;
             default:
                 assert(0);
             }
@@ -1205,7 +1197,6 @@ bool Server::initSmartProject(const ProjectEntry &entry)
     for (Map<Path, SmartProjectFileUserData>::iterator it = dirs.begin(); it != dirs.end(); ++it) {
         SmartProjectFileUserData &ud = it->second;
         // for SmartProjects args are actually excludes
-        error() << "Got shit" << entry.args;
         ud.excludesWildcard = entry.args;
         if (hasHeaders(path))
             ud.includePaths.insert(path);
@@ -1647,3 +1638,20 @@ Path Server::findProjectRoot(const Path &path)
     return Path();
 }
 
+void Server::startAutoProjectJob(const ProjectMessage &message)
+{
+    shared_ptr<AutoProjectJob> job(new AutoProjectJob(message));
+    job->fileReady().connectAsync(this, &Server::processAutoProjectJob);
+    mQueryThreadPool.start(job);
+}
+void Server::processAutoProjectJob(GccArguments args, Path srcRoot)
+{
+    if (!mProjects.contains(srcRoot)) {
+        shared_ptr<Project> project = addProject(srcRoot, ProjectEntry(RTags::Type_Auto));
+        restoreProject(project, srcRoot);
+        writeProjects();
+        error() << "Added project" << srcRoot;
+    }
+
+    processSourceFile(args, srcRoot);
+}

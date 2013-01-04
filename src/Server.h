@@ -55,6 +55,7 @@ public:
     const List<ByteArray> &excludeFilter() const { return mOptions.excludeFilter; }
     const Path &clangPath() const { return mClangPath; }
     const Options &options() const { return mOptions; }
+    static Path findProjectRoot(const Path &path);
 private:
     bool selectProject(const Match &match, Connection *conn);
     bool updateProject(const List<ByteArray> &projects);
@@ -64,7 +65,6 @@ private:
     bool isCompletionStream(Connection* conn) const;
 
     static void saveTimerCallback(int id, void *userData);
-    static Path findProjectRoot(const Path &path);
 
     void save(const shared_ptr<Indexer> &indexer);
     void restore();
@@ -75,6 +75,7 @@ private:
     void event(const Event *event);
     void onFileReady(const GccArguments &file, MakefileParser *parser);
     bool processSourceFile(const GccArguments &args, const Path &makefile);
+    void processAutoProjectJob(GccArguments args, Path path);
     void onNewMessage(Message *message, Connection *conn);
     void onConnectionDestroyed(Connection *o);
     void onMakefileParserDone(MakefileParser *parser);
@@ -109,6 +110,7 @@ private:
     void project(const QueryMessage &query, Connection *conn);
     void clearProjects(const QueryMessage &query, Connection *conn);
     void shutdown(const QueryMessage &query, Connection *conn);
+    void startAutoProjectJob(const ProjectMessage &message);
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
     void remake(const Match &match = Match(), Connection *conn = 0);
