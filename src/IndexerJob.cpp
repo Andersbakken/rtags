@@ -664,8 +664,10 @@ bool IndexerJob::parse()
     return !isAborted();
 }
 
-bool IndexerJob::diagnose()
+bool IndexerJob::diagnose(int *errorCount)
 {
+    if (errorCount)
+        *errorCount = 0;
     if (!mUnit)
         return false;
 
@@ -677,6 +679,8 @@ bool IndexerJob::diagnose()
         switch (severity) {
         case CXDiagnostic_Fatal:
         case CXDiagnostic_Error:
+            if (errorCount)
+                ++*errorCount;
             logLevel = Error;
             break;
         case CXDiagnostic_Warning:
@@ -785,11 +789,16 @@ void IndexerJob::execute()
             MutexLocker lock(&mMutex);
             mState = Started;
         }
-        if (parse() && diagnose() && visit()) {
+        int errorCount = 0;
+        if (parse() && diagnose(&errorCount) && visit()) {
+            ByteArray status = mUnit ? "success" : "error";
+            if (errorCount)
+                status += ByteArray::format<32>(" %d errors", errorCount);
             mData->message = ByteArray::format<1024>("%s (%s) in %sms. (%d syms, %d symNames, %d refs, %d deps)%s",
-                                                       mPath.toTilde().constData(), mUnit ? "success" : "error", ByteArray::number(mTimer.elapsed()).constData(),
-                                                       mData->symbols.size(), mData->symbolNames.size(), mData->references.size(), mData->dependencies.size(),
-                                                       mFlags & Dirty ? " (dirty)" : "");
+                                                     mPath.toTilde().constData(), status.constData(),
+                                                     ByteArray::number(mTimer.elapsed()).constData(),
+                                                     mData->symbols.size(), mData->symbolNames.size(), mData->references.size(), mData->dependencies.size(),
+                                                     mFlags & Dirty ? " (dirty)" : "");
             shared_ptr<Indexer> idx;
             {
                 MutexLocker lock(&mMutex);

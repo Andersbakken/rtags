@@ -56,7 +56,7 @@ public:
 private:
     bool parse();
     bool visit();
-    bool diagnose();
+    bool diagnose(int *errorCount);
 
     virtual void execute();
 
