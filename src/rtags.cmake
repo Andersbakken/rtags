@@ -61,6 +61,7 @@ set(rtags_client_SRCS
     Connection.cpp
     CreateOutputMessage.cpp
     EventLoop.cpp
+    EventReceiver.cpp
     LocalClient.cpp
     Location.cpp
     Log.cpp

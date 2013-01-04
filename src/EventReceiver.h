@@ -5,39 +5,36 @@
 #include "Event.h"
 #include "SignalSlot.h"
 
-class EventReceiver
+class EventReceiver : public enable_shared_from_this<EventReceiver>
 {
 public:
-    EventReceiver() {}
-    virtual ~EventReceiver()
+    EventReceiver();
+    virtual ~EventReceiver();
+    void postEvent(Event *event); // threadsafe
+    void deleteLater();
+    class TimerEvent
     {
-        if (EventLoop *loop = EventLoop::instance())
-            loop->removeEvents(this);
-    }
-
-    void postEvent(Event *event) // threadsafe
-    {
-        EventLoop::instance()->postEvent(this, event);
-    }
-
-    void deleteLater()
-    {
-        postEvent(new DeleteLaterEvent);
-    }
+    public:
+        TimerEvent() : mId(0), mInterval(0), mSingleShot(false), mUserData(0) {}
+        void stop() { mSingleShot = true; }
+        inline int id() const { return mId; }
+        inline int interval() const { return mInterval; }
+        inline bool singleShot() const { return mSingleShot; }
+        inline void *userData() const { return mUserData; }
+    private:
+        int mId, mInterval;
+        bool mSingleShot;
+        void *mUserData;
+        friend class EventReceiver;
+    };
+    int startTimer(int interval, bool singleShot, void *userData = 0);
 protected:
-    virtual void event(const Event* event)
-    {
-        switch (event->type()) {
-        case DeleteLaterEvent::Type:
-            delete this;
-            break;
-        case signalslot::SignalEventBase::Type:
-            static_cast<const signalslot::SignalEventBase*>(event)->send();
-            break;
-        }
-    }
+    virtual void timerEvent(TimerEvent *event);
+    virtual void event(const Event *event);
 
 private:
+    void sendEvent(const Event *event);
+
     class DeleteLaterEvent : public Event
     {
     public:
@@ -47,6 +44,8 @@ private:
         {}
     };
 
+    Map<int, TimerEvent> mTimers;
+    static void timerEventCallBack(int id, void *userData);
     friend class EventLoop;
 };
 

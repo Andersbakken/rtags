@@ -374,7 +374,7 @@ void EventLoop::sendPostedEvents()
         EventData data = *first;
         mEvents.erase(first);
         locker.unlock();
-        data.receiver->event(data.event);
+        data.receiver->sendEvent(data.event);
         delete data.event;
         locker.relock();
     }
