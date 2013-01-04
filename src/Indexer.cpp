@@ -11,8 +11,11 @@
 #include "WriteLocker.h"
 #include <math.h>
 
+static void *ModifiedFiles = &ModifiedFiles;
+static void *Finished = &Finished;
+
 Indexer::Indexer(const shared_ptr<Project> &proj, unsigned flags)
-    : mJobCounter(0), mModifiedFilesTimerId(-1), mFinishedTimer(-1), mTimerRunning(false), mLastJobElapsed(0),
+    : mJobCounter(0), mTimerRunning(false), mLastJobElapsed(0),
       mProject(proj), mFlags(flags), mFirstCachedUnit(0), mLastCachedUnit(0), mUnitCacheSize(0)
 {
     mWatcher.modified().connect(this, &Indexer::onFileModified);
@@ -37,10 +40,8 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
     if (job->isAborted())
         return;
 
-    if (mFinishedTimer != -1)
-        EventLoop::instance()->removeTimer(mFinishedTimer);
     enum { Timeout = 2000 };
-    mFinishedTimer = EventLoop::instance()->addTimer(Timeout, &Indexer::onCheckFinishedTimerElapsed, this);
+    mFinishedTimer.start(shared_from_this(), Timeout, true, Finished);
 
     CXTranslationUnit unit = job->takeTranslationUnit();
     if (unit)
@@ -76,13 +77,11 @@ bool Indexer::finish()
             } else {
                 jobsSaved = -1; // we want to return true
             }
-            EventLoop::instance()->removeTimer(mFinishedTimer);
-            mFinishedTimer = -1;
         }
     }
 
     if (jobsSaved) {
-        mJobsComplete(shared_from_this(), jobsSaved);
+        mJobsComplete(static_pointer_cast<Indexer>(shared_from_this()), jobsSaved);
 
         if (mFlags & Validate) {
             shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(project(), mPreviousErrors));
@@ -130,31 +129,29 @@ void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
     CXIndex index = 0;
     CXTranslationUnit unit = 0;
     initJobFromCache(c.sourceFile, c.args, index, unit, 0);
-    job.reset(new IndexerJob(shared_from_this(), indexerJobFlags, c.sourceFile, c.args, index, unit));
+    shared_ptr<Indexer> indexer = static_pointer_cast<Indexer>(shared_from_this());
+    job.reset(new IndexerJob(indexer, indexerJobFlags, c.sourceFile, c.args, index, unit));
 
     ++mJobCounter;
     if (!mTimerRunning) {
         mTimerRunning = true;
         mTimer.start();
     }
-    mJobStarted(shared_from_this(), c.sourceFile);
+    mJobStarted(indexer, c.sourceFile);
     Server::instance()->startIndexerJob(job, job->priority());
 }
 
 void Indexer::onFileModified(const Path &file)
 {
-    // error() << file << "was modified";
     const uint32_t fileId = Location::fileId(file);
-    if (!fileId)
+    warning() << file << "was modified" << fileId << mModifiedFiles.contains(fileId);
+    if (!fileId || !mModifiedFiles.insert(fileId)) {
         return;
-    mModifiedFiles.insert(fileId);
-    if (mModifiedFilesTimerId != -1) {
-        EventLoop::instance()->removeTimer(mModifiedFilesTimerId);
-        mModifiedFilesTimerId = -1;
     }
-    enum { Timeout = 100 };
-    mModifiedFilesTimerId = EventLoop::instance()->addTimer(Timeout, &Indexer::onFilesModifiedTimeout, this);
+    enum { Timeout = 200 };
+    mModifiedFilesTimer.start(shared_from_this(), Timeout, true, reinterpret_cast<void*>(ModifiedFiles));
 }
+
 
 SourceInformation Indexer::sourceInfo(uint32_t fileId) const
 {
@@ -231,6 +228,7 @@ void Indexer::onValidateDBJobErrors(const Set<Location> &errors)
 
 void Indexer::onFilesModifiedTimeout()
 {
+    printf("[%s] %s:%d: void Indexer::onFilesModifiedTimeout() [after]\n", __func__, __FILE__, __LINE__);
     Set<uint32_t> dirtyFiles;
     Map<Path, List<ByteArray> > toIndex;
     {
@@ -609,13 +607,14 @@ ByteArray Indexer::fixIts(uint32_t fileId) const
     return out;
 }
 
-void Indexer::onFilesModifiedTimeout(int id, void *userData)
+void Indexer::timerEvent(TimerEvent *e)
 {
-    EventLoop::instance()->removeTimer(id);
-    static_cast<Indexer*>(userData)->onFilesModifiedTimeout();
-}
-
-void Indexer::onCheckFinishedTimerElapsed(int, void *userData)
-{
-    static_cast<Indexer*>(userData)->finish();
+    if (e->userData() == Finished) {
+        finish();
+    } else if (e->userData() == ModifiedFiles) {
+        onFilesModifiedTimeout();
+    } else {
+        assert(0 && "Unexpected timer event in Indexer");
+        e->stop();
+    }
 }

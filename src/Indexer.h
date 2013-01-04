@@ -3,6 +3,7 @@
 
 #include "CursorInfo.h"
 #include "FileSystemWatcher.h"
+#include "EventReceiver.h"
 #include "MutexLocker.h"
 #include "RTags.h"
 #include "ReadWriteLock.h"
@@ -33,7 +34,7 @@ struct CachedUnit
     List<ByteArray> arguments;
 };
 
-class Indexer : public enable_shared_from_this<Indexer>
+class Indexer : public EventReceiver
 {
 public:
     enum Flag {
@@ -63,6 +64,7 @@ public:
     Set<Path> watchedPaths() const { return mWatchedPaths; }
     bool fetchFromCache(const Path &path, List<ByteArray> &args, CXIndex &index, CXTranslationUnit &unit);
     void addToCache(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
+    void timerEvent(TimerEvent *event);
 private:
     bool initJobFromCache(const Path &path, const List<ByteArray> &args,
                           CXIndex &index, CXTranslationUnit &unit, List<ByteArray> *argsOut);
@@ -72,9 +74,7 @@ private:
     void write();
     void onFilesModifiedTimeout();
     void addCachedUnit(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
-    static void onFilesModifiedTimeout(int id, void *userData);
     bool finish();
-    static void onCheckFinishedTimerElapsed(int id, void *userData);
     void onValidateDBJobErrors(const Set<Location> &errors);
 
     enum InitMode {
@@ -94,7 +94,7 @@ private:
     Map<uint32_t, shared_ptr<IndexerJob> > mJobs;
 
     Set<uint32_t> mModifiedFiles;
-    int mModifiedFilesTimerId, mFinishedTimer;
+    Timer mModifiedFilesTimer, mFinishedTimer;
 
     bool mTimerRunning;
     StopWatch mTimer;
