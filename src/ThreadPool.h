@@ -1,5 +1,5 @@
-#ifndef THREADPOOL_H
-#define THREADPOOL_H
+#ifndef ThreadPool_h
+#define ThreadPool_h
 
 #include "Mutex.h"
 #include "WaitCondition.h"
