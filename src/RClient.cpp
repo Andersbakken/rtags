@@ -318,6 +318,7 @@ enum {
     ReloadProjects,
     RestartRdm,
     ReverseSort,
+    Silent,
     SkipParen,
     SmartProject,
     SmartProjectExclude,
@@ -342,6 +343,7 @@ struct Option {
 struct Option opts[] = {
     { None, 0, 0, 0, "Options:" },
     { Verbose, "verbose", 'v', no_argument, "Be more verbose." },
+    { Silent, "silent", 0, no_argument, "Be silent." },
     { Help, "help", 'h', no_argument, "Display this help." },
 
     { None, 0, 0, 0, "" },
@@ -620,6 +622,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case Verbose:
             ++mLogLevel;
+            break;
+        case Silent:
+            mLogLevel = -1;
             break;
         case LogFile:
             logFile = optarg;
