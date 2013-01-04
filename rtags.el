@@ -79,7 +79,7 @@
                 (next
                  (setq target (point-at-bol 2)))
                 (t
-                 (setq target (point-at-bol -1))))
+                 (setq target (point-at-bol 0))))
           (goto-char target)
           (beginning-of-line)
           (if win (rtags-select-other-buffer) (rtags-select))))))
