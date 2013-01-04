@@ -103,20 +103,12 @@ bool GccArguments::parse(ByteArray args, const Path &base)
         int size = args.size();
         while (size > 0) {
             switch (*cur) {
-            case '\\':
-                assert(size > 0);
-                memmove(cur, cur + 1, size);
-                --size;
-                break;
-
             case '"':
             case '\'':
                 if (quote == '\0')
                     quote = *cur;
                 else if (*cur == quote)
                     quote = '\0';
-                memmove(cur, cur + 1, size);
-                --size;
                 break;
             case ' ':
                 if (quote == '\0') {
