@@ -8,24 +8,9 @@ Project::Project(const Path &path)
 {
 }
 
-void Project::setSrcRoot(const Path &src)
-{
-    mResolvedSrcRoot = mSrcRoot = src;
-    mResolvedSrcRoot.resolve();
-    if (!mSrcRoot.endsWith('/'))
-        mSrcRoot.append('/');
-    if (mResolvedSrcRoot.ByteArray::operator==(mSrcRoot)) {
-        mResolvedSrcRoot.clear();
-    } else if (!mResolvedSrcRoot.endsWith('/')) {
-        mResolvedSrcRoot.append('/');
-    }
-}
-
-void Project::init(const Path &src)
+void Project::init()
 {
     assert(!isValid());
-    setSrcRoot(src);
-
     fileManager.reset(new FileManager);
     fileManager->init(shared_from_this());
     unsigned flags = Indexer::None;
@@ -35,6 +20,36 @@ void Project::init(const Path &src)
     if (options & Server::IgnorePrintfFixits)
         flags |= Indexer::IgnorePrintfFixits;
     indexer.reset(new Indexer(shared_from_this(), flags));
+}
+
+void Project::restore()
+{
+    Timer timer;
+    Path path = mPath;
+    RTags::encodePath(path);
+    const Path p = ByteArray::format<128>("%s%s", Server::instance()->options().dataDir.constData(), path.constData());
+    if (FILE *f = fopen(p.constData(), "r")) {
+        Deserializer in(f);
+        int version;
+        in >> version;
+        if (version == Server::DatabaseVersion) {
+            int fs;
+            in >> fs;
+            if (fs != RTags::fileSize(f)) {
+                error("%s seems to be corrupted, refusing to restore %s",
+                      p.constData(), mPath.constData());
+            } else {
+                if (!restore(in)) {
+                    error("Can't restore project %s", mPath.constData());
+                } else if (!indexer->restore(in)) {
+                    error("Can't restore project %s", mPath.constData());
+                } else {
+                    error("Restored project %s in %dms", mPath.constData(), timer.elapsed());
+                }
+            }
+        }
+        fclose(f);
+    }
 }
 
 bool Project::isValid() const
@@ -166,7 +181,7 @@ bool Project::match(const Match &p)
     Scope<const FilesMap&> files = lockFilesForRead();
     for (int i=0; i<count; ++i) {
         const Path &path = paths[i];
-        if (files.data().contains(path) || p.match(mSrcRoot) || p.match(mResolvedSrcRoot) || p.match(mPath))
+        if (files.data().contains(path) || p.match(mPath))
             return true;
         const uint32_t id = Location::fileId(path);
         if (isIndexed(id))

@@ -169,42 +169,15 @@ public:
 class ProjectCommand : public RCCommand
 {
 public:
-    ProjectCommand(RTags::ProjectType t, const Path &p, const List<ByteArray> &a = List<ByteArray>())
-        : type(t), path(p), args(a)
+    ProjectCommand(const Path &p, const ByteArray &a)
+        : path(p), args(a)
     {}
-    const RTags::ProjectType type;
     const Path path;
-    const List<ByteArray> args;
+    const ByteArray args;
     virtual void exec(RClient *rc, Client *client)
     {
-        switch (path.type()) {
-        case Path::Directory:
-            if (type == RTags::Type_Makefile) {
-                error() << path << "is not a makefile";
-                return;
-            }
-            break;
-        case Path::File:
-            if (type != RTags::Type_Makefile && type != RTags::Type_Command) {
-                error() << path << "is not a directory";
-                return;
-            }
-            break;
-        default:
-            error() << "Invalid path" << path;
-        }
-        ProjectMessage msg(type, path);
-        if (type != RTags::Type_Auto)
-            msg.init(rc->argc(), rc->argv());
-        msg.setFlags(rc->makefileFlags());
-        msg.setExtraFlags(rc->extraCompilerFlags());
-        if (type == RTags::Type_SmartProject) {
-            msg.setArguments(rc->smartProjectExcludes());
-            // We don't actually have args for smartprojects so we abuse them
-            // for the excludes
-        } else {
-            msg.setArguments(args);
-        }
+        ProjectMessage msg(path, args);
+        msg.init(rc->argc(), rc->argv());
         client->message(&msg);
     }
     virtual ByteArray description() const
@@ -214,8 +187,7 @@ public:
 };
 
 RClient::RClient()
-    : mQueryFlags(0), mClientFlags(0), mMakefileFlags(0),
-      mMax(-1), mLogLevel(0), mTimeout(0), mArgc(0), mArgv(0)
+    : mQueryFlags(0), mClientFlags(0), mMax(-1), mLogLevel(0), mTimeout(0), mArgc(0), mArgv(0)
 {
 }
 
@@ -235,19 +207,9 @@ void RClient::addLog(int level)
     mCommands.append(new RdmLogCommand(level));
 }
 
-void RClient::addMakeFile(const Path &path, const List<ByteArray> &args)
+void RClient::addProject(const Path &cwd, const ByteArray &args)
 {
-    mCommands.append(new ProjectCommand(RTags::Type_Makefile, path, args));
-}
-
-void RClient::addSmartProject(const Path &path)
-{
-    mCommands.append(new ProjectCommand(RTags::Type_SmartProject, path));
-}
-
-void RClient::addAutoProject(const Path &cwd, const List<ByteArray> &args)
-{
-    mCommands.append(new ProjectCommand(RTags::Type_Auto, cwd, args));
+    mCommands.append(new ProjectCommand(cwd, args));
 }
 
 static void timeout(int timerId, void *userData)
@@ -280,16 +242,12 @@ enum {
     None = 0,
     AbsolutePath,
     AllReferences,
-    AlwaysMake,
-    AutoMakeProject,
     AutostartRdm,
     Clear,
     CodeComplete,
     CodeCompleteAt,
     Compile,
-    CompilerFlag,
     CursorInfo,
-    Define,
     DeleteProject,
     Diagnostics,
     DumpFile,
@@ -303,13 +261,11 @@ enum {
     FollowLocation,
     HasFileManager,
     Help,
-    Includepath,
     IsIndexed,
     JobCount,
     LineNumbers,
     ListSymbols,
     LogFile,
-    Makefile,
     MatchCaseInsensitive,
     MatchRegexp,
     Max,
@@ -327,8 +283,6 @@ enum {
     ReverseSort,
     Silent,
     SkipParen,
-    SmartProject,
-    SmartProjectExclude,
     SocketFile,
     Status,
     Timeout,
@@ -361,11 +315,9 @@ struct Option opts[] = {
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Project management:" },
-    { Makefile, "makefile", 'm', optional_argument, "Process this makefile." },
     { Clear, "clear", 'C', no_argument, "Clear projects." },
     { Project, "project", 'w', optional_argument, "With arg, select project matching that if unique, otherwise list all projects." },
     { DeleteProject, "delete-project", 'W', required_argument, "Delete all projects matching regexp." },
-    { SmartProject, "smart-project", 'j', optional_argument, "Try to guess the source files and includepaths for a certain path. Often has to be mcombined with -D." },
     { UnloadProject, "unload", 'u', required_argument, "Unload project(s) matching argument." },
     { ReloadProjects, "reload-projects", 'z', no_argument, "Reload projects from projects file." },
     { JobCount, "jobcount", 0, required_argument, "Set or query current job count." },
@@ -402,9 +354,6 @@ struct Option opts[] = {
     { LineNumbers, "line-numbers", 'l', no_argument, "Output line numbers instead of offsets." },
     { PathFilter, "path-filter", 'i', required_argument, "Filter out results not matching with arg." },
     { FilterSystemHeaders, "filter-system-headers", 'H', no_argument, "Don't exempt system headers from path filters." },
-    { Includepath, "includepath", 'I', required_argument, "Add additional include path." },
-    { Define, "define", 'D', required_argument, "Add additional define." },
-    { CompilerFlag, "compiler-flag", 'o', required_argument, "Add additional compiler flags." },
     { AllReferences, "all-references", 'E', no_argument, "Include definitions/declarations/constructors/destructors for references. Used for rename symbol." },
     { ElispList, "elisp-list", 'Y', no_argument, "Output elisp: (list \"one\" \"two\" ...)." },
     { Diagnostics, "diagnostics", 'G', no_argument, "Receive continual diagnostics from rdm." },
@@ -413,13 +362,10 @@ struct Option opts[] = {
     { MatchCaseInsensitive, "match-icase", 'c', no_argument, "Match case insensitively" },
     { AbsolutePath, "absolute-path", 'K', no_argument, "Print files with absolute path." },
     { SocketFile, "socket-file", 'n', required_argument, "Use this socket file (default ~/.rdm)." },
-    { AlwaysMake, "always-make", 'B', no_argument, "Pass -B to make for rc -m." },
     { Timeout, "timeout", 'y', required_argument, "Max time in ms to wait for job to finish (default no timeout)." },
     { FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
     { FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial" },
-    { AutoMakeProject, "auto-make-project", 'b', no_argument, "Use to make adding projects (with -m) automatically index them" },
     { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
-    { SmartProjectExclude, "smart-project-exclude", 'Q', required_argument, "Wildcard that excludes files/dirs from smart project." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -540,12 +486,6 @@ bool RClient::parse(int &argc, char **argv)
         case FindFilePreferExact:
             mQueryFlags |= QueryMessage::FindFilePreferExact;
             break;
-        case AutoMakeProject:
-            mMakefileFlags |= ProjectMessage::Automake;
-            break;
-        case AlwaysMake:
-            mMakefileFlags |= ProjectMessage::UseDashB;
-            break;
         case AutostartRdm:
             mClientFlags |= Client::AutostartRdm;
             if (optarg)
@@ -605,19 +545,6 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case FilterSystemHeaders:
             mQueryFlags |= QueryMessage::FilterSystemIncludes;
-            break;
-        case Includepath: {
-            ByteArray flag("-I");
-            flag += optarg;
-            mExtraCompilerFlags.append(flag);
-            break; }
-        case Define: {
-            ByteArray flag("-D");
-            flag += optarg;
-            mExtraCompilerFlags.append(flag);
-            break; }
-        case CompilerFlag:
-            mExtraCompilerFlags.append(optarg);
             break;
         case NoContext:
             mQueryFlags |= QueryMessage::NoContext;
@@ -755,18 +682,6 @@ bool RClient::parse(int &argc, char **argv)
             if (type == QueryMessage::Project)
                 projectCommands.append(cmd);
             break; }
-        case SmartProject:
-            if (optarg) {
-                addSmartProject(Path::resolved(optarg));
-            } else if (optind < argc && argv[optind][0] != '-') {
-                addSmartProject(Path::resolved(argv[optind++]));
-            } else {
-                addSmartProject(Path::resolved("."));
-            }
-            break;
-        case SmartProjectExclude:
-            mSmartProjectExcludes.append(optarg);
-            break;
         case HasFileManager: {
             Path p;
             if (optarg) {
@@ -787,14 +702,12 @@ bool RClient::parse(int &argc, char **argv)
             addQuery(QueryMessage::HasFileManager, p);
             break; }
         case Compile: {
-            List<ByteArray> args(1);
-            ByteArray &buf = args.first();
-            buf.append(optarg);
+            ByteArray args = optarg;
             while (optind < argc) {
-                buf.append(' ');
-                buf.append(argv[optind++]);
+                args.append(' ');
+                args.append(argv[optind++]);
             }
-            addAutoProject(Path::pwd(), args);
+            addProject(Path::pwd(), args);
             break; }
         case IsIndexed:
         case DumpFile:
@@ -822,47 +735,6 @@ bool RClient::parse(int &argc, char **argv)
             }
 
             addQuery(type, p);
-            break; }
-        case Makefile: {
-            Path makefile;
-            if (optarg) {
-                makefile = Path::resolved(optarg);
-                if (makefile.isDir()) {
-                    makefile = Path::resolved("Makefile", makefile);
-                    if (!makefile.isFile()) {
-                        fprintf(stderr, "Can't find a makefile in %s\n", optarg);
-                        return false;
-                    }
-                } else if (!makefile.isFile()) {
-                    fprintf(stderr, "%s is not a file\n", optarg);
-                    return false;
-                }
-            } else {
-                if (optind < argc && *argv[optind] != '-') {
-                    makefile = Path::resolved(argv[optind++]);
-                    if (makefile.isDir()) {
-                        makefile = Path::resolved("Makefile", makefile);
-                        if (!makefile.isFile()) {
-                            fprintf(stderr, "Can't find a makefile in %s\n", argv[optind - 1]);
-                            return false;
-                        }
-                    } else if (!makefile.isFile()) {
-                        fprintf(stderr, "%s is not a file\n", argv[optind - 1]);
-                        return false;
-                    }
-                } else {
-                    makefile = Path::resolved("Makefile");
-                    if (!makefile.isFile()) {
-                        fprintf(stderr, "Can't find a makefile here\n");
-                        return false;
-                    }
-                }
-            }
-
-            List<ByteArray> makefileArgs;
-            while (optind < argc && argv[optind][0] != '-')
-                makefileArgs.append(argv[optind++]);
-            addMakeFile(makefile, makefileArgs);
             break; }
         case ReferenceName:
             addQuery(QueryMessage::ReferencesName, optarg);

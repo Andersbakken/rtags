@@ -23,7 +23,7 @@ void FindFileJob::execute()
     if (!proj || !proj->fileManager) {
         return;
     }
-    const Path srcRoot = proj->srcRoot();
+    const Path srcRoot = proj->path();
 
     enum Mode {
         All,

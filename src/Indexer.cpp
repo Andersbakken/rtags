@@ -12,7 +12,7 @@
 #include <math.h>
 
 Indexer::Indexer(const shared_ptr<Project> &proj, unsigned flags)
-    : mJobCounter(0), mInMakefile(false), mModifiedFilesTimerId(-1), mTimerRunning(false), mProject(proj), mFlags(flags),
+    : mJobCounter(0), mModifiedFilesTimerId(-1), mTimerRunning(false), mProject(proj), mFlags(flags),
       mFirstCachedUnit(0), mLastCachedUnit(0), mUnitCacheSize(0)
 {
     mWatcher.modified().connect(this, &Indexer::onFileModified);
@@ -51,7 +51,25 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
           RTags::timeToString(time(0), RTags::Time).constData(),
           data->message.constData(), int((MemoryMonitor::usage() / (1024 * 1024))));
 
-    checkFinished();
+    if (mJobs.isEmpty()) {
+        mTimerRunning = false;
+        const int elapsed = mTimer.restart();
+        write();
+        if (mJobCounter) {
+            error() << "Jobs took" << ((double)(elapsed) / 1000.0) << "secs, writing took"
+                    << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
+                    << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+        }
+
+        mJobsComplete(shared_from_this(), mJobCounter);
+        mJobCounter = 0;
+
+        if (mFlags & Validate) {
+            shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(project(), mPreviousErrors));
+            validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
+            Server::instance()->startQueryJob(validateJob);
+        }
+    }
 }
 
 void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
@@ -355,43 +373,6 @@ void Indexer::write()
     mPendingData.clear();
 }
 
-void Indexer::beginMakefile()
-{
-    MutexLocker lock(&mMutex);
-    mInMakefile = true;
-}
-
-int Indexer::endMakefile()
-{
-    MutexLocker lock(&mMutex);
-    mInMakefile = false;
-    const int ret = mJobCounter;
-    checkFinished();
-    return ret;
-}
-
-void Indexer::checkFinished() // lock always held
-{
-    if (mJobs.isEmpty() && !mInMakefile) {
-        mTimerRunning = false;
-        const int elapsed = mTimer.restart();
-        write();
-        if (mJobCounter) {
-            error() << "Jobs took" << ((double)(elapsed) / 1000.0) << "secs, writing took"
-                    << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
-                    << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-        }
-
-        mJobsComplete(shared_from_this(), mJobCounter);
-        mJobCounter = 0;
-
-        if (mFlags & Validate) {
-            shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(project(), mPreviousErrors));
-            validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
-            Server::instance()->startQueryJob(validateJob);
-        }
-    }
-}
 bool Indexer::isIndexed(uint32_t fileId) const
 {
     MutexLocker lock(&mMutex);

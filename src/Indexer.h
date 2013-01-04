@@ -54,8 +54,6 @@ public:
     signalslot::Signal2<shared_ptr<Indexer>, int> &jobsComplete() { return mJobsComplete; }
     signalslot::Signal2<shared_ptr<Indexer>, Path> &jobStarted() { return mJobStarted; }
     shared_ptr<Project> project() const { return mProject.lock(); }
-    void beginMakefile();
-    int endMakefile();
     void onJobFinished(const shared_ptr<IndexerJob> &job);
     bool isIndexed(uint32_t fileId) const;
     SourceInformationMap sources() const;
@@ -68,7 +66,6 @@ public:
 private:
     bool initJobFromCache(const Path &path, const List<ByteArray> &args,
                           CXIndex &index, CXTranslationUnit &unit, List<ByteArray> *argsOut);
-    void checkFinished();
     void onFileModified(const Path &);
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addDiagnostics(const DependencyMap &dependencies, const DiagnosticsMap &diagnostics, const FixItMap &fixIts);
@@ -92,7 +89,6 @@ private:
     Set<uint32_t> mVisitedFiles;
 
     int mJobCounter;
-    bool mInMakefile;
 
     mutable Mutex mMutex;
 

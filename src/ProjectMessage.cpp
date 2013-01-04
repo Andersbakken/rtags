@@ -1,8 +1,8 @@
 #include "ProjectMessage.h"
 #include "Serializer.h"
 
-ProjectMessage::ProjectMessage(RTags::ProjectType type, const Path &path)
-    : mType(type), mPath(path), mFlags(0)
+ProjectMessage::ProjectMessage(const Path &path, const ByteArray &args)
+    : mPath(path), mArgs(args)
 {
 }
 
@@ -11,7 +11,7 @@ ByteArray ProjectMessage::encode() const
     ByteArray data;
     {
         Serializer stream(data);
-        stream << mRaw << static_cast<int>(mType) << mPath << mArgs << mExtraCompilerFlags << mFlags;
+        stream << mRaw << mPath << mArgs;
     }
     return data;
 }
@@ -19,7 +19,5 @@ ByteArray ProjectMessage::encode() const
 void ProjectMessage::fromData(const char *data, int size)
 {
     Deserializer stream(data, size);
-    int type;
-    stream >> mRaw >> type >> mPath >> mArgs >> mExtraCompilerFlags >> mFlags;
-    mType = static_cast<RTags::ProjectType>(type);
+    stream >> mRaw >> mPath >> mArgs;
 }

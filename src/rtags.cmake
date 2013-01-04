@@ -81,7 +81,7 @@ set(rtags_client_SRCS
 
 set(rtags_HDRS
     ${rtags_client_HDRS}
-    AutoProjectJob.h
+    CompileJob.h
     CompletionJob.h
     CursorInfo.h
     CursorInfoJob.h
@@ -96,7 +96,6 @@ set(rtags_HDRS
     IndexerJob.h
     ListSymbolsJob.h
     LocalServer.h
-    MakefileParser.h
     Match.h
     MemoryMonitor.h
     Project.h
@@ -110,7 +109,7 @@ set(rtags_HDRS
 
 set(rtags_SRCS
     ${rtags_client_SRCS}
-    AutoProjectJob.cpp
+    CompileJob.cpp
     CompletionJob.cpp
     CursorInfoJob.cpp
     FindFileJob.cpp
@@ -127,7 +126,6 @@ set(rtags_SRCS
     LocalServer.cpp
     CursorInfo.cpp
     Server.cpp
-    MakefileParser.cpp
     MemoryMonitor.cpp
     GccArguments.cpp
     Indexer.cpp

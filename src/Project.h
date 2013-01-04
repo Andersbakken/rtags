@@ -39,16 +39,14 @@ class Project : public enable_shared_from_this<Project>
 public:
     Project(const Path &path);
     bool isValid() const;
-    void init(const Path &srcRoot);
+    void init();
+    void restore();
 
     void unload();
 
     shared_ptr<Indexer> indexer;
     shared_ptr<FileManager> fileManager;
 
-    Path srcRoot() const { return mSrcRoot; }
-    Path resolvedSrcRoot() const { return mResolvedSrcRoot; }
-    void setSrcRoot(const Path &srcRoot);
     Path path() const { return mPath; }
 
     bool match(const Match &match);
@@ -71,9 +69,6 @@ public:
     bool restore(Deserializer &in);
 private:
     const Path mPath;
-
-    Path mSrcRoot;
-    Path mResolvedSrcRoot;
 
     SymbolMap mSymbols;
     ReadWriteLock mSymbolsLock;

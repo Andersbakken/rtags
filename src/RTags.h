@@ -68,15 +68,6 @@ enum TimeFormat {
     Date
 };
 
-enum ProjectType {
-    Type_None = 0x00,
-    Type_Makefile = 0x01,
-    Type_SmartProject = 0x02,
-    Type_Command = 0x04,
-    Type_Synthesized = 0x08,
-    Type_Auto = 0x10
-};
-
 inline ByteArray timeToString(time_t t, TimeFormat fmt)
 {
     const char *format = 0;

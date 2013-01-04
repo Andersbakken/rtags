@@ -97,13 +97,14 @@ bool Path::resolve(const Path &cwd)
     {
         char buffer[PATH_MAX + 2];
         if (realpath(constData(), buffer)) {
-            int len = strlen(buffer);
-            struct stat st;
-            if (!stat(buffer, &st) && st.st_mode & S_IFDIR) {
-                buffer[len++] = '/';
-                buffer[len] = '\0';
-            }
-            assign(buffer, len);
+            // int len = strlen(buffer);
+            // struct stat st;
+            // if (!stat(buffer, &st) && st.st_mode & S_IFDIR) {
+            //     buffer[len++] = '/';
+            //     buffer[len] = '\0';
+            // }
+            // assign(buffer, len);
+            ByteArray::operator=(buffer);
             return true;
         }
     }

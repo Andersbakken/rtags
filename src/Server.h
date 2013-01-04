@@ -23,11 +23,12 @@ class OutputMessage;
 class ProjectMessage;
 class LocalServer;
 class GccArguments;
-class MakefileParser;
 class Job;
 class Server : public EventReceiver
 {
 public:
+    enum { DatabaseVersion = 11 };
+
     Server();
     ~Server();
     static Server *instance() { return sInstance; }
@@ -73,17 +74,9 @@ private:
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
     shared_ptr<Project> setCurrentProject(const Path &path);
     void event(const Event *event);
-    void onFileReady(const GccArguments &file, MakefileParser *parser);
-    bool processSourceFile(const GccArguments &args, const Path &makefile);
-    void processAutoProjectJob(GccArguments args, Path path);
+    void processSourceFile(GccArguments args, Path srcRoot);
     void onNewMessage(Message *message, Connection *conn);
     void onConnectionDestroyed(Connection *o);
-    void onMakefileParserDone(MakefileParser *parser);
-    void onMakefileModified(const Path &path);
-    void onMakefileRemoved(const Path &path);
-    bool make(const Path &path, const List<ByteArray> &makefileArgs = List<ByteArray>(),
-              const List<ByteArray> &extraCompilerFlags = List<ByteArray>(),
-              Connection *conn = 0);
     void clearProjects();
     void handleProjectMessage(ProjectMessage *message, Connection *conn);
     void handleCompletionMessage(CompletionMessage *message, Connection *conn);
@@ -110,47 +103,23 @@ private:
     void project(const QueryMessage &query, Connection *conn);
     void clearProjects(const QueryMessage &query, Connection *conn);
     void shutdown(const QueryMessage &query, Connection *conn);
-    void startAutoProjectJob(const ProjectMessage &message);
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
-    void remake(const Match &match = Match(), Connection *conn = 0);
     shared_ptr<Project> updateProjectForLocation(const Location &location);
     shared_ptr<Project> updateProjectForLocation(const Path &path);
-    void restoreProject(shared_ptr<Project> &project, const Path &srcRoot);
     void writeProjects();
-    struct ProjectEntry;
-    bool initSmartProject(const ProjectEntry &entry);
     shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void removeProject(const Path &key);
     void unloadProject(const Path &key);
     void reloadProjects();
     void onCompletionStreamDisconnected(LocalClient *client);
-    shared_ptr<Project> addProject(const Path &path, const ProjectEntry &entry);
+    shared_ptr<Project> addProject(const Path &path);
+    void loadProject(shared_ptr<Project> &project);
     void onCompletionJobFinished(Path path);
     void startCompletion(const Path &path, int line, int column, int pos, const ByteArray &contents, Connection *conn);
 
-    struct ProjectEntry
-    {
-        ProjectEntry(unsigned t = 0)
-            : type(t)
-        {}
-        unsigned type;
-        List<ByteArray> flags, args;
-        Path saveKey;
-        shared_ptr<Project> project;
-
-        // ### these do not compare saveKey
-        inline bool operator==(const ProjectEntry &other) const
-        {
-            return (type == other.type && flags == other.flags && args == other.args);
-        }
-        inline bool operator!=(const ProjectEntry &other) const
-        {
-            return (type != other.type || flags != other.flags || args != other.args);
-        }
-    };
-    typedef Map<Path, ProjectEntry> ProjectsMap;
-    ProjectsMap mProjects, mCommandProjects;
+    typedef Map<Path, shared_ptr<Project> > ProjectsMap;
+    ProjectsMap mProjects;
     weak_ptr<Project> mCurrentProject;
 
     static Server *sInstance;
@@ -160,7 +129,6 @@ private:
     bool mVerbose;
     int mJobId;
 
-    FileSystemWatcher mMakefilesWatcher;
     ThreadPool *mIndexerThreadPool;
     ThreadPool mQueryThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
@@ -183,7 +151,6 @@ private:
 
     bool mRestoreProjects;
 
-    enum { DatabaseVersion = 11 };
     friend class CommandProcess;
 };
 
