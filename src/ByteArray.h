@@ -30,7 +30,7 @@ public:
     {}
 
     ByteArray(const ByteArray &ba)
-    : mString(ba.mString)
+        : mString(ba.mString)
     {}
 
     ByteArray(const std::string &str)
@@ -41,6 +41,17 @@ public:
     {
         mString = other.mString;
         return *this;
+    }
+
+    void assign(const char *data, int len = -1)
+    {
+        if (data) {
+            if (len == -1)
+                len = strlen(data);
+            mString.assign(data, len);
+        } else {
+            clear();
+        }
     }
 
     int lastIndexOf(char ch, int from = -1, CaseSensitivity cs = CaseSensitive) const
