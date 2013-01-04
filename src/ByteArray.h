@@ -420,20 +420,23 @@ public:
         return ret;
     }
 
+
     unsigned long long toULongLong(bool *ok = 0) const
     {
         errno = 0;
-        const unsigned ret = strtoull(constData(), 0, 10);
+        char *end = 0;
+        const unsigned ret = strtoull(constData(), &end, 10);
         if (ok)
-            *ok = !errno;
+            *ok = !errno && !*end;
         return ret;
     }
     unsigned long long toLongLong(bool *ok = 0) const
     {
         errno = 0;
-        const unsigned ret = strtoll(constData(), 0, 10);
+        char *end = 0;
+        const unsigned ret = strtoll(constData(), &end, 10);
         if (ok)
-            *ok = !errno;
+            *ok = !errno && !*end;
         return ret;
     }
 
