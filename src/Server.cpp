@@ -1061,7 +1061,7 @@ void Server::save(const shared_ptr<Indexer> &indexer)
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
         if (it->second->indexer != indexer)
             continue;
-        Timer timer;
+        StopWatch timer;
         Path makeFilePath = it->first;
         RTags::encodePath(makeFilePath);
         const Path p = mOptions.dataDir + makeFilePath;

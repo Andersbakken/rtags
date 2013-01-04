@@ -4,11 +4,11 @@
 #include "Path.h"
 #include <stdio.h>
 #include <errno.h>
-#include "Timer.h"
+#include "StopWatch.h"
 #include <stdarg.h>
 
 static unsigned sFlags = 0;
-static Timer sStart;
+static StopWatch sStart;
 static Set<LogOutput*> sOutputs;
 static Mutex sOutputsMutex;
 static int sLevel = 0;

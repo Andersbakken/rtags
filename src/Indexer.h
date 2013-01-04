@@ -7,7 +7,7 @@
 #include "RTags.h"
 #include "ReadWriteLock.h"
 #include "ThreadPool.h"
-#include "Timer.h"
+#include "StopWatch.h"
 #include "Match.h"
 #include "Project.h"
 #include <clang-c/Index.h>
@@ -97,7 +97,7 @@ private:
     int mModifiedFilesTimerId, mFinishedTimer;
 
     bool mTimerRunning;
-    Timer mTimer;
+    StopWatch mTimer;
     int mLastJobElapsed;
 
     weak_ptr<Project> mProject;

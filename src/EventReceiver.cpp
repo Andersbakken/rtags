@@ -34,6 +34,13 @@ int EventReceiver::startTimer(int interval, bool singleShot, void *userData)
     return id;
 }
 
+bool EventReceiver::stopTimer(int id)
+{
+    return mTimers.remove(id);
+    // we need to let it fire to delete the weak_ptr
+}
+
+
 void EventReceiver::sendEvent(const Event *e)
 {
     switch (e->type()) {

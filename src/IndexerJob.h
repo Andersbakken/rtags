@@ -105,7 +105,7 @@ private:
 
     ByteArray mClangLine;
 
-    Timer mTimer;
+    StopWatch mTimer;
     shared_ptr<IndexData> mData;
 
     bool mDump;

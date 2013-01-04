@@ -4,10 +4,10 @@
 #include <stdint.h>
 #include <sys/time.h>
 
-class Timer
+class StopWatch
 {
 public:
-    Timer()
+    StopWatch()
         : mStart(current())
     {
     }

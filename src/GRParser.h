@@ -12,7 +12,7 @@
 #include "GRTags.h"
 #include "Map.h"
 #include "ByteArray.h"
-#include "Timer.h"
+#include "StopWatch.h"
 #include "Log.h"
 #include "RTags.h"
 

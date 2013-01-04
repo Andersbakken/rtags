@@ -1,5 +1,5 @@
 #include "IndexerJob.h"
-#include "Timer.h"
+#include "StopWatch.h"
 #include "MemoryMonitor.h"
 #include "Server.h"
 #include "EventLoop.h"

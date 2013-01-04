@@ -24,7 +24,7 @@ void Project::init()
 
 void Project::restore()
 {
-    Timer timer;
+    StopWatch timer;
     Path path = mPath;
     RTags::encodePath(path);
     const Path p = ByteArray::format<128>("%s%s", Server::instance()->options().dataDir.constData(), path.constData());

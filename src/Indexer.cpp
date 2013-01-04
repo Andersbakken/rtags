@@ -167,7 +167,7 @@ SourceInformation Indexer::sourceInfo(uint32_t fileId) const
 
 void Indexer::addDependencies(const DependencyMap &deps, Set<uint32_t> &newFiles)
 {
-    Timer timer;
+    StopWatch timer;
 
     const DependencyMap::const_iterator end = deps.end();
     for (DependencyMap::const_iterator it = deps.begin(); it != end; ++it) {

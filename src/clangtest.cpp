@@ -2,7 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "ByteArray.h"
-#include "Timer.h"
+#include "StopWatch.h"
 #include "Log.h"
 #include "RTagsClang.h"
 #include "RTags.h"
@@ -190,7 +190,7 @@ void indexEntityReference(CXClientData, const CXIdxEntityRefInfo *ref)
 int main(int argc, char **argv)
 {
     RTags::findApplicationDirPath(*argv);
-    Timer timer;
+    StopWatch timer;
     CXIndex index = clang_createIndex(1, 1);
     ByteArray ba;
     for (int i=1; i<argc; ++i) {

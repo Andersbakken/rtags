@@ -4,7 +4,7 @@
 #include "Log.h"
 #include "RTags.h"
 #include "config.h"
-#include "Timer.h"
+#include "StopWatch.h"
 #include <algorithm>
 #include <fcntl.h>
 #include <string.h>
@@ -51,7 +51,7 @@ bool LocalClient::connect(const Path& path, int maxTime)
 {
     if (!path.isSocket())
         return false;
-    Timer timer;
+    StopWatch timer;
     struct sockaddr_un address;
     memset(&address, 0, sizeof(struct sockaddr_un));
     address.sun_family = AF_UNIX;

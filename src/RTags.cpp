@@ -3,7 +3,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include "CursorInfo.h"
-#include "Timer.h"
+#include "StopWatch.h"
 #include "Server.h"
 #include "Str.h"
 #include "config.h"
