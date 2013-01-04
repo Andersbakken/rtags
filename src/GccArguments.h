@@ -25,6 +25,7 @@ public:
     Path outputFile() const;
     Path baseDirectory() const;
     Path compiler() const;
+    Path projectRoot() const;
 private:
     List<ByteArray> mClangArgs;
     List<Path> mInputFiles, mUnresolvedInputFiles;

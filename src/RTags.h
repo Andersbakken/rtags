@@ -163,6 +163,7 @@ ByteArray unescape(ByteArray command);
 bool startProcess(const Path &dotexe, const List<ByteArray> &dollarArgs);
 void findApplicationDirPath(const char *argv0);
 Path applicationDirPath();
+Path findProjectRoot(const Path &path);
 }
 
 #define eintrwrap(VAR, BLOCK)                   \

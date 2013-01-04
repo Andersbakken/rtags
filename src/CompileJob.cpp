@@ -12,9 +12,7 @@ void CompileJob::run()
     if (!args.parse(mArgs, mPath))
         return;
 
-    Path srcRoot = Server::findProjectRoot(args.unresolvedInputFiles().first());
-    if (srcRoot.isEmpty())
-        srcRoot = Server::findProjectRoot(args.inputFiles().first());
+    const Path srcRoot = args.projectRoot();
     if (!srcRoot.isEmpty())
         fileReady()(args, srcRoot);
 }

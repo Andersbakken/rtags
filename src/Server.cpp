@@ -33,8 +33,6 @@
 #include "SHA256.h"
 #include "StatusJob.h"
 #include <clang-c/Index.h>
-#include <dirent.h>
-#include <fnmatch.h>
 #include <stdio.h>
 
 Server *Server::sInstance = 0;
@@ -586,72 +584,6 @@ void Server::startQueryJob(const shared_ptr<Job> &job)
     mQueryThreadPool.start(job);
 }
 
-/* Same behavior as rtags-default-current-project() */
-
-enum FindAncestorFlag {
-    Shallow = 0x1,
-    Wildcard = 0x2
-};
-static inline Path findAncestor(Path path, const char *fn, unsigned flags)
-{
-    Path ret;
-    int slash = path.size();
-    const int len = strlen(fn) + 1;
-    struct stat st;
-    char buf[PATH_MAX + sizeof(dirent) + 1];
-    dirent *direntBuf = 0, *entry = 0;
-    if (flags & Wildcard)
-        direntBuf = reinterpret_cast<struct dirent *>(malloc(sizeof(buf)));
-
-    memcpy(buf, path.constData(), path.size() + 1);
-    while ((slash = path.lastIndexOf('/', slash - 1)) > 0) { // We don't want to search in /
-        if (!(flags & Wildcard)) {
-            memcpy(buf + slash + 1, fn, len);
-            if (!stat(buf, &st)) {
-                buf[slash + 1] = '\0';
-                ret = buf;
-                if (flags & Shallow) {
-                    break;
-                }
-            }
-        } else {
-            buf[slash + 1] = '\0';
-            DIR *dir = opendir(buf);
-            bool found = false;
-            if (dir) {
-                while (!readdir_r(dir, direntBuf, &entry) && entry) {
-                    const int l = strlen(entry->d_name) + 1;
-                    switch (l - 1) {
-                    case 1:
-                        if (entry->d_name[0] == '.')
-                            continue;
-                        break;
-                    case 2:
-                        if (entry->d_name[0] == '.' && entry->d_name[1] == '.')
-                            continue;
-                        break;
-                    }
-                    assert(buf[slash] == '/');
-                    assert(l + slash + 1 < static_cast<int>(sizeof(buf)));
-                    memcpy(buf + slash + 1, entry->d_name, l);
-                    if (!fnmatch(fn, buf, 0)) {
-                        ret = buf;
-                        ret.truncate(slash + 1);
-                        found = true;
-                        break;
-                    }
-                }
-            }
-            closedir(dir);
-            if (found && flags & Shallow)
-                break;
-        }
-    }
-    if (flags & Wildcard)
-        free(direntBuf);
-
-    return ret;
-}
 
 void Server::processSourceFile(GccArguments args, Path proj)
 {
@@ -665,11 +597,9 @@ void Server::processSourceFile(GccArguments args, Path proj)
     }
     shared_ptr<Project> project = mProjects.value(proj);
     if (!project) {
-        Path srcRoot = findProjectRoot(*args.unresolvedInputFiles().begin());
-        if (srcRoot.isEmpty())
-            srcRoot = findProjectRoot(*inputFiles.begin());
+        Path srcRoot = args.projectRoot();
         if (srcRoot.isEmpty()) {
-            error("Can't find project root for %s", inputFiles.begin()->constData());
+            error("Can't find project root for %s", ByteArray::join(inputFiles, ", ").constData());
             return;
         }
         project = addProject(srcRoot);
@@ -882,21 +812,31 @@ void Server::project(const QueryMessage &query, Connection *conn)
         bool error = false;
         const Match match = query.match();
         const ProjectsMap::const_iterator it = mProjects.find(match.pattern());
+        bool ok = false;
+        unsigned long long index = query.query().toULongLong(&ok);
         if (it != mProjects.end() && it->second) {
             selected = it->first;
         } else {
             for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-                if (it->second && it->second->match(match)) {
-                    if (error) {
-                        conn->write(it->first);
-                    } else if (!selected.isEmpty()) {
-                        error = true;
-                        conn->write<128>("Multiple matches for %s", match.pattern().constData());
-                        conn->write(selected);
-                        conn->write(it->first);
-                        selected.clear();
-                    } else {
+                if (ok) {
+                    if (!index) {
                         selected = it->first;
+                    } else {
+                        --index;
+                    }
+                } else {
+                    if (it->second && it->second->match(match)) {
+                        if (error) {
+                            conn->write(it->first);
+                        } else if (!selected.isEmpty()) {
+                            error = true;
+                            conn->write<128>("Multiple matches for %s", match.pattern().constData());
+                            conn->write(selected);
+                            conn->write(it->first);
+                            selected.clear();
+                        } else {
+                            selected = it->first;
+                        }
                     }
                 }
             }
@@ -1148,57 +1088,3 @@ void Server::restore()
         fclose(f);
     }
 }
-
-Path Server::findProjectRoot(const Path &path)
-{
-    struct Entry {
-        const char *name;
-        const unsigned flags;
-    } entries[] = {
-        { "GTAGS", 0 },
-        { "configure", 0 },
-        { ".git", 0 },
-        { "CMakeLists.txt", 0 },
-        { "*.pro", Wildcard },
-        { "scons.1", 0 },
-        { "*.scons", Wildcard },
-        { "SConstruct", 0 },
-        { "autogen.*", Wildcard },
-        { "Makefile*", Wildcard },
-        { "GNUMakefile*", Wildcard },
-        { "INSTALL*", Wildcard },
-        { "README*", Wildcard },
-        { 0, 0 }
-    };
-    const Path home = Path::home();
-    for (int i=0; entries[i].name; ++i) {
-        const Path p = findAncestor(path, entries[i].name, entries[i].flags);
-        if (!p.isEmpty() && p != home) {
-            return p;
-        }
-    }
-
-    {
-        const Path configStatus = findAncestor(path, "config.status", 0);
-        if (!configStatus.isEmpty()) {
-            FILE *f = fopen((configStatus + "config.status").constData(), "r");
-            char line[1024];
-            enum { MaxLines = 10 };
-            for (int i=0; i<MaxLines; ++i) {
-                int r = RTags::readLine(f, line, sizeof(line));
-                if (r == -1)
-                    break;
-                char *configure = strstr(line, "configure");
-                if (configure) {
-                    Path ret = Path::resolved(ByteArray(line, configure - line));
-                    if (!ret.endsWith('/'))
-                        ret.append('/');
-                    if (ret != home)
-                        return ret;
-                }
-            }
-        }
-    }
-    return Path();
-}
-

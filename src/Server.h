@@ -56,7 +56,6 @@ public:
     const List<ByteArray> &excludeFilter() const { return mOptions.excludeFilter; }
     const Path &clangPath() const { return mClangPath; }
     const Options &options() const { return mOptions; }
-    static Path findProjectRoot(const Path &path);
 private:
     bool selectProject(const Match &match, Connection *conn);
     bool updateProject(const List<ByteArray> &projects);

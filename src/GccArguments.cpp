@@ -2,6 +2,7 @@
 #include "Log.h"
 #include "RTags.h"
 #include "Process.h"
+#include "Server.h"
 
 GccArguments::GccArguments()
     : mLang(NoLang)
@@ -283,4 +284,22 @@ void GccArguments::addFlags(const List<ByteArray> &extraFlags)
 Path GccArguments::compiler() const
 {
     return mCompiler;
+}
+
+Path GccArguments::projectRoot() const
+{
+    const List<Path> *files[] = { &mUnresolvedInputFiles, &mInputFiles };
+    for (int i=0; i<2; ++i) {
+        const List<Path> &list = *files[i];
+        for (int j=0; j<list.size(); ++j) {
+            Path src = list.at(j);
+            if (!src.isAbsolute())
+                src.prepend(mBase);
+            Path srcRoot = RTags::findProjectRoot(src);
+            if (!srcRoot.isEmpty()) {
+                return srcRoot;
+            }
+        }
+    }
+    return Path();
 }
