@@ -12,8 +12,8 @@
 #include <math.h>
 
 Indexer::Indexer(const shared_ptr<Project> &proj, unsigned flags)
-    : mJobCounter(0), mModifiedFilesTimerId(-1), mTimerRunning(false), mProject(proj), mFlags(flags),
-      mFirstCachedUnit(0), mLastCachedUnit(0), mUnitCacheSize(0)
+    : mJobCounter(0), mModifiedFilesTimerId(-1), mFinishedTimer(-1), mTimerRunning(false), mLastJobElapsed(0),
+      mProject(proj), mFlags(flags), mFirstCachedUnit(0), mLastCachedUnit(0), mUnitCacheSize(0)
 {
     mWatcher.modified().connect(this, &Indexer::onFileModified);
     mWatcher.removed().connect(this, &Indexer::onFileModified);
@@ -33,8 +33,14 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
         return;
 
     mJobs.remove(fileId);
+    mLastJobElapsed = mTimer.elapsed();
     if (job->isAborted())
         return;
+
+    if (mFinishedTimer != -1)
+        EventLoop::instance()->removeTimer(mFinishedTimer);
+    enum { Timeout = 2000 };
+    mFinishedTimer = EventLoop::instance()->addTimer(Timeout, &Indexer::onCheckFinishedTimerElapsed, this);
 
     CXTranslationUnit unit = job->takeTranslationUnit();
     if (unit)
@@ -50,19 +56,31 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
           static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
           RTags::timeToString(time(0), RTags::Time).constData(),
           data->message.constData(), int((MemoryMonitor::usage() / (1024 * 1024))));
+}
 
-    if (mJobs.isEmpty()) {
-        mTimerRunning = false;
-        const int elapsed = mTimer.restart();
-        write();
-        if (mJobCounter) {
-            error() << "Jobs took" << ((double)(elapsed) / 1000.0) << "secs, writing took"
-                    << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
-                    << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+bool Indexer::finish()
+{
+    bool ret = false;
+    {
+        MutexLocker lock(&mMutex);
+        if (mJobs.isEmpty()) {
+            mTimerRunning = false;
+            mTimer.restart();
+            write();
+            if (mJobCounter) {
+                error() << "Jobs took" << ((double)(mLastJobElapsed) / 1000.0) << "secs, writing took"
+                        << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
+                        << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+                mJobCounter = 0;
+            }
+            ret = true;
+            EventLoop::instance()->removeTimer(mFinishedTimer);
+            mFinishedTimer = -1;
         }
+    }
 
+    if (ret) {
         mJobsComplete(shared_from_this(), mJobCounter);
-        mJobCounter = 0;
 
         if (mFlags & Validate) {
             shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(project(), mPreviousErrors));
@@ -70,6 +88,7 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
             Server::instance()->startQueryJob(validateJob);
         }
     }
+    return ret;
 }
 
 void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
@@ -587,4 +606,15 @@ ByteArray Indexer::fixIts(uint32_t fileId) const
         }
     }
     return out;
+}
+
+void Indexer::onFilesModifiedTimeout(int id, void *userData)
+{
+    EventLoop::instance()->removeTimer(id);
+    static_cast<Indexer*>(userData)->onFilesModifiedTimeout();
+}
+
+void Indexer::onCheckFinishedTimerElapsed(int, void *userData)
+{
+    static_cast<Indexer*>(userData)->finish();
 }

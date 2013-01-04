@@ -72,11 +72,9 @@ private:
     void write();
     void onFilesModifiedTimeout();
     void addCachedUnit(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
-    static void onFilesModifiedTimeout(int id, void *userData)
-    {
-        EventLoop::instance()->removeTimer(id);
-        static_cast<Indexer*>(userData)->onFilesModifiedTimeout();
-    }
+    static void onFilesModifiedTimeout(int id, void *userData);
+    bool finish();
+    static void onCheckFinishedTimerElapsed(int id, void *userData);
     void onValidateDBJobErrors(const Set<Location> &errors);
 
     enum InitMode {
@@ -96,10 +94,11 @@ private:
     Map<uint32_t, shared_ptr<IndexerJob> > mJobs;
 
     Set<uint32_t> mModifiedFiles;
-    int mModifiedFilesTimerId;
+    int mModifiedFilesTimerId, mFinishedTimer;
 
     bool mTimerRunning;
     Timer mTimer;
+    int mLastJobElapsed;
 
     weak_ptr<Project> mProject;
     FileSystemWatcher mWatcher;
