@@ -285,6 +285,13 @@ public:
         return *this;
     }
 
+    ByteArray &operator+=(const char *cstr)
+    {
+        if (cstr)
+            mString += cstr;
+        return *this;
+    }
+
     ByteArray &operator+=(const ByteArray &other)
     {
         mString += other.mString;
@@ -296,9 +303,19 @@ public:
         return mString == other.mString;
     }
 
+    bool operator==(const char *other) const
+    {
+        return other && !mString.compare(other);
+    }
+
     bool operator!=(const ByteArray &other) const
     {
         return mString != other.mString;
+    }
+
+    bool operator!=(const char *other) const
+    {
+        return !other || mString.compare(other);
     }
 
     bool operator<(const ByteArray &other) const
@@ -311,10 +328,15 @@ public:
         return mString > other.mString;
     }
 
-    bool endsWith(char ch) const
+    bool endsWith(char ch, CaseSensitivity c = CaseSensitive) const
     {
         const int s = mString.size();
-        return s && at(s - 1) == ch;
+        if (s) {
+            return (c == CaseInsensitive
+                    ? tolower(at(s - 1)) == tolower(ch)
+                    : at(s - 1) == ch);
+        }
+        return false;
     }
 
     bool startsWith(char ch, CaseSensitivity c = CaseSensitive) const
@@ -523,6 +545,16 @@ inline const ByteArray operator+(const ByteArray &l, char ch)
     ret += ch;
     return ret;
 }
+
+inline const ByteArray operator+(char l, const ByteArray &r)
+{
+    ByteArray ret;
+    ret.reserve(r.size() + 1);
+    ret += l;
+    ret += r;
+    return ret;
+}
+
 
 inline const ByteArray operator+(const ByteArray &l, const ByteArray &r)
 {
