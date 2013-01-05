@@ -269,9 +269,12 @@ public:
         mString.append(ba);
     }
 
-    void append(const char *str, int len)
+    void append(const char *str, int len = -1)
     {
-        mString.append(str, len);
+        if (len == -1)
+            len = strlen(str);
+        if (len > 0)
+            mString.append(str, len);
     }
 
     void remove(int idx, int count)
@@ -524,6 +527,16 @@ public:
 private:
     std::string mString;
 };
+
+inline const bool operator==(const char *l, const ByteArray &r)
+{
+    return r.operator==(l);
+}
+
+inline const bool operator!=(const char *l, const ByteArray &r)
+{
+    return r.operator!=(l);
+}
 
 inline const ByteArray operator+(const ByteArray &l, const char *r)
 {
