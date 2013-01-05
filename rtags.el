@@ -655,7 +655,7 @@ return t if rtags is allowed to modify this file"
     (if (get-buffer rtags-buffer-name)
         (kill-buffer rtags-buffer-name))
     (with-current-buffer (generate-new-buffer rtags-buffer-name)
-      (rtags-call-rc nil "-l" "-E" "-r" arg)
+      (rtags-call-rc nil "-l" "-e" "-r" arg)
       (rtags-handle-completion-buffer))
     )
   )
@@ -686,7 +686,7 @@ return t if rtags is allowed to modify this file"
               (if destructor
                   (setq pos (- pos 1)))
               (with-temp-buffer
-                (rtags-call-rc nil "-E" "-O" "-N" "-r" (format "%s,%d" file (- pos 1)))
+                (rtags-call-rc nil "-e" "-O" "-N" "-r" (format "%s,%d" file (- pos 1)))
                 ;; (message "Got renames %s" (buffer-string))
                 (dolist (line (split-string (buffer-string) "\n"))
                   (if (string-match "^\\(.*\\),\\([0-9]+\\)$" line)
@@ -1169,7 +1169,7 @@ return t if rtags is allowed to modify this file"
             (string-match "\\(.*\\):[0-9]+" string))
         (setq string (match-string 1 string)))
     (with-temp-buffer
-      (rtags-call-rc nil "-P" string (if rtags-find-file-case-insensitive "-c"))
+      (rtags-call-rc nil "-P" string (if rtags-find-file-case-insensitive "-I"))
 
       (goto-char (point-min))
       (if (equal "" string)
@@ -1239,14 +1239,8 @@ return t if rtags is allowed to modify this file"
     (if (get-buffer rtags-buffer-name)
         (kill-buffer rtags-buffer-name))
     (with-current-buffer (generate-new-buffer rtags-buffer-name)
-      ;; (let ((args (list "-K" "-P" tagname)))
-      ;;   (if rtags-find-file-case-insensitive
-      ;;       (push "-c" args))
-      ;;   (if prefer-exact
-      ;;       (push "-c" args))
-
       (rtags-call-rc nil "-K" "-P" tagname
-                     (if rtags-find-file-case-insensitive "-c")
+                     (if rtags-find-file-case-insensitive "-I")
                      (if prefer-exact "-A"))
       (cond (offset (replace-regexp "$" (format ",%d" offset)))
             ((and line column) (replace-regexp "$" (format ":%d:%d" line column)))

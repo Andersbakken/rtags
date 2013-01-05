@@ -304,13 +304,13 @@ struct Option {
 struct Option opts[] = {
     { None, 0, 0, 0, "Options:" },
     { Verbose, "verbose", 'v', no_argument, "Be more verbose." },
-    { Silent, "silent", 0, no_argument, "Be silent." },
+    { Silent, "silent", 'Q', no_argument, "Be silent." },
     { Help, "help", 'h', no_argument, "Display this help." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Rdm:" },
     { QuitRdm, "quit-rdm", 'q', no_argument, "Tell server to shut down." },
-    { RestartRdm, "restart-rdm", 'e', optional_argument, "Restart rdm [args] before doing the rest of the commands." },
+    { RestartRdm, "restart-rdm", 0, optional_argument, "Restart rdm [args] before doing the rest of the commands." },
     { AutostartRdm, "autostart-rdm", 'a', optional_argument, "Output elisp: (list \"one\" \"two\" ...)." },
 
     { None, 0, 0, 0, "" },
@@ -320,7 +320,7 @@ struct Option opts[] = {
     { DeleteProject, "delete-project", 'W', required_argument, "Delete all projects matching regexp." },
     { UnloadProject, "unload", 'u', required_argument, "Unload project(s) matching argument." },
     { ReloadProjects, "reload-projects", 'z', no_argument, "Reload projects from projects file." },
-    { JobCount, "jobcount", 0, required_argument, "Set or query current job count." },
+    { JobCount, "jobcount", 'j', required_argument, "Set or query current job count." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Commands:" },
@@ -333,7 +333,7 @@ struct Option opts[] = {
     { Status, "status", 's', optional_argument, "Dump status of rdm. Arg can be symbols or symbolNames." },
     { IsIndexed, "is-indexed", 'T', required_argument, "Check if rtags knows about, and is ready to return information about, this source file." },
     { HasFileManager, "has-filemanager", 0, optional_argument, "Check if rtags has info about files in this directory." },
-    { PreprocessFile, "preprocess", 'J', required_argument, "Preprocess file." },
+    { PreprocessFile, "preprocess", 'E', required_argument, "Preprocess file." },
     { Reindex, "reindex", 'V', optional_argument, "Reindex all files or all files matching pattern." },
     { FindFile, "path", 'P', optional_argument, "Print files matching pattern." },
     { DumpFile, "dump-file", 'd', required_argument, "Dump source file." },
@@ -341,7 +341,7 @@ struct Option opts[] = {
     { CodeCompleteAt, "code-complete-at", 'x', required_argument, "Get code completion from location (must be specified with path:line:column)." },
     { CodeComplete, "code-complete", 0, no_argument, "Get code completion from stream written to stdin." },
     { FixIts, "fixits", 0, required_argument, "Get fixits for file." },
-    { Compile, "compile", 0, required_argument, "Pass compilation arguments to rdm." },
+    { Compile, "compile", 'c', required_argument, "Pass compilation arguments to rdm." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -354,12 +354,12 @@ struct Option opts[] = {
     { LineNumbers, "line-numbers", 'l', no_argument, "Output line numbers instead of offsets." },
     { PathFilter, "path-filter", 'i', required_argument, "Filter out results not matching with arg." },
     { FilterSystemHeaders, "filter-system-headers", 'H', no_argument, "Don't exempt system headers from path filters." },
-    { AllReferences, "all-references", 'E', no_argument, "Include definitions/declarations/constructors/destructors for references. Used for rename symbol." },
+    { AllReferences, "all-references", 'e', no_argument, "Include definitions/declarations/constructors/destructors for references. Used for rename symbol." },
     { ElispList, "elisp-list", 'Y', no_argument, "Output elisp: (list \"one\" \"two\" ...)." },
     { Diagnostics, "diagnostics", 'G', no_argument, "Receive continual diagnostics from rdm." },
     { WaitForIndexing, "wait-for-indexing", 'X', no_argument, "Wait for indexing to finish before doing query." },
     { MatchRegexp, "match-regexp", 'Z', no_argument, "Treat various text patterns as regexps (-P, -i, -V)." },
-    { MatchCaseInsensitive, "match-icase", 'c', no_argument, "Match case insensitively" },
+    { MatchCaseInsensitive, "match-icase", 'I', no_argument, "Match case insensitively" },
     { AbsolutePath, "absolute-path", 'K', no_argument, "Print files with absolute path." },
     { SocketFile, "socket-file", 'n', required_argument, "Use this socket file (default ~/.rdm)." },
     { Timeout, "timeout", 'y', required_argument, "Max time in ms to wait for job to finish (default no timeout)." },
@@ -444,6 +444,15 @@ bool RClient::parse(int &argc, char **argv)
             unused.append('A' + i);
     }
     printf("Unused: %s\n", unused.constData());
+    for (int i=0; opts[i].description; ++i) {
+        if (opts[i].longOpt) {
+            if (!opts[i].shortOpt) {
+                printf("No shortoption for %s\n", opts[i].longOpt);
+            } else if (opts[i].longOpt[0] != opts[i].shortOpt) {
+                printf("Not ideal option for %s|%c\n", opts[i].longOpt, opts[i].shortOpt);
+            }
+        }
+    }
 #endif
 
     {
