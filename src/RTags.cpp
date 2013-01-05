@@ -494,26 +494,68 @@ Path findProjectRoot(const Path &path)
 {
     assert(path.isAbsolute());
     static const Path home = Path::home();
-    const Path configStatus = findAncestor(path, "config.status", 0);
-    if (!configStatus.isEmpty()) {
-        FILE *f = fopen((configStatus + "config.status").constData(), "r");
-        char line[1024];
-        enum { MaxLines = 10 };
-        for (int i=0; i<MaxLines; ++i) {
-            int r = RTags::readLine(f, line, sizeof(line));
-            if (r == -1)
-                break;
-            char *configure = strstr(line, "/configure");
-            if (configure) {
-                char *end = configure + 10;
-                while (--configure >= line) {
-                    const Path ret = Path::resolved(ByteArray(configure, end - configure));
-                    if (ret.isFile()) {
-                        if (ret == home)
-                            break;
-                        return ret.parentDir();
+    {
+        const Path configStatus = findAncestor(path, "config.status", 0);
+        if (!configStatus.isEmpty()) {
+            FILE *f = fopen((configStatus + "config.status").constData(), "r");
+            Path ret;
+            if (f) {
+                char line[1024];
+                enum { MaxLines = 10 };
+                for (int i=0; i<MaxLines; ++i) {
+                    int r = RTags::readLine(f, line, sizeof(line));
+                    if (r == -1)
+                        break;
+                    char *configure = strstr(line, "/configure");
+                    if (configure) {
+                        char *end = configure + 10;
+                        while (--configure >= line) {
+                            const Path conf = Path::resolved(ByteArray(configure, end - configure));
+                            if (conf.isFile()) {
+                                ret = conf.parentDir();
+                                if (ret == home)
+                                    ret.clear();
+                                break;
+                            }
+                        }
+                    }
+                    if (!ret.isEmpty())
+                        break;
+                }
+                fclose(f);
+                if (!ret.isEmpty())
+                    return ret;
+            }
+        }
+    }
+    {
+        const Path cmakeCache = findAncestor(path, "CMakeCache.txt", 0);
+        if (!cmakeCache.isEmpty()) {
+            FILE *f = fopen((cmakeCache + "Makefile").constData(), "r");
+            if (f) {
+                Path ret;
+                char line[1024];
+                enum { MaxLines = 10 };
+                for (int i=0; i<MaxLines; ++i) {
+                    int r = RTags::readLine(f, line, sizeof(line));
+                    if (r == -1)
+                        break;
+                    if (!strncmp(line, "CMAKE_SOURCE_DIR", 16)) {
+                        fclose(f);
+                        char *dir = line + 16;
+                        while (*dir && (*dir == ' ' || *dir == '='))
+                            ++dir;
+                        if (dir != home) {
+                            ret = dir;
+                            if (!Path(ret + "/CMakeLists.txt").isFile())
+                                ret.clear();
+                        }
+                        break;
                     }
                 }
+                fclose(f);
+                if (!ret.isEmpty())
+                    return ret;
             }
         }
     }
