@@ -793,7 +793,7 @@ void IndexerJob::execute()
         if (parse() && diagnose(&errorCount) && visit()) {
             ByteArray status = mUnit ? "success" : "error";
             if (errorCount)
-                status += ByteArray::format<32>(" %d errors", errorCount);
+                status += ByteArray::format<32>(", %d errors", errorCount);
             mData->message = ByteArray::format<1024>("%s (%s) in %sms. (%d syms, %d symNames, %d refs, %d deps)%s",
                                                      mPath.toTilde().constData(), status.constData(),
                                                      ByteArray::number(mTimer.elapsed()).constData(),
