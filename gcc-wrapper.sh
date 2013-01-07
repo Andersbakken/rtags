@@ -9,6 +9,8 @@ if [ -z "$GCC_WRAPPER_BYPASS" ]; then
             $i "$@"
             exit $?
         fi
+	DIR=`dirname $i`
+	PATH=`echo $PATH | sed -e "s,$DIR,,g"`
     done
 else
     echo "Ignored $0 $@"
