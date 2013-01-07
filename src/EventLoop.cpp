@@ -130,6 +130,8 @@ bool EventLoop::timerLessThan(TimerData* a, TimerData* b)
 
 int EventLoop::addTimer(int timeout, TimerFunc callback, void* userData)
 {
+    MutexLocker locker(&mMutex);
+
     int handle = ++mNextTimerHandle;
     while (mTimerByHandle.find(handle) != mTimerByHandle.end()) {
         handle = ++mNextTimerHandle;
@@ -147,11 +149,18 @@ int EventLoop::addTimer(int timeout, TimerFunc callback, void* userData)
                                                      data, timerLessThan);
     mTimerData.insert(it, data);
 
+    const char c = 't';
+    int r;
+    do {
+        eintrwrap(r, ::write(mEventPipe[1], &c, 1));
+    } while (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
+
     return handle;
 }
 
 void EventLoop::removeTimer(int handle)
 {
+    MutexLocker locker(&mMutex);
     Map<int, TimerData*>::iterator it = mTimerByHandle.find(handle);
     if (it == mTimerByHandle.end())
         return;
@@ -166,14 +175,21 @@ void EventLoop::removeTimer(int handle)
 
 void EventLoop::addFileDescriptor(int fd, unsigned int flags, FdFunc callback, void* userData)
 {
+    MutexLocker locker(&mMutex);
     FdData &data = mFdData[fd];
     data.flags = flags;
     data.callback = callback;
     data.userData = userData;
+    const char c = 'f';
+    int r;
+    do {
+        eintrwrap(r, ::write(mEventPipe[1], &c, 1));
+    } while (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
 }
 
 void EventLoop::removeFileDescriptor(int fd, unsigned int flags)
 {
+    MutexLocker locker(&mMutex);
     if (!flags)
         mFdData.remove(fd);
     else {
@@ -258,6 +274,7 @@ void EventLoop::run()
             assert(mTimerData.begin() != mTimerData.end());
             List<TimerData> copy;
             {
+                MutexLocker locker(&mMutex);
                 List<TimerData*>::const_iterator it = mTimerData.begin();
                 const List<TimerData*>::const_iterator end = mTimerData.end();
                 while (it != end) {
@@ -273,6 +290,7 @@ void EventLoop::run()
                         break;
                     if (reinsertTimer(it->handle, &timenow))
                         it->callback(it->handle, it->userData);
+                    MutexLocker locker(&mMutex);
                     while (true) {
                         ++it;
                         if (it == end || mTimerByHandle.contains(it->handle))
@@ -286,7 +304,11 @@ void EventLoop::run()
         }
         if (FD_ISSET(mEventPipe[0], &rset))
             handlePipe();
-        Map<int, FdData> fds = mFdData;
+        Map<int, FdData> fds;
+        {
+            MutexLocker locker(&mMutex);
+            fds = mFdData;
+        }
 
         Map<int, FdData>::const_iterator it = fds.begin();
         while (it != fds.end()) {
@@ -309,6 +331,7 @@ void EventLoop::run()
                 ++it;
                 continue;
             }
+            MutexLocker locker(&mMutex);
             do {
                 ++it;
             } while (it != fds.end() && !mFdData.contains(it->first));
@@ -320,6 +343,8 @@ void EventLoop::run()
 
 bool EventLoop::reinsertTimer(int handle, timeval* now)
 {
+    MutexLocker locker(&mMutex);
+
     // first, find the handle in the list and remove it
     List<TimerData*>::iterator it = mTimerData.begin();
     const List<TimerData*>::const_iterator end = mTimerData.end();
@@ -356,6 +381,9 @@ void EventLoop::handlePipe()
             switch (c) {
             case 'e':
                 sendPostedEvents();
+                break;
+            case 't':
+            case 'f':
                 break;
             case 'q':
                 mQuit = true;
