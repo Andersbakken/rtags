@@ -30,6 +30,9 @@ static inline bool isFile(uint32_t fileId)
 void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
 {
     MutexLocker lock(&mMutex);
+    enum { Timeout = 2000 };
+    mFinishedTimer.start(shared_from_this(), Timeout, true, Finished);
+
     const uint32_t fileId = job->fileId();
     mVisitedFilesByJob.remove(job);
     if (mJobs.value(fileId) != job)
@@ -40,8 +43,6 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
     if (job->isAborted())
         return;
 
-    enum { Timeout = 2000 };
-    mFinishedTimer.start(shared_from_this(), Timeout, true, Finished);
 
     CXTranslationUnit unit = job->takeTranslationUnit();
     if (unit)
