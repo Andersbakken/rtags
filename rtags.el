@@ -124,6 +124,9 @@
               (apply #'call-process rc nil (list output nil) nil arguments))
             (goto-char (point-min))
             (rtags-log (buffer-string))
+            (when (looking-at "Can't seem to connect to server")
+              (message "Can't seem to connect to server. Is rdm running?")
+              (erase-buffer))
             (> (point-max) (point-min)))))))
 
 (defun rtags-path-for-project (&optional buffer)
