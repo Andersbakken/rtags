@@ -50,10 +50,10 @@ public:
         unsigned options;
         int threadCount;
         int completionCacheSize;
-        List<ByteArray> defaultArguments, excludeFilter;
+        List<ByteArray> defaultArguments, excludeFilters;
     };
     bool init(const Options &options);
-    const List<ByteArray> &excludeFilter() const { return mOptions.excludeFilter; }
+    const List<ByteArray> &excludeFilters() const { return mOptions.excludeFilters; }
     const Path &clangPath() const { return mClangPath; }
     const Options &options() const { return mOptions; }
 private:

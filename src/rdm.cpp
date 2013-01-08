@@ -35,7 +35,7 @@ void sigIntHandler(int)
     _exit(1);
 }
 
-#define EXCLUDEFILTER_DEFAULT "*.o;*.a;*.so*;*.obj;*.lo;*.git/objects*"
+#define EXCLUDEFILTER_DEFAULT "*CMakeTmp*"
 void usage(FILE *f)
 {
     fprintf(f,
@@ -54,7 +54,7 @@ void usage(FILE *f)
             "  --no-Wall|-W                      Don't use -Wall\n"
             "  --silent|-S                       No logging to stdout\n"
             "  --validate|-V                     Enable validation of database on startup and after indexing\n"
-            "  --exclude-filter|-x [arg]         Files to exclude from grtags, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
+            "  --exclude-filter|-x [arg]         Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
             "  --no-rc|-N                        Don't load any rc files\n"
             "  --ignore-printf-fixits|-F         Disregard any clang fixit that looks like it's trying to fix format for printf and friends\n"
             "  --rc-file|-c [arg]                Use this file instead of ~/.rdmrc\n"
@@ -156,7 +156,7 @@ int main(int argc, char** argv)
     int completionCacheSize = 10;
     unsigned options = 0;
     List<ByteArray> defaultArguments;
-    const char *excludeFilter = 0;
+    ByteArray excludeFilters;
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;
@@ -178,6 +178,11 @@ int main(int argc, char** argv)
             break;
         case 'S':
             logLevel = -1;
+            break;
+        case 'x':
+            if (!excludeFilters.isEmpty())
+                excludeFilters += ';';
+            excludeFilters += optarg;
             break;
         case 'n':
             socketFile = optarg;
@@ -274,10 +279,10 @@ int main(int argc, char** argv)
 
     Server *server = new Server;
     Server::Options serverOpts;
-    serverOpts.excludeFilter = ByteArray(excludeFilter ? excludeFilter : EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.socketFile = socketFile;
     serverOpts.options = options;
     serverOpts.dataDir = dataDir;
+    serverOpts.excludeFilters = excludeFilters.split(';');
     serverOpts.completionCacheSize = completionCacheSize;
     if (!serverOpts.dataDir.endsWith('/'))
         serverOpts.dataDir.append('/');
