@@ -62,10 +62,12 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
 
 bool Indexer::finish()
 {
+    bool done = false;
     int jobsSaved = 0;
     {
         MutexLocker lock(&mMutex);
         if (mJobs.isEmpty()) {
+            done = true;
             mTimerRunning = false;
             mTimer.restart();
             write();
@@ -81,7 +83,7 @@ bool Indexer::finish()
         }
     }
 
-    if (jobsSaved) {
+    if (done) {
         mJobsComplete(static_pointer_cast<Indexer>(shared_from_this()), jobsSaved);
 
         if (mFlags & Validate) {
