@@ -59,7 +59,7 @@ void usage(FILE *f)
             "  --ignore-printf-fixits|-F         Disregard any clang fixit that looks like it's trying to fix format for printf and friends\n"
             "  --rc-file|-c [arg]                Use this file instead of ~/.rdmrc\n"
             "  --projects-file|-p [arg]          Use this file as a projects file (default ~/.rtagsprojects)\n"
-            "  --data-dir|-d [arg]               Use this directory to contains .rtags directory (default ~/)\n"
+            "  --data-dir|-d [arg]               Use this directory to store persistent data (default ~/.rtags)\n"
             "  --socket-file|-n [arg]            Use this file for the server socket (default ~/.rdm)\n"
             "  --setenv|-e [arg]                 Set this environment variable (--setenv \"foobar=1\")\n"
             "  --completion-cache-size|-a [arg]  Cache this many translation units (default 10, min 1)\n"
@@ -188,7 +188,7 @@ int main(int argc, char** argv)
             socketFile = optarg;
             break;
         case 'd':
-            dataDir = ByteArray::format<128>("%s/.rtags", Path::resolved(optarg).constData());
+            dataDir = ByteArray::format<128>("%s", Path::resolved(optarg).constData());
             break;
         case 'h':
             usage(stdout);
