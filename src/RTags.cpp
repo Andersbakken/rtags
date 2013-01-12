@@ -567,6 +567,7 @@ Path findProjectRoot(const Path &path)
         { "GTAGS", 0 },
         { "configure", 0 },
         { ".git", 0 },
+        { ".svn", 0 },
         { "CMakeLists.txt", 0 },
         { "*.pro", Wildcard },
         { "scons.1", 0 },
@@ -582,7 +583,7 @@ Path findProjectRoot(const Path &path)
     for (int i=0; entries[i].name; ++i) {
         const Path p = findAncestor(path, entries[i].name, entries[i].flags);
         if (!p.isEmpty() && p != home) {
-            if (p == "./" || p == ".")
+            if (!p.compare("./") || !p.compare("."))
                 error() << "1" << path << "=>" << p;
             return p;
         }
