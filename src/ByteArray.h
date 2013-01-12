@@ -301,6 +301,11 @@ public:
         return *this;
     }
 
+    int compare(const ByteArray &other) const
+    {
+        return mString.compare(other.mString);
+    }
+
     bool operator==(const ByteArray &other) const
     {
         return mString == other.mString;
