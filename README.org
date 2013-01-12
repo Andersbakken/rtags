@@ -1,11 +1,11 @@
 * Introduction
 
-RTags consist is a client/server application that indexes c/c++ code
+RTags is a client/server application that indexes c/c++ code
 and keeps a persistent in-memory database of references, symbolnames,
 completions etc. It allows you to find symbols by name (including
 class and namespace scope), we integrate with dabbrev for intelligent
 completion (we could integrate with 'autocompletion but honestly, if
-you want that Qt Creator, eclipse and visual studio has your
+you want that, Qt Creator, Eclipse and Visual Studio has your
 back). Most importantly we give you proper follow-symbol and
 find-references support.
 
@@ -15,7 +15,7 @@ incredible lexical complexity parsing C++ is an incredibly hard task
 and we make no bones about the fact that the only reason we are able
 to improve on the current tools is because of clang
 (http://clang.llvm.org/). RTags is named rtags in recognition of
-Roberto Raggi on whose C++ parsed we intended to make this project but
+Roberto Raggi on whose C++ parser we intended to make this project but
 he assured us clang was the way to go. The name stuck though.
 
 RTags is meant to be used like this:
@@ -38,25 +38,62 @@ this yourself but we feel that this architecture allows us to add
 bindings to other editors (like vim) at a later point.
 
 Since clang requires us to really compile the file we need to know the
-actual c(xx)flags for parsing the source files. To make this less
-painful we parse the output from make. As anyone who has ever
-attempted parsing makefiles will attest to this is a painful ordeal of
-biblical proportions. After several iterations, including, but not
-limited to, ld_preloading our own library that hijacked stat and
-execve, we landed on the following approach. Compile our own version
-of gmake-3.82 and hack it so that it doesn't actually compile anything
-and also consider all source files dirty. We know about -B and -n but
-it fell short on several widely used make techniques. Our current
-approach works for most makefiles but for pathological cases (like
-openssl) we just do not work. We have a more manual way to specify how
-files are compiled (--smart-project) but it's not very featureful at
-the moment and people really shouldn't be writing their makefiles like
-openssl does.
+actual c(xx)flags for parsing the source files. In essence RTags
+indexes all the source files it has been told about and all the
+headers included by these source files. To tell rtags about a source
+(you only need to do this once, after that it will monitor the file
+for changes using inotify/kqueue) you need call this command:
 
-rdm keeps a cache of indexed data so you don't have to reindex
+#+BEGIN_SRC
+$ rc --compile "gcc -W... -I... -D... source.c"
+#+END_SRC
+
+One could do this manually or script some per/project parsing of
+Makefiles/CMakeLists.txt/etc but the way we normally recommend doing
+it is like this:
+
+#+BEGIN_SRC
+
+$ ln -s /path/to/rtags/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/gcc
+$ ln -s /path/to/rtags/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/c++
+$ ln -s /path/to/rtags/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/cc
+$ ln -s /path/to/rtags/gcc-rtags-wrapper.sh /somewhere/that/is/in/your/path/before/usr/bin/g++
+
+$ ls -la | grep wrapper
+lrwxrwxrwx  1 abakken abakken      44 Jan 12 15:37 c++ -> /home/abakken/dev/rtags/gcc-rtags-wrapper.sh
+lrwxrwxrwx  1 abakken abakken      44 Jan 12 15:37 cc -> /home/abakken/dev/rtags/gcc-rtags-wrapper.sh
+lrwxrwxrwx  1 abakken abakken      44 Jan 12 15:37 g++ -> /home/abakken/dev/rtags/gcc-rtags-wrapper.sh
+lrwxrwxrwx  1 abakken abakken      44 Jan 12 15:37 gcc -> /home/abakken/dev/rtags/gcc-rtags-wrapper.sh
+
+#+END_SRC
+
+This script will essentially stick itself in the middle of your
+compiles and notify rtags that you want this file indexed and then
+invoke the next entry in the $PATH that matches $0.
+
+RTags will group source files into projects based on some heuristics.
+
+Essentially it will look for certain files/dirs (like
+configure/CMakeLists.txt/scons.1/.git) etc to try to determine the
+likely project root for each source file. For generated source files
+that end up in the build dir we try to find the source root based on
+similar heuristics around config.status/CMakeCache.txt etc. Usually
+this works out reasonably well.
+
+RTags' only gives you information about current project when you ask
+for things by name. You can explicitly change the current project using:
+#+BEGIN_SRC
+$ rc -w foobar
+#+END_SRC
+
+The emacs integration tries to do it automatically for you.
+
+RTags keeps a cache of indexed data so you don't have to reindex
 everything if you restart it. The location of this data is by default
-~/.rtags but can be overridden with some switch.
+~/.rtags but can be overridden by passing --data-dir /other/dir to
+rdm.
 
+RTags also maintains a list of active projects
 It also maintains an ini-format file for which projects currently are
 indexed that by default sits in ~/.rtagsprojects.
 
