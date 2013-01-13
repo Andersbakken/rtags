@@ -606,6 +606,10 @@ return t if rtags is allowed to modify this file"
 
 (defalias 'rtags-find-symbol-at-point 'rtags-follow-symbol-at-point)
 (defun rtags-find-symbol-at-point (&optional prefix)
+"Find the natural target for the symbol under the cursor and moves to that location.
+For references this means to jump to the definition/declaration of the referenced symbol (it jumps to the definition if it is indexed).
+For definitions it jumps to the declaration (if there is only one) For declarations it jumps to the definition.
+If called with a prefix restrict to current buffer"
   (interactive "P")
   (setq rtags-path-filter (if prefix buffer-file-name nil))
   (rtags-save-location)
@@ -616,6 +620,10 @@ return t if rtags is allowed to modify this file"
   )
 
 (defun rtags-find-references-at-point(&optional prefix)
+"Find all references to the symbol under the cursor
+If there's exactly one result jump directly to it.
+If there's more show a buffer with the different alternatives and jump to the first one if rtags-jump-to-first-match is true.
+References to references will be treated as references to the referenced symbol"
   (interactive "P")
   (setq rtags-path-filter (if prefix buffer-file-name nil))
   (rtags-save-location)
@@ -638,6 +646,7 @@ return t if rtags is allowed to modify this file"
 
 (defun rtags-find-virtuals-at-point(&optional prefix)
   (interactive "P")
+  "List all reimplentations of function under cursor. This includes both declarations and definitions"
   (setq rtags-path-filter (if prefix buffer-file-name nil))
   (rtags-save-location)
   (let ((arg (rtags-current-location)))
