@@ -1002,9 +1002,9 @@ void Server::save(const shared_ptr<Indexer> &indexer)
         if (it->second->indexer != indexer)
             continue;
         StopWatch timer;
-        Path makeFilePath = it->first;
-        RTags::encodePath(makeFilePath);
-        const Path p = mOptions.dataDir + makeFilePath;
+        Path srcPath = it->first;
+        RTags::encodePath(srcPath);
+        const Path p = mOptions.dataDir + srcPath;
         FILE *f = fopen(p.constData(), "w");
         if (!f) {
             error("Can't open file %s", p.constData());
