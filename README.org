@@ -125,8 +125,22 @@ Add something like this to your .emacs:
 
 Or something to that effect.
 
+To enable the standard keybindings (using a prefix of C-x r) you could
+call something like this:
+
+#+BEGIN_SRC
+(rtags-enable-standard-keybindings c-mode-base-map)
+#+END_SRC
+
+There are lots of interactive functions to call but the most important ones are:
+
+(rtags-find-symbol-at-point) ;; follow symbol under cursor
+(rtags-find-references-at-point) ;; find all references to symbol under cursor
+(rtags-find-symbol) ;; prompt for name of symbol to go to
+(rtags-find-references) ;; prompt for name of symbol to find references to
+
 In the interest of full disclosure those videos were recorded under
-some amount of alcholiciallhy induced impairment and don't really do
+some amount of alcholically induced impairment and don't really do
 our project justice. Anyway, some videos:
 
 Completion:
