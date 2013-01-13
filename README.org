@@ -18,6 +18,7 @@ to improve on the current tools is because of clang
 Roberto Raggi on whose C++ parser we intended to make this project but
 he assured us clang was the way to go. The name stuck though.
 
+* Usage
 RTags is meant to be used like this:
 
 rdm runs in the background and monitors all your indexed files for
@@ -36,6 +37,8 @@ $ rc --follow-location Job.cpp,400
 We maintain a set of elisp bindings so you don't acually have to call
 this yourself but we feel that this architecture allows us to add
 bindings to other editors (like vim) at a later point.
+
+* Architecture
 
 Since clang requires us to really compile the file we need to know the
 actual c(xx)flags for parsing the source files. In essence RTags
@@ -97,29 +100,6 @@ RTags also maintains a list of active projects
 It also maintains an ini-format file for which projects currently are
 indexed that by default sits in ~/.rtagsprojects.
 
-Projects can be specified in different ways. Here's my
-~/.rtagsprojects file:
-
-#+BEGIN_SRC
-[MakefileCommands]
-~/dev/nrdp-scripts/bin/lsdev.pl=-tp -l -a build
-[Makefiles]
-/home/abakken/dev/rtags/Makefile
-/home/abakken/temp/cla/Makefile
-/home/abakken/temp/deleteit/Makefile
-#+END_SRC
-lsdev is a perl script that generates output like so:
-#+BEGIN_SRC
-/home/abakken/dev/builds/Cambo
-/home/abakken/dev/builds/nrdapp-12.4-x86
-/home/abakken/dev/rtags/3rdparty
-/home/abakken/dev/builds/nrdapp-main-x86
-#+END_SRC
-
-These are directories that all contain a Makefile.
-
-The [Makefiles] section is kinda self-explanatory.
-
 Building rtags:
 
 #+BEGIN_SRC
@@ -128,14 +108,26 @@ cmake .
 make 3rdparty # This step will take quite a while. It will download trunk of clang and llvm and build it
 make
 export PATH=/path/to/rtags/src:$PATH
+ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/c++
+ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/cc
+ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/g++
+ln -s /path/to/rtags/gcc-rtags-wrapper.sh ~/bin/gcc
 rdm & # This starts the rtags daemon
-cd /path/to/builddirforproject
-rc -m -b
 #+END_SRC
 
-# This will add the project /path/to/builddirforproject/Makefile and automatically make it current
+Add something like this to your .emacs:
+#+BEGIN_SRC
 
-Some videos:
+(add-to-list 'load-path "/path/to/rtags"))
+(require 'rtags)
+
+#+END_SRC
+
+Or something to that effect.
+
+In the interest of full disclosure those videos were recorded under
+some amount of alcholiciallhy induced impairment and don't really do
+our project justice. Anyway, some videos:
 
 Completion:
 
