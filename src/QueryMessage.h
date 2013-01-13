@@ -51,7 +51,8 @@ public:
         FindVirtuals = 0x0400,
         Silent = 0x0800,
         AbsolutePath = 0x1000,
-        FindFilePreferExact = 0x2000
+        FindFilePreferExact = 0x2000,
+        CursorInfoIgnoreParents = 0x4000
     };
 
     QueryMessage(Type type = Invalid);

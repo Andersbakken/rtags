@@ -25,14 +25,14 @@ void CursorInfoJob::execute()
         if (it == map.end())
             --it;
     }
-    if (it != map.begin()) {
+    if (it != map.begin() && !(queryFlags() & QueryMessage::CursorInfoIgnoreParents)) {
         const uint32_t fileId = location.fileId();
         const int offset = location.offset();
         while (true) {
             --it;
             if (it->first.fileId() != fileId)
                 break;
-            if (it->second.isDefinition && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
+            if (it->second.isDefinition() && RTags::isContainer(it->second.kind) && offset >= it->second.start && offset <= it->second.end) {
                 write("Container:");
                 write(it->first);
                 write(it->second.toString(CursorInfo::IgnoreTargets|CursorInfo::IgnoreReferences, keyFlags()).constData());

@@ -248,6 +248,7 @@ enum {
     CodeCompleteAt,
     Compile,
     CursorInfo,
+    CursorInfoIgnoreParents,
     DeleteProject,
     Diagnostics,
     DumpFile,
@@ -364,7 +365,8 @@ struct Option opts[] = {
     { SocketFile, "socket-file", 'n', required_argument, "Use this socket file (default ~/.rdm)." },
     { Timeout, "timeout", 'y', required_argument, "Max time in ms to wait for job to finish (default no timeout)." },
     { FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
-    { FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial" },
+    { FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial matches." },
+    { CursorInfoIgnoreParents, "cursor-info-ignore-parents", 'B', no_argument, "Use to make --cursor-info not include parent cursors." },
     { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
     { None, 0, 0, 0, 0 }
 };
@@ -494,6 +496,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case FindFilePreferExact:
             mQueryFlags |= QueryMessage::FindFilePreferExact;
+            break;
+        case CursorInfoIgnoreParents:
+            mQueryFlags |= QueryMessage::CursorInfoIgnoreParents;
             break;
         case AutostartRdm:
             mClientFlags |= Client::AutostartRdm;
