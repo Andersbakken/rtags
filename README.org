@@ -134,10 +134,14 @@ call something like this:
 
 There are lots of interactive functions to call but the most important ones are:
 
+#+BEGIN_SRC
+
 (rtags-find-symbol-at-point) ;; follow symbol under cursor
 (rtags-find-references-at-point) ;; find all references to symbol under cursor
 (rtags-find-symbol) ;; prompt for name of symbol to go to
 (rtags-find-references) ;; prompt for name of symbol to find references to
+
+#+END_SRC
 
 In the interest of full disclosure those videos were recorded under
 some amount of alcholically induced impairment and don't really do
