@@ -143,6 +143,8 @@ There are lots of interactive functions to call but the most important ones are:
 
 #+END_SRC
 
+* Vidoes
+
 In the interest of full disclosure those videos were recorded under
 some amount of alcholically induced impairment and don't really do
 our project justice. Anyway, some videos:
