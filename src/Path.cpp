@@ -329,3 +329,27 @@ Path Path::pwd()
     }
     return Path();
 }
+struct FilesUserData
+{
+    unsigned filter;
+    int max;
+    List<Path> paths;
+};
+static Path::VisitResult filesVisitor(const Path &path, void *userData)
+{
+    FilesUserData &u = *reinterpret_cast<FilesUserData*>(userData);
+    if (u.max > 0)
+        --u.max;
+    if (path.type() & u.filter) {
+        u.paths.append(path);
+    }
+    return u.max ? Path::Continue : Path::Abort;
+}
+
+List<Path> Path::files(unsigned filter, int max) const
+{
+    assert(max != 0);
+    FilesUserData userData = { filter, max, List<Path>() };
+    visit(::filesVisitor, &userData);
+    return userData.paths;
+}

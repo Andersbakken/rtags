@@ -53,14 +53,15 @@ public:
     }
 
     enum Type {
-        Invalid,
-        File,
-        Directory,
-        CharacterDevice,
-        BlockDevice,
-        NamedPipe,
-        SymLink,
-        Socket
+        Invalid = 0x00,
+        File = 0x01,
+        Directory = 0x02,
+        CharacterDevice = 0x04,
+        BlockDevice = 0x08,
+        NamedPipe = 0x10,
+        SymLink = 0x20,
+        Socket = 0x40,
+        All = File|Directory|CharacterDevice|BlockDevice|NamedPipe|SymLink|Socket
     };
 
     inline bool exists() const { return type() != Invalid; }
@@ -102,6 +103,8 @@ public:
     };
     typedef VisitResult (*VisitCallback)(const Path &path, void *userData);
     void visit(VisitCallback callback, void *userData) const;
+
+    List<Path> files(unsigned filter = All, int max = -1) const;
 };
 
 #endif
