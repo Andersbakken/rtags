@@ -13,7 +13,6 @@
 #include "FollowLocationJob.h"
 #include "Indexer.h"
 #include "IndexerJob.h"
-#include "IniFile.h"
 #include "ListSymbolsJob.h"
 #include "LocalClient.h"
 #include "LocalServer.h"
@@ -120,7 +119,6 @@ shared_ptr<Project> Server::addProject(const Path &path)
     shared_ptr<Project> &project = mProjects[path];
     if (!project) {
         project.reset(new Project(path));
-        writeProjects();
         return project;
     }
     return shared_ptr<Project>();
@@ -129,21 +127,25 @@ shared_ptr<Project> Server::addProject(const Path &path)
 void Server::reloadProjects()
 {
     mProjects.clear(); // ### could keep the ones that persist somehow
-    IniFile file(mOptions.projectsFile);
-    const Path resolvePath = mOptions.projectsFile.parentDir();
+    List<Path> projects = mOptions.dataDir.files(Path::File);
     const Path home = Path::home();
-    const List<ByteArray> keys = file.keys("Projects");
-    const int count = keys.size();
-    for (int i=0; i<count; ++i) {
-        Path path = keys.at(i);
-        if (path.startsWith("$HOME"))
-            path.replace(0, 5, home);
-        if (path.startsWith('~'))
-            path.replace(0, 1, home);
-        path = Path::resolved(path, resolvePath);
-        if (!path.endsWith('/'))
-            path.append('/');
-        addProject(path);
+    for (int i=0; i<projects.size(); ++i) {
+        Path file = projects.at(i);
+        Path p = file.mid(mOptions.dataDir.size());
+        RTags::decodePath(p);
+        if (p.isDir()) {
+            if (FILE *f = fopen(file.constData(), "r")) {
+                Deserializer in(f);
+                int version;
+                in >> version;
+                if (version == Server::DatabaseVersion) {
+                    addProject(p);
+                } else {
+                    error() << file << "has wrong format. Got" << version << "expected" << Server::DatabaseVersion;
+                }
+                fclose(f);
+            }
+        }
     }
 }
 
@@ -706,22 +708,12 @@ shared_ptr<Project> Server::updateProjectForLocation(const Path &path)
     return shared_ptr<Project>();
 }
 
-void Server::writeProjects()
-{
-    Path::rm(mOptions.projectsFile);
-    IniFile ini(mOptions.projectsFile);
-    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        ini.setValue("Projects", it->second->path());
-    }
-}
-
 void Server::removeProject(const QueryMessage &query, Connection *conn)
 {
     const bool unload = query.type() == QueryMessage::UnloadProject;
 
     const Match match = query.match();
     ProjectsMap::iterator it = mProjects.begin();
-    bool write = false;
     while (it != mProjects.end()) {
         ProjectsMap::iterator cur = it++;
         if (cur->second->match(match)) {
@@ -732,15 +724,12 @@ void Server::removeProject(const QueryMessage &query, Connection *conn)
                 RTags::encodePath(path);
                 Path::rm(mOptions.dataDir + path);
                 mProjects.erase(cur);
-                write = true;
             }
             if (mCurrentProject.lock() == it->second)
                 mCurrentProject.reset();
         }
     }
     conn->finish();
-    if (write)
-        writeProjects();
 }
 
 void Server::reloadProjects(const QueryMessage &query, Connection *conn)

@@ -160,9 +160,10 @@ int main(int argc, char** argv)
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;
-    Path projectsFile = ByteArray::format<128>("%s/.rtagsprojects", Path::home().constData());
-    Path dataDir = ByteArray::format<128>("%s/.rtags", Path::home().constData());
-    socketFile = ByteArray::format<128>("%s/.rdm", Path::home().constData());
+    assert(Path::home().endsWith('/'));
+    Path projectsFile = ByteArray::format<128>("%s.rtagsprojects", Path::home().constData());
+    Path dataDir = ByteArray::format<128>("%s.rtags", Path::home().constData());
+    socketFile = ByteArray::format<128>("%s.rdm", Path::home().constData());
     bool enableSignalHandler = false;
     ByteArray name;
     int argCount = argList.size();

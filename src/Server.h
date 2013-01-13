@@ -106,7 +106,6 @@ private:
     void reindex(const QueryMessage &query, Connection *conn);
     shared_ptr<Project> updateProjectForLocation(const Location &location);
     shared_ptr<Project> updateProjectForLocation(const Path &path);
-    void writeProjects();
     shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
     void reloadProjects();
     void onCompletionStreamDisconnected(LocalClient *client);
