@@ -157,6 +157,8 @@ Code navigation:
 
 [[http://www.youtube.com/watch?v=j6tDy3WhcNw]]
 
+* Disclaimer
+
 RTags is still in development and is not the most stable piece of
 software you'll ever find. We crash sometimes (though admittedly
 mostly inside clang). We're constantly working to improve on it.
