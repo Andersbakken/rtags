@@ -633,13 +633,6 @@ References to references will be treated as references to the referenced symbol"
     (with-current-buffer (generate-new-buffer rtags-buffer-name)
       (rtags-call-rc nil "-l" "-r" arg)
       (setq rtags-path-filter nil)
-      (if (< (point-min) (point-max))
-          (let ((loc (buffer-substring (point-min) (- (point-max) 1))))
-            (if (string= loc "Not indexed")
-                (progn
-                  (setq rtags-last-request-not-indexed t)
-                  (erase-buffer))
-              (setq rtags-last-request-not-indexed nil))))
       (rtags-handle-completion-buffer))
     )
   )
@@ -1151,8 +1144,12 @@ References to references will be treated as references to the referenced symbol"
 
 
 (defun rtags-handle-completion-buffer ()
+  (setq rtags-last-request-not-indexed nil)
   (let ((empty (= (point-min) (point-max))))
     (cond (empty t)
+          ((string= (buffer-string) "Not indexed\n")
+           (setq rtags-last-request-not-indexed t)
+           (setq empty t))
           ((= (count-lines (point-min) (point-max)) 1)
            (let ((string (buffer-string)))
              (bury-buffer)
@@ -1165,6 +1162,8 @@ References to references will be treated as references to the referenced symbol"
                (setq rtags-no-otherbuffer nil)
                (if rtags-jump-to-first-match
                    (rtags-select-other-buffer)))))
+    (if empty
+        (message "RTags: No results"))
     (not empty))
   )
 
