@@ -394,7 +394,7 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         clang_getSpellingLocation(clang_getRangeEnd(range), 0, 0, 0, &end);
         info.start = start;
         info.end = end;
-        info.isDefinition = false;
+        info.definition = false;
         info.kind = kind;
         info.symbolLength = isOperator ? end - start : refInfo.symbolLength;
         info.symbolName = refInfo.symbolName;
@@ -477,7 +477,7 @@ void IndexerJob::handleInclude(const CXCursor &cursor, CXCursorKind kind, const 
             CursorInfo &info = mData->symbols[location];
             info.targets.insert(refLoc);
             info.kind = cursor.kind;
-            info.isDefinition = false;
+            info.definition = false;
             info.symbolName = "#include " + RTags::eatString(clang_getCursorDisplayName(cursor));
             info.symbolLength = info.symbolName.size() + 2;
             // this fails for things like:
@@ -576,7 +576,11 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
         info.start = start;
         info.end = end;
 
-        info.isDefinition = clang_isCursorDefinition(cursor);
+        if (kind == CXCursor_EnumConstantDecl) {
+            info.enumValue = clang_getEnumConstantDeclValue(cursor);
+        } else {
+            info.definition = clang_isCursorDefinition(cursor);
+        }
         info.kind = kind;
         const ByteArray usr = RTags::eatString(clang_getCursorUSR(cursor));
         if (!usr.isEmpty())

@@ -249,6 +249,8 @@ enum {
     Compile,
     CursorInfo,
     CursorInfoIgnoreParents,
+    CursorInfoIgnoreTargets,
+    CursorInfoIgnoreReferences,
     DeleteProject,
     Diagnostics,
     DumpFile,
@@ -367,6 +369,8 @@ struct Option opts[] = {
     { FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
     { FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial matches." },
     { CursorInfoIgnoreParents, "cursor-info-ignore-parents", 'B', no_argument, "Use to make --cursor-info not include parent cursors." },
+    { CursorInfoIgnoreTargets, "cursor-info-ignore-targets", 0, no_argument, "Use to make --cursor-info not include target cursors." },
+    { CursorInfoIgnoreReferences, "cursor-info-ignore-references", 0, no_argument, "Use to make --cursor-info not include reference cursors." },
     { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
     { None, 0, 0, 0, 0 }
 };
@@ -499,6 +503,12 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case CursorInfoIgnoreParents:
             mQueryFlags |= QueryMessage::CursorInfoIgnoreParents;
+            break;
+        case CursorInfoIgnoreTargets:
+            mQueryFlags |= QueryMessage::CursorInfoIgnoreTargets;
+            break;
+        case CursorInfoIgnoreReferences:
+            mQueryFlags |= QueryMessage::CursorInfoIgnoreReferences;
             break;
         case AutostartRdm:
             mClientFlags |= Client::AutostartRdm;

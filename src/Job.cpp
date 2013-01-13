@@ -115,12 +115,12 @@ bool Job::write(const Location &location, unsigned flags)
     return true;
 }
 
-bool Job::write(const CursorInfo &ci, unsigned flags)
+bool Job::write(const CursorInfo &ci, unsigned ciflags)
 {
     if (ci.isNull())
         return false;
     const unsigned kf = keyFlags();
-    if (!write(ci.toString(0, kf).constData()))
+    if (!write(ci.toString(ciflags, kf).constData()))
         return false;
     return true;
 }

@@ -38,21 +38,23 @@ public:
     };
 
     enum Flag {
-        NoContext = 0x0001,
-        LineNumbers = 0x0002,
-        FilterSystemIncludes = 0x0004,
-        SkipParentheses = 0x0008,
-        ReferencesForRenameSymbol = 0x0010,
-        ReverseSort = 0x0020,
-        ElispList = 0x0040,
-        WaitForIndexing = 0x0080,
-        MatchRegexp = 0x0100,
-        MatchCaseInsensitive = 0x0200,
-        FindVirtuals = 0x0400,
-        Silent = 0x0800,
-        AbsolutePath = 0x1000,
-        FindFilePreferExact = 0x2000,
-        CursorInfoIgnoreParents = 0x4000
+        NoContext = 0x00001,
+        LineNumbers = 0x00002,
+        FilterSystemIncludes = 0x00004,
+        SkipParentheses = 0x00008,
+        ReferencesForRenameSymbol = 0x00010,
+        ReverseSort = 0x00020,
+        ElispList = 0x00040,
+        WaitForIndexing = 0x00080,
+        MatchRegexp = 0x00100,
+        MatchCaseInsensitive = 0x00200,
+        FindVirtuals = 0x00400,
+        Silent = 0x00800,
+        AbsolutePath = 0x01000,
+        FindFilePreferExact = 0x02000,
+        CursorInfoIgnoreParents = 0x04000,
+        CursorInfoIgnoreTargets = 0x08000,
+        CursorInfoIgnoreReferences = 0x10000,
     };
 
     QueryMessage(Type type = Invalid);

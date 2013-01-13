@@ -14,7 +14,7 @@ class CursorInfo
 {
 public:
     CursorInfo()
-        : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), isDefinition(false), start(-1), end(-1)
+        : symbolLength(0), kind(CXCursor_FirstInvalid), type(CXType_Invalid), enumValue(0), start(-1), end(-1)
     {}
 
     static int cursorRank(CXCursorKind kind);
@@ -24,7 +24,7 @@ public:
         symbolLength = 0;
         kind = CXCursor_FirstInvalid;
         type = CXType_Invalid;
-        isDefinition = false;
+        enumValue = 0;
         targets.clear();
         references.clear();
         symbolName.clear();
@@ -80,6 +80,11 @@ public:
         return false;
     }
 
+    inline bool isDefinition() const
+    {
+        return kind == CXCursor_EnumConstantDecl || definition;
+    }
+
     bool isEmpty() const
     {
         return !symbolLength && targets.isEmpty() && references.isEmpty() && start == -1 && end == -1;
@@ -107,7 +112,8 @@ public:
         if (!symbolLength && other.symbolLength) {
             symbolLength = other.symbolLength;
             kind = other.kind;
-            isDefinition = other.isDefinition;
+            enumValue = other.enumValue;
+            type = other.type;
             symbolName = other.symbolName;
             changed = true;
         }
@@ -131,12 +137,14 @@ public:
         IgnoreReferences = 0x2
     };
     ByteArray toString(unsigned cursorInfoFlags = 0, unsigned keyFlags = 0) const;
-
     uint16_t symbolLength; // this is just the symbol name length e.g. foo => 3
     ByteArray symbolName; // this is fully qualified Foobar::Barfoo::foo
     CXCursorKind kind;
     CXTypeKind type;
-    bool isDefinition;
+    union {
+        bool definition;
+        int64_t enumValue; // only used if type == CXCursor_EnumConstantDecl
+    };
     Set<Location> targets, references;
     int start, end;
 };
@@ -145,7 +153,7 @@ public:
 template <> inline Serializer &operator<<(Serializer &s, const CursorInfo &t)
 {
     s << t.symbolLength << t.symbolName << static_cast<int>(t.kind)
-      << static_cast<int>(t.type) << t.isDefinition << t.targets << t.references << t.start << t.end;
+      << static_cast<int>(t.type) << t.enumValue << t.targets << t.references << t.start << t.end;
     return s;
 }
 
@@ -153,7 +161,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, CursorInfo &t)
 {
     int kind, type;
     s >> t.symbolLength >> t.symbolName >> kind >> type
-      >> t.isDefinition >> t.targets >> t.references >> t.start >> t.end;
+      >> t.enumValue >> t.targets >> t.references >> t.start >> t.end;
     t.kind = static_cast<CXCursorKind>(kind);
     t.type = static_cast<CXTypeKind>(type);
     return s;

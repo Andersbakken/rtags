@@ -40,7 +40,7 @@ void FindSymbolsJob::execute()
             if (it->second && map) {
                 const SymbolMap::const_iterator found = map->find(it->first);
                 if (found != map->end()) {
-                    node.isDefinition = found->second.isDefinition;
+                    node.isDefinition = found->second.isDefinition();
                     node.kind = found->second.kind;
                 }
             }

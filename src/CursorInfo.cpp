@@ -4,17 +4,19 @@
 ByteArray CursorInfo::toString(unsigned cursorInfoFlags, unsigned keyFlags) const
 {
     ByteArray ret = ByteArray::format<1024>("SymbolName: %s\n"
-                                              "Kind: %s\n"
-                                              "Type: %s\n"
-                                              "SymbolLength: %u\n"
-                                              "%s" // range
-                                              "%s", // definition
-                                              symbolName.constData(),
-                                              RTags::eatString(clang_getCursorKindSpelling(kind)).constData(),
-                                              RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
-                                              symbolLength,
-                                              start != -1 && end != -1 ? ByteArray::format<16>("Range: %d-%d\n", start, end).constData() : "",
-                                              isDefinition ? "Definition\n" : "");
+                                            "Kind: %s\n"
+                                            "Type: %s\n"
+                                            "SymbolLength: %u\n"
+                                            "%s" // range
+                                            "%s" // enumValue
+                                            "%s", // definition
+                                            symbolName.constData(),
+                                            RTags::eatString(clang_getCursorKindSpelling(kind)).constData(),
+                                            RTags::eatString(clang_getTypeKindSpelling(type)).constData(),
+                                            symbolLength,
+                                            start != -1 && end != -1 ? ByteArray::format<32>("Range: %d-%d\n", start, end).constData() : "",
+                                            kind == CXCursor_EnumConstantDecl ? ByteArray::format<32>("Enum Value: %lld\n", enumValue).constData() : "",
+                                            isDefinition() ? "Definition\n" : "");
 
     if (!targets.isEmpty() && !(cursorInfoFlags & IgnoreTargets)) {
         ret.append("Targets:\n");
@@ -62,7 +64,7 @@ CursorInfo CursorInfo::bestTarget(const SymbolMap &map, Location *loc) const
     for (SymbolMap::const_iterator it = targets.begin(); it != targets.end(); ++it) {
         const CursorInfo &ci = it->second;
         const int r = cursorRank(ci.kind);
-        if (r > bestRank || (r == bestRank && ci.isDefinition)) {
+        if (r > bestRank || (r == bestRank && ci.isDefinition())) {
             bestRank = r;
             best = it;
         }

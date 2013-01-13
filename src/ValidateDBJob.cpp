@@ -71,7 +71,7 @@ void ValidateDBJob::execute()
                            << " symbolName: " << ci.symbolName;
                     if (ci.kind)
                         stream << " kind: " << RTags::eatString(clang_getCursorKindSpelling(ci.kind));// this somehow seems to hang when kind == 0
-                    stream << " isDefinition: " << (ci.isDefinition ? "true" : "false")
+                    stream << " isDefinition: " << (ci.isDefinition() ? "true" : "false")
                            << " target: " << ci.targets
                            << " references:";
                     for (Set<Location>::const_iterator rit = ci.references.begin(); rit != ci.references.end(); ++rit) {

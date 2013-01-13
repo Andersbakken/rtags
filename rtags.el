@@ -273,7 +273,7 @@
             (setq name (buffer-substring (match-beginning 0) (match-end 0)))))
       name)))
 
-(defun rtags-cursorinfo (&optional location)
+(defun rtags-cursorinfo (&optional location) ;; ### I want to pass more args here
   (let ((loc (if location location (rtags-current-location)))
         (path (rtags-path-for-project)))
     (with-temp-buffer
@@ -282,8 +282,22 @@
 
 (defun rtags-print-cursorinfo (&optional location)
   (interactive)
-  (message "%s" (rtags-cursorinfo)))
+  (message "%s" (rtags-cursorinfo location)))
 
+(defun rtags-print-enum-value-at-point (&optional location)
+  (interactive)
+  (let ((info (rtags-cursorinfo location)))
+    (cond ((string-match "^Enum Value: \\([0-9]+\\) *$" info)
+           (let ((enumval (match-string 1 info)))
+             (message "%s - %s - 0x%X" (rtags-current-symbol-name info) enumval (string-to-int enumval))))
+          ((string-match "^Type: Enum *$" info)
+           (let ((target (rtags-target)))
+             (when target
+               (setq info (rtags-cursorinfo target))
+               (if (string-match "^Enum Value: \\([0-9]+\\) *$" info)
+                   (let ((enumval (match-string 1 info)))
+                     (message "%s - %s - 0x%X" (rtags-current-symbol-name info) enumval (string-to-int enumval)))))))
+          (t nil))))
 
 (defun rtags-current-location ()
   (format "%s,%d" (buffer-file-name) (- (point) 1)))
@@ -527,6 +541,7 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r .") (function rtags-find-symbol-at-point))
   (define-key map (kbd "C-x r ,") (function rtags-find-references-at-point))
   (define-key map (kbd "C-x r v") (function rtags-find-virtuals-at-point))
+  (define-key map (kbd "C-x r V") (function rtags-print-enum-value-at-point))
   (define-key map (kbd "C-x r /") (function rtags-find-all-references-at-point))
   (define-key map (kbd "C-x r >") (function rtags-find-symbol))
   (define-key map (kbd "C-x r <") (function rtags-find-references))
