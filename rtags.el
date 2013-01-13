@@ -297,7 +297,7 @@
                (if (string-match "^Enum Value: \\([0-9]+\\) *$" info)
                    (let ((enumval (match-string 1 info)))
                      (message "%s - %s - 0x%X" (rtags-current-symbol-name info) enumval (string-to-int enumval)))))))
-          (t nil))))
+          (t (message "RTags: No enum here") nil))))
 
 (defun rtags-current-location ()
   (format "%s,%d" (buffer-file-name) (- (point) 1)))
