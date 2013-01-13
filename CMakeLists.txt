@@ -4,7 +4,6 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-#add_subdirectory(makelib)
 add_subdirectory(src)
 
 add_custom_target(3rdparty
