@@ -145,17 +145,13 @@ There are lots of interactive functions to call but the most important ones are:
 
 * Vidoes
 
-In the interest of full disclosure those videos were recorded under
-some amount of alcholically induced impairment and don't really do
-our project justice. Anyway, some videos:
+Here are some videos demonstrating how to use rtags with emacs:
 
-Completion:
+Find symbol/references under cursor:
+http://youtu.be/k4driyVYSRU
 
-[[http://www.youtube.com/watch?v=W8Nac4PX6eo]]
-
-Code navigation:
-
-[[http://www.youtube.com/watch?v=j6tDy3WhcNw]]
+Find symbol by name:
+http://youtu.be/DUkT3CCpHVw
 
 * Disclaimer
 
