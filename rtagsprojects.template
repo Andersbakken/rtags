@@ -1,6 +1,0 @@
-[Makefiles]
-~/dev/rtags/Makefile
-
-[MakefileCommands]
-~/dev/nrdp-scripts/bin/lsdev.pl=-tp -l -a build
-
