@@ -252,7 +252,6 @@ void FileSystemWatcher::notifyReadyRead()
     FSUserData data;
     {
         enum { MaxEvents = 5 };
-        MutexLocker lock(&mMutex);
         struct kevent events[MaxEvents];
         struct timespec nullts = { 0, 0 };
         int ret;
@@ -267,6 +266,7 @@ void FileSystemWatcher::notifyReadyRead()
             }
             assert(ret > 0 && ret <= MaxEvents);
             for (int i = 0; i < ret; ++i) {
+                MutexLocker lock(&mMutex);
                 const struct kevent& event = events[i];
                 const Path p = mWatchedById.value(event.ident);
                 if (event.flags & EV_ERROR) {
@@ -313,6 +313,7 @@ void FileSystemWatcher::notifyReadyRead()
                     //printf("after updateFiles, added %d, modified %d, removed %d\n",
                     //       data.added.size(), data.modified.size(), data.all.size());
 
+                    lock.unlock();
                     struct {
                         signalslot::Signal1<const Path&> &signal;
                         const Set<Path> &paths;
@@ -328,6 +329,7 @@ void FileSystemWatcher::notifyReadyRead()
                     }
                 }
 
+                lock.unlock();
                 for (Set<Path>::const_iterator it = data.all.begin(); it != data.all.end(); ++it) {
                     mRemoved(*it);
                 }
