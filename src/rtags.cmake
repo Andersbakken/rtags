@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
 include(clang.cmake)
-include(PCH_GCC4_v2.cmake)
 
 include_directories(
     ${PROJECT_SOURCE_DIR}/3rdparty/leveldb
@@ -30,7 +29,6 @@ set(rtags_client_HDRS
     Mutex.h
     MutexLocker.h
     Path.h
-    Pch.h
     Preprocessor.h
     Process.h
     ProjectMessage.h
@@ -162,8 +160,6 @@ if(NOT CMAKE_SYSTEM_NAME MATCHES "Darwin")
 else()
   add_definitions(-D_DARWIN_UNLIMITED_SELECT)
 endif()
-add_pch_rule(Pch.h rtags_SRCS rtags_PCHFLAGS)
-add_definitions(${rtags_PCHFLAGS})
 
 add_library(rtags ${rtags_SRCS})
 add_dependencies(rtags gperf)
