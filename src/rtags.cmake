@@ -16,7 +16,6 @@ set(rtags_client_HDRS
     EventLoop.h
     EventReceiver.h
     FastDelegate.h
-    IniFile.h
     Job.h
     List.h
     LocalClient.h
@@ -116,7 +115,6 @@ set(rtags_SRCS
     FollowLocationJob.cpp
     ScanJob.cpp
     IndexerJob.cpp
-    IniFile.cpp
     Job.cpp
     ListSymbolsJob.cpp
     ReferencesJob.cpp
