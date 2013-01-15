@@ -43,7 +43,6 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
     if (job->isAborted())
         return;
 
-
     CXTranslationUnit unit = job->takeTranslationUnit();
     if (unit)
         addCachedUnit(job->path(), job->arguments(), job->takeIndex(), unit);
@@ -63,7 +62,6 @@ void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
 bool Indexer::finish()
 {
     bool done = false;
-    int jobsSaved = 0;
     {
         MutexLocker lock(&mMutex);
         if (mJobs.isEmpty()) {
@@ -71,28 +69,61 @@ bool Indexer::finish()
             mTimerRunning = false;
             mTimer.restart();
             write();
-            if (mJobCounter) {
-                jobsSaved = mJobCounter;
-                error() << "Jobs took" << ((double)(mLastJobElapsed) / 1000.0) << "secs, writing took"
-                        << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
-                        << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-                mJobCounter = 0;
-            } else {
-                jobsSaved = -1; // we want to return true
-            }
+            error() << "Jobs took" << ((double)(mLastJobElapsed) / 1000.0) << "secs, writing took"
+                    << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
+                    << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+            mJobCounter = 0;
+
         }
     }
 
     if (done) {
-        mJobsComplete(static_pointer_cast<Indexer>(shared_from_this()), jobsSaved);
-
         if (mFlags & Validate) {
             shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(project(), mPreviousErrors));
             validateJob->errors().connect(this, &Indexer::onValidateDBJobErrors);
             Server::instance()->startQueryJob(validateJob);
         }
+        save();
     }
-    return jobsSaved;
+    return done;
+}
+
+void Indexer::save()
+{
+    shared_ptr<Project> project = mProject.lock();
+    if (!project || !Server::instance()->saveFileIds())
+        return;
+
+    StopWatch timer;
+    Path srcPath = project->path();
+    RTags::encodePath(srcPath);
+    const Server::Options &options = Server::instance()->options();
+    const Path p = options.dataDir + srcPath;
+    FILE *f = fopen(p.constData(), "w");
+    if (!f) {
+        error("Can't open file %s", p.constData());
+        return;
+    }
+    Serializer out(f);
+    out << static_cast<int>(Server::DatabaseVersion);
+    const int pos = ftell(f);
+    out << static_cast<int>(0);
+    if (!project->save(out)) {
+        error("Can't save project %s", project->path().constData());
+        fclose(f);
+        return;
+    }
+    {
+        MutexLocker lock(&mMutex);
+        out << mDependencies << mSources << mVisitedFiles;
+    }
+
+    const int size = ftell(f);
+    fseek(f, pos, SEEK_SET);
+    out << size;
+
+    error() << "saved project" << project->path() << "in" << ByteArray::format<12>("%dms", timer.elapsed()).constData();
+    fclose(f);
 }
 
 void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
@@ -146,7 +177,6 @@ void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
         mTimerRunning = true;
         mTimer.start();
     }
-    jobStarted()(indexer, c.sourceFile);
     Server::instance()->startIndexerJob(job, job->priority());
 }
 
@@ -414,13 +444,6 @@ DependencyMap Indexer::dependencies() const
 {
     MutexLocker lock(&mMutex);
     return mDependencies;
-}
-
-bool Indexer::save(Serializer &out)
-{
-    MutexLocker lock(&mMutex);
-    out << mDependencies << mSources << mVisitedFiles;
-    return true;
 }
 
 static inline bool isDirty(uint32_t fileId, time_t time)

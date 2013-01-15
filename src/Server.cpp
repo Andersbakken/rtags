@@ -107,7 +107,7 @@ bool Server::init(const Options &options)
         return false;
     }
 
-    restore();
+    restoreFileIds();
     mServer->clientConnected().connect(this, &Server::onNewConnection);
     reloadProjects();
 
@@ -135,17 +135,30 @@ void Server::reloadProjects()
         Path p = file.mid(mOptions.dataDir.size());
         RTags::decodePath(p);
         if (p.isDir()) {
+            bool remove = false;
             if (FILE *f = fopen(file.constData(), "r")) {
                 Deserializer in(f);
                 int version;
                 in >> version;
+
                 if (version == Server::DatabaseVersion) {
-                    addProject(p);
+                    int fs;
+                    in >> fs;
+                    if (fs != RTags::fileSize(f)) {
+                        error("%s seems to be corrupted, refusing to restore. Removing.",
+                              file.constData());
+                        remove = true;
+                    } else {
+                        addProject(p);
+                    }
                 } else {
-                    error() << file << "has wrong format. Got" << version << "expected" << Server::DatabaseVersion;
+                    remove = true;
+                    error() << file << "has wrong format. Got" << version << "expected" << Server::DatabaseVersion << "Removing";
                 }
                 fclose(f);
             }
+            if (remove)
+                Path::rm(p);
         }
     }
 }
@@ -671,8 +684,6 @@ void Server::loadProject(shared_ptr<Project> &project)
     if (!project->isValid()) {
         assert(!project->isValid());
         project->init();
-        project->indexer->jobsComplete().connectAsync(this, &Server::onJobsComplete);
-        project->indexer->jobStarted().connectAsync(this, &Server::onJobStarted);
 
         if (mRestoreProjects)
             project->restore();
@@ -968,97 +979,7 @@ void Server::handleCompletionStream(CompletionMessage *message, Connection *conn
     mCompletionStreams[client] = conn;
 }
 
-void Server::save(const shared_ptr<Indexer> &indexer)
-{
-    if (!Path::mkdir(mOptions.dataDir)) {
-        error("Can't create directory [%s]", mOptions.dataDir.constData());
-        return;
-    }
-    {
-        const Path p = mOptions.dataDir + "fileids";
-        FILE *f = fopen(p.constData(), "w");
-        if (!f) {
-            error("Can't open file %s", p.constData());
-            return;
-        }
-        const Map<Path, uint32_t> pathsToIds = Location::pathsToIds();
-        Serializer out(f);
-        out << static_cast<int>(DatabaseVersion);
-        const int pos = ftell(f);
-        out << static_cast<int>(0) << pathsToIds;
-        const int size = ftell(f);
-        fseek(f, pos, SEEK_SET);
-        out << size;
-        fclose(f);
-    }
-    for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second->indexer != indexer)
-            continue;
-        StopWatch timer;
-        Path srcPath = it->first;
-        RTags::encodePath(srcPath);
-        const Path p = mOptions.dataDir + srcPath;
-        FILE *f = fopen(p.constData(), "w");
-        if (!f) {
-            error("Can't open file %s", p.constData());
-            return;
-        }
-        Serializer out(f);
-        out << static_cast<int>(DatabaseVersion);
-        const int pos = ftell(f);
-        out << static_cast<int>(0);
-        if (!it->second->save(out)) {
-            error("Can't save project %s", it->first.constData());
-            fclose(f);
-            return;
-        }
-        if (!it->second->indexer->save(out)) {
-            error("Can't save project %s", it->first.constData());
-            fclose(f);
-            return;
-        }
-        const int size = ftell(f);
-        fseek(f, pos, SEEK_SET);
-        out << size;
-
-        error() << "saved project" << it->first << "in" << ByteArray::format<12>("%dms", timer.elapsed()).constData();
-        fclose(f);
-        break;
-    }
-}
-
-void Server::onJobsComplete(shared_ptr<Indexer> indexer, int count)
-{
-    bool ok;
-    const int id = mSaveTimers.take(indexer, &ok);
-    if (ok && id != -1)
-        EventLoop::instance()->removeTimer(id);
-    if (count) {
-        enum { SaveTimerInterval = 1000 };
-        mSaveTimers[indexer] = EventLoop::instance()->addTimer(SaveTimerInterval, Server::saveTimerCallback,
-                                                               new shared_ptr<Indexer>(indexer));
-    }
-}
-
-void Server::saveTimerCallback(int id, void *userData)
-{
-    shared_ptr<Indexer> *indexer = static_cast<shared_ptr<Indexer> *>(userData);
-    EventLoop::instance()->removeTimer(id);
-    Server::instance()->save(*indexer);
-    delete indexer;
-    // ### should maybe not do this in the main thread
-}
-
-void Server::onJobStarted(shared_ptr<Indexer> indexer, Path path)
-{
-    // error() << path.constData() << "started";
-    bool ok;
-    const int id = mSaveTimers.take(indexer, &ok);
-    if (ok && id != -1)
-        EventLoop::instance()->removeTimer(id);
-}
-
-void Server::restore()
+void Server::restoreFileIds()
 {
     const Path p = mOptions.dataDir + "fileids";
     FILE *f = fopen(p.constData(), "r");
@@ -1080,4 +1001,27 @@ void Server::restore()
         }
         fclose(f);
     }
+}
+bool Server::saveFileIds() const
+{
+    if (!Path::mkdir(mOptions.dataDir)) {
+        error("Can't create directory [%s]", mOptions.dataDir.constData());
+        return false;
+    }
+    const Path p = mOptions.dataDir + "fileids";
+    FILE *f = fopen(p.constData(), "w");
+    if (!f) {
+        error("Can't open file %s", p.constData());
+        return false;
+    }
+    const Map<Path, uint32_t> pathsToIds = Location::pathsToIds();
+    Serializer out(f);
+    out << static_cast<int>(DatabaseVersion);
+    const int pos = ftell(f);
+    out << static_cast<int>(0) << pathsToIds;
+    const int size = ftell(f);
+    fseek(f, pos, SEEK_SET);
+    out << size;
+    fclose(f);
+    return true;
 }

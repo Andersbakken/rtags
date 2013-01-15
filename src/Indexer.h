@@ -52,14 +52,11 @@ public:
     ByteArray fixIts(uint32_t fileId) const;
     ByteArray diagnostics() const;
     int reindex(const Match &match);
-    signalslot::Signal2<shared_ptr<Indexer>, int> &jobsComplete() { return mJobsComplete; }
-    signalslot::Signal2<shared_ptr<Indexer>, Path> &jobStarted() { return mJobStarted; }
     shared_ptr<Project> project() const { return mProject.lock(); }
     void onJobFinished(const shared_ptr<IndexerJob> &job);
     bool isIndexed(uint32_t fileId) const;
     SourceInformationMap sources() const;
     DependencyMap dependencies() const;
-    bool save(Serializer &out);
     bool restore(Deserializer &in);
     Set<Path> watchedPaths() const { return mWatchedPaths; }
     bool fetchFromCache(const Path &path, List<ByteArray> &args, CXIndex &index, CXTranslationUnit &unit);
@@ -75,6 +72,7 @@ private:
     void onFilesModifiedTimeout();
     void addCachedUnit(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
     bool finish();
+    void save();
     void onValidateDBJobErrors(const Set<Location> &errors);
 
     enum InitMode {
@@ -112,8 +110,6 @@ private:
 
     Set<Location> mPreviousErrors;
 
-    signalslot::Signal2<shared_ptr<Indexer>, int> mJobsComplete;
-    signalslot::Signal2<shared_ptr<Indexer>, Path> mJobStarted;
     unsigned mFlags;
 
     Map<uint32_t, shared_ptr<IndexData> > mPendingData;

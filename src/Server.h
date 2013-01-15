@@ -56,18 +56,14 @@ public:
     const List<ByteArray> &excludeFilters() const { return mOptions.excludeFilters; }
     const Path &clangPath() const { return mClangPath; }
     const Options &options() const { return mOptions; }
+    bool saveFileIds() const;
 private:
     bool selectProject(const Match &match, Connection *conn);
     bool updateProject(const List<ByteArray> &projects);
-    void onJobsComplete(shared_ptr<Indexer> indexer, int count);
-    void onJobStarted(shared_ptr<Indexer> indexer, Path path);
 
     bool isCompletionStream(Connection* conn) const;
 
-    static void saveTimerCallback(int id, void *userData);
-
-    void save(const shared_ptr<Indexer> &indexer);
-    void restore();
+    void restoreFileIds();
     void clear();
     void onNewConnection();
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
@@ -129,8 +125,6 @@ private:
     ThreadPool mQueryThreadPool;
     signalslot::Signal2<int, const List<ByteArray> &> mComplete;
     Path mClangPath;
-
-    Map<shared_ptr<Indexer>, int> mSaveTimers;
 
     Map<LocalClient*, Connection*> mCompletionStreams;
     struct PendingCompletion
