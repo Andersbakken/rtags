@@ -12,7 +12,6 @@
 #include "FindFileJob.h"
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
-#include "Indexer.h"
 #include "IndexerJob.h"
 #include "ListSymbolsJob.h"
 #include "LocalClient.h"
@@ -243,8 +242,8 @@ void Server::handleCreateOutputMessage(CreateOutputMessage *message, Connection 
     LogObject *obj = new LogObject(conn, message->level());
     if (message->level() == CompilationError) {
         shared_ptr<Project> project = currentProject();
-        if (project && project->indexer) {
-            const ByteArray errors = project->indexer->diagnostics();
+        if (project && project->isValid()) {
+            const ByteArray errors = project->diagnostics();
             if (!errors.isEmpty()) {
                 obj->log(errors.constData(), errors.size());
             }
@@ -381,12 +380,12 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
     Location loc(fileId, 0);
 
     shared_ptr<Project> project = updateProjectForLocation(loc);
-    if (!project || !project->indexer) {
+    if (!project || !project->isValid()) {
         conn->write<256>("%s is not indexed", query.query().constData());
         conn->finish();
         return;
     }
-    const SourceInformation c = project->indexer->sourceInfo(fileId);
+    const SourceInformation c = project->sourceInfo(fileId);
     if (c.args.isEmpty()) {
         conn->write<256>("%s is not indexed", query.query().constData());
         conn->finish();
@@ -422,8 +421,8 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
     shared_ptr<Project> project = updateProjectForLocation(path);
-    if (project && project->indexer) {
-        ByteArray out = project->indexer->fixIts(Location::fileId(path));
+    if (project && project->isValid()) {
+        ByteArray out = project->fixIts(Location::fileId(path));
         if (!out.isEmpty())
             conn->write(out);
     }
@@ -546,14 +545,14 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
 {
     const Path path = query.query();
     shared_ptr<Project> project = updateProjectForLocation(path);
-    if (!project || !project->indexer) {
+    if (!project || !project->isValid()) {
         conn->write("No project");
         conn->finish();
         return;
     }
 
     const uint32_t fileId = Location::fileId(path);
-    const SourceInformation c = project->indexer->sourceInfo(fileId);
+    const SourceInformation c = project->sourceInfo(fileId);
     if (c.args.isEmpty()) {
         conn->write("No arguments for " + path);
         conn->finish();
@@ -574,13 +573,13 @@ void Server::clearProjects()
 void Server::reindex(const QueryMessage &query, Connection *conn)
 {
     shared_ptr<Project> project = currentProject();
-    if (!project || !project->indexer) {
+    if (!project || !project->isValid()) {
         error("No project");
         conn->finish();
         return;
     }
 
-    const int count = project->indexer->reindex(query.match());
+    const int count = project->reindex(query.match());
     // error() << count << query.query();
     if (count) {
         conn->write<128>("Dirtied %d files", count);
@@ -636,9 +635,9 @@ void Server::processSourceFile(GccArguments args, Path proj)
         if (!mOptions.excludeFilters.isEmpty() && Filter::filter(c.sourceFile, mOptions.excludeFilters) == Filter::Filtered) {
             error() << "Filtered out" << c.sourceFile;
         } else {
-            const SourceInformation existing = project->indexer->sourceInfo(Location::insertFile(c.sourceFile));
+            const SourceInformation existing = project->sourceInfo(Location::insertFile(c.sourceFile));
             if (existing != c) {
-                project->indexer->index(c, IndexerJob::Makefile);
+                project->index(c, IndexerJob::Makefile);
             } else {
                 debug() << c.sourceFile << " is not dirty. ignoring";
             }
@@ -732,6 +731,8 @@ void Server::removeProject(const QueryMessage &query, Connection *conn)
     while (it != mProjects.end()) {
         ProjectsMap::iterator cur = it++;
         if (cur->second->match(match)) {
+            if (mCurrentProject.lock() == it->second)
+                mCurrentProject.reset();
             cur->second->unload();
             Path path = cur->first;
             conn->write<128>("%s project: %s", unload ? "Unloaded" : "Deleted", path.constData());
@@ -740,8 +741,6 @@ void Server::removeProject(const QueryMessage &query, Connection *conn)
                 Path::rm(mOptions.dataDir + path);
                 mProjects.erase(cur);
             }
-            if (mCurrentProject.lock() == it->second)
-                mCurrentProject.reset();
         }
     }
     conn->finish();
@@ -895,7 +894,7 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
     const Path path = message->path();
     shared_ptr<Project> project = updateProjectForLocation(path);
 
-    if (!project || !project->indexer) {
+    if (!project || !project->isValid()) {
         if (!isCompletionStream(conn))
             conn->finish();
         return;
@@ -916,7 +915,7 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
 {
     // error() << "starting completion" << path << line << column;
     shared_ptr<Project> project = updateProjectForLocation(path);
-    if (!project || !project->indexer) {
+    if (!project || !project->isValid()) {
         if (!isCompletionStream(conn))
             conn->finish();
         return;
@@ -928,10 +927,10 @@ void Server::startCompletion(const Path &path, int line, int column, int pos, co
     CXIndex index;
     CXTranslationUnit unit;
     List<ByteArray> args;
-    if (!project->indexer->fetchFromCache(path, args, index, unit)) {
-        const SourceInformation info = project->indexer->sourceInfo(fileId);
+    if (!project->fetchFromCache(path, args, index, unit)) {
+        const SourceInformation info = project->sourceInfo(fileId);
         if (!info.isNull()) {
-            project->indexer->reindex(path);
+            project->reindex(path);
             conn->write<128>("Scheduled rebuild of %s", path.constData());
         }
         if (!isCompletionStream(conn))

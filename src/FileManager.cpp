@@ -1,7 +1,6 @@
 #include "FileManager.h"
 #include "ScanJob.h"
 #include "Server.h"
-#include "Indexer.h"
 #include "Filter.h"
 
 FileManager::FileManager()

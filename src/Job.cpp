@@ -10,8 +10,8 @@
 // static int active = 0;
 
 Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project> &proj)
-    : mId(-1), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj), mPathFilters(0),
-      mPathFiltersRegExp(0), mMax(query.max()), mConnection(0)
+    : mAborted(false), mId(-1), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj),
+      mPathFilters(0), mPathFiltersRegExp(0), mMax(query.max()), mConnection(0)
 {
     const List<ByteArray> &pathFilters = query.pathFilters();
     if (!pathFilters.isEmpty()) {
@@ -29,8 +29,8 @@ Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project>
 }
 
 Job::Job(unsigned jobFlags, const shared_ptr<Project> &proj)
-    : mId(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0), mPathFiltersRegExp(0), mMax(-1),
-      mConnection(0)
+    : mAborted(false), mId(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0),
+      mPathFiltersRegExp(0), mMax(-1), mConnection(0)
 {
 }
 

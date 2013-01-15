@@ -1,7 +1,6 @@
 #ifndef Job_h
 #define Job_h
 
-#include "AbortInterface.h"
 #include "ThreadPool.h"
 #include "List.h"
 #include "ByteArray.h"
@@ -15,8 +14,7 @@ class CursorInfo;
 class Location;
 class QueryMessage;
 class Project;
-class Job : public ThreadPool::Job, public AbortInterface,
-            public enable_shared_from_this<Job>
+class Job : public ThreadPool::Job, public enable_shared_from_this<Job>
 {
 public:
     enum Flag {
@@ -51,11 +49,15 @@ public:
     unsigned keyFlags() const;
     inline bool filter(const ByteArray &val) const;
     signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
-    shared_ptr<Project> project() const { return mProject; }
-    void resetProject() { mProject.reset(); }
+    shared_ptr<Project> project() const { MutexLocker lock(&mMutex); return mProject; }
     virtual void run();
     virtual void execute() = 0;
     void run(Connection *connection);
+    bool isAborted() const { MutexLocker lock(&mMutex); return mAborted; }
+    void abort() { MutexLocker lock(&mMutex); mAborted = true; }
+protected:
+    mutable Mutex mMutex;
+    bool mAborted;
 private:
     bool writeRaw(const ByteArray &out, unsigned flags);
     int mId;

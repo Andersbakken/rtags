@@ -6,7 +6,9 @@
 #include "RTags.h"
 #include "Match.h"
 #include "RegExp.h"
+#include "EventReceiver.h"
 #include "ReadWriteLock.h"
+#include "FileSystemWatcher.h"
 
 template <typename T>
 class Scope
@@ -32,19 +34,39 @@ private:
     shared_ptr<Data> mData;
 };
 
-class Indexer;
+struct CachedUnit
+{
+    CachedUnit()
+        : next(0), unit(0), index(0)
+    {}
+    ~CachedUnit()
+    {
+        if (unit)
+            clang_disposeTranslationUnit(unit);
+        if (index)
+            clang_disposeIndex(index);
+    }
+    CachedUnit *next;
+    CXTranslationUnit unit;
+    CXIndex index;
+    Path path;
+    List<ByteArray> arguments;
+};
+
 class FileManager;
-class Project : public enable_shared_from_this<Project>
+class IndexerJob;
+class TimerEvent;
+struct IndexData;
+class Project : public EventReceiver
 {
 public:
     Project(const Path &path);
     bool isValid() const;
     void init();
-    void restore();
+    bool restore();
 
     void unload();
 
-    shared_ptr<Indexer> indexer;
     shared_ptr<FileManager> fileManager;
 
     Path path() const { return mPath; }
@@ -65,9 +87,39 @@ public:
 
     bool isIndexed(uint32_t fileId) const;
 
-    bool save(Serializer &out);
-    bool restore(Deserializer &in);
+    enum Flag {
+        None = 0x0,
+        Validate = 0x1,
+        IgnorePrintfFixits = 0x2
+    };
+
+    void index(const SourceInformation &args, unsigned indexerJobFlags);
+    SourceInformation sourceInfo(uint32_t fileId) const;
+    Set<uint32_t> dependencies(uint32_t fileId) const;
+    bool visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &job);
+    ByteArray fixIts(uint32_t fileId) const;
+    ByteArray diagnostics() const;
+    int reindex(const Match &match);
+    void onJobFinished(const shared_ptr<IndexerJob> &job);
+    SourceInformationMap sources() const;
+    DependencyMap dependencies() const;
+    Set<Path> watchedPaths() const { return mWatchedPaths; }
+    bool fetchFromCache(const Path &path, List<ByteArray> &args, CXIndex &index, CXTranslationUnit &unit);
+    void addToCache(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
+    void timerEvent(TimerEvent *event);
 private:
+    bool initJobFromCache(const Path &path, const List<ByteArray> &args,
+                          CXIndex &index, CXTranslationUnit &unit, List<ByteArray> *argsOut);
+    void onFileModified(const Path &);
+    void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
+    void addDiagnostics(const DependencyMap &dependencies, const DiagnosticsMap &diagnostics, const FixItMap &fixIts);
+    void write();
+    void onFilesModifiedTimeout();
+    void addCachedUnit(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
+    bool finish();
+    bool save();
+    void onValidateDBJobErrors(const Set<Location> &errors);
+    
     const Path mPath;
 
     SymbolMap mSymbols;
@@ -81,6 +133,59 @@ private:
 
     FilesMap mFiles;
     ReadWriteLock mFilesLock;
+
+    enum InitMode {
+        Normal,
+        NoValidate,
+        ForceDirty
+    };
+
+    Map<shared_ptr<IndexerJob>, Set<uint32_t> > mVisitedFilesByJob;
+    Set<uint32_t> mVisitedFiles;
+
+    int mJobCounter;
+
+    mutable Mutex mMutex;
+
+    Map<uint32_t, shared_ptr<IndexerJob> > mJobs;
+
+    Set<uint32_t> mModifiedFiles;
+    Timer mModifiedFilesTimer, mFinishedTimer;
+
+    bool mTimerRunning;
+    StopWatch mTimer;
+    int mLastJobElapsed;
+
+    FileSystemWatcher mWatcher;
+    DependencyMap mDependencies;
+    SourceInformationMap mSources;
+
+    Set<Path> mWatchedPaths;
+
+    FixItMap mFixIts;
+    DiagnosticsMap mDiagnostics;
+
+    Set<Location> mPreviousErrors;
+
+    unsigned mFlags;
+
+    Map<uint32_t, shared_ptr<IndexData> > mPendingData;
+    Set<uint32_t> mPendingDirtyFiles;
+
+    CachedUnit *mFirstCachedUnit, *mLastCachedUnit;
+    int mUnitCacheSize;
 };
+
+inline bool Project::visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &job)
+{
+    MutexLocker lock(&mMutex);
+    if (mVisitedFiles.contains(fileId)) {
+        return false;
+    }
+
+    mVisitedFiles.insert(fileId);
+    mVisitedFilesByJob[job].insert(fileId);
+    return true;
+}
 
 #endif

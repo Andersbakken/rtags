@@ -1,7 +1,6 @@
 #ifndef IndexerJob_h
 #define IndexerJob_h
 
-#include "Indexer.h"
 #include "RTags.h"
 #include "Job.h"
 #include "Str.h"
@@ -35,7 +34,7 @@ public:
         Finished
     };
 
-    IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags,
+    IndexerJob(const shared_ptr<Project> &indexer, unsigned flags,
                const Path &input, const List<ByteArray> &args,
                CXIndex index = 0 , CXTranslationUnit unit = 0);
     IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
@@ -47,11 +46,9 @@ public:
     CXIndex takeIndex();
     uint32_t fileId() const { return mFileId; }
     Path path() const { return mPath; }
-    bool isAborted() { return !indexer() && !project(); }
-    void abort() { MutexLocker lock(&mMutex); mIndexer.reset(); resetProject(); }
+    bool isAborted() { return !project(); }
     State abortIfStarted();
     List<ByteArray> arguments() const { return mArgs; }
-    shared_ptr<Indexer> indexer() { MutexLocker lock(&mMutex); return mIndexer.lock(); }
     time_t parseTime() const { return mParseTime; }
 private:
     bool parse();
@@ -94,9 +91,6 @@ private:
     const Path mPath;
     const uint32_t mFileId;
     const List<ByteArray> mArgs;
-
-    Mutex mMutex;
-    weak_ptr<Indexer> mIndexer;
 
     CXTranslationUnit mUnit;
     CXIndex mIndex;

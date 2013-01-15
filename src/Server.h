@@ -5,7 +5,6 @@
 #include "ByteArray.h"
 #include "List.h"
 #include "Map.h"
-#include "Indexer.h"
 #include "QueryMessage.h"
 #include "Connection.h"
 #include "ThreadPool.h"
@@ -16,7 +15,6 @@
 #include "ScanJob.h"
 
 class Connection;
-class Indexer;
 class Message;
 class ErrorMessage;
 class OutputMessage;

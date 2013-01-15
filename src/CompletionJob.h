@@ -5,7 +5,6 @@
 #include "List.h"
 #include "ByteArray.h"
 #include "Path.h"
-#include "AbortInterface.h"
 #include "Event.h"
 #include <clang-c/Index.h>
 

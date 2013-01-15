@@ -19,7 +19,7 @@ void ReferencesJob::execute()
     shared_ptr<Project> proj = project();
     Location startLocation;
     Set<Location> references;
-    if (proj->indexer) {
+    if (proj) {
         if (!symbolName.isEmpty()) {
             Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead();
             if (scope.isNull())

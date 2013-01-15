@@ -2,12 +2,11 @@
 #define ScanJob_h
 
 #include "ThreadPool.h"
-#include "AbortInterface.h"
 #include "Path.h"
 #include "SignalSlot.h"
 #include "Project.h"
 
-class ScanJob : public ThreadPool::Job, public AbortInterface
+class ScanJob : public ThreadPool::Job
 {
 public:
     ScanJob(const Path &path, const shared_ptr<Project> &project);

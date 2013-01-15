@@ -16,8 +16,9 @@ FindSymbolsJob::FindSymbolsJob(const QueryMessage &query, const shared_ptr<Proje
 void FindSymbolsJob::execute()
 {
     Map<Location, bool> out;
-    if (project()->indexer) {
-        Scope<const SymbolNameMap&> scope = project()->lockSymbolNamesForRead();
+    shared_ptr<Project> proj = project();
+    if (proj) {
+        Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead();
         if (scope.isNull())
             return;
         const SymbolNameMap &map = scope.data();
@@ -31,7 +32,7 @@ void FindSymbolsJob::execute()
     }
 
     if (out.size()) {
-        Scope<const SymbolMap&> scope = project()->lockSymbolsForRead();
+        Scope<const SymbolMap&> scope = proj->lockSymbolsForRead();
         const SymbolMap *map = &scope.data();
         List<RTags::SortedCursor> sorted;
         sorted.reserve(out.size());

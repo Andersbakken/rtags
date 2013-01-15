@@ -6,7 +6,6 @@ include_directories(
     )
 
 set(rtags_client_HDRS
-    AbortInterface.h
     ByteArray.h
     Client.h
     CompletionMessage.h
@@ -90,7 +89,6 @@ set(rtags_HDRS
     FindSymbolsJob.h
     FollowLocationJob.h
     GccArguments.h
-    Indexer.h
     IndexerJob.h
     ListSymbolsJob.h
     LocalServer.h
@@ -125,7 +123,6 @@ set(rtags_SRCS
     Server.cpp
     MemoryMonitor.cpp
     GccArguments.cpp
-    Indexer.cpp
     FileManager.cpp
     Project.cpp
     RTagsClang.cpp

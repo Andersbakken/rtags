@@ -213,7 +213,9 @@ void CompletionJob::execute()
         //processDiagnostics(results);
 
         clang_disposeCodeCompleteResults(results);
-        project()->indexer->addToCache(mPath, mArgs, mIndex, mUnit);
+        shared_ptr<Project> proj = project();
+        if (proj)
+            proj->addToCache(mPath, mArgs, mIndex, mUnit);
     }
     mFinished(mPath);
 }

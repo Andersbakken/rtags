@@ -22,11 +22,11 @@ struct VerboseVisitorUserData {
     IndexerJob *job;
 };
 
-IndexerJob::IndexerJob(const shared_ptr<Indexer> &indexer, unsigned flags, const Path &p, const List<ByteArray> &arguments,
+IndexerJob::IndexerJob(const shared_ptr<Project> &project, unsigned flags, const Path &p, const List<ByteArray> &arguments,
                        CXIndex index, CXTranslationUnit unit)
-    : Job(0, indexer->project()),
+    : Job(0, project),
       mFlags(flags), mTimeStamp(0), mPath(p), mFileId(Location::insertFile(p)),
-      mArgs(arguments), mIndexer(indexer), mUnit(unit), mIndex(index), mDump(false), mParseTime(0),
+      mArgs(arguments), mUnit(unit), mIndex(index), mDump(false), mParseTime(0),
       mState(NotStarted)
 {
 }
@@ -188,9 +188,9 @@ Location IndexerJob::createLocation(const CXSourceLocation &location, bool *bloc
             if (blocked) {
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
-                    shared_ptr<Indexer> indexer = mIndexer.lock();
+                    shared_ptr<Project> p = project();
                     shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
-                    state = indexer && indexer->visitFile(fileId, job) ? Index : DontIndex;
+                    state = p && p->visitFile(fileId, job) ? Index : DontIndex;
                 }
                 if (state != Index) {
                     *blocked = true;
@@ -788,7 +788,7 @@ void IndexerJob::execute()
                 clang_visitChildren(clang_getTranslationUnitCursor(mUnit), dumpVisitor, &u);
             }
         }
-    } else if (mIndexer.lock()) {
+    } else {
         {
             MutexLocker lock(&mMutex);
             mState = Started;
@@ -803,18 +803,17 @@ void IndexerJob::execute()
                                                      ByteArray::number(mTimer.elapsed()).constData(),
                                                      mData->symbols.size(), mData->symbolNames.size(), mData->references.size(), mData->dependencies.size(),
                                                      mFlags & Dirty ? " (dirty)" : "");
-            shared_ptr<Indexer> idx;
+        } else {
+            abort();
+        }
+        shared_ptr<Project> p = project();
+        if (p) {
             {
                 MutexLocker lock(&mMutex);
-                idx = mIndexer.lock();
-                if (idx)
-                    mState = Finished;
+                mState = Finished;
             }
-
-            if (idx) {
-                shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
-                idx->onJobFinished(job);
-            }
+            shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
+            p->onJobFinished(job);
         }
     }
     if (mUnit) {
@@ -905,10 +904,9 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
 IndexerJob::State IndexerJob::abortIfStarted()
 {
     MutexLocker lock(&mMutex);
-    if (mState == Started) {
-        resetProject();
-        mIndexer.reset();
-    }
+    if (mState != NotStarted)
+        mAborted = true;
+    // ### should I reset when state == Finished?
     return mState;
 }
 

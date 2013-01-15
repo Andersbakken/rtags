@@ -1,6 +1,5 @@
 #include "ValidateDBJob.h"
 #include "CursorInfo.h"
-#include "Indexer.h"
 #include "RTags.h"
 #include "Server.h"
 #include <clang-c/Index.h>
@@ -127,8 +126,8 @@ void ValidateDBJob::execute()
                 if (foundError) {
                     error() << "Something is suspicious about" << foundError << it->first << it->second;
                     error() << ByteArray::format<64>("[%s]",
-                                                       ByteArray(lastFileContents + offset - 1,
-                                                                 it->second.symbolLength + 2).constData());
+                                                     ByteArray(lastFileContents + offset - 1,
+                                                               it->second.symbolLength + 2).constData());
                 }
 
             }
