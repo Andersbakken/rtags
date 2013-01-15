@@ -14,7 +14,7 @@ enum Result {
     Directory
 };
 
-static inline Result filter(const Path &path, const List<ByteArray> &filters)
+static inline Result filter(const Path &path, const List<ByteArray> &filters = List<ByteArray>())
 {
     const int size = filters.size();
     for (int i=0; i<size; ++i) {

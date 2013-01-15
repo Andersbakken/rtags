@@ -20,7 +20,7 @@ class Indexer;
 class Message;
 class ErrorMessage;
 class OutputMessage;
-class ProjectMessage;
+class CompileMessage;
 class LocalServer;
 class GccArguments;
 class Job;
@@ -77,7 +77,7 @@ private:
     void onNewMessage(Message *message, Connection *conn);
     void onConnectionDestroyed(Connection *o);
     void clearProjects();
-    void handleProjectMessage(ProjectMessage *message, Connection *conn);
+    void handleCompileMessage(CompileMessage *message, Connection *conn);
     void handleCompletionMessage(CompletionMessage *message, Connection *conn);
     void handleCompletionStream(CompletionMessage *message, Connection *conn);
     void handleQueryMessage(QueryMessage *message, Connection *conn);

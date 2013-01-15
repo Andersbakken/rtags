@@ -30,7 +30,7 @@ set(rtags_client_HDRS
     Path.h
     Preprocessor.h
     Process.h
-    ProjectMessage.h
+    CompileMessage.h
     QueryMessage.h
     RClient.h
     ReadLocker.h
@@ -66,7 +66,7 @@ set(rtags_client_SRCS
     Path.cpp
     Preprocessor.cpp
     Process.cpp
-    ProjectMessage.cpp
+    CompileMessage.cpp
     QueryMessage.cpp
     RClient.cpp
     ReadWriteLock.cpp

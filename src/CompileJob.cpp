@@ -1,7 +1,7 @@
 #include "CompileJob.h"
 #include "Server.h"
 
-CompileJob::CompileJob(const ProjectMessage &message)
+CompileJob::CompileJob(const CompileMessage &message)
     : mArgs(message.arguments()), mPath(message.path())
 {
 }

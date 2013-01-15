@@ -1,12 +1,12 @@
-#include "ProjectMessage.h"
+#include "CompileMessage.h"
 #include "Serializer.h"
 
-ProjectMessage::ProjectMessage(const Path &path, const ByteArray &args)
+CompileMessage::CompileMessage(const Path &path, const ByteArray &args)
     : mPath(path), mArgs(args)
 {
 }
 
-ByteArray ProjectMessage::encode() const
+ByteArray CompileMessage::encode() const
 {
     ByteArray data;
     {
@@ -16,7 +16,7 @@ ByteArray ProjectMessage::encode() const
     return data;
 }
 
-void ProjectMessage::fromData(const char *data, int size)
+void CompileMessage::fromData(const char *data, int size)
 {
     Deserializer stream(data, size);
     stream >> mRaw >> mPath >> mArgs;

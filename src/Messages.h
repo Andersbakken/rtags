@@ -2,7 +2,7 @@
 #define MESSAGES_H
 
 #include "QueryMessage.h"
-#include "ProjectMessage.h"
+#include "CompileMessage.h"
 #include "ResponseMessage.h"
 #include "CreateOutputMessage.h"
 #include "CompletionMessage.h"

@@ -1,17 +1,17 @@
-#ifndef ProjectMessage_h
-#define ProjectMessage_h
+#ifndef CompileMessage_h
+#define CompileMessage_h
 
 #include "List.h"
 #include "ByteArray.h"
 #include "ClientMessage.h"
 #include "RTags.h"
 
-class ProjectMessage : public ClientMessage
+class CompileMessage : public ClientMessage
 {
 public:
     enum { MessageId = ProjectId };
 
-    ProjectMessage(const Path &path = Path(), const ByteArray &args = ByteArray());
+    CompileMessage(const Path &path = Path(), const ByteArray &args = ByteArray());
 
     virtual int messageId() const { return MessageId; }
 

@@ -51,7 +51,7 @@ void FileManager::onFileAdded(const Path &path)
         error("Got empty file added here");
         return;
     }
-    const Filter::Result res = Filter::filter(path, Server::instance()->excludeFilters());
+    const Filter::Result res = Filter::filter(path);
     switch (res) {
     case Filter::Directory:
         recurseDirs();

@@ -44,7 +44,7 @@ void Messages::init()
     registerMessage<QueryMessage>();
     registerMessage<ResponseMessage>();
     registerMessage<CreateOutputMessage>();
-    registerMessage<ProjectMessage>();
+    registerMessage<CompileMessage>();
 }
 
 Message* Messages::create(const char *data, int size)

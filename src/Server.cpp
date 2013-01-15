@@ -1,13 +1,14 @@
 #include "Server.h"
 
-#include "CompileJob.h"
 #include "Client.h"
+#include "CompileJob.h"
 #include "CompletionJob.h"
 #include "Connection.h"
 #include "CreateOutputMessage.h"
 #include "CursorInfoJob.h"
 #include "Event.h"
 #include "EventLoop.h"
+#include "Filter.h"
 #include "FindFileJob.h"
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
@@ -24,7 +25,7 @@
 #include "Path.h"
 #include "Preprocessor.h"
 #include "Process.h"
-#include "ProjectMessage.h"
+#include "CompileMessage.h"
 #include "QueryMessage.h"
 #include "RTags.h"
 #include "ReferencesJob.h"
@@ -180,7 +181,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
     ClientMessage *m = static_cast<ClientMessage*>(message);
     const ByteArray raw = m->raw();
     if (!raw.isEmpty()) {
-        if (!isCompletionStream(connection) && message->messageId() != ProjectMessage::MessageId) {
+        if (!isCompletionStream(connection) && message->messageId() != CompileMessage::MessageId) {
             error() << raw;
         } else {
             warning() << raw;
@@ -188,8 +189,8 @@ void Server::onNewMessage(Message *message, Connection *connection)
     }
 
     switch (message->messageId()) {
-    case ProjectMessage::MessageId:
-        handleProjectMessage(static_cast<ProjectMessage*>(message), connection);
+    case CompileMessage::MessageId:
+        handleCompileMessage(static_cast<CompileMessage*>(message), connection);
         break;
     case QueryMessage::MessageId:
         handleQueryMessage(static_cast<QueryMessage*>(message), connection);
@@ -216,7 +217,7 @@ void Server::onNewMessage(Message *message, Connection *connection)
     }
 }
 
-void Server::handleProjectMessage(ProjectMessage *message, Connection *conn)
+void Server::handleCompileMessage(CompileMessage *message, Connection *conn)
 {
     conn->finish(); // nothing to wait for
     shared_ptr<CompileJob> job(new CompileJob(*message));
@@ -619,12 +620,15 @@ void Server::processSourceFile(GccArguments args, Path proj)
     SourceInformation c(Path(), arguments, args.compiler());
     for (int i=0; i<count; ++i) {
         c.sourceFile = inputFiles.at(i);
-
-        const SourceInformation existing = project->indexer->sourceInfo(Location::insertFile(c.sourceFile));
-        if (existing != c) {
-            project->indexer->index(c, IndexerJob::Makefile);
+        if (!mOptions.excludeFilters.isEmpty() && Filter::filter(c.sourceFile, mOptions.excludeFilters) == Filter::Filtered) {
+            error() << "Filtered out" << c.sourceFile;
         } else {
-            debug() << c.sourceFile << " is not dirty. ignoring";
+            const SourceInformation existing = project->indexer->sourceInfo(Location::insertFile(c.sourceFile));
+            if (existing != c) {
+                project->indexer->index(c, IndexerJob::Makefile);
+            } else {
+                debug() << c.sourceFile << " is not dirty. ignoring";
+            }
         }
     }
     return;

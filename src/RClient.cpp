@@ -1,6 +1,6 @@
 #include "RClient.h"
 #include "CreateOutputMessage.h"
-#include "ProjectMessage.h"
+#include "CompileMessage.h"
 #include "CompletionMessage.h"
 #include "EventLoop.h"
 #include "RegExp.h"
@@ -176,13 +176,13 @@ public:
     const ByteArray args;
     virtual void exec(RClient *rc, Client *client)
     {
-        ProjectMessage msg(path, args);
+        CompileMessage msg(path, args);
         msg.init(rc->argc(), rc->argv());
         client->message(&msg);
     }
     virtual ByteArray description() const
     {
-        return ("ProjectMessage " + path);
+        return ("CompileMessage " + path);
     }
 };
 
