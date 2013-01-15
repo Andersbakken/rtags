@@ -13,6 +13,7 @@
 
 static void *ModifiedFiles = &ModifiedFiles;
 static void *Finished = &Finished;
+enum { Timeout = 2000 };
 
 Indexer::Indexer(const shared_ptr<Project> &proj, unsigned flags)
     : mJobCounter(0), mTimerRunning(false), mLastJobElapsed(0),
@@ -30,7 +31,6 @@ static inline bool isFile(uint32_t fileId)
 void Indexer::onJobFinished(const shared_ptr<IndexerJob> &job)
 {
     MutexLocker lock(&mMutex);
-    enum { Timeout = 2000 };
     mFinishedTimer.start(shared_from_this(), Timeout, true, Finished);
 
     const uint32_t fileId = job->fileId();
@@ -98,11 +98,17 @@ bool Indexer::finish()
 void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
 {
     MutexLocker locker(&mMutex);
-    if (!mProject.lock())
+    shared_ptr<Project> project = mProject.lock();
+    if (!project)
         return;
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
     if (fileFilter && !strstr(c.sourceFile.constData(), fileFilter))
         return;
+
+    mFinishedTimer.start(shared_from_this(), Timeout, true, Finished);
+    // not really sure why it would help to start this timer here as well but I
+    // sometimes get it and I think the problem is that the finishedtimer
+    // doesn't fire so hopefully this helps.
 
     const uint32_t fileId = Location::insertFile(c.sourceFile);
     shared_ptr<IndexerJob> &job = mJobs[fileId];
@@ -140,7 +146,7 @@ void Indexer::index(const SourceInformation &c, unsigned indexerJobFlags)
         mTimerRunning = true;
         mTimer.start();
     }
-    mJobStarted(indexer, c.sourceFile);
+    jobStarted()(indexer, c.sourceFile);
     Server::instance()->startIndexerJob(job, job->priority());
 }
 
