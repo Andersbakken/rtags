@@ -245,11 +245,13 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
         const uint32_t fileId = job->fileId();
         if (job->isAborted()) {
             mVisitedFiles -= mVisitedFilesByJob.take(job);
+            --mJobCounter;
             pending = mPendingJobs.take(fileId, &startPending);
             if (mJobs.value(fileId) == job) {
                 mJobs.remove(fileId);
             }
         } else {
+            assert(mJobs.value(fileId) == job);
             mJobs.remove(fileId);
             mLastJobElapsed = mTimer.elapsed();
 
