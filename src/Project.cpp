@@ -129,7 +129,10 @@ end:
     if (restoreError) {
         Path::rm(p);
         return false;
+    } else {
+        error() << "Restored project" << mPath << "in" << timer.elapsed() << "ms";
     }
+
     return true;
 }
 
@@ -278,6 +281,19 @@ bool Project::finish()
     bool done = false;
     {
         MutexLocker lock(&mMutex);
+#ifdef RTAGS_DEBUG
+        {
+            Map<uint32_t, shared_ptr<IndexerJob> >::iterator it = mJobs.begin();
+            while (it != mJobs.end()) {
+                if (it->second.use_count() == 1) {
+                    error() << it->second->path() << "is dangling.";
+                    mJobs.erase(it++);
+                } else {
+                    ++it;
+                }
+            }
+        }
+#endif
         if (mJobs.isEmpty()) {
             done = true;
             mTimerRunning = false;
