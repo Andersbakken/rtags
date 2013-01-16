@@ -246,7 +246,9 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
         if (job->isAborted()) {
             mVisitedFiles -= mVisitedFilesByJob.take(job);
             pending = mPendingJobs.take(fileId, &startPending);
-            error() << job->path() << "was aborted" << startPending << pending.source;
+            if (mJobs.value(fileId) == job) {
+                mJobs.remove(fileId);
+            }
         } else {
             mJobs.remove(fileId);
             mLastJobElapsed = mTimer.elapsed();

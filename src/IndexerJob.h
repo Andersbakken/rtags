@@ -40,7 +40,6 @@ public:
     CXIndex takeIndex();
     uint32_t fileId() const { return mFileId; }
     Path path() const { return mPath; }
-    bool isAborted() { return !project(); }
     bool abortIfStarted();
     List<ByteArray> arguments() const { return mArgs; }
     time_t parseTime() const { return mParseTime; }
