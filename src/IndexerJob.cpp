@@ -27,14 +27,14 @@ IndexerJob::IndexerJob(const shared_ptr<Project> &project, unsigned flags, const
     : Job(0, project),
       mFlags(flags), mTimeStamp(0), mPath(p), mFileId(Location::insertFile(p)),
       mArgs(arguments), mUnit(unit), mIndex(index), mDump(false), mParseTime(0),
-      mState(NotStarted)
+      mStarted(false)
 {
 }
 
 IndexerJob::IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
                        const Path &input, const List<ByteArray> &arguments)
     : Job(msg, WriteUnfiltered|WriteBuffered, project), mFlags(0), mTimeStamp(0), mPath(input), mFileId(Location::insertFile(input)),
-      mArgs(arguments), mUnit(0), mIndex(0), mDump(true), mParseTime(0), mState(NotStarted)
+      mArgs(arguments), mUnit(0), mIndex(0), mDump(true), mParseTime(0), mStarted(false)
 {
 }
 
@@ -188,6 +188,11 @@ Location IndexerJob::createLocation(const CXSourceLocation &location, bool *bloc
             if (blocked) {
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
+                    MutexLocker lock(&mMutex);
+                    if (mAborted) {
+                        *blocked = true;
+                        return Location();
+                    }
                     shared_ptr<Project> p = project();
                     shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
                     state = p && p->visitFile(fileId, job) ? Index : DontIndex;
@@ -672,8 +677,10 @@ bool IndexerJob::diagnose(int *errorCount)
 {
     if (errorCount)
         *errorCount = 0;
-    if (!mUnit)
+    if (!mUnit) {
+        abort();
         return false;
+    }
 
     const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
     for (unsigned i=0; i<diagnosticCount; ++i) {
@@ -746,8 +753,10 @@ bool IndexerJob::diagnose(int *errorCount)
 
 bool IndexerJob::visit()
 {
-    if (!mUnit)
+    if (!mUnit) {
+        abort();
         return false;
+    }
     clang_getInclusions(mUnit, inclusionVisitor, this);
     if (isAborted())
         return false;
@@ -791,7 +800,7 @@ void IndexerJob::execute()
     } else {
         {
             MutexLocker lock(&mMutex);
-            mState = Started;
+            mStarted = true;
         }
         int errorCount = 0;
         if (parse() && diagnose(&errorCount) && visit()) {
@@ -803,15 +812,9 @@ void IndexerJob::execute()
                                                      ByteArray::number(mTimer.elapsed()).constData(),
                                                      mData->symbols.size(), mData->symbolNames.size(), mData->references.size(), mData->dependencies.size(),
                                                      mFlags & Dirty ? " (dirty)" : "");
-        } else {
-            abort();
         }
         shared_ptr<Project> p = project();
         if (p) {
-            {
-                MutexLocker lock(&mMutex);
-                mState = Finished;
-            }
             shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
             p->onJobFinished(job);
         }
@@ -901,13 +904,12 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
     --dump->indentLevel;
     return CXChildVisit_Continue;
 }
-IndexerJob::State IndexerJob::abortIfStarted()
+bool IndexerJob::abortIfStarted()
 {
     MutexLocker lock(&mMutex);
-    if (mState != NotStarted)
+    if (mStarted)
         mAborted = true;
-    // ### should I reset when state == Finished?
-    return mState;
+    return mAborted;
 }
 
 CXTranslationUnit IndexerJob::takeTranslationUnit()

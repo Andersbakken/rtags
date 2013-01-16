@@ -348,22 +348,13 @@ void Project::index(const SourceInformation &c, unsigned indexerJobFlags)
     const uint32_t fileId = Location::insertFile(c.sourceFile);
     shared_ptr<IndexerJob> &job = mJobs[fileId];
     if (job) {
-        switch (job->abortIfStarted()) {
-        case IndexerJob::NotStarted:
-            // error() << "abort not started" << c.sourceFile;
-            // it hasn't started yet so no reason to do anything
-            return;
-        case IndexerJob::Started:
-            // error() << "abort started" << c.sourceFile << mVisitedFilesByJob.value(job).size();
+        if (job->abortIfStarted()) {
             mVisitedFiles -= mVisitedFilesByJob.take(job);
-            break;
-        case IndexerJob::Finished:
-            // ### what to do here?
-            onFileModified(c.sourceFile);
-            // error() << "abort finished" << c.sourceFile;
+        } else {
             return;
         }
     }
+
     mSources[fileId] = c;
     mPendingData.remove(fileId);
 

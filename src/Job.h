@@ -49,7 +49,7 @@ public:
     unsigned keyFlags() const;
     inline bool filter(const ByteArray &val) const;
     signalslot::Signal1<const ByteArray &> &output() { return mOutput; }
-    shared_ptr<Project> project() const { MutexLocker lock(&mMutex); return mProject; }
+    shared_ptr<Project> project() const { return mProject.lock(); }
     virtual void run();
     virtual void execute() = 0;
     void run(Connection *connection);
@@ -64,7 +64,7 @@ private:
     unsigned mJobFlags;
     unsigned mQueryFlags;
     signalslot::Signal1<const ByteArray &> mOutput;
-    shared_ptr<Project> mProject;
+    weak_ptr<Project> mProject;
     List<ByteArray> *mPathFilters;
     List<RegExp> *mPathFiltersRegExp;
     int mMax;

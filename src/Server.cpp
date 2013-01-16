@@ -507,9 +507,10 @@ void Server::status(const QueryMessage &query, Connection *conn)
         return;
     }
 
-    StatusJob job(query, project);
-    job.run(conn);
-    conn->finish();
+    shared_ptr<StatusJob> job(new StatusJob(query, project));
+    job->setId(nextId());
+    mPendingLookups[job->id()] = conn;
+    startQueryJob(job);
 }
 
 void Server::isIndexed(const QueryMessage &query, Connection *conn)

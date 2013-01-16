@@ -28,12 +28,6 @@ public:
         Priorities = Dirty|Makefile,
         IgnorePrintfFixits = 0x10
     };
-    enum State {
-        NotStarted,
-        Started,
-        Finished
-    };
-
     IndexerJob(const shared_ptr<Project> &indexer, unsigned flags,
                const Path &input, const List<ByteArray> &args,
                CXIndex index = 0 , CXTranslationUnit unit = 0);
@@ -47,7 +41,7 @@ public:
     uint32_t fileId() const { return mFileId; }
     Path path() const { return mPath; }
     bool isAborted() { return !project(); }
-    State abortIfStarted();
+    bool abortIfStarted();
     List<ByteArray> arguments() const { return mArgs; }
     time_t parseTime() const { return mParseTime; }
 private:
@@ -105,8 +99,7 @@ private:
     bool mDump;
 
     time_t mParseTime;
-
-    State mState;
+    bool mStarted;
 };
 
 #endif
