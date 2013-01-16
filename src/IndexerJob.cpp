@@ -188,11 +188,6 @@ Location IndexerJob::createLocation(const CXSourceLocation &location, bool *bloc
             if (blocked) {
                 PathState &state = mPaths[fileId];
                 if (state == Unset) {
-                    MutexLocker lock(&mMutex);
-                    if (mAborted) {
-                        *blocked = true;
-                        return Location();
-                    }
                     shared_ptr<Project> p = project();
                     shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
                     state = p && p->visitFile(fileId, job) ? Index : DontIndex;
@@ -263,6 +258,12 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
 CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CXClientData data)
 {
     IndexerJob *job = static_cast<IndexerJob*>(data);
+    {
+        MutexLocker lock(&job->mMutex);
+        if (job->mAborted)
+            return CXChildVisit_Break;
+    }
+    
     const CXCursorKind kind = clang_getCursorKind(cursor);
     const RTags::CursorType type = RTags::cursorType(kind);
     if (type == RTags::Other)

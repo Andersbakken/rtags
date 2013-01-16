@@ -148,6 +148,12 @@ private:
     mutable Mutex mMutex;
 
     Map<uint32_t, shared_ptr<IndexerJob> > mJobs;
+    struct PendingJob
+    {
+        SourceInformation source;
+        unsigned jobFlags;
+    };
+    Map<uint32_t, PendingJob> mPendingJobs;
 
     Set<uint32_t> mModifiedFiles;
     Timer mModifiedFilesTimer, mFinishedTimer;

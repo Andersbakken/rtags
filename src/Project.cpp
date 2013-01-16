@@ -232,33 +232,41 @@ bool Project::match(const Match &p)
 
 void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
 {
-    MutexLocker lock(&mMutex);
-    mFinishedTimer.start(shared_from_this(), Timeout, true, Finished);
+    PendingJob pending;
+    bool startPending = false;
+    {
+        MutexLocker lock(&mMutex);
+        mFinishedTimer.start(shared_from_this(), Timeout, true, Finished);
 
-    const uint32_t fileId = job->fileId();
-    mVisitedFilesByJob.remove(job);
-    if (mJobs.value(fileId) != job)
-        return;
+        CXTranslationUnit unit = job->takeTranslationUnit();
+        if (unit)
+            addCachedUnit(job->path(), job->arguments(), job->takeIndex(), unit);
 
-    mJobs.remove(fileId);
-    mLastJobElapsed = mTimer.elapsed();
-    if (job->isAborted())
-        return;
+        const uint32_t fileId = job->fileId();
+        if (job->isAborted()) {
+            mVisitedFiles -= mVisitedFilesByJob.take(job);
+            pending = mPendingJobs.take(fileId, &startPending);
+            error() << job->path() << "was aborted" << startPending << pending.source;
+        } else {
+            mJobs.remove(fileId);
+            mLastJobElapsed = mTimer.elapsed();
 
-    CXTranslationUnit unit = job->takeTranslationUnit();
-    if (unit)
-        addCachedUnit(job->path(), job->arguments(), job->takeIndex(), unit);
-    shared_ptr<IndexData> data = job->data();
-    mPendingData[fileId] = data;
+            shared_ptr<IndexData> data = job->data();
+            mPendingData[fileId] = data;
 
-    const int idx = mJobCounter - mJobs.size();
+            const int idx = mJobCounter - mJobs.size();
 
-    mSources[fileId].parsed = job->parseTime();
+            mSources[fileId].parsed = job->parseTime();
 
-    error("[%3d%%] %d/%d %s %s. %d mb mem.",
-          static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-          RTags::timeToString(time(0), RTags::Time).constData(),
-          data->message.constData(), int((MemoryMonitor::usage() / (1024 * 1024))));
+            error("[%3d%%] %d/%d %s %s. %d mb mem.",
+                  static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
+                  RTags::timeToString(time(0), RTags::Time).constData(),
+                  data->message.constData(), int((MemoryMonitor::usage() / (1024 * 1024))));
+        }
+    }
+    if (startPending) {
+        index(pending.source, pending.jobFlags);
+    }
 }
 
 bool Project::finish()
@@ -349,10 +357,10 @@ void Project::index(const SourceInformation &c, unsigned indexerJobFlags)
     shared_ptr<IndexerJob> &job = mJobs[fileId];
     if (job) {
         if (job->abortIfStarted()) {
-            mVisitedFiles -= mVisitedFilesByJob.take(job);
-        } else {
-            return;
+            const PendingJob pending = { c, indexerJobFlags };
+            mPendingJobs[fileId] = pending;
         }
+        return;
     }
 
     mSources[fileId] = c;
