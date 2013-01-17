@@ -378,7 +378,7 @@
     (if tagname
         (setq prompt (concat p ": (default " tagname ") "))
       (setq prompt (concat p ": ")))
-    (setq input (completing-read prompt (function rtags-symbolname-complete) nil nil nil rtags-symbol-history))
+    (setq input (completing-read prompt (function rtags-symbolname-complete) nil nil nil 'rtags-symbol-history))
     (setq rtags-symbol-history (remove-duplicates rtags-symbol-history :from-end t :test 'equal))
     (if (not (equal "" input))
         (setq tagname input))
@@ -1245,7 +1245,7 @@ References to references will be treated as references to the referenced symbol"
     (if tagname
         (setq prompt (concat (format "Find rfiles (default %s): " tagname)))
       (setq prompt "Find rfiles: "))
-    (setq input (completing-read prompt (function rtags-filename-complete) nil nil nil rtags-find-file-history))
+    (setq input (completing-read prompt (function rtags-filename-complete) nil nil nil 'rtags-find-file-history))
     (setq rtags-find-file-history (remove-duplicates rtags-find-file-history :from-end t :test 'equal))
     (cond ((string-match "\\(.*\\),\\([0-9]+\\)" input)
            (progn
