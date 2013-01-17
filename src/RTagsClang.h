@@ -32,6 +32,7 @@ inline CursorInfo findCursorInfo(const SymbolMap &map, const Location &location,
 
 CXCursor findFirstChild(CXCursor parent);
 CXCursor findChild(CXCursor parent, CXCursorKind kind);
+List<CXCursor> findChain(CXCursor parent, const List<CXCursorKind> &kinds);
 
 template <typename T>
 inline bool startsWith(const List<T> &list, const T &str)

@@ -146,4 +146,35 @@ CXCursor findChild(CXCursor parent, CXCursorKind kind)
         clang_visitChildren(parent, findChildVisitor, &u);
     return u.cursor;
 }
+
+struct FindChainVisitor
+{
+    const List<CXCursorKind> &kinds;
+    List<CXCursor> ret;
+};
+
+static CXChildVisitResult findChainVisitor(CXCursor cursor, CXCursor, CXClientData data)
+{
+    FindChainVisitor *u = reinterpret_cast<FindChainVisitor*>(data);
+    if (clang_getCursorKind(cursor) == u->kinds.at(u->ret.size())) {
+        u->ret.append(cursor);
+        if (u->ret.size() < u->kinds.size())
+            return CXChildVisit_Recurse;
+
+        return CXChildVisit_Break;
+    }
+    return CXChildVisit_Break;
+}
+
+List<CXCursor> findChain(CXCursor parent, const List<CXCursorKind> &kinds)
+{
+    assert(!kinds.isEmpty());
+    FindChainVisitor userData = { kinds, List<CXCursor>() };
+    if (!clang_isInvalid(clang_getCursorKind(parent)))
+        clang_visitChildren(parent, findChainVisitor, &userData);
+    if (userData.ret.size() != kinds.size()) {
+        userData.ret.clear();
+    }
+    return userData.ret;
+}
 }
