@@ -6,7 +6,7 @@
 
 const char *StatusJob::delimiter = "*********************************";
 StatusJob::StatusJob(const QueryMessage &q, const shared_ptr<Project> &project)
-    : Job(q, WriteUnfiltered|WriteBuffered, project), query(q.query())
+    : Job(q, WriteUnfiltered, project), query(q.query())
 {
 }
 
@@ -43,6 +43,8 @@ void StatusJob::execute()
         for (Set<Path>::const_iterator it = watched.begin(); it != watched.end(); ++it) {
             write<256>("  %s", it->constData());
         }
+        if (isAborted())
+            return;
     }
 
     if (query.isEmpty() || !strcasecmp(query.nullTerminated(), "dependencies")) {
@@ -60,6 +62,8 @@ void StatusJob::execute()
                 write<256>("    %s (%d)", Location::path(*dit).constData(), *dit);
                 depsReversed[*dit].insert(it->first);
             }
+            if (isAborted())
+                return;
         }
         for (DependencyMap::const_iterator it = depsReversed.begin(); it != depsReversed.end(); ++it) {
             write<256>("  %s (%d) depends on", Location::path(it->first).constData(), it->first);
@@ -67,6 +71,8 @@ void StatusJob::execute()
             for (Set<uint32_t>::const_iterator dit = deps.begin(); dit != deps.end(); ++dit) {
                 write<256>("    %s (%d)", Location::path(*dit).constData(), *dit);
             }
+            if (isAborted())
+                return;
         }
     }
 
@@ -80,12 +86,12 @@ void StatusJob::execute()
         write("symbols");
         write(delimiter);
         for (SymbolMap::const_iterator it = map.begin(); it != map.end(); ++it) {
-            if (isAborted())
-                return;
             const Location loc = it->first;
             const CursorInfo ci = it->second;
             write(loc);
             write(ci);
+            if (isAborted())
+                return;
         }
     }
 
@@ -99,14 +105,14 @@ void StatusJob::execute()
         write("symbolnames");
         write(delimiter);
         for (SymbolNameMap::const_iterator it = map.begin(); it != map.end(); ++it) {
-            if (isAborted())
-                return;
             write<128>("  %s", it->first.constData());
             const Set<Location> &locations = it->second;
             for (Set<Location>::const_iterator lit = locations.begin(); lit != locations.end(); ++lit) {
                 const Location &loc = *lit;
                 write<1024>("    %s", loc.key().constData());
             }
+            if (isAborted())
+                return;
         }
     }
 
