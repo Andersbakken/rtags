@@ -342,10 +342,12 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
         // For functions it can be the position of the namespace.
         // E.g. Foo::bar(); cursor is on Foo
         return;
-    } else if (refKind == CXCursor_Constructor && isImplicit(ref)) {
-        return;
     } else {
         switch (refKind) {
+        case CXCursor_Constructor:
+            if (isImplicit(ref))
+                return;
+            break;
         case CXCursor_CXXMethod:
         case CXCursor_FunctionDecl:
         case CXCursor_FunctionTemplate: {
