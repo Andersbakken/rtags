@@ -13,7 +13,12 @@ public:
         for (int i=0; i<argc; ++i) {
             if (i > 0)
                 mRaw.append(' ');
+            const bool space = strchr(argv[i], ' ');
+            if (space)
+                mRaw.append('"');
             mRaw.append(argv[i]);
+            if (space)
+                mRaw.append('"');
         }
     }
     inline void init(int argc, char **argv)
