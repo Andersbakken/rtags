@@ -35,7 +35,7 @@ void sigIntHandler(int)
     _exit(1);
 }
 
-#define EXCLUDEFILTER_DEFAULT "*CMakeTmp*"
+#define EXCLUDEFILTER_DEFAULT "*/CMakeFiles/*;*/cmake*/Modules/*"
 void usage(FILE *f)
 {
     fprintf(f,
@@ -156,7 +156,7 @@ int main(int argc, char** argv)
     int completionCacheSize = 10;
     unsigned options = 0;
     List<ByteArray> defaultArguments;
-    ByteArray excludeFilters;
+    ByteArray excludeFilters = EXCLUDEFILTER_DEFAULT;
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;

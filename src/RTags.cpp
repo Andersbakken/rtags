@@ -490,10 +490,50 @@ static inline Path findAncestor(Path path, const char *fn, unsigned flags)
     return ret;
 }
 
+struct Entry {
+    const char *name;
+    const unsigned flags;
+};
+
+static inline Path checkEntry(const Entry *entries, const Path &path, const Path &home)
+{
+    for (int i=0; entries[i].name; ++i) {
+        const Path p = findAncestor(path, entries[i].name, entries[i].flags);
+        if (!p.isEmpty() && p != home) {
+            if (!p.compare("./") || !p.compare("."))
+                error() << "1" << path << "=>" << p << entries[i].name;
+            return p;
+        }
+    }
+    return Path();
+}
+
+
 Path findProjectRoot(const Path &path)
 {
     assert(path.isAbsolute());
     static const Path home = Path::home();
+    const Entry before[] = {
+        { "GTAGS", 0 },
+        { "CMakeLists.txt", 0 },
+        { "configure", 0 },
+        { ".git", 0 },
+        { ".svn", 0 },
+        { "*.pro", Wildcard },
+        { "scons.1", 0 },
+        { "*.scons", Wildcard },
+        { "SConstruct", 0 },
+        { "autogen.*", Wildcard },
+        { "GNUMakefile*", Wildcard },
+        { "INSTALL*", Wildcard },
+        { "README*", Wildcard },
+        { 0, 0 }
+    };
+    {
+        const Path ret = checkEntry(before, path, home);
+        if (!ret.isEmpty())
+            return ret;
+    }
     {
         const Path configStatus = findAncestor(path, "config.status", 0);
         if (!configStatus.isEmpty()) {
@@ -559,34 +599,15 @@ Path findProjectRoot(const Path &path)
             }
         }
     }
-
-    struct Entry {
-        const char *name;
-        const unsigned flags;
-    } entries[] = {
-        { "GTAGS", 0 },
-        { "configure", 0 },
-        { ".git", 0 },
-        { ".svn", 0 },
-        { "CMakeLists.txt", 0 },
-        { "*.pro", Wildcard },
-        { "scons.1", 0 },
-        { "*.scons", Wildcard },
-        { "SConstruct", 0 },
-        { "autogen.*", Wildcard },
+    const Entry after[] = {
         { "Makefile*", Wildcard },
-        { "GNUMakefile*", Wildcard },
-        { "INSTALL*", Wildcard },
-        { "README*", Wildcard },
         { 0, 0 }
     };
-    for (int i=0; entries[i].name; ++i) {
-        const Path p = findAncestor(path, entries[i].name, entries[i].flags);
-        if (!p.isEmpty() && p != home) {
-            if (!p.compare("./") || !p.compare("."))
-                error() << "1" << path << "=>" << p;
-            return p;
-        }
+
+    {
+        const Path ret = checkEntry(after, path, home);
+        if (!ret.isEmpty())
+            return ret;
     }
 
     return Path();

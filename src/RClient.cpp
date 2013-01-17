@@ -258,6 +258,7 @@ enum {
     FilterSystemHeaders,
     FindFile,
     FindFilePreferExact,
+    FindProjectRoot,
     FindSymbols,
     FindVirtuals,
     FixIts,
@@ -368,6 +369,7 @@ struct Option opts[] = {
     { Timeout, "timeout", 'y', required_argument, "Max time in ms to wait for job to finish (default no timeout)." },
     { FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
     { FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial matches." },
+    { FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
     { CursorInfoIgnoreParents, "cursor-info-ignore-parents", 'B', no_argument, "Use to make --cursor-info not include parent cursors." },
     { CursorInfoIgnoreTargets, "cursor-info-ignore-targets", 0, no_argument, "Use to make --cursor-info not include target cursors." },
     { CursorInfoIgnoreReferences, "cursor-info-ignore-references", 0, no_argument, "Use to make --cursor-info not include reference cursors." },
@@ -680,6 +682,9 @@ bool RClient::parse(int &argc, char **argv)
         case UnloadProject:
             addQuery(QueryMessage::UnloadProject, optarg);
             break;
+        case FindProjectRoot:
+            error() << "findProjectRoot" << optarg << RTags::findProjectRoot(optarg);
+            return 0;
         case Reindex:
         case Project:
         case FindFile:

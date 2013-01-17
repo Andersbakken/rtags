@@ -603,9 +603,20 @@ void Server::startQueryJob(const shared_ptr<Job> &job)
 
 void Server::processSourceFile(GccArguments args, Path proj)
 {
-    const List<Path> inputFiles = args.inputFiles();
+    List<Path> inputFiles = args.inputFiles();
     const int count = inputFiles.size();
-    if (!count) {
+    int filtered = 0;
+    if (!mOptions.excludeFilters.isEmpty()) {
+        for (int i=0; i<count; ++i) {
+            Path &p = inputFiles[i];
+            if (Filter::filter(p, mOptions.excludeFilters) == Filter::Filtered) {
+                error() << "Filtered out" << p;
+                p.clear();
+                ++filtered;
+            }
+        }
+    }
+    if (filtered == count) {
         warning("no input file?");
         return;
     } else if (args.lang() == GccArguments::NoLang) {
@@ -633,18 +644,13 @@ void Server::processSourceFile(GccArguments args, Path proj)
     SourceInformation c(Path(), arguments, args.compiler());
     for (int i=0; i<count; ++i) {
         c.sourceFile = inputFiles.at(i);
-        if (!mOptions.excludeFilters.isEmpty() && Filter::filter(c.sourceFile, mOptions.excludeFilters) == Filter::Filtered) {
-            error() << "Filtered out" << c.sourceFile;
+        const SourceInformation existing = project->sourceInfo(Location::insertFile(c.sourceFile));
+        if (existing != c) {
+            project->index(c, IndexerJob::Makefile);
         } else {
-            const SourceInformation existing = project->sourceInfo(Location::insertFile(c.sourceFile));
-            if (existing != c) {
-                project->index(c, IndexerJob::Makefile);
-            } else {
-                debug() << c.sourceFile << " is not dirty. ignoring";
-            }
+            debug() << c.sourceFile << " is not dirty. ignoring";
         }
     }
-    return;
 }
 
 void Server::event(const Event *event)
