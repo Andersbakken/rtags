@@ -278,7 +278,7 @@ int main(int argc, char** argv)
 
     EventLoop loop;
 
-    Server *server = new Server;
+    Server server;
     Server::Options serverOpts;
     serverOpts.socketFile = socketFile;
     serverOpts.options = options;
@@ -290,14 +290,12 @@ int main(int argc, char** argv)
     serverOpts.defaultArguments = defaultArguments;
     serverOpts.threadCount = jobs;
     serverOpts.projectsFile = projectsFile;
-    if (!server->init(serverOpts)) {
-        delete server;
+    if (!server.init(serverOpts)) {
         cleanupLogging();
         return 1;
     }
 
     loop.run();
-    delete server;
     cleanupLogging();
     return 0;
 }
