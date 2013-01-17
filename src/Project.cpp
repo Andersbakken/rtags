@@ -261,35 +261,48 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
             if (mJobs.value(fileId) == job) {
                 mJobs.remove(fileId);
             }
+            return;
+        }
+        assert(mJobs.value(fileId) == job);
+        mJobs.remove(fileId);
+
+        shared_ptr<IndexData> data = job->data();
+        mPendingData[fileId] = data;
+
+        const int idx = mJobCounter - mJobs.size();
+
+        mSources[fileId].parsed = job->parseTime();
+        if (!mJobs.isEmpty() && mPendingDirtyFiles.isEmpty()) {
+            StopWatch watch;
+            syncDB();
+            const int writeTime = watch.elapsed();
+            error("[%3d%%] %d/%d %s %s (synced DB in %dms). %d mb mem.",
+                  static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
+                  RTags::timeToString(time(0), RTags::Time).constData(),
+                  data->message.constData(), writeTime, int((MemoryMonitor::usage() / (1024 * 1024))));
         } else {
-            assert(mJobs.value(fileId) == job);
-            mJobs.remove(fileId);
-
-            shared_ptr<IndexData> data = job->data();
-            mPendingData[fileId] = data;
-
-            const int idx = mJobCounter - mJobs.size();
-
-            mSources[fileId].parsed = job->parseTime();
-
             error("[%3d%%] %d/%d %s %s. %d mb mem.",
                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                   RTags::timeToString(time(0), RTags::Time).constData(),
                   data->message.constData(), int((MemoryMonitor::usage() / (1024 * 1024))));
-            if (mJobs.isEmpty()) {
-                mTimerRunning = false;
-                const int jobsElapsed = mTimer.restart();
-                write();
-                error() << "Jobs took" << ((double)(jobsElapsed) / 1000.0) << "secs, writing took"
+        }
+        if (mJobs.isEmpty()) {
+            mTimerRunning = false;
+            const int jobsElapsed = mTimer.restart();
+            if (syncDB()) {
+                error() << "Jobs took" << ((double)(jobsElapsed) / 1000.0) << "secs, syncing took"
                         << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
                         << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-                if (mJobCounter == 1 && job->flags() & IndexerJob::Dirty) {
-                    state = FinishedSaveNow;
-                } else {
-                    state = Finished;
-                }
-                mJobCounter = 0;
+            } else {
+                error() << "Jobs took" << ((double)(jobsElapsed) / 1000.0) << "secs, using"
+                        << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
             }
+            if (mJobCounter == 1 && job->flags() & IndexerJob::Dirty) {
+                state = FinishedSaveNow;
+            } else {
+                state = Finished;
+            }
+            mJobCounter = 0;
         }
     }
 
@@ -620,8 +633,10 @@ static inline void writeReferences(const ReferenceMap &references, SymbolMap &sy
 }
 
 
-void Project::write()
+bool Project::syncDB()
 {
+    if (mPendingDirtyFiles.isEmpty() && mPendingData.isEmpty())
+        return false;
     Scope<SymbolMap&> symbols = lockSymbolsForWrite();
     Scope<SymbolNameMap&> symbolNames = lockSymbolNamesForWrite();
     Scope<UsrMap&> usr = lockUsrForWrite();
@@ -652,6 +667,7 @@ void Project::write()
         }
     }
     mPendingData.clear();
+    return true;
 }
 
 bool Project::isIndexed(uint32_t fileId) const
