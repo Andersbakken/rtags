@@ -114,7 +114,7 @@ private:
     void addDependencies(const DependencyMap &hash, Set<uint32_t> &newFiles);
     void addDiagnostics(const DependencyMap &dependencies, const DiagnosticsMap &diagnostics, const FixItMap &fixIts);
     void write();
-    void onFilesModifiedTimeout();
+    void startDirtyJobs();
     void addCachedUnit(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
     bool save();
     void onValidateDBJobErrors(const Set<Location> &errors);

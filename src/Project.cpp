@@ -123,7 +123,7 @@ bool Project::restore()
             }
         }
         if (!mModifiedFiles.isEmpty())
-            onFilesModifiedTimeout();
+            startDirtyJobs();
     }
 end:
     fclose(f);
@@ -240,7 +240,8 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
     enum State {
         None,
         StartPending,
-        Finished
+        Finished,
+        FinishedSaveNow
     } state = None;
     {
         MutexLocker lock(&mMutex);
@@ -276,13 +277,17 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
                   RTags::timeToString(time(0), RTags::Time).constData(),
                   data->message.constData(), int((MemoryMonitor::usage() / (1024 * 1024))));
             if (mJobs.isEmpty()) {
-                state = Finished;
                 mTimerRunning = false;
                 const int jobsElapsed = mTimer.restart();
                 write();
                 error() << "Jobs took" << ((double)(jobsElapsed) / 1000.0) << "secs, writing took"
                         << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
                         << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+                if (mJobCounter == 1 && job->flags() & IndexerJob::Dirty) {
+                    state = FinishedSaveNow;
+                } else {
+                    state = Finished;
+                }
                 mJobCounter = 0;
             }
         }
@@ -292,12 +297,17 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
     case None:
         break;
     case Finished:
+    case FinishedSaveNow:
         if (mFlags & Validate) {
             shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(static_pointer_cast<Project>(shared_from_this()), mPreviousErrors));
             validateJob->errors().connect(this, &Project::onValidateDBJobErrors);
             Server::instance()->startQueryJob(validateJob);
         }
-        mSaveTimer.start(shared_from_this(), SaveTimeout, true, Save);
+        if (state == FinishedSaveNow) {
+            save();
+        } else {
+            mSaveTimer.start(shared_from_this(), SaveTimeout, true, Save);
+        }
         break; 
     case StartPending:
         index(pending.source, pending.jobFlags);
@@ -393,8 +403,12 @@ void Project::onFileModified(const Path &file)
     if (!fileId || !mModifiedFiles.insert(fileId)) {
         return;
     }
-    mModifiedFilesTimer.start(shared_from_this(), ModifiedFilesTimeout,
-                              true, ModifiedFiles);
+    if (mModifiedFiles.size() == 1 && file.isSource()) {
+        startDirtyJobs();
+    } else {
+        mModifiedFilesTimer.start(shared_from_this(), ModifiedFilesTimeout,
+                                  true, ModifiedFiles);
+    }
 }
 
 
@@ -461,7 +475,7 @@ int Project::reindex(const Match &match)
             return 0;
         mModifiedFiles += dirty;
     }
-    onFilesModifiedTimeout();
+    startDirtyJobs();
     return dirty.size();
 }
 
@@ -471,7 +485,7 @@ void Project::onValidateDBJobErrors(const Set<Location> &errors)
     mPreviousErrors = errors;
 }
 
-void Project::onFilesModifiedTimeout()
+void Project::startDirtyJobs()
 {
     Set<uint32_t> dirtyFiles;
     Map<Path, List<ByteArray> > toIndex;
@@ -787,7 +801,7 @@ void Project::timerEvent(TimerEvent *e)
     if (e->userData() == Save) {
         save();
     } else if (e->userData() == ModifiedFiles) {
-        onFilesModifiedTimeout();
+        startDirtyJobs();
     } else {
         assert(0 && "Unexpected timer event in Project");
         e->stop();
