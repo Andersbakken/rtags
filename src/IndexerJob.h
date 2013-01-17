@@ -41,6 +41,8 @@ public:
     bool abortIfStarted();
     List<ByteArray> arguments() const { return mArgs; }
     time_t parseTime() const { return mParseTime; }
+    const Set<uint32_t> &visitedFiles() const { return mVisitedFiles; }
+    unsigned flags() const { return mFlags; }
 private:
     bool parse();
     bool visit();
@@ -71,12 +73,8 @@ private:
 
     unsigned mFlags;
 
-    enum PathState {
-        Unset,
-        Index,
-        DontIndex
-    };
-    Map<uint32_t, PathState> mPaths;
+    Set<uint32_t> mVisitedFiles;
+    Set<uint32_t> mBlockedFiles;
 
     const Path mPath;
     const uint32_t mFileId;

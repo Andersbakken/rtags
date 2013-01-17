@@ -251,7 +251,7 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
 
         const uint32_t fileId = job->fileId();
         if (job->isAborted()) {
-            mVisitedFiles -= mVisitedFilesByJob.take(job);
+            mVisitedFiles -= job->visitedFiles();
             --mJobCounter;
             bool startPending;
             pending = mPendingJobs.take(fileId, &startPending);

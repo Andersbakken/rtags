@@ -96,7 +96,7 @@ public:
     void index(const SourceInformation &args, unsigned indexerJobFlags);
     SourceInformation sourceInfo(uint32_t fileId) const;
     Set<uint32_t> dependencies(uint32_t fileId) const;
-    bool visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &job);
+    bool visitFile(uint32_t fileId);
     ByteArray fixIts(uint32_t fileId) const;
     ByteArray diagnostics() const;
     int reindex(const Match &match);
@@ -139,7 +139,6 @@ private:
         ForceDirty
     };
 
-    Map<shared_ptr<IndexerJob>, Set<uint32_t> > mVisitedFilesByJob;
     Set<uint32_t> mVisitedFiles;
 
     int mJobCounter;
@@ -180,7 +179,7 @@ private:
     int mUnitCacheSize;
 };
 
-inline bool Project::visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &job)
+inline bool Project::visitFile(uint32_t fileId)
 {
     MutexLocker lock(&mMutex);
     if (mVisitedFiles.contains(fileId)) {
@@ -188,7 +187,6 @@ inline bool Project::visitFile(uint32_t fileId, const shared_ptr<IndexerJob> &jo
     }
 
     mVisitedFiles.insert(fileId);
-    mVisitedFilesByJob[job].insert(fileId);
     return true;
 }
 

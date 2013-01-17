@@ -186,15 +186,21 @@ Location IndexerJob::createLocation(const CXSourceLocation &location, bool *bloc
                 fileId = Location::insertFile(Path::resolved(fileName));
             ret = Location(fileId, start);
             if (blocked) {
-                PathState &state = mPaths[fileId];
-                if (state == Unset) {
-                    shared_ptr<Project> p = project();
-                    shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
-                    state = p && p->visitFile(fileId, job) ? Index : DontIndex;
-                }
-                if (state != Index) {
+                if (mVisitedFiles.contains(fileId)) {
+                    *blocked = false;
+                } else if (mBlockedFiles.contains(fileId)) {
                     *blocked = true;
-                    return Location();
+                    ret.clear();
+                } else {
+                    shared_ptr<Project> p = project();
+                    const bool ok = p && p->visitFile(fileId);
+                    *blocked = !ok;
+                    if (!ok) {
+                        ret.clear();
+                        mBlockedFiles.insert(fileId);
+                    } else {
+                        mVisitedFiles.insert(fileId);
+                    }
                 }
             }
         }
@@ -836,10 +842,11 @@ void IndexerJob::execute()
                 ByteArray status = mUnit ? "success" : "error";
                 if (errorCount)
                     status += ByteArray::format<32>(", %d errors", errorCount);
-                mData->message = ByteArray::format<1024>("%s (%s) in %sms. (%d syms, %d symNames, %d refs, %d deps)%s",
+                mData->message = ByteArray::format<1024>("%s (%s) in %sms. (%d syms, %d symNames, %d refs, %d deps, %d files)%s",
                                                          mPath.toTilde().constData(), status.constData(),
                                                          ByteArray::number(mTimer.elapsed()).constData(),
-                                                         mData->symbols.size(), mData->symbolNames.size(), mData->references.size(), mData->dependencies.size(),
+                                                         mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
+                                                         mData->dependencies.size(), mVisitedFiles.size(),
                                                          mFlags & Dirty ? " (dirty)" : "");
             }
         }
@@ -876,7 +883,7 @@ CXChildVisitResult IndexerJob::verboseVisitor(CXCursor cursor, CXCursor, CXClien
             u->out += " refs " + RTags::cursorToString(ref);
         }
 
-        if (loc.fileId() && u->job->mPaths.value(loc.fileId()) == IndexerJob::Index) {
+        if (loc.fileId() && u->job->mVisitedFiles.contains(loc.fileId())) {
             if (u->job->mData->references.contains(loc)) {
                 u->out += " used as reference\n";
             } else if (u->job->mData->symbols.contains(loc)) {
