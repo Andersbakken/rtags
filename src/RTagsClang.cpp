@@ -126,25 +126,66 @@ CXCursor findFirstChild(CXCursor parent)
 struct FindChildVisitor
 {
     CXCursorKind kind;
+    ByteArray name;
     CXCursor cursor;
 };
 
 static CXChildVisitResult findChildVisitor(CXCursor cursor, CXCursor, CXClientData data)
 {
     FindChildVisitor *u = reinterpret_cast<FindChildVisitor*>(data);
-    if (clang_getCursorKind(cursor) == u->kind) {
-        u->cursor = cursor;
-        return CXChildVisit_Break;
+    if (u->name.isEmpty()) {
+        if (clang_getCursorKind(cursor) == u->kind) {
+            u->cursor = cursor;
+            return CXChildVisit_Break;
+        }
+    } else {
+        CXStringScope str = clang_getCursorSpelling(cursor);
+        if (str.data() && u->name == str.data()) {
+            u->cursor = cursor;
+            return CXChildVisit_Break;
+        }
     }
     return CXChildVisit_Continue;
 }
 
 CXCursor findChild(CXCursor parent, CXCursorKind kind)
 {
-    FindChildVisitor u = { kind, clang_getNullCursor() };
+    FindChildVisitor u = { kind, ByteArray(), clang_getNullCursor() };
     if (!clang_isInvalid(clang_getCursorKind(parent)))
         clang_visitChildren(parent, findChildVisitor, &u);
     return u.cursor;
+}
+
+CXCursor findChild(CXCursor parent, const ByteArray &name)
+{
+    FindChildVisitor u = { CXCursor_FirstInvalid, name, clang_getNullCursor() };
+    if (!clang_isInvalid(clang_getCursorKind(parent)))
+        clang_visitChildren(parent, findChildVisitor, &u);
+    return u.cursor;
+}
+
+struct ChildrenVisitor
+{
+    const Filter &in;
+    const Filter &out;
+    List<CXCursor> children;
+};
+
+static CXChildVisitResult childrenVisitor(CXCursor cursor, CXCursor, CXClientData data)
+{
+    ChildrenVisitor *u = reinterpret_cast<ChildrenVisitor*>(data);
+    if ((u->out.isNull() || !u->out.match(cursor)) && (u->in.isNull() || u->in.match(cursor))) {
+        u->children.append(cursor);
+    }
+    return CXChildVisit_Continue;
+}
+
+List<CXCursor> children(CXCursor parent, const Filter &in, const Filter &out)
+{
+    ChildrenVisitor userData = { in, out, List<CXCursor>() };
+    if (!clang_isInvalid(clang_getCursorKind(parent)))
+        clang_visitChildren(parent, childrenVisitor, &userData);
+    return userData.children;
 }
 
 struct FindChainVisitor

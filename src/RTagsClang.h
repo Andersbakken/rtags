@@ -5,6 +5,27 @@
 #include "RTags.h"
 #include "CursorInfo.h"
 
+inline bool operator==(const CXCursor &l, CXCursorKind r)
+{
+    return clang_getCursorKind(l) == r;
+}
+inline bool operator==(CXCursorKind l, const CXCursor &r)
+{
+    return l == clang_getCursorKind(r);
+}
+
+inline bool operator!=(const CXCursor &l, CXCursorKind r)
+{
+    return clang_getCursorKind(l) != r;
+}
+inline bool operator!=(CXCursorKind l, const CXCursor &r)
+{
+    return l != clang_getCursorKind(r);
+}
+
+inline Log operator<<(Log dbg, CXCursor cursor);
+inline Log operator<<(Log dbg, CXCursorKind kind);
+
 namespace RTags {
 
 ByteArray eatString(CXString str);
@@ -30,9 +51,65 @@ inline CursorInfo findCursorInfo(const SymbolMap &map, const Location &location,
     return it->second;
 }
 
+struct Filter
+{
+    enum Mode {
+        And,
+        Or
+    };
+    inline Filter(Mode m = Or)
+        : argumentCount(-1), mode(m)
+    {}
+
+    inline bool isNull() const
+    {
+        return kinds.isEmpty() && names.isEmpty() && argumentCount == -1;
+    }
+
+    inline bool isValid() const
+    {
+        return !kinds.isEmpty() || !names.isEmpty() || argumentCount != -1;
+    }
+
+    inline bool match(const CXCursor &cursor) const
+    {
+        bool matched = false;
+        if (!kinds.isEmpty()) {
+            if (kinds.contains(clang_getCursorKind(cursor))) {
+                if (mode == Or)
+                    return true;
+                matched = true;
+            } else if (mode == And) {
+                return false;
+            }
+        }
+        if (!names.isEmpty()) {
+            const ByteArray name = RTags::eatString(clang_getCursorSpelling(cursor));
+            if (names.contains(name)) {
+                if (mode == Or)
+                    return true;
+                matched = true;
+            } else if (mode == And) {
+                return false;
+            }
+        }
+        if (argumentCount != -1) {
+            return clang_Cursor_getNumArguments(cursor) == argumentCount;
+        }
+        return matched;
+    }
+
+    Set<CXCursorKind> kinds;
+    Set<ByteArray> names;
+    int argumentCount;
+    Mode mode;
+};
+
 CXCursor findFirstChild(CXCursor parent);
 CXCursor findChild(CXCursor parent, CXCursorKind kind);
+CXCursor findChild(CXCursor parent, const ByteArray &name);
 List<CXCursor> findChain(CXCursor parent, const List<CXCursorKind> &kinds);
+List<CXCursor> children(CXCursor parent, const Filter &in = Filter(), const Filter &out = Filter());
 
 template <typename T>
 inline bool startsWith(const List<T> &list, const T &str)
@@ -140,6 +217,7 @@ static inline bool needsQualifiers(CXCursorKind kind)
     }
     return false;
 }
+
 struct SortedCursor
 {
     SortedCursor(const Location &loc = Location())

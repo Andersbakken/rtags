@@ -237,7 +237,9 @@ static inline CXCursor findDestructorForDelete(const CXCursor &deleteStatement)
         return nullCursor;
     }
 
-    const CXCursor ref = RTags::findFirstChild(var);
+    CXCursor ref = RTags::findChild(var, CXCursor_TypeRef);
+    if (ref != CXCursor_TypeRef)
+        ref = RTags::findChild(var, CXCursor_TemplateRef);
     kind = clang_getCursorKind(ref);
     switch (kind) {
     case CXCursor_TypeRef:
@@ -331,8 +333,60 @@ static inline bool isImplicit(const CXCursor &cursor)
 void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, const Location &location, const CXCursor &ref, const CXCursor &parent)
 {
     const CXCursorKind refKind = clang_getCursorKind(ref);
-    if (clang_isInvalid(refKind))
+    if (clang_isInvalid(refKind)) {
+        // This is for references to superclass template functions. Awful awful
+        // shit. See https://github.com/Andersbakken/rtags/issues/62 and commit
+        // for details. I really should report this as a bug.
+        if (kind == CXCursor_MemberRefExpr && clang_getCursorKind(parent) == CXCursor_CallExpr) {
+            const CXCursor templateRef = RTags::findChild(cursor, CXCursor_TemplateRef);
+            if (templateRef == CXCursor_TemplateRef) {
+                const CXCursor classTemplate = clang_getCursorReferenced(templateRef);
+                if (classTemplate == CXCursor_ClassTemplate) {
+                    FILE *f = fopen(location.path().constData(), "r");
+                    if (f) {
+                        const CXSourceRange range = clang_getCursorExtent(cursor);
+                        const CXSourceLocation end = clang_getRangeEnd(range);
+                        unsigned offset;
+                        clang_getSpellingLocation(end, 0, 0, 0, &offset);
+
+                        ByteArray name;
+                        while (offset > 0) {
+                            fseek(f, --offset, SEEK_SET);
+                            char ch = static_cast<char>(fgetc(f));
+                            if (isalnum(ch) || ch == '_' || ch == '~') {
+                                name.prepend(ch);
+                            } else {
+                                break;
+                            }
+                        }
+                        fclose(f);
+                        if (!name.isEmpty()) {
+                            RTags::Filter out;
+                            out.kinds.insert(CXCursor_MemberRefExpr);
+                            const int argCount = RTags::children(parent, RTags::Filter(), out).size();
+                            RTags::Filter in(RTags::Filter::And);
+                            in.names.insert(name);
+                            in.argumentCount = argCount;
+                            const List<CXCursor> alternatives = RTags::children(classTemplate, in);
+                            switch (alternatives.size()) {
+                            case 1:
+                                handleReference(cursor, kind, Location(location.fileId(), offset + 1), alternatives.first(), parent);
+                                break;
+                            case 0:
+                                break;
+                            default:
+                                error() << "Can't decide which of these cursors are right for me"
+                                        << cursor << alternatives
+                                        << "Need to parse types";
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
         return;
+    }
 
     bool isOperator = false;
     if (kind == CXCursor_CallExpr
