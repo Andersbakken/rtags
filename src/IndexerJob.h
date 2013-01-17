@@ -72,7 +72,6 @@ private:
     void addOverriddenCursors(const CXCursor& cursor, const Location& location, List<CursorInfo*>& infos);
 
     unsigned mFlags;
-    time_t mTimeStamp;
 
     enum PathState {
         Unset,

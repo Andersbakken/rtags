@@ -157,6 +157,7 @@ inline int fileSize(FILE *f)
     fseek(f, pos, SEEK_SET);
     return ret;
 }
+ByteArray filterPreprocessor(const Path &path);
 void removeDirectory(const Path &path);
 int canonicalizePath(char *path, int len);
 ByteArray unescape(ByteArray command);

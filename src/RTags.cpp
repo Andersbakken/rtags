@@ -612,6 +612,44 @@ Path findProjectRoot(const Path &path)
 
     return Path();
 }
+
+ByteArray filterPreprocessor(const Path &path)
+{
+    ByteArray ret;
+    FILE *f = fopen(path.constData(), "r");
+    if (f) {
+        char line[1026];
+        int r;
+        while ((r = RTags::readLine(f, line, sizeof(line) - 1)) != -1) {
+            int start = 0;
+            while (start < r && isspace(line[start]))
+                ++start;
+            if (start == r || line[start] != '#')
+                continue;
+            line[r] = '\n';
+            ret.append(line, r + 1);
+
+            int end = r - 1;
+            while (end >= start && isspace(line[end]))
+                --end;
+            while ((r = RTags::readLine(f, line, sizeof(line) - 1)) != -1) {
+                line[r] = '\n';
+                ret.append(line, r + 1);
+                end = r - 1;
+                while (end >= 0 && isspace(line[end]))
+                    --end;
+                if (end < 0 || line[end] != '\\') {
+                    break;
+                }
+            }
+        }
+
+        fclose(f);
+    }
+
+    return ret;
+}
+
 }
 
 #ifdef RTAGS_DEBUG_MUTEX

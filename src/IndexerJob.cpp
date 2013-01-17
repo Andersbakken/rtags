@@ -25,7 +25,7 @@ struct VerboseVisitorUserData {
 IndexerJob::IndexerJob(const shared_ptr<Project> &project, unsigned flags, const Path &p, const List<ByteArray> &arguments,
                        CXIndex index, CXTranslationUnit unit)
     : Job(0, project),
-      mFlags(flags), mTimeStamp(0), mPath(p), mFileId(Location::insertFile(p)),
+      mFlags(flags), mPath(p), mFileId(Location::insertFile(p)),
       mArgs(arguments), mUnit(unit), mIndex(index), mDump(false), mParseTime(0),
       mStarted(false)
 {
@@ -33,7 +33,7 @@ IndexerJob::IndexerJob(const shared_ptr<Project> &project, unsigned flags, const
 
 IndexerJob::IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
                        const Path &input, const List<ByteArray> &arguments)
-    : Job(msg, WriteUnfiltered|WriteBuffered, project), mFlags(0), mTimeStamp(0), mPath(input), mFileId(Location::insertFile(input)),
+    : Job(msg, WriteUnfiltered|WriteBuffered, project), mFlags(0), mPath(input), mFileId(Location::insertFile(input)),
       mArgs(arguments), mUnit(0), mIndex(0), mDump(true), mParseTime(0), mStarted(false)
 {
 }
@@ -627,49 +627,68 @@ bool IndexerJob::parse()
         }
     }
 
-    mTimeStamp = time(0);
-    if (!mUnit) {
-        mClangLine = Server::instance()->clangPath();
-        mClangLine += ' ';
-
-        int idx = 0;
-        List<const char*> clangArgs(mArgs.size(), 0);
-
-        const int count = mArgs.size();
-        for (int i=0; i<count; ++i) {
-            ByteArray arg = mArgs.at(i);
-            if (arg.isEmpty())
-                continue;
-
-            clangArgs[idx++] = mArgs.at(i).constData();
-            arg.replace("\"", "\\\"");
-            mClangLine += arg;
-            mClangLine += ' ';
-        }
-
-        mClangLine += mPath;
-
-        const time_t now = time(0);
-        mUnit = clang_parseTranslationUnit(mIndex, mPath.constData(),
-                                           clangArgs.data(), idx, 0, 0,
-                                           CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
-        warning() << "loading unit " << mClangLine << " " << (mUnit != 0);
-        if (!mUnit) {
-            error() << "got failure" << mClangLine;
-            mData->dependencies[mFileId].insert(mFileId);
-        } else {
-            mParseTime = now;
-        }
-    } else {
-        const time_t now = time(0);
+    if (mUnit) {
         warning() << "Reparsing" << mPath << mArgs;
+        const time_t now = time(0);
         if (clang_reparseTranslationUnit(mUnit, 0, 0, clang_defaultReparseOptions(mUnit))) {
+            clang_getInclusions(mUnit, inclusionVisitor, this);
             clang_disposeTranslationUnit(mUnit);
             mUnit = 0;
             error() << "got failure when reparsing" << mPath << mArgs;
         } else {
             mParseTime = now;
         }
+        return !isAborted();
+    }
+
+    mClangLine = Server::instance()->clangPath();
+    mClangLine += ' ';
+
+    int idx = 0;
+    List<const char*> clangArgs(mArgs.size(), 0);
+
+    const int count = mArgs.size();
+    for (int i=0; i<count; ++i) {
+        ByteArray arg = mArgs.at(i);
+        if (arg.isEmpty())
+            continue;
+
+        clangArgs[idx++] = mArgs.at(i).constData();
+        arg.replace("\"", "\\\"");
+        mClangLine += arg;
+        mClangLine += ' ';
+    }
+
+    mClangLine += mPath;
+
+    time_t now = time(0);
+    mUnit = clang_parseTranslationUnit(mIndex, mPath.constData(),
+                                       clangArgs.data(), idx, 0, 0,
+                                       CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+
+    warning() << "loading unit " << mClangLine << " " << (mUnit != 0);
+    if (mUnit) {
+        mParseTime = now;
+        return !isAborted();
+    }
+
+    error() << "got failure" << mClangLine;
+    const ByteArray preprocessorOnly = RTags::filterPreprocessor(mPath);
+    if (!preprocessorOnly.isEmpty()) {
+        CXUnsavedFile unsaved = { mPath.constData(), preprocessorOnly.constData(),
+                                  static_cast<unsigned long>(preprocessorOnly.size()) };
+        now = time(0);
+        mUnit = clang_parseTranslationUnit(mIndex, mPath.constData(),
+                                           clangArgs.data(), idx, &unsaved, 1,
+                                           CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+    }
+    if (mUnit) {
+        mParseTime = now;
+        clang_getInclusions(mUnit, inclusionVisitor, this);
+        clang_disposeTranslationUnit(mUnit);
+        mUnit = 0;
+    } else {
+        mData->dependencies[mFileId].insert(mFileId);
     }
     return !isAborted();
 }
@@ -804,15 +823,23 @@ void IndexerJob::execute()
             mStarted = true;
         }
         int errorCount = 0;
-        if (parse() && diagnose(&errorCount) && visit()) {
-            ByteArray status = mUnit ? "success" : "error";
-            if (errorCount)
-                status += ByteArray::format<32>(", %d errors", errorCount);
-            mData->message = ByteArray::format<1024>("%s (%s) in %sms. (%d syms, %d symNames, %d refs, %d deps)%s",
-                                                     mPath.toTilde().constData(), status.constData(),
-                                                     ByteArray::number(mTimer.elapsed()).constData(),
-                                                     mData->symbols.size(), mData->symbolNames.size(), mData->references.size(), mData->dependencies.size(),
-                                                     mFlags & Dirty ? " (dirty)" : "");
+        if (parse()) {
+            if (!mUnit) {
+                mData->message = ByteArray::format<1024>("%s error in %sms. (%d deps)%s",
+                                                         mPath.toTilde().constData(),
+                                                         ByteArray::number(mTimer.elapsed()).constData(),
+                                                         mData->dependencies.size(),
+                                                         mFlags & Dirty ? " (dirty)" : "");
+            } else if (diagnose(&errorCount) && visit()) {
+                ByteArray status = mUnit ? "success" : "error";
+                if (errorCount)
+                    status += ByteArray::format<32>(", %d errors", errorCount);
+                mData->message = ByteArray::format<1024>("%s (%s) in %sms. (%d syms, %d symNames, %d refs, %d deps)%s",
+                                                         mPath.toTilde().constData(), status.constData(),
+                                                         ByteArray::number(mTimer.elapsed()).constData(),
+                                                         mData->symbols.size(), mData->symbolNames.size(), mData->references.size(), mData->dependencies.size(),
+                                                         mFlags & Dirty ? " (dirty)" : "");
+            }
         }
         shared_ptr<Project> p = project();
         if (p) {

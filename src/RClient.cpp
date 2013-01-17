@@ -256,6 +256,7 @@ enum {
     DumpFile,
     ElispList,
     FilterSystemHeaders,
+    FilterPreprocessor,
     FindFile,
     FindFilePreferExact,
     FindProjectRoot,
@@ -346,6 +347,8 @@ struct Option opts[] = {
     { CodeComplete, "code-complete", 0, no_argument, "Get code completion from stream written to stdin." },
     { FixIts, "fixits", 0, required_argument, "Get fixits for file." },
     { Compile, "compile", 'c', required_argument, "Pass compilation arguments to rdm." },
+    { FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
+    { FilterPreprocessor, "filter-preprocessor", 0, required_argument, "Use to check behavior of filterPreprocessor." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -369,7 +372,6 @@ struct Option opts[] = {
     { Timeout, "timeout", 'y', required_argument, "Max time in ms to wait for job to finish (default no timeout)." },
     { FindVirtuals, "find-virtuals", 'k', no_argument, "Use in combinations with -R or -r to show other implementations of this function." },
     { FindFilePreferExact, "find-file-prefer-exact", 'A', no_argument, "Use to make --find-file prefer exact matches over partial matches." },
-    { FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
     { CursorInfoIgnoreParents, "cursor-info-ignore-parents", 'B', no_argument, "Use to make --cursor-info not include parent cursors." },
     { CursorInfoIgnoreTargets, "cursor-info-ignore-targets", 0, no_argument, "Use to make --cursor-info not include target cursors." },
     { CursorInfoIgnoreReferences, "cursor-info-ignore-references", 0, no_argument, "Use to make --cursor-info not include reference cursors." },
@@ -684,6 +686,9 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case FindProjectRoot:
             error() << "findProjectRoot" << optarg << RTags::findProjectRoot(optarg);
+            return 0;
+        case FilterPreprocessor:
+            error() << RTags::filterPreprocessor(optarg);
             return 0;
         case Reindex:
         case Project:
