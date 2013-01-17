@@ -14,12 +14,13 @@
 #include <math.h>
 
 static void *ModifiedFiles = &ModifiedFiles;
-static void *Finished = &Finished;
-enum { Timeout = 2000 };
+static void *Save = &Save;
+enum { SaveTimeout = 2000, ModifiedFilesTimeout = 50 };
+
 
 Project::Project(const Path &path)
-    : mPath(path), mJobCounter(0), mTimerRunning(false), mLastJobElapsed(0),
-      mFlags(0), mFirstCachedUnit(0), mLastCachedUnit(0), mUnitCacheSize(0)
+    : mPath(path), mJobCounter(0), mTimerRunning(false), mFlags(0),
+      mFirstCachedUnit(0), mLastCachedUnit(0), mUnitCacheSize(0)
 {
     const unsigned options = Server::instance()->options().options;
     if (options & Server::Validate)
@@ -236,10 +237,13 @@ bool Project::match(const Match &p)
 void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
 {
     PendingJob pending;
-    bool startPending = false;
+    enum State {
+        None,
+        StartPending,
+        Finished
+    } state = None;
     {
         MutexLocker lock(&mMutex);
-        mFinishedTimer.start(shared_from_this(), Timeout, true, Finished);
 
         CXTranslationUnit unit = job->takeTranslationUnit();
         if (unit)
@@ -249,14 +253,16 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
         if (job->isAborted()) {
             mVisitedFiles -= mVisitedFilesByJob.take(job);
             --mJobCounter;
+            bool startPending;
             pending = mPendingJobs.take(fileId, &startPending);
+            if (startPending)
+                state = StartPending;
             if (mJobs.value(fileId) == job) {
                 mJobs.remove(fileId);
             }
         } else {
             assert(mJobs.value(fileId) == job);
             mJobs.remove(fileId);
-            mLastJobElapsed = mTimer.elapsed();
 
             shared_ptr<IndexData> data = job->data();
             mPendingData[fileId] = data;
@@ -269,53 +275,34 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                   RTags::timeToString(time(0), RTags::Time).constData(),
                   data->message.constData(), int((MemoryMonitor::usage() / (1024 * 1024))));
-        }
-    }
-    if (startPending) {
-        index(pending.source, pending.jobFlags);
-    }
-}
-
-bool Project::finish()
-{
-    bool done = false;
-    {
-        MutexLocker lock(&mMutex);
-#ifdef RTAGS_DEBUG
-        {
-            Map<uint32_t, shared_ptr<IndexerJob> >::iterator it = mJobs.begin();
-            while (it != mJobs.end()) {
-                if (it->second.use_count() == 1) {
-                    error() << it->second->path() << "is dangling.";
-                    mJobs.erase(it++);
-                } else {
-                    ++it;
-                }
+            if (mJobs.isEmpty()) {
+                state = Finished;
+                mTimerRunning = false;
+                const int jobsElapsed = mTimer.restart();
+                write();
+                error() << "Jobs took" << ((double)(jobsElapsed) / 1000.0) << "secs, writing took"
+                        << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
+                        << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+                mJobCounter = 0;
             }
         }
-#endif
-        if (mJobs.isEmpty()) {
-            done = true;
-            mTimerRunning = false;
-            mTimer.restart();
-            write();
-            error() << "Jobs took" << ((double)(mLastJobElapsed) / 1000.0) << "secs, writing took"
-                    << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
-                    << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-            mJobCounter = 0;
-
-        }
     }
 
-    if (done) {
+    switch (state) {
+    case None:
+        break;
+    case Finished:
         if (mFlags & Validate) {
             shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(static_pointer_cast<Project>(shared_from_this()), mPreviousErrors));
             validateJob->errors().connect(this, &Project::onValidateDBJobErrors);
             Server::instance()->startQueryJob(validateJob);
         }
-        save();
+        mSaveTimer.start(shared_from_this(), SaveTimeout, true, Save);
+        break; 
+    case StartPending:
+        index(pending.source, pending.jobFlags);
+        break;
     }
-    return done;
 }
 
 bool Project::save()
@@ -368,13 +355,9 @@ void Project::index(const SourceInformation &c, unsigned indexerJobFlags)
     if (fileFilter && !strstr(c.sourceFile.constData(), fileFilter))
         return;
 
-    mFinishedTimer.start(shared_from_this(), Timeout, true, Finished);
-    // not really sure why it would help to start this timer here as well but I
-    // sometimes get it and I think the problem is that the finishedtimer
-    // doesn't fire so hopefully this helps.
-
     const uint32_t fileId = Location::insertFile(c.sourceFile);
     shared_ptr<IndexerJob> &job = mJobs[fileId];
+    mSaveTimer.stop();
     if (job) {
         if (job->abortIfStarted()) {
             const PendingJob pending = { c, indexerJobFlags };
@@ -400,7 +383,7 @@ void Project::index(const SourceInformation &c, unsigned indexerJobFlags)
         mTimerRunning = true;
         mTimer.start();
     }
-    Server::instance()->startIndexerJob(job, job->priority());
+    Server::instance()->startIndexerJob(job);
 }
 
 void Project::onFileModified(const Path &file)
@@ -410,8 +393,8 @@ void Project::onFileModified(const Path &file)
     if (!fileId || !mModifiedFiles.insert(fileId)) {
         return;
     }
-    enum { Timeout = 200 };
-    mModifiedFilesTimer.start(shared_from_this(), Timeout, true, reinterpret_cast<void*>(ModifiedFiles));
+    mModifiedFilesTimer.start(shared_from_this(), ModifiedFilesTimeout,
+                              true, ModifiedFiles);
 }
 
 
@@ -494,13 +477,14 @@ void Project::onFilesModifiedTimeout()
     Map<Path, List<ByteArray> > toIndex;
     {
         MutexLocker lock(&mMutex);
-        for (Set<uint32_t>::const_iterator it = mModifiedFiles.begin(); it != mModifiedFiles.end(); ++it) {
-            dirtyFiles.insert(*it);
-            dirtyFiles.unite(mDependencies.value(*it));
+        std::swap(dirtyFiles, mModifiedFiles);
+        for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
+            const Set<uint32_t> deps = mDependencies.value(*it);
+            dirtyFiles += deps;
+            mVisitedFiles.remove(*it);
+            mVisitedFiles -= deps;
         }
-        mVisitedFiles -= dirtyFiles;
         mPendingDirtyFiles.unite(dirtyFiles);
-        mModifiedFiles.clear();
     }
     bool indexed = false;
     for (Set<uint32_t>::const_iterator it = dirtyFiles.begin(); it != dirtyFiles.end(); ++it) {
@@ -800,8 +784,8 @@ ByteArray Project::fixIts(uint32_t fileId) const
 
 void Project::timerEvent(TimerEvent *e)
 {
-    if (e->userData() == Finished) {
-        finish();
+    if (e->userData() == Save) {
+        save();
     } else if (e->userData() == ModifiedFiles) {
         onFilesModifiedTimeout();
     } else {

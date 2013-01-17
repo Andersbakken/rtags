@@ -23,10 +23,9 @@ class IndexerJob : public Job
 {
 public:
     enum Flag {
-        Makefile = 0x01,
-        Dirty = 0x02,
-        Priorities = Dirty|Makefile,
-        IgnorePrintfFixits = 0x10
+        Makefile = 0x1,
+        Dirty = 0x2,
+        IgnorePrintfFixits = 0x4
     };
     IndexerJob(const shared_ptr<Project> &indexer, unsigned flags,
                const Path &input, const List<ByteArray> &args,
@@ -34,7 +33,6 @@ public:
     IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
                const Path &input, const List<ByteArray> &arguments);
 
-    int priority() const { return mFlags & Priorities; }
     shared_ptr<IndexData> data() const { return mData; }
     CXTranslationUnit takeTranslationUnit();
     CXIndex takeIndex();

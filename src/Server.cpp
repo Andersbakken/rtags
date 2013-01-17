@@ -590,16 +590,15 @@ void Server::reindex(const QueryMessage &query, Connection *conn)
     conn->finish();
 }
 
-void Server::startIndexerJob(const shared_ptr<IndexerJob> &job, int priority)
+void Server::startIndexerJob(const shared_ptr<IndexerJob> &job)
 {
-    mIndexerThreadPool->start(job, priority);
+    mIndexerThreadPool->start(job);
 }
 
 void Server::startQueryJob(const shared_ptr<Job> &job)
 {
     mQueryThreadPool.start(job);
 }
-
 
 void Server::processSourceFile(GccArguments args, Path proj)
 {

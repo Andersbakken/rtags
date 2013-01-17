@@ -116,7 +116,6 @@ private:
     void write();
     void onFilesModifiedTimeout();
     void addCachedUnit(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
-    bool finish();
     bool save();
     void onValidateDBJobErrors(const Set<Location> &errors);
     
@@ -156,11 +155,10 @@ private:
     Map<uint32_t, PendingJob> mPendingJobs;
 
     Set<uint32_t> mModifiedFiles;
-    Timer mModifiedFilesTimer, mFinishedTimer;
+    Timer mModifiedFilesTimer, mSaveTimer;
 
     bool mTimerRunning;
     StopWatch mTimer;
-    int mLastJobElapsed;
 
     FileSystemWatcher mWatcher;
     DependencyMap mDependencies;
