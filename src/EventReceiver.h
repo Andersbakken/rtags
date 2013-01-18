@@ -5,6 +5,7 @@
 #include "Event.h"
 #include "SignalSlot.h"
 
+class TimerEvent;
 class EventReceiver : public enable_shared_from_this<EventReceiver>
 {
 public:
@@ -12,22 +13,13 @@ public:
     virtual ~EventReceiver();
     void postEvent(Event *event); // threadsafe
     void deleteLater();
-    class TimerEvent
-    {
-    public:
-        TimerEvent() : mId(0), mInterval(0), mSingleShot(false), mUserData(0) {}
-        void stop() { mSingleShot = true; }
-        inline int id() const { return mId; }
-        inline int interval() const { return mInterval; }
-        inline bool singleShot() const { return mSingleShot; }
-        inline void *userData() const { return mUserData; }
-    private:
-        int mId, mInterval;
-        bool mSingleShot;
-        void *mUserData;
-        friend class EventReceiver;
+
+    enum TimerMode {
+        Repeat,
+        SingleShot
     };
-    int startTimer(int interval, bool singleShot, void *userData = 0);
+    
+    int startTimer(int interval, TimerMode timerMode, void *userData = 0);
     bool stopTimer(int id);
 protected:
     virtual void timerEvent(TimerEvent *event);
@@ -50,19 +42,35 @@ private:
     friend class EventLoop;
 };
 
+class TimerEvent
+{
+public:
+    TimerEvent() : mId(0), mInterval(0), mTimerMode(EventReceiver::SingleShot), mUserData(0) {}
+    void stop() { mTimerMode = EventReceiver::SingleShot; }
+    inline int id() const { return mId; }
+    inline int interval() const { return mInterval; }
+    inline EventReceiver::TimerMode timerMode() const { return mTimerMode; }
+    inline void *userData() const { return mUserData; }
+private:
+    int mId, mInterval;
+    EventReceiver::TimerMode mTimerMode;
+    void *mUserData;
+    friend class EventReceiver;
+};
+
 class Timer
 {
 public:
     inline Timer()
-        : mId(0), mInterval(0), mSingleShot(false), mUserData(0)
+        : mId(0), mInterval(0), mTimerMode(EventReceiver::Repeat), mUserData(0)
     {}
 
-    inline int start(const shared_ptr<EventReceiver> &receiver, int interval, bool singleShot, void *userData = 0)
+    inline int start(const shared_ptr<EventReceiver> &receiver, int interval, EventReceiver::TimerMode mode, void *userData = 0)
     {
         assert(receiver);
         assert(interval >= 0);
         stop();
-        mId = receiver->startTimer(interval, singleShot, userData);
+        mId = receiver->startTimer(interval, mode, userData);
         mReceiver = receiver;
         return mId;
     }
@@ -74,7 +82,7 @@ public:
             receiver->stopTimer(mId);
             mId = mInterval = -1;
             mUserData = 0;
-            mSingleShot = false;
+            mTimerMode = EventReceiver::SingleShot;
             mReceiver.reset();
         }
     }
@@ -83,7 +91,7 @@ public:
     {
         shared_ptr<EventReceiver> receiver = mReceiver.lock();
         if (receiver && mInterval) {
-            return start(receiver, mInterval, mSingleShot, mUserData);
+            return start(receiver, mInterval, mTimerMode, mUserData);
         }
         return -1;
     }
@@ -97,9 +105,9 @@ public:
     {
         return mInterval;
     }
-    inline bool singleShot() const
+    inline EventReceiver::TimerMode timerMode() const
     {
-        return mSingleShot;
+        return mTimerMode;
     }
     inline void *userData()
     {
@@ -113,7 +121,7 @@ public:
 
 private:
     int mId, mInterval;
-    bool mSingleShot;
+    EventReceiver::TimerMode mTimerMode;
     void *mUserData;
     weak_ptr<EventReceiver> mReceiver;
 };

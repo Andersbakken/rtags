@@ -15,8 +15,13 @@
 
 static void *ModifiedFiles = &ModifiedFiles;
 static void *Save = &Save;
-enum { SaveTimeout = 2000, ModifiedFilesTimeout = 50 };
+static void *Sync = &Sync;
 
+enum {
+    SaveTimeout = 2000,
+    ModifiedFilesTimeout = 50,
+    SyncTimeout = 100
+};
 
 Project::Project(const Path &path)
     : mPath(path), mJobCounter(0), mTimerRunning(false), mFlags(0),
@@ -81,7 +86,7 @@ bool Project::restore()
             in >> scope.data();
         }
 
-    
+
         in >> mDependencies >> mSources >> mVisitedFiles;
 
         DependencyMap reversedDependencies;
@@ -237,12 +242,7 @@ bool Project::match(const Match &p)
 void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
 {
     PendingJob pending;
-    enum State {
-        None,
-        StartPending,
-        Finished,
-        FinishedSaveNow
-    } state = None;
+    bool startPending = false;
     {
         MutexLocker lock(&mMutex);
 
@@ -254,78 +254,39 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
         if (job->isAborted()) {
             mVisitedFiles -= job->visitedFiles();
             --mJobCounter;
-            bool startPending;
             pending = mPendingJobs.take(fileId, &startPending);
-            if (startPending)
-                state = StartPending;
-            if (mJobs.value(fileId) == job) {
+            if (mJobs.value(fileId) == job)
                 mJobs.remove(fileId);
-            }
-            return;
-        }
-        assert(mJobs.value(fileId) == job);
-        mJobs.remove(fileId);
-
-        shared_ptr<IndexData> data = job->data();
-        mPendingData[fileId] = data;
-
-        const int idx = mJobCounter - mJobs.size();
-
-        mSources[fileId].parsed = job->parseTime();
-        if (!mJobs.isEmpty() && mPendingDirtyFiles.isEmpty()) {
-            StopWatch watch;
-            syncDB();
-            const int writeTime = watch.elapsed();
-            error("[%3d%%] %d/%d %s %s (synced DB in %dms). %d mb mem.",
-                  static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-                  RTags::timeToString(time(0), RTags::Time).constData(),
-                  data->message.constData(), writeTime, int((MemoryMonitor::usage() / (1024 * 1024))));
         } else {
+            assert(mJobs.value(fileId) == job);
+            mJobs.remove(fileId);
+
+            shared_ptr<IndexData> data = job->data();
+            mPendingData[fileId] = data;
+
+            const int idx = mJobCounter - mJobs.size();
+
+            mSources[fileId].parsed = job->parseTime();
             error("[%3d%%] %d/%d %s %s. %d mb mem.",
                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
                   RTags::timeToString(time(0), RTags::Time).constData(),
                   data->message.constData(), int((MemoryMonitor::usage() / (1024 * 1024))));
-        }
-        if (mJobs.isEmpty()) {
-            mTimerRunning = false;
-            const int jobsElapsed = mTimer.restart();
-            if (syncDB()) {
-                error() << "Jobs took" << ((double)(jobsElapsed) / 1000.0) << "secs, syncing took"
-                        << ((double)(mTimer.elapsed()) / 1000.0) << " secs, using"
-                        << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-            } else {
-                error() << "Jobs took" << ((double)(jobsElapsed) / 1000.0) << "secs, using"
-                        << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
-            }
-            if (mJobCounter == 1 && job->flags() & IndexerJob::Dirty) {
-                state = FinishedSaveNow;
-            } else {
-                state = Finished;
-            }
-            mJobCounter = 0;
-        }
-    }
 
-    switch (state) {
-    case None:
-        break;
-    case Finished:
-    case FinishedSaveNow:
-        if (mFlags & Validate) {
-            shared_ptr<ValidateDBJob> validateJob(new ValidateDBJob(static_pointer_cast<Project>(shared_from_this()), mPreviousErrors));
-            validateJob->errors().connect(this, &Project::onValidateDBJobErrors);
-            Server::instance()->startQueryJob(validateJob);
+            if (mJobs.isEmpty() && job->flags() & IndexerJob::Dirty) {
+                const int syncTime = syncDB();
+                error() << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0) << "secs, syncing took"
+                        << (static_cast<double>(syncTime) / 1000.0) << " secs, using"
+                        << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+                mTimerRunning = false;
+                mSaveTimer.start(shared_from_this(), SaveTimeout, SingleShot, Save);
+                mJobCounter = 0;
+            } else if (mJobs.isEmpty()) {
+                mSyncTimer.start(shared_from_this(), SyncTimeout, SingleShot, Sync);
+            }
         }
-        if (state == FinishedSaveNow) {
-            save();
-        } else {
-            mSaveTimer.start(shared_from_this(), SaveTimeout, true, Save);
-        }
-        break; 
-    case StartPending:
-        index(pending.source, pending.jobFlags);
-        break;
     }
+    if (startPending)
+        index(pending.source, pending.jobFlags);
 }
 
 bool Project::save()
@@ -420,7 +381,7 @@ void Project::onFileModified(const Path &file)
         startDirtyJobs();
     } else {
         mModifiedFilesTimer.start(shared_from_this(), ModifiedFilesTimeout,
-                                  true, ModifiedFiles);
+                                  SingleShot, ModifiedFiles);
     }
 }
 
@@ -633,10 +594,11 @@ static inline void writeReferences(const ReferenceMap &references, SymbolMap &sy
 }
 
 
-bool Project::syncDB()
+int Project::syncDB()
 {
     if (mPendingDirtyFiles.isEmpty() && mPendingData.isEmpty())
-        return false;
+        return -1;
+    StopWatch watch;
     Scope<SymbolMap&> symbols = lockSymbolsForWrite();
     Scope<SymbolNameMap&> symbolNames = lockSymbolNamesForWrite();
     Scope<UsrMap&> usr = lockUsrForWrite();
@@ -667,7 +629,7 @@ bool Project::syncDB()
         }
     }
     mPendingData.clear();
-    return true;
+    return watch.elapsed();
 }
 
 bool Project::isIndexed(uint32_t fileId) const
@@ -816,6 +778,14 @@ void Project::timerEvent(TimerEvent *e)
 {
     if (e->userData() == Save) {
         save();
+    } else if (e->userData() == Sync) {
+        const int syncTime = syncDB();
+        error() << "Jobs took" << (static_cast<double>(mTimer.elapsed()) / 1000.0) << "secs, syncing took"
+                << (static_cast<double>(syncTime) / 1000.0) << " secs, using"
+                << MemoryMonitor::usage() / (1024.0 * 1024.0) << "mb of memory";
+        mTimerRunning = false;
+        mSaveTimer.start(shared_from_this(), SaveTimeout, SingleShot, Save);
+        mJobCounter = 0;
     } else if (e->userData() == ModifiedFiles) {
         startDirtyJobs();
     } else {
