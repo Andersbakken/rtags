@@ -475,7 +475,7 @@ void GRTags::dump()
     error() << delimiter;
     error() << "Symbols:";
     error() << delimiter;
-    
+
     shared_ptr<leveldb::Iterator> it(mDB->NewIterator(leveldb::ReadOptions()));
     it->Seek(leveldb::Slice("A", 1));
     while (it->Valid()) {
@@ -488,7 +488,7 @@ void GRTags::dump()
             deserializer >> locations;
             assert(!locations.isEmpty());
         }
-        
+
         for (Map<Location, bool>::const_iterator it2 = locations.begin(); it2 != locations.end(); ++it2) {
             if (it2->second) {
                 error() << "    " << it2->first.key(Location::ShowContext) << "reference";
