@@ -67,7 +67,7 @@ private:
     signalslot::Signal2<int, const List<ByteArray> &> &complete() { return mComplete; }
     shared_ptr<Project> setCurrentProject(const Path &path);
     void event(const Event *event);
-    void processSourceFile(GccArguments args, Path srcRoot);
+    void processSourceFile(GccArguments args);
     void onNewMessage(Message *message, Connection *conn);
     void onConnectionDestroyed(Connection *o);
     void clearProjects();

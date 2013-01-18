@@ -9,11 +9,7 @@ CompileJob::CompileJob(const CompileMessage &message)
 void CompileJob::run()
 {
     GccArguments args;
-    if (!args.parse(mArgs, mPath))
-        return;
-
-    const Path srcRoot = args.projectRoot();
-    if (!srcRoot.isEmpty())
-        fileReady()(args, srcRoot);
+    if (args.parse(mArgs, mPath))
+        argsReady()(args);
 }
 

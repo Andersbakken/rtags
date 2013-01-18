@@ -233,7 +233,7 @@ void Server::handleCompileMessage(CompileMessage *message, Connection *conn)
 {
     conn->finish(); // nothing to wait for
     shared_ptr<CompileJob> job(new CompileJob(*message));
-    job->fileReady().connectAsync(this, &Server::processSourceFile);
+    job->argsReady().connectAsync(this, &Server::processSourceFile);
     mQueryThreadPool.start(job);
 }
 
@@ -600,9 +600,18 @@ void Server::startQueryJob(const shared_ptr<Job> &job)
     mQueryThreadPool.start(job);
 }
 
-void Server::processSourceFile(GccArguments args, Path proj)
+void Server::processSourceFile(GccArguments args)
 {
+    if (args.lang() == GccArguments::NoLang)
+        return;
+    const Path srcRoot = args.projectRoot();
     List<Path> inputFiles = args.inputFiles();
+    if (srcRoot.isEmpty()) {
+        error("Can't find project root for %s", ByteArray::join(inputFiles, ", ").constData());
+        return;
+    }
+
+    debug() << inputFiles << "in" << srcRoot;
     const int count = inputFiles.size();
     int filtered = 0;
     if (!mOptions.excludeFilters.isEmpty()) {
@@ -618,16 +627,79 @@ void Server::processSourceFile(GccArguments args, Path proj)
     if (filtered == count) {
         warning("no input file?");
         return;
-    } else if (args.lang() == GccArguments::NoLang) {
-        return;
     }
-    shared_ptr<Project> project = mProjects.value(proj);
-    if (!project) {
-        Path srcRoot = args.projectRoot();
-        if (srcRoot.isEmpty()) {
-            error("Can't find project root for %s", ByteArray::join(inputFiles, ", ").constData());
-            return;
+
+    Path cpp = args.compiler().parentDir();
+    cpp += "cpp";
+    if (!(cpp.mode() & 0x111)) { // not pretty
+        cpp = "cpp";
+    }
+
+#if 0
+    static Map<Path, List<ByteArray> > sCompilerFlags;
+    const Map<Path, List<ByteArray> >::const_iterator it = sCompilerFlags.find(cpp);
+    if (it == sCompilerFlags.end()) {
+        Process proc;
+        static List<ByteArray> args;
+        if (args.isEmpty()) {
+            // -static inline List<Path> systemIncludes(const Path &cpp)
+            //     -{
+            //     -    List<Path> systemIncludes;
+            //     -    QProcess proc;
+            //     -    proc.start(cpp, QStringList() << QLatin1String("-v"));
+            //     -    proc.closeWriteChannel();
+            //     -    proc.waitForFinished();
+            //     -    QByteArray ba = proc.readAllStandardError();
+            //     -    List<ByteArray> lines = ByteArray(ba.constData(), ba.size()).split('\n');
+            //     -    bool seenInclude = false;
+            //     -    Path gxxIncludeDir;
+            //     -    ByteArray target;
+            //     -    foreach(const ByteArray& line, lines) {
+            //         -        if (gxxIncludeDir.isEmpty()) {
+            //             -            int idx = line.indexOf("--with-gxx-include-dir=");
+            //             -            if (idx != -1) {
+            //                 -                const int space = line.indexOf(' ', idx);
+            //                 -                gxxIncludeDir = line.mid(idx + 23, space - idx - 23);
+            //                 -                if (!gxxIncludeDir.resolve())
+            //                     -                    gxxIncludeDir.clear();
+            //                 -            }
+            //             -            idx = line.indexOf("--target=");
+            //             -            if (idx != -1) {
+            //                 -                const int space = line.indexOf(' ', idx);
+            //                 -                target = line.mid(idx + 9, space - idx - 9);
+            //                 -            }
+            //             -        } else if (!seenInclude && line.startsWith("#include ")) {
+            //             -            seenInclude = true;
+            //             -        } else if (seenInclude && line.startsWith(" /")) {
+            //             -            Path path = Path::resolved(line.mid(1));
+            //             -            if (path.isDir()) {
+            //                 -                systemIncludes.append(path);
+            //                 -            }
+            //             -        }
+            //         -    }
+            //     -    if (gxxIncludeDir.isDir()) {
+            //         -        systemIncludes.append(gxxIncludeDir);
+            //         -        if (!target.isEmpty()) {
+            //             -            gxxIncludeDir += target;
+            //             -            if (!gxxIncludeDir.endsWith('/'))
+            //                 -                gxxIncludeDir.append('/');
+            //             -            if (gxxIncludeDir.isDir())
+            //                 -                systemIncludes.append(gxxIncludeDir);
+            //             -        }
+            //         -    }
+            //     -    return systemIncludes;
+            //     -}
+            
+
+
         }
+        proc.start();
+    }
+
+    error() << cpp;
+#endif
+    shared_ptr<Project> project = mProjects.value(srcRoot);
+    if (!project) {
         project = addProject(srcRoot);
         assert(project);
     }
