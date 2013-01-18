@@ -45,6 +45,16 @@ Path::Type Path::type() const
     return Invalid;
 }
 
+mode_t Path::mode() const
+{
+    struct stat st;
+    if (stat(constData(), &st) == -1)
+        return 0;
+
+    return st.st_mode;
+}
+
+
 time_t Path::lastModified() const
 {
     struct stat st;
@@ -97,13 +107,6 @@ bool Path::resolve(const Path &cwd)
     {
         char buffer[PATH_MAX + 2];
         if (realpath(constData(), buffer)) {
-            // int len = strlen(buffer);
-            // struct stat st;
-            // if (!stat(buffer, &st) && st.st_mode & S_IFDIR) {
-            //     buffer[len++] = '/';
-            //     buffer[len] = '\0';
-            // }
-            // assign(buffer, len);
             ByteArray::operator=(buffer);
             return true;
         }

@@ -86,6 +86,7 @@ public:
     static bool isHeader(const char *extension);
     Path parentDir() const;
     Type type() const;
+    mode_t mode() const;
     bool resolve(const Path &cwd = Path());
     int canonicalize();
     time_t lastModified() const; // returns time_t ... no shit
