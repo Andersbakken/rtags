@@ -271,7 +271,7 @@ CXChildVisitResult IndexerJob::indexVisitor(CXCursor cursor, CXCursor parent, CX
         if (job->mAborted)
             return CXChildVisit_Break;
     }
-    
+
     const CXCursorKind kind = clang_getCursorKind(cursor);
     const RTags::CursorType type = RTags::cursorType(kind);
     if (type == RTags::Other)
