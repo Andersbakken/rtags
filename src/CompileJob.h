@@ -16,6 +16,7 @@ public:
 private:
     const ByteArray mArgs;
     const Path mPath;
+    const Path mCpp;
     signalslot::Signal1<GccArguments> mArgsReady;
 
 };

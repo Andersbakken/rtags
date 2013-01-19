@@ -8,6 +8,7 @@ include_directories(
 set(rtags_client_HDRS
     ByteArray.h
     Client.h
+    CompilerManager.h
     CompletionMessage.h
     Connection.h
     CreateOutputMessage.h
@@ -53,6 +54,7 @@ set(rtags_client_HDRS
 
 set(rtags_client_SRCS
     Client.cpp
+    CompilerManager.cpp
     CompletionMessage.cpp
     Connection.cpp
     CreateOutputMessage.cpp

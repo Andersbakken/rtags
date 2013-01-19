@@ -32,7 +32,7 @@ public:
     static Server *instance() { return sInstance; }
     enum Option {
         NoOptions = 0x00,
-        NoClangIncludePath = 0x01,
+        ClangIncludePath = 0x01,
         Validate = 0x02,
         ClearProjects = 0x04,
         NoWall = 0x08,

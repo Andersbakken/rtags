@@ -20,6 +20,7 @@ public:
     int timeout() const { return mTimeout; }
 
     const Set<ByteArray> &pathFilters() const { return mPathFilters; }
+    const Path &cpp() const { return mCpp; }
 
     const Map<Path, ByteArray> &unsavedFiles() const { return mUnsavedFiles; }
 
@@ -36,7 +37,7 @@ public:
 private:
     QueryCommand *addQuery(QueryMessage::Type t, const ByteArray &query = ByteArray());
     void addLog(int level);
-    void addProject(const Path &cwd, const ByteArray &args);
+    void addCompile(const Path &cwd, const ByteArray &args);
 
     unsigned mQueryFlags, mClientFlags;
     int mMax, mLogLevel, mTimeout;
@@ -46,6 +47,7 @@ private:
     List<ByteArray> mRdmArgs;
     ByteArray mSocketFile;
     List<ByteArray> mProjects;
+    Path mCpp;
 
     int mArgc;
     char **mArgv;

@@ -136,6 +136,16 @@ public:
         append(t);
         return *this;
     }
+    List<T> &operator<<(const T &t)
+    {
+        append(t);
+        return *this;
+    }
+    List<T> &operator<<(const List<T> &t)
+    {
+        append(t);
+        return *this;
+    }
 };
 
 #endif

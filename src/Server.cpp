@@ -69,7 +69,7 @@ bool Server::init(const Options &options)
     mIndexerThreadPool = new ThreadPool(options.threadCount);
 
     mOptions = options;
-    if (!(options.options & NoClangIncludePath)) {
+    if (options.options & ClangIncludePath) {
         Path clangPath = Path::resolved(CLANG_INCLUDEPATH);
         clangPath.prepend("-I");
         mOptions.defaultArguments.append(clangPath);
@@ -629,75 +629,6 @@ void Server::processSourceFile(GccArguments args)
         return;
     }
 
-    Path cpp = args.compiler().parentDir();
-    cpp += "cpp";
-    if (!(cpp.mode() & 0x111)) { // not pretty
-        cpp = "cpp";
-    }
-
-#if 0
-    static Map<Path, List<ByteArray> > sCompilerFlags;
-    const Map<Path, List<ByteArray> >::const_iterator it = sCompilerFlags.find(cpp);
-    if (it == sCompilerFlags.end()) {
-        Process proc;
-        static List<ByteArray> args;
-        if (args.isEmpty()) {
-            // -static inline List<Path> systemIncludes(const Path &cpp)
-            //     -{
-            //     -    List<Path> systemIncludes;
-            //     -    QProcess proc;
-            //     -    proc.start(cpp, QStringList() << QLatin1String("-v"));
-            //     -    proc.closeWriteChannel();
-            //     -    proc.waitForFinished();
-            //     -    QByteArray ba = proc.readAllStandardError();
-            //     -    List<ByteArray> lines = ByteArray(ba.constData(), ba.size()).split('\n');
-            //     -    bool seenInclude = false;
-            //     -    Path gxxIncludeDir;
-            //     -    ByteArray target;
-            //     -    foreach(const ByteArray& line, lines) {
-            //         -        if (gxxIncludeDir.isEmpty()) {
-            //             -            int idx = line.indexOf("--with-gxx-include-dir=");
-            //             -            if (idx != -1) {
-            //                 -                const int space = line.indexOf(' ', idx);
-            //                 -                gxxIncludeDir = line.mid(idx + 23, space - idx - 23);
-            //                 -                if (!gxxIncludeDir.resolve())
-            //                     -                    gxxIncludeDir.clear();
-            //                 -            }
-            //             -            idx = line.indexOf("--target=");
-            //             -            if (idx != -1) {
-            //                 -                const int space = line.indexOf(' ', idx);
-            //                 -                target = line.mid(idx + 9, space - idx - 9);
-            //                 -            }
-            //             -        } else if (!seenInclude && line.startsWith("#include ")) {
-            //             -            seenInclude = true;
-            //             -        } else if (seenInclude && line.startsWith(" /")) {
-            //             -            Path path = Path::resolved(line.mid(1));
-            //             -            if (path.isDir()) {
-            //                 -                systemIncludes.append(path);
-            //                 -            }
-            //             -        }
-            //         -    }
-            //     -    if (gxxIncludeDir.isDir()) {
-            //         -        systemIncludes.append(gxxIncludeDir);
-            //         -        if (!target.isEmpty()) {
-            //             -            gxxIncludeDir += target;
-            //             -            if (!gxxIncludeDir.endsWith('/'))
-            //                 -                gxxIncludeDir.append('/');
-            //             -            if (gxxIncludeDir.isDir())
-            //                 -                systemIncludes.append(gxxIncludeDir);
-            //             -        }
-            //         -    }
-            //     -    return systemIncludes;
-            //     -}
-            
-
-
-        }
-        proc.start();
-    }
-
-    error() << cpp;
-#endif
     shared_ptr<Project> project = mProjects.value(srcRoot);
     if (!project) {
         project = addProject(srcRoot);

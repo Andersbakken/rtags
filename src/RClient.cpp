@@ -166,17 +166,17 @@ public:
     const int mLevel;
 };
 
-class ProjectCommand : public RCCommand
+class CompileCommand : public RCCommand
 {
 public:
-    ProjectCommand(const Path &p, const ByteArray &a)
+    CompileCommand(const Path &p, const ByteArray &a)
         : path(p), args(a)
     {}
     const Path path;
     const ByteArray args;
     virtual void exec(RClient *rc, Client *client)
     {
-        CompileMessage msg(path, args);
+        CompileMessage msg(path, args, rc->cpp());
         msg.init(rc->argc(), rc->argv());
         client->message(&msg);
     }
@@ -207,9 +207,9 @@ void RClient::addLog(int level)
     mCommands.append(new RdmLogCommand(level));
 }
 
-void RClient::addProject(const Path &cwd, const ByteArray &args)
+void RClient::addCompile(const Path &cwd, const ByteArray &args)
 {
-    mCommands.append(new ProjectCommand(cwd, args));
+    mCommands.append(new CompileCommand(cwd, args));
 }
 
 static void timeout(int timerId, void *userData)
@@ -238,7 +238,7 @@ void RClient::exec()
     mCommands.clear();
 }
 
-enum {
+enum OptionType {
     None = 0,
     AbsolutePath,
     AllReferences,
@@ -247,16 +247,17 @@ enum {
     CodeComplete,
     CodeCompleteAt,
     Compile,
+    Cpp,
     CursorInfo,
     CursorInfoIgnoreParents,
-    CursorInfoIgnoreTargets,
     CursorInfoIgnoreReferences,
+    CursorInfoIgnoreTargets,
     DeleteProject,
     Diagnostics,
     DumpFile,
     ElispList,
-    FilterSystemHeaders,
     FilterPreprocessor,
+    FilterSystemHeaders,
     FindFile,
     FindFilePreferExact,
     FindProjectRoot,
@@ -299,7 +300,7 @@ enum {
 };
 
 struct Option {
-    const int option;
+    const OptionType option;
     const char *longOpt;
     const char shortOpt;
     const int argument;
@@ -376,6 +377,7 @@ struct Option opts[] = {
     { CursorInfoIgnoreTargets, "cursor-info-ignore-targets", 0, no_argument, "Use to make --cursor-info not include target cursors." },
     { CursorInfoIgnoreReferences, "cursor-info-ignore-references", 0, no_argument, "Use to make --cursor-info not include reference cursors." },
     { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
+    { Cpp, "cpp", 0, required_argument, "Use with --compile to explicitly set the path to cpp." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -493,6 +495,9 @@ bool RClient::parse(int &argc, char **argv)
         assert(opt);
 
         switch (opt->option) {
+        case None:
+            assert(0);
+            break;
         case Help:
             help(stdout, argv[0]);
             return 0;
@@ -649,6 +654,7 @@ bool RClient::parse(int &argc, char **argv)
             case FollowLocation: type = QueryMessage::FollowLocation; break;
             case CursorInfo: type = QueryMessage::CursorInfo; break;
             case ReferenceLocation: type = QueryMessage::ReferencesLocation; break;
+            default: assert(0); break;
             }
             addQuery(type, encoded);
             break; }
@@ -702,6 +708,7 @@ bool RClient::parse(int &argc, char **argv)
             case FindFile: type = QueryMessage::FindFile; break;
             case Status: type = QueryMessage::Status; break;
             case ListSymbols: type = QueryMessage::ListSymbols; break;
+            default: assert(0); break;
             }
 
             QueryCommand *cmd;
@@ -741,8 +748,12 @@ bool RClient::parse(int &argc, char **argv)
                 args.append(' ');
                 args.append(argv[optind++]);
             }
-            addProject(Path::pwd(), args);
+            addCompile(Path::pwd(), args);
             break; }
+        case Cpp:
+            mCpp = optarg;
+            mCpp.resolve();
+            break;
         case IsIndexed:
         case DumpFile:
         case FixIts:
@@ -766,6 +777,7 @@ bool RClient::parse(int &argc, char **argv)
             case IsIndexed: type = QueryMessage::IsIndexed; break;
             case DumpFile: type = QueryMessage::DumpFile; break;
             case PreprocessFile: type = QueryMessage::PreprocessFile; break;
+            default: assert(0); break;
             }
 
             addQuery(type, p);

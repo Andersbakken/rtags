@@ -20,7 +20,7 @@ static void *Sync = &Sync;
 enum {
     SaveTimeout = 2000,
     ModifiedFilesTimeout = 50,
-    SyncTimeout = 100
+    SyncTimeout = 2000
 };
 
 Project::Project(const Path &path)
@@ -338,10 +338,10 @@ void Project::index(const SourceInformation &c, unsigned indexerJobFlags)
     static const char *fileFilter = getenv("RTAGS_FILE_FILTER");
     if (fileFilter && !strstr(c.sourceFile.constData(), fileFilter))
         return;
-
+    mSyncTimer.stop();
+    mSaveTimer.stop();
     const uint32_t fileId = Location::insertFile(c.sourceFile);
     shared_ptr<IndexerJob> &job = mJobs[fileId];
-    mSaveTimer.stop();
     if (job) {
         if (job->abortIfStarted()) {
             const PendingJob pending = { c, indexerJobFlags };

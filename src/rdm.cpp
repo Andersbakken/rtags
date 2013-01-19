@@ -50,7 +50,7 @@ void usage(FILE *f)
             "  --clear-project-caches|-C         Clear out project caches\n"
             "  --enable-sighandler|-s            Enable signal handler to dump stack for crashes.\n"
             "                                    Note that this might not play well with clang's signal handler\n"
-            "  --no-clang-includepath|-P         Don't use clang include paths by default\n"
+            "  --clang-includepath|-P            Use clang include paths by default\n"
             "  --no-Wall|-W                      Don't use -Wall\n"
             "  --silent|-S                       No logging to stdout\n"
             "  --validate|-V                     Enable validation of database on startup and after indexing\n"
@@ -210,7 +210,7 @@ int main(int argc, char** argv)
             projectsFile = Path::resolved(optarg);
             break;
         case 'P':
-            options |= Server::NoClangIncludePath;
+            options |= Server::ClangIncludePath;
             break;
         case 'W':
             options |= Server::NoWall;
