@@ -375,9 +375,9 @@ void IndexerJob::handleReference(const CXCursor &cursor, CXCursorKind kind, cons
                             case 0:
                                 break;
                             default:
-                                error() << "Can't decide which of these cursors are right for me"
-                                        << cursor << alternatives
-                                        << "Need to parse types";
+                                warning() << "Can't decide which of these cursors are right for me"
+                                          << cursor << alternatives
+                                          << "Need to parse types";
                                 break;
                             }
                         }
