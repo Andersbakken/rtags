@@ -390,11 +390,11 @@ static void help(FILE *f, const char* app)
             out.append(ByteArray());
         } else {
             out.append(ByteArray::format<64>("  %s%s%s%s",
-                                               opts[i].longOpt ? ByteArray::format<4>("--%s", opts[i].longOpt).constData() : "",
-                                               opts[i].longOpt && opts[i].shortOpt ? "|" : "",
-                                               opts[i].shortOpt ? ByteArray::format<2>("-%c", opts[i].shortOpt).constData() : "",
-                                               opts[i].argument == required_argument ? " [arg] "
-                                               : opts[i].argument == optional_argument ? " [optional] " : ""));
+                                             opts[i].longOpt ? ByteArray::format<4>("--%s", opts[i].longOpt).constData() : "",
+                                             opts[i].longOpt && opts[i].shortOpt ? "|" : "",
+                                             opts[i].shortOpt ? ByteArray::format<2>("-%c", opts[i].shortOpt).constData() : "",
+                                             opts[i].argument == required_argument ? " [arg] "
+                                             : opts[i].argument == optional_argument ? " [optional] " : ""));
             longest = std::max<int>(out[i].size(), longest);
         }
     }
@@ -475,20 +475,26 @@ bool RClient::parse(int &argc, char **argv)
     Path logFile;
     unsigned logFlags = 0;
 
+    enum State {
+        Parsing,
+        Done,
+        Error
+    } state = Parsing;
     while (true) {
         int idx = -1;
         const int c = getopt_long(argc, argv, shortOptionString.constData(), options.data(), &idx);
-        bool done = false;
         switch (c) {
         case -1:
+            state = Done;
+            break;
         case '?':
         case ':':
-            done = true;
+            state = Error;
             break;
         default:
             break;
         }
-        if (done)
+        if (state != Parsing)
             break;
 
         const Option *opt = (idx == -1 ? shortOptions.value(c) : longOptions.value(idx));
@@ -790,6 +796,11 @@ bool RClient::parse(int &argc, char **argv)
             break;
         }
     }
+    if (state == Error) {
+        help(stderr, argv[0]);
+        return false;
+    }
+
     if (optind < argc) {
         fprintf(stderr, "rc: unexpected option -- '%s'\n", argv[optind]);
         return false;
