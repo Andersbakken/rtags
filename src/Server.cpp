@@ -76,8 +76,10 @@ bool Server::init(const Options &options)
     }
     if (options.options & UnlimitedErrors)
         mOptions.defaultArguments.append("-ferror-limit=0");
-    if (!(options.options & NoWall))
+    if (options.options & Wall)
         mOptions.defaultArguments.append("-Wall");
+    if (options.options & SpellChecking)
+        mOptions.defaultArguments << "-fspell-checking";
     mClangPath = Path::resolved(CLANG_BIN "/clang");
     error() << "using args" << mOptions.defaultArguments;
 

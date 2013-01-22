@@ -35,9 +35,10 @@ public:
         ClangIncludePath = 0x01,
         Validate = 0x02,
         ClearProjects = 0x04,
-        NoWall = 0x08,
+        Wall = 0x08,
         IgnorePrintfFixits = 0x10,
-        UnlimitedErrors = 0x20
+        UnlimitedErrors = 0x20,
+        SpellChecking = 0x40
     };
     ThreadPool *threadPool() const { return mIndexerThreadPool; }
     void startQueryJob(const shared_ptr<Job> &job);

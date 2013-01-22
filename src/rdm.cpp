@@ -52,6 +52,8 @@ void usage(FILE *f)
             "                                    Note that this might not play well with clang's signal handler\n"
             "  --clang-includepath|-P            Use clang include paths by default\n"
             "  --no-Wall|-W                      Don't use -Wall\n"
+            "  --no-spell-checking|-l            Don't pass -fspell-checking\n"
+            "  --unlimited-error|-f              Pass -ferror-limit=0 to clang\n"
             "  --silent|-S                       No logging to stdout\n"
             "  --validate|-V                     Enable validation of database on startup and after indexing\n"
             "  --exclude-filter|-x [arg]         Files to exclude from rdm, default \"" EXCLUDEFILTER_DEFAULT "\"\n"
@@ -63,7 +65,6 @@ void usage(FILE *f)
             "  --socket-file|-n [arg]            Use this file for the server socket (default ~/.rdm)\n"
             "  --setenv|-e [arg]                 Set this environment variable (--setenv \"foobar=1\")\n"
             "  --completion-cache-size|-a [arg]  Cache this many translation units (default 10, min 1)\n"
-            "  --no-unlimited-error|-f           Don't pass -ferror-limit=0 to clang\n"
             "  --thread-count|-j [arg]           Spawn this many threads for thread pool\n");
 }
 
@@ -96,6 +97,7 @@ int main(int argc, char** argv)
         { "ignore-printf-fixits", no_argument, 0, 'F' },
         { "unlimited-errors", no_argument, 0, 'f' },
         { "completion-cache-size", required_argument, 0, 'a' },
+        { "no-spell-checking", no_argument, 0, 'l' },
         { 0, 0, 0, 0 }
     };
     const ByteArray shortOptions = RTags::shortOptions(opts);
@@ -154,7 +156,7 @@ int main(int argc, char** argv)
 
     int jobs = ThreadPool::idealThreadCount();
     int completionCacheSize = 10;
-    unsigned options = 0;
+    unsigned options = Server::Wall|Server::SpellChecking;
     List<ByteArray> defaultArguments;
     ByteArray excludeFilters = EXCLUDEFILTER_DEFAULT;
     const char *logFile = 0;
@@ -203,6 +205,9 @@ int main(int argc, char** argv)
         case 'f':
             options |= Server::UnlimitedErrors;
             break;
+        case 'l':
+            options &= ~Server::SpellChecking;
+            break;
         case 'e':
             putenv(optarg);
             break;
@@ -213,7 +218,7 @@ int main(int argc, char** argv)
             options |= Server::ClangIncludePath;
             break;
         case 'W':
-            options |= Server::NoWall;
+            options &= ~Server::Wall;
             break;
         case 's':
             enableSignalHandler = true;
