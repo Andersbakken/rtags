@@ -12,6 +12,7 @@
 (defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
 (defvar rtags-path-filter-regex nil)
+(defvar rtags-range-filter nil)
 (defvar rtags-mode-hook nil)
 (defvar rtags-no-otherbuffer nil)
 (defface rtags-path nil "Path" :group 'rtags)
@@ -133,6 +134,8 @@
                   (push (format "--path-filter=%s" rtags-path-filter) arguments)
                   (if rtags-path-filter-regex
                       (push "-Z" arguments))))
+            (if rtags-range-filter
+                (push rtags-range-filter arguments))
 
             (if rtags-timeout
                 (push (format "--timeout=%d" rtags-timeout) arguments))
@@ -391,9 +394,9 @@
     )
   )
 
-(defun rtags-find-symbols-by-name-internal (p references pathfilter)
+(defun rtags-find-symbols-by-name-internal (p references filter)
   (rtags-save-location)
-  (setq rtags-path-filter pathfilter)
+  (rtags-setup-filters filter)
   (let ((tagname (rtags-current-symbol))
         (switch (if references "-R" "-F"))
         (path (rtags-path-for-project))
@@ -411,7 +414,6 @@
     (with-current-buffer (generate-new-buffer rtags-buffer-name)
       (rtags-call-rc path switch tagname "-l")
       (rtags-reset-bookmarks)
-      (setq rtags-path-filter nil)
       (rtags-handle-completion-buffer)
       )
     )
@@ -645,14 +647,24 @@ return t if rtags is allowed to modify this file"
           (setq rtags-last-request-not-indexed nil)
           nil)))))
 
+(defun rtags-setup-filters (filter)
+  (setq rtags-path-filter (cond ((stringp filter) filter)
+                                (filter buffer-file-name)
+                                (t nil)))
+  (setq rtags-range-filter (if (and filter
+                                    (or (not (= (point-min) 1))
+                                        (not (= (point-max) (+ (buffer-size) 1)))))
+                               (format "--range-filter=%d-%d" (- (point-min) 1) (- (point-max) 1))
+                             nil)))
+
 (defalias 'rtags-find-symbol-at-point 'rtags-follow-symbol-at-point)
 (defun rtags-find-symbol-at-point (&optional prefix)
-"Find the natural target for the symbol under the cursor and moves to that location.
+  "Find the natural target for the symbol under the cursor and moves to that location.
 For references this means to jump to the definition/declaration of the referenced symbol (it jumps to the definition if it is indexed).
 For definitions it jumps to the declaration (if there is only one) For declarations it jumps to the definition.
 If called with a prefix restrict to current buffer"
   (interactive "P")
-  (setq rtags-path-filter (if prefix buffer-file-name nil))
+  (rtags-setup-filters prefix)
   (rtags-save-location)
   (let ((target (rtags-target)))
     (if target
@@ -661,19 +673,18 @@ If called with a prefix restrict to current buffer"
   )
 
 (defun rtags-find-references-at-point(&optional prefix)
-"Find all references to the symbol under the cursor
+  "Find all references to the symbol under the cursor
 If there's exactly one result jump directly to it.
 If there's more show a buffer with the different alternatives and jump to the first one if rtags-jump-to-first-match is true.
 References to references will be treated as references to the referenced symbol"
   (interactive "P")
-  (setq rtags-path-filter (if prefix buffer-file-name nil))
+  (rtags-setup-filters prefix)
   (rtags-save-location)
   (let ((arg (rtags-current-location)))
     (if (get-buffer rtags-buffer-name)
         (kill-buffer rtags-buffer-name))
     (with-current-buffer (generate-new-buffer rtags-buffer-name)
       (rtags-call-rc nil "-l" "-r" arg)
-      (setq rtags-path-filter nil)
       (rtags-handle-completion-buffer))
     )
   )
@@ -681,21 +692,20 @@ References to references will be treated as references to the referenced symbol"
 (defun rtags-find-virtuals-at-point(&optional prefix)
   (interactive "P")
   "List all reimplentations of function under cursor. This includes both declarations and definitions"
-  (setq rtags-path-filter (if prefix buffer-file-name nil))
+  (rtags-setup-filters prefix)
   (rtags-save-location)
   (let ((arg (rtags-current-location)))
     (if (get-buffer rtags-buffer-name)
         (kill-buffer rtags-buffer-name))
     (with-current-buffer (generate-new-buffer rtags-buffer-name)
       (rtags-call-rc nil "-k" "-l" "-r" arg)
-      (setq rtags-path-filter nil)
       (rtags-handle-completion-buffer))
     )
   )
 
 (defun rtags-find-all-references-at-point(&optional prefix)
   (interactive "P")
-  (setq rtags-path-filter (if prefix buffer-file-name nil))
+  (rtags-setup-filters prefix)
   (rtags-save-location)
   (let ((arg (rtags-current-location)))
     (if (get-buffer rtags-buffer-name)
@@ -769,11 +779,11 @@ References to references will be treated as references to the referenced symbol"
 
 (defun rtags-find-symbol (&optional prefix)
   (interactive "P")
-  (rtags-find-symbols-by-name-internal "Find rsymbol" nil (if prefix buffer-file-name nil)))
+  (rtags-find-symbols-by-name-internal "Find rsymbol" nil prefix))
 
 (defun rtags-find-references (&optional prefix)
   (interactive "P")
-  (rtags-find-symbols-by-name-internal "Find rreferences" t (if prefix buffer-file-name nil)))
+  (rtags-find-symbols-by-name-internal "Find rreferences" t prefix))
 
 (defun rtags-find-symbol-current-file ()
   (interactive)

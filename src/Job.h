@@ -60,7 +60,7 @@ protected:
     bool mAborted;
 private:
     bool writeRaw(const ByteArray &out, unsigned flags);
-    int mId;
+    int mId, mMinOffset, mMaxOffset;
     unsigned mJobFlags;
     unsigned mQueryFlags;
     signalslot::Signal1<const ByteArray &> mOutput;

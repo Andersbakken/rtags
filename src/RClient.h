@@ -20,6 +20,8 @@ public:
     int timeout() const { return mTimeout; }
 
     const Set<ByteArray> &pathFilters() const { return mPathFilters; }
+    int minOffset() const { return mMinOffset; }
+    int maxOffset() const { return mMaxOffset; }
     const Path &cpp() const { return mCpp; }
 
     const Map<Path, ByteArray> &unsavedFiles() const { return mUnsavedFiles; }
@@ -40,7 +42,7 @@ private:
     void addCompile(const Path &cwd, const ByteArray &args);
 
     unsigned mQueryFlags, mClientFlags;
-    int mMax, mLogLevel, mTimeout;
+    int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset;
     Set<ByteArray> mPathFilters;
     Map<Path, ByteArray> mUnsavedFiles;
     List<RCCommand*> mCommands;

@@ -10,7 +10,8 @@
 // static int active = 0;
 
 Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project> &proj)
-    : mAborted(false), mId(-1), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj),
+    : mAborted(false), mId(-1), mMinOffset(query.minOffset()),
+      mMaxOffset(query.maxOffset()), mJobFlags(jobFlags), mQueryFlags(query.flags()), mProject(proj),
       mPathFilters(0), mPathFiltersRegExp(0), mMax(query.max()), mConnection(0)
 {
     const List<ByteArray> &pathFilters = query.pathFilters();
@@ -29,7 +30,7 @@ Job::Job(const QueryMessage &query, unsigned jobFlags, const shared_ptr<Project>
 }
 
 Job::Job(unsigned jobFlags, const shared_ptr<Project> &proj)
-    : mAborted(false), mId(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0),
+    : mAborted(false), mId(-1), mMinOffset(-1), mMaxOffset(-1), mJobFlags(jobFlags), mQueryFlags(0), mProject(proj), mPathFilters(0),
       mPathFiltersRegExp(0), mMax(-1), mConnection(0)
 {
 }
@@ -109,8 +110,14 @@ bool Job::write(const Location &location, unsigned flags)
 {
     if (location.isNull())
         return false;
-    const unsigned kf = keyFlags();
-    if (!write(location.key(kf).constData()))
+    if (mMinOffset != -1) {
+        assert(mMaxOffset != -1);
+        const int offset = location.offset();
+        if (offset < mMinOffset || offset > mMaxOffset) {
+            return false;
+        }
+    }
+    if (!write(location.key(keyFlags()).constData()))
         return false;
     return true;
 }

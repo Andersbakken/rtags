@@ -32,6 +32,7 @@ public:
         msg.setFlags(extraQueryFlags | rc->queryFlags());
         msg.setMax(rc->max());
         msg.setPathFilters(rc->pathFilters().toList());
+        msg.setRangeFilter(rc->minOffset(), rc->maxOffset());
         msg.setProjects(rc->projects());
         client->message(&msg);
     }
@@ -187,7 +188,7 @@ public:
 };
 
 RClient::RClient()
-    : mQueryFlags(0), mClientFlags(0), mMax(-1), mLogLevel(0), mTimeout(0), mArgc(0), mArgv(0)
+    : mQueryFlags(0), mClientFlags(0), mMax(-1), mLogLevel(0), mTimeout(0), mMinOffset(-1), mMaxOffset(-1), mArgc(0), mArgv(0)
 {
 }
 
@@ -280,6 +281,7 @@ enum OptionType {
     PreprocessFile,
     Project,
     QuitRdm,
+    RangeFilter,
     RdmLog,
     ReferenceLocation,
     ReferenceName,
@@ -361,6 +363,7 @@ struct Option opts[] = {
     { NoContext, "no-context", 'N', no_argument, "Don't print context for locations." },
     { LineNumbers, "line-numbers", 'l', no_argument, "Output line numbers instead of offsets." },
     { PathFilter, "path-filter", 'i', required_argument, "Filter out results not matching with arg." },
+    { RangeFilter, "range-filter", 0, required_argument, "Filter out results not in the specified range." },
     { FilterSystemHeaders, "filter-system-headers", 'H', no_argument, "Don't exempt system headers from path filters." },
     { AllReferences, "all-references", 'e', no_argument, "Include definitions/declarations/constructors/destructors for references. Used for rename symbol." },
     { ElispList, "elisp-list", 'Y', no_argument, "Output elisp: (list \"one\" \"two\" ...)." },
@@ -591,6 +594,22 @@ bool RClient::parse(int &argc, char **argv)
         case PathFilter:
             mPathFilters.insert(optarg);
             break;
+        case RangeFilter: {
+            List<RegExp::Capture> caps;
+            RegExp rx("^\\([0-9][0-9]*\\)-\\([0-9][0-9]*\\)$");
+            if (rx.indexIn(optarg, 0, &caps) != 0 || caps.size() != 3) {
+                error() << caps.size();
+                fprintf(stderr, "Can't parse range, must be uint-uint. E.g. 1-123\n");
+                return false;
+            } else {
+                mMinOffset = atoi(caps.at(1).capture.constData());
+                mMaxOffset = atoi(caps.at(2).capture.constData());
+                if (mMaxOffset <= mMinOffset || mMinOffset < 0) {
+                    fprintf(stderr, "Invalid range (%d-%d), must be uint-uint. E.g. 1-123\n", mMinOffset, mMaxOffset);
+                    return false;
+                }
+            }
+            break; }
         case LineNumbers:
             mQueryFlags |= QueryMessage::LineNumbers;
             break;

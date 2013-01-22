@@ -76,6 +76,15 @@ public:
 
     Match match() const;
 
+    void setRangeFilter(int min, int max)
+    {
+        mMinOffset = min;
+        mMaxOffset = max;
+    }
+
+    int minOffset() const { return mMinOffset; }
+    int maxOffset() const { return mMaxOffset; }
+
     int max() const { return mMax; }
     void setMax(int max) { mMax = max; }
 
@@ -94,7 +103,7 @@ private:
     ByteArray mQuery;
     Type mType;
     unsigned mFlags;
-    int mMax;
+    int mMax, mMinOffset, mMaxOffset;
     List<ByteArray> mPathFilters;
     List<ByteArray> mProjects;
 };
