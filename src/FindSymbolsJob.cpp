@@ -51,10 +51,9 @@ void FindSymbolsJob::execute()
         } else {
             std::sort(sorted.begin(), sorted.end());
         }
-        const uint32_t keyFlags = QueryMessage::keyFlags(queryFlags());
         const int count = sorted.size();
         for (int i=0; i<count; ++i) {
-            write(sorted.at(i).location.key(keyFlags));
+            write(sorted.at(i).location);
         }
     }
 }

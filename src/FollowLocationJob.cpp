@@ -44,7 +44,7 @@ void FollowLocationJob::execute()
             }
         }
         if (!loc.isNull()) {
-            write(loc.key(keyFlags()));
+            write(loc);
         }
     }
 }
