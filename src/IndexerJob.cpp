@@ -821,6 +821,8 @@ bool IndexerJob::diagnose(int *errorCount)
             } else {
                 error("Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
                       startOffset, endOffset, string.constData());
+                log(CompilationError, "Fixit for %s: Replace %d-%d with [%s]", loc.path().constData(),
+                    startOffset, endOffset, string.constData());
                 mData->fixIts[loc.fileId()].insert(FixIt(startOffset, endOffset, string));
             }
         }

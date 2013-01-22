@@ -42,7 +42,7 @@ public:
         LineNumbers = 0x00002,
         FilterSystemIncludes = 0x00004,
         SkipParentheses = 0x00008,
-        ReferencesForRenameSymbol = 0x00010,
+        AllReferences = 0x00010,
         ReverseSort = 0x00020,
         ElispList = 0x00040,
         WaitForIndexing = 0x00080,

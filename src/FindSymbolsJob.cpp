@@ -19,8 +19,6 @@ void FindSymbolsJob::execute()
     shared_ptr<Project> proj = project();
     if (proj) {
         Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead();
-        if (scope.isNull())
-            return;
         const SymbolNameMap &map = scope.data();
         const SymbolNameMap::const_iterator it = map.find(string);
         if (it != map.end()) {
@@ -33,14 +31,14 @@ void FindSymbolsJob::execute()
 
     if (out.size()) {
         Scope<const SymbolMap&> scope = proj->lockSymbolsForRead();
-        const SymbolMap *map = &scope.data();
+        const SymbolMap &map = scope.data();
         List<RTags::SortedCursor> sorted;
         sorted.reserve(out.size());
         for (Map<Location, bool>::const_iterator it = out.begin(); it != out.end(); ++it) {
             RTags::SortedCursor node(it->first);
-            if (it->second && map) {
-                const SymbolMap::const_iterator found = map->find(it->first);
-                if (found != map->end()) {
+            if (it->second) {
+                const SymbolMap::const_iterator found = map.find(it->first);
+                if (found != map.end()) {
                     node.isDefinition = found->second.isDefinition();
                     node.kind = found->second.kind;
                 }

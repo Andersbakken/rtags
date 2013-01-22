@@ -18,7 +18,7 @@ void ReferencesJob::execute()
 {
     shared_ptr<Project> proj = project();
     Location startLocation;
-    Set<Location> references;
+    Map<Location, std::pair<bool, CXCursorKind> > references;
     if (proj) {
         if (!symbolName.isEmpty()) {
             Scope<const SymbolNameMap&> scope = proj->lockSymbolNamesForRead();
@@ -40,7 +40,7 @@ void ReferencesJob::execute()
                 if (RTags::isReference(cursorInfo.kind)) {
                     cursorInfo = cursorInfo.bestTarget(map, &pos);
                 }
-                if (queryFlags() & QueryMessage::ReferencesForRenameSymbol) {
+                if (queryFlags() & QueryMessage::AllReferences) {
                     const SymbolMap all = cursorInfo.allReferences(pos, map);
                     bool classRename = false;
                     switch (cursorInfo.kind) {
@@ -55,7 +55,7 @@ void ReferencesJob::execute()
 
                     for (SymbolMap::const_iterator a = all.begin(); a != all.end(); ++a) {
                         if (!classRename) {
-                            references.insert(a->first);
+                            references[a->first] = std::make_pair(a->second.isDefinition(), a->second.kind);
                         } else {
                             enum State {
                                 FoundConstructor = 0x1,
@@ -74,45 +74,62 @@ void ReferencesJob::execute()
                                 }
                             }
                             if ((state & (FoundConstructor|FoundClass)) != FoundConstructor || !(state & FoundReferences)) {
-                                references.insert(a->first);
+                                references[a->first] = std::make_pair(a->second.isDefinition(), a->second.kind);
                             }
                         }
                     }
                 } else if (queryFlags() & QueryMessage::FindVirtuals) {
                     const SymbolMap virtuals = cursorInfo.virtuals(pos, map);
+                    List<RTags::SortedCursor> sortedCursors;
+                    sortedCursors.reserve(virtuals.size());
                     for (SymbolMap::const_iterator v = virtuals.begin(); v != virtuals.end(); ++v) {
-                        references.insert(v->first);
+                        references[v->first] = std::make_pair(v->second.isDefinition(), v->second.kind);
                     }
                 } else {
                     const SymbolMap callers = cursorInfo.callers(pos, map);
                     for (SymbolMap::const_iterator c = callers.begin(); c != callers.end(); ++c) {
-                        references.insert(c->first);
+                        references[c->first] = std::make_pair(false, CXCursor_FirstInvalid);
+                        // For find callers we don't want to prefer definitions or do ranks on cursors
                     }
                 }
             }
         }
     }
-
-    List<Location> sorted = references.toList();
-    if (queryFlags() & QueryMessage::ReverseSort) {
-        std::sort(sorted.begin(), sorted.end(), std::greater<Location>());
+    enum { Rename = (QueryMessage::ReverseSort|QueryMessage::AllReferences) };
+    if ((queryFlags() & Rename) == Rename) {
+        if (!references.isEmpty()) {
+            Map<Location, std::pair<bool, CXCursorKind> >::const_iterator it = references.end();
+            do {
+                --it;
+                write(it->first);
+            } while (it != references.begin());
+        }
     } else {
-        std::sort(sorted.begin(), sorted.end());
-    }
-    // We don't want to do the startIndex stuff when renaming. The only way to
-    // tell the difference between rtags-find-all-references and
-    // rtags-rename-symbol is that the latter does a reverse sort. It kinda
-    // doesn't make sense to have this behavior in reverse sort anyway so I
-    // won't formalize the rename parameters to indicate that we're renaming
-    int startIndex = 0;
-    const int count = sorted.size();
-    if (!(queryFlags() & QueryMessage::ReverseSort) && sorted.size() != 1 && !startLocation.isNull()) {
-        startIndex = sorted.indexOf(startLocation) + 1;
-    }
-    const unsigned keyFlags = Job::keyFlags();
+        List<RTags::SortedCursor> sorted;
+        sorted.reserve(references.size());
+        for (Map<Location, std::pair<bool, CXCursorKind> >::const_iterator it = references.begin();
+             it != references.end(); ++it) {
+            sorted.append(RTags::SortedCursor(it->first, it->second.first, it->second.second));
+        }
+        if (queryFlags() & QueryMessage::ReverseSort) {
+            std::sort(sorted.begin(), sorted.end(), std::greater<RTags::SortedCursor>());
+        } else {
+            std::sort(sorted.begin(), sorted.end());
+        }
+        int startIndex = 0;
+        const int count = sorted.size();
+        if (!startLocation.isNull()) {
+            for (int i=0; i<count; ++i) {
+                if (sorted.at(i).location == startLocation) {
+                    startIndex = i + 1;
+                    break;
+                }
+            }
+        }
 
-    for (int i=0; i<count; ++i) {
-        const Location &loc = sorted.at((startIndex + i) % count);
-        write(loc.key(keyFlags));
+        for (int i=0; i<count; ++i) {
+            const Location &loc = sorted.at((startIndex + i) % count).location;
+            write(loc);
+        }
     }
 }

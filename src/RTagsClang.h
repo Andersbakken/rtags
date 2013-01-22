@@ -220,8 +220,10 @@ static inline bool needsQualifiers(CXCursorKind kind)
 
 struct SortedCursor
 {
-    SortedCursor(const Location &loc = Location())
-        : location(loc), isDefinition(false), kind(CXCursor_FirstInvalid)
+    SortedCursor(const Location &loc = Location(),
+                 bool definition = false,
+                 CXCursorKind k = CXCursor_FirstInvalid)
+        : location(loc), isDefinition(definition), kind(k)
     {}
 
     Location location;

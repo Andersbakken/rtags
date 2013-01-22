@@ -556,7 +556,7 @@ bool RClient::parse(int &argc, char **argv)
                 mRdmArgs = ByteArray(optarg, strlen(optarg)).split(' ');
             break;
         case AllReferences:
-            mQueryFlags |= QueryMessage::ReferencesForRenameSymbol;
+            mQueryFlags |= QueryMessage::AllReferences;
             break;
         case MatchCaseInsensitive:
             mQueryFlags |= QueryMessage::MatchCaseInsensitive;
