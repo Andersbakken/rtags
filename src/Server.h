@@ -45,7 +45,7 @@ public:
     void startIndexerJob(const shared_ptr<IndexerJob> &job);
     struct Options {
         Options() : options(0), threadCount(0), completionCacheSize(0) {}
-        Path projectsFile, socketFile, dataDir;
+        Path socketFile, dataDir;
         unsigned options;
         int threadCount;
         int completionCacheSize;

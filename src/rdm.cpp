@@ -52,6 +52,7 @@ void usage(FILE *f)
             "                                    Note that this might not play well with clang's signal handler\n"
             "  --clang-includepath|-P            Use clang include paths by default\n"
             "  --no-Wall|-W                      Don't use -Wall\n"
+            "  --Wlarge-by-value-copy|-r [arg]   Use -Wlarge-by-value-copy=[arg] when invoking clang\n"
             "  --no-spell-checking|-l            Don't pass -fspell-checking\n"
             "  --unlimited-error|-f              Pass -ferror-limit=0 to clang\n"
             "  --silent|-S                       No logging to stdout\n"
@@ -60,7 +61,6 @@ void usage(FILE *f)
             "  --no-rc|-N                        Don't load any rc files\n"
             "  --ignore-printf-fixits|-F         Disregard any clang fixit that looks like it's trying to fix format for printf and friends\n"
             "  --rc-file|-c [arg]                Use this file instead of ~/.rdmrc\n"
-            "  --projects-file|-p [arg]          Use this file as a projects file (default ~/.rtagsprojects)\n"
             "  --data-dir|-d [arg]               Use this directory to store persistent data (default ~/.rtags)\n"
             "  --socket-file|-n [arg]            Use this file for the server socket (default ~/.rdm)\n"
             "  --setenv|-e [arg]                 Set this environment variable (--setenv \"foobar=1\")\n"
@@ -90,7 +90,6 @@ int main(int argc, char** argv)
         { "validate", no_argument, 0, 'V' },
         { "exclude-filter", required_argument, 0, 'x' },
         { "socket-file", required_argument, 0, 'n' },
-        { "projects-file", required_argument, 0, 'p' },
         { "rc-file", required_argument, 0, 'c' },
         { "no-rc", no_argument, 0, 'N' },
         { "data-dir", required_argument, 0, 'd' },
@@ -98,6 +97,7 @@ int main(int argc, char** argv)
         { "unlimited-errors", no_argument, 0, 'f' },
         { "completion-cache-size", required_argument, 0, 'a' },
         { "no-spell-checking", no_argument, 0, 'l' },
+        { "large-by-value-copy", required_argument, 0, 'r' },
         { 0, 0, 0, 0 }
     };
     const ByteArray shortOptions = RTags::shortOptions(opts);
@@ -154,20 +154,18 @@ int main(int argc, char** argv)
         optind = 1;
     }
 
-    int jobs = ThreadPool::idealThreadCount();
-    int completionCacheSize = 10;
-    unsigned options = Server::Wall|Server::SpellChecking;
-    List<ByteArray> defaultArguments;
-    ByteArray excludeFilters = EXCLUDEFILTER_DEFAULT;
+    Server::Options serverOpts;
+    serverOpts.socketFile = ByteArray::format<128>("%s.rdm", Path::home().constData());
+    serverOpts.threadCount = ThreadPool::idealThreadCount();
+    serverOpts.completionCacheSize = 10;
+    serverOpts.options = Server::Wall|Server::SpellChecking;
+    serverOpts.excludeFilters = ByteArray(EXCLUDEFILTER_DEFAULT).split(';');
+    serverOpts.dataDir = ByteArray::format<128>("%s.rtags", Path::home().constData());
+
     const char *logFile = 0;
     unsigned logFlags = 0;
     int logLevel = 0;
     assert(Path::home().endsWith('/'));
-    Path projectsFile = ByteArray::format<128>("%s.rtagsprojects", Path::home().constData());
-    Path dataDir = ByteArray::format<128>("%s.rtags", Path::home().constData());
-    socketFile = ByteArray::format<128>("%s.rdm", Path::home().constData());
-    bool enableSignalHandler = false;
-    ByteArray name;
     int argCount = argList.size();
     char **args = argList.data();
     while (true) {
@@ -183,72 +181,75 @@ int main(int argc, char** argv)
             logLevel = -1;
             break;
         case 'x':
-            if (!excludeFilters.isEmpty())
-                excludeFilters += ';';
-            excludeFilters += optarg;
+            serverOpts.excludeFilters += ByteArray(optarg).split(';');
             break;
         case 'n':
             socketFile = optarg;
             break;
         case 'd':
-            dataDir = ByteArray::format<128>("%s", Path::resolved(optarg).constData());
+            serverOpts.dataDir = ByteArray::format<128>("%s", Path::resolved(optarg).constData());
             break;
         case 'h':
             usage(stdout);
             return 0;
         case 'V':
-            options |= Server::Validate;
+            serverOpts.options |= Server::Validate;
             break;
         case 'F':
-            options |= Server::IgnorePrintfFixits;
+            serverOpts.options |= Server::IgnorePrintfFixits;
             break;
         case 'f':
-            options |= Server::UnlimitedErrors;
+            serverOpts.options |= Server::UnlimitedErrors;
             break;
         case 'l':
-            options &= ~Server::SpellChecking;
+            serverOpts.options &= ~Server::SpellChecking;
+            break;
+        case 'P':
+            serverOpts.options |= Server::ClangIncludePath;
+            break;
+        case 'W':
+            serverOpts.options &= ~Server::Wall;
+            break;
+        case 'C':
+            serverOpts.options |= Server::ClearProjects;
             break;
         case 'e':
             putenv(optarg);
             break;
-        case 'p':
-            projectsFile = Path::resolved(optarg);
-            break;
-        case 'P':
-            options |= Server::ClangIncludePath;
-            break;
-        case 'W':
-            options &= ~Server::Wall;
-            break;
         case 's':
-            enableSignalHandler = true;
-            break;
-        case 'C':
-            options |= Server::ClearProjects;
+            signal(SIGSEGV, sigSegvHandler);
             break;
         case 'a':
-            completionCacheSize = atoi(optarg);
-            if (completionCacheSize < 1) {
+            serverOpts.completionCacheSize = atoi(optarg);
+            if (serverOpts.completionCacheSize < 1) {
                 fprintf(stderr, "Invalid argument to -a %s\n", optarg);
                 return 1;
             }
             break;
         case 'j':
-            jobs = atoi(optarg);
-            if (jobs <= 0) {
+            serverOpts.threadCount = atoi(optarg);
+            if (serverOpts.threadCount <= 0) {
                 fprintf(stderr, "Can't parse argument to -j %s\n", optarg);
                 return 1;
             }
             break;
+        case 'r': {
+            int large = atoi(optarg);
+            if (large <= 0) {
+                fprintf(stderr, "Can't parse argument to -r %s\n", optarg);
+                return 1;
+            }
+            serverOpts.defaultArguments.append("-Wlarge-by-value-copy=" + ByteArray(optarg)); // ### not quite working
+            break; }
         case 'D':
-            defaultArguments.append("-D" + ByteArray(optarg));
+            serverOpts.defaultArguments.append("-D" + ByteArray(optarg));
             break;
         case 'I':
-            defaultArguments.append("-I" + ByteArray(optarg));
+            serverOpts.defaultArguments.append("-I" + ByteArray(optarg));
             break;
         case 'i':
-            defaultArguments.append("-include");
-            defaultArguments.append(optarg);
+            serverOpts.defaultArguments.append("-include");
+            serverOpts.defaultArguments.append(optarg);
             break;
         case 'A':
             logFlags |= Log::Append;
@@ -270,8 +271,6 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    if (enableSignalHandler)
-        signal(SIGSEGV, sigSegvHandler);
     signal(SIGINT, sigIntHandler);
 
     if (!initLogging(logLevel, logFile, logFlags)) {
@@ -279,22 +278,14 @@ int main(int argc, char** argv)
                 logLevel, logFile ? logFile : "", logFlags);
         return 1;
     }
-    warning("Running with %d jobs", jobs);
+    warning("Running with %d jobs", serverOpts.threadCount);
 
     EventLoop loop;
 
     Server server;
-    Server::Options serverOpts;
-    serverOpts.socketFile = socketFile;
-    serverOpts.options = options;
-    serverOpts.dataDir = dataDir;
-    serverOpts.excludeFilters = excludeFilters.split(';');
-    serverOpts.completionCacheSize = completionCacheSize;
+    ::socketFile = serverOpts.socketFile;
     if (!serverOpts.dataDir.endsWith('/'))
         serverOpts.dataDir.append('/');
-    serverOpts.defaultArguments = defaultArguments;
-    serverOpts.threadCount = jobs;
-    serverOpts.projectsFile = projectsFile;
     if (!server.init(serverOpts)) {
         cleanupLogging();
         return 1;

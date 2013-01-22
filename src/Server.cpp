@@ -81,7 +81,7 @@ bool Server::init(const Options &options)
     if (options.options & SpellChecking)
         mOptions.defaultArguments << "-fspell-checking";
     mClangPath = Path::resolved(CLANG_BIN "/clang");
-    error() << "using args" << mOptions.defaultArguments;
+    error() << "using args:" << ByteArray::join(mOptions.defaultArguments, " ");
 
     Messages::init();
     if (mOptions.options & ClearProjects) {
