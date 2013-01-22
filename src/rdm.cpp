@@ -94,7 +94,7 @@ int main(int argc, char** argv)
         { "no-rc", no_argument, 0, 'N' },
         { "data-dir", required_argument, 0, 'd' },
         { "ignore-printf-fixits", no_argument, 0, 'F' },
-        { "no-unlimited-errors", no_argument, 0, 'f' },
+        { "unlimited-errors", no_argument, 0, 'f' },
         { "completion-cache-size", required_argument, 0, 'a' },
         { 0, 0, 0, 0 }
     };
@@ -201,7 +201,7 @@ int main(int argc, char** argv)
             options |= Server::IgnorePrintfFixits;
             break;
         case 'f':
-            options |= Server::NoUnlimitedErrors;
+            options |= Server::UnlimitedErrors;
             break;
         case 'e':
             putenv(optarg);

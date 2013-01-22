@@ -74,7 +74,7 @@ bool Server::init(const Options &options)
         clangPath.prepend("-I");
         mOptions.defaultArguments.append(clangPath);
     }
-    if (!(options.options & NoUnlimitedErrors))
+    if (options.options & UnlimitedErrors)
         mOptions.defaultArguments.append("-ferror-limit=0");
     if (!(options.options & NoWall))
         mOptions.defaultArguments.append("-Wall");
