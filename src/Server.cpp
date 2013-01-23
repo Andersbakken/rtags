@@ -117,9 +117,8 @@ bool Server::init(const Options &options)
     return true;
 }
 
-shared_ptr<Project> Server::addProject(const Path &path)
+shared_ptr<Project> Server::addProject(const Path &path) // lock always held
 {
-    MutexLocker lock(&mMutex);
     shared_ptr<Project> &project = mProjects[path];
     if (!project) {
         project.reset(new Project(path));
@@ -715,9 +714,8 @@ void Server::loadProject(shared_ptr<Project> &project)
     }
 }
 
-shared_ptr<Project> Server::setCurrentProject(const Path &path)
+shared_ptr<Project> Server::setCurrentProject(const Path &path) // lock always held
 {
-    MutexLocker lock(&mMutex);
     ProjectsMap::iterator it = mProjects.find(path);
     if (it != mProjects.end()) {
         mCurrentProject = it->second;
