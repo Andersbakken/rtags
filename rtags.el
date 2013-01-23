@@ -1233,7 +1233,7 @@ References to references will be treated as references to the referenced symbol"
             (string-match "\\(.*\\):[0-9]+" string))
         (setq string (match-string 1 string)))
     (with-temp-buffer
-      (rtags-call-rc nil "-P" string (if rtags-find-file-case-insensitive "-I"))
+      (rtags-call-rc default-directory "-P" string (if rtags-find-file-case-insensitive "-I"))
 
       (goto-char (point-min))
       (if (equal "" string)
@@ -1312,7 +1312,7 @@ References to references will be treated as references to the referenced symbol"
         (kill-buffer rtags-buffer-name))
     (rtags-reset-bookmarks)
     (with-current-buffer (generate-new-buffer rtags-buffer-name)
-      (rtags-call-rc nil "-K" "-P" tagname
+      (rtags-call-rc default-directory "-K" "-P" tagname
                      (if rtags-find-file-case-insensitive "-I")
                      (if prefer-exact "-A"))
       (cond (offset (replace-regexp "$" (format ",%d" offset)))
