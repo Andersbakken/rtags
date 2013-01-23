@@ -518,6 +518,7 @@ public:
         char buffer[StaticBufSize];
         char *ch = buffer;
         int size = vsnprintf(buffer, StaticBufSize, format, args);
+        assert(size >= 0);
         if (size >= StaticBufSize) {
             ch = reinterpret_cast<char*>(malloc(size + 1));
             size = vsnprintf(ch, size+1, format, copy);
