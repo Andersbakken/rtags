@@ -587,6 +587,7 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r O") (function rtags-goto-offset))
   (define-key map (kbd "C-x r ;") (function rtags-find-file))
   (define-key map (kbd "C-x r F") (function rtags-fixit))
+  (define-key map (kbd "C-x r B") (function rtags-show-rtags-buffer))
   )
 
 (defun rtags-print-current-location ()
@@ -1330,6 +1331,11 @@ References to references will be treated as references to the referenced symbol"
       )
     )
   )
+
+(defun rtags-show-rtags-buffer ()
+  (interactive)
+  (if (get-buffer "*RTags*")
+      (display-buffer "*RTags*")))
 
 (defun rtags-fixit (&optional buffer)
   (interactive)
