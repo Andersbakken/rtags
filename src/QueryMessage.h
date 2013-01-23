@@ -32,6 +32,7 @@ public:
         ReferencesName,
         Reindex,
         ReloadProjects,
+        RemoveFile,
         Shutdown,
         Status,
         UnloadProject

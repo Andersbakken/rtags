@@ -289,6 +289,7 @@ enum OptionType {
     ReferenceName,
     Reindex,
     ReloadProjects,
+    RemoveFile,
     RestartRdm,
     ReverseSort,
     Silent,
@@ -353,6 +354,7 @@ struct Option opts[] = {
     { CodeComplete, "code-complete", 0, no_argument, "Get code completion from stream written to stdin." },
     { FixIts, "fixits", 0, required_argument, "Get fixits for file." },
     { Compile, "compile", 'c', required_argument, "Pass compilation arguments to rdm." },
+    { RemoveFile, "remove", 'D', required_argument, "Remove file from project." },
     { FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
     { FilterPreprocessor, "filter-preprocessor", 0, required_argument, "Use to check behavior of filterPreprocessor." },
 
@@ -792,6 +794,7 @@ bool RClient::parse(int &argc, char **argv)
         case IsIndexed:
         case DumpFile:
         case FixIts:
+        case RemoveFile:
         case PreprocessFile: {
             Path p = Path::resolved(optarg);
             if (!p.exists()) {
@@ -812,6 +815,7 @@ bool RClient::parse(int &argc, char **argv)
             case IsIndexed: type = QueryMessage::IsIndexed; break;
             case DumpFile: type = QueryMessage::DumpFile; break;
             case PreprocessFile: type = QueryMessage::PreprocessFile; break;
+            case RemoveFile: type = QueryMessage::PreprocessFile; break;
             default: assert(0); break;
             }
 
