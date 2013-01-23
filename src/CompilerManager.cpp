@@ -14,8 +14,8 @@ List<ByteArray> flags(const Path &compiler, const Path &cppOverride)
         return it->second;
 
     Path cpp = cppOverride;
-    if (cpp.isEmpty()) {compiler.parentDir();
-        cpp += "cpp";
+    if (cpp.isEmpty()) {
+        cpp = compiler.parentDir() + "cpp";
         if (!(cpp.mode() & 0x111)) { // not pretty
             cpp = "cpp";
         }
@@ -28,7 +28,11 @@ List<ByteArray> flags(const Path &compiler, const Path &cppOverride)
     Process proc;
     // shared_ptr<Finished> f(new Finished);
     // proc.finished().connect(f.get(), &Finished::onFinished);
+#ifdef OS_Darwin
+    static const List<ByteArray> args = List<ByteArray>() << "-v";
+#else
     static const List<ByteArray> args = List<ByteArray>() << "-x" << "c++" << "-v";
+#endif
     proc.start(cpp, args);
     proc.closeStdIn();
     while (!proc.isFinished())
