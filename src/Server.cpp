@@ -53,6 +53,7 @@ Server::~Server()
 
 void Server::clear()
 {
+    MutexLocker lock(&mMutex);
     if (mIndexerThreadPool) {
         mIndexerThreadPool->clearBackLog();
         delete mIndexerThreadPool;
@@ -117,7 +118,7 @@ bool Server::init(const Options &options)
 
 shared_ptr<Project> Server::addProject(const Path &path)
 {
-    assert(!EventLoop::instance()->thread() || pthread_equal(pthread_self(), EventLoop::instance()->thread()));
+    MutexLocker lock(&mMutex);
     shared_ptr<Project> &project = mProjects[path];
     if (!project) {
         project.reset(new Project(path));
@@ -126,8 +127,9 @@ shared_ptr<Project> Server::addProject(const Path &path)
     return shared_ptr<Project>();
 }
 
-void Server::reloadProjects()
+int Server::reloadProjects()
 {
+    MutexLocker lock(&mMutex);
     mProjects.clear(); // ### could keep the ones that persist somehow
     List<Path> projects = mOptions.dataDir.files(Path::File);
     const Path home = Path::home();
@@ -162,6 +164,7 @@ void Server::reloadProjects()
                 Path::rm(p);
         }
     }
+    return mProjects.size();
 }
 
 void Server::onNewConnection()
@@ -567,6 +570,7 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
 
 void Server::clearProjects()
 {
+    MutexLocker lock(&mMutex);
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it)
         it->second->unload();
     RTags::removeDirectory(mOptions.dataDir);
@@ -609,7 +613,7 @@ void Server::processSourceFile(GccArguments args)
     const Path srcRoot = args.projectRoot();
     List<Path> inputFiles = args.inputFiles();
     if (srcRoot.isEmpty()) {
-        error("Can't find project root for %s", ByteArray::join(inputFiles, ", ").constData());
+        warning("Can't find project root for %s", ByteArray::join(inputFiles, ", ").constData());
         return;
     }
 
@@ -631,36 +635,38 @@ void Server::processSourceFile(GccArguments args)
         return;
     }
 
-    MutexLocker lock(&mMutex);
+    {
+        MutexLocker lock(&mMutex);
 
-    shared_ptr<Project> project = mProjects.value(srcRoot);
-    if (!project) {
-        project = addProject(srcRoot);
-        assert(project);
-    }
-    loadProject(project);
-
-    if (!mCurrentProject.lock()) {
-        mCurrentProject = project;
-    }
-
-    List<ByteArray> arguments = args.clangArgs();
-    arguments.append(mOptions.defaultArguments);
-
-    SourceInformation c(Path(), arguments, args.compiler());
-    for (int i=0; i<count; ++i) {
-        c.sourceFile = inputFiles.at(i);
-        const SourceInformation existing = project->sourceInfo(Location::insertFile(c.sourceFile));
-        if (testLog(Debug)) {
-            debug() << "comparing" << c.sourceFile
-                    << (existing != c) << (c.sourceFile.lastModified() > existing.parsed)
-                    << RTags::timeToString(c.sourceFile.lastModified())
-                    << RTags::timeToString(existing.parsed);
+        shared_ptr<Project> project = mProjects.value(srcRoot);
+        if (!project) {
+            project = addProject(srcRoot);
+            assert(project);
         }
-        if (existing != c || c.sourceFile.lastModified() > existing.parsed) {
-            project->index(c, IndexerJob::Makefile);
-        } else {
-            debug() << c.sourceFile << " is not dirty. ignoring";
+        loadProject(project);
+
+        if (!mCurrentProject.lock()) {
+            mCurrentProject = project;
+        }
+
+        List<ByteArray> arguments = args.clangArgs();
+        arguments.append(mOptions.defaultArguments);
+
+        SourceInformation c(Path(), arguments, args.compiler());
+        for (int i=0; i<count; ++i) {
+            c.sourceFile = inputFiles.at(i);
+            const SourceInformation existing = project->sourceInfo(Location::insertFile(c.sourceFile));
+            if (testLog(Debug)) {
+                debug() << "comparing" << c.sourceFile
+                        << (existing != c) << (c.sourceFile.lastModified() > existing.parsed)
+                        << RTags::timeToString(c.sourceFile.lastModified())
+                        << RTags::timeToString(existing.parsed);
+            }
+            if (existing != c || c.sourceFile.lastModified() > existing.parsed) {
+                project->index(c, IndexerJob::Makefile);
+            } else {
+                debug() << c.sourceFile << " is not dirty. ignoring";
+            }
         }
     }
 }
@@ -710,6 +716,7 @@ void Server::loadProject(shared_ptr<Project> &project)
 
 shared_ptr<Project> Server::setCurrentProject(const Path &path)
 {
+    MutexLocker lock(&mMutex);
     ProjectsMap::iterator it = mProjects.find(path);
     if (it != mProjects.end()) {
         mCurrentProject = it->second;
@@ -728,6 +735,7 @@ shared_ptr<Project> Server::updateProjectForLocation(const Location &location)
 
 shared_ptr<Project> Server::updateProjectForLocation(const Path &path)
 {
+    MutexLocker lock(&mMutex);
     shared_ptr<Project> cur = currentProject();
     // give current a chance first to avoid switching project when using system headers etc
     if (cur && cur->match(path))
@@ -743,6 +751,7 @@ shared_ptr<Project> Server::updateProjectForLocation(const Path &path)
 
 void Server::removeProject(const QueryMessage &query, Connection *conn)
 {
+    MutexLocker lock(&mMutex);
     const bool unload = query.type() == QueryMessage::UnloadProject;
 
     const Match match = query.match();
@@ -767,15 +776,19 @@ void Server::removeProject(const QueryMessage &query, Connection *conn)
 
 void Server::reloadProjects(const QueryMessage &query, Connection *conn)
 {
-    const int old = mProjects.size();
-    reloadProjects();
-    const int cur = mProjects.size();
+    int old;
+    {
+        MutexLocker lock(&mMutex);
+        old = mProjects.size();
+    }
+    const int cur = reloadProjects();
     conn->write<128>("Changed from %d to %d projects", old, cur);
     conn->finish();
 }
 
 bool Server::selectProject(const Match &match, Connection *conn)
 {
+    MutexLocker lock(&mMutex);
     Path selected;
     bool error = false;
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
@@ -821,6 +834,7 @@ bool Server::updateProject(const List<ByteArray> &projects)
 
 void Server::project(const QueryMessage &query, Connection *conn)
 {
+    MutexLocker lock(&mMutex);
     if (query.query().isEmpty()) {
         shared_ptr<Project> current = currentProject();
         for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
@@ -878,6 +892,7 @@ void Server::project(const QueryMessage &query, Connection *conn)
 
 void Server::jobCount(const QueryMessage &query, Connection *conn)
 {
+    MutexLocker lock(&mMutex);
     if (query.query().isEmpty()) {
         conn->write<128>("Running with %d jobs", mOptions.threadCount);
     } else {

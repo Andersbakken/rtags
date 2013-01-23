@@ -102,7 +102,7 @@ private:
     shared_ptr<Project> updateProjectForLocation(const Location &location);
     shared_ptr<Project> updateProjectForLocation(const Path &path);
     shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
-    void reloadProjects();
+    int reloadProjects();
     void onCompletionStreamDisconnected(LocalClient *client);
     shared_ptr<Project> addProject(const Path &path);
     void loadProject(shared_ptr<Project> &project);
