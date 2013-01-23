@@ -61,7 +61,6 @@ bool LocalClient::connect(const Path& path, int maxTime)
     while (true) {
         mFd = ::socket(PF_UNIX, SOCK_STREAM, 0);
         if (mFd == -1) {
-            Path::rm(path);
             return false;
         }
         int ret;
@@ -76,7 +75,6 @@ bool LocalClient::connect(const Path& path, int maxTime)
         eintrwrap(ret, ::close(mFd));
         mFd = -1;
         if (maxTime > 0 && timer.elapsed() >= maxTime) {
-            Path::rm(path);
             return false;
         }
     }
