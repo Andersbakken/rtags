@@ -1252,21 +1252,23 @@ References to references will be treated as references to the referenced symbol"
              (if (intern-soft string complete-list) t nil))))))
 
 
-(defun rtags-select()
-  (interactive)
-  (let ((file (buffer-substring (point-at-bol) (point-at-eol))))
-    (if (length file)
-        (progn
-          (bury-buffer)
-          (rtags-goto-location file)))))
-
-(defun rtags-select-other-buffer()
-  (interactive)
-  (let ((bookmark (format "*R%d" (line-number-at-pos))))
+(defun rtags-select(&optional otherbuffer)
+  (interactive "P")
+  (let ((bookmark (format "R_%d" (line-number-at-pos))))
     (if (member bookmark (bookmark-all-names))
-        (bookmark-jump bookmark)
-      (rtags-goto-location (buffer-substring (point-at-bol) (point-at-eol)) nil t))
+        (progn
+          (when otherbuffer
+            (if (= (length (window-list)) 1)
+                (split-window))
+            (other-window 1))
+          (bookmark-jump bookmark))
+      (rtags-goto-location (buffer-substring (point-at-bol) (point-at-eol)) nil otherbuffer))
     )
+  )
+
+(defun rtags-select-other-buffer(&optional nototherbuffer)
+  (interactive "P")
+  (rtags-select (not nototherbuffer))
   )
 
 (defun rtags-select-and-remove-rtags-buffer()
