@@ -140,6 +140,8 @@ private:
 
     bool mRestoreProjects;
 
+    Mutex mMutex;
+
     friend class CommandProcess;
 };
 

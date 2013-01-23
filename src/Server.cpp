@@ -235,7 +235,7 @@ void Server::handleCompileMessage(CompileMessage *message, Connection *conn)
 {
     conn->finish(); // nothing to wait for
     shared_ptr<CompileJob> job(new CompileJob(*message));
-    job->argsReady().connectAsync(this, &Server::processSourceFile);
+    job->argsReady().connect(this, &Server::processSourceFile);
     mQueryThreadPool.start(job);
 }
 
@@ -630,6 +630,8 @@ void Server::processSourceFile(GccArguments args)
         warning("no input file?");
         return;
     }
+
+    MutexLocker lock(&mMutex);
 
     shared_ptr<Project> project = mProjects.value(srcRoot);
     if (!project) {
