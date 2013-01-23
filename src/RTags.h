@@ -68,7 +68,7 @@ enum TimeFormat {
     Date
 };
 
-inline ByteArray timeToString(time_t t, TimeFormat fmt)
+inline ByteArray timeToString(time_t t, TimeFormat fmt = DateTime)
 {
     const char *format = 0;
     switch (fmt) {

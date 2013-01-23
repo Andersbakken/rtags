@@ -649,7 +649,13 @@ void Server::processSourceFile(GccArguments args)
     for (int i=0; i<count; ++i) {
         c.sourceFile = inputFiles.at(i);
         const SourceInformation existing = project->sourceInfo(Location::insertFile(c.sourceFile));
-        if (existing != c) {
+        if (testLog(Debug)) {
+            debug() << "comparing" << c.sourceFile
+                    << (existing != c) << (c.sourceFile.lastModified() > existing.parsed)
+                    << RTags::timeToString(c.sourceFile.lastModified())
+                    << RTags::timeToString(existing.parsed);
+        }
+        if (existing != c || c.sourceFile.lastModified() > existing.parsed) {
             project->index(c, IndexerJob::Makefile);
         } else {
             debug() << c.sourceFile << " is not dirty. ignoring";
