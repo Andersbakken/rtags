@@ -97,7 +97,8 @@ bool Server::init(const Options &options)
         delete mServer;
         mServer = 0;
         if (!i) {
-            Client client(mOptions.socketFile, Client::DontWarnOnConnectionFailure | Client::DontInitMessages);
+            enum { Timeout = 5000 };
+            Client client(mOptions.socketFile, Timeout, Client::DontWarnOnConnectionFailure | Client::DontInitMessages);
             QueryMessage msg(QueryMessage::Shutdown);
             client.message(&msg);
         }

@@ -188,7 +188,8 @@ public:
 };
 
 RClient::RClient()
-    : mQueryFlags(0), mClientFlags(0), mMax(-1), mLogLevel(0), mTimeout(0), mMinOffset(-1), mMaxOffset(-1), mArgc(0), mArgv(0)
+    : mQueryFlags(0), mClientFlags(0), mMax(-1), mLogLevel(0), mTimeout(0),
+      mMinOffset(-1), mMaxOffset(-1), mConnectTimeout(5000), mArgc(0), mArgv(0)
 {
 }
 
@@ -224,7 +225,7 @@ void RClient::exec()
 {
     EventLoop loop;
 
-    Client client(mSocketFile, mClientFlags, mRdmArgs);
+    Client client(mSocketFile, mConnectTimeout, mClientFlags, mRdmArgs);
 
     const int commandCount = mCommands.size();
     for (int i=0; i<commandCount; ++i) {
@@ -248,6 +249,7 @@ enum OptionType {
     CodeComplete,
     CodeCompleteAt,
     Compile,
+    ConnectTimeout,
     Cpp,
     CursorInfo,
     CursorInfoIgnoreParents,
@@ -320,6 +322,7 @@ struct Option opts[] = {
     { QuitRdm, "quit-rdm", 'q', no_argument, "Tell server to shut down." },
     { RestartRdm, "restart-rdm", 0, optional_argument, "Restart rdm [args] before doing the rest of the commands." },
     { AutostartRdm, "autostart-rdm", 'a', optional_argument, "Output elisp: (list \"one\" \"two\" ...)." },
+    { ConnectTimeout, "connect-timeout", 0, required_argument, "Timeout for connecting to rdm in ms (default 5000)." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Project management:" },
@@ -624,6 +627,13 @@ bool RClient::parse(int &argc, char **argv)
             break;
         case SkipParen:
             mQueryFlags |= QueryMessage::SkipParentheses;
+            break;
+        case ConnectTimeout:
+            mConnectTimeout = atoi(optarg);
+            if (mConnectTimeout < 0) {
+                fprintf(stderr, "--connect-timeout [arg] must be >= 0\n");
+                return false;
+            }
             break;
         case Max:
             mMax = atoi(optarg);

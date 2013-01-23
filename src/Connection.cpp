@@ -39,9 +39,9 @@ Connection::~Connection()
 }
 
 
-bool Connection::connectToServer(const ByteArray &name)
+bool Connection::connectToServer(const ByteArray &name, int timeout)
 {
-    return mClient->connect(name, 1000);
+    return mClient->connect(name, timeout);
 }
 
 bool Connection::send(int id, const ByteArray &message)

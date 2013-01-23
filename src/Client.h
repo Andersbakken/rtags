@@ -14,7 +14,7 @@ class Message;
 class Client
 {
 public:
-    Client(const Path &path, unsigned flags = 0, const List<ByteArray> &rdmArgs = List<ByteArray>());
+    Client(const Path &path, int timeout, unsigned flags = 0, const List<ByteArray> &rdmArgs = List<ByteArray>());
     enum Flag {
         None = 0x0,
         AutostartRdm = 0x1,
@@ -36,6 +36,7 @@ public:
     void onNewMessage(Message *message, Connection *);
 private:
     void sendMessage(int id, const ByteArray& msg, SendFlag flag);
+    const int mConnectTimeout;
     Connection *mConnection;
     unsigned mFlags;
     List<ByteArray> mRdmArgs;

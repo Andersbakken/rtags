@@ -42,7 +42,7 @@ private:
     void addCompile(const Path &cwd, const ByteArray &args);
 
     unsigned mQueryFlags, mClientFlags;
-    int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset;
+    int mMax, mLogLevel, mTimeout, mMinOffset, mMaxOffset, mConnectTimeout;
     Set<ByteArray> mPathFilters;
     Map<Path, ByteArray> mUnsavedFiles;
     List<RCCommand*> mCommands;

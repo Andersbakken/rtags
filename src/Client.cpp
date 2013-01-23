@@ -6,8 +6,8 @@
 #include "Log.h"
 #include <unistd.h>
 
-Client::Client(const Path &path, unsigned flags, const List<ByteArray> &rdmArgs)
-    : mConnection(0), mFlags(flags), mRdmArgs(rdmArgs), mName(path)
+Client::Client(const Path &path, int timeout, unsigned flags, const List<ByteArray> &rdmArgs)
+    : mConnectTimeout(timeout), mConnection(0), mFlags(flags), mRdmArgs(rdmArgs), mName(path)
 {
     if ((mFlags & (RestartRdm|AutostartRdm)) == (RestartRdm|AutostartRdm)) {
         mFlags &= ~AutostartRdm; // this is implied and would upset connectToServer
@@ -72,14 +72,14 @@ bool Client::connectToServer()
 {
     assert(!mConnection);
     mConnection = new Connection;
-    if (!mConnection->connectToServer(mName)) {
+    if (!mConnection->connectToServer(mName, mConnectTimeout)) {
         if (mFlags & AutostartRdm) {
             const Path cmd = RTags::applicationDirPath() + "/rdm";
             warning("trying to start rdm %s [%s]", cmd.nullTerminated(), ByteArray::join(mRdmArgs, " ").constData());
             if (RTags::startProcess(cmd, mRdmArgs)) {
                 warning("Started successfully");
                 for (int i=0; i<5; ++i) {
-                    if (mConnection->connectToServer(mName)) {
+                    if (mConnection->connectToServer(mName, mConnectTimeout)) {
                         return true;
                     }
                     sleep(1);

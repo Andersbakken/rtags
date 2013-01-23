@@ -21,7 +21,7 @@ public:
     void setSilent(bool on) { mSilent = on; }
     bool isSilent() const { return mSilent; }
 
-    bool connectToServer(const ByteArray &name);
+    bool connectToServer(const ByteArray &name, int timeout);
 
     int pendingWrite() const;
 
