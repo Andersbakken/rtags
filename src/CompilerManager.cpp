@@ -25,20 +25,25 @@ List<ByteArray> flags(const Path &compiler, const Path &cppOverride)
     if (it != sFlags.end())
         return it->second;
 
-    Process proc;
-    // shared_ptr<Finished> f(new Finished);
-    // proc.finished().connect(f.get(), &Finished::onFinished);
-#ifdef OS_Darwin
-    static const List<ByteArray> args = List<ByteArray>() << "-v";
-#else
-    static const List<ByteArray> args = List<ByteArray>() << "-x" << "c++" << "-v";
-#endif
-    proc.start(cpp, args);
-    proc.closeStdIn();
-    while (!proc.isFinished())
-        usleep(100000); // ### this is not particularly nice
-    assert(proc.isFinished());
-    const List<ByteArray> out = proc.readAllStdErr().split('\n');
+    List<ByteArray> out;
+    for (int i=0; i<2; ++i) {
+        Process proc;
+        List<ByteArray> args;
+        if (i == 0)
+            args << "-x" << "c++";
+        args << "-v";
+        proc.start(cpp, args);
+        proc.closeStdIn();
+        while (!proc.isFinished())
+            usleep(100000); // ### this is not particularly nice
+        assert(proc.isFinished());
+        if (!proc.returnCode()) {
+            out = proc.readAllStdErr().split('\n');
+            break;
+        } else if (i == 1) {
+            out = proc.readAllStdErr().split('\n');
+        }
+    }
     List<ByteArray> &flags = sFlags[compiler];
     for (int i=0; i<out.size(); ++i) {
         const ByteArray &line = out.at(i);
