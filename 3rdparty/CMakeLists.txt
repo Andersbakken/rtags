@@ -24,16 +24,6 @@ ExternalProject_Add(
     )
 
 ExternalProject_Add(
-    libcxx
-    SOURCE_DIR libcxx
-    GIT_REPOSITORY http://llvm.org/git/libcxx.git
-    GIT_TAG origin/master
-    BUILD_COMMAND ""
-    CONFIGURE_COMMAND ""
-    INSTALL_COMMAND ""
-    )
-
-ExternalProject_Add(
     leveldb
     SOURCE_DIR ./leveldb
     GIT_REPOSITORY "https://code.google.com/p/leveldb/"
