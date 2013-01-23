@@ -1310,6 +1310,7 @@ References to references will be treated as references to the referenced symbol"
     ;; (message (format "%s %s %d" input tagname rtags-find-file-offset))
     (if (get-buffer rtags-buffer-name)
         (kill-buffer rtags-buffer-name))
+    (rtags-reset-bookmarks)
     (with-current-buffer (generate-new-buffer rtags-buffer-name)
       (rtags-call-rc nil "-K" "-P" tagname
                      (if rtags-find-file-case-insensitive "-I")
