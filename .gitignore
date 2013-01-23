@@ -2,14 +2,9 @@
 *.a
 *.moc
 Makefile
-moc_*
 core
-libmakelib.so
-cplusplus-frontend/cplusplus0
 CMakeFiles/
-Pch.h.gch
 cmake_install.cmake
-gccopts_gperf.h
 CMakeCache.txt
 rc
 rdm
