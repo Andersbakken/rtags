@@ -8,7 +8,7 @@
 
 namespace CompilerManager
 {
-List<ByteArray> flags(const Path &compiler, const Path &cpp = Path());
+List<ByteArray> flags(const Path &compiler);
 }
 
 #endif

@@ -6,22 +6,10 @@ Mutex sMutex;
 Map<Path, List<ByteArray> > sFlags;
 
 namespace CompilerManager {
-List<ByteArray> flags(const Path &compiler, const Path &cppOverride)
+List<ByteArray> flags(const Path &compiler)
 {
     MutexLocker lock(&sMutex);
     Map<Path, List<ByteArray> >::const_iterator it = sFlags.find(compiler);
-    if (it != sFlags.end())
-        return it->second;
-
-    Path cpp = cppOverride;
-    if (cpp.isEmpty()) {
-        cpp = compiler.parentDir() + "cpp";
-        if (!(cpp.mode() & 0x111)) { // not pretty
-            cpp = "cpp";
-        }
-    }
-
-    it = sFlags.find(cpp);
     if (it != sFlags.end())
         return it->second;
 
@@ -29,10 +17,13 @@ List<ByteArray> flags(const Path &compiler, const Path &cppOverride)
     for (int i=0; i<2; ++i) {
         Process proc;
         List<ByteArray> args;
-        if (i == 0)
-            args << "-x" << "c++";
-        args << "-v";
-        proc.start(cpp, args);
+        if (i == 0) {
+            args << "-v" << "-x" << "c++" << "-E" << "-";
+        } else {
+            if (i == 0)
+                args << "-v" << "-E" << "-";
+        }
+        proc.start(compiler, args);
         proc.closeStdIn();
         while (!proc.isFinished())
             usleep(100000); // ### this is not particularly nice
@@ -57,8 +48,7 @@ List<ByteArray> flags(const Path &compiler, const Path &cppOverride)
             flags.append(path);
         }
     }
-    sFlags[cpp] = flags;
-    warning() << compiler << cpp << "got\n" << ByteArray::join(flags, "\n");
+    error() << compiler << "got\n" << ByteArray::join(flags, "\n");
 
     return flags;
 }

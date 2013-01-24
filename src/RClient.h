@@ -1,5 +1,5 @@
-#ifndef RClient_cpp
-#define RClient_cpp
+#ifndef RClient_h
+#define RClient_h
 
 #include "List.h"
 #include "ByteArray.h"
@@ -22,7 +22,6 @@ public:
     const Set<ByteArray> &pathFilters() const { return mPathFilters; }
     int minOffset() const { return mMinOffset; }
     int maxOffset() const { return mMaxOffset; }
-    const Path &cpp() const { return mCpp; }
 
     const Map<Path, ByteArray> &unsavedFiles() const { return mUnsavedFiles; }
 
@@ -49,10 +48,10 @@ private:
     List<ByteArray> mRdmArgs;
     ByteArray mSocketFile;
     List<ByteArray> mProjects;
-    Path mCpp;
 
     int mArgc;
     char **mArgv;
 };
 
 #endif
+

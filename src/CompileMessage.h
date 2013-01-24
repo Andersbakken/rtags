@@ -11,9 +11,7 @@ class CompileMessage : public ClientMessage
 public:
     enum { MessageId = ProjectId };
 
-    CompileMessage(const Path &path = Path(),
-                   const ByteArray &args = ByteArray(),
-                   const Path &cpp = Path());
+    CompileMessage(const Path &path = Path(), const ByteArray &args = ByteArray());
 
     virtual int messageId() const { return MessageId; }
 
@@ -21,14 +19,12 @@ public:
 
     ByteArray arguments() const { return mArgs; }
     void setArguments(const ByteArray &arguments) { mArgs = arguments; }
-    Path cpp() const { return mCpp; }
 
     ByteArray encode() const;
     void fromData(const char *data, int size);
 private:
     Path mPath;
     ByteArray mArgs;
-    Path mCpp;
 };
 
 #endif

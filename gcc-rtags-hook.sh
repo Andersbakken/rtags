@@ -1,11 +1,8 @@
 #!/bin/bash
 
 if [ -z "$RTAGS_DISABLED" ] && [ -x "`which rc`" ]; then
-    if [ -n "$RTAGS_CPP" ]; then
-        rc --silent --cpp="$RTAGS_CPP" --compile "$@"
-    else
-        rc --silent --compile "$@"
-    fi
+    rc --silent --compile "$ICECC_CXX" "$@" &
 fi
 
-
+[ "$RTAGS_RMAKE" ] && exit 1
+exit 0

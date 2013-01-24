@@ -177,7 +177,7 @@ public:
     const ByteArray args;
     virtual void exec(RClient *rc, Client *client)
     {
-        CompileMessage msg(path, args, rc->cpp());
+        CompileMessage msg(path, args);
         msg.init(rc->argc(), rc->argv());
         client->message(&msg);
     }
@@ -250,7 +250,6 @@ enum OptionType {
     CodeCompleteAt,
     Compile,
     ConnectTimeout,
-    Cpp,
     CursorInfo,
     CursorInfoIgnoreParents,
     CursorInfoIgnoreReferences,
@@ -385,7 +384,6 @@ struct Option opts[] = {
     { CursorInfoIgnoreTargets, "cursor-info-ignore-targets", 0, no_argument, "Use to make --cursor-info not include target cursors." },
     { CursorInfoIgnoreReferences, "cursor-info-ignore-references", 0, no_argument, "Use to make --cursor-info not include reference cursors." },
     { WithProject, "with-project", 0, required_argument, "Like --project but pass as a flag." },
-    { Cpp, "cpp", 0, required_argument, "Use with --compile to explicitly set the path to cpp." },
     { None, 0, 0, 0, 0 }
 };
 
@@ -787,10 +785,6 @@ bool RClient::parse(int &argc, char **argv)
             }
             addCompile(Path::pwd(), args);
             break; }
-        case Cpp:
-            mCpp = optarg;
-            mCpp.resolve();
-            break;
         case IsIndexed:
         case DumpFile:
         case FixIts:
