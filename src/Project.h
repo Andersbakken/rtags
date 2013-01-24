@@ -100,6 +100,7 @@ public:
     ByteArray fixIts(uint32_t fileId) const;
     ByteArray diagnostics() const;
     int reindex(const Match &match);
+    int remove(const Match &match);
     void onJobFinished(const shared_ptr<IndexerJob> &job);
     SourceInformationMap sources() const;
     DependencyMap dependencies() const;

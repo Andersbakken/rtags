@@ -794,7 +794,6 @@ bool RClient::parse(int &argc, char **argv)
         case IsIndexed:
         case DumpFile:
         case FixIts:
-        case RemoveFile:
         case PreprocessFile: {
             Path p = Path::resolved(optarg);
             if (!p.exists()) {
@@ -815,11 +814,18 @@ bool RClient::parse(int &argc, char **argv)
             case IsIndexed: type = QueryMessage::IsIndexed; break;
             case DumpFile: type = QueryMessage::DumpFile; break;
             case PreprocessFile: type = QueryMessage::PreprocessFile; break;
-            case RemoveFile: type = QueryMessage::PreprocessFile; break;
             default: assert(0); break;
             }
 
             addQuery(type, p);
+            break; }
+        case RemoveFile: {
+            const Path p = Path::resolved(optarg);
+            if (!p.exists()) {
+                addQuery(QueryMessage::RemoveFile, p);
+            } else {
+                addQuery(QueryMessage::RemoveFile, optarg);
+            }
             break; }
         case ReferenceName:
             addQuery(QueryMessage::ReferencesName, optarg);

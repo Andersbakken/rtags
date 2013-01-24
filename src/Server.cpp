@@ -265,6 +265,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::Invalid:
         assert(0);
         break;
+    case QueryMessage::RemoveFile:
+        removeFile(*message, conn);
+        break;
     case QueryMessage::JobCount:
         jobCount(*message, conn);
         break;
@@ -356,6 +359,30 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
 
     FollowLocationJob job(loc, query, project);
     job.run(conn);
+    conn->finish();
+}
+
+void Server::removeFile(const QueryMessage &query, Connection *conn)
+{
+    // Path path = query.path();
+    const Match match(query.query());
+    shared_ptr<Project> project = updateProjectForLocation(match);
+    if (!project) {
+        project = currentProject();
+        if (!project) {
+            error("No project");
+            conn->finish();
+            return;
+        }
+    }
+
+    const int count = project->remove(match);
+    // error() << count << query.query();
+    if (count) {
+        conn->write<128>("Removed %d files", count);
+    } else {
+        conn->write("No matches");
+    }
     conn->finish();
 }
 
@@ -579,14 +606,18 @@ void Server::clearProjects()
 
 void Server::reindex(const QueryMessage &query, Connection *conn)
 {
-    shared_ptr<Project> project = currentProject();
-    if (!project || !project->isValid()) {
-        error("No project");
-        conn->finish();
-        return;
+    Match match = query.match();
+    shared_ptr<Project> project = updateProjectForLocation(match);
+    if (!project) {
+        project = currentProject();
+        if (!project || !project->isValid()) {
+            error("No project");
+            conn->finish();
+            return;
+        }
     }
 
-    const int count = project->reindex(query.match());
+    const int count = project->reindex(match);
     // error() << count << query.query();
     if (count) {
         conn->write<128>("Dirtied %d files", count);
@@ -734,14 +765,19 @@ shared_ptr<Project> Server::updateProjectForLocation(const Location &location)
 
 shared_ptr<Project> Server::updateProjectForLocation(const Path &path)
 {
-    MutexLocker lock(&mMutex);
+    return updateProjectForLocation(Match(path));
+}
+
+shared_ptr<Project> Server::updateProjectForLocation(const Match &match)
+{
     shared_ptr<Project> cur = currentProject();
     // give current a chance first to avoid switching project when using system headers etc
-    if (cur && cur->match(path))
+    if (cur && cur->match(match))
         return cur;
 
+    MutexLocker lock(&mMutex);
     for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
-        if (it->second->match(path)) {
+        if (it->second->match(match)) {
             return setCurrentProject(it->second->path());
         }
     }
@@ -809,7 +845,7 @@ bool Server::selectProject(const Match &match, Connection *conn)
         }
     }
     if (!selected.isEmpty()) {
-        shared_ptr<Project> current = currentProject();
+        shared_ptr<Project> current = mCurrentProject.lock();
         if (!current || selected != current->path()) {
             setCurrentProject(selected);
             if (conn)
@@ -835,7 +871,7 @@ void Server::project(const QueryMessage &query, Connection *conn)
 {
     MutexLocker lock(&mMutex);
     if (query.query().isEmpty()) {
-        shared_ptr<Project> current = currentProject();
+        const shared_ptr<Project> current = mCurrentProject.lock();
         for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
             conn->write<128>("%s%s%s",
                              it->first.constData(),
@@ -877,7 +913,7 @@ void Server::project(const QueryMessage &query, Connection *conn)
             }
         }
         if (!selected.isEmpty()) {
-            shared_ptr<Project> current = currentProject();
+            shared_ptr<Project> current = mCurrentProject.lock();
             if (!current || selected != current->path()) {
                 setCurrentProject(selected);
                 conn->write<128>("Selected project: %s for %s", selected.constData(), match.pattern().constData());

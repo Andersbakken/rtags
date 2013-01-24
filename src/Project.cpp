@@ -453,6 +453,31 @@ int Project::reindex(const Match &match)
     return dirty.size();
 }
 
+int Project::remove(const Match &match)
+{
+    int count = 0;
+    {
+        MutexLocker lock(&mMutex);
+        SourceInformationMap::iterator it = mSources.begin();
+        while (it != mSources.end()) {
+            if (match.match(it->second.sourceFile)) {
+                const uint32_t fileId = Location::insertFile(it->second.sourceFile);
+                mSources.erase(it++);
+                shared_ptr<IndexerJob> job = mJobs.value(fileId);
+                if (job)
+                    job->abort();
+                mPendingData.remove(fileId);
+                mPendingJobs.remove(fileId);
+                ++count;
+            } else {
+                ++it;
+            }
+        }
+    }
+    return count;
+}
+
+
 void Project::onValidateDBJobErrors(const Set<Location> &errors)
 {
     MutexLocker lock(&mMutex);

@@ -78,6 +78,7 @@ private:
     void handleQueryMessage(QueryMessage *message, Connection *conn);
     void handleErrorMessage(ErrorMessage *message, Connection *conn);
     void handleCreateOutputMessage(CreateOutputMessage *message, Connection *conn);
+    void removeFile(const QueryMessage &query, Connection *conn);
     void followLocation(const QueryMessage &query, Connection *conn);
     void cursorInfo(const QueryMessage &query, Connection *conn);
     void fixIts(const QueryMessage &query, Connection *conn);
@@ -99,9 +100,14 @@ private:
     void shutdown(const QueryMessage &query, Connection *conn);
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
+    shared_ptr<Project> updateProjectForLocation(const Match &match);
     shared_ptr<Project> updateProjectForLocation(const Location &location);
     shared_ptr<Project> updateProjectForLocation(const Path &path);
-    shared_ptr<Project> currentProject() const { return mCurrentProject.lock(); }
+    shared_ptr<Project> currentProject() const
+    {
+        MutexLocker lock(&mMutex);
+        return mCurrentProject.lock();
+    }
     int reloadProjects();
     void onCompletionStreamDisconnected(LocalClient *client);
     shared_ptr<Project> addProject(const Path &path);
@@ -140,7 +146,7 @@ private:
 
     bool mRestoreProjects;
 
-    Mutex mMutex;
+    mutable Mutex mMutex;
 
     friend class CommandProcess;
 };
