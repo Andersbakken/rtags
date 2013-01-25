@@ -296,8 +296,7 @@ void FileSystemWatcher::notifyReadyRead()
                     EV_SET(&change, wd, EVFILT_VNODE, EV_DELETE, 0, 0, 0);
                     ::kevent(mFd, &change, 1, 0, 0, &nullts);
                     ::close(wd);
-                } else {
-                    assert(p.exists());
+                } else if (p.exists()) {
                     // Figure out what has been changed
                     data.watcher = this;
                     data.added.clear();
