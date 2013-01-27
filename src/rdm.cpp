@@ -184,7 +184,7 @@ int main(int argc, char** argv)
             serverOpts.excludeFilters += ByteArray(optarg).split(';');
             break;
         case 'n':
-            socketFile = optarg;
+            serverOpts.socketFile = optarg;
             break;
         case 'd':
             serverOpts.dataDir = ByteArray::format<128>("%s", Path::resolved(optarg).constData());
