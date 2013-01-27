@@ -29,12 +29,12 @@ Client::Client(const Path &path, int timeout, unsigned flags, const List<ByteArr
     }
 }
 
-void Client::sendMessage(int id, const ByteArray &msg, SendFlag flag)
+bool Client::sendMessage(int id, const ByteArray &msg, SendFlag flag)
 {
     if (!mConnection && !connectToServer() && !(mFlags & (RestartRdm|AutostartRdm))) {
         if (!(mFlags & DontWarnOnConnectionFailure))
             error("Can't seem to connect to server");
-        return;
+        return false;
     }
 
     if (flag != SendDontRunEventLoop) {
@@ -44,6 +44,7 @@ void Client::sendMessage(int id, const ByteArray &msg, SendFlag flag)
     mConnection->send(id, msg);
     if (flag != SendDontRunEventLoop)
         EventLoop::instance()->run();
+    return true;
 }
 
 void Client::onNewMessage(Message *message, Connection *)

@@ -12,7 +12,7 @@ class RClient
 public:
     RClient();
     ~RClient();
-    void exec();
+    bool exec();
     bool parse(int &argc, char **argv);
 
     int max() const { return mMax; }

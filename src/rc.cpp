@@ -6,6 +6,5 @@ int main(int argc, char** argv)
     if (!rc.parse(argc, argv))
         return 1;
 
-    rc.exec();
-    return 0;
+    return rc.exec() ? 0 : 1;
 }

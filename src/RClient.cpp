@@ -9,7 +9,7 @@ class RCCommand
 {
 public:
     virtual ~RCCommand() {}
-    virtual void exec(RClient *rc, Client *client) = 0;
+    virtual bool exec(RClient *rc, Client *client) = 0;
     virtual ByteArray description() const = 0;
 };
 
@@ -24,7 +24,7 @@ public:
     const ByteArray query;
     unsigned extraQueryFlags;
 
-    virtual void exec(RClient *rc, Client *client)
+    virtual bool exec(RClient *rc, Client *client)
     {
         QueryMessage msg(type);
         msg.init(rc->argc(), rc->argv());
@@ -34,7 +34,7 @@ public:
         msg.setPathFilters(rc->pathFilters().toList());
         msg.setRangeFilter(rc->minOffset(), rc->maxOffset());
         msg.setProjects(rc->projects());
-        client->message(&msg);
+        return client->message(&msg);
     }
 
     virtual ByteArray description() const
@@ -61,7 +61,7 @@ public:
     Client *client;
     ByteArray data;
 
-    virtual void exec(RClient *rc, Client *cl)
+    virtual bool exec(RClient *rc, Client *cl)
     {
         client = cl;
         if (stream) {
@@ -69,13 +69,13 @@ public:
             msg.init(rc->argc(), rc->argv());
             msg.setProjects(rc->projects());
             EventLoop::instance()->addFileDescriptor(STDIN_FILENO, EventLoop::Read, stdinReady, this);
-            client->message(&msg);
+            return client->message(&msg);
         } else {
             CompletionMessage msg(CompletionMessage::None, path, line, column);
             msg.init(rc->argc(), rc->argv());
             msg.setContents(rc->unsavedFiles().value(path));
             msg.setProjects(rc->projects());
-            client->message(&msg);
+            return client->message(&msg);
         }
     }
 
@@ -154,11 +154,11 @@ public:
         : mLevel(level)
     {
     }
-    virtual void exec(RClient *rc, Client *client)
+    virtual bool exec(RClient *rc, Client *client)
     {
         CreateOutputMessage msg(mLevel == Default ? rc->logLevel() : mLevel);
         msg.init(rc->argc(), rc->argv());
-        client->message(&msg);
+        return client->message(&msg);
     }
     virtual ByteArray description() const
     {
@@ -175,11 +175,11 @@ public:
     {}
     const Path path;
     const ByteArray args;
-    virtual void exec(RClient *rc, Client *client)
+    virtual bool exec(RClient *rc, Client *client)
     {
         CompileMessage msg(path, args);
         msg.init(rc->argc(), rc->argv());
-        client->message(&msg);
+        return client->message(&msg);
     }
     virtual ByteArray description() const
     {
@@ -221,23 +221,27 @@ static void timeout(int timerId, void *userData)
     loop->exit();
 }
 
-void RClient::exec()
+bool RClient::exec()
 {
     EventLoop loop;
 
     Client client(mSocketFile, mConnectTimeout, mClientFlags, mRdmArgs);
 
+    bool ret = true;
     const int commandCount = mCommands.size();
     for (int i=0; i<commandCount; ++i) {
         RCCommand *cmd = mCommands.at(i);
         debug() << "running command " << cmd->description();
         const int timeoutId = (mTimeout ? loop.addTimer(mTimeout, ::timeout, &loop) : -1);
-        cmd->exec(this, &client);
+        ret = cmd->exec(this, &client);
         if (timeoutId != -1)
             loop.removeTimer(timeoutId);
         delete cmd;
+        if (!ret)
+            break;
     }
     mCommands.clear();
+    return ret;
 }
 
 enum OptionType {

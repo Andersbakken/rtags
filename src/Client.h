@@ -30,12 +30,12 @@ public:
     List<ByteArray> rdmArgs() const { return mRdmArgs; }
     unsigned flags() const { return mFlags; }
     template<typename T>
-    void message(const T *msg, SendFlag flag = SendNone);
+    bool message(const T *msg, SendFlag flag = SendNone);
     bool connectToServer();
     void onDisconnected();
     void onNewMessage(Message *message, Connection *);
 private:
-    void sendMessage(int id, const ByteArray& msg, SendFlag flag);
+    bool sendMessage(int id, const ByteArray& msg, SendFlag flag);
     const int mConnectTimeout;
     Connection *mConnection;
     unsigned mFlags;
@@ -44,9 +44,9 @@ private:
 };
 
 template<typename T>
-void Client::message(const T *msg, SendFlag flag)
+bool Client::message(const T *msg, SendFlag flag)
 {
-    sendMessage(msg->messageId(), msg->encode(), flag);
+    return sendMessage(msg->messageId(), msg->encode(), flag);
 }
 
 #endif
