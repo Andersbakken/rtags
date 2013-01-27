@@ -15,7 +15,7 @@ protected:
     void processFile(uint32_t fileId, const Path &path, const SymbolMap &map);
 private:
     const Match match;
-    int mSrcRootLength;
+    int mSymbolCount, mFileCount;
 };
 
 #endif

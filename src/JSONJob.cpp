@@ -4,7 +4,7 @@
 #include "Server.h"
 
 JSONJob::JSONJob(const QueryMessage &q, const shared_ptr<Project> &project)
-    : Job(q, WriteUnfiltered, project), match(q.match())
+    : Job(q, WriteUnfiltered, project), match(q.match()), mSymbolCount(0), mFileCount(0)
 {
     assert(project.get());
 }
@@ -50,14 +50,17 @@ void JSONJob::processFile(uint32_t fileId, const Path &path, const SymbolMap &ma
         CursorInfo target = it->second.bestTarget(map, &targetLocation);
         const CXStringScope type = clang_getCursorKindSpelling(it->second.kind);
         if (!targetLocation.isNull()) {
-            write<256>("{ \"location\": %s, \"type\": \"%s\", \"target\": %s }",
+            write<256>(", { \"location\": %s, \"type\": \"%s\", \"target\": %s }",
                        toJSON(it->first, it->second.symbolLength, srcRootLength).constData(), type.data(),
                        toJSON(targetLocation, target.symbolLength, srcRootLength).constData());
         } else {
-            write<256>("{ \"location\": %s, \"type\": \"%s\" }",
+            write<256>(", { \"location\": %s, \"type\": \"%s\" }",
                        toJSON(it->first, it->second.symbolLength, srcRootLength).constData(), type.data());
         }
 
         ++it;
+    }
+    if (found) {
+        write("], ");
     }
 }
