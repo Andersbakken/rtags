@@ -108,6 +108,7 @@ public:
     bool fetchFromCache(const Path &path, List<ByteArray> &args, CXIndex &index, CXTranslationUnit &unit);
     void addToCache(const Path &path, const List<ByteArray> &args, CXIndex index, CXTranslationUnit unit);
     void timerEvent(TimerEvent *event);
+    bool isIndexing() const { MutexLocker lock(&mMutex); return !mJobs.isEmpty(); }
 private:
     bool initJobFromCache(const Path &path, const List<ByteArray> &args,
                           CXIndex &index, CXTranslationUnit &unit, List<ByteArray> *argsOut);

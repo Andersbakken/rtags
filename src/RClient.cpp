@@ -270,8 +270,9 @@ enum OptionType {
     HasFileManager,
     Help,
     IsIndexed,
-    JobCount,
+    IsIndexing,
     JSON,
+    JobCount,
     LineNumbers,
     ListSymbols,
     LogFile,
@@ -344,6 +345,7 @@ struct Option opts[] = {
     { CursorInfo, "cursor-info", 'U', required_argument, "Get cursor info for this location." },
     { Status, "status", 's', optional_argument, "Dump status of rdm. Arg can be symbols or symbolNames." },
     { IsIndexed, "is-indexed", 'T', required_argument, "Check if rtags knows about, and is ready to return information about, this source file." },
+    { IsIndexing, "is-indexing", 0, no_argument, "Check if rtags is currently indexing files." },
     { HasFileManager, "has-filemanager", 0, optional_argument, "Check if rtags has info about files in this directory." },
     { PreprocessFile, "preprocess", 'E', required_argument, "Preprocess file." },
     { Reindex, "reindex", 'V', optional_argument, "Reindex all files or all files matching pattern." },
@@ -789,6 +791,9 @@ bool RClient::parse(int &argc, char **argv)
             }
             addCompile(Path::pwd(), args);
             break; }
+        case IsIndexing:
+            addQuery(QueryMessage::IsIndexing);
+            break;
         case IsIndexed:
         case DumpFile:
         case FixIts:

@@ -266,6 +266,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::Invalid:
         assert(0);
         break;
+    case QueryMessage::IsIndexing:
+        isIndexing(*message, conn);
+        break;
     case QueryMessage::RemoveFile:
         removeFile(*message, conn);
         break;
@@ -365,6 +368,26 @@ void Server::followLocation(const QueryMessage &query, Connection *conn)
     job.run(conn);
     conn->finish();
 }
+
+void Server::isIndexing(const QueryMessage &, Connection *conn)
+{
+    ProjectsMap copy;
+    {
+        MutexLocker lock(&mMutex);
+        copy = mProjects;
+    }
+    for (ProjectsMap::const_iterator it = copy.begin(); it != copy.end(); ++it) {
+        if (it->second->isIndexing()) {
+            conn->write("1");
+            conn->finish();
+            return;
+        }
+
+    }
+    conn->write("0");
+    conn->finish();
+}
+
 
 void Server::removeFile(const QueryMessage &query, Connection *conn)
 {
