@@ -8,6 +8,7 @@
 (require 'dabbrev)
 (require 'cc-mode)
 (require 'flymake)
+(require 'bookmark)
 
 (defvar rtags-last-buffer nil)
 (defvar rtags-path-filter nil)
