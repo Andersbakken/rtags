@@ -12,7 +12,6 @@ public:
     JSONJob(const QueryMessage &query, const shared_ptr<Project> &project);
 protected:
     virtual void execute();
-    void processFile(uint32_t fileId, const Path &path, const SymbolMap &map);
 private:
     const Match match;
     int mSymbolCount, mFileCount;
