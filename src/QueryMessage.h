@@ -25,6 +25,7 @@ public:
         Invalid,
         IsIndexed,
         JobCount,
+        JSON,
         ListSymbols,
         PreprocessFile,
         Project,

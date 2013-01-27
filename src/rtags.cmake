@@ -119,6 +119,7 @@ set(rtags_SRCS
     ListSymbolsJob.cpp
     ReferencesJob.cpp
     StatusJob.cpp
+    JSONJob.cpp
     ValidateDBJob.cpp
     LocalServer.cpp
     CursorInfo.cpp

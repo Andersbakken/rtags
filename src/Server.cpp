@@ -2,6 +2,7 @@
 
 #include "Client.h"
 #include "CompileJob.h"
+#include "CompileMessage.h"
 #include "CompletionJob.h"
 #include "Connection.h"
 #include "CreateOutputMessage.h"
@@ -13,6 +14,7 @@
 #include "FindSymbolsJob.h"
 #include "FollowLocationJob.h"
 #include "IndexerJob.h"
+#include "JSONJob.h"
 #include "ListSymbolsJob.h"
 #include "LocalClient.h"
 #include "LocalServer.h"
@@ -24,7 +26,6 @@
 #include "Path.h"
 #include "Preprocessor.h"
 #include "Process.h"
-#include "CompileMessage.h"
 #include "QueryMessage.h"
 #include "RTags.h"
 #include "ReferencesJob.h"
@@ -268,6 +269,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::RemoveFile:
         removeFile(*message, conn);
         break;
+    case QueryMessage::JSON:
+        JSON(*message, conn);
+        break;
     case QueryMessage::JobCount:
         jobCount(*message, conn);
         break;
@@ -458,6 +462,21 @@ void Server::fixIts(const QueryMessage &query, Connection *conn)
         if (!out.isEmpty())
             conn->write(out);
     }
+    conn->finish();
+}
+
+void Server::JSON(const QueryMessage &query, Connection *conn)
+{
+    shared_ptr<Project> project = currentProject();
+
+    if (!project) {
+        error("No project");
+        conn->finish();
+        return;
+    }
+
+    JSONJob job(query, project);
+    job.run(conn);
     conn->finish();
 }
 

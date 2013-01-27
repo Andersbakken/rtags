@@ -271,6 +271,7 @@ enum OptionType {
     Help,
     IsIndexed,
     JobCount,
+    JSON,
     LineNumbers,
     ListSymbols,
     LogFile,
@@ -356,6 +357,7 @@ struct Option opts[] = {
     { RemoveFile, "remove", 'D', required_argument, "Remove file from project." },
     { FindProjectRoot, "find-project-root", 0, required_argument, "Use to check behavior of find-project-root." },
     { FilterPreprocessor, "filter-preprocessor", 0, required_argument, "Use to check behavior of filterPreprocessor." },
+    { JSON, "json", 0, optional_argument, "Dump json about files matching arg or whole project if no argument." },
 
     { None, 0, 0, 0, "" },
     { None, 0, 0, 0, "Command flags:" },
@@ -735,6 +737,7 @@ bool RClient::parse(int &argc, char **argv)
         case Project:
         case FindFile:
         case ListSymbols:
+        case JSON:
         case Status: {
             QueryMessage::Type type = QueryMessage::Invalid;
             switch (opt->option) {
@@ -742,6 +745,7 @@ bool RClient::parse(int &argc, char **argv)
             case Project: type = QueryMessage::Project; break;
             case FindFile: type = QueryMessage::FindFile; break;
             case Status: type = QueryMessage::Status; break;
+            case JSON: type = QueryMessage::JSON; break;
             case ListSymbols: type = QueryMessage::ListSymbols; break;
             default: assert(0); break;
             }
