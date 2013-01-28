@@ -96,7 +96,7 @@
             (win (get-buffer-window rtags-buffer-name)))
         (if win (select-window win))
         (set-buffer rtags-buffer-name)
-        (when (> (point-max) (point-min))
+        (when (> (count-lines (point-max) (point-min)) 1)
           (cond ((and (= (point-at-bol) (point-min)) (not next))
                  (setq target (point-max))
                  (message "*RTags* Wrapped"))
