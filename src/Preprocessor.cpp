@@ -20,9 +20,13 @@ void Preprocessor::preprocess()
         mProc = new Process;
         mProc->finished().connect(this, &Preprocessor::onProcessFinished);
     }
-    mArgs.args.append("-E");
-    mArgs.args.append(mArgs.sourceFile);
-    mProc->start(mArgs.compiler, mArgs.args);
+    List<ByteArray> args = mArgs.args;
+    const int idx = args.indexOf("-fspell-checking");
+    if (idx != -1)
+        args.removeAt(idx);
+    args.append("-E");
+    args.append(mArgs.sourceFile);
+    mProc->start(mArgs.compiler, args);
 }
 
 void Preprocessor::onProcessFinished()
