@@ -579,7 +579,6 @@ return t if rtags is allowed to modify this file"
   (define-key map (kbd "C-x r C") (function rtags-switch-to-completion-buffer))
   (define-key map (kbd "C-x r D") (function rtags-diagnostics))
   (define-key map (kbd "C-x r G") (function rtags-clear-diagnostics))
-  (define-key map (kbd "C-x r M") (function rtags-index-project))
   (define-key map (kbd "C-x r p") (function rtags-set-current-project))
   (define-key map (kbd "C-x r e") (function rtags-reparse-file))
   (define-key map (kbd "C-x r E") (function rtags-preprocess-file))
@@ -617,19 +616,6 @@ return t if rtags is allowed to modify this file"
   (setq rtags-bookmarks nil)
   (setq rtags-bookmark-index 0)
   )
-
-(defun rtags-index-project ()
-  (interactive)
-  (let ((makefile (read-file-name
-                   "Index project Makefile: "
-                   default-directory
-                   nil
-                   t
-                   (if (file-exists-p (concat default-directory "/Makefile")) "Makefile" nil))))
-    (if (file-exists-p makefile)
-        (with-temp-buffer
-          (rtags-call-rc nil "-m" makefile)
-          (eessage (buffer-string))))))
 
 (defun rtags-target (&optional location)
   (let ((path (rtags-path-for-project)))
