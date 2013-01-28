@@ -550,7 +550,9 @@ Path findProjectRoot(const Path &path)
                     if (configure) {
                         char *end = configure + 10;
                         while (--configure >= line) {
-                            const Path conf = Path::resolved(ByteArray(configure, end - configure));
+                            Path conf(configure, end - configure);
+                            if (!conf.isAbsolute())
+                                conf.resolve();
                             if (conf.isFile()) {
                                 ret = conf.parentDir();
                                 if (ret == home)
