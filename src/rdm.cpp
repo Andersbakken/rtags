@@ -64,7 +64,7 @@ void usage(FILE *f)
             "  --data-dir|-d [arg]               Use this directory to store persistent data (default ~/.rtags)\n"
             "  --socket-file|-n [arg]            Use this file for the server socket (default ~/.rdm)\n"
             "  --setenv|-e [arg]                 Set this environment variable (--setenv \"foobar=1\")\n"
-            "  --completion-cache-size|-a [arg]  Cache this many translation units (default 10, min 1)\n"
+            "  --completion-cache-size|-a [arg]  Cache this many translation units (default 0, must have at least 1 to use completion)\n"
             "  --thread-count|-j [arg]           Spawn this many threads for thread pool\n");
 }
 
@@ -157,7 +157,7 @@ int main(int argc, char** argv)
     Server::Options serverOpts;
     serverOpts.socketFile = ByteArray::format<128>("%s.rdm", Path::home().constData());
     serverOpts.threadCount = ThreadPool::idealThreadCount();
-    serverOpts.completionCacheSize = 10;
+    serverOpts.completionCacheSize = 0;
     serverOpts.options = Server::Wall|Server::SpellChecking;
     serverOpts.excludeFilters = ByteArray(EXCLUDEFILTER_DEFAULT).split(';');
     serverOpts.dataDir = ByteArray::format<128>("%s.rtags", Path::home().constData());

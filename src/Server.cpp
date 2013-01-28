@@ -1025,6 +1025,10 @@ void Server::handleCompletionMessage(CompletionMessage *message, Connection *con
 void Server::startCompletion(const Path &path, int line, int column, int pos, const ByteArray &contents, Connection *conn)
 {
     // error() << "starting completion" << path << line << column;
+    if (!mOptions.completionCacheSize) {
+        conn->finish();
+        return;
+    }
     shared_ptr<Project> project = updateProjectForLocation(path);
     if (!project || !project->isValid()) {
         if (!isCompletionStream(conn))

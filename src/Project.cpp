@@ -246,9 +246,11 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
     {
         MutexLocker lock(&mMutex);
 
-        CXTranslationUnit unit = job->takeTranslationUnit();
-        if (unit)
-            addCachedUnit(job->path(), job->arguments(), job->takeIndex(), unit);
+        if (Server::instance()->options().completionCacheSize) {
+            CXTranslationUnit unit = job->takeTranslationUnit();
+            if (unit)
+                addCachedUnit(job->path(), job->arguments(), job->takeIndex(), unit);
+        }
 
         const uint32_t fileId = job->fileId();
         if (job->isAborted()) {
