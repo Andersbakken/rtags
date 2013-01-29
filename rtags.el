@@ -1308,7 +1308,7 @@ References to references will be treated as references to the referenced symbol"
             (t nil))
       ;; (message (format "Got lines and shit %d\n[%s]" (count-lines (point-min) (point-max)) (buffer-string)))
       (cond ((= (point-min) (point-max)) t)
-            ((= (count-lines (point-min) (point-max)) 1) (rtags-select))
+            ((= (count-lines (point-min) (point-max)) 1) (rtags-goto-location (buffer-substring (point-at-bol) (point-at-eol))))
             (t (progn
                  (switch-to-buffer-other-window rtags-buffer-name)
                  (shrink-window-if-larger-than-buffer)
