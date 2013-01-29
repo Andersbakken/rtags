@@ -3,6 +3,7 @@
 
 #include "ByteArray.h"
 #include "RegExp.h"
+#include "Log.h"
 
 class Match
 {
@@ -21,6 +22,8 @@ public:
             mRegExp = pattern;
         mPattern = pattern;
     }
+
+    unsigned flags() const { return mFlags; }
 
     inline Match(const RegExp &regExp)
         : mRegExp(regExp), mPattern(regExp.pattern()), mFlags(Flag_RegExp)
@@ -62,7 +65,21 @@ private:
     RegExp mRegExp;
     ByteArray mPattern;
     unsigned mFlags;
-
 };
+
+inline Log operator<<(Log log, const Match &match)
+{
+    ByteArray ret = "Match(flags: ";
+    ret += ByteArray::number(match.flags(), 16);
+    if (match.regExp().isValid())
+        ret += " rx: " + match.regExp().pattern();
+    if (!match.pattern().isEmpty())
+        ret += " pattern: " + match.pattern();
+    ret += ")";
+    log << ret;
+    return log;
+}
+
+
 
 #endif
