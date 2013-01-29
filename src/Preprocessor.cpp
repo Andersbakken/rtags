@@ -20,19 +20,19 @@ void Preprocessor::preprocess()
         mProc = new Process;
         mProc->finished().connect(this, &Preprocessor::onProcessFinished);
     }
-    List<ByteArray> args = mArgs.args;
+    List<ByteArray> args = mArgs.builds.first().args; // ### ?
     const int idx = args.indexOf("-fspell-checking");
     if (idx != -1)
         args.removeAt(idx);
     args.append("-E");
     args.append(mArgs.sourceFile);
-    mProc->start(mArgs.compiler, args);
+    mProc->start(mArgs.builds.first().compiler, args);
 }
 
 void Preprocessor::onProcessFinished()
 {
-    mConnection->write<256>("// %s %s", mArgs.compiler.constData(),
-                            ByteArray::join(mArgs.args, ' ').constData());
+    mConnection->write<256>("// %s %s", mArgs.builds.first().compiler.constData(),
+                            ByteArray::join(mArgs.builds.first().args, ' ').constData());
     mConnection->write(mProc->readAllStdOut());
     const ByteArray err = mProc->readAllStdErr();
     if (!err.isEmpty()) {

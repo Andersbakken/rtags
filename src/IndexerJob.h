@@ -19,6 +19,8 @@ struct IndexData {
     DiagnosticsMap diagnostics;
 };
 
+typedef List<std::pair<CXIndex, CXTranslationUnit> > UnitList;
+
 class IndexerJob : public Job
 {
 public:
@@ -27,26 +29,26 @@ public:
         Dirty = 0x2,
         IgnorePrintfFixits = 0x4
     };
-    IndexerJob(const shared_ptr<Project> &indexer, unsigned flags,
-               const Path &input, const List<ByteArray> &args,
-               CXIndex index = 0 , CXTranslationUnit unit = 0);
-    IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
-               const Path &input, const List<ByteArray> &arguments);
+    IndexerJob(const shared_ptr<Project> &project, unsigned flags,
+               const SourceInformation &sourceInformation,
+               const UnitList &units = UnitList());
+    IndexerJob(const QueryMessage &msg,
+               const shared_ptr<Project> &project,
+               const SourceInformation &sourceInformation);
 
     shared_ptr<IndexData> data() const { return mData; }
-    CXTranslationUnit takeTranslationUnit();
-    CXIndex takeIndex();
+    UnitList takeUnits();
     uint32_t fileId() const { return mFileId; }
-    Path path() const { return mPath; }
+    Path path() const { return mSourceInformation.sourceFile; }
     bool abortIfStarted();
-    List<ByteArray> arguments() const { return mArgs; }
+    const SourceInformation &sourceInformation() const { return mSourceInformation; }
     time_t parseTime() const { return mParseTime; }
     const Set<uint32_t> &visitedFiles() const { return mVisitedFiles; }
     unsigned flags() const { return mFlags; }
 private:
-    bool parse();
-    bool visit();
-    bool diagnose(int *errorCount);
+    bool parse(int build);
+    bool visit(int build);
+    bool diagnose(int build, int *errorCount);
 
     virtual void execute();
 
@@ -76,16 +78,14 @@ private:
     Set<uint32_t> mVisitedFiles;
     Set<uint32_t> mBlockedFiles;
 
-    const Path mPath;
+    SourceInformation mSourceInformation;
     const uint32_t mFileId;
-    const List<ByteArray> mArgs;
 
-    CXTranslationUnit mUnit;
-    CXIndex mIndex;
+    UnitList mUnits;
 
     Map<ByteArray, uint32_t> mFileIds;
 
-    ByteArray mClangLine;
+    List<ByteArray> mClangLines;
 
     StopWatch mTimer;
     shared_ptr<IndexData> mData;

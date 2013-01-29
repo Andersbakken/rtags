@@ -22,20 +22,22 @@ struct VerboseVisitorUserData {
     IndexerJob *job;
 };
 
-IndexerJob::IndexerJob(const shared_ptr<Project> &project, unsigned flags, const Path &p, const List<ByteArray> &arguments,
-                       CXIndex index, CXTranslationUnit unit)
-    : Job(0, project),
-      mFlags(flags), mPath(p), mFileId(Location::insertFile(p)),
-      mArgs(arguments), mUnit(unit), mIndex(index), mDump(false), mParseTime(0),
-      mStarted(false)
+IndexerJob::IndexerJob(const shared_ptr<Project> &project, unsigned flags,
+                       const SourceInformation &sourceInformation,
+                       const UnitList &units)
+    : Job(0, project), mSourceInformation(sourceInformation), mFileId(Location::insertFile(sourceInformation.sourceFile)),
+      mUnits(units), mDump(false), mParseTime(0), mStarted(false)
 {
+    if (mUnits.isEmpty())
+        mUnits.resize(mSourceInformation.builds.size());
+    assert(mUnits.size() == mSourceInformation.builds.size());
 }
-
 IndexerJob::IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
-                       const Path &input, const List<ByteArray> &arguments)
-    : Job(msg, WriteUnfiltered|WriteBuffered, project), mFlags(0), mPath(input), mFileId(Location::insertFile(input)),
-      mArgs(arguments), mUnit(0), mIndex(0), mDump(true), mParseTime(0), mStarted(false)
+                       const SourceInformation &sourceInformation)
+    : Job(msg, WriteUnfiltered|WriteBuffered, project), mFlags(0), mSourceInformation(sourceInformation),
+      mFileId(Location::insertFile(sourceInformation.sourceFile)), mDump(true), mParseTime(0), mStarted(false)
 {
+    mUnits.resize(mSourceInformation.builds.size());
 }
 
 void IndexerJob::inclusionVisitor(CXFile includedFile,
@@ -679,94 +681,92 @@ bool IndexerJob::handleCursor(const CXCursor &cursor, CXCursorKind kind, const L
     return true;
 }
 
-bool IndexerJob::parse()
+bool IndexerJob::parse(int build)
 {
-    if (!mIndex) {
-        mIndex = clang_createIndex(0, 1);
-        if (!mIndex) {
-            abort();
-            return false;
-        }
+    CXIndex &index = mUnits[build].first;
+    if (!index)
+        index = clang_createIndex(0, 1);
+    if (!index) {
+        abort();
+        return false;
     }
+    const List<ByteArray> args = mSourceInformation.builds.at(build).args;
 
-    if (mUnit) {
-        warning() << "Reparsing" << mPath << mArgs;
-        const time_t now = time(0);
-        if (clang_reparseTranslationUnit(mUnit, 0, 0, clang_defaultReparseOptions(mUnit))) {
-            clang_getInclusions(mUnit, inclusionVisitor, this);
-            clang_disposeTranslationUnit(mUnit);
-            mUnit = 0;
-            error() << "got failure when reparsing" << mPath << mArgs;
-        } else {
-            mParseTime = now;
+    CXTranslationUnit &unit = mUnits[build].second;
+    if (unit) {
+        warning() << "Reparsing" << mSourceInformation.sourceFile << args;
+        if (clang_reparseTranslationUnit(unit, 0, 0, clang_defaultReparseOptions(unit))) {
+            clang_getInclusions(unit, inclusionVisitor, this);
+            clang_disposeTranslationUnit(unit);
+            unit = 0;
+            error() << "got failure when reparsing" << mSourceInformation.sourceFile << args;
         }
         return !isAborted();
     }
 
-    mClangLine = Server::instance()->clangPath();
-    mClangLine += ' ';
+    mClangLines.append(ByteArray());
+    ByteArray &clangLine = mClangLines[build];
+
+    clangLine = Server::instance()->clangPath();
+    clangLine += ' ';
 
     int idx = 0;
-    List<const char*> clangArgs(mArgs.size(), 0);
+    List<const char*> clangArgs(args.size(), 0);
 
-    const int count = mArgs.size();
-    for (int i=0; i<count; ++i) {
-        ByteArray arg = mArgs.at(i);
+    const int count = args.size();
+    for (int j=0; j<count; ++j) {
+        ByteArray arg = args.at(j);
         if (arg.isEmpty())
             continue;
 
-        clangArgs[idx++] = mArgs.at(i).constData();
+        clangArgs[idx++] = args.at(j).constData();
         arg.replace("\"", "\\\"");
-        mClangLine += arg;
-        mClangLine += ' ';
+        clangLine += arg;
+        clangLine += ' ';
     }
 
-    mClangLine += mPath;
+    clangLine += mSourceInformation.sourceFile;
 
-    time_t now = time(0);
-    mUnit = clang_parseTranslationUnit(mIndex, mPath.constData(),
-                                       clangArgs.data(), idx, 0, 0,
-                                       CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+    unit = clang_parseTranslationUnit(index, mSourceInformation.sourceFile.constData(),
+                                      clangArgs.data(), idx, 0, 0,
+                                      CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
 
-    warning() << "loading unit " << mClangLine << " " << (mUnit != 0);
-    if (mUnit) {
-        mParseTime = now;
+    warning() << "loading unit " << clangLine << " " << (unit != 0);
+    if (unit) {
         return !isAborted();
     }
 
-    error() << "got failure" << mClangLine;
-    const ByteArray preprocessorOnly = RTags::filterPreprocessor(mPath);
+    error() << "got failure" << clangLine;
+    const ByteArray preprocessorOnly = RTags::filterPreprocessor(mSourceInformation.sourceFile);
     if (!preprocessorOnly.isEmpty()) {
-        CXUnsavedFile unsaved = { mPath.constData(), preprocessorOnly.constData(),
+        CXUnsavedFile unsaved = { mSourceInformation.sourceFile.constData(), preprocessorOnly.constData(),
                                   static_cast<unsigned long>(preprocessorOnly.size()) };
-        now = time(0);
-        mUnit = clang_parseTranslationUnit(mIndex, mPath.constData(),
-                                           clangArgs.data(), idx, &unsaved, 1,
-                                           CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
+        unit = clang_parseTranslationUnit(index, mSourceInformation.sourceFile.constData(),
+                                          clangArgs.data(), idx, &unsaved, 1,
+                                          CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
     }
-    if (mUnit) {
-        mParseTime = now;
-        clang_getInclusions(mUnit, inclusionVisitor, this);
-        clang_disposeTranslationUnit(mUnit);
-        mUnit = 0;
+    if (unit) {
+        clang_getInclusions(unit, inclusionVisitor, this);
+        clang_disposeTranslationUnit(unit);
+        unit = 0;
     } else {
         mData->dependencies[mFileId].insert(mFileId);
     }
     return !isAborted();
 }
 
-bool IndexerJob::diagnose(int *errorCount)
+bool IndexerJob::diagnose(int build, int *errorCount)
 {
     if (errorCount)
         *errorCount = 0;
-    if (!mUnit) {
+    if (!mUnits.at(build).second) {
         abort();
         return false;
     }
 
-    const unsigned diagnosticCount = clang_getNumDiagnostics(mUnit);
+    const unsigned diagnosticCount = clang_getNumDiagnostics(mUnits.at(build).second);
     for (unsigned i=0; i<diagnosticCount; ++i) {
-        CXDiagnostic diagnostic = clang_getDiagnostic(mUnit, i);
+        CXDiagnostic diagnostic = clang_getDiagnostic(mUnits.at(build).second, i);
         int logLevel = INT_MAX;
         const CXDiagnosticSeverity severity = clang_getDiagnosticSeverity(diagnostic);
         switch (severity) {
@@ -797,7 +797,7 @@ bool IndexerJob::diagnose(int *errorCount)
         if (fileId)
             mData->diagnostics[fileId].append(text);
         if (testLog(logLevel) || testLog(CompilationError)) {
-            log(logLevel, "%s: %s => %s", mPath.constData(), mClangLine.constData(), text.constData());
+            log(logLevel, "%s: %s => %s", mSourceInformation.sourceFile.constData(), mClangLines.at(build).constData(), text.constData());
             log(CompilationError, "%s", text.constData());
         }
 
@@ -835,26 +835,26 @@ bool IndexerJob::diagnose(int *errorCount)
     return !isAborted();
 }
 
-bool IndexerJob::visit()
+bool IndexerJob::visit(int build)
 {
-    if (!mUnit) {
+    if (!mUnits.at(build).second) {
         abort();
         return false;
     }
-    clang_getInclusions(mUnit, inclusionVisitor, this);
+    clang_getInclusions(mUnits.at(build).second, inclusionVisitor, this);
     if (isAborted())
         return false;
 
-    clang_visitChildren(clang_getTranslationUnitCursor(mUnit), indexVisitor, this);
+    clang_visitChildren(clang_getTranslationUnitCursor(mUnits.at(build).second), indexVisitor, this);
     if (isAborted())
         return false;
     if (testLog(VerboseDebug)) {
-        VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLine + ">\n", this };
-        clang_visitChildren(clang_getTranslationUnitCursor(mUnit), verboseVisitor, &u);
-        u.out += "</VerboseVisitor " + mClangLine + ">";
+        VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLines.at(build) + ">\n", this };
+        clang_visitChildren(clang_getTranslationUnitCursor(mUnits.at(build).second), verboseVisitor, &u);
+        u.out += "</VerboseVisitor " + mClangLines.at(build) + ">";
         if (getenv("RTAGS_INDEXERJOB_DUMP_TO_FILE")) {
             char buf[1024];
-            snprintf(buf, sizeof(buf), "/tmp/%s.log", mPath.fileName());
+            snprintf(buf, sizeof(buf), "/tmp/%s.log", mSourceInformation.sourceFile.fileName());
             FILE *f = fopen(buf, "w");
             assert(f);
             fwrite(u.out.constData(), 1, u.out.size(), f);
@@ -875,10 +875,12 @@ void IndexerJob::execute()
     if (mDump) {
         assert(id() != -1);
         if (shared_ptr<Project> p = project()) {
-            parse();
-            if (mUnit) {
-                DumpUserData u = { 0, this, !(queryFlags() & QueryMessage::NoContext) };
-                clang_visitChildren(clang_getTranslationUnitCursor(mUnit), dumpVisitor, &u);
+            for (int i=0; i<mSourceInformation.builds.size(); ++i) {
+                parse(i);
+                if (mUnits.at(i).second) {
+                    DumpUserData u = { 0, this, !(queryFlags() & QueryMessage::NoContext) };
+                    clang_visitChildren(clang_getTranslationUnitCursor(mUnits.at(i).second), dumpVisitor, &u);
+                }
             }
         }
     } else {
@@ -887,39 +889,57 @@ void IndexerJob::execute()
             mStarted = true;
         }
         int errorCount = 0;
-        if (parse()) {
-            if (!mUnit) {
-                mData->message = ByteArray::format<1024>("%s error in %sms. (%d deps)%s",
-                                                         mPath.toTilde().constData(),
-                                                         ByteArray::number(mTimer.elapsed()).constData(),
-                                                         mData->dependencies.size(),
-                                                         mFlags & Dirty ? " (dirty)" : "");
-            } else if (diagnose(&errorCount) && visit()) {
-                ByteArray status = mUnit ? "success" : "error";
-                if (errorCount)
-                    status += ByteArray::format<32>(", %d errors", errorCount);
-                mData->message = ByteArray::format<1024>("%s (%s) in %sms. (%d syms, %d symNames, %d refs, %d deps, %d files)%s",
-                                                         mPath.toTilde().constData(), status.constData(),
-                                                         ByteArray::number(mTimer.elapsed()).constData(),
-                                                         mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
-                                                         mData->dependencies.size(), mVisitedFiles.size(),
-                                                         mFlags & Dirty ? " (dirty)" : "");
+        int unitCount = 0;
+        const int buildCount = mSourceInformation.builds.size();
+        for (int i=0; i<buildCount; ++i) {
+            if (!parse(i)) {
+                goto end;
             }
+            if (mUnits.at(i).second)
+                ++unitCount;
         }
+        mParseTime = time(0);
+
+        for (int i=0; i<buildCount; ++i) {
+            int err = 0;
+            if (!diagnose(i, &err) || !visit(i))
+                goto end;
+            errorCount += err;
+        }
+        {
+            mData->message += mSourceInformation.sourceFile.toTilde();
+            if (buildCount > 1)
+                mData->message += ByteArray::format<16>(" (%d builds)", buildCount);
+            if (!unitCount) {
+                mData->message += " error";
+            } else if (unitCount != buildCount) {
+                mData->message += ByteArray::format<16>(" (%d errors, %d ok)", buildCount - unitCount, unitCount);
+            }
+            mData->message += ByteArray::format<16>(" in %sms. ", ByteArray::number(mTimer.elapsed()).constData());
+            if (unitCount) {
+                mData->message += ByteArray::format<1024>("(%d syms, %d symNames, %d refs, %d deps, %d files)",
+                                                          mData->symbols.size(), mData->symbolNames.size(), mData->references.size(),
+                                                          mData->dependencies.size(), mVisitedFiles.size());
+            } else if (mData->dependencies.size()) {
+                mData->message += ByteArray::format<16>("(%d deps)", mData->dependencies.size());
+            }
+            if (mFlags & Dirty)
+                mData->message += " (dirty)";
+        }
+  end:
         shared_ptr<Project> p = project();
         if (p) {
             shared_ptr<IndexerJob> job = static_pointer_cast<IndexerJob>(shared_from_this());
             p->onJobFinished(job);
         }
     }
-    if (mUnit) {
-        clang_disposeTranslationUnit(mUnit);
-        mUnit = 0;
+    for (int i=0; i<mUnits.size(); ++i) {
+        if (mUnits.at(i).first)
+            clang_disposeIndex(mUnits.at(i).first);
+        if (mUnits.at(i).second)
+            clang_disposeTranslationUnit(mUnits.at(i).second);
     }
-    if (mIndex) {
-        clang_disposeIndex(mIndex);
-        mIndex = 0;
-    }
+    mUnits.clear();
 }
 
 CXChildVisitResult IndexerJob::verboseVisitor(CXCursor cursor, CXCursor, CXClientData userData)
@@ -1005,18 +1025,10 @@ bool IndexerJob::abortIfStarted()
     return mAborted;
 }
 
-CXTranslationUnit IndexerJob::takeTranslationUnit()
+UnitList IndexerJob::takeUnits()
 {
+    UnitList ret;
     MutexLocker lock(&mMutex);
-    CXTranslationUnit tmp = mUnit;
-    mUnit = 0;
-    return tmp;
-}
-
-CXIndex IndexerJob::takeIndex()
-{
-    MutexLocker lock(&mMutex);
-    CXIndex tmp = mIndex;
-    mIndex = 0;
-    return tmp;
+    std::swap(ret, mUnits);
+    return ret;
 }

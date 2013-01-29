@@ -25,7 +25,7 @@ class Job;
 class Server : public EventReceiver
 {
 public:
-    enum { DatabaseVersion = 12 };
+    enum { DatabaseVersion = 13 };
 
     Server();
     ~Server();

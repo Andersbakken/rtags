@@ -247,9 +247,14 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
         MutexLocker lock(&mMutex);
 
         if (Server::instance()->options().completionCacheSize) {
-            CXTranslationUnit unit = job->takeTranslationUnit();
-            if (unit)
-                addCachedUnit(job->path(), job->arguments(), job->takeIndex(), unit);
+            const List<std::pair<CXIndex, CXTranslationUnit> > units = job->takeUnits();
+            const SourceInformation &sourceInfo = job->sourceInformation();
+            for (int i=0; i<units.size(); ++i) {
+                if (units.at(i).first) {
+                    assert(units.at(i).second);
+                    addCachedUnit(sourceInfo.sourceFile, sourceInfo.builds.at(i).args, units.at(i).first, units.at(i).second);
+                }
+            }
         }
 
         const uint32_t fileId = job->fileId();
@@ -358,11 +363,12 @@ void Project::index(const SourceInformation &c, unsigned indexerJobFlags)
     if (mFlags & IgnorePrintfFixits)
         indexerJobFlags |= IndexerJob::IgnorePrintfFixits;
 
-    CXIndex index = 0;
-    CXTranslationUnit unit = 0;
-    initJobFromCache(c.sourceFile, c.args, index, unit, 0);
+    // CXIndex index = 0;
+    // CXTranslationUnit unit = 0;
+    // initJobFromCache(c.sourceFile, c.args, index, unit, 0);
+    // ### Needs to be changed a little.
     shared_ptr<Project> project = static_pointer_cast<Project>(shared_from_this());
-    job.reset(new IndexerJob(project, indexerJobFlags, c.sourceFile, c.args, index, unit));
+    job.reset(new IndexerJob(project, indexerJobFlags, c));
 
     ++mJobCounter;
     if (!mTimerRunning) {

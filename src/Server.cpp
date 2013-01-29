@@ -445,13 +445,13 @@ void Server::dumpFile(const QueryMessage &query, Connection *conn)
         return;
     }
     const SourceInformation c = project->sourceInfo(fileId);
-    if (c.args.isEmpty()) {
+    if (c.isNull()) {
         conn->write<256>("%s is not indexed", query.query().constData());
         conn->finish();
         return;
     }
 
-    shared_ptr<IndexerJob> job(new IndexerJob(query, project, c.sourceFile, c.args));
+    shared_ptr<IndexerJob> job(new IndexerJob(query, project, c));
     job->setId(nextId());
     mPendingLookups[job->id()] = conn;
     startQueryJob(job);
@@ -628,7 +628,7 @@ void Server::preprocessFile(const QueryMessage &query, Connection *conn)
 
     const uint32_t fileId = Location::fileId(path);
     const SourceInformation c = project->sourceInfo(fileId);
-    if (c.args.isEmpty()) {
+    if (c.isNull()) {
         conn->write("No arguments for " + path);
         conn->finish();
         return;
@@ -725,20 +725,20 @@ void Server::processSourceFile(GccArguments args)
         List<ByteArray> arguments = args.clangArgs();
         arguments.append(mOptions.defaultArguments);
 
-        SourceInformation c(Path(), arguments, args.compiler());
         for (int i=0; i<count; ++i) {
-            c.sourceFile = inputFiles.at(i);
-            const SourceInformation existing = project->sourceInfo(Location::insertFile(c.sourceFile));
-            if (testLog(Debug)) {
-                debug() << "comparing" << c.sourceFile
-                        << (existing != c) << (c.sourceFile.lastModified() > existing.parsed)
-                        << ByteArray::formatTime(c.sourceFile.lastModified())
-                        << ByteArray::formatTime(existing.parsed);
+            SourceInformation sourceInformation = project->sourceInfo(Location::insertFile(inputFiles.at(i)));
+            bool index = false;
+            if (sourceInformation.isNull()) {
+                sourceInformation.sourceFile = inputFiles.at(i);
+                sourceInformation.builds.append(SourceInformation::Build(args.compiler(), arguments));
+                index = true;
+            } else if (sourceInformation.merge(args.compiler(), arguments)) {
+                index = true;
             }
-            if (existing != c || c.sourceFile.lastModified() > existing.parsed) {
-                project->index(c, IndexerJob::Makefile);
+            if (index) {
+                project->index(sourceInformation, IndexerJob::Makefile);
             } else {
-                debug() << c.sourceFile << " is not dirty. ignoring";
+                debug() << inputFiles.at(i) << " is not dirty. ignoring";
             }
         }
     }
