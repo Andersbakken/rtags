@@ -118,7 +118,7 @@
           (if win (rtags-select-other-buffer) (rtags-select))))))
 
 (defun rtags-executable-find (exe)
-  (let ((result (if rtags-path (concat rtags-path "/" exe) (executable-find exe))))
+  (let ((result (if rtags-path (concat rtags-path "/bin/" exe) (executable-find exe))))
     (if (file-exists-p result) result nil)))
 
 (defun rtags-call-rc (path &rest arguments)
