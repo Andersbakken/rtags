@@ -168,8 +168,13 @@ Path findProjectRoot(const Path &path);
 }
 
 #define eintrwrap(VAR, BLOCK)                   \
-    do {                                        \
+    while (true) {                              \
         VAR = BLOCK;                            \
-    } while (VAR == -1 && errno == EINTR)
+        if (VAR != -1 || errno != EINTR) {      \
+            break;                              \
+        } else {                                \
+            sched_yield();                      \
+        }                                       \
+    }
 
 #endif

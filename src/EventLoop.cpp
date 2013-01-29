@@ -151,9 +151,14 @@ int EventLoop::addTimer(int timeout, TimerFunc callback, void* userData)
 
     const char c = 't';
     int r;
-    do {
-        eintrwrap(r, ::write(mEventPipe[1], &c, 1));
-    } while (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
+    while (true) {
+        r = ::write(mEventPipe[1], &c, 1);
+        if (r != -1 || (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)) {
+            break;
+        } else {
+            sched_yield();
+        }
+    }
 
     return handle;
 }
@@ -180,11 +185,18 @@ void EventLoop::addFileDescriptor(int fd, unsigned int flags, FdFunc callback, v
     data.flags = flags;
     data.callback = callback;
     data.userData = userData;
-    const char c = 'f';
-    int r;
-    do {
-        eintrwrap(r, ::write(mEventPipe[1], &c, 1));
-    } while (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
+    if (!pthread_equal(pthread_self(), mThread)) {
+        const char c = 'f';
+        int r;
+        while (true) {
+            r = ::write(mEventPipe[1], &c, 1);
+            if (r != -1 || (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)) {
+                break;
+            } else {
+                sched_yield();
+            }
+        }
+    }
 }
 
 void EventLoop::removeFileDescriptor(int fd, unsigned int flags)
@@ -225,11 +237,18 @@ void EventLoop::postEvent(EventReceiver* receiver, Event* event)
         MutexLocker locker(&mMutex);
         mEvents.push_back(data);
     }
-    const char c = 'e';
-    int r;
-    do {
-        eintrwrap(r, ::write(mEventPipe[1], &c, 1));
-    } while (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
+    if (!pthread_equal(pthread_self(), mThread)) {
+        const char c = 'e';
+        int r;
+        while (true) {
+            r = ::write(mEventPipe[1], &c, 1);
+            if (r != -1 || (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)) {
+                break;
+            } else {
+                sched_yield();
+            }
+        }
+    }
 }
 
 void EventLoop::run()
@@ -384,9 +403,7 @@ void EventLoop::handlePipe()
                 break;
             case 't':
             case 'f':
-                break;
             case 'q':
-                mQuit = true;
                 break;
             }
         } else
@@ -410,9 +427,18 @@ void EventLoop::sendPostedEvents()
 
 void EventLoop::exit()
 {
-    const char q = 'q';
-    int r;
-    do {
-        eintrwrap(r, ::write(mEventPipe[1], &q, 1));
-    } while (r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK));
+    MutexLocker lock(&mMutex);
+    mQuit = true;
+    if (!pthread_equal(pthread_self(), mThread)) {
+        const char c = 'q';
+        int r;
+        while (true) {
+            r = ::write(mEventPipe[1], &c, 1);
+            if (r != -1 || (errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR)) {
+                break;
+            } else {
+                sched_yield();
+            }
+        }
+    }
 }
