@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <time.h>
 #include "List.h"
 
 class ByteArray
@@ -30,7 +31,7 @@ public:
     {}
 
     ByteArray(const ByteArray &ba)
-        : mString(ba.mString)
+    : mString(ba.mString)
     {}
 
     ByteArray(const std::string &str)
@@ -468,6 +469,34 @@ public:
         if (ok)
             *ok = !errno && !*end;
         return ret;
+    }
+
+    enum TimeFormat {
+        DateTime,
+        Time,
+        Date
+    };
+
+    static ByteArray formatTime(time_t t, TimeFormat fmt = DateTime)
+    {
+        const char *format = 0;
+        switch (fmt) {
+        case DateTime:
+            format = "%Y-%m-%d %H:%M:%S";
+            break;
+        case Date:
+            format = "%Y-%m-%d";
+            break;
+        case Time:
+            format = "%H:%M:%S";
+            break;
+        }
+
+        char buf[32];
+        tm tm;
+        localtime_r(&t, &tm);
+        const int w = strftime(buf, sizeof(buf), format, &tm);
+        return ByteArray(buf, w);
     }
 
     static ByteArray number(long long num, int base = 10)

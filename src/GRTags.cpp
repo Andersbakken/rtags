@@ -278,8 +278,8 @@ Path::VisitResult GRTags::visit(const Path &path, void *userData)
             grtags->mPending.append(path);
         } else {
             grtags->mDirty.remove(fileId);
-            debug() << path << "seems to be up to date. Parsed at" << RTags::timeToString(parsed, RTags::DateTime)
-                    << "last modified at" << RTags::timeToString(path.lastModified(), RTags::DateTime);
+            debug() << path << "seems to be up to date. Parsed at" << ByteArray::formatTime(parsed, ByteArray::DateTime)
+                    << "last modified at" << ByteArray::formatTime(path.lastModified(), ByteArray::DateTime);
         }
         break; }
     }
@@ -467,7 +467,7 @@ void GRTags::dump()
     for (Map<uint32_t, time_t>::const_iterator it = mFiles.begin(); it != mFiles.end(); ++it) {
         const Path path = Location::path(it->first);
         if (it->second) {
-            error() << "  " << path << RTags::timeToString(it->second, RTags::DateTime);
+            error() << "  " << path << ByteArray::formatTime(it->second, ByteArray::DateTime);
         } else {
             error() << "  " << path;
         }

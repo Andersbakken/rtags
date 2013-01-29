@@ -732,8 +732,8 @@ void Server::processSourceFile(GccArguments args)
             if (testLog(Debug)) {
                 debug() << "comparing" << c.sourceFile
                         << (existing != c) << (c.sourceFile.lastModified() > existing.parsed)
-                        << RTags::timeToString(c.sourceFile.lastModified())
-                        << RTags::timeToString(existing.parsed);
+                        << ByteArray::formatTime(c.sourceFile.lastModified())
+                        << ByteArray::formatTime(existing.parsed);
             }
             if (existing != c || c.sourceFile.lastModified() > existing.parsed) {
                 project->index(c, IndexerJob::Makefile);

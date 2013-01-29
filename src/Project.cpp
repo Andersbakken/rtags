@@ -116,7 +116,7 @@ bool Project::restore()
                 mModifiedFiles.insert(it->first);
             } else {
                 const time_t parsed = it->second.parsed;
-                // error() << "parsed" << RTags::timeToString(parsed, RTags::DateTime) << parsed;
+                // error() << "parsed" << ByteArray::formatTime(parsed, ByteArray::DateTime) << parsed;
                 assert(mDependencies.value(it->first).contains(it->first));
                 assert(mDependencies.contains(it->first));
                 const Set<uint32_t> &deps = reversedDependencies[it->first];
@@ -271,7 +271,7 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
             mSources[fileId].parsed = job->parseTime();
             error("[%3d%%] %d/%d %s %s. %d mb mem.",
                   static_cast<int>(round((double(idx) / double(mJobCounter)) * 100.0)), idx, mJobCounter,
-                  RTags::timeToString(time(0), RTags::Time).constData(),
+                  ByteArray::formatTime(time(0), ByteArray::Time).constData(),
                   data->message.constData(), int((MemoryMonitor::usage() / (1024 * 1024))));
 
             if (mJobs.isEmpty() && job->flags() & IndexerJob::Dirty) {

@@ -62,34 +62,6 @@ inline bool addTo(Container &container, const Value &value)
     return container.size() != oldSize;
 }
 
-enum TimeFormat {
-    DateTime,
-    Time,
-    Date
-};
-
-inline ByteArray timeToString(time_t t, TimeFormat fmt = DateTime)
-{
-    const char *format = 0;
-    switch (fmt) {
-    case DateTime:
-        format = "%Y-%m-%d %H:%M:%S";
-        break;
-    case Date:
-        format = "%Y-%m-%d";
-        break;
-    case Time:
-        format = "%H:%M:%S";
-        break;
-    }
-
-    char buf[32];
-    tm tm;
-    localtime_r(&t, &tm);
-    const int w = strftime(buf, sizeof(buf), format, &tm);
-    return ByteArray(buf, w);
-}
-
 inline bool encodePath(Path &path)
 {
     int size = path.size();
@@ -168,13 +140,8 @@ Path findProjectRoot(const Path &path);
 }
 
 #define eintrwrap(VAR, BLOCK)                   \
-    while (true) {                              \
+    do {                                        \
         VAR = BLOCK;                            \
-        if (VAR != -1 || errno != EINTR) {      \
-            break;                              \
-        } else {                                \
-            sched_yield();                      \
-        }                                       \
-    }
+    } while (VAR == -1 && errno == EINTR);
 
 #endif
