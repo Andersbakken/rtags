@@ -19,6 +19,4 @@ for i in `which -a "\`basename $0\`"`; do
         "$i" "$@"
         exit $?
     fi
-    # DIR=`dirname $i`
-    # PATH=`echo $PATH | sed -e "s,$DIR,,g"`
 done

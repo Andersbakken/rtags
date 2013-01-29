@@ -17,13 +17,15 @@ List<ByteArray> flags(const Path &compiler)
     for (int i=0; i<2; ++i) {
         Process proc;
         List<ByteArray> args;
+        List<ByteArray> environ;
+        environ << "PATH=/usr/local/bin:/usr/bin";
         if (i == 0) {
             args << "-v" << "-x" << "c++" << "-E" << "-";
         } else {
             if (i == 0)
                 args << "-v" << "-E" << "-";
         }
-        proc.start(compiler, args);
+        proc.start(compiler, args, environ);
         proc.closeStdIn();
         while (!proc.isFinished())
             usleep(100000); // ### this is not particularly nice
