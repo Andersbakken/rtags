@@ -35,8 +35,7 @@ public:
             if (builds.at(i).compiler == compiler && builds.at(i).args == args)
                 return false;
         }
-        const Build b = { compiler, args };
-        builds.append(b);
+        builds.append(Build(compiler, args));
         return true;
     }
 };
