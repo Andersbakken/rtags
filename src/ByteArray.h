@@ -470,10 +470,26 @@ public:
         return ret;
     }
 
-    static ByteArray number(long long num)
+    static ByteArray number(long long num, int base = 10)
     {
+        const char *format = 0;
+        switch (base) {
+        case 10: format = "%lld"; break;
+        case 16: format = "0x%llx"; break;
+        case 8: format = "%llo"; break;
+        case 1: {
+            ByteArray ret;
+            while (num) {
+                ret.append(num & 1 ? '1' : '0');
+                num >>= 1;
+            }
+            return ret; }
+        default:
+            assert(0);
+            return ByteArray();
+        }
         char buf[32];
-        const int w = ::snprintf(buf, sizeof(buf), "%lld", num);
+        const int w = ::snprintf(buf, sizeof(buf), format, num);
         return ByteArray(buf, w);
     }
 
