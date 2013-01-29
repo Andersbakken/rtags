@@ -12,6 +12,7 @@
 #include <sys/ioctl.h>
 #include <time.h>
 #include <unistd.h>
+#include <sched.h>
 
 #ifdef HAVE_MACH_ABSOLUTE_TIME
 #include <mach/mach.h>
