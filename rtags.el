@@ -1322,7 +1322,7 @@ References to references will be treated as references to the referenced symbol"
       (display-buffer "*RTags*")))
 
 (defun rtags-fixit (&optional noediff buffer)
-  (interactive)
+  (interactive "P")
   (save-some-buffers)
   (unless buffer
     (setq buffer (current-buffer)))
