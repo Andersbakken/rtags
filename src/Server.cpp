@@ -927,29 +927,29 @@ void Server::project(const QueryMessage &query, Connection *conn)
         const ProjectsMap::const_iterator it = mProjects.find(match.pattern());
         bool ok = false;
         unsigned long long index = query.query().toULongLong(&ok);
-        if (it != mProjects.end() && it->second) {
+        if (it != mProjects.end()) {
             selected = it->first;
         } else {
             for (ProjectsMap::const_iterator it = mProjects.begin(); it != mProjects.end(); ++it) {
+                assert(it->second);
                 if (ok) {
                     if (!index) {
                         selected = it->first;
                     } else {
                         --index;
                     }
-                } else {
-                    if (it->second && it->second->match(match)) {
-                        if (error) {
-                            conn->write(it->first);
-                        } else if (!selected.isEmpty()) {
-                            error = true;
-                            conn->write<128>("Multiple matches for %s", match.pattern().constData());
-                            conn->write(selected);
-                            conn->write(it->first);
-                            selected.clear();
-                        } else {
-                            selected = it->first;
-                        }
+                }
+                if (it->second->match(match)) {
+                    if (error) {
+                        conn->write(it->first);
+                    } else if (!selected.isEmpty()) {
+                        error = true;
+                        conn->write<128>("Multiple matches for %s", match.pattern().constData());
+                        conn->write(selected);
+                        conn->write(it->first);
+                        selected.clear();
+                    } else {
+                        selected = it->first;
                     }
                 }
             }
