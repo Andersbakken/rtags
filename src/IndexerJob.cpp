@@ -692,7 +692,7 @@ bool IndexerJob::parse(int build)
     if (unit) {
         warning() << "Reparsing" << mSourceInformation.sourceFile << args;
         if (clang_reparseTranslationUnit(unit, 0, 0, clang_defaultReparseOptions(unit))) {
-            clang_getInclusions(unit, inclusionVisitor, this);
+            clang_getInclusions(unit, IndexerJob::inclusionVisitor, this);
             clang_disposeTranslationUnit(unit);
             unit = 0;
             error() << "got failure when reparsing" << mSourceInformation.sourceFile << args;
@@ -742,7 +742,7 @@ bool IndexerJob::parse(int build)
                                           CXTranslationUnit_Incomplete | CXTranslationUnit_DetailedPreprocessingRecord);
     }
     if (unit) {
-        clang_getInclusions(unit, inclusionVisitor, this);
+        clang_getInclusions(unit, IndexerJob::inclusionVisitor, this);
         clang_disposeTranslationUnit(unit);
         unit = 0;
     } else {
@@ -837,16 +837,18 @@ bool IndexerJob::visit(int build)
         abort();
         return false;
     }
-    clang_getInclusions(mUnits.at(build).second, inclusionVisitor, this);
+    clang_getInclusions(mUnits.at(build).second, IndexerJob::inclusionVisitor, this);
     if (isAborted())
         return false;
 
-    clang_visitChildren(clang_getTranslationUnitCursor(mUnits.at(build).second), indexVisitor, this);
+    clang_visitChildren(clang_getTranslationUnitCursor(mUnits.at(build).second),
+                        IndexerJob::indexVisitor, this);
     if (isAborted())
         return false;
     if (testLog(VerboseDebug)) {
         VerboseVisitorUserData u = { 0, "<VerboseVisitor " + mClangLines.at(build) + ">\n", this };
-        clang_visitChildren(clang_getTranslationUnitCursor(mUnits.at(build).second), verboseVisitor, &u);
+        clang_visitChildren(clang_getTranslationUnitCursor(mUnits.at(build).second),
+                            IndexerJob::verboseVisitor, &u);
         u.out += "</VerboseVisitor " + mClangLines.at(build) + ">";
         if (getenv("RTAGS_INDEXERJOB_DUMP_TO_FILE")) {
             char buf[1024];
@@ -875,7 +877,8 @@ void IndexerJob::execute()
                 parse(i);
                 if (mUnits.at(i).second) {
                     DumpUserData u = { 0, this, !(queryFlags() & QueryMessage::NoContext) };
-                    clang_visitChildren(clang_getTranslationUnitCursor(mUnits.at(i).second), dumpVisitor, &u);
+                    clang_visitChildren(clang_getTranslationUnitCursor(mUnits.at(i).second),
+                                        IndexerJob::dumpVisitor, &u);
                 }
             }
         }
@@ -969,7 +972,7 @@ CXChildVisitResult IndexerJob::verboseVisitor(CXCursor cursor, CXCursor, CXClien
     }
     if (u->indent >= 0) {
         u->indent += 2;
-        clang_visitChildren(cursor, verboseVisitor, userData);
+        clang_visitChildren(cursor, IndexerJob::verboseVisitor, userData);
         u->indent -= 2;
         return CXChildVisit_Continue;
     } else {
@@ -1009,7 +1012,7 @@ CXChildVisitResult IndexerJob::dumpVisitor(CXCursor cursor, CXCursor, CXClientDa
         dump->job->write(out);
     }
     ++dump->indentLevel;
-    clang_visitChildren(cursor, dumpVisitor, userData);
+    clang_visitChildren(cursor, IndexerJob::dumpVisitor, userData);
     --dump->indentLevel;
     return CXChildVisit_Continue;
 }
