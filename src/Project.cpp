@@ -48,7 +48,7 @@ bool Project::restore()
     StopWatch timer;
     Path path = mPath;
     RTags::encodePath(path);
-    const Path p = ByteArray::format<128>("%s%s", Server::instance()->options().dataDir.constData(), path.constData());
+    const Path p = Server::instance()->options().dataDir + path;
     bool restoreError = false;
     FILE *f = fopen(p.constData(), "r");
     if (!f)
@@ -245,17 +245,6 @@ void Project::onJobFinished(const shared_ptr<IndexerJob> &job)
     bool startPending = false;
     {
         MutexLocker lock(&mMutex);
-
-        if (Server::instance()->options().completionCacheSize) {
-            const List<std::pair<CXIndex, CXTranslationUnit> > units = job->takeUnits();
-            const SourceInformation &sourceInfo = job->sourceInformation();
-            for (int i=0; i<units.size(); ++i) {
-                if (units.at(i).first) {
-                    assert(units.at(i).second);
-                    addCachedUnit(sourceInfo.sourceFile, sourceInfo.builds.at(i).args, units.at(i).first, units.at(i).second);
-                }
-            }
-        }
 
         const uint32_t fileId = job->fileId();
         if (job->isAborted()) {

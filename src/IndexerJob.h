@@ -30,14 +30,12 @@ public:
         IgnorePrintfFixits = 0x4
     };
     IndexerJob(const shared_ptr<Project> &project, unsigned flags,
-               const SourceInformation &sourceInformation,
-               const UnitList &units = UnitList());
+               const SourceInformation &sourceInformation);
     IndexerJob(const QueryMessage &msg,
                const shared_ptr<Project> &project,
                const SourceInformation &sourceInformation);
 
     shared_ptr<IndexData> data() const { return mData; }
-    UnitList takeUnits();
     uint32_t fileId() const { return mFileId; }
     Path path() const { return mSourceInformation.sourceFile; }
     bool abortIfStarted();
@@ -80,7 +78,6 @@ private:
 
     SourceInformation mSourceInformation;
     const uint32_t mFileId;
-
     UnitList mUnits;
 
     Map<ByteArray, uint32_t> mFileIds;

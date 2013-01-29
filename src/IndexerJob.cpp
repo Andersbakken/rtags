@@ -23,21 +23,17 @@ struct VerboseVisitorUserData {
 };
 
 IndexerJob::IndexerJob(const shared_ptr<Project> &project, unsigned flags,
-                       const SourceInformation &sourceInformation,
-                       const UnitList &units)
+                       const SourceInformation &sourceInformation)
     : Job(0, project), mSourceInformation(sourceInformation), mFileId(Location::insertFile(sourceInformation.sourceFile)),
-      mUnits(units), mDump(false), mParseTime(0), mStarted(false)
+      mUnits(sourceInformation.builds.size()), mDump(false), mParseTime(0), mStarted(false)
 {
-    if (mUnits.isEmpty())
-        mUnits.resize(mSourceInformation.builds.size());
-    assert(mUnits.size() == mSourceInformation.builds.size());
 }
 IndexerJob::IndexerJob(const QueryMessage &msg, const shared_ptr<Project> &project,
                        const SourceInformation &sourceInformation)
     : Job(msg, WriteUnfiltered|WriteBuffered, project), mFlags(0), mSourceInformation(sourceInformation),
-      mFileId(Location::insertFile(sourceInformation.sourceFile)), mDump(true), mParseTime(0), mStarted(false)
+      mFileId(Location::insertFile(sourceInformation.sourceFile)), mUnits(sourceInformation.builds.size()),
+      mDump(true), mParseTime(0), mStarted(false)
 {
-    mUnits.resize(mSourceInformation.builds.size());
 }
 
 void IndexerJob::inclusionVisitor(CXFile includedFile,
@@ -1025,10 +1021,3 @@ bool IndexerJob::abortIfStarted()
     return mAborted;
 }
 
-UnitList IndexerJob::takeUnits()
-{
-    UnitList ret;
-    MutexLocker lock(&mMutex);
-    std::swap(ret, mUnits);
-    return ret;
-}
