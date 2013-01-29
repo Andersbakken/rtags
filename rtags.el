@@ -34,10 +34,11 @@
      (1 font-lock-string-face)
      (2 font-lock-function-name-face))))
 
-(defun rtags-get-buffer ()
-  (if (get-buffer rtags-buffer-name)
-      (kill-buffer rtags-buffer-name))
-  (generate-new-buffer rtags-buffer-name))
+(defun rtags-get-buffer (&optional name)
+  (unless name (setq name rtags-buffer-name))
+  (if (get-buffer name)
+      (kill-buffer name))
+  (generate-new-buffer name))
 
 (defun rtags-bury-or-delete ()
   (interactive)
@@ -1320,12 +1321,16 @@ References to references will be treated as references to the referenced symbol"
   (if (get-buffer "*RTags*")
       (display-buffer "*RTags*")))
 
-(defun rtags-fixit (&optional buffer)
+(defun rtags-fixit (&optional noediff buffer)
   (interactive)
+  (save-some-buffers)
   (unless buffer
     (setq buffer (current-buffer)))
   (save-excursion
-    (let ((path (buffer-file-name buffer)) line)
+    (let* ((path (buffer-file-name buffer))
+           (tempbuf nil)
+           (buffertext (unless noediff (with-current-buffer buffer (buffer-string))))
+           (line nil))
       (with-temp-buffer
         (rtags-call-rc path "--fixit" path)
         (goto-char (point-min))
@@ -1335,14 +1340,23 @@ References to references will be treated as references to the referenced symbol"
                 (let ((start (string-to-int (match-string 1 line)))
                       (end (string-to-int (match-string 2 line)))
                       (text (match-string 3 line)))
+                  (when (not (or noediff tempbuf))
+                    (setq tempbuf (rtags-get-buffer (format "*RTags Fixit - %s *" path)))
+                    (with-current-buffer tempbuf
+                      (insert buffertext)))
                   (save-excursion
-                    (set-buffer buffer)
+                    (set-buffer (or tempbuf buffer))
                     (goto-char (+ start 1)) ;; emacs offsets start at 1 for some reason
                     (delete-char (- end start)) ;; may be 0
                     (insert text)))))
           ;; (message (format "got something %d to %d => [%s]" start end text))))
           (next-line))
         )
+      (if tempbuf
+        (let ((tempbufname (format "/tmp/rtags-fixit-%s" (file-name-nondirectory path))))
+          (with-current-buffer tempbuf (write-file tempbufname))
+          (kill-buffer tempbuf)
+          (ediff path tempbufname)))
       )
     )
   )
