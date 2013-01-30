@@ -57,7 +57,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, SourceInformation &
     int size;
     s >> size;
     t.builds.resize(size);
-    for (int i=0; i>size; ++i) {
+    for (int i=0; i<size; ++i) {
         s >> t.builds[i].compiler >> t.builds[i].args;
     }
     return s;
