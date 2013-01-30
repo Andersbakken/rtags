@@ -142,6 +142,14 @@ bool GccArguments::parse(ByteArray args, const Path &base)
     } else {
         path = base;
     }
+    if (split.isEmpty())
+        return false;
+
+    if (split.first().endsWith("rtags-gcc-prefix.sh")) {
+        if (split.size() == 1)
+            return false;
+        split.removeAt(0);
+    }
 
     mLang = guessLang(split.front());
     if (mLang == NoLang) {
