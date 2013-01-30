@@ -498,7 +498,14 @@ struct Entry {
 static inline Path checkEntry(const Entry *entries, const Path &path, const Path &home)
 {
     for (int i=0; entries[i].name; ++i) {
-        const Path p = findAncestor(path, entries[i].name, entries[i].flags);
+        Path p = findAncestor(path, entries[i].name, entries[i].flags);
+        if ((p.isEmpty() || p == home) && (entries[i].flags & Wildcard)) {
+            const int len = strlen(entries[i].name);
+            if (entries[i].name[len - 1] == '*') {
+                const ByteArray name(entries[i].name, len - 1);
+                p = findAncestor(path, name.constData(), entries[i].flags & ~Wildcard);
+            }
+        }
         if (!p.isEmpty() && p != home) {
             if (!p.compare("./") || !p.compare("."))
                 error() << "1" << path << "=>" << p << entries[i].name;
