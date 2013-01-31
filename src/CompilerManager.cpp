@@ -50,7 +50,7 @@ List<ByteArray> flags(const Path &compiler)
             flags.append(path);
         }
     }
-    error() << compiler << "got\n" << ByteArray::join(flags, "\n");
+    warning() << compiler << "got\n" << ByteArray::join(flags, "\n");
 
     return flags;
 }
