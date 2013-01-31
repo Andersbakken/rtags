@@ -584,19 +584,20 @@ Path findProjectRoot(const Path &path)
             if (f) {
                 Path ret;
                 char line[1024];
-                enum { MaxLines = 10 };
+                enum { MaxLines = 256 };
                 for (int i=0; i<MaxLines; ++i) {
                     int r = RTags::readLine(f, line, sizeof(line));
-                    if (r == -1)
+                    if (r == -1) {
                         break;
+                    }
                     if (!strncmp(line, "CMAKE_SOURCE_DIR", 16)) {
-                        fclose(f);
                         char *dir = line + 16;
                         while (*dir && (*dir == ' ' || *dir == '='))
                             ++dir;
                         if (dir != home) {
                             ret = dir;
-                            if (!Path(ret + "/CMakeLists.txt").isFile())
+                            ret += '/';
+                            if (!Path(ret + "CMakeLists.txt").isFile())
                                 ret.clear();
                         }
                         break;
