@@ -267,6 +267,9 @@ void Server::handleQueryMessage(QueryMessage *message, Connection *conn)
     case QueryMessage::Invalid:
         assert(0);
         break;
+    case QueryMessage::Builds:
+        builds(*message, conn);
+        break;
     case QueryMessage::IsIndexing:
         isIndexing(*message, conn);
         break;
@@ -1003,6 +1006,20 @@ void Server::shutdown(const QueryMessage &query, Connection *conn)
 {
     EventLoop::instance()->exit();
     conn->write("Shutting down");
+    conn->finish();
+}
+
+void Server::builds(const QueryMessage &query, Connection *conn)
+{
+    const Path path = query.query();
+    shared_ptr<Project> project = updateProjectForLocation(path);
+    if (project) {
+        const uint32_t fileId = Location::fileId(path);
+        if (fileId) {
+            const SourceInformation info = project->sourceInfo(fileId);
+            conn->write(info.toString());
+        }
+    }
     conn->finish();
 }
 

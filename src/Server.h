@@ -100,6 +100,7 @@ private:
     void project(const QueryMessage &query, Connection *conn);
     void clearProjects(const QueryMessage &query, Connection *conn);
     void shutdown(const QueryMessage &query, Connection *conn);
+    void builds(const QueryMessage &query, Connection *conn);
     int nextId();
     void reindex(const QueryMessage &query, Connection *conn);
     shared_ptr<Project> updateProjectForLocation(const Match &match);

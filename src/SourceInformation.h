@@ -38,6 +38,16 @@ public:
         builds.append(Build(compiler, args));
         return true;
     }
+    inline ByteArray toString() const
+    {
+        ByteArray out = ByteArray::format<64>("%s %s\n", sourceFile.constData(),
+                                              parsed ? ("Parsed: " +ByteArray::formatTime(parsed, ByteArray::DateTime)).constData() : "Not parsed");
+        for (int i=0; i<builds.size(); ++i) {
+            out += ByteArray::format<256>("  %s %s\n", builds.at(i).compiler.constData(),
+                                          ByteArray::join(builds.at(i).args, ' ').constData());
+        }
+        return out;
+    }
 };
 
 template <> inline Serializer &operator<<(Serializer &s, const SourceInformation &t)
@@ -65,14 +75,7 @@ template <> inline Deserializer &operator>>(Deserializer &s, SourceInformation &
 
 static inline Log operator<<(Log dbg, const SourceInformation &s)
 {
-    ByteArray out = ByteArray::format<64>("SourceInformation(%s (%s)", s.sourceFile.constData(),
-                                          s.parsed ? ByteArray::formatTime(s.parsed, ByteArray::DateTime).constData() : "not parsed");
-    for (int i=0; i<s.builds.size(); ++i) {
-        out += ByteArray::format<256>(" %s %s", s.builds.at(i).compiler.constData(),
-                                      ByteArray::join(s.builds.at(i).args, ' ').constData());
-    }
-    dbg << out;
-
+    dbg << ByteArray::format<256>("SourceInformation(%s)", s.toString().constData());
     return dbg;
 }
 

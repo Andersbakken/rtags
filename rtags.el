@@ -178,6 +178,12 @@
   (setq buffer-read-only t)
   )
 
+(defun rtags-builds (file)
+  (with-temp-buffer
+    (rtags-call-rc nil "--builds" file)
+    (buffer-string))
+  )
+
 (defun rtags-preprocess-file (&optional build-index buffer)
   (interactive "P")
   (setq build-index (cond ((and build-index (not (integerp build-index)))
