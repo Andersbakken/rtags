@@ -36,6 +36,7 @@ void FollowLocationJob::execute()
                 case CXCursor_CXXMethod:
                 case CXCursor_Destructor:
                 case CXCursor_Constructor:
+                case CXCursor_FunctionTemplate:
                     target = target.bestTarget(map, &loc);
                     break;
                 default:
