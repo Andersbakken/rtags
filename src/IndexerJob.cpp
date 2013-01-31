@@ -687,19 +687,9 @@ bool IndexerJob::parse(int build)
         return false;
     }
     const List<ByteArray> args = mSourceInformation.builds.at(build).args;
-
+    const List<ByteArray> &defaultArguments = Server::instance()->options().defaultArguments;
     CXTranslationUnit &unit = mUnits[build].second;
-    if (unit) {
-        warning() << "Reparsing" << mSourceInformation.sourceFile << args;
-        if (clang_reparseTranslationUnit(unit, 0, 0, clang_defaultReparseOptions(unit))) {
-            clang_getInclusions(unit, IndexerJob::inclusionVisitor, this);
-            clang_disposeTranslationUnit(unit);
-            unit = 0;
-            error() << "got failure when reparsing" << mSourceInformation.sourceFile << args;
-        }
-        return !isAborted();
-    }
-
+    assert(!unit);
     mClangLines.append(ByteArray());
     ByteArray &clangLine = mClangLines[build];
 
@@ -707,18 +697,21 @@ bool IndexerJob::parse(int build)
     clangLine += ' ';
 
     int idx = 0;
-    List<const char*> clangArgs(args.size(), 0);
+    List<const char*> clangArgs(args.size() + defaultArguments.size(), 0);
 
-    const int count = args.size();
-    for (int j=0; j<count; ++j) {
-        ByteArray arg = args.at(j);
-        if (arg.isEmpty())
-            continue;
+    const List<ByteArray> *lists[] = { &args, &defaultArguments };
+    for (int i=0; i<2; ++i) {
+        const int count = lists[i]->size();
+        for (int j=0; j<count; ++j) {
+            ByteArray arg = lists[i]->at(j);
+            if (arg.isEmpty())
+                continue;
 
-        clangArgs[idx++] = args.at(j).constData();
-        arg.replace("\"", "\\\"");
-        clangLine += arg;
-        clangLine += ' ';
+            clangArgs[idx++] = lists[i]->at(j).constData();
+            arg.replace("\"", "\\\"");
+            clangLine += arg;
+            clangLine += ' ';
+        }
     }
 
     clangLine += mSourceInformation.sourceFile;

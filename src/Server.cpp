@@ -161,8 +161,9 @@ int Server::reloadProjects()
                 }
                 fclose(f);
             }
-            if (remove)
-                Path::rm(p);
+            if (remove) {
+                Path::rm(file);
+            }
         }
     }
     return mProjects.size();
@@ -723,7 +724,6 @@ void Server::processSourceFile(GccArguments args)
         }
 
         List<ByteArray> arguments = args.clangArgs();
-        arguments.append(mOptions.defaultArguments);
 
         for (int i=0; i<count; ++i) {
             SourceInformation sourceInformation = project->sourceInfo(Location::insertFile(inputFiles.at(i)));
