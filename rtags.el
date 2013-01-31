@@ -213,7 +213,7 @@
           (display-buffer preprocess-buffer))
       )))
 
-(defun rtags-reparse-file(&optional buffer)
+(defun rtags-reparse-file (&optional buffer)
   (interactive)
   (let ((path (rtags-path-for-project)))
     (with-temp-buffer
@@ -258,7 +258,7 @@
 ;;   )
 ;; )
 
-(defun rtags-find-ancestor-file(pattern)
+(defun rtags-find-ancestor-file (pattern)
   "Find a file named \a file in as shallow a path as possible,
   e.g. if there's a Makefile in /foobar/rtags/rc/Makefile and one
   in /foobar/rtags/Makefile it will return the latter. Wildcards
@@ -274,7 +274,7 @@
       (setq dir (substring dir 0 (string-match "[^/]*/?$" dir))))
     best))
 
-(defun rtags-find-ancestor-file-directory(pattern)
+(defun rtags-find-ancestor-file-directory (pattern)
   (let ((match (rtags-find-ancestor-file pattern)))
     (if match
         (file-name-directory match))))
@@ -351,11 +351,11 @@
 
 (defvar rtags-symbol-history nil)
 
-(defun rtags-save-location()
+(defun rtags-save-location ()
   (setq rtags-last-buffer (current-buffer))
   (rtags-bookmark-push))
 
-(defun rtags-goto-location(location &optional nobookmark &optional otherbuffer)
+(defun rtags-goto-location (location &optional nobookmark &optional otherbuffer)
   ;;  (message (format "rtags-goto-location \"%s\"" location))
   (if (length location)
       (progn
@@ -510,7 +510,7 @@
   :group 'rtags
   :type 'number)
 
-(defcustom rtags-expand-function '(lambda() (dabbrev-expand nil))
+(defcustom rtags-expand-function '(lambda () (dabbrev-expand nil))
   "What function to call for expansions"
   :group 'rtags
   :type 'function)
@@ -605,12 +605,12 @@ return t if rtags is allowed to modify this file"
   (let ((buf (get-buffer "*RTags Completions*")))
     (switch-to-buffer-other-window buf)))
 
-(defun rtags-bookmark-forward()
+(defun rtags-bookmark-forward ()
   (interactive)
   (rtags-bookmark-jump -1)
   )
 
-(defun rtags-bookmark-back()
+(defun rtags-bookmark-back ()
   (interactive)
   (rtags-bookmark-jump 1)
   )
@@ -664,7 +664,7 @@ If called with a prefix restrict to current buffer"
     )
   )
 
-(defun rtags-find-references-at-point(&optional prefix)
+(defun rtags-find-references-at-point (&optional prefix)
   "Find all references to the symbol under the cursor
 If there's exactly one result jump directly to it.
 If there's more show a buffer with the different alternatives and jump to the first one if rtags-jump-to-first-match is true.
@@ -679,7 +679,7 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
-(defun rtags-find-virtuals-at-point(&optional prefix)
+(defun rtags-find-virtuals-at-point (&optional prefix)
   (interactive "P")
   "List all reimplentations of function under cursor. This includes both declarations and definitions"
   (rtags-setup-filters prefix)
@@ -691,7 +691,7 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
-(defun rtags-find-all-references-at-point(&optional prefix)
+(defun rtags-find-all-references-at-point (&optional prefix)
   (interactive "P")
   (rtags-setup-filters prefix)
   (rtags-save-location)
@@ -779,7 +779,7 @@ References to references will be treated as references to the referenced symbol"
   (interactive)
   (rtags-find-references t))
 
-(defun rtags-dir-filter()
+(defun rtags-dir-filter ()
   (concat (substring buffer-file-name
                      0
                      (string-match
@@ -799,7 +799,7 @@ References to references will be treated as references to the referenced symbol"
   (rtags-find-symbols-by-name-internal "Find rreferences" t (rtags-dir-filter))
   (setq rtags-path-filter-regex nil))
 
-(defun rtags-find-symbol-start() ;; returns column
+(defun rtags-find-symbol-start () ;; returns column
   (save-excursion
     (let ((looking-at-space (looking-at "[ \t\n]")))
       (skip-chars-backward " \t" (point-at-bol))
@@ -811,7 +811,7 @@ References to references will be treated as references to the referenced symbol"
     (- (point) (point-at-bol))))
   )
 
-(defun rtags-post-expand()
+(defun rtags-post-expand ()
   (save-excursion
     (let ((end (point)))
       (backward-char)
@@ -820,7 +820,7 @@ References to references will be treated as references to the referenced symbol"
         (if sig
             (message "%s" (combine-and-quote-strings sig "\n")))))))
 
-(defun rtags-expand-internal()
+(defun rtags-expand-internal ()
   (save-excursion
     (with-current-buffer rtags-completion
       (if (= (point-min) (point-max))
@@ -856,7 +856,7 @@ References to references will be treated as references to the referenced symbol"
        (string= (buffer-substring (point-at-bol) (+ (point-at-bol) rtags-completion-cache-column))
                 rtags-completion-cache-line-contents)))
 
-(defun rtags-expand()
+(defun rtags-expand ()
   (interactive)
   (if rtags-completion
       (rtags-expand-internal)
@@ -866,7 +866,7 @@ References to references will be treated as references to the referenced symbol"
   )
 
 
-(defun rtags-prepare-completion()
+(defun rtags-prepare-completion ()
   (interactive)
   ;; (message "prepare completion")
   (when rtags-completion-cache-timer
@@ -1238,10 +1238,12 @@ References to references will be treated as references to the referenced symbol"
              (if (intern-soft string complete-list) t nil))))))
 
 
-(defun rtags-select(&optional otherbuffer)
+(defun rtags-select (&optional otherbuffer)
   (interactive "P")
-  (let ((bookmark (format "R_%d" (line-number-at-pos))))
-    (if (member bookmark (bookmark-all-names))
+  (let* ((line (line-number-at-pos))
+         (bookmark (format "R_%d" line)))
+    (if (and (>= rtags-buffer-bookmarks line)
+             (member bookmark (bookmark-all-names)))
         (progn
           (when otherbuffer
             (if (= (length (window-list)) 1)
@@ -1252,12 +1254,12 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
-(defun rtags-select-other-buffer(&optional nototherbuffer)
+(defun rtags-select-other-buffer (&optional nototherbuffer)
   (interactive "P")
   (rtags-select (not nototherbuffer))
   )
 
-(defun rtags-select-and-remove-rtags-buffer()
+(defun rtags-select-and-remove-rtags-buffer ()
   (interactive)
   (let ((line (buffer-substring (point-at-bol) (point-at-eol))))
     (delete-window)
@@ -1361,7 +1363,7 @@ References to references will be treated as references to the referenced symbol"
     )
   )
 
-(defun rtags-goto-offset(offset)
+(defun rtags-goto-offset (offset)
   (interactive "NOffset: ")
   (if offset
       (goto-char (+ 1 offset))))
