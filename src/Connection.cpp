@@ -46,6 +46,9 @@ bool Connection::connectToServer(const String &name, int timeout)
 
 bool Connection::send(int id, const String &message)
 {
+    if (message.isEmpty())
+        return true;
+
     if (!mClient->isConnected()) {
         ::error("Trying to send message to unconnected client (%d)", id);
         return false;
